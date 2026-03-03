@@ -30,4 +30,8 @@ Simplicity in the build is a conscious choice to preserve flexibility.
 ---
 
 ## TL;DR
+<<<<<<< HEAD
 This is not a feature-first engine — it is a foundation-first architecture project. If the core proves solid, features and tooling will follow.
+=======
+This is not a feature-first engine — it is a foundation-first architecture project. If the core proves solid, features and tooling will follow.
+>>>>>>> a5ec3a3d2c7d8fe251269090e7fa376132c902c9
