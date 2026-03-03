@@ -1,0 +1,366 @@
+
+cmake_minimum_required(VERSION 3.20)
+project(SagaEngine LANGUAGES C CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Prefer static libs" FORCE)
+
+if(CMAKE_GENERATOR MATCHES "MinGW Makefiles")
+    find_program(MINGW_GCC NAMES x86_64-w64-mingw32-gcc.exe gcc.exe PATHS ENV PATH NO_DEFAULT_PATH)
+    find_program(MINGW_GXX NAMES x86_64-w64-mingw32-g++.exe g++.exe PATHS ENV PATH NO_DEFAULT_PATH)
+    find_program(MINGW_MAKE NAMES mingw32-make.exe make.exe PATHS ENV PATH NO_DEFAULT_PATH)
+    if(MINGW_GCC AND MINGW_GXX)
+        set(CMAKE_C_COMPILER "${MINGW_GCC}" CACHE FILEPATH "C compiler" FORCE)
+        set(CMAKE_CXX_COMPILER "${MINGW_GXX}" CACHE FILEPATH "C++ compiler" FORCE)
+    else()
+        message(FATAL_ERROR "MinGW generator selected but gcc/g++ not found in PATH. Use MSYS2 MinGW64 shell or add MinGW bin to PATH.")
+    endif()
+    if(MINGW_MAKE)
+        set(CMAKE_MAKE_PROGRAM "${MINGW_MAKE}" CACHE FILEPATH "make program" FORCE)
+    else()
+        message(WARNING "mingw32-make not found in PATH; build may fail.")
+    endif()
+endif()
+
+set(THIRD_PARTY_BUILD_ROOT "${CMAKE_SOURCE_DIR}/.thirdparty_build" CACHE PATH "Persistent folder for thirdparty builds")
+file(MAKE_DIRECTORY "${THIRD_PARTY_BUILD_ROOT}")
+
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Build type" FORCE)
+endif()
+
+option(SAGA_ENABLE_VULKAN   "Enable Vulkan backend"     OFF)
+option(SAGA_ENABLE_OPENGL   "Enable OpenGL backend"     ON)
+
+function(maybe_link_target tgt exe_target)
+    if(TARGET ${tgt})
+        get_target_property(_tgt_type ${tgt} TYPE)
+        if(NOT _tgt_type STREQUAL "UTILITY")
+            message(STATUS "Linking ${exe_target} with target: ${tgt} (type=${_tgt_type})")
+            target_link_libraries(${exe_target} PRIVATE ${tgt})
+        endif()
+    endif()
+endfunction()
+
+# -------------------------------------------------------------------------
+# FreeType (robust): either add_subdirectory if CMakeLists exists, otherwise build static from sources
+# -------------------------------------------------------------------------
+set(FT_DIR "${CMAKE_SOURCE_DIR}/Thirdparty/source/freetype")
+set(FREETYPE_INCLUDE_DIRS "${FT_DIR}/include")
+set(FREETYPE_TARGET "")
+
+if(EXISTS "${FT_DIR}/CMakeLists.txt")
+    add_subdirectory("${FT_DIR}" "${THIRD_PARTY_BUILD_ROOT}/freetype")
+    if(TARGET Freetype::Freetype)
+        set(FREETYPE_TARGET "Freetype::Freetype")
+    elseif(TARGET freetype)
+        set(FREETYPE_TARGET "freetype")
+    endif()
+    list(APPEND CMAKE_PREFIX_PATH "${THIRD_PARTY_BUILD_ROOT}/freetype")
+    set(Freetype_ROOT "${THIRD_PARTY_BUILD_ROOT}/freetype" CACHE PATH "Freetype root for downstream consumers" FORCE)
+else()
+    file(GLOB_RECURSE FT_SRC "${FT_DIR}/src/*.c" "${FT_DIR}/src/*.cpp" "${FT_DIR}/src/*.cc")
+    if(FT_SRC)
+        message(STATUS "Freetype CMake not found; building freetype STATIC from sources")
+        add_library(freetype STATIC ${FT_SRC})
+        target_include_directories(freetype PUBLIC "${FREETYPE_INCLUDE_DIRS}")
+        target_compile_features(freetype PUBLIC cxx_std_20)
+        set(FREETYPE_TARGET "freetype")
+        if(NOT TARGET "Freetype::Freetype")
+            add_library(Freetype::Freetype ALIAS freetype)
+            message(STATUS "Created ALIAS: Freetype::Freetype -> freetype")
+        endif()
+        list(APPEND CMAKE_PREFIX_PATH "${THIRD_PARTY_BUILD_ROOT}/freetype")
+        set(Freetype_ROOT "${THIRD_PARTY_BUILD_ROOT}/freetype" CACHE PATH "Freetype root for downstream consumers" FORCE)
+    else()
+        message(WARNING "Freetype sources not found at ${FT_DIR}; fonts and RmlUi may fail to configure.")
+    endif()
+endif()
+
+# Ensure alias exists if some other target name was created by bundled freetype build
+if(NOT TARGET "Freetype::Freetype")
+    if(TARGET freetype)
+        add_library(Freetype::Freetype ALIAS freetype)
+        message(STATUS "Created ALIAS: Freetype::Freetype -> freetype (fallback)")
+    elseif(TARGET Freetype)
+        add_library(Freetype::Freetype ALIAS Freetype)
+        message(STATUS "Created ALIAS: Freetype::Freetype -> Freetype (fallback)")
+    endif()
+endif()
+
+# -------------------------------------------------------------------------
+# RmlUi (hook into its CMake) - force freetype, disable samples, disable PCH/tracy
+# -------------------------------------------------------------------------
+set(RMLUI_DIR "${CMAKE_SOURCE_DIR}/Thirdparty/source/rmlui")
+if(EXISTS "${RMLUI_DIR}/CMakeLists.txt")
+    set(RMLUI_FONT_ENGINE "freetype" CACHE STRING "Font engine" FORCE)
+    set(RMLUI_SAMPLES OFF CACHE BOOL "Build samples" FORCE)
+    set(RMLUI_PRECOMPILED_HEADERS OFF CACHE BOOL "Disable PCH for portability" FORCE)
+    set(RMLUI_TRACY_PROFILING OFF CACHE BOOL "Disable tracy" FORCE)
+
+    list(APPEND CMAKE_PREFIX_PATH "${THIRD_PARTY_BUILD_ROOT}/freetype")
+    set(Freetype_ROOT "${THIRD_PARTY_BUILD_ROOT}/freetype" CACHE PATH "Force Freetype root for RmlUi" FORCE)
+
+    message(STATUS "Attempting to add_subdirectory(RmlUi) at: ${RMLUI_DIR}")
+    add_subdirectory("${RMLUI_DIR}" "${THIRD_PARTY_BUILD_ROOT}/rmlui" EXCLUDE_FROM_ALL)
+    if(TARGET RmlUi::RmlUi)
+        message(STATUS "RmlUi target available: RmlUi::RmlUi")
+    else()
+        message(WARNING "RmlUi added but RmlUi::RmlUi target not found; check RmlUi build output.")
+    endif()
+else()
+    message(STATUS "RmlUi source not found at ${RMLUI_DIR} - skipping RmlUi")
+endif()
+
+# -------------------------------------------------------------------------
+# Diligent (force static where possible)
+# -------------------------------------------------------------------------
+set(DIL_ROOT "${CMAKE_SOURCE_DIR}/Thirdparty/source/diligent")
+if(EXISTS "${DIL_ROOT}/CMakeLists.txt")
+    set(DIL_BINARY_DIR "${THIRD_PARTY_BUILD_ROOT}/diligent")
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "Prefer static libs" FORCE)
+    set(DILIGENT_BUILD_SHARED OFF CACHE BOOL "Disable Diligent shared libs" FORCE)
+    set(DILIGENT_BUILD_STATIC ON CACHE BOOL "Enable Diligent static libs" FORCE)
+    set(DILIGENT_BUILD_SAMPLES OFF CACHE BOOL "Do not build samples" FORCE)
+    set(DILIGENT_BUILD_TESTS OFF CACHE BOOL "Do not build tests" FORCE)
+    set(DILIGENT_INSTALL_CORE OFF CACHE BOOL "Do not install core libraries" FORCE)
+
+    if(NOT SAGA_ENABLE_OPENGL)
+        set(DILIGENT_NO_OPENGL ON CACHE BOOL "Disable OpenGL backend" FORCE)
+    else()
+        set(DILIGENT_NO_OPENGL OFF CACHE BOOL "Enable OpenGL backend" FORCE)
+    endif()
+
+    if(SAGA_ENABLE_VULKAN)
+        set(DILIGENT_NO_VULKAN OFF CACHE BOOL "Enable Vulkan backend" FORCE)
+    else()
+        set(DILIGENT_NO_VULKAN ON CACHE BOOL "Disable Vulkan backend" FORCE)
+    endif()
+
+    add_subdirectory("${DIL_ROOT}" "${DIL_BINARY_DIR}" EXCLUDE_FROM_ALL)
+
+    set(DIL_SHARED_CANDIDATES
+        "Diligent-GraphicsEngineOpenGL-shared"
+        "Diligent-GraphicsEngineVk-shared"
+        "Diligent-GraphicsEngineOpenGL_shared"
+        "Diligent-GraphicsEngineVk_shared"
+        "Diligent-GraphicsEngineOpenGL" "Diligent-GraphicsEngineVk"
+    )
+    foreach(tgt IN LISTS DIL_SHARED_CANDIDATES)
+        if(TARGET ${tgt})
+            set_target_properties(${tgt} PROPERTIES EXCLUDE_FROM_ALL TRUE)
+            message(STATUS "Marked Diligent target excluded from all: ${tgt}")
+        endif()
+    endforeach()
+else()
+    message(STATUS "Diligent root not found at ${DIL_ROOT} - skipping")
+endif()
+
+# -------------------------------------------------------------------------
+# Qt prebuilt fallback: try find_package first, otherwise create IMPORTED targets from .a files
+# -------------------------------------------------------------------------
+set(THIRD_PARTY_QT_DIR "${CMAKE_SOURCE_DIR}/Thirdparty/prebuilt/qt/windows/6.10.2/mingw_64")
+if(EXISTS "${THIRD_PARTY_QT_DIR}")
+    message(STATUS "Adding Qt prebuilt path to CMAKE_PREFIX_PATH: ${THIRD_PARTY_QT_DIR}")
+    list(APPEND CMAKE_PREFIX_PATH "${THIRD_PARTY_QT_DIR}")
+endif()
+
+# Try config-mode find first
+find_package(Qt6 COMPONENTS Core Gui Widgets QUIET)
+if(TARGET Qt6::Core)
+    message(STATUS "Qt6 found via find_package; using Qt6::Core/Gui/Widgets")
+else()
+    # fallback: create imported targets from static libs under prebuilt path
+    set(QT_PREBUILT_DIR "${THIRD_PARTY_QT_DIR}")
+    if(EXISTS "${QT_PREBUILT_DIR}")
+        message(STATUS "Attempting to create imported Qt targets from: ${QT_PREBUILT_DIR}")
+
+        set(_qt_lib_dirs
+            "${QT_PREBUILT_DIR}/lib"
+            "${QT_PREBUILT_DIR}/lib64"
+            "${QT_PREBUILT_DIR}/lib/x64"
+            "${QT_PREBUILT_DIR}/lib/x86"
+            "${QT_PREBUILT_DIR}"
+        )
+
+        function(_find_qt_lib outvar)
+            set(_names ${ARGN})
+            set(_found "")
+            foreach(n ${_names})
+                find_library(_tmp_lib NAMES ${n} PATHS ${_qt_lib_dirs} NO_DEFAULT_PATH)
+                if(_tmp_lib)
+                    set(_found "${_tmp_lib}")
+                    break()
+                endif()
+            endforeach()
+            set(${outvar} "${_found}" PARENT_SCOPE)
+        endfunction()
+
+        _find_qt_lib(_qt_core_lib Qt6Core Qt6Core4 libQt6Core Qt6Core_a)
+        _find_qt_lib(_qt_gui_lib  Qt6Gui  Qt6Gui4  libQt6Gui  Qt6Gui_a)
+        _find_qt_lib(_qt_widgets_lib Qt6Widgets Qt6Widgets4 libQt6Widgets Qt6Widgets_a)
+
+        # try to detect include dir: prefer include/ or include/Qt6 etc.
+        set(_qt_include_dir "")
+        if(EXISTS "${QT_PREBUILT_DIR}/include")
+            set(_qt_include_dir "${QT_PREBUILT_DIR}/include")
+        else()
+            file(GLOB_RECURSE _qapp_files LIST_DIRECTORIES false "${QT_PREBUILT_DIR}/**/QApplication" "${QT_PREBUILT_DIR}/**/QApplication.h")
+            if(_qapp_files)
+                list(GET _qapp_files 0 _first_qapp)
+                get_filename_component(_qt_include_dir "${_first_qapp}" DIRECTORY)
+            endif()
+        endif()
+
+        if(_qt_core_lib AND NOT TARGET Qt6::Core)
+            add_library(Qt6::Core STATIC IMPORTED)
+            set_target_properties(Qt6::Core PROPERTIES
+                IMPORTED_LOCATION "${_qt_core_lib}"
+                IMPORTED_LOCATION_RELEASE "${_qt_core_lib}"
+                IMPORTED_LOCATION_DEBUG "${_qt_core_lib}"
+            )
+            if(_qt_include_dir)
+                set_target_properties(Qt6::Core PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${_qt_include_dir}")
+                message(STATUS "Qt6::Core include dir set to: ${_qt_include_dir}")
+            endif()
+            message(STATUS "Created IMPORTED Qt6::Core -> ${_qt_core_lib}")
+        endif()
+
+        if(_qt_gui_lib AND NOT TARGET Qt6::Gui)
+            add_library(Qt6::Gui STATIC IMPORTED)
+            set_target_properties(Qt6::Gui PROPERTIES
+                IMPORTED_LOCATION "${_qt_gui_lib}"
+                IMPORTED_LOCATION_RELEASE "${_qt_gui_lib}"
+                IMPORTED_LOCATION_DEBUG "${_qt_gui_lib}"
+            )
+            if(_qt_include_dir)
+                set_target_properties(Qt6::Gui PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${_qt_include_dir}")
+            endif()
+            if(TARGET Qt6::Core)
+                set_target_properties(Qt6::Gui PROPERTIES INTERFACE_LINK_LIBRARIES "Qt6::Core")
+            endif()
+            message(STATUS "Created IMPORTED Qt6::Gui -> ${_qt_gui_lib}")
+        endif()
+
+        if(_qt_widgets_lib AND NOT TARGET Qt6::Widgets)
+            add_library(Qt6::Widgets STATIC IMPORTED)
+            set_target_properties(Qt6::Widgets PROPERTIES
+                IMPORTED_LOCATION "${_qt_widgets_lib}"
+                IMPORTED_LOCATION_RELEASE "${_qt_widgets_lib}"
+                IMPORTED_LOCATION_DEBUG "${_qt_widgets_lib}"
+            )
+            if(_qt_include_dir)
+                set_target_properties(Qt6::Widgets PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${_qt_include_dir}")
+            endif()
+
+            set(_iface_libs "")
+            if(TARGET Qt6::Gui)
+                list(APPEND _iface_libs "Qt6::Gui")
+            elseif(_qt_gui_lib)
+                list(APPEND _iface_libs "${_qt_gui_lib}")
+            endif()
+            if(TARGET Qt6::Core)
+                list(APPEND _iface_libs "Qt6::Core")
+            elseif(_qt_core_lib)
+                list(APPEND _iface_libs "${_qt_core_lib}")
+            endif()
+            if(_iface_libs)
+                set_target_properties(Qt6::Widgets PROPERTIES INTERFACE_LINK_LIBRARIES "${_iface_libs}")
+            endif()
+            message(STATUS "Created IMPORTED Qt6::Widgets -> ${_qt_widgets_lib}")
+        endif()
+
+        if(NOT _qt_include_dir)
+            message(WARNING "Qt include dir not auto-detected under ${QT_PREBUILT_DIR}. You may need to set INTERFACE_INCLUDE_DIRECTORIES manually.")
+            file(GLOB _qt_inc_cands "${QT_PREBUILT_DIR}/**/QtCore" "${QT_PREBUILT_DIR}/**/QtWidgets" "${QT_PREBUILT_DIR}/**/Qt6")
+            if(_qt_inc_cands)
+                message(STATUS "Found candidate include dirs (first 5):")
+                list(LENGTH _qt_inc_cands _c)
+                math(EXPR _max_show "(_c < 5) ? _c : 5")
+                foreach(i RANGE 0 ${_max_show})
+                    list(GET _qt_inc_cands ${i} _f)
+                    message(STATUS "  ${_f}")
+                endforeach()
+            endif()
+        endif()
+    else()
+        message(STATUS "Qt prebuilt dir not found at ${QT_PREBUILT_DIR}")
+    endif()
+endif()
+
+# -------------------------------------------------------------------------
+# Engine and App
+# -------------------------------------------------------------------------
+file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/src/SagaEngine/*.cpp" "${CMAKE_SOURCE_DIR}/src/SagaEngine/*.cc"
+)
+if(ENGINE_SOURCES)
+    add_library(SagaEngine STATIC ${ENGINE_SOURCES})
+    target_include_directories(SagaEngine PUBLIC "${CMAKE_SOURCE_DIR}/include" "${CMAKE_SOURCE_DIR}/Engine")
+    target_compile_features(SagaEngine PUBLIC cxx_std_20)
+else()
+    add_library(SagaEngine INTERFACE)
+    target_include_directories(SagaEngine INTERFACE "${CMAKE_SOURCE_DIR}/include" "${CMAKE_SOURCE_DIR}/Engine")
+endif()
+
+set(MAIN_SRC "${CMAKE_SOURCE_DIR}/Main/main.cpp")
+if(NOT EXISTS "${MAIN_SRC}")
+    message(WARNING "Main source not found at ${MAIN_SRC}. Create Main/main.cpp")
+endif()
+add_executable(SagaApp "${MAIN_SRC}")
+target_link_libraries(SagaApp PRIVATE SagaEngine)
+
+# Link optional libraries if available
+if(TARGET RmlUi::RmlUi)
+    target_link_libraries(SagaApp PRIVATE RmlUi::RmlUi)
+    message(STATUS "Linked SagaApp with RmlUi::RmlUi")
+endif()
+
+# Prefer Widgets (pulls Gui+Core) if available, else Gui/Core individually
+if(TARGET Qt6::Widgets)
+    target_link_libraries(SagaApp PRIVATE Qt6::Widgets)
+    message(STATUS "Linked SagaApp with Qt6::Widgets")
+else()
+    if(TARGET Qt6::Gui)
+        target_link_libraries(SagaApp PRIVATE Qt6::Gui)
+        message(STATUS "Linked SagaApp with Qt6::Gui")
+    endif()
+    if(TARGET Qt6::Core)
+        target_link_libraries(SagaApp PRIVATE Qt6::Core)
+        message(STATUS "Linked SagaApp with Qt6::Core")
+    endif()
+endif()
+
+target_include_directories(SagaApp PRIVATE
+    "${CMAKE_SOURCE_DIR}/Thirdparty/header-only/json"
+    "${CMAKE_SOURCE_DIR}/Thirdparty/header-only/glm"
+    "${FREETYPE_INCLUDE_DIRS}"
+    "${CMAKE_SOURCE_DIR}/include"
+)
+
+if(TARGET freetype_obj)
+    target_sources(SagaApp PRIVATE $<TARGET_OBJECTS:freetype_obj>)
+endif()
+
+# Link Diligent targets if present
+foreach(t IN ITEMS
+    "DiligentCoreStatic" "DiligentCore" "DiligentCore-static" "DiligentCoreCombined" "DiligentCoreCombined-static"
+    "Diligent-GraphicsEngineOpenGL-static" "Diligent-GraphicsEngineVk-static"
+)
+    if(TARGET ${t})
+        maybe_link_target(${t} SagaApp)
+    endif()
+endforeach()
+
+# system libs
+find_package(Threads REQUIRED)
+target_link_libraries(SagaApp PRIVATE Threads::Threads)
+
+if(FREETYPE_TARGET AND TARGET ${FREETYPE_TARGET})
+    target_link_libraries(SagaApp PRIVATE ${FREETYPE_TARGET})
+endif()
+
+message(STATUS "SagaEngine configured. Persistent thirdparty build root: ${THIRD_PARTY_BUILD_ROOT}")
+message(STATUS "SAGA_ENABLE_VULKAN: ${SAGA_ENABLE_VULKAN}")
+message(STATUS "SAGA_ENABLE_OPENGL: ${SAGA_ENABLE_OPENGL}")

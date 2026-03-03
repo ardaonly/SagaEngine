@@ -1,0 +1,18 @@
+[submodule "ThirdParty/imgui"]
+	path = ThirdParty/imgui
+	url = https://github.com/DiligentGraphics/imgui
+[submodule "ThirdParty/args"]
+	path = ThirdParty/args
+	url = https://github.com/DiligentGraphics/args
+[submodule "ThirdParty/zlib"]
+	path = ThirdParty/zlib
+	url = https://github.com/DiligentGraphics/zlib
+[submodule "ThirdParty/libpng"]
+	path = ThirdParty/libpng
+	url = https://github.com/DiligentGraphics/libpng
+[submodule "ThirdParty/stb"]
+	path = ThirdParty/stb
+	url = https://github.com/DiligentGraphics/stb.git
+[submodule "ThirdParty/json"]
+	path = ThirdParty/json
+	url = https://github.com/DiligentGraphics/json.git
