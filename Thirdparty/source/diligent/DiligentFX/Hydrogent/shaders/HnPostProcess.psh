@@ -1,0 +1,257 @@
+#include "ToneMapping.fxh"
+#include "CoordinateGridStructures.fxh"
+#include "HnPostProcessStructures.fxh"
+#include "HnClosestSelectedLocation.fxh"
+#include "BasicStructures.fxh"
+#include "PBR_Structures.fxh"
+#include "RenderPBR_Structures.fxh"
+#include "PBR_Shading.fxh"
+#include "FullScreenTriangleVSOutput.fxh"
+#include "SRGBUtilities.fxh"
+
+#ifdef ENABLE_GRID
+#   include "CoordinateGrid.fxh"
+#endif
+
+cbuffer cbPostProcessAttribs
+{
+    PostProcessAttribs g_Attribs;
+}
+
+cbuffer cbFrameAttribs
+{
+    PBRFrameAttribs g_Frame;
+}
+
+Texture2D g_ColorBuffer;
+Texture2D g_SelectionDepth;
+Texture2D g_Depth;
+Texture2D g_ClosestSelectedLocation;
+Texture2D g_SSR;
+Texture2D g_SSAO;
+Texture2D g_Normal;
+Texture2D g_SpecularIBL;
+Texture2D g_MaterialData;
+Texture2D g_BaseColor;
+Texture2D g_MeshID;
+
+Texture2D    g_PreintegratedGGX;
+SamplerState g_PreintegratedGGX_sampler;
+
+#if VIEW_MODE == VIEW_MODE_EDGE_MAP
+float ComputeColorEdge(int2 Pos)
+{
+    int Width, Height;
+    g_ColorBuffer.GetDimensions(Width, Height);
+
+    // t *  *  *
+    //   *  *  *
+    // b *  *  *
+    //   l     r
+    int l = max(Pos.x - 1, 0);
+    int b = max(Pos.y - 1, 0);
+    int r = min(Pos.x + 1, Width - 1);
+    int t = min(Pos.y + 1, Height - 1);
+    
+    float3 LB = g_ColorBuffer.Load(int3(l, b, 0)).rgb;
+    float3 RB = g_ColorBuffer.Load(int3(r, b, 0)).rgb;
+    float3 LT = g_ColorBuffer.Load(int3(l, t, 0)).rgb;
+    float3 RT = g_ColorBuffer.Load(int3(r, t, 0)).rgb;
+    
+    float3 LL = g_ColorBuffer.Load(int3(l, Pos.y, 0)).rgb;
+    float3 RR = g_ColorBuffer.Load(int3(r, Pos.y, 0)).rgb;
+    float3 BB = g_ColorBuffer.Load(int3(Pos.x, b, 0)).rgb;
+    float3 TT = g_ColorBuffer.Load(int3(Pos.x, t, 0)).rgb;
+    
+    float3 H  = (RR - LL) * 0.5;
+    float3 V  = (TT - BB) * 0.5;
+    float3 D0 = (RT - LB) * 0.5;
+    float3 D1 = (LT - RB) * 0.5;
+
+    float MaxGrad = max(max(length(H), length(V)), max(length(D0), length(D1)));
+    
+    float Threshold = 0.2;
+    float Scale     = 5.0;
+    return saturate((MaxGrad - Threshold) / (1.0 - Threshold) * Scale); 
+}
+
+float ComputeDepthEdge(int2 Pos, float Depth)
+{
+    int Width, Height;
+    g_Depth.GetDimensions(Width, Height);
+           
+    // t *  *  *
+    //   *  *  *
+    // b *  *  *
+    //   l     r
+    int l = max(Pos.x - 1, 0);
+    int b = max(Pos.y - 1, 0);
+    int r = min(Pos.x + 1, Width - 1);
+    int t = min(Pos.y + 1, Height - 1);
+   
+    float Z = DepthToCameraZ(Depth, g_Frame.Camera.mProj);
+    
+    float LB = DepthToCameraZ(g_Depth.Load(int3(l, b, 0)).r, g_Frame.Camera.mProj);
+    float RB = DepthToCameraZ(g_Depth.Load(int3(r, b, 0)).r, g_Frame.Camera.mProj);
+    float LT = DepthToCameraZ(g_Depth.Load(int3(l, t, 0)).r, g_Frame.Camera.mProj);
+    float RT = DepthToCameraZ(g_Depth.Load(int3(r, t, 0)).r, g_Frame.Camera.mProj);
+    
+    float LL = DepthToCameraZ(g_Depth.Load(int3(l, Pos.y, 0)).r, g_Frame.Camera.mProj);
+    float RR = DepthToCameraZ(g_Depth.Load(int3(r, Pos.y, 0)).r, g_Frame.Camera.mProj);
+    float BB = DepthToCameraZ(g_Depth.Load(int3(Pos.x, b, 0)).r, g_Frame.Camera.mProj);
+    float TT = DepthToCameraZ(g_Depth.Load(int3(Pos.x, t, 0)).r, g_Frame.Camera.mProj);
+    
+    float H = abs(RR - LL) * 0.5;
+    float V = abs(TT - BB) * 0.5;
+    float D0 = abs(RT - LB) * 0.5;
+    float D1 = abs(LT - RB) * 0.5;
+    
+    float MaxGrad = max(max(H, V), max(D0, D1));
+    
+    // Note: lower threshold makes planes at steep angles detected as edges
+    float Threshold = 0.1;
+    float Scale     = 10.0;
+    return saturate((abs(MaxGrad / Z) - Threshold) / (1.0 - Threshold) * Scale);
+}
+#endif
+
+float PseudoRandom(float n)
+{
+    return frac(sin(n) * 43758.5453);
+}
+
+void main(in  FullScreenTriangleVSOutput VSOut,
+          out float4                     Color : SV_Target0)
+{
+    float4 Pos = VSOut.f4PixelPos;
+
+    Color = g_ColorBuffer.Load(int3(Pos.xy, 0));
+
+#if VIEW_MODE == VIEW_MODE_SCENE_DEPTH
+    if (g_Frame.Renderer.LoadingAnimation.Factor == 0.0)
+    {
+        // The overlay was rendered with Scene Range == Camera Range. 
+        // At the end of the frame, we computed the accurate scene depth range in HnComputeDepthBoundsTask,
+        // so now we can use it to rescale the depth value.
+        float RelZ = Color.r;
+
+        RelZ = RelZ * (g_Frame.Camera.fFarPlaneZ - g_Frame.Camera.fNearPlaneZ) + g_Frame.Camera.fNearPlaneZ;
+        RelZ = (RelZ - g_Frame.Camera.fSceneNearZ) / max(g_Frame.Camera.fSceneFarZ - g_Frame.Camera.fSceneNearZ, 1e-6);
+        RelZ = saturate(RelZ);
+        Color.rgb = float3(RelZ, RelZ, RelZ);
+    }
+#endif
+
+    float Opacity = Color.a;
+
+    float SSRScale = g_Attribs.SSRScale * Opacity;
+    if (SSRScale > 0.0)
+    {
+        float4 SpecularIBL = g_SpecularIBL.Load(int3(Pos.xy, 0));
+        float4 SSRRadiance = g_SSR.Load(int3(Pos.xy, 0));
+        float3 Normal      = g_Normal.Load(int3(VSOut.f4PixelPos.xy, 0)).xyz;
+        float4 BaseColor   = g_BaseColor.Load(int3(Pos.xy, 0));
+        float4 Material    = g_MaterialData.Load(int3(Pos.xy, 0));
+
+        float Roughness = saturate(Material.x);
+        float Metallic  = saturate(Material.y);
+        SurfaceReflectanceInfo SrfInfo = GetSurfaceReflectanceMR(BaseColor.rgb, Metallic, Roughness);
+
+        float4 WorldPos = mul(float4(VSOut.f2NormalizedXY, DepthToNormalizedDeviceZ(0.5), 1.0), g_Frame.Camera.mViewProjInv);
+        float3 ViewDir = normalize(g_Frame.Camera.f4Position.xyz - WorldPos.xyz / WorldPos.w);
+    
+        IBLSamplingInfo IBLInfo = GetIBLSamplingInfo(SrfInfo,
+                                                     g_PreintegratedGGX,
+                                                     g_PreintegratedGGX_sampler,
+                                                     Normal,
+                                                     ViewDir);
+
+        float3 SSR = GetSpecularIBL_GGX(SrfInfo, IBLInfo, SSRRadiance.rgb);
+
+        Color.rgb += (SSR.rgb - SpecularIBL.rgb) * SSRRadiance.w * SSRScale;
+    }
+
+    float SSAOScale = g_Attribs.SSAOScale * Opacity;
+    if (SSAOScale > 0.0)
+    {
+        // Since Color.rgb may be blended with background, we need to attenuate the occlusion
+        // factor by transparency or there will be artifacts.
+        float Occlusion = lerp(1.0, g_SSAO.Load(int3(Pos.xy, 0)).x, SSAOScale);
+        Color.rgb *= Occlusion;
+    }
+
+#if TONE_MAPPING_MODE > TONE_MAPPING_MODE_NONE
+    Color.rgb = ToneMap(Color.rgb, g_Attribs.ToneMapping, g_Attribs.AverageLogLum * exp2(-g_Frame.Camera.fExposure));
+#endif
+
+    float Depth = g_Depth.Load(int3(Pos.xy, 0)).r;
+ 
+#if VIEW_MODE == VIEW_MODE_EDGE_MAP
+    {
+        // Note that in the edge map mode, the scene is rendered with mesh normal debug view.
+        float ColorEdgeFactor = ComputeColorEdge(int2(Pos.xy));
+        if (Depth == g_Frame.Camera.fFarPlaneDepth)
+        {
+            // Don't detect color edges on the background
+            ColorEdgeFactor = 0.0;
+        }
+        float DepthEdgeFactor = ComputeDepthEdge(int2(Pos.xy), Depth);
+        float EdgeFactor = min(ColorEdgeFactor + DepthEdgeFactor, 1.0);
+        Color.rgb = float3(EdgeFactor, EdgeFactor, EdgeFactor);
+    }
+#endif
+
+#if VIEW_MODE == VIEW_MODE_MESH_ID
+    float MeshID = g_MeshID.Load(int3(Pos.xy, 0)).r + 1.0;
+    Color.rgb = (Depth != g_Frame.Camera.fFarPlaneDepth) ?
+        float3(PseudoRandom(MeshID * 3.0 + 0.0), PseudoRandom(MeshID * 3.0 + 1.0), PseudoRandom(MeshID * 3.0 + 2.0)) :
+        float3(0.0, 0.0, 0.0);
+#endif
+
+    float SelectionDepth = g_SelectionDepth.Load(int3(Pos.xy, 0)).r;
+    bool  IsSelected     = Depth != g_Attribs.ClearDepth && SelectionDepth == Depth;
+
+    // Desaturate all unselected pixels
+    float DesatFactor = IsSelected ? 0.0 : g_Attribs.NonselectionDesaturationFactor;
+    float Luminance = dot(Color.rgb, float3(0.2126, 0.7152, 0.0722));
+    Color.rgb = lerp(Color.rgb, float3(Luminance, Luminance, Luminance), DesatFactor);
+
+    float2 ClosestSelectedLocation;
+    if (DecodeClosestSelectedLocation(g_ClosestSelectedLocation.Load(int3(Pos.xy, 0)).xy, ClosestSelectedLocation))
+    {
+        float Width, Height;
+        g_ColorBuffer.GetDimensions(Width, Height);
+        ClosestSelectedLocation *= float2(Width, Height);
+        // Get distance in pixels from the current pixel to the closest selected pixel
+        float Dist = length(ClosestSelectedLocation - Pos.xy);
+        // Make outline fade out with distance from the closest selected pixel
+        float Outline = saturate(1.0 - Dist / g_Attribs.SelectionOutlineWidth);
+        // Do not highlight the selected object itself
+        Outline *= SelectionDepth != g_Attribs.ClearDepth ? 0.0 : 1.0;
+
+        if (Outline > 0.0)
+        {
+            // Compare depth of the selected pixel with the selection depth to determine if the selected pixel is occluded
+            float SelectedLocationDepth          = g_Depth.Load(int3(ClosestSelectedLocation.xy, 0)).r;
+            float SelectedLocationSelectionDepth = g_SelectionDepth.Load(int3(ClosestSelectedLocation.xy, 0)).r;
+
+            float3 SelectionOutlineColor = (SelectedLocationDepth == SelectedLocationSelectionDepth) ? 
+                g_Attribs.SelectionOutlineColor.rgb :
+                g_Attribs.OccludedSelectionOutlineColor.rgb;
+
+            Color.rgb = lerp(Color.rgb, SelectionOutlineColor.rgb, Outline);
+        }
+    }
+
+#ifdef ENABLE_GRID
+    float4 GridColor = ComputeCoordinateGrid(VSOut.f2NormalizedXY + g_Frame.Camera.f2Jitter,
+                                             g_Frame.Camera,
+                                             Depth, Depth,
+                                             g_Attribs.CoordinateGrid);
+    Color.rgb = lerp(Color.rgb, GridColor.rgb, GridColor.a);
+#endif
+
+#if CONVERT_OUTPUT_TO_SRGB
+    Color.rgb = LinearToSRGB(Color.rgb);
+#endif
+}
