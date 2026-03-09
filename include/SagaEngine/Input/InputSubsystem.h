@@ -1,4 +1,5 @@
 #pragma once
+
 #include <memory>
 #include <vector>
 #include <functional>
@@ -9,12 +10,13 @@
 #include "SagaEngine/Input/Events/InputEvent.h"
 #include "SagaEngine/Input/Devices/IInputDevice.h"
 #include "SagaEngine/Input/InputManager.h"
-#include "SagaEngine/NativePlatform/IWindow.h"
+#include "SagaEngine/Platform/IWindow.h"
 #include "SagaEngine/Input/Network/InputCommand.h"
 #include "SagaEngine/Input/Network/NetworkInputLayer.h"
 
 namespace Saga::Input
 {
+
 class InputSubsystem final : public ::SagaEngine::Core::ISubsystem
 {
 public:
@@ -29,7 +31,7 @@ public:
     void OnUpdate(float dt) override;
     void OnShutdown() override;
 
-    void AttachWindow(const ::SagaEngine::NativePlatform::NativeWindowHandle& h);
+    void AttachWindow(const ::SagaEngine::Platform::NativeWindowHandle& h);
     void RegisterLocalDevice(std::unique_ptr<IInputDevice> d);
     void SetSendPacketHandler(std::function<void(const std::vector<uint8_t>&)> cb);
     void SetServerValidate(ServerValidate v);
@@ -47,9 +49,10 @@ private:
     std::function<void(const std::vector<uint8_t>&)> m_sendCb;
     ServerValidate m_validator;
     ReconcileCallback m_reconciler;
-    std::optional<::SagaEngine::NativePlatform::NativeWindowHandle> m_windowHandle;
+    std::optional<::SagaEngine::Platform::NativeWindowHandle> m_windowHandle;
 
     uint64_t NowMs() const;
     void TranslateEventToCommand(const Saga::Input::InputEvent& e);
 };
-}
+
+} // namespace Saga::Input
