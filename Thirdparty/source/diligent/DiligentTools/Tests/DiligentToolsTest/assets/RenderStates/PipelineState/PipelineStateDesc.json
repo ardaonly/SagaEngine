@@ -1,7 +1,0 @@
-{
-    "PipelineType": "COMPUTE",
-    "Name": "TestName",
-    "SRBAllocationGranularity": 16,
-    "ImmediateContextMask": 1,
-    "ResourceLayout": { "DefaultVariableType": "DYNAMIC" }
-}
