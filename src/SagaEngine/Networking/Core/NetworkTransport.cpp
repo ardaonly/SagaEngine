@@ -5,12 +5,9 @@
 
 namespace SagaEngine::Networking {
 
-// ============================================================================
 // UdpTransport
-// ============================================================================
-
 UdpTransport::UdpTransport()
-    : m_IoContext(1)  // Single-threaded io_context
+    : m_IoContext(1)
     , m_ReceiveBuffer(2048) {
 }
 
@@ -27,29 +24,23 @@ bool UdpTransport::Initialize(const NetworkConfig& config) {
     m_Config = config;
     
     try {
-        // Create UDP socket
         m_Socket = std::make_unique<boost::asio::ip::udp::socket>(m_IoContext);
         m_Socket->open(boost::asio::ip::udp::v4());
         
-        // Set socket options
         boost::asio::ip::udp::socket::receive_buffer_size recvSize(256 * 1024);
         boost::asio::ip::udp::socket::send_buffer_size sendSize(256 * 1024);
         m_Socket->set_option(recvSize);
         m_Socket->set_option(sendSize);
         
-        // Bind to any available port
-        boost::asio::ip::udp::endpoint localEndpoint(
-            boost::asio::ip::udp::v4(), 0);
+        boost::asio::ip::udp::endpoint localEndpoint(boost::asio::ip::udp::v4(), 0);
         m_Socket->bind(localEndpoint);
         
-        // Get local address
         auto localEp = m_Socket->local_endpoint();
         m_LocalAddress.host = localEp.address().to_string();
         m_LocalAddress.port = localEp.port();
         
         LOG_INFO("UdpTransport", "Initialized on %s", m_LocalAddress.ToString().c_str());
         
-        // Start IO thread
         m_Running.store(true);
         m_IoThread = std::thread([this]() {
             m_IoContext.run();
@@ -96,7 +87,6 @@ bool UdpTransport::Connect(const NetworkAddress& address) {
     m_RemoteAddress = address;
     
     try {
-        // Resolve hostname
         boost::asio::ip::udp::resolver resolver(m_IoContext);
         auto results = resolver.resolve(boost::asio::ip::udp::v4(),
                                         address.host,
@@ -108,7 +98,6 @@ bool UdpTransport::Connect(const NetworkAddress& address) {
             return false;
         }
         
-        // Connect to remote endpoint
         auto endpoint = *results.begin();
         m_Socket->connect(endpoint);
         
@@ -139,14 +128,12 @@ void UdpTransport::Disconnect(int reason) {
     
     SetState(ConnectionState::Disconnecting);
     
-    // Send disconnect packet if connected
     if (m_Socket && m_Socket->is_open() && m_State == ConnectionState::Connected) {
         Packet disconnectPacket(PacketType::Disconnect);
         disconnectPacket.Write(reason);
         Send(disconnectPacket.GetData(), disconnectPacket.GetTotalSize());
     }
     
-    // Close socket
     if (m_Socket && m_Socket->is_open()) {
         boost::system::error_code ec;
         m_Socket->shutdown(boost::asio::ip::udp::socket::shutdown_both, ec);
@@ -167,7 +154,6 @@ bool UdpTransport::Send(const uint8_t* data, size_t size) {
     }
     
     try {
-        // Add to send queue (thread-safe)
         {
             std::lock_guard<std::mutex> lock(m_SendQueueMutex);
             PendingSend pending;
@@ -178,10 +164,8 @@ bool UdpTransport::Send(const uint8_t* data, size_t size) {
             m_SendQueue.push(std::move(pending));
         }
         
-        // Process queue
         ProcessSendQueue();
         
-        // Update statistics
         {
             std::lock_guard<std::mutex> lock(m_StatsMutex);
             m_Stats.packetsSent++;
@@ -237,17 +221,14 @@ void UdpTransport::HandleReceive(const boost::system::error_code& error,
         return;
     }
     
-    // Update statistics
     {
         std::lock_guard<std::mutex> lock(m_StatsMutex);
         m_Stats.packetsReceived++;
         m_Stats.bytesReceived += bytesTransferred;
     }
     
-    // Invoke callback
     InvokeOnPacketReceived(m_ReceiveBuffer.data(), bytesTransferred);
     
-    // Continue receiving
     StartReceive();
 }
 
@@ -305,7 +286,7 @@ NetworkAddress UdpTransport::GetLocalAddress() const {
 
 void UdpTransport::InvokeOnConnected() {
     if (m_OnConnected) {
-        m_OnConnected(0);  // ConnectionId 0 for single connection
+        m_OnConnected(0);
     }
 }
 
@@ -327,16 +308,12 @@ void UdpTransport::InvokeOnStateChanged(ConnectionState newState) {
     }
 }
 
-// ============================================================================
 // TransportFactory
-// ============================================================================
-
 std::unique_ptr<INetworkTransport> TransportFactory::Create(bool useUdp) {
     if (useUdp) {
         return std::make_unique<UdpTransport>();
-    } else {
-        return std::make_unique<TcpTransport>();
     }
+    return nullptr;
 }
 
 } // namespace SagaEngine::Networking

@@ -1,5 +1,4 @@
-#ifndef SAGAENGINE_CORE_TIME_H
-#define SAGAENGINE_CORE_TIME_H
+#pragma once
 
 #include <chrono>
 
@@ -17,5 +16,3 @@ private:
 };
 
 }
-
-#endif
