@@ -31,7 +31,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 option(SAGA_ENABLE_VULKAN   "Enable Vulkan backend"     OFF)
-option(SAGA_ENABLE_OPENGL   "Enable OpenGL backend"     ON)
+option(SAGA_ENABLE_OPENGL   "Enable OpenGL backend"     OFF)
 
 function(maybe_link_target tgt exe_target)
     if(TARGET ${tgt})
@@ -290,6 +290,15 @@ else()
 endif()
 
 # -------------------------------------------------------------------------
+# Boost.Asio
+# -------------------------------------------------------------------------
+
+add_library(Asio INTERFACE)
+target_include_directories(Asio INTERFACE
+    "${CMAKE_SOURCE_DIR}/Thirdparty/source/boost_1_90_0/boost"
+)
+
+# -------------------------------------------------------------------------
 # Engine and App
 # -------------------------------------------------------------------------
 file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS
@@ -316,6 +325,8 @@ if(TARGET RmlUi::RmlUi)
     target_link_libraries(SagaApp PRIVATE RmlUi::RmlUi)
     message(STATUS "Linked SagaApp with RmlUi::RmlUi")
 endif()
+
+target_link_libraries(SagaEngine PRIVATE Asio)
 
 # Prefer Widgets (pulls Gui+Core) if available, else Gui/Core individually
 if(TARGET Qt6::Widgets)

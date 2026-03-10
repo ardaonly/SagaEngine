@@ -73,7 +73,6 @@ private:
         std::unique_ptr<Serializer> serializer;
         std::type_index typeIndex;
 
-        // ✅ Default constructor with type_index initialization
         ComponentInfo() 
             : id(0)
             , typeIndex(std::type_index(typeid(void))) {}

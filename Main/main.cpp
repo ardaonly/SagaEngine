@@ -1,390 +1,362 @@
-#include "SagaEngine/Core/Application/Application.h"
+// main.cpp — temporary debug/testing area
+
 #include "SagaEngine/Core/Log/Log.h"
-#include "SagaEngine/Platform/PlatformFactory.h"
-#include "SagaEngine/Platform/IWindow.h"
-
+#include "SagaEngine/Networking/Core/Packet.h"
+#include "SagaEngine/Networking/Core/NetworkTransport.h"
+#include "SagaEngine/Core/Time/Time.h"
 #include <iostream>
-#include <memory>
-#include <csignal>
-#include <exception>
+#include <thread>
 #include <atomic>
-#include <cstdio>
-
-#if defined(_WIN32)
-#include <Windows.h>
-#endif
+#include <chrono>
 
 using namespace SagaEngine;
+using namespace SagaEngine::Networking;
 
-namespace {
-    std::atomic<Core::Application*> g_AppPtr{nullptr};
-
-    void SignalHandler(int signal) {
-        if (signal == SIGINT || signal == SIGTERM) {
-            #if defined(_WIN32)
-            OutputDebugStringA("[Signal] Shutdown requested\n");
-            #endif
-            Core::Application* app = g_AppPtr.load(std::memory_order_acquire);
-            if (app) {
-                app->Close();
-            }
-        }
+// ============================================================================
+// Test Results Tracker
+// ============================================================================
+struct TestResults {
+    uint32_t passed = 0;
+    uint32_t failed = 0;
+    
+    void Pass(const char* test) {
+        passed++;
+        std::printf("[PASS] %s\n", test);
     }
-}
-
-class SagaGameModule : public Core::Application {
-    std::unique_ptr<Platform::IWindow> m_Window;
-    uint64_t m_FrameCount = 0;
-
-public:
-    SagaGameModule() : Application("SagaEngine Diagnostic") {
-        #if defined(_WIN32)
-        OutputDebugStringA("[SagaGameModule] Constructor START\n");
-        #endif
-        
-        std::printf("[SagaGameModule] Constructor START\n");
-        std::fflush(stdout);
-        
-        #if defined(_WIN32)
-        OutputDebugStringA("[SagaGameModule] Constructor END\n");
-        #endif
-        
-        std::printf("[SagaGameModule] Constructor END\n");
-        std::fflush(stdout);
+    
+    void Fail(const char* test, const char* reason) {
+        failed++;
+        std::printf("[FAIL] %s - %s\n", test, reason);
     }
-
-    ~SagaGameModule() {
-        #if defined(_WIN32)
-        OutputDebugStringA("[SagaGameModule] Destructor START\n");
-        #endif
-        
-        std::printf("[SagaGameModule] Destructor START\n");
-        std::fflush(stdout);
-        
-        #if defined(_WIN32)
-        OutputDebugStringA("[SagaGameModule] Destructor END\n");
-        #endif
-        
-        std::printf("[SagaGameModule] Destructor END\n");
-        std::fflush(stdout);
-    }
-
-    void OnInit() override {
-        #if defined(_WIN32)
-        OutputDebugStringA("[OnInit] ===== START =====\n");
-        #endif
-        
-        std::printf("[OnInit] ===== START =====\n");
-        std::fflush(stdout);
-
-        try {
-            std::printf("[OnInit] Step 1: Creating platform objects...\n");
-            std::fflush(stdout);
-            #if defined(_WIN32)
-            OutputDebugStringA("[OnInit] Step 1: Creating platform objects\n");
-            #endif
-
-            auto objects = Platform::CreatePlatformObjects();
-
-            std::printf("[OnInit] Step 2: Platform objects created\n");
-            std::printf("[OnInit]   Window ptr: %p\n", objects.window.get());
-            std::fflush(stdout);
-            #if defined(_WIN32)
-            OutputDebugStringA("[OnInit] Step 2: Platform objects created\n");
-            #endif
-
-            if (!objects.window) {
-                std::printf("[OnInit] CRITICAL: Window is NULL\n");
-                std::fflush(stdout);
-                #if defined(_WIN32)
-                OutputDebugStringA("[OnInit] CRITICAL: Window is NULL\n");
-                #endif
-                m_Running = false;
-                return;
-            }
-
-            m_Window = std::move(objects.window);
-
-            std::printf("[OnInit] Step 3: Moving window pointer\n");
-            std::printf("[OnInit]   m_Window ptr: %p\n", m_Window.get());
-            std::fflush(stdout);
-            #if defined(_WIN32)
-            OutputDebugStringA("[OnInit] Step 3: Moving window pointer\n");
-            #endif
-
-            std::printf("[OnInit] Step 4: Calling Create(1280, 720)...\n");
-            std::fflush(stdout);
-            #if defined(_WIN32)
-            OutputDebugStringA("[OnInit] Step 4: Calling Create\n");
-            #endif
-
-            m_Window->Create(1280, 720, "SagaEngine MMO Client");
-
-            std::printf("[OnInit] Step 5: Create() returned\n");
-            std::fflush(stdout);
-            #if defined(_WIN32)
-            OutputDebugStringA("[OnInit] Step 5: Create() returned\n");
-            #endif
-
-            std::printf("[OnInit] Step 6: Validating window...\n");
-            std::printf("[OnInit]   IsValid: %d\n", m_Window->IsValid());
-            std::printf("[OnInit]   Handle: %p\n", m_Window->GetPlatformHandle());
-            std::fflush(stdout);
-            #if defined(_WIN32)
-            OutputDebugStringA("[OnInit] Step 6: Validating window\n");
-            #endif
-
-            #if defined(_WIN32)
-            void* hwnd = m_Window->GetPlatformHandle();
-            if (hwnd) {
-                std::printf("[OnInit]   IsWindow: %d\n", IsWindow((HWND)hwnd));
-                std::printf("[OnInit]   IsWindowVisible: %d\n", IsWindowVisible((HWND)hwnd));
-                OutputDebugStringA("[OnInit] Window validation complete\n");
-            }
-            #endif
-
-            if (!m_Window->IsValid()) {
-                std::printf("[OnInit] CRITICAL: Window not valid after Create()\n");
-                std::fflush(stdout);
-                #if defined(_WIN32)
-                OutputDebugStringA("[OnInit] CRITICAL: Window not valid\n");
-                #endif
-                m_Running = false;
-                return;
-            }
-
-            std::printf("[OnInit] Step 7: Setting close callback...\n");
-            std::fflush(stdout);
-            #if defined(_WIN32)
-            OutputDebugStringA("[OnInit] Step 7: Setting close callback\n");
-            #endif
-
-            m_Window->SetOnClose([this]() {
-                std::printf("[Window] Close callback triggered!\n");
-                std::fflush(stdout);
-                #if defined(_WIN32)
-                OutputDebugStringA("[Window] Close callback triggered\n");
-                #endif
-                Close();
-            });
-
-            std::printf("[OnInit] Step 8: Calling Show()...\n");
-            std::fflush(stdout);
-            #if defined(_WIN32)
-            OutputDebugStringA("[OnInit] Step 8: Calling Show\n");
-            #endif
-
-            m_Window->Show();
-
-            std::printf("[OnInit] Step 9: Show() returned\n");
-            std::fflush(stdout);
-            #if defined(_WIN32)
-            OutputDebugStringA("[OnInit] Step 9: Show() returned\n");
-            #endif
-
-            std::printf("[OnInit] Step 10: Final validation...\n");
-            std::printf("[OnInit]   Width: %d\n", m_Window->GetWidth());
-            std::printf("[OnInit]   Height: %d\n", m_Window->GetHeight());
-            std::printf("[OnInit]   Title: %s\n", m_Window->GetTitle());
-            std::fflush(stdout);
-            #if defined(_WIN32)
-            OutputDebugStringA("[OnInit] Step 10: Final validation\n");
-            #endif
-
-            std::printf("[OnInit] ===== COMPLETE =====\n");
-            std::fflush(stdout);
-            #if defined(_WIN32)
-            OutputDebugStringA("[OnInit] ===== COMPLETE =====\n");
-            #endif
-        }
-        catch (const std::exception& e) {
-            std::printf("[OnInit] EXCEPTION: %s\n", e.what());
-            std::fflush(stdout);
-            #if defined(_WIN32)
-            char buf[512];
-            snprintf(buf, sizeof(buf), "[OnInit] EXCEPTION: %s\n", e.what());
-            OutputDebugStringA(buf);
-            #endif
-            m_Running = false;
-        }
-        catch (...) {
-            std::printf("[OnInit] UNKNOWN EXCEPTION\n");
-            std::fflush(stdout);
-            #if defined(_WIN32)
-            OutputDebugStringA("[OnInit] UNKNOWN EXCEPTION\n");
-            #endif
-            m_Running = false;
-        }
-    }
-
-    void OnUpdate(float deltaTime) override {
-        m_FrameCount++;
-
-        if (m_FrameCount <= 5 || m_FrameCount % 60 == 0) {
-            std::printf("[OnUpdate] Frame %llu | DT: %.4fms | HWND: %p\n", 
-                       m_FrameCount, 
-                       deltaTime * 1000.0f,
-                       m_Window ? m_Window->GetPlatformHandle() : nullptr);
-            std::fflush(stdout);
-        }
-
-        if (m_Window) {
-            m_Window->PollMessages();
-        }
-
-        if (m_FrameCount >= 500) {
-            std::printf("[OnUpdate] Frame 500 reached - Auto closing\n");
-            std::fflush(stdout);
-            Close();
-        }
-    }
-
-    void OnShutdown() override {
-        #if defined(_WIN32)
-        OutputDebugStringA("[OnShutdown] ===== START =====\n");
-        #endif
-        
-        std::printf("[OnShutdown] ===== START =====\n");
-        std::printf("[OnShutdown] Total Frames: %llu\n", m_FrameCount);
-        std::fflush(stdout);
-
-        m_Window.reset();
-
-        std::printf("[OnShutdown] ===== COMPLETE =====\n");
-        std::fflush(stdout);
-        #if defined(_WIN32)
-        OutputDebugStringA("[OnShutdown] ===== COMPLETE =====\n");
-        #endif
+    
+    void Summary() {
+        std::printf("\n========== TEST SUMMARY ==========\n");
+        std::printf("Passed: %u\n", passed);
+        std::printf("Failed: %u\n", failed);
+        std::printf("Total:  %u\n", passed + failed);
+        std::printf("==================================\n");
     }
 };
 
-#if defined(_WIN32)
-int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR cmd, int show) {
-    (void)hInst; (void)hPrev; (void)cmd; (void)show;
+static TestResults g_Results;
 
-    #if defined(_DEBUG)
-    if (GetConsoleWindow() == nullptr) {
-        if (AllocConsole()) {
-            freopen("CONOUT$", "w", stdout);
-            freopen("CONOUT$", "w", stderr);
-            freopen("CONIN$", "r", stdin);
-            std::printf("[WinMain] Console allocated\n");
-            std::fflush(stdout);
-            OutputDebugStringA("[WinMain] Console allocated\n");
+// ============================================================================
+// Packet Tests
+// ============================================================================
+void TestPacketCreation() {
+    Packet pkt(PacketType::HandshakeRequest);
+    
+    if (pkt.IsValid() && pkt.GetType() == PacketType::HandshakeRequest) {
+        g_Results.Pass("PacketCreation");
+    } else {
+        g_Results.Fail("PacketCreation", "Invalid packet after creation");
+    }
+}
+
+void TestPacketSerialization() {
+    Packet original(PacketType::ComponentUpdate);
+    original.SetSequence(42);
+    original.SetTimestamp(1234567890);
+    
+    uint32_t entityId = 999;
+    float health = 75.5f;
+    original.Write(entityId);
+    original.Write(health);
+    
+    auto data = original.GetSerializedData();
+    
+    Packet deserialized;
+    bool success = Packet::Deserialize(data.data(), data.size(), deserialized);
+    
+    if (!success) {
+        g_Results.Fail("PacketSerialization", "Deserialize failed");
+        return;
+    }
+    
+    size_t offset = 0;
+    uint32_t readEntityId;
+    float readHealth;
+    
+    deserialized.Read(readEntityId, offset);
+    deserialized.Read(readHealth, offset);
+    
+    if (readEntityId == entityId && readHealth == health) {
+        g_Results.Pass("PacketSerialization");
+    } else {
+        g_Results.Fail("PacketSerialization", "Data mismatch after deserialize");
+    }
+}
+
+void TestPacketChecksum() {
+    Packet pkt(PacketType::InputCommand);
+    pkt.Write(static_cast<uint32_t>(1));
+    pkt.Write(static_cast<float>(2.0f));
+    
+    if (!pkt.IsChecksumValid()) {
+        g_Results.Fail("PacketChecksum", "Initial checksum invalid");
+        return;
+    }
+    
+    auto data = pkt.GetSerializedData();
+    data[PACKET_HEADER_SIZE] ^= 0xFF;
+    
+    Packet corrupted;
+    bool success = Packet::Deserialize(data.data(), data.size(), corrupted);
+    
+    if (!success) {
+        g_Results.Pass("PacketChecksum");
+    } else {
+        g_Results.Fail("PacketChecksum", "Corrupted packet passed validation");
+    }
+}
+
+void TestPacketMaxSize() {
+    Packet pkt(PacketType::Snapshot);
+    
+    size_t maxPayload = Packet::GetMaxPayloadSize();
+    std::vector<uint8_t> testData(maxPayload, 0xAB);
+    
+    bool success = pkt.WriteBytes(testData.data(), testData.size());
+    
+    if (success) {
+        g_Results.Pass("PacketMaxSize");
+    } else {
+        g_Results.Fail("PacketMaxSize", "Failed to write max payload");
+    }
+}
+
+// ============================================================================
+// Transport Tests
+// ============================================================================
+void TestTransportCreate() {
+    auto transport = TransportFactory::Create(true);
+    
+    if (transport != nullptr) {
+        g_Results.Pass("TransportCreate");
+    } else {
+        g_Results.Fail("TransportCreate", "Factory returned null");
+    }
+}
+
+void TestTransportInitialize() {
+    auto transport = TransportFactory::Create(true);
+    
+    NetworkConfig config;
+    config.keepAliveIntervalMs = 5000;
+    config.maxPacketSize = 1400;
+    
+    bool success = transport->Initialize(config);
+    
+    if (success) {
+        g_Results.Pass("TransportInitialize");
+        transport->Shutdown();
+    } else {
+        g_Results.Fail("TransportInitialize", "Initialize failed");
+    }
+}
+
+void TestTransportConnect() {
+    std::atomic<bool> serverReady{false};
+    std::atomic<bool> clientConnected{false};
+    std::atomic<bool> serverReceived{false};
+    
+    NetworkConfig config;
+    config.keepAliveIntervalMs = 1000;
+    config.connectTimeoutMs = 3000;
+    
+    auto server = TransportFactory::Create(true);
+    server->Initialize(config);
+    
+    server->SetOnPacketReceived([&](ConnectionId, const uint8_t*, size_t) {
+        serverReceived.store(true);
+    });
+    
+    std::thread serverThread([&]() {
+        serverReady.store(true);
+        
+        while (!serverReceived.load() && server->GetState() != ConnectionState::Failed) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
+    });
+    
+    while (!serverReady.load()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
-    #endif
-
-    OutputDebugStringA("\n================================================\n");
-    OutputDebugStringA("       SAGAENGINE DIAGNOSTIC BOOT\n");
-    OutputDebugStringA("================================================\n");
-
-    std::printf("\n================================================\n");
-    std::printf("       SAGAENGINE DIAGNOSTIC BOOT\n");
-    std::printf("================================================\n");
-    std::printf("Build: %s %s\n", __DATE__, __TIME__);
-    std::printf("Platform: Windows (Win32)\n");
-    std::printf("HINSTANCE: %p\n", hInst);
-    std::printf("================================================\n\n");
-    std::fflush(stdout);
-
-    OutputDebugStringA("[WinMain] Step 1: Signal handlers\n");
-    std::printf("[WinMain] Step 1: Setting up signal handlers...\n");
-    std::fflush(stdout);
-
-    std::signal(SIGINT, SignalHandler);
-    std::signal(SIGTERM, SignalHandler);
-
-    OutputDebugStringA("[WinMain] Step 2: Log system\n");
-    std::printf("[WinMain] Step 2: Initializing log system...\n");
-    std::fflush(stdout);
-
-    try {
-        Core::Log::Init("saga_engine.log");
-        std::printf("[WinMain] Step 3: Log system initialized\n");
-        std::fflush(stdout);
-        OutputDebugStringA("[WinMain] Step 3: Log system initialized\n");
-    }
-    catch (...) {
-        std::printf("[WinMain] Log::Init() FAILED\n");
-        std::fflush(stdout);
-        OutputDebugStringA("[WinMain] Log::Init() FAILED\n");
-    }
-
-    OutputDebugStringA("[WinMain] Step 4: Creating application...\n");
-    std::printf("[WinMain] Step 4: Creating application...\n");
-    std::fflush(stdout);
-
-    try {
-        SagaGameModule app;
-        OutputDebugStringA("[WinMain] Step 5: Application created\n");
-        std::printf("[WinMain] Step 5: Application created\n");
-        std::fflush(stdout);
-
-        g_AppPtr.store(&app, std::memory_order_release);
+    
+    auto client = TransportFactory::Create(true);
+    client->Initialize(config);
+    
+    client->SetOnConnected([&](ConnectionId) {
+        clientConnected.store(true);
         
-        OutputDebugStringA("[WinMain] Step 6: Running application...\n");
-        std::printf("[WinMain] Step 6: Running application...\n");
-        std::fflush(stdout);
-
-        app.Run();
-
-        g_AppPtr.store(nullptr, std::memory_order_release);
-        
-        OutputDebugStringA("[WinMain] Step 7: Application finished\n");
-        std::printf("[WinMain] Step 7: Application finished\n");
-        std::fflush(stdout);
+        Packet testPacket(PacketType::KeepAlive);
+        testPacket.Write(static_cast<uint32_t>(12345));
+        client->Send(testPacket.GetData(), testPacket.GetTotalSize());
+    });
+    
+    bool connectSuccess = client->Connect(NetworkAddress("127.0.0.1", 0));
+    
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    
+    if (connectSuccess && clientConnected.load()) {
+        g_Results.Pass("TransportConnect");
+    } else {
+        g_Results.Fail("TransportConnect", "Connection failed");
     }
-    catch (const std::exception& e) {
-        std::printf("[WinMain] FATAL EXCEPTION: %s\n", e.what());
-        std::fflush(stdout);
-        char buf[512];
-        snprintf(buf, sizeof(buf), "[WinMain] FATAL EXCEPTION: %s\n", e.what());
-        OutputDebugStringA(buf);
-        MessageBoxA(nullptr, e.what(), "SagaEngine Fatal Error", MB_OK | MB_ICONERROR);
-        return 1;
-    }
-    catch (...) {
-        std::printf("[WinMain] FATAL: Unknown exception\n");
-        std::fflush(stdout);
-        OutputDebugStringA("[WinMain] FATAL: Unknown exception\n");
-        MessageBoxA(nullptr, "Unknown Exception", "SagaEngine Fatal Error", MB_OK | MB_ICONERROR);
-        return 1;
-    }
-
-    std::printf("\n[WinMain] Press Enter to exit...\n");
-    std::fflush(stdout);
-    OutputDebugStringA("[WinMain] Waiting for Enter...\n");
-    std::getchar();
-
-    #if defined(_DEBUG)
-    FreeConsole();
-    #endif
-
-    return 0;
+    
+    client->Shutdown();
+    server->Shutdown();
+    serverThread.join();
 }
-#else
+
+void TestTransportSendReceive() {
+    std::atomic<bool> dataReceived{false};
+    std::atomic<uint32_t> receivedValue{0};
+    
+    NetworkConfig config;
+    config.maxPacketSize = 1400;
+    
+    auto receiver = TransportFactory::Create(true);
+    receiver->Initialize(config);
+    
+    receiver->SetOnPacketReceived([&](ConnectionId, const uint8_t* data, size_t size) {
+        Packet pkt;
+        if (Packet::Deserialize(data, size, pkt)) {
+            uint32_t value;
+            size_t offset = 0;
+            if (pkt.Read(value, offset)) {
+                receivedValue.store(value);
+                dataReceived.store(true);
+            }
+        }
+    });
+    
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    
+    auto sender = TransportFactory::Create(true);
+    sender->Initialize(config);
+    
+    Packet testPacket(PacketType::Custom);
+    uint32_t testValue = 54321;
+    testPacket.Write(testValue);
+    
+    sender->Send(testPacket.GetData(), testPacket.GetTotalSize());
+    
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    
+    if (dataReceived.load() && receivedValue.load() == testValue) {
+        g_Results.Pass("TransportSendReceive");
+    } else {
+        g_Results.Fail("TransportSendReceive", "Data not received correctly");
+    }
+    
+    receiver->Shutdown();
+    sender->Shutdown();
+}
+
+void TestTransportStatistics() {
+    auto transport = TransportFactory::Create(true);
+    
+    NetworkConfig config;
+    transport->Initialize(config);
+    
+    auto stats = transport->GetStatistics();
+    
+    if (stats.packetsSent == 0 && stats.packetsReceived == 0) {
+        g_Results.Pass("TransportStatistics");
+    } else {
+        g_Results.Fail("TransportStatistics", "Initial stats not zero");
+    }
+    
+    transport->Shutdown();
+}
+
+// ============================================================================
+// Integration Tests
+// ============================================================================
+void TestEndToEndCommunication() {
+    std::atomic<uint32_t> messagesSent{0};
+    std::atomic<uint32_t> messagesReceived{0};
+    
+    NetworkConfig config;
+    config.maxPacketSize = 1400;
+    config.keepAliveIntervalMs = 0;
+    
+    auto server = TransportFactory::Create(true);
+    server->Initialize(config);
+    
+    server->SetOnPacketReceived([&](ConnectionId, const uint8_t* data, size_t size) {
+        messagesReceived.fetch_add(1);
+    });
+    
+    auto client = TransportFactory::Create(true);
+    client->Initialize(config);
+    
+    client->SetOnConnected([&](ConnectionId) {
+        for (int i = 0; i < 10; ++i) {
+            Packet pkt(PacketType::InputCommand);
+            pkt.Write(static_cast<uint32_t>(i));
+            client->Send(pkt.GetData(), pkt.GetTotalSize());
+            messagesSent.fetch_add(1);
+        }
+    });
+    
+    client->Connect(NetworkAddress("127.0.0.1", 0));
+    
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    
+    if (messagesSent.load() == 10 && messagesReceived.load() == 10) {
+        g_Results.Pass("EndToEndCommunication");
+    } else {
+        g_Results.Fail("EndToEndCommunication", 
+            std::string("Sent: " + std::to_string(messagesSent.load()) + 
+                       ", Received: " + std::to_string(messagesReceived.load())).c_str());
+    }
+    
+    client->Shutdown();
+    server->Shutdown();
+}
+
+// ============================================================================
+// Main Test Runner
+// ============================================================================
 int main(int argc, char* argv[]) {
-    (void)argc; (void)argv;
-
-    std::printf("[main] SagaEngine Diagnostic Boot\n");
-    std::fflush(stdout);
-
-    std::signal(SIGINT, SignalHandler);
-    std::signal(SIGTERM, SignalHandler);
-
-    try {
-        Core::Log::Init("saga_engine.log");
-        SagaGameModule app;
-        g_AppPtr.store(&app, std::memory_order_release);
-        app.Run();
-        g_AppPtr.store(nullptr, std::memory_order_release);
-    }
-    catch (const std::exception& e) {
-        std::printf("[main] FATAL: %s\n", e.what());
-        std::fflush(stdout);
+    std::printf("\n");
+    std::printf("========================================\n");
+    std::printf("   SAGAENGINE NETWORK TEST SUITE\n");
+    std::printf("========================================\n");
+    std::printf("Build: %s %s\n", __DATE__, __TIME__);
+    std::printf("========================================\n\n");
+    
+    Core::Log::Init("network_tests.log");
+    Core::Log::SetLevel(Core::Log::Level::Info);
+    
+    std::printf("=== PACKET TESTS ===\n");
+    TestPacketCreation();
+    TestPacketSerialization();
+    TestPacketChecksum();
+    TestPacketMaxSize();
+    
+    std::printf("\n=== TRANSPORT TESTS ===\n");
+    TestTransportCreate();
+    TestTransportInitialize();
+    TestTransportConnect();
+    TestTransportSendReceive();
+    TestTransportStatistics();
+    
+    std::printf("\n=== INTEGRATION TESTS ===\n");
+    TestEndToEndCommunication();
+    
+    std::printf("\n");
+    g_Results.Summary();
+    
+    Core::Log::Shutdown();
+    
+    if (g_Results.failed > 0) {
+        std::printf("\n[WARNING] Some tests failed!\n");
         return 1;
     }
+    
+    std::printf("\n[SUCCESS] All tests passed!\n");
     return 0;
 }
-#endif
