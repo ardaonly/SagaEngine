@@ -1,9 +1,0 @@
-{
-    "Ignore": {
-        "Signatures" : [
-            "IgnoredSignature1",
-            "IgnoredSignature2",
-            "IgnoredSignature3"
-        ]
-    }
-}

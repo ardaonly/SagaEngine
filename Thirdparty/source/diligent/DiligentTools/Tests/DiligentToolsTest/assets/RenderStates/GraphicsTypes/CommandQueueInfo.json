@@ -1,5 +1,0 @@
-{
-    "MaxDeviceContexts": 16,
-    "QueueType": "GRAPHICS",
-    "TextureCopyGranularity": [ 4, 8, 16 ]
-}
