@@ -5,16 +5,6 @@ This README complements the project descriptor in `ENGINE.md`.
 
 ---
 
-## Build system note
-`CMakeLists.txt` is intentionally minimal. Why:
-- The architecture is still evolving and will likely be refactored.
-- A heavyweight build system now would create churn and friction during frequent structural changes.
-- A production-grade build and CI will be added once core design stabilizes.
-
-Simplicity in the build is a conscious choice to preserve flexibility.
-
----
-
 ## Short, honest status (quick metrics)
 - Architectural maturity: **~70%** (concepts and separations defined).  
 - Platform coverage: **~10%** (Windows-focused today).  
