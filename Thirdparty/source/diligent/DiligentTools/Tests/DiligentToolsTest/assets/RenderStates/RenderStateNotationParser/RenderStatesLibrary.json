@@ -1,8 +1,0 @@
-{
-    "Imports": [
-        "Shaders.json",
-        "ResourceSignatures.json",
-        "RenderPasses.json",
-        "PipelineStates.json"
-    ]
-}
