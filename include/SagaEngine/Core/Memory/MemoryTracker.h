@@ -2,40 +2,55 @@
 #include <atomic>
 #include <cstddef>
 #include <mutex>
-#include <unordered_map>
 #include <string>
+#include <vector>
 
 namespace SagaEngine::Core {
 
-// Recursion prevention flag for operator new/delete
 extern thread_local bool s_InTracker;
+extern thread_local const char* s_CurrentTag;
 
 struct AllocationInfo {
+    void* address;
     size_t size;
     const char* file;
     int line;
     const char* tag;
+    uint32_t threadId;
+#if defined(_WIN32) && defined(_DEBUG)
+    void* stack[32];
+    uint16_t stackSize;
+#endif
 };
 
 class MemoryTracker {
 public:
+
     static MemoryTracker& Instance();
+
     void TrackAllocation(void* ptr, size_t size, const char* file, int line, const char* tag);
     void TrackDeallocation(void* ptr);
+
     void SetTag(const char* tag);
+
     size_t GetTotalAllocated() const { return _totalAllocated.load(std::memory_order_acquire); }
     size_t GetAllocationCount() const { return _allocationCount.load(std::memory_order_acquire); }
-    size_t GetPeakUsage() const { return _peakUsage.load(std::memory_order_acquire); }
+
     void DumpLeaks();
+    static void Shutdown();
+
 private:
-    MemoryTracker() = default;
+
+    MemoryTracker();
     ~MemoryTracker();
+
     std::mutex _mutex;
-    std::unordered_map<void*, AllocationInfo> _allocations;
+    std::vector<AllocationInfo> _allocations;
+
     std::atomic<size_t> _totalAllocated{0};
     std::atomic<size_t> _allocationCount{0};
-    std::atomic<size_t> _peakUsage{0};
-    const char* _currentTag = "Unknown";
+
+    static std::atomic<bool> s_Active;
 };
 
 }

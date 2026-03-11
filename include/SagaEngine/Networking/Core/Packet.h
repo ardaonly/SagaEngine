@@ -141,7 +141,6 @@ private:
     static uint32_t NetToHost32(uint32_t value);
 };
 
-// Inline Implementations
 inline Packet::Packet(PacketType type) {
     m_Header.magic = PACKET_MAGIC;
     m_Header.version = PROTOCOL_VERSION;
@@ -151,6 +150,7 @@ inline Packet::Packet(PacketType type) {
     m_Header.payloadSize = 0;
     m_Header.checksum = 0;
     m_Payload.reserve(256);
+    UpdateChecksum();
 }
 
 inline Packet::Packet(const Packet& other)
