@@ -1,6 +1,0 @@
-{
-    "Imports": [
-        "GraphicsPrimitives.json",
-        "ComputePrimitives.json"
-    ]
-}
