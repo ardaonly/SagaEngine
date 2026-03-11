@@ -353,7 +353,6 @@ int main(int argc, char* argv[]) {
     Core::Log::Shutdown();
     
     if (g_Results.failed > 0) {
-        std::printf("\n[WARNING] Some tests failed!\n");
         return 1;
     }
     

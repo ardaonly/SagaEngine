@@ -7,5 +7,6 @@ SagaEngine requires a few external libraries:
 - **Diligent Engine** – GraphicsEngineOpenGL / Vulkan
 - **RmlUi** – UI library
 - **FreeType** – font rendering
+- **googletest/googlemock** – for tests
 
 > Place libraries in `Thirdparty/source` or `Thirdparty/prebuilt` before building.
