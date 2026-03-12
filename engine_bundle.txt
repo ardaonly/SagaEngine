@@ -286,40 +286,55 @@ FILE: /include/SagaEngine/Core/Memory/MemoryTracker.h
 #include <atomic>
 #include <cstddef>
 #include <mutex>
-#include <unordered_map>
 #include <string>
+#include <vector>
 
 namespace SagaEngine::Core {
 
-// Recursion prevention flag for operator new/delete
 extern thread_local bool s_InTracker;
+extern thread_local const char* s_CurrentTag;
 
 struct AllocationInfo {
+    void* address;
     size_t size;
     const char* file;
     int line;
     const char* tag;
+    uint32_t threadId;
+#if defined(_WIN32) && defined(_DEBUG)
+    void* stack[32];
+    uint16_t stackSize;
+#endif
 };
 
 class MemoryTracker {
 public:
+
     static MemoryTracker& Instance();
+
     void TrackAllocation(void* ptr, size_t size, const char* file, int line, const char* tag);
     void TrackDeallocation(void* ptr);
+
     void SetTag(const char* tag);
+
     size_t GetTotalAllocated() const { return _totalAllocated.load(std::memory_order_acquire); }
     size_t GetAllocationCount() const { return _allocationCount.load(std::memory_order_acquire); }
-    size_t GetPeakUsage() const { return _peakUsage.load(std::memory_order_acquire); }
+
     void DumpLeaks();
+    static void Shutdown();
+
 private:
-    MemoryTracker() = default;
+
+    MemoryTracker();
     ~MemoryTracker();
+
     std::mutex _mutex;
-    std::unordered_map<void*, AllocationInfo> _allocations;
+    std::vector<AllocationInfo> _allocations;
+
     std::atomic<size_t> _totalAllocated{0};
     std::atomic<size_t> _allocationCount{0};
-    std::atomic<size_t> _peakUsage{0};
-    const char* _currentTag = "Unknown";
+
+    static std::atomic<bool> s_Active;
 };
 
 }
@@ -2279,12 +2294,137 @@ FILE: /include/SagaEngine/Networking/Interest/VisibilityGraph.h
 FILE: /include/SagaEngine/Networking/Replication/RPC.h
 ==========================================================================================
 
+#pragma once
+#include "ReplicationManager.h"
 
+#define SAGA_RPC_REGISTER(manager, name, func, requiresAuth) \
+    (manager).RegisterRPC(name, func, requiresAuth)
+
+#define SAGA_RPC_CALL(manager, rpcId, ...) \
+    do { \
+        Packet pkt(PacketType::RPCRequest); \
+        pkt.Write(static_cast<uint32_t>(rpcId)); \
+        /* Serialize args and send via NetworkTransport */ \
+    } while(0)
 ==========================================================================================
 FILE: /include/SagaEngine/Networking/Replication/ReplicationGraph.h
 ==========================================================================================
 
 
+==========================================================================================
+FILE: /include/SagaEngine/Networking/Replication/ReplicationManager.h
+==========================================================================================
+
+#pragma once
+#include "SagaEngine/Networking/Core/Packet.h"
+#include "SagaEngine/Networking/Core/NetworkTypes.h"
+#include "SagaEngine/ECS/Entity.h"
+#include "SagaEngine/ECS/Component.h"
+#include "SagaEngine/ECS/Serialization.h"
+#include <memory>
+#include <vector>
+#include <unordered_map>
+#include <functional>
+#include <mutex>
+#include <cstdint>
+
+namespace SagaEngine::Simulation {
+    class WorldState;
+    class AuthorityManager;
+}
+
+namespace SagaEngine::Networking::Replication {
+
+using EntityId = ECS::EntityId;
+using ComponentTypeId = ECS::ComponentTypeId;
+using ClientId = ::SagaEngine::Networking::ClientId;
+
+struct ReplicationPriority {
+    float distanceScore{0.0f};
+    float importanceScore{0.0f};
+    uint32_t lastReplicatedTick{0};
+    
+    float CalculateScore() const {
+        return (importanceScore * 2.0f) + (1.0f / (distanceScore + 0.1f));
+    }
+};
+
+struct ClientReplicationState {
+    ClientId clientId;
+    std::unordered_map<EntityId, uint64_t> entityComponentMasks;
+    std::unordered_map<EntityId, ReplicationPriority> priorities;
+    uint64_t lastAckedSequence{0};
+    bool isDirty{false};
+};
+
+struct RPCDefinition {
+    using Func = std::function<void(ClientId, const uint8_t*, size_t)>;
+    std::string name;
+    uint32_t id;
+    Func serverHandler;
+    bool requiresAuthority{true};
+};
+
+class ReplicationManager {
+public:
+    ReplicationManager();
+    ~ReplicationManager();
+
+    ReplicationManager(const ReplicationManager&) = delete;
+    ReplicationManager& operator=(const ReplicationManager&) = delete;
+
+    void Initialize(uint32_t maxClients = 1000);
+    void Shutdown();
+
+    void AddClient(ClientId clientId);
+    void RemoveClient(ClientId clientId);
+    bool HasClient(ClientId clientId) const;
+
+    void GatherDirtyEntities(float dt);
+    void SendUpdates(ClientId clientId, std::function<void(const uint8_t*, size_t)> sendCallback);
+    void ReceiveRPC(ClientId clientId, uint32_t rpcId, const uint8_t* payload, size_t size);
+
+    void RegisterEntityForReplication(EntityId entityId);
+    void UnregisterEntity(EntityId entityId);
+    void MarkComponentDirty(EntityId entityId, ComponentTypeId componentId);
+
+    template<typename Func>
+    void RegisterRPC(const char* name, Func handler, bool requiresAuth = true);
+
+    void SetReplicationFrequency(float hz);
+    float GetReplicationFrequency() const { return _replicationHz; }
+
+    void SetWorldState(Simulation::WorldState* world);
+    void SetAuthorityManager(Simulation::AuthorityManager* auth);
+
+private:
+    struct Impl;
+    std::unique_ptr<Impl> _pimpl;
+    
+    float _replicationHz{20.0f};
+    float _accumulator{0.0f};
+    mutable std::mutex _stateMutex;
+    mutable std::mutex _rpcMutex;
+    
+    void ProcessEntityDelta(ClientReplicationState& clientState, EntityId entityId);
+    bool CheckAuthority(ClientId clientId, EntityId entityId);
+    void RegisterRPCInternal(const RPCDefinition& def);
+};
+
+template<typename Func>
+void ReplicationManager::RegisterRPC(const char* name, Func handler, bool requiresAuth) {
+    static uint32_t s_NextId = 1;
+    RPCDefinition def;
+    def.name = name;
+    def.id = s_NextId++;
+    def.requiresAuthority = requiresAuth;
+    def.serverHandler = [handler](ClientId cid, const uint8_t* p, size_t s) {
+        handler(cid, p, s);
+    };
+    RegisterRPCInternal(def);
+}
+
+} // namespace SagaEngine::Networking::Replication
 ==========================================================================================
 FILE: /include/SagaEngine/Networking/Replication/ReplicationState.h
 ==========================================================================================
@@ -3457,7 +3597,6 @@ int main(int argc, char* argv[]) {
     Core::Log::Shutdown();
     
     if (g_Results.failed > 0) {
-        std::printf("\n[WARNING] Some tests failed!\n");
         return 1;
     }
     
@@ -3672,6 +3811,227 @@ TEST_F(ReliableChannelTest, Shutdown) {
     bool sent = m_Channel->Send(std::move(packet));
     EXPECT_FALSE(sent);
     EXPECT_FALSE(m_Channel->IsConnected());
+}
+==========================================================================================
+FILE: /Tests/Unit/Networking/ReplicationTests.cpp
+==========================================================================================
+
+#include "SagaEngine/Networking/Replication/ReplicationManager.h"
+#include "SagaEngine/Simulation/WorldState.h"
+#include "SagaEngine/Simulation/Authority.h"
+#include "SagaEngine/ECS/Component.h"
+#include "SagaEngine/ECS/Serialization.h"
+#include <gtest/gtest.h>
+#include <thread>
+#include <chrono>
+#include <cstring>
+
+using namespace SagaEngine::Networking::Replication;
+
+struct TestPositionComponent {
+    float x{0.0f};
+    float y{0.0f};
+    float z{0.0f};
+};
+
+struct TestHealthComponent {
+    float current{100.0f};
+    float max{100.0f};
+};
+
+class ReplicationTest : public ::testing::Test {
+protected:
+    std::unique_ptr<ReplicationManager> _replication;
+    std::unique_ptr<SagaEngine::Simulation::WorldState> _world;
+    std::unique_ptr<SagaEngine::Simulation::AuthorityManager> _authority;
+
+    void SetUp() override {
+        _replication = std::make_unique<ReplicationManager>();
+        _world = std::make_unique<SagaEngine::Simulation::WorldState>();
+        _authority = std::make_unique<SagaEngine::Simulation::AuthorityManager>();
+        
+        _replication->Initialize(100);
+        _replication->SetWorldState(_world.get());
+        _replication->SetAuthorityManager(_authority.get());
+        
+        _authority->SetServerMode(true);
+        _authority->SetClientId(1);
+        
+        SagaEngine::ECS::ComponentRegistry::Instance().RegisterComponent<TestPositionComponent>(
+            "TestPosition",
+            [](const TestPositionComponent& data, void* buffer, size_t bufferSize) -> size_t {
+                if (bufferSize < sizeof(TestPositionComponent)) return 0;
+                std::memcpy(buffer, &data, sizeof(TestPositionComponent));
+                return sizeof(TestPositionComponent);
+            },
+            [](TestPositionComponent& data, const void* buffer, size_t bufferSize) -> size_t {
+                if (bufferSize < sizeof(TestPositionComponent)) return 0;
+                std::memcpy(&data, buffer, sizeof(TestPositionComponent));
+                return sizeof(TestPositionComponent);
+            },
+            []() -> size_t { return sizeof(TestPositionComponent); }
+        );
+        
+        SagaEngine::ECS::ComponentRegistry::Instance().RegisterComponent<TestHealthComponent>(
+            "TestHealth",
+            [](const TestHealthComponent& data, void* buffer, size_t bufferSize) -> size_t {
+                if (bufferSize < sizeof(TestHealthComponent)) return 0;
+                std::memcpy(buffer, &data, sizeof(TestHealthComponent));
+                return sizeof(TestHealthComponent);
+            },
+            [](TestHealthComponent& data, const void* buffer, size_t bufferSize) -> size_t {
+                if (bufferSize < sizeof(TestHealthComponent)) return 0;
+                std::memcpy(&data, buffer, sizeof(TestHealthComponent));
+                return sizeof(TestHealthComponent);
+            },
+            []() -> size_t { return sizeof(TestHealthComponent); }
+        );
+    }
+
+    void TearDown() override {
+        _replication->Shutdown();
+    }
+};
+
+TEST_F(ReplicationTest, Initialize) {
+    EXPECT_EQ(_replication->GetReplicationFrequency(), 20.0f);
+}
+
+TEST_F(ReplicationTest, SetReplicationFrequency) {
+    _replication->SetReplicationFrequency(30.0f);
+    EXPECT_EQ(_replication->GetReplicationFrequency(), 30.0f);
+}
+
+TEST_F(ReplicationTest, AddClient) {
+    _replication->AddClient(1);
+    EXPECT_TRUE(_replication->HasClient(1));
+}
+
+TEST_F(ReplicationTest, RegisterEntity) {
+    auto entity = _world->CreateEntity();
+    _replication->RegisterEntityForReplication(entity.GetId());
+    EXPECT_TRUE(_world->IsEntityAlive(entity.GetId()));
+}
+
+TEST_F(ReplicationTest, MarkComponentDirty) {
+    _replication->AddClient(1);
+    
+    auto entity = _world->CreateEntity();
+    _replication->RegisterEntityForReplication(entity.GetId());
+    
+    auto typeId = SagaEngine::ECS::GetComponentTypeId<TestPositionComponent>();
+    _replication->MarkComponentDirty(entity.GetId(), typeId);
+    _replication->GatherDirtyEntities(0.1f);
+    
+    bool sent = false;
+    _replication->SendUpdates(1, [&](const uint8_t*, size_t) {
+        sent = true;
+    });
+    
+    EXPECT_TRUE(sent);
+}
+
+TEST_F(ReplicationTest, RPCRegistration) {
+    _replication->AddClient(1);
+    
+    bool rpcCalled = false;
+    _replication->RegisterRPC("TestRPC", [&](ClientId, const uint8_t*, size_t) {
+        rpcCalled = true;
+    }, false);
+    
+    _replication->ReceiveRPC(1, 1, nullptr, 0);
+    EXPECT_TRUE(rpcCalled);
+}
+
+TEST_F(ReplicationTest, AuthorityValidation) {
+    _replication->AddClient(1);
+    
+    bool rpcCalled = false;
+    _replication->RegisterRPC("AuthRPC", [&](ClientId, const uint8_t*, size_t) {
+        rpcCalled = true;
+    }, true);
+    
+    _replication->ReceiveRPC(1, 1, nullptr, 0);
+    EXPECT_TRUE(rpcCalled);
+}
+
+TEST_F(ReplicationTest, UnregisterEntity) {
+    _replication->AddClient(1);
+    
+    auto entity = _world->CreateEntity();
+    _replication->RegisterEntityForReplication(entity.GetId());
+    _replication->UnregisterEntity(entity.GetId());
+    
+    bool sent = false;
+    _replication->SendUpdates(1, [&](const uint8_t*, size_t) {
+        sent = true;
+    });
+    
+    EXPECT_FALSE(sent);
+}
+
+TEST_F(ReplicationTest, MultipleClients) {
+    _replication->AddClient(1);
+    _replication->AddClient(2);
+    
+    auto entity = _world->CreateEntity();
+    _replication->RegisterEntityForReplication(entity.GetId());
+    
+    auto typeId = SagaEngine::ECS::GetComponentTypeId<TestHealthComponent>();
+    _replication->MarkComponentDirty(entity.GetId(), typeId);
+    _replication->GatherDirtyEntities(0.1f);
+    
+    int client1Sent = 0, client2Sent = 0;
+    _replication->SendUpdates(1, [&](const uint8_t*, size_t) { client1Sent++; });
+    _replication->SendUpdates(2, [&](const uint8_t*, size_t) { client2Sent++; });
+    
+    EXPECT_EQ(client1Sent, 1);
+    EXPECT_EQ(client2Sent, 1);
+}
+
+TEST_F(ReplicationTest, Shutdown) {
+    _replication->Shutdown();
+    auto entity = _world->CreateEntity();
+    _replication->RegisterEntityForReplication(entity.GetId());
+    
+    bool sent = false;
+    _replication->SendUpdates(1, [&](const uint8_t*, size_t) {
+        sent = true;
+    });
+    
+    EXPECT_FALSE(sent);
+}
+
+TEST_F(ReplicationTest, ComponentSerialization) {
+    _replication->AddClient(1);
+    
+    auto entity = _world->CreateEntity();
+    _replication->RegisterEntityForReplication(entity.GetId());
+    
+    TestPositionComponent pos{1.0f, 2.0f, 3.0f};
+    _world->AddComponent(entity.GetId(), pos);
+    
+    auto typeId = SagaEngine::ECS::GetComponentTypeId<TestPositionComponent>();
+    _replication->MarkComponentDirty(entity.GetId(), typeId);
+    _replication->GatherDirtyEntities(0.1f);
+    
+    bool sent = false;
+    size_t sentSize = 0;
+    _replication->SendUpdates(1, [&](const uint8_t* data, size_t size) {
+        sent = size > 0;
+        sentSize = size;
+    });
+    
+    EXPECT_TRUE(sent);
+    EXPECT_GT(sentSize, 0);
+}
+
+TEST_F(ReplicationTest, RemoveClient) {
+    _replication->AddClient(1);
+    EXPECT_TRUE(_replication->HasClient(1));
+    
+    _replication->RemoveClient(1);
+    EXPECT_FALSE(_replication->HasClient(1));
 }
 ==========================================================================================
 FILE: /Tests/Unit/Services/AuthServiceTests.cpp
@@ -4031,119 +4391,151 @@ FILE: /src/SagaEngine/Core/Memory/MemoryTracker.cpp
 ==========================================================================================
 
 #include "SagaEngine/Core/Memory/MemoryTracker.h"
+#include "SagaEngine/Core/Log/Log.h"
 #include <iostream>
 #include <iomanip>
 #include <cstdlib>
+#include <thread>
+
+#if defined(_WIN32) && defined(_DEBUG)
+#include <Windows.h>
+#include <DbgHelp.h>
+#pragma comment(lib, "DbgHelp.lib")
+#endif
 
 namespace SagaEngine::Core {
 
 thread_local bool s_InTracker = false;
 thread_local const char* s_CurrentTag = "Unknown";
 
+std::atomic<bool> MemoryTracker::s_Active{true};
+
 MemoryTracker& MemoryTracker::Instance() {
     static MemoryTracker instance;
     return instance;
 }
 
+MemoryTracker::MemoryTracker() {
+#if defined(_WIN32) && defined(_DEBUG)
+    SymInitialize(GetCurrentProcess(), nullptr, TRUE);
+#endif
+}
+
+MemoryTracker::~MemoryTracker() {
+    if (s_Active.load(std::memory_order_relaxed))
+        DumpLeaks();
+
+#if defined(_WIN32) && defined(_DEBUG)
+    SymCleanup(GetCurrentProcess());
+#endif
+}
+
+void MemoryTracker::SetTag(const char* tag) {
+    s_CurrentTag = tag ? tag : "Unknown";
+}
+
 void MemoryTracker::TrackAllocation(void* ptr, size_t size, const char* file, int line, const char* tag) {
+
+    if (!s_Active.load(std::memory_order_relaxed)) return;
     if (s_InTracker) return;
+
     s_InTracker = true;
-    std::lock_guard lock(_mutex);
-    _allocations[ptr] = {size, file, line, tag ? tag : _currentTag};
+
+    AllocationInfo info{};
+    info.address = ptr;
+    info.size = size;
+    info.file = file;
+    info.line = line;
+    info.tag = tag ? tag : s_CurrentTag;
+    info.threadId = std::hash<std::thread::id>{}(std::this_thread::get_id());
+
+#if defined(_WIN32) && defined(_DEBUG)
+    info.stackSize = CaptureStackBackTrace(2, 32, info.stack, nullptr);
+#endif
+
+    {
+        std::lock_guard lock(_mutex);
+        _allocations.push_back(info);
+    }
+
     _totalAllocated.fetch_add(size, std::memory_order_relaxed);
     _allocationCount.fetch_add(1, std::memory_order_relaxed);
-    size_t current = _totalAllocated.load(std::memory_order_relaxed);
-    size_t peak = _peakUsage.load(std::memory_order_relaxed);
-    while (current > peak && !_peakUsage.compare_exchange_weak(peak, current)) {}
+
     s_InTracker = false;
 }
 
 void MemoryTracker::TrackDeallocation(void* ptr) {
+
+    if (!s_Active.load(std::memory_order_relaxed)) return;
     if (s_InTracker) return;
+
     s_InTracker = true;
+
     std::lock_guard lock(_mutex);
-    auto it = _allocations.find(ptr);
-    if (it != _allocations.end()) {
-        _totalAllocated.fetch_sub(it->second.size, std::memory_order_relaxed);
-        _allocationCount.fetch_sub(1, std::memory_order_relaxed);
-        _allocations.erase(it);
+
+    for (auto it = _allocations.begin(); it != _allocations.end(); ++it) {
+        if (it->address == ptr) {
+            _totalAllocated.fetch_sub(it->size, std::memory_order_relaxed);
+            _allocationCount.fetch_sub(1, std::memory_order_relaxed);
+            _allocations.erase(it);
+            break;
+        }
     }
+
     s_InTracker = false;
 }
 
-void MemoryTracker::SetTag(const char* tag) {
-    _currentTag = tag;
-}
-
 void MemoryTracker::DumpLeaks() {
+
     std::lock_guard lock(_mutex);
+
     if (_allocations.empty()) {
-        std::cout << "[MemoryTracker] No leaks detected." << std::endl;
+        LOG_INFO("[MemoryTracker]", "No leaks detected");
         return;
     }
-    std::cout << "[MemoryTracker] LEAK DETECTED: " << _allocations.size() << " allocations" << std::endl;
-    std::cout << std::left << std::setw(20) << "Address"
-              << std::setw(15) << "Size"
-              << std::setw(30) << "Tag"
-              << std::setw(40) << "Location" << std::endl;
-    for (const auto& [ptr, info] : _allocations) {
-        std::cout << std::hex << ptr << std::dec
-                  << std::setw(15) << info.size
-                  << std::setw(30) << (info.tag ? info.tag : "Unknown")
-                  << info.file << ":" << info.line << std::endl;
+
+    LOG_WARN("[MemoryTracker]", "MEMORY LEAKS DETECTED");
+
+    for (const auto& a : _allocations) {
+
+        LOG_INFO("Memory", "Address: %p Size: %zu Tag: %s Location: %s:%d\n",
+                a.address,
+                a.size,
+                a.tag ? a.tag : "Unknown",
+                a.file ? a.file : "Unknown",
+                a.line);LOG_INFO("Memory", "Address: %p Size: %zu Tag: %s Location: %s:%d\n",
+                a.address,
+                a.size,
+                a.tag ? a.tag : "Unknown",
+                a.file ? a.file : "Unknown",
+                a.line);
+
+#if defined(_WIN32) && defined(_DEBUG)
+
+        char buffer[sizeof(SYMBOL_INFO) + 256];
+        SYMBOL_INFO* symbol = (SYMBOL_INFO*)buffer;
+        symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+        symbol->MaxNameLen = 255;
+
+        for (uint16_t i = 0; i < a.stackSize; i++) {
+
+            DWORD64 displacement = 0;
+
+            if (SymFromAddr(GetCurrentProcess(), (DWORD64)a.stack[i], &displacement, symbol)) {
+                std::cout << "   -> " << symbol->Name << "\n";
+            }
+        }
+
+#endif
+
+        std::cout << "\n";
     }
 }
 
-MemoryTracker::~MemoryTracker() {
-    if (!_allocations.empty()) {
-        DumpLeaks();
-    }
+void MemoryTracker::Shutdown() {
+    s_Active.store(false, std::memory_order_relaxed);
 }
 
-} // namespace SagaEngine::Core
-
-void* operator new(size_t size) {
-    void* ptr = std::malloc(size);
-    if (!SagaEngine::Core::s_InTracker) {
-        SagaEngine::Core::MemoryTracker::Instance().TrackAllocation(ptr, size, "Unknown", 0, "Unknown");
-    }
-    return ptr;
-}
-
-void* operator new[](size_t size) {
-    void* ptr = std::malloc(size);
-    if (!SagaEngine::Core::s_InTracker) {
-        SagaEngine::Core::MemoryTracker::Instance().TrackAllocation(ptr, size, "Unknown", 0, "Unknown");
-    }
-    return ptr;
-}
-
-void operator delete(void* ptr) noexcept {
-    if (ptr && !SagaEngine::Core::s_InTracker) {
-        SagaEngine::Core::MemoryTracker::Instance().TrackDeallocation(ptr);
-    }
-    std::free(ptr);
-}
-
-void operator delete[](void* ptr) noexcept {
-    if (ptr && !SagaEngine::Core::s_InTracker) {
-        SagaEngine::Core::MemoryTracker::Instance().TrackDeallocation(ptr);
-    }
-    std::free(ptr);
-}
-
-void operator delete(void* ptr, size_t) noexcept {
-    if (ptr && !SagaEngine::Core::s_InTracker) {
-        SagaEngine::Core::MemoryTracker::Instance().TrackDeallocation(ptr);
-    }
-    std::free(ptr);
-}
-
-void operator delete[](void* ptr, size_t) noexcept {
-    if (ptr && !SagaEngine::Core::s_InTracker) {
-        SagaEngine::Core::MemoryTracker::Instance().TrackDeallocation(ptr);
-    }
-    std::free(ptr);
 }
 ==========================================================================================
 FILE: /src/SagaEngine/Core/Subsystem/SubsystemManager.cpp
@@ -6007,6 +6399,226 @@ void ReliableChannel::InvokeOnRttUpdated(float rttMs) {
 }
 
 } // namespace SagaEngine::Networking
+==========================================================================================
+FILE: /src/SagaEngine/Networking/Replication/ReplicationManager.cpp
+==========================================================================================
+
+#include "SagaEngine/Networking/Replication/ReplicationManager.h"
+#include "SagaEngine/Simulation/WorldState.h"
+#include "SagaEngine/Simulation/Authority.h"
+#include "SagaEngine/Core/Log/Log.h"
+#include <algorithm>
+#include <cstring>
+
+namespace SagaEngine::Networking::Replication {
+
+struct ReplicationManager::Impl {
+    std::unordered_map<ClientId, std::unique_ptr<ClientReplicationState>> clientStates;
+    std::unordered_map<uint32_t, RPCDefinition> rpcRegistry;
+    std::unordered_map<EntityId, std::vector<ComponentTypeId>> dirtyComponents;
+    std::vector<EntityId> registeredEntities;
+    Simulation::WorldState* worldState{nullptr};
+    Simulation::AuthorityManager* authorityManager{nullptr};
+};
+
+ReplicationManager::ReplicationManager() : _pimpl(std::make_unique<Impl>()) {}
+
+ReplicationManager::~ReplicationManager() {
+    Shutdown();
+}
+
+void ReplicationManager::Initialize(uint32_t maxClients) {
+    LOG_INFO("Replication", "Initializing (maxClients=%u)", maxClients);
+    _pimpl->clientStates.reserve(maxClients);
+}
+
+void ReplicationManager::Shutdown() {
+    std::lock_guard<std::mutex> lock(_stateMutex);
+    _pimpl->clientStates.clear();
+    _pimpl->dirtyComponents.clear();
+    _pimpl->registeredEntities.clear();
+    LOG_INFO("Replication", "Shutdown complete");
+}
+
+void ReplicationManager::AddClient(ClientId clientId) {
+    std::lock_guard<std::mutex> lock(_stateMutex);
+    if (_pimpl->clientStates.find(clientId) != _pimpl->clientStates.end()) {
+        LOG_WARN("Replication", "Client %llu already exists", clientId);
+        return;
+    }
+    auto state = std::make_unique<ClientReplicationState>();
+    state->clientId = clientId;
+    _pimpl->clientStates[clientId] = std::move(state);
+    LOG_INFO("Replication", "Client %llu added", clientId);
+}
+
+void ReplicationManager::RemoveClient(ClientId clientId) {
+    std::lock_guard<std::mutex> lock(_stateMutex);
+    _pimpl->clientStates.erase(clientId);
+    LOG_INFO("Replication", "Client %llu removed", clientId);
+}
+
+bool ReplicationManager::HasClient(ClientId clientId) const {
+    std::lock_guard<std::mutex> lock(_stateMutex);
+    return _pimpl->clientStates.find(clientId) != _pimpl->clientStates.end();
+}
+
+void ReplicationManager::SetReplicationFrequency(float hz) {
+    _replicationHz = hz;
+}
+
+void ReplicationManager::SetWorldState(Simulation::WorldState* world) {
+    _pimpl->worldState = world;
+}
+
+void ReplicationManager::SetAuthorityManager(Simulation::AuthorityManager* auth) {
+    _pimpl->authorityManager = auth;
+}
+
+void ReplicationManager::RegisterEntityForReplication(EntityId entityId) {
+    std::lock_guard<std::mutex> lock(_stateMutex);
+    auto it = std::find(_pimpl->registeredEntities.begin(), 
+                        _pimpl->registeredEntities.end(), entityId);
+    if (it == _pimpl->registeredEntities.end()) {
+        _pimpl->registeredEntities.push_back(entityId);
+        for (auto& pair : _pimpl->clientStates) {
+            ClientReplicationState* state = pair.second.get();
+            if (state) {
+                state->entityComponentMasks[entityId] = 0;
+                state->priorities[entityId] = ReplicationPriority{};
+            }
+        }
+    }
+}
+
+void ReplicationManager::UnregisterEntity(EntityId entityId) {
+    std::lock_guard<std::mutex> lock(_stateMutex);
+    _pimpl->registeredEntities.erase(
+        std::remove(_pimpl->registeredEntities.begin(), 
+                    _pimpl->registeredEntities.end(), entityId),
+        _pimpl->registeredEntities.end()
+    );
+    _pimpl->dirtyComponents.erase(entityId);
+}
+
+void ReplicationManager::MarkComponentDirty(EntityId entityId, ComponentTypeId componentId) {
+    std::lock_guard<std::mutex> lock(_stateMutex);
+    auto& components = _pimpl->dirtyComponents[entityId];
+    auto it = std::find(components.begin(), components.end(), componentId);
+    if (it == components.end()) {
+        components.push_back(componentId);
+    }
+}
+
+void ReplicationManager::GatherDirtyEntities(float dt) {
+    _accumulator += dt;
+    if (_accumulator < (1.0f / _replicationHz)) {
+        return;
+    }
+    _accumulator = 0.0f;
+
+    std::lock_guard<std::mutex> lock(_stateMutex);
+    
+    for (auto& dirtyPair : _pimpl->dirtyComponents) {
+        for (auto& clientPair : _pimpl->clientStates) {
+            if (clientPair.second) {
+                clientPair.second->isDirty = true;
+            }
+        }
+    }
+    
+    _pimpl->dirtyComponents.clear();
+}
+
+void ReplicationManager::SendUpdates(ClientId clientId, 
+                                      std::function<void(const uint8_t*, size_t)> sendCallback) {
+    std::lock_guard<std::mutex> lock(_stateMutex);
+    auto it = _pimpl->clientStates.find(clientId);
+    if (it == _pimpl->clientStates.end() || !it->second || !it->second->isDirty) {
+        return;
+    }
+
+    ClientReplicationState& state = *it->second;
+    Packet updatePacket(PacketType::DeltaSnapshot);
+    
+    size_t entitiesSent = 0;
+    for (const auto& entityId : _pimpl->registeredEntities) {
+        auto dirtyIt = _pimpl->dirtyComponents.find(entityId);
+        if (dirtyIt == _pimpl->dirtyComponents.end()) continue;
+
+        if (updatePacket.GetTotalSize() > 1200) {
+            break;
+        }
+
+        updatePacket.Write(entityId);
+        uint16_t compCount = static_cast<uint16_t>(dirtyIt->second.size());
+        updatePacket.Write(compCount);
+
+        for (auto compType : dirtyIt->second) {
+            updatePacket.Write(compType);
+            const auto* serializer = ECS::ComponentRegistry::Instance().GetSerializer(compType);
+            if (serializer && _pimpl->worldState) {
+                uint8_t dummyData[64] = {0};
+                size_t size = serializer->GetSerializedSize();
+                if (size <= 64) {
+                    updatePacket.WriteBytes(dummyData, size);
+                }
+            }
+        }
+        entitiesSent++;
+    }
+
+    if (entitiesSent > 0) {
+        auto data = updatePacket.GetSerializedData();
+        sendCallback(data.data(), data.size());
+        state.isDirty = false;
+    }
+}
+
+void ReplicationManager::ReceiveRPC(ClientId clientId, uint32_t rpcId, 
+                                     const uint8_t* payload, size_t size) {
+    std::lock_guard<std::mutex> lock(_rpcMutex);
+    auto it = _pimpl->rpcRegistry.find(rpcId);
+    if (it == _pimpl->rpcRegistry.end()) {
+        LOG_WARN("RPC", "Unknown RPC ID %u from client %llu", rpcId, clientId);
+        return;
+    }
+
+    const auto& def = it->second;
+    if (def.requiresAuthority && _pimpl->authorityManager) {
+        if (!_pimpl->authorityManager->HasAuthority(rpcId)) {
+            LOG_WARN("RPC", "Authority denied for client %llu", clientId);
+            return;
+        }
+    }
+
+    try {
+        def.serverHandler(clientId, payload, size);
+    } catch (const std::exception& e) {
+        LOG_ERROR("RPC", "Handler exception: %s", e.what());
+    }
+}
+
+void ReplicationManager::RegisterRPCInternal(const RPCDefinition& def) {
+    std::lock_guard<std::mutex> lock(_rpcMutex);
+    _pimpl->rpcRegistry[def.id] = def;
+    LOG_INFO("RPC", "Registered: %s (ID=%u)", def.name.c_str(), def.id);
+}
+
+bool ReplicationManager::CheckAuthority(ClientId clientId, EntityId entityId) {
+    if (!_pimpl->authorityManager) return true;
+    return _pimpl->authorityManager->HasAuthority(static_cast<uint32_t>(entityId));
+}
+
+void ReplicationManager::ProcessEntityDelta(ClientReplicationState& clientState, 
+                                             EntityId entityId) {
+    auto it = clientState.entityComponentMasks.find(entityId);
+    if (it == clientState.entityComponentMasks.end()) {
+        it = clientState.entityComponentMasks.emplace(entityId, 0).first;
+    }
+}
+
+} // namespace SagaEngine::Networking::Replication
 ==========================================================================================
 FILE: /src/SagaEngine/Persistence/Database/PostgreSQLImpl.cpp
 ==========================================================================================
