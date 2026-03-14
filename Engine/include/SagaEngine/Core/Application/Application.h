@@ -1,5 +1,4 @@
-#ifndef SAGAENGINE_CORE_APPLICATION_H
-#define SAGAENGINE_CORE_APPLICATION_H
+#pragma once
 
 #include <string>
 
@@ -31,5 +30,3 @@ namespace SagaEngine::Core {
     };
 
 }
-
-#endif

@@ -16,5 +16,3 @@ This README complements the project descriptor in `ENGINE.md`.
 - Open to discussion and small, architecture-focused contributions.  
 - Major design changes: open an issue or RFC first — don't submit large, breaking PRs without prior discussion.  
 - Expect refactors and breaking changes while the foundation is established.
-
----

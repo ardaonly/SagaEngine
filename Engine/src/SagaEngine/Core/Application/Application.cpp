@@ -18,7 +18,7 @@ Application::Application(const std::string& name)
     OutputDebugStringA("[Application] Constructor START\n");
     OutputDebugStringA("[Application] Setting s_Instance...\n");
     #endif
-    
+    // USE LOG LIBRARY INSTEAD OF PRINTF --arda
     std::printf("[Application] Constructor START\n");
     std::fflush(stdout);
     

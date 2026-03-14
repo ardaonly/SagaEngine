@@ -7,6 +7,7 @@ IGNORE_DIRS = {
     "build",
     "bin",
     "Thirdparty",
+    ".vscode",
     ".thirdparty_build",
     "__pycache__"
 }
