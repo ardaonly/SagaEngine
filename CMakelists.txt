@@ -4,17 +4,20 @@ project(SagaEngine LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Prefer static libs" FORCE)
+set(DISABLE_TESTS ON CACHE BOOL "Disable hiredis tests" FORCE)
 
 if(CMAKE_GENERATOR MATCHES "MinGW Makefiles")
     find_program(MINGW_GCC NAMES x86_64-w64-mingw32-gcc.exe gcc.exe PATHS ENV PATH NO_DEFAULT_PATH)
     find_program(MINGW_GXX NAMES x86_64-w64-mingw32-g++.exe g++.exe PATHS ENV PATH NO_DEFAULT_PATH)
     find_program(MINGW_MAKE NAMES mingw32-make.exe make.exe PATHS ENV PATH NO_DEFAULT_PATH)
+    
     if(MINGW_GCC AND MINGW_GXX)
         set(CMAKE_C_COMPILER "${MINGW_GCC}" CACHE FILEPATH "C compiler" FORCE)
         set(CMAKE_CXX_COMPILER "${MINGW_GXX}" CACHE FILEPATH "C++ compiler" FORCE)
     else()
         message(FATAL_ERROR "MinGW generator selected but gcc/g++ not found in PATH. Use MSYS2 MinGW64 shell or add MinGW bin to PATH.")
     endif()
+    
     if(MINGW_MAKE)
         set(CMAKE_MAKE_PROGRAM "${MINGW_MAKE}" CACHE FILEPATH "make program" FORCE)
     else()
@@ -31,9 +34,6 @@ endif()
 
 option(SAGA_ENABLE_VULKAN   "Enable Vulkan backend"     OFF)
 option(SAGA_ENABLE_OPENGL   "Enable OpenGL backend"     OFF)
-
-# If you want to use standalone Asio (not Boost.Asio), set this ON and
-# place standalone asio headers under Thirdparty/source/asio/include
 option(USE_STANDALONE_ASIO "Use standalone Asio (not Boost.Asio)" OFF)
 
 function(maybe_link_target tgt exe_target)
@@ -47,42 +47,21 @@ function(maybe_link_target tgt exe_target)
 endfunction()
 
 # -------------------------------------------------------------------------
-# Google Test / Google Mock (Thirdparty/source/googlemock)
-# This will add the bundled googletest + googlemock projects if present.
-# Configure to static libs, disable their self-tests/samples for faster build.
+# GoogleMock / GoogleTest
 # -------------------------------------------------------------------------
 set(GOOGLEMOCK_DIR "${CMAKE_SOURCE_DIR}/Thirdparty/source/googlemock")
 if(EXISTS "${GOOGLEMOCK_DIR}/CMakeLists.txt")
-    # Force sensible defaults for building inside a larger project
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "Prefer static libs" FORCE)
     set(gtest_build_tests OFF CACHE BOOL "Disable gtest's internal tests" FORCE)
     set(gtest_build_samples OFF CACHE BOOL "Disable gtest samples" FORCE)
     set(gmock_build_tests OFF CACHE BOOL "Disable gmock's internal tests" FORCE)
     set(gtest_force_shared_crt OFF CACHE BOOL "Use shared CRT for gtest (Windows)" FORCE)
 
-    message(STATUS "Adding GoogleMock/GoogleTest from: ${GOOGLEMOCK_DIR}")
     add_subdirectory("${GOOGLEMOCK_DIR}" "${THIRD_PARTY_BUILD_ROOT}/googlemock" EXCLUDE_FROM_ALL)
-
-    # After add_subdirectory the following targets are normally available:
-    #  gtest, gtest_main, gmock, gmock_main
-    if(TARGET gtest)
-        message(STATUS "gtest target available")
-    endif()
-    if(TARGET gmock)
-        message(STATUS "gmock target available")
-    endif()
-else()
-    message(STATUS "GoogleMock not found at ${GOOGLEMOCK_DIR} - skipping GoogleTest/GoogleMock")
 endif()
 
-# Optional: build a unit-test executable if user asks for it
-option(SAGA_BUILD_TESTS "Build unit tests (requires GoogleTest/GoogleMock)" ON)
+option(SAGA_BUILD_TESTS "Build unit tests" ON)
 if(SAGA_BUILD_TESTS)
-    if(NOT TARGET gtest OR NOT TARGET gmock)
-        message(FATAL_ERROR "SAGA_BUILD_TESTS=ON but gtest/gmock targets not found. Ensure Thirdparty/source/googlemock is present.")
-    endif()
-
-    # collect test sources from Tests/ (create this folder and add your tests)
     file(GLOB_RECURSE SAGA_TEST_SOURCES CONFIGURE_DEPENDS
         "${CMAKE_SOURCE_DIR}/Tests/*.cpp" "${CMAKE_SOURCE_DIR}/Tests/*.cc"
     )
@@ -91,38 +70,25 @@ if(SAGA_BUILD_TESTS)
         add_executable(SagaTests ${SAGA_TEST_SOURCES})
 
         if(TARGET gmock_main)
-            target_link_libraries(SagaTests PRIVATE
-                SagaEngine
-                SagaBackend
-                SagaEditor
-                gmock_main
-            )
+            target_link_libraries(SagaTests PRIVATE SagaBackend SagaEditor SagaEngine gmock_main)
         else()
-            target_link_libraries(SagaTests PRIVATE
-                SagaEngine
-                SagaBackend
-                SagaEditor
-                gtest_main
-                gmock
-            )
+            target_link_libraries(SagaTests PRIVATE SagaBackend SagaEditor SagaEngine gtest_main gmock)
         endif()
 
         target_include_directories(SagaTests PRIVATE
             "${CMAKE_SOURCE_DIR}/include"
+            "${CMAKE_SOURCE_DIR}/Backends/include"
             "${CMAKE_SOURCE_DIR}/Thirdparty/source/googlemock/include"
             "${CMAKE_SOURCE_DIR}/Thirdparty/source/googlemock/googletest/include"
         )
 
         enable_testing()
         add_test(NAME unit_tests COMMAND SagaTests)
-        message(STATUS "Configured SagaTests (unit test executable). Use ctest or run SagaTests directly.")
-    else()
-        message(WARNING "SAGA_BUILD_TESTS=ON but no test sources found in ${CMAKE_SOURCE_DIR}/Tests. Create Tests/*.cpp to enable SagaTests.")
     endif()
 endif()
 
 # -------------------------------------------------------------------------
-# FreeType (robust): either add_subdirectory if CMakeLists exists, otherwise build static from sources
+# FreeType
 # -------------------------------------------------------------------------
 set(FT_DIR "${CMAKE_SOURCE_DIR}/Thirdparty/source/freetype")
 set(FREETYPE_INCLUDE_DIRS "${FT_DIR}/include")
@@ -136,63 +102,46 @@ if(EXISTS "${FT_DIR}/CMakeLists.txt")
         set(FREETYPE_TARGET "freetype")
     endif()
     list(APPEND CMAKE_PREFIX_PATH "${THIRD_PARTY_BUILD_ROOT}/freetype")
-    set(Freetype_ROOT "${THIRD_PARTY_BUILD_ROOT}/freetype" CACHE PATH "Freetype root for downstream consumers" FORCE)
+    set(Freetype_ROOT "${THIRD_PARTY_BUILD_ROOT}/freetype" CACHE PATH "Freetype root" FORCE)
 else()
     file(GLOB_RECURSE FT_SRC "${FT_DIR}/src/*.c" "${FT_DIR}/src/*.cpp" "${FT_DIR}/src/*.cc")
     if(FT_SRC)
-        message(STATUS "Freetype CMake not found; building freetype STATIC from sources")
         add_library(freetype STATIC ${FT_SRC})
         target_include_directories(freetype PUBLIC "${FREETYPE_INCLUDE_DIRS}")
         target_compile_features(freetype PUBLIC cxx_std_20)
         set(FREETYPE_TARGET "freetype")
         if(NOT TARGET "Freetype::Freetype")
             add_library(Freetype::Freetype ALIAS freetype)
-            message(STATUS "Created ALIAS: Freetype::Freetype -> freetype")
         endif()
         list(APPEND CMAKE_PREFIX_PATH "${THIRD_PARTY_BUILD_ROOT}/freetype")
-        set(Freetype_ROOT "${THIRD_PARTY_BUILD_ROOT}/freetype" CACHE PATH "Freetype root for downstream consumers" FORCE)
-    else()
-        message(WARNING "Freetype sources not found at ${FT_DIR}; fonts and RmlUi may fail to configure.")
+        set(Freetype_ROOT "${THIRD_PARTY_BUILD_ROOT}/freetype" CACHE PATH "Freetype root" FORCE)
     endif()
 endif()
 
-# Ensure alias exists if some other target name was created by bundled freetype build
 if(NOT TARGET "Freetype::Freetype")
     if(TARGET freetype)
         add_library(Freetype::Freetype ALIAS freetype)
-        message(STATUS "Created ALIAS: Freetype::Freetype -> freetype (fallback)")
     elseif(TARGET Freetype)
         add_library(Freetype::Freetype ALIAS Freetype)
-        message(STATUS "Created ALIAS: Freetype::Freetype -> Freetype (fallback)")
     endif()
 endif()
 
 # -------------------------------------------------------------------------
-# RmlUi (hook into its CMake) - force freetype, disable samples, disable PCH/tracy
+# RmlUi
 # -------------------------------------------------------------------------
 set(RMLUI_DIR "${CMAKE_SOURCE_DIR}/Thirdparty/source/rmlui")
 if(EXISTS "${RMLUI_DIR}/CMakeLists.txt")
     set(RMLUI_FONT_ENGINE "freetype" CACHE STRING "Font engine" FORCE)
     set(RMLUI_SAMPLES OFF CACHE BOOL "Build samples" FORCE)
-    set(RMLUI_PRECOMPILED_HEADERS OFF CACHE BOOL "Disable PCH for portability" FORCE)
+    set(RMLUI_PRECOMPILED_HEADERS OFF CACHE BOOL "Disable PCH" FORCE)
     set(RMLUI_TRACY_PROFILING OFF CACHE BOOL "Disable tracy" FORCE)
-
     list(APPEND CMAKE_PREFIX_PATH "${THIRD_PARTY_BUILD_ROOT}/freetype")
     set(Freetype_ROOT "${THIRD_PARTY_BUILD_ROOT}/freetype" CACHE PATH "Force Freetype root for RmlUi" FORCE)
-
-    message(STATUS "Attempting to add_subdirectory(RmlUi) at: ${RMLUI_DIR}")
     add_subdirectory("${RMLUI_DIR}" "${THIRD_PARTY_BUILD_ROOT}/rmlui" EXCLUDE_FROM_ALL)
-    if(TARGET RmlUi::RmlUi)
-        message(STATUS "RmlUi target available: RmlUi::RmlUi")
-    else()
-        message(WARNING "RmlUi added but RmlUi::RmlUi target not found; check RmlUi build output.")
-    endif()
-else()
-    message(STATUS "RmlUi source not found at ${RMLUI_DIR} - skipping RmlUi")
 endif()
 
 # -------------------------------------------------------------------------
-# Diligent (force static where possible)
+# Diligent Engine
 # -------------------------------------------------------------------------
 set(DIL_ROOT "${CMAKE_SOURCE_DIR}/Thirdparty/source/diligent")
 if(EXISTS "${DIL_ROOT}/CMakeLists.txt")
@@ -219,47 +168,92 @@ if(EXISTS "${DIL_ROOT}/CMakeLists.txt")
     add_subdirectory("${DIL_ROOT}" "${DIL_BINARY_DIR}" EXCLUDE_FROM_ALL)
 
     set(DIL_SHARED_CANDIDATES
-        "Diligent-GraphicsEngineOpenGL-shared"
-        "Diligent-GraphicsEngineVk-shared"
-        "Diligent-GraphicsEngineOpenGL_shared"
-        "Diligent-GraphicsEngineVk_shared"
+        "Diligent-GraphicsEngineOpenGL-shared" "Diligent-GraphicsEngineVk-shared"
+        "Diligent-GraphicsEngineOpenGL_shared" "Diligent-GraphicsEngineVk_shared"
         "Diligent-GraphicsEngineOpenGL" "Diligent-GraphicsEngineVk"
     )
     foreach(tgt IN LISTS DIL_SHARED_CANDIDATES)
         if(TARGET ${tgt})
             set_target_properties(${tgt} PROPERTIES EXCLUDE_FROM_ALL TRUE)
-            message(STATUS "Marked Diligent target excluded from all: ${tgt}")
         endif()
     endforeach()
-else()
-    message(STATUS "Diligent root not found at ${DIL_ROOT} - skipping")
 endif()
 
 # -------------------------------------------------------------------------
-# Qt prebuilt fallback: try find_package first, otherwise create IMPORTED targets from .a files
+# libpqxx
+# -------------------------------------------------------------------------
+find_package(libpqxx CONFIG QUIET)
+
+if(NOT libpqxx_FOUND)
+    find_package(PostgreSQL REQUIRED)
+    find_package(PkgConfig QUIET)
+    if(PKG_CONFIG_FOUND)
+        pkg_check_modules(PQXX libpqxx)
+        if(PQXX_FOUND)
+            add_library(libpqxx::pqxx INTERFACE IMPORTED)
+            target_include_directories(libpqxx::pqxx INTERFACE ${PQXX_INCLUDE_DIRS})
+            target_link_libraries(libpqxx::pqxx INTERFACE ${PQXX_LIBRARIES})
+            set(libpqxx_FOUND TRUE)
+        endif()
+    endif()
+endif()
+
+if(NOT libpqxx_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/Thirdparty/source/libpqxx/CMakeLists.txt")
+    add_subdirectory("${CMAKE_SOURCE_DIR}/Thirdparty/source/libpqxx" "${THIRD_PARTY_BUILD_ROOT}/libpqxx" EXCLUDE_FROM_ALL)
+endif()
+
+# -------------------------------------------------------------------------
+# hiredis
+# -------------------------------------------------------------------------
+set(HIREDIS_DIR "${CMAKE_SOURCE_DIR}/Thirdparty/source/hiredis")
+
+if(EXISTS "${HIREDIS_DIR}/CMakeLists.txt")
+    set(DISABLE_TESTS ON CACHE BOOL "Disable hiredis tests" FORCE)
+    set(ENABLE_EXAMPLES OFF CACHE BOOL "Disable hiredis examples" FORCE)
+    set(BUILD_SHARED_LIBS ON CACHE BOOL "Use DLL for hiredis" FORCE)
+
+    add_subdirectory("${HIREDIS_DIR}" "${THIRD_PARTY_BUILD_ROOT}/hiredis" EXCLUDE_FROM_ALL)
+
+    set(hiredis_FOUND TRUE)
+    set(hiredis_INCLUDE_DIRS "${HIREDIS_DIR}")
+    set(REDIS_PLUS_PLUS_HIREDIS_LIBS hiredis)
+
+    message(STATUS "hiredis DLL hazır, include ve lib değişkenleri ayarlandı.")
+
+else()
+    message(WARNING "hiredis source not found at ${HIREDIS_DIR}.")
+endif()
+
+# -------------------------------------------------------------------------
+# redis-plus-plus
+# -------------------------------------------------------------------------
+set(REDIS_PLUS_PLUS_DIR "${CMAKE_SOURCE_DIR}/Thirdparty/source/redisplusplus")
+if(EXISTS "${REDIS_PLUS_PLUS_DIR}/CMakeLists.txt")
+    set(REDIS_PLUS_PLUS_BUILD_SHARED OFF CACHE BOOL "Do not build shared library" FORCE)
+    set(REDIS_PLUS_PLUS_BUILD_STATIC ON CACHE BOOL "Build static library" FORCE)
+    set(REDIS_PLUS_PLUS_BUILD_TEST OFF CACHE BOOL "Do not build tests" FORCE)
+    set(REDIS_PLUS_PLUS_CXX_STANDARD 20 CACHE STRING "Set CXX standard to match Engine" FORCE)
+
+    add_subdirectory("${REDIS_PLUS_PLUS_DIR}" "${THIRD_PARTY_BUILD_ROOT}/redisplusplus" EXCLUDE_FROM_ALL)
+else()
+    message(WARNING "redis-plus-plus source not found at ${REDIS_PLUS_PLUS_DIR}. CMake configuration may be incomplete.")
+endif()
+
+# -------------------------------------------------------------------------
+# Qt
 # -------------------------------------------------------------------------
 set(THIRD_PARTY_QT_DIR "${CMAKE_SOURCE_DIR}/Thirdparty/prebuilt/qt/windows/6.10.2/mingw_64")
 if(EXISTS "${THIRD_PARTY_QT_DIR}")
-    message(STATUS "Adding Qt prebuilt path to CMAKE_PREFIX_PATH: ${THIRD_PARTY_QT_DIR}")
     list(APPEND CMAKE_PREFIX_PATH "${THIRD_PARTY_QT_DIR}")
 endif()
 
-# Try config-mode find first
 find_package(Qt6 COMPONENTS Core Gui Widgets QUIET)
-if(TARGET Qt6::Core)
-    message(STATUS "Qt6 found via find_package; using Qt6::Core/Gui/Widgets")
-else()
-    # fallback: create imported targets from static libs under prebuilt path
+if(NOT TARGET Qt6::Core)
     set(QT_PREBUILT_DIR "${THIRD_PARTY_QT_DIR}")
     if(EXISTS "${QT_PREBUILT_DIR}")
-        message(STATUS "Attempting to create imported Qt targets from: ${QT_PREBUILT_DIR}")
-
         set(_qt_lib_dirs
-            "${QT_PREBUILT_DIR}/lib"
-            "${QT_PREBUILT_DIR}/lib64"
-            "${QT_PREBUILT_DIR}/lib/x64"
-            "${QT_PREBUILT_DIR}/lib/x86"
-            "${QT_PREBUILT_DIR}"
+            "${QT_PREBUILT_DIR}/lib" "${QT_PREBUILT_DIR}/lib64"
+            "${QT_PREBUILT_DIR}/lib/x64" "${QT_PREBUILT_DIR}/lib/x86" "${QT_PREBUILT_DIR}"
         )
 
         function(_find_qt_lib outvar)
@@ -279,7 +273,6 @@ else()
         _find_qt_lib(_qt_gui_lib  Qt6Gui  Qt6Gui4  libQt6Gui  Qt6Gui_a)
         _find_qt_lib(_qt_widgets_lib Qt6Widgets Qt6Widgets4 libQt6Widgets Qt6Widgets_a)
 
-        # try to detect include dir: prefer include/ or include/Qt6 etc.
         set(_qt_include_dir "")
         if(EXISTS "${QT_PREBUILT_DIR}/include")
             set(_qt_include_dir "${QT_PREBUILT_DIR}/include")
@@ -300,9 +293,7 @@ else()
             )
             if(_qt_include_dir)
                 set_target_properties(Qt6::Core PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${_qt_include_dir}")
-                message(STATUS "Qt6::Core include dir set to: ${_qt_include_dir}")
             endif()
-            message(STATUS "Created IMPORTED Qt6::Core -> ${_qt_core_lib}")
         endif()
 
         if(_qt_gui_lib AND NOT TARGET Qt6::Gui)
@@ -318,7 +309,6 @@ else()
             if(TARGET Qt6::Core)
                 set_target_properties(Qt6::Gui PROPERTIES INTERFACE_LINK_LIBRARIES "Qt6::Core")
             endif()
-            message(STATUS "Created IMPORTED Qt6::Gui -> ${_qt_gui_lib}")
         endif()
 
         if(_qt_widgets_lib AND NOT TARGET Qt6::Widgets)
@@ -346,29 +336,12 @@ else()
             if(_iface_libs)
                 set_target_properties(Qt6::Widgets PROPERTIES INTERFACE_LINK_LIBRARIES "${_iface_libs}")
             endif()
-            message(STATUS "Created IMPORTED Qt6::Widgets -> ${_qt_widgets_lib}")
         endif()
-
-        if(NOT _qt_include_dir)
-            message(WARNING "Qt include dir not auto-detected under ${QT_PREBUILT_DIR}. You may need to set INTERFACE_INCLUDE_DIRECTORIES manually.")
-            file(GLOB _qt_inc_cands "${QT_PREBUILT_DIR}/**/QtCore" "${QT_PREBUILT_DIR}/**/QtWidgets" "${QT_PREBUILT_DIR}/**/Qt6")
-            if(_qt_inc_cands)
-                message(STATUS "Found candidate include dirs (first 5):")
-                list(LENGTH _qt_inc_cands _c)
-                math(EXPR _max_show "(_c < 5) ? _c : 5")
-                foreach(i RANGE 0 ${_max_show})
-                    list(GET _qt_inc_cands ${i} _f)
-                    message(STATUS "  ${_f}")
-                endforeach()
-            endif()
-        endif()
-    else()
-        message(STATUS "Qt prebuilt dir not found at ${QT_PREBUILT_DIR}")
     endif()
 endif()
 
 # -------------------------------------------------------------------------
-# Boost.Asio (header-only wrapper target)
+# Boost.Asio
 # -------------------------------------------------------------------------
 add_library(Asio INTERFACE)
 target_include_directories(Asio INTERFACE
@@ -376,106 +349,125 @@ target_include_directories(Asio INTERFACE
 )
 
 # -------------------------------------------------------------------------
-# Engine / Editor / Backend targets (reworked)
+# Saga Core Targets
 # -------------------------------------------------------------------------
-# Collect sources separately to keep strict modular separation
 file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_SOURCE_DIR}/src/SagaEngine/*.cpp"
-    "${CMAKE_SOURCE_DIR}/src/SagaEngine/*.cc"
+    "${CMAKE_SOURCE_DIR}/Engine/src/SagaEngine/*.cpp"
+    "${CMAKE_SOURCE_DIR}/Engine/src/SagaEngine/*.cc"
 )
 
 file(GLOB_RECURSE EDITOR_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_SOURCE_DIR}/src/SagaEditor/*.cpp"
-    "${CMAKE_SOURCE_DIR}/src/SagaEditor/*.cc"
+    "${CMAKE_SOURCE_DIR}/Editor/src/SagaEditor/*.cpp"
+    "${CMAKE_SOURCE_DIR}/Editor/src/SagaEditor/*.cc"
 )
 
 file(GLOB_RECURSE BACKEND_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_SOURCE_DIR}/backend/src/*.cpp"
-    "${CMAKE_SOURCE_DIR}/backend/src/*.cc"
+    "${CMAKE_SOURCE_DIR}/Backends/src/**/*.cpp"
+    "${CMAKE_SOURCE_DIR}/Backends/src/**/*.cc"
 )
 
-# --- SagaEngine target ---
+# --- SagaEngine ---
 if(ENGINE_SOURCES)
     add_library(SagaEngine STATIC ${ENGINE_SOURCES})
-    target_include_directories(SagaEngine PUBLIC "${CMAKE_SOURCE_DIR}/include" "${CMAKE_SOURCE_DIR}/Engine")
+    target_include_directories(SagaEngine PUBLIC "${CMAKE_SOURCE_DIR}/Engine/include" "${CMAKE_SOURCE_DIR}/include")
     target_compile_features(SagaEngine PUBLIC cxx_std_20)
+    
+    target_link_libraries(SagaEngine PUBLIC Asio)
 else()
     add_library(SagaEngine INTERFACE)
-    target_include_directories(SagaEngine INTERFACE "${CMAKE_SOURCE_DIR}/include" "${CMAKE_SOURCE_DIR}/Engine")
+    target_include_directories(SagaEngine INTERFACE "${CMAKE_SOURCE_DIR}/Engine/include" "${CMAKE_SOURCE_DIR}/include")
+    
+    target_link_libraries(SagaEngine INTERFACE Asio)
 endif()
 
-# link Asio into engine (header-only => INTERFACE is fine)
-# NOTE: Engine headers include boost/asio.hpp; make Asio PUBLIC on the engine so consumers inherit include dirs
-target_link_libraries(SagaEngine PUBLIC Asio)
-
-# --- SagaEditor target (may be empty initially) ---
+# --- SagaEditor ---
 if(EDITOR_SOURCES)
     add_library(SagaEditor STATIC ${EDITOR_SOURCES})
-    target_include_directories(SagaEditor PUBLIC "${CMAKE_SOURCE_DIR}/include" "${CMAKE_SOURCE_DIR}/Engine")
+    target_include_directories(SagaEditor PUBLIC "${CMAKE_SOURCE_DIR}/Editor/include" "${CMAKE_SOURCE_DIR}/include")
     target_compile_features(SagaEditor PUBLIC cxx_std_20)
 else()
     add_library(SagaEditor INTERFACE)
-    target_include_directories(SagaEditor INTERFACE "${CMAKE_SOURCE_DIR}/include" "${CMAKE_SOURCE_DIR}/Engine")
+    target_include_directories(SagaEditor INTERFACE "${CMAKE_SOURCE_DIR}/Editor/include" "${CMAKE_SOURCE_DIR}/include")
 endif()
 
-# --- SagaBackend target ---
+# --- SagaBackend ---
 if(BACKEND_SOURCES)
     add_library(SagaBackend STATIC ${BACKEND_SOURCES})
-    target_include_directories(SagaBackend PUBLIC "${CMAKE_SOURCE_DIR}/backend/include" "${CMAKE_SOURCE_DIR}/include")
+    target_include_directories(SagaBackend PUBLIC "${CMAKE_SOURCE_DIR}/Backends/include" "${CMAKE_SOURCE_DIR}/include")
     target_compile_features(SagaBackend PUBLIC cxx_std_20)
 else()
     add_library(SagaBackend INTERFACE)
-    target_include_directories(SagaBackend INTERFACE "${CMAKE_SOURCE_DIR}/backend/include")
+    target_include_directories(SagaBackend INTERFACE "${CMAKE_SOURCE_DIR}/Backends/include")
 endif()
 
-# --- Main executable ---
-set(MAIN_SRC "${CMAKE_SOURCE_DIR}/Main/main.cpp")
-if(NOT EXISTS "${MAIN_SRC}")
-    message(WARNING "Main source not found at ${MAIN_SRC}. Create Main/main.cpp")
+target_link_libraries(SagaBackend PRIVATE SagaEngine)
+
+# Database & Cache Linking
+if(TARGET libpqxx::pqxx)
+    target_link_libraries(SagaBackend PRIVATE libpqxx::pqxx)
+elseif(TARGET PostgreSQL::PostgreSQL)
+    target_link_libraries(SagaBackend PRIVATE PostgreSQL::PostgreSQL)
 endif()
+
+# --- Hiredis & redis++ ---
+set(HIREDIS_DIR "${CMAKE_SOURCE_DIR}/Thirdparty/source/hiredis")
+set(HIREDIS_INCLUDE_DIR "${HIREDIS_DIR}")
+set(HIREDIS_LIB "${HIREDIS_DIR}/libhiredis.a")
+
+set(REDIS_PLUS_PLUS_HIREDIS_INCLUDE_DIR ${HIREDIS_INCLUDE_DIR} CACHE PATH "Path to hiredis include" FORCE)
+set(REDIS_PLUS_PLUS_HIREDIS_LIBRARY ${HIREDIS_LIB} CACHE FILEPATH "Path to hiredis lib" FORCE)
+
+if(TARGET redis++::redis++_static)
+    target_link_libraries(SagaBackend PRIVATE redis++::redis++_static)
+elseif(TARGET redis++_static)
+    target_link_libraries(SagaBackend PRIVATE redis++_static)
+endif()
+
+message(STATUS "SagaBackend redis++ ve hiredis ayarlandı: ${HIREDIS_LIB}")
+
+# -------------------------------------------------------------------------
+# Main App
+# -------------------------------------------------------------------------
+set(MAIN_SRC "${CMAKE_SOURCE_DIR}/Main/main.cpp")
+
 add_executable(SagaApp "${MAIN_SRC}")
 
-# Link core pieces. Order matters for transitive include/linking clarity.
 target_link_libraries(SagaApp PRIVATE
     SagaEngine
-    SagaBackend
     SagaEditor
+    SagaBackend
 )
 
-# Include common headers for the app
 target_include_directories(SagaApp PRIVATE
     "${CMAKE_SOURCE_DIR}/Thirdparty/header-only/json"
     "${CMAKE_SOURCE_DIR}/Thirdparty/header-only/glm"
     "${FREETYPE_INCLUDE_DIRS}"
-    "${CMAKE_SOURCE_DIR}/include"
+
+    "${CMAKE_SOURCE_DIR}/Engine/include"
+    "${CMAKE_SOURCE_DIR}/Editor/include"
+    "${CMAKE_SOURCE_DIR}/Runtime/include"
+    "${CMAKE_SOURCE_DIR}/Server/include"
 )
 
 if(TARGET freetype_obj)
     target_sources(SagaApp PRIVATE $<TARGET_OBJECTS:freetype_obj>)
 endif()
 
-# Link optional libraries if available
 if(TARGET RmlUi::RmlUi)
     target_link_libraries(SagaApp PRIVATE RmlUi::RmlUi)
-    message(STATUS "Linked SagaApp with RmlUi::RmlUi")
 endif()
 
-# Prefer Widgets (pulls Gui+Core) if available, else Gui/Core individually
 if(TARGET Qt6::Widgets)
     target_link_libraries(SagaApp PRIVATE Qt6::Widgets)
-    message(STATUS "Linked SagaApp with Qt6::Widgets")
 else()
     if(TARGET Qt6::Gui)
         target_link_libraries(SagaApp PRIVATE Qt6::Gui)
-        message(STATUS "Linked SagaApp with Qt6::Gui")
     endif()
     if(TARGET Qt6::Core)
         target_link_libraries(SagaApp PRIVATE Qt6::Core)
-        message(STATUS "Linked SagaApp with Qt6::Core")
     endif()
 endif()
 
-# Link Diligent targets if present
 foreach(t IN ITEMS
     "DiligentCoreStatic" "DiligentCore" "DiligentCore-static" "DiligentCoreCombined" "DiligentCoreCombined-static"
     "Diligent-GraphicsEngineOpenGL-static" "Diligent-GraphicsEngineVk-static"
@@ -485,7 +477,6 @@ foreach(t IN ITEMS
     endif()
 endforeach()
 
-# system libs
 find_package(Threads REQUIRED)
 target_link_libraries(SagaApp PRIVATE Threads::Threads)
 
@@ -493,13 +484,7 @@ if(FREETYPE_TARGET AND TARGET ${FREETYPE_TARGET})
     target_link_libraries(SagaApp PRIVATE ${FREETYPE_TARGET})
 endif()
 
-# Ensure Windows sockets lib also linked to final exe if Asio target not propagated for some reason
 if(WIN32)
     target_link_libraries(Asio INTERFACE ws2_32)
     target_link_libraries(SagaApp PRIVATE ws2_32)
 endif()
-
-message(STATUS "SagaEngine configured. Persistent thirdparty build root: ${THIRD_PARTY_BUILD_ROOT}")
-message(STATUS "SAGA_ENABLE_VULKAN: ${SAGA_ENABLE_VULKAN}")
-message(STATUS "SAGA_ENABLE_OPENGL: ${SAGA_ENABLE_OPENGL}")
-message(STATUS "USE_STANDALONE_ASIO: ${USE_STANDALONE_ASIO}")
