@@ -1,11 +1,14 @@
+// Engine/include/SagaEngine/Core/Profiling/Profiler.h
 #pragma once
 #include <chrono>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <mutex>
 #include <atomic>
 #include <vector>
 #include <memory>
+#include <cstring>
 
 namespace SagaEngine::Core {
 
@@ -17,6 +20,8 @@ public:
     void EndFrame();
     void BeginSample(const char* name);
     void EndSample(const char* name);
+    
+    void Clear();
     
     struct SampleStats {
         std::atomic<uint64_t> callCount{0};
@@ -34,7 +39,7 @@ public:
     
     SampleStats& GetStats(const char* name);
     void DumpReport(const char* filename);
-    
+
 private:
     Profiler() = default;
     
@@ -44,7 +49,9 @@ private:
     };
     
     std::unordered_map<std::string, SampleStats> _samples;
-    std::vector<SampleEntry> _sampleStack;
+    
+    static thread_local std::vector<SampleEntry> _sampleStack;
+    
     mutable std::mutex _mutex;
     std::chrono::steady_clock::time_point _frameStart;
 };
@@ -52,7 +59,9 @@ private:
 #define SAGA_PROFILE_SCOPE(name) \
     ::SagaEngine::Core::Profiler::Instance().BeginSample(name); \
     struct __ProfilerGuard_##__LINE__ { \
-        ~__ProfilerGuard_##__LINE__() { ::SagaEngine::Core::Profiler::Instance().EndSample(name); } \
+        ~__ProfilerGuard_##__LINE__() { \
+            ::SagaEngine::Core::Profiler::Instance().EndSample(name); \
+        } \
     } __profilerGuard_##__LINE__
 
 } // namespace SagaEngine::Core
