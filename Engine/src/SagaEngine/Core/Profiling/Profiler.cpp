@@ -1,10 +1,14 @@
+// Engine/src/SagaEngine/Core/Profiling/Profiler.cpp
 #include "SagaEngine/Core/Profiling/Profiler.h"
 #include "SagaEngine/Core/Log/Log.h"
 #include <fstream>
 #include <algorithm>
 #include <iomanip>
+#include <cstring>
 
 namespace SagaEngine::Core {
+
+thread_local std::vector<Profiler::SampleEntry> Profiler::_sampleStack;
 
 Profiler& Profiler::Instance() {
     static Profiler instance;
@@ -16,32 +20,28 @@ void Profiler::BeginFrame() {
 }
 
 void Profiler::EndFrame() {
-#if defined(SAGA_ENABLE_PROFILING)
     auto duration = std::chrono::steady_clock::now() - _frameStart;
     auto ms = std::chrono::duration<float, std::milli>(duration).count();
     if (ms > 16.67f) {
         LOG_WARN("Profiler", "Frame time: %.2fms (target: 16.67ms)", ms);
     }
-#endif
 }
 
 void Profiler::BeginSample(const char* name) {
-#if defined(SAGA_ENABLE_PROFILING)
     auto& stats = GetStats(name);
     stats.callCount.fetch_add(1, std::memory_order_relaxed);
     _sampleStack.push_back({name, std::chrono::steady_clock::now()});
-#endif
 }
 
 void Profiler::EndSample(const char* name) {
-#if defined(SAGA_ENABLE_PROFILING)
     if (_sampleStack.empty()) {
         LOG_WARN("Profiler", "EndSample without BeginSample: %s", name);
         return;
     }
     
     auto& top = _sampleStack.back();
-    if (top.name != name) {
+    
+    if (std::strcmp(top.name, name) != 0) {
         LOG_WARN("Profiler", "Sample mismatch: expected %s, got %s", top.name, name);
         _sampleStack.pop_back();
         return;
@@ -75,7 +75,12 @@ void Profiler::EndSample(const char* name) {
     }
     
     _sampleStack.pop_back();
-#endif
+}
+
+void Profiler::Clear() {
+    std::lock_guard<std::mutex> lock(_mutex);
+    _samples.clear();
+    _sampleStack.clear();
 }
 
 Profiler::SampleStats& Profiler::GetStats(const char* name) {
@@ -88,9 +93,7 @@ Profiler::SampleStats& Profiler::GetStats(const char* name) {
 }
 
 void Profiler::DumpReport(const char* filename) {
-#if defined(SAGA_ENABLE_PROFILING)
     std::lock_guard<std::mutex> lock(_mutex);
-    
     if (_samples.empty()) return;
     
     std::ofstream out(filename);
@@ -104,13 +107,14 @@ void Profiler::DumpReport(const char* filename) {
     for (auto& [name, stats] : _samples) {
         sorted.emplace_back(&name, &stats);
     }
+    
     std::sort(sorted.begin(), sorted.end(),
         [](const auto& a, const auto& b) {
             return a.second->totalTimeNs.load() > b.second->totalTimeNs.load();
         });
     
     out << "SagaEngine Profiling Report\n";
-    out << "===========================\n\n";
+    out << "===========================\n";
     out << std::left << std::setw(40) << "Sample"
         << std::right << std::setw(12) << "Calls"
         << std::setw(15) << "Total(ms)"
@@ -138,7 +142,6 @@ void Profiler::DumpReport(const char* filename) {
     }
     
     LOG_INFO("Profiler", "Report: %s (%zu samples)", filename, _samples.size());
-#endif
 }
 
 } // namespace SagaEngine::Core

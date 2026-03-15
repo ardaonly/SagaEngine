@@ -1,3 +1,4 @@
+// Backends/src/Persistence/Database/PostgreSQLImpl.cpp
 #include <Persistence/Database/PostgreSQLImpl.h>
 #include <SagaEngine/Core/Log/Log.h>
 #include <SagaEngine/Core/Profiling/Profiler.h>
@@ -7,6 +8,7 @@
 #include <chrono>
 #include <mutex>
 #include <condition_variable>
+#include <cstddef>
 
 namespace SagaEngine::Persistence {
 
@@ -16,24 +18,22 @@ struct PostgreSQLDatabase::Impl {
         DatabaseCallback callback;
         uint64_t enqueueTime;
     };
-
+    
     std::vector<std::unique_ptr<pqxx::connection>> connectionPool;
     std::mutex poolMutex;
-    
     std::queue<WriteRequest> writeQueue;
     std::mutex queueMutex;
     std::condition_variable queueCV;
     std::thread workerThread;
     std::atomic<bool> shutdown{false};
-    
     std::atomic<uint32_t> pendingWrites{0};
     std::atomic<float> avgWriteLatencyMs{0.0f};
-
+    
     bool InitializeSchema(pqxx::connection& conn) {
         try {
             pqxx::work txn{conn};
             
-            txn.exec0(R"(
+            txn.exec(R"(
                 CREATE TABLE IF NOT EXISTS entities (
                     entity_id BIGINT PRIMARY KEY,
                     version BIGINT NOT NULL DEFAULT 1,
@@ -43,7 +43,7 @@ struct PostgreSQLDatabase::Impl {
                 )
             )");
             
-            txn.exec0(R"(
+            txn.exec(R"(
                 CREATE TABLE IF NOT EXISTS components (
                     id BIGSERIAL PRIMARY KEY,
                     entity_id BIGINT NOT NULL REFERENCES entities(entity_id) ON DELETE CASCADE,
@@ -55,7 +55,7 @@ struct PostgreSQLDatabase::Impl {
                 )
             )");
             
-            txn.exec0(R"(
+            txn.exec(R"(
                 CREATE TABLE IF NOT EXISTS event_log (
                     event_id BIGSERIAL PRIMARY KEY,
                     event_type VARCHAR(255) NOT NULL,
@@ -65,11 +65,11 @@ struct PostgreSQLDatabase::Impl {
                 )
             )");
             
-            txn.exec0(R"(
+            txn.exec(R"(
                 CREATE INDEX IF NOT EXISTS idx_components_entity ON components(entity_id)
             )");
             
-            txn.exec0(R"(
+            txn.exec(R"(
                 CREATE INDEX IF NOT EXISTS idx_event_log_timestamp ON event_log(timestamp)
             )");
             
@@ -84,8 +84,8 @@ struct PostgreSQLDatabase::Impl {
 };
 
 PostgreSQLDatabase::PostgreSQLDatabase(const PersistenceConfig& config)
-: _config(config)
-, _pimpl(std::make_unique<Impl>())
+    : _config(config)
+    , _pimpl(std::make_unique<Impl>())
 {
 }
 
@@ -140,8 +140,8 @@ void PostgreSQLDatabase::Shutdown() {
     _pimpl->connectionPool.clear();
     _isHealthy.store(false, std::memory_order_release);
     
-    LOG_INFO("PostgreSQL", "Shutdown (writes=%llu, errors=%llu)", 
-             _totalWrites.load(), _totalErrors.load());
+    LOG_INFO("PostgreSQL", "Shutdown (writes=%llu, errors=%llu)",
+        _totalWrites.load(), _totalErrors.load());
 }
 
 void PostgreSQLDatabase::WriteEntity(const EntitySnapshot& snapshot, DatabaseCallback cb) {
@@ -181,6 +181,7 @@ void PostgreSQLDatabase::ReadEntity(EntityId entityId, DatabaseCallback cb) {
     
     try {
         std::lock_guard<std::mutex> lock(_pimpl->poolMutex);
+        
         if (_pimpl->connectionPool.empty()) {
             if (cb) cb(false, "No connections");
             _totalErrors.fetch_add(1, std::memory_order_relaxed);
@@ -189,7 +190,7 @@ void PostgreSQLDatabase::ReadEntity(EntityId entityId, DatabaseCallback cb) {
         
         pqxx::work txn{*_pimpl->connectionPool[0]};
         
-        pqxx::result result = txn.exec_params0(
+        pqxx::result result = txn.exec_params(
             "SELECT entity_id, version FROM entities WHERE entity_id = $1 AND is_deleted = FALSE",
             static_cast<int64_t>(entityId)
         );
@@ -199,7 +200,8 @@ void PostgreSQLDatabase::ReadEntity(EntityId entityId, DatabaseCallback cb) {
         _pimpl->avgWriteLatencyMs.store(latency, std::memory_order_relaxed);
         _totalReads.fetch_add(1, std::memory_order_relaxed);
         
-        if (cb) cb(result.empty() ? false : true, result.empty() ? "Not found" : "");
+        bool found = !result.empty();
+        if (cb) cb(found, found ? "" : "Not found");
     }
     catch (const std::exception& e) {
         LOG_ERROR("PostgreSQL", "Read failed: %s", e.what());
@@ -209,15 +211,107 @@ void PostgreSQLDatabase::ReadEntity(EntityId entityId, DatabaseCallback cb) {
 }
 
 void PostgreSQLDatabase::DeleteEntity(EntityId entityId, DatabaseCallback cb) {
-    WriteEntity({entityId, 0, 0, {}, {}}, cb);
+    SAGA_PROFILE_SCOPE("PostgreSQL::DeleteEntity");
+    
+    try {
+        std::lock_guard<std::mutex> lock(_pimpl->poolMutex);
+        
+        if (_pimpl->connectionPool.empty()) {
+            if (cb) cb(false, "No connections");
+            _totalErrors.fetch_add(1, std::memory_order_relaxed);
+            return;
+        }
+        
+        pqxx::work txn{*_pimpl->connectionPool[0]};
+        
+        txn.exec_params(
+            "UPDATE entities SET is_deleted = TRUE, updated_at = NOW() WHERE entity_id = $1",
+            static_cast<int64_t>(entityId)
+        );
+        
+        txn.commit();
+        _totalWrites.fetch_add(1, std::memory_order_relaxed);
+        
+        if (cb) cb(true, "");
+    }
+    catch (const std::exception& e) {
+        LOG_ERROR("PostgreSQL", "Delete failed: %s", e.what());
+        if (cb) cb(false, e.what());
+        _totalErrors.fetch_add(1, std::memory_order_relaxed);
+    }
 }
 
 void PostgreSQLDatabase::AppendEvent(const std::string& type, const std::vector<uint8_t>& data, DatabaseCallback cb) {
-    EntitySnapshot snapshot;
-    snapshot.entityId = 0;
-    snapshot.data = data;
-    snapshot.componentTypes.push_back(0);
-    WriteEntity(snapshot, cb);
+    SAGA_PROFILE_SCOPE("PostgreSQL::AppendEvent");
+    
+    try {
+        std::lock_guard<std::mutex> lock(_pimpl->poolMutex);
+        
+        if (_pimpl->connectionPool.empty()) {
+            if (cb) cb(false, "No connections");
+            _totalErrors.fetch_add(1, std::memory_order_relaxed);
+            return;
+        }
+        
+        pqxx::work txn{*_pimpl->connectionPool[0]};
+        
+        pqxx::bytes_view dataView(
+            reinterpret_cast<const std::byte*>(data.data()),
+            data.size()
+        );
+        
+        txn.exec(
+            "INSERT INTO event_log (event_type, event_data) VALUES ($1, $2)",
+            pqxx::params{type, dataView}
+        );
+        
+        txn.commit();
+        _totalWrites.fetch_add(1, std::memory_order_relaxed);
+        
+        if (cb) cb(true, "");
+    }
+    catch (const std::exception& e) {
+        LOG_ERROR("PostgreSQL", "AppendEvent failed: %s", e.what());
+        if (cb) cb(false, e.what());
+        _totalErrors.fetch_add(1, std::memory_order_relaxed);
+    }
+}
+
+void PostgreSQLDatabase::ClearTestData(EntityId minId, EntityId maxId) {
+    SAGA_PROFILE_SCOPE("PostgreSQL::ClearTestData");
+    
+    if (!_isHealthy.load(std::memory_order_acquire)) {
+        LOG_WARN("PostgreSQL", "Cannot clear test data - database not healthy");
+        return;
+    }
+    
+    try {
+        std::lock_guard<std::mutex> lock(_pimpl->poolMutex);
+        
+        if (_pimpl->connectionPool.empty()) {
+            LOG_WARN("PostgreSQL", "No connections available for cleanup");
+            return;
+        }
+        
+        pqxx::work txn{*_pimpl->connectionPool[0]};
+        
+        txn.exec_params(
+            "DELETE FROM components WHERE entity_id >= $1 AND entity_id < $2",
+            pqxx::params{static_cast<int64_t>(minId), static_cast<int64_t>(maxId)}
+        );
+        
+        txn.exec_params(
+            "DELETE FROM entities WHERE entity_id >= $1 AND entity_id < $2",
+            pqxx::params{static_cast<int64_t>(minId), static_cast<int64_t>(maxId)}
+        );
+        
+        txn.commit();
+        
+        LOG_DEBUG("PostgreSQL", "Cleared test  [%u, %u)", minId, maxId);
+    }
+    catch (const std::exception& e) {
+        LOG_ERROR("PostgreSQL", "ClearTestData failed: %s", e.what());
+    }
 }
 
 void PostgreSQLDatabase::ProcessWriteQueue() {
@@ -244,31 +338,43 @@ void PostgreSQLDatabase::ProcessWriteQueue() {
         
         try {
             std::lock_guard<std::mutex> lock(_pimpl->poolMutex);
+            
             if (_pimpl->connectionPool.empty()) {
                 error = "No connections";
             } else {
                 pqxx::work txn{*_pimpl->connectionPool[0]};
                 
-                txn.exec_params0(R"(
+                txn.exec(
+                    R"(
                     INSERT INTO entities (entity_id, version, updated_at)
                     VALUES ($1, $2, NOW())
                     ON CONFLICT (entity_id) DO UPDATE SET version = $2, updated_at = NOW()
-                )", 
-                    static_cast<int64_t>(request.snapshot.entityId),
-                    static_cast<int64_t>(request.snapshot.version)
+                    )",
+                    pqxx::params{
+                        static_cast<int64_t>(request.snapshot.entityId),
+                        static_cast<int64_t>(request.snapshot.version)
+                    }
                 );
                 
                 for (size_t i = 0; i < request.snapshot.componentTypes.size(); ++i) {
-                    txn.exec_params0(R"(
+                    pqxx::bytes_view dataView(
+                        reinterpret_cast<const std::byte*>(request.snapshot.data.data()),
+                        request.snapshot.data.size()
+                    );
+                    
+                    txn.exec(
+                        R"(
                         INSERT INTO components (entity_id, component_type, component_data, version)
                         VALUES ($1, $2, $3, $4)
                         ON CONFLICT (entity_id, component_type)
                         DO UPDATE SET component_data = $3, version = $4
-                    )", 
-                        static_cast<int64_t>(request.snapshot.entityId),
-                        static_cast<int>(request.snapshot.componentTypes[i]),
-                        pqxx::binarystring(request.snapshot.data.data(), request.snapshot.data.size()),
-                        static_cast<int64_t>(request.snapshot.version)
+                        )",
+                        pqxx::params{
+                            static_cast<int64_t>(request.snapshot.entityId),
+                            static_cast<int>(request.snapshot.componentTypes[i]),
+                            dataView,
+                            static_cast<int64_t>(request.snapshot.version)
+                        }
                     );
                 }
                 
@@ -304,4 +410,4 @@ DatabaseStats PostgreSQLDatabase::GetStatistics() const {
     return stats;
 }
 
-}
+} // namespace SagaEngine::Persistence
