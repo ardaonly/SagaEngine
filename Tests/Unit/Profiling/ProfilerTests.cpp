@@ -5,25 +5,33 @@
 
 using namespace SagaEngine::Core;
 
-TEST(ProfilerTest, Singleton) {
+class ProfilerTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        Profiler::Instance().Clear();
+    }
+};
+
+TEST_F(ProfilerTest, Singleton) {
     auto& p1 = Profiler::Instance();
     auto& p2 = Profiler::Instance();
     EXPECT_EQ(&p1, &p2);
 }
 
-TEST(ProfilerTest, SampleLifecycle) {
+TEST_F(ProfilerTest, SampleLifecycle) {
     auto& profiler = Profiler::Instance();
     
     profiler.BeginSample("TestScope");
-    std::this_thread::sleep_for(std::chrono::microseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
     profiler.EndSample("TestScope");
     
     auto& stats = profiler.GetStats("TestScope");
+    
     EXPECT_GE(stats.callCount.load(), 1);
-    EXPECT_GE(stats.totalTimeNs.load(), 100'000);  // 100us in ns
+    EXPECT_GE(stats.totalTimeNs.load(), 1'000'000);
 }
 
-TEST(ProfilerTest, ThreadSafety) {
+TEST_F(ProfilerTest, ThreadSafety) {
     auto& profiler = Profiler::Instance();
     std::vector<std::thread> threads;
     

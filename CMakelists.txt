@@ -60,30 +60,165 @@ if(EXISTS "${GOOGLEMOCK_DIR}/CMakeLists.txt")
     add_subdirectory("${GOOGLEMOCK_DIR}" "${THIRD_PARTY_BUILD_ROOT}/googlemock" EXCLUDE_FROM_ALL)
 endif()
 
-option(SAGA_BUILD_TESTS "Build unit tests" ON)
-if(SAGA_BUILD_TESTS)
-    file(GLOB_RECURSE SAGA_TEST_SOURCES CONFIGURE_DEPENDS
-        "${CMAKE_SOURCE_DIR}/Tests/*.cpp" "${CMAKE_SOURCE_DIR}/Tests/*.cc"
-    )
+# ===========================================================================
+# TEST CONFIGURATION - PROFESSIONAL STRUCTURE
+# ===========================================================================
 
+option(SAGA_BUILD_TESTS "Build test suites" ON)
+option(SAGA_BUILD_UNIT_TESTS "Build unit tests (no external deps)" ON)
+option(SAGA_BUILD_INTEGRATION_TESTS "Build integration tests (requires DB)" ON)
+option(SAGA_BUILD_STRESS_TESTS "Build stress/load tests" ON)
+
+
+# Test source discovery
+file(GLOB_RECURSE UNIT_TEST_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/Tests/Unit/**/*.cpp"
+    "${CMAKE_SOURCE_DIR}/Tests/Unit/**/*.cc"
+)
+
+file(GLOB_RECURSE INTEGRATION_TEST_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/Tests/Integration/**/*.cpp"
+    "${CMAKE_SOURCE_DIR}/Tests/Integration/**/*.cc"
+)
+
+file(GLOB_RECURSE STRESS_TEST_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/Tests/Stress/**/*.cpp"
+    "${CMAKE_SOURCE_DIR}/Tests/Stress/**/*.cc"
+)
+
+# ---------------------------------------------------------------------------
+# Unit Tests (No external dependencies)
+# ---------------------------------------------------------------------------
+
+if(SAGA_BUILD_TESTS AND SAGA_BUILD_UNIT_TESTS AND UNIT_TEST_SOURCES)
+    add_executable(SagaUnitTests ${UNIT_TEST_SOURCES})
+    
+    target_link_libraries(SagaUnitTests PRIVATE
+        SagaEngine
+        SagaBackend
+        gmock_main
+    )
+    
+    target_include_directories(SagaUnitTests PRIVATE
+        "${CMAKE_SOURCE_DIR}/Tests"
+        "${CMAKE_SOURCE_DIR}/Engine/include"
+        "${CMAKE_SOURCE_DIR}/Backends/include"
+        "${CMAKE_SOURCE_DIR}/Thirdparty/source/googlemock/include"
+        "${CMAKE_SOURCE_DIR}/Thirdparty/source/googlemock/googletest/include"
+    )
+    
+    target_compile_definitions(SagaUnitTests PRIVATE
+        SAGA_ENABLE_PROFILING
+        SAGA_BUILD_TESTS
+    )
+    
+    enable_testing()
+    add_test(NAME unit_tests COMMAND SagaUnitTests)
+    
+    message(STATUS "Unit tests enabled: ${CMAKE_SOURCE_DIR}/Tests/Unit")
+endif()
+# ---------------------------------------------------------------------------
+# Integration Tests (Requires PostgreSQL, Redis)
+# ---------------------------------------------------------------------------
+if(SAGA_BUILD_TESTS AND SAGA_BUILD_INTEGRATION_TESTS AND INTEGRATION_TEST_SOURCES)
+    add_executable(SagaIntegrationTests ${INTEGRATION_TEST_SOURCES})
+    
+    target_link_libraries(SagaIntegrationTests PRIVATE
+        SagaEngine
+        SagaBackend
+        gmock_main
+    )
+    
+    # Database dependencies
+    if(TARGET libpqxx::pqxx)
+        target_link_libraries(SagaIntegrationTests PRIVATE libpqxx::pqxx)
+    endif()
+    
+    if(TARGET redis++::redis++_static)
+        target_link_libraries(SagaIntegrationTests PRIVATE redis++::redis++_static)
+    endif()
+    
+    target_include_directories(SagaIntegrationTests PRIVATE
+        "${CMAKE_SOURCE_DIR}/Tests"
+        "${CMAKE_SOURCE_DIR}/Engine/include"
+        "${CMAKE_SOURCE_DIR}/Backends/include"
+        "${CMAKE_SOURCE_DIR}/Thirdparty/source/googlemock/include"
+        "${CMAKE_SOURCE_DIR}/Thirdparty/source/googlemock/googletest/include"
+    )
+    
+    target_compile_definitions(SagaIntegrationTests PRIVATE
+        SAGA_INTEGRATION_TEST_BUILD
+        SAGA_ENABLE_PROFILING
+    )
+    
+    enable_testing()
+    add_test(NAME integration_tests COMMAND SagaIntegrationTests)
+    
+    message(STATUS "Integration tests enabled: ${CMAKE_SOURCE_DIR}/Tests/Integration")
+endif()
+
+# ---------------------------------------------------------------------------
+# Stress Tests (Load/Performance)
+# ---------------------------------------------------------------------------
+if(SAGA_BUILD_TESTS AND SAGA_BUILD_STRESS_TESTS AND STRESS_TEST_SOURCES)
+    add_executable(SagaStressTests ${STRESS_TEST_SOURCES})
+    
+    target_link_libraries(SagaStressTests PRIVATE
+        SagaEngine
+        SagaBackend
+        gmock_main
+        Threads::Threads
+    )
+    
+    target_include_directories(SagaStressTests PRIVATE
+        "${CMAKE_SOURCE_DIR}/Tests"
+        "${CMAKE_SOURCE_DIR}/Engine/include"
+        "${CMAKE_SOURCE_DIR}/Backends/include"
+        "${CMAKE_SOURCE_DIR}/Thirdparty/source/googlemock/include"
+        "${CMAKE_SOURCE_DIR}/Thirdparty/source/googlemock/googletest/include"
+    )
+    
+    target_compile_definitions(SagaStressTests PRIVATE
+        SAGA_STRESS_TEST_BUILD
+        SAGA_ENABLE_PROFILING
+    )
+    
+    enable_testing()
+    add_test(NAME stress_tests COMMAND SagaStressTests)
+    
+    message(STATUS "Stress tests enabled: ${CMAKE_SOURCE_DIR}/Tests/Stress")
+endif()
+
+# ---------------------------------------------------------------------------
+# Legacy SagaTests target (deprecated, keep for backward compatibility)
+# ---------------------------------------------------------------------------
+if(SAGA_BUILD_TESTS AND NOT UNIT_TEST_SOURCES AND NOT INTEGRATION_TEST_SOURCES)
+    # Fallback to old structure if new structure not found
+    file(GLOB_RECURSE SAGA_TEST_SOURCES CONFIGURE_DEPENDS
+        "${CMAKE_SOURCE_DIR}/Tests/**/*.cpp"
+        "${CMAKE_SOURCE_DIR}/Tests/**/*.cc"
+    )
+    
     if(SAGA_TEST_SOURCES)
         add_executable(SagaTests ${SAGA_TEST_SOURCES})
-
-        if(TARGET gmock_main)
-            target_link_libraries(SagaTests PRIVATE SagaBackend SagaEditor SagaEngine gmock_main)
-        else()
-            target_link_libraries(SagaTests PRIVATE SagaBackend SagaEditor SagaEngine gtest_main gmock)
-        endif()
-
+        
+        target_link_libraries(SagaTests PRIVATE
+            SagaEngine
+            SagaBackend
+            gmock_main
+        )
+        
         target_include_directories(SagaTests PRIVATE
-            "${CMAKE_SOURCE_DIR}/include"
+            "${CMAKE_SOURCE_DIR}/Tests"
+            "${CMAKE_SOURCE_DIR}/Engine/include"
             "${CMAKE_SOURCE_DIR}/Backends/include"
             "${CMAKE_SOURCE_DIR}/Thirdparty/source/googlemock/include"
-            "${CMAKE_SOURCE_DIR}/Thirdparty/source/googlemock/googletest/include"
         )
-
+        
         enable_testing()
-        add_test(NAME unit_tests COMMAND SagaTests)
+        add_test(NAME legacy_tests COMMAND SagaTests)
+        
+        message(WARNING "Using legacy test structure. Please migrate to Unit/Integration/Stress folders.")
     endif()
 endif()
 

@@ -1,4 +1,4 @@
-// Tests/Unit/Persistence/PostgreSQLTests.cpp
+// Tests/Integration/Persistence/PostgreSQLTests.cpp
 #include <Persistence/Database/PostgreSQLImpl.h>
 #include <Persistence/Types.h>
 #include <gtest/gtest.h>
@@ -26,17 +26,21 @@ protected:
 
     void SetUp() override {
         const char* connEnv = std::getenv("SAGA_POSTGRES_CONN");
-        if (!connEnv) {
-            GTEST_SKIP() << "SAGA_POSTGRES_CONN not set; skipping PostgreSQL persistence tests.";
+
+        if (connEnv) {
+            _config.connectionString = connEnv;
+        } else {
+            _config.connectionString = "host=127.0.0.1 port=5432 dbname=saga_test user=postgres password=postgres";
         }
 
-        _config.connectionString = connEnv;
         _config.maxConnectionPool = 5;
         _config.writeQueueSize = 1024;
 
         _db = std::make_unique<PostgreSQLDatabase>(_config);
         ASSERT_TRUE(_db->Initialize()) << "Failed to initialize PostgreSQLDatabase";
         ASSERT_TRUE(_db->IsHealthy()) << "PostgreSQLDatabase is not healthy after initialization";
+        
+        _db->ClearTestData(1000, 10000);
     }
 
     void TearDown() override {
@@ -76,12 +80,10 @@ TEST_F(PostgreSQLTest, WriteAndReadEntity) {
         writePromise.set_value(ok);
     });
 
-    // Wait for write completion
     auto status = writeFuture.wait_for(kMediumTimeout);
     ASSERT_EQ(status, std::future_status::ready) << "Timed out waiting for WriteEntity callback";
     EXPECT_TRUE(writeFuture.get()) << "WriteEntity reported failure";
 
-    // Now read back
     std::promise<bool> readPromise;
     auto readFuture = readPromise.get_future();
 
@@ -118,7 +120,8 @@ TEST_F(PostgreSQLTest, QueuePressure) {
         _db->WriteEntity(snapshot, [&](bool ok, const std::string& /*msg*/) {
             writeCount.fetch_add(1, std::memory_order_relaxed);
             if (!ok) errorCount.fetch_add(1, std::memory_order_relaxed);
-            if ((writeCount.load(std::memory_order_relaxed) % 16) == 0 || writeCount.load(std::memory_order_relaxed) == kWrites) {
+            if ((writeCount.load(std::memory_order_relaxed) % 16) == 0 || 
+                writeCount.load(std::memory_order_relaxed) == kWrites) {
                 std::lock_guard lk(m);
                 cv.notify_one();
             }
@@ -128,10 +131,12 @@ TEST_F(PostgreSQLTest, QueuePressure) {
     bool reached = false;
     {
         auto pred = [&](){ return writeCount.load(std::memory_order_relaxed) >= kWrites; };
-        reached = WaitForPredicate(pred, cv, m, std::chrono::duration_cast<std::chrono::milliseconds>(kLongTimeout));
+        reached = WaitForPredicate(pred, cv, m, 
+            std::chrono::duration_cast<std::chrono::milliseconds>(kLongTimeout));
     }
 
-    ASSERT_TRUE(reached) << "Timed out before all write callbacks were received (got " << writeCount.load() << ")";
+    ASSERT_TRUE(reached) << "Timed out before all write callbacks were received (got " 
+                         << writeCount.load() << ")";
     EXPECT_EQ(writeCount.load(), kWrites);
     EXPECT_LT(errorCount.load(), 5u);
 }
