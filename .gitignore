@@ -89,4 +89,3 @@ Thirdparty/
 # Build Cache
 # =========================
 cache/sccache/*
-!cache/sccache/.gitkeep
