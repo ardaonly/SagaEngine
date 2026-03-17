@@ -80,6 +80,7 @@ Thumbs.db
 # =========================
 *.thirdparty_build
 *.engine_ai_snapshot.txt
+*.toolchain
 
 # Third-party sources (DO NOT TRACK)
 Thirdparty/
