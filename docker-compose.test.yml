@@ -1,22 +1,41 @@
-# docker-compose.test.yml
 version: '3.8'
+
 services:
   postgres-test:
-    image: postgres:16-alpine
-    container_name: saga-postgres-test
+    image: postgres:15-alpine
     environment:
       POSTGRES_DB: saga_test
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    volumes:
-      - postgres_test_data:/var/lib/postgresql/data
+      interval: 2s
+      timeout: 2s
+      retries: 10
 
-volumes:
-  postgres_test_data:
+  redis-test:
+    image: redis:7-alpine
+    ports:
+      - "6373:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+
+  saga-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    environment:
+      SAGA_POSTGRES_CONN: "host=postgres-test port=5432 dbname=saga_test user=postgres password=postgres"
+      SAGA_REDIS_HOST: "redis-test"
+      SAGA_REDIS_PORT: "6379"
+    command: ["ctest", "--output-on-failure"]

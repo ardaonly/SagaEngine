@@ -1,0 +1,91 @@
+# =========================
+# Build Outputs
+# =========================
+Build/
+Bin/
+Install/
+build/
+packages/
+
+# Compiled binaries
+*.exe
+*.out
+*.app
+
+# Libraries
+*.dll
+*.so
+*.dylib
+
+# Object files
+*.obj
+*.o
+
+# Debug / symbols
+*.pdb
+*.idb
+*.ilk
+
+# Logs
+*.log
+
+# =========================
+# CMake
+# =========================
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+
+# =========================
+# Conan
+# =========================
+*.pyc
+__pycache__/
+conanbuildinfo.txt
+
+# Conan cache (local project cache only)
+cache/conan/*
+!cache/conan/.gitkeep
+
+# =========================
+# Compiler / IDE Cache
+# =========================
+*.cache
+*.ipch
+*.aps
+*.ncb
+*.opensdf
+*.sdf
+*.VC.db
+*.VC.opendb
+
+# =========================
+# IDE
+# =========================
+.vs/
+.vscode/
+*.user
+*.suo
+.idea/
+
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Project Specific
+# =========================
+*.thirdparty_build
+*.engine_ai_snapshot.txt
+
+# Third-party sources (DO NOT TRACK)
+Thirdparty/
+
+# =========================
+# Build Cache
+# =========================
+cache/sccache/*
+!cache/sccache/.gitkeep

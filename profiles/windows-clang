@@ -1,0 +1,16 @@
+[settings]
+os=Windows
+arch=x86_64
+compiler=clang
+compiler.version=17
+compiler.runtime=dynamic
+compiler.cppstd=20
+build_type=RelWithDebInfo
+
+[conf]
+tools.cmake.cmaketoolchain:generator=Ninja
+tools.build:compiler_executables={"c":"clang-cl", "cpp":"clang-cl"}
+
+[options]
+*:shared=False
+*:fPIC=True

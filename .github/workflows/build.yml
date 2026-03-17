@@ -1,0 +1,147 @@
+name: SagaEngine Build
+
+on:
+  push:
+    branches: [main, develop, release/*]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  CONAN_VERSION: "2.0.17"
+  SAGA_CACHE_VERSION: "v1"
+
+jobs:
+  validate:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Validate Lockfile
+        run: |
+          pip install conan==${{ env.CONAN_VERSION }}
+          conan profile detect
+          conan install . --lockfile=conan.lock --verify
+
+  build:
+    needs: validate
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            profile: windows-msvc-14.38
+            preset: windows-msvc-14.38
+            shell: pwsh
+          - os: ubuntu-22.04
+            profile: linux-gcc-13
+            preset: linux-gcc-13
+            shell: bash
+          - os: macos-14
+            profile: macos-clang-15
+            preset: macos-clang-15
+            shell: bash
+    
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install Conan
+        run: python -m pip install --user conan==${{ env.CONAN_VERSION }}
+      
+      - name: Cache Conan
+        uses: actions/cache@v4
+        with:
+          path: ~/.conan2/p
+          key: conan-${{ runner.os }}-${{ matrix.profile }}-${{ hashFiles('conan.lock') }}
+          restore-keys: |
+            conan-${{ runner.os }}-${{ matrix.profile }}
+            conan-${{ runner.os }}
+      
+      - name: Cache SCCache
+        uses: actions/cache@v4
+        with:
+          path: cache/sccache
+          key: sccache-${{ runner.os }}-${{ matrix.preset }}-${{ github.sha }}
+          restore-keys: |
+            sccache-${{ runner.os }}-${{ matrix.preset }}
+            sccache-${{ runner.os }}
+      
+      - name: Make build.sh executable (Unix)
+        if: runner.os != 'Windows'
+        run: chmod +x build.sh
+      
+      - name: Setup
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            ./build.ps1 setup -Profile ${{ matrix.profile }}
+          else
+            ./build.sh setup -p ${{ matrix.profile }}
+          fi
+        env:
+          SCCACHE_DIR: ${{ github.workspace }}/cache/sccache
+      
+      - name: Build
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            ./build.ps1 build -Profile ${{ matrix.profile }}
+          else
+            ./build.sh build -p ${{ matrix.profile }}
+          fi
+        env:
+          SCCACHE_DIR: ${{ github.workspace }}/cache/sccache
+      
+      - name: Test
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            ./build.ps1 test -Profile ${{ matrix.profile }}
+          else
+            ./build.sh test -p ${{ matrix.profile }}
+          fi
+      
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sagaengine-${{ runner.os }}-${{ matrix.preset }}
+          path: |
+            Bin/RelWithDebInfo/
+            Build/${{ matrix.preset }}/sbom.json
+          retention-days: 30
+      
+      - name: Upload Cache Stats
+        run: sccache --show-stats
+
+  docker:
+    needs: build
+    runs-on: ubuntu-22.04
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Build Docker
+        run: docker build -t sagaengine:${{ github.sha }} .
+      
+      - name: Test Docker
+        run: docker run --rm sagaengine:${{ github.sha }} ./build.sh test -p linux-gcc-13
+      
+      - name: Push Docker
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+          docker tag sagaengine:${{ github.sha }} sagaengine:latest
+          docker push sagaengine:latest
