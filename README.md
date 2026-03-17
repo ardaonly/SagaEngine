@@ -16,3 +16,22 @@ This README complements the project descriptor in `ENGINE.md`.
 - Open to discussion and small, architecture-focused contributions.  
 - Major design changes: open an issue or RFC first — don't submit large, breaking PRs without prior discussion.  
 - Expect refactors and breaking changes while the foundation is established.
+
+---
+
+# SagaEngine Build System
+
+## Quick Start
+
+### Windows
+
+```powershell
+# Using PowerShell (recommended)
+.\build.ps1 setup
+.\build.ps1 build
+.\build.ps1 test
+
+# Using Command Prompt
+build.bat setup
+build.bat build
+build.bat test

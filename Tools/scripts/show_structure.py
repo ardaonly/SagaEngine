@@ -1,6 +1,22 @@
 import os
 
-ENGINE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+def find_engine_root():
+    current = os.path.abspath(os.path.dirname(__file__))
+
+    while True:
+        marker = os.path.join(current, "SagaEngineRoot.marker")
+        if os.path.isfile(marker):
+            return current
+
+        parent = os.path.dirname(current)
+
+        if parent == current:
+            raise RuntimeError("Root not found or 'SagaEngineRoot.marker' is missing")
+
+        current = parent
+
+
+ROOT_DIR = find_engine_root()
 
 IGNORE_DIRS = {
     ".git",
@@ -29,4 +45,4 @@ def print_tree(path, prefix=""):
 
 if __name__ == "__main__":
     print("ENGINE STRUCTURE:\n")
-    print_tree(ENGINE_ROOT)
+    print_tree(ROOT_DIR)

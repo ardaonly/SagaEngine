@@ -1,0 +1,21 @@
+FROM ubuntu:22.04
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    ninja-build \
+    gcc \
+    g++ \
+    libboost-all-dev \
+    postgresql-client \
+    libhiredis-dev \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+COPY . .
+
+RUN cmake -B build -S . -DSAGA_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Debug && \
+    cmake --build build -- -j$(nproc)
+
+CMD ["ctest", "--test-dir", "build", "--output-on-failure"]

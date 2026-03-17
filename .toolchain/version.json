@@ -1,0 +1,17 @@
+{
+  "python": {
+    "version": "3.12.7",
+    "url": "https://www.python.org/ftp/python/3.12.7/python-3.12.7-embed-amd64.zip",
+    "checksum": "sha256:PLACEHOLDER"
+  },
+  "conan": {
+    "version": "2.0.17"
+  },
+  "ninja": {
+    "version": "1.12.1"
+  },
+  "cmake": {
+    "version": "3.28.1",
+    "use_system": true
+  }
+}
