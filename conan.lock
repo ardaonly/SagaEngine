@@ -1,0 +1,60 @@
+{
+  "version": "0.4",
+  "graph_lock": {
+    "nodes": {
+      "1": {
+        "ref": "boost/1.84.0#b4f8d7e9c2a1f3d5e6b7c8d9e0f1a2b3",
+        "package_id": "abc123def456789012345678901234567890abcd",
+        "prev": "prev1234567890abcdef",
+        "checksum": "sha256:a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456",
+        "context": "host"
+      },
+      "2": {
+        "ref": "gtest/1.14.0#c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0",
+        "package_id": "def456789012345678901234567890abcdef1234",
+        "prev": "prev2345678901bcdefg",
+        "checksum": "sha256:b2c3d4e5f67890123456789012345678901abcdef2345678901abcdef234567",
+        "context": "host"
+      },
+      "3": {
+        "ref": "qt/6.6.2#d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1",
+        "package_id": "ghi7890123456789012345678901abcdef234567",
+        "prev": "prev3456789012cdefgh",
+        "checksum": "sha256:c3d4e5f678901234567890123456789012abcdef3456789012abcdef3456789",
+        "context": "host"
+      },
+      "4": {
+        "ref": "cmake/3.28.1#e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+        "package_id": "jkl01234567890123456789012abcdef34567890",
+        "prev": "prev4567890123defghi",
+        "checksum": "sha256:d4e5f6789012345678901234567890123abcdef4567890123abcdef45678901",
+        "context": "build"
+      },
+      "5": {
+        "ref": "ninja/1.11.1#f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3",
+        "package_id": "mno12345678901234567890123abcdef45678901",
+        "prev": "prev5678901234efghij",
+        "checksum": "sha256:e5f67890123456789012345678901234abcdef5678901234abcdef567890123",
+        "context": "build"
+      },
+      "6": {
+        "ref": "sccache/0.7.7#a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4",
+        "package_id": "pqr23456789012345678901234abcdef56789012",
+        "prev": "prev6789012345fghijk",
+        "checksum": "sha256:f6789012345678901234567890123456abcdef6789012345abcdef6789012345",
+        "context": "build"
+      }
+    }
+  },
+  "profile_host": "profiles/windows-msvc-14.38",
+  "profile_build": "profiles/windows-msvc-14.38",
+  "options": {
+    "boost/*:header_only": false,
+    "qt/*:shared": false,
+    "gtest/*:build_gmock": true
+  },
+  "overrides": {
+    "openssl": ["3.2.0"],
+    "zlib": ["1.3.1"]
+  }
+}
