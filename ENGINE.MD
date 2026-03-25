@@ -1,19 +1,42 @@
 # ENGINE.md
 
-> **Project state:** Foundational / Core Game Engine — actively evolving toward a Live, Persistent, Moddable MMO Engine.
+**Project state:** Foundational MMO Engine Core
 
-**Current Version:** SagaEngine_v0.0.4-ARDABUILD_Foundation
+**Current version:** SagaEngine_v0.0.5
 
 ## Summary
 
-This repository hosts a **core game engine**: rendering, physics, input, basic editor workflow, and resource management. The goal is to evolve into a **Live, Persistent, Moddable MMO Engine** with server framework, persistence, live ops, and mod support.
+SagaEngine is an MMO-first engine foundation with explicit separation between:
+- core runtime
+- dedicated server runtime
+- backend services
+- editor tooling
+- future platform extensions
+
+The repository does not implement a platform product today.
+It defines the engine core and the boundaries required for later platform-grade expansion without entangling platform behavior with core runtime systems.
+
+## Architectural focus
+
+- Authoritative simulation
+- Replication and interest management
+- Persistence and backend service separation
+- Modding and scripting boundaries
+- Resource loading and streaming
+- Client/server runtime separation
+
+## Current scope
+
+- `Engine/` for core systems
+- `Runtime/` for client runtime glue
+- `Server/` for dedicated server logic
+- `Backends/` for persistence and service infrastructure
+- `Editor/` for tooling
+- `Tests/` for validation
 
 ## Vision
 
-* MMO Platform: server, replication, interest management
-* Persistence & Live Ops: durable storage, snapshots, telemetry
-* Mod Platform: sandboxed, network-aware, versioned mods
+Future higher-level products may be built on top of this foundation, but only through clean boundaries and explicit extension layers.
 
----
-
-*ENGINE.md — human-readable descriptor. Machine manifests are the source of truth for tooling.*
+This file is a human-readable project descriptor.
+Tooling and build behavior must rely on manifests and build configuration, not on prose.
