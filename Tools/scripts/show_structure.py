@@ -25,7 +25,8 @@ IGNORE_DIRS = {
     "Thirdparty",
     ".vscode",
     ".thirdparty_build",
-    "__pycache__"
+    "__pycache__",
+    ".toolchain"
 }
 
 def print_tree(path, prefix=""):

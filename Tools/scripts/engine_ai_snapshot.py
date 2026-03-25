@@ -30,6 +30,7 @@ IGNORE_DIRS = {
     "Thirdparty",
     ".vscode",
     ".thirdparty_build",
+    ".toolchain",
     "__pycache__"
 }
 

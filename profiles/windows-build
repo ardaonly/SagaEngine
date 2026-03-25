@@ -1,20 +1,17 @@
 [settings]
 os=Windows
 arch=x86_64
-compiler=clang
-compiler.version=17
+compiler=msvc
+compiler.version=193
 compiler.runtime=dynamic
+compiler.runtime_type=Release
 compiler.cppstd=20
 build_type=RelWithDebInfo
 
 [conf]
 tools.cmake.cmaketoolchain:generator=Ninja
-tools.build:compiler_executables={"c":"clang-cl", "cpp":"clang-cl"}
-
-[options]
-*:shared=False
-*:fPIC=True
+tools.microsoft.msbuild:vs_version=17
 
 [buildenv]
-CC=clang-cl
-CXX=clang-cl
+CC=cl
+CXX=cl
