@@ -266,17 +266,10 @@ Write-Host ""
 function Find-MsvcToolset {
     param([string]$RequiredVersion)
 
-    $candidates = @(
-        "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC",
-        "C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Tools\MSVC",
-        "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC",
-        "C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC"
-    )
+    $msvcRoot = "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC"
 
-    $msvcRoot = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
-
-    if (-not $msvcRoot) {
-        throw "MSVC root not found under any known VS 2022 edition path."
+    if (-not (Test-Path $msvcRoot)) {
+        throw "MSVC root not found: $msvcRoot"
     }
 
     $match = Get-ChildItem -Path $msvcRoot -Directory |
@@ -499,11 +492,7 @@ function Assert-ClVersion {
     $compilerMinor = $RequiredVersion.Split('.')[1]
 
     if ($fileVersion -notmatch "^19\.$compilerMinor\.") {
-        if ($env:SAGA_CI_MODE -eq "true") {
-            Write-Host "  [Toolchain] cl.exe version differs from pinned (required: 19.$compilerMinor.x, found: $fileVersion)" -ForegroundColor Yellow
-        } else {
-            throw "cl.exe version mismatch. Required: 19.$compilerMinor.x -- Found: $fileVersion"
-        }
+        throw "cl.exe version mismatch. Required: 19.$compilerMinor.x -- Found: $fileVersion"
     }
 
     Write-Host "  [Toolchain] cl.exe verified: $ClExePath" -ForegroundColor Green
