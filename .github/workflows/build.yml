@@ -14,7 +14,7 @@ concurrency:
 jobs:
   build:
     name: windows-msvc-14.38
-    runs-on: [self-hosted, windows]
+    runs-on: windows-2022
     env:
       SAGA_CI_MODE: "true"
 
