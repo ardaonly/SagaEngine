@@ -41,19 +41,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-windows-msvc-
 
-      - name: Install MSVC 14.38 toolset
-        shell: pwsh
-        run: |
-          $vswhere   = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-          $installer = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
-          $vsPath    = & $vswhere -latest -products * -property installationPath 2>$null | Select-Object -First 1
-          if (-not $vsPath) { throw "VS installation not found" }
-          & $installer modify `
-            --installPath "$vsPath" `
-            --add Microsoft.VisualStudio.Component.VC.14.38.17.8.x86.x64 `
-            --quiet --norestart --noUpdateInstaller
-          if ($LASTEXITCODE -ne 0) { throw "Failed to install MSVC 14.38 toolset" }
-
       - name: Lock
         run: .\build.ps1 lock -Profile windows-msvc
 

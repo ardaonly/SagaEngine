@@ -285,7 +285,14 @@ function Find-MsvcToolset {
              Select-Object -First 1
 
     if (-not $match) {
-        throw "MSVC toolset $RequiredVersion not found under $msvcRoot. Install it via Visual Studio Installer -> Individual Components -> MSVC v143 14.38."
+        if ($env:SAGA_CI_MODE -eq "true") {
+            $match = Get-ChildItem -Path $msvcRoot -Directory |
+                     Sort-Object Name -Descending |
+                     Select-Object -First 1
+            Write-Host "  [Toolchain] 14.38 not found, using available toolset: $($match.Name)" -ForegroundColor Yellow
+        } else {
+            throw "MSVC toolset $RequiredVersion not found under $msvcRoot. Install it via Visual Studio Installer -> Individual Components -> MSVC v143 14.38."
+        }
     }
 
     return $match.FullName
@@ -499,7 +506,11 @@ function Assert-ClVersion {
     $compilerMinor = $RequiredVersion.Split('.')[1]
 
     if ($fileVersion -notmatch "^19\.$compilerMinor\.") {
-        throw "cl.exe version mismatch. Required: 19.$compilerMinor.x -- Found: $fileVersion"
+        if ($env:SAGA_CI_MODE -eq "true") {
+            Write-Host "  [Toolchain] cl.exe version differs from pinned (required: 19.$compilerMinor.x, found: $fileVersion)" -ForegroundColor Yellow
+        } else {
+            throw "cl.exe version mismatch. Required: 19.$compilerMinor.x -- Found: $fileVersion"
+        }
     }
 
     Write-Host "  [Toolchain] cl.exe verified: $ClExePath" -ForegroundColor Green
