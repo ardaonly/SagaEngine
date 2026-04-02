@@ -41,6 +41,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-windows-msvc-
 
+      - name: Fix VS edition path
+        shell: pwsh
+        run: |
+          $enterprise = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
+          $community  = "C:\Program Files\Microsoft Visual Studio\2022\Community"
+          if ((Test-Path $enterprise) -and -not (Test-Path $community)) {
+            cmd /c "mklink /J `"$community`" `"$enterprise`""
+          }
+
       - name: Lock
         run: .\build.ps1 lock -Profile windows-msvc
 
