@@ -285,14 +285,7 @@ function Find-MsvcToolset {
              Select-Object -First 1
 
     if (-not $match) {
-        if ($env:SAGA_CI_MODE -eq "true") {
-            $match = Get-ChildItem -Path $msvcRoot -Directory |
-                     Sort-Object Name -Descending |
-                     Select-Object -First 1
-            Write-Host "  [Toolchain] 14.38 not found, using available toolset: $($match.Name)" -ForegroundColor Yellow
-        } else {
-            throw "MSVC toolset $RequiredVersion not found under $msvcRoot. Install it via Visual Studio Installer -> Individual Components -> MSVC v143 14.38."
-        }
+        throw "MSVC toolset $RequiredVersion not found under $msvcRoot. Install it via Visual Studio Installer -> Individual Components -> MSVC v143 14.38."
     }
 
     return $match.FullName
