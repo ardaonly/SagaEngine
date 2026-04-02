@@ -80,10 +80,12 @@ Thumbs.db
 # =========================
 *.thirdparty_build
 *.engine_ai_snapshot.txt
-*.python
 *.bootstrap.log
 *.python_path.txt
 *.downloads
+*.conan.lock
+Build
+python
 
 # Third-party sources (DO NOT TRACK)
 Thirdparty/
@@ -92,3 +94,4 @@ Thirdparty/
 # Build Cache
 # =========================
 cache/sccache/*
+cache

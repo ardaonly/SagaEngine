@@ -21,6 +21,8 @@ ROOT_DIR = find_engine_root()
 IGNORE_DIRS = {
     ".git",
     "build",
+    "Build",
+    "cache",
     "bin",
     "Thirdparty",
     ".vscode",
