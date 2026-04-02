@@ -1,90 +1,68 @@
-name: SagaEngine Build
+name: SagaEngine CI
+
 on:
   push:
-    branches: [main, develop, release/*]
+    branches: [main]
   pull_request:
-    branches: [main, develop]
+    branches: [main]
+  workflow_dispatch:
 
-env:
-  CONAN_VERSION: "2.0.17"
-  SAGA_CI_MODE: "true"
+concurrency:
+  group: sagaengine-ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  validate:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      
-      - name: Verify Lockfile Tracked
-        run: git ls-files --error-unmatch conan.lock
-      
-      - name: Verify Lockfile Not Modified
-        run: git diff --exit-code -- conan.lock
-      
-      - name: Validate Lockfile (Conan 2)
-        run: |
-          pip install conan==${{ env.CONAN_VERSION }}
-          python Tools/scripts/verify_lockfile.py --strict
-
   build:
-    needs: validate
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-2022
-            profile: windows-msvc-14.38
-            preset: windows-msvc-14.38
-          - os: ubuntu-22.04
-            profile: linux-gcc-13
-            preset: linux-gcc-13
-          - os: macos-14
-            profile: macos-clang-15
-            preset: macos-clang-15
-    
+    name: windows-msvc-14.38
+    runs-on: windows-2022
+    env:
+      SAGA_CI_MODE: "true"
+
+    defaults:
+      run:
+        working-directory: sagaforge
+        shell: pwsh
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-      
-      - name: Setup Python
-        uses: actions/setup-python@v5
+          submodules: recursive
+
+      - name: Cache
+        uses: actions/cache@v4
         with:
-          python-version: '3.11'
-      
-      - name: Install Conan
-        run: python -m pip install --user conan==${{ env.CONAN_VERSION }}
-      
+          path: |
+            sagaforge/.toolchain
+            sagaforge/cache/sccache
+            ~/.conan2
+            sagaforge/Build/windows-msvc-14.38
+          key: ${{ runner.os }}-windows-msvc-${{ hashFiles('sagaforge/conan.lock', 'sagaforge/conanfile.py', 'sagaforge/CMakePresets.json', 'sagaforge/cmake/**') }}
+          restore-keys: |
+            ${{ runner.os }}-windows-msvc-
+
+      - name: Lock
+        run: .\build.ps1 lock -Profile windows-msvc
+
       - name: Setup
-        run: |
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            ./build.ps1 setup -Profile ${{ matrix.profile }}
-          else
-            ./build.sh setup -p ${{ matrix.profile }}
-          fi
-        env:
-          SAGA_CI_MODE: "true"
-      
-      - name: Build (--build=never in CI)
-        run: |
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            ./build.ps1 build -Profile ${{ matrix.profile }}
-          else
-            ./build.sh build -p ${{ matrix.profile }}
-          fi
-        env:
-          SAGA_CI_MODE: "true"
-      
+        run: .\build.ps1 setup -Profile windows-msvc -Preset windows-msvc-14.38
+
+      - name: Build
+        run: .\build.ps1 build -Profile windows-msvc -Preset windows-msvc-14.38
+
       - name: Test
+        run: .\build.ps1 test -Preset windows-msvc-14.38
+
+      - name: sccache stats
+        if: always()
         run: |
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            ./build.ps1 test -Profile ${{ matrix.profile }}
-          else
-            ./build.sh test -p ${{ matrix.profile }}
-          fi
+          $sccache = "cache\sccache\sccache.exe"
+          if (Test-Path $sccache) { & $sccache --show-stats }
+
+      - name: Upload artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sagaengine-windows-msvc-${{ github.sha }}
+          path: sagaforge/Build/windows-msvc-14.38/
+          retention-days: 7

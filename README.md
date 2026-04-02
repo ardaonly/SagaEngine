@@ -65,7 +65,10 @@ The current focus is on building a clean technical base that can support:
 ### Windows
 
 ```powershell
-.\build.ps1 lock
-.\build.ps1 setup
-.\build.ps1 build
-.\build.ps1 test
+.\build.ps1 lock -Profile windows-msvc
+
+.\build.ps1 setup -Profile windows-msvc -Preset windows-msvc-14.38
+
+.\build.ps1 build -Profile windows-msvc -Preset windows-msvc-14.38
+
+.\build.ps1 test -Preset windows-msvc-14.38
