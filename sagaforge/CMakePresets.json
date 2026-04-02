@@ -1,0 +1,24 @@
+﻿{
+    "version": 4,
+    "configurePresets": [
+        {
+            "name": "windows-msvc-14.38",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/Build/windows-msvc-14.38",
+            "toolchainFile": "${sourceDir}/Build/windows-msvc-14.38/build/RelWithDebInfo/generators/conan_toolchain.cmake",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "CMAKE_POLICY_DEFAULT_CMP0091": "NEW",
+                "CMAKE_C_COMPILER_LAUNCHER": "sccache",
+                "CMAKE_CXX_COMPILER_LAUNCHER": "sccache",
+                "CMAKE_MSVC_DEBUG_INFORMATION_FORMAT": "Embedded"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "windows-msvc-14.38",
+            "configurePreset": "windows-msvc-14.38"
+        }
+    ]
+}

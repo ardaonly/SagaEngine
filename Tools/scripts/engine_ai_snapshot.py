@@ -26,7 +26,9 @@ OUTPUT_FILE = "engine_ai_snapshot.txt"
 IGNORE_DIRS = {
     ".git",
     "build",
+    "Build",
     "bin",
+    "cache",
     "Thirdparty",
     ".vscode",
     ".thirdparty_build",

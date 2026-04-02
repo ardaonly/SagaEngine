@@ -1,6 +1,5 @@
-// Tests/Unit/Persistence/EventLogTests.cpp
-#include <Persistence/EventSourcing/EventLog.h>
-#include <Persistence/Database/PostgreSQLImpl.h>
+#include <Services/Persistence/EventSourcing/EventLog.h>
+#include <Services/Persistence/Database/PostgreSQLImpl.h>
 #include <gtest/gtest.h>
 #include <thread>
 #include <chrono>

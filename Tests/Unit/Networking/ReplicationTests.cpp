@@ -1,4 +1,4 @@
-#include "SagaEngine/Networking/Replication/ReplicationManager.h"
+#include "SagaServer/Networking/Replication/ReplicationManager.h"
 #include "SagaEngine/Simulation/WorldState.h"
 #include "SagaEngine/Simulation/Authority.h"
 #include "SagaEngine/ECS/Component.h"
@@ -116,25 +116,29 @@ TEST_F(ReplicationTest, MarkComponentDirty) {
 
 TEST_F(ReplicationTest, RPCRegistration) {
     _replication->AddClient(1);
-    
+
     bool rpcCalled = false;
-    _replication->RegisterRPC("TestRPC", [&](ClientId, const uint8_t*, size_t) {
-        rpcCalled = true;
-    }, false);
-    
-    _replication->ReceiveRPC(1, 1, nullptr, 0);
+    _replication->RegisterRPC("TestRPC",
+        [&](ClientId, EntityId, const uint8_t*, size_t) {
+            rpcCalled = true;
+        },
+        false);
+
+    _replication->ReceiveRPC(1, 1, 0, nullptr, 0);
     EXPECT_TRUE(rpcCalled);
 }
 
 TEST_F(ReplicationTest, AuthorityValidation) {
     _replication->AddClient(1);
-    
+
     bool rpcCalled = false;
-    _replication->RegisterRPC("AuthRPC", [&](ClientId, const uint8_t*, size_t) {
-        rpcCalled = true;
-    }, true);
-    
-    _replication->ReceiveRPC(1, 1, nullptr, 0);
+    _replication->RegisterRPC("AuthRPC",
+        [&](ClientId, EntityId, const uint8_t*, size_t) {
+            rpcCalled = true;
+        },
+        true);
+
+    _replication->ReceiveRPC(1, 1, 0, nullptr, 0);
     EXPECT_TRUE(rpcCalled);
 }
 

@@ -1,5 +1,4 @@
-// Backends/src/Persistence/Database/PostgreSQLImpl.cpp
-#include <Persistence/Database/PostgreSQLImpl.h>
+#include <Services/Persistence/Database/PostgreSQLImpl.h>
 #include <SagaEngine/Core/Log/Log.h>
 #include <SagaEngine/Core/Profiling/Profiler.h>
 #include <pqxx/pqxx>
@@ -260,9 +259,10 @@ void PostgreSQLDatabase::AppendEvent(const std::string& type, const std::vector<
             data.size()
         );
         
-        txn.exec(
+        txn.exec_params(
             "INSERT INTO event_log (event_type, event_data) VALUES ($1, $2)",
-            pqxx::params{type, dataView}
+            type,
+            dataView
         );
         
         txn.commit();
@@ -297,12 +297,14 @@ void PostgreSQLDatabase::ClearTestData(EntityId minId, EntityId maxId) {
         
         txn.exec_params(
             "DELETE FROM components WHERE entity_id >= $1 AND entity_id < $2",
-            pqxx::params{static_cast<int64_t>(minId), static_cast<int64_t>(maxId)}
+            static_cast<int64_t>(minId),
+            static_cast<int64_t>(maxId)
         );
-        
+
         txn.exec_params(
             "DELETE FROM entities WHERE entity_id >= $1 AND entity_id < $2",
-            pqxx::params{static_cast<int64_t>(minId), static_cast<int64_t>(maxId)}
+            static_cast<int64_t>(minId),
+            static_cast<int64_t>(maxId)
         );
         
         txn.commit();
@@ -343,17 +345,15 @@ void PostgreSQLDatabase::ProcessWriteQueue() {
                 error = "No connections";
             } else {
                 pqxx::work txn{*_pimpl->connectionPool[0]};
-                
-                txn.exec(
+                                
+                txn.exec_params(
                     R"(
                     INSERT INTO entities (entity_id, version, updated_at)
                     VALUES ($1, $2, NOW())
                     ON CONFLICT (entity_id) DO UPDATE SET version = $2, updated_at = NOW()
                     )",
-                    pqxx::params{
-                        static_cast<int64_t>(request.snapshot.entityId),
-                        static_cast<int64_t>(request.snapshot.version)
-                    }
+                    static_cast<int64_t>(request.snapshot.entityId),
+                    static_cast<int64_t>(request.snapshot.version)
                 );
                 
                 for (size_t i = 0; i < request.snapshot.componentTypes.size(); ++i) {
@@ -362,19 +362,17 @@ void PostgreSQLDatabase::ProcessWriteQueue() {
                         request.snapshot.data.size()
                     );
                     
-                    txn.exec(
+                    txn.exec_params(
                         R"(
                         INSERT INTO components (entity_id, component_type, component_data, version)
                         VALUES ($1, $2, $3, $4)
                         ON CONFLICT (entity_id, component_type)
                         DO UPDATE SET component_data = $3, version = $4
                         )",
-                        pqxx::params{
-                            static_cast<int64_t>(request.snapshot.entityId),
-                            static_cast<int>(request.snapshot.componentTypes[i]),
-                            dataView,
-                            static_cast<int64_t>(request.snapshot.version)
-                        }
+                        static_cast<int64_t>(request.snapshot.entityId),
+                        static_cast<int>(request.snapshot.componentTypes[i]),
+                        dataView,
+                        static_cast<int64_t>(request.snapshot.version)
                     );
                 }
                 

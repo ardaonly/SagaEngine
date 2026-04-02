@@ -1,5 +1,5 @@
-#include "SagaEngine/Networking/Interest/InterestArea.h"
-#include "SagaEngine/Networking/Replication/ReplicationManager.h"
+#include "SagaServer/Networking/Interest/InterestArea.h"
+#include "SagaServer/Networking/Replication/ReplicationManager.h"
 #include <gtest/gtest.h>
 #include <thread>
 #include <chrono>

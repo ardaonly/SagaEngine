@@ -1,6 +1,5 @@
-// Tests/Integration/Persistence/PostgreSQLTests.cpp
-#include <Persistence/Database/PostgreSQLImpl.h>
-#include <Persistence/Types.h>
+#include <Services/Persistence/Database/PostgreSQLImpl.h>
+#include <Services/Persistence/Types.h>
 #include <gtest/gtest.h>
 
 #include <atomic>
