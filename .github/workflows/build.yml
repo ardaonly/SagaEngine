@@ -13,8 +13,7 @@ concurrency:
 
 jobs:
   build:
-    name: windows-msvc-14.38
-    runs-on: windows-2022
+    runs-on: windows-latest
     env:
       SAGA_CI_MODE: "true"
 
@@ -41,19 +40,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-windows-msvc-
 
-      - name: Install MSVC 14.38 toolset
-        shell: pwsh
-        run: |
-          $vswhere   = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-          $installer = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
-          $vsPath    = (& $vswhere -latest -products * -property installationPath 2>$null | Select-Object -First 1).Trim()
-          Write-Host "VS path: $vsPath"
-          $proc = Start-Process -FilePath $installer `
-            -ArgumentList "modify","--installPath",$vsPath,"--add","Microsoft.VisualStudio.Component.VC.14.38.17.8.x86.x64","--quiet","--norestart" `
-            -Wait -PassThru -NoNewWindow
-          Write-Host "Installer exit code: $($proc.ExitCode)"
-          if ($proc.ExitCode -notin @(0, 3010)) { throw "vs_installer exited with $($proc.ExitCode)" }
-
       - name: Lock
         run: .\build.ps1 lock -Profile windows-msvc
 
@@ -66,16 +52,10 @@ jobs:
       - name: Test
         run: .\build.ps1 test -Preset windows-msvc-14.38
 
-      - name: sccache stats
-        if: always()
-        run: |
-          $sccache = "cache\sccache\sccache.exe"
-          if (Test-Path $sccache) { & $sccache --show-stats }
-
       - name: Upload artifacts
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: sagaengine-windows-msvc-${{ github.sha }}
+          name: sagaengine-${{ github.sha }}
           path: sagaforge/Build/windows-msvc-14.38/
           retention-days: 7

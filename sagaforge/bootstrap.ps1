@@ -13,7 +13,6 @@ function Write-Log {
     param([string]$Message, [string]$Level = "INFO")
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $logEntry = "[$timestamp] [$Level] $Message"
-    New-Item -ItemType Directory -Force -Path (Split-Path $LOG_FILE -Parent) | Out-Null
     Add-Content -Path $LOG_FILE -Value $logEntry -Force
     $color = switch ($Level) {
         "SUCCESS" { "Green" }
