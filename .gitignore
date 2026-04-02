@@ -43,6 +43,7 @@ compile_commands.json
 *.pyc
 __pycache__/
 conanbuildinfo.txt
+conan.lock
 
 # Conan cache (local project cache only)
 cache/conan/*
