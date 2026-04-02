@@ -1,5 +1,5 @@
 #pragma once
-#include "SagaEngine/Networking/Core/NetworkTypes.h"
+#include "SagaServer/Networking/Core/NetworkTypes.h"
 #include "SagaEngine/ECS/Entity.h"
 #include <unordered_map>
 #include <unordered_set>

@@ -1,0 +1,37 @@
+{
+  "schema": "1.0",
+  "python": {
+    "version": "3.10.11",
+    "type": "embeddable",
+    "url": "https://www.python.org/ftp/python/3.10.11/python-3.10.11-embed-amd64.zip",
+    "sha256": "608619f8619075629c9c69f361352a0da6ed7e62f83a0e19c63e0ea32eb7629d",
+    "install_path": ".toolchain/python"
+  },
+  "conan": {
+    "version": "2.0.17",
+    "min_lockfile_version": "0.5"
+  },
+  "ninja": {
+    "version": "1.11.1.4"
+  },
+  "cmake": {
+    "version": "3.28.1",
+    "use_system": false
+  },
+  "lockfile": {
+    "required": true,
+    "path": "conan.lock",
+    "verify_git": true,
+    "verify_conan": true
+  },
+  "build_modes": {
+    "ci": {
+      "build_policy": "never",
+      "allow_missing": false
+    },
+    "dev": {
+      "build_policy": "missing",
+      "allow_missing": true
+    }
+  }
+}

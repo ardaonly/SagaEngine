@@ -1,11 +1,10 @@
-#include "SagaEngine/Networking/Core/NetworkTransport.h"
+#include "SagaServer/Networking/Core/NetworkTransport.h"
 #include "SagaEngine/Core/Time/Time.h"
 #include <chrono>
 #include <thread>
 
 namespace SagaEngine::Networking {
 
-// UdpTransport
 UdpTransport::UdpTransport()
     : m_IoContext(1)
     , m_ReceiveBuffer(2048) {
@@ -24,15 +23,15 @@ bool UdpTransport::Initialize(const NetworkConfig& config) {
     m_Config = config;
     
     try {
-        m_Socket = std::make_unique<boost::asio::ip::udp::socket>(m_IoContext);
-        m_Socket->open(boost::asio::ip::udp::v4());
+        m_Socket = std::make_unique<asio::ip::udp::socket>(m_IoContext);
+        m_Socket->open(asio::ip::udp::v4());
         
-        boost::asio::ip::udp::socket::receive_buffer_size recvSize(256 * 1024);
-        boost::asio::ip::udp::socket::send_buffer_size sendSize(256 * 1024);
+        asio::ip::udp::socket::receive_buffer_size recvSize(256 * 1024);
+        asio::ip::udp::socket::send_buffer_size sendSize(256 * 1024);
         m_Socket->set_option(recvSize);
         m_Socket->set_option(sendSize);
         
-        boost::asio::ip::udp::endpoint localEndpoint(boost::asio::ip::udp::v4(), 0);
+        asio::ip::udp::endpoint localEndpoint(asio::ip::udp::v4(), 0);
         m_Socket->bind(localEndpoint);
         
         auto localEp = m_Socket->local_endpoint();
@@ -87,8 +86,8 @@ bool UdpTransport::Connect(const NetworkAddress& address) {
     m_RemoteAddress = address;
     
     try {
-        boost::asio::ip::udp::resolver resolver(m_IoContext);
-        auto results = resolver.resolve(boost::asio::ip::udp::v4(),
+        asio::ip::udp::resolver resolver(m_IoContext);
+        auto results = resolver.resolve(asio::ip::udp::v4(),
                                         address.host,
                                         std::to_string(address.port));
         
@@ -135,8 +134,8 @@ void UdpTransport::Disconnect(int reason) {
     }
     
     if (m_Socket && m_Socket->is_open()) {
-        boost::system::error_code ec;
-        m_Socket->shutdown(boost::asio::ip::udp::socket::shutdown_both, ec);
+        std::error_code ec;
+        m_Socket->shutdown(asio::ip::udp::socket::shutdown_both, ec);
         m_Socket->close(ec);
     }
     
@@ -205,17 +204,17 @@ void UdpTransport::StartReceive() {
     }
     
     m_Socket->async_receive_from(
-        boost::asio::buffer(m_ReceiveBuffer),
+        asio::buffer(m_ReceiveBuffer),
         m_ReceiveEndpoint,
-        [this](const boost::system::error_code& error, size_t bytesTransferred) {
+        [this](const std::error_code& error, size_t bytesTransferred) {
             HandleReceive(error, bytesTransferred);
         });
 }
 
-void UdpTransport::HandleReceive(const boost::system::error_code& error,
+void UdpTransport::HandleReceive(const std::error_code& error,
                                   size_t bytesTransferred) {
     if (error || bytesTransferred == 0) {
-        if (error != boost::asio::error::operation_aborted) {
+        if (error != asio::error::operation_aborted) {
             LOG_WARN("UdpTransport", "Receive error: %s", error.message().c_str());
         }
         return;
@@ -239,7 +238,7 @@ void UdpTransport::ProcessSendQueue() {
         auto& pending = m_SendQueue.front();
         
         try {
-            m_Socket->send(boost::asio::buffer(pending.data));
+            m_Socket->send(asio::buffer(pending.data));
             m_SendQueue.pop();
         }
         catch (const std::exception& e) {
@@ -254,17 +253,17 @@ void UdpTransport::StartKeepAliveTimer() {
         return;
     }
     
-    m_KeepAliveTimer = std::make_unique<boost::asio::steady_timer>(m_IoContext);
+    m_KeepAliveTimer = std::make_unique<asio::steady_timer>(m_IoContext);
     
     auto interval = std::chrono::milliseconds(m_Config.keepAliveIntervalMs);
     m_KeepAliveTimer->expires_after(interval);
     m_KeepAliveTimer->async_wait(
-        [this](const boost::system::error_code& error) {
+        [this](const std::error_code& error) {
             HandleKeepAliveTimer(error);
         });
 }
 
-void UdpTransport::HandleKeepAliveTimer(const boost::system::error_code& error) {
+void UdpTransport::HandleKeepAliveTimer(const std::error_code& error) {
     if (error || m_State != ConnectionState::Connected) {
         return;
     }
@@ -308,7 +307,6 @@ void UdpTransport::InvokeOnStateChanged(ConnectionState newState) {
     }
 }
 
-// TransportFactory
 std::unique_ptr<INetworkTransport> TransportFactory::Create(bool useUdp) {
     if (useUdp) {
         return std::make_unique<UdpTransport>();

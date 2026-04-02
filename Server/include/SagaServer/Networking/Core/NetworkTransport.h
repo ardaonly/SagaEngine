@@ -1,17 +1,17 @@
 #pragma once
 #include "NetworkTypes.h"
 #include "Packet.h"
-#include <boost/asio.hpp>
-#include <boost/asio/steady_timer.hpp>
+#include <asio.hpp>
+#include <asio/steady_timer.hpp>
 #include <memory>
 #include <mutex>
 #include <queue>
 #include <atomic>
+#include <system_error>
 #include <SagaEngine/Core/Threading/JobSystem.h>
 
 namespace SagaEngine::Networking {
 
-// Transport Layer Interface
 class INetworkTransport {
 public:
     virtual ~INetworkTransport() = default;
@@ -34,7 +34,6 @@ public:
     virtual void SetOnStateChanged(OnStateChangedCallback cb) = 0;
 };
 
-// UDP Transport Implementation
 class UdpTransport : public INetworkTransport {
 public:
     UdpTransport();
@@ -64,10 +63,10 @@ public:
     NetworkAddress GetLocalAddress() const;
     
 private:
-    boost::asio::io_context m_IoContext;
-    std::unique_ptr<boost::asio::ip::udp::socket> m_Socket;
-    std::unique_ptr<boost::asio::steady_timer> m_ConnectTimer;
-    std::unique_ptr<boost::asio::steady_timer> m_KeepAliveTimer;
+    asio::io_context m_IoContext;
+    std::unique_ptr<asio::ip::udp::socket> m_Socket;
+    std::unique_ptr<asio::steady_timer> m_ConnectTimer;
+    std::unique_ptr<asio::steady_timer> m_KeepAliveTimer;
     
     ConnectionState m_State{ConnectionState::Disconnected};
     NetworkConfig m_Config;
@@ -86,7 +85,7 @@ private:
     mutable std::mutex m_SendQueueMutex;
     
     std::vector<uint8_t> m_ReceiveBuffer;
-    boost::asio::ip::udp::endpoint m_ReceiveEndpoint;
+    asio::ip::udp::endpoint m_ReceiveEndpoint;
     
     OnConnectedCallback m_OnConnected;
     OnDisconnectedCallback m_OnDisconnected;
@@ -98,10 +97,10 @@ private:
     
     void SetState(ConnectionState newState);
     void StartReceive();
-    void HandleReceive(const boost::system::error_code& error, size_t bytesTransferred);
+    void HandleReceive(const std::error_code& error, size_t bytesTransferred);
     void ProcessSendQueue();
     void StartKeepAliveTimer();
-    void HandleKeepAliveTimer(const boost::system::error_code& error);
+    void HandleKeepAliveTimer(const std::error_code& error);
     void SendKeepAlive();
     
     void InvokeOnConnected();
@@ -110,7 +109,6 @@ private:
     void InvokeOnStateChanged(ConnectionState newState);
 };
 
-// Transport Factory
 class TransportFactory {
 public:
     static std::unique_ptr<INetworkTransport> Create(bool useUdp = true);
