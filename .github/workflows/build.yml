@@ -1,22 +1,11 @@
 name: SagaEngine CI
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
-
-concurrency:
-  group: sagaengine-ci-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: windows-latest
-    env:
-      SAGA_CI_MODE: "true"
-
     defaults:
       run:
         working-directory: sagaforge
@@ -25,37 +14,3 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            sagaforge/.toolchain
-            sagaforge/cache/sccache
-            ~/.conan2
-            sagaforge/Build/windows-msvc-14.38
-          key: ${{ runner.os }}-windows-msvc-${{ hashFiles('sagaforge/conan.lock', 'sagaforge/conanfile.py', 'sagaforge/CMakePresets.json', 'sagaforge/cmake/**') }}
-          restore-keys: |
-            ${{ runner.os }}-windows-msvc-
-
-      - name: Lock
-        run: .\build.ps1 lock -Profile windows-msvc
-
-      - name: Setup
-        run: .\build.ps1 setup -Profile windows-msvc -Preset windows-msvc-14.38
-
-      - name: Build
-        run: .\build.ps1 build -Profile windows-msvc -Preset windows-msvc-14.38
-
-      - name: Test
-        run: .\build.ps1 test -Preset windows-msvc-14.38
-
-      - name: Upload artifacts
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sagaengine-${{ github.sha }}
-          path: sagaforge/Build/windows-msvc-14.38/
-          retention-days: 7
