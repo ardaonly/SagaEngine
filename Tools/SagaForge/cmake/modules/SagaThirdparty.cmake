@@ -6,6 +6,7 @@ function(saga_setup_thirdparty)
     find_package(redis++ CONFIG REQUIRED)
     find_package(diligent-core CONFIG REQUIRED)
     find_package(GTest CONFIG REQUIRED)
+    find_package(SDL2 CONFIG REQUIRED)
 endfunction()
 
 function(saga_link_thirdparty target_name)
@@ -18,5 +19,6 @@ function(saga_link_thirdparty target_name)
         hiredis::hiredis
         redis++::redis++_static
         diligent-core::diligent-core
+        SDL2::SDL2
     )
 endfunction()

@@ -4,6 +4,8 @@
         "conan": {}
     },
     "include": [
-        "C:\\dev\\sagaforge\\Build\\windows-msvc-14.38\\build\\RelWithDebInfo\\generators\\CMakePresets.json"
+        "C:\\dev\\Tools\\SagaForge\\Build\\windows-msvc-14.38\\build\\RelWithDebInfo\\generators\\CMakePresets.json",
+        "C:\\dev\\tools\\SagaForge\\Build\\windows-msvc-14.38\\build\\RelWithDebInfo\\generators\\CMakePresets.json",
+        "C:\\dev\\tools\\Sagaforge\\Build\\windows-msvc-14.38\\build\\RelWithDebInfo\\generators\\CMakePresets.json"
     ]
 }

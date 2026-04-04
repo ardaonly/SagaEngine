@@ -18,6 +18,7 @@ class SagaEngineConan(ConanFile):
         self.requires("hiredis/1.2.0")
         self.requires("redis-plus-plus/1.3.12")
         self.requires("gtest/1.14.0")
+        self.requires("sdl/2.30.2")
 
 
     def build_requirements(self):

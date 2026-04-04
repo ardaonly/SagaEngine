@@ -6,10 +6,19 @@ endif()
 
 project(SagaEngine VERSION 0.1.0 LANGUAGES CXX)
 
-cmake_path(GET CMAKE_SOURCE_DIR PARENT_PATH SAGA_ROOT)
-if(NOT EXISTS "${SAGA_ROOT}/SagaEngineRoot.marker")
-    message(FATAL_ERROR "SagaEngineRoot.marker not found at: ${SAGA_ROOT}")
-endif()
+set(_dir "${CMAKE_SOURCE_DIR}")
+
+while(NOT EXISTS "${_dir}/SagaEngineRoot.marker")
+    cmake_path(GET _dir PARENT_PATH _parent)
+
+    if(_dir STREQUAL _parent)
+        message(FATAL_ERROR "Root bulunamadı")
+    endif()
+
+    set(_dir "${_parent}")
+endwhile()
+
+set(SAGA_ROOT "${_dir}")
 message(STATUS "Engine root: ${SAGA_ROOT}")
 set(SAGA_ROOT "${SAGA_ROOT}" CACHE PATH "Engine root directory" FORCE)
 
