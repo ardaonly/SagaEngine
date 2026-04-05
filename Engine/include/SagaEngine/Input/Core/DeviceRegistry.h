@@ -1,85 +1,74 @@
-#pragma once
-
 /// @file DeviceRegistry.h
-/// @brief Tracks the set of active InputDevices and handles hotplug events.
+/// @brief Owns logical input devices and routes hotplug and per-frame input to them.
 ///
-/// Layer  : Input / Devices
-/// Purpose: InputManager delegates device ownership and lookup here.
-///          DeviceRegistry reacts to RawGamepadConnectionEvents so
-///          the rest of the system doesn't need to.
+/// Layer  : Input / Core
+/// Purpose: Stores all active InputDevice instances, dispatches RawInputFrame
+///          data, and emits connection events when devices are added or removed.
 ///
-/// Ownership model:
-///   DeviceRegistry owns all InputDevice instances via unique_ptr.
-///   External code holds raw pointers or DeviceId references only.
-///
-/// Thread safety:
-///   All methods must be called from the input thread.
-///   If another thread needs device state, it reads the InputState
-///   snapshot produced by InputManager::Update() — not the device directly.
+/// Rules  :
+///   - No platform headers included here.
+///   - No direct backend ownership.
+///   - All ownership of devices is unique_ptr-based.
+
+#pragma once
 
 #include "SagaEngine/Input/Devices/InputDevice.h"
 #include "SagaEngine/Input/Frames/RawInputFrame.h"
 #include <functional>
 #include <memory>
-#include <span>
 #include <unordered_map>
 #include <vector>
 
 namespace SagaEngine::Input
 {
 
-/// Callback signature for device connect / disconnect events.
-using DeviceEventCallback = std::function<void(DeviceId id, DeviceType type, bool connected)>;
+/// Callback fired when a device is registered or unregistered.
+/// bool = true for connect, false for disconnect.
+using DeviceEventCallback = std::function<void(DeviceId, DeviceType, bool)>;
 
+/// Registry of active input devices.
+///
+/// Owns keyboard, mouse, and gamepad devices and forwards raw frame data to them.
 class DeviceRegistry
 {
 public:
-    DeviceRegistry()  = default;
+    DeviceRegistry() = default;
     ~DeviceRegistry() = default;
 
     DeviceRegistry(const DeviceRegistry&) = delete;
     DeviceRegistry& operator=(const DeviceRegistry&) = delete;
 
-    // Registration
-
-    /// Take ownership of a device. Fires the connected callback.
+    /// Register a new device and emit a connect event.
     void RegisterDevice(std::unique_ptr<InputDevice> device);
 
-    /// Remove a device by ID. Fires the disconnected callback.
+    /// Unregister a device by id and emit a disconnect event.
     void UnregisterDevice(DeviceId id);
 
-    // Lookup
-
-    [[nodiscard]] InputDevice*       FindDevice(DeviceId id) noexcept;
+    /// Find a device by id.
+    [[nodiscard]] InputDevice* FindDevice(DeviceId id) noexcept;
     [[nodiscard]] const InputDevice* FindDevice(DeviceId id) const noexcept;
 
-    /// Returns all devices of a given type (keyboard, mouse, gamepad...).
+    /// Return all devices of the requested type.
     [[nodiscard]] std::vector<InputDevice*> GetDevicesOfType(DeviceType type);
 
-    // Per-frame update
+    /// Return the number of currently registered devices.
+    [[nodiscard]] size_t GetDeviceCount() const noexcept;
 
-    /// BeginFrame on every registered device.
+    /// Set the callback fired on device connect/disconnect.
+    void SetDeviceEventCallback(DeviceEventCallback cb);
+
+    /// Advance all devices to the next frame.
     void BeginFrame() noexcept;
 
-    /// Distribute the RawInputFrame to all registered devices.
+    /// Dispatch raw frame data to all registered devices.
     void ConsumeFrame(const RawInputFrame& frame);
 
-    /// Process gamepad connection/disconnection events from the raw frame.
-    /// Auto-creates or removes GamepadDevice instances as needed.
+    /// Process hotplug connection events from the raw frame.
     void ProcessConnectionEvents(const RawInputFrame& frame);
-
-    // Callbacks
-
-    void SetDeviceEventCallback(DeviceEventCallback cb) { m_onDeviceEvent = std::move(cb); }
-
-    // Diagnostics
-
-    [[nodiscard]] size_t GetDeviceCount() const noexcept { return m_devices.size(); }
 
 private:
     std::unordered_map<DeviceId, std::unique_ptr<InputDevice>> m_devices;
     DeviceEventCallback m_onDeviceEvent;
-    DeviceId            m_nextGamepadId = 1000;  ///< Stable IDs for gamepads
 };
 
 } // namespace SagaEngine::Input

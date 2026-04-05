@@ -1,27 +1,17 @@
+"""
+@file saga_engine_ai_snapshot.py
+@brief Generate a machine-readable and human-readable snapshot of the SagaEngine repository.
+"""
+
+from __future__ import annotations
+
 import os
-
-# ---------------- ROOT FIND ----------------
-
-def find_engine_root():
-    current = os.path.abspath(os.path.dirname(__file__))
-
-    while True:
-        marker = os.path.join(current, "SagaEngineRoot.marker")
-        if os.path.isfile(marker):
-            return current
-
-        parent = os.path.dirname(current)
-
-        if parent == current:
-            raise RuntimeError("Root not found or 'SagaEngineRoot.marker' is missing")
-
-        current = parent
+from pathlib import Path
+from typing import Dict, Iterable, List, Tuple
 
 
-ROOT_DIR = find_engine_root()
+MARKER_FILE = "SagaEngineRoot.marker"
 OUTPUT_FILE = "engine_ai_snapshot.txt"
-
-# ---------------- IGNORE CONFIG ----------------
 
 IGNORE_DIRS = {
     ".git",
@@ -33,144 +23,182 @@ IGNORE_DIRS = {
     ".vscode",
     ".thirdparty_build",
     ".toolchain",
-    "__pycache__"
+    "__pycache__",
 }
 
 IGNORE_FILES = {
-    "SagaEngineRoot.marker",
+    MARKER_FILE,
     OUTPUT_FILE,
-    "LICENSE"
+    "LICENSE",
 }
 
 IGNORE_EXTENSIONS = {
     ".log",
     ".tmp",
     ".cache",
-    ".bin"
+    ".bin",
 }
 
-IGNORE_PATTERNS = [
+IGNORE_PATTERNS = (
     ".gitignore",
-    ".DS_Store"
+    ".DS_Store",
+)
+
+CATEGORY_RULES: List[Tuple[str, Tuple[str, ...]]] = [
+    ("headers", (".h", ".hpp", ".hh")),
+    ("sources", (".cpp", ".c", ".cc", ".cxx")),
+    ("cmake", (".cmake",)),
+    ("others", (".txt", ".md", ".json", ".yaml", ".yml")),
 ]
 
-# ---------------- FILE TYPES ----------------
 
-EXTENSIONS = {
-    "headers": [".h", ".hpp"],
-    "sources": [".cpp", ".c", ".cc", ".cxx"],
-    "cmake": [".cmake", "CMakeLists.txt"],
-    "others": [".txt", ".md", ".json", ".yaml", ".yml"]
-}
+def find_engine_root(start: Path | None = None) -> Path:
+    """
+    Walk upward until the repository root marker is found.
+    """
+    current = (start or Path(__file__).resolve()).parent
 
-# ---------------- HELPERS ----------------
+    while True:
+        if (current / MARKER_FILE).is_file():
+            return current
 
-def should_ignore(file_name):
+        parent = current.parent
+        if parent == current:
+            raise RuntimeError(
+                f"Root not found or '{MARKER_FILE}' is missing."
+            )
+
+        current = parent
+
+
+def should_ignore_directory(dir_name: str) -> bool:
+    return dir_name in IGNORE_DIRS
+
+
+def should_ignore_file(file_name: str) -> bool:
     if file_name in IGNORE_FILES:
         return True
 
-    _, ext = os.path.splitext(file_name)
-    if ext in IGNORE_EXTENSIONS:
+    suffix = Path(file_name).suffix.lower()
+    if suffix in IGNORE_EXTENSIONS:
         return True
 
-    for pattern in IGNORE_PATTERNS:
-        if pattern in file_name:
-            return True
+    return any(pattern in file_name for pattern in IGNORE_PATTERNS)
 
-    return False
 
-# ---------------- FILE COLLECTION ----------------
+def categorize_file(file_name: str) -> str:
+    """
+    Assign a file to one of the snapshot categories.
+    """
+    lower_name = file_name.lower()
 
-def collect_files(root):
-    categorized_files = {k: [] for k in EXTENSIONS}
+    for category, extensions in CATEGORY_RULES:
+        if category == "cmake" and lower_name == "cmakelists.txt":
+            return category
+
+        if any(lower_name.endswith(ext) for ext in extensions):
+            return category
+
+    return "others"
+
+
+def collect_files(root: Path) -> Dict[str, List[Path]]:
+    """
+    Walk the repository and collect files by category.
+    """
+    categorized: Dict[str, List[Path]] = {
+        "headers": [],
+        "sources": [],
+        "cmake": [],
+        "others": [],
+    }
 
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in IGNORE_DIRS]
+        dirnames[:] = [d for d in dirnames if not should_ignore_directory(d)]
 
-        for file in filenames:
-            if should_ignore(file):
+        for file_name in filenames:
+            if should_ignore_file(file_name):
                 continue
 
-            full_path = os.path.join(dirpath, file)
+            full_path = Path(dirpath) / file_name
+            category = categorize_file(file_name)
+            categorized[category].append(full_path)
 
-            added = False
-            for category, exts in EXTENSIONS.items():
-                if any(file.endswith(ext) for ext in exts) or file in exts:
-                    categorized_files[category].append(full_path)
-                    added = True
-                    break
+    return categorized
 
-            if not added:
-                categorized_files["others"].append(full_path)
 
-    return categorized_files
-
-# ---------------- LINE COUNT ----------------
-
-def count_lines(files):
+def count_lines(files: Iterable[Path]) -> int:
     total = 0
-    for f in files:
+
+    for file_path in files:
         try:
-            with open(f, "r", encoding="utf-8", errors="ignore") as fh:
+            with file_path.open("r", encoding="utf-8", errors="ignore") as fh:
                 total += sum(1 for _ in fh)
-        except:
+        except OSError:
             continue
+
     return total
 
-# ---------------- SNAPSHOT ----------------
 
-def write_snapshot(output_path, categorized_files):
-    with open(output_path, "w", encoding="utf-8", errors="ignore") as out:
-        out.write("===== ENGINE AI SNAPSHOT =====\n\n")
+def relative_path(root: Path, path: Path) -> str:
+    return path.relative_to(root).as_posix()
 
-        # FILE LIST
+
+def write_snapshot(output_path: Path, root: Path, categorized_files: Dict[str, List[Path]]) -> None:
+    """
+    Write a structured text snapshot for AI and human inspection.
+    """
+    with output_path.open("w", encoding="utf-8", errors="ignore") as out:
+        out.write("===== SAGAENGINE AI SNAPSHOT =====\n\n")
+
+        out.write("===== FILE INDEX =====\n")
         for category in ["headers", "sources", "cmake", "others"]:
-            files = categorized_files.get(category, [])
-            out.write(f"===== {category.upper()} ({len(files)} files) =====\n")
+            files = sorted(categorized_files.get(category, []), key=lambda p: relative_path(root, p).lower())
+            out.write(f"\n[{category.upper()}] {len(files)} files\n")
+            for file_path in files:
+                out.write(f"{relative_path(root, file_path)}\n")
 
-            for f in sorted(files):
-                rel_path = os.path.relpath(f, ROOT_DIR).replace(os.sep, "/")
-                out.write(rel_path + "\n")
-
-            out.write("\n")
-
-        # FILE CONTENTS
+        out.write("\n===== FILE CONTENTS =====\n")
         for category in ["headers", "sources", "cmake", "others"]:
-            files = categorized_files.get(category, [])
-            out.write(f"===== {category.upper()} CONTENTS =====\n")
+            files = sorted(categorized_files.get(category, []), key=lambda p: relative_path(root, p).lower())
+            out.write(f"\n[{category.upper()}]\n")
 
-            for f in sorted(files):
-                rel_path = os.path.relpath(f, ROOT_DIR).replace(os.sep, "/")
-
+            for file_path in files:
+                rel = relative_path(root, file_path)
                 out.write("\n" + "=" * 90 + "\n")
-                out.write(f"FILE: /{rel_path}\n")
+                out.write(f"FILE: /{rel}\n")
                 out.write("=" * 90 + "\n\n")
 
                 try:
-                    with open(f, "r", encoding="utf-8", errors="ignore") as fh:
+                    with file_path.open("r", encoding="utf-8", errors="ignore") as fh:
                         out.write(fh.read())
-                except Exception as e:
-                    out.write(f"[ERROR READING FILE: {e}]\n")
+                        if not str(file_path).endswith("\n"):
+                            out.write("\n")
+                except OSError as exc:
+                    out.write(f"[ERROR READING FILE: {exc}]\n")
 
-            out.write("\n")
-
-        # STATISTICS
         out.write("\n===== STATISTICS =====\n")
+        total_files = 0
+        total_lines = 0
 
         for category in ["headers", "sources", "cmake", "others"]:
             files = categorized_files.get(category, [])
             lines = count_lines(files)
+            total_files += len(files)
+            total_lines += lines
             out.write(f"{category}: {len(files)} files, {lines} lines\n")
-
-        total_files = sum(len(v) for v in categorized_files.values())
-        total_lines = sum(count_lines(v) for v in categorized_files.values())
 
         out.write(f"Total files: {total_files}\n")
         out.write(f"Total lines: {total_lines}\n")
 
-# ---------------- MAIN ----------------
+
+def main() -> None:
+    root = find_engine_root()
+    categorized_files = collect_files(root)
+    output_path = root / OUTPUT_FILE
+    write_snapshot(output_path, root, categorized_files)
+    print(f"Engine AI snapshot created: {output_path}")
+
 
 if __name__ == "__main__":
-    files = collect_files(ROOT_DIR)
-    write_snapshot(OUTPUT_FILE, files)
-    print("Engine AI snapshot created.")
+    main()
