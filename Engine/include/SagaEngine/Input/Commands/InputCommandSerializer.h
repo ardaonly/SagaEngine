@@ -28,7 +28,7 @@
 ///   - Versioned: if version != kCurrentVersion, Deserialize returns an error.
 ///     Old clients talking to new servers must renegotiate version on connect.
 
-#include "InputCommand.h"
+#include "SagaEngine/Input/Commands/InputCommand.h"
 #include <array>
 #include <cstdint>
 #include <span>

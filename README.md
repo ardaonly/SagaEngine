@@ -4,7 +4,6 @@ SagaEngine is a foundation for an MMO-first engine core.
 
 It is not a platform product.
 It is not production-ready.
-It is not trying to be a general-purpose engine for everything humans can imagine at 3 a.m.
 
 The project is intentionally structured around:
 - MMO runtime and authoritative server boundaries

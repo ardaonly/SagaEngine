@@ -30,7 +30,7 @@
 ///   }
 ///   network.SendAcks(results.acks);
 
-#include "InputCommandInbox.h"
+#include "SagaEngine/Input/Networking/InputCommandInbox.h"
 #include "SagaEngine/Input/Commands/InputCommand.h"
 #include <memory>
 #include <span>
@@ -38,7 +38,7 @@
 #include <vector>
 #include <cstdint>
 
-namespace SagaServer::Input
+namespace SagaEngine::Input
 {
 
 // Validation rules
@@ -132,4 +132,4 @@ private:
     std::unordered_map<uint32_t, std::unique_ptr<InputCommandInbox>> m_inboxes;
 };
 
-} // namespace SagaServer::Input
+} // namespace SagaEngine::Input
