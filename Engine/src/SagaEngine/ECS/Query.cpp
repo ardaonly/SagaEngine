@@ -25,29 +25,23 @@ Query& Query::WithFilter(FilterFunc filter)
 std::vector<EntityId> Query::Execute()
 {
     std::vector<EntityId> result;
-    
-    if (!m_World) {
+
+    if (!m_World)
+    {
         LOG_ERROR("ECS::Query", "WorldState is null");
         return result;
     }
-    
-    auto entities = m_World->GetAllEntities();
-    
-    for (EntityId entityId : entities) {
-        bool hasAllComponents = true;
-        for (ComponentTypeId type : m_RequiredComponents) {
-            if (!m_World->EntityHasComponent(entityId, type)) {
-                hasAllComponents = false;
-                break;
-            }
-        }
-        
-        if (!hasAllComponents) continue;
-        if (m_Filter && !m_Filter(entityId)) continue;
-        
+
+    auto entities = m_World->Query(m_RequiredComponents);
+
+    for (EntityId entityId : entities)
+    {
+        if (m_Filter && !m_Filter(entityId))
+            continue;
+
         result.push_back(entityId);
     }
-    
+
     return result;
 }
 

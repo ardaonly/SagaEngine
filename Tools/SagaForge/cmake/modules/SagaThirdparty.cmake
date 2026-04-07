@@ -8,6 +8,7 @@ function(saga_setup_thirdparty)
     find_package(GTest CONFIG REQUIRED)
     find_package(SDL2 CONFIG REQUIRED)
     find_package(imgui CONFIG REQUIRED)
+    find_package(rapidcheck CONFIG REQUIRED)
 endfunction()
 
 function(saga_link_thirdparty target_name)
@@ -23,4 +24,10 @@ function(saga_link_thirdparty target_name)
         SDL2::SDL2
         imgui::imgui
     )
+
+    if(DEFINED imgui_RES_DIRS)
+        target_include_directories(${target_name} PRIVATE
+            ${imgui_RES_DIRS}/bindings
+        )
+    endif()
 endfunction()

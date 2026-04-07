@@ -1,25 +1,38 @@
+/// @file ReplicationManager.h
+/// @brief Replication manager for server-side entity/component delta delivery.
+
 #pragma once
+
 #include "SagaServer/Networking/Core/Packet.h"
 #include "SagaServer/Networking/Core/NetworkTypes.h"
 #include "SagaServer/Networking/Interest/InterestArea.h"
 #include "SagaEngine/ECS/Entity.h"
 #include "SagaEngine/ECS/Component.h"
-#include "SagaEngine/ECS/Serialization.h"
+
+#include <cstddef>
+#include <cstdint>
+#include <functional>
 #include <memory>
-#include <vector>
+#include <mutex>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include <functional>
-#include <mutex>
-#include <cstdint>
+#include <vector>
 
-namespace SagaEngine::Simulation { class AuthorityManager; class WorldState; }
-namespace SagaEngine::Networking::Replication {
+namespace SagaEngine::Simulation
+{
+    class AuthorityManager;
+    class WorldState;
+}
+
+namespace SagaEngine::Networking::Replication
+{
 
 using EntityId        = ECS::EntityId;
-using ComponentTypeId = ECS::ComponentTypeId;
+using ComponentTypeId  = ECS::ComponentTypeId;
 using ClientId        = ::SagaEngine::Networking::ClientId;
 
+/// Snapshot interface used by replication backends that expose read-only world data.
 class IWorldSnapshot
 {
 public:
@@ -28,24 +41,30 @@ public:
     virtual std::vector<EntityId> GetAllEntities() const = 0;
     virtual bool                  EntityHasComponent(EntityId, ComponentTypeId) const = 0;
 
-    virtual size_t GetSerializedComponent(EntityId        entityId,
-                                          ComponentTypeId typeId,
-                                          uint8_t*        buf,
-                                          size_t          bufSize) const = 0;
+    virtual std::size_t GetSerializedComponent(
+        EntityId        entityId,
+        ComponentTypeId typeId,
+        uint8_t*        buf,
+        std::size_t     bufSize) const = 0;
 };
 
-struct ReplicationPriority {
+/// Priority values tracked per entity/client pair.
+struct ReplicationPriority
+{
     float    distanceScore{0.0f};
     float    importanceScore{0.0f};
     uint32_t lastReplicatedTick{0};
 
-    float CalculateScore() const {
+    [[nodiscard]] float CalculateScore() const
+    {
         return (importanceScore * 2.0f) + (1.0f / (distanceScore + 0.1f));
     }
 };
 
-struct ClientReplicationState {
-    ClientId clientId;
+/// Per-client replication bookkeeping.
+struct ClientReplicationState
+{
+    ClientId clientId{0};
 
     std::unordered_map<EntityId, std::unordered_set<ComponentTypeId>> sentComponents;
     std::unordered_map<EntityId, std::vector<ComponentTypeId>>        pendingComponents;
@@ -55,18 +74,24 @@ struct ClientReplicationState {
     bool     isDirty{false};
 };
 
-struct RPCDefinition {
-    using Func = std::function<void(ClientId clientId,
-                                   EntityId  targetEntity,
-                                   const uint8_t* payload,
-                                   size_t         size)>;
+/// RPC definition stored in the server registry.
+struct RPCDefinition
+{
+    using Func = std::function<void(
+        ClientId clientId,
+        EntityId targetEntity,
+        const uint8_t* payload,
+        std::size_t size)>;
+
     std::string name;
-    uint32_t    id;
+    uint32_t    id{0};
     Func        serverHandler;
     bool        requiresEntityAuthority{false};
 };
 
-class ReplicationManager {
+/// Server-side replication coordinator.
+class ReplicationManager
+{
 public:
     ReplicationManager();
     ~ReplicationManager();
@@ -79,29 +104,29 @@ public:
 
     void AddClient(ClientId clientId);
     void RemoveClient(ClientId clientId);
-    bool HasClient(ClientId clientId) const;
+    [[nodiscard]] bool HasClient(ClientId clientId) const;
 
     void SetWorldState(Simulation::WorldState* world);
 
     void GatherDirtyEntities(float dt, bool force = false);
     void SendUpdates(ClientId clientId,
-                     std::function<void(const uint8_t*, size_t)> sendCallback);
+                     std::function<void(const uint8_t*, std::size_t)> sendCallback);
 
     void ReceiveRPC(ClientId       clientId,
                     uint32_t       rpcId,
                     EntityId       targetEntity,
                     const uint8_t* payload,
-                    size_t         size);
+                    std::size_t    size);
 
     void RegisterEntityForReplication(EntityId entityId);
     void UnregisterEntity(EntityId entityId);
     void MarkComponentDirty(EntityId entityId, ComponentTypeId componentId);
 
     template<typename Func>
-    void RegisterRPC(const char* name, Func handler, bool requiresEntityAuth = false);
+    [[nodiscard]] uint32_t RegisterRPC(const char* name, Func handler, bool requiresEntityAuth = false);
 
     void  SetReplicationFrequency(float hz);
-    float GetReplicationFrequency() const { return _replicationHz; }
+    [[nodiscard]] float GetReplicationFrequency() const { return _replicationHz; }
 
     void SetWorldSnapshot(IWorldSnapshot* snapshot);
     void SetAuthorityManager(Simulation::AuthorityManager* auth);
@@ -117,33 +142,34 @@ private:
     mutable std::mutex _stateMutex;
     mutable std::mutex _rpcMutex;
 
-    struct PendingUpdate {
-        EntityId                       entityId;
-        std::vector<ComponentTypeId>   components;
+    struct PendingUpdate
+    {
+        EntityId                     entityId;
+        std::vector<ComponentTypeId> components;
     };
 
-    std::vector<PendingUpdate> CollectPendingUpdates(ClientId clientId);
-
+    [[nodiscard]] std::vector<PendingUpdate> CollectPendingUpdates(ClientId clientId);
     void ProcessEntityDelta(ClientReplicationState& clientState, EntityId entityId);
     bool CheckEntityAuthority(ClientId clientId, EntityId entityId) const;
     void RegisterRPCInternal(const RPCDefinition& def);
 };
 
 template<typename Func>
-void ReplicationManager::RegisterRPC(const char* name, Func handler, bool requiresEntityAuth)
+uint32_t ReplicationManager::RegisterRPC(const char* name, Func handler, bool requiresEntityAuth)
 {
     static std::atomic<uint32_t> s_NextId{1};
 
     RPCDefinition def;
-    def.name                   = name;
-    def.id                     = s_NextId.fetch_add(1, std::memory_order_relaxed);
+    def.name                    = name;
+    def.id                      = s_NextId.fetch_add(1, std::memory_order_relaxed);
     def.requiresEntityAuthority = requiresEntityAuth;
-    def.serverHandler          = [handler](ClientId cid, EntityId eid,
-                                           const uint8_t* p, size_t s)
+    def.serverHandler           = [handler](ClientId cid, EntityId eid, const uint8_t* p, std::size_t s)
     {
         handler(cid, eid, p, s);
     };
+
     RegisterRPCInternal(def);
+    return def.id;
 }
 
 } // namespace SagaEngine::Networking::Replication
