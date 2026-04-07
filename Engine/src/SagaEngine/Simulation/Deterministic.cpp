@@ -1,77 +1,81 @@
+/// @file Deterministic.cpp
+/// @brief Deterministic method implementations.
+
 #include "SagaEngine/Simulation/Deterministic.h"
 #include "SagaEngine/Core/Log/Log.h"
 
-namespace SagaEngine::Simulation
-{
+namespace SagaEngine::Simulation {
 
-// DeterministicRandom
+// ─── Recording ─────────────────────────────────────────────────────────────────
 
-DeterministicRandom::DeterministicRandom(uint64_t seed)
-    : m_Seed(seed)
-    , m_Rng(seed)
+uint64_t Deterministic::Record(uint64_t tickNumber, const WorldState& state) noexcept
 {
+    const uint64_t hash = state.Hash();
+
+    Entry& slot = m_ring[SlotFor(tickNumber)];
+    slot.tick  = tickNumber;
+    slot.hash  = hash;
+    slot.valid = true;
+
+    if (tickNumber > m_latestTick)
+        m_latestTick = tickNumber;
+
+    return hash;
 }
 
-void DeterministicRandom::SetSeed(uint64_t seed)
+void Deterministic::RecordExternal(uint64_t tickNumber, uint64_t hash) noexcept
 {
-    m_Seed = seed;
-    m_Rng.seed(seed);
+    Entry& slot = m_ring[SlotFor(tickNumber)];
+    slot.tick  = tickNumber;
+    slot.hash  = hash;
+    slot.valid = true;
+
+    if (tickNumber > m_latestTick)
+        m_latestTick = tickNumber;
 }
 
-int DeterministicRandom::NextInt(int min, int max)
+// ─── Lookup ────────────────────────────────────────────────────────────────────
+
+std::optional<uint64_t> Deterministic::HashAt(uint64_t tickNumber) const noexcept
 {
-    std::uniform_int_distribution<int> dist(min, max);
-    return dist(m_Rng);
+    const Entry& slot = m_ring[SlotFor(tickNumber)];
+    if (!slot.valid || slot.tick != tickNumber)
+        return std::nullopt;
+
+    return slot.hash;
 }
 
-float DeterministicRandom::NextFloat(float min, float max)
+// ─── Verification ──────────────────────────────────────────────────────────────
+
+bool Deterministic::Verify(uint64_t tickNumber, uint64_t remoteHash) const noexcept
 {
-    std::uniform_real_distribution<float> dist(min, max);
-    return dist(m_Rng);
+    const std::optional<uint64_t> local = HashAt(tickNumber);
+    if (!local.has_value())
+    {
+        // Tick outside the history window — cannot verify, assume OK.
+        return true;
+    }
+
+    if (*local != remoteHash)
+    {
+        LOG_WARN("Deterministic",
+            "Divergence detected at tick %llu: local=0x%016llX remote=0x%016llX.",
+            static_cast<unsigned long long>(tickNumber),
+            static_cast<unsigned long long>(*local),
+            static_cast<unsigned long long>(remoteHash));
+        return false;
+    }
+
+    return true;
 }
 
-double DeterministicRandom::NextDouble(double min, double max)
-{
-    std::uniform_real_distribution<double> dist(min, max);
-    return dist(m_Rng);
-}
+// ─── Reset ─────────────────────────────────────────────────────────────────────
 
-uint32_t DeterministicRandom::NextUInt32()
+void Deterministic::Reset() noexcept
 {
-    std::uniform_int_distribution<uint32_t> dist;
-    return dist(m_Rng);
-}
-
-uint64_t DeterministicRandom::NextUInt64()
-{
-    std::uniform_int_distribution<uint64_t> dist;
-    return dist(m_Rng);
-}
-
-// DeterministicManager
-
-DeterministicManager& DeterministicManager::Instance()
-{
-    static DeterministicManager instance;
-    return instance;
-}
-
-DeterministicManager::DeterministicManager()
-    : m_Random(m_GlobalSeed)
-{
-    LOG_INFO("DeterministicManager", "DeterministicManager initialized (seed: %llu)", m_GlobalSeed);
-}
-
-void DeterministicManager::SetGlobalSeed(uint64_t seed)
-{
-    m_GlobalSeed = seed;
-    m_Random.SetSeed(seed);
-    LOG_INFO("DeterministicManager", "Global seed set: %llu", seed);
-}
-
-DeterministicRandom& DeterministicManager::GetRandom()
-{
-    return m_Random;
+    for (auto& entry : m_ring)
+        entry = {};
+    m_latestTick = 0;
 }
 
 } // namespace SagaEngine::Simulation

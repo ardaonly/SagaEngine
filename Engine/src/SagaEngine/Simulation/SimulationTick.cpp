@@ -1,96 +1,78 @@
+/// @file SimulationTick.cpp
+/// @brief SimulationTick method implementations.
+
 #include "SagaEngine/Simulation/SimulationTick.h"
-#include "SagaEngine/Simulation/WorldState.h"
 #include "SagaEngine/Core/Log/Log.h"
+
 #include <algorithm>
 
-namespace SagaEngine::Simulation
-{
+namespace SagaEngine::Simulation {
 
-SimulationTick::SimulationTick()
-    : m_Config{}
+// ─── Construction ──────────────────────────────────────────────────────────────
+
+SimulationTick::SimulationTick(uint32_t fixedHz) noexcept
+    : m_tickRate(fixedHz > 0 ? fixedHz : 64u)
+    , m_fixedDelta(1.0 / static_cast<double>(m_tickRate > 0 ? m_tickRate : 64u))
+    , m_startTime(std::chrono::steady_clock::now())
 {
-    LOG_INFO("SimulationTick", "SimulationTick initialized (60 Hz)");
 }
 
-SimulationTick::SimulationTick(TickConfig config)
-    : m_Config(std::move(config))
+// ─── State ─────────────────────────────────────────────────────────────────────
+
+float SimulationTick::Alpha() const noexcept
 {
-    LOG_INFO("SimulationTick", "SimulationTick initialized (%.2f Hz)", 
-             1.0f / m_Config.fixedTimestep);
+    return static_cast<float>(m_accumulator / m_fixedDelta);
 }
 
-SimulationTick::~SimulationTick()
-{
-    LOG_INFO("SimulationTick", "SimulationTick shutdown (total ticks: %llu)", m_TickCount);
-}
+// ─── Advance ───────────────────────────────────────────────────────────────────
 
-void SimulationTick::SetWorldState(WorldState* world)
+uint32_t SimulationTick::Advance(double wallDeltaSeconds) noexcept
 {
-    std::lock_guard<std::mutex> lk(m_Mutex);
-    m_World = world;
-    
-    for (auto& system : m_Systems) {
-        system->SetWorldState(world);
+    if (wallDeltaSeconds <= 0.0) return 0u;
+
+    m_accumulator += wallDeltaSeconds;
+
+    // Spiral-of-death guard: clamp accumulator to at most kMaxCatchupTicks.
+    const double maxAccumulator = m_fixedDelta * static_cast<double>(kMaxCatchupTicks);
+    if (m_accumulator > maxAccumulator)
+    {
+        LOG_WARN("SimulationTick",
+            "Accumulator clamped: %.4fs → %.4fs (tick rate=%u Hz). "
+            "Frame was too slow — simulation may desync.",
+            m_accumulator, maxAccumulator, m_tickRate);
+        m_accumulator = maxAccumulator;
     }
+
+    uint32_t ticks = 0u;
+    while (m_accumulator >= m_fixedDelta)
+    {
+        m_accumulator -= m_fixedDelta;
+        ++m_currentTick;
+        ++ticks;
+    }
+
+    return ticks;
 }
 
-void SimulationTick::RegisterSystem(std::unique_ptr<ECS::ISystem> system)
+// ─── Server scheduling ─────────────────────────────────────────────────────────
+
+std::chrono::steady_clock::time_point SimulationTick::NextTickDeadline() const noexcept
 {
-    std::lock_guard<std::mutex> lk(m_Mutex);
-    
-    if (!system) {
-        LOG_ERROR("SimulationTick", "Cannot register null system");
-        return;
-    }
-    
-    system->SetWorldState(m_World);
-    m_Systems.push_back(std::move(system));
-    
-    std::sort(m_Systems.begin(), m_Systems.end(),
-        [](const auto& a, const auto& b) {
-            return a->GetPriority() > b->GetPriority();
-        });
-    
-    LOG_INFO("SimulationTick", "Registered system: %s (priority: %d)", 
-             system->GetName(), system->GetPriority());
+    // Absolute deadline: avoids cumulative drift from sleep imprecision.
+    // nextTick is the tick we haven't started yet.
+    const uint64_t nextTick = m_currentTick + 1u;
+    const auto nsPerTick = static_cast<int64_t>(m_fixedDelta * 1'000'000'000.0);
+    const auto offset = std::chrono::nanoseconds(nsPerTick * static_cast<int64_t>(nextTick));
+    return m_startTime + offset;
 }
 
-void SimulationTick::Tick(float deltaTime)
-{
-    if (m_Paused) {
-        return;
-    }
-    
-    std::lock_guard<std::mutex> lk(m_Mutex);
-    
-    if (m_Config.catchUp) {
-        m_AccumulatedTime += deltaTime;
-        
-        int subSteps = 0;
-        while (m_AccumulatedTime >= m_Config.fixedTimestep && 
-               subSteps < m_Config.maxSubSteps) {
-            ExecuteSystems(m_Config.fixedTimestep);
-            m_AccumulatedTime -= m_Config.fixedTimestep;
-            m_TickCount++;
-            subSteps++;
-        }
-        
-        if (subSteps >= m_Config.maxSubSteps) {
-            LOG_WARN("SimulationTick", "Max substeps reached (%d), skipping %.4f seconds", 
-                     subSteps, m_AccumulatedTime);
-            m_AccumulatedTime = 0.0f;
-        }
-    } else {
-        ExecuteSystems(deltaTime);
-        m_TickCount++;
-    }
-}
+// ─── Reset ─────────────────────────────────────────────────────────────────────
 
-void SimulationTick::ExecuteSystems(float dt)
+void SimulationTick::Reset() noexcept
 {
-    for (auto& system : m_Systems) {
-        system->OnSystemUpdate(dt);
-    }
+    m_accumulator = 0.0;
+    m_currentTick = 0u;
+    m_startTime   = std::chrono::steady_clock::now();
 }
 
 } // namespace SagaEngine::Simulation
