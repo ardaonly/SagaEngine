@@ -5,6 +5,7 @@
 #include "SagaSandbox/UI/DebugHud.h"
 #include "SagaSandbox/Core/ScenarioRegistry.h"
 #include <SagaEngine/Core/Log/Log.h>
+#include <SagaEngine/Core/Time/Time.h>
 
 #include <imgui.h>
 
@@ -47,25 +48,20 @@ void SandboxHost::OnInit()
     {
         LOG_ERROR(kTag, "Initial scenario '%s' failed to start.",
                   m_config.initialScenarioId.c_str());
-        Close();
+        RequestClose();
         return;
     }
 
     LOG_INFO(kTag, "SandboxHost ready.");
 }
 
-void SandboxHost::OnUpdate(float dt)
+void SandboxHost::OnUpdate()
 {
+    const float dt = SagaEngine::Core::Time::GetDeltaTime();
     m_tickCounter++;
-
-    // ── Tick the scenario ─────────────────────────────────────────────────────
     m_scenarioManager.Update(dt, m_tickCounter);
-
-    // ── Tick the HUD + ImGui (skipped in headless) ────────────────────────────
     if (!m_config.headless && m_imguiReady)
-    {
         TickImGui(dt);
-    }
 }
 
 void SandboxHost::OnShutdown()
@@ -92,7 +88,7 @@ void SandboxHost::SwitchScenario(std::string_view id)
 
 void SandboxHost::RequestExit()
 {
-    Close();
+    RequestClose();
 }
 
 // ─── ImGui helpers ────────────────────────────────────────────────────────────
