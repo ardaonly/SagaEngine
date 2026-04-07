@@ -1,66 +1,60 @@
-/// @file Application.cpp
-/// @brief Core application loop.
+#include "SagaEngine/Core/Application/Application.h"
+#include "SagaEngine/Core/Log/Log.h"
+#include "SagaEngine/Core/Time/Time.h"
+#include "SagaEngine/Platform/IWindow.h"
+#include "SagaEngine/Platform/PlatformFactory.h"
 
-#include <SagaEngine/Core/Application/Application.h>
-#include <SagaEngine/Core/Time/Time.h>
-#include <SagaEngine/Core/Log/Log.h>
-#include <cassert>
+namespace Saga {
 
-namespace SagaEngine::Core {
-
-Application* Application::s_Instance = nullptr;
-
-Application::Application(const std::string& name)
-    : m_Name(name)
+Application::Application(std::string name)
+    : m_Name(std::move(name))
 {
-    s_Instance = this;
     LOG_INFO("Application", "Created: %s", m_Name.c_str());
 }
 
-Application::~Application()
+void Application::RequestClose() noexcept
 {
-    LOG_INFO("Application", "Destroyed: %s", m_Name.c_str());
-    s_Instance = nullptr;
-}
-
-Application& Application::Get()
-{
-    assert(s_Instance && "Application instance not found");
-    return *s_Instance;
+    m_ShouldClose = true;
 }
 
 void Application::Run()
 {
     LOG_INFO("Application", "Starting engine loop: %s", m_Name.c_str());
 
-    Time::Init();
-    OnInit();
+    m_Window = PlatformFactory::Get()->CreateWindow();
 
-    if (!m_Running)
+    WindowDesc wDesc;
+    wDesc.title     = m_Name;
+    wDesc.width     = 1280;
+    wDesc.height    = 720;
+    wDesc.vsync     = true;
+    wDesc.resizable = true;
+
+    if (!m_Window->Init(wDesc))
     {
-        LOG_WARN("Application", "Aborted during OnInit");
+        LOG_ERROR("Application", "Window initialisation failed - aborting.");
         return;
     }
 
-    LOG_INFO("Application", "Entering main loop");
+    OnInit();
 
-    while (m_Running)
+    LOG_INFO("Application", "Entering main loop.");
+
+    while (!m_ShouldClose && !m_Window->ShouldClose())
     {
-        Time::Tick();
-        OnUpdate(Time::GetDeltaTime());
+        static uint64_t frame = 0;
+        LOG_INFO("Application", "Frame: %llu", frame++);
+
+        SagaEngine::Core::Time::Tick();
+        m_Window->PollEvents();
+        OnUpdate();
+        m_Window->Present();
     }
 
-    LOG_INFO("Application", "Main loop exited");
-
     OnShutdown();
+    m_Window->Shutdown();
+    m_Window.reset();
 
-    LOG_INFO("Application", "Engine loop terminated gracefully");
+    LOG_INFO("Application", "Shutdown complete.");
 }
-
-void Application::Close()
-{
-    LOG_INFO("Application", "Close requested");
-    m_Running = false;
 }
-
-} // namespace SagaEngine::Core

@@ -25,7 +25,6 @@
 
 #include "SagaSandbox/Core/ScenarioManager.h"
 #include "SagaSandbox/Core/SandboxConfig.h"
-#include "SagaSandbox/Core/SandboxHost.h"
 #include <SagaEngine/Core/Application/Application.h>
 #include <memory>
 #include <string>
@@ -38,7 +37,7 @@ class DebugHud;
 // ─── SandboxHost ──────────────────────────────────────────────────────────────
 
 /// Main host application. One instance per process, never shared.
-class SandboxHost final : public SagaEngine::Core::Application
+class SandboxHost final : public Saga::Application
 {
 public:
     /// @param config   Runtime configuration (scenario id, headless mode, etc.)
@@ -51,7 +50,7 @@ public:
     // ── Application interface ─────────────────────────────────────────────────
 
     void OnInit()                override;
-    void OnUpdate(float dt)      override;
+    void OnUpdate()              override;
     void OnShutdown()            override;
 
     // ── Public API ────────────────────────────────────────────────────────────

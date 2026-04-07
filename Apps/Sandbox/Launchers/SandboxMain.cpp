@@ -1,37 +1,24 @@
 /// @file SandboxMain.cpp
-/// @brief Default sandbox launcher: opens with no pre-selected scenario.
-///        The user picks one from the HUD scenario picker.
-///
-/// Command-line override:
-///   --scenario <id>   Pre-select a scenario by ID.
+/// @brief Main of Sandbox.
 
+#define SDL_MAIN_HANDLED
+
+#include <SagaEngine/Platform/PlatformFactory.h>
+#include <SagaEngine/Platform/SDL/SDLPlatformFactory.h>
 #include <SagaSandbox/Core/SandboxHost.h>
 #include <SagaSandbox/Core/SandboxConfig.h>
-#include <SagaEngine/Core/Log/Log.h>
-#include <cstring>
 
-int main(int argc, char** argv)
+int main(int /*argc*/, char* /*argv*/[])
 {
-    SagaEngine::Core::Log::Init();
+    static Saga::SDLPlatformFactory sdlFactory;
+    Saga::PlatformFactory::Set(&sdlFactory);
 
-    SagaSandbox::SandboxConfig cfg;
+    SagaSandbox::SandboxConfig config;
+    config.windowTitle       = "SagaEngine Sandbox";
+    config.initialScenarioId = "";
 
-    // ── CLI argument parsing ──────────────────────────────────────────────────
-    for (int i = 1; i < argc - 1; ++i)
-    {
-        if (std::strcmp(argv[i], "--scenario") == 0)
-        {
-            cfg.initialScenarioId = argv[i + 1];
-        }
-        else if (std::strcmp(argv[i], "--headless") == 0)
-        {
-            cfg.headless = true;
-        }
-    }
-
-    SagaSandbox::SandboxHost host{cfg};
+    SagaSandbox::SandboxHost host(std::move(config));
     host.Run();
 
-    SagaEngine::Core::Log::Shutdown();
     return 0;
 }
