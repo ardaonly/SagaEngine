@@ -51,9 +51,9 @@ private:
     SizeFunc _getSize;
 };
 
-class ComponentRegistry {
+class ComponentSerializerRegistry {
 public:
-    static ComponentRegistry& Instance();
+    static ComponentSerializerRegistry& Instance();
 
     template<typename T>
     void RegisterComponent(const char* name, 
@@ -92,7 +92,7 @@ private:
 };
 
 template<typename T>
-void ComponentRegistry::RegisterComponent(const char* name,
+void ComponentSerializerRegistry::RegisterComponent(const char* name,
                                           typename TypedSerializer<T>::SerializeFunc ser,
                                           typename TypedSerializer<T>::DeserializeFunc deser,
                                           typename TypedSerializer<T>::SizeFunc size) {

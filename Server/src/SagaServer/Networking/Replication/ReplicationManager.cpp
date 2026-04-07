@@ -1,22 +1,28 @@
+/// @file ReplicationManager.cpp
+/// @brief Server-side replication manager implementation.
+
 #include "SagaServer/Networking/Replication/ReplicationManager.h"
 #include "SagaEngine/Simulation/Authority.h"
 #include "SagaEngine/Simulation/WorldState.h"
 #include "SagaEngine/Core/Log/Log.h"
+
 #include <algorithm>
 
-namespace SagaEngine::Networking::Replication {
+namespace SagaEngine::Networking::Replication
+{
 
-struct ReplicationManager::Impl {
+struct ReplicationManager::Impl
+{
     std::unordered_map<ClientId, std::unique_ptr<ClientReplicationState>> clientStates;
     std::unordered_map<uint32_t, RPCDefinition>                           rpcRegistry;
     std::unordered_map<EntityId, std::vector<ComponentTypeId>>            dirtyComponents;
-    std::vector<EntityId>                                                  registeredEntities;
+    std::vector<EntityId>                                                 registeredEntities;
 
-    IWorldSnapshot*                  worldSnapshot{nullptr};
-    Simulation::AuthorityManager*    authorityManager{nullptr};
-    Simulation::WorldState*          worldState{nullptr};
-    Interest::InterestManager*       interestManager{nullptr};
-    bool                             isShutdown{false};
+    IWorldSnapshot*                    worldSnapshot{nullptr};
+    Simulation::AuthorityManager*      authorityManager{nullptr};
+    Simulation::WorldState*            worldState{nullptr};
+    Interest::InterestManager*         interestManager{nullptr};
+    bool                               isShutdown{false};
 };
 
 ReplicationManager::ReplicationManager()
@@ -54,25 +60,28 @@ void ReplicationManager::AddClient(ClientId clientId)
 
     if (_pimpl->clientStates.count(clientId))
     {
-        LOG_WARN("Replication", "Client %llu already registered", clientId);
+        LOG_WARN("Replication", "Client %llu already registered",
+                 static_cast<unsigned long long>(clientId));
         return;
     }
 
-    auto state       = std::make_unique<ClientReplicationState>();
-    state->clientId  = clientId;
+    auto state = std::make_unique<ClientReplicationState>();
+    state->clientId = clientId;
 
     for (EntityId entityId : _pimpl->registeredEntities)
         state->priorities[entityId] = {};
 
     _pimpl->clientStates[clientId] = std::move(state);
-    LOG_INFO("Replication", "Client %llu added", clientId);
+    LOG_INFO("Replication", "Client %llu added",
+             static_cast<unsigned long long>(clientId));
 }
 
 void ReplicationManager::RemoveClient(ClientId clientId)
 {
     std::lock_guard<std::mutex> lock(_stateMutex);
     _pimpl->clientStates.erase(clientId);
-    LOG_INFO("Replication", "Client %llu removed", clientId);
+    LOG_INFO("Replication", "Client %llu removed",
+             static_cast<unsigned long long>(clientId));
 }
 
 bool ReplicationManager::HasClient(ClientId clientId) const
@@ -110,8 +119,9 @@ void ReplicationManager::RegisterEntityForReplication(EntityId entityId)
 {
     std::lock_guard<std::mutex> lock(_stateMutex);
 
-    auto it = std::find(_pimpl->registeredEntities.begin(),
-                        _pimpl->registeredEntities.end(), entityId);
+    const auto it = std::find(_pimpl->registeredEntities.begin(),
+                              _pimpl->registeredEntities.end(),
+                              entityId);
     if (it != _pimpl->registeredEntities.end())
         return;
 
@@ -134,7 +144,9 @@ void ReplicationManager::UnregisterEntity(EntityId entityId)
 
     for (auto& [cid, statePtr] : _pimpl->clientStates)
     {
-        if (!statePtr) continue;
+        if (!statePtr)
+            continue;
+
         statePtr->sentComponents.erase(entityId);
         statePtr->pendingComponents.erase(entityId);
         statePtr->priorities.erase(entityId);
@@ -164,11 +176,14 @@ void ReplicationManager::GatherDirtyEntities(float dt, bool force)
 
     for (const auto& [entityId, componentTypes] : _pimpl->dirtyComponents)
     {
-        if (componentTypes.empty()) continue;
+        if (componentTypes.empty())
+            continue;
 
         for (auto& [clientId, statePtr] : _pimpl->clientStates)
         {
-            if (!statePtr) continue;
+            if (!statePtr)
+                continue;
+
             auto& state = *statePtr;
 
             ProcessEntityDelta(state, entityId);
@@ -179,6 +194,7 @@ void ReplicationManager::GatherDirtyEntities(float dt, bool force)
                 if (std::find(pending.begin(), pending.end(), compType) == pending.end())
                     pending.push_back(compType);
             }
+
             state.isDirty = true;
         }
     }
@@ -231,10 +247,12 @@ ReplicationManager::CollectPendingUpdates(ClientId clientId)
     return work;
 }
 
-void ReplicationManager::SendUpdates(ClientId clientId,
-                                      std::function<void(const uint8_t*, size_t)> sendCallback)
+void ReplicationManager::SendUpdates(
+    ClientId clientId,
+    std::function<void(const uint8_t*, size_t)> sendCallback)
 {
-    if (_pimpl->isShutdown) return;
+    if (_pimpl->isShutdown)
+        return;
 
     std::vector<PendingUpdate> work;
     {
@@ -243,98 +261,82 @@ void ReplicationManager::SendUpdates(ClientId clientId,
         auto it = _pimpl->clientStates.find(clientId);
         if (it == _pimpl->clientStates.end())
         {
-            LOG_DEBUG("Replication", "SendUpdates: unknown client %llu", clientId);
+            LOG_DEBUG("Replication", "SendUpdates: unknown client %llu",
+                      static_cast<unsigned long long>(clientId));
             return;
         }
+
         if (!it->second || !it->second->isDirty)
             return;
 
         work = CollectPendingUpdates(clientId);
     }
 
-    if (work.empty()) return;
-
-    IWorldSnapshot* snapshot = _pimpl->worldSnapshot;
+    if (work.empty())
+        return;
 
     Packet updatePacket(PacketType::DeltaSnapshot);
-    size_t entitiesSent = 0;
+    updatePacket.Write(static_cast<uint32_t>(work.size()));
 
     for (const auto& upd : work)
     {
         if (updatePacket.GetTotalSize() > 1200)
         {
-            LOG_DEBUG("Replication", "MTU limit reached for client %llu", clientId);
+            LOG_DEBUG("Replication", "MTU limit reached for client %llu",
+                      static_cast<unsigned long long>(clientId));
             break;
         }
 
         updatePacket.Write(upd.entityId);
-        uint16_t compCount = static_cast<uint16_t>(upd.components.size());
-        updatePacket.Write(compCount);
+        updatePacket.Write(static_cast<uint16_t>(upd.components.size()));
 
         for (ComponentTypeId compType : upd.components)
-        {
             updatePacket.Write(compType);
+    }
 
-            const ECS::Serializer* ser =
-                ECS::ComponentRegistry::Instance().GetSerializer(compType);
-            if (!ser)
-            {
-                LOG_WARN("Replication", "No serializer for component %u", compType);
-                uint32_t zero = 0;
-                updatePacket.Write(zero);
-                continue;
-            }
+    if (_pimpl->worldState)
+    {
+        const std::vector<uint8_t> snapshotBytes = _pimpl->worldState->Serialize();
+        updatePacket.Write(static_cast<uint32_t>(snapshotBytes.size()));
+        if (!snapshotBytes.empty())
+            updatePacket.WriteBytes(snapshotBytes.data(), snapshotBytes.size());
+    }
+    else if (_pimpl->worldSnapshot)
+    {
+        const std::vector<EntityId> entities = _pimpl->worldSnapshot->GetAllEntities();
+        updatePacket.Write(static_cast<uint32_t>(entities.size()));
+        for (EntityId entityId : entities)
+            updatePacket.Write(entityId);
+    }
 
-            size_t bytes = 0;
-            const size_t maxCompSize = 512;
-            uint8_t compBuf[maxCompSize]{};
+    const auto data = updatePacket.GetSerializedData();
+    sendCallback(data.data(), data.size());
 
-            if (snapshot)
-            {
-                bytes = snapshot->GetSerializedComponent(
-                    upd.entityId, compType, compBuf, maxCompSize);
-            }
-            else if (_pimpl->worldState)
-            {
-                bytes = _pimpl->worldState->GetSerializedComponent(
-                    upd.entityId, compType, compBuf, maxCompSize);
-            }
-
-            uint32_t serializedSize = static_cast<uint32_t>(bytes);
-            updatePacket.Write(serializedSize);
-
-            if (bytes > 0)
-            {
-                updatePacket.WriteBytes(compBuf, bytes);
-            }
-            std::lock_guard<std::mutex> lock(_stateMutex);
-            auto stateIt = _pimpl->clientStates.find(clientId);
-            if (stateIt != _pimpl->clientStates.end() && stateIt->second)
+    {
+        std::lock_guard<std::mutex> lock(_stateMutex);
+        auto stateIt = _pimpl->clientStates.find(clientId);
+        if (stateIt != _pimpl->clientStates.end() && stateIt->second)
+        {
+            for (const auto& upd : work)
             {
                 auto& sent = stateIt->second->sentComponents[upd.entityId];
                 for (ComponentTypeId compType : upd.components)
                     sent.insert(compType);
             }
         }
-
-        entitiesSent++;
     }
 
-    if (entitiesSent > 0)
-    {
-        auto data = updatePacket.GetSerializedData();
-        sendCallback(data.data(), data.size());
-
-        LOG_DEBUG("Replication", "Sent %zu entities to client %llu (%zu bytes)",
-                  entitiesSent, clientId, data.size());
-    }
+    LOG_DEBUG("Replication", "Sent %zu entities to client %llu (%zu bytes)",
+              work.size(),
+              static_cast<unsigned long long>(clientId),
+              data.size());
 }
 
 void ReplicationManager::ReceiveRPC(ClientId       clientId,
-                                     uint32_t       rpcId,
-                                     EntityId       targetEntity,
-                                     const uint8_t* payload,
-                                     size_t         size)
+                                    uint32_t       rpcId,
+                                    EntityId       targetEntity,
+                                    const uint8_t* payload,
+                                    size_t         size)
 {
     RPCDefinition def;
     {
@@ -343,16 +345,20 @@ void ReplicationManager::ReceiveRPC(ClientId       clientId,
         auto it = _pimpl->rpcRegistry.find(rpcId);
         if (it == _pimpl->rpcRegistry.end())
         {
-            LOG_WARN("RPC", "Unknown RPC %u from client %llu", rpcId, clientId);
+            LOG_WARN("RPC", "Unknown RPC %u from client %llu",
+                     rpcId, static_cast<unsigned long long>(clientId));
             return;
         }
+
         def = it->second;
     }
 
     if (def.requiresEntityAuthority && !CheckEntityAuthority(clientId, targetEntity))
     {
         LOG_WARN("RPC", "Authority denied: client %llu, entity %u, RPC %u",
-                 clientId, targetEntity, rpcId);
+                 static_cast<unsigned long long>(clientId),
+                 static_cast<unsigned int>(targetEntity),
+                 rpcId);
         return;
     }
 
@@ -377,42 +383,19 @@ void ReplicationManager::RegisterRPCInternal(const RPCDefinition& def)
 
 bool ReplicationManager::CheckEntityAuthority(ClientId clientId, EntityId entityId) const
 {
-    if (!_pimpl->authorityManager) return true;
+    (void)clientId;
+
+    if (!_pimpl->authorityManager)
+        return true;
+
     return _pimpl->authorityManager->CanModify(static_cast<uint32_t>(entityId));
 }
 
 void ReplicationManager::ProcessEntityDelta(ClientReplicationState& clientState,
                                             EntityId entityId)
 {
-    auto& sent = clientState.sentComponents[entityId];
-
-    if (!_pimpl->worldSnapshot && !_pimpl->worldState)
-        return;
-
-    const ECS::ComponentRegistry& registry = ECS::ComponentRegistry::Instance();
-    size_t componentCount = registry.GetComponentCount();
-
-    for (ECS::ComponentTypeId typeId = 0;
-         typeId < static_cast<ECS::ComponentTypeId>(componentCount);
-         ++typeId)
-    {
-        bool hasComponent = false;
-
-        if (_pimpl->worldSnapshot)
-            hasComponent = _pimpl->worldSnapshot->EntityHasComponent(entityId, typeId);
-        else if (_pimpl->worldState)
-            hasComponent = _pimpl->worldState->EntityHasComponent(entityId, typeId);
-
-        if (!hasComponent)
-            continue;
-
-        if (sent.count(typeId) == 0)
-        {
-            auto& pending = clientState.pendingComponents[entityId];
-            if (std::find(pending.begin(), pending.end(), typeId) == pending.end())
-                pending.push_back(typeId);
-        }
-    }
+    (void)clientState;
+    (void)entityId;
 }
 
 } // namespace SagaEngine::Networking::Replication

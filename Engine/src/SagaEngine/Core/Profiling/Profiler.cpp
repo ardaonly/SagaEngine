@@ -1,4 +1,3 @@
-// Engine/src/SagaEngine/Core/Profiling/Profiler.cpp
 #include "SagaEngine/Core/Profiling/Profiler.h"
 #include "SagaEngine/Core/Log/Log.h"
 #include <fstream>
@@ -90,6 +89,18 @@ Profiler::SampleStats& Profiler::GetStats(const char* name) {
         it = _samples.emplace(name, SampleStats{}).first;
     }
     return it->second;
+}
+
+std::vector<std::pair<std::string, Profiler::SampleStats>>
+
+Profiler::GetAllSamplesSnapshot() const
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    std::vector<std::pair<std::string, SampleStats>> out;
+    out.reserve(_samples.size());
+    for (const auto& [n, s] : _samples)
+        out.emplace_back(n, s);
+    return out;
 }
 
 void Profiler::DumpReport(const char* filename) {

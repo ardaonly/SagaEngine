@@ -16,6 +16,7 @@ function(saga_setup_tests)
         GTest::gtest
         GTest::gmock
         GTest::gtest_main
+        rapidcheck::rapidcheck
     )
     target_include_directories(SagaUnitTests PRIVATE
         ${SAGA_ROOT}/Engine/include
@@ -33,6 +34,7 @@ function(saga_setup_tests)
         GTest::gtest
         GTest::gmock
         GTest::gtest_main
+        rapidcheck::rapidcheck
     )
     target_include_directories(SagaIntegrationTests PRIVATE
         ${SAGA_ROOT}/Backends/include
