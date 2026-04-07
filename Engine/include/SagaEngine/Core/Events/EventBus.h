@@ -7,6 +7,7 @@
 #include <vector>
 #include <cstdint>
 #include <any>
+#include <atomic>
 
 namespace SagaEngine::Core {
 

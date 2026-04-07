@@ -1,6 +1,6 @@
 #pragma once
 
-namespace SagaEngine::Platform
+namespace Saga
 {
 
 class IHighPrecisionTimer
