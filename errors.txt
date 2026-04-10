@@ -1,0 +1,695 @@
+PS C:\dev\SagaEngine_v0.0.6\Tools\SagaForge\Build\windows-msvc-14.38> ./SagaUnitTests.exe
+Running main() from C:\Users\ardak\.conan2\p\b\gtest7bec236ac821b\b\src\googletest\src\gtest_main.cc
+[==========] Running 161 tests from 23 test suites.
+[----------] Global test environment set-up.
+[----------] 16 tests from InputCommandBufferTest
+[ RUN      ] InputCommandBufferTest.EmptyByDefault
+[       OK ] InputCommandBufferTest.EmptyByDefault (0 ms)
+[ RUN      ] InputCommandBufferTest.PushLocalIncreasesPending
+[       OK ] InputCommandBufferTest.PushLocalIncreasesPending (0 ms)
+[ RUN      ] InputCommandBufferTest.PeekPendingReturnsCopy
+[       OK ] InputCommandBufferTest.PeekPendingReturnsCopy (0 ms)
+[ RUN      ] InputCommandBufferTest.MarkSentMovesPendingToUnacked
+[       OK ] InputCommandBufferTest.MarkSentMovesPendingToUnacked (0 ms)
+[ RUN      ] InputCommandBufferTest.MarkSentHigherThanAllFlushesAll
+[       OK ] InputCommandBufferTest.MarkSentHigherThanAllFlushesAll (0 ms)
+[ RUN      ] InputCommandBufferTest.AckUpToRemovesUnacked
+[       OK ] InputCommandBufferTest.AckUpToRemovesUnacked (0 ms)
+[ RUN      ] InputCommandBufferTest.AckUpToAllClearsUnacked
+[       OK ] InputCommandBufferTest.AckUpToAllClearsUnacked (0 ms)
+[ RUN      ] InputCommandBufferTest.AckUpToAlsoClearsPending
+[       OK ] InputCommandBufferTest.AckUpToAlsoClearsPending (0 ms)
+[ RUN      ] InputCommandBufferTest.UnackedSnapshotPreservesOrder
+[       OK ] InputCommandBufferTest.UnackedSnapshotPreservesOrder (0 ms)
+[ RUN      ] InputCommandBufferTest.FindByTickFindsInUnacked
+[       OK ] InputCommandBufferTest.FindByTickFindsInUnacked (0 ms)
+[ RUN      ] InputCommandBufferTest.FindByTickFindsInPending
+[       OK ] InputCommandBufferTest.FindByTickFindsInPending (0 ms)
+[ RUN      ] InputCommandBufferTest.FindByTickReturnsNulloptForMissing
+[       OK ] InputCommandBufferTest.FindByTickReturnsNulloptForMissing (0 ms)
+[ RUN      ] InputCommandBufferTest.RejectsWhenFull
+[       OK ] InputCommandBufferTest.RejectsWhenFull (0 ms)
+[ RUN      ] InputCommandBufferTest.AckingMakesRoomForNewCommands
+[       OK ] InputCommandBufferTest.AckingMakesRoomForNewCommands (0 ms)
+[ RUN      ] InputCommandBufferTest.ResetClearsEverything
+[       OK ] InputCommandBufferTest.ResetClearsEverything (0 ms)
+[ RUN      ] InputCommandBufferTest.ConcurrentPushAndAck
+[       OK ] InputCommandBufferTest.ConcurrentPushAndAck (15739 ms)
+[----------] 16 tests from InputCommandBufferTest (15750 ms total)
+
+[----------] 6 tests from KeyboardDeviceTest
+[ RUN      ] KeyboardDeviceTest.InitialStateAllUp
+[       OK ] KeyboardDeviceTest.InitialStateAllUp (2 ms)
+[ RUN      ] KeyboardDeviceTest.KeyDownRegistered
+[       OK ] KeyboardDeviceTest.KeyDownRegistered (0 ms)
+[ RUN      ] KeyboardDeviceTest.KeyHeldSecondFrame
+[       OK ] KeyboardDeviceTest.KeyHeldSecondFrame (0 ms)
+[ RUN      ] KeyboardDeviceTest.KeyReleased
+[       OK ] KeyboardDeviceTest.KeyReleased (0 ms)
+[ RUN      ] KeyboardDeviceTest.ModifierFlagsTracked
+[       OK ] KeyboardDeviceTest.ModifierFlagsTracked (0 ms)
+[ RUN      ] KeyboardDeviceTest.MultipleKeysSimultaneous
+[       OK ] KeyboardDeviceTest.MultipleKeysSimultaneous (0 ms)
+[----------] 6 tests from KeyboardDeviceTest (4 ms total)
+
+[----------] 4 tests from MouseDeviceTest
+[ RUN      ] MouseDeviceTest.RelDeltaAccumulated
+[       OK ] MouseDeviceTest.RelDeltaAccumulated (0 ms)
+[ RUN      ] MouseDeviceTest.RelDeltaResetsEachFrame
+[       OK ] MouseDeviceTest.RelDeltaResetsEachFrame (0 ms)
+[ RUN      ] MouseDeviceTest.ButtonDownAndEdgeDetection
+[       OK ] MouseDeviceTest.ButtonDownAndEdgeDetection (0 ms)
+[ RUN      ] MouseDeviceTest.ScrollAccumulated
+[       OK ] MouseDeviceTest.ScrollAccumulated (0 ms)
+[----------] 4 tests from MouseDeviceTest (1 ms total)
+
+[----------] 4 tests from GamepadDeviceTest
+[ RUN      ] GamepadDeviceTest.DisconnectedByDefault
+[       OK ] GamepadDeviceTest.DisconnectedByDefault (0 ms)
+[ RUN      ] GamepadDeviceTest.ConnectsViaFrame
+[       OK ] GamepadDeviceTest.ConnectsViaFrame (0 ms)
+[ RUN      ] GamepadDeviceTest.DisconnectClearsState
+[       OK ] GamepadDeviceTest.DisconnectClearsState (0 ms)
+[ RUN      ] GamepadDeviceTest.IgnoresEventsForOtherDeviceId
+[       OK ] GamepadDeviceTest.IgnoresEventsForOtherDeviceId (0 ms)
+[----------] 4 tests from GamepadDeviceTest (1 ms total)
+
+[----------] 9 tests from InputActionMapTest
+[ RUN      ] InputActionMapTest.BindAndResolvePressed
+[       OK ] InputActionMapTest.BindAndResolvePressed (0 ms)
+[ RUN      ] InputActionMapTest.ResolveHeld
+[       OK ] InputActionMapTest.ResolveHeld (0 ms)
+[ RUN      ] InputActionMapTest.ResolveReleased
+[       OK ] InputActionMapTest.ResolveReleased (0 ms)
+[ RUN      ] InputActionMapTest.NoEventWhenKeyNeverTouched
+[       OK ] InputActionMapTest.NoEventWhenKeyNeverTouched (0 ms)
+[ RUN      ] InputActionMapTest.MouseButtonBinding
+[       OK ] InputActionMapTest.MouseButtonBinding (0 ms)
+[ RUN      ] InputActionMapTest.GamepadAxisBinding
+[       OK ] InputActionMapTest.GamepadAxisBinding (0 ms)
+[ RUN      ] InputActionMapTest.GamepadAxisBelowThresholdNoEvent
+[       OK ] InputActionMapTest.GamepadAxisBelowThresholdNoEvent (0 ms)
+[ RUN      ] InputActionMapTest.UnbindRemovesAction
+[       OK ] InputActionMapTest.UnbindRemovesAction (0 ms)
+[ RUN      ] InputActionMapTest.MultipleBindingsSameAction
+[       OK ] InputActionMapTest.MultipleBindingsSameAction (0 ms)
+[----------] 9 tests from InputActionMapTest (3 ms total)
+
+[----------] 2 tests from InputActionMapStackTest
+[ RUN      ] InputActionMapStackTest.HigherPriorityMapResolvesFirst
+[       OK ] InputActionMapStackTest.HigherPriorityMapResolvesFirst (0 ms)
+[ RUN      ] InputActionMapStackTest.RemoveByName
+[       OK ] InputActionMapStackTest.RemoveByName (0 ms)
+[----------] 2 tests from InputActionMapStackTest (0 ms total)
+
+[----------] 5 tests from DeviceRegistryTest
+[ RUN      ] DeviceRegistryTest.RegisterAndFind
+[       OK ] DeviceRegistryTest.RegisterAndFind (0 ms)
+[ RUN      ] DeviceRegistryTest.UnregisterRemovesDevice
+[       OK ] DeviceRegistryTest.UnregisterRemovesDevice (0 ms)
+[ RUN      ] DeviceRegistryTest.DeviceEventCallbackFires
+[       OK ] DeviceRegistryTest.DeviceEventCallbackFires (0 ms)
+[ RUN      ] DeviceRegistryTest.GamepadHotplugViaConnectionEvents
+[       OK ] DeviceRegistryTest.GamepadHotplugViaConnectionEvents (0 ms)
+[ RUN      ] DeviceRegistryTest.GetDevicesOfType
+[       OK ] DeviceRegistryTest.GetDevicesOfType (0 ms)
+[----------] 5 tests from DeviceRegistryTest (1 ms total)
+
+[----------] 4 tests from GameplayInputFrameTest
+[ RUN      ] GameplayInputFrameTest.WasPressedQuery
+[       OK ] GameplayInputFrameTest.WasPressedQuery (0 ms)
+[ RUN      ] GameplayInputFrameTest.IsHeldQuery
+[       OK ] GameplayInputFrameTest.IsHeldQuery (0 ms)
+[ RUN      ] GameplayInputFrameTest.WasReleasedQuery
+[       OK ] GameplayInputFrameTest.WasReleasedQuery (0 ms)
+[ RUN      ] GameplayInputFrameTest.GetValueQuery
+[       OK ] GameplayInputFrameTest.GetValueQuery (0 ms)
+[----------] 4 tests from GameplayInputFrameTest (1 ms total)
+
+[----------] 3 tests from InputCommandTest
+[ RUN      ] InputCommandTest.FixedPointRoundTrip
+[       OK ] InputCommandTest.FixedPointRoundTrip (0 ms)
+[ RUN      ] InputCommandTest.ButtonSetAndClear
+[       OK ] InputCommandTest.ButtonSetAndClear (0 ms)
+[ RUN      ] InputCommandTest.MakeInputCommandDefaults
+[       OK ] InputCommandTest.MakeInputCommandDefaults (0 ms)
+[----------] 3 tests from InputCommandTest (1 ms total)
+
+[----------] 6 tests from InputCommandSerializerTest
+[ RUN      ] InputCommandSerializerTest.SerializeDeserializeRoundTrip
+[       OK ] InputCommandSerializerTest.SerializeDeserializeRoundTrip (0 ms)
+[ RUN      ] InputCommandSerializerTest.SerializeIntoDest
+[       OK ] InputCommandSerializerTest.SerializeIntoDest (0 ms)
+[ RUN      ] InputCommandSerializerTest.RejectsBufferTooSmall
+[       OK ] InputCommandSerializerTest.RejectsBufferTooSmall (0 ms)
+[ RUN      ] InputCommandSerializerTest.RejectsVersionMismatch
+[       OK ] InputCommandSerializerTest.RejectsVersionMismatch (0 ms)
+[ RUN      ] InputCommandSerializerTest.BatchRoundTrip
+[       OK ] InputCommandSerializerTest.BatchRoundTrip (0 ms)
+[ RUN      ] InputCommandSerializerTest.LittleEndianLayout
+[       OK ] InputCommandSerializerTest.LittleEndianLayout (0 ms)
+[----------] 6 tests from InputCommandSerializerTest (1 ms total)
+
+[----------] 8 tests from InputCommandInboxTest
+[ RUN      ] InputCommandInboxTest.AcceptsFirst
+[       OK ] InputCommandInboxTest.AcceptsFirst (0 ms)
+[ RUN      ] InputCommandInboxTest.RejectsDuplicate
+[       OK ] InputCommandInboxTest.RejectsDuplicate (0 ms)
+[ RUN      ] InputCommandInboxTest.SortsOutOfOrder
+[       OK ] InputCommandInboxTest.SortsOutOfOrder (0 ms)
+[ RUN      ] InputCommandInboxTest.LateArrivalReturnsFallback
+[       OK ] InputCommandInboxTest.LateArrivalReturnsFallback (0 ms)
+[ RUN      ] InputCommandInboxTest.EmptyFirstTickNoFallback
+[       OK ] InputCommandInboxTest.EmptyFirstTickNoFallback (0 ms)
+[ RUN      ] InputCommandInboxTest.AckAdvances
+[       OK ] InputCommandInboxTest.AckAdvances (0 ms)
+[ RUN      ] InputCommandInboxTest.RejectsOutOfWindow
+[       OK ] InputCommandInboxTest.RejectsOutOfWindow (0 ms)
+[ RUN      ] InputCommandInboxTest.ResetClearsAll
+[       OK ] InputCommandInboxTest.ResetClearsAll (0 ms)
+[----------] 8 tests from InputCommandInboxTest (2 ms total)
+
+[----------] 6 tests from ServerInputProcessorTest
+[ RUN      ] ServerInputProcessorTest.ConnectsAndDisconnects
+[       OK ] ServerInputProcessorTest.ConnectsAndDisconnects (0 ms)
+[ RUN      ] ServerInputProcessorTest.ProcessTickDeliversBothClients
+[       OK ] ServerInputProcessorTest.ProcessTickDeliversBothClients (0 ms)
+[ RUN      ] ServerInputProcessorTest.SanitizesClampedMove
+[       OK ] ServerInputProcessorTest.SanitizesClampedMove (0 ms)
+[ RUN      ] ServerInputProcessorTest.StripsForbiddenButtons
+[       OK ] ServerInputProcessorTest.StripsForbiddenButtons (0 ms)
+[ RUN      ] ServerInputProcessorTest.EmitsAckForRealCommand
+[       OK ] ServerInputProcessorTest.EmitsAckForRealCommand (0 ms)
+[ RUN      ] ServerInputProcessorTest.NoAckForFallback
+[       OK ] ServerInputProcessorTest.NoAckForFallback (0 ms)
+[----------] 6 tests from ServerInputProcessorTest (1 ms total)
+
+[----------] 5 tests from InputPacketHandlerTest
+[ RUN      ] InputPacketHandlerTest.DecodesAndRoutes
+[       OK ] InputPacketHandlerTest.DecodesAndRoutes (0 ms)
+[ RUN      ] InputPacketHandlerTest.IgnoresNonInputPackets
+[       OK ] InputPacketHandlerTest.IgnoresNonInputPackets (0 ms)
+[ RUN      ] InputPacketHandlerTest.DropsPacketForUnknownClient
+[       OK ] InputPacketHandlerTest.DropsPacketForUnknownClient (0 ms)
+[ RUN      ] InputPacketHandlerTest.BuildsAckPackets
+[       OK ] InputPacketHandlerTest.BuildsAckPackets (0 ms)
+[ RUN      ] InputPacketHandlerTest.RawBytesRoundTrip
+[       OK ] InputPacketHandlerTest.RawBytesRoundTrip (0 ms)
+[----------] 5 tests from InputPacketHandlerTest (1 ms total)
+
+[----------] 1 test from NetworkInputPipelineTest
+[ RUN      ] NetworkInputPipelineTest.EndToEndCommandFlow
+[       OK ] NetworkInputPipelineTest.EndToEndCommandFlow (0 ms)
+[----------] 1 test from NetworkInputPipelineTest (0 ms total)
+
+[----------] 1 test from NetworkInputLayerStressTest
+[ RUN      ] NetworkInputLayerStressTest.ConcurrentPushAndConsumeInbox
+[       OK ] NetworkInputLayerStressTest.ConcurrentPushAndConsumeInbox (3917 ms)
+[----------] 1 test from NetworkInputLayerStressTest (3930 ms total)
+
+[----------] 8 tests from InterestTest
+[ RUN      ] InterestTest.CreateArea
+[22:36:39] [INFO] [InterestManager] Initialized (viewRadius=100.00, updateFrequency=20.00Hz)
+[22:36:39] [INFO] [InterestManager] Created area 1
+[       OK ] InterestTest.CreateArea (4 ms)
+[ RUN      ] InterestTest.AreaContains
+[22:36:39] [INFO] [InterestManager] Initialized (viewRadius=100.00, updateFrequency=20.00Hz)
+[22:36:39] [INFO] [InterestManager] Created area 1
+[       OK ] InterestTest.AreaContains (1 ms)
+[ RUN      ] InterestTest.ClientSubscription
+[22:36:39] [INFO] [InterestManager] Initialized (viewRadius=100.00, updateFrequency=20.00Hz)
+[22:36:39] [INFO] [InterestManager] Created area 1
+[       OK ] InterestTest.ClientSubscription (0 ms)
+[ RUN      ] InterestTest.VisibleEntities
+[22:36:39] [INFO] [InterestManager] Initialized (viewRadius=100.00, updateFrequency=20.00Hz)
+[22:36:39] [INFO] [InterestManager] Created area 1
+[       OK ] InterestTest.VisibleEntities (0 ms)
+[ RUN      ] InterestTest.MultipleAreas
+[22:36:39] [INFO] [InterestManager] Initialized (viewRadius=100.00, updateFrequency=20.00Hz)
+[22:36:39] [INFO] [InterestManager] Created area 1
+[22:36:39] [INFO] [InterestManager] Created area 2
+[       OK ] InterestTest.MultipleAreas (0 ms)
+[ RUN      ] InterestTest.EntityMovement
+[22:36:39] [INFO] [InterestManager] Initialized (viewRadius=100.00, updateFrequency=20.00Hz)
+[22:36:39] [INFO] [InterestManager] Created area 1
+[22:36:39] [INFO] [InterestManager] Created area 2
+[       OK ] InterestTest.EntityMovement (0 ms)
+[ RUN      ] InterestTest.DestroyArea
+[22:36:39] [INFO] [InterestManager] Initialized (viewRadius=100.00, updateFrequency=20.00Hz)
+[22:36:39] [INFO] [InterestManager] Created area 1
+[22:36:39] [INFO] [InterestManager] Destroyed area 1
+[       OK ] InterestTest.DestroyArea (0 ms)
+[ RUN      ] InterestTest.ReplicationIntegration
+[22:36:39] [INFO] [InterestManager] Initialized (viewRadius=100.00, updateFrequency=20.00Hz)
+[22:36:39] [INFO] [Replication] Initialized (maxClients=100)
+[22:36:39] [INFO] [InterestManager] Created area 1
+[22:36:39] [INFO] [Replication] Client 1 added
+[22:36:39] [INFO] [Replication] Shutdown complete
+[22:36:39] [INFO] [Replication] Shutdown complete
+[       OK ] InterestTest.ReplicationIntegration (0 ms)
+[----------] 8 tests from InterestTest (11 ms total)
+
+[----------] 17 tests from ReliableChannelTest
+[ RUN      ] ReliableChannelTest.SendAndReceive
+[22:36:39] [INFO] [ReliableChannel] Initialized for connection 1 (window=64, maxRetrans=3)
+[       OK ] ReliableChannelTest.SendAndReceive (0 ms)
+[ RUN      ] ReliableChannelTest.Acknowledgement
+[22:36:39] [INFO] [ReliableChannel] Initialized for connection 1 (window=64, maxRetrans=3)
+[22:36:39] [INFO] [ReliableChannel] ProcessAck: ackSeq=1, sackMask=0x0, windowSize=1
+[22:36:39] [INFO] [ReliableChannel] ACK received for seq 1, removing from window
+[       OK ] ReliableChannelTest.Acknowledgement (0 ms)
+[ RUN      ] ReliableChannelTest.OutOfOrderDelivery
+[22:36:39] [INFO] [ReliableChannel] Initialized for connection 1 (window=64, maxRetrans=3)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 3 (expected 1)
+[22:36:39] [INFO] [ReliableChannel] Gap detected: expected 1, got 3. Sending NACK.
+[22:36:39] [INFO] [ReliableChannel] Processing seq 1 (expected 1)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 5 (expected 2)
+[22:36:39] [INFO] [ReliableChannel] Gap detected: expected 2, got 5. Sending NACK.
+[22:36:39] [INFO] [ReliableChannel] Processing seq 2 (expected 2)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 4 (expected 4)
+[       OK ] ReliableChannelTest.OutOfOrderDelivery (0 ms)
+[ RUN      ] ReliableChannelTest.DuplicateDetection
+[22:36:39] [INFO] [ReliableChannel] Initialized for connection 1 (window=64, maxRetrans=3)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 1 (expected 1)
+[       OK ] ReliableChannelTest.DuplicateDetection (0 ms)
+[ RUN      ] ReliableChannelTest.Statistics
+[22:36:39] [INFO] [ReliableChannel] Initialized for connection 1 (window=64, maxRetrans=3)
+[22:36:39] [INFO] [ReliableChannel] ProcessAck: ackSeq=1, sackMask=0x0, windowSize=10
+[22:36:39] [INFO] [ReliableChannel] ACK received for seq 1, removing from window
+[22:36:39] [INFO] [ReliableChannel] ProcessAck: ackSeq=2, sackMask=0x0, windowSize=9
+[22:36:39] [INFO] [ReliableChannel] ACK received for seq 2, removing from window
+[22:36:39] [INFO] [ReliableChannel] ProcessAck: ackSeq=3, sackMask=0x0, windowSize=8
+[22:36:39] [INFO] [ReliableChannel] ACK received for seq 3, removing from window
+[22:36:39] [INFO] [ReliableChannel] ProcessAck: ackSeq=4, sackMask=0x0, windowSize=7
+[22:36:39] [INFO] [ReliableChannel] ACK received for seq 4, removing from window
+[22:36:39] [INFO] [ReliableChannel] ProcessAck: ackSeq=5, sackMask=0x0, windowSize=6
+[22:36:39] [INFO] [ReliableChannel] ACK received for seq 5, removing from window
+[22:36:39] [INFO] [ReliableChannel] ProcessAck: ackSeq=6, sackMask=0x0, windowSize=5
+[22:36:39] [INFO] [ReliableChannel] ACK received for seq 6, removing from window
+[22:36:39] [INFO] [ReliableChannel] ProcessAck: ackSeq=7, sackMask=0x0, windowSize=4
+[22:36:39] [INFO] [ReliableChannel] ACK received for seq 7, removing from window
+[22:36:39] [INFO] [ReliableChannel] ProcessAck: ackSeq=8, sackMask=0x0, windowSize=3
+[22:36:39] [INFO] [ReliableChannel] ACK received for seq 8, removing from window
+[22:36:39] [INFO] [ReliableChannel] ProcessAck: ackSeq=9, sackMask=0x0, windowSize=2
+[22:36:39] [INFO] [ReliableChannel] ACK received for seq 9, removing from window
+[22:36:39] [INFO] [ReliableChannel] ProcessAck: ackSeq=10, sackMask=0x0, windowSize=1
+[22:36:39] [INFO] [ReliableChannel] ACK received for seq 10, removing from window
+[       OK ] ReliableChannelTest.Statistics (0 ms)
+[ RUN      ] ReliableChannelTest.WindowSizeLimit
+[22:36:39] [INFO] [ReliableChannel] Initialized for connection 1 (window=64, maxRetrans=3)
+[22:36:39] [WARN] [ReliableChannel] Send window full (64/64)
+[22:36:39] [WARN] [ReliableChannel] Send window full (64/64)
+[22:36:39] [WARN] [ReliableChannel] Send window full (64/64)
+[22:36:39] [WARN] [ReliableChannel] Send window full (64/64)
+[22:36:39] [WARN] [ReliableChannel] Send window full (64/64)
+[22:36:39] [WARN] [ReliableChannel] Send window full (64/64)
+[22:36:39] [WARN] [ReliableChannel] Send window full (64/64)
+[22:36:39] [WARN] [ReliableChannel] Send window full (64/64)
+[22:36:39] [WARN] [ReliableChannel] Send window full (64/64)
+[22:36:39] [WARN] [ReliableChannel] Send window full (64/64)
+[       OK ] ReliableChannelTest.WindowSizeLimit (0 ms)
+[ RUN      ] ReliableChannelTest.RttCalculation
+[22:36:39] [INFO] [ReliableChannel] Initialized for connection 1 (window=64, maxRetrans=3)
+[22:36:39] [INFO] [ReliableChannel] ProcessAck: ackSeq=1, sackMask=0x0, windowSize=1
+[22:36:39] [INFO] [ReliableChannel] ACK received for seq 1, removing from window
+[       OK ] ReliableChannelTest.RttCalculation (52 ms)
+[ RUN      ] ReliableChannelTest.Shutdown
+[22:36:39] [INFO] [ReliableChannel] Initialized for connection 1 (window=64, maxRetrans=3)
+[22:36:39] [INFO] [ReliableChannel] Shutting down (sent=0, acked=0, lost=0, fastRetx=0)
+[       OK ] ReliableChannelTest.Shutdown (0 ms)
+[ RUN      ] ReliableChannelTest.SackBitmaskInAck
+[22:36:39] [INFO] [ReliableChannel] Initialized for connection 1 (window=64, maxRetrans=3)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 3 (expected 1)
+[22:36:39] [INFO] [ReliableChannel] Gap detected: expected 1, got 3. Sending NACK.
+[22:36:39] [INFO] [ReliableChannel] Processing seq 5 (expected 1)
+[22:36:39] [INFO] [ReliableChannel] Gap detected: expected 1, got 5. Sending NACK.
+[       OK ] ReliableChannelTest.SackBitmaskInAck (0 ms)
+[ RUN      ] ReliableChannelTest.SackAcknowledgesOutOfOrderPackets
+[22:36:39] [INFO] [ReliableChannel] Initialized for connection 1 (window=64, maxRetrans=3)
+[22:36:39] [INFO] [ReliableChannel] ProcessAck: ackSeq=3, sackMask=0x54, windowSize=10
+[22:36:39] [INFO] [ReliableChannel] ACK received for seq 3, removing from window
+[       OK ] ReliableChannelTest.SackAcknowledgesOutOfOrderPackets (0 ms)
+[ RUN      ] ReliableChannelTest.NackOnGapDetection
+[22:36:39] [INFO] [ReliableChannel] Initialized for connection 1 (window=64, maxRetrans=3)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 2 (expected 1)
+[22:36:39] [INFO] [ReliableChannel] Gap detected: expected 1, got 2. Sending NACK.
+[       OK ] ReliableChannelTest.NackOnGapDetection (0 ms)
+[ RUN      ] ReliableChannelTest.NackTriggersFastRetransmit
+[22:36:39] [INFO] [ReliableChannel] Initialized for connection 1 (window=64, maxRetrans=3)
+[22:36:39] [INFO] [ReliableChannel] FastRetransmitPacket: looking for seq 1 in window (size=2)
+[22:36:39] [INFO] [ReliableChannel] Fast retransmitting seq 1 (dupCount=0, threshold=3)
+[       OK ] ReliableChannelTest.NackTriggersFastRetransmit (0 ms)
+[ RUN      ] ReliableChannelTest.FastRetransmitOnDuplicateAcks
+[22:36:39] [INFO] [ReliableChannel] Initialized for connection 1 (window=64, maxRetrans=3)
+[22:36:39] [INFO] [ReliableChannel] ProcessAck: ackSeq=2, sackMask=0x0, windowSize=10
+[22:36:39] [INFO] [ReliableChannel] ACK received for seq 2, removing from window
+[22:36:39] [INFO] [ReliableChannel] ProcessAck: ackSeq=3, sackMask=0x0, windowSize=9
+[22:36:39] [INFO] [ReliableChannel] ACK received for seq 3, removing from window
+[22:36:39] [INFO] [ReliableChannel] ProcessAck: ackSeq=3, sackMask=0x0, windowSize=8
+[22:36:39] [INFO] [ReliableChannel] Duplicate ACK for seq 3 (count=1, threshold=3)
+[22:36:39] [INFO] [ReliableChannel] ProcessAck: ackSeq=3, sackMask=0x0, windowSize=8
+[22:36:39] [INFO] [ReliableChannel] Duplicate ACK for seq 3 (count=2, threshold=3)
+[22:36:39] [INFO] [ReliableChannel] ProcessAck: ackSeq=3, sackMask=0x0, windowSize=8
+[22:36:39] [INFO] [ReliableChannel] Duplicate ACK for seq 3 (count=3, threshold=3)
+[22:36:39] [INFO] [ReliableChannel] Fast retransmit triggered for seq 3 (dup ACKs=3)
+[22:36:39] [INFO] [ReliableChannel] FastRetransmitPacket: looking for seq 3 in window (size=8)
+C:\dev\SagaEngine_v0.0.6\Tests\Unit\Networking\ReliableChannelTests.cpp(318): error: Expected: (stats.fastRetransmits) > (0), actual: 0 vs 0
+
+[  FAILED  ] ReliableChannelTest.FastRetransmitOnDuplicateAcks (2 ms)
+[ RUN      ] ReliableChannelTest.KarnsAlgorithmIgnoresRetransmittedRtt
+[22:36:39] [INFO] [ReliableChannel] Initialized for connection 1 (window=64, maxRetrans=3)
+[22:36:39] [INFO] [ReliableChannel] ProcessAck: ackSeq=1, sackMask=0x0, windowSize=1
+[22:36:39] [INFO] [ReliableChannel] ACK received for seq 1, removing from window
+[       OK ] ReliableChannelTest.KarnsAlgorithmIgnoresRetransmittedRtt (54 ms)
+[ RUN      ] ReliableChannelTest.HighVolumeSendReceive
+[22:36:39] [INFO] [ReliableChannel] Initialized for connection 1 (window=64, maxRetrans=3)
+[22:36:39] [INFO] [ReliableChannel] Shutting down (sent=0, acked=0, lost=0, fastRetx=0)
+[22:36:39] [INFO] [ReliableChannel] Initialized for connection 1 (window=128, maxRetrans=3)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 1 (expected 1)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 2 (expected 2)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 3 (expected 3)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 4 (expected 4)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 5 (expected 5)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 6 (expected 6)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 7 (expected 7)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 8 (expected 8)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 9 (expected 9)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 10 (expected 10)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 11 (expected 11)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 12 (expected 12)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 13 (expected 13)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 14 (expected 14)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 15 (expected 15)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 16 (expected 16)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 17 (expected 17)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 18 (expected 18)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 19 (expected 19)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 20 (expected 20)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 21 (expected 21)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 22 (expected 22)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 23 (expected 23)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 24 (expected 24)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 25 (expected 25)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 26 (expected 26)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 27 (expected 27)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 28 (expected 28)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 29 (expected 29)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 30 (expected 30)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 31 (expected 31)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 32 (expected 32)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 33 (expected 33)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 34 (expected 34)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 35 (expected 35)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 36 (expected 36)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 37 (expected 37)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 38 (expected 38)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 39 (expected 39)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 40 (expected 40)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 41 (expected 41)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 42 (expected 42)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 43 (expected 43)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 44 (expected 44)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 45 (expected 45)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 46 (expected 46)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 47 (expected 47)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 48 (expected 48)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 49 (expected 49)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 50 (expected 50)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 51 (expected 51)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 52 (expected 52)
+[22:36:39] [INFO] [ReliableChannel] Processing seq 53 (expected 53)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 54 (expected 54)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 55 (expected 55)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 56 (expected 56)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 57 (expected 57)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 58 (expected 58)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 59 (expected 59)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 60 (expected 60)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 61 (expected 61)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 62 (expected 62)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 63 (expected 63)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 64 (expected 64)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 65 (expected 65)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 66 (expected 66)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 67 (expected 67)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 68 (expected 68)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 69 (expected 69)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 70 (expected 70)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 71 (expected 71)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 72 (expected 72)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 73 (expected 73)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 74 (expected 74)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 75 (expected 75)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 76 (expected 76)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 77 (expected 77)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 78 (expected 78)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 79 (expected 79)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 80 (expected 80)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 81 (expected 81)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 82 (expected 82)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 83 (expected 83)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 84 (expected 84)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 85 (expected 85)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 86 (expected 86)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 87 (expected 87)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 88 (expected 88)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 89 (expected 89)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 90 (expected 90)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 91 (expected 91)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 92 (expected 92)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 93 (expected 93)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 94 (expected 94)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 95 (expected 95)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 96 (expected 96)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 97 (expected 97)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 98 (expected 98)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 99 (expected 99)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 100 (expected 100)
+[       OK ] ReliableChannelTest.HighVolumeSendReceive (8 ms)
+[ RUN      ] ReliableChannelTest.RapidFireAckNack
+[22:36:40] [INFO] [ReliableChannel] Initialized for connection 1 (window=64, maxRetrans=3)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 1 (expected 1)
+[22:36:40] [INFO] [ReliableChannel] Processing seq 3 (expected 2)
+[22:36:40] [INFO] [ReliableChannel] Gap detected: expected 2, got 3. Sending NACK.
+[22:36:40] [INFO] [ReliableChannel] Processing seq 5 (expected 2)
+[22:36:40] [INFO] [ReliableChannel] Gap detected: expected 2, got 5. Sending NACK.
+[22:36:40] [INFO] [ReliableChannel] Processing seq 7 (expected 2)
+[22:36:40] [INFO] [ReliableChannel] Gap detected: expected 2, got 7. Sending NACK.
+[22:36:40] [INFO] [ReliableChannel] Processing seq 9 (expected 2)
+[22:36:40] [INFO] [ReliableChannel] Gap detected: expected 2, got 9. Sending NACK.
+[22:36:40] [INFO] [ReliableChannel] Processing seq 11 (expected 2)
+[22:36:40] [INFO] [ReliableChannel] Gap detected: expected 2, got 11. Sending NACK.
+[22:36:40] [INFO] [ReliableChannel] Processing seq 13 (expected 2)
+[22:36:40] [INFO] [ReliableChannel] Gap detected: expected 2, got 13. Sending NACK.
+[22:36:40] [INFO] [ReliableChannel] Processing seq 15 (expected 2)
+[22:36:40] [INFO] [ReliableChannel] Gap detected: expected 2, got 15. Sending NACK.
+[22:36:40] [INFO] [ReliableChannel] Processing seq 17 (expected 2)
+[22:36:40] [INFO] [ReliableChannel] Gap detected: expected 2, got 17. Sending NACK.
+[22:36:40] [INFO] [ReliableChannel] Processing seq 19 (expected 2)
+[22:36:40] [INFO] [ReliableChannel] Gap detected: expected 2, got 19. Sending NACK.
+[       OK ] ReliableChannelTest.RapidFireAckNack (0 ms)
+[ RUN      ] ReliableChannelTest.StatisticsReset
+[22:36:40] [INFO] [ReliableChannel] Initialized for connection 1 (window=64, maxRetrans=3)
+[       OK ] ReliableChannelTest.StatisticsReset (0 ms)
+[----------] 17 tests from ReliableChannelTest (131 ms total)
+
+[----------] 12 tests from ReplicationTest
+[ RUN      ] ReplicationTest.Initialize
+[22:36:40] [INFO] [ComponentRegistry] Registered 'TestPositionComponent' ÔåÆ id=600001
+[22:36:40] [INFO] [ComponentRegistry] Registered 'TestHealthComponent' ÔåÆ id=600002
+[22:36:40] [INFO] [Replication] Initialized (maxClients=100)
+[22:36:40] [INFO] [Replication] Shutdown complete
+[22:36:40] [INFO] [Replication] Shutdown complete
+[       OK ] ReplicationTest.Initialize (0 ms)
+[ RUN      ] ReplicationTest.SetReplicationFrequency
+[22:36:40] [INFO] [Replication] Initialized (maxClients=100)
+[22:36:40] [INFO] [Replication] Shutdown complete
+[22:36:40] [INFO] [Replication] Shutdown complete
+[       OK ] ReplicationTest.SetReplicationFrequency (0 ms)
+[ RUN      ] ReplicationTest.AddClient
+[22:36:40] [INFO] [Replication] Initialized (maxClients=100)
+[22:36:40] [INFO] [Replication] Client 1 added
+[22:36:40] [INFO] [Replication] Shutdown complete
+[22:36:40] [INFO] [Replication] Shutdown complete
+[       OK ] ReplicationTest.AddClient (0 ms)
+[ RUN      ] ReplicationTest.RegisterEntity
+[22:36:40] [INFO] [Replication] Initialized (maxClients=100)
+[22:36:40] [INFO] [Replication] Shutdown complete
+[22:36:40] [INFO] [Replication] Shutdown complete
+[       OK ] ReplicationTest.RegisterEntity (0 ms)
+[ RUN      ] ReplicationTest.MarkComponentDirty
+[22:36:40] [INFO] [Replication] Initialized (maxClients=100)
+[22:36:40] [INFO] [Replication] Client 1 added
+[22:36:40] [INFO] [Replication] Shutdown complete
+[22:36:40] [INFO] [Replication] Shutdown complete
+[       OK ] ReplicationTest.MarkComponentDirty (0 ms)
+[ RUN      ] ReplicationTest.RPCRegistration
+[22:36:40] [INFO] [Replication] Initialized (maxClients=100)
+[22:36:40] [INFO] [Replication] Client 1 added
+[22:36:40] [INFO] [RPC] Registered 'TestRPC' (id=1, entityAuth=no)
+[22:36:40] [INFO] [Replication] Shutdown complete
+[22:36:40] [INFO] [Replication] Shutdown complete
+[       OK ] ReplicationTest.RPCRegistration (0 ms)
+[ RUN      ] ReplicationTest.AuthorityValidation
+[22:36:40] [INFO] [Replication] Initialized (maxClients=100)
+[22:36:40] [INFO] [Replication] Client 1 added
+[22:36:40] [INFO] [RPC] Registered 'AuthRPC' (id=1, entityAuth=yes)
+[22:36:40] [INFO] [Replication] Shutdown complete
+[22:36:40] [INFO] [Replication] Shutdown complete
+[       OK ] ReplicationTest.AuthorityValidation (0 ms)
+[ RUN      ] ReplicationTest.UnregisterEntity
+[22:36:40] [INFO] [Replication] Initialized (maxClients=100)
+[22:36:40] [INFO] [Replication] Client 1 added
+[22:36:40] [INFO] [Replication] Shutdown complete
+[22:36:40] [INFO] [Replication] Shutdown complete
+[       OK ] ReplicationTest.UnregisterEntity (0 ms)
+[ RUN      ] ReplicationTest.MultipleClients
+[22:36:40] [INFO] [Replication] Initialized (maxClients=100)
+[22:36:40] [INFO] [Replication] Client 1 added
+[22:36:40] [INFO] [Replication] Client 2 added
+[22:36:40] [INFO] [Replication] Shutdown complete
+[22:36:40] [INFO] [Replication] Shutdown complete
+[       OK ] ReplicationTest.MultipleClients (0 ms)
+[ RUN      ] ReplicationTest.Shutdown
+[22:36:40] [INFO] [Replication] Initialized (maxClients=100)
+[22:36:40] [INFO] [Replication] Shutdown complete
+[22:36:40] [INFO] [Replication] Shutdown complete
+[22:36:40] [INFO] [Replication] Shutdown complete
+[       OK ] ReplicationTest.Shutdown (0 ms)
+[ RUN      ] ReplicationTest.ComponentSerialization
+[22:36:40] [INFO] [Replication] Initialized (maxClients=100)
+[22:36:40] [INFO] [Replication] Client 1 added
+[22:36:40] [INFO] [Replication] Shutdown complete
+[22:36:40] [INFO] [Replication] Shutdown complete
+[       OK ] ReplicationTest.ComponentSerialization (0 ms)
+[ RUN      ] ReplicationTest.RemoveClient
+[22:36:40] [INFO] [Replication] Initialized (maxClients=100)
+[22:36:40] [INFO] [Replication] Client 1 added
+[22:36:40] [INFO] [Replication] Client 1 removed
+[22:36:40] [INFO] [Replication] Shutdown complete
+[22:36:40] [INFO] [Replication] Shutdown complete
+[       OK ] ReplicationTest.RemoveClient (0 ms)
+[----------] 12 tests from ReplicationTest (5 ms total)
+
+[----------] 3 tests from ProfilerTest
+[ RUN      ] ProfilerTest.Singleton
+[       OK ] ProfilerTest.Singleton (1 ms)
+[ RUN      ] ProfilerTest.SampleLifecycle
+[       OK ] ProfilerTest.SampleLifecycle (20 ms)
+[ RUN      ] ProfilerTest.ThreadSafety
+[       OK ] ProfilerTest.ThreadSafety (0 ms)
+[----------] 3 tests from ProfilerTest (24 ms total)
+
+[----------] 24 tests from SimulationTest
+[ RUN      ] SimulationTest.Registry_IdIsStableAcrossLookups
+[22:36:40] [INFO] [ComponentRegistry] Registered 'PositionComponent' ÔåÆ id=1
+[22:36:40] [INFO] [ComponentRegistry] Registered 'HealthComponent' ÔåÆ id=2
+[22:36:40] [INFO] [ComponentRegistry] Registered 'VelocityComponent' ÔåÆ id=3
+[       OK ] SimulationTest.Registry_IdIsStableAcrossLookups (1 ms)
+[ RUN      ] SimulationTest.Registry_CollisionThrows
+[22:36:40] [ERROR] [ComponentRegistry] ID 1 already taken by 'PositionComponent', cannot register 'AnotherType'.
+[       OK ] SimulationTest.Registry_CollisionThrows (0 ms)
+[ RUN      ] SimulationTest.Registry_UnregisteredTypeThrows
+[22:36:40] [ERROR] [ComponentRegistry] Unregistered component type: struct `private: virtual void __cdecl SimulationTest_Registry_UnregisteredTypeThrows_Test::TestBody(void) __ptr64'::`2'::NeverRegistered. Call SAGA_REGISTER_COMPONENT at startup.
+[       OK ] SimulationTest.Registry_UnregisteredTypeThrows (0 ms)
+[ RUN      ] SimulationTest.Registry_IsRegisteredPredicate
+[       OK ] SimulationTest.Registry_IsRegisteredPredicate (0 ms)
+[ RUN      ] SimulationTest.Registry_NamesAreReturned
+[       OK ] SimulationTest.Registry_NamesAreReturned (0 ms)
+[ RUN      ] SimulationTest.WorldState_CreateAndIsAlive
+[       OK ] SimulationTest.WorldState_CreateAndIsAlive (0 ms)
+[ RUN      ] SimulationTest.WorldState_DestroyEntityRemovesIt
+[       OK ] SimulationTest.WorldState_DestroyEntityRemovesIt (0 ms)
+[ RUN      ] SimulationTest.WorldState_DestroyedIdGetsRecycledWithNewVersion
+[       OK ] SimulationTest.WorldState_DestroyedIdGetsRecycledWithNewVersion (0 ms)
+[ RUN      ] SimulationTest.WorldState_DestroyNonAliveEntityIsNoop
+[22:36:40] [WARN] [WorldState] DestroyEntity called on non-alive entity 9999.
+[       OK ] SimulationTest.WorldState_DestroyNonAliveEntityIsNoop (0 ms)
+[ RUN      ] SimulationTest.WorldState_AddAndGetComponent
+[       OK ] SimulationTest.WorldState_AddAndGetComponent (0 ms)
+[ RUN      ] SimulationTest.WorldState_AddOverwritesExistingComponent
+[       OK ] SimulationTest.WorldState_AddOverwritesExistingComponent (0 ms)
+[ RUN      ] SimulationTest.WorldState_GetComponentReturnsNullForMissing
+[       OK ] SimulationTest.WorldState_GetComponentReturnsNullForMissing (0 ms)
+[ RUN      ] SimulationTest.WorldState_HasComponent
+[       OK ] SimulationTest.WorldState_HasComponent (0 ms)
+[ RUN      ] SimulationTest.WorldState_RemoveComponent
+[       OK ] SimulationTest.WorldState_RemoveComponent (0 ms)
+[ RUN      ] SimulationTest.WorldState_RemoveComponentSwapAndPopPreservesOthers
+[       OK ] SimulationTest.WorldState_RemoveComponentSwapAndPopPreservesOthers (0 ms)
+[ RUN      ] SimulationTest.WorldState_DestroyEntityRemovesAllComponents
+[       OK ] SimulationTest.WorldState_DestroyEntityRemovesAllComponents (0 ms)
+[ RUN      ] SimulationTest.WorldState_AddComponentOnDeadEntityThrows
+[       OK ] SimulationTest.WorldState_AddComponentOnDeadEntityThrows (0 ms)
+[ RUN      ] SimulationTest.WorldState_QueryReturnsEntitiesWithAllComponents
+[       OK ] SimulationTest.WorldState_QueryReturnsEntitiesWithAllComponents (0 ms)
+[ RUN      ] SimulationTest.WorldState_QueryWithMissingTypeReturnsEmpty
+[       OK ] SimulationTest.WorldState_QueryWithMissingTypeReturnsEmpty (0 ms)
+[ RUN      ] SimulationTest.WorldState_SerializeDeserializeRoundtrip
+[       OK ] SimulationTest.WorldState_SerializeDeserializeRoundtrip (0 ms)
+[ RUN      ] SimulationTest.WorldState_SerializationIsDeterministic
+[       OK ] SimulationTest.WorldState_SerializationIsDeterministic (0 ms)
+[ RUN      ] SimulationTest.WorldState_DeserializeMalformedInputThrows
+[       OK ] SimulationTest.WorldState_DeserializeMalformedInputThrows (0 ms)
+[ RUN      ] SimulationTest.WorldState_EqualStatesProduceSameHash
+[       OK ] SimulationTest.WorldState_EqualStatesProduceSameHash (0 ms)
+[ RUN      ] SimulationTest.WorldState_DifferentStatesProduceDifferentHashes
+[       OK ] SimulationTest.WorldState_DifferentStatesProduceDifferentHashes (0 ms)
+[----------] 24 tests from SimulationTest (11 ms total)
+
+[----------] 7 tests from SimulationTickTest
+[ RUN      ] SimulationTickTest.TickRateAndDelta
+[       OK ] SimulationTickTest.TickRateAndDelta (0 ms)
+[ RUN      ] SimulationTickTest.AdvanceProducesCorrectTickCount
+[       OK ] SimulationTickTest.AdvanceProducesCorrectTickCount (0 ms)
+[ RUN      ] SimulationTickTest.AdvanceAccumulatesSubTickTime
+[       OK ] SimulationTickTest.AdvanceAccumulatesSubTickTime (0 ms)
+[ RUN      ] SimulationTickTest.AdvanceClampsSpiralOfDeath
+[22:36:40] [WARN] [SimulationTick] Accumulator clamped: 10.0000s ÔåÆ 0.1250s (tick rate=64 Hz). Frame was too slow ÔÇö simulation may desync.
+[       OK ] SimulationTickTest.AdvanceClampsSpiralOfDeath (0 ms)
+[ RUN      ] SimulationTickTest.AdvanceAccumulatesTicksCorrectly
+[       OK ] SimulationTickTest.AdvanceAccumulatesTicksCorrectly (0 ms)
+[ RUN      ] SimulationTickTest.AlphaIsInUnitRange
+[       OK ] SimulationTickTest.AlphaIsInUnitRange (0 ms)
+[ RUN      ] SimulationTickTest.ResetClearsState
+[22:36:40] [WARN] [SimulationTick] Accumulator clamped: 1.0000s ÔåÆ 0.1250s (tick rate=64 Hz). Frame was too slow ÔÇö simulation may desync.
+[       OK ] SimulationTickTest.ResetClearsState (0 ms)
+[----------] 7 tests from SimulationTickTest (2 ms total)
+
+[----------] 6 tests from DeterministicTest
+[ RUN      ] DeterministicTest.RecordAndLookupHash
+[       OK ] DeterministicTest.RecordAndLookupHash (0 ms)
+[ RUN      ] DeterministicTest.VerifyReturnsTrueOnMatch
+[       OK ] DeterministicTest.VerifyReturnsTrueOnMatch (0 ms)
+[ RUN      ] DeterministicTest.VerifyReturnsFalseOnMismatch
+[22:36:40] [WARN] [Deterministic] Divergence detected at tick 10: local=0x4E395D86AAE73086 remote=0xDEADBEEFDEADBEEF.
+[       OK ] DeterministicTest.VerifyReturnsFalseOnMismatch (0 ms)
+[ RUN      ] DeterministicTest.VerifyReturnsTrueForOutOfWindowTick
+[       OK ] DeterministicTest.VerifyReturnsTrueForOutOfWindowTick (0 ms)
+[ RUN      ] DeterministicTest.RingBufferOverwritesOldEntries
+[       OK ] DeterministicTest.RingBufferOverwritesOldEntries (0 ms)
+[ RUN      ] DeterministicTest.ResetClearsAllHistory
+[       OK ] DeterministicTest.ResetClearsAllHistory (0 ms)
+[----------] 6 tests from DeterministicTest (2 ms total)
+
+[----------] 4 tests from AuthorityTest
+[ RUN      ] AuthorityTest.RegisterSystem
+[22:36:40] [INFO] [Authority] Registered system 'MoveSystem' (index 0).
+[       OK ] AuthorityTest.RegisterSystem (0 ms)
+[ RUN      ] AuthorityTest.TickRunsSystemsInOrder
+[22:36:40] [INFO] [Authority] Registered system 'SpawnPositionSystem' (index 0).
+[22:36:40] [INFO] [Authority] Registered system 'MoveSystem' (index 1).
+[       OK ] AuthorityTest.TickRunsSystemsInOrder (0 ms)
+[ RUN      ] AuthorityTest.TickHashChangesAfterMutation
+[22:36:40] [INFO] [Authority] Registered system 'MoveSystem' (index 0).
+[       OK ] AuthorityTest.TickHashChangesAfterMutation (0 ms)
+[ RUN      ] AuthorityTest.DeterministicIntegration
+[22:36:40] [INFO] [Authority] Registered system 'MoveSystem' (index 0).
+[       OK ] AuthorityTest.DeterministicIntegration (0 ms)
+[----------] 4 tests from AuthorityTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 161 tests from 23 test suites ran. (19932 ms total)
+[  PASSED  ] 160 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] ReliableChannelTest.FastRetransmitOnDuplicateAcks

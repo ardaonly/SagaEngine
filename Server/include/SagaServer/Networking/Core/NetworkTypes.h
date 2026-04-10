@@ -135,10 +135,11 @@ struct NetworkStatistics {
     uint64_t bytesReceived{0};
     uint64_t packetsLost{0};
     uint64_t packetsRetransmitted{0};
+    uint64_t heartbeatsSent{0};
     float averageLatencyMs{0.0f};
     float jitterMs{0.0f};
     float packetLossRate{0.0f};
-    
+
     void Reset() {
         packetsSent = 0;
         packetsReceived = 0;
@@ -146,6 +147,7 @@ struct NetworkStatistics {
         bytesReceived = 0;
         packetsLost = 0;
         packetsRetransmitted = 0;
+        heartbeatsSent = 0;
         averageLatencyMs = 0.0f;
         jitterMs = 0.0f;
         packetLossRate = 0.0f;

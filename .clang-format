@@ -1,0 +1,153 @@
+# .clang-format — SagaEngine house style
+#
+# Purpose: Machine-enforce the style that CodingStandards.md documents and
+#          that existing Math/ECS/Networking headers already follow.  Two
+#          concerns shape every choice here:
+#
+#   1. Readability at 100 columns.  The engine is meant to be reviewed on
+#      split-screen editors and side-by-side diff tools; going past 100 makes
+#      both useless.
+#
+#   2. Preserving Doxygen comments.  CodingStandards mandates /// @file,
+#      /// @brief, ///< member docs, and // ─── divider ─── lines.  clang-format
+#      must NOT reflow any of those.  `ReflowComments: false` and
+#      `CommentPragmas` exist for exactly this reason.
+#
+# If you disagree with a specific rule, update CodingStandards.md first and
+# then this file.  Never introduce a one-off override in a source file.
+
+Language: Cpp
+Standard: c++20
+BasedOnStyle: LLVM
+
+# ── Indentation ──────────────────────────────────────────────────────────────
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 4
+NamespaceIndentation: None       # SagaEngine nests 3-4 namespaces; indenting them wastes columns.
+AccessModifierOffset: -4         # "public:" lines up with the class brace.
+IndentCaseLabels: false
+IndentPPDirectives: None
+
+# ── Braces (Allman) ──────────────────────────────────────────────────────────
+# The existing codebase uses Allman for types and functions — matches how
+# Math/*.h and ECS/*.h already look in the repo.
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterCaseLabel:        false
+  AfterClass:            true
+  AfterControlStatement: Always
+  AfterEnum:             true
+  AfterFunction:         true
+  AfterNamespace:        true
+  AfterStruct:           true
+  AfterUnion:            true
+  AfterExternBlock:      true
+  BeforeCatch:           true
+  BeforeElse:            true
+  BeforeLambdaBody:      false
+  BeforeWhile:           false
+  IndentBraces:          false
+  SplitEmptyFunction:    false
+  SplitEmptyRecord:      false
+  SplitEmptyNamespace:   false
+
+# ── Line length ──────────────────────────────────────────────────────────────
+ColumnLimit: 100
+
+# ── Includes ─────────────────────────────────────────────────────────────────
+# Sort includes but keep our canonical grouping:
+#   1. Matching header ("Foo.h")
+#   2. Engine / Server headers (SagaEngine/* and SagaServer/*)
+#   3. Third-party (<boost/*>, <glm/*>, ...)
+#   4. Standard library (<cstdint>, <string>, ...)
+SortIncludes: CaseSensitive
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex:    '^"[^/]*\.h"$'
+    Priority: 1
+  - Regex:    '^"SagaEngine/.*"$'
+    Priority: 2
+  - Regex:    '^"SagaServer/.*"$'
+    Priority: 2
+  - Regex:    '^<(boost|glm|spdlog|flatbuffers|tbb|gtest|gmock)/.*>$'
+    Priority: 3
+  - Regex:    '^<.*\.h>$'
+    Priority: 4
+  - Regex:    '^<.*>$'
+    Priority: 4
+
+# ── Alignment ────────────────────────────────────────────────────────────────
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: None   # Never align = signs — noisy diffs.
+AlignConsecutiveDeclarations: None
+AlignConsecutiveMacros: Consecutive
+AlignEscapedNewlines: Left
+AlignOperands: Align
+AlignTrailingComments: true
+
+# ── Pointer / reference alignment ────────────────────────────────────────────
+# "Foo* p" / "Foo& r" — type-attached, matching the rest of the codebase.
+PointerAlignment: Left
+ReferenceAlignment: Left
+DerivePointerAlignment: false
+
+# ── Function signatures ──────────────────────────────────────────────────────
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
+AllowShortBlocksOnASingleLine: Empty
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Inline   # Short getters stay one-line.
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: All
+AllowShortLoopsOnASingleLine: false
+BinPackArguments: false
+BinPackParameters: false
+AlwaysBreakAfterReturnType: None
+AlwaysBreakBeforeMultilineStrings: false
+AlwaysBreakTemplateDeclarations: Yes
+
+# ── Spaces ───────────────────────────────────────────────────────────────────
+SpaceBeforeParens: ControlStatements
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
+SpaceAfterTemplateKeyword: true
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeInheritanceColon: true
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceInEmptyBlock: false
+SpaceInEmptyParentheses: false
+SpacesBeforeTrailingComments: 1
+SpacesInAngles: false
+SpacesInCStyleCastParentheses: false
+SpacesInContainerLiterals: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+
+# ── Penalties (tie-breakers when clang-format has a choice) ──────────────────
+PenaltyBreakAssignment: 100
+PenaltyBreakBeforeFirstCallParameter: 60
+PenaltyBreakComment: 1000          # Avoid touching comments.
+PenaltyBreakFirstLessLess: 120
+PenaltyBreakString: 1000
+PenaltyExcessCharacter: 1000000    # Essentially "do not exceed ColumnLimit".
+PenaltyReturnTypeOnItsOwnLine: 200
+
+# ── Comment handling (CRITICAL for Doxygen/divider preservation) ─────────────
+# Never touch Doxygen blocks or the // ─── ... ─── divider lines that
+# CodingStandards.md requires.  `ReflowComments: false` is the belt;
+# `CommentPragmas` is the suspenders — it tells clang-format "any comment
+# starting with these patterns is a pragma, don't rewrap it".
+ReflowComments: false
+CommentPragmas: '^( IWYU pragma:|/ @|─)'
+
+# ── Misc ─────────────────────────────────────────────────────────────────────
+Cpp11BracedListStyle: true
+FixNamespaceComments: true
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+SortUsingDeclarations: true
+CompactNamespaces: false

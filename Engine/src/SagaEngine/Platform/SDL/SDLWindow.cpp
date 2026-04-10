@@ -7,15 +7,21 @@
 
 namespace Saga {
 
+// ─── Construction & Destruction ───────────────────────────────────────────────
+
 SDLWindow::~SDLWindow()
 {
     if (m_Window)
         Shutdown();
 }
 
+// ─── Initialization ───────────────────────────────────────────────────────────
+
 bool SDLWindow::Init(const WindowDesc& desc)
 {
-    m_ShouldClose = false; // önemli: her init'te temiz başla
+    m_ShouldClose = false;
+    m_VSync = desc.vsync;
+    m_Title = desc.title;
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0)
     {
@@ -27,8 +33,7 @@ bool SDLWindow::Init(const WindowDesc& desc)
 
     const uint32_t flags =
         SDL_WINDOW_SHOWN |
-        (desc.resizable ? SDL_WINDOW_RESIZABLE : 0u) |
-        SDL_WINDOW_VULKAN;
+        (desc.resizable ? SDL_WINDOW_RESIZABLE : 0u);
 
     m_Window = SDL_CreateWindow(
         desc.title.c_str(),
@@ -56,20 +61,75 @@ bool SDLWindow::Init(const WindowDesc& desc)
     return true;
 }
 
+// ─── Event Processing ─────────────────────────────────────────────────────────
+
 void SDLWindow::PollEvents()
 {
     SDL_Event event;
     while (SDL_PollEvent(&event))
     {
-        LOG_INFO("SDLWindow", "Event received: type=%u", event.type);
         DispatchEvent(event);
     }
 }
 
+// ─── Present ──────────────────────────────────────────────────────────────────
+
 void SDLWindow::Present()
 {
-    // No-op until the RHI swap chain is registered.
+    // When RHI is not connected, just update the window surface.
+    // This keeps the window responsive and visible.
+    if (m_Window)
+    {
+        SDL_UpdateWindowSurface(m_Window);
+    }
 }
+
+// ─── Extended Features ────────────────────────────────────────────────────────
+
+void SDLWindow::SetTitle(const std::string& title)
+{
+    if (m_Window)
+    {
+        SDL_SetWindowTitle(m_Window, title.c_str());
+        m_Title = title;
+    }
+}
+
+void SDLWindow::SetSize(uint32_t width, uint32_t height)
+{
+    if (m_Window)
+    {
+        SDL_SetWindowSize(m_Window, static_cast<int>(width), static_cast<int>(height));
+        m_Width = width;
+        m_Height = height;
+    }
+}
+
+void SDLWindow::SetFullscreen(bool fullscreen)
+{
+    if (m_Window && m_Fullscreen != fullscreen)
+    {
+        m_Fullscreen = fullscreen;
+        SDL_SetWindowFullscreen(m_Window, fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+        LOG_INFO("SDLWindow", "Fullscreen %s", fullscreen ? "enabled" : "disabled");
+    }
+}
+
+void SDLWindow::SetVSync(bool vsync)
+{
+    m_VSync = vsync;
+    // VSync is typically handled by the RHI swap chain; store for future use.
+}
+
+void SDLWindow::SetMinimumSize(uint32_t width, uint32_t height)
+{
+    if (m_Window)
+    {
+        SDL_SetWindowMinimumSize(m_Window, static_cast<int>(width), static_cast<int>(height));
+    }
+}
+
+// ─── Event Dispatch ───────────────────────────────────────────────────────────
 
 bool SDLWindow::DispatchEvent(const SDL_Event& event) noexcept
 {
@@ -93,6 +153,26 @@ bool SDLWindow::DispatchEvent(const SDL_Event& event) noexcept
                 m_Width  = static_cast<uint32_t>(event.window.data1);
                 m_Height = static_cast<uint32_t>(event.window.data2);
                 LOG_INFO("SDLWindow", "Resized to %u x %u", m_Width, m_Height);
+                
+                if (m_OnResize)
+                    m_OnResize(m_Width, m_Height);
+                
+                return true;
+            }
+
+            if (event.window.event == SDL_WINDOWEVENT_EXPOSED)
+            {
+                // Window was exposed - update surface to prevent black screen
+                SDL_UpdateWindowSurface(m_Window);
+                return true;
+            }
+            break;
+
+        case SDL_KEYDOWN:
+            if (event.key.keysym.sym == SDLK_ESCAPE)
+            {
+                LOG_INFO("SDLWindow", "ESC key pressed.");
+                m_ShouldClose = true;
                 return true;
             }
             break;
@@ -103,6 +183,8 @@ bool SDLWindow::DispatchEvent(const SDL_Event& event) noexcept
 
     return false;
 }
+
+// ─── Shutdown ─────────────────────────────────────────────────────────────────
 
 void SDLWindow::Shutdown()
 {

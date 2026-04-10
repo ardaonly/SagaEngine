@@ -1,0 +1,136 @@
+# .clang-tidy — SagaEngine lint rules
+#
+# Purpose: Catch the classes of bug that are hardest to see in review and
+#          easiest for a linter to find — unchecked conversions, bugprone
+#          branches, modernisation misses, and violations of our own header
+#          discipline (GLM must not leak into non-bridge headers, etc.).
+#
+# What we intentionally disable and why:
+#   - fuchsia-*            : imposes a coding style we do not follow.
+#   - google-readability-* : conflicts with our Allman braces / 100-col policy.
+#   - llvm-header-guard    : we use `#pragma once`; clang-tidy wants ALL_CAPS.
+#   - modernize-use-trailing-return-type
+#                          : cosmetic churn with no safety value.
+#   - readability-identifier-length
+#                          : fires on perfectly fine short math names (x, i, q).
+#   - altera-*             : targets HLS compilers, not us.
+#   - cert-err58-cpp       : noisy on translation-unit-global constants.
+#   - bugprone-easily-swappable-parameters
+#                          : too many false positives on math APIs.
+#
+# Header filter: only lint *our* headers, never third-party.  Matches any path
+# under Engine/, Server/, Apps/, Backends/, Editor/, Tests/.
+
+Checks: >
+  -*,
+  bugprone-*,
+  cert-*,
+  concurrency-*,
+  cppcoreguidelines-*,
+  hicpp-*,
+  misc-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  -bugprone-easily-swappable-parameters,
+  -cert-err58-cpp,
+  -cppcoreguidelines-avoid-c-arrays,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-macro-usage,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -cppcoreguidelines-pro-type-union-access,
+  -hicpp-avoid-c-arrays,
+  -hicpp-no-array-decay,
+  -hicpp-signed-bitwise,
+  -hicpp-uppercase-literal-suffix,
+  -misc-non-private-member-variables-in-classes,
+  -misc-no-recursion,
+  -modernize-use-trailing-return-type,
+  -modernize-avoid-c-arrays,
+  -readability-identifier-length,
+  -readability-magic-numbers,
+  -readability-uppercase-literal-suffix,
+  -readability-function-cognitive-complexity,
+  -readability-braces-around-statements,
+  -hicpp-braces-around-statements,
+  -cppcoreguidelines-avoid-non-const-global-variables
+
+WarningsAsErrors: ''
+
+# Lint our code, not third-party.  Match anything under the engine's own dirs.
+HeaderFilterRegex: '.*(Engine|Server|Apps|Backends|Editor|Tests)/(include|src)/.*'
+
+FormatStyle: file
+
+CheckOptions:
+  # ── Naming ────────────────────────────────────────────────────────────────
+  # Match the styles already in the repo.  Classes/structs/enums: PascalCase.
+  # Functions: PascalCase (engine convention — yes, even free functions).
+  # Member variables: lowerCamelCase_ (trailing underscore for private).
+  # Constants / constexpr: kPascalCase.
+  # Macros: SAGA_UPPER_CASE.
+  - key: readability-identifier-naming.NamespaceCase
+    value: CamelCase
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key: readability-identifier-naming.StructCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumConstantCase
+    value: CamelCase
+  - key: readability-identifier-naming.FunctionCase
+    value: CamelCase
+  - key: readability-identifier-naming.MethodCase
+    value: CamelCase
+  - key: readability-identifier-naming.ParameterCase
+    value: camelBack
+  - key: readability-identifier-naming.VariableCase
+    value: camelBack
+  - key: readability-identifier-naming.PrivateMemberCase
+    value: camelBack
+  - key: readability-identifier-naming.PrivateMemberSuffix
+    value: _
+  - key: readability-identifier-naming.ProtectedMemberCase
+    value: camelBack
+  - key: readability-identifier-naming.ProtectedMemberSuffix
+    value: _
+  - key: readability-identifier-naming.ConstexprVariableCase
+    value: CamelCase
+  - key: readability-identifier-naming.ConstexprVariablePrefix
+    value: k
+  - key: readability-identifier-naming.GlobalConstantCase
+    value: CamelCase
+  - key: readability-identifier-naming.GlobalConstantPrefix
+    value: k
+  - key: readability-identifier-naming.StaticConstantCase
+    value: CamelCase
+  - key: readability-identifier-naming.StaticConstantPrefix
+    value: k
+  - key: readability-identifier-naming.MacroDefinitionCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.MacroDefinitionIgnoredRegexp
+    value: '^(LOG_.*|SAGA_.*)$'
+  - key: readability-identifier-naming.TemplateParameterCase
+    value: CamelCase
+
+  # ── Safety knobs ──────────────────────────────────────────────────────────
+  # Enforce [[nodiscard]] only on non-void functions that actually return
+  # something interesting; the default is overzealous on getters.
+  - key: modernize-use-nodiscard.ReplacementString
+    value: '[[nodiscard]]'
+
+  # Allow short loops in math / hot paths to skip the "i should be size_t" nag.
+  - key: readability-implicit-bool-conversion.AllowPointerConditions
+    value: true
+  - key: readability-implicit-bool-conversion.AllowIntegerConditions
+    value: true
+
+  # Allow Saga* static member functions without "this" pointer warnings.
+  - key: readability-convert-member-functions-to-static.IgnoreClassesWithAllMemberVariablesBeingPublic
+    value: true

@@ -9,6 +9,7 @@ function(saga_setup_thirdparty)
     find_package(SDL2 CONFIG REQUIRED)
     find_package(imgui CONFIG REQUIRED)
     find_package(rapidcheck CONFIG REQUIRED)
+    find_package(glm CONFIG REQUIRED)
 endfunction()
 
 function(saga_link_thirdparty target_name)
@@ -23,6 +24,7 @@ function(saga_link_thirdparty target_name)
         diligent-core::diligent-core
         SDL2::SDL2
         imgui::imgui
+        glm::glm
     )
 
     if(DEFINED imgui_RES_DIRS)

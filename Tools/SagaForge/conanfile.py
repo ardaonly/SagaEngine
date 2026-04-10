@@ -21,6 +21,7 @@ class SagaEngineConan(ConanFile):
         self.requires("sdl/2.30.2")
         self.requires("imgui/1.91.5-docking")
         self.requires("rapidcheck/cci.20231215")
+        self.requires("glm/0.9.9.8")
 
 
     def build_requirements(self):
