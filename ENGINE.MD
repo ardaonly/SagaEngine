@@ -40,30 +40,3 @@ Future higher-level products may be built on top of this foundation, but only th
 
 This file is a human-readable project descriptor.
 Tooling and build behavior must rely on manifests and build configuration, not on prose.
-
-# SAGA ROADMAP
-
----
-
-## v0.0.6 — Minimal Playable Server Loop
-
-### Goal
-
-One server + one client exchanging state correctly.
-
-### Tasks
-
-* [ ] Implement headless server loop (fixed tick)
-* [ ] Define tick rate (e.g. 30 or 60 Hz)
-* [ ] Add client connection (single client only)
-* [ ] Implement input packet (client → server)
-* [ ] Server updates entity position from input
-* [ ] Server sends position back to client
-* [ ] Client applies server state (no prediction)
-
-### Definition of Done
-
-* [ ] Client connects to server
-* [ ] Client moves entity using input
-* [ ] Server updates position
-* [ ] Position is replicated back correctly

@@ -52,10 +52,18 @@ void InputCommandBuffer::AckUpTo(uint32_t sequence)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
 
+    // Clear acknowledgeded commands from unacked queue
     while (!m_unacked.empty() &&
            m_unacked.front().sequence <= sequence)
     {
         m_unacked.pop_front();
+    }
+
+    // Also clear from pending (fast-path reconnect scenario)
+    while (!m_pending.empty() &&
+           m_pending.front().sequence <= sequence)
+    {
+        m_pending.pop_front();
     }
 }
 
