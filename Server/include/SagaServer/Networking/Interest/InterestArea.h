@@ -35,6 +35,8 @@ struct Vector3 {
 struct InterestConfig {
     float viewRadius{100.0f};
     float cullRadius{150.0f};
+    float defaultRadius{100.0f};            ///< Default subscription radius
+    uint32_t maxEntitiesPerClient{256};     ///< Max entities per client interest
     uint32_t maxEntitiesPerUpdate{64};
     float priorityDistanceWeight{1.0f};
     float priorityImportanceWeight{2.0f};
@@ -94,6 +96,13 @@ public:
     
     std::vector<AreaId> GetClientSubscribedAreas(ClientId client) const;
     AreaId GetEntityArea(EntityId entity) const;
+
+    /// Retrieve the last-known world position of an entity.
+    /// Returns true and fills `outPos` if the entity is tracked, false otherwise.
+    [[nodiscard]] bool GetEntityPosition(EntityId entity, Vector3& outPos) const;
+
+    /// Check if a specific entity is currently visible to a client.
+    [[nodiscard]] bool IsEntityVisible(ClientId client, EntityId entity) const;
     
     void Update(float dt);
     

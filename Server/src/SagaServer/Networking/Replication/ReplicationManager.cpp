@@ -2,11 +2,13 @@
 /// @brief Server-side replication manager implementation.
 
 #include "SagaServer/Networking/Replication/ReplicationManager.h"
+#include "SagaServer/Networking/Interest/InterestArea.h"
 #include "SagaEngine/Simulation/Authority.h"
 #include "SagaEngine/Simulation/WorldState.h"
 #include "SagaEngine/Core/Log/Log.h"
 
 #include <algorithm>
+#include <limits>
 
 namespace SagaEngine::Networking::Replication
 {
@@ -213,6 +215,13 @@ ReplicationManager::CollectPendingUpdates(ClientId clientId)
 
     ClientReplicationState& state = *it->second;
 
+    // ── Build candidate set ──────────────────────────────────────────────────
+    //
+    // When an interest manager is wired in we honour its culling, otherwise we
+    // fall back to every entity that currently has pending components. The
+    // scoring stage below reorders the candidate list so critical updates win
+    // when bandwidth runs short.
+
     std::vector<EntityId> targetEntities;
 
     if (_pimpl->interestManager)
@@ -228,6 +237,26 @@ ReplicationManager::CollectPendingUpdates(ClientId clientId)
                 targetEntities.push_back(eid);
         }
     }
+
+    // ── Priority ordering ────────────────────────────────────────────────────
+    //
+    // Use ReplicationPriority::CalculateScore() to sort candidates descending.
+    // Entities without a stored priority slot default to zero so they sink to
+    // the bottom of the queue.
+
+    std::sort(targetEntities.begin(), targetEntities.end(),
+              [&state](EntityId a, EntityId b)
+              {
+                  const auto itA = state.priorities.find(a);
+                  const auto itB = state.priorities.find(b);
+
+                  const float scoreA = (itA != state.priorities.end())
+                                       ? itA->second.CalculateScore() : 0.0f;
+                  const float scoreB = (itB != state.priorities.end())
+                                       ? itB->second.CalculateScore() : 0.0f;
+
+                  return scoreA > scoreB;
+              });
 
     for (EntityId entityId : targetEntities)
     {
@@ -394,8 +423,102 @@ bool ReplicationManager::CheckEntityAuthority(ClientId clientId, EntityId entity
 void ReplicationManager::ProcessEntityDelta(ClientReplicationState& clientState,
                                             EntityId entityId)
 {
-    (void)clientState;
-    (void)entityId;
+    // ── Visibility gate ───────────────────────────────────────────────────────
+    //
+    // If an InterestManager is wired in, an entity that has slipped out of the
+    // client's view does not belong in its pending queue or in its sent record.
+    // Dropping it here prevents stale deltas from accumulating while the entity
+    // stays out of range and lets the tombstone path be driven by unregistration.
+
+    bool isVisible = true;
+
+    if (_pimpl->interestManager)
+    {
+        const Interest::AreaId ownerArea = _pimpl->interestManager->GetEntityArea(entityId);
+        if (ownerArea == 0)
+        {
+            isVisible = false;
+        }
+        else
+        {
+            const auto subscribed =
+                _pimpl->interestManager->GetClientSubscribedAreas(clientState.clientId);
+            isVisible = std::find(subscribed.begin(), subscribed.end(), ownerArea)
+                        != subscribed.end();
+        }
+    }
+
+    if (!isVisible)
+    {
+        clientState.pendingComponents.erase(entityId);
+        clientState.sentComponents.erase(entityId);
+        clientState.priorities.erase(entityId);
+        return;
+    }
+
+    // ── Priority bookkeeping ──────────────────────────────────────────────────
+    //
+    // Ensure a ReplicationPriority slot exists for this pair and refresh its
+    // distance/importance scores. Distance is only meaningful when the world
+    // state can expose an entity position — if it cannot we fall back to a
+    // neutral score so CalculateScore() remains well-defined.
+
+    ReplicationPriority& priority = clientState.priorities[entityId];
+
+    if (priority.lastReplicatedTick == 0)
+        priority.importanceScore = 1.0f;
+
+    if (_pimpl->interestManager)
+    {
+        const auto visible = _pimpl->interestManager->GetVisibleEntities(clientState.clientId);
+        const bool stillVisible =
+            std::find(visible.begin(), visible.end(), entityId) != visible.end();
+
+        if (!stillVisible)
+        {
+            priority.distanceScore = std::numeric_limits<float>::infinity();
+        }
+        else if (priority.distanceScore <= 0.0f)
+        {
+            priority.distanceScore = 1.0f;
+        }
+    }
+
+    // ── Sent-set reconciliation ───────────────────────────────────────────────
+    //
+    // An entity that no longer appears in the global registry has been destroyed
+    // on the authoritative side. Drop it from the client's sent record so the
+    // next replication pass can emit a tombstone without tripping the dedup
+    // logic further down the pipeline.
+
+    const bool stillRegistered =
+        std::find(_pimpl->registeredEntities.begin(),
+                  _pimpl->registeredEntities.end(),
+                  entityId) != _pimpl->registeredEntities.end();
+
+    if (!stillRegistered)
+    {
+        clientState.sentComponents.erase(entityId);
+        clientState.pendingComponents.erase(entityId);
+        clientState.priorities.erase(entityId);
+        return;
+    }
+
+    // ── Pending queue dedup ───────────────────────────────────────────────────
+    //
+    // Entries in pendingComponents that were never acknowledged but have since
+    // been re-dirtied must not be duplicated. We sort and unique in place so the
+    // caller can freely append without quadratic search later in the hot path.
+
+    auto pendingIt = clientState.pendingComponents.find(entityId);
+    if (pendingIt != clientState.pendingComponents.end())
+    {
+        auto& comps = pendingIt->second;
+        std::sort(comps.begin(), comps.end());
+        comps.erase(std::unique(comps.begin(), comps.end()), comps.end());
+    }
+
+    clientState.isDirty = true;
 }
 
 } // namespace SagaEngine::Networking::Replication

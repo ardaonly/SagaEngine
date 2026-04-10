@@ -6,6 +6,8 @@
 #include "SagaEngine/Platform/IWindow.h"
 #include <SDL2/SDL.h>
 #include <cstdint>
+#include <string>
+#include <functional>
 
 namespace Saga {
 
@@ -36,7 +38,8 @@ public:
     void PollEvents() override;
 
     /// Present the rendered frame.
-    /// No-op until the RHI swap chain is connected via SetSwapChainCallback.
+    /// When no RHI swap chain is connected, this updates the window and
+    /// maintains the frame timing. Once RHI is connected, it delegates to RHI.
     void Present() override;
 
     /// Destroy the SDL_Window and call SDL_Quit.
@@ -49,6 +52,27 @@ public:
     [[nodiscard]] uint32_t GetWidth()         const noexcept override { return m_Width;       }
     [[nodiscard]] uint32_t GetHeight()        const noexcept override { return m_Height;      }
 
+    // ─── Extended Features ────────────────────────────────────────────────────
+
+    /// Set the window title at runtime.
+    void SetTitle(const std::string& title);
+
+    /// Set the window size at runtime.
+    void SetSize(uint32_t width, uint32_t height);
+
+    /// Set whether the window should be fullscreen.
+    void SetFullscreen(bool fullscreen);
+
+    /// Set whether VSync is enabled.
+    void SetVSync(bool vsync);
+
+    /// Set a callback for window resize events.
+    using ResizeCallback = std::function<void(uint32_t width, uint32_t height)>;
+    void SetOnResize(ResizeCallback callback) { m_OnResize = std::move(callback); }
+
+    /// Set the window's minimum size (0,0 = no limit).
+    void SetMinimumSize(uint32_t width, uint32_t height);
+
 private:
     // ─── Internal Helpers ─────────────────────────────────────────────────────
 
@@ -57,11 +81,15 @@ private:
 
     // ─── Member Data ──────────────────────────────────────────────────────────
 
-    SDL_Window* m_Window      = nullptr; ///< Owned SDL window handle.
-    uint32_t    m_Width       = 0;       ///< Current client width in pixels.
-    uint32_t    m_Height      = 0;       ///< Current client height in pixels.
-    bool        m_ShouldClose = false;   ///< Set true when quit has been requested.
-    bool        m_SDLOwned    = false;   ///< True if this instance called SDL_Init and must call SDL_Quit.
+    SDL_Window*   m_Window      = nullptr; ///< Owned SDL window handle.
+    uint32_t      m_Width       = 0;       ///< Current client width in pixels.
+    uint32_t      m_Height      = 0;       ///< Current client height in pixels.
+    bool          m_ShouldClose = false;   ///< Set true when quit has been requested.
+    bool          m_SDLOwned    = false;   ///< True if this instance called SDL_Init.
+    bool          m_VSync       = true;    ///< VSync enabled state.
+    bool          m_Fullscreen  = false;   ///< Fullscreen state.
+    std::string   m_Title;                 ///< Current window title.
+    ResizeCallback m_OnResize;             ///< Window resize callback.
 };
 
 } // namespace Saga

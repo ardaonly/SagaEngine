@@ -71,11 +71,11 @@ void InterestManager::DestroyArea(AreaId areaId) {
         for (auto& [client, subscriptions] : _clientSubscriptions) {
             subscriptions.erase(areaId);
         }
-        for (auto it = _entityAreas.begin(); it != _entityAreas.end();) {
-            if (it->second == areaId) {
-                it = _entityAreas.erase(it);
+        for (auto entityIt = _entityAreas.begin(); entityIt != _entityAreas.end();) {
+            if (entityIt->second == areaId) {
+                entityIt = _entityAreas.erase(entityIt);
             } else {
-                ++it;
+                ++entityIt;
             }
         }
         _areas.erase(it);
@@ -230,11 +230,11 @@ std::vector<EntityId> InterestManager::GetVisibleEntities(ClientId client) const
         }
     }
     
-    auto posIt = _entityPositions.find(client);
+    auto posIt = _entityPositions.find(static_cast<EntityId>(client));
     if (posIt != _entityPositions.end()) {
         const Vector3& clientPos = posIt->second;
         std::vector<EntityId> culled;
-        
+
         for (EntityId entity : visible) {
             auto entityPosIt = _entityPositions.find(entity);
             if (entityPosIt != _entityPositions.end()) {
@@ -252,7 +252,7 @@ std::vector<EntityId> InterestManager::GetVisibleEntities(ClientId client) const
 }
 
 float InterestManager::CalculatePriority(ClientId client, EntityId entity) const {
-    auto clientPosIt = _entityPositions.find(client);
+    auto clientPosIt = _entityPositions.find(static_cast<EntityId>(client));
     auto entityPosIt = _entityPositions.find(entity);
     
     if (clientPosIt == _entityPositions.end() || entityPosIt == _entityPositions.end()) {
