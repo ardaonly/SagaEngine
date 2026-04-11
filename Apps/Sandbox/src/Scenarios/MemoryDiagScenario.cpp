@@ -136,9 +136,9 @@ void MemoryDiagScenario::OnRenderDebugUI()
                     ? m_lastArenaMs * 1'000'000.f / static_cast<float>(m_benchIterations)
                     : 0.f);
 
-    ImGui::Text("Arena blocks : %zu", m_arena->GetBlockCount());
+    ImGui::Text("Arena blocks : %zu", m_arena->BlockCount());
     ImGui::Text("Arena total  : %.3f KB",
-                static_cast<float>(m_arena->GetTotalAllocated()) / 1024.f);
+                static_cast<float>(m_arena->Stats().bytesCommitted) / 1024.f);
 
     // ── Pool benchmark ────────────────────────────────────────────────────────
 
