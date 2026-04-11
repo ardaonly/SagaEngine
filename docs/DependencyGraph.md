@@ -1,8 +1,5 @@
 # SagaEngine — Module Dependency Graph
 
-> Son guncelleme: 2026-04-09
-> Amac: Modüller arasindaki include yonu ve runtime bagimliliklarini tek sayfada tutmak. Yeni bir modul eklerken bu dokumani guncellemek zorunludur.
-
 ---
 
 ## 1. High-level layers

@@ -53,9 +53,9 @@
 #include <memory>
 #include <vector>
 
-namespace SagaEngine::ECS {
+namespace SagaEngine::Simulation {
 class WorldState;
-} // namespace SagaEngine::ECS
+} // namespace SagaEngine::Simulation
 
 namespace SagaEngine::Client::Replication {
 
@@ -120,14 +120,14 @@ enum class ApplyOutcome : std::uint8_t
 /// back to the previous baseline so the client can request a fresh
 /// snapshot.
 using FullSnapshotApplyFn = std::function<bool(
-    SagaEngine::ECS::WorldState& world,
+    SagaEngine::Simulation::WorldState& world,
     const DecodedWorldSnapshot&  snapshot)>;
 
 /// Per-delta apply callback.  Same shape as above.  The pipeline
 /// guarantees baseline consistency before calling: the caller can
 /// assume `world` is at exactly `delta.baselineTick`.
 using DeltaSnapshotApplyFn = std::function<bool(
-    SagaEngine::ECS::WorldState& world,
+    SagaEngine::Simulation::WorldState& world,
     const DecodedDeltaSnapshot&  delta)>;
 
 // ─── Statistics ────────────────────────────────────────────────────────────
@@ -197,7 +197,7 @@ public:
     /// `SubmitDelta`.  Reconfiguring mid-session is allowed but the
     /// pipeline resets its baseline as a safety precaution.
     bool Configure(
-        SagaEngine::ECS::WorldState* world,
+        SagaEngine::Simulation::WorldState* world,
         FullSnapshotApplyFn          applyFull,
         DeltaSnapshotApplyFn         applyDelta,
         const SnapshotPipelineConfig& config = {});
@@ -233,7 +233,7 @@ public:
     [[nodiscard]] const SnapshotPipelineStats& Stats() const noexcept { return stats_; }
 
 private:
-    SagaEngine::ECS::WorldState* world_ = nullptr;
+    SagaEngine::Simulation::WorldState* world_ = nullptr;
     FullSnapshotApplyFn          applyFull_;
     DeltaSnapshotApplyFn         applyDelta_;
     RequestFullSnapshotFn        requestFullCb_;
@@ -251,6 +251,12 @@ private:
     std::vector<DecodedDeltaSnapshot> jitterBuffer_;
 
     SnapshotPipelineStats stats_{};
+
+    // ─── Internal helpers ──────────────────────────────────────────────────
+
+    [[nodiscard]] ApplyOutcome BufferDelta(DecodedDeltaSnapshot&& delta);
+    void PromoteBufferedDeltas();
+    void EvictStaleDeltas();
 };
 
 } // namespace SagaEngine::Client::Replication

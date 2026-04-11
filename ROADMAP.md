@@ -1,6 +1,6 @@
 # SagaEngine — Production MMO Engine Roadmap
 
-> Last updated: 2026-04-10 (Build fixes, window system improvements, reliable channel tests)
+> Last updated: 2026-04-11 (World partition + streaming orchestrator, section 16 / 17)
 > Target: A production-grade authoritative multiplayer engine core.
 
 This document is the single source of truth for what SagaEngine has
@@ -341,9 +341,15 @@ written down. Both are run in CI.
 | [x] | Unit test framework — ECS, input, networking, simulation. |
 | [x] | Integration tests — client / server, persistence, replication. |
 | [x] | Stress tests — concurrent entity, network load. |
-| [ ] | Replication round-trip tests (encode → decode → verify). |
-| [ ] | `DeltaSnapshot` serialisation invariant tests. |
-| [ ] | `WorldSnapshot` CRC32 integrity tests. |
+| [x] | Replication round-trip tests — `ReplicationRoundTripTest.h/.cpp`: delta encode/decode, full snapshot serialisation, CRC32 integrity, schema forward-compatibility. |
+| [x] | `DeltaSnapshot` serialisation invariant tests — entity count verification, component structure validation, bounds check coverage. |
+| [x] | `WorldSnapshot` CRC32 integrity tests — corruption detection, payload truncation handling. |
+| [x] | Chaos tests — `ChaosTest.h/.cpp`: packet reorder, random drop, latency spike, byte corruption, gap storm, combined mode. |
+| [x] | Determinism guard tests — `DeterminismGuardTest.h/.cpp`: granular hash consistency, apply order independence, float canonicalisation, entity iteration determinism. |
+| [x] | Soak tests — `SoakTest.h/.cpp`: normal operation (1M ticks), intermittent desync, high churn, bandwidth pressure. |
+| [x] | Adversarial model tests — `AdversarialModelTest.h/.cpp`: CPU starvation, gap storm, replay attack, sequence wrap-around, decode bomb. |
+| [x] | Performance budget tests — `PerformanceBudgetTest.h/.cpp`: max apply time per tick, worst-case entity burst, per-component deserialize budget, cold cache cost. |
+| [x] | Schema migration tests — `SchemaMigrationTest.h/.cpp`: major mismatch, minor forward/backward compatibility, patch negotiation, component type skipping. |
 | [ ] | `ConnectionManager` concurrency tests. |
 | [ ] | `ShardManager` routing correctness tests. |
 | [ ] | `ZoneServer` lifecycle integration test. |
@@ -352,9 +358,9 @@ written down. Both are run in CI.
 
 | Status | Item |
 |--------|------|
-| [ ] | Serialisation invariants — `serialize(deserialize(x)) == x`. |
-| [ ] | Determinism tests — the same input produces the same output across runs. |
-| [ ] | Replication correctness — dirty-tracking consistency. |
+| [x] | Serialisation invariants — `serialize(deserialize(x)) == x` covered by round-trip and fuzz tests. |
+| [x] | Determinism tests — the same input produces the same output across runs; `DeterminismGuardTest` verifies hash consistency and apply order invariance. |
+| [x] | Replication correctness — dirty-tracking consistency covered by chaos tests and soak tests. |
 | [ ] | `ComponentDirtyMask` bit-operation properties. |
 
 ---
@@ -394,7 +400,7 @@ from the authoritative state.
 | [x] | Interpolation system for smoothing remote entity positions. |
 | [x] | Prediction reconciliation — `ReconciliationBuffer.h` is a templated ring buffer that records a predicted state per input sequence; `AcknowledgeAndReconcile` prunes acknowledged history, compares the squared position error against a configurable threshold, rewinds to the authoritative state, and replays every still-pending input through a caller-supplied functor, updating the ring in place so the next frame predicts from the corrected baseline. |
 | [x] | Input command buffer — `InputCommandBuffer.h` / `.cpp` with thread-safe push/peek/mark-sent/acknowledge semantics; **fixed `AckUpTo` to also clear pending commands for fast-path reconnect scenarios** (test `AckUpToAlsoClearsPending` now passes). |
-| [ ] | Client-side replication apply pipeline — `DeltaSnapshot` → ECS. |
+| [x] | Client-side replication apply pipeline — deterministic, atomic, authority-aware `DeltaSnapshot` / `WorldSnapshot` to ECS pipeline with: six-state replication state machine, transactional `PatchJournal` (sort-validate-commit), RTT-aware sliding sequence window, exploit-resistant wire decoders, schema version negotiation, canonical world hash, time-budget guards, authority model (`ServerOwned` / `ClientPredicted` / `ClientOnly`), deterministic scheduler, granular hash debugging, adaptive interest management, telemetry with alert system, adversarial rate limiting, snapshot size enforcement, tick drift correction, schema migration policy, catastrophic recovery ladder, rollback snapshot cache, replication memory tracker, fuzz and soak test harness; files: `SnapshotApplyPipeline.h/.cpp`, `ReplicationStateMachine.h/.cpp`, `DeltaSnapshotWire.h/.cpp`, `WorldSnapshotWire.h/.cpp`, `PatchJournal.h/.cpp`, `EcsSnapshotApply.h/.cpp`, `PacketDemux.h/.cpp`, `ReplicationTelemetry.h/.cpp`, `RollbackSnapshotCache.h/.cpp`, `DeterminismVerifier.h/.cpp`, `InterestManagement.h/.cpp`, `ReplicationScheduler.h/.cpp`, `GranularWorldHash.h/.cpp`, `AdaptiveInterestManager.h/.cpp`, `TelemetryAlertSystem.h/.cpp`, `RateLimitGuard.h/.cpp`, `ReplicationMemoryTracker.h/.cpp`, `SnapshotSizeGuard.h/.cpp`, `TickDriftCorrector.h/.cpp`, `SchemaMigrationPolicy.h/.cpp`, `CatastrophicRecoveryManager.h/.cpp`. |
 | [ ] | Render loop — RHI and `FrameGraph` pipeline. |
 
 ---
@@ -431,9 +437,13 @@ descriptions that both the renderer and the asset pipeline agree on.
 | [x] | `GBufferPass`, `LightingPass`. |
 | [x] | `CommandBuffer` and `CommandRecorder`. |
 | [x] | Material system — `Render/Materials/Material.h` defines the data-only material description shared by the renderer and the asset pipeline; `MaterialAsset` is the on-disk form (string-addressable shader template name, asset-id texture references, name / value parameter pairs); `MaterialRuntime` is the post-resolve form the renderer consumes (interned `ShaderTemplateHandle`, resolved `TextureHandle`s, flat fixed-size parameter arrays) so the draw submission path is copy-then-bind without any map lookups; the header is deliberately free of GLM and of any math dependency (it defines a local `MaterialVec4` instead) so it does not pull the math library into every translation unit that touches a draw call; a `MakeErrorMaterial` helper produces a neon-pink fallback that is immediately visible when an asset fails to resolve. |
-| [ ] | Mesh loading and streaming. |
-| [ ] | Shadow mapping. |
-| [ ] | Post-processing pipeline. |
+| [x] | Mesh asset descriptor — `Render/Materials/MeshAsset.h` defines the CPU-side, GLM-free static mesh description (interleaved `MeshVertex`, per-submesh material id, up to four LODs with streaming hints, `MeshAabb` bounding volume) so the renderer, physics, and streaming manager can all read the same type without pulling the math or RHI headers in; hard caps (`kMaxMeshVerticesPerLod`, `kMaxMeshIndicesPerLod`) turn pathological imports into visible failures. |
+| [x] | Shadow pass descriptors — `Render/RenderPasses/ShadowMap.h` defines the declarative shadow pass input: `ShadowAtlasConfig`, `ShadowQualityBudget`, `DirectionalCascadeConfig` (four-cascade default with a `cascadeLambda` practical-split weight and per-cascade bias arrays), `ShadowPassDescriptor` with per-slot atlas rects, view-projection matrices, and a `needsRedraw` gate so static-light cascades are skipped; compile-time `kMaxDirectionalCascades` and `kMaxShadowCastersPerFrame` bound the scheduling graph. |
+| [x] | Post-process graph descriptors — `Render/RenderPasses/PostProcessGraph.h` defines the declarative post-process pipeline (tonemap, bloom, motion blur, DoF, etc.) that the render graph consumes. |
+| [ ] | Mesh runtime upload pipeline — `MeshAsset` → RHI vertex / index buffers, per-LOD GPU residency, streaming manager integration. |
+| [ ] | Shadow atlas allocator + cascade split implementation (consumes `ShadowPassDescriptor` and `DirectionalCascadeConfig`). |
+| [ ] | Post-processing runtime — the actual shaders, temporary targets, and frame-graph wiring for tonemap / bloom / motion blur / DoF. |
+| [ ] | `GBufferPass.h` / `LightingPass.h` — currently empty descriptor headers; needs `GBufferBinding`, `LightingUniforms`, and the render-graph consumer contract. |
 
 ---
 
@@ -537,71 +547,59 @@ Server/
       ShardManager.h                 ← Zone routing + load balancing
       ZoneServer.h                   ← Headless authoritative server
       ConnectionMigration.h          ← Client-facing handoff dance
-      ZoneTransferProtocol.h         ← Shard-mesh wire format
-      CrossZoneVisibility.h          ← Apron replica protocol
-      ShardMesh.h                    ← Shard-to-shard delivery fabric
-      DynamicZoneSpawner.h           ← On-demand zone orchestration
-  src/SagaServer/Networking/
-    Client/
-      ConnectionManager.cpp
-    Core/
-      NetworkTransport.cpp
-      ReliableChannel.cpp
-      FragmentAssembler.cpp
-      BackpressureSignal.cpp
-      BandwidthThrottle.cpp
-    Interest/
-      InterestArea.cpp
-    Replication/
-      DeltaSnapshot.cpp
-      WorldSnapshot.cpp
-      ReplicationGraph.cpp
-      ReplicationState.cpp
-      ReplicationManager.cpp
-      RleSnapshotCompressor.cpp
-    Server/
-      ServerConnection.cpp
-      ShardManager.cpp
-      ZoneServer.cpp
+      ZoneTransferProtocol.h         ← Mesh-side zone handoff wire format
+      CrossZoneVisibility.h          ← Apron replica entities across boundaries
+      DynamicZoneSpawner.h           ← Process orchestration contract
+      ShardMesh.h                    ← Abstract shard-to-shard fabric
 ```
 
 ---
 
-## Architectural Notes
+## 16. Resources and Asset Streaming
 
-**`DeltaSnapshot` and `WorldSnapshot` moved from `Backends` to `Server`.**
-These files live in the `SagaEngine::Networking::Replication`
-namespace, depend directly on `ReplicationState`, and are a core part
-of the replication protocol. The persistence layer (`Backends`) has no
-interest in them — writing to PostgreSQL is not `WorldSnapshot`'s job;
-`WorldSnapshot` just produces a binary blob. The `Backends` stubs can
-stay empty or be removed.
+An MMO's world is larger than the client's RAM.  Only a thin slice of
+assets is resident at any instant; the resources subsystem decides
+which mesh, texture, shader, or audio clip should come in next, which
+one should be evicted, and how to pace disk I/O so the frame rate
+does not hitch while a zone loads.  The data contract lives in
+`StreamingRequest.h`; this section tracks the orchestrator that
+consumes those requests and the pluggable source backends that fulfil
+them.
 
-**Layering rule for spdlog integration.** spdlog must not leak into
-the engine. `SagaEngine/Core/Log/Log.h` stays as the engine's log
-interface; spdlog plugs in as a backend sink. That way the engine's
-logging system still builds on platforms where spdlog is inconvenient.
+| Status | Item |
+|--------|------|
+| [x] | Streaming request data contract — `StreamingRequest.h` defines `AssetId`, `AssetKind`, `StreamingPriority`, the `StreamingRequest` POD, the `StreamingResultPayload`, the `StreamingRequestHandle` future (atomic status + cooperative `Cancel` + move-once payload), and hard caps (`kMaxStreamingPayloadBytes`, `kMaxStreamingQueueDepth`) so a runaway producer cannot flood the queue. |
+| [x] | Pluggable asset source interface — `IAssetSource.h` defines `AssetLoadResult` and the one-method contract `LoadBlocking(const StreamingRequest&, const StreamingRequestHandle&) → AssetLoadResult`; the streaming manager never `fopen`s on its own so a disk source, a package-file source, and a network CDN source all drop in behind the same interface; optional `Prefetch` and `DebugName` hooks are provided as no-op defaults so trivial backends only have to override `LoadBlocking`. |
+| [x] | Streaming manager orchestrator — `StreamingManager.h` / `.cpp` owns the priority queue, the worker thread pool, and the handle publishing; requests are sorted by `(priority, arrivalSeq)` so equal-priority requests stay FIFO; worker count is clamped to 1..64 and defaults to four; cancelled requests are dropped at dispatch time; shutdown is two-phase (flag → wake → join → fail every still-pending handle with `StreamingStatus::ShuttingDown`); bounded queue capacity rejects with `StreamingStatus::SourceError` when a runaway producer floods the manager; all completion callbacks fire with the mutex released so a re-entrant callback cannot deadlock against `Submit`; source exceptions are swallowed into `StreamingStatus::InternalError` so a rogue backend cannot kill a worker thread. |
+| [x] | Decoded asset cache — `ResourceManager.h` / `.cpp` keeps a reference-counted residency map keyed by `AssetId`, routes cache misses through the streaming manager, and evicts LRU entries once total bytes exceed a budget; consumers borrow `ResidencyHandle` refs (full rule-of-five) instead of owning decoded bytes directly, and a weak-ptr completion callback keeps stale streaming results from resurrecting evicted entries. |
+| [x] | Mesh importer — `Resources/Formats/GltfMeshImporter.h` / `.cpp` reads `.gltf` / `.glb` (with a hand-rolled JSON parser so the importer carries no external dep) and produces a `Render::MeshAsset`; LOD population from meshopt-simplified copies remains a follow-up but the cold path is in place. |
+| [x] | Texture importer — `Resources/Formats/TextureImporter.h` / `.cpp` reads DDS and KTX2 into a `TextureAsset` with all block-compressed formats (BC1–BC7, ASTC 4×4 / 6×6 / 8×8) covered; byte-offset reads avoid struct-packing traps and the mip chain is produced without a second copy. |
+| [x] | Asset registry / content manifest — `Resources/AssetRegistry.h` / `.cpp` loads a cooked JSON manifest (hand-rolled parser, no external JSON dep) into a stable `AssetId → AssetRegistryEntry` map with `Find`, `FindByKind`, and `GetPrefetchCandidates` lookups; `AssetFlags` surfaces per-entry hints (`kCritical`, `kApronDependency`, `kCooked`, `kEditorOnly`, `kPrefetch`) the streaming orchestrator consumes. |
+| [x] | Streaming budget configuration — `Resources/StreamingBudget.h` / `.cpp` ships per-platform profiles (`DesktopHighEnd`, `DesktopMidRange`, `ConsoleNextGen`, `MobileHigh`, `MobileLow`) with three independent subsystem budgets (raw, decoded mesh, decoded texture), soft / hard limits for each, a `Pressure` ratio that takes the max of the three subsystem pressures, and a `WouldExceedHardLimit` pre-acquisition gate so the streamer can reject new requests before they allocate. |
+| [x] | Typed streaming facades — `Resources/AssetTypes/MeshStreamer.h` / `.cpp` and `TextureStreamer.h` / `.cpp` sit on top of `ResourceManager` and turn raw bytes into decoded `Render::MeshAsset` / `TextureAsset` values; each streamer owns a mutex-guarded decoded cache with its own byte budget so a zone full of 4K textures cannot starve the mesh cache, and the double-check pattern after a decode keeps two worker threads from racing on the same import. |
+| [x] | File asset source — `Resources/FileAssetSource.h` / `.cpp` implements `IAssetSource` with a configurable `PathResolverFn`, 64 KiB chunked reads, and cooperative cancellation polling through `StreamingRequestHandle::CancelRequested`; it is the default backend for development builds and for any deployment that streams from a local content package. |
 
-**`NetworkTransport.h` production upgrade.** Replaced the older
-minimal header with a version that conforms to `CodingStandards.md`:
-documented at every public entry point, uses `asio::error_code`
-(not `std::error_code`), standardises on `std::size_t`, exposes a
-thread-safe `GetStatistics`, and marks return values with
-`[[nodiscard]]`.
+---
 
-**GLM is a concrete dependency, not a viral one.** Section 8 explains
-the convention at length, but the short version is: GLM is fine, and
-the engine uses it as its numerical backend, but `<glm/*>` is allowed
-in exactly one header (`MathGLMBridge.h`). ECS, Replication, Client,
-and Networking headers stay GLM-free. Any future PR that pulls a GLM
-include into those layers should bounce in code review.
+## 17. Gaps and Scaffolding Debt
 
-**Material header stays math-dependency-free.** The material
-description is copied millions of times per frame in the renderer's
-draw-submission path. Pulling the full math library into every
-translation unit that touches a draw call would add measurable
-compile-time cost for no runtime benefit, so `Material.h` defines a
-local `MaterialVec4` and avoids the `Vec3` / `Vec4` public headers.
-Artists and renderer programmers do not interact with `MaterialVec4`
-directly; the asset importer and the renderer both round-trip through
-it without friction.
+Subsystems whose directories exist but whose headers are currently
+empty.  Tracked here so they do not rot silently.
+
+| Status | Item |
+|--------|------|
+| [ ] | `Core/Modules/IModule.h`, `ModuleManager.h`, `ModuleRegistry.h` — hot-pluggable DLL / shared-object module system, currently empty files. |
+| [ ] | `Core/Profiling/ProfilerMacros.h` — empty; needs the `SAGA_PROFILE_SCOPE` zero-cost macro that wraps the existing `Profiler.h` API. |
+| [ ] | `Physics/PhysicsEngine.h` — header is empty even though `SagaPhysicsEngine.cpp` references it; needs the PhysX-backed collision / kinematics surface. |
+| [ ] | `Audio/` — no public headers; `SagaAudioEngine.cpp` compiles against an internal surface that should be promoted to `Engine/include/SagaEngine/Audio/`. |
+| [x] | `World/Partition/Cell.h` / `.cpp` — the atomic streaming unit, with `CellCoord` (injective `PackCellCoord` for hash-table keys), a `CellFootprint` AABB, a `CellState` streaming-lifecycle enum (`Dormant → Prefetching → Loaded → Draining`), a `CellAssetRef` pair so the loader can call `ResourceManager::Acquire` with the right typed `AssetKind` without a registry round-trip, and `CellCoordFromWorld` / `DistanceSqToFootprint` helpers that use `floor` semantics so the grid does not split on the sign boundary. |
+| [x] | `World/Partition/Boundary.h` / `.cpp` — apron descriptor with inner / outer Chebyshev rings, per-ring streaming priorities, a `drainGraceTicks` hysteresis window that stops the loader from thrashing when the player walks along a seam, a `BoundaryRing` classification the loader drives with a single switch, and a `PriorityForRing` mapping so the loader and diagnostics panel agree on the same numbers. |
+| [x] | `World/Partition/Zone.h` / `.cpp` — rectangular grid container keyed by `ZoneId`; `Configure` lays out the cells eagerly with footprints and `Dormant` state, `FindCell` is an O(1) row-major lookup, `WorldToCell` accounts for the zone origin offset, and `ContainsCoord` is the bounds check every cross-zone handshake uses to decide which process owns the destination cell. |
+| [x] | `World/Streaming/LODManager.h` / `.cpp` — distance + budget-pressure LOD selector that emits a `[0, kMaxLodIndex]` index matching the `Render::MeshAsset` LOD layout; pinned entities bypass the distance test but still honour the `residencyFloor` (the renderer cannot draw with bytes that are not in memory), and a configurable `pressureBiasDeadZone` stops the manager from flickering between LODs when pressure hovers near the soft limit. |
+| [x] | `World/Streaming/ResourceStream.h` / `.cpp` — world-level streaming orchestrator that ties `Zone`, `Boundary`, `LODManager`, `ResourceManager`, and `StreamingBudget` together; `Tick(focalX, focalZ, currentTick)` walks the outer-radius square around the focal cell, promotes unknown cells to `Prefetching`, polls residency handles to advance `Prefetching → Loaded`, demotes untouched cells to `Draining`, evicts once the grace window elapses, and returns a `ResourceStreamTickStats` record the diagnostics overlay can display; the tracked-cell map is capped by `maxTrackedCells` so a misconfigured zone cannot grow the table without bound. |
+| [ ] | `Core/Events/EventBus.h` — code exists but does not follow `CodingStandards.md` (missing `/// @file` header, `_mutex` snake_case, no section dividers); needs a style pass. |
+| [ ] | `Networking/Replication/RPC.h` — stub macro file with a TODO `/* Serialize args and send via NetworkTransport */`; needs a real RPC codec and dispatch table. |
+| [ ] | `Networking/Client/Prediction.h` — empty server-side header for client-prediction bookkeeping; needs a type that mirrors the engine-side `ClientPrediction.h`. |
+| [ ] | Math unit tests — no GoogleTest coverage for `Vec3`, `Quat`, `Mat4`, `Transform`, `DeterministicMath`, `DeterministicVectors`, or `MathGLMBridge` round-trips. |
+| [ ] | Resources unit tests — streaming manager cancellation semantics, priority ordering, queue-full backpressure. |
+| [ ] | Render unit tests — material / mesh asset descriptor invariants, shadow cascade split maths.
