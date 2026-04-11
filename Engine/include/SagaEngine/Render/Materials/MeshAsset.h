@@ -85,7 +85,7 @@ struct MeshVertex
     MeshVec2 uv1;
 };
 
-static_assert(sizeof(MeshVertex) == 48,
+static_assert(sizeof(MeshVertex) == 56,
               "MeshVertex layout changed — verify shader bindings");
 
 // ─── Submesh ───────────────────────────────────────────────────────────────
