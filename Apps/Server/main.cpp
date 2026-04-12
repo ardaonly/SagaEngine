@@ -1,11 +1,8 @@
-/*
-    Apps/Server/main.cpp
-    
-    Entry point for the Saga Server application.
-    Intended to run headless simulation, networking, and replication systems.
-    Currently serves as a structural placeholder.
-
-*/
+/// @file main.cpp
+/// @brief Entry point for the Saga Server application.
+///
+/// Runs headless simulation, networking, and replication systems.
+/// Currently serves as a structural placeholder.
 
 #include "SagaEngine/Core/Application/Application.h"
 #include "SagaEngine/Core/Log/Log.h"

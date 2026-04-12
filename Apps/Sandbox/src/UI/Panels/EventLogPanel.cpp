@@ -33,12 +33,12 @@ EventLogPanel* EventLogPanel::s_instance = nullptr;
 EventLogPanel::EventLogPanel()
 {
     s_instance = this;
-    // TODO: SagaEngine::Core::Log::SetSink(&EventLogPanel::LogHook);
+    SagaEngine::Core::Log::SetSink(&EventLogPanel::LogHook);
 }
 
 EventLogPanel::~EventLogPanel()
 {
-    // TODO: SagaEngine::Core::Log::SetSink(nullptr);
+    SagaEngine::Core::Log::SetSink(nullptr);
     s_instance = nullptr;
 }
 
