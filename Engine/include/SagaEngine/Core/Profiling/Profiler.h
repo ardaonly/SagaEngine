@@ -76,4 +76,7 @@ private:
         } \
     } __profilerGuard_##__LINE__
 
+#define SAGA_PROFILE_FUNCTION() \
+    SAGA_PROFILE_SCOPE(__FUNCTION__)
+
 } // namespace SagaEngine::Core
