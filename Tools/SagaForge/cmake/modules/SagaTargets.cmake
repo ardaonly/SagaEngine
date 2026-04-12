@@ -73,11 +73,45 @@ function(saga_create_engine_targets)
     )
 
     # ─── Uygulama Executable'ları ─────────────────────────────────────────────
-    add_executable(SagaApp    ${SAGA_ROOT}/Apps/Client/main.cpp)
-    add_executable(SagaServer ${SAGA_ROOT}/Apps/Server/main.cpp)
+    # Client app sources: main.cpp + ClientHost (ClientNetworkSession is inline in .cpp)
+    set(SAGA_CLIENT_SOURCES
+        ${SAGA_ROOT}/Apps/Client/main.cpp
+        ${SAGA_ROOT}/Apps/Client/ClientHost.h
+        ${SAGA_ROOT}/Apps/Client/ClientHost.cpp
+    )
+
+    add_executable(SagaApp ${SAGA_CLIENT_SOURCES})
+
+    target_include_directories(SagaApp PRIVATE
+        ${SAGA_ROOT}/Apps/Client
+    )
+
+    target_compile_definitions(SagaApp PRIVATE SDL_MAIN_HANDLED)
+
+    saga_apply_compiler_flags(SagaApp)
+    saga_link_thirdparty(SagaApp)
+    target_link_libraries(SagaApp PRIVATE
+        SagaEngine
+        SagaBackend
+    )
+
+    set_target_properties(SagaApp PROPERTIES
+        OUTPUT_NAME "SagaClient"
+        FOLDER      "Apps"
+    )
+
+    add_executable(SagaServer
+        ${SAGA_ROOT}/Apps/Server/main.cpp
+        ${SAGA_ROOT}/Apps/Server/TestSnapshotServer.h
+        ${SAGA_ROOT}/Apps/Server/TestSnapshotServer.cpp
+    )
+
+    target_include_directories(SagaServer PRIVATE
+        ${SAGA_ROOT}/Apps/Server
+    )
     add_executable(SagaEditor ${SAGA_ROOT}/Apps/Editor/main.cpp)
 
-    foreach(app SagaApp SagaServer SagaEditor)
+    foreach(app SagaServer SagaEditor)
         saga_apply_compiler_flags(${app})
         saga_link_thirdparty(${app})
         target_link_libraries(${app} PRIVATE
