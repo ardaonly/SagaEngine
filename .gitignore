@@ -41,6 +41,7 @@ cache/conan/*
 *.sdf
 *.VC.db
 *.VC.opendb
+*.CMakeUserPresets.json
 
 .vs/
 .vscode/

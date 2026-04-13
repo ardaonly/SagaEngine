@@ -31,7 +31,9 @@ bool ReplicationApplyBridge::Configure(
     SnapshotFrameDecodeFn                                   decodeFull,
     SnapshotFrameDecodeFn                                   decodeDelta,
     const ReplicationApplyBridgeConfig&                     config,
-    const SnapshotPipelineConfig&                           pipelineConfig)
+    const SnapshotPipelineConfig&                           pipelineConfig,
+    FullSnapshotApplyFn                                     applyFull,
+    DeltaSnapshotApplyFn                                    applyDelta)
 {
     if (world == nullptr)
     {
@@ -61,6 +63,8 @@ bool ReplicationApplyBridge::Configure(
     interpolation_  = interpolation;
     decodeFull_     = std::move(decodeFull);
     decodeDelta_    = std::move(decodeDelta);
+    applyFullEcs_   = std::move(applyFull);
+    applyDeltaEcs_  = std::move(applyDelta);
     config_         = config;
 
     if (config_.serverTickHz < kMinServerTickHz)
@@ -138,9 +142,25 @@ void ReplicationApplyBridge::Reset()
 // ─── OnFullApply ──────────────────────────────────────────────────────────
 
 bool ReplicationApplyBridge::OnFullApply(
-    SagaEngine::Simulation::WorldState& /*world*/,
+    SagaEngine::Simulation::WorldState& world,
     const DecodedWorldSnapshot&         snapshot)
 {
+    // 1. ECS write path — decode snapshot wire format into WorldState.
+    if (applyFullEcs_)
+    {
+        if (!applyFullEcs_(world, snapshot))
+        {
+            ++stats_.fullDecodeFailures;
+            LOG_WARN(kLogTag,
+                     "ReplicationApplyBridge: ECS full snapshot apply failed at "
+                     "tick=%llu (payload=%zu B)",
+                     static_cast<unsigned long long>(snapshot.serverTick),
+                     snapshot.payload.size());
+            return false;
+        }
+    }
+
+    // 2. Decode into intermediate frame for routing.
     DecodedSnapshotFrame frame;
     frame.entities.reserve(snapshot.entityCount);
 
@@ -166,9 +186,26 @@ bool ReplicationApplyBridge::OnFullApply(
 // ─── OnDeltaApply ─────────────────────────────────────────────────────────
 
 bool ReplicationApplyBridge::OnDeltaApply(
-    SagaEngine::Simulation::WorldState& /*world*/,
+    SagaEngine::Simulation::WorldState& world,
     const DecodedDeltaSnapshot&         delta)
 {
+    // 1. ECS write path — apply delta patches to WorldState.
+    if (applyDeltaEcs_)
+    {
+        if (!applyDeltaEcs_(world, delta))
+        {
+            ++stats_.deltaDecodeFailures;
+            LOG_WARN(kLogTag,
+                     "ReplicationApplyBridge: ECS delta apply failed at "
+                     "serverTick=%llu baseline=%llu (payload=%zu B)",
+                     static_cast<unsigned long long>(delta.serverTick),
+                     static_cast<unsigned long long>(delta.baselineTick),
+                     delta.payload.size());
+            return false;
+        }
+    }
+
+    // 2. Decode into intermediate frame for routing.
     DecodedSnapshotFrame frame;
     frame.entities.reserve(delta.dirtyEntityCount);
 

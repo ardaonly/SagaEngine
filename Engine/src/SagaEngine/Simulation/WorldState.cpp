@@ -357,6 +357,11 @@ ComponentBlock& WorldState::GetOrCreateBlock(ComponentTypeId id, std::size_t str
     return m_blocks.emplace(id, std::move(block)).first->second;
 }
 
+ComponentBlock& WorldState::GetOrCreateBlockRaw(ComponentTypeId id, std::size_t stride)
+{
+    return GetOrCreateBlock(id, stride);
+}
+
 void WorldState::EnsureVersionCapacity(EntityId id)
 {
     if (static_cast<std::size_t>(id) >= m_versions.size())
