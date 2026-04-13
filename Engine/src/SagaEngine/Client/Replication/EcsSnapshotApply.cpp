@@ -57,15 +57,139 @@ void AuthorityTable::Reset() noexcept
 FullSnapshotApplyFn MakeFullSnapshotApplyFn(const AuthorityTable& authority)
 {
     return [&authority](Simulation::WorldState& world, const DecodedWorldSnapshot& snapshot) -> bool {
-        (void)world;
-        (void)authority;
-        (void)snapshot;
+        // Decode the snapshot payload using the wire format:
+        //   [entityId:4][componentCount:2]
+        //   [Per Component: typeId(2) | dataLen(2) | data(N)]
+        const std::uint8_t* payload = snapshot.payload.data();
+        std::size_t remaining = snapshot.payload.size();
 
-        // Full snapshot apply requires deserializing the server's WorldState
-        // blob and merging server-owned components into the client world.
-        // This is a placeholder that returns true — the full implementation
-        // would deserialize the payload and selectively overwrite components
-        // based on the authority table.
+        // Track which entity IDs the server sent for despawning stale client entities.
+        std::vector<std::uint32_t> serverEntityIds;
+        serverEntityIds.reserve(snapshot.entityCount);
+
+        while (remaining >= 6)
+        {
+            std::uint32_t entityId = 0;
+            std::uint16_t compCount = 0;
+            std::memcpy(&entityId, payload, 4);
+            std::memcpy(&compCount, payload + 4, 2);
+            payload += 6;
+            remaining -= 6;
+
+            serverEntityIds.push_back(entityId);
+
+            // Create the entity in the WorldState.
+            // Check if it already exists first.
+            bool entityExists = world.IsAlive(entityId);
+            if (!entityExists)
+            {
+                auto handle = world.CreateEntity();
+                if (handle.id != entityId)
+                {
+                    // The ECS assigned a different ID — this shouldn't happen
+                    // if server and client both start from ID 1 sequentially.
+                    LOG_WARN(kLogTag,
+                             "EcsSnapshotApply: entity ID mismatch: expected %u, got %u",
+                             entityId, handle.id);
+                }
+            }
+
+            for (std::uint16_t c = 0; c < compCount; ++c)
+            {
+                if (remaining < 4)
+                {
+                    LOG_ERROR(kLogTag,
+                              "EcsSnapshotApply: component header truncated "
+                              "(remaining=%zu, need=4)",
+                              remaining);
+                    return false;
+                }
+
+                std::uint16_t typeId = 0, dataLen = 0;
+                std::memcpy(&typeId, payload, 2);
+                std::memcpy(&dataLen, payload + 2, 2);
+                payload += 4;
+                remaining -= 4;
+
+                if (dataLen > remaining)
+                {
+                    LOG_ERROR(kLogTag,
+                              "EcsSnapshotApply: component dataLen %u exceeds remaining %zu",
+                              static_cast<unsigned>(dataLen), remaining);
+                    return false;
+                }
+
+                // Check authority — skip ClientOnly components.
+                ReplicationAuthority auth = authority.Get(typeId);
+                if (auth == ReplicationAuthority::ClientOnly)
+                {
+                    payload += dataLen;
+                    remaining -= dataLen;
+                    continue;
+                }
+
+                // Write raw component bytes into the WorldState block.
+                Simulation::ComponentBlock* block = world.GetBlock(typeId);
+                if (!block)
+                {
+                    // Block doesn't exist — create it now.
+                    // This happens on the first snapshot for each component type.
+                    block = &world.GetOrCreateBlockRaw(typeId, static_cast<std::size_t>(dataLen));
+                }
+
+                if (block->stride != dataLen)
+                {
+                    LOG_WARN(kLogTag,
+                             "EcsSnapshotApply: component type %u stride mismatch: "
+                             "expected %zu, got %u",
+                             static_cast<unsigned>(typeId), block->stride,
+                             static_cast<unsigned>(dataLen));
+                    payload += dataLen;
+                    remaining -= dataLen;
+                    continue;
+                }
+
+                // Find or create slot for this entity.
+                auto it = block->entityToSlot.find(entityId);
+                if (it != block->entityToSlot.end())
+                {
+                    // Overwrite existing component in-place.
+                    std::uint8_t* dest = block->data.data() + it->second * block->stride;
+                    std::memcpy(dest, payload, dataLen);
+                }
+                else
+                {
+                    // Append new component slot.
+                    std::uint32_t slot = static_cast<std::uint32_t>(block->entities.size());
+                    block->entities.push_back(entityId);
+                    block->data.resize(block->data.size() + block->stride);
+                    std::uint8_t* dest = block->data.data() + slot * block->stride;
+                    std::memcpy(dest, payload, dataLen);
+                    block->entityToSlot.emplace(entityId, slot);
+                }
+
+                payload += dataLen;
+                remaining -= dataLen;
+            }
+        }
+
+        // Despawn client entities that the server no longer sends.
+        // This is a simple approach: for a full snapshot, any alive entity
+        // on the client that isn't in the server's list should be removed.
+        // NOTE: This is O(N*M) — fine for test, needs optimization for production.
+        auto aliveEntities = world.GetAliveEntities();
+        for (auto eid : aliveEntities)
+        {
+            bool found = false;
+            for (auto sid : serverEntityIds)
+            {
+                if (eid == sid) { found = true; break; }
+            }
+            if (!found)
+            {
+                world.DestroyEntity(eid);
+            }
+        }
 
         return true;
     };

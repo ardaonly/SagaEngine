@@ -6,11 +6,13 @@
 #include "ClientHost.h"
 #include <SagaEngine/Core/Log/Log.h>
 #include <SagaEngine/Core/Time/Time.h>
+#include <SagaEngine/ECS/ComponentRegistry.h>
 #include <SagaEngine/Input/Commands/InputCommand.h>
 #include <SagaEngine/Math/Transform.h>
 
 #include <SagaEngine/Client/Interpolation/InterpolationBuffer.h>
 #include <SagaEngine/Client/Prediction/ReconciliationBuffer.h>
+#include <SagaEngine/Client/Replication/EcsSnapshotApply.h>
 #include <SagaEngine/Client/Replication/PacketDemux.h>
 #include <SagaEngine/Client/Replication/ReplicationApplyBridge.h>
 #include <SagaEngine/Client/Replication/ReplicationStateMachine.h>
@@ -37,6 +39,20 @@
 #include <vector>
 
 namespace Saga {
+
+// ─── Test component definition (must match server layout) ─────────────────
+
+/// Client-side mirror of the server's TestTransformComponent.
+/// Layout: float x,y,z, rotX,rotY,rotZ (24 bytes, packed).
+struct alignas(8) ClientTestTransformComponent
+{
+    float x = 0.0f, y = 0.0f, z = 0.0f;
+    float rotX = 0.0f, rotY = 0.0f, rotZ = 0.0f;
+};
+static_assert(sizeof(ClientTestTransformComponent) == 24,
+              "ClientTestTransformComponent size mismatch");
+
+static constexpr uint32_t kTestTransformTypeId = 1001;
 
 // ─── Namespace aliases (cpp-only, no header pollution) ────────────────────
 
@@ -219,6 +235,19 @@ private:
 bool ClientNetworkSession::Configure(const ClientSessionConfig& config)
 {
     m_config = config;
+
+    // ── 0. Register test components for ECS serialization ───────────────────
+    {
+        auto& cr = ECS::ComponentRegistry::Instance();
+        if (!cr.IsRegistered<ClientTestTransformComponent>())
+        {
+            SAGA_REGISTER_COMPONENT(ClientTestTransformComponent, kTestTransformTypeId);
+        }
+
+        // Register authority: TestTransformComponent is ServerOwned.
+        ClientRep::g_AuthorityTable.Register(
+            kTestTransformTypeId, ClientRep::ReplicationAuthority::ServerOwned);
+    }
 
     // ── 1. Transport ────────────────────────────────────────────────────────
     m_transport = Net::TransportFactory::Create(true /* UDP */);
@@ -472,6 +501,10 @@ bool ClientNetworkSession::SetupBridge()
     m_bridgeConfig.positionErrorThresholdSq = m_config.positionErrorThresholdSq;
     m_bridgeConfig.serverTickHz             = m_config.serverTickHz;
 
+    // Build ECS apply functions from the authority table.
+    auto ecsFull  = ClientRep::MakeFullSnapshotApplyFn(ClientRep::g_AuthorityTable);
+    auto ecsDelta = ClientRep::MakeDeltaSnapshotApplyFn(ClientRep::g_AuthorityTable);
+
     auto ok = m_bridge.Configure(
         m_pipeline,
         &m_world,
@@ -483,7 +516,10 @@ bool ClientNetworkSession::SetupBridge()
         [this](const std::vector<std::uint8_t>& payload, ClientRep::DecodedSnapshotFrame& out) {
             return DecodeDeltaSnapshot(payload, out);
         },
-        m_bridgeConfig);
+        m_bridgeConfig,
+        {},  // default pipeline config
+        std::move(ecsFull),
+        std::move(ecsDelta));
 
     if (!ok)
         return false;
@@ -504,42 +540,51 @@ bool ClientNetworkSession::DecodeFullSnapshot(const std::vector<std::uint8_t>& p
     if (payload.empty())
         return false;
 
-    // Decode using the wire format decoder.
-    auto result = ClientRep::DecodeSnapshotWire(payload.data(), payload.size());
-    if (!result.success)
+    // The payload here is the entity/component data AFTER the 88-byte extended header
+    // was already parsed and validated by PacketDemux.
+    // Wire format per entity: [entityId:4][compCount:2][typeId:2][dataLen:2][data:N]...
+    const std::uint8_t* data = payload.data();
+    std::size_t remaining = payload.size();
+
+    LOG_INFO(kTag, "Decoded snapshot payload: %zu bytes", remaining);
+
+    while (remaining >= 6)
     {
-        LOG_ERROR(kTag, "Wire decode failed: %s", result.error.c_str());
-        return false;
-    }
+        std::uint32_t entityId = 0;
+        std::uint16_t compCount = 0;
+        std::memcpy(&entityId, data, 4);
+        std::memcpy(&compCount, data + 4, 2);
+        data += 6; remaining -= 6;
 
-    const auto& wire = result.decoded;
-
-    LOG_INFO(kTag, "Decoded snapshot: tick=%llu entities=%u schema=%u",
-             static_cast<unsigned long long>(wire.serverTick),
-             wire.entityCount, wire.schemaVersion);
-
-    // Extract entity transforms from component data.
-    // TestTransformComponent: float x,y,z, rotX,rotY,rotZ (24 bytes, typeId=1001)
-    // TestIdentityComponent: uint32 typeId + char name[32] (36 bytes, typeId=1002)
-    for (const auto& entity : wire.entities)
-    {
         ClientRep::SnapshotEntityState entityState;
-        entityState.entityId = entity.entityId;
+        entityState.entityId = entityId;
 
-        // Find the TestTransformComponent (typeId 1001).
-        for (const auto& comp : entity.components)
+        for (std::uint16_t c = 0; c < compCount && remaining >= 4; ++c)
         {
-            if (comp.typeId == 1001 && comp.dataLen >= 24)
+            std::uint16_t typeId = 0, dataLen = 0;
+            std::memcpy(&typeId, data, 2);
+            std::memcpy(&dataLen, data + 2, 2);
+            data += 4; remaining -= 4;
+
+            if (dataLen > remaining)
             {
-                // Extract position from component data.
+                LOG_WARN(kTag, "Snapshot component dataLen %u exceeds remaining %zu",
+                         static_cast<unsigned>(dataLen), remaining);
+                return false;
+            }
+
+            // Extract transform from TestTransformComponent (typeId 1001).
+            if (typeId == 1001 && dataLen >= 24)
+            {
                 float x, y, z;
-                std::memcpy(&x, comp.data, 4);
-                std::memcpy(&y, comp.data + 4, 4);
-                std::memcpy(&z, comp.data + 8, 4);
+                std::memcpy(&x, data, 4);
+                std::memcpy(&y, data + 4, 4);
+                std::memcpy(&z, data + 8, 4);
                 entityState.transform = SagaEngine::Math::Transform::FromPosition(
                     SagaEngine::Math::Vec3(x, y, z));
-                break;
             }
+
+            data += dataLen; remaining -= dataLen;
         }
 
         outFrame.entities.push_back(entityState);

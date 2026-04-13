@@ -172,6 +172,11 @@ public:
     /// The `reconciliation` and `interpolation` parameters are optional
     /// — a null pointer disables the corresponding side of the bridge.
     /// At least one must be non-null or the call returns false.
+    ///
+    /// The optional `applyFull` and `applyDelta` callbacks are invoked
+    /// on the world *before* routing decoded state to prediction /
+    /// interpolation.  They are the ECS write path (e.g. produced by
+    /// `MakeFullSnapshotApplyFn` / `MakeDeltaSnapshotApplyFn`).
     bool Configure(
         SnapshotApplyPipeline&                                      pipeline,
         SagaEngine::Simulation::WorldState*                         world,
@@ -180,7 +185,9 @@ public:
         SnapshotFrameDecodeFn                                       decodeFull,
         SnapshotFrameDecodeFn                                       decodeDelta,
         const ReplicationApplyBridgeConfig&                         config = {},
-        const SnapshotPipelineConfig&                               pipelineConfig = {});
+        const SnapshotPipelineConfig&                               pipelineConfig = {},
+        FullSnapshotApplyFn                                         applyFull = {},
+        DeltaSnapshotApplyFn                                        applyDelta = {});
 
     /// Install the replay callback forwarded into
     /// `ReconciliationBuffer::AcknowledgeAndReconcile`.  Optional — if
@@ -260,6 +267,10 @@ private:
     SnapshotFrameDecodeFn                                                   decodeFull_;
     SnapshotFrameDecodeFn                                                   decodeDelta_;
     SagaEngine::Client::Prediction::ReconciliationBuffer<>::ReplayFn        replayFn_;
+
+    // ECS write-path callbacks — optional, called before routing.
+    FullSnapshotApplyFn                                                     applyFullEcs_;
+    DeltaSnapshotApplyFn                                                    applyDeltaEcs_;
 
     ReplicationApplyBridgeConfig                                            config_{};
     ReplicationApplyBridgeStats                                             stats_{};
