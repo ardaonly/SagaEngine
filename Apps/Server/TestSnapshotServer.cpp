@@ -20,7 +20,7 @@ using namespace SagaEngine::Simulation;
 
 // ─── Test component (for snapshot serialization) ─────────────────────────────
 
-struct TestTransformComponent
+struct alignas(8) TestTransformComponent
 {
     float x = 0.0f, y = 0.0f, z = 0.0f;
     float rotX = 0.0f, rotY = 0.0f, rotZ = 0.0f;
@@ -40,6 +40,14 @@ static constexpr uint32_t kTestIdentityTypeId  = 1002;
 bool TestSnapshotServer::Init(const TestServerConfig& config) noexcept
 {
     m_config = config;
+
+    // Register test components for ECS AddComponent<T> to work.
+    auto& cr = SagaEngine::ECS::ComponentRegistry::Instance();
+    if (!cr.IsRegistered<TestTransformComponent>())
+    {
+        SAGA_REGISTER_COMPONENT(TestTransformComponent, kTestTransformTypeId);
+        SAGA_REGISTER_COMPONENT(TestIdentityComponent, kTestIdentityTypeId);
+    }
 
     try
     {
@@ -62,10 +70,6 @@ bool TestSnapshotServer::Init(const TestServerConfig& config) noexcept
         LOG_ERROR("TestServer", "Failed to bind: %s", e.what());
         return false;
     }
-
-    // Register test components.
-    // Note: In production, components are registered via SAGA_REGISTER_COMPONENT.
-    // For this test, we use raw serialization.
 
     // Create test entities in the world.
     for (uint32_t i = 0; i < m_config.testEntityCount; ++i)
@@ -248,10 +252,15 @@ void TestSnapshotServer::SendSnapshotToClient() noexcept
         }
     }
 
-    // Compute CRC32 of payload.
-    uint32_t crc32 = 0;
-    // Simple CRC32 placeholder — in production use ComputeCRC32.
-    for (auto b : payload) crc32 = crc32 * 31 + b;
+    // Compute CRC32 of payload (IEEE 802.3 polynomial, matching client's ComputeCRC32).
+    uint32_t crc32 = 0xFFFFFFFFu;
+    for (auto b : payload)
+    {
+        crc32 ^= static_cast<uint32_t>(b);
+        for (int bit = 0; bit < 8; ++bit)
+            crc32 = (crc32 >> 1) ^ ((crc32 & 1) ? 0xEDB88320u : 0);
+    }
+    crc32 ^= 0xFFFFFFFFu;
 
     // Build extended header.
     uint64_t serverTick = m_snapshotCount * 60;
@@ -260,7 +269,7 @@ void TestSnapshotServer::SendSnapshotToClient() noexcept
             std::chrono::steady_clock::now().time_since_epoch()).count());
     uint32_t zoneId = 1;
     uint32_t shardId = 1;
-    uint32_t byteLength = static_cast<uint32_t>(payload.size());
+    uint64_t byteLength = static_cast<uint64_t>(payload.size());
     uint32_t schemaVersion = 1;
     uint32_t protocolVersion = 1;
 
@@ -291,6 +300,8 @@ void TestSnapshotServer::SendSnapshotToClient() noexcept
     // Wrap in a Packet with Snapshot type.
     Packet pkt(PacketType::Snapshot);
     pkt.WriteBytes(snapshotData.data(), snapshotData.size());
+    pkt.SetSequence(static_cast<uint32_t>(m_snapshotCount + 1));
+    pkt.SetTimestamp(static_cast<uint32_t>(serverTick));
 
     auto data = pkt.GetSerializedData();
 
@@ -362,6 +373,7 @@ void TestSnapshotServer::HandleInputPacket(const uint8_t* data, std::size_t size
             m_inputSeq++;
             Packet ack(PacketType::InputAck);
             ack.Write(m_inputSeq);
+            ack.SetSequence(static_cast<uint32_t>(m_inputSeq + 1000));
             auto d = ack.GetSerializedData();
             m_socket->send_to(asio::buffer(d), m_clientEndpoint);
             break;

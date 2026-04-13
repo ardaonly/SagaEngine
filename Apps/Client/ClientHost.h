@@ -3,8 +3,7 @@
 ///
 /// Layer  : Apps / Client
 /// Purpose: Single-file client host.  Network session is defined inline
-///          in ClientHost.cpp to avoid stale-header cache issues on the
-///          OneDrive-mounted dev path.
+///          in ClientHost.cpp to avoid stale-header.
 ///
 /// MMO client loop (every frame):
 ///   1. Recv → Decode → Apply → ECS

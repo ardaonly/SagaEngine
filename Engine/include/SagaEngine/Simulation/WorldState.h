@@ -123,6 +123,11 @@ public:
     [[nodiscard]] const ComponentBlock* GetBlock(ComponentTypeId id) const noexcept;
     [[nodiscard]]       ComponentBlock* GetBlock(ComponentTypeId id)       noexcept;
 
+    /// Low-level: return or create a block for a component type with the given stride.
+    /// Used by the replication pipeline to create blocks for known component types
+    /// without needing the C++ type at compile time.
+    ComponentBlock& GetOrCreateBlockRaw(ComponentTypeId id, std::size_t stride);
+
     /// Return the set of all alive entity IDs (for ECS::Query integration).
     [[nodiscard]] const std::unordered_set<EntityId>& GetAliveEntities() const noexcept
     {
