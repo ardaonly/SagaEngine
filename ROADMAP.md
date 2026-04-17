@@ -1,6 +1,6 @@
 # SagaEngine — Production MMO Engine Roadmap
 
-> Last updated: 2026-04-11 (World partition + streaming orchestrator, section 16 / 17)
+> Last updated: 2026-04-16
 > Target: A production-grade authoritative multiplayer engine core.
 
 This document is the single source of truth for what SagaEngine has
@@ -415,7 +415,8 @@ the ECS was one of the first subsystems to stabilise.
 | Status | Item |
 |--------|------|
 | [x] | Entity, component, archetype, query, system. |
-| [x] | `ComponentRegistry` and `ComponentSerializerRegistry`. |
+| [x] | `ComponentRegistry` with explicit ID assignment (`Register<T>(id, name)`) — no auto-increment, deterministic across binaries. |
+| [x] | `ComponentSerializerRegistry` with explicit deterministic ID assignment — `Register<T>(id, name, ser, deser, size)` replaces the old auto-increment `RegisterComponent`; collisions throw `std::logic_error`; `Reset()` for test teardown. |
 | [x] | Archetype migration — runtime component add / remove. |
 | [x] | Parallel system execution — `ParallelSystemExecutor.h` (see section 7) wraps `TaskGraph` so a `WorldState` can opt into parallel ticks with explicit dependency declarations. |
 | [x] | Event-driven component observers. |
@@ -444,6 +445,50 @@ descriptions that both the renderer and the asset pipeline agree on.
 | [ ] | Shadow atlas allocator + cascade split implementation (consumes `ShadowPassDescriptor` and `DirectionalCascadeConfig`). |
 | [ ] | Post-processing runtime — the actual shaders, temporary targets, and frame-graph wiring for tonemap / bloom / motion blur / DoF. |
 | [ ] | `GBufferPass.h` / `LightingPass.h` — currently empty descriptor headers; needs `GBufferBinding`, `LightingUniforms`, and the render-graph consumer contract. |
+
+---
+
+## 15.5. World Kernel
+
+The World Kernel is the server-side simulation core that replaces the
+old ZoneServer.  It owns dynamic simulation cells (SimCells),
+multi-rate domain scheduling, event-sourced state via an append-only
+EventStream, context-based interest management via the RelevanceGraph,
+and the WorldNode process that ties everything together.
+
+| Status | Item |
+|--------|------|
+| [x] | SimCell identity and footprint — `SimCellId` (world-coord + generation), `SimCellFootprint` (AABB with `ContainsPoint` / `DistanceSqToPoint`), and `CoordFromWorld` / `DistanceSqCoordToWorldPoint` helpers. |
+| [x] | SimCell state machine — `Dormant → Loading → Active → {Splitting | Merging | Migrating} → Dormant` with `SetState()` and event recording. |
+| [x] | SimCell entity management — `AddEntity`, `RemoveEntity`, `HasEntity`, `Entities()`, and `EntityCount()` with automatic event logging. |
+| [x] | SimCell domain registration — `RegisterDomains` / `UnregisterDomains` with `SimDomainMask` bitmask for Combat, Movement, Economy, Politics, Ecology, Narrative. |
+| [x] | SimCell metrics and thresholds — `SimCellMetrics` (entity/player/NPC count, CPU load, memory), `SimCellThresholds` (max/min entities, player limits, merge grace period), and `UpdateMetrics()` with automatic low-state tracking. |
+| [x] | SimCell split/merge decision logic — `ShouldSplit()` (entity count or player count exceeds threshold) and `ShouldMerge()` (entity count below minimum for grace period). |
+| [x] | SimCell split/merge execution — `ExecuteSplit()` returns two child cell IDs with entity partition, `ExecuteMergeInto()` transfers all entities to target cell and sets source to Dormant. |
+| [x] | SimCell event log — `AppendEvent()`, `DrainEvents()`, and `SimCellEvent` type with timestamp, world tick, entity reference, and scalar payload. |
+| [x] | DomainScheduler multi-rate ticking — `RegisterDomain`, `RegisterCell`, `Tick()` returns `outFiringDomains` with accumulator-based fractional tick scheduling (60 Hz Combat, 20 Hz Movement, 1 Hz Economy, event-driven Politics/Ecology/Narrative). |
+| [x] | DomainScheduler cell management — per-domain cell registry with `RegisterCell`, `UnregisterCell`, `UnregisterCellAll`, and `GetDomainCells()` for WorldNode dispatch. |
+| [x] | DomainScheduler stats — `DomainStats` with `totalTicksFired`, `lastFireWorldTick`, and `subTickAccumulator` for diagnostic overlay. |
+| [x] | EventStream append-only log — `Append()`, `AppendBatch()` with auto-sequencing, `ReplayFromStart`, `ReplayFromSnapshot`, `ReplayRange`, `GetEventsAfter`, and `GetEvent()` by sequence. |
+| [x] | EventStream disk persistence — `Open()` (Windows HANDLE / POSIX FILE*), `Close()`, `FlushPending()` (64 KiB buffer with fsync), `LoadFromFile()` (binary format parse), `SaveSnapshot()` / `LoadLatestSnapshot()` (separate snapshot file), and `SerializeEvent()` / `DeserializeEvent()` (40-byte header + variable payload). |
+| [x] | EventStream snapshot support — `WorldSnapshot` with `baseSequence`, `worldTick`, `timestampUs`, and `stateData` blob; `TakeSnapshot()` and `LatestSnapshot()` for periodic checkpointing. |
+| [x] | RelevanceGraph directed interest — `RelevanceEdge` (target, weight, reason, context), `SetEdge` / `RemoveSource` / `RemoveTarget`, adjacency list with `TotalEdges()` and `SourceCount()`. |
+| [x] | RelevanceGraph rule system — `RelevanceRule` with `computeWeight` functor, `AddRule` / `ClearRules`, eight reason types (Spatial, CombatTarget, RaidMember, GuildRelation, Economy, Narrative, GlobalInterest, Custom). |
+| [x] | RelevanceGraph rebuild — `Rebuild()` evaluates all rules for all entity pairs (O(N²)), `IncrementalUpdate()` for single-entity changes, `SetEntityList()` for WorldNode integration. |
+| [x] | RelevanceGraph queries — `Query(source, minWeight)` returns sorted `RelevanceResult` list (max weight across reasons), `GetWeight(source, target)`, and `GetEdgesFrom(source)`. |
+| [x] | WorldNode lifecycle — `Init()` (registers 6 default domains), `Tick()` (6-phase pipeline: DrainInput → StepSimulation → FireDomains → UpdateRelevance → ReplicateToClients → FlushEvents), `Shutdown()`. |
+| [x] | WorldNode cell management — `GetOrCreateCell` (coord-packed hash map), `GetCell`, `RemoveCell`, `Cells()`, with automatic event logging and scheduler registration. |
+| [x] | WorldNode entity management — `SpawnEntity`, `DespawnEntity`, `MoveEntity` (cross-cell transfer), `GetEntityCell`, with entity→cell coord mapping for O(1) lookup. |
+| [x] | WorldNode client sessions — `AddClientSession`, `RemoveClientSession`, `GetClientSession`, `ClientSession` struct with `controlledEntity`, `lastAckedTick`, `lastSeenEventSeq`, `wantsFullSnapshot`, `currentCell`. |
+| [x] | WorldNode domain dispatch — `RegisterDomain` with callback registration, `SetDomainDispatcher` (called when domains fire), `FireDomains()` iterates scheduler output and dispatches per-cell tick with subTick accumulator. |
+| [x] | WorldNode relevance integration — `UpdateRelevance()` collects all entities, calls `SetEntityList()` and `Rebuild()` on the graph, with query counter tracking. |
+| [x] | WorldNode replication — `ReplicateToClient()` sends events after client's `lastSeenEventSeq`, tracks `snapshotsSent` / `deltasSent`, and clears `wantsFullSnapshot` flag after first send. |
+| [x] | WorldNode event flushing — `FlushEvents()` drains per-cell event logs to the global EventStream, converting `SimCellEvent` to `WorldEvent` with cell ID and world tick. |
+| [ ] | WorldNode input drain — `DrainInput()` stub; needs client session input queue integration. |
+| [ ] | WorldNode simulation step — `StepSimulation()` stub; needs ECS system tick integration. |
+| [ ] | WorldNode snapshot serialization — `ReplicateToClient()` TODO: actual snapshot/delta encode for client delivery. |
+| [ ] | SimCell spatial split — `ExecuteSplit()` currently does round-robin partition; needs position-based entity partition using ECS transform query. |
+| [ ] | WorldNode cell migration — `Migrating` state defined but no cross-node transfer logic yet. |
 
 ---
 
@@ -603,3 +648,61 @@ empty.  Tracked here so they do not rot silently.
 | [ ] | Math unit tests — no GoogleTest coverage for `Vec3`, `Quat`, `Mat4`, `Transform`, `DeterministicMath`, `DeterministicVectors`, or `MathGLMBridge` round-trips. |
 | [ ] | Resources unit tests — streaming manager cancellation semantics, priority ordering, queue-full backpressure. |
 | [ ] | Render unit tests — material / mesh asset descriptor invariants, shadow cascade split maths.
+
+---
+
+## 18. Reliability, Observability, and Validation
+
+This section covers the cross-cutting reliability stack that spans engine code,
+developer tools, and CI infrastructure. It is not a single subsystem and it is
+not a test folder. Engine code emits structured signals and lightweight
+assertions; tools consume those signals to reproduce failures; CI gates enforce
+that regressions never merge.
+
+The goal is to catch memory leaks, resource leaks, state corruption, determinism
+drift, replication bugs, and unsafe failure modes before they reach production.
+The engine should stay cheap in the hot path; heavier inspection, replay
+analysis, and chaos orchestration belong outside the runtime.
+
+### 18.1 Engine Instrumentation
+
+| Status | Item |
+|--------|------|
+| [x] | Logging hooks for runtime diagnostics and crash reporting. |
+| [x] | Memory and resource tracking scaffolding for allocation lifetime visibility. |
+| [x] | Determinism and state validation helpers for simulation regression detection. |
+| [x] | Lightweight runtime counters for tick time, bandwidth, and residency pressure. |
+| [ ] | Unified runtime assertion and invariant framework for core subsystems. |
+| [ ] | Leak markers for engine-owned allocations, handles, and streaming resources. |
+| [ ] | Replay-friendly trace points for simulation, replication, and input flow. |
+
+### 18.2 Validation Tools
+
+| Status | Item |
+|--------|------|
+| [x] | Network chaos coverage for drop, reorder, latency, corruption, and gap storms. |
+| [x] | Soak, stress, and adversarial harnesses for long-running server stability. |
+| [ ] | Replay capture and replay verification toolchain for deterministic reproduction. |
+| [ ] | State diff and snapshot comparison tools for simulation and replication debugging. |
+| [ ] | Memory and resource leak analysis tools for engine-owned objects and handles. |
+| [ ] | Log correlation viewer for matching traces, state hashes, and failure markers. |
+| [ ] | Failure reproduction runner that can execute a captured scenario locally. |
+
+### 18.3 CI and Build Matrix
+
+| Status | Item |
+|--------|------|
+| [ ] | Build matrix coverage across sanitizers, platforms, and feature combinations. |
+| [ ] | CI orchestration for chaos runs, stress runs, and regression gating. |
+| [ ] | Automated replay verification on changed simulation, networking, or ECS code. |
+| [ ] | Budget checks for tick time, memory growth, bandwidth, and asset residency. |
+| [ ] | Failure artifact upload for logs, traces, snapshots, and minimal repro inputs. |
+
+### 18.4 Fail-Safe Policy
+
+| Status | Item |
+|--------|------|
+| [ ] | Fail-safe policy layer for controlled degradation, watchdog escalation, and safe shutdown. |
+| [ ] | Health-state model for degraded, warning, and critical runtime modes. |
+| [ ] | Recovery policy for stalled workers, corrupted snapshots, and inconsistent world state. |
+| [ ] | Operator-facing diagnostics for violations, trends, and budget overruns. |

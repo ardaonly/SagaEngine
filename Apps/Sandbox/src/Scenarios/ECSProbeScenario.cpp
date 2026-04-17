@@ -55,7 +55,8 @@ static void RegisterSandboxComponents()
     {
         CR::Instance().Register<SbTransform>(kIdSbTransform, "SbTransform");
 
-        CSR::Instance().RegisterComponent<SbTransform>(
+        CSR::Instance().Register<SbTransform>(
+            kIdSbTransform,
             "SbTransform",
             [](const SbTransform& d, void* buf, size_t sz) -> size_t {
                 if (sz < sizeof(SbTransform)) return 0;
@@ -77,7 +78,8 @@ static void RegisterSandboxComponents()
     {
         CR::Instance().Register<SbVelocity>(kIdSbVelocity, "SbVelocity");
 
-        CSR::Instance().RegisterComponent<SbVelocity>(
+        CSR::Instance().Register<SbVelocity>(
+            kIdSbVelocity,
             "SbVelocity",
             [](const SbVelocity& d, void* buf, size_t sz) -> size_t {
                 if (sz < sizeof(SbVelocity)) return 0;
@@ -99,7 +101,8 @@ static void RegisterSandboxComponents()
     {
         CR::Instance().Register<SbHealth>(kIdSbHealth, "SbHealth");
 
-        CSR::Instance().RegisterComponent<SbHealth>(
+        CSR::Instance().Register<SbHealth>(
+            kIdSbHealth,
             "SbHealth",
             [](const SbHealth& d, void* buf, size_t sz) -> size_t {
                 if (sz < sizeof(SbHealth)) return 0;

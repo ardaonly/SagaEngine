@@ -75,6 +75,15 @@ public:
     /// Request shutdown of the active scenario without switching to another.
     void RequestStop();
 
+    // ── Render integration ────────────────────────────────────────────────────
+
+    /// Store the host context. Passed to every scenario on activation.
+    void SetContext(ScenarioContext ctx) noexcept { m_context = ctx; }
+
+    /// Forward OnPrepareRender to the active scenario.
+    void PrepareRender(::SagaEngine::Render::Scene::Camera&     outCam,
+                       ::SagaEngine::Render::Scene::RenderView& outView);
+
     // ── Queries ───────────────────────────────────────────────────────────────
 
     [[nodiscard]] bool        HasActiveScenario()      const noexcept;
@@ -112,6 +121,8 @@ private:
     bool                       m_stopRequested = false;
 
     bool                       m_initialized = false;
+
+    ScenarioContext             m_context{};   ///< Forwarded to scenarios on activation.
 };
 
 } // namespace SagaSandbox

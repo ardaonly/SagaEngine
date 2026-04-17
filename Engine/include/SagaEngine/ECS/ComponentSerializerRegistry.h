@@ -1,5 +1,13 @@
 #pragma once
 
+/// @file ComponentSerializerRegistry.h
+/// @brief Deterministic component serialization registry with explicit type IDs.
+///
+/// Component type IDs must be identical across all binaries (client, server,
+/// tools). This registry enforces explicit ID assignment — no auto-increment,
+/// no implicit ordering dependency. Two binaries that register the same
+/// component with the same ID will serialize/deserialize compatibly.
+
 #include <cstdint>
 #include <cstddef>
 #include <vector>
@@ -15,6 +23,7 @@ namespace SagaEngine::ECS {
 
 using ComponentTypeId = uint32_t;
 
+/// Serialize / deserialize interface for a single component type.
 class Serializer {
 public:
     virtual ~Serializer() = default;
@@ -51,20 +60,47 @@ private:
     SizeFunc _getSize;
 };
 
+/// Cross-binary component serializer registry.
+///
+/// Every component type is registered with an explicit, deterministic
+/// ComponentTypeId that must match across client, server, and tool binaries.
+/// Registration order does not affect ID assignment — the caller supplies
+/// the ID, and collisions are rejected.
 class ComponentSerializerRegistry {
 public:
     static ComponentSerializerRegistry& Instance();
 
+    /// Register a component type with an explicit, deterministic ID.
+    /// @param id   Must match the same value in every binary that serializes
+    ///             this component. Collisions throw std::logic_error.
+    /// @param name Human-readable identifier (used for diagnostics only).
+    /// @param ser    Serialization lambda for this component type.
+    /// @param deser  Deserialization lambda for this component type.
+    /// @param size   Size-of-serialized-form lambda for this component type.
     template<typename T>
-    void RegisterComponent(const char* name, 
-                          typename TypedSerializer<T>::SerializeFunc ser,
-                          typename TypedSerializer<T>::DeserializeFunc deser,
-                          typename TypedSerializer<T>::SizeFunc size);
+    void Register(ComponentTypeId id,
+                  const char* name,
+                  typename TypedSerializer<T>::SerializeFunc ser,
+                  typename TypedSerializer<T>::DeserializeFunc deser,
+                  typename TypedSerializer<T>::SizeFunc size);
 
-    ComponentTypeId GetComponentTypeId(const char* name) const;
-    const char* GetComponentName(ComponentTypeId id) const;
-    const Serializer* GetSerializer(ComponentTypeId id) const;
-    size_t GetComponentCount() const { return _components.size(); }
+    /// Look up the type ID for a registered component by name.
+    /// Returns UINT32_MAX if not found.
+    [[nodiscard]] ComponentTypeId GetComponentTypeId(const char* name) const;
+
+    /// Look up the name for a registered component by ID.
+    /// Returns nullptr if not found.
+    [[nodiscard]] const char* GetComponentName(ComponentTypeId id) const;
+
+    /// Get the serializer for a component type ID.
+    /// Returns nullptr if not found.
+    [[nodiscard]] const Serializer* GetSerializer(ComponentTypeId id) const;
+
+    /// Number of registered component types.
+    [[nodiscard]] size_t GetComponentCount() const { return _components.size(); }
+
+    /// Clear all registrations (for test teardown only).
+    void Reset();
 
 private:
     struct ComponentInfo {
@@ -73,11 +109,11 @@ private:
         std::unique_ptr<Serializer> serializer;
         std::type_index typeIndex;
 
-        ComponentInfo() 
+        ComponentInfo()
             : id(0)
             , typeIndex(std::type_index(typeid(void))) {}
 
-        ComponentInfo(std::string n, ComponentTypeId i, 
+        ComponentInfo(std::string n, ComponentTypeId i,
                      std::unique_ptr<Serializer> s, std::type_index t)
             : name(std::move(n))
             , id(i)
@@ -87,18 +123,28 @@ private:
 
     std::unordered_map<std::string, ComponentInfo> _components;
     std::unordered_map<ComponentTypeId, std::string> _idToName;
-    std::atomic<ComponentTypeId> _nextId{0};
     mutable std::mutex _mutex;
 };
 
 template<typename T>
-void ComponentSerializerRegistry::RegisterComponent(const char* name,
-                                          typename TypedSerializer<T>::SerializeFunc ser,
-                                          typename TypedSerializer<T>::DeserializeFunc deser,
-                                          typename TypedSerializer<T>::SizeFunc size) {
+void ComponentSerializerRegistry::Register(ComponentTypeId id,
+                                           const char* name,
+                                           typename TypedSerializer<T>::SerializeFunc ser,
+                                           typename TypedSerializer<T>::DeserializeFunc deser,
+                                           typename TypedSerializer<T>::SizeFunc size) {
     std::lock_guard<std::mutex> lock(_mutex);
-    ComponentTypeId id = _nextId.fetch_add(1, std::memory_order_relaxed);
-    
+
+    if (id == UINT32_MAX) {
+        throw std::logic_error(
+            "ComponentSerializerRegistry::Register: ComponentTypeId UINT32_MAX is reserved.");
+    }
+
+    if (_idToName.find(id) != _idToName.end()) {
+        throw std::logic_error(
+            ("ComponentSerializerRegistry::Register: ID collision on " +
+             std::to_string(id)).c_str());
+    }
+
     _components[name] = ComponentInfo{
         name,
         id,
