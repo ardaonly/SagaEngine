@@ -279,6 +279,22 @@ public:
     /// Return true if this cell should merge with a neighbour.
     [[nodiscard]] bool ShouldMerge() const noexcept;
 
+    // ─── Split / merge execution ──────────────────────────────────────────────
+
+    /// Execute a split: divide entities between two child cells based on
+    /// spatial position (X or Z axis split).  Returns the two new cell IDs.
+    /// The original cell is left in Dormant state and should be removed.
+    ///
+    /// @param positionQuery  Callback to get an entity's world position.
+    ///                       Returns false if the entity has no Transform.
+    using PositionQueryFn = std::function<bool(EntityId, Vec3& outPosition)>;
+    [[nodiscard]] std::pair<SimCellId, SimCellId>
+        ExecuteSplit(PositionQueryFn positionQuery) const noexcept;
+
+    /// Execute a merge: transfer all entities from this cell into the
+    /// target cell.  The source cell is left empty and Dormant.
+    void ExecuteMergeInto(SimCell& target) noexcept;
+
     // ─── Events ───────────────────────────────────────────────────────────────
 
     /// Append an event to this cell's event log.  The caller (WorldNode)
@@ -304,7 +320,7 @@ private:
     SimCellMetrics     m_metrics{};
     SimCellThresholds  m_thresholds{};
 
-    std::vector<SimCellEvent> m_events;
+    mutable std::vector<SimCellEvent> m_events;
     uint64_t                  m_lowStateStartTick = 0;  ///< For merge grace tracking.
 };
 

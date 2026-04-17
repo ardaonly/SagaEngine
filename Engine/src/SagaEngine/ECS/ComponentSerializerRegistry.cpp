@@ -31,4 +31,10 @@ const Serializer* ComponentSerializerRegistry::GetSerializer(ComponentTypeId id)
     return nullptr;
 }
 
+void ComponentSerializerRegistry::Reset() {
+    std::lock_guard<std::mutex> lock(_mutex);
+    _components.clear();
+    _idToName.clear();
+}
+
 } // namespace SagaEngine::ECS

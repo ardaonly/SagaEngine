@@ -8,8 +8,8 @@
 ///
 /// Architecture invariant:
 ///   SandboxHost is the ONLY class in the Sandbox layer that touches
-///   Application, ScenarioManager, and DebugHud simultaneously.
-///   All three live here and nowhere else.
+///   Application, ScenarioManager, DebugHud, and DiligentRenderBackend
+///   simultaneously. All four live here and nowhere else.
 ///
 /// UI separation:
 ///   - SandboxHost initialises ImGui exclusively for sandbox use.
@@ -26,6 +26,7 @@
 #include "SagaSandbox/Core/ScenarioManager.h"
 #include "SagaSandbox/Core/SandboxConfig.h"
 #include <SagaEngine/Core/Application/Application.h>
+#include <SagaEngine/Render/Backend/Diligent/DiligentRenderBackend.h>
 #include <memory>
 #include <string>
 
@@ -76,14 +77,33 @@ private:
     /// Begin a new ImGui frame, tick HUD and scenario UI, then render.
     void TickImGui(float dt);
 
+    /// Initialise the Diligent render backend from the current IWindow.
+    /// Extracts the OS-native handle from SDL_Window* via SDL_GetWindowWMInfo.
+    /// Returns false if the backend could not be created (no GPU, headless, etc.).
+    bool InitRenderBackend();
+
+    /// Shutdown the Diligent render backend (idempotent).
+    void ShutdownRenderBackend();
+
+    /// Update the window title with FPS / frame-time stats.
+    void UpdateFPSTitle(float dt);
+
     // ── State ─────────────────────────────────────────────────────────────────
 
     SandboxConfig              m_config;
     ScenarioManager            m_scenarioManager;
     std::unique_ptr<DebugHud>  m_debugHud;
 
-    uint64_t                   m_tickCounter  = 0;
-    bool                       m_imguiReady   = false;
+    /// Diligent GPU backend. Created in OnInit when headless == false.
+    /// Null until InitRenderBackend succeeds. Scenarios may query this
+    /// for diagnostic readout (SelectedAPI, FrameIndex, etc.) but do NOT
+    /// own it or shut it down — that is SandboxHost's job exclusively.
+    std::unique_ptr<SagaEngine::Render::Backend::DiligentRenderBackend> m_renderBackend;
+
+    uint64_t                   m_tickCounter    = 0;
+    float                      m_fpsAccumulator = 0.0f;
+    int                        m_fpsFrameCount  = 0;
+    bool                       m_imguiReady     = false;
 };
 
 } // namespace SagaSandbox

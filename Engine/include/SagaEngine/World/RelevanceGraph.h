@@ -157,6 +157,12 @@ public:
     /// Much faster than Rebuild() when only a few entities changed.
     void IncrementalUpdate(EntityId changedEntity) noexcept;
 
+    // ─── Entity list management (for Rebuild iteration) ───────────────────────
+
+    /// Set the entity list used by Rebuild() for all-pairs evaluation.
+    /// Called by WorldNode each relevance tick.
+    void SetEntityList(std::vector<EntityId> entities) noexcept;
+
     // ─── Queries ──────────────────────────────────────────────────────────────
 
     /// Get all entities relevant to a source entity, sorted by weight (desc).

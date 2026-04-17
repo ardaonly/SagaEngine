@@ -34,7 +34,7 @@ The current focus is on building a clean technical base that can support:
 
 ## Current status
 
-- Architectural maturity: around 70%
+- Architectural maturity: around 74%
 - Platform coverage: Windows-first
 - Production readiness: not ready
 - Scope: actively evolving
