@@ -54,6 +54,7 @@ function(saga_setup_tests)
     # ─── Unit tests ─────────────────────────────────────────────────────────
 
     add_executable(SagaUnitTests ${UNIT_TEST_SOURCES})
+    saga_link_thirdparty(SagaUnitTests)
     target_link_libraries(SagaUnitTests PRIVATE
         SagaEngine
         SagaBackend
@@ -68,6 +69,7 @@ function(saga_setup_tests)
     # ─── Integration tests ──────────────────────────────────────────────────
 
     add_executable(SagaIntegrationTests ${INTEGRATION_SOURCES})
+    saga_link_thirdparty(SagaIntegrationTests)
     target_link_libraries(SagaIntegrationTests PRIVATE
         SagaBackend
         SagaEngine
@@ -75,6 +77,7 @@ function(saga_setup_tests)
         GTest::gmock
         GTest::gtest_main
         rapidcheck::rapidcheck
+        SDL2::SDL2          # DiligentBackend integration tests need a hidden window
     )
     target_include_directories(SagaIntegrationTests PRIVATE ${SAGA_TEST_INCLUDE_DIRS})
     add_test(NAME IntegrationTests COMMAND SagaIntegrationTests)
@@ -88,6 +91,7 @@ function(saga_setup_tests)
     # extra minutes can filter by the `ReplicationTests` name.
     if(REPLICATION_SOURCES)
         add_executable(SagaReplicationTests ${REPLICATION_SOURCES})
+        saga_link_thirdparty(SagaReplicationTests)
         target_link_libraries(SagaReplicationTests PRIVATE
             SagaEngine
             SagaBackend
@@ -108,6 +112,7 @@ function(saga_setup_tests)
     # from the blocking pre-merge job.
     if(STRESS_SOURCES)
         add_executable(SagaStressTests ${STRESS_SOURCES})
+        saga_link_thirdparty(SagaStressTests)
         target_link_libraries(SagaStressTests PRIVATE
             SagaEngine
             SagaBackend

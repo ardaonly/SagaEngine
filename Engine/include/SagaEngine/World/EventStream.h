@@ -19,10 +19,11 @@
 ///   - Snapshots are periodic full-state captures with a base sequence
 ///   - Replaying from snapshot + events after it is faster than from scratch
 ///   - The stream is single-writer (WorldNode simulation thread)
+///   - Events are flushed to disk asynchronously via AppendBatch
 ///
 /// What this is NOT:
 ///   - Not a message queue.  Events are historical records, not in-flight messages.
-///   - Not a database.  Persistence is the caller's responsibility.
+///   - Not a database.  Persistence is append-only with fsync guarantees.
 
 #pragma once
 
@@ -35,6 +36,7 @@
 #include <vector>
 #include <optional>
 #include <unordered_map>
+#include <mutex>
 
 namespace SagaEngine::World {
 
@@ -192,10 +194,64 @@ public:
     /// Get all events since a given sequence (for live streaming to clients).
     [[nodiscard]] std::vector<WorldEvent> GetEventsAfter(uint64_t lastSeenSeq) const noexcept;
 
+    // ─── Disk persistence ─────────────────────────────────────────────────────
+
+    /// Open the event log file for appending.  Creates the file if it does
+    /// not exist.  Returns false on I/O error.
+    ///
+    /// The file format is append-only binary:
+    ///   [Event header: 32 bytes] [payload: variable]
+    ///   header = sequence(8) | worldTick(8) | timestampUs(8) | type(2) |
+    ///            cellX(2) | cellZ(2) | entityId(4) | data(4) | payloadLen(4)
+    bool Open(const char* path) noexcept;
+
+    /// Close the file and flush any pending writes.
+    void Close() noexcept;
+
+    /// Flush the in-memory event buffer to disk.  Called periodically by
+    /// the WorldNode (typically every tick).  Uses fsync for durability.
+    void FlushPending() noexcept;
+
+    /// Load all events from disk into memory.  Called during WorldNode
+    /// startup to reconstruct state from the event log.
+    bool LoadFromFile() noexcept;
+
+    /// Save the latest snapshot to disk.
+    bool SaveSnapshot(const WorldSnapshot& snap) noexcept;
+
+    /// Load the latest snapshot from disk.
+    [[nodiscard]] std::optional<WorldSnapshot> LoadLatestSnapshot() const noexcept;
+
 private:
+    // ─── Internal helpers ─────────────────────────────────────────────────────
+
+    /// Serialize a single event to binary form.
+    [[nodiscard]] std::vector<uint8_t> SerializeEvent(const WorldEvent& evt) const noexcept;
+
+    /// Deserialize a single event from binary.
+    [[nodiscard]] static std::optional<WorldEvent> DeserializeEvent(
+        const uint8_t* data, size_t size) noexcept;
+
+    // ─── Members ──────────────────────────────────────────────────────────────
+
     std::vector<WorldEvent>   m_events;
     std::vector<WorldSnapshot> m_snapshots;
     uint64_t                  m_lastSequence = 0;
+
+    // Disk persistence.
+    void*                     m_fileHandle = nullptr; ///< Opaque FILE* (platform-specific).
+    std::vector<uint8_t>      m_writeBuffer;          ///< Buffered events before flush.
+    static constexpr size_t   kFlushThreshold = 64 * 1024; ///< 64 KiB flush trigger.
+    char                      m_filePath[512] = {};    ///< Copy of the open path.
+};
+
+/// Configuration for EventStream disk I/O.
+struct EventStreamConfig
+{
+    const char* logPath      = "events.log";   ///< Append-only event log file.
+    const char* snapshotPath = "snapshot.bin";  ///< Latest snapshot file.
+    bool        fsyncOnFlush = true;            ///< Durability vs performance trade-off.
+    size_t      flushBytes   = 64 * 1024;       ///< Flush when buffer exceeds this.
 };
 
 } // namespace SagaEngine::World

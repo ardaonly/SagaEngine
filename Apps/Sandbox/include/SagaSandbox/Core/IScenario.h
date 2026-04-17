@@ -22,11 +22,24 @@
 
 #pragma once
 
+#include <SagaEngine/Render/Backend/IRenderBackend.h>
+#include <SagaEngine/Render/Scene/Camera.h>
+#include <SagaEngine/Render/Scene/RenderView.h>
+
 #include <string_view>
 #include <cstdint>
 
 namespace SagaSandbox
 {
+
+// ─── Scenario Context ────────────────────────────────────────────────────────
+
+/// Services available to scenarios during their lifetime.
+/// Populated by SandboxHost before scenario activation.
+struct ScenarioContext
+{
+    ::SagaEngine::Render::Backend::IRenderBackend* renderBackend = nullptr;
+};
 
 // ─── Scenario Metadata ────────────────────────────────────────────────────────
 
@@ -70,6 +83,19 @@ public:
     /// Called once after the scenario ends (user switches or app closes).
     /// Must release all scenario-owned resources.
     virtual void OnShutdown() = 0;
+
+    // ── Render integration ───────────────────────────────────────────────────
+
+    /// Called once after construction, before OnInit. Provides access to
+    /// host services (render backend, etc.). Override to store the pointer.
+    virtual void OnAttach(const ScenarioContext& /*ctx*/) {}
+
+    /// Called once per frame between BeginFrame and EndFrame.
+    /// Fill outCamera and outView with the scene to render.
+    /// Default: identity camera, empty view (nothing drawn).
+    virtual void OnPrepareRender(
+        ::SagaEngine::Render::Scene::Camera&     /*outCamera*/,
+        ::SagaEngine::Render::Scene::RenderView& /*outView*/) {}
 
     // ── Debug UI ─────────────────────────────────────────────────────────────
 

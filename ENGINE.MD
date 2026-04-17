@@ -2,7 +2,7 @@
 
 **Project state:** Foundational MMO Engine Core
 
-**Current version:** SagaEngine_v0.0.5
+**Current version:** SagaEngine_v0.0.6
 
 ## Summary
 

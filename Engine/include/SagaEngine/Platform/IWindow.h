@@ -14,11 +14,14 @@ namespace Saga {
 /// All fields carry engine-wide defaults; override per launch target.
 struct WindowDesc
 {
-    std::string title  = "SagaEngine";  ///< Title bar text.
-    uint32_t    width  = 1280;          ///< Client area width in pixels.
-    uint32_t    height = 720;           ///< Client area height in pixels.
-    bool        vsync  = true;          ///< Synchronize present to monitor refresh.
-    bool        resizable = true;       ///< Allow runtime resize by the OS.
+    std::string title       = "SagaEngine";  ///< Title bar text.
+    uint32_t    width       = 1280;          ///< Client area width in pixels.
+    uint32_t    height      = 720;           ///< Client area height in pixels.
+    bool        vsync       = true;          ///< Synchronize present to monitor refresh.
+    bool        resizable   = true;          ///< Allow runtime resize by the OS.
+    bool        highDPI     = false;         ///< Enable high-DPI / Retina support.
+    bool        borderless  = false;         ///< Create borderless window (no decorations).
+    int         displayIndex = 0;            ///< Initial display index (0 = primary).
 };
 
 // ─── Window Interface ─────────────────────────────────────────────────────────

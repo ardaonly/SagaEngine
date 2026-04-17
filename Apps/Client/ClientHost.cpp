@@ -525,10 +525,55 @@ bool ClientNetworkSession::SetupBridge()
         return false;
 
     m_bridge.SetReplayFn(
-        [this](std::uint32_t /*inputSeq*/,
+        [this](std::uint32_t inputSeq,
                float        dtSeconds,
                ClientPred::PredictedState& stateOut) {
-            stateOut.position += stateOut.velocity * dtSeconds;
+            // Look up the actual input command for this sequence number
+            // and replay its movement integration — the same logic the
+            // server uses so client and server stay in lockstep.
+            //
+            // The reconciliation buffer passes `inputSeq` which corresponds
+            // to InputCommand::sequence.  During reconciliation replay,
+            // these inputs are still unacked (the server hasn't seen them),
+            // so they should still be in the input buffer's unacked window.
+            // We snapshot the unacked window and linear-scan for the match.
+            // The window is small (<= 256 entries) so this is acceptable.
+            const Input::InputCommand* cmdPtr = nullptr;
+            auto unacked = m_inputBuffer.GetUnackedSnapshot();
+            for (const auto& c : unacked)
+            {
+                if (c.sequence == inputSeq)
+                {
+                    cmdPtr = &c;
+                    break;
+                }
+            }
+
+            if (!cmdPtr)
+            {
+                // Input not found in unacked window — likely consumed during
+                // a reconnect or buffer reset.  Fall back to velocity-only
+                // integration to keep the replay stable.
+                stateOut.position += stateOut.velocity * dtSeconds;
+                return;
+            }
+
+            const auto& cmd = *cmdPtr;
+
+            // Convert Q16.16 fixed-point move values to float displacement.
+            // This must match the server's input application logic exactly
+            // (see TestSnapshotServer::HandleInputPacket).
+            const float moveScale = 0.05f; // units per tick
+            const float moveX = Input::FloatFromFixed(cmd.moveX);
+            const float moveY = Input::FloatFromFixed(cmd.moveY);
+
+            // Integrate movement into position (2D XZ plane for this test).
+            stateOut.position.x += moveX * moveScale;
+            stateOut.position.z += moveY * moveScale;
+
+            // Update velocity for interpolation continuity.
+            stateOut.velocity.x = moveX * moveScale / dtSeconds;
+            stateOut.velocity.z = moveY * moveScale / dtSeconds;
         });
 
     return true;

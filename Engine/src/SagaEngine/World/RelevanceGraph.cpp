@@ -20,6 +20,11 @@ void RelevanceGraph::ClearRules() noexcept
     m_rules.clear();
 }
 
+void RelevanceGraph::SetEntityList(std::vector<EntityId> entities) noexcept
+{
+    m_entities = std::move(entities);
+}
+
 void RelevanceGraph::SetEdge(EntityId source, RelevanceEdge edge) noexcept
 {
     auto& edges = m_adjacency[source];

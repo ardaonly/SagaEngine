@@ -48,6 +48,7 @@
 #include "SagaEngine/Simulation/WorldState.h"
 #include "SagaEngine/Client/Replication/SnapshotApplyPipeline.h"
 #include "SagaEngine/Client/Replication/ReplicationStateMachine.h"
+#include "SagaServer/Networking/Replication/WorldSnapshotWire.h"
 
 #include <cstdint>
 #include <functional>
@@ -71,8 +72,9 @@ struct ClientSession
     uint64_t        sessionId         = 0;
     EntityId        controlledEntity  = 0;  ///< The player entity this client controls.
     ServerTick      lastAckedTick     = 0;  ///< Last snapshot the client acknowledged.
+    ServerTick      lastSentTick      = 0;  ///< Last tick sent to this client (for delta baseline).
     uint64_t        lastSeenEventSeq  = 0;  ///< Last event sequence sent to this client.
-    bool            wantsFullSnapshot = true; ///< True on connect, false after first snapshot.
+    bool            needsFullSnapshot = true; ///< True on connect, false after first snapshot.
     SimCellId       currentCell{};            ///< Cell the player is currently in.
 };
 
@@ -192,6 +194,18 @@ public:
     /// Returns true if data was sent.
     bool ReplicateToClient(uint64_t sessionId) noexcept;
 
+    // ─── Dirty tracking ───────────────────────────────────────────────────────
+
+    /// Mark an entity's components as dirty for replication.
+    void MarkEntityDirty(EntityId id, SagaServer::ComponentMask mask) noexcept;
+
+    /// Clear dirty state for an entity after successful replication.
+    void ClearEntityDirty(EntityId id) noexcept;
+
+    /// Enumerate all entities with their active component masks for snapshot building.
+    [[nodiscard]] std::vector<std::pair<uint32_t, SagaServer::ComponentMask>>
+        EnumerateEntities() const noexcept;
+
     // ─── Event stream ─────────────────────────────────────────────────────────
 
     /// Append an event to the world's event stream.
@@ -230,6 +244,28 @@ private:
     void ReplicateToClients() noexcept;
     void FlushEvents() noexcept;
 
+    // ─── Replication helpers ───────────────────────────────────────────────────
+
+    /// Build and send a full world snapshot to a client.
+    bool SendFullSnapshot(ClientSession* session,
+                          const std::vector<RelevanceResult>& relevant) noexcept;
+
+    /// Build and send a delta snapshot to a client.
+    bool SendDelta(ClientSession* session,
+                   const std::vector<RelevanceResult>& relevant) noexcept;
+
+    /// Compute squared distance between two entities (for interest filtering).
+    [[nodiscard]] float GetEntityDistanceSq(EntityId a, EntityId b) const noexcept;
+
+    /// Filter relevant entities by distance threshold.
+    [[nodiscard]] std::vector<uint32_t> FilterByDistance(
+        EntityId source, const std::vector<RelevanceResult>& relevant) const noexcept;
+
+    /// Gather component data for one entity into the snapshot builder.
+    void SerializeEntityComponents(uint32_t entityId, SagaServer::ComponentMask activeMask,
+                                    uint8_t* outBuf, std::size_t capacity,
+                                    uint32_t& outDataSize) const noexcept;
+
     // ─── Cell coord packing ────────────────────────────────────────────────────
 
     [[nodiscard]] static uint32_t PackCellCoord(SimCellId id) noexcept
@@ -259,6 +295,9 @@ private:
     // Entity → packed cell coord (for fast lookup).
     std::unordered_map<EntityId, uint32_t> m_entityCells;
 
+    // Entity dirty tracking: entityId → dirty state
+    std::unordered_map<EntityId, SagaServer::EntityDirtyState> m_entityDirtyStates;
+
     // Client sessions: session ID → ClientSession
     std::unordered_map<uint64_t, ClientSession> m_clients;
     uint64_t                                    m_nextSessionId = 1;
@@ -273,6 +312,9 @@ private:
 
     // Domain dispatch.
     DomainTickDispatcher m_domainDispatcher;
+
+    // Snapshot builder (reused across ticks to avoid allocations).
+    SagaServer::SnapshotBuilder m_snapshotBuilder;
 };
 
 } // namespace SagaEngine::World

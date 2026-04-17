@@ -367,15 +367,37 @@ void TestSnapshotServer::HandleInputPacket(const uint8_t* data, std::size_t size
                          static_cast<unsigned long long>(m_inputCount),
                          cmd.sequence, cmd.simulationTick, cmd.buttons,
                          cmd.moveX, cmd.moveY);
-            }
 
-            // Send InputAck back.
-            m_inputSeq++;
-            Packet ack(PacketType::InputAck);
-            ack.Write(m_inputSeq);
-            ack.SetSequence(static_cast<uint32_t>(m_inputSeq + 1000));
-            auto d = ack.GetSerializedData();
-            m_socket->send_to(asio::buffer(d), m_clientEndpoint);
+                // Apply input to the owning entity (entityId = sequence % testEntityCount
+                // for this test; a real server would map via client→entity binding).
+                const uint32_t targetEntityIdx = cmd.sequence % m_config.testEntityCount;
+                auto entities = m_world.GetAliveEntities();
+                uint32_t idx = 0;
+                for (EntityId id : entities)
+                {
+                    if (idx == targetEntityIdx)
+                    {
+                        auto* tc = m_world.GetComponent<TestTransformComponent>(id);
+                        if (tc)
+                        {
+                            // Convert Q16.16 fixed-point move values to float displacement.
+                            const float moveScale = 0.05f; // units per tick
+                            tc->x += SagaEngine::Input::FloatFromFixed(cmd.moveX) * moveScale;
+                            tc->y += SagaEngine::Input::FloatFromFixed(cmd.moveY) * moveScale;
+                        }
+                        break;
+                    }
+                    idx++;
+                }
+
+                // Send InputAck back — echo the actual command sequence for
+                // correct client-side reconciliation tick matching.
+                Packet ack(PacketType::InputAck);
+                ack.Write(cmd.sequence);
+                ack.SetSequence(static_cast<uint32_t>(cmd.sequence + 1000));
+                auto d = ack.GetSerializedData();
+                m_socket->send_to(asio::buffer(d), m_clientEndpoint);
+            }
             break;
         }
 

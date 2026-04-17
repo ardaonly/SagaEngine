@@ -91,6 +91,16 @@ void ScenarioManager::RenderDebugUI()
     }
 }
 
+void ScenarioManager::PrepareRender(
+    ::SagaEngine::Render::Scene::Camera&     outCam,
+    ::SagaEngine::Render::Scene::RenderView& outView)
+{
+    if (m_activeScenario)
+    {
+        m_activeScenario->OnPrepareRender(outCam, outView);
+    }
+}
+
 void ScenarioManager::Shutdown()
 {
     DeactivateCurrentScenario();
@@ -156,6 +166,9 @@ bool ScenarioManager::ActivateScenario(std::string_view id)
 
     m_activeScenario   = it->second.factory();
     m_activeScenarioId = it->first;
+
+    // Give the scenario access to host services before OnInit.
+    m_activeScenario->OnAttach(m_context);
 
     if (!m_activeScenario->OnInit())
     {

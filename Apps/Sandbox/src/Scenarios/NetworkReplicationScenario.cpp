@@ -63,7 +63,8 @@ static void RegisterNetworkComponents()
     {
         CR::Instance().Register<SbNetPosition>(kIdSbNetPosition, "SbNetPosition");
 
-        CSR::Instance().RegisterComponent<SbNetPosition>(
+        CSR::Instance().Register<SbNetPosition>(
+            kIdSbNetPosition,
             "SbNetPosition",
             [](const SbNetPosition& d, void* buf, size_t sz) -> size_t {
                 if (sz < sizeof(SbNetPosition)) return 0;

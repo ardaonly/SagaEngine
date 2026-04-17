@@ -13,8 +13,9 @@
 ///            - Listens on UDP port
 ///            - On client connect, spawns N test entities in a WorldState
 ///            - Sends serialized WorldState as Snapshot packets
-///            - Receives InputCommand packets and logs them
-///            - Sends InputAck packets back
+///            - Receives InputCommand packets, applies them to entities,
+///              and echoes the command sequence back as InputAck
+///            - Sends InputAck packets with the echoed command sequence
 
 #pragma once
 
@@ -24,6 +25,7 @@
 #include <SagaEngine/Simulation/WorldState.h>
 #include <SagaEngine/Core/Log/Log.h>
 #include <SagaEngine/Core/Time/Time.h>
+#include <SagaEngine/Input/Commands/InputCommand.h>
 
 #include <asio.hpp>
 #include <cstdint>
@@ -77,7 +79,6 @@ private:
     SagaEngine::Simulation::WorldState m_world;
     uint64_t                           m_snapshotCount = 0;
     uint64_t                           m_inputCount    = 0;
-    uint32_t                           m_inputSeq      = 0;
 };
 
 } // namespace Saga

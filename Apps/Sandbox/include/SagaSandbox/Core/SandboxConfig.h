@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "SagaEngine/Render/Backend/Diligent/DiligentRenderBackend.h"
+
 #include <string>
 #include <cstdint>
 
@@ -29,6 +31,17 @@ struct SandboxConfig
 
     /// Run without window or rendering (for headless server-side scenarios).
     bool headless = false;
+
+    // ── Render backend ───────────────────────────────────────────────────────
+
+    /// Diligent backend configuration (API preference, validation, clear
+    /// colour, etc.). Only used when headless == false. When headless is
+    /// true, no backend is created.
+    SagaEngine::Render::Backend::DiligentBackendConfig renderBackend;
+
+    /// Update the window title with FPS / frame-time every N frames.
+    /// 0 disables the FPS title update. Default: every 30 frames.
+    int fpsInTitleInterval = 30;
 
     // ── HUD ───────────────────────────────────────────────────────────────────
 
