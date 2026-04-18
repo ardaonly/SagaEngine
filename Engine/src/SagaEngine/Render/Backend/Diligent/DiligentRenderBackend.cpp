@@ -13,12 +13,49 @@
 #include "SagaEngine/Render/Materials/MeshAsset.h"
 #include "SagaEngine/Render/Materials/Material.h"
 
+#include <imgui.h>
+
 #include <algorithm>
 #include <cstdio>
+#include <cstring>
 #include <string>
 #include <unordered_map>
 
 // ─── Diligent includes ────────────────────────────────────────────────
+
+// Diligent's PlatformDefinitions.h defines D3D12_SUPPORTED, D3D11_SUPPORTED,
+// VULKAN_SUPPORTED, GL_SUPPORTED.  However, the D3D11 backend in the conan
+// package depends on ATL (atls.lib) which may not be installed.  We define
+// only the APIs we actually need — D3D12 (primary) and Vulkan (fallback).
+// This avoids pulling in ATL-dependent objects from the D3D11 static lib.
+#if defined(_WIN32)
+#   ifndef D3D12_SUPPORTED
+#       define D3D12_SUPPORTED  1
+#   endif
+#   ifndef VULKAN_SUPPORTED
+#       define VULKAN_SUPPORTED 1
+#   endif
+#   ifndef PLATFORM_WIN32
+#       define PLATFORM_WIN32   1
+#   endif
+#elif defined(__linux__)
+#   ifndef VULKAN_SUPPORTED
+#       define VULKAN_SUPPORTED 1
+#   endif
+#   ifndef GL_SUPPORTED
+#       define GL_SUPPORTED     1
+#   endif
+#   ifndef PLATFORM_LINUX
+#       define PLATFORM_LINUX   1
+#   endif
+#elif defined(__APPLE__)
+#   ifndef VULKAN_SUPPORTED
+#       define VULKAN_SUPPORTED 1
+#   endif
+#   ifndef PLATFORM_MACOS
+#       define PLATFORM_MACOS   1
+#   endif
+#endif
 
 #include "RefCntAutoPtr.hpp"
 #include "RenderDevice.h"
@@ -147,6 +184,18 @@ struct DiligentRenderBackend::Impl
 
     std::uint64_t frameIndex   = 0;
     bool          initialized  = false;
+
+    // ── ImGui rendering resources ───────────────────────────────────
+    Diligent::RefCntAutoPtr<Diligent::IPipelineState>        imguiPSO;
+    Diligent::RefCntAutoPtr<Diligent::IShaderResourceBinding> imguiSRB;
+    Diligent::RefCntAutoPtr<Diligent::IBuffer>               imguiCB;       // projection matrix
+    Diligent::RefCntAutoPtr<Diligent::IBuffer>               imguiVB;
+    Diligent::RefCntAutoPtr<Diligent::IBuffer>               imguiIB;
+    Diligent::RefCntAutoPtr<Diligent::ITextureView>          imguiFontSRV;
+    Diligent::RefCntAutoPtr<Diligent::ITexture>              imguiFontTex;
+    std::uint32_t imguiVBSize = 0;   // current VB capacity in bytes
+    std::uint32_t imguiIBSize = 0;   // current IB capacity in bytes
+    bool          imguiReady  = false;
 };
 
 // ─── Small logging helpers ───────────────────────────────────────────
@@ -154,244 +203,38 @@ struct DiligentRenderBackend::Impl
 namespace
 {
 
+bool g_verboseGPU = false;   // Set to true for deep GPU diagnostics.
+
 void LogInfo(const char* msg)
 {
     std::fprintf(stdout, "[DiligentBackend] %s\n", msg);
+    std::fflush(stdout);
 }
 
 void LogErr(const char* msg)
 {
     std::fprintf(stderr, "[DiligentBackend][error] %s\n", msg);
+    std::fflush(stderr);
 }
 
-Diligent::SwapChainDesc MakeSwapChainDesc(const SwapchainDesc& desc)
+void LogDbg(const char* msg)
 {
-    Diligent::SwapChainDesc out{};
-    out.Width             = desc.width;
-    out.Height            = desc.height;
-    out.ColorBufferFormat = desc.hdr ? Diligent::TEX_FORMAT_RGBA16_FLOAT
-                                     : Diligent::TEX_FORMAT_RGBA8_UNORM_SRGB;
-    out.DepthBufferFormat = Diligent::TEX_FORMAT_D32_FLOAT;
-    out.BufferCount       = 2;
-    return out;
+    if (!g_verboseGPU) return;
+    std::fprintf(stdout, "[DiligentBackend][dbg] %s\n", msg);
+    std::fflush(stdout);
 }
 
-#if PLATFORM_WIN32 || defined(_WIN32)
-Diligent::Win32NativeWindow AsWin32NativeWindow(void* nativeWindow)
-{
-    Diligent::Win32NativeWindow w{};
-    w.hWnd = nativeWindow;
-    return w;
-}
-#endif
+// ─── Factory init helpers (D3D12, Vulkan, D3D11, OpenGL) ─────────────
 
-// ─── API-specific init helpers (unchanged from Phase 1) ──────────────
+#include "DiligentFactoryInit.inl"
 
-#if D3D12_SUPPORTED
-bool InitD3D12(const SwapchainDesc& desc, const DiligentBackendConfig& cfg,
-               Diligent::RefCntAutoPtr<Diligent::IRenderDevice>& outDevice,
-               Diligent::RefCntAutoPtr<Diligent::IDeviceContext>& outContext,
-               Diligent::RefCntAutoPtr<Diligent::ISwapChain>& outSwap)
-{
-#   if ENGINE_DLL
-    auto getFactoryFn = Diligent::LoadGraphicsEngineD3D12();
-    if (!getFactoryFn) return false;
-    auto* factory = getFactoryFn();
-#   else
-    auto* factory = Diligent::GetEngineFactoryD3D12();
-#   endif
-    if (!factory) return false;
-    Diligent::EngineD3D12CreateInfo ci;
-    ci.EnableValidation = cfg.enableValidation;
-    factory->CreateDeviceAndContextsD3D12(ci, &outDevice, &outContext);
-    if (!outDevice || !outContext) return false;
-    const auto scDesc = MakeSwapChainDesc(desc);
-#   if PLATFORM_WIN32 || defined(_WIN32)
-    factory->CreateSwapChainD3D12(outDevice, outContext, scDesc,
-                                  Diligent::FullScreenModeDesc{},
-                                  AsWin32NativeWindow(desc.nativeWindow), &outSwap);
-#   endif
-    return outSwap != nullptr;
-}
-#endif
+// ─── Embedded HLSL shader source ─────────────────────────────────────
 
-#if VULKAN_SUPPORTED
-bool InitVulkan(const SwapchainDesc& desc, const DiligentBackendConfig& cfg,
-                Diligent::RefCntAutoPtr<Diligent::IRenderDevice>& outDevice,
-                Diligent::RefCntAutoPtr<Diligent::IDeviceContext>& outContext,
-                Diligent::RefCntAutoPtr<Diligent::ISwapChain>& outSwap)
-{
-#   if ENGINE_DLL
-    auto getFactoryFn = Diligent::LoadGraphicsEngineVk();
-    if (!getFactoryFn) return false;
-    auto* factory = getFactoryFn();
-#   else
-    auto* factory = Diligent::GetEngineFactoryVk();
-#   endif
-    if (!factory) return false;
-    Diligent::EngineVkCreateInfo ci;
-    ci.EnableValidation = cfg.enableValidation;
-    factory->CreateDeviceAndContextsVk(ci, &outDevice, &outContext);
-    if (!outDevice || !outContext) return false;
-    const auto scDesc = MakeSwapChainDesc(desc);
-#   if PLATFORM_WIN32 || defined(_WIN32)
-    factory->CreateSwapChainVk(outDevice, outContext, scDesc,
-                               AsWin32NativeWindow(desc.nativeWindow), &outSwap);
-#   else
-    if (!desc.nativeWindow) return false;
-    factory->CreateSwapChainVk(outDevice, outContext, scDesc,
-                               *reinterpret_cast<Diligent::NativeWindow*>(desc.nativeWindow),
-                               &outSwap);
-#   endif
-    return outSwap != nullptr;
-}
-#endif
+#include "DiligentShaders.inl"
 
-#if D3D11_SUPPORTED
-bool InitD3D11(const SwapchainDesc& desc, const DiligentBackendConfig& cfg,
-               Diligent::RefCntAutoPtr<Diligent::IRenderDevice>& outDevice,
-               Diligent::RefCntAutoPtr<Diligent::IDeviceContext>& outContext,
-               Diligent::RefCntAutoPtr<Diligent::ISwapChain>& outSwap)
-{
-#   if ENGINE_DLL
-    auto getFactoryFn = Diligent::LoadGraphicsEngineD3D11();
-    if (!getFactoryFn) return false;
-    auto* factory = getFactoryFn();
-#   else
-    auto* factory = Diligent::GetEngineFactoryD3D11();
-#   endif
-    if (!factory) return false;
-    Diligent::EngineD3D11CreateInfo ci;
-    ci.EnableValidation = cfg.enableValidation;
-    factory->CreateDeviceAndContextsD3D11(ci, &outDevice, &outContext);
-    if (!outDevice || !outContext) return false;
-    const auto scDesc = MakeSwapChainDesc(desc);
-#   if PLATFORM_WIN32 || defined(_WIN32)
-    factory->CreateSwapChainD3D11(outDevice, outContext, scDesc,
-                                  Diligent::FullScreenModeDesc{},
-                                  AsWin32NativeWindow(desc.nativeWindow), &outSwap);
-#   endif
-    return outSwap != nullptr;
-}
-#endif
+// ─── Embedded HLSL for ImGui overlay ────────────────────────────────
 
-#if GL_SUPPORTED
-bool InitOpenGL(const SwapchainDesc& desc, const DiligentBackendConfig& /*cfg*/,
-                Diligent::RefCntAutoPtr<Diligent::IRenderDevice>& outDevice,
-                Diligent::RefCntAutoPtr<Diligent::IDeviceContext>& outContext,
-                Diligent::RefCntAutoPtr<Diligent::ISwapChain>& outSwap)
-{
-#   if ENGINE_DLL
-    auto getFactoryFn = Diligent::LoadGraphicsEngineOpenGL();
-    if (!getFactoryFn) return false;
-    auto* factory = getFactoryFn();
-#   else
-    auto* factory = Diligent::GetEngineFactoryOpenGL();
-#   endif
-    if (!factory) return false;
-    const auto scDesc = MakeSwapChainDesc(desc);
-    Diligent::EngineGLCreateInfo ci;
-#   if PLATFORM_WIN32 || defined(_WIN32)
-    ci.Window.hWnd = desc.nativeWindow;
-#   endif
-    factory->CreateDeviceAndSwapChainGL(ci, &outDevice, &outContext, scDesc, &outSwap);
-    return outDevice && outContext && outSwap;
-}
-#endif
-
-DiligentBackendAPI TryInitAPI(
-    DiligentBackendAPI preferred, const SwapchainDesc& desc,
-    const DiligentBackendConfig& cfg,
-    Diligent::RefCntAutoPtr<Diligent::IRenderDevice>& outDevice,
-    Diligent::RefCntAutoPtr<Diligent::IDeviceContext>& outContext,
-    Diligent::RefCntAutoPtr<Diligent::ISwapChain>& outSwap)
-{
-    auto tryOne = [&](DiligentBackendAPI api) -> bool
-    {
-        outDevice.Release(); outContext.Release(); outSwap.Release();
-        switch (api)
-        {
-#if D3D12_SUPPORTED
-            case DiligentBackendAPI::kD3D12:  return InitD3D12(desc, cfg, outDevice, outContext, outSwap);
-#endif
-#if VULKAN_SUPPORTED
-            case DiligentBackendAPI::kVulkan: return InitVulkan(desc, cfg, outDevice, outContext, outSwap);
-#endif
-#if D3D11_SUPPORTED
-            case DiligentBackendAPI::kD3D11:  return InitD3D11(desc, cfg, outDevice, outContext, outSwap);
-#endif
-#if GL_SUPPORTED
-            case DiligentBackendAPI::kOpenGL: return InitOpenGL(desc, cfg, outDevice, outContext, outSwap);
-#endif
-            default: return false;
-        }
-    };
-
-    if (preferred != DiligentBackendAPI::kAuto)
-        return tryOne(preferred) ? preferred : DiligentBackendAPI::kAuto;
-
-    constexpr DiligentBackendAPI kOrder[] = {
-        DiligentBackendAPI::kD3D12, DiligentBackendAPI::kVulkan,
-        DiligentBackendAPI::kD3D11, DiligentBackendAPI::kOpenGL,
-    };
-    for (auto api : kOrder)
-        if (tryOne(api)) return api;
-
-    return DiligentBackendAPI::kAuto;
-}
-
-// ─── Solid-color shaders (shared by all Phase 3 materials) ───────────
-//
-// MeshVertex layout: pos(3) normal(3) tangent(3) handedness(1) uv0(2) uv1(2)
-// = 14 floats = 56 bytes.  The VS reads pos + normal; PS outputs a flat
-// colour derived from the normal (simple directional lighting).
-
-static constexpr char kSolidVS[] = R"(
-cbuffer CameraCB
-{
-    float4x4 g_ViewProj;
-    float4x4 g_Model;
-};
-
-struct VSInput
-{
-    float3 Pos        : ATTRIB0;
-    float3 Normal     : ATTRIB1;
-    float3 Tangent    : ATTRIB2;
-    float  Handedness : ATTRIB3;
-    float2 UV0        : ATTRIB4;
-    float2 UV1        : ATTRIB5;
-};
-
-struct PSInput
-{
-    float4 Pos    : SV_POSITION;
-    float3 Normal : NORMAL;
-};
-
-void main(in VSInput VSIn, out PSInput PSIn)
-{
-    float4 worldPos = mul(float4(VSIn.Pos, 1.0), g_Model);
-    PSIn.Pos    = mul(worldPos, g_ViewProj);
-    PSIn.Normal = mul(float4(VSIn.Normal, 0.0), g_Model).xyz;
-}
-)";
-
-static constexpr char kSolidPS[] = R"(
-struct PSInput
-{
-    float4 Pos    : SV_POSITION;
-    float3 Normal : NORMAL;
-};
-
-float4 main(in PSInput PSIn) : SV_Target
-{
-    float3 lightDir = normalize(float3(0.3, 1.0, 0.5));
-    float  ndl      = saturate(dot(normalize(PSIn.Normal), lightDir));
-    float3 color    = float3(0.8, 0.8, 0.8) * (0.15 + 0.85 * ndl);
-    return float4(color, 1.0);
-}
-)";
+#include "DiligentImGuiShaders.inl"
 
 } // anonymous namespace
 
@@ -416,6 +259,8 @@ DiligentRenderBackend::~DiligentRenderBackend()
 bool DiligentRenderBackend::Initialize(const SwapchainDesc& desc)
 {
     if (m_Impl->initialized) return true;
+
+    g_verboseGPU = m_Impl->config.enableValidation;
 
     if (desc.width == 0 || desc.height == 0)
     {
@@ -485,6 +330,7 @@ bool DiligentRenderBackend::Initialize(const SwapchainDesc& desc)
             LogErr("Failed to compile solid-color shaders");
             return false;
         }
+        LogDbg("Solid shaders compiled OK");
     }
 
     LogInfo("Phase 3: backend ready");
@@ -494,6 +340,8 @@ bool DiligentRenderBackend::Initialize(const SwapchainDesc& desc)
 void DiligentRenderBackend::Shutdown()
 {
     if (!m_Impl || !m_Impl->initialized) return;
+
+    ShutdownImGuiRendering();
 
     m_Impl->meshCache.clear();
     m_Impl->materialCache.clear();
@@ -711,25 +559,42 @@ void DiligentRenderBackend::BeginFrame()
     if (!m_Impl->initialized || !m_Impl->context || !m_Impl->swapChain)
         return;
 
+    LogDbg("BeginFrame: enter");
+
     auto* ctx = m_Impl->context.RawPtr();
     auto* sc  = m_Impl->swapChain.RawPtr();
 
     auto* rtv = sc->GetCurrentBackBufferRTV();
     auto* dsv = sc->GetDepthBufferDSV();
 
+    if (g_verboseGPU)
+    {
+        char buf[128];
+        std::snprintf(buf, sizeof(buf), "BeginFrame: rtv=%p dsv=%p frame=%llu",
+                      static_cast<void*>(rtv), static_cast<void*>(dsv),
+                      static_cast<unsigned long long>(m_Impl->frameIndex));
+        LogDbg(buf);
+    }
+
     ctx->SetRenderTargets(
         rtv ? 1u : 0u, rtv ? &rtv : nullptr, dsv,
         Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
+    LogDbg("BeginFrame: SetRenderTargets OK");
+
     if (rtv)
         ctx->ClearRenderTarget(rtv, m_Impl->config.clearColor,
                                Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+
+    LogDbg("BeginFrame: ClearRenderTarget OK");
 
     if (dsv && !m_Impl->config.skipDepthClear)
         ctx->ClearDepthStencil(dsv,
                                Diligent::CLEAR_DEPTH_FLAG | Diligent::CLEAR_STENCIL_FLAG,
                                m_Impl->config.clearDepth, m_Impl->config.clearStencil,
                                Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+
+    LogDbg("BeginFrame: done");
 }
 
 void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
@@ -743,6 +608,15 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
     // ── Nothing to draw? ─────────────────────────────────────────────
     if (view.drawItems.empty()) return;
 
+    {
+        char msg[128];
+        std::snprintf(msg, sizeof(msg), "Submit: %zu draw item(s) on frame %llu",
+                      view.drawItems.size(),
+                      static_cast<unsigned long long>(m_Impl->frameIndex));
+        LogDbg(msg);
+        if (m_Impl->frameIndex == 0) LogInfo(msg);
+    }
+
     const float* vpData = camera.viewProj.Data();
 
     // ── Draw loop ────────────────────────────────────────────────────
@@ -750,16 +624,38 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
     Diligent::IBuffer*        lastVB  = nullptr;
     Diligent::IBuffer*        lastIB  = nullptr;
 
+    int drawIdx = 0;
     for (const auto& item : view.drawItems)
     {
         auto meshIt = m_Impl->meshCache.find(item.mesh);
-        if (meshIt == m_Impl->meshCache.end()) continue;
+        if (meshIt == m_Impl->meshCache.end())
+        {
+            LogDbg("Submit: mesh not in cache, skip");
+            continue;
+        }
 
         auto matIt = m_Impl->materialCache.find(item.material);
-        if (matIt == m_Impl->materialCache.end()) continue;
+        if (matIt == m_Impl->materialCache.end())
+        {
+            LogDbg("Submit: material not in cache, skip");
+            continue;
+        }
 
         auto& mesh = meshIt->second;
         auto& mat  = matIt->second;
+
+        if (g_verboseGPU)
+        {
+            char buf[256];
+            std::snprintf(buf, sizeof(buf),
+                "Submit[%d]: verts=%u idx=%u stride=%u pso=%p srb=%p vb=%p ib=%p",
+                drawIdx, mesh.vertexCount, mesh.indexCount, mesh.vertexStride,
+                static_cast<void*>(mat.pso.RawPtr()),
+                static_cast<void*>(mat.srb.RawPtr()),
+                static_cast<void*>(mesh.vertexBuffer.RawPtr()),
+                static_cast<void*>(mesh.indexBuffer.RawPtr()));
+            LogDbg(buf);
+        }
 
         // Update CameraCB per DrawItem (g_ViewProj + g_Model).
         {
@@ -770,6 +666,7 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
             const float* mData = item.model.Data();
             for (int i = 0; i < 16; ++i) cbData[16 + i] = mData[i];
         }
+        LogDbg("Submit: CameraCB mapped OK");
 
         // PSO switch
         auto* pso = mat.pso.RawPtr();
@@ -777,11 +674,13 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
         {
             ctx->SetPipelineState(pso);
             lastPSO = pso;
+            LogDbg("Submit: SetPipelineState OK");
         }
 
         // SRB
         ctx->CommitShaderResources(mat.srb,
                                    Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        LogDbg("Submit: CommitShaderResources OK");
 
         // VB
         auto* vb = mesh.vertexBuffer.RawPtr();
@@ -792,6 +691,7 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
                                   Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
                                   Diligent::SET_VERTEX_BUFFERS_FLAG_RESET);
             lastVB = vb;
+            LogDbg("Submit: SetVertexBuffers OK");
         }
 
         // IB + Draw
@@ -803,6 +703,7 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
                 ctx->SetIndexBuffer(ib, 0,
                                     Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
                 lastIB = ib;
+                LogDbg("Submit: SetIndexBuffer OK");
             }
 
             Diligent::DrawIndexedAttribs drawAttribs;
@@ -810,6 +711,7 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
             drawAttribs.IndexType  = Diligent::VT_UINT32;
             drawAttribs.Flags      = Diligent::DRAW_FLAG_VERIFY_ALL;
             ctx->DrawIndexed(drawAttribs);
+            LogDbg("Submit: DrawIndexed OK");
         }
         else
         {
@@ -817,15 +719,379 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
             drawAttribs.NumVertices = mesh.vertexCount;
             drawAttribs.Flags       = Diligent::DRAW_FLAG_VERIFY_ALL;
             ctx->Draw(drawAttribs);
+            LogDbg("Submit: Draw OK");
         }
+
+        ++drawIdx;
     }
+    LogDbg("Submit: done");
 }
 
 void DiligentRenderBackend::EndFrame()
 {
     if (!m_Impl->initialized || !m_Impl->swapChain) return;
+
+    LogDbg("EndFrame: Present…");
     m_Impl->swapChain->Present();
     ++m_Impl->frameIndex;
+
+    if (g_verboseGPU)
+    {
+        char buf[64];
+        std::snprintf(buf, sizeof(buf), "EndFrame: frame %llu done",
+                      static_cast<unsigned long long>(m_Impl->frameIndex));
+        LogDbg(buf);
+    }
+}
+
+// ─── ImGui rendering ─────────────────────────────────────────────────
+
+bool DiligentRenderBackend::InitImGuiRendering()
+{
+    if (!m_Impl || !m_Impl->initialized) return false;
+    if (m_Impl->imguiReady) return true;
+
+    using namespace Diligent;
+
+    auto& dev = *m_Impl->device;
+    auto& sc  = *m_Impl->swapChain;
+
+    // ── Compile ImGui shaders ────────────────────────────────────────
+    RefCntAutoPtr<IShader> vsShader, psShader;
+    {
+        ShaderCreateInfo ci;
+        ci.SourceLanguage = SHADER_SOURCE_LANGUAGE_HLSL;
+
+        ci.Desc.ShaderType = SHADER_TYPE_VERTEX;
+        ci.Desc.Name       = "ImGui VS";
+        ci.EntryPoint      = "main";
+        ci.Source           = kImGuiVS;
+        dev.CreateShader(ci, &vsShader);
+
+        ci.Desc.ShaderType = SHADER_TYPE_PIXEL;
+        ci.Desc.Name       = "ImGui PS";
+        ci.Source           = kImGuiPS;
+        dev.CreateShader(ci, &psShader);
+
+        if (!vsShader || !psShader)
+        {
+            LogErr("ImGui: failed to compile shaders");
+            return false;
+        }
+    }
+
+    // ── Create PSO ───────────────────────────────────────────────────
+    {
+        GraphicsPipelineStateCreateInfo psoCI;
+        psoCI.PSODesc.Name         = "ImGuiPSO";
+        psoCI.PSODesc.PipelineType = PIPELINE_TYPE_GRAPHICS;
+        psoCI.pVS                  = vsShader;
+        psoCI.pPS                  = psShader;
+
+        const auto& scDesc = sc.GetDesc();
+        psoCI.GraphicsPipeline.NumRenderTargets  = 1;
+        psoCI.GraphicsPipeline.RTVFormats[0]     = scDesc.ColorBufferFormat;
+        psoCI.GraphicsPipeline.DSVFormat         = scDesc.DepthBufferFormat;
+        psoCI.GraphicsPipeline.PrimitiveTopology = PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+        // No depth test/write for UI overlay.
+        psoCI.GraphicsPipeline.DepthStencilDesc.DepthEnable     = False;
+        psoCI.GraphicsPipeline.DepthStencilDesc.DepthWriteEnable = False;
+
+        // No culling.
+        psoCI.GraphicsPipeline.RasterizerDesc.CullMode      = CULL_MODE_NONE;
+        psoCI.GraphicsPipeline.RasterizerDesc.ScissorEnable  = True;
+
+        // Alpha blending: SrcAlpha * Src + (1 - SrcAlpha) * Dst.
+        auto& rt0 = psoCI.GraphicsPipeline.BlendDesc.RenderTargets[0];
+        rt0.BlendEnable   = True;
+        rt0.SrcBlend      = BLEND_FACTOR_SRC_ALPHA;
+        rt0.DestBlend     = BLEND_FACTOR_INV_SRC_ALPHA;
+        rt0.BlendOp       = BLEND_OPERATION_ADD;
+        rt0.SrcBlendAlpha = BLEND_FACTOR_ONE;
+        rt0.DestBlendAlpha = BLEND_FACTOR_INV_SRC_ALPHA;
+        rt0.BlendOpAlpha  = BLEND_OPERATION_ADD;
+        rt0.RenderTargetWriteMask = COLOR_MASK_ALL;
+
+        // Input layout matching ImDrawVert (20 bytes):
+        //   pos(float2, 0) uv(float2, 8) col(uint8x4_norm, 16)
+        LayoutElement layoutElems[] =
+        {
+            { 0, 0, 2, VT_FLOAT32, False },       // ATTRIB0: pos
+            { 1, 0, 2, VT_FLOAT32, False },       // ATTRIB1: uv
+            { 2, 0, 4, VT_UINT8,   True  },       // ATTRIB2: col (normalized)
+        };
+        psoCI.GraphicsPipeline.InputLayout.NumElements   = 3;
+        psoCI.GraphicsPipeline.InputLayout.LayoutElements = layoutElems;
+
+        // Shader resource layout: one texture + sampler in pixel shader.
+        ShaderResourceVariableDesc vars[] =
+        {
+            { SHADER_TYPE_PIXEL, "g_Texture", SHADER_RESOURCE_VARIABLE_TYPE_DYNAMIC },
+        };
+        psoCI.PSODesc.ResourceLayout.Variables    = vars;
+        psoCI.PSODesc.ResourceLayout.NumVariables = 1;
+
+        ImmutableSamplerDesc samplers[] =
+        {
+            { SHADER_TYPE_PIXEL, "g_Sampler", SamplerDesc{
+                FILTER_TYPE_LINEAR, FILTER_TYPE_LINEAR, FILTER_TYPE_LINEAR,
+                TEXTURE_ADDRESS_CLAMP, TEXTURE_ADDRESS_CLAMP, TEXTURE_ADDRESS_CLAMP
+            }},
+        };
+        psoCI.PSODesc.ResourceLayout.ImmutableSamplers    = samplers;
+        psoCI.PSODesc.ResourceLayout.NumImmutableSamplers = 1;
+
+        dev.CreateGraphicsPipelineState(psoCI, &m_Impl->imguiPSO);
+        if (!m_Impl->imguiPSO)
+        {
+            LogErr("ImGui: failed to create PSO");
+            return false;
+        }
+    }
+
+    // ── Create projection constant buffer ────────────────────────────
+    {
+        BufferDesc cbDesc;
+        cbDesc.Name           = "ImGuiCB";
+        cbDesc.Size           = sizeof(float) * 16;
+        cbDesc.Usage          = USAGE_DYNAMIC;
+        cbDesc.BindFlags      = BIND_UNIFORM_BUFFER;
+        cbDesc.CPUAccessFlags = CPU_ACCESS_WRITE;
+        dev.CreateBuffer(cbDesc, nullptr, &m_Impl->imguiCB);
+        if (!m_Impl->imguiCB)
+        {
+            LogErr("ImGui: failed to create CB");
+            return false;
+        }
+
+        if (auto* var = m_Impl->imguiPSO->GetStaticVariableByName(SHADER_TYPE_VERTEX, "ImGuiCB"))
+            var->Set(m_Impl->imguiCB);
+    }
+
+    // ── Create font atlas texture ────────────────────────────────────
+    {
+        ImGuiIO& io = ImGui::GetIO();
+        unsigned char* pixels = nullptr;
+        int width = 0, height = 0;
+        io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+
+        TextureDesc texDesc;
+        texDesc.Name      = "ImGui Font Atlas";
+        texDesc.Type      = RESOURCE_DIM_TEX_2D;
+        texDesc.Width     = static_cast<Uint32>(width);
+        texDesc.Height    = static_cast<Uint32>(height);
+        texDesc.Format    = TEX_FORMAT_RGBA8_UNORM;
+        texDesc.BindFlags = BIND_SHADER_RESOURCE;
+        texDesc.Usage     = USAGE_IMMUTABLE;
+        texDesc.MipLevels = 1;
+
+        TextureSubResData subRes;
+        subRes.pData  = pixels;
+        subRes.Stride = static_cast<Uint64>(width) * 4;
+
+        TextureData texData;
+        texData.pSubResources   = &subRes;
+        texData.NumSubresources = 1;
+
+        dev.CreateTexture(texDesc, &texData, &m_Impl->imguiFontTex);
+        if (!m_Impl->imguiFontTex)
+        {
+            LogErr("ImGui: failed to create font atlas texture");
+            return false;
+        }
+
+        m_Impl->imguiFontSRV = m_Impl->imguiFontTex->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
+
+        // Store font atlas texture ID so ImGui can reference it.
+        io.Fonts->SetTexID(reinterpret_cast<ImTextureID>(m_Impl->imguiFontSRV.RawPtr()));
+    }
+
+    // ── Create SRB ───────────────────────────────────────────────────
+    m_Impl->imguiPSO->CreateShaderResourceBinding(&m_Impl->imguiSRB, true);
+    if (!m_Impl->imguiSRB)
+    {
+        LogErr("ImGui: failed to create SRB");
+        return false;
+    }
+
+    m_Impl->imguiReady = true;
+    LogInfo("ImGui rendering initialised");
+    return true;
+}
+
+void DiligentRenderBackend::RenderImGuiDrawData(const void* rawDrawData)
+{
+    if (!m_Impl || !m_Impl->imguiReady || !rawDrawData) return;
+
+    const auto* drawData = static_cast<const ImDrawData*>(rawDrawData);
+    if (drawData->TotalVtxCount <= 0) return;
+
+    using namespace Diligent;
+
+    auto* ctx = m_Impl->context.RawPtr();
+
+    // ── Grow vertex buffer if needed ─────────────────────────────────
+    const auto vbNeeded = static_cast<Uint32>(drawData->TotalVtxCount) * static_cast<Uint32>(sizeof(ImDrawVert));
+    if (vbNeeded > m_Impl->imguiVBSize)
+    {
+        m_Impl->imguiVB.Release();
+        m_Impl->imguiVBSize = vbNeeded + 4096;
+
+        BufferDesc desc;
+        desc.Name           = "ImGui VB";
+        desc.Size           = m_Impl->imguiVBSize;
+        desc.BindFlags      = BIND_VERTEX_BUFFER;
+        desc.Usage          = USAGE_DYNAMIC;
+        desc.CPUAccessFlags = CPU_ACCESS_WRITE;
+        m_Impl->device->CreateBuffer(desc, nullptr, &m_Impl->imguiVB);
+    }
+
+    // ── Grow index buffer if needed ──────────────────────────────────
+    const auto ibNeeded = static_cast<Uint32>(drawData->TotalIdxCount) * static_cast<Uint32>(sizeof(ImDrawIdx));
+    if (ibNeeded > m_Impl->imguiIBSize)
+    {
+        m_Impl->imguiIB.Release();
+        m_Impl->imguiIBSize = ibNeeded + 4096;
+
+        BufferDesc desc;
+        desc.Name           = "ImGui IB";
+        desc.Size           = m_Impl->imguiIBSize;
+        desc.BindFlags      = BIND_INDEX_BUFFER;
+        desc.Usage          = USAGE_DYNAMIC;
+        desc.CPUAccessFlags = CPU_ACCESS_WRITE;
+        m_Impl->device->CreateBuffer(desc, nullptr, &m_Impl->imguiIB);
+    }
+
+    // ── Upload vertex/index data ─────────────────────────────────────
+    {
+        MapHelper<ImDrawVert> vtx(ctx, m_Impl->imguiVB, MAP_WRITE, MAP_FLAG_DISCARD);
+        MapHelper<ImDrawIdx>  idx(ctx, m_Impl->imguiIB, MAP_WRITE, MAP_FLAG_DISCARD);
+
+        ImDrawVert* vtxDst = vtx;
+        ImDrawIdx*  idxDst = idx;
+
+        for (int n = 0; n < drawData->CmdListsCount; ++n)
+        {
+            const ImDrawList* cmdList = drawData->CmdLists[n];
+            std::memcpy(vtxDst, cmdList->VtxBuffer.Data,
+                        static_cast<size_t>(cmdList->VtxBuffer.Size) * sizeof(ImDrawVert));
+            std::memcpy(idxDst, cmdList->IdxBuffer.Data,
+                        static_cast<size_t>(cmdList->IdxBuffer.Size) * sizeof(ImDrawIdx));
+            vtxDst += cmdList->VtxBuffer.Size;
+            idxDst += cmdList->IdxBuffer.Size;
+        }
+    }
+
+    // ── Update projection matrix ─────────────────────────────────────
+    {
+        const float L = drawData->DisplayPos.x;
+        const float R = L + drawData->DisplaySize.x;
+        const float T = drawData->DisplayPos.y;
+        const float B = T + drawData->DisplaySize.y;
+
+        // Column-major orthographic projection (D3D depth 0..1).
+        // mul(ProjectionMatrix, float4(pos, 0, 1)) in the shader.
+        const float mvp[16] =
+        {
+            2.0f / (R - L),       0.0f,                 0.0f, 0.0f,
+            0.0f,                 2.0f / (T - B),       0.0f, 0.0f,
+            0.0f,                 0.0f,                 0.5f, 0.0f,
+            (R + L) / (L - R),   (T + B) / (B - T),   0.5f, 1.0f,
+        };
+
+        MapHelper<float> cb(ctx, m_Impl->imguiCB, MAP_WRITE, MAP_FLAG_DISCARD);
+        std::memcpy(cb, mvp, sizeof(mvp));
+    }
+
+    // ── Set pipeline state ───────────────────────────────────────────
+    ctx->SetPipelineState(m_Impl->imguiPSO);
+
+    // ── Bind VB / IB ─────────────────────────────────────────────────
+    {
+        IBuffer* vbs[] = { m_Impl->imguiVB };
+        Uint64 offsets[] = { 0 };
+        ctx->SetVertexBuffers(0, 1, vbs, offsets,
+                              RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
+                              SET_VERTEX_BUFFERS_FLAG_RESET);
+        ctx->SetIndexBuffer(m_Impl->imguiIB, 0,
+                            RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    }
+
+    // ── Draw each command list ───────────────────────────────────────
+    int globalIdxOffset = 0;
+    int globalVtxOffset = 0;
+
+    const ImVec2 clipOff = drawData->DisplayPos;
+
+    for (int n = 0; n < drawData->CmdListsCount; ++n)
+    {
+        const ImDrawList* cmdList = drawData->CmdLists[n];
+
+        for (int cmdIdx = 0; cmdIdx < cmdList->CmdBuffer.Size; ++cmdIdx)
+        {
+            const ImDrawCmd& cmd = cmdList->CmdBuffer[cmdIdx];
+
+            if (cmd.UserCallback)
+            {
+                cmd.UserCallback(cmdList, &cmd);
+                continue;
+            }
+
+            // Scissor rect.
+            const float clipX = cmd.ClipRect.x - clipOff.x;
+            const float clipY = cmd.ClipRect.y - clipOff.y;
+            const float clipW = cmd.ClipRect.z - clipOff.x;
+            const float clipH = cmd.ClipRect.w - clipOff.y;
+
+            Rect scissor;
+            scissor.left   = static_cast<Int32>(clipX);
+            scissor.top    = static_cast<Int32>(clipY);
+            scissor.right  = static_cast<Int32>(clipW);
+            scissor.bottom = static_cast<Int32>(clipH);
+            ctx->SetScissorRects(1, &scissor, 0, 0);
+
+            // Bind texture.
+            auto* texSRV = reinterpret_cast<ITextureView*>(cmd.GetTexID());
+            if (texSRV)
+            {
+                if (auto* var = m_Impl->imguiSRB->GetVariableByName(SHADER_TYPE_PIXEL, "g_Texture"))
+                    var->Set(texSRV);
+            }
+
+            ctx->CommitShaderResources(m_Impl->imguiSRB,
+                                       RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+
+            DrawIndexedAttribs drawAttribs;
+            drawAttribs.NumIndices  = cmd.ElemCount;
+            drawAttribs.IndexType   = sizeof(ImDrawIdx) == 2 ? VT_UINT16 : VT_UINT32;
+            drawAttribs.FirstIndexLocation = static_cast<Uint32>(cmd.IdxOffset + globalIdxOffset);
+            drawAttribs.BaseVertex         = static_cast<Int32>(cmd.VtxOffset + globalVtxOffset);
+            drawAttribs.Flags              = DRAW_FLAG_VERIFY_ALL;
+            ctx->DrawIndexed(drawAttribs);
+        }
+
+        globalIdxOffset += cmdList->IdxBuffer.Size;
+        globalVtxOffset += cmdList->VtxBuffer.Size;
+    }
+}
+
+void DiligentRenderBackend::ShutdownImGuiRendering()
+{
+    if (!m_Impl || !m_Impl->imguiReady) return;
+
+    m_Impl->imguiSRB.Release();
+    m_Impl->imguiPSO.Release();
+    m_Impl->imguiCB.Release();
+    m_Impl->imguiVB.Release();
+    m_Impl->imguiIB.Release();
+    m_Impl->imguiFontSRV.Release();
+    m_Impl->imguiFontTex.Release();
+    m_Impl->imguiVBSize = 0;
+    m_Impl->imguiIBSize = 0;
+    m_Impl->imguiReady  = false;
+
+    LogInfo("ImGui rendering shut down");
 }
 
 // ─── Diagnostics ─────────────────────────────────────────────────────

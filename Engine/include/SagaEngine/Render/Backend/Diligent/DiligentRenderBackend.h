@@ -1,22 +1,19 @@
 /// @file DiligentRenderBackend.h
-/// @brief Phase 2 Diligent implementation of the IRenderBackend seam.
+/// @brief Phase 3 Diligent implementation of the IRenderBackend seam.
 ///
 /// Layer  : SagaEngine / Render / Backend / Diligent
-/// Purpose: Concrete backend with a hardcoded triangle pipeline.
+/// Purpose: Concrete GPU backend with real mesh/material pipeline.
 ///
-///   Phase 2 capabilities:
-///     * Initialize  — device + context + swapchain + triangle PSO/VB/CB.
-///     * BeginFrame  — binds the swap-chain RTV/DSV and clears them.
-///     * Submit      — updates camera CB, binds PSO/VB, Draw(3).
-///                     RenderView DrawItems are still ignored; mesh/material
-///                     upload becomes real in Phase 3.
-///     * EndFrame    — Present() via the swap chain.
-///     * Shutdown    — releases all GPU resources.
-///     * OnResize    — ISwapChain::Resize(). PSO stays valid because
-///                     colour/depth formats are immutable across resize.
-///
-///   Resource upload entry points (CreateMesh / CreateMaterial) still
-///   return the invalid sentinel. Real uploads arrive in Phase 3.
+///   Phase 3 capabilities:
+///     * Initialize    — device + context + swapchain + CameraCB + solid shaders.
+///     * CreateMesh    — upload VB + IB from MeshAsset LOD 0, cache by MeshId.
+///     * CreateMaterial— lookup/create PSO (keyed by cull/queue/depth), create SRB.
+///     * BeginFrame    — bind swap-chain RTV/DSV and clear.
+///     * Submit        — update CameraCB (g_ViewProj + g_Model per DrawItem),
+///                       bind PSO/VB/IB, draw indexed or non-indexed.
+///     * EndFrame      — Present() via the swap chain.
+///     * Shutdown      — release all GPU resources.
+///     * OnResize      — ISwapChain::Resize().
 ///
 /// Design rules:
 ///   - The public header does NOT leak Diligent headers into its includers.
@@ -25,14 +22,11 @@
 ///     the public seam") stays intact all the way out to call sites.
 ///   - Init/device errors log and return false. Per-frame draw-time errors
 ///     log and skip the draw — the frame lifecycle never skips EndFrame.
-///   - If triangle resource creation fails (no shader compiler, driver
-///     limitation), Submit gracefully skips drawing. The error is logged
-///     once at init time.
 ///   - One renderer per process. Non-copyable, non-movable.
+///   - Factory init and shader source are split into .inl files for clarity.
 ///
-/// Not this class's problem (and explicitly out of Phase 2):
-///   - Mesh / material / PSO cache, descriptor heaps, resource streaming
-///   - Command-list recording, multi-thread submission
+/// Not this class's problem:
+///   - Descriptor heaps, resource streaming, command-list multi-threading
 ///   - Window / input — window ownership lives in Apps, never in Engine.
 
 #pragma once
@@ -115,7 +109,7 @@ public:
     void               OnResize(std::uint32_t width,
                                  std::uint32_t height) override;
 
-    // ── IRenderBackend: resource upload (Phase 2) ───────────────
+    // ── IRenderBackend: resource upload ───────────────────────────
     [[nodiscard]] World::MeshId     CreateMesh    (const MeshAsset&)       override;
     [[nodiscard]] World::MaterialId CreateMaterial(const MaterialRuntime&) override;
     void                            DestroyMesh    (World::MeshId)         override;
@@ -126,6 +120,20 @@ public:
     void Submit(const Scene::Camera&     camera,
                 const Scene::RenderView& view) override;
     void EndFrame() override;
+
+    // ── ImGui rendering ────────────────────────────────────────
+
+    /// Create ImGui PSO, font atlas texture, and projection CB.
+    /// Call once after Initialize() succeeds. Returns false on failure.
+    [[nodiscard]] bool InitImGuiRendering();
+
+    /// Render ImGui draw data. Call between Submit() and EndFrame().
+    /// @param drawData  Raw pointer to ImDrawData (void* avoids leaking
+    ///                  imgui.h into this engine header).
+    void RenderImGuiDrawData(const void* drawData);
+
+    /// Release all ImGui GPU resources.
+    void ShutdownImGuiRendering();
 
     // ── Diagnostics ─────────────────────────────────────────────
 

@@ -25,7 +25,10 @@
 #include <SagaServer/Networking/Core/ReliableChannel.h>
 #include <SagaServer/Networking/Core/Packet.h>
 
-#include <SDL2/SDL.h>
+#include <SagaEngine/Platform/IDebugRenderer2D.h>
+#include <SagaEngine/Platform/SDL/SDLDebugRenderer2D.h>
+#include <SagaEngine/Input/Backends/SDL/SDLInputBackend.h>
+#include <SagaEngine/Input/Devices/KeyboardDevice.h>
 
 #include <array>
 #include <atomic>
@@ -729,16 +732,23 @@ void ClientHost::OnInit()
         LOG_INFO(kTag, "Connection state: %s", Net::ConnectionStateToString(state));
     });
 
+    // ── Input ───────────────────────────────────────────────────────────────
+    {
+        auto inputBackend = std::make_unique<SagaEngine::Platform::SDLInputBackend>();
+        m_inputManager.SetBackend(std::move(inputBackend));
+        if (!m_inputManager.Initialize())
+            LOG_WARN(kTag, "InputManager init failed.");
+        m_inputManager.RegisterDevice(Input::MakeKeyboardDevice(1));
+    }
+
     // ── Debug renderer ──────────────────────────────────────────────────────
     if (!m_config.headless)
     {
-        auto* sdlWindow = static_cast<SDL_Window*>(GetWindow()->GetNativeHandle());
-        if (sdlWindow)
+        m_debugRenderer = std::make_unique<SDLDebugRenderer2D>();
+        if (!m_debugRenderer->Init(*GetWindow(), m_config.vsync))
         {
-            m_renderer = SDL_CreateRenderer(sdlWindow, -1,
-                                            m_config.vsync ? SDL_RENDERER_PRESENTVSYNC : 0);
-            if (!m_renderer)
-                LOG_WARN(kTag, "SDL_CreateRenderer failed: %s", SDL_GetError());
+            LOG_WARN(kTag, "Debug renderer init failed.");
+            m_debugRenderer.reset();
         }
     }
 
@@ -755,12 +765,14 @@ void ClientHost::OnUpdate()
     //   3. Prediction → Reconciliation → Interpolation
     //   4. Render
 
+    m_inputManager.Update(static_cast<uint32_t>(m_tickCounter));
+
     m_session->TickReceive();
     m_session->Tick(m_tickCounter);
     TickInput();
     m_session->TickSend();
 
-    if (m_renderer && !m_config.headless)
+    if (m_debugRenderer && !m_config.headless)
         RenderDebug();
 }
 
@@ -788,11 +800,13 @@ void ClientHost::OnShutdown()
         m_session.reset();
     }
 
-    if (m_renderer)
+    if (m_debugRenderer)
     {
-        SDL_DestroyRenderer(m_renderer);
-        m_renderer = nullptr;
+        m_debugRenderer->Shutdown();
+        m_debugRenderer.reset();
     }
+
+    m_inputManager.Shutdown();
 
     LOG_INFO(kTag, "ClientHost shutdown complete.");
 }
@@ -804,20 +818,20 @@ void ClientHost::RequestExit()
 
 void ClientHost::TickInput()
 {
-    const uint8_t* keys = SDL_GetKeyboardState(nullptr);
-    if (!keys) return;
+    const auto& state = m_inputManager.GetMergedState();
+    const auto& kb    = state.keyboard;
 
     bool anyInput = false;
     int32_t moveX = 0;
     int32_t moveY = 0;
     uint32_t buttons = 0;
 
-    if (keys[SDL_SCANCODE_W]) { moveY += Input::FixedFromFloat(1.0f); anyInput = true; }
-    if (keys[SDL_SCANCODE_S]) { moveY -= Input::FixedFromFloat(1.0f); anyInput = true; }
-    if (keys[SDL_SCANCODE_A]) { moveX -= Input::FixedFromFloat(1.0f); anyInput = true; }
-    if (keys[SDL_SCANCODE_D]) { moveX += Input::FixedFromFloat(1.0f); anyInput = true; }
-    if (keys[SDL_SCANCODE_SPACE]) { buttons |= Input::kButtonJump; anyInput = true; }
-    if (keys[SDL_SCANCODE_LSHIFT]) { buttons |= Input::kButtonSprint; anyInput = true; }
+    if (kb.IsDown(Input::KeyCode::W)) { moveY += Input::FixedFromFloat(1.0f); anyInput = true; }
+    if (kb.IsDown(Input::KeyCode::S)) { moveY -= Input::FixedFromFloat(1.0f); anyInput = true; }
+    if (kb.IsDown(Input::KeyCode::A)) { moveX -= Input::FixedFromFloat(1.0f); anyInput = true; }
+    if (kb.IsDown(Input::KeyCode::D)) { moveX += Input::FixedFromFloat(1.0f); anyInput = true; }
+    if (kb.IsDown(Input::KeyCode::Space))  { buttons |= Input::kButtonJump;   anyInput = true; }
+    if (kb.IsDown(Input::KeyCode::LShift)) { buttons |= Input::kButtonSprint; anyInput = true; }
 
     if (!anyInput) return;
 
@@ -836,8 +850,10 @@ void ClientHost::TickInput()
 
 void ClientHost::RenderDebug()
 {
-    SDL_SetRenderDrawColor(m_renderer, 30, 30, 35, 255);
-    SDL_RenderClear(m_renderer);
+    auto& dr = *m_debugRenderer;
+
+    dr.SetColor(30, 30, 35, 255);
+    dr.Clear();
 
     const double renderTime = SagaEngine::Core::Time::GetTime();
     auto transforms = m_session->GetInterpolationManager().SampleAll(renderTime);
@@ -853,15 +869,14 @@ void ClientHost::RenderDebug()
         int sy = windowH / 2 + static_cast<int>(transform.position.z * scale);
 
         if (entityId == m_session->GetLocalPlayerId())
-            SDL_SetRenderDrawColor(m_renderer, 0, 255, 0, 255);
+            dr.SetColor(0, 255, 0, 255);
         else
-            SDL_SetRenderDrawColor(m_renderer, 0, 200, 255, 255);
+            dr.SetColor(0, 200, 255, 255);
 
-        SDL_Rect rect = { sx - cellSize / 2, sy - cellSize / 2, cellSize, cellSize };
-        SDL_RenderFillRect(m_renderer, &rect);
+        dr.FillRect(sx - cellSize / 2, sy - cellSize / 2, cellSize, cellSize);
     }
 
-    SDL_RenderPresent(m_renderer);
+    dr.Present();
 }
 
 } // namespace Saga

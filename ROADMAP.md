@@ -365,21 +365,127 @@ written down. Both are run in CI.
 
 ---
 
-## 12. SCRIPTING (C# / .NET 8)
+## 12. SCRIPTING RUNTIME (C# / .NET 8)
 
-| Durum | Gorev |
-|-------|-------|
-| [ ] | CoreCLR host entegrasyonu — runtime init/shutdown |
-| [ ] | AppDomain / AssemblyLoadContext yonetimi |
-| [ ] | Native → Managed bridge (C++ → C#) |
-| [ ] | Managed → Native calls (P/Invoke) |
-| [ ] | Sandbox — reflection limit, file/network access block |
-| [ ] | Execution time limit (infinite loop korumasi) |
-| [ ] | Memory limit (GC abuse engelleme) |
-| [ ] | Script hot reload — AssemblyLoadContext dynamic load/unload |
-| [ ] | API surface — IEntity, IWorld, IComponent |
-| [ ] | Thread-safe call boundary |
-| [ ] | Data marshaling |
+| Status | Item |
+|--------|------|
+| [ ]    | CoreCLR host integration — runtime init, shutdown, error propagation, and deterministic teardown.                                    |
+| [ ]    | Collectible `AssemblyLoadContext` lifecycle — per-package load, unload, dependency resolution, and stale-reference detection.        |
+| [ ]    | Native → Managed bridge — engine events, tick callbacks, and object handles exposed to C#.                                           |
+| [ ]    | Managed → Native bridge — generated, type-safe calls with no reflection on hot paths.                                                |
+| [ ]    | Canonical gameplay API — `IEntity`, `IWorld`, `IComponent`, `IQuery`, and `ISystem`.                                                 |
+| [ ]    | Safe marshaling layer — blittable structs, strings, spans, arrays, handles, and ownership rules.                                     |
+| [ ]    | Thread-safe call boundary — async-safe dispatch between engine threads and script threads.                                           |
+| [ ]    | Cooperative execution budget — per-tick script time budget, watchdog, cancellation, and safe fallback.                               |
+| [ ]    | Script hot reload — supported edit sets reload in place; unsupported edits fall back to rebuild / restart.                           |
+| [ ]    | Script package format — manifests, dependency resolution, versioning, and compatibility checks.                                      |
+| [ ]    | Script diagnostics — compile errors, runtime exceptions, stack traces, source maps, and profiling markers.                           |
+| [ ]    | Deterministic test harness — repeatable script replay under fixed inputs and fixed tick order.                                       |
+| [ ]    | Sandbox worker mode — out-of-process isolation for untrusted scripts, with file / network restrictions and crash containment.        |
+| [ ]    | Script SDK — library authors can register gameplay APIs, script APIs, and generated bindings through a documented extension surface. |
+
+## 12.1 CANONICAL IR / COMPILATION PIPELINE
+
+| Status | Item |
+|--------|------|
+| [ ]    | Canonical IR definition — one intermediate representation shared by block authoring and text authoring.         |
+| [ ]    | Block-to-IR compiler — graph nodes, typed pins, collapse groups, and macro expansion lower into IR.             |
+| [ ]    | C# subset parser — supported gameplay syntax parses into the same IR.                                           |
+| [ ]    | IR-to-runtime compiler — IR lowers into compiled script methods, bytecode, or another optimized runtime form.   |
+| [ ]    | Round-trip policy — supported constructs preserve meaning across block view and text view.                      |
+| [ ]    | Unsupported syntax policy — unsupported C# features fail clearly instead of silently drifting.                  |
+| [ ]    | Metadata preservation — comments, symbols, and user-facing labels survive supported round trips where feasible. |
+| [ ]    | Incremental compilation — dirty-region rebuild for both blocks and text.                                        |
+| [ ]    | Background compile workers — parse, validate, and regenerate without blocking editor input.                     |
+| [ ]    | Generated node metadata — source generators emit node descriptors, docs, and validation hooks.                  |
+
+## 12.2 PERFORMANCE MODEL AND RUNTIME BOUNDARIES
+
+| Status | Item |
+|--------|------|
+| [ ]    | Authoring/runtime separation — blocks and C# are editor-facing representations, not runtime interpreters.                              |
+| [ ]    | Runtime execution rule — gameplay runs from compiled output, never from node-by-node graph interpretation on the main simulation path. |
+| [ ]    | Edit-time sync cost containment — block movement, parse updates, and C# regeneration happen off the hot path.                          |
+| [ ]    | Hot reload debounce — changes batch before rebuild to avoid thrashing on every keystroke.                                              |
+| [ ]    | Partial recompilation — only changed compilation units regenerate when possible.                                                       |
+| [ ]    | Reflection avoidance — runtime invocation uses generated bindings, cached delegates, or direct dispatch.                               |
+| [ ]    | Allocation control — pooled objects, stack-friendly value types, and native arena-style allocation where appropriate.                  |
+| [ ]    | Hot-path separation — combat, netcode, replication, pathfinding, and tight AI loops stay native or otherwise optimized.                |
+| [ ]    | Runtime budget enforcement — script work is capped per tick and can yield or be suspended safely.                                      |
+| [ ]    | Editor-only overhead acceptance — extra cost is allowed in the editor, not in shipped simulation.                                      |
+
+## 13. VISUAL AUTHORING / EDITOR SHELL
+
+| Status | Item |
+|--------|------|
+| [ ]    | Editor shell — dockable windows, persistent layouts, workspace presets, and command routing.                             |
+| [ ]    | Core panels — project browser, hierarchy, inspector, console, and asset browser.                                         |
+| [ ]    | Viewport system — scene/world viewport with selection, gizmos, camera control, and runtime preview.                      |
+| [ ]    | Command palette and shortcut editor — searchable commands, remappable bindings, and discoverable actions.                |
+| [ ]    | Undo / redo framework — transactional editor actions with consistent state rollback.                                     |
+| [ ]    | Graph editor shell — zoom, pan, search, selection, grouping, collapse, and inline diagnostics.                           |
+| [ ]    | Block authoring v1 — typed pins, node library, compile-to-IR, and graph validation.                                      |
+| [ ]    | Text authoring v1 — C# subset editor that targets the same canonical IR as the block system.                             |
+| [ ]    | Shared canonical IR — one intermediate representation for blocks, text, and runtime compilation.                         |
+| [ ]    | Block / C# synchronization — supported gameplay subset can move between block view and text view without losing meaning. |
+| [ ]    | Layout customization — users can recompose panels, toolbars, and workflows through presets and saved workspaces.         |
+| [ ]    | Custom Mode — advanced users can replace or hide editor surfaces, tool layouts, and panel compositions.                  |
+| [ ]    | Editor diagnostics — graph errors, type mismatches, missing references, and runtime preview failures surfaced in-place.  |
+| [ ]    | Editor extension API — new panels, tools, inspectors, commands, and viewport overlays can be added by packages.          |
+| [ ]    | Asset import integration — import, cook, validate, and preview assets from inside the editor.                            |
+| [ ]    | Editor persistence — layout state, graph layout, shortcut bindings, theme, and recent files persist across sessions.     |
+| [ ]    | Workspace presets — Creator, Indie, Studio, Technical, and Custom presets ship as first-class editor profiles.           |
+| [ ]    | Headless editor mode — automated import, validation, cook, and content build runs without a visible UI.                  |
+
+## 14. EXTENSIONS & PACKAGE SDK
+
+| Status | Item |
+|--------|------|
+| [ ]    | Package manifest schema — explicit package identity, dependencies, compatibility range, and load order.                  |
+| [ ]    | Extension discovery — runtime and editor can enumerate installed packages without hard-coded registration.               |
+| [ ]    | Node registration API — third-party packages can add block nodes, categories, tooltips, and validation metadata.         |
+| [ ]    | Script library API — packages can expose gameplay helpers, shared types, and generated bindings.                         |
+| [ ]    | Editor tool API — packages can add panels, inspectors, menus, shortcuts, and graph tools.                                |
+| [ ]    | Version compatibility rules — package load fails fast on incompatible engine or scripting ABI versions.                  |
+| [ ]    | Isolation and unload rules — packages can be unloaded cleanly when no managed references remain.                         |
+| [ ]    | Sample packages — reference packages for gameplay scripts, block nodes, editor tools, and asset pipeline extensions.     |
+| [ ]    | Package signing / trust model — trusted packages, local packages, and untrusted packages follow different load policies. |
+
+## 15. DEBUGGING, PROFILING, AND VALIDATION
+
+| Status | Item |
+|--------|------|
+| [ ]    | Script profiler — per-method and per-node timing for C# and block-authored gameplay.                             |
+| [ ]    | Graph debugger — node-level breakpoints, watch values, and execution tracing.                                    |
+| [ ]    | Runtime trace capture — inputs, replication, script events, and simulation state snapshots.                      |
+| [ ]    | State diff tooling — compare world state, snapshot state, and replay state across runs.                          |
+| [ ]    | Failure reproduction runner — load a captured scenario and replay it locally or in CI.                           |
+| [ ]    | Performance budgets — editor latency, script time, compile time, and frame budgets are enforced and reported.    |
+| [ ]    | Memory / handle leak detection — engine-owned allocations, managed bridges, and streaming resources are tracked. |
+| [ ]    | Replay verification — deterministic replay checks run on changes to simulation, ECS, or networking code.         |
+| [ ]    | Crash artifact capture — logs, traces, snapshots, and minimal repro data are uploaded for failures.              |
+
+## 16. SECURITY AND ISOLATION POLICY
+
+| Status | Item |
+|--------|------|
+| [ ]    | Trusted in-process mode — first-party packages and trusted gameplay scripts may run inside the main process.    |
+| [ ]    | Untrusted out-of-process mode — sandboxed scripts run in separate worker processes with restricted access.      |
+| [ ]    | Permission policy — file, network, reflection, and native access are controlled by package trust level.         |
+| [ ]    | Failure containment — script crashes, deadlocks, and runaway allocations do not take down the editor or server. |
+| [ ]    | Security boundary documentation — clear rules for what the engine does and does not guarantee.                  |
+| [ ]    | Host fallback policy — unsupported or dangerous script features fail into safe fallback paths.                  |
+
+## 17. DOCUMENTATION AND SAMPLE CONTENT
+
+| Status | Item |
+|--------|------|
+| [ ]    | Reference gameplay package — a minimal but complete gameplay implementation using C#.                     |
+| [ ]    | Reference block graph — a complete example showing block authoring, IR generation, and runtime execution. |
+| [ ]    | Reference editor extension — a sample custom panel or tool shipped as an external package.                |
+| [ ]    | Reference asset pipeline — import, cook, validate, and preview flow documented end-to-end.                |
+| [ ]    | Supported C# subset docs — exactly what can round-trip to blocks and what cannot.                         |
+| [ ]    | Migration guide — how to move from block-authored logic to text-authored logic without breaking gameplay. |
 
 ---
 
