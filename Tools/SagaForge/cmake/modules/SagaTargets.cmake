@@ -142,7 +142,11 @@ function(saga_create_engine_targets)
     get_target_property(_saga_sandbox_sources_after_helpers SagaSandbox SOURCES)
     message(STATUS "[SagaSandbox] SOURCES after helpers = ${_saga_sandbox_sources_after_helpers}")
 
-    target_link_libraries(SagaSandbox PRIVATE SagaSandboxLib)
+    # WHOLE_ARCHIVE ensures self-registering scenario statics are not
+    # stripped by the linker (MSVC discards unreferenced .obj from STATIC libs).
+    target_link_libraries(SagaSandbox PRIVATE
+        "$<LINK_LIBRARY:WHOLE_ARCHIVE,SagaSandboxLib>"
+    )
 
     get_target_property(_saga_sandbox_sources_final SagaSandbox SOURCES)
     message(STATUS "[SagaSandbox] SOURCES final = ${_saga_sandbox_sources_final}")
@@ -151,5 +155,24 @@ function(saga_create_engine_targets)
         OUTPUT_NAME "SagaSandbox"
         FOLDER      "Apps"
     )
+
+    # ─── RenderClientSmokeTest ───────────────────────────────────────────
+    # Headless, CI-safe smoke test for the RenderClientApp facade.
+    # No GPU, no window — exercises bind/update/release and multi-camera slots
+    # against NullRenderBackend.
+    set(_saga_render_smoke "${SAGA_ROOT}/Apps/RenderClientSmokeTest/main.cpp")
+    if(EXISTS "${_saga_render_smoke}")
+        add_executable(RenderClientSmokeTest "${_saga_render_smoke}")
+        saga_apply_compiler_flags(RenderClientSmokeTest)
+        saga_link_thirdparty(RenderClientSmokeTest)
+        target_link_libraries(RenderClientSmokeTest PRIVATE
+            SagaEngine
+            SagaBackend
+        )
+        set_target_properties(RenderClientSmokeTest PROPERTIES
+            FOLDER "Apps"
+        )
+        add_test(NAME RenderClientSmokeTest COMMAND RenderClientSmokeTest)
+    endif()
 
 endfunction()

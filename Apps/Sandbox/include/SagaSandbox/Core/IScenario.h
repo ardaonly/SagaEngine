@@ -26,6 +26,7 @@
 #include <SagaEngine/Render/Scene/Camera.h>
 #include <SagaEngine/Render/Scene/RenderView.h>
 
+#include <functional>
 #include <string_view>
 #include <cstdint>
 
@@ -39,6 +40,10 @@ namespace SagaSandbox
 struct ScenarioContext
 {
     ::SagaEngine::Render::Backend::IRenderBackend* renderBackend = nullptr;
+
+    /// Callback to request the host application to close.
+    /// Scenarios call this (e.g. on ESC) instead of coupling to SandboxHost.
+    std::function<void()> requestClose;
 };
 
 // ─── Scenario Metadata ────────────────────────────────────────────────────────

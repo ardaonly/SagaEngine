@@ -10,6 +10,7 @@
 #include "SagaEngine/Platform/SDL/SDLWindow.h"
 #include "SagaEngine/Core/Log/Log.h"
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_syswm.h>
 
 // SDL_image is optional; fall back to SDL's built-in BMP loader if unavailable.
 #ifdef SAGA_USE_SDL_IMAGE
@@ -107,20 +108,34 @@ bool SDLWindow::Init(const WindowDesc& desc)
 
 void SDLWindow::PollEvents()
 {
-    SDL_Event event;
-    while (SDL_PollEvent(&event))
-    {
-        DispatchEvent(event);
-    }
+    // Pump the OS event queue, then selectively extract only the events
+    // that belong to the window layer.  Keyboard, mouse, and gamepad
+    // events stay in the queue so the InputManager (SDLInputBackend) can
+    // consume them later in the same frame via SDL_PollEvent.
+    SDL_PumpEvents();
+
+    SDL_Event events[32];
+
+    // ── SDL_QUIT ─────────────────────────────────────────────────────
+    int count = SDL_PeepEvents(events, 32, SDL_GETEVENT, SDL_QUIT, SDL_QUIT);
+    for (int i = 0; i < count; ++i)
+        DispatchEvent(events[i]);
+
+    // ── SDL_WINDOWEVENT (resize, close, expose, …) ──────────────────
+    count = SDL_PeepEvents(events, 32, SDL_GETEVENT, SDL_WINDOWEVENT, SDL_WINDOWEVENT);
+    for (int i = 0; i < count; ++i)
+        DispatchEvent(events[i]);
 }
 
 // ─── Present ──────────────────────────────────────────────────────────────────
 
 void SDLWindow::Present()
 {
-    // When RHI is not connected, just update the window surface.
-    // This keeps the window responsive and visible.
-    if (m_Window)
+    // When an RHI swap chain is connected (D3D12, Vulkan, etc.) it owns
+    // the back buffer and calls Present() itself in EndFrame().
+    // SDL_UpdateWindowSurface conflicts with the RHI's swap chain and
+    // causes an immediate crash on D3D12, so skip it entirely.
+    if (m_Window && !IsRHIOwnsPresent())
     {
         SDL_UpdateWindowSurface(m_Window);
     }
@@ -394,20 +409,18 @@ bool SDLWindow::DispatchEvent(const SDL_Event& event) noexcept
 
             if (event.window.event == SDL_WINDOWEVENT_EXPOSED)
             {
-                // Window was exposed - update surface to prevent black screen
-                SDL_UpdateWindowSurface(m_Window);
+                // When an RHI swap chain owns presentation, the software surface
+                // must not be touched — SDL_UpdateWindowSurface conflicts with
+                // the D3D12/Vulkan swap chain and causes a crash.
+                if (!IsRHIOwnsPresent())
+                    SDL_UpdateWindowSurface(m_Window);
                 return true;
             }
             break;
 
-        case SDL_KEYDOWN:
-            if (event.key.keysym.sym == SDLK_ESCAPE)
-            {
-                LOG_INFO("SDLWindow", "ESC key pressed.");
-                m_ShouldClose = true;
-                return true;
-            }
-            break;
+        // Keyboard events are NOT processed here — they belong to the
+        // InputManager.  SDLWindow::PollEvents uses SDL_PeepEvents so
+        // keyboard events stay in the queue for SDLInputBackend.
 
         default:
             break;
@@ -435,6 +448,37 @@ void SDLWindow::Shutdown()
     }
 
     m_ShouldClose = false;
+}
+
+// ─── OS Native Handle ────────────────────────────────────────────────────────
+
+void* SDLWindow::GetOSNativeHandle() const noexcept
+{
+    if (!m_Window) return nullptr;
+
+    SDL_SysWMinfo wmInfo{};
+    SDL_VERSION(&wmInfo.version);
+    if (!SDL_GetWindowWMInfo(m_Window, &wmInfo))
+    {
+        LOG_ERROR("SDLWindow", "SDL_GetWindowWMInfo failed: %s", SDL_GetError());
+        return nullptr;
+    }
+
+#if defined(_WIN32)
+    return wmInfo.info.win.window;   // HWND
+#elif defined(__linux__)
+#   if defined(SDL_VIDEO_DRIVER_X11)
+    return reinterpret_cast<void*>(wmInfo.info.x11.window);
+#   elif defined(SDL_VIDEO_DRIVER_WAYLAND)
+    return wmInfo.info.wl.surface;
+#   else
+    return nullptr;
+#   endif
+#elif defined(__APPLE__)
+    return wmInfo.info.cocoa.window; // NSWindow*
+#else
+    return nullptr;
+#endif
 }
 
 } // namespace Saga

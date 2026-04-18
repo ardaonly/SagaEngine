@@ -47,15 +47,16 @@ public:
 
     // ─── State Queries ────────────────────────────────────────────────────────
 
-    [[nodiscard]] bool     ShouldClose()      const noexcept override { return m_ShouldClose; }
-    [[nodiscard]] void*    GetNativeHandle()  const noexcept override { return m_Window;      }
-    [[nodiscard]] uint32_t GetWidth()         const noexcept override { return m_Width;       }
-    [[nodiscard]] uint32_t GetHeight()        const noexcept override { return m_Height;      }
+    [[nodiscard]] bool     ShouldClose()       const noexcept override { return m_ShouldClose; }
+    [[nodiscard]] void*    GetNativeHandle()   const noexcept override { return m_Window;      }
+    [[nodiscard]] void*    GetOSNativeHandle() const noexcept override;
+    [[nodiscard]] uint32_t GetWidth()          const noexcept override { return m_Width;       }
+    [[nodiscard]] uint32_t GetHeight()         const noexcept override { return m_Height;      }
 
     // ─── Extended Features ────────────────────────────────────────────────────
 
     /// Set the window title at runtime.
-    void SetTitle(const std::string& title);
+    void SetTitle(const std::string& title) override;
 
     /// Set the window size at runtime.
     void SetSize(uint32_t width, uint32_t height);

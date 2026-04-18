@@ -40,15 +40,27 @@ void Application::Run()
 
     LOG_INFO("Application", "Entering main loop.");
 
-    while (!m_ShouldClose && !m_Window->ShouldClose())
     {
-        static uint64_t frame = 0;
-        LOG_INFO("Application", "Frame: %llu", frame++);
+        uint64_t frame = 0;
+        while (!m_ShouldClose && !m_Window->ShouldClose())
+        {
+            if (frame < 5)
+                LOG_INFO("Application", "Frame: %llu", static_cast<unsigned long long>(frame));
 
-        SagaEngine::Core::Time::Tick();
-        m_Window->PollEvents();
-        OnUpdate();
-        m_Window->Present();
+            SagaEngine::Core::Time::Tick();
+            m_Window->PollEvents();
+            OnUpdate();
+            m_Window->Present();
+
+            ++frame;
+        }
+
+        if (m_ShouldClose)
+            LOG_INFO("Application", "Loop exited: RequestClose() (frame %llu)",
+                     static_cast<unsigned long long>(frame));
+        else
+            LOG_INFO("Application", "Loop exited: Window.ShouldClose() (frame %llu)",
+                     static_cast<unsigned long long>(frame));
     }
 
     OnShutdown();
