@@ -1,7 +1,7 @@
 /// @file SandboxHost.cpp
 /// @brief Main host application implementation.
 ///
-/// Render backend integration (Phase 3):
+/// Render backend integration:
 ///   OnInit   → InitRenderBackend() creates DiligentRenderBackend,
 ///              passes it to ScenarioManager via ScenarioContext.
 ///   OnUpdate → BeginFrame → scenario PrepareRender → Submit → EndFrame.
@@ -20,10 +20,6 @@
 #include <SagaEngine/Render/Scene/RenderView.h>
 
 #include <imgui.h>
-
-// For extracting the OS-native handle from SDL_Window*.
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_syswm.h>
 
 #include <cstdio>
 #include <string>
@@ -67,9 +63,15 @@ void SandboxHost::OnInit()
     // ── 3. Publish render backend to ScenarioManager ─────────────────────────
     ScenarioContext ctx{};
     ctx.renderBackend = m_renderBackend.get();  // null if headless or init failed
+    ctx.requestClose  = [this]() { RequestClose(); };
     m_scenarioManager.SetContext(ctx);
 
     // ── 4. Initialise ImGui (skip in headless mode) ───────────────────────────
+    // NOTE: ImGui tick + render are DISABLED until Phase 2 wires
+    //       ImGui_ImplSDL2 + ImGui_ImplDiligent.  Without a platform/
+    //       renderer backend, ImGui::NewFrame() crashes on the first
+    //       frame and ImGui::Render() produces draw data nobody submits.
+    //       InitImGui() still runs so the context exists for future use.
     if (!m_config.headless)
     {
         InitImGui();
@@ -111,7 +113,7 @@ void SandboxHost::OnUpdate()
         m_renderBackend->Submit(cam, view);
     }
 
-    // ── ImGui ─────────────────────────────────────────────────────────────────
+    // ── ImGui overlay (rendered after scene, before Present) ───────────────
     if (!m_config.headless && m_imguiReady)
         TickImGui(dt);
 
@@ -166,39 +168,11 @@ bool SandboxHost::InitRenderBackend()
         return false;
     }
 
-    // GetNativeHandle() returns SDL_Window* for the SDL backend.
-    auto* sdlWindow = static_cast<SDL_Window*>(window->GetNativeHandle());
-    if (!sdlWindow)
-    {
-        LOG_ERROR(kTag, "SDL_Window* is null — cannot extract OS handle.");
-        return false;
-    }
-
-    // ── Extract the OS-native handle ──────────────────────────────────────────
-    SDL_SysWMinfo wmInfo{};
-    SDL_VERSION(&wmInfo.version);
-    if (!SDL_GetWindowWMInfo(sdlWindow, &wmInfo))
-    {
-        LOG_ERROR(kTag, "SDL_GetWindowWMInfo failed: %s", SDL_GetError());
-        return false;
-    }
-
-    void* nativeHandle = nullptr;
-#if defined(_WIN32)
-    nativeHandle = wmInfo.info.win.window;   // HWND
-#elif defined(__linux__)
-#   if defined(SDL_VIDEO_DRIVER_X11)
-    nativeHandle = reinterpret_cast<void*>(wmInfo.info.x11.window);
-#   elif defined(SDL_VIDEO_DRIVER_WAYLAND)
-    nativeHandle = wmInfo.info.wl.surface;
-#   endif
-#elif defined(__APPLE__)
-    nativeHandle = wmInfo.info.cocoa.window; // NSWindow*
-#endif
-
+    // ── Extract the OS-native handle via the platform layer ──────────────────
+    void* nativeHandle = window->GetOSNativeHandle();
     if (!nativeHandle)
     {
-        LOG_ERROR(kTag, "Could not extract OS-native window handle.");
+        LOG_ERROR(kTag, "Could not obtain OS-native window handle.");
         return false;
     }
 
@@ -222,6 +196,11 @@ bool SandboxHost::InitRenderBackend()
     LOG_INFO(kTag, "Render backend ready: %s (frame %llu)",
              std::string(RB::ToString(m_renderBackend->SelectedAPI())).c_str(),
              static_cast<unsigned long long>(m_renderBackend->FrameIndex()));
+
+    // ── Tell the window that the RHI owns presentation ───────────────────────
+    // SDL_UpdateWindowSurface conflicts with the D3D12/Vulkan swap chain;
+    // skipping it prevents an immediate crash on the first Present().
+    window->SetRHIOwnsPresent(true);
 
     // ── Wire resize callback ──────────────────────────────────────────────────
     // TODO: Wire SDLWindow::SetOnResize → m_renderBackend->OnResize.
@@ -269,12 +248,7 @@ void SandboxHost::UpdateFPSTitle(float dt)
                           avgFps, avgDt * 1000.0f);
         }
 
-        // Set the window title via the IWindow interface. SDLWindow
-        // implements SetTitle, but IWindow doesn't expose it. Use SDL
-        // directly since we know the platform backend.
-        auto* sdlWindow = static_cast<SDL_Window*>(GetWindow()->GetNativeHandle());
-        if (sdlWindow)
-            SDL_SetWindowTitle(sdlWindow, title);
+        GetWindow()->SetTitle(title);
 
         m_fpsAccumulator = 0.0f;
         m_fpsFrameCount  = 0;
@@ -294,24 +268,32 @@ void SandboxHost::InitImGui()
 
     ImGui::StyleColorsDark();
 
-    // Platform/renderer backends — ImGui→Diligent rendering is deferred to
-    // Phase 2. For now, ImGui generates draw data but nothing submits it to
-    // the GPU. The HUD and scenario picker still function in-memory.
-    //
-    // Phase 2 plan:
-    //   - Add diligent-tools conan dep (provides ImGuiImplDiligent)
-    //   - ImGui_ImplSDL2_InitForOther(sdlWindow)
-    //   - ImGuiImplDiligent::Init(device, swapchainFormat)
-    //   - Wire TickImGui → ImGuiImplDiligent::RenderDrawData
+    // Set display size so ImGui::NewFrame() doesn't assert on zero dimensions.
+    auto* window = GetWindow();
+    if (window)
+    {
+        io.DisplaySize.x = static_cast<float>(window->GetWidth());
+        io.DisplaySize.y = static_cast<float>(window->GetHeight());
+    }
+
+    // Initialize the Diligent-based ImGui renderer (PSO, font atlas, etc.).
+    if (m_renderBackend && m_renderBackend->IsInitialized())
+    {
+        if (!m_renderBackend->InitImGuiRendering())
+        {
+            LOG_WARN(kTag, "ImGui GPU renderer init failed — HUD will be invisible.");
+        }
+    }
 
     m_imguiReady = true;
-    LOG_INFO(kTag, "ImGui initialised (render backend deferred to Phase 2).");
+    LOG_INFO(kTag, "ImGui initialised.");
 }
 
 void SandboxHost::ShutdownImGui()
 {
-    // Phase 2: ImGui_ImplDiligent::Shutdown()
-    // Phase 2: ImGui_ImplSDL2_Shutdown()
+    if (m_renderBackend)
+        m_renderBackend->ShutdownImGuiRendering();
+
     ImGui::DestroyContext();
     m_imguiReady = false;
     LOG_INFO(kTag, "ImGui shut down.");
@@ -319,15 +301,17 @@ void SandboxHost::ShutdownImGui()
 
 void SandboxHost::TickImGui(float dt)
 {
-    // Phase 2: ImGui_ImplDiligent::NewFrame()
-    // Phase 2: ImGui_ImplSDL2_NewFrame()
-    ImGui::NewFrame();
-
-    // ── Toggle HUD with F1 ────────────────────────────────────────────────────
-    if (ImGui::IsKeyPressed(ImGuiKey_F1))
+    // Update display size every frame (handles resize).
+    auto* window = GetWindow();
+    if (window)
     {
-        m_debugHud->ToggleVisible();
+        ImGuiIO& io = ImGui::GetIO();
+        io.DisplaySize.x = static_cast<float>(window->GetWidth());
+        io.DisplaySize.y = static_cast<float>(window->GetHeight());
+        io.DeltaTime     = dt > 0.0f ? dt : (1.0f / 60.0f);
     }
+
+    ImGui::NewFrame();
 
     // ── Render HUD (scenario picker, panels, overlays) ────────────────────────
     if (m_debugHud && m_debugHud->IsVisible())
@@ -339,7 +323,12 @@ void SandboxHost::TickImGui(float dt)
     m_scenarioManager.RenderDebugUI();
 
     ImGui::Render();
-    // Phase 2: ImGui_ImplDiligent::RenderDrawData(ImGui::GetDrawData())
+
+    // Submit ImGui draw data to the GPU.
+    if (m_renderBackend && m_renderBackend->IsInitialized())
+    {
+        m_renderBackend->RenderImGuiDrawData(ImGui::GetDrawData());
+    }
 }
 
 } // namespace SagaSandbox

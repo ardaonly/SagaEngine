@@ -78,7 +78,7 @@ private:
     void TickImGui(float dt);
 
     /// Initialise the Diligent render backend from the current IWindow.
-    /// Extracts the OS-native handle from SDL_Window* via SDL_GetWindowWMInfo.
+    /// Delegates OS-native handle extraction to IWindow::GetOSNativeHandle().
     /// Returns false if the backend could not be created (no GPU, headless, etc.).
     bool InitRenderBackend();
 

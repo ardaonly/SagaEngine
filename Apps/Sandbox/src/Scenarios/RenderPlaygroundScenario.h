@@ -15,6 +15,8 @@
 #include <SagaEngine/Math/Vec3.h>
 #include <SagaEngine/Render/World/RenderEntity.h>
 
+#include <functional>
+
 namespace SagaSandbox
 {
 
@@ -69,6 +71,10 @@ private:
     // ── Input ─────────────────────────────────────────────────────────────────
 
     SagaEngine::Input::InputManager m_inputManager;
+
+    // ── Host callback ────────────────────────────────────────────────────
+
+    std::function<void()> m_requestClose;
 };
 
 } // namespace SagaSandbox

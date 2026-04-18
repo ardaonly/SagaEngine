@@ -26,6 +26,7 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules")
 
 include(SagaVersioning)
 include(SagaCompilerFlags)
+include(SagaFindATL)
 include(SagaThirdparty)
 include(SagaTargets)
 include(SagaTests)

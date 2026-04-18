@@ -14,7 +14,7 @@
 #pragma once
 
 #include <SagaEngine/Core/Application/Application.h>
-#include <SDL2/SDL.h>
+#include <SagaEngine/Input/Core/InputManager.h>
 #include <memory>
 #include <string>
 #include <cstdint>
@@ -24,6 +24,7 @@ namespace Saga {
 // ─── Forward: defined inline in ClientHost.cpp ───────────────────────────
 
 class ClientNetworkSession;
+class IDebugRenderer2D;
 
 // ─── Client config ────────────────────────────────────────────────────────────
 
@@ -66,7 +67,7 @@ public:
 private:
     // ── Input ─────────────────────────────────────────────────────────────────
 
-    /// Poll SDL keyboard / mouse state and produce input commands.
+    /// Poll keyboard state via InputManager and produce input commands.
     void TickInput();
 
     // ── Debug render ──────────────────────────────────────────────────────────
@@ -81,8 +82,13 @@ private:
     uint64_t                                  m_tickCounter = 0;
     uint32_t                                  m_inputSequence = 0;
 
-    // Debug renderer (non-headless only).
-    SDL_Renderer*                             m_renderer = nullptr;
+    // ── Input ────────────────────────────────────────────────────────────────
+
+    SagaEngine::Input::InputManager           m_inputManager;
+
+    // ── Debug renderer (non-headless only) ───────────────────────────────────
+
+    std::unique_ptr<IDebugRenderer2D>         m_debugRenderer;
 };
 
 } // namespace Saga

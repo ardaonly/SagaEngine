@@ -59,16 +59,35 @@ public:
     /// Returns true once a quit event (OS close button or ESC) has been received.
     [[nodiscard]] virtual bool ShouldClose() const noexcept = 0;
 
-    /// Returns the platform-native window handle.
-    /// Type depends on backend:  SDL_Window* (SDL), HWND (Win32), etc.
-    /// Caller must not assume ownership — the window retains ownership.
+    /// Returns the toolkit-level handle (e.g. SDL_Window* for SDL).
+    /// Used internally by platform code. Prefer GetOSNativeHandle() for
+    /// passing to graphics backends.
     [[nodiscard]] virtual void*    GetNativeHandle() const noexcept = 0;
+
+    /// Returns the OS-level window handle required by graphics APIs:
+    /// HWND on Windows, X11 Window (as void*) on Linux/X11, wl_surface*
+    /// on Wayland, NSWindow* on macOS. Returns nullptr if unavailable.
+    /// This keeps SDL/platform details out of application code.
+    [[nodiscard]] virtual void*    GetOSNativeHandle() const noexcept { return nullptr; }
+
+    /// Set the window title bar text at runtime.
+    virtual void SetTitle(const std::string& title) { (void)title; }
+
+    /// Mark that an RHI swap chain owns presentation for this window.
+    /// When true, Present() becomes a no-op — the RHI handles flipping.
+    void SetRHIOwnsPresent(bool owns) noexcept { m_RHIOwnsPresent = owns; }
+
+    /// Query whether an RHI swap chain is managing presentation.
+    [[nodiscard]] bool IsRHIOwnsPresent() const noexcept { return m_RHIOwnsPresent; }
 
     /// Current client area width in pixels (may differ from WindowDesc after resize).
     [[nodiscard]] virtual uint32_t GetWidth()  const noexcept = 0;
 
     /// Current client area height in pixels (may differ from WindowDesc after resize).
     [[nodiscard]] virtual uint32_t GetHeight() const noexcept = 0;
+
+protected:
+    bool m_RHIOwnsPresent = false; ///< True when an RHI manages presentation.
 };
 
 } // namespace Saga

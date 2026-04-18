@@ -33,8 +33,10 @@ void ScenarioPickerPanel::Render(float /*dt*/, uint64_t /*tick*/)
                            "Active: %s", activeId.c_str());
 
         if (m_mgr.IsSwitchPending())
+        {
             ImGui::SameLine();
             ImGui::TextColored(ImVec4(1.f, 0.8f, 0.f, 1.f), "(switch pending)");
+        }
 
         if (ImGui::Button("Stop"))
             m_mgr.RequestStop();
