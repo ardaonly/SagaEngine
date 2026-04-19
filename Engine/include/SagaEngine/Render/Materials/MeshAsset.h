@@ -83,9 +83,16 @@ struct MeshVertex
     float    handedness = 1.0f; ///< Tangent basis handedness (+1 / -1).
     MeshVec2 uv0;
     MeshVec2 uv1;
+
+    // ── Skinning data (Phase 4) ─────────────────────────────────────────
+    /// Up to 4 bone influences per vertex.  Indices reference joints in
+    /// the Skeleton; weights sum to 1.0.  Unskinned meshes leave these
+    /// zeroed — the shader checks boneWeights[0] == 0 to skip skinning.
+    std::uint8_t boneIndices[4] = { 0, 0, 0, 0 };
+    float        boneWeights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 };
 
-static_assert(sizeof(MeshVertex) == 56,
+static_assert(sizeof(MeshVertex) == 76,
               "MeshVertex layout changed — verify shader bindings");
 
 // ─── Submesh ───────────────────────────────────────────────────────────────

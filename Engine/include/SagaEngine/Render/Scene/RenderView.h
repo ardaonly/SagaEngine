@@ -51,6 +51,14 @@ struct DrawItem
     /// distance so sort passes can compare without a sqrt. Populated by
     /// the culling pipeline so the LOD pass does not recompute it.
     float        distanceSq = 0.0f;
+
+    // ── Skeletal skinning (Phase 4) ─────────────────────────────────
+    /// Pointer to an array of skin matrices (world * inverseBind) for
+    /// this draw.  nullptr means unskinned — the backend uses the static
+    /// VS.  The pointer must remain valid until Submit() returns.  The
+    /// count is boneCount; max 128.
+    const float* boneMatrices = nullptr;
+    std::uint8_t boneCount    = 0;
 };
 
 // ─── RenderView ───────────────────────────────────────────────────────

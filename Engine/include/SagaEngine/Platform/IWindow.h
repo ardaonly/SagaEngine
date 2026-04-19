@@ -4,6 +4,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <string>
 
 namespace Saga {
@@ -86,8 +87,13 @@ public:
     /// Current client area height in pixels (may differ from WindowDesc after resize).
     [[nodiscard]] virtual uint32_t GetHeight() const noexcept = 0;
 
+    /// Register a callback invoked when the window is resized.
+    using ResizeCallback = std::function<void(uint32_t width, uint32_t height)>;
+    virtual void SetOnResize(ResizeCallback callback) { m_OnResize = std::move(callback); }
+
 protected:
     bool m_RHIOwnsPresent = false; ///< True when an RHI manages presentation.
+    ResizeCallback m_OnResize;     ///< Resize callback (set by host).
 };
 
 } // namespace Saga

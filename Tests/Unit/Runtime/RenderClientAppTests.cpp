@@ -41,6 +41,8 @@ public:
     R::World::MaterialId CreateMaterial(const R::MaterialRuntime&)  override { return static_cast<R::World::MaterialId>(1); }
     void                 DestroyMesh    (R::World::MeshId)          override {}
     void                 DestroyMaterial(R::World::MaterialId)      override {}
+    R::TextureHandle     CreateTexture(uint32_t, uint32_t, const uint8_t*) override { return static_cast<R::TextureHandle>(1); }
+    void                 DestroyTexture(R::TextureHandle)           override {}
 
     void BeginFrame() override { ++beginFrames; }
     void Submit(const R::Scene::Camera&, const R::Scene::RenderView& v) override

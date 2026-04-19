@@ -136,11 +136,29 @@ struct PSOCacheKeyHash
     }
 };
 
+struct TextureGPU
+{
+    Diligent::RefCntAutoPtr<Diligent::ITexture>     texture;
+    Diligent::RefCntAutoPtr<Diligent::ITextureView> srv;
+};
+
+struct TextureHandleHash
+{
+    std::size_t operator()(TextureHandle id) const noexcept
+    { return std::hash<std::uint32_t>{}(static_cast<std::uint32_t>(id)); }
+};
+
 struct MaterialGPU
 {
     Diligent::RefCntAutoPtr<Diligent::IPipelineState>         pso;
     Diligent::RefCntAutoPtr<Diligent::IShaderResourceBinding> srb;
+    // Skinned variant (created on demand when first skinned draw uses this material).
+    Diligent::RefCntAutoPtr<Diligent::IPipelineState>         skinnedPso;
+    Diligent::RefCntAutoPtr<Diligent::IShaderResourceBinding> skinnedSrb;
     MaterialRenderQueue renderQueue = MaterialRenderQueue::Opaque;
+    MaterialCullMode    cullMode   = MaterialCullMode::Back;
+    bool                writesDepth = true;
+    TextureHandle       albedoTex  = TextureHandle::kInvalid;
 };
 
 struct MeshIdHash
@@ -169,14 +187,24 @@ struct DiligentRenderBackend::Impl
     // ── Shared camera constant buffer ───────────────────────────────
     Diligent::RefCntAutoPtr<Diligent::IBuffer> cameraCB;
 
-    // ── Compiled shaders (one VS/PS pair for all solid-color draws) ──
-    Diligent::RefCntAutoPtr<Diligent::IShader> solidVS;
-    Diligent::RefCntAutoPtr<Diligent::IShader> solidPS;
+    // ── Compiled shaders ───────────────────────────────────────────
+    Diligent::RefCntAutoPtr<Diligent::IShader> solidVS;    // static geometry
+    Diligent::RefCntAutoPtr<Diligent::IShader> skinnedVS;  // skeletal skinning
+    Diligent::RefCntAutoPtr<Diligent::IShader> solidPS;    // shared pixel shader
+
+    // ── Bone matrix constant buffer (128 * 64 = 8192 bytes) ─────
+    Diligent::RefCntAutoPtr<Diligent::IBuffer> boneCB;
 
     // ── Caches ──────────────────────────────────────────────────────
     std::unordered_map<World::MeshId, MeshGPU, MeshIdHash>             meshCache;
     std::unordered_map<World::MaterialId, MaterialGPU, MaterialIdHash> materialCache;
     std::unordered_map<PSOCacheKey, Diligent::RefCntAutoPtr<Diligent::IPipelineState>, PSOCacheKeyHash> psoCache;
+    std::unordered_map<PSOCacheKey, Diligent::RefCntAutoPtr<Diligent::IPipelineState>, PSOCacheKeyHash> skinnedPsoCache;
+
+    // ── Texture cache ────────────────────────────────────────────────
+    std::unordered_map<TextureHandle, TextureGPU, TextureHandleHash> textureCache;
+    TextureGPU defaultWhiteTex;   // 1x1 white fallback
+    std::uint32_t nextTextureId = 1;
 
     // ── ID generators ───────────────────────────────────────────────
     std::uint32_t nextMeshId     = 1;
@@ -296,7 +324,7 @@ bool DiligentRenderBackend::Initialize(const SwapchainDesc& desc)
         using namespace Diligent;
         BufferDesc cbDesc;
         cbDesc.Name           = "CameraCB";
-        cbDesc.Size           = sizeof(float) * 32;  // g_ViewProj + g_Model
+        cbDesc.Size           = sizeof(float) * 40;  // g_ViewProj(16) + g_Model(16) + g_LightDir(4) + g_LightColor(4)
         cbDesc.Usage          = USAGE_DYNAMIC;
         cbDesc.BindFlags      = BIND_UNIFORM_BUFFER;
         cbDesc.CPUAccessFlags = CPU_ACCESS_WRITE;
@@ -331,6 +359,74 @@ bool DiligentRenderBackend::Initialize(const SwapchainDesc& desc)
             return false;
         }
         LogDbg("Solid shaders compiled OK");
+
+        // Skinned vertex shader (shares the same PS).
+        ci.Desc.ShaderType = SHADER_TYPE_VERTEX;
+        ci.Desc.Name       = "Skinned VS";
+        ci.EntryPoint      = "main";
+        ci.Source           = kSkinnedVS;
+        m_Impl->device->CreateShader(ci, &m_Impl->skinnedVS);
+
+        if (!m_Impl->skinnedVS)
+        {
+            LogErr("Failed to compile skinned vertex shader");
+            return false;
+        }
+        LogDbg("Skinned VS compiled OK");
+    }
+
+    // ── Create BoneCB (128 mat4 = 8192 bytes) ──────────────────────
+    {
+        using namespace Diligent;
+        BufferDesc cbDesc;
+        cbDesc.Name           = "BoneCB";
+        cbDesc.Size           = 128 * 64;   // 128 * sizeof(float4x4)
+        cbDesc.Usage          = USAGE_DYNAMIC;
+        cbDesc.BindFlags      = BIND_UNIFORM_BUFFER;
+        cbDesc.CPUAccessFlags = CPU_ACCESS_WRITE;
+        m_Impl->device->CreateBuffer(cbDesc, nullptr, &m_Impl->boneCB);
+        if (!m_Impl->boneCB)
+        {
+            LogErr("Failed to create BoneCB");
+            return false;
+        }
+        LogDbg("BoneCB created (8192 bytes)");
+    }
+
+    // ── Create default 1x1 white texture ────────────────────────────
+    {
+        using namespace Diligent;
+
+        const std::uint8_t white[4] = { 255, 255, 255, 255 };
+
+        TextureDesc texDesc;
+        texDesc.Name      = "DefaultWhite1x1";
+        texDesc.Type      = RESOURCE_DIM_TEX_2D;
+        texDesc.Width     = 1;
+        texDesc.Height    = 1;
+        texDesc.Format    = TEX_FORMAT_RGBA8_UNORM;
+        texDesc.BindFlags = BIND_SHADER_RESOURCE;
+        texDesc.Usage     = USAGE_IMMUTABLE;
+        texDesc.MipLevels = 1;
+
+        TextureSubResData subRes;
+        subRes.pData  = white;
+        subRes.Stride = 4;
+
+        TextureData texData;
+        texData.pSubResources   = &subRes;
+        texData.NumSubresources = 1;
+
+        m_Impl->device->CreateTexture(texDesc, &texData, &m_Impl->defaultWhiteTex.texture);
+        if (!m_Impl->defaultWhiteTex.texture)
+        {
+            LogErr("Failed to create default white texture");
+            return false;
+        }
+        m_Impl->defaultWhiteTex.srv =
+            m_Impl->defaultWhiteTex.texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
+
+        LogDbg("Default 1x1 white texture created");
     }
 
     LogInfo("Phase 3: backend ready");
@@ -346,9 +442,15 @@ void DiligentRenderBackend::Shutdown()
     m_Impl->meshCache.clear();
     m_Impl->materialCache.clear();
     m_Impl->psoCache.clear();
+    m_Impl->skinnedPsoCache.clear();
+    m_Impl->textureCache.clear();
+    m_Impl->defaultWhiteTex.srv.Release();
+    m_Impl->defaultWhiteTex.texture.Release();
 
+    m_Impl->boneCB.Release();
     m_Impl->cameraCB.Release();
     m_Impl->solidVS.Release();
+    m_Impl->skinnedVS.Release();
     m_Impl->solidPS.Release();
 
     if (m_Impl->context) m_Impl->context->Flush();
@@ -407,7 +509,8 @@ Diligent::RefCntAutoPtr<Diligent::IPipelineState> FindOrCreatePSO(
     psoCI.GraphicsPipeline.DepthStencilDesc.DepthEnable      = True;
     psoCI.GraphicsPipeline.DepthStencilDesc.DepthWriteEnable  = key.writesDepth ? True : False;
 
-    // Cull
+    // Cull — CCW front face (standard 3D convention; matches glTF, OBJ, FBX).
+    psoCI.GraphicsPipeline.RasterizerDesc.FrontCounterClockwise = True;
     switch (static_cast<MaterialCullMode>(key.cullMode))
     {
         case MaterialCullMode::Back:  psoCI.GraphicsPipeline.RasterizerDesc.CullMode = CULL_MODE_BACK;  break;
@@ -415,8 +518,9 @@ Diligent::RefCntAutoPtr<Diligent::IPipelineState> FindOrCreatePSO(
         case MaterialCullMode::None:  psoCI.GraphicsPipeline.RasterizerDesc.CullMode = CULL_MODE_NONE;  break;
     }
 
-    // Input layout matching MeshVertex (56 bytes):
+    // Input layout matching MeshVertex (76 bytes):
     //   pos(3f) normal(3f) tangent(3f) handedness(1f) uv0(2f) uv1(2f)
+    //   boneIndices(4u8) boneWeights(4f)
     LayoutElement layoutElems[] =
     {
         {0, 0, 3, VT_FLOAT32, False},  // Pos
@@ -425,9 +529,35 @@ Diligent::RefCntAutoPtr<Diligent::IPipelineState> FindOrCreatePSO(
         {3, 0, 1, VT_FLOAT32, False},  // Handedness
         {4, 0, 2, VT_FLOAT32, False},  // UV0
         {5, 0, 2, VT_FLOAT32, False},  // UV1
+        {6, 0, 4, VT_UINT8,   False},  // BoneIndices
+        {7, 0, 4, VT_FLOAT32, False},  // BoneWeights
     };
-    psoCI.GraphicsPipeline.InputLayout.NumElements    = 6;
+    psoCI.GraphicsPipeline.InputLayout.NumElements    = 8;
     psoCI.GraphicsPipeline.InputLayout.LayoutElements  = layoutElems;
+
+    // Texture/sampler resource layout: g_Albedo as DYNAMIC (changes per material),
+    // g_Sampler as immutable sampler with linear filtering.
+    ShaderResourceVariableDesc vars[] =
+    {
+        { SHADER_TYPE_PIXEL, "g_Albedo", SHADER_RESOURCE_VARIABLE_TYPE_DYNAMIC },
+    };
+    psoCI.PSODesc.ResourceLayout.Variables    = vars;
+    psoCI.PSODesc.ResourceLayout.NumVariables = 1;
+
+    SamplerDesc sceneSamplerDesc;
+    sceneSamplerDesc.MinFilter = FILTER_TYPE_LINEAR;
+    sceneSamplerDesc.MagFilter = FILTER_TYPE_LINEAR;
+    sceneSamplerDesc.MipFilter = FILTER_TYPE_LINEAR;
+    sceneSamplerDesc.AddressU  = TEXTURE_ADDRESS_WRAP;
+    sceneSamplerDesc.AddressV  = TEXTURE_ADDRESS_WRAP;
+    sceneSamplerDesc.AddressW  = TEXTURE_ADDRESS_WRAP;
+
+    ImmutableSamplerDesc samplers[] =
+    {
+        { SHADER_TYPE_PIXEL, "g_Sampler", sceneSamplerDesc },
+    };
+    psoCI.PSODesc.ResourceLayout.ImmutableSamplers    = samplers;
+    psoCI.PSODesc.ResourceLayout.NumImmutableSamplers = 1;
 
     RefCntAutoPtr<IPipelineState> pso;
     device.CreateGraphicsPipelineState(psoCI, &pso);
@@ -437,9 +567,107 @@ Diligent::RefCntAutoPtr<Diligent::IPipelineState> FindOrCreatePSO(
         return {};
     }
 
-    // Bind CameraCB as a static variable on the VS.
+    // Bind CameraCB as a static variable on VS and PS.
     if (auto* var = pso->GetStaticVariableByName(SHADER_TYPE_VERTEX, "CameraCB"))
         var->Set(cameraCB);
+    if (auto* var = pso->GetStaticVariableByName(SHADER_TYPE_PIXEL, "CameraCB"))
+        var->Set(cameraCB);
+
+    cache[key] = pso;
+    return pso;
+}
+
+/// Same as FindOrCreatePSO but uses the skinned VS and binds BoneCB.
+Diligent::RefCntAutoPtr<Diligent::IPipelineState> FindOrCreateSkinnedPSO(
+    std::unordered_map<PSOCacheKey, Diligent::RefCntAutoPtr<Diligent::IPipelineState>, PSOCacheKeyHash>& cache,
+    Diligent::IRenderDevice&  device,
+    Diligent::ISwapChain&     swapChain,
+    Diligent::IShader*        skinnedVS,
+    Diligent::IShader*        solidPS,
+    Diligent::IBuffer*        cameraCB,
+    Diligent::IBuffer*        boneCB,
+    const PSOCacheKey&        key)
+{
+    auto it = cache.find(key);
+    if (it != cache.end())
+        return it->second;
+
+    using namespace Diligent;
+
+    GraphicsPipelineStateCreateInfo psoCI;
+    psoCI.PSODesc.Name         = "SkinnedPSO";
+    psoCI.PSODesc.PipelineType = PIPELINE_TYPE_GRAPHICS;
+    psoCI.pVS                  = skinnedVS;
+    psoCI.pPS                  = solidPS;
+
+    const auto& scDesc = swapChain.GetDesc();
+    psoCI.GraphicsPipeline.NumRenderTargets  = 1;
+    psoCI.GraphicsPipeline.RTVFormats[0]     = scDesc.ColorBufferFormat;
+    psoCI.GraphicsPipeline.DSVFormat         = scDesc.DepthBufferFormat;
+    psoCI.GraphicsPipeline.PrimitiveTopology = PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+    psoCI.GraphicsPipeline.DepthStencilDesc.DepthEnable      = True;
+    psoCI.GraphicsPipeline.DepthStencilDesc.DepthWriteEnable  = key.writesDepth ? True : False;
+
+    psoCI.GraphicsPipeline.RasterizerDesc.FrontCounterClockwise = True;
+    switch (static_cast<MaterialCullMode>(key.cullMode))
+    {
+        case MaterialCullMode::Back:  psoCI.GraphicsPipeline.RasterizerDesc.CullMode = CULL_MODE_BACK;  break;
+        case MaterialCullMode::Front: psoCI.GraphicsPipeline.RasterizerDesc.CullMode = CULL_MODE_FRONT; break;
+        case MaterialCullMode::None:  psoCI.GraphicsPipeline.RasterizerDesc.CullMode = CULL_MODE_NONE;  break;
+    }
+
+    LayoutElement layoutElems[] =
+    {
+        {0, 0, 3, VT_FLOAT32, False},  // Pos
+        {1, 0, 3, VT_FLOAT32, False},  // Normal
+        {2, 0, 3, VT_FLOAT32, False},  // Tangent
+        {3, 0, 1, VT_FLOAT32, False},  // Handedness
+        {4, 0, 2, VT_FLOAT32, False},  // UV0
+        {5, 0, 2, VT_FLOAT32, False},  // UV1
+        {6, 0, 4, VT_UINT8,   False},  // BoneIndices
+        {7, 0, 4, VT_FLOAT32, False},  // BoneWeights
+    };
+    psoCI.GraphicsPipeline.InputLayout.NumElements    = 8;
+    psoCI.GraphicsPipeline.InputLayout.LayoutElements  = layoutElems;
+
+    ShaderResourceVariableDesc vars[] =
+    {
+        { SHADER_TYPE_PIXEL, "g_Albedo", SHADER_RESOURCE_VARIABLE_TYPE_DYNAMIC },
+    };
+    psoCI.PSODesc.ResourceLayout.Variables    = vars;
+    psoCI.PSODesc.ResourceLayout.NumVariables = 1;
+
+    SamplerDesc sceneSamplerDesc;
+    sceneSamplerDesc.MinFilter = FILTER_TYPE_LINEAR;
+    sceneSamplerDesc.MagFilter = FILTER_TYPE_LINEAR;
+    sceneSamplerDesc.MipFilter = FILTER_TYPE_LINEAR;
+    sceneSamplerDesc.AddressU  = TEXTURE_ADDRESS_WRAP;
+    sceneSamplerDesc.AddressV  = TEXTURE_ADDRESS_WRAP;
+    sceneSamplerDesc.AddressW  = TEXTURE_ADDRESS_WRAP;
+
+    ImmutableSamplerDesc samplers[] =
+    {
+        { SHADER_TYPE_PIXEL, "g_Sampler", sceneSamplerDesc },
+    };
+    psoCI.PSODesc.ResourceLayout.ImmutableSamplers    = samplers;
+    psoCI.PSODesc.ResourceLayout.NumImmutableSamplers = 1;
+
+    RefCntAutoPtr<IPipelineState> pso;
+    device.CreateGraphicsPipelineState(psoCI, &pso);
+    if (!pso)
+    {
+        LogErr("Failed to create skinned PSO");
+        return {};
+    }
+
+    // Bind CameraCB and BoneCB as static variables.
+    if (auto* var = pso->GetStaticVariableByName(SHADER_TYPE_VERTEX, "CameraCB"))
+        var->Set(cameraCB);
+    if (auto* var = pso->GetStaticVariableByName(SHADER_TYPE_PIXEL, "CameraCB"))
+        var->Set(cameraCB);
+    if (auto* var = pso->GetStaticVariableByName(SHADER_TYPE_VERTEX, "BoneCB"))
+        var->Set(boneCB);
 
     cache[key] = pso;
     return pso;
@@ -529,6 +757,9 @@ World::MaterialId DiligentRenderBackend::CreateMaterial(const MaterialRuntime& r
     MaterialGPU gpu{};
     gpu.pso         = pso;
     gpu.renderQueue = runtime.renderQueue;
+    gpu.cullMode    = runtime.cullMode;
+    gpu.writesDepth = runtime.writesDepth;
+    gpu.albedoTex   = runtime.textures[static_cast<std::size_t>(MaterialTextureSlot::Albedo)];
 
     pso->CreateShaderResourceBinding(&gpu.srb, true);
     if (!gpu.srb)
@@ -550,6 +781,63 @@ void DiligentRenderBackend::DestroyMesh(World::MeshId id)
 void DiligentRenderBackend::DestroyMaterial(World::MaterialId id)
 {
     m_Impl->materialCache.erase(id);
+}
+
+// ─── Texture upload ─────────────────────────────────────────────────
+
+TextureHandle DiligentRenderBackend::CreateTexture(uint32_t width, uint32_t height,
+                                                    const uint8_t* rgba)
+{
+    if (!m_Impl->initialized || !m_Impl->device || !rgba)
+        return TextureHandle::kInvalid;
+    if (width == 0 || height == 0)
+        return TextureHandle::kInvalid;
+
+    using namespace Diligent;
+
+    TextureDesc texDesc;
+    texDesc.Name      = "UserTexture";
+    texDesc.Type      = RESOURCE_DIM_TEX_2D;
+    texDesc.Width     = width;
+    texDesc.Height    = height;
+    texDesc.Format    = TEX_FORMAT_RGBA8_UNORM;
+    texDesc.BindFlags = BIND_SHADER_RESOURCE;
+    texDesc.Usage     = USAGE_IMMUTABLE;
+    texDesc.MipLevels = 1;
+
+    TextureSubResData subRes;
+    subRes.pData  = rgba;
+    subRes.Stride = static_cast<Uint64>(width) * 4;
+
+    TextureData texData;
+    texData.pSubResources   = &subRes;
+    texData.NumSubresources = 1;
+
+    TextureGPU gpu{};
+    m_Impl->device->CreateTexture(texDesc, &texData, &gpu.texture);
+    if (!gpu.texture)
+    {
+        LogErr("CreateTexture: texture creation failed");
+        return TextureHandle::kInvalid;
+    }
+    gpu.srv = gpu.texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
+
+    auto handle = static_cast<TextureHandle>(m_Impl->nextTextureId++);
+    m_Impl->textureCache[handle] = std::move(gpu);
+
+    {
+        char buf[128];
+        std::snprintf(buf, sizeof(buf), "CreateTexture: %ux%u → handle %u",
+                      width, height, static_cast<unsigned>(handle));
+        LogDbg(buf);
+    }
+
+    return handle;
+}
+
+void DiligentRenderBackend::DestroyTexture(TextureHandle tex)
+{
+    m_Impl->textureCache.erase(tex);
 }
 
 // ─── Frame lifecycle ─────────────────────────────────────────────────
@@ -657,7 +945,7 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
             LogDbg(buf);
         }
 
-        // Update CameraCB per DrawItem (g_ViewProj + g_Model).
+        // Update CameraCB per DrawItem: g_ViewProj(16) + g_Model(16) + g_LightDir(4) + g_LightColor(4).
         {
             Diligent::MapHelper<float> cbData(ctx, m_Impl->cameraCB,
                                               Diligent::MAP_WRITE,
@@ -665,20 +953,103 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
             for (int i = 0; i < 16; ++i) cbData[i]      = vpData[i];
             const float* mData = item.model.Data();
             for (int i = 0; i < 16; ++i) cbData[16 + i] = mData[i];
+
+            // g_LightDir: world-space direction TO the light (normalised).
+            // Default: sun from upper-right-front.
+            cbData[32] =  0.5774f;   // x
+            cbData[33] =  0.5774f;   // y
+            cbData[34] =  0.5774f;   // z
+            cbData[35] =  0.0f;      // w (padding)
+
+            // g_LightColor: xyz = light colour, w = ambient strength.
+            cbData[36] =  1.0f;      // R
+            cbData[37] =  0.95f;     // G
+            cbData[38] =  0.9f;      // B (warm white)
+            cbData[39] =  0.15f;     // ambient
         }
         LogDbg("Submit: CameraCB mapped OK");
 
-        // PSO switch
-        auto* pso = mat.pso.RawPtr();
-        if (pso != lastPSO)
+        // ── Skinned draw? Upload bone palette to BoneCB. ────────────
+        const bool isSkinned = (item.boneMatrices != nullptr && item.boneCount > 0);
+        if (isSkinned)
         {
-            ctx->SetPipelineState(pso);
-            lastPSO = pso;
+            Diligent::MapHelper<float> boneData(ctx, m_Impl->boneCB,
+                                                 Diligent::MAP_WRITE,
+                                                 Diligent::MAP_FLAG_DISCARD);
+            // Copy bone matrices (each Mat4 = 16 floats = 64 bytes).
+            const std::size_t floatCount = static_cast<std::size_t>(item.boneCount) * 16;
+            std::memcpy(&boneData[0], item.boneMatrices, floatCount * sizeof(float));
+            // Zero remaining slots so the shader reads identity-ish data
+            // if any index overshoots (defensive).
+            if (item.boneCount < 128)
+            {
+                const std::size_t remaining = (128 - item.boneCount) * 16;
+                std::memset(&boneData[floatCount], 0, remaining * sizeof(float));
+            }
+            LogDbg("Submit: BoneCB uploaded");
+
+            // Lazily create skinned PSO + SRB for this material if needed.
+            if (!mat.skinnedPso)
+            {
+                PSOCacheKey key{};
+                key.cullMode    = static_cast<std::uint8_t>(mat.cullMode);
+                key.renderQueue = static_cast<std::uint8_t>(mat.renderQueue);
+                key.writesDepth = mat.writesDepth;
+
+                mat.skinnedPso = FindOrCreateSkinnedPSO(
+                    m_Impl->skinnedPsoCache, *m_Impl->device, *m_Impl->swapChain,
+                    m_Impl->skinnedVS, m_Impl->solidPS,
+                    m_Impl->cameraCB, m_Impl->boneCB, key);
+
+                if (mat.skinnedPso)
+                    mat.skinnedPso->CreateShaderResourceBinding(&mat.skinnedSrb, true);
+            }
+        }
+
+        // Choose PSO and SRB based on skinning.
+        Diligent::IPipelineState*         activePso = nullptr;
+        Diligent::IShaderResourceBinding* activeSrb = nullptr;
+
+        if (isSkinned && mat.skinnedPso && mat.skinnedSrb)
+        {
+            activePso = mat.skinnedPso.RawPtr();
+            activeSrb = mat.skinnedSrb.RawPtr();
+        }
+        else
+        {
+            activePso = mat.pso.RawPtr();
+            activeSrb = mat.srb.RawPtr();
+        }
+
+        // Bind albedo texture SRV on the active SRB.
+        {
+            Diligent::ITextureView* texSRV = nullptr;
+            if (mat.albedoTex != TextureHandle::kInvalid)
+            {
+                auto texIt = m_Impl->textureCache.find(mat.albedoTex);
+                if (texIt != m_Impl->textureCache.end())
+                    texSRV = texIt->second.srv.RawPtr();
+            }
+            if (!texSRV)
+                texSRV = m_Impl->defaultWhiteTex.srv.RawPtr();
+
+            if (texSRV)
+            {
+                if (auto* var = activeSrb->GetVariableByName(Diligent::SHADER_TYPE_PIXEL, "g_Albedo"))
+                    var->Set(texSRV);
+            }
+        }
+
+        // PSO switch
+        if (activePso != lastPSO)
+        {
+            ctx->SetPipelineState(activePso);
+            lastPSO = activePso;
             LogDbg("Submit: SetPipelineState OK");
         }
 
         // SRB
-        ctx->CommitShaderResources(mat.srb,
+        ctx->CommitShaderResources(activeSrb,
                                    Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
         LogDbg("Submit: CommitShaderResources OK");
 
@@ -709,7 +1080,8 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
             Diligent::DrawIndexedAttribs drawAttribs;
             drawAttribs.NumIndices = mesh.indexCount;
             drawAttribs.IndexType  = Diligent::VT_UINT32;
-            drawAttribs.Flags      = Diligent::DRAW_FLAG_VERIFY_ALL;
+            drawAttribs.Flags      = g_verboseGPU ? Diligent::DRAW_FLAG_VERIFY_ALL
+                                                  : Diligent::DRAW_FLAG_NONE;
             ctx->DrawIndexed(drawAttribs);
             LogDbg("Submit: DrawIndexed OK");
         }
@@ -717,7 +1089,8 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
         {
             Diligent::DrawAttribs drawAttribs;
             drawAttribs.NumVertices = mesh.vertexCount;
-            drawAttribs.Flags       = Diligent::DRAW_FLAG_VERIFY_ALL;
+            drawAttribs.Flags       = g_verboseGPU ? Diligent::DRAW_FLAG_VERIFY_ALL
+                                                   : Diligent::DRAW_FLAG_NONE;
             ctx->Draw(drawAttribs);
             LogDbg("Submit: Draw OK");
         }
@@ -832,12 +1205,18 @@ bool DiligentRenderBackend::InitImGuiRendering()
         psoCI.PSODesc.ResourceLayout.Variables    = vars;
         psoCI.PSODesc.ResourceLayout.NumVariables = 1;
 
+        // Default SamplerDesc is LINEAR + CLAMP — exactly what ImGui needs.
+        SamplerDesc imguiSamplerDesc;
+        imguiSamplerDesc.MinFilter = FILTER_TYPE_LINEAR;
+        imguiSamplerDesc.MagFilter = FILTER_TYPE_LINEAR;
+        imguiSamplerDesc.MipFilter = FILTER_TYPE_LINEAR;
+        imguiSamplerDesc.AddressU  = TEXTURE_ADDRESS_CLAMP;
+        imguiSamplerDesc.AddressV  = TEXTURE_ADDRESS_CLAMP;
+        imguiSamplerDesc.AddressW  = TEXTURE_ADDRESS_CLAMP;
+
         ImmutableSamplerDesc samplers[] =
         {
-            { SHADER_TYPE_PIXEL, "g_Sampler", SamplerDesc{
-                FILTER_TYPE_LINEAR, FILTER_TYPE_LINEAR, FILTER_TYPE_LINEAR,
-                TEXTURE_ADDRESS_CLAMP, TEXTURE_ADDRESS_CLAMP, TEXTURE_ADDRESS_CLAMP
-            }},
+            { SHADER_TYPE_PIXEL, "g_Sampler", imguiSamplerDesc },
         };
         psoCI.PSODesc.ResourceLayout.ImmutableSamplers    = samplers;
         psoCI.PSODesc.ResourceLayout.NumImmutableSamplers = 1;
@@ -1067,7 +1446,7 @@ void DiligentRenderBackend::RenderImGuiDrawData(const void* rawDrawData)
             drawAttribs.IndexType   = sizeof(ImDrawIdx) == 2 ? VT_UINT16 : VT_UINT32;
             drawAttribs.FirstIndexLocation = static_cast<Uint32>(cmd.IdxOffset + globalIdxOffset);
             drawAttribs.BaseVertex         = static_cast<Int32>(cmd.VtxOffset + globalVtxOffset);
-            drawAttribs.Flags              = DRAW_FLAG_VERIFY_ALL;
+            drawAttribs.Flags              = g_verboseGPU ? DRAW_FLAG_VERIFY_ALL : DRAW_FLAG_NONE;
             ctx->DrawIndexed(drawAttribs);
         }
 

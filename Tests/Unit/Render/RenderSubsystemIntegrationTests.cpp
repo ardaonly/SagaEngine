@@ -43,6 +43,8 @@ public:
     World::MaterialId CreateMaterial(const MaterialRuntime&)  override { return static_cast<World::MaterialId>(1); }
     void              DestroyMesh    (World::MeshId)          override {}
     void              DestroyMaterial(World::MaterialId)      override {}
+    TextureHandle     CreateTexture(uint32_t, uint32_t, const uint8_t*) override { return static_cast<TextureHandle>(1); }
+    void              DestroyTexture(TextureHandle)           override {}
     void BeginFrame() override { ++begins; currentFrameSubmits = 0; }
     void Submit(const Scene::Camera&, const Scene::RenderView& view) override
     {
@@ -72,6 +74,8 @@ public:
     World::MaterialId CreateMaterial(const MaterialRuntime&)  override { return static_cast<World::MaterialId>(1); }
     void              DestroyMesh    (World::MeshId)          override {}
     void              DestroyMaterial(World::MaterialId)      override {}
+    TextureHandle     CreateTexture(uint32_t, uint32_t, const uint8_t*) override { return static_cast<TextureHandle>(1); }
+    void              DestroyTexture(TextureHandle)           override {}
 
     void BeginFrame() override { ++begins; }
     void Submit(const Scene::Camera&, const Scene::RenderView&) override
@@ -370,6 +374,8 @@ TEST(RenderSubsystemIntegration, IdenticalSetupProducesIdenticalSubmitSequence)
             World::MaterialId CreateMaterial(const MaterialRuntime&)  override { return static_cast<World::MaterialId>(1); }
             void              DestroyMesh    (World::MeshId)          override {}
             void              DestroyMaterial(World::MaterialId)      override {}
+            TextureHandle     CreateTexture(uint32_t, uint32_t, const uint8_t*) override { return static_cast<TextureHandle>(1); }
+            void              DestroyTexture(TextureHandle)           override {}
             void BeginFrame() override {}
             void Submit(const Scene::Camera& cam, const Scene::RenderView& v) override
             { order.push_back(cam.position); draws.push_back(v.DrawCount()); }
