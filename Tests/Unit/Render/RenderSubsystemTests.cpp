@@ -54,6 +54,9 @@ public:
     { return static_cast<World::MaterialId>(1); }
     void              DestroyMesh    (World::MeshId)         override {}
     void              DestroyMaterial(World::MaterialId)     override {}
+    TextureHandle     CreateTexture(uint32_t, uint32_t, const uint8_t*) override
+    { return static_cast<TextureHandle>(1); }
+    void              DestroyTexture(TextureHandle)          override {}
 
     void BeginFrame() override { ++frames; submits.clear(); }
     void Submit(const Scene::Camera& cam,

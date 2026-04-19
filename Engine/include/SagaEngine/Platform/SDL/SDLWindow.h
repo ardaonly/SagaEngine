@@ -67,10 +67,6 @@ public:
     /// Set whether VSync is enabled.
     void SetVSync(bool vsync);
 
-    /// Set a callback for window resize events.
-    using ResizeCallback = std::function<void(uint32_t width, uint32_t height)>;
-    void SetOnResize(ResizeCallback callback) { m_OnResize = std::move(callback); }
-
     /// Set the window's minimum size (0,0 = no limit).
     void SetMinimumSize(uint32_t width, uint32_t height);
 
@@ -152,7 +148,6 @@ private:
     bool          m_Borderless  = false;   ///< Borderless window state.
     bool          m_HighDPI     = false;   ///< High-DPI aware window.
     std::string   m_Title;                 ///< Current window title.
-    ResizeCallback m_OnResize;             ///< Window resize callback.
 };
 
 } // namespace Saga
