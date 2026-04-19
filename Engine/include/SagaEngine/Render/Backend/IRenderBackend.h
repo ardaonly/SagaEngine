@@ -34,6 +34,7 @@ namespace SagaEngine::Render
 struct MeshAsset;
 struct MaterialAsset;
 struct MaterialRuntime;
+enum class TextureHandle : std::uint32_t;
 }
 
 namespace SagaEngine::Render::Backend
@@ -84,6 +85,15 @@ public:
     virtual void DestroyMesh    (World::MeshId mesh)         = 0;
     virtual void DestroyMaterial(World::MaterialId material) = 0;
 
+    /// Upload a 2D RGBA8 texture. Returns kInvalid on failure.
+    /// @param width   Texture width in pixels.
+    /// @param height  Texture height in pixels.
+    /// @param rgba    Pointer to width*height*4 bytes of RGBA8 pixel data.
+    [[nodiscard]] virtual ::SagaEngine::Render::TextureHandle
+        CreateTexture(uint32_t width, uint32_t height, const uint8_t* rgba) = 0;
+
+    virtual void DestroyTexture(::SagaEngine::Render::TextureHandle tex) = 0;
+
     // ── Per-frame submission ─────────────────────────────────────
 
     /// Called once per frame before any Submit(). Gives the backend a
@@ -115,6 +125,9 @@ public:
     World::MaterialId CreateMaterial(const MaterialRuntime&)  override { return static_cast<World::MaterialId>(m_NextMaterial++); }
     void              DestroyMesh    (World::MeshId)          override {}
     void              DestroyMaterial(World::MaterialId)      override {}
+    ::SagaEngine::Render::TextureHandle CreateTexture(uint32_t, uint32_t, const uint8_t*) override
+    { return static_cast<::SagaEngine::Render::TextureHandle>(m_NextTex++); }
+    void              DestroyTexture(::SagaEngine::Render::TextureHandle) override {}
 
     void BeginFrame() override { m_FrameIndex++; m_LastDrawCount = 0; }
     void Submit(const Scene::Camera&, const Scene::RenderView& view) override
@@ -132,6 +145,7 @@ private:
     std::size_t   m_LastDrawCount  = 0;
     std::uint32_t m_NextMesh       = 1;
     std::uint32_t m_NextMaterial   = 1;
+    std::uint32_t m_NextTex        = 1;
 };
 
 } // namespace SagaEngine::Render::Backend

@@ -115,6 +115,11 @@ public:
     void                            DestroyMesh    (World::MeshId)         override;
     void                            DestroyMaterial(World::MaterialId)     override;
 
+    [[nodiscard]] ::SagaEngine::Render::TextureHandle
+        CreateTexture(uint32_t width, uint32_t height,
+                      const uint8_t* rgba) override;
+    void DestroyTexture(::SagaEngine::Render::TextureHandle tex) override;
+
     // ── IRenderBackend: per-frame submission ────────────────────
     void BeginFrame() override;
     void Submit(const Scene::Camera&     camera,

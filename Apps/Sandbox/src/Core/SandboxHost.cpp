@@ -20,6 +20,7 @@
 #include <SagaEngine/Render/Scene/RenderView.h>
 
 #include <imgui.h>
+#include <SDL2/SDL.h>
 
 #include <cstdio>
 #include <string>
@@ -203,7 +204,12 @@ bool SandboxHost::InitRenderBackend()
     window->SetRHIOwnsPresent(true);
 
     // ── Wire resize callback ──────────────────────────────────────────────────
-    // TODO: Wire SDLWindow::SetOnResize → m_renderBackend->OnResize.
+    auto* rb = m_renderBackend.get();
+    window->SetOnResize([rb](uint32_t w, uint32_t h)
+    {
+        if (rb && w > 0 && h > 0)
+            rb->OnResize(w, h);
+    });
 
     return true;
 }
@@ -301,15 +307,24 @@ void SandboxHost::ShutdownImGui()
 
 void SandboxHost::TickImGui(float dt)
 {
+    ImGuiIO& io = ImGui::GetIO();
+
     // Update display size every frame (handles resize).
     auto* window = GetWindow();
     if (window)
     {
-        ImGuiIO& io = ImGui::GetIO();
         io.DisplaySize.x = static_cast<float>(window->GetWidth());
         io.DisplaySize.y = static_cast<float>(window->GetHeight());
         io.DeltaTime     = dt > 0.0f ? dt : (1.0f / 60.0f);
     }
+
+    // ── Feed SDL mouse state to ImGui ────────────────────────────────────────
+    int mx = 0, my = 0;
+    const Uint32 buttons = SDL_GetMouseState(&mx, &my);
+    io.MousePos    = ImVec2(static_cast<float>(mx), static_cast<float>(my));
+    io.MouseDown[0] = (buttons & SDL_BUTTON_LMASK) != 0;
+    io.MouseDown[1] = (buttons & SDL_BUTTON_RMASK) != 0;
+    io.MouseDown[2] = (buttons & SDL_BUTTON_MMASK) != 0;
 
     ImGui::NewFrame();
 
