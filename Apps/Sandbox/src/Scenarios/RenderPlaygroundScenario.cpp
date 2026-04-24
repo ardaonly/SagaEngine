@@ -20,7 +20,6 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
-#include <numbers>
 #include <vector>
 
 namespace SagaSandbox
@@ -68,7 +67,8 @@ MeshAsset BuildSkinnedCylinderAsset(float radius, float height,
     auto& lod = asset.lods[0];
 
     const float segHeight = height / 3.0f;  // 3 bones split the cylinder
-    const float pi2 = 2.0f * static_cast<float>(std::numbers::pi);
+    constexpr float kPi = 3.14159265358979323846f;
+    const float pi2 = 2.0f * kPi;
 
     // Generate rings+1 rows of slices+1 verts.
     for (int iy = 0; iy <= rings; ++iy)
@@ -740,6 +740,18 @@ void RenderPlaygroundScenario::OnRenderDebugUI()
         ImGui::Separator();
         ImGui::Text("Cam: %.1f, %.1f, %.1f",
                      m_camPos.x, m_camPos.y, m_camPos.z);
+
+        if (m_armAnimState.clip)
+        {
+            ImGui::Separator();
+            ImGui::Text("Skeleton: %u bones", m_armSkeleton.JointCount());
+            ImGui::Text("Anim: %.2f / %.2fs  %s",
+                         m_armAnimState.time,
+                         m_armAnimState.clip->duration,
+                         m_armAnimState.playing ? "playing" : "stopped");
+        }
+
+        ImGui::Separator();
         ImGui::Text("[Tab] toggle cursor | [ESC] quit");
     }
     ImGui::End();
