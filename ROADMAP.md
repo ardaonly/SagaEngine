@@ -1,6 +1,6 @@
 # SagaEngine — Production MMO Engine Roadmap
 
-> Last updated: 2026-04-16
+> Last updated: 2026-04-25
 > Target: A production-grade authoritative multiplayer engine core.
 
 This document is the single source of truth for what SagaEngine has
@@ -416,26 +416,44 @@ written down. Both are run in CI.
 
 ## 13. VISUAL AUTHORING / EDITOR SHELL
 
+> UI framework: **Qt** (QMainWindow, QDockWidget, QWidget, QDialog).
+> Foundation laid in v0.0.7 — all items marked `[x]` below have header + implementation stubs
+> that establish the architecture and compile boundary. Full feature work builds on top.
+
 | Status | Item |
 |--------|------|
-| [ ]    | Editor shell — dockable windows, persistent layouts, workspace presets, and command routing.                             |
-| [ ]    | Core panels — project browser, hierarchy, inspector, console, and asset browser.                                         |
-| [ ]    | Viewport system — scene/world viewport with selection, gizmos, camera control, and runtime preview.                      |
-| [ ]    | Command palette and shortcut editor — searchable commands, remappable bindings, and discoverable actions.                |
-| [ ]    | Undo / redo framework — transactional editor actions with consistent state rollback.                                     |
-| [ ]    | Graph editor shell — zoom, pan, search, selection, grouping, collapse, and inline diagnostics.                           |
-| [ ]    | Block authoring v1 — typed pins, node library, compile-to-IR, and graph validation.                                      |
-| [ ]    | Text authoring v1 — C# subset editor that targets the same canonical IR as the block system.                             |
-| [ ]    | Shared canonical IR — one intermediate representation for blocks, text, and runtime compilation.                         |
+| [x]    | Editor shell — `EditorShell` (QMainWindow subclass) with nested QDockWidget docking, menu bar, main toolbar, and status bar. `Editor/include/SagaEditor/Shell/EditorShell.h` / `.cpp`. |
+| [x]    | Application entry point — `EditorApp` bootstraps `QApplication` (pimpl so Qt headers stay out of the public surface), `EditorHost`, and `EditorShell`. `Host/EditorApp.h` / `.cpp`. |
+| [x]    | Service host — `EditorHost` owns and exposes all editor subsystems through typed accessors; init and shutdown are ordered. `Host/EditorHost.h` / `.cpp`. |
+| [x]    | Panel interface — `IPanel` extends `QWidget`; stable `PanelId`, `GetTitle()`, `OnInit` / `OnShutdown`, focus callbacks. `Panels/IPanel.h`. |
+| [x]    | Dock workspace — `DockWorkspace` wraps `QDockWidget` creation, panel→dock mapping, `SaveState` / `RestoreState` via `QMainWindow::saveState`. `Docking/DockWorkspace.h` / `.cpp`. |
+| [x]    | Dock layout manager — `DockLayoutManager` bridges `DockWorkspace` and `LayoutSerializer` for save / load / reset. `Docking/DockLayoutManager.h` / `.cpp`. |
+| [x]    | Layout serializer — `LayoutSerializer` reads and writes `LayoutPreset` and `WorkspacePreset` JSON files from `<workspace>/Layouts/`. `Layouts/LayoutSerializer.h` / `.cpp`. |
+| [x]    | Layout presets — `LayoutPreset` (dock arrangement) and `WorkspacePreset` (layout + theme + toolbar) data types. `Layouts/LayoutPreset.h`, `WorkspacePreset.h`. |
+| [x]    | Shell chrome descriptor — `ShellLayout` declares menus (File / Edit / View / World), toolbar, and status bar visibility. `Shell/ShellLayout.h`. |
+| [x]    | Built-in shell commands — `RegisterShellCommands` populates File, Edit, View, and World command ids into `CommandRegistry`. `Shell/ShellCommands.h` / `.cpp`. |
+| [x]    | Command registry — `CommandRegistry` stores every named editor command; supports late registration and unregistration by packages. `Commands/CommandRegistry.h` / `.cpp`. |
+| [x]    | Command dispatcher — `CommandDispatcher` invokes handlers with pre-hook veto and post-hook observation. `Commands/CommandDispatcher.h` / `.cpp`. |
+| [x]    | Command palette — `CommandPalette` (Qt frameless QDialog) with live text filter, keyboard navigation, and Enter-to-invoke. Opens on Ctrl+Shift+P. `Commands/CommandPalette.h` / `.cpp`. |
+| [x]    | Shortcut manager — `ShortcutManager` maps `KeyChord` (modifier + scancode) to command ids; fully remappable at runtime; `OnKeyEvent` dispatches immediately. `Commands/ShortcutManager.h` / `.cpp`. |
+| [x]    | Undo / redo framework — `UndoRedoStack` with `IEditorAction` interface; linear history, configurable depth, `CanUndo` / `CanRedo`, label accessors. `Commands/UndoRedoStack.h` / `.cpp`. |
+| [x]    | Selection manager — `SelectionManager` (QObject) with ordered multi-selection, `SelectionChanged` Qt signal, primary-id query. `Selection/SelectionManager.h` / `.cpp`. |
+| [x]    | Theme system — `EditorTheme` (QSS stylesheet + `ColorPalette` + fonts), `ThemeRegistry` with runtime `Apply()` and `OnThemeChanged` callback. Five built-in themes: Dark, Light, Nord, SolarizedDark, Midnight. `Themes/EditorTheme.h`, `ColorPalette.h`, `ThemeRegistry.h` / `.cpp`. |
+| [x]    | Color palette — `ColorPalette` semantic token struct (28 named slots covering backgrounds, foregrounds, accent, status, and gizmo colors). Factory functions for all five built-in palettes. `Themes/ColorPalette.h` / `.cpp`. |
+| [x]    | Extension API — `IEditorExtension` interface (`OnLoad` / `OnUnload`), `IExtensionContext` (panel / command / theme registration + host access), `ExtensionRegistry`, `ExtensionHost`. `Extensions/`. |
+| [x]    | Core panels — `HierarchyPanel` (entity tree + live search), `InspectorPanel` (selection-reactive scroll area), `ConsolePanel` (severity-filtered rich-text log), `AssetBrowserPanel` (folder tree + asset grid), `WorldViewportPanel` (QPainter grid placeholder, full input routing). `Panels/`. |
+| [ ]    | Viewport system — RHI swap-chain blit into `WorldViewportPanel`, camera controller (orbit / fly / pan), selection ray-cast, gizmo overlay. |
+| [ ]    | Inspector component editors — `ComponentEditorRegistry` generates per-component collapsible sections inside `InspectorPanel`; numeric, string, vector, and enum widgets. |
+| [ ]    | Graph editor shell — zoom, pan, search, selection, grouping, collapse, and inline diagnostics. |
+| [ ]    | Block authoring v1 — typed pins, node library, compile-to-IR, and graph validation. |
+| [ ]    | Text authoring v1 — C# subset editor that targets the same canonical IR as the block system. |
+| [ ]    | Shared canonical IR — one intermediate representation for blocks, text, and runtime compilation. |
 | [ ]    | Block / C# synchronization — supported gameplay subset can move between block view and text view without losing meaning. |
-| [ ]    | Layout customization — users can recompose panels, toolbars, and workflows through presets and saved workspaces.         |
-| [ ]    | Custom Mode — advanced users can replace or hide editor surfaces, tool layouts, and panel compositions.                  |
-| [ ]    | Editor diagnostics — graph errors, type mismatches, missing references, and runtime preview failures surfaced in-place.  |
-| [ ]    | Editor extension API — new panels, tools, inspectors, commands, and viewport overlays can be added by packages.          |
-| [ ]    | Asset import integration — import, cook, validate, and preview assets from inside the editor.                            |
-| [ ]    | Editor persistence — layout state, graph layout, shortcut bindings, theme, and recent files persist across sessions.     |
-| [ ]    | Workspace presets — Creator, Indie, Studio, Technical, and Custom presets ship as first-class editor profiles.           |
-| [ ]    | Headless editor mode — automated import, validation, cook, and content build runs without a visible UI.                  |
+| [ ]    | Editor diagnostics — graph errors, type mismatches, missing references, and runtime preview failures surfaced in-place. |
+| [ ]    | Asset import integration — import, cook, validate, and preview assets from inside the editor. |
+| [ ]    | Editor persistence — QSettings-backed layout state, shortcut bindings, active theme, and recent files restored on next launch. |
+| [ ]    | Workspace presets shipping — Creator, Indie, Studio, Technical, and Custom presets as first-class JSON profiles in `Layouts/`. |
+| [ ]    | Headless editor mode — automated import, validation, cook, and content build runs without a visible UI. |
 
 ## 14. EXTENSIONS & PACKAGE SDK
 

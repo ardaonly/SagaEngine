@@ -64,7 +64,7 @@ The current focus is on building a clean technical base that can support:
 ### Windows
 
 ```powershell
-cd Tools/SagaForge
+cd Tools/Forge
 
 .\build.ps1 lock -Profile windows-msvc
 
