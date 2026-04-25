@@ -1,25 +1,27 @@
 /// @file main.cpp
-/// @brief Entry point for the Saga Editor application.
+/// @brief SagaEditor platform entry point.
 ///
-/// Intended to provide development tools, scene editing, and asset workflows.
-/// Currently serves as a structural placeholder. Future work:
-///   - Qt-based UI shell (docking, menus, toolbars)
-///   - Scene hierarchy panel
-///   - Entity inspector with component editing
-///   - 3D viewport with RHI integration
-///   - Asset browser with streaming pipeline
-///   - Editor state serialization
+/// Qt handles the WinMain shim on Windows via qt_add_executable(WIN32) in
+/// SagaTargets.cmake — no separate WinMain wrapper is needed.
 
-#include "SagaEngine/Core/Application/Application.h"
-#include "SagaEngine/Core/Log/Log.h"
+#include "SagaEditor/Host/EditorApp.h"
+#include "SagaEditor/UI/Qt/QtUIFactory.h"
 
-int main()
+int main(int argc, char* argv[])
 {
-    SagaEngine::Core::Log::Init();
+    SagaEditor::QtUIFactory factory;
 
-    LOG_INFO("Editor", "Editor placeholder started.");
-    LOG_INFO("Editor", "No UI, no tools, no scene system yet.");
+    SagaEditor::EditorAppConfig cfg;
+    cfg.argc        = argc;
+    cfg.argv        = argv;
+    cfg.maximized   = true;
 
-    SagaEngine::Core::Log::Shutdown();
-    return 0;
+    SagaEditor::EditorApp app;
+
+    if (!app.Init(cfg, factory))
+        return 1;
+
+    const int exitCode = app.Run();
+    app.Shutdown();
+    return exitCode;
 }
