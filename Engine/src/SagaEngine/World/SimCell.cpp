@@ -63,23 +63,10 @@ void SimCell::UpdateMetrics() noexcept
     }
 }
 
-bool SimCell::ShouldSplit() const noexcept
-{
-    return m_metrics.entityCount > m_thresholds.maxEntities ||
-           m_metrics.playerCount > m_thresholds.maxPlayers;
-}
-
-bool SimCell::ShouldMerge() const noexcept
-{
-    if (m_metrics.entityCount >= m_thresholds.minEntities)
-        return false;
-
-    if (m_lowStateStartTick == 0)
-        return false;
-
-    const uint64_t currentTick = static_cast<uint64_t>(Core::Time::GetTime() * 60.0);
-    return (currentTick - m_lowStateStartTick) >= m_thresholds.mergeGraceTicks;
-}
+// ShouldSplit / ShouldMerge moved to SimCell_SpatialLogic.cpp to keep the
+// spatial-partitioning policy in one place. Defining them here too caused a
+// duplicate-symbol link warning (LNK4006) when both translation units were
+// compiled into SagaEngine.lib.
 
 std::pair<SimCellId, SimCellId>
 SimCell::ExecuteSplit(PositionQueryFn positionQuery) const noexcept

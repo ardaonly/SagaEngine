@@ -1,11 +1,15 @@
 #pragma once
+#include <memory>
 #include <functional>
 #include <string>
 namespace SagaEditor {
 class IExtensionCommand;
 class ExtensionCommandBridge {
 public:
-    void Register(IExtensionCommand* cmd);
+    
+    ExtensionCommandBridge();
+    ~ExtensionCommandBridge();
+void Register(IExtensionCommand* cmd);
     void Unregister(const std::string& commandId);
     IExtensionCommand* Find(const std::string& commandId) const noexcept;
 private:

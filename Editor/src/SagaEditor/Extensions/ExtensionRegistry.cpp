@@ -8,11 +8,26 @@
 namespace SagaEditor
 {
 
+// ─── Construction ─────────────────────────────────────────────────────────────
+//
+// Defined out-of-line so the implicit destructor of
+// `unordered_map<string, unique_ptr<IEditorExtension>>` is instantiated
+// HERE — where `IEditorExtension` is the full type — rather than in
+// every TU that includes `ExtensionRegistry.h`.
+
+ExtensionRegistry::ExtensionRegistry()  = default;
+ExtensionRegistry::~ExtensionRegistry() = default;
+
+ExtensionRegistry::ExtensionRegistry(ExtensionRegistry&&) noexcept            = default;
+ExtensionRegistry& ExtensionRegistry::operator=(ExtensionRegistry&&) noexcept = default;
+
 // ─── Registration ─────────────────────────────────────────────────────────────
 
 void ExtensionRegistry::Register(std::unique_ptr<IEditorExtension> extension)
 {
-    const std::string id = extension->GetExtensionId().toStdString();
+    // GetExtensionId() returns std::string per IEditorExtension; the previous
+    // `.toStdString()` call was a copy-paste from a QString-returning variant.
+    const std::string id = extension->GetExtensionId();
 
     if (!m_extensions.count(id))
         m_order.push_back(id);

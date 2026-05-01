@@ -117,7 +117,7 @@ void QtUIMainWindow::ApplyShellLayout(const ShellLayout& layout)
 
     for (const MenuDescriptor& menuDesc : layout.menus)
     {
-        QMenu* menu = bar->addMenu(QString::fromStdString(menuDesc.label));
+        QMenu* menu = bar->addMenu(QString::fromStdString(menuDesc.title));
 
         for (const MenuItemDescriptor& item : menuDesc.items)
         {
@@ -128,11 +128,24 @@ void QtUIMainWindow::ApplyShellLayout(const ShellLayout& layout)
             }
 
             QAction* action = menu->addAction(QString::fromStdString(item.label));
-            action->setEnabled(item.enabled);
 
-            if (item.handler)
+            // Display the shortcut hint as authored; the actual binding
+            // lives in `ShortcutManager`. Empty hints are skipped so we
+            // don't show a lonely "Ctrl+" with no key letter.
+            if (!item.shortcut.empty())
             {
-                QObject::connect(action, &QAction::triggered, [h = item.handler]{ h(); });
+                action->setShortcut(
+                    QKeySequence(QString::fromStdString(item.shortcut)));
+            }
+
+            // The descriptor carries the command id, not a handler. We
+            // stash the id on the action and let a higher layer
+            // (EditorShell) connect the dispatcher to QAction::triggered.
+            // This keeps the IUIMainWindow surface decoupled from the
+            // command-dispatch service.
+            if (!item.commandId.empty())
+            {
+                action->setData(QString::fromStdString(item.commandId));
             }
         }
     }

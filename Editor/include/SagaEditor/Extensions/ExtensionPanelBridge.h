@@ -6,7 +6,10 @@ namespace SagaEditor {
 class IExtensionPanel;
 class ExtensionPanelBridge {
 public:
-    void Register(IExtensionPanel* panel);
+    
+    ExtensionPanelBridge();
+    ~ExtensionPanelBridge();
+void Register(IExtensionPanel* panel);
     void Unregister(const std::string& panelId);
     std::vector<IExtensionPanel*> GetAll() const;
 private:

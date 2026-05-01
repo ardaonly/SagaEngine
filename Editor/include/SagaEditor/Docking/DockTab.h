@@ -3,12 +3,13 @@
 
 #pragma once
 
+#include "SagaEditor/Panels/IPanel.h"
+
+#include <cstdint>
 #include <string>
 
 namespace SagaEditor
 {
-
-class IPanel;
 
 // ─── Dock Tab State ───────────────────────────────────────────────────────────
 

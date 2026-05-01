@@ -1,7 +1,9 @@
-#include "RoundTripTests.h"
+/// @file RoundTripTests.cpp
+/// @brief Placeholder — real cases land alongside the matching subsystems.
 
-namespace SagaEditor::VisualScripting {
+namespace SagaEditor::VisualScripting
+{
 
-// RoundTripTests — implementation stub (filled at runtime).
+// RoundTripTests — placeholder; see EDITOR_ROADMAP.md section 7 for the test plan.
 
 } // namespace SagaEditor::VisualScripting

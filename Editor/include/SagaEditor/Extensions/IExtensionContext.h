@@ -10,8 +10,8 @@ namespace SagaEditor
 {
 
 class IPanel;
-class CommandDescriptor;
-class EditorTheme;
+struct CommandDescriptor; ///< Defined in `Commands/CommandRegistry.h`.
+struct EditorTheme;       ///< Defined in `Themes/EditorTheme.h`.
 class EditorHost;
 
 /// Panel dock area enumeration (independent of Qt).

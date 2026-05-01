@@ -1,7 +1,9 @@
-#include "PinConnectionTests.h"
+/// @file PinConnectionTests.cpp
+/// @brief Placeholder — real cases land alongside the matching subsystems.
 
-namespace SagaEditor::VisualScripting {
+namespace SagaEditor::VisualScripting
+{
 
-// PinConnectionTests — implementation stub (filled at runtime).
+// PinConnectionTests — placeholder; see EDITOR_ROADMAP.md section 7 for the test plan.
 
 } // namespace SagaEditor::VisualScripting

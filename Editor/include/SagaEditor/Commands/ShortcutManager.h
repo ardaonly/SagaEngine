@@ -17,7 +17,7 @@ class CommandDispatcher;
 struct KeyChord
 {
     uint32_t    modifiers = 0; ///< Bitmask: Ctrl=1, Shift=2, Alt=4, Super=8.
-    uint32_t    keyCode   = 0; ///< Platform-agnostic key code (SDL scancode on SDL builds).
+    uint32_t    keyCode   = 0; ///< Platform-agnostic key code; backend translates from native.
 
     [[nodiscard]] bool operator==(const KeyChord& o) const noexcept
     {

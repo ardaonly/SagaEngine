@@ -1,11 +1,15 @@
 #pragma once
+#include <memory>
 #include <cstdint>
 #include <string>
 #include <vector>
 namespace SagaEditor {
 class PrefabInstanceTracker {
 public:
-    void TrackInstance(uint64_t entityId, const std::string& prefabPath);
+    
+    PrefabInstanceTracker();
+    ~PrefabInstanceTracker();
+void TrackInstance(uint64_t entityId, const std::string& prefabPath);
     void UntrackInstance(uint64_t entityId);
     bool IsInstance(uint64_t entityId) const noexcept;
     std::string GetPrefabPath(uint64_t entityId) const;
