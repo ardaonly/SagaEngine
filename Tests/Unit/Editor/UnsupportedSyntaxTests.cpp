@@ -1,7 +1,9 @@
-#include "UnsupportedSyntaxTests.h"
+/// @file UnsupportedSyntaxTests.cpp
+/// @brief Placeholder — real cases land alongside the matching subsystems.
 
-namespace SagaEditor::VisualScripting {
+namespace SagaEditor::VisualScripting
+{
 
-// UnsupportedSyntaxTests — implementation stub (filled at runtime).
+// UnsupportedSyntaxTests — placeholder; see EDITOR_ROADMAP.md section 7 for the test plan.
 
 } // namespace SagaEditor::VisualScripting

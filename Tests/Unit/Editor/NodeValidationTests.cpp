@@ -1,7 +1,9 @@
-#include "NodeValidationTests.h"
+/// @file NodeValidationTests.cpp
+/// @brief Placeholder — real cases land alongside the matching subsystems.
 
-namespace SagaEditor::VisualScripting {
+namespace SagaEditor::VisualScripting
+{
 
-// NodeValidationTests — implementation stub (filled at runtime).
+// NodeValidationTests — placeholder; see EDITOR_ROADMAP.md section 7 for the test plan.
 
 } // namespace SagaEditor::VisualScripting

@@ -1,10 +1,14 @@
 #pragma once
 #include <functional>
+#include <memory>
 #include <string>
 namespace SagaEditor::Collaboration {
 class CollaborationServerRouter {
 public:
-    using Handler = std::function<void(uint64_t clientId, const std::string& payload)>;
+    
+    CollaborationServerRouter();
+    ~CollaborationServerRouter();
+using Handler = std::function<void(uint64_t clientId, const std::string& payload)>;
     void Register(const std::string& messageType, Handler handler);
     void Dispatch(uint64_t clientId, const std::string& messageType, const std::string& payload);
 private:

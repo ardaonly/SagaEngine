@@ -20,6 +20,16 @@ class IEditorExtension;
 class ExtensionRegistry
 {
 public:
+    ExtensionRegistry();
+    ~ExtensionRegistry(); ///< Out-of-line so the `unique_ptr<IEditorExtension>`
+                          ///< deleter only instantiates inside the .cpp where
+                          ///< `IEditorExtension` is the full type.
+
+    ExtensionRegistry(const ExtensionRegistry&)            = delete;
+    ExtensionRegistry& operator=(const ExtensionRegistry&) = delete;
+    ExtensionRegistry(ExtensionRegistry&&) noexcept;
+    ExtensionRegistry& operator=(ExtensionRegistry&&) noexcept;
+
     /// Register an extension. Replaces any existing registration with the same id.
     void Register(std::unique_ptr<IEditorExtension> extension);
 

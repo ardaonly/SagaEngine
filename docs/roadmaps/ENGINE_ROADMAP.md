@@ -2,13 +2,21 @@
 
 > Last updated: 2026-04-25
 > Target: A production-grade authoritative multiplayer engine core.
+> Companion documents:
+> - `EDITOR_ROADMAP.md` — authoring tools that ship only inside SagaEditor.
+> - `SHARED_ROADMAP.md` — subsystems consumed by both editor and runtime
+>   (C# host, canonical IR, package SDK, security policy, sample content).
 
 This document is the single source of truth for what SagaEngine has
-built, what is currently in flight, and what is still open. It is not
-organised by release — the engine is evolving on a rolling basis and
-tying items to version numbers only creates stale artefacts. Instead,
-each section captures a subsystem, enumerates every requirement we
-consider load-bearing, and tracks progress with a checkbox.
+built, what is currently in flight, and what is still open on the
+engine / runtime side. The editor surface and the cross-cutting
+tooling that spans editor and runtime have been split into the two
+companion roadmaps named above; everything in this file is engine-only
+or server-only. It is not organised by release — the engine is
+evolving on a rolling basis and tying items to version numbers only
+creates stale artefacts. Instead, each section captures a subsystem,
+enumerates every requirement we consider load-bearing, and tracks
+progress with a checkbox.
 
 Completed items carry an implementation note so the reader can jump
 straight to the relevant header or cpp file without going on a
@@ -365,145 +373,27 @@ written down. Both are run in CI.
 
 ---
 
-## 12. SCRIPTING RUNTIME (C# / .NET 8)
+## 12. Scripting, Authoring Tools, and Cross-Cutting Tooling
 
-| Status | Item |
-|--------|------|
-| [ ]    | CoreCLR host integration — runtime init, shutdown, error propagation, and deterministic teardown.                                    |
-| [ ]    | Collectible `AssemblyLoadContext` lifecycle — per-package load, unload, dependency resolution, and stale-reference detection.        |
-| [ ]    | Native → Managed bridge — engine events, tick callbacks, and object handles exposed to C#.                                           |
-| [ ]    | Managed → Native bridge — generated, type-safe calls with no reflection on hot paths.                                                |
-| [ ]    | Canonical gameplay API — `IEntity`, `IWorld`, `IComponent`, `IQuery`, and `ISystem`.                                                 |
-| [ ]    | Safe marshaling layer — blittable structs, strings, spans, arrays, handles, and ownership rules.                                     |
-| [ ]    | Thread-safe call boundary — async-safe dispatch between engine threads and script threads.                                           |
-| [ ]    | Cooperative execution budget — per-tick script time budget, watchdog, cancellation, and safe fallback.                               |
-| [ ]    | Script hot reload — supported edit sets reload in place; unsupported edits fall back to rebuild / restart.                           |
-| [ ]    | Script package format — manifests, dependency resolution, versioning, and compatibility checks.                                      |
-| [ ]    | Script diagnostics — compile errors, runtime exceptions, stack traces, source maps, and profiling markers.                           |
-| [ ]    | Deterministic test harness — repeatable script replay under fixed inputs and fixed tick order.                                       |
-| [ ]    | Sandbox worker mode — out-of-process isolation for untrusted scripts, with file / network restrictions and crash containment.        |
-| [ ]    | Script SDK — library authors can register gameplay APIs, script APIs, and generated bindings through a documented extension surface. |
+The C# scripting runtime (section 12 in the previous revision of
+this document), the canonical IR / compilation pipeline, the
+performance-model rules between authoring and runtime, the visual
+authoring / editor shell, the extension and package SDK, the
+debugging / profiling / validation tooling, the security and
+isolation policy, and the documentation / sample content track
+have all been split out of this engine roadmap into two companion
+documents:
 
-## 12.1 CANONICAL IR / COMPILATION PIPELINE
+- `EDITOR_ROADMAP.md` — everything that ships only inside the
+  SagaEditor binary (the shell, docking, panels, command system,
+  visual scripting graph editor, asset import flow, collaboration
+  surface, extension API).
+- `SHARED_ROADMAP.md` — every subsystem with at least one editor
+  consumer and at least one runtime consumer (the .NET 8 scripting
+  host, the canonical IR, the package manifest schema, the security
+  boundary policy, replay verification, and reference content).
 
-| Status | Item |
-|--------|------|
-| [ ]    | Canonical IR definition — one intermediate representation shared by block authoring and text authoring.         |
-| [ ]    | Block-to-IR compiler — graph nodes, typed pins, collapse groups, and macro expansion lower into IR.             |
-| [ ]    | C# subset parser — supported gameplay syntax parses into the same IR.                                           |
-| [ ]    | IR-to-runtime compiler — IR lowers into compiled script methods, bytecode, or another optimized runtime form.   |
-| [ ]    | Round-trip policy — supported constructs preserve meaning across block view and text view.                      |
-| [ ]    | Unsupported syntax policy — unsupported C# features fail clearly instead of silently drifting.                  |
-| [ ]    | Metadata preservation — comments, symbols, and user-facing labels survive supported round trips where feasible. |
-| [ ]    | Incremental compilation — dirty-region rebuild for both blocks and text.                                        |
-| [ ]    | Background compile workers — parse, validate, and regenerate without blocking editor input.                     |
-| [ ]    | Generated node metadata — source generators emit node descriptors, docs, and validation hooks.                  |
-
-## 12.2 PERFORMANCE MODEL AND RUNTIME BOUNDARIES
-
-| Status | Item |
-|--------|------|
-| [ ]    | Authoring/runtime separation — blocks and C# are editor-facing representations, not runtime interpreters.                              |
-| [ ]    | Runtime execution rule — gameplay runs from compiled output, never from node-by-node graph interpretation on the main simulation path. |
-| [ ]    | Edit-time sync cost containment — block movement, parse updates, and C# regeneration happen off the hot path.                          |
-| [ ]    | Hot reload debounce — changes batch before rebuild to avoid thrashing on every keystroke.                                              |
-| [ ]    | Partial recompilation — only changed compilation units regenerate when possible.                                                       |
-| [ ]    | Reflection avoidance — runtime invocation uses generated bindings, cached delegates, or direct dispatch.                               |
-| [ ]    | Allocation control — pooled objects, stack-friendly value types, and native arena-style allocation where appropriate.                  |
-| [ ]    | Hot-path separation — combat, netcode, replication, pathfinding, and tight AI loops stay native or otherwise optimized.                |
-| [ ]    | Runtime budget enforcement — script work is capped per tick and can yield or be suspended safely.                                      |
-| [ ]    | Editor-only overhead acceptance — extra cost is allowed in the editor, not in shipped simulation.                                      |
-
-## 13. VISUAL AUTHORING / EDITOR SHELL
-
-> UI framework: **Qt** (QMainWindow, QDockWidget, QWidget, QDialog).
-> Foundation laid in v0.0.7 — all items marked `[x]` below have header + implementation stubs
-> that establish the architecture and compile boundary. Full feature work builds on top.
-
-| Status | Item |
-|--------|------|
-| [x]    | Editor shell — `EditorShell` (QMainWindow subclass) with nested QDockWidget docking, menu bar, main toolbar, and status bar. `Editor/include/SagaEditor/Shell/EditorShell.h` / `.cpp`. |
-| [x]    | Application entry point — `EditorApp` bootstraps `QApplication` (pimpl so Qt headers stay out of the public surface), `EditorHost`, and `EditorShell`. `Host/EditorApp.h` / `.cpp`. |
-| [x]    | Service host — `EditorHost` owns and exposes all editor subsystems through typed accessors; init and shutdown are ordered. `Host/EditorHost.h` / `.cpp`. |
-| [x]    | Panel interface — `IPanel` extends `QWidget`; stable `PanelId`, `GetTitle()`, `OnInit` / `OnShutdown`, focus callbacks. `Panels/IPanel.h`. |
-| [x]    | Dock workspace — `DockWorkspace` wraps `QDockWidget` creation, panel→dock mapping, `SaveState` / `RestoreState` via `QMainWindow::saveState`. `Docking/DockWorkspace.h` / `.cpp`. |
-| [x]    | Dock layout manager — `DockLayoutManager` bridges `DockWorkspace` and `LayoutSerializer` for save / load / reset. `Docking/DockLayoutManager.h` / `.cpp`. |
-| [x]    | Layout serializer — `LayoutSerializer` reads and writes `LayoutPreset` and `WorkspacePreset` JSON files from `<workspace>/Layouts/`. `Layouts/LayoutSerializer.h` / `.cpp`. |
-| [x]    | Layout presets — `LayoutPreset` (dock arrangement) and `WorkspacePreset` (layout + theme + toolbar) data types. `Layouts/LayoutPreset.h`, `WorkspacePreset.h`. |
-| [x]    | Shell chrome descriptor — `ShellLayout` declares menus (File / Edit / View / World), toolbar, and status bar visibility. `Shell/ShellLayout.h`. |
-| [x]    | Built-in shell commands — `RegisterShellCommands` populates File, Edit, View, and World command ids into `CommandRegistry`. `Shell/ShellCommands.h` / `.cpp`. |
-| [x]    | Command registry — `CommandRegistry` stores every named editor command; supports late registration and unregistration by packages. `Commands/CommandRegistry.h` / `.cpp`. |
-| [x]    | Command dispatcher — `CommandDispatcher` invokes handlers with pre-hook veto and post-hook observation. `Commands/CommandDispatcher.h` / `.cpp`. |
-| [x]    | Command palette — `CommandPalette` (Qt frameless QDialog) with live text filter, keyboard navigation, and Enter-to-invoke. Opens on Ctrl+Shift+P. `Commands/CommandPalette.h` / `.cpp`. |
-| [x]    | Shortcut manager — `ShortcutManager` maps `KeyChord` (modifier + scancode) to command ids; fully remappable at runtime; `OnKeyEvent` dispatches immediately. `Commands/ShortcutManager.h` / `.cpp`. |
-| [x]    | Undo / redo framework — `UndoRedoStack` with `IEditorAction` interface; linear history, configurable depth, `CanUndo` / `CanRedo`, label accessors. `Commands/UndoRedoStack.h` / `.cpp`. |
-| [x]    | Selection manager — `SelectionManager` (QObject) with ordered multi-selection, `SelectionChanged` Qt signal, primary-id query. `Selection/SelectionManager.h` / `.cpp`. |
-| [x]    | Theme system — `EditorTheme` (QSS stylesheet + `ColorPalette` + fonts), `ThemeRegistry` with runtime `Apply()` and `OnThemeChanged` callback. Five built-in themes: Dark, Light, Nord, SolarizedDark, Midnight. `Themes/EditorTheme.h`, `ColorPalette.h`, `ThemeRegistry.h` / `.cpp`. |
-| [x]    | Color palette — `ColorPalette` semantic token struct (28 named slots covering backgrounds, foregrounds, accent, status, and gizmo colors). Factory functions for all five built-in palettes. `Themes/ColorPalette.h` / `.cpp`. |
-| [x]    | Extension API — `IEditorExtension` interface (`OnLoad` / `OnUnload`), `IExtensionContext` (panel / command / theme registration + host access), `ExtensionRegistry`, `ExtensionHost`. `Extensions/`. |
-| [x]    | Core panels — `HierarchyPanel` (entity tree + live search), `InspectorPanel` (selection-reactive scroll area), `ConsolePanel` (severity-filtered rich-text log), `AssetBrowserPanel` (folder tree + asset grid), `WorldViewportPanel` (QPainter grid placeholder, full input routing). `Panels/`. |
-| [ ]    | Viewport system — RHI swap-chain blit into `WorldViewportPanel`, camera controller (orbit / fly / pan), selection ray-cast, gizmo overlay. |
-| [ ]    | Inspector component editors — `ComponentEditorRegistry` generates per-component collapsible sections inside `InspectorPanel`; numeric, string, vector, and enum widgets. |
-| [ ]    | Graph editor shell — zoom, pan, search, selection, grouping, collapse, and inline diagnostics. |
-| [ ]    | Block authoring v1 — typed pins, node library, compile-to-IR, and graph validation. |
-| [ ]    | Text authoring v1 — C# subset editor that targets the same canonical IR as the block system. |
-| [ ]    | Shared canonical IR — one intermediate representation for blocks, text, and runtime compilation. |
-| [ ]    | Block / C# synchronization — supported gameplay subset can move between block view and text view without losing meaning. |
-| [ ]    | Editor diagnostics — graph errors, type mismatches, missing references, and runtime preview failures surfaced in-place. |
-| [ ]    | Asset import integration — import, cook, validate, and preview assets from inside the editor. |
-| [ ]    | Editor persistence — QSettings-backed layout state, shortcut bindings, active theme, and recent files restored on next launch. |
-| [ ]    | Workspace presets shipping — Creator, Indie, Studio, Technical, and Custom presets as first-class JSON profiles in `Layouts/`. |
-| [ ]    | Headless editor mode — automated import, validation, cook, and content build runs without a visible UI. |
-
-## 14. EXTENSIONS & PACKAGE SDK
-
-| Status | Item |
-|--------|------|
-| [ ]    | Package manifest schema — explicit package identity, dependencies, compatibility range, and load order.                  |
-| [ ]    | Extension discovery — runtime and editor can enumerate installed packages without hard-coded registration.               |
-| [ ]    | Node registration API — third-party packages can add block nodes, categories, tooltips, and validation metadata.         |
-| [ ]    | Script library API — packages can expose gameplay helpers, shared types, and generated bindings.                         |
-| [ ]    | Editor tool API — packages can add panels, inspectors, menus, shortcuts, and graph tools.                                |
-| [ ]    | Version compatibility rules — package load fails fast on incompatible engine or scripting ABI versions.                  |
-| [ ]    | Isolation and unload rules — packages can be unloaded cleanly when no managed references remain.                         |
-| [ ]    | Sample packages — reference packages for gameplay scripts, block nodes, editor tools, and asset pipeline extensions.     |
-| [ ]    | Package signing / trust model — trusted packages, local packages, and untrusted packages follow different load policies. |
-
-## 15. DEBUGGING, PROFILING, AND VALIDATION
-
-| Status | Item |
-|--------|------|
-| [ ]    | Script profiler — per-method and per-node timing for C# and block-authored gameplay.                             |
-| [ ]    | Graph debugger — node-level breakpoints, watch values, and execution tracing.                                    |
-| [ ]    | Runtime trace capture — inputs, replication, script events, and simulation state snapshots.                      |
-| [ ]    | State diff tooling — compare world state, snapshot state, and replay state across runs.                          |
-| [ ]    | Failure reproduction runner — load a captured scenario and replay it locally or in CI.                           |
-| [ ]    | Performance budgets — editor latency, script time, compile time, and frame budgets are enforced and reported.    |
-| [ ]    | Memory / handle leak detection — engine-owned allocations, managed bridges, and streaming resources are tracked. |
-| [ ]    | Replay verification — deterministic replay checks run on changes to simulation, ECS, or networking code.         |
-| [ ]    | Crash artifact capture — logs, traces, snapshots, and minimal repro data are uploaded for failures.              |
-
-## 16. SECURITY AND ISOLATION POLICY
-
-| Status | Item |
-|--------|------|
-| [ ]    | Trusted in-process mode — first-party packages and trusted gameplay scripts may run inside the main process.    |
-| [ ]    | Untrusted out-of-process mode — sandboxed scripts run in separate worker processes with restricted access.      |
-| [ ]    | Permission policy — file, network, reflection, and native access are controlled by package trust level.         |
-| [ ]    | Failure containment — script crashes, deadlocks, and runaway allocations do not take down the editor or server. |
-| [ ]    | Security boundary documentation — clear rules for what the engine does and does not guarantee.                  |
-| [ ]    | Host fallback policy — unsupported or dangerous script features fail into safe fallback paths.                  |
-
-## 17. DOCUMENTATION AND SAMPLE CONTENT
-
-| Status | Item |
-|--------|------|
-| [ ]    | Reference gameplay package — a minimal but complete gameplay implementation using C#.                     |
-| [ ]    | Reference block graph — a complete example showing block authoring, IR generation, and runtime execution. |
-| [ ]    | Reference editor extension — a sample custom panel or tool shipped as an external package.                |
-| [ ]    | Reference asset pipeline — import, cook, validate, and preview flow documented end-to-end.                |
-| [ ]    | Supported C# subset docs — exactly what can round-trip to blocks and what cannot.                         |
-| [ ]    | Migration guide — how to move from block-authored logic to text-authored logic without breaking gameplay. |
+This roadmap continues with engine-only subsystems below.
 
 ---
 

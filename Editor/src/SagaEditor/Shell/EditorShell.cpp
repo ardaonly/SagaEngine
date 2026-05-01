@@ -41,7 +41,11 @@ bool EditorShell::Init(EditorHost&              host,
     BuildDefaultLayout();
     m_window->ApplyShellLayout(m_layout);
 
-    RegisterShellCommands(host);
+    // RegisterShellCommands takes (registry, undoStack); the older one-arg
+    // overload that took the whole host doesn't exist. Pull both services
+    // off the host directly.
+    RegisterShellCommands(host.GetCommandRegistry(),
+                          host.GetUndoRedoStack());
     RegisterDefaultPanels();
 
     if (cfg.maximized)
@@ -111,46 +115,52 @@ void EditorShell::RegisterDefaultPanels()
 
 void EditorShell::BuildDefaultLayout()
 {
+    // `MenuDescriptor`/`MenuItemDescriptor` both come from `Shell/ShellLayout.h`.
+    // Positional initialisers below match the struct layouts:
+    //   MenuDescriptor      { title,    items }
+    //   MenuItemDescriptor  { label, commandId, shortcut, separator }
+    // A separator entry sets `separator = true` and leaves label/cmd/shortcut empty.
+
     // ── File menu ─────────────────────────────────────────────────────────────
     MenuDescriptor file;
-    file.label = "File";
+    file.title = "File";
     file.items = {
-        { "New Scene",      false, false, nullptr },
-        { "Open Project…",  false, false, nullptr },
-        { "Save Scene",     false, false, nullptr },
-        { "",               false, true,  nullptr },
-        { "Exit",           false, false, nullptr },
+        { "New Scene",       "saga.command.file.new_scene",     "Ctrl+N",       false },
+        { "Open Project…",   "saga.command.file.open_project",  "Ctrl+O",       false },
+        { "Save Scene",      "saga.command.file.save",          "Ctrl+S",       false },
+        { "",                "",                                "",             true  },
+        { "Exit",            "saga.command.file.exit",          "",             false },
     };
 
     // ── Edit menu ─────────────────────────────────────────────────────────────
     MenuDescriptor edit;
-    edit.label = "Edit";
+    edit.title = "Edit";
     edit.items = {
-        { "Undo",  false, false, nullptr },
-        { "Redo",  false, false, nullptr },
-        { "",      false, true,  nullptr },
-        { "Preferences…", false, false, nullptr },
+        { "Undo",            "saga.command.edit.undo",          "Ctrl+Z",       false },
+        { "Redo",            "saga.command.edit.redo",          "Ctrl+Shift+Z", false },
+        { "",                "",                                "",             true  },
+        { "Preferences…",    "saga.command.edit.preferences",   "",             false },
     };
 
     // ── View menu ─────────────────────────────────────────────────────────────
     MenuDescriptor view;
-    view.label = "View";
+    view.title = "View";
     view.items = {
-        { "Hierarchy",     false, false, nullptr },
-        { "Inspector",     false, false, nullptr },
-        { "Console",       false, false, nullptr },
-        { "Asset Browser", false, false, nullptr },
-        { "",              false, true,  nullptr },
-        { "Theme…",        false, false, nullptr },
+        { "Hierarchy",       "saga.command.view.hierarchy",     "",             false },
+        { "Inspector",       "saga.command.view.inspector",     "",             false },
+        { "Console",         "saga.command.view.console",       "",             false },
+        { "Asset Browser",   "saga.command.view.asset_browser", "",             false },
+        { "",                "",                                "",             true  },
+        { "Theme…",          "saga.command.view.theme",         "",             false },
     };
 
     // ── World menu ────────────────────────────────────────────────────────────
     MenuDescriptor world;
-    world.label = "World";
+    world.title = "World";
     world.items = {
-        { "Add Entity",    false, false, nullptr },
-        { "Bake Lighting", false, false, nullptr },
-        { "World Settings…", false, false, nullptr },
+        { "Add Entity",      "saga.command.world.add_entity",   "",             false },
+        { "Bake Lighting",   "saga.command.world.bake_lighting","",             false },
+        { "World Settings…", "saga.command.world.settings",     "",             false },
     };
 
     m_layout.menus = { file, edit, view, world };

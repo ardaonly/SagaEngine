@@ -1,10 +1,14 @@
 #pragma once
+#include <memory>
 #include <functional>
 #include <string>
 namespace SagaEditor::VisualScripting {
 class ManagedToNativeBridge {
 public:
-    using Handler = std::function<std::string(const std::string& argsJson)>;
+    
+    ManagedToNativeBridge();
+    ~ManagedToNativeBridge();
+using Handler = std::function<std::string(const std::string& argsJson)>;
     void Register(const std::string& name, Handler handler);
     std::string Invoke(const std::string& name, const std::string& argsJson);
 private:
