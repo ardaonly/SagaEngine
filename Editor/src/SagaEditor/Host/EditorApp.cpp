@@ -20,7 +20,13 @@ EditorApp::~EditorApp() = default;
 bool EditorApp::Init(const EditorAppConfig& cfg, IUIFactory& factory)
 {
     // UI application must be created before any window (mirrors QApplication rule).
-    m_uiApp = factory.CreateApplication(cfg.argc, cfg.argv);
+    // `IUIFactory::CreateApplication` takes `int& argc` because the underlying
+    // toolkit (Qt today) may consume processed arguments and trim the array.
+    // The `cfg.argc` member is `const int`, so we mirror it into a local
+    // mutable variable that the factory is allowed to scribble on.
+    m_argc  = cfg.argc;
+    m_argv  = cfg.argv;
+    m_uiApp = factory.CreateApplication(m_argc, m_argv);
 
     m_host  = std::make_unique<EditorHost>();
     m_shell = std::make_unique<EditorShell>();

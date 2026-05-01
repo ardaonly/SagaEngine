@@ -1,10 +1,14 @@
 #pragma once
+#include <memory>
 #include <functional>
 #include <string>
 namespace SagaEditor::VisualScripting {
 class NodeGraphToolbar {
 public:
-    void AddAction(const std::string& id, const std::string& label,
+    
+    NodeGraphToolbar();
+    ~NodeGraphToolbar();
+void AddAction(const std::string& id, const std::string& label,
                    std::function<void()> onClick);
     void RemoveAction(const std::string& id);
 private:

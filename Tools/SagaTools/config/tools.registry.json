@@ -1,0 +1,29 @@
+{
+  // tools.registry.json — flat name→string maps in two sections.
+  //
+  // "tools"      : runtime executables (used by `tools <name>` and `tools run`)
+  // "installers" : bootstrap scripts   (used by `tools install <name>`)
+  //
+  // Resolution rules apply to both sections:
+  //   - "${VAR}" substrings expand against the process environment.
+  //   - Values containing path separators are paths, relative to this file.
+  //   - Bare names (no separator) are searched on PATH at run time.
+  //
+  // Either section is optional per tool. A tool with only an installer
+  // entry is bootstrap-able but cannot yet be launched; a tool with only
+  // a runtime entry is launch-able but ships pre-built.
+
+  "schema_version": "1.0",
+
+  "tools": {
+    "forge": "${FORGE_BIN}",
+    "prism": "${PRISM_BIN}"
+  },
+
+  "installers": {
+    // Paths are relative to THIS file's directory (Tools/SagaTools/config/),
+    // so `../../` climbs out of `config/` and `SagaTools/` to reach Tools/.
+    "forge": "../../Forge/tool/build.py",
+    "prism": "../../Prism/build.py"
+  }
+}

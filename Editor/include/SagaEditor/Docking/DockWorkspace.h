@@ -33,6 +33,14 @@ public:
     /// Bring a panel's dock tab to front.
     void FocusPanel(const std::string& panelId);
 
+    /// Drop the current dock arrangement and rebuild it from the editor's
+    /// hard-coded default placement. Used by `DockLayoutManager::ResetToDefault`
+    /// when the user picks "Reset Layout" from the View menu, and by tests
+    /// that want to start each case from a known baseline. The current
+    /// implementation undocks every dock the workspace knows about; the
+    /// shell re-adds its default panel set on the next layout build.
+    void ResetToDefaultLayout();
+
     // ─── Layout Persistence ───────────────────────────────────────────────────
 
     /// Save the current dock arrangement to a byte blob.

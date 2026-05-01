@@ -26,7 +26,11 @@ bool EditorHost::Init()
 {
     m_commandRegistry   = std::make_unique<CommandRegistry>();
     m_commandDispatcher = std::make_unique<CommandDispatcher>(*m_commandRegistry);
-    m_commandPalette    = std::make_unique<CommandPalette>(*m_commandRegistry);
+    // CommandPalette takes both the registry (to enumerate commands) and
+    // the dispatcher (to invoke the chosen command) — order matches the
+    // header signature `CommandPalette(CommandRegistry&, CommandDispatcher&)`.
+    m_commandPalette    = std::make_unique<CommandPalette>(*m_commandRegistry,
+                                                            *m_commandDispatcher);
     m_shortcutManager   = std::make_unique<ShortcutManager>(*m_commandDispatcher);
     m_undoRedoStack     = std::make_unique<UndoRedoStack>();
     m_selectionManager  = std::make_unique<SelectionManager>();

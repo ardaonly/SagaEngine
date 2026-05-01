@@ -58,6 +58,13 @@ public:
     [[nodiscard]] EditorShell& GetShell() noexcept;
 
 private:
+    /// Mutable storage for the argc/argv the UI factory consumes.
+    /// `IUIFactory::CreateApplication` takes `int& argc` so the underlying
+    /// toolkit (Qt today) can trim consumed arguments; `cfg.argc` from the
+    /// `EditorAppConfig` is `const`, so we mirror it into these members.
+    int                             m_argc  = 0;
+    char**                          m_argv  = nullptr;
+
     std::unique_ptr<IUIApplication> m_uiApp;  ///< Owns the event loop.
     std::unique_ptr<EditorHost>     m_host;
     std::unique_ptr<EditorShell>    m_shell;

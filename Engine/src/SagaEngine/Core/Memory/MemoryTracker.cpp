@@ -98,11 +98,11 @@ void MemoryTracker::DumpLeaks() {
     std::lock_guard lock(_mutex);
 
     if (_allocations.empty()) {
-        LOG_INFO("[MemoryTracker]", "No leaks detected");
+        LOG_INFO("MemoryTracker", "No leaks detected");
         return;
     }
 
-    LOG_WARN("[MemoryTracker]", "MEMORY LEAKS DETECTED");
+    LOG_WARN("MemoryTracker", "MEMORY LEAKS DETECTED");
 
     for (const auto& a : _allocations) {
 

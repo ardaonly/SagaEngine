@@ -1,10 +1,14 @@
 #pragma once
+#include <memory>
 #include <functional>
 #include <string>
 namespace SagaEditor {
 class ViewportToolbar {
 public:
-    void AddAction(const std::string& id, const std::string& label,
+    
+    ViewportToolbar();
+    ~ViewportToolbar();
+void AddAction(const std::string& id, const std::string& label,
                    std::function<void()> onClick);
     void RemoveAction(const std::string& id);
     void SetActionEnabled(const std::string& id, bool enabled);

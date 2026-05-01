@@ -48,6 +48,7 @@ function(saga_setup_tests)
         ${SAGA_ROOT}/Runtime/include
         ${SAGA_ROOT}/Server/include
         ${SAGA_ROOT}/Backends/include
+        ${SAGA_ROOT}/Editor/include
         $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
     )
 
@@ -58,6 +59,8 @@ function(saga_setup_tests)
     target_link_libraries(SagaUnitTests PRIVATE
         SagaEngine
         SagaBackend
+        SagaEditorLib    # needed by Tests/Unit/Editor/* (block authoring,
+                         # InspectorEditing, persona, viewport, etc.)
         GTest::gtest
         GTest::gmock
         GTest::gtest_main
