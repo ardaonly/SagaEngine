@@ -1,0 +1,6 @@
+[tools] registered tools:
+  - forge   [registry-path]
+      raw       : /usr/local/bin/forge
+      expanded  : /usr/local/bin/forge
+      resolved  : /usr/local/bin/forge
+      installer : /path/to/Forge/build.py

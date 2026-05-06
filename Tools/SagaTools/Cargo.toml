@@ -1,0 +1,17 @@
+[package]
+name = "sagatools"
+version = "0.2.0"
+edition = "2021"
+description = "Rust rewrite of SagaTools dispatcher - thin CLI dispatcher for SagaEngine ecosystem"
+authors = ["SagaEngine Contributors"]
+license = "MIT OR Apache-2.0"
+
+# Roadmap constraint: ZERO cc/bindgen/FFI dependencies
+# Contract: "process spawn only" - no shared libraries, no header sharing
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[[bin]]
+name = "sagatools"
+path = "src/main.rs"

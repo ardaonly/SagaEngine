@@ -44,24 +44,6 @@ bool SymbolVisitor::VisitNamedDecl(clang::NamedDecl* decl)
     return true; // always continue — we never abort the traversal
 }
 
-// ─── VisitInclusionDirective ─────────────────────────────────────────────────
-
-bool SymbolVisitor::VisitInclusionDirective(clang::InclusionDirective* directive)
-{
-    if (!directive)
-        return true;
-
-    const clang::FileEntry* fe = directive->getFile();
-    if (!fe)
-        return true;
-
-    const std::string abs(fe->getName());
-    if (!support::IsSystemPath(abs))
-        m_file.includes.push_back(support::MakeRelativePosix(abs, m_repo_root));
-
-    return true;
-}
-
 // ─── Register ────────────────────────────────────────────────────────────────
 
 void SymbolVisitor::Register(SymbolRecord        record,

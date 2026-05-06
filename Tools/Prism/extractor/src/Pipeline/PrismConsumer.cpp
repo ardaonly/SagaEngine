@@ -5,20 +5,26 @@
 
 namespace prism {
 
-PrismConsumer::PrismConsumer(const std::string& repo_root,
-                             const std::string& tu_file,
-                             TUCallback         callback)
+PrismConsumer::PrismConsumer(const std::string&                          repo_root,
+                             const std::string&                          tu_file,
+                             std::shared_ptr<std::vector<std::string>>   includes,
+                             TUCallback                                  callback)
     : m_repo_root(repo_root)
     , m_tu_file(tu_file)
+    , m_includes(std::move(includes))
     , m_callback(std::move(callback))
 {}
 
 void PrismConsumer::HandleTranslationUnit(clang::ASTContext& ctx)
 {
-    SymbolVisitor visitor(ctx, m_repo_root, m_tu_file);
+    prism::ast::SymbolVisitor visitor(ctx, m_repo_root, m_tu_file);
     visitor.TraverseDecl(ctx.getTranslationUnitDecl());
 
-    m_callback(visitor.File(), visitor.Symbols());
+    FileRecord file = visitor.File();
+    if (m_includes)
+        file.includes = *m_includes;
+
+    m_callback(std::move(file), visitor.Symbols());
 }
 
 } // namespace prism
