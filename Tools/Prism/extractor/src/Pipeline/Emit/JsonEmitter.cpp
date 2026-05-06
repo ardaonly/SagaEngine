@@ -84,7 +84,7 @@ static std::string IsoTimestamp()
 
 // ─── Record Serializers ───────────────────────────────────────────────────────
 
-static std::string EmitLocation(const Location& loc, int depth)
+static std::string EmitLocation(const SourceLocation& loc, int depth)
 {
     const std::string i1 = Indent(depth + 1);
     std::string out = "{\n";
@@ -95,7 +95,7 @@ static std::string EmitLocation(const Location& loc, int depth)
     return out;
 }
 
-static std::string EmitExtent(const Extent& e, int depth)
+static std::string EmitExtent(const SourceExtent& e, int depth)
 {
     const std::string i1 = Indent(depth + 1);
     std::string out = "{\n";

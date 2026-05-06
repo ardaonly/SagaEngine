@@ -37,6 +37,7 @@ Rules:
 - Use `///` above the type.
 - Use `///<` for member fields.
 - Explain intent, not the obvious.
+- Documentation comments must not use emojis.
 
 ---
 

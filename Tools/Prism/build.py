@@ -38,6 +38,15 @@ import subprocess
 import sys
 from pathlib import Path
 
+# ─── Optional shared platform helpers ───────────────────────────────────────
+# parent.parent resolves to Tools/ so `from common import platform_detect` works.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+try:
+    from common import platform_detect as _pd
+    _PD_AVAILABLE = True
+except ImportError:
+    _pd = None          # type: ignore[assignment]
+    _PD_AVAILABLE = False
 
 # ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -80,14 +89,15 @@ def find_cmake() -> str | None:
 
 
 def detect_llvm() -> tuple[str | None, str | None]:
-    """Try to find LLVM / Clang cmake config dirs without invoking llvm-config.
+    """Locate LLVM / Clang cmake config dirs.
 
-    Returns (llvm_dir, clang_dir) — either may be None when not detectable.
-    The extractor's CMakeLists ultimately runs `find_package(LLVM)` so the
-    presence of those directories is the definitive answer; this is a
-    best-effort heuristic that avoids the user having to discover paths
-    on common Linux / macOS layouts.
+    Delegates to platform_detect when available (covers NixOS store glob,
+    llvm-config probe, and env vars in addition to FHS paths).  Falls back
+    to the original FHS-only scan when the shared module is not present.
     """
+    if _PD_AVAILABLE:
+        return _pd.find_llvm_cmake_dirs()
+    # Fallback: FHS scan only (original behaviour).
     candidates = [
         "/usr/lib/llvm-18/lib/cmake/llvm",
         "/usr/lib/llvm-17/lib/cmake/llvm",
@@ -116,19 +126,29 @@ def build_extractor(cmake: str, args: argparse.Namespace) -> Path | None:
     """Configure and build prism-extract. Returns the staged binary path or None."""
     llvm_dir  = args.llvm_dir
     clang_dir = args.clang_dir
-    if llvm_dir is None or clang_dir is None:
-        det_llvm, det_clang = detect_llvm()
-        llvm_dir  = llvm_dir  or det_llvm
-        clang_dir = clang_dir or det_clang
+    if _PD_AVAILABLE:
+        # Thread CLI-supplied values through the full discovery chain so that
+        # env vars, llvm-config, and the NixOS store glob are all considered.
+        llvm_dir, clang_dir = _pd.find_llvm_cmake_dirs(
+            llvm_dir=llvm_dir, clang_dir=clang_dir
+        )
+    else:
+        if llvm_dir is None or clang_dir is None:
+            det_llvm, det_clang = detect_llvm()
+            llvm_dir  = llvm_dir  or det_llvm
+            clang_dir = clang_dir or det_clang
 
     if llvm_dir is None:
-        sys.stderr.write(
-            "[prism build.py] WARNING: no LLVM installation detected.\n"
-            "[prism build.py] Skipping prism-extract. Pass --llvm-dir <path> to force.\n"
-            "[prism build.py] Install hints:\n"
-            "[prism build.py]   Linux  : sudo apt install llvm-17-dev libclang-17-dev\n"
-            "[prism build.py]   macOS  : brew install llvm\n"
-        )
+        if _PD_AVAILABLE:
+            sys.stderr.write(_pd.llvm_not_found_hint("[prism build.py] "))
+        else:
+            sys.stderr.write(
+                "[prism build.py] WARNING: no LLVM installation detected.\n"
+                "[prism build.py] Skipping prism-extract. Pass --llvm-dir <path> to force.\n"
+                "[prism build.py] Install hints:\n"
+                "[prism build.py]   Linux  : sudo apt install llvm-17-dev libclang-17-dev\n"
+                "[prism build.py]   macOS  : brew install llvm\n"
+            )
         return None
 
     print(f"[prism build.py] LLVM_DIR  = {llvm_dir}")
@@ -146,6 +166,10 @@ def build_extractor(cmake: str, args: argparse.Namespace) -> Path | None:
     ]
     if clang_dir:
         configure.append(f"-DClang_DIR={clang_dir}")
+    if _PD_AVAILABLE:
+        extra_prefixes = _pd.find_nix_dep_prefixes(["zlib", "libxml2", "libffi"])
+        if extra_prefixes:
+            configure.append(f"-DCMAKE_PREFIX_PATH={';'.join(extra_prefixes)}")
     print(f"[prism build.py] {' '.join(configure)}")
     try:
         subprocess.check_call(configure)
@@ -204,12 +228,17 @@ def stage_pipeline_launcher() -> Path:
             encoding="utf-8",
         )
     else:
-        target.write_text(
-            "#!/usr/bin/env sh\n"
-            f"exec \"{python}\" \"{run_py}\" \"$@\"\n",
-            encoding="utf-8",
-        )
-        os.chmod(target, 0o755)
+        if _PD_AVAILABLE:
+            _pd.write_unix_launcher(target, run_py)
+        else:
+            # Fallback: use python3 from PATH rather than a hardcoded interpreter
+            # path so the launcher survives nix env rebuilds.
+            target.write_text(
+                "#!/usr/bin/env sh\n"
+                f"exec python3 \"{run_py}\" \"$@\"\n",
+                encoding="utf-8",
+            )
+            os.chmod(target, 0o755)
     print(f"[prism build.py] staged: {target}")
     return target
 
@@ -226,13 +255,29 @@ def smoke_test(extractor: Path | None, launcher: Path) -> None:
     if extractor is not None:
         print(f"[prism build.py] smoke: {extractor} --help (best-effort)")
         subprocess.call([str(extractor), "--help"], stderr=subprocess.STDOUT)
-    print(f"[prism build.py] launcher staged at {launcher} → {find_python()} {PIPELINE_DIR / 'run.py'}")
+    print(f"[prism build.py] launcher : {launcher}")
+    print(f"[prism build.py]   → exec python3 \"{PIPELINE_DIR / 'run.py'}\"")
 
 
 # ─── Entry point ────────────────────────────────────────────────────────────
 
 def main() -> int:
     args = parse_args()
+
+    # ── NixOS: tri-state dependency validation + auto-shell ──────────────
+    if _PD_AVAILABLE and not args.skip_extractor:
+        missing = _pd.build_deps_missing(require_clang=True, include_llvm=True)
+        if missing:
+            sys.stderr.write(_pd.missing_deps_hint("[prism build.py] ", missing))
+            if _pd.detect() == _pd.PlatformKind.NIXOS and not os.environ.get("IN_NIX_SHELL"):
+                pkgs = _pd.collect_packages(missing, "[prism build.py] ")
+                rc = _pd.auto_nix_shell(
+                    str(Path(__file__).resolve()), sys.argv[1:],
+                    pkgs, "[prism build.py] ",
+                )
+                if rc is not None:
+                    return rc
+    # ────────────────────────────────────────────────────────────────────
 
     print(f"[prism build.py] Prism root  : {HERE}")
     print(f"[prism build.py] Bin dir     : {BIN_DIR}")
@@ -244,9 +289,12 @@ def main() -> int:
     if not args.skip_extractor:
         cmake = find_cmake()
         if cmake is None:
-            sys.stderr.write(
-                "[prism build.py] WARNING: `cmake` not on PATH — skipping extractor.\n"
-            )
+            if _PD_AVAILABLE:
+                sys.stderr.write(_pd.cmake_not_found_hint("[prism build.py] "))
+            else:
+                sys.stderr.write(
+                    "[prism build.py] WARNING: `cmake` not on PATH — skipping extractor.\n"
+                )
         else:
             extractor = build_extractor(cmake, args)
     else:

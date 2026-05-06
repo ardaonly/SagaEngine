@@ -48,9 +48,6 @@ public:
     /// Unified entry point for all named declarations.
     bool VisitNamedDecl(clang::NamedDecl* decl);
 
-    /// Collect #include directives into the FileRecord.
-    bool VisitInclusionDirective(clang::InclusionDirective* directive);
-
     // ── Result accessors ──────────────────────────────────────────────────────
 
     const std::vector<SymbolRecord>& Symbols() const { return m_symbols; }
