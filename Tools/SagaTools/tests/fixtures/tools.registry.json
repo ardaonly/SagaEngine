@@ -1,0 +1,10 @@
+{
+  "tools": {
+    "forge": "/usr/local/bin/forge",
+    "prism": "/opt/prism/bin/prism-graph"
+  },
+  "installers": {
+    "forge": "/path/to/Forge/build.py",
+    "prism": "/path/to/Prism/build.py"
+  }
+}

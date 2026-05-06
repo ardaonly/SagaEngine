@@ -1,8 +1,10 @@
 Build/
 Bin/
+bin/
 Install/
 build/
 packages/
+target/
 
 *.exe
 *.out
@@ -29,6 +31,7 @@ compile_commands.json
 __pycache__/
 conanbuildinfo.txt
 conan.lock
+Cargo.lock
 
 cache/conan/*
 !cache/conan/.gitkeep

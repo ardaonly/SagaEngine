@@ -9,7 +9,7 @@
 /// When no source files are given, all translation units listed in
 /// compile_commands.json are processed. This is the default CI mode.
 
-#include "Emit/JsonWriter.h"
+#include "Pipeline/Emit/JsonEmitter.h"
 #include "Pipeline/PrismAction.h"
 #include "Record.h"
 
@@ -75,8 +75,8 @@ int main(int argc, const char** argv)
         options_parser.getCompilations(),
         options_parser.getSourcePathList());
 
-    prism::pipeline::ResultAccumulator accumulator;
-    prism::pipeline::PrismActionFactory factory(repo_root.string(), accumulator);
+    prism::ResultAccumulator accumulator;
+    prism::PrismActionFactory factory(repo_root.string(), accumulator);
 
     const int tool_result = tool.run(&factory);
 
@@ -96,7 +96,7 @@ int main(int argc, const char** argv)
     try
     {
         const fs::path out_path(g_output.getValue());
-        prism::emit::WriteJson(result, repo_root.string(), out_path);
+        prism::EmitJson(result, repo_root.string(), out_path);
 
         std::cout
             << "[OK] prism-extract — "

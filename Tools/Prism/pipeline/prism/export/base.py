@@ -6,7 +6,7 @@ from __future__ import annotations
 from abc  import ABC, abstractmethod
 from pathlib import Path
 
-from ..schema import SnapshotData
+from ..schema import GraphData
 
 
 # ─── Abstract Exporter ────────────────────────────────────────────────────────
@@ -21,7 +21,7 @@ class Exporter(ABC):
     extension: str = ""  # Override in each concrete subclass (e.g. "json", "txt").
 
     @abstractmethod
-    def write(self, snapshot: SnapshotData, out_path: Path) -> None:
+    def write(self, graph: GraphData, out_path: Path) -> None:
         """Serialize *snapshot* to *out_path*."""
         ...
 

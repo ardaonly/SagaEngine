@@ -36,6 +36,18 @@ import subprocess
 import sys
 from pathlib import Path
 
+# ─── Optional shared platform helpers ───────────────────────────────────────
+# This import is intentionally optional: Forge/tool/build.py is designed to
+# work standalone (extractable outside the engine tree).  If platform_detect
+# is unavailable the fallback messages below are used instead.
+# parents[2]: Tools/Forge/tool/ → Tools/Forge/ → Tools/
+try:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from common import platform_detect as _pd
+    _PD_AVAILABLE = True
+except (ImportError, IndexError):
+    _pd = None          # type: ignore[assignment]
+    _PD_AVAILABLE = False
 
 # ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -77,13 +89,17 @@ def find_cmake() -> str:
     cmake = shutil.which("cmake")
     if cmake:
         return cmake
-    sys.stderr.write(
-        "[forge build.py] ERROR: `cmake` was not found on PATH.\n"
-        "[forge build.py] Forge wraps cmake — install it before running this bootstrap.\n"
-        "[forge build.py]   Linux  : sudo apt install cmake   (or your distro's equivalent)\n"
-        "[forge build.py]   macOS  : brew install cmake\n"
-        "[forge build.py]   Windows: https://cmake.org/download\n"
-    )
+    if _PD_AVAILABLE:
+        sys.stderr.write(_pd.cmake_not_found_hint("[forge build.py] "))
+    else:
+        sys.stderr.write(
+            "[forge build.py] ERROR: `cmake` was not found on PATH.\n"
+            "[forge build.py] Forge wraps cmake — install it before running this bootstrap.\n"
+            "[forge build.py]   Linux  : sudo apt install cmake   (or your distro's equivalent)\n"
+            "[forge build.py]   NixOS  : nix-shell -p cmake\n"
+            "[forge build.py]   macOS  : brew install cmake\n"
+            "[forge build.py]   Windows: https://cmake.org/download\n"
+        )
     sys.exit(2)
 
 
@@ -178,6 +194,22 @@ def step_smoke_test(staged: Path) -> None:
 def main() -> int:
     args = parse_args()
     build_type = "Debug" if args.debug else "Release"
+
+    # ── NixOS: tri-state dependency validation + auto-shell ──────────────
+    if _PD_AVAILABLE:
+        missing = _pd.build_deps_missing(require_clang=False)
+        if missing:
+            sys.stderr.write(_pd.missing_deps_hint("[forge build.py] ", missing))
+            if _pd.detect() == _pd.PlatformKind.NIXOS and not os.environ.get("IN_NIX_SHELL"):
+                pkgs = _pd.collect_packages(missing, "[forge build.py] ")
+                rc = _pd.auto_nix_shell(
+                    str(Path(__file__).resolve()), sys.argv[1:],
+                    pkgs, "[forge build.py] ",
+                )
+                if rc is not None:
+                    sys.exit(rc)
+            sys.exit(2)
+    # ────────────────────────────────────────────────────────────────────
 
     print(f"[forge build.py] Forge source : {HERE}")
     print(f"[forge build.py] Build type   : {build_type}")

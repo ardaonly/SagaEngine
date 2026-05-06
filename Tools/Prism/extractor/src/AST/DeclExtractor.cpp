@@ -11,6 +11,7 @@
 #include <clang/AST/PrettyPrinter.h>
 #include <clang/AST/Type.h>
 #include <clang/Basic/SourceLocation.h>
+#include <clang/Basic/SourceManager.h>
 #include <clang/Index/USRGeneration.h>
 #include <llvm/ADT/SmallString.h>
 
@@ -47,7 +48,7 @@ bool DeclExtractor::ShouldIndex(const clang::NamedDecl* decl) const
         return false;
 
     // Reject locations that don't resolve to a real file.
-    const clang::FileEntry* fe = m_sm.getFileEntryForID(
+    const auto fe = m_sm.getFileEntryRefForID(
         m_sm.getFileID(m_sm.getExpansionLoc(loc)));
     if (!fe)
         return false;
@@ -93,20 +94,6 @@ bool DeclExtractor::Extract(const clang::NamedDecl* decl,
     // Comments.
     out.raw_comment = GetRawComment(decl);
     out.brief       = support::ExtractBrief(out.raw_comment);
-    if (out.brief.empty())
-    {
-        // Fall back to Clang's own brief-comment extraction.
-        const clang::RawComment* rc = m_ctx.getRawCommentForDeclNoCache(decl);
-        if (rc)
-        {
-            clang::PrintingPolicy pp(m_ctx.getLangOpts());
-            if (const auto* bc = rc->parse(m_ctx, &pp, decl))
-            {
-                (void)bc; // parsed; brief already extracted above
-            }
-        }
-    }
-
     // Type / signature.
     if (const auto* fd = clang::dyn_cast<clang::FunctionDecl>(decl))
     {
@@ -179,8 +166,7 @@ SourceLocation DeclExtractor::MakeLocation(clang::SourceLocation loc) const
 
     const clang::SourceLocation exp = m_sm.getExpansionLoc(loc);
 
-    const clang::FileEntry* fe =
-        m_sm.getFileEntryForID(m_sm.getFileID(exp));
+    const auto fe = m_sm.getFileEntryRefForID(m_sm.getFileID(exp));
     const std::string abs = fe ? std::string(fe->getName()) : std::string{};
 
     return {

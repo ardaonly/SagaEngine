@@ -85,7 +85,7 @@ prism-graph
 
 ---
 
-## Build
+## Installation
 
 ### Requirements
 
@@ -96,54 +96,64 @@ prism-graph
 | LLVM / Clang  | 16              |
 | Python        | 3.11            |
 
-### Steps
+Prism provides a unified bootstrap script that automates all installation steps:
 
 ```bash
-# Configure — supply your LLVM installation paths
-cmake -B build \
-    -DLLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm \
-    -DClang_DIR=/usr/lib/llvm-18/lib/cmake/clang \
-    -DCMAKE_BUILD_TYPE=Release
+# Full installation (C++ extractor + Python pipeline)
+python3 Tools/Prism/build.py
 
-# Build the extractor binary
-cmake --build build --target prism-extract -j$(nproc)
+# Python-only install (no LLVM required)
+python3 Tools/Prism/build.py --skip-extractor
+
+# Debug build with clean rebuild
+python3 Tools/Prism/build.py --debug --clean
+
+# Explicit LLVM path if auto-detection fails
+python3 Tools/Prism/build.py --llvm-dir /usr/lib/llvm-18/lib/cmake/llvm
 ```
+
+After installation, binaries are staged to `Tools/Prism/bin/`:
+- `prism-extract`: C++ extractor (requires LLVM; skipped if missing)
+- `prism-graph`: Python pipeline launcher (always available)
 
 ---
 
 ## Usage
 
-### Step 1 — Extract
+### Step 1 — Extract Symbols
+
+Use the staged `prism-extract` binary after running `build.py`:
 
 ```bash
-# Process all TUs listed in compile_commands.json
-./build/extractor/prism-extract \
-    --repo-root /abs/path/to/SagaEngine \
+# Process entire repository using compile_commands.json
+Tools/Prism/bin/prism-extract \
+    --repo-root /path/to/SagaEngine \
     -o prism.raw.json \
     -p build/
 
 # Process specific files
-./build/extractor/prism-extract \
-    --repo-root /abs/path/to/SagaEngine \
+Tools/Prism/bin/prism-extract \
+    --repo-root /path/to/SagaEngine \
     -o prism.raw.json \
     -p build/ \
-    Engine/Renderer/RenderGraph.cpp \
-    Engine/Renderer/GBuffer.cpp
+    Engine/Renderer/RenderGraph.cpp
 ```
 
-### Step 2 — Build graph
+### Step 2 — Build Dependency Graph
+
+Use the staged `prism-graph` launcher (recommended) or direct Python call:
 
 ```bash
-# Full run — writes prism.graph.json + prism.txt
-python pipeline/run.py prism.raw.json
+# Using staged launcher (recommended)
+Tools/Prism/bin/prism-graph prism.raw.json
 
-# Custom output directory, JSON only
-python pipeline/run.py prism.raw.json \
+# Full run with options via direct call
+python3 Tools/Prism/pipeline/run.py prism.raw.json \
     --out-dir output/ \
     --no-txt
 
-# Verbose output for debugging
-python pipeline/run.py prism.raw.json --verbose
+# Verbose mode for debugging
+Tools/Prism/bin/prism-graph prism.raw.json --verbose
 ```
 
 ---
@@ -166,7 +176,7 @@ python pipeline/run.py prism.raw.json --verbose
 
   "modules": {
     "Engine/Renderer": {
-      "files":         ["Engine/Renderer/GBuffer.h", …],
+      "files":         ["Engine/Renderer/GBuffer.h", …], 
       "symbol_count":  143,
       "include_count": 28
     }
