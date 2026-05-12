@@ -48,9 +48,6 @@ private:
     /// Append the USR for the CXXRecordDecl (if any) behind *qt*.
     void AppendTypeUSR(clang::QualType qt, std::vector<std::string>& out) const;
 
-    // ── State ─────────────────────────────────────────────────────────────────
-
-    clang::ASTContext& m_ctx;
 };
 
 } // namespace prism::ast

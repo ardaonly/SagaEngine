@@ -11,9 +11,16 @@ class SagaEngineConan(ConanFile):
     settings = "os", "compiler", "build_type", "arch"
 
     def requirements(self):
+        self.requires("nlohmann_json/3.11.3")
         self.requires("asio/1.30.2")
         self.requires("qt/6.6.2")
         self.requires("diligent-core/api.252009")
+        # diligent-core pins older versions of several system libs; Qt and
+        # other packages require newer ones. Override to the graph-wide winners.
+        self.requires("wayland/1.24.0",   override=True)
+        self.requires("xkbcommon/1.5.0",  override=True)
+        # ConanCenter dropped all old libpq versions; only 14.22/15.17/16.13 remain.
+        self.requires("libpq/16.13",      override=True)
         self.requires("libpqxx/7.9.0")
         self.requires("hiredis/1.2.0")
         self.requires("redis-plus-plus/1.3.12")
@@ -22,6 +29,8 @@ class SagaEngineConan(ConanFile):
         self.requires("imgui/1.91.5-docking")
         self.requires("rapidcheck/cci.20231215")
         self.requires("glm/0.9.9.8")
+
+        if self.options.with_sde:
 
 
     def build_requirements(self):
@@ -37,6 +46,7 @@ class SagaEngineConan(ConanFile):
         "with_server": [True, False],
         "with_editor": [True, False],
         "with_profiling": [True, False],
+        "with_sde": [True, False],
     }
 
     default_options = {
@@ -48,6 +58,7 @@ class SagaEngineConan(ConanFile):
         "with_server": True,
         "with_editor": True,
         "with_profiling": False,
+        "with_sde": False,
         "gtest/*:build_gmock": True,
         "qt/*:shared": False,
         "qt/*:qtbase": True,
@@ -69,6 +80,7 @@ class SagaEngineConan(ConanFile):
         tc.variables["SAGA_ENABLE_SERVER"] = self.options.with_server
         tc.variables["SAGA_ENABLE_EDITOR"] = self.options.with_editor
         tc.variables["SAGA_ENABLE_PROFILING"] = self.options.with_profiling
+        tc.variables["SAGA_WITH_SDE"]         = bool(self.options.with_sde)
         tc.variables["CMAKE_C_COMPILER_LAUNCHER"] = "sccache"
         tc.variables["CMAKE_CXX_COMPILER_LAUNCHER"] = "sccache"
         tc.variables["SAGA_BUILD_REPRODUCIBLE"] = "ON"

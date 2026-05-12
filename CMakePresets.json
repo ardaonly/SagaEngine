@@ -2,6 +2,17 @@
     "version": 4,
     "configurePresets": [
         {
+            "name": "linux-gcc",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/RelWithDebInfo",
+            "toolchainFile": "${sourceDir}/build/RelWithDebInfo/generators/conan_toolchain.cmake",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "CMAKE_C_COMPILER_LAUNCHER": "sccache",
+                "CMAKE_CXX_COMPILER_LAUNCHER": "sccache"
+            }
+        },
+        {
             "name": "windows-msvc-14.38",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/Build/windows-msvc-14.38",
@@ -16,6 +27,10 @@
         }
     ],
     "buildPresets": [
+        {
+            "name": "linux-gcc",
+            "configurePreset": "linux-gcc"
+        },
         {
             "name": "windows-msvc-14.38",
             "configurePreset": "windows-msvc-14.38"

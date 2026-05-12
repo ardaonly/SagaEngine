@@ -48,6 +48,7 @@ cache/conan/*
 CMakeUserPresets
 
 .vs/
+.prism
 .vscode/
 *.user
 *.suo

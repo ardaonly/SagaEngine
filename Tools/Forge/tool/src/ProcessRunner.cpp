@@ -5,6 +5,9 @@
 
 #include <vector>
 
+#include <cstdio>
+#include <string>
+
 #if defined(_WIN32)
     #include <process.h>
 #else
@@ -79,5 +82,33 @@ int ProcessRunner::Run(const std::string&              executable,
 }
 
 #endif
+
+// ─── Capture ──────────────────────────────────────────────────────────────────
+
+std::string ProcessRunner::Capture(const std::string&              executable,
+                                    const std::vector<std::string>& args) noexcept
+{
+    // Build a single command string for popen. This is intentionally limited to
+    // version-detection use (safe argument values, no user input).
+    std::string cmd = executable;
+    for (const auto& a : args) { cmd += ' '; cmd += a; }
+
+#if defined(_WIN32)
+    cmd += " 2>nul";
+    FILE* pipe = _popen(cmd.c_str(), "r");
+    auto  done = [](FILE* p) { _pclose(p); };
+#else
+    cmd += " 2>/dev/null";
+    FILE* pipe = popen(cmd.c_str(), "r");
+    auto  done = [](FILE* p) { pclose(p); };
+#endif
+
+    if (!pipe) return {};
+    std::string out;
+    char buf[256];
+    while (std::fgets(buf, sizeof(buf), pipe)) out += buf;
+    done(pipe);
+    return out;
+}
 
 } // namespace Forge

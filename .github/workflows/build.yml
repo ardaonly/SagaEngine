@@ -1,9 +1,22 @@
 name: SagaEngine CI
 
 on:
+  push:
+  pull_request:
   workflow_dispatch:
 
 jobs:
+  boundary-observation:
+    name: Boundary observation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run boundary report
+        run: python3 Tools/scripts/report_boundary_status.py --repo-root .
+
   build:
     runs-on: windows-latest
     defaults:

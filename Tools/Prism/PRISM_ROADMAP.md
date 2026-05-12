@@ -124,7 +124,7 @@ No configuration file is required for a basic run.
 | [x] | `PipelineConfig` — frozen dataclass, single source of all defaults, validated on construction. → `prism/config.py` |
 | [x] | `PrismError` exception hierarchy — `RawJsonNotFoundError`, `RawJsonSchemaError`, `ExportError`, `ConfigError`. → `prism/errors.py` |
 | [x] | Structured logger with live progress bar — stderr for diagnostics, stdout for results. → `prism/log.py` |
-| [ ] | `prism` wrapper script — single entry point that sequences `prism-extract` then `prism-graph` with shared `--repo-root` and `--out-dir`; no manual two-step. |
+| [x] | `prism` wrapper script — single entry point that sequences `prism-extract` then `prism-graph` with shared `--repo-root` and `--out-dir`; no manual two-step. → `prism.py`, `build.py` |
 | [ ] | `--config <file>` support — optional TOML configuration file for persistent settings (output paths, filter patterns, worker count) so CI invocations stay short. |
 | [ ] | `--scope Engine Editor` flag on `prism-extract` — restrict extraction to a set of repository sub-directories and skip everything else including `Tests/` and `ThirdParty/`. |
 | [ ] | `--dry-run` mode — report which files would be parsed and what the output paths would be without writing anything. |
