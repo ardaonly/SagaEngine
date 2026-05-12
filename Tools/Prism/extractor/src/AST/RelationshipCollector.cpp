@@ -12,8 +12,7 @@
 
 namespace prism::ast {
 
-RelationshipCollector::RelationshipCollector(clang::ASTContext& ctx)
-    : m_ctx(ctx)
+RelationshipCollector::RelationshipCollector(clang::ASTContext&)
 {}
 
 // ─── Public API ───────────────────────────────────────────────────────────────

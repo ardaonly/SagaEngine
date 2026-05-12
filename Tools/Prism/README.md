@@ -15,6 +15,9 @@ graph that AI assistants can navigate directly.
 The output is a JSON graph file — not a raw code dump — structured for
 efficient AI consumption with no context wasted on boilerplate.
 
+Prism is Apache-2.0 under Arda Koyuncu. The SagaEngine monorepo is the
+canonical source; standalone Prism repositories are mirrors or release exports.
+
 ---
 
 ## Architecture
@@ -108,11 +111,15 @@ python3 Tools/Prism/build.py --skip-extractor
 # Debug build with clean rebuild
 python3 Tools/Prism/build.py --debug --clean
 
+# Run lightweight wrapper tests after staging
+python3 Tools/Prism/build.py --run-tests
+
 # Explicit LLVM path if auto-detection fails
 python3 Tools/Prism/build.py --llvm-dir /usr/lib/llvm-18/lib/cmake/llvm
 ```
 
 After installation, binaries are staged to `Tools/Prism/bin/`:
+- `prism`: Unified launcher for extraction and graph generation
 - `prism-extract`: C++ extractor (requires LLVM; skipped if missing)
 - `prism-graph`: Python pipeline launcher (always available)
 
@@ -120,40 +127,147 @@ After installation, binaries are staged to `Tools/Prism/bin/`:
 
 ## Usage
 
-### Step 1 — Extract Symbols
+### Minimal Example First
 
-Use the staged `prism-extract` binary after running `build.py`:
+`Tools/Prism/examples/minimal/` contains one small `.h` file and one small
+`.cpp` file. Use it to verify Prism before pointing the tool at the engine.
+
+First, generate the example compile database with CMake:
 
 ```bash
-# Process entire repository using compile_commands.json
-Tools/Prism/bin/prism-extract \
-    --repo-root /path/to/SagaEngine \
-    -o prism.raw.json \
-    -p build/
-
-# Process specific files
-Tools/Prism/bin/prism-extract \
-    --repo-root /path/to/SagaEngine \
-    -o prism.raw.json \
-    -p build/ \
-    Engine/Renderer/RenderGraph.cpp
+cmake \
+    -S Tools/Prism/examples/minimal \
+    -B Tools/Prism/examples/minimal/build \
+    -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 ```
 
-### Step 2 — Build Dependency Graph
+This creates:
 
-Use the staged `prism-graph` launcher (recommended) or direct Python call:
+```text
+Tools/Prism/examples/minimal/build/compile_commands.json
+```
+
+Then generate the AI set:
 
 ```bash
-# Using staged launcher (recommended)
-Tools/Prism/bin/prism-graph prism.raw.json
+prism run \
+    --repo-root Tools/Prism/examples/minimal \
+    -p Tools/Prism/examples/minimal/build \
+    -o Tools/Prism/examples/minimal/.prism/prism.raw.json \
+    --out-dir Tools/Prism/examples/minimal/.prism
+```
 
-# Full run with options via direct call
-python3 Tools/Prism/pipeline/run.py prism.raw.json \
-    --out-dir output/ \
+Expected outputs:
+
+```text
+Tools/Prism/examples/minimal/.prism/prism.raw.json
+Tools/Prism/examples/minimal/.prism/prism.graph.json
+Tools/Prism/examples/minimal/.prism/prism.txt
+```
+
+### Fast Path — Generate the AI Set
+
+From the repository root, after `build/compile_commands.json` exists:
+
+```bash
+prism run
+```
+
+Default behavior:
+
+| Field | Default |
+|-------|---------|
+| Repository root | `.` |
+| Compile database dir | `build/` |
+| Raw extraction | `prism.raw.json` |
+| Graph JSON | `prism.graph.json` |
+| Text summary | `prism.txt` |
+
+Use an explicit output directory when you want Prism artifacts grouped:
+
+```bash
+prism run --repo-root . -p build -o .prism/prism.raw.json --out-dir .prism
+```
+
+The output set is:
+
+| File | Purpose |
+|------|---------|
+| `prism.raw.json` | Direct Clang extractor output; stable C++ to Python boundary. |
+| `prism.graph.json` | Dependency-resolved AI memory graph. |
+| `prism.txt` | Human-readable summary for quick inspection. |
+
+### Controlled Run
+
+Add options only when the default path is not enough.
+
+For the minimal example, run CMake first so Prism can read the exact include
+paths from `compile_commands.json`:
+
+```bash
+cmake \
+    -S Tools/Prism/examples/minimal \
+    -B Tools/Prism/examples/minimal/build \
+    -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+```
+
+Then run Prism with custom output names:
+
+```bash
+prism run \
+    --repo-root Tools/Prism/examples/minimal \
+    -p Tools/Prism/examples/minimal/build \
+    -o Tools/Prism/examples/minimal/.prism/custom.raw.json \
+    --out-dir Tools/Prism/examples/minimal/.prism \
+    --json-name custom.graph.json \
+    --txt-name custom.txt \
+    Tools/Prism/examples/minimal/src/SampleComponent.cpp
+```
+
+`prism run` is only orchestration. It runs `prism-extract` first, then
+passes the raw JSON to `prism-graph`. If extraction fails, graph generation
+does not run.
+
+### Low-Level Tools
+
+The commands below assume the minimal example compile database already exists.
+If it does not, run the CMake command from `Minimal Example First`.
+
+Use `prism extract` when you only want the Clang extraction stage for
+specific translation units:
+
+```bash
+prism extract \
+    --repo-root Tools/Prism/examples/minimal \
+    -o Tools/Prism/examples/minimal/.prism/prism.raw.json \
+    -p Tools/Prism/examples/minimal/build \
+    Tools/Prism/examples/minimal/src/SampleComponent.cpp
+```
+
+Use `prism graph` when you already have raw extractor output:
+
+```bash
+prism graph Tools/Prism/examples/minimal/.prism/prism.raw.json
+
+prism graph Tools/Prism/examples/minimal/.prism/prism.raw.json \
+    --out-dir Tools/Prism/examples/minimal/.prism \
     --no-txt
+```
 
-# Verbose mode for debugging
-Tools/Prism/bin/prism-graph prism.raw.json --verbose
+The underlying binaries remain available for automation that wants exact
+stage names:
+
+```bash
+Tools/Prism/bin/prism-extract --help
+Tools/Prism/bin/prism-graph --help
+```
+
+### Tests
+
+Run the lightweight Prism CLI tests without LLVM or a compile database:
+
+```bash
+python3 Tools/Prism/tests/run.py
 ```
 
 ---

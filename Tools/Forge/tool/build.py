@@ -79,6 +79,10 @@ def parse_args() -> argparse.Namespace:
         "--jobs", "-j", type=int, default=0,
         help="Parallel build jobs (default: cmake's autoselection).",
     )
+    parser.add_argument(
+        "--install-to", metavar="DIR", default="",
+        help="Stage the built binary to DIR instead of bin/.",
+    )
     return parser.parse_args()
 
 
@@ -158,9 +162,10 @@ def step_build(cmake: str, build_type: str, jobs: int) -> None:
     subprocess.check_call(cmd)
 
 
-def step_stage_binary() -> Path:
-    """Copy the built binary into bin/. Returns the staged binary path."""
-    BIN_DIR.mkdir(parents=True, exist_ok=True)
+def step_stage_binary(install_to: str = "") -> Path:
+    """Copy the built binary into bin/ (or install_to if set). Returns the staged path."""
+    dest_dir = Path(install_to) if install_to else BIN_DIR
+    dest_dir.mkdir(parents=True, exist_ok=True)
 
     # Multi-config generators (MSBuild, XCode) put the binary in <build>/<Config>/.
     candidates = [
@@ -176,7 +181,7 @@ def step_stage_binary() -> Path:
         )
         sys.exit(3)
 
-    dst = BIN_DIR / BINARY_NAME
+    dst = dest_dir / BINARY_NAME
     shutil.copy2(src, dst)
     if platform.system() != "Windows":
         os.chmod(dst, 0o755)
@@ -224,7 +229,7 @@ def main() -> int:
 
     step_configure(cmake, build_type)
     step_build(cmake, build_type, args.jobs)
-    staged = step_stage_binary()
+    staged = step_stage_binary(args.install_to)
     step_smoke_test(staged)
 
     print(f"[forge build.py] DONE. Add to PATH: {BIN_DIR}")

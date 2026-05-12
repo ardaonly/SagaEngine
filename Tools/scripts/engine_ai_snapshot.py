@@ -24,6 +24,7 @@ IGNORE_DIRS = {
     ".thirdparty_build",
     ".toolchain",
     "__pycache__",
+    "target"
 }
 
 IGNORE_FILES = {

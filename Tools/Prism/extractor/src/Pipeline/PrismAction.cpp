@@ -9,6 +9,7 @@
 #include <clang/Lex/PPCallbacks.h>
 #include <clang/Lex/Preprocessor.h>
 #include <llvm/ADT/StringRef.h>
+#include <clang/Basic/Version.h>
 
 #include <memory>
 #include <vector>
@@ -36,13 +37,21 @@ public:
         clang::OptionalFileEntryRef File,
         llvm::StringRef,
         llvm::StringRef,
+    #if CLANG_VERSION_MAJOR >= 19
         const clang::Module*,
         bool,
-        clang::SrcMgr::CharacteristicKind) override
+        clang::SrcMgr::CharacteristicKind
+    #else
+        const clang::Module*,
+        clang::SrcMgr::CharacteristicKind
+    #endif
+    ) override
     {
         if (!File)
             return;
+
         const std::string abs(File->getName());
+
         if (!support::IsSystemPath(abs))
             m_out->push_back(support::MakeRelativePosix(abs, m_repo_root));
     }

@@ -23,9 +23,17 @@ namespace Forge
 class ProcessRunner
 {
 public:
+    /// Synchronously spawn a child process and return its exit code.
+    /// Returns -1 on spawn failure (not on non-zero exit).
     [[nodiscard]] static int Run(const std::string&              executable,
                                  const std::vector<std::string>& args,
                                  std::string*                    outError) noexcept;
+
+    /// Spawn a child process and capture its stdout as a string.
+    /// Stderr is suppressed. Returns an empty string on spawn failure.
+    /// Intended for version detection only — do not use for arbitrary payloads.
+    [[nodiscard]] static std::string Capture(const std::string&              executable,
+                                             const std::vector<std::string>& args) noexcept;
 };
 
 } // namespace Forge
