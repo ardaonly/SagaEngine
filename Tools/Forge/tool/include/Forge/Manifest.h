@@ -67,6 +67,10 @@ public:
     /// Ordered view of `[deps]`.
     [[nodiscard]] const std::vector<DepEntry>& Deps() const noexcept { return mDeps; }
 
+    /// Return section names not in the known schema: project, toolchain, build, deps.
+    /// Used by --strict to reject manifests with unrecognised sections.
+    [[nodiscard]] std::vector<std::string> UnknownSections() const;
+
     /// Append (or update) a dep entry. Existing names are replaced in place
     /// to keep the manifest stable line-wise.
     void AddDep(const std::string& name, std::string version);

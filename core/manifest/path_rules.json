@@ -1,0 +1,144 @@
+{
+  "schema": "sagaengine.path_rules.v0",
+  "version": "0.1",
+  "mode": "observation",
+  "description": "Declarative path-to-license inventory. Phase 1 tooling reports drift but does not enforce these rules as a hard policy gate.",
+  "rules": [
+    {
+      "pattern": "Engine/**",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "Runtime/**",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "Server/**",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "Backends/**",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "Tools/**",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "Tests/**",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "docs/**",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "cmake/**",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "profiles/**",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "core/manifest/**",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "Apps/Client/**",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "Apps/Server/**",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "Apps/Sandbox/**",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "Apps/RenderClientSmokeTest/**",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "Editor/**",
+      "license": "SAGA-EDITOR-READONLY-NOAI"
+    },
+    {
+      "pattern": "Apps/Editor/**",
+      "license": "SAGA-EDITOR-READONLY-NOAI"
+    },
+    {
+      "pattern": "Apps/EditorLab/**",
+      "license": "SAGA-EDITOR-READONLY-NOAI"
+    },
+    {
+      "pattern": "LICENSES/**",
+      "license": "MIXED"
+    },
+    {
+      "pattern": "LICENSE.md",
+      "license": "MIXED"
+    },
+    {
+      "pattern": "LICENSE",
+      "license": "MIXED"
+    },
+    {
+      "pattern": "README.md",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "CodingStandards.md",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "ENGINE.MD",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "CMakeLists.txt",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "CMakePresets.json",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "conanfile.py",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "version.json",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "forge.toml",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "build.ps1",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "shell.nix",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": ".github/**",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": ".gitignore",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": ".clang-format",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": ".clang-tidy",
+      "license": "Apache-2.0"
+    }
+  ]
+}

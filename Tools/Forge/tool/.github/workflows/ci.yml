@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    paths:
+      - 'Tools/Forge/tool/**'
+  pull_request:
+    paths:
+      - 'Tools/Forge/tool/**'
+
+jobs:
+  build:
+    name: ${{ matrix.os }} / ${{ matrix.compiler }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            compiler: gcc
+            cc: gcc
+            cxx: g++
+          - os: ubuntu-latest
+            compiler: clang
+            cc: clang
+            cxx: clang++
+          - os: windows-latest
+            compiler: msvc
+            cc: cl
+            cxx: cl
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Forge (Linux / macOS)
+        if: runner.os != 'Windows'
+        env:
+          CC:  ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+        run: python3 Tools/Forge/tool/build.py
+
+      - name: Build Forge (Windows)
+        if: runner.os == 'Windows'
+        run: python Tools/Forge/tool/build.py
+
+      - name: Smoke test
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            FORGE="Tools/Forge/tool/bin/forge.exe"
+          else
+            FORGE="Tools/Forge/tool/bin/forge"
+          fi
+
+          "$FORGE" --version
+          "$FORGE" --help > /dev/null
+          "$FORGE" new ci-fixture
+          cd ci-fixture
+          "../$FORGE" configure --explain
+          "../$FORGE" build --explain
+          "../$FORGE" clean --explain
+
+      - name: Isolation check
+        if: runner.os != 'Windows'
+        run: python3 Tools/Scripts/check_tools_isolation.py

@@ -1,15 +1,13 @@
-# ─── Forge — Standalone Build Helper ────────────────────────────────────────
+# ─── Forge — Standalone Build Orchestration Frontend ─────────────────────────
 #
-# Forge is a thin CMake wrapper for C++ projects. It is intentionally
-# minimal:
-#   - It does NOT walk up to find SagaEngineRoot.marker.
-#   - It does NOT depend on Conan, LLVM, or any third-party library.
-#   - It does NOT know about Prism, the SagaTools dispatcher, or any
-#     other tool. Forge spawns `cmake`. That is its entire universe.
+# Forge is a Cargo-flavoured build frontend for C++. It is intentionally
+# self-contained:
+#   - No walk-up to find any engine root or marker file.
+#   - No dependency on Conan, LLVM, Qt, or any third-party library.
+#   - No knowledge of any specific project, engine, or repository.
 #
-# The day this folder is extracted into its own git repository, this
-# CMakeLists becomes the new repo's top-level build file with zero
-# rewrites.
+# CMake and Conan are backends called through adapter classes.
+# This file can become a standalone repository root with zero rewrites.
 #
 cmake_minimum_required(VERSION 3.22)
 
@@ -21,7 +19,7 @@ project(forge
 
 # ─── Toolchain Defaults ─────────────────────────────────────────────────────
 
-set(CMAKE_CXX_STANDARD          17)
+set(CMAKE_CXX_STANDARD          20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS        OFF)
 
@@ -32,14 +30,28 @@ endif()
 # ─── Sources ────────────────────────────────────────────────────────────────
 
 set(FORGE_HEADERS
+    include/Forge/BuildModel.h
+    include/Forge/BuildScheduler.h
+    include/Forge/CMakeAdapter.h
+    include/Forge/ConanAdapter.h
+    include/Forge/EnvProbe.h
+    include/Forge/Hardware.h
     include/Forge/Manifest.h
     include/Forge/ProcessRunner.h
+    include/Forge/ToolEnv.h
 )
 
 set(FORGE_SOURCES
     src/main.cpp
+    src/BuildModel.cpp
+    src/BuildScheduler.cpp
+    src/CMakeAdapter.cpp
+    src/ConanAdapter.cpp
+    src/EnvProbe.cpp
+    src/Hardware.cpp
     src/Manifest.cpp
     src/ProcessRunner.cpp
+    src/ToolEnv.cpp
 )
 
 # ─── Executable Target ──────────────────────────────────────────────────────
@@ -66,4 +78,10 @@ install(TARGETS forge
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
-message(STATUS "Forge: configured (standalone build helper)")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+    install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
+        DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/licenses/forge"
+    )
+endif()
+
+message(STATUS "Forge ${PROJECT_VERSION}: configured (standalone build frontend)")

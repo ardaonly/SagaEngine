@@ -61,135 +61,130 @@ The current focus is on building a clean technical base that can support:
 
 ## Tools
 
-### Prism — AI Memory Graph Builder
+Each tool below is structured as an independent, repo-extractable project. The
+engine consumes them only through their public packaging contracts (Conan
+packages or installed CMake config); none of them are absorbed into the engine
+build tree.
 
-Prism transforms C++ source code into a structured, AI-consumable memory graph. It operates in two layers connected by a versioned JSON schema:
+- **Prism** — C++ source to AI memory graph. See `Tools/Prism/README.md`.
+- **Forge** — Cargo-flavored build frontend (CMake + Conan). See `Tools/Forge/README.md`.
+- **SDE** — Model definition, validation, and compilation pipeline. Standalone
+  C++ static library packaged as `sde/0.1.0`. The engine links against it only
+  when `SAGA_WITH_SDE=ON` (CMake) or `-o &:with_sde=True` (Conan) is set.
+  See `Tools/SystemDefinitionEngine/README.md`.
 
-**prism-extract** — C++ binary using Clang LibTooling to parse translation units, extract declarations with documentation, type relationships, and include graphs.
+## Licensing and boundaries
 
-**prism-graph** — Python pipeline that deduplicates symbols, resolves dependencies, aggregates modules, and exports the final graph.
+SagaEngine uses the monorepo as the only canonical development source. Prism,
+Forge, and SDE may be mirrored or exported as standalone repositories, but they
+do not override the monorepo state.
 
-#### Capabilities
+The engine core and toolchain are Apache-2.0. The Editor is source-available
+under a separate read-only, no-AI-training license. See `LICENSE.md` and
+`core/manifest/path_rules.json` for the current path inventory.
 
-- Parse C++ codebase using real compiler frontend (Clang)
-- Extract declarations with Doxygen/triple-slash documentation
-- Build symbol dependency graph with USR-based resolution
-- Generate machine-readable JSON graph (`prism.graph.json`)
-- Produce human-readable summary (`prism.txt`)
-- Support incremental extraction and parallel processing
-- Output stable 16-character SHA-1 IDs from Clang USR strings
+Phase 1 boundary tooling is observation-only: it reports drift without turning
+the repository into a policy engine.
 
-#### Installation
+Run the boundary report locally with:
 
-Prism now uses a unified build script for simplified installation:
-
-```bash
-# Full installation (requires LLVM 16+ and CMake 3.22+)
-python3 Tools/Prism/build.py
-
-# Python-only installation (no LLVM required)
-python3 Tools/Prism/build.py --skip-extractor
-
-# Debug build with clean rebuild
-python3 Tools/Prism/build.py --debug --clean
-
-# Explicit LLVM path (if auto-detection fails)
-python3 Tools/Prism/build.py --llvm-dir /usr/lib/llvm-18/lib/cmake/llvm
+```sh
+python3 Tools/scripts/report_boundary_status.py --repo-root .
 ```
-
-After installation, binaries are staged in `Tools/Prism/bin/`:
-- `prism-extract` — C++ extractor (requires LLVM)
-- `prism-graph` — Python pipeline (always available)
-
-#### Usage
-
-**Step 1: Extract symbols from C++ source**
-
-```bash
-# Process entire repository using compile_commands.json
-Tools/Prism/bin/prism-extract \
-    --repo-root /path/to/SagaEngine \
-    -o prism.raw.json \
-    -p build/
-
-# Process specific files
-Tools/Prism/bin/prism-extract \
-    --repo-root /path/to/SagaEngine \
-    -o prism.raw.json \
-    -p build/ \
-    Engine/Renderer/RenderGraph.cpp
-```
-
-**Step 2: Build the dependency graph**
-
-```bash
-# Using staged launcher (recommended)
-Tools/Prism/bin/prism-graph prism.raw.json
-
-# Full options via direct call
-python3 Tools/Prism/pipeline/run.py prism.raw.json \
-    --out-dir output/ \
-    --no-txt
-
-# Verbose mode for debugging
-Tools/Prism/bin/prism-graph prism.raw.json --verbose
-```
-
-#### Output Formats
-
-**prism.graph.json** — Machine-readable AI memory graph containing:
-- Symbol nodes with qualified names, kinds, access levels, documentation
-- File nodes with include graphs and line counts
-- Module aggregation (e.g., `Engine/Renderer`)
-- Dependency resolution via USR strings
-- Statistics (total symbols, files, distribution by kind)
-
-**prism.txt** — Human-readable summary with module sections and symbol tables
-
-#### Requirements
-
-| Component    | Minimum Version |
-|--------------|-----------------|
-| CMake        | 3.22            |
-| C++ Compiler | C++17           |
-| LLVM/Clang   | 16              |
-| Python       | 3.11            |
-
-For detailed architecture, schema documentation, and roadmap, see `Tools/Prism/README.md` and `Tools/Prism/PRISM_ROADMAP.md`.
-
----
 
 ## Build system
 
-### Windows
+SagaEngine is built through **Forge**. See `Tools/Forge/README.md` for full documentation.
+
+### Prerequisites
+
+- Python 3 (stdlib only) — required to bootstrap Forge
+- CMake 3.22 or later
+- Conan 2.0 or later
+- A C++ toolchain matching one of the profiles in `profiles/`
+  (`windows-msvc`, `windows-clang`, `linux-gcc`, `macos-clang`)
+
+### One-time: build Forge itself
+
+Forge is a standalone binary. Build it once, then add it to your `PATH`.
+
+```sh
+python3 Tools/Forge/tool/build.py
+```
+
+The binary is staged at `Tools/Forge/tool/bin/forge`. Verify with:
+
+```sh
+forge --version
+```
+
+### Build the engine
+
+Run all commands from the repository root.
+
+**Windows (MSVC):**
 
 ```powershell
-cd Tools/Forge
-
-.\build.ps1 lock -Profile windows-msvc
-
-.\build.ps1 setup -Profile windows-msvc -Preset windows-msvc-14.38
-
-.\build.ps1 build -Profile windows-msvc -Preset windows-msvc-14.38
-
-.\build.ps1 test -Preset windows-msvc-14.38
+.\build.ps1 install --profile windows-msvc
+.\build.ps1 configure --preset windows-msvc-14.38
+.\build.ps1 build
 ```
 
-### Linux / macOS (Prism and Forge)
+`build.ps1` initializes the MSVC environment and forwards every argument to
+`forge`. Anything below works through it as well.
 
-```bash
-# Build Prism (C++ extractor + Python pipeline)
-python3 Tools/Prism/build.py
+**Linux:**
 
-# Build Forge (build system tool)
-python3 Tools/Forge/tool/build.py
-
-# Add tools to PATH
-export PATH="$PWD/Tools/Prism/bin:$PWD/Tools/Forge/tool/bin:$PATH"
+```sh
+forge install --profile linux-gcc
+forge configure --preset linux-gcc
+forge build
 ```
 
-### Cross-Platform Notes
+**macOS:**
 
-- **NixOS**: Both build scripts support automatic `nix-shell` detection and dependency validation
-- **LLVM Detection**: `build.py` scans FHS paths, uses `llvm-config`, and supports NixOS store glob patterns
-- **Fallback Behavior**: Missing LLVM skips `prism-extract` but still stages `prism-graph`
+```sh
+forge install --profile macos-clang
+forge configure --preset macos-clang
+forge build
+```
+
+### Common commands
+
+```sh
+# Build a specific target
+forge build --target SagaEngine
+forge build --target SagaEditor
+forge build --target SagaServer
+
+# Debug build
+forge build --config Debug
+
+# Wipe the build directory and start fresh
+forge clean
+
+# Add a dependency to forge.toml
+forge add fmt@10.2.1
+
+# Escape hatch: run cmake/conan/ninja directly through Forge
+forge run cmake --build Build/windows-msvc-14.38 --target SagaEngine
+forge run conan install . --profile:host=profiles/linux-gcc --build=missing
+```
+
+### Tips
+
+- The first `forge install` is slow because Conan resolves and compiles
+  third-party libraries from source. Subsequent runs reuse the local cache.
+- Build artifacts go to `Build/<preset>/` — never to the source tree. Deleting
+  that directory is always safe; `forge clean` does the same.
+- The `RelWithDebInfo` configuration is the default for `windows-msvc-14.38`.
+  Use `--config Debug` for symbol-rich builds when stepping through code.
+- If a build breaks after pulling new commits, run
+  `forge install` then `forge configure --preset <name>` before `forge build`;
+  dependency or preset changes require re-resolution.
+- Optional engine features are toggled at install time. To build with SDE
+  support: `forge install -- -o &:with_sde=True`.
+- Use `forge run <tool>` instead of invoking `cmake`, `conan`, or `ninja`
+  directly — it guarantees the correct environment is loaded.
+- `--strict` on `install` and `build` will enforce toolchain pin verification
+  once the corresponding roadmap item ships; it is safe to pass today.

@@ -1,0 +1,11 @@
+[project]
+name = "sagaengine"
+version = "0.1.0"
+
+[toolchain]
+cmake = "3.28"
+conan = "2"
+
+[build]
+preset = "linux-gcc"
+build = "build/RelWithDebInfo"

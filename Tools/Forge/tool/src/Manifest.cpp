@@ -156,6 +156,20 @@ void EmitSection(std::ostream& os, const std::string& name,
 
 } // namespace
 
+std::vector<std::string> Manifest::UnknownSections() const
+{
+    static constexpr const char* kKnown[] = {"project", "toolchain", "build", "deps"};
+    std::vector<std::string> unknown;
+    for (const auto& [name, kv] : mScalars)
+    {
+        bool found = false;
+        for (const char* k : kKnown)
+            if (name == k) { found = true; break; }
+        if (!found) unknown.push_back(name);
+    }
+    return unknown;
+}
+
 bool Manifest::SaveToFile(const std::string& path, std::string* outError) const
 {
     std::ofstream out(path, std::ios::trunc);
