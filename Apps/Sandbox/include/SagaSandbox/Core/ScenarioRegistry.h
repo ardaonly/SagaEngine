@@ -50,6 +50,17 @@ struct ScenarioAutoRegistrar
     }
 };
 
+template <typename ScenarioClass>
+void RegisterScenarioType(ScenarioManager& manager)
+{
+    manager.RegisterScenario(
+        ScenarioClass::kDescriptor.id,
+        []() -> std::unique_ptr<IScenario>
+        {
+            return std::make_unique<ScenarioClass>();
+        });
+}
+
 } // namespace SagaSandbox
 
 // ─── Registration Macro ───────────────────────────────────────────────────────
@@ -62,17 +73,4 @@ struct ScenarioAutoRegistrar
 ///
 /// This generates a file-scope static that registers the factory before main().
 
-#define SAGA_SANDBOX_REGISTER_SCENARIO(ScenarioClass)                          \
-    static ::SagaSandbox::ScenarioAutoRegistrar                                \
-        s_AutoRegister_##ScenarioClass(                                        \
-            [](::SagaSandbox::ScenarioManager& mgr)                            \
-            {                                                                  \
-                mgr.RegisterScenario(                                          \
-                    ScenarioClass::kDescriptor.id,                             \
-                    []() -> std::unique_ptr<::SagaSandbox::IScenario>          \
-                    {                                                          \
-                        return std::make_unique<ScenarioClass>();              \
-                    }                                                          \
-                );                                                             \
-            }                                                                  \
-        )
+#define SAGA_SANDBOX_REGISTER_SCENARIO(ScenarioClass) static ::SagaSandbox::ScenarioAutoRegistrar s_AutoRegister_##ScenarioClass([](::SagaSandbox::ScenarioManager& manager) { ::SagaSandbox::RegisterScenarioType<ScenarioClass>(manager); })

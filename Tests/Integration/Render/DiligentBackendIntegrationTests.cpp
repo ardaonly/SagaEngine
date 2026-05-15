@@ -31,11 +31,27 @@
 ///   - Rendering correctness (pixel readback, Phase 3+)
 
 #include "SagaEngine/Render/Backend/Diligent/DiligentRenderBackend.h"
+#include "SagaEngine/Platform/IWindow.h"
 #include "SagaEngine/Render/Scene/Camera.h"
 #include "SagaEngine/Render/Scene/RenderView.h"
 
 #include <SDL.h>
+#if defined(__linux__) && defined(SDL_VIDEO_DRIVER_X11)
+#   if defined(__has_include)
+#       if !__has_include(<X11/Xlib.h>)
+#           undef SDL_VIDEO_DRIVER_X11
+#       endif
+#   endif
+#endif
 #include <SDL2/SDL_syswm.h>
+
+#if defined(None)
+#   undef None
+#endif
+#if defined(Bool)
+#   undef Bool
+#endif
+
 #include <gtest/gtest.h>
 
 #include <cstdint>
@@ -62,30 +78,77 @@ using namespace SagaEngine::Render::Scene;
 namespace
 {
 
+#if defined(__linux__)
+struct SDLX11WindowInfoFallback
+{
+    void*     display  = nullptr;
+    uintptr_t windowId = 0;
+};
+
+SDLX11WindowInfoFallback ReadX11WindowInfo(const SDL_SysWMinfo& wmInfo) noexcept
+{
+#   if defined(SDL_VIDEO_DRIVER_X11)
+    return {
+        wmInfo.info.x11.display,
+        static_cast<uintptr_t>(wmInfo.info.x11.window),
+    };
+#   else
+    struct RawX11Info
+    {
+        void*     display;
+        uintptr_t window;
+    };
+    const auto* raw = reinterpret_cast<const RawX11Info*>(&wmInfo.info);
+    return {raw->display, raw->window};
+#   endif
+}
+#endif
+
 /// Extracts the platform native window handle from an SDL_Window.
 /// Returns nullptr if the platform is not supported.
 void* GetNativeHandle(SDL_Window* window)
 {
     if (!window) return nullptr;
+    static Saga::NativeWindowHandle handle{};
 
     SDL_SysWMinfo wmInfo{};
     SDL_VERSION(&wmInfo.version);
     if (!SDL_GetWindowWMInfo(window, &wmInfo))
         return nullptr;
 
+    handle = {};
+
 #if defined(_WIN32)
-    return wmInfo.info.win.window;   // HWND
+    handle.backend = Saga::NativeWindowBackend::Win32;
+    handle.window  = wmInfo.info.win.window;
+    return &handle;
 #elif defined(__linux__)
-#   if defined(SDL_VIDEO_DRIVER_X11)
-    // X11: cast Window (unsigned long) to void*.
-    return reinterpret_cast<void*>(wmInfo.info.x11.window);
-#   elif defined(SDL_VIDEO_DRIVER_WAYLAND)
-    return wmInfo.info.wl.surface;
-#   else
-    return nullptr;
+    switch (wmInfo.subsystem)
+    {
+        case SDL_SYSWM_X11:
+        {
+            const auto x11 = ReadX11WindowInfo(wmInfo);
+            handle.backend  = Saga::NativeWindowBackend::X11;
+            handle.display  = x11.display;
+            handle.windowId = x11.windowId;
+            handle.window   = reinterpret_cast<void*>(handle.windowId);
+            return &handle;
+        }
+#   if defined(SDL_VIDEO_DRIVER_WAYLAND)
+        case SDL_SYSWM_WAYLAND:
+            handle.backend = Saga::NativeWindowBackend::Wayland;
+            handle.display = wmInfo.info.wl.display;
+            handle.surface = wmInfo.info.wl.surface;
+            handle.window  = wmInfo.info.wl.surface;
+            return &handle;
 #   endif
+        default:
+            return nullptr;
+    }
 #elif defined(__APPLE__)
-    return wmInfo.info.cocoa.window; // NSWindow*
+    handle.backend = Saga::NativeWindowBackend::Cocoa;
+    handle.window  = wmInfo.info.cocoa.window;
+    return &handle;
 #else
     return nullptr;
 #endif

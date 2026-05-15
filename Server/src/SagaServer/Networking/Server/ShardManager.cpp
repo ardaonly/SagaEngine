@@ -9,6 +9,7 @@
 #include <chrono>
 #include <cmath>
 #include <limits>
+#include <mutex>
 
 namespace SagaServer::Networking
 {

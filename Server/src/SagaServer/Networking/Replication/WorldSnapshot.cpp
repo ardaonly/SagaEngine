@@ -59,7 +59,7 @@ WorldSnapshotCapture::WorldSnapshotCapture(SnapshotSerializeFn        serializeF
 {
     assert(m_serializeFn  && "SnapshotSerializeFn must not be null");
     assert(m_enumeratorFn && "SnapshotEntityEnumeratorFn must not be null");
-    m_scratchBuf.resize(kScratchSize);
+    m_scratchBuf.resize(kSerializeTempSize);
 }
 
 WorldSnapshotResult WorldSnapshotCapture::Capture(uint64_t serverTick,

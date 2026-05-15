@@ -12,6 +12,7 @@
 #include <SagaEngine/Input/Commands/InputCommandBuffer.h>
 #include <array>
 #include <cstdint>
+#include <memory>
 
 namespace SagaSandbox
 {

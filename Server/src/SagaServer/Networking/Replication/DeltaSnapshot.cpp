@@ -43,7 +43,7 @@ DeltaSnapshotBuilder::DeltaSnapshotBuilder(ComponentSerializeFn serializeFn)
     : m_serializeFn(std::move(serializeFn))
 {
     assert(m_serializeFn && "ComponentSerializeFn must not be null");
-    m_serializeScratch.resize(kScratchSize);
+    m_serializeTemp.resize(kSerializeTempSize);
 }
 
 void DeltaSnapshotBuilder::BeginSnapshot(ClientId clientId,

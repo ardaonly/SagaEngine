@@ -110,5 +110,17 @@ Comments must NOT:
 
 ---
 
-Consistency in documentation is part of engine quality.
+## 7. Repository Hygiene
 
+The repository must stay product-focused and reproducible.
+
+Rules:
+- Emojis are not allowed in source code, comments, documentation, commit-facing examples, or generated project files.
+- Agent-local configuration directories must not be committed. This includes `.agents/`, `.codex/`, and similar assistant-specific workspace state.
+- Tooling that must run in CI must resolve the repository root through Git or an explicit `--repo-root` argument, not by requiring marker files.
+- Shared Python modules belong under `Tools/common/`; executable maintenance scripts belong under `Tools/scripts/`.
+- Do not add ad-hoc discovery scripts when `git`, `rg`, Prism, or an existing maintained script already covers the workflow.
+
+---
+
+Consistency in documentation is part of engine quality.

@@ -29,8 +29,7 @@
 
 #pragma once
 
-#include "SagaEngine/ECS/Entity.h"
-#include "SagaEngine/ECS/Component.h"
+#include "SagaShared/Replication/SnapshotContracts.hpp"
 
 #include <cstdint>
 #include <cstddef>
@@ -39,69 +38,22 @@
 
 namespace SagaServer {
 
-// ─── Component type bitmask ──────────────────────────────────────────────────
+using ComponentMask = SagaShared::Replication::ComponentMask;
+inline constexpr ComponentMask COMPONENT_TRANSFORM = SagaShared::Replication::COMPONENT_TRANSFORM;
+inline constexpr ComponentMask COMPONENT_PHYSICS = SagaShared::Replication::COMPONENT_PHYSICS;
+inline constexpr ComponentMask COMPONENT_RENDER = SagaShared::Replication::COMPONENT_RENDER;
+inline constexpr ComponentMask COMPONENT_ANIMATION = SagaShared::Replication::COMPONENT_ANIMATION;
+inline constexpr ComponentMask COMPONENT_AUDIO = SagaShared::Replication::COMPONENT_AUDIO;
+inline constexpr ComponentMask COMPONENT_NETWORK = SagaShared::Replication::COMPONENT_NETWORK;
+inline constexpr ComponentMask COMPONENT_CUSTOM_0 = SagaShared::Replication::COMPONENT_CUSTOM_0;
+inline constexpr ComponentMask COMPONENT_CUSTOM_1 = SagaShared::Replication::COMPONENT_CUSTOM_1;
+inline constexpr ComponentMask COMPONENT_CUSTOM_2 = SagaShared::Replication::COMPONENT_CUSTOM_2;
+inline constexpr ComponentMask COMPONENT_CUSTOM_3 = SagaShared::Replication::COMPONENT_CUSTOM_3;
 
-using ComponentMask = uint64_t;
-
-constexpr ComponentMask COMPONENT_TRANSFORM    = 1ULL << 0;
-constexpr ComponentMask COMPONENT_PHYSICS      = 1ULL << 1;
-constexpr ComponentMask COMPONENT_RENDER       = 1ULL << 2;
-constexpr ComponentMask COMPONENT_ANIMATION    = 1ULL << 3;
-constexpr ComponentMask COMPONENT_AUDIO        = 1ULL << 4;
-constexpr ComponentMask COMPONENT_NETWORK      = 1ULL << 5;
-constexpr ComponentMask COMPONENT_CUSTOM_0     = 1ULL << 6;
-constexpr ComponentMask COMPONENT_CUSTOM_1     = 1ULL << 7;
-constexpr ComponentMask COMPONENT_CUSTOM_2     = 1ULL << 8;
-constexpr ComponentMask COMPONENT_CUSTOM_3     = 1ULL << 9;
-
-// ─── Network EntityId ────────────────────────────────────────────────────────
-
-struct NetEntityId
-{
-    uint32_t id{0};
-    uint32_t generation{0};
-
-    bool operator==(const NetEntityId& o) const { return id == o.id && generation == o.generation; }
-    bool operator!=(const NetEntityId& o) const { return !(*this == o); }
-    bool operator<(const NetEntityId& o)  const { return id < o.id || (id == o.id && generation < o.generation); }
-};
-
-// ─── Per-entity dirty state ──────────────────────────────────────────────────
-
-struct EntityDirtyState
-{
-    ComponentMask dirtyComponents  {0};
-    ComponentMask activeComponents {0};
-    uint32_t      lastUpdateTick   {0};
-    bool          deleted          {false};
-};
-
-// ─── Wire-format headers ─────────────────────────────────────────────────────
-
-struct alignas(8) WorldSnapshotHeader
-{
-    uint32_t magic             {0x534E4150u}; // "SNAP"
-    uint32_t version           {1};
-    uint32_t sequenceNumber    {0};
-    uint32_t timestamp         {0};
-    uint32_t entityCount       {0};
-    uint32_t totalPayloadSize  {0};
-    uint32_t checksum          {0};
-    uint32_t reserved          {0};
-};
-static_assert(sizeof(WorldSnapshotHeader) == 32, "WorldSnapshotHeader must be 32 bytes");
-
-struct alignas(8) DeltaSnapshotHeader
-{
-    uint32_t sequenceNumber    {0};
-    uint32_t baseSequenceNumber{0};
-    uint32_t entityCount       {0};
-    uint32_t totalPayloadSize  {0};
-    uint32_t checksum          {0};
-    uint32_t flags             {0};
-    uint8_t  reserved[8]       {};
-};
-static_assert(sizeof(DeltaSnapshotHeader) == 32, "DeltaSnapshotHeader must be 32 bytes");
+using NetEntityId = SagaShared::Replication::NetEntityId;
+using EntityDirtyState = SagaShared::Replication::EntityDirtyState;
+using WorldSnapshotHeader = SagaShared::Replication::WorldSnapshotHeader;
+using DeltaSnapshotHeader = SagaShared::Replication::DeltaSnapshotHeader;
 
 // ─── Callbacks ───────────────────────────────────────────────────────────────
 

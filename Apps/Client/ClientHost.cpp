@@ -26,6 +26,8 @@
 #include <SagaServer/Networking/Core/Packet.h>
 
 #include <SagaEngine/Platform/IDebugRenderer2D.h>
+
+#include <cstring>
 #include <SagaEngine/Platform/SDL/SDLDebugRenderer2D.h>
 #include <SagaEngine/Input/Backends/SDL/SDLInputBackend.h>
 #include <SagaEngine/Input/Devices/KeyboardDevice.h>

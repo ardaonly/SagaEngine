@@ -53,6 +53,7 @@ struct SandboxConfig
 
     bool captureMemoryStats  = true;   ///< Feed MemoryTracker data into HUD
     bool captureProfilerData = true;   ///< Feed Profiler samples into HUD
+    bool dumpMemoryLeaksOnExit = true; ///< Dump tracked heap leaks at process exit
 
     // ── Network (for network-facing scenarios) ────────────────────────────────
 
