@@ -1,0 +1,8 @@
+[project]
+name = "hello-cmake"
+version = "0.1.0"
+
+[build]
+backend = "cmake"
+source = "."
+build = "build"

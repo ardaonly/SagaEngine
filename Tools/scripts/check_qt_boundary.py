@@ -2,7 +2,7 @@
 """Fail the build if Qt sneaks back outside Editor/.../UI/Qt/.
 
 Run from the repo root:
-    python tools/check_qt_boundary.py
+    python3 Tools/scripts/check_qt_boundary.py .
 
 Exits 0 when the boundary is clean, 1 when something includes a Qt
 header outside the permitted folder. The CI pre-merge job runs this
@@ -50,6 +50,7 @@ def is_under(path: str, prefix: str) -> bool:
 
 
 def find_violations(repo_root: str) -> List[Tuple[str, List[str]]]:
+    repo_root = os.path.abspath(repo_root)
     edit_root = os.path.join(repo_root, EDITOR_ROOT)
     if not os.path.isdir(edit_root):
         print(f"  warning: {edit_root!r} not found; nothing to check", file=sys.stderr)

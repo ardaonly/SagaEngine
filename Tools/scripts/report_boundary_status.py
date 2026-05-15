@@ -196,7 +196,7 @@ def collect_metadata_warnings(repo_root: Path) -> list[str]:
 
     for license_file in (
         repo_root / "Tools/Prism/LICENSE",
-        repo_root / "Tools/Forge/tool/LICENSE",
+        repo_root / "Tools/Forge/LICENSE",
         repo_root / "Tools/SystemDefinitionEngine/LICENSE",
     ):
         if not license_file.exists():

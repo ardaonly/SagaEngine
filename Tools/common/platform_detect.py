@@ -5,7 +5,7 @@ platform_detect.py — shared platform-detection helpers for SagaEngine build to
 Consumed by:
   Tools/Prism/build.py          (from common import platform_detect as _pd)
   Tools/SagaTools/setup.py      (from common import platform_detect as _pd)
-  Tools/Forge/tool/build.py     (optional import with fallback)
+  Tools/Forge/build.py     (optional import with fallback)
 
 Stdlib only — no pip install.  Python 3.8+.
 """

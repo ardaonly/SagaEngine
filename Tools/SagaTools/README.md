@@ -25,7 +25,7 @@ That single command does, in order:
    every tool the dispatcher knows about — **no environment variables
    to set, ever**.
 3. Runs `tools install forge` — builds the Forge binary into
-   `Tools/Forge/tool/bin/`.
+   `Tools/Forge/bin/`.
 4. Runs `tools install prism` — sets up the Prism Python pipeline
    launcher (and the C++ extractor too, if LLVM is available).
 5. Prints the one line you need to add `bin/` to your `PATH` for the
@@ -38,6 +38,7 @@ tools list                 # see what is registered and resolvable
 tools forge --help         # Forge's own help
 tools forge build          # delegates to forge build
 tools prism --version      # delegates to prism
+tools host status          # delegates to Tools/Host/host.sh
 tools where forge          # print the resolved binary path
 ```
 
@@ -79,6 +80,17 @@ tools list                     # what's available right now
 tools install <name>           # run the registered bootstrap script
 tools where <name>             # print the resolved binary path
 tools <name> [args ...]        # forward args to the underlying tool
+```
+
+Host automation is registered the same way:
+
+```bash
+tools host start
+tools host stop
+tools host restart
+tools host rebuild
+tools host logs
+tools host status
 ```
 
 The first non-flag word after `tools` is treated as a tool name. Every
@@ -137,10 +149,11 @@ both are optional per tool.
   "schema_version": "1.0",
   "tools": {
     "forge": "/path/to/forge",
-    "prism": "/path/to/prism"
+    "prism": "/path/to/prism",
+    "host": "/path/to/SagaEngine/Tools/Host/host.sh"
   },
   "installers": {
-    "forge": "../../Forge/tool/build.py",
+    "forge": "../../Forge/build.py",
     "prism": "../../Prism/build.py"
   }
 }
@@ -179,7 +192,7 @@ to `<exe-dir>/config/tools.registry.json` (which is exactly what
 For Forge and Prism, their own bootstrap scripts work the same way:
 
 ```bash
-python3 Tools/Forge/tool/build.py    # builds forge into Tools/Forge/tool/bin/
+python3 Tools/Forge/build.py    # builds forge into Tools/Forge/bin/
 python3 Tools/Prism/build.py         # builds prism into Tools/Prism/bin/
 ```
 
@@ -190,7 +203,7 @@ python3 Tools/Prism/build.py         # builds prism into Tools/Prism/bin/
 The contents of `Tools/SagaTools/` become the new repo root with zero
 rewrites. There is nothing inside it that includes a SagaEngine header,
 links a SagaEngine library, or assumes the engine repository layout.
-The same is true for `Tools/Forge/tool/` and `Tools/Prism/extractor/` +
+The same is true for `Tools/Forge/` and `Tools/Prism/extractor/` +
 `Tools/Prism/pipeline/`. All three projects can be split independently.
 
 ---

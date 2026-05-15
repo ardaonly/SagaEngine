@@ -30,6 +30,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `ConanAdapter::Install` uses `ToolEnv::Active().conan` instead of the hardcoded string `"conan"`.
 - `CMakeAdapter` methods use `ToolEnv::Active().cmake` / `.ctest` instead of hardcoded strings.
 - `CmdNew` no longer sets a `preset` key in the scaffolded `forge.toml` — a bare project should not assume preset availability.
+- Safe job scheduling is more conservative for engine-scale builds.
+- On NixOS, project toolchain commands fail fast outside `nix-shell`; use explicit `forge nix <command>` when Forge should enter `shell.nix`.
+- Windows documentation now treats `forge` as the canonical entrypoint; root `build.ps1` is only a legacy compatibility wrapper.
 
 ---
 

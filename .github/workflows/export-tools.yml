@@ -1,0 +1,47 @@
+name: Export Tool Mirrors
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    name: Export changed tools
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Restore export state
+        id: export-state-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .core/export/state
+          key: tool-export-state-${{ runner.os }}-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            tool-export-state-${{ runner.os }}-${{ github.ref_name }}-
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Export changed tools
+        env:
+          MIRROR_TOKEN: ${{ secrets.MIRROR_TOKEN }}
+        run: ./export.sh --since "${{ github.event.before }}"
+
+      - name: Save export state
+        if: always() && steps.export-state-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .core/export/state
+          key: tool-export-state-${{ runner.os }}-${{ github.ref_name }}-${{ github.sha }}
