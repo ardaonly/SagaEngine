@@ -13,7 +13,6 @@
 #include <map>
 #include <memory>
 #include <string>
-#include <unordered_map>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -145,14 +144,9 @@ private:
     friend class ModelCompiler;
 
     // Compound key: (modelId, instanceId) — avoids cross-model id collision.
-    struct PairHash
-    {
-        std::size_t operator()(const std::pair<std::string, std::string>& k) const noexcept;
-    };
-
     using InstanceKey = std::pair<std::string, std::string>;
-    std::unordered_map<InstanceKey, CompiledInstance, PairHash> mInstances;
-    ValueSlab                                                    mSlab;
+    std::map<InstanceKey, CompiledInstance> mInstances;
+    ValueSlab                               mSlab;
 
     void AddInstance(CompiledInstance instance);
 };

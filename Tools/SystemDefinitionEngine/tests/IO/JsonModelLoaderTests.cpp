@@ -3,7 +3,9 @@
 
 #include "SDE/IO/JsonModelLoader.h"
 #include "SDE/IO/ModelLoader.h"
+#include "SDE/Model/EnumRegistry.h"
 #include "SDE/Model/TypeNode.h"
+#include "SDE/Validation/Rule.h"
 
 #include <gtest/gtest.h>
 
@@ -200,4 +202,37 @@ TEST(JsonModelLoaderTest, LoadDefinition_MissingFile_ReturnsNullopt)
     EXPECT_FALSE(defOpt.has_value());
     ASSERT_GE(diags.size(), 1u);
     EXPECT_EQ(diags[0].severity, Severity::Fatal);
+}
+
+TEST(JsonModelLoaderTest, LoadDefinition_ParsesEnumsAndRules)
+{
+    const std::string json = R"({
+        "id": "Item",
+        "schemaVersion": 1,
+        "enums": [
+            { "id": "Rarity", "members": [ "Common", "Rare" ] }
+        ],
+        "fields": [
+            {
+                "id": "rarity",
+                "type": "Enum<Rarity>",
+                "presence": "required",
+                "rules": [ { "kind": "enumMember", "enumId": "Rarity" } ]
+            }
+        ]
+    })";
+    std::string path = WriteTempFile(json, "_enum_schema.json");
+
+    TypeRegistry types;
+    EnumRegistry enums;
+    std::vector<Diagnostic> diags;
+    auto defOpt = JsonModelLoader::LoadDefinition(path, types, diags, &enums);
+
+    ASSERT_TRUE(defOpt.has_value());
+    EXPECT_TRUE(diags.empty());
+    ASSERT_NE(enums.Find("Rarity"), nullptr);
+    EXPECT_TRUE(enums.Find("Rarity")->ContainsMember("Rare"));
+    ASSERT_EQ(defOpt->fields.size(), 1u);
+    EXPECT_EQ(defOpt->fields[0].rules.size(), 1u);
+    EXPECT_EQ(defOpt->fields[0].rules[0]->RuleId(), "enumMember");
 }

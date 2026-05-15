@@ -38,7 +38,7 @@ RawValue IntegerValue(int64_t v)
 TEST(RangeRuleTest, RuleIdIsCorrect)
 {
     RangeRule rule(0.0, 100.0);
-    EXPECT_EQ(rule.RuleId(), "SDE_RANGE");
+    EXPECT_EQ(rule.RuleId(), "range");
 }
 
 TEST(RangeRuleTest, PassForValueInRange)

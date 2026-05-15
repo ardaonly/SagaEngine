@@ -1,1048 +1,1524 @@
-# System Definition Engine (SDE) — Roadmap
+# System Definition Engine — Roadmap
 
-> Last updated: 2026-05-08
-> Status: core pipeline complete; open work documented below.
-> Namespace: `SDE` (not `SagaSDE` — designed for standalone-repo extraction).
-> Repository expectation: this folder is designed to extract into its
-> own git repo on a single day's work.
-
-The System Definition Engine is the **model definition + validation + compilation
-layer** for game systems. It is not a save format, not an editor feature, not a
-runtime asset. It is the compile-time stage where item, skill, recipe,
-status-effect, dialogue, quest, and every other game-system definition is
-*modelled, validated, and resolved* before the runtime ever loads it.
-
-## What problem this solves
-
-In every previous engine the team has shipped, the same failure mode recurs: a
-content author saves a JSON, the runtime loads it, and a field that should
-reference an `Item` references an `Effect` instead — or carries a number where the
-design says it must be `> 0` — or references an id that does not exist. The crash
-happens hours later, in a play test, miles away from the typo. SDE pulls that
-failure forward into authoring time. By the time the runtime reads the data, the
-data has already been validated against:
-
-- a typed schema (every field has a declared type),
-- relational constraints (every reference resolves to an existing entity of the
-  right kind, identified by a compound `(modelId, instanceId)` key),
-- per-field rules (range, regex, enum membership),
-- cross-field rules (`if Recipe.timed = true then Recipe.duration > 0`),
-- cross-system rules (`Skill.cost.element ∈ Item.element_pool`).
-
-If anything fails, SDE refuses to compile and emits a structured diagnostic that
-points at the offending field with file path, line, and column. The runtime never
-sees a malformed model.
-
-## What SDE is *not*
-
-- **Not a serialiser.** JSON / YAML / TOML are transport. SDE doesn't care which
-  one is used; it cares about the model the transport describes.
-- **Not the editor.** The editor is a UI for SDE. SDE has no UI.
-- **Not the runtime.** The runtime consumes SDE's compiled output; SDE never runs
-  gameplay.
-- **Not a DSL** (yet). It is a typed model + validation engine. A DSL may grow on
-  top once the model is stable; the current scope is smaller.
-
-## Architectural position
-
-```
-  File Input (JSON / YAML / …)
-          │
-          ▼
-  ┌──────────────────┐
-  │   ModelLoader    │  parse bytes → RawValue tree (no business logic)
-  └────────┬─────────┘
-           │  std::vector<ModelInstance>
-           ▼
-  ┌──────────────────┐
-  │    Validator     │  schema checks + per-field rules + cross-field Predicate AST
-  └────────┬─────────┘
-           │  ValidationResult  (CompileState + Diagnostics)
-           ▼
-  ┌──────────────────────┐
-  │  ReferenceResolver   │  (modelId, instanceId) compound-key lookup
-  │                      │  dangling-ref detection, DFS cycle detection
-  └────────┬─────────────┘
-           │  ResolveResult (resolvedHandles map)
-           ▼
-  ┌──────────────────────┐
-  │   ModelCompiler      │  assemble CompiledModelGraph via ValueSlab
-  └────────┬─────────────┘
-           │
-           ▼
-  ┌──────────────────────┐
-  │  CompiledModelGraph  │  ← consumed by editor + runtime (read-only, move-only)
-  │  + Diagnostics       │
-  └──────────────────────┘
-```
-
-The arrow is one-way. Editor and runtime consume the compiled output. SDE itself
-depends on neither.
+> Last updated: 2026-05-14  
+> Status: Active roadmap  
+> Target: A standalone deterministic data compiler for Saga projects.  
+> Scope: Schema parsing, validation, canonical IR generation, deterministic artifact emission, diagnostics, incremental compilation, CLI integration, and tool-facing outputs.
 
 ---
 
-## Sub-systems
+## 0. Roadmap Convention
 
-### 1. Model Schema
-
-| Status | Item |
-|--------|------|
-| [x] | `TypeNode` / `TypeRegistry` — flat handle-based type system. `TypeNodeId` is a `uint32_t`; `TypeRegistry` owns all nodes and is frozen before the pipeline runs. Replaces the recursive `std::variant<..., unique_ptr<T>>` TypeDescriptor design. |
-| [x] | `TypeKind` — Number, Integer, Text, Boolean, Color, Enum, Ref, List, Map, Struct. `Integer` and `Number` are distinct (int64 vs double). |
-| [x] | `EnumDefinition` — closed set of named values (id, displayName, members). `ContainsMember()` and `FindMember()` helpers. |
-| [x] | `FieldDefinition` — id, displayName, `TypeNodeId`, `FieldPresence`, optional default, per-field `shared_ptr<Rule>` list. |
-| [x] | `Relation` — declared cross-model relationship with cardinality and `nonEmpty` constraint. |
-| [x] | `ModelDefinition` — id, displayName, schemaVersion, fields, relations, `crossFieldRules`. |
-| [ ] | **Schema versioning / migration** — every model declaration carries a `schemaVersion`. When a schema changes, instances at the old version must migrate forward through declared migration steps before validation runs. No design exists yet. |
-| [ ] | **Struct field nesting** — `TypeKind::Struct` is defined in `TypeNode` but `StructFieldSpec` registration and the inline anonymous struct path in `JsonModelLoader` are not implemented. |
-
-### 2. Validation Rules
-
-| Status | Item |
-|--------|------|
-| [x] | `Severity` — Info / Warning / Error / Fatal. |
-| [x] | `SourceLocation` — file, line, column. |
-| [x] | `Diagnostic` — MakeInfo / MakeWarning / MakeError / MakeFatal factory methods. |
-| [x] | `CompileState` — 6-state enum (Clean / WithWarnings / UnresolvedRefs / ValidationFailed / Aborted / IOError). `Merge()`, `IsUsable()`, `StateName()`. Relational operators (`<`, `<=`, `>`, `>=`) for severity comparisons. |
-| [x] | `ValidationResult` — state + diagnostics, `HasErrors()`, `HasWarnings()`, `Merge()`. |
-| [x] | `Rule` — abstract base with `Apply(RawValue, FieldDefinition, SourceLocation, diagnostics)` + `RuleId()`. |
-| [x] | `RangeRule` — enforces `min <= value <= max` on Number and Integer fields. Emits `SDE_RANGE`. |
-| [x] | `RegexRule` — enforces text matches `std::regex`. Emits `SDE_REGEX`. |
-| [x] | `EnumMembershipRule` — stores `enumId`; **stub only** (see open work). Emits `SDE_ENUM_MEMBER`. |
-| [x] | `Predicate` — abstract serializable AST node for cross-field conditions. `PredicateKind()` returns a stable string for JSON round-trip. |
-| [x] | `FieldExistsPredicate` — true when a named field is present and non-null. |
-| [x] | `FieldEqualsPredicate` — true when field value == expected string. |
-| [x] | `FieldRangePredicate` — true when numeric field satisfies `[min, max]`. |
-| [x] | `AndPredicate`, `OrPredicate` — logical combinators. |
-| [x] | `ImplicationPredicate` — P → Q (implemented as ¬P ∨ Q). |
-| [x] | `CrossFieldRule` — applies a `Predicate` tree to an entire `ModelInstance`. Not a `Rule` subclass — held separately in `ModelDefinition::crossFieldRules`. |
-| [x] | `RuleRegistry` — dependency-injected (no singleton). `Register()`, `Freeze()`, `Find()`, static `RegisterBuiltIns()`. |
-| [x] | `Validator` — `Validate()` (batch), `ValidateOne()`, `CheckTypeMatch()`, `ApplyFieldRules()`, `ApplyCrossFieldRules()`. |
-| [ ] | **`EnumMembershipRule::Apply()` is a stub.** It always returns `true`. The actual membership check requires the `Validator` to hold a map of `EnumDefinition` objects (keyed by enumId), which it does not currently receive. Design needed: pass an `EnumRegistry` (or equivalent) alongside `TypeRegistry` in `Validator`'s constructor. |
-| [ ] | **`RefIntegrityRule`** — per-field rule enforcing that a Ref value string is non-empty and syntactically valid (before the resolver runs). Currently missing from the implementation. |
-| [ ] | **Predicate JSON serialization.** Each `Predicate` subclass has a `PredicateKind()` string to enable round-trips, but `ToJson()` / `FromJson()` are not implemented. Required before DSL compilation or editor visualization of cross-field rules. |
-| [ ] | **Rule declaration in schema files.** The `JsonModelLoader::ParseFieldDefinition()` reads id/type/presence/default but ignores a `"rules"` array. Per-field rules (RangeRule, RegexRule) cannot yet be declared in JSON schema files; they must be wired in code. |
-
-### 3. Compilation
-
-| Status | Item |
-|--------|------|
-| [x] | `ValueSlab` — flat contiguous storage for array and object values. `Reserve()` returns a `SlabRange`; `At()` gives const access. Only `ModelCompiler` may write to it (`friend class ModelCompiler`). |
-| [x] | `CompiledValue` — `std::variant<CompiledNull, CompiledInteger, CompiledNumber, CompiledBool, CompiledText, CompiledInstanceRef, CompiledArrayRef, CompiledObjectRef>`. No recursive heap pointers. |
-| [x] | `CompiledInstance` — modelId, instanceId, origin, fields map, `GetField()`. |
-| [x] | `CompiledModelGraph` — move-only, compound `(modelId, instanceId)` key (`PairHash`), `Find()`, `AllOf()`, `ModelIds()`, `TotalCount()`, `Slab()`. Immutable after `ModelCompiler::Compile()` returns. |
-| [x] | `ReferenceResolver` — two-pass (BuildIndex → Resolve). Compound `(modelId, instanceId)` key prevents cross-model id collisions. Emits `SDE_DANGLING_REF` on missing targets. DFS cycle detection (White/Gray/Black coloring) emitting `SDE_CYCLE`. |
-| [x] | `CompileOptions` — `abortOnFirstError`, `inferDefaults`. |
-| [x] | `CompileResult` — state, `optional<CompiledModelGraph>`, `ValidationResult`. Graph is `nullopt` when state ≥ `UnresolvedRefs`. |
-| [x] | `ModelCompiler` — `InferDefaults()` → `Validator` → `ReferenceResolver` → `BuildGraph()`. Stops before graph build when references are broken. |
-| [ ] | **Array and object values in `BuildGraph()` are shallow.** `CompiledArrayRef` slots are filled with `CompiledNull` placeholders; nested `RawValue` elements are not recursively compiled into the slab. Full recursive compilation is needed before array/object fields are usable at runtime. |
-| [ ] | **Incremental recompile.** When a single source file changes, only the touched model and its direct dependents should be recompiled. No dependency tracking or dirty-marking mechanism exists yet. |
-| [ ] | **Deterministic output.** The same input bytes must always produce identical compiled bytes (required for content hashing and caching). Map iteration order in `CompiledModelGraph` is hash-map order (non-deterministic). `std::map` used in `CompiledInstance::fields` is deterministic, but `mInstances` (unordered) is not. |
-
-### 4. I/O
-
-| Status | Item |
-|--------|------|
-| [x] | `RawValue` — `variant<RawNull, RawInteger, RawNumber, RawBool, RawText, RawArray, RawObject>`. Carries its own `SourceLocation` at every nesting level. `IsInteger()` / `IsNumber()` / `AsDouble()` / `AsInteger()` helpers. `RawInteger` (int64) and `RawNumber` (double) are distinct arms. |
-| [x] | `ModelInstance` — modelId, instanceId, sourceFile, origin, fields map. |
-| [x] | `ModelLoader` — abstract interface. |
-| [x] | `JsonModelLoader::Load()` — data file format: `{ "modelId": "...", "data": [...] }`. Emits `SDE_IO_ERROR`, `SDE_PARSE_ERROR`, `SDE_BAD_FORMAT`. nlohmann/json isolated to `JsonModelLoader.cpp`. |
-| [x] | `JsonModelLoader::LoadDefinition()` — schema file loading. Parses id, displayName, schemaVersion, fields (id, type string, presence, default). Registers types into a caller-supplied `TypeRegistry`. |
-| [x] | Type string parser — handles `"Number"`, `"Integer"`, `"Text"`, `"Boolean"`, `"Color"`, `"Ref<X>"`, `"Enum<X>"`, `"List<T>"`, `"Map<K,V>"` (recursive). |
-| [x] | `JsonModelWriter` — serialises a `CompiledModelGraph` to JSON. `CompiledInstanceRef` → `{"$ref":"modelId/instanceId"}`. |
-| [ ] | **Source locations carry `line = 0`, `column = 0` for all JSON values.** nlohmann/json's DOM API does not expose per-token line numbers. Fixing this requires switching to a SAX-style parse or wrapping nlohmann's internal lexer. Until fixed, diagnostics point at the file but not the line. |
-| [ ] | **`BinaryModelLoader`** — compact content-addressed format for shipped builds. Not designed or started. |
-| [ ] | **`ModelLoader` for YAML / TOML.** Only JSON is implemented. Adding YAML requires a vendored parser (e.g. yaml-cpp); the abstract interface is already in place. |
-
-### 5. Tooling
-
-| Status | Item |
-|--------|------|
-| [x] | `sde validate <project-dir>` — runs Validator only; exit codes 0 (Clean), 1 (WithWarnings), 2 (Fail), 3 (Usage), 4 (IO). |
-| [x] | `sde compile <project-dir> [--out=<file>]` — full pipeline; writes `compiled.json` via `JsonModelWriter`. |
-| [x] | `sde --version` / `sde --help`. |
-| [x] | Diagnostic output format: `file:line:col: [SEVERITY] [CODE] message`. |
-| [ ] | **`sde watch <project-dir>`** — file-system watcher; recompile on change, print diffs. Requires `inotify` / `kqueue` / `FSEvents` integration or a polling fallback. |
-| [ ] | **`sde diff <compiled-a> <compiled-b>`** — structural diff of two compiled graphs (field added / removed / changed). Useful for CI change detection. |
-| [ ] | **LSP server** — text-editor integration: hover type, go-to-definition for Ref fields, inline diagnostics on save. Requires the Language Server Protocol stdio transport and a JSON-RPC layer. |
-| [ ] | **HTML diagnostic report** — pretty dump for non-engineers. Input: `ValidationResult` + source files; output: self-contained HTML with syntax-highlighted excerpts and severity badges. |
-| [ ] | **DSL stage** — once the model is stable, a small domain-specific syntax for writing schemas and rules (instead of raw JSON). Requires Predicate JSON serialization (see §2) as a prerequisite. |
-
-### 6. Test Coverage
-
-| Status | Item |
-|--------|------|
-| [x] | `DiagnosticTests` — factory methods, severity, code, message, suggestion, SourceLocation. |
-| [x] | `CompileStateTests` — `Merge()` ordering, commutativity, `IsUsable()`, `StateName()`. |
-| [x] | `TypeRegistryTests` — Primitive / Ref / List registration, `TypeName()` formatting, freeze. |
-| [x] | `RawValueTests` — Integer vs Number distinction, `AsDouble()` coercion, location preservation. |
-| [x] | `RangeRuleTests` — RuleId, pass/fail, boundary values, integer raw values, non-numeric fail. |
-| [x] | `JsonModelLoaderTests` — missing file → Fatal, valid array → 2 instances, integer field → RawInteger, float → RawNumber, malformed JSON, missing modelId/data, LoadDefinition. |
-| [x] | `ReferenceResolverTests` — valid ref → resolvedHandles, dangling ref → SDE_DANGLING_REF, same instanceId in two models (no collision), ref to wrong model, self-reference cycle → SDE_CYCLE. |
-| [x] | `ModelCompilerTests` — empty compile → Clean+graph, text/integer fields in graph, AllOf/ModelIds, dangling ref → UnresolvedRefs, default inference. |
-| [x] | `FullPipelineTests` — load JSON → compile → Clean+graph, cross-model Ref → CompiledInstanceRef, dangling ref → UnresolvedRefs, same id in two namespaces. |
-| [ ] | **`EnumDefinitionTests`** — ContainsMember, FindMember, empty members. |
-| [ ] | **`FieldDefinitionTests`** — presence defaults, default value, TypeNodeId handle stored. |
-| [ ] | **`ModelDefinitionTests`** — FindField, HasField, crossFieldRules. |
-| [ ] | **`RegexRuleTests`** — matching, non-matching, non-text value. |
-| [ ] | **`EnumMembershipRuleTests`** — blocked until the stub is replaced with a real implementation. |
-| [ ] | **`PredicateTests`** — ImplicationPredicate (P→Q), AndPredicate, OrPredicate, FieldEqualsPredicate, FieldRangePredicate with valid/invalid ModelInstances. |
-| [ ] | **`ValidatorTests`** — missing required field → SDE_MISSING_FIELD, type mismatch → SDE_TYPE_MISMATCH, cross-field rule failure, no definition for model → SDE_UNKNOWN_MODEL. |
+- `[x]` — Shipped. The note after the item names the files, modules, or integration points that represent the work and highlights any decisions worth preserving.
+- `[ ]` — Open. Either unstarted or partially explored; the item describes the finished production state rather than interim scaffolding.
+- Shipped items must name the files, modules, or integration points that represent the completed work.
+- Open items must describe the finished state, not temporary scaffolding.
+- SDE must remain standalone.
+- SDE must be deterministic.
+- SDE must not depend on Saga, SagaEngine, SagaEditor, SagaServer, SagaShared, SagaCollaboration, Forge, Prism, or SagaTools.
+- SDE may emit outputs consumed by those systems through explicit artifact formats.
 
 ---
 
-## Open work — design notes
+## 1. Document Purpose
 
-This section documents the *how* for every unchecked item. Items are ordered by
-implementation wave; later waves depend on earlier ones or are lower urgency.
+This document defines the roadmap for the System Definition Engine, also called SDE.
+
+SDE is Saga’s deterministic data compiler.
+
+It exists to turn project/system definitions into validated, stable, runtime-consumable artifacts.
+
+SDE owns:
+
+- source definition parsing,
+- schema validation,
+- semantic validation,
+- canonical IR generation,
+- deterministic hashing,
+- artifact generation,
+- diagnostics,
+- dependency tracking,
+- incremental compile planning,
+- command-line compiler behavior.
+
+SDE does not own:
+
+- Saga product shell,
+- editor UI,
+- runtime execution,
+- server authority,
+- collaboration implementation,
+- build frontend UX,
+- code intelligence database,
+- tool dispatcher behavior.
+
+Correct model:
+
+```txt
+SDE source files
+      ↓
+SDE parser
+      ↓
+SDE semantic validator
+      ↓
+Canonical IR
+      ↓
+Deterministic artifacts
+      ↓
+Saga / Editor / Runtime / Server / Tools consume outputs
+```
+
+Incorrect model:
+
+```txt
+SDE includes engine/editor headers and becomes a secret subsystem.
+```
+
+That would be convenient in the same way mixing every cable in one box is convenient until something catches fire.
 
 ---
 
-### Wave 1 — Correctness gaps (fix before any new feature)
+## 2. Companion Documents
 
-These items make the system produce wrong output silently. They block correct usage
-of the pipeline in production schemas.
-
-#### 1.1 Array / object recursive compilation
-
-**Problem.** `ModelCompiler::BuildGraph()` allocates slab slots for arrays and
-objects but fills every slot with `CompiledNull`. Nested `RawValue` elements are
-never converted. Any array or map field in a compiled graph is currently garbage.
-
-**Fix.** Add a `RawToCompiled()` helper (anonymous namespace inside
-`ModelCompiler.cpp`). Replace the stub visitor arms in `BuildGraph()` with calls
-to this function.
-
-```
-// Inside ModelCompiler.cpp (anonymous namespace)
-CompiledValue RawToCompiled(const RawValue& raw, ValueSlab& slab,
-                             const ReferenceResolver::ResolveResult& resolved,
-                             const std::string& handlePrefix)
-{
-    return std::visit([&](const auto& v) -> CompiledValue {
-        using T = std::decay_t<decltype(v)>;
-        if constexpr (std::is_same_v<T, RawNull>)    return CompiledValue{CompiledNull{}};
-        if constexpr (std::is_same_v<T, RawInteger>) return CompiledValue{static_cast<CompiledInteger>(v)};
-        if constexpr (std::is_same_v<T, RawNumber>)  return CompiledValue{static_cast<CompiledNumber>(v)};
-        if constexpr (std::is_same_v<T, RawBool>)    return CompiledValue{static_cast<CompiledBool>(v)};
-        if constexpr (std::is_same_v<T, RawText>)    return CompiledValue{CompiledText{v}};
-        if constexpr (std::is_same_v<T, RawArray>) {
-            uint32_t  n     = static_cast<uint32_t>(v.elements.size());
-            SlabRange range = slab.Reserve(n);
-            for (uint32_t i = 0; i < n; ++i)
-                slab.mSlots[range.offset + i] = RawToCompiled(v.elements[i], slab, resolved, "");
-            return CompiledValue{CompiledArrayRef{range}};
-        }
-        if constexpr (std::is_same_v<T, RawObject>) {
-            uint32_t  pairCount = static_cast<uint32_t>(v.fields.size());
-            SlabRange range     = slab.Reserve(pairCount * 2);
-            uint32_t  i         = range.offset;
-            for (const auto& [k, val] : v.fields) {
-                slab.mSlots[i++] = CompiledValue{CompiledText{k}};
-                slab.mSlots[i++] = RawToCompiled(val, slab, resolved, "");
-            }
-            return CompiledValue{CompiledObjectRef{range}};
-        }
-        return CompiledValue{CompiledNull{}};
-    }, raw.data);
-}
-```
-
-Ref fields are handled before `RawToCompiled` is called (via the
-`resolved.resolvedHandles` map), so the function does not need to know about
-references.
+| Document | Purpose |
+|---|---|
+| `docs/roadmaps/TOOLS_ROADMAP.md` | Tool ecosystem ownership index |
+| `Tools/SystemDefinitionEngine/SDE_ROADMAP.md` | SDE compiler roadmap |
+| `Tools/Forge/FORGE_ROADMAP.md` | Forge build workflow frontend |
+| `Tools/Prism/PRISM_ROADMAP.md` | Prism code intelligence |
+| `Tools/SagaTools/SAGATOOLS_ROADMAP.md` | Thin command dispatcher |
+| `SHARED_ROADMAP.md` | Shared contracts and artifact references |
+| `ENGINE_ROADMAP.md` | Runtime/server consumption of SDE outputs |
+| `EDITOR_ROADMAP.md` | Editor integration through service boundaries |
+| `DependencyGraph.md` | Dependency ownership rules |
 
 ---
 
-#### 1.2 EnumMembershipRule + EnumRegistry
+## 3. Ownership Boundary
 
-**Problem.** `EnumMembershipRule::Apply()` always returns `true`. The `Validator`
-has no access to `EnumDefinition` objects — it only holds a `TypeRegistry` (which
-stores the enumId string but not the allowed members).
+- [x] Define SDE as a standalone deterministic compiler.
 
-**Fix.** Introduce `EnumRegistry`, parallel to `RuleRegistry`. Pass it into
-`Validator`.
+  Represented by:
 
-```
-// include/SDE/Model/EnumRegistry.h  (new file)
-class EnumRegistry {
-public:
-    void Register(EnumDefinition def);
-    void Freeze();
-    [[nodiscard]] bool IsFrozen() const noexcept;
-    [[nodiscard]] const EnumDefinition* Find(const std::string& enumId) const noexcept;
-private:
-    std::map<std::string, EnumDefinition> mDefs;
-    bool mFrozen = false;
-};
-```
+  ```txt
+  Tools/SystemDefinitionEngine/SDE_ROADMAP.md
+  docs/roadmaps/TOOLS_ROADMAP.md
+  DependencyGraph.md
+  SHARED_ROADMAP.md
+  ENGINE_ROADMAP.md
+  ```
 
-`Validator` constructor gains a fourth parameter:
+  Preserved decision:
 
-```
-Validator(const RuleRegistry&,
-          const TypeRegistry&,
-          const EnumRegistry&);   // new
-```
+  ```txt
+  SDE produces deterministic outputs.
+  Other systems consume SDE outputs.
+  SDE does not depend on Saga modules.
+  ```
 
-`CheckTypeMatch()` for `TypeKind::Enum` then becomes:
+- [ ] Keep SDE independent from Saga modules.
 
-```
-case TypeKind::Enum:
-    if (!value.IsText()) { kindMismatch("Enum (text)"); break; }
-    if (const EnumDefinition* ed = mEnumRegistry.Find(node.enumId))
-        if (!ed->ContainsMember(std::get<RawText>(value.data)))
-            out.push_back(Diagnostic::MakeError(loc, "SDE_ENUM_MEMBER",
-                "Field '" + field.id + "': value '" +
-                std::get<RawText>(value.data) + "' is not a member of enum '" +
-                node.enumId + "'."));
-    break;
-```
+  Done means SDE does not include headers from:
 
-`ModelCompiler` gains a matching `EnumRegistry const&` member. `cli/main.cpp`
-constructs and freezes the registry before calling the compiler.
+  ```txt
+  Saga
+  SagaEngine
+  SagaEditor
+  SagaServer
+  SagaShared
+  SagaCollaboration
+  Forge
+  Prism
+  SagaTools
+  ```
 
-`JsonModelLoader::LoadDefinition()` gains an optional `EnumRegistry*` parameter.
-If the schema JSON contains a top-level `"enums"` array, the loader registers each
-entry:
+- [ ] Keep SDE implementation owned by `Tools/SystemDefinitionEngine`.
 
-```json
-{
-  "id": "Item",
-  "enums": [
-    { "id": "Rarity", "members": [
-        { "name": "Common",    "value": "common"    },
-        { "name": "Rare",      "value": "rare"      },
-        { "name": "Legendary", "value": "legendary" }
-    ]}
-  ],
-  "fields": [
-    { "id": "rarity", "type": "Enum<Rarity>", "presence": "required" }
-  ]
-}
-```
+  Done means SDE parser, AST, semantic analyzer, IR builder, compiler passes, codegen, and diagnostics live under SDE-owned paths.
 
----
+Expected location:
 
-#### 1.3 Rule declaration in JSON schema files
-
-**Problem.** `JsonModelLoader::ParseFieldDefinition()` reads id, type, presence,
-and default but silently ignores any `"rules"` key. Per-field constraints must
-currently be wired in code after loading.
-
-**Target schema field format:**
-
-```json
-{
-  "id": "damage",
-  "type": "Number",
-  "presence": "required",
-  "rules": [
-    { "kind": "SDE_RANGE",       "min": 0.0, "max": 9999.0 },
-    { "kind": "SDE_REGEX",       "pattern": "^[0-9]+(\\.[0-9]+)?$" },
-    { "kind": "SDE_ENUM_MEMBER", "enumId": "DamageType" }
-  ]
-}
-```
-
-**Fix.** Add `ParseRule()` inside `JsonModelLoader.cpp` (anonymous namespace):
-
-```
-std::shared_ptr<Rule> ParseRule(const nlohmann::json& obj,
-                                 const std::string&    file,
-                                 std::vector<Diagnostic>& out)
-{
-    if (!obj.contains("kind") || !obj["kind"].is_string()) {
-        out.push_back(Diagnostic::MakeError({file,0,0}, "SDE_MISSING_RULE_KIND",
-            "Rule object has no 'kind' field."));
-        return nullptr;
-    }
-    const std::string kind = obj["kind"];
-
-    if (kind == "SDE_RANGE") {
-        double min = obj.value("min", -std::numeric_limits<double>::max());
-        double max = obj.value("max",  std::numeric_limits<double>::max());
-        return std::make_shared<RangeRule>(min, max);
-    }
-    if (kind == "SDE_REGEX")
-        return std::make_shared<RegexRule>(obj.value("pattern", ""));
-    if (kind == "SDE_ENUM_MEMBER")
-        return std::make_shared<EnumMembershipRule>(obj.value("enumId", ""));
-
-    out.push_back(Diagnostic::MakeError({file,0,0}, "SDE_UNKNOWN_RULE",
-        "Unknown rule kind: '" + kind + "'."));
-    return nullptr;
-}
-```
-
-`ParseFieldDefinition()` then iterates `obj["rules"]` and appends each result to
-`fd.rules`.
-
----
-
-#### 1.4 RefIntegrityRule
-
-**Problem.** A `Ref<Item>` field whose raw value is an empty string `""` or
-whitespace-only passes the `Validator`'s `CheckTypeMatch` (which only checks
-`IsText()`) and proceeds to `ReferenceResolver` where it produces a confusing
-`SDE_DANGLING_REF` error with an empty target id. A dedicated per-field rule
-catches this earlier with a clearer message.
-
-**Design.** Small, standalone, no dependencies beyond `Rule.h`:
-
-```
-// Added to Rule.h
-class RefIntegrityRule final : public Rule {
-public:
-    bool Apply(const RawValue& value, const FieldDefinition& field,
-               const SourceLocation& loc,
-               std::vector<Diagnostic>& out) const override;
-    [[nodiscard]] std::string RuleId() const override { return "SDE_REF_INTEGRITY"; }
-};
-```
-
-`Apply()` logic: confirm `IsText()`; confirm the string is not empty; confirm it
-contains no whitespace (Ref ids are identifiers, not display strings). Emits
-`SDE_REF_INTEGRITY` with a message like: `"Field 'owner': Ref id must be a
-non-empty identifier string."`.
-
-`RuleRegistry::RegisterBuiltIns()` — currently a no-op — can attach a
-`RefIntegrityRule` as the default rule for every field with `TypeKind::Ref`. The
-alternative is to inject it automatically in `Validator::CheckTypeMatch` without
-going through `RuleRegistry`; the former is more explicit.
-
----
-
-### Wave 2 — Diagnostics quality
-
-#### 2.1 JSON source locations (line = 0, column = 0)
-
-**Problem.** nlohmann/json's DOM API discards token positions during parse. Every
-`RawValue::location.line` and `.column` is `0`. Diagnostics point at the file but
-not the line.
-
-**Two-pass fix (no new dependencies, works within current nlohmann setup):**
-
-1. Before calling `nlohmann::json::parse()`, scan the raw text once to build a
-   table mapping byte offsets to `(line, column)`:
-
-   ```
-   // OffsetMap[i] = {line, col} for byte i in the source string.
-   struct LineCol { int line; int column; };
-   std::vector<LineCol> BuildOffsetMap(const std::string& text);
-   ```
-
-2. After the DOM is parsed, re-scan the source text to find the byte offset of
-   each field's key string. Use the offset map to look up `(line, col)`.
-
-   This is approximate — string literals that appear multiple times in the document
-   may match the wrong occurrence — but accurate enough for single-occurrence field
-   keys in typical game data files.
-
-**SAX-based fix (preferred, more accurate):**
-
-Use `nlohmann::json::sax_parse()` with a custom `SAXHandler`:
-
-```
-struct SAXHandler {
-    // Called by nlohmann for each key or value token.
-    bool key(std::string& s);
-    bool string(std::string& s);
-    bool number_integer(int64_t v);
-    bool number_float(double v, const std::string&);
-    bool boolean(bool v);
-    bool null();
-    bool start_object(std::size_t);
-    bool end_object();
-    bool start_array(std::size_t);
-    bool end_array();
-    bool parse_error(std::size_t byte, const std::string& token,
-                     const nlohmann::json::exception& ex);
-
-    // Internal state: current path, position from byte offset.
-    // Output: map<vector<string>, SourceLocation> — path → location.
-};
-```
-
-The SAX handler receives byte offsets via `parse_error`'s `byte` parameter on
-error; for the happy path, byte offset tracking requires wrapping
-`nlohmann::basic_json<>::input_adapter` — an implementation detail. The two-pass
-approach avoids this at the cost of approximate line numbers.
-
-**Recommendation:** implement the two-pass approach first (one day of work, no
-risk). Mark the result as approximate in the code comment. Revisit SAX if precise
-line numbers become a blocker.
-
----
-
-#### 2.2 Deterministic CompiledModelGraph output
-
-**Problem.** `CompiledModelGraph::mInstances` is
-`std::unordered_map<pair<string,string>, CompiledInstance, PairHash>`. Hash-map
-iteration order is unspecified and varies across runs, platforms, and library
-versions. `AllOf()`, `ModelIds()`, and `JsonModelWriter::Write()` produce output
-in a non-deterministic order. Content hashing and cache invalidation are
-impossible.
-
-**Fix.** Switch `mInstances` to `std::map<pair<string,string>, CompiledInstance>`.
-Remove `PairHash`. The natural lexicographic ordering on `(modelId, instanceId)`
-is both deterministic and meaningful (alphabetical by model, then by id within
-model).
-
-```
-// CompiledModelGraph.h — change private member:
-using InstanceKey = std::pair<std::string, std::string>;
-std::map<InstanceKey, CompiledInstance> mInstances;  // was unordered_map
-// Remove: struct PairHash { ... };
-```
-
-`Find()` becomes `mInstances.find(key)` — still O(log n). For authoring-time
-compile of schemas with < 100k instances, this is immeasurably faster than the
-overhead of the JSON parse that precedes it.
-
-Side effects of this change:
-- `AllOf()` naturally returns instances in instanceId-sorted order.
-- `ModelIds()` naturally returns model ids in alphabetical order.
-- `JsonModelWriter` output becomes stable — the same input always produces the
-  same compiled JSON.
-
----
-
-### Wave 3 — Missing test coverage
-
-These tests unblock correctness verification for already-written code. Write them
-immediately after each corresponding Wave-1 fix lands.
-
-#### 3.1 PredicateTests
-
-Covers `FieldExistsPredicate`, `FieldEqualsPredicate`, `FieldRangePredicate`,
-`AndPredicate`, `OrPredicate`, `ImplicationPredicate`. All predicates take a
-`ModelInstance` argument. Key cases:
-
-- `ImplicationPredicate`: (condition false) → true; (condition true, consequent
-  true) → true; (condition true, consequent false) → false.
-- `AndPredicate`: both true → true; first false → false without evaluating second.
-- `FieldRangePredicate`: field absent → false; field not numeric → false; in range
-  → true; at boundary → true.
-
-#### 3.2 ValidatorTests
-
-Covers `Validator::ValidateOne()` and `Validate()`. Key cases:
-
-- Missing required field → `SDE_MISSING_FIELD` Error diagnostic.
-- Type mismatch (Text field given Integer) → `SDE_TYPE_MISMATCH` Error.
-- Cross-field rule failure → diagnostic with the CrossFieldRule's ruleId.
-- Unknown model in instance → `SDE_UNKNOWN_MODEL` Error.
-- Optional missing field → no diagnostic.
-- All rules pass → `CompileState::Clean`.
-- Warning-level diagnostic → `CompileState::WithWarnings`.
-
-#### 3.3 RegexRuleTests
-
-- Matching text → passes.
-- Non-matching text → `SDE_REGEX` Error.
-- Non-text value → `SDE_REGEX` Error.
-- Empty pattern → matches anything.
-- Invalid regex in constructor → `std::regex` throws `regex_error`; constructor
-  must catch and store an error state (currently not handled — this is a latent bug
-  to fix alongside the test).
-
-#### 3.4 EnumMembershipRuleTests
-
-Blocked until Wave-1 fix 1.2 (EnumRegistry) lands. Once the stub is replaced,
-test:
-
-- Value is a valid member → passes.
-- Value is not a member → `SDE_ENUM_MEMBER` Error with field id and bad value.
-- EnumRegistry has no entry for the enumId → currently unclear whether to error
-  or pass; define policy (recommended: Warning with code `SDE_UNKNOWN_ENUM`).
-
-#### 3.5 ModelDefinitionTests, FieldDefinitionTests, EnumDefinitionTests
-
-Lightweight structural tests:
-
-- `ModelDefinition::FindField()` returns pointer when present, nullptr when absent.
-- `ModelDefinition::HasField()` is consistent with `FindField()`.
-- `FieldDefinition` presence defaults to Required.
-- `EnumDefinition::ContainsMember()` / `FindMember()` correctness.
-
----
-
-### Wave 4 — Schema evolution
-
-#### 4.1 Schema versioning and migration
-
-**Problem.** When a FieldDefinition changes (field renamed, deleted, or a new
-required field added), existing data files at the old `schemaVersion` become
-invalid. There is no mechanism to bring them forward.
-
-**Proposed design.** Add declarative migration steps to `ModelDefinition`. Each
-step is a pure data record (no lambdas) so migrations can be serialized, audited,
-and tool-generated.
-
-```
-// include/SDE/Model/ModelDefinition.h additions
-
-enum class FieldMigrationKind { Rename, Delete, AddWithDefault, Copy };
-
-struct FieldMigration {
-    FieldMigrationKind kind;
-    std::string        fromField; ///< source field id (for Rename, Delete, Copy)
-    std::string        toField;   ///< destination field id (for Rename, Copy, AddWithDefault)
-    std::string        value;     ///< literal default (for AddWithDefault)
-};
-
-struct SchemaMigration {
-    int                          fromVersion; ///< applied to instances at this version
-    int                          toVersion;   ///< result version after migration
-    std::vector<FieldMigration>  steps;
-};
-
-// Added to ModelDefinition:
-std::vector<SchemaMigration> migrations;
-```
-
-**MigrationRunner** class (new file `Compilation/MigrationRunner.h/.cpp`):
-
-```
-class MigrationRunner {
-public:
-    /// Migrate all instances whose schemaVersion < def.schemaVersion.
-    /// Instances are modified in-place. Emits SDE_MIGRATION_ERROR on gaps.
-    void Migrate(std::vector<ModelInstance>&        instances,
-                 const std::vector<ModelDefinition>& definitions,
-                 std::vector<Diagnostic>&             out) const;
-};
-```
-
-`ModelCompiler::Compile()` calls `MigrationRunner::Migrate()` before
-`InferDefaults()`. The instance's `fields["schemaVersion"]` is updated to the
-current version after each step chain completes.
-
-**JSON schema format.** The `"migrations"` array sits at the top level of the
-schema file alongside `"fields"`:
-
-```json
-{
-  "id": "Item",
-  "schemaVersion": 3,
-  "migrations": [
-    {
-      "fromVersion": 1, "toVersion": 2,
-      "steps": [
-        { "kind": "Rename", "fromField": "damage_base", "toField": "damage" }
-      ]
-    },
-    {
-      "fromVersion": 2, "toVersion": 3,
-      "steps": [
-        { "kind": "AddWithDefault", "toField": "rarity", "value": "Common" },
-        { "kind": "Delete", "fromField": "legacyTag" }
-      ]
-    }
-  ],
-  "fields": [ ... ]
-}
-```
-
-**Constraints.** Migration chains must be contiguous (no version gaps). The
-`MigrationRunner` checks this and emits `SDE_MIGRATION_GAP` if a required step is
-missing. Circular version references are impossible by construction
-(`fromVersion < toVersion` is enforced).
-
----
-
-#### 4.2 Struct field nesting
-
-**Status.** `TypeKind::Struct` is reserved in `TypeNode.h`. `TypeRegistry::Struct()`
-exists. `StructFieldSpec` is defined. No loader, writer, or compiler path handles
-it.
-
-**Design.** A struct field is an inline anonymous record — think C's anonymous
-struct embedded in another struct. In JSON, it is represented as a nested object:
-
-```json
-{ "id": "sword_01", "stats": { "damage": 45, "weight": 3.2 } }
-```
-
-The schema declares the struct's sub-fields:
-
-```json
-{
-  "id": "stats",
-  "type": "Struct",
-  "fields": [
-    { "id": "damage", "type": "Number", "presence": "required" },
-    { "id": "weight", "type": "Number", "presence": "required" }
-  ]
-}
-```
-
-`JsonModelLoader::LoadDefinition()` must recursively call `ParseFieldDefinition()`
-for each struct sub-field and pass the resulting `vector<StructFieldSpec>` to
-`TypeRegistry::Struct()`.
-
-`Validator::CheckTypeMatch()` for `TypeKind::Struct` must recursively validate
-each sub-field against the `StructFieldSpecs` returned by
-`TypeRegistry::StructFields(id)`.
-
-`ModelCompiler::BuildGraph()` (via `RawToCompiled`) already handles `RawObject` →
-`CompiledObjectRef`, so the compiler path works once the validator path is wired.
-
-**Dependency.** Struct nesting should be designed after schema migration is
-stable, since struct field renames are a common migration scenario.
-
----
-
-### Wave 5 — Tooling
-
-#### 5.1 sde watch
-
-**Design.** New subcommand dispatched from `cli/main.cpp`. Internally:
-
-```
-sde watch <project-dir> [--interval=<ms>]
-```
-
-Abstract watcher interface (new file `cli/FileWatcher.h`):
-
-```
-class FileWatcher {
-public:
-    virtual ~FileWatcher() = default;
-    virtual void Watch(const std::string& dir,
-                       std::function<void(const std::string& path)> onChange) = 0;
-    virtual void Poll() = 0; ///< called in the event loop
-};
-```
-
-Concrete implementations:
-- `InotifyWatcher` (Linux) — `inotify_init` + `IN_CLOSE_WRITE` events.
-- `KqueueWatcher` (macOS) — `kqueue` + `EVFILT_VNODE`.
-- `PollingWatcher` (cross-platform fallback) — `stat()` mtime comparison every
-  `--interval` ms (default 500 ms).
-
-Event loop in `CmdWatch()`:
-
-```
-while (true) {
-    watcher.Poll();
-    if (changed) {
-        // debounce: wait 200ms quiet period
-        auto result = compiler.Compile(...);
-        PrintDiagnostics(result.validation.diagnostics);
-        if (IsUsable(result.state))
-            printf("\033[32m✓ Clean\033[0m\n");
-        changed = false;
-    }
-}
-```
-
-**Dependency.** `sde watch` is useful immediately even without incremental
-recompile; it just re-runs the full pipeline on change. Incremental recompile is
-an optimization added later.
-
----
-
-#### 5.2 sde diff
-
-**Design.** Compares two compiled graphs (two `compiled.json` files or two in-
-memory `CompileResult`s after separate compile runs).
-
-```
-sde diff <compiled-a.json> <compiled-b.json> [--format=text|json]
-```
-
-Algorithm: walk all `(modelId, instanceId)` keys from both graphs (union), then
-for each key:
-
-| Case | Output |
-|------|--------|
-| In A only | `REMOVED Item/sword_01` |
-| In B only | `ADDED  Item/axe_02` |
-| In both, same fields | (silent) |
-| In both, different field values | `CHANGED Item/sword_01 .damage: 45 → 60` |
-
-Field comparison uses recursive slab traversal for arrays/objects.
-
-`CompiledModelGraph` must produce deterministic output (Wave 2.2) before `sde diff`
-produces stable results across runs. Otherwise the diff would show spurious
-ordering changes.
-
----
-
-#### 5.3 Predicate JSON serialization
-
-**Isolation constraint.** nlohmann must not appear in `Predicate.h`.
-
-**Solution.** New files:
-- `include/SDE/IO/PredicateSerializer.h` — public header, no nlohmann.
-- `src/SDE/IO/PredicateSerializer.cpp` — includes nlohmann, implements serialization.
-
-```
-// include/SDE/IO/PredicateSerializer.h
-#pragma once
-#include "SDE/Validation/Predicate.h"
-#include <memory>
-#include <string>
-#include <vector>
-
-namespace SDE {
-struct Diagnostic;
-
-/// Serialize a Predicate tree to a JSON string.
-[[nodiscard]] std::string SerializePredicate(const Predicate& pred);
-
-/// Reconstruct a Predicate tree from a JSON string.
-/// Emits SDE_BAD_PREDICATE diagnostics on unknown kind or malformed structure.
-[[nodiscard]] std::shared_ptr<Predicate> DeserializePredicate(
-    const std::string&       json,
-    std::vector<Diagnostic>& out);
-
-} // namespace SDE
-```
-
-**Wire-in.** Once implemented, `JsonModelLoader::LoadDefinition()` can read a
-top-level `"crossFieldRules"` array in schema files and call
-`DeserializePredicate()` for each predicate sub-object. `CrossFieldRule` objects
-are then added to `ModelDefinition::crossFieldRules`.
-
-**Format.** Predicate nodes are objects with a `"kind"` discriminator:
-
-```json
-{
-  "kind": "Implication",
-  "condition": { "kind": "FieldEquals", "field": "timed", "value": "true" },
-  "consequent": { "kind": "FieldRange",  "field": "duration", "min": 0.001, "max": 1e9 }
-}
-```
-
-Supported `"kind"` values (must match `PredicateKind()` return values exactly):
-`"FieldExists"`, `"FieldEquals"`, `"FieldRange"`, `"And"`, `"Or"`, `"Implication"`.
-
----
-
-#### 5.4 HTML diagnostic report
-
-**Design.** New subcommand or post-compile output mode:
-
-```
-sde compile <project-dir> --report=report.html
-```
-
-The report is a single self-contained HTML file (inline CSS + JS, no external
-resources). Sections:
-
-1. Summary: total errors / warnings / instances compiled.
-2. Per-file table: file name, error count, warning count, first error message.
-3. Diagnostic list: each `Diagnostic` rendered as a code-excerpt block with the
-   offending line highlighted (requires source locations to be non-zero — Wave 2.1
-   is a prerequisite for useful reports).
-
-Implementation: string-template approach — no HTML parser needed; the report
-generator writes the HTML structure directly. A single 400-line
-`HtmlReportWriter.cpp` is sufficient.
-
----
-
-### Wave 6 — Long-term
-
-#### 6.1 LSP server
-
-**Design.** `sde lsp` subcommand. Speaks the Language Server Protocol (LSP) over
-stdio via JSON-RPC 2.0. Zero external dependencies — the transport layer is a
-simple line-delimiter loop over `stdin`/`stdout`.
-
-Messages handled at launch:
-
-| Message | Action |
-|---------|--------|
-| `initialize` | Reply with capabilities: `textDocumentSync`, `hoverProvider`, `definitionProvider`, `diagnosticsProvider`. |
-| `textDocument/didOpen` | Load + validate the opened file; push `publishDiagnostics`. |
-| `textDocument/didChange` | Re-validate; push updated `publishDiagnostics`. |
-| `textDocument/hover` | If cursor is on a Ref field value, look up the target instance and return its schema as hover text. |
-| `textDocument/definition` | If cursor is on a Ref value, return the source location of the target instance's file. |
-| `shutdown` / `exit` | Clean exit. |
-
-The LSP layer is a pure transport wrapper around the existing pipeline. The
-validation logic it calls is identical to `sde validate`.
-
-**Dependencies.** Useful source locations (Wave 2.1) are required for go-to-
-definition to return accurate positions. Without them the server works but
-definition jumps land at line 0.
-
----
-
-#### 6.2 BinaryModelLoader
-
-**Design.** A compact, content-addressed format for shipped builds where JSON
-parse overhead matters.
-
-**File layout:**
-
-```
-[magic: 8 bytes "SDEBIN\0\0"]
-[format_version: uint16]
-[schema_hash: uint64]   ← CRC64 of the schema JSON at compile time
-[string_table_offset: uint32]
-[instance_count: uint32]
-[instances: instance_count × InstanceHeader]
-[string_table: null-terminated strings]
-```
-
-Each `InstanceHeader`:
-
-```
-[modelId_offset: uint32]    ← index into string_table
-[instanceId_offset: uint32]
-[field_count: uint16]
-[fields: field_count × FieldEntry]
-```
-
-Each `FieldEntry`:
-
-```
-[key_offset: uint32]
-[value_kind: uint8]  ← 0=Null, 1=Integer, 2=Number, 3=Bool, 4=Text, 5=Ref, 6=Array, 7=Object
-[value: union depending on kind]
-```
-
-`BinaryModelLoader` implements the abstract `ModelLoader` interface; callers are
-unchanged. The abstract interface already supports this — `Load()` returns
-`vector<ModelInstance>` regardless of source format.
-
-**The schema hash in the header detects format mismatches** — if the schema
-changed since the binary was compiled, the loader emits `SDE_SCHEMA_MISMATCH` and
-returns empty. This prevents silent data corruption when old binaries are loaded
-against new schemas.
-
-**Priority.** Low — JSON is fully sufficient for authoring-time workflows and even
-for shipped builds in projects below 100k instances. Binary format becomes
-relevant when JSON parse time exceeds frame budget on load screens.
-
----
-
-## Dependency graph of open work
-
-```
-Wave 1 (correctness)
-────────────────────
-  1.1 Array/Object compilation      ← standalone, no blockers
-  1.2 EnumRegistry + Rule           ← standalone
-  1.3 Rule JSON declaration         ← standalone
-  1.4 RefIntegrityRule              ← standalone
-
-Wave 2 (quality)
-────────────────
-  2.1 JSON source locations         ← standalone; unblocks LSP (6.1)
-  2.2 Deterministic output          ← standalone; unblocks sde diff (5.2)
-
-Wave 3 (tests)
-──────────────
-  PredicateTests                    ← no blockers
-  ValidatorTests                    ← no blockers
-  RegexRuleTests                    ← no blockers
-  EnumMembershipRuleTests           ← requires 1.2
-  ModelDefinitionTests              ← no blockers
-
-Wave 4 (schema evolution)
-─────────────────────────
-  4.1 Schema migration              ← no blockers; prerequisite for 4.2
-  4.2 Struct field nesting          ← requires 4.1 to be stable
-
-Wave 5 (tooling)
-────────────────
-  5.1 sde watch                     ← no blockers; benefits from incremental recompile later
-  5.2 sde diff                      ← requires 2.2 (deterministic output)
-  5.3 Predicate serialization       ← no blockers; unblocks DSL (6.3)
-  5.4 HTML report                   ← requires 2.1 for useful line numbers
-
-Wave 6 (long-term)
-──────────────────
-  6.1 LSP server                    ← requires 2.1 (source locations)
-  6.2 BinaryModelLoader             ← requires 4.1 (schema hash for mismatch detection)
-  6.3 DSL stage                     ← requires 5.3 (Predicate JSON round-trip)
-  Incremental recompile             ← requires 2.2 (stable identity for dependency graph)
-```
-
----
-
-## Known technical debt
-
-| # | Area | Issue |
-|---|------|-------|
-| 1 | `EnumMembershipRule` | `Apply()` always returns `true`. Needs `EnumRegistry` in `Validator`. |
-| 2 | JSON source locations | All `RawValue::location.line` and `.column` are `0`. nlohmann DOM drops token positions. |
-| 3 | Array/Object compilation | `BuildGraph()` fills slab slots with `CompiledNull`; nested values not recursively compiled. |
-| 4 | Predicate round-trip | `PredicateKind()` exists but `ToJson()` / `FromJson()` are not implemented. |
-| 5 | Rule declaration in JSON | `JsonModelLoader::ParseFieldDefinition()` silently ignores a `"rules"` JSON array. |
-| 6 | `RefIntegrityRule` | Mentioned in early design, never implemented as a per-field Rule. |
-| 7 | Deterministic graph output | `CompiledModelGraph::mInstances` is an `unordered_map`; iteration order is not stable. |
-| 8 | Schema migration | No versioning mechanism. Old instances cannot migrate forward when a schema field changes. |
-
----
-
-## Strict isolation rules
-
-- SDE **must not** include any `SagaEditor/` or `SagaEngine/` header.
-  Verified by `Tools/Scripts/check_tools_isolation.py` (CI gate).
-- SDE depends only on the C++ standard library and `nlohmann_json` (conan dep).
-  nlohmann is isolated to `JsonModelLoader.cpp` and `ModelWriter.cpp` — no public header exposes it.
-- SDE produces a static library (`SDE`). Editor and runtime link it; SDE never links them.
-- The public surface the editor / runtime need: `CompiledModelGraph`, `CompiledInstance`,
-  `CompiledValue`, `Diagnostic`, `CompileState`.
-
-## Repository extraction checklist
-
-When the day comes to split this folder into its own repo:
-
-1. Copy `Tools/SystemDefinitionEngine/` to `<new-repo>/`.
-2. The CMakeLists.txt is already self-contained (`SDE` lib + `sde` binary + `SDETests`).
-3. Run `python3 Tools/Scripts/check_tools_isolation.py` on the new repo to confirm zero
-   forbidden includes.
-4. Add `nlohmann_json/3.11.3` to the standalone conanfile.
-5. Done. No source rewrites. No shared headers.
-
-## Current layout
-
-```
+```txt
 Tools/SystemDefinitionEngine/
-├── SDE_ROADMAP.md
-├── README.md
-├── CMakeLists.txt
-├── include/SDE/
-│   ├── Model/
-│   │   ├── TypeNode.h           ← TypeNodeId handles + TypeRegistry (frozen before pipeline)
-│   │   ├── EnumDefinition.h
-│   │   ├── FieldDefinition.h
-│   │   ├── Relation.h
-│   │   └── ModelDefinition.h
-│   ├── Validation/
-│   │   ├── Diagnostic.h
-│   │   ├── CompileState.h       ← 6-state enum + relational operators
-│   │   ├── ValidationResult.h
-│   │   ├── Predicate.h          ← serializable AST for cross-field conditions
-│   │   ├── Rule.h               ← RangeRule, RegexRule, EnumMembershipRule, CrossFieldRule
-│   │   └── Validator.h          ← RuleRegistry (DI, no singleton) + Validator
-│   ├── IO/
-│   │   ├── ModelLoader.h        ← RawValue (RawInteger/RawNumber distinct), ModelInstance
-│   │   ├── JsonModelLoader.h    ← zero nlohmann symbols in this header
-│   │   └── ModelWriter.h
-│   └── Compilation/
-│       ├── CompiledModelGraph.h ← ValueSlab + compound-key map + CompiledValue variant
-│       ├── ReferenceResolver.h  ← (modelId, instanceId) compound key, DFS cycle detection
-│       └── ModelCompiler.h
-├── src/SDE/                     ← implementations mirror include/
-│   ├── Model/
-│   ├── Validation/
-│   ├── IO/
-│   └── Compilation/
-├── cli/
-│   └── main.cpp                 ← sde validate / sde compile
-└── tests/
-    ├── Model/                   ← TypeRegistryTests
-    ├── Validation/              ← DiagnosticTests, CompileStateTests, RangeRuleTests
-    ├── IO/                      ← RawValueTests, JsonModelLoaderTests
-    ├── Compilation/             ← ReferenceResolverTests, ModelCompilerTests
-    └── Integration/             ← FullPipelineTests
 ```
+
+---
+
+## 4. Dependency Rules
+
+### 4.1 Allowed Dependencies
+
+- [ ] Allow SDE to depend only on standalone compiler-safe libraries.
+
+  Allowed examples:
+
+  ```txt
+  C++ standard library or Rust standard library
+  platform-neutral filesystem utilities
+  parser libraries if explicitly approved
+  serialization libraries if explicitly approved
+  hashing libraries if explicitly approved
+  test framework
+  ```
+
+- [ ] Allow SDE outputs to be consumed by other systems.
+
+  Allowed output consumers:
+
+  ```txt
+  Saga product shell
+  SagaEditor
+  SagaEngine runtime
+  SagaServer
+  SagaCollaboration
+  Forge
+  Prism
+  SagaTools
+  CI/build scripts
+  ```
+
+---
+
+### 4.2 Forbidden Dependencies
+
+- [ ] Prevent SDE from depending on Saga modules.
+
+  Forbidden:
+
+  ```txt
+  SDE → Saga
+  SDE → SagaEngine
+  SDE → SagaEditor
+  SDE → SagaServer
+  SDE → SagaShared
+  SDE → SagaCollaboration
+  SDE → Forge
+  SDE → Prism
+  SDE → SagaTools
+  ```
+
+- [ ] Prevent SDE from depending on editor/runtime implementation details.
+
+  Forbidden examples:
+
+  ```txt
+  SDE includes ECS runtime headers
+  SDE includes editor graph panel headers
+  SDE includes runtime asset registry internals
+  SDE includes collaboration session headers
+  SDE includes Qt headers
+  ```
+
+- [ ] Prevent SDE from becoming a runtime service.
+
+  Done means SDE is invoked as a compiler/tool, not embedded as runtime gameplay logic.
+
+A compiler can be called by tools.
+
+It should not move into the runtime and start making lifestyle choices.
+
+---
+
+## 5. CLI Roadmap
+
+- [ ] Provide stable SDE command-line interface.
+
+  Required commands:
+
+  ```txt
+  sde help
+  sde version
+  sde validate
+  sde compile
+  sde inspect
+  sde format
+  sde doctor
+  ```
+
+- [ ] Provide `sde validate`.
+
+  Done means:
+
+  - source files are parsed,
+  - schema validity is checked,
+  - semantic errors are reported,
+  - no output artifact is emitted unless explicitly requested,
+  - exit code reflects validation success/failure.
+
+- [ ] Provide `sde compile`.
+
+  Done means:
+
+  - source files are parsed,
+  - semantic validation runs,
+  - canonical IR is generated,
+  - deterministic artifacts are emitted,
+  - diagnostics are emitted,
+  - dependency manifest is emitted,
+  - exit code reflects compile success/failure.
+
+- [ ] Provide `sde inspect`.
+
+  Done means users can inspect:
+
+  - source structure,
+  - parsed AST summary,
+  - canonical IR summary,
+  - artifact manifest,
+  - dependency graph,
+  - hash outputs.
+
+- [ ] Provide `sde doctor`.
+
+  Done means doctor checks:
+
+  - compiler executable health,
+  - config validity,
+  - output directory access,
+  - cache directory access,
+  - supported schema version,
+  - basic parse/compile smoke path.
+
+---
+
+## 6. Source Language and Schema Model
+
+- [ ] Define the SDE source language.
+
+  Done means the source language has documented:
+
+  - file extension,
+  - lexical rules,
+  - comments,
+  - identifiers,
+  - literals,
+  - type references,
+  - declarations,
+  - imports/includes,
+  - versioning rules.
+
+Expected docs:
+
+```txt
+Tools/SystemDefinitionEngine/docs/SDE_LANGUAGE.md
+```
+
+- [ ] Define schema declaration model.
+
+  Done means SDE can represent:
+
+  - systems,
+  - components,
+  - resources,
+  - events,
+  - messages,
+  - packages,
+  - graph nodes,
+  - graph edges,
+  - validation rules.
+
+- [ ] Define import and dependency rules.
+
+  Done means:
+
+  - source files can reference other source files,
+  - cycles are detected,
+  - duplicate declarations are rejected,
+  - ambiguous names fail clearly,
+  - dependency graph is deterministic.
+
+---
+
+## 7. Lexer and Parser
+
+- [ ] Add lexer.
+
+  Done means lexer supports:
+
+  - tokens,
+  - identifiers,
+  - keywords,
+  - string literals,
+  - numeric literals,
+  - comments,
+  - source locations,
+  - error recovery where practical.
+
+Expected files:
+
+```txt
+Tools/SystemDefinitionEngine/include/SDE/Lexer/Token.hpp
+Tools/SystemDefinitionEngine/include/SDE/Lexer/Lexer.hpp
+Tools/SystemDefinitionEngine/src/Lexer/Lexer.cpp
+```
+
+- [ ] Add parser.
+
+  Done means parser supports:
+
+  - source files,
+  - declarations,
+  - attributes,
+  - type references,
+  - imports,
+  - graph definitions,
+  - error recovery,
+  - source ranges for diagnostics.
+
+Expected files:
+
+```txt
+Tools/SystemDefinitionEngine/include/SDE/Parser/Parser.hpp
+Tools/SystemDefinitionEngine/include/SDE/Parser/ParseResult.hpp
+Tools/SystemDefinitionEngine/src/Parser/Parser.cpp
+```
+
+- [ ] Add parser tests.
+
+  Required coverage:
+
+  - valid files,
+  - invalid syntax,
+  - missing braces,
+  - invalid identifiers,
+  - nested declarations,
+  - import statements,
+  - diagnostic source ranges.
+
+---
+
+## 8. AST Model
+
+- [ ] Define SDE AST.
+
+  Done means AST can represent:
+
+  - file unit,
+  - declarations,
+  - attributes,
+  - type references,
+  - imports,
+  - graph declarations,
+  - expressions where needed,
+  - source locations.
+
+Expected files:
+
+```txt
+Tools/SystemDefinitionEngine/include/SDE/AST/AstNode.hpp
+Tools/SystemDefinitionEngine/include/SDE/AST/AstFile.hpp
+Tools/SystemDefinitionEngine/include/SDE/AST/AstDeclaration.hpp
+Tools/SystemDefinitionEngine/include/SDE/AST/AstTypeRef.hpp
+Tools/SystemDefinitionEngine/src/AST/AstPrinter.cpp
+```
+
+- [ ] Keep AST compiler-internal.
+
+  Done means AST is not exported as a public Saga runtime/editor contract.
+
+  Forbidden:
+
+  ```txt
+  SagaEngine includes SDE AST headers
+  SagaEditor includes SDE AST headers
+  SagaShared wraps SDE AST nodes
+  ```
+
+- [ ] Add AST debug printer.
+
+  Done means `sde inspect` can print stable AST summaries for debugging and tests.
+
+---
+
+## 9. Semantic Analysis
+
+- [ ] Add symbol table.
+
+  Done means SDE can resolve:
+
+  - declarations,
+  - imports,
+  - type names,
+  - package names,
+  - resource references,
+  - graph node references,
+  - schema references.
+
+Expected files:
+
+```txt
+Tools/SystemDefinitionEngine/include/SDE/Semantic/Symbol.hpp
+Tools/SystemDefinitionEngine/include/SDE/Semantic/SymbolTable.hpp
+Tools/SystemDefinitionEngine/src/Semantic/SymbolTable.cpp
+```
+
+- [ ] Add semantic validator.
+
+  Done means validator catches:
+
+  - duplicate definitions,
+  - unknown references,
+  - invalid type usage,
+  - invalid graph connections,
+  - invalid attributes,
+  - dependency cycles,
+  - incompatible schema versions.
+
+Expected files:
+
+```txt
+Tools/SystemDefinitionEngine/include/SDE/Semantic/SemanticValidator.hpp
+Tools/SystemDefinitionEngine/include/SDE/Semantic/SemanticDiagnostic.hpp
+Tools/SystemDefinitionEngine/src/Semantic/SemanticValidator.cpp
+```
+
+- [ ] Add semantic tests.
+
+  Required coverage:
+
+  - valid schema,
+  - duplicate declarations,
+  - unknown type,
+  - invalid attribute,
+  - invalid graph edge,
+  - dependency cycle,
+  - incompatible version.
+
+---
+
+## 10. Canonical IR
+
+- [ ] Define canonical IR.
+
+  Done means IR is:
+
+  - deterministic,
+  - order-stable,
+  - normalized,
+  - independent from source formatting,
+  - suitable for hashing,
+  - suitable for artifact generation,
+  - suitable for inspection.
+
+Expected files:
+
+```txt
+Tools/SystemDefinitionEngine/include/SDE/IR/IrModule.hpp
+Tools/SystemDefinitionEngine/include/SDE/IR/IrNode.hpp
+Tools/SystemDefinitionEngine/include/SDE/IR/IrType.hpp
+Tools/SystemDefinitionEngine/include/SDE/IR/IrGraph.hpp
+Tools/SystemDefinitionEngine/src/IR/IrBuilder.cpp
+```
+
+- [ ] Add AST-to-IR lowering.
+
+  Done means:
+
+  - AST declarations lower into canonical IR,
+  - imports are resolved,
+  - names are canonicalized,
+  - declaration ordering is stable,
+  - source locations are preserved for diagnostics.
+
+- [ ] Add IR validation.
+
+  Done means IR validator catches:
+
+  - invalid node references,
+  - invalid type ids,
+  - invalid dependency edges,
+  - missing required metadata,
+  - non-canonical ordering.
+
+- [ ] Add IR snapshot tests.
+
+  Done means known source inputs produce stable IR text or JSON snapshots.
+
+---
+
+## 11. Determinism Requirements
+
+- [ ] Make compilation deterministic.
+
+  Done means identical inputs produce identical outputs across:
+
+  - repeated runs,
+  - clean build directories,
+  - different machines where supported,
+  - different filesystem traversal order,
+  - different thread scheduling.
+
+- [ ] Add deterministic ordering rules.
+
+  Done means SDE sorts or canonicalizes:
+
+  - files,
+  - declarations,
+  - imports,
+  - symbols,
+  - graph nodes,
+  - graph edges,
+  - diagnostics where ordering matters,
+  - artifact manifest entries.
+
+- [ ] Add determinism tests.
+
+  Required coverage:
+
+  - same input produces same hash,
+  - input file order does not affect output,
+  - declaration order rules are stable,
+  - generated artifact manifest is stable,
+  - diagnostic order is stable.
+
+If the compiler is not deterministic, every downstream cache becomes a gambling machine with better branding.
+
+---
+
+## 12. Hashing and Stable IDs
+
+- [ ] Add stable hash generation.
+
+  Done means SDE can produce deterministic hashes for:
+
+  - source files,
+  - canonical IR modules,
+  - artifact outputs,
+  - dependency graph,
+  - schema definitions.
+
+Expected files:
+
+```txt
+Tools/SystemDefinitionEngine/include/SDE/Hash/StableHash.hpp
+Tools/SystemDefinitionEngine/include/SDE/Hash/HashManifest.hpp
+Tools/SystemDefinitionEngine/src/Hash/StableHash.cpp
+```
+
+- [ ] Add stable id generation.
+
+  Done means SDE can generate stable ids for:
+
+  - schema ids,
+  - component ids,
+  - resource ids,
+  - graph ids,
+  - node ids,
+  - artifact ids.
+
+- [ ] Document id stability policy.
+
+  Done means docs explain:
+
+  - what changes an id,
+  - what does not change an id,
+  - migration strategy,
+  - version compatibility rules.
+
+Expected docs:
+
+```txt
+Tools/SystemDefinitionEngine/docs/SDE_ID_STABILITY.md
+```
+
+---
+
+## 13. Artifact Emission
+
+- [ ] Add artifact manifest output.
+
+  Done means SDE emits a manifest containing:
+
+  - artifact id,
+  - artifact kind,
+  - source files,
+  - schema version,
+  - content hash,
+  - dependencies,
+  - diagnostics summary,
+  - generated output paths.
+
+Expected files:
+
+```txt
+Tools/SystemDefinitionEngine/include/SDE/Artifacts/ArtifactManifest.hpp
+Tools/SystemDefinitionEngine/include/SDE/Artifacts/ArtifactEmitter.hpp
+Tools/SystemDefinitionEngine/src/Artifacts/ArtifactEmitter.cpp
+```
+
+- [ ] Emit runtime-consumable artifacts.
+
+  Done means artifacts can be consumed by runtime/server/editor integration without requiring SDE internals.
+
+- [ ] Emit diagnostics artifact.
+
+  Done means diagnostics can be consumed by editor Problems panel, Forge, CI, or Saga product workflows.
+
+- [ ] Keep artifact formats versioned.
+
+  Done means every emitted artifact includes:
+
+  - format version,
+  - compiler version,
+  - schema version,
+  - compatibility metadata.
+
+---
+
+## 14. Code Generation
+
+- [ ] Add optional code generation backend.
+
+  Done means SDE can generate code artifacts when explicitly requested.
+
+Possible generated outputs:
+
+```txt
+component registration code
+schema reflection data
+serialization descriptors
+runtime binding descriptors
+editor metadata descriptors
+```
+
+- [ ] Keep generated code deterministic.
+
+  Done means generated code:
+
+  - has stable ordering,
+  - avoids timestamps unless explicitly disabled or separated,
+  - uses stable names,
+  - includes generated-file warning,
+  - includes compiler/schema version.
+
+- [ ] Keep codegen backend independent from engine/editor headers.
+
+  Done means generated code may target Saga runtime conventions, but SDE compiler implementation does not include Saga runtime/editor headers.
+
+Important distinction:
+
+```txt
+SDE may generate code for Saga.
+SDE must not include Saga to generate that code.
+```
+
+This distinction apparently saves entire projects from eating themselves.
+
+---
+
+## 15. Diagnostics
+
+- [ ] Add structured diagnostic system.
+
+  Done means every diagnostic includes:
+
+  - severity,
+  - code,
+  - message,
+  - source file,
+  - source range,
+  - related notes,
+  - recoverability,
+  - phase.
+
+Expected files:
+
+```txt
+Tools/SystemDefinitionEngine/include/SDE/Diagnostics/Diagnostic.hpp
+Tools/SystemDefinitionEngine/include/SDE/Diagnostics/DiagnosticCode.hpp
+Tools/SystemDefinitionEngine/include/SDE/Diagnostics/DiagnosticSeverity.hpp
+Tools/SystemDefinitionEngine/include/SDE/Diagnostics/DiagnosticSink.hpp
+Tools/SystemDefinitionEngine/src/Diagnostics/Diagnostic.cpp
+```
+
+- [ ] Support human-readable diagnostics.
+
+  Done means CLI output shows:
+
+  - file path,
+  - line,
+  - column,
+  - highlighted range where possible,
+  - readable explanation,
+  - suggested fix where safe.
+
+- [ ] Support JSON diagnostics.
+
+  Done means tools and CI can consume diagnostics in a stable machine-readable format.
+
+- [ ] Add diagnostic tests.
+
+  Required coverage:
+
+  - syntax error location,
+  - semantic error location,
+  - duplicate symbol notes,
+  - dependency cycle notes,
+  - JSON diagnostic schema stability.
+
+Diagnostics that say only “invalid definition” should be considered an insult, not a feature.
+
+---
+
+## 16. Incremental Compilation
+
+- [ ] Add dependency graph tracking.
+
+  Done means SDE tracks:
+
+  - source file dependencies,
+  - import dependencies,
+  - schema dependencies,
+  - artifact dependencies,
+  - generated output dependencies.
+
+Expected files:
+
+```txt
+Tools/SystemDefinitionEngine/include/SDE/Incremental/DependencyGraph.hpp
+Tools/SystemDefinitionEngine/include/SDE/Incremental/CompileCache.hpp
+Tools/SystemDefinitionEngine/src/Incremental/DependencyGraph.cpp
+```
+
+- [ ] Add compile cache.
+
+  Done means unchanged inputs can reuse previous results safely.
+
+- [ ] Add invalidation logic.
+
+  Done means changes invalidate:
+
+  - affected source file,
+  - dependent schemas,
+  - dependent artifacts,
+  - generated code outputs.
+
+- [ ] Add incremental compile tests.
+
+  Required coverage:
+
+  - no-change compile reuses cache,
+  - changed file invalidates dependents,
+  - deleted import invalidates dependents,
+  - schema version change invalidates artifacts,
+  - cache corruption is detected.
+
+---
+
+## 17. Formatting
+
+- [ ] Add `sde format`.
+
+  Done means SDE can format source files with:
+
+  - stable indentation,
+  - stable declaration ordering where appropriate,
+  - stable attribute formatting,
+  - preserved comments where supported,
+  - check-only mode for CI.
+
+- [ ] Add formatting tests.
+
+  Required coverage:
+
+  - simple file,
+  - nested declarations,
+  - comments,
+  - attributes,
+  - invalid file handling,
+  - idempotent formatting.
+
+Formatting should be idempotent.
+
+If running the formatter twice changes the file twice, congratulations, you built a slot machine.
+
+---
+
+## 18. Validation Rules
+
+- [ ] Add schema-level validation.
+
+  Done means SDE validates:
+
+  - schema version,
+  - required declarations,
+  - duplicate names,
+  - invalid type references,
+  - invalid dependency declarations,
+  - invalid metadata.
+
+- [ ] Add graph validation.
+
+  Done means SDE validates:
+
+  - node existence,
+  - edge existence,
+  - compatible edge endpoints,
+  - cycles where forbidden,
+  - required inputs,
+  - output type compatibility.
+
+- [ ] Add package/resource validation.
+
+  Done means SDE validates:
+
+  - resource references,
+  - package references,
+  - missing artifacts,
+  - invalid artifact kinds,
+  - incompatible package versions.
+
+---
+
+## 19. Runtime Integration Outputs
+
+- [ ] Emit runtime schema artifacts.
+
+  Done means SagaEngine runtime can consume:
+
+  - component schema ids,
+  - serialization descriptors,
+  - runtime graph artifacts,
+  - resource binding descriptors,
+  - validation metadata.
+
+- [ ] Emit server validation artifacts.
+
+  Done means SagaServer can consume:
+
+  - authority-relevant schema data,
+  - message descriptors,
+  - event descriptors,
+  - validation rules,
+  - deterministic hashes.
+
+- [ ] Keep runtime/server integration output-only.
+
+  Done means runtime/server do not include SDE compiler internals.
+
+Correct flow:
+
+```txt
+SDE emits artifacts.
+Runtime/server consume artifacts.
+```
+
+Incorrect flow:
+
+```txt
+Runtime/server link SDE compiler internals.
+```
+
+---
+
+## 20. Editor Integration Outputs
+
+- [ ] Emit editor metadata artifacts.
+
+  Done means SagaEditor can consume:
+
+  - display names,
+  - categories,
+  - field metadata,
+  - graph node metadata,
+  - validation diagnostics,
+  - source location mappings.
+
+- [ ] Support editor Problems panel integration.
+
+  Done means SDE diagnostics can be shown in editor without editor including SDE parser/AST internals.
+
+- [ ] Support editor graph tooling through artifacts.
+
+  Done means editor graph surfaces consume stable metadata/artifacts rather than compiler internals.
+
+---
+
+## 21. Forge Integration
+
+- [ ] Allow Forge to invoke SDE as a compiler step.
+
+  Done means Forge can:
+
+  - run SDE validate,
+  - run SDE compile,
+  - collect SDE diagnostics,
+  - consume artifact manifests,
+  - fail builds when SDE compilation fails.
+
+- [ ] Keep Forge as build frontend, not SDE owner.
+
+  Done means Forge does not own:
+
+  - SDE parser,
+  - SDE AST,
+  - SDE IR,
+  - SDE semantic rules,
+  - SDE codegen.
+
+Forge can run SDE.
+
+Forge does not become SDE.
+
+Tiny distinction. Massive consequences.
+
+---
+
+## 22. Prism Integration
+
+- [ ] Allow Prism to consume SDE outputs for code intelligence.
+
+  Done means Prism can use:
+
+  - source maps,
+  - symbol information,
+  - dependency graphs,
+  - artifact manifests,
+  - schema metadata.
+
+- [ ] Keep Prism as code intelligence, not compiler truth.
+
+  Done means Prism does not own:
+
+  - SDE parsing truth,
+  - SDE semantic validation truth,
+  - SDE artifact emission,
+  - SDE hash/id policy.
+
+Prism may index and analyze.
+
+SDE compiles.
+
+Nobody gets to steal the other tool’s job and call it “integration”.
+
+---
+
+## 23. SagaTools Integration
+
+- [ ] Allow SagaTools to dispatch SDE commands.
+
+  Example commands:
+
+  ```txt
+  sagatools sde validate <schema>
+  sagatools sde compile <schema> --out <dir>
+  sagatools sde inspect <artifact>
+  sagatools sde doctor
+  ```
+
+- [ ] Keep SagaTools as dispatcher only.
+
+  Done means SagaTools does not include:
+
+  - SDE parser,
+  - SDE AST,
+  - SDE semantic analyzer,
+  - SDE codegen,
+  - SDE compile cache.
+
+---
+
+## 24. Build and CI Integration
+
+- [ ] Add SDE compile step to build workflows where needed.
+
+  Done means build can fail on:
+
+  - syntax errors,
+  - semantic errors,
+  - invalid graph definitions,
+  - artifact generation failure,
+  - deterministic hash mismatch.
+
+- [ ] Add CI validation command.
+
+  Required command:
+
+  ```txt
+  sde validate --workspace <path>
+  ```
+
+- [ ] Add CI compile command.
+
+  Required command:
+
+  ```txt
+  sde compile --workspace <path> --out <dir>
+  ```
+
+- [ ] Add deterministic output check.
+
+  Done means CI can verify that repeated compile produces identical output.
+
+---
+
+## 25. Configuration
+
+- [ ] Add SDE configuration file support.
+
+  Done means config can define:
+
+  - source roots,
+  - include paths,
+  - output path,
+  - artifact format,
+  - enabled backends,
+  - warning levels,
+  - strictness mode,
+  - cache path.
+
+Expected files:
+
+```txt
+Tools/SystemDefinitionEngine/include/SDE/Config/SdeConfig.hpp
+Tools/SystemDefinitionEngine/include/SDE/Config/ConfigLoader.hpp
+Tools/SystemDefinitionEngine/src/Config/ConfigLoader.cpp
+```
+
+- [ ] Add command-line config override.
+
+  Done means CLI flags can override config fields in a documented and deterministic way.
+
+- [ ] Add config validation.
+
+  Done means invalid config fails before compile begins.
+
+---
+
+## 26. Artifact Formats
+
+- [ ] Define JSON artifact output for inspection and tooling.
+
+  Done means JSON output is:
+
+  - versioned,
+  - deterministic,
+  - schema-documented,
+  - stable enough for tools.
+
+- [ ] Define binary artifact output for runtime where needed.
+
+  Done means binary output is:
+
+  - versioned,
+  - endian-aware where required,
+  - deterministic,
+  - validated on load,
+  - documented.
+
+- [ ] Add artifact compatibility policy.
+
+  Done means docs explain:
+
+  - compatible changes,
+  - incompatible changes,
+  - migration rules,
+  - version rejection behavior.
+
+Expected docs:
+
+```txt
+Tools/SystemDefinitionEngine/docs/SDE_ARTIFACT_FORMATS.md
+```
+
+---
+
+## 27. Error and Exit Code Policy
+
+- [ ] Define stable SDE exit codes.
+
+  Required categories:
+
+  ```txt
+  0   success
+  1   general failure
+  2   invalid arguments
+  3   config error
+  4   parse error
+  5   semantic error
+  6   validation error
+  7   artifact emission error
+  8   dependency cycle
+  9   cache error
+  10  internal compiler error
+  ```
+
+- [ ] Keep internal compiler errors distinct.
+
+  Done means compiler bugs are reported separately from user-authored schema errors.
+
+There is a difference between “your file is wrong” and “the compiler tripped over its own shoelaces”.
+
+The user deserves to know which disaster occurred.
+
+---
+
+## 28. Logging
+
+- [ ] Add compiler logging.
+
+  Done means logs can include:
+
+  - compile phase,
+  - file count,
+  - dependency count,
+  - cache hit/miss,
+  - artifact count,
+  - elapsed time,
+  - diagnostics count.
+
+- [ ] Keep normal CLI output readable.
+
+  Done means normal output avoids dumping internal compiler noise unless `--verbose` is enabled.
+
+- [ ] Support machine-readable logging where needed.
+
+  Done means CI can consume compile summary in JSON mode.
+
+---
+
+## 29. Performance
+
+- [ ] Define performance targets.
+
+  Done means SDE tracks:
+
+  - parse time,
+  - semantic analysis time,
+  - IR generation time,
+  - artifact emission time,
+  - cache load/save time,
+  - total compile time.
+
+- [ ] Add performance diagnostics.
+
+  Done means `--verbose` or `--profile` can show phase timings.
+
+- [ ] Add large-project compile test.
+
+  Done means SDE can compile a representative large schema set within acceptable time and memory bounds.
+
+---
+
+## 30. Testing Roadmap
+
+### 30.1 Unit Tests
+
+- [ ] Add lexer tests.
+
+- [ ] Add parser tests.
+
+- [ ] Add AST tests.
+
+- [ ] Add semantic validator tests.
+
+- [ ] Add IR builder tests.
+
+- [ ] Add hashing tests.
+
+- [ ] Add artifact emitter tests.
+
+- [ ] Add diagnostic formatting tests.
+
+- [ ] Add config loader tests.
+
+---
+
+### 30.2 Snapshot Tests
+
+- [ ] Add AST snapshot tests.
+
+- [ ] Add IR snapshot tests.
+
+- [ ] Add artifact manifest snapshot tests.
+
+- [ ] Add diagnostic JSON snapshot tests.
+
+Generated outputs must be stable.
+
+Otherwise “snapshot test” becomes “today’s random nonsense with brackets”.
+
+---
+
+### 30.3 Integration Tests
+
+- [ ] Add full compile integration test.
+
+  Done means:
+
+  - input source parses,
+  - semantics pass,
+  - IR emits,
+  - artifacts emit,
+  - manifest emits,
+  - diagnostics are empty or expected.
+
+- [ ] Add invalid project integration test.
+
+  Done means invalid input produces stable diagnostics and non-zero exit code.
+
+- [ ] Add incremental compile integration test.
+
+- [ ] Add generated code integration test where codegen exists.
+
+---
+
+### 30.4 Determinism Tests
+
+- [ ] Add repeated compile determinism test.
+
+- [ ] Add shuffled input order determinism test.
+
+- [ ] Add clean directory determinism test.
+
+- [ ] Add cache/no-cache equivalence test.
+
+- [ ] Add generated output hash test.
+
+---
+
+## 31. CI Requirements
+
+- [ ] Add SDE unit tests to CI.
+
+- [ ] Add SDE integration tests to CI.
+
+- [ ] Add SDE deterministic output tests to CI.
+
+- [ ] Add SDE dependency boundary checks to CI.
+
+Required forbidden dependency checks:
+
+```txt
+Tools/SystemDefinitionEngine/** must not include Saga/**
+Tools/SystemDefinitionEngine/** must not include Engine/**
+Tools/SystemDefinitionEngine/** must not include Editor/**
+Tools/SystemDefinitionEngine/** must not include Server/**
+Tools/SystemDefinitionEngine/** must not include Shared/**
+Tools/SystemDefinitionEngine/** must not include Collaboration/**
+Tools/SystemDefinitionEngine/** must not include Tools/Forge/**
+Tools/SystemDefinitionEngine/** must not include Tools/Prism/**
+Tools/SystemDefinitionEngine/** must not include Tools/SagaTools/**
+```
+
+- [ ] Add artifact compatibility check.
+
+  Done means incompatible artifact format changes fail or require explicit version bump.
+
+---
+
+## 32. Recommended File Layout
+
+Recommended target layout:
+
+```txt
+Tools/SystemDefinitionEngine/
+  SDE_ROADMAP.md
+  README.md
+  CMakeLists.txt or Cargo.toml
+
+Tools/SystemDefinitionEngine/docs/
+  SDE_LANGUAGE.md
+  SDE_ARTIFACT_FORMATS.md
+  SDE_ID_STABILITY.md
+  SDE_DIAGNOSTICS.md
+
+Tools/SystemDefinitionEngine/include/SDE/
+  Compiler.hpp
+  CompileRequest.hpp
+  CompileResult.hpp
+
+Tools/SystemDefinitionEngine/include/SDE/Lexer/
+  Token.hpp
+  Lexer.hpp
+
+Tools/SystemDefinitionEngine/include/SDE/Parser/
+  Parser.hpp
+  ParseResult.hpp
+
+Tools/SystemDefinitionEngine/include/SDE/AST/
+  AstNode.hpp
+  AstFile.hpp
+  AstDeclaration.hpp
+  AstTypeRef.hpp
+
+Tools/SystemDefinitionEngine/include/SDE/Semantic/
+  Symbol.hpp
+  SymbolTable.hpp
+  SemanticValidator.hpp
+
+Tools/SystemDefinitionEngine/include/SDE/IR/
+  IrModule.hpp
+  IrNode.hpp
+  IrType.hpp
+  IrGraph.hpp
+
+Tools/SystemDefinitionEngine/include/SDE/Artifacts/
+  ArtifactManifest.hpp
+  ArtifactEmitter.hpp
+
+Tools/SystemDefinitionEngine/include/SDE/Diagnostics/
+  Diagnostic.hpp
+  DiagnosticCode.hpp
+  DiagnosticSeverity.hpp
+  DiagnosticSink.hpp
+
+Tools/SystemDefinitionEngine/include/SDE/Incremental/
+  DependencyGraph.hpp
+  CompileCache.hpp
+
+Tools/SystemDefinitionEngine/src/
+  main.cpp or main.rs
+  Compiler.cpp
+  Lexer/
+  Parser/
+  AST/
+  Semantic/
+  IR/
+  Artifacts/
+  Diagnostics/
+  Incremental/
+  Config/
+  Hash/
+
+Tools/SystemDefinitionEngine/tests/
+  LexerTests.cpp
+  ParserTests.cpp
+  SemanticTests.cpp
+  IrTests.cpp
+  ArtifactTests.cpp
+  DeterminismTests.cpp
+  IntegrationTests.cpp
+```
+
+This layout is illustrative.
+
+The ownership rule is not illustrative.
+
+SDE owns SDE.
+
+---
+
+## 33. Migration Plan
+
+- [ ] Remove any dependency from SDE to Saga modules.
+
+- [ ] Move SDE-specific logic out of SagaTools if it exists there.
+
+- [ ] Move build workflow behavior out of SDE and into Forge where appropriate.
+
+- [ ] Move code intelligence behavior out of SDE and into Prism where appropriate.
+
+- [ ] Keep artifact contracts stable and documented.
+
+- [ ] Add dependency boundary checks.
+
+- [ ] Add deterministic compile tests before relying on SDE artifacts in runtime/editor workflows.
+
+---
+
+## 34. Non-Goals
+
+SDE does not own:
+
+- Saga product shell,
+- editor graph panel UI,
+- editor Problems panel UI,
+- runtime ECS implementation,
+- server authority,
+- collaboration sessions,
+- build frontend UX,
+- code intelligence database,
+- tool dispatch,
+- asset importer UI,
+- package publishing service.
+
+Related ownership:
+
+| Area | Owner |
+|---|---|
+| Product shell | `Saga` |
+| Editor UI | `SagaEditor` |
+| Runtime/server consumption | `SagaEngine` / `SagaServer` |
+| Shared artifact references | `SagaShared` |
+| Collaboration implementation | `SagaCollaboration` |
+| Build frontend | `Forge` |
+| Code intelligence | `Prism` |
+| Tool dispatch | `SagaTools` |
+
+---
+
+## 35. Production Definition of Done
+
+- [ ] SDE is standalone and does not depend on Saga modules.
+
+- [ ] SDE CLI supports validate, compile, inspect, format, and doctor.
+
+- [ ] Source language is documented.
+
+- [ ] Lexer and parser are tested.
+
+- [ ] AST is compiler-internal.
+
+- [ ] Semantic analysis catches invalid definitions.
+
+- [ ] Canonical IR is deterministic.
+
+- [ ] Stable hashes and ids are generated.
+
+- [ ] Artifact manifests are emitted.
+
+- [ ] Runtime/editor/server/tools consume outputs without importing compiler internals.
+
+- [ ] Diagnostics are structured, readable, and machine-readable.
+
+- [ ] Incremental compilation is safe and deterministic.
+
+- [ ] Formatting is idempotent.
+
+- [ ] Artifact formats are versioned.
+
+- [ ] Exit codes are stable.
+
+- [ ] CI verifies tests, determinism, and dependency boundaries.
+
+---
+
+## 36. Final Architecture Rule
+
+SDE should remain:
+
+```txt
+standalone,
+deterministic,
+boring in output,
+strict in validation,
+clear in diagnostics,
+and impossible to confuse with runtime/editor/product ownership.
+```
+
+It should know:
+
+```txt
+how to parse definitions,
+how to validate them,
+how to lower them into canonical IR,
+how to emit artifacts,
+how to explain failure.
+```
+
+It should not know:
+
+```txt
+how the editor draws panels,
+how the runtime simulates entities,
+how the server owns authority,
+how Saga opens projects,
+how Forge builds packages,
+how Prism indexes code,
+or how SagaTools dispatches commands.
+```
+
+A compiler that keeps its boundaries is useful.
+
+A compiler that imports the entire engine is just a hostage situation with better type names.

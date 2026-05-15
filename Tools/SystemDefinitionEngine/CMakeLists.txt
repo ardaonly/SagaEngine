@@ -13,9 +13,9 @@
 #   (A) Conan package
 #       conan create Tools/SystemDefinitionEngine
 #       # downstream:
-#       self.requires("sde/0.1.0")
+#       self.requires("sde/0.1.1")
 #       find_package(SDE CONFIG REQUIRED)
-#       target_link_libraries(<tgt> PRIVATE SDE::SDE)
+#       target_link_libraries(<tgt> PRIVATE SDE::Core)
 #
 #   (B) Standalone install
 #       cmake -S Tools/SystemDefinitionEngine -B build/sde -DCMAKE_INSTALL_PREFIX=<prefix>
@@ -26,7 +26,7 @@
 cmake_minimum_required(VERSION 3.22)
 
 project(SDE
-    VERSION     0.1.0
+    VERSION     0.1.1
     LANGUAGES   CXX
     DESCRIPTION "Model definition, validation, and compilation pipeline"
 )
@@ -68,12 +68,13 @@ file(GLOB_RECURSE SDE_SOURCES CONFIGURE_DEPENDS
 )
 
 add_library(SDE STATIC ${SDE_SOURCES})
-add_library(SDE::SDE ALIAS SDE)
+add_library(SDE::Core ALIAS SDE)
+add_library(SDE::SDE ALIAS SDE) # Pre-1.0 compatibility alias.
 
 set_target_properties(SDE PROPERTIES
     POSITION_INDEPENDENT_CODE ON
     FOLDER                    "Tools"
-    EXPORT_NAME               SDE
+    EXPORT_NAME               Core
     VERSION                   ${PROJECT_VERSION}
     SOVERSION                 ${PROJECT_VERSION_MAJOR}
 )
@@ -88,7 +89,7 @@ target_include_directories(SDE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-target_link_libraries(SDE PUBLIC nlohmann_json::nlohmann_json)
+target_link_libraries(SDE PRIVATE nlohmann_json::nlohmann_json)
 
 if(MSVC)
     target_compile_options(SDE PRIVATE /W4 /permissive- /utf-8)
@@ -104,7 +105,10 @@ if(SDE_BUILD_CLI)
         OUTPUT_NAME "sde"
         FOLDER      "Tools"
     )
-    target_link_libraries(sde-cli PRIVATE SDE::SDE)
+    target_link_libraries(sde-cli PRIVATE
+        SDE::Core
+        nlohmann_json::nlohmann_json
+    )
     if(MSVC)
         target_compile_options(sde-cli PRIVATE /W4 /permissive- /utf-8)
     else()
@@ -125,7 +129,7 @@ if(SDE_BUILD_TESTS)
     if(SDE_TEST_SOURCES)
         add_executable(SDETests ${SDE_TEST_SOURCES})
         target_link_libraries(SDETests PRIVATE
-            SDE::SDE
+            SDE::Core
             GTest::gtest
             GTest::gtest_main
         )
@@ -154,6 +158,7 @@ if(SDE_INSTALL)
     install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/SDE"
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
             FILES_MATCHING PATTERN "*.h"
+            PATTERN "CompilerSession.h" EXCLUDE
     )
 
     if(SDE_BUILD_CLI)

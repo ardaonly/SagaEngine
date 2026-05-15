@@ -17,6 +17,7 @@ namespace SDE
 {
 
 class TypeRegistry;
+class EnumRegistry;
 
 // ─── JsonModelLoader ──────────────────────────────────────────────────────────
 
@@ -44,7 +45,8 @@ public:
     [[nodiscard]] static std::optional<ModelDefinition> LoadDefinition(
         const std::string&       path,
         TypeRegistry&            types,
-        std::vector<Diagnostic>& outDiagnostics);
+        std::vector<Diagnostic>& outDiagnostics,
+        EnumRegistry*            enumRegistry = nullptr);
 };
 
 } // namespace SDE

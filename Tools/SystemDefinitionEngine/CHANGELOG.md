@@ -6,6 +6,39 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.1.1] — 2026-05-13
+
+### Added
+
+- `SDE::Core` canonical CMake package target. `SDE::SDE` remains available as a
+  pre-1.0 compatibility alias.
+- Project-level compiler facade with `SharedRegistrySet`, `CompilerSession`, and
+  `CompileContext`.
+- Cooperative cancellation token support for compiler integrations.
+- Version, dependency manifest, and stable hashing surfaces for schema, data,
+  dependency, compiled graph, and artifact identity.
+- `EnumRegistry` with schema-loaded enum declarations and enum membership
+  validation.
+- Structured diagnostic categories, source ranges, deterministic sorting, and
+  metadata for editor/CI integration.
+
+### Changed
+
+- CLI validation and compilation now use the public compiler facade.
+- `RuleId()` identifies rule behavior, while emitted diagnostic codes remain
+  separate machine-readable output.
+- Compiled graph instance storage is deterministic.
+- Array and object fields are recursively compiled instead of producing null
+  placeholders for nested values.
+- `nlohmann_json` is now an implementation dependency and is not exposed through
+  public headers.
+
+### Verified
+
+- Manual SDE test binary: 76/76 tests passed.
+- Manual CLI smoke compile produced deterministic compiled graph and artifact
+  hashes.
+
 ## [0.1.0] — 2026-05-08
 
 ### Added
@@ -17,10 +50,10 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   structural rewrite.
 - **CMake export config** — installs `SDEConfig.cmake`, `SDEConfigVersion.cmake`,
   and `SDETargets.cmake` so downstream projects can use
-  `find_package(SDE CONFIG REQUIRED)` and link against `SDE::SDE`.
+  `find_package(SDE CONFIG REQUIRED)` and link against `SDE::Core`.
 - **Conan recipe** — `conan create Tools/SystemDefinitionEngine` publishes
   `sde/0.1.0` to the local Conan cache. The recipe declares
-  `nlohmann_json/3.11.3` as the only public dependency (`gtest/1.14.0` is a
+  `nlohmann_json/3.11.3` as the only dependency (`gtest/1.14.0` is a
   test-only requirement).
 - **Bootstrap installer** — `python3 build.py` orchestrates Conan install +
   CMake configure + build + optional install. `--conan-create` shortcut

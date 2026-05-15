@@ -26,7 +26,7 @@
 #   --jobs <n> | -j   Parallel build jobs
 #   --install-prefix  Run cmake --install with the given prefix afterwards
 #   --conan-create    Run `conan create .` instead of build/install (publishes
-#                     sde/0.1.0 to the local Conan cache)
+#                     sde/0.1.1 to the local Conan cache)
 #
 # The script depends only on the Python 3 standard library; cmake (and conan,
 # for the default flow) must be on PATH.
