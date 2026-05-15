@@ -6,15 +6,74 @@
 #include "Forge/ProcessRunner.h"
 #include "Forge/ToolEnv.h"
 
+#include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 
 namespace Forge
 {
 
 namespace
 {
+
+std::string LowerCopy(std::string value)
+{
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c)
+    {
+        return static_cast<char>(std::tolower(c));
+    });
+    return value;
+}
+
+bool ContainsQtToken(const std::string& text)
+{
+    const std::string lower = LowerCopy(text);
+    return lower.find("qt/") != std::string::npos
+        || lower.find("\"qt\"") != std::string::npos
+        || lower.find("'qt'") != std::string::npos;
+}
+
+bool HasHeavyDependency(const BuildModel& model)
+{
+    for (const auto& dep : model.deps)
+    {
+        if (LowerCopy(dep.name) == "qt")
+            return true;
+    }
+
+    std::error_code ec;
+    if (!std::filesystem::exists("conanfile.py", ec))
+        return false;
+
+    std::ifstream conanfile("conanfile.py");
+    if (!conanfile)
+        return false;
+
+    const std::string text((std::istreambuf_iterator<char>(conanfile)),
+                           std::istreambuf_iterator<char>());
+    return ContainsQtToken(text);
+}
+
+void LogJobPlan(const JobPlan& plan)
+{
+    std::cerr << "[forge/scheduler] install"
+              << " jobs=" << plan.finalJobs
+              << " requested=" << (plan.requestedJobs == 0 ? std::string("auto") : std::to_string(plan.requestedJobs))
+              << " detected=" << plan.detectedJobs
+              << " safety_limit=" << plan.safetyLimit
+              << " cpu=" << plan.hardware.cpuCores
+              << " ram_gb=" << BuildScheduler::BytesToGB(plan.hardware.totalRamBytes);
+    if (plan.heavyDependency) std::cerr << " heavy=qt";
+    if (plan.clamped) std::cerr << " clamped=yes";
+    if (plan.forceUnsafeJobs && plan.requestedJobs > 0) std::cerr << " unsafe=yes";
+    std::cerr << "\n";
+
+    if (plan.forceUnsafeJobs && plan.requestedJobs > 0)
+        std::cerr << "[forge/scheduler] warning: --force-unsafe-jobs bypasses memory and CPU safety clamps.\n";
+}
 
 void WriteLock(const std::string&                  mode,
                const ConanAdapter::ProfileOptions& profileOpts,
@@ -92,10 +151,15 @@ int ConanAdapter::Install(const BuildModel&               model,
         return 0;
     }
 
-    // Apply job scaling (Safe mode by default).
-    const uint32_t jobs = BuildScheduler::CalculateJobs(SchedulingPolicy::Safe, model.build.jobs);
+    const JobPlan plan = BuildScheduler::PlanJobs({
+        SchedulingPolicy::Safe,
+        model.build.jobs,
+        model.build.forceUnsafeJobs,
+        HasHeavyDependency(model),
+    });
+    LogJobPlan(plan);
     args.emplace_back("-c");
-    args.emplace_back("tools.system.build:jobs=" + std::to_string(jobs));
+    args.emplace_back("tools.build:jobs=" + std::to_string(plan.finalJobs));
 
     for (const auto& e : extra) args.push_back(e);
 

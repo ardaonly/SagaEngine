@@ -1,120 +1,137 @@
-## Forge Purpose and Boundaries
+# Forge
 
-Forge exists to remove the repetitive friction from everyday C++ development without replacing the underlying build ecosystem.
+> Standalone build workflow tool for C++ projects that use CMake and Conan.
 
-Its job is to provide a single, predictable developer interface for:
+Forge removes repetitive build friction without replacing the tools that already
+define a C++ project. CMake owns the build graph. Conan owns dependency
+resolution. The compiler owns compilation semantics. Forge coordinates the
+normal sequence around them through one predictable command line.
+
+Forge is Apache-2.0 under Arda Koyuncu. This directory is the standalone Forge
+source root and can be exported as its own repository.
+
+---
+
+## Quick Start
+
+Build Forge:
+
+```sh
+python3 Tools/Forge/build.py
+```
+
+The binary is staged at `Tools/Forge/bin/forge`. Add that directory to `PATH`,
+or invoke the binary directly.
+
+Create or update a CMake project:
+
+```sh
+forge init
+forge add fmt@10.2.1
+forge install
+forge configure
+forge build
+```
+
+When you need direct backend control, use the escape hatch:
+
+```sh
+forge run conan install . --build=missing
+forge run cmake --build build --target MyGame
+```
+
+---
+
+## What Forge Owns
+
+Forge provides a consistent interface for:
+
 - dependency installation,
 - project configuration,
 - builds,
 - test execution,
-- and toolchain enforcement.
+- install targets,
+- formatting,
+- environment reporting,
+- and strict toolchain validation.
 
 Forge is intentionally not:
+
 - a replacement for CMake,
 - a replacement for Conan,
 - a package registry,
 - a new build language,
+- a plugin host,
 - or a general-purpose task runner.
 
-Forge is Apache-2.0 under Arda Koyuncu. The SagaEngine monorepo is the
-canonical source; standalone Forge repositories are mirrors or release exports.
-
-The project succeeds only if it:
-- reduces the number of commands required for normal development,
-- preserves escape hatches for advanced users,
-- stays backend-neutral internally,
-- and remains extractable as a standalone tool.
-
-If a feature does not improve day-to-day developer workflow, reproducibility, or backend portability, it does not belong in Forge.
-
-Forge is an orchestration layer for CMake and Conan designed to provide a consistent, Cargo-inspired workflow for C++ projects. It wraps CMake and Conan under a single, ergonomic command set designed to collapse the everyday build sequence — dependency resolution, project configuration, and compilation — into predictable commands while preserving full access to the underlying tools.
-
-Forge is not a replacement for CMake or Conan. It is an orchestration layer that sits above them. Complex build logic stays in CMake; dependency declarations stay in `conanfile.py` or `forge.toml`; Forge coordinates the workflow.
-
-Forge owns workflow coordination and execution policy.
-
-CMake owns build graph generation.
-Conan owns dependency resolution.
-The compiler owns compilation semantics.
-Forge coordinates these systems into a reproducible developer workflow.
+If a feature does not improve day-to-day developer workflow, reproducibility, or
+backend portability, it does not belong in Forge.
 
 ---
 
-## Architecture
+## Command Levels
 
 Forge exposes three levels of control:
 
 | Level | Example |
 |-------|---------|
-| High-level | `forge install --profile windows-msvc` / `forge build` |
-| Intermediate | `forge build --config Debug --target SagaEditor` |
-| Low-level | `forge run cmake --build build --target SagaEngine` |
+| High-level | `forge add raylib@5.0` / `forge install` / `forge build` |
+| Intermediate | `forge build --config Debug --target MyGame` |
+| Low-level | `forge run cmake --build build --target MyGame` |
 
-At its core, Forge maintains an internal, backend-neutral build model. The `forge.toml` manifest is not passed directly to CMake or Conan; it is first resolved into this intermediate representation and then lowered into concrete backend invocations. This keeps the CLI surface stable even if backends change in the future.
+The low-level path is deliberate. Forge should reduce the default command
+sequence, not hide CMake or Conan from the project.
+
+---
+
+## Examples
+
+Small examples live under `examples/`.
+
+| Example | Purpose |
+|---------|---------|
+| `examples/hello-cmake` | Minimal CMake project with no dependencies. |
+| `examples/raylib-conan` | Small raylib project using `forge add`, `forge install`, CMake, and Conan together. |
+
+Typical example flow after `forge` is on `PATH`:
+
+```sh
+cd Tools/Forge/examples/hello-cmake
+forge configure
+forge build
+forge run ./build/hello-cmake
+```
+
+For the raylib example:
+
+```sh
+cd Tools/Forge/examples/raylib-conan
+forge add raylib@5.0
+forge install
+forge configure
+forge build
+```
 
 ---
 
 ## Directory Layout
 
-```
+```text
 Tools/Forge/
-├── FORGE_ROADMAP.md   — development status, shipped and open items
-├── README.md          — this file
-└── tool/              — standalone Forge binary source
-    ├── CMakeLists.txt — self-contained build (no Conan, no marker file)
-    ├── include/Forge/ — public headers (Manifest, ProcessRunner)
-    ├── src/           — CLI implementation
-    └── build.py       — Python 3 bootstrap installer
+├── CMakeLists.txt          standalone Forge build
+├── README.md               this file
+├── FORGE_ROADMAP.md        development status
+├── SCHEMA.md               forge.toml schema reference
+├── build.py                Python bootstrap installer
+├── build.cmd               Windows bootstrap shim
+├── include/Forge/          public internal headers
+├── src/                    CLI and backend adapters
+└── examples/               small usage examples
 ```
 
-The `tool/` subtree is the entirety of Forge. It contains no SagaEngine headers, no references to `SagaEngineRoot.marker`, and no third-party library dependencies. The contents of `tool/` can become a standalone repository root without any structural rewrite.
-
-Engine build infrastructure (CMakeLists.txt, CMakePresets.json, conanfile.py, profiles/, cmake/modules/) lives at the repository root. It describes how SagaEngine is built; it is not part of Forge.
-
----
-
-## Building Forge
-
-Prerequisites: Python 3 (stdlib only), CMake 3.22 or later.
-
-```sh
-python3 Tools/Forge/tool/build.py
-```
-
-This configures and builds Forge using the system CMake, then stages the binary to `Tools/Forge/tool/bin/forge`. Add that directory to `PATH` or copy the binary to a location already on `PATH`.
-
-Options: `--debug`, `--clean`, `--jobs <n>`.
-
----
-
-## Using Forge with SagaEngine
-
-The engine root contains a `forge.toml` that declares the project and toolchain pins. The dependency graph is managed by `conanfile.py`. The recommended workflow:
-
-**Windows (from the repository root):**
-
-```powershell
-# Initializes MSVC environment and delegates to forge
-.\build.ps1 install --profile windows-msvc
-.\build.ps1 configure --preset windows-msvc-14.38
-.\build.ps1 build
-```
-
-**Linux / macOS (forge must be on PATH):**
-
-```sh
-forge install
-forge configure --preset <preset-name>
-forge build
-```
-
-**All platforms (low-level, explicit):**
-
-```sh
-forge run conan install . --profile:host=profiles/windows-msvc --profile:build=profiles/windows-build --build=missing
-forge configure --preset windows-msvc-14.38
-forge build
-```
+Project-specific build infrastructure such as the engine root `CMakeLists.txt`,
+`CMakePresets.json`, `conanfile.py`, profiles, and custom CMake modules belongs
+to the consuming repository. It is not part of Forge.
 
 ---
 
@@ -122,33 +139,78 @@ forge build
 
 | Command | Description |
 |---------|-------------|
-| `forge new <dir>` | Scaffold a new project |
+| `forge new <dir>` | Scaffold a new CMake project |
 | `forge init` | Write `forge.toml` in the current directory |
-| `forge add <pkg>[@<ver>]` | Append a dependency to `forge.toml` |
+| `forge add <pkg>[@<ver>]` | Append or update a dependency in `forge.toml` |
 | `forge install [--profile <name>]` | Install dependencies via Conan |
 | `forge configure [--preset=NAME]` | Configure via CMake |
 | `forge build [--target=NAME] [--config=Release]` | Build via CMake |
+| `forge test [--label=LABEL]` | Run CTest |
+| `forge install-target [--prefix=DIR]` | Run `cmake --install` |
+| `forge presets [build\|test\|configure]` | List CMake presets |
+| `forge fmt [--source=DIR]` | Run clang-format over project sources |
+| `forge env [--json]` | Print detected tool versions |
 | `forge clean` | Remove the build directory |
-| `forge run <executable> [args]` | Escape hatch: run any binary on PATH |
-| `forge --version` | Print Forge version |
-| `forge --help` | Print usage |
+| `forge run <executable> [args]` | Run any binary on `PATH` explicitly |
 
-`--strict` is accepted by every build and install command. It will enforce toolchain pin verification once that roadmap item ships.
+`--strict` enables CI-oriented validation for toolchain pins and manifest
+sections. `--explain` prints the backend command without executing it where
+supported.
+
+---
+
+## Repository Integration: SagaEngine
+
+SagaEngine uses Forge as its preferred build interface. The engine root owns its
+own `forge.toml`, `conanfile.py`, profiles, presets, and CMake modules.
+
+Windows from a Visual Studio Developer PowerShell:
+
+```powershell
+forge install --profile windows-msvc
+forge configure --preset windows-msvc-14.38
+forge build
+```
+
+The repository root `build.ps1` is only a legacy compatibility wrapper. It is not
+the preferred Windows entrypoint.
+
+Linux / macOS after Forge is on `PATH`:
+
+```sh
+forge install
+forge configure --preset <preset-name>
+forge build
+```
+
+Forge uses conservative resource-aware scheduling by default. Engine repositories
+can also pin a lower default with `[build] jobs = 2`; users may request a higher
+count with `--jobs=N`, but Forge still clamps it through CPU/RAM safety limits.
+Use `--force-unsafe-jobs` only for deliberate local experiments where memory
+pressure is acceptable.
+
+On NixOS, run project toolchain commands from `nix-shell`, or use the explicit
+wrapper form:
+
+```sh
+forge nix install --profile linux-gcc
+```
+
+Normal `forge install/configure/build` commands fail fast outside `nix-shell`
+instead of silently re-entering the environment. This keeps recursion, CI, and
+environment drift visible.
 
 ---
 
 ## Isolation Guarantee
 
-Forge satisfies the following invariants. Any violation blocks merge:
+Forge satisfies these invariants:
 
-- No `#include` of any SagaEngine, SagaEditor, SagaServer, or SagaPrism header.
-- No walk-up search for `SagaEngineRoot.marker` or any engine-specific marker file.
-- No linkage against any third-party library; the `forge` binary depends only on the C++ standard library.
-- No reading of the SagaTools dispatcher registry.
-- `cmake` and `conan` are spawned only for declared subcommands. Arbitrary executables are spawned only via the explicit `forge run` escape hatch.
+- No `#include` of host-repository engine, editor, server, or tool headers.
+- No walk-up search for host-specific marker files.
+- No runtime dependency on third-party libraries.
+- No repository-specific tool registry.
+- `cmake` and `conan` are spawned only for declared subcommands.
+- Arbitrary executables are spawned only via `forge run`.
 
----
-
-## Roadmap
-
-See [FORGE_ROADMAP.md](FORGE_ROADMAP.md) for the full development status, including shipped items, open items, and post-1.0 deferred work.
+See [FORGE_ROADMAP.md](FORGE_ROADMAP.md) for shipped items and planned work.

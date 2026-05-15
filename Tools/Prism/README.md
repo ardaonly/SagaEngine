@@ -12,11 +12,14 @@ compiler frontend, extracts declarations with their documentation, type
 relationships, and include graph, then builds a dependency-resolved symbol
 graph that AI assistants can navigate directly.
 
-The output is a JSON graph file — not a raw code dump — structured for
+The output is a JSON graph file - not a raw code dump - structured for
 efficient AI consumption with no context wasted on boilerplate.
 
-Prism is Apache-2.0 under Arda Koyuncu. The SagaEngine monorepo is the
-canonical source; standalone Prism repositories are mirrors or release exports.
+Prism is Apache-2.0 under Arda Koyuncu. It is designed as a standalone tool for
+any C++ codebase that can provide a Clang-compatible compilation database.
+When distributed from a larger monorepo, that repository is only the current
+development host; Prism's public interface remains the command-line tools and
+the versioned JSON schemas documented below.
 
 ---
 
@@ -28,8 +31,8 @@ prism/
 ├── extractor/                    C++ binary: prism-extract
 │   ├── CMakeLists.txt
 │   └── src/
-│       ├── main.cpp              ClangTool entry — options, run, emit
-│       ├── Record.h              POD structs — the only contract between layers
+│       ├── main.cpp              ClangTool entry - options, run, emit
+│       ├── Record.h              POD structs - the only contract between layers
 │       │
 │       ├── Support/
 │       │   ├── PathUtils         Path relativization and system-header detection
@@ -37,7 +40,7 @@ prism/
 │       │   └── CommentParser     Brief extraction from Doxygen / triple-slash blocks
 │       │
 │       ├── AST/
-│       │   ├── DeclExtractor     NamedDecl → SymbolRecord (all Clang API calls here)
+│       │   ├── DeclExtractor     NamedDecl -> SymbolRecord (all Clang API calls here)
 │       │   ├── RelationshipCollector   Bases and type-level dependency USRs
 │       │   └── SymbolVisitor     RecursiveASTVisitor — unified VisitNamedDecl dispatch
 │       │
@@ -57,13 +60,13 @@ prism/
         ├── log.py                Structured logger + live progress bar
         ├── schema.py             Raw* types + SymbolNode / FileNode / GraphData
         ├── graph/
-        │   ├── loader.py         Defensive JSON → RawExtraction deserialization
-        │   ├── builder.py        Five-phase graph construction (dedup → resolve → aggregate)
+        │   ├── loader.py         Defensive JSON -> RawExtraction deserialization
+        │   ├── builder.py        Five-phase graph construction (dedup -> resolve -> aggregate)
         │   └── classifier.py     File category assignment and module name derivation
         └── export/
             ├── base.py           Abstract Exporter interface
-            ├── json_exporter.py  → prism.graph.json (public AI contract)
-            └── txt_exporter.py   → prism.txt (human-readable summary)
+            ├── json_exporter.py  -> prism.graph.json (public AI contract)
+            └── txt_exporter.py   -> prism.txt (human-readable summary)
 ```
 
 ---
@@ -73,17 +76,17 @@ prism/
 ```
 C++ source files
        │
-       ▼  Clang LibTooling — real AST, real type system
+       ▼  Clang LibTooling - real AST, real type system
 prism-extract
        │
-       ▼  stable JSON — no Clang types cross this boundary
+       ▼  stable JSON - no Clang types cross this boundary
 prism.raw.json
        │
-       ▼  Python — dedup, USR resolution, module aggregation
+       ▼  Python - dedup, USR resolution, module aggregation
 prism-graph
        │
-       ├──▶  prism.graph.json    machine-readable AI memory graph
-       └──▶  prism.txt           human-readable summary
+       ├──>  prism.graph.json    machine-readable AI memory graph
+       └──>  prism.txt           human-readable summary
 ```
 
 ---
@@ -130,7 +133,8 @@ After installation, binaries are staged to `Tools/Prism/bin/`:
 ### Minimal Example First
 
 `Tools/Prism/examples/minimal/` contains one small `.h` file and one small
-`.cpp` file. Use it to verify Prism before pointing the tool at the engine.
+`.cpp` file. Use it to verify Prism before pointing the tool at a production
+codebase.
 
 First, generate the example compile database with CMake:
 
@@ -165,7 +169,7 @@ Tools/Prism/examples/minimal/.prism/prism.graph.json
 Tools/Prism/examples/minimal/.prism/prism.txt
 ```
 
-### Fast Path — Generate the AI Set
+### Fast Path - Generate the AI Set
 
 From the repository root, after `build/compile_commands.json` exists:
 
@@ -278,7 +282,7 @@ python3 Tools/Prism/tests/run.py
 {
   "schema_version": "1.0",
   "generated_by":   "prism-graph 1.0.0",
-  "repo_root":      "/abs/path/to/SagaEngine",
+  "repo_root":      "/abs/path/to/MyCppProject",
 
   "stats": {
     "total_symbols": 8741,
@@ -289,20 +293,20 @@ python3 Tools/Prism/tests/run.py
   },
 
   "modules": {
-    "Engine/Renderer": {
-      "files":         ["Engine/Renderer/GBuffer.h", …], 
+    "Runtime/Renderer": {
+      "files":         ["Runtime/Renderer/GBuffer.h", …],
       "symbol_count":  143,
       "include_count": 28
     }
   },
 
   "files": {
-    "Engine/Renderer/RenderGraph.h": {
-      "module":     "Engine/Renderer",
+    "Runtime/Renderer/RenderGraph.h": {
+      "module":     "Runtime/Renderer",
       "category":   "headers",
       "line_count": 312,
       "brief":      "Deferred render graph for the main pass.",
-      "includes":   ["Engine/Core/Handle.h", …],
+      "includes":   ["Runtime/Core/Handle.h", …],
       "symbol_ids": ["a1b2c3d4e5f6a7b8", …]
     }
   },
@@ -310,11 +314,11 @@ python3 Tools/Prism/tests/run.py
   "symbols": {
     "a1b2c3d4e5f6a7b8": {
       "name":           "RenderGraph",
-      "qualified_name": "SagaEngine::Renderer::RenderGraph",
+      "qualified_name": "MyProject::Renderer::RenderGraph",
       "kind":           "CXXRecord",
       "access":         "public",
       "brief":          "Deferred lighting render graph.",
-      "file":           "Engine/Renderer/RenderGraph.h",
+      "file":           "Runtime/Renderer/RenderGraph.h",
       "line":           42,
       "is_definition":  true,
       "bases":          ["IRenderPass"],
@@ -330,7 +334,7 @@ python3 Tools/Prism/tests/run.py
 ## Dependency Resolution
 
 The extractor records outbound dependencies as **USR strings** (Clang's Unified
-Symbol Resolution — a canonical, stable identifier for every declaration).
+Symbol Resolution - a canonical, stable identifier for every declaration).
 
 The Python builder resolves USR strings to stable graph IDs after all
 translation units have been parsed. USRs that do not resolve to a known symbol
@@ -341,14 +345,14 @@ dead references.
 
 ## Why this split?
 
-**C++ core** — LibTooling gives correct template resolution, macro expansion,
+**C++ core** - LibTooling gives correct template resolution, macro expansion,
 and access to the full Clang type system. These are not approximations: the same
-compiler that builds the engine parses it for Prism.
+compiler that builds the project parses it for Prism.
 
-**Python shell** — deduplication, dependency resolution, and aggregation are
+**Python shell** - deduplication, dependency resolution, and aggregation are
 pure data transformations. Python is faster to iterate and adds zero correctness
 risk. The two layers share only a versioned JSON schema.
 
-**Stable boundary** — `Record.h` and the JSON schema are the only public
+**Stable boundary** - `Record.h` and the JSON schema are the only public
 contracts. Either layer can be rewritten, moved to a separate repository, or
 run as a daemon without touching the other.

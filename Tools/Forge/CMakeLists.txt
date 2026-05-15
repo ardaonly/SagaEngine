@@ -84,4 +84,27 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
     )
 endif()
 
+enable_testing()
+
+add_executable(forge_build_scheduler_tests
+    tests/BuildSchedulerTests.cpp
+    src/BuildScheduler.cpp
+    src/Hardware.cpp
+    include/Forge/BuildScheduler.h
+    include/Forge/Hardware.h
+)
+
+target_include_directories(forge_build_scheduler_tests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+if(MSVC)
+    target_compile_options(forge_build_scheduler_tests PRIVATE /W4 /permissive- /utf-8)
+else()
+    target_compile_options(forge_build_scheduler_tests PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_test(NAME forge_build_scheduler_tests COMMAND forge_build_scheduler_tests)
+
 message(STATUS "Forge ${PROJECT_VERSION}: configured (standalone build frontend)")

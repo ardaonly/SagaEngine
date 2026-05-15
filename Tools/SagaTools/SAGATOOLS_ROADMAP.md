@@ -1,256 +1,1115 @@
-# SagaTools (`tools`) — Roadmap
+# SagaTools — Tool Dispatcher Roadmap
 
-> Last updated: 2026-04-30
-> Primary home: `Tools/SagaTools/` inside the SagaEngine repository.
-> Future: may graduate to a standalone repository whenever the registry
-> schema and the dispatcher's CLI surface are deemed stable enough to
-> tag a 1.0.
-
-`tools` is the **thin dispatcher** for the SagaEngine tool ecosystem.
-It does one thing: take a logical name, look it up in a flat JSON
-registry, and run the matching executable with the user's arguments
-forwarded verbatim. It owns no tool logic; it does not orchestrate
-pipelines; it does not know what Forge, Prism, or any other registered
-tool actually does.
-
-The single load-bearing invariant of this tool: **deleting it does not
-break any tool it can launch.** Anything that would violate that
-invariant is automatically out of scope.
-
-Conventions: `[x]` shipped and committed, `[ ]` open.
-When an item ships, the note after it names the files that represent the work.
+> Last updated: 2026-05-14  
+> Status: Active roadmap  
+> Target: A thin, stable command dispatcher for Saga’s standalone developer tools.  
+> Scope: Tool discovery, command routing, process dispatch, shared CLI conventions, diagnostics forwarding, workspace-aware invocation, and integration with SDE, Forge, Prism, and future tools.
 
 ---
 
-## 1. Dispatcher Core
+## 0. Roadmap Convention
 
-| Status | Item |
-|--------|------|
-| [x] | Built-in commands: `list`, `which`, `where`, `run`, `install`, `--help`, `--version`. → `src/main.cpp` |
-| [x] | Implicit dispatch — any first word that is not a built-in is treated as a tool name and forwarded. → `src/main.cpp` |
-| [x] | Argument forwarding is verbatim; the dispatcher never rewrites, splits, or quotes. → `src/main.cpp` |
-| [x] | `Registry` — two-section JSON (`tools` + `installers`) loaded once, immutable thereafter. → `include/SagaTools/Registry.h`, `src/Registry.cpp` |
-| [x] | Embedded zero-dependency JSON parser limited to the registry schema. → `src/Registry.cpp` |
-| [x] | `Resolver` — `${VAR}` env expansion → path-vs-bare-name disambiguation → PATH search. → `include/SagaTools/Resolver.h`, `src/Resolver.cpp` |
-| [x] | `ProcessRunner` — POSIX `fork`+`execvp`+`waitpid` and Windows `_spawnvp` with stdio inheritance. → `include/SagaTools/ProcessRunner.h`, `src/ProcessRunner.cpp` |
-| [x] | Registry-file discovery: `--registry` → `$SAGATOOLS_REGISTRY` → `<exe-dir>/config/tools.registry.json` → `./tools.registry.json`. → `src/Registry.cpp` |
-| [x] | Diagnostic output for unavailable tools (raw value, expanded value, hint that points at `tools install <name>` when an installer is registered). → `src/main.cpp` |
-| [x] | `tools install <name>` — discovers the registered bootstrap script (`build.py`) and invokes it via `python3` (override with `$PYTHON`). → `src/main.cpp` |
-| [x] | `tools where <name>` — alias for `tools which <name>`. → `src/main.cpp` |
-| [ ] | `tools env` — print the resolved registry path, the executable directory, and the effective tool table as JSON for scripting. |
-| [ ] | `tools register <name> <executable> [--installer <script>]` — append an entry to the active registry from the command line; refuses to overwrite without `--force`. |
-| [ ] | `tools unregister <name>` — drop an entry from the active registry. |
-| [ ] | `tools install --download` — when an installer supports a download mode, pass it through. |
-| [ ] | Per-tool `cwd` interpretation — currently the child inherits the parent CWD; consider supporting an alternate registry value form `{ "executable": "...", "cwd": "..." }` while keeping the simple string form as the default. |
+- `[x]` — Shipped. The note after the item names the files, modules, or integration points that represent the work and highlights any decisions worth preserving.
+- `[ ]` — Open. Either unstarted or partially explored; the item describes the finished production state rather than interim scaffolding.
+- Shipped items must name the files, modules, or integration points that represent the completed work.
+- Open items must describe the finished state, not temporary scaffolding.
+- SagaTools must stay thin.
+- SagaTools must not own the implementation of SDE, Forge, Prism, or any future standalone tool.
+- SagaTools may discover, list, launch, and route commands to tools.
+- SagaTools must not become a second build system, compiler, code intelligence engine, project shell, or editor backend.
 
 ---
 
-## 2. Loose-Coupling Contract (binding)
+## 1. Document Purpose
 
-These rules are non-negotiable. Each one keeps the dispatcher from
-sliding into "god tool" territory.
+This document defines the roadmap for `SagaTools`.
 
-| Status | Item |
-|--------|------|
-| [x] | `tools` does NOT include any header from `SagaEngine/`, `SagaEditor/`, `SagaServer/`, `SagaPrism/`, `SagaForge/`, or any other tool. |
-| [x] | `tools` does NOT walk up to find `SagaEngineRoot.marker`; it operates in any working directory. |
-| [x] | `tools` does NOT link against any third-party library. |
-| [x] | `tools` does NOT contain any registered-tool's logic, defaults, or special-case handling. The Forge entry and the Prism entry pass through the same code path as a future `asset-lint` or `codegen`. |
-| [x] | `tools` does NOT name a registered tool inside its source code. The fact that the default registry happens to mention "forge" and "prism" is a property of the JSON file, not of the binary. |
-| [x] | Every binary in the registry remains directly runnable; the dispatcher is an additive convenience layer, not a gateway. |
-| [ ] | `Tools/Scripts/check_tools_isolation.py` learns to grep `Tools/SagaTools/src/**` for forbidden includes and for any string literal containing `forge` / `prism`; fail CI on hit. |
+`SagaTools` is the shared entry point for Saga’s standalone developer tools.
 
----
+It exists to provide a consistent command surface such as:
 
-## 3. Registry Schema
-
-The registry is the dispatcher's only public contract with the rest of
-the world. It must stay tiny.
-
-| Status | Item |
-|--------|------|
-| [x] | Two-section JSON document: `tools: {name → executable}` and `installers: {name → script}`. → `config/tools.registry.json` |
-| [x] | Either section is optional per tool. A tool with only `installers` is bootstrap-able but not yet launchable; a tool with only `tools` is launchable but ships pre-built. → `src/Registry.cpp` |
-| [x] | `${VAR}` substring expansion against the process environment. → `src/Resolver.cpp` |
-| [x] | Path values resolved relative to the registry-file directory. → `src/Resolver.cpp` |
-| [x] | Bare-name values searched on `PATH` with platform-appropriate suffixes. → `src/Resolver.cpp` |
-| [x] | Forward-compatibility — unknown top-level keys (including `schema_version`) are ignored silently; unknown value shapes inside the two known sections are an error. → `src/Registry.cpp` |
-| [ ] | Schema-version bump policy documented in `SCHEMA.md`; required when the next breaking change lands. |
-| [ ] | Per-tool checksum field for installers — `installers.<name>.sha256`; verified before `tools install` invokes the script. (Will move installers into structured objects in v2.0.) |
-
----
-
-## 4. Build System and Distribution
-
-| Status | Item |
-|--------|------|
-| [x] | Standalone `CMakeLists.txt` — `cmake_minimum_required(VERSION 3.22)`, `project(saga_tools)`, no `find_package` calls, no Conan, no marker file. → `CMakeLists.txt` |
-| [x] | Post-build registry staging — `config/tools.registry.json` is copied next to the binary so a freshly built tree is usable without environment setup. → `CMakeLists.txt` |
-| [x] | `install(TARGETS tools)` + registry install rule. → `CMakeLists.txt` |
-| [x] | Strict warnings: `/W4 /permissive-` (MSVC), `-Wall -Wextra -Wpedantic` (GCC/Clang). → `CMakeLists.txt` |
-| [x] | One-shot bootstrap (`setup.py`) — Python-3 stdlib script that builds the dispatcher, stages `bin/tools` + `bin/config/tools.registry.json`, runs a smoke test, and prints PATH instructions. The README's quick-start is a single invocation of this script. → `setup.py` |
-| [x] | `setup.py --all` — chains `tools install forge` and `tools install prism` after building the dispatcher; partial failures are soft warnings (the dispatcher still ships even when one cascade fails). → `setup.py` |
-| [ ] | CI workflow — matrix build across Linux (GCC, Clang) and Windows (MSVC, clang-cl); run `setup.py --all --no-smoke`, then `tools --help`, `tools list`, and a synthetic `tools <fixture-tool>` against a no-op binary. |
-| [ ] | Pre-built signed binaries for Linux x86_64, Linux arm64, Windows x86_64, macOS arm64 attached to tagged releases. |
-| [ ] | `setup.py --uninstall` — wipe `bin/`, `build/`, and (with `--purge`) the cascaded tool directories. |
-| [ ] | `setup.py --download` — fetch a signed pre-built dispatcher binary instead of compiling from source; respects `--no-verify` for offline mirrors. |
-| [ ] | Windows-friendly `setup.cmd` shim that just execs `python setup.py %*`. |
-
----
-
-## 5. Standalone-Repo Extraction
-
-| Status | Item |
-|--------|------|
-| [x] | Tool source lives entirely under `Tools/SagaTools/`; the contents become the new repo root with zero rewrites. → `README.md` |
-| [x] | `README.md` is written for a reader who has never heard of SagaEngine. → `README.md` |
-| [x] | No SagaEngine-specific paths, marker references, or include statements in any source / CMake / JSON file under the folder. → entire subtree |
-| [ ] | `LICENSE` placeholder until the licensing decision is made. |
-| [ ] | `.github/workflows/ci.yml` — a CI definition that works in a fresh repo with no SagaEngine context. |
-| [ ] | `CHANGELOG.md` populated retroactively when the first release is tagged. |
-| [ ] | Repo-split rehearsal — a one-shot script under `Tools/Scripts/` that copies `Tools/SagaTools/` into a temporary directory, runs the build, and reports success. |
-
----
-
-## 6. Encoding & Path Robustness
-
-The dispatcher routinely sees real-world paths with non-ASCII characters
-(Turkish `Masaüstü`, German `Müller`, Japanese filenames, …). Every part
-of the pipeline must round-trip them losslessly.
-
-| Status | Item |
-|--------|------|
-| [x] | JSON parser decodes `\uXXXX` escapes (BMP) and surrogate pairs (>U+FFFF) into UTF-8. → `src/Registry.cpp` |
-| [x] | `setup.py` writes the staged registry with `ensure_ascii=False`, so paths land as real UTF-8 bytes rather than `\uXXXX` escapes. → `setup.py` |
-| [x] | MSVC: `/utf-8` flag on the `tools` target so source-file UTF-8 round-trips through string literals. → `CMakeLists.txt` |
-| [x] | `Encoding.h` — UTF-8 ↔ UTF-16 conversion via `MultiByteToWideChar` and a `PathFromUtf8()` / `PathToUtf8()` pair that uses `fs::u8path` on Windows so the filesystem APIs treat dispatcher bytes as UTF-8 instead of ANSI. → `include/SagaTools/Encoding.h`, `src/Encoding.cpp` |
-| [x] | `Resolver` and `Registry` use `PathFromUtf8` everywhere a `std::string` enters the filesystem layer — `fs::exists`, `fs::absolute`, `fs::weakly_canonical`, `ifstream`. → `src/Resolver.cpp`, `src/Registry.cpp` |
-| [x] | Windows `ProcessRunner::Run` switched to `_wspawnvp` with per-arg UTF-8 → UTF-16 conversion, so `tools forge --version` actually launches when forge.exe lives at `C:\Users\…\Masaüstü\…\forge.exe`. → `src/ProcessRunner.cpp` |
-| [x] | `GetEnvUtf8` — env var lookup via `_wgetenv` on Windows, `getenv` on POSIX; replaces every direct `std::getenv` call in the dispatcher. → `src/Encoding.cpp` |
-| [x] | UTF-8 console at process start — `SetConsoleOutputCP(CP_UTF8)` + `SetConsoleCP(CP_UTF8)` so paths printed by the dispatcher render as `Masaüstü` instead of `Masa├╝st├╝`. → `src/main.cpp` |
-| [x] | Mojibake diagnostic — when `tools <name>` resolves a path that doesn't exist and the path contains `uXXXX`-style fragments, the dispatcher tells the user to re-run `setup.py`. → `src/main.cpp` |
-| [x] | OneDrive diagnostic — when an unavailable path lives under OneDrive, suggest moving the project to a clean location. → `src/main.cpp` |
-| [x] | OneDrive auto-diagnostic removed — fired too often as a false positive (e.g. when the real problem was a failed install). The smarter "is this an unhydrated OneDrive placeholder?" check now lives in the open list below. → `src/main.cpp` |
-| [x] | `setup.py` uses `os.path.abspath(__file__)` instead of `Path(__file__).resolve()` so Windows directory junctions (e.g. `C:\dev\SagaEngine` → `C:\Users\…\OneDrive\…`) are NOT silently followed. → `setup.py` |
-| [x] | Windows command-line quoting — `ProcessRunner::Run` uses `CreateProcessW` directly with manually-built `lpCommandLine`, so paths containing spaces (`SagaEngine Versions/`) survive `_spawnvp`'s no-quoting concatenation behaviour. → `src/ProcessRunner.cpp` |
-| [ ] | Test fixture — `Tests/encoding/` directory contains a registry and installer paths with deliberately "spicy" characters (`ü`, `ß`, `日本語`, surrogate-pair emoji) AND spaces in path components; CI runs `tools list` against it and diffs the output. |
-| [ ] | Path-too-long diagnostic — on Windows, when a path > 260 chars fails the existence check, surface the long-path opt-in (`\\?\` prefix or `LongPathsEnabled` registry key). |
-| [ ] | OneDrive placeholder detection — call `GetFileAttributesW` and check `FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS` / `FILE_ATTRIBUTE_RECALL_ON_OPEN`; fire a precise "this file is an unhydrated OneDrive cloud placeholder" diagnostic. |
-
----
-
-## 7. One-Click Onboarding
-
-The single most important property of this layer: a brand-new contributor
-clones the repo and is productive in one command, with no manual
-build-system knowledge.
-
-| Status | Item |
-|--------|------|
-| [x] | `python3 Tools/SagaTools/setup.py --all` — the canonical one-command bootstrap. → `setup.py` |
-| [x] | `Tools/SagaTools/setup.cmd` — Windows double-click launcher that locates Python (`py` / `python3` / `python`) and execs `setup.py --all` with `pause` so the window stays open. → `setup.cmd` |
-| [x] | Generated registry uses absolute paths (no `${FORGE_BIN}` env var setup required after bootstrap). → `setup.py` |
-| [ ] | `git clone … && tools build` — top-level convenience target that detects whether SagaTools has been bootstrapped and does it on demand. |
-| [ ] | macOS double-click launcher — `Tools/SagaTools/setup.command` with a shebang and an executable bit so Finder will run it. |
-| [ ] | Status check — `tools doctor` runs through every registered tool, reports resolvability, executable bit, version mismatch with manifest pins, and prints a single colour-coded summary. Sole purpose: a contributor's first sanity check. |
-| [ ] | `setup.py --uninstall` — wipe `bin/`, `build/`, and (with `--purge`) the cascaded tool directories. |
-| [ ] | `setup.py --download` — fetch a signed pre-built dispatcher binary instead of compiling from source. |
-
----
-
-## 8. Rust Rewrite of the Dispatcher — COMPLETED
-
-The dispatcher has been **fully rewritten from C++ to Rust**. The rewrite
-eliminates the four classes of bugs identified in the original C++ implementation:
-
-1. [x] JSON `\uXXXX` decoding — `serde_json` handles UTF-8 correctly
-2. [x] Executable directory — `env::current_exe()` works via PATH
-3. [x] Path encoding — `PathBuf`/`OsString` are native UTF-8
-4. [x] Process spawning — `std::process::Command` handles quoting internally
-
-**Rust implementation is now the default** — the `Tools/SagaTools/` directory
-contains the Rust source code. The C++ version has been moved to
-`Tools/SagaTools-cpp-backup/` for reference.
-
-### Boundary (Unchanged)
-
-```text
-SagaTools (Rust)  →  std::process::Command::spawn(forge_exe, args)  →  forge (C++)
-               →  std::process::Command::spawn(prism_exe, args)  →  prism (C++)
+```txt
+sagatools sde ...
+sagatools forge ...
+sagatools prism ...
+sagatools doctor ...
+sagatools list
 ```
 
-**Forge and Prism remain in C++** (as per roadmap):
-- Forge: CMake/Conan wrapper, hard reason to stay in C++
-- Prism: Clang LibTooling, hard reason to stay in C++
+It does not own the tools it invokes.
 
-No FFI. No shared library. No header sharing. Process boundary only.
+Correct ownership:
 
-### Migration Checklist (Completed)
+```txt
+SagaTools
+  thin dispatcher
 
-| Status | Item |
-|--------|------|
-| [x] | Decision recorded — Rust is the target language |
-| [x] | Crate layout — `cargo new --bin sagatools` with modules `registry`, `resolver`, `runner` |
-| [x] | Migration plan — Rust binary publishes SAME CLI surface and SAME registry schema |
-| [x] | Path encoding — `PathBuf` + `serde_json` removes mojibake risk |
-| [x] | Boundary lint — `Cargo.toml` has ZERO `cc`/`bindgen`/FFI deps |
-| [x] | Behavior parity — `setup.py` updated to build Rust binary |
-| [x] | Test infrastructure — golden tests, parity tests, CI workflow ready |
+SDE
+  deterministic data compiler
 
-### Next Steps (Post-Rewrite)
+Forge
+  build workflow frontend
 
-| Milestone | Criteria |
-|-----------|----------|
-| **Alpha** | All golden tests pass for `list`, `which`, `--help`, `--version` |
-| **Beta** | All CLI commands pass side-by-side (including `install`) |
-| **RC** | 100% parity + spicy path tests pass |
-| **1.0** | CI green for 2 weeks, no regressions |
-
-### For Contributors
-
-The dispatcher source now lives entirely in Rust under `Tools/SagaTools/`:
-- `src/main.rs` — CLI dispatcher entry point
-- `src/registry.rs` — JSON registry parser (replaces C++ Registry.cpp)
-- `src/resolver.rs` — Path resolution (replaces C++ Resolver.cpp)
-- `src/runner.rs` — Process spawning (replaces C++ ProcessRunner.cpp)
-
-Build command:
-```bash
-cd Tools/SagaTools
-cargo build --release
+Prism
+  code intelligence and graph builder
 ```
 
-Bootstrap command (same as before):
-```bash
-python3 Tools/SagaTools/setup.py --all
+Incorrect ownership:
+
+```txt
+SagaTools
+  compiler
+  build frontend
+  graph database
+  project shell
+  editor helper
+  random scripts
+  emotional support binary
+```
+
+A dispatcher that owns everything is not a dispatcher.
+
+It is a landfill with command-line arguments.
+
+---
+
+## 2. Companion Documents
+
+| Document | Purpose |
+|---|---|
+| `docs/roadmaps/TOOLS_ROADMAP.md` | Tool ecosystem index and ownership map |
+| `Tools/SagaTools/SAGATOOLS_ROADMAP.md` | SagaTools dispatcher roadmap |
+| `Tools/SystemDefinitionEngine/SDE_ROADMAP.md` | SDE deterministic data compiler roadmap |
+| `Tools/Forge/FORGE_ROADMAP.md` | Forge build workflow frontend roadmap |
+| `Tools/Prism/PRISM_ROADMAP.md` | Prism code intelligence roadmap |
+| `DependencyGraph.md` | Dependency and ownership boundary rules |
+| `SHARED_ROADMAP.md` | Shared contracts consumed by approved tools |
+
+---
+
+## 3. Ownership Boundary
+
+- [x] Define SagaTools as a thin tool dispatcher.
+
+  Represented by:
+
+  ```txt
+  Tools/SagaTools/SAGATOOLS_ROADMAP.md
+  docs/roadmaps/TOOLS_ROADMAP.md
+  DependencyGraph.md
+  ```
+
+  Preserved decision:
+
+  ```txt
+  SagaTools dispatches to tools.
+  SagaTools does not own tool implementation.
+  ```
+
+- [ ] Keep SagaTools responsible only for common command routing.
+
+  Done means SagaTools owns:
+
+  - top-level CLI entry point,
+  - command discovery,
+  - command routing,
+  - tool listing,
+  - process invocation,
+  - argument forwarding,
+  - common help formatting,
+  - exit code forwarding,
+  - common diagnostics envelope,
+  - workspace-aware command context.
+
+- [ ] Prevent SagaTools from owning tool internals.
+
+  Done means SagaTools does not own:
+
+  - SDE compiler AST,
+  - SDE parser,
+  - SDE optimizer,
+  - SDE code generation,
+  - Forge build graph execution,
+  - Forge package build policy,
+  - Prism indexing engine,
+  - Prism graph database,
+  - editor UI,
+  - runtime/server execution,
+  - product project lifecycle.
+
+---
+
+## 4. Tool Ecosystem Relationship
+
+- [x] Define SagaTools as one member of the tool ecosystem, not the owner of the ecosystem.
+
+  Represented by:
+
+  ```txt
+  docs/roadmaps/TOOLS_ROADMAP.md
+  Tools/SagaTools/SAGATOOLS_ROADMAP.md
+  ```
+
+- [ ] Integrate SDE as a dispatched tool.
+
+  Done means SagaTools can route commands such as:
+
+  ```txt
+  sagatools sde validate ...
+  sagatools sde compile ...
+  sagatools sde inspect ...
+  ```
+
+  without importing SDE compiler internals.
+
+- [ ] Integrate Forge as a dispatched tool.
+
+  Done means SagaTools can route commands such as:
+
+  ```txt
+  sagatools forge build ...
+  sagatools forge clean ...
+  sagatools forge package ...
+  sagatools forge doctor ...
+  ```
+
+  without owning Forge build workflow implementation.
+
+- [ ] Integrate Prism as a dispatched tool.
+
+  Done means SagaTools can route commands such as:
+
+  ```txt
+  sagatools prism index ...
+  sagatools prism query ...
+  sagatools prism graph ...
+  sagatools prism doctor ...
+  ```
+
+  without owning Prism indexing or graph logic.
+
+- [ ] Support future tools through a stable registration/discovery model.
+
+  Done means a new tool can be added without editing unrelated tool implementation code.
+
+---
+
+## 5. CLI Surface
+
+### 5.1 Top-Level Commands
+
+- [ ] Provide stable top-level CLI commands.
+
+  Required commands:
+
+  ```txt
+  sagatools help
+  sagatools version
+  sagatools list
+  sagatools doctor
+  sagatools sde
+  sagatools forge
+  sagatools prism
+  ```
+
+- [ ] Provide consistent help output.
+
+  Done means:
+
+  - every command has a short description,
+  - every command has usage text,
+  - every command lists arguments,
+  - every command lists options,
+  - unknown commands fail with helpful suggestions.
+
+- [ ] Provide consistent version output.
+
+  Done means version output includes:
+
+  - SagaTools version,
+  - build commit if available,
+  - build profile,
+  - supported tool protocol version,
+  - discovered tool versions where available.
+
+---
+
+### 5.2 Argument Forwarding
+
+- [ ] Forward unknown tool-specific arguments to the selected tool.
+
+  Done means:
+
+  - SagaTools parses only top-level routing arguments,
+  - tool-specific parsing remains with the owning tool,
+  - argument quoting is preserved,
+  - paths with spaces work,
+  - exit code is forwarded.
+
+Correct:
+
+```txt
+sagatools sde compile --schema ./Data/game.sde --out ./Build/generated
+```
+
+SagaTools routes to SDE.
+
+SDE parses `compile`, `--schema`, and `--out`.
+
+Incorrect:
+
+```txt
+SagaTools reimplements SDE compile argument parsing.
+```
+
+That is how “thin launcher” becomes “second compiler wearing a hat”.
+
+---
+
+### 5.3 Common Flags
+
+- [ ] Support common top-level flags.
+
+  Required common flags:
+
+  ```txt
+  --help
+  --version
+  --verbose
+  --quiet
+  --json
+  --workspace <path>
+  --config <path>
+  --no-color
+  ```
+
+- [ ] Keep common flags separate from tool-specific flags.
+
+  Done means:
+
+  - SagaTools consumes only agreed top-level flags,
+  - tool-specific flags are passed through,
+  - conflicts are documented,
+  - ambiguous flags produce clear errors.
+
+---
+
+## 6. Tool Discovery
+
+- [ ] Add tool registry.
+
+  Done means SagaTools can discover tools by:
+
+  - built-in registry,
+  - configured tool path,
+  - workspace-local tool manifest,
+  - environment variable,
+  - development build output directory.
+
+Expected files:
+
+```txt
+Tools/SagaTools/include/SagaTools/ToolRegistry.hpp
+Tools/SagaTools/include/SagaTools/ToolDescriptor.hpp
+Tools/SagaTools/src/ToolRegistry.cpp
+```
+
+- [ ] Add tool descriptor format.
+
+  Done means each tool can describe:
+
+  - tool id,
+  - display name,
+  - executable path,
+  - version,
+  - supported protocol version,
+  - command summary,
+  - capabilities,
+  - stability level.
+
+Expected files:
+
+```txt
+Tools/SagaTools/include/SagaTools/ToolDescriptor.hpp
+Tools/SagaTools/include/SagaTools/ToolCapability.hpp
+```
+
+- [ ] Add missing-tool diagnostics.
+
+  Done means missing tools report:
+
+  - requested tool id,
+  - searched paths,
+  - workspace path,
+  - expected executable names,
+  - suggested build/install action.
+
+---
+
+## 7. Process Dispatch
+
+- [ ] Add robust process launcher.
+
+  Done means SagaTools can:
+
+  - launch selected tool executable,
+  - pass arguments safely,
+  - pass environment variables,
+  - set working directory,
+  - stream stdout,
+  - stream stderr,
+  - forward exit code,
+  - detect launch failure.
+
+Expected files:
+
+```txt
+Tools/SagaTools/include/SagaTools/ProcessLauncher.hpp
+Tools/SagaTools/include/SagaTools/ProcessResult.hpp
+Tools/SagaTools/src/ProcessLauncher.cpp
+```
+
+- [ ] Support process timeout where appropriate.
+
+  Done means:
+
+  - optional timeout can be configured,
+  - timeout produces clear diagnostic,
+  - child process is terminated safely,
+  - timeout exit code is stable.
+
+- [ ] Support JSON diagnostic forwarding.
+
+  Done means:
+
+  - tools may emit structured diagnostics,
+  - SagaTools can pass them through,
+  - `--json` output remains machine-readable,
+  - non-JSON tool output does not corrupt JSON mode unless explicitly allowed.
+
+---
+
+## 8. Workspace Awareness
+
+- [ ] Add workspace context detection.
+
+  Done means SagaTools can identify:
+
+  - current working directory,
+  - workspace root,
+  - project manifest path,
+  - tool config path,
+  - build output root,
+  - generated artifact root.
+
+Expected files:
+
+```txt
+Tools/SagaTools/include/SagaTools/WorkspaceContext.hpp
+Tools/SagaTools/include/SagaTools/WorkspaceLocator.hpp
+Tools/SagaTools/src/WorkspaceLocator.cpp
+```
+
+- [ ] Pass workspace context to tools.
+
+  Done means dispatched tools receive workspace context through:
+
+  - command-line flags,
+  - environment variables,
+  - config file path,
+  - explicit tool protocol input where supported.
+
+- [ ] Keep project lifecycle ownership outside SagaTools.
+
+  Done means SagaTools does not own:
+
+  - project dashboard,
+  - recent project registry,
+  - product project creation,
+  - product project opening,
+  - editor mode switching.
+
+Saga owns product lifecycle.
+
+SagaTools helps tools run inside or against a workspace.
+
+Those are not the same thing, despite humanity’s ongoing war against boundaries.
+
+---
+
+## 9. Diagnostics
+
+- [ ] Add common diagnostics envelope.
+
+  Done means SagaTools diagnostics include:
+
+  - severity,
+  - code,
+  - message,
+  - tool id,
+  - command,
+  - workspace path where relevant,
+  - suggested next action where useful,
+  - exit code.
+
+Expected files:
+
+```txt
+Tools/SagaTools/include/SagaTools/Diagnostic.hpp
+Tools/SagaTools/include/SagaTools/DiagnosticSeverity.hpp
+Tools/SagaTools/src/Diagnostic.cpp
+```
+
+- [ ] Support human-readable diagnostics.
+
+  Done means CLI output is clear for:
+
+  - unknown command,
+  - missing tool,
+  - failed process launch,
+  - invalid workspace,
+  - tool crashed,
+  - unsupported tool protocol version.
+
+- [ ] Support machine-readable diagnostics.
+
+  Done means `--json` can produce stable output for scripts and CI.
+
+- [ ] Forward child tool diagnostics without pretending SagaTools created them.
+
+  Done means diagnostics preserve source tool identity:
+
+  ```txt
+  sourceTool: sde
+  sourceTool: forge
+  sourceTool: prism
+  ```
+
+---
+
+## 10. Exit Codes
+
+- [ ] Define stable SagaTools exit codes.
+
+  Required categories:
+
+  ```txt
+  0   success
+  1   general failure
+  2   invalid command
+  3   invalid arguments
+  4   missing tool
+  5   tool launch failure
+  6   tool execution failure
+  7   workspace error
+  8   configuration error
+  9   protocol mismatch
+  10  internal error
+  ```
+
+- [ ] Forward tool exit codes where appropriate.
+
+  Done means:
+
+  - child tool failure is visible,
+  - SagaTools-specific launch/routing failures are distinguishable,
+  - CI scripts can reliably detect failure class.
+
+---
+
+## 11. Configuration
+
+- [ ] Add SagaTools configuration loading.
+
+  Done means configuration can define:
+
+  - tool search paths,
+  - default workspace path,
+  - output mode,
+  - color mode,
+  - logging level,
+  - timeout policy,
+  - custom tool aliases.
+
+Expected files:
+
+```txt
+Tools/SagaTools/include/SagaTools/SagaToolsConfig.hpp
+Tools/SagaTools/include/SagaTools/ConfigLoader.hpp
+Tools/SagaTools/src/ConfigLoader.cpp
+```
+
+- [ ] Support workspace-local config.
+
+  Done means SagaTools can read workspace-local tool config without requiring global installation.
+
+- [ ] Support environment overrides.
+
+  Expected environment variables:
+
+  ```txt
+  SAGATOOLS_HOME
+  SAGATOOLS_TOOL_PATH
+  SAGATOOLS_WORKSPACE
+  SAGATOOLS_NO_COLOR
+  SAGATOOLS_LOG_LEVEL
+  ```
+
+---
+
+## 12. Tool Protocol
+
+- [ ] Define minimal tool protocol versioning.
+
+  Done means SagaTools and child tools can negotiate or report:
+
+  - tool id,
+  - tool version,
+  - protocol version,
+  - supported capabilities,
+  - output format support.
+
+Expected files:
+
+```txt
+Tools/SagaTools/include/SagaTools/ToolProtocol.hpp
+Tools/SagaTools/include/SagaTools/ToolProtocolVersion.hpp
+```
+
+- [ ] Reject unsupported tool protocol versions clearly.
+
+  Done means protocol mismatch reports:
+
+  - expected version,
+  - actual version,
+  - tool path,
+  - suggested rebuild/update action.
+
+- [ ] Keep protocol minimal.
+
+  SagaTools should not define deep internal protocols for SDE/Forge/Prism.
+
+  It only needs enough metadata to route and report.
+
+---
+
+## 13. Language and Implementation Direction
+
+- [ ] Pick one implementation direction and remove contradictory roadmap text.
+
+  Done means the roadmap no longer mixes incompatible old C++ implementation assumptions with newer Rust direction unless both are explicitly justified.
+
+- [ ] Keep implementation language decision separate from ownership decision.
+
+  Ownership rule:
+
+  ```txt
+  SagaTools is thin dispatcher regardless of implementation language.
+  ```
+
+  If implemented in C++:
+
+  ```txt
+  Keep dependencies minimal.
+  Avoid linking tool internals directly.
+  Prefer process dispatch or narrow plugin interface.
+  ```
+
+  If implemented in Rust:
+
+  ```txt
+  Keep binary small.
+  Keep command routing explicit.
+  Avoid embedding tool implementations unless explicitly approved.
+  ```
+
+- [ ] Do not use implementation language migration as an excuse to expand scope.
+
+  Done means rewriting SagaTools does not also turn it into:
+
+  - compiler,
+  - build orchestrator,
+  - project manager,
+  - editor integration layer,
+  - code intelligence database.
+
+A rewrite is not a personality transplant.
+
+---
+
+## 14. Integration with SDE
+
+- [ ] Route SDE commands through SagaTools.
+
+  Example commands:
+
+  ```txt
+  sagatools sde validate <schema>
+  sagatools sde compile <schema> --out <dir>
+  sagatools sde inspect <artifact>
+  sagatools sde doctor
+  ```
+
+- [ ] Preserve SDE independence.
+
+  Done means SagaTools does not include:
+
+  ```txt
+  Tools/SystemDefinitionEngine/src/**
+  SDE parser internals
+  SDE AST internals
+  SDE optimizer internals
+  SDE codegen internals
+  ```
+
+- [ ] Forward SDE diagnostics.
+
+  Done means SDE compile/validation diagnostics pass through SagaTools while preserving source location and tool identity.
+
+---
+
+## 15. Integration with Forge
+
+- [ ] Route Forge commands through SagaTools.
+
+  Example commands:
+
+  ```txt
+  sagatools forge build
+  sagatools forge clean
+  sagatools forge package
+  sagatools forge doctor
+  ```
+
+- [ ] Preserve Forge ownership.
+
+  Done means SagaTools does not own:
+
+  - build graph policy,
+  - dependency resolution,
+  - package cooking,
+  - build cache implementation,
+  - artifact publishing.
+
+- [ ] Forward Forge output and exit status.
+
+  Done means build failures remain Forge failures, not vague SagaTools failures.
+
+Because “tool failed” is not a diagnostic.
+
+It is a shrug with a stack trace nearby.
+
+---
+
+## 16. Integration with Prism
+
+- [ ] Route Prism commands through SagaTools.
+
+  Example commands:
+
+  ```txt
+  sagatools prism index
+  sagatools prism query <symbol>
+  sagatools prism graph
+  sagatools prism doctor
+  ```
+
+- [ ] Preserve Prism ownership.
+
+  Done means SagaTools does not own:
+
+  - source indexing,
+  - symbol graph generation,
+  - include graph analysis,
+  - code intelligence database,
+  - semantic query engine.
+
+- [ ] Forward Prism diagnostics and machine-readable output.
+
+  Done means Prism can be used by scripts and CI through SagaTools without losing structured output.
+
+---
+
+## 17. Doctor Command
+
+- [ ] Add `sagatools doctor`.
+
+  Done means doctor checks:
+
+  - SagaTools configuration,
+  - workspace detection,
+  - tool discovery,
+  - SDE availability,
+  - Forge availability,
+  - Prism availability,
+  - executable permissions,
+  - protocol compatibility,
+  - basic command launchability.
+
+- [ ] Keep doctor shallow.
+
+  Done means `sagatools doctor` does not deeply validate:
+
+  - SDE schema correctness,
+  - Forge build correctness,
+  - Prism graph correctness.
+
+Instead, it delegates deep checks:
+
+```txt
+sagatools sde doctor
+sagatools forge doctor
+sagatools prism doctor
+```
+
+SagaTools doctor verifies the dispatch layer.
+
+Tool doctors verify their own tool internals.
+
+Wild idea: the owning tool should own its own health checks.
+
+---
+
+## 18. List Command
+
+- [ ] Add `sagatools list`.
+
+  Done means list output includes:
+
+  - tool id,
+  - display name,
+  - version if available,
+  - path,
+  - availability status,
+  - protocol compatibility,
+  - short description.
+
+Example:
+
+```txt
+sde      System Definition Engine   available   Tools/SystemDefinitionEngine/...
+forge    Forge Build Frontend       available   Tools/Forge/...
+prism    Prism Code Intelligence    missing     not found
+```
+
+- [ ] Support `sagatools list --json`.
+
+  Done means machine-readable tool inventory is available for CI and scripts.
+
+---
+
+## 19. Logging
+
+- [ ] Add SagaTools logging.
+
+  Done means logs can capture:
+
+  - selected command,
+  - resolved workspace,
+  - selected tool path,
+  - process launch result,
+  - exit code,
+  - elapsed time,
+  - errors.
+
+- [ ] Keep logs free of unnecessary noise by default.
+
+  Done means normal output remains readable.
+
+  Verbose output can be enabled through:
+
+  ```txt
+  --verbose
+  SAGATOOLS_LOG_LEVEL
+  ```
+
+---
+
+## 20. Testing Roadmap
+
+### 20.1 Unit Tests
+
+- [ ] Add command parser tests.
+
+  Required coverage:
+
+  - known command,
+  - unknown command,
+  - help command,
+  - common flags,
+  - argument forwarding,
+  - quoted paths,
+  - invalid arguments.
+
+- [ ] Add tool registry tests.
+
+  Required coverage:
+
+  - built-in tool registration,
+  - missing tool,
+  - duplicate tool id,
+  - invalid descriptor,
+  - protocol mismatch.
+
+- [ ] Add workspace locator tests.
+
+  Required coverage:
+
+  - workspace found from current directory,
+  - workspace found from explicit flag,
+  - missing workspace,
+  - invalid manifest,
+  - environment override.
+
+---
+
+### 20.2 Integration Tests
+
+- [ ] Add process dispatch integration tests.
+
+  Done means tests verify:
+
+  - child process launch,
+  - stdout forwarding,
+  - stderr forwarding,
+  - exit code forwarding,
+  - failed launch diagnostics,
+  - timeout behavior.
+
+- [ ] Add fake tool integration tests.
+
+  Done means a fake tool can verify:
+
+  - argument forwarding,
+  - environment forwarding,
+  - JSON output forwarding,
+  - protocol metadata behavior.
+
+- [ ] Add real tool smoke tests.
+
+  Done means SagaTools can launch:
+
+  - SDE doctor,
+  - Forge doctor,
+  - Prism doctor,
+
+  when those tools are available in the build environment.
+
+---
+
+## 21. CI Requirements
+
+- [ ] Add SagaTools CLI smoke test to CI.
+
+  Required checks:
+
+  ```txt
+  sagatools --help
+  sagatools version
+  sagatools list
+  sagatools doctor
+  ```
+
+- [ ] Add dependency boundary checks.
+
+  Required forbidden dependencies:
+
+  ```txt
+  SagaTools → SDE compiler internals
+  SagaTools → Forge implementation internals
+  SagaTools → Prism implementation internals
+  SagaTools → SagaEditor UI
+  SagaTools → SagaServer private headers
+  SagaTools → Saga product shell internals
+  ```
+
+- [ ] Add JSON output compatibility test.
+
+  Done means `--json` output remains parseable and schema-stable.
+
+---
+
+## 22. Recommended File Layout
+
+Recommended target layout:
+
+```txt
+Tools/SagaTools/
+  SAGATOOLS_ROADMAP.md
+  CMakeLists.txt or Cargo.toml
+  README.md
+
+Tools/SagaTools/include/SagaTools/
+  CommandLine.hpp
+  CommandResult.hpp
+  Diagnostic.hpp
+  DiagnosticSeverity.hpp
+  ExitCode.hpp
+  ProcessLauncher.hpp
+  ProcessResult.hpp
+  SagaToolsConfig.hpp
+  ToolCapability.hpp
+  ToolDescriptor.hpp
+  ToolProtocol.hpp
+  ToolProtocolVersion.hpp
+  ToolRegistry.hpp
+  WorkspaceContext.hpp
+  WorkspaceLocator.hpp
+
+Tools/SagaTools/src/
+  main.cpp or main.rs
+  CommandLine.cpp
+  Diagnostic.cpp
+  ProcessLauncher.cpp
+  ToolRegistry.cpp
+  WorkspaceLocator.cpp
+  ConfigLoader.cpp
+
+Tools/SagaTools/tests/
+  CommandLineTests.cpp or command_line_tests.rs
+  ToolRegistryTests.cpp or tool_registry_tests.rs
+  ProcessLauncherTests.cpp or process_launcher_tests.rs
+  WorkspaceLocatorTests.cpp or workspace_locator_tests.rs
+```
+
+This layout is illustrative.
+
+The important architecture rule is:
+
+```txt
+SagaTools may know tools exist.
+SagaTools must not absorb what tools do.
 ```
 
 ---
 
-## 9. Future Scope (Post-1.0)
+## 23. Migration Plan
 
-Items deferred until the dispatcher and at least two production tools
-(Forge + Prism) have shipped through it in real use. Anything in this
-list that turns the dispatcher into an orchestrator — pipelines,
-caching, dependency graphs across tools — is automatically out of scope:
-that role lives in a future, separate "pipeline" tool, not in `tools`.
+- [ ] Remove contradictory old/new implementation language assumptions.
 
-| Status | Item |
-|--------|------|
-| [ ] | Shell-completion scripts for `bash` / `zsh` / PowerShell, generated from the built-in command list and the active registry. |
-| [ ] | Optional XDG-style discovery — `~/.config/sagatools/tools.registry.json` and `/etc/sagatools/tools.registry.json` so system-wide installs are picked up automatically. |
-| [ ] | `tools log` — re-print the last invocation's resolved path and exit code from a tiny on-disk audit file (off by default; opt-in via env). |
-| [ ] | Transparent multi-host execution — `tools --host <ssh-target> <tool> [args]` exec'd over SSH; rejected unless the dispatcher can stay under ~500 LoC. |
+  Done means roadmap text no longer describes two incompatible SagaTools identities.
+
+- [ ] Rewrite SagaTools as dispatcher-only.
+
+  Done means the roadmap and code both reflect:
+
+  ```txt
+  route
+  launch
+  forward
+  diagnose
+  exit
+  ```
+
+- [ ] Move SDE-specific roadmap content back to `SDE_ROADMAP.md`.
+
+- [ ] Move Forge-specific roadmap content back to `FORGE_ROADMAP.md`.
+
+- [ ] Move Prism-specific roadmap content back to `PRISM_ROADMAP.md`.
+
+- [ ] Keep common tool ecosystem overview in `TOOLS_ROADMAP.md`.
+
+- [ ] Add dependency checks preventing SagaTools from importing tool internals.
 
 ---
 
-## Definitions
+## 24. Non-Goals
 
-- **Shipped**: implemented, code-reviewed, and present in the current
-  repository state. Marked `[x]`.
-- **Open**: planned and scoped but not yet implemented. Marked `[ ]`.
-- **Post-1.0**: explicitly deferred; will not block a 1.0 tag.
+SagaTools does not own:
 
-When an item ships, replace `[ ]` with `[x]` and append a note naming the
-files that represent the work, matching the convention used in the other
-SagaEngine roadmap documents.
+- SDE compiler implementation,
+- Forge build workflow implementation,
+- Prism code intelligence implementation,
+- Saga product shell,
+- editor UI,
+- runtime/server execution,
+- collaboration implementation,
+- package cooking internals,
+- source indexing internals,
+- graph database internals,
+- project dashboard UX.
+
+Related ownership:
+
+| Area | Owner |
+|---|---|
+| Tool ecosystem index | `docs/roadmaps/TOOLS_ROADMAP.md` |
+| Tool dispatcher | `Tools/SagaTools/SAGATOOLS_ROADMAP.md` |
+| Deterministic data compiler | `Tools/SystemDefinitionEngine/SDE_ROADMAP.md` |
+| Build workflow frontend | `Tools/Forge/FORGE_ROADMAP.md` |
+| Code intelligence | `Tools/Prism/PRISM_ROADMAP.md` |
+| Product shell | `Saga` |
+| Shared contracts | `SagaShared` |
+
+---
+
+## 25. Production Definition of Done
+
+- [ ] SagaTools has a stable top-level CLI.
+
+- [ ] SagaTools can list available tools.
+
+- [ ] SagaTools can route commands to SDE.
+
+- [ ] SagaTools can route commands to Forge.
+
+- [ ] SagaTools can route commands to Prism.
+
+- [ ] SagaTools forwards arguments safely.
+
+- [ ] SagaTools forwards stdout, stderr, and exit codes.
+
+- [ ] SagaTools supports human-readable and JSON diagnostics.
+
+- [ ] SagaTools detects workspace context.
+
+- [ ] SagaTools reports missing tools clearly.
+
+- [ ] SagaTools validates tool protocol compatibility.
+
+- [ ] SagaTools has unit and integration tests.
+
+- [ ] CI verifies basic commands.
+
+- [ ] CI prevents SagaTools from depending on tool implementation internals.
+
+---
+
+## 26. Final Architecture Rule
+
+SagaTools should remain:
+
+```txt
+thin,
+boring,
+stable,
+predictable,
+and easy to replace.
+```
+
+It should know:
+
+```txt
+which tool was requested,
+where that tool is,
+which arguments to forward,
+how to report failure,
+and what exit code to return.
+```
+
+It should not know:
+
+```txt
+how SDE compiles schemas,
+how Forge builds packages,
+how Prism indexes code,
+how Saga opens projects,
+how the editor renders panels,
+or how the server simulates authority.
+```
+
+A dispatcher is successful when nothing interesting happens inside it.
+
+That may offend someone’s urge to engineer a cathedral around `argv`.
+
+Good.

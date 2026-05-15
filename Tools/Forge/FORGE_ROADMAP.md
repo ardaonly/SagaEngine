@@ -1,234 +1,1574 @@
-# Forge — Roadmap
+# Forge — Build Workflow Frontend Roadmap
 
-> **Primary home:** `Tools/Forge/tool/` inside the SagaEngine repository.
-> **Future:** Forge may graduate into a standalone repository once a non-SagaEngine consumer adopts it. The source layout is already structured to make that transition mechanical rather than disruptive.
-
-Forge is a **Cargo-flavoured build front-end for C++**, designed around **CMake and Conan**. Its purpose is to collapse the everyday build sequence — *resolve dependencies → configure CMake → build* — into a predictable, ergonomic command set, while still preserving full access to the underlying tools for advanced users.
-
-Forge is **not** a replacement for CMake, Conan, or Nix. It is a workflow layer with an internal build model that can be lowered into those tools. The user-facing experience should feel simple, but the implementation must remain deep enough to support low-level control, toolchain pinning, reproducibility, and future backend expansion.
-
-Crucially, Forge exposes **three levels of control** at all times:
-
-1. **High-level (default).** `forge add sfml@2.6` / `forge install` / `forge build`.
-2. **Intermediate.** `forge build --config Debug --target MyGame` / `forge configure --preset release`.
-3. **Low-level.** `forge run cmake --build build --target MyGame` / `forge run conan install . --build=missing`.
-
-Forge is **not** a dispatcher for SagaEngine tools and is **not** coupled to Prism, the `tools` dispatcher, or any other repository-specific orchestration layer. It spawns `cmake` and `conan`, and in escape-hatch mode any executable explicitly named by the user. Anything beyond that is out of scope.
-
-Forge must remain **engine-first but not engine-bound**:
-
-* SagaEngine uses Forge as its preferred build interface.
-* Forge itself does not depend on SagaEngine internals.
-* When the engine-specific build logic is eventually removed from `Tools/Forge/`, the remaining `tool/` subtree should remain valid as a standalone repository with no structural rewrite.
-
-Forge must also avoid becoming a thin wrapper with no depth. It should own an **internal build representation** that sits between the manifest and the backend tools. That internal model is what allows the project to stay meaningful if Conan is replaced, if CMake is supplemented, or if a new backend is introduced later.
-
-Conventions: `[x]` shipped and committed, `[ ]` open.
-When an item ships, the note after it names the files that represent the work.
+> Last updated: 2026-05-14  
+> Status: Active roadmap  
+> Target: A production-grade build workflow frontend for Saga projects.  
+> Scope: Workspace build orchestration, build profile selection, validation routing, SDE invocation, asset cook coordination, package build workflow, diagnostics aggregation, artifact staging, cache integration, and developer-facing build commands.
 
 ---
 
-## 1. Cargo-Flavoured CLI
+## 0. Roadmap Convention
 
-| Status | Item                                                                                                                                             |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [x]    | `forge --help`, `forge --version`. → `src/main.cpp`                                                                                              |
-| [x]    | `forge new <dir>` — scaffolds `<dir>/forge.toml`, `<dir>/CMakeLists.txt`, `<dir>/src/main.cpp`. → `src/main.cpp`                                 |
-| [x]    | `forge init` — writes `forge.toml` in the current directory. → `src/main.cpp`                                                                    |
-| [x]    | `forge add <pkg>[@<ver>]` — appends or updates a `[deps]` entry. → `src/main.cpp`                                                                |
-| [x]    | `forge install` — reads `[deps]`, then calls `conan install . --requires=… --build=missing`. → `src/main.cpp`                                    |
-| [x]    | `forge configure [--source=DIR] [--build=DIR] [--preset=NAME]`. → `src/main.cpp`                                                                 |
-| [x]    | `forge build [--build=DIR] [--target=NAME] [--config=Release]`. → `src/main.cpp`                                                                 |
-| [x]    | `forge clean [--build=DIR]`. → `src/main.cpp`                                                                                                    |
-| [x]    | `forge run <executable> [args ...]` — escape hatch to any binary on `PATH`. → `src/main.cpp`                                                     |
-| [x]    | `--strict` flag with full toolchain enforcement and manifest validation. → `src/main.cpp`, `src/EnvProbe.cpp`                                    |
-| [x]    | `forge test [--label=LABEL] [--verbose]` — wraps `ctest`. → `src/main.cpp`, `src/CMakeAdapter.cpp`                                               |
-| [x]    | `forge install-target [--prefix=DIR] [--component=NAME]` — wraps `cmake --install`. → `src/main.cpp`, `src/CMakeAdapter.cpp`                     |
-| [x]    | `forge presets [build\|test]` — pretty-printed `cmake --list-presets`. → `src/main.cpp`, `src/CMakeAdapter.cpp`                                  |
-| [x]    | `forge env [--json]` — detected cmake / conan / compiler versions. → `src/main.cpp`, `src/EnvProbe.cpp`                                         |
-| [ ]    | `forge bench` — pluggable benchmark runner that respects the manifest preset.                                                                    |
-| [x]    | `forge fmt [--source=DIR]` — runs `clang-format` over project sources using the project's `.clang-format`. → `src/main.cpp`                     |
+- `[x]` — Shipped. The note after the item names the files, modules, or integration points that represent the work and highlights any decisions worth preserving.
+- `[ ]` — Open. Either unstarted or partially explored; the item describes the finished production state rather than interim scaffolding.
+- Shipped items must name the files, modules, or integration points that represent the completed work.
+- Open items must describe the finished state, not temporary scaffolding.
+- Forge owns build workflow frontend behavior.
+- Forge does not own the SDE compiler.
+- Forge does not own Prism code intelligence.
+- Forge does not own SagaTools dispatch.
+- Forge does not own Saga product shell.
+- Forge does not own runtime/server implementation.
+- Forge may invoke tools and coordinate build steps through explicit interfaces.
 
 ---
 
-## 2. Manifest (`forge.toml`)
+## 1. Document Purpose
 
-The manifest is intentionally small. It is **not** a build language; it is a **build environment specification**. Anything that belongs in CMake stays in CMake. The manifest should describe intent, constraints, and dependency declarations — not replace the backend.
+This document defines the roadmap for Forge.
 
-| Status | Item                                                                                                                                                            |
-| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [x]    | Minimal TOML-subset parser — sections plus `key = "value"` plus line comments. → `include/Forge/Manifest.h`, `src/Manifest.cpp`                                 |
-| [x]    | Schema sections: `[project]`, `[toolchain]`, `[build]`, `[deps]`. → `src/Manifest.cpp`                                                                          |
-| [x]    | Round-trip serialization that preserves dependency order. → `src/Manifest.cpp`                                                                                  |
-| [x]    | `[deps]` rewriting via `forge add` is in place when the entry already exists. → `src/Manifest.cpp`                                                              |
-| [ ]    | Real TOML parser conformance — arrays of strings, inline tables, nested keys. Anything beyond section / key-value / comment handling is currently out of scope. |
-| [x]    | `forge.lock` — locked dependency graph emitted after `forge install`; consumed by future `--strict --frozen`. → `src/ConanAdapter.cpp`                          |
-| [x]    | `forge.toml` schema documentation. → `tool/SCHEMA.md`                                                                                                           |
-| [x]    | Validation pass — refuse manifests with unknown top-level sections in `--strict`; warn but accept in flexible mode. → `src/main.cpp`, `src/Manifest.cpp`        |
+Forge is Saga’s build workflow frontend.
 
----
+It exists to provide a clear, repeatable, diagnosable build workflow for Saga projects.
 
-## 3. Internal Build Model and Lowering
+Forge owns:
 
-This is the part that keeps Forge from becoming a surface-level wrapper. The CLI and manifest are the front door; the real engine of the system is an **internal, backend-neutral build model** that can be lowered into concrete tool invocations.
+- build command UX,
+- build profile selection,
+- workspace build planning,
+- validation step orchestration,
+- SDE invocation as a compiler step,
+- asset cook step coordination,
+- artifact staging,
+- package build workflow,
+- build diagnostics aggregation,
+- build cache integration,
+- build summary output,
+- CI-friendly build commands.
 
-The internal model should represent:
+Forge does not own:
 
-* project metadata,
-* targets,
-* dependencies,
-* toolchain constraints,
-* presets,
-* build configuration,
-* execution steps,
-* and backend-specific overrides.
+- SDE parser,
+- SDE AST,
+- SDE semantic analysis,
+- SDE IR,
+- SDE artifact generation internals,
+- Prism indexing engine,
+- Prism graph database,
+- SagaTools dispatcher,
+- Saga product shell,
+- editor UI,
+- runtime/server execution logic.
 
-This layer is what makes it possible to keep the UX stable even if the execution backend changes later.
+Correct model:
 
-| Status | Item                                                                                                                       |
-| ------ | -------------------------------------------------------------------------------------------------------------------------- |
-| [x]    | Define a backend-neutral internal representation for projects, targets, dependencies, toolchain state, and build steps. → `include/Forge/BuildModel.h`, `src/BuildModel.cpp` |
-| [x]    | Lower `forge.toml` into the internal representation before any backend-specific logic runs. → `src/BuildModel.cpp`, `src/main.cpp` |
-| [x]    | Emit concrete execution plans for CMake and Conan from the internal representation rather than directly from CLI handlers. → `src/CMakeAdapter.cpp`, `src/ConanAdapter.cpp` |
-| [x]    | Preserve an escape hatch for raw backend flags and user-supplied commands without collapsing the abstraction. → `forge run` in `src/main.cpp`; `--` trailing args on all commands |
-| [x]    | Add an explain mode (`forge build --explain`) that prints the lowered execution plan before running it. → `src/main.cpp`, all adapter files |
-| [x]    | Keep backend adapters replaceable so that future backends can be introduced without rewriting the user-facing model. → `src/CMakeAdapter.cpp`, `src/ConanAdapter.cpp` |
-| [ ]    | Add tests that compare the internal plan against expected backend output for representative projects.                      |
+```txt
+Forge
+  plans and coordinates build workflow
 
----
+SDE
+  compiles deterministic data definitions
 
-## 4. Reproducibility and Toolchain Pinning
+Asset pipeline
+  imports/cooks asset artifacts
 
-The hardest real-world build problem is toolchain drift. Forge should not pretend that CMake and Conan alone solve reproducibility. Instead, Forge should enforce a deterministic execution layer around them.
+Runtime/server
+  consume built artifacts
 
-| Status | Item                                                                                                                                                                                                                                    |
-| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [x]    | `[toolchain]` section in `forge.toml` (CMake / Conan / compiler version pins) is parsed and logged on every build/install. → `src/main.cpp`                                                                                             |
-| [x]    | **Strict mode enforcement.** `forge build --strict` and `forge install --strict` verify that `cmake --version`, `conan --version`, and the resolved compiler match the pinned versions. Mismatch exits with `kExitStrict`. → `src/EnvProbe.cpp`, `src/main.cpp` |
-| [x]    | `.forge` env-overrides file — small key-value file (`CMAKE=/usr/bin/cmake-3.28 …`) that overrides the binaries used by adapters. Loaded at startup. → `src/ToolEnv.cpp`, `src/main.cpp`                                                |
-| [ ]    | Generated CMake toolchain file — Forge writes `<build>/forge-toolchain.cmake` to pin compiler, language standard, and sysroot, then passes `-DCMAKE_TOOLCHAIN_FILE=…`.                                                                  |
-| [x]    | `forge.lock` written by default after `forge install`; records install mode and declared dependencies. → `src/ConanAdapter.cpp`                                                                                                         |
-| [ ]    | `forge install --strict --frozen` refuses to proceed without an existing `forge.lock`.                                                                                                                                                  |
-| [ ]    | Auto-switching toolchain — when a version mismatch is detected and a versioned binary is available on the system (for example `cmake-3.28`), use it instead of the bare `cmake` on `PATH`. Opt-in via `[toolchain].auto_switch = true`. |
-| [x]    | Two-mode contract — `--strict` for CI and production refuses mismatches; default developer mode warns but proceeds. → `src/main.cpp`, `src/EnvProbe.cpp`                                                                                |
+SagaTools
+  may dispatch Forge commands
+```
 
----
+Incorrect model:
 
-## 5. Bootstrap Installer (`build.py`)
+```txt
+Forge becomes compiler, asset importer, project shell, code indexer, and runtime launcher.
+```
 
-Forge ships with its own self-contained installer so that `tools install forge` and any user with only Python on `PATH` can produce a working binary.
+That is not a build frontend.
 
-| Status | Item                                                                                                                                                        |
-| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [x]    | `tool/build.py` — Python 3 stdlib script: detects `cmake`, configures and builds Forge, stages `bin/forge[.exe]`, then runs a smoke test. → `tool/build.py` |
-| [x]    | `--debug`, `--clean`, `--jobs` flags in the bootstrap. → `tool/build.py`                                                                                    |
-| [x]    | Multi-config generator support (Release / Debug subdirectories on MSBuild and Xcode). → `tool/build.py`                                                     |
-| [x]    | Installer is idempotent — a re-run rebuilds only what CMake determines has changed. → `tool/build.py`                                                       |
-| [ ]    | Pre-built binary mode — when run as `build.py --download`, the installer fetches a signed release tarball instead of building.                              |
-| [ ]    | Hash verification of downloaded binaries against a checksum manifest.                                                                                       |
-| [x]    | `build.py --install-to <dir>` — stage to a custom location instead of `bin/`. → `tool/build.py`                                                             |
-| [x]    | Windows-friendly `build.cmd` shim that simply executes `python build.py %*`. → `tool/build.cmd`                                                             |
+That is five tools in a trench coat pretending to be architecture.
 
 ---
 
-## 6. Loose-Coupling Contract
+## 2. Companion Documents
 
-Anything that violates these rules invalidates the standalone-tool guarantee and blocks merge.
-
-| Status | Item                                                                                                                                   |
-| ------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| [x]    | Forge does **not** include any header from `SagaEngine/`, `SagaEditor/`, `SagaServer/`, `SagaPrism/`, `SagaTools/`, or any other tool. |
-| [x]    | Forge does **not** walk up to find `SagaEngineRoot.marker`.                                                                            |
-| [x]    | Forge does **not** link against any third-party library.                                                                               |
-| [x]    | Forge does **not** read any tool-registry JSON. The `tools` dispatcher owns that role.                                                 |
-| [x]    | Forge spawns `cmake` and `conan` for declared subcommands and arbitrary executables only via the explicit `forge run` escape hatch.    |
-| [x]    | Forge does **not** expose a public C++ library; only the `forge` executable is built.                                                  |
-| [x]    | `Tools/Scripts/check_tools_isolation.py` greps `Tools/Forge/tool/` for forbidden includes and flags `Saga*.cmake` under `Tools/Forge/`. → `Tools/Scripts/check_tools_isolation.py` |
-
----
-
-## 7. Build System and Distribution
-
-| Status | Item                                                                                                                                                                           |
-| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [x]    | Standalone `tool/CMakeLists.txt` — `cmake_minimum_required(VERSION 3.22)`, `project(forge)`, no `find_package` calls, no Conan, no marker file. → `tool/CMakeLists.txt`        |
-| [x]    | `install(TARGETS forge)`. → `tool/CMakeLists.txt`                                                                                                                              |
-| [x]    | Strict warnings: `/W4 /permissive-` for MSVC, `-Wall -Wextra -Wpedantic` for GCC and Clang. → `tool/CMakeLists.txt`                                                            |
-| [x]    | CI workflow — matrix build across Linux (GCC, Clang) and Windows (MSVC); smoke tests `forge --version`, `forge new`, `forge configure --explain`, `forge build --explain`. → `tool/.github/workflows/ci.yml` |
-| [ ]    | Pre-built signed binaries for Linux x86_64, Linux arm64, Windows x86_64, and macOS arm64 attached to tagged releases.                                                          |
-| [ ]    | Single-file release tarball — just the `forge` binary plus `README.md` and `build.py`.                                                                                         |
+| Document | Purpose |
+|---|---|
+| `docs/roadmaps/TOOLS_ROADMAP.md` | Tool ecosystem ownership index |
+| `Tools/Forge/FORGE_ROADMAP.md` | Forge build workflow frontend roadmap |
+| `Tools/SystemDefinitionEngine/SDE_ROADMAP.md` | SDE deterministic data compiler roadmap |
+| `Tools/Prism/PRISM_ROADMAP.md` | Prism code intelligence roadmap |
+| `Tools/SagaTools/SAGATOOLS_ROADMAP.md` | Thin tool dispatcher roadmap |
+| `SHARED_ROADMAP.md` | Shared contracts and artifact references |
+| `ENGINE_ROADMAP.md` | Runtime/server consumption of built artifacts |
+| `EDITOR_ROADMAP.md` | Editor build/publish UX integration |
+| `DependencyGraph.md` | Dependency ownership rules |
 
 ---
 
-## 8. Engine-Build Decoupling
+## 3. Ownership Boundary
 
-| Status | Item                                                                                                                                                                                                                                                                                                     |
-| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [x]    | Engine-build orchestration replaced: `Tools/Forge/build.ps1` and `Tools/Forge/bootstrap.ps1` deleted; `build.ps1` at the repo root is a 25-line VS Dev Prompt shim that delegates all commands to `forge`. → root `build.ps1`                                                                           |
-| [x]    | Relocated `Tools/Forge/cmake/modules/Saga*.cmake` to `cmake/modules/` at the engine root. → `cmake/modules/`                                                                                                                                                                                            |
-| [x]    | Moved `Tools/Forge/conanfile.py`, `Tools/Forge/profiles/`, and `Tools/Forge/version.json` to the engine root. → repo root                                                                                                                                                                               |
-| [x]    | `Tools/Forge/CMakeLists.txt` moved to the engine root; marker-walking loop removed; `SAGA_ROOT = CMAKE_SOURCE_DIR`. → root `CMakeLists.txt`                                                                                                                                                              |
-| [x]    | `Tools/Forge/` now contains only `tool/`, `FORGE_ROADMAP.md`, and `README.md`. → `Tools/Forge/`                                                                                                                                                                                                         |
-| [x]    | `Tools/Scripts/check_tools_isolation.py` flags any `Saga*.cmake` file under `Tools/Forge/`. → `Tools/Scripts/check_tools_isolation.py`                                                                                                                                                                  |
+- [x] Define Forge as build workflow frontend.
 
----
+  Represented by:
 
-## 9. Standalone-Repo Extraction
+  ```txt
+  Tools/Forge/FORGE_ROADMAP.md
+  docs/roadmaps/TOOLS_ROADMAP.md
+  DependencyGraph.md
+  ```
 
-| Status | Item                                                                                                                                                              |
-| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [x]    | Tool source lives under `Tools/Forge/tool/`; the contents can become a new repository root with zero rewrites. → `tool/README.md`                                 |
-| [x]    | `tool/README.md` is written for an audience that has never heard of SagaEngine. → `tool/README.md`                                                                |
-| [x]    | No SagaEngine-specific paths or marker references in any header, source, CMake file, or comment under `tool/`. → entire `tool/` subtree                           |
-| [x]    | `tool/LICENSE` — Apache-2.0 standalone tool license. → `tool/LICENSE`                                                                                              |
-| [x]    | `tool/.github/workflows/ci.yml` — CI definition that works in a fresh repository with no SagaEngine context. → `tool/.github/workflows/ci.yml`                   |
-| [x]    | `tool/CHANGELOG.md` populated retroactively for v0.1.0 through v0.3.0. → `tool/CHANGELOG.md`                                                                     |
-| [ ]    | Repo-split rehearsal — a one-shot script under `Tools/Scripts/` that copies `Tools/Forge/tool/` into a temporary directory, runs `build.py`, and reports success. |
+  Preserved decision:
 
----
+  ```txt
+  Forge coordinates build workflows.
+  Forge does not own SDE, Prism, SagaTools, runtime, editor, or product shell implementation.
+  ```
 
-## 10. NixOS Configuration Layer
+- [ ] Keep Forge focused on build orchestration.
 
-Forge must remain compatible with NixOS without turning into a package manager or a second source of truth for the toolchain. The role of this section is to ensure that Forge behaves correctly in a Nix-based environment while avoiding accidental overlap with Nix, Conan, or CMake responsibilities.
+  Done means Forge owns:
 
-Forge should assume that the user may already provide compilers, SDKs, and libraries such as SDL, Vulkan, GLFW, or raylib through Nix. In that case, Forge must not attempt to install, replace, or re-resolve those dependencies through Conan unless explicitly instructed. Its job is to respect the active Nix environment, keep the build process deterministic, and avoid duplicate dependency sources at configure or link time.
+  - build command parsing,
+  - build plan creation,
+  - build profile selection,
+  - tool step invocation,
+  - validation routing,
+  - artifact staging,
+  - package build summary,
+  - build diagnostics aggregation,
+  - cache usage decisions,
+  - CI-friendly output.
 
-| Status | Item                                                                                                                                                                        |
-| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [ ]    | **NixOS environment detection.** Forge detects when it is running inside NixOS or a Nix development shell and adjusts its execution model accordingly.                                                      |
-| [ ]    | **Nix-aware build mode.** In Nix mode, Forge does not assume globally installed system tools and does not try to manage the host toolchain itself.                                                          |
-| [ ]    | **Dependency source precedence.** When a dependency is provided by Nix, Forge treats that dependency as authoritative and avoids re-adding it through Conan unless explicitly requested.                    |
-| [ ]    | **No duplicate resolution.** Forge detects when libraries such as SDL, Vulkan, GLFW, or raylib are already supplied by the Nix environment and avoids resolving them again through Conan.                   |
-| [ ]    | **Toolchain isolation.** Forge generates build commands that respect the active Nix compiler, sysroot, and linker environment without leaking host-system assumptions into the build.                       |
-| [ ]    | **Optional Nix shell integration.** Forge may offer an opt-in path for launching builds through `nix develop`, but it must not require Nix-specific bootstrap logic to function.                            |
-| [ ]    | **Deterministic environment contract.** A project built under the same `forge.toml` and the same Nix environment should produce the same build behavior across machines.                                    |
-| [ ]    | **Strict separation of responsibilities.** Nix provides the environment, Conan provides dependency resolution when needed, CMake performs configuration and generation, and Forge coordinates the workflow. |
+- [ ] Prevent Forge from owning tool internals.
 
-The purpose of this section is not to make Forge depend on Nix. The purpose is to make Forge behave correctly when Nix is already part of the environment. This prevents toolchain drift, duplicate dependency resolution, and accidental conflicts between Nix-managed packages and Conan-managed packages.
+  Done means Forge does not own:
 
-In practical terms, this section exists so that a user can keep using NixOS for system-level reproducibility while Forge continues to provide a simple Cargo-like build interface on top of CMake and Conan.
-
----
-
-## 11. Future Scope (Post-1.0)
-
-Items deferred until the core is stable. Anything in this list that turns Forge into an orchestrator across other tools is automatically out of scope.
-
-| Status | Item                                                                                                                  |
-| ------ | --------------------------------------------------------------------------------------------------------------------- |
-| [ ]    | `forge watch` — re-run `cmake --build` on filesystem changes; filesystem watch only, no integration with other tools. |
-| [ ]    | `forge graph` — render the CMake target graph (`cmake --graphviz`) as PNG or SVG.                                     |
-| [ ]    | Cache fingerprinting — record configure-stage flags; refuse to re-configure with identical inputs unless `--force`.   |
-| [ ]    | Friendlier error mapping — translate the most common CMake failure messages into one-line diagnostics.                |
-| [ ]    | Conan profile management — `forge profile use <name>` writes the right `~/.conan2/profiles/...`.                      |
-| [ ]    | Cross-compilation profile presets (`forge target add android-arm64`).                                                 |
+  - SDE compiler AST,
+  - SDE parser,
+  - SDE optimizer,
+  - SDE codegen,
+  - Prism source indexing,
+  - Prism symbol graph,
+  - SagaTools command dispatch,
+  - engine runtime systems,
+  - editor UI panels,
+  - server authority.
 
 ---
 
-## Definitions
+## 4. Dependency Rules
 
-* **Shipped**: implemented, code-reviewed, and present in the current repository state. Marked `[x]`.
-* **Open**: planned and scoped but not yet implemented. Marked `[ ]`.
-* **Post-1.0**: explicitly deferred; will not block a 1.0 tag.
+### 4.1 Allowed Dependencies
 
-When an item ships, replace `[ ]` with `[x]` and append a note naming the files that represent the work, matching the convention used in the other SagaEngine roadmap documents.
+- [ ] Allow Forge to invoke standalone tools.
+
+  Allowed tool invocations:
+
+  ```txt
+  Forge → SDE executable
+  Forge → asset cook tool
+  Forge → package tool
+  Forge → validation tool
+  Forge → Prism executable where explicitly needed for build metadata
+  ```
+
+- [ ] Allow Forge to consume stable shared contracts where explicitly approved.
+
+  Allowed examples:
+
+  ```txt
+  Forge → package manifest contract
+  Forge → artifact reference contract
+  Forge → diagnostic payload contract
+  Forge → build profile descriptor
+  ```
+
+- [ ] Allow SagaTools to dispatch Forge.
+
+  Correct direction:
+
+  ```txt
+  SagaTools → Forge executable
+  ```
+
+---
+
+### 4.2 Forbidden Dependencies
+
+- [ ] Prevent Forge from depending on SDE internals.
+
+  Forbidden:
+
+  ```txt
+  Forge → SDE parser internals
+  Forge → SDE AST internals
+  Forge → SDE semantic analyzer
+  Forge → SDE IR internals
+  Forge → SDE codegen internals
+  ```
+
+- [ ] Prevent Forge from depending on editor/runtime/server private implementation.
+
+  Forbidden:
+
+  ```txt
+  Forge → SagaEditor UI
+  Forge → SagaEngine runtime internals
+  Forge → SagaServer private headers
+  Forge → Saga product shell internals
+  ```
+
+- [ ] Prevent Forge from becoming SagaTools.
+
+  Forbidden:
+
+  ```txt
+  Forge owns top-level tool dispatch for all tools
+  Forge replaces sagatools list/doctor routing
+  Forge becomes global tool registry
+  ```
+
+Forge builds.
+
+SagaTools dispatches.
+
+These are different verbs, and the fact that this must be written down is exactly why documentation exists.
+
+---
+
+## 5. CLI Roadmap
+
+- [ ] Provide stable Forge CLI.
+
+  Required commands:
+
+  ```txt
+  forge help
+  forge version
+  forge doctor
+  forge build
+  forge clean
+  forge rebuild
+  forge validate
+  forge cook
+  forge package
+  forge inspect
+  ```
+
+- [ ] Provide `forge build`.
+
+  Done means:
+
+  - workspace is resolved,
+  - build profile is selected,
+  - build plan is created,
+  - validation steps run,
+  - SDE compile step runs where required,
+  - asset cook steps run where required,
+  - artifacts are staged,
+  - build summary is emitted,
+  - exit code reflects success/failure.
+
+- [ ] Provide `forge validate`.
+
+  Done means:
+
+  - project manifest is validated,
+  - package manifest is validated,
+  - SDE validation is invoked where required,
+  - asset metadata is validated,
+  - build profile is validated,
+  - diagnostics are aggregated.
+
+- [ ] Provide `forge cook`.
+
+  Done means:
+
+  - asset cook plan is created,
+  - source assets are mapped to output artifacts,
+  - cook tools are invoked,
+  - failed cook blocks build where required,
+  - cook diagnostics are aggregated.
+
+- [ ] Provide `forge package`.
+
+  Done means:
+
+  - built artifacts are collected,
+  - package manifest is emitted,
+  - runtime/package layout is created,
+  - version metadata is included,
+  - package diagnostics are emitted.
+
+- [ ] Provide `forge clean`.
+
+  Done means:
+
+  - generated build artifacts can be removed,
+  - cache can be preserved or cleared by flag,
+  - output directories are validated before deletion,
+  - destructive cleanup requires safe path checks.
+
+---
+
+## 6. Build Workspace Model
+
+- [ ] Add workspace discovery.
+
+  Done means Forge can resolve:
+
+  - explicit workspace path,
+  - current directory workspace,
+  - project manifest,
+  - package manifest,
+  - build config,
+  - output root.
+
+Expected files:
+
+```txt
+Tools/Forge/include/Forge/Workspace/WorkspaceContext.hpp
+Tools/Forge/include/Forge/Workspace/WorkspaceLocator.hpp
+Tools/Forge/src/Workspace/WorkspaceLocator.cpp
+```
+
+- [ ] Add workspace validation.
+
+  Done means Forge validates:
+
+  - workspace root exists,
+  - project manifest exists,
+  - source directories exist,
+  - output directory is writable,
+  - required tools are available,
+  - build profile exists.
+
+- [ ] Keep product project lifecycle outside Forge.
+
+  Done means Forge does not own:
+
+  - project dashboard,
+  - recent project registry,
+  - product-level create/open workflow,
+  - Saga mode switching.
+
+Saga owns product lifecycle.
+
+Forge builds what it is given.
+
+A build tool that starts owning product UX is just a launcher having delusions of grandeur.
+
+---
+
+## 7. Build Profiles
+
+- [ ] Add build profile model.
+
+  Done means build profiles can describe:
+
+  - profile name,
+  - target platform,
+  - build configuration,
+  - output path,
+  - validation strictness,
+  - SDE compile options,
+  - asset cook options,
+  - package options,
+  - cache policy.
+
+Expected files:
+
+```txt
+Tools/Forge/include/Forge/Build/BuildProfile.hpp
+Tools/Forge/include/Forge/Build/BuildConfiguration.hpp
+Tools/Forge/include/Forge/Build/TargetPlatform.hpp
+```
+
+- [ ] Support common build profiles.
+
+  Required profiles:
+
+  ```txt
+  dev
+  debug
+  release
+  shipping
+  server
+  client
+  editor-preview
+  ```
+
+- [ ] Validate build profile compatibility.
+
+  Done means Forge rejects:
+
+  - unknown platform,
+  - invalid output path,
+  - unsupported artifact format,
+  - incompatible SDE artifact version,
+  - incompatible asset cook format,
+  - missing required build steps.
+
+---
+
+## 8. Build Plan
+
+- [ ] Add build plan generation.
+
+  Done means Forge can create an ordered build plan from workspace and profile.
+
+Expected files:
+
+```txt
+Tools/Forge/include/Forge/Build/BuildPlan.hpp
+Tools/Forge/include/Forge/Build/BuildStep.hpp
+Tools/Forge/include/Forge/Build/BuildGraph.hpp
+Tools/Forge/src/Build/BuildPlanner.cpp
+```
+
+- [ ] Define build step model.
+
+  Done means each build step has:
+
+  - step id,
+  - display name,
+  - step kind,
+  - inputs,
+  - outputs,
+  - dependencies,
+  - tool invocation,
+  - cache key,
+  - diagnostics,
+  - failure policy.
+
+- [ ] Add build graph validation.
+
+  Done means Forge detects:
+
+  - missing inputs,
+  - missing outputs,
+  - dependency cycles,
+  - duplicate artifact outputs,
+  - incompatible step ordering,
+  - invalid tool references.
+
+- [ ] Keep build plan deterministic.
+
+  Done means identical workspace/profile inputs produce the same build step order and cache keys.
+
+---
+
+## 9. Build Step Categories
+
+- [ ] Add manifest validation step.
+
+  Done means Forge validates project/package manifests before expensive build steps run.
+
+- [ ] Add SDE validation step.
+
+  Done means Forge invokes SDE validation and collects diagnostics.
+
+- [ ] Add SDE compile step.
+
+  Done means Forge invokes SDE compile and consumes output artifact manifests.
+
+- [ ] Add asset cook step.
+
+  Done means Forge invokes asset cook tools and stages cooked outputs.
+
+- [ ] Add script compile step where applicable.
+
+  Done means script artifacts are compiled and diagnosed through the owning scripting toolchain.
+
+- [ ] Add runtime package step.
+
+  Done means runtime-consumable package layout is produced.
+
+- [ ] Add server package step.
+
+  Done means server-specific package layout can be produced where required.
+
+- [ ] Add publish validation step.
+
+  Done means shipping/publish builds verify all required gates before package success.
+
+---
+
+## 10. SDE Integration
+
+- [ ] Invoke SDE as an external compiler step.
+
+  Done means Forge can run:
+
+  ```txt
+  sde validate
+  sde compile
+  ```
+
+  or equivalent configured executable paths.
+
+- [ ] Consume SDE artifact manifests.
+
+  Done means Forge can read:
+
+  - artifact ids,
+  - artifact kinds,
+  - output paths,
+  - schema versions,
+  - content hashes,
+  - dependency data,
+  - diagnostics summary.
+
+- [ ] Fail build on SDE compile failure.
+
+  Done means:
+
+  - SDE parse errors fail build,
+  - SDE semantic errors fail build,
+  - SDE artifact emission errors fail build,
+  - SDE deterministic mismatch fails build.
+
+- [ ] Preserve SDE ownership.
+
+  Done means Forge does not include:
+
+  ```txt
+  Tools/SystemDefinitionEngine/src/**
+  SDE AST internals
+  SDE parser internals
+  SDE IR internals
+  SDE semantic internals
+  ```
+
+Forge runs the compiler.
+
+Forge is not the compiler.
+
+This is apparently a difficult spiritual concept for build tools.
+
+---
+
+## 11. Asset Cook Integration
+
+- [ ] Add asset cook orchestration.
+
+  Done means Forge can:
+
+  - discover source assets,
+  - read asset metadata,
+  - create cook jobs,
+  - invoke cook workers/tools,
+  - collect cook diagnostics,
+  - stage cooked artifacts.
+
+Expected files:
+
+```txt
+Tools/Forge/include/Forge/Assets/AssetCookPlan.hpp
+Tools/Forge/include/Forge/Assets/AssetCookStep.hpp
+Tools/Forge/include/Forge/Assets/AssetCookResult.hpp
+Tools/Forge/src/Assets/AssetCookPlanner.cpp
+```
+
+- [ ] Add asset dependency tracking.
+
+  Done means Forge can track:
+
+  - source asset path,
+  - cooked artifact path,
+  - dependency assets,
+  - material/texture references,
+  - generated metadata,
+  - content hashes.
+
+- [ ] Fail build on required asset cook failure.
+
+  Done means:
+
+  - failed cook emits diagnostics,
+  - missing required cooked artifacts fail build,
+  - invalid asset metadata fails build,
+  - optional assets are handled by explicit policy.
+
+- [ ] Keep editor import UX outside Forge.
+
+  Done means Forge does not own:
+
+  - drag-and-drop import UI,
+  - asset inspector,
+  - content browser,
+  - artist-facing import workflow.
+
+Forge cooks/builds.
+
+Editor authors/imports.
+
+Runtime streams cooked outputs.
+
+See? Three separate jobs. Civilization trembles, but survives.
+
+---
+
+## 12. Artifact Staging
+
+- [ ] Add artifact staging model.
+
+  Done means Forge can stage:
+
+  - SDE artifacts,
+  - cooked assets,
+  - script artifacts,
+  - runtime manifests,
+  - server manifests,
+  - package metadata,
+  - diagnostics summaries.
+
+Expected files:
+
+```txt
+Tools/Forge/include/Forge/Artifacts/ArtifactStage.hpp
+Tools/Forge/include/Forge/Artifacts/ArtifactStager.hpp
+Tools/Forge/include/Forge/Artifacts/StagedArtifact.hpp
+Tools/Forge/src/Artifacts/ArtifactStager.cpp
+```
+
+- [ ] Add artifact manifest output.
+
+  Done means Forge emits a build artifact manifest containing:
+
+  - build id,
+  - profile,
+  - target platform,
+  - artifact list,
+  - content hashes,
+  - source references,
+  - tool versions,
+  - build timestamp or deterministic build id policy,
+  - diagnostics summary.
+
+- [ ] Add artifact integrity checks.
+
+  Done means Forge verifies:
+
+  - expected artifacts exist,
+  - hash matches,
+  - artifact version is compatible,
+  - required artifacts are not missing,
+  - duplicate artifact ids are rejected.
+
+---
+
+## 13. Build Cache
+
+- [ ] Add build cache model.
+
+  Done means Forge can cache outputs based on:
+
+  - input file hashes,
+  - tool versions,
+  - build profile,
+  - config values,
+  - artifact format version,
+  - target platform.
+
+Expected files:
+
+```txt
+Tools/Forge/include/Forge/Cache/BuildCache.hpp
+Tools/Forge/include/Forge/Cache/CacheKey.hpp
+Tools/Forge/include/Forge/Cache/CacheEntry.hpp
+Tools/Forge/src/Cache/BuildCache.cpp
+```
+
+- [ ] Add cache hit/miss diagnostics.
+
+  Done means build summary shows:
+
+  - cache hits,
+  - cache misses,
+  - invalidated steps,
+  - cache errors,
+  - cache size.
+
+- [ ] Add cache invalidation policy.
+
+  Done means cache invalidates when:
+
+  - source input changes,
+  - tool version changes,
+  - profile changes,
+  - schema/artifact format changes,
+  - dependency changes,
+  - config changes.
+
+- [ ] Keep cache correctness above speed.
+
+  Done means Forge never uses stale artifacts silently.
+
+Fast wrong builds are still wrong builds.
+
+They just waste your time with better posture.
+
+---
+
+## 14. Diagnostics Aggregation
+
+- [ ] Add Forge diagnostic model.
+
+  Done means diagnostics include:
+
+  - severity,
+  - code,
+  - message,
+  - source tool,
+  - build step,
+  - file/resource path,
+  - recoverability,
+  - suggested action.
+
+Expected files:
+
+```txt
+Tools/Forge/include/Forge/Diagnostics/ForgeDiagnostic.hpp
+Tools/Forge/include/Forge/Diagnostics/DiagnosticAggregator.hpp
+Tools/Forge/src/Diagnostics/DiagnosticAggregator.cpp
+```
+
+- [ ] Aggregate child tool diagnostics.
+
+  Done means Forge can collect diagnostics from:
+
+  - SDE,
+  - asset cook tools,
+  - script compiler,
+  - package validator,
+  - internal build plan validator.
+
+- [ ] Preserve diagnostic source ownership.
+
+  Done means Forge reports whether a diagnostic came from:
+
+  ```txt
+  Forge
+  SDE
+  AssetCooker
+  ScriptCompiler
+  PackageValidator
+  ```
+
+- [ ] Support human-readable diagnostics.
+
+  Done means CLI output is readable and grouped by build step.
+
+- [ ] Support JSON diagnostics.
+
+  Done means CI and editor integrations can consume structured build results.
+
+---
+
+## 15. Build Summary
+
+- [ ] Add build summary output.
+
+  Done means Forge reports:
+
+  - build status,
+  - selected profile,
+  - target platform,
+  - elapsed time,
+  - step count,
+  - failed steps,
+  - warning count,
+  - error count,
+  - artifact count,
+  - output path.
+
+- [ ] Add machine-readable build summary.
+
+  Done means `--json` emits stable summary data for CI/editor/product integration.
+
+- [ ] Add build report artifact.
+
+  Done means Forge can emit:
+
+  ```txt
+  build-report.json
+  diagnostics.json
+  artifact-manifest.json
+  ```
+
+---
+
+## 16. Package Build
+
+- [ ] Add package layout builder.
+
+  Done means Forge can build package layouts for:
+
+  - client runtime,
+  - dedicated server,
+  - editor preview,
+  - development test package,
+  - shipping package.
+
+Expected files:
+
+```txt
+Tools/Forge/include/Forge/Package/PackageLayout.hpp
+Tools/Forge/include/Forge/Package/PackageBuilder.hpp
+Tools/Forge/include/Forge/Package/PackageManifestWriter.hpp
+Tools/Forge/src/Package/PackageBuilder.cpp
+```
+
+- [ ] Add package manifest generation.
+
+  Done means package manifest contains:
+
+  - package id,
+  - package version,
+  - target platform,
+  - build profile,
+  - artifact list,
+  - dependency list,
+  - content hashes,
+  - required runtime versions.
+
+- [ ] Add package validation.
+
+  Done means Forge rejects package when:
+
+  - required artifact is missing,
+  - incompatible artifact version exists,
+  - required manifest is invalid,
+  - package hash verification fails,
+  - publish gate fails.
+
+---
+
+## 17. Publish Gate Integration
+
+- [ ] Add build-level publish gates.
+
+  Done means shipping/publish builds require:
+
+  - SDE compile success,
+  - asset cook success,
+  - package validation success,
+  - no unresolved build diagnostics above allowed severity,
+  - artifact integrity verification,
+  - target platform compatibility.
+
+- [ ] Support collaboration publish gate input.
+
+  Done means Forge can consume external publish state from product/collaboration services where provided, without owning collaboration implementation.
+
+Allowed:
+
+```txt
+Forge consumes publish gate descriptor/artifact
+Forge reports publish gate failure
+```
+
+Forbidden:
+
+```txt
+Forge owns collaboration session lifecycle
+Forge owns permissions service
+Forge owns conflict engine
+```
+
+---
+
+## 18. Clean and Rebuild
+
+- [ ] Add safe clean command.
+
+  Done means `forge clean` can remove:
+
+  - build output,
+  - staged artifacts,
+  - temporary files,
+  - selected cache entries where requested.
+
+- [ ] Add safe path validation before deletion.
+
+  Done means Forge refuses to delete:
+
+  - workspace root,
+  - user home,
+  - filesystem root,
+  - paths outside configured build output unless explicitly forced with safety checks.
+
+- [ ] Add rebuild command.
+
+  Done means `forge rebuild` performs:
+
+  ```txt
+  clean selected outputs
+  rebuild selected profile
+  emit summary
+  ```
+
+Destructive build tools need adult supervision.
+
+Forge should be the adult, not the toddler with `rm -rf`.
+
+---
+
+## 19. Configuration
+
+- [ ] Add Forge config support.
+
+  Done means config can define:
+
+  - tool paths,
+  - build profiles,
+  - source roots,
+  - output roots,
+  - cache path,
+  - target platforms,
+  - artifact format preferences,
+  - strictness levels.
+
+Expected files:
+
+```txt
+Tools/Forge/include/Forge/Config/ForgeConfig.hpp
+Tools/Forge/include/Forge/Config/ForgeConfigLoader.hpp
+Tools/Forge/src/Config/ForgeConfigLoader.cpp
+```
+
+- [ ] Add command-line config overrides.
+
+  Done means CLI can override:
+
+  - workspace path,
+  - profile,
+  - output path,
+  - cache mode,
+  - verbosity,
+  - JSON mode.
+
+- [ ] Add config validation.
+
+  Done means invalid config fails before build begins.
+
+---
+
+## 20. Tool Discovery
+
+- [ ] Add required tool discovery.
+
+  Done means Forge can locate:
+
+  - SDE executable,
+  - asset cook tool,
+  - script compiler where applicable,
+  - package validator,
+  - optional Prism executable.
+
+Expected files:
+
+```txt
+Tools/Forge/include/Forge/Tools/ToolLocator.hpp
+Tools/Forge/include/Forge/Tools/ToolRequirement.hpp
+Tools/Forge/include/Forge/Tools/ToolVersion.hpp
+Tools/Forge/src/Tools/ToolLocator.cpp
+```
+
+- [ ] Add tool version validation.
+
+  Done means Forge checks:
+
+  - required tool exists,
+  - executable can run,
+  - version is compatible,
+  - protocol/output format is supported.
+
+- [ ] Add missing tool diagnostics.
+
+  Done means missing tools report:
+
+  - tool name,
+  - expected path,
+  - searched paths,
+  - required version,
+  - suggested install/build action.
+
+---
+
+## 21. Prism Integration
+
+- [ ] Allow optional Prism integration for build insight.
+
+  Done means Forge may invoke Prism for:
+
+  - source graph inspection,
+  - dependency insight,
+  - stale generated code detection,
+  - include/source graph diagnostics.
+
+- [ ] Preserve Prism ownership.
+
+  Done means Forge does not own:
+
+  - Prism indexing,
+  - Prism graph database,
+  - symbol graph generation,
+  - semantic query engine.
+
+- [ ] Keep Prism optional for core build unless explicitly required by a profile.
+
+  Done means normal build does not fail because Prism is unavailable unless the selected profile requires Prism.
+
+---
+
+## 22. SagaTools Integration
+
+- [ ] Allow SagaTools to dispatch Forge.
+
+  Example commands:
+
+  ```txt
+  sagatools forge build
+  sagatools forge clean
+  sagatools forge package
+  sagatools forge doctor
+  ```
+
+- [ ] Keep SagaTools as dispatcher only.
+
+  Done means SagaTools does not parse or execute Forge build plan internals.
+
+- [ ] Keep Forge usable standalone.
+
+  Done means Forge can still run as:
+
+  ```txt
+  forge build
+  ```
+
+  without requiring SagaTools.
+
+---
+
+## 23. Editor Integration
+
+- [ ] Allow editor to invoke Forge through a service boundary.
+
+  Done means SagaEditor can request:
+
+  - validate project,
+  - build current project,
+  - cook assets,
+  - package preview build,
+  - inspect build diagnostics.
+
+- [ ] Keep Forge UI outside Forge.
+
+  Done means Forge does not own:
+
+  - editor build panel,
+  - progress dialog widgets,
+  - Problems panel,
+  - content browser,
+  - product publish UI.
+
+- [ ] Emit diagnostics consumable by editor.
+
+  Done means Forge can output structured diagnostics that editor displays without importing Forge internals.
+
+Correct flow:
+
+```txt
+Editor requests build
+      ↓
+Forge runs build workflow
+      ↓
+Forge emits diagnostics/build report
+      ↓
+Editor displays results
+```
+
+Incorrect flow:
+
+```txt
+Forge imports editor widgets and updates panels directly
+```
+
+No.
+
+Bad boundary.
+
+---
+
+## 24. Runtime and Server Integration
+
+- [ ] Emit runtime-consumable build artifacts.
+
+  Done means SagaEngine runtime can consume:
+
+  - asset manifests,
+  - cooked assets,
+  - SDE artifacts,
+  - package manifest,
+  - runtime config.
+
+- [ ] Emit server-consumable build artifacts.
+
+  Done means SagaServer can consume:
+
+  - server package manifest,
+  - authority-relevant schema artifacts,
+  - runtime config,
+  - validation metadata.
+
+- [ ] Keep runtime/server implementation outside Forge.
+
+  Done means Forge does not include runtime/server private headers or execute gameplay simulation.
+
+Forge creates outputs.
+
+Runtime/server consume outputs.
+
+The oven bakes bread. It does not eat lunch.
+
+---
+
+## 25. Logging
+
+- [ ] Add Forge logging.
+
+  Done means logs include:
+
+  - selected command,
+  - workspace path,
+  - build profile,
+  - tool paths,
+  - build steps,
+  - step timings,
+  - cache results,
+  - artifact counts,
+  - errors and warnings.
+
+- [ ] Keep normal output readable.
+
+  Done means default CLI output gives useful progress without drowning the user in raw internal noise.
+
+- [ ] Add verbose mode.
+
+  Done means `--verbose` shows detailed step/tool execution info.
+
+---
+
+## 26. Exit Codes
+
+- [ ] Define stable Forge exit codes.
+
+  Required categories:
+
+  ```txt
+  0   success
+  1   general failure
+  2   invalid arguments
+  3   workspace error
+  4   config error
+  5   build plan error
+  6   validation failure
+  7   SDE failure
+  8   asset cook failure
+  9   package failure
+  10  missing tool
+  11  cache error
+  12  internal error
+  ```
+
+- [ ] Preserve child tool failure classification.
+
+  Done means an SDE failure is distinguishable from an asset cook failure, because “build failed” is technically true and practically useless.
+
+---
+
+## 27. Performance
+
+- [ ] Add build timing metrics.
+
+  Done means Forge records time for:
+
+  - workspace discovery,
+  - manifest validation,
+  - build planning,
+  - SDE step,
+  - asset cook step,
+  - package step,
+  - artifact staging,
+  - total build.
+
+- [ ] Add slow step diagnostics.
+
+  Done means slow build steps can be identified without guessing.
+
+- [ ] Add incremental build performance tracking.
+
+  Done means Forge reports:
+
+  - skipped steps,
+  - cache hits,
+  - cache misses,
+  - invalidated steps.
+
+---
+
+## 28. Testing Roadmap
+
+### 28.1 Unit Tests
+
+- [ ] Add workspace locator tests.
+
+- [ ] Add config loader tests.
+
+- [ ] Add build profile tests.
+
+- [ ] Add build planner tests.
+
+- [ ] Add build graph validation tests.
+
+- [ ] Add cache key tests.
+
+- [ ] Add artifact staging tests.
+
+- [ ] Add diagnostics aggregation tests.
+
+- [ ] Add safe clean path tests.
+
+---
+
+### 28.2 Integration Tests
+
+- [ ] Add fake tool build integration test.
+
+  Done means Forge can invoke fake SDE/cook/package tools and aggregate outputs.
+
+- [ ] Add SDE integration smoke test.
+
+  Done means Forge can invoke SDE validate/compile when available.
+
+- [ ] Add asset cook integration smoke test.
+
+  Done means Forge can invoke configured asset cook step when available.
+
+- [ ] Add package build integration test.
+
+  Done means staged artifacts produce package manifest.
+
+- [ ] Add failure integration tests.
+
+  Required cases:
+
+  - SDE failure,
+  - asset cook failure,
+  - missing tool,
+  - invalid config,
+  - invalid workspace,
+  - package validation failure.
+
+---
+
+### 28.3 Determinism Tests
+
+- [ ] Add build plan determinism test.
+
+  Done means identical workspace/profile produces identical build plan order.
+
+- [ ] Add artifact manifest determinism test.
+
+  Done means identical inputs produce identical artifact manifest excluding explicitly non-deterministic metadata.
+
+- [ ] Add cache key determinism test.
+
+  Done means cache keys are stable across repeated runs.
+
+---
+
+## 29. CI Requirements
+
+- [ ] Add Forge unit tests to CI.
+
+- [ ] Add Forge integration tests to CI.
+
+- [ ] Add Forge CLI smoke tests.
+
+  Required commands:
+
+  ```txt
+  forge --help
+  forge version
+  forge doctor
+  forge validate --workspace <test-workspace>
+  forge build --workspace <test-workspace> --profile dev
+  ```
+
+- [ ] Add dependency boundary checks.
+
+  Required forbidden checks:
+
+  ```txt
+  Tools/Forge/** must not include Tools/SystemDefinitionEngine/src/**
+  Tools/Forge/** must not include Tools/Prism/src/**
+  Tools/Forge/** must not include Tools/SagaTools/src/**
+  Tools/Forge/** must not include Editor/**
+  Tools/Forge/** must not include Server/private/**
+  Tools/Forge/** must not include Apps/Saga/**
+  ```
+
+- [ ] Add JSON output compatibility test.
+
+  Done means build report JSON remains parseable and schema-stable.
+
+---
+
+## 30. Recommended File Layout
+
+Recommended target layout:
+
+```txt
+Tools/Forge/
+  FORGE_ROADMAP.md
+  README.md
+  CMakeLists.txt or Cargo.toml
+
+Tools/Forge/docs/
+  FORGE_CLI.md
+  FORGE_BUILD_PROFILES.md
+  FORGE_ARTIFACTS.md
+  FORGE_DIAGNOSTICS.md
+
+Tools/Forge/include/Forge/
+  Forge.hpp
+  ForgeCommand.hpp
+  ForgeResult.hpp
+
+Tools/Forge/include/Forge/Workspace/
+  WorkspaceContext.hpp
+  WorkspaceLocator.hpp
+
+Tools/Forge/include/Forge/Build/
+  BuildProfile.hpp
+  BuildConfiguration.hpp
+  TargetPlatform.hpp
+  BuildPlan.hpp
+  BuildStep.hpp
+  BuildGraph.hpp
+  BuildPlanner.hpp
+
+Tools/Forge/include/Forge/Assets/
+  AssetCookPlan.hpp
+  AssetCookStep.hpp
+  AssetCookResult.hpp
+
+Tools/Forge/include/Forge/Artifacts/
+  ArtifactStage.hpp
+  ArtifactStager.hpp
+  StagedArtifact.hpp
+
+Tools/Forge/include/Forge/Cache/
+  BuildCache.hpp
+  CacheKey.hpp
+  CacheEntry.hpp
+
+Tools/Forge/include/Forge/Diagnostics/
+  ForgeDiagnostic.hpp
+  DiagnosticAggregator.hpp
+
+Tools/Forge/include/Forge/Package/
+  PackageLayout.hpp
+  PackageBuilder.hpp
+  PackageManifestWriter.hpp
+
+Tools/Forge/include/Forge/Tools/
+  ToolLocator.hpp
+  ToolRequirement.hpp
+  ToolVersion.hpp
+
+Tools/Forge/include/Forge/Config/
+  ForgeConfig.hpp
+  ForgeConfigLoader.hpp
+
+Tools/Forge/src/
+  main.cpp or main.rs
+  Workspace/
+  Build/
+  Assets/
+  Artifacts/
+  Cache/
+  Diagnostics/
+  Package/
+  Tools/
+  Config/
+
+Tools/Forge/tests/
+  WorkspaceLocatorTests.cpp
+  BuildPlannerTests.cpp
+  BuildGraphTests.cpp
+  CacheKeyTests.cpp
+  ArtifactStagerTests.cpp
+  DiagnosticAggregatorTests.cpp
+  IntegrationTests.cpp
+```
+
+This layout is illustrative.
+
+The ownership boundary is not.
+
+---
+
+## 31. Migration Plan
+
+- [ ] Remove compiler-specific implementation from Forge if present.
+
+  Done means SDE internals live only in SDE.
+
+- [ ] Remove code intelligence implementation from Forge if present.
+
+  Done means Prism internals live only in Prism.
+
+- [ ] Remove global tool dispatch behavior from Forge if present.
+
+  Done means SagaTools owns top-level dispatch.
+
+- [ ] Convert Forge to build workflow frontend.
+
+  Done means Forge owns:
+
+  ```txt
+  build plan
+  build steps
+  diagnostics aggregation
+  artifact staging
+  package workflow
+  cache integration
+  ```
+
+- [ ] Add explicit tool invocation boundaries.
+
+  Done means Forge invokes tools by process/plugin boundary, not by importing their private internals.
+
+- [ ] Add CI dependency checks.
+
+---
+
+## 32. Non-Goals
+
+Forge does not own:
+
+- SDE compiler implementation,
+- Prism code intelligence implementation,
+- SagaTools command dispatch,
+- Saga product shell,
+- editor UI,
+- runtime simulation,
+- server authority,
+- collaboration sessions,
+- collaboration permissions,
+- asset authoring UI,
+- package publishing backend,
+- source indexing database.
+
+Related ownership:
+
+| Area | Owner |
+|---|---|
+| Build workflow frontend | `Forge` |
+| Deterministic data compiler | `SDE` |
+| Code intelligence | `Prism` |
+| Tool dispatch | `SagaTools` |
+| Product shell | `Saga` |
+| Authoring UI | `SagaEditor` |
+| Runtime/server systems | `SagaEngine` / `SagaServer` |
+| Collaboration implementation | `SagaCollaboration` |
+
+---
+
+## 33. Production Definition of Done
+
+- [ ] Forge has a stable CLI.
+
+- [ ] Forge can discover and validate workspaces.
+
+- [ ] Forge supports build profiles.
+
+- [ ] Forge creates deterministic build plans.
+
+- [ ] Forge invokes SDE as a compiler step without depending on SDE internals.
+
+- [ ] Forge coordinates asset cook steps.
+
+- [ ] Forge stages artifacts.
+
+- [ ] Forge emits package manifests.
+
+- [ ] Forge validates package integrity.
+
+- [ ] Forge supports build cache with correct invalidation.
+
+- [ ] Forge aggregates diagnostics from child tools.
+
+- [ ] Forge supports human-readable and JSON output.
+
+- [ ] Forge has stable exit codes.
+
+- [ ] Forge supports safe clean/rebuild.
+
+- [ ] Forge integrates with SagaTools as a dispatched tool.
+
+- [ ] Forge can be invoked by editor/product workflows through service boundaries.
+
+- [ ] CI tests CLI, build planning, diagnostics, and dependency boundaries.
+
+---
+
+## 34. Final Architecture Rule
+
+Forge should remain:
+
+```txt
+a build workflow frontend,
+not a compiler,
+not a code intelligence engine,
+not a product shell,
+not an editor backend,
+not a runtime,
+not a server,
+not a tool landfill.
+```
+
+It should know:
+
+```txt
+what to build,
+which profile to use,
+which steps are required,
+which tools to invoke,
+where artifacts go,
+how failures are reported,
+and whether the result is safe to package.
+```
+
+It should not know:
+
+```txt
+how SDE parses schemas,
+how Prism indexes source,
+how Saga opens projects,
+how the editor draws panels,
+how the runtime simulates entities,
+or how the server owns authority.
+```
+
+Forge succeeds when it makes builds repeatable, visible, and boring.
+
+Boring builds are good.
+
+Exciting builds are usually broken in new and expensive ways.
