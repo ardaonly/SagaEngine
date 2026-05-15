@@ -68,11 +68,9 @@ void SandboxHost::OnInit()
     m_scenarioManager.SetContext(ctx);
 
     // ── 4. Initialise ImGui (skip in headless mode) ───────────────────────────
-    // NOTE: ImGui tick + render are DISABLED until Phase 2 wires
-    //       ImGui_ImplSDL2 + ImGui_ImplDiligent.  Without a platform/
-    //       renderer backend, ImGui::NewFrame() crashes on the first
-    //       frame and ImGui::Render() produces draw data nobody submits.
-    //       InitImGui() still runs so the context exists for future use.
+    // ImGui frame ticking is enabled only when the Diligent ImGui renderer is
+    // available. The context may still exist without GPU so shutdown stays
+    // uniform, but no draw data is produced in GPU-less mode.
     if (!m_config.headless)
     {
         InitImGui();
@@ -115,7 +113,7 @@ void SandboxHost::OnUpdate()
     }
 
     // ── ImGui overlay (rendered after scene, before Present) ───────────────
-    if (!m_config.headless && m_imguiReady)
+    if (!m_config.headless && m_imguiReady && m_imguiGpuReady)
         TickImGui(dt);
 
     // ── GPU frame end ─────────────────────────────────────────────────────────
@@ -125,6 +123,11 @@ void SandboxHost::OnUpdate()
     // ── FPS in title bar ──────────────────────────────────────────────────────
     if (!m_config.headless)
         UpdateFPSTitle(dt);
+
+    // Without a GPU swapchain there is no vsync-backed Present() to pace the
+    // loop. Keep fallback/no-GPU mode from busy-spinning at millions of FPS.
+    if (!m_config.headless && (!m_renderBackend || !m_renderBackend->IsInitialized()))
+        SDL_Delay(16);
 }
 
 void SandboxHost::OnShutdown()
@@ -283,16 +286,21 @@ void SandboxHost::InitImGui()
     }
 
     // Initialize the Diligent-based ImGui renderer (PSO, font atlas, etc.).
+    m_imguiGpuReady = false;
     if (m_renderBackend && m_renderBackend->IsInitialized())
     {
         if (!m_renderBackend->InitImGuiRendering())
         {
             LOG_WARN(kTag, "ImGui GPU renderer init failed — HUD will be invisible.");
         }
+        else
+        {
+            m_imguiGpuReady = true;
+        }
     }
 
     m_imguiReady = true;
-    LOG_INFO(kTag, "ImGui initialised.");
+    LOG_INFO(kTag, "ImGui initialised%s.", m_imguiGpuReady ? " with GPU renderer" : " without GPU renderer");
 }
 
 void SandboxHost::ShutdownImGui()
@@ -302,6 +310,7 @@ void SandboxHost::ShutdownImGui()
 
     ImGui::DestroyContext();
     m_imguiReady = false;
+    m_imguiGpuReady = false;
     LOG_INFO(kTag, "ImGui shut down.");
 }
 

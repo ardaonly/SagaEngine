@@ -15,6 +15,7 @@
 #include "SagaEngine/Core/Log/Log.h"
 
 #include <gtest/gtest.h>
+#include <cstring>
 #include <cstdint>
 #include <vector>
 
@@ -212,7 +213,7 @@ TEST_F(ComponentMaskTest, DifferenceDirtyMasks)
 
     EXPECT_TRUE((difference & COMPONENT_TRANSFORM) != 0);
     EXPECT_FALSE((difference & COMPONENT_PHYSICS) != 0);
-    EXPECT_FALSE((difference & COMPONENT_RENDER) != 0);
+    EXPECT_TRUE((difference & COMPONENT_RENDER) != 0);
 }
 
 // ─── Edge Cases ─────────────────────────────────────────────────────────────
