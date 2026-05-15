@@ -27,6 +27,7 @@
 #include "SagaEditor/Panels/InspectorPanel.h"
 #include "SagaEditor/Panels/ConsolePanel.h"
 #include "SagaEditor/Panels/AssetBrowserPanel.h"
+#include "SagaEditor/Panels/ProblemsPanel.h"
 #include "SagaEditor/Panels/WorldViewportPanel.h"
 
 #include <algorithm>
@@ -191,6 +192,20 @@ void EditorShell::RegisterPanel(std::unique_ptr<IPanel> panel, UIDockArea area)
             true
         });
     }
+    else if (panelId == "saga.panel.problems")
+    {
+        m_host->GetCommandRegistry().Register({
+            "saga.command.view.diagnostics",
+            "Diagnostics",
+            "View",
+            [this, panelId]()
+            {
+                m_window->SetPanelVisible(panelId, true);
+                m_window->FocusPanel(panelId);
+            },
+            true
+        });
+    }
 
     const EditorProfile* activeProfile = m_host->GetEditorProfileRegistry().GetActive();
     if (activeProfile != nullptr)
@@ -273,6 +288,10 @@ void EditorShell::RegisterDefaultPanels()
     RegisterPanel(std::make_unique<InspectorPanel>(),    UIDockArea::Right);
     RegisterPanel(std::make_unique<AssetBrowserPanel>(), UIDockArea::Bottom);
     RegisterPanel(std::make_unique<ConsolePanel>(),      UIDockArea::Bottom);
+
+    auto problems = std::make_unique<ProblemsPanel>();
+    problems->SetDiagnosticsService(&m_host->GetEditorDiagnosticsService());
+    RegisterPanel(std::move(problems), UIDockArea::Bottom);
 }
 
 void EditorShell::RegisterPersonaCommands()

@@ -1,1391 +1,1636 @@
-# Saga Collaboration Roadmap
+# SagaCollaboration — Collaboration Roadmap
 
-> Last updated: 2026-05-14  
-> Status: Active product roadmap  
-> Scope: Product-level collaboration, session lifecycle, presence, permissions, claims, locks, change streams, conflict handling, reconnect/recovery, and editor-facing collaboration UX.
+> Last updated: 2026-05-15
+> Status: Active roadmap
+> Target: A production-grade collaboration layer for Saga projects that supports local/team/cloud collaboration workflows, presence, permissions, claims, locks, conflicts, change streams, resource ownership, publish-blocking collaboration state, and editor/product/runtime integration without making the editor or product shell own collaboration truth.
+> Scope: Collaboration sessions, room codes, team projects, participants, presence, permissions, resource claims, hard locks, conflict descriptors, graph/script/asset/SDE/package/build resource categories, collaboration diagnostics, editor UX integration, Saga product integration, build/publish gates, offline/degraded modes, and backend/service boundaries.
 
 ---
 
 ## 0. Roadmap Convention
 
-- `[x]` — Shipped. The note after the item names the files that represent the work and highlights any decisions worth preserving.
-- `[ ]` — Open. Either unstarted or partially explored; the item describes the finished state rather than interim scaffolding.
-- Shipped items must name the files, modules, or integration points that represent the completed work.
-- Open items must describe the finished production state, not temporary scaffolding.
-- Collaboration contracts must not be finalized under editor-private headers.
-- Neutral contracts belong in `SagaShared`.
-- Collaboration implementation belongs in `SagaCollaboration`.
-- Editor collaboration UI and adapters may live under `Editor/include/SagaEditor/Collaboration/...` and `Editor/src/SagaEditor/Collaboration/...`.
+* `[x]` — Shipped. The note after the item names the files, modules, tests, or integration points that represent completed work and highlights decisions worth preserving.
+* `[ ]` — Open. The item describes the finished production state, not temporary scaffolding.
+* Shipped collaboration work must include implementation files, contract files, tests, UI integration points, and observable behavior where practical.
+* Open collaboration work must describe observable product/editor behavior, not vague multiplayer/product ambition.
+* SagaCollaboration owns collaboration implementation.
+* SagaShared may own neutral collaboration contracts.
+* Saga owns product-level collaboration entry points.
+* SagaEditor owns collaboration authoring UI.
+* Forge may consume collaboration state for build/publish gates.
+* Runtime/server do not own editor collaboration truth.
+* Collaboration profiles/permissions must not be confused with authoring profiles.
+
+Collaboration is not a chat window next to an editor.
+
+Collaboration is resource ownership, conflict management, permissions, and publish safety under multiple humans changing the same project.
 
 ---
 
 ## 1. Document Purpose
 
-This document defines Saga’s collaboration roadmap.
+This document defines Saga's collaboration roadmap.
 
-Collaboration is not just “host and join”.
+Saga collaboration exists to let users work on the same Saga project safely without corrupting source assets, SDE schemas, gameplay graphs, scripts, build profiles, package manifests, or publish state.
 
-The target is a production-grade workflow where multiple developers can safely build, edit, review, test, and publish game projects together.
+It covers:
 
-This roadmap owns product collaboration behavior.
-
-It does not make the editor the owner of collaboration truth.
-
-```txt
-Saga owns product lifecycle.
-SagaCollaboration owns collaboration implementation.
-SagaShared owns neutral contracts.
-SagaEditor owns collaboration UI and editor-facing adapters.
-```
-
-Anything else is how a codebase becomes a historical warning label.
-
----
-
-## 2. Product Vision
-
-- [ ] Provide a product-level collaboration workflow where users can create or open a project, start a collaboration session, invite others, edit together, review changes, test together, and publish safely.
-
-- [ ] Support Quick Collaboration for temporary local/dev sessions with minimal setup and fast host/join behavior.
-
-- [ ] Support Team Collaboration for persistent projects, team membership, permissions, review workflows, audit history, and safe publishing.
-
-- [ ] Keep collaboration as a Saga product capability instead of hiding it inside editor-private systems.
-
-- [ ] Make collaboration visible and understandable through editor UX without making the editor the owner of session truth.
-
----
-
-## 3. Ownership Model
-
-### 3.1 Saga Product Ownership
-
-- [ ] `Saga` owns product-level collaboration entry points.
-
-  Done means:
-
-  - project dashboard exposes collaboration actions,
-  - project open/create flow can route into collaborative workflows,
-  - session selection is product-level,
-  - mode switching remains product-owned,
-  - global collaboration errors are surfaced through Saga product UX.
-
-- [ ] `Saga` owns project/session lifecycle orchestration at product level.
-
-  Done means:
-
-  - starting a session is initiated from product workflow,
-  - joining a session is initiated from product workflow,
-  - leaving a session returns user to a safe product state,
-  - editor/runtime/server modules are mounted or detached through Saga-owned orchestration.
-
----
-
-### 3.2 SagaShared Ownership
-
-- [ ] Move neutral collaboration contracts into `SagaShared`.
-
-  Done means `SagaShared` owns only small neutral contracts such as:
-
-  - session descriptors,
-  - workspace descriptors,
-  - room codes,
-  - participant ids,
-  - participant display names,
-  - presence snapshots,
-  - permission grants,
-  - edit operation envelopes,
-  - artifact references,
-  - stable resource ids,
-  - diagnostic payloads.
-
-- [ ] Prevent `SagaShared` from becoming implementation storage.
-
-  Done means `SagaShared` does not contain:
-
-  - Qt widgets,
-  - editor panels,
-  - runtime internals,
-  - server internals,
-  - transport implementations,
-  - persistence engines,
-  - conflict engines,
-  - session orchestration,
-  - backend clients.
-
-A shared folder is not a trash can with a nicer name.
-
----
-
-### 3.3 SagaCollaboration Ownership
-
-- [ ] Create `SagaCollaboration` as the owner of collaboration services and implementation.
-
-  Done means `SagaCollaboration` owns:
-
-  - quick/dev session lifecycle,
-  - production team session lifecycle,
-  - host/join state,
-  - presence,
-  - permissions,
-  - claims,
-  - locks,
-  - change streams,
-  - conflict detection,
-  - reconnect/recovery,
-  - backend availability state,
-  - service APIs,
-  - transport adapters,
-  - persistence integration,
-  - editor/runtime/server bridges.
-
-- [ ] Expose stable collaboration service APIs.
-
-  Done means product, editor, runtime, and server consumers use public collaboration services instead of implementation internals.
-
----
-
-### 3.4 Editor Ownership
-
-- [ ] Keep `SagaEditor` responsible only for collaboration UI and editor-facing adapters.
-
-  Done means the editor may own:
-
-  - collaboration toolbar,
-  - participants panel,
-  - presence indicators,
-  - locked-resource badges,
-  - conflict resolution UI,
-  - collaboration diagnostics panel,
-  - editor command integration,
-  - editor-local collaboration adapters.
-
-- [ ] Prevent editor-private collaboration contracts from becoming product truth.
-
-  Done means the editor does not own:
-
-  - session truth,
-  - final collaboration contracts,
-  - backend collaboration state,
-  - global product lifecycle,
-  - team membership source of truth,
-  - transport implementation,
-  - persistence implementation.
+* collaboration sessions,
+* quick rooms,
+* team projects,
+* participants,
+* presence,
+* roles,
+* permissions,
+* resource claims,
+* hard locks,
+* conflict descriptors,
+* change streams,
+* disconnected/offline behavior,
+* editor collaboration UX,
+* product collaboration UX,
+* build/publish collaboration gates,
+* diagnostics,
+* backend/service boundaries.
 
 Correct model:
 
 ```txt
-SagaEditor displays and operates collaboration UX.
-SagaCollaboration owns collaboration behavior.
-Saga owns the product lifecycle around it.
+SagaCollaboration
+    owns collaboration session state and conflict/permission/claim/lock behavior
+
+SagaShared
+    owns neutral contracts
+
+Saga
+    owns product entry points and mode orchestration
+
+SagaEditor
+    owns collaboration UI display and resource-level interaction
+
+Forge
+    consumes collaboration state for build/publish gates
 ```
 
 Incorrect model:
 
 ```txt
-Editor/include/SagaEditor/Collaboration owns everything because it was convenient.
+Editor panel stores who owns the session because that was easier than writing a real service.
 ```
 
-Convenience is how future bugs get a passport.
+That is how collaboration turns into a UI-shaped race condition.
 
 ---
 
-## 4. Layer Architecture
+## 2. Companion Documents
 
-- [ ] Establish the target collaboration layer split.
+| Document                            | Purpose                                                                          |
+| ----------------------------------- | -------------------------------------------------------------------------------- |
+| `SAGA_PRODUCT_ROADMAP.md`           | Product shell, collaboration entry points, project lifecycle, mode orchestration |
+| `EDITOR_ROADMAP.md`                 | Editor collaboration toolbar, participants panel, claims/locks/conflict UI       |
+| `SHARED_ROADMAP.md`                 | Neutral collaboration contracts and resource references                          |
+| `BUILD_PUBLISH_PIPELINE_ROADMAP.md` | Collaboration state as build/publish gate                                        |
+| `FORGE_ROADMAP.md`                  | Forge validates collaboration state before strict build/publish profiles         |
+| `SAGA_GAMEPLAY_GRAPH_ROADMAP.md`    | Graph resources, node/edge conflict potential, graph claims/locks                |
+| `AUTHORING_AUTHORITY_MODEL.md`      | Authority-sensitive resources and server/publish safety                          |
+| `SAGA_SCRIPTING_ROADMAP.md`         | Script source/binding/generated-code collaboration resources                     |
+| `ASSET_PIPELINE_ROADMAP.md`         | Asset metadata/import settings/cooked artifact collaboration resources           |
+| `SDE_ROADMAP.md`                    | SDE schemas/source artifacts and schema migration locks                          |
+| `PRISM_ROADMAP.md`                  | Artifact/resource relationship reports consumed by collaboration diagnostics     |
+| `DIAGNOSTICS_ROADMAP.md`            | Structured diagnostics/reporting model                                           |
+| `DependencyGraph.md`                | Dependency ownership rules                                                       |
 
-  Target architecture:
+---
+
+## 3. Core Ownership Rule
+
+* [x] Define collaboration implementation outside SagaEditor.
+
+  Represented by:
+
+  ```txt
+  COLLABORATION_ROADMAP.md
+  SHARED_ROADMAP.md
+  EDITOR_ROADMAP.md
+  DependencyGraph.md
+  ```
+
+  Preserved decision:
+
+  ```txt
+  SagaEditor displays collaboration state.
+  SagaCollaboration owns collaboration state.
+  SagaShared owns neutral contracts.
+  ```
+
+* [ ] Create a dedicated `SagaCollaboration` implementation module/service.
+
+  Done means collaboration implementation owns:
+
+  * sessions,
+  * participants,
+  * presence,
+  * room codes,
+  * roles,
+  * permissions,
+  * claims,
+  * locks,
+  * conflicts,
+  * change streams,
+  * reconnect/recovery behavior,
+  * collaboration diagnostics,
+  * backend adapters.
+
+Expected files:
 
 ```txt
-Saga
-  product shell, project lifecycle, collaboration entry points
-
-SagaEditor
-  collaboration UI, editor adapters, conflict display
-
-SagaRuntime
-  runtime preview consumers, simulation/session integration
-
-SagaServer
-  authority/session consumers, production server integration
-
-SagaShared
-  neutral contracts and identifiers
-
-SagaCollaboration
-  service APIs, session lifecycle, permissions, presence, conflicts
-
-SagaCollaborationCore
-  optional lower-level implementation internals
-
-Backends
-  persistence, auth, relay, storage, telemetry
+Collaboration/include/SagaCollaboration/Session/CollaborationSession.h
+Collaboration/include/SagaCollaboration/Session/SessionService.h
+Collaboration/include/SagaCollaboration/Presence/PresenceService.h
+Collaboration/include/SagaCollaboration/Permissions/PermissionService.h
+Collaboration/include/SagaCollaboration/Resources/ResourceClaimService.h
+Collaboration/include/SagaCollaboration/Resources/ResourceLockService.h
+Collaboration/include/SagaCollaboration/Conflicts/ConflictService.h
+Collaboration/src/SagaCollaboration/Session/SessionService.cpp
 ```
 
-- [ ] Keep `SagaCollaborationCore` optional until the collaboration implementation becomes large enough to justify a lower-level split.
+* [ ] Keep final collaboration contracts out of editor-private headers.
+
+  Deprecated location:
+
+  ```txt
+  Editor/include/SagaEditor/Collaboration
+  ```
+
+  Correct contract location:
+
+  ```txt
+  Shared/include/SagaShared/Collaboration
+  ```
+
+  Correct implementation location:
+
+  ```txt
+  Collaboration/include/SagaCollaboration
+  Collaboration/src/SagaCollaboration
+  ```
 
 ---
 
-## 5. Dependency Rules
+## 4. Dependency Rules
 
-### 5.1 Allowed Dependencies
+### 4.1 Allowed Dependencies
 
-- [ ] Allow `Saga` to consume `SagaCollaboration` APIs and `SagaShared` contracts.
+Allowed dependency directions:
 
 ```txt
-Saga → SagaCollaboration API
-Saga → SagaShared
+Saga → SagaCollaboration public service API
+Saga → SagaShared collaboration contracts
+SagaEditor → SagaCollaboration public service API
+SagaEditor → SagaShared collaboration contracts
+Forge → SagaShared collaboration contracts / collaboration status report
+Runtime → SagaShared contracts where explicitly needed
+Server → SagaShared contracts where explicitly needed
+SagaCollaboration → SagaShared contracts
+SagaCollaboration → backend/transport adapters through explicit boundaries
 ```
 
-- [ ] Allow `SagaEditor` to consume `SagaCollaboration` APIs and `SagaShared` contracts.
+---
+
+### 4.2 Forbidden Dependencies
+
+Forbidden dependency directions:
 
 ```txt
-SagaEditor → SagaCollaboration API
-SagaEditor → SagaShared
+SagaShared → SagaCollaboration implementation
+SagaCollaboration → SagaEditor UI
+SagaCollaboration → Saga product shell internals
+SagaCollaboration → Runtime private internals
+SagaCollaboration → Server private internals
+SagaCollaboration → SDE compiler internals
+SagaCollaboration → Forge planner internals
+SagaCollaboration → Prism internals
+SagaCollaboration → asset cooker internals
+SagaCollaboration → scripting compiler internals
 ```
 
-- [ ] Allow runtime and server modules to consume stable collaboration APIs where needed.
+Forbidden shortcuts:
 
 ```txt
-Runtime → SagaCollaboration API
-Runtime → SagaShared
-
-Server → SagaCollaboration API
-Server → SagaShared
+Editor panel owns session truth.
+Product shell stores locks directly.
+Forge mutates collaboration state during publish check.
+Runtime/server rely on editor collaboration state for authority.
+Authoring profile grants collaboration permission.
+Conflict resolution is done by overwriting latest file silently.
 ```
 
-- [ ] Allow `SagaCollaboration` to depend on `SagaShared` and approved backend interfaces.
+---
+
+## 5. Collaboration Modes
+
+Required collaboration modes:
 
 ```txt
-SagaCollaboration → SagaShared
-SagaCollaboration → approved backend interfaces
+SoloLocal
+QuickRoom
+TeamProject
+ReviewOnly
+OfflineDraft
+ReadOnlySnapshot
 ```
 
 ---
 
-### 5.2 Forbidden Dependencies
+### 5.1 SoloLocal
 
-- [ ] Prevent runtime and server modules from including editor-private collaboration headers.
-
-```txt
-Runtime → Editor/include/SagaEditor/Collaboration
-Server → Editor/include/SagaEditor/Collaboration
-```
-
-- [ ] Prevent `SagaShared` from depending upward.
-
-```txt
-SagaShared → SagaCollaboration
-SagaShared → Editor
-SagaShared → Runtime internals
-SagaShared → Server internals
-```
-
-- [ ] Prevent `SagaCollaboration` from depending on UI ownership.
-
-```txt
-SagaCollaboration → Editor UI
-SagaCollaboration → product shell widgets
-```
-
----
-
-### 5.3 Deprecated Ownership Location
-
-- [ ] Freeze final-contract additions under the deprecated editor collaboration path.
-
-Deprecated path:
-
-```txt
-Editor/include/SagaEditor/Collaboration
-```
-
-Migration rule:
-
-```txt
-Existing code may remain temporarily.
-New final collaboration contracts must not be added there.
-```
-
----
-
-## 6. Core Collaboration Concepts
-
-### 6.1 Project
-
-- [ ] Define collaborative project identity.
-
-  Done means each collaborative project has:
-
-  - project id,
-  - display name,
-  - owner/team id,
-  - local path or remote workspace reference,
-  - collaboration mode,
-  - active session state,
-  - member list,
-  - permission policy,
-  - artifact registry,
-  - current publish state.
-
----
-
-### 6.2 Workspace
-
-- [ ] Define workspace state for local and collaborative editing.
-
-  Done means each workspace can describe:
-
-  - workspace id,
-  - project id,
-  - local root path,
-  - current branch or snapshot id,
-  - active user id,
-  - open editor mode,
-  - sync state,
-  - dirty resources,
-  - pending operations.
-
----
-
-### 6.3 Session
-
-- [ ] Define active collaboration session state.
-
-  Done means each session can describe:
-
-  - session id,
-  - project id,
-  - session mode,
-  - host authority,
-  - participants,
-  - permissions,
-  - presence state,
-  - claimed resources,
-  - active locks,
-  - operation stream position,
-  - diagnostics state.
-
----
-
-### 6.4 Participant
-
-- [ ] Define participant identity and connection state.
-
-  Done means each participant can describe:
-
-  - participant id,
-  - account id when available,
-  - display name,
-  - connection state,
-  - role,
-  - permissions,
-  - current activity,
-  - active selection,
-  - viewed resource,
-  - last heartbeat timestamp.
-
----
-
-### 6.5 Presence
-
-- [ ] Define presence snapshots.
-
-  Done means presence can describe:
-
-  - online/offline state,
-  - current mode,
-  - open asset,
-  - selected entity,
-  - active viewport location,
-  - cursor location,
-  - current tool,
-  - editing state,
-  - idle state.
-
-Presence must be useful, not creepy.
-
-The goal is coordination, not building a surveillance dashboard because software people lost moral imagination again.
-
----
-
-### 6.6 Permissions
-
-- [ ] Define collaboration permission domains.
-
-  Done means permissions can cover:
-
-  - project access,
-  - asset edit,
-  - scene edit,
-  - script edit,
-  - data graph edit,
-  - build/run,
-  - publish,
-  - invite members,
-  - change roles,
-  - manage locks,
-  - resolve conflicts.
-
-Implicit trust is not a security model. It is a future incident report.
-
----
-
-### 6.7 Claims
-
-- [ ] Define soft resource claims.
-
-  Done means a user or tool can claim a resource to signal active work without hard-blocking other users.
-
-Examples:
-
-```txt
-Arda is editing this scene.
-Maya is working on this asset.
-Tool process is generating this artifact.
-```
-
----
-
-### 6.8 Locks
-
-- [ ] Define hard resource locks.
-
-  Done means locks are:
-
-  - visible,
-  - scoped,
-  - revocable by authorized users,
-  - time-bounded where possible,
-  - recoverable after disconnect.
-
-Examples:
-
-```txt
-scene locked for structural edit
-asset locked during import/cook
-publish locked during validation
-graph locked during schema migration
-```
-
----
-
-### 6.9 Change Stream
-
-- [ ] Define ordered collaboration change stream.
-
-  Done means the stream can record:
-
-  - resource opened,
-  - resource edited,
-  - entity modified,
-  - asset imported,
-  - script changed,
-  - graph compiled,
-  - scene saved,
-  - lock acquired,
-  - lock released,
-  - conflict detected,
-  - conflict resolved.
-
----
-
-### 6.10 Conflict
-
-- [ ] Define conflict detection and conflict records.
-
-  Done means conflicts include:
-
-  - affected resources,
-  - involved actors,
-  - local operation summary,
-  - remote operation summary,
-  - conflict reason,
-  - available resolution options,
-  - audit record.
-
-A conflict dialog that just says “failed” is not UX.
-
-It is a shrug with pixels.
-
----
-
-## 7. Quick Collaboration Roadmap
-
-### 7.1 Local Session Skeleton
-
-- [ ] Provide a local host/join collaboration session for development testing.
+* [ ] Define solo local mode.
 
   Done means:
 
-  - user can start a local session,
-  - another client can join,
-  - session descriptor exists,
-  - participants are visible,
-  - basic presence updates work,
-  - disconnect is handled cleanly,
-  - session shuts down without corrupting project state.
+  * no remote session is required,
+  * collaboration services can still expose local resource dirty/claim-like state,
+  * publish/build gates do not require network collaboration checks,
+  * local diagnostics still use collaboration resource descriptors where useful.
 
-Expected outputs:
+---
+
+### 5.2 QuickRoom
+
+* [ ] Define quick collaboration room.
+
+  Done means users can:
+
+  * create a room,
+  * share a room code,
+  * join by room code,
+  * see participants,
+  * claim/lock resources,
+  * receive conflict diagnostics,
+  * leave safely.
+
+QuickRoom is for lightweight collaboration, not full production source-control replacement.
+
+---
+
+### 5.3 TeamProject
+
+* [ ] Define team project collaboration.
+
+  Done means:
+
+  * project members have roles,
+  * permissions are persistent,
+  * resource claims/locks persist across sessions where configured,
+  * conflict records survive reconnects,
+  * build/publish gates can check team collaboration state.
+
+---
+
+### 5.4 ReviewOnly
+
+* [ ] Define review-only mode.
+
+  Done means reviewers can:
+
+  * inspect project state,
+  * comment where supported,
+  * view diagnostics,
+  * view publish readiness,
+  * not mutate resources unless permission changes.
+
+---
+
+### 5.5 OfflineDraft
+
+* [ ] Define offline draft mode.
+
+  Done means users can:
+
+  * work locally while disconnected,
+  * record local changes,
+  * see degraded collaboration status,
+  * reconnect and produce conflict records where needed,
+  * avoid falsely claiming publish-ready team state.
+
+---
+
+### 5.6 ReadOnlySnapshot
+
+* [ ] Define read-only snapshot mode.
+
+  Done means users can open an immutable project snapshot for inspection, diagnostics, review, or archival reproduction.
+
+---
+
+## 6. Session Model
+
+* [ ] Add collaboration session descriptor.
+
+  Done means a session describes:
+
+  * session id,
+  * project id,
+  * workspace id,
+  * mode,
+  * host/owner,
+  * participants,
+  * backend adapter,
+  * permissions model,
+  * resource state summary,
+  * conflict summary,
+  * connection state.
+
+Expected contracts:
 
 ```txt
-SagaShared session descriptors
-SagaCollaboration quick session service
-Saga product entry point
-SagaEditor participants UI
+Shared/include/SagaShared/Collaboration/SessionId.hpp
+Shared/include/SagaShared/Collaboration/SessionDescriptor.hpp
+Shared/include/SagaShared/Collaboration/RoomCode.hpp
 ```
 
----
-
-### 7.2 Room Code Join Flow
-
-- [ ] Add room-code based joining.
-
-  Done means:
-
-  - host generates a room code,
-  - joiner enters the room code,
-  - invalid codes fail clearly,
-  - expired codes fail clearly,
-  - participant appears in session,
-  - host sees joiner state.
-
-Required contracts:
+Expected implementation:
 
 ```txt
-RoomCode
-SessionEndpointDescriptor
-JoinRequest
-JoinResult
-JoinFailureReason
+Collaboration/include/SagaCollaboration/Session/CollaborationSession.h
+Collaboration/include/SagaCollaboration/Session/SessionService.h
+Collaboration/src/SagaCollaboration/Session/SessionService.cpp
 ```
 
----
+* [ ] Add session lifecycle.
 
-### 7.3 Presence and Activity
+  Done means sessions support:
 
-- [ ] Show useful real-time collaborator presence.
+  * create,
+  * join,
+  * leave,
+  * reconnect,
+  * pause/degrade,
+  * close,
+  * recover.
 
-  Done means:
+* [ ] Add session diagnostics.
 
-  - participants panel shows active users,
-  - editor shows active resource/user indicators,
-  - selected asset/scene presence is visible,
-  - idle state is visible,
-  - disconnected state is visible,
-  - stale presence expires safely.
+  Done means failures explain:
 
----
-
-### 7.4 Soft Claims
-
-- [ ] Add soft claims for collaborative resources.
-
-  Done means:
-
-  - users can claim resources,
-  - editor displays claimed resources,
-  - claim ownership is visible,
-  - claim release works,
-  - disconnected participant claims recover safely,
-  - claims do not permanently block work.
+  * room not found,
+  * permission denied,
+  * version mismatch,
+  * project mismatch,
+  * network/backend unavailable,
+  * conflict requires resolution,
+  * stale workspace state.
 
 ---
 
-### 7.5 Basic Locking
+## 7. Participants and Presence
 
-- [ ] Add hard locks for unsafe concurrent edits.
+* [ ] Add participant model.
 
-  Done means:
+  Done means participants have:
 
-  - resources can be locked,
-  - locks are visible,
-  - unauthorized edits are blocked,
-  - lock owner is shown,
-  - lock release works,
-  - disconnect recovery exists,
-  - host/admin override exists.
+  * participant id,
+  * display name,
+  * connection state,
+  * role summary,
+  * current activity,
+  * active resource focus,
+  * last seen timestamp.
 
----
+Expected contracts:
 
-### 7.6 Conflict Detection
+```txt
+Shared/include/SagaShared/Collaboration/ParticipantId.hpp
+Shared/include/SagaShared/Collaboration/ParticipantDescriptor.hpp
+Shared/include/SagaShared/Collaboration/PresenceSnapshot.hpp
+```
 
-- [ ] Detect unsafe concurrent modifications.
+* [ ] Add presence service.
 
-  Done means:
+  Done means presence updates can show:
 
-  - conflicting edits are detected,
-  - affected resources are identified,
-  - local and remote operation summaries are shown,
-  - user receives actionable resolution options,
-  - conflict result is recorded.
+  * who is online,
+  * who is editing what,
+  * who is reviewing,
+  * who holds a claim/lock,
+  * who is disconnected/idle.
 
----
+Expected implementation:
 
-### 7.7 Reconnect and Recovery
+```txt
+Collaboration/include/SagaCollaboration/Presence/PresenceService.h
+Collaboration/src/SagaCollaboration/Presence/PresenceService.cpp
+```
 
-- [ ] Survive temporary connection loss.
+* [ ] Keep presence non-authoritative for resource permissions.
 
-  Done means:
-
-  - disconnected users can reconnect,
-  - participant identity is restored,
-  - stale presence is corrected,
-  - claims and locks are reconciled,
-  - pending operations are resolved or rejected clearly,
-  - corrupted state is not accepted.
-
----
-
-## 8. Team Collaboration Roadmap
-
-### 8.1 Team Project Model
-
-- [ ] Introduce persistent team projects.
-
-  Done means:
-
-  - project has persistent id,
-  - project has owner/team id,
-  - project has member list,
-  - project has role model,
-  - project has collaboration settings,
-  - project can be opened through Saga product shell.
+  Done means presence display does not grant edit rights or publish rights by itself.
 
 ---
 
-### 8.2 Roles and Permissions
+## 8. Permissions Model
 
-- [ ] Enforce role-based collaboration permissions.
+Profiles are not permissions.
 
-  Done means:
+Required distinction:
 
-  - roles exist,
-  - permissions are explicit,
-  - editor actions check permissions,
-  - publish/build actions check permissions,
-  - unauthorized actions fail safely,
-  - permission errors are readable.
+```txt
+Authoring profile = what UI depth the user sees.
+Collaboration permission = what the user is allowed to do.
+```
 
-Example roles:
+* [ ] Add permission model.
+
+  Required permission domains:
+
+```txt
+ProjectRead
+ProjectWrite
+AssetEdit
+SceneEdit
+GraphEdit
+ScriptEdit
+SDEEdit
+SchemaMigration
+BuildRun
+PackageStage
+PublishCheck
+PublishRelease
+LockOverride
+ConflictResolve
+PermissionManage
+ServerAuthorityEdit
+```
+
+Expected contracts:
+
+```txt
+Shared/include/SagaShared/Collaboration/PermissionGrant.hpp
+Shared/include/SagaShared/Collaboration/PermissionDomain.hpp
+Shared/include/SagaShared/Collaboration/RoleDescriptor.hpp
+```
+
+Expected implementation:
+
+```txt
+Collaboration/include/SagaCollaboration/Permissions/PermissionService.h
+Collaboration/src/SagaCollaboration/Permissions/PermissionService.cpp
+```
+
+* [ ] Add role model.
+
+  Suggested roles:
 
 ```txt
 Owner
 Admin
-Developer
+TeamLead
+GameplayDesigner
+Programmer
+NetworkDeveloper
 Artist
-Designer
+TechnicalArtist
 Reviewer
-Viewer
+Guest
 ```
 
----
-
-### 8.3 Persistent Operation Log
-
-- [ ] Record project collaboration history.
+* [ ] Enforce permissions independently from authoring profiles.
 
   Done means:
 
-  - operations are persisted,
-  - operations are ordered,
-  - operations include actor identity,
-  - operations include affected resource,
-  - operations include timestamp,
-  - operation log can be inspected,
-  - invalid operations do not publish state.
+  * advanced profile does not grant publish permission,
+  * beginner profile user may still have asset edit permission,
+  * network developer profile does not automatically grant server authority edit permission,
+  * team lead profile does not automatically grant lock override unless role allows it.
 
 ---
 
-### 8.4 Review Workflow
+## 9. Resource Model
 
-- [ ] Support reviewable changes before publishing.
+Collaboration must operate on project resources, not vague files alone.
 
-  Done means:
-
-  - users can submit change sets,
-  - reviewers can inspect affected resources,
-  - comments or diagnostics can be attached,
-  - changes can be accepted or rejected,
-  - accepted changes can flow toward publish/build,
-  - rejected changes remain recoverable.
-
----
-
-### 8.5 Publish Gates
-
-- [ ] Prevent unsafe project publishing.
-
-  Done means publish is blocked when:
-
-  - unresolved conflicts exist,
-  - failed validation exists,
-  - failed SDE compile exists,
-  - failed asset cook exists,
-  - failed runtime validation exists,
-  - caller lacks publish permission.
-
----
-
-### 8.6 Cloud/Backend Session Services
-
-- [ ] Move team collaboration from local/dev flow to production service flow.
-
-  Done means:
-
-  - backend-backed session discovery exists,
-  - authenticated participants exist,
-  - persistent team membership exists,
-  - reconnect works across machines,
-  - project metadata persists,
-  - diagnostics are observable.
-
----
-
-### 8.7 Audit and History
-
-- [ ] Provide reliable project history and accountability.
-
-  Done means:
-
-  - project-level audit events exist,
-  - sensitive operations are recorded,
-  - role changes are recorded,
-  - publish actions are recorded,
-  - lock overrides are recorded,
-  - conflict resolutions are recorded,
-  - audit records are queryable.
-
----
-
-## 9. Editor UX Roadmap
-
-### 9.1 Participants Panel
-
-- [ ] Add participants panel.
-
-  Done means the panel shows:
-
-  - participant name,
-  - connection state,
-  - current activity,
-  - role,
-  - active resource,
-  - stale state warnings.
-
-Expected editor location:
+Required resource categories:
 
 ```txt
-Editor/include/SagaEditor/Collaboration/ParticipantsPanel.hpp
-Editor/src/SagaEditor/Collaboration/ParticipantsPanel.cpp
+ProjectManifest
+WorkspaceState
+Scene
+Prefab
+Entity
+Component
+AssetSource
+AssetMetadata
+ImportSettings
+CookSettings
+CookedArtifact
+Material
+Mesh
+Texture
+Audio
+SDEPackage
+SDESchema
+SDEData
+GameplayGraph
+GraphNode
+GraphEdge
+GraphMacro
+CSharpScript
+ScriptBindingManifest
+GeneratedCode
+BuildProfile
+PackageProfile
+PackageManifest
+PublishReport
+DiagnosticsReport
+EditorProfile
+AuthoringProfile
 ```
 
----
+* [ ] Add resource reference contract.
 
-### 9.2 Collaboration Toolbar
+  Done means collaboration resources can be identified independently from editor UI.
 
-- [ ] Add collaboration toolbar.
-
-  Done means the toolbar supports:
-
-  - start session,
-  - join session,
-  - copy invite/room code,
-  - leave session,
-  - view participants,
-  - view conflicts,
-  - view locks,
-  - view sync state.
-
-Expected editor location:
+Expected contracts:
 
 ```txt
-Editor/include/SagaEditor/Collaboration/CollaborationToolbar.hpp
+Shared/include/SagaShared/Resources/ResourceId.hpp
+Shared/include/SagaShared/Resources/ResourceKind.hpp
+Shared/include/SagaShared/Resources/ResourceRef.hpp
+Shared/include/SagaShared/Collaboration/CollaborativeResourceDescriptor.hpp
+```
+
+* [ ] Add resource hierarchy.
+
+  Done means resource relationships can represent:
+
+```txt
+Project → Scene → Entity → Component
+Project → AssetMetadata → SourceAsset / CookedArtifact
+Project → SDEPackage → SDESchema / SDEData
+Project → GameplayGraph → GraphNode / GraphEdge
+Project → CSharpScript → ScriptBindingManifest / GeneratedCode
+Project → BuildProfile → PackageManifest
+```
+
+* [ ] Add resource diagnostics.
+
+  Done means collaboration diagnostics identify exact affected resource, not just “someone changed something”.
+
+---
+
+## 10. Claims
+
+A claim means “I am currently working on this resource.”
+
+Claims are collaborative signals, not absolute locks.
+
+* [ ] Add resource claim model.
+
+  Done means claims include:
+
+  * resource ref,
+  * participant id,
+  * claim type,
+  * claim timestamp,
+  * activity summary,
+  * expiration/heartbeat where applicable.
+
+Expected contracts:
+
+```txt
+Shared/include/SagaShared/Collaboration/ResourceClaim.hpp
+Shared/include/SagaShared/Collaboration/ClaimType.hpp
+```
+
+Expected implementation:
+
+```txt
+Collaboration/include/SagaCollaboration/Resources/ResourceClaimService.h
+Collaboration/src/SagaCollaboration/Resources/ResourceClaimService.cpp
+```
+
+* [ ] Add claim types.
+
+  Required types:
+
+```txt
+Viewing
+Editing
+Reviewing
+Testing
+Building
+ResolvingConflict
+```
+
+* [ ] Surface claims in editor.
+
+  Done means editor shows claims in:
+
+  * hierarchy,
+  * content browser,
+  * graph editor,
+  * script editor,
+  * SDE source view,
+  * asset inspector,
+  * build/publish panel.
+
+* [ ] Claims should not block by default.
+
+  Done means claims warn users and improve coordination, but hard locks enforce exclusivity where required.
+
+---
+
+## 11. Hard Locks
+
+A lock means “this resource cannot be concurrently mutated without explicit override.”
+
+* [ ] Add hard lock model.
+
+  Done means locks include:
+
+  * resource ref,
+  * participant id/service id,
+  * lock type,
+  * reason,
+  * timestamp,
+  * expiration policy,
+  * override policy,
+  * diagnostics.
+
+Expected contracts:
+
+```txt
+Shared/include/SagaShared/Collaboration/ResourceLock.hpp
+Shared/include/SagaShared/Collaboration/LockType.hpp
+```
+
+Expected implementation:
+
+```txt
+Collaboration/include/SagaCollaboration/Resources/ResourceLockService.h
+Collaboration/src/SagaCollaboration/Resources/ResourceLockService.cpp
+```
+
+* [ ] Add lock-worthy operations.
+
+  Required hard lock cases:
+
+```txt
+SDE schema migration
+asset id migration
+bulk reimport
+package manifest rewrite
+build profile migration
+script binding manifest regeneration
+generated code detach/convert
+graph macro extraction affecting shared nodes
+scene/prefab structural migration
+publish release
+```
+
+* [ ] Enforce locks in editor/product/build workflows.
+
+  Done means locked resources:
+
+  * cannot be edited without permission/override,
+  * block relevant build/publish profiles where configured,
+  * show lock owner/reason,
+  * produce actionable diagnostics.
+
+* [ ] Support lock override with permission.
+
+  Done means only users with `LockOverride` permission can override locks, and override is recorded.
+
+---
+
+## 12. Conflict Model
+
+* [ ] Add conflict descriptor.
+
+  Done means conflicts include:
+
+  * conflict id,
+  * resource refs,
+  * participants involved,
+  * conflict kind,
+  * base version/hash,
+  * local version/hash,
+  * remote version/hash,
+  * severity,
+  * resolution options,
+  * publish/build blocking flag.
+
+Expected contracts:
+
+```txt
+Shared/include/SagaShared/Collaboration/ConflictId.hpp
+Shared/include/SagaShared/Collaboration/ConflictDescriptor.hpp
+Shared/include/SagaShared/Collaboration/ConflictKind.hpp
+Shared/include/SagaShared/Collaboration/ConflictResolution.hpp
+```
+
+Expected implementation:
+
+```txt
+Collaboration/include/SagaCollaboration/Conflicts/ConflictService.h
+Collaboration/src/SagaCollaboration/Conflicts/ConflictService.cpp
+```
+
+* [ ] Add conflict kinds.
+
+  Required kinds:
+
+```txt
+TextFileConflict
+SceneStructuralConflict
+PrefabOverrideConflict
+GraphNodeConflict
+GraphEdgeConflict
+GraphMacroConflict
+ScriptSourceConflict
+GeneratedCodeConflict
+AssetSourceConflict
+AssetMetadataConflict
+ImportSettingsConflict
+CookSettingsConflict
+SDEDataConflict
+SDESchemaConflict
+BuildProfileConflict
+PackageManifestConflict
+PublishStateConflict
+```
+
+* [ ] Add conflict severity.
+
+  Required severities:
+
+```txt
+Info
+Warning
+Blocking
+PublishBlocking
+Destructive
+```
+
+* [ ] Add conflict resolution workflow.
+
+  Done means users can:
+
+  * inspect conflict,
+  * compare versions where supported,
+  * choose local/remote/manual merge where safe,
+  * resolve graph conflicts visually where supported,
+  * resolve asset metadata conflicts through inspector,
+  * resolve script/SDE text conflicts through editor/source tools,
+  * mark resolved with audit record.
+
+---
+
+## 13. Graph Collaboration
+
+* [ ] Add graph resource collaboration model.
+
+  Done means gameplay graphs expose collaborative resources for:
+
+  * graph file,
+  * graph metadata,
+  * nodes,
+  * pins,
+  * edges,
+  * macros/subgraphs,
+  * generated code refs,
+  * authority metadata.
+
+* [ ] Support graph node/edge claims.
+
+  Done means users can claim graph regions or nodes while editing.
+
+* [ ] Support graph conflict descriptors.
+
+  Done means conflicts can identify:
+
+  * same node edited by multiple users,
+  * edge deleted while another user edits connected node,
+  * macro extraction conflict,
+  * authority metadata conflict,
+  * generated code stale/detach conflict.
+
+* [ ] Add publish blockers for unresolved graph conflicts.
+
+  Done means unresolved graph conflicts can block publish/package profiles.
+
+---
+
+## 14. Script Collaboration
+
+* [ ] Add script collaboration resources.
+
+  Required resources:
+
+```txt
+CSharpScript
+ScriptProjectManifest
+ScriptBindingManifest
+GeneratedCode
+GeneratedCodeOrigin
+```
+
+* [ ] Support script claims/locks.
+
+  Done means editing scripts can claim files, while binding regeneration or generated-code detach can require hard locks.
+
+* [ ] Support script conflict descriptors.
+
+  Done means conflicts can identify:
+
+  * source file text conflict,
+  * binding manifest conflict,
+  * generated code manually edited conflict,
+  * graph-to-generated-code origin conflict,
+  * authority metadata mismatch.
+
+* [ ] Connect script conflicts to build/publish gates.
+
+  Done means unresolved script conflicts and stale binding conflicts can block strict build/publish profiles.
+
+---
+
+## 15. Asset Collaboration
+
+* [ ] Add asset collaboration resources.
+
+  Required resources:
+
+```txt
+AssetSource
+AssetMetadata
+ImportSettings
+CookSettings
+CookedArtifact
+AssetManifest
+Material
+Mesh
+Texture
+Audio
+```
+
+* [ ] Support asset claims/locks.
+
+  Done means:
+
+  * normal asset edits use claims,
+  * bulk reimport uses hard locks,
+  * asset id migration uses hard locks,
+  * cook profile migration uses hard locks,
+  * destructive source conversion uses hard locks.
+
+* [ ] Support asset conflict descriptors.
+
+  Done means conflicts can identify:
+
+  * source asset conflict,
+  * import settings conflict,
+  * cook settings conflict,
+  * metadata conflict,
+  * cooked artifact stale conflict,
+  * package asset inclusion conflict.
+
+* [ ] Connect asset collaboration to asset pipeline.
+
+  Done means asset claims/locks/conflicts are visible in:
+
+  * content browser,
+  * asset inspector,
+  * import/reimport workflow,
+  * build/publish panel.
+
+---
+
+## 16. SDE and Schema Collaboration
+
+* [ ] Add SDE resource collaboration model.
+
+  Required resources:
+
+```txt
+SDEPackage
+SDESchema
+SDEData
+SDEGraphSource
+SDEValidationRule
+SDEGeneratedArtifact
+```
+
+* [ ] Require hard locks for schema migrations.
+
+  Done means schema migrations lock affected packages/resources and can block publish until resolved.
+
+* [ ] Support SDE conflict descriptors.
+
+  Done means conflicts can identify:
+
+  * schema changed while data edited,
+  * enum value changed while referenced,
+  * graph schema changed while graph edited,
+  * artifact format changed while stale generated output exists,
+  * validation rule conflict.
+
+* [ ] Keep SDE compiler standalone.
+
+  Done means collaboration may track SDE resources, but SDE itself does not depend on collaboration implementation.
+
+---
+
+## 17. Build, Package, and Publish Collaboration
+
+* [ ] Add build/publish collaboration resources.
+
+  Required resources:
+
+```txt
+BuildProfile
+PackageProfile
+PackageManifest
+BuildReport
+DiagnosticsReport
+PublishReport
+PublishRelease
+```
+
+* [ ] Add publish gate integration.
+
+  Done means publish readiness can be blocked by:
+
+  * unresolved blocking conflicts,
+  * hard locks on publish-relevant resources,
+  * insufficient publish permission,
+  * dirty resources not included in package,
+  * disconnected lock owner where policy requires resolution,
+  * pending schema/asset/package migration.
+
+* [ ] Add Forge collaboration validation step.
+
+  Done means Forge can run a read-only validation step that consumes collaboration status and emits build/publish diagnostics.
+
+* [ ] Prevent Forge from mutating collaboration state during publish check.
+
+  Done means Forge reports blockers; it does not silently resolve locks/conflicts.
+
+---
+
+## 18. Change Stream
+
+* [ ] Add collaboration change envelope.
+
+  Done means changes can describe:
+
+  * change id,
+  * participant id,
+  * resource ref,
+  * operation kind,
+  * timestamp,
+  * base version/hash,
+  * new version/hash,
+  * payload ref,
+  * diagnostic refs.
+
+Expected contracts:
+
+```txt
+Shared/include/SagaShared/Collaboration/CollaborationChangeEnvelope.hpp
+Shared/include/SagaShared/Collaboration/ChangeId.hpp
+Shared/include/SagaShared/Collaboration/ChangeKind.hpp
+```
+
+* [ ] Add change stream service.
+
+  Done means collaboration implementation can:
+
+  * publish changes,
+  * subscribe to changes,
+  * replay recent changes,
+  * detect missing changes,
+  * produce diagnostics.
+
+Expected implementation:
+
+```txt
+Collaboration/include/SagaCollaboration/Changes/ChangeStreamService.h
+Collaboration/src/SagaCollaboration/Changes/ChangeStreamService.cpp
+```
+
+* [ ] Keep change payloads resource-aware.
+
+  Done means changes reference resources and versions, not just raw files.
+
+---
+
+## 19. Versioning and State Hashes
+
+* [ ] Add resource version model.
+
+  Done means collaborative resources can carry:
+
+  * resource version,
+  * content hash,
+  * metadata hash,
+  * generated artifact hash where applicable,
+  * base version reference.
+
+Expected contracts:
+
+```txt
+Shared/include/SagaShared/Collaboration/ResourceVersion.hpp
+Shared/include/SagaShared/Collaboration/ResourceStateHash.hpp
+```
+
+* [ ] Use hashes for conflict detection.
+
+  Done means collaboration can detect stale edits when base hash/version no longer matches current resource state.
+
+* [ ] Integrate with Prism/Forge reports where useful.
+
+  Done means stale artifact/resource relationship reports can inform collaboration diagnostics but not become collaboration truth by themselves.
+
+---
+
+## 20. Offline and Reconnect Behavior
+
+* [ ] Add disconnected state model.
+
+  Done means collaboration distinguishes:
+
+  * online,
+  * degraded,
+  * reconnecting,
+  * offline draft,
+  * read-only fallback,
+  * failed.
+
+* [ ] Add offline draft support.
+
+  Done means users can continue local edits where allowed and later produce conflict records on reconnect.
+
+* [ ] Add reconnect reconciliation.
+
+  Done means reconnect compares:
+
+  * local base versions,
+  * current remote versions,
+  * local changes,
+  * locks/claims,
+  * conflicts.
+
+* [ ] Prevent false publish-ready state while disconnected.
+
+  Done means team/publish workflows cannot pretend collaboration state is clean if current state cannot be verified.
+
+---
+
+## 21. Backend and Transport Boundaries
+
+* [ ] Add backend adapter interface.
+
+  Done means collaboration implementation can use different backends without editor/product code depending on backend details.
+
+Expected files:
+
+```txt
+Collaboration/include/SagaCollaboration/Backend/ICollaborationBackend.h
+Collaboration/include/SagaCollaboration/Backend/BackendConnectionState.h
+Collaboration/src/SagaCollaboration/Backend/LocalCollaborationBackend.cpp
+```
+
+* [ ] Support local backend first.
+
+  Done means local/single-machine collaboration state can be tested without cloud dependency.
+
+* [ ] Support future network/cloud backend through adapter.
+
+  Done means cloud/team backend can be added without rewriting editor/product UI ownership.
+
+* [ ] Keep backend credentials/secrets out of project source.
+
+  Done means credential/session tokens are stored through appropriate user/local secure settings, not committed project files.
+
+---
+
+## 22. Editor UX Integration
+
+* [ ] Add collaboration toolbar.
+
+  Done means editor shows:
+
+  * session mode,
+  * connection state,
+  * participant count,
+  * active conflicts,
+  * lock/claim warnings,
+  * leave/reconnect actions.
+
+Expected files:
+
+```txt
+Editor/include/SagaEditor/Collaboration/CollaborationToolbar.h
 Editor/src/SagaEditor/Collaboration/CollaborationToolbar.cpp
 ```
 
+* [ ] Add participants panel.
+
+  Done means editor shows:
+
+  * participants,
+  * roles,
+  * permissions summary,
+  * current activity,
+  * connection state.
+
+* [ ] Add resource status decorators.
+
+  Done means editor surfaces show claims/locks/conflicts in:
+
+  * hierarchy,
+  * viewport selection,
+  * content browser,
+  * asset inspector,
+  * graph editor,
+  * script editor,
+  * SDE/source editor,
+  * build/publish panel.
+
+* [ ] Add conflict resolution UI.
+
+  Done means editor can open conflict-specific resolution surfaces depending on resource kind.
+
+* [ ] Keep editor UX as consumer.
+
+  Done means editor calls SagaCollaboration services and displays state; it does not own session truth.
+
 ---
 
-### 9.3 Presence Indicators
+## 23. Saga Product Integration
 
-- [ ] Add presence indicators across editor surfaces.
+* [ ] Add product-level collaboration entry points.
 
-  Done means presence appears in:
+  Done means Saga can:
 
-  - hierarchy,
-  - content browser,
-  - inspector,
-  - scene viewport,
-  - graph editors,
-  - asset editor tabs.
+  * start solo/local session,
+  * create quick room,
+  * join by room code,
+  * open team project,
+  * show collaboration dashboard summary,
+  * route into editor mode with collaboration context.
 
----
-
-### 9.4 Lock and Claim UI
-
-- [ ] Add lock and claim UI.
-
-  Done means UI shows:
-
-  - claimed resource badge,
-  - locked resource badge,
-  - owner display,
-  - lock reason,
-  - release request,
-  - host/admin override.
-
----
-
-### 9.5 Conflict Resolution UI
-
-- [ ] Add conflict resolution panel.
-
-  Done means the panel supports:
-
-  - affected resource list,
-  - local change summary,
-  - remote change summary,
-  - conflict reason,
-  - accept local,
-  - accept remote,
-  - manual resolve,
-  - defer,
-  - rollback where supported.
-
-Expected editor location:
+Expected files:
 
 ```txt
-Editor/include/SagaEditor/Collaboration/ConflictResolutionPanel.hpp
+Saga/include/Saga/Collaboration/CollaborationWorkflowService.h
+Saga/include/Saga/Collaboration/CollaborationStatusPresenter.h
+Saga/src/Collaboration/CollaborationWorkflowService.cpp
+```
+
+* [ ] Show project-level collaboration health.
+
+  Done means Saga dashboard can show:
+
+  * connected/disconnected state,
+  * unresolved conflicts,
+  * locks affecting build/publish,
+  * publish permission status,
+  * team/project availability.
+
+* [ ] Keep product shell as orchestrator.
+
+  Done means Saga does not own lock/conflict/session implementation.
+
+---
+
+## 24. Diagnostics
+
+* [ ] Add collaboration diagnostics.
+
+  Required diagnostic families:
+
+```txt
+Collaboration.Session
+Collaboration.Permission
+Collaboration.Presence
+Collaboration.Claim
+Collaboration.Lock
+Collaboration.Conflict
+Collaboration.ChangeStream
+Collaboration.Backend
+Collaboration.PublishGate
+Collaboration.Offline
+```
+
+Expected contracts:
+
+```txt
+Shared/include/SagaShared/Collaboration/CollaborationDiagnostic.hpp
+```
+
+Expected implementation:
+
+```txt
+Collaboration/include/SagaCollaboration/Diagnostics/CollaborationDiagnosticService.h
+Collaboration/src/SagaCollaboration/Diagnostics/CollaborationDiagnosticService.cpp
+```
+
+* [ ] Add resource-linked diagnostics.
+
+  Done means diagnostics reference exact affected resources.
+
+* [ ] Integrate with Problems panel and build/publish reports.
+
+  Done means collaboration diagnostics can appear in:
+
+  * editor Problems panel,
+  * Saga collaboration dashboard,
+  * Forge publish report,
+  * diagnostics report panel.
+
+---
+
+## 25. Security and Safety
+
+* [ ] Treat collaborators as permission-scoped actors.
+
+  Done means every mutating action checks permissions, not just UI visibility.
+
+* [ ] Add audit records for sensitive actions.
+
+  Sensitive actions:
+
+```txt
+lock override
+conflict resolution
+publish release
+schema migration
+asset id migration
+permission change
+server authority graph edit
+package manifest rewrite
+```
+
+* [ ] Avoid silent destructive conflict resolution.
+
+  Done means destructive overwrites require explicit action and permission.
+
+* [ ] Validate room codes and session joins.
+
+  Done means invalid/expired room codes fail safely.
+
+* [ ] Protect backend credentials.
+
+  Done means tokens/secrets are not stored in project manifests or shared source files.
+
+---
+
+## 26. Build and Publish Gate Behavior
+
+* [ ] Define collaboration gate policy per build profile.
+
+  Example:
+
+```txt
+editor-preview:
+  warn on conflicts, block on hard locks affecting opened resource
+
+dev-client/dev-server:
+  block on unresolved blocking conflicts for packaged resources
+
+shipping-full:
+  block on unresolved blocking/publish-blocking conflicts, critical locks, missing publish permission, unverifiable team state
+```
+
+* [ ] Expose collaboration blockers in publish report.
+
+  Done means publish report can include:
+
+  * conflict id,
+  * resource ref,
+  * lock owner,
+  * permission failure,
+  * suggested action.
+
+* [ ] Keep gate read-only.
+
+  Done means publish check reports collaboration blockers but does not resolve them automatically.
+
+---
+
+## 27. Testing Strategy
+
+### 27.1 Contract Tests
+
+* [ ] Add collaboration contract tests.
+
+  Required coverage:
+
+  * session descriptor serialization,
+  * participant descriptor serialization,
+  * permission grant serialization,
+  * resource claim serialization,
+  * resource lock serialization,
+  * conflict descriptor serialization,
+  * change envelope serialization,
+  * diagnostic serialization.
+
+---
+
+### 27.2 Permission Tests
+
+* [ ] Add permission tests.
+
+  Required coverage:
+
+  * role grants permission,
+  * role denies permission,
+  * authoring profile does not grant permission,
+  * publish permission required,
+  * lock override permission required,
+  * server authority edit permission required.
+
+---
+
+### 27.3 Claim/Lock Tests
+
+* [ ] Add claim/lock tests.
+
+  Required coverage:
+
+  * claim created,
+  * claim heartbeat/expiration,
+  * hard lock created,
+  * lock blocks mutation,
+  * lock override requires permission,
+  * disconnected lock owner policy.
+
+---
+
+### 27.4 Conflict Tests
+
+* [ ] Add conflict tests.
+
+  Required coverage:
+
+  * text file conflict,
+  * graph node conflict,
+  * graph edge conflict,
+  * asset metadata conflict,
+  * import settings conflict,
+  * SDE schema conflict,
+  * script binding conflict,
+  * package manifest conflict,
+  * conflict resolution audit record.
+
+---
+
+### 27.5 Editor Integration Tests
+
+* [ ] Add editor collaboration tests.
+
+  Required coverage:
+
+  * toolbar displays connection state,
+  * participants panel displays users,
+  * content browser shows asset claims/locks,
+  * graph editor shows node claims/conflicts,
+  * script editor shows script locks,
+  * conflict opens correct resolution UI.
+
+---
+
+### 27.6 Build/Publish Gate Tests
+
+* [ ] Add collaboration gate tests.
+
+  Required coverage:
+
+  * editor-preview warns but allows non-blocking conflict,
+  * shipping-full blocks unresolved publish conflict,
+  * hard lock blocks package where configured,
+  * missing publish permission blocks publish,
+  * offline unverifiable team state blocks release profile.
+
+---
+
+## 28. MVP Vertical Slice
+
+The first collaboration vertical slice should focus on resource safety, not fancy chat.
+
+Required scenario:
+
+```txt
+Two users edit the same MMO Starter project.
+User A edits QuestReward gameplay graph.
+User B edits the same graph and one texture import setting.
+SagaCollaboration tracks claims, detects conflict, blocks publish until resolved.
+```
+
+Required behavior:
+
+1. Saga starts QuickRoom.
+2. User B joins by room code.
+3. Both users see participants and presence.
+4. User A claims `QuestReward` graph node.
+5. User B sees claim in graph editor.
+6. User B edits same node anyway where policy allows, creating conflict.
+7. Conflict descriptor references graph id/node id/base version/local/remote hashes.
+8. User B edits texture import settings while User A has asset claim.
+9. Asset metadata conflict or warning is produced depending on policy.
+10. Build/publish panel shows unresolved collaboration conflict.
+11. Forge publish-check emits `CollaborationConflict` blocker.
+12. Conflict is resolved through editor conflict UI.
+13. Publish-check no longer blocked by collaboration state.
+
+This slice proves collaboration is not ornamental.
+
+It protects project state.
+
+---
+
+## 29. Non-Goals
+
+SagaCollaboration must not become:
+
+* editor UI,
+* product shell,
+* source control replacement in the first version,
+* runtime/server authority system,
+* SDE compiler,
+* Forge build planner,
+* Prism analyzer,
+* asset importer/cooker,
+* C# script compiler,
+* chat/messaging app with no resource safety,
+* permission system confused with authoring profiles.
+
+Collaboration must make simultaneous work safer.
+
+If it only shows avatars while resources corrupt underneath, it is decoration.
+
+---
+
+## 30. Risk Register
+
+### 30.1 Risk: Editor Owns Collaboration Truth
+
+Mitigation:
+
+* collaboration implementation lives in SagaCollaboration,
+* contracts live in SagaShared,
+* editor consumes services and displays state,
+* dependency boundary tests forbid editor-private final contracts.
+
+---
+
+### 30.2 Risk: Profiles Are Treated as Permissions
+
+Mitigation:
+
+* explicit permission model,
+* authoring profile controls UX depth only,
+* permission checks happen on mutating actions,
+* tests cover profile/permission separation.
+
+---
+
+### 30.3 Risk: Conflicts Are Too Generic
+
+Mitigation:
+
+* resource-specific conflict kinds,
+* graph/script/asset/SDE/package-specific descriptors,
+* source/resource refs in diagnostics,
+* editor resolution UI routes by resource kind.
+
+---
+
+### 30.4 Risk: Publish Ignores Collaboration State
+
+Mitigation:
+
+* Forge collaboration gate,
+* publish blockers for unresolved conflicts/locks/permissions,
+* Saga dashboard shows collaboration health,
+* shipping profiles enforce strict checks.
+
+---
+
+### 30.5 Risk: Collaboration Scope Becomes Too Big Too Early
+
+Mitigation:
+
+* start with QuickRoom + graph/asset conflict MVP,
+* add team/cloud backend later,
+* prioritize claims/locks/conflicts over decorative presence features.
+
+---
+
+## 31. Suggested File Targets
+
+Expected shared contracts:
+
+```txt
+Shared/include/SagaShared/Collaboration/SessionId.hpp
+Shared/include/SagaShared/Collaboration/SessionDescriptor.hpp
+Shared/include/SagaShared/Collaboration/RoomCode.hpp
+Shared/include/SagaShared/Collaboration/ParticipantId.hpp
+Shared/include/SagaShared/Collaboration/ParticipantDescriptor.hpp
+Shared/include/SagaShared/Collaboration/PresenceSnapshot.hpp
+Shared/include/SagaShared/Collaboration/PermissionGrant.hpp
+Shared/include/SagaShared/Collaboration/PermissionDomain.hpp
+Shared/include/SagaShared/Collaboration/RoleDescriptor.hpp
+Shared/include/SagaShared/Collaboration/ResourceClaim.hpp
+Shared/include/SagaShared/Collaboration/ResourceLock.hpp
+Shared/include/SagaShared/Collaboration/ConflictDescriptor.hpp
+Shared/include/SagaShared/Collaboration/CollaborationChangeEnvelope.hpp
+Shared/include/SagaShared/Collaboration/CollaborationDiagnostic.hpp
+```
+
+Expected implementation files:
+
+```txt
+Collaboration/include/SagaCollaboration/Session/SessionService.h
+Collaboration/include/SagaCollaboration/Presence/PresenceService.h
+Collaboration/include/SagaCollaboration/Permissions/PermissionService.h
+Collaboration/include/SagaCollaboration/Resources/ResourceClaimService.h
+Collaboration/include/SagaCollaboration/Resources/ResourceLockService.h
+Collaboration/include/SagaCollaboration/Conflicts/ConflictService.h
+Collaboration/include/SagaCollaboration/Changes/ChangeStreamService.h
+Collaboration/include/SagaCollaboration/Backend/ICollaborationBackend.h
+Collaboration/src/SagaCollaboration/Session/SessionService.cpp
+Collaboration/src/SagaCollaboration/Presence/PresenceService.cpp
+Collaboration/src/SagaCollaboration/Permissions/PermissionService.cpp
+Collaboration/src/SagaCollaboration/Resources/ResourceClaimService.cpp
+Collaboration/src/SagaCollaboration/Resources/ResourceLockService.cpp
+Collaboration/src/SagaCollaboration/Conflicts/ConflictService.cpp
+```
+
+Expected editor files:
+
+```txt
+Editor/include/SagaEditor/Collaboration/CollaborationToolbar.h
+Editor/include/SagaEditor/Collaboration/ParticipantsPanel.h
+Editor/include/SagaEditor/Collaboration/ResourceStatusPresenter.h
+Editor/include/SagaEditor/Collaboration/ConflictResolutionPanel.h
+Editor/src/SagaEditor/Collaboration/CollaborationToolbar.cpp
+Editor/src/SagaEditor/Collaboration/ParticipantsPanel.cpp
+Editor/src/SagaEditor/Collaboration/ResourceStatusPresenter.cpp
 Editor/src/SagaEditor/Collaboration/ConflictResolutionPanel.cpp
 ```
 
----
-
-### 9.6 Collaboration Diagnostics Panel
-
-- [ ] Add collaboration diagnostics panel.
-
-  Done means diagnostics show:
-
-  - session state,
-  - backend state,
-  - participant connectivity,
-  - operation lag,
-  - pending operations,
-  - rejected operations,
-  - lock state,
-  - reconnect attempts,
-  - sync errors.
-
-Expected editor location:
+Expected product files:
 
 ```txt
-Editor/include/SagaEditor/Collaboration/CollaborationDiagnosticsPanel.hpp
-Editor/src/SagaEditor/Collaboration/CollaborationDiagnosticsPanel.cpp
+Saga/include/Saga/Collaboration/CollaborationWorkflowService.h
+Saga/include/Saga/Collaboration/CollaborationStatusPresenter.h
+Saga/src/Collaboration/CollaborationWorkflowService.cpp
+Saga/src/Collaboration/CollaborationStatusPresenter.cpp
+```
+
+Expected Forge files:
+
+```txt
+Tools/Forge/include/Forge/Steps/CollaborationValidateStep.hpp
+Tools/Forge/src/Steps/CollaborationValidateStep.cpp
 ```
 
 ---
 
-## 10. Runtime and Server Integration
+## 32. Decision Summary
 
-- [ ] Allow runtime preview to consume collaboration session metadata through stable APIs.
-
-  Done means runtime preview can understand session/project context without importing editor-private headers.
-
-- [ ] Allow server systems to consume collaboration contracts through stable APIs.
-
-  Done means server systems can coordinate authority/session state without importing editor UI or editor-private collaboration contracts.
-
-- [ ] Keep runtime multiplayer policy separate from editor collaboration policy.
-
-  Runtime multiplayer optimizes for:
-
-  - low latency,
-  - prediction,
-  - reconciliation,
-  - authority,
-  - relevance,
-  - bandwidth.
-
-  Editor collaboration optimizes for:
-
-  - correctness,
-  - visibility,
-  - permissions,
-  - edit ownership,
-  - conflict handling,
-  - safe publishing.
-
-Runtime multiplayer and editor collaboration are related.
-
-They are not the same thing. Naturally, that means someone will try to merge them unless the document yells loudly enough.
-
----
-
-## 11. SDE Integration
-
-- [ ] Consume SDE outputs in collaboration workflows without making SDE depend on Saga modules.
-
-  Done means collaboration may consume:
-
-  - schema ids,
-  - compiled graph references,
-  - artifact hashes,
-  - diagnostics payloads,
-  - validation results.
-
-- [ ] Block unsafe publish when SDE compile fails.
-
-  Done means failed SDE compile results prevent publishing invalid runtime state.
-
-Forbidden dependency direction:
+Preserve these decisions:
 
 ```txt
-SDE → Saga
-SDE → SagaEngine
-SDE → SagaEditor
-SDE → SagaServer
-SDE → SagaShared
-SDE → SagaCollaboration
-SDE → Forge
-SDE → Prism
-SDE → SagaTools
+SagaCollaboration owns collaboration implementation.
+SagaShared owns neutral collaboration contracts.
+Saga owns collaboration product entry points.
+SagaEditor owns collaboration UI only.
+Forge consumes collaboration state for build/publish gates.
+Authoring profiles are not permissions.
+Claims are soft coordination signals.
+Locks are hard mutation guards.
+Conflicts must be resource-specific.
+Graph, script, asset, SDE, build, package, and publish resources must be collaboration-aware.
+Unresolved blocking conflicts and critical locks can block publish.
+Offline/unverified team state cannot be treated as publish-clean.
+Collaboration must protect project state, not merely show presence.
 ```
 
-Allowed model:
+The collaboration layer should answer:
 
 ```txt
-SDE produces deterministic artifacts.
-SagaCollaboration records and coordinates artifact state.
-Saga product decides how failed validation affects UX.
+Who is here?
+Who can do what?
+Who is editing what?
+Which resources are claimed or locked?
+Which changes conflict?
+Can this project safely build or publish right now?
 ```
 
-Forbidden model:
+If it cannot answer those questions, it is not collaboration infrastructure.
 
-```txt
-SDE becomes a hidden engine/editor subsystem.
-```
-
----
-
-## 12. Asset and Resource Collaboration
-
-- [ ] Define collaborative resource metadata.
-
-  Done means each collaborative resource can describe:
-
-  - stable id,
-  - display path,
-  - content hash,
-  - claim state,
-  - lock state,
-  - dirty state,
-  - last modified actor,
-  - validation status,
-  - conflict status.
-
-Supported resource categories should include:
-
-```txt
-scenes
-prefabs
-materials
-textures
-meshes
-scripts
-SDE graphs
-packages
-project settings
-build profiles
-runtime configuration
-```
-
----
-
-## 13. Security and Safety Requirements
-
-- [ ] Validate all incoming collaboration operations.
-
-- [ ] Reject unauthorized edits.
-
-- [ ] Verify participant identity where available.
-
-- [ ] Prevent stale operations from overwriting newer state.
-
-- [ ] Prevent failed validation from publishing.
-
-- [ ] Make destructive actions explicit.
-
-- [ ] Record sensitive operations.
-
-Security by “everyone is nice” is not security.
-
-It is a children’s story with sockets.
-
----
-
-## 14. Diagnostics Requirements
-
-- [ ] Add actionable diagnostics for collaboration failures.
-
-  Done means diagnostics exist for:
-
-  - session create failure,
-  - session join failure,
-  - participant disconnect,
-  - permission denial,
-  - lock denial,
-  - claim conflict,
-  - operation rejection,
-  - conflict detection,
-  - conflict resolution failure,
-  - backend unavailable,
-  - reconnect failure,
-  - publish blocked.
-
-- [ ] Add structured diagnostic payloads.
-
-  Done means diagnostics include:
-
-  - error code,
-  - readable message,
-  - affected resource,
-  - actor if available,
-  - suggested next action,
-  - recoverability flag.
-
----
-
-## 15. Persistence Strategy
-
-- [ ] Start Quick Collaboration with in-memory state where acceptable.
-
-- [ ] Add persistent state for Team Collaboration.
-
-  Done means persistence covers:
-
-  - projects,
-  - teams,
-  - members,
-  - roles,
-  - sessions,
-  - operation logs,
-  - locks,
-  - claims,
-  - review records,
-  - publish records,
-  - audit events.
-
-- [ ] Keep persistence behind collaboration services.
-
-  Done means editor panels do not open database connections.
-
-Apparently that has to be said out loud.
-
----
-
-## 16. Transport Strategy
-
-- [ ] Support local in-process transport for early collaboration testing.
-
-- [ ] Support local network transport for quick sessions.
-
-- [ ] Support relay-backed quick sessions.
-
-- [ ] Support authenticated cloud sessions.
-
-- [ ] Support production team collaboration service transport.
-
-Transport must remain below `SagaCollaboration`.
-
-Editor code should not care whether a participant joined through localhost, LAN, relay, or backend service.
-
----
-
-## 17. Conflict Strategy
-
-- [ ] Phase 1: Detect conflicting edits and stop unsafe overwrites.
-
-- [ ] Phase 2: Explain affected resources and involved actors.
-
-- [ ] Phase 3: Provide safe resolution actions.
-
-- [ ] Phase 4: Support structured merges for resources that can be safely merged.
-
-- [ ] Phase 5: Route complex conflicts through review workflow.
-
-Not every conflict should be auto-merged.
-
-Automatic merging without understanding resource semantics is just corruption with confidence.
-
----
-
-## 18. Publishing Strategy
-
-- [ ] Block publishing when collaboration state is unsafe.
-
-  Done means publish is blocked when:
-
-  - unresolved conflicts exist,
-  - required locks are active,
-  - SDE compile failed,
-  - asset cook failed,
-  - validation failed,
-  - unauthorized user tries to publish,
-  - operation stream is inconsistent,
-  - project state is stale.
-
-- [ ] Allow publishing only when project state is coherent.
-
-  Done means publish may proceed only when:
-
-  - required validation passes,
-  - caller has permission,
-  - collaboration state is synchronized,
-  - publish gate returns success.
-
----
-
-## 19. Recommended File/Module Layout
-
-- [ ] Add neutral collaboration contracts under `SagaShared`.
-
-```txt
-Shared/include/SagaShared/Collaboration/
-  ParticipantId.hpp
-  SessionId.hpp
-  SessionDescriptor.hpp
-  WorkspaceDescriptor.hpp
-  RoomCode.hpp
-  PresenceSnapshot.hpp
-  PermissionGrant.hpp
-  ResourceClaim.hpp
-  ResourceLock.hpp
-  CollaborationDiagnostic.hpp
-```
-
-- [ ] Add collaboration service APIs under `SagaCollaboration`.
-
-```txt
-Collaboration/include/SagaCollaboration/
-  CollaborationService.hpp
-  SessionService.hpp
-  PresenceService.hpp
-  PermissionService.hpp
-  ClaimService.hpp
-  LockService.hpp
-  ChangeStreamService.hpp
-  ConflictService.hpp
-  CollaborationBackend.hpp
-```
-
-- [ ] Add collaboration service implementation under `SagaCollaboration`.
-
-```txt
-Collaboration/src/SagaCollaboration/
-  SessionService.cpp
-  PresenceService.cpp
-  PermissionService.cpp
-  ClaimService.cpp
-  LockService.cpp
-  ChangeStreamService.cpp
-  ConflictService.cpp
-```
-
-- [ ] Keep editor collaboration UI and adapters under `SagaEditor`.
-
-```txt
-Editor/include/SagaEditor/Collaboration/
-  CollaborationPanel.hpp
-  ParticipantsPanel.hpp
-  ConflictResolutionPanel.hpp
-  EditorCollaborationAdapter.hpp
-
-Editor/src/SagaEditor/Collaboration/
-  CollaborationPanel.cpp
-  ParticipantsPanel.cpp
-  ConflictResolutionPanel.cpp
-  EditorCollaborationAdapter.cpp
-```
-
-Important:
-
-```txt
-Editor/include/SagaEditor/Collaboration
-```
-
-is only for editor UI/adapters.
-
-It is not the location for final product collaboration contracts.
-
----
-
-## 20. Migration Plan
-
-- [ ] Freeze deprecated editor-private ownership.
-
-  Deprecated path:
-
-```txt
-Editor/include/SagaEditor/Collaboration
-```
-
-  Done means existing code may remain temporarily, but no new final collaboration contracts are added there.
-
-- [ ] Extract neutral contracts into `SagaShared`.
-
-  Candidates:
-
-  - participant id,
-  - session id,
-  - room code,
-  - session descriptor,
-  - presence snapshot,
-  - permission grant,
-  - resource claim,
-  - resource lock,
-  - diagnostics.
-
-- [ ] Create `SagaCollaboration` service APIs.
-
-  Initial services:
-
-  - session service,
-  - presence service,
-  - permission service,
-  - claim service,
-  - lock service,
-  - diagnostics service.
-
-- [ ] Convert editor to a collaboration consumer.
-
-  Done means editor keeps:
-
-  - panels,
-  - commands,
-  - visual state,
-  - user interaction.
-
-  Editor loses:
-
-  - session truth,
-  - final contracts,
-  - collaboration authority,
-  - backend ownership.
-
-- [ ] Add Saga product integration.
-
-  Required flows:
-
-  - create/open project,
-  - start quick collaboration,
-  - join session,
-  - view session state,
-  - leave session,
-  - handle disconnected session.
-
-- [ ] Add runtime/server consumers where needed.
-
-  Done means runtime and server consume stable collaboration APIs only and do not include editor-private collaboration headers.
-
-- [ ] Add CI boundary enforcement.
-
-  Required checks:
-
-```txt
-Runtime/** must not include Editor/include/SagaEditor/Collaboration/**
-Server/** must not include Editor/include/SagaEditor/Collaboration/**
-SagaShared/** must not include SagaCollaboration/**
-SagaShared/** must not include Editor/**
-SagaCollaboration/** must not include Editor UI/**
-```
-
----
-
-## 21. Non-Goals
-
-This roadmap does not own:
-
-- gameplay replication policy,
-- runtime prediction,
-- server packet protocol,
-- SDE compiler internals,
-- Forge build frontend behavior,
-- Prism code intelligence behavior,
-- SagaTools dispatch behavior,
-- asset importer implementation,
-- editor docking system,
-- general product shell roadmap.
-
-Related ownership:
-
-| Area | Document |
-|---|---|
-| Runtime/server multiplayer | `ENGINE_ROADMAP.md` |
-| Editor authoring UI | `EDITOR_ROADMAP.md` |
-| Shared contracts | `SHARED_ROADMAP.md` |
-| Tool ecosystem | `TOOLS_ROADMAP.md` |
-| SDE compiler | `SDE_ROADMAP.md` |
-| Dependency rules | `DependencyGraph.md` |
-
----
-
-## 22. Production Definition of Done
-
-- [ ] Users can create or open collaborative projects.
-
-- [ ] Users can start and join sessions.
-
-- [ ] Participants are visible.
-
-- [ ] Permissions are enforced.
-
-- [ ] Claims and locks prevent unsafe overlap.
-
-- [ ] Conflicts are detected and resolvable.
-
-- [ ] Reconnect works safely.
-
-- [ ] Operation history exists.
-
-- [ ] Publish gates prevent invalid releases.
-
-- [ ] Diagnostics are actionable.
-
-- [ ] Editor/runtime/server dependencies respect module boundaries.
-
-- [ ] Collaboration contracts are not trapped inside editor-private headers.
-
----
-
-## 23. Final Architecture Rule
-
-The collaboration architecture should remain:
-
-```txt
-Saga
-  owns product lifecycle
-
-SagaEditor
-  owns collaboration UI
-
-SagaShared
-  owns neutral contracts
-
-SagaCollaboration
-  owns collaboration implementation
-
-SagaCollaborationCore
-  optionally owns low-level internals
-
-Runtime/Server
-  consume stable collaboration services where needed
-```
-
-The editor displays collaboration.
-
-The editor does not own collaboration truth.
-
-That distinction is not cosmetic.
-
-It is the difference between a product architecture and a folder full of consequences.
+It is a multiplayer cursor demo with ambition.

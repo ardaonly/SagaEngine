@@ -19,11 +19,16 @@
 
 #include "SagaEngine/Simulation/WorldState.h"
 #include "SagaEngine/Simulation/Deterministic.h"
-#include "SagaEngine/Input/Networking/ServerInputProcessor.h"
 
+#include <cstdint>
 #include <memory>
+#include <span>
 #include <string_view>
 #include <vector>
+
+namespace SagaEngine::Input {
+struct ClientTickEntry;
+} // namespace SagaEngine::Input
 
 namespace SagaEngine::Simulation {
 

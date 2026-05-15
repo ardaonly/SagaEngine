@@ -46,9 +46,6 @@
 #include "SagaEngine/World/RelevanceGraph.h"
 #include "SagaEngine/ECS/Entity.h"
 #include "SagaEngine/Simulation/WorldState.h"
-#include "SagaEngine/Client/Replication/SnapshotApplyPipeline.h"
-#include "SagaEngine/Client/Replication/ReplicationStateMachine.h"
-#include "SagaEngine/Networking/Replication/SnapshotBuilder.h"
 #include "SagaShared/Replication/SnapshotContracts.hpp"
 
 #include <cstdint>
@@ -62,10 +59,9 @@ namespace SagaEngine::World {
 
 using ECS::EntityId;
 using Simulation::WorldState;
-using ServerTick = SagaEngine::Client::Replication::ServerTick;
+using ServerTick = std::uint64_t;
 using ComponentMask = SagaShared::Replication::ComponentMask;
 using EntityDirtyState = SagaShared::Replication::EntityDirtyState;
-using SnapshotBuilder = SagaEngine::Networking::Replication::SnapshotBuilder;
 
 // ─── Client session ─────────────────────────────────────────────────────────────
 
@@ -133,8 +129,8 @@ using DomainTickDispatcher = std::function<void(SimDomainType domain, SimCell& c
 class WorldNode
 {
 public:
-    WorldNode() = default;
-    ~WorldNode() = default;
+    WorldNode();
+    ~WorldNode();
 
     WorldNode(const WorldNode&)            = delete;
     WorldNode& operator=(const WorldNode&) = delete;
@@ -288,6 +284,8 @@ private:
 
     // ─── Members ──────────────────────────────────────────────────────────────
 
+    struct SnapshotBuildState;
+
     WorldNodeConfig  m_config{};
     WorldNodeStats   m_stats{};
 
@@ -317,8 +315,8 @@ private:
     // Domain dispatch.
     DomainTickDispatcher m_domainDispatcher;
 
-    // Snapshot builder (reused across ticks to avoid allocations).
-    SnapshotBuilder m_snapshotBuilder;
+    // Snapshot builder state is hidden so WorldNode.h does not expose wire builder internals.
+    std::unique_ptr<SnapshotBuildState> m_snapshotBuilder;
 };
 
 } // namespace SagaEngine::World

@@ -152,6 +152,8 @@ public:
         float                     positionErrorThresholdSq,
         const ReplayFn&           replay)
     {
+        const auto predictedAtAck = Find(ack.ackedInputSeq);
+
         // ── Step 1: prune acked history. ──────────────────────────────────
         while (size_ > 0)
         {
@@ -175,15 +177,13 @@ public:
         }
 
         // ── Step 2: find the predicted state *at* the ack moment. ────────
-        // The oldest remaining record is the first prediction the server
-        // hasn't yet confirmed.  We reconstruct "our state at ack time"
-        // as the server state itself (that's by definition what the
-        // server believes at that tick).  The error we care about is
-        // whether *our* stale prediction drifted from what the server
-        // ultimately said — which is exactly the delta below.
-        const auto oldestIdx = (head_ + Capacity - size_) % Capacity;
-        const auto  delta      = buffer_[oldestIdx].position - ack.position;
-        const float errorSq    = delta.x * delta.x + delta.y * delta.y + delta.z * delta.z;
+        const float errorSq = [&]() noexcept {
+            if (!predictedAtAck)
+                return positionErrorThresholdSq + 1.0f;
+
+            const auto delta = predictedAtAck->position - ack.position;
+            return delta.x * delta.x + delta.y * delta.y + delta.z * delta.z;
+        }();
 
         const bool needsRewind = errorSq > positionErrorThresholdSq;
 

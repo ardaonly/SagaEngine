@@ -16,6 +16,21 @@ PRIVATE_INCLUDE_RE = re.compile(r"#\s*include\s*[<\"]([^>\"]*Private/[^>\"]*)[>\
 DIAGNOSTICS_FORBIDDEN_RE = re.compile(
     r"#\s*include\s*[<\"](?:SagaServer/|SagaEditor/|SDE/|SagaEngine/Server/|SagaEngine/Editor/|SagaEngine/Core/Private/)[^>\"]*[>\"]"
 )
+SIMULATION_FORBIDDEN_RE = re.compile(
+    r"#\s*include\s*[<\"]SagaEngine/Input/Networking/[^>\"]*[>\"]"
+)
+ENGINE_PUBLIC_FORBIDDEN_DIRS = (
+    Path("SagaEngine/Server"),
+    Path("SagaEngine/Platform/SDL"),
+    Path("SagaEngine/Input/Backends/SDL"),
+    Path("SagaEngine/Render/Backend/Diligent"),
+)
+ENGINE_PUBLIC_FORBIDDEN_FILES = (
+    Path("SagaEngine/Resources/Formats/GltfMeshImporter.h"),
+)
+ENGINE_PUBLIC_FORBIDDEN_INCLUDE_RE = re.compile(
+    r"#\s*include\s*[<\"](?:SagaEngine/Server/|SagaEngine/Platform/SDL/|SagaEngine/Input/Backends/SDL/|SagaEngine/Render/Backend/Diligent/)[^>\"]*[>\"]"
+)
 
 
 def relative(path: Path, root: Path) -> Path:
@@ -62,6 +77,52 @@ def check_diagnostics_public_headers(repo_root: Path) -> list[str]:
     return errors
 
 
+def check_simulation_public_headers(repo_root: Path) -> list[str]:
+    simulation_public = (
+        repo_root / "Engine" / "Public" / "SagaEngine" / "Simulation"
+    )
+    if not simulation_public.exists():
+        return []
+
+    errors: list[str] = []
+    for path in sorted(p for p in simulation_public.rglob("*") if p.suffix in HEADER_SUFFIXES):
+        for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            if SIMULATION_FORBIDDEN_RE.search(line):
+                errors.append(
+                    f"{relative(path, repo_root)}:{line_no}: Simulation public header depends on input networking: {line.strip()}"
+                )
+    return errors
+
+
+def check_engine_public_header_boundaries(repo_root: Path) -> list[str]:
+    engine_public = repo_root / "Engine" / "Public"
+    if not engine_public.exists():
+        return []
+
+    errors: list[str] = []
+    for rel_dir in ENGINE_PUBLIC_FORBIDDEN_DIRS:
+        forbidden_dir = engine_public / rel_dir
+        if forbidden_dir.exists():
+            errors.append(
+                f"{relative(forbidden_dir, repo_root)} must not exist in Engine/Public"
+            )
+
+    for rel_file in ENGINE_PUBLIC_FORBIDDEN_FILES:
+        forbidden_file = engine_public / rel_file
+        if forbidden_file.exists():
+            errors.append(
+                f"{relative(forbidden_file, repo_root)} must not exist in Engine/Public"
+            )
+
+    for path in sorted(p for p in engine_public.rglob("*") if p.suffix in HEADER_SUFFIXES):
+        for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            if ENGINE_PUBLIC_FORBIDDEN_INCLUDE_RE.search(line):
+                errors.append(
+                    f"{relative(path, repo_root)}:{line_no}: Engine public header exposes concrete/backend/server path: {line.strip()}"
+                )
+    return errors
+
+
 def check_no_root_source_sagaengine(repo_root: Path) -> list[str]:
     errors: list[str] = []
     if (repo_root / "Source" / "SagaEngine").exists():
@@ -92,7 +153,9 @@ def main() -> int:
     errors = [
         *check_no_root_source_sagaengine(repo_root),
         *check_private_includes(repo_root),
+        *check_engine_public_header_boundaries(repo_root),
         *check_diagnostics_public_headers(repo_root),
+        *check_simulation_public_headers(repo_root),
     ]
     if errors:
         print("[public_private_boundary] ERROR")

@@ -10,7 +10,6 @@
 
 #include <SagaEngine/Core/Log/Log.h>
 #include <SagaEngine/Platform/PlatformFactory.h>
-#include <SagaEngine/Platform/SDL/SDLPlatformFactory.h>
 
 #include <cstdint>
 #include <cstdio>
@@ -62,8 +61,8 @@ int main(int argc, char* argv[])
 
     auto config = ParseArgs(argc, argv);
 
-    static Saga::SDLPlatformFactory sdlFactory;
-    Saga::PlatformFactory::Set(&sdlFactory);
+    auto platformFactory = Saga::CreateSDLPlatformFactory();
+    Saga::PlatformFactory::Set(platformFactory.get());
 
     Saga::ClientHost host(std::move(config));
     host.Run();

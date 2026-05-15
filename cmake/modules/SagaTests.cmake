@@ -56,6 +56,10 @@ function(saga_setup_tests)
         "${SAGA_ROOT}/Tests/Unit/Shared/*.cpp"
     )
 
+    if(ARCHITECTURE_TEST_SOURCES)
+        list(REMOVE_ITEM UNIT_TEST_SOURCES ${ARCHITECTURE_TEST_SOURCES})
+    endif()
+
     # ─── Common include directories ─────────────────────────────────────────
     #
     # Every test target wants exactly the same include paths, so we stage
@@ -105,9 +109,8 @@ function(saga_setup_tests)
 
     # ─── Architecture boundary tests ────────────────────────────────────────
     #
-    # Keep the new roadmap-alignment checks runnable without pulling in the
-    # Qt-heavy editor unit-test link graph. The full SagaUnitTests target still
-    # includes these files through the normal Unit glob.
+    # Keep boundary and contract checks runnable without pulling in the Qt-heavy
+    # editor unit-test link graph.
     if(ARCHITECTURE_TEST_SOURCES)
         add_executable(SagaArchitectureTests ${ARCHITECTURE_TEST_SOURCES})
         target_link_libraries(SagaArchitectureTests PRIVATE

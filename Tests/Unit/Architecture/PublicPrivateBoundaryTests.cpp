@@ -142,3 +142,94 @@ TEST(PublicPrivateBoundaryTests, DiagnosticsPublicHeadersDoNotDependUpward)
     EXPECT_TRUE(offenders.empty())
         << "SagaDiagnostics public headers must not depend on Server, Editor, or SDE.";
 }
+
+TEST(PublicPrivateBoundaryTests, EnginePublicDoesNotExposeServerOrConcreteBackends)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto enginePublic = root / "Engine" / "Public";
+    ASSERT_TRUE(std::filesystem::exists(enginePublic));
+
+    EXPECT_FALSE(std::filesystem::exists(enginePublic / "SagaEngine" / "Server"))
+        << "Server policy belongs under root Server/, not Engine/Public.";
+    EXPECT_FALSE(std::filesystem::exists(enginePublic / "SagaEngine" / "Platform" / "SDL"))
+        << "Concrete SDL platform classes must stay private behind PlatformFactory.";
+    EXPECT_FALSE(std::filesystem::exists(enginePublic / "SagaEngine" / "Input" / "Backends" / "SDL"))
+        << "Concrete SDL input classes must stay private behind IPlatformInputBackend factories.";
+    EXPECT_FALSE(std::filesystem::exists(enginePublic / "SagaEngine" / "Render" / "Backend" / "Diligent"))
+        << "Concrete render backend classes must stay private behind RenderBackendFactory.";
+    EXPECT_FALSE(std::filesystem::exists(enginePublic / "SagaEngine" / "Resources" / "Formats" / "GltfMeshImporter.h"))
+        << "glTF mesh import is a resource implementation detail, not public engine API.";
+
+    const std::vector<std::string> forbiddenIncludes = {
+        "SagaEngine/Server/",
+        "SagaEngine/Platform/SDL/",
+        "SagaEngine/Input/Backends/SDL/",
+        "SagaEngine/Render/Backend/Diligent/",
+    };
+
+    std::vector<std::string> offenders;
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(enginePublic))
+    {
+        if (!entry.is_regular_file() || !IsCodeFile(entry.path()))
+        {
+            continue;
+        }
+
+        const auto relative = RelativeToSourceRoot(entry.path()).generic_string();
+        const auto lines = ReadLines(entry.path());
+        for (std::size_t i = 0; i < lines.size(); ++i)
+        {
+            const auto& line = lines[i];
+            if (line.find("#include") == std::string::npos)
+            {
+                continue;
+            }
+
+            for (const auto& forbidden : forbiddenIncludes)
+            {
+                if (line.find(forbidden) != std::string::npos)
+                {
+                    offenders.push_back(
+                        relative + ":" + std::to_string(i + 1) + ": " + line);
+                }
+            }
+        }
+    }
+
+    EXPECT_TRUE(offenders.empty())
+        << "Engine public headers must not expose fixed server/backend paths. First offender: "
+        << (offenders.empty() ? "" : offenders.front());
+}
+
+TEST(PublicPrivateBoundaryTests, SimulationPublicDoesNotIncludeInputNetworking)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto simulationPublic = root / "Engine" / "Public" / "SagaEngine" / "Simulation";
+    ASSERT_TRUE(std::filesystem::exists(simulationPublic));
+
+    std::vector<std::string> offenders;
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(simulationPublic))
+    {
+        if (!entry.is_regular_file() || !IsCodeFile(entry.path()))
+        {
+            continue;
+        }
+
+        const auto relative = RelativeToSourceRoot(entry.path()).generic_string();
+        const auto lines = ReadLines(entry.path());
+        for (std::size_t i = 0; i < lines.size(); ++i)
+        {
+            const auto& line = lines[i];
+            if (line.find("#include") != std::string::npos &&
+                line.find("SagaEngine/Input/Networking/") != std::string::npos)
+            {
+                offenders.push_back(
+                    relative + ":" + std::to_string(i + 1) + ": " + line);
+            }
+        }
+    }
+
+    EXPECT_TRUE(offenders.empty())
+        << "Simulation public headers must not depend on input networking. First offender: "
+        << (offenders.empty() ? "" : offenders.front());
+}

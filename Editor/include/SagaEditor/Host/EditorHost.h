@@ -30,6 +30,7 @@ class IEditorSettingsStore;
 class ExtensionRegistry;
 class ExtensionHost;
 class IEditorEngineBridge;
+class IEditorDiagnosticsService;
 
 // ─── Host ─────────────────────────────────────────────────────────────────────
 
@@ -98,6 +99,9 @@ public:
     /// Editor-owned bridge to engine/runtime services.
     [[nodiscard]] IEditorEngineBridge& GetEngineBridge() noexcept;
 
+    /// Shared diagnostics collection consumed by Problems and publish gates.
+    [[nodiscard]] IEditorDiagnosticsService& GetEditorDiagnosticsService() noexcept;
+
     /// SDE-backed editor customization catalog and its load status.
     [[nodiscard]] EditorCustomizationCatalog& GetCustomizationCatalog() noexcept;
 
@@ -129,6 +133,7 @@ private:
     std::unique_ptr<EditorProfileSettingsBinding> m_editorProfileSettingsBinding;
     std::unique_ptr<IEditorSettingsStore> m_settingsStore;
     std::unique_ptr<IEditorEngineBridge> m_engineBridge;
+    std::unique_ptr<IEditorDiagnosticsService> m_editorDiagnosticsService;
     std::unique_ptr<EditorCustomizationCatalog> m_customizationCatalog;
     std::optional<EditorWorkspaceDefinition> m_workspaceDefinition;
     std::unique_ptr<ExtensionRegistry> m_extensionRegistry;

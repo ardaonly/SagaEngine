@@ -15,6 +15,7 @@
 #include "SagaEngine/Core/Time/Time.h"
 #include "SagaEngine/Core/Log/Log.h"
 #include "SagaEngine/Math/Vec3.h"
+#include "SagaEngine/Networking/Replication/SnapshotBuilder.h"
 
 #include <algorithm>
 #include <chrono>
@@ -38,6 +39,20 @@ static constexpr uint32_t kMaxEntitiesPerSnapshot = 64;
 /// Distance threshold for spatial interest (world units).
 static constexpr float kSpatialInterestRadius = 128.0f;
 
+struct WorldNode::SnapshotBuildState
+{
+    explicit SnapshotBuildState(std::size_t initialPoolCapacity)
+        : builder(initialPoolCapacity)
+    {
+    }
+
+    SagaEngine::Networking::Replication::SnapshotBuilder builder;
+};
+
+WorldNode::WorldNode() = default;
+
+WorldNode::~WorldNode() = default;
+
 // ─── Lifecycle ──────────────────────────────────────────────────────────────
 
 bool WorldNode::Init(const WorldNodeConfig& config) noexcept
@@ -56,7 +71,7 @@ bool WorldNode::Init(const WorldNodeConfig& config) noexcept
     RegisterDomain(SimDomainType::Narrative,"Narrative",  0);  // Event-driven
 
     // Pre-allocate snapshot builder pool.
-    m_snapshotBuilder = SnapshotBuilder(65536);
+    m_snapshotBuilder = std::make_unique<SnapshotBuildState>(65536);
 
     LOG_INFO(kTag, "WorldNode '%s' initialized. Tick rate: %.0f Hz, max clients: %u",
              m_config.nodeId.c_str(), m_config.worldTickHz, m_config.maxClients);
@@ -72,6 +87,7 @@ void WorldNode::Shutdown() noexcept
     m_cells.clear();
     m_entityCells.clear();
     m_entityDirtyStates.clear();
+    m_snapshotBuilder.reset();
 }
 
 void WorldNode::Tick() noexcept
@@ -518,7 +534,7 @@ bool WorldNode::SendFullSnapshot(ClientSession* session,
     const uint32_t timestamp = static_cast<uint32_t>(
         duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count());
 
-    m_snapshotBuilder.beginSnapshot(seqNumber, timestamp);
+    m_snapshotBuilder->builder.beginSnapshot(seqNumber, timestamp);
 
     // Serialize each relevant entity.
     std::vector<uint8_t> componentBuffer(4096);  // Reused buffer per entity.
@@ -544,14 +560,14 @@ bool WorldNode::SendFullSnapshot(ClientSession* session,
         {
             // Generation is derived from the entity ID's high bits (version tracking).
             const uint32_t generation = (entityId >> 24) & 0xFF;
-            m_snapshotBuilder.addEntity(entityId & 0x00FFFFFF, generation,
+            m_snapshotBuilder->builder.addEntity(entityId & 0x00FFFFFF, generation,
                                         dirtyState.activeComponents,
                                         componentBuffer.data(), dataSize);
         }
     }
 
     // Finalize snapshot (caller would normally send this over the network).
-    uint8_t* snapshotData = m_snapshotBuilder.finalize();
+    uint8_t* snapshotData = m_snapshotBuilder->builder.finalize();
     if (!snapshotData)
     {
         LOG_ERROR(kTag, "Session %llu: snapshot finalization failed",
@@ -611,7 +627,7 @@ bool WorldNode::SendDelta(ClientSession* session,
     const uint32_t timestamp = static_cast<uint32_t>(
         duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count());
 
-    m_snapshotBuilder.beginSnapshot(seqNumber, timestamp);
+    m_snapshotBuilder->builder.beginSnapshot(seqNumber, timestamp);
 
     // Only include dirty entities that the client hasn't seen yet.
     uint32_t dirtyCount = 0;
@@ -645,13 +661,13 @@ bool WorldNode::SendDelta(ClientSession* session,
         if (dirtyState.deleted)
         {
             const uint32_t generation = (entityId >> 24) & 0xFF;
-            m_snapshotBuilder.markEntityDeleted(entityId & 0x00FFFFFF, generation);
+            m_snapshotBuilder->builder.markEntityDeleted(entityId & 0x00FFFFFF, generation);
             dirtyCount++;
         }
         else if (dataSize > 0)
         {
             const uint32_t generation = (entityId >> 24) & 0xFF;
-            m_snapshotBuilder.addEntity(entityId & 0x00FFFFFF, generation,
+            m_snapshotBuilder->builder.addEntity(entityId & 0x00FFFFFF, generation,
                                         dirtyState.activeComponents,
                                         componentBuffer.data(), dataSize);
             dirtyCount++;
@@ -672,7 +688,7 @@ bool WorldNode::SendDelta(ClientSession* session,
         return false;
 
     // Build delta payload.
-    uint8_t* deltaData = m_snapshotBuilder.buildDelta(baseSeqNumber);
+    uint8_t* deltaData = m_snapshotBuilder->builder.buildDelta(baseSeqNumber);
     if (!deltaData)
     {
         LOG_ERROR(kTag, "Session %llu: delta build failed (base tick %llu)",

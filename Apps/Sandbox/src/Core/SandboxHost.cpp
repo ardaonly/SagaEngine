@@ -2,7 +2,7 @@
 /// @brief Main host application implementation.
 ///
 /// Render backend integration:
-///   OnInit   → InitRenderBackend() creates DiligentRenderBackend,
+///   OnInit   -> InitRenderBackend() creates the configured render backend,
 ///              passes it to ScenarioManager via ScenarioContext.
 ///   OnUpdate → BeginFrame → scenario PrepareRender → Submit → EndFrame.
 ///   OnShutdown → ScenarioManager.Shutdown → ShutdownRenderBackend().
@@ -15,7 +15,7 @@
 #include "SagaSandbox/Core/ScenarioRegistry.h"
 #include <SagaEngine/Core/Log/Log.h>
 #include <SagaEngine/Core/Time/Time.h>
-#include <SagaEngine/Render/Backend/Diligent/DiligentRenderBackend.h>
+#include <SagaEngine/Render/Backend/RenderBackendFactory.h>
 #include <SagaEngine/Render/Scene/Camera.h>
 #include <SagaEngine/Render/Scene/RenderView.h>
 
@@ -31,6 +31,11 @@ namespace SagaSandbox
 namespace RB = SagaEngine::Render::Backend;
 
 static constexpr const char* kTag = "SandboxHost";
+
+[[nodiscard]] bool IsRenderBackendReady(const RB::IRenderBackend* backend) noexcept
+{
+    return backend && RB::GetDiligentRenderBackendStatus(*backend).initialized;
+}
 
 // ─── Construction ─────────────────────────────────────────────────────────────
 
@@ -97,14 +102,14 @@ void SandboxHost::OnUpdate()
     m_tickCounter++;
 
     // ── GPU frame begin ───────────────────────────────────────────────────────
-    if (m_renderBackend && m_renderBackend->IsInitialized())
+    if (IsRenderBackendReady(m_renderBackend.get()))
         m_renderBackend->BeginFrame();
 
     // ── Scenarios ─────────────────────────────────────────────────────────────
     m_scenarioManager.Update(dt, m_tickCounter);
 
     // ── Scenario-driven render submission ────────────────────────────────────
-    if (m_renderBackend && m_renderBackend->IsInitialized())
+    if (IsRenderBackendReady(m_renderBackend.get()))
     {
         SagaEngine::Render::Scene::Camera     cam{};
         SagaEngine::Render::Scene::RenderView view{};
@@ -117,7 +122,7 @@ void SandboxHost::OnUpdate()
         TickImGui(dt);
 
     // ── GPU frame end ─────────────────────────────────────────────────────────
-    if (m_renderBackend && m_renderBackend->IsInitialized())
+    if (IsRenderBackendReady(m_renderBackend.get()))
         m_renderBackend->EndFrame();
 
     // ── FPS in title bar ──────────────────────────────────────────────────────
@@ -126,7 +131,7 @@ void SandboxHost::OnUpdate()
 
     // Without a GPU swapchain there is no vsync-backed Present() to pace the
     // loop. Keep fallback/no-GPU mode from busy-spinning at millions of FPS.
-    if (!m_config.headless && (!m_renderBackend || !m_renderBackend->IsInitialized()))
+    if (!m_config.headless && !IsRenderBackendReady(m_renderBackend.get()))
         SDL_Delay(16);
 }
 
@@ -181,7 +186,7 @@ bool SandboxHost::InitRenderBackend()
     }
 
     // ── Create + initialize the backend ───────────────────────────────────────
-    m_renderBackend = std::make_unique<RB::DiligentRenderBackend>(m_config.renderBackend);
+    m_renderBackend = RB::CreateDiligentRenderBackend(m_config.renderBackend);
 
     RB::SwapchainDesc scDesc{};
     scDesc.nativeWindow = nativeHandle;
@@ -197,9 +202,10 @@ bool SandboxHost::InitRenderBackend()
         return false;
     }
 
+    const auto status = RB::GetDiligentRenderBackendStatus(*m_renderBackend);
     LOG_INFO(kTag, "Render backend ready: %s (frame %llu)",
-             std::string(RB::ToString(m_renderBackend->SelectedAPI())).c_str(),
-             static_cast<unsigned long long>(m_renderBackend->FrameIndex()));
+             std::string(RB::ToString(status.selectedAPI)).c_str(),
+             static_cast<unsigned long long>(status.frameIndex));
 
     // ── Tell the window that the RHI owns presentation ───────────────────────
     // SDL_UpdateWindowSurface conflicts with the D3D12/Vulkan swap chain;
@@ -240,14 +246,15 @@ void SandboxHost::UpdateFPSTitle(float dt)
         const float avgFps = (avgDt > 0.0f) ? (1.0f / avgDt) : 0.0f;
 
         char title[256];
-        if (m_renderBackend && m_renderBackend->IsInitialized())
+        if (IsRenderBackendReady(m_renderBackend.get()))
         {
+            const auto status = RB::GetDiligentRenderBackendStatus(*m_renderBackend);
             std::snprintf(title, sizeof(title),
                           "%s | %.1f FPS (%.2f ms) | %s | frame %llu",
                           m_config.windowTitle.c_str(),
                           avgFps, avgDt * 1000.0f,
-                          std::string(RB::ToString(m_renderBackend->SelectedAPI())).c_str(),
-                          static_cast<unsigned long long>(m_renderBackend->FrameIndex()));
+                          std::string(RB::ToString(status.selectedAPI)).c_str(),
+                          static_cast<unsigned long long>(status.frameIndex));
         }
         else
         {
@@ -287,9 +294,9 @@ void SandboxHost::InitImGui()
 
     // Initialize the Diligent-based ImGui renderer (PSO, font atlas, etc.).
     m_imguiGpuReady = false;
-    if (m_renderBackend && m_renderBackend->IsInitialized())
+    if (IsRenderBackendReady(m_renderBackend.get()))
     {
-        if (!m_renderBackend->InitImGuiRendering())
+        if (!RB::InitDiligentImGuiRendering(*m_renderBackend))
         {
             LOG_WARN(kTag, "ImGui GPU renderer init failed — HUD will be invisible.");
         }
@@ -306,7 +313,7 @@ void SandboxHost::InitImGui()
 void SandboxHost::ShutdownImGui()
 {
     if (m_renderBackend)
-        m_renderBackend->ShutdownImGuiRendering();
+        RB::ShutdownDiligentImGuiRendering(*m_renderBackend);
 
     ImGui::DestroyContext();
     m_imguiReady = false;
@@ -349,9 +356,9 @@ void SandboxHost::TickImGui(float dt)
     ImGui::Render();
 
     // Submit ImGui draw data to the GPU.
-    if (m_renderBackend && m_renderBackend->IsInitialized())
+    if (IsRenderBackendReady(m_renderBackend.get()))
     {
-        m_renderBackend->RenderImGuiDrawData(ImGui::GetDrawData());
+        RB::RenderDiligentImGuiDrawData(*m_renderBackend, ImGui::GetDrawData());
     }
 }
 

@@ -1491,4 +1491,57 @@ bool DiligentRenderBackend::IsInitialized() const noexcept
     return m_Impl && m_Impl->initialized;
 }
 
+// ─── Public factory surface ─────────────────────────────────────────
+
+std::unique_ptr<IRenderBackend> CreateDiligentRenderBackend()
+{
+    return std::make_unique<DiligentRenderBackend>();
+}
+
+std::unique_ptr<IRenderBackend> CreateDiligentRenderBackend(
+    DiligentBackendConfig config)
+{
+    return std::make_unique<DiligentRenderBackend>(config);
+}
+
+DiligentBackendStatus GetDiligentRenderBackendStatus(
+    const IRenderBackend& backend) noexcept
+{
+    const auto* diligent = dynamic_cast<const DiligentRenderBackend*>(&backend);
+    if (!diligent)
+    {
+        return {};
+    }
+
+    return {
+        diligent->SelectedAPI(),
+        diligent->FrameIndex(),
+        diligent->IsInitialized(),
+    };
+}
+
+bool InitDiligentImGuiRendering(IRenderBackend& backend)
+{
+    auto* diligent = dynamic_cast<DiligentRenderBackend*>(&backend);
+    return diligent && diligent->InitImGuiRendering();
+}
+
+void RenderDiligentImGuiDrawData(IRenderBackend& backend, const void* drawData)
+{
+    auto* diligent = dynamic_cast<DiligentRenderBackend*>(&backend);
+    if (diligent)
+    {
+        diligent->RenderImGuiDrawData(drawData);
+    }
+}
+
+void ShutdownDiligentImGuiRendering(IRenderBackend& backend)
+{
+    auto* diligent = dynamic_cast<DiligentRenderBackend*>(&backend);
+    if (diligent)
+    {
+        diligent->ShutdownImGuiRendering();
+    }
+}
+
 } // namespace SagaEngine::Render::Backend
