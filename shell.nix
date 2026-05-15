@@ -14,7 +14,10 @@ let
   #  2. CMake 4.x removed compatibility with cmake_minimum_required VERSION < 3.5
   #     and errors out immediately.  Many old ConanCenter recipes carry ancient
   #     CMakeLists.txt (e.g. spirv-cross 1.3.224.0 uses VERSION 2.8).
-  #     Fix: bump any VERSION below 3.5 up to 3.5 in-place.
+  #     Some recipes also configure a wrapper CMakeLists.txt one level above the
+  #     copied upstream source tree (e.g. glslang's source dir is src, configure
+  #     dir is src/..).  Fix: scan the source/build dirs and nearby project
+  #     ancestors, then bump any VERSION below 3.5 up to 3.5 in-place.
   nixosConanHook = pkgs.writeText "hook_nixos_fix.py" ''
     import os, re, stat
 
@@ -46,15 +49,30 @@ let
             except OSError as exc:
                 conanfile.output.warning("[nixos-fix] cannot install cmake shim: " + str(exc))
 
+    def _append_dir(dirs, d):
+        if d and os.path.isdir(d) and d not in dirs:
+            dirs.append(d)
+
+    def _append_project_ancestors(dirs, d):
+        cur = os.path.realpath(d)
+        for _ in range(3):
+            parent = os.path.dirname(cur.rstrip(os.sep))
+            if not parent or parent == cur:
+                return
+            if (os.path.exists(os.path.join(parent, "CMakeLists.txt")) or
+                    os.path.exists(os.path.join(parent, "configure"))):
+                _append_dir(dirs, parent)
+            cur = parent
+
     def _candidates(conanfile):
         dirs = []
         for attr in ("source_folder", "build_folder"):
             d = getattr(conanfile, attr, None) or ""
             if d and os.path.isdir(d):
-                dirs.append(d)
+                _append_dir(dirs, d)
+                _append_project_ancestors(dirs, d)
                 sibling = os.path.join(os.path.dirname(d.rstrip(os.sep)), "src")
-                if os.path.isdir(sibling):
-                    dirs.append(sibling)
+                _append_dir(dirs, sibling)
         return dirs
 
     def _rewrite(conanfile, path, patched, original):
@@ -183,6 +201,10 @@ pkgs.mkShell {
     # Conan's egl/system, opengl/system, and xorg/system packages).
     export PKG_CONFIG_PATH="${pkgs.libGL}/lib/pkgconfig:${pkgs.xorg.libX11}/lib/pkgconfig:${pkgs.xorg.libXext}/lib/pkgconfig:${pkgs.xorg.libXrandr}/lib/pkgconfig:${pkgs.xorg.libXi}/lib/pkgconfig:${pkgs.xorg.libXcursor}/lib/pkgconfig:${pkgs.xorg.libXinerama}/lib/pkgconfig:${pkgs.wayland}/lib/pkgconfig:${pkgs.wayland-protocols}/share/pkgconfig:${pkgs.libxkbcommon}/lib/pkgconfig:${pkgs.egl-wayland}/lib/pkgconfig:${pkgs.vulkan-loader}/lib/pkgconfig:${pkgs.libglvnd}/lib/pkgconfig:${pkgs.mesa}/lib/pkgconfig:${pkgs.xorg.libfontenc}/lib/pkgconfig:${pkgs.xorg.libICE}/lib/pkgconfig:${pkgs.xorg.libSM}/lib/pkgconfig:${pkgs.xorg.libXrender}/lib/pkgconfig:${pkgs.xorg.libXfixes}/lib/pkgconfig:${pkgs.xorg.libxkbfile}/lib/pkgconfig:${pkgs.xorg.libXScrnSaver}/lib/pkgconfig:${pkgs.xorg.libXt}/lib/pkgconfig:${pkgs.xorg.libXmu}/lib/pkgconfig:${pkgs.xorg.libXpm}/lib/pkgconfig:${pkgs.xorg.libXcomposite}/lib/pkgconfig:${pkgs.xorg.libXdamage}/lib/pkgconfig:${pkgs.xorg.libXtst}/lib/pkgconfig:${pkgs.xorg.libXxf86vm}/lib/pkgconfig:${pkgs.xorg.libXaw}/lib/pkgconfig:${pkgs.xorg.libXv}/lib/pkgconfig:${pkgs.xorg.libXvMC}/lib/pkgconfig:${pkgs.xorg.libXres}/lib/pkgconfig:${pkgs.xorg.libXpresent}/lib/pkgconfig:${pkgs.xorg.libXau}/lib/pkgconfig:${pkgs.xorg.libXdmcp}/lib/pkgconfig:${pkgs.libuuid.dev}/lib/pkgconfig:${pkgs.xorg.libxcb}/lib/pkgconfig:${pkgs.xorg.xcbutil}/lib/pkgconfig:${pkgs.xorg.xcbutilimage}/lib/pkgconfig:${pkgs.xorg.xcbutilkeysyms}/lib/pkgconfig:${pkgs.xorg.xcbutilrenderutil}/lib/pkgconfig:${pkgs.xorg.xcbutilwm}/lib/pkgconfig:${pkgs.xorg.xcbutilcursor}/lib/pkgconfig:''${PKG_CONFIG_PATH:-}"
 
+    # Diligent/volk loads libvulkan.so.1 dynamically at runtime, so pkg-config
+    # and executable RUNPATH alone are not enough on NixOS.
+    export LD_LIBRARY_PATH="${pkgs.vulkan-loader}/lib:${pkgs.libglvnd}/lib:${pkgs.libGL}/lib:${pkgs.mesa}/lib:${pkgs.egl-wayland}/lib:''${LD_LIBRARY_PATH:-}"
+
     # Install the NixOS Conan hook.  Written to ~/.conan2/extensions/hooks/
     # which Conan 2.x picks up automatically for every build.
     # Remove first: the Nix store source is read-only, so cp would create a
@@ -193,7 +215,7 @@ pkgs.mkShell {
     cp "${nixosConanHook}" "$_HOOKS_DIR/hook_nixos_fix.py"
     unset _HOOKS_DIR
 
-    FORGE_BIN="$PWD/Tools/Forge/tool/bin"
+    FORGE_BIN="$PWD/Tools/Forge/bin"
 
     # Build forge if the binary is missing (first entry or after a clean).
     #
@@ -210,7 +232,7 @@ pkgs.mkShell {
       TMP_FORGE="/tmp/sagaengine-forge-src"
       rm -rf "$TMP_FORGE"
       # Exclude build/ and bin/ so no stale CMakeCache.txt is carried over.
-      cp -r "$PWD/Tools/Forge/tool" "$TMP_FORGE"
+      cp -r "$PWD/Tools/Forge" "$TMP_FORGE"
       rm -rf "$TMP_FORGE/build" "$TMP_FORGE/bin"
       ( cd "$TMP_FORGE" && python3 build.py )
       if [ -f "$TMP_FORGE/bin/forge" ]; then

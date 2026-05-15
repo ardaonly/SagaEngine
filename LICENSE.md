@@ -16,7 +16,7 @@ Primary Apache areas:
 - `Server/`
 - `Backends/`
 - `Tools/Prism/`
-- `Tools/Forge/tool/`
+- `Tools/Forge/`
 - `Tools/SystemDefinitionEngine/`
 - `Tests/`
 - `docs/`

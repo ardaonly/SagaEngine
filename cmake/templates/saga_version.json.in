@@ -1,0 +1,10 @@
+{
+  "productName": "SAGA",
+  "distributionVersion": "@SAGA_DISTRIBUTION_VERSION@",
+  "buildVersion": "@CMAKE_PROJECT_VERSION@",
+  "gitCommit": "@SAGA_GIT_COMMIT@",
+  "platform": "@SAGA_DISTRIBUTION_PLATFORM@",
+  "binaries": [
+    "Saga"
+  ]
+}
