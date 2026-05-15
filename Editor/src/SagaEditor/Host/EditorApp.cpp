@@ -3,7 +3,9 @@
 
 #include "SagaEditor/Host/EditorApp.h"
 #include "SagaEditor/Host/EditorHost.h"
+#include "SagaEditor/Profile/EditorProfileRegistry.h"
 #include "SagaEditor/Shell/EditorShell.h"
+#include "SagaEditor/Settings/IEditorSettingsStore.h"
 #include "SagaEditor/UI/IUIApplication.h"
 #include "SagaEditor/UI/IUIFactory.h"
 
@@ -31,16 +33,40 @@ bool EditorApp::Init(const EditorAppConfig& cfg, IUIFactory& factory)
     m_host  = std::make_unique<EditorHost>();
     m_shell = std::make_unique<EditorShell>();
 
-    if (!m_host->Init())
+    std::string resolvedWorkspacePath = cfg.workspacePath;
+    std::string resolvedProfileId = cfg.initialProfileId;
+    std::string resolvedLayoutPreset = cfg.layoutPreset;
+    if (cfg.preparedWorkspace)
+    {
+        resolvedWorkspacePath = cfg.preparedWorkspace->root.string();
+        if (!cfg.preparedWorkspace->initialProfileId.empty())
+        {
+            resolvedProfileId = cfg.preparedWorkspace->initialProfileId;
+        }
+        if (!cfg.preparedWorkspace->layoutPreset.empty())
+        {
+            resolvedLayoutPreset = cfg.preparedWorkspace->layoutPreset;
+        }
+        if (!m_host->Init(factory.CreateSettingsStore(), *cfg.preparedWorkspace))
+            return false;
+    }
+    else if (!m_host->Init(factory.CreateSettingsStore(), resolvedWorkspacePath))
+    {
         return false;
+    }
+    if (!resolvedProfileId.empty() &&
+        !m_host->GetEditorProfileRegistry().SetActive(resolvedProfileId))
+    {
+        return false;
+    }
 
     EditorShellConfig shellCfg;
     shellCfg.windowTitle   = cfg.windowTitle;
     shellCfg.windowWidth   = cfg.windowWidth;
     shellCfg.windowHeight  = cfg.windowHeight;
     shellCfg.maximized     = cfg.maximized;
-    shellCfg.workspacePath = cfg.workspacePath;
-    shellCfg.layoutPreset  = cfg.layoutPreset;
+    shellCfg.workspacePath = resolvedWorkspacePath;
+    shellCfg.layoutPreset  = resolvedLayoutPreset;
 
     if (!m_shell->Init(*m_host, factory, shellCfg))
         return false;

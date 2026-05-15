@@ -1,0 +1,17 @@
+sde version 1
+
+package Saga.Workspace
+
+model SagaWorkspace version 1 {
+  field displayName Text required
+  field editorProfile Text required
+  field runtimeRole Text required
+  field serverRole Text required
+}
+
+instance SagaWorkspace builtin.basic {
+  displayName = "Built-in Basic Workspace"
+  editorProfile = "saga.profile.basic"
+  runtimeRole = "SagaRuntime"
+  serverRole = "SagaServer"
+}

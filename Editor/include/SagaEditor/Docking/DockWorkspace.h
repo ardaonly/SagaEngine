@@ -4,7 +4,9 @@
 #pragma once
 
 #include "SagaEditor/UI/IUIMainWindow.h"
+#include <cstdint>
 #include <string>
+#include <vector>
 
 namespace SagaEditor
 {

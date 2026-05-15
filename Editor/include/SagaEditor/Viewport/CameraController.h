@@ -27,10 +27,9 @@ enum class CameraNavigationMode : std::uint8_t
 
 // ─── Controller Configuration ─────────────────────────────────────────────────
 
-/// Tunables exposed to the editor's preference UI. The defaults match
-/// the average expectation of an editor user coming from Unity / Unreal
-/// / Blender — small enough increments to feel precise, large enough
-/// to traverse a city block in a few seconds.
+/// Tunables exposed to the editor's preference UI. The defaults are
+/// small enough to feel precise and large enough to traverse a city
+/// block in a few seconds.
 struct CameraControllerConfig
 {
     /// Radians of yaw / pitch produced per pixel of mouse delta in

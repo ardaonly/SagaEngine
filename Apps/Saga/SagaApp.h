@@ -1,0 +1,36 @@
+/// @file SagaApp.h
+/// @brief Lifecycle owner for the Saga product orchestration entry point.
+
+#pragma once
+
+#include "SagaAppConfig.h"
+#include "SagaProductHost.h"
+#include "SagaWorkspaceResolver.h"
+
+#include <ostream>
+
+namespace SagaProduct
+{
+
+/// Runs the primary Saga product application.
+class SagaApp
+{
+public:
+    /// Execute the GUI product shell or the explicit prepare-only diagnostic.
+    [[nodiscard]] int Run(int argc,
+                          char* argv[],
+                          const SagaAppConfig& config,
+                          std::ostream& out,
+                          std::ostream& err);
+
+    /// Execute the explicit prepare-only diagnostic flow.
+    [[nodiscard]] int Run(const SagaAppConfig& config,
+                          std::ostream& out,
+                          std::ostream& err);
+
+private:
+    SagaWorkspaceResolver m_workspaceResolver;
+    SagaProductHost       m_productHost;
+};
+
+} // namespace SagaProduct

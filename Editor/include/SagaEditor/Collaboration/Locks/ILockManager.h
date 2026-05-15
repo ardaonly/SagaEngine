@@ -1,6 +1,7 @@
 #pragma once
 #include "SagaEditor/Collaboration/Locks/LockToken.h"
 #include "SagaEditor/Collaboration/Locks/LockPolicy.h"
+#include <cstdint>
 #include <functional>
 #include <string>
 namespace SagaEditor::Collaboration {

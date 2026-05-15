@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "SagaEditor/Persona/PersonaRegistry.h"
+#include "SagaEditor/Profile/EditorProfileRegistry.h"
 #include "SagaEditor/Shell/ShellLayout.h"
 #include "SagaEditor/UI/IUIMainWindow.h"
 #include <memory>
@@ -13,8 +15,10 @@ namespace SagaEditor
 {
 
 class EditorHost;
+class EditorProfile;
 class IPanel;
 class IUIFactory;
+class ProductionDashboardPanel;
 
 // ─── Shell Configuration ──────────────────────────────────────────────────────
 
@@ -26,6 +30,9 @@ struct EditorShellConfig
     bool        maximized     = false;
     std::string workspacePath = "";
     std::string layoutPreset  = "Default";
+    bool        registerDefaultPanels = true;
+    bool        applyActivePersona = true;
+    bool        showOnInit = true;
 };
 
 // ─── Editor Shell ─────────────────────────────────────────────────────────────
@@ -45,6 +52,12 @@ public:
                             IUIFactory&              factory,
                             const EditorShellConfig& cfg);
 
+    /// Build the shell around a pre-existing backend window owned by a product
+    /// host. Used when Saga mounts editor mode inside its own process/window.
+    [[nodiscard]] bool Init(EditorHost&                    host,
+                            std::unique_ptr<IUIMainWindow> window,
+                            const EditorShellConfig&       cfg);
+
     /// Tear down panels and subsystems (called before the event loop exits).
     void Shutdown();
 
@@ -57,12 +70,19 @@ public:
     /// Find a registered panel by its stable PanelId.
     [[nodiscard]] IPanel* FindPanel(const std::string& panelId) const;
 
+    /// Return the current panel titles in registration order.
+    [[nodiscard]] std::vector<std::string> GetRegisteredPanelTitles() const;
+
     // ─── Shell Chrome ─────────────────────────────────────────────────────────
 
     /// Replace the active shell layout descriptor and rebuild menus.
     void SetShellLayout(ShellLayout layout);
 
     [[nodiscard]] const ShellLayout& GetShellLayout() const noexcept;
+
+    [[nodiscard]] const std::string& GetActiveLayoutPresetId() const noexcept;
+    [[nodiscard]] const std::vector<std::string>& GetActiveToolbarCommands() const noexcept;
+    [[nodiscard]] const std::vector<std::string>& GetActiveToolCommands() const noexcept;
 
     // ─── Accessors ────────────────────────────────────────────────────────────
 
@@ -74,11 +94,34 @@ private:
 
     void RegisterDefaultPanels();
     void BuildDefaultLayout();
+    void RegisterPersonaCommands();
+    void RegisterProfileCommands();
+    void WirePersonaSinks();
+    void WireProfileSinks();
+    void ApplyActivePersona();
+    void ApplyActiveProfile();
+    void RefreshProductionDashboard();
+    bool ApplyPersonaPanelVisibility(const std::vector<std::string>& panelIds);
+    bool ApplyProfileLayout(const std::string& layoutPresetId);
+    bool ApplyProfileShortcutMap(const EditorProfile& profile);
+    bool ApplyProfileToolbar(const std::vector<std::string>& commandIds);
+    bool ApplyProfilePanelVisibility(const std::vector<std::string>& panelIds);
+    bool ApplyProfileShellChrome(const EditorProfile& profile);
+    bool ApplyProfileToolVisibility(const std::vector<std::string>& commandIds);
 
     EditorHost*                          m_host = nullptr; ///< Non-owning.
     std::unique_ptr<IUIMainWindow>       m_window;
     std::vector<std::unique_ptr<IPanel>> m_panels;         ///< All panels, owned.
+    ProductionDashboardPanel*            m_productionDashboard = nullptr;
     ShellLayout                          m_layout;
+    std::string                          m_activeLayoutPresetId = "Default";
+    std::vector<std::string>             m_activeToolbarCommands;
+    std::vector<std::string>             m_activeToolCommands;
+    std::string                          m_baseWindowTitle = "SagaEditor";
+    PersonaChangeSubscription            m_personaSubscription =
+        kInvalidPersonaSubscription;
+    EditorProfileChangeSubscription      m_profileSubscription =
+        kInvalidEditorProfileSubscription;
 };
 
 } // namespace SagaEditor

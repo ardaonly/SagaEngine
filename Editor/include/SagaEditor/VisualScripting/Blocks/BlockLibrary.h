@@ -36,7 +36,7 @@ public:
     /// Register the nine built-in categories. Idempotent.
     void RegisterBuiltinCategories();
 
-    /// Register a starter set of Scratch-equivalent block definitions
+    /// Register a starter set of block-based authoring definitions
     /// (move, turn, when-flag-clicked, repeat, if, say, plus number /
     /// boolean / variable reporters). Idempotent.
     void RegisterBuiltinDefinitions();

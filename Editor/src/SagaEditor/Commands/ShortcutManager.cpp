@@ -46,6 +46,12 @@ void ShortcutManager::UnbindCommand(const std::string& commandId)
     m_commandToChord.erase(it);
 }
 
+void ShortcutManager::Clear()
+{
+    m_chordToCommand.clear();
+    m_commandToChord.clear();
+}
+
 // ─── Event Handling ───────────────────────────────────────────────────────────
 
 bool ShortcutManager::OnKeyEvent(const KeyChord& chord)

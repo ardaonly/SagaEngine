@@ -1,5 +1,6 @@
 #pragma once
 #include "SagaEditor/Collaboration/Permissions/IPermissionManager.h"
+#include <cstdint>
 namespace SagaEditor::Collaboration {
 class PermissionEnforcer {
 public:

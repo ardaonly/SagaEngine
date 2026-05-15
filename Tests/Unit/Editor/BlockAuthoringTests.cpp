@@ -1,5 +1,5 @@
 /// @file BlockAuthoringTests.cpp
-/// @brief GoogleTest coverage for the Scratch-style block authoring model.
+/// @brief GoogleTest coverage for the block-based authoring model.
 
 #include "SagaEditor/VisualScripting/Blocks/BlockCategory.h"
 #include "SagaEditor/VisualScripting/Blocks/BlockDefinition.h"
@@ -38,7 +38,7 @@ TEST(BlockKindTest, IdRoundTripsAndDefaultsToStack)
 
 TEST(BlockKindTest, ConnectionPredicates)
 {
-    // Top-notch / bottom-notch booleans match Scratch's snap rules.
+    // Top-notch / bottom-notch booleans match the editor snap contract.
     EXPECT_FALSE(BlockKindHasTopNotch(BlockKind::Hat));
     EXPECT_TRUE (BlockKindHasBottomNotch(BlockKind::Hat));
 
@@ -85,7 +85,7 @@ TEST(BlockCategoryTest, BuiltinsHaveDistinctIdsAndOrderedSortOrder)
     {
         EXPECT_LT(cats[i - 1].sortOrder, cats[i].sortOrder);
     }
-    // Events comes after Sound (matches Scratch's palette order).
+    // Events comes after Sound in the built-in palette order.
     auto findId = [&](const std::string& id) -> int
     {
         for (std::size_t i = 0; i < cats.size(); ++i)

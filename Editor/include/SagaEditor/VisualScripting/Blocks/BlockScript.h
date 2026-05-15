@@ -1,5 +1,5 @@
 /// @file BlockScript.h
-/// @brief Top-level container for a single Scratch-style block program.
+/// @brief Top-level container for a single block-based program.
 
 #pragma once
 

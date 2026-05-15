@@ -103,6 +103,11 @@ bool PersonaRegistry::SetActive(const std::string& id)
         return false;
     }
 
+    if (m_activeId == id)
+    {
+        return true;
+    }
+
     m_activeId = id;
 
     // Snapshot the subscriber list so a callback that re-enters the
