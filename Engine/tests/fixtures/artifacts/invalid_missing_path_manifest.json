@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "artifacts": [
+    {
+      "id": "quest_reward_graph",
+      "kind": "graph"
+    }
+  ]
+}
