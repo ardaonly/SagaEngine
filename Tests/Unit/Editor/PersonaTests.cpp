@@ -5,7 +5,9 @@
 #include "SagaEditor/Persona/DensityProfile.h"
 #include "SagaEditor/Persona/PersonaActivator.h"
 #include "SagaEditor/Persona/PersonaRegistry.h"
+#include "SagaEditor/Persona/PersonaSettingsBinding.h"
 #include "SagaEditor/Persona/UIPersona.h"
+#include "SagaEditor/Settings/MemoryEditorSettingsStore.h"
 
 #include <gtest/gtest.h>
 
@@ -286,6 +288,10 @@ TEST_F(PersonaRegistryTest, SetActiveFiresChangeCallback)
     EXPECT_EQ(callCount.load(), 1);
     EXPECT_EQ(seenId, "saga.persona.beginner");
 
+    // Re-applying the current persona succeeds but does not refresh subscribers.
+    EXPECT_TRUE(m_registry.SetActive("saga.persona.beginner"));
+    EXPECT_EQ(callCount.load(), 1);
+
     // Switching to a non-existent persona does not fire the callback.
     EXPECT_FALSE(m_registry.SetActive("saga.persona.bogus"));
     EXPECT_EQ(callCount.load(), 1);
@@ -311,6 +317,82 @@ TEST_F(PersonaRegistryTest, ThrowingSubscriberDoesNotBreakDispatch)
 
     EXPECT_TRUE(m_registry.SetActive("saga.persona.indie"));
     EXPECT_EQ(goodCount.load(), 1);
+}
+
+// ─── Persona Settings Binding ─────────────────────────────────────────────────
+
+TEST(PersonaSettingsBindingTest, RestoresValidStoredPersona)
+{
+    PersonaRegistry registry;
+    registry.RegisterBuiltinPersonas();
+
+    MemoryEditorSettingsStore settings;
+    settings.SetString("persona.activeId", "saga.persona.pro");
+
+    PersonaSettingsBinding binding;
+    ASSERT_TRUE(binding.Init(registry, settings));
+
+    EXPECT_EQ(registry.GetActiveId(), "saga.persona.pro");
+}
+
+TEST(PersonaSettingsBindingTest, FallsBackWhenStoredPersonaIsInvalid)
+{
+    PersonaRegistry registry;
+    registry.RegisterBuiltinPersonas();
+
+    MemoryEditorSettingsStore settings;
+    settings.SetString("persona.activeId", "saga.persona.missing");
+
+    PersonaSettingsBinding binding;
+    ASSERT_TRUE(binding.Init(registry, settings));
+
+    EXPECT_EQ(registry.GetActiveId(), "saga.persona.indie");
+    EXPECT_EQ(settings.GetString("persona.activeId", ""),
+              "saga.persona.indie");
+}
+
+TEST(PersonaSettingsBindingTest, UsesIndieWhenNoPersonaIsStored)
+{
+    PersonaRegistry registry;
+    registry.RegisterBuiltinPersonas();
+
+    MemoryEditorSettingsStore settings;
+
+    PersonaSettingsBinding binding;
+    ASSERT_TRUE(binding.Init(registry, settings));
+
+    EXPECT_EQ(registry.GetActiveId(), "saga.persona.indie");
+    EXPECT_FALSE(settings.Has("persona.activeId"));
+}
+
+TEST(PersonaSettingsBindingTest, PersistsPersonaChanges)
+{
+    PersonaRegistry registry;
+    registry.RegisterBuiltinPersonas();
+
+    MemoryEditorSettingsStore settings;
+
+    PersonaSettingsBinding binding;
+    ASSERT_TRUE(binding.Init(registry, settings));
+
+    EXPECT_TRUE(registry.SetActive("saga.persona.technical"));
+    EXPECT_EQ(settings.GetString("persona.activeId", ""),
+              "saga.persona.technical");
+}
+
+TEST(PersonaSettingsBindingTest, ShutdownStopsPersistence)
+{
+    PersonaRegistry registry;
+    registry.RegisterBuiltinPersonas();
+
+    MemoryEditorSettingsStore settings;
+
+    PersonaSettingsBinding binding;
+    ASSERT_TRUE(binding.Init(registry, settings));
+    binding.Shutdown();
+
+    EXPECT_TRUE(registry.SetActive("saga.persona.technical"));
+    EXPECT_FALSE(settings.Has("persona.activeId"));
 }
 
 // ─── PersonaActivator ─────────────────────────────────────────────────────────

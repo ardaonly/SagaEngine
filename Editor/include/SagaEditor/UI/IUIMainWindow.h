@@ -34,6 +34,7 @@ class IUIMainWindow
 {
 public:
     using CloseCallback = std::function<void()>;
+    using CommandCallback = std::function<void(const std::string& commandId)>;
 
     virtual ~IUIMainWindow() = default;
 
@@ -74,6 +75,10 @@ public:
     /// Raise / show a docked panel by its PanelId.
     virtual void FocusPanel(const std::string& panelId)    = 0;
 
+    /// Show or hide a docked panel by its PanelId without destroying it.
+    virtual void SetPanelVisible(const std::string& panelId,
+                                 bool               visible) = 0;
+
     // ─── Layout Persistence ───────────────────────────────────────────────────
 
     /// Serialise the current window and dock arrangement to a byte blob.
@@ -85,6 +90,9 @@ public:
     // ─── Events ───────────────────────────────────────────────────────────────
 
     virtual void SetOnClose(CloseCallback cb) = 0;
+
+    /// Called when a menu or toolbar action carrying a command id is triggered.
+    virtual void SetOnCommand(CommandCallback cb) = 0;
 };
 
 } // namespace SagaEditor

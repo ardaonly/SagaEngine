@@ -1,5 +1,6 @@
 #pragma once
 #include "SagaEditor/Collaboration/Client/ICollaborationClient.h"
+#include <cstdint>
 #include <memory>
 namespace SagaEditor::Collaboration {
 class CollaborationClient final : public ICollaborationClient {

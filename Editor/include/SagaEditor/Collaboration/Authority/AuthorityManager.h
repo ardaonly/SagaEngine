@@ -1,5 +1,6 @@
 #pragma once
 #include "SagaEditor/Collaboration/Authority/IAuthorityManager.h"
+#include <cstdint>
 #include <memory>
 namespace SagaEditor::Collaboration {
 class AuthorityManager final : public IAuthorityManager {

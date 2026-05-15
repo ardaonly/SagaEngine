@@ -34,9 +34,9 @@ struct BlockBrandColor
 // ─── Block Category ───────────────────────────────────────────────────────────
 
 /// One section of the block palette. The eight built-in categories
-/// match Scratch's well-known palette (Motion, Looks, Sound, Events,
-/// Control, Sensing, Operators, Variables) plus a ninth user-authored
-/// section, "My Blocks". Extensions register additional categories
+/// cover Motion, Looks, Sound, Events, Control, Sensing, Operators,
+/// and Variables, plus a ninth user-authored section, "My Blocks".
+/// Extensions register additional categories
 /// through `BlockLibrary::RegisterCategory`.
 struct BlockCategory
 {

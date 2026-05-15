@@ -1,5 +1,6 @@
 #pragma once
 #include "SagaEditor/Collaboration/Client/PeerInfo.h"
+#include <cstdint>
 #include <memory>
 #include <vector>
 namespace SagaEditor::Collaboration {

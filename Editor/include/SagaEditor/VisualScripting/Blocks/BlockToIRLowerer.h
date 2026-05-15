@@ -5,6 +5,7 @@
 
 #include "SagaEditor/VisualScripting/Blocks/BlockIR.h"
 
+#include <cstdint>
 #include <string>
 #include <vector>
 

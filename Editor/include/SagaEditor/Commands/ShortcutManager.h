@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <unordered_map>
 
@@ -52,6 +53,9 @@ public:
 
     /// Remove all bindings for a command id.
     void UnbindCommand(const std::string& commandId);
+
+    /// Remove every shortcut binding. Used when swapping workflow profiles.
+    void Clear();
 
     /// Process a key event. Returns true if a binding was matched and dispatched.
     [[nodiscard]] bool OnKeyEvent(const KeyChord& chord);

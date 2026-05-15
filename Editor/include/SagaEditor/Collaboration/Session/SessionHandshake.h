@@ -1,6 +1,8 @@
 #pragma once
 #include "SagaEditor/Collaboration/Session/CollaborationToken.h"
 #include "SagaEditor/Collaboration/Session/SessionId.h"
+#include <cstdint>
+#include <string>
 namespace SagaEditor::Collaboration {
 class SessionHandshake {
 public:

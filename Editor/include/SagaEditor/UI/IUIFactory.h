@@ -11,6 +11,7 @@ namespace SagaEditor
 
 class IUIApplication;
 class IUIMainWindow;
+class IEditorSettingsStore;
 
 // ─── UI Factory Interface ─────────────────────────────────────────────────────
 
@@ -30,6 +31,10 @@ public:
     /// Create the main window. The application must already exist.
     [[nodiscard]] virtual std::unique_ptr<IUIMainWindow>
         CreateMainWindow(const std::string& title, int width, int height) = 0;
+
+    /// Create the private user settings store for editor preferences.
+    [[nodiscard]] virtual std::unique_ptr<IEditorSettingsStore>
+        CreateSettingsStore() = 0;
 };
 
 } // namespace SagaEditor

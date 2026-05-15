@@ -1,5 +1,6 @@
 #pragma once
 #include "SagaEditor/Collaboration/Workspace/WorkspaceDocument.h"
+#include <cstdint>
 #include <vector>
 namespace SagaEditor::Collaboration {
 struct WorkspaceSnapshot {

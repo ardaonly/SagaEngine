@@ -60,8 +60,8 @@ UIPersona MakeBlockyBeginnerPersona()
     UIPersona p;
     p.id          = "saga.persona.beginner";
     p.displayName = "Blocky Beginner";
-    p.description = "Kid-friendly stacked blocks. Big buttons, big text, "
-                    "no exposed pins. Inspired by Scratch.";
+    p.description = "Kid-friendly stacked blocks with big buttons, big text, "
+                    "and no exposed pins.";
     p.tier        = PersonaTier::Beginner;
 
     p.themeId           = "Light";
@@ -135,8 +135,8 @@ UIPersona MakeProDensePersona()
     UIPersona p;
     p.id          = "saga.persona.pro";
     p.displayName = "Pro Dense";
-    p.description = "Multi-panel pro-tools layout. Pin-based graphs, "
-                    "low-saturation theme. Inspired by Unreal Engine.";
+    p.description = "Multi-panel pro-tools layout with pin-based graphs "
+                    "and a low-saturation theme.";
     p.tier        = PersonaTier::Pro;
 
     p.themeId           = "Midnight";

@@ -1,5 +1,6 @@
 #pragma once
 #include "SagaEditor/VisualScripting/Graphs/GraphDocument.h"
+#include <cstdint>
 #include <unordered_set>
 namespace SagaEditor::VisualScripting {
 class BreakpointController {

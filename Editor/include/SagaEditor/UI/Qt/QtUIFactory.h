@@ -24,6 +24,9 @@ public:
 
     [[nodiscard]] std::unique_ptr<IUIMainWindow>
         CreateMainWindow(const std::string& title, int width, int height) override;
+
+    [[nodiscard]] std::unique_ptr<IEditorSettingsStore>
+        CreateSettingsStore() override;
 };
 
 } // namespace SagaEditor

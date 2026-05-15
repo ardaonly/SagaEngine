@@ -93,7 +93,7 @@ WorldViewportPanel::WorldViewportPanel()
 
 WorldViewportPanel::~WorldViewportPanel() = default;
 
-PanelId     WorldViewportPanel::GetPanelId()      const { return "saga.panel.worldviewport"; }
+PanelId     WorldViewportPanel::GetPanelId()      const { return "saga.panel.viewport"; }
 std::string WorldViewportPanel::GetTitle()        const { return "World Viewport"; }
 void*       WorldViewportPanel::GetNativeWidget() const noexcept { return m_impl->surface; }
 

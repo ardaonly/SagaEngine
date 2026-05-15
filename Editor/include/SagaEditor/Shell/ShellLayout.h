@@ -35,6 +35,7 @@ struct MenuDescriptor
 struct ShellLayout
 {
     std::vector<MenuDescriptor> menus;          ///< Top-level menu bar entries, left to right.
+    std::vector<MenuItemDescriptor> mainToolbarItems; ///< Top toolbar command entries.
     bool                        showMenuBar    = true;  ///< Toggle the entire menu bar.
     bool                        showStatusBar  = true;  ///< Toggle the bottom status bar.
     bool                        showMainToolbar = true; ///< Toggle the top toolbar row.

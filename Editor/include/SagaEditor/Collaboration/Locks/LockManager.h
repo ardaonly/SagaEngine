@@ -1,5 +1,6 @@
 #pragma once
 #include "SagaEditor/Collaboration/Locks/ILockManager.h"
+#include <cstdint>
 #include <memory>
 namespace SagaEditor::Collaboration {
 class LockManager final : public ILockManager {

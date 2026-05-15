@@ -19,7 +19,7 @@ bool BlockCategory::operator==(const BlockCategory& o) const noexcept
 // ─── Built-in Categories ──────────────────────────────────────────────────────
 //
 // Brand colours are picked to be perceptually distinct and adjacent
-// to the colours users coming from Scratch will recognise. They are
+// to readable category colours across every editor profile. They are
 // the *base* colours; the persona's `BlockVisualStyle::saturationScale`
 // is what tints them per persona at render time.
 

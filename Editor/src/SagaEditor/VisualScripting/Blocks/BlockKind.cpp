@@ -1,5 +1,5 @@
 /// @file BlockKind.cpp
-/// @brief Implementation of the Scratch-style block shape vocabulary.
+/// @brief Implementation of the block-based shape vocabulary.
 
 #include "SagaEditor/VisualScripting/Blocks/BlockKind.h"
 

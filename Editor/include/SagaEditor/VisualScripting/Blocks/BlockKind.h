@@ -1,5 +1,5 @@
 /// @file BlockKind.h
-/// @brief Shape vocabulary for Scratch-style block authoring.
+/// @brief Shape vocabulary for block-based authoring.
 
 #pragma once
 
@@ -13,8 +13,8 @@ namespace SagaEditor::VisualScripting
 
 /// The seven block shapes the editor supports. Shape — and only
 /// shape — decides what can connect to what at edit time. The
-/// vocabulary mirrors Scratch so users transferring from Scratch can
-/// rely on the visual cues they already know.
+/// vocabulary is intentionally shared across profiles so block
+/// manipulation remains predictable.
 enum class BlockKind : std::uint8_t
 {
     Hat,      ///< Top-only — starts a stack (e.g. "when flag clicked").

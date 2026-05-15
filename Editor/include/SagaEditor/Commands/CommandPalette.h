@@ -35,6 +35,8 @@ public:
 
 private:
     class Impl; ///< Qt dialog and UI live here.
+    CommandRegistry&   m_registry;
+    CommandDispatcher& m_dispatcher;
     std::unique_ptr<Impl> m_impl; ///< Pimpl to hide Qt dependencies.
 };
 
