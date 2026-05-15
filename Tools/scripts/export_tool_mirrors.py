@@ -395,6 +395,9 @@ def export_tool(
         log(f"{tool.name}: skip unchanged since {change_base[:12]}")
         return "skipped"
 
+    if not dry_run and mirror_token is None and os.environ.get("GITHUB_ACTIONS") == "true":
+        raise ExportError(f"{tool.name}: MIRROR_TOKEN is required in CI when an export is required")
+
     remote = build_remote(tool, mirror_token=mirror_token)
 
     if state and not refresh_state:
@@ -452,9 +455,6 @@ def export_tool(
             ),
         )
         return "skipped"
-
-    if not mirror_token and os.environ.get("GITHUB_ACTIONS") == "true":
-        raise ExportError(f"{tool.name}: MIRROR_TOKEN is required in CI when a push is required")
 
     push_subtree(repo_root, remote, subtree_commit, target_branch, before)
     after = remote_head(repo_root, remote.url, target_branch)
