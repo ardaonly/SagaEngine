@@ -3,7 +3,7 @@
 build.py — Forge bootstrap installer.
 
 Run this script with no arguments to build the Forge binary from source
-and stage it in `Tools/Forge/tool/bin/forge` (`.exe` on Windows).
+and stage it in `Tools/Forge/bin/forge` (`.exe` on Windows).
 
 It is intentionally self-contained:
 
@@ -14,13 +14,13 @@ It is intentionally self-contained:
 
 Typical usage:
 
-    python3 Tools/Forge/tool/build.py            # release build
-    python3 Tools/Forge/tool/build.py --debug    # debug build
-    python3 Tools/Forge/tool/build.py --clean    # wipe the build dir first
+    python3 Tools/Forge/build.py            # release build
+    python3 Tools/Forge/build.py --debug    # debug build
+    python3 Tools/Forge/build.py --clean    # wipe the build dir first
 
 After a successful run:
 
-    Tools/Forge/tool/bin/forge --version
+    Tools/Forge/bin/forge --version
 
 The dispatcher (`Tools/SagaTools/`) calls this script when the user runs
 `tools install forge`.
@@ -37,12 +37,12 @@ import sys
 from pathlib import Path
 
 # ─── Optional shared platform helpers ───────────────────────────────────────
-# This import is intentionally optional: Forge/tool/build.py is designed to
+# This import is intentionally optional: Forge/build.py is designed to
 # work standalone (extractable outside the engine tree).  If platform_detect
 # is unavailable the fallback messages below are used instead.
-# parents[2]: Tools/Forge/tool/ → Tools/Forge/ → Tools/
+# parents[1]: Tools/Forge/ -> Tools/
 try:
-    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from common import platform_detect as _pd
     _PD_AVAILABLE = True
 except (ImportError, IndexError):
@@ -51,7 +51,7 @@ except (ImportError, IndexError):
 
 # ─── Constants ──────────────────────────────────────────────────────────────
 
-HERE         = Path(__file__).resolve().parent          # Tools/Forge/tool/
+HERE         = Path(__file__).resolve().parent          # Tools/Forge/
 BUILD_DIR    = HERE / "build"
 BIN_DIR      = HERE / "bin"
 BINARY_NAME  = "forge.exe" if platform.system() == "Windows" else "forge"

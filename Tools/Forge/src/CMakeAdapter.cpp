@@ -22,6 +22,23 @@ void LogCmd(const std::string& exe, const std::vector<std::string>& args)
     std::cerr << "\n";
 }
 
+void LogJobPlan(const char* phase, const JobPlan& plan)
+{
+    std::cerr << "[forge/scheduler] " << phase
+              << " jobs=" << plan.finalJobs
+              << " requested=" << (plan.requestedJobs == 0 ? std::string("auto") : std::to_string(plan.requestedJobs))
+              << " detected=" << plan.detectedJobs
+              << " safety_limit=" << plan.safetyLimit
+              << " cpu=" << plan.hardware.cpuCores
+              << " ram_gb=" << BuildScheduler::BytesToGB(plan.hardware.totalRamBytes);
+    if (plan.clamped) std::cerr << " clamped=yes";
+    if (plan.forceUnsafeJobs && plan.requestedJobs > 0) std::cerr << " unsafe=yes";
+    std::cerr << "\n";
+
+    if (plan.forceUnsafeJobs && plan.requestedJobs > 0)
+        std::cerr << "[forge/scheduler] warning: --force-unsafe-jobs bypasses memory and CPU safety clamps.\n";
+}
+
 int Spawn(const std::string& exe, const std::vector<std::string>& args, bool explain)
 {
     LogCmd(exe, args);
@@ -56,10 +73,15 @@ int CMakeAdapter::Build(const BuildModel& model, const std::vector<std::string>&
     if (!model.build.target.empty()) { args.emplace_back("--target"); args.emplace_back(model.build.target); }
     if (!model.build.config.empty()) { args.emplace_back("--config"); args.emplace_back(model.build.config); }
 
-    // Apply job scaling (Safe mode by default).
-    const uint32_t jobs = BuildScheduler::CalculateJobs(SchedulingPolicy::Safe, model.build.jobs);
+    const JobPlan plan = BuildScheduler::PlanJobs({
+        SchedulingPolicy::Safe,
+        model.build.jobs,
+        model.build.forceUnsafeJobs,
+        false,
+    });
+    LogJobPlan("build", plan);
     args.emplace_back("-j");
-    args.emplace_back(std::to_string(jobs));
+    args.emplace_back(std::to_string(plan.finalJobs));
 
     for (const auto& e : extra) args.push_back(e);
     return Spawn(ToolEnv::Active().cmake, args, explain);

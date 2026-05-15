@@ -33,6 +33,7 @@ struct BuildConfig
     std::string config;              ///<  Build configuration (Release / Debug …)
     std::string target;              ///<  Optional build target
     uint32_t    jobs      = 0;      ///<  Parallel job count (0 = auto-calculate based on policy)
+    bool        forceUnsafeJobs = false; ///<  Allow explicit jobs to bypass safety clamps
 };
 
 struct Dependency

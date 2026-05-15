@@ -1,0 +1,11 @@
+[project]
+name = "raylib-forge-demo"
+version = "0.1.0"
+
+[build]
+backend = "cmake"
+source = "."
+build = "build"
+
+[deps]
+raylib = "5.0"

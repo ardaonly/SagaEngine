@@ -14,6 +14,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -45,6 +46,8 @@ bool TakeBool(std::vector<std::string>& args, const std::string& name)
 bool TakeFlag(std::vector<std::string>& args, const std::string& name, std::string& outValue)
 {
     const std::string prefix = "--" + name + "=";
+    const std::string shortFlag = name.size() == 1 ? "-" + name : std::string();
+    const std::string shortPrefix = shortFlag.empty() ? std::string() : shortFlag + "=";
     for (auto it = args.begin(); it != args.end(); ++it)
     {
         if (it->rfind(prefix, 0) == 0)
@@ -54,6 +57,18 @@ bool TakeFlag(std::vector<std::string>& args, const std::string& name, std::stri
             return true;
         }
         if (*it == "--" + name && it + 1 != args.end())
+        {
+            outValue = *(it + 1);
+            args.erase(it, it + 2);
+            return true;
+        }
+        if (!shortPrefix.empty() && it->rfind(shortPrefix, 0) == 0)
+        {
+            outValue = it->substr(shortPrefix.size());
+            args.erase(it);
+            return true;
+        }
+        if (!shortFlag.empty() && *it == shortFlag && it + 1 != args.end())
         {
             outValue = *(it + 1);
             args.erase(it, it + 2);
@@ -75,6 +90,75 @@ std::vector<std::string> TakeTrailing(std::vector<std::string>& args)
         }
     }
     return {};
+}
+
+// ─── Nix helpers ──────────────────────────────────────────────────────────────
+
+std::string ShellQuote(const std::string& value)
+{
+    std::string quoted = "'";
+    for (char c : value)
+    {
+        if (c == '\'')
+            quoted += "'\\''";
+        else
+            quoted += c;
+    }
+    quoted += "'";
+    return quoted;
+}
+
+bool IsNixOSHost()
+{
+#if defined(__linux__)
+    std::error_code ec;
+    return std::filesystem::exists("/etc/NIXOS", ec);
+#else
+    return false;
+#endif
+}
+
+bool IsInsideNixShell()
+{
+    return std::getenv("IN_NIX_SHELL") != nullptr;
+}
+
+bool IsNixReentry()
+{
+    const char* value = std::getenv("FORGE_NIX_REENTRY");
+    return value != nullptr && std::string(value) == "1";
+}
+
+bool CommandNeedsProjectToolchain(const std::string& command)
+{
+    static const std::set<std::string> kCommands = {
+        "install",
+        "configure",
+        "build",
+        "test",
+        "install-target",
+        "presets",
+        "env",
+        "fmt",
+    };
+    return kCommands.find(command) != kCommands.end();
+}
+
+int CheckNixEnvironment(const std::vector<std::string>& args)
+{
+    if (args.empty() || !CommandNeedsProjectToolchain(args.front()))
+        return -1;
+    if (!IsNixOSHost() || IsInsideNixShell() || IsNixReentry())
+        return -1;
+
+    std::error_code ec;
+    if (!std::filesystem::exists("shell.nix", ec))
+        return -1;
+
+    std::cerr << "[forge/nix] NixOS host detected outside nix-shell.\n"
+              << "[forge/nix] Run `nix-shell` first, or use `forge nix "
+              << args.front() << "` to enter shell.nix explicitly.\n";
+    return kExitUsage;
 }
 
 // ─── Manifest helpers ─────────────────────────────────────────────────────────
@@ -148,7 +232,7 @@ void PrintUsage(std::ostream& os)
         "    add <pkg>[@<ver>]                         append a dependency to forge.toml\n"
         "\n"
         "DEPENDENCY COMMANDS:\n"
-        "    install [--profile <name>]                install dependencies via Conan\n"
+        "    install [--profile <name>] [--jobs=N]     install dependencies via Conan\n"
         "            [--profile-build <name>]            optional Conan build profile\n"
         "            [--explain]                         print the conan command, do not run\n"
         "\n"
@@ -165,6 +249,7 @@ void PrintUsage(std::ostream& os)
         "    env        [--json]                       show detected tool versions\n"
         "\n"
         "ESCAPE-HATCH:\n"
+        "    nix <forge-command> [args ...]            run a Forge command through repository shell.nix\n"
         "    run <executable> [args ...]               spawn any binary on PATH directly\n"
         "\n"
         "MISC:\n"
@@ -172,7 +257,8 @@ void PrintUsage(std::ostream& os)
         "    --version      print Forge version\n"
         "    --strict       fail on toolchain mismatches or unknown manifest sections (CI mode)\n"
         "    --explain      print backend commands without executing them\n"
-        "    --jobs, -j     explicit parallel job limit (overrides resource-aware scaling)\n"
+        "    --jobs, -j             requested parallel job count (safety clamps still apply)\n"
+        "    --force-unsafe-jobs    let explicit --jobs bypass memory and CPU safety clamps\n"
         "\n"
         "Forge exposes three control levels:\n"
         "    high    :  forge add sfml@2.6  /  forge install  /  forge build\n"
@@ -270,6 +356,7 @@ int CmdInstall(std::vector<std::string> args)
 {
     const bool strict  = TakeBool(args, "strict");
     const bool explain = TakeBool(args, "explain");
+    const bool forceUnsafeJobs = TakeBool(args, "force-unsafe-jobs");
 
     std::string jobsStr;
     TakeFlag(args, "jobs", jobsStr);
@@ -287,6 +374,7 @@ int CmdInstall(std::vector<std::string> args)
 
     Forge::BuildModel model = Forge::BuildModel::FromManifest(m);
     if (!CheckAndLogToolchain(model, strict)) return kExitStrict;
+    model.build.forceUnsafeJobs = forceUnsafeJobs;
 
     if (!jobsStr.empty())
     {
@@ -325,6 +413,7 @@ int CmdBuild(std::vector<std::string> args)
 {
     const bool strict  = TakeBool(args, "strict");
     const bool explain = TakeBool(args, "explain");
+    const bool forceUnsafeJobs = TakeBool(args, "force-unsafe-jobs");
     auto extra = TakeTrailing(args);
 
     std::string jobsStr;
@@ -340,6 +429,7 @@ int CmdBuild(std::vector<std::string> args)
     TakeFlag(args, "build",  model.build.buildDir);
     TakeFlag(args, "target", model.build.target);
     TakeFlag(args, "config", model.build.config);
+    model.build.forceUnsafeJobs = forceUnsafeJobs;
 
     if (!jobsStr.empty())
     {
@@ -483,6 +573,42 @@ int CmdFmt(std::vector<std::string> args)
     return rc;
 }
 
+// ─── Nix explicit entrypoint ──────────────────────────────────────────────────
+
+int CmdNix(const std::string& self, std::vector<std::string> args)
+{
+    if (args.empty())
+    {
+        std::cerr << "[forge/nix] requires a Forge command, for example: forge nix install --profile linux-gcc\n";
+        return kExitUsage;
+    }
+
+    std::error_code ec;
+    if (!std::filesystem::exists("shell.nix", ec))
+    {
+        std::cerr << "[forge/nix] shell.nix was not found in the current directory.\n";
+        return kExitUsage;
+    }
+
+    std::string command = "FORGE_NIX_REENTRY=1 " + ShellQuote(self);
+    for (const auto& arg : args)
+    {
+        command += ' ';
+        command += ShellQuote(arg);
+    }
+
+    std::cerr << "[forge/nix] nix-shell --run " << command << "\n";
+
+    std::string err;
+    const int rc = Forge::ProcessRunner::Run("nix-shell", {"--run", command}, &err);
+    if (rc < 0)
+    {
+        std::cerr << "[forge/nix] could not launch nix-shell: " << err << "\n";
+        return kExitRunFail;
+    }
+    return rc;
+}
+
 // ─── Escape-hatch ─────────────────────────────────────────────────────────────
 
 int CmdRun(std::vector<std::string> args)
@@ -513,6 +639,16 @@ int main(int argc, char** argv)
     args.reserve(static_cast<std::size_t>(argc) > 0 ? argc - 1 : 0);
     for (int i = 1; i < argc; ++i) args.emplace_back(argv[i]);
 
+    if (args.empty() || args[0] == "--help" || args[0] == "-h")
+    {
+        PrintUsage(std::cout);
+        return kExitSuccess;
+    }
+    if (args[0] == "--version") { std::cout << "forge " << kForgeVersion << "\n"; return kExitSuccess; }
+
+    if (const int nixRc = CheckNixEnvironment(args); nixRc >= 0)
+        return nixRc;
+
     // Load .forge env-overrides from CWD if present.
     if (std::filesystem::exists(kEnvOverrides))
     {
@@ -524,16 +660,10 @@ int main(int argc, char** argv)
             std::cerr << "[forge] warning: .forge parse error: " << envErr << "\n";
     }
 
-    if (args.empty() || args[0] == "--help" || args[0] == "-h")
-    {
-        PrintUsage(std::cout);
-        return kExitSuccess;
-    }
-    if (args[0] == "--version") { std::cout << "forge " << kForgeVersion << "\n"; return kExitSuccess; }
-
     const std::string command = args[0];
     args.erase(args.begin());
 
+    if (command == "nix")            return CmdNix(argv[0], std::move(args));
     if (command == "new")            return CmdNew(std::move(args));
     if (command == "init")           return CmdInit(std::move(args));
     if (command == "add")            return CmdAdd(std::move(args));

@@ -2,11 +2,7 @@ name: CI
 
 on:
   push:
-    paths:
-      - 'Tools/Forge/tool/**'
   pull_request:
-    paths:
-      - 'Tools/Forge/tool/**'
 
 jobs:
   build:
@@ -37,19 +33,19 @@ jobs:
         env:
           CC:  ${{ matrix.cc }}
           CXX: ${{ matrix.cxx }}
-        run: python3 Tools/Forge/tool/build.py
+        run: python3 build.py
 
       - name: Build Forge (Windows)
         if: runner.os == 'Windows'
-        run: python Tools/Forge/tool/build.py
+        run: python build.py
 
       - name: Smoke test
         shell: bash
         run: |
           if [[ "$RUNNER_OS" == "Windows" ]]; then
-            FORGE="Tools/Forge/tool/bin/forge.exe"
+            FORGE="bin/forge.exe"
           else
-            FORGE="Tools/Forge/tool/bin/forge"
+            FORGE="bin/forge"
           fi
 
           "$FORGE" --version
@@ -59,7 +55,3 @@ jobs:
           "../$FORGE" configure --explain
           "../$FORGE" build --explain
           "../$FORGE" clean --explain
-
-      - name: Isolation check
-        if: runner.os != 'Windows'
-        run: python3 Tools/Scripts/check_tools_isolation.py

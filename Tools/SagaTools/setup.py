@@ -157,14 +157,15 @@ def stage_registry(out_path: Path) -> None:
     def _abs(*parts: str) -> str:
         return os.path.abspath(str(HERE.parent.joinpath(*parts)))
     
-    forge_exe       = _abs("Forge", "tool", "bin", "forge.exe" if is_win else "forge")
+    forge_exe       = _abs("Forge", "bin", "forge.exe" if is_win else "forge")
     prism_exe       = _abs("Prism", "bin", "prism-graph.cmd" if is_win else "prism-graph")
-    forge_installer = _abs("Forge", "tool", "build.py")
+    host_exe        = _abs("Host", "host.sh")
+    forge_installer = _abs("Forge", "build.py")
     prism_installer = _abs("Prism", "build.py")
     
     payload = {
         "schema_version": "1.0",
-        "tools":      {"forge": forge_exe,       "prism": prism_exe},
+        "tools":      {"forge": forge_exe,       "prism": prism_exe,       "host": host_exe},
         "installers": {"forge": forge_installer, "prism": prism_installer},
     }
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -307,6 +308,7 @@ def print_next_steps(tools_bin: Path) -> None:
     print("    tools list")
     print("    tools forge --help")
     print("    tools prism --version")
+    print("    tools host status")
     print()
     print("=" * 70)
 
