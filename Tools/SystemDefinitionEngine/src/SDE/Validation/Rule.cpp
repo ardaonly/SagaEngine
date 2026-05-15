@@ -28,6 +28,7 @@ bool RangeRule::Apply(const RawValue&        value,
     {
         out.push_back(Diagnostic::MakeError(loc, "SDE_RANGE",
             "Field '" + field.id + "': expected a numeric value for range check."));
+        out.back().category = DiagnosticCategory::Rule;
         return false;
     }
 
@@ -38,6 +39,7 @@ bool RangeRule::Apply(const RawValue&        value,
         msg << "Field '" << field.id << "': value " << v
             << " is outside the allowed range [" << mMin << ", " << mMax << "].";
         out.push_back(Diagnostic::MakeError(loc, "SDE_RANGE", msg.str()));
+        out.back().category = DiagnosticCategory::Rule;
         return false;
     }
     return true;
@@ -60,6 +62,7 @@ bool RegexRule::Apply(const RawValue&        value,
     {
         out.push_back(Diagnostic::MakeError(loc, "SDE_REGEX",
             "Field '" + field.id + "': expected a text value for regex check."));
+        out.back().category = DiagnosticCategory::Rule;
         return false;
     }
 
@@ -69,6 +72,7 @@ bool RegexRule::Apply(const RawValue&        value,
         out.push_back(Diagnostic::MakeError(loc, "SDE_REGEX",
             "Field '" + field.id + "': value '" + text +
             "' does not match pattern '" + mPattern + "'."));
+        out.back().category = DiagnosticCategory::Rule;
         return false;
     }
     return true;
@@ -93,6 +97,34 @@ bool EnumMembershipRule::Apply(const RawValue&        value,
     return true;
 }
 
+// ─── RefIntegrityRule ─────────────────────────────────────────────────────────
+
+bool RefIntegrityRule::Apply(const RawValue&        value,
+                             const FieldDefinition& field,
+                             const SourceLocation&  loc,
+                             std::vector<Diagnostic>& out) const
+{
+    if (!value.IsText())
+    {
+        out.push_back(Diagnostic::MakeError(loc, "SDE_REF_INTEGRITY",
+            "Field '" + field.id + "': expected a text reference id."));
+        out.back().category = DiagnosticCategory::Rule;
+        return false;
+    }
+
+    const auto& text = std::get<RawText>(value.data);
+    if (text.empty() || text.find('/') != std::string::npos)
+    {
+        out.push_back(Diagnostic::MakeError(loc, "SDE_REF_INTEGRITY",
+            "Field '" + field.id + "': reference id must be a non-empty local instance id."));
+        out.back().category = DiagnosticCategory::Rule;
+        out.back().metadata["fieldId"] = field.id;
+        return false;
+    }
+
+    return true;
+}
+
 // ─── CrossFieldRule ───────────────────────────────────────────────────────────
 
 CrossFieldRule::CrossFieldRule(std::string ruleId, std::shared_ptr<Predicate> predicate)
@@ -110,6 +142,7 @@ bool CrossFieldRule::Apply(const ModelInstance&     instance,
         out.push_back(Diagnostic::MakeError(loc, mRuleId,
             "Cross-field rule '" + mRuleId + "' failed for instance '" +
             instance.instanceId + "'."));
+        out.back().category = DiagnosticCategory::Rule;
         return false;
     }
     return true;

@@ -35,7 +35,7 @@ public:
                        const SourceLocation&  loc,
                        std::vector<Diagnostic>& outDiagnostics) const = 0;
 
-    /// Stable machine-readable rule id, e.g. "SDE_RANGE".
+    /// Stable rule behavior identifier, e.g. "range". This is not a diagnostic code.
     [[nodiscard]] virtual std::string RuleId() const = 0;
 };
 
@@ -52,7 +52,7 @@ public:
                const SourceLocation&  loc,
                std::vector<Diagnostic>& out) const override;
 
-    [[nodiscard]] std::string RuleId() const override { return "SDE_RANGE"; }
+    [[nodiscard]] std::string RuleId() const override { return "range"; }
 
 private:
     double mMin;
@@ -72,7 +72,7 @@ public:
                const SourceLocation&  loc,
                std::vector<Diagnostic>& out) const override;
 
-    [[nodiscard]] std::string RuleId() const override { return "SDE_REGEX"; }
+    [[nodiscard]] std::string RuleId() const override { return "regex"; }
 
 private:
     std::string mPattern;
@@ -92,10 +92,26 @@ public:
                const SourceLocation&  loc,
                std::vector<Diagnostic>& out) const override;
 
-    [[nodiscard]] std::string RuleId() const override { return "SDE_ENUM_MEMBER"; }
+    [[nodiscard]] std::string RuleId() const override { return "enumMember"; }
+
+    [[nodiscard]] const std::string& EnumId() const noexcept { return mEnumId; }
 
 private:
     std::string mEnumId;
+};
+
+// ─── RefIntegrityRule ─────────────────────────────────────────────────────────
+
+/// Enforce that a Ref field carries a non-empty local instance id before resolver lookup.
+class RefIntegrityRule final : public Rule
+{
+public:
+    bool Apply(const RawValue&        value,
+               const FieldDefinition& field,
+               const SourceLocation&  loc,
+               std::vector<Diagnostic>& out) const override;
+
+    [[nodiscard]] std::string RuleId() const override { return "refIntegrity"; }
 };
 
 // ─── CrossFieldRule ───────────────────────────────────────────────────────────

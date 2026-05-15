@@ -41,6 +41,7 @@ void DfsCycle(const std::string&                                   modelId,
         out.push_back(Diagnostic::MakeError(
             {}, "SDE_CYCLE",
             "Reference cycle detected involving '" + modelId + "/" + instanceId + "'."));
+        out.back().category = DiagnosticCategory::Reference;
         return;
     }
     c = Color::Gray;
@@ -136,6 +137,7 @@ ReferenceResolver::ResolveResult ReferenceResolver::Resolve(
                     "Field '" + fieldDef.id + "' in '" + inst.modelId + "/" +
                     inst.instanceId + "' references non-existent '" +
                     tn.refModelId + "/" + targetId + "'."));
+                result.diagnostics.back().category = DiagnosticCategory::Reference;
                 result.hasDanglingRefs = true;
                 continue;
             }

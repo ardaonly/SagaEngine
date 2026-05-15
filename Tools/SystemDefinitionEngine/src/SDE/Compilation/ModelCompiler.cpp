@@ -9,14 +9,27 @@
 
 namespace SDE
 {
+namespace
+{
+
+std::string FieldHandleKey(const std::string& modelId,
+                           const std::string& instanceId,
+                           const std::string& fieldId)
+{
+    return modelId + "/" + instanceId + "/" + fieldId;
+}
+
+} // namespace
 
 // ─── Constructor ──────────────────────────────────────────────────────────────
 
 ModelCompiler::ModelCompiler(const RuleRegistry& ruleRegistry,
                               const TypeRegistry& typeRegistry,
+                              const EnumRegistry* enumRegistry,
                               CompileOptions      options)
     : mRuleRegistry(ruleRegistry)
     , mTypeRegistry(typeRegistry)
+    , mEnumRegistry(enumRegistry)
     , mOptions(options)
 {
 }
@@ -35,11 +48,11 @@ CompileResult ModelCompiler::Compile(std::vector<ModelInstance>          instanc
 
     // ─── Step 2: Validate (schema + per-field + cross-field rules) ────────────
 
-    Validator validator(mRuleRegistry, mTypeRegistry);
+    Validator validator(mRuleRegistry, mTypeRegistry, mEnumRegistry);
     result.validation = validator.Validate(instances, definitions);
     result.state      = result.validation.state;
 
-    if (mOptions.abortOnFirstError && !IsUsable(result.state))
+    if ((mOptions.abortOnFirstError || mOptions.failFast) && !IsUsable(result.state))
     {
         result.state = Merge(result.state, CompileState::Aborted);
         return result;
@@ -118,8 +131,8 @@ CompiledModelGraph ModelCompiler::BuildGraph(
             CompiledValue cv;
 
             // Check whether this field was resolved to a Ref handle.
-            std::string hkey = inst.modelId + "/" + inst.instanceId + "/" + fieldId;
-            auto        hIt  = resolved.resolvedHandles.find(hkey);
+            auto hIt = resolved.resolvedHandles.find(
+                FieldHandleKey(inst.modelId, inst.instanceId, fieldId));
 
             if (hIt != resolved.resolvedHandles.end())
             {
@@ -127,50 +140,7 @@ CompiledModelGraph ModelCompiler::BuildGraph(
             }
             else
             {
-                // Convert raw value to compiled value (scalars only; collections go via slab).
-                std::visit([&](const auto& v) {
-                    using T = std::decay_t<decltype(v)>;
-                    if constexpr (std::is_same_v<T, RawNull>)
-                        cv.data = CompiledNull{};
-                    else if constexpr (std::is_same_v<T, RawInteger>)
-                        cv.data = static_cast<CompiledInteger>(v);
-                    else if constexpr (std::is_same_v<T, RawNumber>)
-                        cv.data = static_cast<CompiledNumber>(v);
-                    else if constexpr (std::is_same_v<T, RawBool>)
-                        cv.data = static_cast<CompiledBool>(v);
-                    else if constexpr (std::is_same_v<T, RawText>)
-                        cv.data = static_cast<CompiledText>(v);
-                    else if constexpr (std::is_same_v<T, RawArray>)
-                    {
-                        // Arrays: store elements contiguously in the slab.
-                        SlabRange range = graph.mSlab.Reserve(
-                            static_cast<uint32_t>(v.elements.size()));
-                        for (uint32_t i = 0; i < v.elements.size(); ++i)
-                        {
-                            CompiledValue elem;
-                            elem.data = CompiledNull{};
-                            graph.mSlab.mSlots[range.offset + i] = std::move(elem);
-                        }
-                        cv.data = CompiledArrayRef{range};
-                    }
-                    else if constexpr (std::is_same_v<T, RawObject>)
-                    {
-                        // Objects: alternating key/value pairs in the slab.
-                        uint32_t  pairCount = static_cast<uint32_t>(v.fields.size());
-                        SlabRange range     = graph.mSlab.Reserve(pairCount * 2);
-                        uint32_t  i         = range.offset;
-                        for (const auto& [k, val] : v.fields)
-                        {
-                            CompiledValue key;
-                            key.data = CompiledText{k};
-                            graph.mSlab.mSlots[i++] = std::move(key);
-                            CompiledValue entry;
-                            entry.data = CompiledNull{};
-                            graph.mSlab.mSlots[i++] = std::move(entry);
-                        }
-                        cv.data = CompiledObjectRef{range};
-                    }
-                }, rawValue.data);
+                cv = ConvertRawValue(rawValue, graph);
             }
 
             ci.fields[fieldId] = std::move(cv);
@@ -180,6 +150,45 @@ CompiledModelGraph ModelCompiler::BuildGraph(
     }
 
     return graph;
+}
+
+CompiledValue ModelCompiler::ConvertRawValue(const RawValue& raw, CompiledModelGraph& graph) const
+{
+    CompiledValue cv;
+    std::visit([&](const auto& v) {
+        using T = std::decay_t<decltype(v)>;
+        if constexpr (std::is_same_v<T, RawNull>)
+            cv.data = CompiledNull{};
+        else if constexpr (std::is_same_v<T, RawInteger>)
+            cv.data = static_cast<CompiledInteger>(v);
+        else if constexpr (std::is_same_v<T, RawNumber>)
+            cv.data = static_cast<CompiledNumber>(v);
+        else if constexpr (std::is_same_v<T, RawBool>)
+            cv.data = static_cast<CompiledBool>(v);
+        else if constexpr (std::is_same_v<T, RawText>)
+            cv.data = static_cast<CompiledText>(v);
+        else if constexpr (std::is_same_v<T, RawArray>)
+        {
+            SlabRange range = graph.mSlab.Reserve(static_cast<uint32_t>(v.elements.size()));
+            for (uint32_t i = 0; i < v.elements.size(); ++i)
+                graph.mSlab.mSlots[range.offset + i] = ConvertRawValue(v.elements[i], graph);
+            cv.data = CompiledArrayRef{range};
+        }
+        else if constexpr (std::is_same_v<T, RawObject>)
+        {
+            SlabRange range = graph.mSlab.Reserve(static_cast<uint32_t>(v.fields.size() * 2));
+            uint32_t  i     = range.offset;
+            for (const auto& [k, val] : v.fields)
+            {
+                CompiledValue key;
+                key.data = CompiledText{k};
+                graph.mSlab.mSlots[i++] = std::move(key);
+                graph.mSlab.mSlots[i++] = ConvertRawValue(val, graph);
+            }
+            cv.data = CompiledObjectRef{range};
+        }
+    }, raw.data);
+    return cv;
 }
 
 } // namespace SDE

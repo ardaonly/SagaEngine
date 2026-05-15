@@ -15,7 +15,6 @@
 
 #include <map>
 #include <string>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -42,7 +41,7 @@ public:
 
         /// For each resolved Ref field: maps "modelId/instanceId/fieldId" → handle.
         /// ModelCompiler uses this when building CompiledValue entries.
-        std::unordered_map<std::string, CompiledInstanceRef> resolvedHandles;
+        std::map<std::string, CompiledInstanceRef> resolvedHandles;
     };
 
     // ─── Two-pass API ────────────────────────────────────────────────────────

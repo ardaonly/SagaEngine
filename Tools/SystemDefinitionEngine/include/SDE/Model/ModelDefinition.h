@@ -23,6 +23,7 @@ struct ModelDefinition
     std::string                              id;           ///< e.g. "Item"
     std::string                              displayName;
     int                                      schemaVersion = 1;
+    std::vector<std::string>                 imports;
     std::vector<FieldDefinition>             fields;
     std::vector<Relation>                    relations;
     std::vector<std::shared_ptr<CrossFieldRule>> crossFieldRules;

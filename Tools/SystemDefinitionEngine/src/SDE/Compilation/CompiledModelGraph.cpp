@@ -3,8 +3,8 @@
 
 #include "SDE/Compilation/CompiledModelGraph.h"
 
+#include <algorithm>
 #include <cassert>
-#include <functional>
 
 namespace SDE
 {
@@ -96,17 +96,6 @@ void CompiledModelGraph::AddInstance(CompiledInstance instance)
 {
     InstanceKey key{instance.modelId, instance.instanceId};
     mInstances[std::move(key)] = std::move(instance);
-}
-
-// ─── PairHash ─────────────────────────────────────────────────────────────────
-
-std::size_t CompiledModelGraph::PairHash::operator()(
-    const std::pair<std::string, std::string>& k) const noexcept
-{
-    std::size_t h1 = std::hash<std::string>{}(k.first);
-    std::size_t h2 = std::hash<std::string>{}(k.second);
-    // Combine using golden ratio constant to reduce collision probability.
-    return h1 ^ (h2 * 0x9e3779b9 + (h1 << 6) + (h1 >> 2));
 }
 
 } // namespace SDE

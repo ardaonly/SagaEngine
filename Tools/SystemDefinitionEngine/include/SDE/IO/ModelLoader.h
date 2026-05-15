@@ -70,6 +70,7 @@ struct ModelInstance
     std::string                      modelId;     ///< Which ModelDefinition this is an instance of.
     std::string                      instanceId;  ///< Value of the "id" field.
     std::string                      sourceFile;
+    int                              dataVersion = 1;
     SourceLocation                   origin;      ///< Points at the opening brace of this object.
     std::map<std::string, RawValue>  fields;      ///< fieldId → value (location inside RawValue).
 };

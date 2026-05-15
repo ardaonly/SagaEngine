@@ -14,9 +14,12 @@ namespace SDE
 {
 
 class Rule;
+class EnumRegistry;
 class TypeRegistry;
+struct FieldDefinition;
 struct ModelInstance;
 struct ModelDefinition;
+struct RawValue;
 
 // ─── RuleRegistry ─────────────────────────────────────────────────────────────
 
@@ -53,7 +56,8 @@ class Validator
 {
 public:
     Validator(const RuleRegistry& ruleRegistry,
-              const TypeRegistry& typeRegistry);
+              const TypeRegistry& typeRegistry,
+              const EnumRegistry* enumRegistry = nullptr);
 
     /// Validate all instances against their definitions.
     [[nodiscard]] ValidationResult Validate(
@@ -66,8 +70,8 @@ public:
         const ModelDefinition& definition) const;
 
 private:
-    const RuleRegistry& mRuleRegistry;
     const TypeRegistry& mTypeRegistry;
+    const EnumRegistry* mEnumRegistry = nullptr;
 
     void ApplyFieldRules(const FieldDefinition& field,
                          const RawValue&        value,

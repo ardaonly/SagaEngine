@@ -1,12 +1,13 @@
 {
   "schema": "1.0",
   "name": "sde",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "kind": "static-library",
   "description": "Model definition, validation, and compilation pipeline.",
   "language": "C++20",
-  "cmake_target": "SDE::SDE",
-  "conan_reference": "sde/0.1.0",
+  "cmake_target": "SDE::Core",
+  "compatibility_targets": ["SDE::SDE"],
+  "conan_reference": "sde/0.1.1",
   "license": "Apache-2.0",
   "dependencies": {
     "nlohmann_json": "3.11.3"

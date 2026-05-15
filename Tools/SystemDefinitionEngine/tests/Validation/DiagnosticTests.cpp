@@ -65,3 +65,14 @@ TEST(DiagnosticTest, SourceLocationPreserved)
     EXPECT_EQ(d.location.line, 42);
     EXPECT_EQ(d.location.column, 7);
 }
+
+TEST(DiagnosticTest, CategoryAndMetadataAreMachineReadable)
+{
+    auto d = Diagnostic::MakeError({"schema.json", 3, 5}, "SDE1004", "bad enum");
+    d.category = DiagnosticCategory::Rule;
+    d.metadata["enumId"] = "Rarity";
+
+    EXPECT_EQ(d.category, DiagnosticCategory::Rule);
+    EXPECT_EQ(d.metadata.at("enumId"), "Rarity");
+    EXPECT_STREQ(DiagnosticCategoryName(d.category), "rule");
+}

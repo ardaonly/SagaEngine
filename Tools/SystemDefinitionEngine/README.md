@@ -1,8 +1,9 @@
 # System Definition Engine (SDE)
 
-SDE is the model definition, validation, and compilation pipeline for SagaEngine.
-It is not a serializer, not an editor, and not a runtime component. It is a
-compiler-pipeline stage that validates game data before the runtime ever sees it.
+SDE is a standalone model definition, validation, and compilation pipeline. It is
+not a serializer, not an editor, and not a runtime component. It is a compiler
+stage that validates authored data and produces deterministic, read-only graph
+output before runtime systems consume it.
 
 > **Standalone library.** SDE ships as an independent C++ static library
 > packaged through Conan. The engine consumes it as an external dependency,
@@ -20,8 +21,9 @@ resolves cross-model references, and produces a compiled, read-only graph that t
 editor and runtime consume safely.
 
 If any field type is wrong, any reference is dangling, or any business rule fails,
-SDE refuses to compile and emits structured diagnostics pointing at the exact file
-and field. The runtime never loads malformed data.
+SDE refuses to publish an artifact and emits structured diagnostics with severity,
+category, stable code, source range, and machine-readable metadata. The runtime
+never loads malformed data.
 
 ## Pipeline
 
@@ -54,12 +56,35 @@ Each stage has a single responsibility. Errors are caught at the earliest possib
 
 ## Public API surface
 
-Consumer code (editor, runtime) needs only two headers:
+Primary consumers should use the project-level facade:
 
-- `SDE/Compilation/CompiledModelGraph.h` — the validated, reference-resolved output
-- `SDE/Validation/Diagnostic.h` — structured error type
+- `SDE/Compiler/CompilerSession.h` — lifecycle-oriented project validation/compile API
+- `SDE/Compilation/CompiledModelGraph.h` — immutable, reference-resolved output
+- `SDE/Validation/Diagnostic.h` — structured diagnostics
 
-Link against the `SDE` static library; do not include `src/` internals.
+Link against `SDE::Core`; do not include `src/` internals. `SDE::SDE` exists only
+as a pre-1.0 compatibility alias.
+
+### Compiler lifecycle
+
+- `SharedRegistrySet` owns type, rule, and enum registries. It is reusable only
+  after `Freeze()`.
+- `CompilerSession` owns project layout, schema loading, dependency metadata,
+  version state, and future cache surfaces.
+- `CompileContext` is transient per compile and carries cancellation/fail-fast
+  policy.
+- Cancellation is cooperative and token-based. Cancelled compiles return a
+  structured result and never publish a graph or artifact.
+- There are no global mutable registries and no singleton compiler state.
+
+### Versioning and compatibility
+
+SDE tracks separate schema, data, compiler, and artifact format versions. The
+current production contract is same-major compatibility, backward-compatible minor
+updates, and patch releases that do not change serialized behavior. Unsupported
+schema or data versions fail with structured migration diagnostics. SDE is pre-1.0,
+so there is no binary ABI guarantee; public headers should avoid layout-sensitive
+or allocator-sensitive runtime boundaries where practical.
 
 ## Project directory layout
 
@@ -82,6 +107,9 @@ my-game-data/
   "id": "Item",
   "displayName": "Item",
   "schemaVersion": 1,
+  "enums": [
+    { "id": "WeaponCategory", "members": [ "melee", "ranged" ] }
+  ],
   "fields": [
     { "id": "name",       "type": "Text",    "presence": "required" },
     { "id": "damage_min", "type": "Integer", "presence": "required" },
@@ -96,6 +124,7 @@ my-game-data/
 ```json
 {
   "modelId": "Item",
+  "dataVersion": 1,
   "data": [
     { "id": "sword_01", "name": "Iron Sword", "damage_min": 10, "category": "melee" }
   ]
@@ -138,7 +167,7 @@ Exit codes: `0` = Clean, `1` = Warnings, `2` = Fail, `3` = Usage error, `4` = I/
 ```bash
 python3 Tools/SystemDefinitionEngine/build.py             # Conan + CMake build
 python3 Tools/SystemDefinitionEngine/build.py --tests     # also build SDETests
-python3 Tools/SystemDefinitionEngine/build.py --conan-create  # publish sde/0.1.0 locally
+python3 Tools/SystemDefinitionEngine/build.py --conan-create  # publish sde/0.1.1 locally
 ```
 
 The `bin/sde` CLI is staged automatically. Pass `--install-prefix=<dir>` to
@@ -150,8 +179,8 @@ also run `cmake --install`.
 conan create Tools/SystemDefinitionEngine
 ```
 
-This publishes `sde/0.1.0` to the local Conan cache. Downstream projects then
-declare `self.requires("sde/0.1.0")` and link against `SDE::SDE`.
+This publishes `sde/0.1.1` to the local Conan cache. Downstream projects then
+declare `self.requires("sde/0.1.1")` and link against `SDE::Core`.
 
 ### Manual (plain CMake)
 
@@ -169,7 +198,7 @@ SDE is consumed only through its public package contract:
 
 ```cmake
 find_package(SDE CONFIG REQUIRED)
-target_link_libraries(MyTarget PRIVATE SDE::SDE)
+target_link_libraries(MyTarget PRIVATE SDE::Core)
 ```
 
 `add_subdirectory(Tools/SystemDefinitionEngine)` is no longer supported as the
@@ -195,7 +224,7 @@ configure or link time.
 ```
 Tools/SystemDefinitionEngine/
 ├── CMakeLists.txt         # standalone CMake project + install/export rules
-├── conanfile.py           # Conan recipe — publishes sde/0.1.0
+├── conanfile.py           # Conan recipe — publishes sde/0.1.1
 ├── build.py               # bootstrap installer (Conan + CMake)
 ├── version.json           # package metadata
 ├── CHANGELOG.md
@@ -206,9 +235,11 @@ Tools/SystemDefinitionEngine/
 │   └── SDEConfig.cmake.in # find_package(SDE CONFIG) template
 ├── include/SDE/
 │   ├── Compilation/       # CompiledModelGraph, ReferenceResolver, ModelCompiler
+│   ├── Compiler/          # CompilerSession, dependency manifest
+│   ├── Core/              # versioning, cancellation, stable hashing
 │   ├── IO/                # ModelLoader (RawValue), JsonModelLoader, ModelWriter
 │   ├── Model/             # TypeNode/Registry, EnumDefinition, FieldDefinition,
-│   │                      #   Relation, ModelDefinition
+│   │                      #   EnumRegistry, Relation, ModelDefinition
 │   └── Validation/        # Diagnostic, CompileState, ValidationResult,
 │                          #   Predicate, Rule, Validator
 ├── src/SDE/               # Implementations mirror include/
@@ -225,11 +256,24 @@ SDE is held to the same loose-coupling contract as Forge and Prism:
   `Tools/SystemDefinitionEngine/`.
 - No `Saga*.cmake` module is consumed; this directory ships its own CMake
   build description.
-- No transitive coupling to engine third-party libraries beyond
-  `nlohmann_json`, the only declared public dependency. `gtest` is a
-  test-only requirement (`SDE_BUILD_TESTS=ON`).
+- No transitive public coupling to engine third-party libraries. `nlohmann_json`
+  is an implementation dependency for JSON load/write translation units, and
+  `gtest` is test-only (`SDE_BUILD_TESTS=ON`).
 - `nlohmann/json.hpp` is confined to `JsonModelLoader.cpp` and
   `ModelWriter.cpp` — it does not appear in any public header.
 
 These invariants are verified by `Tools/Scripts/check_tools_isolation.py`.
 Any violation blocks merge.
+
+## Determinism and artifact identity
+
+SDE output must be deterministic for the same normalized inputs. The compiled
+graph uses deterministic model, instance, field, dependency, diagnostic, and
+serialization ordering. Stable hashing normalizes line endings, repository-relative
+paths, and path separators before computing fingerprints. Runtime-facing graph
+data is immutable after a successful compile; editor mutation happens by changing
+source data and recompiling.
+
+The current artifact identity model includes schema, data, dependency, compiled
+graph, and artifact hashes. Binary artifacts, incremental compilation, LSP, DSL,
+streaming compile, arena allocation, and copy-on-write are reserved future work.

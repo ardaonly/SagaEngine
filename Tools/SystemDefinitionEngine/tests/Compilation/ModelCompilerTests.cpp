@@ -3,6 +3,7 @@
 
 #include "SDE/Compilation/ModelCompiler.h"
 #include "SDE/Compilation/CompiledModelGraph.h"
+#include "SDE/Core/StableHash.h"
 #include "SDE/IO/ModelLoader.h"
 #include "SDE/Model/FieldDefinition.h"
 #include "SDE/Model/ModelDefinition.h"
@@ -248,4 +249,105 @@ TEST(ModelCompilerTest, DefaultInference_FillsMissingOptionalField)
     ASSERT_NE(cv, nullptr);
     ASSERT_TRUE(std::holds_alternative<CompiledText>(cv->data));
     EXPECT_EQ(std::get<CompiledText>(cv->data), "Common");
+}
+
+TEST(ModelCompilerTest, NestedArrayAndObject_AreCompiledRecursively)
+{
+    TypeRegistry types;
+    TypeNodeId   mapType = types.Map(
+        types.Primitive(TypeKind::Text),
+        types.Primitive(TypeKind::Text));
+    types.Freeze();
+
+    FieldDefinition metaFd;
+    metaFd.id = "meta";
+    metaFd.type = mapType;
+    metaFd.presence = FieldPresence::Required;
+
+    ModelDefinition def;
+    def.id = "Item";
+    def.fields.push_back(metaFd);
+
+    ModelInstance inst;
+    inst.modelId = "Item";
+    inst.instanceId = "sword_01";
+
+    RawValue tag;
+    tag.data = RawText{"sharp"};
+    RawArray tags;
+    tags.elements.push_back(tag);
+
+    RawValue tagsValue;
+    tagsValue.data = tags;
+
+    RawValue nameValue;
+    nameValue.data = RawText{"Sword"};
+
+    RawObject meta;
+    meta.fields["name"] = nameValue;
+    meta.fields["tags"] = tagsValue;
+
+    RawValue metaValue;
+    metaValue.data = meta;
+    inst.fields["meta"] = metaValue;
+
+    RuleRegistry rules = MakeEmptyRegistry();
+    ModelCompiler compiler(rules, types);
+    auto result = compiler.Compile({inst}, {def});
+
+    ASSERT_TRUE(result.graph.has_value());
+    const CompiledInstance* ci = result.graph->Find("Item", "sword_01");
+    ASSERT_NE(ci, nullptr);
+    const CompiledValue* compiledMeta = ci->GetField("meta");
+    ASSERT_NE(compiledMeta, nullptr);
+    ASSERT_TRUE(std::holds_alternative<CompiledObjectRef>(compiledMeta->data));
+
+    const auto objectRef = std::get<CompiledObjectRef>(compiledMeta->data);
+    ASSERT_EQ(objectRef.range.count, 4u);
+
+    const CompiledValue& nameValueCompiled = result.graph->Slab().At(objectRef.range.offset + 1);
+    ASSERT_TRUE(std::holds_alternative<CompiledText>(nameValueCompiled.data));
+    EXPECT_EQ(std::get<CompiledText>(nameValueCompiled.data), "Sword");
+
+    const CompiledValue& tagsValueCompiled = result.graph->Slab().At(objectRef.range.offset + 3);
+    ASSERT_TRUE(std::holds_alternative<CompiledArrayRef>(tagsValueCompiled.data));
+    const auto arrayRef = std::get<CompiledArrayRef>(tagsValueCompiled.data);
+    ASSERT_EQ(arrayRef.range.count, 1u);
+    const CompiledValue& firstTag = result.graph->Slab().At(arrayRef.range.offset);
+    ASSERT_TRUE(std::holds_alternative<CompiledText>(firstTag.data));
+    EXPECT_EQ(std::get<CompiledText>(firstTag.data), "sharp");
+}
+
+TEST(ModelCompilerTest, CompiledGraphHash_IsStableAcrossInputOrder)
+{
+    TypeRegistry types;
+    TypeNodeId   textType = types.Primitive(TypeKind::Text);
+    types.Freeze();
+
+    FieldDefinition nameFd;
+    nameFd.id = "name";
+    nameFd.type = textType;
+
+    ModelDefinition def;
+    def.id = "Item";
+    def.fields.push_back(nameFd);
+
+    std::vector<ModelInstance> first = {
+        MakeTextInstance("Item", "b", "name", "B"),
+        MakeTextInstance("Item", "a", "name", "A"),
+    };
+    std::vector<ModelInstance> second = {
+        MakeTextInstance("Item", "a", "name", "A"),
+        MakeTextInstance("Item", "b", "name", "B"),
+    };
+
+    RuleRegistry rules = MakeEmptyRegistry();
+    ModelCompiler compiler(rules, types);
+    auto firstResult = compiler.Compile(first, {def});
+    auto secondResult = compiler.Compile(second, {def});
+
+    ASSERT_TRUE(firstResult.graph.has_value());
+    ASSERT_TRUE(secondResult.graph.has_value());
+    EXPECT_EQ(StableHashCompiledGraph(*firstResult.graph),
+              StableHashCompiledGraph(*secondResult.graph));
 }

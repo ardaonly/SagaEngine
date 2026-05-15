@@ -4,10 +4,12 @@
 #include "SDE/Validation/Validator.h"
 #include "SDE/Validation/Rule.h"
 #include "SDE/IO/ModelLoader.h"
+#include "SDE/Model/EnumRegistry.h"
 #include "SDE/Model/FieldDefinition.h"
 #include "SDE/Model/ModelDefinition.h"
 #include "SDE/Model/TypeNode.h"
 
+#include <algorithm>
 #include <cassert>
 
 namespace SDE
@@ -47,10 +49,13 @@ void RuleRegistry::RegisterBuiltIns(RuleRegistry& /*registry*/)
 
 // ─── Validator ────────────────────────────────────────────────────────────────
 
-Validator::Validator(const RuleRegistry& ruleRegistry, const TypeRegistry& typeRegistry)
-    : mRuleRegistry(ruleRegistry)
-    , mTypeRegistry(typeRegistry)
+Validator::Validator(const RuleRegistry& ruleRegistry,
+                     const TypeRegistry& typeRegistry,
+                     const EnumRegistry* enumRegistry)
+    : mTypeRegistry(typeRegistry)
+    , mEnumRegistry(enumRegistry)
 {
+    (void)ruleRegistry;
 }
 
 ValidationResult Validator::Validate(const std::vector<ModelInstance>&   instances,
@@ -71,11 +76,13 @@ ValidationResult Validator::Validate(const std::vector<ModelInstance>&   instanc
             result.diagnostics.push_back(
                 Diagnostic::MakeError({instance.sourceFile, 0, 0}, "SDE_UNKNOWN_MODEL",
                     "No definition found for model '" + instance.modelId + "'."));
+            result.diagnostics.back().category = DiagnosticCategory::Schema;
             result.state = Merge(result.state, CompileState::ValidationFailed);
             continue;
         }
         result.Merge(ValidateOne(instance, *it->second));
     }
+    std::sort(result.diagnostics.begin(), result.diagnostics.end(), DiagnosticLess);
     return result;
 }
 
@@ -99,6 +106,7 @@ ValidationResult Validator::ValidateOne(const ModelInstance&   instance,
                     {instance.sourceFile, 0, 0}, "SDE_MISSING_FIELD",
                     "Instance '" + instance.instanceId + "' is missing required field '" +
                     fieldDef.id + "'."));
+                diags.back().category = DiagnosticCategory::Schema;
             }
             continue;
         }
@@ -127,6 +135,7 @@ ValidationResult Validator::ValidateOne(const ModelInstance&   instance,
     }
 
     result.diagnostics = std::move(diags);
+    std::sort(result.diagnostics.begin(), result.diagnostics.end(), DiagnosticLess);
     return result;
 }
 
@@ -167,6 +176,7 @@ void Validator::CheckTypeMatch(const RawValue&        value,
     auto kindMismatch = [&](const std::string& expected) {
         out.push_back(Diagnostic::MakeError(loc, "SDE_TYPE_MISMATCH",
             "Field '" + field.id + "': expected " + expected + " but got a different value kind."));
+        out.back().category = DiagnosticCategory::Type;
     };
 
     switch (node.kind)
@@ -180,9 +190,42 @@ void Validator::CheckTypeMatch(const RawValue&        value,
                 kindMismatch("Integer");
             break;
         case TypeKind::Text:
-        case TypeKind::Enum:
             if (!value.IsText())
                 kindMismatch("Text");
+            break;
+        case TypeKind::Enum:
+            if (!value.IsText())
+            {
+                kindMismatch("Enum (text)");
+                break;
+            }
+            if (mEnumRegistry == nullptr)
+            {
+                out.push_back(Diagnostic::MakeError(loc, "SDE_ENUM_REGISTRY_MISSING",
+                    "Field '" + field.id + "': enum validation requires an EnumRegistry."));
+                out.back().category = DiagnosticCategory::Schema;
+                break;
+            }
+            if (const EnumDefinition* def = mEnumRegistry->Find(node.enumId))
+            {
+                const auto& text = std::get<RawText>(value.data);
+                if (!def->ContainsMember(text))
+                {
+                    out.push_back(Diagnostic::MakeError(loc, "SDE_ENUM_MEMBER",
+                        "Field '" + field.id + "': value '" + text +
+                        "' is not a member of enum '" + node.enumId + "'."));
+                    out.back().category = DiagnosticCategory::Rule;
+                    out.back().metadata["enumId"] = node.enumId;
+                    out.back().metadata["fieldId"] = field.id;
+                }
+            }
+            else
+            {
+                out.push_back(Diagnostic::MakeError(loc, "SDE_UNKNOWN_ENUM",
+                    "Field '" + field.id + "': enum '" + node.enumId + "' is not registered."));
+                out.back().category = DiagnosticCategory::Schema;
+                out.back().metadata["enumId"] = node.enumId;
+            }
             break;
         case TypeKind::Boolean:
             if (!value.IsBool())

@@ -6,11 +6,11 @@
 # This recipe is the canonical packaging contract:
 #
 #   conan create Tools/SystemDefinitionEngine
-#       → publishes sde/0.1.0 to the local Conan cache
+#       → publishes sde/0.1.1 to the local Conan cache
 #
-#   self.requires("sde/0.1.0")        # in a downstream conanfile
+#   self.requires("sde/0.1.1")        # in a downstream conanfile
 #   find_package(SDE CONFIG REQUIRED) # in the downstream CMakeLists
-#   target_link_libraries(<tgt> PRIVATE SDE::SDE)
+#   target_link_libraries(<tgt> PRIVATE SDE::Core)
 #
 # The recipe is intentionally narrow: SDE depends only on the C++ standard
 # library and `nlohmann_json`. There is no transitive Saga* coupling.
@@ -23,7 +23,7 @@ import os
 
 class SDEConan(ConanFile):
     name        = "sde"
-    version     = "0.1.0"
+    version     = "0.1.1"
     license     = "Apache-2.0"
     description = "Model definition, validation, and compilation pipeline (SDE)."
     topics      = ("validation", "compilation", "data-pipeline", "game-data")
@@ -100,7 +100,7 @@ class SDEConan(ConanFile):
 
     def package_info(self):
         self.cpp_info.set_property("cmake_file_name",   "SDE")
-        self.cpp_info.set_property("cmake_target_name", "SDE::SDE")
+        self.cpp_info.set_property("cmake_target_name", "SDE::Core")
 
         self.cpp_info.libs    = ["SDE"]
         self.cpp_info.libdirs = ["lib"]
