@@ -31,12 +31,12 @@ def _relative(path: Path, root: Path) -> Path:
 
 
 def find_unapproved_leaks(repo_root: Path) -> list[tuple[Path, int, str]]:
-    engine_include = repo_root / "Engine" / "include"
-    if not engine_include.exists():
-        raise FileNotFoundError(f"missing Engine public include root: {engine_include}")
+    engine_public = repo_root / "Engine" / "Public"
+    if not engine_public.exists():
+        raise FileNotFoundError(f"missing Engine public root: {engine_public}")
 
     leaks: list[tuple[Path, int, str]] = []
-    for path in sorted(p for p in engine_include.rglob("*") if p.is_file() and _is_header(p)):
+    for path in sorted(p for p in engine_public.rglob("*") if p.is_file() and _is_header(p)):
         rel = _relative(path, repo_root)
         if rel in ALLOWED_PUBLIC_HEADER_LEAKS:
             continue
