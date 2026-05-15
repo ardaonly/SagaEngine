@@ -34,13 +34,29 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+      - name: Check mirror token
+        id: mirror-token
+        env:
+          MIRROR_TOKEN: ${{ secrets.MIRROR_TOKEN }}
+        run: |
+          if [ -n "$MIRROR_TOKEN" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Export changed tools
+        if: steps.mirror-token.outputs.available == 'true'
         env:
           MIRROR_TOKEN: ${{ secrets.MIRROR_TOKEN }}
         run: ./export.sh --since "${{ github.event.before }}"
 
+      - name: Skip export without mirror token
+        if: steps.mirror-token.outputs.available != 'true'
+        run: echo "::warning::MIRROR_TOKEN is not configured; skipping tool mirror export."
+
       - name: Save export state
-        if: always() && steps.export-state-cache.outputs.cache-hit != 'true'
+        if: always() && steps.mirror-token.outputs.available == 'true' && steps.export-state-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: .core/export/state
