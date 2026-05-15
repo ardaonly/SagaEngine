@@ -3,10 +3,14 @@ from conan.tools.cmake import CMakeToolchain, CMakeDeps, cmake_layout
 from conan.tools.files import save
 import json
 from datetime import datetime
+from pathlib import Path
+
+def _read_root_version():
+    return Path(__file__).with_name("VERSION").read_text(encoding="utf-8").strip()
 
 class SagaEngineConan(ConanFile):
     name = "sagaengine"
-    version = "0.1.0"
+    version = _read_root_version()
     package_type = "application"
     settings = "os", "compiler", "build_type", "arch"
 
@@ -15,10 +19,11 @@ class SagaEngineConan(ConanFile):
         self.requires("asio/1.30.2")
         self.requires("qt/6.6.2")
         self.requires("diligent-core/api.252009")
-        # diligent-core pins older versions of several system libs; Qt and
-        # other packages require newer ones. Override to the graph-wide winners.
-        self.requires("wayland/1.24.0",   override=True)
-        self.requires("xkbcommon/1.5.0",  override=True)
+        # Linux-only window-system packages. Do not add them to Windows/macOS
+        # graphs; those platforms neither build nor need Wayland/XKB.
+        if str(self.settings.os) == "Linux":
+            self.requires("wayland/1.24.0",   override=True)
+            self.requires("xkbcommon/1.5.0",  override=True)
         # ConanCenter dropped all old libpq versions; only 14.22/15.17/16.13 remain.
         self.requires("libpq/16.13",      override=True)
         self.requires("libpqxx/7.9.0")
@@ -32,9 +37,9 @@ class SagaEngineConan(ConanFile):
 
         # SDE is packaged independently (see Tools/SystemDefinitionEngine/conanfile.py).
         # Publish it once with `conan create Tools/SystemDefinitionEngine` and enable
-        # this option to link the engine against SDE::SDE.
+        # this option to link the engine against SDE::Core.
         if self.options.with_sde:
-            self.requires("sde/0.1.0")
+            self.requires("sde/0.1.1")
 
 
     def build_requirements(self):
@@ -66,7 +71,15 @@ class SagaEngineConan(ConanFile):
         "gtest/*:build_gmock": True,
         "qt/*:shared": False,
         "qt/*:qtbase": True,
-        "qt/*:qttools": True,
+        # SagaEditor links Qt Core/Gui/Widgets only. ConanCenter's Qt recipe
+        # enables all "essential" modules by default, including qttools and
+        # lupdate/clang support. Keep the graph to qtbase so the editor does
+        # not build unused Qt modules or require LLVM development headers.
+        "qt/*:essential_modules": False,
+        "qt/*:qtdeclarative": False,
+        "qt/*:qttools": False,
+        "qt/*:qttranslations": False,
+        "qt/*:qtdoc": False,
         "boost/*:header_only": False,
         "boost/*:magic_autolink": False,
     }
@@ -76,6 +89,11 @@ class SagaEngineConan(ConanFile):
 
     def generate(self):
         tc = CMakeToolchain(self)
+        # The repository owns CMakePresets.json. Conan's generated
+        # CMakeUserPresets.json can include profile-specific environment macros
+        # that CMake cannot expand directly, so keep Conan presets inside the
+        # generators folder and let Forge drive the root presets.
+        tc.user_presets_path = None
         tc.variables["SAGA_ENABLE_VULKAN"] = self.options.with_vulkan
         tc.variables["SAGA_ENABLE_OPENGL"] = self.options.with_opengl
         tc.variables["SAGA_ENABLE_D3D11"] = self.options.with_d3d11
@@ -131,7 +149,7 @@ class SagaEngineConan(ConanFile):
 
     def configure(self):
         self.settings.compiler.cppstd = "20"
-        if self.settings.os == "Linux":
+        if str(self.settings.os) == "Linux":
             self.settings.compiler.libcxx = "libstdc++11"
 
     def validate(self):

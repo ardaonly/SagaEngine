@@ -5,11 +5,13 @@ function(saga_setup_thirdparty)
     find_package(hiredis CONFIG REQUIRED)
     find_package(redis++ CONFIG REQUIRED)
     find_package(diligent-core CONFIG REQUIRED)
+    find_package(Vulkan QUIET)
     find_package(GTest CONFIG REQUIRED)
     find_package(SDL2 CONFIG REQUIRED)
     find_package(imgui CONFIG REQUIRED)
     find_package(rapidcheck CONFIG REQUIRED)
     find_package(glm CONFIG REQUIRED)
+    find_package(nlohmann_json CONFIG REQUIRED)
 
     # ── ATL for Diligent static backends ──────────────────────────────────
     # Diligent's D3D12/D3D11 engine factory static libs use ATL (atls.lib).
@@ -23,9 +25,6 @@ endfunction()
 function(saga_link_thirdparty target_name)
     target_link_libraries(${target_name} PRIVATE
         asio::asio
-        Qt6::Core
-        Qt6::Gui
-        Qt6::Widgets
         libpqxx::pqxx
         hiredis::hiredis
         redis++::redis++_static
@@ -33,7 +32,12 @@ function(saga_link_thirdparty target_name)
         SDL2::SDL2
         imgui::imgui
         glm::glm
+        nlohmann_json::nlohmann_json
     )
+
+    if(Vulkan_FOUND)
+        target_link_libraries(${target_name} PRIVATE Vulkan::Vulkan)
+    endif()
 
     # Diligent's D3D12/D3D11 static backends use D3DCompile, D3DReflect,
     # D3DCreateBlob from d3dcompiler.lib and DXGI functions from dxgi.lib.
