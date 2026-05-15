@@ -25,8 +25,9 @@ protected:
 
     void SetUp() override {
         const char* connEnv = std::getenv("SAGA_POSTGRES_CONN");
+        const bool explicitConnection = connEnv && connEnv[0] != '\0';
 
-        if (connEnv) {
+        if (explicitConnection) {
             _config.connectionString = connEnv;
         } else {
             _config.connectionString = "host=127.0.0.1 port=5432 dbname=saga_test user=postgres password=postgres";
@@ -36,8 +37,19 @@ protected:
         _config.writeQueueSize = 1024;
 
         _db = std::make_unique<PostgreSQLDatabase>(_config);
-        ASSERT_TRUE(_db->Initialize()) << "Failed to initialize PostgreSQLDatabase";
-        ASSERT_TRUE(_db->IsHealthy()) << "PostgreSQLDatabase is not healthy after initialization";
+        if (!_db->Initialize()) {
+            if (explicitConnection) {
+                FAIL() << "Failed to initialize PostgreSQLDatabase from SAGA_POSTGRES_CONN";
+            }
+            GTEST_SKIP() << "PostgreSQL is not available; set SAGA_POSTGRES_CONN to run these tests.";
+        }
+
+        if (!_db->IsHealthy()) {
+            if (explicitConnection) {
+                FAIL() << "PostgreSQLDatabase is not healthy after initialization";
+            }
+            GTEST_SKIP() << "PostgreSQLDatabase is not healthy; skipping local integration tests.";
+        }
         
         _db->ClearTestData(1000, 10000);
     }

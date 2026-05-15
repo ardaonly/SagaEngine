@@ -18,7 +18,6 @@
 #include <SagaEngine/Core/Log/Log.h>
 #include <SagaEngine/Platform/IWindow.h>
 #include <SagaEngine/Platform/PlatformFactory.h>
-#include <SagaEngine/Platform/SDL/SDLPlatformFactory.h>
 
 #include <string>
 #include <cstdint>
@@ -68,9 +67,8 @@ int main(int argc, char* argv[])
 
     auto config = ParseArgs(argc, argv);
 
-    // Install the SDL platform factory so Application can create a window.
-    static Saga::SDLPlatformFactory sdlFactory;
-    Saga::PlatformFactory::Set(&sdlFactory);
+    auto platformFactory = Saga::CreateSDLPlatformFactory();
+    Saga::PlatformFactory::Set(platformFactory.get());
 
     Saga::ClientHost host(std::move(config));
     host.Run();

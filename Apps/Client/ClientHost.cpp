@@ -25,11 +25,11 @@
 #include <SagaServer/Networking/Core/ReliableChannel.h>
 #include <SagaServer/Networking/Core/Packet.h>
 
+#include <SagaEngine/Input/Backends/IPlatformInputBackend.h>
 #include <SagaEngine/Platform/IDebugRenderer2D.h>
+#include <SagaEngine/Platform/PlatformFactory.h>
 
 #include <cstring>
-#include <SagaEngine/Platform/SDL/SDLDebugRenderer2D.h>
-#include <SagaEngine/Input/Backends/SDL/SDLInputBackend.h>
 #include <SagaEngine/Input/Devices/KeyboardDevice.h>
 
 #include <array>
@@ -736,7 +736,7 @@ void ClientHost::OnInit()
 
     // ── Input ───────────────────────────────────────────────────────────────
     {
-        auto inputBackend = std::make_unique<SagaEngine::Platform::SDLInputBackend>();
+        auto inputBackend = SagaEngine::Platform::CreateSDLInputBackend();
         m_inputManager.SetBackend(std::move(inputBackend));
         if (!m_inputManager.Initialize())
             LOG_WARN(kTag, "InputManager init failed.");
@@ -746,7 +746,7 @@ void ClientHost::OnInit()
     // ── Debug renderer ──────────────────────────────────────────────────────
     if (!m_config.headless)
     {
-        m_debugRenderer = std::make_unique<SDLDebugRenderer2D>();
+        m_debugRenderer = CreateSDLDebugRenderer2D();
         if (!m_debugRenderer->Init(*GetWindow(), m_config.vsync))
         {
             LOG_WARN(kTag, "Debug renderer init failed.");

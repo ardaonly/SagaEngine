@@ -1,22 +1,29 @@
-# SagaEngine — Production MMO Engine Roadmap
+# SagaEngine — Runtime and Server Foundation Roadmap
 
 > Last updated: 2026-05-15
 > Status: Active roadmap
-> Target: A production-grade authoritative multiplayer runtime and server core.
-> Scope: Runtime execution, networking, security, packet protocols, authoritative simulation, replication, zone/shard management, resources, diagnostics, testing, and deployment-facing engine foundations.
+> Target: A production-grade authoritative multiplayer runtime and server foundation for Saga projects.
+> Scope: Runtime execution, networking, security, packet protocols, authoritative simulation, replication, prediction, reconciliation, interpolation, zone/shard management, world kernel systems, deterministic runtime support, asset streaming, package/artifact consumption, gameplay graph artifact consumption, script binding consumption, runtime diagnostics, server diagnostics, testing, and deployment-facing runtime/server foundations.
 
 ---
 
 ## 0. Roadmap Convention
 
-- `[x]` — Shipped. The note after the item names the files, modules, or integration points that represent the work and highlights any decisions worth preserving.
-- `[ ]` — Open. Either unstarted or partially explored; the item describes the finished production state rather than interim scaffolding.
-- Shipped items must name the files, modules, or integration points that represent the completed work.
-- Open items must describe the finished state, not temporary scaffolding.
-- Runtime/server code must not include editor-private headers.
-- Engine/Core must not include from `Editor/`, `Apps/`, `Saga/`, or `Server/`.
-- SDE must remain a standalone deterministic data compiler.
-- Collaboration contracts must be consumed through `SagaShared` or `SagaCollaboration`, not editor-private paths.
+* `[x]` — Shipped. The note after the item names the files, modules, tests, or integration points that represent the completed work and highlights decisions worth preserving.
+* `[ ]` — Open. Either unstarted or partially explored; the item describes the finished production state rather than temporary scaffolding.
+* Shipped items must name the files, modules, tests, artifact formats, or integration points that represent completed work.
+* Open items must describe finished production behavior, not temporary scaffolding.
+* Runtime/server code must not include editor-private headers.
+* Engine/Core must not include from `Editor/`, `Apps/`, `Saga/`, `Server/`, or tool implementation folders.
+* SDE must remain a standalone deterministic data compiler.
+* Runtime/server may consume SDE compiled outputs and manifests through explicit artifact/package boundaries.
+* Collaboration contracts must be consumed through `SagaShared` or `SagaCollaboration` service APIs, not editor-private paths.
+* Runtime asset streaming consumes runtime-ready assets; it does not own editor import/cook workflows.
+* Server authority is not optional for MMO gameplay truth.
+
+A runtime that trusts authoring artifacts without validating manifests is not flexible.
+
+It is just optimistic about bugs.
 
 ---
 
@@ -26,59 +33,79 @@ This document is the source of truth for SagaEngine runtime and server systems.
 
 It covers:
 
-- runtime execution,
-- networking,
-- security,
-- packet protocols,
-- authoritative simulation,
-- client/server replication,
-- prediction and reconciliation,
-- interpolation,
-- zone and shard management,
-- world kernel systems,
-- concurrency,
-- determinism,
-- resource and asset streaming,
-- runtime diagnostics,
-- server diagnostics,
-- engine/runtime test strategy.
+* runtime execution,
+* runtime package consumption,
+* server package consumption,
+* manifest validation,
+* networking,
+* security,
+* packet protocols,
+* authoritative simulation,
+* client/server replication,
+* prediction and reconciliation,
+* interpolation,
+* zone and shard management,
+* world kernel systems,
+* concurrency,
+* deterministic runtime support,
+* gameplay graph artifact consumption,
+* script binding artifact consumption,
+* asset streaming and residency,
+* runtime diagnostics,
+* server diagnostics,
+* engine/runtime/server test strategy.
 
 It does not own:
 
-- Saga product shell,
-- project dashboard UX,
-- editor authoring UX,
-- final collaboration product workflows,
-- SDE compiler internals,
-- Forge build frontend behavior,
-- Prism code intelligence behavior,
-- SagaTools dispatch behavior.
+* Saga product shell,
+* project dashboard UX,
+* editor authoring UX,
+* final collaboration product workflows,
+* SDE compiler internals,
+* Forge build frontend behavior,
+* Prism code intelligence behavior,
+* SagaTools dispatch behavior,
+* asset import/cook implementation,
+* C# script compiler implementation,
+* generated code authoring UX.
 
-SagaEngine provides the runtime/server foundation consumed by Saga.
+SagaEngine provides the runtime/server foundation consumed by Saga and packaged Saga projects.
 
-The engine should not slowly absorb every nearby feature just because it has the word “core” nearby. That is not architecture. That is gravitational collapse with CMake files.
+The engine should not slowly absorb every nearby feature just because it has the word “runtime” nearby.
+
+That is not architecture.
+
+That is gravitational collapse with CMake files.
 
 ---
 
 ## 2. Companion Documents
 
-| Document | Purpose |
-|---|---|
-| `SAGA_PRODUCT_ROADMAP.md` | Primary Saga executable, product shell, project lifecycle, and mode orchestration |
-| `EDITOR_ROADMAP.md` | Authoring module mounted by Saga |
-| `SHARED_ROADMAP.md` | Editor/runtime shared contracts and systems |
-| `COLLABORATION_ROADMAP.md` | Product collaboration/session ownership and shared collaboration boundaries |
-| `DependencyGraph.md` | Dependency ownership and compile-time architecture rules |
-| `TOOLS_ROADMAP.md` | Tool ecosystem ownership and boundaries |
-| `DIAGNOSTICS_ROADMAP.md` | SagaDiagnostics runtime reliability roadmap |
-| `ClientReplicationFormalSpec.md` | Formal client-side replication correctness contract |
-| `AssetStreamingImplementation.md` | Runtime asset streaming implementation note |
+| Document                            | Purpose                                                                                                           |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `SAGA_PRODUCT_ROADMAP.md`           | Primary Saga executable, product shell, project lifecycle, mode orchestration, preview/build/publish entry points |
+| `EDITOR_ROADMAP.md`                 | Authoring module mounted by Saga                                                                                  |
+| `SHARED_ROADMAP.md`                 | Editor/runtime/server/tool shared contracts and artifact descriptors                                              |
+| `COLLABORATION_ROADMAP.md`          | Product collaboration, session ownership, shared collaboration boundaries                                         |
+| `DependencyGraph.md`                | Dependency ownership and compile-time architecture rules                                                          |
+| `TOOLS_ROADMAP.md`                  | Tool ecosystem ownership and boundaries                                                                           |
+| `DIAGNOSTICS_ROADMAP.md`            | Runtime reliability and diagnostics roadmap                                                                       |
+| `SDE_ROADMAP.md`                    | Standalone deterministic compiler, canonical IR, artifact emission                                                |
+| `FORGE_ROADMAP.md`                  | Build, cook, package, and publish-check workflow frontend                                                         |
+| `PRISM_ROADMAP.md`                  | Code/artifact intelligence, stale artifact detection, boundary validation                                         |
+| `SAGA_GAMEPLAY_GRAPH_ROADMAP.md`    | Gameplay graph artifacts and runtime/server graph consumption                                                     |
+| `AUTHORING_AUTHORITY_MODEL.md`      | Authority, execution domains, side effects, replication, persistence, prediction contracts                        |
+| `SAGA_SCRIPTING_ROADMAP.md`         | Script artifacts, binding manifests, runtime/server script binding consumption                                    |
+| `ASSET_PIPELINE_ROADMAP.md`         | Source asset → cook → manifest → runtime-ready asset pipeline                                                     |
+| `BUILD_PUBLISH_PIPELINE_ROADMAP.md` | Build/package/publish gates and package manifest expectations                                                     |
+| `ClientReplicationFormalSpec.md`    | Formal client-side replication correctness contract                                                               |
+| `AssetStreamingImplementation.md`   | Runtime asset streaming implementation note                                                                       |
 
 ---
 
 ## 3. Product Architecture Rule
 
-- [x] Define SagaEngine as runtime/server foundation instead of product shell owner.
+* [x] Define SagaEngine as runtime/server foundation instead of product shell owner.
 
   Represented by:
 
@@ -87,6 +114,7 @@ The engine should not slowly absorb every nearby feature just because it has the
   DependencyGraph.md
   EDITOR_ROADMAP.md
   COLLABORATION_ROADMAP.md
+  SAGA_PRODUCT_ROADMAP.md
   ```
 
   Preserved decision:
@@ -96,29 +124,31 @@ The engine should not slowly absorb every nearby feature just because it has the
   SagaEngine owns runtime/server execution foundations.
   ```
 
-- [ ] Keep the primary product executable owned by `Saga`.
+* [ ] Keep the primary product executable owned by `Saga`.
 
   Done means:
 
-  - `Saga` owns the product shell,
-  - `Saga` owns project create/open workflows,
-  - `Saga` owns product mode switching,
-  - engine runtime/server modules are mounted, launched, or orchestrated by Saga where needed,
-  - engine code does not define product dashboard behavior.
+  * `Saga` owns the product shell,
+  * `Saga` owns project create/open workflows,
+  * `Saga` owns product mode switching,
+  * engine runtime/server modules are mounted, launched, or orchestrated by Saga where needed,
+  * engine code does not define product dashboard behavior,
+  * engine code does not own build/publish UI.
 
-- [ ] Keep development binaries separate from production architecture.
+* [ ] Keep development binaries separate from production architecture.
 
   Done means:
 
-  - standalone runtime/server/editor launchers may exist for testing,
-  - development binaries are documented as compatibility/test tools,
-  - production user workflow remains `Saga`.
+  * standalone runtime/server/editor launchers may exist for testing,
+  * development binaries are documented as compatibility/test tools,
+  * production user workflow remains `Saga`,
+  * package/manifest validation behavior is shared across dev launchers and product workflows where practical.
 
 ---
 
 ## 4. Engine Ownership
 
-- [x] Define engine/runtime ownership boundaries.
+* [x] Define engine/runtime ownership boundaries.
 
   Represented by:
 
@@ -137,23 +167,26 @@ The engine should not slowly absorb every nearby feature just because it has the
   Editor owns authoring UX.
   ```
 
-- [ ] Keep engine ownership focused on reusable runtime foundations.
+* [ ] Keep engine ownership focused on reusable runtime foundations.
 
   Done means engine owns:
 
-  - math,
-  - memory utilities,
-  - containers,
-  - diagnostics primitives,
-  - profiling primitives,
-  - filesystem abstraction,
-  - task scheduling primitives,
-  - serialization primitives,
-  - runtime resource primitives,
-  - ECS/runtime primitives,
-  - deterministic runtime support.
+  * math,
+  * memory utilities,
+  * containers,
+  * diagnostics primitives,
+  * profiling primitives,
+  * filesystem abstraction,
+  * task scheduling primitives,
+  * serialization primitives,
+  * runtime resource primitives,
+  * ECS/runtime primitives,
+  * deterministic runtime support,
+  * runtime package consumption primitives,
+  * runtime manifest validation primitives,
+  * network/replication primitives.
 
-- [ ] Prevent Engine/Core from depending upward.
+* [ ] Prevent Engine/Core from depending upward.
 
   Forbidden dependency direction:
 
@@ -164,47 +197,62 @@ The engine should not slowly absorb every nearby feature just because it has the
   Engine/Core → Saga product shell
   Engine/Core → SagaCollaboration implementation
   Engine/Core → SDE compiler internals
+  Engine/Core → Forge internals
+  Engine/Core → Prism internals
+  Engine/Core → asset pipeline implementation
+  Engine/Core → scripting compiler implementation
   ```
 
 ---
 
 ## 5. Runtime Ownership
 
-- [ ] Keep runtime responsible for game execution.
+* [ ] Keep runtime responsible for game execution.
 
   Done means runtime owns:
 
-  - game loop,
-  - simulation stepping,
-  - scene execution,
-  - ECS runtime application,
-  - runtime resource residency,
-  - replication application,
-  - prediction,
-  - interpolation,
-  - reconciliation,
-  - rendering integration,
-  - runtime diagnostics.
+  * game loop,
+  * simulation stepping,
+  * scene execution,
+  * ECS runtime application,
+  * runtime resource residency,
+  * asset manifest consumption,
+  * client-safe graph artifact loading,
+  * client-safe script binding consumption,
+  * replication application,
+  * prediction,
+  * interpolation,
+  * reconciliation,
+  * rendering integration,
+  * runtime diagnostics,
+  * package startup validation.
 
-- [ ] Prevent runtime from owning editor/product behavior.
+* [ ] Prevent runtime from owning editor/product/tool behavior.
 
   Done means runtime does not own:
 
-  - editor panels,
-  - Qt authoring widgets,
-  - product dashboard,
-  - project create/open UX,
-  - collaboration product lifecycle,
-  - SDE compiler internals,
-  - standalone tool orchestration.
+  * editor panels,
+  * Qt authoring widgets,
+  * product dashboard,
+  * project create/open UX,
+  * collaboration product lifecycle,
+  * SDE compiler internals,
+  * Forge build planning,
+  * Prism indexing,
+  * standalone tool orchestration,
+  * asset import/cook implementation,
+  * script compile implementation.
 
 Allowed runtime dependencies:
 
 ```txt
 Runtime → Engine/Core
-Runtime → SagaShared
-Runtime → SagaCollaboration service API
-Runtime → SDE compiled outputs
+Runtime → SagaShared contracts
+Runtime → SagaCollaboration service API where explicitly approved
+Runtime → SDE compiled outputs/manifests
+Runtime → packaged runtime artifacts
+Runtime → script binding manifests
+Runtime → asset manifests
 ```
 
 Forbidden runtime dependencies:
@@ -214,45 +262,61 @@ Runtime → Editor private headers
 Runtime → Editor/include/SagaEditor/Collaboration
 Runtime → Product shell internals
 Runtime → SDE compiler internals
+Runtime → Forge internals
+Runtime → Prism internals
+Runtime → asset pipeline implementation
+Runtime → scripting compiler implementation
+Runtime → server-private authority internals except approved API boundary
 ```
 
 ---
 
 ## 6. Server Ownership
 
-- [ ] Keep server responsible for authority and multiplayer session policy.
+* [ ] Keep server responsible for authority and multiplayer session policy.
 
   Done means server owns:
 
-  - authoritative simulation,
-  - networking,
-  - packet protocol handling,
-  - client session state,
-  - zone/shard authority,
-  - persistence integration,
-  - anti-cheat validation,
-  - replication source generation,
-  - server diagnostics.
+  * authoritative simulation,
+  * networking,
+  * packet protocol handling,
+  * client session state,
+  * zone/shard authority,
+  * persistence integration,
+  * anti-cheat validation,
+  * replication source generation,
+  * server package consumption,
+  * authoritative gameplay graph artifact execution/binding,
+  * server script binding consumption,
+  * server diagnostics.
 
-- [ ] Prevent server from owning editor/product/tool behavior.
+* [ ] Prevent server from owning editor/product/tool behavior.
 
   Done means server does not own:
 
-  - editor UI,
-  - product shell,
-  - Qt widgets,
-  - authoring workflows,
-  - tool UI,
-  - editor-private collaboration contracts.
+  * editor UI,
+  * product shell,
+  * Qt widgets,
+  * authoring workflows,
+  * tool UI,
+  * editor-private collaboration contracts,
+  * SDE compiler internals,
+  * Forge build pipeline implementation,
+  * Prism analysis implementation,
+  * asset import/cook implementation,
+  * script compiler implementation.
 
 Allowed server dependencies:
 
 ```txt
 Server → Engine/Core
-Server → SagaShared
-Server → SagaCollaboration service API
+Server → SagaShared contracts
+Server → SagaCollaboration service API where explicitly approved
 Server → Backends
-Server → SDE compiled outputs
+Server → SDE compiled outputs/manifests
+Server → packaged server artifacts
+Server → script binding manifests
+Server → asset/data manifests
 ```
 
 Forbidden server dependencies:
@@ -261,15 +325,18 @@ Forbidden server dependencies:
 Server → Editor
 Server → Apps/Saga product shell internals
 Server → Apps/Editor
-Server → Tools/Forge UI
-Server → Tools/Prism UI
+Server → Tools/Forge UI/internals
+Server → Tools/Prism UI/internals
+Server → SDE compiler internals
+Server → asset pipeline implementation
+Server → scripting compiler implementation
 ```
 
 ---
 
 ## 7. Current Runtime/Server Baseline
 
-- [x] Establish working CMake/Conan/Ninja/sccache build path.
+* [x] Establish working CMake/Conan/Ninja/sccache build path.
 
   Represented by:
 
@@ -286,7 +353,7 @@ Server → Tools/Prism UI
   Build pipeline is usable enough to support runtime/server iteration.
   ```
 
-- [x] Establish basic UDP client/server connectivity.
+* [x] Establish basic UDP client/server connectivity.
 
   Represented by:
 
@@ -302,7 +369,7 @@ Server → Tools/Prism UI
   The runtime network path is active and testable.
   ```
 
-- [x] Establish initial snapshot send/decode/apply path.
+* [x] Establish initial snapshot send/decode/apply path.
 
   Represented by:
 
@@ -318,7 +385,7 @@ Server → Tools/Prism UI
   The client can receive and apply replicated state.
   ```
 
-- [x] Establish initial client replication pipeline chain.
+* [x] Establish initial client replication pipeline chain.
 
   Represented by:
 
@@ -337,7 +404,7 @@ Server → Tools/Prism UI
   Client-side packet demux, state management, snapshot apply, reconciliation, and interpolation are connected.
   ```
 
-- [x] Establish initial server input acknowledgement path.
+* [x] Establish initial server input acknowledgement path.
 
   Represented by:
 
@@ -352,7 +419,7 @@ Server → Tools/Prism UI
   Server receives client input commands and can acknowledge them.
   ```
 
-- [x] Establish initial world kernel skeleton.
+* [x] Establish initial world kernel skeleton.
 
   Represented by:
 
@@ -372,11 +439,355 @@ Server → Tools/Prism UI
 
 ---
 
-## 8. Networking Roadmap
+## 8. Package and Artifact Consumption Roadmap
 
-### 8.1 Transport Layer
+Runtime/server must consume built artifacts through explicit manifests.
 
-- [x] Provide basic UDP transport for client/server testing.
+This is the bridge between authoring/build systems and execution systems.
+
+---
+
+### 8.1 Runtime Package Manifest
+
+* [ ] Add runtime package manifest loader.
+
+  Done means runtime can load package manifests containing:
+
+  * package id,
+  * package kind,
+  * build profile,
+  * target platform,
+  * runtime compatibility version,
+  * asset manifest refs,
+  * client-safe graph artifact refs,
+  * client-safe script artifact refs,
+  * diagnostics metadata refs,
+  * package hash.
+
+Expected files:
+
+```txt
+Engine/include/SagaEngine/Packages/PackageManifest.hpp
+Engine/include/SagaEngine/Packages/PackageManifestLoader.hpp
+Engine/src/SagaEngine/Packages/PackageManifestLoader.cpp
+```
+
+* [ ] Validate package manifest on runtime startup.
+
+  Done means runtime rejects:
+
+  * missing manifest,
+  * unsupported manifest version,
+  * wrong package kind,
+  * incompatible runtime version,
+  * missing required artifact,
+  * hash mismatch where configured,
+  * server-only executable artifact in client package.
+
+---
+
+### 8.2 Server Package Manifest
+
+* [ ] Add server package manifest validation.
+
+  Done means server validates:
+
+  * server package kind,
+  * authoritative graph artifacts,
+  * server script artifacts,
+  * server data artifacts,
+  * persistence/schema refs,
+  * asset/data manifests,
+  * authority manifests,
+  * package compatibility.
+
+Expected files:
+
+```txt
+Engine/include/SagaEngine/Server/ServerPackageManifest.hpp
+Engine/include/SagaEngine/Server/ServerPackageValidator.hpp
+Engine/src/SagaEngine/Server/ServerPackageValidator.cpp
+```
+
+* [ ] Reject invalid server package state.
+
+  Done means server does not continue startup with missing/invalid authoritative package data.
+
+---
+
+### 8.3 Artifact Manifest Consumption
+
+* [ ] Add artifact manifest reader.
+
+  Done means runtime/server can consume artifact manifests for:
+
+  * compiled graph artifacts,
+  * script artifacts,
+  * asset artifacts,
+  * schema/data artifacts,
+  * generated manifests,
+  * diagnostic reports.
+
+Expected files:
+
+```txt
+Engine/include/SagaEngine/Artifacts/ArtifactManifest.hpp
+Engine/include/SagaEngine/Artifacts/ArtifactRef.hpp
+Engine/include/SagaEngine/Artifacts/ArtifactManifestLoader.hpp
+Engine/src/SagaEngine/Artifacts/ArtifactManifestLoader.cpp
+```
+
+* [ ] Validate artifact hashes and versions.
+
+  Done means runtime/server can reject artifacts with:
+
+  * unknown kind,
+  * unsupported version,
+  * missing file,
+  * hash mismatch,
+  * incompatible execution domain,
+  * incompatible authority metadata.
+
+---
+
+## 9. Gameplay Graph Artifact Consumption
+
+* [ ] Add compiled gameplay graph artifact loader.
+
+  Done means runtime/server can load compiled graph artifacts produced by SDE/build pipeline without including SDE compiler internals.
+
+Expected files:
+
+```txt
+Engine/include/SagaEngine/Graph/CompiledGraphArtifact.hpp
+Engine/include/SagaEngine/Graph/CompiledGraphLoader.hpp
+Engine/include/SagaEngine/Graph/GraphArtifactRegistry.hpp
+Engine/src/SagaEngine/Graph/CompiledGraphLoader.cpp
+Engine/src/SagaEngine/Graph/GraphArtifactRegistry.cpp
+```
+
+* [ ] Validate graph artifact metadata.
+
+  Done means runtime/server check:
+
+  * graph id,
+  * graph kind,
+  * schema version,
+  * artifact hash,
+  * source map ref where applicable,
+  * block registry compatibility,
+  * execution domain,
+  * authority context.
+
+* [ ] Support client-safe graph artifacts.
+
+  Done means runtime can load graph artifacts for:
+
+  * UI/client presentation,
+  * visual-only logic,
+  * prediction-safe logic,
+  * runtime preview,
+  * read-only replicated state reactions.
+
+* [ ] Support server-authoritative graph artifacts.
+
+  Done means server can bind or execute graph artifacts for:
+
+  * quest rewards,
+  * inventory rules,
+  * ability rules,
+  * combat rules,
+  * zone rules,
+  * validation hooks,
+  * persistence-affecting gameplay.
+
+* [ ] Reject wrong graph placement.
+
+  Done means runtime/server reject:
+
+  * server-only graph artifact loaded as executable client logic,
+  * client-only graph artifact treated as server authority,
+  * editor-only graph artifact loaded into runtime/server package,
+  * build-only graph artifact loaded into runtime/server package.
+
+Graph authoring may be visual.
+
+Graph execution still has to respect physics, packets, and trust boundaries.
+
+---
+
+## 10. Authority Manifest Consumption
+
+* [ ] Add runtime/server authority manifest model.
+
+  Done means graph/script/package artifacts can include authority manifests describing:
+
+  * authority context,
+  * execution domain,
+  * side effects,
+  * replication effects,
+  * persistence effects,
+  * prediction safety,
+  * security boundary.
+
+Expected files:
+
+```txt
+Engine/include/SagaEngine/Authority/AuthorityManifest.hpp
+Engine/include/SagaEngine/Authority/AuthorityValidator.hpp
+Engine/src/SagaEngine/Authority/AuthorityValidator.cpp
+```
+
+* [ ] Validate authority manifest at load time.
+
+  Done means runtime/server reject artifacts when:
+
+  * authority manifest is missing for side-effecting artifact,
+  * execution domain does not match package kind,
+  * server-only artifact is loaded into client execution domain,
+  * client-only artifact is used as server authoritative truth,
+  * prediction-unsafe artifact is used in predicted context,
+  * persistent side effect exists without server authority.
+
+---
+
+## 11. Script Binding Consumption
+
+* [ ] Add script binding manifest loader.
+
+  Done means runtime/server can load script binding manifests produced by scripting build pipeline.
+
+Expected files:
+
+```txt
+Engine/include/SagaEngine/Scripting/ScriptBindingManifest.hpp
+Engine/include/SagaEngine/Scripting/ScriptBindingRegistry.hpp
+Engine/include/SagaEngine/Scripting/IScriptHost.hpp
+Engine/src/SagaEngine/Scripting/ScriptBindingRegistry.cpp
+```
+
+* [ ] Validate script binding metadata.
+
+  Done means runtime/server check:
+
+  * assembly id,
+  * binding id,
+  * signature hash,
+  * authority context,
+  * execution domain,
+  * side effects,
+  * artifact hash,
+  * script runtime compatibility.
+
+* [ ] Load client-safe script artifacts in runtime.
+
+  Done means runtime may bind scripts for:
+
+  * client presentation,
+  * visual-only logic,
+  * prediction-safe logic,
+  * pure helpers,
+  * editor/runtime preview where approved.
+
+* [ ] Load server-authoritative script artifacts in server.
+
+  Done means server may bind scripts for:
+
+  * authoritative gameplay rules,
+  * validation hooks,
+  * persistence-affecting gameplay,
+  * quest/inventory/ability/combat logic.
+
+* [ ] Reject unsafe script artifact placement.
+
+  Done means runtime/server reject:
+
+  * server-only script in client execution domain,
+  * editor-only script in runtime/server package,
+  * test-only script in shipping package,
+  * missing or stale binding manifest,
+  * unsupported signature hash.
+
+---
+
+## 12. Runtime Asset Streaming and Asset Manifest Consumption
+
+* [x] Establish runtime asset streaming architecture.
+
+  Represented by:
+
+  ```txt
+  AssetStreamingImplementation.md
+  AssetId
+  AssetManifest
+  AssetSource
+  AssetStreamRequest
+  AssetStreamingScheduler
+  ResidencyCache
+  AssetHandle<T>
+  AssetDiagnostic
+  ```
+
+  Preserved decision:
+
+  ```txt
+  Runtime streaming consumes runtime-ready assets.
+  Editor import/cook produces runtime-ready assets.
+  ```
+
+* [ ] Add production runtime asset manifest consumption.
+
+  Done means runtime can load asset manifests produced by build/cook/package pipeline and resolve:
+
+  * asset id,
+  * asset kind,
+  * cooked artifact path,
+  * artifact hash,
+  * dependencies,
+  * memory estimate,
+  * streaming group,
+  * platform/profile compatibility,
+  * version/schema information.
+
+Expected files:
+
+```txt
+Engine/include/SagaEngine/Assets/AssetManifest.hpp
+Engine/include/SagaEngine/Assets/AssetRegistry.hpp
+Engine/include/SagaEngine/Assets/AssetHandle.hpp
+Engine/include/SagaEngine/Assets/AssetDiagnostic.hpp
+Engine/src/SagaEngine/Assets/AssetManifestLoader.cpp
+Engine/src/SagaEngine/Assets/AssetRegistry.cpp
+```
+
+* [ ] Reject invalid asset manifests and artifacts.
+
+  Done means runtime reports diagnostics for:
+
+  * missing asset manifest,
+  * invalid manifest version,
+  * missing cooked artifact,
+  * hash mismatch,
+  * unsupported asset kind,
+  * incompatible platform/profile,
+  * dependency missing,
+  * memory budget rejection.
+
+* [ ] Keep source asset import out of runtime.
+
+  Done means runtime does not casually import arbitrary source assets in shipping mode.
+
+Runtime is allowed to load assets.
+
+It is not required to become Blender with a socket loop.
+
+---
+
+## 13. Networking Roadmap
+
+### 13.1 Transport Layer
+
+* [x] Provide basic UDP transport for client/server testing.
 
   Represented by:
 
@@ -386,26 +797,26 @@ Server → Tools/Prism UI
   Handshake exchange
   ```
 
-- [ ] Harden UDP transport for production multiplayer.
+* [ ] Harden UDP transport for production multiplayer.
 
   Done means:
 
-  - packet send/receive is bounded,
-  - socket errors are handled,
-  - disconnects are detected,
-  - reconnect path exists,
-  - packet flood is limited,
-  - malformed packet input is rejected safely,
-  - transport diagnostics are exposed.
+  * packet send/receive is bounded,
+  * socket errors are handled,
+  * disconnects are detected,
+  * reconnect path exists,
+  * packet flood is limited,
+  * malformed packet input is rejected safely,
+  * transport diagnostics are exposed.
 
-- [ ] Add transport abstraction.
+* [ ] Add transport abstraction.
 
   Done means:
 
-  - runtime/server code can use a transport interface,
-  - UDP implementation is one backend,
-  - tests can use in-memory transport,
-  - future relay/cloud transport can be introduced without rewriting replication logic.
+  * runtime/server code can use a transport interface,
+  * UDP implementation is one backend,
+  * tests can use in-memory transport,
+  * future relay/cloud transport can be introduced without rewriting replication logic.
 
 Expected files:
 
@@ -418,9 +829,9 @@ Engine/src/SagaEngine/Network/InMemoryTransport.cpp
 
 ---
 
-### 8.2 Connection Lifecycle
+### 13.2 Connection Lifecycle
 
-- [x] Provide initial handshake flow.
+* [x] Provide initial handshake flow.
 
   Represented by:
 
@@ -430,18 +841,18 @@ Engine/src/SagaEngine/Network/InMemoryTransport.cpp
   Client connected state transition
   ```
 
-- [ ] Add production connection state machine.
+* [ ] Add production connection state machine.
 
   Done means connection states include:
 
-  - disconnected,
-  - resolving,
-  - connecting,
-  - handshaking,
-  - connected,
-  - resynchronizing,
-  - disconnecting,
-  - failed.
+  * disconnected,
+  * resolving,
+  * connecting,
+  * handshaking,
+  * connected,
+  * resynchronizing,
+  * disconnecting,
+  * failed.
 
 Expected files:
 
@@ -451,30 +862,30 @@ Engine/include/SagaEngine/Network/ConnectionStateMachine.hpp
 Engine/src/SagaEngine/Network/ConnectionStateMachine.cpp
 ```
 
-- [ ] Add connection timeout and heartbeat.
+* [ ] Add connection timeout and heartbeat.
 
   Done means:
 
-  - missed heartbeat is detected,
-  - timeout reason is recorded,
-  - client receives disconnect reason where possible,
-  - server releases stale client state,
-  - diagnostics expose heartbeat age and connection quality.
+  * missed heartbeat is detected,
+  * timeout reason is recorded,
+  * client receives disconnect reason where possible,
+  * server releases stale client state,
+  * diagnostics expose heartbeat age and connection quality.
 
 ---
 
-### 8.3 Packet Framing
+### 13.3 Packet Framing
 
-- [ ] Define stable packet envelope.
+* [ ] Define stable packet envelope.
 
   Done means every packet includes:
 
-  - protocol version,
-  - packet type,
-  - sequence number,
-  - connection/session id,
-  - payload size,
-  - validation/checksum field where appropriate.
+  * protocol version,
+  * packet type,
+  * sequence number,
+  * connection/session id,
+  * payload size,
+  * validation/checksum field where appropriate.
 
 Expected files:
 
@@ -484,128 +895,157 @@ Engine/include/SagaEngine/Network/PacketType.hpp
 Engine/src/SagaEngine/Network/PacketCodec.cpp
 ```
 
-- [ ] Add packet size and payload validation.
+* [ ] Add packet size and payload validation.
 
   Done means:
 
-  - oversized packets are rejected,
-  - unknown packet types are rejected,
-  - truncated packets are rejected,
-  - invalid payload size fails safely,
-  - diagnostic reason is recorded.
+  * oversized packets are rejected,
+  * unknown packet types are rejected,
+  * truncated packets are rejected,
+  * invalid payload size fails safely,
+  * diagnostic reason is recorded.
 
-- [ ] Add protocol version negotiation.
+* [ ] Add protocol version negotiation.
 
   Done means:
 
-  - client and server compare supported versions,
-  - unsupported versions fail clearly,
-  - version mismatch produces actionable diagnostics.
+  * client and server compare supported versions,
+  * unsupported versions fail clearly,
+  * version mismatch produces actionable diagnostics.
 
 ---
 
-### 8.4 Reliability Layer
+### 13.4 Reliability Layer
 
-- [ ] Add reliable message channel for required gameplay/session messages.
-
-  Done means:
-
-  - reliable messages are acknowledged,
-  - lost reliable messages are retransmitted,
-  - retransmission is bounded,
-  - duplicate reliable messages are ignored,
-  - reliable channel does not block high-frequency unreliable snapshots indefinitely.
-
-- [ ] Keep high-frequency state snapshots unreliable where appropriate.
+* [ ] Add reliable message channel for required gameplay/session messages.
 
   Done means:
 
-  - snapshot stream tolerates loss,
-  - newest valid snapshot can supersede old snapshots,
-  - stale snapshots are rejected,
-  - packet loss is visible in diagnostics.
+  * reliable messages are acknowledged,
+  * lost reliable messages are retransmitted,
+  * retransmission is bounded,
+  * duplicate reliable messages are ignored,
+  * reliable channel does not block high-frequency unreliable snapshots indefinitely.
+
+* [ ] Keep high-frequency state snapshots unreliable where appropriate.
+
+  Done means:
+
+  * snapshot stream tolerates loss,
+  * newest valid snapshot can supersede old snapshots,
+  * stale snapshots are rejected,
+  * packet loss is visible in diagnostics.
 
 ---
 
-## 9. Security Roadmap
+## 14. Security Roadmap
 
-### 9.1 Packet Security
+### 14.1 Packet Security
 
-- [ ] Validate all network input before use.
+* [ ] Validate all network input before use.
 
   Done means:
 
-  - no packet payload is trusted before decoding validation,
-  - malformed packets are rejected,
-  - invalid state transitions are rejected,
-  - unknown client/session ids are rejected,
-  - invalid entity/component ids are rejected.
+  * no packet payload is trusted before decoding validation,
+  * malformed packets are rejected,
+  * invalid state transitions are rejected,
+  * unknown client/session ids are rejected,
+  * invalid entity/component ids are rejected.
 
-- [ ] Add rate limits.
+* [ ] Add rate limits.
 
   Done means server limits:
 
-  - connection attempts,
-  - handshake attempts,
-  - input command frequency,
-  - oversized packet attempts,
-  - invalid packet spam.
+  * connection attempts,
+  * handshake attempts,
+  * input command frequency,
+  * oversized packet attempts,
+  * invalid packet spam,
+  * client request graph invocation frequency where applicable.
 
-- [ ] Add disconnect reasons and security diagnostics.
+* [ ] Add disconnect reasons and security diagnostics.
 
   Done means disconnect diagnostics can distinguish:
 
-  - timeout,
-  - malformed packet,
-  - unsupported protocol,
-  - unauthorized action,
-  - rate limit,
-  - server shutdown.
+  * timeout,
+  * malformed packet,
+  * unsupported protocol,
+  * unauthorized action,
+  * rate limit,
+  * invalid graph/script request,
+  * server shutdown.
 
 ---
 
-### 9.2 Client Trust Boundary
+### 14.2 Client Trust Boundary
 
-- [ ] Treat clients as untrusted.
+* [ ] Treat clients as untrusted.
 
   Done means:
 
-  - client input is intent, not authority,
-  - server validates movement/action requests,
-  - client cannot directly author authoritative world state,
-  - client cannot spawn/modify entities without authority,
-  - client-side prediction never becomes server truth.
+  * client input is intent, not authority,
+  * server validates movement/action requests,
+  * client cannot directly author authoritative world state,
+  * client cannot spawn/modify entities without authority,
+  * client-side prediction never becomes server truth,
+  * client-executed graph/script artifacts cannot commit authoritative state.
 
-This is multiplayer. Trusting clients is how cheaters get a welcome basket.
+This is multiplayer.
+
+Trusting clients is how cheaters get a welcome basket.
 
 ---
 
-### 9.3 Authentication Boundary
+### 14.3 Authentication Boundary
 
-- [ ] Add authentication/session identity integration point.
-
-  Done means:
-
-  - network connection can bind to an authenticated account/session id,
-  - unauthenticated dev sessions are explicitly marked,
-  - production server can reject unauthenticated clients,
-  - auth failure is reported clearly.
-
-- [ ] Keep auth integration outside low-level transport.
+* [ ] Add authentication/session identity integration point.
 
   Done means:
 
-  - transport moves packets,
-  - session/auth layer validates identity,
-  - game/server policy decides access.
+  * network connection can bind to an authenticated account/session id,
+  * unauthenticated dev sessions are explicitly marked,
+  * production server can reject unauthenticated clients,
+  * auth failure is reported clearly.
+
+* [ ] Keep auth integration outside low-level transport.
+
+  Done means:
+
+  * transport moves packets,
+  * session/auth layer validates identity,
+  * game/server policy decides access.
 
 ---
 
-## 10. Replication Roadmap
+### 14.4 Client Request Validation Boundary
 
-### 10.1 Server Snapshot Generation
+* [ ] Add server-validated request boundary for graph/script actions.
 
-- [x] Generate initial server snapshots.
+  Done means client requests route through:
+
+  ```txt
+  Client request
+      ↓
+  packet/session validation
+      ↓
+  identity/permission validation
+      ↓
+  gameplay precondition validation
+      ↓
+  authoritative graph/script invocation where approved
+  ```
+
+* [ ] Reject direct client invocation of authoritative graph/script logic.
+
+  Done means client artifacts cannot call `GiveItem`, `CommitQuestReward`, `WritePersistentState`, or equivalent server-only actions directly.
+
+---
+
+## 15. Replication Roadmap
+
+### 15.1 Server Snapshot Generation
+
+* [x] Generate initial server snapshots.
 
   Represented by:
 
@@ -614,17 +1054,17 @@ This is multiplayer. Trusting clients is how cheaters get a welcome basket.
   Server snapshot send path
   ```
 
-- [ ] Add production snapshot builder.
+* [ ] Add production snapshot builder.
 
   Done means snapshots include:
 
-  - stable entity ids,
-  - component payloads,
-  - tick id,
-  - baseline/reference id where applicable,
-  - relevance filtering result,
-  - serialization version,
-  - payload budget result.
+  * stable entity ids,
+  * component payloads,
+  * tick id,
+  * baseline/reference id where applicable,
+  * relevance filtering result,
+  * serialization version,
+  * payload budget result.
 
 Expected files:
 
@@ -634,20 +1074,20 @@ Engine/include/SagaEngine/Replication/SnapshotBuilder.hpp
 Engine/src/SagaEngine/Replication/SnapshotBuilder.cpp
 ```
 
-- [ ] Add snapshot delta compression.
+* [ ] Add snapshot delta compression.
 
   Done means:
 
-  - server can build deltas against known baselines,
-  - client can apply deltas safely,
-  - missing baseline triggers resync,
-  - invalid delta is rejected without corrupting client state.
+  * server can build deltas against known baselines,
+  * client can apply deltas safely,
+  * missing baseline triggers resync,
+  * invalid delta is rejected without corrupting client state.
 
 ---
 
-### 10.2 Client Snapshot Decode and Apply
+### 15.2 Client Snapshot Decode and Apply
 
-- [x] Decode and apply initial snapshots on client.
+* [x] Decode and apply initial snapshots on client.
 
   Represented by:
 
@@ -657,32 +1097,32 @@ Engine/src/SagaEngine/Replication/SnapshotBuilder.cpp
   ReplicationApplyBridge
   ```
 
-- [ ] Formalize client-side apply order.
+* [ ] Formalize client-side apply order in implementation.
 
   Done means implementation matches `ClientReplicationFormalSpec.md` for:
 
-  - decode,
-  - validation,
-  - ordering,
-  - state machine transition,
-  - snapshot application,
-  - reconciliation,
-  - interpolation buffer update.
+  * decode,
+  * validation,
+  * ordering,
+  * state machine transition,
+  * snapshot application,
+  * reconciliation,
+  * interpolation buffer update.
 
-- [ ] Reject stale or invalid snapshots.
+* [ ] Reject stale or invalid snapshots.
 
   Done means:
 
-  - old tick snapshots are ignored,
-  - snapshots from invalid session are rejected,
-  - invalid component payload fails safely,
-  - diagnostics identify rejection reason.
+  * old tick snapshots are ignored,
+  * snapshots from invalid session are rejected,
+  * invalid component payload fails safely,
+  * diagnostics identify rejection reason.
 
 ---
 
-### 10.3 Replication State Machine
+### 15.3 Replication State Machine
 
-- [x] Establish initial client replication state machine.
+* [x] Establish initial client replication state machine.
 
   Represented by:
 
@@ -693,17 +1133,18 @@ Engine/src/SagaEngine/Replication/SnapshotBuilder.cpp
   InterpolationManager
   ```
 
-- [ ] Add production replication states.
+* [ ] Add production replication states.
 
   Done means states include:
 
-  - idle,
-  - connecting,
-  - waiting for baseline,
-  - synchronized,
-  - resynchronizing,
-  - disconnected,
-  - failed.
+  * idle,
+  * connecting,
+  * handshaking,
+  * waiting for baseline,
+  * synchronized,
+  * resynchronizing,
+  * disconnected,
+  * failed.
 
 Expected files:
 
@@ -713,28 +1154,28 @@ Engine/include/SagaEngine/Replication/ReplicationStateMachine.hpp
 Engine/src/SagaEngine/Replication/ReplicationStateMachine.cpp
 ```
 
-- [ ] Add state transition diagnostics.
+* [ ] Add state transition diagnostics.
 
   Done means every replication state transition records:
 
-  - previous state,
-  - next state,
-  - tick,
-  - reason,
-  - error code where applicable.
+  * previous state,
+  * next state,
+  * tick,
+  * reason,
+  * error code where applicable.
 
 ---
 
-### 10.4 Relevance Filtering
+### 15.4 Relevance Filtering
 
-- [ ] Add server-side relevance graph integration.
+* [ ] Add server-side relevance graph integration.
 
   Done means:
 
-  - entities are filtered per client,
-  - distance/visibility/interest rules can be evaluated,
-  - bandwidth budget can affect snapshot selection,
-  - relevance changes are reflected safely on client.
+  * entities are filtered per client,
+  * distance/visibility/interest rules can be evaluated,
+  * bandwidth budget can affect snapshot selection,
+  * relevance changes are reflected safely on client.
 
 Expected files:
 
@@ -745,20 +1186,20 @@ Engine/include/SagaEngine/Replication/RelevanceFilter.hpp
 Engine/src/SagaEngine/Replication/RelevanceFilter.cpp
 ```
 
-- [ ] Add relevance diagnostics.
+* [ ] Add relevance diagnostics.
 
   Done means diagnostics can show:
 
-  - why an entity was included,
-  - why an entity was excluded,
-  - per-client relevant entity count,
-  - bandwidth pressure.
+  * why an entity was included,
+  * why an entity was excluded,
+  * per-client relevant entity count,
+  * bandwidth pressure.
 
 ---
 
-### 10.5 Prediction and Reconciliation
+### 15.5 Prediction and Reconciliation
 
-- [x] Establish initial reconciliation buffer path.
+* [x] Establish initial reconciliation buffer path.
 
   Represented by:
 
@@ -768,15 +1209,15 @@ Engine/src/SagaEngine/Replication/RelevanceFilter.cpp
   InputAck
   ```
 
-- [ ] Add production client-side prediction.
+* [ ] Add production client-side prediction.
 
   Done means:
 
-  - client can predict local controlled entity,
-  - input commands are stored by tick,
-  - server correction can rewind/replay,
-  - prediction errors are smoothed where appropriate,
-  - severe divergence is corrected safely.
+  * client can predict local controlled entity,
+  * input commands are stored by tick,
+  * server correction can rewind/replay,
+  * prediction errors are smoothed where appropriate,
+  * severe divergence is corrected safely.
 
 Expected files:
 
@@ -784,41 +1225,42 @@ Expected files:
 Engine/include/SagaEngine/Prediction/PredictionBuffer.hpp
 Engine/include/SagaEngine/Prediction/InputCommand.hpp
 Engine/include/SagaEngine/Prediction/InputAck.hpp
+Engine/include/SagaEngine/Prediction/PredictionError.hpp
 Engine/src/SagaEngine/Prediction/PredictionBuffer.cpp
 ```
 
-- [ ] Add reconciliation diagnostics.
+* [ ] Validate prediction-safe graph/script usage.
 
-  Done means diagnostics expose:
+  Done means runtime rejects prediction contexts that attempt to execute artifacts marked:
 
-  - correction count,
-  - correction magnitude,
-  - input delay,
-  - last acknowledged input,
-  - replay count,
-  - severe divergence events.
+  * prediction unsafe,
+  * persistent write,
+  * authoritative write,
+  * server-only,
+  * editor-only.
 
 ---
 
-### 10.6 Interpolation
+### 15.6 Interpolation
 
-- [x] Establish initial interpolation manager.
+* [x] Establish initial interpolation manager path.
 
   Represented by:
 
   ```txt
   InterpolationManager
+  SnapshotApplyPipeline integration
   ```
 
-- [ ] Add production interpolation buffer.
+* [ ] Add production interpolation buffers.
 
   Done means:
 
-  - remote entities interpolate between snapshots,
-  - buffer delay is configurable,
-  - missing snapshots are handled,
-  - teleport/large correction cases are handled,
-  - interpolation does not mutate authoritative state.
+  * remote entity state samples are buffered,
+  * sample ordering is validated,
+  * interpolation delay is configurable,
+  * missing samples are handled gracefully,
+  * diagnostics expose interpolation health.
 
 Expected files:
 
@@ -830,1079 +1272,554 @@ Engine/src/SagaEngine/Interpolation/InterpolationManager.cpp
 
 ---
 
-## 11. Authoritative Simulation Roadmap
+## 16. Authoritative Simulation Roadmap
 
-### 11.1 Server Authority
+* [ ] Add authoritative simulation loop.
 
-- [ ] Make server the source of truth for multiplayer simulation.
+  Done means server simulation:
 
-  Done means:
-
-  - server owns authoritative entity state,
-  - clients submit input intents,
-  - server validates inputs,
-  - server advances simulation ticks,
-  - server emits authoritative snapshots.
-
-- [ ] Add deterministic tick loop.
-
-  Done means:
-
-  - fixed tick rate exists,
-  - tick id is monotonic,
-  - simulation step duration is bounded,
-  - tick overrun is recorded,
-  - simulation does not depend on wall-clock randomness.
+  * advances by explicit ticks,
+  * processes validated inputs,
+  * applies authoritative gameplay logic,
+  * mutates authoritative ECS/world state,
+  * emits replication source state,
+  * records diagnostics.
 
 Expected files:
 
 ```txt
-Engine/include/SagaEngine/Simulation/SimulationTick.hpp
-Engine/include/SagaEngine/Simulation/SimulationClock.hpp
-Engine/src/SagaEngine/Simulation/SimulationClock.cpp
+Engine/include/SagaEngine/Server/AuthoritativeSimulation.hpp
+Engine/include/SagaEngine/Server/ServerTick.hpp
+Engine/src/SagaEngine/Server/AuthoritativeSimulation.cpp
 ```
 
----
+* [ ] Add server gameplay request pipeline.
 
-### 11.2 Input Processing
+  Done means server requests:
 
-- [x] Receive client input commands on server.
+  * decode safely,
+  * validate session/client identity,
+  * validate permissions,
+  * validate gameplay preconditions,
+  * invoke approved graph/script artifact,
+  * emit diagnostics and replication events.
 
-  Represented by:
+* [ ] Add deterministic tick diagnostics.
 
-  ```txt
-  InputCommand receive path
-  InputAck send path
-  ```
+  Done means server can report:
 
-- [ ] Add validated input command pipeline.
-
-  Done means:
-
-  - input command format is versioned,
-  - commands include tick id,
-  - commands include controlled actor/entity id,
-  - commands are validated against permissions/ownership,
-  - invalid commands are rejected with diagnostics.
-
-Expected files:
-
-```txt
-Engine/include/SagaEngine/Input/InputCommand.hpp
-Engine/include/SagaEngine/Input/InputValidationResult.hpp
-Engine/src/SagaEngine/Input/InputCommandValidator.cpp
-```
+  * tick duration,
+  * input count,
+  * graph/script invocation count,
+  * replication output size,
+  * persistence operations,
+  * slow systems.
 
 ---
 
-### 11.3 Entity Authority
+## 17. World Kernel and Zone/Sharding Roadmap
 
-- [ ] Add authority ownership model.
-
-  Done means every networked entity has:
-
-  - authority owner,
-  - replication policy,
-  - relevance policy,
-  - prediction policy where applicable,
-  - permission/ownership validation hooks.
-
-- [ ] Add entity spawn/despawn authority.
-
-  Done means:
-
-  - server controls networked spawn/despawn,
-  - spawn messages are ordered,
-  - despawn is safely applied on client,
-  - stale updates for despawned entities are rejected.
-
----
-
-## 12. World Kernel Roadmap
-
-### 12.1 World Node
-
-- [x] Establish initial `WorldNode` concept.
-
-  Represented by:
-
-  ```txt
-  WorldNode
-  ```
-
-- [ ] Make `WorldNode` production-ready.
-
-  Done means:
-
-  - world node owns a clear simulation domain,
-  - world node has lifecycle states,
-  - world node can load/unload cells,
-  - world node exposes diagnostics,
-  - world node participates in shard/zone ownership.
-
----
-
-### 12.2 SimCell
-
-- [x] Establish initial `SimCell` concept.
+* [x] Establish initial world kernel skeleton.
 
   Represented by:
 
   ```txt
   SimCell
-  ```
-
-- [ ] Make `SimCell` production-ready.
-
-  Done means:
-
-  - cell has stable id,
-  - cell has bounds or logical domain,
-  - cell has entity membership,
-  - cell can be activated/deactivated,
-  - cell can migrate between workers/nodes where supported,
-  - cell diagnostics are available.
-
----
-
-### 12.3 DomainScheduler
-
-- [x] Establish initial `DomainScheduler` skeleton.
-
-  Represented by:
-
-  ```txt
   DomainScheduler
-  ```
-
-- [ ] Implement production domain scheduling.
-
-  Done means:
-
-  - simulation domains are scheduled deterministically where required,
-  - dependencies between domains are respected,
-  - overloaded domains are detected,
-  - scheduling metrics are recorded,
-  - domain failures do not silently corrupt world state.
-
----
-
-### 12.4 EventStream
-
-- [x] Establish initial `EventStream` concept.
-
-  Represented by:
-
-  ```txt
   EventStream
-  ```
-
-- [ ] Implement production event stream.
-
-  Done means:
-
-  - events are ordered,
-  - event payloads are validated,
-  - event memory usage is bounded,
-  - event replay is possible where required,
-  - invalid events are rejected safely.
-
----
-
-### 12.5 RelevanceGraph
-
-- [x] Establish initial `RelevanceGraph` concept.
-
-  Represented by:
-
-  ```txt
   RelevanceGraph
+  WorldNode
   ```
 
-- [ ] Integrate relevance graph with replication.
+* [ ] Add production world kernel ownership model.
 
-  Done means:
+  Done means world kernel supports:
 
-  - relevance graph feeds snapshot builder,
-  - per-client relevance is computed,
-  - entity enter/leave relevance events are generated,
-  - diagnostics explain relevance decisions.
+  * world nodes,
+  * simulation cells,
+  * domain scheduling,
+  * event streams,
+  * relevance graphs,
+  * authority ownership,
+  * diagnostics.
 
----
+* [ ] Add zone authority model.
 
-## 13. Zone and Shard Management
+  Done means zones can define:
 
-### 13.1 Zone Model
+  * zone id,
+  * owning server/shard,
+  * active clients,
+  * relevant entities,
+  * migration/handoff policy,
+  * diagnostics.
 
-- [ ] Define zone ownership model.
+* [ ] Add shard/session policy integration.
 
-  Done means each zone has:
+  Done means server can manage:
 
-  - zone id,
-  - authority owner,
-  - world bounds or logical scope,
-  - active entity set,
-  - client interest set,
-  - migration boundaries,
-  - diagnostics state.
+  * shard id,
+  * session id,
+  * player assignment,
+  * zone assignment,
+  * reconnect/handoff state,
+  * shard diagnostics.
 
 Expected files:
 
 ```txt
-Engine/include/SagaEngine/World/ZoneId.hpp
-Engine/include/SagaEngine/World/ZoneDescriptor.hpp
+Engine/include/SagaEngine/World/WorldKernel.hpp
 Engine/include/SagaEngine/World/ZoneAuthority.hpp
+Engine/include/SagaEngine/World/ShardId.hpp
+Engine/include/SagaEngine/World/ZoneId.hpp
+Engine/src/SagaEngine/World/WorldKernel.cpp
+Engine/src/SagaEngine/World/ZoneAuthority.cpp
 ```
-
-- [ ] Add zone lifecycle.
-
-  Done means zones can be:
-
-  - created,
-  - loaded,
-  - activated,
-  - deactivated,
-  - unloaded,
-  - migrated where supported.
 
 ---
 
-### 13.2 Shard Model
+## 18. Persistence Integration Roadmap
 
-- [ ] Define shard ownership model.
+* [ ] Add server persistence integration boundary.
 
-  Done means each shard has:
-
-  - shard id,
-  - world partition set,
-  - server authority owner,
-  - active player set,
-  - persistence scope,
-  - diagnostics state.
+  Done means server can integrate with persistence systems through approved backend/service boundaries.
 
 Expected files:
 
 ```txt
-Engine/include/SagaEngine/Shard/ShardId.hpp
-Engine/include/SagaEngine/Shard/ShardDescriptor.hpp
-Engine/include/SagaEngine/Shard/ShardManager.hpp
+Engine/include/SagaEngine/Persistence/IPersistenceService.hpp
+Engine/include/SagaEngine/Persistence/PersistenceRequest.hpp
+Engine/include/SagaEngine/Persistence/PersistenceResult.hpp
 ```
 
-- [ ] Add shard boot and shutdown flow.
+* [ ] Add persistence transaction model for gameplay graph/script execution.
 
-  Done means:
+  Done means server-authoritative graph/script operations can declare and execute:
 
-  - shard can start cleanly,
-  - shard can reject invalid configuration,
-  - shard can shutdown gracefully,
-  - connected clients receive shutdown reason,
-  - state flush/persistence hooks are called.
+  * transaction start,
+  * staged writes,
+  * commit,
+  * rollback/failure,
+  * diagnostics.
 
----
+* [ ] Reject persistence writes outside server authority.
 
-### 13.3 Cross-Zone Movement
+  Done means runtime/server validation prevents:
 
-- [ ] Add cross-zone entity transfer.
-
-  Done means:
-
-  - entity can move between zones,
-  - authority transfer is explicit,
-  - replication relevance updates correctly,
-  - client does not observe duplicate authority,
-  - failed transfer rolls back or fails safely.
+  * client-only persistent writes,
+  * predicted persistent writes,
+  * missing transaction policy,
+  * invalid schema version writes.
 
 ---
 
-## 14. ECS and Component Runtime
+## 19. Diagnostics Roadmap
 
-### 14.1 Component Registration
-
-- [ ] Add production component registration.
-
-  Done means:
-
-  - components have stable type ids,
-  - serializers are registered,
-  - replication metadata is registered,
-  - default construction is supported,
-  - invalid component type ids are rejected.
-
-Expected files:
-
-```txt
-Engine/include/SagaEngine/ECS/ComponentTypeId.hpp
-Engine/include/SagaEngine/ECS/ComponentRegistry.hpp
-Engine/src/SagaEngine/ECS/ComponentRegistry.cpp
-```
-
-This is shipping-critical.
-
-If component registration is missing, ECS apply cannot be trusted. Pretending otherwise would be adorable if it were not a direct path to broken replicated entities.
-
----
-
-### 14.2 Entity Lifecycle
-
-- [ ] Add production entity lifecycle.
-
-  Done means entities support:
-
-  - create,
-  - destroy,
-  - activate,
-  - deactivate,
-  - serialize,
-  - replicate,
-  - validate.
-
-Expected files:
-
-```txt
-Engine/include/SagaEngine/ECS/EntityId.hpp
-Engine/include/SagaEngine/ECS/EntityRegistry.hpp
-Engine/src/SagaEngine/ECS/EntityRegistry.cpp
-```
-
----
-
-### 14.3 Component Apply
-
-- [ ] Add validated replicated component apply.
-
-  Done means:
-
-  - component payload type is validated,
-  - component serializer exists,
-  - payload size is bounded,
-  - apply order is deterministic,
-  - invalid payload fails without corrupting entity state.
-
-Expected files:
-
-```txt
-Engine/include/SagaEngine/Replication/ComponentApplyContext.hpp
-Engine/src/SagaEngine/Replication/ComponentApply.cpp
-```
-
----
-
-## 15. Resources and Asset Streaming
-
-### 15.1 Runtime Asset Streaming
-
-- [x] Document implemented runtime asset streaming system.
-
-  Represented by:
-
-  ```txt
-  docs/implementation-notes/AssetStreamingImplementation.md
-  ```
-
-  Preserved decision:
-
-  ```txt
-  Runtime streaming is implemented enough to document as an implementation note, not an active roadmap.
-  ```
-
-- [ ] Keep runtime asset streaming lean.
-
-  Done means runtime streaming owns:
-
-  - async priority-based asset loading,
-  - reference-counted residency caching,
-  - platform memory budgets,
-  - file-backed asset sources,
-  - asset registry manifests,
-  - typed mesh and texture streaming wrappers.
-
-- [ ] Keep editor import/cook workflows outside runtime streaming internals.
-
-  Done means:
-
-  - editor import UX is editor/tool owned,
-  - asset cooking pipeline is separate from runtime streaming,
-  - runtime consumes cooked/validated assets,
-  - runtime does not become a broad third-party asset importer.
-
----
-
-### 15.2 Resource Budgets
-
-- [ ] Add production resource budget system.
-
-  Done means:
-
-  - memory budgets exist per platform/profile,
-  - streaming priority respects budget pressure,
-  - eviction policy is deterministic enough to debug,
-  - budget violations produce diagnostics.
-
-Expected files:
-
-```txt
-Engine/include/SagaEngine/Resources/ResourceBudget.hpp
-Engine/include/SagaEngine/Resources/ResidencyCache.hpp
-Engine/src/SagaEngine/Resources/ResidencyCache.cpp
-```
-
----
-
-### 15.3 Asset Registry
-
-- [ ] Add production asset registry integration.
-
-  Done means:
-
-  - runtime assets have stable ids,
-  - asset metadata can be loaded,
-  - missing assets fail clearly,
-  - invalid asset hashes are detected,
-  - cooked asset manifests are supported.
-
-Expected files:
-
-```txt
-Engine/include/SagaEngine/Assets/AssetId.hpp
-Engine/include/SagaEngine/Assets/AssetManifest.hpp
-Engine/include/SagaEngine/Assets/AssetRegistry.hpp
-Engine/src/SagaEngine/Assets/AssetRegistry.cpp
-```
-
----
-
-## 16. SDE Boundary
-
-- [x] Define SDE as standalone deterministic data compiler.
-
-  Represented by:
-
-  ```txt
-  ENGINE_ROADMAP.md
-  SHARED_ROADMAP.md
-  DependencyGraph.md
-  SDE_ROADMAP.md
-  ```
-
-  Preserved decision:
-
-  ```txt
-  Engine/runtime may consume SDE outputs.
-  Engine must not make SDE depend on engine headers.
-  ```
-
-- [ ] Consume SDE outputs through explicit runtime integration points.
-
-  Done means runtime/server can consume:
-
-  - compiled graph outputs,
-  - artifact references,
-  - schema ids,
-  - stable hashes,
-  - generated artifacts,
-  - diagnostic payloads.
-
-- [ ] Prevent invalid SDE output from publishing runtime state.
-
-  Done means:
-
-  - failed SDE compile blocks unsafe preview/publish,
-  - invalid artifact references fail clearly,
-  - runtime does not silently load invalid graph artifacts.
-
-Forbidden dependency direction:
-
-```txt
-SDE → Saga
-SDE → SagaEngine
-SDE → SagaEditor
-SDE → SagaServer
-SDE → SagaShared
-SDE → SagaCollaboration
-SDE → Forge
-SDE → Prism
-SDE → SagaTools
-```
-
----
-
-## 17. Collaboration Boundary
-
-- [x] Define collaboration as product/session capability, not runtime gameplay policy.
-
-  Represented by:
-
-  ```txt
-  COLLABORATION_ROADMAP.md
-  DependencyGraph.md
-  ENGINE_ROADMAP.md
-  ```
-
-- [ ] Allow runtime/server to consume collaboration services only through stable APIs.
-
-  Done means:
-
-  - runtime/server may consume `SagaShared` contracts,
-  - runtime/server may consume `SagaCollaboration` service APIs,
-  - runtime/server never include editor-private collaboration headers.
-
-Allowed:
-
-```txt
-Runtime/Server → SagaShared contracts
-Runtime/Server → SagaCollaboration service APIs
-```
-
-Forbidden:
-
-```txt
-Runtime/Server → Editor/include/SagaEditor/Collaboration
-Runtime/Server → editor UI
-Runtime/Server → product shell internals
-```
-
-- [ ] Keep runtime multiplayer policy separate from editor collaboration policy.
-
-  Runtime/game policy optimizes for:
-
-  - low latency,
-  - server authority,
-  - prediction,
-  - reconciliation,
-  - relevance filtering,
-  - bandwidth control.
-
-  Editor collaboration policy optimizes for:
-
-  - correctness,
-  - visibility,
-  - permissions,
-  - edit ownership,
-  - conflict handling,
-  - safe publishing.
-
-Shared primitives may exist.
-
-Shared policy should not be blindly merged, unless the plan is to create one bug that can ruin two systems at once.
-
----
-
-## 18. Diagnostics and Telemetry
-
-### 18.1 Runtime Diagnostics
-
-- [ ] Add runtime diagnostics service.
+* [ ] Add runtime/server structured diagnostics.
 
   Done means diagnostics can report:
 
-  - simulation tick timing,
-  - replication state,
-  - packet loss,
-  - interpolation buffer health,
-  - prediction corrections,
-  - resource budget pressure,
-  - asset loading failures.
+  * package manifest errors,
+  * artifact loading errors,
+  * graph artifact validation errors,
+  * script binding errors,
+  * asset manifest errors,
+  * network errors,
+  * replication errors,
+  * prediction/reconciliation errors,
+  * simulation tick warnings,
+  * persistence failures,
+  * security/rate-limit issues.
 
 Expected files:
 
 ```txt
 Engine/include/SagaEngine/Diagnostics/RuntimeDiagnostic.hpp
-Engine/include/SagaEngine/Diagnostics/IRuntimeDiagnostics.hpp
-Engine/src/SagaEngine/Diagnostics/RuntimeDiagnostics.cpp
+Engine/include/SagaEngine/Diagnostics/RuntimeDiagnosticSink.hpp
+Engine/include/SagaEngine/Diagnostics/ServerDiagnostic.hpp
+Engine/src/SagaEngine/Diagnostics/RuntimeDiagnostic.cpp
+Engine/src/SagaEngine/Diagnostics/ServerDiagnostic.cpp
 ```
 
----
+* [ ] Add diagnostics source mapping to artifacts.
 
-### 18.2 Server Diagnostics
+  Done means runtime/server diagnostics can reference:
 
-- [ ] Add server diagnostics service.
+  * package id,
+  * artifact id,
+  * graph id,
+  * script binding id,
+  * asset id,
+  * entity id where safe,
+  * connection/session id,
+  * tick id.
 
-  Done means diagnostics can report:
+* [ ] Add health and metrics reporting.
 
-  - active clients,
-  - connection states,
-  - packet rates,
-  - invalid packet counts,
-  - input rejection counts,
-  - simulation tick health,
-  - snapshot send budget,
-  - shard/zone load.
+  Done means runtime/server can expose:
 
-Expected files:
-
-```txt
-Server/include/SagaServer/Diagnostics/ServerDiagnostic.hpp
-Server/include/SagaServer/Diagnostics/IServerDiagnostics.hpp
-Server/src/SagaServer/Diagnostics/ServerDiagnostics.cpp
-```
-
----
-
-### 18.3 Network Debug Views
-
-- [ ] Add network debugging output.
-
-  Done means developers can inspect:
-
-  - connection state,
-  - round-trip time,
-  - packet loss,
-  - packet type counts,
-  - reliable resend count,
-  - snapshot age,
-  - last acknowledged input.
+  * frame/tick timing,
+  * packet rates,
+  * invalid packet count,
+  * replication bandwidth,
+  * asset streaming pressure,
+  * memory usage,
+  * graph/script invocation metrics,
+  * persistence latency.
 
 ---
 
-## 19. Persistence and Backend Integration
+## 20. Testing Strategy
 
-- [ ] Define backend access boundaries.
+### 20.1 Dependency Boundary Tests
 
-  Done means:
-
-  - server accesses persistence through interfaces,
-  - runtime client does not own database connections,
-  - engine core does not know backend schemas,
-  - backend failures are surfaced through diagnostics.
-
-Expected files:
-
-```txt
-Server/include/SagaServer/Persistence/IPersistenceBackend.hpp
-Server/include/SagaServer/Persistence/PlayerStateRecord.hpp
-Server/src/SagaServer/Persistence/PersistenceService.cpp
-```
-
-- [ ] Add authoritative state persistence hooks.
-
-  Done means:
-
-  - shard/server can flush state,
-  - player state can be saved,
-  - world state can be snapshotted where required,
-  - persistence failure has safe fallback behavior.
-
----
-
-## 20. Runtime Preview Integration
-
-- [ ] Support runtime preview as a consumer of engine runtime.
-
-  Done means:
-
-  - editor can start runtime preview through approved service boundary,
-  - runtime preview does not include editor-private implementation,
-  - preview can report diagnostics back to editor,
-  - stopping preview restores safe authoring state.
-
-- [ ] Support multiplayer preview test sessions.
-
-  Done means:
-
-  - editor/product can launch local client/server test sessions,
-  - runtime/server use stable descriptors,
-  - server-private headers do not leak into editor,
-  - network/session diagnostics are visible.
-
----
-
-## 21. Concurrency and Tasking
-
-- [ ] Add production task scheduler boundaries.
-
-  Done means:
-
-  - runtime jobs are scheduled through engine task primitives,
-  - server simulation work can be partitioned,
-  - resource loading jobs are bounded,
-  - diagnostics expose queue depth and job timing.
-
-Expected files:
-
-```txt
-Engine/include/SagaEngine/Tasks/TaskScheduler.hpp
-Engine/include/SagaEngine/Tasks/TaskHandle.hpp
-Engine/src/SagaEngine/Tasks/TaskScheduler.cpp
-```
-
-- [ ] Define thread ownership for replication pipeline.
-
-  Done means:
-
-  - network receive thread ownership is explicit,
-  - decode/apply thread ownership is explicit,
-  - simulation thread mutation rules are explicit,
-  - cross-thread handoff is bounded and validated.
-
-- [ ] Add data race protection tests for runtime/server critical paths.
-
----
-
-## 22. Determinism and Simulation Correctness
-
-- [ ] Define deterministic runtime constraints.
-
-  Done means:
-
-  - simulation tick order is explicit,
-  - deterministic systems avoid wall-clock dependency,
-  - random sources are seeded and controlled,
-  - floating-point risk areas are documented,
-  - replay can validate important deterministic behavior.
-
-- [ ] Add replayable simulation test path.
-
-  Done means:
-
-  - recorded input stream can be replayed,
-  - simulation result can be hashed,
-  - divergence can be detected,
-  - replay diagnostics identify first divergent tick where possible.
-
-Expected files:
-
-```txt
-Engine/include/SagaEngine/Replay/ReplayStream.hpp
-Engine/include/SagaEngine/Replay/ReplayRunner.hpp
-Engine/src/SagaEngine/Replay/ReplayRunner.cpp
-```
-
----
-
-## 23. Testing Roadmap
-
-### 23.1 Unit Tests
-
-- [ ] Add unit tests for packet codec.
-
-  Required coverage:
-
-  - valid packet decode,
-  - invalid packet type,
-  - oversized packet,
-  - truncated packet,
-  - version mismatch.
-
-- [ ] Add unit tests for replication state machine.
-
-  Required coverage:
-
-  - valid transitions,
-  - invalid transitions,
-  - stale snapshot rejection,
-  - resync transition,
-  - failure transition.
-
-- [ ] Add unit tests for component registration and apply.
-
-  Required coverage:
-
-  - valid component type,
-  - missing serializer,
-  - invalid payload,
-  - deterministic apply order.
-
----
-
-### 23.2 Integration Tests
-
-- [ ] Add client/server connection integration test.
-
-  Done means:
-
-  - server starts,
-  - client connects,
-  - handshake completes,
-  - client receives snapshot,
-  - client disconnects cleanly.
-
-- [ ] Add replication integration test.
-
-  Done means:
-
-  - server changes authoritative state,
-  - snapshot is sent,
-  - client applies update,
-  - interpolation receives state,
-  - invalid snapshot is rejected.
-
-- [ ] Add prediction/reconciliation integration test.
-
-  Done means:
-
-  - client sends inputs,
-  - server acknowledges inputs,
-  - client reconciles correction,
-  - final state matches authority.
-
----
-
-### 23.3 Load and Soak Tests
-
-- [ ] Add server load test harness.
-
-  Done means:
-
-  - simulated clients can connect,
-  - packet rate can be configured,
-  - snapshot rate can be configured,
-  - server tick health is measured,
-  - packet loss/latency can be simulated.
-
-- [ ] Add long-running soak test.
-
-  Done means:
-
-  - server runs for extended duration,
-  - memory growth is tracked,
-  - connection churn is simulated,
-  - resource loading is exercised,
-  - diagnostics are collected.
-
----
-
-## 24. CI and Architecture Enforcement
-
-- [ ] Add forbidden include scanner.
+* [ ] Add compile/include boundary tests.
 
   Required checks:
 
-```txt
-Engine/** must not include Editor/**
-Engine/** must not include Apps/**
-Engine/** must not include Saga product shell internals/**
-Engine/** must not include Server/private/**
-Runtime/** must not include Editor/include/SagaEditor/Collaboration/**
-Server/** must not include Editor/include/SagaEditor/Collaboration/**
-SDE/** must not include SagaEngine/**
-```
-
-- [ ] Add CMake dependency validation.
-
-  Bad examples:
-
-```txt
-EngineCore → SagaEditor
-EngineCore → Apps/Saga
-EngineCore → SagaCollaboration implementation
-SagaShared → Engine runtime internals
-SDE → SagaEngine
-```
-
-- [x] Decouple `SagaEngine` public headers from `SagaServer` packet types.
-
-  Represented by:
-
-```txt
-Engine/include/SagaEngine/Networking/NetworkTypes.h
-Engine/include/SagaEngine/Networking/Packet.h
-Engine/include/SagaEngine/Networking/Replication/SnapshotBuilder.h
-Shared/include/SagaShared/Replication/SnapshotContracts.hpp
-Tools/scripts/check_engine_server_boundary.py
-```
-
-  Preserved rule:
-
-  ```txt
-  SagaEngine public headers must not require Server/include.
-  ```
-
-- [ ] Add protocol compatibility tests to CI.
-
-  Done means incompatible packet/protocol changes fail loudly instead of becoming runtime archaeology.
+  * Engine/Core does not include Editor,
+  * Runtime does not include Editor private headers,
+  * Server does not include Editor,
+  * Runtime/server do not include SDE compiler internals,
+  * Runtime/server do not include Forge/Prism internals,
+  * Runtime/server do not include asset pipeline implementation,
+  * Runtime/server do not include scripting compiler implementation.
 
 ---
 
-## 25. Deployment-Facing Server Roadmap
+### 20.2 Package and Artifact Tests
 
-- [ ] Add server configuration model.
+* [ ] Add package manifest validation tests.
 
-  Done means server config supports:
+  Required coverage:
 
-  - bind address,
-  - port,
-  - tick rate,
-  - max clients,
-  - shard id,
-  - logging level,
-  - persistence backend config,
-  - development/production mode.
+  * valid client package loads,
+  * valid server package loads,
+  * missing manifest rejected,
+  * unsupported version rejected,
+  * wrong package kind rejected,
+  * missing artifact rejected,
+  * hash mismatch rejected.
 
-Expected files:
+* [ ] Add graph artifact tests.
 
-```txt
-Server/include/SagaServer/Config/ServerConfig.hpp
-Server/src/SagaServer/Config/ServerConfigLoader.cpp
-```
+  Required coverage:
 
-- [ ] Add graceful shutdown.
+  * client-safe graph loads in runtime,
+  * server graph loads in server,
+  * server-only graph rejected in client runtime,
+  * editor-only graph rejected in runtime/server,
+  * invalid authority manifest rejected.
 
-  Done means:
+* [ ] Add script binding tests.
 
-  - server stops accepting new clients,
-  - connected clients receive shutdown reason,
-  - state flush hooks run,
-  - sockets close cleanly,
-  - shutdown diagnostics are emitted.
+  Required coverage:
 
-- [ ] Add health endpoint or health reporter.
+  * valid client script binding loads,
+  * valid server script binding loads,
+  * missing binding manifest rejected,
+  * signature mismatch rejected,
+  * server-only script rejected in client runtime.
 
-  Done means deployment systems can inspect:
+* [ ] Add asset manifest tests.
 
-  - process health,
-  - active clients,
-  - tick health,
-  - shard state,
-  - backend state.
+  Required coverage:
 
----
-
-## 26. Migration Plan
-
-- [ ] Move roadmap ownership language to Saga product architecture.
-
-  Done means engine docs no longer imply editor binary or engine owns product lifecycle.
-
-- [ ] Move runtime correctness contracts into formal specs.
-
-  Done means long-term invariants live in:
-
-```txt
-docs/specs/replication/ClientReplicationFormalSpec.md
-```
-
-  while roadmap progress remains in:
-
-```txt
-ENGINE_ROADMAP.md
-```
-
-- [ ] Move implementation history out of active roadmaps.
-
-  Done means asset streaming implementation history lives in:
-
-```txt
-docs/implementation-notes/AssetStreamingImplementation.md
-```
-
-- [ ] Extract shared contracts away from runtime-private/editor-private locations.
-
-  Done means neutral contracts live in:
-
-```txt
-SagaShared
-```
-
-- [ ] Keep collaboration implementation out of engine runtime policy.
-
-  Done means collaboration implementation lives in:
-
-```txt
-SagaCollaboration
-```
-
-  and runtime/server consume only stable APIs where needed.
+  * valid texture/mesh artifact loads,
+  * missing artifact diagnostic,
+  * hash mismatch diagnostic,
+  * unsupported asset kind diagnostic,
+  * memory budget diagnostic.
 
 ---
 
-## 27. Non-Goals
+### 20.3 Networking and Replication Tests
 
-This roadmap does not own:
+* [ ] Add transport tests.
 
-- Saga product shell,
-- project dashboard UX,
-- editor docking/panels,
-- editor asset import UX,
-- final collaboration implementation,
-- collaboration UI,
-- SDE compiler internals,
-- Forge build frontend behavior,
-- Prism code intelligence behavior,
-- SagaTools command dispatch behavior,
-- marketing/product packaging.
+  Required coverage:
 
-Related ownership:
+  * UDP send/receive,
+  * in-memory transport,
+  * malformed packet rejection,
+  * oversized packet rejection,
+  * disconnect/timeout behavior.
 
-| Area | Owner |
-|---|---|
-| Product shell | `Saga` |
-| Authoring UI | `SagaEditor` |
-| Shared contracts | `SagaShared` |
-| Collaboration implementation | `SagaCollaboration` |
-| SDE compiler | `SDE` |
-| Tool ecosystem | `TOOLS_ROADMAP.md` |
-| Runtime/server systems | `SagaEngine` / `SagaServer` |
+* [ ] Add replication formal-spec tests.
+
+  Required coverage:
+
+  * handshake transition,
+  * waiting baseline state,
+  * stale snapshot rejection,
+  * delta missing baseline rejection,
+  * correction/reconciliation flow,
+  * interpolation buffer update.
 
 ---
 
-## 28. Production Definition of Done
+### 20.4 Security Tests
 
-- [ ] Engine/Core has no upward dependencies into product/editor/server/tool ownership.
+* [ ] Add server trust-boundary tests.
 
-- [ ] Server is authoritative for multiplayer simulation.
+  Required coverage:
 
-- [ ] Client/server networking is hardened against malformed input.
-
-- [ ] Packet protocol is versioned, validated, and diagnosed.
-
-- [ ] Replication supports snapshots, deltas, relevance, stale rejection, and resync.
-
-- [ ] Client prediction and reconciliation are production-safe.
-
-- [ ] Interpolation is stable and diagnostic-friendly.
-
-- [ ] World kernel systems are production-ready, not skeleton-only.
-
-- [ ] Zone/shard ownership is explicit.
-
-- [ ] ECS component registration and replicated apply are reliable.
-
-- [ ] Runtime asset streaming is bounded by platform budgets.
-
-- [ ] SDE outputs are consumed through explicit integration points only.
-
-- [ ] Runtime/server consume collaboration services only through stable APIs.
-
-- [ ] Diagnostics exist for runtime, server, network, replication, resource, and simulation failures.
-
-- [ ] Unit, integration, load, and soak tests cover critical runtime/server behavior.
-
-- [ ] CI enforces forbidden dependency directions.
+  * client request cannot mutate inventory directly,
+  * client request cannot spawn authoritative entity directly,
+  * invalid graph/script request rejected,
+  * rate limit enforced,
+  * unauthenticated production session rejected.
 
 ---
 
-## 29. Final Architecture Rule
+### 20.5 Simulation and Persistence Tests
 
-The engine architecture should remain:
+* [ ] Add authoritative simulation tests.
+
+  Required coverage:
+
+  * validated input processing,
+  * authoritative graph invocation,
+  * authoritative script invocation,
+  * replication output generation,
+  * diagnostics emission.
+
+* [ ] Add persistence boundary tests.
+
+  Required coverage:
+
+  * server transaction commit,
+  * server transaction rollback,
+  * client persistent write rejected,
+  * predicted persistent write rejected,
+  * schema mismatch rejected.
+
+---
+
+## 21. MVP Vertical Slice
+
+The first runtime/server vertical slice should connect package consumption, graph/script/asset artifacts, and authoritative multiplayer behavior.
+
+Required scenario:
 
 ```txt
-Saga
-  owns product lifecycle and primary executable
-
-SagaEditor
-  owns authoring UX
-
-SagaEngine / Runtime
-  owns game execution and runtime primitives
-
-SagaServer
-  owns multiplayer authority and server policy
-
-SagaShared
-  owns neutral contracts
-
-SagaCollaboration
-  owns collaboration implementation
-
-SDE
-  owns deterministic data compilation
-
-Tools
-  own standalone workflows
+MMO Starter local client/server preview
 ```
 
-Engine code should be boring, stable, and difficult to misuse.
+Required contents:
 
-That sounds unglamorous because it is.
+* one client package,
+* one server package,
+* one asset manifest with one cooked texture,
+* one server-only quest reward graph artifact,
+* one C# pure helper binding manifest,
+* one client UI/presentation graph or script,
+* one server authoritative quest completion request path.
 
-It is also how engines survive longer than one heroic refactor and three optimistic TODO comments.
+Required behavior:
+
+1. Runtime loads client package manifest.
+2. Runtime loads asset manifest and texture artifact through runtime streaming.
+3. Runtime rejects any server-only executable artifact in client package.
+4. Server loads server package manifest.
+5. Server loads authoritative quest reward graph artifact.
+6. Server loads C# helper binding manifest.
+7. Client sends quest completion request as intent.
+8. Server validates request.
+9. Server executes authoritative graph/script path.
+10. Server mutates authoritative state and persistence transaction.
+11. Server emits replicated state.
+12. Client receives snapshot/update.
+13. Client applies authoritative result through replication pipeline.
+14. Diagnostics identify package/artifact/request/replication state.
+
+This slice proves the new architecture is not just a documentation constellation.
+
+It proves authoring artifacts can actually reach runtime/server safely.
+
+---
+
+## 22. Non-Goals
+
+SagaEngine runtime/server must not become:
+
+* Saga product shell,
+* editor authoring UX,
+* SDE compiler,
+* Forge build frontend,
+* Prism code intelligence engine,
+* asset importer/cooker,
+* C# script compiler,
+* collaboration product workflow owner,
+* backend administration UI,
+* product dashboard,
+* general-purpose tool dispatcher.
+
+The runtime/server foundation should execute validated artifacts.
+
+It should not create, author, compile, cook, package, and publish them too.
+
+---
+
+## 23. Risk Register
+
+### 23.1 Risk: Runtime Starts Importing Source Assets
+
+Mitigation:
+
+* runtime consumes cooked/runtime-ready artifacts,
+* asset import/cook remains in asset pipeline/Forge/editor tooling,
+* shipping runtime rejects source-only assets.
+
+---
+
+### 23.2 Risk: Server Trusts Client Graph/Script Requests
+
+Mitigation:
+
+* client request is intent only,
+* server validates session/identity/permissions/preconditions,
+* authoritative graph/script invocation happens only on server,
+* invalid request emits diagnostics and can disconnect/rate-limit.
+
+---
+
+### 23.3 Risk: Runtime Loads Wrong Artifact Domain
+
+Mitigation:
+
+* package manifests declare artifact destination,
+* authority manifests declare execution domain,
+* runtime/server validate package kind and artifact metadata at startup.
+
+---
+
+### 23.4 Risk: SDE/Forge/Prism Internals Leak Into Runtime
+
+Mitigation:
+
+* consume manifests/artifacts/reports only,
+* enforce include boundary checks,
+* keep compiler/build/analyzer internals out of runtime/server.
+
+---
+
+### 23.5 Risk: Script Host Bypasses Authority Model
+
+Mitigation:
+
+* script binding manifests include authority metadata,
+* runtime/server validate binding manifests,
+* server request flow controls authoritative invocation,
+* client package rejects server-only script artifacts.
+
+---
+
+### 23.6 Risk: Package Validation Is Treated As Optional
+
+Mitigation:
+
+* runtime/server startup validates manifests,
+* invalid required package state fails startup,
+* diagnostics identify exact missing/incompatible artifacts.
+
+---
+
+## 24. Suggested File Targets
+
+Expected package/artifact files:
+
+```txt
+Engine/include/SagaEngine/Packages/PackageManifest.hpp
+Engine/include/SagaEngine/Packages/PackageManifestLoader.hpp
+Engine/include/SagaEngine/Packages/PackageValidator.hpp
+Engine/include/SagaEngine/Artifacts/ArtifactManifest.hpp
+Engine/include/SagaEngine/Artifacts/ArtifactManifestLoader.hpp
+Engine/src/SagaEngine/Packages/PackageManifestLoader.cpp
+Engine/src/SagaEngine/Packages/PackageValidator.cpp
+Engine/src/SagaEngine/Artifacts/ArtifactManifestLoader.cpp
+```
+
+Expected graph/authority files:
+
+```txt
+Engine/include/SagaEngine/Graph/CompiledGraphArtifact.hpp
+Engine/include/SagaEngine/Graph/CompiledGraphLoader.hpp
+Engine/include/SagaEngine/Graph/GraphArtifactRegistry.hpp
+Engine/include/SagaEngine/Authority/AuthorityManifest.hpp
+Engine/include/SagaEngine/Authority/AuthorityValidator.hpp
+Engine/src/SagaEngine/Graph/CompiledGraphLoader.cpp
+Engine/src/SagaEngine/Graph/GraphArtifactRegistry.cpp
+Engine/src/SagaEngine/Authority/AuthorityValidator.cpp
+```
+
+Expected scripting files:
+
+```txt
+Engine/include/SagaEngine/Scripting/IScriptHost.hpp
+Engine/include/SagaEngine/Scripting/ScriptBindingManifest.hpp
+Engine/include/SagaEngine/Scripting/ScriptBindingRegistry.hpp
+Engine/include/SagaEngine/Scripting/ScriptRuntimeConfig.hpp
+Engine/src/SagaEngine/Scripting/ScriptBindingRegistry.cpp
+```
+
+Expected asset files:
+
+```txt
+Engine/include/SagaEngine/Assets/AssetManifest.hpp
+Engine/include/SagaEngine/Assets/AssetRegistry.hpp
+Engine/include/SagaEngine/Assets/AssetHandle.hpp
+Engine/include/SagaEngine/Assets/AssetDiagnostic.hpp
+Engine/src/SagaEngine/Assets/AssetManifestLoader.cpp
+Engine/src/SagaEngine/Assets/AssetRegistry.cpp
+```
+
+Expected network/replication files:
+
+```txt
+Engine/include/SagaEngine/Network/ITransport.hpp
+Engine/include/SagaEngine/Network/ConnectionStateMachine.hpp
+Engine/include/SagaEngine/Network/PacketEnvelope.hpp
+Engine/include/SagaEngine/Replication/SnapshotBuilder.hpp
+Engine/include/SagaEngine/Replication/ReplicationStateMachine.hpp
+Engine/include/SagaEngine/Prediction/PredictionBuffer.hpp
+Engine/include/SagaEngine/Interpolation/InterpolationManager.hpp
+```
+
+Expected server/world files:
+
+```txt
+Engine/include/SagaEngine/Server/AuthoritativeSimulation.hpp
+Engine/include/SagaEngine/Server/ServerPackageValidator.hpp
+Engine/include/SagaEngine/World/WorldKernel.hpp
+Engine/include/SagaEngine/World/ZoneAuthority.hpp
+Engine/include/SagaEngine/Persistence/IPersistenceService.hpp
+```
+
+---
+
+## 25. Decision Summary
+
+Preserve these decisions:
+
+```txt
+SagaEngine owns runtime/server execution foundations.
+Saga owns product lifecycle.
+Editor owns authoring UX.
+SDE owns deterministic source compilation.
+Forge owns build/cook/package orchestration.
+Prism owns code/artifact analysis.
+Runtime/server consume packaged artifacts and manifests.
+Runtime streaming consumes runtime-ready assets only.
+Server authority remains mandatory for MMO gameplay truth.
+Client input is intent, not truth.
+Client prediction is temporary and correctable.
+Graph/script artifacts must carry authority/execution metadata.
+Runtime/server validate package/artifact manifests before execution.
+Server invokes authoritative graph/script behavior only after request validation.
+Runtime/server must not include editor/tool/compiler private internals.
+```
+
+The engine should be the place where validated artifacts become execution.
+
+Not the place where every authoring, build, and product workflow goes to avoid having a real owner.

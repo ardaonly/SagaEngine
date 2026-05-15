@@ -1,25 +1,48 @@
-# Prism — Code Intelligence Roadmap
+# Prism — Code and Artifact Intelligence Roadmap
 
-> Last updated: 2026-05-14  
-> Status: Active roadmap  
-> Target: A production-grade code intelligence and graph analysis tool for Saga projects.  
-> Scope: Source indexing, symbol discovery, include/dependency graph generation, semantic metadata extraction, query APIs, diagnostics, stale generated-code detection, build insight support, and integration with Forge, SDE, SagaTools, and editor tooling through stable outputs.
+> Last updated: 2026-05-15
+> Status: Active roadmap
+> Target: A production-grade static/code/artifact intelligence tool that indexes project source, generated outputs, SDE manifests, script binding manifests, asset/cooked artifact manifests, package manifests, and dependency boundaries without becoming the compiler, build system, asset cooker, script host, runtime, server, editor, or product shell.
+> Scope: Source indexing, symbol extraction, include/dependency graph analysis, boundary validation, generated code origin tracking, stale artifact detection, SDE output analysis, graph artifact relationship analysis, C# block binding metadata analysis, asset/cooked artifact relationship analysis, package manifest consistency analysis, diagnostics/report generation, CI integration, editor report consumption, and Forge integration.
 
 ---
 
 ## 0. Roadmap Convention
 
-- `[x]` — Shipped. The note after the item names the files, modules, or integration points that represent the work and highlights any decisions worth preserving.
-- `[ ]` — Open. Either unstarted or partially explored; the item describes the finished production state rather than interim scaffolding.
-- Shipped items must name the files, modules, or integration points that represent the completed work.
-- Open items must describe the finished state, not temporary scaffolding.
-- Prism owns code intelligence and graph analysis.
-- Prism does not own SDE compiler truth.
-- Prism does not own Forge build workflow.
-- Prism does not own SagaTools dispatch.
-- Prism does not own Saga product shell.
-- Prism does not own editor UI.
-- Prism may consume stable outputs from SDE, Forge, and shared contracts where explicitly approved.
+* `[x]` — Shipped. The note after the item names the files, modules, commands, tests, reports, or integration points that represent completed work.
+* `[ ]` — Open. The item describes the finished production state, not temporary scaffolding.
+* Shipped Prism work must include command behavior, indexed data, report formats, tests, and integration evidence where practical.
+* Open Prism work must describe observable analysis behavior, not vague tooling ambition.
+* Prism is an analysis tool.
+* Prism is not SDE.
+* Prism is not Forge.
+* Prism is not the C++ compiler.
+* Prism is not the C# script compiler.
+* Prism is not the asset importer/cooker.
+* Prism is not the Saga product shell.
+* Prism is not SagaEditor.
+* Prism is not runtime/server authority.
+* Prism may read source files, generated files, manifests, reports, and package metadata.
+* Prism may emit diagnostics and machine-readable reports.
+* Prism must not become the owner of build execution, source compilation, runtime execution, or artifact generation.
+
+Prism should answer:
+
+```txt
+What depends on what?
+What generated this file?
+Is this artifact stale?
+Did a boundary rule break?
+Does this package contain what it claims?
+```
+
+Prism should not answer:
+
+```txt
+Can I compile, cook, package, execute, and publish everything myself?
+```
+
+That is how analysis tools become confused build systems with worse error messages.
 
 ---
 
@@ -27,1610 +50,1355 @@
 
 This document defines the roadmap for Prism.
 
-Prism is Saga’s code intelligence and graph analysis tool.
-
-It exists to help developers understand the codebase, generated artifacts, symbol relationships, dependency direction, include graphs, and stale or invalid generated outputs.
+Prism is Saga's code and artifact intelligence tool. It exists to analyze relationships between source code, generated code, SDE outputs, graph artifacts, script bindings, cooked asset artifacts, package manifests, build reports, and dependency boundaries.
 
 Prism owns:
 
-- source indexing,
-- symbol discovery,
-- include graph analysis,
-- dependency graph generation,
-- code ownership graph generation,
-- generated-code relationship analysis,
-- stale generated-code detection,
-- semantic metadata extraction where safe,
-- query APIs,
-- diagnostics,
-- graph export,
-- build insight support.
+* source file discovery,
+* C++ include/symbol indexing where supported,
+* C# source indexing where supported,
+* generated code origin tracking,
+* dependency graph analysis,
+* architecture boundary validation,
+* stale generated code detection,
+* stale graph artifact detection,
+* stale script binding manifest detection,
+* stale cooked asset artifact detection,
+* SDE artifact/source map/dependency manifest analysis,
+* package manifest relationship analysis,
+* report generation,
+* CI-friendly diagnostics,
+* editor/Forge-consumable report formats.
 
 Prism does not own:
 
-- SDE parsing truth,
-- SDE semantic validation truth,
-- SDE artifact emission,
-- Forge build workflow execution,
-- SagaTools command routing,
-- Saga product shell,
-- editor UI,
-- runtime/server execution,
-- collaboration implementation.
+* SDE compilation,
+* C++ compilation,
+* C# compilation,
+* asset import/cook,
+* Forge build planning/execution,
+* package staging,
+* Saga product lifecycle,
+* editor UI,
+* runtime/server execution,
+* server authority enforcement,
+* collaboration backend,
+* artifact generation.
 
 Correct model:
 
 ```txt
-Prism
-  indexes and analyzes code/artifact relationships
-
-SDE
-  compiles deterministic data definitions
-
-Forge
-  coordinates build workflow
-
-SagaTools
-  dispatches tool commands
-
-Editor/Product
-  may consume Prism outputs through stable reports or APIs
+Project source + generated files + manifests + reports
+      ↓
+Prism analysis
+      ↓
+relationship graph + diagnostics + reports
+      ↓
+Forge / SagaEditor / CI / Saga consume reports
 ```
 
 Incorrect model:
 
 ```txt
-Prism becomes compiler, build tool, editor backend, and product service.
+Prism notices stale generated code, so Prism regenerates it and edits the build output.
 ```
 
-That is not code intelligence.
+No. That is Forge/SDE/script/asset pipeline territory.
 
-That is a tool having a midlife crisis with a graph database.
+Prism observes, verifies, and reports.
 
 ---
 
 ## 2. Companion Documents
 
-| Document | Purpose |
-|---|---|
-| `docs/roadmaps/TOOLS_ROADMAP.md` | Tool ecosystem ownership index |
-| `Tools/Prism/PRISM_ROADMAP.md` | Prism code intelligence roadmap |
-| `Tools/SystemDefinitionEngine/SDE_ROADMAP.md` | SDE deterministic data compiler roadmap |
-| `Tools/Forge/FORGE_ROADMAP.md` | Forge build workflow frontend roadmap |
-| `Tools/SagaTools/SAGATOOLS_ROADMAP.md` | Thin tool dispatcher roadmap |
-| `SHARED_ROADMAP.md` | Shared contracts and artifact references |
-| `DependencyGraph.md` | Dependency ownership and compile-time architecture rules |
-| `ENGINE_ROADMAP.md` | Runtime/server ownership boundaries |
-| `EDITOR_ROADMAP.md` | Editor-side consumption boundaries |
+| Document                            | Purpose                                                                                         |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `TOOLS_ROADMAP.md`                  | Tool ecosystem ownership index                                                                  |
+| `FORGE_ROADMAP.md`                  | Build workflow frontend that invokes Prism checks and consumes reports                          |
+| `SDE_ROADMAP.md`                    | Standalone deterministic compiler that emits manifests/source maps Prism can read               |
+| `SAGA_GAMEPLAY_GRAPH_ROADMAP.md`    | Gameplay graph artifacts and generated code relationship model                                  |
+| `AUTHORING_AUTHORITY_MODEL.md`      | Authority metadata relationships Prism can check for staleness/mismatch                         |
+| `SAGA_SCRIPTING_ROADMAP.md`         | C# block binding, generated C# origin, script artifact relationship model                       |
+| `ASSET_PIPELINE_ROADMAP.md`         | Source asset → cooked artifact relationship model                                               |
+| `BUILD_PUBLISH_PIPELINE_ROADMAP.md` | Build/package/publish pipeline where Prism checks run as gates                                  |
+| `SHARED_ROADMAP.md`                 | Shared artifact/diagnostic/package contracts used in reports                                    |
+| `EDITOR_ROADMAP.md`                 | Editor panels consume Prism reports for navigation and diagnostics                              |
+| `ENGINE_ROADMAP.md`                 | Runtime/server consume artifacts that Prism can validate for freshness/relationship consistency |
+| `DependencyGraph.md`                | Architecture boundary rules Prism should validate                                               |
+| `forge.toml — Schema Reference`     | Forge project/build manifest Prism may inspect                                                  |
 
 ---
 
-## 3. Ownership Boundary
+## 3. Current Intended Position
 
-- [x] Define Prism as code intelligence and graph builder.
+* [x] Define Prism as a code/artifact intelligence tool, not compiler/build owner.
 
   Represented by:
 
   ```txt
-  Tools/Prism/PRISM_ROADMAP.md
-  docs/roadmaps/TOOLS_ROADMAP.md
-  DependencyGraph.md
+  PRISM_ROADMAP.md
+  TOOLS_ROADMAP.md
+  FORGE_ROADMAP.md
+  BUILD_PUBLISH_PIPELINE_ROADMAP.md
   ```
 
   Preserved decision:
 
   ```txt
-  Prism indexes and analyzes.
-  Prism does not compile, build, dispatch, run the editor, or own product workflow.
+  Prism analyzes source and artifacts.
+  Prism does not compile, build, cook, or execute.
   ```
 
-- [ ] Keep Prism focused on code intelligence.
+* [ ] Keep Prism independently usable.
 
-  Done means Prism owns:
+  Done means Prism can run as:
 
-  - source file discovery,
-  - symbol extraction,
-  - include graph generation,
-  - dependency graph analysis,
-  - ownership boundary reports,
-  - generated artifact relationship reports,
-  - stale generated-code detection,
-  - query output,
-  - graph export,
-  - diagnostics.
+  * standalone CLI,
+  * CI command,
+  * Forge-invoked analysis step,
+  * editor-consumed report generator,
+  * developer local diagnostic tool.
 
-- [ ] Prevent Prism from owning other tool internals.
+* [ ] Keep Prism useful beyond Saga-specific code where possible.
 
-  Done means Prism does not own:
-
-  - SDE parser,
-  - SDE AST,
-  - SDE semantic analyzer,
-  - SDE artifact emitter,
-  - Forge build planner,
-  - Forge package builder,
-  - SagaTools command dispatcher,
-  - editor panels,
-  - runtime/server implementation.
+  Done means Prism can still analyze general C++ include/dependency relationships and generated file freshness for non-Saga projects where configured.
 
 ---
 
-## 4. Dependency Rules
+## 4. Ownership Boundary
 
-### 4.1 Allowed Dependencies
+### 4.1 Prism Owns
 
-- [ ] Allow Prism to consume source files and compile metadata.
+Prism owns:
 
-  Allowed inputs:
-
-  ```txt
-  C++ source files
-  C++ headers
-  generated source files
-  CMake compile commands
-  package manifests
-  artifact manifests
-  SDE output manifests
-  Forge build reports
-  shared contract metadata where explicitly approved
-  ```
-
-- [ ] Allow Prism to consume SDE outputs.
-
-  Allowed SDE-derived inputs:
-
-  ```txt
-  artifact manifest
-  source map
-  symbol metadata
-  schema metadata
-  generated code manifest
-  diagnostic output
-  ```
-
-- [ ] Allow Prism to consume Forge outputs.
-
-  Allowed Forge-derived inputs:
-
-  ```txt
-  build report
-  artifact manifest
-  build graph report
-  staged artifact manifest
-  diagnostics report
-  ```
-
-- [ ] Allow SagaTools to dispatch Prism.
-
-  Correct direction:
-
-  ```txt
-  SagaTools → Prism executable
-  ```
+* source discovery,
+* source indexing,
+* file hash calculation,
+* include graph generation,
+* symbol/reference indexing where supported,
+* dependency boundary validation,
+* generated output origin tracking,
+* SDE manifest/source map reading,
+* script binding manifest reading,
+* asset/cooked artifact manifest reading,
+* package manifest reading,
+* stale artifact detection,
+* relationship reports,
+* diagnostics reports,
+* machine-readable analysis outputs,
+* CLI/CI command surface.
 
 ---
 
-### 4.2 Forbidden Dependencies
+### 4.2 Prism Does Not Own
 
-- [ ] Prevent Prism from depending on SDE internals.
+Prism must not own:
 
-  Forbidden:
-
-  ```txt
-  Prism → SDE parser internals
-  Prism → SDE AST internals
-  Prism → SDE semantic analyzer
-  Prism → SDE IR internals
-  Prism → SDE codegen internals
-  ```
-
-- [ ] Prevent Prism from depending on Forge internals.
-
-  Forbidden:
-
-  ```txt
-  Prism → Forge build planner internals
-  Prism → Forge cache internals
-  Prism → Forge package builder internals
-  Prism → Forge asset cook planner internals
-  ```
-
-- [ ] Prevent Prism from depending on editor/runtime/server private implementation.
-
-  Forbidden:
-
-  ```txt
-  Prism → SagaEditor UI
-  Prism → SagaEngine runtime private internals
-  Prism → SagaServer private headers
-  Prism → Saga product shell internals
-  Prism → SagaCollaboration implementation internals
-  ```
-
-- [ ] Prevent Prism from becoming global tool dispatcher.
-
-  Forbidden:
-
-  ```txt
-  Prism owns sagatools command routing
-  Prism dispatches SDE/Forge as primary workflow
-  Prism replaces SagaTools list/doctor behavior
-  ```
-
-Prism observes and analyzes.
-
-It does not become mayor of the toolchain.
+* SDE parser/AST/compiler passes,
+* C++ compiler behavior,
+* C# compiler behavior,
+* script host/runtime binding execution,
+* asset importer/cooker implementation,
+* Forge build planner/executor,
+* package stager implementation,
+* product shell,
+* editor UI,
+* runtime/server execution,
+* server authority policy enforcement,
+* collaboration session implementation,
+* persistent storage backend.
 
 ---
 
-## 5. CLI Roadmap
+### 4.3 Correct Integration Model
 
-- [ ] Provide stable Prism CLI.
+```txt
+SDE emits manifests/source maps/artifacts
+Forge runs SDE and stores reports
+Asset pipeline emits cooked artifact manifests
+Script compiler emits binding manifests
+Forge stages packages and writes manifests
+Prism reads these outputs
+Prism reports stale/missing/mismatched relationships
+Forge/Saga/Editor/CI consume Prism reports
+```
+
+---
+
+## 5. Dependency Rules
+
+### 5.1 Allowed Dependencies
+
+Allowed dependency directions:
+
+```txt
+Prism → source files
+Prism → generated files
+Prism → compile_commands.json where available
+Prism → SDE artifact manifests
+Prism → SDE source maps
+Prism → SDE dependency manifests
+Prism → script binding manifests
+Prism → generated C# origin manifests
+Prism → asset/cooked artifact manifests
+Prism → package manifests
+Prism → Forge build reports
+Prism → shared report/diagnostic contracts where explicitly approved
+```
+
+Prism may use parsing/indexing libraries if approved, but those are Prism implementation dependencies, not Saga module dependencies.
+
+---
+
+### 5.2 Forbidden Dependencies
+
+Forbidden dependency directions:
+
+```txt
+Prism → Saga product shell internals
+Prism → SagaEditor UI
+Prism → Runtime private internals
+Prism → Server private internals
+Prism → SDE parser/AST/semantic internals
+Prism → Forge build planner internals
+Prism → AssetPipeline importer/cooker internals
+Prism → Scripting compiler/host internals
+Prism → Qt UI
+```
+
+Forbidden shortcuts:
+
+```txt
+Prism fixes stale generated code by regenerating it.
+Prism compiles SDE source by using private SDE compiler internals.
+Prism cooks assets to check freshness.
+Prism compiles C# to discover bindings.
+Prism stages packages.
+Prism treats editor UI state as source truth.
+```
+
+---
+
+## 6. CLI Roadmap
+
+* [ ] Provide stable Prism command surface.
 
   Required commands:
 
   ```txt
   prism help
   prism version
-  prism doctor
   prism index
-  prism query
-  prism graph
-  prism inspect
-  prism validate-boundaries
+  prism symbols
+  prism deps
+  prism boundaries
   prism stale
-  prism export
+  prism generated-origin
+  prism artifacts
+  prism packages
+  prism report
+  prism doctor
   ```
 
-- [ ] Provide `prism index`.
+* [ ] Add `prism index`.
 
-  Done means:
+  Done means Prism indexes configured project sources and emits index summary/report.
 
-  - workspace is resolved,
-  - source roots are discovered,
-  - compile commands are loaded where available,
-  - files are indexed,
-  - symbols are extracted,
-  - include graph is generated,
-  - diagnostics are emitted,
-  - index database is written or refreshed.
+* [ ] Add `prism deps`.
 
-- [ ] Provide `prism query`.
+  Done means Prism emits include/dependency graphs for configured source roots.
 
-  Done means users can query:
+* [ ] Add `prism boundaries`.
 
-  - symbol by name,
-  - symbol references,
-  - file dependencies,
-  - include relationships,
-  - module ownership,
-  - generated-code origin,
-  - artifact relationships.
+  Done means Prism validates architecture rules such as dependency direction and forbidden includes.
 
-- [ ] Provide `prism graph`.
+* [ ] Add `prism stale`.
 
-  Done means Prism can generate:
+  Done means Prism validates generated/cooked/compiled artifact freshness using manifests and hashes.
 
-  - include graph,
-  - module dependency graph,
-  - ownership graph,
-  - generated artifact graph,
-  - SDE output relationship graph,
-  - build insight graph where Forge output is available.
+* [ ] Add `prism generated-origin`.
 
-- [ ] Provide `prism validate-boundaries`.
+  Done means Prism can explain which source/generated artifact produced a generated file or artifact.
 
-  Done means Prism can report architecture boundary violations such as:
+* [ ] Add `prism artifacts`.
 
-  ```txt
-  Engine includes Editor
-  Server includes Editor collaboration headers
-  SagaShared includes implementation headers
-  SDE depends on Saga modules
-  Tools import each other's internals
-  ```
+  Done means Prism can inspect artifact manifests and list relationships.
 
-- [ ] Provide `prism stale`.
+* [ ] Add `prism packages`.
 
-  Done means Prism can detect stale generated code or artifacts when source and generated outputs do not match expected hashes or manifests.
+  Done means Prism can inspect package manifests for staged artifact consistency.
+
+* [ ] Add `prism doctor`.
+
+  Done means Prism checks:
+
+  * project roots,
+  * compile database availability,
+  * source roots,
+  * generated roots,
+  * manifest paths,
+  * report output directory,
+  * configured boundary rules,
+  * tool version.
+
+* [ ] Support `--json` output.
+
+  Done means every analysis command can emit machine-readable output for Forge/CI/editor integration.
 
 ---
 
-## 6. Workspace and Project Discovery
+## 7. Source Discovery
 
-- [ ] Add workspace discovery.
-
-  Done means Prism can resolve:
-
-  - explicit workspace path,
-  - current directory workspace,
-  - project manifest,
-  - compile commands path,
-  - source roots,
-  - generated output roots,
-  - artifact manifest locations.
-
-Expected files:
-
-```txt
-Tools/Prism/include/Prism/Workspace/WorkspaceContext.hpp
-Tools/Prism/include/Prism/Workspace/WorkspaceLocator.hpp
-Tools/Prism/src/Workspace/WorkspaceLocator.cpp
-```
-
-- [ ] Add workspace validation.
-
-  Done means Prism validates:
-
-  - workspace root exists,
-  - source roots exist,
-  - compile commands are readable where required,
-  - generated directories are readable where configured,
-  - output/index directory is writable,
-  - configured manifests are valid.
-
-- [ ] Keep product project lifecycle outside Prism.
-
-  Done means Prism does not own:
-
-  - Saga project dashboard,
-  - project creation,
-  - project opening,
-  - recent project registry,
-  - product mode switching.
-
-Prism can analyze a workspace.
-
-It does not become the product shell.
-
-A map is useful. A map that tries to drive the car is a lawsuit.
-
----
-
-## 7. Source Indexing
-
-- [ ] Add source file discovery.
+* [ ] Add project source discovery.
 
   Done means Prism can discover:
 
-  - headers,
-  - source files,
-  - generated files,
-  - tool-owned files,
-  - excluded directories,
-  - third-party boundaries.
+  * C++ source files,
+  * C++ headers,
+  * C# script files,
+  * SDE source files,
+  * generated C++/C# files,
+  * manifest files,
+  * asset metadata files,
+  * package manifests,
+  * build reports.
+
+* [ ] Support configurable roots.
+
+  Required roots:
+
+  ```txt
+  Engine/
+  Editor/
+  Apps/
+  Server/
+  Shared/
+  Tools/
+  Scripts/
+  Assets/
+  .sde/
+  Generated/
+  Build/Manifests/
+  Build/Reports/
+  Packages/
+  ```
+
+* [ ] Support exclude rules.
+
+  Done means Prism excludes:
+
+  * build directories,
+  * package output directories where not directly inspected,
+  * external dependency cache,
+  * generated directories unless explicitly included,
+  * vendor directories unless configured.
+
+* [ ] Support file hashing.
+
+  Done means Prism records content hashes for source and generated outputs used in stale checks.
+
+---
+
+## 8. C++ Indexing
+
+* [ ] Add C++ include graph indexing.
+
+  Done means Prism can analyze:
+
+  * `#include` directives,
+  * include path resolution where possible,
+  * include graph edges,
+  * transitive include paths,
+  * forbidden include relationships.
 
 Expected files:
 
 ```txt
-Tools/Prism/include/Prism/Index/SourceFile.hpp
-Tools/Prism/include/Prism/Index/SourceFileScanner.hpp
-Tools/Prism/src/Index/SourceFileScanner.cpp
+Tools/Prism/include/Prism/Cpp/CppIncludeIndexer.hpp
+Tools/Prism/include/Prism/Cpp/CppIncludeGraph.hpp
+Tools/Prism/src/Cpp/CppIncludeIndexer.cpp
+Tools/Prism/src/Cpp/CppIncludeGraph.cpp
 ```
 
-- [ ] Add compile command support.
+* [ ] Add compile database support.
+
+  Done means Prism can read `compile_commands.json` where available to improve include resolution.
+
+* [ ] Add C++ symbol indexing where practical.
+
+  Done means Prism can extract or consume symbol information for:
+
+  * classes,
+  * functions,
+  * namespaces,
+  * includes,
+  * references where feasible,
+  * generated origin mapping where available.
+
+* [ ] Keep indexing non-authoritative.
+
+  Done means C++ compiler remains source of compile truth. Prism reports analysis; it does not replace compilation.
+
+---
+
+## 9. C# Indexing and Script Binding Analysis
+
+* [ ] Add C# source discovery.
+
+  Done means Prism discovers C# source files under configured script roots and generated output roots.
+
+Expected files:
+
+```txt
+Tools/Prism/include/Prism/Scripting/CSharpSourceIndexer.hpp
+Tools/Prism/include/Prism/Scripting/CSharpSymbolIndex.hpp
+Tools/Prism/src/Scripting/CSharpSourceIndexer.cpp
+```
+
+* [ ] Add `[BlockCallable]` metadata detection.
+
+  Done means Prism can index methods/classes annotated as block-callable where syntax support allows.
+
+Expected files:
+
+```txt
+Tools/Prism/include/Prism/Scripting/BlockCallableIndex.hpp
+Tools/Prism/src/Scripting/BlockCallableIndex.cpp
+```
+
+* [ ] Compare C# source against script binding manifests.
+
+  Done means Prism can detect:
+
+  * missing binding manifest entry,
+  * stale binding manifest,
+  * signature hash mismatch,
+  * authority metadata mismatch,
+  * generated code origin mismatch.
+
+* [ ] Do not compile C#.
+
+  Done means Prism does not replace the script compiler/analyzer. It reads source and manifests for relationship checks.
+
+---
+
+## 10. SDE Output Analysis
+
+* [ ] Read SDE artifact manifests.
+
+  Done means Prism can parse and index:
+
+  * artifact id,
+  * artifact kind,
+  * source refs,
+  * source hashes,
+  * output paths,
+  * artifact hashes,
+  * dependency refs,
+  * compiler version,
+  * schema version.
+
+Expected files:
+
+```txt
+Tools/Prism/include/Prism/SDE/SdeArtifactManifestReader.hpp
+Tools/Prism/include/Prism/SDE/SdeDependencyManifestReader.hpp
+Tools/Prism/include/Prism/SDE/SdeSourceMapReader.hpp
+Tools/Prism/src/SDE/SdeArtifactManifestReader.cpp
+```
+
+* [ ] Read SDE source maps.
+
+  Done means Prism can map generated artifacts back to:
+
+  * SDE source file,
+  * source range,
+  * graph declaration,
+  * node/pin/edge where applicable,
+  * schema declaration.
+
+* [ ] Read SDE dependency manifests.
+
+  Done means Prism can determine which source/schema files affect which outputs.
+
+* [ ] Detect stale SDE artifacts.
+
+  Done means Prism reports when:
+
+  * source hash changed,
+  * schema package hash changed,
+  * compiler version changed,
+  * dependency hash changed,
+  * output artifact missing,
+  * artifact hash mismatch.
+
+* [ ] Do not include SDE internals.
+
+  Done means Prism reads SDE outputs/manifests, not SDE AST/parser/semantic internals.
+
+---
+
+## 11. Gameplay Graph Relationship Analysis
+
+* [ ] Index graph artifacts.
+
+  Done means Prism can list:
+
+  * graph id,
+  * graph kind,
+  * graph source file,
+  * generated artifact path,
+  * generated code path where applicable,
+  * authority metadata ref,
+  * package destination.
+
+Expected files:
+
+```txt
+Tools/Prism/include/Prism/Graph/GraphArtifactIndex.hpp
+Tools/Prism/include/Prism/Graph/GraphGeneratedOrigin.hpp
+Tools/Prism/src/Graph/GraphArtifactIndex.cpp
+```
+
+* [ ] Track graph source to generated C# relationship.
+
+  Done means Prism can answer:
+
+  ```txt
+  Which graph generated this C# file?
+  Which node generated this generated code region?
+  Is generated code stale relative to graph artifact hash?
+  ```
+
+* [ ] Detect stale graph artifacts.
+
+  Done means Prism reports when graph source/schema/block registry metadata changed but compiled graph artifact was not regenerated.
+
+* [ ] Detect graph/package destination mismatches.
+
+  Done means Prism reports when manifest data indicates:
+
+  * server-only graph staged into client package,
+  * client-only graph used as server authority,
+  * editor-only graph staged into runtime package,
+  * missing graph artifact in package manifest.
+
+Prism may report this.
+
+Forge/server/runtime must enforce where appropriate.
+
+---
+
+## 12. Authority Metadata Analysis
+
+* [ ] Index authority metadata from graph/script/artifact manifests.
 
   Done means Prism can read:
 
-  ```txt
-  compile_commands.json
-  ```
-
-  and use it for accurate parsing/indexing where available.
-
-- [ ] Add indexing database.
-
-  Done means Prism stores:
-
-  - file ids,
-  - file paths,
-  - content hashes,
-  - last indexed time or deterministic index version,
-  - symbols,
-  - references,
-  - include edges,
-  - diagnostics.
+  * authority context,
+  * execution domain,
+  * side effects,
+  * replication effects,
+  * persistence effects,
+  * prediction safety,
+  * security boundary.
 
 Expected files:
 
 ```txt
-Tools/Prism/include/Prism/Index/IndexDatabase.hpp
-Tools/Prism/include/Prism/Index/IndexRecord.hpp
-Tools/Prism/src/Index/IndexDatabase.cpp
+Tools/Prism/include/Prism/Authority/AuthorityMetadataIndex.hpp
+Tools/Prism/include/Prism/Validation/AuthorityMetadataConsistencyCheck.hpp
+Tools/Prism/src/Authority/AuthorityMetadataIndex.cpp
 ```
 
-- [ ] Add incremental indexing.
+* [ ] Detect authority metadata mismatch.
 
-  Done means unchanged files are skipped safely based on:
+  Done means Prism reports:
 
-  - content hash,
-  - compile command hash,
-  - index schema version,
-  - tool version,
-  - dependency state.
+  * generated C# authority comment/manifest stale,
+  * script binding authority metadata differs from source annotations,
+  * package destination conflicts with artifact authority metadata,
+  * generated graph code metadata differs from graph artifact manifest.
+
+* [ ] Keep enforcement outside Prism.
+
+  Done means Prism reports mismatches. Forge/build/publish/runtime/server enforce failure behavior.
 
 ---
 
-## 8. Symbol Discovery
+## 13. Asset and Cooked Artifact Analysis
 
-- [ ] Add symbol extraction.
+* [ ] Index source asset to cooked artifact relationships.
 
-  Done means Prism can discover:
+  Done means Prism can read asset/cook manifests and answer:
 
-  - namespaces,
-  - classes,
-  - structs,
-  - enums,
-  - functions,
-  - methods,
-  - fields,
-  - typedefs/type aliases,
-  - constants,
-  - macros where supported.
+  * which source asset produced this cooked artifact,
+  * which import settings were used,
+  * which cook profile produced it,
+  * which source hash it was cooked from,
+  * which packages include it.
 
 Expected files:
 
 ```txt
-Tools/Prism/include/Prism/Symbols/Symbol.hpp
-Tools/Prism/include/Prism/Symbols/SymbolKind.hpp
-Tools/Prism/include/Prism/Symbols/SymbolExtractor.hpp
-Tools/Prism/src/Symbols/SymbolExtractor.cpp
+Tools/Prism/include/Prism/Assets/AssetArtifactIndex.hpp
+Tools/Prism/include/Prism/Assets/AssetDependencyIndex.hpp
+Tools/Prism/src/Assets/AssetArtifactIndex.cpp
 ```
 
-- [ ] Add symbol reference tracking.
+* [ ] Detect stale cooked artifacts.
 
-  Done means Prism can answer:
+  Done means Prism reports when:
 
-  - where symbol is defined,
-  - where symbol is declared,
-  - where symbol is referenced,
-  - which files depend on symbol,
-  - which module owns symbol.
-
-- [ ] Add symbol query output.
-
-  Done means `prism query <symbol>` can show:
-
-  - symbol kind,
-  - definition location,
-  - declaration locations,
-  - references,
-  - owning module,
-  - generated/source origin,
-  - related diagnostics.
-
----
-
-## 9. Include Graph
-
-- [ ] Add include graph generation.
-
-  Done means Prism can build a graph of:
-
-  - file includes,
-  - direct include edges,
-  - transitive include edges,
-  - missing includes,
-  - cyclic includes,
-  - private/public include boundary violations.
+  * source asset hash changed,
+  * import settings changed,
+  * cook settings changed,
+  * cooker version changed,
+  * dependency changed,
+  * cooked artifact missing,
+  * artifact hash mismatch.
 
 Expected files:
 
 ```txt
-Tools/Prism/include/Prism/Graph/IncludeGraph.hpp
-Tools/Prism/include/Prism/Graph/IncludeEdge.hpp
-Tools/Prism/src/Graph/IncludeGraph.cpp
+Tools/Prism/include/Prism/Validation/StaleCookedArtifactCheck.hpp
+Tools/Prism/src/Validation/StaleCookedArtifactCheck.cpp
 ```
 
-- [ ] Add include cycle detection.
+* [ ] Detect missing asset references.
 
-  Done means Prism can report:
+  Done means Prism reports broken asset refs from:
 
-  - cycle path,
-  - involved files,
-  - owning modules,
-  - severity,
-  - suggested boundary fix where possible.
+  * SDE definitions,
+  * graph artifacts,
+  * script metadata,
+  * package manifests,
+  * runtime manifests.
 
-- [ ] Add include weight diagnostics.
+* [ ] Do not cook assets.
 
-  Done means Prism can report:
-
-  - heavily included headers,
-  - expensive include fanout,
-  - unnecessary public includes where detectable,
-  - private headers included across module boundary.
-
-Include graphs exist because apparently `#include` looked too innocent to be dangerous.
-
-It was not.
+  Done means Prism never becomes asset pipeline implementation.
 
 ---
 
-## 10. Module Dependency Graph
+## 14. Package Manifest Analysis
 
-- [ ] Add module ownership model.
-
-  Done means Prism can classify files into modules such as:
-
-  ```txt
-  Saga
-  SagaEditor
-  SagaEngine
-  SagaServer
-  SagaShared
-  SagaCollaboration
-  Tools/SDE
-  Tools/Forge
-  Tools/Prism
-  Tools/SagaTools
-  ThirdParty
-  ```
-
-Expected files:
-
-```txt
-Tools/Prism/include/Prism/Modules/ModuleId.hpp
-Tools/Prism/include/Prism/Modules/ModuleRule.hpp
-Tools/Prism/include/Prism/Modules/ModuleClassifier.hpp
-Tools/Prism/src/Modules/ModuleClassifier.cpp
-```
-
-- [ ] Add module dependency graph.
-
-  Done means Prism can generate:
-
-  - module nodes,
-  - include edges,
-  - link dependency edges where available,
-  - generated artifact edges,
-  - forbidden dependency edges,
-  - dependency summaries.
-
-Expected files:
-
-```txt
-Tools/Prism/include/Prism/Graph/ModuleDependencyGraph.hpp
-Tools/Prism/include/Prism/Graph/ModuleEdge.hpp
-Tools/Prism/src/Graph/ModuleDependencyGraph.cpp
-```
-
-- [ ] Add forbidden dependency detection.
-
-  Done means Prism detects violations such as:
-
-  ```txt
-  Engine/Core → Editor
-  Engine/Core → Apps/Saga
-  Server → Editor
-  Runtime → Editor/include/SagaEditor/Collaboration
-  SagaShared → SagaCollaboration
-  SDE → SagaEngine
-  Forge → SDE internals
-  SagaTools → Forge internals
-  ```
-
----
-
-## 11. Architecture Boundary Validation
-
-- [ ] Encode dependency rules from `DependencyGraph.md`.
-
-  Done means Prism can validate rules from:
-
-  ```txt
-  DependencyGraph.md
-  ```
-
-  or from a structured equivalent config.
-
-- [ ] Add boundary validation report.
-
-  Done means report includes:
-
-  - violated rule,
-  - source file,
-  - included/imported target,
-  - source module,
-  - target module,
-  - severity,
-  - suggested owner boundary.
-
-Expected output:
-
-```txt
-Boundary violation:
-  Rule: Engine/Core must not include Editor
-  Source: Engine/src/...
-  Target: Editor/include/...
-  Suggested fix: move neutral contract to SagaShared or add runtime-facing API.
-```
-
-- [ ] Support machine-readable boundary report.
-
-  Done means CI can consume boundary violations as JSON.
-
-- [ ] Support CI failure mode.
-
-  Done means `prism validate-boundaries --fail-on-error` exits non-zero on forbidden dependency violations.
-
----
-
-## 12. Generated Code and Artifact Relationships
-
-- [ ] Track generated code origin.
-
-  Done means Prism can identify:
-
-  - generated file,
-  - generator tool,
-  - source schema/resource,
-  - generation manifest,
-  - artifact id,
-  - content hash,
-  - generation timestamp or deterministic build id.
-
-Expected files:
-
-```txt
-Tools/Prism/include/Prism/Generated/GeneratedFile.hpp
-Tools/Prism/include/Prism/Generated/GeneratedOrigin.hpp
-Tools/Prism/src/Generated/GeneratedTracker.cpp
-```
-
-- [ ] Detect stale generated code.
-
-  Done means Prism can compare:
-
-  - source hash,
-  - manifest hash,
-  - generated file hash,
-  - expected artifact hash,
-  - generator version,
-  - schema version.
-
-- [ ] Explain stale generated-code diagnostics.
-
-  Done means stale report includes:
-
-  - generated file,
-  - source file,
-  - expected hash,
-  - actual hash,
-  - generator tool,
-  - suggested regeneration command.
-
-A stale generated file is not “probably fine”.
-
-It is a lie with a `.cpp` extension.
-
----
-
-## 13. SDE Output Analysis
-
-- [ ] Consume SDE artifact manifests.
-
-  Done means Prism can read SDE outputs such as:
-
-  - artifact manifest,
-  - schema ids,
-  - generated code references,
-  - source maps,
-  - diagnostics,
-  - dependency graph.
-
-- [ ] Link SDE source to generated outputs.
-
-  Done means Prism can answer:
-
-  - which SDE source generated this file,
-  - which runtime artifact came from this schema,
-  - which code symbols were generated from SDE definitions,
-  - which build artifacts depend on SDE output.
-
-- [ ] Preserve SDE ownership.
-
-  Done means Prism does not include:
-
-  ```txt
-  SDE parser internals
-  SDE AST internals
-  SDE semantic analyzer
-  SDE IR internals
-  SDE codegen internals
-  ```
-
-Prism reads SDE outputs.
-
-SDE remains compiler truth.
-
-Nobody needs a second secret compiler hiding in the code intelligence tool.
-
----
-
-## 14. Forge Output Analysis
-
-- [ ] Consume Forge build reports.
+* [ ] Index package manifests.
 
   Done means Prism can read:
 
-  - build plan report,
-  - build artifact manifest,
-  - diagnostics report,
-  - build profile,
-  - staged artifact list,
-  - cache hit/miss data where exposed.
-
-- [ ] Link build steps to source/artifact graph.
-
-  Done means Prism can answer:
-
-  - which build step produced this artifact,
-  - which source files contributed to this output,
-  - which generated files are stale relative to build report,
-  - which module depends on which artifact.
-
-- [ ] Preserve Forge ownership.
-
-  Done means Prism does not include Forge build planner or cache internals.
-
-Forge builds.
-
-Prism observes the build graph.
-
-This division of labor is not decorative.
-
----
-
-## 15. Query System
-
-- [ ] Add query model.
-
-  Done means Prism supports queries for:
-
-  - symbols,
-  - files,
-  - modules,
-  - includes,
-  - dependencies,
-  - generated files,
-  - artifacts,
-  - diagnostics.
+  * package id,
+  * package kind,
+  * build profile,
+  * target platform,
+  * artifact refs,
+  * asset manifest refs,
+  * script manifest refs,
+  * graph manifest refs,
+  * package hash.
 
 Expected files:
 
 ```txt
-Tools/Prism/include/Prism/Query/Query.hpp
-Tools/Prism/include/Prism/Query/QueryResult.hpp
-Tools/Prism/include/Prism/Query/QueryEngine.hpp
-Tools/Prism/src/Query/QueryEngine.cpp
+Tools/Prism/include/Prism/Packages/PackageManifestIndex.hpp
+Tools/Prism/include/Prism/Validation/PackageManifestConsistencyCheck.hpp
+Tools/Prism/src/Packages/PackageManifestIndex.cpp
 ```
 
-- [ ] Add common queries.
+* [ ] Detect package consistency issues.
 
-  Required queries:
+  Done means Prism reports:
 
-  ```txt
-  symbol <name>
-  refs <symbol>
-  file <path>
-  includes <path>
-  depends-on <module>
-  depended-by <module>
-  generated-from <file>
-  stale
-  boundary-violations
-  ```
+  * missing staged artifact,
+  * hash mismatch,
+  * artifact listed but absent,
+  * artifact present but not listed,
+  * client/server package relationship mismatch,
+  * package references stale artifact manifest,
+  * package kind conflicts with artifact destination metadata.
 
-- [ ] Add JSON query output.
+* [ ] Support package relationship reports.
 
-  Done means query output is stable enough for editor/CI/tool consumption.
-
-- [ ] Add human-readable query output.
-
-  Done means CLI output is useful without requiring the user to mentally parse a graph dump like a condemned librarian.
-
----
-
-## 16. Graph Export
-
-- [ ] Add graph export support.
-
-  Required formats:
+  Done means Prism can emit reports showing:
 
   ```txt
-  json
-  dot
-  graphml optional
-  mermaid optional
+  package → artifact → source
+  package → asset manifest → source assets
+  package → script manifest → source scripts
+  package → graph manifest → SDE source
   ```
 
-- [ ] Add include graph export.
-
-- [ ] Add module dependency graph export.
-
-- [ ] Add generated artifact graph export.
-
-- [ ] Add boundary violation graph export.
-
-- [ ] Keep graph exports deterministic.
-
-  Done means identical inputs produce stable node/edge ordering.
-
 ---
 
-## 17. Diagnostics
+## 15. Dependency Boundary Validation
 
-- [ ] Add Prism diagnostic model.
+* [ ] Add boundary rule model.
 
-  Done means diagnostics include:
-
-  - severity,
-  - code,
-  - message,
-  - source file,
-  - source range where available,
-  - module,
-  - related file/module,
-  - recoverability,
-  - suggested action.
-
-Expected files:
-
-```txt
-Tools/Prism/include/Prism/Diagnostics/PrismDiagnostic.hpp
-Tools/Prism/include/Prism/Diagnostics/DiagnosticCode.hpp
-Tools/Prism/include/Prism/Diagnostics/DiagnosticSeverity.hpp
-Tools/Prism/src/Diagnostics/PrismDiagnostic.cpp
-```
-
-- [ ] Add diagnostics for indexing failures.
-
-  Required diagnostics:
-
-  - unreadable file,
-  - parse failure,
-  - compile command missing,
-  - unsupported language mode,
-  - missing include,
-  - index database write failure.
-
-- [ ] Add diagnostics for graph issues.
-
-  Required diagnostics:
-
-  - include cycle,
-  - forbidden dependency,
-  - missing generated origin,
-  - stale generated file,
-  - module classification failure.
-
-- [ ] Support JSON diagnostics.
-
-  Done means editor, Forge, SagaTools, and CI can consume Prism diagnostics.
-
----
-
-## 18. Index Storage
-
-- [ ] Add persistent index database.
-
-  Done means Prism can persist:
-
-  - file records,
-  - symbol records,
-  - reference records,
-  - include edges,
-  - module edges,
-  - generated file records,
-  - artifact relationships,
-  - diagnostics.
-
-Expected files:
-
-```txt
-Tools/Prism/include/Prism/Storage/IndexStore.hpp
-Tools/Prism/include/Prism/Storage/IndexSchema.hpp
-Tools/Prism/src/Storage/IndexStore.cpp
-```
-
-- [ ] Add index schema versioning.
-
-  Done means incompatible index schema changes trigger rebuild.
-
-- [ ] Add index corruption recovery.
-
-  Done means corrupted index is detected and rebuilt rather than producing nonsense results with a straight face.
-
-- [ ] Add index compaction/cleanup.
-
-  Done means removed files and stale records are cleaned safely.
-
----
-
-## 19. Incremental Analysis
-
-- [ ] Add incremental source analysis.
-
-  Done means Prism re-indexes only files affected by:
-
-  - file content hash changes,
-  - compile command changes,
-  - dependency changes,
-  - index schema changes,
-  - tool version changes.
-
-- [ ] Add dependency-based invalidation.
-
-  Done means changes to a header can invalidate dependent files where needed.
-
-- [ ] Add generated artifact invalidation.
-
-  Done means changes to SDE/Forge manifests can invalidate generated-code relationship records.
-
----
-
-## 20. Performance
-
-- [ ] Add indexing performance metrics.
-
-  Done means Prism records:
-
-  - files scanned,
-  - files indexed,
-  - files skipped,
-  - symbols discovered,
-  - include edges discovered,
-  - graph build time,
-  - database write time,
-  - total index time.
-
-- [ ] Add large workspace performance target.
-
-  Done means Prism can index a representative large Saga workspace within acceptable time and memory bounds.
-
-- [ ] Add memory usage bounds.
-
-  Done means graph construction and indexing avoid unbounded memory growth.
-
-- [ ] Add slow file diagnostics.
-
-  Done means expensive files or graph steps can be identified.
-
----
-
-## 21. Editor Integration
-
-- [ ] Allow editor to consume Prism reports through stable outputs.
-
-  Done means SagaEditor can display:
-
-  - symbol search results,
-  - dependency graph results,
-  - boundary violations,
-  - stale generated-code diagnostics,
-  - include graph warnings.
-
-- [ ] Keep editor UI outside Prism.
-
-  Done means Prism does not own:
-
-  - editor panels,
-  - graph visualization widgets,
-  - search UI,
-  - Problems panel,
-  - project dashboard.
-
-Correct flow:
-
-```txt
-Prism indexes/analyzes
-      ↓
-Prism emits report/query result
-      ↓
-Editor displays report
-```
-
-Incorrect flow:
-
-```txt
-Prism imports editor widgets and updates panels directly
-```
-
-No.
-
-Bad tool.
-
----
-
-## 22. Forge Integration
-
-- [ ] Allow Forge to optionally invoke Prism for build insight.
-
-  Done means Forge can use Prism for:
-
-  - dependency insight,
-  - stale generated-code detection,
-  - boundary validation before build,
-  - source graph diagnostics.
-
-- [ ] Keep Prism optional unless build profile requires it.
-
-  Done means normal build does not fail because Prism is unavailable unless selected profile explicitly requires Prism.
-
-- [ ] Keep Forge as build workflow owner.
-
-  Done means Prism does not execute Forge build plans.
-
----
-
-## 23. SagaTools Integration
-
-- [ ] Allow SagaTools to dispatch Prism.
-
-  Example commands:
-
-  ```txt
-  sagatools prism index
-  sagatools prism query <symbol>
-  sagatools prism graph
-  sagatools prism doctor
-  ```
-
-- [ ] Keep SagaTools as dispatcher only.
-
-  Done means SagaTools does not parse Prism index internals or graph database.
-
-- [ ] Keep Prism usable standalone.
-
-  Done means Prism can still run as:
-
-  ```txt
-  prism index
-  prism query <symbol>
-  ```
-
-  without requiring SagaTools.
-
----
-
-## 24. CI Integration
-
-- [ ] Add boundary validation command for CI.
-
-  Required command:
-
-  ```txt
-  prism validate-boundaries --workspace <path> --fail-on-error
-  ```
-
-- [ ] Add stale generated-code check for CI.
-
-  Required command:
-
-  ```txt
-  prism stale --workspace <path> --fail-on-stale
-  ```
-
-- [ ] Add graph export for CI artifacts.
-
-  Done means CI can upload:
-
-  ```txt
-  include-graph.json
-  module-graph.json
-  boundary-violations.json
-  stale-generated.json
-  ```
-
-- [ ] Add regression checks for forbidden dependencies.
-
-  Required checks:
+  Done means Prism can load architecture rules such as:
 
   ```txt
   Engine/Core must not include Editor
+  Runtime must not include SDE internals
   Server must not include Editor
-  Runtime/Server must not include Editor/include/SagaEditor/Collaboration
-  SagaShared must not include SagaCollaboration
   SDE must not include Saga modules
   Forge must not include SDE internals
-  SagaTools must not include tool internals
+  Prism must not include Forge internals
+  SagaShared must not include implementation owners
+  Editor public headers must not include Qt
   ```
-
----
-
-## 25. Configuration
-
-- [ ] Add Prism configuration support.
-
-  Done means config can define:
-
-  - workspace roots,
-  - source roots,
-  - generated roots,
-  - excluded paths,
-  - compile commands path,
-  - module classification rules,
-  - dependency boundary rules,
-  - output/report paths,
-  - index database path.
 
 Expected files:
 
 ```txt
-Tools/Prism/include/Prism/Config/PrismConfig.hpp
-Tools/Prism/include/Prism/Config/PrismConfigLoader.hpp
-Tools/Prism/src/Config/PrismConfigLoader.cpp
+Tools/Prism/include/Prism/Boundaries/BoundaryRule.hpp
+Tools/Prism/include/Prism/Boundaries/BoundaryRuleSet.hpp
+Tools/Prism/include/Prism/Validation/BoundaryValidator.hpp
+Tools/Prism/src/Boundaries/BoundaryValidator.cpp
 ```
 
-- [ ] Add command-line config overrides.
+* [ ] Add dependency graph report.
 
-  Done means CLI can override:
+  Done means Prism can emit:
 
-  - workspace path,
-  - index path,
-  - output format,
-  - graph type,
-  - fail-on-error behavior,
-  - verbosity.
+  * include graph,
+  * module dependency graph,
+  * forbidden edge diagnostics,
+  * transitive dependency path for violations.
 
-- [ ] Add config validation.
+* [ ] Add public header checks.
 
-  Done means invalid config fails before indexing begins.
+  Required checks:
 
----
+  * `Editor/include/SagaEditor/**` does not expose Qt except approved boundaries,
+  * `Shared/include/SagaShared/**` does not expose editor/runtime/server/product/tool internals,
+  * `Tools/SystemDefinitionEngine/**` does not include Saga modules,
+  * runtime/server do not include editor-private headers.
 
-## 26. Doctor Command
+* [ ] Add CI profile.
 
-- [ ] Add `prism doctor`.
-
-  Done means doctor checks:
-
-  - workspace detection,
-  - source roots,
-  - compile commands path,
-  - index database path,
-  - config validity,
-  - graph export path,
-  - optional SDE manifest availability,
-  - optional Forge report availability.
-
-- [ ] Keep doctor focused on Prism health.
-
-  Done means `prism doctor` does not deeply validate:
-
-  - SDE compiler correctness,
-  - Forge build correctness,
-  - SagaTools dispatcher behavior,
-  - editor runtime behavior.
-
-Each tool owns its own existential problems.
-
-Prism has enough.
+  Done means `prism boundaries --profile ci` can fail CI on architecture violations.
 
 ---
 
-## 27. Exit Codes
+## 16. Generated Output Origin Tracking
 
-- [ ] Define stable Prism exit codes.
+* [ ] Add generated origin manifest reader.
+
+  Done means Prism can read manifests that describe:
+
+  * generated file path,
+  * generator id,
+  * generator version,
+  * source artifact id,
+  * source file refs,
+  * source hashes,
+  * output hash,
+  * source map ref.
+
+Expected files:
+
+```txt
+Tools/Prism/include/Prism/Generated/GeneratedOriginManifest.hpp
+Tools/Prism/include/Prism/Generated/GeneratedOriginIndex.hpp
+Tools/Prism/src/Generated/GeneratedOriginIndex.cpp
+```
+
+* [ ] Detect generated file modification.
+
+  Done means Prism reports when generated files were manually edited or no longer match origin manifest hash.
+
+* [ ] Map generated files back to sources.
+
+  Done means Prism can map:
+
+  * generated C# to graph/source node,
+  * generated C++ to SDE source/schema,
+  * generated package metadata to build step/source manifests.
+
+* [ ] Support editor navigation.
+
+  Done means editor can use Prism reports to navigate from generated output to source graph/SDE/script/asset locations.
+
+---
+
+## 17. Report Model
+
+* [ ] Define Prism report types.
+
+  Required report types:
+
+  ```txt
+  index_report.json
+  dependency_report.json
+  boundary_report.json
+  stale_report.json
+  generated_origin_report.json
+  artifact_relationship_report.json
+  package_relationship_report.json
+  prism_diagnostics.json
+  ```
+
+* [ ] Define common report fields.
+
+  Required fields:
+
+  ```txt
+  prismVersion
+  projectRoot
+  generatedAt
+  profile
+  inputs
+  diagnostics
+  summary
+  records
+  ```
+
+* [ ] Make reports deterministic where practical.
+
+  Done means repeated analysis on unchanged inputs produces stable ordering and stable report content except timestamps where explicitly included.
+
+* [ ] Support human-readable summaries.
+
+  Done means CLI output reports key blockers and points to machine-readable report paths.
+
+---
+
+## 18. Forge Integration
+
+* [ ] Support Forge-invoked Prism checks.
+
+  Done means Forge can run:
+
+  ```txt
+  prism boundaries --profile ci --json
+  prism stale --profile shipping-full --json
+  prism packages --profile shipping-full --json
+  ```
+
+* [ ] Return stable exit codes.
 
   Required categories:
 
   ```txt
-  0   success
-  1   general failure
-  2   invalid arguments
-  3   workspace error
-  4   config error
-  5   indexing failure
-  6   query failure
-  7   graph generation failure
-  8   boundary violation
-  9   stale generated output
-  10  index database error
-  11  internal error
+  Success
+  AnalysisFailed
+  BoundaryViolation
+  StaleArtifact
+  MissingArtifact
+  PackageMismatch
+  InternalError
   ```
 
-- [ ] Keep boundary/stale failures distinguishable.
+* [ ] Emit Forge-consumable diagnostics.
 
-  Done means CI can tell whether failure came from:
+  Done means Forge can merge Prism reports into build/publish reports without losing source/tool context.
 
-  - invalid command,
-  - indexing error,
-  - architecture violation,
-  - stale generated code,
-  - internal Prism bug.
+* [ ] Keep build action outside Prism.
+
+  Done means Forge decides whether a Prism diagnostic blocks build/publish according to profile policy.
 
 ---
 
-## 28. Logging
+## 19. Editor Integration
 
-- [ ] Add Prism logging.
+* [ ] Support editor report consumption.
 
-  Done means logs include:
+  Done means SagaEditor can display Prism reports in:
 
-  - selected command,
-  - workspace path,
-  - indexed files count,
-  - skipped files count,
-  - symbol count,
-  - graph edge count,
-  - diagnostics count,
-  - elapsed time.
+  * Problems panel,
+  * Diagnostics report panel,
+  * generated code preview panel,
+  * graph editor diagnostics,
+  * asset inspector,
+  * build/publish panel.
 
-- [ ] Keep normal output readable.
+* [ ] Support source navigation payloads.
 
-  Done means default CLI output is not an unfiltered landfill of graph facts.
+  Done means Prism diagnostics include enough location data for editor to open:
 
-- [ ] Add verbose mode.
+  * C++ source/header,
+  * C# source,
+  * SDE source range,
+  * graph node/pin/edge,
+  * asset metadata/source,
+  * generated file/source map region,
+  * package manifest entry.
 
-  Done means `--verbose` shows detailed indexing and graph construction steps.
+* [ ] Keep UI outside Prism.
 
----
-
-## 29. Testing Roadmap
-
-### 29.1 Unit Tests
-
-- [ ] Add workspace locator tests.
-
-- [ ] Add config loader tests.
-
-- [ ] Add source scanner tests.
-
-- [ ] Add symbol extraction tests.
-
-- [ ] Add include graph tests.
-
-- [ ] Add module classifier tests.
-
-- [ ] Add boundary rule tests.
-
-- [ ] Add generated origin tracker tests.
-
-- [ ] Add query engine tests.
-
-- [ ] Add graph export tests.
+  Done means Prism emits reports; SagaEditor decides how to display them.
 
 ---
 
-### 29.2 Integration Tests
+## 20. Saga Product Integration
 
-- [ ] Add indexing integration test.
+* [ ] Support Saga dashboard/build/publish status.
 
-  Done means Prism can index a small test workspace and produce expected symbols/includes.
+  Done means Saga can consume Prism summary reports to show:
 
-- [ ] Add boundary validation integration test.
+  * stale artifact count,
+  * boundary violation count,
+  * package mismatch count,
+  * generated output mismatch count,
+  * publish-blocking Prism diagnostics.
 
-  Done means test workspace with forbidden include produces expected diagnostic.
+* [ ] Keep product lifecycle outside Prism.
 
-- [ ] Add stale generated-code integration test.
-
-  Done means stale generated output is detected from manifest/hash mismatch.
-
-- [ ] Add SDE manifest integration test.
-
-  Done means Prism can read fake or real SDE output manifest and link source to generated output.
-
-- [ ] Add Forge report integration test.
-
-  Done means Prism can read fake or real Forge build report and link build steps to artifacts.
+  Done means Prism does not own project dashboard, mode switching, or product workflow.
 
 ---
 
-### 29.3 Snapshot Tests
+## 21. Configuration
 
-- [ ] Add graph JSON snapshot tests.
+* [ ] Define Prism configuration file.
 
-- [ ] Add diagnostic JSON snapshot tests.
-
-- [ ] Add query output snapshot tests.
-
-- [ ] Add boundary report snapshot tests.
-
-Snapshot output must be stable.
-
-Otherwise the test suite becomes a random number generator with moral superiority.
-
----
-
-### 29.4 Performance Tests
-
-- [ ] Add large workspace indexing benchmark.
-
-- [ ] Add include graph build benchmark.
-
-- [ ] Add query latency benchmark.
-
-- [ ] Add incremental indexing benchmark.
-
----
-
-## 30. CI Requirements
-
-- [ ] Add Prism unit tests to CI.
-
-- [ ] Add Prism integration tests to CI.
-
-- [ ] Add Prism CLI smoke tests.
-
-  Required commands:
+  Possible file:
 
   ```txt
-  prism --help
-  prism version
-  prism doctor
-  prism index --workspace <test-workspace>
-  prism validate-boundaries --workspace <test-workspace>
+  prism.toml
   ```
 
-- [ ] Add dependency boundary checks for Prism itself.
+  or integrated Forge/Saga project sections where appropriate.
 
-  Required forbidden checks:
+* [ ] Support rule sets.
+
+  Done means configuration can declare:
+
+  * source roots,
+  * generated roots,
+  * manifest roots,
+  * exclude rules,
+  * boundary rules,
+  * stale check policies,
+  * report output path,
+  * profile-specific severities.
+
+* [ ] Keep config optional where defaults are clear.
+
+  Done means Saga projects can use conventional paths without excessive Prism config.
+
+---
+
+## 22. Cache and Incrementality
+
+* [ ] Add analysis cache.
+
+  Done means Prism can avoid re-indexing unchanged files using:
+
+  * file path,
+  * content hash,
+  * configuration hash,
+  * Prism version,
+  * parser/indexer version.
+
+* [ ] Reject stale analysis cache.
+
+  Done means cache is invalidated when:
+
+  * source changes,
+  * config changes,
+  * Prism version changes,
+  * manifest changes,
+  * compile database changes.
+
+* [ ] Keep cache transparent.
+
+  Done means `--explain` or report metadata can show cache hits/misses for major analysis categories.
+
+---
+
+## 23. Security and Safety
+
+* [ ] Treat project files as untrusted input.
+
+  Done means Prism handles:
+
+  * malformed manifests,
+  * huge files,
+  * cyclic references,
+  * invalid encodings,
+  * missing files,
+  * broken symlinks,
+  * path traversal attempts.
+
+* [ ] Avoid destructive operations by default.
+
+  Done means Prism does not modify source/generated/artifact files unless an explicitly safe formatting/fix command is later designed and documented.
+
+* [ ] Keep read-only analysis default.
+
+  Prism's default posture should be:
 
   ```txt
-  Tools/Prism/** must not include Tools/SystemDefinitionEngine/src/**
-  Tools/Prism/** must not include Tools/Forge/src/**
-  Tools/Prism/** must not include Tools/SagaTools/src/**
-  Tools/Prism/** must not include Editor/**
-  Tools/Prism/** must not include Server/private/**
-  Tools/Prism/** must not include Apps/Saga/**
+  read, analyze, report
   ```
 
-- [ ] Add JSON output compatibility test.
-
-  Done means Prism JSON output remains parseable and schema-stable.
-
----
-
-## 31. Recommended File Layout
-
-Recommended target layout:
-
-```txt
-Tools/Prism/
-  PRISM_ROADMAP.md
-  README.md
-  CMakeLists.txt or Cargo.toml
-
-Tools/Prism/docs/
-  PRISM_CLI.md
-  PRISM_QUERY_LANGUAGE.md
-  PRISM_GRAPH_FORMATS.md
-  PRISM_BOUNDARY_RULES.md
-  PRISM_DIAGNOSTICS.md
-
-Tools/Prism/include/Prism/
-  Prism.hpp
-  PrismCommand.hpp
-  PrismResult.hpp
-
-Tools/Prism/include/Prism/Workspace/
-  WorkspaceContext.hpp
-  WorkspaceLocator.hpp
-
-Tools/Prism/include/Prism/Config/
-  PrismConfig.hpp
-  PrismConfigLoader.hpp
-
-Tools/Prism/include/Prism/Index/
-  SourceFile.hpp
-  SourceFileScanner.hpp
-  IndexDatabase.hpp
-  IndexRecord.hpp
-
-Tools/Prism/include/Prism/Symbols/
-  Symbol.hpp
-  SymbolKind.hpp
-  SymbolExtractor.hpp
-
-Tools/Prism/include/Prism/Graph/
-  IncludeGraph.hpp
-  IncludeEdge.hpp
-  ModuleDependencyGraph.hpp
-  ModuleEdge.hpp
-  GraphExporter.hpp
-
-Tools/Prism/include/Prism/Modules/
-  ModuleId.hpp
-  ModuleRule.hpp
-  ModuleClassifier.hpp
-
-Tools/Prism/include/Prism/Generated/
-  GeneratedFile.hpp
-  GeneratedOrigin.hpp
-  GeneratedTracker.hpp
-
-Tools/Prism/include/Prism/Query/
-  Query.hpp
-  QueryResult.hpp
-  QueryEngine.hpp
-
-Tools/Prism/include/Prism/Diagnostics/
-  PrismDiagnostic.hpp
-  DiagnosticCode.hpp
-  DiagnosticSeverity.hpp
-
-Tools/Prism/include/Prism/Storage/
-  IndexStore.hpp
-  IndexSchema.hpp
-
-Tools/Prism/src/
-  main.cpp or main.rs
-  Workspace/
-  Config/
-  Index/
-  Symbols/
-  Graph/
-  Modules/
-  Generated/
-  Query/
-  Diagnostics/
-  Storage/
-
-Tools/Prism/tests/
-  WorkspaceLocatorTests.cpp
-  SourceScannerTests.cpp
-  SymbolExtractorTests.cpp
-  IncludeGraphTests.cpp
-  ModuleClassifierTests.cpp
-  BoundaryRuleTests.cpp
-  GeneratedTrackerTests.cpp
-  QueryEngineTests.cpp
-  IntegrationTests.cpp
-```
-
-This layout is illustrative.
-
-The ownership rule is not.
-
----
-
-## 32. Migration Plan
-
-- [ ] Remove compiler ownership from Prism if present.
-
-  Done means SDE internals live only in SDE.
-
-- [ ] Remove build workflow ownership from Prism if present.
-
-  Done means Forge owns build planning and package workflow.
-
-- [ ] Remove tool dispatch ownership from Prism if present.
-
-  Done means SagaTools owns top-level dispatch.
-
-- [ ] Convert Prism to code intelligence and graph analysis only.
-
-  Done means Prism owns:
+  not:
 
   ```txt
-  index
-  query
-  graph
-  inspect
-  stale detection
-  boundary validation
-  report/export
+  mutate, repair, hope
   ```
 
-- [ ] Add stable input contracts for SDE/Forge outputs.
+---
 
-  Done means Prism reads output manifests/reports instead of importing private internals.
+## 24. Testing Strategy
 
-- [ ] Add dependency boundary checks.
+### 24.1 Source Index Tests
+
+* [ ] Add source discovery/index tests.
+
+  Required coverage:
+
+  * C++ source discovery,
+  * header discovery,
+  * C# source discovery,
+  * SDE source discovery,
+  * generated file discovery,
+  * exclude rules,
+  * file hashing.
 
 ---
 
-## 33. Non-Goals
+### 24.2 C++ Dependency Tests
 
-Prism does not own:
+* [ ] Add C++ include/dependency tests.
 
-- SDE compiler implementation,
-- Forge build workflow implementation,
-- SagaTools command dispatch,
-- Saga product shell,
-- editor UI,
-- runtime simulation,
-- server authority,
-- collaboration sessions,
-- collaboration permissions,
-- asset cooking,
-- package building,
-- source generation,
-- generated code emission.
+  Required coverage:
 
-Related ownership:
-
-| Area | Owner |
-|---|---|
-| Code intelligence and graph analysis | `Prism` |
-| Deterministic data compiler | `SDE` |
-| Build workflow frontend | `Forge` |
-| Tool dispatch | `SagaTools` |
-| Product shell | `Saga` |
-| Authoring UI | `SagaEditor` |
-| Runtime/server systems | `SagaEngine` / `SagaServer` |
-| Collaboration implementation | `SagaCollaboration` |
+  * direct include edge,
+  * transitive include path,
+  * missing include diagnostic,
+  * forbidden module dependency,
+  * public header Qt include violation,
+  * Engine → Editor violation.
 
 ---
 
-## 34. Production Definition of Done
+### 24.3 SDE Manifest Tests
 
-- [ ] Prism has a stable CLI.
+* [ ] Add SDE output analysis tests.
 
-- [ ] Prism can discover and validate workspaces.
+  Required coverage:
 
-- [ ] Prism can index source files.
-
-- [ ] Prism can extract symbols and references.
-
-- [ ] Prism can build include graphs.
-
-- [ ] Prism can build module dependency graphs.
-
-- [ ] Prism can validate dependency boundaries.
-
-- [ ] Prism can detect stale generated code.
-
-- [ ] Prism can consume SDE output manifests without depending on SDE internals.
-
-- [ ] Prism can consume Forge reports without depending on Forge internals.
-
-- [ ] Prism can answer common code intelligence queries.
-
-- [ ] Prism can export graphs in stable formats.
-
-- [ ] Prism emits human-readable and JSON diagnostics.
-
-- [ ] Prism has stable exit codes.
-
-- [ ] Prism integrates with SagaTools as a dispatched tool.
-
-- [ ] Prism remains usable standalone.
-
-- [ ] CI tests indexing, graph output, boundary validation, stale detection, and dependency rules.
+  * artifact manifest read,
+  * source map read,
+  * dependency manifest read,
+  * stale source hash detection,
+  * missing artifact detection,
+  * hash mismatch detection.
 
 ---
 
-## 35. Final Architecture Rule
+### 24.4 Graph/Generated Code Tests
 
-Prism should remain:
+* [ ] Add graph/generated relationship tests.
+
+  Required coverage:
+
+  * graph source to generated C# mapping,
+  * node-to-generated-region mapping,
+  * stale generated C# detection,
+  * missing source map detection,
+  * graph artifact package mismatch.
+
+---
+
+### 24.5 Script Binding Tests
+
+* [ ] Add script binding analysis tests.
+
+  Required coverage:
+
+  * block-callable method indexed,
+  * binding manifest read,
+  * signature hash mismatch,
+  * authority metadata mismatch,
+  * missing binding manifest entry,
+  * stale generated binding metadata.
+
+---
+
+### 24.6 Asset Artifact Tests
+
+* [ ] Add asset/cook analysis tests.
+
+  Required coverage:
+
+  * source asset to cooked artifact mapping,
+  * import settings hash mismatch,
+  * source hash changed,
+  * missing cooked artifact,
+  * package includes stale asset,
+  * broken asset reference.
+
+---
+
+### 24.7 Package Tests
+
+* [ ] Add package manifest analysis tests.
+
+  Required coverage:
+
+  * valid client package,
+  * valid server package,
+  * missing artifact,
+  * listed artifact absent,
+  * unlisted artifact present,
+  * package kind mismatch,
+  * server-only artifact in client package diagnostic.
+
+---
+
+### 24.8 Report Tests
+
+* [ ] Add report output tests.
+
+  Required coverage:
+
+  * deterministic report ordering,
+  * JSON schema validity,
+  * diagnostics contain source/resource refs,
+  * editor navigation payload present,
+  * Forge-consumable summary present.
+
+---
+
+## 25. MVP Vertical Slice
+
+The first Prism production slice should analyze a minimal Saga project produced by the Forge MVP.
+
+Required project contents:
 
 ```txt
-a code intelligence tool,
-a graph builder,
-a boundary validator,
-a generated-code relationship inspector,
-and a reporting/query layer.
+.sde/quest_reward.sde
+Generated/GraphCode/QuestReward.generated.cs
+Scripts/QuestXp.cs
+Build/Manifests/sde_artifacts.json
+Build/Manifests/script_bindings.json
+Build/Manifests/assets.json
+Build/Manifests/package_manifest.client.json
+Build/Manifests/package_manifest.server.json
+Assets/terrain_albedo.png
+Build/Artifacts/Assets/terrain_albedo.texture
 ```
 
-It should know:
+Required workflow:
 
 ```txt
-where code lives,
-which symbols exist,
-which files include each other,
-which modules depend on each other,
-which generated files came from which sources,
-which boundaries are violated,
-and which outputs are stale.
+prism index --json
+prism boundaries --profile ci --json
+prism stale --profile dev-local-client-server --json
+prism packages --profile dev-local-client-server --json
 ```
 
-It should not know:
+Required behavior:
+
+1. Prism indexes C++/C#/SDE/generated/manifest inputs.
+2. Prism reads SDE artifact manifest and source map.
+3. Prism maps `QuestReward.generated.cs` back to `quest_reward.sde`.
+4. Prism indexes `[BlockCallable]` method in `QuestXp.cs`.
+5. Prism compares script source metadata to binding manifest.
+6. Prism maps `terrain_albedo.png` to cooked texture artifact.
+7. Prism detects stale cooked artifact after source hash change.
+8. Prism detects stale generated C# after graph artifact hash change.
+9. Prism detects server-only graph artifact in client package manifest.
+10. Prism emits machine-readable reports for Forge/editor/CI.
+
+This slice proves Prism is not a fancy grep.
+
+It is artifact relationship intelligence.
+
+---
+
+## 26. Non-Goals
+
+Prism must not become:
+
+* SDE compiler,
+* Forge build planner,
+* CMake/Conan wrapper,
+* C# compiler,
+* asset cooker,
+* package stager,
+* Saga product shell,
+* SagaEditor UI,
+* runtime/server validator at startup,
+* server authority enforcement layer,
+* collaboration backend,
+* destructive repair tool by default.
+
+Prism finds evidence.
+
+Other systems decide how to act on that evidence.
+
+---
+
+## 27. Risk Register
+
+### 27.1 Risk: Prism Becomes Build System
+
+Mitigation:
+
+* Prism emits reports only,
+* Forge owns build/publish decisions,
+* no artifact generation in Prism,
+* no package staging in Prism.
+
+---
+
+### 27.2 Risk: Prism Depends on SDE/Forge Internals
+
+Mitigation:
+
+* read manifests/reports/public formats,
+* forbid private includes,
+* add boundary tests,
+* keep report format stable.
+
+---
+
+### 27.3 Risk: Stale Detection Is Incomplete
+
+Mitigation:
+
+* require source hashes,
+* require generated origin manifests,
+* require dependency manifests,
+* compare tool/schema/profile versions,
+* report unknown freshness as warning/error by profile.
+
+---
+
+### 27.4 Risk: Reports Are Too Abstract for Editor Navigation
+
+Mitigation:
+
+* include source/resource/artifact refs,
+* include source ranges where available,
+* include graph node/pin/edge refs where available,
+* keep raw payload available for technical profiles.
+
+---
+
+### 27.5 Risk: Prism Becomes Too Saga-Specific
+
+Mitigation:
+
+* keep generic source/dependency/index features,
+* make Saga-specific checks profile/config driven,
+* support standalone C++/generated-output use cases.
+
+---
+
+## 28. Suggested File Targets
+
+Expected core files:
 
 ```txt
-how SDE parses and compiles schemas,
-how Forge builds packages,
-how SagaTools dispatches commands,
-how Saga opens projects,
-how the editor draws panels,
-how runtime simulation works,
-or how the server owns authority.
+Tools/Prism/include/Prism/Core/PrismConfig.hpp
+Tools/Prism/include/Prism/Core/PrismContext.hpp
+Tools/Prism/include/Prism/Core/AnalysisProfile.hpp
+Tools/Prism/include/Prism/Core/AnalysisResult.hpp
+Tools/Prism/src/Core/PrismContext.cpp
 ```
 
-Prism succeeds when it makes the codebase easier to understand without becoming the codebase.
+Expected discovery/index files:
 
-That is the whole trick.
+```txt
+Tools/Prism/include/Prism/Index/SourceDiscovery.hpp
+Tools/Prism/include/Prism/Index/FileHashIndex.hpp
+Tools/Prism/include/Prism/Index/ProjectIndex.hpp
+Tools/Prism/src/Index/SourceDiscovery.cpp
+Tools/Prism/src/Index/FileHashIndex.cpp
+```
 
-Naturally, it is the trick most tools immediately fail.
+Expected C++ files:
+
+```txt
+Tools/Prism/include/Prism/Cpp/CppIncludeIndexer.hpp
+Tools/Prism/include/Prism/Cpp/CppIncludeGraph.hpp
+Tools/Prism/include/Prism/Cpp/CompileDatabaseReader.hpp
+Tools/Prism/src/Cpp/CppIncludeIndexer.cpp
+Tools/Prism/src/Cpp/CompileDatabaseReader.cpp
+```
+
+Expected scripting files:
+
+```txt
+Tools/Prism/include/Prism/Scripting/CSharpSourceIndexer.hpp
+Tools/Prism/include/Prism/Scripting/BlockCallableIndex.hpp
+Tools/Prism/include/Prism/Scripting/ScriptBindingManifestReader.hpp
+Tools/Prism/src/Scripting/CSharpSourceIndexer.cpp
+Tools/Prism/src/Scripting/BlockCallableIndex.cpp
+```
+
+Expected SDE/graph/generated files:
+
+```txt
+Tools/Prism/include/Prism/SDE/SdeArtifactManifestReader.hpp
+Tools/Prism/include/Prism/SDE/SdeSourceMapReader.hpp
+Tools/Prism/include/Prism/Graph/GraphArtifactIndex.hpp
+Tools/Prism/include/Prism/Generated/GeneratedOriginIndex.hpp
+Tools/Prism/src/SDE/SdeArtifactManifestReader.cpp
+Tools/Prism/src/Graph/GraphArtifactIndex.cpp
+Tools/Prism/src/Generated/GeneratedOriginIndex.cpp
+```
+
+Expected asset/package files:
+
+```txt
+Tools/Prism/include/Prism/Assets/AssetArtifactIndex.hpp
+Tools/Prism/include/Prism/Packages/PackageManifestIndex.hpp
+Tools/Prism/src/Assets/AssetArtifactIndex.cpp
+Tools/Prism/src/Packages/PackageManifestIndex.cpp
+```
+
+Expected validation files:
+
+```txt
+Tools/Prism/include/Prism/Validation/BoundaryValidator.hpp
+Tools/Prism/include/Prism/Validation/StaleGraphArtifactCheck.hpp
+Tools/Prism/include/Prism/Validation/StaleScriptArtifactCheck.hpp
+Tools/Prism/include/Prism/Validation/StaleCookedArtifactCheck.hpp
+Tools/Prism/include/Prism/Validation/PackageManifestConsistencyCheck.hpp
+Tools/Prism/include/Prism/Validation/AuthorityMetadataConsistencyCheck.hpp
+Tools/Prism/src/Validation/BoundaryValidator.cpp
+Tools/Prism/src/Validation/StaleGraphArtifactCheck.cpp
+Tools/Prism/src/Validation/StaleScriptArtifactCheck.cpp
+Tools/Prism/src/Validation/StaleCookedArtifactCheck.cpp
+```
+
+Expected report files:
+
+```txt
+Tools/Prism/include/Prism/Reports/PrismReport.hpp
+Tools/Prism/include/Prism/Reports/ReportWriter.hpp
+Tools/Prism/include/Prism/Diagnostics/PrismDiagnostic.hpp
+Tools/Prism/src/Reports/ReportWriter.cpp
+```
+
+---
+
+## 29. Decision Summary
+
+Preserve these decisions:
+
+```txt
+Prism is a code/artifact intelligence tool.
+Prism observes, indexes, validates relationships, and reports.
+Prism does not compile, cook, package, execute, or publish.
+Prism reads SDE outputs, not SDE internals.
+Prism reads script binding manifests, not script compiler internals.
+Prism reads asset/cook manifests, not asset cooker internals.
+Prism reads package manifests, not package staging implementation.
+Forge invokes Prism and decides gate behavior by profile.
+SagaEditor consumes Prism reports for diagnostics/navigation.
+Saga product shell consumes Prism summaries for build/publish state.
+Boundary validation and stale artifact detection are core Prism responsibilities.
+Generated origin tracking is core Prism responsibility.
+Reports must be machine-readable, deterministic where practical, and source/resource linked.
+```
+
+Prism should make hidden relationships visible.
+
+If it starts generating the relationships it is supposed to verify, it has crossed the line and become another build system.

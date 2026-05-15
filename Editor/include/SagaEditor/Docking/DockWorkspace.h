@@ -1,5 +1,5 @@
 /// @file DockWorkspace.h
-/// @brief Panel docking façade — thin wrapper around IUIMainWindow's dock API.
+/// @brief Panel docking facade — thin wrapper around IUIMainWindow's dock API.
 
 #pragma once
 

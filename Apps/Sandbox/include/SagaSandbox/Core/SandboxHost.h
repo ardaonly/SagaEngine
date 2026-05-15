@@ -8,7 +8,7 @@
 ///
 /// Architecture invariant:
 ///   SandboxHost is the ONLY class in the Sandbox layer that touches
-///   Application, ScenarioManager, DebugHud, and DiligentRenderBackend
+///   Application, ScenarioManager, DebugHud, and the render backend
 ///   simultaneously. All four live here and nowhere else.
 ///
 /// UI separation:
@@ -26,7 +26,7 @@
 #include "SagaSandbox/Core/ScenarioManager.h"
 #include "SagaSandbox/Core/SandboxConfig.h"
 #include <SagaEngine/Core/Application/Application.h>
-#include <SagaEngine/Render/Backend/Diligent/DiligentRenderBackend.h>
+#include <SagaEngine/Render/Backend/IRenderBackend.h>
 #include <memory>
 #include <string>
 
@@ -94,11 +94,11 @@ private:
     ScenarioManager            m_scenarioManager;
     std::unique_ptr<DebugHud>  m_debugHud;
 
-    /// Diligent GPU backend. Created in OnInit when headless == false.
+    /// GPU backend. Created in OnInit when headless == false.
     /// Null until InitRenderBackend succeeds. Scenarios may query this
-    /// for diagnostic readout (SelectedAPI, FrameIndex, etc.) but do NOT
-    /// own it or shut it down — that is SandboxHost's job exclusively.
-    std::unique_ptr<SagaEngine::Render::Backend::DiligentRenderBackend> m_renderBackend;
+    /// through the public backend factory/status API but do NOT own it or
+    /// shut it down; that is SandboxHost's job exclusively.
+    std::unique_ptr<SagaEngine::Render::Backend::IRenderBackend> m_renderBackend;
 
     uint64_t                   m_tickCounter    = 0;
     float                      m_fpsAccumulator = 0.0f;

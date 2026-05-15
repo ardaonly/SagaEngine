@@ -8,7 +8,6 @@
 #include <SagaEngine/Core/Log/Log.h>
 #include <SagaEngine/Core/Memory/MemoryTracker.h>
 #include <SagaEngine/Platform/PlatformFactory.h>
-#include <SagaEngine/Platform/SDL/SDLPlatformFactory.h>
 #include <SagaSandbox/Core/SandboxHost.h>
 #include <SagaSandbox/Core/SandboxConfig.h>
 
@@ -170,8 +169,8 @@ int main(int argc, char* argv[])
 {
     SagaEngine::Core::Log::Init();
 
-    static Saga::SDLPlatformFactory sdlFactory;
-    Saga::PlatformFactory::Set(&sdlFactory);
+    auto platformFactory = Saga::CreateSDLPlatformFactory();
+    Saga::PlatformFactory::Set(platformFactory.get());
 
     SagaSandbox::SandboxConfig config;
     config.windowTitle       = "SagaEngine Sandbox";

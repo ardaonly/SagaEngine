@@ -84,7 +84,7 @@ void ServerApplyInput(TestTransformComponent& tc, const Input::InputCommand& cmd
     const float moveX = Input::FloatFromFixed(cmd.moveX);
     const float moveY = Input::FloatFromFixed(cmd.moveY);
     tc.x += moveX * kMoveScale;
-    tc.y += moveY * kMoveScale;
+    tc.z += moveY * kMoveScale;
 }
 
 /// Client-side replay function: integrate one input command into predicted state.
@@ -195,7 +195,7 @@ TEST_F(ClientServerRoundTripTest, PredictionReplayMatchesServer)
         cmd.moveY = Input::FixedFromFloat(0.0f);
 
         // Push to input buffer (simulates input system producing the command).
-        inputBuffer.PushLocal(cmd);
+        ASSERT_TRUE(inputBuffer.PushLocal(cmd));
 
         // Record prediction: apply the same movement the server will apply.
         Client::Prediction::PredictedState pred;
@@ -231,7 +231,7 @@ TEST_F(ClientServerRoundTripTest, ReconciliationCorrectsDivergence)
     Client::Prediction::ReconciliationBuffer<128> reconciliation;
 
     const float dtSeconds = 1.0f / 60.0f;
-    const float errorThresholdSq = 0.04f; // 20 cm
+    const float errorThresholdSq = 0.0001f; // 1 cm squared
     uint32_t inputSeq = 0;
 
     // Simulate 5 ticks of normal prediction.
@@ -243,7 +243,8 @@ TEST_F(ClientServerRoundTripTest, ReconciliationCorrectsDivergence)
         cmd.moveX = Input::FixedFromFloat(1.0f);
         cmd.moveY = Input::FixedFromFloat(0.0f);
 
-        inputBuffer.PushLocal(cmd);
+        ASSERT_TRUE(inputBuffer.PushLocal(cmd));
+        inputBuffer.MarkSent(inputSeq);
 
         Client::Prediction::PredictedState pred;
         pred.inputSeq = inputSeq;
@@ -302,7 +303,8 @@ TEST_F(ClientServerRoundTripTest, FullLoopInputSnapshotReconcile)
         cmd.moveX = Input::FixedFromFloat(1.0f);
         cmd.moveY = Input::FixedFromFloat(0.5f);
 
-        inputBuffer.PushLocal(cmd);
+        ASSERT_TRUE(inputBuffer.PushLocal(cmd));
+        inputBuffer.MarkSent(inputSeq);
 
         // Apply to server entity (simulating server receiving and applying input).
         auto* tc = m_world->GetComponent<TestTransformComponent>(m_entityHandle.id);

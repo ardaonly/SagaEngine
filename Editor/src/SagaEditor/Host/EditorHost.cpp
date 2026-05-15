@@ -8,6 +8,7 @@
 #include "SagaEditor/Commands/ShortcutManager.h"
 #include "SagaEditor/Commands/UndoRedoStack.h"
 #include "SagaEditor/Customization/EditorCustomizationCatalog.h"
+#include "SagaEditor/Diagnostics/EditorDiagnosticsService.h"
 #include "SagaEditor/Selection/SelectionManager.h"
 #include "SagaEditor/Themes/ThemeRegistry.h"
 #include "SagaEditor/Persona/PersonaActivator.h"
@@ -67,6 +68,7 @@ bool EditorHost::Init(std::unique_ptr<IEditorSettingsStore> settingsStore,
     m_settingsStore     = settingsStore ? std::move(settingsStore)
                                         : std::make_unique<MemoryEditorSettingsStore>();
     m_engineBridge      = std::make_unique<LocalEditorEngineBridge>();
+    m_editorDiagnosticsService = std::make_unique<EditorDiagnosticsService>();
     m_customizationCatalog = std::make_unique<EditorCustomizationCatalog>();
     m_extensionRegistry = std::make_unique<ExtensionRegistry>();
     m_extensionHost     = std::make_unique<ExtensionHost>(*m_extensionRegistry, *this);
@@ -124,6 +126,7 @@ void EditorHost::Shutdown()
     m_extensionRegistry.reset();
     m_workspaceDefinition.reset();
     m_customizationCatalog.reset();
+    m_editorDiagnosticsService.reset();
     m_engineBridge.reset();
     m_editorProfileSettingsBinding.reset();
     m_editorProfileActivator.reset();
@@ -162,6 +165,10 @@ EditorProfileActivator& EditorHost::GetEditorProfileActivator() noexcept
 }
 IEditorSettingsStore& EditorHost::GetSettingsStore()  noexcept { return *m_settingsStore;     }
 IEditorEngineBridge& EditorHost::GetEngineBridge() noexcept { return *m_engineBridge; }
+IEditorDiagnosticsService& EditorHost::GetEditorDiagnosticsService() noexcept
+{
+    return *m_editorDiagnosticsService;
+}
 EditorCustomizationCatalog& EditorHost::GetCustomizationCatalog() noexcept
 {
     return *m_customizationCatalog;

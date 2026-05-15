@@ -20,12 +20,12 @@ function(saga_create_engine_targets)
     saga_collect_sources(CORE_LOG_SOURCES Engine/Private/SagaEngine/Core/Log)
     saga_collect_sources(DIAGNOSTICS_SOURCES Engine/Private/SagaEngine/Diagnostics)
 
-    # Launcher dosyalarını library kaynaklarından çıkar
+    # Exclude launcher files from library sources.
     list(FILTER ENGINE_SOURCES  EXCLUDE REGEX ".*/[Mm]ain\\.cpp$")
     list(FILTER ENGINE_SOURCES  EXCLUDE REGEX ".*/Engine/Private/SagaEngine/Core/Log/.*\\.cpp$")
     list(FILTER ENGINE_SOURCES  EXCLUDE REGEX ".*/Engine/Private/SagaEngine/Diagnostics/.*\\.cpp$")
     list(FILTER SANDBOX_SOURCES EXCLUDE REGEX ".*/Launchers/.*\\.cpp$")
-    # Editor/src/main.cpp (eski stub) library'ye girmesin; Apps/Editor/main.cpp launcher'dır.
+    # Editor/src/main.cpp is a legacy stub; Apps/Editor/main.cpp is the launcher.
     list(FILTER EDITOR_SOURCES  EXCLUDE REGEX ".*/[Mm]ain\\.cpp$")
     list(FILTER SAGA_PRODUCT_SOURCES EXCLUDE REGEX ".*/[Mm]ain\\.cpp$")
     list(FILTER SAGA_PRODUCT_SOURCES EXCLUDE REGEX ".*/SagaQtStaticPlugins\\.cpp$")
@@ -306,7 +306,7 @@ function(saga_create_engine_targets)
         )
     endif()
 
-    # ─── Uygulama Executable'ları ─────────────────────────────────────────────
+    # ─── Application Executables ──────────────────────────────────────────────
     if(SAGA_WITH_SDE)
         qt_add_executable(Saga WIN32
             ${SAGA_ROOT}/Apps/Saga/main.cpp

@@ -5,7 +5,7 @@
 #include "SagaSandbox/Core/ScenarioRegistry.h"
 
 #include <SagaEngine/Core/Log/Log.h>
-#include <SagaEngine/Input/Backends/SDL/SDLInputBackend.h>
+#include <SagaEngine/Input/Backends/IPlatformInputBackend.h>
 #include <SagaEngine/Input/Devices/KeyboardDevice.h>
 #include <SagaEngine/Input/Devices/MouseDevice.h>
 #include <SagaEngine/Input/Commands/InputCommandSerializer.h>
@@ -23,8 +23,7 @@ bool InputProbeScenario::OnInit()
 {
     LOG_INFO(kTag, "Initialising input probe…");
 
-    // Attach SDL backend
-    auto backend = std::make_unique<SagaEngine::Platform::SDLInputBackend>();
+    auto backend = SagaEngine::Platform::CreateSDLInputBackend();
     m_inputManager.SetBackend(std::move(backend));
 
     if (!m_inputManager.Initialize())

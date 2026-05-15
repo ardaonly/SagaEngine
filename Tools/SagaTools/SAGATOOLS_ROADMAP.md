@@ -64,12 +64,10 @@ SagaTools
   project shell
   editor helper
   random scripts
-  emotional support binary
+  unrelated runtime helpers
 ```
 
-A dispatcher that owns everything is not a dispatcher.
-
-It is a landfill with command-line arguments.
+A dispatcher that owns everything is not a dispatcher; it is uncontrolled tool orchestration.
 
 ---
 

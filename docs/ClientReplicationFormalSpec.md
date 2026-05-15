@@ -1,10 +1,10 @@
 # Client-Side Replication Pipeline — Formal Specification
 
-> Last updated: 2026-05-14  
-> Status: Formal runtime specification  
-> Recommended location: `docs/specs/replication/ClientReplicationFormalSpec.md`  
-> Related roadmap: `ENGINE_ROADMAP.md`  
-> Related systems: Packet demux, replication state machine, snapshot apply pipeline, reconciliation buffer, interpolation manager, prediction, diagnostics, runtime networking.  
+> Last updated: 2026-05-14
+> Status: Formal runtime specification
+> Location: `docs/ClientReplicationFormalSpec.md`
+> Related roadmap: `ENGINE_ROADMAP.md`
+> Related systems: Packet demux, replication state machine, snapshot apply pipeline, reconciliation buffer, interpolation manager, prediction, diagnostics, runtime networking.
 > Scope: Client-side replication apply order, determinism, state transitions, thread ownership, memory boundaries, validation rules, and failure behavior.
 
 ---
@@ -26,12 +26,6 @@ ENGINE_ROADMAP.md
 This document should describe invariants the implementation must preserve.
 
 If the implementation changes, this specification must be updated deliberately.
-
-Not accidentally.
-
-Not “the code works now, trust me”.
-
-That sentence has personally escorted thousands of bugs into production.
 
 ---
 
@@ -146,9 +140,7 @@ InterpolationManager
 
 This spec defines the contract between these components.
 
-The exact class names may evolve.
-
-The required behavior must not disappear just because someone renamed a file and felt productive.
+The exact class names may evolve, but the required behavior must remain covered.
 
 ---
 
@@ -1752,6 +1744,4 @@ how failure is reported,
 and how recovery happens.
 ```
 
-Anything less is not a replication system.
-
-It is a multiplayer-themed coincidence machine.
+Anything less leaves replication behavior underspecified.

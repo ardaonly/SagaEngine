@@ -1,22 +1,30 @@
 # System Definition Engine — Roadmap
 
-> Last updated: 2026-05-14  
-> Status: Active roadmap  
-> Target: A standalone deterministic data compiler for Saga projects.  
-> Scope: Schema parsing, validation, canonical IR generation, deterministic artifact emission, diagnostics, incremental compilation, CLI integration, and tool-facing outputs.
+> Last updated: 2026-05-15
+> Status: Active roadmap
+> Target: A standalone, deterministic, reusable system/data definition compiler that can be used by Saga projects and by independent external projects without being locked to SagaEngine.
+> Scope: Source language, schema model, validation, canonical IR generation, graph IR, deterministic artifact emission, diagnostics, source maps, dependency manifests, incremental compilation, CLI, compiler facade, packaging, external integration contracts, and Saga-specific consumption through explicit artifact/schema boundaries.
 
 ---
 
 ## 0. Roadmap Convention
 
-- `[x]` — Shipped. The note after the item names the files, modules, or integration points that represent the work and highlights any decisions worth preserving.
-- `[ ]` — Open. Either unstarted or partially explored; the item describes the finished production state rather than interim scaffolding.
-- Shipped items must name the files, modules, or integration points that represent the completed work.
-- Open items must describe the finished state, not temporary scaffolding.
-- SDE must remain standalone.
-- SDE must be deterministic.
-- SDE must not depend on Saga, SagaEngine, SagaEditor, SagaServer, SagaShared, SagaCollaboration, Forge, Prism, or SagaTools.
-- SDE may emit outputs consumed by those systems through explicit artifact formats.
+* `[x]` — Shipped. The note after the item names the files, modules, tests, packages, commands, or integration points that represent completed work.
+* `[ ]` — Open. The item describes the finished production state, not temporary scaffolding.
+* Shipped SDE work must name concrete implementation files, package outputs, tests, CLI commands, and integration evidence where practical.
+* Open SDE work must describe stable compiler behavior, not temporary engine/editor scaffolding.
+* SDE must remain standalone.
+* SDE must remain deterministic.
+* SDE must be usable outside SagaEngine.
+* SDE must not depend on Saga, SagaEngine, SagaEditor, SagaServer, SagaShared, SagaCollaboration, Forge, Prism, SagaTools, asset pipeline implementation, or scripting host implementation.
+* SDE may emit stable artifacts consumed by those systems through documented output formats.
+* Saga-specific behavior must be represented through schemas, packages, manifests, adapters, or external consumers—not through hidden SDE dependencies on Saga modules.
+
+SDE's job is not to become SagaEngine in compiler form.
+
+SDE's job is to compile structured system definitions into deterministic artifacts.
+
+That distinction is not cosmetic. It is the difference between a reusable tool and a captive subsystem.
 
 ---
 
@@ -24,33 +32,47 @@
 
 This document defines the roadmap for the System Definition Engine, also called SDE.
 
-SDE is Saga’s deterministic data compiler.
+SDE is a standalone deterministic compiler for system/data definitions.
 
-It exists to turn project/system definitions into validated, stable, runtime-consumable artifacts.
+It exists to turn source definitions into validated, stable, reproducible, machine-consumable artifacts.
 
 SDE owns:
 
-- source definition parsing,
-- schema validation,
-- semantic validation,
-- canonical IR generation,
-- deterministic hashing,
-- artifact generation,
-- diagnostics,
-- dependency tracking,
-- incremental compile planning,
-- command-line compiler behavior.
+* source language definition,
+* lexical analysis,
+* parsing,
+* AST construction,
+* schema declaration model,
+* type system,
+* symbol resolution,
+* semantic validation,
+* generic graph model validation,
+* canonical IR generation,
+* deterministic artifact emission,
+* source maps,
+* structured diagnostics,
+* dependency manifests,
+* incremental compile planning,
+* stable CLI behavior,
+* public compiler facade,
+* packaging and distribution as an independent tool/library.
 
 SDE does not own:
 
-- Saga product shell,
-- editor UI,
-- runtime execution,
-- server authority,
-- collaboration implementation,
-- build frontend UX,
-- code intelligence database,
-- tool dispatcher behavior.
+* Saga product shell,
+* SagaEditor UI,
+* SagaEngine runtime execution,
+* SagaServer authority implementation,
+* SagaCollaboration implementation,
+* Forge build workflow ownership,
+* Prism code intelligence implementation,
+* SagaTools dispatch behavior,
+* asset import/cook implementation,
+* C# scripting compiler/host implementation,
+* runtime gameplay execution,
+* server session policy,
+* database/persistence implementation,
+* editor graph canvas implementation.
 
 Correct model:
 
@@ -63,40 +85,110 @@ SDE semantic validator
       ↓
 Canonical IR
       ↓
-Deterministic artifacts
+Deterministic artifacts + manifests + diagnostics
       ↓
-Saga / Editor / Runtime / Server / Tools consume outputs
+Any consumer reads documented outputs
+```
+
+Saga-specific consumption model:
+
+```txt
+Saga project .sde files
+      ↓
+SDE compiler
+      ↓
+Generic artifacts + Saga schema-defined artifacts
+      ↓
+Forge packages outputs
+      ↓
+SagaEditor / Runtime / Server consume manifests/artifacts
 ```
 
 Incorrect model:
 
 ```txt
-SDE includes engine/editor headers and becomes a secret subsystem.
+SDE includes SagaEngine headers and becomes a secret engine subsystem.
 ```
 
-That would be convenient in the same way mixing every cable in one box is convenient until something catches fire.
+That would make SDE look powerful for three weeks and unusable outside the engine forever.
 
 ---
 
 ## 2. Companion Documents
 
-| Document | Purpose |
-|---|---|
-| `docs/roadmaps/TOOLS_ROADMAP.md` | Tool ecosystem ownership index |
-| `Tools/SystemDefinitionEngine/SDE_ROADMAP.md` | SDE compiler roadmap |
-| `Tools/Forge/FORGE_ROADMAP.md` | Forge build workflow frontend |
-| `Tools/Prism/PRISM_ROADMAP.md` | Prism code intelligence |
-| `Tools/SagaTools/SAGATOOLS_ROADMAP.md` | Thin command dispatcher |
-| `SHARED_ROADMAP.md` | Shared contracts and artifact references |
-| `ENGINE_ROADMAP.md` | Runtime/server consumption of SDE outputs |
-| `EDITOR_ROADMAP.md` | Editor integration through service boundaries |
-| `DependencyGraph.md` | Dependency ownership rules |
+| Document                                      | Purpose                                                                        |
+| --------------------------------------------- | ------------------------------------------------------------------------------ |
+| `TOOLS_ROADMAP.md`                            | Tool ecosystem ownership index                                                 |
+| `Tools/SystemDefinitionEngine/SDE_ROADMAP.md` | SDE compiler roadmap                                                           |
+| `FORGE_ROADMAP.md`                            | Build workflow frontend and SDE invocation as a build step                     |
+| `PRISM_ROADMAP.md`                            | Code/artifact intelligence and stale generated-output analysis                 |
+| `SAGATOOLS_ROADMAP.md`                        | Thin command dispatcher that may invoke SDE                                    |
+| `SHARED_ROADMAP.md`                           | Shared artifact/diagnostic/package contracts consumed by Saga systems          |
+| `ENGINE_ROADMAP.md`                           | Runtime/server consumption of compiled SDE outputs and manifests               |
+| `EDITOR_ROADMAP.md`                           | Editor-side SDE integration through service/tool boundaries                    |
+| `SAGA_GAMEPLAY_GRAPH_ROADMAP.md`              | Saga-specific gameplay graph consumer model built on SDE graph artifacts       |
+| `AUTHORING_AUTHORITY_MODEL.md`                | Saga-specific authority metadata and validation consumption model              |
+| `SAGA_SCRIPTING_ROADMAP.md`                   | Script/generated-code integration consuming SDE graph outputs where applicable |
+| `ASSET_PIPELINE_ROADMAP.md`                   | Asset/artifact references and build pipeline interaction                       |
+| `BUILD_PUBLISH_PIPELINE_ROADMAP.md`           | Forge/SDE/script/asset/package/publish workflow                                |
+| `DependencyGraph.md`                          | Dependency ownership rules                                                     |
 
 ---
 
-## 3. Ownership Boundary
+## 3. Fundamental Product Rule
 
-- [x] Define SDE as a standalone deterministic compiler.
+* [ ] Keep SDE reusable outside SagaEngine.
+
+  Done means an external project can:
+
+  * clone or package SDE independently,
+  * build SDE without SagaEngine source,
+  * run `sde validate` on its own `.sde` files,
+  * run `sde compile` to produce deterministic artifacts,
+  * consume diagnostics, manifests, source maps, and generated outputs,
+  * define its own schema packages,
+  * use SDE without linking Saga modules.
+
+* [ ] Keep Saga-specific behavior outside SDE core implementation.
+
+  Done means Saga-specific concepts such as:
+
+  * MMO authority,
+  * quest reward graphs,
+  * inventory semantics,
+  * server-only gameplay,
+  * replication policy,
+  * Saga editor profiles,
+  * Saga asset package layout,
+  * Saga script binding policy,
+
+  are represented by external schemas, manifests, adapter code, or consumer validation—not hardcoded dependencies in SDE core.
+
+* [ ] Make Saga a consumer, not the owner of SDE.
+
+  Done means Saga/Forge/Editor/Runtime/Server consume SDE through:
+
+  * CLI,
+  * public compiler facade,
+  * artifact manifests,
+  * diagnostics JSON,
+  * source maps,
+  * packaged library APIs where approved,
+  * documented output formats.
+
+  They do not consume:
+
+  * SDE AST internals,
+  * parser internals,
+  * semantic analyzer internals,
+  * compiler pass internals,
+  * private IR builder implementation.
+
+---
+
+## 4. Ownership Boundary
+
+* [x] Define SDE as a standalone deterministic compiler.
 
   Represented by:
 
@@ -116,39 +208,80 @@ That would be convenient in the same way mixing every cable in one box is conven
   SDE does not depend on Saga modules.
   ```
 
-- [ ] Keep SDE independent from Saga modules.
+* [x] Provide standalone packaging and `SDE::Core` target.
 
-  Done means SDE does not include headers from:
+  Represented by:
 
   ```txt
-  Saga
-  SagaEngine
-  SagaEditor
-  SagaServer
-  SagaShared
-  SagaCollaboration
-  Forge
-  Prism
-  SagaTools
+  Tools/SystemDefinitionEngine/CMakeLists.txt
+  Tools/SystemDefinitionEngine/conanfile.py
+  Tools/SystemDefinitionEngine/build.py
+  Tools/SystemDefinitionEngine/version.json
+  Tools/SystemDefinitionEngine/CHANGELOG.md
+  SDE::Core
+  SDE::SDE compatibility alias
   ```
 
-- [ ] Keep SDE implementation owned by `Tools/SystemDefinitionEngine`.
+  Preserved decision:
 
-  Done means SDE parser, AST, semantic analyzer, IR builder, compiler passes, codegen, and diagnostics live under SDE-owned paths.
+  ```txt
+  SDE can be packaged and consumed independently.
+  SagaEngine consumes SDE through find_package / packaged dependency boundaries.
+  ```
 
-Expected location:
+* [x] Add project-level compiler facade surfaces.
+
+  Represented by:
+
+  ```txt
+  SharedRegistrySet
+  CompilerSession
+  CompileContext
+  cooperative cancellation token
+  structured diagnostics
+  stable hashing surfaces
+  dependency manifests
+  ```
+
+  Preserved decision:
+
+  ```txt
+  Integrations use public compiler surfaces, not private parser/semantic internals.
+  ```
+
+* [ ] Keep SDE implementation owned by `Tools/SystemDefinitionEngine` or its extracted standalone repository.
+
+  Done means lexer, parser, AST, semantic analyzer, IR builder, compiler passes, artifact writers, source maps, diagnostics, and tests live under SDE-owned paths.
+
+Expected location while inside Saga monorepo:
 
 ```txt
 Tools/SystemDefinitionEngine/
 ```
 
+Expected external extraction model:
+
+```txt
+SystemDefinitionEngine/
+  include/SDE/
+  src/
+  tests/
+  docs/
+  CMakeLists.txt
+  conanfile.py
+  build.py
+  CHANGELOG.md
+  LICENSE
+  version.json
+```
+
 ---
 
-## 4. Dependency Rules
+## 5. Dependency Rules
 
-### 4.1 Allowed Dependencies
+### 5.1 Allowed Dependencies
 
-- [ ] Allow SDE to depend only on standalone compiler-safe libraries.
+* [ ] Allow SDE to depend only on standalone compiler-safe libraries.
 
   Allowed examples:
 
@@ -159,13 +292,15 @@ Tools/SystemDefinitionEngine/
   serialization libraries if explicitly approved
   hashing libraries if explicitly approved
   test framework
+  small CLI parsing library if explicitly approved
   ```
 
-- [ ] Allow SDE outputs to be consumed by other systems.
+* [ ] Allow SDE outputs to be consumed by other systems.
 
   Allowed output consumers:
 
   ```txt
+  any external project
   Saga product shell
   SagaEditor
   SagaEngine runtime
@@ -174,14 +309,32 @@ Tools/SystemDefinitionEngine/
   Forge
   Prism
   SagaTools
+  asset pipeline tools
+  scripting tools
   CI/build scripts
+  external build systems
+  external editor integrations
   ```
+
+* [ ] Allow optional adapters outside SDE core.
+
+  Done means Saga-specific or external-project-specific adapters may exist outside SDE core implementation, for example:
+
+  ```txt
+  Saga integration adapter
+  Forge SDE invocation step
+  Prism SDE manifest reader
+  Editor SDE diagnostics adapter
+  external project SDE adapter
+  ```
+
+  These adapters consume SDE outputs or public APIs; they do not make SDE depend on them.
 
 ---
 
-### 4.2 Forbidden Dependencies
+### 5.2 Forbidden Dependencies
 
-- [ ] Prevent SDE from depending on Saga modules.
+* [ ] Prevent SDE from depending on Saga modules.
 
   Forbidden:
 
@@ -195,9 +348,11 @@ Tools/SystemDefinitionEngine/
   SDE → Forge
   SDE → Prism
   SDE → SagaTools
+  SDE → AssetPipeline implementation
+  SDE → Scripting implementation
   ```
 
-- [ ] Prevent SDE from depending on editor/runtime implementation details.
+* [ ] Prevent SDE from depending on editor/runtime/server implementation details.
 
   Forbidden examples:
 
@@ -207,11 +362,13 @@ Tools/SystemDefinitionEngine/
   SDE includes runtime asset registry internals
   SDE includes collaboration session headers
   SDE includes Qt headers
+  SDE includes server authority implementation
+  SDE includes C# scripting host implementation
   ```
 
-- [ ] Prevent SDE from becoming a runtime service.
+* [ ] Prevent SDE from becoming a runtime service.
 
-  Done means SDE is invoked as a compiler/tool, not embedded as runtime gameplay logic.
+  Done means SDE is invoked as a compiler/tool/library during authoring/build/CI workflows, not embedded as hidden gameplay execution logic in runtime/server loops.
 
 A compiler can be called by tools.
 
@@ -219,9 +376,52 @@ It should not move into the runtime and start making lifestyle choices.
 
 ---
 
-## 5. CLI Roadmap
+## 6. Core Design Principle: Core + Schema Packages + Consumers
 
-- [ ] Provide stable SDE command-line interface.
+SDE must be designed as a generic compiler core plus schema packages and external consumers.
+
+Correct layering:
+
+```txt
+SDE Core
+  source language
+  parser
+  generic schema model
+  generic graph model
+  generic validation engine
+  canonical IR
+  artifacts
+  diagnostics
+
+Schema Packages
+  domain definitions
+  attributes
+  validation declarations
+  artifact schemas
+
+Consumers
+  Saga / external tools / CI / editor integrations
+  interpret artifacts according to their domain
+```
+
+Incorrect layering:
+
+```txt
+SDE Core
+  knows Saga inventory
+  knows MMO authority
+  knows runtime package layout
+  knows editor panels
+  knows server replication implementation
+```
+
+That would make SDE very useful to one project and fundamentally less valuable everywhere else.
+
+---
+
+## 7. CLI Roadmap
+
+* [ ] Provide stable SDE command-line interface.
 
   Required commands:
 
@@ -235,67 +435,129 @@ It should not move into the runtime and start making lifestyle choices.
   sde doctor
   ```
 
-- [ ] Provide `sde validate`.
+* [ ] Provide `sde validate`.
 
   Done means:
 
-  - source files are parsed,
-  - schema validity is checked,
-  - semantic errors are reported,
-  - no output artifact is emitted unless explicitly requested,
-  - exit code reflects validation success/failure.
+  * source files are parsed,
+  * schema validity is checked,
+  * semantic errors are reported,
+  * no output artifact is emitted unless explicitly requested,
+  * exit code reflects validation success/failure,
+  * diagnostics are available in human-readable and machine-readable forms.
 
-- [ ] Provide `sde compile`.
+* [ ] Provide `sde compile`.
 
   Done means:
 
-  - source files are parsed,
-  - semantic validation runs,
-  - canonical IR is generated,
-  - deterministic artifacts are emitted,
-  - diagnostics are emitted,
-  - dependency manifest is emitted,
-  - exit code reflects compile success/failure.
+  * source files are parsed,
+  * semantic validation runs,
+  * canonical IR is generated,
+  * deterministic artifacts are emitted,
+  * source maps are emitted,
+  * diagnostics are emitted,
+  * dependency manifest is emitted,
+  * artifact manifest is emitted,
+  * exit code reflects compile success/failure.
 
-- [ ] Provide `sde inspect`.
+* [ ] Provide `sde inspect`.
 
   Done means users can inspect:
 
-  - source structure,
-  - parsed AST summary,
-  - canonical IR summary,
-  - artifact manifest,
-  - dependency graph,
-  - hash outputs.
+  * source structure,
+  * parsed AST summary,
+  * symbol table summary,
+  * canonical IR summary,
+  * graph summary,
+  * artifact manifest,
+  * dependency graph,
+  * hash outputs.
 
-- [ ] Provide `sde doctor`.
+* [ ] Provide `sde format`.
+
+  Done means SDE can format source files deterministically according to documented style rules.
+
+* [ ] Provide `sde doctor`.
 
   Done means doctor checks:
 
-  - compiler executable health,
-  - config validity,
-  - output directory access,
-  - cache directory access,
-  - supported schema version,
-  - basic parse/compile smoke path.
+  * compiler executable health,
+  * config validity,
+  * output directory access,
+  * cache directory access,
+  * supported schema version,
+  * package registry access where configured,
+  * basic parse/compile smoke path.
+
+* [ ] Keep CLI useful outside Saga.
+
+  Done means CLI examples and tests include non-Saga sample projects.
 
 ---
 
-## 6. Source Language and Schema Model
+## 8. Public Compiler Facade
 
-- [ ] Define the SDE source language.
+* [x] Add public compiler facade concepts.
+
+  Represented by:
+
+  ```txt
+  SharedRegistrySet
+  CompilerSession
+  CompileContext
+  cancellation token
+  structured diagnostics
+  stable hashing surfaces
+  ```
+
+* [ ] Stabilize public compiler facade.
+
+  Done means external integrations can:
+
+  * create compiler sessions,
+  * provide source roots,
+  * provide schema packages,
+  * configure output directories,
+  * run validate/compile/inspect operations,
+  * receive diagnostics,
+  * receive manifests,
+  * cancel compilation cooperatively.
+
+Expected files:
+
+```txt
+Tools/SystemDefinitionEngine/include/SDE/Compiler/CompilerSession.hpp
+Tools/SystemDefinitionEngine/include/SDE/Compiler/CompileContext.hpp
+Tools/SystemDefinitionEngine/include/SDE/Compiler/CompileOptions.hpp
+Tools/SystemDefinitionEngine/include/SDE/Compiler/CompileResult.hpp
+Tools/SystemDefinitionEngine/include/SDE/Compiler/CancellationToken.hpp
+Tools/SystemDefinitionEngine/src/Compiler/CompilerSession.cpp
+```
+
+* [ ] Keep public facade independent from Saga contracts.
+
+  Done means facade types do not include `SagaShared`, `SagaEngine`, `SagaEditor`, `SagaServer`, or tool-specific headers.
+
+---
+
+## 9. Source Language and Schema Model
+
+* [ ] Define the SDE source language.
 
   Done means the source language has documented:
 
-  - file extension,
-  - lexical rules,
-  - comments,
-  - identifiers,
-  - literals,
-  - type references,
-  - declarations,
-  - imports/includes,
-  - versioning rules.
+  * file extension,
+  * lexical rules,
+  * comments,
+  * identifiers,
+  * literals,
+  * type references,
+  * declarations,
+  * imports/includes,
+  * attributes,
+  * versioning rules,
+  * graph syntax,
+  * validation rule syntax where supported.
 
 Expected docs:
 
@@ -303,46 +565,70 @@ Expected docs:
 Tools/SystemDefinitionEngine/docs/SDE_LANGUAGE.md
 ```
 
-- [ ] Define schema declaration model.
+* [ ] Define generic schema declaration model.
 
-  Done means SDE can represent:
+  Done means SDE can represent domain-neutral declarations such as:
 
-  - systems,
-  - components,
-  - resources,
-  - events,
-  - messages,
-  - packages,
-  - graph nodes,
-  - graph edges,
-  - validation rules.
+  * package,
+  * import,
+  * schema,
+  * model,
+  * field,
+  * enum,
+  * resource,
+  * event,
+  * message,
+  * graph,
+  * node,
+  * edge,
+  * validation rule,
+  * artifact output.
 
-- [ ] Define import and dependency rules.
+* [ ] Keep schema system domain-extensible.
+
+  Done means external projects can define their own schema packages without modifying SDE core.
+
+Example external domains:
+
+```txt
+Saga gameplay schemas
+editor customization schemas
+build artifact schemas
+asset metadata schemas
+IoT device configuration schemas
+simulation scenario schemas
+workflow automation schemas
+backend service config schemas
+```
+
+* [ ] Define import and dependency rules.
 
   Done means:
 
-  - source files can reference other source files,
-  - cycles are detected,
-  - duplicate declarations are rejected,
-  - ambiguous names fail clearly,
-  - dependency graph is deterministic.
+  * source files can reference other source files,
+  * packages can import packages,
+  * cycles are detected,
+  * duplicate declarations are rejected,
+  * ambiguous names fail clearly,
+  * dependency graph is deterministic.
 
 ---
 
-## 7. Lexer and Parser
+## 10. Lexer and Parser
 
-- [ ] Add lexer.
+* [ ] Add lexer.
 
   Done means lexer supports:
 
-  - tokens,
-  - identifiers,
-  - keywords,
-  - string literals,
-  - numeric literals,
-  - comments,
-  - source locations,
-  - error recovery where practical.
+  * tokens,
+  * identifiers,
+  * keywords,
+  * string literals,
+  * numeric literals,
+  * boolean literals,
+  * comments,
+  * source locations,
+  * error recovery where practical.
 
 Expected files:
 
@@ -352,18 +638,20 @@ Tools/SystemDefinitionEngine/include/SDE/Lexer/Lexer.hpp
 Tools/SystemDefinitionEngine/src/Lexer/Lexer.cpp
 ```
 
-- [ ] Add parser.
+* [ ] Add parser.
 
   Done means parser supports:
 
-  - source files,
-  - declarations,
-  - attributes,
-  - type references,
-  - imports,
-  - graph definitions,
-  - error recovery,
-  - source ranges for diagnostics.
+  * source files,
+  * declarations,
+  * attributes,
+  * type references,
+  * imports,
+  * schema definitions,
+  * graph definitions,
+  * validation rule declarations,
+  * error recovery,
+  * source ranges for diagnostics.
 
 Expected files:
 
@@ -373,34 +661,38 @@ Tools/SystemDefinitionEngine/include/SDE/Parser/ParseResult.hpp
 Tools/SystemDefinitionEngine/src/Parser/Parser.cpp
 ```
 
-- [ ] Add parser tests.
+* [ ] Add parser tests.
 
   Required coverage:
 
-  - valid files,
-  - invalid syntax,
-  - missing braces,
-  - invalid identifiers,
-  - nested declarations,
-  - import statements,
-  - diagnostic source ranges.
+  * valid files,
+  * invalid syntax,
+  * missing braces,
+  * invalid identifiers,
+  * nested declarations,
+  * import statements,
+  * attribute syntax,
+  * graph declarations,
+  * diagnostic source ranges.
 
 ---
 
-## 8. AST Model
+## 11. AST Model
 
-- [ ] Define SDE AST.
+* [ ] Define SDE AST.
 
   Done means AST can represent:
 
-  - file unit,
-  - declarations,
-  - attributes,
-  - type references,
-  - imports,
-  - graph declarations,
-  - expressions where needed,
-  - source locations.
+  * file unit,
+  * declarations,
+  * attributes,
+  * type references,
+  * imports,
+  * graph declarations,
+  * node declarations,
+  * edge declarations,
+  * expressions where needed,
+  * source locations.
 
 Expected files:
 
@@ -409,10 +701,11 @@ Tools/SystemDefinitionEngine/include/SDE/AST/AstNode.hpp
 Tools/SystemDefinitionEngine/include/SDE/AST/AstFile.hpp
 Tools/SystemDefinitionEngine/include/SDE/AST/AstDeclaration.hpp
 Tools/SystemDefinitionEngine/include/SDE/AST/AstTypeRef.hpp
+Tools/SystemDefinitionEngine/include/SDE/AST/AstGraph.hpp
 Tools/SystemDefinitionEngine/src/AST/AstPrinter.cpp
 ```
 
-- [ ] Keep AST compiler-internal.
+* [ ] Keep AST compiler-internal.
 
   Done means AST is not exported as a public Saga runtime/editor contract.
 
@@ -422,27 +715,76 @@ Tools/SystemDefinitionEngine/src/AST/AstPrinter.cpp
   SagaEngine includes SDE AST headers
   SagaEditor includes SDE AST headers
   SagaShared wraps SDE AST nodes
+  Forge relies on SDE AST internals
+  Prism relies on SDE AST internals
   ```
 
-- [ ] Add AST debug printer.
+* [ ] Add AST debug printer.
 
   Done means `sde inspect` can print stable AST summaries for debugging and tests.
 
 ---
 
-## 9. Semantic Analysis
+## 12. Type System
 
-- [ ] Add symbol table.
+* [ ] Define generic SDE type system.
+
+  Done means SDE supports:
+
+  * primitive types,
+  * named types,
+  * enums,
+  * arrays/lists,
+  * maps/dictionaries where approved,
+  * optional values,
+  * references,
+  * resource refs,
+  * graph refs,
+  * artifact refs,
+  * versioned schema refs.
+
+* [ ] Keep domain-specific types schema-defined.
+
+  Done means types such as:
+
+  ```txt
+  PlayerRef
+  ItemId
+  QuestId
+  Replicated<T>
+  ServerEvent<T>
+  ClientEvent<T>
+  ```
+
+  can be defined by Saga schema packages or consumer contracts, not hardcoded into SDE core.
+
+* [ ] Add type compatibility validation.
+
+  Done means validator catches:
+
+  * unknown type,
+  * invalid generic arity,
+  * invalid reference type,
+  * incompatible field value,
+  * incompatible graph pin connection,
+  * incompatible artifact reference.
+
+---
+
+## 13. Semantic Analysis
+
+* [ ] Add symbol table.
 
   Done means SDE can resolve:
 
-  - declarations,
-  - imports,
-  - type names,
-  - package names,
-  - resource references,
-  - graph node references,
-  - schema references.
+  * declarations,
+  * imports,
+  * type names,
+  * package names,
+  * resource references,
+  * graph node references,
+  * schema references,
+  * artifact references.
 
 Expected files:
 
@@ -452,17 +794,19 @@ Tools/SystemDefinitionEngine/include/SDE/Semantic/SymbolTable.hpp
 Tools/SystemDefinitionEngine/src/Semantic/SymbolTable.cpp
 ```
 
-- [ ] Add semantic validator.
+* [ ] Add semantic validator.
 
   Done means validator catches:
 
-  - duplicate definitions,
-  - unknown references,
-  - invalid type usage,
-  - invalid graph connections,
-  - invalid attributes,
-  - dependency cycles,
-  - incompatible schema versions.
+  * duplicate definitions,
+  * unknown references,
+  * invalid type usage,
+  * invalid graph connections,
+  * invalid attributes,
+  * dependency cycles,
+  * incompatible schema versions,
+  * invalid artifact refs,
+  * invalid validation rule use.
 
 Expected files:
 
@@ -472,254 +816,261 @@ Tools/SystemDefinitionEngine/include/SDE/Semantic/SemanticDiagnostic.hpp
 Tools/SystemDefinitionEngine/src/Semantic/SemanticValidator.cpp
 ```
 
-- [ ] Add semantic tests.
+* [ ] Add semantic tests.
 
   Required coverage:
 
-  - valid schema,
-  - duplicate declarations,
-  - unknown type,
-  - invalid attribute,
-  - invalid graph edge,
-  - dependency cycle,
-  - incompatible version.
+  * valid schema,
+  * duplicate declarations,
+  * unknown type,
+  * invalid attribute,
+  * invalid graph edge,
+  * dependency cycle,
+  * incompatible version,
+  * invalid artifact ref.
 
 ---
 
-## 10. Canonical IR
+## 14. Validation Rule Model
 
-- [ ] Define canonical IR.
+* [ ] Define generic validation rule model.
+
+  Done means SDE can validate constraints expressed by schemas without hardcoding consumer-specific semantics into compiler core.
+
+Examples of generic rules:
+
+```txt
+required field
+unique value
+reference exists
+type compatibility
+allowed enum value
+value range
+string pattern
+graph edge type compatibility
+acyclic dependency
+artifact kind compatibility
+version compatibility
+```
+
+* [ ] Support schema-defined validation rules.
+
+  Done means schema packages can define validation expectations that SDE can apply generically.
+
+* [ ] Keep consumer-specific policy outside SDE core when not representable generically.
+
+  Example:
+
+  ```txt
+  SDE may validate that a graph node has an attribute named authority and that its value is one of the schema-defined enum values.
+  SDE core should not hardcode Saga's MMO server authority implementation.
+  Saga/Forge/Runtime/Server may apply additional policy using SDE output manifests.
+  ```
+
+* [ ] Emit structured validation diagnostics.
+
+  Done means validation diagnostics include:
+
+  * code,
+  * severity,
+  * source range,
+  * schema path,
+  * declaration path,
+  * reference path,
+  * rule id,
+  * metadata.
+
+---
+
+## 15. Canonical IR
+
+* [ ] Define canonical IR.
 
   Done means IR is:
 
-  - deterministic,
-  - order-stable,
-  - normalized,
-  - independent from source formatting,
-  - suitable for hashing,
-  - suitable for artifact generation,
-  - suitable for inspection.
+  * deterministic,
+  * serializable,
+  * source-mapped,
+  * schema-aware,
+  * versioned,
+  * independent from AST internals,
+  * independent from Saga modules,
+  * stable enough for external consumers.
 
 Expected files:
 
 ```txt
 Tools/SystemDefinitionEngine/include/SDE/IR/IrModule.hpp
-Tools/SystemDefinitionEngine/include/SDE/IR/IrNode.hpp
+Tools/SystemDefinitionEngine/include/SDE/IR/IrDeclaration.hpp
 Tools/SystemDefinitionEngine/include/SDE/IR/IrType.hpp
-Tools/SystemDefinitionEngine/include/SDE/IR/IrGraph.hpp
+Tools/SystemDefinitionEngine/include/SDE/IR/IrValue.hpp
 Tools/SystemDefinitionEngine/src/IR/IrBuilder.cpp
 ```
 
-- [ ] Add AST-to-IR lowering.
+* [ ] Define deterministic ordering.
 
-  Done means:
+  Done means identical semantic inputs produce identical IR ordering and hashes.
 
-  - AST declarations lower into canonical IR,
-  - imports are resolved,
-  - names are canonicalized,
-  - declaration ordering is stable,
-  - source locations are preserved for diagnostics.
+* [ ] Define IR versioning.
 
-- [ ] Add IR validation.
+  Done means IR consumers can reject unsupported IR versions clearly.
 
-  Done means IR validator catches:
+* [ ] Keep canonical IR generic.
 
-  - invalid node references,
-  - invalid type ids,
-  - invalid dependency edges,
-  - missing required metadata,
-  - non-canonical ordering.
-
-- [ ] Add IR snapshot tests.
-
-  Done means known source inputs produce stable IR text or JSON snapshots.
+  Done means Saga-specific IR interpretation happens in Saga schemas/consumers, not in SDE core.
 
 ---
 
-## 11. Determinism Requirements
+## 16. Graph IR
 
-- [ ] Make compilation deterministic.
+* [ ] Define generic graph model.
 
-  Done means identical inputs produce identical outputs across:
+  Done means SDE can represent:
 
-  - repeated runs,
-  - clean build directories,
-  - different machines where supported,
-  - different filesystem traversal order,
-  - different thread scheduling.
-
-- [ ] Add deterministic ordering rules.
-
-  Done means SDE sorts or canonicalizes:
-
-  - files,
-  - declarations,
-  - imports,
-  - symbols,
-  - graph nodes,
-  - graph edges,
-  - diagnostics where ordering matters,
-  - artifact manifest entries.
-
-- [ ] Add determinism tests.
-
-  Required coverage:
-
-  - same input produces same hash,
-  - input file order does not affect output,
-  - declaration order rules are stable,
-  - generated artifact manifest is stable,
-  - diagnostic order is stable.
-
-If the compiler is not deterministic, every downstream cache becomes a gambling machine with better branding.
-
----
-
-## 12. Hashing and Stable IDs
-
-- [ ] Add stable hash generation.
-
-  Done means SDE can produce deterministic hashes for:
-
-  - source files,
-  - canonical IR modules,
-  - artifact outputs,
-  - dependency graph,
-  - schema definitions.
+  * graph id,
+  * graph kind,
+  * nodes,
+  * pins,
+  * edges,
+  * attributes,
+  * metadata,
+  * source locations,
+  * graph dependencies,
+  * artifact outputs.
 
 Expected files:
 
 ```txt
-Tools/SystemDefinitionEngine/include/SDE/Hash/StableHash.hpp
-Tools/SystemDefinitionEngine/include/SDE/Hash/HashManifest.hpp
-Tools/SystemDefinitionEngine/src/Hash/StableHash.cpp
+Tools/SystemDefinitionEngine/include/SDE/Graph/GraphIr.hpp
+Tools/SystemDefinitionEngine/include/SDE/Graph/GraphNode.hpp
+Tools/SystemDefinitionEngine/include/SDE/Graph/GraphPin.hpp
+Tools/SystemDefinitionEngine/include/SDE/Graph/GraphEdge.hpp
+Tools/SystemDefinitionEngine/include/SDE/Graph/GraphValidator.hpp
+Tools/SystemDefinitionEngine/src/Graph/GraphIrBuilder.cpp
+Tools/SystemDefinitionEngine/src/Graph/GraphValidator.cpp
 ```
 
-- [ ] Add stable id generation.
+* [ ] Keep graph model domain-neutral.
 
-  Done means SDE can generate stable ids for:
+  Done means SDE graph IR does not hardcode Saga gameplay concepts like:
 
-  - schema ids,
-  - component ids,
-  - resource ids,
-  - graph ids,
-  - node ids,
-  - artifact ids.
+  * quest reward,
+  * inventory transaction,
+  * server-only block,
+  * replicated property,
+  * prediction buffer.
 
-- [ ] Document id stability policy.
+  Those can be represented as schema-defined attributes, block descriptors, artifact metadata, or Saga consumer validation.
 
-  Done means docs explain:
+* [ ] Support graph source maps.
 
-  - what changes an id,
-  - what does not change an id,
-  - migration strategy,
-  - version compatibility rules.
+  Done means graph diagnostics can point to:
 
-Expected docs:
+  * graph declaration,
+  * node declaration,
+  * pin declaration,
+  * edge declaration,
+  * attribute source range.
 
-```txt
-Tools/SystemDefinitionEngine/docs/SDE_ID_STABILITY.md
-```
+* [ ] Support graph artifact emission.
+
+  Done means SDE can emit deterministic graph artifacts and manifests for consumers.
 
 ---
 
-## 13. Artifact Emission
+## 17. Artifact Emission
 
-- [ ] Add artifact manifest output.
+* [ ] Define artifact manifest format.
 
-  Done means SDE emits a manifest containing:
+  Done means artifact manifests describe:
 
-  - artifact id,
-  - artifact kind,
-  - source files,
-  - schema version,
-  - content hash,
-  - dependencies,
-  - diagnostics summary,
-  - generated output paths.
+  * artifact id,
+  * artifact kind,
+  * schema id,
+  * source files,
+  * source hashes,
+  * output paths,
+  * artifact hashes,
+  * dependency refs,
+  * compiler version,
+  * schema versions,
+  * diagnostics summary.
 
 Expected files:
 
 ```txt
 Tools/SystemDefinitionEngine/include/SDE/Artifacts/ArtifactManifest.hpp
-Tools/SystemDefinitionEngine/include/SDE/Artifacts/ArtifactEmitter.hpp
-Tools/SystemDefinitionEngine/src/Artifacts/ArtifactEmitter.cpp
+Tools/SystemDefinitionEngine/include/SDE/Artifacts/ArtifactWriter.hpp
+Tools/SystemDefinitionEngine/src/Artifacts/ArtifactManifestWriter.cpp
 ```
 
-- [ ] Emit runtime-consumable artifacts.
+* [ ] Emit deterministic compiled graph artifacts.
 
-  Done means artifacts can be consumed by runtime/server/editor integration without requiring SDE internals.
+  Done means graph artifacts are stable for identical semantic inputs.
 
-- [ ] Emit diagnostics artifact.
+* [ ] Emit source maps.
 
-  Done means diagnostics can be consumed by editor Problems panel, Forge, CI, or Saga product workflows.
+  Done means generated artifacts can map back to source locations.
 
-- [ ] Keep artifact formats versioned.
+Expected files:
 
-  Done means every emitted artifact includes:
+```txt
+Tools/SystemDefinitionEngine/include/SDE/SourceMap/SourceMap.hpp
+Tools/SystemDefinitionEngine/include/SDE/SourceMap/SourceMapWriter.hpp
+Tools/SystemDefinitionEngine/src/SourceMap/SourceMapWriter.cpp
+```
 
-  - format version,
-  - compiler version,
-  - schema version,
-  - compatibility metadata.
+* [ ] Emit dependency manifests.
+
+  Done means consumers can know which source/schema/artifact inputs affected outputs.
+
+Expected files:
+
+```txt
+Tools/SystemDefinitionEngine/include/SDE/Dependency/DependencyManifest.hpp
+Tools/SystemDefinitionEngine/include/SDE/Dependency/DependencyGraph.hpp
+Tools/SystemDefinitionEngine/src/Dependency/DependencyManifestWriter.cpp
+```
+
+* [ ] Keep artifact format documented.
+
+  Expected docs:
+
+```txt
+Tools/SystemDefinitionEngine/docs/SDE_ARTIFACT_FORMAT.md
+Tools/SystemDefinitionEngine/docs/SDE_SOURCE_MAP_FORMAT.md
+Tools/SystemDefinitionEngine/docs/SDE_DEPENDENCY_MANIFEST.md
+```
 
 ---
 
-## 14. Code Generation
+## 18. Diagnostics
 
-- [ ] Add optional code generation backend.
+* [x] Add structured diagnostic categories, source ranges, deterministic sorting, and metadata.
 
-  Done means SDE can generate code artifacts when explicitly requested.
+  Represented by:
 
-Possible generated outputs:
+  ```txt
+  structured diagnostic categories
+  source ranges
+  deterministic sorting
+  metadata for editor/CI integration
+  ```
 
-```txt
-component registration code
-schema reflection data
-serialization descriptors
-runtime binding descriptors
-editor metadata descriptors
-```
+* [ ] Stabilize diagnostic model.
 
-- [ ] Keep generated code deterministic.
+  Done means diagnostics include:
 
-  Done means generated code:
-
-  - has stable ordering,
-  - avoids timestamps unless explicitly disabled or separated,
-  - uses stable names,
-  - includes generated-file warning,
-  - includes compiler/schema version.
-
-- [ ] Keep codegen backend independent from engine/editor headers.
-
-  Done means generated code may target Saga runtime conventions, but SDE compiler implementation does not include Saga runtime/editor headers.
-
-Important distinction:
-
-```txt
-SDE may generate code for Saga.
-SDE must not include Saga to generate that code.
-```
-
-This distinction apparently saves entire projects from eating themselves.
-
----
-
-## 15. Diagnostics
-
-- [ ] Add structured diagnostic system.
-
-  Done means every diagnostic includes:
-
-  - severity,
-  - code,
-  - message,
-  - source file,
-  - source range,
-  - related notes,
-  - recoverability,
-  - phase.
+  * diagnostic code,
+  * severity,
+  * message,
+  * source file,
+  * source range,
+  * rule id,
+  * schema path,
+  * declaration path,
+  * metadata,
+  * optional suggested fix.
 
 Expected files:
 
@@ -728,797 +1079,648 @@ Tools/SystemDefinitionEngine/include/SDE/Diagnostics/Diagnostic.hpp
 Tools/SystemDefinitionEngine/include/SDE/Diagnostics/DiagnosticCode.hpp
 Tools/SystemDefinitionEngine/include/SDE/Diagnostics/DiagnosticSeverity.hpp
 Tools/SystemDefinitionEngine/include/SDE/Diagnostics/DiagnosticSink.hpp
-Tools/SystemDefinitionEngine/src/Diagnostics/Diagnostic.cpp
+Tools/SystemDefinitionEngine/src/Diagnostics/DiagnosticFormatter.cpp
 ```
 
-- [ ] Support human-readable diagnostics.
+* [ ] Emit diagnostics in multiple formats.
 
-  Done means CLI output shows:
+  Required formats:
 
-  - file path,
-  - line,
-  - column,
-  - highlighted range where possible,
-  - readable explanation,
-  - suggested fix where safe.
+  ```txt
+  human-readable console
+  JSON
+  machine-readable report suitable for editor/CI/build integration
+  ```
 
-- [ ] Support JSON diagnostics.
+* [ ] Keep diagnostics generic but extensible.
 
-  Done means tools and CI can consume diagnostics in a stable machine-readable format.
-
-- [ ] Add diagnostic tests.
-
-  Required coverage:
-
-  - syntax error location,
-  - semantic error location,
-  - duplicate symbol notes,
-  - dependency cycle notes,
-  - JSON diagnostic schema stability.
-
-Diagnostics that say only “invalid definition” should be considered an insult, not a feature.
+  Done means Saga-specific diagnostic categories may appear through schema/package names or consumer metadata, but SDE core remains reusable.
 
 ---
 
-## 16. Incremental Compilation
+## 19. Incremental Compilation
 
-- [ ] Add dependency graph tracking.
+* [ ] Add incremental compilation planning.
 
-  Done means SDE tracks:
+  Done means SDE can determine affected outputs based on:
 
-  - source file dependencies,
-  - import dependencies,
-  - schema dependencies,
-  - artifact dependencies,
-  - generated output dependencies.
+  * source file hashes,
+  * schema package hashes,
+  * dependency manifests,
+  * compiler version,
+  * compile options,
+  * output artifact versions.
 
 Expected files:
 
 ```txt
-Tools/SystemDefinitionEngine/include/SDE/Incremental/DependencyGraph.hpp
+Tools/SystemDefinitionEngine/include/SDE/Incremental/IncrementalCompilePlan.hpp
 Tools/SystemDefinitionEngine/include/SDE/Incremental/CompileCache.hpp
-Tools/SystemDefinitionEngine/src/Incremental/DependencyGraph.cpp
+Tools/SystemDefinitionEngine/src/Incremental/IncrementalPlanner.cpp
 ```
 
-- [ ] Add compile cache.
+* [ ] Reject unsafe incremental reuse.
 
-  Done means unchanged inputs can reuse previous results safely.
+  Done means cached outputs are invalidated when:
 
-- [ ] Add invalidation logic.
+  * source changes,
+  * imported package changes,
+  * schema changes,
+  * compiler version changes,
+  * compile options change,
+  * artifact format version changes.
 
-  Done means changes invalidate:
+* [ ] Emit incremental build diagnostics/report.
 
-  - affected source file,
-  - dependent schemas,
-  - dependent artifacts,
-  - generated code outputs.
-
-- [ ] Add incremental compile tests.
-
-  Required coverage:
-
-  - no-change compile reuses cache,
-  - changed file invalidates dependents,
-  - deleted import invalidates dependents,
-  - schema version change invalidates artifacts,
-  - cache corruption is detected.
+  Done means users can inspect why files were rebuilt or skipped.
 
 ---
 
-## 17. Formatting
+## 20. Formatting
 
-- [ ] Add `sde format`.
+* [ ] Add deterministic formatter.
 
-  Done means SDE can format source files with:
+  Done means `sde format` can format source files consistently.
 
-  - stable indentation,
-  - stable declaration ordering where appropriate,
-  - stable attribute formatting,
-  - preserved comments where supported,
-  - check-only mode for CI.
+* [ ] Define style rules.
 
-- [ ] Add formatting tests.
+  Done means formatting behavior is documented for:
 
-  Required coverage:
-
-  - simple file,
-  - nested declarations,
-  - comments,
-  - attributes,
-  - invalid file handling,
-  - idempotent formatting.
-
-Formatting should be idempotent.
-
-If running the formatter twice changes the file twice, congratulations, you built a slot machine.
-
----
-
-## 18. Validation Rules
-
-- [ ] Add schema-level validation.
-
-  Done means SDE validates:
-
-  - schema version,
-  - required declarations,
-  - duplicate names,
-  - invalid type references,
-  - invalid dependency declarations,
-  - invalid metadata.
-
-- [ ] Add graph validation.
-
-  Done means SDE validates:
-
-  - node existence,
-  - edge existence,
-  - compatible edge endpoints,
-  - cycles where forbidden,
-  - required inputs,
-  - output type compatibility.
-
-- [ ] Add package/resource validation.
-
-  Done means SDE validates:
-
-  - resource references,
-  - package references,
-  - missing artifacts,
-  - invalid artifact kinds,
-  - incompatible package versions.
-
----
-
-## 19. Runtime Integration Outputs
-
-- [ ] Emit runtime schema artifacts.
-
-  Done means SagaEngine runtime can consume:
-
-  - component schema ids,
-  - serialization descriptors,
-  - runtime graph artifacts,
-  - resource binding descriptors,
-  - validation metadata.
-
-- [ ] Emit server validation artifacts.
-
-  Done means SagaServer can consume:
-
-  - authority-relevant schema data,
-  - message descriptors,
-  - event descriptors,
-  - validation rules,
-  - deterministic hashes.
-
-- [ ] Keep runtime/server integration output-only.
-
-  Done means runtime/server do not include SDE compiler internals.
-
-Correct flow:
-
-```txt
-SDE emits artifacts.
-Runtime/server consume artifacts.
-```
-
-Incorrect flow:
-
-```txt
-Runtime/server link SDE compiler internals.
-```
-
----
-
-## 20. Editor Integration Outputs
-
-- [ ] Emit editor metadata artifacts.
-
-  Done means SagaEditor can consume:
-
-  - display names,
-  - categories,
-  - field metadata,
-  - graph node metadata,
-  - validation diagnostics,
-  - source location mappings.
-
-- [ ] Support editor Problems panel integration.
-
-  Done means SDE diagnostics can be shown in editor without editor including SDE parser/AST internals.
-
-- [ ] Support editor graph tooling through artifacts.
-
-  Done means editor graph surfaces consume stable metadata/artifacts rather than compiler internals.
-
----
-
-## 21. Forge Integration
-
-- [ ] Allow Forge to invoke SDE as a compiler step.
-
-  Done means Forge can:
-
-  - run SDE validate,
-  - run SDE compile,
-  - collect SDE diagnostics,
-  - consume artifact manifests,
-  - fail builds when SDE compilation fails.
-
-- [ ] Keep Forge as build frontend, not SDE owner.
-
-  Done means Forge does not own:
-
-  - SDE parser,
-  - SDE AST,
-  - SDE IR,
-  - SDE semantic rules,
-  - SDE codegen.
-
-Forge can run SDE.
-
-Forge does not become SDE.
-
-Tiny distinction. Massive consequences.
-
----
-
-## 22. Prism Integration
-
-- [ ] Allow Prism to consume SDE outputs for code intelligence.
-
-  Done means Prism can use:
-
-  - source maps,
-  - symbol information,
-  - dependency graphs,
-  - artifact manifests,
-  - schema metadata.
-
-- [ ] Keep Prism as code intelligence, not compiler truth.
-
-  Done means Prism does not own:
-
-  - SDE parsing truth,
-  - SDE semantic validation truth,
-  - SDE artifact emission,
-  - SDE hash/id policy.
-
-Prism may index and analyze.
-
-SDE compiles.
-
-Nobody gets to steal the other tool’s job and call it “integration”.
-
----
-
-## 23. SagaTools Integration
-
-- [ ] Allow SagaTools to dispatch SDE commands.
-
-  Example commands:
-
-  ```txt
-  sagatools sde validate <schema>
-  sagatools sde compile <schema> --out <dir>
-  sagatools sde inspect <artifact>
-  sagatools sde doctor
-  ```
-
-- [ ] Keep SagaTools as dispatcher only.
-
-  Done means SagaTools does not include:
-
-  - SDE parser,
-  - SDE AST,
-  - SDE semantic analyzer,
-  - SDE codegen,
-  - SDE compile cache.
-
----
-
-## 24. Build and CI Integration
-
-- [ ] Add SDE compile step to build workflows where needed.
-
-  Done means build can fail on:
-
-  - syntax errors,
-  - semantic errors,
-  - invalid graph definitions,
-  - artifact generation failure,
-  - deterministic hash mismatch.
-
-- [ ] Add CI validation command.
-
-  Required command:
-
-  ```txt
-  sde validate --workspace <path>
-  ```
-
-- [ ] Add CI compile command.
-
-  Required command:
-
-  ```txt
-  sde compile --workspace <path> --out <dir>
-  ```
-
-- [ ] Add deterministic output check.
-
-  Done means CI can verify that repeated compile produces identical output.
-
----
-
-## 25. Configuration
-
-- [ ] Add SDE configuration file support.
-
-  Done means config can define:
-
-  - source roots,
-  - include paths,
-  - output path,
-  - artifact format,
-  - enabled backends,
-  - warning levels,
-  - strictness mode,
-  - cache path.
-
-Expected files:
-
-```txt
-Tools/SystemDefinitionEngine/include/SDE/Config/SdeConfig.hpp
-Tools/SystemDefinitionEngine/include/SDE/Config/ConfigLoader.hpp
-Tools/SystemDefinitionEngine/src/Config/ConfigLoader.cpp
-```
-
-- [ ] Add command-line config override.
-
-  Done means CLI flags can override config fields in a documented and deterministic way.
-
-- [ ] Add config validation.
-
-  Done means invalid config fails before compile begins.
-
----
-
-## 26. Artifact Formats
-
-- [ ] Define JSON artifact output for inspection and tooling.
-
-  Done means JSON output is:
-
-  - versioned,
-  - deterministic,
-  - schema-documented,
-  - stable enough for tools.
-
-- [ ] Define binary artifact output for runtime where needed.
-
-  Done means binary output is:
-
-  - versioned,
-  - endian-aware where required,
-  - deterministic,
-  - validated on load,
-  - documented.
-
-- [ ] Add artifact compatibility policy.
-
-  Done means docs explain:
-
-  - compatible changes,
-  - incompatible changes,
-  - migration rules,
-  - version rejection behavior.
+  * indentation,
+  * braces,
+  * attributes,
+  * imports,
+  * graph declarations,
+  * comments preservation where practical,
+  * trailing commas where supported.
 
 Expected docs:
 
 ```txt
-Tools/SystemDefinitionEngine/docs/SDE_ARTIFACT_FORMATS.md
+Tools/SystemDefinitionEngine/docs/SDE_FORMATTING.md
 ```
 
 ---
 
-## 27. Error and Exit Code Policy
+## 21. Package and Schema Distribution
 
-- [ ] Define stable SDE exit codes.
+* [ ] Define schema package model.
 
-  Required categories:
+  Done means schema packages can describe:
+
+  * package name,
+  * package version,
+  * exported schemas,
+  * exported types,
+  * exported enums,
+  * validation rules,
+  * artifact schemas,
+  * dependency packages.
+
+Expected files:
+
+```txt
+Tools/SystemDefinitionEngine/include/SDE/Packages/SchemaPackage.hpp
+Tools/SystemDefinitionEngine/include/SDE/Packages/PackageRegistry.hpp
+Tools/SystemDefinitionEngine/src/Packages/PackageRegistry.cpp
+```
+
+* [ ] Support local schema packages.
+
+  Done means projects can define local schema packages without modifying SDE core.
+
+* [ ] Support installed schema packages.
+
+  Done means external projects can reuse schema packages across workspaces.
+
+* [ ] Keep Saga schema packages outside SDE core.
+
+  Done means Saga can ship schema packages such as:
 
   ```txt
-  0   success
-  1   general failure
-  2   invalid arguments
-  3   config error
-  4   parse error
-  5   semantic error
-  6   validation error
-  7   artifact emission error
-  8   dependency cycle
-  9   cache error
-  10  internal compiler error
+  saga.gameplay
+  saga.editor
+  saga.assets
+  saga.authority
+  saga.scripting
   ```
 
-- [ ] Keep internal compiler errors distinct.
-
-  Done means compiler bugs are reported separately from user-authored schema errors.
-
-There is a difference between “your file is wrong” and “the compiler tripped over its own shoelaces”.
-
-The user deserves to know which disaster occurred.
+  but SDE core does not depend on Saga modules.
 
 ---
 
-## 28. Logging
+## 22. External Integration Model
 
-- [ ] Add compiler logging.
+* [ ] Document external integration methods.
 
-  Done means logs can include:
+  Done means external users can integrate SDE through:
 
-  - compile phase,
-  - file count,
-  - dependency count,
-  - cache hit/miss,
-  - artifact count,
-  - elapsed time,
-  - diagnostics count.
+  * CLI,
+  * CMake package target,
+  * Conan package,
+  * public compiler facade,
+  * artifact manifests,
+  * diagnostics JSON,
+  * source maps,
+  * dependency manifests.
 
-- [ ] Keep normal CLI output readable.
-
-  Done means normal output avoids dumping internal compiler noise unless `--verbose` is enabled.
-
-- [ ] Support machine-readable logging where needed.
-
-  Done means CI can consume compile summary in JSON mode.
-
----
-
-## 29. Performance
-
-- [ ] Define performance targets.
-
-  Done means SDE tracks:
-
-  - parse time,
-  - semantic analysis time,
-  - IR generation time,
-  - artifact emission time,
-  - cache load/save time,
-  - total compile time.
-
-- [ ] Add performance diagnostics.
-
-  Done means `--verbose` or `--profile` can show phase timings.
-
-- [ ] Add large-project compile test.
-
-  Done means SDE can compile a representative large schema set within acceptable time and memory bounds.
-
----
-
-## 30. Testing Roadmap
-
-### 30.1 Unit Tests
-
-- [ ] Add lexer tests.
-
-- [ ] Add parser tests.
-
-- [ ] Add AST tests.
-
-- [ ] Add semantic validator tests.
-
-- [ ] Add IR builder tests.
-
-- [ ] Add hashing tests.
-
-- [ ] Add artifact emitter tests.
-
-- [ ] Add diagnostic formatting tests.
-
-- [ ] Add config loader tests.
-
----
-
-### 30.2 Snapshot Tests
-
-- [ ] Add AST snapshot tests.
-
-- [ ] Add IR snapshot tests.
-
-- [ ] Add artifact manifest snapshot tests.
-
-- [ ] Add diagnostic JSON snapshot tests.
-
-Generated outputs must be stable.
-
-Otherwise “snapshot test” becomes “today’s random nonsense with brackets”.
-
----
-
-### 30.3 Integration Tests
-
-- [ ] Add full compile integration test.
-
-  Done means:
-
-  - input source parses,
-  - semantics pass,
-  - IR emits,
-  - artifacts emit,
-  - manifest emits,
-  - diagnostics are empty or expected.
-
-- [ ] Add invalid project integration test.
-
-  Done means invalid input produces stable diagnostics and non-zero exit code.
-
-- [ ] Add incremental compile integration test.
-
-- [ ] Add generated code integration test where codegen exists.
-
----
-
-### 30.4 Determinism Tests
-
-- [ ] Add repeated compile determinism test.
-
-- [ ] Add shuffled input order determinism test.
-
-- [ ] Add clean directory determinism test.
-
-- [ ] Add cache/no-cache equivalence test.
-
-- [ ] Add generated output hash test.
-
----
-
-## 31. CI Requirements
-
-- [ ] Add SDE unit tests to CI.
-
-- [ ] Add SDE integration tests to CI.
-
-- [ ] Add SDE deterministic output tests to CI.
-
-- [ ] Add SDE dependency boundary checks to CI.
-
-Required forbidden dependency checks:
+Expected docs:
 
 ```txt
-Tools/SystemDefinitionEngine/** must not include Saga/**
-Tools/SystemDefinitionEngine/** must not include Engine/**
-Tools/SystemDefinitionEngine/** must not include Editor/**
-Tools/SystemDefinitionEngine/** must not include Server/**
-Tools/SystemDefinitionEngine/** must not include Shared/**
-Tools/SystemDefinitionEngine/** must not include Collaboration/**
-Tools/SystemDefinitionEngine/** must not include Tools/Forge/**
-Tools/SystemDefinitionEngine/** must not include Tools/Prism/**
-Tools/SystemDefinitionEngine/** must not include Tools/SagaTools/**
+Tools/SystemDefinitionEngine/docs/SDE_INTEGRATION.md
+Tools/SystemDefinitionEngine/docs/SDE_CMAKE_USAGE.md
+Tools/SystemDefinitionEngine/docs/SDE_CONAN_USAGE.md
 ```
 
-- [ ] Add artifact compatibility check.
+* [ ] Provide non-Saga sample projects.
 
-  Done means incompatible artifact format changes fail or require explicit version bump.
+  Done means repository includes at least one sample unrelated to SagaEngine.
 
----
-
-## 32. Recommended File Layout
-
-Recommended target layout:
+Expected examples:
 
 ```txt
-Tools/SystemDefinitionEngine/
-  SDE_ROADMAP.md
-  README.md
-  CMakeLists.txt or Cargo.toml
-
-Tools/SystemDefinitionEngine/docs/
-  SDE_LANGUAGE.md
-  SDE_ARTIFACT_FORMATS.md
-  SDE_ID_STABILITY.md
-  SDE_DIAGNOSTICS.md
-
-Tools/SystemDefinitionEngine/include/SDE/
-  Compiler.hpp
-  CompileRequest.hpp
-  CompileResult.hpp
-
-Tools/SystemDefinitionEngine/include/SDE/Lexer/
-  Token.hpp
-  Lexer.hpp
-
-Tools/SystemDefinitionEngine/include/SDE/Parser/
-  Parser.hpp
-  ParseResult.hpp
-
-Tools/SystemDefinitionEngine/include/SDE/AST/
-  AstNode.hpp
-  AstFile.hpp
-  AstDeclaration.hpp
-  AstTypeRef.hpp
-
-Tools/SystemDefinitionEngine/include/SDE/Semantic/
-  Symbol.hpp
-  SymbolTable.hpp
-  SemanticValidator.hpp
-
-Tools/SystemDefinitionEngine/include/SDE/IR/
-  IrModule.hpp
-  IrNode.hpp
-  IrType.hpp
-  IrGraph.hpp
-
-Tools/SystemDefinitionEngine/include/SDE/Artifacts/
-  ArtifactManifest.hpp
-  ArtifactEmitter.hpp
-
-Tools/SystemDefinitionEngine/include/SDE/Diagnostics/
-  Diagnostic.hpp
-  DiagnosticCode.hpp
-  DiagnosticSeverity.hpp
-  DiagnosticSink.hpp
-
-Tools/SystemDefinitionEngine/include/SDE/Incremental/
-  DependencyGraph.hpp
-  CompileCache.hpp
-
-Tools/SystemDefinitionEngine/src/
-  main.cpp or main.rs
-  Compiler.cpp
-  Lexer/
-  Parser/
-  AST/
-  Semantic/
-  IR/
-  Artifacts/
-  Diagnostics/
-  Incremental/
-  Config/
-  Hash/
-
-Tools/SystemDefinitionEngine/tests/
-  LexerTests.cpp
-  ParserTests.cpp
-  SemanticTests.cpp
-  IrTests.cpp
-  ArtifactTests.cpp
-  DeterminismTests.cpp
-  IntegrationTests.cpp
+Tools/SystemDefinitionEngine/examples/basic_config/
+Tools/SystemDefinitionEngine/examples/workflow_graph/
+Tools/SystemDefinitionEngine/examples/external_schema_package/
 ```
 
-This layout is illustrative.
+* [ ] Provide compatibility policy.
 
-The ownership rule is not illustrative.
+  Done means SDE documents:
 
-SDE owns SDE.
-
----
-
-## 33. Migration Plan
-
-- [ ] Remove any dependency from SDE to Saga modules.
-
-- [ ] Move SDE-specific logic out of SagaTools if it exists there.
-
-- [ ] Move build workflow behavior out of SDE and into Forge where appropriate.
-
-- [ ] Move code intelligence behavior out of SDE and into Prism where appropriate.
-
-- [ ] Keep artifact contracts stable and documented.
-
-- [ ] Add dependency boundary checks.
-
-- [ ] Add deterministic compile tests before relying on SDE artifacts in runtime/editor workflows.
+  * source language stability,
+  * artifact format stability,
+  * CLI stability,
+  * public API stability,
+  * semantic versioning guarantees.
 
 ---
 
-## 34. Non-Goals
+## 23. Saga Integration Boundary
 
-SDE does not own:
+SDE supports Saga by producing artifacts Saga consumes.
 
-- Saga product shell,
-- editor graph panel UI,
-- editor Problems panel UI,
-- runtime ECS implementation,
-- server authority,
-- collaboration sessions,
-- build frontend UX,
-- code intelligence database,
-- tool dispatch,
-- asset importer UI,
-- package publishing service.
+SDE must not become Saga-specific.
 
-Related ownership:
+* [ ] Define Saga schema packages as external SDE inputs.
 
-| Area | Owner |
-|---|---|
-| Product shell | `Saga` |
-| Editor UI | `SagaEditor` |
-| Runtime/server consumption | `SagaEngine` / `SagaServer` |
-| Shared artifact references | `SagaShared` |
-| Collaboration implementation | `SagaCollaboration` |
-| Build frontend | `Forge` |
-| Code intelligence | `Prism` |
-| Tool dispatch | `SagaTools` |
+  Done means Saga-specific schemas are expressed as SDE packages, not SDE compiler code.
 
----
-
-## 35. Production Definition of Done
-
-- [ ] SDE is standalone and does not depend on Saga modules.
-
-- [ ] SDE CLI supports validate, compile, inspect, format, and doctor.
-
-- [ ] Source language is documented.
-
-- [ ] Lexer and parser are tested.
-
-- [ ] AST is compiler-internal.
-
-- [ ] Semantic analysis catches invalid definitions.
-
-- [ ] Canonical IR is deterministic.
-
-- [ ] Stable hashes and ids are generated.
-
-- [ ] Artifact manifests are emitted.
-
-- [ ] Runtime/editor/server/tools consume outputs without importing compiler internals.
-
-- [ ] Diagnostics are structured, readable, and machine-readable.
-
-- [ ] Incremental compilation is safe and deterministic.
-
-- [ ] Formatting is idempotent.
-
-- [ ] Artifact formats are versioned.
-
-- [ ] Exit codes are stable.
-
-- [ ] CI verifies tests, determinism, and dependency boundaries.
-
----
-
-## 36. Final Architecture Rule
-
-SDE should remain:
+Examples:
 
 ```txt
-standalone,
-deterministic,
-boring in output,
-strict in validation,
-clear in diagnostics,
-and impossible to confuse with runtime/editor/product ownership.
+saga.gameplay.schema.sde
+saga.editor.schema.sde
+saga.assets.schema.sde
+saga.authority.schema.sde
+saga.scripting.schema.sde
 ```
 
-It should know:
+* [ ] Define Saga artifact output contracts through documented formats.
+
+  Done means Saga consumes:
+
+  * graph artifacts,
+  * source maps,
+  * dependency manifests,
+  * diagnostics reports,
+  * artifact manifests,
+  * schema manifests.
+
+* [ ] Keep Saga-specific validation policy layered.
+
+  Done means SDE can validate what is expressible generically through schemas/rules, while Saga/Forge/Runtime/Server may apply additional policy using emitted metadata.
+
+Example:
 
 ```txt
-how to parse definitions,
-how to validate them,
-how to lower them into canonical IR,
-how to emit artifacts,
-how to explain failure.
+SDE validates:
+- graph has authority attribute from schema enum
+- block reference exists
+- pin types are compatible
+- artifact reference exists
+
+Saga/Forge/Server validate:
+- this server-only graph is not packaged as executable client logic
+- this persistent write is allowed only in server package
+- this graph/script authority manifest matches package destination
 ```
 
-It should not know:
+* [ ] Provide Saga integration tests without Saga dependency inside SDE.
+
+  Done means tests can use sample Saga-like schema packages as data fixtures, not include Saga source headers.
+
+---
+
+## 24. Build and Packaging
+
+* [x] Ship SDE as independent CMake/Conan package.
+
+  Represented by:
+
+  ```txt
+  SDE::Core
+  conanfile.py
+  build.py
+  SDEConfig.cmake
+  SDEConfigVersion.cmake
+  SDETargets.cmake
+  ```
+
+* [ ] Keep SDE repo-extractable.
+
+  Done means copying `Tools/SystemDefinitionEngine/` to a new repository root requires no structural rewrite.
+
+* [ ] Add installable CLI.
+
+  Done means installing SDE provides:
+
+  ```txt
+  sde executable
+  SDE library/package target
+  docs
+  examples
+  license
+  changelog
+  version metadata
+  ```
+
+* [ ] Add package compatibility tests.
+
+  Required coverage:
+
+  * CMake configure with `find_package(SDE CONFIG REQUIRED)`,
+  * Conan package creation,
+  * downstream sample linking against `SDE::Core`,
+  * CLI runs after install,
+  * no Saga paths required.
+
+---
+
+## 25. Prism and Forge Interaction Boundary
+
+### 25.1 Forge
+
+* [ ] Support Forge invoking SDE as a compiler step.
+
+  Done means Forge can run:
+
+  * `sde validate`,
+  * `sde compile`,
+  * consume artifact manifests,
+  * consume diagnostics,
+  * consume dependency manifests,
+  * fail build according to diagnostic severity/profile.
+
+* [ ] Keep Forge outside SDE internals.
+
+  Forbidden:
+
+  ```txt
+  Forge includes SDE AST internals
+  Forge includes SDE parser internals
+  Forge depends on SDE semantic analyzer internals
+  ```
+
+### 25.2 Prism
+
+* [ ] Support Prism reading SDE output manifests.
+
+  Done means Prism can consume:
+
+  * artifact manifests,
+  * source maps,
+  * dependency manifests,
+  * generated code manifests,
+  * diagnostics reports.
+
+* [ ] Keep Prism outside SDE internals.
+
+  Forbidden:
+
+  ```txt
+  Prism includes SDE AST internals
+  Prism runs SDE parser as hidden indexing truth unless through public facade/CLI
+  Prism depends on SDE private IR builder internals
+  ```
+
+---
+
+## 26. Testing Strategy
+
+### 26.1 Unit Tests
+
+* [ ] Add unit tests for compiler subsystems.
+
+  Required coverage:
+
+  * lexer,
+  * parser,
+  * AST construction,
+  * symbol table,
+  * semantic validation,
+  * type system,
+  * graph validation,
+  * IR builder,
+  * artifact writer,
+  * source maps,
+  * dependency manifests,
+  * diagnostics formatting.
+
+---
+
+### 26.2 Golden Output Tests
+
+* [ ] Add golden artifact tests.
+
+  Done means stable inputs produce stable expected outputs for:
+
+  * canonical IR,
+  * graph artifacts,
+  * artifact manifests,
+  * source maps,
+  * dependency manifests,
+  * diagnostics reports.
+
+---
+
+### 26.3 Determinism Tests
+
+* [ ] Add determinism tests.
+
+  Required coverage:
+
+  * repeated compile produces identical artifact hashes,
+  * file order does not affect output semantics,
+  * map/object ordering is stable,
+  * diagnostics ordering is stable,
+  * dependency manifest ordering is stable.
+
+---
+
+### 26.4 Package/External Use Tests
+
+* [ ] Add standalone package tests.
+
+  Required coverage:
+
+  * build SDE alone,
+  * install SDE alone,
+  * consume SDE through CMake package,
+  * consume SDE through Conan package,
+  * run CLI outside Saga repo,
+  * compile non-Saga sample project.
+
+---
+
+### 26.5 Boundary Tests
+
+* [ ] Add dependency boundary tests.
+
+  Required checks:
+
+  * SDE does not include Saga headers,
+  * SDE does not include SagaEngine headers,
+  * SDE does not include SagaEditor headers,
+  * SDE does not include SagaServer headers,
+  * SDE does not include SagaShared headers,
+  * SDE does not include SagaCollaboration headers,
+  * SDE does not include Forge headers,
+  * SDE does not include Prism headers,
+  * SDE does not include SagaTools headers,
+  * SDE does not include Qt headers.
+
+---
+
+## 27. MVP Vertical Slice
+
+The first production SDE vertical slice should prove standalone usefulness and Saga usefulness without coupling them.
+
+Required scenario A: external standalone project
 
 ```txt
-how the editor draws panels,
-how the runtime simulates entities,
-how the server owns authority,
-how Saga opens projects,
-how Forge builds packages,
-how Prism indexes code,
-or how SagaTools dispatches commands.
+external workflow graph sample
+    ↓
+sde validate
+    ↓
+sde compile
+    ↓
+canonical IR + graph artifact + diagnostics + source map + dependency manifest
 ```
 
-A compiler that keeps its boundaries is useful.
+Required behavior:
 
-A compiler that imports the entire engine is just a hostage situation with better type names.
+1. SDE builds independently.
+2. `sde validate` validates a non-Saga sample project.
+3. `sde compile` emits deterministic artifacts.
+4. Repeated compile produces identical artifact hashes.
+5. Diagnostics are machine-readable.
+6. Sample consumer reads artifact manifest.
+7. No Saga headers or paths are required.
+
+Required scenario B: Saga-like schema package as external input
+
+```txt
+saga-like schema package fixture
+    ↓
+quest reward graph source
+    ↓
+sde compile
+    ↓
+generic graph artifact + schema-defined authority metadata + source map
+```
+
+Required behavior:
+
+1. Saga-like schema is loaded as data/package.
+2. SDE validates schema-defined attributes and graph structure.
+3. SDE emits graph artifact and metadata.
+4. SDE does not include Saga modules.
+5. A separate Saga/Forge-side test consumes the output and applies Saga-specific authority/package policy.
+
+This proves the correct split:
+
+```txt
+SDE compiles definitions.
+Saga interprets Saga-specific meaning.
+```
+
+---
+
+## 28. Non-Goals
+
+SDE must not become:
+
+* SagaEngine runtime subsystem,
+* SagaEditor graph backend implementation,
+* SagaServer authority engine,
+* Forge build planner,
+* Prism code indexer,
+* SagaTools dispatcher,
+* asset importer/cooker,
+* C# compiler or scripting host,
+* runtime gameplay VM,
+* database migration engine unless defined as external schema/tool usage,
+* product shell,
+* editor UI,
+* collaboration backend.
+
+SDE can describe systems.
+
+SDE should not secretly become every system it describes.
+
+---
+
+## 29. Risk Register
+
+### 29.1 Risk: SDE Becomes Saga-Locked
+
+Mitigation:
+
+* no Saga module dependencies,
+* non-Saga examples,
+* standalone package tests,
+* schema package model,
+* output/manifests instead of direct engine integration.
+
+---
+
+### 29.2 Risk: SDE Becomes a General Programming Language
+
+Mitigation:
+
+* keep SDE focused on definitions, schemas, graphs, validation, artifacts,
+* use C++/C#/runtime systems for algorithms/execution,
+* avoid feature creep into general-purpose computation.
+
+---
+
+### 29.3 Risk: SDE Core Hardcodes Consumer Semantics
+
+Mitigation:
+
+* represent domain semantics through schemas/attributes/manifests,
+* keep generic validation in core,
+* apply consumer-specific policy outside SDE where needed.
+
+---
+
+### 29.4 Risk: External Integrations Depend on Internals
+
+Mitigation:
+
+* stable CLI,
+* stable compiler facade,
+* documented artifact formats,
+* source maps,
+* dependency manifests,
+* private headers kept private.
+
+---
+
+### 29.5 Risk: Determinism Is Broken by Convenience
+
+Mitigation:
+
+* deterministic ordering,
+* stable hashing,
+* golden output tests,
+* no unordered output emission,
+* explicit compiler/tool/schema versions in manifests.
+
+---
+
+## 30. Suggested File Targets
+
+Expected public compiler files:
+
+```txt
+Tools/SystemDefinitionEngine/include/SDE/Compiler/CompilerSession.hpp
+Tools/SystemDefinitionEngine/include/SDE/Compiler/CompileContext.hpp
+Tools/SystemDefinitionEngine/include/SDE/Compiler/CompileOptions.hpp
+Tools/SystemDefinitionEngine/include/SDE/Compiler/CompileResult.hpp
+Tools/SystemDefinitionEngine/include/SDE/Compiler/CancellationToken.hpp
+```
+
+Expected language/compiler files:
+
+```txt
+Tools/SystemDefinitionEngine/include/SDE/Lexer/Token.hpp
+Tools/SystemDefinitionEngine/include/SDE/Lexer/Lexer.hpp
+Tools/SystemDefinitionEngine/include/SDE/Parser/Parser.hpp
+Tools/SystemDefinitionEngine/include/SDE/AST/AstNode.hpp
+Tools/SystemDefinitionEngine/include/SDE/Semantic/SymbolTable.hpp
+Tools/SystemDefinitionEngine/include/SDE/Semantic/SemanticValidator.hpp
+Tools/SystemDefinitionEngine/include/SDE/IR/IrModule.hpp
+Tools/SystemDefinitionEngine/include/SDE/Graph/GraphIr.hpp
+Tools/SystemDefinitionEngine/include/SDE/Artifacts/ArtifactManifest.hpp
+Tools/SystemDefinitionEngine/include/SDE/SourceMap/SourceMap.hpp
+Tools/SystemDefinitionEngine/include/SDE/Dependency/DependencyManifest.hpp
+```
+
+Expected docs:
+
+```txt
+Tools/SystemDefinitionEngine/docs/SDE_LANGUAGE.md
+Tools/SystemDefinitionEngine/docs/SDE_SCHEMA_MODEL.md
+Tools/SystemDefinitionEngine/docs/SDE_GRAPH_MODEL.md
+Tools/SystemDefinitionEngine/docs/SDE_ARTIFACT_FORMAT.md
+Tools/SystemDefinitionEngine/docs/SDE_SOURCE_MAP_FORMAT.md
+Tools/SystemDefinitionEngine/docs/SDE_DEPENDENCY_MANIFEST.md
+Tools/SystemDefinitionEngine/docs/SDE_INTEGRATION.md
+Tools/SystemDefinitionEngine/docs/SDE_CMAKE_USAGE.md
+Tools/SystemDefinitionEngine/docs/SDE_CONAN_USAGE.md
+```
+
+Expected examples:
+
+```txt
+Tools/SystemDefinitionEngine/examples/basic_config/
+Tools/SystemDefinitionEngine/examples/workflow_graph/
+Tools/SystemDefinitionEngine/examples/external_schema_package/
+Tools/SystemDefinitionEngine/examples/saga_like_schema_fixture/
+```
+
+Expected tests:
+
+```txt
+Tools/SystemDefinitionEngine/tests/LexerTests.cpp
+Tools/SystemDefinitionEngine/tests/ParserTests.cpp
+Tools/SystemDefinitionEngine/tests/SemanticTests.cpp
+Tools/SystemDefinitionEngine/tests/GraphTests.cpp
+Tools/SystemDefinitionEngine/tests/IrGoldenTests.cpp
+Tools/SystemDefinitionEngine/tests/ArtifactGoldenTests.cpp
+Tools/SystemDefinitionEngine/tests/DeterminismTests.cpp
+Tools/SystemDefinitionEngine/tests/StandalonePackageTests.cpp
+Tools/SystemDefinitionEngine/tests/BoundaryTests.cpp
+```
+
+---
+
+## 31. Decision Summary
+
+Preserve these decisions:
+
+```txt
+SDE is standalone.
+SDE is deterministic.
+SDE can be used outside SagaEngine.
+SDE core does not depend on Saga modules.
+SDE source language and schema model are domain-extensible.
+Saga-specific behavior is modeled through schema packages, artifacts, manifests, and external consumers.
+SDE owns parsing, validation, canonical IR, graph IR, source maps, diagnostics, dependency manifests, and deterministic artifact emission.
+SDE does not own runtime execution, server authority, editor UI, build orchestration, code intelligence, asset import/cook, or scripting host behavior.
+Forge invokes SDE.
+Prism reads SDE outputs.
+SagaEditor displays SDE diagnostics/artifacts.
+Runtime/server consume packaged SDE outputs through manifests.
+External projects can use SDE without Saga.
+```
+
+SDE should be strong enough to serve SagaEngine.
+
+But it must not become trapped inside SagaEngine.
+
+A tool that can stand alone is an asset.
+
+A tool that only works because the engine is nearby is a dependency-shaped liability.

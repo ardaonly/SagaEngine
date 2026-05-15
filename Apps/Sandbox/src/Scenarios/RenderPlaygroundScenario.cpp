@@ -8,7 +8,7 @@
 #include <SagaEngine/Animation/AnimationClip.h>
 #include <SagaEngine/Animation/PoseEvaluator.h>
 #include <SagaEngine/Core/Log/Log.h>
-#include <SagaEngine/Input/Backends/SDL/SDLInputBackend.h>
+#include <SagaEngine/Input/Backends/IPlatformInputBackend.h>
 #include <SagaEngine/Input/Devices/KeyboardDevice.h>
 #include <SagaEngine/Input/Devices/MouseDevice.h>
 #include <SagaEngine/Render/Materials/MeshAsset.h>
@@ -370,7 +370,7 @@ bool RenderPlaygroundScenario::OnInit()
     }
 
     // ── Input ────────────────────────────────────────────────────────────────
-    auto backend = std::make_unique<SagaEngine::Platform::SDLInputBackend>();
+    auto backend = SagaEngine::Platform::CreateSDLInputBackend();
     m_inputManager.SetBackend(std::move(backend));
     if (!m_inputManager.Initialize())
     {
