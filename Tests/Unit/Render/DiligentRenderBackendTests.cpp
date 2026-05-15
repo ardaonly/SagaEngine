@@ -24,7 +24,7 @@
 ///          belong in Tests/Integration/ gated behind a "has-gpu" label.
 ///          Do NOT add them here.
 
-#include "SagaEngine/Render/Backend/Diligent/DiligentRenderBackend.h"
+#include "SagaEngine/Render/Backend/RenderBackendFactory.h"
 #include "SagaEngine/Render/Scene/Camera.h"
 #include "SagaEngine/Render/Scene/RenderView.h"
 #include "SagaEngine/Render/World/RenderEntity.h"
@@ -32,11 +32,105 @@
 #include <gtest/gtest.h>
 
 #include <cstring>
+#include <memory>
 #include <string_view>
 
 using namespace SagaEngine::Render::Backend;
 using namespace SagaEngine::Render::World;
 using namespace SagaEngine::Render::Scene;
+
+namespace
+{
+
+class DiligentRenderBackend
+{
+public:
+    DiligentRenderBackend()
+        : m_backend(CreateDiligentRenderBackend())
+    {
+    }
+
+    explicit DiligentRenderBackend(DiligentBackendConfig cfg)
+        : m_backend(CreateDiligentRenderBackend(cfg))
+    {
+    }
+
+    [[nodiscard]] bool Initialize(const SwapchainDesc& desc)
+    {
+        return m_backend->Initialize(desc);
+    }
+
+    void Shutdown()
+    {
+        m_backend->Shutdown();
+    }
+
+    void OnResize(std::uint32_t width, std::uint32_t height)
+    {
+        m_backend->OnResize(width, height);
+    }
+
+    [[nodiscard]] MeshId CreateMesh(const SagaEngine::Render::MeshAsset& asset)
+    {
+        return m_backend->CreateMesh(asset);
+    }
+
+    [[nodiscard]] MaterialId CreateMaterial(
+        const SagaEngine::Render::MaterialRuntime& runtime)
+    {
+        return m_backend->CreateMaterial(runtime);
+    }
+
+    void DestroyMesh(MeshId id)
+    {
+        m_backend->DestroyMesh(id);
+    }
+
+    void DestroyMaterial(MaterialId id)
+    {
+        m_backend->DestroyMaterial(id);
+    }
+
+    void BeginFrame()
+    {
+        m_backend->BeginFrame();
+    }
+
+    void Submit(const Camera& camera, const RenderView& view)
+    {
+        m_backend->Submit(camera, view);
+    }
+
+    void EndFrame()
+    {
+        m_backend->EndFrame();
+    }
+
+    [[nodiscard]] DiligentBackendAPI SelectedAPI() const noexcept
+    {
+        return BackendStatus().selectedAPI;
+    }
+
+    [[nodiscard]] std::uint64_t FrameIndex() const noexcept
+    {
+        return BackendStatus().frameIndex;
+    }
+
+    [[nodiscard]] bool IsInitialized() const noexcept
+    {
+        return BackendStatus().initialized;
+    }
+
+private:
+    [[nodiscard]] DiligentBackendStatus BackendStatus() const noexcept
+    {
+        return GetDiligentRenderBackendStatus(*m_backend);
+    }
+
+    std::unique_ptr<IRenderBackend> m_backend;
+};
+
+} // namespace
 
 // ═══════════════════════════════════════════════════════════════════════
 //  1. Construction & diagnostics

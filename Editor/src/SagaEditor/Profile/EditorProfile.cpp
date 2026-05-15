@@ -201,6 +201,7 @@ EditorProfile MakeAdvancedPipelineProfile()
     p.defaultPanels.push_back("saga.panel.assetbrowser");
     p.defaultPanels.push_back("saga.panel.profiler");
     p.defaultPanels.push_back("saga.panel.collaboration");
+    p.defaultPanels.push_back("saga.panel.problems");
     p.defaultToolbarCommands = StandardToolbar();
     p.defaultToolbarCommands.push_back("saga.command.world.step");
     p.defaultToolbarCommands.push_back("saga.command.build");

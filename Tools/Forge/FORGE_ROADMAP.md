@@ -8,15 +8,17 @@
 
 
 
+A build workflow frontend should know what to run, when to run it, what artifacts to expect, and why failure happened.
+
+It should not become every tool it invokes.
+
 ---
 
 ## 1. Document Purpose
 
 This document defines the roadmap for Forge.
 
-Forge is Saga’s build workflow frontend.
 
-It exists to provide a clear, repeatable, diagnosable build workflow for Saga projects.
 
 Forge owns:
 
@@ -30,374 +32,634 @@ Correct model:
 
 ```txt
 Forge
-  plans and coordinates build workflow
-
-
-
-Asset pipeline
-  imports/cooks asset artifacts
-
-Runtime/server
-  consume built artifacts
-
-SagaTools
-  may dispatch Forge commands
+  reads project/build manifests
+  lowers to BuildModel / BuildPlan
+  invokes owned adapters or external tools
+  validates expected inputs/outputs
+  aggregates diagnostics/reports
+  stages packages
+  runs publish readiness checks
 ```
 
 Incorrect model:
 
-```txt
-Forge becomes compiler, asset importer, project shell, code indexer, and runtime launcher.
-```
 
-That is not a build frontend.
 
-That is five tools in a trench coat pretending to be architecture.
+That is not integration.
+
+That is toolchain hoarding.
 
 ---
 
 ## 2. Companion Documents
 
-
+| Document                            | Purpose                                                                   |
+| ----------------------------------- | ------------------------------------------------------------------------- |
+| `BUILD_PUBLISH_PIPELINE_ROADMAP.md` | Full validate/compile/cook/analyze/package/publish pipeline               |
+| `SAGA_PRODUCT_ROADMAP.md`           | Saga product shell that initiates and displays build/publish workflows    |
+| `SDE_ROADMAP.md`                    | Standalone deterministic compiler invoked by Forge                        |
+| `SAGA_GAMEPLAY_GRAPH_ROADMAP.md`    | Graph artifacts and graph validation expectations                         |
+| `AUTHORING_AUTHORITY_MODEL.md`      | Authority/persistence/replication/prediction validation metadata          |
+| `SAGA_SCRIPTING_ROADMAP.md`         | Script compile, block bindings, generated C# artifacts, scripting reports |
+| `ASSET_PIPELINE_ROADMAP.md`         | Source asset import/cook/artifact/manifest pipeline                       |
+| `PRISM_ROADMAP.md`                  | Stale artifact and boundary analysis invoked/consumed by Forge            |
+| `SHARED_ROADMAP.md`                 | Shared build/artifact/package/publish report contracts                    |
+| `ENGINE_ROADMAP.md`                 | Runtime/server package and manifest consumption expectations              |
+| `EDITOR_ROADMAP.md`                 | Editor build/publish status UX consuming Forge reports                    |
+| `TOOLS_ROADMAP.md`                  | Tool ecosystem ownership index                                            |
+| `DependencyGraph.md`                | Dependency and ownership boundaries                                       |
+| `forge.toml — Schema Reference`     | Current Forge manifest schema                                             |
+| `Forge CHANGELOG.md`                | Current shipped command behavior and implementation decisions             |
 
 ---
 
-## 3. Ownership Boundary
+## 3. Current Shipped Baseline
 
-- [x] Define Forge as build workflow frontend.
+* [x] Add internal build model.
 
   Represented by:
 
   ```txt
-  Tools/Forge/FORGE_ROADMAP.md
-  docs/roadmaps/TOOLS_ROADMAP.md
-  DependencyGraph.md
+  BuildModel
+  forge.toml lowering
+  CLI override application after lowering
   ```
 
   Preserved decision:
 
-
-
-- [ ] Keep Forge focused on build orchestration.
-
-  Done means Forge owns:
-
-  - build command parsing,
-  - build plan creation,
-  - build profile selection,
-  - tool step invocation,
-  - validation routing,
-  - artifact staging,
-  - package build summary,
-  - build diagnostics aggregation,
-  - cache usage decisions,
-  - CI-friendly output.
-
-- [ ] Prevent Forge from owning tool internals.
-
-  Done means Forge does not own:
-
-
-
----
-
-## 4. Dependency Rules
-
-### 4.1 Allowed Dependencies
-
-- [ ] Allow Forge to invoke standalone tools.
-
-  Allowed tool invocations:
-
-
-
-- [ ] Allow Forge to consume stable shared contracts where explicitly approved.
-
-  Allowed examples:
-
   ```txt
-  Forge → package manifest contract
-  Forge → artifact reference contract
-  Forge → diagnostic payload contract
-  Forge → build profile descriptor
+  Forge should lower manifests into backend-neutral build state before adapters see commands.
   ```
 
-- [ ] Allow SagaTools to dispatch Forge.
+* [x] Add backend adapter pattern.
 
-  Correct direction:
+  Represented by:
 
   ```txt
-  SagaTools → Forge executable
+  CMakeAdapter
+  ConanAdapter
   ```
 
----
-
-### 4.2 Forbidden Dependencies
-
-
-
-  Forbidden:
-
-
-
-- [ ] Prevent Forge from depending on editor/runtime/server private implementation.
-
-  Forbidden:
+  Preserved decision:
 
   ```txt
-  Forge → SagaEditor UI
-  Forge → SagaEngine runtime internals
-  Forge → SagaServer private headers
-  Forge → Saga product shell internals
+  Only backend adapters invoke cmake/ctest/conan directly.
+  Other Forge code should not spawn those tools ad hoc.
   ```
 
-- [ ] Prevent Forge from becoming SagaTools.
+* [x] Add `ToolEnv` executable resolution.
 
-  Forbidden:
+  Represented by:
 
   ```txt
-  Forge owns top-level tool dispatch for all tools
-  Forge replaces sagatools list/doctor routing
-  Forge becomes global tool registry
+  ToolEnv
+  .forge env-overrides
+  ToolEnv::Active()
   ```
 
-Forge builds.
-
-SagaTools dispatches.
-
-These are different verbs, and the fact that this must be written down is exactly why documentation exists.
-
----
-
-## 5. CLI Roadmap
-
-- [ ] Provide stable Forge CLI.
-
-  Required commands:
+  Preserved decision:
 
   ```txt
-  forge help
-  forge version
-  forge doctor
+  Adapters use resolved tool executables instead of hardcoded binary names.
+  ```
+
+* [x] Add `EnvProbe`.
+
+  Represented by:
+
+  ```txt
+  cmake version probing
+  conan version probing
+  compiler version probing
+  forge env
+  --strict enforcement
+  ```
+
+  Preserved decision:
+
+  ```txt
+  Forge should validate actual toolchain state before strict builds.
+  ```
+
+* [x] Add build/test/install/presets/env/fmt commands.
+
+  Represented by:
+
+  ```txt
+  forge configure
   forge build
   forge clean
-  forge rebuild
-  forge validate
-  forge cook
-  forge package
-  forge inspect
+  forge test
+  forge install-target
+  forge presets
+  forge env
+  forge fmt
+  --explain
   ```
 
-- [ ] Provide `forge build`.
+* [x] Add strict mode and manifest validation basics.
 
-  Done means:
+  Represented by:
 
+  ```txt
+  --strict
+  unknown top-level section rejection
+  toolchain pin checking
+  ```
 
+* [x] Add `forge.lock` after successful install.
 
-- [ ] Provide `forge validate`.
+  Represented by:
 
-  Done means:
+  ```txt
+  forge.lock
+  install mode
+  declared dependencies
+  planned --strict --frozen verification
+  ```
 
+* [x] Add NixOS-specific fast-fail behavior.
 
+  Represented by:
 
-- [ ] Provide `forge cook`.
-
-  Done means:
-
-  - asset cook plan is created,
-  - source assets are mapped to output artifacts,
-  - cook tools are invoked,
-  - failed cook blocks build where required,
-  - cook diagnostics are aggregated.
-
-- [ ] Provide `forge package`.
-
-  Done means:
-
-  - built artifacts are collected,
-  - package manifest is emitted,
-  - runtime/package layout is created,
-  - version metadata is included,
-  - package diagnostics are emitted.
-
-- [ ] Provide `forge clean`.
-
-  Done means:
-
-  - generated build artifacts can be removed,
-  - cache can be preserved or cleared by flag,
-  - output directories are validated before deletion,
-  - destructive cleanup requires safe path checks.
+  ```txt
+  project toolchain commands fail fast outside nix-shell
+  explicit forge nix <command> path
+  ```
 
 ---
 
-## 6. Build Workspace Model
+## 4. Fundamental Ownership Rule
 
-- [ ] Add workspace discovery.
+* [ ] Keep Forge a workflow orchestrator, not a universal implementation owner.
 
-  Done means Forge can resolve:
+  Done means Forge can:
 
-  - explicit workspace path,
-  - current directory workspace,
-  - project manifest,
-  - package manifest,
-  - build config,
-  - output root.
 
-Expected files:
 
-```txt
-Tools/Forge/include/Forge/Workspace/WorkspaceContext.hpp
-Tools/Forge/include/Forge/Workspace/WorkspaceLocator.hpp
-Tools/Forge/src/Workspace/WorkspaceLocator.cpp
-```
+  But Forge does not:
 
-- [ ] Add workspace validation.
 
-  Done means Forge validates:
 
-  - workspace root exists,
-  - project manifest exists,
-  - source directories exist,
-  - output directory is writable,
-  - required tools are available,
-  - build profile exists.
+* [ ] Treat every non-build subsystem as an external step or adapter boundary.
 
-- [ ] Keep product project lifecycle outside Forge.
+  Done means new integrations enter Forge as:
 
-  Done means Forge does not own:
+  * command adapter,
+  * service adapter,
+  * manifest reader,
+  * report reader,
+  * validation step,
+  * package staging step.
 
-  - project dashboard,
-  - recent project registry,
-  - product-level create/open workflow,
-  - Saga mode switching.
-
-Saga owns product lifecycle.
-
-Forge builds what it is given.
-
-A build tool that starts owning product UX is just a launcher having delusions of grandeur.
+Not as random includes from another subsystem’s private implementation.
 
 ---
 
-## 7. Build Profiles
+## 5. Dependency Rules
 
-- [ ] Add build profile model.
+### 5.1 Allowed Dependencies
 
-  Done means build profiles can describe:
+Allowed dependency directions:
 
 
 
-Expected files:
+---
 
-```txt
-Tools/Forge/include/Forge/Build/BuildProfile.hpp
-Tools/Forge/include/Forge/Build/BuildConfiguration.hpp
-Tools/Forge/include/Forge/Build/TargetPlatform.hpp
-```
+### 5.2 Forbidden Dependencies
 
-- [ ] Support common build profiles.
+Forbidden dependency directions:
+
+
+
+Forbidden shortcuts:
+
+
+
+---
+
+## 6. Command Surface Roadmap
+
+### 6.1 Existing Core Commands
+
+* [x] Preserve existing Forge core commands.
+
+  Required existing commands:
+
+  ```txt
+  forge new
+  forge init
+  forge add
+  forge install
+  forge configure
+  forge build
+  forge clean
+  forge test
+  forge install-target
+  forge presets
+  forge env
+  forge fmt
+  forge run
+  ```
+
+* [ ] Normalize command behavior.
+
+  Done means all commands consistently support:
+
+  * `--manifest` where applicable,
+  * `--project` / working directory semantics where applicable,
+  * `--strict` where applicable,
+  * `--frozen` where applicable,
+  * `--json` output where applicable,
+  * `--explain` where applicable,
+  * structured diagnostics where applicable,
+  * stable exit codes.
+
+---
+
+### 6.2 New Saga Pipeline Commands
+
+* [ ] Add `forge validate`.
+
+
+
+  Expected usage:
+
+  ```txt
+  forge validate --profile editor-preview
+  forge validate --profile ci
+  forge validate --json
+  ```
+
+
+
+  Done means Forge can invoke:
+
+
+
+  through configured tool boundaries and collect reports.
+
+* [ ] Add `forge graph` validation/build step surface where useful.
+
+
+
+* [ ] Add `forge scripts` or script compile step surface.
+
+  Done means Forge can validate/compile scripts through a script compiler adapter boundary.
+
+* [ ] Add `forge assets` or asset cook step surface.
+
+  Done means Forge can validate/cook assets through asset pipeline tools/services.
+
+* [ ] Add `forge package`.
+
+  Done means Forge can stage client/server/editor-preview packages from built artifacts.
+
+* [ ] Add `forge publish-check`.
+
+  Done means Forge can generate publish readiness reports without necessarily uploading/deploying anything.
+
+* [ ] Add `forge report`.
+
+  Done means users/CI can inspect latest build/publish/diagnostics reports.
+
+* [ ] Add `forge doctor`.
+
+  Done means Forge checks:
+
+
+
+---
+
+## 7. Manifest Roadmap
+
+### 7.1 Existing `forge.toml`
+
+* [x] Keep `forge.toml` as project build manifest for Forge.
+
+  Current supported sections:
+
+  ```txt
+  [project]
+  [toolchain]
+  [build]
+  [deps]
+  .forge env-overrides
+  forge.lock
+  ```
+
+  Preserved decision:
+
+  ```txt
+  forge.toml is not a build language.
+  CMake stays in CMake.
+  Forge coordinates workflow and tool constraints.
+  ```
+
+* [ ] Keep unknown section behavior strict but forward-compatible.
+
+  Done means unknown sections are preserved where appropriate but rejected under strict profiles when unsupported.
+
+---
+
+### 7.2 Saga Project Integration
+
+* [ ] Add support for Saga project manifest discovery.
+
+  Done means Forge can locate and consume:
+
+
+
+* [ ] Avoid duplicating product manifest truth.
+
+  Done means Forge reads Saga project/build profile metadata but does not become the product manifest owner.
+
+---
+
+### 7.3 Build Profiles
+
+* [ ] Add build profile model.
 
   Required profiles:
 
   ```txt
-  dev
-  debug
-  release
-  shipping
-  server
-  client
   editor-preview
+  dev-client
+  dev-server
+  dev-local-client-server
+  test
+  ci
+  shipping-client
+  shipping-server
+  shipping-full
   ```
 
-- [ ] Validate build profile compatibility.
+* [ ] Add profile-specific strictness.
+
+  Done means profiles can configure:
+
+
+
+---
+
+### 7.4 Future Manifest Sections
+
+Possible future `forge.toml` or Saga build-profile sections:
+
+
+
+[scripts]
+root = "Scripts"
+out = "Build/Artifacts/Scripts"
+
+[assets]
+root = "Assets"
+out = "Build/Artifacts/Assets"
+
+[package]
+out = "Packages"
+
+[publish]
+profile = "shipping-full"
+```
+
+* [ ] Add only after roadmap/API stabilization.
+
+  Done means schema expansion happens after build/publish concepts are implemented enough to avoid permanent manifest junk.
+
+Manifests are hard to un-break once users copy them into every project.
+
+Do not casually invent fields because a prototype needed a string.
+
+---
+
+## 8. Build Model and Build Plan
+
+* [x] Keep `BuildModel` backend-neutral.
+
+  Preserved decision:
+
+  ```txt
+  Manifest lowering happens before backend adapters.
+  CLI overrides apply after lowering.
+  ```
+
+* [ ] Add `BuildPlan` separate from `BuildModel`.
+
+  Done means Forge distinguishes:
+
+  * what project/build configuration says (`BuildModel`),
+  * what steps will actually run (`BuildPlan`),
+  * what happened (`BuildReport`).
+
+Expected files:
+
+```txt
+Tools/Forge/include/Forge/Pipeline/BuildModel.hpp
+Tools/Forge/include/Forge/Pipeline/BuildPlan.hpp
+Tools/Forge/include/Forge/Pipeline/BuildStep.hpp
+Tools/Forge/include/Forge/Pipeline/BuildReport.hpp
+Tools/Forge/src/Pipeline/BuildPlanner.cpp
+Tools/Forge/src/Pipeline/BuildPipeline.cpp
+```
+
+* [ ] Add build step dependency graph.
+
+  Done means steps declare:
+
+  * step id,
+  * step kind,
+  * inputs,
+  * outputs,
+  * dependencies,
+  * cache key,
+  * tool invocation,
+  * expected reports,
+  * failure policy.
+
+* [ ] Detect invalid build plans.
 
   Done means Forge rejects:
 
-
+  * dependency cycles,
+  * missing required inputs,
+  * duplicate output writers,
+  * invalid profile/target combinations,
+  * missing tool adapters,
+  * unsupported step kind.
 
 ---
 
-## 8. Build Plan
+## 9. Step Kinds
 
-- [ ] Add build plan generation.
+Required build step kinds:
 
-  Done means Forge can create an ordered build plan from workspace and profile.
+```txt
+ResolveWorkspace
+ValidateProjectManifest
+ValidateForgeManifest
+ValidateToolchain
+ValidateCollaborationState
+InstallDependencies
+ConfigureBackend
+BuildBackend
+RunTests
+InstallTarget
+ValidateSDE
+CompileSDE
+ValidateGameplayGraph
+ValidateAuthority
+GenerateGraphCode
+ValidateScripts
+CompileScripts
+ValidateAssets
+CookAssets
+RunPrismBoundaryChecks
+RunPrismStaleChecks
+StageClientPackage
+StageServerPackage
+StageEditorPreviewPackage
+GenerateArtifactManifest
+GeneratePackageManifest
+ValidatePackageManifest
+RunPublishReadinessCheck
+WriteBuildReport
+```
+
+* [ ] Implement each step as an explicit unit.
+
+  Done means each step has:
+
+  * typed inputs,
+  * typed outputs,
+  * diagnostics,
+  * exit behavior,
+  * report contribution,
+  * test coverage.
 
 Expected files:
 
 ```txt
-Tools/Forge/include/Forge/Build/BuildPlan.hpp
-Tools/Forge/include/Forge/Build/BuildStep.hpp
-Tools/Forge/include/Forge/Build/BuildGraph.hpp
-Tools/Forge/src/Build/BuildPlanner.cpp
+Tools/Forge/include/Forge/Steps/ProjectValidateStep.hpp
+Tools/Forge/include/Forge/Steps/SdeValidateStep.hpp
+Tools/Forge/include/Forge/Steps/SdeCompileStep.hpp
+Tools/Forge/include/Forge/Steps/GraphValidateStep.hpp
+Tools/Forge/include/Forge/Steps/AuthorityValidateStep.hpp
+Tools/Forge/include/Forge/Steps/ScriptValidateStep.hpp
+Tools/Forge/include/Forge/Steps/ScriptCompileStep.hpp
+Tools/Forge/include/Forge/Steps/AssetValidateStep.hpp
+Tools/Forge/include/Forge/Steps/AssetCookStep.hpp
+Tools/Forge/include/Forge/Steps/PrismBoundaryCheckStep.hpp
+Tools/Forge/include/Forge/Steps/PrismStaleCheckStep.hpp
+Tools/Forge/include/Forge/Steps/PackageStageStep.hpp
+Tools/Forge/include/Forge/Steps/ManifestGenerateStep.hpp
+Tools/Forge/include/Forge/Steps/PublishReadinessStep.hpp
 ```
 
-- [ ] Define build step model.
+---
 
-  Done means each build step has:
+## 10. Backend Adapter Roadmap
 
-  - step id,
-  - display name,
-  - step kind,
-  - inputs,
-  - outputs,
-  - dependencies,
-  - tool invocation,
-  - cache key,
-  - diagnostics,
-  - failure policy.
+### 10.1 CMake Adapter
 
-- [ ] Add build graph validation.
+* [x] Keep CMake invocation isolated in `CMakeAdapter`.
 
-  Done means Forge detects:
+  Preserved decision:
 
-  - missing inputs,
-  - missing outputs,
-  - dependency cycles,
-  - duplicate artifact outputs,
-  - incompatible step ordering,
-  - invalid tool references.
+  ```txt
+  CMakeAdapter is the only Forge code path that invokes cmake/ctest for CMake operations.
+  ```
 
-- [ ] Keep build plan deterministic.
+* [ ] Expand adapter reports.
 
-  Done means identical workspace/profile inputs produce the same build step order and cache keys.
+  Done means CMakeAdapter returns structured results including:
+
+  * command line,
+  * exit code,
+  * stdout/stderr summary,
+  * generated paths,
+  * diagnostics where parseable,
+  * timing.
 
 ---
 
-## 9. Build Step Categories
+### 10.2 Conan Adapter
 
-- [ ] Add manifest validation step.
+* [x] Keep Conan invocation isolated in `ConanAdapter`.
 
-  Done means Forge validates project/package manifests before expensive build steps run.
+  Preserved decision:
+
+  ```txt
+  ConanAdapter owns conan install invocation modes.
+  ```
+
+* [ ] Complete `--strict --frozen` behavior.
+
+  Done means Forge validates:
+
+  * `forge.lock` exists,
+  * install mode matches,
+  * dependency declarations match lock,
+  * profiles match lock where applicable,
+  * frozen install refuses drift.
+
+---
+
+### 10.3 Future Backend Adapters
+
+* [ ] Define adapter interface for future build backends.
+
+  Done means backends can be added without changing high-level pipeline logic.
+
+Potential future adapters:
+
+```txt
+Ninja direct adapter
+MSBuild adapter
+Cargo adapter for Rust tools
+Dotnet adapter for C# scripting
+Custom Saga package adapter
+```
+
+Do not add backends before there is a real use case.
+
+Backend collection is not product maturity.
+
+---
+
+## 11. Tool Environment and Toolchain
+
+* [x] Use `ToolEnv` for executable resolution.
+
+  Preserved decision:
+
+  ```txt
+  ToolEnv resolves tool executables once and adapters consume ToolEnv.
+  ```
+
+* [x] Use `.forge` env-overrides.
+
+  Preserved decision:
+
+  ```txt
+  Project-local tool executable overrides are supported.
+  ```
+
+* [ ] Expand `ToolEnv` for Saga pipeline tools.
+
+  Done means ToolEnv can resolve:
 
 
 
+* [ ] Expand `EnvProbe` for Saga pipeline tools.
+
+  Done means `forge env --json` can report:
 
 
 
+* [ ] Add profile-level tool requirements.
 
-
-
-- [ ] Add asset cook step.
-
-  Done means Forge invokes asset cook tools and stages cooked outputs.
-
-- [ ] Add script compile step where applicable.
-
-  Done means script artifacts are compiled and diagnosed through the owning scripting toolchain.
-
-- [ ] Add runtime package step.
-
-  Done means runtime-consumable package layout is produced.
-
-- [ ] Add server package step.
-
-  Done means server-specific package layout can be produced where required.
-
-- [ ] Add publish validation step.
-
-  Done means shipping/publish builds verify all required gates before package success.
+  Done means shipping profiles can require stricter tool/version matches than dev profiles.
 
 ---
 
@@ -405,23 +667,39 @@ Tools/Forge/src/Build/BuildPlanner.cpp
 
 
 
-  Done means Forge can run:
+
+
+  * executable path from ToolEnv,
+  * configured source root,
+  * configured output root,
+  * profile-specific options,
+  * JSON diagnostics output,
+  * artifact/dependency manifest outputs.
+
+Expected files:
+
+```txt
+Tools/Forge/include/Forge/Adapters/SdeAdapter.hpp
+Tools/Forge/src/Adapters/SdeAdapter.cpp
+Tools/Forge/include/Forge/Steps/SdeValidateStep.hpp
+Tools/Forge/include/Forge/Steps/SdeCompileStep.hpp
+Tools/Forge/src/Steps/SdeValidateStep.cpp
+Tools/Forge/src/Steps/SdeCompileStep.cpp
+```
 
 
 
-  or equivalent configured executable paths.
 
 
 
-  Done means Forge can read:
 
-  - artifact ids,
-  - artifact kinds,
-  - output paths,
-  - schema versions,
-  - content hashes,
-  - dependency data,
-  - diagnostics summary.
+  Done means Forge reads:
+
+  * diagnostics JSON,
+  * artifact manifest,
+  * dependency manifest,
+  * source maps,
+  * generated output manifests.
 
 
 
@@ -429,950 +707,853 @@ Tools/Forge/src/Build/BuildPlanner.cpp
 
 
 
-
-
-  Done means Forge does not include:
-
-
-
-Forge runs the compiler.
-
-Forge is not the compiler.
-
-This is apparently a difficult spiritual concept for build tools.
-
 ---
 
-## 11. Asset Cook Integration
+## 13. Gameplay Graph and Authority Integration
 
-- [ ] Add asset cook orchestration.
+* [ ] Add graph validation step.
 
-  Done means Forge can:
 
-  - discover source assets,
-  - read asset metadata,
-  - create cook jobs,
-  - invoke cook workers/tools,
-  - collect cook diagnostics,
-  - stage cooked artifacts.
+
+  * graph artifact presence,
+  * graph schema version,
+  * block registry compatibility,
+  * source map presence,
+  * graph artifact hash.
+
+* [ ] Add authority validation step.
+
+  Done means Forge validates:
+
+  * graph authority metadata,
+  * script authority metadata,
+  * package artifact destination,
+  * client/server artifact split,
+  * prediction safety metadata,
+  * persistence/replication effects.
 
 Expected files:
 
 ```txt
-Tools/Forge/include/Forge/Assets/AssetCookPlan.hpp
-Tools/Forge/include/Forge/Assets/AssetCookStep.hpp
-Tools/Forge/include/Forge/Assets/AssetCookResult.hpp
-Tools/Forge/src/Assets/AssetCookPlanner.cpp
+Tools/Forge/include/Forge/Steps/GraphValidateStep.hpp
+Tools/Forge/include/Forge/Steps/AuthorityValidateStep.hpp
+Tools/Forge/src/Steps/GraphValidateStep.cpp
+Tools/Forge/src/Steps/AuthorityValidateStep.cpp
 ```
 
-- [ ] Add asset dependency tracking.
+* [ ] Keep authority implementation ownership clean.
 
-  Done means Forge can track:
+  Done means Forge validates using manifests/descriptors and profile policies. It does not include server authority internals.
 
-  - source asset path,
-  - cooked artifact path,
-  - dependency assets,
-  - material/texture references,
-  - generated metadata,
-  - content hashes.
+Example failure:
 
-- [ ] Fail build on required asset cook failure.
-
-  Done means:
-
-  - failed cook emits diagnostics,
-  - missing required cooked artifacts fail build,
-  - invalid asset metadata fails build,
-  - optional assets are handled by explicit policy.
-
-- [ ] Keep editor import UX outside Forge.
-
-  Done means Forge does not own:
-
-  - drag-and-drop import UI,
-  - asset inspector,
-  - content browser,
-  - artist-facing import workflow.
-
-Forge cooks/builds.
-
-Editor authors/imports.
-
-Runtime streams cooked outputs.
-
-See? Three separate jobs. Civilization trembles, but survives.
+```txt
+AuthorityValidationError:
+ServerOnly graph artifact QuestReward was staged as executable client artifact.
+```
 
 ---
 
-## 12. Artifact Staging
+## 14. Script Integration
 
-- [ ] Add artifact staging model.
+* [ ] Add script compiler adapter.
+
+  Done means Forge can invoke script compiler/toolchain through adapter boundary.
+
+Expected files:
+
+```txt
+Tools/Forge/include/Forge/Adapters/ScriptCompilerAdapter.hpp
+Tools/Forge/src/Adapters/ScriptCompilerAdapter.cpp
+Tools/Forge/include/Forge/Steps/ScriptValidateStep.hpp
+Tools/Forge/include/Forge/Steps/ScriptCompileStep.hpp
+Tools/Forge/src/Steps/ScriptValidateStep.cpp
+Tools/Forge/src/Steps/ScriptCompileStep.cpp
+```
+
+* [ ] Consume script outputs.
+
+  Done means Forge reads:
+
+  * script compile diagnostics,
+  * script assembly artifacts,
+  * binding manifests,
+  * authority metadata,
+  * generated code manifests,
+  * source maps.
+
+* [ ] Validate script package placement.
+
+  Done means Forge rejects:
+
+  * server-only script artifacts in client executable package,
+  * editor-only scripts in shipping packages,
+  * test-only scripts in shipping packages,
+  * missing binding manifest,
+  * stale generated code where policy requires freshness.
+
+* [ ] Keep script compiler implementation outside Forge.
+
+  Done means Forge does not become a C# compiler or runtime host.
+
+---
+
+## 15. Asset Pipeline Integration
+
+* [ ] Add asset pipeline adapter.
+
+  Done means Forge can invoke asset validation/cook through tool/service boundary.
+
+Expected files:
+
+```txt
+Tools/Forge/include/Forge/Adapters/AssetPipelineAdapter.hpp
+Tools/Forge/src/Adapters/AssetPipelineAdapter.cpp
+Tools/Forge/include/Forge/Steps/AssetValidateStep.hpp
+Tools/Forge/include/Forge/Steps/AssetCookStep.hpp
+Tools/Forge/src/Steps/AssetValidateStep.cpp
+Tools/Forge/src/Steps/AssetCookStep.cpp
+```
+
+* [ ] Consume asset outputs.
+
+  Done means Forge reads:
+
+  * asset diagnostics,
+  * cooked artifact descriptors,
+  * asset manifests,
+  * dependency manifests,
+  * budget data,
+  * artifact hashes.
+
+* [ ] Validate stale cooked assets.
+
+  Done means Forge rejects stale asset artifacts when profile requires fresh cook outputs.
+
+* [ ] Keep importer/cooker implementation outside Forge.
+
+  Done means Forge does not implement texture/mesh/audio import/cook logic internally.
+
+---
+
+## 16. Prism Integration
+
+* [ ] Add Prism adapter.
+
+  Done means Forge can invoke Prism checks:
+
+  * boundary validation,
+  * stale artifact validation,
+  * generated code origin validation,
+  * package relationship validation where supported.
+
+Expected files:
+
+```txt
+Tools/Forge/include/Forge/Adapters/PrismAdapter.hpp
+Tools/Forge/src/Adapters/PrismAdapter.cpp
+Tools/Forge/include/Forge/Steps/PrismBoundaryCheckStep.hpp
+Tools/Forge/include/Forge/Steps/PrismStaleCheckStep.hpp
+Tools/Forge/src/Steps/PrismBoundaryCheckStep.cpp
+Tools/Forge/src/Steps/PrismStaleCheckStep.cpp
+```
+
+* [ ] Consume Prism reports.
+
+  Done means Forge reads:
+
+  * stale generated code reports,
+  * stale cooked artifact reports,
+  * dependency boundary reports,
+  * generated origin reports,
+  * package relationship reports.
+
+* [ ] Keep Prism implementation outside Forge.
+
+  Done means Forge does not index source, own symbol graphs, or inspect internal Prism databases.
+
+---
+
+## 17. Package Staging
+
+* [ ] Add package staging model.
 
   Done means Forge can stage:
 
-
-
-Expected files:
-
-```txt
-Tools/Forge/include/Forge/Artifacts/ArtifactStage.hpp
-Tools/Forge/include/Forge/Artifacts/ArtifactStager.hpp
-Tools/Forge/include/Forge/Artifacts/StagedArtifact.hpp
-Tools/Forge/src/Artifacts/ArtifactStager.cpp
-```
-
-- [ ] Add artifact manifest output.
-
-  Done means Forge emits a build artifact manifest containing:
-
-  - build id,
-  - profile,
-  - target platform,
-  - artifact list,
-  - content hashes,
-  - source references,
-  - tool versions,
-  - build timestamp or deterministic build id policy,
-  - diagnostics summary.
-
-- [ ] Add artifact integrity checks.
-
-  Done means Forge verifies:
-
-  - expected artifacts exist,
-  - hash matches,
-  - artifact version is compatible,
-  - required artifacts are not missing,
-  - duplicate artifact ids are rejected.
-
----
-
-## 13. Build Cache
-
-- [ ] Add build cache model.
-
-  Done means Forge can cache outputs based on:
-
-  - input file hashes,
-  - tool versions,
-  - build profile,
-  - config values,
-  - artifact format version,
-  - target platform.
+  * editor-preview packages,
+  * dev-client packages,
+  * dev-server packages,
+  * shipping-client packages,
+  * shipping-server packages,
+  * shipping-full package sets.
 
 Expected files:
 
 ```txt
-Tools/Forge/include/Forge/Cache/BuildCache.hpp
-Tools/Forge/include/Forge/Cache/CacheKey.hpp
-Tools/Forge/include/Forge/Cache/CacheEntry.hpp
-Tools/Forge/src/Cache/BuildCache.cpp
+Tools/Forge/include/Forge/Package/PackageKind.hpp
+Tools/Forge/include/Forge/Package/PackageStagePlan.hpp
+Tools/Forge/include/Forge/Package/PackageStager.hpp
+Tools/Forge/src/Package/PackageStager.cpp
 ```
 
-- [ ] Add cache hit/miss diagnostics.
+* [ ] Define client package staging rules.
 
-  Done means build summary shows:
+  Client package may contain:
 
-  - cache hits,
-  - cache misses,
-  - invalidated steps,
-  - cache errors,
-  - cache size.
+  * client runtime executable/assets,
+  * client-safe graph artifacts,
+  * client-safe script artifacts,
+  * asset manifests,
+  * cooked client asset artifacts,
+  * client package manifest,
+  * allowed diagnostics metadata.
 
-- [ ] Add cache invalidation policy.
+* [ ] Define server package staging rules.
 
-  Done means cache invalidates when:
+  Server package may contain:
 
-  - source input changes,
-  - tool version changes,
-  - profile changes,
-  - schema/artifact format changes,
-  - dependency changes,
-  - config changes.
+  * server executable/assets,
+  * authoritative graph artifacts,
+  * server script artifacts,
+  * server data artifacts,
+  * persistence/schema refs,
+  * server package manifest,
+  * server diagnostics metadata.
 
-- [ ] Keep cache correctness above speed.
+* [ ] Reject invalid package placement.
 
-  Done means Forge never uses stale artifacts silently.
+  Done means Forge rejects:
 
-Fast wrong builds are still wrong builds.
-
-They just waste your time with better posture.
+  * server-only executable logic in client package,
+  * editor-only artifacts in shipping package,
+  * test-only artifacts in shipping package,
+  * stale artifacts,
+  * missing required artifacts,
+  * manifest hash mismatches.
 
 ---
 
-## 14. Diagnostics Aggregation
+## 18. Manifest Generation
 
-- [ ] Add Forge diagnostic model.
+* [ ] Generate artifact manifests.
 
-  Done means diagnostics include:
+  Done means Forge emits manifests describing:
 
-  - severity,
-  - code,
-  - message,
-  - source tool,
-  - build step,
-  - file/resource path,
-  - recoverability,
-  - suggested action.
+  * artifact id,
+  * artifact kind,
+  * source ref,
+  * output path,
+  * content hash,
+  * profile,
+  * target platform,
+  * schema/format version,
+  * dependencies.
+
+Expected files:
+
+```txt
+Tools/Forge/include/Forge/Manifests/ArtifactManifestWriter.hpp
+Tools/Forge/src/Manifests/ArtifactManifestWriter.cpp
+```
+
+* [ ] Generate package manifests.
+
+  Done means Forge emits manifests describing:
+
+  * package id,
+  * package kind,
+  * build profile,
+  * runtime compatibility,
+  * artifact refs,
+  * asset manifest refs,
+  * script manifest refs,
+  * graph manifest refs,
+  * diagnostics summary,
+  * package hash.
+
+Expected files:
+
+```txt
+Tools/Forge/include/Forge/Manifests/PackageManifestWriter.hpp
+Tools/Forge/src/Manifests/PackageManifestWriter.cpp
+```
+
+* [ ] Generate build reports.
+
+  Done means Forge emits:
+
+  * build id,
+  * profile,
+  * target platform,
+  * tool versions,
+  * input hashes,
+  * step results,
+  * diagnostics summary,
+  * artifact outputs,
+  * cache decisions.
+
+Expected files:
+
+```txt
+Tools/Forge/include/Forge/Reports/BuildReport.hpp
+Tools/Forge/include/Forge/Reports/BuildReportWriter.hpp
+Tools/Forge/src/Reports/BuildReportWriter.cpp
+```
+
+---
+
+## 19. Publish Readiness
+
+* [ ] Add publish readiness step.
+
+  Done means Forge can determine:
+
+  ```txt
+  Ready
+  ReadyWithWarnings
+  Blocked
+  Failed
+  Unknown
+  ```
+
+* [ ] Add publish blocker model.
+
+  Required blocker kinds:
+
+  ```txt
+  ProjectManifestInvalid
+  ToolchainInvalid
+  SDECompileError
+  GraphValidationError
+  AuthorityValidationError
+  ScriptCompileError
+  AssetCookError
+  StaleArtifact
+  PackageManifestInvalid
+  CollaborationConflict
+  PermissionDenied
+  RuntimeManifestInvalid
+  ServerPackageInvalid
+  DiagnosticsFatal
+  ```
+
+Expected files:
+
+```txt
+Tools/Forge/include/Forge/Publish/PublishReadiness.hpp
+Tools/Forge/include/Forge/Publish/PublishBlocker.hpp
+Tools/Forge/include/Forge/Publish/PublishReport.hpp
+Tools/Forge/src/Publish/PublishReadiness.cpp
+Tools/Forge/src/Publish/PublishReportWriter.cpp
+```
+
+* [ ] Emit publish report.
+
+  Done means publish-check writes:
+
+  ```txt
+  <Project>/Build/Reports/publish_report.json
+  ```
+
+  with:
+
+  * status,
+  * blockers,
+  * warnings,
+  * affected resources,
+  * diagnostics refs,
+  * suggested actions,
+  * package refs where ready.
+
+---
+
+## 20. Diagnostics and Reporting
+
+* [ ] Add unified Forge diagnostic model.
+
+  Done means Forge diagnostics include:
+
+  * source system,
+  * diagnostic code,
+  * severity,
+  * message,
+  * resource ref,
+  * artifact ref,
+  * build step ref,
+  * suggested action,
+  * raw tool diagnostic where needed.
 
 Expected files:
 
 ```txt
 Tools/Forge/include/Forge/Diagnostics/ForgeDiagnostic.hpp
-Tools/Forge/include/Forge/Diagnostics/DiagnosticAggregator.hpp
-Tools/Forge/src/Diagnostics/DiagnosticAggregator.cpp
+Tools/Forge/include/Forge/Diagnostics/DiagnosticCollector.hpp
+Tools/Forge/src/Diagnostics/DiagnosticCollector.cpp
 ```
 
-- [ ] Aggregate child tool diagnostics.
-
-  Done means Forge can collect diagnostics from:
+* [ ] Normalize tool diagnostics.
 
 
 
-- [ ] Preserve diagnostic source ownership.
+* [ ] Emit machine-readable reports.
 
-  Done means Forge reports whether a diagnostic came from:
-
-
-
-- [ ] Support human-readable diagnostics.
-
-  Done means CLI output is readable and grouped by build step.
-
-- [ ] Support JSON diagnostics.
-
-  Done means CI and editor integrations can consume structured build results.
-
----
-
-## 15. Build Summary
-
-- [ ] Add build summary output.
-
-  Done means Forge reports:
-
-  - build status,
-  - selected profile,
-  - target platform,
-  - elapsed time,
-  - step count,
-  - failed steps,
-  - warning count,
-  - error count,
-  - artifact count,
-  - output path.
-
-- [ ] Add machine-readable build summary.
-
-  Done means `--json` emits stable summary data for CI/editor/product integration.
-
-- [ ] Add build report artifact.
-
-  Done means Forge can emit:
+  Required reports:
 
   ```txt
-  build-report.json
-  diagnostics.json
-  artifact-manifest.json
+  build_report.json
+  diagnostics_report.json
+  artifact_manifest.json
+  package_manifest.client.json
+  package_manifest.server.json
+  publish_report.json
   ```
 
----
+* [ ] Keep human-readable summaries useful.
 
-## 16. Package Build
+  Done means CLI output is concise but points to report files and primary blockers.
 
-- [ ] Add package layout builder.
-
-  Done means Forge can build package layouts for:
-
-  - client runtime,
-  - dedicated server,
-  - editor preview,
-  - development test package,
-  - shipping package.
-
-Expected files:
-
-```txt
-Tools/Forge/include/Forge/Package/PackageLayout.hpp
-Tools/Forge/include/Forge/Package/PackageBuilder.hpp
-Tools/Forge/include/Forge/Package/PackageManifestWriter.hpp
-Tools/Forge/src/Package/PackageBuilder.cpp
-```
-
-- [ ] Add package manifest generation.
-
-  Done means package manifest contains:
-
-  - package id,
-  - package version,
-  - target platform,
-  - build profile,
-  - artifact list,
-  - dependency list,
-  - content hashes,
-  - required runtime versions.
-
-- [ ] Add package validation.
-
-  Done means Forge rejects package when:
-
-  - required artifact is missing,
-  - incompatible artifact version exists,
-  - required manifest is invalid,
-  - package hash verification fails,
-  - publish gate fails.
+No one wants a 4,000-line terminal scroll as the only artifact of failure.
 
 ---
 
-## 17. Publish Gate Integration
+## 21. Cache and Incrementality
 
-- [ ] Add build-level publish gates.
+* [ ] Define per-step cache keys.
 
-  Done means shipping/publish builds require:
+  Cache keys must include:
 
+  * input content hashes,
+  * tool version,
+  * profile,
+  * target platform,
+  * dependency hashes,
+  * schema versions,
+  * compile/cook options,
+  * package destination.
 
+* [ ] Add safe incremental execution.
 
-- [ ] Support collaboration publish gate input.
+  Done means Forge can skip steps only when:
 
-  Done means Forge can consume external publish state from product/collaboration services where provided, without owning collaboration implementation.
+  * all inputs are unchanged,
+  * tool versions match,
+  * output manifests exist,
+  * artifact hashes match,
+  * profile/target match,
+  * dependency manifests match.
 
-Allowed:
+* [ ] Reject unsafe cache hits.
 
-```txt
-Forge consumes publish gate descriptor/artifact
-Forge reports publish gate failure
-```
+  Done means stale/generated/cooked/package artifacts are not reused silently.
 
-Forbidden:
+* [ ] Report cache decisions.
 
-```txt
-Forge owns collaboration session lifecycle
-Forge owns permissions service
-Forge owns conflict engine
-```
+  Done means build reports explain important hits/misses/skips.
 
 ---
 
-## 18. Clean and Rebuild
+## 22. Strict, Frozen, and Lock Behavior
 
-- [ ] Add safe clean command.
+* [x] Implement basic strict mode toolchain checks.
 
-  Done means `forge clean` can remove:
-
-  - build output,
-  - staged artifacts,
-  - temporary files,
-  - selected cache entries where requested.
-
-- [ ] Add safe path validation before deletion.
-
-  Done means Forge refuses to delete:
-
-  - workspace root,
-  - user home,
-  - filesystem root,
-  - paths outside configured build output unless explicitly forced with safety checks.
-
-- [ ] Add rebuild command.
-
-  Done means `forge rebuild` performs:
+  Preserved decision:
 
   ```txt
-  clean selected outputs
-  rebuild selected profile
-  emit summary
+  --strict verifies toolchain pins.
   ```
 
-Destructive build tools need adult supervision.
+* [ ] Complete frozen mode.
 
-Forge should be the adult, not the toddler with `rm -rf`.
+  Done means `--strict --frozen` rejects:
 
----
+  * dependency drift,
+  * missing lock file,
+  * changed install mode,
+  * changed profile host/build,
+  * changed declared deps,
+  * generated artifact drift where configured,
+  * package manifest drift where configured.
 
-## 19. Configuration
+* [ ] Extend lock model for Saga pipeline.
 
-- [ ] Add Forge config support.
+  Done means future lock files may record:
 
-  Done means config can define:
 
-  - tool paths,
-  - build profiles,
-  - source roots,
-  - output roots,
-  - cache path,
-  - target platforms,
-  - artifact format preferences,
-  - strictness levels.
 
-Expected files:
+* [ ] Keep lock files human-inspectable.
 
-```txt
-Tools/Forge/include/Forge/Config/ForgeConfig.hpp
-Tools/Forge/include/Forge/Config/ForgeConfigLoader.hpp
-Tools/Forge/src/Config/ForgeConfigLoader.cpp
-```
-
-- [ ] Add command-line config overrides.
-
-  Done means CLI can override:
-
-  - workspace path,
-  - profile,
-  - output path,
-  - cache mode,
-  - verbosity,
-  - JSON mode.
-
-- [ ] Add config validation.
-
-  Done means invalid config fails before build begins.
+  Done means lock data is structured and explainable, not binary mystery paste.
 
 ---
 
-## 20. Tool Discovery
+## 23. NixOS and Environment Behavior
 
-- [ ] Add required tool discovery.
+* [x] Fail fast outside `nix-shell` on NixOS for project toolchain commands.
 
-  Done means Forge can locate:
-
-
-
-Expected files:
-
-```txt
-Tools/Forge/include/Forge/Tools/ToolLocator.hpp
-Tools/Forge/include/Forge/Tools/ToolRequirement.hpp
-Tools/Forge/include/Forge/Tools/ToolVersion.hpp
-Tools/Forge/src/Tools/ToolLocator.cpp
-```
-
-- [ ] Add tool version validation.
-
-  Done means Forge checks:
-
-  - required tool exists,
-  - executable can run,
-  - version is compatible,
-  - protocol/output format is supported.
-
-- [ ] Add missing tool diagnostics.
-
-  Done means missing tools report:
-
-  - tool name,
-  - expected path,
-  - searched paths,
-  - required version,
-  - suggested install/build action.
-
----
-
-## 21. Prism Integration
-
-- [ ] Allow optional Prism integration for build insight.
-
-  Done means Forge may invoke Prism for:
-
-  - source graph inspection,
-  - dependency insight,
-  - stale generated code detection,
-  - include/source graph diagnostics.
-
-- [ ] Preserve Prism ownership.
-
-  Done means Forge does not own:
-
-  - Prism indexing,
-  - Prism graph database,
-  - symbol graph generation,
-  - semantic query engine.
-
-- [ ] Keep Prism optional for core build unless explicitly required by a profile.
-
-  Done means normal build does not fail because Prism is unavailable unless the selected profile requires Prism.
-
----
-
-## 22. SagaTools Integration
-
-- [ ] Allow SagaTools to dispatch Forge.
-
-  Example commands:
+  Preserved decision:
 
   ```txt
-  sagatools forge build
-  sagatools forge clean
-  sagatools forge package
-  sagatools forge doctor
+  NixOS behavior should fail clearly instead of producing confusing toolchain errors.
   ```
 
-- [ ] Keep SagaTools as dispatcher only.
+* [ ] Expand `forge nix` behavior.
 
-  Done means SagaTools does not parse or execute Forge build plan internals.
+  Done means Forge can enter Nix shell for supported commands where configured.
 
-- [ ] Keep Forge usable standalone.
+* [ ] Document NixOS workflow.
 
-  Done means Forge can still run as:
+  Done means users understand:
 
-  ```txt
-  forge build
-  ```
-
-  without requiring SagaTools.
-
----
-
-## 23. Editor Integration
-
-- [ ] Allow editor to invoke Forge through a service boundary.
-
-  Done means SagaEditor can request:
-
-  - validate project,
-  - build current project,
-  - cook assets,
-  - package preview build,
-  - inspect build diagnostics.
-
-- [ ] Keep Forge UI outside Forge.
-
-  Done means Forge does not own:
-
-  - editor build panel,
-  - progress dialog widgets,
-  - Problems panel,
-  - content browser,
-  - product publish UI.
-
-- [ ] Emit diagnostics consumable by editor.
-
-  Done means Forge can output structured diagnostics that editor displays without importing Forge internals.
-
-Correct flow:
-
-```txt
-Editor requests build
-      ↓
-Forge runs build workflow
-      ↓
-Forge emits diagnostics/build report
-      ↓
-Editor displays results
-```
-
-Incorrect flow:
-
-```txt
-Forge imports editor widgets and updates panels directly
-```
-
-No.
-
-Bad boundary.
+  * when to use `nix develop`,
+  * when to use `forge nix <command>`,
+  * how ToolEnv resolves commands inside/outside shell,
+  * what fails under strict mode.
 
 ---
 
-## 24. Runtime and Server Integration
+## 24. CI and Exit Codes
 
-- [ ] Emit runtime-consumable build artifacts.
-
-  Done means SagaEngine runtime can consume:
-
-
-
-- [ ] Emit server-consumable build artifacts.
-
-  Done means SagaServer can consume:
-
-  - server package manifest,
-  - authority-relevant schema artifacts,
-  - runtime config,
-  - validation metadata.
-
-- [ ] Keep runtime/server implementation outside Forge.
-
-  Done means Forge does not include runtime/server private headers or execute gameplay simulation.
-
-Forge creates outputs.
-
-Runtime/server consume outputs.
-
-The oven bakes bread. It does not eat lunch.
-
----
-
-## 25. Logging
-
-- [ ] Add Forge logging.
-
-  Done means logs include:
-
-  - selected command,
-  - workspace path,
-  - build profile,
-  - tool paths,
-  - build steps,
-  - step timings,
-  - cache results,
-  - artifact counts,
-  - errors and warnings.
-
-- [ ] Keep normal output readable.
-
-  Done means default CLI output gives useful progress without drowning the user in raw internal noise.
-
-- [ ] Add verbose mode.
-
-  Done means `--verbose` shows detailed step/tool execution info.
-
----
-
-## 26. Exit Codes
-
-- [ ] Define stable Forge exit codes.
+* [ ] Define stable exit codes.
 
   Required categories:
 
-
-
-- [ ] Preserve child tool failure classification.
-
-
-
----
-
-## 27. Performance
-
-- [ ] Add build timing metrics.
-
-  Done means Forge records time for:
-
-
-
-- [ ] Add slow step diagnostics.
-
-  Done means slow build steps can be identified without guessing.
-
-- [ ] Add incremental build performance tracking.
-
-  Done means Forge reports:
-
-  - skipped steps,
-  - cache hits,
-  - cache misses,
-  - invalidated steps.
-
----
-
-## 28. Testing Roadmap
-
-### 28.1 Unit Tests
-
-- [ ] Add workspace locator tests.
-
-- [ ] Add config loader tests.
-
-- [ ] Add build profile tests.
-
-- [ ] Add build planner tests.
-
-- [ ] Add build graph validation tests.
-
-- [ ] Add cache key tests.
-
-- [ ] Add artifact staging tests.
-
-- [ ] Add diagnostics aggregation tests.
-
-- [ ] Add safe clean path tests.
-
----
-
-### 28.2 Integration Tests
-
-- [ ] Add fake tool build integration test.
-
-
-
-
-
-
-
-- [ ] Add asset cook integration smoke test.
-
-  Done means Forge can invoke configured asset cook step when available.
-
-- [ ] Add package build integration test.
-
-  Done means staged artifacts produce package manifest.
-
-- [ ] Add failure integration tests.
-
-  Required cases:
-
-
-
----
-
-### 28.3 Determinism Tests
-
-- [ ] Add build plan determinism test.
-
-  Done means identical workspace/profile produces identical build plan order.
-
-- [ ] Add artifact manifest determinism test.
-
-  Done means identical inputs produce identical artifact manifest excluding explicitly non-deterministic metadata.
-
-- [ ] Add cache key determinism test.
-
-  Done means cache keys are stable across repeated runs.
-
----
-
-## 29. CI Requirements
-
-- [ ] Add Forge unit tests to CI.
-
-- [ ] Add Forge integration tests to CI.
-
-- [ ] Add Forge CLI smoke tests.
-
-  Required commands:
-
   ```txt
-  forge --help
-  forge version
-  forge doctor
-  forge validate --workspace <test-workspace>
-  forge build --workspace <test-workspace> --profile dev
+  Success
+  ValidationFailure
+  CompileFailure
+  ToolchainFailure
+  DependencyFailure
+  PackageFailure
+  PublishBlocked
+  InternalError
+  UserCancelled
   ```
 
-- [ ] Add dependency boundary checks.
+* [ ] Make CI output reliable.
 
-  Required forbidden checks:
-
-
-
-- [ ] Add JSON output compatibility test.
-
-  Done means build report JSON remains parseable and schema-stable.
-
----
-
-## 30. Recommended File Layout
-
-Recommended target layout:
-
-```txt
-Tools/Forge/
-  FORGE_ROADMAP.md
-  README.md
-  CMakeLists.txt or Cargo.toml
-
-Tools/Forge/docs/
-  FORGE_CLI.md
-  FORGE_BUILD_PROFILES.md
-  FORGE_ARTIFACTS.md
-  FORGE_DIAGNOSTICS.md
-
-Tools/Forge/include/Forge/
-  Forge.hpp
-  ForgeCommand.hpp
-  ForgeResult.hpp
-
-Tools/Forge/include/Forge/Workspace/
-  WorkspaceContext.hpp
-  WorkspaceLocator.hpp
-
-Tools/Forge/include/Forge/Build/
-  BuildProfile.hpp
-  BuildConfiguration.hpp
-  TargetPlatform.hpp
-  BuildPlan.hpp
-  BuildStep.hpp
-  BuildGraph.hpp
-  BuildPlanner.hpp
-
-Tools/Forge/include/Forge/Assets/
-  AssetCookPlan.hpp
-  AssetCookStep.hpp
-  AssetCookResult.hpp
-
-Tools/Forge/include/Forge/Artifacts/
-  ArtifactStage.hpp
-  ArtifactStager.hpp
-  StagedArtifact.hpp
-
-Tools/Forge/include/Forge/Cache/
-  BuildCache.hpp
-  CacheKey.hpp
-  CacheEntry.hpp
-
-Tools/Forge/include/Forge/Diagnostics/
-  ForgeDiagnostic.hpp
-  DiagnosticAggregator.hpp
-
-Tools/Forge/include/Forge/Package/
-  PackageLayout.hpp
-  PackageBuilder.hpp
-  PackageManifestWriter.hpp
-
-Tools/Forge/include/Forge/Tools/
-  ToolLocator.hpp
-  ToolRequirement.hpp
-  ToolVersion.hpp
-
-Tools/Forge/include/Forge/Config/
-  ForgeConfig.hpp
-  ForgeConfigLoader.hpp
-
-Tools/Forge/src/
-  main.cpp or main.rs
-  Workspace/
-  Build/
-  Assets/
-  Artifacts/
-  Cache/
-  Diagnostics/
-  Package/
-  Tools/
-  Config/
-
-Tools/Forge/tests/
-  WorkspaceLocatorTests.cpp
-  BuildPlannerTests.cpp
-  BuildGraphTests.cpp
-  CacheKeyTests.cpp
-  ArtifactStagerTests.cpp
-  DiagnosticAggregatorTests.cpp
-  IntegrationTests.cpp
-```
-
-This layout is illustrative.
-
-The ownership boundary is not.
-
----
-
-## 31. Migration Plan
-
-- [ ] Remove compiler-specific implementation from Forge if present.
-
-
-
-- [ ] Remove code intelligence implementation from Forge if present.
-
-  Done means Prism internals live only in Prism.
-
-- [ ] Remove global tool dispatch behavior from Forge if present.
-
-  Done means SagaTools owns top-level dispatch.
-
-- [ ] Convert Forge to build workflow frontend.
-
-  Done means Forge owns:
+  Done means CI can run:
 
   ```txt
-  build plan
-  build steps
-  diagnostics aggregation
-  artifact staging
-  package workflow
-  cache integration
+  forge validate --profile ci --json
+  forge build --profile test --json
+  forge build --profile shipping-client --json
+  forge build --profile shipping-server --json
+  forge publish-check --profile shipping-full --json
   ```
 
-- [ ] Add explicit tool invocation boundaries.
+* [ ] Emit report paths on failure.
 
-  Done means Forge invokes tools by process/plugin boundary, not by importing their private internals.
-
-- [ ] Add CI dependency checks.
+  Done means CI logs show where diagnostics/build/publish reports were written.
 
 ---
 
-## 32. Non-Goals
+## 25. External Usability
 
-Forge does not own:
+Forge must remain useful beyond Saga-specific projects where practical.
+
+* [ ] Preserve standalone C++ project workflow.
+
+  Done means Forge continues to support:
+
+  * `forge new`,
+  * `forge init`,
+  * `forge install`,
+  * `forge configure`,
+  * `forge build`,
+  * `forge test`,
+  * `forge fmt`,
+  * CMake/Conan workflow without Saga project manifest.
+
+* [ ] Make Saga pipeline features opt-in.
 
 
 
-Related ownership:
+* [ ] Keep errors clear when Saga-only commands are used in non-Saga project.
+
+  Example:
+
+  ```txt
+  forge publish-check requires a Saga project manifest or explicit package profile.
+  ```
+
+Forge can serve Saga without becoming unusable for smaller C++ projects.
+
+
+
+---
+
+## 26. Testing Strategy
+
+### 26.1 Existing Command Tests
+
+* [x] Preserve existing validation coverage.
+
+  Existing examples:
+
+  ```txt
+  python3 -m py_compile Tools/scripts/export_tool_mirrors.py Tools/SagaTools/setup.py
+  cargo check --manifest-path Tools/SagaTools/Cargo.toml
+  python3 Tools/SagaTools/setup.py --no-smoke --no-symlink
+  ./export.sh --dry-run --tool Prism
+  ```
+
+  Note: these are ecosystem checks, not complete Forge tests. Forge needs its own pipeline tests.
+
+---
+
+### 26.2 Build Model Tests
+
+* [ ] Add BuildModel/BuildPlan tests.
+
+  Required coverage:
+
+  * manifest lowering,
+  * CLI override application,
+  * invalid profile rejection,
+  * dependency cycle detection,
+  * missing input detection,
+  * duplicate output writer detection,
+  * step ordering determinism.
+
+---
+
+### 26.3 Adapter Tests
+
+* [ ] Add adapter tests.
+
+  Required coverage:
+
+  * CMakeAdapter command construction,
+  * ConanAdapter dispatch modes,
+  * SdeAdapter command construction,
+  * ScriptCompilerAdapter command construction,
+  * AssetPipelineAdapter command construction,
+  * PrismAdapter command construction,
+  * ToolEnv override behavior,
+  * `--explain` output.
+
+---
+
+### 26.4 Pipeline Step Tests
+
+* [ ] Add step tests.
+
+  Required coverage:
 
 
 
 ---
 
-## 33. Production Definition of Done
+### 26.5 Report Tests
 
-- [ ] Forge has a stable CLI.
+* [ ] Add report generation tests.
 
-- [ ] Forge can discover and validate workspaces.
+  Required coverage:
 
-- [ ] Forge supports build profiles.
-
-- [ ] Forge creates deterministic build plans.
-
-
-
-- [ ] Forge coordinates asset cook steps.
-
-- [ ] Forge stages artifacts.
-
-- [ ] Forge emits package manifests.
-
-- [ ] Forge validates package integrity.
-
-- [ ] Forge supports build cache with correct invalidation.
-
-- [ ] Forge aggregates diagnostics from child tools.
-
-- [ ] Forge supports human-readable and JSON output.
-
-- [ ] Forge has stable exit codes.
-
-- [ ] Forge supports safe clean/rebuild.
-
-- [ ] Forge integrates with SagaTools as a dispatched tool.
-
-- [ ] Forge can be invoked by editor/product workflows through service boundaries.
-
-- [ ] CI tests CLI, build planning, diagnostics, and dependency boundaries.
+  * build report JSON,
+  * diagnostics report JSON,
+  * artifact manifest JSON,
+  * package manifest JSON,
+  * publish report JSON,
+  * invalid report version rejection,
+  * missing required fields.
 
 ---
 
-## 34. Final Architecture Rule
+### 26.6 CI Tests
 
-Forge should remain:
+* [ ] Add CI profile tests.
+
+  Required coverage:
+
+
+
+---
+
+## 27. MVP Vertical Slice
+
+The first Forge production pipeline slice should use a minimal Saga project.
+
+Required project contents:
+
+
+
+Required workflow:
 
 ```txt
-a build workflow frontend,
-not a compiler,
-not a code intelligence engine,
-not a product shell,
-not an editor backend,
-not a runtime,
-not a server,
-not a tool landfill.
+forge validate --profile editor-preview
+forge build --profile dev-local-client-server
+forge publish-check --profile shipping-full
 ```
 
-It should know:
+Required behavior:
+
+
+
+This proves Forge is not just a CMake wrapper anymore.
+
+It becomes the build workflow frontend for a real Saga project.
+
+---
+
+## 28. Non-Goals
+
+Forge must not become:
+
+
+
+Forge coordinates.
+
+It does not become every coordinated thing.
+
+---
+
+## 29. Risk Register
+
+### 29.1 Risk: Forge Becomes Too Saga-Specific
+
+Mitigation:
+
+* keep C++ project workflow intact,
+* make Saga pipeline features opt-in,
+* separate Saga project manifest handling from core CMake/Conan flow,
+* keep external usability tests.
+
+---
+
+### 29.2 Risk: Forge Absorbs Tool Internals
+
+Mitigation:
+
+* use adapters,
+* consume reports/manifests,
+* forbid private includes,
+* enforce dependency boundaries.
+
+---
+
+### 29.3 Risk: Build Reports Are Too Vague
+
+Mitigation:
+
+* structured diagnostics,
+* source/resource/artifact refs,
+* exact blocker categories,
+* report files as CI artifacts.
+
+---
+
+### 29.4 Risk: Stale Artifacts Ship
+
+Mitigation:
+
+* content hashes,
+* dependency manifests,
+* Prism stale checks,
+* Forge package validation,
+* publish readiness blockers.
+
+---
+
+### 29.5 Risk: Manifest Schema Expands Too Early
+
+Mitigation:
+
+* add schema fields only after pipeline behavior is real,
+* preserve unknown sections carefully,
+* strict mode rejects unsupported sections,
+* document versioning.
+
+---
+
+## 30. Suggested File Targets
+
+Expected pipeline files:
 
 ```txt
-what to build,
-which profile to use,
-which steps are required,
-which tools to invoke,
-where artifacts go,
-how failures are reported,
-and whether the result is safe to package.
+Tools/Forge/include/Forge/Pipeline/BuildModel.hpp
+Tools/Forge/include/Forge/Pipeline/BuildPlan.hpp
+Tools/Forge/include/Forge/Pipeline/BuildStep.hpp
+Tools/Forge/include/Forge/Pipeline/BuildProfile.hpp
+Tools/Forge/include/Forge/Pipeline/BuildReport.hpp
+Tools/Forge/src/Pipeline/BuildPlanner.cpp
+Tools/Forge/src/Pipeline/BuildPipeline.cpp
 ```
 
-It should not know:
+Expected adapters:
+
+```txt
+Tools/Forge/include/Forge/Adapters/CMakeAdapter.hpp
+Tools/Forge/include/Forge/Adapters/ConanAdapter.hpp
+Tools/Forge/include/Forge/Adapters/SdeAdapter.hpp
+Tools/Forge/include/Forge/Adapters/ScriptCompilerAdapter.hpp
+Tools/Forge/include/Forge/Adapters/AssetPipelineAdapter.hpp
+Tools/Forge/include/Forge/Adapters/PrismAdapter.hpp
+Tools/Forge/src/Adapters/
+```
+
+Expected step files:
+
+```txt
+Tools/Forge/include/Forge/Steps/ProjectValidateStep.hpp
+Tools/Forge/include/Forge/Steps/SdeValidateStep.hpp
+Tools/Forge/include/Forge/Steps/SdeCompileStep.hpp
+Tools/Forge/include/Forge/Steps/GraphValidateStep.hpp
+Tools/Forge/include/Forge/Steps/AuthorityValidateStep.hpp
+Tools/Forge/include/Forge/Steps/ScriptValidateStep.hpp
+Tools/Forge/include/Forge/Steps/ScriptCompileStep.hpp
+Tools/Forge/include/Forge/Steps/AssetValidateStep.hpp
+Tools/Forge/include/Forge/Steps/AssetCookStep.hpp
+Tools/Forge/include/Forge/Steps/PrismBoundaryCheckStep.hpp
+Tools/Forge/include/Forge/Steps/PrismStaleCheckStep.hpp
+Tools/Forge/include/Forge/Steps/PackageStageStep.hpp
+Tools/Forge/include/Forge/Steps/ManifestGenerateStep.hpp
+Tools/Forge/include/Forge/Steps/PublishReadinessStep.hpp
+```
+
+Expected report/package files:
+
+```txt
+Tools/Forge/include/Forge/Reports/BuildReport.hpp
+Tools/Forge/include/Forge/Reports/BuildReportWriter.hpp
+Tools/Forge/include/Forge/Diagnostics/ForgeDiagnostic.hpp
+Tools/Forge/include/Forge/Package/PackageStager.hpp
+Tools/Forge/include/Forge/Manifests/ArtifactManifestWriter.hpp
+Tools/Forge/include/Forge/Manifests/PackageManifestWriter.hpp
+Tools/Forge/include/Forge/Publish/PublishReadiness.hpp
+Tools/Forge/include/Forge/Publish/PublishReport.hpp
+```
+
+Expected reports:
+
+```txt
+<Project>/Build/Reports/build_report.json
+<Project>/Build/Reports/diagnostics_report.json
+<Project>/Build/Reports/publish_report.json
+<Project>/Build/Manifests/artifact_manifest.json
+<Project>/Build/Manifests/package_manifest.client.json
+<Project>/Build/Manifests/package_manifest.server.json
+```
+
+---
+
+## 31. Decision Summary
+
+Preserve these decisions:
 
 
 
-Forge succeeds when it makes builds repeatable, visible, and boring.
+The build pipeline should become boring in the best possible way:
 
-Boring builds are good.
+```txt
+Resolve project.
+Validate inputs.
+Run explicit steps.
+Reject stale outputs.
+Stage packages.
+Write reports.
+Explain blockers.
+Exit correctly.
+```
 
-Exciting builds are usually broken in new and expensive ways.
+If Forge does that, Saga stops depending on rituals and starts having a production workflow.

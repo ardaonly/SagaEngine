@@ -1,550 +1,558 @@
 # SagaEngine Dependency Graph
 
-> Last updated: 2026-05-14  
-> Status: Active architecture document  
-> Scope: Product, editor, runtime, server, shared contracts, collaboration, tools, and backend dependency boundaries.
+
 
 ---
 
-## 0. Document Purpose
+## 0. Document Status
 
+This document is an architecture contract, not a suggestion list.
 
+Every roadmap and implementation plan should respect this dependency graph unless this document is intentionally updated.
 
-It exists to prevent accidental architecture drift.
+Dependency mistakes do not look dangerous at first.
 
-Without this document, every subsystem eventually includes every other subsystem, and then everyone pretends the build graph is “flexible”. It is not. It is just broken with better lighting.
-
----
-
-## 1. High-Level Product and Runtime Layers
-
-SagaEngine now separates product ownership, editor authoring, runtime execution, server authority, shared contracts, collaboration implementation, standalone tools, and backend services.
-
-The primary user-facing executable is `Saga`.
+They look like:
 
 ```txt
-                         ┌──────────────────────────────┐
-                         │            Saga              │
-                         │ Primary Product Executable   │
-                         │ Product Shell + Mode Host    │
-                         └───────────────┬──────────────┘
-                                         │ owns product lifecycle
-              ┌──────────────────────────┼──────────────────────────┐
-              │                          │                          │
-              ▼                          ▼                          ▼
-   ┌─────────────────────┐    ┌─────────────────────┐    ┌─────────────────────┐
-   │   Editor Module     │    │   Runtime Module    │    │   Server Module     │
-   │ authoring surface   │    │ game execution      │    │ authority/session   │
-   └──────────┬──────────┘    └──────────┬──────────┘    └──────────┬──────────┘
-              │                          │                          │
-              └──────────────┬───────────┴──────────────┬───────────┘
-                             │                          │
-                             ▼                          ▼
-                  ┌────────────────────┐      ┌────────────────────┐
-                  │    SagaShared      │      │ SagaCollaboration  │
-                  │ neutral contracts  │      │ collaboration impl │
-                  └─────────┬──────────┘      └─────────┬──────────┘
-                            │                           │
-                            └──────────────┬────────────┘
-                                           ▼
-                              ┌────────────────────────┐
-                              │      Engine/Core       │
-                              │ runtime primitives     │
-                              └───────────┬────────────┘
-                                          ▼
-                              ┌────────────────────────┐
-                              │        Backends        │
-                              │ DB / Redis / FS / etc. │
-                              └────────────────────────┘
+I'll just include this one header.
+```
+
+
+
+That is not complexity.
+
+That is dependency rot.
+
+---
+
+## 1. Core Principle
+
+Saga architecture is organized by ownership:
+
+```txt
+Saga
+  product lifecycle and mode orchestration
+
+SagaEditor
+  authoring UX
+
+SagaEngine Runtime
+  game/client execution
+
+SagaServer / Server runtime layer
+  authoritative multiplayer execution
+
+SagaShared
+  neutral contracts only
+
+SagaCollaboration
+  collaboration implementation
+
+
+
+Forge
+  build workflow frontend/orchestrator
+
+Prism
+  code/artifact intelligence analyzer
+
+AssetPipeline
+  source asset import/cook/artifact generation
+
+Scripting Toolchain
+  script validate/compile/binding generation
+
+SagaTools
+  thin tool dispatcher
+```
+
+The rule:
+
+```txt
+A module may consume contracts and artifacts.
+A module must not own another module's implementation.
 ```
 
 ---
 
-## 2. Product Ownership
+## 2. Top-Level Dependency Shape
 
-`Saga` owns the product-level user experience.
-
-It owns:
-
-- main process lifetime,
-- `QApplication`,
-- primary main window,
-- product shell,
-- project selection,
-- project creation/opening,
-- recent project registry,
-- session selection,
-- mode switching,
-- editor/runtime/server module orchestration,
-- product-level diagnostics entry points.
-
-`Saga` is the only primary user-facing executable.
-
-Development compatibility binaries may exist, but they are not the production workflow.
-
-Allowed examples:
+Preferred high-level dependency graph:
 
 ```txt
-Apps/Saga/
-Saga/
-Product/
+                    ┌────────────────────┐
+                    │        Saga        │
+                    │  Product Shell     │
+                    └─────────┬──────────┘
+                              │
+      ┌───────────────────────┼────────────────────────┐
+      │                       │                        │
+      ▼                       ▼                        ▼
+┌──────────────┐       ┌──────────────┐          ┌──────────────┐
+│ SagaEditor   │       │ Runtime      │          │ Server       │
+│ Authoring UX │       │ Client/Game  │          │ Authority    │
+└──────┬───────┘       └──────┬───────┘          └──────┬───────┘
+       │                      │                         │
+       └──────────────┬───────┴──────────────┬──────────┘
+                      ▼                      ▼
+              ┌──────────────┐       ┌──────────────────┐
+              │ SagaShared   │       │ SagaCollaboration │
+              │ Contracts    │       │ Implementation    │
+              └──────────────┘       └──────────────────┘
+
+Tools / Build Side:
+
+
+
+Important:
+
+
+
+---
+
+## 3. Module Ownership Table
+
+
+
+---
+
+## 4. Allowed Dependency Directions
+
+### 4.1 Product Layer
+
+Allowed:
+
+
+
+Forbidden:
+
+
+
+Rationale:
+
+```txt
+Saga coordinates product workflow.
+Saga does not become the implementation owner of every mode/tool.
+```
+
+---
+
+### 4.2 Editor Layer
+
+Allowed:
+
+
+
+Forbidden:
+
+
+
+Rationale:
+
+```txt
+Editor displays and edits authoring state.
+Editor does not own product lifecycle, runtime/server truth, or tool internals.
+```
+
+---
+
+### 4.3 Runtime Layer
+
+Allowed:
+
+```txt
+Runtime → Engine/Core
+Runtime → SagaShared contracts
+Runtime → package manifests
+Runtime → asset manifests
+Runtime → graph artifacts
+Runtime → script binding manifests
+Runtime → authority manifests
+Runtime → runtime-ready asset artifacts
+Runtime → SagaCollaboration service API only where explicitly approved
 ```
 
 Forbidden:
 
+
+
+Rationale:
+
 ```txt
-Editor owns product shell
-Runtime owns project dashboard
-Server owns user-facing project lifecycle
-Tool owns Saga product mode switching
+Runtime consumes validated packages/artifacts.
+Runtime does not author, compile, cook, index, or package them.
 ```
 
 ---
 
-## 3. Editor Ownership
+### 4.4 Server Layer
 
-The editor module owns authoring UI and editor-specific workflows.
-
-The editor may own:
-
-- panels,
-- docking,
-- inspector,
-- hierarchy,
-- viewport tools,
-- content browser,
-- editor commands,
-- editor preferences,
-- editor diagnostics panels,
-- collaboration display panels,
-- conflict resolution UI,
-- editor-local adapters.
-
-The editor must not own:
-
-- product shell,
-- project/session lifecycle truth,
-- final collaboration contracts,
-- runtime authority,
-- server authority,
-- global orchestration,
-- standalone tool ownership.
-
-Production rule:
+Allowed:
 
 ```txt
-Saga = product host
-Editor = authoring module mounted by Saga
+Server → Engine/Core
+Server → SagaShared contracts
+Server → package manifests
+Server → graph artifacts
+Server → script binding manifests
+Server → authority manifests
+Server → server data/asset manifests
+Server → backend/service APIs
+Server → SagaCollaboration service API only where explicitly approved
 ```
 
-Development compatibility rule:
+Forbidden:
+
+
+
+Rationale:
 
 ```txt
-Apps/Editor may exist for local testing only.
-It must not become the production product shell.
+Server owns authoritative execution.
+Server must not depend on authoring/build/analyzer implementation.
 ```
 
 ---
 
-## 4. Runtime Ownership
+### 4.5 Shared Layer
 
-Runtime owns game execution.
-
-The runtime may own:
-
-- game loop,
-- simulation stepping,
-- scene execution,
-- ECS runtime application,
-- asset residency,
-- replication application,
-- prediction,
-- interpolation,
-- reconciliation,
-- rendering integration,
-- runtime diagnostics.
-
-The runtime must not own:
-
-
-
-Allowed dependency direction:
-
-
-
-Forbidden dependency direction:
-
-
-
----
-
-## 5. Server Ownership
-
-Server modules own authority and multiplayer session policy.
-
-The server may own:
-
-- authoritative simulation,
-- networking,
-- packet protocol handling,
-- client session state,
-- shard/zone authority,
-- persistence integration,
-- anti-cheat validation,
-- replication source generation,
-- server diagnostics.
-
-The server must not own:
-
-- editor UI,
-- product shell,
-- Qt widgets,
-- authoring workflows,
-- client-only preview policy,
-- tool UI,
-- editor-private collaboration contracts.
-
-Allowed dependency direction:
-
-
-
-Forbidden dependency direction:
+Allowed:
 
 ```txt
-Server → Editor
-Server → Apps/Saga product shell internals
-Server → Apps/Editor
-Server → Tools/Forge UI
-Server → Tools/Prism UI
+SagaShared → C++ standard library
+SagaShared → approved low-level serialization/hash/value primitives
+```
+
+Forbidden:
+
+
+
+Rationale:
+
+```txt
+SagaShared is common language, not common implementation.
 ```
 
 ---
 
-## 6. SagaShared Ownership
+### 4.6 Collaboration Layer
 
-`SagaShared` owns neutral contracts and small shared primitives.
+Allowed:
 
-It exists because editor, runtime, server, product, and collaboration sometimes need common language.
+```txt
+SagaCollaboration → SagaShared contracts
+SagaCollaboration → backend/transport adapters
+Saga → SagaCollaboration public API
+SagaEditor → SagaCollaboration public API
+Forge → SagaShared collaboration reports/contracts
+```
 
-It must stay small.
+Forbidden:
 
-Allowed examples:
 
-- session descriptors,
-- workspace descriptors,
-- participant ids,
-- room codes,
-- presence snapshots,
-- permission grants,
-- artifact references,
-- stable ids,
-- diagnostics primitives,
-- protocol-neutral edit operation envelopes,
-- shared result/error structures.
 
-Forbidden examples:
+Rationale:
 
-- Qt widgets,
-- editor UI,
-- runtime internals,
-- server internals,
-- transport implementations,
-- persistence engines,
-- orchestration logic,
-- conflict engines,
-- asset import UI,
-- product shell state machines,
-- tool-specific implementation.
+```txt
+Collaboration owns session/resource state.
+Editor/product display and orchestrate it.
+```
+
+---
+
+## 5. Tool Dependency Rules
+
+
+
+Allowed:
+
+
+
+Forbidden:
+
+
+
+Rationale:
+
+
+
+---
+
+### 5.2 Forge
+
+Allowed:
+
+
+
+Forbidden:
+
+
+
+Rationale:
+
+```txt
+Forge orchestrates.
+Forge does not become compiler, cooker, analyzer, or product shell.
+```
+
+---
+
+### 5.3 Prism
+
+Allowed:
+
+
+
+Forbidden:
+
+
+
+Rationale:
+
+```txt
+Prism analyzes relationships and reports evidence.
+Prism does not build, cook, compile, package, or execute.
+```
+
+---
+
+### 5.4 AssetPipeline
+
+Allowed:
+
+```txt
+AssetPipeline → standalone importer/cooker dependencies
+AssetPipeline → SagaShared asset/artifact contracts where approved
+Forge → AssetPipeline command/service boundary
+Editor → AssetPipeline service/report boundary
+Prism → AssetPipeline manifests/reports
+Runtime → cooked asset artifacts/manifests only
+```
+
+Forbidden:
+
+
+
+Rationale:
+
+```txt
+AssetPipeline creates runtime-ready artifacts.
+Runtime consumes them.
+Editor presents UX around them.
+Forge orchestrates them.
+```
+
+---
+
+### 5.5 Scripting Toolchain
+
+Allowed:
+
+```txt
+ScriptingToolchain → script compiler/analyzer dependencies
+ScriptingToolchain → SagaShared scripting/authority/artifact contracts where approved
+Forge → ScriptingToolchain command/service boundary
+Editor → ScriptingToolchain diagnostics/report boundary
+Prism → script source/binding manifests/reports
+Runtime/Server → compiled script artifacts/binding manifests only
+```
+
+Forbidden:
+
+
+
+Rationale:
+
+```txt
+Compiler/toolchain produces script artifacts.
+Runtime/server bind and execute validated artifacts.
+Editor edits scripts.
+```
+
+---
+
+### 5.6 SagaTools
+
+Allowed:
+
+```txt
+SagaTools → tool registry metadata
+SagaTools → executable dispatch
+SagaTools → version/help commands
+SagaTools → setup/install scripts
+```
+
+Forbidden:
+
+
+
+Rationale:
+
+```txt
+SagaTools dispatches tools.
+It does not implement them.
+```
+
+---
+
+## 6. Contract vs Implementation Rule
+
+A contract may move to `SagaShared` only if it is neutral and has multiple real consumers.
+
+Valid `SagaShared` examples:
+
+```txt
+AssetId
+ArtifactRef
+PackageManifest
+GraphId
+BlockDefinitionDescriptor
+AuthorityRequirement
+ScriptBindingDescriptor
+BuildReport
+PublishBlocker
+Collaboration ResourceLock
+DiagnosticPayload
+```
+
+Invalid `SagaShared` examples:
+
+```txt
+GraphCompiler
+QuestRewardExecutor
+QtGraphCanvas
+ForgeBuildPlanner
+PrismIndexer
+TextureImporter
+CSharpCompilerHost
+RuntimeResidencyCache
+ServerInventoryTransactionService
+CollaborationConflictEngine
+```
 
 Rule:
 
 ```txt
-SagaShared contains contracts.
-SagaShared does not contain product behavior.
-```
-
-If code in `SagaShared` starts needing threads, sockets, databases, UI objects, or lifecycle ownership, it probably does not belong in `SagaShared`.
-
----
-
-## 7. SagaCollaboration Ownership
-
-`SagaCollaboration` owns collaboration and session implementation.
-
-It may own:
-
-- session lifecycle,
-- quick/dev host state,
-- quick/dev join state,
-- team session state,
-- presence,
-- permissions,
-- claims,
-- locks,
-- change streams,
-- conflict detection,
-- reconnect/recovery,
-- transport adapters,
-- persistence integration,
-- service availability state,
-- collaboration diagnostics.
-
-The editor consumes collaboration through services and bridges.
-
-The editor does not own the collaboration stack.
-
-Allowed dependency direction:
-
-```txt
-Editor → SagaCollaboration API
-Runtime → SagaCollaboration API
-Server → SagaCollaboration API
-Saga → SagaCollaboration API
-SagaCollaboration → SagaShared
-SagaCollaboration → Engine/Core primitives where appropriate
-SagaCollaboration → Backends where appropriate
-```
-
-Forbidden dependency direction:
-
-```txt
-SagaCollaboration → Editor UI
-SagaCollaboration → Editor private panels
-SagaCollaboration → Product shell widgets
-SagaCollaboration → Runtime-private gameplay systems
-SagaCollaboration → Server-private authority internals
+Data contracts may be shared.
+Behavior needs an owner.
 ```
 
 ---
 
-## 8. Deprecated Editor Collaboration Location
+## 7. Public / Private Header Rules
 
-The following path is deprecated for final collaboration contracts:
+### 7.1 Editor Public Headers
 
-```txt
-Editor/include/SagaEditor/Collaboration
-```
-
-Rules:
-
-1. Existing code may remain temporarily during migration.
-2. New final collaboration contracts must not be added there.
-3. Neutral contracts belong in `SagaShared`.
-4. Real collaboration implementation belongs in `SagaCollaboration`.
-5. Editor may keep UI-facing adapters and panels.
-6. Editor must not own product/session truth.
-
-Correct split:
+Public editor headers:
 
 ```txt
-SagaShared
-  neutral contracts
-
-SagaCollaboration
-  collaboration services and implementation
-
-SagaEditor
-  collaboration UI and editor-facing adapters
+Editor/include/SagaEditor/**
 ```
 
-Incorrect split:
+Must not include:
 
-```txt
-SagaEditor/Collaboration
-  everything dumped here because it was convenient
-```
 
-Convenience is not architecture. It is usually future pain wearing a fake mustache.
 
 ---
 
-## 9. SagaCollaborationCore Ownership
+### 7.2 Runtime / Engine Public Headers
 
-`SagaCollaborationCore` is optional.
-
-It should exist only if the collaboration implementation grows large enough to justify a lower-level split.
-
-It may eventually own:
-
-- protocol state machines,
-- replication internals,
-- transport adapters,
-- persistent sync engines,
-- audit event storage,
-- conflict resolution internals,
-- distributed authority rules.
-
-Product, editor, runtime, and server code should consume `SagaCollaboration`, not reach directly into `SagaCollaborationCore`.
-
-Allowed direction:
+Engine public headers:
 
 ```txt
-SagaCollaboration → SagaCollaborationCore
+Engine/Public/SagaEngine/**
+Engine/include/SagaEngine/**
 ```
 
-Forbidden direction:
+Must not include:
 
-```txt
-Editor → SagaCollaborationCore
-Runtime → SagaCollaborationCore
-Server → SagaCollaborationCore
-Saga → SagaCollaborationCore
-```
+
 
 ---
 
-## 10. Engine/Core Ownership
+### 7.3 Server Public Headers
 
-Engine/Core owns reusable runtime primitives.
-
-It may own:
-
-- math,
-- memory utilities,
-- containers,
-- logging,
-- profiling,
-- task scheduling primitives,
-- filesystem abstraction,
-- resource management primitives,
-- serialization primitives,
-- ECS primitives,
-- runtime diagnostics.
-
-It must not own:
+Server public headers must not include:
 
 
-
-Allowed direction:
-
-```txt
-Engine/Core → platform/backends only when abstracted
-```
-
-Forbidden direction:
-
-```txt
-Engine/Core → Editor
-Engine/Core → Server
-Engine/Core → Apps
-Engine/Core → Tools
-Engine/Core → Saga product shell
-Engine/Core → SagaCollaboration implementation
-```
-
-Engine/Core must stay below product, editor, runtime, server, collaboration, and tools.
 
 ---
 
-## 11. Backend Ownership
+### 7.4 Shared Public Headers
 
-Backends provide infrastructure.
+Shared public headers:
+
+```txt
+Shared/include/SagaShared/**
+```
+
+Must not include any implementation-owner module.
+
+Forbidden:
+
+
+
+---
+
+### 7.5 Tool Public Headers
+
+Tool public headers should avoid private internals of other tools.
 
 Examples:
 
-- filesystem,
-- databases,
-- Redis,
-- object storage,
-- authentication services,
-- telemetry sinks,
-- build caches,
-- package registries.
 
-Backends should be accessed through narrow interfaces.
-
-Allowed users:
-
-```txt
-Server
-SagaCollaboration
-Product services
-Tool services where explicitly needed
-```
-
-Forbidden pattern:
-
-```txt
-Random editor panel directly owns backend connection
-Runtime gameplay code directly knows database schema
-Shared contract layer opens sockets
-```
 
 ---
 
+## 8. Artifact Boundary Rule
+
+Authoring/build tools produce artifacts.
+
+Runtime/server consume artifacts.
+
+Preferred flow:
 
 
 
+C# script source
+  → script assemblies/binding manifests
 
+Source assets
+  → cooked runtime-ready artifacts/asset manifests
 
+Forge
+  → package manifests/build reports/publish reports
 
-- Saga,
-- SagaEngine,
-- SagaEditor,
-- SagaServer,
-- SagaShared,
-- SagaCollaboration,
-- Forge,
-- Prism,
-- SagaTools.
+Prism
+  → analysis reports
 
+Runtime/Server
+  → load package manifests and validated artifacts
+```
 
-
-- standard library,
-- its own internal modules,
-- explicitly approved third-party parser/serialization libraries,
-- platform-neutral filesystem utilities if kept isolated.
-
-
-
-Allowed output examples:
-
-- compiled graph artifacts,
-- schema ids,
-- stable hashes,
-- artifact references,
-- validation diagnostics,
-- generated code,
-- generated manifests.
-
-Forbidden dependency:
-
-
-
-Correct integration:
-
-
-
-Incorrect integration:
+Forbidden flow:
 
 
 
 ---
 
-## 13. Tool Ownership
+## 9. Saga Product Boundary
 
-Tools remain outside engine/editor/server ownership.
+`Saga` is allowed to orchestrate modes and tool workflows.
 
-The tool ecosystem is split as follows:
+`Saga` must not become an implementation owner for all systems.
 
+Allowed:
 
-
-Tools/Forge
-  build workflow frontend
-
-Tools/Prism
-  code intelligence and graph builder
-
-Tools/SagaTools
-  thin command dispatcher
-
-docs/roadmaps/TOOLS_ROADMAP.md
-  ecosystem index only
+```txt
+Saga starts editor mode.
+Saga starts runtime preview.
+Saga starts server preview.
+Saga invokes Forge build workflow.
+Saga displays publish blockers.
+Saga shows collaboration status.
 ```
-
-Tools may consume stable contracts or generated outputs where explicitly approved.
-
-Tools must not become hidden owners of product runtime behavior.
 
 Forbidden:
 
@@ -552,257 +560,355 @@ Forbidden:
 
 ---
 
-## 14. Allowed Dependency Matrix
+## 10. Editor Boundary
 
-Legend:
+`SagaEditor` owns authoring UX.
 
-- `YES` means allowed.
-- `API` means allowed only through stable public API/contracts.
-- `NO` means forbidden.
-- `OUT` means artifact/output consumption only.
-
-
-
----
-
-## 15. Hard Dependency Rules
-
-These rules are compile-time architecture constraints.
-
-
-
----
-
-## 16. Include Rules
-
-Use public headers only across module boundaries.
-
-Allowed pattern:
-
-```cpp
-#include <SagaShared/Session/SessionDescriptor.hpp>
-#include <SagaCollaboration/Service/CollaborationService.hpp>
-#include <SagaEngine/Core/Diagnostics/DiagnosticSink.hpp>
-```
-
-Forbidden pattern:
-
-
-
-Private headers must stay private.
-
-If another module needs a private type, create a narrow public contract instead of exporting implementation guts like some kind of dependency crime scene.
-
----
-
-## 17. CMake Target Rules
-
-Each major module should expose explicit public/private dependencies.
-
-Example:
-
-```cmake
-target_link_libraries(SagaEditor
-    PUBLIC
-        SagaShared
-        SagaCollaboration
-    PRIVATE
-        SagaEngineCore
-)
-```
-
-Bad example:
-
-```cmake
-target_link_libraries(SagaShared
-    PUBLIC
-        SagaEditor
-        SagaServer
-        SagaCollaboration
-)
-```
-
-`SagaShared` must not depend upward.
-
----
-
-## 18. Public API Stability Rules
-
-Public APIs should be stable, boring, and explicit.
-
-Allowed public API qualities:
-
-- small structs,
-- stable ids,
-- explicit ownership,
-- no hidden global state,
-- no UI types unless the module is UI-owned,
-- no direct backend handles,
-- no private implementation leakage.
-
-Forbidden public API qualities:
-
-- raw editor widget ownership,
-- database connection handles,
-- thread ownership hidden behind innocent-looking structs,
-- product shell callbacks inside runtime contracts,
-- server authority internals exposed to editor.
-
----
-
-## 19. Runtime Multiplayer vs Editor Collaboration
-
-Runtime multiplayer and editor collaboration may share primitives.
-
-They must not share policy blindly.
-
-Runtime/game policy optimizes for:
-
-- low latency,
-- server authority,
-- prediction,
-- reconciliation,
-- relevance filtering,
-- bandwidth control.
-
-Editor collaboration policy optimizes for:
-
-- correctness,
-- visibility,
-- permissions,
-- edit ownership,
-- conflict handling,
-- safe publishing.
-
-Allowed shared primitives:
-
-- stable ids,
-- ordered event envelopes,
-- canonical hashing,
-- diagnostics payloads,
-- participant identity,
-- bounded memory policies.
-
-Forbidden shared policy merge:
+Allowed:
 
 ```txt
-Gameplay replication policy == editor collaboration policy
+Editor displays graph/source/assets/scripts.
+Editor invokes validation/compile/cook/build through service/tool boundaries.
+Editor shows diagnostics.
+Editor shows collaboration state.
+Editor provides authoring workflows.
 ```
 
-They are related problems, not the same problem.
+Forbidden:
+
+
 
 ---
 
-## 20. Product Mode Boundaries
+## 11. Runtime/Server Boundary
 
-Saga may host multiple modes.
+Runtime/server consume validated package state.
 
-Expected modes:
-
-- project dashboard,
-- editor mode,
-- runtime preview mode,
-- server/session mode,
-- collaboration/session management mode,
-- diagnostics mode.
-
-Mode ownership:
+Allowed:
 
 ```txt
-Saga owns mode switching.
-Each mounted module owns its internal behavior.
+Runtime loads client package manifest.
+Runtime loads asset manifests.
+Runtime loads client-safe graph/script artifacts.
+Server loads server package manifest.
+Server loads authoritative graph/script artifacts.
+Server validates authority manifests.
+Runtime/server validate artifact hashes/versions.
+```
+
+Forbidden:
+
+
+
+---
+
+
+
+
+
+Required:
+
+
+
+Forbidden:
+
+
+
+---
+
+## 13. Build/Publish Boundary
+
+Forge owns build orchestration and publish readiness reporting.
+
+Allowed:
+
+
+
+Forbidden:
+
+
+
+---
+
+## 14. Analysis Boundary
+
+Prism owns analysis and reporting.
+
+Allowed:
+
+```txt
+Prism reads source files.
+Prism reads generated files.
+Prism reads manifests/reports.
+Prism calculates hashes.
+Prism emits stale/boundary/package reports.
+```
+
+Forbidden:
+
+
+
+---
+
+## 15. Collaboration Boundary
+
+SagaCollaboration owns collaboration truth.
+
+Allowed:
+
+```txt
+Saga starts/join/leaves sessions through collaboration API.
+Editor displays participants/claims/locks/conflicts.
+Forge reads collaboration status for publish gates.
+Shared defines neutral collaboration contracts.
 ```
 
 Forbidden:
 
 ```txt
-Editor directly replaces Saga product shell.
-Runtime directly opens product dashboard.
-Server directly owns user-facing mode switching.
+Editor panel stores final lock truth.
+Saga product shell stores conflict engine state.
+Forge resolves conflicts automatically during publish check.
+Runtime/server derive authority from editor collaboration state.
+Authoring profile grants collaboration permission.
 ```
 
 ---
 
-## 21. Migration Rules
+## 16. Package and Manifest Boundary
 
-During migration from older structure:
+Manifests are the legal bridge between authoring/build/tooling and runtime/server.
 
-1. Do not move everything at once.
-2. Move contracts before implementation.
-3. Add compatibility adapters only when necessary.
-4. Mark deprecated include paths clearly.
-5. Prevent new code from using deprecated ownership paths.
-6. Delete adapters after consumers migrate.
-7. Update CMake dependencies immediately after moving ownership.
+Required manifests:
 
-Deprecated collaboration path:
+
+
+Rules:
 
 ```txt
-Editor/include/SagaEditor/Collaboration
+Runtime/server consume manifests and artifacts.
+Forge generates/stages manifests.
+Prism reads and checks manifests.
+Editor displays manifest/report diagnostics.
+Saga displays summary/publish blockers.
 ```
 
-Target split:
+Forbidden:
+
+```txt
+Runtime/server guess project state from source folders.
+Editor UI state becomes package truth.
+Tool terminal output is the only report.
+Generated artifacts lack origin metadata.
+Package manifests omit hashes/versions.
+```
+
+---
+
+## 17. CMake / Target Boundary Expectations
+
+Target-level expectations:
 
 ```txt
 SagaShared
-SagaCollaboration
-SagaEditor UI adapters
+  lowest shared contract layer
+
+
+
+SagaEngine
+  runtime/core engine target, no Editor/Saga product/tool internals
+
+SagaServer
+  server authority target, no Editor/product/tool internals
+
+SagaEditor
+  editor module target, no product shell ownership, no runtime/server private internals
+
+Saga
+  product executable/library, may link public module APIs
+
+
+
+
+
+AssetPipeline
+  tool/service target, no runtime private cache or editor UI
+
+ScriptingToolchain
+  compiler/tool target, no editor UI or runtime private host internals
+
+SagaTools
+  dispatcher target, no tool private internals
 ```
 
-Deprecated editor-as-product assumption:
+Bad sign:
 
 ```txt
-Apps/Editor is the product.
+A target needs half the repository in include_directories just to compile.
 ```
 
-Target product model:
+That usually means architecture has already been bypassed.
+
+---
+
+## 18. CI Enforcement
+
+* [ ] Add include-boundary tests.
+
+  Required checks:
+
+
+
+* [ ] Add CMake target dependency checks.
+
+  Done means CI can reject forbidden target links.
+
+* [ ] Add Prism boundary validation.
+
+  Required command concept:
 
 ```txt
-Saga is the product.
-Editor is a mounted authoring module.
+prism boundaries --profile ci
+```
+
+* [ ] Add dependency graph report artifact.
+
+  Done means CI can output:
+
+```txt
+Build/Reports/dependency_boundary_report.json
 ```
 
 ---
 
-## 22. CI Enforcement
+## 19. Migration Priorities
 
-Architecture rules should eventually be enforced by CI.
+### 19.1 Fix Product/Editor Boundary
 
-Recommended checks:
+* [ ] Ensure `Saga` is primary product executable.
+* [ ] Mark `Apps/Editor` as development compatibility launcher.
+* [ ] Move product lifecycle out of editor-owned code.
+
+### 19.2 Fix Shared Contracts
+
+* [ ] Move neutral contracts into `SagaShared`.
+* [ ] Remove implementation from `SagaShared` if present.
+* [ ] Add contract versioning/serialization tests.
 
 
 
-Example forbidden include scan:
 
 
+### 19.4 Fix Tool Boundaries
 
-`Tools/scripts/check_engine_server_boundary.py` enforces zero `SagaServer`
-references in public `SagaEngine` headers. Engine-owned networking primitives
-live under `SagaEngine/Networking`; data-only replication wire contracts live
-under `SagaShared/Replication`.
+* [ ] Forge invokes tools through adapters.
+* [ ] Prism reads manifests/reports only.
+* [ ] AssetPipeline and Scripting toolchain get explicit ownership.
 
-The goal is not bureaucracy.
+### 19.5 Fix Runtime/Server Artifact Boundary
 
-The goal is preventing future humans, in their natural chaos, from casually turning the architecture into soup.
+* [ ] Runtime/server consume manifests/artifacts.
+* [ ] Runtime/server stop depending on authoring/build/tooling internals.
 
 ---
 
-## 23. Documentation Ownership
+## 20. Non-Goals
 
-Related active documents:
+This document does not define implementation details for:
 
+* graph compiler algorithms,
+* runtime replication internals,
+* editor panel UI layout,
+* asset importer internals,
+* C# compiler internals,
+* collaboration backend transport,
+* package file format internals,
+* product dashboard UX.
 
+This document defines who may depend on whom.
+
+It is a guardrail document.
+
+Not a feature roadmap.
 
 ---
 
-## 24. Summary
+## 21. Risk Register
 
-The intended architecture is:
+### 21.1 Risk: Convenience Includes Become Architecture
+
+Mitigation:
+
+* CI include-boundary tests,
+* Prism boundary checks,
+* narrow public APIs,
+* manifest/report boundaries.
+
+---
+
+### 21.2 Risk: SagaShared Becomes Dumping Ground
+
+Mitigation:
+
+* contracts only,
+* no implementation ownership,
+* every shared contract needs multiple consumers,
+* owner document required.
+
+---
 
 
 
-Anything that violates this should be treated as architecture debt, not creative freedom.
+Mitigation:
 
-Architecture is not there to make folders pretty.
+* no Saga dependencies,
+* standalone packaging,
+* non-Saga examples,
+* schema package model.
 
-It is there so the project can still be understood after more than three days of development and one emotionally unstable refactor.
+---
+
+### 21.4 Risk: Forge Becomes Mega Tool
+
+Mitigation:
+
+* adapters only,
+* reports/manifests only,
+* no compiler/cooker/analyzer internals.
+
+---
+
+### 21.5 Risk: Runtime/Server Depend on Build Tools
+
+Mitigation:
+
+* package/artifact manifests,
+* startup validation,
+* no tool internals in runtime/server.
+
+---
+
+### 21.6 Risk: Editor Owns Too Much
+
+Mitigation:
+
+* editor owns authoring UX only,
+* Saga owns product lifecycle,
+* SagaCollaboration owns collaboration truth,
+* tools own compiler/build/analyzer/import behavior.
+
+---
+
+## 22. Decision Summary
+
+Preserve these rules:
+
+
+
+The architecture is allowed to be large.
+
+It is not allowed to be tangled.
+
+Large systems can survive if their boundaries are boring, explicit, and enforced.
+
+Tangled systems survive only until the first real production deadline.

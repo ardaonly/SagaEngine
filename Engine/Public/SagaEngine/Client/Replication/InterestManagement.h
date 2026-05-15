@@ -118,6 +118,7 @@ private:
 
     /// Client's current cell.
     CellCoord clientCell_{};
+    bool hasClientCell_ = false;
 
     /// Set of currently subscribed cells.
     std::unordered_set<CellCoord, CellCoordHash> subscribedCells_;

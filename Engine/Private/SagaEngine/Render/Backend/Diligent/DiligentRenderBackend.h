@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "SagaEngine/Render/Backend/IRenderBackend.h"
+#include "SagaEngine/Render/Backend/RenderBackendFactory.h"
 
 #include <cstdint>
 #include <memory>
@@ -39,54 +39,6 @@
 
 namespace SagaEngine::Render::Backend
 {
-
-// ─── Backend selection ────────────────────────────────────────────────
-
-/// Selects which Diligent graphics API the backend instantiates. Auto
-/// walks the preference list (D3D12 → Vulkan → D3D11 → OpenGL) and picks
-/// the first one that (a) was compiled into this binary via the
-/// diligent-core package and (b) reports a usable device at Initialize
-/// time.
-enum class DiligentBackendAPI : std::uint8_t
-{
-    kAuto   = 0,
-    kD3D12  = 1,
-    kVulkan = 2,
-    kD3D11  = 3,
-    kOpenGL = 4,
-};
-
-/// Converts an API enum to a human-readable tag for logging and asserts.
-[[nodiscard]] std::string_view ToString(DiligentBackendAPI api) noexcept;
-
-// ─── Configuration ────────────────────────────────────────────────────
-
-/// Extra knobs the caller can pass beyond what IRenderBackend::SwapchainDesc
-/// exposes. None of these tune GPU-side resources (that's Phase 2 and
-/// onward); they only affect Initialize + BeginFrame clear semantics.
-struct DiligentBackendConfig
-{
-    /// Which Diligent API to prefer. See DiligentBackendAPI doc.
-    DiligentBackendAPI preferredAPI     = DiligentBackendAPI::kAuto;
-
-    /// Enable Diligent validation / debug layers. Slower, noisier — used
-    /// during local development and in CI debug jobs.
-    bool               enableValidation = false;
-
-    /// Clear colour (RGBA, linear space) applied in BeginFrame. Default
-    /// is a dark slate so the "nothing was drawn yet" case is obvious.
-    float              clearColor[4]    = {0.04f, 0.05f, 0.08f, 1.0f};
-
-    /// Default depth value written during BeginFrame depth clear.
-    float              clearDepth       = 1.0f;
-
-    /// Default stencil value written during BeginFrame depth/stencil
-    /// clear. Unused if the swap chain has no stencil component.
-    std::uint8_t       clearStencil     = 0;
-
-    /// Skip depth/stencil clear (e.g. tests that only verify colour path).
-    bool               skipDepthClear   = false;
-};
 
 // ─── DiligentRenderBackend ────────────────────────────────────────────
 

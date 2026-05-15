@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "SagaEngine/Render/Backend/Diligent/DiligentRenderBackend.h"
+#include "SagaEngine/Render/Backend/RenderBackendFactory.h"
 
 #include <string>
 #include <cstdint>

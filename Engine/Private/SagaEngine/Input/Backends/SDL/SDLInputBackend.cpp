@@ -6,6 +6,8 @@
 
 #include "SagaEngine/Input/Backends/SDL/SDLInputBackend.h"
 
+#include <memory>
+
 // SDL version guard
 #ifndef SAGA_SDL_VERSION
     #define SAGA_SDL_VERSION 2
@@ -580,6 +582,11 @@ uint32_t SDLInputBackend::FindDeviceId(int sdlJoystickId) const noexcept
         }
     }
     return Input::kInvalidDeviceId;
+}
+
+std::unique_ptr<IPlatformInputBackend> CreateSDLInputBackend(void* nativeWindow)
+{
+    return std::make_unique<SDLInputBackend>(static_cast<SDL_Window*>(nativeWindow));
 }
 
 } // namespace SagaEngine::Platform

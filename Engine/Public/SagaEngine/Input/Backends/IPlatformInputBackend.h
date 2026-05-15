@@ -1,5 +1,3 @@
-#pragma once
-
 /// @file IPlatformInputBackend.h
 /// @brief Pure interface for platform input backends (SDL, Win32, XInput...).
 ///
@@ -27,9 +25,12 @@
 ///   The backend itself is not thread-safe. The caller is responsible
 ///   for synchronizing access if the frame is passed to other threads.
 
+#pragma once
+
 #include "SagaEngine/Input/Frames/RawInputFrame.h"
-#include <string_view>
 #include <cstdint>
+#include <memory>
+#include <string_view>
 
 namespace SagaEngine::Platform
 {
@@ -87,5 +88,9 @@ public:
 protected:
     IPlatformInputBackend() = default;
 };
+
+/// Create the default SDL-backed input backend without exposing SDL types.
+[[nodiscard]] std::unique_ptr<IPlatformInputBackend> CreateSDLInputBackend(
+    void* nativeWindow = nullptr);
 
 } // namespace SagaEngine::Platform

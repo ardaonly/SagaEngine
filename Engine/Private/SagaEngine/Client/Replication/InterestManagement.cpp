@@ -21,6 +21,11 @@ constexpr const char* kLogTag = "Replication";
 void InterestManager::Configure(InterestConfig config) noexcept
 {
     config_ = config;
+    subscribedCells_.clear();
+    entityCells_.clear();
+    cellEntities_.clear();
+    clientCell_ = {};
+    hasClientCell_ = false;
 }
 
 // ─── World to cell ──────────────────────────────────────────────────────────
@@ -28,7 +33,7 @@ void InterestManager::Configure(InterestConfig config) noexcept
 CellCoord InterestManager::WorldToCell(const Math::Vec3& position) const noexcept
 {
     std::int32_t cx = static_cast<std::int32_t>(std::floor(position.x / config_.cellSize));
-    std::int32_t cy = static_cast<std::int32_t>(std::floor(position.y / config_.cellSize));
+    std::int32_t cy = static_cast<std::int32_t>(std::floor(position.z / config_.cellSize));
     return {cx, cy};
 }
 
@@ -38,10 +43,11 @@ void InterestManager::UpdateClientPosition(const Math::Vec3& position) noexcept
 {
     CellCoord newCell = WorldToCell(position);
 
-    if (newCell.x == clientCell_.x && newCell.y == clientCell_.y)
+    if (hasClientCell_ && newCell.x == clientCell_.x && newCell.y == clientCell_.y)
         return;  // No change — skip recomputation.
 
     clientCell_ = newCell;
+    hasClientCell_ = true;
 
     // Recompute subscribed cells with hysteresis.
     std::int32_t effectiveRadius = static_cast<std::int32_t>(
@@ -54,11 +60,7 @@ void InterestManager::UpdateClientPosition(const Math::Vec3& position) noexcept
         for (std::int32_t dy = -effectiveRadius; dy <= effectiveRadius; ++dy)
         {
             CellCoord cell{clientCell_.x + dx, clientCell_.y + dy};
-
-            // Check if within strict interest radius (Manhattan distance).
-            std::int32_t manhattan = std::abs(dx) + std::abs(dy);
-            if (manhattan <= static_cast<std::int32_t>(config_.interestRadius + config_.hysteresisMargin))
-                subscribedCells_.insert(cell);
+            subscribedCells_.insert(cell);
         }
     }
 }

@@ -10,6 +10,7 @@ namespace Saga {
 class IWindow;
 class IHighPrecisionTimer;
 class IFileSystem;
+class IDebugRenderer2D;
 
 // ─── Platform Factory Interface ───────────────────────────────────────────────
 
@@ -52,5 +53,11 @@ public:
 private:
     static PlatformFactory* s_Instance; ///< The single registered factory; not owned.
 };
+
+/// Create the default SDL-backed platform factory.
+[[nodiscard]] std::unique_ptr<PlatformFactory> CreateSDLPlatformFactory();
+
+/// Create the default SDL-backed 2D debug renderer.
+[[nodiscard]] std::unique_ptr<IDebugRenderer2D> CreateSDLDebugRenderer2D();
 
 } // namespace Saga

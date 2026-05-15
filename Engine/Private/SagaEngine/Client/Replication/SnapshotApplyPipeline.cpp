@@ -153,6 +153,13 @@ ApplyOutcome SnapshotApplyPipeline::SubmitDelta(DecodedDeltaSnapshot&& delta)
     }
     else if (delta.baselineTick < lastAppliedTick_)
     {
+        if (delta.serverTick == lastAppliedTick_)
+        {
+            ++stats_.droppedDuplicate;
+            return ApplyOutcome::DroppedDuplicate;
+        }
+
+        ++stats_.droppedOld;
         return ApplyOutcome::DroppedOld;
     }
     else if (delta.baselineTick == delta.serverTick)

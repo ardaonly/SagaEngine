@@ -30,8 +30,9 @@
 ///   - Multi-threaded submission (Phase 2+)
 ///   - Rendering correctness (pixel readback, Phase 3+)
 
-#include "SagaEngine/Render/Backend/Diligent/DiligentRenderBackend.h"
 #include "SagaEngine/Platform/IWindow.h"
+#include "SagaEngine/Render/Backend/RenderBackendFactory.h"
+#include "SagaEngine/Render/Materials/Material.h"
 #include "SagaEngine/Render/Scene/Camera.h"
 #include "SagaEngine/Render/Scene/RenderView.h"
 
@@ -55,6 +56,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <memory>
 
 using namespace SagaEngine::Render::Backend;
 using namespace SagaEngine::Render::Scene;
@@ -153,6 +155,80 @@ void* GetNativeHandle(SDL_Window* window)
     return nullptr;
 #endif
 }
+
+class DiligentRenderBackend
+{
+public:
+    DiligentRenderBackend()
+        : m_backend(CreateDiligentRenderBackend())
+    {
+    }
+
+    [[nodiscard]] bool Initialize(const SwapchainDesc& desc)
+    {
+        return m_backend->Initialize(desc);
+    }
+
+    void Shutdown()
+    {
+        m_backend->Shutdown();
+    }
+
+    void OnResize(std::uint32_t width, std::uint32_t height)
+    {
+        m_backend->OnResize(width, height);
+    }
+
+    [[nodiscard]] SagaEngine::Render::World::MeshId CreateMesh(
+        const SagaEngine::Render::MeshAsset& asset)
+    {
+        return m_backend->CreateMesh(asset);
+    }
+
+    [[nodiscard]] SagaEngine::Render::World::MaterialId CreateMaterial(
+        const SagaEngine::Render::MaterialRuntime& runtime)
+    {
+        return m_backend->CreateMaterial(runtime);
+    }
+
+    void BeginFrame()
+    {
+        m_backend->BeginFrame();
+    }
+
+    void Submit(const Camera& camera, const RenderView& view)
+    {
+        m_backend->Submit(camera, view);
+    }
+
+    void EndFrame()
+    {
+        m_backend->EndFrame();
+    }
+
+    [[nodiscard]] DiligentBackendAPI SelectedAPI() const noexcept
+    {
+        return BackendStatus().selectedAPI;
+    }
+
+    [[nodiscard]] std::uint64_t FrameIndex() const noexcept
+    {
+        return BackendStatus().frameIndex;
+    }
+
+    [[nodiscard]] bool IsInitialized() const noexcept
+    {
+        return BackendStatus().initialized;
+    }
+
+private:
+    [[nodiscard]] DiligentBackendStatus BackendStatus() const noexcept
+    {
+        return GetDiligentRenderBackendStatus(*m_backend);
+    }
+
+    std::unique_ptr<IRenderBackend> m_backend;
+};
 
 } // namespace
 
@@ -426,7 +502,7 @@ TEST_F(DiligentGPU, HundredFrameStressNoCrash)
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-//  8. Resource stubs still return kInvalid even with a live device
+//  8. Resource upload with a live device
 // ═══════════════════════════════════════════════════════════════════════
 
 TEST_F(DiligentGPU, CreateMeshStillInvalidPhase1)
@@ -437,10 +513,9 @@ TEST_F(DiligentGPU, CreateMeshStillInvalidPhase1)
     EXPECT_EQ(id, SagaEngine::Render::World::MeshId::kInvalid);
 }
 
-TEST_F(DiligentGPU, CreateMaterialStillInvalidPhase1)
+TEST_F(DiligentGPU, CreateMaterialReturnsValidWithLiveDevice)
 {
-    struct FakeMaterialRuntime {} fake;
-    const auto id = m_Backend.CreateMaterial(
-        reinterpret_cast<const SagaEngine::Render::MaterialRuntime&>(fake));
-    EXPECT_EQ(id, SagaEngine::Render::World::MaterialId::kInvalid);
+    const SagaEngine::Render::MaterialRuntime material{};
+    const auto id = m_Backend.CreateMaterial(material);
+    EXPECT_NE(id, SagaEngine::Render::World::MaterialId::kInvalid);
 }

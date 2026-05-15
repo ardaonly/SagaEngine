@@ -340,8 +340,11 @@ TEST_F(ReplicationIntegrationTest, ClientPredictionReconciliation)
     EXPECT_GT(predictedState.positionZ, 0.f);
 
     // Simulate server reconciliation (no divergence)
+    const auto serverTickState = prediction.GetSnapshotAt(10u);
+    ASSERT_TRUE(serverTickState.has_value());
+
     const auto reconcileResult = prediction.Reconcile(
-        10u, predictedState, // Server confirms tick 10 with matching state
+        10u, *serverTickState, // Server confirms tick 10 with matching state
         std::vector<InputCommand>(unackedCommands.begin() + 10, unackedCommands.end()));
 
     // No correction needed since states match

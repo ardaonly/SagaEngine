@@ -1,119 +1,1153 @@
-# forge.toml — Schema Reference
+# Forge Schema Reference
 
-`forge.toml` is the project manifest. It describes *project identity*, *toolchain constraints*, and *dependency declarations*. It is not a build language; anything that belongs in CMake stays in CMake.
 
-## Syntax
 
-A strict subset of TOML:
+---
 
-- Section headers: `[section]`
-- Key-value pairs: `key = "value"` or `key = 'value'` or `key = bare-token`
-- Line comments: `# comment`
-- Arrays, inline tables, and multi-line values are not supported.
-- Unknown sections are preserved on save and reported as errors in `--strict` mode.
+## 0. Schema Philosophy
 
-## Sections
+`forge.toml` is not a new programming language.
 
-### `[project]`
+It is a build workflow manifest.
 
-| Key       | Type   | Description                                                   |
-|-----------|--------|---------------------------------------------------------------|
-| `name`    | string | Project name (used for display and scaffolding).              |
-| `version` | string | Project version string (advisory; not consumed by Forge).     |
+Its job is to describe enough project/tool/build/pipeline configuration for Forge to produce a deterministic `BuildModel`, lower that into a `BuildPlan`, invoke tool adapters, validate outputs, stage packages, and write reports.
 
-### `[toolchain]`
+It must not become:
 
-Version pins verified by `--strict` mode. Forge checks that the tools on `PATH` satisfy these constraints before running any build or install step.
 
-| Key        | Type   | Description                                                                       |
-|------------|--------|-----------------------------------------------------------------------------------|
-| `cmake`    | string | Required CMake version prefix. `"3.28"` matches `3.28.0`, `3.28.1`, not `3.29.0`. |
-| `conan`    | string | Required Conan version prefix. `"2.0"` matches `2.0.x`, not `2.1.x`.              |
-| `compiler` | string | Required compiler string matched against `c++ --version` output.                  |
 
-Pin matching uses a prefix rule: pin `"3.28"` satisfies `3.28.0` and `3.28.1` but not `3.29.0`.
+Correct model:
 
-### `[build]`
+```txt
+forge.toml
+    ↓
+Forge manifest parser
+    ↓
+BuildModel
+    ↓
+BuildPlan
+    ↓
+Adapters / steps / reports
+```
 
-| Key       | Type   | Default   | Description                                                          |
-|-----------|--------|-----------|----------------------------------------------------------------------|
-| `backend` | string | `"cmake"` | Build backend. Only `"cmake"` is implemented.                        |
-| `preset`  | string | —         | CMake preset name passed to `cmake --preset`.                        |
-| `source`  | string | `"."`     | CMake source directory (`-S`). Ignored when `preset` is set.         |
-| `build`   | string | `"build"` | CMake binary directory (`-B` / `cmake --build`). Ignored when `preset` is set. |
+Incorrect model:
 
-When `preset` is set, `source` and `build` are overridden by the preset's own `binaryDir` for the configure step.
+```txt
+forge.toml contains half the engine architecture because adding TOML fields felt easier than writing real owners.
+```
 
-### `[deps]`
+That road is paved. It leads to a build file nobody wants to touch.
 
-Ordered dependency declarations consumed by `forge install` when no `--profile` is given and no `conanfile.py` is present.
+---
+
+## 1. Compatibility Rule
+
+Forge must support two project classes:
+
+```txt
+Standalone C++ project
+Saga project
+```
+
+Standalone C++ project:
+
+```txt
+forge.toml
+CMakeLists.txt
+conanfile.py / conanfile.txt where applicable
+```
+
+Saga project:
+
+
+
+Rule:
+
+```txt
+Saga-specific sections are optional.
+Standalone C++ projects must not be forced to define Saga pipeline sections.
+```
+
+---
+
+## 2. Versioning
+
+Every `forge.toml` should include a schema version.
 
 ```toml
+schemaVersion = 1
+```
+
+Rules:
+
+* Missing `schemaVersion` may be treated as legacy schema version `0`.
+* Unsupported future versions must fail clearly under `--strict`.
+* Unknown sections may be preserved by tools, but `--strict` should reject unsupported active sections.
+* Reserved sections may be recognized but ignored unless enabled by Forge version/profile.
+
+Example diagnostic:
+
+```txt
+Forge.Schema.UnsupportedVersion:
+forge.toml uses schemaVersion = 3, but this Forge supports schemaVersion <= 1.
+```
+
+---
+
+## 3. Current Minimal Schema
+
+The conservative baseline should keep these sections stable:
+
+```toml
+schemaVersion = 1
+
+[project]
+name = "SagaEngine"
+version = "0.0.7"
+language = "cpp"
+
+[toolchain]
+cmake = ">=3.26"
+conan = ">=2.0"
+compiler = "clang"
+cppStandard = "20"
+
+[build]
+backend = "cmake"
+buildDir = "Build"
+defaultConfig = "Debug"
+defaultTarget = "all"
+
 [deps]
-sfml  = "2.6"
-boost = "1.83"
+mode = "conan"
 ```
 
-Each key is a Conan package name; each value is the version string passed as `--requires=name/version`. Dependencies are installed in declaration order.
+This is the stable base.
 
-When a `conanfile.py` exists in the working directory, `[deps]` is optional — `forge install` falls back to the conanfile automatically (mode C).
+Everything else should be added only when the implementation actually exists.
 
-## Install dispatch modes
+---
 
-`forge install` selects a mode in this priority order:
+## 4. Top-Level Keys
 
-| # | Condition | Conan invocation |
-|---|-----------|-----------------|
-| A | `--profile <name>` given | `conan install . --profile:host=<name> [--profile:build=<name>] --build=missing` |
-| B | `[deps]` section present | `conan install . --requires=pkg/ver ... --build=missing` |
-| C | `conanfile.py` exists | `conan install . --build=missing` |
-| — | None of the above | Error; nothing to install |
+Allowed top-level keys:
 
-## forge.lock
-
-After a successful `forge install`, Forge writes `forge.lock` in the working directory. It records the install mode and declared dependencies. Commit it alongside `forge.toml` for reproducible builds. It is consumed by `--strict --frozen` (planned).
-
-Example `forge.lock` for mode A:
-
-```json
-{
-  "forge_lock_version": 1,
-  "mode": "profile",
-  "profile_host": "windows-msvc",
-  "profile_build": "windows-build",
-  "deps": []
-}
+```toml
+schemaVersion = 1
 ```
 
-## .forge env-overrides
+Allowed top-level sections:
 
-A `.forge` file in the working directory overrides the executable names used by adapters. Forge loads it at startup if present.
 
-```ini
-# .forge — pin specific binary paths
-CMAKE        = /usr/bin/cmake-3.28
-CONAN        = /home/user/.local/bin/conan
-CTEST        = /usr/bin/ctest
-CLANG_FORMAT = /usr/bin/clang-format-17
+
+Section status:
+
+
+
+Important:
+
+```txt
+Proposed means schema design is acceptable.
+Implemented behavior still requires Forge code.
+Reserved means do not rely on it yet.
 ```
 
-## Full example
+---
+
+## 5. `[project]`
+
+Purpose:
+
+General Forge project metadata.
+
+Example:
 
 ```toml
 [project]
-name    = "mygame"
+name = "SagaEngine"
+version = "0.0.7"
+language = "cpp"
+description = "SagaEngine runtime and tools"
+```
+
+Fields:
+
+| Field         |   Type | Required | Status | Meaning                            |
+| ------------- | -----: | -------: | ------ | ---------------------------------- |
+| `name`        | string |      yes | Active | Project display/package name       |
+| `version`     | string |       no | Active | Project version                    |
+| `language`    | string |       no | Active | Primary project language hint      |
+| `description` | string |       no | Active | Human-readable project description |
+
+Allowed `language` examples:
+
+```txt
+cpp
+cpp-saga
+mixed
+```
+
+Rules:
+
+* `name` must be stable and filesystem-safe where used for generated paths.
+* `version` should be semantic where practical.
+* `language` is a hint, not ownership truth.
+
+---
+
+## 6. `[toolchain]`
+
+Purpose:
+
+Declare required toolchain constraints.
+
+Example:
+
+```toml
+[toolchain]
+cmake = ">=3.26"
+conan = ">=2.0"
+compiler = "clang"
+cppStandard = "20"
+ninja = ">=1.11"
+```
+
+Fields:
+
+
+
+Rules:
+
+* `--strict` must validate configured tool constraints.
+* `--strict --frozen` must compare relevant tool versions against lock data where supported.
+* Missing optional tools should not fail standalone C++ workflows unless required by selected profile.
+
+Bad:
+
+```toml
+[toolchain]
+compiler = "whatever works"
+```
+
+Good:
+
+```toml
+[toolchain]
+compiler = "clang"
+cppStandard = "20"
+cmake = ">=3.26"
+```
+
+---
+
+## 7. `[build]`
+
+Purpose:
+
+Configure backend-neutral build defaults.
+
+Example:
+
+```toml
+[build]
+backend = "cmake"
+buildDir = "Build"
+defaultConfig = "Debug"
+defaultTarget = "all"
+generator = "Ninja"
+```
+
+Fields:
+
+| Field              |   Type | Required | Status   | Meaning                        |
+| ------------------ | -----: | -------: | -------- | ------------------------------ |
+| `backend`          | string |       no | Active   | Build backend, usually `cmake` |
+| `buildDir`         | string |       no | Active   | Build output directory         |
+| `defaultConfig`    | string |       no | Active   | Default build configuration    |
+| `defaultTarget`    | string |       no | Active   | Default target                 |
+| `generator`        | string |       no | Active   | CMake generator hint           |
+| `installPrefix`    | string |       no | Proposed | Install prefix                 |
+| `compileCommands`  |   bool |       no | Proposed | Generate compile_commands.json |
+| `warningsAsErrors` |   bool |       no | Proposed | Build strictness hint          |
+
+Allowed `backend` values:
+
+```txt
+cmake
+```
+
+Future possible values:
+
+```txt
+cargo
+msbuild
+custom
+```
+
+Rules:
+
+* CMake-specific details should remain minimal.
+* Complex CMake logic belongs in `CMakeLists.txt`, not `forge.toml`.
+* Forge may pass configured values to backend adapters.
+
+---
+
+## 8. `[deps]`
+
+Purpose:
+
+Configure dependency installation mode.
+
+Example:
+
+```toml
+[deps]
+mode = "conan"
+lockfile = "forge.lock"
+```
+
+Fields:
+
+| Field                |   Type | Required | Status   | Meaning                                            |
+| -------------------- | -----: | -------: | -------- | -------------------------------------------------- |
+| `mode`               | string |       no | Active   | Dependency mode                                    |
+| `lockfile`           | string |       no | Proposed | Lockfile path                                      |
+| `installOnConfigure` |   bool |       no | Proposed | Whether Forge should install deps before configure |
+| `profileHost`        | string |       no | Proposed | Conan host profile                                 |
+| `profileBuild`       | string |       no | Proposed | Conan build profile                                |
+
+Allowed `mode` values:
+
+```txt
+none
+conan
+system
+```
+
+Rules:
+
+* `conan` mode routes through `ConanAdapter`.
+* `none` means Forge should not attempt dependency install.
+* `system` means dependencies are expected from system/toolchain environment.
+* `--strict --frozen` should validate lockfile behavior where supported.
+
+---
+
+## 9. `[env]`
+
+Purpose:
+
+Configure tool executable overrides and environment hints.
+
+Example:
+
+
+
+Fields:
+
+
+
+Rules:
+
+* Forge's `ToolEnv` should resolve executable paths.
+* Hardcoded tool executable names inside build steps should be avoided.
+* Environment overrides should be visible through `forge env`.
+
+---
+
+## 10. `[profiles]`
+
+Purpose:
+
+Declare named Forge build profiles.
+
+Status: Proposed.
+
+Example:
+
+
+
+
+
+
+
+Required profile names for Saga projects:
+
+```txt
+editor-preview
+dev-client
+dev-server
+dev-local-client-server
+test
+ci
+shipping-client
+shipping-server
+shipping-full
+```
+
+Profile fields:
+
+
+
+Rules:
+
+* Profiles describe which steps are active.
+* Step implementation remains in Forge pipeline/adapters.
+* Profile names should be stable because CI/editor/product workflows may reference them.
+* Missing optional sections should produce clear diagnostics when a profile enables them.
+
+---
+
+## 11. `[saga]`
+
+Purpose:
+
+Optional bridge to a Saga project manifest.
+
+Status: Proposed.
+
+Example:
+
+```toml
+[saga]
+projectManifest = "saga.project.json"
+workspaceRoot = "."
+defaultProfile = "editor-preview"
+```
+
+Fields:
+
+| Field                |   Type | Required | Status   | Meaning                       |
+| -------------------- | -----: | -------: | -------- | ----------------------------- |
+| `projectManifest`    | string |       no | Proposed | Path to `saga.project.json`   |
+| `workspaceRoot`      | string |       no | Proposed | Workspace root override       |
+| `defaultProfile`     | string |       no | Proposed | Default build profile         |
+| `requireSagaProject` |   bool |       no | Proposed | Fail if Saga manifest missing |
+
+Rules:
+
+* `saga.project.json` remains product/project manifest truth.
+* `forge.toml` may reference it but should not duplicate all project metadata.
+* Standalone C++ projects should omit `[saga]`.
+
+Bad:
+
+```toml
+[saga]
+# giant duplicate of entire saga.project.json
+```
+
+Good:
+
+```toml
+[saga]
+projectManifest = "saga.project.json"
+defaultProfile = "editor-preview"
+```
+
+---
+
+
+
+Purpose:
+
+
+
+Status: Proposed.
+
+Example:
+
+
+
+Fields:
+
+
+
+Allowed `mode` values:
+
+```txt
+validate
+compile
+```
+
+Rules:
+
+
+
+---
+
+## 13. `[scripts]`
+
+Purpose:
+
+Configure script validation/compile/binding generation.
+
+Status: Reserved/Proposed.
+
+Do not rely on this section until scripting toolchain implementation stabilizes.
+
+Example:
+
+```toml
+[scripts]
+root = "Scripts"
+out = "Build/Artifacts/Scripts"
+bindings = "Build/Manifests/script_bindings.json"
+diagnostics = "Build/Reports/script_diagnostics.json"
+language = "csharp"
+```
+
+Fields:
+
+| Field           |   Type | Required | Status            | Meaning                             |
+| --------------- | -----: | -------: | ----------------- | ----------------------------------- |
+| `root`          | string |       no | Reserved/Proposed | Script source root                  |
+| `out`           | string |       no | Reserved/Proposed | Script artifact output directory    |
+| `bindings`      | string |       no | Reserved/Proposed | Binding manifest output             |
+| `diagnostics`   | string |       no | Reserved/Proposed | Script diagnostics report           |
+| `language`      | string |       no | Reserved/Proposed | Script language, initially `csharp` |
+| `generatedRoot` | string |       no | Reserved          | Generated code root                 |
+| `strict`        |   bool |       no | Reserved          | Strict script validation            |
+
+Rules:
+
+* Forge invokes scripting toolchain through adapter boundary.
+* Forge does not become the C# compiler.
+* Runtime/server consume script artifacts and binding manifests, not script compiler internals.
+
+---
+
+## 14. `[assets]`
+
+Purpose:
+
+Configure asset validation/cook/artifact generation.
+
+Status: Reserved/Proposed.
+
+Do not rely on this section until AssetPipeline implementation stabilizes.
+
+Example:
+
+```toml
+[assets]
+root = "Assets"
+out = "Build/Artifacts/Assets"
+manifest = "Build/Manifests/assets.json"
+diagnostics = "Build/Reports/asset_diagnostics.json"
+profile = "dev"
+```
+
+Fields:
+
+| Field            |   Type | Required | Status            | Meaning                          |
+| ---------------- | -----: | -------: | ----------------- | -------------------------------- |
+| `root`           | string |       no | Reserved/Proposed | Source asset root                |
+| `out`            | string |       no | Reserved/Proposed | Cooked artifact output directory |
+| `manifest`       | string |       no | Reserved/Proposed | Asset manifest output            |
+| `diagnostics`    | string |       no | Reserved/Proposed | Asset diagnostics report         |
+| `profile`        | string |       no | Reserved/Proposed | Cook profile                     |
+| `targetPlatform` | string |       no | Reserved          | Target platform                  |
+| `strict`         |   bool |       no | Reserved          | Strict asset validation          |
+
+Rules:
+
+* AssetPipeline owns import/cook implementation.
+* Forge invokes AssetPipeline through adapter boundary.
+* Runtime consumes cooked artifacts and manifests.
+* Runtime does not import arbitrary source assets in shipping mode.
+
+---
+
+## 15. `[prism]`
+
+Purpose:
+
+Configure Prism analysis.
+
+Status: Proposed.
+
+Example:
+
+```toml
+[prism]
+enabled = true
+reports = "Build/Reports"
+boundaries = true
+stale = true
+packages = true
+generatedOrigin = true
+```
+
+Fields:
+
+| Field             |   Type | Required | Status   | Meaning                        |
+| ----------------- | -----: | -------: | -------- | ------------------------------ |
+| `enabled`         |   bool |       no | Proposed | Enable Prism checks by default |
+| `reports`         | string |       no | Proposed | Prism report output directory  |
+| `boundaries`      |   bool |       no | Proposed | Run boundary checks            |
+| `stale`           |   bool |       no | Proposed | Run stale artifact checks      |
+| `packages`        |   bool |       no | Proposed | Run package consistency checks |
+| `generatedOrigin` |   bool |       no | Proposed | Run generated origin checks    |
+| `config`          | string |       no | Reserved | Optional `prism.toml` path     |
+
+Rules:
+
+* Prism emits reports.
+* Forge decides whether Prism diagnostics block build/publish by profile policy.
+* Prism does not build/cook/compile/package.
+
+---
+
+## 16. `[package]`
+
+Purpose:
+
+Configure package staging.
+
+Status: Reserved/Proposed.
+
+Example:
+
+```toml
+[package]
+out = "Packages"
+default = "editor-preview"
+
+[package.profiles.editor-preview]
+kind = "editor-preview"
+out = "Packages/editor-preview"
+
+[package.profiles.dev-client]
+kind = "client"
+out = "Packages/dev-client"
+
+[package.profiles.dev-server]
+kind = "server"
+out = "Packages/dev-server"
+
+[package.profiles.shipping-client]
+kind = "client"
+out = "Packages/shipping-client"
+strict = true
+
+[package.profiles.shipping-server]
+kind = "server"
+out = "Packages/shipping-server"
+strict = true
+```
+
+Top-level fields:
+
+| Field     |   Type | Required | Status            | Meaning                 |
+| --------- | -----: | -------: | ----------------- | ----------------------- |
+| `out`     | string |       no | Reserved/Proposed | Package output root     |
+| `default` | string |       no | Reserved/Proposed | Default package profile |
+
+Package profile fields:
+
+| Field                |   Type | Required | Status            | Meaning                              |
+| -------------------- | -----: | -------: | ----------------- | ------------------------------------ |
+| `kind`               | string |      yes | Reserved/Proposed | Package kind                         |
+| `out`                | string |       no | Reserved/Proposed | Output directory                     |
+| `strict`             |   bool |       no | Reserved/Proposed | Strict staging validation            |
+| `manifest`           | string |       no | Reserved/Proposed | Package manifest output path         |
+| `includeDiagnostics` |   bool |       no | Reserved          | Include allowed diagnostics metadata |
+
+Allowed package kinds:
+
+```txt
+editor-preview
+client
+server
+full
+```
+
+Rules:
+
+* Forge owns package staging.
+* Runtime/server consume package manifests.
+* Package placement must respect authority metadata.
+* Server-only executable artifacts must not enter client package.
+
+---
+
+## 17. `[publish]`
+
+Purpose:
+
+Configure publish readiness checks.
+
+Status: Reserved/Proposed.
+
+Example:
+
+```toml
+[publish]
+defaultProfile = "shipping-full"
+report = "Build/Reports/publish_report.json"
+requirePrism = true
+requireFreshAssets = true
+requireCleanCollaboration = true
+```
+
+Fields:
+
+| Field                       |   Type | Required | Status            | Meaning                          |
+| --------------------------- | -----: | -------: | ----------------- | -------------------------------- |
+| `defaultProfile`            | string |       no | Reserved/Proposed | Default publish profile          |
+| `report`                    | string |       no | Reserved/Proposed | Publish report path              |
+| `requirePrism`              |   bool |       no | Reserved/Proposed | Require Prism checks             |
+| `requireFreshAssets`        |   bool |       no | Reserved/Proposed | Block stale cooked assets        |
+| `requireCleanCollaboration` |   bool |       no | Reserved          | Block unresolved conflicts/locks |
+| `allowWarnings`             |   bool |       no | Reserved          | Allow publish with warnings      |
+
+Rules:
+
+* `publish-check` does not necessarily publish/upload anything.
+* Publish readiness reports blockers.
+* Actual deployment/release is outside this schema unless a future deployment roadmap defines it.
+
+---
+
+## 18. `[reports]`
+
+Purpose:
+
+Configure report output locations.
+
+Status: Proposed.
+
+Example:
+
+```toml
+[reports]
+root = "Build/Reports"
+build = "Build/Reports/build_report.json"
+diagnostics = "Build/Reports/diagnostics_report.json"
+publish = "Build/Reports/publish_report.json"
+```
+
+Fields:
+
+
+
+Rules:
+
+* Reports should be machine-readable JSON by default.
+* CLI may print human-readable summaries, but terminal output is not the only source of truth.
+* Report paths should be stable for CI/editor/product integration.
+
+---
+
+## 19. Unknown Sections and Strict Mode
+
+Default behavior:
+
+* Unknown top-level sections may be ignored with warning in non-strict mode.
+* Unknown top-level sections must fail under `--strict`, unless explicitly declared as reserved/recognized.
+* Unknown fields inside known sections should warn in non-strict mode and fail in strict mode.
+
+Example:
+
+```toml
+[magic]
+doEverything = true
+```
+
+Strict diagnostic:
+
+```txt
+Forge.Schema.UnknownSection:
+Unknown section [magic]. Forge does not support this section.
+```
+
+Non-strict diagnostic:
+
+```txt
+Forge.Schema.UnknownSectionWarning:
+Ignoring unknown section [magic].
+```
+
+---
+
+## 20. Reserved Sections Policy
+
+Reserved sections are allowed as design placeholders but not stable user-facing API.
+
+Rules:
+
+* Reserved fields must not be required by stable workflows.
+* Reserved fields may be rejected by older Forge versions.
+* Documentation must clearly mark them.
+* CI should not depend on reserved fields unless the implementation lands.
+
+Reserved/proposed sections in this schema:
+
+```txt
+[scripts]
+[assets]
+[package]
+[publish]
+```
+
+These are important, but early schema promises are expensive.
+
+Better to mark them honestly than pretend a non-existent pipeline is stable.
+
+---
+
+## 21. Example: Standalone C++ Project
+
+```toml
+schemaVersion = 1
+
+[project]
+name = "ExampleCppProject"
 version = "0.1.0"
+language = "cpp"
 
 [toolchain]
-cmake    = "3.28"
-conan    = "2.0"
-compiler = "clang-17"
+cmake = ">=3.26"
+conan = ">=2.0"
+compiler = "clang"
+cppStandard = "20"
 
 [build]
-preset = "release"
-build  = "build/release"
+backend = "cmake"
+buildDir = "Build"
+defaultConfig = "Debug"
+defaultTarget = "all"
+generator = "Ninja"
 
 [deps]
-sfml   = "2.6"
-spdlog = "1.12"
+mode = "conan"
 ```
+
+Expected commands:
+
+```txt
+forge install
+forge configure
+forge build
+forge test
+```
+
+
+
+---
+
+## 22. Example: Minimal Saga Project
+
+```toml
+schemaVersion = 1
+
+[project]
+name = "ExampleSagaProject"
+version = "0.1.0"
+language = "cpp-saga"
+
+
+
+[build]
+backend = "cmake"
+buildDir = "Build"
+defaultConfig = "Debug"
+defaultTarget = "all"
+generator = "Ninja"
+
+[deps]
+mode = "conan"
+
+[saga]
+projectManifest = "saga.project.json"
+defaultProfile = "editor-preview"
+
+
+
+[prism]
+enabled = true
+reports = "Build/Reports"
+boundaries = true
+stale = true
+packages = true
+
+[reports]
+root = "Build/Reports"
+build = "Build/Reports/build_report.json"
+diagnostics = "Build/Reports/diagnostics_report.json"
+publish = "Build/Reports/publish_report.json"
+
+
+
+
+
+
+
+This is still conservative.
+
+Scripts/assets/package/publish sections are intentionally not fully required until implementation exists.
+
+---
+
+## 23. Example: Future Full Saga Pipeline
+
+Status: future-oriented, not stable until implemented.
+
+```toml
+schemaVersion = 1
+
+[project]
+name = "ExampleMMO"
+version = "0.1.0"
+language = "cpp-saga"
+
+
+
+[build]
+backend = "cmake"
+buildDir = "Build"
+defaultConfig = "Debug"
+generator = "Ninja"
+compileCommands = true
+
+[deps]
+mode = "conan"
+lockfile = "forge.lock"
+
+[saga]
+projectManifest = "saga.project.json"
+defaultProfile = "editor-preview"
+
+
+
+[scripts]
+root = "Scripts"
+out = "Build/Artifacts/Scripts"
+bindings = "Build/Manifests/script_bindings.json"
+diagnostics = "Build/Reports/script_diagnostics.json"
+language = "csharp"
+
+[assets]
+root = "Assets"
+out = "Build/Artifacts/Assets"
+manifest = "Build/Manifests/assets.json"
+diagnostics = "Build/Reports/asset_diagnostics.json"
+profile = "dev"
+
+[prism]
+enabled = true
+reports = "Build/Reports"
+boundaries = true
+stale = true
+packages = true
+generatedOrigin = true
+
+[package]
+out = "Packages"
+default = "editor-preview"
+
+[package.profiles.editor-preview]
+kind = "editor-preview"
+out = "Packages/editor-preview"
+
+[package.profiles.dev-client]
+kind = "client"
+out = "Packages/dev-client"
+manifest = "Build/Manifests/package_manifest.client.json"
+
+[package.profiles.dev-server]
+kind = "server"
+out = "Packages/dev-server"
+manifest = "Build/Manifests/package_manifest.server.json"
+
+[publish]
+defaultProfile = "shipping-full"
+report = "Build/Reports/publish_report.json"
+requirePrism = true
+requireFreshAssets = true
+requireCleanCollaboration = true
+
+[reports]
+root = "Build/Reports"
+build = "Build/Reports/build_report.json"
+diagnostics = "Build/Reports/diagnostics_report.json"
+publish = "Build/Reports/publish_report.json"
+prismStale = "Build/Reports/prism_stale_report.json"
+prismBoundary = "Build/Reports/prism_boundary_report.json"
+
+
+
+
+
+Use this as a direction, not as stable promise until Forge pipeline implementation catches up.
+
+---
+
+## 24. Generated Paths Convention
+
+Recommended paths:
+
+
+
+Recommended report paths:
+
+```txt
+Build/Reports/build_report.json
+Build/Reports/diagnostics_report.json
+Build/Reports/publish_report.json
+Build/Reports/sde_diagnostics.json
+Build/Reports/script_diagnostics.json
+Build/Reports/asset_diagnostics.json
+Build/Reports/prism_stale_report.json
+Build/Reports/prism_boundary_report.json
+```
+
+Rules:
+
+* Generated artifacts should stay out of source roots.
+* Reports should be stable enough for editor/CI/product consumption.
+* Package outputs should be separable by profile/kind.
+
+---
+
+## 25. Lockfile Interaction
+
+`forge.lock` records resolved dependency/tool/build state where supported.
+
+Lockfile may eventually record:
+
+
+
+Rules:
+
+* `--strict --frozen` must reject drift against lockfile where implemented.
+* Lockfile should be human-inspectable.
+* Lockfile should not contain secrets.
+* Lockfile should not be treated as a replacement for manifests/reports.
+
+---
+
+## 26. Validation Rules
+
+Forge should validate:
+
+```txt
+schemaVersion supported
+known sections
+known fields
+required fields
+field types
+path fields are valid strings
+profile references exist
+package profile references exist
+enabled tool sections have required tool availability
+report paths are writable
+build/profile combinations are supported
+```
+
+Under `--strict`, Forge should additionally validate:
+
+```txt
+unknown sections rejected
+unknown fields rejected
+toolchain pins satisfied
+lockfile satisfied where frozen
+profile required tools available
+reserved unstable fields rejected unless feature-enabled
+```
+
+---
+
+## 27. Diagnostics
+
+Schema diagnostics should use stable codes.
+
+Examples:
+
+```txt
+Forge.Schema.UnsupportedVersion
+Forge.Schema.UnknownSection
+Forge.Schema.UnknownField
+Forge.Schema.InvalidType
+Forge.Schema.MissingRequiredField
+Forge.Schema.InvalidProfileReference
+Forge.Schema.ReservedFieldUsed
+Forge.Schema.ToolRequiredButMissing
+Forge.Schema.ReportPathNotWritable
+```
+
+Bad diagnostic:
+
+```txt
+Invalid toml.
+```
+
+Good diagnostic:
+
+```txt
+Forge.Schema.InvalidProfileReference:
+profiles.shipping-full.package references package profile "shipping-full", but [package.profiles.shipping-full] is not defined.
+```
+
+---
+
+## 28. Implementation Notes
+
+Expected parser output:
+
+```txt
+ForgeManifest
+    ↓
+BuildModel
+    ↓
+BuildPlan
+```
+
+Suggested files:
+
+```txt
+Tools/Forge/include/Forge/Manifest/ForgeManifest.hpp
+Tools/Forge/include/Forge/Manifest/ForgeManifestParser.hpp
+Tools/Forge/include/Forge/Manifest/ForgeManifestValidator.hpp
+Tools/Forge/include/Forge/Manifest/ForgeSchemaVersion.hpp
+Tools/Forge/src/Manifest/ForgeManifestParser.cpp
+Tools/Forge/src/Manifest/ForgeManifestValidator.cpp
+```
+
+Suggested tests:
+
+```txt
+Tools/Forge/tests/ForgeManifestParserTests.cpp
+Tools/Forge/tests/ForgeManifestValidatorTests.cpp
+Tools/Forge/tests/ForgeSchemaStrictModeTests.cpp
+Tools/Forge/tests/ForgeProfileSchemaTests.cpp
+```
+
+---
+
+## 29. Non-Goals
+
+This schema must not define:
+
+
+
+Those belong to their owners.
+
+`forge.toml` wires workflow configuration.
+
+It should not become the place where ownership disappears.
+
+---
+
+## 30. Decision Summary
+
+Preserve these decisions:
+
+
+
+The schema should grow slowly.
+
+Fast schema growth feels productive until every field becomes legacy.
+
+A boring manifest that survives is better than an impressive manifest that lies.

@@ -277,7 +277,7 @@ TEST(CommandRoundTrip, ChatMessage)
     a.channel         = ChatChannel::Whisper;
     a.recipientEntity = 999;
     a.clientMsgId     = 123456789;
-    a.text            = "merhaba dünya — unicode test 🎮";
+    a.text            = "hello unicode test - \xE2\x98\x83";
 
     auto buf = Encode(a);
     ChatMessage b{};

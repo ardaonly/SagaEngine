@@ -2,6 +2,9 @@
 /// @brief Singleton registry implementation for PlatformFactory.
 
 #include "SagaEngine/Platform/PlatformFactory.h"
+#include "SagaEngine/Platform/SDL/SDLDebugRenderer2D.h"
+#include "SagaEngine/Platform/SDL/SDLPlatformFactory.h"
+
 #include <cassert>
 
 namespace Saga {
@@ -24,6 +27,16 @@ PlatformFactory* PlatformFactory::Get() noexcept
         "PlatformFactory::Get() called before Set() — "
         "register a concrete factory before Application::Run().");
     return s_Instance;
+}
+
+std::unique_ptr<PlatformFactory> CreateSDLPlatformFactory()
+{
+    return std::make_unique<SDLPlatformFactory>();
+}
+
+std::unique_ptr<IDebugRenderer2D> CreateSDLDebugRenderer2D()
+{
+    return std::make_unique<SDLDebugRenderer2D>();
 }
 
 } // namespace Saga
