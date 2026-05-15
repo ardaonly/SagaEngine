@@ -6,6 +6,7 @@
 #include "SagaEditor/Persona/BlockVisualStyle.h"
 #include "SagaEditor/Persona/DensityProfile.h"
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -77,13 +78,13 @@ struct UIPersona
 
 // ─── Built-in Personas ────────────────────────────────────────────────────────
 
-/// Kid-friendly, blocks-first authoring. Inspired by Scratch.
+/// Kid-friendly, blocks-first authoring.
 [[nodiscard]] UIPersona MakeBlockyBeginnerPersona();
 
 /// Mid-density hybrid persona for indie developers.
 [[nodiscard]] UIPersona MakeIndieBalancedPersona();
 
-/// Multi-panel, dense, pro-tools layout. Inspired by Unreal Engine.
+/// Multi-panel, dense, pro-tools layout.
 [[nodiscard]] UIPersona MakeProDensePersona();
 
 /// Technical persona — Pro defaults plus diagnostics surfaces enabled.

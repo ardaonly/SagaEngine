@@ -1,5 +1,5 @@
 /// @file BlockSlot.h
-/// @brief Slot definition + literal-fill values for Scratch-style blocks.
+/// @brief Slot definition + literal-fill values for block-based authoring.
 
 #pragma once
 

@@ -1,5 +1,6 @@
 #pragma once
 #include "SagaEditor/VisualScripting/Graphs/GraphDocument.h"
+#include <cstdint>
 namespace SagaEditor::VisualScripting {
 class PinRenderer {
 public:

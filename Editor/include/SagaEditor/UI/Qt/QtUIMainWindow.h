@@ -4,7 +4,9 @@
 #pragma once
 
 #include "SagaEditor/UI/IUIMainWindow.h"
+#include <cstdint>
 #include <memory>
+#include <vector>
 
 namespace SagaEditor
 {
@@ -18,6 +20,7 @@ class QtUIMainWindow final : public IUIMainWindow
 {
 public:
     QtUIMainWindow(const std::string& title, int width, int height);
+    QtUIMainWindow(void* nativeMainWindow, void* nativeCentralStack);
     ~QtUIMainWindow() override;
 
     // ─── IUIMainWindow ────────────────────────────────────────────────────────
@@ -42,11 +45,14 @@ public:
                    UIDockArea         area)            override;
     void UndockPanel(const std::string& panelId)      override;
     void FocusPanel (const std::string& panelId)      override;
+    void SetPanelVisible(const std::string& panelId,
+                         bool               visible)  override;
 
     [[nodiscard]] std::vector<uint8_t> SaveState()                             const override;
     [[nodiscard]] bool                 RestoreState(const std::vector<uint8_t>& state) override;
 
     void SetOnClose(CloseCallback cb) override;
+    void SetOnCommand(CommandCallback cb) override;
 
 private:
     struct Impl;                   ///< Pimpl — hides QMainWindow and all Qt types.

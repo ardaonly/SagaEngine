@@ -196,13 +196,32 @@ private:
 
 CommandPalette::CommandPalette(CommandRegistry&   registry,
                                CommandDispatcher& dispatcher)
-    : m_impl(std::make_unique<Impl>(registry, dispatcher))
+    : m_registry(registry)
+    , m_dispatcher(dispatcher)
 {}
 
 CommandPalette::~CommandPalette() = default;
 
-void CommandPalette::Show()  { m_impl->OpenPalette(); }
-void CommandPalette::Hide()  { m_impl->HidePalette(); }
-bool CommandPalette::IsVisible() const { return m_impl->IsPaletteVisible(); }
+void CommandPalette::Show()
+{
+    if (!m_impl)
+    {
+        m_impl = std::make_unique<Impl>(m_registry, m_dispatcher);
+    }
+    m_impl->OpenPalette();
+}
+
+void CommandPalette::Hide()
+{
+    if (m_impl)
+    {
+        m_impl->HidePalette();
+    }
+}
+
+bool CommandPalette::IsVisible() const
+{
+    return m_impl ? m_impl->IsPaletteVisible() : false;
+}
 
 } // namespace SagaEditor

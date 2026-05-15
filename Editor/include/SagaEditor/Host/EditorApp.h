@@ -3,7 +3,10 @@
 
 #pragma once
 
+#include "SagaEditor/Host/EditorWorkspaceDefinition.h"
+
 #include <memory>
+#include <optional>
 #include <string>
 
 namespace SagaEditor
@@ -27,6 +30,8 @@ struct EditorAppConfig
     bool        maximized     = false;
     std::string workspacePath = "";           ///< Project workspace root; empty = cwd.
     std::string layoutPreset  = "Default";    ///< Layout preset applied on first launch.
+    std::string initialProfileId = "";        ///< Optional workflow profile override.
+    std::optional<EditorWorkspaceDefinition> preparedWorkspace;
 };
 
 // ─── Application ─────────────────────────────────────────────────────────────

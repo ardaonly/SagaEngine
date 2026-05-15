@@ -20,7 +20,7 @@ enum class DensityStep : std::uint8_t
     Cosy,         ///< Kid-friendly, large hit boxes; pairs with BlockyBeginner.
     Comfortable,  ///< Default for first-time professional users.
     Compact,      ///< Default for ProDense's middle option.
-    Dense,        ///< Pro-tools default, matches Unreal-style multi-panel layouts.
+    Dense,        ///< Pro-tools default for multi-panel layouts.
     Ultra,        ///< Expert: smallest fonts, tightest padding, hidden labels.
     Custom,       ///< User-authored profile loaded from `<workspace>/Personas/`.
 };

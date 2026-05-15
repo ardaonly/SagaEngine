@@ -1,5 +1,6 @@
 #pragma once
 #include "SagaEditor/Collaboration/Workspace/WorkspaceDocumentState.h"
+#include <cstdint>
 #include <string>
 namespace SagaEditor::Collaboration {
 struct WorkspaceDocument {

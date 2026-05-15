@@ -1,5 +1,6 @@
 #pragma once
 #include "SagaEditor/Collaboration/Audit/AuditEvent.h"
+#include <cstdint>
 #include <vector>
 namespace SagaEditor::Collaboration {
 struct AuditFilter {
