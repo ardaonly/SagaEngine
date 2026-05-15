@@ -140,7 +140,7 @@ private:
     SnapshotEntityEnumeratorFn m_enumeratorFn;
     std::vector<uint8_t>       m_scratchBuf;
 
-    static constexpr std::size_t kScratchSize = 65536;
+    static constexpr std::size_t kSerializeTempSize = 65536;
 };
 
 // ─── WorldSnapshotDecoder ─────────────────────────────────────────────────────

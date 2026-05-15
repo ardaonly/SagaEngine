@@ -104,6 +104,7 @@ private:
     float                      m_fpsAccumulator = 0.0f;
     int                        m_fpsFrameCount  = 0;
     bool                       m_imguiReady     = false;
+    bool                       m_imguiGpuReady  = false;
 };
 
 } // namespace SagaSandbox

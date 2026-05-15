@@ -126,8 +126,8 @@ private:
     DeltaSnapshotHeader      m_header;
     std::vector<EntityDelta> m_pendingDeltas;
 
-    static constexpr std::size_t kScratchSize = 8192;
-    std::vector<uint8_t>         m_serializeScratch;
+    static constexpr std::size_t kSerializeTempSize = 8192;
+    std::vector<uint8_t>         m_serializeTemp;
 };
 
 // ─── DeltaSnapshotDecoder ─────────────────────────────────────────────────────
