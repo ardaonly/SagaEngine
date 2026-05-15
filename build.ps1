@@ -1,29 +1,30 @@
 <#
 .SYNOPSIS
-    Initialize the MSVC build environment and delegate all commands to Forge.
+    Legacy Windows compatibility wrapper for Forge.
 
 .DESCRIPTION
-    This script is a thin shim. It initializes the Visual Studio Developer
-    environment (vcvarsall x64) when not already active, then passes all
-    arguments directly to the `forge` executable.
+    Forge is the canonical build interface. Prefer running `forge` directly from
+    a Visual Studio Developer PowerShell or Developer Command Prompt.
 
-    Forge is the canonical build interface. This script exists only to handle
-    the MSVC environment bootstrap that forge cannot yet perform itself.
+    This script is kept only for older automation. It initializes the Visual
+    Studio Developer environment when needed, then forwards all arguments to
+    `forge`.
 
 .EXAMPLE
-    .\build.ps1 install --profile windows-msvc
-    .\build.ps1 configure --preset windows-msvc-14.38
-    .\build.ps1 build
-    .\build.ps1 clean
+    forge install --profile windows-msvc
+    forge configure --preset windows-msvc-14.38
+    forge build
 
 .NOTES
     Prerequisites: Visual Studio 2019 or later, Python 3, CMake 3.28+, Conan 2.0+.
-    Build Forge first: python3 Tools/Forge/tool/build.py
+    Build Forge first: python3 Tools/Forge/build.py
 #>
 param([Parameter(ValueFromRemainingArguments = $true)] $PassThrough)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+Write-Warning "build.ps1 is a legacy compatibility wrapper. Prefer running 'forge' directly from a Visual Studio Developer shell."
 
 if (-not $env:VCINSTALLDIR)
 {
@@ -46,6 +47,12 @@ if (-not $env:VCINSTALLDIR)
         Where-Object { $_ -match "^([^=]+)=(.*)" } |
         ForEach-Object { [System.Environment]::SetEnvironmentVariable($Matches[1], $Matches[2], "Process") }
     Write-Host "MSVC environment initialized."
+}
+
+if (-not (Get-Command forge -ErrorAction SilentlyContinue))
+{
+    Write-Error "forge was not found on PATH. Build it with: python3 Tools/Forge/build.py"
+    exit 1
 }
 
 forge @PassThrough

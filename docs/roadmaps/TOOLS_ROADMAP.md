@@ -1,49 +1,66 @@
-# SagaEngine — Tools Roadmap (Index + Isolation Policy)
+# SagaEngine — Tooling Ecosystem Roadmap
 
+> Last updated: 2026-05-14  
+> Target: Tool ownership, boundaries, and product relationship for SagaEngine’s external and internal tooling.
 
+---
 
+## 1. Purpose
 
+This document is the index for SagaEngine’s tool ecosystem.
+
+It does not replace individual tool roadmaps. Each production tool owns its own detailed roadmap inside its tool directory.
+
+This document answers:
+
+- which tools exist,
+- what each tool is responsible for,
+- whether the tool is product-facing or developer-facing,
+- how the tool relates to Saga,
+- which boundaries must not be crossed.
+
+SagaEngine tooling must stay useful without turning into a second engine, second editor, or hidden product shell.
+
+---
+
+## 2. Tooling Principles
 
 
 
 ---
 
-## Anchor tools
+## 3. Tool Inventory
 
 
 
 ---
 
-## Strict Isolation Policy
-
-**Tools may NOT live inside `Editor/`, `Engine/`, `Server/`, `Backends/`, or `Apps/`.** Every tool folder is self-contained:
-
-```
-Tools/<ToolName>/
-├── include/<ToolHeader>/      ← public headers
-├── src/<ToolHeader>/          ← implementation
-├── README.md                  ← stand-alone repo readme (lives WITH the tool)
-├── <TOOL>_ROADMAP.md          ← travels with the tool when split off
-└── tests/                     ← optional self-contained test suite
-```
-
-**Edge rules** (a single violation is a code-review block):
 
 
 
----
 
-## Why two tools, why now
+It owns:
+
+- schema and data loading,
+- validation,
+- structured diagnostics,
+- deterministic compiled graph output,
+- artifact hashes,
+- dependency manifests,
+- immutable runtime graph contracts.
 
 
 
-These tools also do *not* belong inside the editor or the engine. They
-have separate concerns, separate consumers (CI, content authors, future
-third-party studios), and a real chance of being independently useful
-to projects that do not use the rest of the engine. Building them
-inside `Tools/` from day one is what keeps that possibility open.
+- editor UI,
+- product shell,
+- runtime mutation,
+- server authority,
+- collaboration sessions,
+- project lifecycle.
 
----
+Rules:
 
-## Where to look next
+
+
+Detailed roadmap:
 

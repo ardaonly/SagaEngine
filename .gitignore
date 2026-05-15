@@ -44,6 +44,7 @@ cache/conan/*
 *.sdf
 *.VC.db
 *.VC.opendb
+CMakeUserPresets.json
 *.CMakeUserPresets.json
 CMakeUserPresets
 
@@ -53,6 +54,8 @@ CMakeUserPresets
 *.user
 *.suo
 .idea/
+.agents/
+.codex/
 
 .DS_Store
 Thumbs.db
@@ -70,3 +73,5 @@ Thirdparty/
 
 cache/sccache/*
 cache
+
+.core/export/state/

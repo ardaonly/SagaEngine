@@ -17,6 +17,14 @@
       "license": "Apache-2.0"
     },
     {
+      "pattern": "Shared/**",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "Collaboration/**",
+      "license": "Apache-2.0"
+    },
+    {
       "pattern": "Backends/**",
       "license": "Apache-2.0"
     },
@@ -45,6 +53,10 @@
       "license": "Apache-2.0"
     },
     {
+      "pattern": "core/export/**",
+      "license": "Apache-2.0"
+    },
+    {
       "pattern": "Apps/Client/**",
       "license": "Apache-2.0"
     },
@@ -58,6 +70,14 @@
     },
     {
       "pattern": "Apps/RenderClientSmokeTest/**",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "Apps/Runtime/**",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "Apps/Saga/**",
       "license": "Apache-2.0"
     },
     {
@@ -113,11 +133,23 @@
       "license": "Apache-2.0"
     },
     {
+      "pattern": "VERSION",
+      "license": "Apache-2.0"
+    },
+    {
       "pattern": "forge.toml",
       "license": "Apache-2.0"
     },
     {
+      "pattern": "forge.lock",
+      "license": "Apache-2.0"
+    },
+    {
       "pattern": "build.ps1",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "export.sh",
       "license": "Apache-2.0"
     },
     {

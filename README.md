@@ -83,7 +83,44 @@ Run the boundary report locally with:
 
 ```sh
 python3 Tools/scripts/report_boundary_status.py --repo-root .
+python3 Tools/scripts/check_qt_boundary.py .
+python3 Tools/scripts/check_engine_server_boundary.py --repo-root .
 ```
+
+The Engine-to-Server check enforces zero `SagaServer` references in public
+`SagaEngine` headers. Packet primitives are engine-owned; shared replication
+wire data lives in `SagaShared`.
+
+## Tool mirror export
+
+
+
+```sh
+./export.sh --dry-run
+./export.sh --tool Prism
+./export.sh --since HEAD~1
+```
+
+The export state cache is written under `.core/export/state/` and is ignored by
+git. GitHub Actions uses the same manifest, so adding another mirrorable tool is
+a manifest-only change plus creating the target repository/token access.
+
+## Host automation
+
+`Tools/Host` provides a small Docker Compose wrapper for local server hosting:
+
+```sh
+tools host start
+tools host stop
+tools host restart
+tools host rebuild
+tools host logs
+tools host status
+```
+
+The direct script entry point is `Tools/Host/host.sh`. It manages Postgres,
+Redis, and the local `SagaServer` container without deleting Docker volumes as
+part of normal stop/restart commands.
 
 ## Build system
 
@@ -102,10 +139,10 @@ SagaEngine is built through **Forge**. See `Tools/Forge/README.md` for full docu
 Forge is a standalone binary. Build it once, then add it to your `PATH`.
 
 ```sh
-python3 Tools/Forge/tool/build.py
+python3 Tools/Forge/build.py
 ```
 
-The binary is staged at `Tools/Forge/tool/bin/forge`. Verify with:
+The binary is staged at `Tools/Forge/bin/forge`. Verify with:
 
 ```sh
 forge --version
@@ -115,16 +152,16 @@ forge --version
 
 Run all commands from the repository root.
 
-**Windows (MSVC):**
+**Windows (Visual Studio Developer PowerShell):**
 
 ```powershell
-.\build.ps1 install --profile windows-msvc
-.\build.ps1 configure --preset windows-msvc-14.38
-.\build.ps1 build
+forge install --profile windows-msvc
+forge configure --preset windows-msvc-14.38
+forge build
 ```
 
-`build.ps1` initializes the MSVC environment and forwards every argument to
-`forge`. Anything below works through it as well.
+`build.ps1` is kept only as a legacy compatibility wrapper for older automation.
+New commands should call `forge` directly from a Visual Studio Developer shell.
 
 **Linux:**
 
@@ -133,6 +170,27 @@ forge install --profile linux-gcc
 forge configure --preset linux-gcc
 forge build
 ```
+
+On NixOS, run project toolchain commands from `nix-shell`, or use the explicit
+wrapper form. The word after `forge nix` must be the Forge command to run:
+
+```sh
+forge nix install --profile linux-gcc
+forge nix configure --preset linux-gcc
+forge nix build
+```
+
+Do not run `forge nix --preset linux-gcc`; `--preset` is an option for the
+`configure` command, so the command name must come first.
+
+Normal `forge install/configure/build` commands fail fast outside `nix-shell`
+instead of silently re-entering the environment.
+
+The repository default is intentionally conservative: `forge.toml` sets
+`jobs = 2`, and Forge clamps requested jobs through CPU/RAM safety limits.
+Use `forge build --jobs=N` or `forge install --jobs=N` to request more
+parallel work; use `--force-unsafe-jobs` only when you explicitly accept the
+memory pressure risk.
 
 **macOS:**
 
@@ -148,7 +206,9 @@ forge build
 # Build a specific target
 forge build --target SagaEngine
 forge build --target SagaEditor
+forge build --target SagaRuntime
 forge build --target SagaServer
+forge build --target SagaDistribution
 
 # Debug build
 forge build --config Debug
@@ -166,3 +226,25 @@ forge run conan install . --profile:host=profiles/linux-gcc --build=missing
 
 ### Tips
 
+
+
+### Production Distribution
+
+`SagaDistribution` stages the shipped SAGA product layout under
+`build/RelWithDebInfo/dist/SAGA-<Platform>-v0.0.8/`. It is a composition target:
+it does not compile engine logic of its own, and only packages existing shipped
+artifacts.
+
+The staged layout keeps role binaries in `bin/`; app-local runtime libraries are
+placed under `lib/` on Unix-like platforms and next to the executables on
+Windows where DLL lookup expects that shape.
+
+Shipped role binaries:
+
+- `Saga` — product orchestration entry point.
+- `SagaEditor` — primary authoring product.
+- `SagaRuntime` — runtime/player role.
+- `SagaServer` — dedicated backend role.
+
+`SagaClient` remains a legacy development alias and is never included in the
+production distribution.
