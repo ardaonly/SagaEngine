@@ -4,9 +4,11 @@
 #pragma once
 
 #include "SagaAppConfig.h"
+#include "SagaProcessLauncher.h"
 #include "SagaProductHost.h"
 #include "SagaWorkspaceResolver.h"
 
+#include <memory>
 #include <ostream>
 
 namespace SagaProduct
@@ -16,6 +18,9 @@ namespace SagaProduct
 class SagaApp
 {
 public:
+    SagaApp();
+    explicit SagaApp(std::unique_ptr<ISagaProcessLauncher> processLauncher);
+
     /// Execute the GUI product shell or the explicit prepare-only diagnostic.
     [[nodiscard]] int Run(int argc,
                           char* argv[],
@@ -31,6 +36,7 @@ public:
 private:
     SagaWorkspaceResolver m_workspaceResolver;
     SagaProductHost       m_productHost;
+    std::unique_ptr<ISagaProcessLauncher> m_processLauncher;
 };
 
 } // namespace SagaProduct
