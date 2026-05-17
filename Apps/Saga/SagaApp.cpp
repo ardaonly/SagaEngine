@@ -28,6 +28,8 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <string>
+#include <utility>
 
 namespace SagaProduct
 {
@@ -36,6 +38,45 @@ namespace
 
 constexpr int kExitOk = 0;
 constexpr int kExitStartupFailure = 1;
+
+[[nodiscard]] std::filesystem::path ResolvePreparedExecutablePath(
+    const SagaAppConfig& config,
+    const SagaPreparedTarget& prepared)
+{
+    std::filesystem::path executablePath = prepared.executableName;
+    if (executablePath.is_relative() && !config.executablePath.empty())
+    {
+        executablePath = config.executablePath.parent_path() / executablePath;
+    }
+#if defined(_WIN32)
+    if (executablePath.extension().empty() &&
+        !std::filesystem::exists(executablePath))
+    {
+        executablePath += ".exe";
+    }
+#endif
+    return executablePath;
+}
+
+[[nodiscard]] SagaProcessLaunchRequest MakeLaunchRequest(
+    const SagaAppConfig& config,
+    const SagaPreparedTarget& prepared)
+{
+    SagaProcessLaunchRequest request;
+    request.target = prepared.kind;
+    request.executablePath = ResolvePreparedExecutablePath(config, prepared);
+    request.arguments = prepared.arguments;
+    request.workingDirectory = request.executablePath.parent_path();
+    return request;
+}
+
+[[nodiscard]] bool ShouldUsePreparationFlow(
+    const SagaAppConfig& config) noexcept
+{
+    return config.prepareOnly ||
+        config.target == SagaProductTargetKind::Runtime ||
+        config.target == SagaProductTargetKind::Server;
+}
 
 void ConfigureBundledRuntimeEnvironment(const SagaAppConfig& config)
 {
@@ -372,7 +413,31 @@ private:
     SagaEditorModule m_editorModule;
 };
 
+void WriteProductDiagnostic(std::ostream& output,
+                            const SagaProductDiagnostic& diagnostic)
+{
+    output << "diagnostic.id=" << diagnostic.diagnosticId << '\n';
+    output << "diagnostic.target=" << ToString(diagnostic.target) << '\n';
+    output << "diagnostic.phase=" << ToString(diagnostic.phase) << '\n';
+    output << "diagnostic.message=" << diagnostic.message << '\n';
+    if (diagnostic.path.has_value())
+    {
+        output << "diagnostic.path=" << diagnostic.path->string() << '\n';
+    }
+}
+
 } // namespace
+
+SagaApp::SagaApp()
+    : SagaApp(std::make_unique<SagaProcessLauncher>())
+{
+}
+
+SagaApp::SagaApp(std::unique_ptr<ISagaProcessLauncher> processLauncher)
+    : m_processLauncher(processLauncher ?
+          std::move(processLauncher) : std::make_unique<SagaProcessLauncher>())
+{
+}
 
 int SagaApp::Run(int argc,
                  char* argv[],
@@ -380,7 +445,7 @@ int SagaApp::Run(int argc,
                  std::ostream& out,
                  std::ostream& err)
 {
-    if (config.prepareOnly)
+    if (ShouldUsePreparationFlow(config))
     {
         return Run(config, out, err);
     }
@@ -424,14 +489,58 @@ int SagaApp::Run(const SagaAppConfig& config,
     SagaSessionModel session;
     session.workspace = workspaceResult.workspace;
     session.target = config.target;
+    session.packageManifestPath = config.packageManifestPath;
 
-    const SagaPreparedTarget prepared = m_productHost.PrepareTarget(session);
+    const SagaTargetPreparationResult preparation =
+        m_productHost.PrepareTargetWithDiagnostics(session);
+    if (!preparation.ok)
+    {
+        for (const SagaProductDiagnostic& diagnostic : preparation.diagnostics)
+        {
+            WriteProductDiagnostic(err, diagnostic);
+        }
+        return kExitStartupFailure;
+    }
+
+    const SagaPreparedTarget& prepared = preparation.target;
     out << productInfo.productName << " " << productInfo.buildVersion << '\n';
     out << "workspace=" << prepared.workspace.id << '\n';
     out << "target=" << ToString(prepared.kind) << '\n';
     out << "executable=" << prepared.executableName << '\n';
     out << "module=" << prepared.moduleName << '\n';
     out << "sameProcess=" << (prepared.sameProcess ? "true" : "false") << '\n';
+    for (const std::string& argument : prepared.arguments)
+    {
+        out << "argument=" << argument << '\n';
+    }
+
+    if (config.prepareOnly || prepared.kind == SagaProductTargetKind::Editor)
+    {
+        return kExitOk;
+    }
+
+    const SagaProcessLaunchRequest launchRequest =
+        MakeLaunchRequest(config, prepared);
+    const SagaProcessLaunchResult launchResult =
+        m_processLauncher->Launch(launchRequest, out, err);
+    for (const SagaProductDiagnostic& diagnostic : launchResult.diagnostics)
+    {
+        WriteProductDiagnostic(err, diagnostic);
+    }
+    if (launchResult.started)
+    {
+        out << "launch.exitCode=" << launchResult.exitCode << '\n';
+    }
+
+    if (!launchResult.started)
+    {
+        return kExitStartupFailure;
+    }
+    if (!launchResult.ok)
+    {
+        return launchResult.exitCode == 0 ?
+            kExitStartupFailure : launchResult.exitCode;
+    }
     return kExitOk;
 }
 

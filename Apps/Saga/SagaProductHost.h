@@ -17,6 +17,10 @@ public:
     /// Build the same-process module boundary for the requested session.
     [[nodiscard]] SagaPreparedTarget PrepareTarget(
         const SagaSessionModel& session) const;
+
+    /// Validate and build the same-process module boundary for the requested session.
+    [[nodiscard]] SagaTargetPreparationResult PrepareTargetWithDiagnostics(
+        const SagaSessionModel& session) const;
 };
 
 } // namespace SagaProduct

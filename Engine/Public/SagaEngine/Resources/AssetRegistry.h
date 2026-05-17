@@ -42,7 +42,9 @@
 #include "SagaEngine/Resources/StreamingRequest.h"
 
 #include <cstdint>
+#include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -55,6 +57,7 @@ namespace SagaEngine::Resources {
 struct AssetRegistryEntry
 {
     AssetId         assetId    = kInvalidAssetId;
+    std::string     assetKey;         ///< Optional canonical manifest key for diagnostics and tooling.
     AssetKind       kind       = AssetKind::Unknown;
     std::string     sourcePath;        ///< Relative to the asset root.
     std::uint32_t   flags      = 0;    ///< Bitmask — see `AssetFlags`.
@@ -94,6 +97,42 @@ inline constexpr std::uint32_t kEditorOnly = 1u << 3;
 inline constexpr std::uint32_t kPrefetch = 1u << 4;
 
 } // namespace AssetFlags
+
+// ─── Registry diagnostics ─────────────────────────────────────────────────
+
+namespace AssetRegistryDiagnostics {
+
+inline constexpr const char* InvalidAssetId =
+    "Runtime.AssetRegistry.InvalidAssetId";
+inline constexpr const char* DuplicateAssetId =
+    "Runtime.AssetRegistry.DuplicateAssetId";
+inline constexpr const char* DuplicateAssetKey =
+    "Runtime.AssetRegistry.DuplicateAssetKey";
+
+} // namespace AssetRegistryDiagnostics
+
+/// Result of a checked registry insertion.
+struct AssetRegistryInsertResult
+{
+    bool inserted = false;              ///< True when the registry was mutated.
+    std::string diagnosticId;           ///< Stable Runtime.AssetRegistry.* diagnostic id on failure.
+    std::string message;                ///< Human-readable failure message.
+    AssetId assetId = kInvalidAssetId;  ///< Asset id involved in the result.
+    std::string assetKey;               ///< Asset key involved in the result.
+
+    /// Return true when the entry was inserted.
+    [[nodiscard]] bool Succeeded() const noexcept { return inserted; }
+};
+
+/// Result of an all-or-nothing registry batch insertion.
+struct AssetRegistryBatchInsertResult
+{
+    std::size_t insertedCount = 0;                    ///< Number of entries inserted into the registry.
+    std::vector<AssetRegistryInsertResult> diagnostics; ///< Stable Runtime.AssetRegistry.* failures.
+
+    /// Return true when every entry was inserted.
+    [[nodiscard]] bool Succeeded() const noexcept { return diagnostics.empty(); }
+};
 
 // ─── Manifest file format (JSON) ───────────────────────────────────────────
 
@@ -142,6 +181,13 @@ public:
     /// entry with the same id already exists, it is overwritten.
     void Insert(AssetRegistryEntry entry);
 
+    /// Insert one entry only when its id and key are not already registered.
+    [[nodiscard]] AssetRegistryInsertResult TryInsert(AssetRegistryEntry entry);
+
+    /// Insert entries only when the whole batch is valid for the current registry.
+    [[nodiscard]] AssetRegistryBatchInsertResult TryInsertAll(
+        std::vector<AssetRegistryEntry> entries);
+
     /// Clear all entries.  Used at shutdown and by tests.
     void Clear() noexcept;
 
@@ -151,6 +197,9 @@ public:
     /// present — the pointer is valid for the lifetime of the
     /// registry (which is immovable after population).
     [[nodiscard]] const AssetRegistryEntry* Find(AssetId assetId) const noexcept;
+
+    /// Look up an asset by canonical manifest key.
+    [[nodiscard]] const AssetRegistryEntry* FindByKey(std::string_view assetKey) const noexcept;
 
     /// Look up all assets of a given kind.  The returned slice
     /// points into the registry's internal storage and is valid
@@ -175,6 +224,7 @@ private:
     /// Primary lookup table — id → entry.  Stored as `unique_ptr`
     /// so the `Find()` pointer contract holds across rehashes.
     std::unordered_map<AssetId, std::unique_ptr<AssetRegistryEntry>> entriesBy_;
+    std::unordered_map<std::string, AssetId> assetIdsByKey_;
 };
 
 } // namespace SagaEngine::Resources

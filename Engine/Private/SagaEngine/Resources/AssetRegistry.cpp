@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <unordered_map>
+#include <utility>
 
 namespace SagaEngine::Resources {
 
@@ -161,6 +163,11 @@ constexpr const char* kLogTag = "Resources";
             if (!p) return nullptr;
             entry.assetId = val;
         }
+        else if (key == "key")
+        {
+            p = ParseString(p, entry.assetKey, outError);
+            if (!p) return nullptr;
+        }
         else if (key == "kind")
         {
             std::string val;
@@ -211,6 +218,21 @@ constexpr const char* kLogTag = "Resources";
 }
 
 } // namespace
+
+// ─── Insert diagnostics ────────────────────────────────────────────────────
+
+[[nodiscard]] AssetRegistryInsertResult MakeInsertFailure(
+    const char* diagnosticId,
+    std::string message,
+    const AssetRegistryEntry& entry)
+{
+    AssetRegistryInsertResult result;
+    result.diagnosticId = diagnosticId;
+    result.message = std::move(message);
+    result.assetId = entry.assetId;
+    result.assetKey = entry.assetKey;
+    return result;
+}
 
 // ─── LoadFromJson ──────────────────────────────────────────────────────────
 
@@ -327,17 +349,148 @@ void AssetRegistry::Insert(AssetRegistryEntry entry)
     auto it = entriesBy_.find(entry.assetId);
     if (it != entriesBy_.end())
     {
+        if (!it->second->assetKey.empty())
+        {
+            assetIdsByKey_.erase(it->second->assetKey);
+        }
         // Overwrite existing entry.  This is intentional — the
         // caller may be reloading the manifest or patching an
         // entry at runtime.
         *it->second = std::move(entry);
+        if (!it->second->assetKey.empty())
+        {
+            assetIdsByKey_[it->second->assetKey] = it->second->assetId;
+        }
     }
     else
     {
         auto ptr    = std::make_unique<AssetRegistryEntry>(std::move(entry));
         auto* raw   = ptr.get();
+        if (!raw->assetKey.empty())
+        {
+            assetIdsByKey_[raw->assetKey] = raw->assetId;
+        }
         entriesBy_[raw->assetId] = std::move(ptr);
     }
+}
+
+// ─── TryInsert ─────────────────────────────────────────────────────────────
+
+AssetRegistryInsertResult AssetRegistry::TryInsert(AssetRegistryEntry entry)
+{
+    if (entry.assetId == kInvalidAssetId)
+    {
+        return MakeInsertFailure(
+            AssetRegistryDiagnostics::InvalidAssetId,
+            "AssetRegistry entry uses the invalid AssetId.",
+            entry);
+    }
+
+    if (entriesBy_.find(entry.assetId) != entriesBy_.end())
+    {
+        return MakeInsertFailure(
+            AssetRegistryDiagnostics::DuplicateAssetId,
+            "AssetRegistry already contains this AssetId.",
+            entry);
+    }
+
+    if (!entry.assetKey.empty() &&
+        assetIdsByKey_.find(entry.assetKey) != assetIdsByKey_.end())
+    {
+        return MakeInsertFailure(
+            AssetRegistryDiagnostics::DuplicateAssetKey,
+            "AssetRegistry already contains this asset key.",
+            entry);
+    }
+
+    const AssetId insertedAssetId = entry.assetId;
+    const std::string insertedAssetKey = entry.assetKey;
+    Insert(std::move(entry));
+
+    AssetRegistryInsertResult result;
+    result.inserted = true;
+    result.assetId = insertedAssetId;
+    result.assetKey = insertedAssetKey;
+    return result;
+}
+
+// ─── TryInsertAll ──────────────────────────────────────────────────────────
+
+AssetRegistryBatchInsertResult AssetRegistry::TryInsertAll(
+    std::vector<AssetRegistryEntry> entries)
+{
+    AssetRegistryBatchInsertResult result;
+    std::unordered_map<AssetId, std::size_t> batchIds;
+    std::unordered_map<std::string, std::size_t> batchKeys;
+
+    for (std::size_t index = 0; index < entries.size(); ++index)
+    {
+        const AssetRegistryEntry& entry = entries[index];
+        if (entry.assetId == kInvalidAssetId)
+        {
+            result.diagnostics.push_back(MakeInsertFailure(
+                AssetRegistryDiagnostics::InvalidAssetId,
+                "AssetRegistry batch entry uses the invalid AssetId.",
+                entry));
+            continue;
+        }
+
+        if (entriesBy_.find(entry.assetId) != entriesBy_.end())
+        {
+            result.diagnostics.push_back(MakeInsertFailure(
+                AssetRegistryDiagnostics::DuplicateAssetId,
+                "AssetRegistry already contains this AssetId.",
+                entry));
+        }
+
+        if (batchIds.find(entry.assetId) != batchIds.end())
+        {
+            result.diagnostics.push_back(MakeInsertFailure(
+                AssetRegistryDiagnostics::DuplicateAssetId,
+                "AssetRegistry batch contains this AssetId more than once.",
+                entry));
+        }
+        else
+        {
+            batchIds.emplace(entry.assetId, index);
+        }
+
+        if (!entry.assetKey.empty())
+        {
+            if (assetIdsByKey_.find(entry.assetKey) != assetIdsByKey_.end())
+            {
+                result.diagnostics.push_back(MakeInsertFailure(
+                    AssetRegistryDiagnostics::DuplicateAssetKey,
+                    "AssetRegistry already contains this asset key.",
+                    entry));
+            }
+
+            if (batchKeys.find(entry.assetKey) != batchKeys.end())
+            {
+                result.diagnostics.push_back(MakeInsertFailure(
+                    AssetRegistryDiagnostics::DuplicateAssetKey,
+                    "AssetRegistry batch contains this asset key more than once.",
+                    entry));
+            }
+            else
+            {
+                batchKeys.emplace(entry.assetKey, index);
+            }
+        }
+    }
+
+    if (!result.diagnostics.empty())
+    {
+        return result;
+    }
+
+    for (AssetRegistryEntry& entry : entries)
+    {
+        Insert(std::move(entry));
+        ++result.insertedCount;
+    }
+
+    return result;
 }
 
 // ─── Clear ─────────────────────────────────────────────────────────────────
@@ -345,6 +498,7 @@ void AssetRegistry::Insert(AssetRegistryEntry entry)
 void AssetRegistry::Clear() noexcept
 {
     entriesBy_.clear();
+    assetIdsByKey_.clear();
 }
 
 // ─── Find ──────────────────────────────────────────────────────────────────
@@ -353,6 +507,19 @@ const AssetRegistryEntry* AssetRegistry::Find(AssetId assetId) const noexcept
 {
     auto it = entriesBy_.find(assetId);
     return (it != entriesBy_.end()) ? it->second.get() : nullptr;
+}
+
+// ─── FindByKey ─────────────────────────────────────────────────────────────
+
+const AssetRegistryEntry* AssetRegistry::FindByKey(std::string_view assetKey) const noexcept
+{
+    const auto keyIt = assetIdsByKey_.find(std::string(assetKey));
+    if (keyIt == assetIdsByKey_.end())
+    {
+        return nullptr;
+    }
+
+    return Find(keyIt->second);
 }
 
 // ─── FindByKind ────────────────────────────────────────────────────────────
