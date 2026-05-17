@@ -30,6 +30,7 @@ struct SagaAppConfig
     std::filesystem::path executablePath;
     std::filesystem::path versionInfoPath;
     std::filesystem::path builtInWorkspaceRoot;
+    std::optional<std::filesystem::path> packageManifestPath;
     std::string           workspaceSelector = "builtin:basic";
     SagaProductTargetKind target = SagaProductTargetKind::Editor;
     bool                  prepareOnly = false;

@@ -114,6 +114,7 @@ std::string SagaUsageText()
         "Usage: Saga [options]\n"
         "  --workspace <path|builtin:basic>  SDE workspace definition root\n"
         "  --target <editor|runtime|server>  Product role to prepare\n"
+        "  --package-manifest <path>         Startup package manifest for runtime/server targets\n"
         "  --version-info <path>             Distribution version.json path\n"
         "  --prepare-only                    Dev diagnostic: validate and print target prep\n"
         "  --help                            Show this help\n";
@@ -178,6 +179,16 @@ SagaConfigResult ParseSagaAppConfig(int argc, char* argv[])
                 return result;
             }
             result.config.versionInfoPath = argv[++i];
+        }
+        else if (arg == "--package-manifest")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --package-manifest requires a path";
+                return result;
+            }
+            result.config.packageManifestPath = std::filesystem::path(argv[++i]);
         }
         else if (arg == "--prepare-only")
         {

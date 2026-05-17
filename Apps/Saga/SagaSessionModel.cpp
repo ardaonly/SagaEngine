@@ -37,4 +37,16 @@ bool ParseTargetKind(const std::string& text, SagaProductTargetKind& out) noexce
     return false;
 }
 
+const char* ToString(SagaProductDiagnosticPhase phase) noexcept
+{
+    switch (phase)
+    {
+        case SagaProductDiagnosticPhase::Config:              return "config";
+        case SagaProductDiagnosticPhase::WorkspaceResolution: return "workspace_resolution";
+        case SagaProductDiagnosticPhase::TargetPreparation:   return "target_preparation";
+        case SagaProductDiagnosticPhase::StartupHandoff:      return "startup_handoff";
+    }
+    return "unknown";
+}
+
 } // namespace SagaProduct
