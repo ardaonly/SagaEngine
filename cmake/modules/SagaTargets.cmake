@@ -16,6 +16,7 @@ function(saga_create_engine_targets)
     saga_collect_sources(SERVER_SOURCES   Server/src)
     saga_collect_sources(SANDBOX_SOURCES  Apps/Sandbox/src)
     saga_collect_sources(EDITOR_SOURCES   Editor/src)
+    saga_collect_sources(EDITORLAB_SOURCES Apps/EditorLab/src)
     saga_collect_sources(SAGA_PRODUCT_SOURCES Apps/Saga)
     saga_collect_sources(CORE_LOG_SOURCES Engine/Private/SagaEngine/Core/Log)
     saga_collect_sources(DIAGNOSTICS_SOURCES Engine/Private/SagaEngine/Diagnostics)
@@ -434,6 +435,39 @@ function(saga_create_engine_targets)
 
     set_target_properties(SagaEditor PROPERTIES
         OUTPUT_NAME "SagaEditor"
+        FOLDER      "Apps"
+    )
+
+    # ─── EditorLab Executable ────────────────────────────────────────────────
+    # Development-only lab surface for deterministic editor scenario experiments.
+    qt_add_executable(EditorLab WIN32
+        ${SAGA_ROOT}/Apps/EditorLab/main.cpp
+        ${SAGA_ROOT}/Apps/EditorLab/EditorLabQtStaticPlugins.cpp
+        ${EDITORLAB_SOURCES}
+    )
+
+    target_include_directories(EditorLab PRIVATE
+        ${SAGA_ROOT}/Apps/EditorLab/include
+        ${SAGA_ROOT}/Apps/EditorLab/src
+    )
+
+    saga_apply_compiler_flags(EditorLab)
+
+    target_link_libraries(EditorLab PRIVATE
+        Qt6::Core
+        Qt6::Widgets
+    )
+    if(TARGET qt::qt)
+        target_link_libraries(EditorLab PRIVATE qt::qt)
+    elseif(TARGET Qt6::QXcbIntegrationPlugin)
+        target_link_libraries(EditorLab PRIVATE Qt6::QXcbIntegrationPlugin)
+    endif()
+    if(COMMAND qt_import_plugins AND TARGET Qt6::QXcbIntegrationPlugin)
+        qt_import_plugins(EditorLab INCLUDE Qt6::QXcbIntegrationPlugin)
+    endif()
+
+    set_target_properties(EditorLab PROPERTIES
+        OUTPUT_NAME "EditorLab"
         FOLDER      "Apps"
     )
 
