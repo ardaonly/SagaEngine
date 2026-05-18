@@ -89,6 +89,16 @@ Short summary:
 - Added AssetRegistry all-or-nothing batch insertion for package bootstrap and registry tests.
 - Added Runtime.AssetRegistryBootstrap.* diagnostics for package-wide duplicate AssetKeys, duplicate resolved AssetIds, and existing registry collisions.
 - Added focused RuntimeAssetRegistryBootstrapper tests for client/server packages, multi-manifest atomic registration, package-relative refs, asset path resolution, asset file validation policy, manifest loader failures, duplicate/collision handling, and no partial registry mutation.
+- Added EditorLab ScenarioDefinition, ScenarioRunner, and IScenarioRuntimeAdapter as a deterministic headless scenario execution layer.
+- Added ScenarioResult verdict helper implementation and adapter result builders for EditorLab scenario execution.
+- Added focused EditorLabScenarioRunnerTests for successful execution, assertions, snapshot capture, adapter delegation, failure stop policy, diagnostic accumulation, missing state handling, result counts, and built-in scenario execution through a fake adapter.
+- Added built-in EditorLab scenario definitions for the profile switch and customization precedence scenarios.
+- Added DeterministicScenarioRuntimeAdapter for local scenario execution without a real EditorHost adapter.
+- Added ScenarioRunnerPanelViewModel as the Qt-free controller/view-model for visible scenario selection and execution.
+- Added a standalone Qt EditorLab Scenario Runner panel with scenario list, selected scenario details, Run button, verdict/status, step counts, warning/error counts, diagnostics rows, and snapshot rows.
+- Added the development-only EditorLab executable target.
+- Added static Qt xcb platform plugin import/link wiring for the standalone EditorLab executable so it can start without an external Qt plugin search path.
+- Added focused view-model/controller tests for scenario list population, selection metadata, successful deterministic execution, failing diagnostics, result counts, snapshot summary, and deterministic adapter execution.
 ```
 
 Use this section for newly added systems, files, modules, commands, manifests, reports, diagnostics, contracts, or tests.
@@ -134,6 +144,12 @@ Example:
 - Changed AssetManifestRegistryAdapter registration to use a planning step plus AssetRegistry batch insertion so registration remains all-or-nothing.
 - Kept RuntimeStartupGate validation-only; package asset registry bootstrap is a separate caller-driven runtime resource preparation step.
 - Kept package and asset manifest schemas unchanged; RuntimeAssetRegistryBootstrapper requires a caller-supplied IAssetIdResolver and does not define a production identity mapping source.
+- Changed EditorLab built-in scenario data from static step-list-only coverage into runner-exercised scenarios through a test adapter.
+- Kept EditorLab scenario execution independent from Qt, Saga product lifecycle, runtime/server startup, and SagaEditor private implementation details.
+- Changed EditorLab from test-only scenario runner code to a visible standalone lab surface while keeping the runner/controller separate from Qt UI.
+- Kept the visible panel on a fake/deterministic local adapter only; no real EditorHost-backed adapter was introduced.
+- Fixed the initial EditorLab target compile failure by including QWidget where the standalone entry point calls show().
+- Changed EditorLab executable linkage to mirror Saga's static Qt platform plugin pattern for QXcbIntegrationPlugin.
 ```
 
 Use this section for modified behavior.
@@ -188,6 +204,23 @@ Engine/Public/SagaEngine/Resources/RuntimeAssetRegistryBootstrapper.h
 Engine/Private/SagaEngine/Resources/RuntimeAssetRegistryBootstrapper.cpp
 Engine/Public/SagaEngine/Resources/AssetRegistry.h
 Engine/Private/SagaEngine/Resources/AssetRegistry.cpp
+Apps/EditorLab/include/SagaEditorLab/Scenario/ScenarioDefinition.h
+Apps/EditorLab/include/SagaEditorLab/Scenario/BuiltinScenarioDefinitions.h
+Apps/EditorLab/include/SagaEditorLab/Scenario/DeterministicScenarioRuntimeAdapter.h
+Apps/EditorLab/include/SagaEditorLab/Scenario/ScenarioRunner.h
+Apps/EditorLab/include/SagaEditorLab/Scenario/ScenarioRuntimeAdapter.h
+Apps/EditorLab/include/SagaEditorLab/UI/ScenarioRunnerPanelViewModel.h
+Apps/EditorLab/EditorLabQtStaticPlugins.cpp
+Apps/EditorLab/main.cpp
+Apps/EditorLab/src/SagaEditorLab/BuiltinScenarioDefinitions.cpp
+Apps/EditorLab/src/SagaEditorLab/DeterministicScenarioRuntimeAdapter.cpp
+Apps/EditorLab/src/SagaEditorLab/ScenarioRunnerPanel.cpp
+Apps/EditorLab/src/SagaEditorLab/ScenarioRunnerPanel.h
+Apps/EditorLab/src/SagaEditorLab/ScenarioRunnerPanelViewModel.cpp
+Apps/EditorLab/src/SagaEditorLab/ScenarioResult.cpp
+Apps/EditorLab/src/SagaEditorLab/ScenarioRunner.cpp
+Apps/EditorLab/src/SagaEditorLab/ScenarioRuntimeAdapter.cpp
+cmake/modules/SagaTargets.cmake
 Engine/Public/SagaEngine/Packages/PackageManifest.hpp
 Engine/Public/SagaEngine/Packages/PackageManifestLoader.hpp
 Engine/Public/SagaEngine/Packages/PackageStartupValidator.hpp
@@ -215,6 +248,7 @@ Tests/Unit/Runtime/RuntimeAssetRegistryBootstrapperTests.cpp
 Tests/Unit/Runtime/PackageManifestLoaderTests.cpp
 Tests/Unit/Runtime/RuntimeStartupGateTests.cpp
 Tests/Unit/Saga/SagaProductTests.cpp
+Tests/Unit/Editor/EditorLabScenarioRunnerTests.cpp
 docs/dev/ITERATION_NOTES.md
 ```
 
@@ -251,6 +285,10 @@ Allowed:
 - Runtime may preserve resolved runtime cooked-loadable asset paths in AssetRegistryEntry::sourcePath when registering manifest assets.
 - Runtime may bootstrap package asset manifest references into AssetRegistry through RuntimeAssetRegistryBootstrapper when the caller supplies an explicit IAssetIdResolver.
 - RuntimeAssetRegistryBootstrapper may load package-referenced asset manifests, plan registry entries, validate package-wide identity collisions, and commit the registry batch only after full preflight succeeds.
+- EditorLab may execute scenario step data through a narrow runtime adapter supplied by tests or future editor-host integration.
+- EditorLab scenario execution may emit local ScenarioResult diagnostics for runner/assertion/adapter failures without introducing a shared diagnostics framework.
+- EditorLab may expose a standalone development/lab Qt panel for deterministic scenario execution visibility.
+- EditorLab UI may call a Qt-free ScenarioRunnerPanelViewModel/controller instead of calling ScenarioRunner directly from widget code.
 
 Forbidden:
 - Runtime/server must not include SDE compiler internals.
@@ -274,6 +312,10 @@ Forbidden:
 - AssetManifestRegistryAdapter must not load asset bytes, stream assets, enforce hashes, cook/import assets, mount package archives, discover package manifests, or integrate editor/SDE/Forge/Prism.
 - RuntimeAssetRegistryBootstrapper must not be called by RuntimeStartupGate in this slice.
 - RuntimeAssetRegistryBootstrapper must not define AssetKey to AssetId generation, package identity map schema, CLI identity map flags, asset byte loading, streaming/residency ownership, hash enforcement, archive mounting, import/cook behavior, or SDE/Forge/Prism integration.
+- EditorLab ScenarioRunner must not own Saga product lifecycle, Qt UI, runtime/server startup, Forge/SDE/Prism integration, asset import/cook, or SagaEditor private implementation details.
+- EditorLab ScenarioRunner must not dispatch directly into concrete editor systems except through IScenarioRuntimeAdapter.
+- The EditorLab Scenario Runner panel must not register as a production SagaEditor panel, mount into Saga product mode, or use a real EditorHost adapter in this slice.
+- The EditorLab deterministic adapter must not pretend to be real editor state, runtime state, project lifecycle, asset cooking, or tool integration.
 ```
 
 Example:
@@ -353,6 +395,8 @@ Diagnostics:
 - Runtime.AssetRegistryBootstrap.DuplicatePackageAssetId
 - Runtime.AssetRegistryBootstrap.RegistryAssetKeyCollision
 - Runtime.AssetRegistryBootstrap.RegistryAssetIdCollision
+- EditorLab ScenarioResult diagnostics are local in-memory scenario diagnostics for runner/assertion/adapter failures; no stable shared diagnostic ids or report schema were added.
+- EditorLab Scenario Runner panel displays ScenarioResult diagnostics in-process only; no report export or shared diagnostic payload was added.
 ```
 
 Manifests:
@@ -366,6 +410,8 @@ Manifests:
 - Asset identity and registry tests use temporary files for old AssetRegistry JSON compatibility.
 - AssetManifestRegistryAdapter tests use in-memory AssetManifest values and temporary directories/files only for path and no-read behavior.
 - RuntimeAssetRegistryBootstrapper tests use temporary package and asset manifest files only.
+- EditorLab scenario runner tests use in-memory fake adapter state only; no manifest or project schema was added.
+- EditorLab Scenario Runner panel uses built-in in-memory scenario definitions only; no scenario manifest format was added.
 ```
 
 Reports:
@@ -374,6 +420,8 @@ Reports:
 - No report format added.
 - No product diagnostic report format added; Saga product diagnostics are emitted as process output lines for this slice.
 - No process log aggregation report added.
+- No EditorLab scenario report format added.
+- No EditorLab panel report export was added.
 ```
 
 Example:
@@ -834,6 +882,116 @@ Notes:
 No whitespace or patch formatting problems found.
 ```
 
+```txt
+Command:
+Tools/Forge/bin/forge nix build --build=build/RelWithDebInfo --target=SagaUnitTests --jobs=1
+
+Result:
+Passed
+
+Notes:
+Built SagaUnitTests through Forge/Nix with serialized build parallelism for the EditorLab ScenarioRunner slice.
+```
+
+```txt
+Command:
+Tools/Forge/bin/forge nix run build/RelWithDebInfo/SagaUnitTests --gtest_filter=EditorLabScenarioRunnerTests.*:EditorLabProfileScenarioTest.*:EditorLabCustomizationScenarioTest.*:EditorProfileTest.*
+
+Result:
+Passed
+
+Notes:
+13 EditorLab/profile tests passed: 9 EditorLabScenarioRunnerTests, 2 EditorProfileTests, 1 EditorLabProfileScenarioTest, and 1 EditorLabCustomizationScenarioTest.
+```
+
+```txt
+Command:
+Tools/Forge/bin/forge nix build --build=build/RelWithDebInfo --target=SagaUnitTests --jobs=1
+
+Result:
+Passed
+
+Notes:
+Built SagaUnitTests through Forge/Nix with serialized build parallelism after adding the EditorLab Scenario Runner panel, deterministic adapter, view-model, and EditorLab target.
+```
+
+```txt
+Command:
+Tools/Forge/bin/forge nix run build/RelWithDebInfo/SagaUnitTests --gtest_filter=EditorLabScenarioRunnerTests.*:EditorLabProfileScenarioTest.*:EditorLabCustomizationScenarioTest.*:EditorProfileTest.*
+
+Result:
+Passed
+
+Notes:
+19 EditorLab/profile tests passed: 15 EditorLabScenarioRunnerTests, 2 EditorProfileTests, 1 EditorLabProfileScenarioTest, and 1 EditorLabCustomizationScenarioTest.
+```
+
+```txt
+Command:
+Tools/Forge/bin/forge nix build --build=build/RelWithDebInfo --target=EditorLab --jobs=1
+
+Result:
+Passed
+
+Notes:
+Built the standalone EditorLab Scenario Runner panel target with serialized build parallelism. The first attempt failed because main.cpp called QWidget::show() with only a forward declaration; adding the QWidget include fixed the target.
+```
+
+```txt
+Command:
+Tools/Forge/bin/forge nix build --build=build/RelWithDebInfo --target=EditorLab --jobs=1
+
+Result:
+Passed
+
+Notes:
+Rebuilt EditorLab after adding static Qt xcb platform plugin import/link wiring for the standalone lab executable.
+```
+
+```txt
+Command:
+ctest --test-dir build/RelWithDebInfo --output-on-failure
+
+Result:
+Not run
+
+Notes:
+Not run for this EditorLab slice to avoid overloading the local terminal/session; targeted Forge/Nix builds and filtered unit tests were run instead.
+```
+
+```txt
+Command:
+git diff --check
+
+Result:
+Passed
+
+Notes:
+No whitespace or patch formatting problems found after the EditorLab ScenarioRunner slice.
+```
+
+```txt
+Command:
+git diff --check
+
+Result:
+Passed
+
+Notes:
+No whitespace or patch formatting problems found after the EditorLab Scenario Runner panel slice.
+```
+
+```txt
+Command:
+git diff --check
+
+Result:
+Passed
+
+Notes:
+No whitespace or patch formatting problems found after the EditorLab Qt platform plugin startup fix.
+```
+
 Example:
 
 ```txt
@@ -886,7 +1044,7 @@ Implementation exists but was not tested yet.
 Reason:
 
 ```txt
-No roadmap files were updated in this task by request. Affected roadmaps are ASSET_PIPELINE_ROADMAP.md, ENGINE_ROADMAP.md, BUILD_PUBLISH_PIPELINE_ROADMAP.md, DIAGNOSTICS_ROADMAP.md, and SAGA_PRODUCT_ROADMAP.md.
+No roadmap files were updated in this task by request. Affected roadmaps are EDITOR_ROADMAP.md, SAGA_PRODUCT_ROADMAP.md, and DIAGNOSTICS_ROADMAP.md. Earlier runtime/resource work in this iteration also affects ASSET_PIPELINE_ROADMAP.md, ENGINE_ROADMAP.md, and BUILD_PUBLISH_PIPELINE_ROADMAP.md.
 ```
 
 ---
@@ -911,6 +1069,12 @@ No roadmap files were updated in this task by request. Affected roadmaps are ASS
 - Saga product does not discover package manifests from project schema or build outputs yet.
 - Saga product does not validate package file contents; runtime/server RuntimeStartupGate remains responsible for content validation.
 - Saga product diagnostics are intentionally narrow and do not normalize RuntimeStartupGate diagnostics emitted by child runtime/server processes yet.
+- EditorLab ScenarioRunner is intentionally adapter-only; no real EditorHost adapter, CLI, report writer, or Qt UI integration exists yet.
+- EditorLab ScenarioResult diagnostics are local runner diagnostics and are not normalized into the future shared diagnostics payload model yet.
+- EditorLab now has a standalone visible panel, but it is a lab target only and is not registered inside SagaEditor or Saga product mode.
+- EditorLab deterministic adapter is fake/local state only and does not validate real editor shell, project, asset, runtime, server, or tool behavior.
+- EditorLab Scenario Runner panel has controller/view-model tests, but no direct Qt widget automation yet.
+- EditorLab executable startup depends on the host display/session being able to use xcb; the code now imports the xcb Qt platform plugin, but locale/display environment issues remain host configuration.
 ```
 
 Example:
@@ -938,6 +1102,9 @@ Example:
 [ ] Decide package/build output identity mapping source before wiring package startup to RuntimeAssetRegistryBootstrapper automatically.
 [ ] Add production runtime/server registry bootstrap handoff after the resolver mapping source is documented.
 [ ] Re-run ctest on a machine/session that can tolerate full CTest execution without terminal aborts.
+[ ] Add a narrow EditorHost-backed EditorLab adapter using only SagaEditor public APIs.
+[ ] Add EditorLab scenario report output only after the runner/adapter contract is stable.
+[ ] Register a public SagaEditor-backed Scenario Runner panel only after the public adapter boundary is implemented.
 ```
 
 Example:
@@ -977,12 +1144,11 @@ Rules:
 ## 13. Next Iteration
 
 ```txt
-Next iteration: 0.0.8-dev.2
+Next iteration: 0.0.8-dev.3
 
 Possible focus:
-- Decide the package/build output source for AssetKey to AssetId resolver mappings, then wire RuntimeAssetRegistryBootstrapper into runtime/server startup without import/cook/streaming ownership changes.
-- Product-facing runtime/server child diagnostic capture once a narrow child diagnostic contract is defined.
-- Hash semantics for package, artifact, and asset manifest references after build/publish package semantics are clearer.
+- Add a narrow EditorHost-backed EditorLab adapter that maps ScenarioRunner operations onto public SagaEditor host/shell services without adding product lifecycle, Qt UI, or private editor dependencies.
+
 ```
 
 ````
