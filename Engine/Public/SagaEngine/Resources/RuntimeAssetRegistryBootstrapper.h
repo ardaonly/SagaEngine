@@ -36,20 +36,33 @@ struct RuntimeAssetRegistryBootstrapDiagnostic
     std::optional<std::filesystem::path> resolvedPath; ///< Resolved path involved in the diagnostic.
 };
 
-/// Result of registering one package's asset manifests into a registry.
+/// Result of validating or registering one package's asset manifests.
 struct RuntimeAssetRegistryBootstrapResult
 {
-    std::size_t registeredAssetCount = 0;                       ///< Number of registry entries inserted.
+    std::size_t registeredAssetCount = 0;                       ///< Number of registry entries inserted, if registration ran.
     std::vector<RuntimeAssetRegistryBootstrapDiagnostic> diagnostics; ///< Bootstrap diagnostics.
 
-    /// Return true when every package asset was registered.
+    /// Return true when package asset processing completed without diagnostics.
     [[nodiscard]] bool Succeeded() const noexcept { return diagnostics.empty(); }
 };
 
-/// Consumes validated package asset manifest references and populates AssetRegistry.
+/// Validates package asset manifests and populates AssetRegistry when requested.
 class RuntimeAssetRegistryBootstrapper
 {
 public:
+    /// Validate package asset identity coverage without mutating a registry.
+    [[nodiscard]] static RuntimeAssetRegistryBootstrapResult
+    ValidatePackageAssetsFromPackageIdentityManifest(
+        const Packages::PackageManifest& packageManifest,
+        const RuntimeAssetRegistryBootstrapOptions& options);
+
+    /// Register package assets using the package's assetIdentityManifest reference.
+    [[nodiscard]] static RuntimeAssetRegistryBootstrapResult
+    RegisterPackageAssetsFromPackageIdentityManifest(
+        AssetRegistry& registry,
+        const Packages::PackageManifest& packageManifest,
+        const RuntimeAssetRegistryBootstrapOptions& options);
+
     /// Register package assets after preflighting the complete package asset plan.
     [[nodiscard]] static RuntimeAssetRegistryBootstrapResult RegisterPackageAssets(
         AssetRegistry& registry,
@@ -68,6 +81,8 @@ inline constexpr const char* RegistryAssetKeyCollision =
     "Runtime.AssetRegistryBootstrap.RegistryAssetKeyCollision";
 inline constexpr const char* RegistryAssetIdCollision =
     "Runtime.AssetRegistryBootstrap.RegistryAssetIdCollision";
+inline constexpr const char* MissingAssetIdentityManifest =
+    "Runtime.AssetRegistryBootstrap.MissingAssetIdentityManifest";
 
 } // namespace RuntimeAssetRegistryBootstrapDiagnostics
 

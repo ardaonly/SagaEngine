@@ -14,12 +14,21 @@
 namespace SagaEditorLab
 {
 
+class IScenarioRuntimeAdapter;
+
 /// Scenario row shown by the runner panel.
 struct ScenarioRunnerScenarioItem
 {
     std::string id;              ///< Stable scenario id.
     std::string name;            ///< Display name.
     std::uint32_t stepCount = 0; ///< Number of scenario steps.
+};
+
+/// Runtime adapter row shown by the runner panel.
+struct ScenarioRunnerRuntimeModeItem
+{
+    std::string id;   ///< Stable runtime mode id.
+    std::string name; ///< Display name.
 };
 
 /// Diagnostic row projected from ScenarioResult.
@@ -57,7 +66,10 @@ class ScenarioRunnerPanelViewModel
 {
 public:
     ScenarioRunnerPanelViewModel();
+    explicit ScenarioRunnerPanelViewModel(IScenarioRuntimeAdapter& runtimeAdapter);
     explicit ScenarioRunnerPanelViewModel(std::vector<ScenarioDefinition> scenarios);
+    ScenarioRunnerPanelViewModel(std::vector<ScenarioDefinition> scenarios,
+                                 IScenarioRuntimeAdapter& runtimeAdapter);
 
     /// Return all selectable scenario rows.
     [[nodiscard]] std::vector<ScenarioRunnerScenarioItem> GetScenarioItems() const;
@@ -68,7 +80,16 @@ public:
     /// Return the selected scenario, or null when no scenario is selected.
     [[nodiscard]] const ScenarioDefinition* GetSelectedScenario() const noexcept;
 
-    /// Run the selected scenario through the deterministic local adapter.
+    /// Return all runtime modes available for this runner instance.
+    [[nodiscard]] std::vector<ScenarioRunnerRuntimeModeItem> GetRuntimeModeItems() const;
+
+    /// Return the selected runtime mode id.
+    [[nodiscard]] const std::string& GetSelectedRuntimeModeId() const noexcept;
+
+    /// Select a runtime mode by id.
+    [[nodiscard]] bool SelectRuntimeMode(const std::string& modeId);
+
+    /// Run the selected scenario through the selected runtime mode.
     [[nodiscard]] bool RunSelectedScenario();
 
     /// Run a scenario directly and store its result for display.
@@ -81,6 +102,8 @@ public:
 
 private:
     std::vector<ScenarioDefinition> m_scenarios;
+    IScenarioRuntimeAdapter* m_runtimeAdapter = nullptr;
+    std::string m_selectedRuntimeModeId = "deterministic";
     std::size_t m_selectedIndex = 0;
     bool m_hasSelection = false;
     ScenarioResult m_lastResult;

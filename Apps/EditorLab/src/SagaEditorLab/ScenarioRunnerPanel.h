@@ -12,11 +12,14 @@ class QWidget;
 namespace SagaEditorLab
 {
 
+class IScenarioRuntimeAdapter;
+
 /// Thin Qt panel that renders ScenarioRunnerPanelViewModel state.
 class ScenarioRunnerPanel final
 {
 public:
     ScenarioRunnerPanel();
+    explicit ScenarioRunnerPanel(IScenarioRuntimeAdapter& runtimeAdapter);
     ~ScenarioRunnerPanel();
 
     [[nodiscard]] QWidget* Widget() const noexcept;

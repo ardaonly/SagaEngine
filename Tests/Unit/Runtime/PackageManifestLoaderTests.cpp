@@ -80,6 +80,68 @@ TEST(PackageManifestLoaderTests, ValidManifestLoadsPackageMetadata)
     EXPECT_EQ(result.manifest.assetManifests[0].path, "Manifests/assets.json");
     ASSERT_EQ(result.manifest.artifactManifests.size(), 1u);
     EXPECT_EQ(result.manifest.artifactManifests[0].path, "Manifests/artifacts.json");
+    EXPECT_FALSE(result.manifest.assetIdentityManifest.has_value());
+}
+
+TEST(PackageManifestLoaderTests, AssetIdentityManifestFieldIsOptional)
+{
+    const auto path = WriteTempFile(
+        TempPath("saga_package_manifest_no_identity_ref.json"),
+        ValidPackageManifestJson());
+
+    const auto result = PackageManifestLoader::LoadFromFile(path);
+
+    ASSERT_TRUE(result.Succeeded());
+    EXPECT_FALSE(result.manifest.assetIdentityManifest.has_value());
+}
+
+TEST(PackageManifestLoaderTests, AssetIdentityManifestFieldParses)
+{
+    const auto path = WriteTempFile(
+        TempPath("saga_package_manifest_identity_ref.json"),
+        R"({
+  "schemaVersion": 1,
+  "packageId": "starter.client",
+  "packageKind": "client",
+  "buildProfile": "dev-client",
+  "targetPlatform": "linux",
+  "runtimeCompatibilityVersion": "0.0.8",
+  "assetIdentityManifest": "Manifests/asset_identity.json",
+  "assetManifests": [],
+  "artifactManifests": []
+})");
+
+    const auto result = PackageManifestLoader::LoadFromFile(path);
+
+    ASSERT_TRUE(result.Succeeded());
+    ASSERT_TRUE(result.manifest.assetIdentityManifest.has_value());
+    EXPECT_EQ(*result.manifest.assetIdentityManifest,
+              "Manifests/asset_identity.json");
+}
+
+TEST(PackageManifestLoaderTests, EscapingAssetIdentityManifestPathReturnsInvalidPath)
+{
+    const auto path = WriteTempFile(
+        TempPath("saga_package_manifest_identity_escape.json"),
+        R"({
+  "schemaVersion": 1,
+  "packageId": "starter.client",
+  "packageKind": "client",
+  "buildProfile": "dev-client",
+  "targetPlatform": "linux",
+  "runtimeCompatibilityVersion": "0.0.8",
+  "assetIdentityManifest": "../asset_identity.json",
+  "assetManifests": [],
+  "artifactManifests": []
+})");
+
+    const auto result = PackageManifestLoader::LoadFromFile(path);
+
+    ASSERT_FALSE(result.Succeeded());
+    ASSERT_EQ(result.errors.size(), 1u);
+    EXPECT_EQ(result.errors[0].diagnosticId, InvalidPath);
+    ASSERT_TRUE(result.errors[0].fieldName.has_value());
+    EXPECT_EQ(*result.errors[0].fieldName, "assetIdentityManifest");
 }
 
 TEST(PackageManifestLoaderTests, MissingFileReturnsManifestMissing)
@@ -179,6 +241,36 @@ TEST(PackageManifestLoaderTests, ReferencedManifestValidationReturnsFileMissing)
     ASSERT_EQ(result.errors.size(), 2u);
     EXPECT_EQ(result.errors[0].diagnosticId, FileMissing);
     EXPECT_EQ(result.errors[1].diagnosticId, FileMissing);
+}
+
+TEST(PackageManifestLoaderTests, ReferencedManifestValidationIncludesIdentityManifest)
+{
+    const auto path = WriteTempFile(
+        TempPath("saga_package_manifest_missing_identity_ref.json"),
+        R"({
+  "schemaVersion": 1,
+  "packageId": "starter.client",
+  "packageKind": "client",
+  "buildProfile": "dev-client",
+  "targetPlatform": "linux",
+  "runtimeCompatibilityVersion": "0.0.8",
+  "assetIdentityManifest": "Manifests/asset_identity.json",
+  "assetManifests": [],
+  "artifactManifests": []
+})");
+
+    PackageManifestLoadOptions options;
+    options.validateReferencedManifestFiles = true;
+    options.packageBaseDirectory =
+        TempPath("saga_package_manifest_missing_identity_ref_root");
+
+    const auto result = PackageManifestLoader::LoadFromFile(path, options);
+
+    ASSERT_FALSE(result.Succeeded());
+    ASSERT_EQ(result.errors.size(), 1u);
+    EXPECT_EQ(result.errors[0].diagnosticId, FileMissing);
+    ASSERT_TRUE(result.errors[0].fieldName.has_value());
+    EXPECT_EQ(*result.errors[0].fieldName, "assetIdentityManifest");
 }
 
 TEST(PackageManifestLoaderTests, ReferencedManifestValidationSucceedsWhenFilesExist)

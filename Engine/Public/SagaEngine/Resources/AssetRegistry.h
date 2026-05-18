@@ -59,7 +59,7 @@ struct AssetRegistryEntry
     AssetId         assetId    = kInvalidAssetId;
     std::string     assetKey;         ///< Optional canonical manifest key for diagnostics and tooling.
     AssetKind       kind       = AssetKind::Unknown;
-    std::string     sourcePath;        ///< Relative to the asset root.
+    std::string     sourcePath;        ///< Current resolved runtime/cooked path used by asset sources.
     std::uint32_t   flags      = 0;    ///< Bitmask — see `AssetFlags`.
 
     /// Approximate byte size on disk.  Used by the streaming budget
