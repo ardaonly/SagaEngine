@@ -21,6 +21,7 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules")
 # requirement is added by the engine's conanfile via -o &:with_sde=True.
 #
 option(SAGA_WITH_SDE "Link engine targets against the packaged SDE library" OFF)
+option(SAGA_WITH_EDITORLAB_DEV_PANEL "Mount the dev-only EditorLab panel in Saga editor mode" OFF)
 
 include(SagaVersioning)
 include(SagaCompilerFlags)

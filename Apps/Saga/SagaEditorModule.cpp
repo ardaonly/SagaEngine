@@ -22,6 +22,7 @@
 #include <iterator>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace SagaProduct
 {
@@ -87,6 +88,23 @@ void AddProductProjectMenu(SagaEditor::ShellLayout& layout)
     }
 
     return result.message;
+}
+
+[[nodiscard]] std::vector<EditorModePanelProvider>& EditorModePanelProviders()
+{
+    static std::vector<EditorModePanelProvider> providers;
+    return providers;
+}
+
+void ApplyEditorModePanelProviders(SagaEditor::EditorShell& shell)
+{
+    for (const EditorModePanelProvider& provider : EditorModePanelProviders())
+    {
+        if (provider)
+        {
+            provider(shell);
+        }
+    }
 }
 
 } // namespace
@@ -283,6 +301,7 @@ bool SagaEditorModule::Activate(QMainWindow& mainWindow,
     }
 
     m_impl->ConfigureProjectPanels();
+    ApplyEditorModePanelProviders(*m_impl->shell);
     m_impl->RegisterProductCommands();
     m_impl->ApplyProductShellLayout();
     m_impl->shell->GetMainWindow().SetStatusMessage(
@@ -355,6 +374,19 @@ std::vector<std::string> SagaEditorModule::VisiblePanelList() const
         panels = m_impl->shell->GetRegisteredPanelTitles();
     }
     return panels;
+}
+
+void RegisterEditorModePanelProvider(EditorModePanelProvider provider)
+{
+    if (provider)
+    {
+        EditorModePanelProviders().push_back(std::move(provider));
+    }
+}
+
+void ClearEditorModePanelProviders()
+{
+    EditorModePanelProviders().clear();
 }
 
 } // namespace SagaProduct

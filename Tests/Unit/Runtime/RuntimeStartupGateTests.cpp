@@ -5,6 +5,8 @@
 #include <SagaEngine/Artifacts/ArtifactManifestLoader.hpp>
 #include <SagaEngine/Packages/PackageManifestLoader.hpp>
 #include <SagaEngine/Packages/PackageStartupValidator.hpp>
+#include <SagaEngine/Resources/AssetIdentityManifest.h>
+#include <SagaEngine/Resources/AssetManifestRegistryAdapter.h>
 #include <SagaEngine/Startup/RuntimeStartupGate.hpp>
 
 #include <gtest/gtest.h>
@@ -57,6 +59,29 @@ void WriteFile(const std::filesystem::path& path, const std::string& contents)
 })";
 }
 
+[[nodiscard]] std::string PackageJsonWithIdentity(
+    const char* packageKind,
+    const char* identityManifestPath = "Manifests/asset_identity.json",
+    const char* assetManifestPath = "Manifests/assets.json",
+    const char* artifactManifestPath = "Manifests/artifacts.json")
+{
+    return std::string(R"({
+  "schemaVersion": 1,
+  "packageId": "starter.)") + packageKind + R"(",
+  "packageKind": ")" + packageKind + R"(",
+  "buildProfile": "dev-)" + packageKind + R"(",
+  "targetPlatform": "linux",
+  "runtimeCompatibilityVersion": "0.0.8",
+  "assetIdentityManifest": ")" + identityManifestPath + R"(",
+  "assetManifests": [
+    { "id": "assets.main", "path": ")" + assetManifestPath + R"(" }
+  ],
+  "artifactManifests": [
+    { "id": "artifacts.main", "path": ")" + artifactManifestPath + R"(" }
+  ]
+})";
+}
+
 [[nodiscard]] std::string EmptyAssetManifestJson()
 {
     return R"({"schemaVersion":1,"assets":[]})";
@@ -78,6 +103,19 @@ void WriteFile(const std::filesystem::path& path, const std::string& contents)
   "schemaVersion": 1,
   "artifacts": [
     { "id": "quest.graph", "kind": "graph", "path": ")") + artifactPath + R"(" }
+  ]
+})";
+}
+
+[[nodiscard]] std::string AssetIdentityManifestJson(
+    const char* assetKey,
+    unsigned long long assetId)
+{
+    return std::string(R"({
+  "schemaVersion": 1,
+  "mappings": [
+    { "assetKey": ")") + assetKey + R"(", "assetId": )" +
+           std::to_string(assetId) + R"( }
   ]
 })";
 }
@@ -249,6 +287,126 @@ TEST(RuntimeStartupGateTests, MissingCookedAssetIsAllowedWhenAssetFileValidation
     WriteFile(packagePath, PackageJson("client"));
     WriteFile(root / "Manifests" / "assets.json",
               AssetManifestJson("Cooked/missing.ktx2"));
+    WriteFile(root / "Manifests" / "artifacts.json", R"({"schemaVersion":1,"artifacts":[]})");
+
+    auto options = OptionsFor(packagePath, RuntimeStartupDomain::Client);
+    options.validateAssetFiles = false;
+
+    const auto result = RuntimeStartupGate::ValidatePackageForStartup(options);
+
+    ASSERT_TRUE(result.Succeeded());
+}
+
+TEST(RuntimeStartupGateTests, IdentityBackedAssetValidationSucceedsWhenMappingsCoverAssets)
+{
+    const auto root = TempRoot("saga_runtime_startup_gate_identity_valid");
+    const auto packagePath = root / "package.json";
+    WriteFile(packagePath, PackageJsonWithIdentity("client"));
+    WriteFile(root / "Manifests" / "assets.json",
+              AssetManifestJson("Cooked/hero.ktx2"));
+    WriteFile(root / "Manifests" / "Cooked" / "hero.ktx2", "asset");
+    WriteFile(root / "Manifests" / "asset_identity.json",
+              AssetIdentityManifestJson("texture.hero", 1001));
+    WriteFile(root / "Manifests" / "artifacts.json", R"({"schemaVersion":1,"artifacts":[]})");
+
+    const auto result =
+        RuntimeStartupGate::ValidatePackageForStartup(
+            OptionsFor(packagePath, RuntimeStartupDomain::Client));
+
+    ASSERT_TRUE(result.Succeeded());
+}
+
+TEST(RuntimeStartupGateTests, MissingIdentityManifestFailsStartup)
+{
+    const auto root = TempRoot("saga_runtime_startup_gate_identity_missing");
+    const auto packagePath = root / "package.json";
+    WriteFile(packagePath, PackageJsonWithIdentity("client"));
+    WriteFile(root / "Manifests" / "assets.json",
+              AssetManifestJson("Cooked/hero.ktx2"));
+    WriteFile(root / "Manifests" / "Cooked" / "hero.ktx2", "asset");
+    WriteFile(root / "Manifests" / "artifacts.json", R"({"schemaVersion":1,"artifacts":[]})");
+
+    const auto result =
+        RuntimeStartupGate::ValidatePackageForStartup(
+            OptionsFor(packagePath, RuntimeStartupDomain::Client));
+
+    ASSERT_FALSE(result.Succeeded());
+    ASSERT_EQ(result.diagnostics.size(), 1u);
+    EXPECT_EQ(result.diagnostics[0].diagnosticId,
+              SagaEngine::Resources::AssetIdentityManifestDiagnostics::ManifestMissing);
+}
+
+TEST(RuntimeStartupGateTests, InvalidIdentityManifestFailsStartup)
+{
+    const auto root = TempRoot("saga_runtime_startup_gate_identity_invalid");
+    const auto packagePath = root / "package.json";
+    WriteFile(packagePath, PackageJsonWithIdentity("client"));
+    WriteFile(root / "Manifests" / "assets.json",
+              AssetManifestJson("Cooked/hero.ktx2"));
+    WriteFile(root / "Manifests" / "Cooked" / "hero.ktx2", "asset");
+    WriteFile(root / "Manifests" / "asset_identity.json", "{");
+    WriteFile(root / "Manifests" / "artifacts.json", R"({"schemaVersion":1,"artifacts":[]})");
+
+    const auto result =
+        RuntimeStartupGate::ValidatePackageForStartup(
+            OptionsFor(packagePath, RuntimeStartupDomain::Client));
+
+    ASSERT_FALSE(result.Succeeded());
+    ASSERT_EQ(result.diagnostics.size(), 1u);
+    EXPECT_EQ(result.diagnostics[0].diagnosticId,
+              SagaEngine::Resources::AssetIdentityManifestDiagnostics::ParseFailed);
+}
+
+TEST(RuntimeStartupGateTests, MissingIdentityMappingFailsStartup)
+{
+    const auto root = TempRoot("saga_runtime_startup_gate_identity_missing_mapping");
+    const auto packagePath = root / "package.json";
+    WriteFile(packagePath, PackageJsonWithIdentity("client"));
+    WriteFile(root / "Manifests" / "assets.json",
+              AssetManifestJson("Cooked/hero.ktx2"));
+    WriteFile(root / "Manifests" / "Cooked" / "hero.ktx2", "asset");
+    WriteFile(root / "Manifests" / "asset_identity.json",
+              AssetIdentityManifestJson("texture.other", 1001));
+    WriteFile(root / "Manifests" / "artifacts.json", R"({"schemaVersion":1,"artifacts":[]})");
+
+    const auto result =
+        RuntimeStartupGate::ValidatePackageForStartup(
+            OptionsFor(packagePath, RuntimeStartupDomain::Client));
+
+    ASSERT_FALSE(result.Succeeded());
+    ASSERT_EQ(result.diagnostics.size(), 1u);
+    EXPECT_EQ(result.diagnostics[0].diagnosticId,
+              SagaEngine::Resources::AssetManifestRegistryAdapterDiagnostics::
+                  MissingAssetIdMapping);
+    ASSERT_TRUE(result.diagnostics[0].resourceId.has_value());
+    EXPECT_EQ(*result.diagnostics[0].resourceId, "texture.hero");
+    ASSERT_TRUE(result.diagnostics[0].itemIndex.has_value());
+    EXPECT_EQ(*result.diagnostics[0].itemIndex, 0u);
+}
+
+TEST(RuntimeStartupGateTests, IdentityValidationCanBeSkippedWithReferencedManifestValidation)
+{
+    const auto root = TempRoot("saga_runtime_startup_gate_identity_skip_refs");
+    const auto packagePath = root / "package.json";
+    WriteFile(packagePath, PackageJsonWithIdentity("client"));
+
+    auto options = OptionsFor(packagePath, RuntimeStartupDomain::Client);
+    options.validateReferencedManifestFiles = false;
+
+    const auto result = RuntimeStartupGate::ValidatePackageForStartup(options);
+
+    ASSERT_TRUE(result.Succeeded());
+}
+
+TEST(RuntimeStartupGateTests, IdentityValidationCanSkipCookedAssetFileChecks)
+{
+    const auto root = TempRoot("saga_runtime_startup_gate_identity_skip_asset_files");
+    const auto packagePath = root / "package.json";
+    WriteFile(packagePath, PackageJsonWithIdentity("client"));
+    WriteFile(root / "Manifests" / "assets.json",
+              AssetManifestJson("Cooked/missing.ktx2"));
+    WriteFile(root / "Manifests" / "asset_identity.json",
+              AssetIdentityManifestJson("texture.hero", 1001));
     WriteFile(root / "Manifests" / "artifacts.json", R"({"schemaVersion":1,"artifacts":[]})");
 
     auto options = OptionsFor(packagePath, RuntimeStartupDomain::Client);

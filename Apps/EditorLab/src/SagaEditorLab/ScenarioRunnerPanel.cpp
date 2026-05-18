@@ -3,6 +3,7 @@
 
 #include "ScenarioRunnerPanel.h"
 
+#include <QComboBox>
 #include <QHeaderView>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -37,6 +38,13 @@ namespace
 struct ScenarioRunnerPanel::Impl
 {
     Impl()
+        : Impl(nullptr)
+    {}
+
+    explicit Impl(IScenarioRuntimeAdapter* runtimeAdapter)
+        : viewModel(runtimeAdapter
+            ? ScenarioRunnerPanelViewModel(*runtimeAdapter)
+            : ScenarioRunnerPanelViewModel())
     {
         widget = new QWidget();
         widget->setWindowTitle(QStringLiteral("EditorLab Scenario Runner"));
@@ -62,8 +70,16 @@ struct ScenarioRunnerPanel::Impl
         detailLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
         right->addWidget(detailLabel);
 
+        auto* controls = new QHBoxLayout();
+        controls->setSpacing(8);
+        right->addLayout(controls);
+
+        runtimeModeSelector = new QComboBox(widget);
+        controls->addWidget(runtimeModeSelector, 0);
+
         runButton = new QPushButton(QStringLiteral("Run"), widget);
-        right->addWidget(runButton, 0, Qt::AlignLeft);
+        controls->addWidget(runButton, 0);
+        controls->addStretch(1);
 
         statusLabel = new QLabel(QStringLiteral("No run yet"), widget);
         statusLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
@@ -102,6 +118,7 @@ struct ScenarioRunnerPanel::Impl
         right->addWidget(snapshots, 1);
 
         PopulateScenarios();
+        PopulateRuntimeModes();
         RefreshSelection();
         RefreshResult();
 
@@ -116,6 +133,19 @@ struct ScenarioRunnerPanel::Impl
                     (void)viewModel.SelectScenario(items[static_cast<std::size_t>(row)].id);
                     RefreshSelection();
                     RefreshResult();
+                }
+            });
+
+        QObject::connect(
+            runtimeModeSelector,
+            &QComboBox::currentIndexChanged,
+            [this](int row)
+            {
+                const auto modes = viewModel.GetRuntimeModeItems();
+                if (row >= 0 && static_cast<std::size_t>(row) < modes.size())
+                {
+                    (void)viewModel.SelectRuntimeMode(
+                        modes[static_cast<std::size_t>(row)].id);
                 }
             });
 
@@ -145,6 +175,28 @@ struct ScenarioRunnerPanel::Impl
         {
             scenarioList->setCurrentRow(0);
         }
+    }
+
+    void PopulateRuntimeModes()
+    {
+        const auto modes = viewModel.GetRuntimeModeItems();
+        const std::string selectedId = viewModel.GetSelectedRuntimeModeId();
+
+        int selectedRow = 0;
+        for (std::size_t index = 0; index < modes.size(); ++index)
+        {
+            const ScenarioRunnerRuntimeModeItem& mode = modes[index];
+            runtimeModeSelector->addItem(
+                QString::fromStdString(mode.name),
+                QString::fromStdString(mode.id));
+            if (mode.id == selectedId)
+            {
+                selectedRow = static_cast<int>(index);
+            }
+        }
+
+        runtimeModeSelector->setEnabled(modes.size() > 1);
+        runtimeModeSelector->setCurrentIndex(selectedRow);
     }
 
     void RefreshSelection()
@@ -211,6 +263,7 @@ struct ScenarioRunnerPanel::Impl
     QLabel* titleLabel = nullptr;
     QLabel* detailLabel = nullptr;
     QLabel* statusLabel = nullptr;
+    QComboBox* runtimeModeSelector = nullptr;
     QPushButton* runButton = nullptr;
     QTreeWidget* diagnostics = nullptr;
     QTreeWidget* snapshots = nullptr;
@@ -218,6 +271,10 @@ struct ScenarioRunnerPanel::Impl
 
 ScenarioRunnerPanel::ScenarioRunnerPanel()
     : m_impl(std::make_unique<Impl>())
+{}
+
+ScenarioRunnerPanel::ScenarioRunnerPanel(IScenarioRuntimeAdapter& runtimeAdapter)
+    : m_impl(std::make_unique<Impl>(&runtimeAdapter))
 {}
 
 ScenarioRunnerPanel::~ScenarioRunnerPanel() = default;
