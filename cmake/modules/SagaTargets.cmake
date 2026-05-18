@@ -10,6 +10,7 @@ function(saga_create_engine_targets)
 
     saga_collect_sources(SHARED_SOURCES Shared/src)
     saga_collect_sources(COLLABORATION_SOURCES Collaboration/src)
+    saga_collect_sources(ASSET_PIPELINE_SOURCES Tools/AssetPipeline/src)
     saga_collect_sources(ENGINE_SOURCES  Engine/Private)
     saga_collect_sources(BACKEND_SOURCES Backends/src)
     saga_collect_sources(RUNTIME_SOURCES  Runtime/src)
@@ -111,6 +112,22 @@ function(saga_create_engine_targets)
 
     set_target_properties(SagaCollaboration PROPERTIES
         FOLDER "Collaboration"
+    )
+
+    # ─── Asset Pipeline Tool Library ────────────────────────────────────────
+    add_library(SagaAssetPipelineLib STATIC)
+    saga_apply_compiler_flags(SagaAssetPipelineLib)
+
+    target_sources(SagaAssetPipelineLib PRIVATE
+        ${ASSET_PIPELINE_SOURCES}
+    )
+
+    target_include_directories(SagaAssetPipelineLib PUBLIC
+        ${SAGA_ROOT}/Tools/AssetPipeline/include
+    )
+
+    set_target_properties(SagaAssetPipelineLib PROPERTIES
+        FOLDER "Tools/AssetPipeline"
     )
 
     # ─── Engine Library ──────────────────────────────────────────────────────
@@ -265,6 +282,32 @@ function(saga_create_engine_targets)
         FOLDER "Editor"
     )
 
+    # ─── EditorLab Development Library ───────────────────────────────────────
+    # Shared by the standalone EditorLab executable and optional dev bridges.
+    add_library(SagaEditorLabLib STATIC)
+    saga_apply_compiler_flags(SagaEditorLabLib)
+
+    target_sources(SagaEditorLabLib PRIVATE
+        ${EDITORLAB_SOURCES}
+    )
+
+    target_include_directories(SagaEditorLabLib
+        PUBLIC
+            ${SAGA_ROOT}/Apps/EditorLab/include
+        PRIVATE
+            ${SAGA_ROOT}/Apps/EditorLab/src
+    )
+
+    target_link_libraries(SagaEditorLabLib PUBLIC
+        SagaEditorLib
+        Qt6::Core
+        Qt6::Widgets
+    )
+
+    set_target_properties(SagaEditorLabLib PROPERTIES
+        FOLDER "Apps/EditorLab"
+    )
+
     # ─── Saga Product Orchestration Library ───────────────────────────────────
     if(SAGA_WITH_SDE)
         add_library(SagaProductLib STATIC)
@@ -305,6 +348,25 @@ function(saga_create_engine_targets)
         set_target_properties(SagaProductLib PROPERTIES
             FOLDER "Apps/Saga"
         )
+
+        if(SAGA_WITH_EDITORLAB_DEV_PANEL)
+            add_library(SagaEditorLabBridge STATIC
+                ${SAGA_ROOT}/Apps/SagaDev/SagaEditorLabBridge.h
+                ${SAGA_ROOT}/Apps/SagaDev/SagaEditorLabBridge.cpp
+            )
+            saga_apply_compiler_flags(SagaEditorLabBridge)
+            saga_link_thirdparty(SagaEditorLabBridge)
+            target_include_directories(SagaEditorLabBridge PUBLIC
+                ${SAGA_ROOT}/Apps/SagaDev
+            )
+            target_link_libraries(SagaEditorLabBridge PUBLIC
+                SagaProductLib
+                SagaEditorLabLib
+            )
+            set_target_properties(SagaEditorLabBridge PROPERTIES
+                FOLDER "Apps/SagaDev"
+            )
+        endif()
     endif()
 
     # ─── Application Executables ──────────────────────────────────────────────
@@ -317,6 +379,12 @@ function(saga_create_engine_targets)
         saga_apply_compiler_flags(Saga)
         saga_link_thirdparty(Saga)
         target_link_libraries(Saga PRIVATE SagaProductLib)
+        if(SAGA_WITH_EDITORLAB_DEV_PANEL)
+            target_link_libraries(Saga PRIVATE SagaEditorLabBridge)
+            target_compile_definitions(Saga PRIVATE SAGA_WITH_EDITORLAB_DEV_PANEL=1)
+        else()
+            target_compile_definitions(Saga PRIVATE SAGA_WITH_EDITORLAB_DEV_PANEL=0)
+        endif()
         if(TARGET qt::qt)
             target_link_libraries(Saga PRIVATE qt::qt)
         elseif(TARGET Qt6::QXcbIntegrationPlugin)
@@ -443,17 +511,18 @@ function(saga_create_engine_targets)
     qt_add_executable(EditorLab WIN32
         ${SAGA_ROOT}/Apps/EditorLab/main.cpp
         ${SAGA_ROOT}/Apps/EditorLab/EditorLabQtStaticPlugins.cpp
-        ${EDITORLAB_SOURCES}
     )
 
     target_include_directories(EditorLab PRIVATE
         ${SAGA_ROOT}/Apps/EditorLab/include
         ${SAGA_ROOT}/Apps/EditorLab/src
+        ${SAGA_ROOT}/Editor/include
     )
 
     saga_apply_compiler_flags(EditorLab)
 
     target_link_libraries(EditorLab PRIVATE
+        SagaEditorLabLib
         Qt6::Core
         Qt6::Widgets
     )

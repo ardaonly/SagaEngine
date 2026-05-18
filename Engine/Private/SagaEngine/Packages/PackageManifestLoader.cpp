@@ -268,6 +268,61 @@ void ParseManifestRefs(
     }
 }
 
+/// Parse the optional package asset identity manifest reference.
+void ParseAssetIdentityManifestRef(
+    const nlohmann::json& root,
+    const std::filesystem::path& manifestPath,
+    const PackageManifestLoadOptions& options,
+    PackageManifestLoadResult& result)
+{
+    const auto iterator = root.find("assetIdentityManifest");
+    if (iterator == root.end())
+    {
+        return;
+    }
+
+    if (!iterator->is_string())
+    {
+        result.errors.push_back(MakeError(
+            PackageManifestDiagnostics::InvalidField,
+            "Package manifest assetIdentityManifest must be a string when present.",
+            manifestPath,
+            std::nullopt,
+            "assetIdentityManifest"));
+        return;
+    }
+
+    const std::string path = iterator->get<std::string>();
+    if (!IsSafeRelativePath(path))
+    {
+        result.errors.push_back(MakeError(
+            PackageManifestDiagnostics::InvalidPath,
+            "Package manifest assetIdentityManifest must be a non-escaping relative path.",
+            manifestPath,
+            std::nullopt,
+            "assetIdentityManifest"));
+        return;
+    }
+
+    if (options.validateReferencedManifestFiles)
+    {
+        const auto resolvedPath =
+            ResolveReferencePath(manifestPath, options, path);
+        if (!std::filesystem::exists(resolvedPath))
+        {
+            result.errors.push_back(MakeError(
+                PackageManifestDiagnostics::FileMissing,
+                "Package manifest assetIdentityManifest points to a file that does not exist.",
+                manifestPath,
+                std::nullopt,
+                "assetIdentityManifest"));
+            return;
+        }
+    }
+
+    result.manifest.assetIdentityManifest = path;
+}
+
 } // namespace
 
 std::optional<PackageKind> TryParsePackageKind(std::string_view value) noexcept
@@ -432,6 +487,7 @@ PackageManifestLoadResult PackageManifestLoader::LoadFromFile(
     {
         result.manifest.packageHash = root["packageHash"].get<std::string>();
     }
+    ParseAssetIdentityManifestRef(root, manifestPath, options, result);
 
     ParseManifestRefs(
         root,

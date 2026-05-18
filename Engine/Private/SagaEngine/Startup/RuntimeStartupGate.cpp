@@ -7,6 +7,7 @@
 #include <SagaEngine/Assets/AssetManifestLoader.hpp>
 #include <SagaEngine/Packages/PackageManifestLoader.hpp>
 #include <SagaEngine/Packages/PackageStartupValidator.hpp>
+#include <SagaEngine/Resources/RuntimeAssetRegistryBootstrapper.h>
 
 #include <filesystem>
 #include <utility>
@@ -90,6 +91,25 @@ void AppendArtifactDiagnostic(
     result.diagnostics.push_back(std::move(diagnostic));
 }
 
+/// Normalize an asset registry bootstrap diagnostic into the gate result.
+void AppendAssetBootstrapDiagnostic(
+    RuntimeStartupGateResult& result,
+    const Resources::RuntimeAssetRegistryBootstrapDiagnostic& error)
+{
+    RuntimeStartupGateDiagnostic diagnostic;
+    diagnostic.diagnosticId = error.diagnosticId;
+    diagnostic.message = error.message;
+    diagnostic.manifestPath = error.manifestPath;
+    diagnostic.referenceIndex = error.referenceIndex;
+    diagnostic.itemIndex = error.assetIndex;
+    if (!error.assetKey.empty())
+    {
+        diagnostic.resourceId = error.assetKey;
+    }
+    diagnostic.resolvedPath = error.resolvedPath;
+    result.diagnostics.push_back(std::move(diagnostic));
+}
+
 /// Add a missing referenced manifest diagnostic with resolved package path.
 void AppendMissingReferenceDiagnostic(
     RuntimeStartupGateResult& result,
@@ -140,6 +160,27 @@ void ValidateAssetManifestReferences(
         {
             AppendAssetDiagnostic(result, error);
         }
+    }
+}
+
+/// Validate identity-backed package asset coverage without mutating runtime state.
+void ValidateIdentityBackedAssetManifestReferences(
+    RuntimeStartupGateResult& result,
+    const RuntimeStartupGateOptions& options)
+{
+    Resources::RuntimeAssetRegistryBootstrapOptions bootstrapOptions;
+    bootstrapOptions.packageManifestPath = options.packageManifestPath;
+    bootstrapOptions.validateAssetFiles = options.validateAssetFiles;
+
+    const Resources::RuntimeAssetRegistryBootstrapResult bootstrapResult =
+        Resources::RuntimeAssetRegistryBootstrapper::
+            ValidatePackageAssetsFromPackageIdentityManifest(
+                result.packageManifest,
+                bootstrapOptions);
+    for (const Resources::RuntimeAssetRegistryBootstrapDiagnostic& error :
+         bootstrapResult.diagnostics)
+    {
+        AppendAssetBootstrapDiagnostic(result, error);
     }
 }
 
@@ -202,7 +243,14 @@ RuntimeStartupGateResult RuntimeStartupGate::ValidatePackageForStartup(
         return result;
     }
 
-    ValidateAssetManifestReferences(result, options.packageManifestPath, options);
+    if (result.packageManifest.assetIdentityManifest.has_value())
+    {
+        ValidateIdentityBackedAssetManifestReferences(result, options);
+    }
+    else
+    {
+        ValidateAssetManifestReferences(result, options.packageManifestPath, options);
+    }
     ValidateArtifactManifestReferences(result, options.packageManifestPath);
 
     return result;

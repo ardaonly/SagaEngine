@@ -4,14 +4,26 @@
 #include "SagaEditorLab/Scenario/CustomizationScenario.h"
 #include "SagaEditorLab/Scenario/BuiltinScenarioDefinitions.h"
 #include "SagaEditorLab/Scenario/DeterministicScenarioRuntimeAdapter.h"
+#include "SagaEditorLab/Scenario/EditorHostScenarioRuntimeAdapter.h"
+#include "SagaEditorLab/Scenario/EditorShellScenarioRuntimeAdapter.h"
 #include "SagaEditorLab/Scenario/ProfileSwitchScenario.h"
 #include "SagaEditorLab/Scenario/ScenarioDefinition.h"
 #include "SagaEditorLab/Scenario/ScenarioRunner.h"
+#include "SagaEditorLab/UI/ScenarioRunnerDockPanel.h"
 #include "SagaEditorLab/UI/ScenarioRunnerPanelViewModel.h"
+#include "SagaEditor/Commands/CommandRegistry.h"
+#include "SagaEditor/Diagnostics/EditorDiagnostic.h"
+#include "SagaEditor/Diagnostics/IEditorDiagnosticsService.h"
+#include "SagaEditor/Host/EditorHost.h"
+#include "SagaEditor/Panels/IPanel.h"
+#include "SagaEditor/Settings/MemoryEditorSettingsStore.h"
+#include "SagaEditor/Shell/EditorShell.h"
+#include "SagaEditor/UI/IUIMainWindow.h"
 
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -21,6 +33,103 @@ namespace
 {
 
 using namespace SagaEditorLab;
+
+class FakeMainWindow final : public SagaEditor::IUIMainWindow
+{
+public:
+    void Show() override { shown = true; }
+    void ShowMaximized() override
+    {
+        maximized = true;
+        shown = true;
+    }
+    void Hide() override { shown = false; }
+    void Close() override
+    {
+        closed = true;
+        if (onClose)
+        {
+            onClose();
+        }
+    }
+
+    void SetTitle(const std::string& value) override { title = value; }
+    void SetSize(int w, int h) override
+    {
+        width = w;
+        height = h;
+    }
+
+    [[nodiscard]] int GetWidth() const noexcept override { return width; }
+    [[nodiscard]] int GetHeight() const noexcept override { return height; }
+    [[nodiscard]] void* GetNativeHandle() const noexcept override { return nullptr; }
+
+    void ApplyShellLayout(const SagaEditor::ShellLayout& value) override
+    {
+        layout = value;
+    }
+
+    void SetStatusMessage(const std::string& value) override { status = value; }
+
+    void DockPanel(void*,
+                   const std::string& panelId,
+                   const std::string&,
+                   SagaEditor::UIDockArea) override
+    {
+        visiblePanels[panelId] = true;
+    }
+
+    void UndockPanel(const std::string& panelId) override
+    {
+        visiblePanels.erase(panelId);
+    }
+
+    void FocusPanel(const std::string& panelId) override
+    {
+        focusedPanels.push_back(panelId);
+    }
+
+    void SetPanelVisible(const std::string& panelId, bool visible) override
+    {
+        visiblePanels[panelId] = visible;
+    }
+
+    [[nodiscard]] std::vector<uint8_t> SaveState() const override { return {}; }
+    [[nodiscard]] bool RestoreState(const std::vector<uint8_t>&) override { return true; }
+
+    void SetOnClose(CloseCallback cb) override { onClose = std::move(cb); }
+    void SetOnCommand(CommandCallback cb) override { onCommand = std::move(cb); }
+
+    int width = 1600;
+    int height = 900;
+    bool shown = false;
+    bool maximized = false;
+    bool closed = false;
+    std::string title;
+    std::string status;
+    SagaEditor::ShellLayout layout;
+    std::unordered_map<std::string, bool> visiblePanels;
+    std::vector<std::string> focusedPanels;
+    CloseCallback onClose;
+    CommandCallback onCommand;
+};
+
+class FakePanel final : public SagaEditor::IPanel
+{
+public:
+    FakePanel(std::string panelId, std::string panelTitle)
+        : id(std::move(panelId))
+        , title(std::move(panelTitle))
+    {}
+
+    [[nodiscard]] SagaEditor::PanelId GetPanelId() const override { return id; }
+    [[nodiscard]] std::string GetTitle() const override { return title; }
+    [[nodiscard]] void* GetNativeWidget() const noexcept override { return nullptr; }
+
+private:
+    std::string id;
+    std::string title;
+};
 
 class FakeScenarioRuntimeAdapter final : public IScenarioRuntimeAdapter
 {
@@ -402,6 +511,88 @@ TEST(EditorLabScenarioRunnerTests, RunningBuiltinScenarioThroughViewModelSucceed
     EXPECT_EQ(summary.snapshotCount, 3u);
 }
 
+TEST(EditorLabScenarioRunnerTests, ViewModelDefaultsToDeterministicRuntimeMode)
+{
+    ScenarioRunnerPanelViewModel viewModel;
+
+    const auto modes = viewModel.GetRuntimeModeItems();
+
+    ASSERT_EQ(modes.size(), 1u);
+    EXPECT_EQ(modes[0].id, "deterministic");
+    EXPECT_EQ(modes[0].name, "Deterministic");
+    EXPECT_EQ(viewModel.GetSelectedRuntimeModeId(), "deterministic");
+}
+
+TEST(EditorLabScenarioRunnerTests, ViewModelRejectsConnectedModeWithoutAdapter)
+{
+    ScenarioRunnerPanelViewModel viewModel;
+
+    EXPECT_FALSE(viewModel.SelectRuntimeMode("connected"));
+    EXPECT_EQ(viewModel.GetSelectedRuntimeModeId(), "deterministic");
+}
+
+TEST(EditorLabScenarioRunnerTests, ViewModelListsAndSelectsConnectedModeWithAdapter)
+{
+    FakeScenarioRuntimeAdapter adapter;
+    ScenarioRunnerPanelViewModel viewModel(adapter);
+
+    const auto modes = viewModel.GetRuntimeModeItems();
+
+    ASSERT_EQ(modes.size(), 2u);
+    EXPECT_EQ(modes[0].id, "deterministic");
+    EXPECT_EQ(modes[1].id, "connected");
+    EXPECT_EQ(modes[1].name, "Connected");
+    ASSERT_TRUE(viewModel.SelectRuntimeMode("connected"));
+    EXPECT_EQ(viewModel.GetSelectedRuntimeModeId(), "connected");
+}
+
+TEST(EditorLabScenarioRunnerTests, ViewModelRejectsUnknownRuntimeMode)
+{
+    FakeScenarioRuntimeAdapter adapter;
+    ScenarioRunnerPanelViewModel viewModel(adapter);
+
+    ASSERT_TRUE(viewModel.SelectRuntimeMode("connected"));
+    EXPECT_FALSE(viewModel.SelectRuntimeMode("runtime.invalid"));
+    EXPECT_EQ(viewModel.GetSelectedRuntimeModeId(), "connected");
+}
+
+TEST(EditorLabScenarioRunnerTests, ViewModelConnectedModeRunsInjectedAdapter)
+{
+    FakeScenarioRuntimeAdapter adapter;
+    adapter.state["editor.connected"] = "true";
+    ScenarioRunnerPanelViewModel viewModel({MakeScenario({
+        ScenarioStep::MakeAssertion("editor.connected", "true"),
+    })}, adapter);
+    ASSERT_TRUE(viewModel.SelectRuntimeMode("connected"));
+
+    ASSERT_TRUE(viewModel.RunSelectedScenario());
+    const ScenarioResult* result = viewModel.GetLastResult();
+
+    ASSERT_NE(result, nullptr);
+    EXPECT_TRUE(result->Ok());
+    ASSERT_EQ(adapter.operations.size(), 1u);
+    EXPECT_EQ(adapter.operations[0], "read:editor.connected");
+}
+
+TEST(EditorLabScenarioRunnerTests, ViewModelDeterministicModeIgnoresInjectedAdapter)
+{
+    FakeScenarioRuntimeAdapter adapter;
+    adapter.state["editor.lab.missing"] = "true";
+    ScenarioRunnerPanelViewModel viewModel({MakeScenario({
+        ScenarioStep::MakeAssertion("editor.lab.missing", "true"),
+    })}, adapter);
+
+    ASSERT_TRUE(viewModel.RunSelectedScenario());
+    const ScenarioRunnerResultSummary summary = viewModel.GetResultSummary();
+    const auto diagnostics = viewModel.GetDiagnosticRows();
+
+    EXPECT_EQ(summary.verdict, "fail");
+    EXPECT_TRUE(adapter.operations.empty());
+    ASSERT_EQ(diagnostics.size(), 1u);
+    EXPECT_NE(diagnostics[0].message.find("missing deterministic state path"),
+              std::string::npos);
+}
+
 TEST(EditorLabScenarioRunnerTests, FailingViewModelScenarioProducesDiagnostics)
 {
     ScenarioDefinition scenario = MakeScenario({
@@ -454,4 +645,213 @@ TEST(EditorLabScenarioRunnerTests, DeterministicAdapterRunsBuiltinsWithoutEditor
     EXPECT_TRUE(result.Ok());
     EXPECT_FALSE(adapter.GetOperations().empty());
     EXPECT_EQ(result.snapshots.size(), 3u);
+}
+
+TEST(EditorLabScenarioRunnerTests, EditorHostAdapterDispatchesRegisteredCommands)
+{
+    SagaEditor::EditorHost host;
+    ASSERT_TRUE(host.Init(std::make_unique<SagaEditor::MemoryEditorSettingsStore>()));
+
+    bool invoked = false;
+    SagaEditor::CommandDescriptor command;
+    command.id = "saga.command.lab.test";
+    command.label = "Lab Test";
+    command.category = "Tests";
+    command.handler = [&invoked]() { invoked = true; };
+    host.GetCommandRegistry().Register(std::move(command));
+
+    EditorHostScenarioRuntimeAdapter adapter(host);
+    const ScenarioAdapterResult ok =
+        adapter.DispatchAction("saga.command.lab.test", {});
+    EXPECT_TRUE(ok.succeeded);
+    EXPECT_TRUE(invoked);
+
+    const ScenarioAdapterResult missing =
+        adapter.DispatchAction("saga.command.lab.missing", {});
+    EXPECT_FALSE(missing.succeeded);
+
+    host.Shutdown();
+}
+
+TEST(EditorLabScenarioRunnerTests, EditorHostAdapterReadsPublicEditorState)
+{
+    SagaEditor::EditorHost host;
+    ASSERT_TRUE(host.Init(std::make_unique<SagaEditor::MemoryEditorSettingsStore>()));
+
+    SagaEditor::EditorDiagnostic diagnostic;
+    diagnostic.severity = SagaEditor::EditorDiagnosticSeverity::Error;
+    diagnostic.source = "editorlab-test";
+    diagnostic.code = "EDITORLAB_TEST";
+    diagnostic.message = "test diagnostic";
+    host.GetEditorDiagnosticsService().Add(std::move(diagnostic));
+
+    EditorHostScenarioRuntimeAdapter adapter(host);
+    ASSERT_TRUE(adapter.SetSelection("1001, 1002").succeeded);
+
+    EXPECT_EQ(adapter.ReadState("editor.engine_bridge.state").value, "Ready");
+    EXPECT_EQ(adapter.ReadState("editor.customization.boundary").value,
+              "editor_only");
+    EXPECT_EQ(adapter.ReadState("editor.customization.builtin.available").value,
+              "true");
+    EXPECT_EQ(adapter.ReadState("profile.layout.diff.basic_to_advanced").value,
+              "true");
+    EXPECT_EQ(adapter.ReadState("profile.shortcuts.diff.basic_to_advanced").value,
+              "true");
+    EXPECT_EQ(adapter.ReadState("editor.selection.count").value, "2");
+    EXPECT_EQ(adapter.ReadState("editor.selection.primary").value, "1001");
+    EXPECT_EQ(adapter.ReadState("editor.selection.ids").value, "1001,1002");
+    EXPECT_EQ(adapter.ReadState("editor.diagnostics.count").value, "1");
+    EXPECT_EQ(adapter.ReadState("editor.diagnostics.error_count").value, "1");
+
+    host.Shutdown();
+}
+
+TEST(EditorLabScenarioRunnerTests, EditorShellAdapterOpensRegisteredPanel)
+{
+    SagaEditor::EditorHost host;
+    ASSERT_TRUE(host.Init(std::make_unique<SagaEditor::MemoryEditorSettingsStore>()));
+
+    auto window = std::make_unique<FakeMainWindow>();
+    FakeMainWindow* windowRaw = window.get();
+
+    SagaEditor::EditorShell shell;
+    SagaEditor::EditorShellConfig config;
+    config.registerDefaultPanels = false;
+    config.showOnInit = false;
+    config.applyActivePersona = false;
+    ASSERT_TRUE(shell.Init(host, std::move(window), config));
+    shell.RegisterPanel(
+        std::make_unique<FakePanel>("saga.panel.editorlab.test", "EditorLab Test"),
+        SagaEditor::UIDockArea::Left);
+    windowRaw->focusedPanels.clear();
+
+    EditorShellScenarioRuntimeAdapter adapter(shell);
+    const ScenarioAdapterResult result =
+        adapter.OpenPanel("saga.panel.editorlab.test");
+
+    EXPECT_TRUE(result.succeeded);
+    EXPECT_TRUE(windowRaw->visiblePanels["saga.panel.editorlab.test"]);
+    EXPECT_TRUE(windowRaw->focusedPanels.empty());
+
+    shell.Shutdown();
+    host.Shutdown();
+}
+
+TEST(EditorLabScenarioRunnerTests, EditorShellAdapterClosesRegisteredPanel)
+{
+    SagaEditor::EditorHost host;
+    ASSERT_TRUE(host.Init(std::make_unique<SagaEditor::MemoryEditorSettingsStore>()));
+
+    auto window = std::make_unique<FakeMainWindow>();
+    FakeMainWindow* windowRaw = window.get();
+
+    SagaEditor::EditorShell shell;
+    SagaEditor::EditorShellConfig config;
+    config.registerDefaultPanels = false;
+    config.showOnInit = false;
+    config.applyActivePersona = false;
+    ASSERT_TRUE(shell.Init(host, std::move(window), config));
+    shell.RegisterPanel(
+        std::make_unique<FakePanel>("saga.panel.editorlab.test", "EditorLab Test"),
+        SagaEditor::UIDockArea::Left);
+    windowRaw->visiblePanels["saga.panel.editorlab.test"] = true;
+    windowRaw->focusedPanels.clear();
+
+    EditorShellScenarioRuntimeAdapter adapter(shell);
+    const ScenarioAdapterResult result =
+        adapter.ClosePanel("saga.panel.editorlab.test");
+
+    EXPECT_TRUE(result.succeeded);
+    EXPECT_FALSE(windowRaw->visiblePanels["saga.panel.editorlab.test"]);
+    EXPECT_TRUE(windowRaw->focusedPanels.empty());
+
+    shell.Shutdown();
+    host.Shutdown();
+}
+
+TEST(EditorLabScenarioRunnerTests, EditorShellAdapterRejectsUnknownPanel)
+{
+    SagaEditor::EditorHost host;
+    ASSERT_TRUE(host.Init(std::make_unique<SagaEditor::MemoryEditorSettingsStore>()));
+
+    SagaEditor::EditorShell shell;
+    SagaEditor::EditorShellConfig config;
+    config.registerDefaultPanels = false;
+    config.showOnInit = false;
+    config.applyActivePersona = false;
+    ASSERT_TRUE(shell.Init(host, std::make_unique<FakeMainWindow>(), config));
+
+    EditorShellScenarioRuntimeAdapter adapter(shell);
+    const ScenarioAdapterResult openResult = adapter.OpenPanel("saga.panel.unknown");
+    const ScenarioAdapterResult closeResult = adapter.ClosePanel("saga.panel.unknown");
+
+    EXPECT_FALSE(openResult.succeeded);
+    EXPECT_EQ(openResult.message, "panel is not registered: saga.panel.unknown");
+    EXPECT_FALSE(closeResult.succeeded);
+    EXPECT_EQ(closeResult.message, "panel is not registered: saga.panel.unknown");
+
+    shell.Shutdown();
+    host.Shutdown();
+}
+
+TEST(EditorLabScenarioRunnerTests, EditorShellAdapterDelegatesHostStateReads)
+{
+    SagaEditor::EditorHost host;
+    ASSERT_TRUE(host.Init(std::make_unique<SagaEditor::MemoryEditorSettingsStore>()));
+
+    SagaEditor::EditorShell shell;
+    SagaEditor::EditorShellConfig config;
+    config.registerDefaultPanels = false;
+    config.showOnInit = false;
+    config.applyActivePersona = false;
+    ASSERT_TRUE(shell.Init(host, std::make_unique<FakeMainWindow>(), config));
+
+    EditorShellScenarioRuntimeAdapter adapter(shell);
+    ASSERT_TRUE(adapter.SetSelection("42").succeeded);
+
+    EXPECT_EQ(adapter.ReadState("editor.selection.primary").value, "42");
+
+    shell.Shutdown();
+    host.Shutdown();
+}
+
+TEST(EditorLabScenarioRunnerTests, ScenarioRunnerDockPanelHasStableIdentity)
+{
+    SagaEditor::EditorHost host;
+    ASSERT_TRUE(host.Init(std::make_unique<SagaEditor::MemoryEditorSettingsStore>()));
+
+    SagaEditor::EditorShell shell;
+    SagaEditor::EditorShellConfig config;
+    config.registerDefaultPanels = false;
+    config.showOnInit = false;
+    config.applyActivePersona = false;
+    ASSERT_TRUE(shell.Init(host, std::make_unique<FakeMainWindow>(), config));
+
+    ScenarioRunnerDockPanel panel(shell);
+
+    EXPECT_EQ(panel.GetPanelId(), "saga.panel.editorlab.scenario_runner");
+    EXPECT_EQ(panel.GetTitle(), "EditorLab Scenarios");
+
+    shell.Shutdown();
+    host.Shutdown();
+}
+
+TEST(EditorLabScenarioRunnerTests, ViewModelCanRunScenarioThroughInjectedAdapter)
+{
+    SagaEditor::EditorHost host;
+    ASSERT_TRUE(host.Init(std::make_unique<SagaEditor::MemoryEditorSettingsStore>()));
+
+    EditorHostScenarioRuntimeAdapter adapter(host);
+    ScenarioRunnerPanelViewModel viewModel({MakeScenario({
+        ScenarioStep::MakeSetSelection("42"),
+        ScenarioStep::MakeAssertion("editor.selection.primary", "42"),
+    })}, adapter);
+
+    ASSERT_TRUE(viewModel.SelectRuntimeMode("connected"));
+    ASSERT_TRUE(viewModel.RunSelectedScenario());
+    const ScenarioResult* result = viewModel.GetLastResult();
+    ASSERT_NE(result, nullptr);
+    EXPECT_TRUE(result->Ok());
+
+    host.Shutdown();
 }

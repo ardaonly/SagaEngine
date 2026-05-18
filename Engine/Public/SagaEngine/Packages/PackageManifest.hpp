@@ -42,6 +42,7 @@ struct PackageManifest
     std::string buildProfile;                           ///< Build profile token such as dev-client.
     std::string targetPlatform;                         ///< Target platform token.
     std::string runtimeCompatibilityVersion;            ///< Runtime compatibility version token.
+    std::optional<std::string> assetIdentityManifest;   ///< Optional package-relative AssetKey to AssetId mapping manifest.
     std::vector<PackageManifestRef> assetManifests;     ///< Asset manifest references staged in the package.
     std::vector<PackageManifestRef> artifactManifests;  ///< Artifact manifest references staged in the package.
     std::optional<std::string> packageHash;             ///< Optional package integrity hash reserved for later validation.

@@ -1,6 +1,6 @@
 # Asset Streaming System — Implementation Note
 
-> Last updated: 2026-05-15
+> Last updated: 2026-05-18
 > Status: Implementation note
 > Location: `docs/AssetStreamingImplementation.md`
 > Related roadmap: `ENGINE_ROADMAP.md`
@@ -271,7 +271,11 @@ Package-oriented flow:
 ```txt
 Runtime starts with package manifest
         ↓
+Package manifest optionally references asset identity manifest
+        ↓
 Package manifest references asset manifest
+        ↓
+Asset identity manifest maps AssetKey to AssetId
         ↓
 Asset manifest references cooked artifacts
         ↓
@@ -354,6 +358,100 @@ Runtime asset registry implementation stays in Engine.
 Asset metadata/import implementation stays in AssetPipeline/editor tooling.
 ```
 
+Current AssetId allocation policy:
+
+```txt
+AssetId type
+  std::uint64_t
+
+Invalid/null AssetId
+  0
+
+Valid AssetId range
+  1 through UINT64_MAX
+```
+
+Policy rules:
+
+* runtime never generates AssetIds,
+* runtime consumes AssetIdentityManifest data produced by build/package-side ownership,
+* the first allocation policy applies to one identity manifest package identity set,
+* no multi-package AssetId merge policy is defined yet,
+* if a previous valid identity manifest exists, its AssetKey to AssetId mappings are reused,
+* new AssetKeys receive new numeric AssetIds,
+* new AssetKeys are sorted lexicographically before allocation,
+* new IDs are assigned from `max(existing AssetId) + 1`,
+* deleted asset IDs are not reused in the first policy,
+* AssetKey rename is treated as delete plus new asset in the first policy,
+* rename-preserving migration is future work,
+* duplicate AssetKey, duplicate AssetId, invalid ID, overflow, or malformed previous identity manifest is a deterministic failure,
+* no deterministic hash fallback is defined,
+* the allocation source of truth is the previous valid identity manifest plus the current package asset manifest key set.
+
+Ownership:
+
+```txt
+AssetPipeline / package generation side
+  owns future AssetId assignment and AssetIdentityManifest emission
+
+Forge
+  may orchestrate validation, staging, and report aggregation
+
+Runtime
+  consumes AssetIdentityManifest and validates package coverage
+```
+
+This policy exists to prevent asset identity allocation behavior from being invented inside generator implementation work. It does not add a generator, package staging step, editor asset browser behavior, rename migration, or runtime fallback path.
+
+Generator readiness / boundary status:
+
+The runtime side can consume and validate AssetIdentityManifest data, but the
+tool-side JSON writer, package staging, and Forge orchestration path are still
+not implemented.
+
+Current implemented boundary:
+
+* `Tools/AssetPipeline` now provides a narrow `SagaAssetPipelineLib` target,
+* `SagaAssetPipeline/Identity/AssetIdentityGenerator.hpp` owns the pure
+  in-memory identity allocation policy,
+* the generator reuses previous valid mappings,
+* new AssetKeys are allocated lexicographically from `max(existing AssetId) + 1`,
+* deleted AssetIds are not reused,
+* AssetKey rename is still treated as delete plus new identity,
+* duplicate current AssetKey, duplicate previous AssetKey, duplicate AssetId,
+  invalid AssetId 0, and numeric overflow are deterministic generation failures,
+* no JSON writer, file I/O, package mutation, Forge step, runtime dependency,
+  editor integration, or deterministic hash fallback was added.
+
+Missing pieces before generated AssetIdentityManifest files can enter package
+staging:
+
+* Forge AssetPipelineAdapter is not present,
+* Forge AssetValidateStep is not present,
+* Forge AssetCookStep is not present,
+* Forge AssetPackageStep is not present,
+* Forge asset/package manifest writer infrastructure is not present,
+* AssetIdentityManifest JSON writer is not present,
+* AssetIdentityManifest generator executable/service entrypoint is not present.
+
+Recommended next implementation boundary:
+
+```txt
+AssetPipeline / package generation side
+    AssetIdentityManifest JSON writer or generator executable/service
+        ↓
+Forge
+    orchestrates validation/staging/report aggregation only
+        ↓
+Runtime
+    consumes the generated manifest and validates startup coverage
+```
+
+Forge should not become the importer, cooker, or identity generator implementation
+owner. Runtime should not generate AssetIds. The next generator slice should
+stay inside the AssetPipeline boundary and add only the missing writer or
+tool entrypoint needed before Forge orchestration.
+
 ---
 
 ### 7.2 AssetManifest
@@ -378,10 +476,82 @@ Runtime should consume it.
 
 Runtime should not casually invent manifest truth at load time unless explicitly in development mode.
 
+Current package identity contract:
+
+```txt
+PackageManifest.assetIdentityManifest
+  optional single package-relative path to an AssetIdentityManifest
+
+AssetIdentityManifest
+  schemaVersion = 1
+  mappings[] = { assetKey, assetId }
+```
+
+Example package manifest field:
+
+```json
+{
+  "assetIdentityManifest": "Manifests/asset_identity.json"
+}
+```
+
+Example asset identity manifest:
+
+```json
+{
+  "schemaVersion": 1,
+  "mappings": [
+    { "assetKey": "texture.hero.diffuse", "assetId": 1001 }
+  ]
+}
+```
+
+Contract rules:
+
+* `assetIdentityManifest` is optional for backward compatibility.
+* if present, it must be a non-escaping package-relative path,
+* if present, the referenced manifest must load and validate deterministically,
+* `AssetId` value `0` is reserved for invalid/null state,
+* valid numeric `AssetId` values must be greater than zero,
+* the first implemented slice supports one identity manifest only,
+* no multi-manifest merge semantics are defined yet,
+* no deterministic hash fallback is defined,
+* runtime consumes this contract but does not generate it.
+
+Identity-backed bootstrap flow:
+
+```txt
+PackageManifest
+    ↓
+assetIdentityManifest
+    ↓
+AssetIdentityManifestLoader
+    ↓
+StaticAssetIdResolver
+    ↓
+RuntimeAssetRegistryBootstrapper explicit-resolver path
+```
+
+Identity-backed preflight validation uses the same identity loader and package
+asset planning path without mutating `AssetRegistry`.
+
+The first validation slice requires coverage for every packaged asset manifest
+entry when `ValidatePackageAssetsFromPackageIdentityManifest` is called.
+Extra identity mappings are allowed in this slice; exact package membership
+policy remains future package/build validation work.
+
+Runtime startup validation uses the identity-backed preflight path when a
+package manifest references `assetIdentityManifest`. Legacy package manifests
+without that field keep the existing referenced asset manifest validation path.
+
+The identity manifest exists so packaged runtime asset manifests can keep stable package-facing `AssetKey` values while runtime hot paths use numeric `AssetId` values. Asset identity assignment and manifest generation remain future AssetPipeline/Forge responsibilities.
+
 Runtime startup or package load should validate:
 
 * asset manifest version,
+* asset identity manifest version when referenced,
 * asset id format,
+* AssetKey to AssetId mapping coverage where identity-backed bootstrap is used,
 * asset kind,
 * cooked artifact path,
 * cooked artifact hash where configured,
@@ -428,6 +598,70 @@ Rules:
 `AssetSource` may read cooked/runtime-ready asset bytes.
 
 It should not become an authoring importer by accident.
+
+### 7.3.1 Virtual File System Boundary
+
+`IVirtualFileSystem` is the runtime content path boundary.
+
+Its purpose is to let runtime code request content by normalized virtual path instead of depending directly on physical native filesystem paths.
+
+Current MVP rules:
+
+* virtual paths use `/`,
+* valid virtual file paths are absolute, for example `/content/meshes/tree.bin`,
+* mount points are normalized absolute prefixes,
+* the longest matching mount point wins,
+* `.` / `..`, empty path segments, relative paths, and backslashes are rejected deterministically,
+* native directory and memory backends are available as basic implementations.
+
+Boundary:
+
+```txt
+IVirtualFileSystem
+  owns virtual path normalization, mount lookup, and backend dispatch
+
+IAssetSource
+  owns asset-byte loading for streaming requests
+
+FileAssetSource
+  remains the current native file-backed asset source
+```
+
+The VFS MVP does not change package manifests, asset manifests, streaming behavior, package staging, Forge orchestration, editor UX, or asset identity generation.
+
+`FileAssetSource` is not converted in this slice. It may later become either a VFS backend or a VFS consumer after package/content mounting semantics are defined.
+
+`VirtualFileAssetSource` is the first VFS-backed `IAssetSource` adapter.
+
+It consumes:
+
+* `IVirtualFileSystem`,
+* an `AssetId` + `AssetKind` to virtual path resolver.
+
+It does not change `AssetRegistry.sourcePath` semantics, asset manifest format, package manifest format, startup validation, package mounting, or `FileAssetSource`.
+
+Current `AssetRegistry.sourcePath` behavior:
+
+```txt
+AssetManifestRegistryAdapter resolves asset manifest paths against the package/runtime manifest context and stores the resolved cooked/runtime path in AssetRegistryEntry::sourcePath.
+```
+
+This field is not currently a VFS virtual path contract. It remains the path consumed by the active asset source implementation for the current runtime registration path.
+
+Current status mapping:
+
+```txt
+VFS Ok
+  -> StreamingStatus::Ok
+
+VFS AssetNotFound / MountNotFound
+  -> StreamingStatus::AssetNotFound
+
+VFS InvalidPath / BackendError
+  -> StreamingStatus::SourceError
+```
+
+The resolver owns the policy of producing virtual paths. A later slice must decide whether runtime asset registry paths are virtual paths, native paths, or a separate artifact-location contract.
 
 ---
 

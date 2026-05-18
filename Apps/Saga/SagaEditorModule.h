@@ -17,6 +17,7 @@ class QStackedWidget;
 namespace SagaEditor
 {
 class EditorHost;
+class EditorShell;
 class IPanel;
 } // namespace SagaEditor
 
@@ -60,5 +61,13 @@ private:
     struct Impl;
     std::unique_ptr<Impl> m_impl;
 };
+
+using EditorModePanelProvider = std::function<void(SagaEditor::EditorShell&)>;
+
+/// Register a product-editor-mode panel provider without binding product core to the panel owner.
+void RegisterEditorModePanelProvider(EditorModePanelProvider provider);
+
+/// Clear registered editor-mode panel providers for deterministic tests or shutdown.
+void ClearEditorModePanelProviders();
 
 } // namespace SagaProduct

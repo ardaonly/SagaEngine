@@ -72,6 +72,7 @@ function(saga_setup_tests)
         ${SAGA_ROOT}/Server/include
         ${SAGA_ROOT}/Shared/include
         ${SAGA_ROOT}/Collaboration/include
+        ${SAGA_ROOT}/Tools/AssetPipeline/include
         ${SAGA_ROOT}/Backends/include
         ${SAGA_ROOT}/Editor/include
         ${SAGA_ROOT}/Apps/EditorLab/include
@@ -90,6 +91,7 @@ function(saga_setup_tests)
         SagaServerLib
         SagaShared
         SagaCollaboration
+        SagaAssetPipelineLib
         SagaBackend
         SagaEditorLib    # needed by Tests/Unit/Editor/* (block authoring,
                          # InspectorEditing, persona, viewport, etc.)

@@ -14,6 +14,9 @@ namespace SagaEditorLab
 namespace
 {
 
+constexpr const char* kDeterministicRuntimeModeId = "deterministic";
+constexpr const char* kConnectedRuntimeModeId = "connected";
+
 [[nodiscard]] std::string SeverityText(ScenarioDiagnostic::Severity severity)
 {
     switch (severity)
@@ -34,8 +37,22 @@ ScenarioRunnerPanelViewModel::ScenarioRunnerPanelViewModel()
 {}
 
 ScenarioRunnerPanelViewModel::ScenarioRunnerPanelViewModel(
+    IScenarioRuntimeAdapter& runtimeAdapter)
+    : ScenarioRunnerPanelViewModel(MakeBuiltinScenarioDefinitions(), runtimeAdapter)
+{}
+
+ScenarioRunnerPanelViewModel::ScenarioRunnerPanelViewModel(
     std::vector<ScenarioDefinition> scenarios)
     : m_scenarios(std::move(scenarios))
+{
+    m_hasSelection = !m_scenarios.empty();
+}
+
+ScenarioRunnerPanelViewModel::ScenarioRunnerPanelViewModel(
+    std::vector<ScenarioDefinition> scenarios,
+    IScenarioRuntimeAdapter& runtimeAdapter)
+    : m_scenarios(std::move(scenarios))
+    , m_runtimeAdapter(&runtimeAdapter)
 {
     m_hasSelection = !m_scenarios.empty();
 }
@@ -90,6 +107,44 @@ ScenarioRunnerPanelViewModel::GetSelectedScenario() const noexcept
     return &m_scenarios[m_selectedIndex];
 }
 
+std::vector<ScenarioRunnerRuntimeModeItem>
+ScenarioRunnerPanelViewModel::GetRuntimeModeItems() const
+{
+    std::vector<ScenarioRunnerRuntimeModeItem> items;
+    items.push_back({kDeterministicRuntimeModeId, "Deterministic"});
+    if (m_runtimeAdapter != nullptr)
+    {
+        items.push_back({kConnectedRuntimeModeId, "Connected"});
+    }
+    return items;
+}
+
+const std::string&
+ScenarioRunnerPanelViewModel::GetSelectedRuntimeModeId() const noexcept
+{
+    return m_selectedRuntimeModeId;
+}
+
+bool ScenarioRunnerPanelViewModel::SelectRuntimeMode(const std::string& modeId)
+{
+    const auto items = GetRuntimeModeItems();
+    const auto found = std::find_if(
+        items.begin(),
+        items.end(),
+        [&modeId](const ScenarioRunnerRuntimeModeItem& item)
+        {
+            return item.id == modeId;
+        });
+
+    if (found == items.end())
+    {
+        return false;
+    }
+
+    m_selectedRuntimeModeId = modeId;
+    return true;
+}
+
 bool ScenarioRunnerPanelViewModel::RunSelectedScenario()
 {
     const ScenarioDefinition* selected = GetSelectedScenario();
@@ -104,8 +159,15 @@ bool ScenarioRunnerPanelViewModel::RunSelectedScenario()
 
 void ScenarioRunnerPanelViewModel::RunScenario(const ScenarioDefinition& scenario)
 {
-    DeterministicScenarioRuntimeAdapter adapter;
-    m_lastResult = ScenarioRunner{}.Run(scenario, adapter);
+    if (m_selectedRuntimeModeId == kConnectedRuntimeModeId && m_runtimeAdapter)
+    {
+        m_lastResult = ScenarioRunner{}.Run(scenario, *m_runtimeAdapter);
+    }
+    else
+    {
+        DeterministicScenarioRuntimeAdapter adapter;
+        m_lastResult = ScenarioRunner{}.Run(scenario, adapter);
+    }
     m_hasResult = true;
 }
 

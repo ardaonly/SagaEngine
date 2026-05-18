@@ -4,7 +4,9 @@
 #include "SagaEngine/Resources/RuntimeAssetRegistryBootstrapper.h"
 
 #include "SagaEngine/Assets/AssetManifestLoader.hpp"
+#include "SagaEngine/Resources/AssetIdentityManifest.h"
 
+#include <optional>
 #include <unordered_map>
 #include <utility>
 
@@ -17,6 +19,13 @@ struct PlannedPackageAsset
     AssetManifestRegistryAdapterPlannedEntry plannedEntry; ///< Adapter-planned registry entry.
     std::filesystem::path manifestPath;                    ///< Asset manifest path that produced the entry.
     std::size_t referenceIndex = 0;                         ///< Package asset manifest reference index.
+};
+
+/// Package asset plan produced before registry mutation.
+struct PackageAssetPlanResult
+{
+    std::vector<PlannedPackageAsset> plannedAssets; ///< Assets ready for registry collision checks or validation success.
+    RuntimeAssetRegistryBootstrapResult result;     ///< Diagnostics collected while building the plan.
 };
 
 /// Resolve package manifest references relative to the package manifest folder.
@@ -106,17 +115,66 @@ void AppendRegistryDiagnostic(
         diagnostic.assetId));
 }
 
-} // namespace
+/// Normalize an identity manifest loader diagnostic into bootstrap output.
+void AppendIdentityManifestDiagnostic(
+    RuntimeAssetRegistryBootstrapResult& result,
+    const AssetIdentityManifestError& error)
+{
+    result.diagnostics.push_back(MakeDiagnostic(
+        error.diagnosticId,
+        error.message,
+        error.manifestPath,
+        std::nullopt,
+        error.mappingIndex,
+        error.assetKey,
+        error.assetId));
+}
 
-RuntimeAssetRegistryBootstrapResult
-RuntimeAssetRegistryBootstrapper::RegisterPackageAssets(
-    AssetRegistry& registry,
+/// Load the package identity manifest and build an explicit resolver.
+[[nodiscard]] std::optional<StaticAssetIdResolver> LoadPackageIdentityResolver(
+    const Packages::PackageManifest& packageManifest,
+    const RuntimeAssetRegistryBootstrapOptions& options,
+    RuntimeAssetRegistryBootstrapResult& result)
+{
+    if (!packageManifest.assetIdentityManifest.has_value())
+    {
+        result.diagnostics.push_back(MakeDiagnostic(
+            RuntimeAssetRegistryBootstrapDiagnostics::MissingAssetIdentityManifest,
+            "Package manifest does not reference an asset identity manifest.",
+            options.packageManifestPath,
+            std::nullopt,
+            std::nullopt,
+            {},
+            kInvalidAssetId));
+        return std::nullopt;
+    }
+
+    const std::filesystem::path identityManifestPath =
+        ResolvePackageReference(
+            options.packageManifestPath,
+            *packageManifest.assetIdentityManifest);
+    const AssetIdentityManifestLoadResult identityLoadResult =
+        AssetIdentityManifestLoader::LoadFromFile(identityManifestPath);
+    for (const AssetIdentityManifestError& error : identityLoadResult.errors)
+    {
+        AppendIdentityManifestDiagnostic(result, error);
+    }
+
+    if (!identityLoadResult.Succeeded())
+    {
+        return std::nullopt;
+    }
+
+    return AssetIdentityManifestLoader::BuildResolver(identityLoadResult.manifest);
+}
+
+/// Build a package-level asset plan without mutating a registry.
+[[nodiscard]] PackageAssetPlanResult PlanPackageAssets(
     const Packages::PackageManifest& packageManifest,
     const IAssetIdResolver& assetIdResolver,
     const RuntimeAssetRegistryBootstrapOptions& options)
 {
-    RuntimeAssetRegistryBootstrapResult result;
-    std::vector<PlannedPackageAsset> plannedAssets;
+    PackageAssetPlanResult planResult;
 
     for (std::size_t index = 0; index < packageManifest.assetManifests.size(); ++index)
     {
@@ -135,7 +193,7 @@ RuntimeAssetRegistryBootstrapper::RegisterPackageAssets(
                 loadOptions);
         for (const Assets::AssetManifestError& error : assetLoadResult.errors)
         {
-            AppendAssetLoaderDiagnostic(result, error, index);
+            AppendAssetLoaderDiagnostic(planResult.result, error, index);
         }
 
         if (!assetLoadResult.Succeeded())
@@ -155,7 +213,7 @@ RuntimeAssetRegistryBootstrapper::RegisterPackageAssets(
         for (const AssetManifestRegistryAdapterDiagnostic& diagnostic :
              plan.diagnostics)
         {
-            AppendAdapterDiagnostic(result, diagnostic, index);
+            AppendAdapterDiagnostic(planResult.result, diagnostic, index);
         }
 
         if (!plan.Succeeded())
@@ -170,26 +228,26 @@ RuntimeAssetRegistryBootstrapper::RegisterPackageAssets(
             packageAsset.plannedEntry = planned;
             packageAsset.manifestPath = resolvedManifestPath;
             packageAsset.referenceIndex = index;
-            plannedAssets.push_back(std::move(packageAsset));
+            planResult.plannedAssets.push_back(std::move(packageAsset));
         }
     }
 
-    if (!result.diagnostics.empty())
+    if (!planResult.result.diagnostics.empty())
     {
-        return result;
+        return planResult;
     }
 
     std::unordered_map<AssetKey, std::size_t> seenKeys;
     std::unordered_map<AssetId, AssetKey> seenIds;
-    for (std::size_t index = 0; index < plannedAssets.size(); ++index)
+    for (std::size_t index = 0; index < planResult.plannedAssets.size(); ++index)
     {
-        const PlannedPackageAsset& planned = plannedAssets[index];
+        const PlannedPackageAsset& planned = planResult.plannedAssets[index];
         const AssetRegistryEntry& entry = planned.plannedEntry.entry;
 
         const auto existingKey = seenKeys.find(entry.assetKey);
         if (existingKey != seenKeys.end())
         {
-            result.diagnostics.push_back(MakeDiagnostic(
+            planResult.result.diagnostics.push_back(MakeDiagnostic(
                 RuntimeAssetRegistryBootstrapDiagnostics::DuplicatePackageAssetKey,
                 "Package asset manifests contain the same AssetKey more than once.",
                 planned.manifestPath,
@@ -207,7 +265,7 @@ RuntimeAssetRegistryBootstrapper::RegisterPackageAssets(
         const auto existingId = seenIds.find(entry.assetId);
         if (existingId != seenIds.end() && existingId->second != entry.assetKey)
         {
-            result.diagnostics.push_back(MakeDiagnostic(
+            planResult.result.diagnostics.push_back(MakeDiagnostic(
                 RuntimeAssetRegistryBootstrapDiagnostics::DuplicatePackageAssetId,
                 "Package asset manifests resolve multiple AssetKeys to the same AssetId.",
                 planned.manifestPath,
@@ -221,6 +279,64 @@ RuntimeAssetRegistryBootstrapper::RegisterPackageAssets(
         {
             seenIds.emplace(entry.assetId, entry.assetKey);
         }
+    }
+
+    return planResult;
+}
+
+} // namespace
+
+RuntimeAssetRegistryBootstrapResult
+RuntimeAssetRegistryBootstrapper::ValidatePackageAssetsFromPackageIdentityManifest(
+    const Packages::PackageManifest& packageManifest,
+    const RuntimeAssetRegistryBootstrapOptions& options)
+{
+    RuntimeAssetRegistryBootstrapResult result;
+    const std::optional<StaticAssetIdResolver> resolver =
+        LoadPackageIdentityResolver(packageManifest, options, result);
+    if (!resolver.has_value())
+    {
+        return result;
+    }
+
+    return PlanPackageAssets(packageManifest, *resolver, options).result;
+}
+
+RuntimeAssetRegistryBootstrapResult
+RuntimeAssetRegistryBootstrapper::RegisterPackageAssetsFromPackageIdentityManifest(
+    AssetRegistry& registry,
+    const Packages::PackageManifest& packageManifest,
+    const RuntimeAssetRegistryBootstrapOptions& options)
+{
+    RuntimeAssetRegistryBootstrapResult result;
+    const std::optional<StaticAssetIdResolver> resolver =
+        LoadPackageIdentityResolver(packageManifest, options, result);
+    if (!resolver.has_value())
+    {
+        return result;
+    }
+
+    return RegisterPackageAssets(registry, packageManifest, *resolver, options);
+}
+
+RuntimeAssetRegistryBootstrapResult
+RuntimeAssetRegistryBootstrapper::RegisterPackageAssets(
+    AssetRegistry& registry,
+    const Packages::PackageManifest& packageManifest,
+    const IAssetIdResolver& assetIdResolver,
+    const RuntimeAssetRegistryBootstrapOptions& options)
+{
+    PackageAssetPlanResult plan =
+        PlanPackageAssets(packageManifest, assetIdResolver, options);
+    RuntimeAssetRegistryBootstrapResult result = std::move(plan.result);
+    if (!result.diagnostics.empty())
+    {
+        return result;
+    }
+
+    for (const PlannedPackageAsset& planned : plan.plannedAssets)
+    {
+        const AssetRegistryEntry& entry = planned.plannedEntry.entry;
 
         if (registry.FindByKey(entry.assetKey) != nullptr)
         {
@@ -255,8 +371,8 @@ RuntimeAssetRegistryBootstrapper::RegisterPackageAssets(
     }
 
     std::vector<AssetRegistryEntry> entries;
-    entries.reserve(plannedAssets.size());
-    for (const PlannedPackageAsset& planned : plannedAssets)
+    entries.reserve(plan.plannedAssets.size());
+    for (const PlannedPackageAsset& planned : plan.plannedAssets)
     {
         entries.push_back(planned.plannedEntry.entry);
     }
