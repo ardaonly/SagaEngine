@@ -6,6 +6,7 @@
 #include "Forge/CMakeAdapter.h"
 #include "Forge/ConanAdapter.h"
 #include "Forge/EnvProbe.h"
+#include "Forge/ExitCode.h"
 #include "Forge/Manifest.h"
 #include "Forge/Pipeline/BuildPlanner.hpp"
 #include "Forge/ProcessRunner.h"
@@ -32,10 +33,10 @@ constexpr const char* kForgeVersion = "0.3.0";
 constexpr const char* kManifestName = "forge.toml";
 constexpr const char* kEnvOverrides = ".forge";
 
-constexpr int kExitSuccess = 0;
-constexpr int kExitUsage   = 1;
-constexpr int kExitRunFail = 2;
-constexpr int kExitStrict  = 3;
+constexpr int kExitSuccess = Forge::ToInt(Forge::ExitCode::Success);
+constexpr int kExitUsage = Forge::ToInt(Forge::ExitCode::UsageError);
+constexpr int kExitRunFail = Forge::ToInt(Forge::ExitCode::ExecutionFailure);
+constexpr int kExitStrict = Forge::ToInt(Forge::ExitCode::StrictFailure);
 
 // ─── Argv helpers ─────────────────────────────────────────────────────────────
 
@@ -312,7 +313,7 @@ int CmdNew(std::vector<std::string> args)
 
     std::cerr << "[forge] scaffolded '" << dir << "/'\n"
               << "[forge] next: cd " << dir << " && forge configure && forge build\n";
-    return 0;
+    return kExitSuccess;
 }
 
 int CmdInit(std::vector<std::string> /*args*/)
@@ -918,7 +919,7 @@ int CmdFmt(std::vector<std::string> args)
     if (files.empty())
     {
         std::cerr << "[forge/fmt] no source files found under '" << sourceDir << "'\n";
-        return 0;
+        return kExitSuccess;
     }
 
     const std::string& fmtExe = Forge::ToolEnv::Active().clangFmt;
@@ -928,7 +929,7 @@ int CmdFmt(std::vector<std::string> args)
         std::cout << fmtExe << " -i";
         for (const auto& f : files) std::cout << " " << f;
         std::cout << "\n";
-        return 0;
+        return kExitSuccess;
     }
 
     std::cerr << "[forge/" << fmtExe << "] formatting " << files.size()
@@ -943,7 +944,7 @@ int CmdFmt(std::vector<std::string> args)
     {
         std::cerr << "[forge/fmt] could not launch " << fmtExe << ": " << err
                   << "\n[forge/fmt] is `" << fmtExe << "` on PATH?\n";
-        return 2;
+        return kExitRunFail;
     }
     return rc;
 }
