@@ -608,6 +608,13 @@ Tools/Host/README.md
   * no accidental push by default,
   * structured summary.
 
+  `0.0.8-dev.7` added SagaSync as a PySide6 internal dashboard foundation for
+  this workflow. It reads export manifest/state data, shows conservative
+  commit/export queue suggestions, evaluates export health, and runs named
+  dry-run/read-only verification profiles with session-local run history and
+  unverified/stale health display. It also previews read-only commit groups
+  with suggested messages. It does not stage, commit, or push.
+
 * [ ] Ensure new tools are export-aware where needed.
 
   Candidate exported tools:
