@@ -7,13 +7,18 @@
 #include "Forge/ConanAdapter.h"
 #include "Forge/EnvProbe.h"
 #include "Forge/Manifest.h"
+#include "Forge/Pipeline/BuildPlanner.hpp"
 #include "Forge/ProcessRunner.h"
+#include "Forge/Reports/BuildReportBuilder.hpp"
+#include "Forge/Reports/BuildReportWriter.hpp"
 #include "Forge/ToolEnv.h"
 
 #include <cstdlib>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 #include <set>
 #include <string>
 #include <vector>
@@ -242,11 +247,15 @@ void PrintUsage(std::ostream& os)
         "    clean      [--build=DIR] [--explain]\n"
         "    test       [--build=DIR] [--label=LABEL] [--verbose]\n"
         "    install-target [--build=DIR] [--prefix=DIR] [--component=NAME]\n"
+        "    plan       <command> [--json] [--write-report]\n"
+        "                                                 preview Forge build plan report\n"
         "    presets    [build|test|configure]         list available CMake presets\n"
         "    fmt        [--source=DIR] [--explain]     run clang-format on project sources\n"
         "\n"
         "INFORMATION:\n"
         "    env        [--json]                       show detected tool versions\n"
+        "    report     [--json] [--build=DIR] [--path=FILE]\n"
+        "                                                 inspect latest Forge report\n"
         "\n"
         "ESCAPE-HATCH:\n"
         "    nix <forge-command> [args ...]            run a Forge command through repository shell.nix\n"
@@ -303,7 +312,7 @@ int CmdNew(std::vector<std::string> args)
 
     std::cerr << "[forge] scaffolded '" << dir << "/'\n"
               << "[forge] next: cd " << dir << " && forge configure && forge build\n";
-    return kExitSuccess;
+    return 0;
 }
 
 int CmdInit(std::vector<std::string> /*args*/)
@@ -387,6 +396,372 @@ int CmdInstall(std::vector<std::string> args)
 }
 
 // ─── Build commands ───────────────────────────────────────────────────────────
+
+const char* BuildStepKindName(const Forge::BuildStepKind kind)
+{
+    switch (kind)
+    {
+        case Forge::BuildStepKind::InstallDependencies:
+            return "InstallDependencies";
+        case Forge::BuildStepKind::ConfigureBackend:
+            return "ConfigureBackend";
+        case Forge::BuildStepKind::BuildBackend:
+            return "BuildBackend";
+        case Forge::BuildStepKind::RunTests:
+            return "RunTests";
+        case Forge::BuildStepKind::InstallTarget:
+            return "InstallTarget";
+    }
+
+    return "BuildBackend";
+}
+
+const char* BuildReportStatusName(const Forge::Reports::BuildReportStatus status)
+{
+    switch (status)
+    {
+        case Forge::Reports::BuildReportStatus::Unknown:
+            return "Unknown";
+        case Forge::Reports::BuildReportStatus::Planned:
+            return "Planned";
+        case Forge::Reports::BuildReportStatus::Blocked:
+            return "Blocked";
+    }
+
+    return "Unknown";
+}
+
+bool ParseBuildPlanCommand(const std::string& command,
+                           Forge::BuildPlanCommand& outCommand)
+{
+    if (command == "install")
+    {
+        outCommand = Forge::BuildPlanCommand::Install;
+        return true;
+    }
+    if (command == "configure")
+    {
+        outCommand = Forge::BuildPlanCommand::Configure;
+        return true;
+    }
+    if (command == "build")
+    {
+        outCommand = Forge::BuildPlanCommand::Build;
+        return true;
+    }
+    if (command == "test")
+    {
+        outCommand = Forge::BuildPlanCommand::Test;
+        return true;
+    }
+    if (command == "install-target")
+    {
+        outCommand = Forge::BuildPlanCommand::InstallTarget;
+        return true;
+    }
+
+    return false;
+}
+
+void PrintBuildReportSummary(const Forge::Reports::BuildReport& report,
+                             std::ostream& os)
+{
+    os << "forge plan\n";
+    os << "  status: " << BuildReportStatusName(report.status) << "\n";
+    os << "  steps: " << report.summary.stepCount << "\n";
+    os << "  diagnostics: " << report.summary.diagnosticCount << "\n";
+    if (const auto it = report.metadata.find("forge.report.path");
+        it != report.metadata.end())
+    {
+        os << "  report: " << it->second << "\n";
+    }
+
+    for (const Forge::Reports::BuildReportStep& step : report.steps)
+    {
+        os << "  - " << step.id
+           << " [" << BuildStepKindName(step.kind) << "]";
+        if (!step.toolName.empty())
+        {
+            os << " tool=" << step.toolName;
+        }
+        os << "\n";
+    }
+
+    for (const Forge::Reports::BuildReportDiagnostic& diagnostic : report.diagnostics)
+    {
+        os << "  ! " << diagnostic.code;
+        if (!diagnostic.stepId.empty())
+        {
+            os << " step=" << diagnostic.stepId;
+        }
+        if (!diagnostic.reference.empty())
+        {
+            os << " ref=" << diagnostic.reference;
+        }
+        os << "\n";
+    }
+}
+
+std::filesystem::path BuildReportPathForModel(const Forge::BuildModel& model)
+{
+    return std::filesystem::path(model.build.buildDir) /
+           "Reports" /
+           "build_report.json";
+}
+
+std::filesystem::path BuildReportPathForBuildDir(const std::string& buildDir)
+{
+    return std::filesystem::path(buildDir) /
+           "Reports" /
+           "build_report.json";
+}
+
+bool WriteBuildReportFile(const Forge::Reports::BuildReport& report,
+                          const std::filesystem::path& path,
+                          std::string& outError)
+{
+    std::error_code ec;
+    std::filesystem::create_directories(path.parent_path(), ec);
+    if (ec)
+    {
+        outError = "could not create report directory '" +
+                   path.parent_path().generic_string() + "': " + ec.message();
+        return false;
+    }
+
+    std::ofstream out(path, std::ios::trunc);
+    if (!out)
+    {
+        outError = "could not open report file '" +
+                   path.generic_string() + "' for writing";
+        return false;
+    }
+
+    Forge::Reports::BuildReportWriter::WriteJson(report, out);
+    if (!out)
+    {
+        outError = "could not write report file '" +
+                   path.generic_string() + "'";
+        return false;
+    }
+
+    return true;
+}
+
+bool ReadTextFile(const std::filesystem::path& path,
+                  std::string& outText,
+                  std::string& outError)
+{
+    std::ifstream in(path);
+    if (!in)
+    {
+        outError = "report file not found: '" + path.generic_string() + "'";
+        return false;
+    }
+
+    outText.assign(std::istreambuf_iterator<char>(in),
+                   std::istreambuf_iterator<char>());
+    if (!in.eof() && in.fail())
+    {
+        outError = "could not read report file: '" + path.generic_string() + "'";
+        return false;
+    }
+
+    return true;
+}
+
+bool ReportFileSize(const std::filesystem::path& path,
+                    std::uintmax_t& outSize,
+                    std::string& outError)
+{
+    std::error_code ec;
+    outSize = std::filesystem::file_size(path, ec);
+    if (ec)
+    {
+        outError = "could not stat report file '" +
+                   path.generic_string() + "': " + ec.message();
+        return false;
+    }
+
+    return true;
+}
+
+int CmdPlan(std::vector<std::string> args)
+{
+    const bool asJson = TakeBool(args, "json");
+    const bool writeReport = TakeBool(args, "write-report");
+    const bool forceUnsafeJobs = TakeBool(args, "force-unsafe-jobs");
+    static_cast<void>(TakeBool(args, "explain"));
+
+    if (args.empty())
+    {
+        std::cerr << "[forge] 'plan' requires a command: install, configure, build, test, or install-target.\n";
+        return kExitUsage;
+    }
+
+    const std::string plannedCommandName = args.front();
+    args.erase(args.begin());
+
+    Forge::BuildPlanCommand plannedCommand = Forge::BuildPlanCommand::Build;
+    if (!ParseBuildPlanCommand(plannedCommandName, plannedCommand))
+    {
+        std::cerr << "[forge] unknown plan command: '" << plannedCommandName << "'\n";
+        return kExitUsage;
+    }
+
+    auto extra = TakeTrailing(args);
+    if (!extra.empty())
+    {
+        std::cerr << "[forge] plan does not pass backend arguments.\n";
+        return kExitUsage;
+    }
+
+    std::string jobsStr;
+    TakeFlag(args, "jobs", jobsStr);
+    if (jobsStr.empty()) TakeFlag(args, "j", jobsStr);
+
+    Forge::Manifest m = LoadOrEmpty();
+    Forge::BuildModel model = Forge::BuildModel::FromManifest(m);
+
+    if (plannedCommand == Forge::BuildPlanCommand::Install)
+    {
+        std::string ignored;
+        TakeFlag(args, "profile", ignored);
+        TakeFlag(args, "profile-build", ignored);
+    }
+    else if (plannedCommand == Forge::BuildPlanCommand::Configure)
+    {
+        TakeFlag(args, "source", model.build.sourceDir);
+        TakeFlag(args, "build", model.build.buildDir);
+        TakeFlag(args, "preset", model.build.preset);
+    }
+    else if (plannedCommand == Forge::BuildPlanCommand::Build)
+    {
+        TakeFlag(args, "build", model.build.buildDir);
+        TakeFlag(args, "target", model.build.target);
+        TakeFlag(args, "config", model.build.config);
+    }
+    else if (plannedCommand == Forge::BuildPlanCommand::Test)
+    {
+        std::string ignored;
+        TakeFlag(args, "build", model.build.buildDir);
+        TakeFlag(args, "label", ignored);
+        static_cast<void>(TakeBool(args, "verbose"));
+    }
+    else if (plannedCommand == Forge::BuildPlanCommand::InstallTarget)
+    {
+        std::string ignored;
+        TakeFlag(args, "build", model.build.buildDir);
+        TakeFlag(args, "prefix", ignored);
+        TakeFlag(args, "component", ignored);
+    }
+
+    model.build.forceUnsafeJobs = forceUnsafeJobs;
+    if (!jobsStr.empty())
+    {
+        try { model.build.jobs = static_cast<uint32_t>(std::stoul(jobsStr)); }
+        catch (...) { std::cerr << "[forge] warning: invalid --jobs value '" << jobsStr << "'\n"; }
+    }
+
+    if (!args.empty())
+    {
+        std::cerr << "[forge] unknown plan flag: '" << args.front() << "'\n";
+        return kExitUsage;
+    }
+
+    const Forge::BuildPlan plan =
+        Forge::BuildPlanner::PlanForCommand(model, plannedCommand);
+    const Forge::BuildPlanValidationResult validation =
+        Forge::BuildPlanner::Validate(plan);
+    Forge::Reports::BuildReport report =
+        Forge::Reports::BuildReportBuilder::CreatePlannedReport(plan, validation);
+
+    if (writeReport)
+    {
+        const std::filesystem::path reportPath = BuildReportPathForModel(model);
+        report.metadata["forge.report.path"] = reportPath.generic_string();
+
+        std::string error;
+        if (!WriteBuildReportFile(report, reportPath, error))
+        {
+            std::cerr << "[forge] " << error << "\n";
+            return kExitRunFail;
+        }
+    }
+
+    if (asJson)
+    {
+        Forge::Reports::BuildReportWriter::WriteJson(report, std::cout);
+    }
+    else
+    {
+        PrintBuildReportSummary(report, std::cout);
+    }
+
+    return validation.IsValid() ? kExitSuccess : kExitRunFail;
+}
+
+int CmdReport(std::vector<std::string> args)
+{
+    const bool asJson = TakeBool(args, "json");
+    std::string buildDir;
+    std::string explicitPath;
+    TakeFlag(args, "build", buildDir);
+    TakeFlag(args, "path", explicitPath);
+
+    if (!args.empty())
+    {
+        std::cerr << "[forge] unknown report flag: '" << args.front() << "'\n";
+        return kExitUsage;
+    }
+
+    std::filesystem::path reportPath;
+    if (!explicitPath.empty())
+    {
+        reportPath = explicitPath;
+    }
+    else
+    {
+        if (buildDir.empty())
+        {
+            Forge::Manifest m = LoadOrEmpty();
+            Forge::BuildModel model = Forge::BuildModel::FromManifest(m);
+            buildDir = model.build.buildDir;
+        }
+        reportPath = BuildReportPathForBuildDir(buildDir);
+    }
+
+    std::string reportText;
+    std::string error;
+    if (!ReadTextFile(reportPath, reportText, error))
+    {
+        std::cerr << "[forge] " << error << "\n";
+        return kExitRunFail;
+    }
+
+    if (asJson)
+    {
+        std::cout << reportText;
+        if (!reportText.empty() && reportText.back() != '\n')
+        {
+            std::cout << "\n";
+        }
+        return kExitSuccess;
+    }
+
+    std::uintmax_t size = 0;
+    if (!ReportFileSize(reportPath, size, error))
+    {
+        std::cerr << "[forge] " << error << "\n";
+        return kExitRunFail;
+    }
+
+    std::cout << "forge report\n";
+    std::cout << "  path: " << reportPath.generic_string() << "\n";
+    std::cout << "  size: " << size << " bytes\n";
+    std::cout << "  hint: use --json to print the report\n";
+    return kExitSuccess;
+}
 
 int CmdConfigure(std::vector<std::string> args)
 {
@@ -512,7 +887,7 @@ int CmdEnv(std::vector<std::string> args)
     else
         Forge::EnvProbe::PrintTable(report, model, std::cout);
 
-    return 0;
+    return kExitSuccess;
 }
 
 int CmdFmt(std::vector<std::string> args)
@@ -673,8 +1048,10 @@ int main(int argc, char** argv)
     if (command == "clean")          return CmdClean(std::move(args));
     if (command == "test")           return CmdTest(std::move(args));
     if (command == "install-target") return CmdInstallTarget(std::move(args));
+    if (command == "plan")           return CmdPlan(std::move(args));
     if (command == "presets")        return CmdPresets(std::move(args));
     if (command == "env")            return CmdEnv(std::move(args));
+    if (command == "report")         return CmdReport(std::move(args));
     if (command == "fmt")            return CmdFmt(std::move(args));
     if (command == "run")            return CmdRun(std::move(args));
 
