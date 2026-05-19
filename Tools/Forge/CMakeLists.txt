@@ -37,6 +37,7 @@ set(FORGE_HEADERS
     include/Forge/Diagnostics/DiagnosticCollector.hpp
     include/Forge/Diagnostics/ForgeDiagnostic.hpp
     include/Forge/EnvProbe.h
+    include/Forge/ExitCode.h
     include/Forge/Hardware.h
     include/Forge/Manifest.h
     include/Forge/Pipeline/BuildPlan.hpp
@@ -56,6 +57,7 @@ set(FORGE_SOURCES
     src/ConanAdapter.cpp
     src/Diagnostics/DiagnosticCollector.cpp
     src/EnvProbe.cpp
+    src/ExitCode.cpp
     src/Hardware.cpp
     src/Manifest.cpp
     src/Pipeline/BuildPlanner.cpp
@@ -117,6 +119,25 @@ else()
 endif()
 
 add_test(NAME forge_build_scheduler_tests COMMAND forge_build_scheduler_tests)
+
+add_executable(forge_exit_code_tests
+    tests/ExitCodeTests.cpp
+    src/ExitCode.cpp
+    include/Forge/ExitCode.h
+)
+
+target_include_directories(forge_exit_code_tests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+if(MSVC)
+    target_compile_options(forge_exit_code_tests PRIVATE /W4 /permissive- /utf-8)
+else()
+    target_compile_options(forge_exit_code_tests PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_test(NAME forge_exit_code_tests COMMAND forge_exit_code_tests)
 
 add_executable(forge_build_plan_tests
     tests/BuildPlanTests.cpp
