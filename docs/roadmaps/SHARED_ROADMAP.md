@@ -611,16 +611,28 @@ Shared/include/SagaShared/Collaboration/CollaborationChangeEnvelope.hpp
 
 ## 11. Diagnostics Contracts
 
-* [ ] Add shared diagnostics payload contracts.
+* [x] Add shared diagnostics payload contracts.
 
   Done means diagnostics can be represented without depending on editor/runtime/server/tool implementation.
+
+  Shipped in `0.0.8-dev.6` as neutral value contracts plus shared unit coverage:
+
+  ```txt
+  Shared/include/SagaShared/Diagnostics/DiagnosticSeverity.hpp
+  Shared/include/SagaShared/Diagnostics/DiagnosticCode.hpp
+  Shared/include/SagaShared/Diagnostics/DiagnosticLocation.hpp
+  Shared/include/SagaShared/Diagnostics/DiagnosticPayload.hpp
+  Shared/include/SagaShared/Diagnostics/DiagnosticSource.hpp
+  Shared/include/SagaShared/Diagnostics/DiagnosticCategory.hpp
+  Shared/include/SagaShared/Diagnostics/DiagnosticSummary.hpp
+  Tests/Unit/Shared/DiagnosticContractsTests.cpp
+  ```
 
 Expected files:
 
 ```txt
 Shared/include/SagaShared/Diagnostics/DiagnosticSeverity.hpp
 Shared/include/SagaShared/Diagnostics/DiagnosticCode.hpp
-Shared/include/SagaShared/Diagnostics/DiagnosticMessage.hpp
 Shared/include/SagaShared/Diagnostics/DiagnosticLocation.hpp
 Shared/include/SagaShared/Diagnostics/DiagnosticPayload.hpp
 Shared/include/SagaShared/Diagnostics/DiagnosticSource.hpp
@@ -645,7 +657,7 @@ Shared/include/SagaShared/Diagnostics/DiagnosticSummary.hpp
   * build step,
   * runtime entity where safe.
 
-* [ ] Add diagnostic categories used by new authoring/build systems.
+* [x] Add diagnostic categories used by new authoring/build systems.
 
   Required category families:
 
@@ -684,7 +696,7 @@ Shared/include/SagaShared/Diagnostics/DiagnosticSummary.hpp
 
 ## 12. Artifact Reference Contracts
 
-* [ ] Add shared artifact reference contracts.
+* [x] Add shared artifact reference contracts.
 
   Done means artifacts can be referenced by:
 
@@ -710,7 +722,9 @@ Shared/include/SagaShared/Artifacts/ArtifactManifest.hpp
 Shared/include/SagaShared/Artifacts/ArtifactDependency.hpp
 ```
 
-* [ ] Support SDE artifact references without depending on SDE internals.
+  Shipped in `0.0.8-dev.6` as data-only artifact ids, hashes, refs, dependencies, status, kind, and manifests with no SDE includes.
+
+* [x] Support SDE artifact references without depending on SDE internals.
 
   Done means shared contracts can reference:
 
@@ -730,7 +744,7 @@ Shared/include/SagaShared/Artifacts/ArtifactDependency.hpp
   SDE optimizer internals
   ```
 
-* [ ] Support asset/script/build artifact refs.
+* [x] Support asset/script/build artifact refs.
 
   Done means artifact contracts can represent:
 
@@ -745,7 +759,7 @@ Shared/include/SagaShared/Artifacts/ArtifactDependency.hpp
 
 ## 13. Package Manifest Contracts
 
-* [ ] Add shared package manifest format.
+* [x] Add shared package manifest format.
 
   Done means package manifests describe:
 
@@ -776,7 +790,9 @@ Shared/include/SagaShared/Packages/PackageValidationResult.hpp
 Shared/include/SagaShared/Packages/PackageCompatibility.hpp
 ```
 
-* [ ] Add manifest validation result contracts.
+  Shipped in `0.0.8-dev.6` as data-only package manifest, package id/kind/version, dependency, compatibility, and validation result contracts.
+
+* [x] Add manifest validation result contracts.
 
   Done means validation results include:
 
@@ -789,7 +805,7 @@ Shared/include/SagaShared/Packages/PackageCompatibility.hpp
   * affected artifact,
   * recoverability flag.
 
-* [ ] Keep package loading/cooking implementation outside `SagaShared`.
+* [x] Keep package loading/cooking implementation outside `SagaShared`.
 
   Done means package staging and manifest generation implementation belongs to Forge/package systems, not shared contracts.
 
@@ -797,7 +813,7 @@ Shared/include/SagaShared/Packages/PackageCompatibility.hpp
 
 ## 14. Build and Publish Contracts
 
-* [ ] Add shared build profile contracts.
+* [x] Add shared build profile contracts.
 
   Done means build profiles can describe:
 
@@ -821,7 +837,7 @@ Shared/include/SagaShared/Build/TargetPlatform.hpp
 Shared/include/SagaShared/Build/BuildProfileId.hpp
 ```
 
-* [ ] Add shared build report contracts.
+* [x] Add shared build report contracts.
 
   Done means build reports can represent:
 
@@ -844,7 +860,7 @@ Shared/include/SagaShared/Build/BuildStepResult.hpp
 Shared/include/SagaShared/Build/BuildReport.hpp
 ```
 
-* [ ] Add shared publish readiness contracts.
+* [x] Add shared publish readiness contracts.
 
   Done means publish readiness can represent:
 
@@ -868,9 +884,11 @@ Shared/include/SagaShared/Publish/PublishBlockerKind.hpp
 Shared/include/SagaShared/Publish/PublishReport.hpp
 ```
 
-* [ ] Keep build orchestration outside `SagaShared`.
+* [x] Keep build orchestration outside `SagaShared`.
 
   Done means `SagaShared` does not own build planner, step execution, tool invocation, cache implementation, or publishing backend.
+
+  Shipped in `0.0.8-dev.6` as data-only build profile/report and publish readiness/report contracts. Forge orchestration, manifest/report writers, JSON schemas, and publish gates remain outside `SagaShared`.
 
 ---
 

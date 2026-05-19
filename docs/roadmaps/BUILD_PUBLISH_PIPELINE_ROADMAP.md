@@ -691,7 +691,7 @@ Packages/shipping-server/
 
 ## 15. Publish Readiness Check
 
-- [ ] Add publish readiness model.
+- [x] Add publish readiness model.
 
   Done means publish readiness can be:
 
@@ -703,7 +703,7 @@ Failed
 Unknown
 ```
 
-- [ ] Define publish blockers.
+- [x] Define publish blockers.
 
   Required blocker categories:
 
@@ -723,6 +723,8 @@ RuntimeManifestInvalid
 ServerPackageInvalid
 DiagnosticsFatal
 ```
+
+  Shipped in `0.0.8-dev.6` as shared data-only publish readiness, blocker kind, blocker, and publish report contracts under `Shared/include/SagaShared/Publish/`.
 
 - [ ] Produce publish report.
 
@@ -849,6 +851,11 @@ sde validate
   - toolchain failure,
   - internal error,
   - publish blocked.
+
+  `0.0.8-dev.6` shipped a Forge-local named exit code foundation for success,
+  usage errors, execution failures, strict failures, validation failures, toolchain
+  failures, dependency failures, and internal errors. Full CI profile behavior,
+  compile/package/publish classification, and publish-blocker exit behavior remain open.
 
 - [ ] Emit reports as artifacts.
 
@@ -1179,14 +1186,23 @@ Expected shared contracts:
 ```txt
 Shared/include/SagaShared/Build/BuildProfile.hpp
 Shared/include/SagaShared/Build/BuildStatus.hpp
-Shared/include/SagaShared/Build/BuildDiagnostic.hpp
+Shared/include/SagaShared/Build/BuildConfiguration.hpp
+Shared/include/SagaShared/Build/BuildId.hpp
 Shared/include/SagaShared/Build/BuildReport.hpp
+Shared/include/SagaShared/Build/BuildStepKind.hpp
+Shared/include/SagaShared/Build/BuildStepResult.hpp
+Shared/include/SagaShared/Build/TargetPlatform.hpp
 Shared/include/SagaShared/Artifacts/ArtifactManifest.hpp
+Shared/include/SagaShared/Artifacts/ArtifactRef.hpp
 Shared/include/SagaShared/Packages/PackageManifest.hpp
+Shared/include/SagaShared/Packages/PackageValidationResult.hpp
 Shared/include/SagaShared/Publish/PublishReadiness.hpp
 Shared/include/SagaShared/Publish/PublishBlocker.hpp
+Shared/include/SagaShared/Publish/PublishBlockerKind.hpp
 Shared/include/SagaShared/Publish/PublishReport.hpp
 ```
+
+Foundational shared contracts shipped in `0.0.8-dev.6`. Forge pipeline execution, manifest generation, report writers, diagnostics aggregation, JSON schemas, and product workflow services remain open.
 
 Expected Saga product files:
 

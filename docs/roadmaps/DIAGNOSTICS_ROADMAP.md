@@ -179,11 +179,26 @@ Shared/include/SagaShared/Diagnostics/DiagnosticPayload.hpp
 Shared/include/SagaShared/Diagnostics/DiagnosticSummary.hpp
 ```
 
-* [ ] Keep diagnostic payload serializable.
+  `0.0.8-dev.6` shipped the foundational data-only payload contracts:
+
+  ```txt
+  Shared/include/SagaShared/Diagnostics/DiagnosticCode.hpp
+  Shared/include/SagaShared/Diagnostics/DiagnosticSeverity.hpp
+  Shared/include/SagaShared/Diagnostics/DiagnosticCategory.hpp
+  Shared/include/SagaShared/Diagnostics/DiagnosticSource.hpp
+  Shared/include/SagaShared/Diagnostics/DiagnosticLocation.hpp
+  Shared/include/SagaShared/Diagnostics/DiagnosticPayload.hpp
+  Shared/include/SagaShared/Diagnostics/DiagnosticSummary.hpp
+  Tests/Unit/Shared/DiagnosticContractsTests.cpp
+  ```
+
+  The full core model remains open for diagnostic ids, report envelopes, timestamp policy, and subsystem emitters.
+
+* [x] Keep diagnostic payload serializable.
 
   Done means diagnostics can be stored in reports and consumed by editor/product/CI without linking subsystem internals.
 
-* [ ] Keep raw subsystem data optional.
+* [x] Keep raw subsystem data optional.
 
   Done means diagnostics may include raw metadata, but consumers can still understand the diagnostic without private implementation headers.
 
@@ -204,7 +219,7 @@ PublishBlocking
 Security
 ```
 
-* [ ] Define severity semantics.
+* [x] Define severity semantics.
 
   Done means:
 
@@ -221,9 +236,11 @@ Security
 
   Done means Beginner mode may show simpler wording, but `PublishBlocking` remains `PublishBlocking`.
 
-* [ ] Define severity aggregation.
+* [x] Define severity aggregation.
 
   Done means reports can summarize highest severity and counts per category/source system.
+
+  Represented by `DiagnosticSummary` count fields, `DiagnosticSummary::Add`, and `DiagnosticSeverityRank`.
 
 ---
 

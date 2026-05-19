@@ -194,6 +194,7 @@ That is toolchain hoarding.
   forge clean
   forge test
   forge install-target
+  forge plan
   forge presets
   forge env
   forge fmt
@@ -411,6 +412,16 @@ Forge silently ignores stale generated/cooked artifacts.
 
   Done means users/CI can inspect latest build/publish/diagnostics reports.
 
+  `0.0.8-dev.6` shipped a minimal build report reader preview:
+
+  ```txt
+  forge report --json
+  forge report --build=DIR --json
+  forge report --path=FILE --json
+  ```
+
+  Text mode only prints report path, file size, and a `--json` hint. Parsed summaries, schema validation, diagnostics reports, publish reports, and package reports remain open.
+
 * [ ] Add `forge doctor`.
 
   Done means Forge checks:
@@ -557,7 +568,7 @@ Do not casually invent fields because a prototype needed a string.
   CLI overrides apply after lowering.
   ```
 
-* [ ] Add `BuildPlan` separate from `BuildModel`.
+* [x] Add `BuildPlan` separate from `BuildModel`.
 
   Done means Forge distinguishes:
 
@@ -568,13 +579,21 @@ Do not casually invent fields because a prototype needed a string.
 Expected files:
 
 ```txt
-Tools/Forge/include/Forge/Pipeline/BuildModel.hpp
 Tools/Forge/include/Forge/Pipeline/BuildPlan.hpp
-Tools/Forge/include/Forge/Pipeline/BuildStep.hpp
-Tools/Forge/include/Forge/Pipeline/BuildReport.hpp
+Tools/Forge/include/Forge/Pipeline/BuildPlanner.hpp
 Tools/Forge/src/Pipeline/BuildPlanner.cpp
-Tools/Forge/src/Pipeline/BuildPipeline.cpp
+Tools/Forge/tests/BuildPlanTests.cpp
 ```
+
+  Shipped in `0.0.8-dev.6` as a metadata-only planning foundation:
+
+  ```txt
+  BuildModel remains the existing manifest/CLI-lowered request model.
+  BuildPlan now describes planned command steps.
+  BuildReport foundation now describes planned/blocked BuildPlan reports.
+  `forge plan --write-report` can persist planned/blocked preview reports.
+  Command execution reports remain future work.
+  ```
 
 * [ ] Add build step dependency graph.
 
@@ -600,6 +619,8 @@ Tools/Forge/src/Pipeline/BuildPipeline.cpp
   * invalid profile/target combinations,
   * missing tool adapters,
   * unsupported step kind.
+
+  `0.0.8-dev.6` shipped the foundation checks for duplicate step ids, missing dependencies, dependency cycles, and duplicate output writers. Profile/target validation, required input validation, missing tool adapter validation, and unsupported future step validation remain open.
 
 ---
 
@@ -1127,9 +1148,27 @@ Expected files:
 
 ```txt
 Tools/Forge/include/Forge/Reports/BuildReport.hpp
+Tools/Forge/include/Forge/Reports/BuildReportBuilder.hpp
 Tools/Forge/include/Forge/Reports/BuildReportWriter.hpp
+Tools/Forge/src/Reports/BuildReportBuilder.cpp
 Tools/Forge/src/Reports/BuildReportWriter.cpp
 ```
+
+  `0.0.8-dev.6` shipped the Forge-local report foundation for BuildPlan validation reports:
+
+  ```txt
+  Tools/Forge/include/Forge/Reports/BuildReport.hpp
+  Tools/Forge/include/Forge/Reports/BuildReportBuilder.hpp
+  Tools/Forge/include/Forge/Reports/BuildReportWriter.hpp
+  Tools/Forge/src/Reports/BuildReportBuilder.cpp
+  Tools/Forge/src/Reports/BuildReportWriter.cpp
+  Tools/Forge/tests/BuildReportTests.cpp
+  ```
+
+  `forge plan <command> [--json]` can preview these reports from the CLI without executing backend adapters.
+  `forge plan <command> --write-report` can persist the preview to `<build-dir>/Reports/build_report.json`.
+  `forge report --json` can stream persisted preview reports without parsing them.
+  Tool versions, input hashes, real step execution results, artifact outputs, cache decisions, and diagnostics aggregation remain open.
 
 ---
 
@@ -1221,6 +1260,17 @@ Tools/Forge/include/Forge/Diagnostics/ForgeDiagnostic.hpp
 Tools/Forge/include/Forge/Diagnostics/DiagnosticCollector.hpp
 Tools/Forge/src/Diagnostics/DiagnosticCollector.cpp
 ```
+
+  `0.0.8-dev.6` shipped the Forge-local diagnostic collector foundation:
+
+  ```txt
+  Tools/Forge/include/Forge/Diagnostics/ForgeDiagnostic.hpp
+  Tools/Forge/include/Forge/Diagnostics/DiagnosticCollector.hpp
+  Tools/Forge/src/Diagnostics/DiagnosticCollector.cpp
+  Tools/Forge/tests/DiagnosticCollectorTests.cpp
+  ```
+
+  BuildPlan validation diagnostics now flow through `DiagnosticCollector` before entering build reports. Source-system/resource/artifact refs, suggested actions, raw tool diagnostics, and cross-tool normalization remain open.
 
 * [ ] Normalize tool diagnostics.
 
@@ -1366,6 +1416,18 @@ No one wants a 4,000-line terminal scroll as the only artifact of failure.
   UserCancelled
   ```
 
+  `0.0.8-dev.6` shipped the Forge-local foundation for named exit code categories:
+
+  ```txt
+  Tools/Forge/include/Forge/ExitCode.h
+  Tools/Forge/src/ExitCode.cpp
+  Tools/Forge/tests/ExitCodeTests.cpp
+  ```
+
+  Existing CLI numeric behavior is preserved for success, usage errors, execution failures,
+  and strict failures. Full command classification, CI profile behavior, package failures,
+  and publish-blocker exit behavior remain open.
+
 * [ ] Make CI output reliable.
 
   Done means CI can run:
@@ -1452,6 +1514,8 @@ That is the same lesson as SDE: reusable tools are stronger than captive ones.
   * duplicate output writer detection,
   * step ordering determinism.
 
+  `0.0.8-dev.6` added standalone `forge_build_plan_tests` for command-to-step lowering, dependency cycle detection, missing dependency detection, duplicate output writer detection, duplicate step id detection, and generated plan validation. Manifest lowering, CLI override application, and invalid profile rejection remain open.
+
 ---
 
 ### 26.3 Adapter Tests
@@ -1503,6 +1567,9 @@ That is the same lesson as SDE: reusable tools are stronger than captive ones.
   * publish report JSON,
   * invalid report version rejection,
   * missing required fields.
+
+  `0.0.8-dev.6` added `forge_build_report_tests` coverage for planned/blocked BuildPlan reports, validation issue diagnostics, deterministic JSON fields, and JSON string escaping. Full command execution reports and schema validation coverage remain open.
+  CTest also covers `forge_diagnostic_collector_tests`, `forge plan build --json`, text `forge plan test`, unknown plan command failure, `forge plan --write-report` persistence smoke paths, and minimal `forge report` JSON/text/missing-file paths.
 
 ---
 
@@ -1652,13 +1719,20 @@ Mitigation:
 Expected pipeline files:
 
 ```txt
-Tools/Forge/include/Forge/Pipeline/BuildModel.hpp
 Tools/Forge/include/Forge/Pipeline/BuildPlan.hpp
-Tools/Forge/include/Forge/Pipeline/BuildStep.hpp
+Tools/Forge/include/Forge/Pipeline/BuildPlanner.hpp
 Tools/Forge/include/Forge/Pipeline/BuildProfile.hpp
-Tools/Forge/include/Forge/Pipeline/BuildReport.hpp
 Tools/Forge/src/Pipeline/BuildPlanner.cpp
 Tools/Forge/src/Pipeline/BuildPipeline.cpp
+```
+
+Shipped foundation files:
+
+```txt
+Tools/Forge/include/Forge/Pipeline/BuildPlan.hpp
+Tools/Forge/include/Forge/Pipeline/BuildPlanner.hpp
+Tools/Forge/src/Pipeline/BuildPlanner.cpp
+Tools/Forge/tests/BuildPlanTests.cpp
 ```
 
 Expected adapters:
@@ -1696,13 +1770,29 @@ Expected report/package files:
 
 ```txt
 Tools/Forge/include/Forge/Reports/BuildReport.hpp
+Tools/Forge/include/Forge/Reports/BuildReportBuilder.hpp
 Tools/Forge/include/Forge/Reports/BuildReportWriter.hpp
+Tools/Forge/src/Reports/BuildReportBuilder.cpp
+Tools/Forge/src/Reports/BuildReportWriter.cpp
 Tools/Forge/include/Forge/Diagnostics/ForgeDiagnostic.hpp
+Tools/Forge/include/Forge/Diagnostics/DiagnosticCollector.hpp
+Tools/Forge/src/Diagnostics/DiagnosticCollector.cpp
 Tools/Forge/include/Forge/Package/PackageStager.hpp
 Tools/Forge/include/Forge/Manifests/ArtifactManifestWriter.hpp
 Tools/Forge/include/Forge/Manifests/PackageManifestWriter.hpp
 Tools/Forge/include/Forge/Publish/PublishReadiness.hpp
 Tools/Forge/include/Forge/Publish/PublishReport.hpp
+```
+
+Shipped report foundation files:
+
+```txt
+Tools/Forge/include/Forge/Reports/BuildReport.hpp
+Tools/Forge/include/Forge/Reports/BuildReportBuilder.hpp
+Tools/Forge/include/Forge/Reports/BuildReportWriter.hpp
+Tools/Forge/src/Reports/BuildReportBuilder.cpp
+Tools/Forge/src/Reports/BuildReportWriter.cpp
+Tools/Forge/tests/BuildReportTests.cpp
 ```
 
 Expected reports:
