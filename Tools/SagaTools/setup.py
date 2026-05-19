@@ -160,12 +160,18 @@ def stage_registry(out_path: Path) -> None:
     forge_exe       = _abs("Forge", "bin", "forge.exe" if is_win else "forge")
     prism_exe       = _abs("Prism", "bin", "prism-graph.cmd" if is_win else "prism-graph")
     host_exe        = _abs("Host", "host.sh")
+    sagasync_exe    = _abs("SagaSync", "sagasync.cmd" if is_win else "sagasync")
     forge_installer = _abs("Forge", "build.py")
     prism_installer = _abs("Prism", "build.py")
     
     payload = {
         "schema_version": "1.0",
-        "tools":      {"forge": forge_exe,       "prism": prism_exe,       "host": host_exe},
+        "tools":      {
+            "forge": forge_exe,
+            "prism": prism_exe,
+            "host": host_exe,
+            "sagasync": sagasync_exe,
+        },
         "installers": {"forge": forge_installer, "prism": prism_installer},
     }
     out_path.parent.mkdir(parents=True, exist_ok=True)
