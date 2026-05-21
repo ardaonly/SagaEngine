@@ -113,8 +113,10 @@ class PrismCliTests(unittest.TestCase):
                     "--txt-name", "ai.txt",
                     "--no-txt",
                     "--verbose",
-                    "--extra-arg=-DSAGA_PRISM=1",
-                    "Engine/Renderer/RenderGraph.cpp",
+                    "--external-manifest", "analysis.index=/repo/out/index.json",
+                    "--external-diagnostics", "analysis=/repo/out/diagnostics.json",
+                    "--extra-arg=-DPRISM_TEST=1",
+                    "src/render_graph.cpp",
                 ])
 
         self.assertEqual(rc, 0)
@@ -126,8 +128,8 @@ class PrismCliTests(unittest.TestCase):
                     "--repo-root", "/repo",
                     "-p", "/repo/build",
                     "-o", "out/raw.json",
-                    "--extra-arg", "-DSAGA_PRISM=1",
-                    "Engine/Renderer/RenderGraph.cpp",
+                    "--extra-arg", "-DPRISM_TEST=1",
+                    "src/render_graph.cpp",
                 ],
                 [
                     "/tmp/prism-graph",
@@ -137,6 +139,8 @@ class PrismCliTests(unittest.TestCase):
                     "--txt-name", "ai.txt",
                     "--no-txt",
                     "--verbose",
+                    "--external-manifest", "analysis.index=/repo/out/index.json",
+                    "--external-diagnostics", "analysis=/repo/out/diagnostics.json",
                 ],
             ],
         )

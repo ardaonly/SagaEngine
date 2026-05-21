@@ -28,6 +28,19 @@ class RawJsonSchemaError(PrismError):
         super().__init__(f"Raw JSON schema error: {reason}")
 
 
+class ExternalJsonError(PrismError):
+    """Raised when an externally supplied JSON payload cannot be loaded."""
+
+    def __init__(self, kind: str, key: str, path: Path, reason: str) -> None:
+        super().__init__(
+            f"External {kind} '{key}' at '{path}' could not be loaded: {reason}"
+        )
+        self.kind = kind
+        self.key = key
+        self.path = path
+        self.reason = reason
+
+
 class ExportError(PrismError):
     """Raised when an exporter fails to write its output file."""
 

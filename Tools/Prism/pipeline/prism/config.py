@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib     import Path
-from typing      import Optional
+from typing      import Dict, List, Optional
 
 from .errors import ConfigError
 
@@ -17,6 +17,21 @@ from .errors import ConfigError
 DEFAULT_RAW_JSON: str = "prism.raw.json"
 DEFAULT_OUT_JSON: str = "prism.graph.json"
 DEFAULT_OUT_TXT:  str = "prism.txt"
+
+
+def _parse_external_json_specs(
+    values: Optional[List[str]],
+    field: str,
+) -> Dict[str, Path]:
+    specs: Dict[str, Path] = {}
+    for value in values or []:
+        key, separator, path = value.partition("=")
+        if not separator or not key.strip() or not path.strip():
+            raise ConfigError(field, "entries must use <key>=<path>")
+        if key in specs:
+            raise ConfigError(field, f"duplicate key '{key}'")
+        specs[key] = Path(path).resolve()
+    return specs
 
 
 # ─── Config ───────────────────────────────────────────────────────────────────
@@ -35,6 +50,8 @@ class PipelineConfig:
     emit_txt:  bool         # False when --no-txt is supplied.
     verbose:   bool
     quiet:     bool
+    external_manifests: Dict[str, Path]
+    external_diagnostics: Dict[str, Path]
 
     # ── Derived paths ─────────────────────────────────────────────────────────
 
@@ -59,6 +76,8 @@ class PipelineConfig:
         emit_txt:  bool = True,
         verbose:   bool = False,
         quiet:     bool = False,
+        external_manifests: Optional[List[str]] = None,
+        external_diagnostics: Optional[List[str]] = None,
     ) -> "PipelineConfig":
         """
         Resolve paths and validate all fields.
@@ -80,6 +99,14 @@ class PipelineConfig:
             emit_txt  = emit_txt,
             verbose   = verbose,
             quiet     = quiet,
+            external_manifests = _parse_external_json_specs(
+                external_manifests,
+                "external_manifest",
+            ),
+            external_diagnostics = _parse_external_json_specs(
+                external_diagnostics,
+                "external_diagnostics",
+            ),
         )
         cfg._validate()
         return cfg

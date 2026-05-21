@@ -26,8 +26,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing  import Dict, List, Set
+from typing  import Any, Dict, List, Optional, Set
 
+from ..external_json import has_blocking_diagnostics
 from ..log    import PrismLogger
 from ..schema import (
     FileNode, GraphData, ModuleNode,
@@ -204,6 +205,8 @@ def _build_module_nodes(file_nodes: Dict[str, FileNode]) -> Dict[str, ModuleNode
 def _build_stats(
     symbols: Dict[str, SymbolNode],
     files:   Dict[str, FileNode],
+    external_manifests: Optional[Dict[str, Any]],
+    external_diagnostics: Optional[Dict[str, Any]],
 ) -> Dict[str, object]:
     by_kind:     Dict[str, int] = {}
     by_category: Dict[str, int] = {}
@@ -214,7 +217,7 @@ def _build_stats(
     for fn in files.values():
         by_category[fn.category] = by_category.get(fn.category, 0) + 1
 
-    return {
+    stats: Dict[str, object] = {
         "total_symbols":  len(symbols),
         "total_files":    len(files),
         "total_lines":    sum(fn.line_count for fn in files.values()),
@@ -222,10 +225,24 @@ def _build_stats(
         "by_category":    dict(sorted(by_category.items())),
     }
 
+    if external_manifests or external_diagnostics:
+        stats["total_external_manifests"] = len(external_manifests or {})
+        stats["total_external_diagnostics"] = len(external_diagnostics or {})
+        stats["has_blocking_external_diagnostics"] = (
+            has_blocking_diagnostics(external_diagnostics or {})
+        )
+
+    return stats
+
 
 # ─── Public Entry Point ───────────────────────────────────────────────────────
 
-def build_graph(raw: RawExtraction, log: PrismLogger) -> GraphData:
+def build_graph(
+    raw: RawExtraction,
+    log: PrismLogger,
+    external_manifests: Optional[Dict[str, Any]] = None,
+    external_diagnostics: Optional[Dict[str, Any]] = None,
+) -> GraphData:
     """
     Execute all five graph-construction phases and return a GraphData.
     This function is the single public API of this module.
@@ -249,7 +266,12 @@ def build_graph(raw: RawExtraction, log: PrismLogger) -> GraphData:
     log.info(f"  → {len(file_nodes)} files, {len(module_nodes)} modules")
 
     log.info("Phase 5/5 — Statistics")
-    stats = _build_stats(symbols, file_nodes)
+    stats = _build_stats(
+        symbols,
+        file_nodes,
+        external_manifests,
+        external_diagnostics,
+    )
 
     return GraphData(
         schema_version = SCHEMA_VERSION,
@@ -259,4 +281,6 @@ def build_graph(raw: RawExtraction, log: PrismLogger) -> GraphData:
         files          = file_nodes,
         modules        = module_nodes,
         stats          = stats,
+        external_manifests = external_manifests or None,
+        external_diagnostics = external_diagnostics or None,
     )

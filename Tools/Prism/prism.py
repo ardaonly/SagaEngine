@@ -85,6 +85,12 @@ def _build_parser() -> argparse.ArgumentParser:
                      help="Text summary filename passed to prism-graph.")
     run.add_argument("--no-txt", action="store_true",
                      help="Skip prism.txt generation.")
+    run.add_argument("--external-manifest", action="append", default=[],
+                     metavar="KEY=PATH",
+                     help="Forward an opaque external JSON manifest to prism-graph.")
+    run.add_argument("--external-diagnostics", action="append", default=[],
+                     metavar="KEY=PATH",
+                     help="Forward an opaque external JSON diagnostics report to prism-graph.")
     verbosity = run.add_mutually_exclusive_group()
     verbosity.add_argument("-v", "--verbose", action="store_true",
                            help="Enable verbose prism-graph logging.")
@@ -163,6 +169,10 @@ def _run_pipeline(args: argparse.Namespace) -> int:
         graph_cmd.append("--verbose")
     if args.quiet:
         graph_cmd.append("--quiet")
+    for value in args.external_manifest:
+        graph_cmd.extend(["--external-manifest", value])
+    for value in args.external_diagnostics:
+        graph_cmd.extend(["--external-diagnostics", value])
 
     return _run(graph_cmd)
 
