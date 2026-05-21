@@ -30,6 +30,7 @@ endif()
 # ─── Sources ────────────────────────────────────────────────────────────────
 
 set(FORGE_HEADERS
+    include/Forge/Adapters/ExternalGateAdapter.hpp
     include/Forge/BuildModel.h
     include/Forge/BuildScheduler.h
     include/Forge/CMakeAdapter.h
@@ -51,6 +52,7 @@ set(FORGE_HEADERS
 
 set(FORGE_SOURCES
     src/main.cpp
+    src/Adapters/ExternalGateAdapter.cpp
     src/BuildModel.cpp
     src/BuildScheduler.cpp
     src/CMakeAdapter.cpp
@@ -208,6 +210,39 @@ else()
 endif()
 
 add_test(NAME forge_build_report_tests COMMAND forge_build_report_tests)
+
+add_executable(forge_fake_gate_tool
+    tests/FakeGateTool.cpp
+)
+
+if(MSVC)
+    target_compile_options(forge_fake_gate_tool PRIVATE /W4 /permissive- /utf-8)
+else()
+    target_compile_options(forge_fake_gate_tool PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_executable(forge_tool_gate_tests
+    tests/ToolGateTests.cpp
+    src/ExitCode.cpp
+    src/ProcessRunner.cpp
+    include/Forge/ExitCode.h
+    include/Forge/ProcessRunner.h
+)
+
+target_include_directories(forge_tool_gate_tests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+if(MSVC)
+    target_compile_options(forge_tool_gate_tests PRIVATE /W4 /permissive- /utf-8)
+else()
+    target_compile_options(forge_tool_gate_tests PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_test(NAME forge_tool_gate_tests
+    COMMAND forge_tool_gate_tests $<TARGET_FILE:forge> $<TARGET_FILE:forge_fake_gate_tool>
+)
 
 add_test(NAME forge_plan_build_json COMMAND forge plan build --json)
 set_tests_properties(forge_plan_build_json
