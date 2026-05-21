@@ -219,6 +219,10 @@ SagaProjectResult SagaProjectSystem::CreateProject(
     std::filesystem::create_directories(sdeRoot / "artifacts", ec);
     std::filesystem::create_directories(sdeRoot / "cache", ec);
     std::filesystem::create_directories(root / "Assets", ec);
+    std::filesystem::create_directories(root / "Scripts", ec);
+    std::filesystem::create_directories(root / "Generated", ec);
+    std::filesystem::create_directories(root / "Build", ec);
+    std::filesystem::create_directories(root / "Packages", ec);
     if (ec)
     {
         result.error = "Cannot create project folders: " + ec.message();

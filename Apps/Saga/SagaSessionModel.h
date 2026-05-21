@@ -44,6 +44,7 @@ enum class SagaProductDiagnosticPhase
 {
     Config = 0,
     WorkspaceResolution,
+    ProjectValidation,
     TargetPreparation,
     StartupHandoff,
 };
@@ -86,6 +87,24 @@ inline constexpr const char* ProcessStartFailed =
     "Saga.Target.ProcessStartFailed";
 inline constexpr const char* ProcessExitedWithFailure =
     "Saga.Target.ProcessExitedWithFailure";
+inline constexpr const char* SagaScriptProjectMissing =
+    "Saga.Project.SagaScript.ProjectMissing";
+inline constexpr const char* SagaScriptManifestMissing =
+    "Saga.Project.SagaScript.ManifestMissing";
+inline constexpr const char* SagaScriptSourceMissing =
+    "Saga.Project.SagaScript.SourceMissing";
+inline constexpr const char* SagaScriptGateStartFailed =
+    "Saga.Project.SagaScript.GateStartFailed";
+inline constexpr const char* SagaScriptGateFailed =
+    "Saga.Project.SagaScript.GateFailed";
+inline constexpr const char* PackageStageProjectInvalid =
+    "Saga.Project.PackageStage.ProjectInvalid";
+inline constexpr const char* PackageStageInputsMissing =
+    "Saga.Project.PackageStage.InputsMissing";
+inline constexpr const char* PackageStageManifestInvalid =
+    "Saga.Project.PackageStage.ManifestInvalid";
+inline constexpr const char* PackageStageScriptArtifactInvalid =
+    "Saga.Project.PackageStage.ScriptArtifactInvalid";
 
 } // namespace SagaProductDiagnostics
 

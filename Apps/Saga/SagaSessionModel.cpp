@@ -43,6 +43,7 @@ const char* ToString(SagaProductDiagnosticPhase phase) noexcept
     {
         case SagaProductDiagnosticPhase::Config:              return "config";
         case SagaProductDiagnosticPhase::WorkspaceResolution: return "workspace_resolution";
+        case SagaProductDiagnosticPhase::ProjectValidation:   return "project_validation";
         case SagaProductDiagnosticPhase::TargetPreparation:   return "target_preparation";
         case SagaProductDiagnosticPhase::StartupHandoff:      return "startup_handoff";
     }
