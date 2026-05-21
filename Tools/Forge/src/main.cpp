@@ -1,6 +1,7 @@
 /// @file main.cpp
 /// @brief Forge CLI entry — Cargo-flavoured orchestration frontend for CMake and Conan.
 
+#include "Forge/Adapters/ExternalGateAdapter.hpp"
 #include "Forge/BuildModel.h"
 #include "Forge/BuildScheduler.h"
 #include "Forge/CMakeAdapter.h"
@@ -37,6 +38,7 @@ constexpr int kExitSuccess = Forge::ToInt(Forge::ExitCode::Success);
 constexpr int kExitUsage = Forge::ToInt(Forge::ExitCode::UsageError);
 constexpr int kExitRunFail = Forge::ToInt(Forge::ExitCode::ExecutionFailure);
 constexpr int kExitStrict = Forge::ToInt(Forge::ExitCode::StrictFailure);
+constexpr int kExitValidation = Forge::ToInt(Forge::ExitCode::ValidationFailure);
 
 // ─── Argv helpers ─────────────────────────────────────────────────────────────
 
@@ -143,6 +145,7 @@ bool CommandNeedsProjectToolchain(const std::string& command)
         "build",
         "test",
         "install-target",
+        "gate",
         "presets",
         "env",
         "fmt",
@@ -250,6 +253,8 @@ void PrintUsage(std::ostream& os)
         "    install-target [--build=DIR] [--prefix=DIR] [--component=NAME]\n"
         "    plan       <command> [--json] [--write-report]\n"
         "                                                 preview Forge build plan report\n"
+        "    gate run --name=NAME --tool=EXE --diagnostics=FILE -- <tool args>\n"
+        "                                                 run external diagnostics gate\n"
         "    presets    [build|test|configure]         list available CMake presets\n"
         "    fmt        [--source=DIR] [--explain]     run clang-format on project sources\n"
         "\n"
@@ -764,6 +769,100 @@ int CmdReport(std::vector<std::string> args)
     return kExitSuccess;
 }
 
+int CmdGate(std::vector<std::string> args)
+{
+    if (args.empty())
+    {
+        std::cerr << "[forge/gate] requires a subcommand: run\n";
+        return kExitUsage;
+    }
+
+    const std::string subcommand = args.front();
+    args.erase(args.begin());
+    if (subcommand != "run")
+    {
+        std::cerr << "[forge/gate] unknown subcommand: '" << subcommand << "'\n";
+        return kExitUsage;
+    }
+
+    Forge::Adapters::ExternalGateOptions options;
+    options.explain = TakeBool(args, "explain");
+    TakeFlag(args, "name", options.name);
+    TakeFlag(args, "tool", options.toolExecutable);
+    TakeFlag(args, "diagnostics", options.diagnosticsPath);
+    TakeFlag(args, "expect-diagnostics-key", options.blockingKey);
+    options.toolArguments = TakeTrailing(args);
+
+    if (!args.empty())
+    {
+        std::cerr << "[forge/gate] unknown run flag: '" << args.front() << "'\n";
+        return kExitUsage;
+    }
+    if (options.name.empty())
+    {
+        std::cerr << "[forge/gate] run requires --name <name>.\n";
+        return kExitUsage;
+    }
+    if (options.toolExecutable.empty())
+    {
+        std::cerr << "[forge/gate] run requires --tool <executable>.\n";
+        return kExitUsage;
+    }
+    if (options.diagnosticsPath.empty())
+    {
+        std::cerr << "[forge/gate] run requires --diagnostics <file>.\n";
+        return kExitUsage;
+    }
+
+    if (!options.explain)
+    {
+        std::cerr << "[forge/gate] " << options.name << ": "
+                  << options.toolExecutable;
+        for (const std::string& argument : options.toolArguments)
+        {
+            std::cerr << " " << argument;
+        }
+        std::cerr << "\n";
+    }
+
+    std::string error;
+    const Forge::Adapters::ExternalGateResult result =
+        Forge::Adapters::ExternalGateAdapter::Run(options, error);
+
+    if (!error.empty())
+    {
+        std::cerr << "[forge/gate] " << options.name << ": " << error << "\n";
+    }
+
+    if (options.explain)
+    {
+        return kExitSuccess;
+    }
+    if (!result.diagnosticsRead)
+    {
+        return kExitRunFail;
+    }
+    if (result.hasBlockingDiagnostics)
+    {
+        std::cerr << "[forge/gate] " << options.name
+                  << ": blocking diagnostics detected: "
+                  << options.diagnosticsPath << "\n";
+        return kExitValidation;
+    }
+    if (result.toolExitCode != 0)
+    {
+        std::cerr << "[forge/gate] " << options.name
+                  << ": tool exited with code "
+                  << result.toolExitCode << "\n";
+        return kExitRunFail;
+    }
+
+    std::cerr << "[forge/gate] " << options.name
+              << ": diagnostics accepted: "
+              << options.diagnosticsPath << "\n";
+    return kExitSuccess;
+}
+
 int CmdConfigure(std::vector<std::string> args)
 {
     const bool strict  = TakeBool(args, "strict");
@@ -1050,6 +1149,7 @@ int main(int argc, char** argv)
     if (command == "test")           return CmdTest(std::move(args));
     if (command == "install-target") return CmdInstallTarget(std::move(args));
     if (command == "plan")           return CmdPlan(std::move(args));
+    if (command == "gate")           return CmdGate(std::move(args));
     if (command == "presets")        return CmdPresets(std::move(args));
     if (command == "env")            return CmdEnv(std::move(args));
     if (command == "report")         return CmdReport(std::move(args));
