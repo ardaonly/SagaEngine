@@ -63,7 +63,7 @@ def _module_dict(m: ModuleNode) -> Dict[str, Any]:
 
 def graph_to_dict(graph: GraphData) -> Dict[str, Any]:
     """Convert *graph* to a plain dict suitable for json.dump."""
-    return {
+    payload: Dict[str, Any] = {
         "schema_version": graph.schema_version,
         "generated_by":   graph.generated_by,
         "repo_root":      graph.repo_root,
@@ -84,6 +84,23 @@ def graph_to_dict(graph: GraphData) -> Dict[str, Any]:
             )
         },
     }
+    if graph.external_manifests:
+        payload["external_manifests"] = {
+            k: v
+            for k, v in sorted(
+                graph.external_manifests.items(),
+                key=lambda kv: kv[0].lower(),
+            )
+        }
+    if graph.external_diagnostics:
+        payload["external_diagnostics"] = {
+            k: v
+            for k, v in sorted(
+                graph.external_diagnostics.items(),
+                key=lambda kv: kv[0].lower(),
+            )
+        }
+    return payload
 
 
 class JsonExporter(Exporter):

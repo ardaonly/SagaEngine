@@ -57,6 +57,20 @@ def _build_parser() -> "argparse.ArgumentParser":
         default = False,
         help    = "Skip the plain-text output.",
     )
+    p.add_argument(
+        "--external-manifest",
+        action  = "append",
+        default = [],
+        metavar = "KEY=PATH",
+        help    = "Attach an opaque external JSON manifest under KEY.",
+    )
+    p.add_argument(
+        "--external-diagnostics",
+        action  = "append",
+        default = [],
+        metavar = "KEY=PATH",
+        help    = "Attach an opaque external JSON diagnostics report under KEY.",
+    )
     verbosity = p.add_mutually_exclusive_group()
     verbosity.add_argument("-v", "--verbose", action="store_true", default=False)
     verbosity.add_argument("-q", "--quiet",   action="store_true", default=False)
@@ -67,6 +81,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     from prism.config  import PipelineConfig
     from prism.errors  import ConfigError, ExportError, PrismError, RawJsonNotFoundError, RawJsonSchemaError
     from prism.export  import JsonExporter, TxtExporter
+    from prism.external_json import load_external_json
     from prism.graph   import build_graph, load_raw
     from prism.log     import Level, init as init_log
 
@@ -85,6 +100,8 @@ def main(argv: Optional[List[str]] = None) -> int:
             emit_txt  = not args.no_txt,
             verbose   = args.verbose,
             quiet     = args.quiet,
+            external_manifests = args.external_manifest,
+            external_diagnostics = args.external_diagnostics,
         )
     except ConfigError as exc:
         log.error(str(exc))
@@ -94,8 +111,21 @@ def main(argv: Optional[List[str]] = None) -> int:
     log.info(f"Output: {cfg.out_dir}")
 
     try:
-        raw   = load_raw(cfg.raw_json)
-        graph = build_graph(raw, log)
+        raw = load_raw(cfg.raw_json)
+        external_manifests = load_external_json(
+            "manifest",
+            cfg.external_manifests,
+        )
+        external_diagnostics = load_external_json(
+            "diagnostics",
+            cfg.external_diagnostics,
+        )
+        graph = build_graph(
+            raw,
+            log,
+            external_manifests = external_manifests,
+            external_diagnostics = external_diagnostics,
+        )
     except (RawJsonNotFoundError, RawJsonSchemaError) as exc:
         log.error(str(exc))
         return 1

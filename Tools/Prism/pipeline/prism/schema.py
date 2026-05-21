@@ -13,7 +13,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing      import Dict, List, Optional
+from typing      import Any, Dict, List, Optional
 
 SCHEMA_VERSION: str = "1.0"
 
@@ -158,3 +158,5 @@ class GraphData:
     files:          Dict[str, FileNode]
     modules:        Dict[str, ModuleNode]
     stats:          Dict[str, object]
+    external_manifests: Optional[Dict[str, Any]] = None
+    external_diagnostics: Optional[Dict[str, Any]] = None
