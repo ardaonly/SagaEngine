@@ -26,6 +26,7 @@ include(SagaInstall)
 include(SagaAssets)
 include(SagaDistribution)
 
+saga_configure_executable_output_directory()
 saga_init_versioning()
 saga_setup_thirdparty()
 

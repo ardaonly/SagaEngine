@@ -4,7 +4,10 @@
 #include "SagaApp.h"
 
 #include "SagaEditorModule.h"
+#include "SagaPackageStaging.h"
 #include "SagaProjectSystem.h"
+#include "SagaPublishReadiness.h"
+#include "SagaScriptGate.h"
 
 #include <QApplication>
 #include <QByteArray>
@@ -73,7 +76,10 @@ constexpr int kExitStartupFailure = 1;
 [[nodiscard]] bool ShouldUsePreparationFlow(
     const SagaAppConfig& config) noexcept
 {
-    return config.prepareOnly ||
+    return config.publishCheck ||
+        config.stagePackages ||
+        config.validateSagaScript ||
+        config.prepareOnly ||
         config.target == SagaProductTargetKind::Runtime ||
         config.target == SagaProductTargetKind::Server;
 }
@@ -462,6 +468,101 @@ int SagaApp::Run(const SagaAppConfig& config,
                  std::ostream& out,
                  std::ostream& err)
 {
+    if (config.validateSagaScript)
+    {
+        SagaScriptGateRequest request;
+        request.projectRoot = config.sagaScriptProjectRoot;
+        request.forgeExecutable = config.forgeExecutable;
+        request.sagaScriptExecutable = config.sagaScriptExecutable;
+
+        SagaScriptGate gate;
+        const SagaScriptGateResult result =
+            gate.ValidateProject(request, out, err);
+        for (const SagaProductDiagnostic& diagnostic : result.diagnostics)
+        {
+            WriteProductDiagnostic(err, diagnostic);
+        }
+
+        out << "sagascript.source=" << result.paths.sourceRoot.string() << '\n';
+        out << "sagascript.manifests="
+            << result.paths.manifestOutputDirectory.string() << '\n';
+        out << "sagascript.diagnostics="
+            << result.paths.diagnosticsOutputPath.string() << '\n';
+        if (result.started)
+        {
+            out << "sagascript.exitCode=" << result.exitCode << '\n';
+        }
+
+        if (result.ok)
+        {
+            return kExitOk;
+        }
+        return result.started && result.exitCode != 0 ?
+            result.exitCode : kExitStartupFailure;
+    }
+
+    if (config.stagePackages)
+    {
+        SagaPackageStagingRequest request;
+        request.projectRoot = config.packageStageProjectRoot;
+        request.profile = config.packageProfile;
+        request.targetPlatform = config.targetPlatform;
+        request.runtimeCompatibilityVersion =
+            config.runtimeCompatibilityVersion;
+        request.reportPath = config.packageStageReportPath;
+
+        SagaPackageStagingService service;
+        const SagaPackageStagingResult result = service.Stage(request);
+
+        out << "package.report=" << result.paths.reportPath.string() << '\n';
+        out << "package.clientManifest="
+            << result.paths.clientPackageManifest.string() << '\n';
+        out << "package.serverManifest="
+            << result.paths.serverPackageManifest.string() << '\n';
+        out << "package.status=" << (result.ok ? "staged" : "blocked")
+            << '\n';
+        for (const SagaProductDiagnostic& diagnostic : result.diagnostics)
+        {
+            WriteProductDiagnostic(err, diagnostic);
+        }
+
+        return result.ok ? kExitOk : kExitStartupFailure;
+    }
+
+    if (config.publishCheck)
+    {
+        std::string diagnosticsError;
+        SagaPublishReadinessRequest request;
+        request.projectRoot = config.publishProjectRoot;
+        request.profile = config.publishProfile;
+        request.reportPath = config.publishReportPath;
+        request.diagnosticsInputs =
+            SagaPublishReadinessService::ParseDiagnosticsInputs(
+                config.publishDiagnostics,
+                diagnosticsError);
+        if (!diagnosticsError.empty())
+        {
+            err << diagnosticsError << '\n';
+            return kExitStartupFailure;
+        }
+
+        SagaPublishReadinessService service;
+        const SagaPublishReadinessResult result = service.Check(request);
+
+        out << "publish.report=" << result.reportPath.string() << '\n';
+        out << "publish.status="
+            << ToString(result.report.readiness.status) << '\n';
+        out << "publish.blockers="
+            << result.report.readiness.blockers.size() << '\n';
+        for (const auto& blocker : result.report.readiness.blockers)
+        {
+            err << "publish.blocker.kind=" << ToString(blocker.kind) << '\n';
+            err << "publish.blocker.message=" << blocker.message << '\n';
+        }
+
+        return result.ok ? kExitOk : kExitStartupFailure;
+    }
+
     std::string productInfoError;
     const SagaProductInfo productInfo =
         LoadProductInfo(config, productInfoError);

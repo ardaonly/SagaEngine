@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>CSharpScriptHostFixture.scripts</AssemblyName>
+    <RootNamespace>Game</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../../Engine/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.csproj" />
+  </ItemGroup>
+</Project>

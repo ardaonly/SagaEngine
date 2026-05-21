@@ -55,5 +55,5 @@ RUN cmake --preset linux-gcc
 RUN cmake --build --preset linux-gcc --target SagaServer --parallel
 
 EXPOSE 7777/udp
-ENTRYPOINT ["/saga/build/RelWithDebInfo/SagaServer"]
+ENTRYPOINT ["/saga/build/RelWithDebInfo/bin/SagaServer"]
 CMD ["--port", "7777"]

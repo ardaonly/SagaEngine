@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+required_sdk_major="10"
+required_target_framework="net10.0"
+diagnostic_code="Script.Toolchain.DotNetSdkMissing"
+diagnostic_message="SagaScript compile requires a .NET 10 SDK for target framework net10.0. Install a .NET 10 SDK and rerun; SagaScript will not downgrade target frameworks automatically."
+
+write_missing_sdk_diagnostics() {
+    local diagnostics_path=""
+    local json_output="false"
+    local args=("$@")
+    local index=0
+
+    while [[ "$index" -lt "${#args[@]}" ]]; do
+        case "${args[$index]}" in
+            --diagnostics)
+                if [[ $((index + 1)) -lt "${#args[@]}" ]]; then
+                    diagnostics_path="${args[$((index + 1))]}"
+                fi
+                index=$((index + 2))
+                ;;
+            --json)
+                json_output="true"
+                index=$((index + 1))
+                ;;
+            *)
+                index=$((index + 1))
+                ;;
+        esac
+    done
+
+    local payload
+    payload=$(cat <<JSON
+{
+  "schemaVersion": 1,
+  "toolName": "sagascript",
+  "toolchainVersion": "0.0.8-dev",
+  "inputs": [],
+  "summary": {
+    "infoCount": 0,
+    "warningCount": 0,
+    "errorCount": 1,
+    "securityCount": 0,
+    "hasBlockingDiagnostics": true
+  },
+  "diagnostics": [
+    {
+      "severity": "Error",
+      "code": "$diagnostic_code",
+      "message": "$diagnostic_message"
+    }
+  ]
+}
+JSON
+)
+
+    if [[ -n "$diagnostics_path" ]]; then
+        mkdir -p "$(dirname "$diagnostics_path")"
+        printf '%s\n' "$payload" > "$diagnostics_path"
+    fi
+
+    if [[ "$json_output" == "true" ]]; then
+        printf '%s\n' "$payload"
+    else
+        printf 'Error %s: %s\n' "$diagnostic_code" "$diagnostic_message" >&2
+    fi
+}
+
+has_required_dotnet_sdk() {
+    command -v dotnet >/dev/null 2>&1 &&
+        dotnet --list-sdks 2>/dev/null |
+            awk '{print $1}' |
+            grep -Eq "^${required_sdk_major}\\."
+}
+
+if [[ "${1:-}" == "compile" ]] && ! has_required_dotnet_sdk; then
+    write_missing_sdk_diagnostics "$@"
+    exit 1
+fi
+
+exec dotnet run --project "$SCRIPT_DIR/SagaScript.csproj" -- "$@"
