@@ -1,9 +1,24 @@
-# ─── Tools/SagaForge/cmake/modules/SagaTargets.cmake ─────────────────────────
+# --- Tools/SagaForge/cmake/modules/SagaTargets.cmake -------------------------
 
 macro(saga_collect_sources out_var dir)
     file(GLOB_RECURSE ${out_var} CONFIGURE_DEPENDS
         "${SAGA_ROOT}/${dir}/*.cpp"
     )
+endmacro()
+
+macro(saga_configure_executable_output_directory)
+    set(SAGA_EXECUTABLE_OUTPUT_DIR "${CMAKE_BINARY_DIR}/bin"
+        CACHE PATH "Directory for CMake-built executable outputs" FORCE)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${SAGA_EXECUTABLE_OUTPUT_DIR}")
+    foreach(_saga_output_config IN ITEMS
+        DEBUG
+        RELEASE
+        RELWITHDEBINFO
+        MINSIZEREL
+    )
+        set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${_saga_output_config}
+            "${SAGA_EXECUTABLE_OUTPUT_DIR}")
+    endforeach()
 endmacro()
 
 function(saga_create_engine_targets)
@@ -32,7 +47,7 @@ function(saga_create_engine_targets)
     list(FILTER SAGA_PRODUCT_SOURCES EXCLUDE REGEX ".*/[Mm]ain\\.cpp$")
     list(FILTER SAGA_PRODUCT_SOURCES EXCLUDE REGEX ".*/SagaQtStaticPlugins\\.cpp$")
 
-    # ─── Core Log Module ───────────────────────────────────────────────────
+    # --- Core Log Module ---------------------------------------------------
     add_library(SagaCoreLog STATIC)
     saga_apply_compiler_flags(SagaCoreLog)
 
@@ -55,7 +70,7 @@ function(saga_create_engine_targets)
         FOLDER "Engine/Core"
     )
 
-    # ─── Diagnostics Module ────────────────────────────────────────────────
+    # --- Diagnostics Module ------------------------------------------------
     add_library(SagaDiagnostics STATIC)
     saga_apply_compiler_flags(SagaDiagnostics)
 
@@ -78,7 +93,7 @@ function(saga_create_engine_targets)
         FOLDER "Engine/Diagnostics"
     )
 
-    # ─── Shared Contract Library ─────────────────────────────────────────────
+    # --- Shared Contract Library ---------------------------------------------
     add_library(SagaShared STATIC)
     saga_apply_compiler_flags(SagaShared)
 
@@ -94,7 +109,7 @@ function(saga_create_engine_targets)
         FOLDER "Shared"
     )
 
-    # ─── Collaboration Service Library ───────────────────────────────────────
+    # --- Collaboration Service Library ---------------------------------------
     add_library(SagaCollaboration STATIC)
     saga_apply_compiler_flags(SagaCollaboration)
 
@@ -114,7 +129,7 @@ function(saga_create_engine_targets)
         FOLDER "Collaboration"
     )
 
-    # ─── Asset Pipeline Tool Library ────────────────────────────────────────
+    # --- Asset Pipeline Tool Library ----------------------------------------
     add_library(SagaAssetPipelineLib STATIC)
     saga_apply_compiler_flags(SagaAssetPipelineLib)
 
@@ -130,7 +145,7 @@ function(saga_create_engine_targets)
         FOLDER "Tools/AssetPipeline"
     )
 
-    # ─── Engine Library ──────────────────────────────────────────────────────
+    # --- Engine Library ------------------------------------------------------
     add_library(SagaEngine STATIC)
     saga_apply_compiler_flags(SagaEngine)
     saga_link_thirdparty(SagaEngine)
@@ -146,11 +161,17 @@ function(saga_create_engine_targets)
 
     target_include_directories(SagaEngine PRIVATE
         ${SAGA_ROOT}/Engine/Private
+        ${SAGA_OPENSSL_INCLUDE_DIRS}
+        ${SAGA_DOTNET_HOST_INCLUDE_DIR}
     )
 
     target_link_libraries(SagaEngine PUBLIC
         SagaCoreLog
         SagaShared
+    )
+    target_link_libraries(SagaEngine PRIVATE
+        ${SAGA_DOTNET_NETHOST_LIBRARY}
+        ${CMAKE_DL_LIBS}
     )
 
     if(SAGA_WITH_SDE)
@@ -160,7 +181,7 @@ function(saga_create_engine_targets)
         target_compile_definitions(SagaEngine PUBLIC SAGA_WITH_SDE=0)
     endif()
 
-    # ─── Runtime Role Library ────────────────────────────────────────────────
+    # --- Runtime Role Library ------------------------------------------------
     add_library(SagaRuntimeLib STATIC)
     saga_apply_compiler_flags(SagaRuntimeLib)
     saga_link_thirdparty(SagaRuntimeLib)
@@ -183,7 +204,7 @@ function(saga_create_engine_targets)
         FOLDER "Runtime"
     )
 
-    # ─── Server Authority Library ────────────────────────────────────────────
+    # --- Server Authority Library --------------------------------------------
     add_library(SagaServerLib STATIC)
     saga_apply_compiler_flags(SagaServerLib)
     saga_link_thirdparty(SagaServerLib)
@@ -206,7 +227,7 @@ function(saga_create_engine_targets)
         FOLDER "Server"
     )
 
-    # ─── Backend Library ─────────────────────────────────────────────────────
+    # --- Backend Library -----------------------------------------------------
     add_library(SagaBackend STATIC)
     saga_apply_compiler_flags(SagaBackend)
     saga_link_thirdparty(SagaBackend)
@@ -221,7 +242,7 @@ function(saga_create_engine_targets)
         ${SAGA_ROOT}/Backends/include
     )
 
-    # ─── Sandbox Library ──────────────────────────────────────────────────────
+    # --- Sandbox Library ------------------------------------------------------
     add_library(SagaSandboxLib STATIC)
     saga_apply_compiler_flags(SagaSandboxLib)
     saga_link_thirdparty(SagaSandboxLib)
@@ -245,7 +266,7 @@ function(saga_create_engine_targets)
         ${SAGA_ROOT}/Apps/Sandbox/src
     )
 
-    # ─── Editor Library ───────────────────────────────────────────────────────
+    # --- Editor Library -------------------------------------------------------
     # All editor logic lives in Editor/. Apps/Editor/main.cpp is the thin launcher.
     # Qt handles the WinMain shim on Windows via qt_add_executable(WIN32).
     add_library(SagaEditorLib STATIC)
@@ -282,7 +303,7 @@ function(saga_create_engine_targets)
         FOLDER "Editor"
     )
 
-    # ─── EditorLab Development Library ───────────────────────────────────────
+    # --- EditorLab Development Library ---------------------------------------
     # Shared by the standalone EditorLab executable and optional dev bridges.
     add_library(SagaEditorLabLib STATIC)
     saga_apply_compiler_flags(SagaEditorLabLib)
@@ -308,7 +329,7 @@ function(saga_create_engine_targets)
         FOLDER "Apps/EditorLab"
     )
 
-    # ─── Saga Product Orchestration Library ───────────────────────────────────
+    # --- Saga Product Orchestration Library -----------------------------------
     if(SAGA_WITH_SDE)
         add_library(SagaProductLib STATIC)
         saga_apply_compiler_flags(SagaProductLib)
@@ -369,7 +390,7 @@ function(saga_create_engine_targets)
         endif()
     endif()
 
-    # ─── Application Executables ──────────────────────────────────────────────
+    # --- Application Executables ----------------------------------------------
     if(SAGA_WITH_SDE)
         qt_add_executable(Saga WIN32
             ${SAGA_ROOT}/Apps/Saga/main.cpp
@@ -484,7 +505,7 @@ function(saga_create_engine_targets)
     saga_link_thirdparty(SagaServer)
     target_link_libraries(SagaServer PRIVATE SagaServerLib SagaEngine SagaBackend)
 
-    # ─── SagaEditor Executable ────────────────────────────────────────────────
+    # --- SagaEditor Executable ------------------------------------------------
     # qt_add_executable with WIN32 generates the WinMain shim on Windows so
     # Apps/Editor/main.cpp can use a standard int main() on all platforms.
     qt_add_executable(SagaEditor WIN32
@@ -506,7 +527,7 @@ function(saga_create_engine_targets)
         FOLDER      "Apps"
     )
 
-    # ─── EditorLab Executable ────────────────────────────────────────────────
+    # --- EditorLab Executable ------------------------------------------------
     # Development-only lab surface for deterministic editor scenario experiments.
     qt_add_executable(EditorLab WIN32
         ${SAGA_ROOT}/Apps/EditorLab/main.cpp
@@ -540,7 +561,7 @@ function(saga_create_engine_targets)
         FOLDER      "Apps"
     )
 
-    # ─── Sandbox Executable ───────────────────────────────────────────────────
+    # --- Sandbox Executable ---------------------------------------------------
     set(_saga_sandbox_main "${SAGA_ROOT}/Apps/Sandbox/Launchers/SandboxMain.cpp")
 
     if(NOT EXISTS "${_saga_sandbox_main}")
@@ -576,9 +597,9 @@ function(saga_create_engine_targets)
         FOLDER      "Apps"
     )
 
-    # ─── RenderClientSmokeTest ───────────────────────────────────────────
+    # --- RenderClientSmokeTest -------------------------------------------
     # Headless, CI-safe smoke test for the RenderClientApp facade.
-    # No GPU, no window — exercises bind/update/release and multi-camera slots
+    # No GPU, no window - exercises bind/update/release and multi-camera slots
     # against NullRenderBackend.
     set(_saga_render_smoke "${SAGA_ROOT}/Apps/RenderClientSmokeTest/main.cpp")
     if(EXISTS "${_saga_render_smoke}")

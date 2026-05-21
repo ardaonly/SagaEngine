@@ -3,6 +3,7 @@ Build/
 !Shared/include/SagaShared/Build/*.hpp
 Bin/
 bin/
+obj/
 Install/
 build/
 packages/

@@ -142,6 +142,7 @@ pkgs.mkShell {
     pkgs.ninja
     pkgs.gcc14
     pkgs.sccache
+    pkgs.dotnet-sdk_10
     pkgs.python3
     pkgs.pkg-config
     pkgs.libGL
@@ -183,7 +184,7 @@ pkgs.mkShell {
     pkgs.xorg.libXau
     pkgs.xorg.libXdmcp
     pkgs.libuuid.dev
-    # XCB — required by xorg/system Conan package (Qt6, SDL2)
+    # XCB - required by xorg/system Conan package (Qt6, SDL2)
     pkgs.xorg.libxcb
     pkgs.xorg.xcbutil
     pkgs.xorg.xcbutilimage
@@ -196,6 +197,7 @@ pkgs.mkShell {
   shellHook = ''
     export CC=gcc
     export CXX=g++
+    export DOTNET_ROOT="${pkgs.dotnet-sdk_10}/share/dotnet"
 
     # Make nix-provided system libraries visible to pkg-config (needed by
     # Conan's egl/system, opengl/system, and xorg/system packages).
@@ -203,7 +205,7 @@ pkgs.mkShell {
 
     # Diligent/volk loads libvulkan.so.1 dynamically at runtime, so pkg-config
     # and executable RUNPATH alone are not enough on NixOS.
-    export LD_LIBRARY_PATH="${pkgs.vulkan-loader}/lib:${pkgs.libglvnd}/lib:${pkgs.libGL}/lib:${pkgs.mesa}/lib:${pkgs.egl-wayland}/lib:''${LD_LIBRARY_PATH:-}"
+    export LD_LIBRARY_PATH="${pkgs.dotnet-sdk_10}/share/dotnet/host/fxr/10.0.6:${pkgs.dotnet-sdk_10}/share/dotnet/shared/Microsoft.NETCore.App/10.0.6:${pkgs.vulkan-loader}/lib:${pkgs.libglvnd}/lib:${pkgs.libGL}/lib:${pkgs.mesa}/lib:${pkgs.egl-wayland}/lib:''${LD_LIBRARY_PATH:-}"
 
     # Install the NixOS Conan hook.  Written to ~/.conan2/extensions/hooks/
     # which Conan 2.x picks up automatically for every build.
@@ -228,7 +230,7 @@ pkgs.mkShell {
     # Fix: copy the forge source tree to /tmp (no spaces) so cmake generates
     # -I/tmp/forge-src/include instead. Build there, copy binary back.
     if [ ! -x "$FORGE_BIN/forge" ]; then
-      echo "[sagaengine-dev]  forge binary not found — building (via /tmp to avoid path-with-spaces quoting bug)..."
+      echo "[sagaengine-dev]  forge binary not found - building (via /tmp to avoid path-with-spaces quoting bug)..."
       TMP_FORGE="/tmp/sagaengine-forge-src"
       rm -rf "$TMP_FORGE"
       # Exclude build/ and bin/ so no stale CMakeCache.txt is carried over.
@@ -252,20 +254,21 @@ pkgs.mkShell {
       echo "[sagaengine-dev]  ERROR: forge build failed. Check output above."
     fi
 
-    echo "[sagaengine-dev] ── tool versions ──────────────────────────────────"
+    echo "[sagaengine-dev] -- tool versions ----------------------------------"
     echo "[sagaengine-dev]  cmake   : $(cmake   --version 2>/dev/null | head -1 || echo 'NOT FOUND')"
     echo "[sagaengine-dev]  conan   : $(conan   --version 2>/dev/null          || echo 'NOT FOUND')"
     echo "[sagaengine-dev]  ninja   : $(ninja   --version 2>/dev/null          || echo 'NOT FOUND')"
     echo "[sagaengine-dev]  gcc     : $(gcc     --version 2>/dev/null | head -1 || echo 'NOT FOUND')"
     echo "[sagaengine-dev]  g++     : $(g++     --version 2>/dev/null | head -1 || echo 'NOT FOUND')"
+    echo "[sagaengine-dev]  dotnet  : $(dotnet  --version 2>/dev/null          || echo 'NOT FOUND')"
     echo "[sagaengine-dev]  sccache : $(sccache --version 2>/dev/null          || echo 'NOT FOUND')"
     echo "[sagaengine-dev]  forge   : $(forge   --version 2>/dev/null          || echo 'NOT FOUND')"
-    echo "[sagaengine-dev] ───────────────────────────────────────────────────"
+    echo "[sagaengine-dev] ---------------------------------------------------"
 
     # Conan 2.x resolves profile names from ~/.conan2/profiles/.
     # Create the default build profile if missing.
     if [ ! -f "$HOME/.conan2/profiles/default" ]; then
-      echo "[sagaengine-dev]  conan default profile missing — running 'conan profile detect'"
+      echo "[sagaengine-dev]  conan default profile missing - running 'conan profile detect'"
       conan profile detect
       echo "[sagaengine-dev]  created: $HOME/.conan2/profiles/default"
     else
@@ -280,10 +283,10 @@ pkgs.mkShell {
       _target="$HOME/.conan2/profiles/$_name"
       if [ ! -e "$_target" ] || [ -L "$_target" ]; then
         ln -sf "$_profile" "$_target"
-        echo "[sagaengine-dev]  conan profile linked: $_name → $_target"
+        echo "[sagaengine-dev]  conan profile linked: $_name -> $_target"
       fi
     done
 
-    echo "[sagaengine-dev] ── ready ───────────────────────────────────────────"
+    echo "[sagaengine-dev] -- ready ------------------------------------------"
   '';
 }

@@ -115,6 +115,18 @@ std::string SagaUsageText()
         "  --workspace <path|builtin:basic>  SDE workspace definition root\n"
         "  --target <editor|runtime|server>  Product role to prepare\n"
         "  --package-manifest <path>         Startup package manifest for runtime/server targets\n"
+        "  --validate-sagascript <project>   Run SagaScript project validation through Forge gate\n"
+        "  --stage-packages <project>        Generate client/server package manifests\n"
+        "  --package-profile <name>          Package staging profile\n"
+        "  --target-platform <name>          Package target platform token\n"
+        "  --runtime-compatibility <version> Package runtime compatibility token\n"
+        "  --package-report <path>           Package staging report output path\n"
+        "  --publish-check <project>         Run product publish readiness check\n"
+        "  --publish-profile <name>          Publish readiness profile\n"
+        "  --publish-report <path>           Publish readiness report output path\n"
+        "  --publish-diagnostics <key=path>  Include opaque diagnostics report in publish readiness\n"
+        "  --forge <path>                    Forge executable for SagaScript validation\n"
+        "  --sagascript-tool <path>          SagaScript executable for SagaScript validation\n"
         "  --version-info <path>             Distribution version.json path\n"
         "  --prepare-only                    Dev diagnostic: validate and print target prep\n"
         "  --help                            Show this help\n";
@@ -189,6 +201,134 @@ SagaConfigResult ParseSagaAppConfig(int argc, char* argv[])
                 return result;
             }
             result.config.packageManifestPath = std::filesystem::path(argv[++i]);
+        }
+        else if (arg == "--validate-sagascript")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --validate-sagascript requires a project root";
+                return result;
+            }
+            result.config.validateSagaScript = true;
+            result.config.sagaScriptProjectRoot =
+                std::filesystem::path(argv[++i]);
+        }
+        else if (arg == "--stage-packages")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --stage-packages requires a project root";
+                return result;
+            }
+            result.config.stagePackages = true;
+            result.config.packageStageProjectRoot =
+                std::filesystem::path(argv[++i]);
+        }
+        else if (arg == "--package-profile")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --package-profile requires a name";
+                return result;
+            }
+            result.config.packageProfile = argv[++i];
+        }
+        else if (arg == "--target-platform")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --target-platform requires a name";
+                return result;
+            }
+            result.config.targetPlatform = argv[++i];
+        }
+        else if (arg == "--runtime-compatibility")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error =
+                    "Saga: --runtime-compatibility requires a version";
+                return result;
+            }
+            result.config.runtimeCompatibilityVersion = argv[++i];
+        }
+        else if (arg == "--package-report")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --package-report requires a path";
+                return result;
+            }
+            result.config.packageStageReportPath =
+                std::filesystem::path(argv[++i]);
+        }
+        else if (arg == "--publish-check")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --publish-check requires a project root";
+                return result;
+            }
+            result.config.publishCheck = true;
+            result.config.publishProjectRoot = std::filesystem::path(argv[++i]);
+        }
+        else if (arg == "--publish-profile")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --publish-profile requires a name";
+                return result;
+            }
+            result.config.publishProfile = argv[++i];
+        }
+        else if (arg == "--publish-report")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --publish-report requires a path";
+                return result;
+            }
+            result.config.publishReportPath = std::filesystem::path(argv[++i]);
+        }
+        else if (arg == "--publish-diagnostics")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --publish-diagnostics requires key=path";
+                return result;
+            }
+            result.config.publishDiagnostics.push_back(argv[++i]);
+        }
+        else if (arg == "--forge")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --forge requires a path";
+                return result;
+            }
+            result.config.forgeExecutable = std::filesystem::path(argv[++i]);
+        }
+        else if (arg == "--sagascript-tool")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --sagascript-tool requires a path";
+                return result;
+            }
+            result.config.sagaScriptExecutable =
+                std::filesystem::path(argv[++i]);
         }
         else if (arg == "--prepare-only")
         {
