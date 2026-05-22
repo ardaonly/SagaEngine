@@ -1,13 +1,14 @@
 # ─── Forge — Standalone Build Orchestration Frontend ─────────────────────────
 #
 # Forge is a Cargo-flavoured build frontend for C++. It is intentionally
-# self-contained:
+# self-contained at its core:
 #   - No walk-up to find any engine root or marker file.
 #   - No dependency on Conan, LLVM, Qt, or any third-party library.
-#   - No knowledge of any specific project, engine, or repository.
+#   - Saga-specific commands must remain external tool invocations, not linked
+#     compiler, analyzer, or runtime implementations.
 #
 # CMake and Conan are backends called through adapter classes.
-# This file can become a standalone repository root with zero rewrites.
+# The core remains extractable; product adapters are orchestration contracts.
 #
 cmake_minimum_required(VERSION 3.22)
 
