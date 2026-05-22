@@ -13,6 +13,15 @@
             }
         },
         {
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "SAGA_WITH_SDE": "ON",
+                "CMAKE_C_COMPILER_LAUNCHER": "sccache",
+                "CMAKE_CXX_COMPILER_LAUNCHER": "sccache"
+            }
+        },
+        {
             "name": "windows-msvc-14.38",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/Build/windows-msvc-14.38",
@@ -30,6 +39,8 @@
         {
             "name": "linux-gcc",
             "configurePreset": "linux-gcc"
+        },
+        {
         },
         {
             "name": "windows-msvc-14.38",

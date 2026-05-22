@@ -2,10 +2,14 @@
 /// @brief Main editor shell implementation.
 
 #include "SagaEditor/Shell/EditorShell.h"
+#include "SagaEditor/Composition/EditorCompositionSession.h"
+#include "SagaEditor/Composition/EditorCompositionShellAdapter.h"
 #include "SagaEditor/Host/EditorHost.h"
 #include "SagaEditor/Commands/CommandDispatcher.h"
 #include "SagaEditor/Commands/CommandRegistry.h"
 #include "SagaEditor/Commands/ShortcutManager.h"
+#include "SagaEditor/Diagnostics/IEditorDiagnosticsService.h"
+#include "SagaEditor/Notifications/EditorNotificationCenter.h"
 #include "SagaEditor/Persona/PersonaActivator.h"
 #include "SagaEditor/Persona/PersonaRegistry.h"
 #include "SagaEditor/Persona/UIPersona.h"
@@ -17,10 +21,13 @@
 #include "SagaEditor/UI/IUIMainWindow.h"
 #include "SagaEditor/Shell/ShellCommands.h"
 #include "SagaEditor/Panels/IPanel.h"
+#include "SagaEditor/Panels/CustomizeWorkspacePanel.h"
 #include "SagaEditor/Panels/ProductionDashboardPanel.h"
+#include "SagaEditor/Panels/ShortcutPreferencesPanel.h"
 
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 // Default Qt panels (concrete types live in the Qt backend)
 #include "SagaEditor/Panels/HierarchyPanel.h"
@@ -37,6 +44,9 @@ namespace SagaEditor
 
 namespace
 {
+
+constexpr const char* kCompositionShellDiagnosticSource =
+    "editor.composition.shell";
 
 [[nodiscard]] std::string ProfileCommandId(const std::string& profileId)
 {
@@ -64,6 +74,17 @@ namespace
         "saga.command.view.graph",
         "saga.command.view.diagnostics",
     };
+}
+
+[[nodiscard]] bool SameDiagnosticIdentity(const EditorDiagnostic& lhs,
+                                          const EditorDiagnostic& rhs)
+{
+    return lhs.severity == rhs.severity &&
+           lhs.code == rhs.code &&
+           lhs.message == rhs.message &&
+           lhs.location.resource == rhs.location.resource &&
+           lhs.location.line == rhs.location.line &&
+           lhs.location.column == rhs.location.column;
 }
 
 } // namespace
@@ -108,16 +129,20 @@ bool EditorShell::Init(EditorHost&                    host,
             (void)host.GetCommandDispatcher().Dispatch(commandId);
         });
 
-    BuildDefaultLayout();
-    m_window->ApplyShellLayout(m_layout);
-
     // RegisterShellCommands takes (registry, undoStack); the older one-arg
     // overload that took the whole host doesn't exist. Pull both services
     // off the host directly.
     RegisterShellCommands(host.GetCommandRegistry(),
                           host.GetUndoRedoStack());
+    WireNotificationSink();
     RegisterPersonaCommands();
     RegisterProfileCommands();
+
+    BuildDefaultLayout();
+    (void)BuildCompositionLayout();
+    m_window->ApplyShellLayout(m_layout);
+    (void)ApplyCompositionShortcuts();
+
     WirePersonaSinks();
     WireProfileSinks();
     if (cfg.registerDefaultPanels)
@@ -129,6 +154,7 @@ bool EditorShell::Init(EditorHost&                    host,
         ApplyActivePersona();
     }
     ApplyActiveProfile();
+    (void)ApplyCompositionPanelVisibility();
 
     if (cfg.showOnInit)
     {
@@ -153,6 +179,13 @@ void EditorShell::Shutdown()
         m_host->GetEditorProfileRegistry().RemoveProfileChangedCallback(m_profileSubscription);
         m_profileSubscription = kInvalidEditorProfileSubscription;
     }
+    if (m_host && m_notificationSubscription !=
+                      kInvalidEditorNotificationSubscription)
+    {
+        m_host->GetEditorNotificationCenter().Unsubscribe(
+            m_notificationSubscription);
+        m_notificationSubscription = kInvalidEditorNotificationSubscription;
+    }
 
     if (m_host)
     {
@@ -174,7 +207,10 @@ void EditorShell::RegisterPanel(std::unique_ptr<IPanel> panel, UIDockArea area)
 {
     panel->OnInit();
     const std::string panelId = panel->GetPanelId();
-    m_window->DockPanel(panel->GetNativeWidget(), panelId, panel->GetTitle(), area);
+    m_window->DockPanel(panel->GetNativeWidget(),
+                        panelId,
+                        panel->GetTitle(),
+                        ResolveCompositionDockArea(panelId, area));
     m_panels.push_back(std::move(panel));
 
     if (panelId == "saga.panel.production_dashboard")
@@ -206,9 +242,42 @@ void EditorShell::RegisterPanel(std::unique_ptr<IPanel> panel, UIDockArea area)
             true
         });
     }
+    else if (panelId == "saga.panel.customize_workspace")
+    {
+        m_host->GetCommandRegistry().Register({
+            "saga.command.view.customize_workspace",
+            "Customize Workspace",
+            "View",
+            [this, panelId]()
+            {
+                m_window->SetPanelVisible(panelId, true);
+                m_window->FocusPanel(panelId);
+            },
+            true
+        });
+    }
+    else if (panelId == "saga.panel.shortcut_preferences")
+    {
+        m_host->GetCommandRegistry().Register({
+            "saga.command.edit.shortcut_preferences",
+            "Shortcut Preferences",
+            "Edit",
+            [this, panelId]()
+            {
+                m_window->SetPanelVisible(panelId, true);
+                m_window->FocusPanel(panelId);
+            },
+            true
+        });
+    }
 
-    const EditorProfile* activeProfile = m_host->GetEditorProfileRegistry().GetActive();
-    if (activeProfile != nullptr)
+    if (const std::optional<bool> compositionVisible =
+            GetCompositionPanelVisibility(panelId))
+    {
+        m_window->SetPanelVisible(panelId, *compositionVisible);
+    }
+    else if (const EditorProfile* activeProfile =
+                 m_host->GetEditorProfileRegistry().GetActive())
     {
         const bool shouldShow =
             std::find(activeProfile->defaultPanels.begin(),
@@ -220,6 +289,9 @@ void EditorShell::RegisterPanel(std::unique_ptr<IPanel> panel, UIDockArea area)
             m_window->FocusPanel(panelId);
         }
     }
+
+    (void)ApplyCompositionPanelVisibility();
+    m_host->RefreshWorkspaceCustomizationAvailability(GetRegisteredPanelIds());
 }
 
 IPanel* EditorShell::FindPanel(const std::string& panelId) const
@@ -288,6 +360,11 @@ void EditorShell::RegisterDefaultPanels()
     RegisterPanel(std::make_unique<InspectorPanel>(),    UIDockArea::Right);
     RegisterPanel(std::make_unique<AssetBrowserPanel>(), UIDockArea::Bottom);
     RegisterPanel(std::make_unique<ConsolePanel>(),      UIDockArea::Bottom);
+
+    RegisterPanel(std::make_unique<CustomizeWorkspacePanel>(*m_host),
+                  UIDockArea::Right);
+    RegisterPanel(std::make_unique<ShortcutPreferencesPanel>(*m_host),
+                  UIDockArea::Right);
 
     auto problems = std::make_unique<ProblemsPanel>();
     problems->SetDiagnosticsService(&m_host->GetEditorDiagnosticsService());
@@ -436,6 +513,19 @@ void EditorShell::WireProfileSinks()
         });
 }
 
+void EditorShell::WireNotificationSink()
+{
+    m_notificationSubscription =
+        m_host->GetEditorNotificationCenter().Subscribe(
+            [this](const EditorNotification& notification)
+            {
+                if (m_window != nullptr && !notification.message.empty())
+                {
+                    m_window->SetStatusMessage(notification.message);
+                }
+            });
+}
+
 void EditorShell::ApplyActivePersona()
 {
     const PersonaApplyResult result =
@@ -481,8 +571,200 @@ void EditorShell::RefreshProductionDashboard()
     }
 }
 
+bool EditorShell::BuildCompositionLayout()
+{
+    const ResolvedEditorCompositionSnapshot* snapshot =
+        GetUsableCompositionSnapshot();
+    if (snapshot == nullptr)
+    {
+        return false;
+    }
+
+    EditorCompositionShellAdapter adapter;
+    EditorCompositionShellLayoutResult result =
+        adapter.BuildShellLayout(*snapshot,
+                                 m_host->GetCommandRegistry(),
+                                 m_layout);
+    if (result.usedComposition)
+    {
+        m_layout = std::move(result.layout);
+        m_activeToolbarCommands.clear();
+        for (const MenuItemDescriptor& item : m_layout.mainToolbarItems)
+        {
+            if (!item.commandId.empty())
+            {
+                m_activeToolbarCommands.push_back(item.commandId);
+            }
+        }
+    }
+    MergeCompositionShellDiagnostics(std::move(result.diagnostics));
+    return result.usedComposition;
+}
+
+bool EditorShell::ApplyCompositionShortcuts()
+{
+    const ResolvedEditorCompositionSnapshot* snapshot =
+        GetUsableCompositionSnapshot();
+    if (snapshot == nullptr)
+    {
+        return false;
+    }
+
+    EditorCompositionShellAdapter adapter;
+    MergeCompositionShellDiagnostics(
+        adapter.ApplyShortcuts(*snapshot,
+                               m_host->GetCommandRegistry(),
+                               m_host->GetShortcutManager()));
+    return true;
+}
+
+bool EditorShell::ApplyCompositionPanelVisibility()
+{
+    const ResolvedEditorCompositionSnapshot* snapshot =
+        GetUsableCompositionSnapshot();
+    if (snapshot == nullptr)
+    {
+        return false;
+    }
+
+    m_compositionShellDiagnostics.erase(
+        std::remove_if(m_compositionShellDiagnostics.begin(),
+                       m_compositionShellDiagnostics.end(),
+                       [](const EditorDiagnostic& diagnostic)
+                       {
+                           return diagnostic.code ==
+                                  "CompositionShell.MissingPanelImplementation";
+                       }),
+        m_compositionShellDiagnostics.end());
+
+    EditorCompositionShellAdapter adapter;
+    MergeCompositionShellDiagnostics(
+        adapter.ValidateRegisteredPanels(*snapshot, GetRegisteredPanelIds()));
+
+    for (const auto& panel : m_panels)
+    {
+        const std::optional<bool> visible =
+            GetCompositionPanelVisibility(panel->GetPanelId());
+        m_window->SetPanelVisible(panel->GetPanelId(),
+                                  visible.value_or(false));
+    }
+    return true;
+}
+
+void EditorShell::MergeCompositionShellDiagnostics(
+    std::vector<EditorDiagnostic> diagnostics)
+{
+    for (EditorDiagnostic& diagnostic : diagnostics)
+    {
+        auto it = std::find_if(m_compositionShellDiagnostics.begin(),
+                               m_compositionShellDiagnostics.end(),
+                               [&diagnostic](const EditorDiagnostic& existing)
+                               {
+                                   return SameDiagnosticIdentity(existing,
+                                                                 diagnostic);
+                               });
+        if (it == m_compositionShellDiagnostics.end())
+        {
+            m_compositionShellDiagnostics.push_back(std::move(diagnostic));
+        }
+    }
+
+    m_host->GetEditorDiagnosticsService().ReplaceSource(
+        kCompositionShellDiagnosticSource,
+        m_compositionShellDiagnostics);
+}
+
+const ResolvedEditorCompositionSnapshot*
+EditorShell::GetUsableCompositionSnapshot() const
+{
+    if (m_host == nullptr ||
+        !m_host->GetCompositionSession().IsUsable() ||
+        !m_host->GetCompositionSession().Snapshot().has_value())
+    {
+        return nullptr;
+    }
+
+    return &*m_host->GetCompositionSession().Snapshot();
+}
+
+std::vector<std::string> EditorShell::GetRegisteredPanelIds() const
+{
+    std::vector<std::string> ids;
+    ids.reserve(m_panels.size());
+    for (const auto& panel : m_panels)
+    {
+        ids.push_back(panel->GetPanelId());
+    }
+    return ids;
+}
+
+std::optional<bool> EditorShell::GetCompositionPanelVisibility(
+    const std::string& panelId) const
+{
+    const ResolvedEditorCompositionSnapshot* snapshot =
+        GetUsableCompositionSnapshot();
+    if (snapshot == nullptr)
+    {
+        return std::nullopt;
+    }
+
+    auto it = std::find_if(snapshot->panels.begin(),
+                           snapshot->panels.end(),
+                           [&panelId](const ResolvedPanelDefinition& panel)
+                           {
+                               return panel.definition.id == panelId;
+                           });
+    if (it == snapshot->panels.end())
+    {
+        return false;
+    }
+
+    return it->visible;
+}
+
+UIDockArea EditorShell::ResolveCompositionDockArea(const std::string& panelId,
+                                                   UIDockArea fallback) const
+{
+    const ResolvedEditorCompositionSnapshot* snapshot =
+        GetUsableCompositionSnapshot();
+    if (snapshot == nullptr)
+    {
+        return fallback;
+    }
+
+    auto it = std::find_if(snapshot->panels.begin(),
+                           snapshot->panels.end(),
+                           [&panelId](const ResolvedPanelDefinition& panel)
+                           {
+                               return panel.definition.id == panelId;
+                           });
+    if (it == snapshot->panels.end())
+    {
+        return fallback;
+    }
+
+    if (it->placement == "left")
+        return UIDockArea::Left;
+    if (it->placement == "right")
+        return UIDockArea::Right;
+    if (it->placement == "top")
+        return UIDockArea::Top;
+    if (it->placement == "bottom")
+        return UIDockArea::Bottom;
+    if (it->placement == "center")
+        return UIDockArea::Center;
+    if (it->placement == "floating")
+        return UIDockArea::Floating;
+    return fallback;
+}
+
 bool EditorShell::ApplyPersonaPanelVisibility(const std::vector<std::string>& panelIds)
 {
+    if (GetUsableCompositionSnapshot() != nullptr)
+    {
+        return ApplyCompositionPanelVisibility();
+    }
+
     std::unordered_set<std::string> visible(panelIds.begin(), panelIds.end());
 
     for (const auto& panel : m_panels)
@@ -503,12 +785,18 @@ bool EditorShell::ApplyProfileLayout(const std::string& layoutPresetId)
 {
     m_activeLayoutPresetId = layoutPresetId;
     BuildDefaultLayout();
+    (void)BuildCompositionLayout();
     m_window->ApplyShellLayout(m_layout);
     return true;
 }
 
 bool EditorShell::ApplyProfileShortcutMap(const EditorProfile& profile)
 {
+    if (GetUsableCompositionSnapshot() != nullptr)
+    {
+        return ApplyCompositionShortcuts();
+    }
+
     auto& shortcuts = m_host->GetShortcutManager();
     shortcuts.Clear();
     for (const EditorShortcutBinding& binding : profile.shortcutBindings)
@@ -520,6 +808,13 @@ bool EditorShell::ApplyProfileShortcutMap(const EditorProfile& profile)
 
 bool EditorShell::ApplyProfileToolbar(const std::vector<std::string>& commandIds)
 {
+    if (GetUsableCompositionSnapshot() != nullptr)
+    {
+        (void)BuildCompositionLayout();
+        m_window->ApplyShellLayout(m_layout);
+        return true;
+    }
+
     m_activeToolbarCommands = commandIds;
     m_layout.mainToolbarItems.clear();
 
@@ -537,6 +832,11 @@ bool EditorShell::ApplyProfileToolbar(const std::vector<std::string>& commandIds
 
 bool EditorShell::ApplyProfilePanelVisibility(const std::vector<std::string>& panelIds)
 {
+    if (GetUsableCompositionSnapshot() != nullptr)
+    {
+        return ApplyCompositionPanelVisibility();
+    }
+
     std::unordered_set<std::string> visible(panelIds.begin(), panelIds.end());
 
     for (const auto& panel : m_panels)
@@ -604,6 +904,7 @@ void EditorShell::BuildDefaultLayout()
         { "Redo",            "saga.command.edit.redo",          "Ctrl+Shift+Z", false },
         { "",                "",                                "",             true  },
         { "Preferences…",    "saga.command.edit.preferences",   "",             false },
+        { "Shortcut Preferences", "saga.command.edit.shortcut_preferences", "",  false },
     };
 
     // ── View menu ─────────────────────────────────────────────────────────────
@@ -615,6 +916,7 @@ void EditorShell::BuildDefaultLayout()
         { "Console",         "saga.command.view.console",       "",             false },
         { "Asset Browser",   "saga.command.view.asset_browser", "",             false },
         { "Production",      "saga.command.view.production_dashboard", "",      false },
+        { "Customize Workspace", "saga.command.view.customize_workspace", "",   false },
         { "",                "",                                "",             true  },
         { "Theme…",          "saga.command.view.theme",         "",             false },
         { "",                "",                                "",             true  },

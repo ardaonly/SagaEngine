@@ -82,6 +82,7 @@ class SagaEngineConan(ConanFile):
 
     def layout(self):
         cmake_layout(self)
+        if self.options.with_sde:
 
     def generate(self):
         tc = CMakeToolchain(self)

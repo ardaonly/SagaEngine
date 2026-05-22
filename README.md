@@ -128,11 +128,7 @@ SagaEngine is built through **Forge**. See `Tools/Forge/README.md` for full docu
 
 ### Prerequisites
 
-- Python 3 (stdlib only) — required to bootstrap Forge
-- CMake 3.22 or later
-- Conan 2.0 or later
-- A C++ toolchain matching one of the profiles in `profiles/`
-  (`windows-msvc`, `windows-clang`, `linux-gcc`, `macos-clang`)
+
 
 ### One-time: build Forge itself
 
@@ -185,6 +181,12 @@ Do not run `forge nix --preset linux-gcc`; `--preset` is an option for the
 
 Normal `forge install/configure/build` commands fail fast outside `nix-shell`
 instead of silently re-entering the environment.
+
+
+
+
+
+
 
 The repository default is intentionally conservative: `forge.toml` sets
 `jobs = 2`, and Forge clamps requested jobs through CPU/RAM safety limits.

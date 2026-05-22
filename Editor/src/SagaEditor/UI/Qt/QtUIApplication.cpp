@@ -3,6 +3,7 @@
 
 #include "SagaEditor/UI/Qt/QtUIApplication.h"
 #include <QApplication>
+#include <QTimer>
 
 namespace SagaEditor
 {
@@ -33,6 +34,13 @@ QtUIApplication::~QtUIApplication() = default;
 
 int QtUIApplication::Run()
 {
+    return QApplication::exec();
+}
+
+int QtUIApplication::RunForSmoke(int timeoutMs)
+{
+    const int boundedTimeoutMs = timeoutMs > 0 ? timeoutMs : 1;
+    QTimer::singleShot(boundedTimeoutMs, &m_impl->app, &QApplication::quit);
     return QApplication::exec();
 }
 

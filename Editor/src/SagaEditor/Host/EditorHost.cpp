@@ -7,8 +7,14 @@
 #include "SagaEditor/Commands/CommandPalette.h"
 #include "SagaEditor/Commands/ShortcutManager.h"
 #include "SagaEditor/Commands/UndoRedoStack.h"
+#include "SagaEditor/Composition/EditorCompositionSession.h"
 #include "SagaEditor/Customization/EditorCustomizationCatalog.h"
+#include "SagaEditor/Customization/WorkspaceCustomizationOverlayPolicy.h"
+#include "SagaEditor/Customization/ShortcutCustomizationSession.h"
+#include "SagaEditor/Customization/WorkspaceCustomizationSession.h"
+#include "SagaEditor/Diagnostics/EditorDiagnostic.h"
 #include "SagaEditor/Diagnostics/EditorDiagnosticsService.h"
+#include "SagaEditor/Notifications/EditorNotificationCenter.h"
 #include "SagaEditor/Selection/SelectionManager.h"
 #include "SagaEditor/Themes/ThemeRegistry.h"
 #include "SagaEditor/Persona/PersonaActivator.h"
@@ -24,10 +30,83 @@
 #include "SagaEditor/Extensions/ExtensionRegistry.h"
 #include "SagaEditor/Extensions/ExtensionHost.h"
 
+#include <algorithm>
 #include <utility>
+#include <vector>
 
 namespace SagaEditor
 {
+namespace
+{
+
+constexpr const char* kCompositionDiagnosticSource = "editor.composition";
+
+void AppendDefaultWorkspaceCustomizationOverlay(
+    const std::filesystem::path& workspaceRoot,
+    EditorCompositionStartupConfig& composition)
+{
+    if (workspaceRoot.empty() || composition.manifestPath.empty())
+    {
+        return;
+    }
+
+    WorkspaceCustomizationOverlayPolicy policy;
+    const std::filesystem::path overlayPath =
+        policy.GetDefaultOverlayPath(workspaceRoot);
+    if (!std::filesystem::exists(overlayPath))
+    {
+        return;
+    }
+
+    const auto exists = std::find(composition.overlayPaths.begin(),
+                                  composition.overlayPaths.end(),
+                                  overlayPath);
+    if (exists == composition.overlayPaths.end())
+    {
+        composition.overlayPaths.push_back(overlayPath);
+    }
+}
+
+[[nodiscard]] EditorDiagnosticSeverity ToEditorSeverity(
+    EditorCompositionDiagnosticSeverity severity) noexcept
+{
+    switch (severity)
+    {
+    case EditorCompositionDiagnosticSeverity::Info:
+        return EditorDiagnosticSeverity::Info;
+    case EditorCompositionDiagnosticSeverity::Warning:
+        return EditorDiagnosticSeverity::Warning;
+    case EditorCompositionDiagnosticSeverity::Error:
+    case EditorCompositionDiagnosticSeverity::Blocker:
+        return EditorDiagnosticSeverity::Error;
+    }
+
+    return EditorDiagnosticSeverity::Error;
+}
+
+[[nodiscard]] std::vector<EditorDiagnostic> ToEditorDiagnostics(
+    const std::vector<EditorCompositionDiagnostic>& compositionDiagnostics)
+{
+    std::vector<EditorDiagnostic> diagnostics;
+    diagnostics.reserve(compositionDiagnostics.size());
+    for (const EditorCompositionDiagnostic& compositionDiagnostic :
+         compositionDiagnostics)
+    {
+        EditorDiagnostic diagnostic;
+        diagnostic.severity = ToEditorSeverity(compositionDiagnostic.severity);
+        diagnostic.code = compositionDiagnostic.code;
+        diagnostic.message = compositionDiagnostic.message;
+        diagnostic.location.resource = compositionDiagnostic.documentPath;
+        diagnostic.publishBlocking =
+            compositionDiagnostic.severity ==
+            EditorCompositionDiagnosticSeverity::Blocker;
+        diagnostics.push_back(std::move(diagnostic));
+    }
+
+    return diagnostics;
+}
+
+} // namespace
 
 // ─── Construction ─────────────────────────────────────────────────────────────
 
@@ -37,15 +116,19 @@ EditorHost::~EditorHost() = default;
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
 
 bool EditorHost::Init(std::unique_ptr<IEditorSettingsStore> settingsStore,
-                      std::filesystem::path workspaceRoot)
+                      std::filesystem::path workspaceRoot,
+                      EditorCompositionStartupConfig composition)
 {
     EditorWorkspaceDefinition workspace;
     workspace.root = std::move(workspaceRoot);
-    return Init(std::move(settingsStore), std::move(workspace));
+    return Init(std::move(settingsStore),
+                std::move(workspace),
+                std::move(composition));
 }
 
 bool EditorHost::Init(std::unique_ptr<IEditorSettingsStore> settingsStore,
-                      EditorWorkspaceDefinition workspace)
+                      EditorWorkspaceDefinition workspace,
+                      EditorCompositionStartupConfig composition)
 {
     m_commandRegistry   = std::make_unique<CommandRegistry>();
     m_commandDispatcher = std::make_unique<CommandDispatcher>(*m_commandRegistry);
@@ -69,7 +152,13 @@ bool EditorHost::Init(std::unique_ptr<IEditorSettingsStore> settingsStore,
                                         : std::make_unique<MemoryEditorSettingsStore>();
     m_engineBridge      = std::make_unique<LocalEditorEngineBridge>();
     m_editorDiagnosticsService = std::make_unique<EditorDiagnosticsService>();
+    m_editorNotificationCenter = std::make_unique<EditorNotificationCenter>();
     m_customizationCatalog = std::make_unique<EditorCustomizationCatalog>();
+    m_shortcutCustomizationSession =
+        std::make_unique<ShortcutCustomizationSession>();
+    m_workspaceCustomizationSession =
+        std::make_unique<WorkspaceCustomizationSession>();
+    m_compositionSession = std::make_unique<EditorCompositionSession>();
     m_extensionRegistry = std::make_unique<ExtensionRegistry>();
     m_extensionHost     = std::make_unique<ExtensionHost>(*m_extensionRegistry, *this);
 
@@ -95,6 +184,37 @@ bool EditorHost::Init(std::unique_ptr<IEditorSettingsStore> settingsStore,
     if (!m_engineBridge->Init())
         return false;
 
+    AppendDefaultWorkspaceCustomizationOverlay(m_workspaceDefinition->root,
+                                               composition);
+    const bool compositionReady = m_compositionSession->Init(composition);
+    m_editorDiagnosticsService->ReplaceSource(
+        kCompositionDiagnosticSource,
+        ToEditorDiagnostics(m_compositionSession->Diagnostics()));
+
+    WorkspaceCustomizationSessionConfig customizationConfig;
+    customizationConfig.workspaceRoot = m_workspaceDefinition->root;
+    if (m_compositionSession->Snapshot().has_value())
+    {
+        customizationConfig.snapshot = &*m_compositionSession->Snapshot();
+    }
+    customizationConfig.diagnosticsService = m_editorDiagnosticsService.get();
+    (void)m_workspaceCustomizationSession->Init(
+        std::move(customizationConfig));
+
+    ShortcutCustomizationSessionConfig shortcutCustomizationConfig;
+    shortcutCustomizationConfig.workspaceRoot = m_workspaceDefinition->root;
+    if (m_compositionSession->Snapshot().has_value())
+    {
+        shortcutCustomizationConfig.snapshot = &*m_compositionSession->Snapshot();
+    }
+    shortcutCustomizationConfig.diagnosticsService =
+        m_editorDiagnosticsService.get();
+    (void)m_shortcutCustomizationSession->Init(
+        std::move(shortcutCustomizationConfig));
+
+    if (!compositionReady)
+        return false;
+
     return true;
 }
 
@@ -117,6 +237,18 @@ void EditorHost::Shutdown()
     {
         m_customizationCatalog->Shutdown();
     }
+    if (m_compositionSession)
+    {
+        m_compositionSession->Shutdown();
+    }
+    if (m_workspaceCustomizationSession)
+    {
+        m_workspaceCustomizationSession->Shutdown();
+    }
+    if (m_shortcutCustomizationSession)
+    {
+        m_shortcutCustomizationSession->Shutdown();
+    }
     if (m_engineBridge)
     {
         m_engineBridge->Shutdown();
@@ -125,7 +257,11 @@ void EditorHost::Shutdown()
     m_extensionHost.reset();
     m_extensionRegistry.reset();
     m_workspaceDefinition.reset();
+    m_shortcutCustomizationSession.reset();
+    m_workspaceCustomizationSession.reset();
+    m_compositionSession.reset();
     m_customizationCatalog.reset();
+    m_editorNotificationCenter.reset();
     m_editorDiagnosticsService.reset();
     m_engineBridge.reset();
     m_editorProfileSettingsBinding.reset();
@@ -169,15 +305,99 @@ IEditorDiagnosticsService& EditorHost::GetEditorDiagnosticsService() noexcept
 {
     return *m_editorDiagnosticsService;
 }
+
+EditorNotificationCenter& EditorHost::GetEditorNotificationCenter() noexcept
+{
+    return *m_editorNotificationCenter;
+}
+
+const EditorNotificationCenter&
+EditorHost::GetEditorNotificationCenter() const noexcept
+{
+    return *m_editorNotificationCenter;
+}
+
 EditorCustomizationCatalog& EditorHost::GetCustomizationCatalog() noexcept
 {
     return *m_customizationCatalog;
+}
+
+WorkspaceCustomizationSession&
+EditorHost::GetWorkspaceCustomizationSession() noexcept
+{
+    return *m_workspaceCustomizationSession;
+}
+
+const WorkspaceCustomizationSession&
+EditorHost::GetWorkspaceCustomizationSession() const noexcept
+{
+    return *m_workspaceCustomizationSession;
+}
+
+ShortcutCustomizationSession&
+EditorHost::GetShortcutCustomizationSession() noexcept
+{
+    return *m_shortcutCustomizationSession;
+}
+
+const ShortcutCustomizationSession&
+EditorHost::GetShortcutCustomizationSession() const noexcept
+{
+    return *m_shortcutCustomizationSession;
+}
+
+EditorCompositionSession& EditorHost::GetCompositionSession() noexcept
+{
+    return *m_compositionSession;
+}
+
+const EditorCompositionSession& EditorHost::GetCompositionSession() const noexcept
+{
+    return *m_compositionSession;
 }
 
 const std::optional<EditorWorkspaceDefinition>&
 EditorHost::GetWorkspaceDefinition() const noexcept
 {
     return m_workspaceDefinition;
+}
+
+void EditorHost::RefreshWorkspaceCustomizationAvailability(
+    std::vector<std::string> registeredPanelIds)
+{
+    if (!m_workspaceCustomizationSession)
+    {
+        return;
+    }
+
+    EditorCustomizationAvailability availability;
+    availability.registeredPanelIds = std::move(registeredPanelIds);
+    if (m_compositionSession &&
+        m_compositionSession->Snapshot().has_value() &&
+        !m_compositionSession->Snapshot()->workspaces.empty())
+    {
+        availability.activeWorkspaceId =
+            m_compositionSession->Snapshot()->workspaces.front().id;
+    }
+
+    for (const CommandDescriptor* command : m_commandRegistry->GetAll())
+    {
+        if (command == nullptr)
+        {
+            continue;
+        }
+        availability.availableActionIds.push_back(command->id);
+        availability.shortcutAssignableActionIds.push_back(command->id);
+    }
+
+    EditorCustomizationAvailability shortcutAvailability = availability;
+
+    m_workspaceCustomizationSession->RefreshAvailability(std::move(availability));
+    if (m_shortcutCustomizationSession)
+    {
+        m_shortcutCustomizationSession->RefreshAvailability(
+            std::move(shortcutAvailability));
+    }
 }
 ExtensionRegistry& EditorHost::GetExtensionRegistry() noexcept { return *m_extensionRegistry; }
 ExtensionHost&     EditorHost::GetExtensionHost()     noexcept { return *m_extensionHost;     }
