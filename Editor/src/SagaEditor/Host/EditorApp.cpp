@@ -47,10 +47,14 @@ bool EditorApp::Init(const EditorAppConfig& cfg, IUIFactory& factory)
         {
             resolvedLayoutPreset = cfg.preparedWorkspace->layoutPreset;
         }
-        if (!m_host->Init(factory.CreateSettingsStore(), *cfg.preparedWorkspace))
+        if (!m_host->Init(factory.CreateSettingsStore(),
+                          *cfg.preparedWorkspace,
+                          cfg.composition))
             return false;
     }
-    else if (!m_host->Init(factory.CreateSettingsStore(), resolvedWorkspacePath))
+    else if (!m_host->Init(factory.CreateSettingsStore(),
+                           resolvedWorkspacePath,
+                           cfg.composition))
     {
         return false;
     }
@@ -67,6 +71,7 @@ bool EditorApp::Init(const EditorAppConfig& cfg, IUIFactory& factory)
     shellCfg.maximized     = cfg.maximized;
     shellCfg.workspacePath = resolvedWorkspacePath;
     shellCfg.layoutPreset  = resolvedLayoutPreset;
+    shellCfg.showOnInit    = cfg.showOnInit && !cfg.smoke;
 
     if (!m_shell->Init(*m_host, factory, shellCfg))
         return false;
@@ -77,6 +82,11 @@ bool EditorApp::Init(const EditorAppConfig& cfg, IUIFactory& factory)
 int EditorApp::Run()
 {
     return m_uiApp->Run();
+}
+
+int EditorApp::RunSmoke(int timeoutMs)
+{
+    return m_uiApp->RunForSmoke(timeoutMs);
 }
 
 void EditorApp::Shutdown()

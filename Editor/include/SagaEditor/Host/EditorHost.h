@@ -3,17 +3,22 @@
 
 #pragma once
 
+#include "SagaEditor/Composition/EditorCompositionSession.h"
 #include "SagaEditor/Host/EditorWorkspaceDefinition.h"
 
 #include <filesystem>
 #include <memory>
 #include <optional>
+#include <string>
+#include <vector>
 
 namespace SagaEditor
 {
 
 class CommandRegistry;
 class EditorCustomizationCatalog;
+class ShortcutCustomizationSession;
+class WorkspaceCustomizationSession;
 class CommandDispatcher;
 class CommandPalette;
 class ShortcutManager;
@@ -31,6 +36,8 @@ class ExtensionRegistry;
 class ExtensionHost;
 class IEditorEngineBridge;
 class IEditorDiagnosticsService;
+class EditorCompositionSession;
+class EditorNotificationCenter;
 
 // ─── Host ─────────────────────────────────────────────────────────────────────
 
@@ -45,11 +52,13 @@ public:
 
     /// Construct and initialise all subsystems. Returns false on failure.
     [[nodiscard]] bool Init(std::unique_ptr<IEditorSettingsStore> settingsStore = nullptr,
-                            std::filesystem::path workspaceRoot = {});
+                            std::filesystem::path workspaceRoot = {},
+                            EditorCompositionStartupConfig composition = {});
 
     /// Construct and initialise all subsystems from a prepared workspace input.
     [[nodiscard]] bool Init(std::unique_ptr<IEditorSettingsStore> settingsStore,
-                            EditorWorkspaceDefinition workspace);
+                            EditorWorkspaceDefinition workspace,
+                            EditorCompositionStartupConfig composition = {});
 
     /// Shut down all subsystems in reverse-init order.
     void Shutdown();
@@ -102,8 +111,33 @@ public:
     /// Shared diagnostics collection consumed by Problems and publish gates.
     [[nodiscard]] IEditorDiagnosticsService& GetEditorDiagnosticsService() noexcept;
 
+    /// Transient user-facing notification hub for editor status feedback.
+    [[nodiscard]] EditorNotificationCenter& GetEditorNotificationCenter() noexcept;
+    [[nodiscard]] const EditorNotificationCenter&
+        GetEditorNotificationCenter() const noexcept;
+
     /// SDE-backed editor customization catalog and its load status.
     [[nodiscard]] EditorCustomizationCatalog& GetCustomizationCatalog() noexcept;
+
+    /// Safe workspace customization session for future Customize Workspace UI.
+    [[nodiscard]] WorkspaceCustomizationSession&
+        GetWorkspaceCustomizationSession() noexcept;
+    [[nodiscard]] const WorkspaceCustomizationSession&
+        GetWorkspaceCustomizationSession() const noexcept;
+
+    /// Safe shortcut customization session for Shortcut Preferences UI.
+    [[nodiscard]] ShortcutCustomizationSession&
+        GetShortcutCustomizationSession() noexcept;
+    [[nodiscard]] const ShortcutCustomizationSession&
+        GetShortcutCustomizationSession() const noexcept;
+
+    /// Resolved compiled editor composition state for the current session.
+    [[nodiscard]] EditorCompositionSession& GetCompositionSession() noexcept;
+    [[nodiscard]] const EditorCompositionSession& GetCompositionSession() const noexcept;
+
+    /// Refresh customization availability from shell-owned panel implementations.
+    void RefreshWorkspaceCustomizationAvailability(
+        std::vector<std::string> registeredPanelIds);
 
     /// Prepared workspace input currently consumed by the editor.
     [[nodiscard]] const std::optional<EditorWorkspaceDefinition>&
@@ -134,7 +168,11 @@ private:
     std::unique_ptr<IEditorSettingsStore> m_settingsStore;
     std::unique_ptr<IEditorEngineBridge> m_engineBridge;
     std::unique_ptr<IEditorDiagnosticsService> m_editorDiagnosticsService;
+    std::unique_ptr<EditorNotificationCenter> m_editorNotificationCenter;
     std::unique_ptr<EditorCustomizationCatalog> m_customizationCatalog;
+    std::unique_ptr<ShortcutCustomizationSession> m_shortcutCustomizationSession;
+    std::unique_ptr<WorkspaceCustomizationSession> m_workspaceCustomizationSession;
+    std::unique_ptr<EditorCompositionSession> m_compositionSession;
     std::optional<EditorWorkspaceDefinition> m_workspaceDefinition;
     std::unique_ptr<ExtensionRegistry> m_extensionRegistry;
     std::unique_ptr<ExtensionHost>     m_extensionHost;

@@ -19,6 +19,7 @@ public:
     ~QtUIApplication() override;
 
     int  Run()  override;
+    int  RunForSmoke(int timeoutMs) override;
     void Quit() override;
 
 private:

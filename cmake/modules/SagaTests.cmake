@@ -30,6 +30,14 @@ function(saga_setup_tests)
         "${SAGA_ROOT}/Tests/Unit/*.cpp"
     )
 
+    file(GLOB_RECURSE SAGA_EDITOR_COMPOSITION_TEST_SOURCES CONFIGURE_DEPENDS
+        "${SAGA_ROOT}/Tests/Tools/SagaEditorComposition/*.cpp"
+    )
+
+    file(GLOB_RECURSE SAGA_PIPELINE_TEST_SOURCES CONFIGURE_DEPENDS
+        "${SAGA_ROOT}/Tests/Tools/SagaPipeline/*.cpp"
+    )
+
     file(GLOB_RECURSE SAGA_PRODUCT_TEST_SOURCES CONFIGURE_DEPENDS
         "${SAGA_ROOT}/Tests/Unit/Saga/*.cpp"
     )
@@ -179,6 +187,82 @@ function(saga_setup_tests)
         SAGA_SOURCE_ROOT="${SAGA_ROOT}"
     )
     add_test(NAME UnitTests COMMAND SagaUnitTests)
+
+    # --- Saga editor composition tool tests --------------------------------
+    if(SAGA_EDITOR_COMPOSITION_TEST_SOURCES)
+        if(SAGA_WITH_SDE AND TARGET SagaEditorCompositionLib)
+            add_executable(SagaEditorCompositionTests
+                ${SAGA_EDITOR_COMPOSITION_TEST_SOURCES}
+            )
+            target_link_libraries(SagaEditorCompositionTests PRIVATE
+                SagaEditorCompositionLib
+                SagaEditorLib
+                GTest::gtest
+                GTest::gmock
+                GTest::gtest_main
+            )
+            target_include_directories(SagaEditorCompositionTests PRIVATE
+                ${SAGA_ROOT}/Tools/SagaEditorComposition/include
+                ${SAGA_ROOT}/Editor/include
+                $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
+            )
+            target_compile_definitions(SagaEditorCompositionTests PRIVATE
+                SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+            )
+            set_target_properties(SagaEditorCompositionTests PROPERTIES
+                FOLDER "Tests/Tools"
+            )
+            add_test(NAME SagaEditorCompositionTests COMMAND SagaEditorCompositionTests)
+            set_tests_properties(SagaEditorCompositionTests PROPERTIES
+                LABELS "tools;sde;editor-composition"
+            )
+            if(TARGET saga-editor-composition-compiler)
+                add_test(
+                    NAME SagaEditorCompositionCompilerHelp
+                    COMMAND saga-editor-composition-compiler --help
+                )
+                set_tests_properties(SagaEditorCompositionCompilerHelp PROPERTIES
+                    LABELS "tools;sde;editor-composition"
+                )
+            endif()
+        else()
+            message(STATUS
+                "SagaEditorCompositionTests skipped because SAGA_WITH_SDE is OFF")
+        endif()
+    endif()
+
+    # --- Saga pipeline tool tests ------------------------------------------
+    if(SAGA_PIPELINE_TEST_SOURCES AND TARGET SagaPipelineLib)
+        add_executable(SagaPipelineTests
+            ${SAGA_PIPELINE_TEST_SOURCES}
+        )
+        target_link_libraries(SagaPipelineTests PRIVATE
+            SagaPipelineLib
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(SagaPipelineTests PRIVATE
+            ${SAGA_ROOT}/Tools/SagaPipeline/include
+            $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
+        )
+        target_compile_definitions(SagaPipelineTests PRIVATE
+            SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+        )
+        if(TARGET saga-editor-composition-compiler)
+            add_dependencies(SagaPipelineTests saga-editor-composition-compiler)
+            target_compile_definitions(SagaPipelineTests PRIVATE
+                SAGA_EDITOR_COMPOSITION_COMPILER="$<TARGET_FILE:saga-editor-composition-compiler>"
+            )
+        endif()
+        set_target_properties(SagaPipelineTests PROPERTIES
+            FOLDER "Tests/Tools"
+        )
+        add_test(NAME SagaPipelineTests COMMAND SagaPipelineTests)
+        set_tests_properties(SagaPipelineTests PROPERTIES
+            LABELS "tools;pipeline"
+        )
+    endif()
 
     # --- Package staging tests ----------------------------------------------
     #

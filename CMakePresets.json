@@ -13,6 +13,18 @@
             }
         },
         {
+            "name": "linux-gcc-sde",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/RelWithDebInfo-sde",
+            "toolchainFile": "${sourceDir}/build/RelWithDebInfo-sde/generators/conan_toolchain.cmake",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "SAGA_WITH_SDE": "ON",
+                "CMAKE_C_COMPILER_LAUNCHER": "sccache",
+                "CMAKE_CXX_COMPILER_LAUNCHER": "sccache"
+            }
+        },
+        {
             "name": "windows-msvc-14.38",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/Build/windows-msvc-14.38",
@@ -30,6 +42,10 @@
         {
             "name": "linux-gcc",
             "configurePreset": "linux-gcc"
+        },
+        {
+            "name": "linux-gcc-sde",
+            "configurePreset": "linux-gcc-sde"
         },
         {
             "name": "windows-msvc-14.38",

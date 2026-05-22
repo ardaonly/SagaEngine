@@ -120,6 +120,49 @@ bool ContainsToken(const std::string& text, const std::string& token)
     return text.find(token) != std::string::npos;
 }
 
+bool IsCodeOrBuildFile(const std::filesystem::path& path)
+{
+    const auto filename = path.filename().string();
+    const auto extension = path.extension().string();
+    return filename == "CMakeLists.txt" ||
+           extension == ".h" ||
+           extension == ".hpp" ||
+           extension == ".cpp" ||
+           extension == ".rs" ||
+           extension == ".py";
+}
+
+std::vector<std::string> FindForbiddenText(
+    const std::filesystem::path& root,
+    const std::vector<std::string>& forbiddenTokens)
+{
+    std::vector<std::string> offenders;
+    if (!std::filesystem::exists(root))
+    {
+        return offenders;
+    }
+
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(root))
+    {
+        if (!entry.is_regular_file() || !IsCodeOrBuildFile(entry.path()))
+        {
+            continue;
+        }
+
+        const std::string text = ReadText(entry.path());
+        for (const std::string& token : forbiddenTokens)
+        {
+            if (text.find(token) != std::string::npos)
+            {
+                offenders.push_back(
+                    entry.path().generic_string() + ": " + token);
+                break;
+            }
+        }
+    }
+    return offenders;
+}
+
 std::vector<CMakeLinkCall> FindForbiddenLinks(
     const std::vector<CMakeLinkCall>& calls,
     const std::string& target,
@@ -358,4 +401,262 @@ TEST(CMakeTargetBoundaryTests, SagaLinksEditorLabBridgeOnlyBehindDevPanelFlag)
     EXPECT_TRUE(sawSagaBridgeLink)
         << "Expected Saga executable to link SagaEditorLabBridge behind if("
         << guardName << ") in " << path.generic_string();
+}
+
+TEST(CMakeTargetBoundaryTests, ForgeDoesNotOwnSagaEditorCompositionWorkflow)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto offenders = FindForbiddenText(
+        root / "Tools" / "Forge",
+        {
+            "EditorCompositionOrchestrator",
+            "saga-editor-composition-compiler",
+            "Editor/CompositionSources",
+            "saga.editor.default",
+        });
+
+    EXPECT_TRUE(offenders.empty())
+        << "Forge must stay generic and not own SagaEditor composition workflow. "
+        << "First offender: "
+        << (offenders.empty() ? "" : offenders.front());
+}
+
+TEST(CMakeTargetBoundaryTests, GenericToolsAndAppsDoNotIncludeSagaPipeline)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    std::vector<std::string> offenders;
+    for (const auto& directory : {
+             root / "Tools" / "SystemDefinitionEngine",
+             root / "Tools" / "Prism",
+             root / "Apps" / "Editor",
+         })
+    {
+        const auto hits = FindForbiddenText(directory, {"SagaPipeline/"});
+        offenders.insert(offenders.end(), hits.begin(), hits.end());
+    }
+
+    EXPECT_TRUE(offenders.empty())
+        << "SDE, Prism, and Apps/Editor must not include SagaPipeline internals. "
+        << "First offender: "
+        << (offenders.empty() ? "" : offenders.front());
+}
+
+TEST(CMakeTargetBoundaryTests, EditorCustomizationCoreStaysQtAndToolFree)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const std::vector<std::filesystem::path> files = {
+        root / "Editor" / "include" / "SagaEditor" / "Customization" / "EditorCustomizationCapability.h",
+        root / "Editor" / "include" / "SagaEditor" / "Customization" / "EditorCustomizationDiagnostics.h",
+        root / "Editor" / "include" / "SagaEditor" / "Customization" / "EditorCustomizationOverlay.h",
+        root / "Editor" / "include" / "SagaEditor" / "Customization" / "EditorCustomizationOverlayLoader.h",
+        root / "Editor" / "include" / "SagaEditor" / "Customization" / "ShortcutCustomizationController.h",
+        root / "Editor" / "include" / "SagaEditor" / "Customization" / "ShortcutCustomizationFeedback.h",
+        root / "Editor" / "include" / "SagaEditor" / "Customization" / "ShortcutCustomizationModel.h",
+        root / "Editor" / "include" / "SagaEditor" / "Customization" / "ShortcutCustomizationPanelViewModel.h",
+        root / "Editor" / "include" / "SagaEditor" / "Customization" / "ShortcutCustomizationSession.h",
+        root / "Editor" / "include" / "SagaEditor" / "Customization" / "WorkspaceCustomizationController.h",
+        root / "Editor" / "include" / "SagaEditor" / "Customization" / "WorkspaceCustomizationModel.h",
+        root / "Editor" / "include" / "SagaEditor" / "Customization" / "WorkspaceCustomizationOverlayPolicy.h",
+        root / "Editor" / "include" / "SagaEditor" / "Customization" / "WorkspaceCustomizationOverlayStore.h",
+        root / "Editor" / "include" / "SagaEditor" / "Customization" / "WorkspaceCustomizationFeedback.h",
+        root / "Editor" / "include" / "SagaEditor" / "Customization" / "WorkspaceCustomizationPanelViewModel.h",
+        root / "Editor" / "include" / "SagaEditor" / "Customization" / "WorkspaceCustomizationSession.h",
+        root / "Editor" / "src" / "SagaEditor" / "Customization" / "EditorCustomizationCapability.cpp",
+        root / "Editor" / "src" / "SagaEditor" / "Customization" / "EditorCustomizationDiagnostics.cpp",
+        root / "Editor" / "src" / "SagaEditor" / "Customization" / "EditorCustomizationOverlayLoader.cpp",
+        root / "Editor" / "src" / "SagaEditor" / "Customization" / "ShortcutCustomizationController.cpp",
+        root / "Editor" / "src" / "SagaEditor" / "Customization" / "ShortcutCustomizationFeedback.cpp",
+        root / "Editor" / "src" / "SagaEditor" / "Customization" / "ShortcutCustomizationModel.cpp",
+        root / "Editor" / "src" / "SagaEditor" / "Customization" / "ShortcutCustomizationPanelViewModel.cpp",
+        root / "Editor" / "src" / "SagaEditor" / "Customization" / "ShortcutCustomizationSession.cpp",
+        root / "Editor" / "src" / "SagaEditor" / "Customization" / "WorkspaceCustomizationController.cpp",
+        root / "Editor" / "src" / "SagaEditor" / "Customization" / "WorkspaceCustomizationModel.cpp",
+        root / "Editor" / "src" / "SagaEditor" / "Customization" / "WorkspaceCustomizationOverlayPolicy.cpp",
+        root / "Editor" / "src" / "SagaEditor" / "Customization" / "WorkspaceCustomizationOverlayStore.cpp",
+        root / "Editor" / "src" / "SagaEditor" / "Customization" / "WorkspaceCustomizationFeedback.cpp",
+        root / "Editor" / "src" / "SagaEditor" / "Customization" / "WorkspaceCustomizationPanelViewModel.cpp",
+        root / "Editor" / "src" / "SagaEditor" / "Customization" / "WorkspaceCustomizationSession.cpp",
+    };
+    const std::vector<std::string> forbiddenTokens = {
+        "QApplication",
+        "QWidget",
+        "Qt6::",
+        "#include <Q",
+        "SystemDefinitionEngine",
+        "SDE/",
+        "Forge/",
+        "SagaPipeline/",
+    };
+    std::vector<std::string> offenders;
+    for (const auto& file : files)
+    {
+        const std::string text = ReadText(file);
+        for (const std::string& token : forbiddenTokens)
+        {
+            if (text.find(token) != std::string::npos)
+            {
+                offenders.push_back(file.generic_string() + ": " + token);
+                break;
+            }
+        }
+    }
+
+    EXPECT_TRUE(offenders.empty())
+        << "Safe customization core must stay Qt-free and tool-free. "
+        << "First offender: "
+        << (offenders.empty() ? "" : offenders.front());
+}
+
+TEST(CMakeTargetBoundaryTests, CustomizeWorkspacePanelDoesNotInvokeToolchain)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto offenders = FindForbiddenText(
+        root / "Editor" / "src" / "SagaEditor" / "UI" / "Qt" / "Panels",
+        {
+            "SystemDefinitionEngine",
+            "SDE/",
+            "Forge/",
+            "SagaPipeline/",
+            "saga-editor-composition-compiler",
+            "saga-pipeline",
+        });
+
+    EXPECT_TRUE(offenders.empty())
+        << "Qt editor panels must not invoke or include composition toolchain internals. "
+        << "First offender: "
+        << (offenders.empty() ? "" : offenders.front());
+}
+
+TEST(CMakeTargetBoundaryTests, AppsEditorDoesNotInvokeCompositionToolchain)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto offenders = FindForbiddenText(
+        root / "Apps" / "Editor",
+        {
+            "saga-pipeline",
+            "saga-editor-composition-compiler",
+            "SystemDefinitionEngine",
+            "Forge/",
+            "SagaPipeline/",
+        });
+
+    EXPECT_TRUE(offenders.empty())
+        << "Apps/Editor may consume composition manifests but must not invoke the toolchain. "
+        << "First offender: "
+        << (offenders.empty() ? "" : offenders.front());
+}
+
+TEST(CMakeTargetBoundaryTests, SagaEditorComposerIsAnAppAndUsesToolBoundaries)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto appRoot = root / "Apps" / "SagaEditorComposer";
+    ASSERT_TRUE(std::filesystem::exists(appRoot))
+        << "SagaEditorComposer must be a product-level app under Apps/.";
+    EXPECT_FALSE(std::filesystem::exists(root / "Tools" / "SagaEditorComposer"))
+        << "The visual Composer must not be placed under Tools/.";
+
+    std::vector<std::string> offenders;
+    for (const auto& directory : {
+             appRoot,
+             root / "Editor" / "include" / "SagaEditor" / "Composer",
+             root / "Editor" / "src" / "SagaEditor" / "Composer",
+         })
+    {
+        const auto hits = FindForbiddenText(
+            directory,
+            {
+                "#include \"SDE/",
+                "#include <SDE/",
+                "Tools/SystemDefinitionEngine",
+                "#include \"Forge/",
+                "#include <Forge/",
+                "#include \"SagaPipeline/",
+                "#include <SagaPipeline/",
+                "#include \"SagaEditorComposition/",
+                "#include <SagaEditorComposition/",
+            });
+        offenders.insert(offenders.end(), hits.begin(), hits.end());
+    }
+
+    EXPECT_TRUE(offenders.empty())
+        << "SagaEditorComposer must invoke tools through process boundaries and "
+           "must not include SDE, Forge, SagaPipeline, or SagaEditorComposition "
+           "internals. First offender: "
+        << (offenders.empty() ? "" : offenders.front());
+}
+
+TEST(CMakeTargetBoundaryTests, SagaEditorComposerDoesNotWriteGeneratedArtifacts)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto offenders = FindForbiddenText(
+        root / "Editor" / "src" / "SagaEditor" / "Composer",
+        {
+            "std::ofstream output(paths.artifactPath",
+            "std::ofstream output(paths.manifestPath",
+            "std::ofstream output(paths.diagnosticsPath",
+            "std::ofstream output(paths.sourceMapPath",
+            "std::ofstream output(paths.dependenciesPath",
+        });
+
+    EXPECT_TRUE(offenders.empty())
+        << "Composer core may read generated artifact summaries, but source "
+           "editing must not target generated artifact JSON. First offender: "
+        << (offenders.empty() ? "" : offenders.front());
+}
+
+TEST(CMakeTargetBoundaryTests, SagaPipelineStaysHeadlessAndRuntimeFree)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto offenders = FindForbiddenText(
+        root / "Tools" / "SagaPipeline",
+        {
+            "QApplication",
+            "Qt",
+            "SagaEditor/",
+            "SagaEngine/Runtime",
+            "SagaServer/",
+        });
+
+    EXPECT_TRUE(offenders.empty())
+        << "SagaPipeline must stay headless and must not depend on editor/runtime internals. "
+        << "First offender: "
+        << (offenders.empty() ? "" : offenders.front());
+}
+
+TEST(CMakeTargetBoundaryTests, SagaEditorCompositionToolStaysSagaOwnedAndHeadless)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto toolRoot = root / "Tools" / "SagaEditorComposition";
+    ASSERT_TRUE(std::filesystem::exists(toolRoot))
+        << "SagaEditorComposition must live outside the SDE package tree.";
+
+    EXPECT_FALSE(std::filesystem::exists(
+        root / "Tools" / "SystemDefinitionEngine" / "include" /
+        "SagaEditorComposition"))
+        << "Saga-specific editor composition headers must not live under SDE.";
+    EXPECT_FALSE(std::filesystem::exists(
+        root / "Tools" / "SystemDefinitionEngine" / "schema_packages" /
+        "saga.editor"))
+        << "saga.editor schemas must not live under SDE.";
+
+    const auto offenders = FindForbiddenText(
+        toolRoot,
+        {
+            "QApplication",
+            "QWidget",
+            "Qt6::",
+            "#include <Q",
+            "#include \"SagaEditor/",
+            "#include <SagaEditor/",
+            "Forge/",
+            "Prism/",
+            "SagaPipeline/",
+            "Apps/Editor",
+        });
+
+    EXPECT_TRUE(offenders.empty())
+        << "SagaEditorComposition must stay a headless Saga-owned adapter and "
+           "must not depend on Qt, editor runtime, Forge, Prism, or SagaPipeline "
+           "internals. First offender: "
+        << (offenders.empty() ? "" : offenders.front());
 }

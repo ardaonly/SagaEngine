@@ -141,7 +141,8 @@ SagaEngine is built through **Forge**. See `Tools/Forge/README.md` for full docu
 - CMake 3.22 or later
 - Conan 2.0 or later
 - A C++ toolchain matching one of the profiles in `profiles/`
-  (`windows-msvc`, `windows-clang`, `linux-gcc`, `macos-clang`)
+  (`windows-msvc`, `windows-clang`, `linux-gcc`, `linux-gcc-sde`,
+  `macos-clang`)
 
 ### One-time: build Forge itself
 
@@ -195,6 +196,21 @@ Do not run `forge nix --preset linux-gcc`; `--preset` is an option for the
 Normal `forge install/configure/build` commands fail fast outside `nix-shell`
 instead of silently re-entering the environment.
 
+The default Linux profile remains SDE-off. To build the SagaEditor product
+toolchain with SDE-backed editor composition support, use the explicit SDE
+profile and preset:
+
+```sh
+forge nix run conan create Tools/SystemDefinitionEngine --build=missing
+forge nix install --profile linux-gcc-sde
+forge nix configure --preset linux-gcc-sde
+forge nix build --build=build/RelWithDebInfo-sde
+```
+
+This profile produces `build/RelWithDebInfo-sde/bin/saga-pipeline`,
+`build/RelWithDebInfo-sde/bin/saga-editor-composition-compiler`, and
+`build/RelWithDebInfo-sde/bin/SagaEditor`.
+
 The repository default is intentionally conservative: `forge.toml` sets
 `jobs = 2`, and Forge clamps requested jobs through CPU/RAM safety limits.
 Use `forge build --jobs=N` or `forge install --jobs=N` to request more
@@ -244,8 +260,9 @@ forge run conan install . --profile:host=profiles/linux-gcc --build=missing
 - If a build breaks after pulling new commits, run
   `forge install` then `forge configure --preset <name>` before `forge build`;
   dependency or preset changes require re-resolution.
-- Optional engine features are toggled at install time. To build with SDE
-  support: `forge install -- -o &:with_sde=True`.
+- Optional engine features are toggled at install time. For the supported
+  SagaEditor product toolchain with SDE-backed editor composition, prefer the
+  `linux-gcc-sde` profile/preset instead of flipping the generic default.
 - Use `forge run <tool>` instead of invoking `cmake`, `conan`, or `ninja`
   directly — it guarantees the correct environment is loaded.
 - `--strict` on `install` and `build` will enforce toolchain pin verification

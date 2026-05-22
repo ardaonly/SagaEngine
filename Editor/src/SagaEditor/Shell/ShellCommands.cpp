@@ -46,6 +46,10 @@ void RegisterShellCommands(CommandRegistry& registry, UndoRedoStack& undoStack)
     registry.Register({ "saga.command.edit.redo",        "Redo",           "Edit",
         [&undoStack]() { undoStack.Redo(); } });
     RegisterStub(registry, "saga.command.edit.preferences", "Preferences", "Edit");
+    RegisterStub(registry,
+                 "saga.command.edit.shortcut_preferences",
+                 "Shortcut Preferences",
+                 "Edit");
 
     // View — toggling panels is wired per-panel after shell init
     RegisterStub(registry, "saga.command.view.hierarchy",       "Hierarchy",       "View");
@@ -53,6 +57,7 @@ void RegisterShellCommands(CommandRegistry& registry, UndoRedoStack& undoStack)
     RegisterStub(registry, "saga.command.view.asset_browser",   "Asset Browser",   "View");
     RegisterStub(registry, "saga.command.view.console",         "Console",         "View");
     RegisterStub(registry, "saga.command.view.production_dashboard", "Production Dashboard", "View");
+    RegisterStub(registry, "saga.command.view.customize_workspace", "Customize Workspace", "View");
     RegisterStub(registry, "saga.command.view.command_palette", "Command Palette", "View");
     RegisterStub(registry, "saga.command.view.theme",           "Theme",           "View");
     RegisterStub(registry, "saga.command.view.graph",           "Graph",           "View");

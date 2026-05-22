@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "SagaEditor/Composition/EditorCompositionSession.h"
 #include "SagaEditor/Host/EditorWorkspaceDefinition.h"
 
 #include <memory>
@@ -28,10 +29,14 @@ struct EditorAppConfig
     int         windowWidth   = 1600;
     int         windowHeight  = 900;
     bool        maximized     = false;
+    bool        showOnInit    = true;
+    bool        smoke         = false;
+    int         smokeTimeoutMs = 1000;
     std::string workspacePath = "";           ///< Project workspace root; empty = cwd.
     std::string layoutPreset  = "Default";    ///< Layout preset applied on first launch.
     std::string initialProfileId = "";        ///< Optional workflow profile override.
     std::optional<EditorWorkspaceDefinition> preparedWorkspace;
+    EditorCompositionStartupConfig composition; ///< Compiled composition startup input.
 };
 
 // ─── Application ─────────────────────────────────────────────────────────────
@@ -53,6 +58,9 @@ public:
     /// Enter the framework event loop. Blocks until the main window is closed.
     /// Returns the backend exit code.
     int Run();
+
+    /// Run a bounded event loop for startup smoke validation.
+    int RunSmoke(int timeoutMs);
 
     /// Shut down all subsystems in reverse-init order.
     void Shutdown();

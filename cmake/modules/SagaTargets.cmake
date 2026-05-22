@@ -26,6 +26,8 @@ function(saga_create_engine_targets)
     saga_collect_sources(SHARED_SOURCES Shared/src)
     saga_collect_sources(COLLABORATION_SOURCES Collaboration/src)
     saga_collect_sources(ASSET_PIPELINE_SOURCES Tools/AssetPipeline/src)
+    saga_collect_sources(SAGA_EDITOR_COMPOSITION_SOURCES Tools/SagaEditorComposition/src)
+    saga_collect_sources(SAGA_PIPELINE_SOURCES Tools/SagaPipeline/src)
     saga_collect_sources(ENGINE_SOURCES  Engine/Private)
     saga_collect_sources(BACKEND_SOURCES Backends/src)
     saga_collect_sources(RUNTIME_SOURCES  Runtime/src)
@@ -144,6 +146,76 @@ function(saga_create_engine_targets)
     set_target_properties(SagaAssetPipelineLib PROPERTIES
         FOLDER "Tools/AssetPipeline"
     )
+
+    # --- Saga Pipeline Tool --------------------------------------------------
+    # Saga-specific workflow orchestration lives here so Forge, Prism, SDE, and
+    # SagaTools can remain generic or thin.
+    add_library(SagaPipelineLib STATIC)
+    saga_apply_compiler_flags(SagaPipelineLib)
+
+    target_sources(SagaPipelineLib PRIVATE
+        ${SAGA_PIPELINE_SOURCES}
+    )
+
+    target_include_directories(SagaPipelineLib PUBLIC
+        ${SAGA_ROOT}/Tools/SagaPipeline/include
+    )
+
+    set_target_properties(SagaPipelineLib PROPERTIES
+        FOLDER "Tools/SagaPipeline"
+    )
+
+    add_executable(saga-pipeline
+        ${SAGA_ROOT}/Tools/SagaPipeline/cli/main.cpp
+    )
+    saga_apply_compiler_flags(saga-pipeline)
+    target_link_libraries(saga-pipeline PRIVATE
+        SagaPipelineLib
+    )
+    set_target_properties(saga-pipeline PROPERTIES
+        FOLDER "Tools/SagaPipeline"
+    )
+
+    # --- Saga Editor Composition Tool ----------------------------------------
+    # Saga-specific artifact generation is intentionally outside the standalone
+    # SDE package tree. This tool consumes SDE's public facade and graph APIs.
+    if(SAGA_WITH_SDE)
+        add_library(SagaEditorCompositionLib STATIC)
+        saga_apply_compiler_flags(SagaEditorCompositionLib)
+
+        target_sources(SagaEditorCompositionLib PRIVATE
+            ${SAGA_EDITOR_COMPOSITION_SOURCES}
+        )
+
+        target_include_directories(SagaEditorCompositionLib PUBLIC
+            ${SAGA_ROOT}/Tools/SagaEditorComposition/include
+        )
+
+        target_link_libraries(SagaEditorCompositionLib
+            PUBLIC
+                SDE::Core
+            PRIVATE
+                nlohmann_json::nlohmann_json
+        )
+
+        set_target_properties(SagaEditorCompositionLib PROPERTIES
+            FOLDER "Tools/SagaEditorComposition"
+        )
+
+        add_executable(saga-editor-composition-compiler
+            ${SAGA_ROOT}/Tools/SagaEditorComposition/cli/main.cpp
+        )
+        saga_apply_compiler_flags(saga-editor-composition-compiler)
+        target_link_libraries(saga-editor-composition-compiler PRIVATE
+            SagaEditorCompositionLib
+        )
+        set_target_properties(saga-editor-composition-compiler PROPERTIES
+            FOLDER "Tools/SagaEditorComposition"
+        )
+    else()
+        message(STATUS
+            "saga-editor-composition-compiler skipped because SAGA_WITH_SDE is OFF")
+    endif()
 
     # --- Engine Library ------------------------------------------------------
     add_library(SagaEngine STATIC)
@@ -510,6 +582,7 @@ function(saga_create_engine_targets)
     # Apps/Editor/main.cpp can use a standard int main() on all platforms.
     qt_add_executable(SagaEditor WIN32
         ${SAGA_ROOT}/Apps/Editor/main.cpp
+        ${SAGA_ROOT}/Apps/Editor/SagaEditorQtStaticPlugins.cpp
     )
 
     target_include_directories(SagaEditor PRIVATE
@@ -522,8 +595,137 @@ function(saga_create_engine_targets)
         SagaEditorLib   # all editor logic + transitive Qt6::Widgets
     )
 
+    if(TARGET Qt6::QXcbIntegrationPlugin)
+        if(TARGET qt::qt)
+            target_link_libraries(SagaEditor PRIVATE qt::qt)
+        else()
+            target_link_libraries(SagaEditor PRIVATE
+                Qt6::QXcbIntegrationPlugin
+            )
+        endif()
+        target_compile_definitions(SagaEditor PRIVATE
+            SAGA_EDITOR_IMPORT_QT_XCB_PLUGIN
+        )
+
+        set(_saga_editor_qt_platform_plugin_dirs)
+        if(DEFINED qt_Qt6_QXcbIntegrationPlugin_LIB_DIRS_RELWITHDEBINFO)
+            list(APPEND _saga_editor_qt_platform_plugin_dirs
+                ${qt_Qt6_QXcbIntegrationPlugin_LIB_DIRS_RELWITHDEBINFO}
+            )
+        endif()
+        get_target_property(_saga_editor_qt_xcb_plugin_dirs
+            Qt6::QXcbIntegrationPlugin
+            INTERFACE_LINK_DIRECTORIES
+        )
+        if(_saga_editor_qt_xcb_plugin_dirs)
+            foreach(_saga_editor_qt_plugin_dir
+                    IN LISTS _saga_editor_qt_xcb_plugin_dirs)
+                string(REGEX REPLACE
+                    "^\\$<\\$<CONFIG:[^>]+>:(.*)>$"
+                    "\\1"
+                    _saga_editor_qt_plugin_dir
+                    "${_saga_editor_qt_plugin_dir}"
+                )
+                list(APPEND _saga_editor_qt_platform_plugin_dirs
+                    "${_saga_editor_qt_plugin_dir}"
+                )
+            endforeach()
+        endif()
+
+        find_library(SAGA_QT_OFFSCREEN_PLATFORM_PLUGIN
+            NAMES qoffscreen
+            PATHS ${_saga_editor_qt_platform_plugin_dirs}
+            NO_DEFAULT_PATH
+        )
+        if(SAGA_QT_OFFSCREEN_PLATFORM_PLUGIN)
+            target_link_libraries(SagaEditor PRIVATE
+                ${SAGA_QT_OFFSCREEN_PLATFORM_PLUGIN}
+            )
+            target_compile_definitions(SagaEditor PRIVATE
+                SAGA_EDITOR_IMPORT_QT_OFFSCREEN_PLUGIN
+            )
+        endif()
+    endif()
+
     set_target_properties(SagaEditor PROPERTIES
         OUTPUT_NAME "SagaEditor"
+        FOLDER      "Apps"
+    )
+
+    # --- SagaEditorComposer Executable ---------------------------------------
+    # Visual authoring app for editor composition source. It remains separate
+    # from Apps/Editor runtime and invokes pipeline tools only as processes.
+    qt_add_executable(SagaEditorComposer WIN32
+        ${SAGA_ROOT}/Apps/SagaEditorComposer/main.cpp
+        ${SAGA_ROOT}/Apps/SagaEditorComposer/SagaEditorComposerQtStaticPlugins.cpp
+    )
+
+    target_include_directories(SagaEditorComposer PRIVATE
+        ${SAGA_ROOT}/Editor/include
+    )
+
+    saga_apply_compiler_flags(SagaEditorComposer)
+
+    target_link_libraries(SagaEditorComposer PRIVATE
+        SagaEditorLib
+        Qt6::Core
+        Qt6::Widgets
+    )
+
+    if(TARGET Qt6::QXcbIntegrationPlugin)
+        if(TARGET qt::qt)
+            target_link_libraries(SagaEditorComposer PRIVATE qt::qt)
+        else()
+            target_link_libraries(SagaEditorComposer PRIVATE
+                Qt6::QXcbIntegrationPlugin
+            )
+        endif()
+        target_compile_definitions(SagaEditorComposer PRIVATE
+            SAGA_EDITOR_COMPOSER_IMPORT_QT_XCB_PLUGIN
+        )
+
+        set(_saga_editor_composer_qt_platform_plugin_dirs)
+        if(DEFINED qt_Qt6_QXcbIntegrationPlugin_LIB_DIRS_RELWITHDEBINFO)
+            list(APPEND _saga_editor_composer_qt_platform_plugin_dirs
+                ${qt_Qt6_QXcbIntegrationPlugin_LIB_DIRS_RELWITHDEBINFO}
+            )
+        endif()
+        get_target_property(_saga_editor_composer_qt_xcb_plugin_dirs
+            Qt6::QXcbIntegrationPlugin
+            INTERFACE_LINK_DIRECTORIES
+        )
+        if(_saga_editor_composer_qt_xcb_plugin_dirs)
+            foreach(_saga_editor_composer_qt_plugin_dir
+                    IN LISTS _saga_editor_composer_qt_xcb_plugin_dirs)
+                string(REGEX REPLACE
+                    "^\\$<\\$<CONFIG:[^>]+>:(.*)>$"
+                    "\\1"
+                    _saga_editor_composer_qt_plugin_dir
+                    "${_saga_editor_composer_qt_plugin_dir}"
+                )
+                list(APPEND _saga_editor_composer_qt_platform_plugin_dirs
+                    "${_saga_editor_composer_qt_plugin_dir}"
+                )
+            endforeach()
+        endif()
+
+        find_library(SAGA_QT_COMPOSER_OFFSCREEN_PLATFORM_PLUGIN
+            NAMES qoffscreen
+            PATHS ${_saga_editor_composer_qt_platform_plugin_dirs}
+            NO_DEFAULT_PATH
+        )
+        if(SAGA_QT_COMPOSER_OFFSCREEN_PLATFORM_PLUGIN)
+            target_link_libraries(SagaEditorComposer PRIVATE
+                ${SAGA_QT_COMPOSER_OFFSCREEN_PLATFORM_PLUGIN}
+            )
+            target_compile_definitions(SagaEditorComposer PRIVATE
+                SAGA_EDITOR_COMPOSER_IMPORT_QT_OFFSCREEN_PLUGIN
+            )
+        endif()
+    endif()
+
+    set_target_properties(SagaEditorComposer PROPERTIES
+        OUTPUT_NAME "SagaEditorComposer"
         FOLDER      "Apps"
     )
 

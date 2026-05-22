@@ -1,0 +1,419 @@
+sde version 1
+
+package saga.editor.product
+import saga.editor
+
+instance EditorComposition saga.editor.default {
+  displayName = "SagaEditor Default Composition"
+  description = "Default product editor composition consumed by SagaEditor startup."
+}
+
+instance EditorPanel saga.panel.production_dashboard {
+  composition = saga.editor.default
+  displayName = "Production Dashboard"
+  kind = "builtin"
+  defaultVisible = true
+  internalOnly = false
+  allowedProfiles = ["default", "production"]
+}
+
+instance EditorPanel saga.panel.hierarchy {
+  composition = saga.editor.default
+  displayName = "Hierarchy"
+  kind = "builtin"
+  defaultVisible = true
+  internalOnly = false
+  allowedProfiles = ["default", "world"]
+}
+
+instance EditorPanel saga.panel.viewport {
+  composition = saga.editor.default
+  displayName = "World Viewport"
+  kind = "builtin"
+  defaultVisible = true
+  internalOnly = false
+  allowedProfiles = ["default", "world"]
+}
+
+instance EditorPanel saga.panel.inspector {
+  composition = saga.editor.default
+  displayName = "Inspector"
+  kind = "builtin"
+  defaultVisible = true
+  internalOnly = false
+  allowedProfiles = ["default", "world"]
+}
+
+instance EditorPanel saga.panel.assetbrowser {
+  composition = saga.editor.default
+  displayName = "Asset Browser"
+  kind = "builtin"
+  defaultVisible = true
+  internalOnly = false
+  allowedProfiles = ["default", "assets"]
+}
+
+instance EditorPanel saga.panel.console {
+  composition = saga.editor.default
+  displayName = "Console"
+  kind = "builtin"
+  defaultVisible = false
+  internalOnly = false
+  allowedProfiles = ["default", "diagnostics"]
+}
+
+instance EditorPanel saga.panel.problems {
+  composition = saga.editor.default
+  displayName = "Problems"
+  kind = "builtin"
+  defaultVisible = true
+  internalOnly = false
+  allowedProfiles = ["default", "diagnostics"]
+}
+
+instance EditorPanel saga.panel.customize_workspace {
+  composition = saga.editor.default
+  displayName = "Customize Workspace"
+  kind = "builtin"
+  defaultVisible = false
+  internalOnly = false
+  allowedProfiles = ["default", "workspace"]
+}
+
+instance EditorPanel saga.panel.shortcut_preferences {
+  composition = saga.editor.default
+  displayName = "Shortcut Preferences"
+  kind = "builtin"
+  defaultVisible = false
+  internalOnly = false
+  allowedProfiles = ["default", "preferences"]
+}
+
+instance EditorAction saga.command.file.new_scene {
+  composition = saga.editor.default
+  displayName = "New Scene"
+  category = "File"
+  safeInProduct = true
+  internalOnly = false
+}
+
+instance EditorAction saga.command.file.open_project {
+  composition = saga.editor.default
+  displayName = "Open Project"
+  category = "File"
+  safeInProduct = true
+  internalOnly = false
+}
+
+instance EditorAction saga.command.file.save {
+  composition = saga.editor.default
+  displayName = "Save Scene"
+  category = "File"
+  safeInProduct = true
+  internalOnly = false
+}
+
+instance EditorAction saga.command.edit.undo {
+  composition = saga.editor.default
+  displayName = "Undo"
+  category = "Edit"
+  safeInProduct = true
+  internalOnly = false
+}
+
+instance EditorAction saga.command.edit.redo {
+  composition = saga.editor.default
+  displayName = "Redo"
+  category = "Edit"
+  safeInProduct = true
+  internalOnly = false
+}
+
+instance EditorAction saga.command.edit.shortcut_preferences {
+  composition = saga.editor.default
+  displayName = "Shortcut Preferences"
+  category = "Edit"
+  safeInProduct = true
+  internalOnly = false
+}
+
+instance EditorAction saga.command.view.production_dashboard {
+  composition = saga.editor.default
+  displayName = "Production Dashboard"
+  category = "View"
+  safeInProduct = true
+  internalOnly = false
+}
+
+instance EditorAction saga.command.view.hierarchy {
+  composition = saga.editor.default
+  displayName = "Hierarchy"
+  category = "View"
+  safeInProduct = true
+  internalOnly = false
+}
+
+instance EditorAction saga.command.view.inspector {
+  composition = saga.editor.default
+  displayName = "Inspector"
+  category = "View"
+  safeInProduct = true
+  internalOnly = false
+}
+
+instance EditorAction saga.command.view.asset_browser {
+  composition = saga.editor.default
+  displayName = "Asset Browser"
+  category = "View"
+  safeInProduct = true
+  internalOnly = false
+}
+
+instance EditorAction saga.command.view.console {
+  composition = saga.editor.default
+  displayName = "Console"
+  category = "View"
+  safeInProduct = true
+  internalOnly = false
+}
+
+instance EditorAction saga.command.view.diagnostics {
+  composition = saga.editor.default
+  displayName = "Problems"
+  category = "View"
+  safeInProduct = true
+  internalOnly = false
+}
+
+instance EditorAction saga.command.view.customize_workspace {
+  composition = saga.editor.default
+  displayName = "Customize Workspace"
+  category = "View"
+  safeInProduct = true
+  internalOnly = false
+}
+
+instance EditorAction saga.command.world.play {
+  composition = saga.editor.default
+  displayName = "Play"
+  category = "World"
+  safeInProduct = true
+  internalOnly = false
+}
+
+instance EditorAction saga.command.world.stop {
+  composition = saga.editor.default
+  displayName = "Stop"
+  category = "World"
+  safeInProduct = true
+  internalOnly = false
+}
+
+instance EditorAction saga.command.world.step {
+  composition = saga.editor.default
+  displayName = "Step"
+  category = "World"
+  safeInProduct = true
+  internalOnly = false
+}
+
+instance EditorAction saga.command.build {
+  composition = saga.editor.default
+  displayName = "Build"
+  category = "World"
+  safeInProduct = true
+  internalOnly = false
+}
+
+instance EditorMenu saga.menu.file {
+  composition = saga.editor.default
+  displayName = "File"
+}
+
+instance EditorMenuItem saga.menu.file.new_scene {
+  menu = saga.menu.file
+  kind = "action"
+  actionId = saga.command.file.new_scene
+}
+
+instance EditorMenuItem saga.menu.file.open_project {
+  menu = saga.menu.file
+  kind = "action"
+  actionId = saga.command.file.open_project
+}
+
+instance EditorMenuItem saga.menu.file.save {
+  menu = saga.menu.file
+  kind = "action"
+  actionId = saga.command.file.save
+}
+
+instance EditorMenu saga.menu.edit {
+  composition = saga.editor.default
+  displayName = "Edit"
+}
+
+instance EditorMenuItem saga.menu.edit.undo {
+  menu = saga.menu.edit
+  kind = "action"
+  actionId = saga.command.edit.undo
+}
+
+instance EditorMenuItem saga.menu.edit.redo {
+  menu = saga.menu.edit
+  kind = "action"
+  actionId = saga.command.edit.redo
+}
+
+instance EditorMenuItem saga.menu.edit.shortcut_preferences {
+  menu = saga.menu.edit
+  kind = "action"
+  actionId = saga.command.edit.shortcut_preferences
+}
+
+instance EditorMenu saga.menu.view {
+  composition = saga.editor.default
+  displayName = "View"
+}
+
+instance EditorMenuItem saga.menu.view.production_dashboard {
+  menu = saga.menu.view
+  kind = "action"
+  actionId = saga.command.view.production_dashboard
+}
+
+instance EditorMenuItem saga.menu.view.hierarchy {
+  menu = saga.menu.view
+  kind = "action"
+  actionId = saga.command.view.hierarchy
+}
+
+instance EditorMenuItem saga.menu.view.inspector {
+  menu = saga.menu.view
+  kind = "action"
+  actionId = saga.command.view.inspector
+}
+
+instance EditorMenuItem saga.menu.view.asset_browser {
+  menu = saga.menu.view
+  kind = "action"
+  actionId = saga.command.view.asset_browser
+}
+
+instance EditorMenuItem saga.menu.view.console {
+  menu = saga.menu.view
+  kind = "action"
+  actionId = saga.command.view.console
+}
+
+instance EditorMenuItem saga.menu.view.diagnostics {
+  menu = saga.menu.view
+  kind = "action"
+  actionId = saga.command.view.diagnostics
+}
+
+instance EditorMenuItem saga.menu.view.customize_workspace {
+  menu = saga.menu.view
+  kind = "action"
+  actionId = saga.command.view.customize_workspace
+}
+
+instance EditorMenu saga.menu.world {
+  composition = saga.editor.default
+  displayName = "World"
+}
+
+instance EditorMenuItem saga.menu.world.play {
+  menu = saga.menu.world
+  kind = "action"
+  actionId = saga.command.world.play
+}
+
+instance EditorMenuItem saga.menu.world.stop {
+  menu = saga.menu.world
+  kind = "action"
+  actionId = saga.command.world.stop
+}
+
+instance EditorMenuItem saga.menu.world.step {
+  menu = saga.menu.world
+  kind = "action"
+  actionId = saga.command.world.step
+}
+
+instance EditorMenuItem saga.menu.world.build {
+  menu = saga.menu.world
+  kind = "action"
+  actionId = saga.command.build
+}
+
+instance EditorToolbar saga.toolbar.main {
+  composition = saga.editor.default
+  displayName = "Main Toolbar"
+  actions = [
+    saga.command.file.save,
+    saga.command.world.play,
+    saga.command.world.stop,
+    saga.command.build
+  ]
+}
+
+instance EditorShortcut saga.shortcut.file.save {
+  composition = saga.editor.default
+  actionId = saga.command.file.save
+  chord = "Ctrl+S"
+}
+
+instance EditorShortcut saga.shortcut.edit.undo {
+  composition = saga.editor.default
+  actionId = saga.command.edit.undo
+  chord = "Ctrl+Z"
+}
+
+instance EditorShortcut saga.shortcut.edit.redo {
+  composition = saga.editor.default
+  actionId = saga.command.edit.redo
+  chord = "Ctrl+Shift+Z"
+}
+
+instance EditorShortcut saga.shortcut.world.play {
+  composition = saga.editor.default
+  actionId = saga.command.world.play
+  chord = "Ctrl+P"
+}
+
+instance EditorShortcut saga.shortcut.world.build {
+  composition = saga.editor.default
+  actionId = saga.command.build
+  chord = "Ctrl+Shift+B"
+}
+
+instance EditorWorkspaceLayout saga.layout.default {
+  composition = saga.editor.default
+  displayName = "Default Editor Layout"
+}
+
+instance EditorWorkspace saga.workspace.default {
+  composition = saga.editor.default
+  displayName = "Default Workspace"
+  layoutId = saga.layout.default
+  visiblePanels = [
+    saga.panel.production_dashboard,
+    saga.panel.hierarchy,
+    saga.panel.viewport,
+    saga.panel.inspector,
+    saga.panel.assetbrowser,
+    saga.panel.problems
+  ]
+}
+
+instance EditorMode saga.mode.scene {
+  composition = saga.editor.default
+  displayName = "Scene Editing"
+  workspaceId = saga.workspace.default
+  requiredPanels = [
+    saga.panel.hierarchy,
+    saga.panel.viewport,
+    saga.panel.inspector
+  ]
+}

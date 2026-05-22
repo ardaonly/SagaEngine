@@ -64,6 +64,45 @@ constexpr int kExitBadArguments = 2;
             }
             cfg.initialProfileId = argv[++i];
         }
+        else if (arg == "--composition-manifest")
+        {
+            if (!HasValue(i, argc))
+            {
+                std::cerr << "SagaEditor: --composition-manifest requires a path\n";
+                return false;
+            }
+            cfg.composition.manifestPath = argv[++i];
+        }
+        else if (arg == "--composition-overlay")
+        {
+            if (!HasValue(i, argc))
+            {
+                std::cerr << "SagaEditor: --composition-overlay requires a path\n";
+                return false;
+            }
+            cfg.composition.overlayPaths.emplace_back(argv[++i]);
+        }
+        else if (arg == "--require-composition")
+        {
+            cfg.composition.requireValidComposition = true;
+        }
+        else if (arg == "--smoke")
+        {
+            cfg.smoke = true;
+            cfg.showOnInit = false;
+        }
+        else if (arg == "--smoke-timeout-ms")
+        {
+            if (!HasValue(i, argc) || !ParseInt(argv[++i], cfg.smokeTimeoutMs))
+            {
+                std::cerr << "SagaEditor: --smoke-timeout-ms requires a positive integer\n";
+                return false;
+            }
+        }
+        else if (arg == "--no-show")
+        {
+            cfg.showOnInit = false;
+        }
         else if (arg == "--windowed")
         {
             cfg.maximized = false;
@@ -109,9 +148,12 @@ int main(int argc, char* argv[])
     SagaEditor::EditorApp app;
 
     if (!app.Init(cfg, factory))
+    {
+        std::cerr << "SagaEditor: startup failed\n";
         return kExitStartupFailure;
+    }
 
-    const int exitCode = app.Run();
+    const int exitCode = cfg.smoke ? app.RunSmoke(cfg.smokeTimeoutMs) : app.Run();
     app.Shutdown();
     return exitCode;
 }

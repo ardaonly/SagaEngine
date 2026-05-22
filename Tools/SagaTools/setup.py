@@ -159,6 +159,8 @@ def stage_registry(out_path: Path) -> None:
     
     forge_exe       = _abs("Forge", "bin", "forge.exe" if is_win else "forge")
     prism_exe       = _abs("Prism", "bin", "prism-graph.cmd" if is_win else "prism-graph")
+    saga_pipeline_exe = _abs("..", "build", "RelWithDebInfo-0.0.9", "bin",
+                             "saga-pipeline.exe" if is_win else "saga-pipeline")
     host_exe        = _abs("Host", "host.sh")
     sagasync_exe    = _abs("SagaSync", "sagasync.cmd" if is_win else "sagasync")
     forge_installer = _abs("Forge", "build.py")
@@ -169,6 +171,7 @@ def stage_registry(out_path: Path) -> None:
         "tools":      {
             "forge": forge_exe,
             "prism": prism_exe,
+            "saga-pipeline": saga_pipeline_exe,
             "host": host_exe,
             "sagasync": sagasync_exe,
         },

@@ -3,17 +3,21 @@
 
 #pragma once
 
+#include "SagaEditor/Diagnostics/EditorDiagnostic.h"
+#include "SagaEditor/Notifications/EditorNotificationCenter.h"
 #include "SagaEditor/Persona/PersonaRegistry.h"
 #include "SagaEditor/Profile/EditorProfileRegistry.h"
 #include "SagaEditor/Shell/ShellLayout.h"
 #include "SagaEditor/UI/IUIMainWindow.h"
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 namespace SagaEditor
 {
 
+struct ResolvedEditorCompositionSnapshot;
 class EditorHost;
 class EditorProfile;
 class IPanel;
@@ -94,10 +98,22 @@ private:
 
     void RegisterDefaultPanels();
     void BuildDefaultLayout();
+    bool BuildCompositionLayout();
+    bool ApplyCompositionShortcuts();
+    bool ApplyCompositionPanelVisibility();
+    void MergeCompositionShellDiagnostics(std::vector<EditorDiagnostic> diagnostics);
+    [[nodiscard]] const ResolvedEditorCompositionSnapshot* GetUsableCompositionSnapshot() const;
+    [[nodiscard]] std::vector<std::string> GetRegisteredPanelIds() const;
+    [[nodiscard]] std::optional<bool> GetCompositionPanelVisibility(
+        const std::string& panelId) const;
+    [[nodiscard]] UIDockArea ResolveCompositionDockArea(
+        const std::string& panelId,
+        UIDockArea fallback) const;
     void RegisterPersonaCommands();
     void RegisterProfileCommands();
     void WirePersonaSinks();
     void WireProfileSinks();
+    void WireNotificationSink();
     void ApplyActivePersona();
     void ApplyActiveProfile();
     void RefreshProductionDashboard();
@@ -117,11 +133,14 @@ private:
     std::string                          m_activeLayoutPresetId = "Default";
     std::vector<std::string>             m_activeToolbarCommands;
     std::vector<std::string>             m_activeToolCommands;
+    std::vector<EditorDiagnostic>        m_compositionShellDiagnostics;
     std::string                          m_baseWindowTitle = "SagaEditor";
     PersonaChangeSubscription            m_personaSubscription =
         kInvalidPersonaSubscription;
     EditorProfileChangeSubscription      m_profileSubscription =
         kInvalidEditorProfileSubscription;
+    EditorNotificationSubscription       m_notificationSubscription =
+        kInvalidEditorNotificationSubscription;
 };
 
 } // namespace SagaEditor

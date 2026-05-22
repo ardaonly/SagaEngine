@@ -86,6 +86,9 @@ class SagaEngineConan(ConanFile):
 
     def layout(self):
         cmake_layout(self)
+        if self.options.with_sde:
+            self.folders.build = "build/RelWithDebInfo-sde"
+            self.folders.generators = "build/RelWithDebInfo-sde/generators"
 
     def generate(self):
         tc = CMakeToolchain(self)

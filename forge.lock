@@ -1,6 +1,6 @@
 {
   "forge_lock_version": 1,
   "mode": "profile",
-  "profile_host": "linux-gcc",
+  "profile_host": "linux-gcc-sde",
   "deps": []
 }

@@ -4,6 +4,8 @@
 #include "SagaEditor/Commands/CommandDispatcher.h"
 #include "SagaEditor/Commands/CommandRegistry.h"
 #include "SagaEditor/Commands/ShortcutManager.h"
+#include "SagaEditor/Customization/WorkspaceCustomizationSession.h"
+#include "SagaEditor/Diagnostics/IEditorDiagnosticsService.h"
 #include "SagaEditor/Host/EditorHost.h"
 #include "SagaEditor/Panels/IPanel.h"
 #include "SagaEditor/Profile/EditorProfile.h"
@@ -23,8 +25,13 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstdint>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
 #include <iterator>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -36,6 +43,8 @@ namespace
 using namespace SagaEditor;
 using SagaEditorLab::MakeCustomizationPrecedenceScenario;
 using SagaEditorLab::MakeProfileSwitchValidationScenario;
+
+namespace fs = std::filesystem;
 
 class FakeMainWindow final : public IUIMainWindow
 {
@@ -70,9 +79,10 @@ public:
     void DockPanel(void*,
                    const std::string& panelId,
                    const std::string&,
-                   UIDockArea) override
+                   UIDockArea area) override
     {
         visiblePanels[panelId] = true;
+        dockAreas[panelId] = area;
     }
 
     void UndockPanel(const std::string& panelId) override
@@ -106,6 +116,7 @@ public:
     ShellLayout layout;
     int layoutApplyCount = 0;
     std::unordered_map<std::string, bool> visiblePanels;
+    std::unordered_map<std::string, UIDockArea> dockAreas;
     std::vector<std::string> focusedPanels;
     CloseCallback onClose;
     CommandCallback onCommand;
@@ -152,6 +163,286 @@ public:
                             const std::string& value)
 {
     return std::find(values.begin(), values.end(), value) != values.end();
+}
+
+void HashAppend(uint64_t& hash, const std::string& bytes)
+{
+    constexpr uint64_t kPrime = 1099511628211ull;
+    for (unsigned char c : bytes)
+    {
+        hash ^= static_cast<uint64_t>(c);
+        hash *= kPrime;
+    }
+}
+
+[[nodiscard]] std::string StableHashBytes(const std::string& bytes)
+{
+    uint64_t hash = 14695981039346656037ull;
+    HashAppend(hash, bytes);
+    std::ostringstream output;
+    output << std::hex << std::setw(16) << std::setfill('0') << hash;
+    return output.str();
+}
+
+void WriteFile(const fs::path& path, const std::string& text)
+{
+    fs::create_directories(path.parent_path());
+    std::ofstream output(path, std::ios::trunc);
+    output << text;
+}
+
+[[nodiscard]] std::string ShellCompositionArtifactJson()
+{
+    return R"({
+      "artifactKind": "saga.editor.composition",
+      "artifactVersion": 1,
+      "schemaPackage": "saga.editor",
+      "schemaPackageVersion": 1,
+      "compositionId": "saga.editor.shell",
+      "metadata": { "displayName": "Saga Shell Composition" },
+      "panels": [
+        {
+          "id": "saga.panel.hierarchy",
+          "displayName": "Hierarchy",
+          "kind": "builtin",
+          "defaultVisible": false
+        },
+        {
+          "id": "saga.panel.viewport",
+          "displayName": "Viewport",
+          "kind": "builtin",
+          "defaultVisible": true
+        }
+      ],
+      "actions": [
+        {
+          "id": "saga.command.file.save",
+          "displayName": "Save Scene",
+          "category": "File",
+          "safeInProduct": true
+        },
+        {
+          "id": "saga.command.view.hierarchy",
+          "displayName": "Hierarchy",
+          "category": "View",
+          "safeInProduct": true
+        }
+      ],
+      "menus": [
+        {
+          "id": "saga.menu.file",
+          "displayName": "Composition File",
+          "items": [
+            { "kind": "action", "actionId": "saga.command.file.save" },
+            { "kind": "separator" },
+            { "kind": "action", "actionId": "saga.command.view.hierarchy" }
+          ]
+        }
+      ],
+      "toolbars": [
+        {
+          "id": "saga.toolbar.main",
+          "displayName": "Main",
+          "actions": ["saga.command.file.save"]
+        }
+      ],
+      "shortcuts": [
+        {
+          "id": "saga.shortcut.file.save",
+          "actionId": "saga.command.file.save",
+          "chord": "Ctrl+Alt+S"
+        }
+      ],
+      "workspaceLayouts": [
+        {
+          "id": "saga.layout.default",
+          "displayName": "Default"
+        }
+      ],
+      "workspaces": [
+        {
+          "id": "saga.workspace.default",
+          "displayName": "Default",
+          "layoutId": "saga.layout.default",
+          "visiblePanels": ["saga.panel.viewport"]
+        }
+      ],
+      "editorModes": [
+        {
+          "id": "saga.mode.scene",
+          "displayName": "Scene",
+          "workspaceId": "saga.workspace.default",
+          "requiredPanels": ["saga.panel.viewport"]
+        }
+      ]
+    })";
+}
+
+[[nodiscard]] std::string ShellCompositionWithMissingBindingsJson()
+{
+    return R"({
+      "artifactKind": "saga.editor.composition",
+      "artifactVersion": 1,
+      "schemaPackage": "saga.editor",
+      "schemaPackageVersion": 1,
+      "compositionId": "saga.editor.shell",
+      "metadata": { "displayName": "Saga Shell Composition" },
+      "panels": [
+        {
+          "id": "saga.panel.hierarchy",
+          "displayName": "Hierarchy",
+          "kind": "builtin",
+          "defaultVisible": true
+        },
+        {
+          "id": "saga.panel.missing",
+          "displayName": "Missing Panel",
+          "kind": "builtin",
+          "defaultVisible": true
+        }
+      ],
+      "actions": [
+        {
+          "id": "saga.command.missing",
+          "displayName": "Missing Command",
+          "category": "Test",
+          "safeInProduct": true
+        }
+      ],
+      "menus": [
+        {
+          "id": "saga.menu.test",
+          "displayName": "Composition Test",
+          "items": [
+            { "kind": "action", "actionId": "saga.command.missing" }
+          ]
+        }
+      ],
+      "toolbars": [
+        {
+          "id": "saga.toolbar.main",
+          "displayName": "Main",
+          "actions": ["saga.command.missing"]
+        }
+      ],
+      "shortcuts": [
+        {
+          "id": "saga.shortcut.missing",
+          "actionId": "saga.command.missing",
+          "chord": "Ctrl+M"
+        }
+      ],
+      "workspaceLayouts": [
+        {
+          "id": "saga.layout.default",
+          "displayName": "Default"
+        }
+      ],
+      "workspaces": [
+        {
+          "id": "saga.workspace.default",
+          "displayName": "Default",
+          "layoutId": "saga.layout.default",
+          "visiblePanels": ["saga.panel.hierarchy", "saga.panel.missing"]
+        }
+      ],
+      "editorModes": [
+        {
+          "id": "saga.mode.scene",
+          "displayName": "Scene",
+          "workspaceId": "saga.workspace.default",
+          "requiredPanels": ["saga.panel.hierarchy"]
+        }
+      ]
+    })";
+}
+
+[[nodiscard]] fs::path WriteShellCompositionFixture(const fs::path& root,
+                                                    std::string artifactText)
+{
+    fs::remove_all(root);
+    WriteFile(root / "saga.editor.shell.composition.json", artifactText);
+    WriteFile(root / "saga.editor.shell.manifest.json",
+              std::string{R"({
+        "manifestKind": "saga.editor.composition.manifest",
+        "manifestVersion": 1,
+        "compositionId": "saga.editor.shell",
+        "artifactPath": "saga.editor.shell.composition.json",
+        "artifactHash": ")" + StableHashBytes(artifactText) + R"(",
+        "schemaPackage": "saga.editor",
+        "schemaPackageVersion": 1,
+        "compilerVersion": "test"
+      })"});
+    return root / "saga.editor.shell.manifest.json";
+}
+
+[[nodiscard]] fs::path WriteShellOverlayFixture(const fs::path& root)
+{
+    WriteFile(root / "saga.editor.shell.overlay.json",
+              R"({
+        "schemaVersion": 1,
+        "baseCompositionId": "saga.editor.shell",
+        "overlayId": "user.shell.test",
+        "layoutOverrides": [
+          {
+            "workspaceId": "saga.workspace.default",
+            "panelId": "saga.panel.hierarchy",
+            "placement": "left",
+            "visible": false
+          },
+          {
+            "workspaceId": "saga.workspace.default",
+            "panelId": "saga.panel.viewport",
+            "placement": "center",
+            "visible": true
+          }
+        ],
+        "shortcutOverrides": [],
+        "visibilityOverrides": [],
+        "toolbarOverrides": []
+      })");
+    return root / "saga.editor.shell.overlay.json";
+}
+
+[[nodiscard]] bool HasDiagnosticCode(const std::vector<EditorDiagnostic>& diagnostics,
+                                     const std::string& code)
+{
+    return std::any_of(diagnostics.begin(),
+                       diagnostics.end(),
+                       [&code](const EditorDiagnostic& diagnostic)
+                       {
+                           return diagnostic.source ==
+                                      "editor.composition.shell" &&
+                                  diagnostic.code == code;
+                       });
+}
+
+[[nodiscard]] const WorkspaceCustomizationPanelState* FindCustomizationPanel(
+    const WorkspaceCustomizationModel& model,
+    const std::string& panelId)
+{
+    for (const WorkspaceCustomizationPanelState& panel : model.panels)
+    {
+        if (panel.id == panelId)
+        {
+            return &panel;
+        }
+    }
+    return nullptr;
+}
+
+[[nodiscard]] const ActionCustomizationCapability* FindCustomizationAction(
+    const WorkspaceCustomizationModel& model,
+    const std::string& actionId)
+{
+    for (const ActionCustomizationCapability& action : model.actions)
+    {
+        if (action.actionId == actionId)
+        {
+            return &action;
+        }
+    }
+    return nullptr;
 }
 
 // ─── EditorProfile ───────────────────────────────────────────────────────────
@@ -376,6 +667,281 @@ TEST(EditorProfileActivatorTest, FailingSinkDoesNotAbortLaterSinks)
     EXPECT_TRUE(result.shortcutMapApplied);
     EXPECT_TRUE(result.toolbarApplied);
     EXPECT_FALSE(result.lastError.empty());
+}
+
+// ─── Composition Shell Projection ────────────────────────────────────────────
+
+TEST(EditorCompositionShellTest, SnapshotBuildsMenusToolbarsAndShortcuts)
+{
+    const fs::path root =
+        fs::temp_directory_path() / "saga_editor_shell_composition_chrome";
+    EditorCompositionStartupConfig composition;
+    composition.manifestPath =
+        WriteShellCompositionFixture(root, ShellCompositionArtifactJson());
+
+    EditorHost host;
+    ASSERT_TRUE(host.Init(std::make_unique<MemoryEditorSettingsStore>(),
+                          fs::path{},
+                          composition));
+
+    FakeUIFactory factory;
+    EditorShell shell;
+    EditorShellConfig cfg;
+    cfg.registerDefaultPanels = false;
+    cfg.applyActivePersona = false;
+    cfg.showOnInit = false;
+    ASSERT_TRUE(shell.Init(host, factory, cfg));
+
+    auto& window = dynamic_cast<FakeMainWindow&>(shell.GetMainWindow());
+    ASSERT_EQ(window.layout.menus.size(), 1u);
+    EXPECT_EQ(window.layout.menus[0].title, "Composition File");
+    ASSERT_EQ(window.layout.menus[0].items.size(), 3u);
+    EXPECT_EQ(window.layout.menus[0].items[0].commandId,
+              "saga.command.file.save");
+    EXPECT_EQ(window.layout.menus[0].items[0].shortcut, "Ctrl+Alt+S");
+    EXPECT_TRUE(window.layout.menus[0].items[1].separator);
+    ASSERT_EQ(window.layout.mainToolbarItems.size(), 1u);
+    EXPECT_EQ(window.layout.mainToolbarItems[0].commandId,
+              "saga.command.file.save");
+    EXPECT_EQ(host.GetShortcutManager().GetBoundCommand(KeyChord{1u | 4u, 'S'}),
+              "saga.command.file.save");
+
+    shell.Shutdown();
+    host.Shutdown();
+}
+
+TEST(EditorCompositionShellTest, SnapshotControlsPanelVisibilityAndPlacement)
+{
+    const fs::path root =
+        fs::temp_directory_path() / "saga_editor_shell_composition_panels";
+    EditorCompositionStartupConfig composition;
+    composition.manifestPath =
+        WriteShellCompositionFixture(root, ShellCompositionArtifactJson());
+    composition.overlayPaths.push_back(WriteShellOverlayFixture(root));
+
+    EditorHost host;
+    ASSERT_TRUE(host.Init(std::make_unique<MemoryEditorSettingsStore>(),
+                          fs::path{},
+                          composition));
+
+    FakeUIFactory factory;
+    EditorShell shell;
+    EditorShellConfig cfg;
+    cfg.registerDefaultPanels = false;
+    cfg.applyActivePersona = false;
+    cfg.showOnInit = false;
+    ASSERT_TRUE(shell.Init(host, factory, cfg));
+
+    shell.RegisterPanel(std::make_unique<FakePanel>("saga.panel.hierarchy",
+                                                    "Hierarchy"),
+                        UIDockArea::Right);
+    shell.RegisterPanel(std::make_unique<FakePanel>("saga.panel.viewport",
+                                                    "Viewport"),
+                        UIDockArea::Right);
+
+    auto& window = dynamic_cast<FakeMainWindow&>(shell.GetMainWindow());
+    EXPECT_FALSE(window.visiblePanels["saga.panel.hierarchy"]);
+    EXPECT_TRUE(window.visiblePanels["saga.panel.viewport"]);
+    EXPECT_EQ(window.dockAreas["saga.panel.hierarchy"], UIDockArea::Left);
+    EXPECT_EQ(window.dockAreas["saga.panel.viewport"], UIDockArea::Center);
+
+    shell.Shutdown();
+    host.Shutdown();
+}
+
+TEST(EditorCompositionShellTest, RefreshesWorkspaceCustomizationAvailability)
+{
+    const fs::path root =
+        fs::temp_directory_path() / "saga_editor_shell_customization_availability";
+    EditorCompositionStartupConfig composition;
+    composition.manifestPath =
+        WriteShellCompositionFixture(root, ShellCompositionArtifactJson());
+
+    EditorHost host;
+    ASSERT_TRUE(host.Init(std::make_unique<MemoryEditorSettingsStore>(),
+                          fs::path{},
+                          composition));
+
+    FakeUIFactory factory;
+    EditorShell shell;
+    EditorShellConfig cfg;
+    cfg.registerDefaultPanels = false;
+    cfg.applyActivePersona = false;
+    cfg.showOnInit = false;
+    ASSERT_TRUE(shell.Init(host, factory, cfg));
+
+    shell.RegisterPanel(std::make_unique<FakePanel>("saga.panel.hierarchy",
+                                                    "Hierarchy"),
+                        UIDockArea::Left);
+
+    const WorkspaceCustomizationModel& model =
+        host.GetWorkspaceCustomizationSession().GetModel();
+    EXPECT_EQ(model.status, WorkspaceCustomizationStatus::Ready);
+
+    const WorkspaceCustomizationPanelState* hierarchy =
+        FindCustomizationPanel(model, "saga.panel.hierarchy");
+    ASSERT_NE(hierarchy, nullptr);
+    EXPECT_TRUE(hierarchy->editable);
+
+    const WorkspaceCustomizationPanelState* viewport =
+        FindCustomizationPanel(model, "saga.panel.viewport");
+    ASSERT_NE(viewport, nullptr);
+    EXPECT_FALSE(viewport->editable);
+    EXPECT_EQ(viewport->lockedReason,
+              EditorCustomizationLockReason::UnavailableImplementation);
+
+    const ActionCustomizationCapability* saveAction =
+        FindCustomizationAction(model, "saga.command.file.save");
+    ASSERT_NE(saveAction, nullptr);
+    EXPECT_TRUE(saveAction->commandImplementationAvailable);
+    EXPECT_TRUE(saveAction->shortcutAssignable);
+
+    ASSERT_TRUE(host.GetWorkspaceCustomizationSession()
+                    .GetController()
+                    ->TogglePanelVisibility("saga.panel.hierarchy", true));
+    EXPECT_TRUE(host.GetWorkspaceCustomizationSession().GetModel()
+                    .restartRequired);
+
+    shell.Shutdown();
+    host.Shutdown();
+}
+
+TEST(EditorCompositionShellTest, DefaultLayoutExposesCustomizeWorkspaceCommand)
+{
+    EditorHost host;
+    ASSERT_TRUE(host.Init(std::make_unique<MemoryEditorSettingsStore>()));
+
+    FakeUIFactory factory;
+    EditorShell shell;
+    EditorShellConfig cfg;
+    cfg.registerDefaultPanels = false;
+    cfg.applyActivePersona = false;
+    cfg.showOnInit = false;
+    ASSERT_TRUE(shell.Init(host, factory, cfg));
+
+    bool foundCommand = false;
+    for (const MenuDescriptor& menu : shell.GetShellLayout().menus)
+    {
+        for (const MenuItemDescriptor& item : menu.items)
+        {
+            if (item.commandId == "saga.command.view.customize_workspace")
+            {
+                foundCommand = true;
+            }
+        }
+    }
+
+    EXPECT_TRUE(foundCommand);
+    EXPECT_NE(host.GetCommandRegistry().Find(
+                  "saga.command.view.customize_workspace"),
+              nullptr);
+
+    shell.Shutdown();
+    host.Shutdown();
+}
+
+TEST(EditorCompositionShellTest, CustomizeWorkspaceCommandFocusesRegisteredPanel)
+{
+    EditorHost host;
+    ASSERT_TRUE(host.Init(std::make_unique<MemoryEditorSettingsStore>()));
+
+    FakeUIFactory factory;
+    EditorShell shell;
+    EditorShellConfig cfg;
+    cfg.registerDefaultPanels = false;
+    cfg.applyActivePersona = false;
+    cfg.showOnInit = false;
+    ASSERT_TRUE(shell.Init(host, factory, cfg));
+
+    shell.RegisterPanel(
+        std::make_unique<FakePanel>("saga.panel.customize_workspace",
+                                    "Customize Workspace"),
+        UIDockArea::Right);
+
+    auto& window = dynamic_cast<FakeMainWindow&>(shell.GetMainWindow());
+    window.visiblePanels["saga.panel.customize_workspace"] = false;
+
+    ASSERT_TRUE(host.GetCommandDispatcher().Dispatch(
+        "saga.command.view.customize_workspace"));
+
+    EXPECT_TRUE(window.visiblePanels["saga.panel.customize_workspace"]);
+    ASSERT_FALSE(window.focusedPanels.empty());
+    EXPECT_EQ(window.focusedPanels.back(),
+              "saga.panel.customize_workspace");
+
+    shell.Shutdown();
+    host.Shutdown();
+}
+
+TEST(EditorCompositionShellTest, ShortcutPreferencesCommandFocusesRegisteredPanel)
+{
+    EditorHost host;
+    ASSERT_TRUE(host.Init(std::make_unique<MemoryEditorSettingsStore>()));
+
+    FakeUIFactory factory;
+    EditorShell shell;
+    EditorShellConfig cfg;
+    cfg.registerDefaultPanels = false;
+    cfg.applyActivePersona = false;
+    cfg.showOnInit = false;
+    ASSERT_TRUE(shell.Init(host, factory, cfg));
+
+    shell.RegisterPanel(
+        std::make_unique<FakePanel>("saga.panel.shortcut_preferences",
+                                    "Shortcut Preferences"),
+        UIDockArea::Right);
+
+    auto& window = dynamic_cast<FakeMainWindow&>(shell.GetMainWindow());
+    window.visiblePanels["saga.panel.shortcut_preferences"] = false;
+
+    ASSERT_TRUE(host.GetCommandDispatcher().Dispatch(
+        "saga.command.edit.shortcut_preferences"));
+
+    EXPECT_TRUE(window.visiblePanels["saga.panel.shortcut_preferences"]);
+    ASSERT_FALSE(window.focusedPanels.empty());
+    EXPECT_EQ(window.focusedPanels.back(),
+              "saga.panel.shortcut_preferences");
+
+    shell.Shutdown();
+    host.Shutdown();
+}
+
+TEST(EditorCompositionShellTest, MissingCommandAndPanelEmitDiagnostics)
+{
+    const fs::path root =
+        fs::temp_directory_path() / "saga_editor_shell_composition_diagnostics";
+    EditorCompositionStartupConfig composition;
+    composition.manifestPath = WriteShellCompositionFixture(
+        root,
+        ShellCompositionWithMissingBindingsJson());
+
+    EditorHost host;
+    ASSERT_TRUE(host.Init(std::make_unique<MemoryEditorSettingsStore>(),
+                          fs::path{},
+                          composition));
+
+    FakeUIFactory factory;
+    EditorShell shell;
+    EditorShellConfig cfg;
+    cfg.registerDefaultPanels = false;
+    cfg.applyActivePersona = false;
+    cfg.showOnInit = false;
+    ASSERT_TRUE(shell.Init(host, factory, cfg));
+
+    shell.RegisterPanel(std::make_unique<FakePanel>("saga.panel.hierarchy",
+                                                    "Hierarchy"),
+                        UIDockArea::Left);
+
+    const std::vector<EditorDiagnostic>& diagnostics =
+        host.GetEditorDiagnosticsService().GetAll();
+    EXPECT_TRUE(HasDiagnosticCode(diagnostics, "CompositionShell.UnknownCommand"));
+    EXPECT_TRUE(HasDiagnosticCode(diagnostics,
+                                  "CompositionShell.UnknownShortcutCommand"));
+    EXPECT_TRUE(HasDiagnosticCode(diagnostics,
+                                  "CompositionShell.MissingPanelImplementation"));
+
+    shell.Shutdown();
+    host.Shutdown();
 }
 
 // ─── EditorHost / EditorShell Runtime Switch ─────────────────────────────────

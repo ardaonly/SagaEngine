@@ -20,6 +20,15 @@ public:
     /// Returns the framework exit code.
     virtual int Run() = 0;
 
+    /// Enter the framework event loop briefly for startup smoke validation.
+    /// Implementations may process pending UI events and then quit after the
+    /// requested timeout. The default is immediate success for non-loop fakes.
+    virtual int RunForSmoke(int timeoutMs)
+    {
+        (void)timeoutMs;
+        return 0;
+    }
+
     /// Request a clean exit from the event loop.
     virtual void Quit() = 0;
 };
