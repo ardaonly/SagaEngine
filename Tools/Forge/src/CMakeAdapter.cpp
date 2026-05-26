@@ -93,6 +93,8 @@ int CMakeAdapter::Test(const BuildModel& model, const TestOptions& opts,
     const std::string& dir = model.build.buildDir;
     std::vector<std::string> args = {"--test-dir", dir.empty() ? "build" : dir};
     if (!opts.label.empty()) { args.emplace_back("--label-regex"); args.emplace_back(opts.label); }
+    if (!opts.labelExclude.empty()) { args.emplace_back("--label-exclude"); args.emplace_back(opts.labelExclude); }
+    if (opts.jobs > 0) { args.emplace_back("-j"); args.emplace_back(std::to_string(opts.jobs)); }
     if (opts.verbose) args.emplace_back("-V");
     for (const auto& e : extra) args.push_back(e);
     return Spawn(ToolEnv::Active().ctest, args, explain);

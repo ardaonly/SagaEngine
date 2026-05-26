@@ -31,15 +31,19 @@ struct PackageAssetPlanResult
 /// Resolve package manifest references relative to the package manifest folder.
 [[nodiscard]] std::filesystem::path ResolvePackageReference(
     const std::filesystem::path& packageManifestPath,
+    const std::filesystem::path& packageBaseDirectory,
     const std::filesystem::path& referencePath)
 {
-    const std::filesystem::path parent = packageManifestPath.parent_path();
-    if (parent.empty())
+    const std::filesystem::path basePath =
+        packageBaseDirectory.empty()
+            ? packageManifestPath.parent_path()
+            : packageBaseDirectory;
+    if (basePath.empty())
     {
         return referencePath.lexically_normal();
     }
 
-    return (parent / referencePath).lexically_normal();
+    return (basePath / referencePath).lexically_normal();
 }
 
 /// Build a bootstrap diagnostic with optional package and asset context.
@@ -152,6 +156,7 @@ void AppendIdentityManifestDiagnostic(
     const std::filesystem::path identityManifestPath =
         ResolvePackageReference(
             options.packageManifestPath,
+            options.packageBaseDirectory,
             *packageManifest.assetIdentityManifest);
     const AssetIdentityManifestLoadResult identityLoadResult =
         AssetIdentityManifestLoader::LoadFromFile(identityManifestPath);
@@ -181,7 +186,9 @@ void AppendIdentityManifestDiagnostic(
         const Packages::PackageManifestRef& reference =
             packageManifest.assetManifests[index];
         const std::filesystem::path resolvedManifestPath =
-            ResolvePackageReference(options.packageManifestPath, reference.path);
+            ResolvePackageReference(options.packageManifestPath,
+                                    options.packageBaseDirectory,
+                                    reference.path);
 
         Assets::AssetManifestLoadOptions loadOptions;
         loadOptions.validateAssetFiles = options.validateAssetFiles;

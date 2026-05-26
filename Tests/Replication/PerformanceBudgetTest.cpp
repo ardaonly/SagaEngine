@@ -85,7 +85,12 @@ PerformanceBudgetResult TestMaxApplyTimePerTick() noexcept
     {
         sm.RecordSequence(tick);
         sm.UpdateRtt(50.0f);
-        sm.AcceptPacket(static_cast<ServerTick>(tick), false);
+        if (sm.AcceptPacket(static_cast<ServerTick>(tick), false) !=
+            AcceptResult::Accept)
+        {
+            result.failureDetail = "State machine rejected a packet during apply budget test";
+            return result;
+        }
         sm.Tick(static_cast<ServerTick>(tick));
     }
 
@@ -180,7 +185,11 @@ PerformanceBudgetResult TestColdCacheCost() noexcept
     sm.TransitionTo(ReplicationState::Synced);
     sm.RecordSequence(1);
     sm.UpdateRtt(50.0f);
-    sm.AcceptPacket(1, false);
+    if (sm.AcceptPacket(1, false) != AcceptResult::Accept)
+    {
+        result.failureDetail = "State machine rejected the cold-start packet";
+        return result;
+    }
     sm.Tick(1);
 
     result.measuredValue = timer.ElapsedUs();

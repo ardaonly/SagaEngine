@@ -1,5 +1,5 @@
 /// @file WorldPartitionSystem.h
-/// @brief Zone-partitioned world system with boundary crossing events and spatial indexing.
+/// @brief Zone-partitioned world system with zone callbacks and spatial indexing.
 ///
 /// Layer  : SagaEngine / Simulation / World
 /// Purpose: Divides the game world into manageable zones and cells for
@@ -11,8 +11,8 @@
 ///   - World is divided into Zones (large areas, e.g. 1024x1024 units).
 ///   - Each Zone contains Cells (smaller grid, e.g. 64x64 units).
 ///   - Entities are tracked in their current cell; movement triggers migration.
-///   - Boundary crossing events fire when entities move between cells/zones.
-///   - Zone transition triggers allow gameplay hooks (loading, visibility, etc).
+///   - Movement updates the partition cell/zone membership for each entity.
+///   - Zone transition callbacks allow gameplay hooks (loading, visibility, etc).
 ///
 /// Thread safety: NOT thread-safe. Call from simulation thread only.
 
@@ -20,7 +20,6 @@
 
 #include "SagaEngine/ECS/Entity.h"
 #include "SagaEngine/Math/Vec3.h"
-#include "SagaEngine/Core/Events/EventBus.h"
 
 #include <cstdint>
 #include <functional>
@@ -122,7 +121,9 @@ struct GlobalCellIdHash
 
 // ─── Partition events ───────────────────────────────────────────────────────
 
-/// Fired when an entity crosses a cell boundary.
+/// Reserved payload for a future partition event channel.
+///
+/// WorldPartitionSystem does not dispatch this payload today.
 struct EntityCellCrossingEvent
 {
     ECS::EntityId  entityId;
@@ -131,7 +132,9 @@ struct EntityCellCrossingEvent
     Math::Vec3     newPosition;
 };
 
-/// Fired when an entity crosses a zone boundary.
+/// Reserved payload for a future partition event channel.
+///
+/// WorldPartitionSystem does not dispatch this payload today.
 struct EntityZoneCrossingEvent
 {
     ECS::EntityId  entityId;
@@ -140,7 +143,9 @@ struct EntityZoneCrossingEvent
     Math::Vec3     newPosition;
 };
 
-/// Fired when an entity enters a cell for the first time.
+/// Reserved payload for a future partition event channel.
+///
+/// WorldPartitionSystem does not dispatch this payload today.
 struct EntityCellEnterEvent
 {
     ECS::EntityId  entityId;
@@ -148,7 +153,9 @@ struct EntityCellEnterEvent
     Math::Vec3     position;
 };
 
-/// Fired when an entity leaves a cell entirely.
+/// Reserved payload for a future partition event channel.
+///
+/// WorldPartitionSystem does not dispatch this payload today.
 struct EntityCellLeaveEvent
 {
     ECS::EntityId  entityId;
@@ -235,10 +242,11 @@ struct PartitionZone
 
 // ─── World Partition System ─────────────────────────────────────────────────
 
-/// Hierarchical world partition system with boundary events and spatial indexing.
+/// Hierarchical world partition system with zone callbacks and spatial indexing.
 ///
-/// Manages entity placement across zones and cells, fires crossing events,
-/// and provides spatial query interfaces for replication and gameplay.
+/// Manages entity placement across zones and cells and provides spatial query
+/// interfaces for replication and gameplay. Zone entry and exit callbacks fire
+/// through OnZoneEnter/OnZoneExit when movement loads or unloads zones.
 class WorldPartitionSystem
 {
 public:
@@ -253,13 +261,13 @@ public:
 
     // ─── Entity tracking ──────────────────────────────────────────────────────
 
-    /// Register an entity at a world position. Fires EntityCellEnterEvent.
+    /// Register an entity at a world position and record its cell/zone membership.
     void RegisterEntity(ECS::EntityId entityId, const Math::Vec3& position);
 
-    /// Unregister an entity. Fires EntityCellLeaveEvent if it was in a cell.
+    /// Unregister an entity and remove it from its current cell/zone.
     void UnregisterEntity(ECS::EntityId entityId);
 
-    /// Update an entity's position. Fires crossing events if cell/zone changed.
+    /// Update an entity's position, migrating it when the cell or zone changes.
     void UpdateEntityPosition(ECS::EntityId entityId, const Math::Vec3& position);
 
     /// Return the current cell of an entity, or nullopt if unregistered.
@@ -281,7 +289,10 @@ public:
     [[nodiscard]] std::vector<ECS::EntityId> GetEntitiesInCell(
         const GlobalCellId& cellId) const;
 
-    /// Return all entities in a radius around a world position.
+    /// Return entities from cells overlapping a radius around a world position.
+    ///
+    /// This is a cell-overlap approximation; per-entity positions are not stored,
+    /// so exact distance filtering is not performed.
     [[nodiscard]] std::vector<ECS::EntityId> GetEntitiesInRadius(
         const Math::Vec3& center, float radius) const;
 
@@ -322,9 +333,6 @@ private:
     /// Loaded zones (only zones with registered entities exist).
     std::unordered_map<ZoneId, PartitionZone, ZoneIdHash> zones_;
 
-    /// Event bus for partition events.
-    Core::EventBus* eventBus_ = nullptr;
-
     /// Zone transition callbacks.
     std::vector<ZoneEnterFn> zoneEnterCallbacks_;
     std::vector<ZoneExitFn> zoneExitCallbacks_;
@@ -337,11 +345,10 @@ private:
     /// Get or create a cell within a zone.
     PartitionCell& GetOrCreateCell(const ZoneId& zoneId, const CellCoord& cellCoord);
 
-    /// Move an entity to a new cell, firing events as needed.
+    /// Move an entity to a new cell, firing zone callbacks as needed.
     void MoveEntityToCell(ECS::EntityId entityId,
                           const GlobalCellId& fromCell,
-                          const GlobalCellId& toCell,
-                          const Math::Vec3& position);
+                          const GlobalCellId& toCell);
 
     /// Collect entities in a rectangular area of cells.
     [[nodiscard]] std::vector<ECS::EntityId> CollectEntitiesInCellRange(

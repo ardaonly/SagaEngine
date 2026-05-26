@@ -1,7 +1,2 @@
-#include "SagaEditor/Panels/GraphViewportPanel.h"
-
-namespace SagaEditor {
-
-// GraphViewportPanel — implementation stub (filled at runtime).
-
-} // namespace SagaEditor
+/// @file GraphViewportPanel.cpp
+/// @brief Implementation moved to UI/Qt/Panels/GraphViewportPanel.cpp.

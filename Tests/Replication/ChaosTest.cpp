@@ -206,7 +206,7 @@ ChaosTestResult RunChaosTest(ChaosTestConfig config) noexcept
             // Decode failure for corrupted packets.
             if (activeMode == ChaosMode::Corruption)
             {
-                rlg.RecordDecodeFailure();
+                static_cast<void>(rlg.RecordDecodeFailure());
             }
         }
 
@@ -229,7 +229,7 @@ ChaosTestResult RunChaosTest(ChaosTestConfig config) noexcept
         {
             std::uint64_t gapSeq = tick + config.gapSize;
             sm.RecordSequence(gapSeq);
-            rlg.RecordSequenceGap(config.gapSize);
+            static_cast<void>(rlg.RecordSequenceGap(config.gapSize));
             ++result.packetsInjected;
         }
 

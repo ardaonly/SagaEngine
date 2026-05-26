@@ -45,6 +45,9 @@ public:
     [[nodiscard]] ScriptHostOperationResult InvokeLifecycle(
         const ScriptLifecycleInvocation& invocation) override;
 
+    [[nodiscard]] ScriptHostOperationResult InvokeUiNamedAction(
+        const ScriptUiNamedActionInvocation& invocation) override;
+
 private:
     struct Impl;
     std::unique_ptr<Impl> impl_;

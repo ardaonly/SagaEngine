@@ -6,6 +6,7 @@
 #pragma once
 
 #include "BuildModel.h"
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -25,8 +26,10 @@ public:
 
     struct TestOptions
     {
-        std::string label;      ///<  --label-regex
-        bool        verbose = false;
+        std::string label;        ///<  --label-regex
+        std::string labelExclude; ///<  --label-exclude
+        std::uint32_t jobs = 0;   ///<  ctest -j, 0 leaves CTest default behavior
+        bool verbose = false;
     };
 
     struct InstallOptions

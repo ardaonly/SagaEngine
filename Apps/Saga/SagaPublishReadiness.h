@@ -8,7 +8,9 @@
 #include <SagaShared/Publish/PublishBlocker.hpp>
 #include <SagaShared/Publish/PublishReport.hpp>
 
+#include <cstddef>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -31,12 +33,64 @@ struct SagaPublishReadinessRequest
     std::vector<SagaPublishDiagnosticsInput> diagnosticsInputs;
 };
 
+/// Loader diagnostic captured for package/asset identity coverage reporting.
+struct SagaPublishPackageAssetDiagnostic
+{
+    std::string code;
+    std::string message;
+    std::filesystem::path path;
+    std::optional<std::size_t> referenceIndex;
+    std::optional<std::size_t> assetIndex;
+    std::optional<std::size_t> mappingIndex;
+    std::optional<std::string> field;
+};
+
+/// Coverage record for one package-referenced runtime asset manifest.
+struct SagaPublishAssetManifestCoverage
+{
+    std::string id;
+    std::filesystem::path path;
+    std::filesystem::path resolvedPath;
+    bool exists = false;
+    bool loads = false;
+    std::size_t assetCount = 0;
+    std::vector<SagaPublishPackageAssetDiagnostic> diagnostics;
+};
+
+/// Coverage record for one package-referenced asset identity manifest.
+struct SagaPublishAssetIdentityManifestCoverage
+{
+    bool referenced = false;
+    std::filesystem::path path;
+    std::filesystem::path resolvedPath;
+    bool exists = false;
+    bool loads = false;
+    std::size_t mappingCount = 0;
+    std::vector<SagaPublishPackageAssetDiagnostic> diagnostics;
+};
+
+/// Product-local package asset coverage serialized into publish reports.
+struct SagaPublishPackageAssetIdentityCoverage
+{
+    std::string packageSlot;
+    std::filesystem::path packageManifestPath;
+    bool packageManifestExists = false;
+    bool packageManifestLoads = false;
+    std::string packageId;
+    std::string packageKind;
+    SagaPublishAssetIdentityManifestCoverage assetIdentityManifest;
+    std::vector<SagaPublishAssetManifestCoverage> assetManifests;
+    std::vector<SagaPublishPackageAssetDiagnostic> diagnostics;
+};
+
 /// Product publish readiness outcome.
 struct SagaPublishReadinessResult
 {
     bool ok = false;
     std::filesystem::path reportPath;
     SagaShared::Publish::PublishReport report;
+    std::vector<SagaPublishPackageAssetIdentityCoverage>
+        packageAssetIdentityCoverage;
 };
 
 /// Product-owned publish readiness checks and JSON report writing.

@@ -1,6 +1,5 @@
 [project]
 name = "sagaengine"
-version = "0.0.8"
 
 [toolchain]
 cmake = "3.28"
@@ -8,5 +7,5 @@ conan = "2"
 
 [build]
 preset = "linux-gcc"
-build = "build/RelWithDebInfo"
+build = "build/RelWithDebInfo-${version}"
 jobs = 2

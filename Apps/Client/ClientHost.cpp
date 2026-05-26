@@ -4,11 +4,10 @@
 /// ClientNetworkSession is defined inline here to avoid stale-header cache
 
 #include "ClientHost.h"
-#include <SagaEngine/Core/Log/Log.h>
-#include <SagaEngine/Core/Time/Time.h>
-#include <SagaEngine/ECS/ComponentRegistry.h>
-#include <SagaEngine/Input/Commands/InputCommand.h>
-#include <SagaEngine/Math/Transform.h>
+
+// ClientHost is the current app composition boundary for SagaRuntime/SagaApp.
+// Keep the concrete RmlUi backend factory isolated here, outside Engine/Runtime.
+#include "SagaBackends/UI/RmlUiUiBackend.h"
 
 #include <SagaEngine/Client/Interpolation/InterpolationBuffer.h>
 #include <SagaEngine/Client/Prediction/ReconciliationBuffer.h>
@@ -18,19 +17,22 @@
 #include <SagaEngine/Client/Replication/ReplicationStateMachine.h>
 #include <SagaEngine/Client/Replication/SnapshotApplyPipeline.h>
 #include <SagaEngine/Client/Replication/WorldSnapshotWire.h>
-#include <SagaEngine/Input/Commands/InputCommandBuffer.h>
-#include <SagaEngine/Simulation/WorldState.h>
-
-#include <SagaServer/Networking/Core/NetworkTransport.h>
-#include <SagaServer/Networking/Core/ReliableChannel.h>
-#include <SagaServer/Networking/Core/Packet.h>
-
+#include <SagaEngine/Core/Log/Log.h>
+#include <SagaEngine/Core/Time/Time.h>
+#include <SagaEngine/ECS/ComponentRegistry.h>
 #include <SagaEngine/Input/Backends/IPlatformInputBackend.h>
+#include <SagaEngine/Input/Commands/InputCommand.h>
+#include <SagaEngine/Input/Commands/InputCommandBuffer.h>
+#include <SagaEngine/Input/Devices/KeyboardDevice.h>
+#include <SagaEngine/Math/Transform.h>
 #include <SagaEngine/Platform/IDebugRenderer2D.h>
 #include <SagaEngine/Platform/PlatformFactory.h>
+#include <SagaEngine/Simulation/WorldState.h>
+#include <SagaEngine/UI/RuntimeUiBootstrapper.h>
 
-#include <cstring>
-#include <SagaEngine/Input/Devices/KeyboardDevice.h>
+#include <SagaServer/Networking/Core/NetworkTransport.h>
+#include <SagaServer/Networking/Core/Packet.h>
+#include <SagaServer/Networking/Core/ReliableChannel.h>
 
 #include <array>
 #include <atomic>
@@ -38,6 +40,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <functional>
 #include <memory>
 #include <string>
@@ -424,7 +427,7 @@ void ClientNetworkSession::TickReceive()
         const auto pktType = static_cast<std::uint16_t>(pkt.GetType());
         const auto pktSeq  = pkt.GetSequence();
 
-        m_packetDemux.Enqueue(
+        (void)m_packetDemux.Enqueue(
             pktType, pktSeq,
             serialized.data() + kHdrSize,
             static_cast<std::uint32_t>(serialized.size() - kHdrSize),
@@ -754,6 +757,58 @@ void ClientHost::OnInit()
         }
     }
 
+    // ── Runtime UI ──────────────────────────────────────────────────────────
+    if (!m_config.headless && m_config.enableRuntimeUi)
+    {
+        SagaEngine::UI::UiRuntimeBootstrapRequest uiRequest;
+        uiRequest.backend =
+            SagaEngine::Backends::UI::CreateRmlUiUiBackend();
+        uiRequest.viewport = SagaEngine::UI::UiViewport{
+            GetWindow() ? GetWindow()->GetWidth() : m_config.width,
+            GetWindow() ? GetWindow()->GetHeight() : m_config.height,
+            1.0f,
+        };
+        uiRequest.contextName = "SagaRuntimeUi";
+        uiRequest.contentRoot =
+            m_config.uiContentRoot.empty()
+                ? std::filesystem::current_path() / "Content"
+                : m_config.uiContentRoot;
+        uiRequest.startupScreenId =
+            SagaEngine::UI::UiScreenId::FromString("connect_screen");
+        uiRequest.startupDocumentId =
+            SagaEngine::UI::UiDocumentId::FromContent("connect_screen");
+        uiRequest.showStartupScreen = true;
+
+        SagaEngine::UI::UiRuntimeBootstrapResult uiResult =
+            SagaEngine::UI::BootstrapRuntimeUi(std::move(uiRequest));
+        for (const SagaEngine::UI::UiRuntimeBootstrapDiagnostic& diagnostic :
+             uiResult.diagnostics)
+        {
+            if (diagnostic.severity == SagaEngine::UI::UiDiagnosticSeverity::Error)
+            {
+                LOG_ERROR(kTag,
+                          "Runtime UI bootstrap diagnostic: %s",
+                          diagnostic.message.c_str());
+            }
+            else
+            {
+                LOG_WARN(kTag,
+                         "Runtime UI bootstrap diagnostic: %s",
+                         diagnostic.message.c_str());
+            }
+        }
+
+        if (uiResult.context)
+        {
+            m_uiRuntime = std::move(uiResult.context);
+            m_lastUiUpdateSeconds = SagaEngine::Core::Time::GetTime();
+        }
+        else
+        {
+            LOG_WARN(kTag, "Runtime UI bootstrap did not produce a context.");
+        }
+    }
+
     LOG_INFO(kTag, "ClientHost ready.");
 }
 
@@ -776,6 +831,20 @@ void ClientHost::OnUpdate()
 
     if (m_debugRenderer && !m_config.headless)
         RenderDebug();
+
+    if (m_uiRuntime)
+    {
+        const double now = SagaEngine::Core::Time::GetTime();
+        const double deltaSeconds =
+            m_lastUiUpdateSeconds > 0.0 ? now - m_lastUiUpdateSeconds : 0.0;
+        m_lastUiUpdateSeconds = now;
+
+        m_uiRuntime->Update(deltaSeconds);
+        if (!m_uiRuntime->Render())
+        {
+            LOG_WARN(kTag, "Runtime UI render failed.");
+        }
+    }
 }
 
 void ClientHost::OnShutdown()
@@ -800,6 +869,12 @@ void ClientHost::OnShutdown()
 
         m_session->Disconnect();
         m_session.reset();
+    }
+
+    if (m_uiRuntime)
+    {
+        m_uiRuntime->Shutdown();
+        m_uiRuntime.reset();
     }
 
     if (m_debugRenderer)

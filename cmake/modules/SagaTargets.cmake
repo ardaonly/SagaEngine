@@ -143,6 +143,10 @@ function(saga_create_engine_targets)
         ${SAGA_ROOT}/Tools/AssetPipeline/include
     )
 
+    target_link_libraries(SagaAssetPipelineLib PRIVATE
+        nlohmann_json::nlohmann_json
+    )
+
     set_target_properties(SagaAssetPipelineLib PROPERTIES
         FOLDER "Tools/AssetPipeline"
     )
@@ -243,12 +247,6 @@ function(saga_create_engine_targets)
         ${CMAKE_DL_LIBS}
     )
 
-    if(SAGA_WITH_SDE)
-        target_compile_definitions(SagaEngine PUBLIC SAGA_WITH_SDE=1)
-    else()
-        target_compile_definitions(SagaEngine PUBLIC SAGA_WITH_SDE=0)
-    endif()
-
     # --- Runtime Role Library ------------------------------------------------
     add_library(SagaRuntimeLib STATIC)
     saga_apply_compiler_flags(SagaRuntimeLib)
@@ -265,6 +263,9 @@ function(saga_create_engine_targets)
     target_link_libraries(SagaRuntimeLib PUBLIC
         SagaEngine
         SagaShared
+    )
+
+    target_link_libraries(SagaRuntimeLib PRIVATE
         SagaCollaboration
     )
 
@@ -288,6 +289,9 @@ function(saga_create_engine_targets)
     target_link_libraries(SagaServerLib PUBLIC
         SagaEngine
         SagaShared
+    )
+
+    target_link_libraries(SagaServerLib PRIVATE
         SagaCollaboration
     )
 
@@ -299,6 +303,7 @@ function(saga_create_engine_targets)
     add_library(SagaBackend STATIC)
     saga_apply_compiler_flags(SagaBackend)
     saga_link_thirdparty(SagaBackend)
+    saga_link_rmlui(SagaBackend)
 
     target_link_libraries(SagaBackend PRIVATE SagaEngine)
 
@@ -365,6 +370,9 @@ function(saga_create_engine_targets)
 
     if(SAGA_WITH_SDE)
     endif()
+    target_compile_definitions(SagaEditorLib PRIVATE
+        SAGA_WITH_SDE=$<BOOL:${SAGA_WITH_SDE}>
+    )
 
     set_target_properties(SagaEditorLib PROPERTIES
         FOLDER "Editor"
@@ -388,6 +396,9 @@ function(saga_create_engine_targets)
 
     target_link_libraries(SagaEditorLabLib PUBLIC
         SagaEditorLib
+    )
+
+    target_link_libraries(SagaEditorLabLib PRIVATE
         Qt6::Core
         Qt6::Widgets
     )
@@ -421,6 +432,7 @@ function(saga_create_engine_targets)
         )
 
         target_link_libraries(SagaProductLib PRIVATE
+            SagaAssetPipelineLib
             SagaBackend
             SagaEditorLib
         )
@@ -431,6 +443,7 @@ function(saga_create_engine_targets)
             SAGA_PRODUCT_PLATFORM="${CMAKE_SYSTEM_NAME}"
             SAGA_BUILTIN_BASIC_WORKSPACE_ROOT="${SAGA_ROOT}/Apps/Saga/Definitions/BasicWorkspace"
         )
+        target_compile_definitions(SagaProductLib PRIVATE SAGA_WITH_SDE=1)
 
         set_target_properties(SagaProductLib PROPERTIES
             FOLDER "Apps/Saga"
@@ -503,6 +516,8 @@ function(saga_create_engine_targets)
 
     add_executable(SagaRuntime
         ${SAGA_ROOT}/Apps/Runtime/main.cpp
+        ${SAGA_ROOT}/Apps/Runtime/RuntimeAssetStartupBootstrap.hpp
+        ${SAGA_ROOT}/Apps/Runtime/RuntimeAssetStartupBootstrap.cpp
         ${SAGA_RUNTIME_COMMON_SOURCES}
     )
 

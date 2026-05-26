@@ -1,14 +1,34 @@
+/// @file NodeLibraryPanel.h
+/// @brief Backend-neutral visual scripting node library panel contract.
+
 #pragma once
-#include "SagaEditor/UI/Qt/QtPanel.h"
-namespace SagaEditor::VisualScripting {
+
+#include "SagaEditor/Panels/IPanel.h"
+
+#include <memory>
+
+namespace SagaEditor::VisualScripting
+{
+
 class NodeCategoryBrowser;
-class NodeLibraryPanel final : public SagaEditor::QtPanel {
+
+/// Dockable node library surface; Qt widget ownership stays private.
+class NodeLibraryPanel final : public SagaEditor::IPanel
+{
 public:
     explicit NodeLibraryPanel(NodeCategoryBrowser& browser);
-    PanelId     GetPanelId() const override;
-    std::string GetTitle()   const override;
-    void        OnInit()     override;
+    ~NodeLibraryPanel() override;
+
+    [[nodiscard]] PanelId GetPanelId() const override;
+    [[nodiscard]] std::string GetTitle() const override;
+    [[nodiscard]] void* GetNativeWidget() const noexcept override;
+
+    void OnInit() override;
+    void OnShutdown() override;
+
 private:
-    NodeCategoryBrowser& m_browser;
+    struct Impl;
+    std::unique_ptr<Impl> m_impl;
 };
+
 } // namespace SagaEditor::VisualScripting

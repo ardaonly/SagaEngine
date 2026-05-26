@@ -1,11 +1,32 @@
+/// @file ProfilerPanel.h
+/// @brief Backend-neutral profiler panel contract.
+
 #pragma once
-#include "SagaEditor/UI/Qt/QtPanel.h"
-namespace SagaEditor {
-class ProfilerPanel final : public QtPanel {
+
+#include "SagaEditor/Panels/IPanel.h"
+
+#include <memory>
+
+namespace SagaEditor
+{
+
+/// Dockable profiler surface; Qt widget ownership stays private.
+class ProfilerPanel final : public IPanel
+{
 public:
     ProfilerPanel();
-    PanelId     GetPanelId() const override;
-    std::string GetTitle()   const override;
-    void        OnInit()     override;
+    ~ProfilerPanel() override;
+
+    [[nodiscard]] PanelId GetPanelId() const override;
+    [[nodiscard]] std::string GetTitle() const override;
+    [[nodiscard]] void* GetNativeWidget() const noexcept override;
+
+    void OnInit() override;
+    void OnShutdown() override;
+
+private:
+    struct Impl;
+    std::unique_ptr<Impl> m_impl;
 };
+
 } // namespace SagaEditor

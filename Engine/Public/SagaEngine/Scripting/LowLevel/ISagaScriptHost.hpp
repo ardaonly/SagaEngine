@@ -11,6 +11,7 @@
 #include <functional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace SagaEngine::Scripting
@@ -122,6 +123,32 @@ struct ScriptLifecycleInvocation
     double deltaTimeSeconds = 0.0;
 };
 
+enum class ScriptUiNamedActionEventType : std::uint8_t
+{
+    Click = 0,
+    Submit,
+    TextChanged,
+    FocusGained,
+    FocusLost,
+};
+
+struct ScriptUiNamedActionContext
+{
+    std::string actionId;
+    std::string screenId;
+    std::string elementId;
+    ScriptUiNamedActionEventType eventType =
+        ScriptUiNamedActionEventType::Click;
+    std::string text;
+};
+
+struct ScriptUiNamedActionInvocation
+{
+    ScriptInstanceHandle instance;
+    std::string methodName;
+    ScriptUiNamedActionContext context;
+};
+
 using ScriptDiagnostic = SagaShared::Scripting::ScriptDiagnosticPayload;
 using ScriptDiagnosticSink = std::function<void(const ScriptDiagnostic&)>;
 
@@ -199,6 +226,9 @@ public:
 
     [[nodiscard]] virtual ScriptHostOperationResult InvokeLifecycle(
         const ScriptLifecycleInvocation& invocation) = 0;
+
+    [[nodiscard]] virtual ScriptHostOperationResult InvokeUiNamedAction(
+        const ScriptUiNamedActionInvocation& invocation);
 };
 
 namespace ScriptHostDiagnostics
@@ -256,7 +286,39 @@ inline constexpr const char* InvalidEntityHandle =
     "Script.Host.InvalidEntityHandle";
 inline constexpr const char* ScriptWorldUnavailable =
     "Script.Host.ScriptWorldUnavailable";
+inline constexpr const char* UiNamedActionUnsupported =
+    "Script.Host.UiNamedActionUnsupported";
+inline constexpr const char* UiNamedActionMethodMissing =
+    "Script.Host.UiNamedActionMethodMissing";
+inline constexpr const char* UiNamedActionInvalidSignature =
+    "Script.Host.UiNamedActionInvalidSignature";
+inline constexpr const char* UiNamedActionReturnedFalse =
+    "Script.Host.UiNamedActionReturnedFalse";
 
 } // namespace ScriptHostDiagnostics
+
+inline ScriptHostOperationResult ISagaScriptHost::InvokeUiNamedAction(
+    const ScriptUiNamedActionInvocation& invocation)
+{
+    ScriptHostOperationResult result;
+    ScriptDiagnostic diagnostic;
+    diagnostic.diagnostic.severity =
+        SagaShared::Diagnostics::DiagnosticSeverity::Error;
+    diagnostic.diagnostic.category =
+        SagaShared::Diagnostics::DiagnosticCategory::Script;
+    diagnostic.diagnostic.source =
+        SagaShared::Diagnostics::DiagnosticSource::Runtime;
+    diagnostic.diagnostic.code.value =
+        ScriptHostDiagnostics::UiNamedActionUnsupported;
+    diagnostic.diagnostic.title = "UI named action unsupported";
+    diagnostic.diagnostic.message =
+        "SagaScript host does not support UI named action invocation.";
+    diagnostic.metadata["instanceHandle"] =
+        std::to_string(invocation.instance.value);
+    diagnostic.metadata["methodName"] = invocation.methodName;
+    diagnostic.metadata["actionId"] = invocation.context.actionId;
+    result.diagnostics.push_back(std::move(diagnostic));
+    return result;
+}
 
 } // namespace SagaEngine::Scripting

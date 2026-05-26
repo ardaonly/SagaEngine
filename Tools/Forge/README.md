@@ -145,7 +145,7 @@ to the consuming repository. It is not part of Forge.
 | `forge install [--profile <name>]` | Install dependencies via Conan |
 | `forge configure [--preset=NAME]` | Configure via CMake |
 | `forge build [--target=NAME] [--config=Release]` | Build via CMake |
-| `forge test [--label=LABEL]` | Run CTest |
+| `forge test [--label=LABEL] [--suite=NAME] [--jobs=N]` | Run CTest |
 | `forge install-target [--prefix=DIR]` | Run `cmake --install` |
 | `forge presets [build\|test\|configure]` | List CMake presets |
 | `forge fmt [--source=DIR]` | Run clang-format over project sources |

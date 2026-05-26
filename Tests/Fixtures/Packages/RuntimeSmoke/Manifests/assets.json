@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "assets": [
+    {
+      "id": "texture.runtime_smoke.albedo",
+      "kind": "texture",
+      "path": "Cooked/runtime_smoke_texture.ktx2",
+      "hash": "fixture-runtime-smoke-texture",
+      "memoryEstimateBytes": 16,
+      "streamingGroup": "runtime-smoke",
+      "platform": "linux",
+      "profile": "dev-client"
+    }
+  ]
+}

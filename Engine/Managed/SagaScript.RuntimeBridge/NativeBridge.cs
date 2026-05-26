@@ -207,6 +207,88 @@ public static unsafe class NativeBridge
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int InvokeUiNamedAction(
+        long instanceHandle,
+        byte* methodName,
+        byte* actionId,
+        byte* screenId,
+        byte* elementId,
+        int eventType,
+        byte* text,
+        byte* errorBuffer,
+        int errorBufferLength)
+    {
+        SagaScript instance;
+        lock (Sync)
+        {
+            if (!Instances.TryGetValue(instanceHandle, out instance!))
+            {
+                WriteError(errorBuffer, errorBufferLength, "Script instance handle is invalid.");
+                return BridgeStatus.InvalidArgument;
+            }
+        }
+
+        var managedMethodName = ReadUtf8(methodName);
+        if (string.IsNullOrWhiteSpace(managedMethodName))
+        {
+            WriteError(errorBuffer, errorBufferLength, "UI named action method name is empty.");
+            return BridgeStatus.InvalidArgument;
+        }
+
+        var context = new UiNamedActionContext(
+            ReadUtf8(actionId),
+            ReadUtf8(screenId),
+            ReadUtf8(elementId),
+            (UiNamedActionEventType)eventType,
+            ReadUtf8(text));
+
+        try
+        {
+            var methods = instance.GetType()
+                .GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                .Where(method => string.Equals(method.Name, managedMethodName, StringComparison.Ordinal))
+                .ToArray();
+            if (methods.Length == 0)
+            {
+                WriteError(errorBuffer, errorBufferLength, "UI named action method was not found.");
+                return BridgeStatus.UiNamedActionMethodMissing;
+            }
+
+            var validMethods = methods.Where(IsValidUiNamedActionMethod).ToArray();
+            if (validMethods.Length != 1)
+            {
+                WriteError(
+                    errorBuffer,
+                    errorBufferLength,
+                    "UI named action method must be public instance void/bool Method(UiNamedActionContext).");
+                return BridgeStatus.UiNamedActionInvalidSignature;
+            }
+
+            var returnValue = validMethods[0].Invoke(instance, new object[] { context });
+            if (validMethods[0].ReturnType == typeof(bool) &&
+                returnValue is bool handled &&
+                !handled)
+            {
+                WriteError(errorBuffer, errorBufferLength, "UI named action method returned false.");
+                return BridgeStatus.UiNamedActionReturnedFalse;
+            }
+
+            return BridgeStatus.Ok;
+        }
+        catch (TargetInvocationException ex)
+        {
+            var inner = ex.InnerException ?? ex;
+            WriteError(errorBuffer, errorBufferLength, inner.GetType().Name + ": " + inner.Message);
+            return BridgeStatus.ManagedException;
+        }
+        catch (Exception ex)
+        {
+            WriteError(errorBuffer, errorBufferLength, ex.GetType().Name + ": " + ex.Message);
+            return BridgeStatus.ManagedException;
+        }
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int ReleasePackage(long packageHandle)
     {
         lock (Sync)
@@ -215,6 +297,14 @@ public static unsafe class NativeBridge
         }
 
         return BridgeStatus.Ok;
+    }
+
+    private static bool IsValidUiNamedActionMethod(MethodInfo method)
+    {
+        var parameters = method.GetParameters();
+        return parameters.Length == 1 &&
+            parameters[0].ParameterType == typeof(UiNamedActionContext) &&
+            (method.ReturnType == typeof(void) || method.ReturnType == typeof(bool));
     }
 
     private static string ReadUtf8(byte* value)
@@ -297,4 +387,7 @@ internal static class BridgeStatus
     public const int LifecycleMethodMissing = 6;
     public const int LifecycleFailed = 7;
     public const int ManagedException = 8;
+    public const int UiNamedActionMethodMissing = 9;
+    public const int UiNamedActionInvalidSignature = 10;
+    public const int UiNamedActionReturnedFalse = 11;
 }

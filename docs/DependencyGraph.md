@@ -753,15 +753,19 @@ That usually means architecture has already been bypassed.
 
 ## 18. CI Enforcement
 
-* [ ] Add include-boundary tests.
+* [ ] Complete include-boundary test coverage.
+
+
 
   Required checks:
 
 
 
-* [ ] Add CMake target dependency checks.
+* [ ] Complete CMake target dependency checks.
 
-  Done means CI can reject forbidden target links.
+
+
+  Done means CI can reject all forbidden target links.
 
 * [ ] Add Prism boundary validation.
 

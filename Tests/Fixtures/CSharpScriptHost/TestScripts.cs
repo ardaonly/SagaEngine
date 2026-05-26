@@ -171,3 +171,38 @@ public sealed class InvalidSelfScript : SagaScript
         Context.Log.Info("InvalidSelf:SetPosition:" + updated);
     }
 }
+
+public sealed class UiNamedActionScript : SagaScript
+{
+    public void RecordUiAction(UiNamedActionContext action)
+    {
+        Context.Log.Info(
+            "UiAction:" +
+            action.ActionId + ":" +
+            action.ScreenId + ":" +
+            action.ElementId + ":" +
+            action.EventType + ":" +
+            action.Text);
+    }
+
+    public bool BoolUiAction(UiNamedActionContext action)
+    {
+        Context.Log.Info("UiBool:" + action.ActionId + ":" + action.Text);
+        return true;
+    }
+
+    public bool RejectUiAction(UiNamedActionContext action)
+    {
+        Context.Log.Info("UiReject:" + action.ActionId);
+        return false;
+    }
+
+    public void ThrowUiAction(UiNamedActionContext action)
+    {
+        throw new InvalidOperationException("ui action boom: " + action.ActionId);
+    }
+
+    public void InvalidUiAction()
+    {
+    }
+}

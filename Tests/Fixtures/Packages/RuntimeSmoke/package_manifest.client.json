@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "packageId": "saga.runtime_smoke.client",
+  "packageKind": "client",
+  "buildProfile": "dev-client",
+  "targetPlatform": "linux",
+  "runtimeCompatibilityVersion": "0.0.9",
+  "assetIdentityManifest": "Manifests/asset_identity.json",
+  "assetManifests": [
+    {
+      "id": "assets.runtime_smoke",
+      "path": "Manifests/assets.json"
+    }
+  ],
+  "artifactManifests": []
+}

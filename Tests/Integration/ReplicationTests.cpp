@@ -226,7 +226,7 @@ TEST_F(ReplicationPipelineTest, PipelineStatsTracking)
     fullSnap.serverTick = 1;
     fullSnap.payload = {1, 2, 3, 4};
 
-    pipeline.SubmitFull(std::move(fullSnap));
+    EXPECT_EQ(pipeline.SubmitFull(std::move(fullSnap)), ApplyOutcome::Ok);
 
     // Submit valid deltas
     for (std::uint64_t tick = 2; tick <= 5; ++tick)
@@ -234,7 +234,7 @@ TEST_F(ReplicationPipelineTest, PipelineStatsTracking)
         DecodedDeltaSnapshot delta;
         delta.baselineTick = tick - 1;
         delta.serverTick = tick;
-        pipeline.SubmitDelta(std::move(delta));
+        EXPECT_EQ(pipeline.SubmitDelta(std::move(delta)), ApplyOutcome::Ok);
     }
 
     const auto& stats = pipeline.Stats();
@@ -267,7 +267,8 @@ TEST_F(ReplicationPipelineTest, JitterBufferOverflow)
         DecodedDeltaSnapshot delta;
         delta.baselineTick = 100; // Mismatch with client baseline 0
         delta.serverTick = static_cast<std::uint64_t>(101 + i);
-        pipeline.SubmitDelta(std::move(delta));
+        const ApplyOutcome outcome = pipeline.SubmitDelta(std::move(delta));
+        EXPECT_NE(outcome, ApplyOutcome::InternalError);
     }
 
     const auto& stats = pipeline.Stats();
@@ -294,7 +295,7 @@ TEST_F(ReplicationPipelineTest, PipelineReset)
     DecodedWorldSnapshot fullSnap;
     fullSnap.serverTick = 1;
     fullSnap.payload = {1, 2, 3};
-    pipeline.SubmitFull(std::move(fullSnap));
+    EXPECT_EQ(pipeline.SubmitFull(std::move(fullSnap)), ApplyOutcome::Ok);
 
     EXPECT_EQ(pipeline.LastAppliedTick(), 1u);
 
@@ -404,13 +405,13 @@ TEST_F(ReplicationPipelineTest, TickPromotesBufferedDeltas)
     DecodedWorldSnapshot fullSnap;
     fullSnap.serverTick = 1;
     fullSnap.payload = {0};
-    pipeline.SubmitFull(std::move(fullSnap));
+    EXPECT_EQ(pipeline.SubmitFull(std::move(fullSnap)), ApplyOutcome::Ok);
 
     // Submit delta for tick 2 — should apply immediately
     DecodedDeltaSnapshot delta2;
     delta2.baselineTick = 1;
     delta2.serverTick = 2;
-    pipeline.SubmitDelta(std::move(delta2));
+    EXPECT_EQ(pipeline.SubmitDelta(std::move(delta2)), ApplyOutcome::Ok);
 
     pipeline.Tick(2);
     EXPECT_TRUE(delta2Applied);

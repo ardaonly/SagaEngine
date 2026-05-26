@@ -9,11 +9,33 @@ function(saga_setup_thirdparty)
     find_package(GTest CONFIG REQUIRED)
     find_package(SDL2 CONFIG REQUIRED)
     find_package(imgui CONFIG REQUIRED)
+    find_package(rmlui CONFIG REQUIRED)
     find_package(rapidcheck CONFIG REQUIRED)
     find_package(glm CONFIG REQUIRED)
     find_package(nlohmann_json CONFIG REQUIRED)
     find_package(OpenSSL REQUIRED COMPONENTS Crypto)
     find_program(SAGA_DOTNET_EXECUTABLE dotnet REQUIRED)
+
+    set(_saga_rmlui_target "")
+    foreach(_saga_candidate IN ITEMS
+        rmlui::rmlui
+        RmlUi::RmlUi
+        RmlUi::Core
+        RmlUi::RmlUi_Core
+    )
+        if(TARGET ${_saga_candidate})
+            set(_saga_rmlui_target ${_saga_candidate})
+            break()
+        endif()
+    endforeach()
+
+    if(NOT _saga_rmlui_target)
+        message(FATAL_ERROR
+            "rmlui package was found, but no supported CMake target was exported")
+    endif()
+
+    set(SAGA_RMLUI_TARGET "${_saga_rmlui_target}" CACHE INTERNAL
+        "RmlUi CMake target used by the backend-owned UI adapter")
 
     set(SAGA_OPENSSL_INCLUDE_DIRS "${OpenSSL_INCLUDE_DIRS}" CACHE INTERNAL
         "OpenSSL include directories for direct validator compilation"
@@ -73,6 +95,16 @@ function(saga_setup_thirdparty)
     if(MSVC)
         saga_find_atl()
     endif()
+endfunction()
+
+function(saga_link_rmlui target_name)
+    target_compile_definitions(${target_name} PRIVATE
+        RMLUI_STATIC_LIB
+    )
+
+    target_link_libraries(${target_name} PRIVATE
+        ${SAGA_RMLUI_TARGET}
+    )
 endfunction()
 
 function(saga_link_thirdparty target_name)

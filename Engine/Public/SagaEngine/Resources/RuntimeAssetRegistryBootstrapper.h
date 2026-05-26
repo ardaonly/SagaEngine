@@ -20,6 +20,7 @@ namespace SagaEngine::Resources {
 struct RuntimeAssetRegistryBootstrapOptions
 {
     std::filesystem::path packageManifestPath; ///< Startup package manifest path used for resolving references.
+    std::filesystem::path packageBaseDirectory; ///< Optional base for package-relative references.
     bool validateAssetFiles = true;            ///< Validate cooked asset files while loading asset manifests.
 };
 

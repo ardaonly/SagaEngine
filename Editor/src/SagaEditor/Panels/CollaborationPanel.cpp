@@ -1,7 +1,9 @@
 #include "SagaEditor/Panels/CollaborationPanel.h"
 
-namespace SagaEditor {
+namespace SagaEditor
+{
 
-// CollaborationPanel — implementation stub (filled at runtime).
+// Moved to UI/Qt/Panels/CollaborationPanel.cpp to keep Qt out of the public
+// editor panel contract.
 
 } // namespace SagaEditor
