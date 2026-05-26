@@ -1,0 +1,15 @@
+body
+{
+    width: 100%;
+    height: 100%;
+    background-color: transparent;
+}
+
+#connect-root
+{
+    width: 360px;
+    height: 180px;
+    margin: auto;
+    background-color: #101820;
+    border: 1px #5fa8d3;
+}

@@ -1,7 +1,4 @@
-#include "SagaEditor/Panels/ProjectBrowserPanel.h"
-
-namespace SagaEditor {
-
-// ProjectBrowserPanel — implementation stub (filled at runtime).
-
-} // namespace SagaEditor
+/// @file ProjectBrowserPanel.cpp
+/// @brief ProjectBrowserPanel implementation moved to the Qt backend.
+///
+/// See Editor/src/SagaEditor/UI/Qt/Panels/ProjectBrowserPanel.cpp.

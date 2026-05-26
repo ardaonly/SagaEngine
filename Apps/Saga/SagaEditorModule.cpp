@@ -15,9 +15,6 @@
 #include "SagaEditor/UI/Qt/QtUIMainWindow.h"
 #include "SagaEditor/Commands/CommandRegistry.h"
 
-#include <QMainWindow>
-#include <QStackedWidget>
-
 #include <filesystem>
 #include <iterator>
 #include <string>
@@ -239,8 +236,7 @@ SagaEditorModule::SagaEditorModule()
 
 SagaEditorModule::~SagaEditorModule() = default;
 
-bool SagaEditorModule::Activate(QMainWindow& mainWindow,
-                                QStackedWidget& centralStack,
+bool SagaEditorModule::Activate(SagaEditorNativeMount mount,
                                 SagaPreparedProjectSession session,
                                 CloseProjectCallback onCloseProject,
                                 std::string& outError)
@@ -248,6 +244,12 @@ bool SagaEditorModule::Activate(QMainWindow& mainWindow,
     if (m_impl->active)
     {
         outError = "Editor mode is already active.";
+        return false;
+    }
+
+    if (mount.mainWindow == nullptr || mount.centralStack == nullptr)
+    {
+        outError = "Editor mode requires a native product window mount.";
         return false;
     }
 
@@ -289,8 +291,8 @@ bool SagaEditorModule::Activate(QMainWindow& mainWindow,
     shellConfig.showOnInit = false;
 
     auto window = std::make_unique<SagaEditor::QtUIMainWindow>(
-        &mainWindow,
-        &centralStack);
+        mount.mainWindow,
+        mount.centralStack);
     if (!m_impl->shell->Init(*m_impl->host, std::move(window), shellConfig))
     {
         outError = "Editor shell failed to mount into Saga.";
@@ -322,16 +324,12 @@ bool SagaEditorModule::Activate(QMainWindow& mainWindow,
     return true;
 }
 
-void SagaEditorModule::Shutdown(QMainWindow& mainWindow,
-                                QStackedWidget& centralStack)
+void SagaEditorModule::Shutdown()
 {
     if (!m_impl->active)
     {
         return;
     }
-
-    (void)mainWindow;
-    (void)centralStack;
 
     if (m_impl->shell)
     {

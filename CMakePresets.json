@@ -4,8 +4,8 @@
         {
             "name": "linux-gcc",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build/RelWithDebInfo",
-            "toolchainFile": "${sourceDir}/build/RelWithDebInfo/generators/conan_toolchain.cmake",
+            "binaryDir": "${sourceDir}/build/RelWithDebInfo-$env{SAGA_ENGINE_VERSION}",
+            "toolchainFile": "${sourceDir}/build/RelWithDebInfo-$env{SAGA_ENGINE_VERSION}/generators/conan_toolchain.cmake",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo",
                 "CMAKE_C_COMPILER_LAUNCHER": "sccache",
@@ -15,8 +15,8 @@
         {
             "name": "linux-gcc-sde",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build/RelWithDebInfo-sde",
-            "toolchainFile": "${sourceDir}/build/RelWithDebInfo-sde/generators/conan_toolchain.cmake",
+            "binaryDir": "${sourceDir}/build/RelWithDebInfo-$env{SAGA_ENGINE_VERSION}-sde",
+            "toolchainFile": "${sourceDir}/build/RelWithDebInfo-$env{SAGA_ENGINE_VERSION}-sde/generators/conan_toolchain.cmake",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo",
                 "SAGA_WITH_SDE": "ON",

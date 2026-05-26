@@ -88,7 +88,10 @@ bool ShortcutCustomizationSession::Init(
     LoadDefaultOverlay();
     RebuildController();
     RefreshDiagnosticsSnapshot();
-    PublishDiagnostics();
+    if (m_snapshot != nullptr || !m_sessionDiagnostics.empty())
+    {
+        PublishDiagnostics();
+    }
     return true;
 }
 

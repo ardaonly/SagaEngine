@@ -25,6 +25,7 @@ enum class RuntimeStartupDomain
 struct RuntimeStartupGateOptions
 {
     std::filesystem::path packageManifestPath;                       ///< Package manifest to validate.
+    std::filesystem::path packageBaseDirectory;                      ///< Optional base for package-relative references.
     RuntimeStartupDomain expectedDomain = RuntimeStartupDomain::Client; ///< Expected runtime/server domain.
     bool validateReferencedManifestFiles = true;                     ///< Validate staged manifest references.
     bool validateAssetFiles = true;                                  ///< Validate cooked asset files through asset loader policy.

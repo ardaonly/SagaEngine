@@ -17,7 +17,7 @@ class SagaEngineConan(ConanFile):
     def requirements(self):
         self.requires("nlohmann_json/3.11.3")
         self.requires("asio/1.30.2")
-        self.requires("qt/6.6.2")
+        self.requires("qt/6.8.3")
         self.requires("diligent-core/api.252009")
         # Linux-only window-system packages. Do not add them to Windows/macOS
         # graphs; those platforms neither build nor need Wayland/XKB.
@@ -29,9 +29,14 @@ class SagaEngineConan(ConanFile):
         self.requires("libpqxx/7.9.0")
         self.requires("hiredis/1.2.0")
         self.requires("redis-plus-plus/1.3.12")
-        self.requires("gtest/1.14.0")
+        self.requires("gtest/1.17.0")
         self.requires("sdl/2.30.2")
         self.requires("imgui/1.91.5-docking")
+        self.requires("rmlui/4.4")
+        # RmlUi's Conan recipe pins older transitive versions; keep it aligned
+        # with the existing Qt/Diligent graph instead of forking the graph.
+        self.requires("freetype/2.13.2", override=True)
+        self.requires("robin-hood-hashing/3.11.5", override=True)
         self.requires("rapidcheck/cci.20231215")
         self.requires("glm/0.9.9.8")
 
@@ -86,9 +91,13 @@ class SagaEngineConan(ConanFile):
 
     def layout(self):
         cmake_layout(self)
+        versioned_build = f"build/RelWithDebInfo-{self.version}"
         if self.options.with_sde:
-            self.folders.build = "build/RelWithDebInfo-sde"
-            self.folders.generators = "build/RelWithDebInfo-sde/generators"
+            self.folders.build = f"{versioned_build}-sde"
+            self.folders.generators = f"{versioned_build}-sde/generators"
+        else:
+            self.folders.build = versioned_build
+            self.folders.generators = f"{versioned_build}/generators"
 
     def generate(self):
         tc = CMakeToolchain(self)
@@ -151,12 +160,16 @@ class SagaEngineConan(ConanFile):
         save(self, "sbom.json", json.dumps(sbom, indent=2))
 
     def configure(self):
-        self.settings.compiler.cppstd = "20"
         if str(self.settings.os) == "Linux":
             self.settings.compiler.libcxx = "libstdc++11"
+            if str(self.settings.compiler) == "gcc":
+                self.settings.compiler.cppstd = "gnu20"
+                return
+
+        self.settings.compiler.cppstd = "20"
 
     def validate(self):
-        if self.settings.compiler.cppstd != "20":
+        if str(self.settings.compiler.cppstd) not in ("20", "gnu20"):
             raise Exception("C++20 required")
 
         if self.options.with_d3d12 and self.settings.os != "Windows":

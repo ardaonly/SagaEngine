@@ -22,6 +22,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -33,6 +34,25 @@ namespace
 {
 
 using namespace SagaEditorLab;
+
+[[nodiscard]] bool ContainsEditorDiagnostic(
+    const std::vector<SagaEditor::EditorDiagnostic>& diagnostics,
+    const std::string& source,
+    const std::string& code,
+    SagaEditor::EditorDiagnosticSeverity severity,
+    const std::string& message)
+{
+    return std::any_of(
+        diagnostics.begin(),
+        diagnostics.end(),
+        [&](const SagaEditor::EditorDiagnostic& diagnostic)
+        {
+            return diagnostic.source == source &&
+                   diagnostic.code == code &&
+                   diagnostic.severity == severity &&
+                   diagnostic.message == message;
+        });
+}
 
 class FakeMainWindow final : public SagaEditor::IUIMainWindow
 {
@@ -700,6 +720,26 @@ TEST(EditorLabScenarioRunnerTests, EditorHostAdapterReadsPublicEditorState)
     EXPECT_EQ(adapter.ReadState("editor.selection.count").value, "2");
     EXPECT_EQ(adapter.ReadState("editor.selection.primary").value, "1001");
     EXPECT_EQ(adapter.ReadState("editor.selection.ids").value, "1001,1002");
+    const std::vector<SagaEditor::EditorDiagnostic>& diagnostics =
+        host.GetEditorDiagnosticsService().GetAll();
+    EXPECT_TRUE(ContainsEditorDiagnostic(
+        diagnostics,
+        "editorlab-test",
+        "EDITORLAB_TEST",
+        SagaEditor::EditorDiagnosticSeverity::Error,
+        "test diagnostic"));
+    EXPECT_FALSE(ContainsEditorDiagnostic(
+        diagnostics,
+        "editor.customization.workspace",
+        "Customization.NoCompositionSnapshot",
+        SagaEditor::EditorDiagnosticSeverity::Error,
+        "No usable resolved editor composition snapshot is available."));
+    EXPECT_FALSE(ContainsEditorDiagnostic(
+        diagnostics,
+        "editor.customization.shortcuts",
+        "Customization.NoCompositionSnapshot",
+        SagaEditor::EditorDiagnosticSeverity::Error,
+        "No usable resolved editor composition snapshot is available."));
     EXPECT_EQ(adapter.ReadState("editor.diagnostics.count").value, "1");
     EXPECT_EQ(adapter.ReadState("editor.diagnostics.error_count").value, "1");
 

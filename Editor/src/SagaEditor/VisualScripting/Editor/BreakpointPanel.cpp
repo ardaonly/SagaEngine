@@ -2,6 +2,7 @@
 
 namespace SagaEditor::VisualScripting {
 
-// BreakpointPanel — implementation stub (filled at runtime).
+// Moved to UI/Qt/VisualScripting/Editor/BreakpointPanel.cpp to keep Qt out of
+// the public visual scripting panel contract.
 
 } // namespace SagaEditor::VisualScripting

@@ -35,15 +35,19 @@ namespace
 /// Resolve package manifest references relative to the package manifest folder.
 [[nodiscard]] std::filesystem::path ResolvePackageReference(
     const std::filesystem::path& packageManifestPath,
+    const std::filesystem::path& packageBaseDirectory,
     const std::filesystem::path& referencePath)
 {
-    const auto parent = packageManifestPath.parent_path();
-    if (parent.empty())
+    const std::filesystem::path basePath =
+        packageBaseDirectory.empty()
+            ? packageManifestPath.parent_path()
+            : packageBaseDirectory;
+    if (basePath.empty())
     {
         return referencePath.lexically_normal();
     }
 
-    return (parent / referencePath).lexically_normal();
+    return (basePath / referencePath).lexically_normal();
 }
 
 /// Normalize a package diagnostic into the gate result.
@@ -138,7 +142,10 @@ void ValidateAssetManifestReferences(
     for (std::size_t index = 0; index < result.packageManifest.assetManifests.size(); ++index)
     {
         const auto& reference = result.packageManifest.assetManifests[index];
-        const auto resolvedPath = ResolvePackageReference(packageManifestPath, reference.path);
+        const auto resolvedPath = ResolvePackageReference(
+            packageManifestPath,
+            options.packageBaseDirectory,
+            reference.path);
         if (!std::filesystem::exists(resolvedPath))
         {
             AppendMissingReferenceDiagnostic(
@@ -170,6 +177,7 @@ void ValidateIdentityBackedAssetManifestReferences(
 {
     Resources::RuntimeAssetRegistryBootstrapOptions bootstrapOptions;
     bootstrapOptions.packageManifestPath = options.packageManifestPath;
+    bootstrapOptions.packageBaseDirectory = options.packageBaseDirectory;
     bootstrapOptions.validateAssetFiles = options.validateAssetFiles;
 
     const Resources::RuntimeAssetRegistryBootstrapResult bootstrapResult =
@@ -187,12 +195,16 @@ void ValidateIdentityBackedAssetManifestReferences(
 /// Validate referenced artifact manifests without loading artifact payloads.
 void ValidateArtifactManifestReferences(
     RuntimeStartupGateResult& result,
-    const std::filesystem::path& packageManifestPath)
+    const std::filesystem::path& packageManifestPath,
+    const RuntimeStartupGateOptions& options)
 {
     for (std::size_t index = 0; index < result.packageManifest.artifactManifests.size(); ++index)
     {
         const auto& reference = result.packageManifest.artifactManifests[index];
-        const auto resolvedPath = ResolvePackageReference(packageManifestPath, reference.path);
+        const auto resolvedPath = ResolvePackageReference(
+            packageManifestPath,
+            options.packageBaseDirectory,
+            reference.path);
         if (!std::filesystem::exists(resolvedPath))
         {
             AppendMissingReferenceDiagnostic(
@@ -225,6 +237,7 @@ RuntimeStartupGateResult RuntimeStartupGate::ValidatePackageForStartup(
     packageOptions.runtimeCompatibilityVersion =
         options.expectedRuntimeCompatibilityVersion;
     packageOptions.validateReferencedManifestFiles = false;
+    packageOptions.packageBaseDirectory = options.packageBaseDirectory;
 
     const auto packageResult =
         Packages::PackageStartupValidator::ValidateManifestForStartup(
@@ -251,7 +264,7 @@ RuntimeStartupGateResult RuntimeStartupGate::ValidatePackageForStartup(
     {
         ValidateAssetManifestReferences(result, options.packageManifestPath, options);
     }
-    ValidateArtifactManifestReferences(result, options.packageManifestPath);
+    ValidateArtifactManifestReferences(result, options.packageManifestPath, options);
 
     return result;
 }

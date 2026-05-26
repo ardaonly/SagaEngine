@@ -198,6 +198,11 @@ pkgs.mkShell {
     export CC=gcc
     export CXX=g++
     export DOTNET_ROOT="${pkgs.dotnet-sdk_10}/share/dotnet"
+    if [ -f "$PWD/VERSION" ]; then
+      export SAGA_ENGINE_VERSION="$(tr -d '[:space:]' < "$PWD/VERSION")"
+    else
+      export SAGA_ENGINE_VERSION="0.0.0"
+    fi
 
     # Make nix-provided system libraries visible to pkg-config (needed by
     # Conan's egl/system, opengl/system, and xorg/system packages).

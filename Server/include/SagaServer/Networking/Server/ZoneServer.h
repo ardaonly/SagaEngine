@@ -20,9 +20,13 @@
 #pragma once
 
 #include "SagaServer/Networking/Client/ConnectionManager.h"
+#include "SagaServer/Networking/Core/ServerPacketNormalizer.h"
+#include "SagaServer/Networking/Replication/MovementDirtyReplicationBridge.h"
 #include "SagaServer/Networking/Replication/ReplicationManager.h"
 #include "SagaServer/Networking/Interest/InterestArea.h"
 #include "SagaServer/Networking/Core/NetworkTypes.h"
+#include "SagaServer/Simulation/ActorOwnershipRegistry.h"
+#include "SagaServer/Simulation/AuthoritativeMovementCommandIntake.h"
 #include "SagaEngine/Simulation/SimulationTick.h"
 #include "SagaEngine/Simulation/WorldState.h"
 #include "SagaEngine/Core/Threading/JobSystem.h"
@@ -37,6 +41,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 #include <vector>
@@ -87,6 +92,8 @@ struct ZoneServerStats
     std::atomic<uint64_t> totalTicksProcessed{0};
     std::atomic<uint64_t> totalPacketsSent{0};
     std::atomic<uint64_t> totalPacketsReceived{0};
+    std::atomic<uint64_t> totalPacketsNormalized{0};
+    std::atomic<uint64_t> totalPacketsRejected{0};
     std::atomic<uint64_t> totalBytesSent{0};
     std::atomic<uint64_t> totalBytesReceived{0};
     std::atomic<uint32_t> currentClientCount{0};
@@ -108,6 +115,10 @@ public:
     virtual void OnServerStopped(uint32_t zoneId)                          {}
     virtual void OnClientConnected(ClientId clientId, uint32_t zoneId)     {}
     virtual void OnClientDisconnected(ClientId clientId, uint32_t zoneId)  {}
+    /// The packet payload is non-owning and valid only for the duration of
+    /// this callback.
+    virtual void OnInboundPacketNormalized(
+        const NormalizedServerPacketView&)                                 {}
     virtual void OnTickCompleted(uint64_t tick, uint64_t durationUs)       {}
     virtual void OnTickBudgetOverrun(uint64_t tick, uint64_t durationUs)   {}
 };
@@ -162,6 +173,20 @@ public:
     [[nodiscard]] SagaEngine::Networking::Replication::ReplicationManager*
         GetReplicationManager() noexcept;
 
+    // ── Controlled actor ownership ───────────────────────────────────────────
+
+    [[nodiscard]] SagaEngine::Server::Simulation::ActorOwnershipResult
+        RegisterControlledActor(
+            ClientId clientId,
+            SagaEngine::Server::Simulation::EntityId entityId,
+            SagaEngine::Server::Simulation::Vector3 initialPosition);
+
+    [[nodiscard]] SagaEngine::Server::Simulation::ActorOwnershipResult
+        UnregisterControlledActor(ClientId clientId);
+
+    [[nodiscard]] std::optional<SagaEngine::Server::Simulation::ControlledActor>
+        FindControlledActor(ClientId clientId) const;
+
     // ── Observer ──────────────────────────────────────────────────────────────
 
     void AddListener(IZoneServerListener* listener);
@@ -172,6 +197,29 @@ public:
     /// Force one simulation tick; used by stress tests and sandbox scenarios.
     /// Must not be called while Run() is active.
     void ForceTick(double wallDeltaSeconds);
+
+    /// Exercise the same raw inbound packet normalization path used by the
+    /// tick drain without requiring live sockets.
+    [[nodiscard]] ServerPacketNormalizationStatus ProcessRawInboundPacketForTesting(
+        ClientId clientId, const std::uint8_t* data, std::size_t size);
+
+    [[nodiscard]] SagaEngine::Server::Simulation::AuthoritativeMovementTickReport
+        TickMovementForTesting(uint64_t tickIndex, double fixedDelta);
+
+    [[nodiscard]] std::optional<SagaEngine::Server::Simulation::Vector3>
+        GetControlledActorPositionForTesting(
+            SagaEngine::Server::Simulation::EntityId entityId) const;
+
+    [[nodiscard]] std::optional<
+        SagaEngine::Server::Simulation::AuthoritativeMovementCommandIntakeResult>
+        GetLastMovementIntakeResultForTesting() const;
+
+    [[nodiscard]] std::vector<
+        SagaEngine::Networking::Replication::MovementDirtyReplicationIntent>
+        ConsumeMovementDirtyReplicationIntentsForTesting();
+
+    [[nodiscard]] std::size_t
+        GetPendingMovementDirtyReplicationIntentCountForTesting() const;
 
 private:
     // ── Internal subsystem types (fwd declared to hide headers) ───────────────
@@ -191,7 +239,12 @@ private:
     void TickLoop();
     void ExecuteTick(uint64_t tickIndex, double fixedDelta);
     void DrainInputPackets();
+    [[nodiscard]] ServerPacketNormalizationStatus ProcessRawInboundPacket(
+        ClientId clientId, const std::uint8_t* data, std::size_t size);
+    void HandleNormalizedInboundPacket(const NormalizedServerPacketView& packet);
     void StepSimulation(uint64_t tickIndex, double fixedDelta);
+    [[nodiscard]] SagaEngine::Server::Simulation::AuthoritativeMovementTickReport
+        TickMovementAuthority(uint64_t tickIndex, double fixedDelta);
     void FlushReplication(uint64_t tickIndex);
     void PumpNetworkIO();
 
@@ -212,6 +265,7 @@ private:
     void NotifyServerStopped();
     void NotifyClientConnected(ClientId clientId);
     void NotifyClientDisconnected(ClientId clientId);
+    void NotifyInboundPacketNormalized(const NormalizedServerPacketView& packet);
     void NotifyTickCompleted(uint64_t tick, uint64_t durationUs);
 
     // ── State ─────────────────────────────────────────────────────────────────
@@ -238,12 +292,20 @@ private:
     std::unique_ptr<ConnectionManager>                                        m_connectionManager;
     std::unique_ptr<SagaEngine::Networking::Replication::ReplicationManager> m_replicationManager;
     std::unique_ptr<SagaEngine::Networking::Interest::InterestManager>        m_interestManager;
+    std::unique_ptr<SagaEngine::Server::Simulation::ActorOwnershipRegistry>   m_actorOwnershipRegistry;
+    std::unique_ptr<SagaEngine::Server::Simulation::AuthoritativeMovementCommandIntake> m_movementCommandIntake;
+    std::unique_ptr<SagaEngine::Networking::Replication::MovementDirtyReplicationBridge> m_movementDirtyReplicationBridge;
 
     // ── Tick loop state ───────────────────────────────────────────────────────
 
     std::thread  m_tickThread;
     mutable std::mutex m_listenerMutex;
     std::vector<IZoneServerListener*> m_listeners;
+    mutable std::mutex m_movementAuthorityMutex;
+    std::optional<SagaEngine::Server::Simulation::AuthoritativeMovementCommandIntakeResult>
+        m_lastMovementIntakeResult;
+    SagaEngine::Server::Simulation::AuthoritativeMovementTickReport
+        m_lastMovementTickReport;
 
     // ── Stats accumulation ────────────────────────────────────────────────────
 

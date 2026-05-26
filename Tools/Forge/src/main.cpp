@@ -100,6 +100,43 @@ std::vector<std::string> TakeTrailing(std::vector<std::string>& args)
     return {};
 }
 
+bool ResolveTestSuite(const std::string& suite, std::string& outLabel, std::string& outExclude)
+{
+    outLabel.clear();
+    outExclude.clear();
+
+    if (suite == "architecture" ||
+        suite == "unit" ||
+        suite == "runtime" ||
+        suite == "server" ||
+        suite == "networking" ||
+        suite == "replication" ||
+        suite == "asset" ||
+        suite == "editor" ||
+        suite == "tools" ||
+        suite == "integration" ||
+        suite == "stress" ||
+        suite == "slow")
+    {
+        outLabel = suite;
+        return true;
+    }
+
+    if (suite == "all-safe")
+    {
+        outExclude = "stress|slow|load|timing-sensitive|long-running";
+        return true;
+    }
+
+    return false;
+}
+
+void PrintTestSuites(std::ostream& os)
+{
+    os << "architecture, unit, runtime, server, networking, replication, asset, "
+          "editor, tools, integration, stress, slow, all-safe";
+}
+
 // ─── Nix helpers ──────────────────────────────────────────────────────────────
 
 std::string ShellQuote(const std::string& value)
@@ -249,7 +286,7 @@ void PrintUsage(std::ostream& os)
         "    configure  [--source=DIR] [--build=DIR] [--preset=NAME] [--explain]\n"
         "    build      [--build=DIR] [--target=NAME] [--config=Release] [--jobs=N] [--explain]\n"
         "    clean      [--build=DIR] [--explain]\n"
-        "    test       [--build=DIR] [--label=LABEL] [--verbose]\n"
+        "    test       [--build=DIR] [--label=LABEL|--suite=NAME] [--jobs=N] [--verbose]\n"
         "    install-target [--build=DIR] [--prefix=DIR] [--component=NAME]\n"
         "    plan       <command> [--json] [--write-report]\n"
         "                                                 preview Forge build plan report\n"
@@ -937,6 +974,29 @@ int CmdTest(std::vector<std::string> args)
 
     Forge::CMakeAdapter::TestOptions opts;
     TakeFlag(args, "label", opts.label);
+    std::string suite;
+    TakeFlag(args, "suite", suite);
+    if (!suite.empty() && !opts.label.empty())
+    {
+        std::cerr << "[forge] test accepts either --suite or --label, not both.\n";
+        return kExitUsage;
+    }
+    if (!suite.empty() && !ResolveTestSuite(suite, opts.label, opts.labelExclude))
+    {
+        std::cerr << "[forge] unknown test suite: '" << suite << "'\n";
+        std::cerr << "[forge] valid suites: ";
+        PrintTestSuites(std::cerr);
+        std::cerr << "\n";
+        return kExitUsage;
+    }
+    std::string jobsStr;
+    TakeFlag(args, "jobs", jobsStr);
+    if (jobsStr.empty()) TakeFlag(args, "j", jobsStr);
+    if (!jobsStr.empty())
+    {
+        try { opts.jobs = static_cast<std::uint32_t>(std::stoul(jobsStr)); }
+        catch (...) { std::cerr << "[forge] warning: invalid --jobs value '" << jobsStr << "'\n"; }
+    }
     opts.verbose = TakeBool(args, "verbose");
 
     Forge::Manifest   m     = LoadOrEmpty();

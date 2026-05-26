@@ -15,9 +15,15 @@
 
 #include <SagaEngine/Core/Application/Application.h>
 #include <SagaEngine/Input/Core/InputManager.h>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <cstdint>
+
+namespace SagaEngine::UI
+{
+class UiRuntimeContext;
+}
 
 namespace Saga {
 
@@ -37,6 +43,8 @@ struct ClientConfig
     uint32_t    width          = 1280;
     uint32_t    height         = 720;
     bool        vsync          = true;
+    bool        enableRuntimeUi = true;
+    std::filesystem::path uiContentRoot;
 };
 
 // ─── ClientHost ───────────────────────────────────────────────────────────────
@@ -81,6 +89,7 @@ private:
     std::unique_ptr<ClientNetworkSession>     m_session;
     uint64_t                                  m_tickCounter = 0;
     uint32_t                                  m_inputSequence = 0;
+    double                                    m_lastUiUpdateSeconds = 0.0;
 
     // ── Input ────────────────────────────────────────────────────────────────
 
@@ -89,6 +98,7 @@ private:
     // ── Debug renderer (non-headless only) ───────────────────────────────────
 
     std::unique_ptr<IDebugRenderer2D>         m_debugRenderer;
+    std::unique_ptr<SagaEngine::UI::UiRuntimeContext> m_uiRuntime;
 };
 
 } // namespace Saga

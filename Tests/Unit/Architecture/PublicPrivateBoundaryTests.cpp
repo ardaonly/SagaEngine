@@ -7,6 +7,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace
@@ -42,6 +43,12 @@ std::vector<std::string> ReadLines(const std::filesystem::path& path)
 std::filesystem::path RelativeToSourceRoot(const std::filesystem::path& path)
 {
     return std::filesystem::relative(path, std::filesystem::path(SAGA_SOURCE_ROOT));
+}
+
+bool StartsWith(std::string_view value, std::string_view prefix)
+{
+    return value.size() >= prefix.size() &&
+           value.substr(0, prefix.size()) == prefix;
 }
 
 } // namespace
@@ -231,5 +238,47 @@ TEST(PublicPrivateBoundaryTests, SimulationPublicDoesNotIncludeInputNetworking)
 
     EXPECT_TRUE(offenders.empty())
         << "Simulation public headers must not depend on input networking. First offender: "
+        << (offenders.empty() ? "" : offenders.front());
+}
+
+TEST(PublicPrivateBoundaryTests, RmlUiHeadersStayInsideRmlUiBackendImplementation)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const std::string allowedPrefix = "Backends/src/UI/RmlUi/";
+
+    std::vector<std::string> offenders;
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(root))
+    {
+        if (!entry.is_regular_file() || !IsCodeFile(entry.path()))
+        {
+            continue;
+        }
+
+        const auto relative = RelativeToSourceRoot(entry.path()).generic_string();
+        const auto lines = ReadLines(entry.path());
+        for (std::size_t i = 0; i < lines.size(); ++i)
+        {
+            const auto& line = lines[i];
+            if (line.find("#include") == std::string::npos)
+            {
+                continue;
+            }
+
+            const bool includesRmlUi =
+                line.find("<RmlUi/") != std::string::npos ||
+                line.find("\"RmlUi/") != std::string::npos;
+            if (!includesRmlUi || StartsWith(relative, allowedPrefix))
+            {
+                continue;
+            }
+
+            offenders.push_back(
+                relative + ":" + std::to_string(i + 1) + ": " + line);
+        }
+    }
+
+    EXPECT_TRUE(offenders.empty())
+        << "RmlUi headers must stay isolated to Backends/src/UI/RmlUi. "
+        << "First offender: "
         << (offenders.empty() ? "" : offenders.front());
 }

@@ -6,6 +6,7 @@
 #include "SagaEngine/Simulation/SimulationTick.h"
 #include "SagaEngine/Simulation/Deterministic.h"
 #include "SagaEngine/Simulation/Authority.h"
+#include "SagaEngine/Simulation/WorldPartitionSystem.h"
 
 #include <gtest/gtest.h>
 #include <algorithm>
@@ -14,6 +15,7 @@
 #include <span>
 #include <thread>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 // ─── Test component types ─────────────────────────────────────────────────────
@@ -57,6 +59,25 @@ protected:
     }
 };
 
+namespace {
+
+SagaEngine::Simulation::ZoneConfig MakeTestPartitionConfig()
+{
+    SagaEngine::Simulation::ZoneConfig config;
+    config.zoneSize = 40.f;
+    config.cellsPerZoneAxis = 4;
+    config.interestRadiusCells = 1;
+    return config;
+}
+
+bool ContainsEntity(const std::vector<SagaEngine::ECS::EntityId>& entities,
+                    SagaEngine::ECS::EntityId entityId)
+{
+    return std::find(entities.begin(), entities.end(), entityId) != entities.end();
+}
+
+} // namespace
+
 // ─── ComponentRegistry ────────────────────────────────────────────────────────
 
 TEST_F(SimulationTest, Registry_IdIsStableAcrossLookups)
@@ -79,7 +100,9 @@ TEST_F(SimulationTest, Registry_UnregisteredTypeThrows)
 {
     struct NeverRegistered { float q; };
     auto& reg = SagaEngine::ECS::ComponentRegistry::Instance();
-    EXPECT_THROW(reg.GetId<NeverRegistered>(), std::logic_error);
+    EXPECT_THROW(
+        { (void)reg.GetId<NeverRegistered>(); },
+        std::logic_error);
 }
 
 TEST_F(SimulationTest, Registry_IsRegisteredPredicate)
@@ -274,6 +297,129 @@ TEST_F(SimulationTest, WorldState_QueryWithMissingTypeReturnsEmpty)
     EXPECT_TRUE(world.Query({velId}).empty());
 }
 
+// ─── WorldPartitionSystem ────────────────────────────────────────────────────
+
+TEST(WorldPartitionSystemTest, RegisteringEntityRecordsCellZoneAndCounts)
+{
+    SagaEngine::Simulation::WorldPartitionSystem partition;
+    partition.Configure(MakeTestPartitionConfig());
+
+    partition.RegisterEntity(42u, {5.f, 0.f, 5.f});
+
+    const auto cell = partition.GetEntityCell(42u);
+    ASSERT_TRUE(cell.has_value());
+    EXPECT_EQ(cell->zone, (SagaEngine::Simulation::ZoneId{0, 0}));
+    EXPECT_EQ(cell->local, (SagaEngine::Simulation::CellCoord{0, 0}));
+
+    const auto zone = partition.GetEntityZone(42u);
+    ASSERT_TRUE(zone.has_value());
+    EXPECT_EQ(*zone, (SagaEngine::Simulation::ZoneId{0, 0}));
+
+    EXPECT_EQ(partition.RegisteredEntityCount(), 1u);
+    EXPECT_EQ(partition.LoadedZoneCount(), 1u);
+    EXPECT_EQ(partition.LoadedCellCount(), 1u);
+}
+
+TEST(WorldPartitionSystemTest, MovingWithinSameCellDoesNotFireZoneCallbacks)
+{
+    SagaEngine::Simulation::WorldPartitionSystem partition;
+    partition.Configure(MakeTestPartitionConfig());
+    int enterCount = 0;
+    int exitCount = 0;
+
+    partition.OnZoneEnter([&](SagaEngine::ECS::EntityId, const SagaEngine::Simulation::ZoneId&) {
+        ++enterCount;
+    });
+    partition.OnZoneExit([&](SagaEngine::ECS::EntityId, const SagaEngine::Simulation::ZoneId&) {
+        ++exitCount;
+    });
+
+    partition.RegisterEntity(7u, {2.f, 0.f, 2.f});
+    partition.UpdateEntityPosition(7u, {8.f, 0.f, 8.f});
+
+    EXPECT_EQ(enterCount, 0);
+    EXPECT_EQ(exitCount, 0);
+    EXPECT_EQ(partition.GetEntityCell(7u)->local, (SagaEngine::Simulation::CellCoord{0, 0}));
+}
+
+TEST(WorldPartitionSystemTest, MovingBetweenCellsInSameZoneDoesNotFireZoneCallbacks)
+{
+    SagaEngine::Simulation::WorldPartitionSystem partition;
+    partition.Configure(MakeTestPartitionConfig());
+    int enterCount = 0;
+    int exitCount = 0;
+
+    partition.OnZoneEnter([&](SagaEngine::ECS::EntityId, const SagaEngine::Simulation::ZoneId&) {
+        ++enterCount;
+    });
+    partition.OnZoneExit([&](SagaEngine::ECS::EntityId, const SagaEngine::Simulation::ZoneId&) {
+        ++exitCount;
+    });
+
+    partition.RegisterEntity(9u, {2.f, 0.f, 2.f});
+    partition.UpdateEntityPosition(9u, {15.f, 0.f, 2.f});
+
+    EXPECT_EQ(enterCount, 0);
+    EXPECT_EQ(exitCount, 0);
+    EXPECT_EQ(partition.GetEntityCell(9u)->local, (SagaEngine::Simulation::CellCoord{1, 0}));
+    EXPECT_EQ(partition.LoadedZoneCount(), 1u);
+}
+
+TEST(WorldPartitionSystemTest, MovingIntoDifferentZoneFiresZoneEnter)
+{
+    SagaEngine::Simulation::WorldPartitionSystem partition;
+    partition.Configure(MakeTestPartitionConfig());
+    std::vector<std::pair<SagaEngine::ECS::EntityId, SagaEngine::Simulation::ZoneId>> entries;
+
+    partition.OnZoneEnter([&](SagaEngine::ECS::EntityId entityId,
+                              const SagaEngine::Simulation::ZoneId& zone) {
+        entries.emplace_back(entityId, zone);
+    });
+
+    partition.RegisterEntity(11u, {5.f, 0.f, 5.f});
+    partition.UpdateEntityPosition(11u, {45.f, 0.f, 5.f});
+
+    ASSERT_EQ(entries.size(), 1u);
+    EXPECT_EQ(entries[0].first, 11u);
+    EXPECT_EQ(entries[0].second, (SagaEngine::Simulation::ZoneId{1, 0}));
+}
+
+TEST(WorldPartitionSystemTest, MovingOnlyEntityOutOfOldZoneFiresZoneExit)
+{
+    SagaEngine::Simulation::WorldPartitionSystem partition;
+    partition.Configure(MakeTestPartitionConfig());
+    std::vector<std::pair<SagaEngine::ECS::EntityId, SagaEngine::Simulation::ZoneId>> exits;
+
+    partition.OnZoneExit([&](SagaEngine::ECS::EntityId entityId,
+                             const SagaEngine::Simulation::ZoneId& zone) {
+        exits.emplace_back(entityId, zone);
+    });
+
+    partition.RegisterEntity(13u, {5.f, 0.f, 5.f});
+    partition.UpdateEntityPosition(13u, {45.f, 0.f, 5.f});
+
+    ASSERT_EQ(exits.size(), 1u);
+    EXPECT_EQ(exits[0].first, 13u);
+    EXPECT_EQ(exits[0].second, (SagaEngine::Simulation::ZoneId{0, 0}));
+    EXPECT_EQ(partition.LoadedZoneCount(), 1u);
+}
+
+TEST(WorldPartitionSystemTest, RadiusQueryReturnsEntitiesFromOverlappingCells)
+{
+    SagaEngine::Simulation::WorldPartitionSystem partition;
+    partition.Configure(MakeTestPartitionConfig());
+
+    partition.RegisterEntity(1u, {1.f, 0.f, 1.f});
+    partition.RegisterEntity(2u, {19.f, 0.f, 1.f});
+    partition.RegisterEntity(3u, {31.f, 0.f, 1.f});
+
+    const auto entities = partition.GetEntitiesInRadius({1.f, 0.f, 1.f}, 10.f);
+
+    EXPECT_TRUE(ContainsEntity(entities, 1u));
+    EXPECT_TRUE(ContainsEntity(entities, 2u));
+    EXPECT_FALSE(ContainsEntity(entities, 3u));
+}
+
 // ─── WorldState – serialization ───────────────────────────────────────────────
 
 TEST_F(SimulationTest, WorldState_SerializeDeserializeRoundtrip)
@@ -327,7 +473,7 @@ TEST_F(SimulationTest, WorldState_DeserializeMalformedInputThrows)
 {
     const std::vector<uint8_t> garbage = {0x00, 0x11, 0x22};
     EXPECT_THROW(
-        SagaEngine::Simulation::WorldState::Deserialize(garbage),
+        { (void)SagaEngine::Simulation::WorldState::Deserialize(garbage); },
         std::runtime_error);
 }
 
@@ -411,7 +557,8 @@ TEST(SimulationTickTest, AdvanceAccumulatesTicksCorrectly)
 TEST(SimulationTickTest, AlphaIsInUnitRange)
 {
     SagaEngine::Simulation::SimulationTick tick(64u);
-    tick.Advance(0.3 / 64.0);
+    const uint32_t ticks = tick.Advance(0.3 / 64.0);
+    EXPECT_EQ(ticks, 0u);
     EXPECT_GE(tick.Alpha(), 0.f);
     EXPECT_LT(tick.Alpha(), 1.f);
 }
@@ -419,7 +566,8 @@ TEST(SimulationTickTest, AlphaIsInUnitRange)
 TEST(SimulationTickTest, ResetClearsState)
 {
     SagaEngine::Simulation::SimulationTick tick(64u);
-    tick.Advance(1.0);
+    const uint32_t ticks = tick.Advance(1.0);
+    EXPECT_GT(ticks, 0u);
     tick.Reset();
     EXPECT_EQ(tick.CurrentTick(), 0u);
     EXPECT_DOUBLE_EQ(tick.Accumulator(), 0.0);
@@ -450,7 +598,8 @@ TEST_F(DeterministicTest, VerifyReturnsTrueOnMatch)
 {
     SagaEngine::Simulation::Deterministic det;
     SagaEngine::Simulation::WorldState world;
-    world.CreateEntity();
+    const auto handle = world.CreateEntity();
+    ASSERT_TRUE(handle.IsValid());
     const uint64_t hash = det.Record(10u, world);
     EXPECT_TRUE(det.Verify(10u, hash));
 }
@@ -459,7 +608,8 @@ TEST_F(DeterministicTest, VerifyReturnsFalseOnMismatch)
 {
     SagaEngine::Simulation::Deterministic det;
     SagaEngine::Simulation::WorldState world;
-    world.CreateEntity();
+    const auto handle = world.CreateEntity();
+    ASSERT_TRUE(handle.IsValid());
     det.Record(10u, world);
     EXPECT_FALSE(det.Verify(10u, 0xDEADBEEFDEADBEEFull));
 }

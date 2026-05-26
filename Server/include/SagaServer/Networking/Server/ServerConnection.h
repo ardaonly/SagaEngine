@@ -196,7 +196,6 @@ private:
 
     // ── Receive buffers ───────────────────────────────────────────────────────
 
-    static constexpr std::size_t kHeaderSize = 8; ///< PacketHeader wire size
     std::vector<uint8_t>         m_headerBuf;
     std::vector<uint8_t>         m_bodyBuf;
 

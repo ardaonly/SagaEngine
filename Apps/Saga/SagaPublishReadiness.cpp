@@ -5,7 +5,9 @@
 
 #include "SagaProjectSystem.h"
 
+#include <SagaEngine/Assets/AssetManifestLoader.hpp>
 #include <SagaEngine/Packages/PackageManifestLoader.hpp>
+#include <SagaEngine/Resources/AssetIdentityManifest.h>
 
 #include <nlohmann/json.hpp>
 
@@ -76,6 +78,23 @@ constexpr const char* kServerPackageManifest =
         diagnostic.location.sourcePath = path.string();
     }
     return diagnostic;
+}
+
+[[nodiscard]] std::filesystem::path ResolvePackageReference(
+    const std::filesystem::path& packageManifestPath,
+    const std::filesystem::path& packageBaseDirectory,
+    const std::filesystem::path& referencePath)
+{
+    const std::filesystem::path basePath =
+        packageBaseDirectory.empty()
+            ? packageManifestPath.parent_path()
+            : packageBaseDirectory;
+    if (basePath.empty())
+    {
+        return referencePath.lexically_normal();
+    }
+
+    return (basePath / referencePath).lexically_normal();
 }
 
 void AddBlocker(Publish::PublishReport& report,
@@ -332,6 +351,246 @@ void ReadExternalDiagnostics(
     return json;
 }
 
+[[nodiscard]] SagaPublishPackageAssetDiagnostic CoverageDiagnostic(
+    const SagaEngine::Packages::PackageManifestError& error)
+{
+    SagaPublishPackageAssetDiagnostic diagnostic;
+    diagnostic.code = error.diagnosticId;
+    diagnostic.message = error.message;
+    diagnostic.path = error.manifestPath;
+    diagnostic.referenceIndex = error.referenceIndex;
+    diagnostic.field = error.fieldName;
+    return diagnostic;
+}
+
+[[nodiscard]] SagaPublishPackageAssetDiagnostic CoverageDiagnostic(
+    const SagaEngine::Assets::AssetManifestError& error,
+    std::size_t referenceIndex)
+{
+    SagaPublishPackageAssetDiagnostic diagnostic;
+    diagnostic.code = error.diagnosticId;
+    diagnostic.message = error.message;
+    diagnostic.path = error.resolvedPath.value_or(error.manifestPath);
+    diagnostic.referenceIndex = referenceIndex;
+    diagnostic.assetIndex = error.assetIndex;
+    diagnostic.field = error.fieldName;
+    return diagnostic;
+}
+
+[[nodiscard]] SagaPublishPackageAssetDiagnostic CoverageDiagnostic(
+    const SagaEngine::Resources::AssetIdentityManifestError& error)
+{
+    SagaPublishPackageAssetDiagnostic diagnostic;
+    diagnostic.code = error.diagnosticId;
+    diagnostic.message = error.message;
+    diagnostic.path = error.manifestPath;
+    diagnostic.mappingIndex = error.mappingIndex;
+    diagnostic.field = error.fieldName;
+    return diagnostic;
+}
+
+[[nodiscard]] SagaPublishPackageAssetIdentityCoverage CollectCoverageForPackage(
+    const std::filesystem::path& projectRoot,
+    const std::filesystem::path& packageManifestPath,
+    std::string packageSlot)
+{
+    namespace Assets = SagaEngine::Assets;
+    namespace Packages = SagaEngine::Packages;
+    namespace Resources = SagaEngine::Resources;
+
+    SagaPublishPackageAssetIdentityCoverage coverage;
+    coverage.packageSlot = std::move(packageSlot);
+    coverage.packageManifestPath = packageManifestPath;
+    coverage.packageManifestExists = std::filesystem::exists(packageManifestPath);
+
+    Packages::PackageManifestLoadOptions packageOptions;
+    packageOptions.packageBaseDirectory = projectRoot;
+    packageOptions.validateReferencedManifestFiles = false;
+    const Packages::PackageManifestLoadResult packageLoad =
+        Packages::PackageManifestLoader::LoadFromFile(
+            packageManifestPath,
+            packageOptions);
+    coverage.packageManifestLoads = packageLoad.Succeeded();
+    for (const Packages::PackageManifestError& error : packageLoad.errors)
+    {
+        coverage.diagnostics.push_back(CoverageDiagnostic(error));
+    }
+
+    if (!packageLoad.Succeeded())
+    {
+        return coverage;
+    }
+
+    coverage.packageId = packageLoad.manifest.packageId;
+    coverage.packageKind =
+        std::string(Packages::ToString(packageLoad.manifest.packageKind));
+
+    if (packageLoad.manifest.assetIdentityManifest.has_value())
+    {
+        coverage.assetIdentityManifest.referenced = true;
+        coverage.assetIdentityManifest.path =
+            *packageLoad.manifest.assetIdentityManifest;
+        coverage.assetIdentityManifest.resolvedPath = ResolvePackageReference(
+            packageManifestPath,
+            projectRoot,
+            *packageLoad.manifest.assetIdentityManifest);
+        coverage.assetIdentityManifest.exists =
+            std::filesystem::exists(coverage.assetIdentityManifest.resolvedPath);
+
+        const Resources::AssetIdentityManifestLoadResult identityLoad =
+            Resources::AssetIdentityManifestLoader::LoadFromFile(
+                coverage.assetIdentityManifest.resolvedPath);
+        coverage.assetIdentityManifest.loads = identityLoad.Succeeded();
+        if (identityLoad.Succeeded())
+        {
+            coverage.assetIdentityManifest.mappingCount =
+                identityLoad.manifest.mappings.size();
+        }
+        for (const Resources::AssetIdentityManifestError& error :
+             identityLoad.errors)
+        {
+            coverage.assetIdentityManifest.diagnostics.push_back(
+                CoverageDiagnostic(error));
+        }
+    }
+
+    for (std::size_t index = 0;
+         index < packageLoad.manifest.assetManifests.size();
+         ++index)
+    {
+        const Packages::PackageManifestRef& reference =
+            packageLoad.manifest.assetManifests[index];
+        SagaPublishAssetManifestCoverage assetCoverage;
+        assetCoverage.id = reference.id;
+        assetCoverage.path = reference.path;
+        assetCoverage.resolvedPath =
+            ResolvePackageReference(packageManifestPath, projectRoot, reference.path);
+        assetCoverage.exists = std::filesystem::exists(assetCoverage.resolvedPath);
+
+        Assets::AssetManifestLoadOptions assetOptions;
+        assetOptions.validateAssetFiles = true;
+        assetOptions.assetBaseDirectory = assetCoverage.resolvedPath.parent_path();
+        const Assets::AssetManifestLoadResult assetLoad =
+            Assets::AssetManifestLoader::LoadFromFile(
+                assetCoverage.resolvedPath,
+                assetOptions);
+        assetCoverage.loads = assetLoad.Succeeded();
+        if (assetLoad.Succeeded())
+        {
+            assetCoverage.assetCount = assetLoad.manifest.assets.size();
+        }
+        for (const Assets::AssetManifestError& error : assetLoad.errors)
+        {
+            assetCoverage.diagnostics.push_back(
+                CoverageDiagnostic(error, index));
+        }
+
+        coverage.assetManifests.push_back(std::move(assetCoverage));
+    }
+
+    return coverage;
+}
+
+[[nodiscard]] nlohmann::json OptionalIndexToJson(
+    const std::optional<std::size_t>& value)
+{
+    if (!value.has_value())
+    {
+        return nullptr;
+    }
+    return *value;
+}
+
+[[nodiscard]] nlohmann::json OptionalStringToJson(
+    const std::optional<std::string>& value)
+{
+    if (!value.has_value())
+    {
+        return nullptr;
+    }
+    return *value;
+}
+
+[[nodiscard]] nlohmann::json CoverageDiagnosticToJson(
+    const SagaPublishPackageAssetDiagnostic& diagnostic)
+{
+    return {
+        {"code", diagnostic.code},
+        {"message", diagnostic.message},
+        {"path", diagnostic.path.string()},
+        {"referenceIndex", OptionalIndexToJson(diagnostic.referenceIndex)},
+        {"assetIndex", OptionalIndexToJson(diagnostic.assetIndex)},
+        {"mappingIndex", OptionalIndexToJson(diagnostic.mappingIndex)},
+        {"field", OptionalStringToJson(diagnostic.field)}
+    };
+}
+
+[[nodiscard]] nlohmann::json AssetManifestCoverageToJson(
+    const SagaPublishAssetManifestCoverage& coverage)
+{
+    nlohmann::json json;
+    json["id"] = coverage.id;
+    json["path"] = coverage.path.string();
+    json["resolvedPath"] = coverage.resolvedPath.string();
+    json["exists"] = coverage.exists;
+    json["loads"] = coverage.loads;
+    json["assetCount"] = coverage.assetCount;
+    json["diagnostics"] = nlohmann::json::array();
+    for (const SagaPublishPackageAssetDiagnostic& diagnostic :
+         coverage.diagnostics)
+    {
+        json["diagnostics"].push_back(CoverageDiagnosticToJson(diagnostic));
+    }
+    return json;
+}
+
+[[nodiscard]] nlohmann::json AssetIdentityCoverageToJson(
+    const SagaPublishAssetIdentityManifestCoverage& coverage)
+{
+    nlohmann::json json;
+    json["referenced"] = coverage.referenced;
+    json["path"] = coverage.path.string();
+    json["resolvedPath"] = coverage.resolvedPath.string();
+    json["exists"] = coverage.exists;
+    json["loads"] = coverage.loads;
+    json["mappingCount"] = coverage.mappingCount;
+    json["diagnostics"] = nlohmann::json::array();
+    for (const SagaPublishPackageAssetDiagnostic& diagnostic :
+         coverage.diagnostics)
+    {
+        json["diagnostics"].push_back(CoverageDiagnosticToJson(diagnostic));
+    }
+    return json;
+}
+
+[[nodiscard]] nlohmann::json PackageCoverageToJson(
+    const SagaPublishPackageAssetIdentityCoverage& coverage)
+{
+    nlohmann::json json;
+    json["packageSlot"] = coverage.packageSlot;
+    json["packageManifestPath"] = coverage.packageManifestPath.string();
+    json["packageManifestExists"] = coverage.packageManifestExists;
+    json["packageManifestLoads"] = coverage.packageManifestLoads;
+    json["packageId"] = coverage.packageId;
+    json["packageKind"] = coverage.packageKind;
+    json["assetIdentityManifest"] =
+        AssetIdentityCoverageToJson(coverage.assetIdentityManifest);
+    json["assetManifests"] = nlohmann::json::array();
+    for (const SagaPublishAssetManifestCoverage& assetCoverage :
+         coverage.assetManifests)
+    {
+        json["assetManifests"].push_back(
+            AssetManifestCoverageToJson(assetCoverage));
+    }
+    json["diagnostics"] = nlohmann::json::array();
+    for (const SagaPublishPackageAssetDiagnostic& diagnostic :
+         coverage.diagnostics)
+    {
+        json["diagnostics"].push_back(CoverageDiagnosticToJson(diagnostic));
+    }
+    return json;
+}
+
 [[nodiscard]] nlohmann::json SummaryToJson(
     const Diagnostics::DiagnosticSummary& summary)
 {
@@ -348,7 +607,9 @@ void ReadExternalDiagnostics(
 }
 
 void WritePublishReport(const Publish::PublishReport& report,
-                        const std::filesystem::path& reportPath)
+                        const std::filesystem::path& reportPath,
+                        const std::vector<
+                            SagaPublishPackageAssetIdentityCoverage>& coverage)
 {
     nlohmann::json json;
     json["schemaVersion"] = 1;
@@ -367,6 +628,12 @@ void WritePublishReport(const Publish::PublishReport& report,
         {"status", ToString(report.readiness.status)},
         {"blockers", json["blockers"]}
     };
+    json["packageAssetIdentityCoverage"] = nlohmann::json::array();
+    for (const SagaPublishPackageAssetIdentityCoverage& item : coverage)
+    {
+        json["packageAssetIdentityCoverage"].push_back(
+            PackageCoverageToJson(item));
+    }
 
     if (!reportPath.parent_path().empty())
     {
@@ -517,6 +784,15 @@ SagaPublishReadinessResult SagaPublishReadinessService::Check(
         projectRoot / kServerPackageManifest,
         "server");
 
+    result.packageAssetIdentityCoverage.push_back(CollectCoverageForPackage(
+        projectRoot,
+        projectRoot / kClientPackageManifest,
+        "client"));
+    result.packageAssetIdentityCoverage.push_back(CollectCoverageForPackage(
+        projectRoot,
+        projectRoot / kServerPackageManifest,
+        "server"));
+
     bool hasWarnings = false;
     for (const SagaPublishDiagnosticsInput& input : request.diagnosticsInputs)
     {
@@ -537,7 +813,10 @@ SagaPublishReadinessResult SagaPublishReadinessService::Check(
         result.report.readiness.status = Publish::PublishStatus::Ready;
     }
 
-    WritePublishReport(result.report, result.reportPath);
+    WritePublishReport(
+        result.report,
+        result.reportPath,
+        result.packageAssetIdentityCoverage);
     result.ok = result.report.readiness.IsReady();
     return result;
 }

@@ -20,7 +20,7 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules")
 # to consume the packaged library through find_package; the matching Conan
 # requirement is added by the engine's conanfile via -o &:with_sde=True.
 #
-option(SAGA_WITH_SDE "Link engine targets against the packaged SDE library" OFF)
+option(SAGA_WITH_SDE "Enable packaged SDE integrations" OFF)
 option(SAGA_WITH_EDITORLAB_DEV_PANEL "Mount the dev-only EditorLab panel in Saga editor mode" OFF)
 
 include(SagaVersioning)
@@ -40,7 +40,7 @@ saga_setup_thirdparty()
 
 if(SAGA_WITH_SDE)
     find_package(SDE CONFIG REQUIRED)
-    message(STATUS "SDE integration: enabled (linking against SDE::Core)")
+    message(STATUS "SDE integration: enabled (using packaged SDE::Core)")
 else()
     message(STATUS "SDE integration: disabled (set SAGA_WITH_SDE=ON to enable)")
 endif()

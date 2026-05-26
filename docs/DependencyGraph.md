@@ -1082,7 +1082,13 @@ That usually means architecture has already been bypassed.
 
 ## 18. CI Enforcement
 
-* [ ] Add include-boundary tests.
+* [ ] Complete include-boundary test coverage.
+
+  Partial enforcement exists in `ArchitectureTests`.
+  `Tests/Unit/Architecture/PublicPrivateBoundaryTests.cpp` covers selected
+  public/private include boundaries, and recent SDE cleanup added explicit
+  guards that `Engine/Public` does not expose SDE includes or types through
+  `Tests/Unit/Architecture/CMakeTargetBoundaryTests.cpp`.
 
   Required checks:
 
@@ -1098,9 +1104,16 @@ AssetPipeline does not include runtime private cache internals.
 ScriptingToolchain does not include editor UI/runtime private host internals.
 ```
 
-* [ ] Add CMake target dependency checks.
+* [ ] Complete CMake target dependency checks.
 
-  Done means CI can reject forbidden target links.
+  Partial enforcement exists in
+  `Tests/Unit/Architecture/CMakeTargetBoundaryTests.cpp`.
+  Current checks cover target-link boundaries for `SagaEngine`,
+  runtime/server targets, asset pipeline, editor composer/tool boundaries,
+  related tool ownership checks, and the SDE cleanup guard that `SagaEngine`
+  must not link SDE, tool, editor, or product targets.
+
+  Done means CI can reject all forbidden target links.
 
 * [ ] Add Prism boundary validation.
 

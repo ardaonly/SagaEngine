@@ -130,7 +130,8 @@ void ThemeRegistry::RegisterBuiltinThemes()
         Register(std::move(t));
     }
 
-    Apply("Dark");
+    if (!Apply("Dark"))
+        m_activeName.clear();
 }
 
 // ─── Activation ───────────────────────────────────────────────────────────────

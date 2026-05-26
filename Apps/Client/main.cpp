@@ -12,7 +12,9 @@
 ///   3. Prediction → Reconciliation → Interpolation
 ///   4. Render Prep → Render
 
-#define SDL_MAIN_HANDLED
+#ifndef SDL_MAIN_HANDLED
+#   define SDL_MAIN_HANDLED
+#endif
 
 #include "ClientHost.h"
 #include <SagaEngine/Core/Log/Log.h>

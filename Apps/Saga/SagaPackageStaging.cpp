@@ -5,6 +5,7 @@
 
 #include "SagaProjectSystem.h"
 
+#include <SagaAssetPipeline/Packages/PackageManifestWriter.hpp>
 #include <SagaEngine/Packages/PackageManifestLoader.hpp>
 
 #include <nlohmann/json.hpp>
@@ -22,6 +23,8 @@ namespace
 
 constexpr const char* kClientPackageManifest = "package_manifest.client.json";
 constexpr const char* kServerPackageManifest = "package_manifest.server.json";
+constexpr const char* kAssetIdentityManifest =
+    "Build/Manifests/asset_identity.json";
 
 struct ManifestRef
 {
@@ -105,6 +108,18 @@ void AddExistingManifestRef(std::vector<ManifestRef>& refs,
         "assets.runtime",
         "Build/Manifests/asset_manifest.json");
     return refs;
+}
+
+[[nodiscard]] std::optional<std::string> DiscoverAssetIdentityManifestRef(
+    const std::filesystem::path& projectRoot)
+{
+    const std::filesystem::path relativePath = kAssetIdentityManifest;
+    if (!std::filesystem::exists(projectRoot / relativePath))
+    {
+        return std::nullopt;
+    }
+
+    return relativePath.generic_string();
 }
 
 [[nodiscard]] std::vector<ManifestRef> DiscoverArtifactManifestRefs(
@@ -318,6 +333,27 @@ void AddScriptArtifactDiagnostic(SagaPackageStagingResult& result,
     return json;
 }
 
+[[nodiscard]] SagaAssetPipeline::PackageManifestRefWriteInput
+ToPackageManifestRefWriteInput(const ManifestRef& ref)
+{
+    SagaAssetPipeline::PackageManifestRefWriteInput input;
+    input.id = ref.id;
+    input.path = ref.path.generic_string();
+    return input;
+}
+
+[[nodiscard]] std::vector<SagaAssetPipeline::PackageManifestRefWriteInput>
+ToPackageManifestRefWriteInputs(const std::vector<ManifestRef>& refs)
+{
+    std::vector<SagaAssetPipeline::PackageManifestRefWriteInput> inputs;
+    inputs.reserve(refs.size());
+    for (const ManifestRef& ref : refs)
+    {
+        inputs.push_back(ToPackageManifestRefWriteInput(ref));
+    }
+    return inputs;
+}
+
 void WriteJsonFile(const std::filesystem::path& path, const nlohmann::json& json)
 {
     if (!path.parent_path().empty())
@@ -328,26 +364,73 @@ void WriteJsonFile(const std::filesystem::path& path, const nlohmann::json& json
     output << json.dump(2) << '\n';
 }
 
-[[nodiscard]] nlohmann::json MakePackageManifestJson(
+[[nodiscard]] SagaAssetPipeline::PackageManifestWriteInput
+MakePackageManifestWriteInput(
     const SagaProjectManifest& project,
     const SagaPackageStagingRequest& request,
     const char* packageKind,
+    std::optional<std::string> assetIdentityManifest,
     const std::vector<ManifestRef>& assetRefs,
     const std::vector<ManifestRef>& artifactRefs)
 {
-    nlohmann::json json;
-    json["schemaVersion"] = 1;
-    json["packageId"] =
+    SagaAssetPipeline::PackageManifestWriteInput input;
+    input.packageId =
         project.projectId + "." + std::string(packageKind) + "." +
         request.profile;
-    json["packageKind"] = packageKind;
-    json["buildProfile"] = request.profile;
-    json["targetPlatform"] = request.targetPlatform;
-    json["runtimeCompatibilityVersion"] =
-        request.runtimeCompatibilityVersion;
-    json["assetManifests"] = ManifestRefsToJson(assetRefs);
-    json["artifactManifests"] = ManifestRefsToJson(artifactRefs);
-    return json;
+    input.packageKind = std::string(packageKind) == "client"
+        ? SagaAssetPipeline::PackageManifestKind::Client
+        : SagaAssetPipeline::PackageManifestKind::Server;
+    input.buildProfile = request.profile;
+    input.targetPlatform = request.targetPlatform;
+    input.runtimeCompatibilityVersion = request.runtimeCompatibilityVersion;
+    input.assetIdentityManifest = std::move(assetIdentityManifest);
+    input.assetManifests = ToPackageManifestRefWriteInputs(assetRefs);
+    input.artifactManifests = ToPackageManifestRefWriteInputs(artifactRefs);
+    return input;
+}
+
+[[nodiscard]] bool WritePackageManifestWithWriter(
+    SagaPackageStagingResult& result,
+    const std::filesystem::path& outputPath,
+    const SagaAssetPipeline::PackageManifestWriteInput& input)
+{
+    const SagaAssetPipeline::PackageManifestWriteResult writeResult =
+        SagaAssetPipeline::PackageManifestWriter::WriteToFile(
+            outputPath,
+            input);
+    if (writeResult.Succeeded())
+    {
+        return true;
+    }
+
+    for (const SagaAssetPipeline::PackageManifestWriteDiagnostic& diagnostic :
+         writeResult.diagnostics)
+    {
+        std::string message = "Generated package manifest writer failed: " +
+            diagnostic.message + " (" + diagnostic.diagnosticId + ")";
+        if (diagnostic.fieldName.has_value())
+        {
+            message += " field=" + *diagnostic.fieldName;
+        }
+        if (diagnostic.referenceIndex.has_value())
+        {
+            message += " referenceIndex=" +
+                std::to_string(*diagnostic.referenceIndex);
+        }
+
+        std::filesystem::path diagnosticPath = diagnostic.outputPath;
+        if (!diagnostic.referencePath.empty())
+        {
+            diagnosticPath = diagnostic.referencePath;
+        }
+
+        result.diagnostics.push_back(MakePackageStagingDiagnostic(
+            SagaProductDiagnostics::PackageStageManifestInvalid,
+            std::move(message),
+            std::move(diagnosticPath)));
+    }
+
+    return false;
 }
 
 void ValidateWrittenPackageManifest(SagaPackageStagingResult& result,
@@ -379,6 +462,7 @@ void ValidateWrittenPackageManifest(SagaPackageStagingResult& result,
 void WriteStageReport(const SagaPackageStagingRequest& request,
                       const SagaPackageStagingResult& result,
                       const std::filesystem::path& projectRoot,
+                      const std::optional<std::string>& assetIdentityManifest,
                       const std::vector<ManifestRef>& assetRefs,
                       const std::vector<ManifestRef>& clientArtifactRefs,
                       const std::vector<ManifestRef>& serverArtifactRefs)
@@ -399,6 +483,14 @@ void WriteStageReport(const SagaPackageStagingRequest& request,
          GenericProjectRelativePath(projectRoot,
                                     result.paths.serverPackageManifest)}
     };
+    if (assetIdentityManifest.has_value())
+    {
+        report["assetIdentityManifest"] = *assetIdentityManifest;
+    }
+    else
+    {
+        report["assetIdentityManifest"] = nullptr;
+    }
     report["assetManifests"] = ManifestRefsToJson(assetRefs);
     report["clientArtifactManifests"] = ManifestRefsToJson(clientArtifactRefs);
     report["serverArtifactManifests"] = ManifestRefsToJson(serverArtifactRefs);
@@ -457,12 +549,20 @@ SagaPackageStagingResult SagaPackageStagingService::Stage(
             SagaProductDiagnostics::PackageStageProjectInvalid,
             project.error,
             projectRoot / "saga.project.json"));
-        WriteStageReport(request, result, projectRoot, {}, {}, {});
+        WriteStageReport(request,
+                         result,
+                         projectRoot,
+                         std::nullopt,
+                         {},
+                         {},
+                         {});
         return result;
     }
 
     const std::vector<ManifestRef> assetRefs =
         DiscoverAssetManifestRefs(projectRoot);
+    const std::optional<std::string> assetIdentityManifest =
+        DiscoverAssetIdentityManifestRef(projectRoot);
     const std::vector<ManifestRef> baseArtifactRefs =
         DiscoverArtifactManifestRefs(projectRoot);
     const std::vector<ScriptArtifactStageEntry> scriptArtifacts =
@@ -486,6 +586,7 @@ SagaPackageStagingResult SagaPackageStagingService::Stage(
         WriteStageReport(request,
                          result,
                          projectRoot,
+                         assetIdentityManifest,
                          assetRefs,
                          clientArtifactRefs,
                          serverArtifactRefs);
@@ -503,29 +604,53 @@ SagaPackageStagingResult SagaPackageStagingService::Stage(
         WriteStageReport(request,
                          result,
                          projectRoot,
+                         assetIdentityManifest,
                          assetRefs,
                          clientArtifactRefs,
                          serverArtifactRefs);
         return result;
     }
 
-    const nlohmann::json clientManifest = MakePackageManifestJson(
-        project.manifest, request, "client", assetRefs, clientArtifactRefs);
-    const nlohmann::json serverManifest = MakePackageManifestJson(
-        project.manifest, request, "server", assetRefs, serverArtifactRefs);
+    const SagaAssetPipeline::PackageManifestWriteInput clientManifest =
+        MakePackageManifestWriteInput(project.manifest,
+                                      request,
+                                      "client",
+                                      assetIdentityManifest,
+                                      assetRefs,
+                                      clientArtifactRefs);
+    const SagaAssetPipeline::PackageManifestWriteInput serverManifest =
+        MakePackageManifestWriteInput(project.manifest,
+                                      request,
+                                      "server",
+                                      assetIdentityManifest,
+                                      assetRefs,
+                                      serverArtifactRefs);
 
-    WriteJsonFile(result.paths.clientPackageManifest, clientManifest);
-    WriteJsonFile(result.paths.serverPackageManifest, serverManifest);
+    const bool wroteClientManifest = WritePackageManifestWithWriter(
+        result,
+        result.paths.clientPackageManifest,
+        clientManifest);
+    const bool wroteServerManifest = WritePackageManifestWithWriter(
+        result,
+        result.paths.serverPackageManifest,
+        serverManifest);
 
-    ValidateWrittenPackageManifest(
-        result, projectRoot, result.paths.clientPackageManifest);
-    ValidateWrittenPackageManifest(
-        result, projectRoot, result.paths.serverPackageManifest);
+    if (wroteClientManifest)
+    {
+        ValidateWrittenPackageManifest(
+            result, projectRoot, result.paths.clientPackageManifest);
+    }
+    if (wroteServerManifest)
+    {
+        ValidateWrittenPackageManifest(
+            result, projectRoot, result.paths.serverPackageManifest);
+    }
 
     result.ok = result.diagnostics.empty();
     WriteStageReport(request,
                      result,
                      projectRoot,
+                     assetIdentityManifest,
                      assetRefs,
                      clientArtifactRefs,
                      serverArtifactRefs);

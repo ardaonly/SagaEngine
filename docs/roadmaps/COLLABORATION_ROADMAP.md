@@ -175,6 +175,52 @@ Collaboration/src/SagaCollaboration/Session/SessionService.cpp
   Collaboration/src/SagaCollaboration
   ```
 
+### 3.1 Current repository inventory
+
+Current ownership classification:
+
+```txt
+Shared/include/SagaShared/Collaboration
+Shared/src/SagaShared/CollaborationContracts.cpp
+```
+
+These are neutral collaboration contracts owned by `SagaShared`.
+
+```txt
+Collaboration/include/SagaCollaboration
+Collaboration/src/SagaCollaboration
+```
+
+These are the current `SagaCollaboration` service boundary/skeleton for
+sessions, presence, permissions, claims, locks, conflicts, change streams, and
+backend abstractions. They are the intended owner for collaboration truth as
+the implementation matures.
+
+```txt
+Editor/include/SagaEditor/Panels/CollaborationPanel.h
+Editor/src/SagaEditor/Panels/CollaborationPanel.cpp
+```
+
+These are valid editor-side collaboration UI surfaces. They may display
+collaboration state, but they must not become session, lock, permission,
+conflict, or change-stream truth.
+
+```txt
+Editor/include/SagaEditor/Collaboration/**
+Editor/src/SagaEditor/Collaboration/**
+```
+
+These are current editor-local collaboration scaffolding, not final
+collaboration ownership. Presence overlay, cursor broadcast, selection
+broadcast, and similar display-only types are valid editor UX adapters only
+when they consume `SagaShared` contracts or `SagaCollaboration` services.
+Session, client/server, lock, permission, sync, conflict, merge, authority,
+replay, audit, and workspace managers or concrete services in this tree are
+legacy or misplaced implementation scaffolding for a later migration slice.
+
+This inventory does not move, delete, rename, or shim files. Compatibility-shim
+status is not assumed unless future evidence shows active external consumers.
+
 ---
 
 ## 4. Dependency Rules

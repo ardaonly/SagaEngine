@@ -7,6 +7,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <memory>
 #include <string>
@@ -28,6 +29,25 @@ using namespace SagaEditor;
     diagnostic.severity = severity;
     diagnostic.message = std::move(message);
     return diagnostic;
+}
+
+[[nodiscard]] bool ContainsDiagnostic(
+    const std::vector<EditorDiagnostic>& diagnostics,
+    const std::string& source,
+    const std::string& code,
+    EditorDiagnosticSeverity severity,
+    const std::string& message)
+{
+    return std::any_of(
+        diagnostics.begin(),
+        diagnostics.end(),
+        [&](const EditorDiagnostic& diagnostic)
+        {
+            return diagnostic.source == source &&
+                   diagnostic.code == code &&
+                   diagnostic.severity == severity &&
+                   diagnostic.message == message;
+        });
 }
 
 TEST(EditorDiagnosticsServiceTest, AddsDiagnosticsAndAssignsStableIds)
@@ -116,7 +136,25 @@ TEST(EditorDiagnosticsServiceTest, HostExposesSharedDiagnosticsService)
                                    "Editor started"));
 
     EXPECT_NE(id, kInvalidEditorDiagnosticId);
-    EXPECT_EQ(host.GetEditorDiagnosticsService().GetAll().size(), 1u);
+    const std::vector<EditorDiagnostic>& diagnostics =
+        host.GetEditorDiagnosticsService().GetAll();
+    EXPECT_TRUE(ContainsDiagnostic(diagnostics,
+                                   "editor",
+                                   "",
+                                   EditorDiagnosticSeverity::Info,
+                                   "Editor started"));
+    EXPECT_FALSE(ContainsDiagnostic(diagnostics,
+                                    "editor.customization.workspace",
+                                    "Customization.NoCompositionSnapshot",
+                                    EditorDiagnosticSeverity::Error,
+                                    "No usable resolved editor composition "
+                                    "snapshot is available."));
+    EXPECT_FALSE(ContainsDiagnostic(diagnostics,
+                                    "editor.customization.shortcuts",
+                                    "Customization.NoCompositionSnapshot",
+                                    EditorDiagnosticSeverity::Error,
+                                    "No usable resolved editor composition "
+                                    "snapshot is available."));
 
     host.Shutdown();
 }

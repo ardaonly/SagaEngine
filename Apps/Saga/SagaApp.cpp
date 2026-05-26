@@ -389,8 +389,12 @@ public:
         session.sessionLabel = std::move(sessionLabel);
 
         std::string error;
+        SagaEditorNativeMount mount;
+        mount.mainWindow = this;
+        mount.centralStack = m_stack;
+
         if (!m_editorModule.Activate(
-                *this, *m_stack, std::move(session),
+                mount, std::move(session),
                 [this]() { ReturnToProductShell(); }, error))
         {
             QMessageBox::critical(this, "Editor Mode Failed",
@@ -404,7 +408,7 @@ public:
 
     void ReturnToProductShell()
     {
-        m_editorModule.Shutdown(*this, *m_stack);
+        m_editorModule.Shutdown();
         m_stack->setCurrentWidget(m_productShell);
         setWindowTitle("Saga");
         BuildProductMenu();

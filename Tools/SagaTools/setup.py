@@ -38,6 +38,15 @@ REQUIRED_CARGO_MAJOR = 1
 REQUIRED_CARGO_MINOR = 0
 
 
+def read_engine_version() -> str:
+    version_path = HERE.parent.parent / "VERSION"
+    try:
+        version = version_path.read_text(encoding="utf-8").strip()
+    except OSError:
+        version = ""
+    return version or "0.0.0"
+
+
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(prog="sagatools setup.py",
         description="Build SagaTools Rust dispatcher (and optionally bootstrap forge + prism).")
@@ -154,12 +163,13 @@ def step_stage() -> Path:
 def stage_registry(out_path: Path) -> None:
     """Write a registry next to the binary with absolute paths."""
     is_win = platform.system() == "Windows"
+    engine_version = read_engine_version()
     def _abs(*parts: str) -> str:
         return os.path.abspath(str(HERE.parent.joinpath(*parts)))
     
     forge_exe       = _abs("Forge", "bin", "forge.exe" if is_win else "forge")
     prism_exe       = _abs("Prism", "bin", "prism-graph.cmd" if is_win else "prism-graph")
-    saga_pipeline_exe = _abs("..", "build", "RelWithDebInfo-0.0.9", "bin",
+    saga_pipeline_exe = _abs("..", "build", f"RelWithDebInfo-{engine_version}", "bin",
                              "saga-pipeline.exe" if is_win else "saga-pipeline")
     host_exe        = _abs("Host", "host.sh")
     sagasync_exe    = _abs("SagaSync", "sagasync.cmd" if is_win else "sagasync")

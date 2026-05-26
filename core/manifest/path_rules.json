@@ -25,6 +25,10 @@
       "license": "Apache-2.0"
     },
     {
+      "pattern": "Content/**",
+      "license": "Apache-2.0"
+    },
+    {
       "pattern": "Backends/**",
       "license": "Apache-2.0"
     },
@@ -81,6 +85,10 @@
       "license": "Apache-2.0"
     },
     {
+      "pattern": "Apps/SagaDev/**",
+      "license": "SAGA-EDITOR-READONLY-NOAI"
+    },
+    {
       "pattern": "Editor/**",
       "license": "SAGA-EDITOR-READONLY-NOAI"
     },
@@ -90,6 +98,14 @@
     },
     {
       "pattern": "Apps/EditorLab/**",
+      "license": "SAGA-EDITOR-READONLY-NOAI"
+    },
+    {
+      "pattern": "Apps/SagaEditorComposer/**",
+      "license": "SAGA-EDITOR-READONLY-NOAI"
+    },
+    {
+      "pattern": "Schemas/Saga/Editor/**",
       "license": "SAGA-EDITOR-READONLY-NOAI"
     },
     {

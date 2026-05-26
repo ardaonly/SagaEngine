@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <cmath>
 #include <thread>
 
 namespace SagaServer::Networking
@@ -28,6 +29,12 @@ static constexpr const char* kTag = "ZoneServer";
 ZoneServer::ZoneServer(ZoneServerConfig config)
     : m_config(std::move(config))
     , m_workGuard(asio::make_work_guard(m_ioContext))
+    , m_actorOwnershipRegistry(
+          std::make_unique<SagaEngine::Server::Simulation::ActorOwnershipRegistry>())
+    , m_movementCommandIntake(
+          std::make_unique<SagaEngine::Server::Simulation::AuthoritativeMovementCommandIntake>())
+    , m_movementDirtyReplicationBridge(
+          std::make_unique<SagaEngine::Networking::Replication::MovementDirtyReplicationBridge>())
 {
     m_lastStatsLog = std::chrono::steady_clock::now();
 }
@@ -221,6 +228,7 @@ bool ZoneServer::InitNetworking()
     m_connectionManager->SetOnClientDisconnected([this](ClientId clientId)
     {
         m_replicationManager->RemoveClient(clientId);
+        (void)UnregisterControlledActor(clientId);
         const uint32_t prev = m_stats.currentClientCount.fetch_sub(1, std::memory_order_relaxed);
         if (prev == 0)
             m_stats.currentClientCount.store(0, std::memory_order_relaxed);
@@ -431,12 +439,74 @@ void ZoneServer::DrainInputPackets()
     m_connectionManager->DrainInboundPackets(
         [this](ClientId clientId, const uint8_t* data, std::size_t size)
         {
-            (void)clientId; (void)data; (void)size;
+            (void)ProcessRawInboundPacket(clientId, data, size);
         });
 }
 
-void ZoneServer::StepSimulation(uint64_t /*tickIndex*/, double /*fixedDelta*/)
+ServerPacketNormalizationStatus ZoneServer::ProcessRawInboundPacket(
+    ClientId clientId, const std::uint8_t* data, std::size_t size)
 {
+    const auto result = NormalizeServerPacketFrame(clientId, data, size);
+    if (!result.Succeeded())
+    {
+        m_stats.totalPacketsRejected.fetch_add(1, std::memory_order_relaxed);
+        if (m_config.enableDetailedPacketLog)
+        {
+            LOG_WARN(kTag,
+                     "Rejected inbound frame from client %llu: status=%u, bytes=%zu",
+                     static_cast<unsigned long long>(clientId),
+                     static_cast<unsigned>(result.status),
+                     size);
+        }
+        return result.status;
+    }
+
+    m_stats.totalPacketsNormalized.fetch_add(1, std::memory_order_relaxed);
+    HandleNormalizedInboundPacket(result.packet);
+    return result.status;
+}
+
+void ZoneServer::HandleNormalizedInboundPacket(
+    const NormalizedServerPacketView& packet)
+{
+    if (m_config.enableDetailedPacketLog)
+    {
+        LOG_DEBUG(kTag,
+                  "Normalized inbound packet from client %llu: type=%u, payload=%zu",
+                  static_cast<unsigned long long>(packet.clientId),
+                  static_cast<unsigned>(packet.packetType),
+                  packet.payloadSize);
+    }
+
+    NotifyInboundPacketNormalized(packet);
+
+    if (packet.packetType != SagaEngine::Networking::PacketType::InputCommand ||
+        !m_movementCommandIntake)
+    {
+        return;
+    }
+
+    SagaEngine::Server::Simulation::AuthoritativeMovementCommandPacketView intakePacket;
+    intakePacket.clientId = packet.clientId;
+    intakePacket.packetType = packet.packetType;
+    intakePacket.payload = packet.payload;
+    intakePacket.payloadSize = packet.payloadSize;
+    intakePacket.serverTick = m_simTick ? m_simTick->CurrentTick() : 0;
+    intakePacket.recvTimeUnixMs = static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count());
+
+    const auto intakeResult = m_movementCommandIntake->HandlePacket(intakePacket);
+    {
+        std::lock_guard<std::mutex> lock(m_movementAuthorityMutex);
+        m_lastMovementIntakeResult = intakeResult;
+    }
+}
+
+void ZoneServer::StepSimulation(uint64_t tickIndex, double fixedDelta)
+{
+    (void)TickMovementAuthority(tickIndex, fixedDelta);
+
     if (!m_worldState)
         return;
 
@@ -446,6 +516,32 @@ void ZoneServer::StepSimulation(uint64_t /*tickIndex*/, double /*fixedDelta*/)
     // simulation stepping. This is a placeholder until the proper
     // simulation orchestration layer is wired in.
     (void)m_worldState; // Suppress unused warning
+}
+
+SagaEngine::Server::Simulation::AuthoritativeMovementTickReport
+ZoneServer::TickMovementAuthority(uint64_t tickIndex, double fixedDelta)
+{
+    SagaEngine::Server::Simulation::AuthoritativeMovementTickReport report;
+    if (!m_movementCommandIntake || fixedDelta <= 0.0 || !std::isfinite(fixedDelta))
+    {
+        std::lock_guard<std::mutex> lock(m_movementAuthorityMutex);
+        m_lastMovementTickReport = report;
+        return report;
+    }
+
+    report = m_movementCommandIntake->Tick(
+        tickIndex,
+        static_cast<float>(fixedDelta));
+
+    if (m_movementDirtyReplicationBridge)
+        m_movementDirtyReplicationBridge->RecordMovementTick(report, tickIndex);
+
+    {
+        std::lock_guard<std::mutex> lock(m_movementAuthorityMutex);
+        m_lastMovementTickReport = report;
+    }
+
+    return report;
 }
 
 void ZoneServer::FlushReplication(uint64_t /*tickIndex*/)
@@ -503,13 +599,15 @@ void ZoneServer::LogPeriodicStats()
 {
     LOG_INFO(kTag,
         "Zone %u stats — tick: %llu | clients: %u | pkts tx: %llu | pkts rx: %llu "
-        "| bytes tx: %llu | bytes rx: %llu | avg tick: %llu µs | peak tick: %llu µs "
-        "| budget overruns: %llu",
+        "| pkts normalized: %llu | pkts rejected: %llu | bytes tx: %llu | bytes rx: %llu "
+        "| avg tick: %llu µs | peak tick: %llu µs | budget overruns: %llu",
         m_config.zoneId,
         static_cast<unsigned long long>(m_stats.totalTicksProcessed.load()),
         m_stats.currentClientCount.load(),
         static_cast<unsigned long long>(m_stats.totalPacketsSent.load()),
         static_cast<unsigned long long>(m_stats.totalPacketsReceived.load()),
+        static_cast<unsigned long long>(m_stats.totalPacketsNormalized.load()),
+        static_cast<unsigned long long>(m_stats.totalPacketsRejected.load()),
         static_cast<unsigned long long>(m_stats.totalBytesSent.load()),
         static_cast<unsigned long long>(m_stats.totalBytesReceived.load()),
         static_cast<unsigned long long>(m_stats.averageTickDurationUs.load()),
@@ -560,6 +658,54 @@ ZoneServer::GetReplicationManager() noexcept
     return m_replicationManager.get();
 }
 
+SagaEngine::Server::Simulation::ActorOwnershipResult
+ZoneServer::RegisterControlledActor(
+    ClientId clientId,
+    SagaEngine::Server::Simulation::EntityId entityId,
+    SagaEngine::Server::Simulation::Vector3 initialPosition)
+{
+    if (!m_actorOwnershipRegistry || !m_movementCommandIntake)
+        return SagaEngine::Server::Simulation::ActorOwnershipResult::NotFound;
+
+    const auto result = m_actorOwnershipRegistry->RegisterOwnership(
+        clientId,
+        entityId,
+        initialPosition);
+
+    if (result != SagaEngine::Server::Simulation::ActorOwnershipResult::Registered)
+        return result;
+
+    if (!m_movementCommandIntake->RegisterActor(clientId, entityId, initialPosition))
+    {
+        (void)m_actorOwnershipRegistry->UnregisterClient(clientId);
+        return SagaEngine::Server::Simulation::ActorOwnershipResult::NotFound;
+    }
+
+    return result;
+}
+
+SagaEngine::Server::Simulation::ActorOwnershipResult
+ZoneServer::UnregisterControlledActor(ClientId clientId)
+{
+    if (!m_actorOwnershipRegistry || !m_movementCommandIntake)
+        return SagaEngine::Server::Simulation::ActorOwnershipResult::NotFound;
+
+    const auto result = m_actorOwnershipRegistry->UnregisterClient(clientId);
+    if (result == SagaEngine::Server::Simulation::ActorOwnershipResult::Unregistered)
+        m_movementCommandIntake->UnregisterActor(clientId);
+
+    return result;
+}
+
+std::optional<SagaEngine::Server::Simulation::ControlledActor>
+ZoneServer::FindControlledActor(ClientId clientId) const
+{
+    if (!m_actorOwnershipRegistry)
+        return std::nullopt;
+
+    return m_actorOwnershipRegistry->FindByClient(clientId);
+}
+
 // ─── Observer ─────────────────────────────────────────────────────────────────
 
 void ZoneServer::AddListener(IZoneServerListener* listener)
@@ -600,6 +746,13 @@ void ZoneServer::NotifyClientDisconnected(ClientId clientId)
     for (auto* l : m_listeners) l->OnClientDisconnected(clientId, m_config.zoneId);
 }
 
+void ZoneServer::NotifyInboundPacketNormalized(
+    const NormalizedServerPacketView& packet)
+{
+    std::lock_guard<std::mutex> lock(m_listenerMutex);
+    for (auto* l : m_listeners) l->OnInboundPacketNormalized(packet);
+}
+
 void ZoneServer::NotifyTickCompleted(uint64_t tick, uint64_t durationUs)
 {
     std::lock_guard<std::mutex> lock(m_listenerMutex);
@@ -617,6 +770,54 @@ void ZoneServer::ForceTick(double wallDeltaSeconds)
     for (uint32_t t = 0; t < ticks; ++t)
         ExecuteTick(m_simTick->CurrentTick() - (ticks - 1 - t),
                     m_simTick->FixedDelta());
+}
+
+ServerPacketNormalizationStatus ZoneServer::ProcessRawInboundPacketForTesting(
+    ClientId clientId, const std::uint8_t* data, std::size_t size)
+{
+    return ProcessRawInboundPacket(clientId, data, size);
+}
+
+SagaEngine::Server::Simulation::AuthoritativeMovementTickReport
+ZoneServer::TickMovementForTesting(uint64_t tickIndex, double fixedDelta)
+{
+    return TickMovementAuthority(tickIndex, fixedDelta);
+}
+
+std::optional<SagaEngine::Server::Simulation::Vector3>
+ZoneServer::GetControlledActorPositionForTesting(
+    SagaEngine::Server::Simulation::EntityId entityId) const
+{
+    if (!m_movementCommandIntake)
+        return std::nullopt;
+
+    return m_movementCommandIntake->GetActorPosition(entityId);
+}
+
+std::optional<
+    SagaEngine::Server::Simulation::AuthoritativeMovementCommandIntakeResult>
+ZoneServer::GetLastMovementIntakeResultForTesting() const
+{
+    std::lock_guard<std::mutex> lock(m_movementAuthorityMutex);
+    return m_lastMovementIntakeResult;
+}
+
+std::vector<SagaEngine::Networking::Replication::MovementDirtyReplicationIntent>
+ZoneServer::ConsumeMovementDirtyReplicationIntentsForTesting()
+{
+    if (!m_movementDirtyReplicationBridge)
+        return {};
+
+    return m_movementDirtyReplicationBridge->ConsumeDirtyMovementIntents();
+}
+
+std::size_t
+ZoneServer::GetPendingMovementDirtyReplicationIntentCountForTesting() const
+{
+    if (!m_movementDirtyReplicationBridge)
+        return 0;
+
+    return m_movementDirtyReplicationBridge->PendingCount();
 }
 
 } // namespace SagaServer::Networking

@@ -1,5 +1,5 @@
 /// @file WorldPartitionSystem.cpp
-/// @brief World partition system implementation with boundary events and spatial indexing.
+/// @brief World partition system implementation with zone callbacks and spatial indexing.
 
 #include "SagaEngine/Simulation/WorldPartitionSystem.h"
 #include "SagaEngine/Core/Log/Log.h"
@@ -43,14 +43,6 @@ void WorldPartitionSystem::RegisterEntity(ECS::EntityId entityId, const Math::Ve
 
     PartitionZone& zone = GetOrCreateZone(cellId.zone);
     zone.allEntitiesInZone.insert(entityId);
-
-    // Fire enter event
-    EntityCellEnterEvent event{entityId, cellId, position};
-    if (eventBus_)
-    {
-        // TODO: Define proper EventId constants
-        // eventBus_->Publish<EventId, EntityCellEnterEvent>(event);
-    }
 }
 
 void WorldPartitionSystem::UnregisterEntity(ECS::EntityId entityId)
@@ -69,14 +61,6 @@ void WorldPartitionSystem::UnregisterEntity(ECS::EntityId entityId)
         if (cellIt != zoneIt->second.cells.end())
         {
             cellIt->second.entities.erase(entityId);
-
-            // Fire leave event
-            EntityCellLeaveEvent event{entityId, cellId, Math::Vec3::Zero()};
-            if (eventBus_)
-            {
-                // TODO: Define proper EventId constants
-                // eventBus_->Publish<EventId, EntityCellLeaveEvent>(event);
-            }
 
             // Clean up empty cells
             if (cellIt->second.entities.empty())
@@ -111,7 +95,7 @@ void WorldPartitionSystem::UpdateEntityPosition(ECS::EntityId entityId, const Ma
 
     if (oldCellId != newCellId)
     {
-        MoveEntityToCell(entityId, oldCellId, newCellId, position);
+        MoveEntityToCell(entityId, oldCellId, newCellId);
     }
 
     it->second = newCellId;
@@ -186,9 +170,10 @@ std::vector<ECS::EntityId> WorldPartitionSystem::GetEntitiesInRadius(
     const Math::Vec3& center, float radius) const
 {
     std::vector<ECS::EntityId> result;
-    const float radiusSq = radius * radius;
 
-    // Determine which cells overlap with the sphere
+    // WorldPartitionSystem does not store per-entity positions, so this query
+    // returns every entity in cells overlapped by the radius instead of applying
+    // exact per-entity distance filtering.
     const GlobalCellId centerCell = WorldToGlobalCell(center);
     const float cellSize = CellSize();
     const int cellsRadius = static_cast<int>(std::ceil(radius / cellSize));
@@ -215,8 +200,6 @@ std::vector<ECS::EntityId> WorldPartitionSystem::GetEntitiesInRadius(
 
             for (const auto& eid : entities)
             {
-                // Approximate position from cell (refine if needed with stored positions)
-                // For now, include all entities in overlapping cells
                 result.push_back(eid);
             }
         }
@@ -324,9 +307,10 @@ PartitionCell& WorldPartitionSystem::GetOrCreateCell(const ZoneId& zoneId,
 
 void WorldPartitionSystem::MoveEntityToCell(ECS::EntityId entityId,
                                              const GlobalCellId& fromCell,
-                                             const GlobalCellId& toCell,
-                                             const Math::Vec3& position)
+                                             const GlobalCellId& toCell)
 {
+    const bool zoneChanged = fromCell.zone != toCell.zone;
+
     // Remove from old cell
     auto fromZoneIt = zones_.find(fromCell.zone);
     if (fromZoneIt != zones_.end())
@@ -336,14 +320,6 @@ void WorldPartitionSystem::MoveEntityToCell(ECS::EntityId entityId,
         {
             fromCellIt->second.entities.erase(entityId);
 
-            // Fire leave event
-            EntityCellLeaveEvent leaveEvent{entityId, fromCell, position};
-            if (eventBus_)
-            {
-                // TODO: Define proper EventId constants
-                // eventBus_->Publish<EventId, EntityCellLeaveEvent>(leaveEvent);
-            }
-
             // Clean up empty cells
             if (fromCellIt->second.entities.empty())
             {
@@ -351,16 +327,19 @@ void WorldPartitionSystem::MoveEntityToCell(ECS::EntityId entityId,
             }
         }
 
-        fromZoneIt->second.allEntitiesInZone.erase(entityId);
-
-        // Clean up empty zones
-        if (fromZoneIt->second.cells.empty() && fromZoneIt->second.allEntitiesInZone.empty())
+        if (zoneChanged)
         {
-            // Fire zone exit callbacks
-            for (const auto& cb : zoneExitCallbacks_)
-                cb(entityId, fromCell.zone);
+            fromZoneIt->second.allEntitiesInZone.erase(entityId);
 
-            zones_.erase(fromZoneIt);
+            // Clean up empty zones
+            if (fromZoneIt->second.cells.empty() && fromZoneIt->second.allEntitiesInZone.empty())
+            {
+                // Fire zone exit callbacks
+                for (const auto& cb : zoneExitCallbacks_)
+                    cb(entityId, fromCell.zone);
+
+                zones_.erase(fromZoneIt);
+            }
         }
     }
 
@@ -371,35 +350,11 @@ void WorldPartitionSystem::MoveEntityToCell(ECS::EntityId entityId,
     PartitionZone& toZoneRef = GetOrCreateZone(toCell.zone);
     toZoneRef.allEntitiesInZone.insert(entityId);
 
-    // Fire enter event
-    EntityCellEnterEvent enterEvent{entityId, toCell, position};
-    if (eventBus_)
+    // Fire zone callbacks if zone changed
+    if (zoneChanged)
     {
-        // TODO: Define proper EventId constants
-        // eventBus_->Publish<EventId, EntityCellEnterEvent>(enterEvent);
-    }
-
-    // Fire zone crossing event if zone changed
-    if (fromCell.zone != toCell.zone)
-    {
-        EntityZoneCrossingEvent zoneEvent{entityId, fromCell.zone, toCell.zone, position};
-        if (eventBus_)
-        {
-            // TODO: Define proper EventId constants
-            // eventBus_->Publish<EventId, EntityZoneCrossingEvent>(zoneEvent);
-        }
-
-        // Fire zone enter callbacks
         for (const auto& cb : zoneEnterCallbacks_)
             cb(entityId, toCell.zone);
-    }
-
-    // Fire cell crossing event
-    EntityCellCrossingEvent cellEvent{entityId, fromCell, toCell, position};
-    if (eventBus_)
-    {
-        // TODO: Define proper EventId constants
-        // eventBus_->Publish<EventId, EntityCellCrossingEvent>(cellEvent);
     }
 }
 

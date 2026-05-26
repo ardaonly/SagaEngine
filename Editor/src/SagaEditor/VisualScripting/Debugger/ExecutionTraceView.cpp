@@ -2,6 +2,7 @@
 
 namespace SagaEditor::VisualScripting {
 
-// ExecutionTraceView — implementation stub (filled at runtime).
+// Moved to UI/Qt/VisualScripting/Debugger/ExecutionTraceView.cpp to keep Qt
+// out of the public visual scripting debugger view contract.
 
 } // namespace SagaEditor::VisualScripting

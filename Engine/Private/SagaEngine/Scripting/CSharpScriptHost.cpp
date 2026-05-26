@@ -62,6 +62,9 @@ enum class BridgeStatus : int
     LifecycleMethodMissing = 6,
     LifecycleFailed = 7,
     ManagedException = 8,
+    UiNamedActionMethodMissing = 9,
+    UiNamedActionInvalidSignature = 10,
+    UiNamedActionReturnedFalse = 11,
 };
 
 enum class NativeCallbackStatus : int
@@ -104,6 +107,17 @@ using BridgeCreateInstanceFn =
         std::int64_t*);
 using BridgeInvokeLifecycleFn =
     int (*)(std::int64_t, int, float, char*, int);
+using BridgeInvokeUiNamedActionFn =
+    int (*)(
+        std::int64_t,
+        const char*,
+        const char*,
+        const char*,
+        const char*,
+        int,
+        const char*,
+        char*,
+        int);
 using BridgeReleasePackageFn = int (*)(std::int64_t);
 
 [[nodiscard]] ScriptDiagnostic MakeDiagnostic(
@@ -246,12 +260,20 @@ using BridgeReleasePackageFn = int (*)(std::int64_t);
         return ScriptHostDiagnostics::LifecycleFailed;
     case BridgeStatus::ManagedException:
         return ScriptHostDiagnostics::ManagedException;
+    case BridgeStatus::UiNamedActionMethodMissing:
+        return ScriptHostDiagnostics::UiNamedActionMethodMissing;
+    case BridgeStatus::UiNamedActionInvalidSignature:
+        return ScriptHostDiagnostics::UiNamedActionInvalidSignature;
+    case BridgeStatus::UiNamedActionReturnedFalse:
+        return ScriptHostDiagnostics::UiNamedActionReturnedFalse;
     case BridgeStatus::AssemblyLoadFailed:
         return ScriptHostDiagnostics::AssemblyLoadFailed;
     case BridgeStatus::InvalidArgument:
         return operation == "create"
             ? ScriptHostDiagnostics::InvalidPackageHandle
-            : ScriptHostDiagnostics::LifecycleFailed;
+            : (operation == "uiNamedAction"
+                   ? ScriptHostDiagnostics::InvalidInstanceHandle
+                   : ScriptHostDiagnostics::LifecycleFailed);
     case BridgeStatus::Ok:
         break;
     }
@@ -292,6 +314,18 @@ using BridgeReleasePackageFn = int (*)(std::int64_t);
     if (code == ScriptHostDiagnostics::ScriptWorldUnavailable)
     {
         return "Script world unavailable";
+    }
+    if (code == ScriptHostDiagnostics::UiNamedActionMethodMissing)
+    {
+        return "UI named action method not found";
+    }
+    if (code == ScriptHostDiagnostics::UiNamedActionInvalidSignature)
+    {
+        return "Invalid UI named action signature";
+    }
+    if (code == ScriptHostDiagnostics::UiNamedActionReturnedFalse)
+    {
+        return "UI named action rejected";
     }
 
     return "C# script host failure";
@@ -687,6 +721,62 @@ struct CSharpScriptHost::Impl
             "C# script host failed while invoking a lifecycle method.");
         diagnostic.metadata["lifecycleMethod"] =
             std::string(ToString(invocation.method));
+        diagnostic.metadata["bridgeError"] = BridgeError(error);
+        result.diagnostics.push_back(std::move(diagnostic));
+        for (auto& pending : instanceIterator->second.pendingDiagnostics)
+        {
+            result.diagnostics.push_back(std::move(pending));
+        }
+        instanceIterator->second.pendingDiagnostics.clear();
+        return result;
+    }
+
+    [[nodiscard]] ScriptHostOperationResult InvokeUiNamedAction(
+        const ScriptUiNamedActionInvocation& invocation)
+    {
+        ScriptHostOperationResult result;
+        const auto instanceIterator = instances.find(invocation.instance.value);
+        if (instanceIterator == instances.end())
+        {
+            result.diagnostics.push_back(MakeDiagnostic(
+                ScriptHostDiagnostics::InvalidInstanceHandle,
+                "Invalid script instance handle",
+                "C# script host cannot invoke UI named action on an unknown instance."));
+            return result;
+        }
+
+        instanceIterator->second.pendingDiagnostics.clear();
+        std::array<char, kBridgeErrorBufferSize> error{};
+        const auto status = static_cast<BridgeStatus>(invokeUiNamedAction(
+            instanceIterator->second.bridgeInstanceHandle,
+            invocation.methodName.c_str(),
+            invocation.context.actionId.c_str(),
+            invocation.context.screenId.c_str(),
+            invocation.context.elementId.c_str(),
+            static_cast<int>(invocation.context.eventType),
+            invocation.context.text.c_str(),
+            error.data(),
+            static_cast<int>(error.size())));
+        if (status == BridgeStatus::Ok)
+        {
+            result.diagnostics =
+                std::move(instanceIterator->second.pendingDiagnostics);
+            result.succeeded = result.diagnostics.empty();
+            return result;
+        }
+
+        const auto code = CodeForBridgeStatus(status, "uiNamedAction");
+        auto diagnostic = MakeDiagnostic(
+            code,
+            TitleForDiagnostic(code),
+            "C# script host failed while invoking a UI named action method.");
+        diagnostic.scriptId = instanceIterator->second.scriptId;
+        diagnostic.metadata["classId"] = instanceIterator->second.classId;
+        diagnostic.metadata["scriptId"] = instanceIterator->second.scriptId;
+        diagnostic.metadata["methodName"] = invocation.methodName;
+        diagnostic.metadata["actionId"] = invocation.context.actionId;
+        diagnostic.metadata["screenId"] = invocation.context.screenId;
+        diagnostic.metadata["elementId"] = invocation.context.elementId;
         diagnostic.metadata["bridgeError"] = BridgeError(error);
         result.diagnostics.push_back(std::move(diagnostic));
         for (auto& pending : instanceIterator->second.pendingDiagnostics)
@@ -1265,11 +1355,13 @@ struct CSharpScriptHost::Impl
         static BridgeLoadAssemblyFn sharedLoadAssembly = nullptr;
         static BridgeCreateInstanceFn sharedCreateInstance = nullptr;
         static BridgeInvokeLifecycleFn sharedInvokeLifecycle = nullptr;
+        static BridgeInvokeUiNamedActionFn sharedInvokeUiNamedAction = nullptr;
         static BridgeReleasePackageFn sharedReleasePackage = nullptr;
 
         if (sharedLoadAssembly != nullptr &&
             sharedCreateInstance != nullptr &&
             sharedInvokeLifecycle != nullptr &&
+            sharedInvokeUiNamedAction != nullptr &&
             sharedReleasePackage != nullptr)
         {
             loadAssemblyAndGetFunctionPointer =
@@ -1277,6 +1369,7 @@ struct CSharpScriptHost::Impl
             loadAssembly = sharedLoadAssembly;
             createInstance = sharedCreateInstance;
             invokeLifecycle = sharedInvokeLifecycle;
+            invokeUiNamedAction = sharedInvokeUiNamedAction;
             releasePackage = sharedReleasePackage;
             return true;
         }
@@ -1363,6 +1456,7 @@ struct CSharpScriptHost::Impl
         sharedLoadAssembly = loadAssembly;
         sharedCreateInstance = createInstance;
         sharedInvokeLifecycle = invokeLifecycle;
+        sharedInvokeUiNamedAction = invokeUiNamedAction;
         sharedReleasePackage = releasePackage;
         return true;
     }
@@ -1440,6 +1534,10 @@ struct CSharpScriptHost::Impl
         return LoadBridgeFunction("LoadAssembly", loadAssembly, diagnostics) &&
                LoadBridgeFunction("CreateInstance", createInstance, diagnostics) &&
                LoadBridgeFunction("InvokeLifecycle", invokeLifecycle, diagnostics) &&
+               LoadBridgeFunction(
+                   "InvokeUiNamedAction",
+                   invokeUiNamedAction,
+                   diagnostics) &&
                LoadBridgeFunction("ReleasePackage", releasePackage, diagnostics);
     }
 
@@ -1484,6 +1582,7 @@ struct CSharpScriptHost::Impl
     BridgeLoadAssemblyFn loadAssembly = nullptr;
     BridgeCreateInstanceFn createInstance = nullptr;
     BridgeInvokeLifecycleFn invokeLifecycle = nullptr;
+    BridgeInvokeUiNamedActionFn invokeUiNamedAction = nullptr;
     BridgeReleasePackageFn releasePackage = nullptr;
     std::uint64_t nextPackageHandle = 1;
     std::uint64_t nextInstanceHandle = 1;
@@ -1522,6 +1621,12 @@ ScriptHostOperationResult CSharpScriptHost::InvokeLifecycle(
     const ScriptLifecycleInvocation& invocation)
 {
     return impl_->InvokeLifecycle(invocation);
+}
+
+ScriptHostOperationResult CSharpScriptHost::InvokeUiNamedAction(
+    const ScriptUiNamedActionInvocation& invocation)
+{
+    return impl_->InvokeUiNamedAction(invocation);
 }
 
 } // namespace SagaEngine::Scripting

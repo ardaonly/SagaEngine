@@ -1,7 +1,4 @@
-#include "SagaEditor/Panels/ProfilerPanel.h"
-
-namespace SagaEditor {
-
-// ProfilerPanel — implementation stub (filled at runtime).
-
-} // namespace SagaEditor
+/// @file ProfilerPanel.cpp
+/// @brief ProfilerPanel implementation moved to the Qt backend.
+///
+/// See Editor/src/SagaEditor/UI/Qt/Panels/ProfilerPanel.cpp.

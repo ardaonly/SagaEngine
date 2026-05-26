@@ -2,6 +2,7 @@
 /// @brief ServerConnection — per-client TCP connection with full state machine.
 
 #include "SagaServer/Networking/Server/ServerConnection.h"
+#include "SagaServer/Networking/Core/ServerPacketNormalizer.h"
 #include "SagaEngine/Core/Log/Log.h"
 
 #include <cassert>
@@ -16,8 +17,7 @@ using namespace std::chrono_literals;
 static constexpr const char* kTag = "ServerConnection";
 
 // Wire layout of our framing header: [magic:2][type:1][flags:1][bodyLen:4]
-static constexpr uint16_t kPacketMagic   = 0x5347; // 'SG'
-static constexpr uint32_t kMaxBodyBytes  = 65000;   // Reject anything larger
+static constexpr std::size_t kHeaderSize = kServerPacketFrameHeaderSize;
 
 // ─── Construction ─────────────────────────────────────────────────────────────
 
@@ -93,7 +93,7 @@ bool ServerConnection::Send(const uint8_t* data, std::size_t size)
     if (m_state.load(std::memory_order_relaxed) == ServerConnectionState::Disconnected)
         return false;
 
-    if (size == 0 || size > kMaxBodyBytes)
+    if (size == 0 || size > kServerPacketFrameMaxBodyBytes)
     {
         LOG_WARN(kTag, "Client %llu: rejecting send of %zu bytes (invalid size)",
                  static_cast<unsigned long long>(m_clientId), size);
@@ -227,7 +227,7 @@ void ServerConnection::HandleReceiveHeader(const asio::error_code& ec, std::size
     uint16_t magic;
     std::memcpy(&magic, m_headerBuf.data(), sizeof(magic));
 
-    if (magic != kPacketMagic)
+    if (magic != kServerPacketFrameMagic)
     {
         LOG_WARN(kTag, "Client %llu: bad magic 0x%04X — possible protocol mismatch",
                  static_cast<unsigned long long>(m_clientId), magic);
@@ -238,10 +238,12 @@ void ServerConnection::HandleReceiveHeader(const asio::error_code& ec, std::size
     uint32_t bodyLen;
     std::memcpy(&bodyLen, m_headerBuf.data() + 4, sizeof(bodyLen));
 
-    if (bodyLen > kMaxBodyBytes)
+    if (bodyLen > kServerPacketFrameMaxBodyBytes)
     {
         LOG_WARN(kTag, "Client %llu: body length %u exceeds max %u",
-                 static_cast<unsigned long long>(m_clientId), bodyLen, kMaxBodyBytes);
+                 static_cast<unsigned long long>(m_clientId),
+                 bodyLen,
+                 kServerPacketFrameMaxBodyBytes);
         HandleDisconnect(-4);
         return;
     }

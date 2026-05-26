@@ -11,9 +11,6 @@
 #include <string>
 #include <vector>
 
-class QMainWindow;
-class QStackedWidget;
-
 namespace SagaEditor
 {
 class EditorHost;
@@ -31,6 +28,13 @@ struct SagaPreparedProjectSession
     std::string         sessionLabel; ///< Local session status or empty.
 };
 
+/// Native UI mount handles supplied by the product shell.
+struct SagaEditorNativeMount
+{
+    void* mainWindow = nullptr;
+    void* centralStack = nullptr;
+};
+
 /// Same-process editor facade. It never owns QApplication or product lifecycle.
 class SagaEditorModule
 {
@@ -41,14 +45,13 @@ public:
     ~SagaEditorModule();
 
     /// Mount editor panels into the Saga-owned main window and central stack.
-    [[nodiscard]] bool Activate(QMainWindow& mainWindow,
-                                QStackedWidget& centralStack,
+    [[nodiscard]] bool Activate(SagaEditorNativeMount mount,
                                 SagaPreparedProjectSession session,
                                 CloseProjectCallback onCloseProject,
                                 std::string& outError);
 
     /// Unmount editor widgets and destroy editor services.
-    void Shutdown(QMainWindow& mainWindow, QStackedWidget& centralStack);
+    void Shutdown();
 
     /// Run the real SDE compiler path and update visible diagnostics.
     [[nodiscard]] SagaSdeCompileResult ValidateAndCompile();

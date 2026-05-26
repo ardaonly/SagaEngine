@@ -3,6 +3,7 @@
 
 #include <SagaEngine/Scripting/CSharpScriptHost.hpp>
 #include <SagaEngine/Scripting/ScriptLifecycleService.hpp>
+#include <SagaEngine/UI/CSharpUiNamedActionHandler.h>
 
 #include <gtest/gtest.h>
 #include <openssl/evp.h>
@@ -43,11 +44,27 @@ using SagaEngine::Scripting::ScriptHostDiagnostics::ManagedException;
 using SagaEngine::Scripting::ScriptHostDiagnostics::RuntimeConfigInvalid;
 using SagaEngine::Scripting::ScriptHostDiagnostics::RuntimeConfigMissing;
 using SagaEngine::Scripting::ScriptHostDiagnostics::ScriptCapabilityDenied;
+using SagaEngine::Scripting::ScriptHostDiagnostics::UiNamedActionInvalidSignature;
+using SagaEngine::Scripting::ScriptHostDiagnostics::UiNamedActionMethodMissing;
+using SagaEngine::Scripting::ScriptHostDiagnostics::UiNamedActionReturnedFalse;
 using SagaEngine::Scripting::ScriptInstanceCreateRequest;
+using SagaEngine::Scripting::ScriptInstanceHandle;
 using SagaEngine::Scripting::ScriptLifecycleService;
 using SagaEngine::Scripting::ScriptLogEvent;
 using SagaEngine::Scripting::ScriptPackageLoadRequest;
+using SagaEngine::Scripting::ScriptUiNamedActionContext;
+using SagaEngine::Scripting::ScriptUiNamedActionEventType;
+using SagaEngine::Scripting::ScriptUiNamedActionInvocation;
 using SagaEngine::Scripting::ScriptVector3;
+using SagaEngine::UI::CSharpUiNamedActionHandler;
+using SagaEngine::UI::CSharpUiNamedActionHandlerOptions;
+using SagaEngine::UI::UiActionId;
+using SagaEngine::UI::UiDiagnosticSeverity;
+using SagaEngine::UI::UiElementId;
+using SagaEngine::UI::UiEventType;
+using SagaEngine::UI::UiNamedActionContext;
+using SagaEngine::UI::UiNamedActionHandlerDiagnosticCode;
+using SagaEngine::UI::UiScreenId;
 
 constexpr const char* kCreateEntityCapability = "Gameplay.World.CreateEntity";
 constexpr const char* kTransformReadCapability = "Gameplay.Transform.Read";
@@ -386,6 +403,32 @@ private:
     return request;
 }
 
+[[nodiscard]] ScriptUiNamedActionInvocation MakeUiActionInvocation(
+    const ScriptInstanceHandle instance,
+    std::string methodName)
+{
+    ScriptUiNamedActionInvocation invocation;
+    invocation.instance = instance;
+    invocation.methodName = std::move(methodName);
+    invocation.context.actionId = "connect_to_server";
+    invocation.context.screenId = "connect_screen";
+    invocation.context.elementId = "connect_button";
+    invocation.context.eventType = ScriptUiNamedActionEventType::TextChanged;
+    invocation.context.text = "local-dev";
+    return invocation;
+}
+
+[[nodiscard]] UiNamedActionContext MakeUiHandlerContext()
+{
+    UiNamedActionContext context;
+    context.actionId = UiActionId::FromString("connect_to_server");
+    context.screenId = UiScreenId::FromString("connect_screen");
+    context.elementId = UiElementId::FromString("connect_button");
+    context.eventType = UiEventType::TextChanged;
+    context.text = "local-dev";
+    return context;
+}
+
 } // namespace
 
 TEST(CSharpScriptHostTests, MinimalManagedScriptLoadsAndRunsLifecycle)
@@ -610,6 +653,178 @@ TEST(CSharpScriptHostTests, MissingCapabilityBlocksWorldCreateEntity)
     EXPECT_EQ(world.EntityCount(), 0u);
     ASSERT_FALSE(logs.empty());
     EXPECT_EQ(logs.back().message, "MissingCapability:CreateEntity:False");
+}
+
+TEST(CSharpScriptHostTests, UiNamedActionInvokesManagedMethodAndPreservesContext)
+{
+    const auto packageRoot =
+        CreateValidPackage("saga_csharp_host_ui_named_action");
+    std::vector<ScriptLogEvent> logs;
+
+    CSharpScriptHost host(HostOptions(nullptr, &logs));
+    ScriptLifecycleService service(host);
+
+    const auto loadResult = service.LoadPackage(MakePackageRequest(packageRoot));
+    ASSERT_TRUE(loadResult.Succeeded()) << DescribeDiagnostics(loadResult.diagnostics);
+    const auto instance = service.CreateInstance(MakeInstanceRequest(
+        loadResult.package,
+        "Game.UiNamedActionScript"));
+    ASSERT_TRUE(instance.Succeeded()) << DescribeDiagnostics(instance.diagnostics);
+
+    CSharpUiNamedActionHandler handler(CSharpUiNamedActionHandlerOptions{
+        host,
+        instance.instance,
+        "RecordUiAction",
+    });
+    const auto result = handler.Invoke(MakeUiHandlerContext());
+
+    EXPECT_TRUE(result.Succeeded());
+    EXPECT_EQ(result.code, UiNamedActionHandlerDiagnosticCode::None);
+    ASSERT_EQ(logs.size(), 1u);
+    EXPECT_EQ(
+        logs[0].message,
+        "UiAction:connect_to_server:connect_screen:connect_button:"
+        "TextChanged:local-dev");
+}
+
+TEST(CSharpScriptHostTests, UiNamedActionBoolReturnTrueSucceeds)
+{
+    const auto packageRoot =
+        CreateValidPackage("saga_csharp_host_ui_named_action_bool");
+    std::vector<ScriptLogEvent> logs;
+
+    CSharpScriptHost host(HostOptions(nullptr, &logs));
+    ScriptLifecycleService service(host);
+
+    const auto loadResult = service.LoadPackage(MakePackageRequest(packageRoot));
+    ASSERT_TRUE(loadResult.Succeeded()) << DescribeDiagnostics(loadResult.diagnostics);
+    const auto instance = service.CreateInstance(MakeInstanceRequest(
+        loadResult.package,
+        "Game.UiNamedActionScript"));
+    ASSERT_TRUE(instance.Succeeded()) << DescribeDiagnostics(instance.diagnostics);
+
+    CSharpUiNamedActionHandler handler(CSharpUiNamedActionHandlerOptions{
+        host,
+        instance.instance,
+        "BoolUiAction",
+    });
+    const auto result = handler.Invoke(MakeUiHandlerContext());
+
+    EXPECT_TRUE(result.Succeeded());
+    ASSERT_EQ(logs.size(), 1u);
+    EXPECT_EQ(logs[0].message, "UiBool:connect_to_server:local-dev");
+}
+
+TEST(CSharpScriptHostTests, MissingUiNamedActionMethodIsDeterministic)
+{
+    const auto packageRoot =
+        CreateValidPackage("saga_csharp_host_ui_named_action_missing");
+    CSharpScriptHost host(HostOptions());
+    ScriptLifecycleService service(host);
+
+    const auto loadResult = service.LoadPackage(MakePackageRequest(packageRoot));
+    ASSERT_TRUE(loadResult.Succeeded()) << DescribeDiagnostics(loadResult.diagnostics);
+    const auto instance = service.CreateInstance(MakeInstanceRequest(
+        loadResult.package,
+        "Game.UiNamedActionScript"));
+    ASSERT_TRUE(instance.Succeeded()) << DescribeDiagnostics(instance.diagnostics);
+
+    const auto result = host.InvokeUiNamedAction(
+        MakeUiActionInvocation(instance.instance, "MissingUiAction"));
+
+    ASSERT_FALSE(result.Succeeded());
+    ASSERT_EQ(result.diagnostics.size(), 1u);
+    EXPECT_EQ(
+        result.diagnostics[0].diagnostic.code.value,
+        UiNamedActionMethodMissing);
+    EXPECT_EQ(result.diagnostics[0].metadata.at("methodName"), "MissingUiAction");
+}
+
+TEST(CSharpScriptHostTests, InvalidUiNamedActionSignatureIsDeterministic)
+{
+    const auto packageRoot =
+        CreateValidPackage("saga_csharp_host_ui_named_action_invalid_signature");
+    CSharpScriptHost host(HostOptions());
+    ScriptLifecycleService service(host);
+
+    const auto loadResult = service.LoadPackage(MakePackageRequest(packageRoot));
+    ASSERT_TRUE(loadResult.Succeeded()) << DescribeDiagnostics(loadResult.diagnostics);
+    const auto instance = service.CreateInstance(MakeInstanceRequest(
+        loadResult.package,
+        "Game.UiNamedActionScript"));
+    ASSERT_TRUE(instance.Succeeded()) << DescribeDiagnostics(instance.diagnostics);
+
+    const auto result = host.InvokeUiNamedAction(
+        MakeUiActionInvocation(instance.instance, "InvalidUiAction"));
+
+    ASSERT_FALSE(result.Succeeded());
+    ASSERT_EQ(result.diagnostics.size(), 1u);
+    EXPECT_EQ(
+        result.diagnostics[0].diagnostic.code.value,
+        UiNamedActionInvalidSignature);
+}
+
+TEST(CSharpScriptHostTests, FalseUiNamedActionReturnBecomesHandlerFailure)
+{
+    const auto packageRoot =
+        CreateValidPackage("saga_csharp_host_ui_named_action_false");
+    std::vector<ScriptLogEvent> logs;
+
+    CSharpScriptHost host(HostOptions(nullptr, &logs));
+    ScriptLifecycleService service(host);
+
+    const auto loadResult = service.LoadPackage(MakePackageRequest(packageRoot));
+    ASSERT_TRUE(loadResult.Succeeded()) << DescribeDiagnostics(loadResult.diagnostics);
+    const auto instance = service.CreateInstance(MakeInstanceRequest(
+        loadResult.package,
+        "Game.UiNamedActionScript"));
+    ASSERT_TRUE(instance.Succeeded()) << DescribeDiagnostics(instance.diagnostics);
+
+    const auto scriptResult = host.InvokeUiNamedAction(
+        MakeUiActionInvocation(instance.instance, "RejectUiAction"));
+    ASSERT_FALSE(scriptResult.Succeeded());
+    ASSERT_EQ(scriptResult.diagnostics.size(), 1u);
+    EXPECT_EQ(
+        scriptResult.diagnostics[0].diagnostic.code.value,
+        UiNamedActionReturnedFalse);
+
+    CSharpUiNamedActionHandler handler(CSharpUiNamedActionHandlerOptions{
+        host,
+        instance.instance,
+        "RejectUiAction",
+    });
+    const auto handlerResult = handler.Invoke(MakeUiHandlerContext());
+
+    EXPECT_FALSE(handlerResult.Succeeded());
+    EXPECT_EQ(
+        handlerResult.code,
+        UiNamedActionHandlerDiagnosticCode::HandlerFailed);
+    EXPECT_EQ(handlerResult.severity, UiDiagnosticSeverity::Error);
+    ASSERT_GE(logs.size(), 2u);
+    EXPECT_EQ(logs[0].message, "UiReject:connect_to_server");
+}
+
+TEST(CSharpScriptHostTests, ManagedUiNamedActionExceptionIsDeterministic)
+{
+    const auto packageRoot =
+        CreateValidPackage("saga_csharp_host_ui_named_action_exception");
+    CSharpScriptHost host(HostOptions());
+    ScriptLifecycleService service(host);
+
+    const auto loadResult = service.LoadPackage(MakePackageRequest(packageRoot));
+    ASSERT_TRUE(loadResult.Succeeded()) << DescribeDiagnostics(loadResult.diagnostics);
+    const auto instance = service.CreateInstance(MakeInstanceRequest(
+        loadResult.package,
+        "Game.UiNamedActionScript"));
+    ASSERT_TRUE(instance.Succeeded()) << DescribeDiagnostics(instance.diagnostics);
+
+    const auto result = host.InvokeUiNamedAction(
+        MakeUiActionInvocation(instance.instance, "ThrowUiAction"));
+
+    ASSERT_FALSE(result.Succeeded());
+    ASSERT_EQ(result.diagnostics.size(), 1u);
+    EXPECT_EQ(result.diagnostics[0].diagnostic.code.value, ManagedException);
+    EXPECT_EQ(result.diagnostics[0].metadata.at("methodName"), "ThrowUiAction");
 }
 
 TEST(CSharpScriptHostTests, MissingManagedClassIsDeterministic)

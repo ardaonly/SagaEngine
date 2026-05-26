@@ -309,6 +309,36 @@ TEST(CMakeTargetBoundaryTests, SagaAssetPipelineLibDoesNotLinkRuntimeEditorProdu
     }
 }
 
+TEST(CMakeTargetBoundaryTests, SagaEngineDoesNotLinkProductEditorOrToolTargets)
+{
+    const auto path = SagaTargetsPath();
+    const auto calls = ExtractTargetLinkCalls(ReadLines(path));
+    const std::vector<std::string> forbidden = {
+        "SagaProductLib",
+        "SagaEditorLib",
+        "SagaEditorLabLib",
+        "SagaEditorLabBridge",
+        "SagaAssetPipelineLib",
+        "SagaPipelineLib",
+        "SagaEditorCompositionLib",
+        "Forge",
+        "Prism",
+        "SDE",
+    };
+
+    const auto offenders =
+        FindForbiddenLinks(calls, "SagaEngine", forbidden);
+
+    for (const auto& offender : offenders)
+    {
+        ADD_FAILURE()
+            << "Forbidden target dependency: SagaEngine must not link "
+            << JoinNames(FindForbiddenDependencyNames(offender, forbidden))
+            << ". Offending call in " << path.generic_string()
+            << ":" << offender.line << "\n" << offender.text;
+    }
+}
+
 TEST(CMakeTargetBoundaryTests, RuntimeAndServerTargetsDoNotLinkEditorDevOrToolTargets)
 {
     const auto path = SagaTargetsPath();
@@ -343,6 +373,55 @@ TEST(CMakeTargetBoundaryTests, RuntimeAndServerTargetsDoNotLinkEditorDevOrToolTa
                 << ":" << offender.line << "\n" << offender.text;
         }
     }
+}
+
+TEST(CMakeTargetBoundaryTests, SagaEnginePublicHeadersDoNotExposeSdeTypes)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto offenders = FindForbiddenText(
+        root / "Engine" / "Public",
+        {
+            "#include \"SDE/",
+            "#include <SDE/",
+            "SDE::",
+        });
+
+    EXPECT_TRUE(offenders.empty())
+        << "SagaEngine public headers must not include or expose SDE types. "
+        << "First offender: "
+        << (offenders.empty() ? "" : offenders.front());
+}
+
+TEST(CMakeTargetBoundaryTests, RmlUiIsLinkedOnlyBySagaBackend)
+{
+    const auto path = SagaTargetsPath();
+    const auto lines = ReadLines(path);
+
+    bool sawBackendLink = false;
+    std::vector<std::string> offenders;
+    for (std::size_t i = 0; i < lines.size(); ++i)
+    {
+        const auto& line = lines[i];
+        if (line.find("saga_link_rmlui(") == std::string::npos)
+        {
+            continue;
+        }
+
+        if (line.find("SagaBackend") != std::string::npos)
+        {
+            sawBackendLink = true;
+            continue;
+        }
+
+        offenders.push_back(
+            path.generic_string() + ":" + std::to_string(i + 1) + ": " + line);
+    }
+
+    EXPECT_TRUE(sawBackendLink)
+        << "SagaBackend must own the RmlUi adapter link dependency.";
+    EXPECT_TRUE(offenders.empty())
+        << "RmlUi must not be linked outside SagaBackend. First offender: "
+        << (offenders.empty() ? "" : offenders.front());
 }
 
 TEST(CMakeTargetBoundaryTests, EditorLabBridgeIsGuardedByDevPanelFlag)

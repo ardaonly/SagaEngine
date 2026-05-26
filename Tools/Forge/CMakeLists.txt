@@ -122,6 +122,7 @@ else()
 endif()
 
 add_test(NAME forge_build_scheduler_tests COMMAND forge_build_scheduler_tests)
+set_tests_properties(forge_build_scheduler_tests PROPERTIES LABELS "tools;unit;forge")
 
 add_executable(forge_exit_code_tests
     tests/ExitCodeTests.cpp
@@ -141,6 +142,29 @@ else()
 endif()
 
 add_test(NAME forge_exit_code_tests COMMAND forge_exit_code_tests)
+set_tests_properties(forge_exit_code_tests PROPERTIES LABELS "tools;unit;forge")
+
+add_executable(forge_build_model_tests
+    tests/BuildModelTests.cpp
+    src/BuildModel.cpp
+    src/Manifest.cpp
+    include/Forge/BuildModel.h
+    include/Forge/Manifest.h
+)
+
+target_include_directories(forge_build_model_tests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+if(MSVC)
+    target_compile_options(forge_build_model_tests PRIVATE /W4 /permissive- /utf-8)
+else()
+    target_compile_options(forge_build_model_tests PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_test(NAME forge_build_model_tests COMMAND forge_build_model_tests)
+set_tests_properties(forge_build_model_tests PROPERTIES LABELS "tools;unit;forge")
 
 add_executable(forge_build_plan_tests
     tests/BuildPlanTests.cpp
@@ -162,6 +186,7 @@ else()
 endif()
 
 add_test(NAME forge_build_plan_tests COMMAND forge_build_plan_tests)
+set_tests_properties(forge_build_plan_tests PROPERTIES LABELS "tools;unit;forge")
 
 add_executable(forge_diagnostic_collector_tests
     tests/DiagnosticCollectorTests.cpp
@@ -184,6 +209,7 @@ else()
 endif()
 
 add_test(NAME forge_diagnostic_collector_tests COMMAND forge_diagnostic_collector_tests)
+set_tests_properties(forge_diagnostic_collector_tests PROPERTIES LABELS "tools;unit;forge")
 
 add_executable(forge_build_report_tests
     tests/BuildReportTests.cpp
@@ -211,6 +237,7 @@ else()
 endif()
 
 add_test(NAME forge_build_report_tests COMMAND forge_build_report_tests)
+set_tests_properties(forge_build_report_tests PROPERTIES LABELS "tools;unit;forge")
 
 add_executable(forge_fake_gate_tool
     tests/FakeGateTool.cpp
@@ -244,22 +271,62 @@ endif()
 add_test(NAME forge_tool_gate_tests
     COMMAND forge_tool_gate_tests $<TARGET_FILE:forge> $<TARGET_FILE:forge_fake_gate_tool>
 )
+set_tests_properties(forge_tool_gate_tests PROPERTIES LABELS "tools;unit;forge")
 
 add_test(NAME forge_plan_build_json COMMAND forge plan build --json)
+set_tests_properties(forge_plan_build_json PROPERTIES LABELS "tools;forge")
 set_tests_properties(forge_plan_build_json
     PROPERTIES
         PASS_REGULAR_EXPRESSION "\"status\": \"Planned\""
 )
 
 add_test(NAME forge_plan_test_text COMMAND forge plan test)
+set_tests_properties(forge_plan_test_text PROPERTIES LABELS "tools;forge")
 set_tests_properties(forge_plan_test_text
     PROPERTIES
         PASS_REGULAR_EXPRESSION "run-tests \\[RunTests\\]"
 )
 
 add_test(NAME forge_plan_unknown_command COMMAND forge plan unknown)
+set_tests_properties(forge_plan_unknown_command PROPERTIES LABELS "tools;forge")
 set_tests_properties(forge_plan_unknown_command
     PROPERTIES
+        WILL_FAIL TRUE
+)
+
+add_test(NAME forge_test_suite_architecture_explain
+    COMMAND forge test --suite architecture --jobs 1 --explain
+)
+set_tests_properties(forge_test_suite_architecture_explain
+    PROPERTIES
+        LABELS "tools;unit;forge"
+        PASS_REGULAR_EXPRESSION "--label-regex architecture -j 1"
+)
+
+add_test(NAME forge_test_suite_all_safe_explain
+    COMMAND forge test --suite all-safe --jobs 1 --explain
+)
+set_tests_properties(forge_test_suite_all_safe_explain
+    PROPERTIES
+        LABELS "tools;unit;forge"
+        PASS_REGULAR_EXPRESSION "--label-exclude stress\\|slow\\|load\\|timing-sensitive\\|long-running -j 1"
+)
+
+add_test(NAME forge_test_suite_rejects_label_conflict
+    COMMAND forge test --suite runtime --label runtime --explain
+)
+set_tests_properties(forge_test_suite_rejects_label_conflict
+    PROPERTIES
+        LABELS "tools;unit;forge"
+        WILL_FAIL TRUE
+)
+
+add_test(NAME forge_test_suite_rejects_unknown_suite
+    COMMAND forge test --suite unknown --explain
+)
+set_tests_properties(forge_test_suite_rejects_unknown_suite
+    PROPERTIES
+        LABELS "tools;unit;forge"
         WILL_FAIL TRUE
 )
 
@@ -271,6 +338,7 @@ file(MAKE_DIRECTORY
 )
 
 add_test(NAME forge_plan_write_report_text COMMAND forge plan build --write-report)
+set_tests_properties(forge_plan_write_report_text PROPERTIES LABELS "tools;forge")
 set_tests_properties(forge_plan_write_report_text
     PROPERTIES
         WORKING_DIRECTORY "${FORGE_PLAN_REPORT_TEXT_DIR}"
@@ -278,6 +346,7 @@ set_tests_properties(forge_plan_write_report_text
 )
 
 add_test(NAME forge_plan_write_report_json COMMAND forge plan build --json --write-report)
+set_tests_properties(forge_plan_write_report_json PROPERTIES LABELS "tools;forge")
 set_tests_properties(forge_plan_write_report_json
     PROPERTIES
         WORKING_DIRECTORY "${FORGE_PLAN_REPORT_JSON_DIR}"
@@ -285,6 +354,7 @@ set_tests_properties(forge_plan_write_report_json
 )
 
 add_test(NAME forge_report_json COMMAND forge report --json)
+set_tests_properties(forge_report_json PROPERTIES LABELS "tools;forge")
 set_tests_properties(forge_report_json
     PROPERTIES
         WORKING_DIRECTORY "${FORGE_PLAN_REPORT_JSON_DIR}"
@@ -293,6 +363,7 @@ set_tests_properties(forge_report_json
 )
 
 add_test(NAME forge_report_build_json COMMAND forge report --build=build --json)
+set_tests_properties(forge_report_build_json PROPERTIES LABELS "tools;forge")
 set_tests_properties(forge_report_build_json
     PROPERTIES
         WORKING_DIRECTORY "${FORGE_PLAN_REPORT_JSON_DIR}"
@@ -303,6 +374,7 @@ set_tests_properties(forge_report_build_json
 add_test(NAME forge_report_path_json
     COMMAND forge report --path=build/Reports/build_report.json --json
 )
+set_tests_properties(forge_report_path_json PROPERTIES LABELS "tools;forge")
 set_tests_properties(forge_report_path_json
     PROPERTIES
         WORKING_DIRECTORY "${FORGE_PLAN_REPORT_JSON_DIR}"
@@ -311,6 +383,7 @@ set_tests_properties(forge_report_path_json
 )
 
 add_test(NAME forge_report_text COMMAND forge report)
+set_tests_properties(forge_report_text PROPERTIES LABELS "tools;forge")
 set_tests_properties(forge_report_text
     PROPERTIES
         WORKING_DIRECTORY "${FORGE_PLAN_REPORT_JSON_DIR}"
@@ -319,6 +392,7 @@ set_tests_properties(forge_report_text
 )
 
 add_test(NAME forge_report_missing_json COMMAND forge report --path=missing.json --json)
+set_tests_properties(forge_report_missing_json PROPERTIES LABELS "tools;forge")
 set_tests_properties(forge_report_missing_json
     PROPERTIES
         WORKING_DIRECTORY "${FORGE_PLAN_REPORT_JSON_DIR}"

@@ -306,6 +306,17 @@ Editor collaboration panel owns session truth.
   * editor panels communicate through SagaEditor interfaces,
   * product integration does not require consumers to include Qt headers.
 
+  Phase 6 progress:
+
+  * `GraphViewportPanel`, `ProfilerPanel`, `ProjectBrowserPanel`,
+    `CollaborationPanel`, `WatchPanel`, `BreakpointPanel`, and
+    `ExecutionTraceView` have moved from public `QtPanel` inheritance to
+    `IPanel` + private Qt pimpl implementations.
+  * Remaining public Qt exposure is tracked by
+    `EditorQtPublicAbiBoundaryTests` and the Phase 6 architecture notes.
+  * `GraphDebuggerView`, `NodePalette`, `NodeLibraryPanel`, `GraphCanvas`,
+    `QtPanel.h`, and `SagaEditorModule.h` remain unresolved boundary debt.
+
 * [ ] Enforce Qt-free public headers through CI.
 
   Done means CI rejects public headers under:

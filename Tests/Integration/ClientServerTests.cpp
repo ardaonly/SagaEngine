@@ -143,7 +143,7 @@ TEST_F(ClientServerIntegrationTest, ServerAuthoritativeLoop)
 
     for (int i = 0; i < kTicks; ++i)
     {
-        simTick.Advance(fixedDt);
+        EXPECT_EQ(simTick.Advance(fixedDt), 1u);
 
         // Integrate velocity
         auto* transform = serverWorld.GetComponent<ServerTransform>(player.id);

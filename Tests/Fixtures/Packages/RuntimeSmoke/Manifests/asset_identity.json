@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "mappings": [
+    {
+      "assetKey": "texture.runtime_smoke.albedo",
+      "assetId": 5001
+    }
+  ]
+}

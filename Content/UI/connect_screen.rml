@@ -1,0 +1,8 @@
+<rml>
+  <head>
+    <link type="text/rcss" href="connect_screen.rcss"/>
+  </head>
+  <body>
+    <div id="connect-root"/>
+  </body>
+</rml>

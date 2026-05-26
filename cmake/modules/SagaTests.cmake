@@ -42,8 +42,29 @@ function(saga_setup_tests)
         "${SAGA_ROOT}/Tests/Unit/Saga/*.cpp"
     )
 
+    set(SAGA_PUBLISH_READINESS_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Saga/SagaPublishReadinessTests.cpp"
+    )
     set(SAGA_PACKAGE_STAGING_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/Saga/SagaPackageStagingTests.cpp"
+    )
+    set(SAGA_ASSET_IDENTITY_RUNTIME_CONTRACT_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/AssetPipeline/AssetIdentityRuntimeContractTests.cpp"
+    )
+    set(SAGA_ASSET_IDENTITY_MANIFEST_WRITER_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/AssetPipeline/AssetIdentityManifestWriterTests.cpp"
+    )
+    set(SAGA_ASSET_MANIFEST_WRITER_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/AssetPipeline/AssetManifestWriterTests.cpp"
+    )
+    set(SAGA_PACKAGE_MANIFEST_WRITER_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/AssetPipeline/PackageManifestWriterTests.cpp"
+    )
+    set(SAGA_GENERATED_RUNTIME_SMOKE_MANIFEST_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/AssetPipeline/GeneratedRuntimeSmokeManifestTests.cpp"
+    )
+    set(SAGA_GENERATED_RUNTIME_SMOKE_PACKAGE_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/AssetPipeline/GeneratedRuntimeSmokePackageTests.cpp"
     )
 
     set(SAGA_SCRIPT_LIFECYCLE_TEST_SOURCE
@@ -52,11 +73,68 @@ function(saga_setup_tests)
     set(SAGA_SCRIPT_BINDING_RUNTIME_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/Runtime/ScriptBindingRuntimeTests.cpp"
     )
+    set(SAGA_RUNTIME_STARTUP_PREFLIGHT_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Runtime/RuntimeStartupPreflightTests.cpp"
+    )
+    set(SAGA_RUNTIME_STARTUP_SESSION_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Runtime/RuntimeStartupSessionTests.cpp"
+    )
+    set(SAGA_RUNTIME_STARTUP_DIAGNOSTICS_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Runtime/RuntimeStartupDiagnosticsTests.cpp"
+    )
+    set(SAGA_RUNTIME_ASSET_CATALOG_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Runtime/RuntimeAssetCatalogTests.cpp"
+    )
+    set(SAGA_RUNTIME_ASSET_BOOTSTRAP_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Runtime/RuntimeAssetBootstrapTests.cpp"
+    )
+    set(SAGA_RUNTIME_ASSET_STARTUP_BOOTSTRAP_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Runtime/RuntimeAssetStartupBootstrapTests.cpp"
+    )
+    set(SAGA_RUNTIME_ASSET_BOOTSTRAP_DIAGNOSTICS_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Runtime/RuntimeAssetBootstrapDiagnosticsTests.cpp"
+    )
+    set(SAGA_RUNTIME_PACKAGE_SMOKE_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Runtime/RuntimePackageSmokeTests.cpp"
+    )
+    set(SAGA_RUNTIME_SERVICE_LIFECYCLE_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Runtime/RuntimeServiceLifecycleTests.cpp"
+    )
+    set(SAGA_RUNTIME_SERVICE_REGISTRY_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Runtime/RuntimeServiceRegistryTests.cpp"
+    )
+    set(SAGA_RUNTIME_SERVICE_REGISTRY_DIAGNOSTICS_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Runtime/RuntimeServiceRegistryDiagnosticsTests.cpp"
+    )
     set(SAGA_CSHARP_SCRIPT_HOST_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/Runtime/CSharpScriptHostTests.cpp"
     )
     set(SAGA_CSHARP_GAMEPLAY_PROOF_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/Runtime/CSharpGameplayProofTests.cpp"
+    )
+    set(SAGA_ACTOR_OWNERSHIP_REGISTRY_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Server/ActorOwnershipRegistryTests.cpp"
+    )
+    set(SAGA_AUTHORITATIVE_MOVEMENT_CORE_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Server/AuthoritativeMovementCoreTests.cpp"
+    )
+    set(SAGA_AUTHORITATIVE_MOVEMENT_INPUT_ADAPTER_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Server/AuthoritativeMovementInputAdapterTests.cpp"
+    )
+    set(SAGA_AUTHORITATIVE_MOVEMENT_COMMAND_INTAKE_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Server/AuthoritativeMovementCommandIntakeTests.cpp"
+    )
+    set(SAGA_SERVER_PACKET_NORMALIZATION_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Networking/ServerPacketNormalizationTests.cpp"
+    )
+    set(SAGA_ZONE_SERVER_PACKET_DRAIN_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Server/ZoneServerPacketDrainTests.cpp"
+    )
+    set(SAGA_ZONE_SERVER_MOVEMENT_AUTHORITY_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Server/ZoneServerMovementAuthorityTests.cpp"
+    )
+    set(SAGA_MOVEMENT_DIRTY_REPLICATION_BRIDGE_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Server/MovementDirtyReplicationBridgeTests.cpp"
     )
 
     if(SAGA_PRODUCT_TEST_SOURCES)
@@ -64,15 +142,41 @@ function(saga_setup_tests)
             ${SAGA_PRODUCT_TEST_SOURCES}
         )
         list(REMOVE_ITEM SAGA_PRODUCT_TEST_SOURCES
+            ${SAGA_PUBLISH_READINESS_TEST_SOURCE}
             ${SAGA_PACKAGE_STAGING_TEST_SOURCE}
         )
     endif()
 
     list(REMOVE_ITEM UNIT_TEST_SOURCES
+        ${SAGA_ASSET_IDENTITY_RUNTIME_CONTRACT_TEST_SOURCE}
+        ${SAGA_ASSET_IDENTITY_MANIFEST_WRITER_TEST_SOURCE}
+        ${SAGA_ASSET_MANIFEST_WRITER_TEST_SOURCE}
+        ${SAGA_PACKAGE_MANIFEST_WRITER_TEST_SOURCE}
+        ${SAGA_GENERATED_RUNTIME_SMOKE_MANIFEST_TEST_SOURCE}
+        ${SAGA_GENERATED_RUNTIME_SMOKE_PACKAGE_TEST_SOURCE}
         ${SAGA_SCRIPT_LIFECYCLE_TEST_SOURCE}
         ${SAGA_SCRIPT_BINDING_RUNTIME_TEST_SOURCE}
+        ${SAGA_RUNTIME_STARTUP_PREFLIGHT_TEST_SOURCE}
+        ${SAGA_RUNTIME_STARTUP_SESSION_TEST_SOURCE}
+        ${SAGA_RUNTIME_STARTUP_DIAGNOSTICS_TEST_SOURCE}
+        ${SAGA_RUNTIME_ASSET_CATALOG_TEST_SOURCE}
+        ${SAGA_RUNTIME_ASSET_BOOTSTRAP_TEST_SOURCE}
+        ${SAGA_RUNTIME_ASSET_STARTUP_BOOTSTRAP_TEST_SOURCE}
+        ${SAGA_RUNTIME_ASSET_BOOTSTRAP_DIAGNOSTICS_TEST_SOURCE}
+        ${SAGA_RUNTIME_PACKAGE_SMOKE_TEST_SOURCE}
+        ${SAGA_RUNTIME_SERVICE_LIFECYCLE_TEST_SOURCE}
+        ${SAGA_RUNTIME_SERVICE_REGISTRY_TEST_SOURCE}
+        ${SAGA_RUNTIME_SERVICE_REGISTRY_DIAGNOSTICS_TEST_SOURCE}
         ${SAGA_CSHARP_SCRIPT_HOST_TEST_SOURCE}
         ${SAGA_CSHARP_GAMEPLAY_PROOF_TEST_SOURCE}
+        ${SAGA_ACTOR_OWNERSHIP_REGISTRY_TEST_SOURCE}
+        ${SAGA_AUTHORITATIVE_MOVEMENT_CORE_TEST_SOURCE}
+        ${SAGA_AUTHORITATIVE_MOVEMENT_INPUT_ADAPTER_TEST_SOURCE}
+        ${SAGA_AUTHORITATIVE_MOVEMENT_COMMAND_INTAKE_TEST_SOURCE}
+        ${SAGA_SERVER_PACKET_NORMALIZATION_TEST_SOURCE}
+        ${SAGA_ZONE_SERVER_PACKET_DRAIN_TEST_SOURCE}
+        ${SAGA_ZONE_SERVER_MOVEMENT_AUTHORITY_TEST_SOURCE}
+        ${SAGA_MOVEMENT_DIRTY_REPLICATION_BRIDGE_TEST_SOURCE}
     )
 
     file(GLOB_RECURSE EDITORLAB_SOURCES CONFIGURE_DEPENDS
@@ -185,8 +289,198 @@ function(saga_setup_tests)
     target_include_directories(SagaUnitTests PRIVATE ${SAGA_TEST_INCLUDE_DIRS})
     target_compile_definitions(SagaUnitTests PRIVATE
         SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+        SAGA_WITH_SDE=$<BOOL:${SAGA_WITH_SDE}>
     )
     add_test(NAME UnitTests COMMAND SagaUnitTests)
+    set_tests_properties(UnitTests PROPERTIES
+        LABELS "unit;runtime;server;networking;replication;asset;editor"
+    )
+
+    # --- Actor ownership registry tests -------------------------------------
+    if(EXISTS "${SAGA_ACTOR_OWNERSHIP_REGISTRY_TEST_SOURCE}")
+        add_executable(ActorOwnershipRegistryTests
+            ${SAGA_ACTOR_OWNERSHIP_REGISTRY_TEST_SOURCE}
+        )
+        target_link_libraries(ActorOwnershipRegistryTests PRIVATE
+            SagaServerLib
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(ActorOwnershipRegistryTests PRIVATE
+            ${SAGA_ROOT}/Server/include
+            ${SAGA_ROOT}/Engine/Public
+            $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
+        )
+        add_test(NAME ActorOwnershipRegistryTests
+            COMMAND ActorOwnershipRegistryTests)
+        set_tests_properties(ActorOwnershipRegistryTests PROPERTIES
+            LABELS "unit;server"
+        )
+    endif()
+
+    # --- Authoritative movement core tests ---------------------------------
+    if(EXISTS "${SAGA_AUTHORITATIVE_MOVEMENT_CORE_TEST_SOURCE}")
+        add_executable(AuthoritativeMovementCoreTests
+            ${SAGA_AUTHORITATIVE_MOVEMENT_CORE_TEST_SOURCE}
+        )
+        target_link_libraries(AuthoritativeMovementCoreTests PRIVATE
+            SagaServerLib
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(AuthoritativeMovementCoreTests PRIVATE
+            ${SAGA_ROOT}/Server/include
+            $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
+        )
+        add_test(NAME AuthoritativeMovementCoreTests
+            COMMAND AuthoritativeMovementCoreTests)
+        set_tests_properties(AuthoritativeMovementCoreTests PROPERTIES
+            LABELS "unit;server"
+        )
+    endif()
+
+    # --- Authoritative movement input adapter tests -------------------------
+    if(EXISTS "${SAGA_AUTHORITATIVE_MOVEMENT_INPUT_ADAPTER_TEST_SOURCE}")
+        add_executable(AuthoritativeMovementInputAdapterTests
+            ${SAGA_AUTHORITATIVE_MOVEMENT_INPUT_ADAPTER_TEST_SOURCE}
+        )
+        target_link_libraries(AuthoritativeMovementInputAdapterTests PRIVATE
+            SagaServerLib
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(AuthoritativeMovementInputAdapterTests PRIVATE
+            ${SAGA_ROOT}/Server/include
+            ${SAGA_ROOT}/Engine/Public
+            $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
+        )
+        add_test(NAME AuthoritativeMovementInputAdapterTests
+            COMMAND AuthoritativeMovementInputAdapterTests)
+        set_tests_properties(AuthoritativeMovementInputAdapterTests PROPERTIES
+            LABELS "unit;server"
+        )
+    endif()
+
+    # --- Authoritative movement command intake tests ------------------------
+    if(EXISTS "${SAGA_AUTHORITATIVE_MOVEMENT_COMMAND_INTAKE_TEST_SOURCE}")
+        add_executable(AuthoritativeMovementCommandIntakeTests
+            ${SAGA_AUTHORITATIVE_MOVEMENT_COMMAND_INTAKE_TEST_SOURCE}
+        )
+        target_link_libraries(AuthoritativeMovementCommandIntakeTests PRIVATE
+            SagaServerLib
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(AuthoritativeMovementCommandIntakeTests PRIVATE
+            ${SAGA_ROOT}/Server/include
+            ${SAGA_ROOT}/Engine/Public
+            $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
+        )
+        add_test(NAME AuthoritativeMovementCommandIntakeTests
+            COMMAND AuthoritativeMovementCommandIntakeTests)
+        set_tests_properties(AuthoritativeMovementCommandIntakeTests PROPERTIES
+            LABELS "unit;server"
+        )
+    endif()
+
+    # --- Server packet normalization tests ---------------------------------
+    if(EXISTS "${SAGA_SERVER_PACKET_NORMALIZATION_TEST_SOURCE}")
+        add_executable(ServerPacketNormalizationTests
+            ${SAGA_SERVER_PACKET_NORMALIZATION_TEST_SOURCE}
+        )
+        target_link_libraries(ServerPacketNormalizationTests PRIVATE
+            SagaServerLib
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(ServerPacketNormalizationTests PRIVATE
+            ${SAGA_ROOT}/Server/include
+            ${SAGA_ROOT}/Engine/Public
+            $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
+        )
+        add_test(NAME ServerPacketNormalizationTests
+            COMMAND ServerPacketNormalizationTests)
+        set_tests_properties(ServerPacketNormalizationTests PROPERTIES
+            LABELS "unit;networking;server"
+        )
+    endif()
+
+    # --- Zone server packet drain tests ------------------------------------
+    if(EXISTS "${SAGA_ZONE_SERVER_PACKET_DRAIN_TEST_SOURCE}")
+        add_executable(ZoneServerPacketDrainTests
+            ${SAGA_ZONE_SERVER_PACKET_DRAIN_TEST_SOURCE}
+        )
+        saga_link_thirdparty(ZoneServerPacketDrainTests)
+        target_link_libraries(ZoneServerPacketDrainTests PRIVATE
+            SagaServerLib
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(ZoneServerPacketDrainTests PRIVATE
+            ${SAGA_ROOT}/Server/include
+            ${SAGA_ROOT}/Engine/Public
+            $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
+        )
+        add_test(NAME ZoneServerPacketDrainTests
+            COMMAND ZoneServerPacketDrainTests)
+        set_tests_properties(ZoneServerPacketDrainTests PROPERTIES
+            LABELS "unit;server;networking"
+        )
+    endif()
+
+    # --- Zone server movement authority tests -------------------------------
+    if(EXISTS "${SAGA_ZONE_SERVER_MOVEMENT_AUTHORITY_TEST_SOURCE}")
+        add_executable(ZoneServerMovementAuthorityTests
+            ${SAGA_ZONE_SERVER_MOVEMENT_AUTHORITY_TEST_SOURCE}
+        )
+        saga_link_thirdparty(ZoneServerMovementAuthorityTests)
+        target_link_libraries(ZoneServerMovementAuthorityTests PRIVATE
+            SagaServerLib
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(ZoneServerMovementAuthorityTests PRIVATE
+            ${SAGA_ROOT}/Server/include
+            ${SAGA_ROOT}/Engine/Public
+            $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
+        )
+        add_test(NAME ZoneServerMovementAuthorityTests
+            COMMAND ZoneServerMovementAuthorityTests)
+        set_tests_properties(ZoneServerMovementAuthorityTests PROPERTIES
+            LABELS "unit;server;networking"
+        )
+    endif()
+
+    # --- Movement dirty replication bridge tests ---------------------------
+    if(EXISTS "${SAGA_MOVEMENT_DIRTY_REPLICATION_BRIDGE_TEST_SOURCE}")
+        add_executable(MovementDirtyReplicationBridgeTests
+            ${SAGA_MOVEMENT_DIRTY_REPLICATION_BRIDGE_TEST_SOURCE}
+        )
+        saga_link_thirdparty(MovementDirtyReplicationBridgeTests)
+        target_link_libraries(MovementDirtyReplicationBridgeTests PRIVATE
+            SagaServerLib
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(MovementDirtyReplicationBridgeTests PRIVATE
+            ${SAGA_ROOT}/Server/include
+            ${SAGA_ROOT}/Engine/Public
+            $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
+        )
+        add_test(NAME MovementDirtyReplicationBridgeTests
+            COMMAND MovementDirtyReplicationBridgeTests)
+        set_tests_properties(MovementDirtyReplicationBridgeTests PROPERTIES
+            LABELS "unit;server;replication"
+        )
+    endif()
 
     # --- Saga editor composition tool tests --------------------------------
     if(SAGA_EDITOR_COMPOSITION_TEST_SOURCES)
@@ -214,7 +508,7 @@ function(saga_setup_tests)
             )
             add_test(NAME SagaEditorCompositionTests COMMAND SagaEditorCompositionTests)
             set_tests_properties(SagaEditorCompositionTests PROPERTIES
-                LABELS "tools;sde;editor-composition"
+                LABELS "tools;sde;editor;editor-composition"
             )
             if(TARGET saga-editor-composition-compiler)
                 add_test(
@@ -222,7 +516,7 @@ function(saga_setup_tests)
                     COMMAND saga-editor-composition-compiler --help
                 )
                 set_tests_properties(SagaEditorCompositionCompilerHelp PROPERTIES
-                    LABELS "tools;sde;editor-composition"
+                    LABELS "tools;sde;editor;editor-composition"
                 )
             endif()
         else()
@@ -260,14 +554,14 @@ function(saga_setup_tests)
         )
         add_test(NAME SagaPipelineTests COMMAND SagaPipelineTests)
         set_tests_properties(SagaPipelineTests PROPERTIES
-            LABELS "tools;pipeline"
+            LABELS "tools;pipeline;integration"
         )
     endif()
 
     # --- Package staging tests ----------------------------------------------
     #
-    # Build the package-staging slice without SagaProductLib or SagaEngine so
-    # script artifact placement can be verified without a full product rebuild.
+    # Build the package-staging slice without SagaProductLib so script artifact
+    # placement and generated AssetPipeline package contracts stay focused.
     if(EXISTS "${SAGA_PACKAGE_STAGING_TEST_SOURCE}")
         add_executable(SagaPackageStagingTests
             ${SAGA_PACKAGE_STAGING_TEST_SOURCE}
@@ -275,9 +569,10 @@ function(saga_setup_tests)
             ${SAGA_ROOT}/Apps/Saga/SagaProjectSystem.cpp
             ${SAGA_ROOT}/Apps/Saga/SagaPublishReadiness.cpp
             ${SAGA_ROOT}/Apps/Saga/SagaSessionModel.cpp
-            ${SAGA_ROOT}/Engine/Private/SagaEngine/Packages/PackageManifestLoader.cpp
         )
         target_link_libraries(SagaPackageStagingTests PRIVATE
+            SagaAssetPipelineLib
+            SagaEngine
             GTest::gtest
             GTest::gmock
             GTest::gtest_main
@@ -285,6 +580,7 @@ function(saga_setup_tests)
         )
         target_include_directories(SagaPackageStagingTests PRIVATE
             ${SAGA_ROOT}/Apps/Saga
+            ${SAGA_ROOT}/Tools/AssetPipeline/include
             ${SAGA_ROOT}/Engine/Public
             ${SAGA_ROOT}/Shared/include
         )
@@ -292,7 +588,189 @@ function(saga_setup_tests)
             SAGA_SOURCE_ROOT="${SAGA_ROOT}"
         )
         add_test(NAME SagaPackageStagingTests COMMAND SagaPackageStagingTests)
-        set_tests_properties(SagaPackageStagingTests PROPERTIES LABELS "product;package")
+        set_tests_properties(SagaPackageStagingTests PROPERTIES LABELS "product;package;asset")
+    endif()
+
+    # --- Publish readiness package/asset identity report tests --------------
+    if(EXISTS "${SAGA_PUBLISH_READINESS_TEST_SOURCE}")
+        add_executable(SagaPublishReadinessTests
+            ${SAGA_PUBLISH_READINESS_TEST_SOURCE}
+            ${SAGA_ROOT}/Apps/Saga/SagaProjectSystem.cpp
+            ${SAGA_ROOT}/Apps/Saga/SagaPublishReadiness.cpp
+        )
+        target_link_libraries(SagaPublishReadinessTests PRIVATE
+            SagaEngine
+            SagaShared
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+            nlohmann_json::nlohmann_json
+        )
+        target_include_directories(SagaPublishReadinessTests PRIVATE
+            ${SAGA_ROOT}/Apps/Saga
+            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_ROOT}/Shared/include
+        )
+        target_compile_definitions(SagaPublishReadinessTests PRIVATE
+            SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+        )
+        add_test(NAME SagaPublishReadinessTests COMMAND SagaPublishReadinessTests)
+        set_tests_properties(SagaPublishReadinessTests PROPERTIES
+            LABELS "unit;product;package;asset")
+    endif()
+
+    # --- AssetPipeline to Runtime identity contract tests -------------------
+    if(EXISTS "${SAGA_ASSET_IDENTITY_RUNTIME_CONTRACT_TEST_SOURCE}")
+        add_executable(AssetIdentityRuntimeContractTests
+            ${SAGA_ASSET_IDENTITY_RUNTIME_CONTRACT_TEST_SOURCE}
+        )
+        target_link_libraries(AssetIdentityRuntimeContractTests PRIVATE
+            SagaAssetPipelineLib
+            SagaEngine
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+            nlohmann_json::nlohmann_json
+        )
+        target_include_directories(AssetIdentityRuntimeContractTests PRIVATE
+            ${SAGA_ROOT}/Tools/AssetPipeline/include
+            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_ROOT}/Shared/include
+        )
+        target_compile_definitions(AssetIdentityRuntimeContractTests PRIVATE
+            SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+        )
+        add_test(NAME AssetIdentityRuntimeContractTests
+            COMMAND AssetIdentityRuntimeContractTests)
+        set_tests_properties(AssetIdentityRuntimeContractTests PROPERTIES
+            LABELS "unit;asset;tools;runtime;package")
+    endif()
+
+    # --- AssetPipeline identity manifest writer tests -----------------------
+    if(EXISTS "${SAGA_ASSET_IDENTITY_MANIFEST_WRITER_TEST_SOURCE}")
+        add_executable(AssetIdentityManifestWriterTests
+            ${SAGA_ASSET_IDENTITY_MANIFEST_WRITER_TEST_SOURCE}
+        )
+        target_link_libraries(AssetIdentityManifestWriterTests PRIVATE
+            SagaAssetPipelineLib
+            SagaEngine
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+            nlohmann_json::nlohmann_json
+        )
+        target_include_directories(AssetIdentityManifestWriterTests PRIVATE
+            ${SAGA_ROOT}/Tools/AssetPipeline/include
+            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_ROOT}/Shared/include
+        )
+        add_test(NAME AssetIdentityManifestWriterTests
+            COMMAND AssetIdentityManifestWriterTests)
+        set_tests_properties(AssetIdentityManifestWriterTests PROPERTIES
+            LABELS "unit;asset;tools;runtime")
+    endif()
+
+    # --- AssetPipeline asset manifest writer tests -------------------------
+    if(EXISTS "${SAGA_ASSET_MANIFEST_WRITER_TEST_SOURCE}")
+        add_executable(AssetManifestWriterTests
+            ${SAGA_ASSET_MANIFEST_WRITER_TEST_SOURCE}
+        )
+        target_link_libraries(AssetManifestWriterTests PRIVATE
+            SagaAssetPipelineLib
+            SagaEngine
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+            nlohmann_json::nlohmann_json
+        )
+        target_include_directories(AssetManifestWriterTests PRIVATE
+            ${SAGA_ROOT}/Tools/AssetPipeline/include
+            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_ROOT}/Shared/include
+        )
+        add_test(NAME AssetManifestWriterTests
+            COMMAND AssetManifestWriterTests)
+        set_tests_properties(AssetManifestWriterTests PROPERTIES
+            LABELS "unit;asset;tools;runtime;package")
+    endif()
+
+    # --- AssetPipeline package manifest writer tests -----------------------
+    if(EXISTS "${SAGA_PACKAGE_MANIFEST_WRITER_TEST_SOURCE}")
+        add_executable(PackageManifestWriterTests
+            ${SAGA_PACKAGE_MANIFEST_WRITER_TEST_SOURCE}
+        )
+        target_link_libraries(PackageManifestWriterTests PRIVATE
+            SagaAssetPipelineLib
+            SagaEngine
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+            nlohmann_json::nlohmann_json
+        )
+        target_include_directories(PackageManifestWriterTests PRIVATE
+            ${SAGA_ROOT}/Tools/AssetPipeline/include
+            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_ROOT}/Shared/include
+        )
+        target_compile_definitions(PackageManifestWriterTests PRIVATE
+            SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+        )
+        add_test(NAME PackageManifestWriterTests
+            COMMAND PackageManifestWriterTests)
+        set_tests_properties(PackageManifestWriterTests PROPERTIES
+            LABELS "unit;asset;tools;runtime;package")
+    endif()
+
+    # --- Generated RuntimeSmoke manifest replacement tests ------------------
+    if(EXISTS "${SAGA_GENERATED_RUNTIME_SMOKE_MANIFEST_TEST_SOURCE}")
+        add_executable(GeneratedRuntimeSmokeManifestTests
+            ${SAGA_GENERATED_RUNTIME_SMOKE_MANIFEST_TEST_SOURCE}
+        )
+        target_link_libraries(GeneratedRuntimeSmokeManifestTests PRIVATE
+            SagaAssetPipelineLib
+            SagaEngine
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(GeneratedRuntimeSmokeManifestTests PRIVATE
+            ${SAGA_ROOT}/Tools/AssetPipeline/include
+            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_ROOT}/Shared/include
+        )
+        target_compile_definitions(GeneratedRuntimeSmokeManifestTests PRIVATE
+            SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+        )
+        add_test(NAME GeneratedRuntimeSmokeManifestTests
+            COMMAND GeneratedRuntimeSmokeManifestTests)
+        set_tests_properties(GeneratedRuntimeSmokeManifestTests PROPERTIES
+            LABELS "unit;asset;tools;runtime;package")
+    endif()
+
+    # --- Generated RuntimeSmoke package tests -------------------------------
+    if(EXISTS "${SAGA_GENERATED_RUNTIME_SMOKE_PACKAGE_TEST_SOURCE}")
+        add_executable(GeneratedRuntimeSmokePackageTests
+            ${SAGA_GENERATED_RUNTIME_SMOKE_PACKAGE_TEST_SOURCE}
+        )
+        target_link_libraries(GeneratedRuntimeSmokePackageTests PRIVATE
+            SagaAssetPipelineLib
+            SagaEngine
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(GeneratedRuntimeSmokePackageTests PRIVATE
+            ${SAGA_ROOT}/Tools/AssetPipeline/include
+            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_ROOT}/Shared/include
+        )
+        target_compile_definitions(GeneratedRuntimeSmokePackageTests PRIVATE
+            SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+        )
+        add_test(NAME GeneratedRuntimeSmokePackageTests
+            COMMAND GeneratedRuntimeSmokePackageTests)
+        set_tests_properties(GeneratedRuntimeSmokePackageTests PROPERTIES
+            LABELS "unit;asset;tools;runtime;package")
     endif()
 
     # --- Script lifecycle tests ---------------------------------------------
@@ -322,7 +800,240 @@ function(saga_setup_tests)
             SAGA_SOURCE_ROOT="${SAGA_ROOT}"
         )
         add_test(NAME SagaScriptLifecycleTests COMMAND SagaScriptLifecycleTests)
-        set_tests_properties(SagaScriptLifecycleTests PROPERTIES LABELS "runtime;scripting")
+        set_tests_properties(SagaScriptLifecycleTests PROPERTIES LABELS "unit;runtime;scripting")
+    endif()
+
+    # --- Runtime startup preflight facade tests ------------------------------
+    if(EXISTS "${SAGA_RUNTIME_STARTUP_PREFLIGHT_TEST_SOURCE}")
+        add_executable(RuntimeStartupPreflightTests
+            ${SAGA_RUNTIME_STARTUP_PREFLIGHT_TEST_SOURCE}
+        )
+        target_link_libraries(RuntimeStartupPreflightTests PRIVATE
+            SagaRuntimeLib
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(RuntimeStartupPreflightTests PRIVATE
+            ${SAGA_ROOT}/Runtime/include
+        )
+        add_test(NAME RuntimeStartupPreflightTests COMMAND RuntimeStartupPreflightTests)
+        set_tests_properties(RuntimeStartupPreflightTests PROPERTIES LABELS "unit;runtime")
+    endif()
+
+    # --- Runtime startup session facade tests --------------------------------
+    if(EXISTS "${SAGA_RUNTIME_STARTUP_SESSION_TEST_SOURCE}")
+        add_executable(RuntimeStartupSessionTests
+            ${SAGA_RUNTIME_STARTUP_SESSION_TEST_SOURCE}
+        )
+        target_link_libraries(RuntimeStartupSessionTests PRIVATE
+            SagaRuntimeLib
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(RuntimeStartupSessionTests PRIVATE
+            ${SAGA_ROOT}/Runtime/include
+        )
+        add_test(NAME RuntimeStartupSessionTests COMMAND RuntimeStartupSessionTests)
+        set_tests_properties(RuntimeStartupSessionTests PROPERTIES LABELS "unit;runtime")
+    endif()
+
+    # --- Runtime startup diagnostics facade tests ----------------------------
+    if(EXISTS "${SAGA_RUNTIME_STARTUP_DIAGNOSTICS_TEST_SOURCE}")
+        add_executable(RuntimeStartupDiagnosticsTests
+            ${SAGA_RUNTIME_STARTUP_DIAGNOSTICS_TEST_SOURCE}
+        )
+        target_link_libraries(RuntimeStartupDiagnosticsTests PRIVATE
+            SagaRuntimeLib
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(RuntimeStartupDiagnosticsTests PRIVATE
+            ${SAGA_ROOT}/Runtime/include
+        )
+        add_test(NAME RuntimeStartupDiagnosticsTests COMMAND RuntimeStartupDiagnosticsTests)
+        set_tests_properties(RuntimeStartupDiagnosticsTests PROPERTIES LABELS "unit;runtime")
+    endif()
+
+    # --- Runtime asset catalog facade tests --------------------------------
+    if(EXISTS "${SAGA_RUNTIME_ASSET_CATALOG_TEST_SOURCE}")
+        add_executable(RuntimeAssetCatalogTests
+            ${SAGA_RUNTIME_ASSET_CATALOG_TEST_SOURCE}
+        )
+        target_link_libraries(RuntimeAssetCatalogTests PRIVATE
+            SagaRuntimeLib
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(RuntimeAssetCatalogTests PRIVATE
+            ${SAGA_ROOT}/Runtime/include
+            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_ROOT}/Shared/include
+        )
+        target_compile_definitions(RuntimeAssetCatalogTests PRIVATE
+            SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+        )
+        add_test(NAME RuntimeAssetCatalogTests COMMAND RuntimeAssetCatalogTests)
+        set_tests_properties(RuntimeAssetCatalogTests PROPERTIES
+            LABELS "unit;runtime;asset;package")
+    endif()
+
+    # --- Runtime asset bootstrap facade tests -------------------------------
+    if(EXISTS "${SAGA_RUNTIME_ASSET_BOOTSTRAP_TEST_SOURCE}")
+        add_executable(RuntimeAssetBootstrapTests
+            ${SAGA_RUNTIME_ASSET_BOOTSTRAP_TEST_SOURCE}
+        )
+        target_link_libraries(RuntimeAssetBootstrapTests PRIVATE
+            SagaRuntimeLib
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(RuntimeAssetBootstrapTests PRIVATE
+            ${SAGA_ROOT}/Runtime/include
+            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_ROOT}/Shared/include
+        )
+        target_compile_definitions(RuntimeAssetBootstrapTests PRIVATE
+            SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+        )
+        add_test(NAME RuntimeAssetBootstrapTests COMMAND RuntimeAssetBootstrapTests)
+        set_tests_properties(RuntimeAssetBootstrapTests PROPERTIES
+            LABELS "unit;runtime;asset;package")
+    endif()
+
+    # --- Apps/Runtime asset bootstrap helper seam tests ---------------------
+    if(EXISTS "${SAGA_RUNTIME_ASSET_STARTUP_BOOTSTRAP_TEST_SOURCE}")
+        add_executable(RuntimeAssetStartupBootstrapTests
+            ${SAGA_RUNTIME_ASSET_STARTUP_BOOTSTRAP_TEST_SOURCE}
+            ${SAGA_ROOT}/Apps/Runtime/RuntimeAssetStartupBootstrap.cpp
+        )
+        target_link_libraries(RuntimeAssetStartupBootstrapTests PRIVATE
+            SagaRuntimeLib
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(RuntimeAssetStartupBootstrapTests PRIVATE
+            ${SAGA_ROOT}/Apps/Runtime
+            ${SAGA_ROOT}/Runtime/include
+            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_ROOT}/Shared/include
+        )
+        target_compile_definitions(RuntimeAssetStartupBootstrapTests PRIVATE
+            SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+        )
+        add_test(NAME RuntimeAssetStartupBootstrapTests
+            COMMAND RuntimeAssetStartupBootstrapTests)
+        set_tests_properties(RuntimeAssetStartupBootstrapTests PROPERTIES
+            LABELS "unit;runtime;asset;package;app")
+    endif()
+
+    # --- Runtime asset bootstrap diagnostics tests --------------------------
+    if(EXISTS "${SAGA_RUNTIME_ASSET_BOOTSTRAP_DIAGNOSTICS_TEST_SOURCE}")
+        add_executable(RuntimeAssetBootstrapDiagnosticsTests
+            ${SAGA_RUNTIME_ASSET_BOOTSTRAP_DIAGNOSTICS_TEST_SOURCE}
+        )
+        target_link_libraries(RuntimeAssetBootstrapDiagnosticsTests PRIVATE
+            SagaRuntimeLib
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(RuntimeAssetBootstrapDiagnosticsTests PRIVATE
+            ${SAGA_ROOT}/Runtime/include
+            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_ROOT}/Shared/include
+        )
+        add_test(NAME RuntimeAssetBootstrapDiagnosticsTests
+            COMMAND RuntimeAssetBootstrapDiagnosticsTests)
+        set_tests_properties(RuntimeAssetBootstrapDiagnosticsTests PROPERTIES
+            LABELS "unit;runtime;asset;package")
+    endif()
+
+    # --- Runtime package fixture smoke tests --------------------------------
+    if(EXISTS "${SAGA_RUNTIME_PACKAGE_SMOKE_TEST_SOURCE}")
+        add_executable(RuntimePackageSmokeTests
+            ${SAGA_RUNTIME_PACKAGE_SMOKE_TEST_SOURCE}
+        )
+        target_link_libraries(RuntimePackageSmokeTests PRIVATE
+            SagaEngine
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(RuntimePackageSmokeTests PRIVATE
+            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_ROOT}/Shared/include
+        )
+        target_compile_definitions(RuntimePackageSmokeTests PRIVATE
+            SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+        )
+        add_test(NAME RuntimePackageSmokeTests COMMAND RuntimePackageSmokeTests)
+        set_tests_properties(RuntimePackageSmokeTests PROPERTIES
+            LABELS "unit;runtime;asset;package")
+    endif()
+
+    # --- Runtime service lifecycle value tests ------------------------------
+    if(EXISTS "${SAGA_RUNTIME_SERVICE_LIFECYCLE_TEST_SOURCE}")
+        add_executable(RuntimeServiceLifecycleTests
+            ${SAGA_RUNTIME_SERVICE_LIFECYCLE_TEST_SOURCE}
+        )
+        target_link_libraries(RuntimeServiceLifecycleTests PRIVATE
+            SagaRuntimeLib
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(RuntimeServiceLifecycleTests PRIVATE
+            ${SAGA_ROOT}/Runtime/include
+        )
+        add_test(NAME RuntimeServiceLifecycleTests COMMAND RuntimeServiceLifecycleTests)
+        set_tests_properties(RuntimeServiceLifecycleTests PROPERTIES LABELS "unit;runtime")
+    endif()
+
+    # --- Runtime service registry tests -------------------------------------
+    if(EXISTS "${SAGA_RUNTIME_SERVICE_REGISTRY_TEST_SOURCE}")
+        add_executable(RuntimeServiceRegistryTests
+            ${SAGA_RUNTIME_SERVICE_REGISTRY_TEST_SOURCE}
+        )
+        target_link_libraries(RuntimeServiceRegistryTests PRIVATE
+            SagaRuntimeLib
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(RuntimeServiceRegistryTests PRIVATE
+            ${SAGA_ROOT}/Runtime/include
+        )
+        add_test(NAME RuntimeServiceRegistryTests COMMAND RuntimeServiceRegistryTests)
+        set_tests_properties(RuntimeServiceRegistryTests PROPERTIES LABELS "unit;runtime")
+    endif()
+
+    # --- Runtime service registry diagnostic tests --------------------------
+    if(EXISTS "${SAGA_RUNTIME_SERVICE_REGISTRY_DIAGNOSTICS_TEST_SOURCE}")
+        add_executable(RuntimeServiceRegistryDiagnosticsTests
+            ${SAGA_RUNTIME_SERVICE_REGISTRY_DIAGNOSTICS_TEST_SOURCE}
+        )
+        target_link_libraries(RuntimeServiceRegistryDiagnosticsTests PRIVATE
+            SagaRuntimeLib
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(RuntimeServiceRegistryDiagnosticsTests PRIVATE
+            ${SAGA_ROOT}/Runtime/include
+        )
+        target_compile_definitions(RuntimeServiceRegistryDiagnosticsTests PRIVATE
+            SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+        )
+        add_test(NAME RuntimeServiceRegistryDiagnosticsTests
+            COMMAND RuntimeServiceRegistryDiagnosticsTests)
+        set_tests_properties(RuntimeServiceRegistryDiagnosticsTests
+            PROPERTIES LABELS "unit;runtime")
     endif()
 
     # --- Script binding runtime tests ---------------------------------------
@@ -351,7 +1062,7 @@ function(saga_setup_tests)
             SAGA_SOURCE_ROOT="${SAGA_ROOT}"
         )
         add_test(NAME ScriptBindingRuntimeTests COMMAND ScriptBindingRuntimeTests)
-        set_tests_properties(ScriptBindingRuntimeTests PROPERTIES LABELS "runtime;scripting")
+        set_tests_properties(ScriptBindingRuntimeTests PROPERTIES LABELS "unit;runtime;scripting")
     endif()
 
     # --- C# script host bridge tests ---------------------------------------
@@ -424,7 +1135,7 @@ function(saga_setup_tests)
             SAGA_DOTNET_ROOT="${SAGA_DOTNET_ROOT}"
         )
         add_test(NAME CSharpScriptHostTests COMMAND CSharpScriptHostTests)
-        set_tests_properties(CSharpScriptHostTests PROPERTIES LABELS "runtime;scripting;csharp")
+        set_tests_properties(CSharpScriptHostTests PROPERTIES LABELS "unit;runtime;scripting;csharp")
     endif()
 
     # --- Editorless C# gameplay proof tests --------------------------------
@@ -467,7 +1178,7 @@ function(saga_setup_tests)
             SAGA_DOTNET_ROOT="${SAGA_DOTNET_ROOT}"
         )
         add_test(NAME CSharpGameplayProofTests COMMAND CSharpGameplayProofTests)
-        set_tests_properties(CSharpGameplayProofTests PROPERTIES LABELS "runtime;scripting;csharp")
+        set_tests_properties(CSharpGameplayProofTests PROPERTIES LABELS "unit;runtime;scripting;csharp")
     endif()
 
     # --- Script binding runtime thin runner --------------------------------
@@ -527,7 +1238,7 @@ function(saga_setup_tests)
             SAGA_SOURCE_ROOT="${SAGA_ROOT}"
         )
         add_test(NAME SagaProductTests COMMAND SagaProductTests)
-        set_tests_properties(SagaProductTests PROPERTIES LABELS "product")
+        set_tests_properties(SagaProductTests PROPERTIES LABELS "product;unit")
     endif()
 
     # --- Architecture boundary tests ----------------------------------------
@@ -548,6 +1259,12 @@ function(saga_setup_tests)
             SAGA_SOURCE_ROOT="${SAGA_ROOT}"
         )
         add_test(NAME ArchitectureTests COMMAND SagaArchitectureTests)
+        set_tests_properties(ArchitectureTests PROPERTIES LABELS "architecture;unit")
+        add_test(NAME EditorQtPublicAbiBoundaryTests
+            COMMAND SagaArchitectureTests
+                --gtest_filter=EditorQtPublicAbiBoundaryTests.*)
+        set_tests_properties(EditorQtPublicAbiBoundaryTests PROPERTIES
+            LABELS "unit;architecture;editor")
     endif()
 
     # --- Integration tests --------------------------------------------------
@@ -569,6 +1286,9 @@ function(saga_setup_tests)
     )
     target_include_directories(SagaIntegrationTests PRIVATE ${SAGA_TEST_INCLUDE_DIRS})
     add_test(NAME IntegrationTests COMMAND SagaIntegrationTests)
+    set_tests_properties(IntegrationTests PROPERTIES
+        LABELS "integration;runtime;server;networking;replication;timing-sensitive"
+    )
 
     # --- Replication tests --------------------------------------------------
     #
@@ -594,6 +1314,9 @@ function(saga_setup_tests)
         )
         target_include_directories(SagaReplicationTests PRIVATE ${SAGA_TEST_INCLUDE_DIRS})
         add_test(NAME ReplicationTests COMMAND SagaReplicationTests)
+        set_tests_properties(ReplicationTests PROPERTIES
+            LABELS "replication;integration;slow;long-running"
+        )
     endif()
 
     # --- Stress tests -------------------------------------------------------
@@ -619,7 +1342,7 @@ function(saga_setup_tests)
         )
         target_include_directories(SagaStressTests PRIVATE ${SAGA_TEST_INCLUDE_DIRS})
         add_test(NAME StressTests COMMAND SagaStressTests)
-        set_tests_properties(StressTests PROPERTIES LABELS "stress")
+        set_tests_properties(StressTests PROPERTIES LABELS "stress;load;slow")
     endif()
 
 endfunction()
