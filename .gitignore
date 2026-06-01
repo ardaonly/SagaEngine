@@ -80,3 +80,6 @@ cache/sccache/*
 cache
 
 .core/export/state/
+
+# MultiplayerSandbox generated evidence
+samples/MultiplayerSandbox/Generated/
