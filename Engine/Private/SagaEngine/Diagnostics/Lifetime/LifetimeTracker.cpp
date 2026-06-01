@@ -3,6 +3,7 @@
 
 #include <SagaEngine/Diagnostics/Lifetime/LifetimeTracker.hpp>
 
+#include <algorithm>
 #include <utility>
 
 namespace SagaEngine::Diagnostics
@@ -35,6 +36,10 @@ bool LifetimeTracker::MarkDestroyed(LifetimeHandle handle, std::uint64_t destroy
     {
         return false;
     }
+    if (it->second.destroyed)
+    {
+        return false;
+    }
 
     it->second.destroyed = true;
     it->second.destroyedTick = destroyedTick;
@@ -63,6 +68,11 @@ std::vector<LifetimeRecord> LifetimeTracker::SnapshotAll() const
     {
         result.push_back(record);
     }
+    std::sort(result.begin(),
+              result.end(),
+              [](const LifetimeRecord& lhs, const LifetimeRecord& rhs) {
+                  return lhs.objectId < rhs.objectId;
+              });
     return result;
 }
 
@@ -77,6 +87,11 @@ std::vector<LifetimeRecord> LifetimeTracker::SnapshotActive() const
             result.push_back(record);
         }
     }
+    std::sort(result.begin(),
+              result.end(),
+              [](const LifetimeRecord& lhs, const LifetimeRecord& rhs) {
+                  return lhs.objectId < rhs.objectId;
+              });
     return result;
 }
 
@@ -92,6 +107,11 @@ std::vector<LifetimeRecord> LifetimeTracker::FindUndestroyedByOwner(
             result.push_back(record);
         }
     }
+    std::sort(result.begin(),
+              result.end(),
+              [](const LifetimeRecord& lhs, const LifetimeRecord& rhs) {
+                  return lhs.objectId < rhs.objectId;
+              });
     return result;
 }
 

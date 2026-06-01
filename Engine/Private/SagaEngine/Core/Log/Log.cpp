@@ -37,6 +37,7 @@ static const char* LevelToString(Level l)
     case Level::Warn:     return "WARN";
     case Level::Error:    return "ERROR";
     case Level::Critical: return "CRITICAL";
+    case Level::Fatal:    return "FATAL";
     default:              return "UNKNOWN";
     }
 }

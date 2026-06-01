@@ -19,6 +19,7 @@ const char* ToString(Level level) noexcept
         case Level::Warn: return "Warn";
         case Level::Error: return "Error";
         case Level::Critical: return "Critical";
+        case Level::Fatal: return "Fatal";
     }
     return "Unknown";
 }
