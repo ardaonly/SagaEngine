@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <SagaEngine/Diagnostics/Health/HealthRuleResult.hpp>
 #include <SagaEngine/Diagnostics/Health/HealthSnapshot.hpp>
 
 #include <mutex>
@@ -24,8 +25,18 @@ public:
     /// Record the latest duration for a timing metric.
     void RecordTiming(std::string name, double milliseconds);
 
+    /// Register or replace a deterministic health rule.
+    void RegisterRule(HealthRule rule);
+    /// Remove all registered health rules.
+    void ClearRules();
+
     /// Return an immutable copy of all current metrics.
     [[nodiscard]] HealthSnapshot Snapshot() const;
+    /// Return a deterministic copy of registered rules.
+    [[nodiscard]] std::vector<HealthRule> SnapshotRules() const;
+    /// Evaluate the registered rules against the supplied snapshot.
+    [[nodiscard]] std::vector<HealthRuleResult> EvaluateRules(
+        const HealthSnapshot& snapshot) const;
     [[nodiscard]] bool HasMetric(std::string_view name) const;
     void Clear();
 
@@ -34,6 +45,7 @@ private:
 
     mutable std::mutex mutex_;
     std::unordered_map<std::string, HealthMetric> metrics_;
+    std::unordered_map<std::string, HealthRule> rules_;
 };
 
 } // namespace SagaEngine::Diagnostics

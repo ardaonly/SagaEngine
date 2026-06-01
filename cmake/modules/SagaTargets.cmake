@@ -90,6 +90,9 @@ function(saga_create_engine_targets)
     target_link_libraries(SagaDiagnostics PUBLIC
         SagaCoreLog
     )
+    target_link_libraries(SagaDiagnostics PRIVATE
+        nlohmann_json::nlohmann_json
+    )
 
     set_target_properties(SagaDiagnostics PROPERTIES
         FOLDER "Engine/Diagnostics"

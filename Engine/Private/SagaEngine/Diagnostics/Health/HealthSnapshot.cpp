@@ -3,6 +3,7 @@
 
 #include <SagaEngine/Diagnostics/Health/HealthSnapshot.hpp>
 
+#include <algorithm>
 #include <utility>
 
 namespace SagaEngine::Diagnostics
@@ -17,6 +18,11 @@ HealthSnapshot::HealthSnapshot(std::vector<HealthMetric> metrics)
     : capturedAt_(std::chrono::system_clock::now())
     , metrics_(std::move(metrics))
 {
+    std::sort(metrics_.begin(),
+              metrics_.end(),
+              [](const HealthMetric& lhs, const HealthMetric& rhs) {
+                  return lhs.name < rhs.name;
+              });
 }
 
 const std::vector<HealthMetric>& HealthSnapshot::Metrics() const noexcept

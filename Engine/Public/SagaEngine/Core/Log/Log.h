@@ -15,7 +15,8 @@ enum class Level {
     Info,
     Warn,
     Error,
-    Critical
+    Critical,
+    Fatal
 };
 
 // ─── Sink API ─────────────────────────────────────────────────────────────────
@@ -46,6 +47,7 @@ void Logf(Level level, const char* tag, const char* fmt, ...);
 #define LOG_WARN(tag, fmt, ...)     ::SagaEngine::Core::Log::Logf(::SagaEngine::Core::Log::Level::Warn,     tag, fmt, ##__VA_ARGS__)
 #define LOG_ERROR(tag, fmt, ...)    ::SagaEngine::Core::Log::Logf(::SagaEngine::Core::Log::Level::Error,    tag, fmt, ##__VA_ARGS__)
 #define LOG_CRITICAL(tag, fmt, ...) ::SagaEngine::Core::Log::Logf(::SagaEngine::Core::Log::Level::Critical, tag, fmt, ##__VA_ARGS__)
+#define LOG_FATAL(tag, fmt, ...)    ::SagaEngine::Core::Log::Logf(::SagaEngine::Core::Log::Level::Fatal,    tag, fmt, ##__VA_ARGS__)
 
 #define SAGA_LOG_TRACE    LOG_TRACE
 #define SAGA_LOG_DEBUG    LOG_DEBUG
@@ -53,6 +55,7 @@ void Logf(Level level, const char* tag, const char* fmt, ...);
 #define SAGA_LOG_WARN     LOG_WARN
 #define SAGA_LOG_ERROR    LOG_ERROR
 #define SAGA_LOG_CRITICAL LOG_CRITICAL
+#define SAGA_LOG_FATAL    LOG_FATAL
 
 } // namespace Log
 } // namespace Core
