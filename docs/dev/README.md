@@ -1,16 +1,20 @@
-# Development Notes Index
+# Development Notes
 
-> Last updated: 2026-05-26
+This directory is for internal development notes, repo accounting, and iteration
+history.
 
-Use [../README.md](../README.md) for current status and
-[../recovery/phase-11-scoring/PHASE_11_CLOSURE_CHECKPOINT.md](../recovery/phase-11-scoring/PHASE_11_CLOSURE_CHECKPOINT.md)
-for the current recovery truth.
+Daily readers should start with:
 
-[ITERATION_NOTES.md](ITERATION_NOTES.md) is an audit trail. It is useful when
-you need to trace what a slice changed or why a narrow decision was made, but it
-is not the best daily entry point and may contain older records after newer
-ones.
+- [../README.md](../README.md)
+- [../product/WHAT_IS_SAGAENGINE.md](../product/WHAT_IS_SAGAENGINE.md)
+- [../testing/README.md](../testing/README.md)
 
-[SCRATCH.md](SCRATCH.md) is temporary working context. Do not treat it as a
-source of current truth unless a closure or indexed evidence file confirms the
-claim.
+Useful internal records:
+
+- [REPO_STATE_PHASE_0_1.md](REPO_STATE_PHASE_0_1.md) - worktree accounting from
+  the repo recovery pass.
+- [ITERATION_NOTES.md](ITERATION_NOTES.md) - historical implementation notes.
+- [SCRATCH.md](SCRATCH.md) - temporary working context.
+
+Do not treat internal notes as product documentation unless a current product
+or architecture index links to them directly.

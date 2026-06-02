@@ -1,42 +1,41 @@
-# Testing Entry
+# Testing
 
-> Last updated: 2026-05-26
-> Current truth: Foundation Established accepts limited local gate evidence, not
-> Product Beta or Release Candidate evidence.
+This directory explains how to verify SagaEngine locally without overstating
+what the checks prove.
 
-Use [TEST_SUITES.md](TEST_SUITES.md) for exact suite names and detailed command
-policy. This file is the short gate map.
+Use [TEST_SUITES.md](TEST_SUITES.md) for detailed suite names, labels, and
+known limitations.
 
-## Normal Local Gate
+## Start With Focused Checks
 
-Current accepted local evidence is the Phase 9E normal local gate:
+For a narrow change, build and run the affected target or test group first. The
+repo currently has useful focused tests, but a universal full-suite pass should
+not be assumed.
+
+Common examples:
 
 ```sh
-ctest --test-dir build/RelWithDebInfo-0.0.9 -LE "stress|slow|load|long-running|benchmark|perf" --output-on-failure --timeout 120 -j 1
+git diff --check
+ctest --test-dir build/RelWithDebInfo-0.0.9 -R "<test-name>" --output-on-failure
 ```
 
-It passed 36/36 on 2026-05-26 with heavy labels excluded. It is not raw full
-CTest.
+On NixOS:
 
-## raw full CTest
+```sh
+nix-shell --run "ctest --test-dir build/RelWithDebInfo-0.0.9 -R '<test-name>' --output-on-failure"
+```
 
-raw full CTest remains unresolved and is not pass evidence. Do not treat raw
-CTest registration, labels, or previous incomplete attempts as a passing result.
+## Heavy Tests
 
-## heavy gates
+Stress, soak, load, benchmark, bot, and real-transport tests should stay
+opt-in. Do not include them in a default quick verification path unless the test
+is explicitly documented as safe and bounded.
 
-heavy gates are opt-in only. `StressTests` and heavy `ReplicationTests` are not
-part of the normal local gate and are not current pass evidence.
+## Reporting Results
 
-## Focused Package / Publish / Runtime Gate
+When reporting test results, include:
 
-Phase 10 accepted a focused 12-test package/publish/runtime compatibility proof.
-It supports the report-first publish readiness foundation, but it does not prove
-release readiness, full product packaging, full AssetPipeline cook/import,
-ClientHost asset consumption, raw full CTest health, or heavy gates.
-
-## Detail Source
-
-Read [TEST_SUITES.md](TEST_SUITES.md) for Forge suite names, CTest label
-behavior, focused architecture entries, focused package/publish/runtime entries,
-known limitations, and exact non-claims.
+- exact command;
+- pass/fail status;
+- missing target or environment failure if applicable;
+- whether the result proves product readiness or only focused subsystem health.

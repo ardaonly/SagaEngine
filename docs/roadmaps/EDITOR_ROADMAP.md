@@ -533,7 +533,7 @@ Editor/src/SagaEditor/Extensions/ExtensionPanelBridge.cpp
 
 ### 11.1 Hierarchy Panel
 
-* [ ] Add production-ready hierarchy panel.
+* [ ] Add evidence-backed hierarchy panel.
 
   Done means:
 
@@ -556,7 +556,7 @@ Editor/src/SagaEditor/UI/Qt/Panels/HierarchyPanel.cpp
 
 ### 11.2 Inspector Panel
 
-* [ ] Add production-ready inspector panel.
+* [ ] Add evidence-backed inspector panel.
 
   Done means:
 
@@ -579,7 +579,7 @@ Editor/src/SagaEditor/UI/Qt/Panels/InspectorPanel.cpp
 
 ### 11.3 Content Browser
 
-* [ ] Add production-ready content browser.
+* [ ] Add evidence-backed content browser.
 
   Done means:
 
