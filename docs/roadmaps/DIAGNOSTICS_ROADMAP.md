@@ -1,6 +1,6 @@
 # Saga Diagnostics Roadmap
 
-> Last updated: 2026-05-15
+> Last updated: 2026-05-26
 > Status: Active roadmap
 > Target: A production-grade diagnostics system that gives Saga product, editor, runtime, server, tools, build pipeline, collaboration, asset pipeline, scripting, SDE, Forge, and Prism a shared diagnostic language without collapsing their implementation ownership.
 > Scope: Diagnostic contracts, severity model, source/resource locations, graph/script/asset/package references, runtime/server diagnostics, build/publish diagnostics, collaboration diagnostics, Prism reports, health snapshots, structured reports, editor navigation, product summaries, CI artifacts, crash/shutdown context, and long-running server reliability diagnostics.
@@ -101,6 +101,247 @@ That is archaeology with ANSI colors.
 ---
 
 ## 3. Ownership Rule
+
+Phase 0 migration audit:
+
+* [x] Record the current SagaDiagnostics and Public/Private migration reality.
+
+  Done means the repository has a documentation-first audit before new
+  diagnostics implementation work:
+
+  ```txt
+  docs/architecture/DIAGNOSTICS_MIGRATION_AUDIT.md
+  ```
+
+  The audit records that the repository currently uses a mixed layout:
+  `Engine/Public` and `Engine/Private` for Engine, plus module-local
+  `include/src` roots for Runtime, Server, Shared, Collaboration, Backends, and
+  Tools. It also records that a root
+  `Source/SagaEngine/<Module>/Public/Private` migration is not an immediate
+  compatibility step because current architecture tests and CMake layout do not
+  use that tree.
+
+  The next SagaDiagnostics implementation slices should preserve these
+  dependency rules:
+
+  ```txt
+  Core must not depend on Diagnostics.
+  Diagnostics may depend on Core.
+  Runtime, Server, Net, and Tools may depend on Diagnostics where appropriate.
+  Diagnostics must not hard-depend on SDE.
+  ```
+
+  This is an audit milestone, not a production-readiness claim. It does not add
+  logging, health, lifetime, memory, crash, stress, chaos, validation, or fault
+  systems.
+
+Phase 1 foundation consolidation:
+
+* [x] Consolidate the first buildable SagaDiagnostics foundation slice.
+
+  Done means existing Engine-shaped diagnostics code has a coherent minimal
+  foundation around config, explicit diagnostics ownership, structured logging,
+  health metrics, lifetime records, deterministic tests, and a focused test
+  target:
+
+  ```txt
+  Engine/Public/SagaEngine/Diagnostics/
+  Engine/Private/SagaEngine/Diagnostics/
+  Engine/Public/SagaEngine/Core/Log/
+  Tests/Unit/Diagnostics/DiagnosticFoundationTests.cpp
+  cmake/modules/SagaTests.cmake
+  ```
+
+  Phase 1 preserves the dependency rule:
+
+  ```txt
+  Core must not depend on Diagnostics.
+  Diagnostics may depend on Core/CoreLog.
+  Diagnostics must not depend on Server, Runtime, Editor, Product, Tools, or SDE.
+  ```
+
+  Phase 1 completed only foundation consolidation. These remain non-claims:
+  no server integration, no crash reports, no memory/resource tracking, no
+  StressArena, no NetworkChaos, no StateValidation, no FaultBoundary, no
+  production readiness, and no full raw CTest health claim unless full raw CTest
+  is separately run and passes.
+
+Phase 2 operational reports and ZoneServer observability:
+
+* [x] Add the first operational diagnostics vertical slice.
+
+  Done means `SagaDiagnostics` now owns a deterministic Engine report model and
+  writer plus optional server-side emission through a Server-owned dependency:
+
+  ```txt
+  Engine/Public/SagaEngine/Diagnostics/Report/DiagnosticReport.hpp
+  Engine/Public/SagaEngine/Diagnostics/Report/DiagnosticReportWriter.hpp
+  Engine/Private/SagaEngine/Diagnostics/Report/DiagnosticReportWriter.cpp
+  Tests/Unit/Diagnostics/DiagnosticReportTests.cpp
+  Tests/Unit/Server/ZoneServerDiagnosticsTests.cpp
+  ```
+
+  Report kinds added in this phase are `health_snapshot`, `lifetime_leaks`, and
+  `operational_snapshot`. Reports carry summary counts, health metrics, alive
+  lifetime leak records, recent log events, deterministic generation sequence
+  numbers, and sorted string metadata.
+
+  `ZoneServer` now accepts optional `SagaDiagnostics` injection and emits first
+  local metrics for `server.tick.count`, `world.entities.active`,
+  `server.movement.accepted_inputs`, `server.movement.rejected_inputs`, and
+  `server.packets.rejected` only when diagnostics is attached.
+
+  Phase 2 preserves the dependency rule:
+
+  ```txt
+  Core must not depend on Diagnostics.
+  SagaDiagnostics may depend on Core/CoreLog and privately on nlohmann_json.
+  Server may privately depend on SagaDiagnostics.
+  SagaDiagnostics must not depend on Server, Runtime, Editor, Product, Tools, or SDE.
+  ```
+
+  Phase 2 non-claims: no crash reports, no MemoryTracker/ResourceTracker, no
+  StressArena, no NetworkChaos, no StateValidation, no FaultBoundary, no
+  production readiness, and no full raw CTest health claim unless full raw CTest
+  is separately run and passes.
+
+Phase 3 crash context reports and reliability rules:
+
+* [x] Add the first crash-context and reliability diagnostics layer.
+
+  Done means `SagaDiagnostics` now owns manual crash-context and reliability
+  report contracts, health rule evaluation, and deterministic lifetime leak
+  diagnostic summaries:
+
+  ```txt
+  Engine/Public/SagaEngine/Diagnostics/Crash/CrashContext.hpp
+  Engine/Public/SagaEngine/Diagnostics/Crash/CrashReport.hpp
+  Engine/Public/SagaEngine/Diagnostics/Crash/CrashReportBuilder.hpp
+  Engine/Public/SagaEngine/Diagnostics/Health/HealthRule.hpp
+  Engine/Public/SagaEngine/Diagnostics/Health/HealthRuleResult.hpp
+  Engine/Public/SagaEngine/Diagnostics/Health/HealthSeverity.hpp
+  Engine/Public/SagaEngine/Diagnostics/Lifetime/LifetimeLeakDiagnostic.hpp
+  Tests/Unit/Diagnostics/DiagnosticReliabilityTests.cpp
+  ```
+
+  Report kinds added in this phase are `manual_crash_report`,
+  `fatal_error_report`, `reliability_failure_report`, and `slow_tick_report`.
+  CrashReport output includes current health metrics, health rule violations,
+  lifetime leak candidates, lifetime leak summary counts by type and owner
+  system, recent log events, deterministic generation sequence numbers, and
+  sorted context metadata.
+
+  HealthRule support added in this phase covers `HealthSeverity` values
+  `info`, `warning`, `error`, and `critical`, plus gauge greater-than, gauge
+  less-than, counter greater-than, and timing greater-than checks. Missing
+  metrics are deterministic not-evaluated results.
+
+  `ZoneServer` keeps diagnostics optional and adds reliability metrics for
+  `server.tick.ms` and `server.tick.budget_overruns` when actual tick duration
+  data is available. Diagnostics still emit metrics/logs only and do not mutate
+  simulation state.
+
+  Phase 3 preserves the dependency rule:
+
+  ```txt
+  Core must not depend on Diagnostics.
+  SagaDiagnostics may depend on Core/CoreLog and privately on nlohmann_json.
+  Server may privately depend on SagaDiagnostics.
+  SagaDiagnostics must not depend on Server, Runtime, Editor, Product, Tools, or SDE.
+  ```
+
+  Phase 3 non-claims: no production crash safety, no unsafe OS signal/SEH crash
+  handlers, no stack trace support requirement, no MemoryTracker/ResourceTracker,
+  no StressArena, no NetworkChaos, no StateValidation, no FaultBoundary, no
+  production readiness, and no full raw CTest health claim unless full raw CTest
+  is separately run and passes.
+
+Phase 4 safe SagaStressArena diagnostics proof:
+
+* [x] Add the first bounded stress/soak diagnostics artifact proof.
+
+  Done means the repository now has a tool-level `SagaStressArena` direct local
+  ZoneServer harness for deterministic diagnostics artifact generation:
+
+  ```txt
+  Tools/SagaStressArena/include/SagaStressArena/
+  Tools/SagaStressArena/src/
+  Tools/SagaStressArena/cli/main.cpp
+  Tests/Unit/Tools/SagaStressArenaTests.cpp
+  docs/architecture/DIAGNOSTICS_STRESS_ARENA_V1.md
+  ```
+
+  The supported v1 scenario is `direct_zone_diagnostics_smoke`. It uses the
+  existing local ZoneServer harness path rather than real network bot transport.
+  It writes `direct_zone_stress_operational_snapshot.json`,
+  `direct_zone_stress_reliability_report.json`, and
+  `direct_zone_stress_lifetime_leaks.json`.
+
+  Stress tiers are explicit and bounded: `smoke` is the default safe tier,
+  `mini_soak` is bounded and manual/local, and `heavy` is documented as
+  manual opt-in only in v1. Focused tests and default CLI behavior do not
+  execute heavy stress.
+
+  Phase 4 preserves the dependency rule:
+
+  ```txt
+  SagaStressArenaLib may depend on SagaServerLib and SagaDiagnostics.
+  SagaDiagnostics must not depend on Tools or SagaStressArenaLib.
+  SagaServerLib must not depend on Tools or SagaStressArenaLib.
+  ```
+
+  Phase 4 non-claims: no full network stress, no real bot swarm, no
+  production-grade load testing, no MMO-scale load claim, no 100/500/1000 client
+  claim, no default heavy stress, no MemoryTracker/ResourceTracker, no
+  NetworkChaos, no StateValidation, no FaultBoundary, no production readiness,
+  and no full raw CTest health claim unless full raw CTest is separately run
+  and passes.
+
+Phase 5 memory/resource snapshot foundation:
+
+* [x] Add the first explicit memory/resource diagnostics snapshot foundation.
+
+  Done means `SagaDiagnostics` now owns deterministic, explicit memory and
+  resource trackers:
+
+  ```txt
+  Engine/Public/SagaEngine/Diagnostics/Memory/
+  Engine/Public/SagaEngine/Diagnostics/Resource/
+  Engine/Private/SagaEngine/Diagnostics/Memory/
+  Engine/Private/SagaEngine/Diagnostics/Resource/
+  Tests/Unit/Diagnostics/DiagnosticMemoryResourceTests.cpp
+  docs/architecture/DIAGNOSTICS_MEMORY_RESOURCE_SNAPSHOT_FOUNDATION.md
+  ```
+
+  `MemoryTracker` records explicit per-system counters and snapshots current
+  bytes, peak bytes, total allocated bytes, total freed bytes, and active
+  explicit allocation count. `ResourceTracker` records explicitly registered
+  socket, file, timer, job, asset handle, database connection, thread, and other
+  resource records. Active resources are leak candidates and summaries are
+  deterministic by type and owner system.
+
+  Operational reports and crash/reliability reports now include
+  `memoryRecords`, `resourceSummary`, `activeResources`, and summary counts for
+  memory systems and active resources. `SagaStressArena` records deterministic
+  fake/explicit memory and resource records in its direct local ZoneServer
+  report artifacts.
+
+  Phase 5 preserves the dependency rule:
+
+  ```txt
+  Core must not depend on Diagnostics.
+  SagaDiagnostics may depend on Core/CoreLog and privately on nlohmann_json.
+  Server and Tools may depend on SagaDiagnostics at their owning boundaries.
+  SagaDiagnostics must not depend on Server, Runtime, Editor, Product, Tools, or SDE.
+  ```
+
+  Phase 5 non-claims: no custom allocator, no operator new/delete override, no
+  allocator replacement, no raw allocation interception, no stack traces per
+  allocation, no OS memory polling, no OS handle enumeration, no real
+  socket/file scanning, no full leak detection, no production memory safety, no
+  NetworkChaos, no StateValidation, no FaultBoundary, no production readiness,
+  and no full raw CTest health claim unless full raw CTest is separately run and
+  passes.
 
 * [ ] Keep diagnostic contracts in `SagaShared` where genuinely shared.
 

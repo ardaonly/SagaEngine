@@ -339,6 +339,38 @@ TEST(CMakeTargetBoundaryTests, SagaEngineDoesNotLinkProductEditorOrToolTargets)
     }
 }
 
+TEST(CMakeTargetBoundaryTests, SagaDiagnosticsDoesNotLinkRuntimeServerEditorOrToolTargets)
+{
+    const auto path = SagaTargetsPath();
+    const auto calls = ExtractTargetLinkCalls(ReadLines(path));
+    const std::vector<std::string> forbidden = {
+        "SagaRuntimeLib",
+        "SagaServerLib",
+        "SagaProductLib",
+        "SagaEditorLib",
+        "SagaEditorLabLib",
+        "SagaEditorLabBridge",
+        "SagaAssetPipelineLib",
+        "SagaPipelineLib",
+        "SagaEditorCompositionLib",
+        "Forge",
+        "Prism",
+        "SDE",
+    };
+
+    const auto offenders =
+        FindForbiddenLinks(calls, "SagaDiagnostics", forbidden);
+
+    for (const auto& offender : offenders)
+    {
+        ADD_FAILURE()
+            << "Forbidden target dependency: SagaDiagnostics must not link "
+            << JoinNames(FindForbiddenDependencyNames(offender, forbidden))
+            << ". Offending call in " << path.generic_string()
+            << ":" << offender.line << "\n" << offender.text;
+    }
+}
+
 TEST(CMakeTargetBoundaryTests, RuntimeAndServerTargetsDoNotLinkEditorDevOrToolTargets)
 {
     const auto path = SagaTargetsPath();
