@@ -25,6 +25,19 @@ On NixOS:
 nix-shell --run "ctest --test-dir build/RelWithDebInfo-0.0.9 -R '<test-name>' --output-on-failure"
 ```
 
+## Local Gates
+
+Use these repository scripts for baseline verification:
+
+```sh
+scripts/build-default --dry-run
+scripts/test-taxonomy --check
+scripts/verify-local
+```
+
+`scripts/verify-local` is structural by default. It does not run a real build or
+CTest unless `--with-build` or `--with-tests` is passed explicitly.
+
 ## Heavy Tests
 
 Stress, soak, load, benchmark, bot, and real-transport tests should stay

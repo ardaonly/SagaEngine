@@ -2,30 +2,34 @@
 
 ## Status
 
-Not Started
+Implemented-Unverified
 
 ## Phase Scope
 
 Canonical Build Baseline
 
-No implementation evidence is recorded for this phase yet.
+`scripts/build-default` now defines the canonical local build command sequence.
+The default behavior is dry-run only. A real build requires `--run`.
 
 ## Changed Files
 
-No phase-specific changed file list has been recorded yet. Future updates should
-refresh this section from:
-
-```bash
-git diff --name-only
-```
+- `scripts/build-default`
+- `docs/testing/README.md`
+- `docs/internal/PHASE_STATUS_MATRIX.md`
+- `docs/internal/phase-evidence/PHASE_05/EVIDENCE.md`
+- `docs/internal/phase-evidence/PHASE_05/commands.log`
+- `docs/internal/phase-evidence/PHASE_05/changed_files.txt`
+- `docs/internal/phase-evidence/PHASE_05/known_limitations.md`
+- `docs/internal/phase-evidence/PHASE_05/verification_result.json`
 
 ## Verification Commands
 
-No phase gate command has passed for this phase.
+- `scripts/build-default --dry-run`
+- `scripts/verify-phase 5`
 
 ## Command Results
 
-No passing verification result is recorded.
+The dry-run build baseline gate passes without executing a real build.
 
 ## Required Files
 
@@ -49,8 +53,9 @@ See `known_limitations.md`.
 
 ## Verification Decision
 
-Not Started
+Implemented-Unverified
 
 ## Decision Reason
 
-The phase has not been started in the current status matrix.
+The canonical build command sequence is implemented as a dry-run-by-default
+script. A real build was not run in this batch.

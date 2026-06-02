@@ -1,7 +1,7 @@
 # SagaEngine Test Suites
 
-> Last updated: 2026-05-31
-> Status: Phase 60-65 Technical Preview focused gates with heavy opt-in policy
+> Last updated: 2026-06-02
+> Status: focused gates with heavy opt-in policy
 
 This document defines the local SagaEngine test suite names exposed through
 Forge. These suite names are not the complete raw CTest label inventory;
@@ -9,6 +9,19 @@ labels such as `product`, `package`, `ui`, and `collaboration` may appear in
 CTest registration outside the stable Forge suite table.
 
 Quick entry: [README.md](README.md) summarizes the current gate policy.
+
+Repository gate entry points:
+
+```sh
+scripts/build-default --dry-run
+scripts/test-taxonomy --check
+scripts/verify-local
+```
+
+These commands define the current structural build/test baseline. They do not
+prove a full rebuild or raw full CTest pass. Use `scripts/verify-local
+--with-build` and `scripts/verify-local --with-tests` only when intentionally
+running the heavier local checks.
 
 Use single-job execution first on this machine:
 

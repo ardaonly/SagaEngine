@@ -2,30 +2,38 @@
 
 ## Status
 
-In Progress
+Implemented-Unverified
 
 ## Phase Scope
 
 CI-Ready Local Gate
 
-This folder was initialized by the verification infrastructure batch. The phase gate has not passed.
+`scripts/verify-local` now composes the local structural gate. The default gate
+does not run a real build or CTest.
 
 ## Changed Files
 
-No phase-specific changed file list has been recorded yet. Future updates should
-refresh this section from:
-
-```bash
-git diff --name-only
-```
+- `scripts/verify-local`
+- `scripts/build-default`
+- `scripts/test-taxonomy`
+- `docs/testing/README.md`
+- `docs/testing/TEST_SUITES.md`
+- `docs/internal/PHASE_STATUS_MATRIX.md`
+- `docs/internal/phase-evidence/PHASE_07/EVIDENCE.md`
+- `docs/internal/phase-evidence/PHASE_07/commands.log`
+- `docs/internal/phase-evidence/PHASE_07/changed_files.txt`
+- `docs/internal/phase-evidence/PHASE_07/known_limitations.md`
+- `docs/internal/phase-evidence/PHASE_07/verification_result.json`
 
 ## Verification Commands
 
-No phase gate command has passed for this phase.
+- `scripts/verify-local --allow-dirty`
+- `scripts/verify-phase 7`
 
 ## Command Results
 
-No passing verification result is recorded.
+The local structural gate passes in pre-commit mode. The clean-worktree form
+should be run after commit.
 
 ## Required Files
 
@@ -49,8 +57,9 @@ See `known_limitations.md`.
 
 ## Verification Decision
 
-In Progress
+Implemented-Unverified
 
 ## Decision Reason
 
-Infrastructure exists for tracking the phase, but no completion gate has passed.
+The CI-ready local gate script is implemented and passes in pre-commit mode.
+This does not verify the phase.

@@ -2,30 +2,35 @@
 
 ## Status
 
-Not Started
+Implemented-Unverified
 
 ## Phase Scope
 
 Test Taxonomy
 
-No implementation evidence is recorded for this phase yet.
+`scripts/test-taxonomy` now inspects the CTest label taxonomy from
+`cmake/modules/SagaTests.cmake` without running tests.
 
 ## Changed Files
 
-No phase-specific changed file list has been recorded yet. Future updates should
-refresh this section from:
-
-```bash
-git diff --name-only
-```
+- `scripts/test-taxonomy`
+- `docs/testing/TEST_SUITES.md`
+- `docs/internal/PHASE_STATUS_MATRIX.md`
+- `docs/internal/phase-evidence/PHASE_06/EVIDENCE.md`
+- `docs/internal/phase-evidence/PHASE_06/commands.log`
+- `docs/internal/phase-evidence/PHASE_06/changed_files.txt`
+- `docs/internal/phase-evidence/PHASE_06/known_limitations.md`
+- `docs/internal/phase-evidence/PHASE_06/verification_result.json`
 
 ## Verification Commands
 
-No phase gate command has passed for this phase.
+- `scripts/test-taxonomy --check`
+- `scripts/verify-phase 6`
 
 ## Command Results
 
-No passing verification result is recorded.
+The taxonomy check passes by validating required labels and the all-safe
+exclusion policy.
 
 ## Required Files
 
@@ -49,8 +54,9 @@ See `known_limitations.md`.
 
 ## Verification Decision
 
-Not Started
+Implemented-Unverified
 
 ## Decision Reason
 
-The phase has not been started in the current status matrix.
+The test taxonomy check is implemented. It does not run CTest and does not prove
+full test health.

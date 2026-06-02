@@ -12,9 +12,9 @@ or an explicit verification script result accepted by maintainers.
 | 2 | Public Documentation Identity Reset | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_02/` | docs-gate | `-` | Public claim scan passes after Batch 2 cleanup; maintainer verification is still required. |
 | 3 | Internal Archive Cleanup | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_03/` | docs-gate | `-` | Scanner now treats internal/history policy language as non-claim context; maintainer verification is still required. |
 | 4 | Toolchain Boundary Cleanup | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_04/` | tools-gate | `-` | Tool docs were included in the passing claim scan; maintainer verification is still required. |
-| 5 | Canonical Build Baseline | Not Started | `docs/internal/phase-evidence/PHASE_05/` | build-gate | `-` | No `scripts/build-default` or completed build baseline in this batch. |
-| 6 | Test Taxonomy | Not Started | `docs/internal/phase-evidence/PHASE_06/` | test-gate | `-` | No test taxonomy implementation in this batch. |
-| 7 | CI-Ready Local Gate | In Progress | `docs/internal/phase-evidence/PHASE_07/` | verify-gate | `-` | `scripts/verify-quick` infrastructure is being added; no gate is verified. |
+| 5 | Canonical Build Baseline | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_05/` | build-gate | `-` | `scripts/build-default` defines the canonical build command sequence; dry-run gate passes, real build remains unverified. |
+| 6 | Test Taxonomy | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_06/` | test-gate | `-` | `scripts/test-taxonomy --check` validates the current CTest label taxonomy; full CTest remains unverified. |
+| 7 | CI-Ready Local Gate | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_07/` | verify-gate | `-` | `scripts/verify-local` composes quick verification, taxonomy, and build dry-run gates; no phase is verified. |
 | 8 | MultiplayerSandbox Truth Reset | Not Started | `docs/internal/phase-evidence/PHASE_08/` | sample-truth-gate | `-` | No sample truth reset implementation in this batch. |
 | 9 | StarterArena Sample Definition | Not Started | `docs/internal/phase-evidence/PHASE_09/` | sample-design-gate | `-` | `-` |
 | 10 | First Playable Runtime Loop | Not Started | `docs/internal/phase-evidence/PHASE_10/` | runtime-smoke-gate | `-` | `-` |

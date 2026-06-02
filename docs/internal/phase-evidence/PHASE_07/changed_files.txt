@@ -1,1 +1,11 @@
-No phase-specific changed files recorded yet.
+scripts/verify-local
+scripts/build-default
+scripts/test-taxonomy
+docs/testing/README.md
+docs/testing/TEST_SUITES.md
+docs/internal/PHASE_STATUS_MATRIX.md
+docs/internal/phase-evidence/PHASE_07/EVIDENCE.md
+docs/internal/phase-evidence/PHASE_07/commands.log
+docs/internal/phase-evidence/PHASE_07/changed_files.txt
+docs/internal/phase-evidence/PHASE_07/known_limitations.md
+docs/internal/phase-evidence/PHASE_07/verification_result.json
