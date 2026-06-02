@@ -1,0 +1,18 @@
+{
+  "subject": "actor://local/owner",
+  "actor": "owner",
+  "role": "Owner",
+  "action": "ApprovePublishGate",
+  "resource": "publish:technical-preview",
+  "scope": {
+    "projectId": "multiplayer-sandbox",
+    "workspaceId": "local"
+  },
+  "evidence": [
+    {
+      "evidenceId": "publish-report",
+      "path": "Build/SmallTeamAlpha/publish_report.json",
+      "status": "Passed"
+    }
+  ]
+}
