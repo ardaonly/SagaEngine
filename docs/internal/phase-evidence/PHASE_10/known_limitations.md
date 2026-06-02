@@ -1,13 +1,12 @@
 # Phase 10 Known Limitations
 
 - This phase is not verified.
-- This phase is blocked, not implemented.
-- StarterArena is not playable.
-- No StarterArena scene/resource, spawn point, input movement, viewport,
-  bounds/collision, restart, quit behavior, smoke report, runtime launch
-  profile, or runtime-backed loop exists.
-- `SagaRuntime` does not currently accept a project or scene input.
+- StarterArena has a bounded headless runtime smoke loop, not interactive
+  gameplay.
+- No StarterArena scene/resource file is tracked or loaded.
+- The smoke path uses built-in deterministic movement and bounds.
+- No renderer, client networking, server authority, C# gameplay scripts, Visual
+  Blocks, editor workflow, package output, or distribution output is involved.
+- Restart behavior remains deferred.
 - `SagaLaunchLab` does not currently expose a runtime/client launch command.
-- Runtime, launch tools, CMake, tests, and scripts were intentionally not
-  modified in this batch.
 - No public product claim should be derived from this file.

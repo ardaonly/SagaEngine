@@ -1,17 +1,19 @@
-# StarterArena Sample Definition
+# StarterArena Runtime Smoke Sample
 
 `StarterArena` is a future sample definition for project metadata validation.
-In this batch it is only a `.sagaproj` specification sample.
+It now has a narrow `SagaRuntime` smoke seam for Phase 10.
 
-This sample is not playable, not packaged, and not runtime-backed. It contains
-no scenes, assets, scripts, launch profiles, package profiles, gameplay code,
-runtime smoke evidence, or fake sample content.
+This is not an interactive game. The runtime smoke command consumes the
+`.sagaproj` file, runs a deterministic built-in local loop in headless mode,
+writes a smoke report, and exits. It does not use renderer, client networking,
+server authority, C# scripts, Visual Blocks, editor workflow, package output, or
+distribution output.
 
-Phase 10 attempted to find a current-supported runtime launch path for
-StarterArena and found a blocker instead. The current `SagaRuntime` command
-line does not accept a project or scene input, and `SagaLaunchLab` exposes only
-server/headless launch commands. StarterArena must remain metadata-only until a
-real runtime entrypoint can consume the project and scene source truth.
+Runtime smoke command:
+
+```sh
+build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --smoke-report-out /tmp/starter_arena_runtime_smoke.json --smoke-frames 30 --fixed-dt 0.016
+```
 
 The tracked directories exist only because the current project schema validates
 the diagnostics and generated report paths:
@@ -25,5 +27,5 @@ Expected focused check:
 Tools/SagaProjectKit/sagaproject validate --project samples/StarterArena/StarterArena.sagaproj --out /tmp/starter_arena_validate.json
 ```
 
-Blocked Phase 10 acceptance notes are tracked in `ACCEPTANCE.md`. Known
-limitations are tracked in `KNOWN_LIMITATIONS.md`.
+Phase 10 acceptance notes are tracked in `ACCEPTANCE.md`. Known limitations are
+tracked in `KNOWN_LIMITATIONS.md`.

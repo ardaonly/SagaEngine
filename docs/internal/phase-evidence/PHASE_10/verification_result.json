@@ -1,10 +1,10 @@
 {
   "phase": 10,
   "name": "First Playable Runtime Loop",
-  "status": "Blocked",
+  "status": "Implemented-Unverified",
   "required_gate": "runtime-smoke-gate",
   "verified": false,
   "last_verified_commit": "-",
-  "verification_decision": "Blocked",
-  "decision_reason": "No current runtime/tool entrypoint launches StarterArena as a project-backed local playable loop, and this batch did not modify runtime, launch tools, CMake, tests, or scripts."
+  "verification_decision": "Implemented-Unverified",
+  "decision_reason": "SagaRuntime now has a bounded app-local StarterArena smoke mode that consumes the project manifest, runs deterministic headless movement and bounds, writes a passing smoke report, and avoids renderer, client/network, server authority, C# scripts, Visual Blocks, editor workflow, package output, and distribution output. This is not maintainer verification."
 }

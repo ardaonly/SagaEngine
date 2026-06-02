@@ -1,39 +1,36 @@
 # Phase 10 Commands Log
 
 git status --short
-Result: passed. Worktree was clean before edits.
+Result: passed. Worktree was clean before implementation.
 
-find samples/StarterArena -maxdepth 5 -type f | sort
-Result: StarterArena contained only metadata/spec docs and required schema
-directory README files.
+Tools/Forge/bin/forge nix build --target SagaRuntime --build build/RelWithDebInfo-0.0.9 --jobs=1
+Result: passed. No CMake or dependency changes were needed.
 
-find samples/MultiplayerSandbox -maxdepth 5 -type f | sort
-Result: existing sample launch precedent is MultiplayerSandbox server/headless
-evidence, not a runtime/client StarterArena path.
+build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --smoke-report-out /tmp/starter_arena_runtime_smoke.json --smoke-frames 30 --fixed-dt 0.016
+Result: passed. The command exited 0 and wrote
+`/tmp/starter_arena_runtime_smoke.json`.
 
-find Apps Runtime Engine Tests/Unit/Samples Tools/MultiplayerSandboxHeadless Tools/SagaProjectKit Tools/SagaLaunchLab -maxdepth 4 -type f 2>/dev/null | sort | head -500
-Result: inspected relevant app/runtime/tool/test surfaces without editing them.
+/tmp/starter_arena_runtime_smoke.json
+Result: status `Passed`, project id `starter-arena`, 30 frames, final position
+`(1.0, 0.96)`, bounds `[-1, 1]`, 15 clamp events, and explicit non-claims for
+interactive gameplay, renderer, client/network, server authority, C# scripts,
+Visual Blocks, editor workflow, package output, and distribution output.
 
-Tools/SagaLaunchLab/sagalaunch --help
-Result: failed under the ambient .NET SDK because the wrapper tried to target
-.NET 10.0 with an SDK that did not support it. Recorded as diagnostic context,
-not implementation failure.
+build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --starter-arena-smoke --smoke-report-out /tmp/starter_arena_missing_project_smoke.json --smoke-frames 1 --fixed-dt 0.016
+Result: failed as expected with `StarterArena.Project.MissingInput` and wrote a
+failed smoke report.
 
-nix-shell --run "Tools/SagaLaunchLab/sagalaunch --help"
-Result: passed. Help lists `server`, `accept`, `profile-matrix`, and
-`source-truth-alignment`; no runtime/client launch command is exposed.
+build/RelWithDebInfo-0.0.9/bin/SagaRuntime --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --smoke-report-out /tmp/starter_arena_missing_headless_smoke.json --smoke-frames 1 --fixed-dt 0.016
+Result: failed as expected with `StarterArena.Smoke.HeadlessRequired` and wrote a
+failed smoke report.
 
-build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --help
-Result: passed. Help lists server, port, headless, package-manifest, and
-package-base-directory options; no project or scene option is exposed.
+build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --smoke-report-out /tmp/starter_arena_zero_frames_smoke.json --smoke-frames 0 --fixed-dt 0.016
+Result: failed as expected with `StarterArena.Smoke.FrameCountInvalid` and wrote
+a failed smoke report.
 
-timeout 5 sh -c 'ulimit -c 0; exec build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless'
-Result: failed with exit code 139. The process started the current client path,
-attempted UDP setup, failed socket initialization with "Operation not
-permitted", exited the loop at frame 0, and did not consume StarterArena
-project metadata. This is blocker evidence, not a passing smoke path.
-
-No runtime, launch tool, CMake, test, or script files were modified.
+No SagaLaunchLab, package/distribution script, CMake, C# script, Visual Blocks,
+editor workflow, server multiplayer, or reusable scene system files were
+modified.
 
 git diff --check
 Result: passed.

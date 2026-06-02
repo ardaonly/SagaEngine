@@ -2,32 +2,33 @@
 
 ## Status
 
-Blocked
+Implemented-Unverified
 
 ## Phase Scope
 
 First Playable Runtime Loop
 
-Phase 10 is blocked. StarterArena remains metadata-only because the current
-runtime and launch tool surfaces do not provide a real project-backed local
-runtime loop path.
+Phase 10 has a narrow app-local runtime smoke seam. `SagaRuntime` now accepts a
+bounded `--starter-arena-smoke` mode that consumes
+`samples/StarterArena/StarterArena.sagaproj`, runs a deterministic built-in
+local loop in headless mode, writes smoke evidence, and exits without entering
+`ClientHost` or UDP/client networking.
 
-Observed blockers:
+Accepted boundary:
 
-- `SagaRuntime --headless --help` exposes server, port, headless, and package
-  manifest options, but no project or scene option.
-- `SagaRuntime --headless` starts the current client host path, attempts UDP
-  setup, and does not consume `samples/StarterArena/StarterArena.sagaproj`.
-- `SagaLaunchLab` exposes `server`, `accept`, `profile-matrix`, and
-  `source-truth-alignment`; it does not expose a runtime/client launch command.
-- Touching runtime, launch tools, CMake, tests, or scripts is outside this
-  batch.
+- app-local `SagaRuntime` CLI seam only;
+- no reusable scene system;
+- no renderer/client/network dependency;
+- no C# gameplay scripts, Visual Blocks, editor workflow, server authority,
+  package output, or distribution output;
+- not proof of interactive gameplay.
 
 ## Changed Files
 
 - `samples/StarterArena/README.md`
 - `samples/StarterArena/ACCEPTANCE.md`
 - `samples/StarterArena/KNOWN_LIMITATIONS.md`
+- `Apps/Runtime/main.cpp`
 - `docs/internal/PHASE_STATUS_MATRIX.md`
 - `docs/internal/phase-evidence/PHASE_10/EVIDENCE.md`
 - `docs/internal/phase-evidence/PHASE_10/commands.log`
@@ -37,10 +38,11 @@ Observed blockers:
 
 ## Verification Commands
 
-- `Tools/SagaLaunchLab/sagalaunch --help`
-- `nix-shell --run "Tools/SagaLaunchLab/sagalaunch --help"`
-- `build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --help`
-- `timeout 5 sh -c 'ulimit -c 0; exec build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless'`
+- `Tools/Forge/bin/forge nix build --target SagaRuntime --build build/RelWithDebInfo-0.0.9 --jobs=1`
+- `build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --smoke-report-out /tmp/starter_arena_runtime_smoke.json --smoke-frames 30 --fixed-dt 0.016`
+- `build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --starter-arena-smoke --smoke-report-out /tmp/starter_arena_missing_project_smoke.json --smoke-frames 1 --fixed-dt 0.016`
+- `build/RelWithDebInfo-0.0.9/bin/SagaRuntime --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --smoke-report-out /tmp/starter_arena_missing_headless_smoke.json --smoke-frames 1 --fixed-dt 0.016`
+- `build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --smoke-report-out /tmp/starter_arena_zero_frames_smoke.json --smoke-frames 0 --fixed-dt 0.016`
 - `git diff --check`
 - `scripts/scan-claims README.md docs samples Tools`
 - `scripts/verify-quick`
@@ -49,9 +51,12 @@ Observed blockers:
 
 ## Command Results
 
-Diagnostic commands found no real StarterArena runtime launch path. Required
-local checks passed for the blocker documentation. No phase was marked
-`Verified`.
+The focused `SagaRuntime` build passed. The real StarterArena smoke command
+exited `0` and wrote `/tmp/starter_arena_runtime_smoke.json` with
+`status: Passed`, project id `starter-arena`, 30 frames, final position
+`(1.0, 0.96)`, bounds `[-1, 1]`, and 15 clamp events. Negative smoke checks
+failed deterministically and wrote failed reports. Required local checks passed.
+No phase was marked `Verified`.
 
 ## Required Files
 
@@ -66,7 +71,7 @@ local checks passed for the blocker documentation. No phase was marked
 - [x] Public docs do not overclaim.
 - [x] Known limitations are documented.
 - [x] No placeholder is presented as shipped behavior.
-- [x] Runtime/tool behavior was checked diagnostically but not modified.
+- [x] Runtime behavior is app-local and bounded.
 - [x] Unsupported behavior is not hidden.
 
 ## Known Limitations
@@ -75,10 +80,9 @@ See `known_limitations.md`.
 
 ## Verification Decision
 
-Blocked
+Implemented-Unverified
 
 ## Decision Reason
 
-No current runtime/tool entrypoint launches StarterArena as a real local playable
-loop, and this batch is not allowed to modify runtime, launch tools, CMake,
-tests, or scripts.
+The bounded StarterArena runtime smoke seam is implemented and passes locally,
+but maintainer verification has not accepted the phase.
