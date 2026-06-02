@@ -25,6 +25,7 @@ target/
 *.ilk
 
 *.log
+!docs/internal/phase-evidence/**/commands.log
 
 CMakeFiles/
 CMakeCache.txt
