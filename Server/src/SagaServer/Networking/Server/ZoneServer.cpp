@@ -7,6 +7,7 @@
 #include "SagaEngine/Simulation/SimulationTick.h"
 #include "SagaEngine/Simulation/WorldState.h"
 #include "SagaEngine/Core/Log/Log.h"
+#include "SagaEngine/Diagnostics/DiagnosticSystem.hpp"
 
 #include <asio.hpp>
 #include <asio/steady_timer.hpp>
@@ -127,7 +128,13 @@ void ZoneServer::Run()
 void ZoneServer::RequestShutdown()
 {
     LOG_INFO(kTag, "Zone %u shutdown requested", m_config.zoneId);
-    m_shutdownRequested.store(true, std::memory_order_release);
+    const bool wasRequested = m_shutdownRequested.exchange(
+        true,
+        std::memory_order_release);
+    if (!wasRequested)
+    {
+        RecordShutdownRequestedLifecycle();
+    }
 }
 
 void ZoneServer::Destroy()
@@ -152,6 +159,22 @@ void ZoneServer::Destroy()
     m_simTick.reset();
 
     m_running.store(false, std::memory_order_release);
+}
+
+void ZoneServer::SetDiagnostics(
+    SagaEngine::Diagnostics::DiagnosticSystem* diagnostics) noexcept
+{
+    m_diagnostics = diagnostics;
+    if (!m_diagnostics)
+        return;
+
+    m_diagnostics->Log().Log(
+        SagaEngine::Core::Log::Level::Info,
+        kTag,
+        "Diagnostics attached to zone server",
+        {{"zone_id", std::to_string(m_config.zoneId)},
+         {"zone_name", m_config.zoneName}});
+    RecordActiveControlledActorCount();
 }
 
 // ─── Init helpers ─────────────────────────────────────────────────────────────
@@ -218,6 +241,7 @@ bool ZoneServer::InitNetworking()
     {
         m_replicationManager->AddClient(clientId);
         m_stats.currentClientCount.fetch_add(1, std::memory_order_relaxed);
+        RecordSessionConnectedLifecycle(clientId);
         NotifyClientConnected(clientId);
         LOG_INFO(kTag, "Client %llu connected — zone %u (%u total)",
                  static_cast<unsigned long long>(clientId),
@@ -232,6 +256,7 @@ bool ZoneServer::InitNetworking()
         const uint32_t prev = m_stats.currentClientCount.fetch_sub(1, std::memory_order_relaxed);
         if (prev == 0)
             m_stats.currentClientCount.store(0, std::memory_order_relaxed);
+        RecordSessionDisconnectedLifecycle(clientId);
         NotifyClientDisconnected(clientId);
         LOG_INFO(kTag, "Client %llu disconnected — zone %u (%u remaining)",
                  static_cast<unsigned long long>(clientId),
@@ -415,6 +440,7 @@ void ZoneServer::ExecuteTick(uint64_t tickIndex, double fixedDelta)
             std::chrono::steady_clock::now() - tickStart).count());
 
     m_stats.lastTickDurationUs.store(durationUs, std::memory_order_relaxed);
+    RecordTickReliabilityDiagnostics(tickIndex, durationUs);
 
     if (durationUs > m_config.maxTickBudgetUs)
     {
@@ -450,6 +476,7 @@ ServerPacketNormalizationStatus ZoneServer::ProcessRawInboundPacket(
     if (!result.Succeeded())
     {
         m_stats.totalPacketsRejected.fetch_add(1, std::memory_order_relaxed);
+        RecordDiagnosticCounter("server.packets.rejected");
         if (m_config.enableDetailedPacketLog)
         {
             LOG_WARN(kTag,
@@ -497,6 +524,7 @@ void ZoneServer::HandleNormalizedInboundPacket(
             std::chrono::system_clock::now().time_since_epoch()).count());
 
     const auto intakeResult = m_movementCommandIntake->HandlePacket(intakePacket);
+    RecordMovementIntakeDiagnostics(intakeResult);
     {
         std::lock_guard<std::mutex> lock(m_movementAuthorityMutex);
         m_lastMovementIntakeResult = intakeResult;
@@ -522,6 +550,7 @@ SagaEngine::Server::Simulation::AuthoritativeMovementTickReport
 ZoneServer::TickMovementAuthority(uint64_t tickIndex, double fixedDelta)
 {
     SagaEngine::Server::Simulation::AuthoritativeMovementTickReport report;
+    RecordDiagnosticCounter("server.tick.count");
     if (!m_movementCommandIntake || fixedDelta <= 0.0 || !std::isfinite(fixedDelta))
     {
         std::lock_guard<std::mutex> lock(m_movementAuthorityMutex);
@@ -681,6 +710,8 @@ ZoneServer::RegisterControlledActor(
         return SagaEngine::Server::Simulation::ActorOwnershipResult::NotFound;
     }
 
+    RecordActiveControlledActorCount();
+    RecordEntityCreatedLifecycle(clientId, entityId);
     return result;
 }
 
@@ -690,9 +721,17 @@ ZoneServer::UnregisterControlledActor(ClientId clientId)
     if (!m_actorOwnershipRegistry || !m_movementCommandIntake)
         return SagaEngine::Server::Simulation::ActorOwnershipResult::NotFound;
 
+    const auto existingActor = m_actorOwnershipRegistry->FindByClient(clientId);
     const auto result = m_actorOwnershipRegistry->UnregisterClient(clientId);
     if (result == SagaEngine::Server::Simulation::ActorOwnershipResult::Unregistered)
+    {
         m_movementCommandIntake->UnregisterActor(clientId);
+        RecordActiveControlledActorCount();
+        if (existingActor.has_value())
+        {
+            RecordEntityDestroyedLifecycle(clientId, existingActor->entityId);
+        }
+    }
 
     return result;
 }
@@ -724,12 +763,14 @@ void ZoneServer::RemoveListener(IZoneServerListener* listener)
 
 void ZoneServer::NotifyServerStarted()
 {
+    RecordServerStartedLifecycle();
     std::lock_guard<std::mutex> lock(m_listenerMutex);
     for (auto* l : m_listeners) l->OnServerStarted(m_config.zoneId, m_boundPort.load());
 }
 
 void ZoneServer::NotifyServerStopped()
 {
+    RecordServerStoppedLifecycle();
     std::lock_guard<std::mutex> lock(m_listenerMutex);
     for (auto* l : m_listeners) l->OnServerStopped(m_config.zoneId);
 }
@@ -757,6 +798,388 @@ void ZoneServer::NotifyTickCompleted(uint64_t tick, uint64_t durationUs)
 {
     std::lock_guard<std::mutex> lock(m_listenerMutex);
     for (auto* l : m_listeners) l->OnTickCompleted(tick, durationUs);
+}
+
+void ZoneServer::RecordDiagnosticCounter(const char* name, double amount)
+{
+    if (!m_diagnostics)
+        return;
+
+    m_diagnostics->Health().IncrementCounter(name, amount);
+}
+
+void ZoneServer::RecordDiagnosticGauge(const char* name, double value)
+{
+    if (!m_diagnostics)
+        return;
+
+    m_diagnostics->Health().SetGauge(name, value);
+}
+
+void ZoneServer::RecordDiagnosticTiming(const char* name, double milliseconds)
+{
+    if (!m_diagnostics)
+        return;
+
+    m_diagnostics->Health().RecordTiming(name, milliseconds);
+}
+
+void ZoneServer::RecordActiveControlledActorCount()
+{
+    if (!m_actorOwnershipRegistry)
+        return;
+
+    RecordDiagnosticGauge(
+        "world.entities.active",
+        static_cast<double>(m_actorOwnershipRegistry->Count()));
+}
+
+void ZoneServer::RecordMovementIntakeDiagnostics(
+    const SagaEngine::Server::Simulation::AuthoritativeMovementCommandIntakeResult& result)
+{
+    using SagaEngine::Server::Simulation::AuthoritativeMovementCommandIntakeDecision;
+    using SagaEngine::Server::Simulation::AuthoritativeMovementDecision;
+
+    if (result.decision ==
+        AuthoritativeMovementCommandIntakeDecision::MalformedInput)
+    {
+        RecordDiagnosticCounter("server.movement.rejected_inputs");
+        return;
+    }
+
+    if (result.decision !=
+        AuthoritativeMovementCommandIntakeDecision::Forwarded)
+    {
+        return;
+    }
+
+    if (result.movementResult.has_value() &&
+        result.movementResult->decision == AuthoritativeMovementDecision::Queued)
+    {
+        RecordDiagnosticCounter("server.movement.accepted_inputs");
+        return;
+    }
+
+    RecordDiagnosticCounter("server.movement.rejected_inputs");
+}
+
+void ZoneServer::RecordTickReliabilityDiagnostics(
+    uint64_t tickIndex,
+    uint64_t durationUs)
+{
+    if (!m_diagnostics)
+        return;
+
+    RecordDiagnosticTiming(
+        "server.tick.ms",
+        static_cast<double>(durationUs) / 1000.0);
+
+    if (durationUs <= m_config.maxTickBudgetUs)
+        return;
+
+    RecordDiagnosticCounter("server.tick.budget_overruns");
+    RecordLifecycleEvent(
+        "TickSlow",
+        "tick",
+        "warning",
+        "Server tick exceeded configured budget",
+        tickIndex,
+        {{"budget_us", std::to_string(m_config.maxTickBudgetUs)},
+         {"duration_us", std::to_string(durationUs)}});
+    m_diagnostics->Log().Log(
+        SagaEngine::Core::Log::Level::Warn,
+        kTag,
+        "Tick budget overrun",
+        {{"zone_id", std::to_string(m_config.zoneId)},
+         {"tick", std::to_string(tickIndex)},
+         {"duration_us", std::to_string(durationUs)},
+         {"budget_us", std::to_string(m_config.maxTickBudgetUs)}});
+}
+
+void ZoneServer::RecordLifecycleEvent(
+    std::string eventName,
+    std::string category,
+    std::string severity,
+    std::string message,
+    uint64_t tick,
+    std::vector<std::pair<std::string, std::string>> payload)
+{
+    if (!m_diagnostics)
+        return;
+
+    (void)m_diagnostics->ServerLifecycle().RecordEvent(
+        std::move(eventName),
+        std::move(category),
+        std::move(severity),
+        std::move(message),
+        m_config.zoneId,
+        tick,
+        std::move(payload));
+}
+
+void ZoneServer::RecordServerStartedLifecycle(uint64_t tick)
+{
+    if (!m_diagnostics)
+        return;
+
+    uint64_t recordId = 0;
+    {
+        std::lock_guard<std::mutex> lock(m_lifecycleRecordMutex);
+        recordId = m_serverLifecycleRecordId;
+    }
+
+    if (recordId == 0)
+    {
+        recordId = m_diagnostics->ServerLifecycle().CreateRecord(
+            "Server",
+            m_config.zoneId,
+            m_config.zoneId,
+            0,
+            tick,
+            "running",
+            m_config.zoneName);
+        if (recordId != 0)
+        {
+            std::lock_guard<std::mutex> lock(m_lifecycleRecordMutex);
+            m_serverLifecycleRecordId = recordId;
+        }
+    }
+
+    RecordLifecycleEvent(
+        "ServerStarted",
+        "server",
+        "info",
+        "Zone server started",
+        tick,
+        {{"bound_port", std::to_string(m_boundPort.load())},
+         {"record_id", std::to_string(recordId)},
+         {"zone_name", m_config.zoneName}});
+}
+
+void ZoneServer::RecordServerStoppedLifecycle(uint64_t tick)
+{
+    if (!m_diagnostics)
+        return;
+
+    uint64_t recordId = 0;
+    {
+        std::lock_guard<std::mutex> lock(m_lifecycleRecordMutex);
+        recordId = m_serverLifecycleRecordId;
+        m_serverLifecycleRecordId = 0;
+    }
+
+    if (recordId != 0)
+    {
+        (void)m_diagnostics->ServerLifecycle().DestroyRecord(
+            recordId,
+            tick,
+            "stopped");
+    }
+
+    RecordLifecycleEvent(
+        "ServerStopped",
+        "server",
+        "info",
+        "Zone server stopped",
+        tick,
+        {{"record_id", std::to_string(recordId)}});
+}
+
+void ZoneServer::RecordShutdownRequestedLifecycle(uint64_t tick)
+{
+    if (!m_diagnostics)
+        return;
+
+    RecordLifecycleEvent(
+        "ServerShutdownRequested",
+        "server",
+        "info",
+        "Zone server shutdown requested",
+        tick,
+        {{"zone_name", m_config.zoneName}});
+    (void)m_diagnostics->ServerLifecycle().EmitLifetimeLeakEventsForActiveRecords(
+        m_config.zoneId,
+        tick);
+}
+
+void ZoneServer::RecordSessionConnectedLifecycle(ClientId clientId, uint64_t tick)
+{
+    if (!m_diagnostics)
+        return;
+
+    uint64_t recordId = 0;
+    {
+        std::lock_guard<std::mutex> lock(m_lifecycleRecordMutex);
+        const auto it = m_sessionLifecycleRecordIds.find(clientId);
+        if (it != m_sessionLifecycleRecordIds.end())
+        {
+            recordId = it->second;
+        }
+    }
+
+    if (recordId == 0)
+    {
+        recordId = m_diagnostics->ServerLifecycle().CreateRecord(
+            "SessionConnection",
+            m_config.zoneId,
+            clientId,
+            FindSessionLifecycleRecordId(0),
+            tick,
+            "connected",
+            "client:" + std::to_string(clientId));
+        if (recordId != 0)
+        {
+            std::lock_guard<std::mutex> lock(m_lifecycleRecordMutex);
+            m_sessionLifecycleRecordIds[clientId] = recordId;
+        }
+    }
+
+    RecordLifecycleEvent(
+        "SessionConnected",
+        "session",
+        "info",
+        "Client session connected",
+        tick,
+        {{"client_id", std::to_string(clientId)},
+         {"record_id", std::to_string(recordId)}});
+}
+
+void ZoneServer::RecordSessionDisconnectedLifecycle(ClientId clientId, uint64_t tick)
+{
+    if (!m_diagnostics)
+        return;
+
+    uint64_t recordId = 0;
+    {
+        std::lock_guard<std::mutex> lock(m_lifecycleRecordMutex);
+        const auto it = m_sessionLifecycleRecordIds.find(clientId);
+        if (it != m_sessionLifecycleRecordIds.end())
+        {
+            recordId = it->second;
+            m_sessionLifecycleRecordIds.erase(it);
+        }
+    }
+
+    if (recordId != 0)
+    {
+        (void)m_diagnostics->ServerLifecycle().DestroyRecord(
+            recordId,
+            tick,
+            "disconnected");
+    }
+    else
+    {
+        (void)m_diagnostics->ServerLifecycle().DestroyActiveRecordByExternalId(
+            "SessionConnection",
+            m_config.zoneId,
+            clientId,
+            tick,
+            "disconnected");
+    }
+
+    RecordLifecycleEvent(
+        "SessionDisconnected",
+        "session",
+        "info",
+        "Client session disconnected",
+        tick,
+        {{"client_id", std::to_string(clientId)},
+         {"record_id", std::to_string(recordId)}});
+}
+
+void ZoneServer::RecordEntityCreatedLifecycle(
+    ClientId clientId,
+    SagaEngine::Server::Simulation::EntityId entityId,
+    uint64_t tick)
+{
+    if (!m_diagnostics)
+        return;
+
+    const uint64_t ownerRecordId = FindSessionLifecycleRecordId(clientId);
+    const uint64_t recordId = m_diagnostics->ServerLifecycle().CreateRecord(
+        "Entity",
+        m_config.zoneId,
+        entityId,
+        ownerRecordId,
+        tick,
+        "active",
+        "entity:" + std::to_string(entityId));
+    if (recordId != 0)
+    {
+        std::lock_guard<std::mutex> lock(m_lifecycleRecordMutex);
+        m_entityLifecycleRecordIdsByClient[clientId] = recordId;
+    }
+
+    RecordLifecycleEvent(
+        "EntityCreated",
+        "entity",
+        "info",
+        "Controlled entity created",
+        tick,
+        {{"client_id", std::to_string(clientId)},
+         {"entity_id", std::to_string(entityId)},
+         {"owner_record_id", std::to_string(ownerRecordId)},
+         {"record_id", std::to_string(recordId)}});
+}
+
+void ZoneServer::RecordEntityDestroyedLifecycle(
+    ClientId clientId,
+    SagaEngine::Server::Simulation::EntityId entityId,
+    uint64_t tick)
+{
+    if (!m_diagnostics)
+        return;
+
+    uint64_t recordId = 0;
+    {
+        std::lock_guard<std::mutex> lock(m_lifecycleRecordMutex);
+        const auto it = m_entityLifecycleRecordIdsByClient.find(clientId);
+        if (it != m_entityLifecycleRecordIdsByClient.end())
+        {
+            recordId = it->second;
+            m_entityLifecycleRecordIdsByClient.erase(it);
+        }
+    }
+
+    if (recordId != 0)
+    {
+        (void)m_diagnostics->ServerLifecycle().DestroyRecord(
+            recordId,
+            tick,
+            "destroyed");
+    }
+    else
+    {
+        (void)m_diagnostics->ServerLifecycle().DestroyActiveRecordByExternalId(
+            "Entity",
+            m_config.zoneId,
+            entityId,
+            tick,
+            "destroyed");
+    }
+
+    RecordLifecycleEvent(
+        "EntityDestroyed",
+        "entity",
+        "info",
+        "Controlled entity destroyed",
+        tick,
+        {{"client_id", std::to_string(clientId)},
+         {"entity_id", std::to_string(entityId)},
+         {"record_id", std::to_string(recordId)}});
+}
+
+uint64_t ZoneServer::FindSessionLifecycleRecordId(ClientId clientId) const
+{
+    if (clientId == 0)
+    {
+        std::lock_guard<std::mutex> lock(m_lifecycleRecordMutex);
+        return m_serverLifecycleRecordId;
+    }
+
+    std::lock_guard<std::mutex> lock(m_lifecycleRecordMutex);
+    const auto it = m_sessionLifecycleRecordIds.find(clientId);
+    return it == m_sessionLifecycleRecordIds.end() ? 0 : it->second;
 }
 
 // ─── Tick injection (tests) ───────────────────────────────────────────────────
@@ -818,6 +1241,26 @@ ZoneServer::GetPendingMovementDirtyReplicationIntentCountForTesting() const
         return 0;
 
     return m_movementDirtyReplicationBridge->PendingCount();
+}
+
+void ZoneServer::RecordTickDurationForTesting(uint64_t tickIndex, uint64_t durationUs)
+{
+    RecordTickReliabilityDiagnostics(tickIndex, durationUs);
+}
+
+void ZoneServer::RecordServerStartedForTesting()
+{
+    RecordServerStartedLifecycle();
+}
+
+void ZoneServer::RecordSessionConnectedForTesting(ClientId clientId)
+{
+    RecordSessionConnectedLifecycle(clientId);
+}
+
+void ZoneServer::RecordSessionDisconnectedForTesting(ClientId clientId)
+{
+    RecordSessionDisconnectedLifecycle(clientId);
 }
 
 } // namespace SagaServer::Networking

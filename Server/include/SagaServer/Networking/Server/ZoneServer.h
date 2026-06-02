@@ -44,7 +44,14 @@
 #include <optional>
 #include <string>
 #include <thread>
+#include <unordered_map>
+#include <utility>
 #include <vector>
+
+namespace SagaEngine::Diagnostics
+{
+class DiagnosticSystem;
+}
 
 namespace SagaServer::Networking
 {
@@ -155,6 +162,10 @@ public:
     /// Tear down all subsystems. Safe to call multiple times.
     void Destroy();
 
+    /// Attach optional diagnostics. The server does not own this pointer.
+    void SetDiagnostics(
+        SagaEngine::Diagnostics::DiagnosticSystem* diagnostics) noexcept;
+
     // ── Queries ───────────────────────────────────────────────────────────────
 
     [[nodiscard]] bool     IsRunning()           const noexcept;
@@ -221,6 +232,15 @@ public:
     [[nodiscard]] std::size_t
         GetPendingMovementDirtyReplicationIntentCountForTesting() const;
 
+    /// Record a supplied tick duration through diagnostics for deterministic tests.
+    void RecordTickDurationForTesting(uint64_t tickIndex, uint64_t durationUs);
+    /// Record server-start lifecycle diagnostics without starting sockets or threads.
+    void RecordServerStartedForTesting();
+    /// Record session connection lifecycle diagnostics without live sockets.
+    void RecordSessionConnectedForTesting(ClientId clientId);
+    /// Record session disconnection lifecycle diagnostics without live sockets.
+    void RecordSessionDisconnectedForTesting(ClientId clientId);
+
 private:
     // ── Internal subsystem types (fwd declared to hide headers) ───────────────
 
@@ -268,10 +288,43 @@ private:
     void NotifyInboundPacketNormalized(const NormalizedServerPacketView& packet);
     void NotifyTickCompleted(uint64_t tick, uint64_t durationUs);
 
+    // ── Optional diagnostics ─────────────────────────────────────────────────
+
+    void RecordDiagnosticCounter(const char* name, double amount = 1.0);
+    void RecordDiagnosticGauge(const char* name, double value);
+    void RecordDiagnosticTiming(const char* name, double milliseconds);
+    void RecordActiveControlledActorCount();
+    void RecordMovementIntakeDiagnostics(
+        const SagaEngine::Server::Simulation::
+            AuthoritativeMovementCommandIntakeResult& result);
+    void RecordTickReliabilityDiagnostics(uint64_t tickIndex, uint64_t durationUs);
+    void RecordLifecycleEvent(
+        std::string eventName,
+        std::string category,
+        std::string severity,
+        std::string message,
+        uint64_t tick = 0,
+        std::vector<std::pair<std::string, std::string>> payload = {});
+    void RecordServerStartedLifecycle(uint64_t tick = 0);
+    void RecordServerStoppedLifecycle(uint64_t tick = 0);
+    void RecordShutdownRequestedLifecycle(uint64_t tick = 0);
+    void RecordSessionConnectedLifecycle(ClientId clientId, uint64_t tick = 0);
+    void RecordSessionDisconnectedLifecycle(ClientId clientId, uint64_t tick = 0);
+    void RecordEntityCreatedLifecycle(
+        ClientId clientId,
+        SagaEngine::Server::Simulation::EntityId entityId,
+        uint64_t tick = 0);
+    void RecordEntityDestroyedLifecycle(
+        ClientId clientId,
+        SagaEngine::Server::Simulation::EntityId entityId,
+        uint64_t tick = 0);
+    [[nodiscard]] uint64_t FindSessionLifecycleRecordId(ClientId clientId) const;
+
     // ── State ─────────────────────────────────────────────────────────────────
 
     ZoneServerConfig m_config;
     ZoneServerStats  m_stats;
+    SagaEngine::Diagnostics::DiagnosticSystem* m_diagnostics{nullptr};
 
     std::atomic<bool>     m_running{false};
     std::atomic<bool>     m_shutdownRequested{false};
@@ -302,10 +355,14 @@ private:
     mutable std::mutex m_listenerMutex;
     std::vector<IZoneServerListener*> m_listeners;
     mutable std::mutex m_movementAuthorityMutex;
+    mutable std::mutex m_lifecycleRecordMutex;
     std::optional<SagaEngine::Server::Simulation::AuthoritativeMovementCommandIntakeResult>
         m_lastMovementIntakeResult;
     SagaEngine::Server::Simulation::AuthoritativeMovementTickReport
         m_lastMovementTickReport;
+    uint64_t m_serverLifecycleRecordId{0};
+    std::unordered_map<ClientId, uint64_t> m_sessionLifecycleRecordIds;
+    std::unordered_map<ClientId, uint64_t> m_entityLifecycleRecordIdsByClient;
 
     // ── Stats accumulation ────────────────────────────────────────────────────
 
