@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "manifestId": "multiplayer-sandbox.asset-source",
+  "canonical": true,
+  "assetOwners": [
+    {
+      "assetId": "multiplayer-sandbox.assets",
+      "owner": "project-assets",
+      "path": "Assets/README.md"
+    }
+  ],
+  "assetReferences": []
+}

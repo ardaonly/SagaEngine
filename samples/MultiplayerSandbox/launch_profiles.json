@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 0,
+  "profiles": [
+    {
+      "id": "local-server-headless",
+      "displayName": "Local Server Headless",
+      "role": "server",
+      "mode": "bounded-local-process",
+      "executable": "MultiplayerSandboxHeadless",
+      "reportPath": "Build/Reports/headless_server_report.json",
+      "diagnosticsPath": "Diagnostics",
+      "arguments": [
+        "--project",
+        "{project}",
+        "--report-out",
+        "{headlessReport}",
+        "--diagnostics-out",
+        "{diagnosticsOut}",
+        "--ticks",
+        "1",
+        "--fixed-dt",
+        "1.0"
+      ],
+      "notes": "Phase 22 server-only local preview. Runtime client preview remains deferred until a safe bounded ClientHost seam exists."
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 0,
+  "projectId": "multiplayer-sandbox",
+  "displayName": "MultiplayerSandbox",
+  "engineCompatibility": {
+    "minimumVersion": "0.0.9",
+    "targetVersion": "0.1-technical-preview",
+    "channel": "technical-preview"
+  },
+  "paths": {
+    "diagnostics": "Diagnostics",
+    "generatedReports": "Build/Reports"
+  },
+  "scenes": [
+    {
+      "id": "source-truth-foundation",
+      "path": "Scenes/source_truth_foundation.scene.json",
+      "kind": "scene"
+    }
+  ],
+  "assets": [
+    {
+      "id": "multiplayer-sandbox.assets",
+      "path": "Assets",
+      "kind": "directory"
+    }
+  ],
+  "scriptFolders": [
+    {
+      "id": "multiplayer-sandbox.scripts",
+      "path": "Scripts"
+    }
+  ],
+  "launchProfiles": [
+    {
+      "id": "local-server-headless",
+      "path": "launch_profiles.json"
+    }
+  ],
+  "packageProfiles": [
+    {
+      "id": "technical-preview-server-headless",
+      "path": "package_profiles.json"
+    }
+  ]
+}

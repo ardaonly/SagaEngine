@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 0,
+  "profiles": [
+    {
+      "id": "technical-preview-server-headless",
+      "displayName": "Technical Preview Server Headless",
+      "role": "server",
+      "outputDirectory": "Build/Packages/MultiplayerSandbox/server-headless",
+      "diagnosticsDirectory": "Diagnostics",
+      "reportsDirectory": "Reports",
+      "packageManifestPath": "package_manifest.server.json",
+      "assetManifestPath": "Manifests/assets.json",
+      "assetIdentityManifestPath": "Manifests/asset_identity.json",
+      "scriptMetadataPath": "Manifests/script_metadata.json",
+      "runtimeMetadataPath": "Manifests/runtime_metadata.json",
+      "launchProfileId": "local-server-headless"
+    }
+  ]
+}
