@@ -17,7 +17,7 @@ or an explicit verification script result accepted by maintainers.
 | 7 | CI-Ready Local Gate | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_07/` | verify-gate | `-` | `scripts/verify-local` composes quick verification, taxonomy, and build dry-run gates; no phase is verified. |
 | 8 | MultiplayerSandbox Truth Reset | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_08/` | sample-truth-gate | `-` | MultiplayerSandbox sample docs now describe fixture evidence, not product proof. |
 | 9 | StarterArena Sample Definition | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_09/` | sample-design-gate | `-` | StarterArena is defined as project metadata only, with no gameplay/runtime/package content. |
-| 10 | First Playable Runtime Loop | Not Started | `docs/internal/phase-evidence/PHASE_10/` | runtime-smoke-gate | `-` | `-` |
+| 10 | First Playable Runtime Loop | Blocked | `docs/internal/phase-evidence/PHASE_10/` | runtime-smoke-gate | `-` | Current runtime/tool entrypoints do not launch a project-backed StarterArena local loop. |
 | 11 | C# Gameplay Script v1 | Not Started | `docs/internal/phase-evidence/PHASE_11/` | scripting-gate | `-` | `-` |
 | 12 | Server-Authoritative Sample v1 | Not Started | `docs/internal/phase-evidence/PHASE_12/` | server-gate | `-` | `-` |
 | 13 | C# Compatibility Profile v1 | Not Started | `docs/internal/phase-evidence/PHASE_13/` | csharp-blocks-gate | `-` | `-` |

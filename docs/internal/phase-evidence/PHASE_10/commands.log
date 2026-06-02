@@ -1,3 +1,51 @@
 # Phase 10 Commands Log
 
-No phase verification commands have been recorded yet.
+git status --short
+Result: passed. Worktree was clean before edits.
+
+find samples/StarterArena -maxdepth 5 -type f | sort
+Result: StarterArena contained only metadata/spec docs and required schema
+directory README files.
+
+find samples/MultiplayerSandbox -maxdepth 5 -type f | sort
+Result: existing sample launch precedent is MultiplayerSandbox server/headless
+evidence, not a runtime/client StarterArena path.
+
+find Apps Runtime Engine Tests/Unit/Samples Tools/MultiplayerSandboxHeadless Tools/SagaProjectKit Tools/SagaLaunchLab -maxdepth 4 -type f 2>/dev/null | sort | head -500
+Result: inspected relevant app/runtime/tool/test surfaces without editing them.
+
+Tools/SagaLaunchLab/sagalaunch --help
+Result: failed under the ambient .NET SDK because the wrapper tried to target
+.NET 10.0 with an SDK that did not support it. Recorded as diagnostic context,
+not implementation failure.
+
+nix-shell --run "Tools/SagaLaunchLab/sagalaunch --help"
+Result: passed. Help lists `server`, `accept`, `profile-matrix`, and
+`source-truth-alignment`; no runtime/client launch command is exposed.
+
+build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --help
+Result: passed. Help lists server, port, headless, package-manifest, and
+package-base-directory options; no project or scene option is exposed.
+
+timeout 5 sh -c 'ulimit -c 0; exec build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless'
+Result: failed with exit code 139. The process started the current client path,
+attempted UDP setup, failed socket initialization with "Operation not
+permitted", exited the loop at frame 0, and did not consume StarterArena
+project metadata. This is blocker evidence, not a passing smoke path.
+
+No runtime, launch tool, CMake, test, or script files were modified.
+
+git diff --check
+Result: passed.
+
+scripts/scan-claims README.md docs samples Tools
+Result: passed.
+
+scripts/verify-quick
+Result: passed.
+
+scripts/verify-local --allow-dirty
+Result: passed. Pre-commit mode allowed the intentionally dirty worktree.
+
+scripts/verify-phase 10
+Result: passed. No phase was marked Verified.

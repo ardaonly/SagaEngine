@@ -1,10 +1,10 @@
 {
   "phase": 10,
   "name": "First Playable Runtime Loop",
-  "status": "Not Started",
+  "status": "Blocked",
   "required_gate": "runtime-smoke-gate",
   "verified": false,
   "last_verified_commit": "-",
-  "verification_decision": "Not Started",
-  "decision_reason": "The phase has not been started in the current status matrix."
+  "verification_decision": "Blocked",
+  "decision_reason": "No current runtime/tool entrypoint launches StarterArena as a project-backed local playable loop, and this batch did not modify runtime, launch tools, CMake, tests, or scripts."
 }

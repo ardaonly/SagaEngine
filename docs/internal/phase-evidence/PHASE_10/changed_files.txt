@@ -1,1 +1,9 @@
-No phase-specific changed files recorded yet.
+samples/StarterArena/README.md
+samples/StarterArena/ACCEPTANCE.md
+samples/StarterArena/KNOWN_LIMITATIONS.md
+docs/internal/PHASE_STATUS_MATRIX.md
+docs/internal/phase-evidence/PHASE_10/EVIDENCE.md
+docs/internal/phase-evidence/PHASE_10/commands.log
+docs/internal/phase-evidence/PHASE_10/changed_files.txt
+docs/internal/phase-evidence/PHASE_10/known_limitations.md
+docs/internal/phase-evidence/PHASE_10/verification_result.json
