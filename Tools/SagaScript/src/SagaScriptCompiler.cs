@@ -308,6 +308,111 @@ internal sealed class GeneratedCodeOriginAttribute : Attribute
 {
     public GeneratedCodeOriginAttribute(string sourceResourceId, string sourceHash, string generatedPath) {}
 }
+
+namespace Saga
+{
+    public enum SagaApiLevel
+    {
+        High,
+        Low
+    }
+
+    public enum SagaApiDomain
+    {
+        Gameplay,
+        Runtime,
+        Server,
+        Networking,
+        UI,
+        Diagnostics,
+        Assets,
+        Packaging
+    }
+
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false)]
+    public sealed class SagaBehaviorAttribute : Attribute
+    {
+        public SagaApiLevel Level { get; set; }
+        public SagaApiDomain Domain { get; set; }
+        public string Id { get; set; } = "";
+    }
+
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+    public sealed class SagaNodeAttribute : Attribute
+    {
+        public SagaApiLevel Level { get; set; }
+        public SagaApiDomain Domain { get; set; }
+        public string Id { get; set; } = "";
+        public string DisplayName { get; set; } = "";
+        public string Capability { get; set; } = "";
+    }
+
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
+    public sealed class SagaLibraryAttribute : Attribute
+    {
+        public SagaApiLevel Level { get; set; }
+        public SagaApiDomain Domain { get; set; }
+        public string Id { get; set; } = "";
+    }
+}
+
+namespace Saga.Gameplay.HighLevel
+{
+    public sealed class Player {}
+    public sealed class Door
+    {
+        public static void Open(Door door) {}
+    }
+    public static class Inventory
+    {
+        public static bool Has(Player player, string itemId) => false;
+    }
+    public static class Quest
+    {
+        public static void Complete(Player player, string questId) {}
+    }
+}
+
+namespace Saga.Gameplay.LowLevel
+{
+    public readonly struct EntityId
+    {
+        public EntityId(long value) { Value = value; }
+        public long Value { get; }
+    }
+
+    public readonly struct InventorySlot
+    {
+        public InventorySlot(int value) { Value = value; }
+        public int Value { get; }
+    }
+
+    public static class GameplayOps
+    {
+        public static bool QueryInventorySlot(InventorySlot slot, string itemId) => false;
+        public static void SetDoorState(EntityId door, string state) {}
+        public static void ApplyItemDelta(InventorySlot slot, string itemId, int delta) {}
+        public static void EmitGameplayEvent(string eventId) {}
+    }
+}
+
+namespace Saga.Server.LowLevel
+{
+    public static class ServerOps
+    {
+        public static bool ValidateAuthority(long entityId) => true;
+        public static void ApplyServerMutation(string mutationId) {}
+        public static void MarkDirty(long entityId) {}
+    }
+}
+
+namespace Saga.Diagnostics.LowLevel
+{
+    public static class DiagnosticsOps
+    {
+        public static void EmitDiagnostic(string code, string message) {}
+    }
+}
 """;
     }
 

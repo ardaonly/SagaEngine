@@ -19,6 +19,14 @@ internal sealed record SourceRange(
     [property: JsonPropertyName("endLine")] int EndLine,
     [property: JsonPropertyName("endColumn")] int EndColumn);
 
+internal sealed record SourceSpan(
+    [property: JsonPropertyName("startLine")] int StartLine,
+    [property: JsonPropertyName("startColumn")] int StartColumn,
+    [property: JsonPropertyName("endLine")] int EndLine,
+    [property: JsonPropertyName("endColumn")] int EndColumn,
+    [property: JsonPropertyName("startByte")] int StartByte,
+    [property: JsonPropertyName("endByte")] int EndByte);
+
 internal sealed record SagaDiagnostic
 {
     public string Severity { get; init; } = SagaDiagnosticSeverity.Info.ToString();
@@ -176,6 +184,255 @@ internal sealed record AnalysisResult
     public IReadOnlyList<ScriptBinding> Bindings { get; init; } = Array.Empty<ScriptBinding>();
     public IReadOnlyList<SagaDiagnostic> Diagnostics { get; init; } = Array.Empty<SagaDiagnostic>();
     public DiagnosticSummary Summary { get; init; } = new();
+}
+
+internal sealed record SagaWeaverBehavior
+{
+    public string BehaviorId { get; init; } = "";
+    public string ApiLevel { get; init; } = "Unsupported";
+    public string ApiDomain { get; init; } = "Unsupported";
+    public string Compatibility { get; init; } = "Unsupported";
+    public string DeclaringType { get; init; } = "";
+    public string MethodName { get; init; } = "";
+    public string SourceFile { get; init; } = "";
+    public string SourceHash { get; init; } = "";
+    public SourceSpan? SourceSpan { get; init; }
+    public IReadOnlyList<string> NamespaceUsages { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<SagaWeaverNode> Nodes { get; init; } = Array.Empty<SagaWeaverNode>();
+}
+
+internal sealed record SagaWeaverNode
+{
+    public string NodeId { get; init; } = "";
+    public string Kind { get; init; } = "";
+    public string DisplayName { get; init; } = "";
+    public string ApiLevel { get; init; } = "Unsupported";
+    public string ApiDomain { get; init; } = "Unsupported";
+    public string Capability { get; init; } = "ProjectionOnly";
+    public string ProjectionCompatibility { get; init; } = "ReadOnly";
+    public bool ReadOnly { get; init; } = true;
+    public SourceSpan? SourceSpan { get; init; }
+    public string? OpaqueReason { get; init; }
+    public string? LiteralValue { get; init; }
+}
+
+internal sealed record SagaWeaverAnalysisReport
+{
+    public int SchemaVersion { get; init; } = 1;
+    public string Tool { get; init; } = ToolInfo.Name;
+    public string Command { get; init; } = "analyze";
+    public string Status { get; init; } = "Passed";
+    public string SourceHash { get; init; } = "";
+    public IReadOnlyList<SagaWeaverBehavior> Behaviors { get; init; } = Array.Empty<SagaWeaverBehavior>();
+    public DiagnosticSummary Summary { get; init; } = new();
+    public IReadOnlyList<SagaDiagnostic> Diagnostics { get; init; } = Array.Empty<SagaDiagnostic>();
+}
+
+internal sealed record RuntimeBindingReport
+{
+    public int SchemaVersion { get; init; } = 1;
+    public string Tool { get; init; } = ToolInfo.Name;
+    public string Command { get; init; } = "emit-bindings";
+    public string Status { get; init; } = "Passed";
+    public string SourceHash { get; init; } = "";
+    public IReadOnlyList<RuntimeBindingEntry> Bindings { get; init; } = Array.Empty<RuntimeBindingEntry>();
+    public DiagnosticSummary Summary { get; init; } = new();
+    public IReadOnlyList<SagaDiagnostic> Diagnostics { get; init; } = Array.Empty<SagaDiagnostic>();
+}
+
+internal sealed record RuntimeBindingEntry
+{
+    public string BehaviorId { get; init; } = "";
+    public string ApiLevel { get; init; } = "";
+    public string ApiDomain { get; init; } = "";
+    public string DeclaringType { get; init; } = "";
+    public string MethodName { get; init; } = "";
+    public string SourceFile { get; init; } = "";
+    public string SourceHash { get; init; } = "";
+    public SourceSpan? SourceSpan { get; init; }
+    public string Compatibility { get; init; } = "";
+    public IReadOnlyList<RuntimeBindingNode> Nodes { get; init; } = Array.Empty<RuntimeBindingNode>();
+    public IReadOnlyList<string> LibraryIds { get; init; } = Array.Empty<string>();
+}
+
+internal sealed record RuntimeBindingNode
+{
+    public string NodeId { get; init; } = "";
+    public string Kind { get; init; } = "";
+    public string ApiDomain { get; init; } = "";
+    public string ApiLevel { get; init; } = "";
+    public string Capability { get; init; } = "";
+    public string ProjectionCompatibility { get; init; } = "";
+    public string CompatibilityClassification { get; init; } = "";
+    public string RuntimeProof { get; init; } = "";
+}
+
+internal sealed record SourceMapReport
+{
+    public int SchemaVersion { get; init; } = 1;
+    public string Tool { get; init; } = ToolInfo.Name;
+    public string Command { get; init; } = "source-map";
+    public string Status { get; init; } = "Passed";
+    public string SourceHash { get; init; } = "";
+    public IReadOnlyList<SourceMapFile> Files { get; init; } = Array.Empty<SourceMapFile>();
+    public IReadOnlyList<SourceMapBehavior> Behaviors { get; init; } = Array.Empty<SourceMapBehavior>();
+    public DiagnosticSummary Summary { get; init; } = new();
+    public IReadOnlyList<SagaDiagnostic> Diagnostics { get; init; } = Array.Empty<SagaDiagnostic>();
+}
+
+internal sealed record SourceMapFile
+{
+    public string SourceFile { get; init; } = "";
+    public string SourceHash { get; init; } = "";
+    public int ByteLength { get; init; }
+}
+
+internal sealed record SourceMapBehavior
+{
+    public string BehaviorId { get; init; } = "";
+    public string ApiLevel { get; init; } = "";
+    public string ApiDomain { get; init; } = "";
+    public string SourceFile { get; init; } = "";
+    public string SourceHash { get; init; } = "";
+    public SourceSpan? SourceSpan { get; init; }
+    public IReadOnlyList<SagaWeaverNode> Nodes { get; init; } = Array.Empty<SagaWeaverNode>();
+}
+
+internal sealed record ProjectionReport
+{
+    public int SchemaVersion { get; init; } = 1;
+    public string Tool { get; init; } = ToolInfo.Name;
+    public string Command { get; init; } = "project-blocks";
+    public string Status { get; init; } = "Passed";
+    public string ApiLevel { get; init; } = "Unsupported";
+    public string ApiDomain { get; init; } = "Unsupported";
+    public string SourceHash { get; init; } = "";
+    public IReadOnlyList<SagaWeaverBehavior> Behaviors { get; init; } = Array.Empty<SagaWeaverBehavior>();
+    public DiagnosticSummary Summary { get; init; } = new();
+    public IReadOnlyList<SagaDiagnostic> Diagnostics { get; init; } = Array.Empty<SagaDiagnostic>();
+}
+
+internal sealed record NodeMetadataReport
+{
+    public int SchemaVersion { get; init; } = 1;
+    public string Tool { get; init; } = ToolInfo.Name;
+    public string Command { get; init; } = "project-blocks";
+    public string Status { get; init; } = "Passed";
+    public string SourceHash { get; init; } = "";
+    public IReadOnlyList<NodeMetadataEntry> Nodes { get; init; } = Array.Empty<NodeMetadataEntry>();
+    public DiagnosticSummary Summary { get; init; } = new();
+    public IReadOnlyList<SagaDiagnostic> Diagnostics { get; init; } = Array.Empty<SagaDiagnostic>();
+}
+
+internal sealed record NodeMetadataEntry
+{
+    public string NodeId { get; init; } = "";
+    public string DisplayName { get; init; } = "";
+    public string ApiDomain { get; init; } = "";
+    public string ApiLevel { get; init; } = "";
+    public string Capability { get; init; } = "";
+    public string ProjectionCompatibility { get; init; } = "";
+    public string Level { get; init; } = "";
+    public string Domain { get; init; } = "";
+    public IReadOnlyList<string> Capabilities { get; init; } = Array.Empty<string>();
+    public string SourceFile { get; init; } = "";
+    public SourceSpan? SourceSpan { get; init; }
+    public bool ReadOnly { get; init; } = true;
+}
+
+internal sealed record NodeLibraryReport
+{
+    public int SchemaVersion { get; init; } = 1;
+    public string Tool { get; init; } = ToolInfo.Name;
+    public string Command { get; init; } = "extract-nodes";
+    public string Status { get; init; } = "Passed";
+    public string SourceHash { get; init; } = "";
+    public IReadOnlyList<SourceMapFile> SourceFiles { get; init; } = Array.Empty<SourceMapFile>();
+    public IReadOnlyList<NodeLibraryEntry> Libraries { get; init; } = Array.Empty<NodeLibraryEntry>();
+    public IReadOnlyList<NodeLibraryNodeEntry> Nodes { get; init; } = Array.Empty<NodeLibraryNodeEntry>();
+    public DiagnosticSummary Summary { get; init; } = new();
+    public IReadOnlyList<SagaDiagnostic> Diagnostics { get; init; } = Array.Empty<SagaDiagnostic>();
+}
+
+internal sealed record NodeLibraryEntry
+{
+    public string LibraryId { get; init; } = "";
+    public string DisplayName { get; init; } = "";
+    public string ApiDomain { get; init; } = "";
+    public string ApiLevel { get; init; } = "";
+    public string SourceFile { get; init; } = "";
+    public SourceSpan? SourceSpan { get; init; }
+    public IReadOnlyList<SagaDiagnostic> Diagnostics { get; init; } = Array.Empty<SagaDiagnostic>();
+}
+
+internal sealed record NodeLibraryNodeEntry
+{
+    public string NodeId { get; init; } = "";
+    public string DisplayName { get; init; } = "";
+    public string ApiDomain { get; init; } = "";
+    public string ApiLevel { get; init; } = "";
+    public string Capability { get; init; } = "";
+    public string SourceFile { get; init; } = "";
+    public SourceSpan? SourceSpan { get; init; }
+    public string Compatibility { get; init; } = "";
+    public IReadOnlyList<SagaDiagnostic> Diagnostics { get; init; } = Array.Empty<SagaDiagnostic>();
+}
+
+internal sealed record CompatibilityConstruct
+{
+    public string ConstructId { get; init; } = "";
+    public string Kind { get; init; } = "";
+    public string Classification { get; init; } = "";
+    public string ApiDomain { get; init; } = "Unsupported";
+    public string ApiLevel { get; init; } = "Unsupported";
+    public string Capability { get; init; } = "Unsupported";
+    public string SourceFile { get; init; } = "";
+    public SourceSpan? SourceSpan { get; init; }
+    public bool Editable { get; init; }
+    public string PatchOperation { get; init; } = "";
+    public string Reason { get; init; } = "";
+    public IReadOnlyList<SagaDiagnostic> Diagnostics { get; init; } = Array.Empty<SagaDiagnostic>();
+}
+
+internal sealed record CompatibilityProfileReport
+{
+    public int SchemaVersion { get; init; } = 2;
+    public string Tool { get; init; } = ToolInfo.Name;
+    public string Command { get; init; } = "compatibility-profile";
+    public string Status { get; init; } = "Passed";
+    public IReadOnlyList<SourceMapFile> SourceFiles { get; init; } = Array.Empty<SourceMapFile>();
+    public IReadOnlyDictionary<string, string> SourceHashes { get; init; } = new Dictionary<string, string>();
+    public IReadOnlyList<CompatibilityConstruct> Constructs { get; init; } = Array.Empty<CompatibilityConstruct>();
+    public IReadOnlyDictionary<string, int> Summary { get; init; } = new Dictionary<string, int>();
+    public IReadOnlyList<SagaDiagnostic> Diagnostics { get; init; } = Array.Empty<SagaDiagnostic>();
+}
+
+internal sealed record CheckedScriptArtifact
+{
+    public string Kind { get; init; } = "";
+    public string Path { get; init; } = "";
+    public string Status { get; init; } = "";
+}
+
+internal sealed record RuntimeProofSummary
+{
+    public int RuntimeBackedWithEvidence { get; init; }
+    public int RuntimeBackedMissingEvidence { get; init; }
+    public int ProjectionOnly { get; init; }
+    public int Deferred { get; init; }
+}
+
+internal sealed record ScriptArtifactValidationReport
+{
+    public int SchemaVersion { get; init; } = 1;
+    public string Tool { get; init; } = ToolInfo.Name;
+    public string Command { get; init; } = "validate-artifacts";
+    public string Status { get; init; } = "Passed";
+    public string ArtifactRoot { get; init; } = "";
+    public IReadOnlyList<CheckedScriptArtifact> CheckedArtifacts { get; init; } = Array.Empty<CheckedScriptArtifact>();
+    public RuntimeProofSummary RuntimeProofSummary { get; init; } = new();
+    public IReadOnlyDictionary<string, int> Summary { get; init; } = new Dictionary<string, int>();
+    public IReadOnlyList<SagaDiagnostic> Diagnostics { get; init; } = Array.Empty<SagaDiagnostic>();
 }
 
 internal static class ToolInfo
