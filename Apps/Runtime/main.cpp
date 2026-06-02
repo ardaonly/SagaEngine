@@ -19,11 +19,13 @@
 #include <SagaRuntime/RuntimeStartupSession.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <optional>
@@ -47,6 +49,14 @@ struct RuntimeCommandLine
     double fixedDtSeconds = 1.0 / 60.0;
 };
 
+struct StarterArenaSceneReference
+{
+    std::string id;
+    std::filesystem::path relativePath;
+    std::filesystem::path absolutePath;
+    std::string kind;
+};
+
 struct StarterArenaProject
 {
     std::string projectId;
@@ -56,6 +66,51 @@ struct StarterArenaProject
     std::filesystem::path diagnosticsPath;
     std::filesystem::path generatedReportsPath;
     std::uint32_t sceneCount = 0;
+    std::vector<StarterArenaSceneReference> scenes;
+};
+
+struct StarterArenaVec2
+{
+    double x = 0.0;
+    double y = 0.0;
+};
+
+struct StarterArenaBounds
+{
+    double minX = -1.0;
+    double maxX = 1.0;
+    double minY = -1.0;
+    double maxY = 1.0;
+};
+
+struct StarterArenaCamera
+{
+    std::string mode;
+    double x = 0.0;
+    double y = 0.0;
+    double width = 0.0;
+    double height = 0.0;
+};
+
+struct StarterArenaExpected
+{
+    double finalX = 0.0;
+    double finalY = 0.0;
+    std::uint32_t clampCount = 0;
+};
+
+struct StarterArenaScene
+{
+    std::uint32_t schemaVersion = 0;
+    std::string sceneId;
+    std::string displayName;
+    std::filesystem::path relativePath;
+    std::filesystem::path absolutePath;
+    StarterArenaVec2 playerSpawn;
+    StarterArenaBounds bounds;
+    StarterArenaCamera camera;
+    StarterArenaVec2 testInput;
+    StarterArenaExpected expected;
 };
 
 struct StarterArenaDiagnostic
@@ -366,6 +421,332 @@ bool IsSafeRelativePath(const std::filesystem::path& path)
     return true;
 }
 
+bool NearlyEqual(double left, double right)
+{
+    return std::fabs(left - right) <= 0.000001;
+}
+
+bool ReadRequiredStringField(
+    const Json& object,
+    const char* field,
+    const std::string& qualifiedField,
+    std::string& value,
+    std::vector<StarterArenaDiagnostic>& diagnostics,
+    const char* diagnosticCode)
+{
+    const auto iterator = object.find(field);
+    if (iterator == object.end() || !iterator->is_string())
+    {
+        diagnostics.push_back({
+            diagnosticCode,
+            "Scene field '" + qualifiedField + "' must be a string."});
+        return false;
+    }
+
+    value = iterator->get<std::string>();
+    if (value.empty())
+    {
+        diagnostics.push_back({
+            diagnosticCode,
+            "Scene field '" + qualifiedField + "' must not be empty."});
+        return false;
+    }
+
+    return true;
+}
+
+const Json* FindObjectField(
+    const Json& object,
+    const char* field,
+    const std::string& qualifiedField,
+    std::vector<StarterArenaDiagnostic>& diagnostics,
+    const char* diagnosticCode)
+{
+    const auto iterator = object.find(field);
+    if (iterator == object.end() || !iterator->is_object())
+    {
+        diagnostics.push_back({
+            diagnosticCode,
+            "Scene field '" + qualifiedField + "' must be an object."});
+        return nullptr;
+    }
+
+    return &(*iterator);
+}
+
+bool ReadNumberField(
+    const Json& object,
+    const char* field,
+    const std::string& qualifiedField,
+    double& value,
+    std::vector<StarterArenaDiagnostic>& diagnostics,
+    const char* diagnosticCode)
+{
+    const auto iterator = object.find(field);
+    if (iterator == object.end() || !iterator->is_number())
+    {
+        diagnostics.push_back({
+            diagnosticCode,
+            "Scene field '" + qualifiedField + "' must be a number."});
+        return false;
+    }
+
+    value = iterator->get<double>();
+    return true;
+}
+
+bool ReadUintField(
+    const Json& object,
+    const char* field,
+    const std::string& qualifiedField,
+    std::uint32_t& value,
+    std::vector<StarterArenaDiagnostic>& diagnostics,
+    const char* diagnosticCode)
+{
+    const auto iterator = object.find(field);
+    if (iterator == object.end() ||
+        (!iterator->is_number_integer() && !iterator->is_number_unsigned()))
+    {
+        diagnostics.push_back({
+            diagnosticCode,
+            "Scene field '" + qualifiedField + "' must be a non-negative integer."});
+        return false;
+    }
+
+    if (iterator->is_number_unsigned())
+    {
+        const std::uint64_t raw = iterator->get<std::uint64_t>();
+        if (raw > std::numeric_limits<std::uint32_t>::max())
+        {
+            diagnostics.push_back({
+                diagnosticCode,
+                "Scene field '" + qualifiedField + "' is too large."});
+            return false;
+        }
+        value = static_cast<std::uint32_t>(raw);
+        return true;
+    }
+
+    const std::int64_t raw = iterator->get<std::int64_t>();
+    if (raw < 0 ||
+        raw > static_cast<std::int64_t>(
+            std::numeric_limits<std::uint32_t>::max()))
+    {
+        diagnostics.push_back({
+            diagnosticCode,
+            "Scene field '" + qualifiedField + "' must be a non-negative integer."});
+        return false;
+    }
+
+    value = static_cast<std::uint32_t>(raw);
+    return true;
+}
+
+bool ReadVec2Field(
+    const Json& object,
+    const char* field,
+    const std::string& qualifiedField,
+    StarterArenaVec2& value,
+    std::vector<StarterArenaDiagnostic>& diagnostics)
+{
+    const Json* vectorObject = FindObjectField(
+        object,
+        field,
+        qualifiedField,
+        diagnostics,
+        "StarterArena.Scene.VectorInvalid");
+    if (vectorObject == nullptr)
+    {
+        return false;
+    }
+
+    bool ok = true;
+    ok &= ReadNumberField(
+        *vectorObject,
+        "x",
+        qualifiedField + ".x",
+        value.x,
+        diagnostics,
+        "StarterArena.Scene.VectorInvalid");
+    ok &= ReadNumberField(
+        *vectorObject,
+        "y",
+        qualifiedField + ".y",
+        value.y,
+        diagnostics,
+        "StarterArena.Scene.VectorInvalid");
+    return ok;
+}
+
+bool ReadBoundsField(
+    const Json& object,
+    StarterArenaBounds& bounds,
+    std::vector<StarterArenaDiagnostic>& diagnostics)
+{
+    const Json* boundsObject = FindObjectField(
+        object,
+        "bounds",
+        "starterArenaSmoke.bounds",
+        diagnostics,
+        "StarterArena.Scene.BoundsInvalid");
+    if (boundsObject == nullptr)
+    {
+        return false;
+    }
+
+    bool ok = true;
+    ok &= ReadNumberField(
+        *boundsObject,
+        "minX",
+        "starterArenaSmoke.bounds.minX",
+        bounds.minX,
+        diagnostics,
+        "StarterArena.Scene.BoundsInvalid");
+    ok &= ReadNumberField(
+        *boundsObject,
+        "maxX",
+        "starterArenaSmoke.bounds.maxX",
+        bounds.maxX,
+        diagnostics,
+        "StarterArena.Scene.BoundsInvalid");
+    ok &= ReadNumberField(
+        *boundsObject,
+        "minY",
+        "starterArenaSmoke.bounds.minY",
+        bounds.minY,
+        diagnostics,
+        "StarterArena.Scene.BoundsInvalid");
+    ok &= ReadNumberField(
+        *boundsObject,
+        "maxY",
+        "starterArenaSmoke.bounds.maxY",
+        bounds.maxY,
+        diagnostics,
+        "StarterArena.Scene.BoundsInvalid");
+
+    if (ok && (bounds.minX >= bounds.maxX || bounds.minY >= bounds.maxY))
+    {
+        diagnostics.push_back({
+            "StarterArena.Scene.BoundsInvalid",
+            "Scene smoke bounds minimums must be smaller than maximums."});
+        ok = false;
+    }
+
+    return ok;
+}
+
+bool ReadCameraField(
+    const Json& object,
+    StarterArenaCamera& camera,
+    std::vector<StarterArenaDiagnostic>& diagnostics)
+{
+    const Json* cameraObject = FindObjectField(
+        object,
+        "camera",
+        "starterArenaSmoke.camera",
+        diagnostics,
+        "StarterArena.Scene.CameraInvalid");
+    if (cameraObject == nullptr)
+    {
+        return false;
+    }
+
+    bool ok = true;
+    ok &= ReadRequiredStringField(
+        *cameraObject,
+        "mode",
+        "starterArenaSmoke.camera.mode",
+        camera.mode,
+        diagnostics,
+        "StarterArena.Scene.CameraInvalid");
+    ok &= ReadNumberField(
+        *cameraObject,
+        "x",
+        "starterArenaSmoke.camera.x",
+        camera.x,
+        diagnostics,
+        "StarterArena.Scene.CameraInvalid");
+    ok &= ReadNumberField(
+        *cameraObject,
+        "y",
+        "starterArenaSmoke.camera.y",
+        camera.y,
+        diagnostics,
+        "StarterArena.Scene.CameraInvalid");
+    ok &= ReadNumberField(
+        *cameraObject,
+        "width",
+        "starterArenaSmoke.camera.width",
+        camera.width,
+        diagnostics,
+        "StarterArena.Scene.CameraInvalid");
+    ok &= ReadNumberField(
+        *cameraObject,
+        "height",
+        "starterArenaSmoke.camera.height",
+        camera.height,
+        diagnostics,
+        "StarterArena.Scene.CameraInvalid");
+
+    if (ok && camera.mode != "fixed")
+    {
+        diagnostics.push_back({
+            "StarterArena.Scene.CameraInvalid",
+            "StarterArena smoke only supports fixed camera metadata."});
+        ok = false;
+    }
+    if (ok && (camera.width <= 0.0 || camera.height <= 0.0))
+    {
+        diagnostics.push_back({
+            "StarterArena.Scene.CameraInvalid",
+            "Scene smoke camera width and height must be greater than zero."});
+        ok = false;
+    }
+
+    return ok;
+}
+
+bool ReadExpectedField(
+    const Json& object,
+    StarterArenaExpected& expected,
+    std::vector<StarterArenaDiagnostic>& diagnostics)
+{
+    const Json* expectedObject = FindObjectField(
+        object,
+        "expected",
+        "starterArenaSmoke.expected",
+        diagnostics,
+        "StarterArena.Scene.ExpectedInvalid");
+    if (expectedObject == nullptr)
+    {
+        return false;
+    }
+
+    bool ok = true;
+    ok &= ReadNumberField(
+        *expectedObject,
+        "finalX",
+        "starterArenaSmoke.expected.finalX",
+        expected.finalX,
+        diagnostics,
+        "StarterArena.Scene.ExpectedInvalid");
+    ok &= ReadNumberField(
+        *expectedObject,
+        "finalY",
+        "starterArenaSmoke.expected.finalY",
+        expected.finalY,
+        diagnostics,
+        "StarterArena.Scene.ExpectedInvalid");
+    ok &= ReadUintField(
+        *expectedObject,
+        "clampCount",
+        "starterArenaSmoke.expected.clampCount",
+        expected.clampCount,
+        diagnostics,
+        "StarterArena.Scene.ExpectedInvalid");
+    return ok;
+}
+
 std::optional<std::filesystem::path> ResolveProjectManifest(
     const std::filesystem::path& input,
     std::vector<StarterArenaDiagnostic>& diagnostics)
@@ -530,10 +911,100 @@ bool ValidateArrayField(
     return true;
 }
 
+bool ReadSceneReferences(
+    const Json& object,
+    const std::filesystem::path& projectRoot,
+    std::vector<StarterArenaSceneReference>& scenes,
+    std::vector<StarterArenaDiagnostic>& diagnostics)
+{
+    const auto iterator = object.find("scenes");
+    if (iterator == object.end() || !iterator->is_array())
+    {
+        diagnostics.push_back({
+            "StarterArena.Project.ArrayInvalid",
+            "Project manifest field 'scenes' must be an array."});
+        return false;
+    }
+
+    bool ok = true;
+    for (std::size_t index = 0; index < iterator->size(); ++index)
+    {
+        const Json& item = (*iterator)[index];
+        if (!item.is_object())
+        {
+            diagnostics.push_back({
+                "StarterArena.Project.SceneReferenceInvalid",
+                "Project manifest scene references must be objects."});
+            ok = false;
+            continue;
+        }
+
+        std::string id;
+        std::string rawPath;
+        std::string kind;
+        ok &= ReadStringField(
+            item,
+            "id",
+            id,
+            diagnostics,
+            "StarterArena.Project.SceneReferenceInvalid");
+        ok &= ReadStringField(
+            item,
+            "path",
+            rawPath,
+            diagnostics,
+            "StarterArena.Project.SceneReferenceInvalid");
+        ok &= ReadStringField(
+            item,
+            "kind",
+            kind,
+            diagnostics,
+            "StarterArena.Project.SceneReferenceInvalid");
+
+        if (kind != "scene")
+        {
+            diagnostics.push_back({
+                "StarterArena.Project.SceneKindInvalid",
+                "StarterArena smoke scene reference kind must be 'scene'."});
+            ok = false;
+        }
+
+        const std::filesystem::path relative(rawPath);
+        if (!IsSafeRelativePath(relative))
+        {
+            diagnostics.push_back({
+                "StarterArena.Project.ScenePathUnsafe",
+                "StarterArena scene paths must be project-relative and must not contain parent traversal."});
+            ok = false;
+            continue;
+        }
+
+        StarterArenaSceneReference reference;
+        reference.id = id;
+        reference.relativePath = relative.lexically_normal();
+        reference.absolutePath = (projectRoot / relative).lexically_normal();
+        reference.kind = kind;
+
+        if (!std::filesystem::is_regular_file(reference.absolutePath))
+        {
+            diagnostics.push_back({
+                "StarterArena.Project.ScenePathMissing",
+                "StarterArena scene reference is missing: " +
+                    GenericPath(reference.relativePath)});
+            ok = false;
+        }
+
+        scenes.push_back(std::move(reference));
+    }
+
+    return ok;
+}
+
 std::optional<StarterArenaProject> LoadStarterArenaProject(
     const std::filesystem::path& projectInput,
     std::vector<StarterArenaDiagnostic>& diagnostics)
 {
+    const std::size_t diagnosticStart = diagnostics.size();
     const std::optional<std::filesystem::path> manifest =
         ResolveProjectManifest(projectInput, diagnostics);
     if (!manifest.has_value())
@@ -627,18 +1098,198 @@ std::optional<StarterArenaProject> LoadStarterArenaProject(
             diagnostics);
     }
 
-    ValidateArrayField(root, "scenes", &project.sceneCount, diagnostics);
+    ReadSceneReferences(
+        root,
+        project.projectRoot,
+        project.scenes,
+        diagnostics);
+    project.sceneCount = static_cast<std::uint32_t>(project.scenes.size());
     ValidateArrayField(root, "assets", nullptr, diagnostics);
     ValidateArrayField(root, "scriptFolders", nullptr, diagnostics);
     ValidateArrayField(root, "launchProfiles", nullptr, diagnostics);
     ValidateArrayField(root, "packageProfiles", nullptr, diagnostics);
 
-    if (!diagnostics.empty())
+    if (diagnostics.size() != diagnosticStart)
     {
         return std::nullopt;
     }
 
     return project;
+}
+
+std::optional<StarterArenaScene> LoadStarterArenaScene(
+    const StarterArenaProject& project,
+    std::vector<StarterArenaDiagnostic>& diagnostics)
+{
+    const std::size_t diagnosticStart = diagnostics.size();
+    if (project.scenes.size() != 1)
+    {
+        diagnostics.push_back({
+            "StarterArena.Scene.ReferenceCountInvalid",
+            "StarterArena smoke requires exactly one project scene reference."});
+        return std::nullopt;
+    }
+
+    const StarterArenaSceneReference& reference = project.scenes.front();
+    std::ifstream input(reference.absolutePath);
+    if (!input)
+    {
+        diagnostics.push_back({
+            "StarterArena.Scene.OpenFailed",
+            "Failed to open StarterArena scene: " +
+                GenericPath(reference.relativePath)});
+        return std::nullopt;
+    }
+
+    Json root;
+    try
+    {
+        input >> root;
+    }
+    catch (const Json::exception& exception)
+    {
+        diagnostics.push_back({
+            "StarterArena.Scene.ParseFailed",
+            std::string("StarterArena scene JSON is invalid: ") +
+                exception.what()});
+        return std::nullopt;
+    }
+
+    if (!root.is_object())
+    {
+        diagnostics.push_back({
+            "StarterArena.Scene.RootInvalid",
+            "StarterArena scene root must be a JSON object."});
+        return std::nullopt;
+    }
+
+    StarterArenaScene scene;
+    scene.relativePath = reference.relativePath;
+    scene.absolutePath = reference.absolutePath;
+
+    ReadUintField(
+        root,
+        "schemaVersion",
+        "schemaVersion",
+        scene.schemaVersion,
+        diagnostics,
+        "StarterArena.Scene.SchemaVersionUnsupported");
+    if (scene.schemaVersion != 1)
+    {
+        diagnostics.push_back({
+            "StarterArena.Scene.SchemaVersionUnsupported",
+            "StarterArena smoke requires scene schemaVersion 1."});
+    }
+
+    ReadRequiredStringField(
+        root,
+        "sceneId",
+        "sceneId",
+        scene.sceneId,
+        diagnostics,
+        "StarterArena.Scene.SceneIdInvalid");
+    ReadRequiredStringField(
+        root,
+        "displayName",
+        "displayName",
+        scene.displayName,
+        diagnostics,
+        "StarterArena.Scene.DisplayNameInvalid");
+
+    std::string sourceKind;
+    ReadRequiredStringField(
+        root,
+        "sourceKind",
+        "sourceKind",
+        sourceKind,
+        diagnostics,
+        "StarterArena.Scene.SourceKindInvalid");
+    if (sourceKind != "SceneSourceTruth")
+    {
+        diagnostics.push_back({
+            "StarterArena.Scene.SourceKindInvalid",
+            "StarterArena scene must declare sourceKind SceneSourceTruth."});
+    }
+
+    if (!reference.id.empty() && !scene.sceneId.empty() &&
+        scene.sceneId != reference.id)
+    {
+        diagnostics.push_back({
+            "StarterArena.Scene.SceneIdMismatch",
+            "StarterArena sceneId must match the project scene reference id."});
+    }
+
+    const auto entities = root.find("entities");
+    if (entities == root.end() || !entities->is_array() || entities->empty())
+    {
+        diagnostics.push_back({
+            "StarterArena.Scene.EntitiesInvalid",
+            "StarterArena scene source truth must declare at least one entity."});
+    }
+
+    const Json* smokeObject = FindObjectField(
+        root,
+        "starterArenaSmoke",
+        "starterArenaSmoke",
+        diagnostics,
+        "StarterArena.Scene.SmokeMetadataMissing");
+    if (smokeObject != nullptr)
+    {
+        ReadVec2Field(
+            *smokeObject,
+            "playerSpawn",
+            "starterArenaSmoke.playerSpawn",
+            scene.playerSpawn,
+            diagnostics);
+        ReadBoundsField(*smokeObject, scene.bounds, diagnostics);
+        ReadCameraField(*smokeObject, scene.camera, diagnostics);
+        ReadVec2Field(
+            *smokeObject,
+            "testInput",
+            "starterArenaSmoke.testInput",
+            scene.testInput,
+            diagnostics);
+        ReadExpectedField(*smokeObject, scene.expected, diagnostics);
+    }
+
+    if (diagnostics.size() != diagnosticStart)
+    {
+        return std::nullopt;
+    }
+
+    return scene;
+}
+
+Json Vec2ToJson(const StarterArenaVec2& value)
+{
+    return Json{{"x", value.x}, {"y", value.y}};
+}
+
+Json BoundsToJson(const StarterArenaBounds& bounds)
+{
+    return Json{
+        {"minX", bounds.minX},
+        {"maxX", bounds.maxX},
+        {"minY", bounds.minY},
+        {"maxY", bounds.maxY}};
+}
+
+Json CameraToJson(const StarterArenaCamera& camera)
+{
+    return Json{
+        {"mode", camera.mode},
+        {"x", camera.x},
+        {"y", camera.y},
+        {"width", camera.width},
+        {"height", camera.height}};
+}
+
+Json ExpectedToJson(const StarterArenaExpected& expected)
+{
+    return Json{
+        {"finalX", expected.finalX},
+        {"finalY", expected.finalY},
+        {"clampCount", expected.clampCount}};
 }
 
 Json DiagnosticsToJson(const std::vector<StarterArenaDiagnostic>& diagnostics)
@@ -721,26 +1372,37 @@ int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine)
 
     const std::optional<StarterArenaProject> project =
         LoadStarterArenaProject(commandLine.projectPath, diagnostics);
+    std::optional<StarterArenaScene> scene;
+    if (project.has_value())
+    {
+        scene = LoadStarterArenaScene(*project, diagnostics);
+    }
 
-    const bool canRun = diagnostics.empty() && project.has_value();
-    double x = 0.0;
-    double y = 0.0;
+    const StarterArenaVec2 spawn =
+        scene.has_value() ? scene->playerSpawn : StarterArenaVec2{};
+    const StarterArenaBounds bounds =
+        scene.has_value() ? scene->bounds : StarterArenaBounds{};
+    const StarterArenaVec2 testInput =
+        scene.has_value() ? scene->testInput : StarterArenaVec2{};
+    const StarterArenaExpected expected =
+        scene.has_value() ? scene->expected : StarterArenaExpected{};
+
+    double x = spawn.x;
+    double y = spawn.y;
     std::uint32_t clampCount = 0;
-    const double minX = -1.0;
-    const double maxX = 1.0;
-    const double minY = -1.0;
-    const double maxY = 1.0;
-    const double inputX = 4.0;
-    const double inputY = 2.0;
+    const bool loopCanRun =
+        diagnostics.empty() && project.has_value() && scene.has_value();
 
-    if (canRun)
+    if (loopCanRun)
     {
         for (std::uint32_t frame = 0; frame < commandLine.smokeFrames; ++frame)
         {
-            const double nextX = x + inputX * commandLine.fixedDtSeconds;
-            const double nextY = y + inputY * commandLine.fixedDtSeconds;
-            const double clampedX = std::min(std::max(nextX, minX), maxX);
-            const double clampedY = std::min(std::max(nextY, minY), maxY);
+            const double nextX = x + testInput.x * commandLine.fixedDtSeconds;
+            const double nextY = y + testInput.y * commandLine.fixedDtSeconds;
+            const double clampedX =
+                std::clamp(nextX, bounds.minX, bounds.maxX);
+            const double clampedY =
+                std::clamp(nextY, bounds.minY, bounds.maxY);
             if (clampedX != nextX || clampedY != nextY)
             {
                 ++clampCount;
@@ -749,6 +1411,46 @@ int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine)
             y = clampedY;
         }
     }
+
+    const bool expectationsPassed =
+        loopCanRun &&
+        NearlyEqual(x, expected.finalX) &&
+        NearlyEqual(y, expected.finalY) &&
+        clampCount == expected.clampCount;
+    if (loopCanRun && !expectationsPassed)
+    {
+        diagnostics.push_back({
+            "StarterArena.Smoke.ExpectedMismatch",
+            "StarterArena smoke result did not match scene expected values."});
+    }
+
+    const bool canRun = loopCanRun && expectationsPassed;
+    const std::string sceneSource = scene.has_value()
+        ? "ProjectSceneReference"
+        : "ProjectSceneReferenceMissing";
+    const Json sceneReport = scene.has_value()
+        ? Json{
+            {"consumed", true},
+            {"sceneId", scene->sceneId},
+            {"displayName", scene->displayName},
+            {"relativePath", GenericPath(scene->relativePath)},
+            {"schemaVersion", scene->schemaVersion},
+            {"camera", CameraToJson(scene->camera)}}
+        : Json{
+            {"consumed", false},
+            {"sceneId", ""},
+            {"displayName", ""},
+            {"relativePath", ""},
+            {"schemaVersion", 0},
+            {"camera", Json::object()}};
+    const Json expectationsReport = {
+        {"status", loopCanRun ? (expectationsPassed ? "Passed" : "Failed") : "NotRun"},
+        {"expected", ExpectedToJson(expected)},
+        {"actual", {
+            {"finalX", x},
+            {"finalY", y},
+            {"clampCount", clampCount}
+        }}};
 
     Json report = {
         {"schemaVersion", 1},
@@ -761,22 +1463,24 @@ int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine)
             {"projectRoot", project.has_value() ? GenericPath(project->projectRoot) : ""},
             {"manifestPath", project.has_value() ? GenericPath(project->manifestPath) : ""},
             {"sceneReferenceCount", project.has_value() ? project->sceneCount : 0},
-            {"sceneSource", "BuiltInStarterArenaSmoke"}
+            {"sceneSource", sceneSource}
         }},
+        {"scene", sceneReport},
         {"settings", {
             {"headless", commandLine.launchOptions.headless},
             {"frames", commandLine.smokeFrames},
             {"fixedDtSeconds", commandLine.fixedDtSeconds}
         }},
         {"loop", {
-            {"spawn", {{"x", 0.0}, {"y", 0.0}}},
+            {"spawn", Vec2ToJson(spawn)},
             {"finalPosition", {{"x", x}, {"y", y}}},
-            {"bounds", {{"minX", minX}, {"maxX", maxX}, {"minY", minY}, {"maxY", maxY}}},
-            {"inputVector", {{"x", inputX}, {"y", inputY}}},
+            {"bounds", BoundsToJson(bounds)},
+            {"inputVector", Vec2ToJson(testInput)},
             {"clampCount", clampCount},
             {"restartBehavior", "Deferred"},
             {"quitBehavior", "DeterministicEndOfSmoke"}
         }},
+        {"expectations", expectationsReport},
         {"nonClaims", Json::array({
             "No interactive gameplay proof",
             "No renderer proof",
@@ -812,7 +1516,8 @@ int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine)
 
     LOG_INFO(
         kLogTag,
-        "StarterArena smoke passed: frames=%u final=(%.3f, %.3f) clamps=%u report='%s'",
+        "StarterArena scene smoke passed: scene='%s' frames=%u final=(%.3f, %.3f) clamps=%u report='%s'",
+        scene.has_value() ? scene->sceneId.c_str() : "",
         commandLine.smokeFrames,
         x,
         y,

@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "sceneId": "starter-arena-local-loop",
+  "displayName": "StarterArena Local Loop",
+  "sourceKind": "SceneSourceTruth",
+  "entities": [
+    {
+      "entityId": "player-spawn",
+      "displayName": "Player Spawn",
+      "sourceKind": "EntitySourceTruth"
+    }
+  ],
+  "starterArenaSmoke": {
+    "playerSpawn": {
+      "x": 0.0,
+      "y": 0.0
+    },
+    "bounds": {
+      "minX": -1.0,
+      "maxX": 1.0,
+      "minY": -1.0,
+      "maxY": 1.0
+    },
+    "camera": {
+      "mode": "fixed",
+      "x": 0.0,
+      "y": 0.0,
+      "width": 2.0,
+      "height": 2.0
+    },
+    "testInput": {
+      "x": 4.0,
+      "y": 2.0
+    },
+    "expected": {
+      "finalX": 1.0,
+      "finalY": 0.96,
+      "clampCount": 15
+    }
+  }
+}

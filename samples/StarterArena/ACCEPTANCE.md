@@ -12,11 +12,13 @@ Accepted evidence for this phase:
 - the runtime command exits `0`;
 - the smoke report has `status: Passed`;
 - the report records `projectId: starter-arena`;
+- the report records `scene.sceneId: starter-arena-local-loop`;
+- the report records `project.sceneSource: ProjectSceneReference`;
 - the report records spawn, final position, fixed frame count, bounds, input
-  vector, and clamp count;
+  vector, clamp count, and scene expectation status;
 - the report records non-claims for renderer, client/network, server authority,
   C# scripts, Visual Blocks, editor workflow, package output, and distribution
   output.
 
-This is not acceptance for interactive gameplay, a scene system, package
-launch, editor launch, or server-authoritative multiplayer.
+This is not acceptance for interactive gameplay, a reusable scene system,
+package launch, editor launch, or server-authoritative multiplayer.

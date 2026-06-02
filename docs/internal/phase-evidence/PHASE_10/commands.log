@@ -6,15 +6,30 @@ Result: passed. Worktree was clean before implementation.
 Tools/Forge/bin/forge nix build --target SagaRuntime --build build/RelWithDebInfo-0.0.9 --jobs=1
 Result: passed. No CMake or dependency changes were needed.
 
-build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --smoke-report-out /tmp/starter_arena_runtime_smoke.json --smoke-frames 30 --fixed-dt 0.016
-Result: passed. The command exited 0 and wrote
-`/tmp/starter_arena_runtime_smoke.json`.
+Tools/SagaProjectKit/sagaproject validate --project samples/StarterArena/StarterArena.sagaproj --out /tmp/starter_arena_validate.json
+Result: diagnostic command failed before validation under the host .NET 8 SDK
+because SagaProjectKit targets .NET 10. The command was rerun inside the repo
+nix shell.
 
-/tmp/starter_arena_runtime_smoke.json
-Result: status `Passed`, project id `starter-arena`, 30 frames, final position
-`(1.0, 0.96)`, bounds `[-1, 1]`, 15 clamp events, and explicit non-claims for
-interactive gameplay, renderer, client/network, server authority, C# scripts,
-Visual Blocks, editor workflow, package output, and distribution output.
+nix-shell --run "Tools/SagaProjectKit/sagaproject validate --project samples/StarterArena/StarterArena.sagaproj --out /tmp/starter_arena_validate.json"
+Result: passed. The report status was `Passed` with no diagnostics.
+
+nix-shell --run "Tools/SagaProjectKit/sagaproject scene-entity-validate --project samples/StarterArena/StarterArena.sagaproj --out /tmp/starter_arena_scene_entity_validate.json"
+Result: passed. The scene and entity schema report status was `Passed` with no
+diagnostics.
+
+build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --smoke-report-out /tmp/starter_arena_scene_smoke.json --smoke-frames 30 --fixed-dt 0.016
+Result: passed. The command exited 0 and wrote
+`/tmp/starter_arena_scene_smoke.json`.
+
+/tmp/starter_arena_scene_smoke.json
+Result: status `Passed`, project id `starter-arena`, scene source
+`ProjectSceneReference`, scene id `starter-arena-local-loop`, scene path
+`Scenes/arena.scene.json`, 30 frames, final position `(1.0, 0.96)`, bounds
+`[-1, 1]`, 15 clamp events, `expectations.status: Passed`, and explicit
+non-claims for interactive gameplay, renderer, client/network, server
+authority, C# scripts, Visual Blocks, editor workflow, package output, and
+distribution output.
 
 build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --starter-arena-smoke --smoke-report-out /tmp/starter_arena_missing_project_smoke.json --smoke-frames 1 --fixed-dt 0.016
 Result: failed as expected with `StarterArena.Project.MissingInput` and wrote a

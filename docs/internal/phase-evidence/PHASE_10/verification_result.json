@@ -6,5 +6,5 @@
   "verified": false,
   "last_verified_commit": "-",
   "verification_decision": "Implemented-Unverified",
-  "decision_reason": "SagaRuntime now has a bounded app-local StarterArena smoke mode that consumes the project manifest, runs deterministic headless movement and bounds, writes a passing smoke report, and avoids renderer, client/network, server authority, C# scripts, Visual Blocks, editor workflow, package output, and distribution output. This is not maintainer verification."
+  "decision_reason": "SagaRuntime now has a bounded app-local StarterArena smoke mode that consumes the project manifest and declared scene resource, runs deterministic headless movement and bounds from scene-provided smoke metadata, writes a passing smoke report, and avoids renderer, client/network, server authority, C# scripts, Visual Blocks, editor workflow, package output, and distribution output. This is not maintainer verification."
 }

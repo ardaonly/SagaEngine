@@ -11,7 +11,13 @@
     "diagnostics": "Diagnostics",
     "generatedReports": "Build/Reports"
   },
-  "scenes": [],
+  "scenes": [
+    {
+      "id": "starter-arena-local-loop",
+      "path": "Scenes/arena.scene.json",
+      "kind": "scene"
+    }
+  ],
   "assets": [],
   "scriptFolders": [],
   "launchProfiles": [],

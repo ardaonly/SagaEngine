@@ -1,4 +1,6 @@
 Apps/Runtime/main.cpp
+samples/StarterArena/StarterArena.sagaproj
+samples/StarterArena/Scenes/arena.scene.json
 samples/StarterArena/README.md
 samples/StarterArena/ACCEPTANCE.md
 samples/StarterArena/KNOWN_LIMITATIONS.md
