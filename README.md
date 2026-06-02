@@ -1,138 +1,72 @@
 # SagaEngine
 
-SagaEngine is a foundation for an MMO-first engine core.
+SagaEngine is a long-term game engine and toolchain project focused on
+MMO-style runtime/server boundaries, authoring workflows, and buildable engine
+infrastructure.
 
-It is not a platform product.
-It is not production-ready.
+The repository is not a finished game engine product today. It is useful as an
+engine/toolchain codebase for developers who understand the current limits; it
+is not ready to be presented as an end-user game creation platform.
 
-The project is intentionally structured around:
-- MMO runtime and authoritative server boundaries
-- replication and interest management
-- persistence and backend service separation
-- moddability and scripting boundaries
-- future platform expansion without hard-coding platform behavior into the core
+## Current Position
 
-The current focus is on building a clean technical base that can support:
-- a client runtime
-- a dedicated server runtime
-- backend services
-- eventual modding and content delivery workflows
+SagaEngine currently contains real C++ engine, runtime, server, editor,
+application, tool, and test code. The strongest honest claim is that the repo is
+building a serious technical base for an engine and authoring toolchain.
 
-## What this project is
+Current non-claims:
 
-- A core engine foundation
-- MMO-oriented by design
-- Architecture-first and extension-friendly
-- Built to separate runtime, server, and backend concerns early
+- no beta or release-candidate status;
+- no SDK or distribution ready for production use;
+- no finished editor workflow;
+- no finished runtime gameplay or server gameplay loop;
+- no complete visual scripting or round-tripping arbitrary C#;
+- no production networking, cloud, security, or scale proof.
 
-## What this project is not
+## Repository Map
 
-- A finished game platform
-- A Roblox-like ecosystem today
-- A production-ready engine
-- A generic engine meant to solve every use case
+- `Engine/` - engine runtime systems, rendering/backend abstraction, scripting,
+  resources, diagnostics, and platform-facing engine code.
+- `Runtime/` - client runtime glue and client-side runtime integration.
+- `Server/` - dedicated server runtime, replication, authority, zones, and
+  server diagnostics.
+- `Editor/` - editor models, panels, and authoring-side code.
+- `Apps/` - application entry points and product roles.
+- `Tools/` - build, project, scripting, packaging, diagnostics, and internal
+  verification tools.
+- `Tests/` - focused unit, integration, architecture, and stress-oriented tests.
+- `samples/` - sample and fixture projects. `MultiplayerSandbox` is currently a
+  deterministic fixture, not a finished multiplayer game.
+- `docs/` - product status, architecture, roadmap, testing, and internal notes.
 
-## Current status
+Start with [docs/README.md](docs/README.md) before relying on older roadmap or
+historical documents.
 
-- Architectural maturity: around 74%
-- Platform coverage: Windows-first
-- Production readiness: not ready
-- Scope: actively evolving
+## Public Tooling Direction
 
-## Repository structure
+The likely public CLI surface is intentionally small:
 
-- `Engine/`  
-  Core runtime systems: ECS, rendering, RHI, simulation, input, physics, scripting, resources, platform interfaces
+- `SagaScript` - C# / SagaScript analysis and source-authoring workflows.
+- `SagaProjectKit` - project manifest validation and resolution.
+- `SagaPackager` - package/profile checks and packaging-related workflows.
 
-- `Runtime/`  
-  Client runtime glue and client-side networking/input flow
+Many other tools in `Tools/` are internal diagnostics, policy, report, stress,
+or recovery helpers. They should not be treated as product CLIs unless the docs
+explicitly promote them.
 
-- `Server/`  
-  Dedicated server runtime, replication orchestration, interest handling, shard and zone logic
+## Build System
 
-- `Backends/`  
-  Persistence and backend service infrastructure
-
-- `Editor/`  
-  Editor tooling
-
-- `Tests/`  
-  Unit, integration, and stress tests
-
-## Tools
-
-Each tool below is structured as an independent, repo-extractable project. The
-engine consumes them only through their public packaging contracts (Conan
-packages or installed CMake config); none of them are absorbed into the engine
-build tree.
-
-
-
-## Licensing and boundaries
-
-
-
-The engine core and toolchain are Apache-2.0. The Editor is source-available
-under a separate read-only, no-AI-training license. See `LICENSE.md` and
-`core/manifest/path_rules.json` for the current path inventory.
-
-Phase 1 boundary tooling is observation-only: it reports drift without turning
-the repository into a policy engine.
-
-Run the boundary report locally with:
-
-```sh
-python3 Tools/scripts/report_boundary_status.py --repo-root .
-python3 Tools/scripts/check_qt_boundary.py .
-python3 Tools/scripts/check_engine_server_boundary.py --repo-root .
-```
-
-The Engine-to-Server check enforces zero `SagaServer` references in public
-`SagaEngine` headers. Packet primitives are engine-owned; shared replication
-wire data lives in `SagaShared`.
-
-## Tool mirror export
-
-
-
-```sh
-./export.sh --dry-run
-./export.sh --tool Prism
-./export.sh --since HEAD~1
-```
-
-The export state cache is written under `.core/export/state/` and is ignored by
-git. GitHub Actions uses the same manifest, so adding another mirrorable tool is
-a manifest-only change plus creating the target repository/token access.
-
-## Host automation
-
-`Tools/Host` provides a small Docker Compose wrapper for local server hosting:
-
-```sh
-tools host start
-tools host stop
-tools host restart
-tools host rebuild
-tools host logs
-tools host status
-```
-
-The direct script entry point is `Tools/Host/host.sh`. It manages Postgres,
-Redis, and the local `SagaServer` container without deleting Docker volumes as
-part of normal stop/restart commands.
-
-## Build system
-
-SagaEngine is built through **Forge**. See `Tools/Forge/README.md` for full documentation.
+SagaEngine is built through Forge. See `Tools/Forge/README.md` for the detailed
+tool documentation.
 
 ### Prerequisites
 
+- Python 3, used to bootstrap Forge.
+- CMake 3.22 or later.
+- Conan 2.0 or later.
+- A C++ toolchain matching one of the profiles in `profiles/`.
 
-
-### One-time: build Forge itself
-
-Forge is a standalone binary. Build it once, then add it to your `PATH`.
+### Build Forge
 
 ```sh
 python3 Tools/Forge/build.py
@@ -141,112 +75,83 @@ python3 Tools/Forge/build.py
 The binary is staged at `Tools/Forge/bin/forge`. Verify with:
 
 ```sh
-forge --version
+Tools/Forge/bin/forge --version
 ```
 
-### Build the engine
+### Configure And Build
 
-Run all commands from the repository root.
+Run commands from the repository root.
 
-**Windows (Visual Studio Developer PowerShell):**
+Linux:
+
+```sh
+Tools/Forge/bin/forge install --profile linux-gcc
+Tools/Forge/bin/forge configure --preset linux-gcc
+Tools/Forge/bin/forge build
+```
+
+NixOS:
+
+```sh
+nix-shell --run "Tools/Forge/bin/forge install --profile linux-gcc"
+nix-shell --run "Tools/Forge/bin/forge configure --preset linux-gcc"
+nix-shell --run "Tools/Forge/bin/forge build"
+```
+
+Windows:
 
 ```powershell
-forge install --profile windows-msvc
-forge configure --preset windows-msvc-14.38
-forge build
+Tools/Forge/bin/forge install --profile windows-msvc
+Tools/Forge/bin/forge configure --preset windows-msvc-14.38
+Tools/Forge/bin/forge build
 ```
 
-`build.ps1` is kept only as a legacy compatibility wrapper for older automation.
-New commands should call `forge` directly from a Visual Studio Developer shell.
-
-**Linux:**
+macOS:
 
 ```sh
-forge install --profile linux-gcc
-forge configure --preset linux-gcc
-forge build
+Tools/Forge/bin/forge install --profile macos-clang
+Tools/Forge/bin/forge configure --preset macos-clang
+Tools/Forge/bin/forge build
 ```
 
-On NixOS, run project toolchain commands from `nix-shell`, or use the explicit
-wrapper form. The word after `forge nix` must be the Forge command to run:
+### Useful Build Commands
 
 ```sh
-forge nix install --profile linux-gcc
-forge nix configure --preset linux-gcc
-forge nix build
+Tools/Forge/bin/forge build --target SagaEngine
+Tools/Forge/bin/forge build --target SagaEditor
+Tools/Forge/bin/forge build --target SagaRuntime
+Tools/Forge/bin/forge build --target SagaServer
 ```
 
-Do not run `forge nix --preset linux-gcc`; `--preset` is an option for the
-`configure` command, so the command name must come first.
+Use `forge run <tool>` when invoking CMake, Conan, or Ninja through the same
+environment Forge configured.
 
-Normal `forge install/configure/build` commands fail fast outside `nix-shell`
-instead of silently re-entering the environment.
+## Verification
 
+The repo does not currently claim a universal green build/test matrix. Prefer
+focused checks for the subsystem you are reviewing.
 
-
-
-
-
-
-The repository default is intentionally conservative: `forge.toml` sets
-`jobs = 2`, and Forge clamps requested jobs through CPU/RAM safety limits.
-Use `forge build --jobs=N` or `forge install --jobs=N` to request more
-parallel work; use `--force-unsafe-jobs` only when you explicitly accept the
-memory pressure risk.
-
-**macOS:**
+Common local checks:
 
 ```sh
-forge install --profile macos-clang
-forge configure --preset macos-clang
-forge build
+git diff --check
+ctest --test-dir build/RelWithDebInfo-0.0.9 --output-on-failure
 ```
 
-### Common commands
+For NixOS-hosted checks, use `nix-shell --run "<command>"`.
 
-```sh
-# Build a specific target
-forge build --target SagaEngine
-forge build --target SagaEditor
-forge build --target SagaRuntime
-forge build --target SagaServer
-forge build --target SagaDistribution
+## Distribution Staging
 
-# Debug build
-forge build --config Debug
+`SagaDistribution` stages a local product layout under the build directory. It
+is a packaging target for existing artifacts; it is not proof of public release
+readiness, installer readiness, marketplace readiness, or production support.
 
-# Wipe the build directory and start fresh
-forge clean
+Role binaries may include:
 
-# Add a dependency to forge.toml
-forge add fmt@10.2.1
+- `Saga`
+- `SagaEditor`
+- `SagaRuntime`
+- `SagaServer`
 
-# Escape hatch: run cmake/conan/ninja directly through Forge
-forge run cmake --build Build/windows-msvc-14.38 --target SagaEngine
-forge run conan install . --profile:host=profiles/linux-gcc --build=missing
-```
-
-### Tips
-
-
-
-### Production Distribution
-
-`SagaDistribution` stages the shipped SAGA product layout under
-`build/RelWithDebInfo/dist/SAGA-<Platform>-v0.0.8/`. It is a composition target:
-it does not compile engine logic of its own, and only packages existing shipped
-artifacts.
-
-The staged layout keeps role binaries in `bin/`; app-local runtime libraries are
-placed under `lib/` on Unix-like platforms and next to the executables on
-Windows where DLL lookup expects that shape.
-
-Shipped role binaries:
-
-- `Saga` — product orchestration entry point.
-- `SagaEditor` — primary authoring product.
-- `SagaRuntime` — runtime/player role.
-- `SagaServer` — dedicated backend role.
-
-`SagaClient` remains a legacy development alias and is never included in the
-production distribution.
+`SagaClient` is a legacy development alias and is not part of the intended
+distribution surface.

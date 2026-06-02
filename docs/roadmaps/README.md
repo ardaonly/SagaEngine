@@ -1,42 +1,22 @@
-# Roadmap Index
+# Roadmaps
 
-> Last updated: 2026-05-26
-> Current truth: Foundation Established. SagaEngine is not Product Beta and not
-> Release Candidate.
+This directory contains planning material. Roadmaps describe direction; they do
+not prove that a feature has shipped.
 
-Read roadmaps in this order:
+## Current Direction
 
-1. [ENGINE_RECOVERY_ROADMAP.md](ENGINE_RECOVERY_ROADMAP.md) - closed recovery
-   record, not an active shipped-feature checklist.
-2. [PHASE_11E_POST_RECOVERY_ROADMAP.md](../recovery/phase-11-scoring/PHASE_11E_POST_RECOVERY_ROADMAP.md)
-   - recommended post-recovery work order.
-3. Domain roadmaps below - useful historical or domain context, not shipped
-   evidence by themselves.
+The next practical direction is to move from internal recovery toward a small
+working product slice:
 
-## Recovery Record
+1. finish repo hygiene and commit packaging;
+2. keep product docs honest and small;
+3. stabilize public tool candidates;
+4. validate `MultiplayerSandbox` as a fixture;
+5. build toward the first real playable/editor workflow.
 
-[ENGINE_RECOVERY_ROADMAP.md](ENGINE_RECOVERY_ROADMAP.md) is the recovery audit
-record. It closes as Foundation Established and preserves the current
-non-claims: no Product Beta, no Release Candidate, no raw full CTest pass, no
-heavy gates pass, and no full product proof.
+## Domain Roadmaps
 
-Use it to understand how the recovery phases arrived at the current
-classification. Use closure files, tests, and implementation evidence before
-treating any roadmap item as delivered.
-
-## Post-Recovery Roadmap
-
-The current future-work entry is
-[PHASE_11E_POST_RECOVERY_ROADMAP.md](../recovery/phase-11-scoring/PHASE_11E_POST_RECOVERY_ROADMAP.md).
-Its priority order is product vertical proof, runtime/client asset consumption,
-AssetPipeline source import/cook, server/replication product loop, test/CI
-hardening, editor productization, and release/packaging hardening.
-
-## Legacy / Domain Roadmaps
-
-These files may contain useful goals, domain vocabulary, and older planning
-context. They are not shipped evidence unless a later closure or test record
-proves the specific claim.
+Use these for technical direction and backlog context:
 
 - [ENGINE_ROADMAP.md](ENGINE_ROADMAP.md)
 - [SAGA_PRODUCT_ROADMAP.md](SAGA_PRODUCT_ROADMAP.md)
@@ -51,3 +31,9 @@ proves the specific claim.
 - [SAGA_GAMEPLAY_GRAPH_ROADMAP.md](SAGA_GAMEPLAY_GRAPH_ROADMAP.md)
 - [AUTHORING_AUTHORITY_MODEL.md](AUTHORING_AUTHORITY_MODEL.md)
 - [AUTHORING_PERSONAS.md](AUTHORING_PERSONAS.md)
+
+## Historical Roadmaps
+
+Some roadmap files preserve older target or release-track planning. Keep them
+for context, but do not treat them as active product commitments unless a
+current product or architecture index points to them.
