@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "sceneId": "source-truth-foundation",
+  "displayName": "Source Truth Foundation",
+  "sourceKind": "SceneSourceTruth",
+  "entities": [
+    {
+      "entityId": "entity-door",
+      "displayName": "Door",
+      "sourceKind": "EntitySourceTruth",
+      "components": [
+        {
+          "type": "Transform",
+          "properties": {
+            "position": [0, 0, 0],
+            "rotation": [0, 0, 0],
+            "scale": [1, 1, 1]
+          }
+        },
+        {
+          "type": "BehaviorReference",
+          "properties": {
+            "scriptId": "door-logic"
+          }
+        }
+      ],
+      "assetReferences": [
+        {
+          "assetId": "multiplayer-sandbox.assets",
+          "owner": "scene-entity",
+          "path": "Assets/README.md",
+          "usage": "placeholder-reference"
+        }
+      ]
+    }
+  ],
+  "generatedArtifacts": [
+    {
+      "artifactId": "source-truth-foundation-projection",
+      "path": "Generated/SourceTruth/source_truth_foundation.generated.json",
+      "artifactKind": "GeneratedProjection",
+      "canonical": false,
+      "expectedSourceHash": "scene-source-hash-v1"
+    }
+  ],
+  "readBoundaries": {
+    "runtime": {
+      "status": "DocumentedReportOnly",
+      "summary": "Runtime read behavior is documented for later phases; no runtime gameplay path is implemented here."
+    },
+    "editor": {
+      "status": "DocumentedReportOnly",
+      "summary": "Editor inspection is documented for later phases; no editor UI or Qt UI is implemented here."
+    },
+    "clientPreview": {
+      "status": "Deferred",
+      "summary": "Client preview remains deferred until a bounded preview seam is opened later."
+    }
+  }
+}

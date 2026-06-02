@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 0,
+  "sliceId": "designer-local",
+  "displayName": "Designer Local Slice",
+  "description": "Local report-only slice for designer-facing MultiplayerSandbox resources.",
+  "intendedRole": "Designer",
+  "includedResources": [
+    {
+      "kind": "Project",
+      "id": "multiplayer-sandbox",
+      "visibility": "SummaryOnly"
+    },
+    {
+      "kind": "ScriptFolder",
+      "id": "multiplayer-sandbox.scripts",
+      "path": "Scripts",
+      "visibility": "SourceLinkOnly"
+    },
+    {
+      "kind": "ScriptFile",
+      "id": "door-logic",
+      "path": "Scripts/DoorLogic.High.cs",
+      "visibility": "FullSource"
+    },
+    {
+      "kind": "ScriptFile",
+      "id": "advanced-unsupported",
+      "path": "Scripts/AdvancedUnsupported.cs",
+      "visibility": "SummaryOnly"
+    },
+    {
+      "kind": "AssetRoot",
+      "id": "multiplayer-sandbox.assets",
+      "path": "Assets",
+      "visibility": "SourceLinkOnly"
+    },
+    {
+      "kind": "LaunchProfile",
+      "id": "local-server-headless",
+      "path": "launch_profiles.json",
+      "visibility": "SummaryOnly"
+    },
+    {
+      "kind": "PackageProfile",
+      "id": "technical-preview-server-headless",
+      "path": "package_profiles.json",
+      "visibility": "SummaryOnly"
+    }
+  ],
+  "excludedResources": [
+    {
+      "kind": "ReportArtifact",
+      "id": "raw-full-ctest",
+      "path": "Build/Reports/raw_full_ctest_report.json",
+      "visibility": "Hidden"
+    }
+  ],
+  "visibilityRules": [
+    {
+      "kind": "ScriptFile",
+      "id": "advanced-unsupported",
+      "path": "Scripts/AdvancedUnsupported.cs",
+      "visibility": "SummaryOnly"
+    }
+  ],
+  "diagnostics": [
+    {
+      "severity": "Info",
+      "code": "Slice.ReportOnly",
+      "message": "This slice is local report metadata and does not enforce filesystem access.",
+      "path": ".saga/slices/designer-local.slice.json"
+    }
+  ]
+}
