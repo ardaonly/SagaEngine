@@ -471,8 +471,8 @@ void ConfigureDotnetEnvironment()
         "SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY",
         std::filesystem::path(SAGA_SCRIPT_RUNTIME_BRIDGE_ASSEMBLY));
     SetEnvironment("DOTNET_ROOT", std::filesystem::path(SAGA_DOTNET_ROOT));
-    SetEnvironment("DOTNET_CLI_HOME", "/tmp/sagascript-dotnet-home");
-    SetEnvironment("NUGET_PACKAGES", "/tmp/sagascript-nuget");
+    SetEnvironment("DOTNET_CLI_HOME", "/tmp/sagascript-dotnet-home-native");
+    SetEnvironment("NUGET_PACKAGES", "/tmp/sagascript-nuget-native");
     SetEnvironment("DOTNET_CLI_TELEMETRY_OPTOUT", "1");
 
     const auto dotnetDirectory =

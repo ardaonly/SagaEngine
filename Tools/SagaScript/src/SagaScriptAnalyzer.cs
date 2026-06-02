@@ -639,6 +639,71 @@ internal sealed class AttributeMap
         return Strings(name).FirstOrDefault();
     }
 
+    public string? NamedString(string name, string argumentName)
+    {
+        if (!_attributes.TryGetValue(name, out var attributes))
+        {
+            return null;
+        }
+
+        foreach (var attribute in attributes)
+        {
+            if (attribute.ArgumentList is null)
+            {
+                continue;
+            }
+
+            foreach (var argument in attribute.ArgumentList.Arguments)
+            {
+                if (argument.NameEquals?.Name.Identifier.ValueText != argumentName)
+                {
+                    continue;
+                }
+                if (argument.Expression is LiteralExpressionSyntax literal &&
+                    literal.Token.Value is string value)
+                {
+                    return value;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    public string? NamedEnum(string name, string argumentName)
+    {
+        if (!_attributes.TryGetValue(name, out var attributes))
+        {
+            return null;
+        }
+
+        foreach (var attribute in attributes)
+        {
+            if (attribute.ArgumentList is null)
+            {
+                continue;
+            }
+
+            foreach (var argument in attribute.ArgumentList.Arguments)
+            {
+                if (argument.NameEquals?.Name.Identifier.ValueText != argumentName)
+                {
+                    continue;
+                }
+
+                var value = argument.Expression switch
+                {
+                    MemberAccessExpressionSyntax member => member.Name.Identifier.ValueText,
+                    IdentifierNameSyntax identifier => identifier.Identifier.ValueText,
+                    _ => argument.Expression.ToString().Split('.').LastOrDefault()
+                };
+                return string.IsNullOrWhiteSpace(value) ? null : value;
+            }
+        }
+
+        return null;
+    }
+
     public IEnumerable<string> Strings(string name)
     {
         if (!_attributes.TryGetValue(name, out var attributes))
