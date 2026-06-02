@@ -2,30 +2,44 @@
 
 ## Status
 
-Not Started
+Implemented-Unverified
 
 ## Phase Scope
 
 StarterArena Sample Definition
 
-No implementation evidence is recorded for this phase yet.
+StarterArena now exists as a project-definition/specification sample only. Its
+manifest validates project metadata and declares empty scenes, assets,
+scriptFolders, launchProfiles, and packageProfiles. The only tracked child
+directories are required schema paths for diagnostics and generated reports.
 
 ## Changed Files
 
-No phase-specific changed file list has been recorded yet. Future updates should
-refresh this section from:
-
-```bash
-git diff --name-only
-```
+- `README.md`
+- `samples/StarterArena/README.md`
+- `samples/StarterArena/StarterArena.sagaproj`
+- `samples/StarterArena/Diagnostics/README.md`
+- `samples/StarterArena/Build/Reports/README.md`
+- `docs/internal/PHASE_STATUS_MATRIX.md`
+- `docs/internal/phase-evidence/PHASE_09/EVIDENCE.md`
+- `docs/internal/phase-evidence/PHASE_09/commands.log`
+- `docs/internal/phase-evidence/PHASE_09/changed_files.txt`
+- `docs/internal/phase-evidence/PHASE_09/known_limitations.md`
+- `docs/internal/phase-evidence/PHASE_09/verification_result.json`
 
 ## Verification Commands
 
-No phase gate command has passed for this phase.
+- `nix-shell --run "Tools/SagaProjectKit/sagaproject validate --project samples/StarterArena/StarterArena.sagaproj --out /tmp/starter_arena_validate.json"`
+- `scripts/scan-claims README.md docs samples Tools`
+- `scripts/verify-quick`
+- `scripts/verify-local --allow-dirty`
+- `scripts/verify-phase 9`
+- `git diff --check`
 
 ## Command Results
 
-No passing verification result is recorded.
+Required local checks passed in pre-commit mode. This does not mark the phase
+`Verified`.
 
 ## Required Files
 
@@ -37,11 +51,11 @@ No passing verification result is recorded.
 
 ## Manual Checks
 
-- [ ] Public docs do not overclaim.
-- [ ] Known limitations are documented.
-- [ ] No placeholder is presented as shipped behavior.
-- [ ] Runtime/editor/tool behavior was manually checked if required.
-- [ ] Unsupported behavior is not hidden.
+- [x] Public docs do not overclaim.
+- [x] Known limitations are documented.
+- [x] StarterArena is not presented as playable.
+- [x] Runtime/editor/tool behavior was not changed.
+- [x] Unsupported behavior is not hidden.
 
 ## Known Limitations
 
@@ -49,8 +63,9 @@ See `known_limitations.md`.
 
 ## Verification Decision
 
-Not Started
+Implemented-Unverified
 
 ## Decision Reason
 
-The phase has not been started in the current status matrix.
+The StarterArena definition-only sample is implemented and the required local
+checks passed, but maintainer verification has not accepted the phase.

@@ -15,8 +15,8 @@ or an explicit verification script result accepted by maintainers.
 | 5 | Canonical Build Baseline | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_05/` | build-gate | `-` | `scripts/build-default` defines the canonical build command sequence; dry-run gate passes, real build remains unverified. |
 | 6 | Test Taxonomy | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_06/` | test-gate | `-` | `scripts/test-taxonomy --check` validates the current CTest label taxonomy; full CTest remains unverified. |
 | 7 | CI-Ready Local Gate | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_07/` | verify-gate | `-` | `scripts/verify-local` composes quick verification, taxonomy, and build dry-run gates; no phase is verified. |
-| 8 | MultiplayerSandbox Truth Reset | Not Started | `docs/internal/phase-evidence/PHASE_08/` | sample-truth-gate | `-` | No sample truth reset implementation in this batch. |
-| 9 | StarterArena Sample Definition | Not Started | `docs/internal/phase-evidence/PHASE_09/` | sample-design-gate | `-` | `-` |
+| 8 | MultiplayerSandbox Truth Reset | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_08/` | sample-truth-gate | `-` | MultiplayerSandbox sample docs now describe fixture evidence, not product proof. |
+| 9 | StarterArena Sample Definition | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_09/` | sample-design-gate | `-` | StarterArena is defined as project metadata only, with no gameplay/runtime/package content. |
 | 10 | First Playable Runtime Loop | Not Started | `docs/internal/phase-evidence/PHASE_10/` | runtime-smoke-gate | `-` | `-` |
 | 11 | C# Gameplay Script v1 | Not Started | `docs/internal/phase-evidence/PHASE_11/` | scripting-gate | `-` | `-` |
 | 12 | Server-Authoritative Sample v1 | Not Started | `docs/internal/phase-evidence/PHASE_12/` | server-gate | `-` | `-` |

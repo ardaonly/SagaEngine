@@ -1,1 +1,11 @@
-No phase-specific changed files recorded yet.
+README.md
+samples/StarterArena/README.md
+samples/StarterArena/StarterArena.sagaproj
+samples/StarterArena/Diagnostics/README.md
+samples/StarterArena/Build/Reports/README.md
+docs/internal/PHASE_STATUS_MATRIX.md
+docs/internal/phase-evidence/PHASE_09/EVIDENCE.md
+docs/internal/phase-evidence/PHASE_09/commands.log
+docs/internal/phase-evidence/PHASE_09/changed_files.txt
+docs/internal/phase-evidence/PHASE_09/known_limitations.md
+docs/internal/phase-evidence/PHASE_09/verification_result.json

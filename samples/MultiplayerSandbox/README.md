@@ -1,13 +1,15 @@
 # MultiplayerSandbox Project Fixture
 
 `MultiplayerSandbox` is the canonical Technical Preview project truth fixture.
-It proves that a `.sagaproj` project can be validated, resolved, diagnosed, and
-run through the bounded server-only headless preview path.
+It records fixture evidence that a `.sagaproj` project can be validated,
+resolved, diagnosed, and run through the bounded server-only headless preview
+path.
 
-This is not complete gameplay. The package profile file remains declarative
-only. The launch profile supports only `local-server-headless`; runtime client
-preview stages are deferred until a bounded ClientHost preview/report seam
-exists.
+This is not playable gameplay. The package profile declares server/headless
+intent only and does not publish a package. The launch profile supports only
+`local-server-headless`; runtime client preview, playable gameplay, editor
+workflow, package publishing, runtime-backed C# blocks, and client package
+stages are deferred until separate evidence exists.
 
 Expected focused checks:
 
@@ -28,7 +30,8 @@ Tools/SagaScript/sagascript emit-bindings --source samples/MultiplayerSandbox/Sc
 Tools/SagaScript/sagascript project-blocks --source samples/MultiplayerSandbox/Scripts --out /tmp/sagascript
 ```
 
-The script fixtures prove the Block F source-preserving C# path only:
+The script fixtures provide fixture evidence for the source-preserving C#
+analysis/projection path only:
 
 - `DoorLogic.High.cs` maps to `Gameplay + High`.
 - `DoorState.Low.cs` maps to `Gameplay + Low`.
@@ -37,5 +40,5 @@ The script fixtures prove the Block F source-preserving C# path only:
 Block J uses SagaPreviewGate to collect these focused checks into local
 Technical Preview reports. It does not add product beta status, release
 candidate status, production network readiness, full visual scripting,
-arbitrary C# roundtrip, source-changing patch behavior, full collaboration, or
-enterprise readiness.
+arbitrary C# roundtrip, source-changing patch behavior, playable gameplay, full
+collaboration, or enterprise readiness.

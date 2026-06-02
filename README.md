@@ -36,7 +36,8 @@ Current non-claims:
   verification tools.
 - `Tests/` - focused unit, integration, architecture, and stress-oriented tests.
 - `samples/` - sample and fixture projects. `MultiplayerSandbox` is currently a
-  deterministic fixture, not a finished multiplayer game.
+  deterministic fixture, not a finished multiplayer game. `StarterArena` is a
+  project-definition sample only and is not playable.
 - `docs/` - product status, architecture, roadmap, testing, and internal notes.
 
 Start with [docs/README.md](docs/README.md) before relying on older roadmap or

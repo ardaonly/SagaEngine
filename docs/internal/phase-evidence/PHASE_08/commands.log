@@ -1,3 +1,22 @@
 # Phase 08 Commands Log
 
-No phase verification commands have been recorded yet.
+nix-shell --run "Tools/SagaProjectKit/sagaproject validate --project samples/MultiplayerSandbox/MultiplayerSandbox.sagaproj --out /tmp/multiplayer_sandbox_validate.json"
+Result: passed.
+
+scripts/scan-claims README.md docs samples Tools
+Result: passed.
+
+scripts/verify-quick
+Result: passed.
+
+scripts/verify-local --allow-dirty
+Result: passed. Pre-commit mode allowed the intentionally dirty worktree.
+
+scripts/verify-phase 8
+Result: passed. No phase was marked Verified.
+
+git diff --check
+Result: passed.
+
+No gameplay code, fake assets, runtime smoke evidence, launch profiles, package
+profiles, scene data, or scripts were added for this phase.
