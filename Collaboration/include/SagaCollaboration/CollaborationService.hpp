@@ -5,6 +5,7 @@
 
 #include "SagaCollaboration/ChangeStreamService.hpp"
 #include "SagaCollaboration/ClaimService.hpp"
+#include "SagaCollaboration/CollaborationModel.hpp"
 #include "SagaCollaboration/ConflictService.hpp"
 #include "SagaCollaboration/LockService.hpp"
 #include "SagaCollaboration/PermissionService.hpp"
