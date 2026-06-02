@@ -4,10 +4,11 @@
 It now has a narrow `SagaRuntime` smoke seam for Phase 10.
 
 This is not an interactive game. The runtime smoke command consumes the
-`.sagaproj` file, runs a deterministic built-in local loop in headless mode,
-writes a smoke report, and exits. It does not use renderer, client networking,
-server authority, C# scripts, Visual Blocks, editor workflow, package output, or
-distribution output.
+`.sagaproj` file and the declared scene resource at
+`Scenes/arena.scene.json`, runs a deterministic scene-backed local loop in
+headless mode, writes a smoke report, and exits. It does not use renderer,
+client networking, server authority, C# scripts, Visual Blocks, editor
+workflow, package output, or distribution output.
 
 Runtime smoke command:
 
@@ -21,10 +22,14 @@ the diagnostics and generated report paths:
 - `Diagnostics`
 - `Build/Reports`
 
+The tracked scene resource exists only for the bounded runtime smoke seam:
+
+- `Scenes/arena.scene.json`
+
 Expected focused check:
 
 ```sh
-Tools/SagaProjectKit/sagaproject validate --project samples/StarterArena/StarterArena.sagaproj --out /tmp/starter_arena_validate.json
+nix-shell --run "Tools/SagaProjectKit/sagaproject validate --project samples/StarterArena/StarterArena.sagaproj --out /tmp/starter_arena_validate.json"
 ```
 
 Phase 10 acceptance notes are tracked in `ACCEPTANCE.md`. Known limitations are
