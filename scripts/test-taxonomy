@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+"""Inspect SagaEngine CTest label taxonomy without running tests."""
+
+from __future__ import annotations
+
+import argparse
+import re
+import sys
+from pathlib import Path
+
+
+SAGA_TESTS = Path("cmake/modules/SagaTests.cmake")
+
+STABLE_FORGE_SUITES = [
+    "architecture",
+    "unit",
+    "runtime",
+    "server",
+    "networking",
+    "replication",
+    "asset",
+    "editor",
+    "tools",
+    "integration",
+    "stress",
+    "slow",
+    "all-safe",
+]
+
+REQUIRED_LABELS = {
+    "architecture",
+    "unit",
+    "runtime",
+    "server",
+    "networking",
+    "replication",
+    "asset",
+    "editor",
+    "tools",
+    "integration",
+    "stress",
+    "slow",
+    "load",
+    "timing-sensitive",
+    "long-running",
+}
+
+UNSAFE_OPT_IN_LABELS = {
+    "stress",
+    "slow",
+    "load",
+    "timing-sensitive",
+    "long-running",
+}
+
+ALL_SAFE_EXCLUDE_REGEX = "stress|slow|load|timing-sensitive|long-running"
+
+
+def collect_labels(path: Path) -> set[str]:
+    if not path.exists():
+        raise RuntimeError(f"missing CMake test module: {path}")
+
+    text = path.read_text(encoding="utf-8")
+    labels: set[str] = set()
+    for match in re.finditer(r'LABELS\s+"([^"]+)"', text):
+        labels.update(label for label in match.group(1).split(";") if label)
+    return labels
+
+
+def print_inventory(labels: set[str]) -> None:
+    print("test-taxonomy: stable Forge suites:")
+    for suite in STABLE_FORGE_SUITES:
+        print(f"- {suite}")
+
+    print()
+    print(f"test-taxonomy: all-safe excludes: {ALL_SAFE_EXCLUDE_REGEX}")
+
+    print()
+    print("test-taxonomy: CTest labels found:")
+    for label in sorted(labels):
+        print(f"- {label}")
+
+
+def check(labels: set[str]) -> int:
+    errors: list[str] = []
+
+    missing = sorted(REQUIRED_LABELS - labels)
+    if missing:
+        errors.append("missing required CTest label(s): " + ", ".join(missing))
+
+    excluded = set(ALL_SAFE_EXCLUDE_REGEX.split("|"))
+    missing_exclusions = sorted(UNSAFE_OPT_IN_LABELS - excluded)
+    if missing_exclusions:
+        errors.append("all-safe does not exclude: " + ", ".join(missing_exclusions))
+
+    for suite in STABLE_FORGE_SUITES:
+        if suite == "all-safe":
+            continue
+        if suite not in labels:
+            errors.append(f"stable Forge suite has no matching CTest label: {suite}")
+
+    if errors:
+        print("test-taxonomy: failed")
+        for error in errors:
+            print(f"- {error}")
+        return 1
+
+    print("test-taxonomy: passed")
+    print(f"test-taxonomy: labels={len(labels)}")
+    print(f"test-taxonomy: all-safe excludes={ALL_SAFE_EXCLUDE_REGEX}")
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--list", action="store_true", help="Print suite and label inventory.")
+    parser.add_argument("--check", action="store_true", help="Validate required taxonomy labels.")
+    args = parser.parse_args()
+
+    try:
+        labels = collect_labels(SAGA_TESTS)
+    except RuntimeError as exc:
+        print(f"test-taxonomy: {exc}", file=sys.stderr)
+        return 2
+
+    if args.list:
+        print_inventory(labels)
+
+    if args.check:
+        return check(labels)
+
+    if not args.list:
+        print_inventory(labels)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

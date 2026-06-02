@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+set -u
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+allow_dirty=false
+with_build=false
+with_tests=false
+jobs=1
+status=0
+
+usage() {
+    cat <<'USAGE'
+Usage:
+  scripts/verify-local [options]
+
+Options:
+  --allow-dirty    Do not fail on a dirty worktree.
+  --with-build     Run the canonical build baseline with scripts/build-default --run.
+  --with-tests     Run the safe CTest suite through Forge; excludes stress/slow/load labels.
+  --jobs <n>       Test jobs for --with-tests. Default: 1.
+  -h, --help       Show this help.
+
+Default behavior is structural only: no real build and no CTest execution.
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --allow-dirty)
+            allow_dirty=true
+            shift
+            ;;
+        --with-build)
+            with_build=true
+            shift
+            ;;
+        --with-tests)
+            with_tests=true
+            shift
+            ;;
+        --jobs)
+            jobs="${2:?--jobs requires a value}"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "verify-local: unknown argument: $1" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+done
+
+run_check() {
+    echo
+    echo "verify-local: running: $*"
+    "$@"
+    local rc=$?
+    if [[ $rc -ne 0 ]]; then
+        echo "verify-local: failed: $*"
+        status=$rc
+    fi
+}
+
+echo "verify-local: CI-ready local gate"
+echo "verify-local: this does not mark any phase Verified"
+echo "verify-local: real build=${with_build}"
+echo "verify-local: all-safe tests=${with_tests}"
+
+if [[ "$allow_dirty" != true ]]; then
+    dirty="$(git status --short)"
+    if [[ -n "$dirty" ]]; then
+        echo "verify-local: failed: worktree is not clean"
+        printf '%s\n' "$dirty"
+        exit 1
+    fi
+else
+    echo "verify-local: dirty worktree allowed for pre-commit verification"
+fi
+
+run_check scripts/verify-quick
+run_check scripts/test-taxonomy --check
+run_check scripts/build-default --dry-run
+
+if [[ "$with_build" == true ]]; then
+    run_check scripts/build-default --run
+fi
+
+if [[ "$with_tests" == true ]]; then
+    run_check Tools/Forge/bin/forge nix test --suite all-safe --jobs "$jobs" -- --output-on-failure --timeout 120
+fi
+
+echo
+if [[ $status -eq 0 ]]; then
+    echo "verify-local: passed"
+else
+    echo "verify-local: failed"
+fi
+
+exit "$status"
