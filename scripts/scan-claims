@@ -1,0 +1,176 @@
+#!/usr/bin/env python3
+"""Scan public-facing text for unsupported SagaEngine maturity claims."""
+
+from __future__ import annotations
+
+import argparse
+import re
+import sys
+from pathlib import Path
+
+
+DOC_SUFFIXES = {".adoc", ".md", ".rst", ".txt"}
+
+EXCLUDED_PARTS = {
+    ".cache",
+    ".git",
+    "__pycache__",
+    "bin",
+    "Build",
+    "build",
+    "obj",
+    "target",
+}
+
+EXCLUDED_PREFIXES = {
+    Path("docs/dev"),
+    Path("docs/internal"),
+    Path("docs/recovery"),
+}
+
+RULES = [
+    ("production-ready", re.compile(r"\bproduction[- ]ready\b", re.I)),
+    ("product-ready", re.compile(r"\bproduct[- ]ready\b", re.I)),
+    ("enterprise-ready", re.compile(r"\benterprise[- ]ready\b", re.I)),
+    ("release-candidate", re.compile(r"\brelease[- ]candidate\b|\brelease\s+candidate\b", re.I)),
+    ("public-beta", re.compile(r"\bpublic\s+beta\b|\bproduct\s+beta\b|\bbeta\s+product\b", re.I)),
+    ("full-visual-scripting", re.compile(r"\b(full|complete)\s+visual\s+scripting\b", re.I)),
+    (
+        "arbitrary-csharp-blocks",
+        re.compile(
+            r"\barbitrary\s+C#\s+(to|roundtrip|conversion)[^\n]{0,120}\bblocks?\b"
+            r"|\barbitrary\s+C#\s+roundtrip\b",
+            re.I,
+        ),
+    ),
+    ("complete-mmo", re.compile(r"\bcomplete\s+MMO\b", re.I)),
+    ("complete-engine", re.compile(r"\bcomplete\s+engine\b", re.I)),
+    ("finished-toolchain", re.compile(r"\bfinished\s+toolchain\b", re.I)),
+    ("ai-native", re.compile(r"\bAI[- ]native\b", re.I)),
+    ("revolutionary", re.compile(r"\brevolutionary\b", re.I)),
+]
+
+NON_CLAIM_CONTEXT = re.compile(
+    r"\b("
+    r"no|not|non[- ]claim|non[- ]goal|cannot|must\s+not|do\s+not|does\s+not|"
+    r"deferred|blocked|forbidden|unsafe|out\s+of\s+scope|without\s+claiming|without\s+pretending|"
+    r"not\s+yet|not\s+currently|not\s+ready|not\s+proven|does\s+not\s+claim|"
+    r"rejected\s+under\s+current\s+evidence|remain\s+non[- ]claims?"
+    r")\b",
+    re.I,
+)
+
+NON_CLAIM_HEADINGS = re.compile(
+    r"\b("
+    r"non[- ]claims?|non[- ]goals?|unsafe\s+claims?|blocked\s+claims?|"
+    r"limitations?|what\s+it\s+is\s+not|what\s+is\s+not\s+implemented|"
+    r"future|deferred|out\s+of\s+scope|forbidden(?:\s+\w+){0,4}\s+claims?|"
+    r"audit\s+roadmap\s+claims?|claim\s+inventory|drift\s+guard\s+prototype|"
+    r"risky\s+uses|high[- ]risk[^\n]{0,80}\bclaims?|inventor(?:y|ies)[^\n]{0,80}\bclaims?"
+    r")\b",
+    re.I,
+)
+
+
+def normalize(path: Path) -> str:
+    return path.as_posix()
+
+
+def is_excluded(path: Path, root: Path) -> bool:
+    try:
+        rel = path.relative_to(root)
+    except ValueError:
+        rel = path
+
+    if any(part in EXCLUDED_PARTS for part in rel.parts):
+        return True
+
+    for prefix in EXCLUDED_PREFIXES:
+        try:
+            rel.relative_to(prefix)
+            return True
+        except ValueError:
+            continue
+
+    return False
+
+
+def discover(paths: list[Path], root: Path) -> list[Path]:
+    files: list[Path] = []
+    for path in paths:
+        if not path.exists():
+            print(f"scan-claims: missing path: {path}", file=sys.stderr)
+            return []
+        if path.is_file():
+            if path.suffix in DOC_SUFFIXES and not is_excluded(path, root):
+                files.append(path)
+            continue
+        for child in path.rglob("*"):
+            if child.is_file() and child.suffix in DOC_SUFFIXES and not is_excluded(child, root):
+                files.append(child)
+    return sorted(set(files), key=lambda item: normalize(item))
+
+
+def has_non_claim_context(lines: list[str], index: int) -> bool:
+    context_start = max(0, index - 3)
+    context_end = min(len(lines), index + 4)
+    for line in lines[context_start:context_end]:
+        if NON_CLAIM_CONTEXT.search(line):
+            return True
+
+    start = max(0, index - 12)
+    for line in lines[start : index + 1]:
+        if NON_CLAIM_HEADINGS.search(line):
+            return True
+    return False
+
+
+def scan_file(path: Path, root: Path) -> list[tuple[str, int, str, str]]:
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except UnicodeDecodeError:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+
+    findings: list[tuple[str, int, str, str]] = []
+    in_fence = False
+    for index, line in enumerate(lines):
+        if line.strip().startswith("```"):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        for rule_id, pattern in RULES:
+            if pattern.search(line) and not has_non_claim_context(lines, index):
+                rel = path.relative_to(root) if path.is_relative_to(root) else path
+                findings.append((normalize(rel), index + 1, rule_id, line.strip()))
+    return findings
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("paths", nargs="+", help="Files or directories to scan.")
+    args = parser.parse_args()
+
+    root = Path.cwd()
+    targets = [Path(path) for path in args.paths]
+    files = discover(targets, root)
+    if not files and any(not path.exists() for path in targets):
+        return 2
+
+    findings: list[tuple[str, int, str, str]] = []
+    for file in files:
+        findings.extend(scan_file(file, root))
+
+    print(f"scan-claims: scanned {len(files)} public text file(s)")
+    if findings:
+        print("scan-claims: unsupported public claim text found:")
+        for rel, line, rule_id, text in findings:
+            print(f"{rel}:{line}: {rule_id}: {text}")
+        return 1
+
+    print("scan-claims: no unsupported public claim text found")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

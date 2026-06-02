@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+"""Run conservative source-boundary checks for standalone subsystems."""
+
+from __future__ import annotations
+
+import argparse
+import re
+import sys
+from pathlib import Path
+
+
+DEFAULT_SDE_ROOT = Path("Tools/SystemDefinitionEngine")
+CODE_SUFFIXES = {
+    ".c",
+    ".cc",
+    ".cmake",
+    ".cpp",
+    ".cs",
+    ".h",
+    ".hpp",
+    ".py",
+    ".txt",
+}
+
+FORBIDDEN_SDE_PATTERNS = [
+    ("saga-engine-header", re.compile(r"#\s*include\s*[<\"][^>\"]*SagaEngine", re.I)),
+    ("saga-editor-header", re.compile(r"#\s*include\s*[<\"][^>\"]*SagaEditor", re.I)),
+    ("saga-server-header", re.compile(r"#\s*include\s*[<\"][^>\"]*SagaServer", re.I)),
+    ("saga-runtime-header", re.compile(r"#\s*include\s*[<\"][^>\"]*SagaRuntime", re.I)),
+    ("saga-module-path", re.compile(r"\b(Engine|Editor|Runtime|Server|Apps|Collaboration)/", re.I)),
+    ("forge-dependency", re.compile(r"\bTools/Forge\b|\bForge::", re.I)),
+    ("prism-dependency", re.compile(r"\bTools/Prism\b|\bPrism::", re.I)),
+    ("saga-target-link", re.compile(r"\bSaga(Engine|Editor|Runtime|Server|Product|Tools)?::", re.I)),
+]
+
+
+def iter_sde_files(sde_root: Path) -> list[Path]:
+    if not sde_root.exists():
+        raise RuntimeError(f"missing SDE root: {sde_root}")
+
+    files: list[Path] = []
+    for path in sde_root.rglob("*"):
+        if not path.is_file():
+            continue
+        if path.name == "CMakeLists.txt" or path.suffix in CODE_SUFFIXES:
+            files.append(path)
+    return sorted(files, key=lambda item: item.as_posix())
+
+
+def scan_file(path: Path) -> list[tuple[Path, int, str, str]]:
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except UnicodeDecodeError:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+
+    findings: list[tuple[Path, int, str, str]] = []
+    for index, line in enumerate(lines):
+        for rule_id, pattern in FORBIDDEN_SDE_PATTERNS:
+            if pattern.search(line):
+                findings.append((path, index + 1, rule_id, line.strip()))
+    return findings
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--sde-root",
+        default=str(DEFAULT_SDE_ROOT),
+        help="SDE root to scan. Defaults to Tools/SystemDefinitionEngine.",
+    )
+    args = parser.parse_args()
+
+    sde_root = Path(args.sde_root)
+
+    try:
+        files = iter_sde_files(sde_root)
+    except RuntimeError as exc:
+        print(f"check-boundaries: {exc}", file=sys.stderr)
+        return 2
+
+    findings: list[tuple[Path, int, str, str]] = []
+    for file in files:
+        findings.extend(scan_file(file))
+
+    print(f"check-boundaries: scanned {len(files)} SDE file(s)")
+    if findings:
+        print("check-boundaries: forbidden standalone-boundary reference found:")
+        for path, line, rule_id, text in findings:
+            print(f"{path.as_posix()}:{line}: {rule_id}: {text}")
+        return 1
+
+    print("check-boundaries: SDE standalone source-boundary scan passed")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

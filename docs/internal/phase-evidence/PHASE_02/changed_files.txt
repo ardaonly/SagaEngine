@@ -1,0 +1,8 @@
+docs/internal/PHASE_STATUS_MATRIX.md
+docs/internal/phase-evidence/PHASE_02/EVIDENCE.md
+docs/internal/phase-evidence/PHASE_02/changed_files.txt
+docs/internal/phase-evidence/PHASE_02/commands.log
+docs/internal/phase-evidence/PHASE_02/known_limitations.md
+docs/internal/phase-evidence/PHASE_02/verification_result.json
+docs/roadmaps/EDITOR_ROADMAP.md
+scripts/scan-claims

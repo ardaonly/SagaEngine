@@ -1,0 +1,134 @@
+#!/usr/bin/env python3
+"""Linux Saga distribution preflight.
+
+This first-batch script does not create distribution output. It fails honestly
+when required real binaries, docs, samples, or final layout entries are missing.
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+
+ROOT = Path.cwd()
+DEFAULT_OUTPUT = Path("build/dist/linux/Saga")
+
+
+def read_version() -> str:
+    version_file = Path("VERSION")
+    if not version_file.exists():
+        return "0.0.0"
+    return version_file.read_text(encoding="utf-8").strip()
+
+
+def default_build_dirs(config: str) -> list[Path]:
+    version = read_version()
+    candidates = [
+        Path(f"build/RelWithDebInfo-{version}-sde"),
+        Path(f"build/RelWithDebInfo-{version}"),
+        Path(f"build/{config}-{version}-sde"),
+        Path(f"build/{config}-{version}"),
+        Path("build/RelWithDebInfo"),
+        Path("build"),
+    ]
+    return candidates
+
+
+def first_existing(paths: list[Path]) -> Path | None:
+    for path in paths:
+        if path.exists():
+            return path
+    return None
+
+
+def is_executable(path: Path) -> bool:
+    return path.is_file() and path.stat().st_size > 0 and path.exists()
+
+
+def check_file(label: str, path: Path, missing: list[str]) -> None:
+    if not path.is_file():
+        missing.append(f"{label}: missing file {path}")
+
+
+def check_dir(label: str, path: Path, missing: list[str]) -> None:
+    if not path.is_dir():
+        missing.append(f"{label}: missing directory {path}")
+
+
+def check_binary(label: str, candidates: list[Path], missing: list[str]) -> None:
+    existing = first_existing(candidates)
+    if existing is None or not is_executable(existing):
+        joined = ", ".join(path.as_posix() for path in candidates)
+        missing.append(f"{label}: missing real executable; checked {joined}")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--config", default="Release", help="Build configuration label.")
+    parser.add_argument("--build-dir", help="CMake build directory to inspect.")
+    parser.add_argument("--output", default=str(DEFAULT_OUTPUT), help="Expected final distribution directory.")
+    parser.add_argument("--without-server", action="store_true", help="Do not require SagaServer.")
+    args = parser.parse_args()
+
+    build_dir = Path(args.build_dir) if args.build_dir else first_existing(default_build_dirs(args.config))
+    output = Path(args.output)
+    missing: list[str] = []
+
+    if build_dir is None:
+        missing.append("build directory: no candidate build directory exists")
+        build_dir = Path("build")
+
+    bin_dir = build_dir / "bin"
+    check_binary("Saga product shell", [bin_dir / "Saga"], missing)
+    check_binary("SagaEditor shell", [bin_dir / "SagaEditor"], missing)
+    check_binary("SagaRuntime executable", [bin_dir / "SagaRuntime"], missing)
+    if not args.without_server:
+        check_binary("SagaServer executable", [bin_dir / "SagaServer"], missing)
+
+    check_binary("sagaproject CLI", [Path("Tools/SagaProjectKit/sagaproject")], missing)
+    check_binary("sagapack CLI", [Path("Tools/SagaPackager/sagapack")], missing)
+    check_binary("sagascript CLI", [Path("Tools/SagaScript/sagascript")], missing)
+    check_binary(
+        "sde CLI",
+        [
+            bin_dir / "sde",
+            Path("Tools/SystemDefinitionEngine/build/bin/sde"),
+            Path("Tools/SystemDefinitionEngine/build/sde"),
+        ],
+        missing,
+    )
+
+    check_dir("StarterArena sample", Path("samples/StarterArena"), missing)
+    check_file("root README", Path("README.md"), missing)
+    check_file("getting started doc", Path("docs/product/GETTING_STARTED.md"), missing)
+    check_file("current capabilities doc", Path("docs/product/CURRENT_CAPABILITIES.md"), missing)
+    check_file("not implemented doc", Path("docs/product/WHAT_IS_NOT_IMPLEMENTED.md"), missing)
+    check_file("distribution status doc", Path("docs/product/CURRENT_DISTRIBUTION_STATUS.md"), missing)
+    check_dir("licenses", Path("LICENSES"), missing)
+
+    check_dir("expected final distribution layout", output, missing)
+    check_file("expected distribution VERSION", output / "VERSION", missing)
+    check_file("expected distribution VERIFY.txt", output / "VERIFY.txt", missing)
+    check_file("expected distribution known limitations", output / "KNOWN_LIMITATIONS.md", missing)
+    check_file("expected distribution archive", Path("build/dist/linux/Saga.tar.zst"), missing)
+    check_file("expected distribution checksum", Path("build/dist/linux/Saga.sha256"), missing)
+
+    print("package-linux-saga: preflight only; no files were staged or generated")
+    print(f"package-linux-saga: config={args.config}")
+    print(f"package-linux-saga: build_dir={build_dir}")
+    print(f"package-linux-saga: expected_output={output}")
+
+    if missing:
+        print("package-linux-saga: failed; required real inputs/output layout are missing:")
+        for item in missing:
+            print(f"- {item}")
+        return 1
+
+    print("package-linux-saga: preflight passed; distribution staging is still not implemented by this skeleton")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

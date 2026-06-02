@@ -1,0 +1,10 @@
+{
+  "phase": 8,
+  "name": "MultiplayerSandbox Truth Reset",
+  "status": "Not Started",
+  "required_gate": "sample-truth-gate",
+  "verified": false,
+  "last_verified_commit": "-",
+  "verification_decision": "Not Started",
+  "decision_reason": "The phase has not been started in the current status matrix."
+}

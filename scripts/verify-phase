@@ -1,0 +1,184 @@
+#!/usr/bin/env python3
+"""Validate phase status/evidence structure without marking phases complete."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+
+
+MATRIX = Path("docs/internal/PHASE_STATUS_MATRIX.md")
+EVIDENCE_ROOT = Path("docs/internal/phase-evidence")
+REQUIRED_FILES = [
+    "EVIDENCE.md",
+    "commands.log",
+    "changed_files.txt",
+    "known_limitations.md",
+    "verification_result.json",
+]
+
+CODEX_STATUSES = {
+    "Not Started",
+    "In Progress",
+    "Implemented-Unverified",
+    "Blocked",
+}
+
+MAINTAINER_STATUSES = {
+    "Verified",
+    "Rejected",
+    "Archived",
+}
+
+
+@dataclass(frozen=True)
+class PhaseRow:
+    phase: int
+    name: str
+    status: str
+    evidence_path: Path
+    required_gate: str
+
+
+def parse_matrix() -> dict[int, PhaseRow]:
+    if not MATRIX.exists():
+        raise RuntimeError(f"missing status matrix: {MATRIX}")
+
+    phases: dict[int, PhaseRow] = {}
+    for raw_line in MATRIX.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line.startswith("|") or line.startswith("|---") or line.startswith("| Phase "):
+            continue
+        cells = [cell.strip().strip("`") for cell in line.strip("|").split("|")]
+        if len(cells) < 7 or not cells[0].isdigit():
+            continue
+        phase = int(cells[0])
+        phases[phase] = PhaseRow(
+            phase=phase,
+            name=cells[1],
+            status=cells[2],
+            evidence_path=Path(cells[3]),
+            required_gate=cells[4],
+        )
+
+    if not phases:
+        raise RuntimeError(f"no phase rows found in {MATRIX}")
+    return phases
+
+
+def evidence_status(evidence: str) -> str | None:
+    lines = evidence.splitlines()
+    for index, line in enumerate(lines):
+        if line.strip() != "## Status":
+            continue
+        for candidate in lines[index + 1 :]:
+            candidate = candidate.strip()
+            if candidate:
+                return candidate
+    return None
+
+
+def validate_phase(row: PhaseRow, allow_maintainer_status: bool) -> list[str]:
+    errors: list[str] = []
+    allowed = set(CODEX_STATUSES)
+    if allow_maintainer_status:
+        allowed.update(MAINTAINER_STATUSES)
+
+    if row.status not in allowed:
+        errors.append(f"Phase {row.phase:02d}: status is not allowed here: {row.status}")
+
+    if row.status in MAINTAINER_STATUSES and not allow_maintainer_status:
+        errors.append(
+            f"Phase {row.phase:02d}: maintainer-only status requires --allow-maintainer-status: {row.status}"
+        )
+
+    if not row.evidence_path.exists():
+        errors.append(f"Phase {row.phase:02d}: missing evidence folder: {row.evidence_path}")
+        return errors
+
+    for name in REQUIRED_FILES:
+        path = row.evidence_path / name
+        if not path.exists():
+            errors.append(f"Phase {row.phase:02d}: missing required evidence file: {path}")
+
+    evidence_file = row.evidence_path / "EVIDENCE.md"
+    if evidence_file.exists():
+        status = evidence_status(evidence_file.read_text(encoding="utf-8"))
+        if status != row.status:
+            errors.append(
+                f"Phase {row.phase:02d}: EVIDENCE.md status {status!r} does not match matrix status {row.status!r}"
+            )
+
+    result_file = row.evidence_path / "verification_result.json"
+    if result_file.exists():
+        try:
+            result = json.loads(result_file.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            errors.append(f"Phase {row.phase:02d}: invalid verification_result.json: {exc}")
+        else:
+            if result.get("phase") != row.phase:
+                errors.append(f"Phase {row.phase:02d}: verification_result.json has wrong phase")
+            if result.get("status") != row.status:
+                errors.append(
+                    f"Phase {row.phase:02d}: verification_result.json status does not match matrix"
+                )
+            if row.status != "Verified" and result.get("verified") is True:
+                errors.append(f"Phase {row.phase:02d}: verified=true is invalid for {row.status}")
+
+    return errors
+
+
+def select_phases(phases: dict[int, PhaseRow], selectors: list[str]) -> list[PhaseRow]:
+    if not selectors or selectors == ["all"]:
+        return [phases[key] for key in sorted(phases)]
+
+    selected: list[PhaseRow] = []
+    for selector in selectors:
+        try:
+            phase = int(selector)
+        except ValueError as exc:
+            raise RuntimeError(f"invalid phase selector: {selector}") from exc
+        if phase not in phases:
+            raise RuntimeError(f"unknown phase: {phase}")
+        selected.append(phases[phase])
+    return selected
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("phases", nargs="*", help="Phase numbers to check, or 'all'.")
+    parser.add_argument(
+        "--allow-maintainer-status",
+        action="store_true",
+        help="Allow maintainer-only statuses such as Verified or Rejected.",
+    )
+    args = parser.parse_args()
+
+    try:
+        phases = parse_matrix()
+        selected = select_phases(phases, args.phases)
+    except RuntimeError as exc:
+        print(f"verify-phase: {exc}", file=sys.stderr)
+        return 2
+
+    errors: list[str] = []
+    for row in selected:
+        errors.extend(validate_phase(row, args.allow_maintainer_status))
+
+    if errors:
+        print("verify-phase: failed")
+        for error in errors:
+            print(error)
+        return 1
+
+    names = ", ".join(f"{row.phase:02d}" for row in selected)
+    print(f"verify-phase: passed structure checks for phase(s): {names}")
+    print("verify-phase: no phase was marked Verified")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

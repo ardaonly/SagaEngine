@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -u
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+status=0
+
+run_check() {
+    echo
+    echo "verify-quick: running: $*"
+    "$@"
+    local rc=$?
+    if [[ $rc -ne 0 ]]; then
+        echo "verify-quick: failed: $*"
+        status=$rc
+    fi
+}
+
+echo "verify-quick: local verification infrastructure gate"
+echo "verify-quick: this does not mark any phase Verified"
+
+run_check git diff --check
+run_check scripts/scan-claims README.md docs samples Tools
+run_check scripts/verify-phase all
+run_check scripts/check-boundaries
+
+echo
+if [[ $status -eq 0 ]]; then
+    echo "verify-quick: passed"
+else
+    echo "verify-quick: failed"
+fi
+
+exit "$status"
