@@ -38,6 +38,25 @@ function(saga_setup_tests)
         "${SAGA_ROOT}/Tests/Tools/SagaPipeline/*.cpp"
     )
 
+    set(SAGA_STRESS_ARENA_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Tools/SagaStressArenaTests.cpp"
+    )
+    set(SAGA_CHAOS_LAB_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Tools/SagaChaosLabTests.cpp"
+    )
+    set(SAGA_STATE_CHECK_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Tools/SagaStateCheckTests.cpp"
+    )
+    set(EDITOR_AUTHORING_SPINE_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Editor/EditorAuthoringSpineTests.cpp"
+    )
+    set(COLLABORATION_MODEL_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Collaboration/CollaborationModelTests.cpp"
+    )
+    set(MULTIPLAYER_SANDBOX_HEADLESS_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Samples/MultiplayerSandboxHeadlessTests.cpp"
+    )
+
     file(GLOB_RECURSE SAGA_PRODUCT_TEST_SOURCES CONFIGURE_DEPENDS
         "${SAGA_ROOT}/Tests/Unit/Saga/*.cpp"
     )
@@ -65,6 +84,21 @@ function(saga_setup_tests)
     )
     set(SAGA_GENERATED_RUNTIME_SMOKE_PACKAGE_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/AssetPipeline/GeneratedRuntimeSmokePackageTests.cpp"
+    )
+    set(SAGA_DIAGNOSTIC_FOUNDATION_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Diagnostics/DiagnosticFoundationTests.cpp"
+    )
+    set(SAGA_DIAGNOSTIC_REPORT_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Diagnostics/DiagnosticReportTests.cpp"
+    )
+    set(SAGA_DIAGNOSTIC_RELIABILITY_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Diagnostics/DiagnosticReliabilityTests.cpp"
+    )
+    set(SAGA_DIAGNOSTIC_MEMORY_RESOURCE_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Diagnostics/DiagnosticMemoryResourceTests.cpp"
+    )
+    set(SAGA_FAULT_BOUNDARY_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Diagnostics/FaultBoundaryTests.cpp"
     )
 
     set(SAGA_SCRIPT_LIFECYCLE_TEST_SOURCE
@@ -127,11 +161,20 @@ function(saga_setup_tests)
     set(SAGA_SERVER_PACKET_NORMALIZATION_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/Networking/ServerPacketNormalizationTests.cpp"
     )
+    set(SAGA_NETWORK_CHAOS_LAYER_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Networking/NetworkChaosLayerTests.cpp"
+    )
     set(SAGA_ZONE_SERVER_PACKET_DRAIN_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/Server/ZoneServerPacketDrainTests.cpp"
     )
     set(SAGA_ZONE_SERVER_MOVEMENT_AUTHORITY_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/Server/ZoneServerMovementAuthorityTests.cpp"
+    )
+    set(SAGA_ZONE_SERVER_DIAGNOSTICS_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Server/ZoneServerDiagnosticsTests.cpp"
+    )
+    set(SAGA_SERVER_LIFECYCLE_DIAGNOSTICS_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Server/ServerLifecycleDiagnosticsTests.cpp"
     )
     set(SAGA_MOVEMENT_DIRTY_REPLICATION_BRIDGE_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/Server/MovementDirtyReplicationBridgeTests.cpp"
@@ -154,6 +197,14 @@ function(saga_setup_tests)
         ${SAGA_PACKAGE_MANIFEST_WRITER_TEST_SOURCE}
         ${SAGA_GENERATED_RUNTIME_SMOKE_MANIFEST_TEST_SOURCE}
         ${SAGA_GENERATED_RUNTIME_SMOKE_PACKAGE_TEST_SOURCE}
+        ${SAGA_DIAGNOSTIC_FOUNDATION_TEST_SOURCE}
+        ${SAGA_DIAGNOSTIC_REPORT_TEST_SOURCE}
+        ${SAGA_DIAGNOSTIC_RELIABILITY_TEST_SOURCE}
+        ${SAGA_DIAGNOSTIC_MEMORY_RESOURCE_TEST_SOURCE}
+        ${SAGA_FAULT_BOUNDARY_TEST_SOURCE}
+        ${SAGA_STRESS_ARENA_TEST_SOURCE}
+        ${SAGA_STATE_CHECK_TEST_SOURCE}
+        ${MULTIPLAYER_SANDBOX_HEADLESS_TEST_SOURCE}
         ${SAGA_SCRIPT_LIFECYCLE_TEST_SOURCE}
         ${SAGA_SCRIPT_BINDING_RUNTIME_TEST_SOURCE}
         ${SAGA_RUNTIME_STARTUP_PREFLIGHT_TEST_SOURCE}
@@ -174,8 +225,11 @@ function(saga_setup_tests)
         ${SAGA_AUTHORITATIVE_MOVEMENT_INPUT_ADAPTER_TEST_SOURCE}
         ${SAGA_AUTHORITATIVE_MOVEMENT_COMMAND_INTAKE_TEST_SOURCE}
         ${SAGA_SERVER_PACKET_NORMALIZATION_TEST_SOURCE}
+        ${SAGA_NETWORK_CHAOS_LAYER_TEST_SOURCE}
         ${SAGA_ZONE_SERVER_PACKET_DRAIN_TEST_SOURCE}
         ${SAGA_ZONE_SERVER_MOVEMENT_AUTHORITY_TEST_SOURCE}
+        ${SAGA_ZONE_SERVER_DIAGNOSTICS_TEST_SOURCE}
+        ${SAGA_SERVER_LIFECYCLE_DIAGNOSTICS_TEST_SOURCE}
         ${SAGA_MOVEMENT_DIRTY_REPLICATION_BRIDGE_TEST_SOURCE}
     )
 
@@ -296,6 +350,107 @@ function(saga_setup_tests)
         LABELS "unit;runtime;server;networking;replication;asset;editor"
     )
 
+    # --- Diagnostics foundation tests ---------------------------------------
+    if(EXISTS "${SAGA_DIAGNOSTIC_FOUNDATION_TEST_SOURCE}")
+        add_executable(DiagnosticFoundationTests
+            ${SAGA_DIAGNOSTIC_FOUNDATION_TEST_SOURCE}
+        )
+        target_link_libraries(DiagnosticFoundationTests PRIVATE
+            SagaDiagnostics
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(DiagnosticFoundationTests PRIVATE
+            ${SAGA_ROOT}/Engine/Public
+        )
+        add_test(NAME DiagnosticFoundationTests COMMAND DiagnosticFoundationTests)
+        set_tests_properties(DiagnosticFoundationTests PROPERTIES
+            LABELS "unit;diagnostics")
+    endif()
+
+    # --- Diagnostics report tests ------------------------------------------
+    if(EXISTS "${SAGA_DIAGNOSTIC_REPORT_TEST_SOURCE}")
+        add_executable(DiagnosticReportTests
+            ${SAGA_DIAGNOSTIC_REPORT_TEST_SOURCE}
+        )
+        target_link_libraries(DiagnosticReportTests PRIVATE
+            SagaDiagnostics
+            nlohmann_json::nlohmann_json
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(DiagnosticReportTests PRIVATE
+            ${SAGA_ROOT}/Engine/Public
+        )
+        add_test(NAME DiagnosticReportTests COMMAND DiagnosticReportTests)
+        set_tests_properties(DiagnosticReportTests PROPERTIES
+            LABELS "unit;diagnostics")
+    endif()
+
+    # --- Diagnostics reliability tests -------------------------------------
+    if(EXISTS "${SAGA_DIAGNOSTIC_RELIABILITY_TEST_SOURCE}")
+        add_executable(DiagnosticReliabilityTests
+            ${SAGA_DIAGNOSTIC_RELIABILITY_TEST_SOURCE}
+        )
+        target_link_libraries(DiagnosticReliabilityTests PRIVATE
+            SagaDiagnostics
+            nlohmann_json::nlohmann_json
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(DiagnosticReliabilityTests PRIVATE
+            ${SAGA_ROOT}/Engine/Public
+        )
+        add_test(NAME DiagnosticReliabilityTests
+            COMMAND DiagnosticReliabilityTests)
+        set_tests_properties(DiagnosticReliabilityTests PROPERTIES
+            LABELS "unit;diagnostics")
+    endif()
+
+    # --- Diagnostics memory/resource tests ---------------------------------
+    if(EXISTS "${SAGA_DIAGNOSTIC_MEMORY_RESOURCE_TEST_SOURCE}")
+        add_executable(DiagnosticMemoryResourceTests
+            ${SAGA_DIAGNOSTIC_MEMORY_RESOURCE_TEST_SOURCE}
+        )
+        target_link_libraries(DiagnosticMemoryResourceTests PRIVATE
+            SagaDiagnostics
+            nlohmann_json::nlohmann_json
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(DiagnosticMemoryResourceTests PRIVATE
+            ${SAGA_ROOT}/Engine/Public
+        )
+        add_test(NAME DiagnosticMemoryResourceTests
+            COMMAND DiagnosticMemoryResourceTests)
+        set_tests_properties(DiagnosticMemoryResourceTests PROPERTIES
+            LABELS "unit;diagnostics")
+    endif()
+
+    # --- Fault boundary diagnostics tests ----------------------------------
+    if(EXISTS "${SAGA_FAULT_BOUNDARY_TEST_SOURCE}")
+        add_executable(FaultBoundaryTests
+            ${SAGA_FAULT_BOUNDARY_TEST_SOURCE}
+        )
+        target_link_libraries(FaultBoundaryTests PRIVATE
+            SagaDiagnostics
+            nlohmann_json::nlohmann_json
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(FaultBoundaryTests PRIVATE
+            ${SAGA_ROOT}/Engine/Public
+        )
+        add_test(NAME FaultBoundaryTests COMMAND FaultBoundaryTests)
+        set_tests_properties(FaultBoundaryTests PROPERTIES
+            LABELS "unit;diagnostics")
+    endif()
+
     # --- Actor ownership registry tests -------------------------------------
     if(EXISTS "${SAGA_ACTOR_OWNERSHIP_REGISTRY_TEST_SOURCE}")
         add_executable(ActorOwnershipRegistryTests
@@ -410,6 +565,31 @@ function(saga_setup_tests)
         )
     endif()
 
+    # --- Network chaos policy tests ----------------------------------------
+    if(EXISTS "${SAGA_NETWORK_CHAOS_LAYER_TEST_SOURCE}")
+        add_executable(NetworkChaosLayerTests
+            ${SAGA_NETWORK_CHAOS_LAYER_TEST_SOURCE}
+        )
+        saga_link_thirdparty(NetworkChaosLayerTests)
+        target_link_libraries(NetworkChaosLayerTests PRIVATE
+            SagaServerLib
+            SagaDiagnostics
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(NetworkChaosLayerTests PRIVATE
+            ${SAGA_ROOT}/Server/include
+            ${SAGA_ROOT}/Engine/Public
+            $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
+        )
+        add_test(NAME NetworkChaosLayerTests
+            COMMAND NetworkChaosLayerTests)
+        set_tests_properties(NetworkChaosLayerTests PROPERTIES
+            LABELS "unit;networking;diagnostics"
+        )
+    endif()
+
     # --- Zone server packet drain tests ------------------------------------
     if(EXISTS "${SAGA_ZONE_SERVER_PACKET_DRAIN_TEST_SOURCE}")
         add_executable(ZoneServerPacketDrainTests
@@ -455,6 +635,57 @@ function(saga_setup_tests)
             COMMAND ZoneServerMovementAuthorityTests)
         set_tests_properties(ZoneServerMovementAuthorityTests PROPERTIES
             LABELS "unit;server;networking"
+        )
+    endif()
+
+    # --- Zone server diagnostics tests -------------------------------------
+    if(EXISTS "${SAGA_ZONE_SERVER_DIAGNOSTICS_TEST_SOURCE}")
+        add_executable(ZoneServerDiagnosticsTests
+            ${SAGA_ZONE_SERVER_DIAGNOSTICS_TEST_SOURCE}
+        )
+        saga_link_thirdparty(ZoneServerDiagnosticsTests)
+        target_link_libraries(ZoneServerDiagnosticsTests PRIVATE
+            SagaServerLib
+            SagaDiagnostics
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(ZoneServerDiagnosticsTests PRIVATE
+            ${SAGA_ROOT}/Server/include
+            ${SAGA_ROOT}/Engine/Public
+            $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
+        )
+        add_test(NAME ZoneServerDiagnosticsTests
+            COMMAND ZoneServerDiagnosticsTests)
+        set_tests_properties(ZoneServerDiagnosticsTests PROPERTIES
+            LABELS "unit;server;diagnostics"
+        )
+    endif()
+
+    # --- Server lifecycle diagnostics tests --------------------------------
+    if(EXISTS "${SAGA_SERVER_LIFECYCLE_DIAGNOSTICS_TEST_SOURCE}")
+        add_executable(ServerLifecycleDiagnosticsTests
+            ${SAGA_SERVER_LIFECYCLE_DIAGNOSTICS_TEST_SOURCE}
+        )
+        saga_link_thirdparty(ServerLifecycleDiagnosticsTests)
+        target_link_libraries(ServerLifecycleDiagnosticsTests PRIVATE
+            SagaServerLib
+            SagaDiagnostics
+            nlohmann_json::nlohmann_json
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(ServerLifecycleDiagnosticsTests PRIVATE
+            ${SAGA_ROOT}/Server/include
+            ${SAGA_ROOT}/Engine/Public
+            $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
+        )
+        add_test(NAME ServerLifecycleDiagnosticsTests
+            COMMAND ServerLifecycleDiagnosticsTests)
+        set_tests_properties(ServerLifecycleDiagnosticsTests PROPERTIES
+            LABELS "unit;server;diagnostics"
         )
     endif()
 
@@ -555,6 +786,136 @@ function(saga_setup_tests)
         add_test(NAME SagaPipelineTests COMMAND SagaPipelineTests)
         set_tests_properties(SagaPipelineTests PROPERTIES
             LABELS "tools;pipeline;integration"
+        )
+    endif()
+
+    # --- Saga Stress Arena diagnostics tests -------------------------------
+    if(EXISTS "${SAGA_STRESS_ARENA_TEST_SOURCE}" AND TARGET SagaStressArenaLib)
+        add_executable(SagaStressArenaTests
+            ${SAGA_STRESS_ARENA_TEST_SOURCE}
+        )
+        saga_link_thirdparty(SagaStressArenaTests)
+        target_link_libraries(SagaStressArenaTests PRIVATE
+            SagaStressArenaLib
+            SagaServerLib
+            SagaDiagnostics
+            nlohmann_json::nlohmann_json
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(SagaStressArenaTests PRIVATE
+            ${SAGA_ROOT}/Tools/SagaStressArena/include
+            ${SAGA_ROOT}/Server/include
+            ${SAGA_ROOT}/Engine/Public
+            $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
+        )
+        set_target_properties(SagaStressArenaTests PROPERTIES
+            FOLDER "Tests/Tools"
+        )
+        add_test(NAME SagaStressArenaTests COMMAND SagaStressArenaTests)
+        set_tests_properties(SagaStressArenaTests PROPERTIES
+            LABELS "unit;tools;diagnostics"
+        )
+        if(TARGET SagaStressArena)
+            add_test(NAME SagaStressArenaHelp COMMAND SagaStressArena --help)
+            set_tests_properties(SagaStressArenaHelp PROPERTIES
+                LABELS "unit;tools;diagnostics"
+            )
+        endif()
+    endif()
+
+    # --- Saga Chaos Lab profile runner tests --------------------------------
+    if(EXISTS "${SAGA_CHAOS_LAB_TEST_SOURCE}" AND TARGET SagaChaosLabLib)
+        add_executable(SagaChaosLabTests
+            ${SAGA_CHAOS_LAB_TEST_SOURCE}
+        )
+        saga_link_thirdparty(SagaChaosLabTests)
+        target_link_libraries(SagaChaosLabTests PRIVATE
+            SagaChaosLabLib
+            SagaStressArenaLib
+            SagaServerLib
+            SagaDiagnostics
+            nlohmann_json::nlohmann_json
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(SagaChaosLabTests PRIVATE
+            ${SAGA_ROOT}/Tools/SagaChaosLab/include
+            ${SAGA_ROOT}/Tools/SagaStressArena/include
+            ${SAGA_ROOT}/Server/include
+            ${SAGA_ROOT}/Engine/Public
+            $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
+        )
+        set_target_properties(SagaChaosLabTests PROPERTIES
+            FOLDER "Tests/Tools"
+        )
+        add_test(NAME SagaChaosLabTests COMMAND SagaChaosLabTests)
+        set_tests_properties(SagaChaosLabTests PROPERTIES
+            LABELS "unit;tools;diagnostics"
+        )
+        if(TARGET SagaChaosLab)
+            add_test(NAME SagaChaosLabHelp COMMAND SagaChaosLab --help)
+            set_tests_properties(SagaChaosLabHelp PROPERTIES
+                LABELS "unit;tools;diagnostics"
+            )
+        endif()
+    endif()
+
+    # --- Saga State Check tests --------------------------------------------
+    if(EXISTS "${SAGA_STATE_CHECK_TEST_SOURCE}" AND TARGET SagaStateCheckLib)
+        add_executable(SagaStateCheckTests
+            ${SAGA_STATE_CHECK_TEST_SOURCE}
+        )
+        target_link_libraries(SagaStateCheckTests PRIVATE
+            SagaStateCheckLib
+            nlohmann_json::nlohmann_json
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(SagaStateCheckTests PRIVATE
+            ${SAGA_ROOT}/Tools/SagaStateCheck/include
+            $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
+        )
+        set_target_properties(SagaStateCheckTests PROPERTIES
+            FOLDER "Tests/Tools"
+        )
+        add_test(NAME SagaStateCheckTests COMMAND SagaStateCheckTests)
+        set_tests_properties(SagaStateCheckTests PROPERTIES
+            LABELS "unit;tools;diagnostics"
+        )
+    endif()
+
+    # --- MultiplayerSandbox headless tests ---------------------------------
+    if(EXISTS "${MULTIPLAYER_SANDBOX_HEADLESS_TEST_SOURCE}" AND
+       TARGET MultiplayerSandboxHeadlessLib)
+        add_executable(MultiplayerSandboxHeadlessTests
+            ${MULTIPLAYER_SANDBOX_HEADLESS_TEST_SOURCE}
+        )
+        target_link_libraries(MultiplayerSandboxHeadlessTests PRIVATE
+            MultiplayerSandboxHeadlessLib
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(MultiplayerSandboxHeadlessTests PRIVATE
+            ${SAGA_ROOT}/Tools/MultiplayerSandboxHeadless/include
+            ${SAGA_ROOT}/Server/include
+            ${SAGA_ROOT}/Engine/Public
+            $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
+        )
+        target_compile_definitions(MultiplayerSandboxHeadlessTests PRIVATE
+            SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+        )
+        set_target_properties(MultiplayerSandboxHeadlessTests PROPERTIES
+            FOLDER "Tests/Samples"
+        )
+        add_test(NAME MultiplayerSandboxHeadlessTests
+            COMMAND MultiplayerSandboxHeadlessTests)
+        set_tests_properties(MultiplayerSandboxHeadlessTests PROPERTIES
+            LABELS "unit;tools;samples"
         )
     endif()
 
@@ -1239,6 +1600,53 @@ function(saga_setup_tests)
         )
         add_test(NAME SagaProductTests COMMAND SagaProductTests)
         set_tests_properties(SagaProductTests PROPERTIES LABELS "product;unit")
+    endif()
+
+    # --- Editor authoring spine tests ---------------------------------------
+    if(EXISTS "${EDITOR_AUTHORING_SPINE_TEST_SOURCE}")
+        add_executable(EditorAuthoringSpineTests
+            ${EDITOR_AUTHORING_SPINE_TEST_SOURCE}
+        )
+        saga_link_thirdparty(EditorAuthoringSpineTests)
+        target_link_libraries(EditorAuthoringSpineTests PRIVATE
+            SagaEditorLib
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(EditorAuthoringSpineTests PRIVATE
+            ${SAGA_TEST_INCLUDE_DIRS}
+        )
+        target_compile_definitions(EditorAuthoringSpineTests PRIVATE
+            SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+        )
+        add_test(NAME EditorAuthoringSpineTests
+            COMMAND EditorAuthoringSpineTests)
+        set_tests_properties(EditorAuthoringSpineTests PROPERTIES
+            LABELS "unit;editor;authoring")
+    endif()
+
+    # --- Collaboration model tests ------------------------------------------
+    if(EXISTS "${COLLABORATION_MODEL_TEST_SOURCE}")
+        add_executable(CollaborationModelTests
+            ${COLLABORATION_MODEL_TEST_SOURCE}
+        )
+        target_link_libraries(CollaborationModelTests PRIVATE
+            SagaCollaboration
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(CollaborationModelTests PRIVATE
+            ${SAGA_TEST_INCLUDE_DIRS}
+        )
+        target_compile_definitions(CollaborationModelTests PRIVATE
+            SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+        )
+        add_test(NAME CollaborationModelTests
+            COMMAND CollaborationModelTests)
+        set_tests_properties(CollaborationModelTests PROPERTIES
+            LABELS "unit;collaboration")
     endif()
 
     # --- Architecture boundary tests ----------------------------------------

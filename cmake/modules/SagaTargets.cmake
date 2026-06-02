@@ -28,6 +28,10 @@ function(saga_create_engine_targets)
     saga_collect_sources(ASSET_PIPELINE_SOURCES Tools/AssetPipeline/src)
     saga_collect_sources(SAGA_EDITOR_COMPOSITION_SOURCES Tools/SagaEditorComposition/src)
     saga_collect_sources(SAGA_PIPELINE_SOURCES Tools/SagaPipeline/src)
+    saga_collect_sources(SAGA_STRESS_ARENA_SOURCES Tools/SagaStressArena/src)
+    saga_collect_sources(SAGA_CHAOS_LAB_SOURCES Tools/SagaChaosLab/src)
+    saga_collect_sources(SAGA_STATE_CHECK_SOURCES Tools/SagaStateCheck/src)
+    saga_collect_sources(MULTIPLAYER_SANDBOX_HEADLESS_SOURCES Tools/MultiplayerSandboxHeadless/src)
     saga_collect_sources(ENGINE_SOURCES  Engine/Private)
     saga_collect_sources(BACKEND_SOURCES Backends/src)
     saga_collect_sources(RUNTIME_SOURCES  Runtime/src)
@@ -128,6 +132,9 @@ function(saga_create_engine_targets)
 
     target_link_libraries(SagaCollaboration PUBLIC
         SagaShared
+    )
+    target_link_libraries(SagaCollaboration PRIVATE
+        nlohmann_json::nlohmann_json
     )
 
     set_target_properties(SagaCollaboration PROPERTIES
@@ -298,11 +305,148 @@ function(saga_create_engine_targets)
     )
 
     target_link_libraries(SagaServerLib PRIVATE
+        SagaDiagnostics
         SagaCollaboration
     )
 
     set_target_properties(SagaServerLib PROPERTIES
         FOLDER "Server"
+    )
+
+    # --- Saga Stress Arena Tool --------------------------------------------
+    # Direct local diagnostics harness for bounded ZoneServer stress/soak proof.
+    add_library(SagaStressArenaLib STATIC)
+    saga_apply_compiler_flags(SagaStressArenaLib)
+    saga_link_thirdparty(SagaStressArenaLib)
+
+    target_sources(SagaStressArenaLib PRIVATE
+        ${SAGA_STRESS_ARENA_SOURCES}
+    )
+
+    target_include_directories(SagaStressArenaLib PUBLIC
+        ${SAGA_ROOT}/Tools/SagaStressArena/include
+        ${SAGA_ROOT}/Server/include
+        ${SAGA_ROOT}/Engine/Public
+    )
+
+    target_link_libraries(SagaStressArenaLib PRIVATE
+        SagaServerLib
+        SagaDiagnostics
+    )
+
+    set_target_properties(SagaStressArenaLib PROPERTIES
+        FOLDER "Tools/SagaStressArena"
+    )
+
+    add_executable(SagaStressArena
+        ${SAGA_ROOT}/Tools/SagaStressArena/cli/main.cpp
+    )
+    saga_apply_compiler_flags(SagaStressArena)
+    saga_link_thirdparty(SagaStressArena)
+    target_link_libraries(SagaStressArena PRIVATE
+        SagaStressArenaLib
+    )
+    set_target_properties(SagaStressArena PROPERTIES
+        FOLDER "Tools/SagaStressArena"
+    )
+
+    # --- Saga Chaos Lab Tool -----------------------------------------------
+    # Bounded tool-level chaos profile runner around SagaStressArena.
+    add_library(SagaChaosLabLib STATIC)
+    saga_apply_compiler_flags(SagaChaosLabLib)
+    saga_link_thirdparty(SagaChaosLabLib)
+
+    target_sources(SagaChaosLabLib PRIVATE
+        ${SAGA_CHAOS_LAB_SOURCES}
+    )
+
+    target_include_directories(SagaChaosLabLib PUBLIC
+        ${SAGA_ROOT}/Tools/SagaChaosLab/include
+        ${SAGA_ROOT}/Tools/SagaStressArena/include
+        ${SAGA_ROOT}/Server/include
+        ${SAGA_ROOT}/Engine/Public
+    )
+
+    target_link_libraries(SagaChaosLabLib PRIVATE
+        SagaStressArenaLib
+        SagaServerLib
+        SagaDiagnostics
+        nlohmann_json::nlohmann_json
+    )
+
+    set_target_properties(SagaChaosLabLib PROPERTIES
+        FOLDER "Tools/SagaChaosLab"
+    )
+
+    add_executable(SagaChaosLab
+        ${SAGA_ROOT}/Tools/SagaChaosLab/cli/main.cpp
+    )
+    saga_apply_compiler_flags(SagaChaosLab)
+    saga_link_thirdparty(SagaChaosLab)
+    target_link_libraries(SagaChaosLab PRIVATE
+        SagaChaosLabLib
+    )
+    set_target_properties(SagaChaosLab PROPERTIES
+        FOLDER "Tools/SagaChaosLab"
+    )
+
+    # --- Saga State Check Tool ---------------------------------------------
+    # Deterministic state snapshot comparison foundation.
+    add_library(SagaStateCheckLib STATIC)
+    saga_apply_compiler_flags(SagaStateCheckLib)
+
+    target_sources(SagaStateCheckLib PRIVATE
+        ${SAGA_STATE_CHECK_SOURCES}
+    )
+
+    target_include_directories(SagaStateCheckLib PUBLIC
+        ${SAGA_ROOT}/Tools/SagaStateCheck/include
+    )
+
+    target_link_libraries(SagaStateCheckLib PRIVATE
+        nlohmann_json::nlohmann_json
+    )
+
+    set_target_properties(SagaStateCheckLib PROPERTIES
+        FOLDER "Tools/SagaStateCheck"
+    )
+
+    # --- MultiplayerSandbox Headless Tool ----------------------------------
+    # Bounded server-side sample proof for the Technical Preview vertical.
+    add_library(MultiplayerSandboxHeadlessLib STATIC)
+    saga_apply_compiler_flags(MultiplayerSandboxHeadlessLib)
+    saga_link_thirdparty(MultiplayerSandboxHeadlessLib)
+
+    target_sources(MultiplayerSandboxHeadlessLib PRIVATE
+        ${MULTIPLAYER_SANDBOX_HEADLESS_SOURCES}
+    )
+
+    target_include_directories(MultiplayerSandboxHeadlessLib PUBLIC
+        ${SAGA_ROOT}/Tools/MultiplayerSandboxHeadless/include
+        ${SAGA_ROOT}/Server/include
+        ${SAGA_ROOT}/Engine/Public
+    )
+
+    target_link_libraries(MultiplayerSandboxHeadlessLib PRIVATE
+        SagaServerLib
+        SagaEngine
+        nlohmann_json::nlohmann_json
+    )
+
+    set_target_properties(MultiplayerSandboxHeadlessLib PROPERTIES
+        FOLDER "Tools/MultiplayerSandboxHeadless"
+    )
+
+    add_executable(MultiplayerSandboxHeadless
+        ${SAGA_ROOT}/Tools/MultiplayerSandboxHeadless/cli/main.cpp
+    )
+    saga_apply_compiler_flags(MultiplayerSandboxHeadless)
+    saga_link_thirdparty(MultiplayerSandboxHeadless)
+    target_link_libraries(MultiplayerSandboxHeadless PRIVATE
+        MultiplayerSandboxHeadlessLib
+    )
+    set_target_properties(MultiplayerSandboxHeadless PROPERTIES
+        FOLDER "Tools/MultiplayerSandboxHeadless"
     )
 
     # --- Backend Library -----------------------------------------------------
@@ -358,6 +502,9 @@ function(saga_create_engine_targets)
     target_include_directories(SagaEditorLib PUBLIC
         ${SAGA_ROOT}/Editor/include
     )
+    target_include_directories(SagaEditorLib PRIVATE
+        ${SAGA_OPENSSL_INCLUDE_DIRS}
+    )
 
     # Qt is already pulled in via saga_link_thirdparty, but SagaEditorLib needs
     # qt_standard_project_setup() to have run (done in the root CMakeLists).
@@ -372,6 +519,7 @@ function(saga_create_engine_targets)
         SagaCollaboration
         SagaBackend
         nlohmann_json::nlohmann_json
+        OpenSSL::Crypto
     )
 
     if(SAGA_WITH_SDE)
