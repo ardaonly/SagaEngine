@@ -60,6 +60,7 @@ CMakeUserPresets
 .idea/
 .agents/
 .codex/
+TEMP.MD
 
 .DS_Store
 Thumbs.db
