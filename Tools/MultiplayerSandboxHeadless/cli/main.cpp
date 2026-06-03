@@ -36,7 +36,11 @@ struct ParseResult
             result.help = true;
             return result;
         }
-        if (arg == "--project" && HasValue(i, argc))
+        if (arg == "--starter-arena-server-smoke")
+        {
+            result.options.starterArenaServerSmoke = true;
+        }
+        else if (arg == "--project" && HasValue(i, argc))
         {
             result.options.projectPath = argv[++i];
         }
@@ -88,6 +92,7 @@ void PrintUsage()
     std::cout
         << "Usage: MultiplayerSandboxHeadless --project <path> "
            "--report-out <path> --diagnostics-out <dir> "
+           "[--starter-arena-server-smoke] "
            "[--ticks <n>] [--fixed-dt <seconds>]\n";
 }
 

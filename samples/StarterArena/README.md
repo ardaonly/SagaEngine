@@ -11,9 +11,10 @@ script for SagaScript compile/analyze evidence. When script manifests are
 provided, the runtime smoke can either record script metadata only or, with an
 explicit opt-in flag, load the compiled script assembly and invoke exactly one
 known pure method: `GameRules.AddPickupScore(10, 5)`. This is not arbitrary
-script execution, C# lifecycle execution, renderer/client gameplay, server
-authority, Visual Blocks, editor workflow, package output, or distribution
-output.
+script execution, C# lifecycle execution, renderer/client gameplay, Visual
+Blocks, editor workflow, package output, or distribution output. Server
+authority evidence is tracked separately through a bounded socket-free headless
+smoke.
 
 Runtime smoke command:
 
@@ -62,6 +63,17 @@ nix-shell --run "build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project
 
 The invocation smoke requires a .NET host environment; use the dev shell unless
 `hostfxr` is already discoverable in the local environment.
+
+Focused server-authoritative smoke:
+
+```sh
+build/RelWithDebInfo-0.0.9/bin/MultiplayerSandboxHeadless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-server-smoke --report-out /tmp/starter_arena_server_smoke.json --diagnostics-out /tmp/starter_arena_server_diagnostics --ticks 1 --fixed-dt 1.0
+```
+
+This server smoke is local and deterministic. It proves server-owned state,
+one accepted input, one rejected invalid input, and one authoritative snapshot
+report. It is not full multiplayer gameplay and does not start an external
+client.
 
 Phase 10 acceptance notes are tracked in `ACCEPTANCE.md`. Known limitations are
 tracked in `KNOWN_LIMITATIONS.md`.

@@ -22,6 +22,7 @@ struct HeadlessPreviewOptions
     std::filesystem::path projectPath;
     std::filesystem::path reportOut;
     std::filesystem::path diagnosticsOut;
+    bool starterArenaServerSmoke{false};
     int ticks{1};
     float fixedDtSeconds{1.0f};
 };
@@ -45,10 +46,18 @@ struct HeadlessPreviewReport
     int entityCount{0};
     int inputQueuedCount{0};
     int inputAcceptedCount{0};
+    int inputRejectedCount{0};
+    int snapshotCount{0};
+    bool serverAuthority{false};
+    std::string networkMode;
     std::vector<unsigned int> dirtyEntityIds;
     Vec3 initialPosition{};
     Vec3 beforeTickPosition{};
     Vec3 finalPosition{};
+    Vec3 authoritativeInitialState{};
+    Vec3 authoritativeFinalState{};
+    std::vector<HeadlessPreviewDiagnostic> invalidInputDiagnostics;
+    std::vector<std::string> nonClaims;
     std::vector<HeadlessPreviewDiagnostic> diagnostics;
 };
 

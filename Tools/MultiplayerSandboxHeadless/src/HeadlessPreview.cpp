@@ -10,6 +10,7 @@
 #include <fstream>
 #include <optional>
 #include <system_error>
+#include <utility>
 
 namespace MultiplayerSandboxHeadless
 {
@@ -39,8 +40,20 @@ constexpr EntityId kEntityId = 1001;
     return diagnostic;
 }
 
+[[nodiscard]] HeadlessPreviewDiagnostic MakeInfoDiagnostic(
+    std::string code,
+    std::string message,
+    std::filesystem::path path = {})
+{
+    HeadlessPreviewDiagnostic diagnostic =
+        MakeDiagnostic(std::move(code), std::move(message), std::move(path));
+    diagnostic.severity = "Info";
+    return diagnostic;
+}
+
 [[nodiscard]] std::filesystem::path ResolveManifestPath(
-    const std::filesystem::path& projectPath)
+    const std::filesystem::path& projectPath,
+    const char* defaultManifestName)
 {
     if (projectPath.empty())
     {
@@ -50,18 +63,20 @@ constexpr EntityId kEntityId = 1001;
     {
         return projectPath;
     }
-    return projectPath / "MultiplayerSandbox.sagaproj";
+    return projectPath / defaultManifestName;
 }
 
 [[nodiscard]] std::optional<std::string> ReadProjectId(
     const std::filesystem::path& manifestPath,
+    const char* sampleName,
+    const char* diagnosticPrefix,
     std::vector<HeadlessPreviewDiagnostic>& diagnostics)
 {
     if (!std::filesystem::exists(manifestPath))
     {
         diagnostics.push_back(MakeDiagnostic(
-            "MultiplayerSandbox.Project.ManifestMissing",
-            "MultiplayerSandbox .sagaproj manifest is missing",
+            std::string(diagnosticPrefix) + ".Project.ManifestMissing",
+            std::string(sampleName) + " .sagaproj manifest is missing",
             manifestPath));
         return std::nullopt;
     }
@@ -70,8 +85,8 @@ constexpr EntityId kEntityId = 1001;
     if (!input.is_open())
     {
         diagnostics.push_back(MakeDiagnostic(
-            "MultiplayerSandbox.Project.ManifestOpenFailed",
-            "MultiplayerSandbox .sagaproj manifest cannot be opened",
+            std::string(diagnosticPrefix) + ".Project.ManifestOpenFailed",
+            std::string(sampleName) + " .sagaproj manifest cannot be opened",
             manifestPath));
         return std::nullopt;
     }
@@ -84,8 +99,8 @@ constexpr EntityId kEntityId = 1001;
     catch (const Json::exception& e)
     {
         diagnostics.push_back(MakeDiagnostic(
-            "MultiplayerSandbox.Project.ManifestParseFailed",
-            std::string("MultiplayerSandbox .sagaproj JSON is invalid: ") + e.what(),
+            std::string(diagnosticPrefix) + ".Project.ManifestParseFailed",
+            std::string(sampleName) + " .sagaproj JSON is invalid: " + e.what(),
             manifestPath));
         return std::nullopt;
     }
@@ -93,13 +108,38 @@ constexpr EntityId kEntityId = 1001;
     if (!json.contains("projectId") || !json["projectId"].is_string())
     {
         diagnostics.push_back(MakeDiagnostic(
-            "MultiplayerSandbox.Project.ProjectIdMissing",
-            "MultiplayerSandbox .sagaproj must contain string projectId",
+            std::string(diagnosticPrefix) + ".Project.ProjectIdMissing",
+            std::string(sampleName) + " .sagaproj must contain string projectId",
             manifestPath));
         return std::nullopt;
     }
 
     return json["projectId"].get<std::string>();
+}
+
+[[nodiscard]] const char* ToString(AuthoritativeMovementDecision decision) noexcept
+{
+    switch (decision)
+    {
+    case AuthoritativeMovementDecision::Queued:
+        return "Queued";
+    case AuthoritativeMovementDecision::RejectUnknownClient:
+        return "RejectUnknownClient";
+    case AuthoritativeMovementDecision::RejectOwnership:
+        return "RejectOwnership";
+    case AuthoritativeMovementDecision::RejectInput:
+        return "RejectInput";
+    case AuthoritativeMovementDecision::RejectQueue:
+        return "RejectQueue";
+    case AuthoritativeMovementDecision::Accepted:
+        return "Accepted";
+    case AuthoritativeMovementDecision::Clamped:
+        return "Clamped";
+    case AuthoritativeMovementDecision::RejectedByValidator:
+        return "RejectedByValidator";
+    }
+
+    return "Unknown";
 }
 
 [[nodiscard]] Vec3 Convert(Vector3 vector)
@@ -110,6 +150,16 @@ constexpr EntityId kEntityId = 1001;
 [[nodiscard]] Json BuildVectorJson(const Vec3& vector)
 {
     return Json{{"x", vector.x}, {"y", vector.y}, {"z", vector.z}};
+}
+
+[[nodiscard]] Json BuildStringArrayJson(const std::vector<std::string>& values)
+{
+    Json array = Json::array();
+    for (const auto& value : values)
+    {
+        array.push_back(value);
+    }
+    return array;
 }
 
 [[nodiscard]] Json BuildDiagnosticsJson(
@@ -146,42 +196,259 @@ constexpr EntityId kEntityId = 1001;
         {"entityCount", report.entityCount},
         {"inputQueuedCount", report.inputQueuedCount},
         {"inputAcceptedCount", report.inputAcceptedCount},
+        {"inputRejectedCount", report.inputRejectedCount},
+        {"serverAuthority", report.serverAuthority},
+        {"networkMode", report.networkMode},
+        {"snapshotCount", report.snapshotCount},
         {"dirtyEntityIds", std::move(dirty)},
         {"initialPosition", BuildVectorJson(report.initialPosition)},
         {"beforeTickPosition", BuildVectorJson(report.beforeTickPosition)},
         {"finalPosition", BuildVectorJson(report.finalPosition)},
+        {"authoritativeInitialState", BuildVectorJson(report.authoritativeInitialState)},
+        {"authoritativeFinalState", BuildVectorJson(report.authoritativeFinalState)},
+        {"invalidInputDiagnostics", BuildDiagnosticsJson(report.invalidInputDiagnostics)},
+        {"nonClaims", BuildStringArrayJson(report.nonClaims)},
         {"diagnostics", BuildDiagnosticsJson(report.diagnostics)},
     };
 }
 
-} // namespace
+[[nodiscard]] bool ValidateCommonOptions(
+    const HeadlessPreviewOptions& options,
+    const char* diagnosticPrefix,
+    std::vector<HeadlessPreviewDiagnostic>& diagnostics)
+{
+    if (options.ticks <= 0)
+    {
+        diagnostics.push_back(MakeDiagnostic(
+            std::string(diagnosticPrefix) + ".Preview.InvalidTickCount",
+            "Headless preview tick count must be positive"));
+    }
+    if (!(options.fixedDtSeconds > 0.0f))
+    {
+        diagnostics.push_back(MakeDiagnostic(
+            std::string(diagnosticPrefix) + ".Preview.InvalidFixedDelta",
+            "Headless preview fixed delta must be positive"));
+    }
+    if (options.diagnosticsOut.empty())
+    {
+        diagnostics.push_back(MakeDiagnostic(
+            std::string(diagnosticPrefix) + ".Preview.DiagnosticsPathMissing",
+            "Diagnostics output directory is required"));
+    }
 
-HeadlessPreviewReport RunHeadlessPreview(const HeadlessPreviewOptions& options)
+    return diagnostics.empty();
+}
+
+[[nodiscard]] InputCommand MakeMovementCommand(
+    std::uint64_t sequence,
+    float moveX,
+    float moveY,
+    float moveZ = 0.0f)
+{
+    InputCommand command;
+    command.sequence = sequence;
+    command.clientTick = sequence;
+    command.serverRecvTick = 1;
+    command.moveX = moveX;
+    command.moveY = moveY;
+    command.moveZ = moveZ;
+    command.dtMicros = 16'666;
+    return command;
+}
+
+[[nodiscard]] HeadlessPreviewReport RunStarterArenaServerSmoke(
+    const HeadlessPreviewOptions& options)
 {
     HeadlessPreviewReport report;
     report.projectPath = options.projectPath;
     report.tickCount = options.ticks;
+    report.serverAuthority = true;
+    report.networkMode = "HeadlessSmoke";
+    report.nonClaims = {
+        "Not full multiplayer",
+        "Not MMO proof",
+        "Not editor workflow",
+        "Not package output",
+        "Not Visual Blocks",
+        "No external client process",
+    };
 
-    const auto manifestPath = ResolveManifestPath(options.projectPath);
-    auto projectId = ReadProjectId(manifestPath, report.diagnostics);
+    const auto manifestPath =
+        ResolveManifestPath(options.projectPath, "StarterArena.sagaproj");
+    auto projectId = ReadProjectId(
+        manifestPath,
+        "StarterArena",
+        "StarterArena",
+        report.diagnostics);
+    if (!projectId.has_value())
+    {
+        return report;
+    }
+    report.projectId = *projectId;
+    if (report.projectId != "starter-arena")
+    {
+        report.diagnostics.push_back(MakeDiagnostic(
+            "StarterArena.Project.ProjectIdMismatch",
+            "StarterArena server smoke requires projectId starter-arena",
+            manifestPath));
+        return report;
+    }
+
+    if (!ValidateCommonOptions(options, "StarterArena", report.diagnostics))
+    {
+        return report;
+    }
+
+    AuthoritativeMovementCore movement;
+    if (!movement.RegisterActor(kClientId, kEntityId, Vector3{0.0f, 0.0f, 0.0f}))
+    {
+        report.diagnostics.push_back(MakeDiagnostic(
+            "StarterArena.ServerSmoke.ActorRegistrationFailed",
+            "Controlled actor registration failed"));
+        return report;
+    }
+    report.entityCount = 1;
+
+    const auto initial = movement.GetActorPosition(kEntityId);
+    if (!initial.has_value())
+    {
+        report.diagnostics.push_back(MakeDiagnostic(
+            "StarterArena.ServerSmoke.ActorMissing",
+            "Controlled actor was not available after registration"));
+        return report;
+    }
+    report.initialPosition = Convert(*initial);
+    report.authoritativeInitialState = report.initialPosition;
+
+    const InputCommand validCommand = MakeMovementCommand(1, 1.0f, 0.0f);
+    const auto enqueueResult =
+        movement.EnqueueInput(kClientId, kEntityId, validCommand);
+    if (enqueueResult.decision != AuthoritativeMovementDecision::Queued)
+    {
+        report.diagnostics.push_back(MakeDiagnostic(
+            "StarterArena.ServerSmoke.InputQueueFailed",
+            "Valid movement input did not queue successfully"));
+        return report;
+    }
+    report.inputQueuedCount = 1;
+
+    const InputCommand invalidCommand = MakeMovementCommand(2, 2.0f, 0.0f);
+    const auto invalidResult =
+        movement.EnqueueInput(kClientId, kEntityId, invalidCommand);
+    if (invalidResult.decision != AuthoritativeMovementDecision::RejectInput)
+    {
+        report.diagnostics.push_back(MakeDiagnostic(
+            "StarterArena.ServerSmoke.InvalidInputAccepted",
+            std::string("Invalid movement input decision was ") +
+                ToString(invalidResult.decision)));
+        return report;
+    }
+    report.inputRejectedCount = 1;
+    report.invalidInputDiagnostics.push_back(MakeInfoDiagnostic(
+        "StarterArena.ServerSmoke.InvalidInputRejected",
+        "Over-magnitude input was rejected before authoritative tick mutation"));
+
+    const auto beforeTick = movement.GetActorPosition(kEntityId);
+    if (!beforeTick.has_value())
+    {
+        report.diagnostics.push_back(MakeDiagnostic(
+            "StarterArena.ServerSmoke.ActorMissingBeforeTick",
+            "Controlled actor was not available before tick"));
+        return report;
+    }
+    report.beforeTickPosition = Convert(*beforeTick);
+
+    for (int tick = 1; tick <= options.ticks; ++tick)
+    {
+        const auto tickReport =
+            movement.Tick(static_cast<std::uint64_t>(tick), options.fixedDtSeconds);
+        for (const auto& result : tickReport.results)
+        {
+            if (result.decision == AuthoritativeMovementDecision::Accepted ||
+                result.decision == AuthoritativeMovementDecision::Clamped)
+            {
+                ++report.inputAcceptedCount;
+            }
+        }
+        for (const auto entityId : tickReport.dirtyEntityIds)
+        {
+            report.dirtyEntityIds.push_back(entityId);
+        }
+    }
+    report.snapshotCount = static_cast<int>(report.dirtyEntityIds.size());
+
+    const auto final = movement.GetActorPosition(kEntityId);
+    if (!final.has_value())
+    {
+        report.diagnostics.push_back(MakeDiagnostic(
+            "StarterArena.ServerSmoke.ActorMissingAfterTick",
+            "Controlled actor was not available after tick"));
+        return report;
+    }
+    report.finalPosition = Convert(*final);
+    report.authoritativeFinalState = report.finalPosition;
+
+    if (report.beforeTickPosition.x != report.initialPosition.x ||
+        report.beforeTickPosition.y != report.initialPosition.y ||
+        report.beforeTickPosition.z != report.initialPosition.z)
+    {
+        report.diagnostics.push_back(MakeDiagnostic(
+            "StarterArena.ServerSmoke.MutatedBeforeTick",
+            "Controlled actor moved before the authoritative tick"));
+        return report;
+    }
+
+    if (report.finalPosition.x == report.initialPosition.x &&
+        report.finalPosition.y == report.initialPosition.y &&
+        report.finalPosition.z == report.initialPosition.z)
+    {
+        report.diagnostics.push_back(MakeDiagnostic(
+            "StarterArena.ServerSmoke.NoMutationAfterTick",
+            "Controlled actor did not move after the authoritative tick"));
+        return report;
+    }
+
+    if (report.inputAcceptedCount != 1 ||
+        report.inputRejectedCount != 1 ||
+        report.snapshotCount != 1 ||
+        report.invalidInputDiagnostics.empty())
+    {
+        report.diagnostics.push_back(MakeDiagnostic(
+            "StarterArena.ServerSmoke.AuthorityEvidenceIncomplete",
+            "Server smoke did not record accepted input, rejected input, and snapshot evidence"));
+        return report;
+    }
+
+    report.status = "Passed";
+    return report;
+}
+
+} // namespace
+
+[[nodiscard]] HeadlessPreviewReport RunMultiplayerSandboxHeadlessPreview(
+    const HeadlessPreviewOptions& options)
+{
+    HeadlessPreviewReport report;
+    report.projectPath = options.projectPath;
+    report.tickCount = options.ticks;
+    report.serverAuthority = true;
+    report.networkMode = "HeadlessSmoke";
+
+    const auto manifestPath =
+        ResolveManifestPath(options.projectPath, "MultiplayerSandbox.sagaproj");
+    auto projectId = ReadProjectId(
+        manifestPath,
+        "MultiplayerSandbox",
+        "MultiplayerSandbox",
+        report.diagnostics);
     if (!projectId.has_value())
     {
         return report;
     }
     report.projectId = *projectId;
 
-    if (options.ticks <= 0)
+    if (!ValidateCommonOptions(options, "MultiplayerSandbox", report.diagnostics))
     {
-        report.diagnostics.push_back(MakeDiagnostic(
-            "MultiplayerSandbox.Preview.InvalidTickCount",
-            "Headless preview tick count must be positive"));
-        return report;
-    }
-    if (!(options.fixedDtSeconds > 0.0f))
-    {
-        report.diagnostics.push_back(MakeDiagnostic(
-            "MultiplayerSandbox.Preview.InvalidFixedDelta",
-            "Headless preview fixed delta must be positive"));
         return report;
     }
 
@@ -204,14 +471,9 @@ HeadlessPreviewReport RunHeadlessPreview(const HeadlessPreviewOptions& options)
         return report;
     }
     report.initialPosition = Convert(*initial);
+    report.authoritativeInitialState = report.initialPosition;
 
-    InputCommand command;
-    command.sequence = 1;
-    command.clientTick = 1;
-    command.serverRecvTick = 1;
-    command.moveX = 0.0f;
-    command.moveY = 1.0f;
-    command.dtMicros = 16'666;
+    InputCommand command = MakeMovementCommand(1, 0.0f, 1.0f);
 
     const auto enqueueResult =
         movement.EnqueueInput(kClientId, kEntityId, command);
@@ -261,6 +523,8 @@ HeadlessPreviewReport RunHeadlessPreview(const HeadlessPreviewOptions& options)
         return report;
     }
     report.finalPosition = Convert(*final);
+    report.authoritativeFinalState = report.finalPosition;
+    report.snapshotCount = static_cast<int>(report.dirtyEntityIds.size());
 
     if (report.beforeTickPosition.x != report.initialPosition.x ||
         report.beforeTickPosition.y != report.initialPosition.y ||
@@ -282,16 +546,18 @@ HeadlessPreviewReport RunHeadlessPreview(const HeadlessPreviewOptions& options)
         return report;
     }
 
-    if (options.diagnosticsOut.empty())
-    {
-        report.diagnostics.push_back(MakeDiagnostic(
-            "MultiplayerSandbox.Preview.DiagnosticsPathMissing",
-            "Diagnostics output directory is required"));
-        return report;
-    }
-
     report.status = "Passed";
     return report;
+}
+
+HeadlessPreviewReport RunHeadlessPreview(const HeadlessPreviewOptions& options)
+{
+    if (options.starterArenaServerSmoke)
+    {
+        return RunStarterArenaServerSmoke(options);
+    }
+
+    return RunMultiplayerSandboxHeadlessPreview(options);
 }
 
 bool WriteHeadlessPreviewReportJson(
