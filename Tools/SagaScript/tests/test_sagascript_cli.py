@@ -181,6 +181,19 @@ def run_plan_block_edit(projection: Path, operation: Path, report: Path) -> subp
     )
 
 
+def run_apply_block_edit(preview: Path, source_root: Path, out_dir: Path) -> subprocess.CompletedProcess[str]:
+    return run_cli(
+        "apply-block-edit",
+        "--preview",
+        str(preview),
+        "--source-root",
+        str(source_root),
+        "--out",
+        str(out_dir),
+        "--json",
+    )
+
+
 def assert_visual_blocks_are_read_only(report: dict) -> None:
     assert report["blocks"]
     assert all(block["editable"] is False for block in report["blocks"])
@@ -928,6 +941,7 @@ def test_block_operation_contract_previews_string_literal_without_mutating_sourc
         assert report["sourcePreservation"] == "SourceNotMutated"
         assert "NoPatchApply" in report["nonClaims"]
         assert "NoSourceMutation" in report["nonClaims"]
+        assert report["targetSourceHash"] == target["sourceHash"]
         assert report["targetSourceSpan"] == target["sourceSpan"]
         assert report["patchPreview"]["mutatesSource"] is False
         assert report["patchPreview"]["replacementKind"] == "MinimalSpanReplacement"
@@ -1044,6 +1058,195 @@ def test_block_operation_contract_rejects_unsupported_block_without_mutating_sou
         codes = {diagnostic["code"] for diagnostic in report["diagnostics"]}
         assert "Script.BlockOperation.UnsupportedDiagnosticReadOnly" in codes
         assert "Script.BlockOperation.NotPatchCapable" in codes
+
+
+def test_apply_block_edit_writes_patched_copy_without_mutating_source() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        source = write_source(root, "DoorLogic.High.cs", """
+namespace Game;
+
+using Saga;
+using Saga.Gameplay.HighLevel;
+
+[SagaBehavior(Id = "behavior://sandbox/comments", Level = SagaApiLevel.High, Domain = SagaApiDomain.Gameplay)]
+public sealed class CommentedLogic
+{
+    public void OnInteract(Player player, Door door)
+    {
+        // keep this comment
+        if (Inventory.Has(player, "key"))
+        {
+            Door.Open(door); // keep inline comment
+        }
+    }
+}
+""")
+        before = source.read_bytes()
+        out_dir = root / "Build" / "SagaScript"
+        project_result, projection = run_project_blocks(source, out_dir)
+        assert project_result.returncode == 0, project_result.stderr + project_result.stdout
+        target = next(
+            block for block in projection["blocks"]
+            if block["classification"] == "EditableByPatch" and span_text(source, block) == '"key"'
+        )
+        operation = write_block_operation(
+            root,
+            operation_kind="StringLiteralEdit",
+            target_block_id=target["blockId"],
+            requested_value="gold_key",
+        )
+        preview_path = root / "block_patch_preview_v1.json"
+        preview_result = run_plan_block_edit(out_dir / "visual_blocks_projection_v1.json", operation, preview_path)
+        assert preview_result.returncode == 0, preview_result.stderr + preview_result.stdout
+        preview = json.loads(preview_path.read_text(encoding="utf-8"))
+
+        apply_out = root / "apply-out"
+        result = run_apply_block_edit(preview_path, root, apply_out)
+
+        assert result.returncode == 0, result.stderr + result.stdout
+        assert source.read_bytes() == before
+        report_path = apply_out / "block_patch_apply_v1.json"
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        patched_source = Path(report["patchedSourceFile"])
+        assert patched_source.exists()
+        patched = patched_source.read_bytes()
+        replacement = b'"gold_key"'
+        start = report["targetSourceSpan"]["startByte"]
+        end = report["targetSourceSpan"]["endByte"]
+        assert report["command"] == "apply-block-edit"
+        assert report["status"] == "Passed"
+        assert report["mutatesSource"] is False
+        assert report["changedSpanOnly"] is True
+        assert report["sourcePreservation"] == "CopiedSourceWithSingleSpanReplacement"
+        assert report["originalHash"] == preview["targetSourceHash"]
+        assert report["patchedHash"] != report["originalHash"]
+        assert "NoInPlaceMutationByDefault" in report["nonClaims"]
+        assert before[:start] == patched[:start]
+        assert before[end:] == patched[start + len(replacement):]
+        patched_text = patched.decode("utf-8")
+        assert '"gold_key"' in patched_text
+        assert "using Saga;\nusing Saga.Gameplay.HighLevel;" in patched_text
+        assert "// keep this comment" in patched_text
+        assert "Door.Open(door); // keep inline comment" in patched_text
+
+
+def test_apply_block_edit_rejects_failed_preview_without_mutating_source() -> None:
+    fixture = CSHARP_BLOCKS_FIXTURES / "advanced_opaque" / "GameRulesAdvancedOpaque.cs"
+    before = fixture.read_bytes()
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        out_dir = root / "out"
+        project_result, projection = run_project_blocks(fixture, out_dir)
+        assert project_result.returncode == 0, project_result.stderr + project_result.stdout
+        target = next(block for block in projection["blocks"] if block["classification"] == "Opaque")
+        operation = write_block_operation(
+            root,
+            operation_kind="StringLiteralEdit",
+            target_block_id=target["blockId"],
+            requested_value="gold_key",
+        )
+        preview_path = root / "opaque_block_patch_preview_v1.json"
+        preview_result = run_plan_block_edit(out_dir / "visual_blocks_projection_v1.json", operation, preview_path)
+        assert preview_result.returncode == 1
+
+        apply_out = root / "apply-out"
+        result = run_apply_block_edit(preview_path, fixture.parent, apply_out)
+
+        assert result.returncode == 1
+        assert fixture.read_bytes() == before
+        report = json.loads((apply_out / "block_patch_apply_v1.json").read_text(encoding="utf-8"))
+        assert report["status"] == "Failed"
+        assert report["patchedSourceFile"] == ""
+        codes = {diagnostic["code"] for diagnostic in report["diagnostics"]}
+        assert "Script.BlockApply.PreviewFailed" in codes
+
+
+def test_apply_block_edit_rejects_stale_source_hash_without_mutating_source() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        source = write_source(root, "DoorLogic.High.cs", high_level_gameplay_source())
+        out_dir = root / "Build" / "SagaScript"
+        project_result, projection = run_project_blocks(source, out_dir)
+        assert project_result.returncode == 0, project_result.stderr + project_result.stdout
+        target = next(
+            block for block in projection["blocks"]
+            if block["classification"] == "EditableByPatch" and span_text(source, block) == '"key"'
+        )
+        operation = write_block_operation(
+            root,
+            operation_kind="StringLiteralEdit",
+            target_block_id=target["blockId"],
+            requested_value="gold_key",
+        )
+        preview_path = root / "block_patch_preview_v1.json"
+        preview_result = run_plan_block_edit(out_dir / "visual_blocks_projection_v1.json", operation, preview_path)
+        assert preview_result.returncode == 0, preview_result.stderr + preview_result.stdout
+        source.write_text(source.read_text(encoding="utf-8").replace('"key"', '"stale_key"', 1), encoding="utf-8")
+        before_apply = source.read_bytes()
+
+        apply_out = root / "apply-out"
+        result = run_apply_block_edit(preview_path, root, apply_out)
+
+        assert result.returncode == 1
+        assert source.read_bytes() == before_apply
+        report = json.loads((apply_out / "block_patch_apply_v1.json").read_text(encoding="utf-8"))
+        assert report["status"] == "Failed"
+        assert report["patchedSourceFile"] == ""
+        codes = {diagnostic["code"] for diagnostic in report["diagnostics"]}
+        assert "Script.BlockApply.SourceHashMismatch" in codes
+
+
+def test_apply_block_edit_rejects_malformed_preview_inputs_without_mutating_source() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        source = write_source(root, "DoorLogic.High.cs", high_level_gameplay_source())
+        before = source.read_bytes()
+        out_dir = root / "Build" / "SagaScript"
+        project_result, projection = run_project_blocks(source, out_dir)
+        assert project_result.returncode == 0, project_result.stderr + project_result.stdout
+        target = next(
+            block for block in projection["blocks"]
+            if block["classification"] == "EditableByPatch" and span_text(source, block) == '"key"'
+        )
+        operation = write_block_operation(
+            root,
+            operation_kind="StringLiteralEdit",
+            target_block_id=target["blockId"],
+            requested_value="gold_key",
+        )
+        preview_path = root / "block_patch_preview_v1.json"
+        preview_result = run_plan_block_edit(out_dir / "visual_blocks_projection_v1.json", operation, preview_path)
+        assert preview_result.returncode == 0, preview_result.stderr + preview_result.stdout
+        valid_preview = json.loads(preview_path.read_text(encoding="utf-8"))
+        span_preview = json.loads(json.dumps(valid_preview))
+        span_preview["patchPreview"]["startByte"] = span_preview["patchPreview"]["startByte"] + 1
+        preview_path.write_text(json.dumps(span_preview), encoding="utf-8")
+
+        apply_out = root / "apply-out"
+        result = run_apply_block_edit(preview_path, root, apply_out)
+
+        assert result.returncode == 1
+        assert source.read_bytes() == before
+        report = json.loads((apply_out / "block_patch_apply_v1.json").read_text(encoding="utf-8"))
+        assert report["status"] == "Failed"
+        assert report["patchedSourceFile"] == ""
+        codes = {diagnostic["code"] for diagnostic in report["diagnostics"]}
+        assert "Script.BlockApply.SourceSpanMismatch" in codes
+
+        invalid_replacement = json.loads(json.dumps(valid_preview))
+        invalid_replacement["patchPreview"]["replacementText"] = "not quoted"
+        preview_path.write_text(json.dumps(invalid_replacement), encoding="utf-8")
+        apply_out = root / "apply-out-invalid-replacement"
+        result = run_apply_block_edit(preview_path, root, apply_out)
+
+        assert result.returncode == 1
+        assert source.read_bytes() == before
+        report = json.loads((apply_out / "block_patch_apply_v1.json").read_text(encoding="utf-8"))
+        assert report["status"] == "Failed"
+        assert report["patchedSourceFile"] == ""
+        codes = {diagnostic["code"] for diagnostic in report["diagnostics"]}
+        assert "Script.BlockApply.InvalidReplacement" in codes
 
 
 def test_validate_artifacts_accepts_consistent_projection_only_evidence() -> None:
@@ -1907,6 +2110,10 @@ if __name__ == "__main__":
         test_block_operation_contract_rejects_unknown_operation_without_mutating_source,
         test_block_operation_contract_rejects_opaque_block_without_mutating_source,
         test_block_operation_contract_rejects_unsupported_block_without_mutating_source,
+        test_apply_block_edit_writes_patched_copy_without_mutating_source,
+        test_apply_block_edit_rejects_failed_preview_without_mutating_source,
+        test_apply_block_edit_rejects_stale_source_hash_without_mutating_source,
+        test_apply_block_edit_rejects_malformed_preview_inputs_without_mutating_source,
         test_validate_artifacts_accepts_consistent_projection_only_evidence,
         test_validate_artifacts_blocks_runtime_backed_without_evidence_and_bad_patch_report,
         test_project_blocks_discloses_deferred_nodes_as_read_only,

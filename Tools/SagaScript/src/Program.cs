@@ -49,7 +49,7 @@ internal static class Program
         var sourceFiles = options.Sources.Count == 0
             ? Array.Empty<string>()
             : SourceDiscovery.Discover(options.Sources);
-        if (command is "analyze" or "emit-bindings" or "source-map" or "project-blocks" or "plan-block-edit" or "patch-preview" or "patch-apply" or "patch-diff" or "patch-review" or "patch-rollback" or "extract-nodes" or "compatibility-profile" or "validate-artifacts")
+        if (command is "analyze" or "emit-bindings" or "source-map" or "project-blocks" or "plan-block-edit" or "apply-block-edit" or "patch-preview" or "patch-apply" or "patch-diff" or "patch-review" or "patch-rollback" or "extract-nodes" or "compatibility-profile" or "validate-artifacts")
         {
             return RunSagaWeaverCommand(command, sourceFiles, options);
         }
@@ -70,7 +70,7 @@ internal static class Program
 
     private static bool RequiresSource(string command)
     {
-        return command is not ("plan-block-edit" or "patch-review" or "patch-rollback" or "validate-artifacts");
+        return command is not ("plan-block-edit" or "apply-block-edit" or "patch-review" or "patch-rollback" or "validate-artifacts");
     }
 
     private static int RunSagaWeaverCommand(
@@ -106,6 +106,33 @@ internal static class Program
                 ManifestWriter.PrintJson(preview);
             }
             return preview["status"]?.GetValue<string>() == "Passed" ? 0 : 1;
+        }
+
+        if (command == "apply-block-edit")
+        {
+            if (string.IsNullOrWhiteSpace(options.PreviewPath))
+            {
+                throw new InvalidOperationException("apply-block-edit requires --preview <block_patch_preview_v1.json>.");
+            }
+            if (string.IsNullOrWhiteSpace(options.SourceRootPath))
+            {
+                throw new InvalidOperationException("apply-block-edit requires --source-root <path>.");
+            }
+            if (string.IsNullOrWhiteSpace(options.OutputDirectory))
+            {
+                throw new InvalidOperationException("apply-block-edit requires --out <dir>.");
+            }
+
+            var apply = SagaWeaverArtifacts.BuildBlockEditApply(
+                options.PreviewPath,
+                options.SourceRootPath,
+                options.OutputDirectory);
+            ManifestWriter.WriteJson(Path.Combine(options.OutputDirectory, "block_patch_apply_v1.json"), apply);
+            if (options.Json)
+            {
+                ManifestWriter.PrintJson(apply);
+            }
+            return apply["status"]?.GetValue<string>() == "Passed" ? 0 : 1;
         }
 
         if (command is "patch-preview" or "patch-apply" or "patch-diff")
@@ -532,6 +559,7 @@ internal static class Program
         Console.WriteLine("  source-map --source <file-or-dir> --out <dir> [--json]");
         Console.WriteLine("  project-blocks --source <file-or-dir> --out <dir> [--json]");
         Console.WriteLine("  plan-block-edit --projection <visual_blocks_projection_v1.json> --operation <operation.json> --out <file> [--json]");
+        Console.WriteLine("  apply-block-edit --preview <block_patch_preview_v1.json> --source-root <path> --out <dir> [--json]");
         Console.WriteLine("  extract-nodes --source <file-or-dir> --out <dir> [--json]");
         Console.WriteLine("  compatibility-profile --source <file-or-dir> --out <dir> [--json]");
         Console.WriteLine("  validate-artifacts --artifact-root <dir> --out <file> [--json]");
@@ -589,6 +617,8 @@ internal sealed class CliOptions
     public string PatchRequestPath { get; private set; } = "";
     public string ProjectionPath { get; private set; } = "";
     public string OperationPath { get; private set; } = "";
+    public string PreviewPath { get; private set; } = "";
+    public string SourceRootPath { get; private set; } = "";
     public string DiffReportPath { get; private set; } = "";
     public string ApplyReportPath { get; private set; } = "";
     public string ArtifactRoot { get; private set; } = "";
@@ -641,6 +671,12 @@ internal sealed class CliOptions
                     break;
                 case "--operation":
                     options.OperationPath = RequireValue(args, ref i, "--operation");
+                    break;
+                case "--preview":
+                    options.PreviewPath = RequireValue(args, ref i, "--preview");
+                    break;
+                case "--source-root":
+                    options.SourceRootPath = RequireValue(args, ref i, "--source-root");
                     break;
                 case "--diff":
                     options.DiffReportPath = RequireValue(args, ref i, "--diff");

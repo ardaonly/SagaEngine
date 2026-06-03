@@ -93,10 +93,22 @@ Phase 15 adds `plan-block-edit`, a preview-only SagaScript command that consumes
 The Phase 14 projection remains read-only. Operation requests are separate
 transactions and do not make projection blocks editable.
 
+## First Safe Block Edit
+
+Phase 16 adds `apply-block-edit`, a SagaScript command that consumes a passed
+`block_patch_preview_v1.json` for one `StringLiteralEdit`. The command writes a
+patched copy to an output directory and emits `block_patch_apply_v1.json`. It
+does not overwrite the original source file by default.
+
+The apply command validates the target source hash, source root, byte span, and
+quoted C# string literal replacement before writing the patched copy. Opaque,
+unsupported, stale, malformed, and failed-preview inputs remain rejected.
+
 ## Non-Claims
 
 - No Visual Blocks projection UI exists in this phase.
-- No source patching feature is introduced by this phase.
+- No editor-driven block editing UI exists in this phase.
+- No in-place source mutation is performed by default.
 - No runtime gameplay behavior changes are introduced by this phase.
 - No arbitrary C# to blocks conversion is claimed.
 - No phase is `Verified`.

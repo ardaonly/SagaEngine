@@ -687,6 +687,7 @@ internal static class SagaWeaverArtifacts
             ["operationId"] = operationId,
             ["operationKind"] = operationKind,
             ["targetBlockId"] = targetBlockId,
+            ["targetSourceHash"] = sourceHash,
             ["targetSourceSpan"] = span is null ? null : SpanJson(span),
             ["requestedValue"] = requestedValue,
             ["status"] = status,
@@ -696,6 +697,222 @@ internal static class SagaWeaverArtifacts
             ["sourcePreservation"] = "SourceNotMutated",
             ["mutatesSource"] = false,
             ["nonClaims"] = BlockOperationNonClaims()
+        };
+    }
+
+    public static JsonObject BuildBlockEditApply(
+        string previewPath,
+        string sourceRoot,
+        string outputDirectory)
+    {
+        var diagnostics = new List<SagaDiagnostic>();
+        var preview = ReadBlockOperationJsonObjectFile(previewPath, "block patch preview", diagnostics);
+
+        var sourceFile = ReadString(preview, "sourceFile");
+        var operationId = ReadString(preview, "operationId");
+        var operationKind = ReadString(preview, "operationKind");
+        var targetBlockId = ReadString(preview, "targetBlockId");
+        var targetSourceHash = ReadString(preview, "targetSourceHash");
+        var span = ReadSpan(preview?["targetSourceSpan"] as JsonObject);
+        var patchPreview = preview?["patchPreview"] as JsonObject;
+        var replacementText = ReadString(patchPreview, "replacementText");
+        var resolvedSourceFile = "";
+        var patchedSourceFile = "";
+        var originalHash = "";
+        var patchedHash = "";
+        var changedSpanOnly = false;
+
+        if (preview is not null)
+        {
+            foreach (var required in new[] { "command", "sourceFile", "operationId", "operationKind", "targetBlockId", "targetSourceHash" })
+            {
+                if (!HasStringField(preview, required))
+                {
+                    diagnostics.Add(BlockOperationError("Script.BlockApply.MissingField", $"apply-block-edit requires preview field '{required}'."));
+                }
+            }
+            if (ReadString(preview, "command") != "plan-block-edit")
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockApply.InvalidPreview", "apply-block-edit requires a plan-block-edit preview report.", sourceFile));
+            }
+            if (ReadString(preview, "status") != "Passed")
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockApply.PreviewFailed", "apply-block-edit requires a passed block edit preview.", sourceFile));
+            }
+            if (operationKind != "StringLiteralEdit")
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockApply.UnsupportedOperation", $"apply-block-edit only supports StringLiteralEdit in Phase 16, not '{operationKind}'.", sourceFile));
+            }
+            if (!HasBoolField(preview, "mutatesSource"))
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockApply.MissingField", "apply-block-edit requires preview field 'mutatesSource'.", sourceFile));
+            }
+            else if (ReadBool(preview, "mutatesSource"))
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockApply.MutatingPreview", "apply-block-edit requires a non-mutating preview report.", sourceFile));
+            }
+            if (span is null)
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockApply.SourceSpanMissing", "apply-block-edit requires targetSourceSpan.", sourceFile));
+            }
+        }
+
+        if (patchPreview is null)
+        {
+            diagnostics.Add(BlockOperationError("Script.BlockApply.PatchPreviewMissing", "apply-block-edit requires patchPreview metadata.", sourceFile));
+        }
+        else
+        {
+            foreach (var required in new[] { "startByte", "endByte" })
+            {
+                if (!HasIntField(patchPreview, required))
+                {
+                    diagnostics.Add(BlockOperationError("Script.BlockApply.MissingField", $"apply-block-edit requires patchPreview field '{required}'.", sourceFile));
+                }
+            }
+            if (!HasStringField(patchPreview, "replacementKind"))
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockApply.MissingField", "apply-block-edit requires patchPreview field 'replacementKind'.", sourceFile));
+            }
+            if (!HasStringField(patchPreview, "replacementText"))
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockApply.MissingField", "apply-block-edit requires patchPreview field 'replacementText'.", sourceFile));
+            }
+            if (!HasBoolField(patchPreview, "mutatesSource"))
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockApply.MissingField", "apply-block-edit requires patchPreview field 'mutatesSource'.", sourceFile));
+            }
+            if (ReadString(patchPreview, "replacementKind") != "MinimalSpanReplacement")
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockApply.UnsupportedReplacement", "apply-block-edit only supports MinimalSpanReplacement.", sourceFile));
+            }
+            if (ReadBool(patchPreview, "mutatesSource"))
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockApply.MutatingPreview", "apply-block-edit requires patchPreview.mutatesSource to be false.", sourceFile));
+            }
+            if (!IsQuotedStringLiteral(replacementText))
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockApply.InvalidReplacement", "Replacement text must be a valid quoted C# string literal.", sourceFile));
+            }
+            if (span is not null &&
+                (ReadInt(patchPreview, "startByte") != span.StartByte ||
+                 ReadInt(patchPreview, "endByte") != span.EndByte))
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockApply.SourceSpanMismatch", "patchPreview byte bounds must match targetSourceSpan.", sourceFile));
+            }
+        }
+
+        if (!File.Exists(sourceRoot) && !Directory.Exists(sourceRoot))
+        {
+            diagnostics.Add(BlockOperationError("Script.BlockApply.SourceRootMissing", $"Source root does not exist: {sourceRoot}."));
+        }
+        else if (!string.IsNullOrWhiteSpace(sourceFile))
+        {
+            resolvedSourceFile = ResolveBlockApplySourceFile(sourceRoot, sourceFile);
+            if (string.IsNullOrWhiteSpace(resolvedSourceFile))
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockApply.SourceFileOutsideRoot", "Preview source file is outside --source-root.", sourceFile));
+            }
+            else if (!File.Exists(resolvedSourceFile))
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockApply.SourceFileMissing", "Preview source file does not exist.", resolvedSourceFile));
+            }
+        }
+
+        byte[] originalBytes = [];
+        if (!string.IsNullOrWhiteSpace(resolvedSourceFile) && File.Exists(resolvedSourceFile))
+        {
+            try
+            {
+                originalBytes = File.ReadAllBytes(resolvedSourceFile);
+                var sourceText = File.ReadAllText(resolvedSourceFile, Encoding.UTF8);
+                originalHash = ComputeHash(sourceText);
+                if (!string.IsNullOrWhiteSpace(targetSourceHash) &&
+                    !originalHash.Equals(targetSourceHash, StringComparison.OrdinalIgnoreCase))
+                {
+                    diagnostics.Add(BlockOperationError("Script.BlockApply.SourceHashMismatch", "Current source hash does not match block patch preview targetSourceHash.", resolvedSourceFile));
+                }
+                if (span is not null)
+                {
+                    if (!IsValidByteSpan(span, originalBytes.Length))
+                    {
+                        diagnostics.Add(BlockOperationError("Script.BlockApply.InvalidSourceSpan", "Target source span has invalid UTF-8 byte bounds.", resolvedSourceFile));
+                    }
+                    else
+                    {
+                        var oldText = DecodeUtf8(originalBytes, span.StartByte, span.EndByte - span.StartByte);
+                        if (!IsQuotedStringLiteral(oldText))
+                        {
+                            diagnostics.Add(BlockOperationError("Script.BlockApply.TargetNotStringLiteral", "Target source span is not a string literal.", resolvedSourceFile));
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DecoderFallbackException)
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockApply.SourceReadFailed", $"Unable to read source file: {ex.Message}", resolvedSourceFile));
+            }
+        }
+
+        var sortedDiagnostics = SortDiagnostics(diagnostics).ToArray();
+        var summary = SagaScriptAnalyzer.BuildSummary(sortedDiagnostics);
+        var status = summary.HasBlockingDiagnostics ? "Failed" : "Passed";
+
+        if (status == "Passed" && span is not null)
+        {
+            try
+            {
+                var replacementBytes = Encoding.UTF8.GetBytes(replacementText);
+                var patchedBytes = ReplaceBytes(originalBytes, span.StartByte, span.EndByte, replacementBytes);
+                changedSpanOnly = VerifySingleSpanReplacement(originalBytes, patchedBytes, span.StartByte, span.EndByte, replacementBytes);
+                if (!changedSpanOnly)
+                {
+                    diagnostics.Add(BlockOperationError("Script.BlockApply.ChangedSpanVerificationFailed", "Patched copy changed bytes outside the requested span.", resolvedSourceFile));
+                    status = "Failed";
+                }
+                else
+                {
+                    patchedSourceFile = BuildBlockApplyOutputPath(sourceRoot, resolvedSourceFile, outputDirectory);
+                    Directory.CreateDirectory(Path.GetDirectoryName(patchedSourceFile) ?? outputDirectory);
+                    File.WriteAllBytes(patchedSourceFile, patchedBytes);
+                    patchedHash = ComputeHash(DecodeUtf8(patchedBytes, 0, patchedBytes.Length));
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DecoderFallbackException)
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockApply.WriteFailed", $"Unable to write patched copy: {ex.Message}", patchedSourceFile));
+                status = "Failed";
+            }
+
+            sortedDiagnostics = SortDiagnostics(diagnostics).ToArray();
+            summary = SagaScriptAnalyzer.BuildSummary(sortedDiagnostics);
+            if (summary.HasBlockingDiagnostics)
+            {
+                status = "Failed";
+            }
+        }
+
+        return new JsonObject
+        {
+            ["schemaVersion"] = 1,
+            ["tool"] = ToolInfo.Name,
+            ["command"] = "apply-block-edit",
+            ["operationId"] = operationId,
+            ["operationKind"] = operationKind,
+            ["targetBlockId"] = targetBlockId,
+            ["sourceFile"] = resolvedSourceFile.Length == 0 ? sourceFile : resolvedSourceFile,
+            ["patchedSourceFile"] = patchedSourceFile,
+            ["targetSourceHash"] = targetSourceHash,
+            ["targetSourceSpan"] = span is null ? null : SpanJson(span),
+            ["originalHash"] = originalHash,
+            ["patchedHash"] = patchedHash,
+            ["changedSpanOnly"] = changedSpanOnly,
+            ["status"] = status,
+            ["diagnostics"] = JsonSerializerNode.Diagnostics(sortedDiagnostics),
+            ["summary"] = JsonSerializerNode.Summary(summary),
+            ["sourcePreservation"] = status == "Passed" ? "CopiedSourceWithSingleSpanReplacement" : "SourceNotMutated",
+            ["mutatesSource"] = false,
+            ["nonClaims"] = BlockApplyNonClaims()
         };
     }
 
@@ -2735,11 +2952,37 @@ internal static class SagaWeaverArtifacts
         return nonClaims;
     }
 
+    private static JsonArray BlockApplyNonClaims()
+    {
+        var nonClaims = new JsonArray();
+        nonClaims.Add("NoFullVisualScripting");
+        nonClaims.Add("NoArbitraryCSharpToBlocks");
+        nonClaims.Add("NoEditorUi");
+        nonClaims.Add("NoBlockGraphRuntime");
+        nonClaims.Add("NoMethodClassRegeneration");
+        nonClaims.Add("NoInPlaceMutationByDefault");
+        return nonClaims;
+    }
+
     private static bool HasStringField(JsonObject obj, string key)
     {
         return obj.TryGetPropertyValue(key, out var node) &&
             node is JsonValue value &&
             value.TryGetValue<string>(out _);
+    }
+
+    private static bool HasIntField(JsonObject obj, string key)
+    {
+        return obj.TryGetPropertyValue(key, out var node) &&
+            node is JsonValue value &&
+            value.TryGetValue<int>(out _);
+    }
+
+    private static bool HasBoolField(JsonObject obj, string key)
+    {
+        return obj.TryGetPropertyValue(key, out var node) &&
+            node is JsonValue value &&
+            value.TryGetValue<bool>(out _);
     }
 
     private static string BuildOperationId(
@@ -2848,6 +3091,49 @@ internal static class SagaWeaverArtifacts
         }
 
         return false;
+    }
+
+    private static string ResolveBlockApplySourceFile(string sourceRoot, string sourceFile)
+    {
+        var fullRoot = Path.GetFullPath(sourceRoot);
+        var fullSource = Path.IsPathRooted(sourceFile)
+            ? Path.GetFullPath(sourceFile)
+            : Path.GetFullPath(Path.Combine(fullRoot, sourceFile));
+
+        if (File.Exists(fullRoot))
+        {
+            return string.Equals(fullRoot, fullSource, StringComparison.Ordinal)
+                ? fullSource
+                : "";
+        }
+
+        return IsUnderDirectory(fullSource, fullRoot) ? fullSource : "";
+    }
+
+    private static string BuildBlockApplyOutputPath(
+        string sourceRoot,
+        string resolvedSourceFile,
+        string outputDirectory)
+    {
+        var fullRoot = Path.GetFullPath(sourceRoot);
+        var fullSource = Path.GetFullPath(resolvedSourceFile);
+        var relativePath = File.Exists(fullRoot)
+            ? Path.GetFileName(fullSource)
+            : Path.GetRelativePath(fullRoot, fullSource);
+        if (relativePath.StartsWith("..", StringComparison.Ordinal) ||
+            Path.IsPathRooted(relativePath))
+        {
+            relativePath = Path.GetFileName(fullSource);
+        }
+
+        return Path.GetFullPath(Path.Combine(outputDirectory, "patched-source", relativePath));
+    }
+
+    private static bool IsUnderDirectory(string fullSource, string directory)
+    {
+        var fullDirectory = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory));
+        var normalizedDirectory = fullDirectory + Path.DirectorySeparatorChar;
+        return fullSource.StartsWith(normalizedDirectory, StringComparison.Ordinal);
     }
 
     private static bool IsValidByteSpan(SourceSpan span, int byteLength)

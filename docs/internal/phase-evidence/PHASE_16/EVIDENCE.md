@@ -2,30 +2,50 @@
 
 ## Status
 
-Not Started
+Implemented-Unverified
 
 ## Phase Scope
 
-First Safe Block Edit
+Phase 16 adds the first safe block edit apply path for SagaScript/SagaWeaver
+metadata. The implemented path is intentionally narrow:
 
-No implementation evidence is recorded for this phase yet.
+- `sagascript plan-block-edit` now surfaces `targetSourceHash`.
+- `sagascript apply-block-edit` consumes a passed `block_patch_preview_v1.json`.
+- Only `StringLiteralEdit` is applied.
+- The patched C# source is written as a copied output file under
+  `<out>/patched-source/`.
+- The original source file is not overwritten by default.
+- `block_patch_apply_v1.json` records original hash, patched hash,
+  `changedSpanOnly`, diagnostics, source preservation, and non-claims.
+
+## Evidence Summary
+
+The SagaScript CLI tests cover:
+
+- accepted `StringLiteralEdit` preview metadata with target source hash;
+- copied-source apply output;
+- unchanged original source bytes;
+- exact-span-only replacement;
+- comment, whitespace, and using-order preservation outside the target span;
+- stale source hash rejection;
+- malformed preview span rejection;
+- failed preview rejection for opaque/read-only targets.
+
+No runtime, server, editor, package/distribution, SDE, StarterArena gameplay, or
+CSharpScriptHost behavior was changed.
 
 ## Changed Files
 
-No phase-specific changed file list has been recorded yet. Future updates should
-refresh this section from:
-
-```bash
-git diff --name-only
-```
+See `changed_files.txt`.
 
 ## Verification Commands
 
-No phase gate command has passed for this phase.
+See `commands.log`.
 
 ## Command Results
 
-No passing verification result is recorded.
+The recorded local checks passed in this batch. The phase remains
+`Implemented-Unverified` because maintainer verification has not occurred.
 
 ## Required Files
 
@@ -37,11 +57,11 @@ No passing verification result is recorded.
 
 ## Manual Checks
 
-- [ ] Public docs do not overclaim.
-- [ ] Known limitations are documented.
-- [ ] No placeholder is presented as shipped behavior.
-- [ ] Runtime/editor/tool behavior was manually checked if required.
-- [ ] Unsupported behavior is not hidden.
+- [x] Public docs do not claim full Visual Blocks editing.
+- [x] Known limitations are documented.
+- [x] The apply path writes a patched copy instead of overwriting source.
+- [x] Unsupported behavior is not hidden.
+- [x] No phase is marked `Verified`.
 
 ## Known Limitations
 
@@ -49,8 +69,11 @@ See `known_limitations.md`.
 
 ## Verification Decision
 
-Not Started
+Implemented-Unverified
 
 ## Decision Reason
 
-The phase has not been started in the current status matrix.
+SagaScript has a real copy-output `apply-block-edit` command for one safe
+`StringLiteralEdit` from a passed Phase 15 preview artifact. It rejects stale,
+malformed, failed-preview, opaque, and unsupported inputs. It is not maintainer
+verified and is not a full Visual Blocks editor or arbitrary C# patch system.

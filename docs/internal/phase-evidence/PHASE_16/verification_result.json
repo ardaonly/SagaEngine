@@ -1,10 +1,10 @@
 {
   "phase": 16,
   "name": "First Safe Block Edit",
-  "status": "Not Started",
+  "status": "Implemented-Unverified",
   "required_gate": "source-patch-gate",
   "verified": false,
   "last_verified_commit": "-",
-  "verification_decision": "Not Started",
-  "decision_reason": "The phase has not been started in the current status matrix."
+  "verification_decision": "Implemented-Unverified",
+  "decision_reason": "SagaScript apply-block-edit consumes a passed block_patch_preview_v1.json for one StringLiteralEdit, writes a patched source copy, verifies changedSpanOnly, and rejects stale, malformed, opaque, unsupported, and failed-preview inputs. Maintainer verification, editor UI, full Visual Blocks editing, arbitrary C# rewriting, in-place mutation by default, runtime/server changes, package/distribution output, SDE work, StarterArena gameplay changes, and CSharpScriptHost changes remain absent."
 }

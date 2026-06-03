@@ -23,7 +23,7 @@ or an explicit verification script result accepted by maintainers.
 | 13 | C# Compatibility Profile v1 | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_13/` | csharp-blocks-gate | `-` | SagaScript compatibility profile docs and fixture tests define projectable, partially projectable, advanced opaque, and unsupported C# evidence; maintainer verification is still required. |
 | 14 | Read-Only Blocks Projection | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_14/` | projection-gate | `-` | `sagascript project-blocks` emits read-only `visual_blocks_projection_v1.json` metadata for compatible, opaque, and unsupported C# fixture categories; maintainer verification is still required. |
 | 15 | Block Operation Contract | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_15/` | patch-contract-gate | `-` | `sagascript plan-block-edit` emits preview-only block operation metadata from read-only projection artifacts; maintainer verification is still required. |
-| 16 | First Safe Block Edit | Not Started | `docs/internal/phase-evidence/PHASE_16/` | source-patch-gate | `-` | `-` |
+| 16 | First Safe Block Edit | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_16/` | source-patch-gate | `-` | `sagascript apply-block-edit` applies one `StringLiteralEdit` to a copied output source file; maintainer verification is still required. |
 | 17 | Two-Way Authoring v1 | Not Started | `docs/internal/phase-evidence/PHASE_17/` | authoring-loop-gate | `-` | `-` |
 | 18 | SDE Current Contract Stabilization | Not Started | `docs/internal/phase-evidence/PHASE_18/` | sde-boundary-gate | `-` | `-` |
 | 19 | SDE Artifact and Manifest Contracts | Not Started | `docs/internal/phase-evidence/PHASE_19/` | sde-artifact-gate | `-` | `-` |
