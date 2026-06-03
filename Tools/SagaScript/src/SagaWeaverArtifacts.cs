@@ -478,6 +478,69 @@ internal static class SagaWeaverArtifacts
         };
     }
 
+    public static VisualBlocksProjectionReport BuildVisualBlocksProjection(CompatibilityProfileReport profile)
+    {
+        var blocks = profile.Constructs
+            .Select(construct => new VisualBlockEntry
+            {
+                BlockId = BuildVisualBlockId(construct),
+                BlockKind = BlockKindFor(construct),
+                DisplayName = DisplayNameFor(construct),
+                Classification = construct.Classification,
+                Editable = false,
+                SourceFile = construct.SourceFile,
+                SourceSpan = construct.SourceSpan,
+                SourceHash = SourceHashFor(profile, construct.SourceFile),
+                Children = Array.Empty<string>(),
+                Diagnostics = construct.Diagnostics
+            })
+            .OrderBy(block => block.SourceFile, StringComparer.Ordinal)
+            .ThenBy(block => block.SourceSpan?.StartByte ?? 0)
+            .ThenBy(block => block.BlockId, StringComparer.Ordinal)
+            .ToArray();
+
+        var opaqueRegions = profile.Constructs
+            .Where(construct => construct.Classification is "Opaque" or "Unsupported" or "Invalid")
+            .Select(construct => new VisualOpaqueRegionEntry
+            {
+                BlockId = BuildVisualBlockId(construct),
+                BlockKind = construct.Classification == "Opaque"
+                    ? "OpaqueSourceRegionBlock"
+                    : "UnsupportedDiagnosticBlock",
+                DisplayName = DisplayNameFor(construct),
+                Classification = construct.Classification,
+                Editable = false,
+                SourceFile = construct.SourceFile,
+                SourceSpan = construct.SourceSpan,
+                SourceHash = SourceHashFor(profile, construct.SourceFile),
+                Reason = construct.Reason,
+                Diagnostics = construct.Diagnostics
+            })
+            .OrderBy(region => region.SourceFile, StringComparer.Ordinal)
+            .ThenBy(region => region.SourceSpan?.StartByte ?? 0)
+            .ThenBy(region => region.BlockId, StringComparer.Ordinal)
+            .ToArray();
+
+        return new VisualBlocksProjectionReport
+        {
+            ProjectionStatus = profile.Status,
+            SourceFiles = profile.SourceFiles,
+            Blocks = blocks,
+            OpaqueRegions = opaqueRegions,
+            Diagnostics = profile.Diagnostics,
+            NonClaims =
+            [
+                "MetadataOnly",
+                "ReadOnlyProjection",
+                "NoVisualBlocksEditor",
+                "NoBlockEditing",
+                "NoSourceMutation",
+                "NoArbitraryCSharpToBlocks",
+                "NoRuntimeGraphInterpretation"
+            ]
+        };
+    }
+
     public static ScriptArtifactValidationReport ValidateArtifacts(string artifactRoot)
     {
         var root = Path.GetFullPath(artifactRoot);
@@ -1420,6 +1483,58 @@ internal static class SagaWeaverArtifacts
             _ when node.Capability == "Deferred" => "Deferred node is disclosed as read-only and is not runtime proof.",
             _ => "Construct is projectable for inspection but not source-mutable in this phase."
         };
+    }
+
+    private static string BuildVisualBlockId(CompatibilityConstruct construct)
+    {
+        var raw = string.IsNullOrWhiteSpace(construct.ConstructId)
+            ? $"{construct.Kind}:{construct.SourceFile}:{construct.SourceSpan?.StartByte ?? 0}"
+            : construct.ConstructId;
+        return "visual-block://" + raw
+            .Replace('\\', '/')
+            .Replace(" ", "%20", StringComparison.Ordinal);
+    }
+
+    private static string BlockKindFor(CompatibilityConstruct construct)
+    {
+        return construct.Classification switch
+        {
+            "Opaque" => "OpaqueSourceRegionBlock",
+            "Unsupported" or "Invalid" => "UnsupportedDiagnosticBlock",
+            _ => construct.Kind switch
+            {
+                "SagaBehavior" => "ScriptClassBlock",
+                "BehaviorMethod" => "CallableMethodBlock",
+                "SagaNode" or "SagaLibrary" => "AttributeBlock",
+                "StringLiteral" or "Literal" => "ParameterBlock",
+                "ReturnStatement" => "ReturnBlock",
+                _ => "CallableMethodBlock"
+            }
+        };
+    }
+
+    private static string DisplayNameFor(CompatibilityConstruct construct)
+    {
+        return construct.Kind switch
+        {
+            "SagaBehavior" => "Saga behavior",
+            "BehaviorMethod" => "Callable method",
+            "SagaNode" => "Saga node metadata",
+            "SagaLibrary" => "Saga library metadata",
+            "StringLiteral" => "String literal",
+            "Literal" => "Literal",
+            "ReturnStatement" => "Return statement",
+            "OpaqueRegion" => "Opaque C# region",
+            "UnsupportedConstruct" => "Unsupported C# construct",
+            "InvalidMetadata" => "Invalid metadata",
+            "InvalidSyntax" => "Invalid C# syntax",
+            _ => construct.Kind
+        };
+    }
+
+    private static string SourceHashFor(CompatibilityProfileReport profile, string sourceFile)
+    {
+        return profile.SourceHashes.TryGetValue(sourceFile, out var hash) ? hash : "";
     }
 
     private static string RuntimeProofFor(string capability)
