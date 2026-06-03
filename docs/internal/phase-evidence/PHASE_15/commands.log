@@ -1,3 +1,23 @@
 # Phase 15 Commands Log
 
-No phase verification commands have been recorded yet.
+git status --short
+Result: passed. Worktree was clean before implementation.
+
+nix-shell --run "python3 Tools/SagaScript/tests/test_sagascript_cli.py"
+Result: passed. 64 SagaScript CLI tests passed, including Phase 15 block
+operation contract preview coverage.
+
+git diff --check
+Result: passed.
+
+scripts/scan-claims README.md docs samples Tools
+Result: passed. No unsupported public claim text was found.
+
+scripts/verify-quick
+Result: passed.
+
+scripts/verify-local --allow-dirty
+Result: passed.
+
+scripts/verify-phase 15
+Result: passed. No phase was marked Verified.

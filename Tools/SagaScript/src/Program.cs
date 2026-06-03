@@ -49,7 +49,7 @@ internal static class Program
         var sourceFiles = options.Sources.Count == 0
             ? Array.Empty<string>()
             : SourceDiscovery.Discover(options.Sources);
-        if (command is "analyze" or "emit-bindings" or "source-map" or "project-blocks" or "patch-preview" or "patch-apply" or "patch-diff" or "patch-review" or "patch-rollback" or "extract-nodes" or "compatibility-profile" or "validate-artifacts")
+        if (command is "analyze" or "emit-bindings" or "source-map" or "project-blocks" or "plan-block-edit" or "patch-preview" or "patch-apply" or "patch-diff" or "patch-review" or "patch-rollback" or "extract-nodes" or "compatibility-profile" or "validate-artifacts")
         {
             return RunSagaWeaverCommand(command, sourceFiles, options);
         }
@@ -70,7 +70,7 @@ internal static class Program
 
     private static bool RequiresSource(string command)
     {
-        return command is not ("patch-review" or "patch-rollback" or "validate-artifacts");
+        return command is not ("plan-block-edit" or "patch-review" or "patch-rollback" or "validate-artifacts");
     }
 
     private static int RunSagaWeaverCommand(
@@ -81,6 +81,32 @@ internal static class Program
         var outputDirectory = string.IsNullOrWhiteSpace(options.OutputDirectory)
             ? Path.Combine(Directory.GetCurrentDirectory(), "Build", "SagaScript")
             : options.OutputDirectory;
+
+        if (command == "plan-block-edit")
+        {
+            if (string.IsNullOrWhiteSpace(options.ProjectionPath))
+            {
+                throw new InvalidOperationException("plan-block-edit requires --projection <visual_blocks_projection_v1.json>.");
+            }
+            if (string.IsNullOrWhiteSpace(options.OperationPath))
+            {
+                throw new InvalidOperationException("plan-block-edit requires --operation <operation.json>.");
+            }
+            if (string.IsNullOrWhiteSpace(options.OutputPath))
+            {
+                throw new InvalidOperationException("plan-block-edit requires --out <file>.");
+            }
+
+            var preview = SagaWeaverArtifacts.BuildBlockEditPreview(
+                options.ProjectionPath,
+                options.OperationPath);
+            ManifestWriter.WriteJson(options.OutputPath, preview);
+            if (options.Json)
+            {
+                ManifestWriter.PrintJson(preview);
+            }
+            return preview["status"]?.GetValue<string>() == "Passed" ? 0 : 1;
+        }
 
         if (command is "patch-preview" or "patch-apply" or "patch-diff")
         {
@@ -505,6 +531,7 @@ internal static class Program
         Console.WriteLine("  emit-bindings --source <file-or-dir> --out <dir> [--json]");
         Console.WriteLine("  source-map --source <file-or-dir> --out <dir> [--json]");
         Console.WriteLine("  project-blocks --source <file-or-dir> --out <dir> [--json]");
+        Console.WriteLine("  plan-block-edit --projection <visual_blocks_projection_v1.json> --operation <operation.json> --out <file> [--json]");
         Console.WriteLine("  extract-nodes --source <file-or-dir> --out <dir> [--json]");
         Console.WriteLine("  compatibility-profile --source <file-or-dir> --out <dir> [--json]");
         Console.WriteLine("  validate-artifacts --artifact-root <dir> --out <file> [--json]");
@@ -560,6 +587,8 @@ internal sealed class CliOptions
     public string AssemblyName { get; private set; } = "SagaProjectScripts";
     public string SourceMapPath { get; private set; } = "";
     public string PatchRequestPath { get; private set; } = "";
+    public string ProjectionPath { get; private set; } = "";
+    public string OperationPath { get; private set; } = "";
     public string DiffReportPath { get; private set; } = "";
     public string ApplyReportPath { get; private set; } = "";
     public string ArtifactRoot { get; private set; } = "";
@@ -606,6 +635,12 @@ internal sealed class CliOptions
                     break;
                 case "--request":
                     options.PatchRequestPath = RequireValue(args, ref i, "--request");
+                    break;
+                case "--projection":
+                    options.ProjectionPath = RequireValue(args, ref i, "--projection");
+                    break;
+                case "--operation":
+                    options.OperationPath = RequireValue(args, ref i, "--operation");
                     break;
                 case "--diff":
                     options.DiffReportPath = RequireValue(args, ref i, "--diff");

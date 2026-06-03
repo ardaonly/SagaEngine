@@ -1,1 +1,11 @@
-No phase-specific changed files recorded yet.
+Tools/SagaScript/src/Program.cs
+Tools/SagaScript/src/SagaWeaverArtifacts.cs
+Tools/SagaScript/tests/test_sagascript_cli.py
+docs/architecture/VISUAL_BLOCK_PATCH_CONTRACT.md
+docs/architecture/CSHARP_VISUAL_BLOCKS_COMPATIBILITY_PROFILE.md
+docs/internal/PHASE_STATUS_MATRIX.md
+docs/internal/phase-evidence/PHASE_15/EVIDENCE.md
+docs/internal/phase-evidence/PHASE_15/commands.log
+docs/internal/phase-evidence/PHASE_15/changed_files.txt
+docs/internal/phase-evidence/PHASE_15/known_limitations.md
+docs/internal/phase-evidence/PHASE_15/verification_result.json

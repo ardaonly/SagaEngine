@@ -22,7 +22,7 @@ or an explicit verification script result accepted by maintainers.
 | 12 | Server-Authoritative Sample v1 | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_12/` | server-gate | `-` | StarterArena has a bounded socket-free server-authoritative smoke; maintainer verification is still required. |
 | 13 | C# Compatibility Profile v1 | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_13/` | csharp-blocks-gate | `-` | SagaScript compatibility profile docs and fixture tests define projectable, partially projectable, advanced opaque, and unsupported C# evidence; maintainer verification is still required. |
 | 14 | Read-Only Blocks Projection | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_14/` | projection-gate | `-` | `sagascript project-blocks` emits read-only `visual_blocks_projection_v1.json` metadata for compatible, opaque, and unsupported C# fixture categories; maintainer verification is still required. |
-| 15 | Block Operation Contract | Not Started | `docs/internal/phase-evidence/PHASE_15/` | patch-contract-gate | `-` | `-` |
+| 15 | Block Operation Contract | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_15/` | patch-contract-gate | `-` | `sagascript plan-block-edit` emits preview-only block operation metadata from read-only projection artifacts; maintainer verification is still required. |
 | 16 | First Safe Block Edit | Not Started | `docs/internal/phase-evidence/PHASE_16/` | source-patch-gate | `-` | `-` |
 | 17 | Two-Way Authoring v1 | Not Started | `docs/internal/phase-evidence/PHASE_17/` | authoring-loop-gate | `-` | `-` |
 | 18 | SDE Current Contract Stabilization | Not Started | `docs/internal/phase-evidence/PHASE_18/` | sde-boundary-gate | `-` | `-` |

@@ -84,6 +84,15 @@ Initial block kinds are:
 Opaque and unsupported C# regions are represented as read-only metadata with
 diagnostics. They are not converted into editable blocks.
 
+## Block Operation Contract
+
+Phase 15 adds `plan-block-edit`, a preview-only SagaScript command that consumes
+`visual_blocks_projection_v1.json` and a single operation request. It emits
+`block_patch_preview_v1.json` metadata without mutating C# source.
+
+The Phase 14 projection remains read-only. Operation requests are separate
+transactions and do not make projection blocks editable.
+
 ## Non-Claims
 
 - No Visual Blocks projection UI exists in this phase.

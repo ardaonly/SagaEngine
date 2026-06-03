@@ -168,10 +168,33 @@ def run_project_blocks(source: Path, out_dir: Path) -> tuple[subprocess.Complete
     return result, report
 
 
+def run_plan_block_edit(projection: Path, operation: Path, report: Path) -> subprocess.CompletedProcess[str]:
+    return run_cli(
+        "plan-block-edit",
+        "--projection",
+        str(projection),
+        "--operation",
+        str(operation),
+        "--out",
+        str(report),
+        "--json",
+    )
+
+
 def assert_visual_blocks_are_read_only(report: dict) -> None:
     assert report["blocks"]
     assert all(block["editable"] is False for block in report["blocks"])
     assert all(region["editable"] is False for region in report["opaqueRegions"])
+
+
+def write_block_operation(root: Path, *, operation_kind: str, target_block_id: str, requested_value: str) -> Path:
+    operation = root / "block_operation.json"
+    operation.write_text(json.dumps({
+        "operationKind": operation_kind,
+        "targetBlockId": target_block_id,
+        "requestedValue": requested_value,
+    }), encoding="utf-8")
+    return operation
 
 
 def source_map_node(source_map: dict, *, kind: str, literal_value: str | None = None, display_name: str | None = None) -> dict:
@@ -875,6 +898,152 @@ def test_readonly_visual_blocks_projection_unsupported_fixture_reports_diagnosti
         assert any(block["blockKind"] == "UnsupportedDiagnosticBlock" for block in report["blocks"])
         assert any(region["blockKind"] == "UnsupportedDiagnosticBlock" for region in report["opaqueRegions"])
         assert any(diagnostic["severity"] == "Error" for diagnostic in report["diagnostics"])
+
+
+def test_block_operation_contract_previews_string_literal_without_mutating_source() -> None:
+    fixture = CSHARP_BLOCKS_FIXTURES / "projectable" / "GameRulesProjectable.cs"
+    before = fixture.read_bytes()
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        out_dir = root / "out"
+        project_result, projection = run_project_blocks(fixture, out_dir)
+        assert project_result.returncode == 0, project_result.stderr + project_result.stdout
+        target = next(block for block in projection["blocks"] if block["classification"] == "EditableByPatch")
+        operation = write_block_operation(
+            root,
+            operation_kind="StringLiteralEdit",
+            target_block_id=target["blockId"],
+            requested_value="gold_key",
+        )
+        report_path = root / "block_patch_preview_v1.json"
+
+        result = run_plan_block_edit(out_dir / "visual_blocks_projection_v1.json", operation, report_path)
+
+        assert result.returncode == 0, result.stderr + result.stdout
+        assert fixture.read_bytes() == before
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        assert report["command"] == "plan-block-edit"
+        assert report["status"] == "Passed"
+        assert report["mutatesSource"] is False
+        assert report["sourcePreservation"] == "SourceNotMutated"
+        assert "NoPatchApply" in report["nonClaims"]
+        assert "NoSourceMutation" in report["nonClaims"]
+        assert report["targetSourceSpan"] == target["sourceSpan"]
+        assert report["patchPreview"]["mutatesSource"] is False
+        assert report["patchPreview"]["replacementKind"] == "MinimalSpanReplacement"
+        assert report["patchPreview"]["replacementText"] == '"gold_key"'
+        assert report["patchPreview"]["startByte"] == target["sourceSpan"]["startByte"]
+        assert report["patchPreview"]["endByte"] == target["sourceSpan"]["endByte"]
+
+
+def test_block_operation_contract_rejects_forbidden_operation_without_mutating_source() -> None:
+    fixture = CSHARP_BLOCKS_FIXTURES / "projectable" / "GameRulesProjectable.cs"
+    before = fixture.read_bytes()
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        out_dir = root / "out"
+        project_result, projection = run_project_blocks(fixture, out_dir)
+        assert project_result.returncode == 0, project_result.stderr + project_result.stdout
+        target = next(block for block in projection["blocks"] if block["classification"] == "EditableByPatch")
+        operation = write_block_operation(
+            root,
+            operation_kind="ArbitrarySourceRewrite",
+            target_block_id=target["blockId"],
+            requested_value="rewrite everything",
+        )
+        report_path = root / "forbidden_block_patch_preview_v1.json"
+
+        result = run_plan_block_edit(out_dir / "visual_blocks_projection_v1.json", operation, report_path)
+
+        assert result.returncode == 1
+        assert fixture.read_bytes() == before
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        assert report["status"] == "Failed"
+        assert report["patchPreview"] is None
+        codes = {diagnostic["code"] for diagnostic in report["diagnostics"]}
+        assert "Script.BlockOperation.ForbiddenOperation" in codes
+
+
+def test_block_operation_contract_rejects_unknown_operation_without_mutating_source() -> None:
+    fixture = CSHARP_BLOCKS_FIXTURES / "projectable" / "GameRulesProjectable.cs"
+    before = fixture.read_bytes()
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        out_dir = root / "out"
+        project_result, projection = run_project_blocks(fixture, out_dir)
+        assert project_result.returncode == 0, project_result.stderr + project_result.stdout
+        target = next(block for block in projection["blocks"] if block["classification"] == "EditableByPatch")
+        operation = write_block_operation(
+            root,
+            operation_kind="TeleportBlockEdit",
+            target_block_id=target["blockId"],
+            requested_value="gold_key",
+        )
+        report_path = root / "unknown_block_patch_preview_v1.json"
+
+        result = run_plan_block_edit(out_dir / "visual_blocks_projection_v1.json", operation, report_path)
+
+        assert result.returncode == 1
+        assert fixture.read_bytes() == before
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        assert report["status"] == "Failed"
+        assert report["patchPreview"] is None
+        codes = {diagnostic["code"] for diagnostic in report["diagnostics"]}
+        assert "Script.BlockOperation.UnsupportedOperation" in codes
+
+
+def test_block_operation_contract_rejects_opaque_block_without_mutating_source() -> None:
+    fixture = CSHARP_BLOCKS_FIXTURES / "advanced_opaque" / "GameRulesAdvancedOpaque.cs"
+    before = fixture.read_bytes()
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        out_dir = root / "out"
+        project_result, projection = run_project_blocks(fixture, out_dir)
+        assert project_result.returncode == 0, project_result.stderr + project_result.stdout
+        target = next(block for block in projection["blocks"] if block["classification"] == "Opaque")
+        operation = write_block_operation(
+            root,
+            operation_kind="StringLiteralEdit",
+            target_block_id=target["blockId"],
+            requested_value="gold_key",
+        )
+        report_path = root / "opaque_block_patch_preview_v1.json"
+
+        result = run_plan_block_edit(out_dir / "visual_blocks_projection_v1.json", operation, report_path)
+
+        assert result.returncode == 1
+        assert fixture.read_bytes() == before
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        codes = {diagnostic["code"] for diagnostic in report["diagnostics"]}
+        assert "Script.BlockOperation.OpaqueRegionReadOnly" in codes
+        assert "Script.BlockOperation.NotPatchCapable" in codes
+
+
+def test_block_operation_contract_rejects_unsupported_block_without_mutating_source() -> None:
+    fixture = CSHARP_BLOCKS_FIXTURES / "unsupported" / "GameRulesUnsupported.cs"
+    before = fixture.read_bytes()
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        out_dir = root / "out"
+        project_result, projection = run_project_blocks(fixture, out_dir)
+        assert project_result.returncode == 1
+        target = next(block for block in projection["blocks"] if block["blockKind"] == "UnsupportedDiagnosticBlock")
+        operation = write_block_operation(
+            root,
+            operation_kind="StringLiteralEdit",
+            target_block_id=target["blockId"],
+            requested_value="gold_key",
+        )
+        report_path = root / "unsupported_block_patch_preview_v1.json"
+
+        result = run_plan_block_edit(out_dir / "visual_blocks_projection_v1.json", operation, report_path)
+
+        assert result.returncode == 1
+        assert fixture.read_bytes() == before
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        codes = {diagnostic["code"] for diagnostic in report["diagnostics"]}
+        assert "Script.BlockOperation.UnsupportedDiagnosticReadOnly" in codes
+        assert "Script.BlockOperation.NotPatchCapable" in codes
 
 
 def test_validate_artifacts_accepts_consistent_projection_only_evidence() -> None:
@@ -1733,6 +1902,11 @@ if __name__ == "__main__":
         test_readonly_visual_blocks_projection_partially_projectable_fixture,
         test_readonly_visual_blocks_projection_advanced_opaque_fixture,
         test_readonly_visual_blocks_projection_unsupported_fixture_reports_diagnostics,
+        test_block_operation_contract_previews_string_literal_without_mutating_source,
+        test_block_operation_contract_rejects_forbidden_operation_without_mutating_source,
+        test_block_operation_contract_rejects_unknown_operation_without_mutating_source,
+        test_block_operation_contract_rejects_opaque_block_without_mutating_source,
+        test_block_operation_contract_rejects_unsupported_block_without_mutating_source,
         test_validate_artifacts_accepts_consistent_projection_only_evidence,
         test_validate_artifacts_blocks_runtime_backed_without_evidence_and_bad_patch_report,
         test_project_blocks_discloses_deferred_nodes_as_read_only,

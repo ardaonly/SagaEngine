@@ -1,10 +1,10 @@
 {
   "phase": 15,
   "name": "Block Operation Contract",
-  "status": "Not Started",
+  "status": "Implemented-Unverified",
   "required_gate": "patch-contract-gate",
   "verified": false,
   "last_verified_commit": "-",
-  "verification_decision": "Not Started",
-  "decision_reason": "The phase has not been started in the current status matrix."
+  "verification_decision": "Implemented-Unverified",
+  "decision_reason": "SagaScript plan-block-edit emits block_patch_preview_v1.json as preview-only block operation contract metadata. Tests cover one allowed string literal edit preview, forbidden operation rejection, unknown operation rejection, opaque block rejection, unsupported block rejection, and source no-mutation checks. Actual patch application, source mutation, editor UI, block editing UI, runtime/server changes, package/distribution output, SDE work, and maintainer verification remain absent."
 }
