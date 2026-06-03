@@ -104,6 +104,17 @@ The apply command validates the target source hash, source root, byte span, and
 quoted C# string literal replacement before writing the patched copy. Opaque,
 unsupported, stale, malformed, and failed-preview inputs remain rejected.
 
+## CLI Two-Way Authoring Loop
+
+Phase 17 proves the first CLI-only C# to Visual Blocks and back loop by composing
+existing SagaScript commands. The loop starts from compatible C# source, emits
+compatibility and read-only projection metadata, plans one `StringLiteralEdit`,
+applies it to a copied output source file, then runs `analyze` and `compile` on
+the patched copy.
+
+This remains test-level orchestration. It does not add a SagaScript command,
+editor UI, in-place editing, runtime graph execution, or generic patching.
+
 ## Non-Claims
 
 - No Visual Blocks projection UI exists in this phase.
