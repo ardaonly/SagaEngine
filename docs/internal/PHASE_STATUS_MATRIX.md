@@ -18,7 +18,7 @@ or an explicit verification script result accepted by maintainers.
 | 8 | MultiplayerSandbox Truth Reset | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_08/` | sample-truth-gate | `-` | MultiplayerSandbox sample docs now describe fixture evidence, not product proof. |
 | 9 | StarterArena Sample Definition | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_09/` | sample-design-gate | `-` | StarterArena is defined as project metadata only, with no gameplay/runtime/package content. |
 | 10 | First Playable Runtime Loop | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_10/` | runtime-smoke-gate | `-` | `SagaRuntime --starter-arena-smoke` runs a bounded project and scene-backed StarterArena loop; maintainer verification is still required. |
-| 11 | C# Gameplay Script v1 | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_11/` | scripting-gate | `-` | StarterArena has SagaScript compile evidence and runtime smoke metadata consumption; runtime execution remains deferred. |
+| 11 | C# Gameplay Script v1 | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_11/` | scripting-gate | `-` | StarterArena has SagaScript compile evidence, runtime metadata consumption, and one controlled pure-method invocation; maintainer verification is still required. |
 | 12 | Server-Authoritative Sample v1 | Not Started | `docs/internal/phase-evidence/PHASE_12/` | server-gate | `-` | `-` |
 | 13 | C# Compatibility Profile v1 | Not Started | `docs/internal/phase-evidence/PHASE_13/` | csharp-blocks-gate | `-` | `-` |
 | 14 | Read-Only Blocks Projection | Not Started | `docs/internal/phase-evidence/PHASE_14/` | projection-gate | `-` | `-` |

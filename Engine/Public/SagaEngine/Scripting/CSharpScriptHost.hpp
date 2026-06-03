@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <string>
 
 namespace SagaEngine::Scripting
 {
@@ -20,6 +21,21 @@ struct CSharpScriptHostOptions
     std::filesystem::path dotnetRoot;            ///< Optional dotnet root override.
     ISagaScriptWorld* world = nullptr;           ///< Optional engine world facade.
     ScriptLogSink logSink;                       ///< Optional managed script log sink.
+};
+
+/// Explicit native request for one public instance int Method(int, int) call.
+struct CSharpInt32BinaryMethodInvocation
+{
+    ScriptInstanceHandle instance;
+    std::string methodName;
+    std::int32_t left = 0;
+    std::int32_t right = 0;
+};
+
+/// Result for a CSharpInt32BinaryMethodInvocation.
+struct CSharpInt32BinaryMethodInvocationResult : ScriptHostOperationResult
+{
+    std::int32_t value = 0;
 };
 
 /// Native hostfxr-backed C# implementation of ISagaScriptHost.
@@ -47,6 +63,9 @@ public:
 
     [[nodiscard]] ScriptHostOperationResult InvokeUiNamedAction(
         const ScriptUiNamedActionInvocation& invocation) override;
+
+    [[nodiscard]] CSharpInt32BinaryMethodInvocationResult InvokeInt32BinaryMethod(
+        const CSharpInt32BinaryMethodInvocation& invocation);
 
 private:
     struct Impl;

@@ -289,6 +289,89 @@ public static unsafe class NativeBridge
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int InvokeInt32BinaryMethod(
+        long instanceHandle,
+        byte* methodName,
+        int left,
+        int right,
+        int* result,
+        byte* errorBuffer,
+        int errorBufferLength)
+    {
+        if (result is null)
+        {
+            WriteError(errorBuffer, errorBufferLength, "Result output pointer is null.");
+            return BridgeStatus.InvalidArgument;
+        }
+
+        *result = 0;
+
+        SagaScript instance;
+        lock (Sync)
+        {
+            if (!Instances.TryGetValue(instanceHandle, out instance!))
+            {
+                WriteError(errorBuffer, errorBufferLength, "Script instance handle is invalid.");
+                return BridgeStatus.InvalidArgument;
+            }
+        }
+
+        var managedMethodName = ReadUtf8(methodName);
+        if (string.IsNullOrWhiteSpace(managedMethodName))
+        {
+            WriteError(errorBuffer, errorBufferLength, "Int32 binary method name is empty.");
+            return BridgeStatus.InvalidArgument;
+        }
+
+        try
+        {
+            var methods = instance.GetType()
+                .GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                .Where(method => string.Equals(method.Name, managedMethodName, StringComparison.Ordinal))
+                .ToArray();
+            if (methods.Length == 0)
+            {
+                WriteError(errorBuffer, errorBufferLength, "Int32 binary method was not found.");
+                return BridgeStatus.Int32BinaryMethodMissing;
+            }
+
+            var validMethods = methods.Where(IsValidInt32BinaryMethod).ToArray();
+            if (validMethods.Length != 1)
+            {
+                WriteError(
+                    errorBuffer,
+                    errorBufferLength,
+                    "Int32 binary method must be public instance int Method(int, int).");
+                return BridgeStatus.Int32BinaryInvalidSignature;
+            }
+
+            var returnValue = validMethods[0].Invoke(instance, new object[] { left, right });
+            if (returnValue is not int intValue)
+            {
+                WriteError(
+                    errorBuffer,
+                    errorBufferLength,
+                    "Int32 binary method returned a non-int value.");
+                return BridgeStatus.Int32BinaryInvalidSignature;
+            }
+
+            *result = intValue;
+            return BridgeStatus.Ok;
+        }
+        catch (TargetInvocationException ex)
+        {
+            var inner = ex.InnerException ?? ex;
+            WriteError(errorBuffer, errorBufferLength, inner.GetType().Name + ": " + inner.Message);
+            return BridgeStatus.ManagedException;
+        }
+        catch (Exception ex)
+        {
+            WriteError(errorBuffer, errorBufferLength, ex.GetType().Name + ": " + ex.Message);
+            return BridgeStatus.ManagedException;
+        }
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int ReleasePackage(long packageHandle)
     {
         lock (Sync)
@@ -305,6 +388,15 @@ public static unsafe class NativeBridge
         return parameters.Length == 1 &&
             parameters[0].ParameterType == typeof(UiNamedActionContext) &&
             (method.ReturnType == typeof(void) || method.ReturnType == typeof(bool));
+    }
+
+    private static bool IsValidInt32BinaryMethod(MethodInfo method)
+    {
+        var parameters = method.GetParameters();
+        return parameters.Length == 2 &&
+            parameters[0].ParameterType == typeof(int) &&
+            parameters[1].ParameterType == typeof(int) &&
+            method.ReturnType == typeof(int);
     }
 
     private static string ReadUtf8(byte* value)
@@ -390,4 +482,6 @@ internal static class BridgeStatus
     public const int UiNamedActionMethodMissing = 9;
     public const int UiNamedActionInvalidSignature = 10;
     public const int UiNamedActionReturnedFalse = 11;
+    public const int Int32BinaryMethodMissing = 12;
+    public const int Int32BinaryInvalidSignature = 13;
 }

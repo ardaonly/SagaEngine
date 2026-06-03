@@ -8,24 +8,28 @@ Implemented-Unverified
 
 C# Gameplay Script v1
 
-Phase 11A added a narrow StarterArena C# script compile smoke. Phase 11B adds
+Phase 11A added a narrow StarterArena C# script compile smoke. Phase 11B added
 runtime smoke consumption of the emitted SagaScript binding and artifact
-metadata. SagaRuntime reads `script_bindings.json` and `script_artifacts.json`
-when explicitly passed on the StarterArena smoke command line, records the
-GameRules metadata in the smoke report, and keeps execution as `NotExecuted`.
+metadata. Phase 11C adds one controlled runtime invocation of a known pure
+method: `StarterArena.Scripts.GameRules.AddPickupScore(10, 5)`.
 
 Accepted boundary:
 
 - one StarterArena script source only;
-- compile/analyze evidence plus runtime metadata consumption;
-- no C# assembly load, method invocation, runtime script execution, or C#
-  gameplay binding;
-- no Visual Blocks, editor workflow, server-authoritative multiplayer, package
-  output, or distribution output.
+- compile/analyze evidence;
+- runtime metadata consumption;
+- one controlled pure-method invocation returning `15`;
+- no arbitrary script invocation, C# lifecycle execution, Visual Blocks, editor
+  workflow, server-authoritative multiplayer, package output, or distribution
+  output.
 
 ## Changed Files
 
 - `Apps/Runtime/main.cpp`
+- `Engine/Managed/SagaScript.RuntimeBridge/NativeBridge.cs`
+- `Engine/Public/SagaEngine/Scripting/CSharpScriptHost.hpp`
+- `Engine/Public/SagaEngine/Scripting/LowLevel/ISagaScriptHost.hpp`
+- `Engine/Private/SagaEngine/Scripting/CSharpScriptHost.cpp`
 - `samples/StarterArena/Scripts/GameRules.cs`
 - `samples/StarterArena/StarterArena.sagaproj`
 - `samples/StarterArena/README.md`
@@ -42,11 +46,12 @@ Accepted boundary:
 
 - `nix-shell --run "Tools/SagaProjectKit/sagaproject validate --project samples/StarterArena/StarterArena.sagaproj --out /tmp/starter_arena_validate.json"`
 - `nix-shell --run "Tools/SagaScript/sagascript analyze --source samples/StarterArena/Scripts --out /tmp/starter_arena_sagascript --json"`
-- `nix-shell --run "SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY=Engine/Managed/SagaScript.RuntimeBridge/obj/Release/net10.0/SagaScript.RuntimeBridge.dll Tools/SagaScript/sagascript compile --source samples/StarterArena/Scripts --out /tmp/starter_arena_sagascript/Manifests --artifacts-out /tmp/starter_arena_sagascript/Artifacts/Scripts --project-root samples/StarterArena --assembly-name StarterArenaScripts --diagnostics /tmp/starter_arena_sagascript/sagascript_diagnostics.json --json"`
+- `nix-shell --run "dotnet build Engine/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.csproj -c Release"`
+- `nix-shell --run "SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY=Engine/Managed/SagaScript.RuntimeBridge/bin/Release/net10.0/SagaScript.RuntimeBridge.dll Tools/SagaScript/sagascript compile --source samples/StarterArena/Scripts --out /tmp/starter_arena_sagascript/Manifests --artifacts-out /tmp/starter_arena_sagascript/Artifacts/Scripts --project-root samples/StarterArena --assembly-name StarterArenaScripts --diagnostics /tmp/starter_arena_sagascript/sagascript_diagnostics.json --json"`
 - `Tools/Forge/bin/forge nix build --target SagaRuntime --build build/RelWithDebInfo-0.0.9 --jobs=1`
-- `build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --smoke-report-out /tmp/starter_arena_script_binding_smoke.json --smoke-frames 30 --fixed-dt 0.016`
-- `build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --smoke-report-out /tmp/starter_arena_script_binding_incomplete_smoke.json --smoke-frames 1 --fixed-dt 0.016`
-- `build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/missing_script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --smoke-report-out /tmp/starter_arena_script_binding_missing_smoke.json --smoke-frames 1 --fixed-dt 0.016`
+- `nix-shell --run "build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --invoke-starter-arena-script --smoke-report-out /tmp/starter_arena_script_invocation_smoke.json --smoke-frames 30 --fixed-dt 0.016"`
+- `nix-shell --run "build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --invoke-starter-arena-script --smoke-report-out /tmp/starter_arena_script_invocation_incomplete_smoke.json --smoke-frames 1 --fixed-dt 0.016"`
+- `nix-shell --run "build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/missing_script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --invoke-starter-arena-script --smoke-report-out /tmp/starter_arena_script_invocation_missing_smoke.json --smoke-frames 1 --fixed-dt 0.016"`
 - `git diff --check`
 - `scripts/scan-claims README.md docs samples Tools`
 - `scripts/verify-quick`
@@ -55,20 +60,30 @@ Accepted boundary:
 
 ## Command Results
 
-`sagaproject validate` passed with no diagnostics. `sagascript analyze` exited
-`0` and wrote `/tmp/starter_arena_sagascript/analysis_report.json`; it reported
-one non-blocking warning that no `[SagaBehavior]` metadata exists. `sagascript
-compile` exited `0`, wrote script manifests, copied the runtime bridge, and
-emitted `StarterArenaScripts.scripts.dll`,
+The managed runtime bridge build passed. `sagascript compile` exited `0`,
+wrote script manifests, copied the updated runtime bridge, and emitted
+`StarterArenaScripts.scripts.dll`,
 `StarterArenaScripts.scripts.pdb`, and
-`StarterArenaScripts.scripts.runtimeconfig.json` with no blocking diagnostics.
-The metadata-backed StarterArena runtime smoke exited `0` and wrote
-`/tmp/starter_arena_script_binding_smoke.json` with
-`scriptBinding.status: Passed`, script id `script://starter-arena/game-rules`,
-type `StarterArena.Scripts.GameRules`, callable method `AddPickupScore`,
-target framework `net10.0`, and `execution: NotExecuted`. Negative smoke checks
-for incomplete and missing script metadata failed deterministically and wrote
-failed reports.
+`StarterArenaScripts.scripts.runtimeconfig.json`.
+
+The raw runtime invocation command outside the dev shell failed with
+`Script.Host.HostFxrMissing`; this is recorded as an environment requirement,
+not an implementation result. The same `SagaRuntime` invocation under
+`nix-shell` exited `0` and wrote
+`/tmp/starter_arena_script_invocation_smoke.json` with:
+
+- `status: Passed`;
+- `scriptBinding.status: Passed`;
+- `scriptBinding.execution: Invoked`;
+- `scriptInvocation.status: Passed`;
+- `scriptInvocation.method: AddPickupScore`;
+- `scriptInvocation.arguments: [10, 5]`;
+- `scriptInvocation.result: 15`;
+- empty diagnostics.
+
+Negative smoke checks for incomplete and missing script metadata failed
+deterministically before invocation and wrote failed reports with
+`scriptBinding.execution: NotExecuted`.
 
 ## Required Files
 
@@ -83,8 +98,7 @@ failed reports.
 - [x] Public docs do not overclaim.
 - [x] Known limitations are documented.
 - [x] No placeholder is presented as shipped behavior.
-- [x] Runtime execution remains explicitly unsupported and reported as
-  `NotExecuted`.
+- [x] Only `AddPickupScore(10, 5)` is invoked.
 - [x] Unsupported behavior is not hidden.
 
 ## Known Limitations
@@ -97,6 +111,8 @@ Implemented-Unverified
 
 ## Decision Reason
 
-The focused StarterArena SagaScript analyze and compile smoke passes locally,
-and SagaRuntime consumes the emitted script metadata in the StarterArena smoke
-report. Runtime script execution and maintainer verification remain absent.
+The focused StarterArena SagaScript compile smoke passes locally, SagaRuntime
+consumes emitted script metadata, and the dev-shell runtime smoke invokes one
+known pure C# method with the expected result. Arbitrary script invocation,
+C# lifecycle execution, Visual Blocks, editor workflow, server authority,
+package output, distribution output, and maintainer verification remain absent.

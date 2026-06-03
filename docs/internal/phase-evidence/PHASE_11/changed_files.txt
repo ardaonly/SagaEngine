@@ -1,4 +1,8 @@
 Apps/Runtime/main.cpp
+Engine/Managed/SagaScript.RuntimeBridge/NativeBridge.cs
+Engine/Public/SagaEngine/Scripting/CSharpScriptHost.hpp
+Engine/Public/SagaEngine/Scripting/LowLevel/ISagaScriptHost.hpp
+Engine/Private/SagaEngine/Scripting/CSharpScriptHost.cpp
 samples/StarterArena/Scripts/GameRules.cs
 samples/StarterArena/StarterArena.sagaproj
 samples/StarterArena/README.md

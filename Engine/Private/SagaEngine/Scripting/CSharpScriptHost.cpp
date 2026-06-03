@@ -65,6 +65,8 @@ enum class BridgeStatus : int
     UiNamedActionMethodMissing = 9,
     UiNamedActionInvalidSignature = 10,
     UiNamedActionReturnedFalse = 11,
+    Int32BinaryMethodMissing = 12,
+    Int32BinaryInvalidSignature = 13,
 };
 
 enum class NativeCallbackStatus : int
@@ -116,6 +118,15 @@ using BridgeInvokeUiNamedActionFn =
         const char*,
         int,
         const char*,
+        char*,
+        int);
+using BridgeInvokeInt32BinaryMethodFn =
+    int (*)(
+        std::int64_t,
+        const char*,
+        std::int32_t,
+        std::int32_t,
+        std::int32_t*,
         char*,
         int);
 using BridgeReleasePackageFn = int (*)(std::int64_t);
@@ -266,12 +277,16 @@ using BridgeReleasePackageFn = int (*)(std::int64_t);
         return ScriptHostDiagnostics::UiNamedActionInvalidSignature;
     case BridgeStatus::UiNamedActionReturnedFalse:
         return ScriptHostDiagnostics::UiNamedActionReturnedFalse;
+    case BridgeStatus::Int32BinaryMethodMissing:
+        return ScriptHostDiagnostics::Int32BinaryMethodMissing;
+    case BridgeStatus::Int32BinaryInvalidSignature:
+        return ScriptHostDiagnostics::Int32BinaryMethodInvalidSignature;
     case BridgeStatus::AssemblyLoadFailed:
         return ScriptHostDiagnostics::AssemblyLoadFailed;
     case BridgeStatus::InvalidArgument:
         return operation == "create"
             ? ScriptHostDiagnostics::InvalidPackageHandle
-            : (operation == "uiNamedAction"
+            : (operation == "uiNamedAction" || operation == "int32Binary"
                    ? ScriptHostDiagnostics::InvalidInstanceHandle
                    : ScriptHostDiagnostics::LifecycleFailed);
     case BridgeStatus::Ok:
@@ -326,6 +341,14 @@ using BridgeReleasePackageFn = int (*)(std::int64_t);
     if (code == ScriptHostDiagnostics::UiNamedActionReturnedFalse)
     {
         return "UI named action rejected";
+    }
+    if (code == ScriptHostDiagnostics::Int32BinaryMethodMissing)
+    {
+        return "Int32 binary method not found";
+    }
+    if (code == ScriptHostDiagnostics::Int32BinaryMethodInvalidSignature)
+    {
+        return "Invalid Int32 binary method signature";
     }
 
     return "C# script host failure";
@@ -777,6 +800,61 @@ struct CSharpScriptHost::Impl
         diagnostic.metadata["actionId"] = invocation.context.actionId;
         diagnostic.metadata["screenId"] = invocation.context.screenId;
         diagnostic.metadata["elementId"] = invocation.context.elementId;
+        diagnostic.metadata["bridgeError"] = BridgeError(error);
+        result.diagnostics.push_back(std::move(diagnostic));
+        for (auto& pending : instanceIterator->second.pendingDiagnostics)
+        {
+            result.diagnostics.push_back(std::move(pending));
+        }
+        instanceIterator->second.pendingDiagnostics.clear();
+        return result;
+    }
+
+    [[nodiscard]] CSharpInt32BinaryMethodInvocationResult InvokeInt32BinaryMethod(
+        const CSharpInt32BinaryMethodInvocation& invocation)
+    {
+        CSharpInt32BinaryMethodInvocationResult result;
+        const auto instanceIterator = instances.find(invocation.instance.value);
+        if (instanceIterator == instances.end())
+        {
+            result.diagnostics.push_back(MakeDiagnostic(
+                ScriptHostDiagnostics::InvalidInstanceHandle,
+                "Invalid script instance handle",
+                "C# script host cannot invoke an Int32 binary method on an unknown instance."));
+            return result;
+        }
+
+        instanceIterator->second.pendingDiagnostics.clear();
+        std::array<char, kBridgeErrorBufferSize> error{};
+        std::int32_t value = 0;
+        const auto status = static_cast<BridgeStatus>(invokeInt32BinaryMethod(
+            instanceIterator->second.bridgeInstanceHandle,
+            invocation.methodName.c_str(),
+            invocation.left,
+            invocation.right,
+            &value,
+            error.data(),
+            static_cast<int>(error.size())));
+        if (status == BridgeStatus::Ok)
+        {
+            result.value = value;
+            result.diagnostics =
+                std::move(instanceIterator->second.pendingDiagnostics);
+            result.succeeded = result.diagnostics.empty();
+            return result;
+        }
+
+        const auto code = CodeForBridgeStatus(status, "int32Binary");
+        auto diagnostic = MakeDiagnostic(
+            code,
+            TitleForDiagnostic(code),
+            "C# script host failed while invoking an Int32 binary method.");
+        diagnostic.scriptId = instanceIterator->second.scriptId;
+        diagnostic.metadata["classId"] = instanceIterator->second.classId;
+        diagnostic.metadata["scriptId"] = instanceIterator->second.scriptId;
+        diagnostic.metadata["methodName"] = invocation.methodName;
+        diagnostic.metadata["left"] = std::to_string(invocation.left);
+        diagnostic.metadata["right"] = std::to_string(invocation.right);
         diagnostic.metadata["bridgeError"] = BridgeError(error);
         result.diagnostics.push_back(std::move(diagnostic));
         for (auto& pending : instanceIterator->second.pendingDiagnostics)
@@ -1356,12 +1434,15 @@ struct CSharpScriptHost::Impl
         static BridgeCreateInstanceFn sharedCreateInstance = nullptr;
         static BridgeInvokeLifecycleFn sharedInvokeLifecycle = nullptr;
         static BridgeInvokeUiNamedActionFn sharedInvokeUiNamedAction = nullptr;
+        static BridgeInvokeInt32BinaryMethodFn sharedInvokeInt32BinaryMethod =
+            nullptr;
         static BridgeReleasePackageFn sharedReleasePackage = nullptr;
 
         if (sharedLoadAssembly != nullptr &&
             sharedCreateInstance != nullptr &&
             sharedInvokeLifecycle != nullptr &&
             sharedInvokeUiNamedAction != nullptr &&
+            sharedInvokeInt32BinaryMethod != nullptr &&
             sharedReleasePackage != nullptr)
         {
             loadAssemblyAndGetFunctionPointer =
@@ -1370,6 +1451,7 @@ struct CSharpScriptHost::Impl
             createInstance = sharedCreateInstance;
             invokeLifecycle = sharedInvokeLifecycle;
             invokeUiNamedAction = sharedInvokeUiNamedAction;
+            invokeInt32BinaryMethod = sharedInvokeInt32BinaryMethod;
             releasePackage = sharedReleasePackage;
             return true;
         }
@@ -1457,6 +1539,7 @@ struct CSharpScriptHost::Impl
         sharedCreateInstance = createInstance;
         sharedInvokeLifecycle = invokeLifecycle;
         sharedInvokeUiNamedAction = invokeUiNamedAction;
+        sharedInvokeInt32BinaryMethod = invokeInt32BinaryMethod;
         sharedReleasePackage = releasePackage;
         return true;
     }
@@ -1538,6 +1621,10 @@ struct CSharpScriptHost::Impl
                    "InvokeUiNamedAction",
                    invokeUiNamedAction,
                    diagnostics) &&
+               LoadBridgeFunction(
+                   "InvokeInt32BinaryMethod",
+                   invokeInt32BinaryMethod,
+                   diagnostics) &&
                LoadBridgeFunction("ReleasePackage", releasePackage, diagnostics);
     }
 
@@ -1583,6 +1670,7 @@ struct CSharpScriptHost::Impl
     BridgeCreateInstanceFn createInstance = nullptr;
     BridgeInvokeLifecycleFn invokeLifecycle = nullptr;
     BridgeInvokeUiNamedActionFn invokeUiNamedAction = nullptr;
+    BridgeInvokeInt32BinaryMethodFn invokeInt32BinaryMethod = nullptr;
     BridgeReleasePackageFn releasePackage = nullptr;
     std::uint64_t nextPackageHandle = 1;
     std::uint64_t nextInstanceHandle = 1;
@@ -1627,6 +1715,12 @@ ScriptHostOperationResult CSharpScriptHost::InvokeUiNamedAction(
     const ScriptUiNamedActionInvocation& invocation)
 {
     return impl_->InvokeUiNamedAction(invocation);
+}
+
+CSharpInt32BinaryMethodInvocationResult CSharpScriptHost::InvokeInt32BinaryMethod(
+    const CSharpInt32BinaryMethodInvocation& invocation)
+{
+    return impl_->InvokeInt32BinaryMethod(invocation);
 }
 
 } // namespace SagaEngine::Scripting

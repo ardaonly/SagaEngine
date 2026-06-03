@@ -4,64 +4,62 @@ git status --short
 Result: passed. Worktree was clean before implementation.
 
 nix-shell --run "Tools/SagaProjectKit/sagaproject validate --project samples/StarterArena/StarterArena.sagaproj --out /tmp/starter_arena_validate.json"
-Result: passed. The report status was `Passed` with no diagnostics.
+Result: passed. The validation command exited `0`.
 
 nix-shell --run "Tools/SagaScript/sagascript analyze --source samples/StarterArena/Scripts --out /tmp/starter_arena_sagascript --json"
-Result: passed. The command exited `0` and wrote
-`/tmp/starter_arena_sagascript/analysis_report.json` plus
-`/tmp/starter_arena_sagascript/sagascript_diagnostics.json`. The analysis
-summary had no blocking diagnostics and one warning:
+Result: passed. The command exited `0` and reported one non-blocking warning,
 `Script.Metadata.MissingBehavior`.
 
-nix-shell --run "SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY=Engine/Managed/SagaScript.RuntimeBridge/obj/Release/net10.0/SagaScript.RuntimeBridge.dll Tools/SagaScript/sagascript compile --source samples/StarterArena/Scripts --out /tmp/starter_arena_sagascript/Manifests --artifacts-out /tmp/starter_arena_sagascript/Artifacts/Scripts --project-root samples/StarterArena --assembly-name StarterArenaScripts --diagnostics /tmp/starter_arena_sagascript/sagascript_diagnostics.json --json"
-Result: passed. The command exited `0`, emitted one script artifact, and wrote
-manifests plus `StarterArenaScripts.scripts.dll`,
-`StarterArenaScripts.scripts.pdb`, and
-`StarterArenaScripts.scripts.runtimeconfig.json`.
-
-/tmp/starter_arena_sagascript/Manifests/script_bindings.json
-Result: binding id
-`script://starter-arena/game-rules#StarterArena.Scripts.GameRules.AddPickupScore`,
-authority `SharedPure`, supported `int` parameters, supported `int` return, and
-no blocking diagnostics.
+nix-shell --run "dotnet build Engine/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.csproj -c Release"
+Result: passed. The managed bridge built for `net10.0` with no warnings or
+errors.
 
 Tools/Forge/bin/forge nix build --target SagaRuntime --build build/RelWithDebInfo-0.0.9 --jobs=1
-Result: passed. No CMake or dependency changes were needed.
+Result: passed. `SagaRuntime` rebuilt after the managed bridge and native host
+changes.
 
-build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --smoke-report-out /tmp/starter_arena_script_binding_smoke.json --smoke-frames 30 --fixed-dt 0.016
+nix-shell --run "SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY=Engine/Managed/SagaScript.RuntimeBridge/bin/Release/net10.0/SagaScript.RuntimeBridge.dll Tools/SagaScript/sagascript compile --source samples/StarterArena/Scripts --out /tmp/starter_arena_sagascript/Manifests --artifacts-out /tmp/starter_arena_sagascript/Artifacts/Scripts --project-root samples/StarterArena --assembly-name StarterArenaScripts --diagnostics /tmp/starter_arena_sagascript/sagascript_diagnostics.json --json"
+Result: passed. The command exited `0`, emitted one script artifact, and wrote
+manifests plus `StarterArenaScripts.scripts.dll`,
+`StarterArenaScripts.scripts.pdb`, `StarterArenaScripts.scripts.runtimeconfig.json`,
+and `SagaScript.RuntimeBridge.dll`.
+
+build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --invoke-starter-arena-script --smoke-report-out /tmp/starter_arena_script_invocation_smoke.json --smoke-frames 30 --fixed-dt 0.016
+Result: failed outside the dev shell with `Script.Host.HostFxrMissing` because
+`hostfxr` was not discoverable in the raw environment.
+
+nix-shell --run "build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --invoke-starter-arena-script --smoke-report-out /tmp/starter_arena_script_invocation_smoke.json --smoke-frames 30 --fixed-dt 0.016"
 Result: passed. The command exited `0` and wrote
-`/tmp/starter_arena_script_binding_smoke.json`.
+`/tmp/starter_arena_script_invocation_smoke.json`.
 
-/tmp/starter_arena_script_binding_smoke.json
-Result: status `Passed`, script binding status `Passed`, script id
-`script://starter-arena/game-rules`, type `StarterArena.Scripts.GameRules`,
-callable method `AddPickupScore`, target framework `net10.0`, artifact id
-`artifact://scripts/starter-arena/game-rules`, and execution `NotExecuted`.
+/tmp/starter_arena_script_invocation_smoke.json
+Result: status `Passed`, script binding status `Passed`, execution `Invoked`,
+method `AddPickupScore`, arguments `[10, 5]`, expected result `15`, actual
+result `15`, and no diagnostics.
 
-build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --smoke-report-out /tmp/starter_arena_script_binding_incomplete_smoke.json --smoke-frames 1 --fixed-dt 0.016
-Result: failed as expected with
-`StarterArena.ScriptBinding.InputIncomplete` and wrote a failed smoke report.
+nix-shell --run "build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --invoke-starter-arena-script --smoke-report-out /tmp/starter_arena_script_invocation_incomplete_smoke.json --smoke-frames 1 --fixed-dt 0.016"
+Result: failed as expected with `StarterArena.ScriptBinding.InputIncomplete`
+and `StarterArena.ScriptInvocation.MetadataRequired`; the report recorded
+`scriptBinding.execution: NotExecuted`.
 
-build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/missing_script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --smoke-report-out /tmp/starter_arena_script_binding_missing_smoke.json --smoke-frames 1 --fixed-dt 0.016
-Result: failed as expected with
-`StarterArena.ScriptBinding.Manifest.OpenFailed` and wrote a failed smoke
-report.
+nix-shell --run "build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/missing_script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --invoke-starter-arena-script --smoke-report-out /tmp/starter_arena_script_invocation_missing_smoke.json --smoke-frames 1 --fixed-dt 0.016"
+Result: failed as expected with `StarterArena.ScriptBinding.Manifest.OpenFailed`
+and `StarterArena.ScriptInvocation.MetadataRequired`.
 
-No Engine, Editor, Server, Visual Blocks, package/distribution script, SDE, or
-SagaScript tool files were modified. SagaRuntime did not load the C# assembly or
-invoke `AddPickupScore`.
+No Tools/SagaScript, Visual Blocks, editor, server multiplayer,
+package/distribution script, SDE, or SagaLaunchLab files were modified.
 
 git diff --check
 Result: passed.
 
 scripts/scan-claims README.md docs samples Tools
-Result: passed.
+Result: passed. No unsupported public claim text was found.
 
 scripts/verify-quick
 Result: passed.
 
 scripts/verify-local --allow-dirty
-Result: passed. Pre-commit mode allowed the intentionally dirty worktree.
+Result: passed.
 
 scripts/verify-phase 11
 Result: passed. No phase was marked Verified.
