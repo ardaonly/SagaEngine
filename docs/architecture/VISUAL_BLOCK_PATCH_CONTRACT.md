@@ -4,6 +4,7 @@
 
 Phase 15 status is `Implemented-Unverified`.
 Phase 16 status is `Implemented-Unverified`.
+Phase 17 status is `Implemented-Unverified`.
 
 This document defines the first source-preserving block operation contract for
 SagaScript read-only Visual Blocks projection artifacts. Phase 15 is
@@ -169,6 +170,25 @@ It does not overwrite the original source file.
   previews, opaque regions, and unsupported diagnostic regions.
 - `apply-block-edit` verifies that only the target byte span changed in the
   patched copy.
+
+## CLI Two-Way Authoring Proof
+
+Phase 17 composes existing SagaScript commands as a test-level authoring loop:
+
+```txt
+C# source
+-> compatibility-profile
+-> project-blocks
+-> plan-block-edit
+-> apply-block-edit
+-> analyze patched copied source
+-> compile patched copied source
+```
+
+The proof keeps C# as canonical source, leaves the original file unchanged, and
+uses only a copied output source file for the patched result. It is not a new
+CLI command, editor workflow, in-place edit path, or runtime Visual Blocks
+execution path.
 
 ## Non-Claims
 
