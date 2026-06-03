@@ -30,7 +30,7 @@ or an explicit verification script result accepted by maintainers.
 | 20 | Saga Schema Package Boundary | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_20/` | sde-schema-gate | `-` | Saga schema package boundary is documented without creating a fake schema package tree; maintainer verification is still required. |
 | 21 | Product Shell v1 | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_21/` | shell-gate | `-` | Product Shell workflow contract documents existing launcher/dashboard router boundaries and real CLI proof entry points; maintainer verification is still required. |
 | 22 | Editor Shell v1 | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_22/` | editor-gate | `-` | SagaEditor has a no-UI report-backed StarterArena inspection path for minimum shell workflow evidence; maintainer verification is still required. |
-| 23 | Customizable Editor Profiles | Not Started | `docs/internal/phase-evidence/PHASE_23/` | customization-gate | `-` | `-` |
+| 23 | Customizable Editor Profiles | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_23/` | customization-gate | `-` | SagaEditor inspection reports now include built-in profile/view preset metadata, visibility metadata, and read-only capability flags; maintainer verification is still required. |
 | 24 | Plugin / Extension Surface v1 | Not Started | `docs/internal/phase-evidence/PHASE_24/` | plugin-gate | `-` | `-` |
 | 25 | Local Team Workspace | Not Started | `docs/internal/phase-evidence/PHASE_25/` | collaboration-gate | `-` | `-` |
 | 26 | Semantic Transactions | Not Started | `docs/internal/phase-evidence/PHASE_26/` | transaction-gate | `-` | `-` |

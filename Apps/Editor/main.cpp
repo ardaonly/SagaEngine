@@ -5,6 +5,7 @@
 /// SagaTargets.cmake — no separate WinMain wrapper is needed.
 
 #include "SagaEditor/Host/EditorApp.h"
+#include "SagaEditor/Authoring/EditorShellCustomizationReport.h"
 #include "SagaEditor/Authoring/ProjectBrowserWorkflowView.h"
 #include "SagaEditor/Authoring/TechnicalPreviewProjectView.h"
 #include "SagaEditor/UI/Qt/QtUIFactory.h"
@@ -21,6 +22,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <vector>
 
 namespace
 {
@@ -94,6 +96,19 @@ namespace fs = std::filesystem;
         });
     }
     return output;
+}
+
+void AppendDiagnostics(
+    std::vector<SagaEditor::Authoring::AuthoringDiagnostic>& diagnostics,
+    const std::vector<std::string>& messages)
+{
+    for (const std::string& message : messages)
+    {
+        diagnostics.push_back(SagaEditor::Authoring::AuthoringDiagnostic{
+            "Editor.Customization.UnknownProfile",
+            message,
+            "" });
+    }
 }
 
 [[nodiscard]] QJsonArray PathReferencesJson(
@@ -241,7 +256,7 @@ namespace fs = std::filesystem;
 {
     QJsonArray output;
     output.push_back(
-        "Phase 22 is an editor shell inspection/report workflow, not a full editor UI.");
+        "Phase 22/23 is an editor shell inspection/report workflow, not a full editor UI.");
     output.push_back(
         "No drag/drop editing or in-place C# editing is implemented by this mode.");
     output.push_back(
@@ -254,9 +269,75 @@ namespace fs = std::filesystem;
     return output;
 }
 
+[[nodiscard]] QJsonObject CustomizationCapabilitiesJson(
+    const SagaEditor::Authoring::EditorShellCustomizationCapabilities& capabilities)
+{
+    return QJsonObject{
+        {"canViewProject", capabilities.canViewProject},
+        {"canViewDiagnostics", capabilities.canViewDiagnostics},
+        {"canViewScriptProjection", capabilities.canViewScriptProjection},
+        {"canRunWorkflowCommandReference",
+         capabilities.canRunWorkflowCommandReference},
+        {"canMutateProjectManifest", capabilities.canMutateProjectManifest},
+        {"canEditCSharpInPlace", capabilities.canEditCSharpInPlace},
+        {"canUseVisualBlocksEditorUi", capabilities.canUseVisualBlocksEditorUi},
+        {"canConfigureCollaborationServer",
+         capabilities.canConfigureCollaborationServer},
+        {"canBuildDistribution", capabilities.canBuildDistribution},
+    };
+}
+
+[[nodiscard]] QJsonObject CustomizationJson(
+    const SagaEditor::Authoring::EditorShellCustomizationReport& customization)
+{
+    QJsonArray panels;
+    for (const auto& panel : customization.visiblePanels)
+    {
+        panels.push_back(QJsonObject{
+            {"id", JsonString(panel.id)},
+            {"visible", panel.visible},
+        });
+    }
+
+    QJsonArray workflows;
+    for (const auto& workflow : customization.workflowVisibility)
+    {
+        workflows.push_back(QJsonObject{
+            {"id", JsonString(workflow.id)},
+            {"visible", workflow.visible},
+            {"available", workflow.available},
+            {"reason", JsonString(workflow.reason)},
+        });
+    }
+
+    QJsonArray diagnostics;
+    for (const std::string& diagnostic : customization.diagnostics)
+    {
+        diagnostics.push_back(JsonString(diagnostic));
+    }
+
+    return QJsonObject{
+        {"status", JsonString(customization.status)},
+        {"requestedProfileId", JsonString(customization.requestedProfileId)},
+        {"resolvedProfileId", JsonString(customization.resolvedProfileId)},
+        {"viewPresetId", JsonString(customization.viewPresetId)},
+        {"displayName", JsonString(customization.displayName)},
+        {"layoutPresetId", JsonString(customization.layoutPresetId)},
+        {"shortcutMapId", JsonString(customization.shortcutMapId)},
+        {"personalPreferenceOnly", customization.personalPreferenceOnly},
+        {"sharedProjectTruthMutable", customization.sharedProjectTruthMutable},
+        {"profileSource", JsonString(customization.profileSource)},
+        {"visiblePanels", panels},
+        {"workflowVisibility", workflows},
+        {"capabilities", CustomizationCapabilitiesJson(customization.capabilities)},
+        {"diagnostics", diagnostics},
+    };
+}
+
 [[nodiscard]] int RunProjectInspection(
     const fs::path& inspectProjectPath,
-    const fs::path& reportPath)
+    const fs::path& reportPath,
+    const std::string& requestedProfileId)
 {
     const SagaEditor::Authoring::TechnicalPreviewProjectView project =
         SagaEditor::Authoring::LoadTechnicalPreviewProjectView(
@@ -264,10 +345,16 @@ namespace fs = std::filesystem;
     const SagaEditor::Authoring::ProjectBrowserWorkflowView browser =
         SagaEditor::Authoring::LoadProjectBrowserWorkflowView(
             inspectProjectPath);
+    const SagaEditor::Authoring::EditorShellCustomizationReport customization =
+        SagaEditor::Authoring::BuildEditorShellCustomizationReport(
+            requestedProfileId);
 
     const std::string status = project.ok
         ? (browser.diagnostics.empty() ? "Passed" : "PassedWithLimitations")
         : "Failed";
+    std::vector<SagaEditor::Authoring::AuthoringDiagnostic> diagnostics =
+        browser.diagnostics.empty() ? project.diagnostics : browser.diagnostics;
+    AppendDiagnostics(diagnostics, customization.diagnostics);
 
     QJsonObject report{
         {"schemaVersion", 1},
@@ -292,9 +379,8 @@ namespace fs = std::filesystem;
             {"sections", ProjectBrowserSectionsJson(browser.sections)},
         }},
         {"workflowActions", WorkflowActionsJson(project.manifestPath)},
-        {"diagnostics", DiagnosticsJson(browser.diagnostics.empty()
-            ? project.diagnostics
-            : browser.diagnostics)},
+        {"customization", CustomizationJson(customization)},
+        {"diagnostics", DiagnosticsJson(diagnostics)},
         {"knownLimitations", KnownLimitationsJson()},
     };
 
@@ -455,7 +541,10 @@ int main(int argc, char* argv[])
 
     if (!inspectProjectPath.empty())
     {
-        return RunProjectInspection(inspectProjectPath, editorShellReportPath);
+        return RunProjectInspection(
+            inspectProjectPath,
+            editorShellReportPath,
+            cfg.initialProfileId);
     }
 
     SagaEditor::EditorApp app;

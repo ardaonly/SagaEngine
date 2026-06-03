@@ -1,3 +1,34 @@
 # Phase 23 Commands Log
 
-No phase verification commands have been recorded yet.
+2026-06-04 Europe/Istanbul
+
+PASS
+nix-shell --run "cmake --build build/RelWithDebInfo-0.0.9 --target SagaEditor EditorAuthoringSpineTests --parallel 1"
+
+PASS
+build/RelWithDebInfo-0.0.9/bin/EditorAuthoringSpineTests --gtest_filter='*Customization*:*Profile*:*StarterArena*'
+
+PASS
+build/RelWithDebInfo-0.0.9/bin/SagaEditor --inspect-project samples/StarterArena/StarterArena.sagaproj --profile script_authoring --editor-shell-report /tmp/starter_arena_editor_shell_profile_report.json
+
+PASS
+build/RelWithDebInfo-0.0.9/bin/SagaEditor --inspect-project samples/StarterArena/StarterArena.sagaproj --profile unknown_phase23_profile --editor-shell-report /tmp/starter_arena_editor_shell_unknown_profile_report.json
+
+PASS
+git diff --check
+
+PASS
+scripts/scan-claims README.md docs samples Tools
+
+PASS
+scripts/verify-quick
+
+PASS
+scripts/verify-local --allow-dirty
+
+PASS
+scripts/verify-phase 23
+
+NOTE
+An earlier higher-parallel focused build was interrupted by local machine
+instability. The build was rerun successfully with `--parallel 1`.

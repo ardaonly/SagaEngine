@@ -1,4 +1,5 @@
 #include "SagaEditor/Authoring/DiagnosticsPanelView.h"
+#include "SagaEditor/Authoring/EditorShellCustomizationReport.h"
 #include "SagaEditor/Authoring/ProjectBrowserWorkflowView.h"
 #include "SagaEditor/Authoring/SceneAssetBrowserInventoryView.h"
 #include "SagaEditor/Authoring/ScriptArtifactIndex.h"
@@ -51,6 +52,33 @@ void WriteFile(const fs::path& path, const std::string& text)
     std::ifstream input(path, std::ios::binary);
     return std::string(std::istreambuf_iterator<char>(input),
                        std::istreambuf_iterator<char>());
+}
+
+[[nodiscard]] bool HasVisiblePanel(
+    const EditorShellCustomizationReport& report,
+    const std::string& panelId)
+{
+    return std::any_of(report.visiblePanels.begin(),
+                       report.visiblePanels.end(),
+                       [&](const EditorShellPanelVisibility& panel)
+                       {
+                           return panel.id == panelId && panel.visible;
+                       });
+}
+
+[[nodiscard]] bool HasWorkflowVisibility(
+    const EditorShellCustomizationReport& report,
+    const std::string& workflowId,
+    bool visible)
+{
+    return std::any_of(report.workflowVisibility.begin(),
+                       report.workflowVisibility.end(),
+                       [&](const EditorShellWorkflowVisibility& workflow)
+                       {
+                           return workflow.id == workflowId &&
+                               workflow.visible == visible &&
+                               workflow.available;
+                       });
 }
 
 [[nodiscard]] fs::path WriteProject(const fs::path& root)
@@ -647,6 +675,93 @@ TEST(EditorAuthoringSpineTests, StarterArenaLoadsMinimumEditorShellWorkflowReadO
                                    "Editor.ProjectBrowser.AssetRootMissing";
                            }),
               browser.diagnostics.end());
+}
+
+TEST(EditorAuthoringSpineTests, StarterArenaCustomizationReportUsesTechnicalPreviewDefault)
+{
+    const fs::path manifest = fs::path(SAGA_SOURCE_ROOT) /
+        "samples" / "StarterArena" / "StarterArena.sagaproj";
+    const auto beforeWriteTime = fs::last_write_time(manifest);
+
+    EditorShellCustomizationReport report =
+        BuildEditorShellCustomizationReport("");
+
+    EXPECT_EQ(fs::last_write_time(manifest), beforeWriteTime);
+    EXPECT_EQ(report.status, "Ready");
+    EXPECT_EQ(report.requestedProfileId, "technical_preview");
+    EXPECT_EQ(report.resolvedProfileId, "saga.profile.basic");
+    EXPECT_EQ(report.viewPresetId, "technical_preview");
+    EXPECT_EQ(report.layoutPresetId, "basic");
+    EXPECT_EQ(report.shortcutMapId, "saga.shortcuts.basic");
+    EXPECT_TRUE(report.personalPreferenceOnly);
+    EXPECT_FALSE(report.sharedProjectTruthMutable);
+    EXPECT_EQ(report.profileSource, "builtin-report-metadata");
+    EXPECT_TRUE(HasVisiblePanel(report, "saga.panel.production_dashboard"));
+    EXPECT_TRUE(HasWorkflowVisibility(report, "validate-project", true));
+    EXPECT_TRUE(HasWorkflowVisibility(report, "runtime-smoke", true));
+    EXPECT_TRUE(HasWorkflowVisibility(report, "server-smoke", true));
+    EXPECT_TRUE(HasWorkflowVisibility(report, "package-preflight", true));
+    EXPECT_TRUE(HasWorkflowVisibility(report, "visual-blocks-cli-chain", true));
+    EXPECT_TRUE(report.capabilities.canViewProject);
+    EXPECT_TRUE(report.capabilities.canViewDiagnostics);
+    EXPECT_TRUE(report.capabilities.canViewScriptProjection);
+    EXPECT_TRUE(report.capabilities.canRunWorkflowCommandReference);
+    EXPECT_FALSE(report.capabilities.canMutateProjectManifest);
+    EXPECT_FALSE(report.capabilities.canEditCSharpInPlace);
+    EXPECT_FALSE(report.capabilities.canUseVisualBlocksEditorUi);
+    EXPECT_FALSE(report.capabilities.canConfigureCollaborationServer);
+    EXPECT_FALSE(report.capabilities.canBuildDistribution);
+}
+
+TEST(EditorAuthoringSpineTests, StarterArenaCustomizationReportUsesScriptAuthoringAlias)
+{
+    const fs::path manifest = fs::path(SAGA_SOURCE_ROOT) /
+        "samples" / "StarterArena" / "StarterArena.sagaproj";
+    const auto beforeWriteTime = fs::last_write_time(manifest);
+
+    EditorShellCustomizationReport report =
+        BuildEditorShellCustomizationReport("script_authoring");
+
+    EXPECT_EQ(fs::last_write_time(manifest), beforeWriteTime);
+    EXPECT_EQ(report.status, "Ready");
+    EXPECT_EQ(report.requestedProfileId, "script_authoring");
+    EXPECT_EQ(report.resolvedProfileId, "saga.profile.node_editor");
+    EXPECT_EQ(report.viewPresetId, "script_authoring");
+    EXPECT_EQ(report.layoutPresetId, "node_editor");
+    EXPECT_EQ(report.shortcutMapId, "saga.shortcuts.node_editor");
+    EXPECT_TRUE(HasVisiblePanel(report, "saga.panel.graph"));
+    EXPECT_TRUE(HasWorkflowVisibility(report, "validate-project", true));
+    EXPECT_TRUE(HasWorkflowVisibility(report, "sagascript-analyze", true));
+    EXPECT_TRUE(HasWorkflowVisibility(report, "sagascript-compile", true));
+    EXPECT_TRUE(HasWorkflowVisibility(report, "visual-blocks-cli-chain", true));
+    EXPECT_TRUE(HasWorkflowVisibility(report, "runtime-smoke", false));
+    EXPECT_TRUE(HasWorkflowVisibility(report, "server-smoke", false));
+    EXPECT_TRUE(report.capabilities.canViewProject);
+    EXPECT_TRUE(report.capabilities.canViewDiagnostics);
+    EXPECT_TRUE(report.capabilities.canViewScriptProjection);
+    EXPECT_FALSE(report.capabilities.canMutateProjectManifest);
+    EXPECT_FALSE(report.capabilities.canEditCSharpInPlace);
+    EXPECT_FALSE(report.capabilities.canUseVisualBlocksEditorUi);
+    EXPECT_FALSE(report.capabilities.canConfigureCollaborationServer);
+    EXPECT_FALSE(report.capabilities.canBuildDistribution);
+}
+
+TEST(EditorAuthoringSpineTests, CustomizationReportUnknownProfileFallsBackReadOnly)
+{
+    EditorShellCustomizationReport report =
+        BuildEditorShellCustomizationReport("missing_profile");
+
+    EXPECT_EQ(report.status, "UnknownProfile");
+    EXPECT_EQ(report.requestedProfileId, "missing_profile");
+    EXPECT_EQ(report.resolvedProfileId, "saga.profile.basic");
+    EXPECT_EQ(report.viewPresetId, "technical_preview");
+    ASSERT_EQ(report.diagnostics.size(), 1u);
+    EXPECT_NE(report.diagnostics[0].find("missing_profile"), std::string::npos);
+    EXPECT_FALSE(report.capabilities.canMutateProjectManifest);
+    EXPECT_FALSE(report.capabilities.canEditCSharpInPlace);
+    EXPECT_FALSE(report.capabilities.canUseVisualBlocksEditorUi);
+    EXPECT_FALSE(report.capabilities.canConfigureCollaborationServer);
+    EXPECT_FALSE(report.capabilities.canBuildDistribution);
 }
 
 TEST(EditorAuthoringSpineTests, BehaviorInspectorConsumesAllScriptEvidence)

@@ -1,6 +1,7 @@
 # Saga Editor Shell Minimum Workflow
 
-Phase 22 status is `Implemented-Unverified`.
+Phase 22 status is `Implemented-Unverified`. Phase 23 extends this report path
+with profile/view preset customization metadata.
 
 The Saga Editor Shell minimum workflow is a report-backed inspection path over
 existing project and tool evidence. It is not a full editor workflow.
@@ -43,14 +44,16 @@ build/RelWithDebInfo-0.0.9/bin/SagaEditor --inspect-project samples/StarterArena
 ```
 
 The report contains project identity, editor read-model status, project browser
-sections, workflow action command/report references, diagnostics, and known
-limitations. The mode does not run the tools; it records the existing proof
-commands and whether their expected reports are present.
+sections, workflow action command/report references, customization metadata,
+diagnostics, and known limitations. The mode does not run the tools; it records
+the existing proof commands and whether their expected reports are present.
 
 ## Boundary
 
 Product Shell routes workflows. SagaEditor owns future project inspection and
 editing views. Phase 22 only provides an editor-shell inspection/report proof.
+Phase 23 only adds report-level profile/view preset metadata and read-only
+capability flags.
 
 CLI tools remain the source of truth for project validation, runtime smoke,
 SagaScript, CLI-only Visual Blocks evidence, server smoke, and package
@@ -63,10 +66,13 @@ Early customization remains limited to:
 
 - view and profile presets;
 - panel and workflow visibility metadata;
-- personal layout later;
+- read-only capability reporting;
+- personal editor preferences later;
 - strict shared project truth.
 
-This phase does not claim maximum customization or completed profile editing.
+See `SAGA_EDITOR_CUSTOMIZATION_MODEL.md` for the Phase 23 report schema and
+non-claims. This phase does not claim maximum customization or completed
+profile editing.
 
 ## Non-Claims
 
