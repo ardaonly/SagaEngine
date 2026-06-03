@@ -1,6 +1,7 @@
 # Saga Product Shell Workflow Contract
 
-Phase 21 status is `Implemented-Unverified`.
+Phase 21 status is `Implemented-Unverified`. Phase 24 adds a narrow no-UI
+Product Shell workflow smoke report.
 
 The Saga Product Shell is a:
 
@@ -50,6 +51,17 @@ The repository already contains an `Apps/Saga` product shell boundary:
 
 `Apps/Editor` remains the editor launcher. `Apps/EditorLab` remains a scenario
 and development shell, not the Product Shell workflow dashboard.
+
+## Workflow Smoke
+
+Phase 24 exposes the first Product Shell workflow smoke as:
+
+
+
+The report contains project metadata, selected profile, workflow step command
+references, expected report paths, diagnostics, known limitations, non-claims,
+and `verified: false`. It does not execute the referenced workflow tools.
+Missing reports and package preflight limitations remain visible.
 
 ## Workflow Contract
 
@@ -187,9 +199,12 @@ or implemented profile editing.
 ## Known Limitations
 
 - Phase 21 is a docs/evidence-only workflow contract.
-- No Product Shell dashboard workflow is implemented by this phase.
+- Phase 24 is a no-UI Product Shell workflow smoke report.
+- No Product Shell dashboard workflow UI is implemented by this phase.
 - No UI wiring is added for validation, smoke, scripting, blocks, diagnostics,
   or package preflight.
+- Workflow smoke command entries are references and are not executed by the
+  report.
 - StarterArena has no launch profiles in its project manifest.
 - Visual Blocks evidence remains CLI-only.
 - Package preflight is not package or distribution readiness.
