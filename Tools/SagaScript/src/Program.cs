@@ -291,6 +291,7 @@ internal static class Program
                     diagnostics);
                 break;
             case "project-blocks":
+                var compatibilityProfile = SagaWeaverArtifacts.BuildCompatibilityProfile(sourceFiles);
                 ManifestWriter.WriteJson(
                     Path.Combine(outputDirectory, "projection_report.json"),
                     SagaWeaverArtifacts.BuildProjection(artifacts));
@@ -301,8 +302,15 @@ internal static class Program
                     Path.Combine(outputDirectory, "node_metadata.json"),
                     SagaWeaverArtifacts.BuildNodeMetadata(artifacts));
                 ManifestWriter.WriteJson(
+                    Path.Combine(outputDirectory, "visual_blocks_projection_v1.json"),
+                    SagaWeaverArtifacts.BuildVisualBlocksProjection(compatibilityProfile));
+                ManifestWriter.WriteJson(
                     Path.Combine(outputDirectory, "sagascript_diagnostics.json"),
                     diagnostics);
+                if (compatibilityProfile.Status != "Passed")
+                {
+                    exitCode = 1;
+                }
                 break;
             default:
                 throw new InvalidOperationException($"Unknown command '{command}'.");

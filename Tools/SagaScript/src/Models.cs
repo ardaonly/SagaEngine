@@ -407,6 +407,48 @@ internal sealed record CompatibilityProfileReport
     public IReadOnlyList<SagaDiagnostic> Diagnostics { get; init; } = Array.Empty<SagaDiagnostic>();
 }
 
+internal sealed record VisualBlocksProjectionReport
+{
+    public int SchemaVersion { get; init; } = 1;
+    public string Tool { get; init; } = ToolInfo.Name;
+    public string Command { get; init; } = "project-blocks";
+    public string ProjectionStatus { get; init; } = "Passed";
+    public string SourcePreservation { get; init; } = "SourceNotMutated";
+    public IReadOnlyList<SourceMapFile> SourceFiles { get; init; } = Array.Empty<SourceMapFile>();
+    public IReadOnlyList<VisualBlockEntry> Blocks { get; init; } = Array.Empty<VisualBlockEntry>();
+    public IReadOnlyList<VisualOpaqueRegionEntry> OpaqueRegions { get; init; } = Array.Empty<VisualOpaqueRegionEntry>();
+    public IReadOnlyList<SagaDiagnostic> Diagnostics { get; init; } = Array.Empty<SagaDiagnostic>();
+    public IReadOnlyList<string> NonClaims { get; init; } = Array.Empty<string>();
+}
+
+internal sealed record VisualBlockEntry
+{
+    public string BlockId { get; init; } = "";
+    public string BlockKind { get; init; } = "";
+    public string DisplayName { get; init; } = "";
+    public string Classification { get; init; } = "";
+    public bool Editable { get; init; }
+    public string SourceFile { get; init; } = "";
+    public SourceSpan? SourceSpan { get; init; }
+    public string SourceHash { get; init; } = "";
+    public IReadOnlyList<string> Children { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<SagaDiagnostic> Diagnostics { get; init; } = Array.Empty<SagaDiagnostic>();
+}
+
+internal sealed record VisualOpaqueRegionEntry
+{
+    public string BlockId { get; init; } = "";
+    public string BlockKind { get; init; } = "OpaqueSourceRegionBlock";
+    public string DisplayName { get; init; } = "";
+    public string Classification { get; init; } = "";
+    public bool Editable { get; init; }
+    public string SourceFile { get; init; } = "";
+    public SourceSpan? SourceSpan { get; init; }
+    public string SourceHash { get; init; } = "";
+    public string Reason { get; init; } = "";
+    public IReadOnlyList<SagaDiagnostic> Diagnostics { get; init; } = Array.Empty<SagaDiagnostic>();
+}
+
 internal sealed record CheckedScriptArtifact
 {
     public string Kind { get; init; } = "";

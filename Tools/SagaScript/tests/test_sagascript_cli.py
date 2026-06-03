@@ -161,6 +161,19 @@ def run_compatibility_profile(source: Path, out_dir: Path) -> tuple[subprocess.C
     return result, report
 
 
+def run_project_blocks(source: Path, out_dir: Path) -> tuple[subprocess.CompletedProcess[str], dict]:
+    result = run_cli("project-blocks", "--source", str(source), "--out", str(out_dir), "--json")
+    report_path = out_dir / "visual_blocks_projection_v1.json"
+    report = json.loads(report_path.read_text(encoding="utf-8")) if report_path.exists() else {}
+    return result, report
+
+
+def assert_visual_blocks_are_read_only(report: dict) -> None:
+    assert report["blocks"]
+    assert all(block["editable"] is False for block in report["blocks"])
+    assert all(region["editable"] is False for region in report["opaqueRegions"])
+
+
 def source_map_node(source_map: dict, *, kind: str, literal_value: str | None = None, display_name: str | None = None) -> dict:
     for behavior in source_map["behaviors"]:
         for node in behavior["nodes"]:
@@ -797,6 +810,70 @@ def test_csharp_blocks_unsupported_fixture_fails_with_diagnostics() -> None:
         assert report["status"] == "Failed"
         assert any(construct["classification"] == "Invalid" for construct in report["constructs"])
         assert any(construct["kind"] == "UnsupportedConstruct" for construct in report["constructs"])
+        assert any(diagnostic["severity"] == "Error" for diagnostic in report["diagnostics"])
+
+
+def test_readonly_visual_blocks_projection_projectable_fixture() -> None:
+    fixture = CSHARP_BLOCKS_FIXTURES / "projectable" / "GameRulesProjectable.cs"
+    before = fixture.read_bytes()
+    with tempfile.TemporaryDirectory() as tmp:
+        result, report = run_project_blocks(fixture, Path(tmp) / "out")
+
+        assert result.returncode == 0, result.stderr + result.stdout
+        assert fixture.read_bytes() == before
+        assert report["schemaVersion"] == 1
+        assert report["projectionStatus"] == "Passed"
+        assert report["sourcePreservation"] == "SourceNotMutated"
+        assert "NoVisualBlocksEditor" in report["nonClaims"]
+        assert "NoSourceMutation" in report["nonClaims"]
+        assert_visual_blocks_are_read_only(report)
+        assert any(block["blockKind"] == "ScriptClassBlock" for block in report["blocks"])
+        assert any(block["blockKind"] == "CallableMethodBlock" for block in report["blocks"])
+        assert all(block["sourceSpan"] is not None for block in report["blocks"])
+
+
+def test_readonly_visual_blocks_projection_partially_projectable_fixture() -> None:
+    fixture = CSHARP_BLOCKS_FIXTURES / "partially_projectable" / "GameRulesPartial.cs"
+    before = fixture.read_bytes()
+    with tempfile.TemporaryDirectory() as tmp:
+        result, report = run_project_blocks(fixture, Path(tmp) / "out")
+
+        assert result.returncode == 0, result.stderr + result.stdout
+        assert fixture.read_bytes() == before
+        assert report["projectionStatus"] == "Passed"
+        assert_visual_blocks_are_read_only(report)
+        assert any(block["classification"] == "ReadOnlyProjectable" for block in report["blocks"])
+        assert any(block["classification"] == "Opaque" for block in report["blocks"])
+        assert any(region["blockKind"] == "OpaqueSourceRegionBlock" for region in report["opaqueRegions"])
+
+
+def test_readonly_visual_blocks_projection_advanced_opaque_fixture() -> None:
+    fixture = CSHARP_BLOCKS_FIXTURES / "advanced_opaque" / "GameRulesAdvancedOpaque.cs"
+    before = fixture.read_bytes()
+    with tempfile.TemporaryDirectory() as tmp:
+        result, report = run_project_blocks(fixture, Path(tmp) / "out")
+
+        assert result.returncode == 0, result.stderr + result.stdout
+        assert fixture.read_bytes() == before
+        assert report["projectionStatus"] == "Passed"
+        assert_visual_blocks_are_read_only(report)
+        opaque_blocks = [block for block in report["blocks"] if block["classification"] == "Opaque"]
+        assert opaque_blocks
+        assert any(region["classification"] == "Opaque" for region in report["opaqueRegions"])
+
+
+def test_readonly_visual_blocks_projection_unsupported_fixture_reports_diagnostics() -> None:
+    fixture = CSHARP_BLOCKS_FIXTURES / "unsupported" / "GameRulesUnsupported.cs"
+    before = fixture.read_bytes()
+    with tempfile.TemporaryDirectory() as tmp:
+        result, report = run_project_blocks(fixture, Path(tmp) / "out")
+
+        assert result.returncode == 1
+        assert fixture.read_bytes() == before
+        assert report["projectionStatus"] == "Failed"
+        assert_visual_blocks_are_read_only(report)
+        assert any(block["blockKind"] == "UnsupportedDiagnosticBlock" for block in report["blocks"])
+        assert any(region["blockKind"] == "UnsupportedDiagnosticBlock" for region in report["opaqueRegions"])
         assert any(diagnostic["severity"] == "Error" for diagnostic in report["diagnostics"])
 
 
@@ -1652,6 +1729,10 @@ if __name__ == "__main__":
         test_csharp_blocks_partially_projectable_fixture_reports_opaque_regions,
         test_csharp_blocks_advanced_opaque_fixture_remains_read_only,
         test_csharp_blocks_unsupported_fixture_fails_with_diagnostics,
+        test_readonly_visual_blocks_projection_projectable_fixture,
+        test_readonly_visual_blocks_projection_partially_projectable_fixture,
+        test_readonly_visual_blocks_projection_advanced_opaque_fixture,
+        test_readonly_visual_blocks_projection_unsupported_fixture_reports_diagnostics,
         test_validate_artifacts_accepts_consistent_projection_only_evidence,
         test_validate_artifacts_blocks_runtime_backed_without_evidence_and_bad_patch_report,
         test_project_blocks_discloses_deferred_nodes_as_read_only,

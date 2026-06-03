@@ -60,6 +60,30 @@ The fixture tests assert that `compatibility-profile` does not mutate source
 bytes. The tests also assert that advanced regions remain opaque/read-only and
 that unsupported evidence is explicit.
 
+## Read-Only Blocks Projection Artifact
+
+Phase 14 adds `visual_blocks_projection_v1.json` to the existing
+`sagascript project-blocks --source <file-or-dir> --out <dir> [--json]`
+artifact set.
+
+This artifact is metadata-only. It maps compatibility-profile constructs into
+read-only block records with source spans and source hashes. Every emitted block
+has `editable: false`, even when the lower-level compatibility profile includes
+existing patch-oriented metadata such as `EditableByPatch`.
+
+Initial block kinds are:
+
+- `ScriptClassBlock`
+- `CallableMethodBlock`
+- `ParameterBlock`
+- `ReturnBlock`
+- `AttributeBlock`
+- `OpaqueSourceRegionBlock`
+- `UnsupportedDiagnosticBlock`
+
+Opaque and unsupported C# regions are represented as read-only metadata with
+diagnostics. They are not converted into editable blocks.
+
 ## Non-Claims
 
 - No Visual Blocks projection UI exists in this phase.
