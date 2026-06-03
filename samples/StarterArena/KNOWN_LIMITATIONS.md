@@ -2,6 +2,8 @@
 
 - StarterArena has only a bounded headless runtime smoke loop.
 - StarterArena is not an interactive playable game.
+- StarterArena has one bounded socket-free server-authoritative smoke, not full
+  multiplayer gameplay.
 - `Scenes/arena.scene.json` is a minimal smoke resource, not a broad runtime
   scene format.
 - No launch profile is declared for StarterArena.
@@ -22,6 +24,6 @@
 - The controlled invocation smoke requires a .NET host environment where
   `hostfxr` is discoverable.
 - Restart behavior is reported as deferred.
-- No Visual Blocks, editor workflow, server-authoritative multiplayer, runtime
+- No Visual Blocks, editor workflow, external client/server networking, runtime
   C# gameplay loop binding, package output, distribution output, or fake runtime
   smoke evidence exists for this sample.

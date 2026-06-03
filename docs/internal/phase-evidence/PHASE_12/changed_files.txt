@@ -1,1 +1,13 @@
-No phase-specific changed files recorded yet.
+Tools/MultiplayerSandboxHeadless/include/MultiplayerSandboxHeadless/HeadlessPreview.hpp
+Tools/MultiplayerSandboxHeadless/src/HeadlessPreview.cpp
+Tools/MultiplayerSandboxHeadless/cli/main.cpp
+Tests/Unit/Samples/MultiplayerSandboxHeadlessTests.cpp
+samples/StarterArena/README.md
+samples/StarterArena/ACCEPTANCE.md
+samples/StarterArena/KNOWN_LIMITATIONS.md
+docs/internal/PHASE_STATUS_MATRIX.md
+docs/internal/phase-evidence/PHASE_12/EVIDENCE.md
+docs/internal/phase-evidence/PHASE_12/commands.log
+docs/internal/phase-evidence/PHASE_12/changed_files.txt
+docs/internal/phase-evidence/PHASE_12/known_limitations.md
+docs/internal/phase-evidence/PHASE_12/verification_result.json

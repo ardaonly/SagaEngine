@@ -61,3 +61,22 @@ C# method invocation. Accepted evidence for Phase 11C:
 This is not acceptance for arbitrary script invocation, C# lifecycle execution,
 interactive gameplay, Visual Blocks, editor workflow, package launch, or
 server-authoritative multiplayer.
+
+Phase 12 acceptance is implemented-unverified through one bounded
+server-authoritative headless smoke. Accepted evidence for Phase 12:
+
+- `MultiplayerSandboxHeadless --starter-arena-server-smoke` exits `0`;
+- the report records `projectId: starter-arena`;
+- the report records `serverAuthority: true`;
+- the report records `networkMode: HeadlessSmoke`;
+- the report records `inputAcceptedCount: 1`;
+- the report records `inputRejectedCount: 1`;
+- the report records authoritative initial and final state;
+- the report records `snapshotCount: 1`;
+- the report records invalid input diagnostics;
+- the report records non-claims for full multiplayer, MMO proof, editor
+  workflow, package output, and Visual Blocks.
+
+This is not acceptance for full multiplayer gameplay, external client/server
+networking, MMO-scale networking, Visual Blocks, editor workflow, package
+output, or distribution output.

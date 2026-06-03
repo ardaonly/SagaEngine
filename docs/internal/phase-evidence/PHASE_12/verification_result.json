@@ -1,10 +1,10 @@
 {
   "phase": 12,
   "name": "Server-Authoritative Sample v1",
-  "status": "Not Started",
+  "status": "Implemented-Unverified",
   "required_gate": "server-gate",
   "verified": false,
   "last_verified_commit": "-",
-  "verification_decision": "Not Started",
-  "decision_reason": "The phase has not been started in the current status matrix."
+  "verification_decision": "Implemented-Unverified",
+  "decision_reason": "StarterArena has one bounded socket-free server-authoritative smoke using existing AuthoritativeMovementCore. The smoke records server-owned state, one accepted input, one rejected invalid input, one authoritative snapshot, and explicit non-claims. Full multiplayer gameplay, MMO-scale networking, Visual Blocks, editor workflow, package output, distribution output, and maintainer verification remain absent."
 }
