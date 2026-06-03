@@ -1,3 +1,29 @@
 # Phase 20 Commands Log
 
-No phase verification commands have been recorded yet.
+All commands below were run locally in this batch. No phase was marked
+`Verified`.
+
+```bash
+git diff --check
+scripts/scan-claims README.md docs samples Tools
+scripts/check-boundaries
+scripts/verify-quick
+scripts/verify-local --allow-dirty
+scripts/verify-phase 20
+```
+
+Result after final rerun: passed.
+
+`scripts/scan-claims README.md docs samples Tools` output:
+
+```txt
+scan-claims: scanned 176 public text file(s)
+scan-claims: no unsupported public claim text found
+```
+
+`scripts/check-boundaries` output:
+
+```txt
+check-boundaries: scanned 93 SDE file(s)
+check-boundaries: SDE standalone source-boundary scan passed
+```

@@ -1,1 +1,7 @@
-No phase-specific changed files recorded yet.
+docs/architecture/SAGA_SCHEMA_PACKAGE_BOUNDARY.md
+docs/internal/PHASE_STATUS_MATRIX.md
+docs/internal/phase-evidence/PHASE_20/EVIDENCE.md
+docs/internal/phase-evidence/PHASE_20/changed_files.txt
+docs/internal/phase-evidence/PHASE_20/commands.log
+docs/internal/phase-evidence/PHASE_20/known_limitations.md
+docs/internal/phase-evidence/PHASE_20/verification_result.json
