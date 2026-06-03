@@ -12,6 +12,7 @@
 #include <SagaEngine/Core/Log/Log.h>
 #include <SagaEngine/Platform/PlatformFactory.h>
 #include <SagaEngine/Resources/AssetRegistry.h>
+#include <SagaEngine/Scripting/CSharpScriptHost.hpp>
 
 #include <SagaRuntime/RuntimeServiceRegistry.hpp>
 #include <SagaRuntime/RuntimeServiceRegistryDiagnostics.hpp>
@@ -30,6 +31,7 @@
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -47,6 +49,7 @@ struct RuntimeCommandLine
     std::filesystem::path scriptManifestPath;
     std::filesystem::path scriptArtifactsPath;
     bool starterArenaSmoke = false;
+    bool invokeStarterArenaScript = false;
     std::uint32_t smokeFrames = 30;
     double fixedDtSeconds = 1.0 / 60.0;
 };
@@ -126,10 +129,27 @@ struct StarterArenaScriptBindingMetadata
     std::string typeName;
     std::string authority;
     std::vector<std::string> callableMethods;
+    std::vector<std::string> parameterTypes;
+    std::string returnType;
+    bool parametersSupported = false;
+    bool returnSupported = false;
     std::string artifactId;
     std::string targetFramework;
     std::string assemblyPath;
     std::string runtimeConfigPath;
+};
+
+struct StarterArenaScriptInvocationResult
+{
+    bool requested = false;
+    bool attempted = false;
+    bool passed = false;
+    std::string mode;
+    std::string method;
+    std::string typeName;
+    std::vector<std::int32_t> arguments;
+    std::int32_t expectedResult = 15;
+    std::int32_t result = 0;
 };
 
 struct StarterArenaDiagnostic
@@ -1319,6 +1339,14 @@ std::string JsonStringField(const Json& object, const char* field)
         : "";
 }
 
+bool JsonBoolField(const Json& object, const char* field)
+{
+    const auto iterator = object.find(field);
+    return iterator != object.end() && iterator->is_boolean()
+        ? iterator->get<bool>()
+        : false;
+}
+
 std::optional<Json> LoadJsonObjectFile(
     const std::filesystem::path& path,
     const char* label,
@@ -1449,6 +1477,37 @@ StarterArenaScriptBindingMetadata LoadStarterArenaScriptBindingMetadata(
             metadata.typeName = JsonStringField(binding, "declaringType");
             metadata.authority = JsonStringField(binding, "authority");
             metadata.callableMethods.push_back(JsonStringField(binding, "methodName"));
+
+            const auto parameters = binding.find("parameters");
+            if (parameters != binding.end() && parameters->is_array())
+            {
+                for (const Json& parameter : *parameters)
+                {
+                    if (!parameter.is_object())
+                    {
+                        continue;
+                    }
+                    metadata.parameterTypes.push_back(
+                        JsonStringField(parameter, "type"));
+                }
+                metadata.parametersSupported =
+                    parameters->size() == 2 &&
+                    (*parameters)[0].is_object() &&
+                    (*parameters)[1].is_object() &&
+                    JsonStringField((*parameters)[0], "type") == "int" &&
+                    JsonStringField((*parameters)[1], "type") == "int" &&
+                    JsonBoolField((*parameters)[0], "supported") &&
+                    JsonBoolField((*parameters)[1], "supported");
+            }
+
+            const auto returnType = binding.find("returnType");
+            if (returnType != binding.end() && returnType->is_object())
+            {
+                metadata.returnType = JsonStringField(*returnType, "type");
+                metadata.returnSupported =
+                    metadata.returnType == "int" &&
+                    JsonBoolField(*returnType, "supported");
+            }
         }
 
         if (matchingBindingCount != 1)
@@ -1475,6 +1534,18 @@ StarterArenaScriptBindingMetadata LoadStarterArenaScriptBindingMetadata(
             diagnostics.push_back({
                 "StarterArena.ScriptBinding.AuthorityMismatch",
                 "GameRules binding authority must be SharedPure."});
+        }
+        if (!metadata.parametersSupported)
+        {
+            diagnostics.push_back({
+                "StarterArena.ScriptBinding.ParametersMismatch",
+                "GameRules binding must expose two supported int parameters."});
+        }
+        if (!metadata.returnSupported)
+        {
+            diagnostics.push_back({
+                "StarterArena.ScriptBinding.ReturnMismatch",
+                "GameRules binding must expose a supported int return type."});
         }
     }
 
@@ -1545,12 +1616,19 @@ StarterArenaScriptBindingMetadata LoadStarterArenaScriptBindingMetadata(
     return metadata;
 }
 
-Json ScriptBindingToJson(const StarterArenaScriptBindingMetadata& metadata)
+Json ScriptBindingToJson(
+    const StarterArenaScriptBindingMetadata& metadata,
+    std::string_view execution)
 {
     Json callableMethods = Json::array();
     for (const std::string& method : metadata.callableMethods)
     {
         callableMethods.push_back(method);
+    }
+    Json parameterTypes = Json::array();
+    for (const std::string& parameterType : metadata.parameterTypes)
+    {
+        parameterTypes.push_back(parameterType);
     }
 
     return Json{
@@ -1562,11 +1640,50 @@ Json ScriptBindingToJson(const StarterArenaScriptBindingMetadata& metadata)
         {"typeName", metadata.typeName},
         {"authority", metadata.authority},
         {"callableMethods", callableMethods},
+        {"parameterTypes", parameterTypes},
+        {"returnType", metadata.returnType},
         {"artifactId", metadata.artifactId},
         {"targetFramework", metadata.targetFramework},
         {"assemblyPath", metadata.assemblyPath},
         {"runtimeConfigPath", metadata.runtimeConfigPath},
-        {"execution", "NotExecuted"}};
+        {"execution", std::string(execution)}};
+}
+
+std::string ScriptBindingExecution(
+    const StarterArenaScriptInvocationResult& invocation)
+{
+    if (invocation.passed)
+    {
+        return "Invoked";
+    }
+    if (invocation.attempted)
+    {
+        return "Failed";
+    }
+    return "NotExecuted";
+}
+
+Json ScriptInvocationToJson(
+    const StarterArenaScriptInvocationResult& invocation)
+{
+    Json arguments = Json::array();
+    for (const std::int32_t argument : invocation.arguments)
+    {
+        arguments.push_back(argument);
+    }
+
+    return Json{
+        {"status",
+         invocation.requested
+             ? (invocation.passed ? "Passed" : "Failed")
+             : "NotRequested"},
+        {"mode", invocation.mode},
+        {"method", invocation.method},
+        {"typeName", invocation.typeName},
+        {"arguments", arguments},
+        {"expectedResult", invocation.expectedResult},
+        {"result", invocation.result},
+        {"attempted", invocation.attempted}};
 }
 
 Json DiagnosticsToJson(const std::vector<StarterArenaDiagnostic>& diagnostics)
@@ -1625,6 +1742,159 @@ bool WriteJsonReport(
     return true;
 }
 
+std::filesystem::path ResolveStarterArenaArtifactPath(
+    const StarterArenaProject& project,
+    const std::string& artifactPath)
+{
+    if (artifactPath.empty())
+    {
+        return {};
+    }
+
+    const std::filesystem::path path(artifactPath);
+    if (path.is_absolute())
+    {
+        return path.lexically_normal();
+    }
+
+    return (project.projectRoot / path).lexically_normal();
+}
+
+void AppendScriptHostDiagnostics(
+    std::string_view prefix,
+    const std::vector<SagaEngine::Scripting::ScriptDiagnostic>& scriptDiagnostics,
+    std::vector<StarterArenaDiagnostic>& diagnostics)
+{
+    if (scriptDiagnostics.empty())
+    {
+        diagnostics.push_back({
+            std::string(prefix) + ".Unknown",
+            "C# script host failed without diagnostics."});
+        return;
+    }
+
+    for (const auto& diagnostic : scriptDiagnostics)
+    {
+        std::string message = diagnostic.diagnostic.message;
+        if (message.empty())
+        {
+            message = diagnostic.diagnostic.title;
+        }
+        diagnostics.push_back({
+            std::string(prefix) + "." + diagnostic.diagnostic.code.value,
+            message});
+    }
+}
+
+StarterArenaScriptInvocationResult RunStarterArenaScriptInvocation(
+    const StarterArenaProject& project,
+    const StarterArenaScriptBindingMetadata& metadata,
+    std::vector<StarterArenaDiagnostic>& diagnostics)
+{
+    constexpr const char* kExpectedMethodName = "AddPickupScore";
+    constexpr std::int32_t kLeftArgument = 10;
+    constexpr std::int32_t kRightArgument = 5;
+    constexpr std::int32_t kExpectedResult = 15;
+
+    StarterArenaScriptInvocationResult invocation;
+    invocation.requested = true;
+    invocation.mode = "ControlledStarterArenaPureMethod";
+    invocation.method = kExpectedMethodName;
+    invocation.typeName = metadata.typeName;
+    invocation.arguments = {kLeftArgument, kRightArgument};
+    invocation.expectedResult = kExpectedResult;
+
+    if (!metadata.provided || !metadata.valid)
+    {
+        diagnostics.push_back({
+            "StarterArena.ScriptInvocation.MetadataRequired",
+            "Controlled StarterArena script invocation requires valid script metadata."});
+        return invocation;
+    }
+
+    const std::filesystem::path assemblyPath =
+        ResolveStarterArenaArtifactPath(project, metadata.assemblyPath);
+    const std::filesystem::path runtimeBridgePath =
+        assemblyPath.parent_path() / "SagaScript.RuntimeBridge.dll";
+    std::error_code existsError;
+    if (assemblyPath.empty() || !std::filesystem::exists(assemblyPath, existsError))
+    {
+        diagnostics.push_back({
+            "StarterArena.ScriptInvocation.AssemblyMissing",
+            "StarterArena script assembly was not found: " +
+                GenericPath(assemblyPath)});
+        return invocation;
+    }
+    if (!std::filesystem::exists(runtimeBridgePath, existsError))
+    {
+        diagnostics.push_back({
+            "StarterArena.ScriptInvocation.RuntimeBridgeMissing",
+            "SagaScript runtime bridge was not found next to the script assembly: " +
+                GenericPath(runtimeBridgePath)});
+        return invocation;
+    }
+
+    SagaEngine::Scripting::CSharpScriptHostOptions hostOptions;
+    hostOptions.runtimeBridgeAssembly = runtimeBridgePath;
+    SagaEngine::Scripting::CSharpScriptHost host(std::move(hostOptions));
+
+    SagaEngine::Scripting::ScriptPackageLoadRequest loadRequest;
+    loadRequest.packageRoot = project.projectRoot;
+    loadRequest.scriptArtifactManifest = metadata.artifactsPath;
+    loadRequest.packageId = "starter-arena";
+    const auto load = host.LoadPackage(loadRequest);
+    if (!load.Succeeded())
+    {
+        AppendScriptHostDiagnostics(
+            "StarterArena.ScriptInvocation.LoadPackage",
+            load.diagnostics,
+            diagnostics);
+        return invocation;
+    }
+
+    SagaEngine::Scripting::ScriptInstanceCreateRequest createRequest;
+    createRequest.package = load.package;
+    createRequest.classId.value = metadata.typeName;
+    createRequest.scriptId = metadata.scriptId;
+    const auto instance = host.CreateInstance(createRequest);
+    if (!instance.Succeeded())
+    {
+        AppendScriptHostDiagnostics(
+            "StarterArena.ScriptInvocation.CreateInstance",
+            instance.diagnostics,
+            diagnostics);
+        return invocation;
+    }
+
+    SagaEngine::Scripting::CSharpInt32BinaryMethodInvocation methodInvocation;
+    methodInvocation.instance = instance.instance;
+    methodInvocation.methodName = kExpectedMethodName;
+    methodInvocation.left = kLeftArgument;
+    methodInvocation.right = kRightArgument;
+    invocation.attempted = true;
+    const auto invoke = host.InvokeInt32BinaryMethod(methodInvocation);
+    invocation.result = invoke.value;
+    if (!invoke.Succeeded())
+    {
+        AppendScriptHostDiagnostics(
+            "StarterArena.ScriptInvocation.Invoke",
+            invoke.diagnostics,
+            diagnostics);
+        return invocation;
+    }
+
+    if (invocation.result != invocation.expectedResult)
+    {
+        diagnostics.push_back({
+            "StarterArena.ScriptInvocation.ResultMismatch",
+            "AddPickupScore(10, 5) did not return 15."});
+        return invocation;
+    }
+
+    invocation.passed = true;
+    return invocation;
+}
+
 int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine)
 {
     std::vector<StarterArenaDiagnostic> diagnostics;
@@ -1659,6 +1929,27 @@ int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine)
             commandLine.scriptManifestPath,
             commandLine.scriptArtifactsPath,
             diagnostics);
+    StarterArenaScriptInvocationResult scriptInvocation;
+    if (commandLine.invokeStarterArenaScript)
+    {
+        if (project.has_value())
+        {
+            scriptInvocation = RunStarterArenaScriptInvocation(
+                *project,
+                scriptBinding,
+                diagnostics);
+        }
+        else
+        {
+            scriptInvocation.requested = true;
+            scriptInvocation.mode = "ControlledStarterArenaPureMethod";
+            scriptInvocation.method = "AddPickupScore";
+            scriptInvocation.arguments = {10, 5};
+            diagnostics.push_back({
+                "StarterArena.ScriptInvocation.ProjectRequired",
+                "Controlled StarterArena script invocation requires a valid project."});
+        }
+    }
 
     const StarterArenaVec2 spawn =
         scene.has_value() ? scene->playerSpawn : StarterArenaVec2{};
@@ -1708,9 +1999,11 @@ int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine)
 
     const bool scriptBindingPassed =
         !scriptBinding.provided || scriptBinding.valid;
+    const bool scriptInvocationPassed =
+        !scriptInvocation.requested || scriptInvocation.passed;
     const bool canRun =
         loopCanRun && expectationsPassed && scriptBindingPassed &&
-        diagnostics.empty();
+        scriptInvocationPassed && diagnostics.empty();
     const std::string sceneSource = scene.has_value()
         ? "ProjectSceneReference"
         : "ProjectSceneReferenceMissing";
@@ -1752,7 +2045,10 @@ int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine)
             {"sceneSource", sceneSource}
         }},
         {"scene", sceneReport},
-        {"scriptBinding", ScriptBindingToJson(scriptBinding)},
+        {"scriptBinding", ScriptBindingToJson(
+            scriptBinding,
+            ScriptBindingExecution(scriptInvocation))},
+        {"scriptInvocation", ScriptInvocationToJson(scriptInvocation)},
         {"settings", {
             {"headless", commandLine.launchOptions.headless},
             {"frames", commandLine.smokeFrames},
@@ -1773,8 +2069,9 @@ int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine)
             "No renderer proof",
             "No client or network dependency",
             "No server-authoritative multiplayer",
-            "No C# script execution",
-            "No runtime C# gameplay binding",
+            "No arbitrary C# script invocation",
+            "No C# script lifecycle execution",
+            "No runtime C# gameplay loop binding",
             "No Visual Blocks",
             "No editor workflow",
             "No package or distribution output"
@@ -1804,9 +2101,10 @@ int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine)
 
     LOG_INFO(
         kLogTag,
-        "StarterArena scene smoke passed: scene='%s' scriptBinding='%s' frames=%u final=(%.3f, %.3f) clamps=%u report='%s'",
+        "StarterArena scene smoke passed: scene='%s' scriptBinding='%s' scriptInvocation='%s' frames=%u final=(%.3f, %.3f) clamps=%u report='%s'",
         scene.has_value() ? scene->sceneId.c_str() : "",
         scriptBinding.provided ? (scriptBinding.valid ? "Passed" : "Failed") : "NotProvided",
+        scriptInvocation.requested ? (scriptInvocation.passed ? "Passed" : "Failed") : "NotRequested",
         commandLine.smokeFrames,
         x,
         y,
@@ -1866,6 +2164,10 @@ static RuntimeCommandLine ParseArgs(int argc, char* argv[])
         {
             commandLine.scriptArtifactsPath = std::filesystem::path(argv[++i]);
         }
+        else if (arg == "--invoke-starter-arena-script")
+        {
+            commandLine.invokeStarterArenaScript = true;
+        }
         else if (arg == "--smoke-report-out" && i + 1 < argc)
         {
             commandLine.smokeReportOut = std::filesystem::path(argv[++i]);
@@ -1895,6 +2197,8 @@ static RuntimeCommandLine ParseArgs(int argc, char* argv[])
                         "                         Optional StarterArena script_bindings.json smoke input\n"
                         "  --script-artifacts <path>\n"
                         "                         Optional StarterArena script_artifacts.json smoke input\n"
+                        "  --invoke-starter-arena-script\n"
+                        "                         Invoke controlled StarterArena AddPickupScore smoke\n"
                         "  --smoke-report-out <path>\n"
                         "                         Write StarterArena smoke report JSON\n"
                         "  --smoke-frames <n>    StarterArena smoke frame count (default: 30)\n"

@@ -294,6 +294,10 @@ inline constexpr const char* UiNamedActionInvalidSignature =
     "Script.Host.UiNamedActionInvalidSignature";
 inline constexpr const char* UiNamedActionReturnedFalse =
     "Script.Host.UiNamedActionReturnedFalse";
+inline constexpr const char* Int32BinaryMethodMissing =
+    "Script.Host.Int32BinaryMethodMissing";
+inline constexpr const char* Int32BinaryMethodInvalidSignature =
+    "Script.Host.Int32BinaryMethodInvalidSignature";
 
 } // namespace ScriptHostDiagnostics
 
