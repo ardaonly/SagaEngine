@@ -6,5 +6,5 @@
   "verified": false,
   "last_verified_commit": "-",
   "verification_decision": "Implemented-Unverified",
-  "decision_reason": "StarterArena has one C# script with real SagaScript analyze and compile evidence. SagaScript emitted reports, manifests, and StarterArenaScripts.scripts.dll with no blocking compile diagnostics. Runtime script execution, Visual Blocks, editor workflow, server authority, package output, distribution output, and maintainer verification remain absent."
+  "decision_reason": "StarterArena has one C# script with real SagaScript analyze and compile evidence, and SagaRuntime smoke consumes the emitted script binding and artifact metadata. The runtime report records execution as NotExecuted. Runtime script execution, Visual Blocks, editor workflow, server authority, package output, distribution output, and maintainer verification remain absent."
 }

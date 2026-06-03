@@ -44,6 +44,8 @@ struct RuntimeCommandLine
     SagaRuntime::RuntimeLaunchOptions launchOptions;
     std::filesystem::path projectPath;
     std::filesystem::path smokeReportOut;
+    std::filesystem::path scriptManifestPath;
+    std::filesystem::path scriptArtifactsPath;
     bool starterArenaSmoke = false;
     std::uint32_t smokeFrames = 30;
     double fixedDtSeconds = 1.0 / 60.0;
@@ -111,6 +113,23 @@ struct StarterArenaScene
     StarterArenaCamera camera;
     StarterArenaVec2 testInput;
     StarterArenaExpected expected;
+};
+
+struct StarterArenaScriptBindingMetadata
+{
+    bool provided = false;
+    bool valid = false;
+    std::filesystem::path manifestPath;
+    std::filesystem::path artifactsPath;
+    std::string scriptId;
+    std::string bindingId;
+    std::string typeName;
+    std::string authority;
+    std::vector<std::string> callableMethods;
+    std::string artifactId;
+    std::string targetFramework;
+    std::string assemblyPath;
+    std::string runtimeConfigPath;
 };
 
 struct StarterArenaDiagnostic
@@ -1292,6 +1311,264 @@ Json ExpectedToJson(const StarterArenaExpected& expected)
         {"clampCount", expected.clampCount}};
 }
 
+std::string JsonStringField(const Json& object, const char* field)
+{
+    const auto iterator = object.find(field);
+    return iterator != object.end() && iterator->is_string()
+        ? iterator->get<std::string>()
+        : "";
+}
+
+std::optional<Json> LoadJsonObjectFile(
+    const std::filesystem::path& path,
+    const char* label,
+    const char* diagnosticPrefix,
+    std::vector<StarterArenaDiagnostic>& diagnostics)
+{
+    std::ifstream input(path);
+    if (!input)
+    {
+        diagnostics.push_back({
+            std::string(diagnosticPrefix) + ".OpenFailed",
+            std::string("Failed to open ") + label + ": " + GenericPath(path)});
+        return std::nullopt;
+    }
+
+    Json root;
+    try
+    {
+        input >> root;
+    }
+    catch (const Json::exception& exception)
+    {
+        diagnostics.push_back({
+            std::string(diagnosticPrefix) + ".ParseFailed",
+            std::string(label) + " JSON is invalid: " + exception.what()});
+        return std::nullopt;
+    }
+
+    if (!root.is_object())
+    {
+        diagnostics.push_back({
+            std::string(diagnosticPrefix) + ".RootInvalid",
+            std::string(label) + " root must be a JSON object."});
+        return std::nullopt;
+    }
+
+    return root;
+}
+
+bool JsonArrayContainsString(const Json& array, const std::string& expected)
+{
+    if (!array.is_array())
+    {
+        return false;
+    }
+
+    for (const Json& item : array)
+    {
+        if (item.is_string() && item.get<std::string>() == expected)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+StarterArenaScriptBindingMetadata LoadStarterArenaScriptBindingMetadata(
+    const std::filesystem::path& manifestPath,
+    const std::filesystem::path& artifactsPath,
+    std::vector<StarterArenaDiagnostic>& diagnostics)
+{
+    constexpr const char* kExpectedScriptId = "script://starter-arena/game-rules";
+    constexpr const char* kExpectedTypeName = "StarterArena.Scripts.GameRules";
+    constexpr const char* kExpectedMethodName = "AddPickupScore";
+    constexpr const char* kExpectedAuthority = "SharedPure";
+    constexpr const char* kExpectedArtifactId =
+        "artifact://scripts/starter-arena/game-rules";
+
+    StarterArenaScriptBindingMetadata metadata;
+    metadata.manifestPath = manifestPath;
+    metadata.artifactsPath = artifactsPath;
+
+    const bool hasManifest = !manifestPath.empty();
+    const bool hasArtifacts = !artifactsPath.empty();
+    if (!hasManifest && !hasArtifacts)
+    {
+        return metadata;
+    }
+
+    metadata.provided = true;
+    const std::size_t diagnosticStart = diagnostics.size();
+
+    if (hasManifest != hasArtifacts)
+    {
+        diagnostics.push_back({
+            "StarterArena.ScriptBinding.InputIncomplete",
+            "--script-manifest and --script-artifacts must be provided together."});
+        return metadata;
+    }
+
+    const std::optional<Json> bindingsRoot = LoadJsonObjectFile(
+        manifestPath,
+        "script binding manifest",
+        "StarterArena.ScriptBinding.Manifest",
+        diagnostics);
+    const std::optional<Json> artifactsRoot = LoadJsonObjectFile(
+        artifactsPath,
+        "script artifacts manifest",
+        "StarterArena.ScriptBinding.Artifacts",
+        diagnostics);
+    if (!bindingsRoot.has_value() || !artifactsRoot.has_value())
+    {
+        return metadata;
+    }
+
+    const auto bindingsIterator = bindingsRoot->find("bindings");
+    if (bindingsIterator == bindingsRoot->end() || !bindingsIterator->is_array())
+    {
+        diagnostics.push_back({
+            "StarterArena.ScriptBinding.BindingsInvalid",
+            "script_bindings.json must contain a bindings array."});
+    }
+    else
+    {
+        std::uint32_t matchingBindingCount = 0;
+        for (const Json& binding : *bindingsIterator)
+        {
+            if (!binding.is_object() ||
+                JsonStringField(binding, "scriptId") != kExpectedScriptId)
+            {
+                continue;
+            }
+
+            ++matchingBindingCount;
+            metadata.scriptId = JsonStringField(binding, "scriptId");
+            metadata.bindingId = JsonStringField(binding, "bindingId");
+            metadata.typeName = JsonStringField(binding, "declaringType");
+            metadata.authority = JsonStringField(binding, "authority");
+            metadata.callableMethods.push_back(JsonStringField(binding, "methodName"));
+        }
+
+        if (matchingBindingCount != 1)
+        {
+            diagnostics.push_back({
+                "StarterArena.ScriptBinding.BindingMissing",
+                "Expected exactly one GameRules script binding in script_bindings.json."});
+        }
+        if (metadata.typeName != kExpectedTypeName)
+        {
+            diagnostics.push_back({
+                "StarterArena.ScriptBinding.TypeMismatch",
+                "GameRules binding declaring type did not match StarterArena.Scripts.GameRules."});
+        }
+        if (metadata.callableMethods.size() != 1 ||
+            metadata.callableMethods.front() != kExpectedMethodName)
+        {
+            diagnostics.push_back({
+                "StarterArena.ScriptBinding.MethodMismatch",
+                "GameRules binding must expose AddPickupScore metadata."});
+        }
+        if (metadata.authority != kExpectedAuthority)
+        {
+            diagnostics.push_back({
+                "StarterArena.ScriptBinding.AuthorityMismatch",
+                "GameRules binding authority must be SharedPure."});
+        }
+    }
+
+    metadata.targetFramework = JsonStringField(*artifactsRoot, "targetFramework");
+    if (metadata.targetFramework != "net10.0")
+    {
+        diagnostics.push_back({
+            "StarterArena.ScriptBinding.TargetFrameworkMismatch",
+            "StarterArena script artifacts must target net10.0."});
+    }
+
+    const auto artifactsIterator = artifactsRoot->find("artifacts");
+    if (artifactsIterator == artifactsRoot->end() || !artifactsIterator->is_array())
+    {
+        diagnostics.push_back({
+            "StarterArena.ScriptBinding.ArtifactsInvalid",
+            "script_artifacts.json must contain an artifacts array."});
+    }
+    else
+    {
+        std::uint32_t matchingArtifactCount = 0;
+        for (const Json& artifact : *artifactsIterator)
+        {
+            if (!artifact.is_object() ||
+                JsonStringField(artifact, "scriptId") != kExpectedScriptId)
+            {
+                continue;
+            }
+
+            ++matchingArtifactCount;
+            metadata.artifactId = JsonStringField(artifact, "artifactId");
+            metadata.assemblyPath = JsonStringField(artifact, "assemblyPath");
+            metadata.runtimeConfigPath =
+                JsonStringField(artifact, "runtimeConfigPath");
+
+            const auto bindingIds = artifact.find("bindingIds");
+            if (!metadata.bindingId.empty() &&
+                (bindingIds == artifact.end() ||
+                 !JsonArrayContainsString(*bindingIds, metadata.bindingId)))
+            {
+                diagnostics.push_back({
+                    "StarterArena.ScriptBinding.BindingIdMissing",
+                    "GameRules artifact must reference the GameRules binding id."});
+            }
+        }
+
+        if (matchingArtifactCount != 1)
+        {
+            diagnostics.push_back({
+                "StarterArena.ScriptBinding.ArtifactMissing",
+                "Expected exactly one GameRules script artifact in script_artifacts.json."});
+        }
+        if (metadata.artifactId != kExpectedArtifactId)
+        {
+            diagnostics.push_back({
+                "StarterArena.ScriptBinding.ArtifactIdMismatch",
+                "GameRules artifact id did not match StarterArena expectations."});
+        }
+        if (metadata.assemblyPath.empty() || metadata.runtimeConfigPath.empty())
+        {
+            diagnostics.push_back({
+                "StarterArena.ScriptBinding.ArtifactPathMissing",
+                "GameRules artifact must declare assembly and runtimeconfig paths."});
+        }
+    }
+
+    metadata.valid = diagnostics.size() == diagnosticStart;
+    return metadata;
+}
+
+Json ScriptBindingToJson(const StarterArenaScriptBindingMetadata& metadata)
+{
+    Json callableMethods = Json::array();
+    for (const std::string& method : metadata.callableMethods)
+    {
+        callableMethods.push_back(method);
+    }
+
+    return Json{
+        {"status", metadata.provided ? (metadata.valid ? "Passed" : "Failed") : "NotProvided"},
+        {"manifestPath", metadata.manifestPath.empty() ? "" : GenericPath(metadata.manifestPath)},
+        {"artifactsPath", metadata.artifactsPath.empty() ? "" : GenericPath(metadata.artifactsPath)},
+        {"scriptId", metadata.scriptId},
+        {"bindingId", metadata.bindingId},
+        {"typeName", metadata.typeName},
+        {"authority", metadata.authority},
+        {"callableMethods", callableMethods},
+        {"artifactId", metadata.artifactId},
+        {"targetFramework", metadata.targetFramework},
+        {"assemblyPath", metadata.assemblyPath},
+        {"runtimeConfigPath", metadata.runtimeConfigPath},
+        {"execution", "NotExecuted"}};
+}
+
 Json DiagnosticsToJson(const std::vector<StarterArenaDiagnostic>& diagnostics)
 {
     Json result = Json::array();
@@ -1377,6 +1654,11 @@ int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine)
     {
         scene = LoadStarterArenaScene(*project, diagnostics);
     }
+    const StarterArenaScriptBindingMetadata scriptBinding =
+        LoadStarterArenaScriptBindingMetadata(
+            commandLine.scriptManifestPath,
+            commandLine.scriptArtifactsPath,
+            diagnostics);
 
     const StarterArenaVec2 spawn =
         scene.has_value() ? scene->playerSpawn : StarterArenaVec2{};
@@ -1424,7 +1706,11 @@ int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine)
             "StarterArena smoke result did not match scene expected values."});
     }
 
-    const bool canRun = loopCanRun && expectationsPassed;
+    const bool scriptBindingPassed =
+        !scriptBinding.provided || scriptBinding.valid;
+    const bool canRun =
+        loopCanRun && expectationsPassed && scriptBindingPassed &&
+        diagnostics.empty();
     const std::string sceneSource = scene.has_value()
         ? "ProjectSceneReference"
         : "ProjectSceneReferenceMissing";
@@ -1466,6 +1752,7 @@ int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine)
             {"sceneSource", sceneSource}
         }},
         {"scene", sceneReport},
+        {"scriptBinding", ScriptBindingToJson(scriptBinding)},
         {"settings", {
             {"headless", commandLine.launchOptions.headless},
             {"frames", commandLine.smokeFrames},
@@ -1486,7 +1773,8 @@ int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine)
             "No renderer proof",
             "No client or network dependency",
             "No server-authoritative multiplayer",
-            "No C# gameplay scripts",
+            "No C# script execution",
+            "No runtime C# gameplay binding",
             "No Visual Blocks",
             "No editor workflow",
             "No package or distribution output"
@@ -1516,8 +1804,9 @@ int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine)
 
     LOG_INFO(
         kLogTag,
-        "StarterArena scene smoke passed: scene='%s' frames=%u final=(%.3f, %.3f) clamps=%u report='%s'",
+        "StarterArena scene smoke passed: scene='%s' scriptBinding='%s' frames=%u final=(%.3f, %.3f) clamps=%u report='%s'",
         scene.has_value() ? scene->sceneId.c_str() : "",
+        scriptBinding.provided ? (scriptBinding.valid ? "Passed" : "Failed") : "NotProvided",
         commandLine.smokeFrames,
         x,
         y,
@@ -1569,6 +1858,14 @@ static RuntimeCommandLine ParseArgs(int argc, char* argv[])
         {
             commandLine.starterArenaSmoke = true;
         }
+        else if (arg == "--script-manifest" && i + 1 < argc)
+        {
+            commandLine.scriptManifestPath = std::filesystem::path(argv[++i]);
+        }
+        else if (arg == "--script-artifacts" && i + 1 < argc)
+        {
+            commandLine.scriptArtifactsPath = std::filesystem::path(argv[++i]);
+        }
         else if (arg == "--smoke-report-out" && i + 1 < argc)
         {
             commandLine.smokeReportOut = std::filesystem::path(argv[++i]);
@@ -1594,6 +1891,10 @@ static RuntimeCommandLine ParseArgs(int argc, char* argv[])
                         "                         Resolve package-relative manifest and asset paths from this directory\n"
                         "  --project <path>      .sagaproj path for bounded sample smoke modes\n"
                         "  --starter-arena-smoke Run bounded local StarterArena smoke and exit\n"
+                        "  --script-manifest <path>\n"
+                        "                         Optional StarterArena script_bindings.json smoke input\n"
+                        "  --script-artifacts <path>\n"
+                        "                         Optional StarterArena script_artifacts.json smoke input\n"
                         "  --smoke-report-out <path>\n"
                         "                         Write StarterArena smoke report JSON\n"
                         "  --smoke-frames <n>    StarterArena smoke frame count (default: 30)\n"

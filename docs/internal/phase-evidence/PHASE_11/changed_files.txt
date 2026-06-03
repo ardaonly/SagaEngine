@@ -1,3 +1,4 @@
+Apps/Runtime/main.cpp
 samples/StarterArena/Scripts/GameRules.cs
 samples/StarterArena/StarterArena.sagaproj
 samples/StarterArena/README.md

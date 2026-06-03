@@ -25,8 +25,31 @@ Result: binding id
 authority `SharedPure`, supported `int` parameters, supported `int` return, and
 no blocking diagnostics.
 
-No Apps/Runtime, Engine, Editor, Server, Visual Blocks, package/distribution
-script, SDE, or SagaScript tool files were modified.
+Tools/Forge/bin/forge nix build --target SagaRuntime --build build/RelWithDebInfo-0.0.9 --jobs=1
+Result: passed. No CMake or dependency changes were needed.
+
+build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --smoke-report-out /tmp/starter_arena_script_binding_smoke.json --smoke-frames 30 --fixed-dt 0.016
+Result: passed. The command exited `0` and wrote
+`/tmp/starter_arena_script_binding_smoke.json`.
+
+/tmp/starter_arena_script_binding_smoke.json
+Result: status `Passed`, script binding status `Passed`, script id
+`script://starter-arena/game-rules`, type `StarterArena.Scripts.GameRules`,
+callable method `AddPickupScore`, target framework `net10.0`, artifact id
+`artifact://scripts/starter-arena/game-rules`, and execution `NotExecuted`.
+
+build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --smoke-report-out /tmp/starter_arena_script_binding_incomplete_smoke.json --smoke-frames 1 --fixed-dt 0.016
+Result: failed as expected with
+`StarterArena.ScriptBinding.InputIncomplete` and wrote a failed smoke report.
+
+build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/missing_script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --smoke-report-out /tmp/starter_arena_script_binding_missing_smoke.json --smoke-frames 1 --fixed-dt 0.016
+Result: failed as expected with
+`StarterArena.ScriptBinding.Manifest.OpenFailed` and wrote a failed smoke
+report.
+
+No Engine, Editor, Server, Visual Blocks, package/distribution script, SDE, or
+SagaScript tool files were modified. SagaRuntime did not load the C# assembly or
+invoke `AddPickupScore`.
 
 git diff --check
 Result: passed.

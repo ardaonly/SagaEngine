@@ -32,3 +32,14 @@ analyze evidence only. Accepted evidence for Phase 11A:
   `StarterArenaScripts.scripts.dll`;
 - docs keep runtime script execution, C# gameplay binding, Visual Blocks,
   server multiplayer, editor workflow, and package output as unsupported.
+
+Phase 11B acceptance is implemented-unverified through runtime script metadata
+consumption only. Accepted evidence for Phase 11B:
+
+- `sagascript compile` emits `script_bindings.json` and `script_artifacts.json`;
+- `SagaRuntime --starter-arena-smoke` accepts both script metadata paths;
+- the smoke report records `scriptBinding.status: Passed`;
+- the smoke report records `script://starter-arena/game-rules`,
+  `StarterArena.Scripts.GameRules`, `AddPickupScore`, and `net10.0`;
+- the smoke report records `execution: NotExecuted`;
+- incomplete or missing script metadata inputs fail with clear diagnostics.
