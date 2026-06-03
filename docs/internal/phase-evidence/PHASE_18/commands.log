@@ -1,3 +1,88 @@
 # Phase 18 Commands Log
 
 No phase verification commands have been recorded yet.
+# Phase 18 Commands Log
+
+All commands below were run locally in this batch. No phase was marked
+`Verified`.
+
+## Baseline
+
+```bash
+git status --short
+```
+
+Result: clean tracked worktree before edits.
+
+## Boundary Gate
+
+```bash
+scripts/check-boundaries
+```
+
+Result: passed.
+
+```txt
+check-boundaries: scanned 93 SDE file(s)
+check-boundaries: SDE standalone source-boundary scan passed
+```
+
+## SDE Bootstrap Diagnostics
+
+```bash
+python3 Tools/SystemDefinitionEngine/build.py --tests --jobs 1
+```
+
+Result: failed before configure because `conan` was not on `PATH`.
+
+```bash
+python3 Tools/SystemDefinitionEngine/build.py --tests --no-conan --jobs 1
+```
+
+Result: failed during CMake configure because `nlohmann_json` could not be
+resolved.
+
+```bash
+nix-shell --run "python3 Tools/SystemDefinitionEngine/build.py --tests --jobs 1"
+```
+
+Result: failed after Conan install when CMake configure could not resolve
+`nlohmann_json`.
+
+## SDE Standalone Package/Test Proof
+
+```bash
+nix-shell --run "python3 Tools/SystemDefinitionEngine/build.py --conan-create"
+```
+
+Result: passed. This created/installed the `sde/0.1.1` Conan package without
+SDE tests enabled.
+
+```bash
+nix-shell --run 'conan create Tools/SystemDefinitionEngine -o "&:build_tests=True" --build=missing -s build_type=Release -c tools.build:jobs=1'
+```
+
+Result: passed.
+
+```txt
+SDETests: passed
+100% tests passed, 0 tests failed out of 1
+sde/0.1.1: Package created
+```
+
+The `tools.build:jobs=1` setting was used to keep local build load bounded.
+
+## Required Gates
+
+Final gate results are recorded after edits:
+
+```bash
+git diff --check
+scripts/scan-claims README.md docs samples Tools
+scripts/check-boundaries
+scripts/verify-quick
+scripts/verify-local --allow-dirty
+scripts/verify-phase 18
+```
+
+Result after final rerun: passed.

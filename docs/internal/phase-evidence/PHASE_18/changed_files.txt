@@ -1,1 +1,8 @@
 No phase-specific changed files recorded yet.
+docs/architecture/SDE_CURRENT_CONTRACT.md
+docs/internal/PHASE_STATUS_MATRIX.md
+docs/internal/phase-evidence/PHASE_18/EVIDENCE.md
+docs/internal/phase-evidence/PHASE_18/changed_files.txt
+docs/internal/phase-evidence/PHASE_18/commands.log
+docs/internal/phase-evidence/PHASE_18/known_limitations.md
+docs/internal/phase-evidence/PHASE_18/verification_result.json
