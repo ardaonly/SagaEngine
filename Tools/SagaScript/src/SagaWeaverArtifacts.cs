@@ -3,6 +3,7 @@
 
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -39,6 +40,32 @@ internal static class SagaWeaverArtifacts
     {
         "High",
         "Low"
+    };
+
+    private static readonly HashSet<string> BlockOperationKinds = new(StringComparer.Ordinal)
+    {
+        "LiteralValueEdit",
+        "BooleanLiteralEdit",
+        "NumericLiteralEdit",
+        "StringLiteralEdit",
+        "MethodArgumentLiteralEdit",
+        "SupportedConditionLiteralEdit"
+    };
+
+    private static readonly HashSet<string> ForbiddenBlockOperationKinds = new(StringComparer.Ordinal)
+    {
+        "ArbitrarySourceRewrite",
+        "MethodBodyRegeneration",
+        "ClassRestructure",
+        "UsingRewrite",
+        "FormattingRewrite",
+        "UnsupportedRegionEdit",
+        "OpaqueRegionEdit",
+        "AdvancedCSharpLowering",
+        "AsyncRewrite",
+        "ReflectionRewrite",
+        "UnsafeRewrite",
+        "ControlFlowRestructure"
     };
 
     private static readonly HashSet<string> Capabilities = new(StringComparer.Ordinal)
@@ -538,6 +565,137 @@ internal static class SagaWeaverArtifacts
                 "NoArbitraryCSharpToBlocks",
                 "NoRuntimeGraphInterpretation"
             ]
+        };
+    }
+
+    public static JsonObject BuildBlockEditPreview(string projectionPath, string operationPath)
+    {
+        var diagnostics = new List<SagaDiagnostic>();
+        var projection = ReadBlockOperationJsonObjectFile(projectionPath, "visual blocks projection", diagnostics);
+        var operation = ReadBlockOperationJsonObjectFile(operationPath, "block operation", diagnostics);
+
+        var operationKind = ReadString(operation, "operationKind");
+        var targetBlockId = ReadString(operation, "targetBlockId");
+        var requestedValue = ReadString(operation, "requestedValue");
+        var suppliedOperationId = ReadString(operation, "operationId");
+        var operationId = string.IsNullOrWhiteSpace(suppliedOperationId)
+            ? BuildBlockOperationId(operationKind, targetBlockId, requestedValue)
+            : suppliedOperationId;
+
+        if (operation is not null)
+        {
+            foreach (var required in new[] { "operationKind", "targetBlockId", "requestedValue" })
+            {
+                if (!HasStringField(operation, required))
+                {
+                    diagnostics.Add(BlockOperationError("Script.BlockOperation.MissingField", $"plan-block-edit requires '{required}'."));
+                }
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(operationKind))
+        {
+            if (ForbiddenBlockOperationKinds.Contains(operationKind))
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockOperation.ForbiddenOperation", $"Block operation '{operationKind}' is forbidden by the Phase 15 contract."));
+            }
+            else if (!BlockOperationKinds.Contains(operationKind))
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockOperation.UnsupportedOperation", $"Block operation '{operationKind}' is not part of the Phase 15 contract."));
+            }
+            else if (operationKind != "StringLiteralEdit")
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockOperation.NotImplementedForPreview", $"Block operation '{operationKind}' is contract-known but not previewable in Phase 15."));
+            }
+        }
+
+        JsonObject? targetBlock = null;
+        JsonObject? targetOpaqueRegion = null;
+        if (projection is not null && !string.IsNullOrWhiteSpace(targetBlockId))
+        {
+            targetBlock = FindVisualBlock(projection, targetBlockId);
+            targetOpaqueRegion = FindVisualOpaqueRegion(projection, targetBlockId);
+            if (targetBlock is null && targetOpaqueRegion is null)
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockOperation.TargetMissing", $"Target block was not found: {targetBlockId}."));
+            }
+        }
+
+        var target = targetBlock ?? targetOpaqueRegion;
+        var sourceFile = ReadString(target, "sourceFile");
+        var classification = ReadString(target, "classification");
+        var blockKind = ReadString(target, "blockKind");
+        var sourceHash = ReadString(target, "sourceHash");
+        var span = ReadSpan(target?["sourceSpan"] as JsonObject);
+        JsonObject? patchPreview = null;
+
+        if (target is not null)
+        {
+            if (targetOpaqueRegion is not null || classification == "Opaque" || blockKind == "OpaqueSourceRegionBlock")
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockOperation.OpaqueRegionReadOnly", "Opaque source regions are not editable by block operations.", sourceFile));
+            }
+            if (classification is "Unsupported" or "Invalid" || blockKind == "UnsupportedDiagnosticBlock")
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockOperation.UnsupportedDiagnosticReadOnly", "Unsupported diagnostic blocks are not editable by block operations.", sourceFile));
+            }
+            if (classification != "EditableByPatch")
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockOperation.NotPatchCapable", $"Target classification '{classification}' is not patch-capable in Phase 15.", sourceFile));
+            }
+            if (span is null)
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockOperation.SourceSpanMissing", "Target block does not include a source span.", sourceFile));
+            }
+            if (string.IsNullOrWhiteSpace(sourceHash))
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockOperation.SourceHashMissing", "Target block does not include a source hash.", sourceFile));
+            }
+        }
+
+        var replacementText = "";
+        if (operationKind == "StringLiteralEdit")
+        {
+            replacementText = JsonSerializer.Serialize(requestedValue);
+            if (!IsQuotedStringLiteral(replacementText))
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockOperation.InvalidReplacement", "Requested value cannot be represented as a C# string literal.", sourceFile));
+            }
+        }
+
+        var sortedDiagnostics = SortDiagnostics(diagnostics).ToArray();
+        var summary = SagaScriptAnalyzer.BuildSummary(sortedDiagnostics);
+        var status = summary.HasBlockingDiagnostics ? "Failed" : "Passed";
+        if (status == "Passed" && span is not null)
+        {
+            patchPreview = new JsonObject
+            {
+                ["mutatesSource"] = false,
+                ["replacementKind"] = "MinimalSpanReplacement",
+                ["startByte"] = span.StartByte,
+                ["endByte"] = span.EndByte,
+                ["replacementText"] = replacementText
+            };
+        }
+
+        return new JsonObject
+        {
+            ["schemaVersion"] = 1,
+            ["tool"] = ToolInfo.Name,
+            ["command"] = "plan-block-edit",
+            ["sourceFile"] = sourceFile,
+            ["operationId"] = operationId,
+            ["operationKind"] = operationKind,
+            ["targetBlockId"] = targetBlockId,
+            ["targetSourceSpan"] = span is null ? null : SpanJson(span),
+            ["requestedValue"] = requestedValue,
+            ["status"] = status,
+            ["patchPreview"] = patchPreview,
+            ["diagnostics"] = JsonSerializerNode.Diagnostics(sortedDiagnostics),
+            ["summary"] = JsonSerializerNode.Summary(summary),
+            ["sourcePreservation"] = "SourceNotMutated",
+            ["mutatesSource"] = false,
+            ["nonClaims"] = BlockOperationNonClaims()
         };
     }
 
@@ -2477,6 +2635,40 @@ internal static class SagaWeaverArtifacts
         };
     }
 
+    private static SagaDiagnostic BlockOperationError(string code, string message, string? sourceFile = null)
+    {
+        return new SagaDiagnostic
+        {
+            Severity = SagaDiagnosticSeverity.Error.ToString(),
+            Code = code,
+            Message = message,
+            SourceFile = string.IsNullOrWhiteSpace(sourceFile) ? null : sourceFile
+        };
+    }
+
+    private static JsonObject? ReadBlockOperationJsonObjectFile(
+        string path,
+        string label,
+        List<SagaDiagnostic> diagnostics)
+    {
+        try
+        {
+            if (!File.Exists(path))
+            {
+                diagnostics.Add(BlockOperationError("Script.BlockOperation.InputMissing", $"Required {label} file does not exist: {path}."));
+                return null;
+            }
+
+            return JsonNode.Parse(File.ReadAllText(path, Encoding.UTF8)) as JsonObject
+                ?? throw new InvalidOperationException($"{label} must be a JSON object.");
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or System.Text.Json.JsonException)
+        {
+            diagnostics.Add(BlockOperationError("Script.BlockOperation.InputInvalid", $"Unable to read {label}: {ex.Message}"));
+            return null;
+        }
+    }
+
     private static JsonObject? ReadJsonObjectFile(string path, string label, List<SagaDiagnostic> diagnostics)
     {
         try
@@ -2495,6 +2687,52 @@ internal static class SagaWeaverArtifacts
             diagnostics.Add(Error("Script.Patch.InputInvalid", $"Unable to read {label}: {ex.Message}"));
             return null;
         }
+    }
+
+    private static string BuildBlockOperationId(string operationKind, string targetBlockId, string requestedValue)
+    {
+        var material = string.Join('\n', operationKind, targetBlockId, requestedValue);
+        return ComputeHash(material)[..16];
+    }
+
+    private static JsonObject? FindVisualBlock(JsonObject projection, string blockId)
+    {
+        var blocks = projection["blocks"] as JsonArray;
+        if (blocks is null)
+        {
+            return null;
+        }
+
+        return blocks
+            .OfType<JsonObject>()
+            .FirstOrDefault(block => ReadString(block, "blockId") == blockId);
+    }
+
+    private static JsonObject? FindVisualOpaqueRegion(JsonObject projection, string blockId)
+    {
+        var regions = projection["opaqueRegions"] as JsonArray;
+        if (regions is null)
+        {
+            return null;
+        }
+
+        return regions
+            .OfType<JsonObject>()
+            .FirstOrDefault(region => ReadString(region, "blockId") == blockId);
+    }
+
+    private static JsonArray BlockOperationNonClaims()
+    {
+        var nonClaims = new JsonArray();
+        nonClaims.Add("PreviewOnly");
+        nonClaims.Add("NoSourceMutation");
+        nonClaims.Add("NoPatchApply");
+        nonClaims.Add("NoVisualBlocksEditor");
+        nonClaims.Add("NoBlockEditingUi");
+        nonClaims.Add("NoArbitraryCSharpToBlocks");
+        nonClaims.Add("NoFullVisualScripting");
+        nonClaims.Add("NoRuntimeGraphInterpretation");
+        return nonClaims;
     }
 
     private static bool HasStringField(JsonObject obj, string key)
