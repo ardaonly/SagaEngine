@@ -1,10 +1,10 @@
 {
   "phase": 21,
   "name": "Product Shell v1",
-  "status": "Not Started",
+  "status": "Implemented-Unverified",
   "required_gate": "shell-gate",
   "verified": false,
   "last_verified_commit": "-",
-  "verification_decision": "Not Started",
-  "decision_reason": "The phase has not been started in the current status matrix."
+  "verification_decision": "Implemented-Unverified",
+  "decision_reason": "The Product Shell workflow contract exists and documents existing real entry points honestly. It records the current Apps/Saga boundary, delegates proof to CLI/tool reports, requires command/exit/report/diagnostics visibility, and records missing dashboard, editor UI, package builder, distribution pipeline, enterprise server, runtime engine, compiler, and SDE compiler functionality as limitations. Maintainer verification has not occurred."
 }

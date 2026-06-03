@@ -1,1 +1,7 @@
-No phase-specific changed files recorded yet.
+docs/architecture/SAGA_PRODUCT_SHELL_WORKFLOW_CONTRACT.md
+docs/internal/PHASE_STATUS_MATRIX.md
+docs/internal/phase-evidence/PHASE_21/EVIDENCE.md
+docs/internal/phase-evidence/PHASE_21/changed_files.txt
+docs/internal/phase-evidence/PHASE_21/commands.log
+docs/internal/phase-evidence/PHASE_21/known_limitations.md
+docs/internal/phase-evidence/PHASE_21/verification_result.json

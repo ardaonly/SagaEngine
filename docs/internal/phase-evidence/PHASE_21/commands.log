@@ -1,3 +1,64 @@
 # Phase 21 Commands Log
 
-No phase verification commands have been recorded yet.
+All commands below were run locally in this batch. No phase was marked
+`Verified`.
+
+```bash
+git diff --check
+scripts/scan-claims README.md docs samples Tools
+scripts/verify-quick
+scripts/verify-local --allow-dirty
+scripts/verify-phase 21
+```
+
+Result after final rerun: passed.
+
+`scripts/scan-claims README.md docs samples Tools` output:
+
+```txt
+scan-claims: scanned 177 public text file(s)
+scan-claims: no unsupported public claim text found
+```
+
+`scripts/verify-quick` output:
+
+```txt
+verify-quick: passed
+```
+
+`scripts/verify-local --allow-dirty` output:
+
+```txt
+verify-local: passed
+```
+
+`scripts/verify-phase 21` output:
+
+```txt
+verify-phase: passed structure checks for phase(s): 21
+verify-phase: no phase was marked Verified
+```
+
+Optional diagnostic:
+
+```bash
+scripts/package-linux-saga
+```
+
+Result: failed as expected for the current preflight-only package path. This is
+recorded as a limitation and does not gate Phase 21.
+
+```txt
+package-linux-saga: preflight only; no files were staged or generated
+package-linux-saga: config=Release
+package-linux-saga: build_dir=build/RelWithDebInfo-0.0.9-sde
+package-linux-saga: expected_output=build/dist/linux/Saga
+package-linux-saga: failed; required real inputs/output layout are missing:
+- sde CLI: missing real executable; checked build/RelWithDebInfo-0.0.9-sde/bin/sde, Tools/SystemDefinitionEngine/build/bin/sde, Tools/SystemDefinitionEngine/build/sde
+- expected final distribution layout: missing directory build/dist/linux/Saga
+- expected distribution VERSION: missing file build/dist/linux/Saga/VERSION
+- expected distribution VERIFY.txt: missing file build/dist/linux/Saga/VERIFY.txt
+- expected distribution known limitations: missing file build/dist/linux/Saga/KNOWN_LIMITATIONS.md
+- expected distribution archive: missing file build/dist/linux/Saga.tar.zst
+- expected distribution checksum: missing file build/dist/linux/Saga.sha256
+```
