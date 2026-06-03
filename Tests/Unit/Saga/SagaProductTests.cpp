@@ -6,6 +6,7 @@
 #include "SagaPackageStaging.h"
 #include "SagaProjectSystem.h"
 #include "SagaProductHost.h"
+#include "SagaProductWorkflowSmokeReport.h"
 #include "SagaPublishReadiness.h"
 #include "SagaScriptGate.h"
 #include "SagaSdeCompiler.h"
@@ -161,6 +162,39 @@ public:
     return diagnostic;
 }
 
+[[nodiscard]] const nlohmann::json* FindWorkflowStep(
+    const nlohmann::json& report,
+    const std::string& stepId)
+{
+    if (!report.contains("workflowSteps") || !report["workflowSteps"].is_array())
+    {
+        return nullptr;
+    }
+    for (const nlohmann::json& step : report["workflowSteps"])
+    {
+        if (step.value("id", std::string{}) == stepId)
+        {
+            return &step;
+        }
+    }
+    return nullptr;
+}
+
+[[nodiscard]] bool JsonArrayContainsString(const nlohmann::json& array,
+                                           const std::string& value)
+{
+    if (!array.is_array())
+    {
+        return false;
+    }
+    return std::any_of(array.begin(), array.end(),
+                       [&](const nlohmann::json& item)
+                       {
+                           return item.is_string() &&
+                               item.get<std::string>() == value;
+                       });
+}
+
 TEST(SagaAppConfigTest, DefaultConfigCanBeCreated)
 {
     const char* argvRaw[] = { "Saga" };
@@ -288,6 +322,31 @@ TEST(SagaAppConfigTest, PackageStagingArgumentsAreParsed)
     EXPECT_EQ(result.config.runtimeCompatibilityVersion, "0.0.8");
     EXPECT_EQ(result.config.packageStageReportPath,
               fs::path("/tmp/project/Build/Reports/package_stage_report.json"));
+}
+
+TEST(SagaAppConfigTest, WorkflowSmokeArgumentsAreParsed)
+{
+    const char* argvRaw[] = {
+        "Saga",
+        "--workflow-smoke",
+        "--project",
+        "samples/StarterArena/StarterArena.sagaproj",
+        "--profile",
+        "technical_preview",
+        "--workflow-report-out",
+        "/tmp/starter_arena_product_shell_workflow_report.json",
+    };
+    auto* argv = const_cast<char**>(argvRaw);
+
+    const SagaConfigResult result = ParseSagaAppConfig(8, argv);
+
+    ASSERT_TRUE(result.ok) << result.error;
+    EXPECT_TRUE(result.config.workflowSmoke);
+    EXPECT_EQ(result.config.workflowProjectPath,
+              fs::path("samples/StarterArena/StarterArena.sagaproj"));
+    EXPECT_EQ(result.config.workflowProfile, "technical_preview");
+    EXPECT_EQ(result.config.workflowReportPath,
+              fs::path("/tmp/starter_arena_product_shell_workflow_report.json"));
 }
 
 TEST(SagaAppConfigTest, MissingPackageManifestValueFailsDeterministically)
@@ -1071,6 +1130,60 @@ TEST(SagaPackageStagingTest, AppEntrypointStagesPackages)
     EXPECT_NE(out.str().find("package.status=staged"), std::string::npos);
     EXPECT_NE(out.str().find("package.clientManifest="), std::string::npos);
     EXPECT_TRUE(err.str().empty());
+}
+
+TEST(SagaProductWorkflowSmokeTest,
+     AppEntrypointWritesStarterArenaReportWithoutRunningWorkflowTools)
+{
+    const fs::path root = MakeTempDir("saga_product_workflow_smoke_test");
+    const fs::path reportPath =
+        root / "starter_arena_product_shell_workflow_report.json";
+
+    SagaProduct::SagaApp app;
+    SagaAppConfig config;
+    config.workflowSmoke = true;
+    config.workflowProjectPath = SourceRoot() / "samples" / "StarterArena" /
+        "StarterArena.sagaproj";
+    config.workflowProfile = "technical_preview";
+    config.workflowReportPath = reportPath;
+
+    std::ostringstream out;
+    std::ostringstream err;
+    const int exitCode = app.Run(config, out, err);
+
+    EXPECT_EQ(exitCode, 0);
+    EXPECT_NE(out.str().find("workflow.report="), std::string::npos);
+    EXPECT_NE(out.str().find("workflow.status=PassedWithLimitations"),
+              std::string::npos);
+    EXPECT_TRUE(err.str().empty());
+    ASSERT_TRUE(fs::exists(reportPath));
+
+    std::ifstream input(reportPath);
+    const nlohmann::json report = nlohmann::json::parse(input);
+    EXPECT_EQ(report["tool"], "Saga");
+    EXPECT_EQ(report["command"], "workflow-smoke");
+    EXPECT_EQ(report["verified"], false);
+    EXPECT_EQ(report["status"], "PassedWithLimitations");
+    EXPECT_EQ(report["project"]["projectId"], "starter-arena");
+    EXPECT_EQ(report["profile"]["requestedProfileId"], "technical_preview");
+
+    const nlohmann::json* editorInspection =
+        FindWorkflowStep(report, "editor_inspection");
+    ASSERT_NE(editorInspection, nullptr);
+    EXPECT_NE((*editorInspection)["command"].get<std::string>().find(
+                  "SagaEditor --inspect-project"),
+              std::string::npos);
+
+    const nlohmann::json* packagePreflight =
+        FindWorkflowStep(report, "package_preflight");
+    ASSERT_NE(packagePreflight, nullptr);
+    EXPECT_EQ((*packagePreflight)["status"], "blocked");
+    EXPECT_EQ((*packagePreflight)["command"], "scripts/package-linux-saga");
+
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "full product dashboard"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "distribution readiness"));
 }
 
 TEST(SagaPublishReadinessTest, ValidProjectAndPackagesAreReady)

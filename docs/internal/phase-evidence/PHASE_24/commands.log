@@ -1,3 +1,26 @@
 # Phase 24 Commands Log
 
-No phase verification commands have been recorded yet.
+Recorded on 2026-06-04.
+
+- PASS: `git diff --check`
+- PASS: `scripts/scan-claims README.md docs samples Tools`
+  - Scanned 179 public text files.
+  - No unsupported public claim text found.
+- PASS: `scripts/verify-quick`
+  - Passed structure, claim, phase, and SDE boundary checks.
+  - No phase was marked Verified.
+- PASS: `scripts/verify-local --allow-dirty`
+  - Passed the CI-ready local pre-commit gate with dirty worktree allowed.
+  - Real build was not requested by the script.
+- PASS: `scripts/verify-phase 24`
+  - Phase 24 structure checks passed.
+  - No phase was marked Verified.
+- PASS: `nix-shell --run "cmake --build build/RelWithDebInfo-0.0.9-sde --target Saga SagaProductTests --parallel 1"`
+  - Built the SDE-enabled Product Shell binary and focused unit-test target with low parallelism.
+- PASS: `build/RelWithDebInfo-0.0.9-sde/bin/SagaProductTests --gtest_filter='*WorkflowSmoke*:*ProductShell*:*StarterArena*'`
+  - Ran 2 focused tests.
+  - All focused tests passed.
+- PASS: `build/RelWithDebInfo-0.0.9-sde/bin/Saga --workflow-smoke --project samples/StarterArena/StarterArena.sagaproj --profile technical_preview --workflow-report-out /tmp/starter_arena_product_shell_workflow_report.json`
+  - Wrote `/tmp/starter_arena_product_shell_workflow_report.json`.
+  - Report status: `PassedWithLimitations`.
+  - Report verified flag: `false`.

@@ -1,6 +1,7 @@
 # Saga Product Shell Workflow Contract
 
-Phase 21 status is `Implemented-Unverified`.
+Phase 21 status is `Implemented-Unverified`. Phase 24 adds a narrow no-UI
+Product Shell workflow smoke report.
 
 The Saga Product Shell is a:
 
@@ -8,10 +9,11 @@ The Saga Product Shell is a:
 launcher/dashboard/workflow router
 ```
 
-This document is a contract over existing entry points. It does not implement
-dashboard UI wiring, editor workflow panels, package distribution, runtime
-logic, server logic, SagaScript behavior, SDE behavior, Visual Blocks editor UI,
-or collaboration services.
+This document is a contract over existing entry points. The Phase 24 smoke is a
+report-only command over those entry points. It does not implement dashboard UI
+wiring, editor workflow panels, package distribution, runtime logic, server
+logic, SagaScript behavior, SDE behavior, Visual Blocks editor UI, or
+collaboration services.
 
 ## Role
 
@@ -60,6 +62,19 @@ The repository already contains an `Apps/Saga` product shell boundary:
 
 `Apps/Editor` remains the editor launcher. `Apps/EditorLab` remains a scenario
 and development shell, not the Product Shell workflow dashboard.
+
+## Workflow Smoke
+
+Phase 24 exposes the first Product Shell workflow smoke as:
+
+```bash
+build/RelWithDebInfo-0.0.9-sde/bin/Saga --workflow-smoke --project samples/StarterArena/StarterArena.sagaproj --profile technical_preview --workflow-report-out /tmp/starter_arena_product_shell_workflow_report.json
+```
+
+The report contains project metadata, selected profile, workflow step command
+references, expected report paths, diagnostics, known limitations, non-claims,
+and `verified: false`. It does not execute the referenced workflow tools.
+Missing reports and package preflight limitations remain visible.
 
 ## Workflow Contract
 
@@ -197,9 +212,12 @@ or implemented profile editing.
 ## Known Limitations
 
 - Phase 21 is a docs/evidence-only workflow contract.
-- No Product Shell dashboard workflow is implemented by this phase.
+- Phase 24 is a no-UI Product Shell workflow smoke report.
+- No Product Shell dashboard workflow UI is implemented by this phase.
 - No UI wiring is added for validation, smoke, scripting, blocks, diagnostics,
   or package preflight.
+- Workflow smoke command entries are references and are not executed by the
+  report.
 - StarterArena has no launch profiles in its project manifest.
 - Visual Blocks evidence remains CLI-only.
 - Package preflight is not package or distribution readiness.

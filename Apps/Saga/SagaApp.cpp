@@ -6,6 +6,7 @@
 #include "SagaEditorModule.h"
 #include "SagaPackageStaging.h"
 #include "SagaProjectSystem.h"
+#include "SagaProductWorkflowSmokeReport.h"
 #include "SagaPublishReadiness.h"
 #include "SagaScriptGate.h"
 
@@ -77,6 +78,7 @@ constexpr int kExitStartupFailure = 1;
     const SagaAppConfig& config) noexcept
 {
     return config.publishCheck ||
+        config.workflowSmoke ||
         config.stagePackages ||
         config.validateSagaScript ||
         config.prepareOnly ||
@@ -503,6 +505,37 @@ int SagaApp::Run(const SagaAppConfig& config,
         }
         return result.started && result.exitCode != 0 ?
             result.exitCode : kExitStartupFailure;
+    }
+
+    if (config.workflowSmoke)
+    {
+        if (config.workflowProjectPath.empty())
+        {
+            err << "Saga: --workflow-smoke requires --project <.sagaproj>\n";
+            return kExitStartupFailure;
+        }
+        if (config.workflowReportPath.empty())
+        {
+            err << "Saga: --workflow-smoke requires --workflow-report-out <path>\n";
+            return kExitStartupFailure;
+        }
+
+        SagaProductWorkflowSmokeRequest request;
+        request.projectManifestPath = config.workflowProjectPath;
+        request.profile = config.workflowProfile;
+        request.reportPath = config.workflowReportPath;
+
+        const SagaProductWorkflowSmokeResult result =
+            WriteProductWorkflowSmokeReport(request);
+        if (!result.ok)
+        {
+            err << result.error << '\n';
+            return kExitStartupFailure;
+        }
+
+        out << "workflow.report=" << result.reportPath.string() << '\n';
+        out << "workflow.status=" << result.status << '\n';
+        return kExitOk;
     }
 
     if (config.stagePackages)

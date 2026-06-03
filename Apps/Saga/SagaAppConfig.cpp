@@ -125,6 +125,10 @@ std::string SagaUsageText()
         "  --publish-profile <name>          Publish readiness profile\n"
         "  --publish-report <path>           Publish readiness report output path\n"
         "  --publish-diagnostics <key=path>  Include opaque diagnostics report in publish readiness\n"
+        "  --workflow-smoke                  Emit Product Shell workflow smoke report\n"
+        "  --project <path>                  Project manifest for workflow smoke\n"
+        "  --profile <id>                    Workflow smoke profile/view preset id\n"
+        "  --workflow-report-out <path>      Workflow smoke report output path\n"
         "  --forge <path>                    Forge executable for SagaScript validation\n"
         "  --sagascript-tool <path>          SagaScript executable for SagaScript validation\n"
         "  --version-info <path>             Distribution version.json path\n"
@@ -308,6 +312,40 @@ SagaConfigResult ParseSagaAppConfig(int argc, char* argv[])
                 return result;
             }
             result.config.publishDiagnostics.push_back(argv[++i]);
+        }
+        else if (arg == "--workflow-smoke")
+        {
+            result.config.workflowSmoke = true;
+        }
+        else if (arg == "--project")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --project requires a path";
+                return result;
+            }
+            result.config.workflowProjectPath = std::filesystem::path(argv[++i]);
+        }
+        else if (arg == "--profile")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --profile requires a profile id";
+                return result;
+            }
+            result.config.workflowProfile = argv[++i];
+        }
+        else if (arg == "--workflow-report-out")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --workflow-report-out requires a path";
+                return result;
+            }
+            result.config.workflowReportPath = std::filesystem::path(argv[++i]);
         }
         else if (arg == "--forge")
         {
