@@ -20,7 +20,7 @@ or an explicit verification script result accepted by maintainers.
 | 10 | First Playable Runtime Loop | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_10/` | runtime-smoke-gate | `-` | `SagaRuntime --starter-arena-smoke` runs a bounded project and scene-backed StarterArena loop; maintainer verification is still required. |
 | 11 | C# Gameplay Script v1 | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_11/` | scripting-gate | `-` | StarterArena has SagaScript compile evidence, runtime metadata consumption, and one controlled pure-method invocation; maintainer verification is still required. |
 | 12 | Server-Authoritative Sample v1 | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_12/` | server-gate | `-` | StarterArena has a bounded socket-free server-authoritative smoke; maintainer verification is still required. |
-| 13 | C# Compatibility Profile v1 | Not Started | `docs/internal/phase-evidence/PHASE_13/` | csharp-blocks-gate | `-` | `-` |
+| 13 | C# Compatibility Profile v1 | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_13/` | csharp-blocks-gate | `-` | SagaScript compatibility profile docs and fixture tests define projectable, partially projectable, advanced opaque, and unsupported C# evidence; maintainer verification is still required. |
 | 14 | Read-Only Blocks Projection | Not Started | `docs/internal/phase-evidence/PHASE_14/` | projection-gate | `-` | `-` |
 | 15 | Block Operation Contract | Not Started | `docs/internal/phase-evidence/PHASE_15/` | patch-contract-gate | `-` | `-` |
 | 16 | First Safe Block Edit | Not Started | `docs/internal/phase-evidence/PHASE_16/` | source-patch-gate | `-` | `-` |

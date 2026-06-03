@@ -1,10 +1,10 @@
 {
   "phase": 13,
   "name": "C# Compatibility Profile v1",
-  "status": "Not Started",
+  "status": "Implemented-Unverified",
   "required_gate": "csharp-blocks-gate",
   "verified": false,
   "last_verified_commit": "-",
-  "verification_decision": "Not Started",
-  "decision_reason": "The phase has not been started in the current status matrix."
+  "verification_decision": "Implemented-Unverified",
+  "decision_reason": "SagaScript compatibility profile documentation and fixture tests define projectable, partially projectable, advanced opaque, and unsupported C# source categories. The evidence is analyzer/fixture scoped only; Visual Blocks UI, source patching implementation, runtime gameplay changes, editor workflow, package output, distribution output, SDE work, and maintainer verification remain absent."
 }
