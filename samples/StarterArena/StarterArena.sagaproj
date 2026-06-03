@@ -19,7 +19,12 @@
     }
   ],
   "assets": [],
-  "scriptFolders": [],
+  "scriptFolders": [
+    {
+      "id": "starter-arena.scripts",
+      "path": "Scripts"
+    }
+  ],
   "launchProfiles": [],
   "packageProfiles": []
 }
