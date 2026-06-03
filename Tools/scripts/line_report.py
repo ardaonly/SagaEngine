@@ -49,7 +49,7 @@ DEFAULT_EXCLUDE_NAMES = {
     "__pycache__",
     ".venv", "venv",
     "node_modules",
-    "build", "dist", "out", "bin", "obj",
+    "build", "dist", "out", "bin", "obj", "Build",
     "_deps", "CMakeFiles",
 }
 
