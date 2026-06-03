@@ -1,3 +1,47 @@
 # Phase 19 Commands Log
 
-No phase verification commands have been recorded yet.
+All commands below are for this batch. No phase was marked `Verified`.
+
+## Required Gates
+
+```bash
+git diff --check
+scripts/scan-claims README.md docs samples Tools
+scripts/check-boundaries
+scripts/verify-quick
+scripts/verify-local --allow-dirty
+scripts/verify-phase 19
+```
+
+Result after final rerun: passed.
+
+`scripts/check-boundaries` output:
+
+```txt
+check-boundaries: scanned 93 SDE file(s)
+check-boundaries: SDE standalone source-boundary scan passed
+```
+
+`scripts/scan-claims README.md docs samples Tools` output:
+
+```txt
+scan-claims: scanned 175 public text file(s)
+scan-claims: no unsupported public claim text found
+```
+
+## SDE-Specific Test Proof
+
+The SDE package/test command is run with one build job to keep local load
+bounded:
+
+```bash
+nix-shell --run 'conan create Tools/SystemDefinitionEngine -o "&:build_tests=True" --build=missing -s build_type=Release -c tools.build:jobs=1'
+```
+
+Result: passed.
+
+```txt
+SDETests: passed
+100% tests passed, 0 tests failed out of 1
+sde/0.1.1: Package created
+```

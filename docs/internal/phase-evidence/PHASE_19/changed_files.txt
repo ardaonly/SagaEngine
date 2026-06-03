@@ -1,1 +1,8 @@
-No phase-specific changed files recorded yet.
+Tools/SystemDefinitionEngine/tests/Compiler/CompilerSessionTests.cpp
+docs/architecture/SDE_ARTIFACT_MANIFEST_CONTRACT.md
+docs/internal/PHASE_STATUS_MATRIX.md
+docs/internal/phase-evidence/PHASE_19/EVIDENCE.md
+docs/internal/phase-evidence/PHASE_19/changed_files.txt
+docs/internal/phase-evidence/PHASE_19/commands.log
+docs/internal/phase-evidence/PHASE_19/known_limitations.md
+docs/internal/phase-evidence/PHASE_19/verification_result.json

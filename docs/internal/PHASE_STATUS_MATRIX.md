@@ -26,7 +26,7 @@ or an explicit verification script result accepted by maintainers.
 | 16 | First Safe Block Edit | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_16/` | source-patch-gate | `-` | `sagascript apply-block-edit` applies one `StringLiteralEdit` to a copied output source file; maintainer verification is still required. |
 | 17 | Two-Way Authoring v1 | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_17/` | authoring-loop-gate | `-` | SagaScript test-level orchestration proves C# to projection to copied patch to patched analyze/compile; maintainer verification is still required. |
 | 18 | SDE Current Contract Stabilization | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_18/` | sde-boundary-gate | `-` | SDE standalone contract docs, boundary scan, and Conan package/test evidence are recorded; maintainer verification is still required. |
-| 19 | SDE Artifact and Manifest Contracts | Not Started | `docs/internal/phase-evidence/PHASE_19/` | sde-artifact-gate | `-` | `-` |
+| 19 | SDE Artifact and Manifest Contracts | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_19/` | sde-artifact-gate | `-` | SDE artifact/manifest contract docs and deterministic package/test evidence are recorded; maintainer verification is still required. |
 | 20 | Saga Schema Package Boundary | Not Started | `docs/internal/phase-evidence/PHASE_20/` | sde-schema-gate | `-` | `-` |
 | 21 | Product Shell v1 | Not Started | `docs/internal/phase-evidence/PHASE_21/` | shell-gate | `-` | `-` |
 | 22 | Editor Shell v1 | Not Started | `docs/internal/phase-evidence/PHASE_22/` | editor-gate | `-` | `-` |
