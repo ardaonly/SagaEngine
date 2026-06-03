@@ -1,3 +1,44 @@
 # Phase 11 Commands Log
 
-No phase verification commands have been recorded yet.
+git status --short
+Result: passed. Worktree was clean before implementation.
+
+nix-shell --run "Tools/SagaProjectKit/sagaproject validate --project samples/StarterArena/StarterArena.sagaproj --out /tmp/starter_arena_validate.json"
+Result: passed. The report status was `Passed` with no diagnostics.
+
+nix-shell --run "Tools/SagaScript/sagascript analyze --source samples/StarterArena/Scripts --out /tmp/starter_arena_sagascript --json"
+Result: passed. The command exited `0` and wrote
+`/tmp/starter_arena_sagascript/analysis_report.json` plus
+`/tmp/starter_arena_sagascript/sagascript_diagnostics.json`. The analysis
+summary had no blocking diagnostics and one warning:
+`Script.Metadata.MissingBehavior`.
+
+nix-shell --run "SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY=Engine/Managed/SagaScript.RuntimeBridge/obj/Release/net10.0/SagaScript.RuntimeBridge.dll Tools/SagaScript/sagascript compile --source samples/StarterArena/Scripts --out /tmp/starter_arena_sagascript/Manifests --artifacts-out /tmp/starter_arena_sagascript/Artifacts/Scripts --project-root samples/StarterArena --assembly-name StarterArenaScripts --diagnostics /tmp/starter_arena_sagascript/sagascript_diagnostics.json --json"
+Result: passed. The command exited `0`, emitted one script artifact, and wrote
+manifests plus `StarterArenaScripts.scripts.dll`,
+`StarterArenaScripts.scripts.pdb`, and
+`StarterArenaScripts.scripts.runtimeconfig.json`.
+
+/tmp/starter_arena_sagascript/Manifests/script_bindings.json
+Result: binding id
+`script://starter-arena/game-rules#StarterArena.Scripts.GameRules.AddPickupScore`,
+authority `SharedPure`, supported `int` parameters, supported `int` return, and
+no blocking diagnostics.
+
+No Apps/Runtime, Engine, Editor, Server, Visual Blocks, package/distribution
+script, SDE, or SagaScript tool files were modified.
+
+git diff --check
+Result: passed.
+
+scripts/scan-claims README.md docs samples Tools
+Result: passed.
+
+scripts/verify-quick
+Result: passed.
+
+scripts/verify-local --allow-dirty
+Result: passed. Pre-commit mode allowed the intentionally dirty worktree.
+
+scripts/verify-phase 11
+Result: passed. No phase was marked Verified.

@@ -22,3 +22,13 @@ Accepted evidence for this phase:
 
 This is not acceptance for interactive gameplay, a reusable scene system,
 package launch, editor launch, or server-authoritative multiplayer.
+
+Phase 11A acceptance is implemented-unverified through SagaScript compile and
+analyze evidence only. Accepted evidence for Phase 11A:
+
+- `sagaproject validate` accepts the `Scripts` folder reference;
+- `sagascript analyze` exits `0` and writes analysis diagnostics;
+- `sagascript compile` exits `0` and writes script manifests plus
+  `StarterArenaScripts.scripts.dll`;
+- docs keep runtime script execution, C# gameplay binding, Visual Blocks,
+  server multiplayer, editor workflow, and package output as unsupported.

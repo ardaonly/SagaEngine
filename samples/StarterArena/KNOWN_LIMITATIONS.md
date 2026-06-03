@@ -11,7 +11,9 @@
   UDP/client networking.
 - The smoke loop reads spawn, bounds, camera metadata, input, and expected
   results from the declared scene resource.
+- `Scripts/GameRules.cs` is compile/analyze evidence only.
+- StarterArena runtime smoke does not execute C# scripts yet.
 - Restart behavior is reported as deferred.
-- No C# scripts, Visual Blocks, editor workflow, server-authoritative
-  multiplayer, package output, distribution output, or fake runtime smoke
-  evidence exists for this sample.
+- No Visual Blocks, editor workflow, server-authoritative multiplayer, runtime
+  C# gameplay binding, package output, distribution output, or fake runtime
+  smoke evidence exists for this sample.

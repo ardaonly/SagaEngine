@@ -1,5 +1,11 @@
 # Phase 11 Known Limitations
 
 - This phase is not verified.
-- This evidence folder is tracking scaffolding only.
+- Phase 11A is compile/analyze evidence only.
+- StarterArena runtime smoke does not execute C# scripts.
+- No runtime C# gameplay binding is implemented yet.
+- No Visual Blocks, editor workflow, server-authoritative multiplayer, package
+  output, or distribution output is implemented by this phase.
+- SagaScript `analyze` reports one non-blocking warning because the sample does
+  not declare `[SagaBehavior]` metadata.
 - No public product claim should be derived from this file.
