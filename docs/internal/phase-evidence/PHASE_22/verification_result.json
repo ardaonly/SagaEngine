@@ -1,10 +1,10 @@
 {
   "phase": 22,
   "name": "Editor Shell v1",
-  "status": "Not Started",
+  "status": "Implemented-Unverified",
   "required_gate": "editor-gate",
   "verified": false,
   "last_verified_commit": "-",
-  "verification_decision": "Not Started",
-  "decision_reason": "The phase has not been started in the current status matrix."
+  "verification_decision": "Implemented-Unverified",
+  "decision_reason": "The editor shell minimum workflow contract exists, and SagaEditor now has a no-UI report-backed inspection mode for StarterArena metadata. The proof records project identity, editor read-model status, workflow action command/report references, diagnostics, and known limitations without claiming a full editor, Visual Blocks editor UI, gameplay editing, package/distribution readiness, or maintainer verification."
 }

@@ -1,3 +1,87 @@
 # Phase 22 Commands Log
 
-No phase verification commands have been recorded yet.
+All commands below were run locally in this batch. No phase was marked
+`Verified`.
+
+```bash
+nix-shell --run "cmake --build build/RelWithDebInfo-0.0.9 --target SagaEditor EditorAuthoringSpineTests"
+build/RelWithDebInfo-0.0.9/bin/EditorAuthoringSpineTests --gtest_filter='*StarterArena*:*EditorShell*'
+build/RelWithDebInfo-0.0.9/bin/SagaEditor --inspect-project samples/StarterArena/StarterArena.sagaproj --editor-shell-report /tmp/starter_arena_editor_shell_report.json
+git diff --check
+scripts/scan-claims README.md docs samples Tools
+scripts/verify-quick
+scripts/verify-local --allow-dirty
+scripts/verify-phase 22
+```
+
+Result after final rerun: passed.
+
+Focused build result:
+
+```txt
+[2/3] Linking CXX executable bin/EditorAuthoringSpineTests
+```
+
+Focused test output:
+
+```txt
+[ RUN      ] EditorAuthoringSpineTests.StarterArenaLoadsMinimumEditorShellWorkflowReadOnly
+[       OK ] EditorAuthoringSpineTests.StarterArenaLoadsMinimumEditorShellWorkflowReadOnly (0 ms)
+[  PASSED  ] 1 test.
+```
+
+Editor shell report command output:
+
+```txt
+SagaEditor: editor shell report="/tmp/starter_arena_editor_shell_report.json"
+```
+
+`scripts/scan-claims README.md docs samples Tools` output:
+
+```txt
+scan-claims: scanned 178 public text file(s)
+scan-claims: no unsupported public claim text found
+```
+
+`scripts/verify-quick` output:
+
+```txt
+verify-quick: passed
+```
+
+`scripts/verify-local --allow-dirty` output:
+
+```txt
+verify-local: passed
+```
+
+`scripts/verify-phase 22` output:
+
+```txt
+verify-phase: passed structure checks for phase(s): 22
+verify-phase: no phase was marked Verified
+```
+
+Optional diagnostic:
+
+```bash
+scripts/package-linux-saga
+```
+
+Result: failed as expected for the current preflight-only package path. This is
+recorded as a limitation and does not gate Phase 22.
+
+```txt
+package-linux-saga: preflight only; no files were staged or generated
+package-linux-saga: config=Release
+package-linux-saga: build_dir=build/RelWithDebInfo-0.0.9-sde
+package-linux-saga: expected_output=build/dist/linux/Saga
+package-linux-saga: failed; required real inputs/output layout are missing:
+- sde CLI: missing real executable; checked build/RelWithDebInfo-0.0.9-sde/bin/sde, Tools/SystemDefinitionEngine/build/bin/sde, Tools/SystemDefinitionEngine/build/sde
+- expected final distribution layout: missing directory build/dist/linux/Saga
+- expected distribution VERSION: missing file build/dist/linux/Saga/VERSION
+- expected distribution VERIFY.txt: missing file build/dist/linux/Saga/VERIFY.txt
+- expected distribution known limitations: missing file build/dist/linux/Saga/KNOWN_LIMITATIONS.md
+- expected distribution archive: missing file build/dist/linux/Saga.tar.zst
+- expected distribution checksum: missing file build/dist/linux/Saga.sha256
+```

@@ -589,6 +589,66 @@ TEST(EditorAuthoringSpineTests, ProjectBrowserListsWorkflowSectionsReadOnly)
     fs::remove_all(root);
 }
 
+TEST(EditorAuthoringSpineTests, StarterArenaLoadsMinimumEditorShellWorkflowReadOnly)
+{
+    const fs::path manifest = fs::path(SAGA_SOURCE_ROOT) /
+        "samples" / "StarterArena" / "StarterArena.sagaproj";
+
+    TechnicalPreviewProjectView project =
+        LoadTechnicalPreviewProjectView(manifest);
+    ProjectBrowserWorkflowView browser =
+        LoadProjectBrowserWorkflowView(manifest);
+
+    ASSERT_TRUE(project.ok);
+    EXPECT_EQ(project.projectId, "starter-arena");
+    EXPECT_EQ(project.displayName, "StarterArena");
+    EXPECT_EQ(project.manifestPath.filename(), "StarterArena.sagaproj");
+    EXPECT_EQ(project.diagnosticsPath.filename(), "Diagnostics");
+    EXPECT_EQ(project.generatedReportsPath.filename(), "Reports");
+    ASSERT_EQ(project.scriptFolders.size(), 1u);
+    EXPECT_EQ(project.scriptFolders[0].id, "starter-arena.scripts");
+    EXPECT_TRUE(fs::exists(project.scriptFolders[0].path));
+    EXPECT_TRUE(project.launchProfiles.empty());
+    EXPECT_TRUE(project.packageProfiles.empty());
+
+    ASSERT_EQ(browser.sections.size(), 5u);
+    EXPECT_NE(std::find_if(browser.sections.begin(),
+                           browser.sections.end(),
+                           [](const ProjectBrowserSectionView& section)
+                           {
+                               return section.name == "Scenes" &&
+                                   section.exists &&
+                                   section.status == "Ready";
+                           }),
+              browser.sections.end());
+    EXPECT_NE(std::find_if(browser.sections.begin(),
+                           browser.sections.end(),
+                           [](const ProjectBrowserSectionView& section)
+                           {
+                               return section.name == "Scripts" &&
+                                   section.exists &&
+                                   section.status == "Ready";
+                           }),
+              browser.sections.end());
+    EXPECT_FALSE(browser.ok);
+    EXPECT_NE(std::find_if(browser.diagnostics.begin(),
+                           browser.diagnostics.end(),
+                           [](const AuthoringDiagnostic& diagnostic)
+                           {
+                               return diagnostic.code ==
+                                   "Editor.ProjectBrowser.PackageProfilesMissing";
+                           }),
+              browser.diagnostics.end());
+    EXPECT_NE(std::find_if(browser.diagnostics.begin(),
+                           browser.diagnostics.end(),
+                           [](const AuthoringDiagnostic& diagnostic)
+                           {
+                               return diagnostic.code ==
+                                   "Editor.ProjectBrowser.AssetRootMissing";
+                           }),
+              browser.diagnostics.end());
+}
+
 TEST(EditorAuthoringSpineTests, BehaviorInspectorConsumesAllScriptEvidence)
 {
     const fs::path root = MakeTempRoot("inspector_evidence");
