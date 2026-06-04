@@ -1,0 +1,496 @@
+#!/usr/bin/env python3
+"""Validate the Linux Saga technical-preview candidate evidence."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import subprocess
+import sys
+from pathlib import Path
+from typing import Any
+
+
+DEFAULT_LAYOUT = Path("build/dist/linux/Saga")
+DEFAULT_ARCHIVE = Path("build/dist/linux/Saga.tar.zst")
+DEFAULT_CHECKSUM = Path("build/dist/linux/Saga.sha256")
+DEFAULT_PACKAGE_REPORT = Path("build/reports/linux_package_preflight_report.json")
+DEFAULT_SMOKE_REPORT = Path("build/reports/linux_distribution_smoke_report.json")
+DEFAULT_REPORT = Path("build/reports/linux_distributable_candidate_report.json")
+PHASE_MATRIX = Path("docs/internal/PHASE_STATUS_MATRIX.md")
+
+
+def path_text(path: Path) -> str:
+    return path.as_posix()
+
+
+def add_check(
+    checks: list[dict[str, Any]],
+    *,
+    label: str,
+    status: str,
+    required: bool = True,
+    message: str | None = None,
+    details: dict[str, Any] | None = None,
+) -> bool:
+    entry: dict[str, Any] = {
+        "label": label,
+        "status": status,
+        "required": required,
+    }
+    if message:
+        entry["message"] = message
+    if details:
+        entry["details"] = details
+    checks.append(entry)
+    return status == "passed" or not required
+
+
+def add_artifact(
+    artifacts: list[dict[str, Any]],
+    *,
+    label: str,
+    path: Path,
+    kind: str,
+    required: bool = True,
+) -> bool:
+    available = path.exists()
+    artifacts.append(
+        {
+            "label": label,
+            "kind": kind,
+            "path": path_text(path),
+            "required": required,
+            "status": "available" if available else ("blocked" if required else "missing"),
+        }
+    )
+    return available or not required
+
+
+def read_json(path: Path) -> tuple[dict[str, Any] | None, str | None]:
+    try:
+        return json.loads(path.read_text(encoding="utf-8")), None
+    except FileNotFoundError:
+        return None, f"missing JSON report: {path}"
+    except json.JSONDecodeError as exc:
+        return None, f"invalid JSON report {path}: {exc}"
+
+
+def run_command(args: list[str], *, cwd: Path | None = None) -> dict[str, Any]:
+    try:
+        result = subprocess.run(
+            args,
+            cwd=cwd,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=60,
+        )
+        return {
+            "args": args,
+            "cwd": path_text(cwd) if cwd else None,
+            "exitCode": result.returncode,
+            "stdoutPreview": result.stdout[:2000],
+            "stderrPreview": result.stderr[:2000],
+            "status": "passed" if result.returncode == 0 else "blocked",
+        }
+    except subprocess.TimeoutExpired as exc:
+        return {
+            "args": args,
+            "cwd": path_text(cwd) if cwd else None,
+            "status": "blocked",
+            "message": "timed out after 60s",
+            "stdoutPreview": (exc.stdout or "")[:2000],
+            "stderrPreview": (exc.stderr or "")[:2000],
+        }
+
+
+def source_commit() -> str | None:
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if result.returncode != 0:
+        return None
+    commit = result.stdout.strip()
+    return commit or None
+
+
+def phase_statuses() -> list[dict[str, Any]]:
+    if not PHASE_MATRIX.exists():
+        return []
+    phases: list[dict[str, Any]] = []
+    for raw_line in PHASE_MATRIX.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line.startswith("|") or line.startswith("|---") or line.startswith("| Phase "):
+            continue
+        cells = [cell.strip().strip("`") for cell in line.strip("|").split("|")]
+        if len(cells) < 7 or not cells[0].isdigit():
+            continue
+        phases.append(
+            {
+                "phase": int(cells[0]),
+                "name": cells[1],
+                "status": cells[2],
+                "requiredGate": cells[4],
+            }
+        )
+    return phases
+
+
+def command_status(report: dict[str, Any], label: str) -> str | None:
+    for command in report.get("commands", []):
+        if command.get("label") == label:
+            return command.get("status")
+    return None
+
+
+def command_present(report: dict[str, Any], label: str) -> bool:
+    return any(command.get("label") == label for command in report.get("commands", []))
+
+
+def validate_package_report(
+    package_report: dict[str, Any] | None,
+    checks: list[dict[str, Any]],
+    blockers: list[str],
+) -> None:
+    if package_report is None:
+        add_check(checks, label="package report parsed", status="blocked", message="package report is unavailable")
+        blockers.append("package report is unavailable")
+        return
+
+    add_check(
+        checks,
+        label="package report tool",
+        status="passed" if package_report.get("tool") == "package-linux-saga" else "blocked",
+        message=None if package_report.get("tool") == "package-linux-saga" else "package report tool is not package-linux-saga",
+    )
+    add_check(
+        checks,
+        label="package report verified flag",
+        status="passed" if package_report.get("verified") is False else "blocked",
+        message="package report must keep verified=false" if package_report.get("verified") is not False else None,
+    )
+    add_check(
+        checks,
+        label="package preflight status",
+        status="passed" if package_report.get("status") == "preflight-passed" else "blocked",
+        message=f"expected preflight-passed, got {package_report.get('status')!r}",
+    )
+    missing = package_report.get("missingInputs", [])
+    add_check(
+        checks,
+        label="package missing inputs",
+        status="passed" if missing == [] else "blocked",
+        message="package report still lists missing inputs" if missing else None,
+        details={"missingInputs": missing} if missing else None,
+    )
+    for label, field in [
+        ("distribution layout available", "distributionLayoutStatus"),
+        ("archive available", "archiveStatus"),
+        ("checksum available", "checksumStatus"),
+    ]:
+        status = package_report.get(field, {}).get("status")
+        add_check(
+            checks,
+            label=label,
+            status="passed" if status == "available" else "blocked",
+            message=f"expected {field}.status=available, got {status!r}",
+        )
+
+    for check in checks:
+        if check.get("status") == "blocked" and str(check.get("label", "")).startswith(("package", "distribution", "archive", "checksum")):
+            message = check.get("message") or check.get("label")
+            blockers.append(str(message))
+
+
+def validate_smoke_report(
+    smoke_report: dict[str, Any] | None,
+    checks: list[dict[str, Any]],
+    blockers: list[str],
+    known_limitations: list[str],
+) -> None:
+    if smoke_report is None:
+        add_check(checks, label="smoke report parsed", status="blocked", message="smoke report is unavailable")
+        blockers.append("smoke report is unavailable")
+        return
+
+    add_check(
+        checks,
+        label="smoke report tool",
+        status="passed" if smoke_report.get("tool") == "smoke-linux-saga-dist" else "blocked",
+        message=None if smoke_report.get("tool") == "smoke-linux-saga-dist" else "smoke report tool is not smoke-linux-saga-dist",
+    )
+    add_check(
+        checks,
+        label="smoke report verified flag",
+        status="passed" if smoke_report.get("verified") is False else "blocked",
+        message="smoke report must keep verified=false" if smoke_report.get("verified") is not False else None,
+    )
+    add_check(
+        checks,
+        label="distribution smoke status",
+        status="passed" if smoke_report.get("status") == "passed-with-limitations" else "blocked",
+        message=f"expected passed-with-limitations, got {smoke_report.get('status')!r}",
+    )
+    starter_status = smoke_report.get("starterArena", {}).get("status")
+    add_check(
+        checks,
+        label="StarterArena workflow status",
+        status="passed" if starter_status == "passed-with-limitations" else "blocked",
+        message=f"expected StarterArena passed-with-limitations, got {starter_status!r}",
+    )
+
+    for label in [
+        "StarterArena sagaproject validate",
+        "StarterArena sagascript analyze",
+        "StarterArena Saga workflow-smoke",
+    ]:
+        status = command_status(smoke_report, label)
+        add_check(
+            checks,
+            label=f"{label} command",
+            status="passed" if status == "passed" else "blocked",
+            message=f"expected command status passed, got {status!r}",
+        )
+
+    for label in [
+        "StarterArena SagaRuntime packaged smoke",
+        "StarterArena SagaEditor inspect-project",
+    ]:
+        present = command_present(smoke_report, label)
+        status = command_status(smoke_report, label)
+        add_check(
+            checks,
+            label=f"{label} blocker recorded",
+            status="passed" if present and status == "blocked" else "blocked",
+            required=False,
+            message=f"expected recorded blocked limitation, got {status!r}" if not (present and status == "blocked") else None,
+        )
+        if present and status == "blocked":
+            known_limitations.append(f"{label} remains blocked in the packaged distribution smoke.")
+
+    for check in checks:
+        if check.get("status") == "blocked" and str(check.get("label", "")).startswith(("smoke", "distribution", "StarterArena")) and check.get("required", True):
+            message = check.get("message") or check.get("label")
+            blockers.append(str(message))
+
+
+def validate_artifacts(
+    *,
+    layout: Path,
+    archive: Path,
+    checksum: Path,
+    checks: list[dict[str, Any]],
+    artifacts: list[dict[str, Any]],
+    commands: list[dict[str, Any]],
+    blockers: list[str],
+) -> None:
+    add_artifact(artifacts, label="staged Linux layout", path=layout, kind="directory")
+    add_artifact(artifacts, label="Linux package archive", path=archive, kind="archive")
+    add_artifact(artifacts, label="Linux package checksum", path=checksum, kind="checksum")
+
+    add_check(
+        checks,
+        label="staged Linux layout exists",
+        status="passed" if layout.is_dir() else "blocked",
+        message=f"missing layout: {layout}" if not layout.is_dir() else None,
+    )
+    add_check(
+        checks,
+        label="archive exists",
+        status="passed" if archive.is_file() and archive.stat().st_size > 0 else "blocked",
+        message=f"missing or empty archive: {archive}" if not (archive.is_file() and archive.stat().st_size > 0) else None,
+    )
+    add_check(
+        checks,
+        label="checksum exists",
+        status="passed" if checksum.is_file() and checksum.stat().st_size > 0 else "blocked",
+        message=f"missing or empty checksum: {checksum}" if not (checksum.is_file() and checksum.stat().st_size > 0) else None,
+    )
+
+    if checksum.is_file():
+        checksum_command = run_command(["sha256sum", "-c", checksum.name], cwd=checksum.parent)
+        checksum_command["label"] = "candidate checksum verification"
+        commands.append(checksum_command)
+        add_check(
+            checks,
+            label="checksum verifies",
+            status=checksum_command["status"],
+            message="sha256sum -c failed" if checksum_command["status"] != "passed" else None,
+        )
+    else:
+        blockers.append(f"missing checksum: {checksum}")
+
+    if archive.is_file():
+        tar_command = run_command(["tar", "-tf", str(archive)])
+        tar_command["label"] = "candidate archive listing"
+        commands.append(tar_command)
+        entries = [line.strip() for line in str(tar_command.get("stdoutPreview", "")).splitlines() if line.strip()]
+        root_ok = tar_command.get("status") == "passed" and bool(entries) and all(
+            entry == "Saga/" or entry.startswith("Saga/") for entry in entries
+        )
+        add_check(
+            checks,
+            label="archive Saga/ root",
+            status="passed" if root_ok else "blocked",
+            message="archive root is not Saga/" if not root_ok else None,
+            details={"entriesPreview": entries[:40]},
+        )
+    else:
+        blockers.append(f"missing archive: {archive}")
+
+    for check in checks:
+        if check.get("status") == "blocked" and str(check.get("label", "")).startswith(("staged", "archive", "checksum")):
+            message = check.get("message") or check.get("label")
+            blockers.append(str(message))
+
+
+def validate_non_claims(
+    package_report: dict[str, Any] | None,
+    smoke_report: dict[str, Any] | None,
+    checks: list[dict[str, Any]],
+) -> list[str]:
+    non_claims = [
+        "This candidate report does not claim production readiness; the package is not production-ready.",
+        "This candidate report does not claim enterprise readiness; the package is not enterprise-ready.",
+        "This candidate report does not claim a verified final release.",
+        "This candidate report does not claim full distribution verification or certification.",
+        "This candidate report does not claim full editor workflow.",
+        "This candidate report does not claim full Visual Blocks UI.",
+        "This candidate report does not claim full gameplay readiness.",
+        "This candidate report does not claim full runtime validation.",
+        "This candidate report does not claim cloud collaboration.",
+        "This candidate report does not mark any phase Verified.",
+    ]
+
+    evidence_blob = json.dumps((package_report or {}).get("nonClaims", [])) + json.dumps((smoke_report or {}).get("nonClaims", []))
+    for needle in [
+        "production",
+        "enterprise",
+        "verified final release",
+        "full distribution",
+        "full editor",
+        "Visual Blocks",
+        "full gameplay",
+    ]:
+        add_check(
+            checks,
+            label=f"input non-claim: {needle}",
+            status="passed" if needle.lower() in evidence_blob.lower() else "blocked",
+            message=f"input reports do not include non-claim containing {needle!r}",
+        )
+    return non_claims
+
+
+def write_report(report_out: Path, report: dict[str, Any]) -> None:
+    report_out.parent.mkdir(parents=True, exist_ok=True)
+    report_out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--package-report", default=str(DEFAULT_PACKAGE_REPORT), help="Package preflight report path.")
+    parser.add_argument("--smoke-report", default=str(DEFAULT_SMOKE_REPORT), help="Distribution smoke report path.")
+    parser.add_argument("--archive", default=str(DEFAULT_ARCHIVE), help="Saga.tar.zst archive path.")
+    parser.add_argument("--checksum", default=str(DEFAULT_CHECKSUM), help="Saga.sha256 checksum path.")
+    parser.add_argument("--layout", default=str(DEFAULT_LAYOUT), help="Staged Saga layout path.")
+    parser.add_argument("--report-out", default=str(DEFAULT_REPORT), help="Candidate report output path.")
+    args = parser.parse_args()
+
+    package_report_path = Path(args.package_report)
+    smoke_report_path = Path(args.smoke_report)
+    archive = Path(args.archive)
+    checksum = Path(args.checksum)
+    layout = Path(args.layout)
+    report_out = Path(args.report_out)
+
+    checks: list[dict[str, Any]] = []
+    commands: list[dict[str, Any]] = []
+    artifacts: list[dict[str, Any]] = []
+    blockers: list[str] = []
+    diagnostics: list[str] = []
+    known_limitations: list[str] = [
+        "This candidate gate collects package, archive, checksum, unpack smoke, and limited StarterArena workflow evidence only.",
+        "Packaged SagaRuntime StarterArena smoke remains blocked.",
+        "Packaged SagaEditor inspect-project remains blocked.",
+        "Product Shell workflow evidence is no-UI and report-only.",
+    ]
+
+    add_artifact(artifacts, label="package preflight report", path=package_report_path, kind="json-report")
+    add_artifact(artifacts, label="distribution smoke report", path=smoke_report_path, kind="json-report")
+
+    package_report, package_error = read_json(package_report_path)
+    smoke_report, smoke_error = read_json(smoke_report_path)
+    if package_error:
+        diagnostics.append(package_error)
+        blockers.append(package_error)
+    if smoke_error:
+        diagnostics.append(smoke_error)
+        blockers.append(smoke_error)
+
+    validate_artifacts(
+        layout=layout,
+        archive=archive,
+        checksum=checksum,
+        checks=checks,
+        artifacts=artifacts,
+        commands=commands,
+        blockers=blockers,
+    )
+    validate_package_report(package_report, checks, blockers)
+    validate_smoke_report(smoke_report, checks, blockers, known_limitations)
+    non_claims = validate_non_claims(package_report, smoke_report, checks)
+
+    phases = phase_statuses()
+    verified_phases = [phase for phase in phases if phase.get("status") == "Verified"]
+    add_check(
+        checks,
+        label="no phase marked Verified",
+        status="passed" if not verified_phases else "blocked",
+        message=f"phases marked Verified: {verified_phases}" if verified_phases else None,
+    )
+    if verified_phases:
+        blockers.append("one or more phases are marked Verified")
+
+    required_blocked = [check for check in checks if check.get("required", True) and check.get("status") == "blocked"]
+    if required_blocked or blockers:
+        status = "blocked"
+        exit_code = 1
+    else:
+        status = "candidate-with-limitations"
+        exit_code = 0
+
+    report = {
+        "schemaVersion": 1,
+        "tool": "verify-linux-saga-candidate",
+        "status": status,
+        "verified": False,
+        "sourceCommit": source_commit(),
+        "layout": path_text(layout),
+        "archive": path_text(archive),
+        "checksum": path_text(checksum),
+        "packageReport": path_text(package_report_path),
+        "smokeReport": path_text(smoke_report_path),
+        "candidateChecks": checks,
+        "commands": commands,
+        "artifacts": artifacts,
+        "knownLimitations": known_limitations,
+        "blockers": sorted(set(blockers)),
+        "diagnostics": diagnostics,
+        "nonClaims": non_claims,
+        "phaseStatuses": phases,
+    }
+    write_report(report_out, report)
+
+    print(f"verify-linux-saga-candidate: status={status}")
+    print(f"verify-linux-saga-candidate: report={report_out}")
+    return exit_code
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

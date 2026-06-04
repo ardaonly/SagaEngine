@@ -11,6 +11,9 @@ by local environment and by subsystem.
 - The repository contains engine/toolchain source code and focused local tests.
 - Some tools and native targets can be built and verified locally.
 - Distribution staging exists for selected artifacts.
+- A Linux technical-preview archive can be produced and smoke-checked with
+  limitations, including a candidate evidence report that keeps Runtime and
+  Editor workflow blockers explicit.
 
 ## Unsafe Claims
 
@@ -19,6 +22,10 @@ by local environment and by subsystem.
 - Do not present it as a finished editor, full game engine, public SDK, or
   complete packaging/publishing pipeline.
 - Do not claim production networking, cloud, security, or scale readiness.
+- Do not treat the technical-preview candidate report as production readiness,
+  enterprise readiness, verified final release status, full distribution
+  verification, full editor workflow, full Visual Blocks UI, or full gameplay
+  readiness.
 
 ## Generated Outputs
 
