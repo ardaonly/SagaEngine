@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Linux Saga distribution layout staging and preflight.
 
-This script stages the first Linux layout from real existing inputs, then fails
-honestly when required binaries, docs, samples, archive, or checksum entries are
-missing. It does not create the final archive or checksum.
+This script stages the first Linux layout from real existing inputs, then
+generates an archive and checksum from that layout. It fails honestly when
+required binaries, docs, samples, archive, or checksum entries are missing.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -188,6 +189,14 @@ def write_report(report_path: Path, report: dict[str, object]) -> None:
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def archive_path_for(output: Path) -> Path:
+    return output.parent / f"{output.name}.tar.zst"
+
+
+def checksum_path_for(output: Path) -> Path:
+    return output.parent / f"{output.name}.sha256"
+
+
 def resolved_input(available_inputs: list[dict[str, object]], label: str) -> Path:
     for item in available_inputs:
         if item.get("label") == label and item.get("resolvedPath"):
@@ -241,9 +250,10 @@ def verification_text(*, without_server: bool) -> str:
     server_check = "" if without_server else "test -x bin/SagaServer\n"
     return f"""# Saga Linux Layout Verification
 
-This file describes presence checks for the staged layout only. Passing these
-commands does not prove package readiness, distribution readiness, workflow
-correctness, archive integrity, or maintainer verification.
+This file describes presence checks for the staged layout and archive/checksum
+outputs. Passing these commands does not prove production readiness, enterprise
+readiness, verified release status, final release verification, full
+distribution validation, workflow correctness, or maintainer verification.
 
 Run from the staged layout root:
 
@@ -263,9 +273,15 @@ test -f docs/README.md
 test -d licenses
 ```
 
-Archive and checksum checks are intentionally absent from this staged layout.
-`Saga.tar.zst` and `Saga.sha256` remain separate package blockers until a later
-phase creates them honestly.
+Run from the parent `build/dist/linux` directory after package generation:
+
+```bash
+sha256sum -c Saga.sha256
+tar -tf Saga.tar.zst
+```
+
+The archive/checksum checks only prove that `Saga.tar.zst` exists, that
+`Saga.sha256` covers that archive, and that the archive can be listed.
 """
 
 
@@ -275,16 +291,17 @@ def known_limitations_text() -> str:
 This staged layout is not a final distribution.
 
 - Not production-ready.
-- Not package-ready until archive and checksum gates pass.
-- Not distribution-ready until the final distribution gate passes.
+- Not enterprise-ready.
+- Not a verified release.
+- Not a verified final release.
+- Not full distribution validation.
+- Archive/checksum evidence is limited to `Saga.tar.zst` and `Saga.sha256`.
 - No full editor UI is claimed.
 - No Visual Blocks editor UI is claimed.
 - No enterprise collaboration is claimed.
 - No cloud workspace is claimed.
 - No package readiness is claimed unless `scripts/package-linux-saga` passes all required checks.
 - Runtime, editor, server, and tool workflows are not proven beyond real input existence checks.
-- `Saga.tar.zst` is not created by Phase 33.
-- `Saga.sha256` is not created by Phase 33.
 - No phase is marked Verified by this staged layout.
 """
 
@@ -363,19 +380,22 @@ def stage_layout(
     build_info: dict[str, object] = {
         "schemaVersion": 1,
         "tool": "package-linux-saga",
-        "status": "staged-with-blockers",
+        "status": "layout-staged-for-archive",
         "verified": False,
+        "archiveTarget": path_text(archive_path_for(output)),
         "buildDir": path_text(build_dir),
+        "checksumTarget": path_text(checksum_path_for(output)),
         "output": path_text(output),
         "withoutServer": without_server,
         "stagedInputs": staged_inputs,
         "missingInputs": [],
         "nonClaims": [
             "This layout is not a final distribution.",
-            "This layout does not claim package readiness.",
-            "This layout does not claim distribution readiness.",
-            "This layout does not include Saga.tar.zst.",
-            "This layout does not include Saga.sha256.",
+            "This layout does not claim production readiness.",
+            "This layout does not claim enterprise readiness.",
+            "This layout does not claim a verified release.",
+            "This layout does not claim a verified final release.",
+            "This layout does not claim full distribution validation.",
             "This layout does not mark any phase Verified.",
         ],
     }
@@ -396,6 +416,253 @@ def stage_layout(
     }
 
 
+def stale_package_outputs(archive_path: Path, checksum_path: Path) -> None:
+    for path in [checksum_path, archive_path]:
+        if path.exists():
+            path.unlink()
+
+
+def staged_layout_missing(output: Path, without_server: bool) -> list[str]:
+    required_files = [
+        "VERSION",
+        "VERIFY.txt",
+        "KNOWN_LIMITATIONS.md",
+        "BUILD_INFO.json",
+        "bin/Saga",
+        "bin/SagaEditor",
+        "bin/SagaRuntime",
+        "tools/sagaproject",
+        "tools/sagapack",
+        "tools/sagascript",
+        "tools/sde",
+        "docs/README.md",
+    ]
+    if not without_server:
+        required_files.append("bin/SagaServer")
+    required_dirs = [
+        "samples/StarterArena",
+        "docs/product",
+        "licenses",
+    ]
+
+    missing_entries: list[str] = []
+    if not output.is_dir():
+        missing_entries.append(path_text(output))
+        return missing_entries
+
+    executable_rels = {
+        "bin/Saga",
+        "bin/SagaEditor",
+        "bin/SagaRuntime",
+        "bin/SagaServer",
+        "tools/sagaproject",
+        "tools/sagapack",
+        "tools/sagascript",
+        "tools/sde",
+    }
+    for rel in required_files:
+        path = output / rel
+        if rel in executable_rels:
+            if not is_executable(path):
+                missing_entries.append(path_text(path))
+        elif not path.is_file():
+            missing_entries.append(path_text(path))
+    for rel in required_dirs:
+        path = output / rel
+        if not path.is_dir():
+            missing_entries.append(path_text(path))
+    return missing_entries
+
+
+def tar_supports_zstd() -> bool:
+    if shutil.which("tar") is None or shutil.which("zstd") is None:
+        return False
+    result = subprocess.run(
+        ["tar", "--help"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    return result.returncode == 0 and "--zstd" in result.stdout
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def archive_root_is_valid(archive_path: Path, root_name: str) -> bool:
+    result = subprocess.run(
+        ["tar", "-tf", str(archive_path)],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if result.returncode != 0:
+        return False
+    entries = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    return bool(entries) and all(entry == root_name or entry.startswith(f"{root_name}/") for entry in entries)
+
+
+def generate_archive_and_checksum(
+    *,
+    output: Path,
+    archive_path: Path,
+    checksum_path: Path,
+    without_server: bool,
+    missing: list[str],
+    required_inputs: list[dict[str, object]],
+    available_inputs: list[dict[str, object]],
+    missing_inputs: list[dict[str, object]],
+) -> dict[str, object]:
+    stale_package_outputs(archive_path, checksum_path)
+    status: dict[str, object] = {
+        "archivePath": path_text(archive_path),
+        "checksumPath": path_text(checksum_path),
+        "status": "blocked",
+    }
+
+    layout_missing = staged_layout_missing(output, without_server)
+    layout_ready = not layout_missing
+    layout_message = None
+    if not layout_ready:
+        layout_message = "staged layout incomplete; archive/checksum generation skipped: " + ", ".join(layout_missing)
+        missing.append(layout_message)
+    record_check(
+        label="staged layout completeness for archive",
+        kind="directory",
+        category="archive",
+        paths=[output],
+        available=layout_ready,
+        required_inputs=required_inputs,
+        available_inputs=available_inputs,
+        missing_inputs=missing_inputs,
+        resolved_path=output if layout_ready else None,
+        message=layout_message,
+    )
+    if not layout_ready:
+        status["message"] = layout_message
+        return status
+
+    tool_ready = tar_supports_zstd()
+    tool_paths = [Path(shutil.which("tar") or "tar"), Path(shutil.which("zstd") or "zstd")]
+    tool_message = None
+    if not tool_ready:
+        tool_message = "archive tool: missing tar with --zstd support or zstd executable"
+        missing.append(tool_message)
+    record_check(
+        label="tar zstd archive tools",
+        kind="tool",
+        category="archive-tool",
+        paths=tool_paths,
+        available=tool_ready,
+        required_inputs=required_inputs,
+        available_inputs=available_inputs,
+        missing_inputs=missing_inputs,
+        resolved_path=tool_paths[0] if tool_ready else None,
+        message=tool_message,
+    )
+    if not tool_ready:
+        status["message"] = tool_message
+        return status
+
+    archive_command = [
+        "tar",
+        "--zstd",
+        "--sort=name",
+        "--mtime=@0",
+        "--owner=0",
+        "--group=0",
+        "--numeric-owner",
+        "-cf",
+        str(archive_path),
+        "-C",
+        str(output.parent),
+        output.name,
+    ]
+    archive_result = subprocess.run(
+        archive_command,
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    archive_ready = (
+        archive_result.returncode == 0
+        and archive_path.is_file()
+        and archive_path.stat().st_size > 0
+        and archive_root_is_valid(archive_path, output.name)
+    )
+    archive_message = None
+    if not archive_ready:
+        stale_package_outputs(archive_path, checksum_path)
+        archive_error = archive_result.stderr.strip() or "archive generation failed"
+        archive_message = f"archive generation failed: {archive_error}"
+        missing.append(archive_message)
+    record_check(
+        label="archive generation",
+        kind="file",
+        category="archive",
+        paths=[archive_path],
+        available=archive_ready,
+        required_inputs=required_inputs,
+        available_inputs=available_inputs,
+        missing_inputs=missing_inputs,
+        resolved_path=archive_path if archive_ready else None,
+        message=archive_message,
+    )
+    if not archive_ready:
+        status["message"] = archive_message
+        return status
+
+    checksum = sha256_file(archive_path)
+    checksum_path.write_text(f"{checksum}  {archive_path.name}\n", encoding="utf-8")
+    checksum_ready = checksum_path.is_file() and checksum_path.stat().st_size > 0
+    checksum_message = None
+    if not checksum_ready:
+        checksum_message = f"checksum generation failed: {checksum_path}"
+        missing.append(checksum_message)
+    record_check(
+        label="checksum generation",
+        kind="file",
+        category="checksum",
+        paths=[checksum_path],
+        available=checksum_ready,
+        required_inputs=required_inputs,
+        available_inputs=available_inputs,
+        missing_inputs=missing_inputs,
+        resolved_path=checksum_path if checksum_ready else None,
+        message=checksum_message,
+    )
+    if not checksum_ready:
+        return {
+            "archivePath": path_text(archive_path),
+            "checksumPath": path_text(checksum_path),
+            "status": "blocked",
+            "message": checksum_message,
+        }
+
+    return {
+        "archivePath": path_text(archive_path),
+        "archiveRoot": output.name,
+        "checksumPath": path_text(checksum_path),
+        "checksumAlgorithm": "sha256",
+        "status": "available",
+        "nonClaims": [
+            "Archive/checksum generation does not claim production readiness.",
+            "Archive/checksum generation does not claim enterprise readiness.",
+            "Archive/checksum generation does not claim a verified release.",
+            "Archive/checksum generation does not claim a verified final release.",
+            "Archive/checksum generation does not claim full distribution validation.",
+        ],
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", default="Release", help="Build configuration label.")
@@ -412,6 +679,8 @@ def main() -> int:
     build_dir_candidates = [Path(args.build_dir)] if args.build_dir else default_build_dirs(args.config)
     build_dir = Path(args.build_dir) if args.build_dir else first_existing(build_dir_candidates)
     output = Path(args.output)
+    archive_path = archive_path_for(output)
+    checksum_path = checksum_path_for(output)
     report_path = Path(args.report_out)
     missing: list[str] = []
     required_inputs: list[dict[str, object]] = []
@@ -482,6 +751,7 @@ def main() -> int:
 
     staging_status: dict[str, object]
     if missing:
+        stale_package_outputs(archive_path, checksum_path)
         staging_status = {
             "status": "blocked",
             "output": path_text(output),
@@ -495,12 +765,29 @@ def main() -> int:
             without_server=bool(args.without_server),
         )
 
+    archive_generation_status: dict[str, object] = {
+        "archivePath": path_text(archive_path),
+        "checksumPath": path_text(checksum_path),
+        "status": "skipped",
+    }
+    if not missing:
+        archive_generation_status = generate_archive_and_checksum(
+            output=output,
+            archive_path=archive_path,
+            checksum_path=checksum_path,
+            without_server=bool(args.without_server),
+            missing=missing,
+            required_inputs=required_inputs,
+            available_inputs=available_inputs,
+            missing_inputs=missing_inputs,
+        )
+
     check_dir("expected final distribution layout", output, missing, required_inputs, available_inputs, missing_inputs, category="distribution-layout")
     check_file("expected distribution VERSION", output / "VERSION", missing, required_inputs, available_inputs, missing_inputs, category="distribution-layout")
     check_file("expected distribution VERIFY.txt", output / "VERIFY.txt", missing, required_inputs, available_inputs, missing_inputs, category="distribution-layout")
     check_file("expected distribution known limitations", output / "KNOWN_LIMITATIONS.md", missing, required_inputs, available_inputs, missing_inputs, category="distribution-layout")
-    check_file("expected distribution archive", Path("build/dist/linux/Saga.tar.zst"), missing, required_inputs, available_inputs, missing_inputs, category="archive")
-    check_file("expected distribution checksum", Path("build/dist/linux/Saga.sha256"), missing, required_inputs, available_inputs, missing_inputs, category="checksum")
+    check_file("expected distribution archive", archive_path, missing, required_inputs, available_inputs, missing_inputs, category="archive")
+    check_file("expected distribution checksum", checksum_path, missing, required_inputs, available_inputs, missing_inputs, category="checksum")
 
     status = "blocked" if missing else "preflight-passed"
     distribution_items = [
@@ -536,12 +823,13 @@ def main() -> int:
             "missingEntries": distribution_missing,
         },
         "stagingStatus": staging_status,
+        "archiveGenerationStatus": archive_generation_status,
         "archiveStatus": {
-            "path": "build/dist/linux/Saga.tar.zst",
+            "path": path_text(archive_path),
             "status": status_for_label(required_inputs, "expected distribution archive"),
         },
         "checksumStatus": {
-            "path": "build/dist/linux/Saga.sha256",
+            "path": path_text(checksum_path),
             "status": status_for_label(required_inputs, "expected distribution checksum"),
         },
         "diagnostics": missing
@@ -549,30 +837,38 @@ def main() -> int:
         else [
             "preflight passed for currently checked inputs",
             "layout staging completed from real existing inputs",
+            "archive/checksum generated from the staged layout",
+            "production, enterprise, and verified final release readiness are not claimed",
         ],
         "knownLimitations": [
             "This script stages only the Linux layout directory from real existing inputs.",
             "This script does not build missing tools, including the standalone SDE CLI.",
-            "This script does not create Saga.tar.zst.",
-            "This script does not create Saga.sha256.",
-            "The staged layout is not a final distribution.",
+            "This script creates only Saga.tar.zst and Saga.sha256 from the staged layout.",
+            "Archive/checksum generation does not prove runtime, editor, server, or tool workflows.",
+            "Archive/checksum generation does not prove full distribution validation.",
             "A passing preflight report is not maintainer verification.",
         ],
         "nonClaims": [
-            "No package archive or checksum files were generated by scripts/package-linux-saga.",
-            "This report does not claim package readiness.",
-            "This report does not claim distribution readiness.",
+            "This report does not claim production readiness; the package is not production-ready.",
+            "This report does not claim enterprise readiness; the package is not enterprise-ready.",
+            "This report does not claim a verified release.",
+            "This report does not claim a verified final release.",
+            "This report does not claim full distribution validation.",
+            "This report does not claim full editor UI readiness.",
+            "This report does not claim Visual Blocks editor UI readiness.",
+            "This report does not claim cloud collaboration readiness.",
             "This report does not prove runtime, editor, server, or tool workflows beyond input existence checks.",
             "This report does not mark any phase Verified.",
         ],
     }
     write_report(report_path, report)
 
-    print("package-linux-saga: layout staging plus preflight; no archive or checksum generated")
+    print("package-linux-saga: layout staging plus archive/checksum preflight")
     print(f"package-linux-saga: config={args.config}")
     print(f"package-linux-saga: build_dir={build_dir}")
     print(f"package-linux-saga: expected_output={output}")
     print(f"package-linux-saga: staging_status={staging_status.get('status')}")
+    print(f"package-linux-saga: archive_status={archive_generation_status.get('status')}")
 
     if missing:
         print("package-linux-saga: failed; required real inputs/output layout are missing:")
@@ -580,7 +876,7 @@ def main() -> int:
             print(f"- {item}")
         return 1
 
-    print("package-linux-saga: preflight passed; archive/checksum generation is still not implemented")
+    print("package-linux-saga: preflight passed; archive/checksum generated without readiness claims")
     return 0
 
 
