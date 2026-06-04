@@ -213,6 +213,46 @@ struct ProjectMetadata
         IdSegment(sliceName) + ":" + TargetSegment(targetPath);
 }
 
+[[nodiscard]] std::string MakeApprovalId(
+    const std::string& workspaceId,
+    const std::string& projectId,
+    const std::string& actorId,
+    const std::string& roleName,
+    const std::string& approvalState,
+    const fs::path& targetPath)
+{
+    return "local-approval:" + IdSegment(workspaceId) + ":" +
+        IdSegment(projectId) + ":" + IdSegment(actorId) + ":" +
+        IdSegment(roleName) + ":" + IdSegment(approvalState) + ":" +
+        TargetSegment(targetPath);
+}
+
+[[nodiscard]] std::string MakeApprovalGateId(
+    const std::string& workspaceId,
+    const std::string& projectId,
+    const std::string& actorId,
+    const fs::path& targetPath)
+{
+    return "local-approval-gate:" + IdSegment(workspaceId) + ":" +
+        IdSegment(projectId) + ":" + IdSegment(actorId) + ":" +
+        TargetSegment(targetPath);
+}
+
+[[nodiscard]] std::string ApprovalStateForInput(const std::string& state)
+{
+    if (state == "requested-local-preview" ||
+        state == "RequestedLocalPreview")
+    {
+        return "RequestedLocalPreview";
+    }
+    if (state == "rejected-local-preview" ||
+        state == "RejectedLocalPreview")
+    {
+        return "RejectedLocalPreview";
+    }
+    return "ApprovedLocalPreview";
+}
+
 [[nodiscard]] std::string BodyPreview(const std::string& body)
 {
     constexpr std::size_t kMaxPreviewLength = 120;
@@ -244,6 +284,10 @@ struct ProjectMetadata
         "collaboration server",
         "full team workspace",
         "approval workflow",
+        "real approval workflow",
+        "durable approval service",
+        "actual publish blocker",
+        "package readiness",
         "tamper-resistant audit log",
         "product beta",
         "distribution readiness",
@@ -273,6 +317,22 @@ struct ProjectMetadata
         "The report does not mutate project files, scenes, scripts, or SDE files.",
         "The report does not write durable project slice metadata.",
         "Enterprise policy, cloud sync, CRDT/OT, and collaboration server work are deferred.",
+        "No phase is marked Verified by this report.",
+    };
+}
+
+[[nodiscard]] std::vector<nlohmann::json> ApprovalGateLimitations()
+{
+    return {
+        "Local approval gate smoke is a no-UI report-only boundary proof.",
+        "Approval metadata is local to the report and is not a real approval workflow.",
+        "Publish gate metadata is a preview and is not an actual publish blocker.",
+        "Package preflight is represented as blocked and does not claim package readiness.",
+        "Distribution readiness is always false for this report.",
+        "The report does not enforce permissions or enterprise policy.",
+        "The report does not mutate project files, scenes, scripts, SDE files, package profiles, diagnostics folders, report folders, workspace files, or package outputs.",
+        "The report does not write durable approval, policy, audit, or collaboration metadata.",
+        "Cloud sync, CRDT/OT, real-time team editing, and collaboration server work are deferred.",
         "No phase is marked Verified by this report.",
     };
 }
@@ -611,6 +671,104 @@ SagaLocalCollaborationMetadataReportResult WriteLocalProjectSliceReport(
     };
     report["diagnostics"] = project.diagnostics;
     report["knownLimitations"] = ProjectSliceLimitations();
+    report["nonClaims"] = SharedNonClaims();
+
+    result.ok = WriteJsonReport(request.reportPath, report, result.error);
+    return result;
+}
+
+SagaLocalCollaborationMetadataReportResult WriteLocalApprovalGateReport(
+    const SagaLocalApprovalGateReportRequest& request)
+{
+    SagaLocalCollaborationMetadataReportResult result;
+    result.reportPath = request.reportPath;
+
+    ProjectMetadata project = LoadProjectMetadata(request.projectManifestPath);
+    const fs::path gateTarget = AbsoluteIfPresent(request.gateTargetPath);
+    if (request.roleName.empty())
+    {
+        project.diagnostics.push_back(Diagnostic(
+            "Saga.LocalCollaboration.ApprovalRoleMissing",
+            "local approval gate smoke requires --role <name>"));
+    }
+    if (gateTarget.empty())
+    {
+        project.diagnostics.push_back(Diagnostic(
+            "Saga.LocalCollaboration.GateTargetMissing",
+            "local approval gate smoke requires --gate-target <path>"));
+    }
+
+    const std::string workspaceSelector =
+        OrDefault(request.workspaceSelector, "builtin:basic");
+    const std::string workspaceId = WorkspaceIdForSelector(workspaceSelector);
+    const std::string actorId = OrDefault(request.actorId, "local.actor");
+    const std::string projectId = ProjectIdOrUnknown(project);
+    const std::string approvalState =
+        ApprovalStateForInput(request.approvalState);
+    const bool ready =
+        project.ok && !request.roleName.empty() && !gateTarget.empty();
+    result.status = ready ? "Ready" : "Failed";
+
+    nlohmann::json report;
+    report["schemaVersion"] = 1;
+    report["tool"] = "Saga";
+    report["command"] = "local-workspace-approval-gate-smoke";
+    report["status"] = result.status;
+    report["verified"] = false;
+    report["workspace"] = WorkspaceJson(workspaceId, workspaceSelector);
+    report["project"] = ProjectJson(project);
+    report["actor"] = ActorJson(actorId);
+    report["approval"] = {
+        { "approvalId", MakeApprovalId(workspaceId,
+                                       projectId,
+                                       actorId,
+                                       request.roleName,
+                                       approvalState,
+                                       gateTarget) },
+        { "actorId", actorId },
+        { "roleName", request.roleName },
+        { "targetArtifact", gateTarget.string() },
+        { "approvalState", approvalState },
+        { "source", "report-only" },
+        { "durable", false },
+        { "enforced", false },
+        { "requiresServer", false },
+        { "mutatesProject", false },
+    };
+    report["publishGate"] = {
+        { "gateId", MakeApprovalGateId(workspaceId,
+                                       projectId,
+                                       actorId,
+                                       gateTarget) },
+        { "targetArtifact", gateTarget.string() },
+        { "gateMode", "MetadataOnly" },
+        { "status", ready ? "Blocked" : "Failed" },
+        { "packagePreflightStatus", "Blocked" },
+        { "distributionReady", false },
+        { "policyBacked", false },
+        { "enforced", false },
+        { "durable", false },
+        { "mutatesProject", false },
+    };
+    report["readiness"] = {
+        { "canPublish", false },
+        { "reason", "Package and distribution readiness are not implemented by this report." },
+        { "blockingLimitations", std::vector<nlohmann::json>{
+            "Package preflight is blocked in this metadata-only preview.",
+            "Distribution readiness is not implemented.",
+            "Approval intent is report-only and is not enforced.",
+        } },
+        { "referencedReports", std::vector<nlohmann::json>{
+            "local-workspace-transaction-smoke",
+            "local-workspace-presence-lock-smoke",
+            "local-workspace-review-smoke",
+            "local-workspace-role-smoke",
+            "local-workspace-slice-smoke",
+            "workflow-smoke package_preflight reference",
+        } },
+    };
+    report["diagnostics"] = project.diagnostics;
+    report["knownLimitations"] = ApprovalGateLimitations();
     report["nonClaims"] = SharedNonClaims();
 
     result.ok = WriteJsonReport(request.reportPath, report, result.error);

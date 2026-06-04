@@ -1,3 +1,34 @@
 # Phase 30 Commands Log
 
-No phase verification commands have been recorded yet.
+Recorded on 2026-06-04.
+
+- PASS: `git diff --check`
+- PASS: `scripts/scan-claims README.md docs samples Tools`
+  - Scanned 185 public text files.
+  - No unsupported public claim text found.
+- PASS: `scripts/verify-quick`
+  - Passed structure, claim, phase, and SDE boundary checks.
+  - No phase was marked Verified.
+- PASS: `scripts/verify-local --allow-dirty`
+  - Passed the CI-ready local pre-commit gate with dirty worktree allowed.
+  - Real build was not requested by the script.
+- PASS: `scripts/verify-phase 30`
+  - Phase 30 structure checks passed.
+  - No phase was marked Verified.
+- PASS: `nix-shell --run "cmake --build build/RelWithDebInfo-0.0.9-sde --target Saga SagaProductTests --parallel 1"`
+  - Built the SDE-enabled Product Shell binary and focused unit-test target.
+- PASS: `build/RelWithDebInfo-0.0.9-sde/bin/SagaProductTests --gtest_filter='*Approval*:*Publish*:*Gate*:*LocalWorkspace*:*StarterArena*'`
+  - Ran 24 focused tests.
+  - All focused tests passed.
+- PASS: `build/RelWithDebInfo-0.0.9-sde/bin/Saga --local-workspace-approval-gate-smoke --project samples/StarterArena/StarterArena.sagaproj --workspace builtin:basic --actor local.actor --role local.reviewer --gate-target samples/StarterArena/StarterArena.sagaproj --approval-state approved-local-preview --approval-gate-report-out /tmp/starter_arena_approval_gate_report.json`
+  - Wrote `/tmp/starter_arena_approval_gate_report.json`.
+  - Report status: `Ready`.
+  - Report verified flag: `false`.
+  - Approval durable/enforced/requiresServer/mutatesProject flags: `false`.
+  - Publish gate packagePreflightStatus: `Blocked`.
+  - Publish gate distributionReady/canPublish flags: `false`.
+
+Optional diagnostic not run:
+
+- `scripts/package-linux-saga`
+  - Phase 30 does not gate on package or distribution success.

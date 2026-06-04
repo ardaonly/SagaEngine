@@ -62,3 +62,5 @@ The command writes only the caller-provided report output path. It does not
 mutate `.sagaproj`, scenes, scripts, SDE files, package profiles, diagnostics
 folders, report folders, workspace files, or durable project slice metadata.
 
+Phase 30 may reference local slice/visibility reports as related metadata, but
+that does not create restricted project resolution or source hiding.

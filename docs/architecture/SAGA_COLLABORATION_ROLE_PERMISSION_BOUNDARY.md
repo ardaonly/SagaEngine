@@ -62,3 +62,5 @@ The command writes only the caller-provided report output path. It does not
 mutate `.sagaproj`, scenes, scripts, SDE files, package profiles, diagnostics
 folders, report folders, workspace files, or durable collaboration metadata.
 
+Phase 30 may reference role labels in a local approval gate preview, but that
+does not turn role metadata into permission enforcement or enterprise policy.

@@ -39,6 +39,8 @@ Real current surfaces:
   review/comment/audit report commands for Phase 26 and Phase 27.
 - Local role/permission and project slice visibility metadata reports: Product
   Shell no-UI commands for Phase 28 and Phase 29.
+- Local approval and publish gate metadata report: Product Shell no-UI command
+  for Phase 30 that keeps publish readiness blocked and report-only.
 - Local/offline collaboration model evidence: `SagaCollaboration` unit tests for
   identity, presence reports, metadata-only reviews, comments, locks, semantic
   transaction logs, conflicts, and Team Room report models.

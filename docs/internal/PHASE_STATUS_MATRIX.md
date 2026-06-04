@@ -37,7 +37,7 @@ or an explicit verification script result accepted by maintainers.
 | 27 | Local Review / Comment / Audit Metadata Report | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_27/` | review-audit-gate | `-` | Saga product shell has a no-UI local review, comment, and audit metadata report; maintainer verification is still required. |
 | 28 | Permissions / Roles v1 | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_28/` | permissions-gate | `-` | Saga product shell has a no-UI local actor role and permission intent metadata report; maintainer verification is still required. |
 | 29 | Project Slices | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_29/` | slice-gate | `-` | Saga product shell has a no-UI local project slice visibility metadata report; maintainer verification is still required. |
-| 30 | Audit / Review / Approval | Not Started | `docs/internal/phase-evidence/PHASE_30/` | audit-gate | `-` | `-` |
+| 30 | Audit / Review / Approval | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_30/` | audit-gate | `-` | Saga product shell has a no-UI local approval intent and publish gate preview metadata report; maintainer verification is still required. |
 | 31 | Package Pipeline v1 | Not Started | `docs/internal/phase-evidence/PHASE_31/` | package-gate | `-` | `-` |
 | 32 | Public SDK Boundary | Not Started | `docs/internal/phase-evidence/PHASE_32/` | sdk-boundary-gate | `-` | `-` |
 | 33 | Installable Technical Preview Candidate | Not Started | `docs/internal/phase-evidence/PHASE_33/` | install-gate | `-` | `-` |

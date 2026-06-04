@@ -528,6 +528,45 @@ TEST(SagaAppConfigTest, LocalWorkspaceSliceSmokeArgumentsAreParsed)
               fs::path("/tmp/starter_arena_project_slice_report.json"));
 }
 
+TEST(SagaAppConfigTest, LocalWorkspaceApprovalGateSmokeArgumentsAreParsed)
+{
+    const char* argvRaw[] = {
+        "Saga",
+        "--local-workspace-approval-gate-smoke",
+        "--project",
+        "samples/StarterArena/StarterArena.sagaproj",
+        "--workspace",
+        "builtin:basic",
+        "--actor",
+        "local.actor",
+        "--role",
+        "local.reviewer",
+        "--gate-target",
+        "samples/StarterArena/StarterArena.sagaproj",
+        "--approval-state",
+        "approved-local-preview",
+        "--approval-gate-report-out",
+        "/tmp/starter_arena_approval_gate_report.json",
+    };
+    auto* argv = const_cast<char**>(argvRaw);
+
+    const SagaConfigResult result = ParseSagaAppConfig(16, argv);
+
+    ASSERT_TRUE(result.ok) << result.error;
+    EXPECT_TRUE(result.config.localWorkspaceApprovalGateSmoke);
+    EXPECT_EQ(result.config.workflowProjectPath,
+              fs::path("samples/StarterArena/StarterArena.sagaproj"));
+    EXPECT_EQ(result.config.workspaceSelector, "builtin:basic");
+    EXPECT_EQ(result.config.localWorkspaceActorId, "local.actor");
+    EXPECT_EQ(result.config.localWorkspaceRoleName, "local.reviewer");
+    EXPECT_EQ(result.config.localWorkspaceGateTargetPath,
+              fs::path("samples/StarterArena/StarterArena.sagaproj"));
+    EXPECT_EQ(result.config.localWorkspaceApprovalState,
+              "approved-local-preview");
+    EXPECT_EQ(result.config.localWorkspaceApprovalGateReportPath,
+              fs::path("/tmp/starter_arena_approval_gate_report.json"));
+}
+
 TEST(SagaAppConfigTest, MissingPackageManifestValueFailsDeterministically)
 {
     const char* argvRaw[] = {
@@ -1733,6 +1772,105 @@ TEST(SagaLocalProjectSliceSmokeTest,
                                         "collaboration server"));
     EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
                                         "distribution readiness"));
+}
+
+TEST(SagaLocalApprovalGateSmokeTest,
+     StarterArenaReportIsReadOnlyAndDoesNotClaimPublishReadiness)
+{
+    const fs::path root =
+        MakeTempDir("saga_local_approval_gate_smoke_test");
+    const fs::path reportPath =
+        root / "starter_arena_approval_gate_report.json";
+    const fs::path manifest = SourceRoot() / "samples" / "StarterArena" /
+        "StarterArena.sagaproj";
+    const std::string manifestBefore = ReadFile(manifest);
+    const auto manifestWriteTimeBefore = fs::last_write_time(manifest);
+
+    SagaProduct::SagaApp app;
+    SagaAppConfig config;
+    config.localWorkspaceApprovalGateSmoke = true;
+    config.workflowProjectPath = manifest;
+    config.workspaceSelector = "builtin:basic";
+    config.localWorkspaceActorId = "local.actor";
+    config.localWorkspaceRoleName = "local.reviewer";
+    config.localWorkspaceGateTargetPath = manifest;
+    config.localWorkspaceApprovalState = "approved-local-preview";
+    config.localWorkspaceApprovalGateReportPath = reportPath;
+
+    std::ostringstream out;
+    std::ostringstream err;
+    const int exitCode = app.Run(config, out, err);
+
+    EXPECT_EQ(exitCode, 0);
+    EXPECT_NE(out.str().find("approval_gate.report="), std::string::npos);
+    EXPECT_NE(out.str().find("approval_gate.status=Ready"),
+              std::string::npos);
+    EXPECT_TRUE(err.str().empty());
+    EXPECT_EQ(ReadFile(manifest), manifestBefore);
+    EXPECT_EQ(fs::last_write_time(manifest), manifestWriteTimeBefore);
+    ASSERT_TRUE(fs::exists(reportPath));
+
+    std::ifstream input(reportPath);
+    const nlohmann::json report = nlohmann::json::parse(input);
+    EXPECT_EQ(report["tool"], "Saga");
+    EXPECT_EQ(report["command"], "local-workspace-approval-gate-smoke");
+    EXPECT_EQ(report["verified"], false);
+    EXPECT_EQ(report["status"], "Ready");
+    EXPECT_EQ(report["workspace"]["workspaceId"], "builtin.basic");
+    EXPECT_EQ(report["workspace"]["selector"], "builtin:basic");
+    EXPECT_EQ(report["project"]["projectId"], "starter-arena");
+    EXPECT_EQ(report["actor"]["actorId"], "local.actor");
+    EXPECT_EQ(report["approval"]["actorId"], "local.actor");
+    EXPECT_EQ(report["approval"]["roleName"], "local.reviewer");
+    EXPECT_EQ(report["approval"]["targetArtifact"],
+              fs::absolute(manifest).lexically_normal().string());
+    EXPECT_EQ(report["approval"]["approvalState"], "ApprovedLocalPreview");
+    EXPECT_EQ(report["approval"]["source"], "report-only");
+    EXPECT_FALSE(report["approval"]["durable"].get<bool>());
+    EXPECT_FALSE(report["approval"]["enforced"].get<bool>());
+    EXPECT_FALSE(report["approval"]["requiresServer"].get<bool>());
+    EXPECT_FALSE(report["approval"]["mutatesProject"].get<bool>());
+    EXPECT_EQ(report["publishGate"]["targetArtifact"],
+              fs::absolute(manifest).lexically_normal().string());
+    EXPECT_EQ(report["publishGate"]["gateMode"], "MetadataOnly");
+    EXPECT_EQ(report["publishGate"]["status"], "Blocked");
+    EXPECT_EQ(report["publishGate"]["packagePreflightStatus"], "Blocked");
+    EXPECT_FALSE(report["publishGate"]["distributionReady"].get<bool>());
+    EXPECT_FALSE(report["publishGate"]["policyBacked"].get<bool>());
+    EXPECT_FALSE(report["publishGate"]["enforced"].get<bool>());
+    EXPECT_FALSE(report["publishGate"]["durable"].get<bool>());
+    EXPECT_FALSE(report["publishGate"]["mutatesProject"].get<bool>());
+    EXPECT_FALSE(report["readiness"]["canPublish"].get<bool>());
+    EXPECT_NE(report["readiness"]["reason"].get<std::string>().find(
+                  "Package and distribution readiness are not implemented"),
+              std::string::npos);
+    EXPECT_TRUE(JsonArrayContainsString(
+        report["readiness"]["blockingLimitations"],
+        "Package preflight is blocked in this metadata-only preview."));
+    EXPECT_TRUE(JsonArrayContainsString(
+        report["readiness"]["referencedReports"],
+        "local-workspace-review-smoke"));
+    EXPECT_TRUE(JsonArrayContainsString(
+        report["readiness"]["referencedReports"],
+        "workflow-smoke package_preflight reference"));
+    EXPECT_NE(report["approval"]["approvalId"].get<std::string>().find(
+                  "local-approval:builtin.basic:starter-arena:local.actor:local.reviewer:ApprovedLocalPreview:"),
+              std::string::npos);
+    EXPECT_NE(report["publishGate"]["gateId"].get<std::string>().find(
+                  "local-approval-gate:builtin.basic:starter-arena:local.actor:"),
+              std::string::npos);
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "real approval workflow"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "actual publish blocker"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "package readiness"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "distribution readiness"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "enterprise policy engine"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "secure access control"));
 }
 
 TEST(SagaPublishReadinessTest, ValidProjectAndPackagesAreReady)

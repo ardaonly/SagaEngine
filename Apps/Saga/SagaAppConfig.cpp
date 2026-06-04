@@ -134,6 +134,7 @@ std::string SagaUsageText()
         "  --local-workspace-review-smoke Emit local review/comment/audit metadata report\n"
         "  --local-workspace-role-smoke Emit local role/permission metadata report\n"
         "  --local-workspace-slice-smoke Emit local project slice visibility metadata report\n"
+        "  --local-workspace-approval-gate-smoke Emit local approval/publish gate metadata report\n"
         "  --actor <id>                      Local workspace transaction actor id\n"
         "  --operation <kind>                Local workspace transaction operation kind\n"
         "  --transaction-report-out <path>   Local workspace transaction report output path\n"
@@ -148,6 +149,9 @@ std::string SagaUsageText()
         "  --slice <name>                    Local project slice label\n"
         "  --slice-target <path>             Local project slice target artifact\n"
         "  --slice-report-out <path>         Local project slice report output path\n"
+        "  --gate-target <path>              Local approval gate target artifact\n"
+        "  --approval-state <state>          Local approval preview state\n"
+        "  --approval-gate-report-out <path> Local approval gate report output path\n"
         "  --forge <path>                    Forge executable for SagaScript validation\n"
         "  --sagascript-tool <path>          SagaScript executable for SagaScript validation\n"
         "  --version-info <path>             Distribution version.json path\n"
@@ -386,6 +390,10 @@ SagaConfigResult ParseSagaAppConfig(int argc, char* argv[])
         {
             result.config.localWorkspaceSliceSmoke = true;
         }
+        else if (arg == "--local-workspace-approval-gate-smoke")
+        {
+            result.config.localWorkspaceApprovalGateSmoke = true;
+        }
         else if (arg == "--actor")
         {
             if (!HasValue(i, argc))
@@ -537,6 +545,39 @@ SagaConfigResult ParseSagaAppConfig(int argc, char* argv[])
                 return result;
             }
             result.config.localWorkspaceSliceReportPath =
+                std::filesystem::path(argv[++i]);
+        }
+        else if (arg == "--gate-target")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --gate-target requires a path";
+                return result;
+            }
+            result.config.localWorkspaceGateTargetPath =
+                std::filesystem::path(argv[++i]);
+        }
+        else if (arg == "--approval-state")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --approval-state requires a state";
+                return result;
+            }
+            result.config.localWorkspaceApprovalState = argv[++i];
+        }
+        else if (arg == "--approval-gate-report-out")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error =
+                    "Saga: --approval-gate-report-out requires a path";
+                return result;
+            }
+            result.config.localWorkspaceApprovalGateReportPath =
                 std::filesystem::path(argv[++i]);
         }
         else if (arg == "--forge")
