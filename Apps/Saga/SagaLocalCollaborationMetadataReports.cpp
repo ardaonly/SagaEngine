@@ -181,6 +181,38 @@ struct ProjectMetadata
         IdSegment(eventKind);
 }
 
+[[nodiscard]] std::string MakeRoleId(const std::string& workspaceId,
+                                     const std::string& projectId,
+                                     const std::string& actorId,
+                                     const std::string& roleName)
+{
+    return "local-role:" + IdSegment(workspaceId) + ":" +
+        IdSegment(projectId) + ":" + IdSegment(actorId) + ":" +
+        IdSegment(roleName);
+}
+
+[[nodiscard]] std::string MakePermissionId(const std::string& workspaceId,
+                                           const std::string& projectId,
+                                           const std::string& actorId,
+                                           const std::string& permissionName,
+                                           const fs::path& targetPath)
+{
+    return "local-permission:" + IdSegment(workspaceId) + ":" +
+        IdSegment(projectId) + ":" + IdSegment(actorId) + ":" +
+        IdSegment(permissionName) + ":" + TargetSegment(targetPath);
+}
+
+[[nodiscard]] std::string MakeSliceId(const std::string& workspaceId,
+                                      const std::string& projectId,
+                                      const std::string& actorId,
+                                      const std::string& sliceName,
+                                      const fs::path& targetPath)
+{
+    return "local-slice:" + IdSegment(workspaceId) + ":" +
+        IdSegment(projectId) + ":" + IdSegment(actorId) + ":" +
+        IdSegment(sliceName) + ":" + TargetSegment(targetPath);
+}
+
 [[nodiscard]] std::string BodyPreview(const std::string& body)
 {
     constexpr std::size_t kMaxPreviewLength = 120;
@@ -198,6 +230,12 @@ struct ProjectMetadata
         "cloud workspace",
         "enterprise permissions",
         "enterprise access control",
+        "real permission enforcement",
+        "secure access control",
+        "enterprise policy engine",
+        "durable role service",
+        "durable permission service",
+        "networked authorization",
         "real-time team editing",
         "networked presence",
         "durable lock service",
@@ -209,6 +247,33 @@ struct ProjectMetadata
         "tamper-resistant audit log",
         "product beta",
         "distribution readiness",
+    };
+}
+
+[[nodiscard]] std::vector<nlohmann::json> RolePermissionLimitations()
+{
+    return {
+        "Local role and permission smoke is a no-UI report-only boundary proof.",
+        "Role metadata is local to the report and is not durable project truth.",
+        "Permission metadata is intent-only and is not enforced.",
+        "The report does not authenticate the actor or provide secure access control.",
+        "The report does not mutate project files, scenes, scripts, or SDE files.",
+        "The report does not write durable collaboration metadata.",
+        "Enterprise policy, cloud sync, CRDT/OT, and collaboration server work are deferred.",
+        "No phase is marked Verified by this report.",
+    };
+}
+
+[[nodiscard]] std::vector<nlohmann::json> ProjectSliceLimitations()
+{
+    return {
+        "Local project slice smoke is a no-UI report-only boundary proof.",
+        "Slice visibility metadata is local to the report and is not enforced.",
+        "The report does not resolve .saga/slices or create restricted project truth.",
+        "The report does not mutate project files, scenes, scripts, or SDE files.",
+        "The report does not write durable project slice metadata.",
+        "Enterprise policy, cloud sync, CRDT/OT, and collaboration server work are deferred.",
+        "No phase is marked Verified by this report.",
     };
 }
 
@@ -409,6 +474,143 @@ SagaLocalCollaborationMetadataReportResult WriteLocalReviewAuditReport(
     };
     report["diagnostics"] = project.diagnostics;
     report["knownLimitations"] = ReviewAuditLimitations();
+    report["nonClaims"] = SharedNonClaims();
+
+    result.ok = WriteJsonReport(request.reportPath, report, result.error);
+    return result;
+}
+
+SagaLocalCollaborationMetadataReportResult WriteLocalRolePermissionReport(
+    const SagaLocalRolePermissionReportRequest& request)
+{
+    SagaLocalCollaborationMetadataReportResult result;
+    result.reportPath = request.reportPath;
+
+    ProjectMetadata project = LoadProjectMetadata(request.projectManifestPath);
+    const fs::path targetArtifact = AbsoluteIfPresent(project.manifestPath);
+    if (request.roleName.empty())
+    {
+        project.diagnostics.push_back(Diagnostic(
+            "Saga.LocalCollaboration.RoleMissing",
+            "local role smoke requires --role <name>"));
+    }
+    if (request.permissionName.empty())
+    {
+        project.diagnostics.push_back(Diagnostic(
+            "Saga.LocalCollaboration.PermissionMissing",
+            "local role smoke requires --permission <name>"));
+    }
+
+    const std::string workspaceSelector =
+        OrDefault(request.workspaceSelector, "builtin:basic");
+    const std::string workspaceId = WorkspaceIdForSelector(workspaceSelector);
+    const std::string actorId = OrDefault(request.actorId, "local.actor");
+    const std::string projectId = ProjectIdOrUnknown(project);
+    const bool ready =
+        project.ok && !request.roleName.empty() &&
+        !request.permissionName.empty();
+    result.status = ready ? "Ready" : "Failed";
+
+    nlohmann::json report;
+    report["schemaVersion"] = 1;
+    report["tool"] = "Saga";
+    report["command"] = "local-workspace-role-smoke";
+    report["status"] = result.status;
+    report["verified"] = false;
+    report["workspace"] = WorkspaceJson(workspaceId, workspaceSelector);
+    report["project"] = ProjectJson(project);
+    report["actor"] = ActorJson(actorId);
+    report["role"] = {
+        { "roleId", MakeRoleId(workspaceId, projectId, actorId, request.roleName) },
+        { "actorId", actorId },
+        { "roleName", request.roleName },
+        { "source", "report-only" },
+        { "durable", false },
+        { "enforced", false },
+        { "networked", false },
+    };
+    report["permission"] = {
+        { "permissionId", MakePermissionId(workspaceId,
+                                           projectId,
+                                           actorId,
+                                           request.permissionName,
+                                           targetArtifact) },
+        { "permissionName", request.permissionName },
+        { "targetArtifact", targetArtifact.string() },
+        { "status", ready ? "Represented" : "Failed" },
+        { "enforced", false },
+        { "policyBacked", false },
+        { "mutatesProject", false },
+    };
+    report["diagnostics"] = project.diagnostics;
+    report["knownLimitations"] = RolePermissionLimitations();
+    report["nonClaims"] = SharedNonClaims();
+
+    result.ok = WriteJsonReport(request.reportPath, report, result.error);
+    return result;
+}
+
+SagaLocalCollaborationMetadataReportResult WriteLocalProjectSliceReport(
+    const SagaLocalProjectSliceReportRequest& request)
+{
+    SagaLocalCollaborationMetadataReportResult result;
+    result.reportPath = request.reportPath;
+
+    ProjectMetadata project = LoadProjectMetadata(request.projectManifestPath);
+    const fs::path sliceTarget = AbsoluteIfPresent(request.sliceTargetPath);
+    if (request.sliceName.empty())
+    {
+        project.diagnostics.push_back(Diagnostic(
+            "Saga.LocalCollaboration.SliceMissing",
+            "local project slice smoke requires --slice <name>"));
+    }
+    if (sliceTarget.empty())
+    {
+        project.diagnostics.push_back(Diagnostic(
+            "Saga.LocalCollaboration.SliceTargetMissing",
+            "local project slice smoke requires --slice-target <path>"));
+    }
+
+    const std::string workspaceSelector =
+        OrDefault(request.workspaceSelector, "builtin:basic");
+    const std::string workspaceId = WorkspaceIdForSelector(workspaceSelector);
+    const std::string actorId = OrDefault(request.actorId, "local.actor");
+    const std::string projectId = ProjectIdOrUnknown(project);
+    const bool ready =
+        project.ok && !request.sliceName.empty() && !sliceTarget.empty();
+    result.status = ready ? "Ready" : "Failed";
+
+    nlohmann::json report;
+    report["schemaVersion"] = 1;
+    report["tool"] = "Saga";
+    report["command"] = "local-workspace-slice-smoke";
+    report["status"] = result.status;
+    report["verified"] = false;
+    report["workspace"] = WorkspaceJson(workspaceId, workspaceSelector);
+    report["project"] = ProjectJson(project);
+    report["actor"] = ActorJson(actorId);
+    report["slice"] = {
+        { "sliceId", MakeSliceId(workspaceId,
+                                 projectId,
+                                 actorId,
+                                 request.sliceName,
+                                 sliceTarget) },
+        { "displayName", request.sliceName },
+        { "targetArtifact", sliceTarget.string() },
+        { "sliceMode", "MetadataOnly" },
+        { "status", ready ? "Represented" : "Failed" },
+        { "durable", false },
+        { "mutatesProject", false },
+    };
+    report["visibility"] = {
+        { "visibleToActor", ready },
+        { "visibilitySource", "report-only" },
+        { "permissionEnforced", false },
+        { "policyBacked", false },
+        { "networked", false },
+    };
+    report["diagnostics"] = project.diagnostics;
+    report["knownLimitations"] = ProjectSliceLimitations();
     report["nonClaims"] = SharedNonClaims();
 
     result.ok = WriteJsonReport(request.reportPath, report, result.error);

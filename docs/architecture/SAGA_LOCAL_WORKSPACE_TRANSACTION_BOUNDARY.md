@@ -37,6 +37,8 @@ Real current surfaces:
   audit, sessions, workspace, sync, and server boundaries.
 - Local collaboration metadata reports: Product Shell no-UI presence/lock and
   review/comment/audit report commands for Phase 26 and Phase 27.
+- Local role/permission and project slice visibility metadata reports: Product
+  Shell no-UI commands for Phase 28 and Phase 29.
 - Local/offline collaboration model evidence: `SagaCollaboration` unit tests for
   identity, presence reports, metadata-only reviews, comments, locks, semantic
   transaction logs, conflicts, and Team Room report models.

@@ -35,8 +35,8 @@ or an explicit verification script result accepted by maintainers.
 | 25 | Local Workspace Transaction Boundary | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_25/` | local-workspace-transaction-gate | `-` | Saga product shell has a no-UI read-only local workspace transaction report for StarterArena; maintainer verification is still required. |
 | 26 | Local Presence and Lock Report | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_26/` | presence-lock-gate | `-` | Saga product shell has a no-UI local actor presence and lock intent metadata report; maintainer verification is still required. |
 | 27 | Local Review / Comment / Audit Metadata Report | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_27/` | review-audit-gate | `-` | Saga product shell has a no-UI local review, comment, and audit metadata report; maintainer verification is still required. |
-| 28 | Permissions / Roles v1 | Not Started | `docs/internal/phase-evidence/PHASE_28/` | permissions-gate | `-` | `-` |
-| 29 | Project Slices | Not Started | `docs/internal/phase-evidence/PHASE_29/` | slice-gate | `-` | `-` |
+| 28 | Permissions / Roles v1 | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_28/` | permissions-gate | `-` | Saga product shell has a no-UI local actor role and permission intent metadata report; maintainer verification is still required. |
+| 29 | Project Slices | Implemented-Unverified | `docs/internal/phase-evidence/PHASE_29/` | slice-gate | `-` | Saga product shell has a no-UI local project slice visibility metadata report; maintainer verification is still required. |
 | 30 | Audit / Review / Approval | Not Started | `docs/internal/phase-evidence/PHASE_30/` | audit-gate | `-` | `-` |
 | 31 | Package Pipeline v1 | Not Started | `docs/internal/phase-evidence/PHASE_31/` | package-gate | `-` | `-` |
 | 32 | Public SDK Boundary | Not Started | `docs/internal/phase-evidence/PHASE_32/` | sdk-boundary-gate | `-` | `-` |

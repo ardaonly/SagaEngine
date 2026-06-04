@@ -132,6 +132,8 @@ std::string SagaUsageText()
         "  --local-workspace-transaction-smoke Emit local workspace transaction report\n"
         "  --local-workspace-presence-lock-smoke Emit local presence/lock metadata report\n"
         "  --local-workspace-review-smoke Emit local review/comment/audit metadata report\n"
+        "  --local-workspace-role-smoke Emit local role/permission metadata report\n"
+        "  --local-workspace-slice-smoke Emit local project slice visibility metadata report\n"
         "  --actor <id>                      Local workspace transaction actor id\n"
         "  --operation <kind>                Local workspace transaction operation kind\n"
         "  --transaction-report-out <path>   Local workspace transaction report output path\n"
@@ -140,6 +142,12 @@ std::string SagaUsageText()
         "  --review-target <path>            Local report review target artifact\n"
         "  --comment <text>                  Local review/comment metadata text\n"
         "  --review-report-out <path>        Local review/audit report output path\n"
+        "  --role <name>                     Local report role label\n"
+        "  --permission <name>               Local report permission label\n"
+        "  --role-report-out <path>          Local role/permission report output path\n"
+        "  --slice <name>                    Local project slice label\n"
+        "  --slice-target <path>             Local project slice target artifact\n"
+        "  --slice-report-out <path>         Local project slice report output path\n"
         "  --forge <path>                    Forge executable for SagaScript validation\n"
         "  --sagascript-tool <path>          SagaScript executable for SagaScript validation\n"
         "  --version-info <path>             Distribution version.json path\n"
@@ -370,6 +378,14 @@ SagaConfigResult ParseSagaAppConfig(int argc, char* argv[])
         {
             result.config.localWorkspaceReviewSmoke = true;
         }
+        else if (arg == "--local-workspace-role-smoke")
+        {
+            result.config.localWorkspaceRoleSmoke = true;
+        }
+        else if (arg == "--local-workspace-slice-smoke")
+        {
+            result.config.localWorkspaceSliceSmoke = true;
+        }
         else if (arg == "--actor")
         {
             if (!HasValue(i, argc))
@@ -456,6 +472,71 @@ SagaConfigResult ParseSagaAppConfig(int argc, char* argv[])
                 return result;
             }
             result.config.localWorkspaceReviewReportPath =
+                std::filesystem::path(argv[++i]);
+        }
+        else if (arg == "--role")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --role requires a name";
+                return result;
+            }
+            result.config.localWorkspaceRoleName = argv[++i];
+        }
+        else if (arg == "--permission")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --permission requires a name";
+                return result;
+            }
+            result.config.localWorkspacePermissionName = argv[++i];
+        }
+        else if (arg == "--role-report-out")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error =
+                    "Saga: --role-report-out requires a path";
+                return result;
+            }
+            result.config.localWorkspaceRoleReportPath =
+                std::filesystem::path(argv[++i]);
+        }
+        else if (arg == "--slice")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --slice requires a name";
+                return result;
+            }
+            result.config.localWorkspaceSliceName = argv[++i];
+        }
+        else if (arg == "--slice-target")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --slice-target requires a path";
+                return result;
+            }
+            result.config.localWorkspaceSliceTargetPath =
+                std::filesystem::path(argv[++i]);
+        }
+        else if (arg == "--slice-report-out")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error =
+                    "Saga: --slice-report-out requires a path";
+                return result;
+            }
+            result.config.localWorkspaceSliceReportPath =
                 std::filesystem::path(argv[++i]);
         }
         else if (arg == "--forge")

@@ -80,6 +80,8 @@ constexpr int kExitStartupFailure = 1;
     const SagaAppConfig& config) noexcept
 {
     return config.publishCheck ||
+        config.localWorkspaceSliceSmoke ||
+        config.localWorkspaceRoleSmoke ||
         config.localWorkspaceReviewSmoke ||
         config.localWorkspacePresenceLockSmoke ||
         config.localWorkspaceTransactionSmoke ||
@@ -658,6 +660,102 @@ int SagaApp::Run(const SagaAppConfig& config,
 
         out << "review.report=" << result.reportPath.string() << '\n';
         out << "review.status=" << result.status << '\n';
+        return kExitOk;
+    }
+
+    if (config.localWorkspaceRoleSmoke)
+    {
+        if (config.workflowProjectPath.empty())
+        {
+            err << "Saga: --local-workspace-role-smoke requires "
+                << "--project <.sagaproj>\n";
+            return kExitStartupFailure;
+        }
+        if (config.localWorkspaceRoleName.empty())
+        {
+            err << "Saga: --local-workspace-role-smoke requires "
+                << "--role <name>\n";
+            return kExitStartupFailure;
+        }
+        if (config.localWorkspacePermissionName.empty())
+        {
+            err << "Saga: --local-workspace-role-smoke requires "
+                << "--permission <name>\n";
+            return kExitStartupFailure;
+        }
+        if (config.localWorkspaceRoleReportPath.empty())
+        {
+            err << "Saga: --local-workspace-role-smoke requires "
+                << "--role-report-out <path>\n";
+            return kExitStartupFailure;
+        }
+
+        SagaLocalRolePermissionReportRequest request;
+        request.projectManifestPath = config.workflowProjectPath;
+        request.workspaceSelector = config.workspaceSelector;
+        request.actorId = config.localWorkspaceActorId;
+        request.roleName = config.localWorkspaceRoleName;
+        request.permissionName = config.localWorkspacePermissionName;
+        request.reportPath = config.localWorkspaceRoleReportPath;
+
+        const SagaLocalCollaborationMetadataReportResult result =
+            WriteLocalRolePermissionReport(request);
+        if (!result.ok)
+        {
+            err << result.error << '\n';
+            return kExitStartupFailure;
+        }
+
+        out << "role.report=" << result.reportPath.string() << '\n';
+        out << "role.status=" << result.status << '\n';
+        return kExitOk;
+    }
+
+    if (config.localWorkspaceSliceSmoke)
+    {
+        if (config.workflowProjectPath.empty())
+        {
+            err << "Saga: --local-workspace-slice-smoke requires "
+                << "--project <.sagaproj>\n";
+            return kExitStartupFailure;
+        }
+        if (config.localWorkspaceSliceName.empty())
+        {
+            err << "Saga: --local-workspace-slice-smoke requires "
+                << "--slice <name>\n";
+            return kExitStartupFailure;
+        }
+        if (config.localWorkspaceSliceTargetPath.empty())
+        {
+            err << "Saga: --local-workspace-slice-smoke requires "
+                << "--slice-target <path>\n";
+            return kExitStartupFailure;
+        }
+        if (config.localWorkspaceSliceReportPath.empty())
+        {
+            err << "Saga: --local-workspace-slice-smoke requires "
+                << "--slice-report-out <path>\n";
+            return kExitStartupFailure;
+        }
+
+        SagaLocalProjectSliceReportRequest request;
+        request.projectManifestPath = config.workflowProjectPath;
+        request.workspaceSelector = config.workspaceSelector;
+        request.actorId = config.localWorkspaceActorId;
+        request.sliceName = config.localWorkspaceSliceName;
+        request.sliceTargetPath = config.localWorkspaceSliceTargetPath;
+        request.reportPath = config.localWorkspaceSliceReportPath;
+
+        const SagaLocalCollaborationMetadataReportResult result =
+            WriteLocalProjectSliceReport(request);
+        if (!result.ok)
+        {
+            err << result.error << '\n';
+            return kExitStartupFailure;
+        }
+
+        out << "slice.report=" << result.reportPath.string() << '\n';
+        out << "slice.status=" << result.status << '\n';
         return kExitOk;
     }
 

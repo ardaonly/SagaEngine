@@ -458,6 +458,76 @@ TEST(SagaAppConfigTest, LocalWorkspaceReviewSmokeArgumentsAreParsed)
               fs::path("/tmp/starter_arena_review_audit_report.json"));
 }
 
+TEST(SagaAppConfigTest, LocalWorkspaceRoleSmokeArgumentsAreParsed)
+{
+    const char* argvRaw[] = {
+        "Saga",
+        "--local-workspace-role-smoke",
+        "--project",
+        "samples/StarterArena/StarterArena.sagaproj",
+        "--workspace",
+        "builtin:basic",
+        "--actor",
+        "local.actor",
+        "--role",
+        "local.reviewer",
+        "--permission",
+        "inspect_project",
+        "--role-report-out",
+        "/tmp/starter_arena_role_permission_report.json",
+    };
+    auto* argv = const_cast<char**>(argvRaw);
+
+    const SagaConfigResult result = ParseSagaAppConfig(14, argv);
+
+    ASSERT_TRUE(result.ok) << result.error;
+    EXPECT_TRUE(result.config.localWorkspaceRoleSmoke);
+    EXPECT_EQ(result.config.workflowProjectPath,
+              fs::path("samples/StarterArena/StarterArena.sagaproj"));
+    EXPECT_EQ(result.config.workspaceSelector, "builtin:basic");
+    EXPECT_EQ(result.config.localWorkspaceActorId, "local.actor");
+    EXPECT_EQ(result.config.localWorkspaceRoleName, "local.reviewer");
+    EXPECT_EQ(result.config.localWorkspacePermissionName, "inspect_project");
+    EXPECT_EQ(result.config.localWorkspaceRoleReportPath,
+              fs::path("/tmp/starter_arena_role_permission_report.json"));
+}
+
+TEST(SagaAppConfigTest, LocalWorkspaceSliceSmokeArgumentsAreParsed)
+{
+    const char* argvRaw[] = {
+        "Saga",
+        "--local-workspace-slice-smoke",
+        "--project",
+        "samples/StarterArena/StarterArena.sagaproj",
+        "--workspace",
+        "builtin:basic",
+        "--actor",
+        "local.actor",
+        "--slice",
+        "starterarena.project_overview",
+        "--slice-target",
+        "samples/StarterArena/StarterArena.sagaproj",
+        "--slice-report-out",
+        "/tmp/starter_arena_project_slice_report.json",
+    };
+    auto* argv = const_cast<char**>(argvRaw);
+
+    const SagaConfigResult result = ParseSagaAppConfig(14, argv);
+
+    ASSERT_TRUE(result.ok) << result.error;
+    EXPECT_TRUE(result.config.localWorkspaceSliceSmoke);
+    EXPECT_EQ(result.config.workflowProjectPath,
+              fs::path("samples/StarterArena/StarterArena.sagaproj"));
+    EXPECT_EQ(result.config.workspaceSelector, "builtin:basic");
+    EXPECT_EQ(result.config.localWorkspaceActorId, "local.actor");
+    EXPECT_EQ(result.config.localWorkspaceSliceName,
+              "starterarena.project_overview");
+    EXPECT_EQ(result.config.localWorkspaceSliceTargetPath,
+              fs::path("samples/StarterArena/StarterArena.sagaproj"));
+    EXPECT_EQ(result.config.localWorkspaceSliceReportPath,
+              fs::path("/tmp/starter_arena_project_slice_report.json"));
+}
+
 TEST(SagaAppConfigTest, MissingPackageManifestValueFailsDeterministically)
 {
     const char* argvRaw[] = {
@@ -1508,6 +1578,157 @@ TEST(SagaLocalReviewAuditSmokeTest,
                                         "durable audit service"));
     EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
                                         "tamper-resistant audit log"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "collaboration server"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "distribution readiness"));
+}
+
+TEST(SagaLocalRolePermissionSmokeTest,
+     StarterArenaReportIsReadOnlyAndDoesNotClaimPermissionEnforcement)
+{
+    const fs::path root =
+        MakeTempDir("saga_local_role_permission_smoke_test");
+    const fs::path reportPath =
+        root / "starter_arena_role_permission_report.json";
+    const fs::path manifest = SourceRoot() / "samples" / "StarterArena" /
+        "StarterArena.sagaproj";
+    const std::string manifestBefore = ReadFile(manifest);
+    const auto manifestWriteTimeBefore = fs::last_write_time(manifest);
+
+    SagaProduct::SagaApp app;
+    SagaAppConfig config;
+    config.localWorkspaceRoleSmoke = true;
+    config.workflowProjectPath = manifest;
+    config.workspaceSelector = "builtin:basic";
+    config.localWorkspaceActorId = "local.actor";
+    config.localWorkspaceRoleName = "local.reviewer";
+    config.localWorkspacePermissionName = "inspect_project";
+    config.localWorkspaceRoleReportPath = reportPath;
+
+    std::ostringstream out;
+    std::ostringstream err;
+    const int exitCode = app.Run(config, out, err);
+
+    EXPECT_EQ(exitCode, 0);
+    EXPECT_NE(out.str().find("role.report="), std::string::npos);
+    EXPECT_NE(out.str().find("role.status=Ready"), std::string::npos);
+    EXPECT_TRUE(err.str().empty());
+    EXPECT_EQ(ReadFile(manifest), manifestBefore);
+    EXPECT_EQ(fs::last_write_time(manifest), manifestWriteTimeBefore);
+    ASSERT_TRUE(fs::exists(reportPath));
+
+    std::ifstream input(reportPath);
+    const nlohmann::json report = nlohmann::json::parse(input);
+    EXPECT_EQ(report["tool"], "Saga");
+    EXPECT_EQ(report["command"], "local-workspace-role-smoke");
+    EXPECT_EQ(report["verified"], false);
+    EXPECT_EQ(report["status"], "Ready");
+    EXPECT_EQ(report["workspace"]["workspaceId"], "builtin.basic");
+    EXPECT_EQ(report["workspace"]["selector"], "builtin:basic");
+    EXPECT_EQ(report["project"]["projectId"], "starter-arena");
+    EXPECT_EQ(report["actor"]["actorId"], "local.actor");
+    EXPECT_EQ(report["role"]["actorId"], "local.actor");
+    EXPECT_EQ(report["role"]["roleName"], "local.reviewer");
+    EXPECT_EQ(report["role"]["source"], "report-only");
+    EXPECT_FALSE(report["role"]["durable"].get<bool>());
+    EXPECT_FALSE(report["role"]["enforced"].get<bool>());
+    EXPECT_FALSE(report["role"]["networked"].get<bool>());
+    EXPECT_EQ(report["permission"]["permissionName"], "inspect_project");
+    EXPECT_EQ(report["permission"]["targetArtifact"],
+              fs::absolute(manifest).lexically_normal().string());
+    EXPECT_EQ(report["permission"]["status"], "Represented");
+    EXPECT_FALSE(report["permission"]["enforced"].get<bool>());
+    EXPECT_FALSE(report["permission"]["policyBacked"].get<bool>());
+    EXPECT_FALSE(report["permission"]["mutatesProject"].get<bool>());
+    EXPECT_NE(report["role"]["roleId"].get<std::string>().find(
+                  "local-role:builtin.basic:starter-arena:local.actor:local.reviewer"),
+              std::string::npos);
+    EXPECT_NE(report["permission"]["permissionId"].get<std::string>().find(
+                  "local-permission:builtin.basic:starter-arena:local.actor:inspect_project:"),
+              std::string::npos);
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "enterprise permissions"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "real permission enforcement"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "secure access control"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "durable role service"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "durable permission service"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "networked authorization"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "collaboration server"));
+}
+
+TEST(SagaLocalProjectSliceSmokeTest,
+     StarterArenaReportIsReadOnlyAndDoesNotClaimVisibilityEnforcement)
+{
+    const fs::path root =
+        MakeTempDir("saga_local_project_slice_smoke_test");
+    const fs::path reportPath =
+        root / "starter_arena_project_slice_report.json";
+    const fs::path manifest = SourceRoot() / "samples" / "StarterArena" /
+        "StarterArena.sagaproj";
+    const std::string manifestBefore = ReadFile(manifest);
+    const auto manifestWriteTimeBefore = fs::last_write_time(manifest);
+
+    SagaProduct::SagaApp app;
+    SagaAppConfig config;
+    config.localWorkspaceSliceSmoke = true;
+    config.workflowProjectPath = manifest;
+    config.workspaceSelector = "builtin:basic";
+    config.localWorkspaceActorId = "local.actor";
+    config.localWorkspaceSliceName = "starterarena.project_overview";
+    config.localWorkspaceSliceTargetPath = manifest;
+    config.localWorkspaceSliceReportPath = reportPath;
+
+    std::ostringstream out;
+    std::ostringstream err;
+    const int exitCode = app.Run(config, out, err);
+
+    EXPECT_EQ(exitCode, 0);
+    EXPECT_NE(out.str().find("slice.report="), std::string::npos);
+    EXPECT_NE(out.str().find("slice.status=Ready"), std::string::npos);
+    EXPECT_TRUE(err.str().empty());
+    EXPECT_EQ(ReadFile(manifest), manifestBefore);
+    EXPECT_EQ(fs::last_write_time(manifest), manifestWriteTimeBefore);
+    ASSERT_TRUE(fs::exists(reportPath));
+
+    std::ifstream input(reportPath);
+    const nlohmann::json report = nlohmann::json::parse(input);
+    EXPECT_EQ(report["tool"], "Saga");
+    EXPECT_EQ(report["command"], "local-workspace-slice-smoke");
+    EXPECT_EQ(report["verified"], false);
+    EXPECT_EQ(report["status"], "Ready");
+    EXPECT_EQ(report["workspace"]["workspaceId"], "builtin.basic");
+    EXPECT_EQ(report["workspace"]["selector"], "builtin:basic");
+    EXPECT_EQ(report["project"]["projectId"], "starter-arena");
+    EXPECT_EQ(report["actor"]["actorId"], "local.actor");
+    EXPECT_EQ(report["slice"]["displayName"],
+              "starterarena.project_overview");
+    EXPECT_EQ(report["slice"]["targetArtifact"],
+              fs::absolute(manifest).lexically_normal().string());
+    EXPECT_EQ(report["slice"]["sliceMode"], "MetadataOnly");
+    EXPECT_EQ(report["slice"]["status"], "Represented");
+    EXPECT_FALSE(report["slice"]["durable"].get<bool>());
+    EXPECT_FALSE(report["slice"]["mutatesProject"].get<bool>());
+    EXPECT_TRUE(report["visibility"]["visibleToActor"].get<bool>());
+    EXPECT_EQ(report["visibility"]["visibilitySource"], "report-only");
+    EXPECT_FALSE(report["visibility"]["permissionEnforced"].get<bool>());
+    EXPECT_FALSE(report["visibility"]["policyBacked"].get<bool>());
+    EXPECT_FALSE(report["visibility"]["networked"].get<bool>());
+    EXPECT_NE(report["slice"]["sliceId"].get<std::string>().find(
+                  "local-slice:builtin.basic:starter-arena:local.actor:starterarena.project_overview:"),
+              std::string::npos);
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "enterprise permissions"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "secure access control"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "networked authorization"));
     EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
                                         "collaboration server"));
     EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],

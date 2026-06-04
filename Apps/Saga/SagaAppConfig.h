@@ -42,6 +42,9 @@ struct SagaAppConfig
     std::filesystem::path localWorkspaceLockTargetPath;
     std::filesystem::path localWorkspaceReviewReportPath;
     std::filesystem::path localWorkspaceReviewTargetPath;
+    std::filesystem::path localWorkspaceRoleReportPath;
+    std::filesystem::path localWorkspaceSliceReportPath;
+    std::filesystem::path localWorkspaceSliceTargetPath;
     std::filesystem::path forgeExecutable = "forge";
     std::filesystem::path sagaScriptExecutable = "sagascript";
     std::optional<std::filesystem::path> packageManifestPath;
@@ -55,6 +58,9 @@ struct SagaAppConfig
     std::string           localWorkspaceOperationKind = "InspectProject";
     std::string           localWorkspaceReviewComment =
         "Inspect project metadata";
+    std::string           localWorkspaceRoleName;
+    std::string           localWorkspacePermissionName;
+    std::string           localWorkspaceSliceName;
     std::vector<std::string> publishDiagnostics;
     SagaProductTargetKind target = SagaProductTargetKind::Editor;
     bool                  validateSagaScript = false;
@@ -64,6 +70,8 @@ struct SagaAppConfig
     bool                  localWorkspaceTransactionSmoke = false;
     bool                  localWorkspacePresenceLockSmoke = false;
     bool                  localWorkspaceReviewSmoke = false;
+    bool                  localWorkspaceRoleSmoke = false;
+    bool                  localWorkspaceSliceSmoke = false;
     bool                  prepareOnly = false;
     bool                  showHelp = false;
 };
