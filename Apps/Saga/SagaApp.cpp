@@ -4,6 +4,7 @@
 #include "SagaApp.h"
 
 #include "SagaEditorModule.h"
+#include "SagaLocalCollaborationMetadataReports.h"
 #include "SagaLocalWorkspaceTransactionReport.h"
 #include "SagaPackageStaging.h"
 #include "SagaProjectSystem.h"
@@ -79,6 +80,8 @@ constexpr int kExitStartupFailure = 1;
     const SagaAppConfig& config) noexcept
 {
     return config.publishCheck ||
+        config.localWorkspaceReviewSmoke ||
+        config.localWorkspacePresenceLockSmoke ||
         config.localWorkspaceTransactionSmoke ||
         config.workflowSmoke ||
         config.stagePackages ||
@@ -572,6 +575,89 @@ int SagaApp::Run(const SagaAppConfig& config,
 
         out << "transaction.report=" << result.reportPath.string() << '\n';
         out << "transaction.status=" << result.status << '\n';
+        return kExitOk;
+    }
+
+    if (config.localWorkspacePresenceLockSmoke)
+    {
+        if (config.workflowProjectPath.empty())
+        {
+            err << "Saga: --local-workspace-presence-lock-smoke requires "
+                << "--project <.sagaproj>\n";
+            return kExitStartupFailure;
+        }
+        if (config.localWorkspaceLockTargetPath.empty())
+        {
+            err << "Saga: --local-workspace-presence-lock-smoke requires "
+                << "--lock-target <path>\n";
+            return kExitStartupFailure;
+        }
+        if (config.localWorkspacePresenceLockReportPath.empty())
+        {
+            err << "Saga: --local-workspace-presence-lock-smoke requires "
+                << "--presence-lock-report-out <path>\n";
+            return kExitStartupFailure;
+        }
+
+        SagaLocalPresenceLockReportRequest request;
+        request.projectManifestPath = config.workflowProjectPath;
+        request.workspaceSelector = config.workspaceSelector;
+        request.actorId = config.localWorkspaceActorId;
+        request.lockTargetPath = config.localWorkspaceLockTargetPath;
+        request.reportPath = config.localWorkspacePresenceLockReportPath;
+
+        const SagaLocalCollaborationMetadataReportResult result =
+            WriteLocalPresenceLockReport(request);
+        if (!result.ok)
+        {
+            err << result.error << '\n';
+            return kExitStartupFailure;
+        }
+
+        out << "presence_lock.report=" << result.reportPath.string() << '\n';
+        out << "presence_lock.status=" << result.status << '\n';
+        return kExitOk;
+    }
+
+    if (config.localWorkspaceReviewSmoke)
+    {
+        if (config.workflowProjectPath.empty())
+        {
+            err << "Saga: --local-workspace-review-smoke requires "
+                << "--project <.sagaproj>\n";
+            return kExitStartupFailure;
+        }
+        if (config.localWorkspaceReviewTargetPath.empty())
+        {
+            err << "Saga: --local-workspace-review-smoke requires "
+                << "--review-target <path>\n";
+            return kExitStartupFailure;
+        }
+        if (config.localWorkspaceReviewReportPath.empty())
+        {
+            err << "Saga: --local-workspace-review-smoke requires "
+                << "--review-report-out <path>\n";
+            return kExitStartupFailure;
+        }
+
+        SagaLocalReviewAuditReportRequest request;
+        request.projectManifestPath = config.workflowProjectPath;
+        request.workspaceSelector = config.workspaceSelector;
+        request.actorId = config.localWorkspaceActorId;
+        request.reviewTargetPath = config.localWorkspaceReviewTargetPath;
+        request.comment = config.localWorkspaceReviewComment;
+        request.reportPath = config.localWorkspaceReviewReportPath;
+
+        const SagaLocalCollaborationMetadataReportResult result =
+            WriteLocalReviewAuditReport(request);
+        if (!result.ok)
+        {
+            err << result.error << '\n';
+            return kExitStartupFailure;
+        }
+
+        out << "review.report=" << result.reportPath.string() << '\n';
+        out << "review.status=" << result.status << '\n';
         return kExitOk;
     }
 
