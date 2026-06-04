@@ -481,7 +481,7 @@ function(saga_create_engine_targets)
         ${SANDBOX_SOURCES}
     )
 
-    target_include_directories(SagaSandboxLib PUBLIC
+    target_include_directories(SagaSandboxLib PRIVATE
         ${SAGA_ROOT}/Apps/Sandbox/include
     )
 
@@ -946,6 +946,10 @@ function(saga_create_engine_targets)
 
     saga_apply_compiler_flags(SagaSandbox)
     saga_link_thirdparty(SagaSandbox)
+
+    target_include_directories(SagaSandbox PRIVATE
+        ${SAGA_ROOT}/Apps/Sandbox/include
+    )
 
     get_target_property(_saga_sandbox_sources_after_helpers SagaSandbox SOURCES)
     message(STATUS "[SagaSandbox] SOURCES after helpers = ${_saga_sandbox_sources_after_helpers}")
