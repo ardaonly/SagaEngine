@@ -1,3 +1,68 @@
 # Phase 36 Commands Log
 
-No phase verification commands have been recorded yet.
+Commands run during implementation:
+
+```bash
+git status --short
+rg -n "sagaproject|sagascript|sagapack|csproj|dotnet|wrapper|exec|tools/|package-linux-saga|smoke-linux-saga-dist" Tools scripts docs/internal/phase-evidence docs/architecture
+sed -n '1,120p' Tools/SagaProjectKit/sagaproject
+sed -n '1,160p' Tools/SagaScript/sagascript
+sed -n '1,120p' Tools/SagaPackager/sagapack
+sed -n '300,470p' scripts/package-linux-saga
+sed -n '700,760p' scripts/package-linux-saga
+sed -n '220,310p' scripts/smoke-linux-saga-dist
+sed -n '1,100p' Tools/SagaProjectKit/SagaProjectKit.csproj
+sed -n '1,120p' Tools/SagaScript/SagaScript.csproj
+sed -n '1,100p' Tools/SagaPackager/SagaPackager.csproj
+python3 -m py_compile scripts/package-linux-saga scripts/smoke-linux-saga-dist
+git diff --check
+scripts/package-linux-saga
+scripts/smoke-linux-saga-dist --archive build/dist/linux/Saga.tar.zst --checksum build/dist/linux/Saga.sha256 --work-dir /tmp/saga_dist_smoke --report-out build/reports/linux_distribution_smoke_report.json
+python3 -m json.tool build/reports/linux_distribution_smoke_report.json
+/tmp/saga_dist_smoke/Saga/tools/sagaproject --help
+/tmp/saga_dist_smoke/Saga/tools/sagascript --help
+/tmp/saga_dist_smoke/Saga/tools/sagapack --help
+```
+
+Required gate commands run after implementation:
+
+```bash
+git diff --check
+scripts/scan-claims README.md docs samples Tools
+scripts/verify-quick
+scripts/verify-local --allow-dirty
+scripts/verify-phase 36
+nix-shell --run "python3 Tools/SystemDefinitionEngine/build.py --clean --jobs 1"
+test -x Tools/SystemDefinitionEngine/bin/sde
+scripts/package-linux-saga
+python3 -m json.tool build/reports/linux_package_preflight_report.json
+scripts/smoke-linux-saga-dist --archive build/dist/linux/Saga.tar.zst --checksum build/dist/linux/Saga.sha256 --work-dir /tmp/saga_dist_smoke --report-out build/reports/linux_distribution_smoke_report.json
+python3 -m json.tool build/reports/linux_distribution_smoke_report.json
+/tmp/saga_dist_smoke/Saga/tools/sagaproject --help
+/tmp/saga_dist_smoke/Saga/tools/sagascript --help
+/tmp/saga_dist_smoke/Saga/tools/sagapack --help
+sha256sum -c Saga.sha256
+tar -tf build/dist/linux/Saga.tar.zst
+python3 - <<'PY'
+import json
+from pathlib import Path
+
+p = Path("build/reports/linux_distribution_smoke_report.json")
+data = json.loads(p.read_text())
+
+assert data.get("verified") is False
+
+commands = data.get("commands", [])
+by_label = {item.get("label"): item for item in commands}
+for label in ["unpacked sagaproject help", "unpacked sagascript help", "unpacked sagapack help"]:
+    item = by_label.get(label)
+    assert item, f"missing command record: {label}"
+    assert item.get("status") == "passed", f"tool help did not pass: {label}"
+
+non_claims = json.dumps(data.get("nonClaims", []))
+for needle in ["production", "enterprise", "verified final release"]:
+    assert needle.lower() in non_claims.lower(), f"missing non-claim: {needle}"
+
+print("Phase 36 packaged tool smoke evidence is present and non-overclaiming.")
+PY
+```

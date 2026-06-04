@@ -32,6 +32,10 @@ build/dist/linux/Saga/
     sagapack
     sagascript
     sde
+    .saga-tools/
+      sagaproject/
+      sagapack/
+      sagascript/
   samples/
     StarterArena/
   docs/
@@ -52,8 +56,12 @@ When `--without-server` is used, `SagaServer` is not required or staged.
 
 ## Real Inputs
 
-Executables are copied only after they pass non-empty executable validation.
-Phase 33 does not create fake binaries, wrapper scripts, or placeholder tools.
+Executables are copied or generated only after their real backing artifacts pass
+validation. Phase 33 did not create fake binaries, wrapper scripts, or
+placeholder tools. Phase 36 adds distribution-mode wrappers for `sagaproject`,
+`sagascript`, and `sagapack`; those wrappers dispatch only to real published
+.NET tool artifacts staged under `tools/.saga-tools/` and do not fall back to
+repository paths.
 
 The SDE input is the real staged executable from:
 
@@ -85,6 +93,20 @@ enterprise collaboration, and cloud workspace.
 `BUILD_INFO.json` records staged inputs, the build directory, output directory,
 source commit when available, non-claims, and `verified: false`. It intentionally
 omits nondeterministic timestamps.
+
+## Packaged Tools
+
+Phase 36 publishes the real `net10.0` CLI projects for `sagaproject`,
+`sagascript`, and `sagapack` with `dotnet publish --self-contained false`.
+The staged `tools/<name>` files are generated launchers that execute the
+packaged DLLs from `tools/.saga-tools/<name>/` through the discovered .NET 10
+command. They are not placeholder wrappers and do not use repository `.csproj`
+files.
+
+The packaged tool proof is limited to unpacked distribution help checks. It
+does not claim full tool workflows, production readiness, enterprise readiness,
+full distribution validation, verified release status, or verified final release
+status.
 
 ## Archive And Checksum
 

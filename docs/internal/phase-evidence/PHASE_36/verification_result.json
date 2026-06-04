@@ -1,10 +1,10 @@
 {
   "phase": 36,
-  "name": "Enterprise Workflow Direction Proof",
-  "status": "Not Started",
-  "required_gate": "enterprise-proof-gate",
+  "name": "Packaged Tool Wrapper Closure",
+  "status": "Implemented-Unverified",
+  "required_gate": "packaged-tool-wrapper-gate",
   "verified": false,
   "last_verified_commit": "-",
-  "verification_decision": "Not Started",
-  "decision_reason": "The phase has not been started in the current status matrix."
+  "verification_decision": "Implemented-Unverified",
+  "decision_reason": "Real framework-dependent dotnet publish outputs are staged for sagaproject, sagascript, and sagapack, and unpacked distribution help smoke passes for those tools. Maintainer verification has not occurred."
 }

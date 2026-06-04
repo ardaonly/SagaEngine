@@ -1,6 +1,7 @@
 # Saga Linux Distribution Smoke
 
-Phase 35 status is `Implemented-Unverified`.
+Phase 35 status is `Implemented-Unverified`. Phase 36 status is
+`Implemented-Unverified`.
 
 `scripts/smoke-linux-saga-dist` verifies the Linux archive by unpacking
 `build/dist/linux/Saga.tar.zst` into a clean temporary directory and running a
@@ -63,17 +64,16 @@ Saga/samples/StarterArena
 
 The current passing status is `passed-with-limitations`.
 
-The unpacked `sde`, `Saga`, `SagaRuntime`, and `SagaServer` help commands pass.
+The unpacked `sde`, `Saga`, `SagaRuntime`, `SagaServer`, `sagaproject`,
+`sagascript`, and `sagapack` help commands pass from the unpacked distribution
+tree.
+
 `SagaEditor --help` is recorded as a skipped limitation because the binary does
 not expose that help path.
 
-The unpacked `sagaproject`, `sagascript`, and `sagapack` wrappers are executable
-but are recorded as blocked limitations because they expect adjacent `.csproj`
-files that are not packaged. Phase 35 does not fix those wrappers and does not
-fall back to repository tools.
-
-StarterArena validation is not run in Phase 35 because it would currently
-require `sagaproject`, which is blocked in the unpacked distribution.
+StarterArena validation is not a Phase 36 gate. Phase 36 closes packaged tool
+help execution only and does not claim full sample, package, or tool workflow
+validation.
 
 ## Non-Claims
 

@@ -1,1 +1,11 @@
-No phase-specific changed files recorded yet.
+scripts/package-linux-saga
+scripts/smoke-linux-saga-dist
+docs/architecture/SAGA_LINUX_DISTRIBUTION_LAYOUT.md
+docs/architecture/SAGA_LINUX_DISTRIBUTION_SMOKE.md
+docs/architecture/SAGA_LINUX_TOOL_PACKAGING.md
+docs/internal/PHASE_STATUS_MATRIX.md
+docs/internal/phase-evidence/PHASE_36/EVIDENCE.md
+docs/internal/phase-evidence/PHASE_36/changed_files.txt
+docs/internal/phase-evidence/PHASE_36/commands.log
+docs/internal/phase-evidence/PHASE_36/known_limitations.md
+docs/internal/phase-evidence/PHASE_36/verification_result.json

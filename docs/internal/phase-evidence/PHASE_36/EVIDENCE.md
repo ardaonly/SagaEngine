@@ -2,30 +2,35 @@
 
 ## Status
 
-Not Started
+Implemented-Unverified
 
 ## Phase Scope
 
-Enterprise Workflow Direction Proof
+Packaged Tool Wrapper Closure
 
-No implementation evidence is recorded for this phase yet.
+Phase 36 closes the unpacked Linux distribution blocker where `sagaproject`,
+`sagascript`, and `sagapack` were executable but failed because their copied
+developer-tree wrappers expected adjacent `.csproj` files.
+
+`scripts/package-linux-saga` now stages real framework-dependent `dotnet
+publish` outputs for the three tool projects under `Saga/tools/.saga-tools/`.
+The visible `Saga/tools/<name>` launchers execute those packaged artifacts and
+do not fall back to repository paths.
 
 ## Changed Files
 
-No phase-specific changed file list has been recorded yet. Future updates should
-refresh this section from:
-
-```bash
-git diff --name-only
-```
+See `changed_files.txt`.
 
 ## Verification Commands
 
-No phase gate command has passed for this phase.
+See `commands.log`.
 
 ## Command Results
 
-No passing verification result is recorded.
+- `scripts/package-linux-saga` exits `0` and regenerates `build/dist/linux/Saga.tar.zst` plus `build/dist/linux/Saga.sha256`.
+- `scripts/smoke-linux-saga-dist` exits `0` with status `passed-with-limitations`.
+- Unpacked `sagaproject --help`, `sagascript --help`, and `sagapack --help` pass from `/tmp/saga_dist_smoke/Saga/tools/`.
+- `SagaEditor --help` remains a skipped limitation.
 
 ## Required Files
 
@@ -37,11 +42,11 @@ No passing verification result is recorded.
 
 ## Manual Checks
 
-- [ ] Public docs do not overclaim.
-- [ ] Known limitations are documented.
-- [ ] No placeholder is presented as shipped behavior.
-- [ ] Runtime/editor/tool behavior was manually checked if required.
-- [ ] Unsupported behavior is not hidden.
+- [x] Public docs do not overclaim.
+- [x] Known limitations are documented.
+- [x] No placeholder is presented as shipped behavior.
+- [x] Packaged tool help commands were checked from the unpacked archive tree.
+- [x] Unsupported behavior is not hidden.
 
 ## Known Limitations
 
@@ -49,8 +54,10 @@ See `known_limitations.md`.
 
 ## Verification Decision
 
-Not Started
+Implemented-Unverified
 
 ## Decision Reason
 
-The phase has not been started in the current status matrix.
+Phase 36 has real package and unpack smoke evidence for the three packaged tool
+help commands, but maintainer verification has not occurred and no phase is
+marked `Verified`.

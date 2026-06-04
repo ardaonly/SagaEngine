@@ -140,7 +140,7 @@ def main() -> int:
         "This smoke does not claim full editor workflow.",
         "This smoke does not claim full Visual Blocks UI.",
         "This smoke does not claim cloud collaboration.",
-        "sagaproject, sagascript, and sagapack wrappers currently require adjacent .csproj files that are not present in the unpacked distribution.",
+        "sagaproject, sagascript, and sagapack checks are limited to packaged help output from the unpacked distribution.",
         "SagaEditor does not currently expose a --help smoke path in the unpacked distribution.",
     ]
     non_claims = [
@@ -279,13 +279,14 @@ def main() -> int:
             limitation="SagaEditor does not currently expose a --help smoke path.",
         )
         for tool in ["sagaproject", "sagascript", "sagapack"]:
-            run_command(
+            tool_ok = run_command(
                 commands,
                 [str(unpack_root / "tools" / tool), "--help"],
-                required=False,
+                required=True,
                 label=f"unpacked {tool} help",
-                limitation=f"{tool} wrapper requires an adjacent .csproj that is not packaged in the unpacked distribution.",
             )
+            if not tool_ok:
+                diagnostics.append(f"unpacked {tool} help failed from the packaged distribution")
 
     blocked_checks = [item for item in checks if item.get("status") == "blocked"]
     blocked_required_commands = [
