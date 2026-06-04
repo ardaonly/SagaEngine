@@ -1,7 +1,8 @@
 # Saga Product Shell Workflow Contract
 
 Phase 21 status is `Implemented-Unverified`. Phase 24 adds a narrow no-UI
-Product Shell workflow smoke report.
+Product Shell workflow smoke report. Phase 25 adds a narrow no-UI local
+workspace transaction boundary report.
 
 The Saga Product Shell is a:
 
@@ -62,6 +63,16 @@ The report contains project metadata, selected profile, workflow step command
 references, expected report paths, diagnostics, known limitations, non-claims,
 and `verified: false`. It does not execute the referenced workflow tools.
 Missing reports and package preflight limitations remain visible.
+
+## Local Workspace Transaction Smoke
+
+Phase 25 exposes the first local workspace transaction boundary as:
+
+
+
+The report records a read-only local transaction preview over StarterArena. It
+does not write durable collaboration metadata, mutate project files, start a
+collaboration server, or provide cloud/team synchronization.
 
 ## Workflow Contract
 
@@ -200,11 +211,13 @@ or implemented profile editing.
 
 - Phase 21 is a docs/evidence-only workflow contract.
 - Phase 24 is a no-UI Product Shell workflow smoke report.
+- Phase 25 is a no-UI local workspace transaction boundary report.
 - No Product Shell dashboard workflow UI is implemented by this phase.
 - No UI wiring is added for validation, smoke, scripting, blocks, diagnostics,
   or package preflight.
 - Workflow smoke command entries are references and are not executed by the
   report.
+- Local workspace transaction smoke is read-only and report-only.
 - StarterArena has no launch profiles in its project manifest.
 - Visual Blocks evidence remains CLI-only.
 - Package preflight is not package or distribution readiness.
