@@ -1,3 +1,75 @@
 # Phase 38 Commands Log
 
-No phase verification commands have been recorded yet.
+Commands run for Phase 38. Each command passed unless a note says otherwise.
+
+```bash
+git diff --check
+scripts/scan-claims README.md docs samples Tools
+scripts/verify-quick
+scripts/verify-local --allow-dirty
+scripts/verify-phase 38
+
+nix-shell --run "python3 Tools/SystemDefinitionEngine/build.py --clean --jobs 1"
+test -x Tools/SystemDefinitionEngine/bin/sde
+
+scripts/package-linux-saga
+python3 -m json.tool build/reports/linux_package_preflight_report.json
+
+scripts/smoke-linux-saga-dist \
+  --archive build/dist/linux/Saga.tar.zst \
+  --checksum build/dist/linux/Saga.sha256 \
+  --work-dir /tmp/saga_dist_smoke \
+  --report-out build/reports/linux_distribution_smoke_report.json
+
+python3 -m json.tool build/reports/linux_distribution_smoke_report.json
+
+scripts/verify-linux-saga-candidate \
+  --package-report build/reports/linux_package_preflight_report.json \
+  --smoke-report build/reports/linux_distribution_smoke_report.json \
+  --archive build/dist/linux/Saga.tar.zst \
+  --checksum build/dist/linux/Saga.sha256 \
+  --report-out build/reports/linux_distributable_candidate_report.json
+
+python3 -m json.tool build/reports/linux_distributable_candidate_report.json
+
+python3 - <<'PY'
+import json
+from pathlib import Path
+
+p = Path("build/reports/linux_distributable_candidate_report.json")
+data = json.loads(p.read_text())
+
+assert data.get("verified") is False
+assert data.get("status") in {"candidate-with-limitations", "blocked", "failed"}
+
+blob = json.dumps(data)
+for needle in [
+    "Saga.tar.zst",
+    "Saga.sha256",
+    "linux_package_preflight_report.json",
+    "linux_distribution_smoke_report.json",
+]:
+    assert needle in blob, f"missing candidate artifact reference: {needle}"
+
+non_claims = json.dumps(data.get("nonClaims", []))
+for needle in [
+    "production",
+    "enterprise",
+    "verified final release",
+    "full editor",
+    "Visual Blocks",
+    "full gameplay",
+]:
+    assert needle.lower() in non_claims.lower(), f"missing non-claim: {needle}"
+
+print("Phase 38 technical preview candidate report is present and non-overclaiming.")
+PY
+```
+
+Observed key results:
+
+- `scripts/package-linux-saga`: exited `0`; report status `preflight-passed`.
+- `scripts/smoke-linux-saga-dist`: exited `0`; report status `passed-with-limitations`.
+- `scripts/verify-linux-saga-candidate`: exited `0`; report status `candidate-with-limitations`.
+- Focused candidate assertion: passed.
+- `scripts/verify-phase 38`: passed; no phase was marked `Verified`.

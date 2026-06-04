@@ -1,10 +1,10 @@
 {
   "phase": 38,
-  "name": "Distributable Engine Candidate",
-  "status": "Not Started",
-  "required_gate": "distribution-gate",
+  "name": "Distributable Technical Preview Candidate Gate",
+  "status": "Implemented-Unverified",
+  "required_gate": "distribution-candidate-gate",
   "verified": false,
   "last_verified_commit": "-",
-  "verification_decision": "Not Started",
-  "decision_reason": "The phase has not been started in the current status matrix."
+  "verification_decision": "Implemented-Unverified",
+  "decision_reason": "The Linux technical-preview candidate gate validates existing package, archive, checksum, unpack smoke, and limited StarterArena distribution workflow evidence into one report while preserving Runtime and Editor blockers and non-claims."
 }
