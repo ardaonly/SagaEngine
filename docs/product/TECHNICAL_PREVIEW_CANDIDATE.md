@@ -15,6 +15,8 @@ The current candidate status is based on generated local evidence:
 
 - package report status: `preflight-passed`;
 - distribution smoke report status: `passed-with-limitations`;
+- sample executable evidence report status: `passed-with-limitations` when
+  `SagaSampleExecutableEvidence` completes in the active build tree;
 - candidate report status: `candidate-with-limitations`.
 
 ## What Exists
@@ -81,6 +83,8 @@ The current smoke evidence covers:
 - packaged `sagaproject validate`;
 - packaged `sagascript analyze`;
 - packaged `Saga --workflow-smoke`.
+- build-local sample executable evidence for bounded StarterArena runtime script
+  invocation and MultiplayerSandbox fixture/projection/headless smoke.
 
 ## Known Limitations
 
@@ -88,6 +92,9 @@ The current smoke evidence covers:
 - Editor packaged inspect mode remains blocked.
 - SagaEditor help and inspect limitations remain.
 - Product Shell workflow output is no-UI and report-only.
+- StarterArena sample executable evidence remains bounded smoke evidence.
+- MultiplayerSandbox sample executable evidence remains fixture/projection/
+  headless evidence, not playable multiplayer game evidence.
 - Full editor UI workflow does not exist.
 - Full Visual Blocks UI does not exist.
 - Enterprise collaboration and cloud workspace do not exist.
