@@ -1,11 +1,12 @@
 # Saga Linux Package Preflight
 
 Phase 31 status is `Implemented-Unverified`. Phase 32 status is
-`Implemented-Unverified`.
+`Implemented-Unverified`. Phase 33 status is `Implemented-Unverified`.
 
-`scripts/package-linux-saga` is a Linux package preflight checker. It does not
-build binaries, stage a distribution tree, create an archive, create a checksum,
-or prove package or distribution readiness.
+`scripts/package-linux-saga` is a Linux layout staging and package preflight
+checker. It stages the first Linux layout from real existing inputs, then checks
+for required final package outputs. It does not build binaries, create an
+archive, create a checksum, or prove package or distribution readiness.
 
 The script checks for existing real inputs and the expected final distribution
 outputs, then writes a machine-readable report. The default report path is:
@@ -35,6 +36,7 @@ The report schema records:
 - `availableInputs`
 - `missingInputs`
 - `distributionLayoutStatus`
+- `stagingStatus`
 - `archiveStatus`
 - `checksumStatus`
 - `diagnostics`
@@ -47,8 +49,8 @@ in either `availableInputs` or `missingInputs`.
 If any checked item is missing, the script exits `1`, sets
 `status: "blocked"`, and records the exact blocker strings in `diagnostics`.
 If every checked item is available, the script exits `0` and sets
-`status: "preflight-passed"`. A passed preflight still does not mean the script
-has staged distribution output.
+`status: "preflight-passed"`. A passed preflight still does not claim package
+readiness, distribution readiness, or maintainer verification.
 
 ## Current Blockers
 
@@ -69,20 +71,27 @@ Phase 32 does not create a fake `sde` binary, does not add a wrapper script, and
 does not absorb SDE into the root engine build. `scripts/package-linux-saga`
 still validates the candidate as a non-empty executable.
 
-With the real staged SDE CLI present, the current preflight report remains
+With the real staged SDE CLI present, Phase 33 stages the first Linux layout at:
+
+```txt
+build/dist/linux/Saga
+```
+
+The layout is created only from real existing files and generated honest
+metadata. It is not a final distribution.
+
+After successful Phase 33 layout staging, the current preflight report remains
 blocked by:
 
-- missing final distribution layout at `build/dist/linux/Saga`;
-- missing `build/dist/linux/Saga/VERSION`;
-- missing `build/dist/linux/Saga/VERIFY.txt`;
-- missing `build/dist/linux/Saga/KNOWN_LIMITATIONS.md`;
 - missing `build/dist/linux/Saga.tar.zst`;
 - missing `build/dist/linux/Saga.sha256`.
 
 The standalone SDE source contains a real `sde-cli` target that outputs `sde`.
 Phase 32 uses the existing standalone SDE bootstrap staging path as package
 preflight input evidence. It does not build a Linux distribution package and
-does not stage final distribution output.
+does not stage final distribution output. Phase 33 copies the real staged `sde`
+binary into the Linux layout as a tool input; it does not modify SDE semantics
+or make SDE part of the engine runtime.
 
 ## Non-Claims
 
@@ -90,6 +99,8 @@ The Linux package preflight report does not claim:
 
 - package readiness;
 - distribution readiness;
+- final archive readiness;
+- checksum readiness;
 - maintainer verification;
 - runtime workflow correctness;
 - editor workflow correctness;
@@ -102,6 +113,7 @@ No phase is marked `Verified` by this report.
 
 - The preflight report could be mistaken for package output.
 - The real staged SDE CLI could be mistaken for full package readiness.
+- The staged layout could be mistaken for a final distribution.
 - SDE package proof could be mistaken for a staged `sde` executable.
 - Placeholder binaries could hide missing tools.
 - Archive or checksum language could imply distribution readiness.

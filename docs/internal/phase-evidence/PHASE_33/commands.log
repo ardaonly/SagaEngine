@@ -1,3 +1,93 @@
 # Phase 33 Commands Log
 
-No phase verification commands have been recorded yet.
+## 2026-06-04
+
+```bash
+nix-shell --run "python3 Tools/SystemDefinitionEngine/build.py --clean --jobs 1"
+```
+
+Result: passed. The command built the real `sde-cli` target and staged the real
+SDE CLI at `Tools/SystemDefinitionEngine/bin/sde`.
+
+```bash
+test -x Tools/SystemDefinitionEngine/bin/sde
+```
+
+Result: passed.
+
+```bash
+scripts/package-linux-saga
+```
+
+Result: expected blocked preflight, exit code `1`. The script staged
+`build/dist/linux/Saga` from real inputs and left only final archive/checksum
+blockers:
+
+- `expected distribution archive: missing file build/dist/linux/Saga.tar.zst`
+- `expected distribution checksum: missing file build/dist/linux/Saga.sha256`
+
+```bash
+python3 -m json.tool build/reports/linux_package_preflight_report.json
+```
+
+Result: passed. The report recorded `status: "blocked"`, `verified: false`,
+`stagingStatus.status: "staged"`, available distribution layout metadata, and
+missing archive/checksum entries.
+
+```bash
+python3 - <<'PY'
+import json
+from pathlib import Path
+
+report = Path("build/reports/linux_package_preflight_report.json")
+data = json.loads(report.read_text())
+
+assert data.get("verified") is False
+
+layout = Path("build/dist/linux/Saga")
+assert layout.exists(), "staged layout missing"
+
+for rel in ["VERSION", "VERIFY.txt", "KNOWN_LIMITATIONS.md"]:
+    assert (layout / rel).exists(), f"missing staged metadata file: {rel}"
+
+missing_blob = json.dumps(data.get("missingInputs", [])) + json.dumps(data.get("diagnostics", []))
+for needle in ["Saga.tar.zst", "Saga.sha256"]:
+    assert needle in missing_blob or needle.lower() in missing_blob.lower(), f"expected remaining archive/checksum blocker: {needle}"
+
+print("Phase 33 layout staging evidence is valid; archive/checksum blockers remain honest.")
+PY
+```
+
+Result: passed.
+
+```bash
+git diff --check
+```
+
+Result: passed.
+
+```bash
+scripts/scan-claims README.md docs samples Tools
+```
+
+Result: passed. Scanned 187 public text files; no unsupported public claim text
+found.
+
+```bash
+scripts/verify-quick
+```
+
+Result: passed. This did not mark any phase Verified.
+
+```bash
+scripts/verify-local --allow-dirty
+```
+
+Result: passed. Dirty worktree was allowed for pre-commit verification; this did
+not mark any phase Verified.
+
+```bash
+scripts/verify-phase 33
+```
+
+Result: passed. Phase 33 structure checks passed; no phase was marked Verified.

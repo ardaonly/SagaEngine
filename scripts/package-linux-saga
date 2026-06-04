@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Linux Saga distribution preflight.
+"""Linux Saga distribution layout staging and preflight.
 
-This first-batch script does not create distribution output. It fails honestly
-when required real binaries, docs, samples, or final layout entries are missing.
+This script stages the first Linux layout from real existing inputs, then fails
+honestly when required binaries, docs, samples, archive, or checksum entries are
+missing. It does not create the final archive or checksum.
 """
 
 from __future__ import annotations
@@ -10,6 +11,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -185,6 +188,214 @@ def write_report(report_path: Path, report: dict[str, object]) -> None:
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def resolved_input(available_inputs: list[dict[str, object]], label: str) -> Path:
+    for item in available_inputs:
+        if item.get("label") == label and item.get("resolvedPath"):
+            return Path(str(item["resolvedPath"]))
+    raise RuntimeError(f"internal error: missing resolved input for {label}")
+
+
+def git_commit() -> str | None:
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    if result.returncode != 0:
+        return None
+    commit = result.stdout.strip()
+    return commit or None
+
+
+def copy_file(source: Path, destination: Path, staged_inputs: list[dict[str, object]], label: str) -> None:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, destination)
+    staged_inputs.append(
+        {
+            "label": label,
+            "kind": "file",
+            "source": path_text(source),
+            "destination": path_text(destination),
+        }
+    )
+
+
+def copy_tree(source: Path, destination: Path, staged_inputs: list[dict[str, object]], label: str) -> None:
+    if destination.exists():
+        shutil.rmtree(destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(source, destination)
+    staged_inputs.append(
+        {
+            "label": label,
+            "kind": "directory",
+            "source": path_text(source),
+            "destination": path_text(destination),
+        }
+    )
+
+
+def verification_text(*, without_server: bool) -> str:
+    server_check = "" if without_server else "test -x bin/SagaServer\n"
+    return f"""# Saga Linux Layout Verification
+
+This file describes presence checks for the staged layout only. Passing these
+commands does not prove package readiness, distribution readiness, workflow
+correctness, archive integrity, or maintainer verification.
+
+Run from the staged layout root:
+
+```bash
+test -f VERSION
+test -f KNOWN_LIMITATIONS.md
+python3 -m json.tool BUILD_INFO.json
+test -x bin/Saga
+test -x bin/SagaEditor
+test -x bin/SagaRuntime
+{server_check}test -x tools/sagaproject
+test -x tools/sagapack
+test -x tools/sagascript
+test -x tools/sde
+test -d samples/StarterArena
+test -f docs/README.md
+test -d licenses
+```
+
+Archive and checksum checks are intentionally absent from this staged layout.
+`Saga.tar.zst` and `Saga.sha256` remain separate package blockers until a later
+phase creates them honestly.
+"""
+
+
+def known_limitations_text() -> str:
+    return """# Saga Linux Layout Known Limitations
+
+This staged layout is not a final distribution.
+
+- Not production-ready.
+- Not package-ready until archive and checksum gates pass.
+- Not distribution-ready until the final distribution gate passes.
+- No full editor UI is claimed.
+- No Visual Blocks editor UI is claimed.
+- No enterprise collaboration is claimed.
+- No cloud workspace is claimed.
+- No package readiness is claimed unless `scripts/package-linux-saga` passes all required checks.
+- Runtime, editor, server, and tool workflows are not proven beyond real input existence checks.
+- `Saga.tar.zst` is not created by Phase 33.
+- `Saga.sha256` is not created by Phase 33.
+- No phase is marked Verified by this staged layout.
+"""
+
+
+def stage_layout(
+    *,
+    output: Path,
+    build_dir: Path,
+    available_inputs: list[dict[str, object]],
+    without_server: bool,
+) -> dict[str, object]:
+    staged_inputs: list[dict[str, object]] = []
+
+    if output.exists():
+        shutil.rmtree(output)
+    output.mkdir(parents=True, exist_ok=True)
+
+    binaries = [
+        ("Saga product shell", "Saga"),
+        ("SagaEditor shell", "SagaEditor"),
+        ("SagaRuntime executable", "SagaRuntime"),
+    ]
+    if not without_server:
+        binaries.append(("SagaServer executable", "SagaServer"))
+    for label, name in binaries:
+        copy_file(resolved_input(available_inputs, label), output / "bin" / name, staged_inputs, label)
+
+    tools = [
+        ("sagaproject CLI", "sagaproject"),
+        ("sagapack CLI", "sagapack"),
+        ("sagascript CLI", "sagascript"),
+        ("sde CLI", "sde"),
+    ]
+    for label, name in tools:
+        copy_file(resolved_input(available_inputs, label), output / "tools" / name, staged_inputs, label)
+
+    copy_tree(resolved_input(available_inputs, "StarterArena sample"), output / "samples" / "StarterArena", staged_inputs, "StarterArena sample")
+    copy_file(resolved_input(available_inputs, "root README"), output / "docs" / "README.md", staged_inputs, "root README")
+    copy_file(resolved_input(available_inputs, "getting started doc"), output / "docs" / "product" / "GETTING_STARTED.md", staged_inputs, "getting started doc")
+    copy_file(resolved_input(available_inputs, "current capabilities doc"), output / "docs" / "product" / "CURRENT_CAPABILITIES.md", staged_inputs, "current capabilities doc")
+    copy_file(resolved_input(available_inputs, "not implemented doc"), output / "docs" / "product" / "WHAT_IS_NOT_IMPLEMENTED.md", staged_inputs, "not implemented doc")
+    copy_file(resolved_input(available_inputs, "distribution status doc"), output / "docs" / "product" / "CURRENT_DISTRIBUTION_STATUS.md", staged_inputs, "distribution status doc")
+    copy_tree(resolved_input(available_inputs, "licenses"), output / "licenses", staged_inputs, "licenses")
+
+    version_source = resolved_input(available_inputs, "root VERSION")
+    copy_file(version_source, output / "VERSION", staged_inputs, "root VERSION")
+
+    (output / "VERIFY.txt").write_text(verification_text(without_server=without_server), encoding="utf-8")
+    staged_inputs.append(
+        {
+            "label": "staged VERIFY.txt",
+            "kind": "generated-metadata",
+            "source": "scripts/package-linux-saga",
+            "destination": path_text(output / "VERIFY.txt"),
+        }
+    )
+    (output / "KNOWN_LIMITATIONS.md").write_text(known_limitations_text(), encoding="utf-8")
+    staged_inputs.append(
+        {
+            "label": "staged known limitations",
+            "kind": "generated-metadata",
+            "source": "scripts/package-linux-saga",
+            "destination": path_text(output / "KNOWN_LIMITATIONS.md"),
+        }
+    )
+
+    staged_inputs.append(
+        {
+            "label": "staged BUILD_INFO.json",
+            "kind": "generated-metadata",
+            "source": "scripts/package-linux-saga",
+            "destination": path_text(output / "BUILD_INFO.json"),
+        }
+    )
+
+    build_info: dict[str, object] = {
+        "schemaVersion": 1,
+        "tool": "package-linux-saga",
+        "status": "staged-with-blockers",
+        "verified": False,
+        "buildDir": path_text(build_dir),
+        "output": path_text(output),
+        "withoutServer": without_server,
+        "stagedInputs": staged_inputs,
+        "missingInputs": [],
+        "nonClaims": [
+            "This layout is not a final distribution.",
+            "This layout does not claim package readiness.",
+            "This layout does not claim distribution readiness.",
+            "This layout does not include Saga.tar.zst.",
+            "This layout does not include Saga.sha256.",
+            "This layout does not mark any phase Verified.",
+        ],
+    }
+    source_commit = git_commit()
+    if source_commit is not None:
+        build_info["sourceCommit"] = source_commit
+
+    (output / "BUILD_INFO.json").write_text(
+        json.dumps(build_info, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    return {
+        "status": "staged",
+        "output": path_text(output),
+        "stagedInputs": staged_inputs,
+        "nonClaims": build_info["nonClaims"],
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", default="Release", help="Build configuration label.")
@@ -261,12 +472,28 @@ def main() -> int:
     )
 
     check_dir("StarterArena sample", Path("samples/StarterArena"), missing, required_inputs, available_inputs, missing_inputs, category="sample")
+    check_file("root VERSION", Path("VERSION"), missing, required_inputs, available_inputs, missing_inputs, category="metadata")
     check_file("root README", Path("README.md"), missing, required_inputs, available_inputs, missing_inputs, category="documentation")
     check_file("getting started doc", Path("docs/product/GETTING_STARTED.md"), missing, required_inputs, available_inputs, missing_inputs, category="documentation")
     check_file("current capabilities doc", Path("docs/product/CURRENT_CAPABILITIES.md"), missing, required_inputs, available_inputs, missing_inputs, category="documentation")
     check_file("not implemented doc", Path("docs/product/WHAT_IS_NOT_IMPLEMENTED.md"), missing, required_inputs, available_inputs, missing_inputs, category="documentation")
     check_file("distribution status doc", Path("docs/product/CURRENT_DISTRIBUTION_STATUS.md"), missing, required_inputs, available_inputs, missing_inputs, category="documentation")
     check_dir("licenses", Path("LICENSES"), missing, required_inputs, available_inputs, missing_inputs, category="documentation")
+
+    staging_status: dict[str, object]
+    if missing:
+        staging_status = {
+            "status": "blocked",
+            "output": path_text(output),
+            "message": "layout staging skipped because required real inputs are missing",
+        }
+    else:
+        staging_status = stage_layout(
+            output=output,
+            build_dir=build_dir,
+            available_inputs=available_inputs,
+            without_server=bool(args.without_server),
+        )
 
     check_dir("expected final distribution layout", output, missing, required_inputs, available_inputs, missing_inputs, category="distribution-layout")
     check_file("expected distribution VERSION", output / "VERSION", missing, required_inputs, available_inputs, missing_inputs, category="distribution-layout")
@@ -308,6 +535,7 @@ def main() -> int:
             "availableEntries": distribution_available,
             "missingEntries": distribution_missing,
         },
+        "stagingStatus": staging_status,
         "archiveStatus": {
             "path": "build/dist/linux/Saga.tar.zst",
             "status": status_for_label(required_inputs, "expected distribution archive"),
@@ -320,16 +548,18 @@ def main() -> int:
         if missing
         else [
             "preflight passed for currently checked inputs",
-            "distribution staging is still not implemented by this script",
+            "layout staging completed from real existing inputs",
         ],
         "knownLimitations": [
-            "This script is preflight-only and does not stage distribution files.",
+            "This script stages only the Linux layout directory from real existing inputs.",
             "This script does not build missing tools, including the standalone SDE CLI.",
-            "This script does not create the final distribution layout, archive, or checksum.",
+            "This script does not create Saga.tar.zst.",
+            "This script does not create Saga.sha256.",
+            "The staged layout is not a final distribution.",
             "A passing preflight report is not maintainer verification.",
         ],
         "nonClaims": [
-            "No package or distribution files were staged or generated by scripts/package-linux-saga.",
+            "No package archive or checksum files were generated by scripts/package-linux-saga.",
             "This report does not claim package readiness.",
             "This report does not claim distribution readiness.",
             "This report does not prove runtime, editor, server, or tool workflows beyond input existence checks.",
@@ -338,10 +568,11 @@ def main() -> int:
     }
     write_report(report_path, report)
 
-    print("package-linux-saga: preflight only; no files were staged or generated")
+    print("package-linux-saga: layout staging plus preflight; no archive or checksum generated")
     print(f"package-linux-saga: config={args.config}")
     print(f"package-linux-saga: build_dir={build_dir}")
     print(f"package-linux-saga: expected_output={output}")
+    print(f"package-linux-saga: staging_status={staging_status.get('status')}")
 
     if missing:
         print("package-linux-saga: failed; required real inputs/output layout are missing:")
@@ -349,7 +580,7 @@ def main() -> int:
             print(f"- {item}")
         return 1
 
-    print("package-linux-saga: preflight passed; distribution staging is still not implemented by this skeleton")
+    print("package-linux-saga: preflight passed; archive/checksum generation is still not implemented")
     return 0
 
 
