@@ -41,6 +41,27 @@ def add_check(
     checks.append(item)
 
 
+def add_artifact(
+    artifacts: list[dict[str, object]],
+    *,
+    label: str,
+    path: Path,
+    required: bool,
+    kind: str,
+) -> bool:
+    exists = path.exists()
+    artifacts.append(
+        {
+            "label": label,
+            "kind": kind,
+            "path": path_text(path),
+            "required": required,
+            "status": "available" if exists else ("blocked" if required else "missing"),
+        }
+    )
+    return exists or not required
+
+
 def run_command(
     commands: list[dict[str, object]],
     args: list[str],
@@ -51,6 +72,7 @@ def run_command(
     label: str,
     expected_exit_codes: set[int] | None = None,
     limitation: str | None = None,
+    optional_failure_status: str = "skipped",
 ) -> bool:
     expected = expected_exit_codes or {0}
     try:
@@ -63,7 +85,7 @@ def run_command(
             text=True,
             timeout=timeout,
         )
-        status = "passed" if result.returncode in expected else ("blocked" if required else "skipped")
+        status = "passed" if result.returncode in expected else ("blocked" if required else optional_failure_status)
         entry: dict[str, object] = {
             "label": label,
             "args": args,
@@ -77,7 +99,7 @@ def run_command(
         if limitation and status != "passed":
             entry["message"] = limitation
         commands.append(entry)
-        return status == "passed" or not required
+        return status == "passed" or (not required and optional_failure_status != "blocked")
     except subprocess.TimeoutExpired as exc:
         commands.append(
             {
@@ -85,13 +107,13 @@ def run_command(
                 "args": args,
                 "cwd": path_text(cwd) if cwd else None,
                 "required": required,
-                "status": "blocked" if required else "skipped",
+                "status": "blocked" if required else optional_failure_status,
                 "message": f"timed out after {timeout}s",
                 "stdoutPreview": (exc.stdout or "")[:2000],
                 "stderrPreview": (exc.stderr or "")[:2000],
             }
         )
-        return not required
+        return not required and optional_failure_status != "blocked"
 
 
 def verify_archive_root(archive: Path) -> tuple[bool, list[str], str | None]:
@@ -114,6 +136,170 @@ def write_report(report_out: Path, report: dict[str, object]) -> None:
     report_out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def run_starter_arena_workflow(
+    *,
+    unpack_root: Path,
+    work_dir: Path,
+    commands: list[dict[str, object]],
+    artifacts: list[dict[str, object]],
+    diagnostics: list[str],
+    known_limitations: list[str],
+) -> dict[str, object]:
+    project = unpack_root / "samples" / "StarterArena" / "StarterArena.sagaproj"
+    scripts_dir = unpack_root / "samples" / "StarterArena" / "Scripts"
+    validate_report = work_dir / "starter_arena_validate.json"
+    sagascript_out = work_dir / "starter_arena_sagascript_analyze"
+    product_report = work_dir / "starter_arena_product_shell_workflow_report.json"
+    runtime_report = work_dir / "starter_arena_runtime_smoke.json"
+    editor_report = work_dir / "starter_arena_editor_shell_report.json"
+
+    starter_diagnostics: list[str] = []
+    required_results: list[bool] = []
+
+    required_results.append(
+        run_command(
+            commands,
+            [
+                str(unpack_root / "tools" / "sagaproject"),
+                "validate",
+                "--project",
+                str(project),
+                "--out",
+                str(validate_report),
+            ],
+            required=True,
+            label="StarterArena sagaproject validate",
+            timeout=30,
+        )
+    )
+    required_results.append(add_artifact(artifacts, label="StarterArena sagaproject validation report", path=validate_report, required=True, kind="json-report"))
+
+    required_results.append(
+        run_command(
+            commands,
+            [
+                str(unpack_root / "tools" / "sagascript"),
+                "analyze",
+                "--source",
+                str(scripts_dir),
+                "--out",
+                str(sagascript_out),
+                "--json",
+            ],
+            required=True,
+            label="StarterArena sagascript analyze",
+            timeout=30,
+        )
+    )
+    required_results.append(add_artifact(artifacts, label="StarterArena SagaScript analysis report", path=sagascript_out / "analysis_report.json", required=True, kind="json-report"))
+    required_results.append(add_artifact(artifacts, label="StarterArena SagaScript diagnostics report", path=sagascript_out / "sagascript_diagnostics.json", required=True, kind="json-report"))
+
+    required_results.append(
+        run_command(
+            commands,
+            [
+                str(unpack_root / "bin" / "Saga"),
+                "--workflow-smoke",
+                "--project",
+                str(project),
+                "--profile",
+                "technical_preview",
+                "--workflow-report-out",
+                str(product_report),
+            ],
+            required=True,
+            label="StarterArena Saga workflow-smoke",
+            timeout=30,
+        )
+    )
+    required_results.append(add_artifact(artifacts, label="StarterArena product shell workflow report", path=product_report, required=True, kind="json-report"))
+
+    runtime_ok = run_command(
+        commands,
+        [
+            str(unpack_root / "bin" / "SagaRuntime"),
+            "--headless",
+            "--project",
+            str(project),
+            "--starter-arena-smoke",
+            "--smoke-report-out",
+            str(runtime_report),
+            "--smoke-frames",
+            "30",
+            "--fixed-dt",
+            "0.016",
+        ],
+        required=False,
+        label="StarterArena SagaRuntime packaged smoke",
+        timeout=30,
+        limitation=(
+            "Packaged SagaRuntime StarterArena smoke is blocked in this distribution smoke; "
+            "the current binary enters normal client startup, attempts UDP transport setup, and does not produce the requested smoke report."
+        ),
+        optional_failure_status="blocked",
+    )
+    add_artifact(artifacts, label="StarterArena runtime smoke report", path=runtime_report, required=False, kind="json-report")
+    if not runtime_ok:
+        message = "StarterArena SagaRuntime packaged smoke is blocked; no runtime smoke report was produced."
+        starter_diagnostics.append(message)
+        diagnostics.append(message)
+
+    editor_ok = run_command(
+        commands,
+        [
+            str(unpack_root / "bin" / "SagaEditor"),
+            "--inspect-project",
+            str(project),
+            "--profile",
+            "technical_preview",
+            "--editor-shell-report",
+            str(editor_report),
+        ],
+        required=False,
+        label="StarterArena SagaEditor inspect-project",
+        timeout=10,
+        limitation="Packaged SagaEditor inspect smoke is blocked: SagaEditor reports unknown argument '--inspect-project'.",
+        optional_failure_status="blocked",
+    )
+    add_artifact(artifacts, label="StarterArena editor shell report", path=editor_report, required=False, kind="json-report")
+    if not editor_ok:
+        message = "StarterArena SagaEditor inspect-project is blocked; SagaEditor reports unknown argument '--inspect-project'."
+        starter_diagnostics.append(message)
+        diagnostics.append(message)
+
+    report_only_message = (
+        "StarterArena product shell workflow output is report-only; referenced developer-tree commands inside that report "
+        "are not executed by this distribution smoke."
+    )
+    starter_diagnostics.append(report_only_message)
+    known_limitations.append(report_only_message)
+    known_limitations.append("Phase 37 does not execute Visual Blocks workflow commands.")
+
+    status = "passed-with-limitations" if all(required_results) else "blocked"
+    return {
+        "project": path_text(project),
+        "status": status,
+        "requiredCommands": [
+            "StarterArena sagaproject validate",
+            "StarterArena sagascript analyze",
+            "StarterArena Saga workflow-smoke",
+        ],
+        "blockedCommands": [
+            "StarterArena SagaRuntime packaged smoke",
+            "StarterArena SagaEditor inspect-project",
+        ],
+        "diagnostics": starter_diagnostics,
+        "nonClaims": [
+            "StarterArena workflow smoke does not claim full gameplay readiness.",
+            "StarterArena workflow smoke does not claim full editor workflow.",
+            "StarterArena workflow smoke does not claim full Visual Blocks UI.",
+            "StarterArena workflow smoke does not claim production readiness.",
+            "StarterArena workflow smoke does not claim enterprise readiness.",
+            "StarterArena workflow smoke does not claim a verified final release.",
+        ],
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--archive", default=str(DEFAULT_ARCHIVE), help="Saga.tar.zst archive path.")
@@ -130,6 +316,7 @@ def main() -> int:
 
     checks: list[dict[str, object]] = []
     commands: list[dict[str, object]] = []
+    artifacts: list[dict[str, object]] = []
     diagnostics: list[str] = []
     known_limitations = [
         "This smoke verifies archive checksum, unpack, file presence, executable bits, and limited help commands only.",
@@ -139,6 +326,7 @@ def main() -> int:
         "This smoke does not claim full distribution verification.",
         "This smoke does not claim full editor workflow.",
         "This smoke does not claim full Visual Blocks UI.",
+        "This smoke does not claim full gameplay readiness.",
         "This smoke does not claim cloud collaboration.",
         "sagaproject, sagascript, and sagapack checks are limited to packaged help output from the unpacked distribution.",
         "SagaEditor does not currently expose a --help smoke path in the unpacked distribution.",
@@ -150,6 +338,7 @@ def main() -> int:
         "This report does not claim full distribution verification.",
         "This report does not claim full editor workflow.",
         "This report does not claim full Visual Blocks UI.",
+        "This report does not claim full gameplay readiness.",
         "This report does not claim cloud collaboration.",
         "This report does not mark any phase Verified.",
     ]
@@ -169,6 +358,7 @@ def main() -> int:
             "unpackRoot": path_text(unpack_root),
             "checks": checks,
             "commands": commands,
+            "artifacts": artifacts,
             "diagnostics": diagnostics,
             "knownLimitations": known_limitations,
             "nonClaims": non_claims,
@@ -288,15 +478,32 @@ def main() -> int:
             if not tool_ok:
                 diagnostics.append(f"unpacked {tool} help failed from the packaged distribution")
 
+    starter_arena: dict[str, object] = {
+        "status": "skipped",
+        "diagnostics": ["StarterArena workflow smoke skipped because archive unpack did not produce a Saga root."],
+    }
+    if unpack_root.is_dir():
+        starter_arena = run_starter_arena_workflow(
+            unpack_root=unpack_root,
+            work_dir=work_dir,
+            commands=commands,
+            artifacts=artifacts,
+            diagnostics=diagnostics,
+            known_limitations=known_limitations,
+        )
+
     blocked_checks = [item for item in checks if item.get("status") == "blocked"]
     blocked_required_commands = [
         item for item in commands if item.get("required") is True and item.get("status") == "blocked"
+    ]
+    blocked_required_artifacts = [
+        item for item in artifacts if item.get("required") is True and item.get("status") == "blocked"
     ]
     limitation_commands = [
         item for item in commands if item.get("required") is False and item.get("status") != "passed"
     ]
 
-    status = "blocked" if blocked_checks or blocked_required_commands else "passed-with-limitations"
+    status = "blocked" if blocked_checks or blocked_required_commands or blocked_required_artifacts or starter_arena.get("status") == "blocked" else "passed-with-limitations"
     if status == "blocked":
         exit_code = 1
     else:
@@ -313,6 +520,8 @@ def main() -> int:
         "archiveEntriesPreview": archive_entries[:80],
         "checks": checks,
         "commands": commands,
+        "artifacts": artifacts,
+        "starterArena": starter_arena,
         "diagnostics": diagnostics,
         "knownLimitations": known_limitations,
         "nonClaims": non_claims,

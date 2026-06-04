@@ -1,3 +1,65 @@
 # Phase 37 Commands Log
 
-No phase verification commands have been recorded yet.
+Commands run during implementation:
+
+```bash
+git status --short
+find scripts docs/internal/phase-evidence docs/architecture build/dist/linux -maxdepth 8 -type f 2>/dev/null | sort
+rg -n "smoke-linux-saga-dist|StarterArena|sagaproject validate|sagascript|SagaRuntime|SagaEditor|workflow-smoke|distribution smoke|unpack" scripts docs/internal/phase-evidence docs/architecture
+python3 -m json.tool build/reports/linux_distribution_smoke_report.json
+/tmp/saga_dist_smoke/Saga/tools/sagaproject validate --project /tmp/saga_dist_smoke/Saga/samples/StarterArena/StarterArena.sagaproj --out /tmp/phase37_probe_starter_arena_validate.json
+/tmp/saga_dist_smoke/Saga/bin/SagaRuntime --headless --project /tmp/saga_dist_smoke/Saga/samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --smoke-report-out /tmp/phase37_probe_runtime_smoke.json --smoke-frames 30 --fixed-dt 0.016
+/tmp/saga_dist_smoke/Saga/bin/SagaEditor --inspect-project /tmp/saga_dist_smoke/Saga/samples/StarterArena/StarterArena.sagaproj --profile technical_preview --editor-shell-report /tmp/phase37_probe_editor_shell_report.json
+/tmp/saga_dist_smoke/Saga/bin/Saga --workflow-smoke --project /tmp/saga_dist_smoke/Saga/samples/StarterArena/StarterArena.sagaproj --profile technical_preview --workflow-report-out /tmp/phase37_probe_product_shell_workflow_report.json
+/tmp/saga_dist_smoke/Saga/tools/sagascript analyze --source /tmp/saga_dist_smoke/Saga/samples/StarterArena/Scripts --out /tmp/phase37_probe_sagascript_analyze --json
+python3 -m json.tool /tmp/phase37_probe_starter_arena_validate.json
+python3 -m json.tool /tmp/phase37_probe_product_shell_workflow_report.json
+find /tmp/phase37_probe_sagascript_analyze -maxdepth 2 -type f -print | sort
+python3 -m py_compile scripts/smoke-linux-saga-dist
+git diff --check
+scripts/smoke-linux-saga-dist --archive build/dist/linux/Saga.tar.zst --checksum build/dist/linux/Saga.sha256 --work-dir /tmp/saga_dist_smoke --report-out build/reports/linux_distribution_smoke_report.json
+python3 -m json.tool build/reports/linux_distribution_smoke_report.json
+```
+
+Required gate commands run after implementation:
+
+```bash
+git diff --check
+scripts/scan-claims README.md docs samples Tools
+scripts/verify-quick
+scripts/verify-local --allow-dirty
+scripts/verify-phase 37
+nix-shell --run "python3 Tools/SystemDefinitionEngine/build.py --clean --jobs 1"
+test -x Tools/SystemDefinitionEngine/bin/sde
+scripts/package-linux-saga
+python3 -m json.tool build/reports/linux_package_preflight_report.json
+scripts/smoke-linux-saga-dist --archive build/dist/linux/Saga.tar.zst --checksum build/dist/linux/Saga.sha256 --work-dir /tmp/saga_dist_smoke --report-out build/reports/linux_distribution_smoke_report.json
+python3 -m json.tool build/reports/linux_distribution_smoke_report.json
+python3 -m json.tool /tmp/saga_dist_smoke/starter_arena_validate.json
+python3 -m json.tool /tmp/saga_dist_smoke/starter_arena_product_shell_workflow_report.json
+python3 -m json.tool /tmp/saga_dist_smoke/starter_arena_sagascript_analyze/analysis_report.json
+python3 -m json.tool /tmp/saga_dist_smoke/starter_arena_sagascript_analyze/sagascript_diagnostics.json
+python3 - <<'PY'
+import json
+from pathlib import Path
+
+p = Path("build/reports/linux_distribution_smoke_report.json")
+data = json.loads(p.read_text())
+
+assert data.get("verified") is False
+assert data.get("status") == "passed-with-limitations"
+
+commands = json.dumps(data.get("commands", []))
+for needle in ["sagaproject validate", "sagascript analyze", "workflow-smoke", "SagaRuntime", "SagaEditor"]:
+    assert needle in commands, f"missing StarterArena dist command record: {needle}"
+
+starter = data.get("starterArena", {})
+assert starter.get("status") == "passed-with-limitations"
+
+non_claims = json.dumps(data.get("nonClaims", []))
+for needle in ["production", "enterprise", "verified final release", "full editor", "Visual Blocks", "gameplay readiness"]:
+    assert needle.lower() in non_claims.lower(), f"missing non-claim: {needle}"
+
+print("Phase 37 StarterArena distribution workflow evidence is present and non-overclaiming.")
+PY
+```

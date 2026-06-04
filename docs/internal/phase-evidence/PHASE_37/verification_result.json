@@ -1,10 +1,10 @@
 {
   "phase": 37,
-  "name": "Full Authoring Loop Proof",
-  "status": "Not Started",
-  "required_gate": "full-loop-gate",
+  "name": "Distribution StarterArena Workflow Smoke",
+  "status": "Implemented-Unverified",
+  "required_gate": "distribution-starterarena-workflow-gate",
   "verified": false,
   "last_verified_commit": "-",
-  "verification_decision": "Not Started",
-  "decision_reason": "The phase has not been started in the current status matrix."
+  "verification_decision": "Implemented-Unverified",
+  "decision_reason": "Unpacked-distribution sagaproject validate, sagascript analyze, and Saga workflow-smoke pass for StarterArena. Packaged Runtime and Editor workflow blockers remain recorded, and maintainer verification has not occurred."
 }
