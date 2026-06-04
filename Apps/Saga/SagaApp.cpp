@@ -80,6 +80,7 @@ constexpr int kExitStartupFailure = 1;
     const SagaAppConfig& config) noexcept
 {
     return config.publishCheck ||
+        config.localWorkspaceApprovalGateSmoke ||
         config.localWorkspaceSliceSmoke ||
         config.localWorkspaceRoleSmoke ||
         config.localWorkspaceReviewSmoke ||
@@ -756,6 +757,55 @@ int SagaApp::Run(const SagaAppConfig& config,
 
         out << "slice.report=" << result.reportPath.string() << '\n';
         out << "slice.status=" << result.status << '\n';
+        return kExitOk;
+    }
+
+    if (config.localWorkspaceApprovalGateSmoke)
+    {
+        if (config.workflowProjectPath.empty())
+        {
+            err << "Saga: --local-workspace-approval-gate-smoke requires "
+                << "--project <.sagaproj>\n";
+            return kExitStartupFailure;
+        }
+        if (config.localWorkspaceRoleName.empty())
+        {
+            err << "Saga: --local-workspace-approval-gate-smoke requires "
+                << "--role <name>\n";
+            return kExitStartupFailure;
+        }
+        if (config.localWorkspaceGateTargetPath.empty())
+        {
+            err << "Saga: --local-workspace-approval-gate-smoke requires "
+                << "--gate-target <path>\n";
+            return kExitStartupFailure;
+        }
+        if (config.localWorkspaceApprovalGateReportPath.empty())
+        {
+            err << "Saga: --local-workspace-approval-gate-smoke requires "
+                << "--approval-gate-report-out <path>\n";
+            return kExitStartupFailure;
+        }
+
+        SagaLocalApprovalGateReportRequest request;
+        request.projectManifestPath = config.workflowProjectPath;
+        request.workspaceSelector = config.workspaceSelector;
+        request.actorId = config.localWorkspaceActorId;
+        request.roleName = config.localWorkspaceRoleName;
+        request.gateTargetPath = config.localWorkspaceGateTargetPath;
+        request.approvalState = config.localWorkspaceApprovalState;
+        request.reportPath = config.localWorkspaceApprovalGateReportPath;
+
+        const SagaLocalCollaborationMetadataReportResult result =
+            WriteLocalApprovalGateReport(request);
+        if (!result.ok)
+        {
+            err << result.error << '\n';
+            return kExitStartupFailure;
+        }
+
+        out << "approval_gate.report=" << result.reportPath.string() << '\n';
+        out << "approval_gate.status=" << result.status << '\n';
         return kExitOk;
     }
 

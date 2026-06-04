@@ -58,3 +58,5 @@ resolution work.
 
 
 
+Phase 30 may reference local slice/visibility reports as related metadata, but
+that does not create restricted project resolution or source hiding.

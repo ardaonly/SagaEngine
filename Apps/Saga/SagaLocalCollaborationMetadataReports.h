@@ -48,6 +48,17 @@ struct SagaLocalProjectSliceReportRequest
     std::filesystem::path reportPath;
 };
 
+struct SagaLocalApprovalGateReportRequest
+{
+    std::filesystem::path projectManifestPath;
+    std::string workspaceSelector = "builtin:basic";
+    std::string actorId = "local.actor";
+    std::string roleName;
+    std::filesystem::path gateTargetPath;
+    std::string approvalState = "approved-local-preview";
+    std::filesystem::path reportPath;
+};
+
 struct SagaLocalCollaborationMetadataReportResult
 {
     bool ok = false;
@@ -71,5 +82,9 @@ WriteLocalRolePermissionReport(
 [[nodiscard]] SagaLocalCollaborationMetadataReportResult
 WriteLocalProjectSliceReport(
     const SagaLocalProjectSliceReportRequest& request);
+
+[[nodiscard]] SagaLocalCollaborationMetadataReportResult
+WriteLocalApprovalGateReport(
+    const SagaLocalApprovalGateReportRequest& request);
 
 } // namespace SagaProduct

@@ -58,3 +58,5 @@ does not link Product Shell behavior to `PermissionManager`,
 
 
 
+Phase 30 may reference role labels in a local approval gate preview, but that
+does not turn role metadata into permission enforcement or enterprise policy.
