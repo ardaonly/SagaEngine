@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -46,7 +47,7 @@ def first_existing(paths: list[Path]) -> Path | None:
 
 
 def is_executable(path: Path) -> bool:
-    return path.is_file() and path.stat().st_size > 0 and path.exists()
+    return path.is_file() and path.stat().st_size > 0 and os.access(path, os.X_OK)
 
 
 def path_text(path: Path) -> str:
@@ -248,6 +249,7 @@ def main() -> int:
         "sde CLI",
         [
             bin_dir / "sde",
+            Path("Tools/SystemDefinitionEngine/bin/sde"),
             Path("Tools/SystemDefinitionEngine/build/bin/sde"),
             Path("Tools/SystemDefinitionEngine/build/sde"),
         ],
@@ -331,7 +333,7 @@ def main() -> int:
             "This report does not claim package readiness.",
             "This report does not claim distribution readiness.",
             "This report does not prove runtime, editor, server, or tool workflows beyond input existence checks.",
-            "This report does not mark Phase 31 or any other phase Verified.",
+            "This report does not mark any phase Verified.",
         ],
     }
     write_report(report_path, report)

@@ -1,6 +1,7 @@
 # Saga Linux Package Preflight
 
-Phase 31 status is `Implemented-Unverified`.
+Phase 31 status is `Implemented-Unverified`. Phase 32 status is
+`Implemented-Unverified`.
 
 `scripts/package-linux-saga` is a Linux package preflight checker. It does not
 build binaries, stage a distribution tree, create an archive, create a checksum,
@@ -51,12 +52,26 @@ has staged distribution output.
 
 ## Current Blockers
 
-The current preflight report is blocked by:
+After Phase 32, `scripts/package-linux-saga` also checks the real SDE
+bootstrap staging path:
 
-- missing `sde` executable after checking
-  `build/RelWithDebInfo-0.0.9-sde/bin/sde`,
-  `Tools/SystemDefinitionEngine/build/bin/sde`, and
-  `Tools/SystemDefinitionEngine/build/sde`;
+```txt
+Tools/SystemDefinitionEngine/bin/sde
+```
+
+That path is valid only when produced by:
+
+```bash
+nix-shell --run "python3 Tools/SystemDefinitionEngine/build.py --clean --jobs 1"
+```
+
+Phase 32 does not create a fake `sde` binary, does not add a wrapper script, and
+does not absorb SDE into the root engine build. `scripts/package-linux-saga`
+still validates the candidate as a non-empty executable.
+
+With the real staged SDE CLI present, the current preflight report remains
+blocked by:
+
 - missing final distribution layout at `build/dist/linux/Saga`;
 - missing `build/dist/linux/Saga/VERSION`;
 - missing `build/dist/linux/Saga/VERIFY.txt`;
@@ -64,9 +79,10 @@ The current preflight report is blocked by:
 - missing `build/dist/linux/Saga.tar.zst`;
 - missing `build/dist/linux/Saga.sha256`.
 
-The standalone SDE source contains a real CLI target that outputs `sde`, but
-Phase 31 does not wire that target into the root build, does not package it, and
-does not create a placeholder executable.
+The standalone SDE source contains a real `sde-cli` target that outputs `sde`.
+Phase 32 uses the existing standalone SDE bootstrap staging path as package
+preflight input evidence. It does not build a Linux distribution package and
+does not stage final distribution output.
 
 ## Non-Claims
 
@@ -85,6 +101,7 @@ No phase is marked `Verified` by this report.
 ## Risks
 
 - The preflight report could be mistaken for package output.
+- The real staged SDE CLI could be mistaken for full package readiness.
 - SDE package proof could be mistaken for a staged `sde` executable.
 - Placeholder binaries could hide missing tools.
 - Archive or checksum language could imply distribution readiness.

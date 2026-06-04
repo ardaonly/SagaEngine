@@ -1,1 +1,8 @@
-No phase-specific changed files recorded yet.
+docs/architecture/SAGA_LINUX_PACKAGE_PREFLIGHT.md
+docs/internal/PHASE_STATUS_MATRIX.md
+docs/internal/phase-evidence/PHASE_32/EVIDENCE.md
+docs/internal/phase-evidence/PHASE_32/changed_files.txt
+docs/internal/phase-evidence/PHASE_32/commands.log
+docs/internal/phase-evidence/PHASE_32/known_limitations.md
+docs/internal/phase-evidence/PHASE_32/verification_result.json
+scripts/package-linux-saga
