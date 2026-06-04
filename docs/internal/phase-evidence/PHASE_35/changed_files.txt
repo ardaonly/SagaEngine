@@ -1,1 +1,9 @@
-No phase-specific changed files recorded yet.
+docs/architecture/SAGA_LINUX_ARCHIVE_CHECKSUM.md
+docs/architecture/SAGA_LINUX_DISTRIBUTION_SMOKE.md
+docs/internal/PHASE_STATUS_MATRIX.md
+docs/internal/phase-evidence/PHASE_35/EVIDENCE.md
+docs/internal/phase-evidence/PHASE_35/changed_files.txt
+docs/internal/phase-evidence/PHASE_35/commands.log
+docs/internal/phase-evidence/PHASE_35/known_limitations.md
+docs/internal/phase-evidence/PHASE_35/verification_result.json
+scripts/smoke-linux-saga-dist

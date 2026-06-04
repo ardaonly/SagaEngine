@@ -55,6 +55,17 @@ The checksum file format is:
 
 The checksum is not generated if archive generation fails.
 
+## Unpack Smoke
+
+Phase 35 adds `scripts/smoke-linux-saga-dist` as a separate unpack smoke. It
+uses `Saga.tar.zst` as the distribution input, verifies `Saga.sha256`, unpacks
+into a clean temporary directory, and runs limited checks from the unpacked
+`Saga/` tree.
+
+That smoke is still not production readiness, enterprise readiness, verified
+final release status, full distribution verification, full editor workflow, full
+Visual Blocks UI, or cloud collaboration.
+
 ## Non-Claims
 
 Archive/checksum success does not claim:

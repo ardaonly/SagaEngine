@@ -1,0 +1,332 @@
+#!/usr/bin/env python3
+"""Unpack and smoke-check the Linux Saga distribution archive."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+
+DEFAULT_ARCHIVE = Path("build/dist/linux/Saga.tar.zst")
+DEFAULT_CHECKSUM = Path("build/dist/linux/Saga.sha256")
+DEFAULT_WORK_DIR = Path("/tmp/saga_dist_smoke")
+DEFAULT_REPORT = Path("build/reports/linux_distribution_smoke_report.json")
+
+
+def path_text(path: Path) -> str:
+    return path.as_posix()
+
+
+def add_check(
+    checks: list[dict[str, object]],
+    *,
+    label: str,
+    path: Path,
+    status: str,
+    kind: str,
+    message: str | None = None,
+) -> None:
+    item: dict[str, object] = {
+        "label": label,
+        "kind": kind,
+        "path": path_text(path),
+        "status": status,
+    }
+    if message:
+        item["message"] = message
+    checks.append(item)
+
+
+def run_command(
+    commands: list[dict[str, object]],
+    args: list[str],
+    *,
+    cwd: Path | None = None,
+    required: bool,
+    timeout: int = 10,
+    label: str,
+    expected_exit_codes: set[int] | None = None,
+    limitation: str | None = None,
+) -> bool:
+    expected = expected_exit_codes or {0}
+    try:
+        result = subprocess.run(
+            args,
+            cwd=cwd,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=timeout,
+        )
+        status = "passed" if result.returncode in expected else ("blocked" if required else "skipped")
+        entry: dict[str, object] = {
+            "label": label,
+            "args": args,
+            "cwd": path_text(cwd) if cwd else None,
+            "exitCode": result.returncode,
+            "required": required,
+            "status": status,
+            "stdoutPreview": result.stdout[:2000],
+            "stderrPreview": result.stderr[:2000],
+        }
+        if limitation and status != "passed":
+            entry["message"] = limitation
+        commands.append(entry)
+        return status == "passed" or not required
+    except subprocess.TimeoutExpired as exc:
+        commands.append(
+            {
+                "label": label,
+                "args": args,
+                "cwd": path_text(cwd) if cwd else None,
+                "required": required,
+                "status": "blocked" if required else "skipped",
+                "message": f"timed out after {timeout}s",
+                "stdoutPreview": (exc.stdout or "")[:2000],
+                "stderrPreview": (exc.stderr or "")[:2000],
+            }
+        )
+        return not required
+
+
+def verify_archive_root(archive: Path) -> tuple[bool, list[str], str | None]:
+    result = subprocess.run(
+        ["tar", "-tf", str(archive)],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if result.returncode != 0:
+        return False, [], result.stderr.strip() or "tar listing failed"
+    entries = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    ok = bool(entries) and all(entry == "Saga/" or entry.startswith("Saga/") for entry in entries)
+    return ok, entries, None if ok else "archive root is not Saga/"
+
+
+def write_report(report_out: Path, report: dict[str, object]) -> None:
+    report_out.parent.mkdir(parents=True, exist_ok=True)
+    report_out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--archive", default=str(DEFAULT_ARCHIVE), help="Saga.tar.zst archive path.")
+    parser.add_argument("--checksum", default=str(DEFAULT_CHECKSUM), help="Saga.sha256 checksum path.")
+    parser.add_argument("--work-dir", default=str(DEFAULT_WORK_DIR), help="Temporary unpack work directory.")
+    parser.add_argument("--report-out", default=str(DEFAULT_REPORT), help="Smoke report output path.")
+    args = parser.parse_args()
+
+    archive = Path(args.archive)
+    checksum = Path(args.checksum)
+    work_dir = Path(args.work_dir)
+    report_out = Path(args.report_out)
+    unpack_root = work_dir / "Saga"
+
+    checks: list[dict[str, object]] = []
+    commands: list[dict[str, object]] = []
+    diagnostics: list[str] = []
+    known_limitations = [
+        "This smoke verifies archive checksum, unpack, file presence, executable bits, and limited help commands only.",
+        "This smoke does not claim production readiness.",
+        "This smoke does not claim enterprise readiness.",
+        "This smoke does not claim a verified final release.",
+        "This smoke does not claim full distribution verification.",
+        "This smoke does not claim full editor workflow.",
+        "This smoke does not claim full Visual Blocks UI.",
+        "This smoke does not claim cloud collaboration.",
+        "sagaproject, sagascript, and sagapack wrappers currently require adjacent .csproj files that are not present in the unpacked distribution.",
+        "SagaEditor does not currently expose a --help smoke path in the unpacked distribution.",
+    ]
+    non_claims = [
+        "This report does not claim production readiness; the distribution is not production-ready.",
+        "This report does not claim enterprise readiness; the distribution is not enterprise-ready.",
+        "This report does not claim a verified final release.",
+        "This report does not claim full distribution verification.",
+        "This report does not claim full editor workflow.",
+        "This report does not claim full Visual Blocks UI.",
+        "This report does not claim cloud collaboration.",
+        "This report does not mark any phase Verified.",
+    ]
+
+    add_check(checks, label="archive file", path=archive, status="passed" if archive.is_file() else "blocked", kind="file")
+    add_check(checks, label="checksum file", path=checksum, status="passed" if checksum.is_file() else "blocked", kind="file")
+
+    if not archive.is_file() or not checksum.is_file():
+        diagnostics.append("archive or checksum file is missing")
+        report = {
+            "schemaVersion": 1,
+            "tool": "smoke-linux-saga-dist",
+            "status": "blocked",
+            "verified": False,
+            "archive": path_text(archive),
+            "checksum": path_text(checksum),
+            "unpackRoot": path_text(unpack_root),
+            "checks": checks,
+            "commands": commands,
+            "diagnostics": diagnostics,
+            "knownLimitations": known_limitations,
+            "nonClaims": non_claims,
+        }
+        write_report(report_out, report)
+        return 1
+
+    checksum_ok = run_command(
+        commands,
+        ["sha256sum", "-c", checksum.name],
+        cwd=checksum.parent,
+        required=True,
+        label="checksum verification",
+    )
+    if not checksum_ok:
+        diagnostics.append("checksum verification failed")
+
+    root_ok, archive_entries, root_error = verify_archive_root(archive)
+    add_check(
+        checks,
+        label="archive Saga/ root",
+        path=archive,
+        status="passed" if root_ok else "blocked",
+        kind="archive",
+        message=root_error,
+    )
+    if not root_ok:
+        diagnostics.append(root_error or "archive root validation failed")
+
+    if work_dir.exists():
+        shutil.rmtree(work_dir)
+    work_dir.mkdir(parents=True, exist_ok=True)
+
+    unpack_ok = False
+    if checksum_ok and root_ok:
+        unpack_ok = run_command(
+            commands,
+            ["tar", "-xf", str(archive), "-C", str(work_dir)],
+            required=True,
+            timeout=60,
+            label="archive unpack",
+        )
+        if not unpack_ok:
+            diagnostics.append("archive unpack failed")
+    else:
+        diagnostics.append("archive unpack skipped because checksum or archive root validation failed")
+
+    add_check(
+        checks,
+        label="unpacked Saga root",
+        path=unpack_root,
+        status="passed" if unpack_root.is_dir() else "blocked",
+        kind="directory",
+    )
+
+    required_files = [
+        "BUILD_INFO.json",
+        "VERSION",
+        "VERIFY.txt",
+        "KNOWN_LIMITATIONS.md",
+        "bin/Saga",
+        "bin/SagaEditor",
+        "bin/SagaRuntime",
+        "bin/SagaServer",
+        "tools/sagaproject",
+        "tools/sagascript",
+        "tools/sagapack",
+        "tools/sde",
+    ]
+    required_dirs = [
+        "samples/StarterArena",
+        "docs/product",
+        "licenses",
+    ]
+    executables = {
+        "bin/Saga",
+        "bin/SagaEditor",
+        "bin/SagaRuntime",
+        "bin/SagaServer",
+        "tools/sagaproject",
+        "tools/sagascript",
+        "tools/sagapack",
+        "tools/sde",
+    }
+    for rel in required_files:
+        path = unpack_root / rel
+        ok = path.is_file() and (rel not in executables or path.stat().st_size > 0 and path.exists() and path_text(path) and path.is_file() and path.stat().st_mode & 0o111)
+        add_check(checks, label=f"unpacked {rel}", path=Path("Saga") / rel, status="passed" if ok else "blocked", kind="executable" if rel in executables else "file")
+        if not ok:
+            diagnostics.append(f"required unpacked file/executable missing: Saga/{rel}")
+    for rel in required_dirs:
+        path = unpack_root / rel
+        ok = path.is_dir()
+        add_check(checks, label=f"unpacked {rel}", path=Path("Saga") / rel, status="passed" if ok else "blocked", kind="directory")
+        if not ok:
+            diagnostics.append(f"required unpacked directory missing: Saga/{rel}")
+
+    if unpack_root.is_dir():
+        run_command(commands, [str(unpack_root / "tools" / "sde"), "--help"], required=True, label="unpacked sde help")
+        run_command(commands, [str(unpack_root / "bin" / "Saga"), "--help"], required=True, label="unpacked Saga help")
+        run_command(commands, [str(unpack_root / "bin" / "SagaRuntime"), "--help"], required=True, label="unpacked SagaRuntime help")
+        run_command(commands, [str(unpack_root / "bin" / "SagaServer"), "--help"], required=True, label="unpacked SagaServer help")
+        run_command(
+            commands,
+            [str(unpack_root / "bin" / "SagaEditor"), "--help"],
+            required=False,
+            label="unpacked SagaEditor help",
+            limitation="SagaEditor does not currently expose a --help smoke path.",
+        )
+        for tool in ["sagaproject", "sagascript", "sagapack"]:
+            run_command(
+                commands,
+                [str(unpack_root / "tools" / tool), "--help"],
+                required=False,
+                label=f"unpacked {tool} help",
+                limitation=f"{tool} wrapper requires an adjacent .csproj that is not packaged in the unpacked distribution.",
+            )
+
+    blocked_checks = [item for item in checks if item.get("status") == "blocked"]
+    blocked_required_commands = [
+        item for item in commands if item.get("required") is True and item.get("status") == "blocked"
+    ]
+    limitation_commands = [
+        item for item in commands if item.get("required") is False and item.get("status") != "passed"
+    ]
+
+    status = "blocked" if blocked_checks or blocked_required_commands else "passed-with-limitations"
+    if status == "blocked":
+        exit_code = 1
+    else:
+        exit_code = 0
+
+    report = {
+        "schemaVersion": 1,
+        "tool": "smoke-linux-saga-dist",
+        "status": status,
+        "verified": False,
+        "archive": path_text(archive),
+        "checksum": path_text(checksum),
+        "unpackRoot": path_text(unpack_root),
+        "archiveEntriesPreview": archive_entries[:80],
+        "checks": checks,
+        "commands": commands,
+        "diagnostics": diagnostics,
+        "knownLimitations": known_limitations,
+        "nonClaims": non_claims,
+    }
+    if limitation_commands:
+        report["limitations"] = limitation_commands
+
+    write_report(report_out, report)
+
+    print(f"smoke-linux-saga-dist: status={status}")
+    print(f"smoke-linux-saga-dist: archive={archive}")
+    print(f"smoke-linux-saga-dist: unpack_root={unpack_root}")
+    print(f"smoke-linux-saga-dist: report={report_out}")
+    return exit_code
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
