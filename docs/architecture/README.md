@@ -16,6 +16,7 @@ records.
 | Server authority | [SERVER.md](SERVER.md) |
 | Assets and packages | [ASSETS_AND_PACKAGES.md](ASSETS_AND_PACKAGES.md) |
 | Editor | [EDITOR.md](EDITOR.md) |
+| Apps/Sandbox role | [APPS_SANDBOX_ROLE.md](APPS_SANDBOX_ROLE.md) |
 | Publish readiness | [PUBLISH.md](PUBLISH.md) |
 | Testing | [TESTING_AND_EVIDENCE.md](TESTING_AND_EVIDENCE.md) |
 
