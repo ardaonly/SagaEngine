@@ -160,7 +160,7 @@ def run_starter_arena_workflow(
         run_command(
             commands,
             [
-                str(unpack_root / "tools" / "sagaproject"),
+                str(unpack_root / "bin" / "sagaproject"),
                 "validate",
                 "--project",
                 str(project),
@@ -178,7 +178,7 @@ def run_starter_arena_workflow(
         run_command(
             commands,
             [
-                str(unpack_root / "tools" / "sagascript"),
+                str(unpack_root / "bin" / "sagascript"),
                 "analyze",
                 "--source",
                 str(scripts_dir),
@@ -423,6 +423,10 @@ def main() -> int:
         "bin/SagaEditor",
         "bin/SagaRuntime",
         "bin/SagaServer",
+        "bin/sagaproject",
+        "bin/sagascript",
+        "bin/sagapack",
+        "bin/sde",
         "tools/sagaproject",
         "tools/sagascript",
         "tools/sagapack",
@@ -438,6 +442,10 @@ def main() -> int:
         "bin/SagaEditor",
         "bin/SagaRuntime",
         "bin/SagaServer",
+        "bin/sagaproject",
+        "bin/sagascript",
+        "bin/sagapack",
+        "bin/sde",
         "tools/sagaproject",
         "tools/sagascript",
         "tools/sagapack",
@@ -457,7 +465,7 @@ def main() -> int:
             diagnostics.append(f"required unpacked directory missing: Saga/{rel}")
 
     if unpack_root.is_dir():
-        run_command(commands, [str(unpack_root / "tools" / "sde"), "--help"], required=True, label="unpacked sde help")
+        run_command(commands, [str(unpack_root / "bin" / "sde"), "--help"], required=True, label="unpacked sde help")
         run_command(commands, [str(unpack_root / "bin" / "Saga"), "--help"], required=True, label="unpacked Saga help")
         run_command(commands, [str(unpack_root / "bin" / "SagaRuntime"), "--help"], required=True, label="unpacked SagaRuntime help")
         run_command(commands, [str(unpack_root / "bin" / "SagaServer"), "--help"], required=True, label="unpacked SagaServer help")
@@ -471,7 +479,7 @@ def main() -> int:
         for tool in ["sagaproject", "sagascript", "sagapack"]:
             tool_ok = run_command(
                 commands,
-                [str(unpack_root / "tools" / tool), "--help"],
+                [str(unpack_root / "bin" / tool), "--help"],
                 required=True,
                 label=f"unpacked {tool} help",
             )

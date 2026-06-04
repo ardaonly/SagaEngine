@@ -10,6 +10,10 @@
 - Full Visual Blocks UI is not claimed.
 - Full gameplay readiness is not claimed.
 - Full runtime validation is not claimed.
+- `lib/` is not staged unless real shared library distribution artifacts are produced.
+- `include/` is not staged unless real public SDK headers are selected for distribution.
+- `share/saga/` is not staged unless real templates, profiles, schemas, plugins, or CMake package files are selected for distribution.
+- Public CLI tools must be available under `bin/`; `tools/` wrappers are compatibility entrypoints only.
 - Packaged `SagaRuntime --starter-arena-smoke` remains blocked.
 - Packaged `SagaEditor --inspect-project` remains blocked.
 - Product Shell workflow evidence is no-UI and report-only.

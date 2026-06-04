@@ -9,6 +9,7 @@ required binaries, docs, samples, archive, or checksum entries are missing.
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import hashlib
 import json
 import os
@@ -270,12 +271,15 @@ def copy_tree(source: Path, destination: Path, staged_inputs: list[dict[str, obj
     )
 
 
-def artifact_relative_to_wrapper(runtime_dir: str, artifact: str) -> str:
-    return f".saga-tools/{runtime_dir}/{artifact}"
-
-
-def distribution_wrapper_text(tool_name: str, runtime_dir: str, dll: str, dotnet_command: str) -> str:
-    target = artifact_relative_to_wrapper(runtime_dir, dll)
+def distribution_wrapper_text(
+    tool_name: str,
+    runtime_dir: str,
+    dll: str,
+    dotnet_command: str,
+    *,
+    tools_payload_relative: str = ".saga-tools",
+) -> str:
+    target = f"{tools_payload_relative}/{runtime_dir}/{dll}"
     if tool_name != "sagascript":
         return f"""#!/usr/bin/env bash
 set -euo pipefail
@@ -618,25 +622,52 @@ def stage_packaged_dotnet_tools(
             statuses.append(status)
             continue
 
-        wrapper_path = output / "tools" / name
-        write_executable_text(
-            wrapper_path,
-            distribution_wrapper_text(name, runtime_dir, dll, str(toolchain.get("command", "dotnet"))),
-        )
+        wrapper_paths = [
+            (output / "tools" / name, ".saga-tools"),
+            (output / "bin" / name, "../tools/.saga-tools"),
+        ]
+        wrapper_ready = True
+        for wrapper_path, tools_payload_relative in wrapper_paths:
+            write_executable_text(
+                wrapper_path,
+                distribution_wrapper_text(
+                    name,
+                    runtime_dir,
+                    dll,
+                    str(toolchain.get("command", "dotnet")),
+                    tools_payload_relative=tools_payload_relative,
+                ),
+            )
+            record_check(
+                label=f"{label} distribution wrapper {path_text(wrapper_path)}",
+                kind="executable",
+                category="tool-packaging",
+                paths=[wrapper_path],
+                available=is_executable(wrapper_path),
+                required_inputs=required_inputs,
+                available_inputs=available_inputs,
+                missing_inputs=missing_inputs,
+                resolved_path=wrapper_path if is_executable(wrapper_path) else None,
+                message=None if is_executable(wrapper_path) else f"{label}: distribution wrapper is not executable {wrapper_path}",
+            )
+            if not is_executable(wrapper_path):
+                wrapper_ready = False
+                missing.append(f"{label}: distribution wrapper is not executable {wrapper_path}")
+
         record_check(
-            label=f"{label} distribution wrapper",
+            label=f"{label} public bin wrapper",
             kind="executable",
             category="tool-packaging",
-            paths=[wrapper_path],
-            available=is_executable(wrapper_path),
+            paths=[output / "bin" / name],
+            available=is_executable(output / "bin" / name),
             required_inputs=required_inputs,
             available_inputs=available_inputs,
             missing_inputs=missing_inputs,
-            resolved_path=wrapper_path if is_executable(wrapper_path) else None,
-            message=None if is_executable(wrapper_path) else f"{label}: distribution wrapper is not executable {wrapper_path}",
+            resolved_path=output / "bin" / name if is_executable(output / "bin" / name) else None,
+            message=None if is_executable(output / "bin" / name) else f"{label}: public bin wrapper is not executable {output / 'bin' / name}",
         )
-        if not is_executable(wrapper_path):
-            message = f"{label}: distribution wrapper is not executable {wrapper_path}"
+        if not wrapper_ready:
+            message = f"{label}: one or more distribution wrappers are not executable"
             missing.append(message)
             status["status"] = "blocked"
             status["message"] = message
@@ -649,14 +680,15 @@ def stage_packaged_dotnet_tools(
                     "destination": path_text(publish_dir),
                 }
             )
-            staged_inputs.append(
-                {
-                    "label": f"{label} distribution wrapper",
-                    "kind": "generated-wrapper",
-                    "source": "scripts/package-linux-saga",
-                    "destination": path_text(wrapper_path),
-                }
-            )
+            for wrapper_path, _tools_payload_relative in wrapper_paths:
+                staged_inputs.append(
+                    {
+                        "label": f"{label} distribution wrapper",
+                        "kind": "generated-wrapper",
+                        "source": "scripts/package-linux-saga",
+                        "destination": path_text(wrapper_path),
+                    }
+                )
         statuses.append(status)
 
     return statuses
@@ -684,8 +716,21 @@ test -x bin/SagaRuntime
 test -x tools/sagapack
 test -x tools/sagascript
 test -x tools/sde
+test -x bin/sagaproject
+test -x bin/sagapack
+test -x bin/sagascript
+test -x bin/sde
 test -d samples/StarterArena
+test -f README.md
 test -f docs/README.md
+test -f docs/GETTING_STARTED.md
+test -f docs/CURRENT_CAPABILITIES.md
+test -f docs/KNOWN_LIMITATIONS.md
+test -f docs/BUILDING_FROM_SOURCE.md
+test -f docs/SCRIPTING.md
+test -f docs/VISUAL_BLOCKS.md
+test -f docs/PACKAGING.md
+test -f docs/CUSTOMIZATION.md
 test -d licenses
 ```
 
@@ -699,6 +744,66 @@ tar -tf Saga.tar.zst
 The archive/checksum checks only prove that `Saga.tar.zst` exists, that
 `Saga.sha256` covers that archive, and that the archive can be listed.
 """
+
+
+def generated_distribution_doc(name: str) -> str:
+    docs: dict[str, str] = {
+        "BUILDING_FROM_SOURCE.md": """# Building From Source
+
+The source-tree build path is the supported way to regenerate this Linux
+candidate evidence.
+
+```bash
+Tools/Forge/bin/forge nix build --build build/RelWithDebInfo-0.0.9
+scripts/package-linux-saga --config Release
+scripts/smoke-linux-saga-dist
+scripts/verify-linux-saga-candidate
+scripts/verify-linux-distribution-contract
+```
+
+This document does not claim production readiness, enterprise readiness, a
+verified final release, full gameplay readiness, full editor workflow, or full
+Visual Blocks UI.
+""",
+        "SCRIPTING.md": """# SagaScript Current Distribution Notes
+
+This distribution includes packaged SagaScript tooling and StarterArena script
+inputs used for limited evidence. The evidence proves analysis and selected
+compile/smoke paths where reports say they passed.
+
+It does not prove arbitrary C# support, full gameplay readiness, production
+readiness, enterprise readiness, or a verified final release.
+""",
+        "VISUAL_BLOCKS.md": """# Visual Blocks Current Distribution Notes
+
+Visual Blocks evidence is limited to compatible C# projection and opaque-node
+behavior described by the current reports. The packaged distribution does not
+claim a full Visual Blocks UI or arbitrary C# to blocks.
+
+This document does not claim production readiness, enterprise readiness, full
+editor workflow, full gameplay readiness, or a verified final release.
+""",
+        "PACKAGING.md": """# Packaging Current Distribution Notes
+
+`scripts/package-linux-saga` stages the Linux candidate layout from real
+existing binaries, tools, docs, licenses, and sample inputs, then generates the
+archive and checksum.
+
+Passing package evidence does not prove production readiness, enterprise
+readiness, full distribution certification, full gameplay readiness, or a
+verified final release.
+""",
+        "CUSTOMIZATION.md": """# Customization Current Distribution Notes
+
+SagaEngine currently carries profile/customization direction evidence, but the
+Linux candidate package does not claim a complete editor customization product
+workflow.
+
+This document does not claim full editor workflow, full Visual Blocks UI,
+production readiness, enterprise readiness, or a verified final release.
+""",
+    }
+    return docs[name]
 
 
 def known_limitations_text() -> str:
@@ -727,6 +832,7 @@ def stage_layout(
     *,
     output: Path,
     build_dir: Path,
+    build_type: str,
     available_inputs: list[dict[str, object]],
     missing: list[str],
     required_inputs: list[dict[str, object]],
@@ -758,14 +864,37 @@ def stage_layout(
         missing_inputs=missing_inputs,
     )
     copy_file(resolved_input(available_inputs, "sde CLI"), output / "tools" / "sde", staged_inputs, "sde CLI")
+    copy_file(resolved_input(available_inputs, "sde CLI"), output / "bin" / "sde", staged_inputs, "sde CLI public bin wrapper")
 
     copy_tree(resolved_input(available_inputs, "StarterArena sample"), output / "samples" / "StarterArena", staged_inputs, "StarterArena sample")
     copy_file(resolved_input(available_inputs, "root README"), output / "docs" / "README.md", staged_inputs, "root README")
+    copy_file(resolved_input(available_inputs, "root README"), output / "README.md", staged_inputs, "root README top-level")
     copy_file(resolved_input(available_inputs, "getting started doc"), output / "docs" / "product" / "GETTING_STARTED.md", staged_inputs, "getting started doc")
+    copy_file(resolved_input(available_inputs, "getting started doc"), output / "docs" / "GETTING_STARTED.md", staged_inputs, "getting started doc top-level")
     copy_file(resolved_input(available_inputs, "current capabilities doc"), output / "docs" / "product" / "CURRENT_CAPABILITIES.md", staged_inputs, "current capabilities doc")
+    copy_file(resolved_input(available_inputs, "current capabilities doc"), output / "docs" / "CURRENT_CAPABILITIES.md", staged_inputs, "current capabilities doc top-level")
     copy_file(resolved_input(available_inputs, "not implemented doc"), output / "docs" / "product" / "WHAT_IS_NOT_IMPLEMENTED.md", staged_inputs, "not implemented doc")
+    copy_file(resolved_input(available_inputs, "not implemented doc"), output / "docs" / "KNOWN_LIMITATIONS.md", staged_inputs, "known limitations doc top-level")
     copy_file(resolved_input(available_inputs, "distribution status doc"), output / "docs" / "product" / "CURRENT_DISTRIBUTION_STATUS.md", staged_inputs, "distribution status doc")
     copy_tree(resolved_input(available_inputs, "licenses"), output / "licenses", staged_inputs, "licenses")
+
+    for generated_name in [
+        "BUILDING_FROM_SOURCE.md",
+        "SCRIPTING.md",
+        "VISUAL_BLOCKS.md",
+        "PACKAGING.md",
+        "CUSTOMIZATION.md",
+    ]:
+        generated_path = output / "docs" / generated_name
+        generated_path.write_text(generated_distribution_doc(generated_name), encoding="utf-8")
+        staged_inputs.append(
+            {
+                "label": f"generated distribution doc {generated_name}",
+                "kind": "generated-documentation",
+                "source": "scripts/package-linux-saga",
+                "destination": path_text(generated_path),
+            }
+        )
 
     version_source = resolved_input(available_inputs, "root VERSION")
     copy_file(version_source, output / "VERSION", staged_inputs, "root VERSION")
@@ -798,8 +927,30 @@ def stage_layout(
         }
     )
 
+    source_commit = git_commit()
+    built_at_utc = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    included_targets = ["Saga", "SagaEditor", "SagaRuntime"] + ([] if without_server else ["SagaServer"])
     build_info: dict[str, object] = {
         "schemaVersion": 1,
+        "product": "SagaEngine",
+        "channel": "technical-preview-candidate",
+        "platform": "linux",
+        "version": read_version(),
+        "commit": source_commit,
+        "buildType": build_type,
+        "builtAtUtc": built_at_utc,
+        "includedTargets": included_targets,
+        "publicTools": ["sagaproject", "sagapack", "sagascript", "sde"],
+        "samples": ["StarterArena"],
+        "knownLimitationsFile": "KNOWN_LIMITATIONS.md",
+        "verification": {
+            "verified": False,
+            "status": "layout-staged-for-archive",
+            "packageReport": "build/reports/linux_package_preflight_report.json",
+            "smokeReport": "build/reports/linux_distribution_smoke_report.json",
+            "candidateReport": "build/reports/linux_distributable_candidate_report.json",
+            "contractReport": "build/reports/linux_distribution_contract_report.json",
+        },
         "tool": "package-linux-saga",
         "status": "layout-staged-for-archive",
         "verified": False,
@@ -811,6 +962,17 @@ def stage_layout(
         "stagedInputs": staged_inputs,
         "toolPackagingStatus": tool_packaging_status,
         "missingInputs": missing,
+        "staging": {
+            "stagedInputs": staged_inputs,
+            "toolPackagingStatus": tool_packaging_status,
+            "missingInputs": missing,
+        },
+        "finalAcceptanceGaps": [
+            "lib/ is not staged unless real shared library distribution artifacts are produced.",
+            "include/ is not staged unless real public SDK headers are selected for distribution.",
+            "share/saga/ is not staged unless real templates, profiles, schemas, plugins, or CMake package files are selected for distribution.",
+            "Packaged Runtime and Editor workflows remain bounded by the current smoke reports.",
+        ],
         "nonClaims": [
             "This layout is not a final distribution.",
             "This layout does not claim production readiness.",
@@ -818,11 +980,13 @@ def stage_layout(
             "This layout does not claim a verified release.",
             "This layout does not claim a verified final release.",
             "This layout does not claim full distribution validation.",
+            "This layout does not claim full gameplay readiness.",
+            "This layout does not claim full editor workflow.",
+            "This layout does not claim full Visual Blocks UI.",
             "This layout does not claim full packaged tool workflow validation.",
             "This layout does not mark any phase Verified.",
         ],
     }
-    source_commit = git_commit()
     if source_commit is not None:
         build_info["sourceCommit"] = source_commit
 
@@ -852,14 +1016,27 @@ def staged_layout_missing(output: Path, without_server: bool) -> list[str]:
         "VERIFY.txt",
         "KNOWN_LIMITATIONS.md",
         "BUILD_INFO.json",
+        "README.md",
         "bin/Saga",
         "bin/SagaEditor",
         "bin/SagaRuntime",
+        "bin/sagaproject",
+        "bin/sagapack",
+        "bin/sagascript",
+        "bin/sde",
         "tools/sagaproject",
         "tools/sagapack",
         "tools/sagascript",
         "tools/sde",
         "docs/README.md",
+        "docs/GETTING_STARTED.md",
+        "docs/CURRENT_CAPABILITIES.md",
+        "docs/KNOWN_LIMITATIONS.md",
+        "docs/BUILDING_FROM_SOURCE.md",
+        "docs/SCRIPTING.md",
+        "docs/VISUAL_BLOCKS.md",
+        "docs/PACKAGING.md",
+        "docs/CUSTOMIZATION.md",
     ]
     if not without_server:
         required_files.append("bin/SagaServer")
@@ -879,6 +1056,10 @@ def staged_layout_missing(output: Path, without_server: bool) -> list[str]:
         "bin/SagaEditor",
         "bin/SagaRuntime",
         "bin/SagaServer",
+        "bin/sagaproject",
+        "bin/sagapack",
+        "bin/sagascript",
+        "bin/sde",
         "tools/sagaproject",
         "tools/sagapack",
         "tools/sagascript",
@@ -1185,6 +1366,7 @@ def main() -> int:
         staging_status = stage_layout(
             output=output,
             build_dir=build_dir,
+            build_type=args.config,
             available_inputs=available_inputs,
             missing=missing,
             required_inputs=required_inputs,
@@ -1213,6 +1395,36 @@ def main() -> int:
     check_file("expected distribution VERSION", output / "VERSION", missing, required_inputs, available_inputs, missing_inputs, category="distribution-layout")
     check_file("expected distribution VERIFY.txt", output / "VERIFY.txt", missing, required_inputs, available_inputs, missing_inputs, category="distribution-layout")
     check_file("expected distribution known limitations", output / "KNOWN_LIMITATIONS.md", missing, required_inputs, available_inputs, missing_inputs, category="distribution-layout")
+    check_file("expected distribution README", output / "README.md", missing, required_inputs, available_inputs, missing_inputs, category="distribution-layout")
+    for tool_name in ["sagaproject", "sagapack", "sagascript", "sde"]:
+        check_binary(
+            f"expected distribution public {tool_name}",
+            [output / "bin" / tool_name],
+            missing,
+            required_inputs,
+            available_inputs,
+            missing_inputs,
+            category="distribution-layout",
+        )
+    for doc_name in [
+        "GETTING_STARTED.md",
+        "CURRENT_CAPABILITIES.md",
+        "KNOWN_LIMITATIONS.md",
+        "BUILDING_FROM_SOURCE.md",
+        "SCRIPTING.md",
+        "VISUAL_BLOCKS.md",
+        "PACKAGING.md",
+        "CUSTOMIZATION.md",
+    ]:
+        check_file(
+            f"expected distribution doc {doc_name}",
+            output / "docs" / doc_name,
+            missing,
+            required_inputs,
+            available_inputs,
+            missing_inputs,
+            category="distribution-layout",
+        )
     check_file("expected distribution archive", archive_path, missing, required_inputs, available_inputs, missing_inputs, category="archive")
     check_file("expected distribution checksum", checksum_path, missing, required_inputs, available_inputs, missing_inputs, category="checksum")
 

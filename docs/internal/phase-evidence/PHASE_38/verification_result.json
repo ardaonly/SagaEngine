@@ -6,5 +6,5 @@
   "verified": false,
   "last_verified_commit": "-",
   "verification_decision": "Implemented-Unverified",
-  "decision_reason": "The Linux technical-preview candidate gate validates existing package, archive, checksum, unpack smoke, and limited StarterArena distribution workflow evidence into one report while preserving Runtime and Editor blockers and non-claims."
+  "decision_reason": "The Linux technical-preview candidate and contract gates validate existing package, archive, checksum, unpack smoke, public bin tool entrypoints, BUILD_INFO contract fields, and limited StarterArena distribution workflow evidence while preserving Runtime and Editor blockers, final acceptance gaps, and non-claims."
 }

@@ -1,0 +1,440 @@
+#!/usr/bin/env python3
+"""Validate the Linux distribution contract without making readiness claims."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import subprocess
+import sys
+from pathlib import Path
+from typing import Any
+
+
+DEFAULT_LAYOUT = Path("build/dist/linux/Saga")
+DEFAULT_ARCHIVE = Path("build/dist/linux/Saga.tar.zst")
+DEFAULT_CHECKSUM = Path("build/dist/linux/Saga.sha256")
+DEFAULT_PACKAGE_REPORT = Path("build/reports/linux_package_preflight_report.json")
+DEFAULT_SMOKE_REPORT = Path("build/reports/linux_distribution_smoke_report.json")
+DEFAULT_CANDIDATE_REPORT = Path("build/reports/linux_distributable_candidate_report.json")
+DEFAULT_REPORT = Path("build/reports/linux_distribution_contract_report.json")
+PHASE_MATRIX = Path("docs/internal/PHASE_STATUS_MATRIX.md")
+
+
+REQUIRED_BUILD_INFO_FIELDS = [
+    "product",
+    "channel",
+    "platform",
+    "version",
+    "commit",
+    "buildType",
+    "builtAtUtc",
+    "includedTargets",
+    "publicTools",
+    "samples",
+    "knownLimitationsFile",
+    "verification",
+]
+
+CURRENT_REQUIRED_FILES = [
+    "README.md",
+    "VERSION",
+    "VERIFY.txt",
+    "KNOWN_LIMITATIONS.md",
+    "BUILD_INFO.json",
+    "bin/Saga",
+    "bin/SagaEditor",
+    "bin/SagaRuntime",
+    "bin/SagaServer",
+    "bin/sagaproject",
+    "bin/sagapack",
+    "bin/sagascript",
+    "bin/sde",
+    "docs/README.md",
+    "docs/GETTING_STARTED.md",
+    "docs/CURRENT_CAPABILITIES.md",
+    "docs/KNOWN_LIMITATIONS.md",
+    "docs/BUILDING_FROM_SOURCE.md",
+    "docs/SCRIPTING.md",
+    "docs/VISUAL_BLOCKS.md",
+    "docs/PACKAGING.md",
+    "docs/CUSTOMIZATION.md",
+]
+
+CURRENT_REQUIRED_DIRS = [
+    "samples/StarterArena",
+    "docs",
+    "licenses",
+]
+
+EXECUTABLE_FILES = {
+    "bin/Saga",
+    "bin/SagaEditor",
+    "bin/SagaRuntime",
+    "bin/SagaServer",
+    "bin/sagaproject",
+    "bin/sagapack",
+    "bin/sagascript",
+    "bin/sde",
+}
+
+FINAL_TARGET_DIRS = [
+    "lib",
+    "include",
+    "share/saga",
+]
+
+
+def path_text(path: Path) -> str:
+    return path.as_posix()
+
+
+def read_json(path: Path) -> tuple[dict[str, Any] | None, str | None]:
+    try:
+        return json.loads(path.read_text(encoding="utf-8")), None
+    except FileNotFoundError:
+        return None, f"missing JSON report: {path}"
+    except json.JSONDecodeError as exc:
+        return None, f"invalid JSON report {path}: {exc}"
+
+
+def write_report(report_out: Path, report: dict[str, Any]) -> None:
+    report_out.parent.mkdir(parents=True, exist_ok=True)
+    report_out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def is_executable(path: Path) -> bool:
+    return path.is_file() and path.stat().st_size > 0 and bool(path.stat().st_mode & 0o111)
+
+
+def source_commit() -> str | None:
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if result.returncode != 0:
+        return None
+    commit = result.stdout.strip()
+    return commit or None
+
+
+def phase_statuses() -> list[dict[str, Any]]:
+    if not PHASE_MATRIX.exists():
+        return []
+    phases: list[dict[str, Any]] = []
+    for raw_line in PHASE_MATRIX.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line.startswith("|") or line.startswith("|---") or line.startswith("| Phase "):
+            continue
+        cells = [cell.strip().strip("`") for cell in line.strip("|").split("|")]
+        if len(cells) < 7 or not cells[0].isdigit():
+            continue
+        phases.append(
+            {
+                "phase": int(cells[0]),
+                "name": cells[1],
+                "status": cells[2],
+                "requiredGate": cells[4],
+            }
+        )
+    return phases
+
+
+def add_check(
+    checks: list[dict[str, Any]],
+    *,
+    label: str,
+    status: str,
+    required: bool = True,
+    message: str | None = None,
+    details: dict[str, Any] | None = None,
+) -> bool:
+    entry: dict[str, Any] = {
+        "label": label,
+        "status": status,
+        "required": required,
+    }
+    if message:
+        entry["message"] = message
+    if details:
+        entry["details"] = details
+    checks.append(entry)
+    return status == "passed" or not required
+
+
+def validate_layout(layout: Path, checks: list[dict[str, Any]], blockers: list[str]) -> None:
+    add_check(
+        checks,
+        label="layout root exists",
+        status="passed" if layout.is_dir() else "blocked",
+        message=f"missing layout: {layout}" if not layout.is_dir() else None,
+    )
+    if not layout.is_dir():
+        blockers.append(f"missing layout: {layout}")
+        return
+
+    for rel in CURRENT_REQUIRED_FILES:
+        path = layout / rel
+        ok = is_executable(path) if rel in EXECUTABLE_FILES else path.is_file()
+        add_check(
+            checks,
+            label=f"layout file {rel}",
+            status="passed" if ok else "blocked",
+            message=f"missing or invalid required file: {layout / rel}" if not ok else None,
+        )
+        if not ok:
+            blockers.append(f"missing or invalid required file: {layout / rel}")
+
+    for rel in CURRENT_REQUIRED_DIRS:
+        path = layout / rel
+        ok = path.is_dir()
+        add_check(
+            checks,
+            label=f"layout directory {rel}",
+            status="passed" if ok else "blocked",
+            message=f"missing required directory: {layout / rel}" if not ok else None,
+        )
+        if not ok:
+            blockers.append(f"missing required directory: {layout / rel}")
+
+
+def validate_build_info(
+    layout: Path,
+    checks: list[dict[str, Any]],
+    blockers: list[str],
+    final_gaps: list[str],
+) -> dict[str, Any] | None:
+    path = layout / "BUILD_INFO.json"
+    data, error = read_json(path)
+    if error:
+        add_check(checks, label="BUILD_INFO parsed", status="blocked", message=error)
+        blockers.append(error)
+        return None
+
+    assert data is not None
+    missing_fields = [field for field in REQUIRED_BUILD_INFO_FIELDS if field not in data]
+    add_check(
+        checks,
+        label="BUILD_INFO contract fields",
+        status="passed" if not missing_fields else "blocked",
+        message=f"missing BUILD_INFO fields: {missing_fields}" if missing_fields else None,
+        details={"requiredFields": REQUIRED_BUILD_INFO_FIELDS},
+    )
+    if missing_fields:
+        blockers.append(f"missing BUILD_INFO fields: {missing_fields}")
+
+    expected_tools = {"sagaproject", "sagapack", "sagascript", "sde"}
+    actual_tools = set(data.get("publicTools", [])) if isinstance(data.get("publicTools"), list) else set()
+    missing_tools = sorted(expected_tools - actual_tools)
+    add_check(
+        checks,
+        label="BUILD_INFO public tools",
+        status="passed" if not missing_tools else "blocked",
+        message=f"missing public tools in BUILD_INFO: {missing_tools}" if missing_tools else None,
+    )
+    if missing_tools:
+        blockers.append(f"missing public tools in BUILD_INFO: {missing_tools}")
+
+    add_check(
+        checks,
+        label="BUILD_INFO verification flag",
+        status="passed" if data.get("verified") is False and data.get("verification", {}).get("verified") is False else "blocked",
+        message="BUILD_INFO must keep verified=false" if not (data.get("verified") is False and data.get("verification", {}).get("verified") is False) else None,
+    )
+
+    head = source_commit()
+    add_check(
+        checks,
+        label="BUILD_INFO commit current",
+        status="passed" if head is not None and data.get("commit") == head else "blocked",
+        message=f"BUILD_INFO commit {data.get('commit')!r} does not match HEAD {head!r}" if data.get("commit") != head else None,
+    )
+    if head is not None and data.get("commit") != head:
+        blockers.append("BUILD_INFO commit does not match current HEAD")
+
+    for gap in data.get("finalAcceptanceGaps", []):
+        if isinstance(gap, str):
+            final_gaps.append(gap)
+
+    return data
+
+
+def validate_reports(
+    *,
+    package_report_path: Path,
+    smoke_report_path: Path,
+    candidate_report_path: Path,
+    checks: list[dict[str, Any]],
+    blockers: list[str],
+    known_limitations: list[str],
+) -> None:
+    expectations = [
+        (package_report_path, "package-linux-saga", {"preflight-passed"}),
+        (smoke_report_path, "smoke-linux-saga-dist", {"passed-with-limitations"}),
+        (candidate_report_path, "verify-linux-saga-candidate", {"candidate-with-limitations"}),
+    ]
+    for path, tool, allowed_statuses in expectations:
+        report, error = read_json(path)
+        if error:
+            add_check(checks, label=f"{tool} report parsed", status="blocked", message=error)
+            blockers.append(error)
+            continue
+        assert report is not None
+        status = report.get("status")
+        add_check(
+            checks,
+            label=f"{tool} report status",
+            status="passed" if status in allowed_statuses else "blocked",
+            message=f"expected {sorted(allowed_statuses)}, got {status!r}" if status not in allowed_statuses else None,
+        )
+        add_check(
+            checks,
+            label=f"{tool} verified flag",
+            status="passed" if report.get("verified") is False else "blocked",
+            message=f"{tool} report must keep verified=false" if report.get("verified") is not False else None,
+        )
+        if status not in allowed_statuses:
+            blockers.append(f"{tool} report has unexpected status {status!r}")
+        if report.get("verified") is not False:
+            blockers.append(f"{tool} report does not keep verified=false")
+        for limitation in report.get("knownLimitations", []):
+            if isinstance(limitation, str):
+                known_limitations.append(limitation)
+
+
+def validate_final_gaps(layout: Path, checks: list[dict[str, Any]], final_gaps: list[str]) -> None:
+    for rel in FINAL_TARGET_DIRS:
+        path = layout / rel
+        if path.exists():
+            add_check(
+                checks,
+                label=f"final target {rel}",
+                status="passed",
+                required=False,
+                details={"path": path_text(path)},
+            )
+        else:
+            message = f"{rel}/ is not staged in the current candidate layout; do not ship a fake placeholder."
+            add_check(
+                checks,
+                label=f"final target gap {rel}",
+                status="gap",
+                required=False,
+                message=message,
+            )
+            final_gaps.append(message)
+
+
+def validate_non_claims(checks: list[dict[str, Any]]) -> list[str]:
+    non_claims = [
+        "This contract report does not claim production readiness; the package is not production-ready.",
+        "This contract report does not claim enterprise readiness; the package is not enterprise-ready.",
+        "This contract report does not claim a verified final release.",
+        "This contract report does not claim full gameplay readiness.",
+        "This contract report does not claim full editor workflow.",
+        "This contract report does not claim full Visual Blocks UI.",
+        "This contract report does not claim full collaboration.",
+        "This contract report does not mark any phase Verified.",
+    ]
+    blob = json.dumps(non_claims)
+    for needle in ["production", "enterprise", "verified final release", "full gameplay", "full editor", "Visual Blocks UI"]:
+        add_check(
+            checks,
+            label=f"contract non-claim {needle}",
+            status="passed" if needle.lower() in blob.lower() else "blocked",
+            message=f"missing non-claim containing {needle!r}",
+        )
+    return non_claims
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--layout", default=str(DEFAULT_LAYOUT), help="Staged Saga layout path.")
+    parser.add_argument("--archive", default=str(DEFAULT_ARCHIVE), help="Saga.tar.zst archive path.")
+    parser.add_argument("--checksum", default=str(DEFAULT_CHECKSUM), help="Saga.sha256 checksum path.")
+    parser.add_argument("--package-report", default=str(DEFAULT_PACKAGE_REPORT), help="Package preflight report path.")
+    parser.add_argument("--smoke-report", default=str(DEFAULT_SMOKE_REPORT), help="Distribution smoke report path.")
+    parser.add_argument("--candidate-report", default=str(DEFAULT_CANDIDATE_REPORT), help="Candidate report path.")
+    parser.add_argument("--report-out", default=str(DEFAULT_REPORT), help="Contract report output path.")
+    args = parser.parse_args()
+
+    layout = Path(args.layout)
+    archive = Path(args.archive)
+    checksum = Path(args.checksum)
+    package_report_path = Path(args.package_report)
+    smoke_report_path = Path(args.smoke_report)
+    candidate_report_path = Path(args.candidate_report)
+    report_out = Path(args.report_out)
+
+    checks: list[dict[str, Any]] = []
+    blockers: list[str] = []
+    known_limitations: list[str] = [
+        "This contract check validates current candidate evidence only.",
+        "Final Linux technical preview acceptance still requires maintainer verification.",
+    ]
+    final_gaps: list[str] = []
+
+    validate_layout(layout, checks, blockers)
+    build_info = validate_build_info(layout, checks, blockers, final_gaps) if layout.is_dir() else None
+    validate_reports(
+        package_report_path=package_report_path,
+        smoke_report_path=smoke_report_path,
+        candidate_report_path=candidate_report_path,
+        checks=checks,
+        blockers=blockers,
+        known_limitations=known_limitations,
+    )
+    validate_final_gaps(layout, checks, final_gaps)
+    non_claims = validate_non_claims(checks)
+
+    archive_ok = archive.is_file() and archive.stat().st_size > 0
+    checksum_ok = checksum.is_file() and checksum.stat().st_size > 0
+    add_check(checks, label="archive exists", status="passed" if archive_ok else "blocked", message=f"missing archive: {archive}" if not archive_ok else None)
+    add_check(checks, label="checksum exists", status="passed" if checksum_ok else "blocked", message=f"missing checksum: {checksum}" if not checksum_ok else None)
+    if not archive_ok:
+        blockers.append(f"missing archive: {archive}")
+    if not checksum_ok:
+        blockers.append(f"missing checksum: {checksum}")
+
+    verified_phases = [phase for phase in phase_statuses() if phase.get("status") == "Verified"]
+    add_check(
+        checks,
+        label="no phase marked Verified",
+        status="passed" if not verified_phases else "blocked",
+        message=f"phases marked Verified: {verified_phases}" if verified_phases else None,
+    )
+    if verified_phases:
+        blockers.append("one or more phases are marked Verified")
+
+    required_blockers = [check for check in checks if check.get("required", True) and check.get("status") == "blocked"]
+    status = "blocked" if required_blockers or blockers else "passed-with-limitations"
+    report = {
+        "schemaVersion": 1,
+        "tool": "verify-linux-distribution-contract",
+        "status": status,
+        "verified": False,
+        "layout": path_text(layout),
+        "archive": path_text(archive),
+        "checksum": path_text(checksum),
+        "packageReport": path_text(package_report_path),
+        "smokeReport": path_text(smoke_report_path),
+        "candidateReport": path_text(candidate_report_path),
+        "currentCandidateEvidence": checks,
+        "finalAcceptanceGaps": sorted(set(final_gaps)),
+        "buildInfo": build_info,
+        "knownLimitations": sorted(set(known_limitations)),
+        "blockers": sorted(set(blockers)),
+        "nonClaims": non_claims,
+    }
+    write_report(report_out, report)
+
+    print(f"verify-linux-distribution-contract: status={status}")
+    print(f"verify-linux-distribution-contract: report={report_out}")
+    return 0 if status == "passed-with-limitations" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

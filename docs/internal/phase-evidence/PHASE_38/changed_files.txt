@@ -1,4 +1,8 @@
+SAGA_PHASE_VERIFICATION_AND_LINUX_DISTRIBUTION_CONTRACT.md
+scripts/package-linux-saga
+scripts/smoke-linux-saga-dist
 scripts/verify-linux-saga-candidate
+scripts/verify-linux-distribution-contract
 docs/architecture/SAGA_LINUX_DISTRIBUTABLE_CANDIDATE.md
 docs/product/CURRENT_DISTRIBUTION_STATUS.md
 docs/internal/PHASE_STATUS_MATRIX.md
