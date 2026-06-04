@@ -28,6 +28,26 @@ struct SagaLocalReviewAuditReportRequest
     std::filesystem::path reportPath;
 };
 
+struct SagaLocalRolePermissionReportRequest
+{
+    std::filesystem::path projectManifestPath;
+    std::string workspaceSelector = "builtin:basic";
+    std::string actorId = "local.actor";
+    std::string roleName;
+    std::string permissionName;
+    std::filesystem::path reportPath;
+};
+
+struct SagaLocalProjectSliceReportRequest
+{
+    std::filesystem::path projectManifestPath;
+    std::string workspaceSelector = "builtin:basic";
+    std::string actorId = "local.actor";
+    std::string sliceName;
+    std::filesystem::path sliceTargetPath;
+    std::filesystem::path reportPath;
+};
+
 struct SagaLocalCollaborationMetadataReportResult
 {
     bool ok = false;
@@ -43,5 +63,13 @@ WriteLocalPresenceLockReport(
 [[nodiscard]] SagaLocalCollaborationMetadataReportResult
 WriteLocalReviewAuditReport(
     const SagaLocalReviewAuditReportRequest& request);
+
+[[nodiscard]] SagaLocalCollaborationMetadataReportResult
+WriteLocalRolePermissionReport(
+    const SagaLocalRolePermissionReportRequest& request);
+
+[[nodiscard]] SagaLocalCollaborationMetadataReportResult
+WriteLocalProjectSliceReport(
+    const SagaLocalProjectSliceReportRequest& request);
 
 } // namespace SagaProduct
