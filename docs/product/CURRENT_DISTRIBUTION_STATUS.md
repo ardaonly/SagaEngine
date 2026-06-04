@@ -14,6 +14,8 @@ by local environment and by subsystem.
 - A Linux technical-preview archive can be produced and smoke-checked with
   limitations, including a candidate evidence report that keeps Runtime and
   Editor workflow blockers explicit.
+- The current public-facing candidate status is documented in
+  [Technical Preview Candidate Status](TECHNICAL_PREVIEW_CANDIDATE.md).
 
 ## Unsafe Claims
 
