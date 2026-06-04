@@ -2,30 +2,48 @@
 
 ## Status
 
-Not Started
+Implemented-Unverified
 
 ## Phase Scope
 
 Package Pipeline v1
 
-No implementation evidence is recorded for this phase yet.
+Phase 31 adds a machine-readable Linux package preflight report to
+`scripts/package-linux-saga`.
+
+The script remains preflight-only. It does not create package files, stage the
+final distribution layout, build the SDE CLI, create an archive, create a
+checksum, or claim package/distribution readiness.
+
+The default report path is:
+
+```bash
+build/reports/linux_package_preflight_report.json
+```
+
+The current report is `status: "blocked"` and `verified: false`.
 
 ## Changed Files
 
-No phase-specific changed file list has been recorded yet. Future updates should
-refresh this section from:
-
-```bash
-git diff --name-only
-```
+See `changed_files.txt`.
 
 ## Verification Commands
 
-No phase gate command has passed for this phase.
+- `git diff --check`
+- `scripts/scan-claims README.md docs samples Tools`
+- `scripts/verify-quick`
+- `scripts/verify-local --allow-dirty`
+- `scripts/verify-phase 31`
+- `scripts/package-linux-saga`
+- `python3 -m json.tool build/reports/linux_package_preflight_report.json`
+- `scripts/package-linux-saga --without-server`
+- `scripts/package-linux-saga --report-out /tmp/linux_package_preflight_report.json`
+- `python3 -m json.tool /tmp/linux_package_preflight_report.json`
 
 ## Command Results
 
-No passing verification result is recorded.
+The listed commands are the required verification set for this phase. Record
+final command results in `commands.log`.
 
 ## Required Files
 
@@ -37,11 +55,11 @@ No passing verification result is recorded.
 
 ## Manual Checks
 
-- [ ] Public docs do not overclaim.
-- [ ] Known limitations are documented.
-- [ ] No placeholder is presented as shipped behavior.
-- [ ] Runtime/editor/tool behavior was manually checked if required.
-- [ ] Unsupported behavior is not hidden.
+- [x] Public docs do not overclaim.
+- [x] Known limitations are documented.
+- [x] No placeholder is presented as shipped behavior.
+- [x] Runtime/editor/tool behavior was manually checked if required.
+- [x] Unsupported behavior is not hidden.
 
 ## Known Limitations
 
@@ -49,8 +67,13 @@ See `known_limitations.md`.
 
 ## Verification Decision
 
-Not Started
+Implemented-Unverified
 
 ## Decision Reason
 
-The phase has not been started in the current status matrix.
+`scripts/package-linux-saga` now writes an honest JSON preflight report with
+`verified: false`, exact current blockers, available/missing input
+classification, distribution layout status, archive status, checksum status,
+known limitations, and non-claims. The script still exits `1` while real inputs
+or final distribution outputs are missing. Maintainer verification is still
+required, so the phase is not Verified.

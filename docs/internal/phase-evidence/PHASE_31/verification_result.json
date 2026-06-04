@@ -1,10 +1,10 @@
 {
   "phase": 31,
   "name": "Package Pipeline v1",
-  "status": "Not Started",
+  "status": "Implemented-Unverified",
   "required_gate": "package-gate",
   "verified": false,
   "last_verified_commit": "-",
-  "verification_decision": "Not Started",
-  "decision_reason": "The phase has not been started in the current status matrix."
+  "verification_decision": "Implemented-Unverified",
+  "decision_reason": "scripts/package-linux-saga emits a machine-readable preflight blocker report with verified=false, exact current blockers, known limitations, and package/distribution non-claims. The command remains blocked until real missing inputs and final distribution outputs exist."
 }

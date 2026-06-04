@@ -8,12 +8,14 @@ when required real binaries, docs, samples, or final layout entries are missing.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
 
 ROOT = Path.cwd()
 DEFAULT_OUTPUT = Path("build/dist/linux/Saga")
+DEFAULT_REPORT = Path("build/reports/linux_package_preflight_report.json")
 
 
 def read_version() -> str:
@@ -47,21 +49,139 @@ def is_executable(path: Path) -> bool:
     return path.is_file() and path.stat().st_size > 0 and path.exists()
 
 
-def check_file(label: str, path: Path, missing: list[str]) -> None:
-    if not path.is_file():
-        missing.append(f"{label}: missing file {path}")
+def path_text(path: Path) -> str:
+    return path.as_posix()
 
 
-def check_dir(label: str, path: Path, missing: list[str]) -> None:
-    if not path.is_dir():
-        missing.append(f"{label}: missing directory {path}")
+def record_check(
+    *,
+    label: str,
+    kind: str,
+    category: str,
+    paths: list[Path],
+    available: bool,
+    required_inputs: list[dict[str, object]],
+    available_inputs: list[dict[str, object]],
+    missing_inputs: list[dict[str, object]],
+    resolved_path: Path | None = None,
+    message: str | None = None,
+) -> None:
+    record: dict[str, object] = {
+        "label": label,
+        "kind": kind,
+        "category": category,
+        "paths": [path_text(path) for path in paths],
+        "status": "available" if available else "missing",
+    }
+    if resolved_path is not None:
+        record["resolvedPath"] = path_text(resolved_path)
+    if message is not None:
+        record["message"] = message
+
+    required_inputs.append(record)
+    if available:
+        available_inputs.append(record)
+    else:
+        missing_inputs.append(record)
 
 
-def check_binary(label: str, candidates: list[Path], missing: list[str]) -> None:
+def check_file(
+    label: str,
+    path: Path,
+    missing: list[str],
+    required_inputs: list[dict[str, object]],
+    available_inputs: list[dict[str, object]],
+    missing_inputs: list[dict[str, object]],
+    *,
+    category: str,
+) -> None:
+    available = path.is_file()
+    message = None if available else f"{label}: missing file {path}"
+    if message is not None:
+        missing.append(message)
+    record_check(
+        label=label,
+        kind="file",
+        category=category,
+        paths=[path],
+        available=available,
+        required_inputs=required_inputs,
+        available_inputs=available_inputs,
+        missing_inputs=missing_inputs,
+        resolved_path=path if available else None,
+        message=message,
+    )
+
+
+def check_dir(
+    label: str,
+    path: Path,
+    missing: list[str],
+    required_inputs: list[dict[str, object]],
+    available_inputs: list[dict[str, object]],
+    missing_inputs: list[dict[str, object]],
+    *,
+    category: str,
+) -> None:
+    available = path.is_dir()
+    message = None if available else f"{label}: missing directory {path}"
+    if message is not None:
+        missing.append(message)
+    record_check(
+        label=label,
+        kind="directory",
+        category=category,
+        paths=[path],
+        available=available,
+        required_inputs=required_inputs,
+        available_inputs=available_inputs,
+        missing_inputs=missing_inputs,
+        resolved_path=path if available else None,
+        message=message,
+    )
+
+
+def check_binary(
+    label: str,
+    candidates: list[Path],
+    missing: list[str],
+    required_inputs: list[dict[str, object]],
+    available_inputs: list[dict[str, object]],
+    missing_inputs: list[dict[str, object]],
+    *,
+    category: str,
+) -> None:
     existing = first_existing(candidates)
-    if existing is None or not is_executable(existing):
+    available = existing is not None and is_executable(existing)
+    message = None
+    if not available:
         joined = ", ".join(path.as_posix() for path in candidates)
-        missing.append(f"{label}: missing real executable; checked {joined}")
+        message = f"{label}: missing real executable; checked {joined}"
+        missing.append(message)
+    record_check(
+        label=label,
+        kind="executable",
+        category=category,
+        paths=candidates,
+        available=available,
+        required_inputs=required_inputs,
+        available_inputs=available_inputs,
+        missing_inputs=missing_inputs,
+        resolved_path=existing if available else None,
+        message=message,
+    )
+
+
+def status_for_label(required_inputs: list[dict[str, object]], label: str) -> str:
+    for item in required_inputs:
+        if item.get("label") == label:
+            return str(item.get("status"))
+    return "unknown"
+
+
+def write_report(report_path: Path, report: dict[str, object]) -> None:
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def main() -> int:
@@ -69,27 +189,61 @@ def main() -> int:
     parser.add_argument("--config", default="Release", help="Build configuration label.")
     parser.add_argument("--build-dir", help="CMake build directory to inspect.")
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT), help="Expected final distribution directory.")
+    parser.add_argument(
+        "--report-out",
+        default=str(DEFAULT_REPORT),
+        help="Machine-readable preflight report path.",
+    )
     parser.add_argument("--without-server", action="store_true", help="Do not require SagaServer.")
     args = parser.parse_args()
 
-    build_dir = Path(args.build_dir) if args.build_dir else first_existing(default_build_dirs(args.config))
+    build_dir_candidates = [Path(args.build_dir)] if args.build_dir else default_build_dirs(args.config)
+    build_dir = Path(args.build_dir) if args.build_dir else first_existing(build_dir_candidates)
     output = Path(args.output)
+    report_path = Path(args.report_out)
     missing: list[str] = []
+    required_inputs: list[dict[str, object]] = []
+    available_inputs: list[dict[str, object]] = []
+    missing_inputs: list[dict[str, object]] = []
 
     if build_dir is None:
-        missing.append("build directory: no candidate build directory exists")
+        message = "build directory: no candidate build directory exists"
+        missing.append(message)
+        record_check(
+            label="build directory",
+            kind="directory",
+            category="build",
+            paths=build_dir_candidates,
+            available=False,
+            required_inputs=required_inputs,
+            available_inputs=available_inputs,
+            missing_inputs=missing_inputs,
+            message=message,
+        )
         build_dir = Path("build")
+    else:
+        record_check(
+            label="build directory",
+            kind="directory",
+            category="build",
+            paths=build_dir_candidates,
+            available=True,
+            required_inputs=required_inputs,
+            available_inputs=available_inputs,
+            missing_inputs=missing_inputs,
+            resolved_path=build_dir,
+        )
 
     bin_dir = build_dir / "bin"
-    check_binary("Saga product shell", [bin_dir / "Saga"], missing)
-    check_binary("SagaEditor shell", [bin_dir / "SagaEditor"], missing)
-    check_binary("SagaRuntime executable", [bin_dir / "SagaRuntime"], missing)
+    check_binary("Saga product shell", [bin_dir / "Saga"], missing, required_inputs, available_inputs, missing_inputs, category="binary")
+    check_binary("SagaEditor shell", [bin_dir / "SagaEditor"], missing, required_inputs, available_inputs, missing_inputs, category="binary")
+    check_binary("SagaRuntime executable", [bin_dir / "SagaRuntime"], missing, required_inputs, available_inputs, missing_inputs, category="binary")
     if not args.without_server:
-        check_binary("SagaServer executable", [bin_dir / "SagaServer"], missing)
+        check_binary("SagaServer executable", [bin_dir / "SagaServer"], missing, required_inputs, available_inputs, missing_inputs, category="binary")
 
-    check_binary("sagaproject CLI", [Path("Tools/SagaProjectKit/sagaproject")], missing)
-    check_binary("sagapack CLI", [Path("Tools/SagaPackager/sagapack")], missing)
-    check_binary("sagascript CLI", [Path("Tools/SagaScript/sagascript")], missing)
+    check_binary("sagaproject CLI", [Path("Tools/SagaProjectKit/sagaproject")], missing, required_inputs, available_inputs, missing_inputs, category="tool")
+    check_binary("sagapack CLI", [Path("Tools/SagaPackager/sagapack")], missing, required_inputs, available_inputs, missing_inputs, category="tool")
+    check_binary("sagascript CLI", [Path("Tools/SagaScript/sagascript")], missing, required_inputs, available_inputs, missing_inputs, category="tool")
     check_binary(
         "sde CLI",
         [
@@ -98,22 +252,89 @@ def main() -> int:
             Path("Tools/SystemDefinitionEngine/build/sde"),
         ],
         missing,
+        required_inputs,
+        available_inputs,
+        missing_inputs,
+        category="tool",
     )
 
-    check_dir("StarterArena sample", Path("samples/StarterArena"), missing)
-    check_file("root README", Path("README.md"), missing)
-    check_file("getting started doc", Path("docs/product/GETTING_STARTED.md"), missing)
-    check_file("current capabilities doc", Path("docs/product/CURRENT_CAPABILITIES.md"), missing)
-    check_file("not implemented doc", Path("docs/product/WHAT_IS_NOT_IMPLEMENTED.md"), missing)
-    check_file("distribution status doc", Path("docs/product/CURRENT_DISTRIBUTION_STATUS.md"), missing)
-    check_dir("licenses", Path("LICENSES"), missing)
+    check_dir("StarterArena sample", Path("samples/StarterArena"), missing, required_inputs, available_inputs, missing_inputs, category="sample")
+    check_file("root README", Path("README.md"), missing, required_inputs, available_inputs, missing_inputs, category="documentation")
+    check_file("getting started doc", Path("docs/product/GETTING_STARTED.md"), missing, required_inputs, available_inputs, missing_inputs, category="documentation")
+    check_file("current capabilities doc", Path("docs/product/CURRENT_CAPABILITIES.md"), missing, required_inputs, available_inputs, missing_inputs, category="documentation")
+    check_file("not implemented doc", Path("docs/product/WHAT_IS_NOT_IMPLEMENTED.md"), missing, required_inputs, available_inputs, missing_inputs, category="documentation")
+    check_file("distribution status doc", Path("docs/product/CURRENT_DISTRIBUTION_STATUS.md"), missing, required_inputs, available_inputs, missing_inputs, category="documentation")
+    check_dir("licenses", Path("LICENSES"), missing, required_inputs, available_inputs, missing_inputs, category="documentation")
 
-    check_dir("expected final distribution layout", output, missing)
-    check_file("expected distribution VERSION", output / "VERSION", missing)
-    check_file("expected distribution VERIFY.txt", output / "VERIFY.txt", missing)
-    check_file("expected distribution known limitations", output / "KNOWN_LIMITATIONS.md", missing)
-    check_file("expected distribution archive", Path("build/dist/linux/Saga.tar.zst"), missing)
-    check_file("expected distribution checksum", Path("build/dist/linux/Saga.sha256"), missing)
+    check_dir("expected final distribution layout", output, missing, required_inputs, available_inputs, missing_inputs, category="distribution-layout")
+    check_file("expected distribution VERSION", output / "VERSION", missing, required_inputs, available_inputs, missing_inputs, category="distribution-layout")
+    check_file("expected distribution VERIFY.txt", output / "VERIFY.txt", missing, required_inputs, available_inputs, missing_inputs, category="distribution-layout")
+    check_file("expected distribution known limitations", output / "KNOWN_LIMITATIONS.md", missing, required_inputs, available_inputs, missing_inputs, category="distribution-layout")
+    check_file("expected distribution archive", Path("build/dist/linux/Saga.tar.zst"), missing, required_inputs, available_inputs, missing_inputs, category="archive")
+    check_file("expected distribution checksum", Path("build/dist/linux/Saga.sha256"), missing, required_inputs, available_inputs, missing_inputs, category="checksum")
+
+    status = "blocked" if missing else "preflight-passed"
+    distribution_items = [
+        item for item in required_inputs if item.get("category") == "distribution-layout"
+    ]
+    distribution_missing = [
+        item for item in distribution_items if item.get("status") == "missing"
+    ]
+    distribution_available = [
+        item for item in distribution_items if item.get("status") == "available"
+    ]
+    report: dict[str, object] = {
+        "schemaVersion": 1,
+        "tool": "package-linux-saga",
+        "status": status,
+        "verified": False,
+        "config": {
+            "config": args.config,
+            "withoutServer": bool(args.without_server),
+            "buildDirArgument": args.build_dir,
+            "outputArgument": args.output,
+            "reportOut": path_text(report_path),
+        },
+        "buildDir": path_text(build_dir),
+        "expectedOutput": path_text(output),
+        "requiredInputs": required_inputs,
+        "availableInputs": available_inputs,
+        "missingInputs": missing_inputs,
+        "distributionLayoutStatus": {
+            "expectedPath": path_text(output),
+            "status": "blocked" if distribution_missing else "available",
+            "availableEntries": distribution_available,
+            "missingEntries": distribution_missing,
+        },
+        "archiveStatus": {
+            "path": "build/dist/linux/Saga.tar.zst",
+            "status": status_for_label(required_inputs, "expected distribution archive"),
+        },
+        "checksumStatus": {
+            "path": "build/dist/linux/Saga.sha256",
+            "status": status_for_label(required_inputs, "expected distribution checksum"),
+        },
+        "diagnostics": missing
+        if missing
+        else [
+            "preflight passed for currently checked inputs",
+            "distribution staging is still not implemented by this script",
+        ],
+        "knownLimitations": [
+            "This script is preflight-only and does not stage distribution files.",
+            "This script does not build missing tools, including the standalone SDE CLI.",
+            "This script does not create the final distribution layout, archive, or checksum.",
+            "A passing preflight report is not maintainer verification.",
+        ],
+        "nonClaims": [
+            "No package or distribution files were staged or generated by scripts/package-linux-saga.",
+            "This report does not claim package readiness.",
+            "This report does not claim distribution readiness.",
+            "This report does not prove runtime, editor, server, or tool workflows beyond input existence checks.",
+            "This report does not mark Phase 31 or any other phase Verified.",
+        ],
+    }
+    write_report(report_path, report)
 
     print("package-linux-saga: preflight only; no files were staged or generated")
     print(f"package-linux-saga: config={args.config}")
