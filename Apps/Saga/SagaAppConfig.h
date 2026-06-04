@@ -37,6 +37,7 @@ struct SagaAppConfig
     std::filesystem::path publishReportPath;
     std::filesystem::path workflowProjectPath;
     std::filesystem::path workflowReportPath;
+    std::filesystem::path localWorkspaceTransactionReportPath;
     std::filesystem::path forgeExecutable = "forge";
     std::filesystem::path sagaScriptExecutable = "sagascript";
     std::optional<std::filesystem::path> packageManifestPath;
@@ -46,12 +47,15 @@ struct SagaAppConfig
     std::string           runtimeCompatibilityVersion = "0.0.8";
     std::string           publishProfile = "shipping-full";
     std::string           workflowProfile = "technical_preview";
+    std::string           localWorkspaceActorId = "local.actor";
+    std::string           localWorkspaceOperationKind = "InspectProject";
     std::vector<std::string> publishDiagnostics;
     SagaProductTargetKind target = SagaProductTargetKind::Editor;
     bool                  validateSagaScript = false;
     bool                  stagePackages = false;
     bool                  publishCheck = false;
     bool                  workflowSmoke = false;
+    bool                  localWorkspaceTransactionSmoke = false;
     bool                  prepareOnly = false;
     bool                  showHelp = false;
 };

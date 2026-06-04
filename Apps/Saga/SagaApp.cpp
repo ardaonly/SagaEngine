@@ -4,6 +4,7 @@
 #include "SagaApp.h"
 
 #include "SagaEditorModule.h"
+#include "SagaLocalWorkspaceTransactionReport.h"
 #include "SagaPackageStaging.h"
 #include "SagaProjectSystem.h"
 #include "SagaProductWorkflowSmokeReport.h"
@@ -78,6 +79,7 @@ constexpr int kExitStartupFailure = 1;
     const SagaAppConfig& config) noexcept
 {
     return config.publishCheck ||
+        config.localWorkspaceTransactionSmoke ||
         config.workflowSmoke ||
         config.stagePackages ||
         config.validateSagaScript ||
@@ -535,6 +537,41 @@ int SagaApp::Run(const SagaAppConfig& config,
 
         out << "workflow.report=" << result.reportPath.string() << '\n';
         out << "workflow.status=" << result.status << '\n';
+        return kExitOk;
+    }
+
+    if (config.localWorkspaceTransactionSmoke)
+    {
+        if (config.workflowProjectPath.empty())
+        {
+            err << "Saga: --local-workspace-transaction-smoke requires "
+                << "--project <.sagaproj>\n";
+            return kExitStartupFailure;
+        }
+        if (config.localWorkspaceTransactionReportPath.empty())
+        {
+            err << "Saga: --local-workspace-transaction-smoke requires "
+                << "--transaction-report-out <path>\n";
+            return kExitStartupFailure;
+        }
+
+        SagaLocalWorkspaceTransactionRequest request;
+        request.projectManifestPath = config.workflowProjectPath;
+        request.workspaceSelector = config.workspaceSelector;
+        request.actorId = config.localWorkspaceActorId;
+        request.operationKind = config.localWorkspaceOperationKind;
+        request.reportPath = config.localWorkspaceTransactionReportPath;
+
+        const SagaLocalWorkspaceTransactionResult result =
+            WriteLocalWorkspaceTransactionReport(request);
+        if (!result.ok)
+        {
+            err << result.error << '\n';
+            return kExitStartupFailure;
+        }
+
+        out << "transaction.report=" << result.reportPath.string() << '\n';
+        out << "transaction.status=" << result.status << '\n';
         return kExitOk;
     }
 

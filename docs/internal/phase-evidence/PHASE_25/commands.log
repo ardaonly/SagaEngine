@@ -1,3 +1,27 @@
 # Phase 25 Commands Log
 
-No phase verification commands have been recorded yet.
+Recorded on 2026-06-04.
+
+- PASS: `git diff --check`
+- PASS: `scripts/scan-claims README.md docs samples Tools`
+  - Scanned 180 public text files.
+  - No unsupported public claim text found.
+- PASS: `scripts/verify-quick`
+  - Passed structure, claim, phase, and SDE boundary checks.
+  - No phase was marked Verified.
+- PASS: `scripts/verify-local --allow-dirty`
+  - Passed the CI-ready local pre-commit gate with dirty worktree allowed.
+  - Real build was not requested by the script.
+- PASS: `scripts/verify-phase 25`
+  - Phase 25 structure checks passed.
+  - No phase was marked Verified.
+- PASS: `nix-shell --run "cmake --build build/RelWithDebInfo-0.0.9-sde --target Saga SagaProductTests --parallel 1"`
+  - Built the SDE-enabled Product Shell binary and focused unit-test target with low parallelism.
+- PASS: `build/RelWithDebInfo-0.0.9-sde/bin/SagaProductTests --gtest_filter='*LocalWorkspace*:*Transaction*:*StarterArena*'`
+  - Ran 3 focused tests.
+  - All focused tests passed.
+- PASS: `build/RelWithDebInfo-0.0.9-sde/bin/Saga --local-workspace-transaction-smoke --project samples/StarterArena/StarterArena.sagaproj --workspace builtin:basic --actor local.actor --operation InspectProject --transaction-report-out /tmp/starter_arena_local_workspace_transaction_report.json`
+  - Wrote `/tmp/starter_arena_local_workspace_transaction_report.json`.
+  - Report status: `Ready`.
+  - Report verified flag: `false`.
+  - Report transaction `readOnlyPreview`: `true`.

@@ -129,6 +129,10 @@ std::string SagaUsageText()
         "  --project <path>                  Project manifest for workflow smoke\n"
         "  --profile <id>                    Workflow smoke profile/view preset id\n"
         "  --workflow-report-out <path>      Workflow smoke report output path\n"
+        "  --local-workspace-transaction-smoke Emit local workspace transaction report\n"
+        "  --actor <id>                      Local workspace transaction actor id\n"
+        "  --operation <kind>                Local workspace transaction operation kind\n"
+        "  --transaction-report-out <path>   Local workspace transaction report output path\n"
         "  --forge <path>                    Forge executable for SagaScript validation\n"
         "  --sagascript-tool <path>          SagaScript executable for SagaScript validation\n"
         "  --version-info <path>             Distribution version.json path\n"
@@ -346,6 +350,42 @@ SagaConfigResult ParseSagaAppConfig(int argc, char* argv[])
                 return result;
             }
             result.config.workflowReportPath = std::filesystem::path(argv[++i]);
+        }
+        else if (arg == "--local-workspace-transaction-smoke")
+        {
+            result.config.localWorkspaceTransactionSmoke = true;
+        }
+        else if (arg == "--actor")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --actor requires an id";
+                return result;
+            }
+            result.config.localWorkspaceActorId = argv[++i];
+        }
+        else if (arg == "--operation")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --operation requires a kind";
+                return result;
+            }
+            result.config.localWorkspaceOperationKind = argv[++i];
+        }
+        else if (arg == "--transaction-report-out")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error =
+                    "Saga: --transaction-report-out requires a path";
+                return result;
+            }
+            result.config.localWorkspaceTransactionReportPath =
+                std::filesystem::path(argv[++i]);
         }
         else if (arg == "--forge")
         {

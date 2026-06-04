@@ -3,6 +3,7 @@
 
 #include "SagaAppConfig.h"
 #include "SagaApp.h"
+#include "SagaLocalWorkspaceTransactionReport.h"
 #include "SagaPackageStaging.h"
 #include "SagaProjectSystem.h"
 #include "SagaProductHost.h"
@@ -64,6 +65,13 @@ void WriteFile(const fs::path& path, const std::string& text)
     fs::create_directories(path.parent_path());
     std::ofstream out(path);
     out << text;
+}
+
+[[nodiscard]] std::string ReadFile(const fs::path& path)
+{
+    std::ifstream in(path, std::ios::binary);
+    return std::string((std::istreambuf_iterator<char>(in)),
+                       std::istreambuf_iterator<char>());
 }
 
 void WriteValidPackageManifest(const fs::path& projectRoot,
@@ -347,6 +355,38 @@ TEST(SagaAppConfigTest, WorkflowSmokeArgumentsAreParsed)
     EXPECT_EQ(result.config.workflowProfile, "technical_preview");
     EXPECT_EQ(result.config.workflowReportPath,
               fs::path("/tmp/starter_arena_product_shell_workflow_report.json"));
+}
+
+TEST(SagaAppConfigTest, LocalWorkspaceTransactionSmokeArgumentsAreParsed)
+{
+    const char* argvRaw[] = {
+        "Saga",
+        "--local-workspace-transaction-smoke",
+        "--project",
+        "samples/StarterArena/StarterArena.sagaproj",
+        "--workspace",
+        "builtin:basic",
+        "--actor",
+        "local.actor",
+        "--operation",
+        "InspectProject",
+        "--transaction-report-out",
+        "/tmp/starter_arena_local_workspace_transaction_report.json",
+    };
+    auto* argv = const_cast<char**>(argvRaw);
+
+    const SagaConfigResult result = ParseSagaAppConfig(12, argv);
+
+    ASSERT_TRUE(result.ok) << result.error;
+    EXPECT_TRUE(result.config.localWorkspaceTransactionSmoke);
+    EXPECT_EQ(result.config.workflowProjectPath,
+              fs::path("samples/StarterArena/StarterArena.sagaproj"));
+    EXPECT_EQ(result.config.workspaceSelector, "builtin:basic");
+    EXPECT_EQ(result.config.localWorkspaceActorId, "local.actor");
+    EXPECT_EQ(result.config.localWorkspaceOperationKind, "InspectProject");
+    EXPECT_EQ(
+        result.config.localWorkspaceTransactionReportPath,
+        fs::path("/tmp/starter_arena_local_workspace_transaction_report.json"));
 }
 
 TEST(SagaAppConfigTest, MissingPackageManifestValueFailsDeterministically)
@@ -1182,6 +1222,72 @@ TEST(SagaProductWorkflowSmokeTest,
 
     EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
                                         "full product dashboard"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "distribution readiness"));
+}
+
+TEST(SagaLocalWorkspaceTransactionSmokeTest,
+     StarterArenaReportIsReadOnlyAndDoesNotClaimCollaborationRuntime)
+{
+    const fs::path root =
+        MakeTempDir("saga_local_workspace_transaction_smoke_test");
+    const fs::path reportPath =
+        root / "starter_arena_local_workspace_transaction_report.json";
+    const fs::path manifest = SourceRoot() / "samples" / "StarterArena" /
+        "StarterArena.sagaproj";
+    const std::string manifestBefore = ReadFile(manifest);
+    const auto manifestWriteTimeBefore = fs::last_write_time(manifest);
+
+    SagaProduct::SagaApp app;
+    SagaAppConfig config;
+    config.localWorkspaceTransactionSmoke = true;
+    config.workflowProjectPath = manifest;
+    config.workspaceSelector = "builtin:basic";
+    config.localWorkspaceActorId = "local.actor";
+    config.localWorkspaceOperationKind = "InspectProject";
+    config.localWorkspaceTransactionReportPath = reportPath;
+
+    std::ostringstream out;
+    std::ostringstream err;
+    const int exitCode = app.Run(config, out, err);
+
+    EXPECT_EQ(exitCode, 0);
+    EXPECT_NE(out.str().find("transaction.report="), std::string::npos);
+    EXPECT_NE(out.str().find("transaction.status=Ready"),
+              std::string::npos);
+    EXPECT_TRUE(err.str().empty());
+    EXPECT_EQ(ReadFile(manifest), manifestBefore);
+    EXPECT_EQ(fs::last_write_time(manifest), manifestWriteTimeBefore);
+    ASSERT_TRUE(fs::exists(reportPath));
+
+    std::ifstream input(reportPath);
+    const nlohmann::json report = nlohmann::json::parse(input);
+    EXPECT_EQ(report["tool"], "Saga");
+    EXPECT_EQ(report["command"], "local-workspace-transaction-smoke");
+    EXPECT_EQ(report["verified"], false);
+    EXPECT_EQ(report["status"], "Ready");
+    EXPECT_EQ(report["workspace"]["workspaceId"], "builtin.basic");
+    EXPECT_EQ(report["workspace"]["selector"], "builtin:basic");
+    EXPECT_EQ(report["project"]["projectId"], "starter-arena");
+    EXPECT_EQ(report["transaction"]["workspaceId"], "builtin.basic");
+    EXPECT_EQ(report["transaction"]["projectId"], "starter-arena");
+    EXPECT_EQ(report["transaction"]["actorId"], "local.actor");
+    EXPECT_EQ(report["transaction"]["operationKind"], "InspectProject");
+    EXPECT_TRUE(report["transaction"]["readOnlyPreview"].get<bool>());
+    EXPECT_EQ(report["transaction"]["status"], "ready");
+    EXPECT_NE(report["transaction"]["transactionId"].get<std::string>().find(
+                  "local-transaction:builtin.basic:starter-arena:local.actor:InspectProject"),
+              std::string::npos);
+    EXPECT_TRUE(JsonArrayContainsString(report["operationExamples"],
+                                        "PlanScriptBlockEdit"));
+    EXPECT_TRUE(JsonArrayContainsString(report["operationExamples"],
+                                        "RunWorkflowSmokeReference"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "full multiplayer collaboration"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "collaboration server"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "real-time team editing"));
     EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
                                         "distribution readiness"));
 }

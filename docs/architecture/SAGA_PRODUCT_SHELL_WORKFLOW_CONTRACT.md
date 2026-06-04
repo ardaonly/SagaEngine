@@ -1,7 +1,8 @@
 # Saga Product Shell Workflow Contract
 
 Phase 21 status is `Implemented-Unverified`. Phase 24 adds a narrow no-UI
-Product Shell workflow smoke report.
+Product Shell workflow smoke report. Phase 25 adds a narrow no-UI local
+workspace transaction boundary report.
 
 The Saga Product Shell is a:
 
@@ -9,11 +10,11 @@ The Saga Product Shell is a:
 launcher/dashboard/workflow router
 ```
 
-This document is a contract over existing entry points. The Phase 24 smoke is a
-report-only command over those entry points. It does not implement dashboard UI
-wiring, editor workflow panels, package distribution, runtime logic, server
-logic, SagaScript behavior, SDE behavior, Visual Blocks editor UI, or
-collaboration services.
+This document is a contract over existing entry points. The Phase 24 and Phase
+25 smokes are report-only commands over those entry points. They do not
+implement dashboard UI wiring, editor workflow panels, package distribution,
+runtime logic, server logic, SagaScript behavior, SDE behavior, Visual Blocks
+editor UI, collaboration services, cloud workspace, or real-time team editing.
 
 ## Role
 
@@ -75,6 +76,18 @@ The report contains project metadata, selected profile, workflow step command
 references, expected report paths, diagnostics, known limitations, non-claims,
 and `verified: false`. It does not execute the referenced workflow tools.
 Missing reports and package preflight limitations remain visible.
+
+## Local Workspace Transaction Smoke
+
+Phase 25 exposes the first local workspace transaction boundary as:
+
+```bash
+build/RelWithDebInfo-0.0.9-sde/bin/Saga --local-workspace-transaction-smoke --project samples/StarterArena/StarterArena.sagaproj --workspace builtin:basic --actor local.actor --operation InspectProject --transaction-report-out /tmp/starter_arena_local_workspace_transaction_report.json
+```
+
+The report records a read-only local transaction preview over StarterArena. It
+does not write durable collaboration metadata, mutate project files, start a
+collaboration server, or provide cloud/team synchronization.
 
 ## Workflow Contract
 
@@ -213,11 +226,13 @@ or implemented profile editing.
 
 - Phase 21 is a docs/evidence-only workflow contract.
 - Phase 24 is a no-UI Product Shell workflow smoke report.
+- Phase 25 is a no-UI local workspace transaction boundary report.
 - No Product Shell dashboard workflow UI is implemented by this phase.
 - No UI wiring is added for validation, smoke, scripting, blocks, diagnostics,
   or package preflight.
 - Workflow smoke command entries are references and are not executed by the
   report.
+- Local workspace transaction smoke is read-only and report-only.
 - StarterArena has no launch profiles in its project manifest.
 - Visual Blocks evidence remains CLI-only.
 - Package preflight is not package or distribution readiness.

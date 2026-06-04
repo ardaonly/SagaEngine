@@ -1,10 +1,10 @@
 {
   "phase": 25,
-  "name": "Local Team Workspace",
-  "status": "Not Started",
-  "required_gate": "collaboration-gate",
+  "name": "Local Workspace Transaction Boundary",
+  "status": "Implemented-Unverified",
+  "required_gate": "local-workspace-transaction-gate",
   "verified": false,
   "last_verified_commit": "-",
-  "verification_decision": "Not Started",
-  "decision_reason": "The phase has not been started in the current status matrix."
+  "verification_decision": "Implemented-Unverified",
+  "decision_reason": "Saga has a no-UI read-only local workspace transaction report over StarterArena with explicit collaboration, cloud, enterprise, server, product beta, and distribution non-claims. Maintainer verification is still required."
 }

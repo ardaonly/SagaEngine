@@ -91,6 +91,11 @@ mutate `.sagaproj` files, scenes, scripts, reports, package profiles, local
 overlays, or `.sde` files. Shared project truth remains owned by project files
 and existing CLI/tool reports.
 
+Phase 25 extends this boundary to local workspace transaction reporting:
+personal editor view/profile metadata is not shared workspace state, and a
+local transaction preview must be recorded as read-only report metadata before
+any future durable collaboration workflow can claim project mutation.
+
 ## Non-Claims
 
 Phase 23 does not implement or claim:
