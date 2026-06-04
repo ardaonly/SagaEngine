@@ -1,6 +1,7 @@
 # Saga Linux Package Preflight
 
-Phase 31 status is `Implemented-Unverified`.
+Phase 31 status is `Implemented-Unverified`. Phase 32 status is
+`Implemented-Unverified`.
 
 `scripts/package-linux-saga` is a Linux package preflight checker. It does not
 build binaries, stage a distribution tree, create an archive, create a checksum,
@@ -51,9 +52,24 @@ has staged distribution output.
 
 ## Current Blockers
 
-The current preflight report is blocked by:
 
 
+
+
+That path is valid only when produced by:
+
+
+
+
+
+
+
+- missing final distribution layout at `build/dist/linux/Saga`;
+- missing `build/dist/linux/Saga/VERSION`;
+- missing `build/dist/linux/Saga/VERIFY.txt`;
+- missing `build/dist/linux/Saga/KNOWN_LIMITATIONS.md`;
+- missing `build/dist/linux/Saga.tar.zst`;
+- missing `build/dist/linux/Saga.sha256`.
 
 
 
