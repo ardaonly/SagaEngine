@@ -35,6 +35,8 @@ Real current surfaces:
   metadata.
 - Collaboration inventory: editor collaboration scaffolds for locks, presence,
   audit, sessions, workspace, sync, and server boundaries.
+- Local collaboration metadata reports: Product Shell no-UI presence/lock and
+  review/comment/audit report commands for Phase 26 and Phase 27.
 - Local/offline collaboration model evidence: `SagaCollaboration` unit tests for
   identity, presence reports, metadata-only reviews, comments, locks, semantic
   transaction logs, conflicts, and Team Room report models.

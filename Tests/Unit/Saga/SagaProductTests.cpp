@@ -3,6 +3,7 @@
 
 #include "SagaAppConfig.h"
 #include "SagaApp.h"
+#include "SagaLocalCollaborationMetadataReports.h"
 #include "SagaLocalWorkspaceTransactionReport.h"
 #include "SagaPackageStaging.h"
 #include "SagaProjectSystem.h"
@@ -387,6 +388,74 @@ TEST(SagaAppConfigTest, LocalWorkspaceTransactionSmokeArgumentsAreParsed)
     EXPECT_EQ(
         result.config.localWorkspaceTransactionReportPath,
         fs::path("/tmp/starter_arena_local_workspace_transaction_report.json"));
+}
+
+TEST(SagaAppConfigTest, LocalWorkspacePresenceLockSmokeArgumentsAreParsed)
+{
+    const char* argvRaw[] = {
+        "Saga",
+        "--local-workspace-presence-lock-smoke",
+        "--project",
+        "samples/StarterArena/StarterArena.sagaproj",
+        "--workspace",
+        "builtin:basic",
+        "--actor",
+        "local.actor",
+        "--lock-target",
+        "samples/StarterArena/StarterArena.sagaproj",
+        "--presence-lock-report-out",
+        "/tmp/starter_arena_presence_lock_report.json",
+    };
+    auto* argv = const_cast<char**>(argvRaw);
+
+    const SagaConfigResult result = ParseSagaAppConfig(12, argv);
+
+    ASSERT_TRUE(result.ok) << result.error;
+    EXPECT_TRUE(result.config.localWorkspacePresenceLockSmoke);
+    EXPECT_EQ(result.config.workflowProjectPath,
+              fs::path("samples/StarterArena/StarterArena.sagaproj"));
+    EXPECT_EQ(result.config.workspaceSelector, "builtin:basic");
+    EXPECT_EQ(result.config.localWorkspaceActorId, "local.actor");
+    EXPECT_EQ(result.config.localWorkspaceLockTargetPath,
+              fs::path("samples/StarterArena/StarterArena.sagaproj"));
+    EXPECT_EQ(result.config.localWorkspacePresenceLockReportPath,
+              fs::path("/tmp/starter_arena_presence_lock_report.json"));
+}
+
+TEST(SagaAppConfigTest, LocalWorkspaceReviewSmokeArgumentsAreParsed)
+{
+    const char* argvRaw[] = {
+        "Saga",
+        "--local-workspace-review-smoke",
+        "--project",
+        "samples/StarterArena/StarterArena.sagaproj",
+        "--workspace",
+        "builtin:basic",
+        "--actor",
+        "local.actor",
+        "--review-target",
+        "samples/StarterArena/StarterArena.sagaproj",
+        "--comment",
+        "Inspect StarterArena project metadata",
+        "--review-report-out",
+        "/tmp/starter_arena_review_audit_report.json",
+    };
+    auto* argv = const_cast<char**>(argvRaw);
+
+    const SagaConfigResult result = ParseSagaAppConfig(14, argv);
+
+    ASSERT_TRUE(result.ok) << result.error;
+    EXPECT_TRUE(result.config.localWorkspaceReviewSmoke);
+    EXPECT_EQ(result.config.workflowProjectPath,
+              fs::path("samples/StarterArena/StarterArena.sagaproj"));
+    EXPECT_EQ(result.config.workspaceSelector, "builtin:basic");
+    EXPECT_EQ(result.config.localWorkspaceActorId, "local.actor");
+    EXPECT_EQ(result.config.localWorkspaceReviewTargetPath,
+              fs::path("samples/StarterArena/StarterArena.sagaproj"));
+    EXPECT_EQ(result.config.localWorkspaceReviewComment,
+              "Inspect StarterArena project metadata");
+    EXPECT_EQ(result.config.localWorkspaceReviewReportPath,
+              fs::path("/tmp/starter_arena_review_audit_report.json"));
 }
 
 TEST(SagaAppConfigTest, MissingPackageManifestValueFailsDeterministically)
@@ -1288,6 +1357,159 @@ TEST(SagaLocalWorkspaceTransactionSmokeTest,
                                         "collaboration server"));
     EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
                                         "real-time team editing"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "distribution readiness"));
+}
+
+TEST(SagaLocalPresenceLockSmokeTest,
+     StarterArenaReportIsReadOnlyAndDoesNotClaimCollaborationRuntime)
+{
+    const fs::path root =
+        MakeTempDir("saga_local_presence_lock_smoke_test");
+    const fs::path reportPath =
+        root / "starter_arena_presence_lock_report.json";
+    const fs::path manifest = SourceRoot() / "samples" / "StarterArena" /
+        "StarterArena.sagaproj";
+    const std::string manifestBefore = ReadFile(manifest);
+    const auto manifestWriteTimeBefore = fs::last_write_time(manifest);
+
+    SagaProduct::SagaApp app;
+    SagaAppConfig config;
+    config.localWorkspacePresenceLockSmoke = true;
+    config.workflowProjectPath = manifest;
+    config.workspaceSelector = "builtin:basic";
+    config.localWorkspaceActorId = "local.actor";
+    config.localWorkspaceLockTargetPath = manifest;
+    config.localWorkspacePresenceLockReportPath = reportPath;
+
+    std::ostringstream out;
+    std::ostringstream err;
+    const int exitCode = app.Run(config, out, err);
+
+    EXPECT_EQ(exitCode, 0);
+    EXPECT_NE(out.str().find("presence_lock.report="), std::string::npos);
+    EXPECT_NE(out.str().find("presence_lock.status=Ready"),
+              std::string::npos);
+    EXPECT_TRUE(err.str().empty());
+    EXPECT_EQ(ReadFile(manifest), manifestBefore);
+    EXPECT_EQ(fs::last_write_time(manifest), manifestWriteTimeBefore);
+    ASSERT_TRUE(fs::exists(reportPath));
+
+    std::ifstream input(reportPath);
+    const nlohmann::json report = nlohmann::json::parse(input);
+    EXPECT_EQ(report["tool"], "Saga");
+    EXPECT_EQ(report["command"], "local-workspace-presence-lock-smoke");
+    EXPECT_EQ(report["verified"], false);
+    EXPECT_EQ(report["status"], "Ready");
+    EXPECT_EQ(report["workspace"]["workspaceId"], "builtin.basic");
+    EXPECT_EQ(report["workspace"]["selector"], "builtin:basic");
+    EXPECT_EQ(report["project"]["projectId"], "starter-arena");
+    EXPECT_EQ(report["actor"]["actorId"], "local.actor");
+    EXPECT_EQ(report["presence"]["actorId"], "local.actor");
+    EXPECT_EQ(report["presence"]["status"], "PresentLocal");
+    EXPECT_EQ(report["presence"]["source"], "report-only");
+    EXPECT_FALSE(report["presence"]["durable"].get<bool>());
+    EXPECT_FALSE(report["presence"]["networked"].get<bool>());
+    EXPECT_EQ(report["lock"]["targetArtifact"], fs::absolute(manifest).string());
+    EXPECT_EQ(report["lock"]["lockMode"], "ReadOnlyPreview");
+    EXPECT_EQ(report["lock"]["status"], "Ready");
+    EXPECT_EQ(report["lock"]["conflictStatus"], "NotChecked");
+    EXPECT_FALSE(report["lock"]["durable"].get<bool>());
+    EXPECT_FALSE(report["lock"]["mutatesProject"].get<bool>());
+    EXPECT_NE(report["lock"]["lockId"].get<std::string>().find(
+                  "local-lock:builtin.basic:starter-arena:local.actor:"),
+              std::string::npos);
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "networked presence"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "durable lock service"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "enterprise access control"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "collaboration server"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "distribution readiness"));
+}
+
+TEST(SagaLocalReviewAuditSmokeTest,
+     StarterArenaReportIsReadOnlyAndDoesNotClaimApprovalOrAuditService)
+{
+    const fs::path root =
+        MakeTempDir("saga_local_review_audit_smoke_test");
+    const fs::path reportPath =
+        root / "starter_arena_review_audit_report.json";
+    const fs::path manifest = SourceRoot() / "samples" / "StarterArena" /
+        "StarterArena.sagaproj";
+    const std::string manifestBefore = ReadFile(manifest);
+    const auto manifestWriteTimeBefore = fs::last_write_time(manifest);
+
+    SagaProduct::SagaApp app;
+    SagaAppConfig config;
+    config.localWorkspaceReviewSmoke = true;
+    config.workflowProjectPath = manifest;
+    config.workspaceSelector = "builtin:basic";
+    config.localWorkspaceActorId = "local.actor";
+    config.localWorkspaceReviewTargetPath = manifest;
+    config.localWorkspaceReviewComment =
+        "Inspect StarterArena project metadata";
+    config.localWorkspaceReviewReportPath = reportPath;
+
+    std::ostringstream out;
+    std::ostringstream err;
+    const int exitCode = app.Run(config, out, err);
+
+    EXPECT_EQ(exitCode, 0);
+    EXPECT_NE(out.str().find("review.report="), std::string::npos);
+    EXPECT_NE(out.str().find("review.status=Ready"), std::string::npos);
+    EXPECT_TRUE(err.str().empty());
+    EXPECT_EQ(ReadFile(manifest), manifestBefore);
+    EXPECT_EQ(fs::last_write_time(manifest), manifestWriteTimeBefore);
+    ASSERT_TRUE(fs::exists(reportPath));
+
+    std::ifstream input(reportPath);
+    const nlohmann::json report = nlohmann::json::parse(input);
+    EXPECT_EQ(report["tool"], "Saga");
+    EXPECT_EQ(report["command"], "local-workspace-review-smoke");
+    EXPECT_EQ(report["verified"], false);
+    EXPECT_EQ(report["status"], "Ready");
+    EXPECT_EQ(report["workspace"]["workspaceId"], "builtin.basic");
+    EXPECT_EQ(report["workspace"]["selector"], "builtin:basic");
+    EXPECT_EQ(report["project"]["projectId"], "starter-arena");
+    EXPECT_EQ(report["actor"]["actorId"], "local.actor");
+    EXPECT_EQ(report["review"]["targetArtifact"],
+              fs::absolute(manifest).string());
+    EXPECT_EQ(report["review"]["reviewMode"], "MetadataOnly");
+    EXPECT_EQ(report["review"]["status"], "Ready");
+    EXPECT_FALSE(report["review"]["durable"].get<bool>());
+    EXPECT_FALSE(report["review"]["requiresApproval"].get<bool>());
+    EXPECT_FALSE(report["review"]["mutatesProject"].get<bool>());
+    EXPECT_EQ(report["comment"]["bodyPreview"],
+              "Inspect StarterArena project metadata");
+    EXPECT_EQ(report["comment"]["source"], "report-only");
+    EXPECT_FALSE(report["comment"]["durable"].get<bool>());
+    EXPECT_EQ(report["auditEvent"]["eventKind"],
+              "LocalReviewMetadataRecorded");
+    EXPECT_EQ(report["auditEvent"]["actorId"], "local.actor");
+    EXPECT_EQ(report["auditEvent"]["source"], "report-only");
+    EXPECT_FALSE(report["auditEvent"]["durable"].get<bool>());
+    EXPECT_FALSE(report["auditEvent"]["tamperResistant"].get<bool>());
+    EXPECT_NE(report["review"]["reviewId"].get<std::string>().find(
+                  "local-review:builtin.basic:starter-arena:local.actor:"),
+              std::string::npos);
+    EXPECT_NE(report["comment"]["commentId"].get<std::string>().find(
+                  "local-comment:builtin.basic:starter-arena:local.actor:"),
+              std::string::npos);
+    EXPECT_NE(report["auditEvent"]["eventId"].get<std::string>().find(
+                  "local-audit:builtin.basic:starter-arena:local.actor:"),
+              std::string::npos);
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "approval workflow"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "durable audit service"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "tamper-resistant audit log"));
+    EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
+                                        "collaboration server"));
     EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
                                         "distribution readiness"));
 }

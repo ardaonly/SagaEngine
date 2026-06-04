@@ -1,0 +1,418 @@
+/// @file SagaLocalCollaborationMetadataReports.cpp
+/// @brief Report-only local collaboration metadata boundary proofs.
+
+#include "SagaLocalCollaborationMetadataReports.h"
+
+#include <nlohmann/json.hpp>
+
+#include <cctype>
+#include <exception>
+#include <filesystem>
+#include <fstream>
+#include <string>
+#include <vector>
+
+namespace SagaProduct
+{
+namespace
+{
+
+namespace fs = std::filesystem;
+
+struct ProjectMetadata
+{
+    bool ok = false;
+    std::string projectId;
+    std::string displayName;
+    fs::path manifestPath;
+    fs::path projectRoot;
+    std::vector<nlohmann::json> diagnostics;
+};
+
+[[nodiscard]] nlohmann::json Diagnostic(std::string code,
+                                        std::string message,
+                                        const fs::path& path = {})
+{
+    nlohmann::json diagnostic;
+    diagnostic["code"] = std::move(code);
+    diagnostic["message"] = std::move(message);
+    diagnostic["path"] = path.empty() ? "" : path.string();
+    return diagnostic;
+}
+
+[[nodiscard]] ProjectMetadata LoadProjectMetadata(const fs::path& inputPath)
+{
+    ProjectMetadata metadata;
+    metadata.manifestPath = fs::absolute(inputPath);
+    metadata.projectRoot = metadata.manifestPath.parent_path();
+
+    if (inputPath.empty())
+    {
+        metadata.diagnostics.push_back(Diagnostic(
+            "Saga.LocalCollaboration.ProjectMissing",
+            "local collaboration metadata report requires --project <.sagaproj>"));
+        return metadata;
+    }
+    if (!fs::exists(metadata.manifestPath))
+    {
+        metadata.diagnostics.push_back(Diagnostic(
+            "Saga.LocalCollaboration.ProjectManifestMissing",
+            "project manifest is missing",
+            metadata.manifestPath));
+        return metadata;
+    }
+
+    std::ifstream input(metadata.manifestPath, std::ios::binary);
+    if (!input.is_open())
+    {
+        metadata.diagnostics.push_back(Diagnostic(
+            "Saga.LocalCollaboration.ProjectManifestUnreadable",
+            "project manifest could not be opened",
+            metadata.manifestPath));
+        return metadata;
+    }
+
+    try
+    {
+        const nlohmann::json manifest = nlohmann::json::parse(input);
+        metadata.projectId = manifest.value("projectId", std::string{});
+        metadata.displayName = manifest.value("displayName", std::string{});
+        metadata.ok = !metadata.projectId.empty();
+        if (!metadata.ok)
+        {
+            metadata.diagnostics.push_back(Diagnostic(
+                "Saga.LocalCollaboration.ProjectIdMissing",
+                "project manifest does not contain projectId",
+                metadata.manifestPath));
+        }
+    }
+    catch (const std::exception& ex)
+    {
+        metadata.diagnostics.push_back(Diagnostic(
+            "Saga.LocalCollaboration.ProjectManifestParseFailed",
+            ex.what(),
+            metadata.manifestPath));
+    }
+
+    return metadata;
+}
+
+[[nodiscard]] std::string WorkspaceIdForSelector(const std::string& selector)
+{
+    if (selector.empty() || selector == "builtin:basic")
+    {
+        return "builtin.basic";
+    }
+    return selector;
+}
+
+[[nodiscard]] std::string OrDefault(const std::string& value,
+                                    const char* fallback)
+{
+    return value.empty() ? std::string(fallback) : value;
+}
+
+[[nodiscard]] fs::path AbsoluteIfPresent(const fs::path& path)
+{
+    return path.empty() ? fs::path{} : fs::absolute(path).lexically_normal();
+}
+
+[[nodiscard]] std::string IdSegment(std::string value)
+{
+    for (char& ch : value)
+    {
+        const auto byte = static_cast<unsigned char>(ch);
+        if (!std::isalnum(byte) && ch != '.' && ch != '_' && ch != '-')
+        {
+            ch = '-';
+        }
+    }
+    return value.empty() ? "none" : value;
+}
+
+[[nodiscard]] std::string ProjectIdOrUnknown(const ProjectMetadata& project)
+{
+    return project.projectId.empty() ? "unknown-project" : project.projectId;
+}
+
+[[nodiscard]] std::string TargetSegment(const fs::path& targetPath)
+{
+    return IdSegment(targetPath.empty() ? std::string("missing-target") :
+        targetPath.generic_string());
+}
+
+[[nodiscard]] std::string MakeLockId(const std::string& workspaceId,
+                                     const std::string& projectId,
+                                     const std::string& actorId,
+                                     const fs::path& targetPath)
+{
+    return "local-lock:" + IdSegment(workspaceId) + ":" +
+        IdSegment(projectId) + ":" + IdSegment(actorId) + ":" +
+        TargetSegment(targetPath);
+}
+
+[[nodiscard]] std::string MakeReviewId(const std::string& workspaceId,
+                                       const std::string& projectId,
+                                       const std::string& actorId,
+                                       const fs::path& targetPath)
+{
+    return "local-review:" + IdSegment(workspaceId) + ":" +
+        IdSegment(projectId) + ":" + IdSegment(actorId) + ":" +
+        TargetSegment(targetPath);
+}
+
+[[nodiscard]] std::string MakeCommentId(const std::string& workspaceId,
+                                        const std::string& projectId,
+                                        const std::string& actorId,
+                                        const fs::path& targetPath)
+{
+    return "local-comment:" + IdSegment(workspaceId) + ":" +
+        IdSegment(projectId) + ":" + IdSegment(actorId) + ":" +
+        TargetSegment(targetPath);
+}
+
+[[nodiscard]] std::string MakeAuditEventId(const std::string& workspaceId,
+                                           const std::string& projectId,
+                                           const std::string& actorId,
+                                           const std::string& eventKind)
+{
+    return "local-audit:" + IdSegment(workspaceId) + ":" +
+        IdSegment(projectId) + ":" + IdSegment(actorId) + ":" +
+        IdSegment(eventKind);
+}
+
+[[nodiscard]] std::string BodyPreview(const std::string& body)
+{
+    constexpr std::size_t kMaxPreviewLength = 120;
+    if (body.size() <= kMaxPreviewLength)
+    {
+        return body;
+    }
+    return body.substr(0, kMaxPreviewLength);
+}
+
+[[nodiscard]] std::vector<nlohmann::json> SharedNonClaims()
+{
+    return {
+        "full multiplayer collaboration",
+        "cloud workspace",
+        "enterprise permissions",
+        "enterprise access control",
+        "real-time team editing",
+        "networked presence",
+        "durable lock service",
+        "durable audit service",
+        "CRDT/OT",
+        "collaboration server",
+        "full team workspace",
+        "approval workflow",
+        "tamper-resistant audit log",
+        "product beta",
+        "distribution readiness",
+    };
+}
+
+[[nodiscard]] std::vector<nlohmann::json> PresenceLockLimitations()
+{
+    return {
+        "Local presence and lock smoke is a no-UI report-only boundary proof.",
+        "Presence metadata is local to the report and is not networked.",
+        "Lock metadata is intent-only and is not a durable lock service.",
+        "The report does not enforce permissions or block another actor.",
+        "The report does not mutate project files, scenes, scripts, or SDE files.",
+        "The report does not write durable collaboration metadata.",
+        "Enterprise policy, cloud sync, CRDT/OT, and collaboration server work are deferred.",
+        "No phase is marked Verified by this report.",
+    };
+}
+
+[[nodiscard]] std::vector<nlohmann::json> ReviewAuditLimitations()
+{
+    return {
+        "Local review and audit smoke is a no-UI report-only boundary proof.",
+        "Review metadata is not an approval workflow.",
+        "Comment metadata is local to the report and is not durable project truth.",
+        "Audit metadata is not a durable or tamper-resistant audit log.",
+        "The report does not mutate project files, scenes, scripts, or SDE files.",
+        "The report does not write durable collaboration metadata.",
+        "Enterprise policy, cloud sync, CRDT/OT, and collaboration server work are deferred.",
+        "No phase is marked Verified by this report.",
+    };
+}
+
+[[nodiscard]] nlohmann::json ActorJson(const std::string& actorId)
+{
+    return {
+        { "actorId", actorId },
+        { "displayName", actorId },
+        { "source", "report-only" },
+    };
+}
+
+[[nodiscard]] nlohmann::json WorkspaceJson(const std::string& workspaceId,
+                                           const std::string& selector)
+{
+    return {
+        { "workspaceId", workspaceId },
+        { "selector", selector },
+    };
+}
+
+[[nodiscard]] nlohmann::json ProjectJson(const ProjectMetadata& project)
+{
+    return {
+        { "projectId", project.projectId },
+        { "displayName", project.displayName },
+        { "manifestPath", project.manifestPath.string() },
+        { "projectRoot", project.projectRoot.string() },
+    };
+}
+
+[[nodiscard]] bool WriteJsonReport(const fs::path& reportPath,
+                                   const nlohmann::json& report,
+                                   std::string& error)
+{
+    std::error_code ec;
+    if (!reportPath.parent_path().empty())
+    {
+        fs::create_directories(reportPath.parent_path(), ec);
+    }
+    std::ofstream output(reportPath, std::ios::trunc | std::ios::binary);
+    if (!output.is_open())
+    {
+        error = "unable to write local collaboration metadata report: " +
+            reportPath.string();
+        return false;
+    }
+    output << report.dump(2) << '\n';
+    return true;
+}
+
+} // namespace
+
+SagaLocalCollaborationMetadataReportResult WriteLocalPresenceLockReport(
+    const SagaLocalPresenceLockReportRequest& request)
+{
+    SagaLocalCollaborationMetadataReportResult result;
+    result.reportPath = request.reportPath;
+
+    ProjectMetadata project = LoadProjectMetadata(request.projectManifestPath);
+    const fs::path lockTarget = AbsoluteIfPresent(request.lockTargetPath);
+    if (lockTarget.empty())
+    {
+        project.diagnostics.push_back(Diagnostic(
+            "Saga.LocalCollaboration.LockTargetMissing",
+            "local presence/lock smoke requires --lock-target <path>"));
+    }
+
+    const std::string workspaceSelector =
+        OrDefault(request.workspaceSelector, "builtin:basic");
+    const std::string workspaceId = WorkspaceIdForSelector(workspaceSelector);
+    const std::string actorId = OrDefault(request.actorId, "local.actor");
+    const std::string projectId = ProjectIdOrUnknown(project);
+    const bool ready = project.ok && !lockTarget.empty();
+    result.status = ready ? "Ready" : "Failed";
+
+    nlohmann::json report;
+    report["schemaVersion"] = 1;
+    report["tool"] = "Saga";
+    report["command"] = "local-workspace-presence-lock-smoke";
+    report["status"] = result.status;
+    report["verified"] = false;
+    report["workspace"] = WorkspaceJson(workspaceId, workspaceSelector);
+    report["project"] = ProjectJson(project);
+    report["actor"] = ActorJson(actorId);
+    report["presence"] = {
+        { "actorId", actorId },
+        { "displayName", actorId },
+        { "status", "PresentLocal" },
+        { "source", "report-only" },
+        { "durable", false },
+        { "networked", false },
+    };
+    report["lock"] = {
+        { "lockId", MakeLockId(workspaceId, projectId, actorId, lockTarget) },
+        { "targetArtifact", lockTarget.string() },
+        { "lockMode", "ReadOnlyPreview" },
+        { "status", result.status },
+        { "conflictStatus", "NotChecked" },
+        { "durable", false },
+        { "mutatesProject", false },
+    };
+    report["diagnostics"] = project.diagnostics;
+    report["knownLimitations"] = PresenceLockLimitations();
+    report["nonClaims"] = SharedNonClaims();
+
+    result.ok = WriteJsonReport(request.reportPath, report, result.error);
+    return result;
+}
+
+SagaLocalCollaborationMetadataReportResult WriteLocalReviewAuditReport(
+    const SagaLocalReviewAuditReportRequest& request)
+{
+    SagaLocalCollaborationMetadataReportResult result;
+    result.reportPath = request.reportPath;
+
+    ProjectMetadata project = LoadProjectMetadata(request.projectManifestPath);
+    const fs::path reviewTarget = AbsoluteIfPresent(request.reviewTargetPath);
+    if (reviewTarget.empty())
+    {
+        project.diagnostics.push_back(Diagnostic(
+            "Saga.LocalCollaboration.ReviewTargetMissing",
+            "local review smoke requires --review-target <path>"));
+    }
+
+    const std::string workspaceSelector =
+        OrDefault(request.workspaceSelector, "builtin:basic");
+    const std::string workspaceId = WorkspaceIdForSelector(workspaceSelector);
+    const std::string actorId = OrDefault(request.actorId, "local.actor");
+    const std::string projectId = ProjectIdOrUnknown(project);
+    const std::string comment =
+        OrDefault(request.comment, "Inspect project metadata");
+    const std::string eventKind = "LocalReviewMetadataRecorded";
+    const bool ready = project.ok && !reviewTarget.empty();
+    result.status = ready ? "Ready" : "Failed";
+
+    nlohmann::json report;
+    report["schemaVersion"] = 1;
+    report["tool"] = "Saga";
+    report["command"] = "local-workspace-review-smoke";
+    report["status"] = result.status;
+    report["verified"] = false;
+    report["workspace"] = WorkspaceJson(workspaceId, workspaceSelector);
+    report["project"] = ProjectJson(project);
+    report["actor"] = ActorJson(actorId);
+    report["review"] = {
+        { "reviewId", MakeReviewId(workspaceId, projectId, actorId, reviewTarget) },
+        { "targetArtifact", reviewTarget.string() },
+        { "reviewMode", "MetadataOnly" },
+        { "status", result.status },
+        { "durable", false },
+        { "requiresApproval", false },
+        { "mutatesProject", false },
+    };
+    report["comment"] = {
+        { "commentId", MakeCommentId(workspaceId, projectId, actorId, reviewTarget) },
+        { "bodyPreview", BodyPreview(comment) },
+        { "targetArtifact", reviewTarget.string() },
+        { "source", "report-only" },
+        { "durable", false },
+    };
+    report["auditEvent"] = {
+        { "eventId", MakeAuditEventId(workspaceId, projectId, actorId, eventKind) },
+        { "eventKind", eventKind },
+        { "actorId", actorId },
+        { "targetArtifact", reviewTarget.string() },
+        { "source", "report-only" },
+        { "durable", false },
+        { "tamperResistant", false },
+    };
+    report["diagnostics"] = project.diagnostics;
+    report["knownLimitations"] = ReviewAuditLimitations();
+    report["nonClaims"] = SharedNonClaims();
+
+    result.ok = WriteJsonReport(request.reportPath, report, result.error);
+    return result;
+}
+
+} // namespace SagaProduct

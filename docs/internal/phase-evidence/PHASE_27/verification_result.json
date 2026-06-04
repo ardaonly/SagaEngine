@@ -1,10 +1,10 @@
 {
   "phase": 27,
-  "name": "Team Room v1",
-  "status": "Not Started",
-  "required_gate": "team-room-gate",
+  "name": "Local Review / Comment / Audit Metadata Report",
+  "status": "Implemented-Unverified",
+  "required_gate": "review-audit-gate",
   "verified": false,
   "last_verified_commit": "-",
-  "verification_decision": "Not Started",
-  "decision_reason": "The phase has not been started in the current status matrix."
+  "verification_decision": "Implemented-Unverified",
+  "decision_reason": "Saga has a no-UI local review, comment, and audit metadata report over StarterArena with explicit collaboration, cloud, enterprise, server, product beta, and distribution non-claims. Maintainer verification is still required."
 }
