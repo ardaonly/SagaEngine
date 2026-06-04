@@ -18,5 +18,6 @@ Established, not Product Beta or Release Candidate.
 
 - [Testing entry](../testing/README.md)
 - [Test suites](../testing/TEST_SUITES.md)
+- [Sample executable evidence](SAMPLE_EXECUTABLE_EVIDENCE.md)
 - [Phase 9 closure](../recovery/phase-09-local-evidence/PHASE_9_CLOSURE_CHECKPOINT.md)
 - [Phase 10 closure](../recovery/phase-10-publish-gate/PHASE_10_CLOSURE_CHECKPOINT.md)

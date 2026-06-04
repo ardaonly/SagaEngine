@@ -15,6 +15,8 @@ The current candidate status is based on generated local evidence:
 
 - package report status: `preflight-passed`;
 - distribution smoke report status: `passed-with-limitations`;
+- sample executable evidence report status: `passed-with-limitations` when
+  `SagaSampleExecutableEvidence` completes in the active build tree;
 - candidate report status: `candidate-with-limitations`.
 
 ## What Exists
@@ -30,6 +32,8 @@ The Linux package/candidate pipeline produces or validates these outputs:
   `build/reports/linux_distribution_smoke_report.json`;
 - candidate report:
   `build/reports/linux_distributable_candidate_report.json`;
+- sample executable evidence report:
+  `build/RelWithDebInfo-0.0.9/reports/sample_executable_evidence_report.json`;
 - unpack smoke from `Saga.tar.zst`;
 - packaged `sagaproject`, `sagascript`, `sagapack`, and `sde` tools;
 - limited packaged StarterArena workflow smoke.
@@ -95,6 +99,8 @@ The current smoke evidence covers:
 - packaged `sagaproject validate`;
 - packaged `sagascript analyze`;
 - packaged `Saga --workflow-smoke`.
+- build-local sample executable evidence for bounded StarterArena runtime script
+  invocation and MultiplayerSandbox fixture/projection/headless smoke.
 
 ## Known Limitations
 
@@ -102,6 +108,9 @@ The current smoke evidence covers:
 - Editor packaged inspect mode remains blocked.
 - SagaEditor help and inspect limitations remain.
 - Product Shell workflow output is no-UI and report-only.
+- StarterArena sample executable evidence remains bounded smoke evidence.
+- MultiplayerSandbox sample executable evidence remains fixture/projection/
+  headless evidence, not playable multiplayer game evidence.
 - Full editor UI workflow does not exist.
 - Full Visual Blocks UI does not exist.
 - Enterprise collaboration and cloud workspace do not exist.

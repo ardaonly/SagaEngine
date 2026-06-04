@@ -1,0 +1,674 @@
+#!/usr/bin/env python3
+"""Build-local executable evidence report for bounded Saga samples."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shutil
+import subprocess
+import sys
+import time
+from pathlib import Path
+from typing import Any
+
+
+NON_CLAIMS = [
+    "not production-ready",
+    "not enterprise-ready",
+    "not a verified final release",
+    "not full gameplay readiness",
+    "not full editor workflow",
+    "not full Visual Blocks UI",
+    "not full collaboration",
+    "not proof that MultiplayerSandbox is a playable multiplayer game",
+    "not proof that StarterArena is a finished playable game",
+]
+
+
+def rel(path: Path, root: Path) -> str:
+    try:
+        return path.resolve().relative_to(root.resolve()).as_posix()
+    except ValueError:
+        return path.resolve().as_posix()
+
+
+def ensure_parent(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+
+class EvidenceRunner:
+    def __init__(self, source_root: Path, build_dir: Path, bin_dir: Path) -> None:
+        self.source_root = source_root.resolve()
+        self.build_dir = build_dir.resolve()
+        self.bin_dir = bin_dir.resolve()
+        self.work_dir = self.build_dir / "sample_executable_evidence"
+        self.commands: list[dict[str, Any]] = []
+        self.artifacts: list[dict[str, Any]] = []
+        self.diagnostics: list[dict[str, Any]] = []
+        self.samples: dict[str, dict[str, Any]] = {
+            "StarterArena": {
+                "name": "StarterArena",
+                "status": "pending",
+                "verified": False,
+                "evidence": [],
+                "limitations": [
+                    "Bounded headless smoke evidence only.",
+                    "Not a finished playable game.",
+                ],
+                "nonClaims": [
+                    "not proof that StarterArena is a finished playable game",
+                    "not full gameplay readiness",
+                    "not full editor workflow",
+                    "not full Visual Blocks UI",
+                ],
+            },
+            "MultiplayerSandbox": {
+                "name": "MultiplayerSandbox",
+                "status": "pending",
+                "verified": False,
+                "evidence": [],
+                "limitations": [
+                    "Fixture/projection/headless evidence only.",
+                    "Current C# is not forced through gameplay compilation.",
+                    "Not proof that MultiplayerSandbox is a playable multiplayer game.",
+                ],
+                "nonClaims": [
+                    "not proof that MultiplayerSandbox is a playable multiplayer game",
+                    "not full gameplay readiness",
+                    "not full editor workflow",
+                    "not full Visual Blocks UI",
+                    "not full collaboration",
+                ],
+            },
+        }
+
+    def command_text(self, argv: list[str], env: dict[str, str] | None = None) -> str:
+        prefix = ""
+        if env:
+            prefix = " ".join(f"{key}={value}" for key, value in sorted(env.items())) + " "
+        return prefix + " ".join(argv)
+
+    def run(
+        self,
+        label: str,
+        argv: list[str],
+        *,
+        required: bool = True,
+        env: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
+        merged_env = os.environ.copy()
+        command_env = env or {}
+        merged_env.update(command_env)
+        start = time.monotonic()
+        try:
+            result = subprocess.run(
+                argv,
+                cwd=self.source_root,
+                env=merged_env,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+            exit_code = result.returncode
+            stdout = result.stdout
+            stderr = result.stderr
+        except FileNotFoundError as error:
+            exit_code = 127
+            stdout = ""
+            stderr = str(error)
+        elapsed_ms = int((time.monotonic() - start) * 1000)
+        record: dict[str, Any] = {
+            "label": label,
+            "command": self.command_text(argv, command_env),
+            "argv": argv,
+            "required": required,
+            "exitCode": exit_code,
+            "status": "passed" if exit_code == 0 else "failed",
+            "durationMs": elapsed_ms,
+            "stdout": stdout[-8000:],
+            "stderr": stderr[-8000:],
+        }
+        self.commands.append(record)
+        if exit_code != 0:
+            self.diagnostics.append(
+                {
+                    "severity": "Error" if required else "Warning",
+                    "code": "SampleEvidence.CommandFailed",
+                    "message": f"{label} failed with exit code {exit_code}.",
+                    "command": record["command"],
+                    "required": required,
+                }
+            )
+        return record
+
+    def add_artifact(
+        self,
+        label: str,
+        path: Path,
+        *,
+        required: bool,
+        kind: str,
+        sample: str | None = None,
+    ) -> dict[str, Any]:
+        exists = path.exists()
+        artifact: dict[str, Any] = {
+            "label": label,
+            "path": rel(path, self.source_root),
+            "kind": kind,
+            "required": required,
+            "exists": exists,
+        }
+        if exists and path.is_file():
+            artifact["bytes"] = path.stat().st_size
+        if sample:
+            artifact["sample"] = sample
+        self.artifacts.append(artifact)
+        if required and not exists:
+            self.diagnostics.append(
+                {
+                    "severity": "Error",
+                    "code": "SampleEvidence.RequiredArtifactMissing",
+                    "message": f"Required artifact is missing: {label}",
+                    "path": artifact["path"],
+                }
+            )
+        return artifact
+
+    def add_evidence(
+        self,
+        sample: str,
+        label: str,
+        *,
+        status: str,
+        command_label: str | None = None,
+        artifact_label: str | None = None,
+        detail: str | None = None,
+    ) -> None:
+        evidence: dict[str, Any] = {"label": label, "status": status}
+        if command_label:
+            evidence["command"] = command_label
+        if artifact_label:
+            evidence["artifact"] = artifact_label
+        if detail:
+            evidence["detail"] = detail
+        self.samples[sample]["evidence"].append(evidence)
+
+    def command_status(self, label: str) -> str:
+        for command in self.commands:
+            if command["label"] == label:
+                return "passed" if command["exitCode"] == 0 else "blocked"
+        return "blocked"
+
+    def artifact_status(self, label: str) -> str:
+        for artifact in self.artifacts:
+            if artifact["label"] == label:
+                return "passed" if artifact["exists"] else "blocked"
+        return "blocked"
+
+    def run_all(self) -> dict[str, Any]:
+        self.work_dir.mkdir(parents=True, exist_ok=True)
+        reports_dir = self.work_dir / "reports"
+        starter_scripts = self.work_dir / "StarterArena" / "SagaScript"
+        multiplayer_scripts = self.work_dir / "MultiplayerSandbox" / "SagaScript"
+        bridge_out = self.build_dir / "Managed" / "SagaScript.RuntimeBridge"
+        starter_manifest_out = starter_scripts / "Manifests"
+        starter_artifact_out = starter_scripts / "Artifacts" / "Scripts"
+        starter_runtime_report = reports_dir / "starter_arena_runtime_script_invocation_smoke.json"
+        multiplayer_headless_report = reports_dir / "multiplayer_sandbox_headless_smoke.json"
+        multiplayer_diagnostics = self.work_dir / "MultiplayerSandbox" / "Diagnostics"
+
+        sagaproject = str(self.source_root / "Tools" / "SagaProjectKit" / "sagaproject")
+        sagascript = str(self.source_root / "Tools" / "SagaScript" / "sagascript")
+        dotnet = shutil.which("dotnet") or "dotnet"
+        runtime = str(self.bin_dir / "SagaRuntime")
+        multiplayer_headless = str(self.bin_dir / "MultiplayerSandboxHeadless")
+
+        for label, path, kind, sample in [
+            (
+                "StarterArena project manifest",
+                self.source_root / "samples" / "StarterArena" / "StarterArena.sagaproj",
+                "sample-project",
+                "StarterArena",
+            ),
+            (
+                "StarterArena C# script inputs",
+                self.source_root / "samples" / "StarterArena" / "Scripts",
+                "csharp-source-directory",
+                "StarterArena",
+            ),
+            (
+                "MultiplayerSandbox project manifest",
+                self.source_root / "samples" / "MultiplayerSandbox" / "MultiplayerSandbox.sagaproj",
+                "sample-project",
+                "MultiplayerSandbox",
+            ),
+            (
+                "MultiplayerSandbox C# script inputs",
+                self.source_root / "samples" / "MultiplayerSandbox" / "Scripts",
+                "csharp-source-directory",
+                "MultiplayerSandbox",
+            ),
+            (
+                "sagaproject CLI",
+                Path(sagaproject),
+                "cli-tool",
+                None,
+            ),
+            (
+                "sagascript CLI",
+                Path(sagascript),
+                "cli-tool",
+                None,
+            ),
+            (
+                "SagaRuntime native executable",
+                Path(runtime),
+                "native-executable",
+                None,
+            ),
+            (
+                "MultiplayerSandboxHeadless native executable",
+                Path(multiplayer_headless),
+                "native-executable",
+                None,
+            ),
+        ]:
+            self.add_artifact(
+                label,
+                path,
+                required=True,
+                kind=kind,
+                sample=sample,
+            )
+
+        dotnet_env = {
+            "DOTNET_CLI_HOME": str(self.build_dir / ".dotnet" / "home"),
+            "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
+        }
+
+        self.run(
+            "StarterArena sagaproject validate",
+            [
+                sagaproject,
+                "validate",
+                "--project",
+                "samples/StarterArena/StarterArena.sagaproj",
+                "--out",
+                str(reports_dir / "starter_arena_sagaproject_validate.json"),
+            ],
+            env=dotnet_env,
+        )
+        self.add_artifact(
+            "StarterArena project validation report",
+            reports_dir / "starter_arena_sagaproject_validate.json",
+            required=True,
+            kind="json-report",
+            sample="StarterArena",
+        )
+
+        self.run(
+            "MultiplayerSandbox sagaproject validate",
+            [
+                sagaproject,
+                "validate",
+                "--project",
+                "samples/MultiplayerSandbox/MultiplayerSandbox.sagaproj",
+                "--out",
+                str(reports_dir / "multiplayer_sandbox_sagaproject_validate.json"),
+            ],
+            env=dotnet_env,
+        )
+        self.add_artifact(
+            "MultiplayerSandbox project validation report",
+            reports_dir / "multiplayer_sandbox_sagaproject_validate.json",
+            required=True,
+            kind="json-report",
+            sample="MultiplayerSandbox",
+        )
+
+        self.run(
+            "StarterArena sagascript analyze",
+            [
+                sagascript,
+                "analyze",
+                "--source",
+                "samples/StarterArena/Scripts",
+                "--out",
+                str(starter_scripts / "Analyze"),
+                "--json",
+            ],
+            env=dotnet_env,
+        )
+        self.add_artifact(
+            "StarterArena SagaScript analysis report",
+            starter_scripts / "Analyze" / "analysis_report.json",
+            required=True,
+            kind="json-report",
+            sample="StarterArena",
+        )
+
+        self.run(
+            "MultiplayerSandbox sagascript analyze",
+            [
+                sagascript,
+                "analyze",
+                "--source",
+                "samples/MultiplayerSandbox/Scripts",
+                "--out",
+                str(multiplayer_scripts / "Analyze"),
+                "--json",
+            ],
+            env=dotnet_env,
+        )
+        self.add_artifact(
+            "MultiplayerSandbox SagaScript analysis report",
+            multiplayer_scripts / "Analyze" / "analysis_report.json",
+            required=True,
+            kind="json-report",
+            sample="MultiplayerSandbox",
+        )
+
+        self.run(
+            "MultiplayerSandbox sagascript project-blocks",
+            [
+                sagascript,
+                "project-blocks",
+                "--source",
+                "samples/MultiplayerSandbox/Scripts",
+                "--out",
+                str(multiplayer_scripts / "ProjectBlocks"),
+                "--json",
+            ],
+            env=dotnet_env,
+        )
+        self.add_artifact(
+            "MultiplayerSandbox Visual Blocks projection report",
+            multiplayer_scripts / "ProjectBlocks" / "projection_report.json",
+            required=True,
+            kind="json-report",
+            sample="MultiplayerSandbox",
+        )
+
+        self.run(
+            "SagaScript runtime bridge dotnet build",
+            [
+                dotnet,
+                "build",
+                "Engine/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.csproj",
+                "-c",
+                "Release",
+                "--output",
+                str(bridge_out),
+                "--nologo",
+                "--verbosity",
+                "minimal",
+            ],
+            env=dotnet_env,
+        )
+        bridge_assembly = bridge_out / "SagaScript.RuntimeBridge.dll"
+        self.add_artifact(
+            "SagaScript runtime bridge assembly",
+            bridge_assembly,
+            required=True,
+            kind="managed-assembly",
+        )
+
+        compile_env = dict(dotnet_env)
+        compile_env["SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY"] = str(bridge_assembly)
+        self.run(
+            "StarterArena sagascript compile",
+            [
+                sagascript,
+                "compile",
+                "--source",
+                "samples/StarterArena/Scripts",
+                "--out",
+                str(starter_manifest_out),
+                "--artifacts-out",
+                str(starter_artifact_out),
+                "--project-root",
+                "samples/StarterArena",
+                "--assembly-name",
+                "StarterArenaScripts",
+                "--diagnostics",
+                str(starter_scripts / "sagascript_diagnostics.json"),
+                "--json",
+            ],
+            env=compile_env,
+        )
+        self.add_artifact(
+            "StarterArena script bindings manifest",
+            starter_manifest_out / "script_bindings.json",
+            required=True,
+            kind="json-manifest",
+            sample="StarterArena",
+        )
+        self.add_artifact(
+            "StarterArena script artifacts manifest",
+            starter_manifest_out / "script_artifacts.json",
+            required=True,
+            kind="json-manifest",
+            sample="StarterArena",
+        )
+        self.add_artifact(
+            "StarterArena compiled script assembly",
+            starter_artifact_out / "StarterArenaScripts.scripts.dll",
+            required=True,
+            kind="managed-assembly",
+            sample="StarterArena",
+        )
+
+        self.run(
+            "StarterArena SagaRuntime script invocation smoke",
+            [
+                runtime,
+                "--headless",
+                "--project",
+                "samples/StarterArena/StarterArena.sagaproj",
+                "--starter-arena-smoke",
+                "--script-manifest",
+                str(starter_manifest_out / "script_bindings.json"),
+                "--script-artifacts",
+                str(starter_manifest_out / "script_artifacts.json"),
+                "--invoke-starter-arena-script",
+                "--smoke-report-out",
+                str(starter_runtime_report),
+                "--smoke-frames",
+                "30",
+                "--fixed-dt",
+                "0.016",
+            ],
+        )
+        self.add_artifact(
+            "StarterArena SagaRuntime script invocation smoke report",
+            starter_runtime_report,
+            required=True,
+            kind="json-report",
+            sample="StarterArena",
+        )
+
+        self.run(
+            "MultiplayerSandbox headless smoke",
+            [
+                multiplayer_headless,
+                "--project",
+                "samples/MultiplayerSandbox/MultiplayerSandbox.sagaproj",
+                "--report-out",
+                str(multiplayer_headless_report),
+                "--diagnostics-out",
+                str(multiplayer_diagnostics),
+                "--ticks",
+                "1",
+                "--fixed-dt",
+                "1.0",
+            ],
+        )
+        self.add_artifact(
+            "MultiplayerSandboxHeadless smoke report",
+            multiplayer_headless_report,
+            required=True,
+            kind="json-report",
+            sample="MultiplayerSandbox",
+        )
+
+        self.fill_sample_evidence(starter_runtime_report)
+        return self.build_report()
+
+    def fill_sample_evidence(self, starter_runtime_report: Path) -> None:
+        self.add_evidence(
+            "StarterArena",
+            "project validation passed",
+            status=self.command_status("StarterArena sagaproject validate"),
+            command_label="StarterArena sagaproject validate",
+            artifact_label="StarterArena project validation report",
+        )
+        self.add_evidence(
+            "StarterArena",
+            "C# analyze passed",
+            status=self.command_status("StarterArena sagascript analyze"),
+            command_label="StarterArena sagascript analyze",
+            artifact_label="StarterArena SagaScript analysis report",
+        )
+        self.add_evidence(
+            "StarterArena",
+            "C# compile passed",
+            status=self.command_status("StarterArena sagascript compile"),
+            command_label="StarterArena sagascript compile",
+            artifact_label="StarterArena compiled script assembly",
+        )
+        self.add_evidence(
+            "StarterArena",
+            "compiled script artifact exists",
+            status=self.artifact_status("StarterArena compiled script assembly"),
+            artifact_label="StarterArena compiled script assembly",
+        )
+
+        invocation_detail = "GameRules.AddPickupScore evidence not read"
+        if starter_runtime_report.exists():
+            try:
+                runtime_data = json.loads(starter_runtime_report.read_text(encoding="utf-8"))
+                invocation_detail = json.dumps(
+                    runtime_data.get("scriptInvocation", runtime_data.get("scriptBinding", {})),
+                    sort_keys=True,
+                )
+            except json.JSONDecodeError:
+                invocation_detail = "StarterArena runtime smoke report was not valid JSON."
+        self.add_evidence(
+            "StarterArena",
+            "SagaRuntime --starter-arena-smoke --invoke-starter-arena-script passed",
+            status=self.command_status("StarterArena SagaRuntime script invocation smoke"),
+            command_label="StarterArena SagaRuntime script invocation smoke",
+            artifact_label="StarterArena SagaRuntime script invocation smoke report",
+            detail="Invoked GameRules.AddPickupScore(10, 5); expected result 15. "
+            + invocation_detail,
+        )
+
+        self.add_evidence(
+            "MultiplayerSandbox",
+            "project validation passed",
+            status=self.command_status("MultiplayerSandbox sagaproject validate"),
+            command_label="MultiplayerSandbox sagaproject validate",
+            artifact_label="MultiplayerSandbox project validation report",
+        )
+        self.add_evidence(
+            "MultiplayerSandbox",
+            "C# analyze passed",
+            status=self.command_status("MultiplayerSandbox sagascript analyze"),
+            command_label="MultiplayerSandbox sagascript analyze",
+            artifact_label="MultiplayerSandbox SagaScript analysis report",
+        )
+        self.add_evidence(
+            "MultiplayerSandbox",
+            "Visual Blocks/project-blocks projection evidence passed",
+            status=self.command_status("MultiplayerSandbox sagascript project-blocks"),
+            command_label="MultiplayerSandbox sagascript project-blocks",
+            artifact_label="MultiplayerSandbox Visual Blocks projection report",
+            detail="Projection/opaque-node evidence only; not compiled runtime gameplay evidence.",
+        )
+        self.add_evidence(
+            "MultiplayerSandbox",
+            "MultiplayerSandboxHeadless smoke passed",
+            status=self.command_status("MultiplayerSandbox headless smoke"),
+            command_label="MultiplayerSandbox headless smoke",
+            artifact_label="MultiplayerSandboxHeadless smoke report",
+            detail="Fixture/projection/headless evidence only, not playable multiplayer game evidence.",
+        )
+
+        for sample in self.samples.values():
+            sample["status"] = (
+                "passed-with-limitations"
+                if all(item["status"] == "passed" for item in sample["evidence"])
+                else "blocked"
+            )
+
+    def build_report(self) -> dict[str, Any]:
+        required_failed = [
+            command
+            for command in self.commands
+            if command["required"] and command["exitCode"] != 0
+        ]
+        required_missing = [
+            artifact
+            for artifact in self.artifacts
+            if artifact["required"] and not artifact["exists"]
+        ]
+        if required_failed or required_missing:
+            status = "blocked"
+        elif any(sample["status"] != "passed-with-limitations" for sample in self.samples.values()):
+            status = "blocked"
+        else:
+            status = "passed-with-limitations"
+
+        return {
+            "schemaVersion": 1,
+            "tool": "verify-sample-executable-evidence",
+            "status": status,
+            "verified": False,
+            "buildDir": rel(self.build_dir, self.source_root),
+            "samples": list(self.samples.values()),
+            "commands": self.commands,
+            "artifacts": self.artifacts,
+            "diagnostics": self.diagnostics,
+            "knownLimitations": [
+                "StarterArena evidence is bounded to project validation, SagaScript compile/analyze, and one controlled headless runtime script invocation.",
+                "MultiplayerSandbox evidence is fixture/projection/headless evidence; its current C# inputs are not compiled as gameplay.",
+                "The report is executable evidence within current limitations and does not mark any phase Verified.",
+            ],
+            "nonClaims": NON_CLAIMS,
+        }
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--source-root", default=".", help="Repository root.")
+    parser.add_argument("--build-dir", required=True, help="Active CMake build directory.")
+    parser.add_argument("--bin-dir", help="Directory containing native executables.")
+    parser.add_argument("--report-out", help="Report output path.")
+    parser.add_argument("--mirror-report-out", help="Optional second report output path.")
+    args = parser.parse_args()
+
+    source_root = Path(args.source_root)
+    build_dir = Path(args.build_dir)
+    bin_dir = Path(args.bin_dir) if args.bin_dir else build_dir / "bin"
+    report_out = Path(args.report_out) if args.report_out else build_dir / "reports" / "sample_executable_evidence_report.json"
+
+    runner = EvidenceRunner(source_root, build_dir, bin_dir)
+    report = runner.run_all()
+
+    ensure_parent(report_out)
+    report_out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if args.mirror_report_out:
+        mirror = Path(args.mirror_report_out)
+        ensure_parent(mirror)
+        mirror.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    print(f"sample executable evidence report: {report_out}")
+    print(f"sample executable evidence status: {report['status']}")
+    return 0 if report["status"] == "passed-with-limitations" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
