@@ -1,20 +1,19 @@
-# Testing And Evidence
+# Testing
 
 > Last updated: 2026-05-26
 
-Current test evidence is limited and explicit. It supports Foundation
-Established, not Product Beta or Release Candidate.
+Current test coverage is focused and subsystem-oriented. It does not establish
+Product Beta or Release Candidate status.
 
-## Current Gate Status
+## Current Status
 
-- Phase 9 normal local gate passed 36/36 with heavy labels excluded.
-- raw full CTest remains unresolved and is not pass evidence.
-- heavy gates remain opt-in/unresolved and are not normal local gate evidence.
-- Phase 10 package/publish/runtime focused compatibility passed 12/12.
-- CI hard enforcement, stress/load/performance evidence, and release packaging
-  proof are absent.
+- Focused local checks exist for several subsystems.
+- The full raw CTest suite is unresolved and should not be treated as passing.
+- Heavy stress/load checks are opt-in and unresolved.
+- CI hard enforcement, stress/load/performance coverage, and release packaging
+  validation are absent.
 
-## Evidence
+## References
 
 - [Testing entry](../testing/README.md)
 - [Test suites](../testing/TEST_SUITES.md)

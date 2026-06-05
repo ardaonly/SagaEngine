@@ -3,8 +3,7 @@
 This directory contains architecture notes for SagaEngine's current engine,
 runtime, server, editor, asset, publish, and testing design.
 
-Start with the short current summaries before reading older or phase-numbered
-records.
+Start with the short summaries before reading older recovery or planning notes.
 
 ## Current Summaries
 
@@ -17,15 +16,15 @@ records.
 | Assets and packages | [ASSETS_AND_PACKAGES.md](ASSETS_AND_PACKAGES.md) |
 | Editor | [EDITOR.md](EDITOR.md) |
 | Apps/Sandbox role | [APPS_SANDBOX_ROLE.md](APPS_SANDBOX_ROLE.md) |
-| Publish readiness | [PUBLISH.md](PUBLISH.md) |
+| Publish | [PUBLISH.md](PUBLISH.md) |
 | Testing | [TESTING_AND_EVIDENCE.md](TESTING_AND_EVIDENCE.md) |
 
 ## Historical Notes
 
 Many architecture files were written during internal recovery or planning work.
-Files with numbered planning, audit, or historical-progress naming are useful
-for history, but they are not the best daily entry point and should not be read
-as current product promises.
+Files with numbered phase, audit, or historical-progress names are useful for
+history, but they are not the best daily entry point and should not be read as
+current product promises.
 
 Current implementation decisions should be checked against source code, tests,
 and the current summary files above.

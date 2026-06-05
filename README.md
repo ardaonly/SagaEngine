@@ -1,27 +1,27 @@
 # SagaEngine
 
-SagaEngine is a long-term game engine and toolchain project focused on
-MMO-style runtime/server boundaries, authoring workflows, and buildable engine
-infrastructure.
+SagaEngine is an active game engine and toolchain codebase. It focuses on
+runtime/server boundaries, editor and authoring infrastructure, project
+tooling, scripting analysis, packaging, diagnostics, and tests.
 
-The repository is not a finished game engine product today. It is useful as an
-engine/toolchain codebase for developers who understand the current limits; it
-is not ready to be presented as an end-user game creation platform.
+It is not a finished game engine product. Treat this repository as source for
+engine and toolchain development, not as an installable editor for making games
+end to end.
 
 ## Current Position
 
-SagaEngine currently contains real C++ engine, runtime, server, editor,
-application, tool, and test code. The strongest honest claim is that the repo is
-building a serious technical base for an engine and authoring toolchain.
+The repo contains C++ engine, runtime, server, editor, application, tool, and
+test code. It is currently strongest as a technical base for an engine and
+authoring toolchain.
 
-Current non-claims:
+Major gaps remain:
 
 - no beta or release-candidate status;
-- no SDK or distribution ready for production use;
+- no public SDK or production distribution;
 - no finished editor workflow;
-- no finished runtime gameplay or server gameplay loop;
-- no complete visual scripting or round-tripping arbitrary C#;
-- no production networking, cloud, security, or scale proof.
+- no complete runtime gameplay or server gameplay loop;
+- no complete visual scripting product or arbitrary C# round trip;
+- no production networking, cloud, security, or scale validation.
 
 ## Repository Map
 
@@ -40,8 +40,8 @@ Current non-claims:
   project-definition sample only and is not playable.
 - `docs/` - product status, architecture, roadmap, testing, and internal notes.
 
-Start with [docs/README.md](docs/README.md) before relying on older roadmap or
-historical documents.
+Start with [docs/README.md](docs/README.md). Older roadmap and recovery files
+are background material, not the best source for current product status.
 
 ## Public Tooling Direction
 
@@ -129,8 +129,8 @@ environment Forge configured.
 
 ## Verification
 
-The repo does not currently claim a universal green build/test matrix. Prefer
-focused checks for the subsystem you are reviewing.
+There is no single universal green build/test command for every subsystem.
+Prefer focused checks for the area you are reviewing.
 
 Common local checks:
 
@@ -144,8 +144,8 @@ For NixOS-hosted checks, use `nix-shell --run "<command>"`.
 ## Distribution Staging
 
 `SagaDistribution` stages a local product layout under the build directory. It
-is a packaging target for existing artifacts; it is not proof of public release
-readiness, installer readiness, marketplace readiness, or production support.
+is a packaging target for existing artifacts. It is not a public release,
+installer, marketplace package, or production support workflow.
 
 Role binaries may include:
 

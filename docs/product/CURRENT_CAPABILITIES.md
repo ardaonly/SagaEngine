@@ -1,13 +1,13 @@
 # Current Capabilities
 
-This page lists what the repository can reasonably be said to contain today. It
-is not a release note for a finished engine.
+This page lists what the repository contains today. It is not a release note for
+a finished engine.
 
 ## Engine And Server Code
 
 The repo contains C++ engine, runtime, server, diagnostics, editor, app, and
-test code. Some focused targets build and run locally, but the repo does not yet
-prove a complete end-to-end product workflow.
+test code. Some focused targets build and run locally. A complete end-to-end
+game creation workflow is not available yet.
 
 ## Project Tooling
 
@@ -19,7 +19,7 @@ early and should be treated as a project/tooling contract, not a public SDK.
 
 SagaScript supports selected C# / SagaScript analysis and source-authoring
 workflows. This is useful infrastructure, but it is not a complete visual
-scripting product and it does not support arbitrary C# to blocks roundtrip.
+scripting product and it does not support arbitrary C# to blocks round trip.
 
 ## Packaging And Launch-Adjacent Tooling
 
@@ -29,9 +29,9 @@ local reports for supported paths. This is not a complete publishing pipeline.
 ## Diagnostics And Verification
 
 The repo contains diagnostics primitives, focused tests, and internal reporting
-tools. These help developers review subsystem health, but they do not prove full
-CTest health, heavy stress readiness, production networking, soak readiness, or
-scale readiness.
+tools. These help developers review subsystem health. They do not establish full
+CTest health, heavy stress coverage, production networking, soak testing, or
+scale behavior.
 
 ## Samples
 

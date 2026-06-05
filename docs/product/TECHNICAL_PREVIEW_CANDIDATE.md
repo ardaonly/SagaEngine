@@ -3,19 +3,18 @@
 SagaEngine currently supports a Linux technical-preview candidate with
 limitations.
 
-This is not a public product release. Phase 1-38 are
-`Implemented-Unverified`, and no phase is marked `Verified`.
+This is not a public product release.
 
 ## Current Status
 
-Saga can produce a Linux technical-preview candidate archive with checksum and
-limited distribution smoke evidence.
+Saga can produce a Linux technical-preview candidate archive with checksum and a
+limited distribution smoke check.
 
-The current candidate status is based on generated local evidence:
+The current local reports show:
 
 - package report status: `preflight-passed`;
 - distribution smoke report status: `passed-with-limitations`;
-- sample executable evidence report status: `passed-with-limitations` when
+- sample executable report status: `passed-with-limitations` when
   `SagaSampleExecutableEvidence` completes in the active build tree;
 - candidate report status: `candidate-with-limitations`.
 
@@ -57,7 +56,7 @@ scripts/smoke-linux-saga-dist \
 The smoke unpacks the archive into `/tmp/saga_dist_smoke/Saga` and uses only
 the unpacked distribution tree.
 
-## Candidate Gate
+## Candidate Check
 
 ```bash
 scripts/verify-linux-saga-candidate \
@@ -69,12 +68,12 @@ scripts/verify-linux-saga-candidate \
   --report-out build/reports/linux_distributable_candidate_report.json
 ```
 
-The candidate gate collects the package, archive, checksum, unpack smoke, and
-limited StarterArena distribution workflow evidence into one report.
+The candidate check collects the package, archive, checksum, unpack smoke, and
+limited StarterArena distribution workflow status into one report.
 
 ## What Is Smoke-Checked
 
-The current smoke evidence covers:
+The current smoke check covers:
 
 - archive checksum verification;
 - archive unpack;
@@ -83,7 +82,7 @@ The current smoke evidence covers:
 - packaged `sagaproject validate`;
 - packaged `sagascript analyze`;
 - packaged `Saga --workflow-smoke`.
-- build-local sample executable evidence for bounded StarterArena runtime script
+- build-local sample executable status for bounded StarterArena runtime script
   invocation and MultiplayerSandbox fixture/projection/headless smoke.
 
 ## Known Limitations
@@ -92,9 +91,9 @@ The current smoke evidence covers:
 - Editor packaged inspect mode remains blocked.
 - SagaEditor help and inspect limitations remain.
 - Product Shell workflow output is no-UI and report-only.
-- StarterArena sample executable evidence remains bounded smoke evidence.
-- MultiplayerSandbox sample executable evidence remains fixture/projection/
-  headless evidence, not playable multiplayer game evidence.
+- StarterArena sample executable status remains a bounded smoke result.
+- MultiplayerSandbox sample executable status remains fixture/projection/
+  headless status, not playable multiplayer game status.
 - Full editor UI workflow does not exist.
 - Full Visual Blocks UI does not exist.
 - Enterprise collaboration and cloud workspace do not exist.
@@ -102,7 +101,7 @@ The current smoke evidence covers:
 - This is not enterprise-ready.
 - This is not a verified final release.
 
-## Non-Claims
+## What This Is Not
 
 The technical-preview candidate is:
 
