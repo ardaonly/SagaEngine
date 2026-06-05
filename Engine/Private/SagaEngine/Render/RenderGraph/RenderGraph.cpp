@@ -1,8 +1,11 @@
 /// @file RenderGraph.cpp
 /// @brief Per-frame render graph — add resources & passes, compile, execute.
 
+#include "SagaEngine/Render/RenderGraph/RGCompilation.h"
 #include "SagaEngine/Render/RenderGraph/RenderGraph.h"
 #include "SagaEngine/RHI/IRHI.h"
+
+#include <utility>
 
 namespace SagaEngine::Render::RG
 {
@@ -13,7 +16,8 @@ void RenderGraph::Clear()
     m_textures.clear();
     m_buffers.clear();
     m_nextResourceId = 1;
-    m_compiled = {};
+    m_compiledPasses.clear();
+    m_compiledValid = false;
 }
 
 RGResourceId RenderGraph::AddTexture(const RGTextureDesc& desc)
@@ -46,15 +50,17 @@ void RenderGraph::AddPass(const std::string& name,
 bool RenderGraph::Compile()
 {
     RGCompiler compiler;
-    m_compiled = compiler.Compile(m_passes);
-    return m_compiled.valid;
+    const auto compiled = compiler.Compile(m_passes);
+    m_compiledPasses = compiled.sortedPasses;
+    m_compiledValid = compiled.valid;
+    return m_compiledValid;
 }
 
 void RenderGraph::Execute(RHI::IRHI& rhi)
 {
-    if (!m_compiled.valid) return;
+    if (!m_compiledValid) return;
 
-    for (auto* pass : m_compiled.sortedPasses)
+    for (auto* pass : m_compiledPasses)
     {
         if (pass->execute)
             pass->execute(rhi);

@@ -5,7 +5,6 @@
 
 #include "SagaEngine/Render/RenderGraph/RGTypes.h"
 #include "SagaEngine/Render/RenderGraph/RGPass.h"
-#include "SagaEngine/Render/RenderGraph/RGCompilation.h"
 
 #include <functional>
 #include <string>
@@ -49,10 +48,11 @@ public:
 
 private:
     std::vector<RGPass>        m_passes;
+    std::vector<RGPass*>       m_compiledPasses;
     std::vector<RGTextureDesc> m_textures;
     std::vector<RGBufferDesc>  m_buffers;
     std::uint32_t              m_nextResourceId = 1;
-    CompiledGraph              m_compiled{};
+    bool                       m_compiledValid = false;
 };
 
 } // namespace SagaEngine::Render::RG
