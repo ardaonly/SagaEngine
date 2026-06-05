@@ -11,6 +11,7 @@ Start with the short summaries before reading older recovery or planning notes.
 | --- | --- |
 | Current status | [CURRENT_STATUS.md](CURRENT_STATUS.md) |
 | Ownership and boundaries | [OWNERSHIP.md](OWNERSHIP.md) |
+| Engine public API audit | [ENGINE_PUBLIC_API_AUDIT.md](ENGINE_PUBLIC_API_AUDIT.md) |
 | Runtime | [RUNTIME.md](RUNTIME.md) |
 | Server authority | [SERVER.md](SERVER.md) |
 | Assets and packages | [ASSETS_AND_PACKAGES.md](ASSETS_AND_PACKAGES.md) |
