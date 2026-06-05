@@ -3,31 +3,27 @@
 SagaEngine is not currently a public product release.
 
 The safe distribution model today is a source checkout used by developers who
-understand the repo's current limits. Build and verification commands can vary
-by local environment and by subsystem.
+understand the repo's current limits. Build and verification commands vary by
+local environment and subsystem.
 
-## Safe Claims
+## What Exists
 
 - The repository contains engine/toolchain source code and focused local tests.
 - Some tools and native targets can be built and verified locally.
 - Distribution staging exists for selected artifacts.
-- A Linux technical-preview archive can be produced and smoke-checked with
-  limitations, including a candidate evidence report that keeps Runtime and
-  Editor workflow blockers explicit.
-- The current public-facing candidate status is documented in
+- A limited Linux technical-preview archive can be produced and smoke-checked.
+- Detailed candidate status is documented in
   [Technical Preview Candidate Status](TECHNICAL_PREVIEW_CANDIDATE.md).
 
-## Unsafe Claims
+## What To Avoid
 
-- Do not call this ready for production use.
-- Do not call it a beta or release-candidate build.
+- Do not call this production-ready.
+- Do not call it beta or release-candidate software.
 - Do not present it as a finished editor, full game engine, public SDK, or
   complete packaging/publishing pipeline.
-- Do not claim production networking, cloud, security, or scale readiness.
-- Do not treat the technical-preview candidate report as production readiness,
-  enterprise readiness, verified final release status, full distribution
-  verification, full editor workflow, full Visual Blocks UI, or full gameplay
-  readiness.
+- Do not present the technical-preview archive as a verified final release.
+- Do not claim production networking, cloud, security, editor workflow, visual
+  scripting, gameplay, or scale coverage.
 
 ## Generated Outputs
 

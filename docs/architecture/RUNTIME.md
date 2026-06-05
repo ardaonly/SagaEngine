@@ -2,20 +2,19 @@
 
 > Last updated: 2026-05-26
 
-Runtime startup, lifecycle, package startup validation, and asset bootstrap have
-foundation evidence. This does not prove complete Runtime/App ownership or full
-runtime product composition.
+Runtime startup, lifecycle, package startup validation, and asset bootstrap are
+partly implemented. This does not yet make a complete runtime product path.
 
 ## Current State
 
-- Runtime startup/session/lifecycle foundation exists.
-- Runtime package validation and local startup asset bootstrap evidence exists.
-- Runtime read-only asset access foundation exists.
+- Runtime startup/session/lifecycle code exists.
+- Runtime package validation and local startup asset bootstrap code exists.
+- Runtime read-only asset access exists.
 - ClientHost/runtime asset consumption is incomplete.
 - RuntimeServiceRegistry asset service is incomplete.
-- Full playable product proof is missing.
+- A full playable runtime flow is missing.
 
-## Evidence
+## Background
 
 - [Phase 3 runtime closure](../recovery/phase-03-runtime/PHASE_3_CLOSURE_AND_PHASE_4A_OPENING_CHECKPOINT.md)
 - [Phase 3 lifecycle checkpoint](../recovery/phase-03-runtime/PHASE_3C_LIFECYCLE_OWNERSHIP_CHECKPOINT.md)
