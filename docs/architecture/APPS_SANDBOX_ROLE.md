@@ -6,10 +6,14 @@ SagaEngine has finished game samples.
 
 ## Current Role
 
-The current sandbox hosts probe-style scenarios for input, ECS, memory,
-networking, prediction, audio, and rendering behavior. These scenarios are
-useful for development diagnostics, but most of them are closer to manual
-engine probes than user-facing demos.
+The current sandbox hosts probe-style scenarios for input, networking,
+prediction, audio, and rendering behavior. These scenarios are useful for
+development diagnostics, but most of them are closer to manual engine probes
+than user-facing demos.
+
+The durable ECS and memory allocator checks that previously lived as manual
+sandbox probes now have deterministic unit-test coverage in
+`Tests/Unit/Sandbox/SandboxDiagnosticMigrationTests.cpp`.
 
 `RenderPlaygroundScenario` is the default windowed scenario today. That makes
 the first-run experience a render/backend playground, not a code-first sample
