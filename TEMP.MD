@@ -59,13 +59,13 @@ SagaEngine production AAA renderer'a sahip.
 Bu bölüm roadmap'in uygulama gerçeğiyle senkron tutulması için eklenmiştir.
 
 - [x] R1 Diligent vendoring tamamlandı: `Vendor/Diligent` submodule olarak repo kontrolünde, Saga-owned vendor metadata `Vendor/Diligent.Saga` altında.
-- [ ] R1B kısmen tamamlandı: `SagaDiligentBackend`, `VendorDiligent`, `SagaDiligentVendor.cmake`, `SagaGraphicsTargets.cmake`, `SagaInstallGraphics.cmake`, `SagaGraphics` public interface target ve `SagaGraphicsPrivate` private target shell mevcut; render tools/tests modülleri henüz yok.
+- [ ] R1B kısmen tamamlandı: `SagaDiligentBackend`, `VendorDiligent`, `SagaDiligentVendor.cmake`, `SagaGraphicsTargets.cmake`, `SagaInstallGraphics.cmake`, `SagaGraphics` public interface target ve `SagaGraphicsPrivate` private target mevcut; render tools/tests modülleri henüz yok.
 - [ ] R2 başladı ama tamamlanmadı: mevcut `Engine/Public/SagaEngine/Render/Backend` surface vendor-neutral ve yeni `Engine/Public/SagaEngine/Graphics` shell mevcut; davranış bridge'i ve stable SDK iddiası yok.
 - [ ] R2B-lite başladı: public render/backend token guard, `SagaGraphics` shell smoke, install surface guard ve contract dokümantasyonu mevcut; full R2B closure claim yok.
 - [ ] R2B-lite install guard verified during R1B-lite target-boundary slice.
-- [ ] R3-prep başladı: Diligent backend device/swapchain/frame yolu mevcut; `SagaGraphics`/Render backend preference mapping ve platform order dokümantasyonu eklendi, ama planlanan `Engine/Private/SagaEngine/Graphics/Backends/Diligent` konumu ve `SagaGraphics` üstünden bridge henüz yapılmadı.
+- [ ] R3A-lite başladı: Diligent backend device/swapchain/frame yolu mevcut; `SagaGraphics`/Render backend preference mapping, platform order dokümantasyonu ve `Engine/Private/SagaEngine/Graphics/Backends/Diligent` altında lifecycle adapter v0 eklendi. RenderGraph/material/shader/resource bridge henüz yok.
 
-Bu slice: R1D/R2B-lite - Graphics module + install boundary closure. Full R1B/R2B/R3 closure, `Render/Backend` taşıma ve stable external SDK claim yok.
+Bu slice: R3A-lite - Private SagaGraphics Diligent lifecycle adapter. Full R3 closure, `Render/Backend` taşıma ve stable external SDK claim yok.
 
 ---
 
@@ -902,7 +902,7 @@ Bu phase'in hedefi, Diligent'in public include path veya link dependency olarak 
 - [x] CMake target graph check.
 - [x] `SagaServer` target Diligent'e linklemiyor.
 - [x] `SagaGraphics` public target Diligent include path expose etmiyor.
-- [x] `SagaDiligentBackend` dışında hiçbir target doğrudan Diligent'e linklemiyor.
+- [x] `SagaDiligentBackend` ve R3A-lite kapsamında `SagaGraphicsPrivate` dışında hiçbir target doğrudan Diligent backend yoluna linklemiyor.
 - [x] `SAGA_USE_VENDOR_DILIGENT=OFF` fallback veya diagnostic beklenen davranışı veriyor.
 - [x] Build target inventory dokümante edilmiş.
 
@@ -1027,6 +1027,7 @@ Engine/Private/SagaEngine/Graphics/Backends/Diligent/
 - [x] Render backend diagnostics raporu üret.
 - [x] Diligent include'ları sadece private backend dosyalarında tut.
 - [x] Backend capability report üret.
+- [x] `SagaGraphicsPrivate` lifecycle adapter v0 ekle.
 - [x] Platform backend order dokümante et:
   - Linux: `NativePortable`, sonra `Compatibility`
   - Windows: `NativePrimary`, sonra `NativePortable`, sonra `Compatibility`
@@ -1043,6 +1044,7 @@ Engine/Private/SagaEngine/Graphics/Backends/Diligent/
 - [x] Public API vendor leak architecture test geçmeli.
 - [ ] `rg "Diligent" Engine/Public` boş dönmeli.
 - [x] Backend capability report beklenen API/backend bilgisini üretmeli.
+- [x] GPU'suz lifecycle adapter unit testleri geçmeli.
 
 ## Done
 
@@ -1050,6 +1052,7 @@ Engine/Private/SagaEngine/Graphics/Backends/Diligent/
 - [x] Public API hâlâ vendor-neutral.
 - [ ] Server/headless bağımsızlığı korunuyor.
 - [x] Backend capability raporlanabiliyor.
+- [ ] RenderGraph/material/shader/resource bridge tamamlandı.
 
 ---
 

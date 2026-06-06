@@ -360,7 +360,7 @@ TEST(PublicPrivateBoundaryTests, RenderPublicApiContractDocumentsGraphicsGuardra
         "SagaDiligentBackend",
         "stable external SDK",
         "does not move `SagaEngine/Render/Backend`",
-        "does not perform R3 bridge migration",
+        "does not complete R3 bridge migration",
         "does not add RenderGraph, material, shader, or resource behavior",
     };
 
