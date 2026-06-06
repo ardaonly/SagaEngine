@@ -402,10 +402,15 @@ TEST(CMakeTargetBoundaryTests, SagaGraphicsPrivateTargetIsPrivateBoundaryShell)
         "target_link_libraries(SagaGraphicsPrivate PUBLIC\n"
         "        SagaGraphics"))
         << "SagaGraphicsPrivate must depend on the public SagaGraphics shell.";
+    EXPECT_TRUE(ContainsToken(
+        text,
+        "target_link_libraries(SagaGraphicsPrivate PRIVATE\n"
+        "        SagaDiligentBackend"))
+        << "R3A-lite allows SagaGraphicsPrivate to depend on the concrete "
+           "render backend target.";
 
     const std::vector<std::string> forbidden = {
         "VendorDiligent",
-        "SagaDiligentBackend",
         "Diligent-",
         "Vulkan::",
         "D3D",
