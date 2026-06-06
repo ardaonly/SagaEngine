@@ -27,6 +27,12 @@ backend ownership. It may depend on `SagaGraphics` and may privately link
 install, publish, or directly link `VendorDiligent`, Diligent targets, or native
 API targets.
 
+R3B-lite adds vendor-neutral `RenderBackendHealth` and `RenderBackendFailure`
+status vocabulary to the public graphics shell so failed initialization, backend
+unavailability, and minimized frame skips can be reported without exposing
+backend or native graphics API types. This is a status/reporting guard, not full
+device-lost recovery.
+
 The internal backend preference order is documented in
 [Graphics Backend Preference Order](GRAPHICS_BACKEND_PREFERENCE_ORDER.md).
 The current graphics CMake target roles are documented in
@@ -49,6 +55,7 @@ still be installed outside the include and target surface.
 This contract does not move `SagaEngine/Render/Backend`.
 It does not complete R3 bridge migration.
 It does not add RenderGraph, material, shader, or resource behavior.
+It does not complete R3B device-loss or swapchain recreation recovery.
 It does not claim `SagaEngine/Graphics` is a stable external SDK.
 
 ## Guardrails

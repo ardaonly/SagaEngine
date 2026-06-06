@@ -59,13 +59,13 @@ SagaEngine production AAA renderer'a sahip.
 Bu bölüm roadmap'in uygulama gerçeğiyle senkron tutulması için eklenmiştir.
 
 - [x] R1 Diligent vendoring tamamlandı: `Vendor/Diligent` submodule olarak repo kontrolünde, Saga-owned vendor metadata `Vendor/Diligent.Saga` altında.
-- [ ] R1B kısmen tamamlandı: `SagaDiligentBackend`, `VendorDiligent`, `SagaDiligentVendor.cmake`, `SagaGraphicsTargets.cmake`, `SagaInstallGraphics.cmake`, `SagaGraphics` public interface target ve `SagaGraphicsPrivate` private target mevcut; render tools/tests modülleri henüz yok.
+- [ ] R1B kısmen tamamlandı: `SagaDiligentBackend`, `VendorDiligent`, `SagaDiligentVendor.cmake`, `SagaGraphicsTargets.cmake`, `SagaInstallGraphics.cmake`, `SagaGraphics` public interface target ve `SagaGraphicsPrivate` private target shell mevcut; render tools/tests modülleri henüz yok.
 - [ ] R2 başladı ama tamamlanmadı: mevcut `Engine/Public/SagaEngine/Render/Backend` surface vendor-neutral ve yeni `Engine/Public/SagaEngine/Graphics` shell mevcut; davranış bridge'i ve stable SDK iddiası yok.
 - [ ] R2B-lite başladı: public render/backend token guard, `SagaGraphics` shell smoke, install surface guard ve contract dokümantasyonu mevcut; full R2B closure claim yok.
 - [ ] R2B-lite install guard verified during R1B-lite target-boundary slice.
-- [ ] R3A-lite başladı: Diligent backend device/swapchain/frame yolu mevcut; `SagaGraphics`/Render backend preference mapping, platform order dokümantasyonu ve `Engine/Private/SagaEngine/Graphics/Backends/Diligent` altında lifecycle adapter v0 eklendi. RenderGraph/material/shader/resource bridge henüz yok.
+- [ ] R3A-lite tamamlandı, R3B-lite başladı: Diligent backend device/swapchain/frame yolu mevcut; `SagaGraphics`/Render backend preference mapping, platform order dokümantasyonu ve `Engine/Private/SagaEngine/Graphics/Backends/Diligent` altında lifecycle adapter v0 eklendi. `RenderBackendHealth`/`RenderBackendFailure` ile failed-init, backend-unavailable ve minimized frame-skip status modeli başladı. RenderGraph/material/shader/resource bridge henüz yok.
 
-Bu slice: R3A-lite - Private SagaGraphics Diligent lifecycle adapter. Full R3 closure, `Render/Backend` taşıma ve stable external SDK claim yok.
+Bu slice: R3B-lite - SagaGraphics failure-state ve minimized frame guard. Full R3B/R4 closure, gerçek device-lost recovery, `Render/Backend` taşıma ve stable external SDK claim yok.
 
 ---
 
@@ -128,7 +128,6 @@ Ama SagaEngine public API'si Diligent'e dönüşmeyecek.
 ```text
 SagaRenderer  = gerçek renderer
 Diligent      = vendored/forked graphics core foundation
-The Forge     = production core değil; AAA-oriented research/reference
 Native Vulkan = şimdilik ana yol değil; ileride özel backend olabilir
 UI            = bu roadmap dışında
 ```
@@ -563,15 +562,6 @@ SagaEngine/
 │     ├─ SAGA_INTEGRATION.md
 │     └─ LICENSES/
 │
-├─ Research/
-│  └─ TheForge/
-│     ├─ notes/
-│     ├─ spikes/
-│     ├─ technique-audits/
-│     ├─ visibility-buffer-study/
-│     ├─ shader-pipeline-notes/
-│     └─ benchmark-notes/
-│
 └─ docs/
    └─ architecture/
       ├─ RENDER_STACK_DECISION.md
@@ -667,25 +657,10 @@ VendorDiligent target             = vendored Diligent source
 SagaServer / headless targets     = Diligent'e linklenmez
 ```
 
-### 6.7 `Research/TheForge`
-
-The Forge production core değildir.
-
-Araştırma alanıdır:
-
-```text
-visibility buffer
-shader pipeline ideas
-benchmark method
-graphics architecture observations
-```
-
----
-
 ## 7. Temel Kurallar
 
 - [ ] Public API **Saga-owned** olacak.
-- [ ] Public API'de `Diligent::`, Vulkan, D3D, Metal, The Forge tipi görünmeyecek.
+- [ ] Public API'de `Diligent::`, Vulkan, D3D ve Metal/native graphics API tipi görünmeyecek.
 - [ ] Diligent kaynak kodu `Vendor/Diligent` altında duracak.
 - [ ] Diligent'i kullanan Saga backend kodu `Engine/Private/.../Backends/Diligent` altında duracak.
 - [ ] Server/headless build renderer'a bağımlı olmayacak.
@@ -718,7 +693,6 @@ graphics architecture observations
 - [ ] Server/headless build'in Diligent'e linklenmesi.
 - [ ] Shader/material sistemini doğrudan Diligent API'sine göre tasarlamak.
 - [ ] Render thread dışında GPU resource mutasyonu yapmak.
-- [ ] Diligent + The Forge'u aynı frame içinde karıştırmak.
 - [ ] Texture streaming/memory residency olmadan open-world render iddiası yapmak.
 - [ ] Character renderer olmadan MMO render foundation claim etmek.
 - [ ] Triangle/mesh çiziminden sonra “AAA renderer olduk” demek.
@@ -798,7 +772,6 @@ Render stratejisini tartışma konusu olmaktan çıkarıp resmi karar haline get
 - [ ] `docs/architecture/RENDER_STACK_DECISION.md` oluştur.
 - [ ] Diligent'in `Vendor/Diligent` altında tutulacağını yaz.
 - [ ] Diligent'in SagaEngine'in uzun vadeli graphics core foundation'ı olduğunu yaz.
-- [ ] The Forge'un production core değil, research/reference olduğunu yaz.
 - [ ] Native Vulkan'ın şimdilik ana yol olmadığını yaz.
 - [ ] UI'nin bu roadmap dışında olduğunu açıkça belirt.
 - [ ] Server/headless build'in renderer dependency taşımayacağını yaz.
@@ -814,7 +787,6 @@ Render stratejisini tartışma konusu olmaktan çıkarıp resmi karar haline get
   - `Vendor/Diligent`
   - `SagaRenderer`
   - `SagaGraphicsCore`
-  - `The Forge`
   - `server/headless`
   - `vendor type leak`
   - `Level 5`
@@ -825,7 +797,6 @@ Render stratejisini tartışma konusu olmaktan çıkarıp resmi karar haline get
 
 - [ ] Render yönü yazılı ve net.
 - [ ] Diligent uzun vadeli graphics core olarak kabul edilmiş.
-- [ ] The Forge production dependency olarak claim edilmemiş.
 - [ ] Roadmap hedefi dürüstçe sınıflandırılmış.
 
 ---
@@ -902,7 +873,7 @@ Bu phase'in hedefi, Diligent'in public include path veya link dependency olarak 
 - [x] CMake target graph check.
 - [x] `SagaServer` target Diligent'e linklemiyor.
 - [x] `SagaGraphics` public target Diligent include path expose etmiyor.
-- [x] `SagaDiligentBackend` ve R3A-lite kapsamında `SagaGraphicsPrivate` dışında hiçbir target doğrudan Diligent backend yoluna linklemiyor.
+- [x] `SagaDiligentBackend` ve R3A/R3B-lite kapsamında `SagaGraphicsPrivate` dışında hiçbir target doğrudan Diligent backend yoluna linklemiyor.
 - [x] `SAGA_USE_VENDOR_DILIGENT=OFF` fallback veya diagnostic beklenen davranışı veriyor.
 - [x] Build target inventory dokümante edilmiş.
 
@@ -947,7 +918,7 @@ Engine/Public/SagaEngine/Graphics/
 
 ## Test / Doğrulama
 
-- [x] `rg "Diligent|Vk|Vulkan|ID3D|D3D|MTL|Metal|TheForge" Engine/Public/SagaEngine/Graphics` boş dönmeli.
+- [x] `rg "Diligent|Vk|Vulkan|ID3D|D3D|MTL|Metal" Engine/Public/SagaEngine/Graphics` boş dönmeli.
 - [x] Public `Graphics.h` umbrella header compile smoke testten geçmeli.
 - [x] Null graphics backend build edilmeli.
 - [ ] Server/headless target Diligent linklememeli.
@@ -990,7 +961,6 @@ Bu phase full R2/R2B closure değildir. `Render/Backend` public API bu slice'ta 
   - `Vk`
   - `ID3D`
   - `MTL`
-  - `TheForge`
 - [x] Public `Graphics.h` standalone compile test.
 - [x] Installed include directory içinde Vendor/Diligent yok.
 - [x] Installed SagaGraphics API Diligent include path istemiyor.
@@ -1028,6 +998,7 @@ Engine/Private/SagaEngine/Graphics/Backends/Diligent/
 - [x] Diligent include'ları sadece private backend dosyalarında tut.
 - [x] Backend capability report üret.
 - [x] `SagaGraphicsPrivate` lifecycle adapter v0 ekle.
+- [x] `SagaGraphicsPrivate` failed-init/backend-unavailable/minimized frame status guard ekle.
 - [x] Platform backend order dokümante et:
   - Linux: `NativePortable`, sonra `Compatibility`
   - Windows: `NativePrimary`, sonra `NativePortable`, sonra `Compatibility`
@@ -1045,6 +1016,7 @@ Engine/Private/SagaEngine/Graphics/Backends/Diligent/
 - [ ] `rg "Diligent" Engine/Public` boş dönmeli.
 - [x] Backend capability report beklenen API/backend bilgisini üretmeli.
 - [x] GPU'suz lifecycle adapter unit testleri geçmeli.
+- [x] Failed-init/backend-unavailable/minimized frame-skip unit testleri geçmeli.
 
 ## Done
 
@@ -1069,10 +1041,10 @@ Gerçek dünyada window minimize, resize sırasında swapchain invalidation, dri
 
 - [ ] Device lost diagnostic modeli yaz.
 - [ ] Swapchain recreation path yaz.
-- [ ] Minimized window handling ekle.
+- [x] Minimized window handling ekle (R3B-lite frame-skip guard).
 - [ ] Resize during frame handling ekle.
-- [ ] Backend unavailable fallback diagnostic ekle.
-- [ ] Failed init sonrası clean shutdown garantisi ekle.
+- [x] Backend unavailable fallback diagnostic ekle (R3B-lite status vocabulary).
+- [x] Failed init sonrası clean shutdown garantisi ekle (R3B-lite adapter guard).
 - [ ] Device/swapchain state machine yaz.
 - [ ] Device loss sonrası resource invalidation policy yaz.
 - [ ] RenderGraph frame skip policy yaz.
@@ -1080,19 +1052,20 @@ Gerçek dünyada window minimize, resize sırasında swapchain invalidation, dri
 ## Test / Doğrulama
 
 - [ ] Forced swapchain recreate smoke.
-- [ ] Minimized window frame skip test.
-- [ ] Invalid device init diagnostic test.
-- [ ] Shutdown after failed init test.
+- [x] Minimized window frame skip test.
+- [x] Invalid device init diagnostic test.
+- [x] Shutdown after failed init test.
 - [ ] Resize during frame stress smoke.
 - [ ] Device lost simulated state transition test.
 - [ ] Resource invalidation diagnostic test.
-- [ ] Headless/null backend unaffected test.
+- [x] Headless/null backend unaffected test.
 
 ## Done
 
-- [ ] Diligent bridge sadece happy path değildir.
+- [x] Diligent bridge sadece happy path değildir; R3B-lite failure statuses mevcut.
 - [ ] Swapchain recreation ve failure path diagnostic ile yönetilir.
 - [ ] Renderer failed init veya device loss sonrası temiz kapanabilir.
+- [x] Renderer failed init/backend unavailable/minimized surface sonrası temiz status döndürebilir.
 
 ---
 
@@ -2004,7 +1977,6 @@ AAA-oriented render için reflection/GI yönünü en azından temel strateji ola
 - [ ] Reflection probe data structure.
 - [ ] SSR on/off pipeline placeholder.
 - [ ] GI strategy document.
-- [ ] The Forge GI/reference audit notu.
 - [ ] Probe/cascade strategy research note.
 
 ## Test / Doğrulama
@@ -2091,7 +2063,6 @@ Ray tracing'i bugün production hedef yapmadan, renderer mimarisinin gelecekte R
 - [ ] No hard dependency on RT hardware.
 - [ ] Reflection/GI strategy ile ilişki.
 - [ ] Diligent backend RT capability araştırması.
-- [ ] The Forge RT/GI research note bağlantısı.
 
 ## İşler
 
@@ -2226,7 +2197,6 @@ Ama render architecture'ın buna kapanmasını engellemektir.
 - [ ] Draw packet format compatibility.
 - [ ] Diligent backend compatibility.
 - [ ] Debug/profiling implications.
-- [ ] The Forge visibility buffer research linkage.
 
 ## İşler
 
@@ -2234,7 +2204,6 @@ Ama render architecture'ın buna kapanmasını engellemektir.
 - [ ] DrawPacket formatını indirect draw'a uygunluk açısından denetle.
 - [ ] Instance data layout future-proof yap.
 - [ ] Meshlet/cluster research note yaz.
-- [ ] The Forge visibility buffer notes ile ilişkilendir.
 - [ ] Non-goal ve future gate yaz.
 
 ## Test / Doğrulama
@@ -2243,7 +2212,6 @@ Ama render architecture'ın buna kapanmasını engellemektir.
 - [ ] Instance data alignment test.
 - [ ] Indirect draw placeholder compile test.
 - [ ] GPU-driven strategy doc exists.
-- [ ] The Forge reference note linked.
 
 ## Done
 
@@ -3141,7 +3109,7 @@ Her render phase sonunda mümkünse şunlar çalıştırılmalı:
 [ ] test: golden image tests where applicable
 [ ] test: performance smoke tests where applicable
 [ ] test: memory budget tests where applicable
-[ ] scan: Engine/Public içinde Diligent/Vulkan/D3D/Metal/TheForge token yok
+[ ] scan: Engine/Public içinde Diligent/Vulkan/D3D/Metal token yok
 [ ] scan: Diligent include sadece private backend altında
 [ ] docs: touched docs whitespace clean
 ```
@@ -3234,9 +3202,8 @@ MMO-first ve AAA-oriented renderer foundation'a sahiptir.
 Diligent'i atılacak dependency gibi değil,
 SagaEngine'in vendored uzun vadeli graphics core temeli gibi kullanıyoruz.
 
-The Forge'u ana üretim dependency yapmıyoruz.
-The Forge'dan AAA teknikleri, visibility buffer yaklaşımı, shader/pipeline fikirleri
-ve benchmark gözlemleri öğreniyoruz.
+İkinci bir graphics framework/backend bu roadmap kapsamında tutulmuyor.
+Render yönü tek ana graphics core olarak Diligent üzerinde ilerliyor.
 
 Native Vulkan'a bugün girmiyoruz.
 Önce SagaGraphics ve SagaRenderer'ı sağlamlaştırıyoruz.

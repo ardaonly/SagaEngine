@@ -367,10 +367,13 @@ TEST(PublicPrivateBoundaryTests, RenderPublicApiContractDocumentsGraphicsGuardra
         "Engine/Public",
         "VendorDiligent",
         "SagaDiligentBackend",
+        "RenderBackendHealth",
+        "RenderBackendFailure",
         "stable external SDK",
         "does not move `SagaEngine/Render/Backend`",
         "does not complete R3 bridge migration",
         "does not add RenderGraph, material, shader, or resource behavior",
+        "does not complete R3B device-loss or swapchain recreation recovery",
     };
 
     for (const auto& token : requiredTokens)
