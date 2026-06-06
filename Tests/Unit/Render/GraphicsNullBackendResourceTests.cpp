@@ -260,6 +260,39 @@ TEST(GraphicsNullBackendResources, DestroyNoOpsDoNotUpdateFailure)
     EXPECT_EQ(backend.GetResourceMemoryReport().failedCreateCount, 0u);
 }
 
+TEST(GraphicsNullBackendResources, RegisteredHandlesReportBackingState)
+{
+    Graphics::NullGraphicsBackend backend;
+    EXPECT_TRUE(backend.Initialize(MakeHeadlessDesc(), {}));
+
+    const auto texture = backend.CreateTexture(MakeTextureDesc());
+    const auto buffer = backend.CreateBuffer(MakeBufferDesc());
+    ASSERT_TRUE(texture.IsValid());
+    ASSERT_TRUE(buffer.IsValid());
+
+    EXPECT_EQ(
+        backend.GetTextureBackingForTesting(texture),
+        Graphics::GraphicsResourceBacking::RegisteredOnly);
+    EXPECT_EQ(
+        backend.GetBufferBackingForTesting(buffer),
+        Graphics::GraphicsResourceBacking::RegisteredOnly);
+    EXPECT_EQ(
+        backend.GetTextureBackingForTesting({}),
+        Graphics::GraphicsResourceBacking::Invalid);
+
+    backend.DestroyTexture(texture);
+    EXPECT_EQ(
+        backend.GetTextureBackingForTesting(texture),
+        Graphics::GraphicsResourceBacking::Invalid);
+
+    const auto nextTexture = backend.CreateTexture(MakeTextureDesc());
+    ASSERT_TRUE(nextTexture.IsValid());
+    backend.Shutdown();
+    EXPECT_EQ(
+        backend.GetTextureBackingForTesting(nextTexture),
+        Graphics::GraphicsResourceBacking::Invalid);
+}
+
 TEST(GraphicsNullBackendResources, CreateRequiresInitializedBackend)
 {
     Graphics::NullGraphicsBackend backend;
