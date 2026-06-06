@@ -35,4 +35,15 @@ TEST(SagaGraphicsHeaderSmokeTests, GraphicsUmbrellaHeaderIsSelfContained)
             SagaEngine::Graphics::RenderQualityPreset::Ultra,
             capabilities),
         SagaEngine::Graphics::RenderQualityPreset::Low);
+
+    const auto texture = backend.CreateTexture({});
+    ASSERT_TRUE(texture.IsValid());
+    backend.DestroyTexture(texture);
+
+    const auto reusedTexture = backend.CreateTexture({});
+    EXPECT_EQ(reusedTexture.index, texture.index);
+    EXPECT_EQ(reusedTexture.generation, texture.generation + 1u);
+
+    backend.Shutdown();
+    EXPECT_FALSE(backend.CreateTexture({}).IsValid());
 }

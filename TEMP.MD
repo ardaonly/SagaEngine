@@ -59,13 +59,210 @@ SagaEngine production AAA renderer'a sahip.
 Bu bölüm roadmap'in uygulama gerçeğiyle senkron tutulması için eklenmiştir.
 
 - [x] R1 Diligent vendoring tamamlandı: `Vendor/Diligent` submodule olarak repo kontrolünde, Saga-owned vendor metadata `Vendor/Diligent.Saga` altında.
-- [ ] R1B kısmen tamamlandı: `SagaDiligentBackend`, `VendorDiligent`, `SagaDiligentVendor.cmake`, `SagaGraphicsTargets.cmake`, `SagaInstallGraphics.cmake`, `SagaGraphics` public interface target ve `SagaGraphicsPrivate` private target shell mevcut; render tools/tests modülleri henüz yok.
-- [ ] R2 başladı ama tamamlanmadı: mevcut `Engine/Public/SagaEngine/Render/Backend` surface vendor-neutral ve yeni `Engine/Public/SagaEngine/Graphics` shell mevcut; davranış bridge'i ve stable SDK iddiası yok.
-- [ ] R2B-lite başladı: public render/backend token guard, `SagaGraphics` shell smoke, install surface guard ve contract dokümantasyonu mevcut; full R2B closure claim yok.
-- [ ] R2B-lite install guard verified during R1B-lite target-boundary slice.
-- [ ] R3A/R3B-lite tamamlandı, R3C-lite başladı: Diligent backend device/swapchain/frame yolu mevcut; `SagaGraphics`/Render backend preference mapping, platform order dokümantasyonu ve `Engine/Private/SagaEngine/Graphics/Backends/Diligent` altında lifecycle adapter v0 eklendi. `RenderBackendHealth`/`RenderBackendFailure` ile failure status modeli, `RenderBackendCapabilities` ile capability vocabulary shell başladı. RenderGraph/material/shader/resource bridge henüz yok.
+- [ ] R1B partial: `SagaDiligentBackend`, `VendorDiligent`, `SagaDiligentVendor.cmake`, `SagaGraphicsTargets.cmake`, `SagaInstallGraphics.cmake`, `SagaGraphics` public interface target ve `SagaGraphicsPrivate` private target shell mevcut; render tools/tests modülleri henüz yok ve full architecture closure iddiası yapılmıyor.
+- [x] R2A tamamlandı: `Engine/Public/SagaEngine/Render/Backend` surface vendor-neutral hale getirildi; public factory/config/status isimleri Diligent veya native API vocabulary taşımıyor.
+- [x] R2 minimal `SagaGraphics` shell tamamlandı: `Engine/Public/SagaEngine/Graphics` altında scalar DTO, opaque handle, null backend ve umbrella header smoke coverage mevcut.
+- [x] R2B-lite public/install guard closed: public render/backend token guard, `SagaGraphics` shell smoke, install surface guard ve contract dokümantasyonu `ArchitectureTests` ile yeşil; full R2B closure veya stable SDK claim yok.
+- [x] R1C-lite / R1D-lite target/install boundary closed: `SagaGraphicsPrivate` target boundary ve graphics install boundary mevcut; `SagaGraphicsPrivate` private olarak `SagaDiligentBackend` linkliyor ve full architecture suite bu boundary için yeşil.
+- [x] R3A-lite private adapter boundary closed: `Engine/Private/SagaEngine/Graphics/Backends/Diligent` altında lifecycle adapter v0 mevcut, unit testler private-style include path kullanıyor ve architecture guard `Private/` include debt taşımıyor.
+- [ ] R3B-lite partial: failed-init, backend-unavailable, headless ve minimized/zero-size frame-skip status guard'ları mevcut; gerçek device loss, swapchain recreation ve resource invalidation state machine yok.
+- [x] R3C conservative capability matrix v0 tamamlandı: `RenderBackendCapabilities`, `RenderQualityPreset`, `RenderFeatureSupport`, `RenderCapabilityFallback`, conservative capability ceiling, helper testleri ve platform vocabulary matrix dokümantasyonu mevcut; native backend feature query ve capability JSON artifact yok.
+- [ ] R4 minimum entry başladı: public desc/handle API değişmeden null backend ve Diligent adapter private slot registry ile valid/stale handle contract'ı test ediliyor; gerçek GPU object creation/upload, memory accounting ve resource diagnostics yok.
 
-Bu slice: R3C-lite - SagaGraphics capability vocabulary/shell. Full R3C/R4 closure, gerçek backend feature query, JSON artifact, `Render/Backend` taşıma ve stable external SDK claim yok.
+Bu slice: architecture boundary closure, R3C conservative capability matrix v0 ve R4 private slot registry entry. Full native capability query, capability JSON artifact, gerçek GPU resource creation/upload, `Render/Backend` taşıma, RenderGraph/material/shader bridge ve stable external SDK claim yok.
+
+## 0.2 Renderer Foundation Planning: R3C, R4, R4B, R5
+
+Bu bölüm sıradaki uzun uygulama dalgasını ve bu dalgada kapanan minimum
+foundation kanıtını tanımlar. R3C burada full native probe değil,
+conservative capability matrix v0 olarak kapanmıştır. R4 yalnızca private slot
+registry entry seviyesinde başlamıştır; R4B/R5 hâlâ küçük, test edilebilir
+future slice'lara bölünmelidir.
+
+### 0.2.1 Faz Durumu
+
+| Faz | Durum | Repo gerçeği |
+| --- | --- | --- |
+| R1 | completed | Diligent submodule ve Saga-owned vendor metadata mevcut. |
+| R1B | partial | Graphics/vendor CMake targetları mevcut; render tools/tests modülleri yok. |
+| R2A | completed | Public render backend factory surface vendor-neutral. |
+| R2 minimal SagaGraphics shell | completed | Public `SagaGraphics` scalar shell ve null backend mevcut. |
+| R2B-lite public/install guard | completed | Guard/docs/install boundary `ArchitectureTests` ile yeşil; full SDK closure değil. |
+| R1C/R1D-lite target/install boundary | completed | `SagaGraphicsPrivate` ve `SagaInstallGraphics` boundary `ArchitectureTests` ile yeşil. |
+| R3A-lite private adapter | completed | Adapter ve unit testler private-style include path ile boundary guard uyumlu. |
+| R3B | partial | Failure-status shell var; device loss/swapchain recreation yok. |
+| R3C | completed-v0 | Conservative capability matrix v0 var; native query/artifact yok. |
+| R4 | started | Public desc/handle shell ve private slot registry var; gerçek GPU object/upload yok. |
+| R4B | planned | Binding/frame resource model yok. |
+| R5 | planned | Eski RenderGraph implementation var; R5 closure şartları tamam değil. |
+
+### 0.2.2 R3C Conservative Matrix v0 Kapanışı
+
+R3C için completed yazılan kapsam full native probe değil, conservative
+capability matrix v0'dır:
+
+- [x] `RenderBackendCapabilities` scalar DTO.
+- [x] `RenderQualityPreset` quality vocabulary.
+- [x] `RenderFeatureSupport` support vocabulary.
+- [x] `RenderCapabilityFallback` fallback vocabulary.
+- [x] Quality preset clamp helper.
+- [x] Unsupported feature fallback helper.
+- [x] Null/conservative capability behavior.
+- [x] Adapter-level conservative/ready capability ceiling tests.
+- [x] RT, timestamp query, texture compression ve indirect draw için unsupported fallback test coverage.
+- [x] Linux/Windows backend-preference vocabulary matrix dokümantasyonu.
+
+R3C native matrix için açık kalanlar:
+
+- [ ] Native backend feature query abstraction.
+- [ ] Backend-specific feature probe implementation.
+- [ ] Capability report JSON artifact.
+- [ ] Runtime-probed Vulkan/D3D12/OpenGL/Metal capability row policy.
+- [ ] Fallback diagnostics artifact that explains why a feature was disabled.
+
+Bu açık işler R3C v0'ı bozmaz; bunlar full native capability matrix için
+future work olarak kalır.
+
+### 0.2.3 R4 GPU Resource Model Planı
+
+R4 artık minimum entry seviyesinde başlamıştır. Mevcut repo'da public
+desc/handle shell vardır ve `NullGraphicsBackend` ile `DiligentGraphicsBackend`
+generation-aware slot registry kullanır. Bu registry gerçek GPU object
+oluşturmaz; Diligent pointer'ları public API'ye çıkmaz ve upload/memory
+accounting henüz yoktur.
+
+R4 minimum implementation hedefi:
+
+- [x] Texture/buffer/shader/pipeline/sampler için private resource registry.
+- [x] Opaque handle -> private resource slot mapping.
+- [x] Generation-based stale handle reject.
+- [x] Invalid handle destroy no-op.
+- [x] Double destroy no-op policy.
+- [ ] Diligent pointer'larının sadece private storage içinde kalması.
+- [ ] Resource creation failure status/diagnostic; vendor error type leak yok.
+- [ ] Initial upload/staging için minimal policy note.
+- [ ] Resource debug name ve basic memory accounting başlangıcı.
+
+R4 non-goal:
+
+- [ ] Full texture streaming.
+- [ ] Full asset cooking.
+- [ ] Full transient allocator.
+- [ ] RenderGraph execution bridge.
+- [ ] Material/shader authoring behavior.
+
+### 0.2.4 R4B Binding / Frame Resource Model Planı
+
+R4B şu an future implementation plan'dır. Mevcut repo'da `FrameResourceSet`,
+`BindingSet`, descriptor validation, per-frame transient/persistent/swapchain-sized
+ayrımı ve no-submit invalid frame policy yoktur.
+
+R4B minimum implementation hedefi:
+
+- [ ] `FrameResourceSet` veya eşdeğer Saga-owned frame resource vocabulary.
+- [ ] `BindingSet` veya eşdeğer Saga-owned binding vocabulary.
+- [ ] Persistent resource, per-frame transient resource ve swapchain-sized resource ayrımı.
+- [ ] Binding layout mismatch validation.
+- [ ] Missing texture/buffer fallback binding policy.
+- [ ] Invalid frame no-submit policy.
+- [ ] Frame-in-flight ownership note.
+- [ ] Basic frame resource memory budget counter.
+
+R4B non-goal:
+
+- [ ] Full bindless implementation.
+- [ ] Full material graph integration.
+- [ ] Full descriptor heap allocator.
+- [ ] Async compute veya GPU-driven submission.
+
+### 0.2.5 R5 RenderGraph v0 Planı
+
+R5 şu an future implementation plan'dır. Mevcut repo'da `RenderGraph`,
+`RGPass`, `RGTypes` ve private `RGCompilation` implementation vardır; ancak bu
+R5 closure değildir.
+
+Mevcut olanlar:
+
+- [x] Public-internal `Engine/Public/SagaEngine/Render/RenderGraph` headers.
+- [x] Private `RGCompilation` topological sort implementation.
+- [x] Pass/resource dependency order temel implementation.
+
+Eksikler:
+
+- [ ] RenderGraph builder API closure.
+- [ ] Resource dependency validation.
+- [ ] Read-before-write diagnostic.
+- [ ] Duplicate write conflict diagnostic.
+- [ ] Missing resource diagnostic.
+- [ ] Deterministic graph dump.
+- [ ] Clear/backbuffer pass execution bridge.
+- [ ] Resize sonrası graph rebuild policy.
+- [ ] Diligent minimal execution bridge.
+- [ ] R5-focused tests.
+
+R5 non-goal:
+
+- [ ] Full material system.
+- [ ] Lighting/shadow/post-process pipeline.
+- [ ] Full transient aliasing.
+- [ ] GPU-driven renderer.
+- [ ] Production framegraph optimizer.
+
+### 0.2.6 Guard Scan Ayrımı
+
+`Engine/Public/SagaEngine/Graphics` için strict forbidden-token scan geçerli
+kalır. Aşağıdaki tokenlar public graphics shell'de yasaktır:
+
+```text
+Diligent
+Vk
+Vulkan
+ID3D
+D3D
+MTL
+Metal
+TheForge
+```
+
+`Engine/Public/SagaEngine/Render/Backend` için mevcut durumda aynı strict scan
+geçebilir çünkü public enumlar vendor-neutral isimler kullanır. Eğer ileride
+`Vulkan`, `D3D12`, `OpenGL` veya `Metal` gibi backend preference enumları bilinçli
+public policy olarak geri gelirse bunlar native type leak ile aynı sınıfta
+değerlendirilmemelidir; o durumda allowlist gereklidir. Ancak aşağıdaki native
+ve vendor type leak örnekleri her durumda yasaktır:
+
+```text
+Diligent::
+Diligent*
+VkImage
+VkBuffer
+VkDevice
+ID3D12Resource
+MTLTexture
+TheForge
+```
+
+### 0.2.7 Docs-Only Slice Scope
+
+Bu planı TEMP.MD'ye ekleyen slice docs-only olmalıdır:
+
+- [x] C++ source değişmeyecek.
+- [x] CMake değişmeyecek.
+- [x] Tests değişmeyecek.
+- [x] Renderer behavior eklenmeyecek.
+- [x] Completed/open wording düzeltilecek.
+- [x] R4/R4B/R5 future plan olarak kalacak.
+
+Minimum doğrulama:
+
+```text
+git diff --check
+rg -n "^## .*Closure.*R5" TEMP.MD
+rg -n "^(SagaRenderer artık Unreal seviyesinde\\.|SagaEngine production AAA renderer'a sahip\\.)" TEMP.MD
+```
+
+İlk komut temiz olmalı. İkinci komut sonuç döndürmemeli. Üçüncü komut sadece
+explicit non-claim / overclaim-yasak bloklarını göstermelidir.
 
 ---
 
@@ -1135,10 +1332,10 @@ Texture, buffer, sampler, shader ve pipeline resource yönetimini Saga-owned han
 - [ ] `SamplerDesc` tamamla.
 - [ ] `ShaderDesc` tamamla.
 - [ ] `PipelineDesc` tamamla.
-- [ ] Resource lifetime registry yaz.
-- [ ] Invalid handle protection ekle.
-- [ ] Generation-based stale handle reject ekle.
-- [ ] Diligent resource pointer'larını private storage içinde sakla.
+- [x] Resource lifetime registry yaz.
+- [x] Invalid handle protection ekle.
+- [x] Generation-based stale handle reject ekle.
+- [x] Diligent resource pointer'ları public API'ye çıkmıyor; gerçek pointer storage GPU object creation ile future.
 - [ ] Upload path için staging/initial data modeli kur.
 - [ ] CPU/GPU lifetime ayrımı yaz.
 - [ ] Resource debug name desteği ekle.
@@ -1146,12 +1343,12 @@ Texture, buffer, sampler, shader ve pipeline resource yönetimini Saga-owned han
 
 ## Test / Doğrulama
 
-- [ ] Texture create/destroy testleri.
-- [ ] Buffer create/destroy testleri.
-- [ ] Sampler create/destroy testleri.
-- [ ] Invalid handle testleri.
-- [ ] Double destroy testleri.
-- [ ] Stale handle testleri.
+- [x] Texture create/destroy testleri.
+- [x] Buffer create/destroy testleri.
+- [x] Sampler create/destroy testleri.
+- [x] Invalid handle testleri.
+- [x] Double destroy testleri.
+- [x] Stale handle testleri.
 - [ ] Resource leak diagnostics testleri.
 - [ ] Texture upload smoke test.
 - [ ] Vertex/index buffer draw smoke test.
@@ -1160,8 +1357,8 @@ Texture, buffer, sampler, shader ve pipeline resource yönetimini Saga-owned han
 
 ## Done
 
-- [ ] Saga resource handle sistemi Diligent resource pointer'larını gizliyor.
-- [ ] GPU resource lifecycle test edilebilir.
+- [x] Saga resource handle sistemi Diligent resource pointer'larını public API'ye çıkarmıyor.
+- [x] Private slot resource lifecycle test edilebilir.
 - [ ] Mesh/texture çizimine hazır temel oluşmuş.
 - [ ] Resource leak ve stale handle hataları yakalanabiliyor.
 

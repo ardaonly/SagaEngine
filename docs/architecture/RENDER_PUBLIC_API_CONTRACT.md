@@ -39,6 +39,11 @@ quality/fallback helpers. These report conservative baseline support from the
 current shell; they do not perform native backend feature queries or emit
 capability report artifacts.
 
+R4 minimum entry adds generation-aware private slot registries behind the
+existing opaque graphics handles for null and Diligent adapter behavior. This
+does not create native GPU resources, upload data, expose backend pointers, or
+add memory accounting.
+
 The internal backend preference order is documented in
 [Graphics Backend Preference Order](GRAPHICS_BACKEND_PREFERENCE_ORDER.md).
 The conservative capability matrix is documented in
@@ -65,6 +70,8 @@ It does not complete R3 bridge migration.
 It does not add RenderGraph, material, shader, or resource behavior.
 It does not complete R3B device-loss or swapchain recreation recovery.
 It does not complete R3C native feature detection or capability artifacts.
+It does not complete R4 native GPU resource creation, upload, diagnostics, or
+memory accounting.
 It does not claim `SagaEngine/Graphics` is a stable external SDK.
 
 ## Guardrails
