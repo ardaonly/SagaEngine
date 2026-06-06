@@ -11,7 +11,8 @@ migration guardrail, not a stable external SDK claim.
   `Engine/Public/SagaEngine/Graphics`; exposes only `Engine/Public`.
 - `SagaGraphicsPrivate`: private implementation target for graphics backend
   ownership; depends on `SagaGraphics`, may include `Engine/Private`, and may
-  privately link `SagaDiligentBackend` for the R3A-lite lifecycle adapter.
+  privately link `SagaDiligentBackend` for the R3A/R3B-lite lifecycle and
+  failure-state adapter.
 - `SagaDiligentBackend`: concrete render backend target that owns the current
   Diligent implementation path.
 - `VendorDiligent`: private vendor aggregation target for vendored Diligent
@@ -34,6 +35,6 @@ may privately link `SagaDiligentBackend`, but it must not directly link
 ## Deferred
 
 `SagaRenderTools.cmake` and `SagaRenderTests.cmake` remain deferred until there
-is a concrete render-tool target group to extract. The current R3A-lite slice
-does not move `SagaEngine/Render/Backend` and does not complete the R3 bridge
-migration.
+is a concrete render-tool target group to extract. The current R3A/R3B-lite
+slices do not move `SagaEngine/Render/Backend`, do not complete the R3 bridge
+migration, and do not complete device-loss or swapchain recreation recovery.
