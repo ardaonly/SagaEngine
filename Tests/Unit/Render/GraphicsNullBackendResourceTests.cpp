@@ -377,21 +377,25 @@ TEST(GraphicsNullBackendResources, QueryHelpersReportLiveKindAndBytes)
     query = backend.QueryBufferForTesting(buffer);
     EXPECT_TRUE(query.live);
     EXPECT_EQ(query.kind, Graphics::GraphicsResourceKind::Buffer);
+    EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::RegisteredOnly);
     EXPECT_EQ(query.approximateBytes, 128u);
 
     query = backend.QueryShaderForTesting(shader);
     EXPECT_TRUE(query.live);
     EXPECT_EQ(query.kind, Graphics::GraphicsResourceKind::Shader);
+    EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::RegisteredOnly);
     EXPECT_EQ(query.approximateBytes, 32u);
 
     query = backend.QueryPipelineForTesting(pipeline);
     EXPECT_TRUE(query.live);
     EXPECT_EQ(query.kind, Graphics::GraphicsResourceKind::Pipeline);
+    EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::RegisteredOnly);
     EXPECT_EQ(query.approximateBytes, 0u);
 
     query = backend.QuerySamplerForTesting(sampler);
     EXPECT_TRUE(query.live);
     EXPECT_EQ(query.kind, Graphics::GraphicsResourceKind::Sampler);
+    EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::RegisteredOnly);
     EXPECT_EQ(query.approximateBytes, 0u);
 
     backend.DestroyBuffer(buffer);
