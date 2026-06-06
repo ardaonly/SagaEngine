@@ -343,6 +343,9 @@ function(saga_setup_tests)
         target_link_libraries(SagaUnitTests PRIVATE SagaProductLib)
     endif()
     target_include_directories(SagaUnitTests PRIVATE ${SAGA_TEST_INCLUDE_DIRS})
+    target_include_directories(SagaUnitTests PRIVATE
+        ${SAGA_ROOT}/Engine/Private
+    )
     target_compile_definitions(SagaUnitTests PRIVATE
         SAGA_SOURCE_ROOT="${SAGA_ROOT}"
         SAGA_WITH_SDE=$<BOOL:${SAGA_WITH_SDE}>

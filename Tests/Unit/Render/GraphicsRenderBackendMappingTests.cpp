@@ -1,7 +1,7 @@
 /// @file GraphicsRenderBackendMappingTests.cpp
 /// @brief Tests private SagaGraphics to Render backend DTO mapping.
 
-#include "../../../Engine/Private/SagaEngine/Graphics/Backend/GraphicsRenderBackendMapping.h"
+#include "SagaEngine/Graphics/Backend/GraphicsRenderBackendMapping.h"
 
 #include <gtest/gtest.h>
 
