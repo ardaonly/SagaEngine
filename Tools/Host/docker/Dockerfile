@@ -31,6 +31,7 @@ WORKDIR /saga
 COPY conanfile.py VERSION version.json ./
 COPY profiles/ ./profiles/
 COPY cmake/ ./cmake/
+COPY Vendor/ ./Vendor/
 COPY CMakeLists.txt CMakePresets.json ./
 COPY Shared/ ./Shared/
 COPY Collaboration/ ./Collaboration/

@@ -49,6 +49,14 @@
       "license": "Apache-2.0"
     },
     {
+      "pattern": "Vendor/Diligent/**",
+      "license": "Apache-2.0"
+    },
+    {
+      "pattern": "Vendor/Diligent.Saga/**",
+      "license": "Apache-2.0"
+    },
+    {
       "pattern": "profiles/**",
       "license": "Apache-2.0"
     },
@@ -158,10 +166,6 @@
     },
     {
       "pattern": "forge.lock",
-      "license": "Apache-2.0"
-    },
-    {
-      "pattern": "build.ps1",
       "license": "Apache-2.0"
     },
     {

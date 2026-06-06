@@ -172,9 +172,6 @@ forge configure --preset windows-msvc-14.38
 forge build
 ```
 
-The repository root `build.ps1` is only a legacy compatibility wrapper. It is not
-the preferred Windows entrypoint.
-
 Linux / macOS after Forge is on `PATH`:
 
 ```sh

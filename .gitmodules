@@ -1,0 +1,3 @@
+[submodule "Vendor/Diligent"]
+	path = Vendor/Diligent
+	url = https://github.com/ardaonly/DiligentCore.git
