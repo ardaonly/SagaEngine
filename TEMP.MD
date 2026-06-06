@@ -61,11 +61,11 @@ Bu bölüm roadmap'in uygulama gerçeğiyle senkron tutulması için eklenmişti
 - [x] R1 Diligent vendoring tamamlandı: `Vendor/Diligent` submodule olarak repo kontrolünde, Saga-owned vendor metadata `Vendor/Diligent.Saga` altında.
 - [ ] R1B kısmen tamamlandı: `SagaDiligentBackend`, `VendorDiligent`, `SagaDiligentVendor.cmake` ve `SagaGraphics` public interface target mevcut; `SagaGraphicsPrivate` ve install graphics modülü henüz yok.
 - [ ] R2 başladı ama tamamlanmadı: mevcut `Engine/Public/SagaEngine/Render/Backend` surface vendor-neutral ve yeni `Engine/Public/SagaEngine/Graphics` shell mevcut; davranış bridge'i ve stable SDK iddiası yok.
-- [ ] R2B-lite başladı: public render/backend token guard, `SagaGraphics` shell smoke ve install surface guard mevcut; full R2B closure claim yok.
+- [ ] R2B-lite başladı: public render/backend token guard, `SagaGraphics` shell smoke, install surface guard ve contract dokümantasyonu mevcut; full R2B closure claim yok.
 - [ ] R2B-lite install guard verified during R1B-lite target-boundary slice.
 - [ ] R3 başladı ama tamamlanmadı: Diligent backend device/swapchain/frame yolu mevcut; planlanan `Engine/Private/SagaEngine/Graphics/Backends/Diligent` konumu ve `SagaGraphics` üstünden bridge henüz yapılmadı.
 
-Sonraki uygulanacak slice: R1B-lite — `SagaGraphics CMake Target Boundary`.
+Bu slice: R2B-lite contract / roadmap sync. Full R2B closure, R3 bridge migration ve stable external SDK claim yok.
 
 ---
 
@@ -979,7 +979,7 @@ Bu phase full R2/R2B closure değildir. `Render/Backend` public API bu slice'ta 
 - [x] Public `Graphics.h` umbrella header self-contained compile test ekle.
 - [x] Public API forbidden token scan ekle.
 - [x] Install artifact scan ekle.
-- [ ] `RENDER_PUBLIC_API_CONTRACT.md` içine install surface kurallarını yaz.
+- [x] `RENDER_PUBLIC_API_CONTRACT.md` içine install surface kurallarını yaz.
 
 ## Test / Doğrulama
 

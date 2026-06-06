@@ -67,6 +67,9 @@ leaks. It does not move `SagaEngine/Render/Backend`, does not add
 RenderGraph/material/shader/resource behavior, and is not a stable external SDK
 claim.
 
+The current public/install graphics surface rules are recorded in
+[Render Public API Contract](RENDER_PUBLIC_API_CONTRACT.md).
+
 ## Future Public Boundary
 
 Allowed future public render responsibilities:
