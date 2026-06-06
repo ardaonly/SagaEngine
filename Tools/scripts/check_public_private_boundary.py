@@ -31,6 +31,72 @@ ENGINE_PUBLIC_FORBIDDEN_FILES = (
 ENGINE_PUBLIC_FORBIDDEN_INCLUDE_RE = re.compile(
     r"#\s*include\s*[<\"](?:SagaEngine/Server/|SagaEngine/Platform/SDL/|SagaEngine/Input/Backends/SDL/|SagaEngine/Render/Backend/Diligent/)[^>\"]*[>\"]"
 )
+PUBLIC_VENDOR_NEUTRAL_ROOTS = (
+    Path("Engine/Public/SagaEngine/Render/Backend"),
+    Path("Engine/Public/SagaEngine/Graphics"),
+)
+PUBLIC_VENDOR_FORBIDDEN_TOKENS = (
+    "Diligent",
+    "Vk",
+    "Vulkan",
+    "ID3D",
+    "D3D",
+    "MTL",
+    "Metal",
+    "TheForge",
+)
+RENDER_PIPELINE_CONFIG_FORBIDDEN_TOKENS = (
+    "RenderGraph",
+    "RGPass",
+    "RGCompilation",
+    "RGCompiler",
+    "CompiledGraph",
+    "FrameGraph",
+    "FrameGraphExecutor",
+    "GBufferPass",
+    "LightingPass",
+    "PostProcessGraph",
+    "ShadowMap",
+    "MaterialVec4",
+    "ShadowPassDescriptor",
+    "ShadowAtlasRect",
+    "RHI::",
+    "RG",
+    "RenderPasses",
+    "RenderPass",
+    "IRHI",
+    "CommandRecorder",
+    "CommandBuffer",
+    "TransientResource",
+    "RenderWorld",
+    "Renderer",
+)
+RENDER_PUBLIC_FORBIDDEN_PATHS = (
+    Path("RenderGraph/RGCompilation.h"),
+    Path("RenderPasses/GBufferPass.h"),
+    Path("RenderPasses/LightingPass.h"),
+    Path("FrameGraphExecutor.h"),
+    Path("CommandRecording/CommandBuffer.h"),
+    Path("CommandRecording/CommandRecorder.h"),
+    Path("Renderer.h"),
+)
+RENDER_PUBLIC_FORBIDDEN_TOKENS = (
+    "RGCompilation.h",
+    "RGCompiler",
+    "CompiledGraph",
+    "GBufferPass",
+    "LightingPass",
+    "RenderPasses/GBufferPass.h",
+    "RenderPasses/LightingPass.h",
+    "FrameGraphExecutor.h",
+    "FrameGraphExecutor",
+    "CommandRecorder.h",
+    "CommandRecorder",
+    "CommandBuffer.h",
+    "CommandBuffer",
+    "Renderer.h",
+    "class Renderer",
+)
 
 
 def relative(path: Path, root: Path) -> Path:
@@ -123,6 +189,66 @@ def check_engine_public_header_boundaries(repo_root: Path) -> list[str]:
     return errors
 
 
+def check_public_render_vendor_neutral(repo_root: Path) -> list[str]:
+    errors: list[str] = []
+    for rel_root in PUBLIC_VENDOR_NEUTRAL_ROOTS:
+        public_root = repo_root / rel_root
+        if not public_root.exists():
+            continue
+
+        for path in sorted(p for p in public_root.rglob("*") if p.suffix in SOURCE_SUFFIXES):
+            for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+                for token in PUBLIC_VENDOR_FORBIDDEN_TOKENS:
+                    if token in line:
+                        errors.append(
+                            f"{relative(path, repo_root)}:{line_no}: public graphics/render header exposes vendor token: {token}"
+                        )
+    return errors
+
+
+def check_render_pipeline_config_shell(repo_root: Path) -> list[str]:
+    config_header = (
+        repo_root
+        / "Engine"
+        / "Public"
+        / "SagaEngine"
+        / "Render"
+        / "RenderPipelineConfig.h"
+    )
+    if not config_header.exists():
+        return []
+
+    text = config_header.read_text(encoding="utf-8")
+    return [
+        f"{relative(config_header, repo_root)} exposes render implementation token: {token}"
+        for token in RENDER_PIPELINE_CONFIG_FORBIDDEN_TOKENS
+        if token in text
+    ]
+
+
+def check_render_public_implementation_tokens(repo_root: Path) -> list[str]:
+    render_public = repo_root / "Engine" / "Public" / "SagaEngine" / "Render"
+    if not render_public.exists():
+        return []
+
+    errors: list[str] = []
+    for rel_path in RENDER_PUBLIC_FORBIDDEN_PATHS:
+        public_path = render_public / rel_path
+        if public_path.exists():
+            errors.append(
+                f"{relative(public_path, repo_root)} must not exist in Engine/Public"
+            )
+
+    for path in sorted(p for p in render_public.rglob("*") if p.suffix in SOURCE_SUFFIXES):
+        for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            for token in RENDER_PUBLIC_FORBIDDEN_TOKENS:
+                if token in line:
+                    errors.append(
+                        f"{relative(path, repo_root)}:{line_no}: public render header exposes implementation token: {token}"
+                    )
+    return errors
+
+
 def check_no_root_source_sagaengine(repo_root: Path) -> list[str]:
     errors: list[str] = []
     if (repo_root / "Source" / "SagaEngine").exists():
@@ -154,6 +280,9 @@ def main() -> int:
         *check_no_root_source_sagaengine(repo_root),
         *check_private_includes(repo_root),
         *check_engine_public_header_boundaries(repo_root),
+        *check_public_render_vendor_neutral(repo_root),
+        *check_render_pipeline_config_shell(repo_root),
+        *check_render_public_implementation_tokens(repo_root),
         *check_diagnostics_public_headers(repo_root),
         *check_simulation_public_headers(repo_root),
     ]
