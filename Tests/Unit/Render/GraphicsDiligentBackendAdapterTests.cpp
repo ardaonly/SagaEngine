@@ -652,6 +652,14 @@ TEST(GraphicsDiligentBackendAdapter, ShutdownClearsResourceReport)
 
     backend->Shutdown();
 
+    const auto leakSummary = backend->GetLastShutdownResourceLeakSummary();
+    EXPECT_TRUE(leakSummary.hadLiveResources);
+    EXPECT_EQ(leakSummary.leakedTextureCount, 1u);
+    EXPECT_EQ(leakSummary.leakedBufferCount, 1u);
+    EXPECT_EQ(leakSummary.textureBytes, 64u);
+    EXPECT_EQ(leakSummary.bufferBytes, 128u);
+    EXPECT_EQ(leakSummary.totalLeakedBytes, 192u);
+
     const auto report = backend->GetResourceMemoryReport();
     EXPECT_EQ(report.liveTextureCount, 0u);
     EXPECT_EQ(report.liveBufferCount, 0u);
@@ -660,6 +668,32 @@ TEST(GraphicsDiligentBackendAdapter, ShutdownClearsResourceReport)
     EXPECT_EQ(
         backend->GetStatus().health,
         Graphics::RenderBackendHealth::Shutdown);
+}
+
+TEST(GraphicsDiligentBackendAdapter, DestroyNoOpsDoNotUpdateFailure)
+{
+    FakeRenderState state;
+    auto backend = MakeBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    const auto texture = backend->CreateTexture(MakeTextureDesc());
+    ASSERT_TRUE(texture.IsValid());
+    backend->DestroyTexture(texture);
+
+    const auto replacement = backend->CreateTexture(MakeTextureDesc());
+    ASSERT_TRUE(replacement.IsValid());
+    ASSERT_NE(replacement.generation, texture.generation);
+    backend->DestroyTexture(texture);
+    backend->DestroyTexture({});
+    backend->DestroyTexture(replacement);
+    backend->DestroyTexture(replacement);
+    backend->Shutdown();
+    backend->DestroyTexture(replacement);
+
+    EXPECT_EQ(
+        backend->GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::None);
+    EXPECT_EQ(backend->GetResourceMemoryReport().failedCreateCount, 0u);
 }
 
 TEST(GraphicsDiligentBackendAdapter, HeadlessResourceReportUsesRegisteredOnlyHandles)

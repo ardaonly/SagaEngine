@@ -188,6 +188,8 @@ public:
         const noexcept override;
     [[nodiscard]] GraphicsResourceFailure GetLastResourceFailure()
         const noexcept override;
+    [[nodiscard]] GraphicsResourceLeakSummary
+    GetLastShutdownResourceLeakSummary() const noexcept override;
     [[nodiscard]] std::uint64_t GetTextureShadowBytesForTesting(
         TextureHandle handle) const noexcept;
     [[nodiscard]] std::uint64_t GetBufferShadowBytesForTesting(
@@ -207,6 +209,8 @@ private:
     [[nodiscard]] HandleT RecordSuccessfulCreate(HandleT handle) noexcept;
     [[nodiscard]] GraphicsResourceMemoryReport BuildResourceMemoryReport()
         const noexcept;
+    [[nodiscard]] static constexpr GraphicsResourceLeakSummary
+    BuildLeakSummary(const GraphicsResourceMemoryReport& report) noexcept;
     void SetFailure(RenderBackendFailure failure) noexcept;
     void SetFrameSkipped(RenderBackendFailure failure) noexcept;
     void ReleaseResources() noexcept;
@@ -221,6 +225,7 @@ private:
     bool m_SurfaceMinimized = false;
     GraphicsResourceFailure m_LastResourceFailure =
         GraphicsResourceFailure::None;
+    GraphicsResourceLeakSummary m_LastShutdownLeakSummary{};
     std::uint64_t m_PeakLiveBytes = 0;
     std::uint64_t m_FailedCreateCount = 0;
     ResourceRegistry<TextureHandle, TextureDesc> m_Textures;
