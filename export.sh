@@ -41,7 +41,7 @@ Suggested commit groups:
     git commit -m "feat(tools): add export and host automation"
 
   Docs/Project:
-    git add -A -- docs README.md LICENSE.md .github/workflows build.ps1 conanfile.py forge.toml shell.nix VERSION cmake/templates cmake/modules/SagaDistribution.cmake core/manifest/path_rules.json
+    git add -A -- docs README.md LICENSE.md .github/workflows .gitmodules conanfile.py forge.toml shell.nix VERSION Vendor/Diligent Vendor/Diligent.Saga cmake/templates cmake/modules/SagaDistribution.cmake cmake/modules/SagaDiligentVendor.cmake core/manifest/path_rules.json
     git commit -m "docs(project): refresh roadmaps and distribution config"
 
 After commits:

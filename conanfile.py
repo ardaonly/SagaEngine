@@ -18,7 +18,6 @@ class SagaEngineConan(ConanFile):
         self.requires("nlohmann_json/3.11.3")
         self.requires("asio/1.30.2")
         self.requires("qt/6.8.3")
-        self.requires("diligent-core/api.252009")
         # Linux-only window-system packages. Do not add them to Windows/macOS
         # graphs; those platforms neither build nor need Wayland/XKB.
         if str(self.settings.os) == "Linux":
@@ -34,7 +33,7 @@ class SagaEngineConan(ConanFile):
         self.requires("imgui/1.91.5-docking")
         self.requires("rmlui/4.4")
         # RmlUi's Conan recipe pins older transitive versions; keep it aligned
-        # with the existing Qt/Diligent graph instead of forking the graph.
+        # with the existing Qt graph instead of forking the graph.
         self.requires("freetype/2.13.2", override=True)
         self.requires("robin-hood-hashing/3.11.5", override=True)
         self.requires("rapidcheck/cci.20231215")
@@ -145,7 +144,8 @@ class SagaEngineConan(ConanFile):
             "version": self.version,
             "commit": commit,
             "timestamp": datetime.utcnow().isoformat() + "Z",
-            "dependencies": []
+            "dependencies": [],
+            "vendorDependencies": []
         }
 
         for dep in self.dependencies.host.values():
@@ -156,6 +156,27 @@ class SagaEngineConan(ConanFile):
                 "prev": getattr(dep, 'prev', None),
                 "checksum": None
             })
+
+        vendor_root = Path(__file__).with_name("Vendor") / "Diligent"
+        vendor_commit = "unknown"
+        try:
+            result = subprocess.run(
+                ["git", "-C", str(vendor_root), "rev-parse", "HEAD"],
+                capture_output=True,
+                text=True
+            )
+            vendor_commit = result.stdout.strip() or "unknown"
+        except:
+            pass
+
+        sbom["vendorDependencies"].append({
+            "name": "DiligentCore",
+            "source": "git-submodule",
+            "path": "Vendor/Diligent",
+            "remote": "https://github.com/ardaonly/DiligentCore.git",
+            "commit": vendor_commit,
+            "scope": "graphics-core"
+        })
 
         save(self, "sbom.json", json.dumps(sbom, indent=2))
 
