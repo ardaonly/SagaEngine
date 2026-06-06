@@ -1,7 +1,7 @@
 /// @file GraphicsDiligentBackendAdapterTests.cpp
 /// @brief Tests private SagaGraphics lifecycle adapter over render backend.
 
-#include "../../../Engine/Private/SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackend.h"
+#include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackend.h"
 
 #include <gtest/gtest.h>
 
