@@ -19,6 +19,7 @@ include(SagaVersioning)
 include(SagaCompilerFlags)
 include(SagaFindATL)
 include(SagaThirdparty)
+include(SagaDiligentVendor)
 include(CTest)
 include(SagaTargets)
 include(SagaTests)
@@ -30,6 +31,7 @@ include(SagaSampleEvidence)
 saga_configure_executable_output_directory()
 saga_init_versioning()
 saga_setup_thirdparty()
+saga_setup_diligent_vendor()
 
 
 
