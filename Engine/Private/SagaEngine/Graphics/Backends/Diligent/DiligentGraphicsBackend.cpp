@@ -124,6 +124,8 @@ bool DiligentGraphicsBackend::Initialize(
 
 void DiligentGraphicsBackend::Shutdown()
 {
+    ReleaseResources();
+
     if (m_RenderBackend)
     {
         m_RenderBackend->Shutdown();
@@ -155,36 +157,56 @@ void DiligentGraphicsBackend::Resize(std::uint32_t width, std::uint32_t height)
     }
 }
 
-TextureHandle DiligentGraphicsBackend::CreateTexture(const TextureDesc&)
+TextureHandle DiligentGraphicsBackend::CreateTexture(const TextureDesc& desc)
 {
-    return {};
+    return m_Textures.Create(desc, CanCreateResources());
 }
 
-BufferHandle DiligentGraphicsBackend::CreateBuffer(const BufferDesc&)
+BufferHandle DiligentGraphicsBackend::CreateBuffer(const BufferDesc& desc)
 {
-    return {};
+    return m_Buffers.Create(desc, CanCreateResources());
 }
 
-ShaderHandle DiligentGraphicsBackend::CreateShader(const ShaderDesc&)
+ShaderHandle DiligentGraphicsBackend::CreateShader(const ShaderDesc& desc)
 {
-    return {};
+    return m_Shaders.Create(desc, CanCreateResources());
 }
 
-PipelineHandle DiligentGraphicsBackend::CreatePipeline(const PipelineDesc&)
+PipelineHandle DiligentGraphicsBackend::CreatePipeline(
+    const PipelineDesc& desc)
 {
-    return {};
+    return m_Pipelines.Create(desc, CanCreateResources());
 }
 
-SamplerHandle DiligentGraphicsBackend::CreateSampler(const SamplerDesc&)
+SamplerHandle DiligentGraphicsBackend::CreateSampler(const SamplerDesc& desc)
 {
-    return {};
+    return m_Samplers.Create(desc, CanCreateResources());
 }
 
-void DiligentGraphicsBackend::DestroyTexture(TextureHandle) {}
-void DiligentGraphicsBackend::DestroyBuffer(BufferHandle) {}
-void DiligentGraphicsBackend::DestroyShader(ShaderHandle) {}
-void DiligentGraphicsBackend::DestroyPipeline(PipelineHandle) {}
-void DiligentGraphicsBackend::DestroySampler(SamplerHandle) {}
+void DiligentGraphicsBackend::DestroyTexture(TextureHandle handle)
+{
+    m_Textures.Destroy(handle);
+}
+
+void DiligentGraphicsBackend::DestroyBuffer(BufferHandle handle)
+{
+    m_Buffers.Destroy(handle);
+}
+
+void DiligentGraphicsBackend::DestroyShader(ShaderHandle handle)
+{
+    m_Shaders.Destroy(handle);
+}
+
+void DiligentGraphicsBackend::DestroyPipeline(PipelineHandle handle)
+{
+    m_Pipelines.Destroy(handle);
+}
+
+void DiligentGraphicsBackend::DestroySampler(SamplerHandle handle)
+{
+    m_Samplers.Destroy(handle);
+}
 
 void DiligentGraphicsBackend::BeginFrame()
 {
@@ -275,6 +297,12 @@ bool DiligentGraphicsBackend::CanRenderFrame() const noexcept
            m_LastStatus.failure == RenderBackendFailure::None;
 }
 
+bool DiligentGraphicsBackend::CanCreateResources() const noexcept
+{
+    return m_LastStatus.initialized &&
+           m_LastStatus.failure == RenderBackendFailure::None;
+}
+
 void DiligentGraphicsBackend::SetFailure(
     RenderBackendFailure failure) noexcept
 {
@@ -282,6 +310,15 @@ void DiligentGraphicsBackend::SetFailure(
     m_LastStatus.health = RenderBackendHealth::Failed;
     m_LastStatus.failure = failure;
     m_LastCapabilities = MakeConservativeCapabilities();
+}
+
+void DiligentGraphicsBackend::ReleaseResources() noexcept
+{
+    m_Textures.ReleaseAll();
+    m_Buffers.ReleaseAll();
+    m_Shaders.ReleaseAll();
+    m_Pipelines.ReleaseAll();
+    m_Samplers.ReleaseAll();
 }
 
 void DiligentGraphicsBackend::SetFrameSkipped(

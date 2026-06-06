@@ -8,6 +8,7 @@
 #include "SagaEngine/Graphics/Handles/GraphicsHandle.h"
 
 #include <cstdint>
+#include <vector>
 
 namespace SagaEngine::Graphics
 {
@@ -164,6 +165,89 @@ public:
 
 class NullGraphicsBackend final : public IGraphicsBackend
 {
+private:
+    template <typename HandleT, typename DescT>
+    class ResourceRegistry
+    {
+    public:
+        [[nodiscard]] HandleT Create(
+            const DescT& desc,
+            bool canCreate)
+        {
+            if (!canCreate)
+            {
+                return {};
+            }
+
+            std::uint32_t slotIndex = 0;
+            if (!m_FreeSlots.empty())
+            {
+                slotIndex = m_FreeSlots.back();
+                m_FreeSlots.pop_back();
+                auto& slot = m_Slots[slotIndex];
+                slot.desc = desc;
+                slot.occupied = true;
+                slot.generation = NextGeneration(slot.generation);
+            }
+            else
+            {
+                slotIndex = static_cast<std::uint32_t>(m_Slots.size());
+                m_Slots.push_back({desc, 1u, true});
+            }
+
+            HandleT handle;
+            handle.index = slotIndex + 1u;
+            handle.generation = m_Slots[slotIndex].generation;
+            return handle;
+        }
+
+        void Destroy(HandleT handle)
+        {
+            if (!handle.IsValid() || handle.index > m_Slots.size())
+            {
+                return;
+            }
+
+            const auto slotIndex = handle.index - 1u;
+            auto& slot = m_Slots[slotIndex];
+            if (!slot.occupied || slot.generation != handle.generation)
+            {
+                return;
+            }
+
+            slot.occupied = false;
+            m_FreeSlots.push_back(slotIndex);
+        }
+
+        void ReleaseAll()
+        {
+            m_FreeSlots.clear();
+            for (std::uint32_t i = 0; i < m_Slots.size(); ++i)
+            {
+                auto& slot = m_Slots[i];
+                slot.occupied = false;
+                m_FreeSlots.push_back(i);
+            }
+        }
+
+    private:
+        struct Slot
+        {
+            DescT desc{};
+            std::uint32_t generation = 1;
+            bool occupied = false;
+        };
+
+        [[nodiscard]] static constexpr std::uint32_t NextGeneration(
+            std::uint32_t generation) noexcept
+        {
+            return generation == 0xFFFFFFFFu ? 1u : generation + 1u;
+        }
+
+        std::vector<Slot> m_Slots;
+        std::vector<std::uint32_t> m_FreeSlots;
+    };
+
 public:
     bool Initialize(
         const RenderBackendDesc& backend,
@@ -180,6 +264,11 @@ public:
 
     void Shutdown() override
     {
+        m_Textures.ReleaseAll();
+        m_Buffers.ReleaseAll();
+        m_Shaders.ReleaseAll();
+        m_Pipelines.ReleaseAll();
+        m_Samplers.ReleaseAll();
         m_Status.initialized = false;
         m_Status.health = RenderBackendHealth::Shutdown;
     }
@@ -190,36 +279,55 @@ public:
         m_Height = height;
     }
 
-    TextureHandle CreateTexture(const TextureDesc&) override
+    TextureHandle CreateTexture(const TextureDesc& desc) override
     {
-        return Next<TextureHandle>();
+        return m_Textures.Create(desc, CanCreateResources());
     }
 
-    BufferHandle CreateBuffer(const BufferDesc&) override
+    BufferHandle CreateBuffer(const BufferDesc& desc) override
     {
-        return Next<BufferHandle>();
+        return m_Buffers.Create(desc, CanCreateResources());
     }
 
-    ShaderHandle CreateShader(const ShaderDesc&) override
+    ShaderHandle CreateShader(const ShaderDesc& desc) override
     {
-        return Next<ShaderHandle>();
+        return m_Shaders.Create(desc, CanCreateResources());
     }
 
-    PipelineHandle CreatePipeline(const PipelineDesc&) override
+    PipelineHandle CreatePipeline(const PipelineDesc& desc) override
     {
-        return Next<PipelineHandle>();
+        return m_Pipelines.Create(desc, CanCreateResources());
     }
 
-    SamplerHandle CreateSampler(const SamplerDesc&) override
+    SamplerHandle CreateSampler(const SamplerDesc& desc) override
     {
-        return Next<SamplerHandle>();
+        return m_Samplers.Create(desc, CanCreateResources());
     }
 
-    void DestroyTexture(TextureHandle) override {}
-    void DestroyBuffer(BufferHandle) override {}
-    void DestroyShader(ShaderHandle) override {}
-    void DestroyPipeline(PipelineHandle) override {}
-    void DestroySampler(SamplerHandle) override {}
+    void DestroyTexture(TextureHandle handle) override
+    {
+        m_Textures.Destroy(handle);
+    }
+
+    void DestroyBuffer(BufferHandle handle) override
+    {
+        m_Buffers.Destroy(handle);
+    }
+
+    void DestroyShader(ShaderHandle handle) override
+    {
+        m_Shaders.Destroy(handle);
+    }
+
+    void DestroyPipeline(PipelineHandle handle) override
+    {
+        m_Pipelines.Destroy(handle);
+    }
+
+    void DestroySampler(SamplerHandle handle) override
+    {
+        m_Samplers.Destroy(handle);
+    }
 
     void BeginFrame() override
     {
@@ -256,19 +364,20 @@ public:
     }
 
 private:
-    template <typename HandleT>
-    [[nodiscard]] HandleT Next() noexcept
+    [[nodiscard]] bool CanCreateResources() const noexcept
     {
-        HandleT handle;
-        handle.index = m_NextIndex++;
-        handle.generation = 1;
-        return handle;
+        return m_Status.initialized &&
+               m_Status.failure == RenderBackendFailure::None;
     }
 
     RenderBackendStatus m_Status{};
     std::uint32_t       m_Width = 0;
     std::uint32_t       m_Height = 0;
-    std::uint32_t       m_NextIndex = 1;
+    ResourceRegistry<TextureHandle, TextureDesc> m_Textures;
+    ResourceRegistry<BufferHandle, BufferDesc> m_Buffers;
+    ResourceRegistry<ShaderHandle, ShaderDesc> m_Shaders;
+    ResourceRegistry<PipelineHandle, PipelineDesc> m_Pipelines;
+    ResourceRegistry<SamplerHandle, SamplerDesc> m_Samplers;
 };
 
 } // namespace SagaEngine::Graphics

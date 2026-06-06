@@ -400,7 +400,7 @@ TEST(GraphicsDiligentBackendAdapter, ShutdownAfterFailedInitializeIsIdempotent)
         Graphics::RenderQualityPreset::Low);
 }
 
-TEST(GraphicsDiligentBackendAdapter, ResourceMethodsReturnInvalidHandlesInV0)
+TEST(GraphicsDiligentBackendAdapter, ResourceMethodsRequireInitializedBackend)
 {
     FakeRenderState state;
     auto backend = MakeBackend(state);
@@ -411,9 +411,59 @@ TEST(GraphicsDiligentBackendAdapter, ResourceMethodsReturnInvalidHandlesInV0)
     EXPECT_FALSE(backend->CreatePipeline({}).IsValid());
     EXPECT_FALSE(backend->CreateSampler({}).IsValid());
 
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    const auto texture = backend->CreateTexture({});
+    const auto buffer = backend->CreateBuffer({});
+    const auto shader = backend->CreateShader({});
+    const auto pipeline = backend->CreatePipeline({});
+    const auto sampler = backend->CreateSampler({});
+
+    EXPECT_TRUE(texture.IsValid());
+    EXPECT_TRUE(buffer.IsValid());
+    EXPECT_TRUE(shader.IsValid());
+    EXPECT_TRUE(pipeline.IsValid());
+    EXPECT_TRUE(sampler.IsValid());
+
     backend->DestroyTexture({});
     backend->DestroyBuffer({});
     backend->DestroyShader({});
     backend->DestroyPipeline({});
     backend->DestroySampler({});
+
+    backend->Shutdown();
+
+    EXPECT_FALSE(backend->CreateTexture({}).IsValid());
+    EXPECT_FALSE(backend->CreateBuffer({}).IsValid());
+    EXPECT_FALSE(backend->CreateShader({}).IsValid());
+    EXPECT_FALSE(backend->CreatePipeline({}).IsValid());
+    EXPECT_FALSE(backend->CreateSampler({}).IsValid());
+}
+
+TEST(GraphicsDiligentBackendAdapter, ResourceRegistryRejectsStaleHandles)
+{
+    FakeRenderState state;
+    auto backend = MakeBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    const auto first = backend->CreateTexture({});
+    ASSERT_TRUE(first.IsValid());
+    EXPECT_EQ(first.index, 1u);
+    EXPECT_EQ(first.generation, 1u);
+
+    backend->DestroyTexture(first);
+
+    const auto second = backend->CreateTexture({});
+    ASSERT_TRUE(second.IsValid());
+    EXPECT_EQ(second.index, first.index);
+    EXPECT_EQ(second.generation, first.generation + 1u);
+
+    backend->DestroyTexture(first);
+    backend->DestroyTexture(second);
+    backend->DestroyTexture(second);
+
+    const auto third = backend->CreateTexture({});
+    ASSERT_TRUE(third.IsValid());
+    EXPECT_EQ(third.index, second.index);
+    EXPECT_EQ(third.generation, second.generation + 1u);
 }
