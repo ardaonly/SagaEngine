@@ -67,9 +67,17 @@ Bu bölüm roadmap'in uygulama gerçeğiyle senkron tutulması için eklenmişti
 - [x] R3A-lite private adapter boundary closed: `Engine/Private/SagaEngine/Graphics/Backends/Diligent` altında lifecycle adapter v0 mevcut, unit testler private-style include path kullanıyor ve architecture guard `Private/` include debt taşımıyor.
 - [ ] R3B-lite partial: failed-init, backend-unavailable, headless ve minimized/zero-size frame-skip status guard'ları mevcut; gerçek device loss, swapchain recreation ve resource invalidation state machine yok.
 - [x] R3C conservative capability matrix v0 tamamlandı: `RenderBackendCapabilities`, `RenderQualityPreset`, `RenderFeatureSupport`, `RenderCapabilityFallback`, conservative capability ceiling, helper testleri ve platform vocabulary matrix dokümantasyonu mevcut; native backend feature query ve capability JSON artifact yok.
-- [ ] R4 minimum entry başladı: public desc/handle API değişmeden null backend ve Diligent adapter private slot registry ile valid/stale handle contract'ı test ediliyor; gerçek GPU object creation/upload, memory accounting ve resource diagnostics yok.
+- [ ] R4 validation/registry foundation başladı: public desc/handle API,
+      descriptor validation, backend-global create failure, approximate logical
+      memory report, creation-time initial data shadow-copy contract ve
+      null/Diligent registered-only handle contract test ediliyor; gerçek GPU
+      object creation/upload, leak summary ve full R4 closure yok.
 
-Bu slice: architecture boundary closure, R3C conservative capability matrix v0 ve R4 private slot registry entry. Full native capability query, capability JSON artifact, gerçek GPU resource creation/upload, `Render/Backend` taşıma, RenderGraph/material/shader bridge ve stable external SDK claim yok.
+Bu slice: architecture boundary closure, R3C conservative capability matrix v0
+ve R4 validation/registry foundation. Full native capability query, capability
+JSON artifact, gerçek GPU resource creation/upload, leak summary,
+`Render/Backend` taşıma, RenderGraph/material/shader bridge ve stable external
+SDK claim yok.
 
 ## 0.2 Renderer Foundation Planning: R3C, R4, R4B, R5
 
@@ -92,7 +100,7 @@ future slice'lara bölünmelidir.
 | R3A-lite private adapter | completed | Adapter ve unit testler private-style include path ile boundary guard uyumlu. |
 | R3B | partial | Failure-status shell var; device loss/swapchain recreation yok. |
 | R3C | completed-v0 | Conservative capability matrix v0 var; native query/artifact yok. |
-| R4 | started | Public desc/handle shell ve private slot registry var; gerçek GPU object/upload yok. |
+| R4 | partial | Public desc/handle shell, private slot registry, descriptor validation, initial data shadow-copy contract ve approximate logical memory report var; gerçek GPU object/upload yok. |
 | R4B | planned | Binding/frame resource model yok. |
 | R5 | planned | Eski RenderGraph implementation var; R5 closure şartları tamam değil. |
 
@@ -125,11 +133,17 @@ future work olarak kalır.
 
 ### 0.2.3 R4 GPU Resource Model Planı
 
-R4 artık minimum entry seviyesinde başlamıştır. Mevcut repo'da public
-desc/handle shell vardır ve `NullGraphicsBackend` ile `DiligentGraphicsBackend`
-generation-aware slot registry kullanır. Bu registry gerçek GPU object
-oluşturmaz; Diligent pointer'ları public API'ye çıkmaz ve upload/memory
-accounting henüz yoktur.
+R4 artık validation/registry foundation seviyesinde başlamıştır. Mevcut repo'da
+public desc/handle shell vardır ve `NullGraphicsBackend` ile
+`DiligentGraphicsBackend` generation-aware slot registry kullanır. Valid
+resource handle'ları registered-only opaque lifecycle handle'dır; gerçek GPU
+object oluşturmaz, native Diligent pointer'ları public API'ye çıkmaz ve
+upload/staging hâlâ açık iştir. Memory accounting approximate logical
+estimate'tır; native GPU allocation, driver overhead ve alignment/padding claim
+etmez; initial data shadow bytes native/GPU memory olarak sayılmaz. Texture
+initial data partial payload kabul etmez ve yalnız mip0-compatible tam payload
+shadow-copy contract'ı vardır; mip chain payload ve native upload/staging açık
+iştir. Ayrı resource leak summary future work olarak kalır.
 
 R4 minimum implementation hedefi:
 
@@ -138,10 +152,11 @@ R4 minimum implementation hedefi:
 - [x] Generation-based stale handle reject.
 - [x] Invalid handle destroy no-op.
 - [x] Double destroy no-op policy.
-- [ ] Diligent pointer'larının sadece private storage içinde kalması.
-- [ ] Resource creation failure status/diagnostic; vendor error type leak yok.
-- [ ] Initial upload/staging için minimal policy note.
-- [ ] Resource debug name ve basic memory accounting başlangıcı.
+- [x] Diligent pointer'larının public API'ye çıkmaması; gerçek native storage future.
+- [x] Resource creation failure status/diagnostic; vendor error type leak yok.
+- [x] Approximate logical memory accounting başlangıcı.
+- [x] Initial data shadow-copy contract; native upload/staging yok.
+- [ ] Resource debug name.
 
 R4 non-goal:
 
@@ -1337,9 +1352,10 @@ Texture, buffer, sampler, shader ve pipeline resource yönetimini Saga-owned han
 - [x] Generation-based stale handle reject ekle.
 - [x] Diligent resource pointer'ları public API'ye çıkmıyor; gerçek pointer storage GPU object creation ile future.
 - [ ] Upload path için staging/initial data modeli kur.
+- [x] Creation-time initial data shadow-copy contract ekle.
 - [ ] CPU/GPU lifetime ayrımı yaz.
 - [ ] Resource debug name desteği ekle.
-- [ ] Per-resource memory accounting başlangıcı ekle.
+- [x] Approximate logical per-resource memory accounting başlangıcı ekle.
 
 ## Test / Doğrulama
 
@@ -1353,12 +1369,15 @@ Texture, buffer, sampler, shader ve pipeline resource yönetimini Saga-owned han
 - [ ] Texture upload smoke test.
 - [ ] Vertex/index buffer draw smoke test.
 - [ ] Public API vendor leak test geçmeli.
-- [ ] Memory accounting resource create/destroy ile değişmeli.
+- [x] Approximate logical memory accounting resource create/destroy ile değişmeli.
 
 ## Done
 
 - [x] Saga resource handle sistemi Diligent resource pointer'larını public API'ye çıkarmıyor.
 - [x] Private slot resource lifecycle test edilebilir.
+- [x] Descriptor validation ve create failure test edilebilir.
+- [x] Approximate logical memory report test edilebilir.
+- [x] Initial data shadow-copy contract test edilebilir.
 - [ ] Mesh/texture çizimine hazır temel oluşmuş.
 - [ ] Resource leak ve stale handle hataları yakalanabiliyor.
 

@@ -5,6 +5,7 @@
 
 #include "SagaEngine/Graphics/Backend/GraphicsRenderBackendMapping.h"
 
+#include <cstddef>
 #include <utility>
 
 namespace SagaEngine::Graphics::Backends::Diligent
@@ -32,6 +33,219 @@ CreateDefaultRenderBackend(const RenderBackendDesc& backend)
 {
     return RenderBackend::CreateRenderBackend(
         Mapping::ToRenderBackendConfig(backend));
+}
+
+[[nodiscard]] constexpr bool IsKnownFormat(ResourceFormat format) noexcept
+{
+    return format == ResourceFormat::Rgba8Unorm ||
+           format == ResourceFormat::Bgra8Unorm ||
+           format == ResourceFormat::Rgba16Float ||
+           format == ResourceFormat::Rgba32Float ||
+           format == ResourceFormat::Depth24Stencil8 ||
+           format == ResourceFormat::Depth32Float;
+}
+
+[[nodiscard]] constexpr bool IsValidTextureDesc(
+    const TextureDesc& desc) noexcept
+{
+    return desc.width != 0u && desc.height != 0u && desc.depth != 0u &&
+           desc.mipLevels != 0u && desc.arrayLayers != 0u &&
+           IsKnownFormat(desc.format);
+}
+
+[[nodiscard]] constexpr bool IsValidBufferDesc(const BufferDesc& desc) noexcept
+{
+    return desc.sizeBytes != 0u;
+}
+
+[[nodiscard]] constexpr bool IsValidShaderStage(ShaderStage stage) noexcept
+{
+    return stage == ShaderStage::Vertex || stage == ShaderStage::Fragment ||
+           stage == ShaderStage::Compute;
+}
+
+[[nodiscard]] constexpr bool IsValidShaderDesc(const ShaderDesc& desc) noexcept
+{
+    return desc.byteSize != 0u && IsValidShaderStage(desc.stage);
+}
+
+[[nodiscard]] constexpr bool IsValidTopology(
+    PrimitiveTopology topology) noexcept
+{
+    return topology == PrimitiveTopology::TriangleList ||
+           topology == PrimitiveTopology::TriangleStrip ||
+           topology == PrimitiveTopology::LineList;
+}
+
+[[nodiscard]] constexpr bool IsValidPipelineDesc(
+    const PipelineDesc& desc) noexcept
+{
+    return desc.colorTargetCount != 0u && desc.colorTargetCount <= 8u &&
+           IsValidTopology(desc.topology) && IsKnownFormat(desc.colorFormat) &&
+           IsKnownFormat(desc.depthFormat);
+}
+
+[[nodiscard]] constexpr bool IsValidFilterMode(FilterMode mode) noexcept
+{
+    return mode == FilterMode::Nearest || mode == FilterMode::Linear;
+}
+
+[[nodiscard]] constexpr bool IsValidAddressMode(AddressMode mode) noexcept
+{
+    return mode == AddressMode::ClampToEdge || mode == AddressMode::Repeat ||
+           mode == AddressMode::MirrorRepeat;
+}
+
+[[nodiscard]] constexpr bool IsValidSamplerDesc(
+    const SamplerDesc& desc) noexcept
+{
+    return IsValidFilterMode(desc.minFilter) &&
+           IsValidFilterMode(desc.magFilter) &&
+           IsValidAddressMode(desc.addressU) &&
+           IsValidAddressMode(desc.addressV) &&
+           IsValidAddressMode(desc.addressW);
+}
+
+[[nodiscard]] constexpr std::uint64_t BytesPerPixel(
+    ResourceFormat format) noexcept
+{
+    switch (format)
+    {
+    case ResourceFormat::Rgba8Unorm:
+    case ResourceFormat::Bgra8Unorm:
+    case ResourceFormat::Depth24Stencil8:
+    case ResourceFormat::Depth32Float:
+        return 4u;
+    case ResourceFormat::Rgba16Float:
+        return 8u;
+    case ResourceFormat::Rgba32Float:
+        return 16u;
+    case ResourceFormat::Unknown:
+    default:
+        return 0u;
+    }
+}
+
+[[nodiscard]] constexpr std::uint64_t EstimateTextureBytes(
+    const TextureDesc& desc) noexcept
+{
+    std::uint64_t totalPixels = 0;
+    std::uint64_t width = desc.width;
+    std::uint64_t height = desc.height;
+    std::uint64_t depth = desc.depth;
+
+    for (std::uint16_t mip = 0; mip < desc.mipLevels; ++mip)
+    {
+        totalPixels += width * height * depth * desc.arrayLayers;
+        width = width > 1u ? width / 2u : 1u;
+        height = height > 1u ? height / 2u : 1u;
+        depth = depth > 1u ? depth / 2u : 1u;
+    }
+
+    return totalPixels * BytesPerPixel(desc.format);
+}
+
+[[nodiscard]] constexpr bool IsValidTextureInitialData(
+    const TextureDesc& desc,
+    GraphicsDataView initialData) noexcept
+{
+    if (initialData.sizeBytes == 0u)
+    {
+        return true;
+    }
+
+    if (!initialData.data)
+    {
+        return false;
+    }
+
+    const auto bytesPerPixel = BytesPerPixel(desc.format);
+    if (bytesPerPixel == 0u)
+    {
+        return false;
+    }
+
+    const auto rowBytes =
+        static_cast<std::uint64_t>(desc.width) * bytesPerPixel;
+    if (initialData.rowPitchBytes != 0u &&
+        initialData.rowPitchBytes < rowBytes)
+    {
+        return false;
+    }
+
+    const auto effectiveRowPitch =
+        initialData.rowPitchBytes == 0u
+            ? rowBytes
+            : static_cast<std::uint64_t>(initialData.rowPitchBytes);
+    const auto sliceBytes =
+        effectiveRowPitch * static_cast<std::uint64_t>(desc.height);
+    if (initialData.slicePitchBytes != 0u &&
+        initialData.slicePitchBytes < sliceBytes)
+    {
+        return false;
+    }
+
+    const auto effectiveSlicePitch =
+        initialData.slicePitchBytes == 0u
+            ? sliceBytes
+            : static_cast<std::uint64_t>(initialData.slicePitchBytes);
+    const auto requiredBytes =
+        effectiveSlicePitch * static_cast<std::uint64_t>(desc.depth);
+
+    return initialData.sizeBytes >= requiredBytes &&
+           initialData.sizeBytes <= EstimateTextureBytes(desc);
+}
+
+[[nodiscard]] constexpr std::uint64_t EstimateBufferBytes(
+    const BufferDesc& desc) noexcept
+{
+    return desc.sizeBytes;
+}
+
+[[nodiscard]] constexpr bool IsValidBufferInitialData(
+    const BufferDesc& desc,
+    GraphicsDataView initialData) noexcept
+{
+    if (initialData.sizeBytes == 0u)
+    {
+        return true;
+    }
+
+    return initialData.data && initialData.sizeBytes <= desc.sizeBytes;
+}
+
+[[nodiscard]] std::vector<std::uint8_t> CopyShadowPayload(
+    GraphicsDataView initialData)
+{
+    std::vector<std::uint8_t> payload;
+    if (!initialData.data || initialData.sizeBytes == 0u)
+    {
+        return payload;
+    }
+
+    const auto* bytes = static_cast<const std::uint8_t*>(initialData.data);
+    payload.assign(
+        bytes,
+        bytes + static_cast<std::size_t>(initialData.sizeBytes));
+    return payload;
+}
+
+[[nodiscard]] constexpr std::uint64_t EstimateShaderBytes(
+    const ShaderDesc& desc) noexcept
+{
+    return desc.byteSize;
+}
+
+[[nodiscard]] constexpr std::uint64_t EstimatePipelineBytes(
+    const PipelineDesc&) noexcept
+{
+    return 0u;
+}
+
+[[nodiscard]] constexpr std::uint64_t EstimateSamplerBytes(
+    const SamplerDesc&) noexcept
+{
+    return 0u;
 }
 
 } // namespace
@@ -159,28 +373,125 @@ void DiligentGraphicsBackend::Resize(std::uint32_t width, std::uint32_t height)
 
 TextureHandle DiligentGraphicsBackend::CreateTexture(const TextureDesc& desc)
 {
-    return m_Textures.Create(desc, CanCreateResources());
+    return CreateTexture(desc, {});
+}
+
+TextureHandle DiligentGraphicsBackend::CreateTexture(
+    const TextureDesc& desc,
+    GraphicsDataView initialData)
+{
+    if (!CanCreateResources())
+    {
+        return RecordCreateFailure<TextureHandle>(
+            GraphicsResourceFailure::BackendNotInitialized);
+    }
+
+    if (!IsValidTextureDesc(desc))
+    {
+        return RecordCreateFailure<TextureHandle>(
+            GraphicsResourceFailure::InvalidTextureDesc);
+    }
+
+    if (!IsValidTextureInitialData(desc, initialData))
+    {
+        return RecordCreateFailure<TextureHandle>(
+            GraphicsResourceFailure::InvalidInitialData);
+    }
+
+    return RecordSuccessfulCreate(
+        m_Textures.Create(
+            desc,
+            EstimateTextureBytes(desc),
+            CopyShadowPayload(initialData)));
 }
 
 BufferHandle DiligentGraphicsBackend::CreateBuffer(const BufferDesc& desc)
 {
-    return m_Buffers.Create(desc, CanCreateResources());
+    return CreateBuffer(desc, {});
+}
+
+BufferHandle DiligentGraphicsBackend::CreateBuffer(
+    const BufferDesc& desc,
+    GraphicsDataView initialData)
+{
+    if (!CanCreateResources())
+    {
+        return RecordCreateFailure<BufferHandle>(
+            GraphicsResourceFailure::BackendNotInitialized);
+    }
+
+    if (!IsValidBufferDesc(desc))
+    {
+        return RecordCreateFailure<BufferHandle>(
+            GraphicsResourceFailure::InvalidBufferDesc);
+    }
+
+    if (!IsValidBufferInitialData(desc, initialData))
+    {
+        return RecordCreateFailure<BufferHandle>(
+            GraphicsResourceFailure::InvalidInitialData);
+    }
+
+    return RecordSuccessfulCreate(
+        m_Buffers.Create(
+            desc,
+            EstimateBufferBytes(desc),
+            CopyShadowPayload(initialData)));
 }
 
 ShaderHandle DiligentGraphicsBackend::CreateShader(const ShaderDesc& desc)
 {
-    return m_Shaders.Create(desc, CanCreateResources());
+    if (!CanCreateResources())
+    {
+        return RecordCreateFailure<ShaderHandle>(
+            GraphicsResourceFailure::BackendNotInitialized);
+    }
+
+    if (!IsValidShaderDesc(desc))
+    {
+        return RecordCreateFailure<ShaderHandle>(
+            GraphicsResourceFailure::InvalidShaderDesc);
+    }
+
+    return RecordSuccessfulCreate(
+        m_Shaders.Create(desc, EstimateShaderBytes(desc)));
 }
 
 PipelineHandle DiligentGraphicsBackend::CreatePipeline(
     const PipelineDesc& desc)
 {
-    return m_Pipelines.Create(desc, CanCreateResources());
+    if (!CanCreateResources())
+    {
+        return RecordCreateFailure<PipelineHandle>(
+            GraphicsResourceFailure::BackendNotInitialized);
+    }
+
+    if (!IsValidPipelineDesc(desc))
+    {
+        return RecordCreateFailure<PipelineHandle>(
+            GraphicsResourceFailure::InvalidPipelineDesc);
+    }
+
+    return RecordSuccessfulCreate(
+        m_Pipelines.Create(desc, EstimatePipelineBytes(desc)));
 }
 
 SamplerHandle DiligentGraphicsBackend::CreateSampler(const SamplerDesc& desc)
 {
-    return m_Samplers.Create(desc, CanCreateResources());
+    if (!CanCreateResources())
+    {
+        return RecordCreateFailure<SamplerHandle>(
+            GraphicsResourceFailure::BackendNotInitialized);
+    }
+
+    if (!IsValidSamplerDesc(desc))
+    {
+        return RecordCreateFailure<SamplerHandle>(
+            GraphicsResourceFailure::InvalidSamplerDesc);
+    }
+
+    return RecordSuccessfulCreate(
+        m_Samplers.Create(desc, EstimateSamplerBytes(desc)));
 }
 
 void DiligentGraphicsBackend::DestroyTexture(TextureHandle handle)
@@ -266,6 +577,30 @@ RenderBackendCapabilities DiligentGraphicsBackend::GetCapabilities()
     return m_LastCapabilities;
 }
 
+GraphicsResourceMemoryReport DiligentGraphicsBackend::GetResourceMemoryReport()
+    const noexcept
+{
+    return BuildResourceMemoryReport();
+}
+
+GraphicsResourceFailure DiligentGraphicsBackend::GetLastResourceFailure()
+    const noexcept
+{
+    return m_LastResourceFailure;
+}
+
+std::uint64_t DiligentGraphicsBackend::GetTextureShadowBytesForTesting(
+    TextureHandle handle) const noexcept
+{
+    return m_Textures.ShadowBytes(handle);
+}
+
+std::uint64_t DiligentGraphicsBackend::GetBufferShadowBytesForTesting(
+    BufferHandle handle) const noexcept
+{
+    return m_Buffers.ShadowBytes(handle);
+}
+
 RenderBackendCapabilities
 DiligentGraphicsBackend::MakeConservativeCapabilities() const noexcept
 {
@@ -301,6 +636,49 @@ bool DiligentGraphicsBackend::CanCreateResources() const noexcept
 {
     return m_LastStatus.initialized &&
            m_LastStatus.failure == RenderBackendFailure::None;
+}
+
+template <typename HandleT>
+HandleT DiligentGraphicsBackend::RecordCreateFailure(
+    GraphicsResourceFailure failure) noexcept
+{
+    m_LastResourceFailure = failure;
+    ++m_FailedCreateCount;
+    return {};
+}
+
+template <typename HandleT>
+HandleT DiligentGraphicsBackend::RecordSuccessfulCreate(HandleT handle) noexcept
+{
+    m_LastResourceFailure = GraphicsResourceFailure::None;
+    const auto report = BuildResourceMemoryReport();
+    if (report.totalLiveBytes > m_PeakLiveBytes)
+    {
+        m_PeakLiveBytes = report.totalLiveBytes;
+    }
+    return handle;
+}
+
+GraphicsResourceMemoryReport DiligentGraphicsBackend::BuildResourceMemoryReport()
+    const noexcept
+{
+    GraphicsResourceMemoryReport report{};
+    report.liveTextureCount = m_Textures.LiveCount();
+    report.liveBufferCount = m_Buffers.LiveCount();
+    report.liveShaderCount = m_Shaders.LiveCount();
+    report.livePipelineCount = m_Pipelines.LiveCount();
+    report.liveSamplerCount = m_Samplers.LiveCount();
+    report.textureBytes = m_Textures.LiveBytes();
+    report.bufferBytes = m_Buffers.LiveBytes();
+    report.shaderBytes = m_Shaders.LiveBytes();
+    report.pipelineBytes = m_Pipelines.LiveBytes();
+    report.samplerBytes = m_Samplers.LiveBytes();
+    report.totalLiveBytes =
+        report.textureBytes + report.bufferBytes + report.shaderBytes +
+        report.pipelineBytes + report.samplerBytes;
+    report.peakLiveBytes = m_PeakLiveBytes;
+    report.failedCreateCount = m_FailedCreateCount;
+    return report;
 }
 
 void DiligentGraphicsBackend::SetFailure(

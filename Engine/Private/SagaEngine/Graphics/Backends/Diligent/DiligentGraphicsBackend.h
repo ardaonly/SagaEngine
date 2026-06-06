@@ -24,13 +24,9 @@ private:
     public:
         [[nodiscard]] HandleT Create(
             const DescT& desc,
-            bool canCreate)
+            std::uint64_t estimatedBytes,
+            const std::vector<std::uint8_t>& shadowPayload = {})
         {
-            if (!canCreate)
-            {
-                return {};
-            }
-
             std::uint32_t slotIndex = 0;
             if (!m_FreeSlots.empty())
             {
@@ -38,14 +34,20 @@ private:
                 m_FreeSlots.pop_back();
                 auto& slot = m_Slots[slotIndex];
                 slot.desc = desc;
+                slot.estimatedBytes = estimatedBytes;
+                slot.shadowPayload = shadowPayload;
                 slot.occupied = true;
                 slot.generation = NextGeneration(slot.generation);
             }
             else
             {
                 slotIndex = static_cast<std::uint32_t>(m_Slots.size());
-                m_Slots.push_back({desc, 1u, true});
+                m_Slots.push_back(
+                    {desc, estimatedBytes, shadowPayload, 1u, true});
             }
+
+            m_LiveCount += 1u;
+            m_LiveBytes += estimatedBytes;
 
             HandleT handle;
             handle.index = slotIndex + 1u;
@@ -68,6 +70,9 @@ private:
             }
 
             slot.occupied = false;
+            slot.shadowPayload.clear();
+            m_LiveCount -= 1u;
+            m_LiveBytes -= slot.estimatedBytes;
             m_FreeSlots.push_back(slotIndex);
         }
 
@@ -78,14 +83,47 @@ private:
             {
                 auto& slot = m_Slots[i];
                 slot.occupied = false;
+                slot.shadowPayload.clear();
                 m_FreeSlots.push_back(i);
             }
+            m_LiveCount = 0;
+            m_LiveBytes = 0;
+        }
+
+        [[nodiscard]] std::uint64_t ShadowBytes(HandleT handle)
+            const noexcept
+        {
+            if (!handle.IsValid() || handle.index > m_Slots.size())
+            {
+                return 0u;
+            }
+
+            const auto slotIndex = handle.index - 1u;
+            const auto& slot = m_Slots[slotIndex];
+            if (!slot.occupied || slot.generation != handle.generation)
+            {
+                return 0u;
+            }
+
+            return static_cast<std::uint64_t>(slot.shadowPayload.size());
+        }
+
+        [[nodiscard]] std::uint32_t LiveCount() const noexcept
+        {
+            return m_LiveCount;
+        }
+
+        [[nodiscard]] std::uint64_t LiveBytes() const noexcept
+        {
+            return m_LiveBytes;
         }
 
     private:
         struct Slot
         {
             DescT desc{};
+            std::uint64_t estimatedBytes = 0;
+            std::vector<std::uint8_t> shadowPayload{};
             std::uint32_t generation = 1;
             bool occupied = false;
         };
@@ -98,6 +136,8 @@ private:
 
         std::vector<Slot> m_Slots;
         std::vector<std::uint32_t> m_FreeSlots;
+        std::uint32_t m_LiveCount = 0;
+        std::uint64_t m_LiveBytes = 0;
     };
 
 public:
@@ -121,7 +161,13 @@ public:
     void Resize(std::uint32_t width, std::uint32_t height) override;
 
     [[nodiscard]] TextureHandle CreateTexture(const TextureDesc& desc) override;
+    [[nodiscard]] TextureHandle CreateTexture(
+        const TextureDesc& desc,
+        GraphicsDataView initialData) override;
     [[nodiscard]] BufferHandle CreateBuffer(const BufferDesc& desc) override;
+    [[nodiscard]] BufferHandle CreateBuffer(
+        const BufferDesc& desc,
+        GraphicsDataView initialData) override;
     [[nodiscard]] ShaderHandle CreateShader(const ShaderDesc& desc) override;
     [[nodiscard]] PipelineHandle CreatePipeline(const PipelineDesc& desc) override;
     [[nodiscard]] SamplerHandle CreateSampler(const SamplerDesc& desc) override;
@@ -138,6 +184,14 @@ public:
     [[nodiscard]] RenderBackendStatus GetStatus() const noexcept override;
     [[nodiscard]] RenderBackendCapabilities
     GetCapabilities() const noexcept override;
+    [[nodiscard]] GraphicsResourceMemoryReport GetResourceMemoryReport()
+        const noexcept override;
+    [[nodiscard]] GraphicsResourceFailure GetLastResourceFailure()
+        const noexcept override;
+    [[nodiscard]] std::uint64_t GetTextureShadowBytesForTesting(
+        TextureHandle handle) const noexcept;
+    [[nodiscard]] std::uint64_t GetBufferShadowBytesForTesting(
+        BufferHandle handle) const noexcept;
 
 private:
     [[nodiscard]] RenderBackendCapabilities MakeConservativeCapabilities()
@@ -146,6 +200,13 @@ private:
         BackendPreference backend) const noexcept;
     [[nodiscard]] bool CanRenderFrame() const noexcept;
     [[nodiscard]] bool CanCreateResources() const noexcept;
+    template <typename HandleT>
+    [[nodiscard]] HandleT RecordCreateFailure(
+        GraphicsResourceFailure failure) noexcept;
+    template <typename HandleT>
+    [[nodiscard]] HandleT RecordSuccessfulCreate(HandleT handle) noexcept;
+    [[nodiscard]] GraphicsResourceMemoryReport BuildResourceMemoryReport()
+        const noexcept;
     void SetFailure(RenderBackendFailure failure) noexcept;
     void SetFrameSkipped(RenderBackendFailure failure) noexcept;
     void ReleaseResources() noexcept;
@@ -158,6 +219,10 @@ private:
     RenderBackendCapabilities m_LastCapabilities{};
     bool m_Headless = false;
     bool m_SurfaceMinimized = false;
+    GraphicsResourceFailure m_LastResourceFailure =
+        GraphicsResourceFailure::None;
+    std::uint64_t m_PeakLiveBytes = 0;
+    std::uint64_t m_FailedCreateCount = 0;
     ResourceRegistry<TextureHandle, TextureDesc> m_Textures;
     ResourceRegistry<BufferHandle, BufferDesc> m_Buffers;
     ResourceRegistry<ShaderHandle, ShaderDesc> m_Shaders;
