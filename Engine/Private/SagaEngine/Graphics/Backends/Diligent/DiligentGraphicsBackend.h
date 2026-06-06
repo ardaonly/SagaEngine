@@ -18,10 +18,15 @@ class DiligentGraphicsBackend final : public IGraphicsBackend
 public:
     using StatusReader = RenderBackend::RenderBackendStatus (*)(
         const RenderBackend::IRenderBackend&) noexcept;
+    using BackendFactory = std::unique_ptr<RenderBackend::IRenderBackend> (*)(
+        const RenderBackendDesc&);
 
     DiligentGraphicsBackend();
     explicit DiligentGraphicsBackend(
         std::unique_ptr<RenderBackend::IRenderBackend> backend,
+        StatusReader statusReader = RenderBackend::GetRenderBackendStatus);
+    explicit DiligentGraphicsBackend(
+        BackendFactory backendFactory,
         StatusReader statusReader = RenderBackend::GetRenderBackendStatus);
 
     [[nodiscard]] bool Initialize(
@@ -48,17 +53,28 @@ public:
     [[nodiscard]] RenderBackendStatus GetStatus() const noexcept override;
 
 private:
+    [[nodiscard]] bool CanRenderFrame() const noexcept;
+    void SetFailure(RenderBackendFailure failure) noexcept;
+    void SetFrameSkipped(RenderBackendFailure failure) noexcept;
+
     std::unique_ptr<RenderBackend::IRenderBackend> m_RenderBackend;
+    BackendFactory m_BackendFactory = nullptr;
     StatusReader m_StatusReader = RenderBackend::GetRenderBackendStatus;
     RenderBackendStatus m_HeadlessStatus{};
     RenderBackendStatus m_LastStatus{};
     bool m_Headless = false;
+    bool m_SurfaceMinimized = false;
 };
 
 [[nodiscard]] std::unique_ptr<IGraphicsBackend> CreateDiligentGraphicsBackend();
 [[nodiscard]] std::unique_ptr<IGraphicsBackend>
 CreateDiligentGraphicsBackendForTesting(
     std::unique_ptr<RenderBackend::IRenderBackend> backend,
+    DiligentGraphicsBackend::StatusReader statusReader =
+        RenderBackend::GetRenderBackendStatus);
+[[nodiscard]] std::unique_ptr<IGraphicsBackend>
+CreateDiligentGraphicsBackendForTesting(
+    DiligentGraphicsBackend::BackendFactory backendFactory,
     DiligentGraphicsBackend::StatusReader statusReader =
         RenderBackend::GetRenderBackendStatus);
 

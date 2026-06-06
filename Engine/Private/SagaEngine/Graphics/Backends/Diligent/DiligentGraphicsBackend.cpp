@@ -27,14 +27,35 @@ namespace
     return renderDesc;
 }
 
+[[nodiscard]] std::unique_ptr<RenderBackend::IRenderBackend>
+CreateDefaultRenderBackend(const RenderBackendDesc& backend)
+{
+    return RenderBackend::CreateRenderBackend(
+        Mapping::ToRenderBackendConfig(backend));
+}
+
 } // namespace
 
-DiligentGraphicsBackend::DiligentGraphicsBackend() = default;
+DiligentGraphicsBackend::DiligentGraphicsBackend()
+    : m_BackendFactory(CreateDefaultRenderBackend)
+{
+}
 
 DiligentGraphicsBackend::DiligentGraphicsBackend(
     std::unique_ptr<RenderBackend::IRenderBackend> backend,
     StatusReader statusReader)
     : m_RenderBackend(std::move(backend))
+    , m_BackendFactory(CreateDefaultRenderBackend)
+    , m_StatusReader(statusReader ? statusReader
+                                  : RenderBackend::GetRenderBackendStatus)
+{
+}
+
+DiligentGraphicsBackend::DiligentGraphicsBackend(
+    BackendFactory backendFactory,
+    StatusReader statusReader)
+    : m_BackendFactory(backendFactory ? backendFactory
+                                      : CreateDefaultRenderBackend)
     , m_StatusReader(statusReader ? statusReader
                                   : RenderBackend::GetRenderBackendStatus)
 {
@@ -45,6 +66,8 @@ bool DiligentGraphicsBackend::Initialize(
     const SwapchainDesc& swapchain)
 {
     Shutdown();
+    m_LastStatus = {};
+    m_LastStatus.selectedBackend = backend.preferredBackend;
 
     m_Headless = backend.headless;
     if (m_Headless)
@@ -52,25 +75,40 @@ bool DiligentGraphicsBackend::Initialize(
         m_HeadlessStatus.selectedBackend = backend.preferredBackend;
         m_HeadlessStatus.frameIndex = 0;
         m_HeadlessStatus.initialized = true;
+        m_HeadlessStatus.health = RenderBackendHealth::Headless;
+        m_HeadlessStatus.failure = RenderBackendFailure::None;
         m_LastStatus = m_HeadlessStatus;
         return true;
     }
 
-    if (!m_RenderBackend)
+    if (swapchain.width == 0u || swapchain.height == 0u)
     {
-        m_RenderBackend =
-            RenderBackend::CreateRenderBackend(Mapping::ToRenderBackendConfig(backend));
+        m_SurfaceMinimized = true;
+        SetFrameSkipped(RenderBackendFailure::InvalidSurfaceSize);
+        return false;
     }
 
     if (!m_RenderBackend)
     {
-        m_LastStatus = {};
+        m_RenderBackend = m_BackendFactory(backend);
+    }
+
+    if (!m_RenderBackend)
+    {
+        SetFailure(RenderBackendFailure::BackendUnavailable);
         return false;
     }
 
     const bool initialized =
         m_RenderBackend->Initialize(ToRenderSwapchainDesc(swapchain));
-    m_LastStatus = GetStatus();
+    m_LastStatus =
+        Mapping::ToGraphicsBackendStatus(m_StatusReader(*m_RenderBackend));
+    if (!initialized)
+    {
+        SetFailure(RenderBackendFailure::InitializationFailed);
+        m_RenderBackend->Shutdown();
+    }
+
     return initialized;
 }
 
@@ -82,15 +120,27 @@ void DiligentGraphicsBackend::Shutdown()
     }
 
     m_HeadlessStatus.initialized = false;
+    m_HeadlessStatus.health = RenderBackendHealth::Shutdown;
     m_LastStatus.initialized = false;
+    m_LastStatus.health = RenderBackendHealth::Shutdown;
     m_Headless = false;
+    m_SurfaceMinimized = false;
 }
 
 void DiligentGraphicsBackend::Resize(std::uint32_t width, std::uint32_t height)
 {
-    if (m_RenderBackend)
+    if (width == 0u || height == 0u)
+    {
+        m_SurfaceMinimized = true;
+        SetFrameSkipped(RenderBackendFailure::InvalidSurfaceSize);
+        return;
+    }
+
+    m_SurfaceMinimized = false;
+    if (CanRenderFrame())
     {
         m_RenderBackend->OnResize(width, height);
+        m_LastStatus = GetStatus();
     }
 }
 
@@ -134,6 +184,12 @@ void DiligentGraphicsBackend::BeginFrame()
         return;
     }
 
+    if (!CanRenderFrame())
+    {
+        SetFrameSkipped(m_LastStatus.failure);
+        return;
+    }
+
     if (m_RenderBackend)
     {
         m_RenderBackend->BeginFrame();
@@ -143,6 +199,12 @@ void DiligentGraphicsBackend::BeginFrame()
 
 void DiligentGraphicsBackend::EndFrame()
 {
+    if (!CanRenderFrame())
+    {
+        SetFrameSkipped(m_LastStatus.failure);
+        return;
+    }
+
     if (m_RenderBackend)
     {
         m_RenderBackend->EndFrame();
@@ -157,12 +219,35 @@ RenderBackendStatus DiligentGraphicsBackend::GetStatus() const noexcept
         return m_HeadlessStatus;
     }
 
-    if (!m_RenderBackend)
+    if (!m_RenderBackend || !m_LastStatus.initialized || m_SurfaceMinimized)
     {
         return m_LastStatus;
     }
 
     return Mapping::ToGraphicsBackendStatus(m_StatusReader(*m_RenderBackend));
+}
+
+bool DiligentGraphicsBackend::CanRenderFrame() const noexcept
+{
+    return m_RenderBackend && !m_SurfaceMinimized &&
+           m_LastStatus.initialized &&
+           m_LastStatus.failure == RenderBackendFailure::None;
+}
+
+void DiligentGraphicsBackend::SetFailure(
+    RenderBackendFailure failure) noexcept
+{
+    m_LastStatus.initialized = false;
+    m_LastStatus.health = RenderBackendHealth::Failed;
+    m_LastStatus.failure = failure;
+}
+
+void DiligentGraphicsBackend::SetFrameSkipped(
+    RenderBackendFailure failure) noexcept
+{
+    m_LastStatus.initialized = false;
+    m_LastStatus.health = RenderBackendHealth::FrameSkipped;
+    m_LastStatus.failure = failure;
 }
 
 std::unique_ptr<IGraphicsBackend> CreateDiligentGraphicsBackend()
@@ -176,6 +261,15 @@ std::unique_ptr<IGraphicsBackend> CreateDiligentGraphicsBackendForTesting(
 {
     return std::make_unique<DiligentGraphicsBackend>(
         std::move(backend),
+        statusReader);
+}
+
+std::unique_ptr<IGraphicsBackend> CreateDiligentGraphicsBackendForTesting(
+    DiligentGraphicsBackend::BackendFactory backendFactory,
+    DiligentGraphicsBackend::StatusReader statusReader)
+{
+    return std::make_unique<DiligentGraphicsBackend>(
+        backendFactory,
         statusReader);
 }
 

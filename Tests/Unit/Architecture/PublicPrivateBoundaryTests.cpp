@@ -334,6 +334,12 @@ TEST(PublicPrivateBoundaryTests, SagaGraphicsUmbrellaHeaderCompileSmoke)
         status.selectedBackend,
         SagaEngine::Graphics::BackendPreference::Compatibility);
     EXPECT_EQ(status.frameIndex, 1u);
+    EXPECT_EQ(
+        status.health,
+        SagaEngine::Graphics::RenderBackendHealth::Headless);
+    EXPECT_EQ(
+        status.failure,
+        SagaEngine::Graphics::RenderBackendFailure::None);
 
     backend.DestroyTexture(textureHandle);
     backend.DestroyBuffer(bufferHandle);
@@ -342,6 +348,9 @@ TEST(PublicPrivateBoundaryTests, SagaGraphicsUmbrellaHeaderCompileSmoke)
 
     status = backend.GetStatus();
     EXPECT_FALSE(status.initialized);
+    EXPECT_EQ(
+        status.health,
+        SagaEngine::Graphics::RenderBackendHealth::Shutdown);
 }
 
 TEST(PublicPrivateBoundaryTests, RenderPublicApiContractDocumentsGraphicsGuardrails)
