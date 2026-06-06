@@ -28,13 +28,15 @@ targets until a later bridge migration slice.
 
 The internal backend preference order is documented in
 [Graphics Backend Preference Order](GRAPHICS_BACKEND_PREFERENCE_ORDER.md).
+The current graphics CMake target roles are documented in
+[Graphics Target Boundary Inventory](GRAPHICS_TARGET_BOUNDARY_INVENTORY.md).
 
 ## Install Surface
 
-The development install surface currently installs
-`Engine/Public/SagaEngine`. The installed `SagaEngine/Graphics` headers must
-remain vendor-neutral and must not require vendored or native graphics include
-paths.
+The development install surface currently installs `Engine/Public/SagaEngine`,
+with `SagaEngine/Graphics` delegated to `SagaInstallGraphics.cmake` as an
+explicit public graphics header list. The installed graphics headers must remain
+vendor-neutral and must not require vendored or native graphics include paths.
 
 The install surface must not install `Vendor/Diligent` headers under
 `include/Vendor`, and must not install `VendorDiligent` or
@@ -55,4 +57,5 @@ Architecture tests must keep:
 - `Graphics.h` umbrella compile smoke coverage;
 - public `SagaEngine/Graphics` forbidden-token scan coverage;
 - `SagaGraphics` target dependency checks;
+- `SagaGraphicsPrivate` private target dependency checks;
 - installed graphics include and backend/vendor target artifact scans.
