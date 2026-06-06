@@ -21,10 +21,11 @@ only the `Engine/Public` include root. It must not link or publish:
 - native API targets or libraries for Vulkan, D3D, OpenGL, or Metal
 - concrete backend libraries
 
-`SagaGraphicsPrivate` is the private CMake implementation target shell for
-future graphics backend ownership. It may depend on `SagaGraphics`, but it must
-not install, publish, or directly link concrete Diligent/backend/native API
-targets until a later bridge migration slice.
+`SagaGraphicsPrivate` is the private CMake implementation target for graphics
+backend ownership. It may depend on `SagaGraphics` and may privately link
+`SagaDiligentBackend` for the R3A-lite lifecycle adapter, but it must not
+install, publish, or directly link `VendorDiligent`, Diligent targets, or native
+API targets.
 
 The internal backend preference order is documented in
 [Graphics Backend Preference Order](GRAPHICS_BACKEND_PREFERENCE_ORDER.md).
@@ -46,7 +47,7 @@ still be installed outside the include and target surface.
 ## Explicit Non-Goals
 
 This contract does not move `SagaEngine/Render/Backend`.
-It does not perform R3 bridge migration.
+It does not complete R3 bridge migration.
 It does not add RenderGraph, material, shader, or resource behavior.
 It does not claim `SagaEngine/Graphics` is a stable external SDK.
 
