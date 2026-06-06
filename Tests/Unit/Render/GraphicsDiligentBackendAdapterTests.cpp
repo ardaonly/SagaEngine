@@ -696,6 +696,41 @@ TEST(GraphicsDiligentBackendAdapter, DestroyNoOpsDoNotUpdateFailure)
     EXPECT_EQ(backend->GetResourceMemoryReport().failedCreateCount, 0u);
 }
 
+TEST(GraphicsDiligentBackendAdapter, RegisteredHandlesReportBackingState)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    const auto texture = backend->CreateTexture(MakeTextureDesc());
+    const auto buffer = backend->CreateBuffer(MakeBufferDesc());
+    ASSERT_TRUE(texture.IsValid());
+    ASSERT_TRUE(buffer.IsValid());
+
+    EXPECT_EQ(
+        backend->GetTextureBackingForTesting(texture),
+        Graphics::GraphicsResourceBacking::RegisteredOnly);
+    EXPECT_EQ(
+        backend->GetBufferBackingForTesting(buffer),
+        Graphics::GraphicsResourceBacking::RegisteredOnly);
+    EXPECT_EQ(
+        backend->GetTextureBackingForTesting({}),
+        Graphics::GraphicsResourceBacking::Invalid);
+
+    backend->DestroyTexture(texture);
+    EXPECT_EQ(
+        backend->GetTextureBackingForTesting(texture),
+        Graphics::GraphicsResourceBacking::Invalid);
+
+    const auto nextTexture = backend->CreateTexture(MakeTextureDesc());
+    ASSERT_TRUE(nextTexture.IsValid());
+    backend->Shutdown();
+    EXPECT_EQ(
+        backend->GetTextureBackingForTesting(nextTexture),
+        Graphics::GraphicsResourceBacking::Invalid);
+    EXPECT_EQ(state.textureCreateCalls, 0u);
+}
+
 TEST(GraphicsDiligentBackendAdapter, HeadlessResourceReportUsesRegisteredOnlyHandles)
 {
     FakeRenderState state;

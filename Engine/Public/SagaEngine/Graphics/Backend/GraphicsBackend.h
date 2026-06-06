@@ -60,6 +60,13 @@ enum class GraphicsResourceFailure : std::uint8_t
     InvalidInitialData,
 };
 
+enum class GraphicsResourceBacking : std::uint8_t
+{
+    Invalid = 0,
+    RegisteredOnly,
+    NativeGpuFuture,
+};
+
 enum class RenderQualityPreset : std::uint8_t
 {
     Low = 0,
@@ -315,6 +322,24 @@ private:
         [[nodiscard]] std::uint64_t LiveBytes() const noexcept
         {
             return m_LiveBytes;
+        }
+
+        [[nodiscard]] GraphicsResourceBacking Backing(HandleT handle)
+            const noexcept
+        {
+            if (!handle.IsValid() || handle.index > m_Slots.size())
+            {
+                return GraphicsResourceBacking::Invalid;
+            }
+
+            const auto slotIndex = handle.index - 1u;
+            const auto& slot = m_Slots[slotIndex];
+            if (!slot.occupied || slot.generation != handle.generation)
+            {
+                return GraphicsResourceBacking::Invalid;
+            }
+
+            return GraphicsResourceBacking::RegisteredOnly;
         }
 
     private:
@@ -575,6 +600,18 @@ public:
     GetLastShutdownResourceLeakSummary() const noexcept override
     {
         return m_LastShutdownLeakSummary;
+    }
+
+    [[nodiscard]] GraphicsResourceBacking GetTextureBackingForTesting(
+        TextureHandle handle) const noexcept
+    {
+        return m_Textures.Backing(handle);
+    }
+
+    [[nodiscard]] GraphicsResourceBacking GetBufferBackingForTesting(
+        BufferHandle handle) const noexcept
+    {
+        return m_Buffers.Backing(handle);
     }
 
     [[nodiscard]] std::uint32_t Width() const noexcept

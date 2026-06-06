@@ -608,6 +608,18 @@ std::uint64_t DiligentGraphicsBackend::GetBufferShadowBytesForTesting(
     return m_Buffers.ShadowBytes(handle);
 }
 
+GraphicsResourceBacking DiligentGraphicsBackend::GetTextureBackingForTesting(
+    TextureHandle handle) const noexcept
+{
+    return m_Textures.Backing(handle);
+}
+
+GraphicsResourceBacking DiligentGraphicsBackend::GetBufferBackingForTesting(
+    BufferHandle handle) const noexcept
+{
+    return m_Buffers.Backing(handle);
+}
+
 RenderBackendCapabilities
 DiligentGraphicsBackend::MakeConservativeCapabilities() const noexcept
 {

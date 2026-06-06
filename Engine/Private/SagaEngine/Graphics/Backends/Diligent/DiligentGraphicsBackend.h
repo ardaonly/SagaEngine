@@ -118,6 +118,24 @@ private:
             return m_LiveBytes;
         }
 
+        [[nodiscard]] GraphicsResourceBacking Backing(HandleT handle)
+            const noexcept
+        {
+            if (!handle.IsValid() || handle.index > m_Slots.size())
+            {
+                return GraphicsResourceBacking::Invalid;
+            }
+
+            const auto slotIndex = handle.index - 1u;
+            const auto& slot = m_Slots[slotIndex];
+            if (!slot.occupied || slot.generation != handle.generation)
+            {
+                return GraphicsResourceBacking::Invalid;
+            }
+
+            return GraphicsResourceBacking::RegisteredOnly;
+        }
+
     private:
         struct Slot
         {
@@ -193,6 +211,10 @@ public:
     [[nodiscard]] std::uint64_t GetTextureShadowBytesForTesting(
         TextureHandle handle) const noexcept;
     [[nodiscard]] std::uint64_t GetBufferShadowBytesForTesting(
+        BufferHandle handle) const noexcept;
+    [[nodiscard]] GraphicsResourceBacking GetTextureBackingForTesting(
+        TextureHandle handle) const noexcept;
+    [[nodiscard]] GraphicsResourceBacking GetBufferBackingForTesting(
         BufferHandle handle) const noexcept;
 
 private:
