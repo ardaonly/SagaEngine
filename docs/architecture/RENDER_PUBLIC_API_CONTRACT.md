@@ -24,6 +24,9 @@ only the `Engine/Public` include root. It must not link or publish:
 `SagaGraphicsPrivate` is intentionally absent until there is a private graphics
 implementation target to own.
 
+The internal backend preference order is documented in
+[Graphics Backend Preference Order](GRAPHICS_BACKEND_PREFERENCE_ORDER.md).
+
 ## Install Surface
 
 The development install surface currently installs

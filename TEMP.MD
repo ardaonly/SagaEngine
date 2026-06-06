@@ -63,9 +63,9 @@ Bu bölüm roadmap'in uygulama gerçeğiyle senkron tutulması için eklenmişti
 - [ ] R2 başladı ama tamamlanmadı: mevcut `Engine/Public/SagaEngine/Render/Backend` surface vendor-neutral ve yeni `Engine/Public/SagaEngine/Graphics` shell mevcut; davranış bridge'i ve stable SDK iddiası yok.
 - [ ] R2B-lite başladı: public render/backend token guard, `SagaGraphics` shell smoke, install surface guard ve contract dokümantasyonu mevcut; full R2B closure claim yok.
 - [ ] R2B-lite install guard verified during R1B-lite target-boundary slice.
-- [ ] R3 başladı ama tamamlanmadı: Diligent backend device/swapchain/frame yolu mevcut; planlanan `Engine/Private/SagaEngine/Graphics/Backends/Diligent` konumu ve `SagaGraphics` üstünden bridge henüz yapılmadı.
+- [ ] R3-prep başladı: Diligent backend device/swapchain/frame yolu mevcut; `SagaGraphics`/Render backend preference mapping ve platform order dokümantasyonu eklendi, ama planlanan `Engine/Private/SagaEngine/Graphics/Backends/Diligent` konumu ve `SagaGraphics` üstünden bridge henüz yapılmadı.
 
-Bu slice: R2B-lite contract / roadmap sync. Full R2B closure, R3 bridge migration ve stable external SDK claim yok.
+Bu slice: R3-prep — Graphics backend preference mapping. Full R3 bridge migration, `Render/Backend` taşıma ve stable external SDK claim yok.
 
 ---
 
@@ -1027,10 +1027,10 @@ Engine/Private/SagaEngine/Graphics/Backends/Diligent/
 - [x] Render backend diagnostics raporu üret.
 - [x] Diligent include'ları sadece private backend dosyalarında tut.
 - [x] Backend capability report üret.
-- [ ] Platform backend order dokümante et:
-  - Primary: Linux + Vulkan
-  - Secondary: Windows + D3D12 veya Vulkan
-  - Later: Metal / WebGPU / D3D11 fallback
+- [x] Platform backend order dokümante et:
+  - Linux: `NativePortable`, sonra `Compatibility`
+  - Windows: `NativePrimary`, sonra `NativePortable`, sonra `Compatibility`
+  - Other platforms: `NativePortable`, sonra `Compatibility`
 
 ## Test / Doğrulama
 
