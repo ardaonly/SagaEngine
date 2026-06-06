@@ -34,10 +34,10 @@ struct SandboxConfig
 
     // ── Render backend ───────────────────────────────────────────────────────
 
-    /// Diligent backend configuration (API preference, validation, clear
+    /// Render backend configuration (API preference, validation, clear
     /// colour, etc.). Only used when headless == false. When headless is
     /// true, no backend is created.
-    SagaEngine::Render::Backend::DiligentBackendConfig renderBackend;
+    SagaEngine::Render::Backend::RenderBackendConfig renderBackend;
 
     /// Update the window title with FPS / frame-time every N frames.
     /// 0 disables the FPS title update. Default: every 30 frames.

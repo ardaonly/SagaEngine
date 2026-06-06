@@ -56,7 +56,7 @@ bool AsLinuxNativeWindow(void* nativeWindow, Diligent::NativeWindow& out)
 // ─── API-specific init helpers ───────────────────────────────────────
 
 #if D3D12_SUPPORTED
-bool InitD3D12(const SwapchainDesc& desc, const DiligentBackendConfig& cfg,
+bool InitD3D12(const SwapchainDesc& desc, const RenderBackendConfig& cfg,
                Diligent::RefCntAutoPtr<Diligent::IRenderDevice>& outDevice,
                Diligent::RefCntAutoPtr<Diligent::IDeviceContext>& outContext,
                Diligent::RefCntAutoPtr<Diligent::ISwapChain>& outSwap)
@@ -84,7 +84,7 @@ bool InitD3D12(const SwapchainDesc& desc, const DiligentBackendConfig& cfg,
 #endif
 
 #if VULKAN_SUPPORTED
-bool InitVulkan(const SwapchainDesc& desc, const DiligentBackendConfig& cfg,
+bool InitVulkan(const SwapchainDesc& desc, const RenderBackendConfig& cfg,
                 Diligent::RefCntAutoPtr<Diligent::IRenderDevice>& outDevice,
                 Diligent::RefCntAutoPtr<Diligent::IDeviceContext>& outContext,
                 Diligent::RefCntAutoPtr<Diligent::ISwapChain>& outSwap)
@@ -122,7 +122,7 @@ bool InitVulkan(const SwapchainDesc& desc, const DiligentBackendConfig& cfg,
 #endif
 
 #if D3D11_SUPPORTED
-bool InitD3D11(const SwapchainDesc& desc, const DiligentBackendConfig& cfg,
+bool InitD3D11(const SwapchainDesc& desc, const RenderBackendConfig& cfg,
                Diligent::RefCntAutoPtr<Diligent::IRenderDevice>& outDevice,
                Diligent::RefCntAutoPtr<Diligent::IDeviceContext>& outContext,
                Diligent::RefCntAutoPtr<Diligent::ISwapChain>& outSwap)
@@ -150,7 +150,7 @@ bool InitD3D11(const SwapchainDesc& desc, const DiligentBackendConfig& cfg,
 #endif
 
 #if GL_SUPPORTED
-bool InitOpenGL(const SwapchainDesc& desc, const DiligentBackendConfig& /*cfg*/,
+bool InitOpenGL(const SwapchainDesc& desc, const RenderBackendConfig& /*cfg*/,
                 Diligent::RefCntAutoPtr<Diligent::IRenderDevice>& outDevice,
                 Diligent::RefCntAutoPtr<Diligent::IDeviceContext>& outContext,
                 Diligent::RefCntAutoPtr<Diligent::ISwapChain>& outSwap)
@@ -180,9 +180,9 @@ bool InitOpenGL(const SwapchainDesc& desc, const DiligentBackendConfig& /*cfg*/,
 
 // ─── Unified API selection ───────────────────────────────────────────
 
-DiligentBackendAPI TryInitAPI(
-    DiligentBackendAPI preferred, const SwapchainDesc& desc,
-    const DiligentBackendConfig& cfg,
+GraphicsBackendAPI TryInitAPI(
+    GraphicsBackendAPI preferred, const SwapchainDesc& desc,
+    const RenderBackendConfig& cfg,
     Diligent::RefCntAutoPtr<Diligent::IRenderDevice>& outDevice,
     Diligent::RefCntAutoPtr<Diligent::IDeviceContext>& outContext,
     Diligent::RefCntAutoPtr<Diligent::ISwapChain>& outSwap)
@@ -203,36 +203,36 @@ DiligentBackendAPI TryInitAPI(
 #endif
     );
 
-    auto tryOne = [&](DiligentBackendAPI api) -> bool
+    auto tryOne = [&](GraphicsBackendAPI api) -> bool
     {
         outDevice.Release(); outContext.Release(); outSwap.Release();
         switch (api)
         {
 #if D3D12_SUPPORTED
-            case DiligentBackendAPI::kD3D12:  return InitD3D12(desc, cfg, outDevice, outContext, outSwap);
+            case GraphicsBackendAPI::kNativePrimary:  return InitD3D12(desc, cfg, outDevice, outContext, outSwap);
 #endif
 #if VULKAN_SUPPORTED
-            case DiligentBackendAPI::kVulkan: return InitVulkan(desc, cfg, outDevice, outContext, outSwap);
+            case GraphicsBackendAPI::kNativePortable: return InitVulkan(desc, cfg, outDevice, outContext, outSwap);
 #endif
 #if D3D11_SUPPORTED
-            case DiligentBackendAPI::kD3D11:  return InitD3D11(desc, cfg, outDevice, outContext, outSwap);
+            case GraphicsBackendAPI::kNativeLegacy:  return InitD3D11(desc, cfg, outDevice, outContext, outSwap);
 #endif
 #if GL_SUPPORTED
-            case DiligentBackendAPI::kOpenGL: return InitOpenGL(desc, cfg, outDevice, outContext, outSwap);
+            case GraphicsBackendAPI::kCompatibility: return InitOpenGL(desc, cfg, outDevice, outContext, outSwap);
 #endif
             default: return false;
         }
     };
 
-    if (preferred != DiligentBackendAPI::kAuto)
-        return tryOne(preferred) ? preferred : DiligentBackendAPI::kAuto;
+    if (preferred != GraphicsBackendAPI::kAuto)
+        return tryOne(preferred) ? preferred : GraphicsBackendAPI::kAuto;
 
-    constexpr DiligentBackendAPI kOrder[] = {
-        DiligentBackendAPI::kD3D12, DiligentBackendAPI::kVulkan,
-        DiligentBackendAPI::kD3D11, DiligentBackendAPI::kOpenGL,
+    constexpr GraphicsBackendAPI kOrder[] = {
+        GraphicsBackendAPI::kNativePrimary, GraphicsBackendAPI::kNativePortable,
+        GraphicsBackendAPI::kNativeLegacy, GraphicsBackendAPI::kCompatibility,
     };
     for (auto api : kOrder)
         if (tryOne(api)) return api;
 
-    return DiligentBackendAPI::kAuto;
+    return GraphicsBackendAPI::kAuto;
 }

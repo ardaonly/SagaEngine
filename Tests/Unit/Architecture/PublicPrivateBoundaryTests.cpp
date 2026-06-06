@@ -216,6 +216,61 @@ TEST(PublicPrivateBoundaryTests, EnginePublicDoesNotExposeServerOrConcreteBacken
         << (offenders.empty() ? "" : offenders.front());
 }
 
+TEST(PublicPrivateBoundaryTests, PublicRenderBackendSurfaceIsVendorNeutral)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const std::vector<std::filesystem::path> publicRoots = {
+        root / "Engine" / "Public" / "SagaEngine" / "Render" / "Backend",
+        root / "Engine" / "Public" / "SagaEngine" / "Graphics",
+    };
+    const std::vector<std::string> forbiddenTokens = {
+        "Diligent",
+        "Vk",
+        "Vulkan",
+        "ID3D",
+        "D3D",
+        "MTL",
+        "Metal",
+        "TheForge",
+    };
+
+    std::vector<std::string> offenders;
+    for (const auto& publicRoot : publicRoots)
+    {
+        if (!std::filesystem::exists(publicRoot))
+        {
+            continue;
+        }
+
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(publicRoot))
+        {
+            if (!entry.is_regular_file() || !IsCodeFile(entry.path()))
+            {
+                continue;
+            }
+
+            const auto relative = RelativeToSourceRoot(entry.path()).generic_string();
+            const auto lines = ReadLines(entry.path());
+            for (std::size_t i = 0; i < lines.size(); ++i)
+            {
+                for (const auto& token : forbiddenTokens)
+                {
+                    if (Contains(lines[i], token))
+                    {
+                        offenders.push_back(
+                            relative + ":" + std::to_string(i + 1) + ": " + token);
+                    }
+                }
+            }
+        }
+    }
+
+    EXPECT_TRUE(offenders.empty())
+        << "Public render backend/graphics headers must remain vendor-neutral. "
+        << "First offender: "
+        << (offenders.empty() ? "" : offenders.front());
+}
+
 TEST(PublicPrivateBoundaryTests, SimulationPublicDoesNotIncludeInputNetworking)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);

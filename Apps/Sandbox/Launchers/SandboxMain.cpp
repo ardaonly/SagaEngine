@@ -196,11 +196,11 @@ int main(int argc, char* argv[])
         }
         else if (ArgEquals(argv[i], "--vulkan"))
         {
-            config.renderBackend.preferredAPI = SagaEngine::Render::Backend::DiligentBackendAPI::kVulkan;
+            config.renderBackend.preferredAPI = SagaEngine::Render::Backend::GraphicsBackendAPI::kNativePortable;
         }
         else if (ArgEquals(argv[i], "--opengl"))
         {
-            config.renderBackend.preferredAPI = SagaEngine::Render::Backend::DiligentBackendAPI::kOpenGL;
+            config.renderBackend.preferredAPI = SagaEngine::Render::Backend::GraphicsBackendAPI::kCompatibility;
         }
         else if (ArgEquals(argv[i], "--no-mem-report"))
         {

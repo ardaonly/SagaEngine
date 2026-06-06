@@ -46,12 +46,12 @@ class DiligentRenderBackend
 {
 public:
     DiligentRenderBackend()
-        : m_backend(CreateDiligentRenderBackend())
+        : m_backend(CreateRenderBackend())
     {
     }
 
-    explicit DiligentRenderBackend(DiligentBackendConfig cfg)
-        : m_backend(CreateDiligentRenderBackend(cfg))
+    explicit DiligentRenderBackend(RenderBackendConfig cfg)
+        : m_backend(CreateRenderBackend(cfg))
     {
     }
 
@@ -106,7 +106,7 @@ public:
         m_backend->EndFrame();
     }
 
-    [[nodiscard]] DiligentBackendAPI SelectedAPI() const noexcept
+    [[nodiscard]] GraphicsBackendAPI SelectedAPI() const noexcept
     {
         return BackendStatus().selectedAPI;
     }
@@ -122,9 +122,9 @@ public:
     }
 
 private:
-    [[nodiscard]] DiligentBackendStatus BackendStatus() const noexcept
+    [[nodiscard]] RenderBackendStatus BackendStatus() const noexcept
     {
-        return GetDiligentRenderBackendStatus(*m_backend);
+        return GetRenderBackendStatus(*m_backend);
     }
 
     std::unique_ptr<IRenderBackend> m_backend;
@@ -151,13 +151,13 @@ TEST(DiligentBackend, DefaultCtorFrameIndexZero)
 TEST(DiligentBackend, DefaultCtorSelectedAPIIsAuto)
 {
     DiligentRenderBackend backend;
-    EXPECT_EQ(backend.SelectedAPI(), DiligentBackendAPI::kAuto);
+    EXPECT_EQ(backend.SelectedAPI(), GraphicsBackendAPI::kAuto);
 }
 
 TEST(DiligentBackend, ConfigCtorPropagates)
 {
-    DiligentBackendConfig cfg;
-    cfg.preferredAPI     = DiligentBackendAPI::kVulkan;
+    RenderBackendConfig cfg;
+    cfg.preferredAPI     = GraphicsBackendAPI::kNativePortable;
     cfg.enableValidation = true;
     cfg.clearColor[0]    = 1.0f;
     cfg.clearColor[1]    = 0.0f;
@@ -170,7 +170,7 @@ TEST(DiligentBackend, ConfigCtorPropagates)
     // Construction itself must not crash or init the device.
     DiligentRenderBackend backend(cfg);
     EXPECT_FALSE(backend.IsInitialized());
-    EXPECT_EQ(backend.SelectedAPI(), DiligentBackendAPI::kAuto);
+    EXPECT_EQ(backend.SelectedAPI(), GraphicsBackendAPI::kAuto);
     EXPECT_EQ(backend.FrameIndex(), 0u);
 }
 
@@ -222,8 +222,8 @@ TEST(DiligentBackend, InitNullWindowGracefulFail)
 
 TEST(DiligentBackend, InitForcedD3D12WithoutGPUReturnsFalse)
 {
-    DiligentBackendConfig cfg;
-    cfg.preferredAPI = DiligentBackendAPI::kD3D12;
+    RenderBackendConfig cfg;
+    cfg.preferredAPI = GraphicsBackendAPI::kNativePrimary;
 
     DiligentRenderBackend backend(cfg);
     SwapchainDesc desc{};
@@ -236,8 +236,8 @@ TEST(DiligentBackend, InitForcedD3D12WithoutGPUReturnsFalse)
 
 TEST(DiligentBackend, InitForcedVulkanWithoutGPUReturnsFalse)
 {
-    DiligentBackendConfig cfg;
-    cfg.preferredAPI = DiligentBackendAPI::kVulkan;
+    RenderBackendConfig cfg;
+    cfg.preferredAPI = GraphicsBackendAPI::kNativePortable;
 
     DiligentRenderBackend backend(cfg);
     SwapchainDesc desc{};
@@ -406,17 +406,17 @@ TEST(DiligentBackend, DestroyMaterialNoOp)
 
 TEST(DiligentBackend, ToStringCoversAllAPIs)
 {
-    EXPECT_EQ(ToString(DiligentBackendAPI::kAuto),   "Auto");
-    EXPECT_EQ(ToString(DiligentBackendAPI::kD3D12),  "D3D12");
-    EXPECT_EQ(ToString(DiligentBackendAPI::kVulkan), "Vulkan");
-    EXPECT_EQ(ToString(DiligentBackendAPI::kD3D11),  "D3D11");
-    EXPECT_EQ(ToString(DiligentBackendAPI::kOpenGL), "OpenGL");
+    EXPECT_EQ(ToString(GraphicsBackendAPI::kAuto),   "Auto");
+    EXPECT_EQ(ToString(GraphicsBackendAPI::kNativePrimary),  "D3D12");
+    EXPECT_EQ(ToString(GraphicsBackendAPI::kNativePortable), "Vulkan");
+    EXPECT_EQ(ToString(GraphicsBackendAPI::kNativeLegacy),  "D3D11");
+    EXPECT_EQ(ToString(GraphicsBackendAPI::kCompatibility), "OpenGL");
 }
 
 TEST(DiligentBackend, ToStringUnknownValue)
 {
     // Out-of-range enum value must not crash; returns "Unknown".
-    const auto val = static_cast<DiligentBackendAPI>(255);
+    const auto val = static_cast<GraphicsBackendAPI>(255);
     const auto str = ToString(val);
     EXPECT_FALSE(str.empty());
     EXPECT_EQ(str, "Unknown");
@@ -428,8 +428,8 @@ TEST(DiligentBackend, ToStringUnknownValue)
 
 TEST(DiligentBackend, ConfigDefaultsAreSane)
 {
-    DiligentBackendConfig cfg{};
-    EXPECT_EQ(cfg.preferredAPI, DiligentBackendAPI::kAuto);
+    RenderBackendConfig cfg{};
+    EXPECT_EQ(cfg.preferredAPI, GraphicsBackendAPI::kAuto);
     EXPECT_FALSE(cfg.enableValidation);
     EXPECT_FLOAT_EQ(cfg.clearDepth, 1.0f);
     EXPECT_EQ(cfg.clearStencil, 0u);
