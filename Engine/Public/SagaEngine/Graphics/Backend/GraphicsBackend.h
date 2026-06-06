@@ -133,6 +133,22 @@ struct GraphicsResourceMemoryReport
     std::uint64_t failedCreateCount = 0;
 };
 
+struct GraphicsResourceLeakSummary
+{
+    bool hadLiveResources = false;
+    std::uint32_t leakedTextureCount = 0;
+    std::uint32_t leakedBufferCount = 0;
+    std::uint32_t leakedShaderCount = 0;
+    std::uint32_t leakedPipelineCount = 0;
+    std::uint32_t leakedSamplerCount = 0;
+    std::uint64_t textureBytes = 0;
+    std::uint64_t bufferBytes = 0;
+    std::uint64_t shaderBytes = 0;
+    std::uint64_t pipelineBytes = 0;
+    std::uint64_t samplerBytes = 0;
+    std::uint64_t totalLeakedBytes = 0;
+};
+
 /// Creation-time data view. The pointer only needs to remain valid for the
 /// duration of the create call; backends copy accepted data immediately and
 /// never retain the caller-owned pointer.
@@ -212,6 +228,8 @@ public:
     GetResourceMemoryReport() const noexcept = 0;
     [[nodiscard]] virtual GraphicsResourceFailure
     GetLastResourceFailure() const noexcept = 0;
+    [[nodiscard]] virtual GraphicsResourceLeakSummary
+    GetLastShutdownResourceLeakSummary() const noexcept = 0;
 };
 
 class NullGraphicsBackend final : public IGraphicsBackend
@@ -337,6 +355,8 @@ public:
 
     void Shutdown() override
     {
+        m_LastShutdownLeakSummary =
+            BuildLeakSummary(GetResourceMemoryReport());
         m_Textures.ReleaseAll();
         m_Buffers.ReleaseAll();
         m_Shaders.ReleaseAll();
@@ -551,6 +571,12 @@ public:
         return m_LastResourceFailure;
     }
 
+    [[nodiscard]] GraphicsResourceLeakSummary
+    GetLastShutdownResourceLeakSummary() const noexcept override
+    {
+        return m_LastShutdownLeakSummary;
+    }
+
     [[nodiscard]] std::uint32_t Width() const noexcept
     {
         return m_Width;
@@ -587,6 +613,30 @@ private:
             m_PeakLiveBytes = report.totalLiveBytes;
         }
         return handle;
+    }
+
+    [[nodiscard]] static constexpr GraphicsResourceLeakSummary
+    BuildLeakSummary(const GraphicsResourceMemoryReport& report) noexcept
+    {
+        GraphicsResourceLeakSummary summary{};
+        summary.hadLiveResources = report.totalLiveBytes != 0u ||
+                                   report.liveTextureCount != 0u ||
+                                   report.liveBufferCount != 0u ||
+                                   report.liveShaderCount != 0u ||
+                                   report.livePipelineCount != 0u ||
+                                   report.liveSamplerCount != 0u;
+        summary.leakedTextureCount = report.liveTextureCount;
+        summary.leakedBufferCount = report.liveBufferCount;
+        summary.leakedShaderCount = report.liveShaderCount;
+        summary.leakedPipelineCount = report.livePipelineCount;
+        summary.leakedSamplerCount = report.liveSamplerCount;
+        summary.textureBytes = report.textureBytes;
+        summary.bufferBytes = report.bufferBytes;
+        summary.shaderBytes = report.shaderBytes;
+        summary.pipelineBytes = report.pipelineBytes;
+        summary.samplerBytes = report.samplerBytes;
+        summary.totalLeakedBytes = report.totalLiveBytes;
+        return summary;
     }
 
     [[nodiscard]] static constexpr bool IsKnownFormat(
@@ -817,6 +867,7 @@ private:
     std::uint32_t       m_Height = 0;
     GraphicsResourceFailure m_LastResourceFailure =
         GraphicsResourceFailure::None;
+    GraphicsResourceLeakSummary m_LastShutdownLeakSummary{};
     std::uint64_t m_PeakLiveBytes = 0;
     std::uint64_t m_FailedCreateCount = 0;
     ResourceRegistry<TextureHandle, TextureDesc> m_Textures;

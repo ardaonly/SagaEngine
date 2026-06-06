@@ -338,6 +338,7 @@ bool DiligentGraphicsBackend::Initialize(
 
 void DiligentGraphicsBackend::Shutdown()
 {
+    m_LastShutdownLeakSummary = BuildLeakSummary(BuildResourceMemoryReport());
     ReleaseResources();
 
     if (m_RenderBackend)
@@ -589,6 +590,12 @@ GraphicsResourceFailure DiligentGraphicsBackend::GetLastResourceFailure()
     return m_LastResourceFailure;
 }
 
+GraphicsResourceLeakSummary
+DiligentGraphicsBackend::GetLastShutdownResourceLeakSummary() const noexcept
+{
+    return m_LastShutdownLeakSummary;
+}
+
 std::uint64_t DiligentGraphicsBackend::GetTextureShadowBytesForTesting(
     TextureHandle handle) const noexcept
 {
@@ -679,6 +686,30 @@ GraphicsResourceMemoryReport DiligentGraphicsBackend::BuildResourceMemoryReport(
     report.peakLiveBytes = m_PeakLiveBytes;
     report.failedCreateCount = m_FailedCreateCount;
     return report;
+}
+
+constexpr GraphicsResourceLeakSummary DiligentGraphicsBackend::BuildLeakSummary(
+    const GraphicsResourceMemoryReport& report) noexcept
+{
+    GraphicsResourceLeakSummary summary{};
+    summary.hadLiveResources = report.totalLiveBytes != 0u ||
+                               report.liveTextureCount != 0u ||
+                               report.liveBufferCount != 0u ||
+                               report.liveShaderCount != 0u ||
+                               report.livePipelineCount != 0u ||
+                               report.liveSamplerCount != 0u;
+    summary.leakedTextureCount = report.liveTextureCount;
+    summary.leakedBufferCount = report.liveBufferCount;
+    summary.leakedShaderCount = report.liveShaderCount;
+    summary.leakedPipelineCount = report.livePipelineCount;
+    summary.leakedSamplerCount = report.liveSamplerCount;
+    summary.textureBytes = report.textureBytes;
+    summary.bufferBytes = report.bufferBytes;
+    summary.shaderBytes = report.shaderBytes;
+    summary.pipelineBytes = report.pipelineBytes;
+    summary.samplerBytes = report.samplerBytes;
+    summary.totalLeakedBytes = report.totalLiveBytes;
+    return summary;
 }
 
 void DiligentGraphicsBackend::SetFailure(
