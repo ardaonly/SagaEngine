@@ -344,6 +344,33 @@ TEST(PublicPrivateBoundaryTests, SagaGraphicsUmbrellaHeaderCompileSmoke)
     EXPECT_FALSE(status.initialized);
 }
 
+TEST(PublicPrivateBoundaryTests, RenderPublicApiContractDocumentsGraphicsGuardrails)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto contractDoc =
+        root / "docs" / "architecture" / "RENDER_PUBLIC_API_CONTRACT.md";
+    ASSERT_TRUE(std::filesystem::exists(contractDoc));
+
+    const auto text = ReadText(contractDoc);
+    const std::vector<std::string> requiredTokens = {
+        "SagaEngine/Graphics",
+        "SagaGraphics",
+        "Engine/Public",
+        "VendorDiligent",
+        "SagaDiligentBackend",
+        "stable external SDK",
+        "does not move `SagaEngine/Render/Backend`",
+        "does not perform R3 bridge migration",
+        "does not add RenderGraph, material, shader, or resource behavior",
+    };
+
+    for (const auto& token : requiredTokens)
+    {
+        EXPECT_TRUE(Contains(text, token))
+            << "RENDER_PUBLIC_API_CONTRACT.md must document: " << token;
+    }
+}
+
 TEST(PublicPrivateBoundaryTests, SimulationPublicDoesNotIncludeInputNetworking)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
