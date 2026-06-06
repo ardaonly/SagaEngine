@@ -20,4 +20,6 @@ TEST(SagaGraphicsHeaderSmokeTests, GraphicsUmbrellaHeaderIsSelfContained)
     const auto status = backend.GetStatus();
     EXPECT_TRUE(status.initialized);
     EXPECT_EQ(status.selectedBackend, SagaEngine::Graphics::BackendPreference::Auto);
+    EXPECT_EQ(status.health, SagaEngine::Graphics::RenderBackendHealth::Headless);
+    EXPECT_EQ(status.failure, SagaEngine::Graphics::RenderBackendFailure::None);
 }

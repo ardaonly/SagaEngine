@@ -90,6 +90,12 @@ TEST(GraphicsRenderBackendMapping, MapsBackendStatus)
         Graphics::BackendPreference::Compatibility);
     EXPECT_EQ(graphicsStatus.frameIndex, 42u);
     EXPECT_TRUE(graphicsStatus.initialized);
+    EXPECT_EQ(
+        graphicsStatus.health,
+        Graphics::RenderBackendHealth::Ready);
+    EXPECT_EQ(
+        graphicsStatus.failure,
+        Graphics::RenderBackendFailure::None);
 }
 
 } // namespace

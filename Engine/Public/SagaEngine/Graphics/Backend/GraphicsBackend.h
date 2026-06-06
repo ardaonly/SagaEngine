@@ -28,11 +28,31 @@ struct RenderBackendDesc
     bool              headless         = false;
 };
 
+enum class RenderBackendHealth : std::uint8_t
+{
+    Uninitialized = 0,
+    Ready,
+    Headless,
+    FrameSkipped,
+    Failed,
+    Shutdown,
+};
+
+enum class RenderBackendFailure : std::uint8_t
+{
+    None = 0,
+    BackendUnavailable,
+    InitializationFailed,
+    InvalidSurfaceSize,
+};
+
 struct RenderBackendStatus
 {
-    BackendPreference selectedBackend = BackendPreference::Auto;
-    std::uint64_t     frameIndex      = 0;
-    bool              initialized     = false;
+    BackendPreference    selectedBackend = BackendPreference::Auto;
+    std::uint64_t        frameIndex      = 0;
+    bool                 initialized     = false;
+    RenderBackendHealth  health          = RenderBackendHealth::Uninitialized;
+    RenderBackendFailure failure         = RenderBackendFailure::None;
 };
 
 class IGraphicsBackend
@@ -78,12 +98,17 @@ public:
     {
         m_Status.selectedBackend = backend.preferredBackend;
         m_Status.initialized = true;
+        m_Status.health =
+            backend.headless ? RenderBackendHealth::Headless
+                             : RenderBackendHealth::Ready;
+        m_Status.failure = RenderBackendFailure::None;
         return true;
     }
 
     void Shutdown() override
     {
         m_Status.initialized = false;
+        m_Status.health = RenderBackendHealth::Shutdown;
     }
 
     void Resize(std::uint32_t width, std::uint32_t height) override

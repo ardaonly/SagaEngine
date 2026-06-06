@@ -67,6 +67,9 @@ namespace RenderBackend = ::SagaEngine::Render::Backend;
         ToGraphicsBackendPreference(status.selectedAPI),
         status.frameIndex,
         status.initialized,
+        status.initialized ? RenderBackendHealth::Ready
+                           : RenderBackendHealth::Uninitialized,
+        RenderBackendFailure::None,
     };
 }
 
