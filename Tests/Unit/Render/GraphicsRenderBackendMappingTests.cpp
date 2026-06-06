@@ -98,4 +98,40 @@ TEST(GraphicsRenderBackendMapping, MapsBackendStatus)
         Graphics::RenderBackendFailure::None);
 }
 
+TEST(GraphicsRenderBackendMapping, ClampsQualityPresetToCapabilityCeiling)
+{
+    Graphics::RenderBackendCapabilities capabilities{};
+    capabilities.qualityCeiling = Graphics::RenderQualityPreset::Medium;
+
+    EXPECT_EQ(
+        Graphics::ClampRenderQualityPreset(
+            Graphics::RenderQualityPreset::Low,
+            capabilities),
+        Graphics::RenderQualityPreset::Low);
+    EXPECT_EQ(
+        Graphics::ClampRenderQualityPreset(
+            Graphics::RenderQualityPreset::Ultra,
+            capabilities),
+        Graphics::RenderQualityPreset::Medium);
+}
+
+TEST(GraphicsRenderBackendMapping, ResolvesUnsupportedFeatureFallback)
+{
+    EXPECT_EQ(
+        Graphics::ResolveRenderCapabilityFallback(
+            Graphics::RenderFeatureSupport::Unsupported,
+            false),
+        Graphics::RenderCapabilityFallback::NotRequested);
+    EXPECT_EQ(
+        Graphics::ResolveRenderCapabilityFallback(
+            Graphics::RenderFeatureSupport::Supported,
+            true),
+        Graphics::RenderCapabilityFallback::Available);
+    EXPECT_EQ(
+        Graphics::ResolveRenderCapabilityFallback(
+            Graphics::RenderFeatureSupport::Unsupported,
+            true),
+        Graphics::RenderCapabilityFallback::DisabledUnsupported);
+}
+
 } // namespace
