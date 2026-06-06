@@ -70,22 +70,33 @@ Bu bölüm roadmap'in uygulama gerçeğiyle senkron tutulması için eklenmişti
 - [ ] R4 validation/registry foundation başladı: public desc/handle API,
       descriptor validation, backend-global create failure, approximate logical
       memory report, creation-time initial data shadow-copy contract ve
-      null/Diligent registered-only handle contract test ediliyor; gerçek GPU
-      object creation/upload, leak summary ve full R4 closure yok.
+      registered-resource liveness/leak summary ile null/Diligent
+      registered-only handle contract test ediliyor; gerçek GPU object
+      creation/upload ve full R4 closure yok.
+- [ ] R4B entry/partial: vendor-neutral CPU-side binding vocabulary/validation
+      v0 ve private CPU frame resource allocator v0 mevcut; native descriptor
+      set, GPU ring buffer, upload heap ve draw binding integration yok.
+- [ ] R5 validation entry: existing RenderGraph compile/execute contract
+      korunarak validation diagnostics ve deterministic text dump eklendi;
+      SagaGraphics/Diligent execution bridge, material/shader/lighting/post
+      process integration ve full R5 closure yok.
 
 Bu slice: architecture boundary closure, R3C conservative capability matrix v0
-ve R4 validation/registry foundation. Full native capability query, capability
-JSON artifact, gerçek GPU resource creation/upload, leak summary,
-`Render/Backend` taşıma, RenderGraph/material/shader bridge ve stable external
-SDK claim yok.
+ve R4 validation/registry foundation ile R4B/R5 için dar entry kanıtları. Full
+native capability query, capability JSON artifact, gerçek GPU resource
+creation/upload, native descriptor/frame allocator, `Render/Backend` taşıma,
+RenderGraph execution bridge, material/shader bridge ve stable external SDK
+claim yok.
 
 ## 0.2 Renderer Foundation Planning: R3C, R4, R4B, R5
 
 Bu bölüm sıradaki uzun uygulama dalgasını ve bu dalgada kapanan minimum
 foundation kanıtını tanımlar. R3C burada full native probe değil,
-conservative capability matrix v0 olarak kapanmıştır. R4 yalnızca private slot
-registry entry seviyesinde başlamıştır; R4B/R5 hâlâ küçük, test edilebilir
-future slice'lara bölünmelidir.
+conservative capability matrix v0 olarak kapanmıştır. R4 validation/registry
+foundation ve R4C liveness diagnostics seviyesinde partial'dır; R4B yalnız
+CPU-side binding validation/private frame allocator entry seviyesindedir; R5
+yalnız validation/dump entry seviyesindedir. Full R4/R4B/R5 closure hâlâ küçük,
+test edilebilir future slice'lara bölünmelidir.
 
 ### 0.2.1 Faz Durumu
 
@@ -100,9 +111,9 @@ future slice'lara bölünmelidir.
 | R3A-lite private adapter | completed | Adapter ve unit testler private-style include path ile boundary guard uyumlu. |
 | R3B | partial | Failure-status shell var; device loss/swapchain recreation yok. |
 | R3C | completed-v0 | Conservative capability matrix v0 var; native query/artifact yok. |
-| R4 | partial | Public desc/handle shell, private slot registry, descriptor validation, initial data shadow-copy contract ve approximate logical memory report var; gerçek GPU object/upload yok. |
-| R4B | planned | Binding/frame resource model yok. |
-| R5 | planned | Eski RenderGraph implementation var; R5 closure şartları tamam değil. |
+| R4 | partial | Public desc/handle shell, private slot registry, descriptor validation, initial data shadow-copy contract, approximate logical memory report ve registered-resource liveness/leak summary var; gerçek GPU object/upload yok. |
+| R4B | partial-entry | CPU-side binding validation v0 ve private CPU frame allocator v0 var; native descriptor set, GPU ring/upload ve draw integration yok. |
+| R5 | validation-entry | Existing RenderGraph compile/execute contract korunarak validation diagnostics ve deterministic dump var; execution bridge ve full R5 closure yok. |
 
 ### 0.2.2 R3C Conservative Matrix v0 Kapanışı
 
@@ -143,7 +154,8 @@ estimate'tır; native GPU allocation, driver overhead ve alignment/padding claim
 etmez; initial data shadow bytes native/GPU memory olarak sayılmaz. Texture
 initial data partial payload kabul etmez ve yalnız mip0-compatible tam payload
 shadow-copy contract'ı vardır; mip chain payload ve native upload/staging açık
-iştir. Ayrı resource leak summary future work olarak kalır.
+iştir. Registered-resource liveness/leak summary shutdown sırasında deterministic
+snapshot olarak tutulur; bu native GPU leak kanıtı değildir.
 
 R4 minimum implementation hedefi:
 
@@ -156,6 +168,7 @@ R4 minimum implementation hedefi:
 - [x] Resource creation failure status/diagnostic; vendor error type leak yok.
 - [x] Approximate logical memory accounting başlangıcı.
 - [x] Initial data shadow-copy contract; native upload/staging yok.
+- [x] Shutdown-time registered-resource liveness/leak summary.
 - [ ] Resource debug name.
 
 R4 non-goal:
@@ -168,14 +181,18 @@ R4 non-goal:
 
 ### 0.2.4 R4B Binding / Frame Resource Model Planı
 
-R4B şu an future implementation plan'dır. Mevcut repo'da `FrameResourceSet`,
-`BindingSet`, descriptor validation, per-frame transient/persistent/swapchain-sized
+R4B entry/partial seviyesindedir. Mevcut repo'da vendor-neutral CPU-side
+binding vocabulary/validation v0 ve private CPU frame resource allocator v0
+vardır. Native descriptor set, GPU uniform ring/upload heap, descriptor update,
+draw binding integration, per-frame transient/persistent/swapchain-sized
 ayrımı ve no-submit invalid frame policy yoktur.
 
 R4B minimum implementation hedefi:
 
 - [ ] `FrameResourceSet` veya eşdeğer Saga-owned frame resource vocabulary.
-- [ ] `BindingSet` veya eşdeğer Saga-owned binding vocabulary.
+- [x] `BindingSet` veya eşdeğer Saga-owned binding vocabulary.
+- [x] CPU-side binding layout/set validation v0.
+- [x] Private CPU-side frame resource allocator v0.
 - [ ] Persistent resource, per-frame transient resource ve swapchain-sized resource ayrımı.
 - [ ] Binding layout mismatch validation.
 - [ ] Missing texture/buffer fallback binding policy.
@@ -192,28 +209,29 @@ R4B non-goal:
 
 ### 0.2.5 R5 RenderGraph v0 Planı
 
-R5 şu an future implementation plan'dır. Mevcut repo'da `RenderGraph`,
-`RGPass`, `RGTypes` ve private `RGCompilation` implementation vardır; ancak bu
-R5 closure değildir.
+R5 validation entry seviyesindedir. Mevcut repo'da `RenderGraph`, `RGPass`,
+`RGTypes` ve private `RGCompilation` implementation vardır; existing
+`Compile()` bool ve `Execute()` davranışı korunarak diagnostic snapshot ve
+deterministic text dump eklenmiştir. Bu R5 closure değildir.
 
 Mevcut olanlar:
 
 - [x] Public-internal `Engine/Public/SagaEngine/Render/RenderGraph` headers.
 - [x] Private `RGCompilation` topological sort implementation.
 - [x] Pass/resource dependency order temel implementation.
+- [x] Validation diagnostics entry: empty pass name, invalid resource id,
+      read-before-write, duplicate writer ve missing producer.
+- [x] Deterministic text dump entry.
+- [x] R5-focused validation tests.
 
 Eksikler:
 
 - [ ] RenderGraph builder API closure.
-- [ ] Resource dependency validation.
-- [ ] Read-before-write diagnostic.
-- [ ] Duplicate write conflict diagnostic.
-- [ ] Missing resource diagnostic.
-- [ ] Deterministic graph dump.
+- [ ] Full resource dependency validation coverage beyond entry diagnostics.
+- [ ] Cycle detection coverage beyond current data-model/compiler limits.
 - [ ] Clear/backbuffer pass execution bridge.
 - [ ] Resize sonrası graph rebuild policy.
 - [ ] Diligent minimal execution bridge.
-- [ ] R5-focused tests.
 
 R5 non-goal:
 
