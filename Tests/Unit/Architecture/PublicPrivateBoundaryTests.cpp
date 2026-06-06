@@ -415,6 +415,44 @@ TEST(PublicPrivateBoundaryTests, RenderPublicApiContractDocumentsGraphicsGuardra
     }
 }
 
+TEST(PublicPrivateBoundaryTests, GraphicsPrivateRenderTestsUsePrivateStyleIncludes)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const std::vector<std::pair<std::filesystem::path, std::string>> testFiles = {
+        {
+            root / "Tests" / "Unit" / "Render" /
+                "GraphicsDiligentBackendAdapterTests.cpp",
+            "#include \"SagaEngine/Graphics/Backends/Diligent/"
+            "DiligentGraphicsBackend.h\"",
+        },
+        {
+            root / "Tests" / "Unit" / "Render" /
+                "GraphicsRenderBackendMappingTests.cpp",
+            "#include \"SagaEngine/Graphics/Backend/"
+            "GraphicsRenderBackendMapping.h\"",
+        },
+    };
+
+    for (const auto& [path, expectedInclude] : testFiles)
+    {
+        ASSERT_TRUE(std::filesystem::exists(path)) << path;
+        const auto text = ReadText(path);
+        EXPECT_TRUE(Contains(text, expectedInclude))
+            << RelativeToSourceRoot(path)
+            << " must include private graphics headers through the "
+               "SagaEngine/Graphics private-style include root";
+        EXPECT_FALSE(Contains(text, "../../../Engine/Private/"))
+            << RelativeToSourceRoot(path)
+            << " must not include Engine/Private by relative path";
+        EXPECT_FALSE(Contains(text, "#include \"../../../"))
+            << RelativeToSourceRoot(path)
+            << " must not use parent-directory private include traversal";
+        EXPECT_FALSE(Contains(text, "Private/SagaEngine/Graphics/"))
+            << RelativeToSourceRoot(path)
+            << " must not mention Private/ in include directives";
+    }
+}
+
 TEST(PublicPrivateBoundaryTests, SimulationPublicDoesNotIncludeInputNetworking)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
