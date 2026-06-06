@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cstdint>
 #include <memory>
 
@@ -28,6 +29,7 @@ struct FakeRenderState
     std::uint32_t resizeCalls = 0;
     std::uint32_t beginFrameCalls = 0;
     std::uint32_t endFrameCalls = 0;
+    std::uint32_t textureCreateCalls = 0;
     bool initializeResult = true;
     bool initialized = false;
     RenderBackend::GraphicsBackendAPI selectedAPI =
@@ -43,6 +45,29 @@ Graphics::SwapchainDesc MakeSwapchain() noexcept
     swapchain.vsync = false;
     swapchain.highDynamicRange = true;
     return swapchain;
+}
+
+Graphics::TextureDesc MakeTextureDesc() noexcept
+{
+    Graphics::TextureDesc desc{};
+    desc.width = 4u;
+    desc.height = 4u;
+    desc.format = Graphics::ResourceFormat::Rgba8Unorm;
+    return desc;
+}
+
+Graphics::BufferDesc MakeBufferDesc() noexcept
+{
+    Graphics::BufferDesc desc{};
+    desc.sizeBytes = 128u;
+    return desc;
+}
+
+Graphics::ShaderDesc MakeShaderDesc() noexcept
+{
+    Graphics::ShaderDesc desc{};
+    desc.byteSize = 32u;
+    return desc;
 }
 
 class FakeRenderBackend final : public RenderBackend::IRenderBackend
@@ -93,6 +118,7 @@ public:
         std::uint32_t,
         const std::uint8_t*) override
     {
+        ++m_State.textureCreateCalls;
         return {};
     }
 
@@ -146,6 +172,23 @@ std::unique_ptr<Graphics::IGraphicsBackend> MakeBackend(
     return Adapter::CreateDiligentGraphicsBackendForTesting(
         std::make_unique<FakeRenderBackend>(state),
         statusReader);
+}
+
+std::unique_ptr<Adapter::DiligentGraphicsBackend> MakeConcreteBackend(
+    FakeRenderState& state,
+    Adapter::DiligentGraphicsBackend::StatusReader statusReader =
+        ReadFakeStatus)
+{
+    return std::make_unique<Adapter::DiligentGraphicsBackend>(
+        std::make_unique<FakeRenderBackend>(state),
+        statusReader);
+}
+
+template <std::size_t N>
+Graphics::GraphicsDataView MakeDataView(
+    const std::array<std::uint8_t, N>& data) noexcept
+{
+    return {data.data(), static_cast<std::uint64_t>(data.size()), 0u, 0u};
 }
 
 std::unique_ptr<RenderBackend::IRenderBackend> ReturnNoBackend(
@@ -413,9 +456,9 @@ TEST(GraphicsDiligentBackendAdapter, ResourceMethodsRequireInitializedBackend)
 
     EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
 
-    const auto texture = backend->CreateTexture({});
-    const auto buffer = backend->CreateBuffer({});
-    const auto shader = backend->CreateShader({});
+    const auto texture = backend->CreateTexture(MakeTextureDesc());
+    const auto buffer = backend->CreateBuffer(MakeBufferDesc());
+    const auto shader = backend->CreateShader(MakeShaderDesc());
     const auto pipeline = backend->CreatePipeline({});
     const auto sampler = backend->CreateSampler({});
 
@@ -446,14 +489,14 @@ TEST(GraphicsDiligentBackendAdapter, ResourceRegistryRejectsStaleHandles)
     auto backend = MakeBackend(state);
     EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
 
-    const auto first = backend->CreateTexture({});
+    const auto first = backend->CreateTexture(MakeTextureDesc());
     ASSERT_TRUE(first.IsValid());
     EXPECT_EQ(first.index, 1u);
     EXPECT_EQ(first.generation, 1u);
 
     backend->DestroyTexture(first);
 
-    const auto second = backend->CreateTexture({});
+    const auto second = backend->CreateTexture(MakeTextureDesc());
     ASSERT_TRUE(second.IsValid());
     EXPECT_EQ(second.index, first.index);
     EXPECT_EQ(second.generation, first.generation + 1u);
@@ -462,8 +505,262 @@ TEST(GraphicsDiligentBackendAdapter, ResourceRegistryRejectsStaleHandles)
     backend->DestroyTexture(second);
     backend->DestroyTexture(second);
 
-    const auto third = backend->CreateTexture({});
+    const auto third = backend->CreateTexture(MakeTextureDesc());
     ASSERT_TRUE(third.IsValid());
     EXPECT_EQ(third.index, second.index);
     EXPECT_EQ(third.generation, second.generation + 1u);
+}
+
+TEST(GraphicsDiligentBackendAdapter, ResourceValidationRejectsInvalidDescriptions)
+{
+    FakeRenderState state;
+    auto backend = MakeBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    auto texture = MakeTextureDesc();
+    texture.width = 0u;
+    EXPECT_FALSE(backend->CreateTexture(texture).IsValid());
+    EXPECT_EQ(
+        backend->GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::InvalidTextureDesc);
+
+    Graphics::BufferDesc buffer{};
+    EXPECT_FALSE(backend->CreateBuffer(buffer).IsValid());
+    EXPECT_EQ(
+        backend->GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::InvalidBufferDesc);
+
+    Graphics::ShaderDesc shader{};
+    EXPECT_FALSE(backend->CreateShader(shader).IsValid());
+    EXPECT_EQ(
+        backend->GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::InvalidShaderDesc);
+
+    Graphics::PipelineDesc pipeline{};
+    pipeline.colorTargetCount = 0u;
+    EXPECT_FALSE(backend->CreatePipeline(pipeline).IsValid());
+    EXPECT_EQ(
+        backend->GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::InvalidPipelineDesc);
+
+    Graphics::SamplerDesc sampler{};
+    sampler.addressU = static_cast<Graphics::AddressMode>(255);
+    EXPECT_FALSE(backend->CreateSampler(sampler).IsValid());
+    EXPECT_EQ(
+        backend->GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::InvalidSamplerDesc);
+
+    const auto report = backend->GetResourceMemoryReport();
+    EXPECT_EQ(report.failedCreateCount, 5u);
+    EXPECT_EQ(report.totalLiveBytes, 0u);
+}
+
+TEST(GraphicsDiligentBackendAdapter, FailedCreateUpdatesLastFailure)
+{
+    FakeRenderState state;
+    auto backend = MakeBackend(state);
+
+    EXPECT_FALSE(backend->CreateTexture(MakeTextureDesc()).IsValid());
+    EXPECT_EQ(
+        backend->GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::BackendNotInitialized);
+    EXPECT_EQ(backend->GetResourceMemoryReport().failedCreateCount, 1u);
+
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    Graphics::ShaderDesc shader{};
+    shader.stage = static_cast<Graphics::ShaderStage>(255);
+    shader.byteSize = 32u;
+    EXPECT_FALSE(backend->CreateShader(shader).IsValid());
+    EXPECT_EQ(
+        backend->GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::InvalidShaderDesc);
+    EXPECT_EQ(backend->GetResourceMemoryReport().failedCreateCount, 2u);
+}
+
+TEST(GraphicsDiligentBackendAdapter, InitializedCreateReturnsRegisteredOnlyHandle)
+{
+    FakeRenderState state;
+    auto backend = MakeBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    const auto texture = backend->CreateTexture(MakeTextureDesc());
+    const auto buffer = backend->CreateBuffer(MakeBufferDesc());
+    const auto shader = backend->CreateShader(MakeShaderDesc());
+    const auto pipeline = backend->CreatePipeline({});
+    const auto sampler = backend->CreateSampler({});
+
+    EXPECT_TRUE(texture.IsValid());
+    EXPECT_TRUE(buffer.IsValid());
+    EXPECT_TRUE(shader.IsValid());
+    EXPECT_TRUE(pipeline.IsValid());
+    EXPECT_TRUE(sampler.IsValid());
+    EXPECT_EQ(state.beginFrameCalls, 0u);
+    EXPECT_EQ(state.endFrameCalls, 0u);
+    EXPECT_EQ(
+        backend->GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::None);
+}
+
+TEST(GraphicsDiligentBackendAdapter, ResourceMemoryReportChangesOnCreateDestroy)
+{
+    FakeRenderState state;
+    auto backend = MakeBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    const auto texture = backend->CreateTexture(MakeTextureDesc());
+    const auto buffer = backend->CreateBuffer(MakeBufferDesc());
+    const auto shader = backend->CreateShader(MakeShaderDesc());
+    ASSERT_TRUE(texture.IsValid());
+    ASSERT_TRUE(buffer.IsValid());
+    ASSERT_TRUE(shader.IsValid());
+
+    auto report = backend->GetResourceMemoryReport();
+    EXPECT_EQ(report.liveTextureCount, 1u);
+    EXPECT_EQ(report.liveBufferCount, 1u);
+    EXPECT_EQ(report.liveShaderCount, 1u);
+    EXPECT_EQ(report.textureBytes, 64u);
+    EXPECT_EQ(report.bufferBytes, 128u);
+    EXPECT_EQ(report.shaderBytes, 32u);
+    EXPECT_EQ(report.totalLiveBytes, 224u);
+    EXPECT_EQ(report.peakLiveBytes, 224u);
+
+    backend->DestroyTexture(texture);
+    report = backend->GetResourceMemoryReport();
+    EXPECT_EQ(report.liveTextureCount, 0u);
+    EXPECT_EQ(report.textureBytes, 0u);
+    EXPECT_EQ(report.totalLiveBytes, 160u);
+    EXPECT_EQ(report.peakLiveBytes, 224u);
+
+    backend->DestroyTexture(texture);
+    backend->DestroyTexture({});
+    EXPECT_EQ(
+        backend->GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::None);
+    EXPECT_EQ(backend->GetResourceMemoryReport().totalLiveBytes, 160u);
+}
+
+TEST(GraphicsDiligentBackendAdapter, ShutdownClearsResourceReport)
+{
+    FakeRenderState state;
+    auto backend = MakeBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    EXPECT_TRUE(backend->CreateTexture(MakeTextureDesc()).IsValid());
+    EXPECT_TRUE(backend->CreateBuffer(MakeBufferDesc()).IsValid());
+    ASSERT_NE(backend->GetResourceMemoryReport().totalLiveBytes, 0u);
+
+    backend->Shutdown();
+
+    const auto report = backend->GetResourceMemoryReport();
+    EXPECT_EQ(report.liveTextureCount, 0u);
+    EXPECT_EQ(report.liveBufferCount, 0u);
+    EXPECT_EQ(report.totalLiveBytes, 0u);
+    EXPECT_NE(report.peakLiveBytes, 0u);
+    EXPECT_EQ(
+        backend->GetStatus().health,
+        Graphics::RenderBackendHealth::Shutdown);
+}
+
+TEST(GraphicsDiligentBackendAdapter, HeadlessResourceReportUsesRegisteredOnlyHandles)
+{
+    FakeRenderState state;
+    auto backend = MakeBackend(state);
+
+    Graphics::RenderBackendDesc desc{};
+    desc.headless = true;
+
+    EXPECT_TRUE(backend->Initialize(desc, {}));
+    EXPECT_EQ(state.initializeCalls, 0u);
+
+    const auto texture = backend->CreateTexture(MakeTextureDesc());
+    ASSERT_TRUE(texture.IsValid());
+    const auto report = backend->GetResourceMemoryReport();
+    EXPECT_EQ(report.liveTextureCount, 1u);
+    EXPECT_EQ(report.textureBytes, 64u);
+    EXPECT_EQ(state.initializeCalls, 0u);
+}
+
+TEST(GraphicsDiligentBackendAdapter, InitialDataAcceptedWithoutNativeUpload)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    std::array<std::uint8_t, 64> pixels{};
+    const auto texture =
+        backend->CreateTexture(MakeTextureDesc(), MakeDataView(pixels));
+    ASSERT_TRUE(texture.IsValid());
+    EXPECT_EQ(backend->GetTextureShadowBytesForTesting(texture), 64u);
+    EXPECT_EQ(state.textureCreateCalls, 0u);
+
+    std::array<std::uint8_t, 128> bytes{};
+    const auto buffer =
+        backend->CreateBuffer(MakeBufferDesc(), MakeDataView(bytes));
+    ASSERT_TRUE(buffer.IsValid());
+    EXPECT_EQ(backend->GetBufferShadowBytesForTesting(buffer), 128u);
+}
+
+TEST(GraphicsDiligentBackendAdapter, InvalidInitialDataUpdatesLastFailure)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    std::array<std::uint8_t, 63> partialPixels{};
+    EXPECT_FALSE(
+        backend->CreateTexture(MakeTextureDesc(), MakeDataView(partialPixels))
+            .IsValid());
+    EXPECT_EQ(
+        backend->GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::InvalidInitialData);
+
+    Graphics::GraphicsDataView nullPayload{};
+    nullPayload.sizeBytes = 1u;
+    EXPECT_FALSE(
+        backend->CreateBuffer(MakeBufferDesc(), nullPayload).IsValid());
+    EXPECT_EQ(
+        backend->GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::InvalidInitialData);
+    EXPECT_EQ(backend->GetResourceMemoryReport().failedCreateCount, 2u);
+}
+
+TEST(GraphicsDiligentBackendAdapter, InitialDataDoesNotTouchRenderBackendUploadPath)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    std::array<std::uint8_t, 64> pixels{};
+    EXPECT_TRUE(
+        backend->CreateTexture(MakeTextureDesc(), MakeDataView(pixels))
+            .IsValid());
+    EXPECT_EQ(state.textureCreateCalls, 0u);
+    EXPECT_EQ(state.beginFrameCalls, 0u);
+    EXPECT_EQ(state.endFrameCalls, 0u);
+}
+
+TEST(GraphicsDiligentBackendAdapter, DestroyAndShutdownReleaseShadowPayload)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    std::array<std::uint8_t, 64> pixels{};
+    const auto texture =
+        backend->CreateTexture(MakeTextureDesc(), MakeDataView(pixels));
+    ASSERT_TRUE(texture.IsValid());
+    ASSERT_EQ(backend->GetTextureShadowBytesForTesting(texture), 64u);
+
+    backend->DestroyTexture(texture);
+    EXPECT_EQ(backend->GetTextureShadowBytesForTesting(texture), 0u);
+
+    const auto nextTexture =
+        backend->CreateTexture(MakeTextureDesc(), MakeDataView(pixels));
+    ASSERT_TRUE(nextTexture.IsValid());
+    ASSERT_EQ(backend->GetTextureShadowBytesForTesting(nextTexture), 64u);
+
+    backend->Shutdown();
+    EXPECT_EQ(backend->GetTextureShadowBytesForTesting(nextTexture), 0u);
+    EXPECT_EQ(backend->GetResourceMemoryReport().totalLiveBytes, 0u);
 }
