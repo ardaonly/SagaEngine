@@ -21,8 +21,10 @@ include(SagaFindATL)
 include(SagaThirdparty)
 include(SagaDiligentVendor)
 include(CTest)
+include(SagaGraphicsTargets)
 include(SagaTargets)
 include(SagaTests)
+include(SagaInstallGraphics)
 include(SagaInstall)
 include(SagaAssets)
 include(SagaDistribution)
@@ -35,6 +37,7 @@ saga_setup_diligent_vendor()
 
 
 
+saga_create_graphics_targets()
 saga_create_engine_targets()
 saga_setup_tests()
 saga_setup_assets()
