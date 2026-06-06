@@ -77,6 +77,51 @@ TEST(GraphicsFrameResourceAllocator, AllocationsAreAligned)
     EXPECT_EQ(second.alignmentBytes, 8u);
 }
 
+TEST(GraphicsFrameResourceAllocator, ZeroSizeAllocationFailsSafely)
+{
+    GraphicsPrivate::FrameResourceAllocator allocator;
+    ASSERT_TRUE(allocator.Initialize(MakeConfig()));
+
+    EXPECT_FALSE(allocator.Allocate(0u).IsValid());
+
+    const auto stats = allocator.GetStats();
+    EXPECT_EQ(stats.currentFrameBytes, 0u);
+    EXPECT_EQ(stats.peakFrameBytes, 0u);
+    EXPECT_EQ(stats.failedAllocationCount, 1u);
+}
+
+TEST(GraphicsFrameResourceAllocator, NonPowerOfTwoAlignmentIsRespected)
+{
+    GraphicsPrivate::FrameResourceAllocator allocator;
+    ASSERT_TRUE(allocator.Initialize(MakeConfig()));
+
+    const auto first = allocator.Allocate(1u);
+    const auto second = allocator.Allocate(8u, 24u);
+
+    ASSERT_TRUE(first.IsValid());
+    ASSERT_TRUE(second.IsValid());
+    EXPECT_EQ(first.offsetBytes, 0u);
+    EXPECT_EQ(second.offsetBytes, 24u);
+    EXPECT_EQ(second.alignmentBytes, 24u);
+    EXPECT_EQ(allocator.GetStats().currentFrameBytes, 32u);
+}
+
+TEST(GraphicsFrameResourceAllocator, AlignedExactFitAllocationSucceeds)
+{
+    GraphicsPrivate::FrameResourceAllocator allocator;
+    ASSERT_TRUE(allocator.Initialize(MakeConfig()));
+
+    EXPECT_TRUE(allocator.Allocate(1u).IsValid());
+    const auto exactFit = allocator.Allocate(32u, 32u);
+
+    ASSERT_TRUE(exactFit.IsValid());
+    EXPECT_EQ(exactFit.offsetBytes, 32u);
+    EXPECT_EQ(exactFit.sizeBytes, 32u);
+    EXPECT_EQ(allocator.GetStats().currentFrameBytes, 64u);
+    EXPECT_FALSE(allocator.Allocate(1u).IsValid());
+    EXPECT_EQ(allocator.GetStats().failedAllocationCount, 1u);
+}
+
 TEST(GraphicsFrameResourceAllocator, OverflowIsRejected)
 {
     GraphicsPrivate::FrameResourceAllocator allocator;
