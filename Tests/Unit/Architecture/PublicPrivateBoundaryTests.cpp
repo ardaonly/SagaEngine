@@ -3,6 +3,7 @@
 
 #include <gtest/gtest.h>
 
+#include "SagaEngine/Graphics/Graphics.h"
 #include "SagaEngine/Render/RenderPipelineConfig.h"
 #include "SagaEngine/World/WorldFacade.h"
 
@@ -269,6 +270,78 @@ TEST(PublicPrivateBoundaryTests, PublicRenderBackendSurfaceIsVendorNeutral)
         << "Public render backend/graphics headers must remain vendor-neutral. "
         << "First offender: "
         << (offenders.empty() ? "" : offenders.front());
+}
+
+TEST(PublicPrivateBoundaryTests, SagaGraphicsPublicShellCompileSmoke)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto graphicsRoot =
+        root / "Engine" / "Public" / "SagaEngine" / "Graphics";
+    ASSERT_TRUE(std::filesystem::exists(graphicsRoot));
+    ASSERT_TRUE(std::filesystem::exists(graphicsRoot / "Graphics.h"));
+
+    SagaEngine::Graphics::TextureDesc texture{};
+    texture.width = 128u;
+    texture.height = 64u;
+    texture.usage =
+        SagaEngine::Graphics::TextureUsageFlags::Sampled |
+        SagaEngine::Graphics::TextureUsageFlags::RenderTarget;
+    EXPECT_TRUE(SagaEngine::Graphics::HasFlag(
+        texture.usage,
+        SagaEngine::Graphics::TextureUsageFlags::Sampled));
+    EXPECT_TRUE(SagaEngine::Graphics::HasFlag(
+        texture.usage,
+        SagaEngine::Graphics::TextureUsageFlags::RenderTarget));
+
+    SagaEngine::Graphics::BufferDesc buffer{};
+    buffer.sizeBytes = 4096u;
+    buffer.usage = SagaEngine::Graphics::BufferUsage::Uniform;
+    buffer.dynamic = true;
+
+    SagaEngine::Graphics::PipelineDesc pipeline{};
+    pipeline.colorFormat = SagaEngine::Graphics::ResourceFormat::Rgba16Float;
+    pipeline.depthWrite = false;
+
+    SagaEngine::Graphics::RenderBackendDesc backendDesc{};
+    backendDesc.preferredBackend =
+        SagaEngine::Graphics::BackendPreference::Compatibility;
+    backendDesc.headless = true;
+
+    SagaEngine::Graphics::SwapchainDesc swapchain{};
+    swapchain.width = 320u;
+    swapchain.height = 180u;
+    swapchain.vsync = false;
+
+    SagaEngine::Graphics::NullGraphicsBackend backend;
+    EXPECT_TRUE(backend.Initialize(backendDesc, swapchain));
+    backend.Resize(swapchain.width, swapchain.height);
+    EXPECT_EQ(backend.Width(), 320u);
+    EXPECT_EQ(backend.Height(), 180u);
+
+    const auto textureHandle = backend.CreateTexture(texture);
+    const auto bufferHandle = backend.CreateBuffer(buffer);
+    const auto pipelineHandle = backend.CreatePipeline(pipeline);
+    EXPECT_TRUE(textureHandle.IsValid());
+    EXPECT_TRUE(bufferHandle.IsValid());
+    EXPECT_TRUE(pipelineHandle.IsValid());
+
+    backend.BeginFrame();
+    backend.EndFrame();
+
+    auto status = backend.GetStatus();
+    EXPECT_TRUE(status.initialized);
+    EXPECT_EQ(
+        status.selectedBackend,
+        SagaEngine::Graphics::BackendPreference::Compatibility);
+    EXPECT_EQ(status.frameIndex, 1u);
+
+    backend.DestroyTexture(textureHandle);
+    backend.DestroyBuffer(bufferHandle);
+    backend.DestroyPipeline(pipelineHandle);
+    backend.Shutdown();
+
+    status = backend.GetStatus();
+    EXPECT_FALSE(status.initialized);
 }
 
 TEST(PublicPrivateBoundaryTests, SimulationPublicDoesNotIncludeInputNetworking)
