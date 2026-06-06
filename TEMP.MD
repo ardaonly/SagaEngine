@@ -62,6 +62,7 @@ Bu bölüm roadmap'in uygulama gerçeğiyle senkron tutulması için eklenmişti
 - [ ] R1B kısmen tamamlandı: `SagaDiligentBackend`, `VendorDiligent`, `SagaDiligentVendor.cmake` ve `SagaGraphics` public interface target mevcut; `SagaGraphicsPrivate` ve install graphics modülü henüz yok.
 - [ ] R2 başladı ama tamamlanmadı: mevcut `Engine/Public/SagaEngine/Render/Backend` surface vendor-neutral ve yeni `Engine/Public/SagaEngine/Graphics` shell mevcut; davranış bridge'i ve stable SDK iddiası yok.
 - [ ] R2B-lite başladı: public render/backend token guard, `SagaGraphics` shell smoke ve install surface guard mevcut; full R2B closure claim yok.
+- [ ] R2B-lite install guard verified during R1B-lite target-boundary slice.
 - [ ] R3 başladı ama tamamlanmadı: Diligent backend device/swapchain/frame yolu mevcut; planlanan `Engine/Private/SagaEngine/Graphics/Backends/Diligent` konumu ve `SagaGraphics` üstünden bridge henüz yapılmadı.
 
 Sonraki uygulanacak slice: R1B-lite — `SagaGraphics CMake Target Boundary`.
