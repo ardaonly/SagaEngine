@@ -33,6 +33,11 @@ unavailability, and minimized frame skips can be reported without exposing
 backend or native graphics API types. This is a status/reporting guard, not full
 device-lost recovery.
 
+R3C-lite adds scalar-only `RenderBackendCapabilities` capability vocabulary,
+`RenderQualityPreset`, and quality/fallback helpers. These report conservative
+baseline support from the current shell; they do not perform native backend
+feature queries or emit capability report artifacts.
+
 The internal backend preference order is documented in
 [Graphics Backend Preference Order](GRAPHICS_BACKEND_PREFERENCE_ORDER.md).
 The current graphics CMake target roles are documented in
@@ -56,6 +61,7 @@ This contract does not move `SagaEngine/Render/Backend`.
 It does not complete R3 bridge migration.
 It does not add RenderGraph, material, shader, or resource behavior.
 It does not complete R3B device-loss or swapchain recreation recovery.
+It does not complete R3C native feature detection or capability artifacts.
 It does not claim `SagaEngine/Graphics` is a stable external SDK.
 
 ## Guardrails
