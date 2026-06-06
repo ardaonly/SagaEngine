@@ -175,6 +175,36 @@ TEST(GraphicsBindingValidation, DuplicateSlotRejected)
         Graphics::GraphicsBindingValidationCode::DuplicateBindingSlot);
 }
 
+TEST(GraphicsBindingValidation, DuplicateLayoutSlotRejected)
+{
+    Graphics::GraphicsBindingLayoutDesc layout{};
+    layout.slots.push_back({
+        0u,
+        Graphics::GraphicsBindingType::Texture,
+        Graphics::kGraphicsShaderStageFragment,
+        true,
+        Graphics::kInvalidGraphicsBindingSlot,
+    });
+    layout.slots.push_back({
+        0u,
+        Graphics::GraphicsBindingType::Buffer,
+        Graphics::kGraphicsShaderStageVertex,
+        true,
+        Graphics::kInvalidGraphicsBindingSlot,
+    });
+
+    const auto result = Graphics::ValidateGraphicsBindingSet(
+        layout,
+        {},
+        nullptr,
+        nullptr);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(
+        result.code,
+        Graphics::GraphicsBindingValidationCode::DuplicateLayoutSlot);
+    EXPECT_EQ(result.slot, 0u);
+}
+
 TEST(GraphicsBindingValidation, MissingRequiredBindingRejected)
 {
     Graphics::NullGraphicsBackend backend;
@@ -190,6 +220,26 @@ TEST(GraphicsBindingValidation, MissingRequiredBindingRejected)
         result.code,
         Graphics::GraphicsBindingValidationCode::MissingRequiredBinding);
     EXPECT_EQ(result.slot, 0u);
+}
+
+TEST(GraphicsBindingValidation, OptionalSamplerCanBeOmittedWhenUnpaired)
+{
+    Graphics::GraphicsBindingLayoutDesc layout{};
+    layout.slots.push_back({
+        1u,
+        Graphics::GraphicsBindingType::Sampler,
+        Graphics::kGraphicsShaderStageFragment,
+        false,
+        Graphics::kInvalidGraphicsBindingSlot,
+    });
+
+    const auto result = Graphics::ValidateGraphicsBindingSet(
+        layout,
+        {},
+        nullptr,
+        nullptr);
+    EXPECT_TRUE(result.valid);
+    EXPECT_EQ(result.code, Graphics::GraphicsBindingValidationCode::None);
 }
 
 TEST(GraphicsBindingValidation, InvalidHandleRejected)
@@ -213,6 +263,8 @@ TEST(GraphicsBindingValidation, InvalidHandleRejected)
     EXPECT_EQ(
         result.code,
         Graphics::GraphicsBindingValidationCode::InvalidHandle);
+    EXPECT_EQ(result.slot, 0u);
+    EXPECT_EQ(result.expectedKind, Graphics::GraphicsResourceKind::Texture);
 }
 
 TEST(GraphicsBindingValidation, StaleHandleRejected)
@@ -236,6 +288,9 @@ TEST(GraphicsBindingValidation, StaleHandleRejected)
     EXPECT_EQ(
         result.code,
         Graphics::GraphicsBindingValidationCode::StaleHandle);
+    EXPECT_EQ(result.slot, 0u);
+    EXPECT_EQ(result.expectedKind, Graphics::GraphicsResourceKind::Texture);
+    EXPECT_EQ(result.actualKind, Graphics::GraphicsResourceKind::Invalid);
 }
 
 TEST(GraphicsBindingValidation, WrongResourceKindRejected)
@@ -287,4 +342,36 @@ TEST(GraphicsBindingValidation, TextureWithoutRequiredSamplerRejected)
         result.code,
         Graphics::GraphicsBindingValidationCode::MissingPairedSampler);
     EXPECT_EQ(result.expectedKind, Graphics::GraphicsResourceKind::Sampler);
+}
+
+TEST(GraphicsBindingValidation, WrongPairedSamplerKindRejected)
+{
+    Graphics::NullGraphicsBackend backend;
+    ASSERT_TRUE(backend.Initialize(MakeHeadlessDesc(), {}));
+
+    const auto texture = backend.CreateTexture(MakeTextureDesc());
+    const auto buffer = backend.CreateBuffer(MakeBufferDesc());
+    ASSERT_TRUE(texture.IsValid());
+    ASSERT_TRUE(buffer.IsValid());
+
+    Graphics::GraphicsBindingSetDesc bindingSet{};
+    bindingSet.resources.push_back(MakeTextureBinding(texture));
+    bindingSet.resources.push_back({
+        1u,
+        Graphics::GraphicsResourceKind::Buffer,
+        ToGraphicsHandle(buffer),
+    });
+
+    const auto result = Graphics::ValidateGraphicsBindingSet(
+        MakeTextureSamplerLayout(),
+        bindingSet,
+        QueryNullBackendResource,
+        &backend);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(
+        result.code,
+        Graphics::GraphicsBindingValidationCode::WrongResourceKind);
+    EXPECT_EQ(result.slot, 1u);
+    EXPECT_EQ(result.expectedKind, Graphics::GraphicsResourceKind::Sampler);
+    EXPECT_EQ(result.actualKind, Graphics::GraphicsResourceKind::Buffer);
 }
