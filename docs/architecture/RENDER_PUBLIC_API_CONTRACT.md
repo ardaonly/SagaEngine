@@ -21,8 +21,10 @@ only the `Engine/Public` include root. It must not link or publish:
 - native API targets or libraries for Vulkan, D3D, OpenGL, or Metal
 - concrete backend libraries
 
-`SagaGraphicsPrivate` is intentionally absent until there is a private graphics
-implementation target to own.
+`SagaGraphicsPrivate` is the private CMake implementation target shell for
+future graphics backend ownership. It may depend on `SagaGraphics`, but it must
+not install, publish, or directly link concrete Diligent/backend/native API
+targets until a later bridge migration slice.
 
 The internal backend preference order is documented in
 [Graphics Backend Preference Order](GRAPHICS_BACKEND_PREFERENCE_ORDER.md).

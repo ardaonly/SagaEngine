@@ -59,13 +59,13 @@ SagaEngine production AAA renderer'a sahip.
 Bu bölüm roadmap'in uygulama gerçeğiyle senkron tutulması için eklenmiştir.
 
 - [x] R1 Diligent vendoring tamamlandı: `Vendor/Diligent` submodule olarak repo kontrolünde, Saga-owned vendor metadata `Vendor/Diligent.Saga` altında.
-- [ ] R1B kısmen tamamlandı: `SagaDiligentBackend`, `VendorDiligent`, `SagaDiligentVendor.cmake` ve `SagaGraphics` public interface target mevcut; `SagaGraphicsPrivate` ve install graphics modülü henüz yok.
+- [ ] R1B kısmen tamamlandı: `SagaDiligentBackend`, `VendorDiligent`, `SagaDiligentVendor.cmake`, `SagaGraphics` public interface target ve `SagaGraphicsPrivate` private target shell mevcut; install graphics modülü henüz yok.
 - [ ] R2 başladı ama tamamlanmadı: mevcut `Engine/Public/SagaEngine/Render/Backend` surface vendor-neutral ve yeni `Engine/Public/SagaEngine/Graphics` shell mevcut; davranış bridge'i ve stable SDK iddiası yok.
 - [ ] R2B-lite başladı: public render/backend token guard, `SagaGraphics` shell smoke, install surface guard ve contract dokümantasyonu mevcut; full R2B closure claim yok.
 - [ ] R2B-lite install guard verified during R1B-lite target-boundary slice.
 - [ ] R3-prep başladı: Diligent backend device/swapchain/frame yolu mevcut; `SagaGraphics`/Render backend preference mapping ve platform order dokümantasyonu eklendi, ama planlanan `Engine/Private/SagaEngine/Graphics/Backends/Diligent` konumu ve `SagaGraphics` üstünden bridge henüz yapılmadı.
 
-Bu slice: R3-prep — Graphics backend preference mapping. Full R3 bridge migration, `Render/Backend` taşıma ve stable external SDK claim yok.
+Bu slice: R1C-lite - SagaGraphicsPrivate target boundary. Full R1B/R2B/R3 closure, `Render/Backend` taşıma ve stable external SDK claim yok.
 
 ---
 
@@ -890,7 +890,7 @@ Bu phase'in hedefi, Diligent'in public include path veya link dependency olarak 
 - [ ] `cmake/SagaRenderTests.cmake` oluştur.
 - [ ] `cmake/SagaInstallGraphics.cmake` oluştur.
 - [x] `SagaGraphics` public target tanımla.
-- [ ] `SagaGraphicsPrivate` private implementation target tanımla.
+- [x] `SagaGraphicsPrivate` private implementation target tanımla.
 - [x] `SagaDiligentBackend` target tanımla.
 - [x] `VendorDiligent` target veya imported target tanımla.
 - [ ] `SagaRenderTools` targetlarını runtime engine targetlarından ayır.
