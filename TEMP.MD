@@ -1074,22 +1074,23 @@ Gerçek dünyada window minimize, resize sırasında swapchain invalidation, dri
 
 ## Amaç
 
-Backend feature support'u varsaymak yerine ölçmek ve raporlamak.
+Backend feature support'u varsaymak yerine conservative matrix v0 olarak
+raporlamak. Native runtime probe future work olarak kalır.
 
 Diligent birden fazla graphics API'yi soyutlayabilir; ancak her backend aynı capability seviyesine sahip değildir. Renderer kalite presetleri ve feature fallback davranışı capability matrix'e bağlı olmalıdır.
 
 ## Kapsam
 
-- [ ] Compute support.
-- [ ] Timestamp query support.
-- [ ] Bindless/resource array support.
-- [ ] Ray tracing support.
-- [ ] HDR swapchain support.
-- [ ] Texture compression format support.
-- [ ] Mesh shader future support.
-- [ ] Indirect draw support.
-- [ ] Conservative raster / depth bounds gibi optional feature notları.
-- [ ] Backend-specific fallback diagnostics.
+- [x] Compute support vocabulary.
+- [x] Timestamp query support vocabulary.
+- [x] Bindless/resource array support vocabulary.
+- [x] Ray tracing support vocabulary.
+- [x] HDR swapchain support vocabulary.
+- [x] Texture compression format support vocabulary.
+- [x] Mesh shader future support vocabulary.
+- [x] Indirect draw support vocabulary.
+- [x] Conservative raster / depth bounds gibi optional feature notları.
+- [ ] Backend-specific fallback diagnostics artifact.
 
 ## İşler
 
@@ -1099,25 +1100,25 @@ Diligent birden fazla graphics API'yi soyutlayabilir; ancak her backend aynı ca
 - [ ] Backend feature query abstraction yaz.
 - [x] Unsupported feature fallback helper ekle.
 - [x] Quality preset clamp-to-capability helper ekle.
-- [ ] Platform/backend capability matrix dokümantasyonu oluştur.
-- [ ] Linux Vulkan / Windows D3D12-Vulkan / later Metal-WebGPU-D3D11 satırlarını ayır.
+- [x] Platform/backend capability matrix dokümantasyonu oluştur.
+- [x] Linux native-portable/compatibility ve Windows native-primary/native-portable/compatibility vocabulary satırlarını ayır.
 
 ## Test / Doğrulama
 
 - [ ] Capability report JSON schema test.
 - [x] Unsupported feature fallback helper test.
 - [x] Quality preset clamps to backend capability test.
-- [ ] RT unavailable fallback test.
-- [ ] Timestamp query unavailable fallback test.
-- [ ] Texture compression format capability test.
-- [ ] Backend matrix document exists.
+- [x] RT unavailable fallback test.
+- [x] Timestamp query unavailable fallback test.
+- [x] Texture compression format capability test.
+- [x] Backend matrix document exists.
 - [x] Public capability DTO shell compile-smoke test.
 
 ## Done
 
 - [x] Renderer feature support'u varsaymıyor; conservative capability shell raporluyor.
 - [x] Quality presetler backend capability ceiling'e göre test edilebilir şekilde clamp ediliyor.
-- [ ] Platform/backend farkları görünür ve test edilebilir.
+- [x] Platform/backend farkları vocabulary matrix olarak görünür; runtime-probed native farklar future work.
 
 ---
 

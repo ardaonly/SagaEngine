@@ -33,13 +33,16 @@ unavailability, and minimized frame skips can be reported without exposing
 backend or native graphics API types. This is a status/reporting guard, not full
 device-lost recovery.
 
-R3C-lite adds scalar-only `RenderBackendCapabilities` capability vocabulary,
-`RenderQualityPreset`, and quality/fallback helpers. These report conservative
-baseline support from the current shell; they do not perform native backend
-feature queries or emit capability report artifacts.
+R3C conservative capability matrix v0 adds scalar-only
+`RenderBackendCapabilities` capability vocabulary, `RenderQualityPreset`, and
+quality/fallback helpers. These report conservative baseline support from the
+current shell; they do not perform native backend feature queries or emit
+capability report artifacts.
 
 The internal backend preference order is documented in
 [Graphics Backend Preference Order](GRAPHICS_BACKEND_PREFERENCE_ORDER.md).
+The conservative capability matrix is documented in
+[Graphics Capability Matrix v0](GRAPHICS_CAPABILITY_MATRIX_V0.md).
 The current graphics CMake target roles are documented in
 [Graphics Target Boundary Inventory](GRAPHICS_TARGET_BOUNDARY_INVENTORY.md).
 

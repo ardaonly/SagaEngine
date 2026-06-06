@@ -134,4 +134,38 @@ TEST(GraphicsRenderBackendMapping, ResolvesUnsupportedFeatureFallback)
         Graphics::RenderCapabilityFallback::DisabledUnsupported);
 }
 
+TEST(GraphicsRenderBackendMapping, ConservativeMatrixDefaultsDisableNativeFeatures)
+{
+    Graphics::RenderBackendCapabilities capabilities{};
+    capabilities.backend = Graphics::BackendPreference::NativePortable;
+    capabilities.qualityCeiling = Graphics::RenderQualityPreset::Low;
+    capabilities.maxTexture2DSize = 1024u;
+    capabilities.maxColorAttachments = 1u;
+    capabilities.maxFramesInFlight = 1u;
+
+    EXPECT_EQ(
+        Graphics::ResolveRenderCapabilityFallback(
+            capabilities.rayTracing,
+            true),
+        Graphics::RenderCapabilityFallback::DisabledUnsupported);
+    EXPECT_EQ(
+        Graphics::ResolveRenderCapabilityFallback(
+            capabilities.timestampQueries,
+            true),
+        Graphics::RenderCapabilityFallback::DisabledUnsupported);
+    EXPECT_EQ(
+        Graphics::ResolveRenderCapabilityFallback(
+            capabilities.textureCompressionBC,
+            true),
+        Graphics::RenderCapabilityFallback::DisabledUnsupported);
+    EXPECT_EQ(
+        Graphics::ResolveRenderCapabilityFallback(
+            capabilities.indirectDraw,
+            true),
+        Graphics::RenderCapabilityFallback::DisabledUnsupported);
+    EXPECT_EQ(capabilities.maxTexture2DSize, 1024u);
+    EXPECT_EQ(capabilities.maxColorAttachments, 1u);
+    EXPECT_EQ(capabilities.maxFramesInFlight, 1u);
+}
+
 } // namespace
