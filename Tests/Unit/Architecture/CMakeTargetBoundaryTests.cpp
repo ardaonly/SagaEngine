@@ -348,7 +348,9 @@ TEST(CMakeTargetBoundaryTests, SagaEngineDoesNotLinkProductEditorOrToolTargets)
 TEST(CMakeTargetBoundaryTests, SagaGraphicsTargetIsVendorNeutralPublicShell)
 {
     const auto path = SagaTargetsPath();
+    const auto lines = ReadLines(path);
     const auto text = ReadText(path);
+    const auto calls = ExtractTargetLinkCalls(lines);
 
     EXPECT_TRUE(ContainsToken(text, "add_library(SagaGraphics INTERFACE)"))
         << "SagaGraphics must exist as a public interface target.";
@@ -357,12 +359,59 @@ TEST(CMakeTargetBoundaryTests, SagaGraphicsTargetIsVendorNeutralPublicShell)
         "target_include_directories(SagaGraphics INTERFACE\n"
         "        ${SAGA_ROOT}/Engine/Public"))
         << "SagaGraphics must expose only the Engine/Public include root.";
-    EXPECT_FALSE(ContainsToken(text, "SagaGraphicsPrivate"))
-        << "SagaGraphicsPrivate is out of scope until private graphics "
-           "implementation exists.";
-    EXPECT_FALSE(ContainsToken(text, "target_link_libraries(SagaGraphics"))
-        << "SagaGraphics must not link vendor, backend, native API, or "
-           "backend library targets.";
+
+    for (const auto& call : calls)
+    {
+        EXPECT_NE(call.target, "SagaGraphics")
+            << "SagaGraphics must not link vendor, backend, native API, or "
+               "backend library targets. Offending call in "
+            << path.generic_string() << ":" << call.line
+            << "\n" << call.text;
+    }
+}
+
+TEST(CMakeTargetBoundaryTests, SagaGraphicsPrivateTargetIsPrivateBoundaryShell)
+{
+    const auto path = SagaTargetsPath();
+    const auto text = ReadText(path);
+    const auto calls = ExtractTargetLinkCalls(ReadLines(path));
+
+    EXPECT_TRUE(ContainsToken(text, "add_library(SagaGraphicsPrivate STATIC)"))
+        << "SagaGraphicsPrivate must exist as a private implementation "
+           "target shell.";
+    EXPECT_TRUE(ContainsToken(
+        text,
+        "target_include_directories(SagaGraphicsPrivate PRIVATE\n"
+        "        ${SAGA_ROOT}/Engine/Private"))
+        << "SagaGraphicsPrivate must be allowed to include private engine "
+           "headers.";
+    EXPECT_TRUE(ContainsToken(
+        text,
+        "target_link_libraries(SagaGraphicsPrivate PUBLIC\n"
+        "        SagaGraphics"))
+        << "SagaGraphicsPrivate must depend on the public SagaGraphics shell.";
+
+    const std::vector<std::string> forbidden = {
+        "VendorDiligent",
+        "SagaDiligentBackend",
+        "Diligent-",
+        "Vulkan::",
+        "D3D",
+        "OpenGL",
+        "Metal",
+    };
+
+    const auto offenders =
+        FindForbiddenLinks(calls, "SagaGraphicsPrivate", forbidden);
+
+    for (const auto& offender : offenders)
+    {
+        ADD_FAILURE()
+            << "Forbidden target dependency: SagaGraphicsPrivate must not link "
+            << JoinNames(FindForbiddenDependencyNames(offender, forbidden))
+            << ". Offending call in " << path.generic_string()
+            << ":" << offender.line << "\n" << offender.text;
+    }
 }
 
 TEST(CMakeTargetBoundaryTests, GraphicsInstallSurfaceDoesNotInstallVendorBackends)
@@ -384,6 +433,8 @@ TEST(CMakeTargetBoundaryTests, GraphicsInstallSurfaceDoesNotInstallVendorBackend
         << "VendorDiligent must not be installed as a public target.";
     EXPECT_FALSE(ContainsToken(installText, "SagaDiligentBackend"))
         << "Concrete Diligent backend target must not be installed.";
+    EXPECT_FALSE(ContainsToken(installText, "SagaGraphicsPrivate"))
+        << "Private graphics implementation target must not be installed.";
 
     const auto vendorText = ReadText(vendorPath);
     EXPECT_TRUE(ContainsToken(vendorText, "DILIGENT_INSTALL_CORE OFF"));
