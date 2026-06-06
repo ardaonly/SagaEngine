@@ -16,6 +16,7 @@ function(saga_create_graphics_targets)
 
     target_sources(SagaGraphicsPrivate PRIVATE
         ${SAGA_ROOT}/Engine/Private/SagaEngine/Graphics/GraphicsPrivateAnchor.cpp
+        ${SAGA_ROOT}/Engine/Private/SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackend.cpp
     )
 
     target_include_directories(SagaGraphicsPrivate PRIVATE
@@ -24,6 +25,9 @@ function(saga_create_graphics_targets)
 
     target_link_libraries(SagaGraphicsPrivate PUBLIC
         SagaGraphics
+    )
+    target_link_libraries(SagaGraphicsPrivate PRIVATE
+        SagaDiligentBackend
     )
 
     set_target_properties(SagaGraphicsPrivate PROPERTIES
