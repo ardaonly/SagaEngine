@@ -341,6 +341,19 @@ TEST(PublicPrivateBoundaryTests, SagaGraphicsUmbrellaHeaderCompileSmoke)
         status.failure,
         SagaEngine::Graphics::RenderBackendFailure::None);
 
+    const auto capabilities = backend.GetCapabilities();
+    EXPECT_EQ(
+        capabilities.qualityCeiling,
+        SagaEngine::Graphics::RenderQualityPreset::Low);
+    EXPECT_EQ(
+        capabilities.rayTracing,
+        SagaEngine::Graphics::RenderFeatureSupport::Unsupported);
+    EXPECT_EQ(
+        SagaEngine::Graphics::ResolveRenderCapabilityFallback(
+            capabilities.rayTracing,
+            true),
+        SagaEngine::Graphics::RenderCapabilityFallback::DisabledUnsupported);
+
     backend.DestroyTexture(textureHandle);
     backend.DestroyBuffer(bufferHandle);
     backend.DestroyPipeline(pipelineHandle);
@@ -369,6 +382,9 @@ TEST(PublicPrivateBoundaryTests, RenderPublicApiContractDocumentsGraphicsGuardra
         "SagaDiligentBackend",
         "RenderBackendHealth",
         "RenderBackendFailure",
+        "RenderBackendCapabilities",
+        "RenderQualityPreset",
+        "does not complete R3C native feature detection or capability artifacts",
         "stable external SDK",
         "does not move `SagaEngine/Render/Backend`",
         "does not complete R3 bridge migration",

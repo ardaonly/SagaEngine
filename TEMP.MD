@@ -63,9 +63,9 @@ Bu bölüm roadmap'in uygulama gerçeğiyle senkron tutulması için eklenmişti
 - [ ] R2 başladı ama tamamlanmadı: mevcut `Engine/Public/SagaEngine/Render/Backend` surface vendor-neutral ve yeni `Engine/Public/SagaEngine/Graphics` shell mevcut; davranış bridge'i ve stable SDK iddiası yok.
 - [ ] R2B-lite başladı: public render/backend token guard, `SagaGraphics` shell smoke, install surface guard ve contract dokümantasyonu mevcut; full R2B closure claim yok.
 - [ ] R2B-lite install guard verified during R1B-lite target-boundary slice.
-- [ ] R3A-lite tamamlandı, R3B-lite başladı: Diligent backend device/swapchain/frame yolu mevcut; `SagaGraphics`/Render backend preference mapping, platform order dokümantasyonu ve `Engine/Private/SagaEngine/Graphics/Backends/Diligent` altında lifecycle adapter v0 eklendi. `RenderBackendHealth`/`RenderBackendFailure` ile failed-init, backend-unavailable ve minimized frame-skip status modeli başladı. RenderGraph/material/shader/resource bridge henüz yok.
+- [ ] R3A/R3B-lite tamamlandı, R3C-lite başladı: Diligent backend device/swapchain/frame yolu mevcut; `SagaGraphics`/Render backend preference mapping, platform order dokümantasyonu ve `Engine/Private/SagaEngine/Graphics/Backends/Diligent` altında lifecycle adapter v0 eklendi. `RenderBackendHealth`/`RenderBackendFailure` ile failure status modeli, `RenderBackendCapabilities` ile capability vocabulary shell başladı. RenderGraph/material/shader/resource bridge henüz yok.
 
-Bu slice: R3B-lite - SagaGraphics failure-state ve minimized frame guard. Full R3B/R4 closure, gerçek device-lost recovery, `Render/Backend` taşıma ve stable external SDK claim yok.
+Bu slice: R3C-lite - SagaGraphics capability vocabulary/shell. Full R3C/R4 closure, gerçek backend feature query, JSON artifact, `Render/Backend` taşıma ve stable external SDK claim yok.
 
 ---
 
@@ -1093,28 +1093,30 @@ Diligent birden fazla graphics API'yi soyutlayabilir; ancak her backend aynı ca
 
 ## İşler
 
-- [ ] `RenderCapabilities` detaylandır.
+- [x] `RenderBackendCapabilities` public scalar DTO shell ekle.
+- [x] `RenderQualityPreset`, `RenderFeatureSupport`, `RenderCapabilityFallback` vocabulary ekle.
 - [ ] Capability report JSON üret.
 - [ ] Backend feature query abstraction yaz.
-- [ ] Unsupported feature fallback diagnostic ekle.
-- [ ] Quality preset clamp-to-capability davranışı yaz.
+- [x] Unsupported feature fallback helper ekle.
+- [x] Quality preset clamp-to-capability helper ekle.
 - [ ] Platform/backend capability matrix dokümantasyonu oluştur.
 - [ ] Linux Vulkan / Windows D3D12-Vulkan / later Metal-WebGPU-D3D11 satırlarını ayır.
 
 ## Test / Doğrulama
 
 - [ ] Capability report JSON schema test.
-- [ ] Unsupported feature fallback diagnostic test.
-- [ ] Quality preset clamps to backend capability test.
+- [x] Unsupported feature fallback helper test.
+- [x] Quality preset clamps to backend capability test.
 - [ ] RT unavailable fallback test.
 - [ ] Timestamp query unavailable fallback test.
 - [ ] Texture compression format capability test.
 - [ ] Backend matrix document exists.
+- [x] Public capability DTO shell compile-smoke test.
 
 ## Done
 
-- [ ] Renderer feature support'u varsaymıyor, raporluyor.
-- [ ] Quality presetler backend capability'ye göre güvenli şekilde clamp ediliyor.
+- [x] Renderer feature support'u varsaymıyor; conservative capability shell raporluyor.
+- [x] Quality presetler backend capability ceiling'e göre test edilebilir şekilde clamp ediliyor.
 - [ ] Platform/backend farkları görünür ve test edilebilir.
 
 ---
@@ -3003,7 +3005,7 @@ AAA-oriented renderer tek kalite seviyesinde çalışmamalıdır. Low/Medium/Hig
 
 ## İşler
 
-- [ ] `RenderQualityPreset` enum/tanım yaz.
+- [x] `RenderQualityPreset` enum/tanım yaz.
 - [ ] Shadow quality tier mapping yaz.
 - [ ] Texture streaming budget per preset yaz.
 - [ ] Post-process feature flags per preset yaz.

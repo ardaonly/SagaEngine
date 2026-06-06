@@ -22,4 +22,17 @@ TEST(SagaGraphicsHeaderSmokeTests, GraphicsUmbrellaHeaderIsSelfContained)
     EXPECT_EQ(status.selectedBackend, SagaEngine::Graphics::BackendPreference::Auto);
     EXPECT_EQ(status.health, SagaEngine::Graphics::RenderBackendHealth::Headless);
     EXPECT_EQ(status.failure, SagaEngine::Graphics::RenderBackendFailure::None);
+
+    const auto capabilities = backend.GetCapabilities();
+    EXPECT_EQ(
+        capabilities.qualityCeiling,
+        SagaEngine::Graphics::RenderQualityPreset::Low);
+    EXPECT_EQ(
+        capabilities.compute,
+        SagaEngine::Graphics::RenderFeatureSupport::Unsupported);
+    EXPECT_EQ(
+        SagaEngine::Graphics::ClampRenderQualityPreset(
+            SagaEngine::Graphics::RenderQualityPreset::Ultra,
+            capabilities),
+        SagaEngine::Graphics::RenderQualityPreset::Low);
 }
