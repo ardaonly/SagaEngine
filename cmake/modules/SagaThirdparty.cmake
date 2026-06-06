@@ -4,7 +4,6 @@ function(saga_setup_thirdparty)
     find_package(libpqxx CONFIG REQUIRED)
     find_package(hiredis CONFIG REQUIRED)
     find_package(redis++ CONFIG REQUIRED)
-    find_package(diligent-core CONFIG REQUIRED)
     find_package(Vulkan QUIET)
     find_package(GTest CONFIG REQUIRED)
     find_package(SDL2 CONFIG REQUIRED)
@@ -113,27 +112,11 @@ function(saga_link_thirdparty target_name)
         libpqxx::pqxx
         hiredis::hiredis
         redis++::redis++_static
-        diligent-core::diligent-core
         SDL2::SDL2
         imgui::imgui
         glm::glm
         nlohmann_json::nlohmann_json
     )
-
-    if(Vulkan_FOUND)
-        target_link_libraries(${target_name} PRIVATE Vulkan::Vulkan)
-    endif()
-
-    # Diligent's D3D12/D3D11 static backends use D3DCompile, D3DReflect,
-    # D3DCreateBlob from d3dcompiler.lib and DXGI functions from dxgi.lib.
-    # The conan package only declares dxgi+shlwapi; d3dcompiler is missing.
-    if(WIN32)
-        target_link_libraries(${target_name} PRIVATE
-            d3dcompiler.lib
-            dxgi.lib
-            d3d12.lib
-        )
-    endif()
 
     if(DEFINED imgui_RES_DIRS)
         target_include_directories(${target_name} PRIVATE

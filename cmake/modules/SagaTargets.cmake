@@ -33,6 +33,7 @@ function(saga_create_engine_targets)
     saga_collect_sources(SAGA_STATE_CHECK_SOURCES Tools/SagaStateCheck/src)
     saga_collect_sources(MULTIPLAYER_SANDBOX_HEADLESS_SOURCES Tools/MultiplayerSandboxHeadless/src)
     saga_collect_sources(ENGINE_SOURCES  Engine/Private)
+    saga_collect_sources(DILIGENT_BACKEND_SOURCES Engine/Private/SagaEngine/Render/Backend/Diligent)
     saga_collect_sources(BACKEND_SOURCES Backends/src)
     saga_collect_sources(RUNTIME_SOURCES  Runtime/src)
     saga_collect_sources(SERVER_SOURCES   Server/src)
@@ -47,6 +48,7 @@ function(saga_create_engine_targets)
     list(FILTER ENGINE_SOURCES  EXCLUDE REGEX ".*/[Mm]ain\\.cpp$")
     list(FILTER ENGINE_SOURCES  EXCLUDE REGEX ".*/Engine/Private/SagaEngine/Core/Log/.*\\.cpp$")
     list(FILTER ENGINE_SOURCES  EXCLUDE REGEX ".*/Engine/Private/SagaEngine/Diagnostics/.*\\.cpp$")
+    list(FILTER ENGINE_SOURCES  EXCLUDE REGEX ".*/Engine/Private/SagaEngine/Render/Backend/Diligent/.*\\.cpp$")
     list(FILTER SANDBOX_SOURCES EXCLUDE REGEX ".*/Launchers/.*\\.cpp$")
     # Editor/src/main.cpp is a legacy stub; Apps/Editor/main.cpp is the launcher.
     list(FILTER EDITOR_SOURCES  EXCLUDE REGEX ".*/[Mm]ain\\.cpp$")
@@ -258,6 +260,33 @@ function(saga_create_engine_targets)
     target_link_libraries(SagaEngine PRIVATE
         ${SAGA_DOTNET_NETHOST_LIBRARY}
         ${CMAKE_DL_LIBS}
+    )
+
+    # --- Diligent Render Backend --------------------------------------------
+    add_library(SagaDiligentBackend STATIC)
+    saga_apply_compiler_flags(SagaDiligentBackend)
+
+    target_sources(SagaDiligentBackend PRIVATE
+        ${DILIGENT_BACKEND_SOURCES}
+    )
+
+    target_include_directories(SagaDiligentBackend
+        PUBLIC
+            ${SAGA_ROOT}/Engine/Public
+        PRIVATE
+            ${SAGA_ROOT}/Engine/Private
+    )
+
+    target_link_libraries(SagaDiligentBackend
+        PUBLIC
+            SagaEngine
+        PRIVATE
+            imgui::imgui
+    )
+    saga_link_diligent_backend(SagaDiligentBackend)
+
+    set_target_properties(SagaDiligentBackend PROPERTIES
+        FOLDER "Engine/Render"
     )
 
     # --- Runtime Role Library ------------------------------------------------
@@ -472,6 +501,7 @@ function(saga_create_engine_targets)
 
     target_link_libraries(SagaSandboxLib PUBLIC
         SagaEngine
+        SagaDiligentBackend
         SagaRuntimeLib
         SagaServerLib
         SagaBackend

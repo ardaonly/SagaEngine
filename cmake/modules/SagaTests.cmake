@@ -324,6 +324,7 @@ function(saga_setup_tests)
     saga_link_thirdparty(SagaUnitTests)
     target_link_libraries(SagaUnitTests PRIVATE
         SagaEngine
+        SagaDiligentBackend
         SagaDiagnostics
         SagaRuntimeLib
         SagaServerLib
@@ -1683,6 +1684,7 @@ function(saga_setup_tests)
     target_link_libraries(SagaIntegrationTests PRIVATE
         SagaBackend
         SagaEngine
+        SagaDiligentBackend
         SagaRuntimeLib
         SagaServerLib
         SagaShared
