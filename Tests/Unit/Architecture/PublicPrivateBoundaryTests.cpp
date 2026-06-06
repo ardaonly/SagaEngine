@@ -388,14 +388,30 @@ TEST(PublicPrivateBoundaryTests, RenderPublicApiContractDocumentsGraphicsGuardra
         "stable external SDK",
         "does not move `SagaEngine/Render/Backend`",
         "does not complete R3 bridge migration",
-        "does not add RenderGraph, material, shader, or resource behavior",
+        "R5 validation entry adds RenderGraph compile diagnostics",
+        "does not add a SagaGraphics execution bridge",
+        "material system, shader compiler, lighting, or post-processing",
         "does not complete R3B device-loss or swapchain recreation recovery",
+        "does not create native Diligent GPU resources",
+        "does not complete R5 RenderGraph execution",
     };
 
     for (const auto& token : requiredTokens)
     {
         EXPECT_TRUE(Contains(text, token))
             << "RENDER_PUBLIC_API_CONTRACT.md must document: " << token;
+    }
+
+    const std::vector<std::string> forbiddenClaims = {
+        "production AAA renderer",
+        "full R5 completed",
+        "R5 completed",
+    };
+
+    for (const auto& claim : forbiddenClaims)
+    {
+        EXPECT_FALSE(Contains(text, claim))
+            << "RENDER_PUBLIC_API_CONTRACT.md must not claim: " << claim;
     }
 }
 
