@@ -32,6 +32,35 @@ Graphics::SwapchainDesc MakeSwapchain() noexcept
 
 } // namespace
 
+TEST(GraphicsFrameResourceAllocator, InvalidConfigIsRejected)
+{
+    GraphicsPrivate::FrameResourceAllocator allocator;
+
+    auto config = MakeConfig();
+    config.maxFramesInFlight = 0u;
+    EXPECT_FALSE(allocator.Initialize(config));
+
+    config = MakeConfig();
+    config.bytesPerFrame = 0u;
+    EXPECT_FALSE(allocator.Initialize(config));
+
+    config = MakeConfig();
+    config.defaultAlignment = 0u;
+    EXPECT_FALSE(allocator.Initialize(config));
+}
+
+TEST(GraphicsFrameResourceAllocator, AllocationBeforeInitializeFailsSafely)
+{
+    GraphicsPrivate::FrameResourceAllocator allocator;
+
+    EXPECT_FALSE(allocator.Allocate(1u).IsValid());
+
+    const auto stats = allocator.GetStats();
+    EXPECT_EQ(stats.currentFrameBytes, 0u);
+    EXPECT_EQ(stats.failedAllocationCount, 1u);
+    EXPECT_EQ(stats.maxFramesInFlight, 1u);
+}
+
 TEST(GraphicsFrameResourceAllocator, AllocationsAreAligned)
 {
     GraphicsPrivate::FrameResourceAllocator allocator;
@@ -79,6 +108,23 @@ TEST(GraphicsFrameResourceAllocator, PerFrameResetWorks)
     EXPECT_EQ(allocator.GetStats().currentFrameBytes, 16u);
 }
 
+TEST(GraphicsFrameResourceAllocator, PeakUsageSurvivesFrameReset)
+{
+    GraphicsPrivate::FrameResourceAllocator allocator;
+    ASSERT_TRUE(allocator.Initialize(MakeConfig()));
+
+    EXPECT_TRUE(allocator.Allocate(48u).IsValid());
+    EXPECT_EQ(allocator.GetStats().peakFrameBytes, 48u);
+
+    allocator.BeginFrame(1u);
+    EXPECT_EQ(allocator.GetStats().currentFrameBytes, 0u);
+    EXPECT_EQ(allocator.GetStats().peakFrameBytes, 48u);
+
+    EXPECT_TRUE(allocator.Allocate(16u).IsValid());
+    EXPECT_EQ(allocator.GetStats().currentFrameBytes, 16u);
+    EXPECT_EQ(allocator.GetStats().peakFrameBytes, 48u);
+}
+
 TEST(GraphicsFrameResourceAllocator, FramesInFlightAreIsolated)
 {
     GraphicsPrivate::FrameResourceAllocator allocator;
@@ -96,6 +142,29 @@ TEST(GraphicsFrameResourceAllocator, FramesInFlightAreIsolated)
 
     EXPECT_EQ(allocator.GetFrameBytesForTesting(0u), 24u);
     EXPECT_EQ(allocator.GetFrameBytesForTesting(1u), 16u);
+}
+
+TEST(GraphicsFrameResourceAllocator, WrappedFrameSlotResetsReusedFrame)
+{
+    GraphicsPrivate::FrameResourceAllocator allocator;
+    ASSERT_TRUE(allocator.Initialize(MakeConfig()));
+
+    EXPECT_TRUE(allocator.Allocate(24u).IsValid());
+    allocator.BeginFrame(1u);
+    EXPECT_TRUE(allocator.Allocate(16u).IsValid());
+    EXPECT_EQ(allocator.GetFrameBytesForTesting(0u), 24u);
+    EXPECT_EQ(allocator.GetFrameBytesForTesting(1u), 16u);
+
+    allocator.BeginFrame(2u);
+    EXPECT_EQ(allocator.GetStats().currentFrameSlot, 0u);
+    EXPECT_EQ(allocator.GetFrameBytesForTesting(0u), 0u);
+    EXPECT_EQ(allocator.GetFrameBytesForTesting(1u), 16u);
+
+    const auto allocation = allocator.Allocate(8u);
+    ASSERT_TRUE(allocation.IsValid());
+    EXPECT_EQ(allocation.frameIndex, 2u);
+    EXPECT_EQ(allocation.frameSlot, 0u);
+    EXPECT_EQ(allocation.offsetBytes, 0u);
 }
 
 TEST(GraphicsFrameResourceAllocator, ActiveFrameAllocationsDoNotOverwrite)
