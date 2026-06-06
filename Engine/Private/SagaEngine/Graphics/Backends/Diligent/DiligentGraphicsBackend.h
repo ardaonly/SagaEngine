@@ -36,6 +36,7 @@ private:
                 slot.desc = desc;
                 slot.estimatedBytes = estimatedBytes;
                 slot.shadowPayload = shadowPayload;
+                slot.backing = GraphicsResourceBacking::RegisteredOnly;
                 slot.occupied = true;
                 slot.generation = NextGeneration(slot.generation);
             }
@@ -43,7 +44,14 @@ private:
             {
                 slotIndex = static_cast<std::uint32_t>(m_Slots.size());
                 m_Slots.push_back(
-                    {desc, estimatedBytes, shadowPayload, 1u, true});
+                    {
+                        desc,
+                        estimatedBytes,
+                        shadowPayload,
+                        GraphicsResourceBacking::RegisteredOnly,
+                        1u,
+                        true,
+                    });
             }
 
             m_LiveCount += 1u;
@@ -143,7 +151,7 @@ private:
             return {
                 true,
                 kind,
-                GraphicsResourceBacking::RegisteredOnly,
+                slot.backing,
                 slot.estimatedBytes,
             };
         }
@@ -154,6 +162,8 @@ private:
             DescT desc{};
             std::uint64_t estimatedBytes = 0;
             std::vector<std::uint8_t> shadowPayload{};
+            GraphicsResourceBacking backing =
+                GraphicsResourceBacking::RegisteredOnly;
             std::uint32_t generation = 1;
             bool occupied = false;
         };
