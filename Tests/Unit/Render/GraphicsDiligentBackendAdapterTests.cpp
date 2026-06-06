@@ -209,6 +209,18 @@ TEST(GraphicsDiligentBackendAdapter, MapsRenderStatusToGraphicsStatus)
     EXPECT_TRUE(status.initialized);
     EXPECT_EQ(status.health, Graphics::RenderBackendHealth::Ready);
     EXPECT_EQ(status.failure, Graphics::RenderBackendFailure::None);
+
+    const auto capabilities = backend->GetCapabilities();
+    EXPECT_EQ(
+        capabilities.backend,
+        Graphics::BackendPreference::Compatibility);
+    EXPECT_EQ(
+        capabilities.qualityCeiling,
+        Graphics::RenderQualityPreset::Medium);
+    EXPECT_EQ(
+        capabilities.compute,
+        Graphics::RenderFeatureSupport::Unsupported);
+    EXPECT_EQ(capabilities.maxTexture2DSize, 4096u);
 }
 
 TEST(GraphicsDiligentBackendAdapter, FailedInitializeReportsFailureStatus)
@@ -228,6 +240,12 @@ TEST(GraphicsDiligentBackendAdapter, FailedInitializeReportsFailureStatus)
     EXPECT_EQ(
         status.failure,
         Graphics::RenderBackendFailure::InitializationFailed);
+
+    const auto capabilities = backend->GetCapabilities();
+    EXPECT_EQ(
+        capabilities.qualityCeiling,
+        Graphics::RenderQualityPreset::Low);
+    EXPECT_EQ(capabilities.maxTexture2DSize, 1024u);
 }
 
 TEST(GraphicsDiligentBackendAdapter, HeadlessInitializeDoesNotTouchRenderBackend)
@@ -251,6 +269,14 @@ TEST(GraphicsDiligentBackendAdapter, HeadlessInitializeDoesNotTouchRenderBackend
     EXPECT_TRUE(status.initialized);
     EXPECT_EQ(status.health, Graphics::RenderBackendHealth::Headless);
     EXPECT_EQ(status.failure, Graphics::RenderBackendFailure::None);
+
+    const auto capabilities = backend->GetCapabilities();
+    EXPECT_EQ(
+        capabilities.backend,
+        Graphics::BackendPreference::NativePortable);
+    EXPECT_EQ(
+        capabilities.qualityCeiling,
+        Graphics::RenderQualityPreset::Low);
 }
 
 TEST(GraphicsDiligentBackendAdapter, NullFactoryReportsBackendUnavailable)
@@ -266,6 +292,14 @@ TEST(GraphicsDiligentBackendAdapter, NullFactoryReportsBackendUnavailable)
     EXPECT_EQ(
         status.failure,
         Graphics::RenderBackendFailure::BackendUnavailable);
+
+    const auto capabilities = backend->GetCapabilities();
+    EXPECT_EQ(
+        capabilities.qualityCeiling,
+        Graphics::RenderQualityPreset::Low);
+    EXPECT_EQ(
+        capabilities.rayTracing,
+        Graphics::RenderFeatureSupport::Unsupported);
 }
 
 TEST(GraphicsDiligentBackendAdapter, ZeroSizeInitializeSkipsBackend)
@@ -286,6 +320,11 @@ TEST(GraphicsDiligentBackendAdapter, ZeroSizeInitializeSkipsBackend)
     EXPECT_EQ(
         status.failure,
         Graphics::RenderBackendFailure::InvalidSurfaceSize);
+
+    const auto capabilities = backend->GetCapabilities();
+    EXPECT_EQ(
+        capabilities.qualityCeiling,
+        Graphics::RenderQualityPreset::Low);
 }
 
 TEST(GraphicsDiligentBackendAdapter, ZeroSizeResizeSkipsBackendResize)
@@ -354,6 +393,11 @@ TEST(GraphicsDiligentBackendAdapter, ShutdownAfterFailedInitializeIsIdempotent)
     const auto status = backend->GetStatus();
     EXPECT_FALSE(status.initialized);
     EXPECT_EQ(status.health, Graphics::RenderBackendHealth::Shutdown);
+
+    const auto capabilities = backend->GetCapabilities();
+    EXPECT_EQ(
+        capabilities.qualityCeiling,
+        Graphics::RenderQualityPreset::Low);
 }
 
 TEST(GraphicsDiligentBackendAdapter, ResourceMethodsReturnInvalidHandlesInV0)

@@ -39,6 +39,7 @@ CreateDefaultRenderBackend(const RenderBackendDesc& backend)
 DiligentGraphicsBackend::DiligentGraphicsBackend()
     : m_BackendFactory(CreateDefaultRenderBackend)
 {
+    m_LastCapabilities = MakeConservativeCapabilities();
 }
 
 DiligentGraphicsBackend::DiligentGraphicsBackend(
@@ -49,6 +50,7 @@ DiligentGraphicsBackend::DiligentGraphicsBackend(
     , m_StatusReader(statusReader ? statusReader
                                   : RenderBackend::GetRenderBackendStatus)
 {
+    m_LastCapabilities = MakeConservativeCapabilities();
 }
 
 DiligentGraphicsBackend::DiligentGraphicsBackend(
@@ -59,6 +61,7 @@ DiligentGraphicsBackend::DiligentGraphicsBackend(
     , m_StatusReader(statusReader ? statusReader
                                   : RenderBackend::GetRenderBackendStatus)
 {
+    m_LastCapabilities = MakeConservativeCapabilities();
 }
 
 bool DiligentGraphicsBackend::Initialize(
@@ -78,6 +81,8 @@ bool DiligentGraphicsBackend::Initialize(
         m_HeadlessStatus.health = RenderBackendHealth::Headless;
         m_HeadlessStatus.failure = RenderBackendFailure::None;
         m_LastStatus = m_HeadlessStatus;
+        m_LastCapabilities = MakeConservativeCapabilities();
+        m_LastCapabilities.backend = backend.preferredBackend;
         return true;
     }
 
@@ -107,6 +112,11 @@ bool DiligentGraphicsBackend::Initialize(
     {
         SetFailure(RenderBackendFailure::InitializationFailed);
         m_RenderBackend->Shutdown();
+        m_LastCapabilities = MakeConservativeCapabilities();
+    }
+    else
+    {
+        m_LastCapabilities = MakeReadyCapabilities(m_LastStatus.selectedBackend);
     }
 
     return initialized;
@@ -123,6 +133,7 @@ void DiligentGraphicsBackend::Shutdown()
     m_HeadlessStatus.health = RenderBackendHealth::Shutdown;
     m_LastStatus.initialized = false;
     m_LastStatus.health = RenderBackendHealth::Shutdown;
+    m_LastCapabilities = MakeConservativeCapabilities();
     m_Headless = false;
     m_SurfaceMinimized = false;
 }
@@ -227,6 +238,36 @@ RenderBackendStatus DiligentGraphicsBackend::GetStatus() const noexcept
     return Mapping::ToGraphicsBackendStatus(m_StatusReader(*m_RenderBackend));
 }
 
+RenderBackendCapabilities DiligentGraphicsBackend::GetCapabilities()
+    const noexcept
+{
+    return m_LastCapabilities;
+}
+
+RenderBackendCapabilities
+DiligentGraphicsBackend::MakeConservativeCapabilities() const noexcept
+{
+    RenderBackendCapabilities capabilities{};
+    capabilities.backend = m_LastStatus.selectedBackend;
+    capabilities.qualityCeiling = RenderQualityPreset::Low;
+    capabilities.maxTexture2DSize = 1024u;
+    capabilities.maxColorAttachments = 1u;
+    capabilities.maxFramesInFlight = 1u;
+    return capabilities;
+}
+
+RenderBackendCapabilities DiligentGraphicsBackend::MakeReadyCapabilities(
+    BackendPreference backend) const noexcept
+{
+    RenderBackendCapabilities capabilities{};
+    capabilities.backend = backend;
+    capabilities.qualityCeiling = RenderQualityPreset::Medium;
+    capabilities.maxTexture2DSize = 4096u;
+    capabilities.maxColorAttachments = 1u;
+    capabilities.maxFramesInFlight = 1u;
+    return capabilities;
+}
+
 bool DiligentGraphicsBackend::CanRenderFrame() const noexcept
 {
     return m_RenderBackend && !m_SurfaceMinimized &&
@@ -240,6 +281,7 @@ void DiligentGraphicsBackend::SetFailure(
     m_LastStatus.initialized = false;
     m_LastStatus.health = RenderBackendHealth::Failed;
     m_LastStatus.failure = failure;
+    m_LastCapabilities = MakeConservativeCapabilities();
 }
 
 void DiligentGraphicsBackend::SetFrameSkipped(
@@ -248,6 +290,7 @@ void DiligentGraphicsBackend::SetFrameSkipped(
     m_LastStatus.initialized = false;
     m_LastStatus.health = RenderBackendHealth::FrameSkipped;
     m_LastStatus.failure = failure;
+    m_LastCapabilities = MakeConservativeCapabilities();
 }
 
 std::unique_ptr<IGraphicsBackend> CreateDiligentGraphicsBackend()

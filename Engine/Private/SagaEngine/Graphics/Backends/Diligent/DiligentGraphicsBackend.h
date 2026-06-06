@@ -51,8 +51,14 @@ public:
     void EndFrame() override;
 
     [[nodiscard]] RenderBackendStatus GetStatus() const noexcept override;
+    [[nodiscard]] RenderBackendCapabilities
+    GetCapabilities() const noexcept override;
 
 private:
+    [[nodiscard]] RenderBackendCapabilities MakeConservativeCapabilities()
+        const noexcept;
+    [[nodiscard]] RenderBackendCapabilities MakeReadyCapabilities(
+        BackendPreference backend) const noexcept;
     [[nodiscard]] bool CanRenderFrame() const noexcept;
     void SetFailure(RenderBackendFailure failure) noexcept;
     void SetFrameSkipped(RenderBackendFailure failure) noexcept;
@@ -62,6 +68,7 @@ private:
     StatusReader m_StatusReader = RenderBackend::GetRenderBackendStatus;
     RenderBackendStatus m_HeadlessStatus{};
     RenderBackendStatus m_LastStatus{};
+    RenderBackendCapabilities m_LastCapabilities{};
     bool m_Headless = false;
     bool m_SurfaceMinimized = false;
 };

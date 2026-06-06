@@ -46,6 +46,27 @@ enum class RenderBackendFailure : std::uint8_t
     InvalidSurfaceSize,
 };
 
+enum class RenderQualityPreset : std::uint8_t
+{
+    Low = 0,
+    Medium,
+    High,
+    Ultra,
+};
+
+enum class RenderFeatureSupport : std::uint8_t
+{
+    Unsupported = 0,
+    Supported,
+};
+
+enum class RenderCapabilityFallback : std::uint8_t
+{
+    NotRequested = 0,
+    Available,
+    DisabledUnsupported,
+};
+
 struct RenderBackendStatus
 {
     BackendPreference    selectedBackend = BackendPreference::Auto;
@@ -54,6 +75,56 @@ struct RenderBackendStatus
     RenderBackendHealth  health          = RenderBackendHealth::Uninitialized;
     RenderBackendFailure failure         = RenderBackendFailure::None;
 };
+
+struct RenderBackendCapabilities
+{
+    BackendPreference    backend = BackendPreference::Auto;
+    RenderQualityPreset  qualityCeiling = RenderQualityPreset::Low;
+    RenderFeatureSupport compute = RenderFeatureSupport::Unsupported;
+    RenderFeatureSupport timestampQueries = RenderFeatureSupport::Unsupported;
+    RenderFeatureSupport bindlessResourceArrays =
+        RenderFeatureSupport::Unsupported;
+    RenderFeatureSupport rayTracing = RenderFeatureSupport::Unsupported;
+    RenderFeatureSupport hdrSwapchain = RenderFeatureSupport::Unsupported;
+    RenderFeatureSupport textureCompressionBC =
+        RenderFeatureSupport::Unsupported;
+    RenderFeatureSupport textureCompressionASTC =
+        RenderFeatureSupport::Unsupported;
+    RenderFeatureSupport textureCompressionETC2 =
+        RenderFeatureSupport::Unsupported;
+    RenderFeatureSupport meshShaders = RenderFeatureSupport::Unsupported;
+    RenderFeatureSupport indirectDraw = RenderFeatureSupport::Unsupported;
+    RenderFeatureSupport conservativeRaster =
+        RenderFeatureSupport::Unsupported;
+    RenderFeatureSupport depthBounds = RenderFeatureSupport::Unsupported;
+    std::uint32_t maxTexture2DSize = 0;
+    std::uint32_t maxColorAttachments = 0;
+    std::uint32_t maxFramesInFlight = 0;
+};
+
+[[nodiscard]] constexpr RenderQualityPreset ClampRenderQualityPreset(
+    RenderQualityPreset requested,
+    const RenderBackendCapabilities& capabilities) noexcept
+{
+    return static_cast<std::uint8_t>(requested) >
+                   static_cast<std::uint8_t>(capabilities.qualityCeiling)
+               ? capabilities.qualityCeiling
+               : requested;
+}
+
+[[nodiscard]] constexpr RenderCapabilityFallback ResolveRenderCapabilityFallback(
+    RenderFeatureSupport support,
+    bool requested) noexcept
+{
+    if (!requested)
+    {
+        return RenderCapabilityFallback::NotRequested;
+    }
+
+    return support == RenderFeatureSupport::Supported
+               ? RenderCapabilityFallback::Available
+               : RenderCapabilityFallback::DisabledUnsupported;
+}
 
 class IGraphicsBackend
 {
@@ -87,6 +158,8 @@ public:
     virtual void EndFrame() = 0;
 
     [[nodiscard]] virtual RenderBackendStatus GetStatus() const noexcept = 0;
+    [[nodiscard]] virtual RenderBackendCapabilities
+    GetCapabilities() const noexcept = 0;
 };
 
 class NullGraphicsBackend final : public IGraphicsBackend
@@ -158,6 +231,18 @@ public:
     [[nodiscard]] RenderBackendStatus GetStatus() const noexcept override
     {
         return m_Status;
+    }
+
+    [[nodiscard]] RenderBackendCapabilities GetCapabilities()
+        const noexcept override
+    {
+        RenderBackendCapabilities capabilities{};
+        capabilities.backend = m_Status.selectedBackend;
+        capabilities.qualityCeiling = RenderQualityPreset::Low;
+        capabilities.maxTexture2DSize = 1024u;
+        capabilities.maxColorAttachments = 1u;
+        capabilities.maxFramesInFlight = 1u;
+        return capabilities;
     }
 
     [[nodiscard]] std::uint32_t Width() const noexcept
