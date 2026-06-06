@@ -2,6 +2,7 @@
 /// @brief Tests private SagaGraphics lifecycle adapter over render backend.
 
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackend.h"
+#include "SagaEngine/Graphics/Bindings/GraphicsBindingValidation.h"
 
 #include <gtest/gtest.h>
 
@@ -68,6 +69,89 @@ Graphics::ShaderDesc MakeShaderDesc() noexcept
     Graphics::ShaderDesc desc{};
     desc.byteSize = 32u;
     return desc;
+}
+
+Graphics::GraphicsHandle ToGraphicsHandle(
+    const Graphics::GraphicsHandle& handle) noexcept
+{
+    return handle;
+}
+
+Graphics::TextureHandle ToTextureHandle(
+    Graphics::GraphicsHandle handle) noexcept
+{
+    Graphics::TextureHandle texture{};
+    texture.index = handle.index;
+    texture.generation = handle.generation;
+    return texture;
+}
+
+Graphics::SamplerHandle ToSamplerHandle(
+    Graphics::GraphicsHandle handle) noexcept
+{
+    Graphics::SamplerHandle sampler{};
+    sampler.index = handle.index;
+    sampler.generation = handle.generation;
+    return sampler;
+}
+
+Graphics::GraphicsBindingLayoutDesc MakeTextureSamplerLayout()
+{
+    Graphics::GraphicsBindingLayoutDesc layout{};
+    layout.slots.push_back({
+        0u,
+        Graphics::GraphicsBindingType::Texture,
+        Graphics::kGraphicsShaderStageFragment,
+        true,
+        1u,
+    });
+    layout.slots.push_back({
+        1u,
+        Graphics::GraphicsBindingType::Sampler,
+        Graphics::kGraphicsShaderStageFragment,
+        false,
+        Graphics::kInvalidGraphicsBindingSlot,
+    });
+    return layout;
+}
+
+Graphics::GraphicsBindingResourceRef MakeTextureBinding(
+    Graphics::TextureHandle handle) noexcept
+{
+    return {
+        0u,
+        Graphics::GraphicsResourceKind::Texture,
+        ToGraphicsHandle(handle),
+    };
+}
+
+Graphics::GraphicsBindingResourceRef MakeSamplerBinding(
+    Graphics::SamplerHandle handle) noexcept
+{
+    return {
+        1u,
+        Graphics::GraphicsResourceKind::Sampler,
+        ToGraphicsHandle(handle),
+    };
+}
+
+Graphics::GraphicsResourceQueryResult QueryDiligentBindingResource(
+    void* userData,
+    Graphics::GraphicsResourceKind kind,
+    Graphics::GraphicsHandle handle)
+{
+    auto& backend =
+        *static_cast<Adapter::DiligentGraphicsBackend*>(userData);
+
+    switch (kind)
+    {
+    case Graphics::GraphicsResourceKind::Texture:
+        return backend.QueryTextureForTesting(ToTextureHandle(handle));
+    case Graphics::GraphicsResourceKind::Sampler:
+        return backend.QuerySamplerForTesting(ToSamplerHandle(handle));
+    default:
+        return {};
+    }
 }
 
 class FakeRenderBackend final : public RenderBackend::IRenderBackend
@@ -849,6 +933,39 @@ TEST(GraphicsDiligentBackendAdapter, QueryHelpersReportLiveKindAndBytes)
     query = backend->QueryTextureForTesting(texture);
     EXPECT_FALSE(query.live);
     EXPECT_EQ(query.approximateBytes, 0u);
+    EXPECT_EQ(state.textureCreateCalls, 0u);
+}
+
+TEST(
+    GraphicsDiligentBackendAdapter,
+    RegisteredOnlyHandlesValidateBindingsWithoutNativeAllocation)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    const auto texture = backend->CreateTexture(MakeTextureDesc());
+    const auto sampler = backend->CreateSampler({});
+    ASSERT_TRUE(texture.IsValid());
+    ASSERT_TRUE(sampler.IsValid());
+
+    Graphics::GraphicsBindingSetDesc bindingSet{};
+    bindingSet.resources.push_back(MakeTextureBinding(texture));
+    bindingSet.resources.push_back(MakeSamplerBinding(sampler));
+
+    const auto result = Graphics::ValidateGraphicsBindingSet(
+        MakeTextureSamplerLayout(),
+        bindingSet,
+        QueryDiligentBindingResource,
+        backend.get());
+    EXPECT_TRUE(result.valid);
+    EXPECT_EQ(result.code, Graphics::GraphicsBindingValidationCode::None);
+    EXPECT_EQ(
+        backend->QueryTextureForTesting(texture).backing,
+        Graphics::GraphicsResourceBacking::RegisteredOnly);
+    EXPECT_EQ(
+        backend->QuerySamplerForTesting(sampler).backing,
+        Graphics::GraphicsResourceBacking::RegisteredOnly);
     EXPECT_EQ(state.textureCreateCalls, 0u);
 }
 
