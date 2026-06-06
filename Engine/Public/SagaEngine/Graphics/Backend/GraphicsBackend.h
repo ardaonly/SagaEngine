@@ -67,6 +67,16 @@ enum class GraphicsResourceBacking : std::uint8_t
     NativeGpuFuture,
 };
 
+enum class GraphicsResourceKind : std::uint8_t
+{
+    Invalid = 0,
+    Texture,
+    Buffer,
+    Shader,
+    Pipeline,
+    Sampler,
+};
+
 enum class RenderQualityPreset : std::uint8_t
 {
     Low = 0,
@@ -154,6 +164,14 @@ struct GraphicsResourceLeakSummary
     std::uint64_t pipelineBytes = 0;
     std::uint64_t samplerBytes = 0;
     std::uint64_t totalLeakedBytes = 0;
+};
+
+struct GraphicsResourceQueryResult
+{
+    bool live = false;
+    GraphicsResourceKind kind = GraphicsResourceKind::Invalid;
+    GraphicsResourceBacking backing = GraphicsResourceBacking::Invalid;
+    std::uint64_t approximateBytes = 0;
 };
 
 /// Creation-time data view. The pointer only needs to remain valid for the
@@ -327,19 +345,31 @@ private:
         [[nodiscard]] GraphicsResourceBacking Backing(HandleT handle)
             const noexcept
         {
+            return Query(handle, GraphicsResourceKind::Invalid).backing;
+        }
+
+        [[nodiscard]] GraphicsResourceQueryResult Query(
+            HandleT handle,
+            GraphicsResourceKind kind) const noexcept
+        {
             if (!handle.IsValid() || handle.index > m_Slots.size())
             {
-                return GraphicsResourceBacking::Invalid;
+                return {};
             }
 
             const auto slotIndex = handle.index - 1u;
             const auto& slot = m_Slots[slotIndex];
             if (!slot.occupied || slot.generation != handle.generation)
             {
-                return GraphicsResourceBacking::Invalid;
+                return {};
             }
 
-            return GraphicsResourceBacking::RegisteredOnly;
+            return {
+                true,
+                kind,
+                GraphicsResourceBacking::RegisteredOnly,
+                slot.estimatedBytes,
+            };
         }
 
     private:
@@ -612,6 +642,36 @@ public:
         BufferHandle handle) const noexcept
     {
         return m_Buffers.Backing(handle);
+    }
+
+    [[nodiscard]] GraphicsResourceQueryResult QueryTextureForTesting(
+        TextureHandle handle) const noexcept
+    {
+        return m_Textures.Query(handle, GraphicsResourceKind::Texture);
+    }
+
+    [[nodiscard]] GraphicsResourceQueryResult QueryBufferForTesting(
+        BufferHandle handle) const noexcept
+    {
+        return m_Buffers.Query(handle, GraphicsResourceKind::Buffer);
+    }
+
+    [[nodiscard]] GraphicsResourceQueryResult QueryShaderForTesting(
+        ShaderHandle handle) const noexcept
+    {
+        return m_Shaders.Query(handle, GraphicsResourceKind::Shader);
+    }
+
+    [[nodiscard]] GraphicsResourceQueryResult QueryPipelineForTesting(
+        PipelineHandle handle) const noexcept
+    {
+        return m_Pipelines.Query(handle, GraphicsResourceKind::Pipeline);
+    }
+
+    [[nodiscard]] GraphicsResourceQueryResult QuerySamplerForTesting(
+        SamplerHandle handle) const noexcept
+    {
+        return m_Samplers.Query(handle, GraphicsResourceKind::Sampler);
     }
 
     [[nodiscard]] std::uint32_t Width() const noexcept

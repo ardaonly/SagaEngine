@@ -620,6 +620,36 @@ GraphicsResourceBacking DiligentGraphicsBackend::GetBufferBackingForTesting(
     return m_Buffers.Backing(handle);
 }
 
+GraphicsResourceQueryResult DiligentGraphicsBackend::QueryTextureForTesting(
+    TextureHandle handle) const noexcept
+{
+    return m_Textures.Query(handle, GraphicsResourceKind::Texture);
+}
+
+GraphicsResourceQueryResult DiligentGraphicsBackend::QueryBufferForTesting(
+    BufferHandle handle) const noexcept
+{
+    return m_Buffers.Query(handle, GraphicsResourceKind::Buffer);
+}
+
+GraphicsResourceQueryResult DiligentGraphicsBackend::QueryShaderForTesting(
+    ShaderHandle handle) const noexcept
+{
+    return m_Shaders.Query(handle, GraphicsResourceKind::Shader);
+}
+
+GraphicsResourceQueryResult DiligentGraphicsBackend::QueryPipelineForTesting(
+    PipelineHandle handle) const noexcept
+{
+    return m_Pipelines.Query(handle, GraphicsResourceKind::Pipeline);
+}
+
+GraphicsResourceQueryResult DiligentGraphicsBackend::QuerySamplerForTesting(
+    SamplerHandle handle) const noexcept
+{
+    return m_Samplers.Query(handle, GraphicsResourceKind::Sampler);
+}
+
 RenderBackendCapabilities
 DiligentGraphicsBackend::MakeConservativeCapabilities() const noexcept
 {
