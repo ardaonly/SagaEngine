@@ -46,7 +46,7 @@ create failure reporting, approximate logical memory reporting, creation-time
 initial data shadow-copy validation, registered-resource liveness diagnostics,
 and a shutdown-time registered-resource leak summary. This does not create
 native GPU resources, upload data, expose backend pointers, or claim native GPU
-allocation accounting.
+allocation accounting. It does not create native Diligent GPU resources.
 
 R4B entry adds vendor-neutral CPU-side binding vocabulary/validation and a
 private CPU frame resource allocator. It does not create native descriptor sets,
