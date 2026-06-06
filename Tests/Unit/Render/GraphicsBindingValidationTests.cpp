@@ -107,6 +107,31 @@ Graphics::GraphicsBindingLayoutDesc MakeTextureSamplerLayout()
     return layout;
 }
 
+Graphics::GraphicsBindingLayoutDesc MakeSingleSlotLayout(
+    Graphics::GraphicsBindingType type)
+{
+    Graphics::GraphicsBindingLayoutDesc layout{};
+    layout.slots.push_back({
+        0u,
+        type,
+        Graphics::kGraphicsShaderStageFragment,
+        true,
+        Graphics::kInvalidGraphicsBindingSlot,
+    });
+    return layout;
+}
+
+Graphics::GraphicsBindingResourceRef MakeBinding(
+    Graphics::GraphicsResourceKind kind,
+    Graphics::GraphicsHandle handle) noexcept
+{
+    return {
+        0u,
+        kind,
+        handle,
+    };
+}
+
 Graphics::GraphicsBindingResourceRef MakeTextureBinding(
     Graphics::TextureHandle handle) noexcept
 {
@@ -127,6 +152,36 @@ Graphics::GraphicsBindingResourceRef MakeSamplerBinding(
     };
 }
 
+Graphics::GraphicsResourceQueryResult QueryTextureAsBufferForTesting(
+    void* userData,
+    Graphics::GraphicsResourceKind,
+    Graphics::GraphicsHandle handle)
+{
+    auto& backend =
+        *static_cast<Graphics::NullGraphicsBackend*>(userData);
+    return backend.QueryBufferForTesting(ToBufferHandle(handle));
+}
+
+Graphics::GraphicsResourceQueryResult QueryBufferAsTextureForTesting(
+    void* userData,
+    Graphics::GraphicsResourceKind,
+    Graphics::GraphicsHandle handle)
+{
+    auto& backend =
+        *static_cast<Graphics::NullGraphicsBackend*>(userData);
+    return backend.QueryTextureForTesting(ToTextureHandle(handle));
+}
+
+Graphics::GraphicsResourceQueryResult QuerySamplerAsTextureForTesting(
+    void* userData,
+    Graphics::GraphicsResourceKind,
+    Graphics::GraphicsHandle handle)
+{
+    auto& backend =
+        *static_cast<Graphics::NullGraphicsBackend*>(userData);
+    return backend.QueryTextureForTesting(ToTextureHandle(handle));
+}
+
 } // namespace
 
 TEST(GraphicsBindingValidation, ValidTextureAndSamplerBindingPasses)
@@ -145,6 +200,28 @@ TEST(GraphicsBindingValidation, ValidTextureAndSamplerBindingPasses)
 
     const auto result = Graphics::ValidateGraphicsBindingSet(
         MakeTextureSamplerLayout(),
+        bindingSet,
+        QueryNullBackendResource,
+        &backend);
+    EXPECT_TRUE(result.valid);
+    EXPECT_EQ(result.code, Graphics::GraphicsBindingValidationCode::None);
+}
+
+TEST(GraphicsBindingValidation, LiveBufferBindingQueryPasses)
+{
+    Graphics::NullGraphicsBackend backend;
+    ASSERT_TRUE(backend.Initialize(MakeHeadlessDesc(), {}));
+
+    const auto buffer = backend.CreateBuffer(MakeBufferDesc());
+    ASSERT_TRUE(buffer.IsValid());
+
+    Graphics::GraphicsBindingSetDesc bindingSet{};
+    bindingSet.resources.push_back(
+        MakeBinding(Graphics::GraphicsResourceKind::Buffer,
+                    ToGraphicsHandle(buffer)));
+
+    const auto result = Graphics::ValidateGraphicsBindingSet(
+        MakeSingleSlotLayout(Graphics::GraphicsBindingType::Buffer),
         bindingSet,
         QueryNullBackendResource,
         &backend);
@@ -293,6 +370,62 @@ TEST(GraphicsBindingValidation, StaleHandleRejected)
     EXPECT_EQ(result.actualKind, Graphics::GraphicsResourceKind::Invalid);
 }
 
+TEST(GraphicsBindingValidation, StaleBufferHandleRejected)
+{
+    Graphics::NullGraphicsBackend backend;
+    ASSERT_TRUE(backend.Initialize(MakeHeadlessDesc(), {}));
+
+    const auto buffer = backend.CreateBuffer(MakeBufferDesc());
+    ASSERT_TRUE(buffer.IsValid());
+    backend.DestroyBuffer(buffer);
+
+    Graphics::GraphicsBindingSetDesc bindingSet{};
+    bindingSet.resources.push_back(
+        MakeBinding(Graphics::GraphicsResourceKind::Buffer,
+                    ToGraphicsHandle(buffer)));
+
+    const auto result = Graphics::ValidateGraphicsBindingSet(
+        MakeSingleSlotLayout(Graphics::GraphicsBindingType::Buffer),
+        bindingSet,
+        QueryNullBackendResource,
+        &backend);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(
+        result.code,
+        Graphics::GraphicsBindingValidationCode::StaleHandle);
+    EXPECT_EQ(result.slot, 0u);
+    EXPECT_EQ(result.expectedKind, Graphics::GraphicsResourceKind::Buffer);
+    EXPECT_EQ(result.actualKind, Graphics::GraphicsResourceKind::Invalid);
+}
+
+TEST(GraphicsBindingValidation, StaleSamplerHandleRejected)
+{
+    Graphics::NullGraphicsBackend backend;
+    ASSERT_TRUE(backend.Initialize(MakeHeadlessDesc(), {}));
+
+    const auto sampler = backend.CreateSampler({});
+    ASSERT_TRUE(sampler.IsValid());
+    backend.DestroySampler(sampler);
+
+    Graphics::GraphicsBindingSetDesc bindingSet{};
+    bindingSet.resources.push_back(
+        MakeBinding(Graphics::GraphicsResourceKind::Sampler,
+                    ToGraphicsHandle(sampler)));
+
+    const auto result = Graphics::ValidateGraphicsBindingSet(
+        MakeSingleSlotLayout(Graphics::GraphicsBindingType::Sampler),
+        bindingSet,
+        QueryNullBackendResource,
+        &backend);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(
+        result.code,
+        Graphics::GraphicsBindingValidationCode::StaleHandle);
+    EXPECT_EQ(result.slot, 0u);
+    EXPECT_EQ(result.expectedKind, Graphics::GraphicsResourceKind::Sampler);
+    EXPECT_EQ(result.actualKind, Graphics::GraphicsResourceKind::Invalid);
+}
+
 TEST(GraphicsBindingValidation, WrongResourceKindRejected)
 {
     Graphics::NullGraphicsBackend backend;
@@ -319,6 +452,87 @@ TEST(GraphicsBindingValidation, WrongResourceKindRejected)
         Graphics::GraphicsBindingValidationCode::WrongResourceKind);
     EXPECT_EQ(result.expectedKind, Graphics::GraphicsResourceKind::Texture);
     EXPECT_EQ(result.actualKind, Graphics::GraphicsResourceKind::Buffer);
+}
+
+TEST(GraphicsBindingValidation, WrongTextureQueryKindRejected)
+{
+    Graphics::NullGraphicsBackend backend;
+    ASSERT_TRUE(backend.Initialize(MakeHeadlessDesc(), {}));
+
+    const auto buffer = backend.CreateBuffer(MakeBufferDesc());
+    ASSERT_TRUE(buffer.IsValid());
+
+    Graphics::GraphicsBindingSetDesc bindingSet{};
+    bindingSet.resources.push_back(
+        MakeBinding(Graphics::GraphicsResourceKind::Texture,
+                    ToGraphicsHandle(buffer)));
+
+    const auto result = Graphics::ValidateGraphicsBindingSet(
+        MakeSingleSlotLayout(Graphics::GraphicsBindingType::Texture),
+        bindingSet,
+        QueryTextureAsBufferForTesting,
+        &backend);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(
+        result.code,
+        Graphics::GraphicsBindingValidationCode::WrongResourceKind);
+    EXPECT_EQ(result.slot, 0u);
+    EXPECT_EQ(result.expectedKind, Graphics::GraphicsResourceKind::Texture);
+    EXPECT_EQ(result.actualKind, Graphics::GraphicsResourceKind::Buffer);
+}
+
+TEST(GraphicsBindingValidation, WrongBufferQueryKindRejected)
+{
+    Graphics::NullGraphicsBackend backend;
+    ASSERT_TRUE(backend.Initialize(MakeHeadlessDesc(), {}));
+
+    const auto texture = backend.CreateTexture(MakeTextureDesc());
+    ASSERT_TRUE(texture.IsValid());
+
+    Graphics::GraphicsBindingSetDesc bindingSet{};
+    bindingSet.resources.push_back(
+        MakeBinding(Graphics::GraphicsResourceKind::Buffer,
+                    ToGraphicsHandle(texture)));
+
+    const auto result = Graphics::ValidateGraphicsBindingSet(
+        MakeSingleSlotLayout(Graphics::GraphicsBindingType::Buffer),
+        bindingSet,
+        QueryBufferAsTextureForTesting,
+        &backend);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(
+        result.code,
+        Graphics::GraphicsBindingValidationCode::WrongResourceKind);
+    EXPECT_EQ(result.slot, 0u);
+    EXPECT_EQ(result.expectedKind, Graphics::GraphicsResourceKind::Buffer);
+    EXPECT_EQ(result.actualKind, Graphics::GraphicsResourceKind::Texture);
+}
+
+TEST(GraphicsBindingValidation, WrongSamplerQueryKindRejected)
+{
+    Graphics::NullGraphicsBackend backend;
+    ASSERT_TRUE(backend.Initialize(MakeHeadlessDesc(), {}));
+
+    const auto texture = backend.CreateTexture(MakeTextureDesc());
+    ASSERT_TRUE(texture.IsValid());
+
+    Graphics::GraphicsBindingSetDesc bindingSet{};
+    bindingSet.resources.push_back(
+        MakeBinding(Graphics::GraphicsResourceKind::Sampler,
+                    ToGraphicsHandle(texture)));
+
+    const auto result = Graphics::ValidateGraphicsBindingSet(
+        MakeSingleSlotLayout(Graphics::GraphicsBindingType::Sampler),
+        bindingSet,
+        QuerySamplerAsTextureForTesting,
+        &backend);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(
+        result.code,
+        Graphics::GraphicsBindingValidationCode::WrongResourceKind);
+    EXPECT_EQ(result.slot, 0u);
+    EXPECT_EQ(result.expectedKind, Graphics::GraphicsResourceKind::Sampler);
+    EXPECT_EQ(result.actualKind, Graphics::GraphicsResourceKind::Texture);
 }
 
 TEST(GraphicsBindingValidation, TextureWithoutRequiredSamplerRejected)
