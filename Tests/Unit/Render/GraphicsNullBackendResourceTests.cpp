@@ -293,6 +293,60 @@ TEST(GraphicsNullBackendResources, RegisteredHandlesReportBackingState)
         Graphics::GraphicsResourceBacking::Invalid);
 }
 
+TEST(GraphicsNullBackendResources, QueryHelpersReportLiveKindAndBytes)
+{
+    Graphics::NullGraphicsBackend backend;
+    EXPECT_TRUE(backend.Initialize(MakeHeadlessDesc(), {}));
+
+    const auto texture = backend.CreateTexture(MakeTextureDesc());
+    const auto buffer = backend.CreateBuffer(MakeBufferDesc());
+    const auto shader = backend.CreateShader(MakeShaderDesc());
+    const auto pipeline = backend.CreatePipeline({});
+    const auto sampler = backend.CreateSampler({});
+    ASSERT_TRUE(texture.IsValid());
+    ASSERT_TRUE(buffer.IsValid());
+    ASSERT_TRUE(shader.IsValid());
+    ASSERT_TRUE(pipeline.IsValid());
+    ASSERT_TRUE(sampler.IsValid());
+
+    auto query = backend.QueryTextureForTesting(texture);
+    EXPECT_TRUE(query.live);
+    EXPECT_EQ(query.kind, Graphics::GraphicsResourceKind::Texture);
+    EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::RegisteredOnly);
+    EXPECT_EQ(query.approximateBytes, 64u);
+
+    query = backend.QueryBufferForTesting(buffer);
+    EXPECT_TRUE(query.live);
+    EXPECT_EQ(query.kind, Graphics::GraphicsResourceKind::Buffer);
+    EXPECT_EQ(query.approximateBytes, 128u);
+
+    query = backend.QueryShaderForTesting(shader);
+    EXPECT_TRUE(query.live);
+    EXPECT_EQ(query.kind, Graphics::GraphicsResourceKind::Shader);
+    EXPECT_EQ(query.approximateBytes, 32u);
+
+    query = backend.QueryPipelineForTesting(pipeline);
+    EXPECT_TRUE(query.live);
+    EXPECT_EQ(query.kind, Graphics::GraphicsResourceKind::Pipeline);
+    EXPECT_EQ(query.approximateBytes, 0u);
+
+    query = backend.QuerySamplerForTesting(sampler);
+    EXPECT_TRUE(query.live);
+    EXPECT_EQ(query.kind, Graphics::GraphicsResourceKind::Sampler);
+    EXPECT_EQ(query.approximateBytes, 0u);
+
+    backend.DestroyBuffer(buffer);
+    query = backend.QueryBufferForTesting(buffer);
+    EXPECT_FALSE(query.live);
+    EXPECT_EQ(query.kind, Graphics::GraphicsResourceKind::Invalid);
+    EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::Invalid);
+
+    backend.Shutdown();
+    query = backend.QueryTextureForTesting(texture);
+    EXPECT_FALSE(query.live);
+    EXPECT_EQ(query.approximateBytes, 0u);
+}
+
 TEST(GraphicsNullBackendResources, CreateRequiresInitializedBackend)
 {
     Graphics::NullGraphicsBackend backend;

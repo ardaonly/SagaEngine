@@ -121,19 +121,31 @@ private:
         [[nodiscard]] GraphicsResourceBacking Backing(HandleT handle)
             const noexcept
         {
+            return Query(handle, GraphicsResourceKind::Invalid).backing;
+        }
+
+        [[nodiscard]] GraphicsResourceQueryResult Query(
+            HandleT handle,
+            GraphicsResourceKind kind) const noexcept
+        {
             if (!handle.IsValid() || handle.index > m_Slots.size())
             {
-                return GraphicsResourceBacking::Invalid;
+                return {};
             }
 
             const auto slotIndex = handle.index - 1u;
             const auto& slot = m_Slots[slotIndex];
             if (!slot.occupied || slot.generation != handle.generation)
             {
-                return GraphicsResourceBacking::Invalid;
+                return {};
             }
 
-            return GraphicsResourceBacking::RegisteredOnly;
+            return {
+                true,
+                kind,
+                GraphicsResourceBacking::RegisteredOnly,
+                slot.estimatedBytes,
+            };
         }
 
     private:
@@ -216,6 +228,16 @@ public:
         TextureHandle handle) const noexcept;
     [[nodiscard]] GraphicsResourceBacking GetBufferBackingForTesting(
         BufferHandle handle) const noexcept;
+    [[nodiscard]] GraphicsResourceQueryResult QueryTextureForTesting(
+        TextureHandle handle) const noexcept;
+    [[nodiscard]] GraphicsResourceQueryResult QueryBufferForTesting(
+        BufferHandle handle) const noexcept;
+    [[nodiscard]] GraphicsResourceQueryResult QueryShaderForTesting(
+        ShaderHandle handle) const noexcept;
+    [[nodiscard]] GraphicsResourceQueryResult QueryPipelineForTesting(
+        PipelineHandle handle) const noexcept;
+    [[nodiscard]] GraphicsResourceQueryResult QuerySamplerForTesting(
+        SamplerHandle handle) const noexcept;
 
 private:
     [[nodiscard]] RenderBackendCapabilities MakeConservativeCapabilities()
