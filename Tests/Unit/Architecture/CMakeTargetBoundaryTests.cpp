@@ -259,6 +259,12 @@ std::filesystem::path SagaTargetsPath()
            "cmake" / "modules" / "SagaTargets.cmake";
 }
 
+std::filesystem::path CMakeModulePath(std::string_view filename)
+{
+    return std::filesystem::path(SAGA_SOURCE_ROOT) /
+           "cmake" / "modules" / std::string(filename);
+}
+
 } // namespace
 
 TEST(CMakeTargetBoundaryTests, SagaProductLibDoesNotLinkEditorLabTargets)
@@ -337,6 +343,33 @@ TEST(CMakeTargetBoundaryTests, SagaEngineDoesNotLinkProductEditorOrToolTargets)
             << ". Offending call in " << path.generic_string()
             << ":" << offender.line << "\n" << offender.text;
     }
+}
+
+TEST(CMakeTargetBoundaryTests, GraphicsInstallSurfaceDoesNotInstallVendorBackends)
+{
+    const auto installPath = CMakeModulePath("SagaInstall.cmake");
+    const auto vendorPath = CMakeModulePath("SagaDiligentVendor.cmake");
+    ASSERT_TRUE(std::filesystem::exists(installPath));
+    ASSERT_TRUE(std::filesystem::exists(vendorPath));
+
+    const auto installText = ReadText(installPath);
+    EXPECT_TRUE(ContainsToken(
+        installText,
+        "install(DIRECTORY \"${SAGA_ROOT}/Engine/Public/SagaEngine\""))
+        << "SagaEngine public include tree must remain the installed "
+           "development include surface.";
+    EXPECT_FALSE(ContainsToken(installText, "Vendor/Diligent"))
+        << "Install rules must not copy vendored graphics sources.";
+    EXPECT_FALSE(ContainsToken(installText, "VendorDiligent"))
+        << "VendorDiligent must not be installed as a public target.";
+    EXPECT_FALSE(ContainsToken(installText, "SagaDiligentBackend"))
+        << "Concrete Diligent backend target must not be installed.";
+
+    const auto vendorText = ReadText(vendorPath);
+    EXPECT_TRUE(ContainsToken(vendorText, "DILIGENT_INSTALL_CORE OFF"));
+    EXPECT_TRUE(ContainsToken(vendorText, "DILIGENT_INSTALL_FX OFF"));
+    EXPECT_TRUE(ContainsToken(vendorText, "DILIGENT_INSTALL_TOOLS OFF"));
+    EXPECT_TRUE(ContainsToken(vendorText, "DILIGENT_INSTALL_SAMPLES OFF"));
 }
 
 TEST(CMakeTargetBoundaryTests, SagaDiagnosticsDoesNotLinkRuntimeServerEditorOrToolTargets)

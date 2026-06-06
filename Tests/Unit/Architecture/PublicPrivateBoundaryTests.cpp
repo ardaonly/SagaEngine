@@ -272,7 +272,7 @@ TEST(PublicPrivateBoundaryTests, PublicRenderBackendSurfaceIsVendorNeutral)
         << (offenders.empty() ? "" : offenders.front());
 }
 
-TEST(PublicPrivateBoundaryTests, SagaGraphicsPublicShellCompileSmoke)
+TEST(PublicPrivateBoundaryTests, SagaGraphicsUmbrellaHeaderCompileSmoke)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
     const auto graphicsRoot =
