@@ -59,12 +59,12 @@ SagaEngine production AAA renderer'a sahip.
 Bu bölüm roadmap'in uygulama gerçeğiyle senkron tutulması için eklenmiştir.
 
 - [x] R1 Diligent vendoring tamamlandı: `Vendor/Diligent` submodule olarak repo kontrolünde, Saga-owned vendor metadata `Vendor/Diligent.Saga` altında.
-- [ ] R1B kısmen tamamlandı: `SagaDiligentBackend`, `VendorDiligent` ve `SagaDiligentVendor.cmake` mevcut; ayrı `SagaGraphics`/`SagaGraphicsPrivate` CMake targetları ve install graphics modülü henüz yok.
+- [ ] R1B kısmen tamamlandı: `SagaDiligentBackend`, `VendorDiligent`, `SagaDiligentVendor.cmake` ve `SagaGraphics` public interface target mevcut; `SagaGraphicsPrivate` ve install graphics modülü henüz yok.
 - [ ] R2 başladı ama tamamlanmadı: mevcut `Engine/Public/SagaEngine/Render/Backend` surface vendor-neutral ve yeni `Engine/Public/SagaEngine/Graphics` shell mevcut; davranış bridge'i ve stable SDK iddiası yok.
-- [ ] R2B-lite başladı: public render/backend token guard ve `SagaGraphics` shell smoke mevcut; install surface guard tamamlanacak.
+- [ ] R2B-lite başladı: public render/backend token guard, `SagaGraphics` shell smoke ve install surface guard mevcut; full R2B closure claim yok.
 - [ ] R3 başladı ama tamamlanmadı: Diligent backend device/swapchain/frame yolu mevcut; planlanan `Engine/Private/SagaEngine/Graphics/Backends/Diligent` konumu ve `SagaGraphics` üstünden bridge henüz yapılmadı.
 
-Sonraki uygulanacak slice: R2B-lite `Graphics public/install surface guard for the new SagaGraphics shell`.
+Sonraki uygulanacak slice: R1B-lite — `SagaGraphics CMake Target Boundary`.
 
 ---
 
@@ -888,19 +888,19 @@ Bu phase'in hedefi, Diligent'in public include path veya link dependency olarak 
 - [ ] `cmake/SagaRenderTools.cmake` oluştur.
 - [ ] `cmake/SagaRenderTests.cmake` oluştur.
 - [ ] `cmake/SagaInstallGraphics.cmake` oluştur.
-- [ ] `SagaGraphics` public target tanımla.
+- [x] `SagaGraphics` public target tanımla.
 - [ ] `SagaGraphicsPrivate` private implementation target tanımla.
 - [x] `SagaDiligentBackend` target tanımla.
 - [x] `VendorDiligent` target veya imported target tanımla.
 - [ ] `SagaRenderTools` targetlarını runtime engine targetlarından ayır.
 - [x] `SagaServer` ve headless targetların Diligent'e linklenmediğini garanti et.
-- [ ] Public graphics target'ın Diligent include directory expose etmediğini garanti et.
+- [x] Public graphics target'ın Diligent include directory expose etmediğini garanti et.
 
 ## Test / Doğrulama
 
 - [x] CMake target graph check.
 - [x] `SagaServer` target Diligent'e linklemiyor.
-- [ ] `SagaGraphics` public target Diligent include path expose etmiyor.
+- [x] `SagaGraphics` public target Diligent include path expose etmiyor.
 - [x] `SagaDiligentBackend` dışında hiçbir target doğrudan Diligent'e linklemiyor.
 - [x] `SAGA_USE_VENDOR_DILIGENT=OFF` fallback veya diagnostic beklenen davranışı veriyor.
 - [ ] Build target inventory dokümante edilmiş.

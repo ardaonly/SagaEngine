@@ -345,6 +345,26 @@ TEST(CMakeTargetBoundaryTests, SagaEngineDoesNotLinkProductEditorOrToolTargets)
     }
 }
 
+TEST(CMakeTargetBoundaryTests, SagaGraphicsTargetIsVendorNeutralPublicShell)
+{
+    const auto path = SagaTargetsPath();
+    const auto text = ReadText(path);
+
+    EXPECT_TRUE(ContainsToken(text, "add_library(SagaGraphics INTERFACE)"))
+        << "SagaGraphics must exist as a public interface target.";
+    EXPECT_TRUE(ContainsToken(
+        text,
+        "target_include_directories(SagaGraphics INTERFACE\n"
+        "        ${SAGA_ROOT}/Engine/Public"))
+        << "SagaGraphics must expose only the Engine/Public include root.";
+    EXPECT_FALSE(ContainsToken(text, "SagaGraphicsPrivate"))
+        << "SagaGraphicsPrivate is out of scope until private graphics "
+           "implementation exists.";
+    EXPECT_FALSE(ContainsToken(text, "target_link_libraries(SagaGraphics"))
+        << "SagaGraphics must not link vendor, backend, native API, or "
+           "backend library targets.";
+}
+
 TEST(CMakeTargetBoundaryTests, GraphicsInstallSurfaceDoesNotInstallVendorBackends)
 {
     const auto installPath = CMakeModulePath("SagaInstall.cmake");
