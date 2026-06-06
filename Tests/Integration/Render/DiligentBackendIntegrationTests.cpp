@@ -160,7 +160,7 @@ class DiligentRenderBackend
 {
 public:
     DiligentRenderBackend()
-        : m_backend(CreateDiligentRenderBackend())
+        : m_backend(CreateRenderBackend())
     {
     }
 
@@ -206,7 +206,7 @@ public:
         m_backend->EndFrame();
     }
 
-    [[nodiscard]] DiligentBackendAPI SelectedAPI() const noexcept
+    [[nodiscard]] GraphicsBackendAPI SelectedAPI() const noexcept
     {
         return BackendStatus().selectedAPI;
     }
@@ -222,9 +222,9 @@ public:
     }
 
 private:
-    [[nodiscard]] DiligentBackendStatus BackendStatus() const noexcept
+    [[nodiscard]] RenderBackendStatus BackendStatus() const noexcept
     {
-        return GetDiligentRenderBackendStatus(*m_backend);
+        return GetRenderBackendStatus(*m_backend);
     }
 
     std::unique_ptr<IRenderBackend> m_backend;
@@ -333,7 +333,7 @@ TEST_F(DiligentGPU, InitSucceeds)
 TEST_F(DiligentGPU, SelectedAPIIsConcrete)
 {
     // After successful init, SelectedAPI must be a real API, not kAuto.
-    EXPECT_NE(m_Backend.SelectedAPI(), DiligentBackendAPI::kAuto);
+    EXPECT_NE(m_Backend.SelectedAPI(), GraphicsBackendAPI::kAuto);
 }
 
 TEST_F(DiligentGPU, SelectedAPINameIsNotEmpty)
@@ -426,7 +426,7 @@ TEST_F(DiligentGPU, ShutdownAndReinitialize)
 
     m_Backend.Shutdown();
     EXPECT_FALSE(m_Backend.IsInitialized());
-    EXPECT_EQ(m_Backend.SelectedAPI(), DiligentBackendAPI::kAuto);
+    EXPECT_EQ(m_Backend.SelectedAPI(), GraphicsBackendAPI::kAuto);
 
     // Re-initialize with the same window.
     void* native = GetNativeHandle(m_Window);
@@ -440,7 +440,7 @@ TEST_F(DiligentGPU, ShutdownAndReinitialize)
 
     EXPECT_TRUE(m_Backend.Initialize(desc));
     EXPECT_TRUE(m_Backend.IsInitialized());
-    EXPECT_NE(m_Backend.SelectedAPI(), DiligentBackendAPI::kAuto);
+    EXPECT_NE(m_Backend.SelectedAPI(), GraphicsBackendAPI::kAuto);
 
     // Frame counter resets on re-init.
     EXPECT_EQ(m_Backend.FrameIndex(), 0u);
@@ -477,10 +477,10 @@ TEST_F(DiligentGPU, AutoFallbackPicksSomething)
     // The fixture uses kAuto (default config). If we got here, init
     // succeeded, which means Auto resolved to a concrete API.
     const auto api = m_Backend.SelectedAPI();
-    EXPECT_TRUE(api == DiligentBackendAPI::kD3D12  ||
-                api == DiligentBackendAPI::kVulkan  ||
-                api == DiligentBackendAPI::kD3D11   ||
-                api == DiligentBackendAPI::kOpenGL);
+    EXPECT_TRUE(api == GraphicsBackendAPI::kNativePrimary  ||
+                api == GraphicsBackendAPI::kNativePortable  ||
+                api == GraphicsBackendAPI::kNativeLegacy   ||
+                api == GraphicsBackendAPI::kCompatibility);
 }
 
 // ═══════════════════════════════════════════════════════════════════════

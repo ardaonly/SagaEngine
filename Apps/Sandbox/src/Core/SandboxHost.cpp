@@ -34,7 +34,7 @@ static constexpr const char* kTag = "SandboxHost";
 
 [[nodiscard]] bool IsRenderBackendReady(const RB::IRenderBackend* backend) noexcept
 {
-    return backend && RB::GetDiligentRenderBackendStatus(*backend).initialized;
+    return backend && RB::GetRenderBackendStatus(*backend).initialized;
 }
 
 // ─── Construction ─────────────────────────────────────────────────────────────
@@ -186,7 +186,7 @@ bool SandboxHost::InitRenderBackend()
     }
 
     // ── Create + initialize the backend ───────────────────────────────────────
-    m_renderBackend = RB::CreateDiligentRenderBackend(m_config.renderBackend);
+    m_renderBackend = RB::CreateRenderBackend(m_config.renderBackend);
 
     RB::SwapchainDesc scDesc{};
     scDesc.nativeWindow = nativeHandle;
@@ -202,7 +202,7 @@ bool SandboxHost::InitRenderBackend()
         return false;
     }
 
-    const auto status = RB::GetDiligentRenderBackendStatus(*m_renderBackend);
+    const auto status = RB::GetRenderBackendStatus(*m_renderBackend);
     LOG_INFO(kTag, "Render backend ready: %s (frame %llu)",
              std::string(RB::ToString(status.selectedAPI)).c_str(),
              static_cast<unsigned long long>(status.frameIndex));
@@ -248,7 +248,7 @@ void SandboxHost::UpdateFPSTitle(float dt)
         char title[256];
         if (IsRenderBackendReady(m_renderBackend.get()))
         {
-            const auto status = RB::GetDiligentRenderBackendStatus(*m_renderBackend);
+            const auto status = RB::GetRenderBackendStatus(*m_renderBackend);
             std::snprintf(title, sizeof(title),
                           "%s | %.1f FPS (%.2f ms) | %s | frame %llu",
                           m_config.windowTitle.c_str(),
@@ -296,7 +296,7 @@ void SandboxHost::InitImGui()
     m_imguiGpuReady = false;
     if (IsRenderBackendReady(m_renderBackend.get()))
     {
-        if (!RB::InitDiligentImGuiRendering(*m_renderBackend))
+        if (!RB::InitBackendImGuiRendering(*m_renderBackend))
         {
             LOG_WARN(kTag, "ImGui GPU renderer init failed — HUD will be invisible.");
         }
@@ -313,7 +313,7 @@ void SandboxHost::InitImGui()
 void SandboxHost::ShutdownImGui()
 {
     if (m_renderBackend)
-        RB::ShutdownDiligentImGuiRendering(*m_renderBackend);
+        RB::ShutdownBackendImGuiRendering(*m_renderBackend);
 
     ImGui::DestroyContext();
     m_imguiReady = false;
@@ -358,7 +358,7 @@ void SandboxHost::TickImGui(float dt)
     // Submit ImGui draw data to the GPU.
     if (IsRenderBackendReady(m_renderBackend.get()))
     {
-        RB::RenderDiligentImGuiDrawData(*m_renderBackend, ImGui::GetDrawData());
+        RB::RenderBackendImGuiDrawData(*m_renderBackend, ImGui::GetDrawData());
     }
 }
 

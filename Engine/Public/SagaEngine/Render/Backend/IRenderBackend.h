@@ -1,16 +1,17 @@
 /// @file IRenderBackend.h
 /// @brief Abstract seam between the API-agnostic render world and a concrete
-///        graphics backend (Diligent, D3D12, Vulkan, ...).
+///        graphics backend.
 ///
 /// Layer  : SagaEngine / Render / Backend
 /// Purpose: The entire pipeline above this interface (RenderWorld, culling,
 ///          LOD, RenderView) is pure CPU-side data. This header is the one
 ///          place that knows "eventually someone turns DrawItems into GPU
-///          calls". Until Diligent lands, a NullRenderBackend provided
-///          here lets tests and headless tools run the full pipeline.
+///          calls". A null backend can let tests and headless tools run the
+///          full pipeline without GPU ownership.
 ///
 /// Design rules:
-///   - No Diligent / D3D / Vulkan types in this header. Only engine types.
+///   - No vendor or native graphics API types in this header. Only engine
+///     types.
 ///   - The interface is deliberately minimal. Shader binding tables,
 ///     command recording, resource heaps — all of that lives behind the
 ///     concrete backend implementation. The backend receives an
@@ -58,8 +59,8 @@ struct SwapchainDesc
 
 // ─── Interface ────────────────────────────────────────────────────────
 
-/// One-renderer-per-process interface. Concrete implementation lives next
-/// to the backend (e.g. DiligentRenderBackend, VulkanRenderBackend).
+/// One-renderer-per-process interface. Concrete implementations live behind
+/// backend factory functions and private adapter code.
 class IRenderBackend
 {
 public:

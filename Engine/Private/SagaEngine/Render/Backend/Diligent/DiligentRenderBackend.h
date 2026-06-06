@@ -47,7 +47,7 @@ class DiligentRenderBackend final : public IRenderBackend
 {
 public:
     DiligentRenderBackend();
-    explicit DiligentRenderBackend(DiligentBackendConfig cfg);
+    explicit DiligentRenderBackend(RenderBackendConfig cfg);
     ~DiligentRenderBackend() override;
 
     DiligentRenderBackend(const DiligentRenderBackend&)            = delete;
@@ -95,7 +95,7 @@ public:
     // ── Diagnostics ─────────────────────────────────────────────
 
     /// API that actually got picked at Initialize time.
-    [[nodiscard]] DiligentBackendAPI SelectedAPI()   const noexcept;
+    [[nodiscard]] GraphicsBackendAPI SelectedAPI()   const noexcept;
 
     /// Monotonically increasing frame index — one bump per successful
     /// EndFrame. Useful for asserting frame pumping in integration tests.

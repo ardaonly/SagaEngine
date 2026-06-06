@@ -94,15 +94,15 @@ namespace SagaEngine::Render::Backend
 
 // ─── String form of API enum ──────────────────────────────────────────
 
-std::string_view ToString(DiligentBackendAPI api) noexcept
+std::string_view ToString(GraphicsBackendAPI api) noexcept
 {
     switch (api)
     {
-        case DiligentBackendAPI::kAuto:   return "Auto";
-        case DiligentBackendAPI::kD3D12:  return "D3D12";
-        case DiligentBackendAPI::kVulkan: return "Vulkan";
-        case DiligentBackendAPI::kD3D11:  return "D3D11";
-        case DiligentBackendAPI::kOpenGL: return "OpenGL";
+        case GraphicsBackendAPI::kAuto:   return "Auto";
+        case GraphicsBackendAPI::kNativePrimary:  return "D3D12";
+        case GraphicsBackendAPI::kNativePortable: return "Vulkan";
+        case GraphicsBackendAPI::kNativeLegacy:  return "D3D11";
+        case GraphicsBackendAPI::kCompatibility: return "OpenGL";
     }
     return "Unknown";
 }
@@ -178,8 +178,8 @@ struct MaterialIdHash
 
 struct DiligentRenderBackend::Impl
 {
-    DiligentBackendConfig                    config{};
-    DiligentBackendAPI                       selectedAPI = DiligentBackendAPI::kAuto;
+    RenderBackendConfig                    config{};
+    GraphicsBackendAPI                       selectedAPI = GraphicsBackendAPI::kAuto;
 
     Diligent::RefCntAutoPtr<Diligent::IRenderDevice>  device;
     Diligent::RefCntAutoPtr<Diligent::IDeviceContext> context;
@@ -272,7 +272,7 @@ void LogDbg(const char* msg)
 DiligentRenderBackend::DiligentRenderBackend()
     : m_Impl(std::make_unique<Impl>()) {}
 
-DiligentRenderBackend::DiligentRenderBackend(DiligentBackendConfig cfg)
+DiligentRenderBackend::DiligentRenderBackend(RenderBackendConfig cfg)
     : m_Impl(std::make_unique<Impl>())
 {
     m_Impl->config = cfg;
@@ -301,7 +301,7 @@ bool DiligentRenderBackend::Initialize(const SwapchainDesc& desc)
         m_Impl->config.preferredAPI, desc, m_Impl->config,
         m_Impl->device, m_Impl->context, m_Impl->swapChain);
 
-    if (picked == DiligentBackendAPI::kAuto)
+    if (picked == GraphicsBackendAPI::kAuto)
     {
         LogErr("No Diligent graphics API was available for the host");
         return false;
@@ -460,7 +460,7 @@ void DiligentRenderBackend::Shutdown()
     m_Impl->device.Release();
 
     m_Impl->initialized = false;
-    m_Impl->selectedAPI = DiligentBackendAPI::kAuto;
+    m_Impl->selectedAPI = GraphicsBackendAPI::kAuto;
     LogInfo("Shutdown complete");
 }
 
@@ -1476,9 +1476,9 @@ void DiligentRenderBackend::ShutdownImGuiRendering()
 
 // ─── Diagnostics ─────────────────────────────────────────────────────
 
-DiligentBackendAPI DiligentRenderBackend::SelectedAPI() const noexcept
+GraphicsBackendAPI DiligentRenderBackend::SelectedAPI() const noexcept
 {
-    return m_Impl ? m_Impl->selectedAPI : DiligentBackendAPI::kAuto;
+    return m_Impl ? m_Impl->selectedAPI : GraphicsBackendAPI::kAuto;
 }
 
 std::uint64_t DiligentRenderBackend::FrameIndex() const noexcept
@@ -1493,18 +1493,18 @@ bool DiligentRenderBackend::IsInitialized() const noexcept
 
 // ─── Public factory surface ─────────────────────────────────────────
 
-std::unique_ptr<IRenderBackend> CreateDiligentRenderBackend()
+std::unique_ptr<IRenderBackend> CreateRenderBackend()
 {
     return std::make_unique<DiligentRenderBackend>();
 }
 
-std::unique_ptr<IRenderBackend> CreateDiligentRenderBackend(
-    DiligentBackendConfig config)
+std::unique_ptr<IRenderBackend> CreateRenderBackend(
+    RenderBackendConfig config)
 {
     return std::make_unique<DiligentRenderBackend>(config);
 }
 
-DiligentBackendStatus GetDiligentRenderBackendStatus(
+RenderBackendStatus GetRenderBackendStatus(
     const IRenderBackend& backend) noexcept
 {
     const auto* diligent = dynamic_cast<const DiligentRenderBackend*>(&backend);
@@ -1520,13 +1520,13 @@ DiligentBackendStatus GetDiligentRenderBackendStatus(
     };
 }
 
-bool InitDiligentImGuiRendering(IRenderBackend& backend)
+bool InitBackendImGuiRendering(IRenderBackend& backend)
 {
     auto* diligent = dynamic_cast<DiligentRenderBackend*>(&backend);
     return diligent && diligent->InitImGuiRendering();
 }
 
-void RenderDiligentImGuiDrawData(IRenderBackend& backend, const void* drawData)
+void RenderBackendImGuiDrawData(IRenderBackend& backend, const void* drawData)
 {
     auto* diligent = dynamic_cast<DiligentRenderBackend*>(&backend);
     if (diligent)
@@ -1535,7 +1535,7 @@ void RenderDiligentImGuiDrawData(IRenderBackend& backend, const void* drawData)
     }
 }
 
-void ShutdownDiligentImGuiRendering(IRenderBackend& backend)
+void ShutdownBackendImGuiRendering(IRenderBackend& backend)
 {
     auto* diligent = dynamic_cast<DiligentRenderBackend*>(&backend);
     if (diligent)
