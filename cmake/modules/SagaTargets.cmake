@@ -233,37 +233,6 @@ function(saga_create_engine_targets)
             "saga-editor-composition-compiler skipped because SAGA_WITH_SDE is OFF")
     endif()
 
-    # --- Graphics Public Shell ----------------------------------------------
-    add_library(SagaGraphics INTERFACE)
-
-    target_include_directories(SagaGraphics INTERFACE
-        ${SAGA_ROOT}/Engine/Public
-    )
-
-    set_target_properties(SagaGraphics PROPERTIES
-        FOLDER "Engine/Graphics"
-    )
-
-    # --- Graphics Private Shell ---------------------------------------------
-    add_library(SagaGraphicsPrivate STATIC)
-    saga_apply_compiler_flags(SagaGraphicsPrivate)
-
-    target_sources(SagaGraphicsPrivate PRIVATE
-        ${SAGA_ROOT}/Engine/Private/SagaEngine/Graphics/GraphicsPrivateAnchor.cpp
-    )
-
-    target_include_directories(SagaGraphicsPrivate PRIVATE
-        ${SAGA_ROOT}/Engine/Private
-    )
-
-    target_link_libraries(SagaGraphicsPrivate PUBLIC
-        SagaGraphics
-    )
-
-    set_target_properties(SagaGraphicsPrivate PROPERTIES
-        FOLDER "Engine/Graphics"
-    )
-
     # --- Engine Library ------------------------------------------------------
     add_library(SagaEngine STATIC)
     saga_apply_compiler_flags(SagaEngine)
