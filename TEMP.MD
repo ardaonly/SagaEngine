@@ -59,12 +59,12 @@ SagaEngine production AAA renderer'a sahip.
 Bu bölüm roadmap'in uygulama gerçeğiyle senkron tutulması için eklenmiştir.
 
 - [x] R1 Diligent vendoring tamamlandı: `Vendor/Diligent` submodule olarak repo kontrolünde, Saga-owned vendor metadata `Vendor/Diligent.Saga` altında.
-- [ ] R1B kısmen tamamlandı: `SagaDiligentBackend`, `VendorDiligent` ve `SagaDiligentVendor.cmake` mevcut; ayrı `SagaGraphics`, `SagaGraphicsPrivate` ve install graphics modülleri henüz yok.
-- [ ] R2 başladı ama tamamlanmadı: mevcut `Engine/Public/SagaEngine/Render/Backend` surface vendor-neutral, fakat planlanan `Engine/Public/SagaEngine/Graphics` shell henüz açılmadı.
-- [ ] R2B başladı ama tamamlanmadı: public render backend token guard mevcut; install surface ve `SagaGraphics` header guardları henüz tamamlanmadı.
+- [ ] R1B kısmen tamamlandı: `SagaDiligentBackend`, `VendorDiligent` ve `SagaDiligentVendor.cmake` mevcut; ayrı `SagaGraphics`/`SagaGraphicsPrivate` CMake targetları ve install graphics modülü henüz yok.
+- [ ] R2 başladı ama tamamlanmadı: mevcut `Engine/Public/SagaEngine/Render/Backend` surface vendor-neutral ve yeni `Engine/Public/SagaEngine/Graphics` shell mevcut; davranış bridge'i ve stable SDK iddiası yok.
+- [ ] R2B-lite başladı: public render/backend token guard ve `SagaGraphics` shell smoke mevcut; install surface guard tamamlanacak.
 - [ ] R3 başladı ama tamamlanmadı: Diligent backend device/swapchain/frame yolu mevcut; planlanan `Engine/Private/SagaEngine/Graphics/Backends/Diligent` konumu ve `SagaGraphics` üstünden bridge henüz yapılmadı.
 
-Sonraki uygulanacak slice: R2 minimal `SagaGraphics Public API Shell`.
+Sonraki uygulanacak slice: R2B-lite `Graphics public/install surface guard for the new SagaGraphics shell`.
 
 ---
 
@@ -936,66 +936,68 @@ Engine/Public/SagaEngine/Graphics/
 
 ## İşler
 
-- [ ] Opaque handle sistemi tasarla: index + generation önerilir.
-- [x] `IRenderBackend` veya benzeri dar lifecycle interface ekle.
-- [x] `NullRenderBackend` shell ekle.
-- [ ] `RenderBackendDesc`, `TextureDesc`, `BufferDesc`, `ShaderDesc`, `PipelineDesc`, `SamplerDesc` ekle.
+- [x] Opaque handle sistemi tasarla: index + generation önerilir.
+- [x] `IGraphicsBackend` veya benzeri dar lifecycle interface ekle.
+- [x] `NullGraphicsBackend` shell ekle.
+- [x] `RenderBackendDesc`, `TextureDesc`, `BufferDesc`, `ShaderDesc`, `PipelineDesc`, `SamplerDesc` ekle.
 - [x] Public API'de Diligent/Vulkan/D3D/Metal tipi geçmediğini garantile.
 - [x] Architecture test ile public header vendor token taraması ekle.
 - [ ] Headless/server build için Null backend kullanılabilir hale getir.
 
 ## Test / Doğrulama
 
-- [ ] `rg "Diligent|Vk|Vulkan|ID3D|D3D|MTL|Metal|TheForge" Engine/Public/SagaEngine/Graphics` boş dönmeli.
-- [ ] Public headers standalone compile smoke testten geçmeli.
-- [x] Null backend build edilmeli.
+- [x] `rg "Diligent|Vk|Vulkan|ID3D|D3D|MTL|Metal|TheForge" Engine/Public/SagaEngine/Graphics` boş dönmeli.
+- [x] Public `Graphics.h` umbrella header compile smoke testten geçmeli.
+- [x] Null graphics backend build edilmeli.
 - [ ] Server/headless target Diligent linklememeli.
 - [x] Architecture test vendor type leak tespit edebilmeli.
 
 ## Done
 
-- [ ] SagaGraphics public surface vendor-neutral.
-- [x] Null backend mevcut.
-- [ ] Diligent entegrasyonundan önce Saga-owned vocabulary oluşmuş.
+- [x] SagaGraphics public surface vendor-neutral foundation shell olarak mevcut.
+- [x] Null graphics backend mevcut.
+- [x] Diligent entegrasyonundan önce Saga-owned vocabulary oluşmuş.
 - [ ] Server/headless bağımsızlığı başlamış.
 
 ---
 
 
-# Phase R2B — Graphics Public / Install Surface Guard
+# Phase R2B-lite — Graphics Public / Install Surface Guard
 
 ## Amaç
 
-SagaEngine'in install/public SDK yüzeyinde Diligent veya native graphics API sızıntısı olmamasını garanti etmek.
+Yeni `SagaGraphics` shell için public/install yüzeyinde Diligent veya native graphics API sızıntısı olmamasını garanti etmek.
+
+Bu phase full R2/R2B closure değildir. `Render/Backend` public API bu slice'ta taşınmayacak, R3 Diligent bridge migration yapılmayacak, RenderGraph/material/shader/resource davranışı eklenmeyecek ve stable external SDK claim edilmeyecek.
 
 ## İşler
 
 - [ ] Public graphics header install listesi tanımla.
 - [x] `Vendor/Diligent` install edilmeyecek şekilde kural koy.
 - [ ] Diligent headers'ın Saga public include zinciri üzerinden reachable olmadığını test et.
-- [ ] Public graphics headers self-contained compile test ekle.
+- [x] Public `Graphics.h` umbrella header self-contained compile test ekle.
 - [x] Public API forbidden token scan ekle.
-- [ ] Install artifact scan ekle.
+- [x] Install artifact scan ekle.
 - [ ] `RENDER_PUBLIC_API_CONTRACT.md` içine install surface kurallarını yaz.
 
 ## Test / Doğrulama
 
-- [ ] Install surface scan.
-- [ ] Public header include scan.
+- [x] Install surface scan.
+- [x] Public `Graphics.h` include smoke scan.
 - [ ] Forbidden token scan:
   - `Diligent`
   - `Vk`
   - `ID3D`
   - `MTL`
   - `TheForge`
-- [ ] Public headers standalone compile test.
-- [ ] Installed include directory içinde Vendor/Diligent yok.
-- [ ] Installed SagaGraphics API Diligent include path istemiyor.
+- [x] Public `Graphics.h` standalone compile test.
+- [x] Installed include directory içinde Vendor/Diligent yok.
+- [x] Installed SagaGraphics API Diligent include path istemiyor.
 
 ## Done
 
 - [ ] SagaGraphics SDK yüzeyi vendor-neutral.
-- [ ] Diligent kaynak kodu repo içinde olsa bile public/install API'ye taşmıyor.
+- [x] Diligent kaynak kodu repo içinde olsa bile yeni `SagaGraphics` public/install shell'e taşmıyor.
 - [ ] Public API cleanup disiplini render için de uygulanmış.
 
 ---

@@ -1,6 +1,6 @@
 # Engine Public API Audit
 
-> Last updated: 2026-06-05
+> Last updated: 2026-06-06
 
 `Engine/Public/SagaEngine` is the installed development include surface for
 `SagaEngine`. That makes every header in this tree part of the visible engine
@@ -27,7 +27,8 @@ moved the old WorldNode/SimCell cluster private, added and extended
 render config shell with post/shadow DTO coverage, and moved `RGCompilation.h`,
 `GBufferPass.h`,
 `LightingPass.h`, `FrameGraphExecutor.h`, `CommandBuffer.h`,
-`CommandRecorder.h`, and `Renderer.h` private.
+`CommandRecorder.h`, and `Renderer.h` private, then added the first
+`SagaEngine/Graphics` vendor-neutral public shell.
 
 The follow-up World closure phase audited `cmake/modules/SagaInstall.cmake`.
 The install rule still installs `Engine/Public/SagaEngine` wholesale via
@@ -72,6 +73,7 @@ these:
 | `SagaEngine/Platform/I*` | Keep public | Platform abstraction interfaces. |
 | `SagaEngine/Packages` and `SagaEngine/Assets` manifests | Keep public | Package and asset manifest contracts are cross-module inputs. |
 | `SagaEngine/World` | Transitional facade only | The old WorldNode/SimCell cluster and Partition/Streaming headers are private. `WorldFacade.h` is the public shell, not a stable SDK guarantee. See [Engine World public header audit](ENGINE_WORLD_PUBLIC_HEADER_AUDIT.md), the focused [Engine WorldNode / SimCell facade audit](ENGINE_WORLD_NODE_FACADE_AUDIT.md), and [Engine World public facade contract](ENGINE_WORLD_PUBLIC_FACADE_CONTRACT.md). |
+| `SagaEngine/Graphics` | Foundation shell | Vendor-neutral graphics vocabulary and null backend shell for the Diligent migration path. The R2B-lite guard covers public/install surface leakage for this new shell; it is not a stable external SDK claim and does not move `SagaEngine/Render/Backend`. |
 | `SagaEngine/Render/RenderPipelineConfig.h` | Transitional config shell | Scalar/config-owned DTO surface for public render profile data, including compact post-processing and shadow profile settings. It is not a stable render SDK/API claim and does not fix the Render public/private boundary. See [Engine Render Extension / Config boundary contract](ENGINE_RENDER_EXTENSION_BOUNDARY_CONTRACT.md). |
 | `SagaEngine/Render/RenderGraph` | Internal candidate | Render graph construction remains public-internal until a stable public render extension model exists. `RGCompilation.h` and frame execution internals have been moved private. See [Engine RenderGraph / RenderPasses public header audit](ENGINE_RENDERGRAPH_PUBLIC_HEADER_AUDIT.md), [Engine Render Extension / Config boundary contract](ENGINE_RENDER_EXTENSION_BOUNDARY_CONTRACT.md), and [Engine Render residual public surface audit](ENGINE_RENDER_RESIDUAL_PUBLIC_SURFACE_AUDIT.md). |
 | `SagaEngine/Render/RenderPasses` | Internal candidate | Built-in pass classes `GBufferPass` and `LightingPass` have been moved private; post/shadow config DTO coverage now exists in `RenderPipelineConfig.h`, but `PostProcessGraph.h` and `ShadowMap.h` remain internal candidates until the actual private move. See [Engine RenderGraph / RenderPasses public header audit](ENGINE_RENDERGRAPH_PUBLIC_HEADER_AUDIT.md), [Engine Render Extension / Config boundary contract](ENGINE_RENDER_EXTENSION_BOUNDARY_CONTRACT.md), and [Engine Render residual public surface audit](ENGINE_RENDER_RESIDUAL_PUBLIC_SURFACE_AUDIT.md). |

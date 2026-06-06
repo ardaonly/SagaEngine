@@ -1,6 +1,6 @@
 # Engine Render Extension / Config Boundary Contract
 
-> Last updated: 2026-06-05
+> Last updated: 2026-06-06
 
 This document records a conservative public render boundary direction before
 any RenderGraph or RenderPasses header migration. It follows the recommendation
@@ -59,6 +59,13 @@ The next safe render move also moved `FrameGraphExecutor.h`,
 `CommandBuffer.h`, `CommandRecorder.h`, and `Renderer.h` private. That keeps
 frame execution, command recording, and the old renderer shell out of the
 public include surface while leaving the config-first boundary intact.
+
+The `SagaEngine/Graphics` public shell is the next graphics-boundary step for
+the Diligent migration path. Its R2B-lite guard protects the new
+vendor-neutral public/install surface from Diligent or native graphics API
+leaks. It does not move `SagaEngine/Render/Backend`, does not add
+RenderGraph/material/shader/resource behavior, and is not a stable external SDK
+claim.
 
 ## Future Public Boundary
 
