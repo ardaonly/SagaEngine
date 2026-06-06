@@ -18,5 +18,8 @@ function(saga_setup_install)
     install(DIRECTORY "${SAGA_ROOT}/Engine/Public/SagaEngine"
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         COMPONENT SagaDevelopment
+        PATTERN "Graphics" EXCLUDE
     )
+
+    saga_setup_graphics_install()
 endfunction()

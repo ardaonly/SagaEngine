@@ -259,6 +259,11 @@ std::filesystem::path SagaTargetsPath()
            "cmake" / "modules" / "SagaTargets.cmake";
 }
 
+std::filesystem::path CMakeListsPath()
+{
+    return std::filesystem::path(SAGA_SOURCE_ROOT) / "CMakeLists.txt";
+}
+
 std::filesystem::path CMakeModulePath(std::string_view filename)
 {
     return std::filesystem::path(SAGA_SOURCE_ROOT) /
@@ -347,10 +352,17 @@ TEST(CMakeTargetBoundaryTests, SagaEngineDoesNotLinkProductEditorOrToolTargets)
 
 TEST(CMakeTargetBoundaryTests, SagaGraphicsTargetIsVendorNeutralPublicShell)
 {
-    const auto path = SagaTargetsPath();
+    const auto path = CMakeModulePath("SagaGraphicsTargets.cmake");
     const auto lines = ReadLines(path);
     const auto text = ReadText(path);
     const auto calls = ExtractTargetLinkCalls(lines);
+    const auto rootText = ReadText(CMakeListsPath());
+
+    EXPECT_TRUE(ContainsToken(rootText, "include(SagaGraphicsTargets)"))
+        << "Root CMakeLists must load the graphics target boundary module.";
+    EXPECT_TRUE(ContainsToken(rootText, "saga_create_graphics_targets()"))
+        << "Root CMakeLists must create graphics targets before engine "
+           "targets.";
 
     EXPECT_TRUE(ContainsToken(text, "add_library(SagaGraphics INTERFACE)"))
         << "SagaGraphics must exist as a public interface target.";
@@ -372,7 +384,7 @@ TEST(CMakeTargetBoundaryTests, SagaGraphicsTargetIsVendorNeutralPublicShell)
 
 TEST(CMakeTargetBoundaryTests, SagaGraphicsPrivateTargetIsPrivateBoundaryShell)
 {
-    const auto path = SagaTargetsPath();
+    const auto path = CMakeModulePath("SagaGraphicsTargets.cmake");
     const auto text = ReadText(path);
     const auto calls = ExtractTargetLinkCalls(ReadLines(path));
 
@@ -417,16 +429,58 @@ TEST(CMakeTargetBoundaryTests, SagaGraphicsPrivateTargetIsPrivateBoundaryShell)
 TEST(CMakeTargetBoundaryTests, GraphicsInstallSurfaceDoesNotInstallVendorBackends)
 {
     const auto installPath = CMakeModulePath("SagaInstall.cmake");
+    const auto graphicsInstallPath = CMakeModulePath("SagaInstallGraphics.cmake");
     const auto vendorPath = CMakeModulePath("SagaDiligentVendor.cmake");
     ASSERT_TRUE(std::filesystem::exists(installPath));
+    ASSERT_TRUE(std::filesystem::exists(graphicsInstallPath));
     ASSERT_TRUE(std::filesystem::exists(vendorPath));
 
     const auto installText = ReadText(installPath);
+    const auto graphicsInstallText = ReadText(graphicsInstallPath);
+    const auto rootText = ReadText(CMakeListsPath());
+    EXPECT_TRUE(ContainsToken(rootText, "include(SagaInstallGraphics)"))
+        << "Root CMakeLists must load the graphics install boundary module.";
+    EXPECT_TRUE(ContainsToken(installText, "saga_setup_graphics_install()"))
+        << "Main install setup must delegate graphics headers to the "
+           "graphics install module.";
     EXPECT_TRUE(ContainsToken(
         installText,
         "install(DIRECTORY \"${SAGA_ROOT}/Engine/Public/SagaEngine\""))
         << "SagaEngine public include tree must remain the installed "
            "development include surface.";
+    EXPECT_TRUE(ContainsToken(installText, "PATTERN \"Graphics\" EXCLUDE"))
+        << "Main public include install must leave Graphics headers to the "
+           "graphics install module.";
+    EXPECT_TRUE(ContainsToken(
+        graphicsInstallText,
+        "install(DIRECTORY \"${SAGA_ROOT}/Engine/Public/SagaEngine/Graphics\""))
+        << "Graphics public headers must have an explicit install rule.";
+    EXPECT_TRUE(ContainsToken(
+        graphicsInstallText,
+        "DESTINATION \"${CMAKE_INSTALL_INCLUDEDIR}/SagaEngine\""))
+        << "Graphics headers must install below include/SagaEngine.";
+
+    const std::vector<std::string> forbiddenInstallTokens = {
+        "Vendor/Diligent",
+        "VendorDiligent",
+        "SagaDiligentBackend",
+        "SagaGraphicsPrivate",
+        "Diligent-",
+        "Vulkan::",
+        "D3D",
+        "OpenGL",
+        "Metal",
+    };
+
+    const std::string combinedInstallText =
+        installText + "\n" + graphicsInstallText;
+    for (const auto& token : forbiddenInstallTokens)
+    {
+        EXPECT_FALSE(ContainsToken(combinedInstallText, token))
+            << "Install rules must not publish graphics backend/vendor token: "
+            << token;
+    }
+
     EXPECT_FALSE(ContainsToken(installText, "Vendor/Diligent"))
         << "Install rules must not copy vendored graphics sources.";
     EXPECT_FALSE(ContainsToken(installText, "VendorDiligent"))
