@@ -124,6 +124,65 @@ TEST(GraphicsNullBackendResources, RejectsInvalidDescriptions)
     EXPECT_EQ(backend.GetResourceMemoryReport().failedCreateCount, 5u);
 }
 
+TEST(GraphicsNullBackendResources, RejectsDescriptorRangeAndEnumEdges)
+{
+    Graphics::NullGraphicsBackend backend;
+    EXPECT_TRUE(backend.Initialize(MakeHeadlessDesc(), {}));
+
+    auto texture = MakeTextureDesc();
+    texture.depth = 0u;
+    EXPECT_FALSE(backend.CreateTexture(texture).IsValid());
+    EXPECT_EQ(
+        backend.GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::InvalidTextureDesc);
+
+    texture = MakeTextureDesc();
+    texture.mipLevels = 0u;
+    EXPECT_FALSE(backend.CreateTexture(texture).IsValid());
+
+    texture = MakeTextureDesc();
+    texture.arrayLayers = 0u;
+    EXPECT_FALSE(backend.CreateTexture(texture).IsValid());
+
+    texture = MakeTextureDesc();
+    texture.format = static_cast<Graphics::ResourceFormat>(255);
+    EXPECT_FALSE(backend.CreateTexture(texture).IsValid());
+
+    auto pipeline = Graphics::PipelineDesc{};
+    pipeline.colorTargetCount = 9u;
+    EXPECT_FALSE(backend.CreatePipeline(pipeline).IsValid());
+    EXPECT_EQ(
+        backend.GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::InvalidPipelineDesc);
+
+    pipeline = {};
+    pipeline.colorFormat = static_cast<Graphics::ResourceFormat>(255);
+    EXPECT_FALSE(backend.CreatePipeline(pipeline).IsValid());
+
+    pipeline = {};
+    pipeline.depthFormat = Graphics::ResourceFormat::Unknown;
+    EXPECT_FALSE(backend.CreatePipeline(pipeline).IsValid());
+
+    auto sampler = Graphics::SamplerDesc{};
+    sampler.magFilter = static_cast<Graphics::FilterMode>(255);
+    EXPECT_FALSE(backend.CreateSampler(sampler).IsValid());
+    EXPECT_EQ(
+        backend.GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::InvalidSamplerDesc);
+
+    sampler = {};
+    sampler.addressV = static_cast<Graphics::AddressMode>(255);
+    EXPECT_FALSE(backend.CreateSampler(sampler).IsValid());
+
+    sampler = {};
+    sampler.addressW = static_cast<Graphics::AddressMode>(255);
+    EXPECT_FALSE(backend.CreateSampler(sampler).IsValid());
+
+    const auto report = backend.GetResourceMemoryReport();
+    EXPECT_EQ(report.failedCreateCount, 10u);
+    EXPECT_EQ(report.totalLiveBytes, 0u);
+}
+
 TEST(GraphicsNullBackendResources, TracksLiveAndPeakMemory)
 {
     Graphics::NullGraphicsBackend backend;
