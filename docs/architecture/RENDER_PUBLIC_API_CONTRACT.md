@@ -39,10 +39,24 @@ quality/fallback helpers. These report conservative baseline support from the
 current shell; they do not perform native backend feature queries or emit
 capability report artifacts.
 
-R4 minimum entry adds generation-aware private slot registries behind the
-existing opaque graphics handles for null and Diligent adapter behavior. This
-does not create native GPU resources, upload data, expose backend pointers, or
-add memory accounting.
+R4 validation/registry foundation adds generation-aware private slot registries
+behind the existing opaque graphics handles for null and Diligent adapter
+behavior. It also adds vendor-neutral descriptor validation, backend-global
+create failure reporting, approximate logical memory reporting, creation-time
+initial data shadow-copy validation, registered-resource liveness diagnostics,
+and a shutdown-time registered-resource leak summary. This does not create
+native GPU resources, upload data, expose backend pointers, or claim native GPU
+allocation accounting.
+
+R4B entry adds vendor-neutral CPU-side binding vocabulary/validation and a
+private CPU frame resource allocator. It does not create native descriptor sets,
+GPU ring buffers, upload heaps, or draw binding integration.
+
+R5 validation entry adds RenderGraph compile diagnostics and a deterministic
+text dump while preserving the existing `Compile()` bool and `Execute()`
+behavior. It does not add a SagaGraphics execution bridge, Diligent execution
+bridge, material system, shader compiler, lighting, or post-processing
+pipeline.
 
 The internal backend preference order is documented in
 [Graphics Backend Preference Order](GRAPHICS_BACKEND_PREFERENCE_ORDER.md).
@@ -67,11 +81,15 @@ still be installed outside the include and target surface.
 
 This contract does not move `SagaEngine/Render/Backend`.
 It does not complete R3 bridge migration.
-It does not add RenderGraph, material, shader, or resource behavior.
+It does not add RenderGraph execution, material, shader, lighting, or
+post-processing behavior.
 It does not complete R3B device-loss or swapchain recreation recovery.
 It does not complete R3C native feature detection or capability artifacts.
-It does not complete R4 native GPU resource creation, upload, diagnostics, or
-memory accounting.
+It does not complete R4 native GPU resource creation, upload/staging, native
+memory accounting, or resource diagnostics beyond registered-resource
+lifecycle/liveness reporting.
+It does not complete R4B native binding/frame resources.
+It does not complete R5 RenderGraph execution.
 It does not claim `SagaEngine/Graphics` is a stable external SDK.
 
 ## Guardrails
