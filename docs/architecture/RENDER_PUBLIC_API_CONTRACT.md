@@ -1,6 +1,6 @@
 # Render Public API Contract
 
-> Last updated: 2026-06-06
+> Last updated: 2026-06-07
 
 This document records the current public/install render and graphics boundary.
 It is a guardrail for the Diligent migration path, not a stable external SDK
@@ -39,24 +39,31 @@ quality/fallback helpers. These report conservative baseline support from the
 current shell; they do not perform native backend feature queries or emit
 capability report artifacts.
 
-R4 validation/registry foundation adds generation-aware private slot registries
+R4 partial/foundation coverage adds generation-aware private slot registries
 behind the existing opaque graphics handles for null and Diligent adapter
 behavior. It also adds vendor-neutral descriptor validation, backend-global
 create failure reporting, approximate logical memory reporting, creation-time
 initial data shadow-copy validation, registered-resource liveness diagnostics,
-and a shutdown-time registered-resource leak summary. This does not create
-native GPU resources, upload data, expose backend pointers, or claim native GPU
-allocation accounting. It does not create native Diligent GPU resources.
+and a shutdown-time registered-resource leak summary. The Diligent adapter
+remains registered-only for these resources. This does not create native GPU
+resources, upload data, expose backend pointers, or claim native GPU allocation
+accounting. It does not create native Diligent GPU resources.
 
-R4B entry adds vendor-neutral CPU-side binding vocabulary/validation and a
-private CPU frame resource allocator. It does not create native descriptor sets,
-GPU ring buffers, upload heaps, or draw binding integration.
+R4B private/CPU validation partial coverage adds vendor-neutral CPU-side
+binding vocabulary/validation, registered-resource query integration, and a
+private CPU frame resource allocator with lifecycle and alignment diagnostics.
+It does not create native descriptor sets, GPU ring buffers, upload heaps,
+native uniform buffers, or draw binding integration.
 
-R5 validation entry adds RenderGraph compile diagnostics and a deterministic
-text dump while preserving the existing `Compile()` bool and `Execute()`
-behavior. It does not add a SagaGraphics execution bridge, Diligent execution
-bridge, material system, shader compiler, lighting, or post-processing
+R5 validation/dump entry adds RenderGraph compile diagnostics and a
+deterministic text dump while preserving the existing `Compile()` bool and
+`Execute()` behavior. The diagnostics and dump coverage is deterministic test
+coverage only; it does not add a SagaGraphics execution bridge, Diligent
+execution bridge, material system, shader compiler, lighting, or post-processing
 pipeline.
+
+R5 validation entry adds RenderGraph compile diagnostics; it remains a
+validation/dump foundation entry, not a render execution bridge.
 
 The internal backend preference order is documented in
 [Graphics Backend Preference Order](GRAPHICS_BACKEND_PREFERENCE_ORDER.md).
