@@ -88,8 +88,7 @@ struct PSInput
 void main(in VSInput VSIn, out PSInput PSIn)
 {
     // Weighted bone skinning (up to 4 influences).
-    float4x4 skin = (float4x4)0;
-    skin += g_BonePalette[VSIn.BoneIdx.x] * VSIn.BoneWgt.x;
+    float4x4 skin = g_BonePalette[VSIn.BoneIdx.x] * VSIn.BoneWgt.x;
     skin += g_BonePalette[VSIn.BoneIdx.y] * VSIn.BoneWgt.y;
     skin += g_BonePalette[VSIn.BoneIdx.z] * VSIn.BoneWgt.z;
     skin += g_BonePalette[VSIn.BoneIdx.w] * VSIn.BoneWgt.w;
@@ -116,7 +115,7 @@ cbuffer CameraCB
 };
 
 Texture2D    g_Albedo  : register(t0);
-SamplerState g_Sampler : register(s0);
+SamplerState g_Albedo_sampler : register(s0);
 
 struct PSInput
 {
@@ -127,7 +126,7 @@ struct PSInput
 
 float4 main(in PSInput PSIn) : SV_Target
 {
-    float4 texColor = g_Albedo.Sample(g_Sampler, PSIn.UV);
+    float4 texColor = g_Albedo.Sample(g_Albedo_sampler, PSIn.UV);
 
     float3 N = normalize(PSIn.Normal);
     float3 L = normalize(g_LightDir.xyz);

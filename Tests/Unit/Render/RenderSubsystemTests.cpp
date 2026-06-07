@@ -84,6 +84,8 @@ World::RenderEntity MakeEntity(const Vec3& pos,
 {
     World::RenderEntity e{};
     e.transform.position = pos;
+    e.mesh               = static_cast<World::MeshId>(1);
+    e.material           = static_cast<World::MaterialId>(1);
     e.boundsRadius       = 1.0f;
     e.visible            = true;
     e.visibilityMask     = mask;

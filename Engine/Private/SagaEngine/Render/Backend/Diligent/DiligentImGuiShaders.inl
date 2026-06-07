@@ -34,7 +34,7 @@ void main(in VS_INPUT input, out PS_INPUT output)
 
 static constexpr const char* kImGuiPS = R"(
 Texture2D    g_Texture : register(t0);
-SamplerState g_Sampler : register(s0);
+SamplerState g_Texture_sampler : register(s0);
 
 struct PS_INPUT
 {
@@ -45,6 +45,6 @@ struct PS_INPUT
 
 float4 main(in PS_INPUT input) : SV_Target
 {
-    return input.col * g_Texture.Sample(g_Sampler, input.uv);
+    return input.col * g_Texture.Sample(g_Texture_sampler, input.uv);
 }
 )";

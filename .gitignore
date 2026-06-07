@@ -80,9 +80,9 @@ Thirdparty/
 
 cache/sccache/*
 cache
+imgui.ini
 
 .core/export/state/
 
 # MultiplayerSandbox generated evidence
 samples/MultiplayerSandbox/Generated/
-TEMP.MD

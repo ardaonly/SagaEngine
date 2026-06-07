@@ -276,6 +276,7 @@ function(saga_setup_tests)
         ${SAGA_ROOT}/Backends/include
         ${SAGA_ROOT}/Editor/include
         ${SAGA_ROOT}/Apps/EditorLab/include
+        ${SAGA_ROOT}/Apps/Sandbox/include
         ${SAGA_ROOT}/Apps/Saga
         $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
     )

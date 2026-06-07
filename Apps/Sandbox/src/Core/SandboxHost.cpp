@@ -82,6 +82,7 @@ void SandboxHost::OnInit()
         m_debugHud = std::make_unique<DebugHud>(m_scenarioManager);
         m_debugHud->Init();
         m_debugHud->SetVisible(m_config.showHudOnStart);
+        m_debugHud->SetFpsOverlayVisible(m_config.showFpsOverlay);
     }
 
     // ── 5. Start the initial scenario (may be empty) ──────────────────────────
@@ -280,7 +281,7 @@ void SandboxHost::InitImGui()
 
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-    // io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
     ImGui::StyleColorsDark();
 

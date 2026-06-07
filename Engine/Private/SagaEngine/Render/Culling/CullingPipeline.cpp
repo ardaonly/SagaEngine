@@ -76,6 +76,12 @@ void CullingPipeline::Run(const World::RenderWorld& world,
             continue;
         }
 
+        if (e.mesh == World::MeshId::kInvalid ||
+            e.material == World::MaterialId::kInvalid)
+        {
+            continue;
+        }
+
         // ── Survivor: pick LOD + emit draw item. ─────────────────
         std::uint8_t lod = 0;
         if (e.lodOverride != World::kLodOverrideAuto)
@@ -93,6 +99,7 @@ void CullingPipeline::Run(const World::RenderWorld& world,
         item.entity     = static_cast<World::RenderEntityId>(i);
         item.mesh       = e.mesh;
         item.material   = e.material;
+        item.model      = ::SagaEngine::Math::Mat4::FromTransform(e.transform);
         item.lod        = lod;
         item.distanceSq = distSq;
         outView.drawItems.push_back(item);
