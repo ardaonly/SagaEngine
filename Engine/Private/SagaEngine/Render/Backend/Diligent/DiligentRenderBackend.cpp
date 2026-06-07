@@ -342,6 +342,8 @@ bool DiligentRenderBackend::Initialize(const SwapchainDesc& desc)
         using namespace Diligent;
         ShaderCreateInfo ci;
         ci.SourceLanguage             = SHADER_SOURCE_LANGUAGE_HLSL;
+        ci.Desc.UseCombinedTextureSamplers = True;
+        ci.Desc.CombinedSamplerSuffix      = "_sampler";
 
         ci.Desc.ShaderType = SHADER_TYPE_VERTEX;
         ci.Desc.Name       = "Solid VS";
@@ -536,8 +538,8 @@ Diligent::RefCntAutoPtr<Diligent::IPipelineState> FindOrCreatePSO(
     psoCI.GraphicsPipeline.InputLayout.NumElements    = 8;
     psoCI.GraphicsPipeline.InputLayout.LayoutElements  = layoutElems;
 
-    // Texture/sampler resource layout: g_Albedo as DYNAMIC (changes per material),
-    // g_Sampler as immutable sampler with linear filtering.
+    // Texture/sampler resource layout: g_Albedo as DYNAMIC (changes per material)
+    // and as the immutable sampler anchor for combined sampler backends.
     ShaderResourceVariableDesc vars[] =
     {
         { SHADER_TYPE_PIXEL, "g_Albedo", SHADER_RESOURCE_VARIABLE_TYPE_DYNAMIC },
@@ -555,7 +557,7 @@ Diligent::RefCntAutoPtr<Diligent::IPipelineState> FindOrCreatePSO(
 
     ImmutableSamplerDesc samplers[] =
     {
-        { SHADER_TYPE_PIXEL, "g_Sampler", sceneSamplerDesc },
+        { SHADER_TYPE_PIXEL, "g_Albedo", sceneSamplerDesc },
     };
     psoCI.PSODesc.ResourceLayout.ImmutableSamplers    = samplers;
     psoCI.PSODesc.ResourceLayout.NumImmutableSamplers = 1;
@@ -649,7 +651,7 @@ Diligent::RefCntAutoPtr<Diligent::IPipelineState> FindOrCreateSkinnedPSO(
 
     ImmutableSamplerDesc samplers[] =
     {
-        { SHADER_TYPE_PIXEL, "g_Sampler", sceneSamplerDesc },
+        { SHADER_TYPE_PIXEL, "g_Albedo", sceneSamplerDesc },
     };
     psoCI.PSODesc.ResourceLayout.ImmutableSamplers    = samplers;
     psoCI.PSODesc.ResourceLayout.NumImmutableSamplers = 1;
@@ -1135,6 +1137,8 @@ bool DiligentRenderBackend::InitImGuiRendering()
     {
         ShaderCreateInfo ci;
         ci.SourceLanguage = SHADER_SOURCE_LANGUAGE_HLSL;
+        ci.Desc.UseCombinedTextureSamplers = True;
+        ci.Desc.CombinedSamplerSuffix      = "_sampler";
 
         ci.Desc.ShaderType = SHADER_TYPE_VERTEX;
         ci.Desc.Name       = "ImGui VS";
@@ -1217,7 +1221,7 @@ bool DiligentRenderBackend::InitImGuiRendering()
 
         ImmutableSamplerDesc samplers[] =
         {
-            { SHADER_TYPE_PIXEL, "g_Sampler", imguiSamplerDesc },
+            { SHADER_TYPE_PIXEL, "g_Texture", imguiSamplerDesc },
         };
         psoCI.PSODesc.ResourceLayout.ImmutableSamplers    = samplers;
         psoCI.PSODesc.ResourceLayout.NumImmutableSamplers = 1;

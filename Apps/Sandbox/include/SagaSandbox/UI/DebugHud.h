@@ -56,6 +56,9 @@ public:
     void ToggleVisible()          noexcept { m_visible = !m_visible; }
     [[nodiscard]] bool IsVisible() const   noexcept { return m_visible; }
 
+    void SetFpsOverlayVisible(bool visible) noexcept { m_showFpsOverlay = visible; }
+    [[nodiscard]] bool IsFpsOverlayVisible() const noexcept { return m_showFpsOverlay; }
+
     // ── Scenario panel injection ──────────────────────────────────────────────
 
     /// Add a panel for the currently active scenario. Ownership is taken.

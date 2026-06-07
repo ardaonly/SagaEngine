@@ -65,6 +65,14 @@ pipeline.
 R5 validation entry adds RenderGraph compile diagnostics; it remains a
 validation/dump foundation entry, not a render execution bridge.
 
+Playable Render Slice v0 adds a deterministic sandbox/test helper that builds
+one procedural cube mesh, one checker texture, one opaque material, one render
+entity, and one main camera. The slice verifies that this scene reaches
+`RenderSubsystem` culling and backend `Submit()` as a real draw item. It uses
+the existing `IRenderBackend` mesh/material/texture upload and submit seam; it
+does not route through the SagaGraphics registered-only shell or claim a full
+asset-driven scene renderer.
+
 The internal backend preference order is documented in
 [Graphics Backend Preference Order](GRAPHICS_BACKEND_PREFERENCE_ORDER.md).
 The conservative capability matrix is documented in
@@ -97,6 +105,9 @@ memory accounting, or resource diagnostics beyond registered-resource
 lifecycle/liveness reporting.
 It does not complete R4B native binding/frame resources.
 It does not complete R5 RenderGraph execution.
+It does not turn the playable render slice into a production renderer,
+asset-pipeline scene loader, shader compiler, lighting stack, or post-process
+stack.
 It does not claim `SagaEngine/Graphics` is a stable external SDK.
 
 ## Guardrails

@@ -3,6 +3,7 @@
 
 #include "Scenarios/RenderPlaygroundScenario.h"
 #include "SagaSandbox/Core/ScenarioRegistry.h"
+#include <SagaSandbox/Render/PlayableRenderSlice.h>
 
 #include <SagaEngine/Animation/Skeleton.h>
 #include <SagaEngine/Animation/AnimationClip.h>
@@ -240,66 +241,6 @@ Anim::AnimationClip BuildWaveClip(float duration)
     return clip;
 }
 
-/// Build a unit cube centred at origin with per-face normals and UVs.
-MeshAsset BuildCubeAsset()
-{
-    MeshAsset asset{};
-    asset.meshId    = 1;
-    asset.debugName = "ProceduralCube";
-    asset.lodCount  = 1;
-
-    auto& lod = asset.lods[0];
-
-    auto pushFace = [&](MeshVec3 p0, MeshVec3 p1, MeshVec3 p2, MeshVec3 p3,
-                        MeshVec3 n, MeshVec3 t)
-    {
-        auto base = static_cast<std::uint32_t>(lod.vertices.size());
-
-        auto makeVert = [&](MeshVec3 pos, MeshVec2 uv) -> MeshVertex
-        {
-            MeshVertex v{};
-            v.position   = pos;
-            v.normal     = n;
-            v.tangent    = t;
-            v.handedness = 1.0f;
-            v.uv0        = uv;
-            return v;
-        };
-
-        lod.vertices.push_back(makeVert(p0, { 0.0f, 1.0f }));
-        lod.vertices.push_back(makeVert(p1, { 1.0f, 1.0f }));
-        lod.vertices.push_back(makeVert(p2, { 1.0f, 0.0f }));
-        lod.vertices.push_back(makeVert(p3, { 0.0f, 0.0f }));
-
-        lod.indices.push_back(base);
-        lod.indices.push_back(base + 1);
-        lod.indices.push_back(base + 2);
-        lod.indices.push_back(base);
-        lod.indices.push_back(base + 2);
-        lod.indices.push_back(base + 3);
-    };
-
-    const float h = 0.5f;
-
-    pushFace({ -h, -h,  h }, {  h, -h,  h }, {  h,  h,  h }, { -h,  h,  h },
-             {  0,  0,  1 }, {  1,  0,  0 });
-    pushFace({  h, -h, -h }, { -h, -h, -h }, { -h,  h, -h }, {  h,  h, -h },
-             {  0,  0, -1 }, { -1,  0,  0 });
-    pushFace({  h, -h,  h }, {  h, -h, -h }, {  h,  h, -h }, {  h,  h,  h },
-             {  1,  0,  0 }, {  0,  0, -1 });
-    pushFace({ -h, -h, -h }, { -h, -h,  h }, { -h,  h,  h }, { -h,  h, -h },
-             { -1,  0,  0 }, {  0,  0,  1 });
-    pushFace({ -h,  h,  h }, {  h,  h,  h }, {  h,  h, -h }, { -h,  h, -h },
-             {  0,  1,  0 }, {  1,  0,  0 });
-    pushFace({ -h, -h, -h }, {  h, -h, -h }, {  h, -h,  h }, { -h, -h,  h },
-             {  0, -1,  0 }, {  1,  0,  0 });
-
-    lod.vertexCountHint = static_cast<std::uint32_t>(lod.vertices.size());
-    lod.indexCountHint  = static_cast<std::uint32_t>(lod.indices.size());
-
-    return asset;
-}
-
 /// Build a flat ground plane centred at origin (XZ plane, Y=0).
 MeshAsset BuildGroundPlaneAsset(float halfExtent, float uvScale)
 {
@@ -381,12 +322,15 @@ bool RenderPlaygroundScenario::OnInit()
     m_inputManager.RegisterDevice(Input::MakeMouseDevice(2));
     m_inputManager.SetCursorLocked(true);
 
-    // ── Cube mesh ────────────────────────────────────────────────────────────
-    auto cubeAsset = BuildCubeAsset();
-    m_cubeMesh = m_backend->CreateMesh(cubeAsset);
-    if (m_cubeMesh == World::MeshId::kInvalid)
+    // ── Playable slice resources (cube mesh, checker texture, material) ─────
+    auto playableResources =
+        Render::CreatePlayableRenderSliceResources(*m_backend);
+    m_cubeMesh = playableResources.mesh;
+    m_cubeMaterial = playableResources.material;
+    m_checkerTex = playableResources.texture;
+    if (!playableResources.IsValid())
     {
-        LOG_ERROR(kTag, "Cube mesh upload failed.");
+        LOG_ERROR(kTag, "Playable slice resource upload failed.");
         return false;
     }
 
@@ -395,28 +339,6 @@ bool RenderPlaygroundScenario::OnInit()
     m_groundMesh = m_backend->CreateMesh(groundAsset);
     if (m_groundMesh == World::MeshId::kInvalid)
         LOG_WARN(kTag, "Ground plane mesh upload failed.");
-
-    // ── Checkerboard texture (cubes) ─────────────────────────────────────────
-    {
-        constexpr uint32_t kTexSize = 64;
-        constexpr uint32_t kCellSize = 8;
-        std::vector<uint8_t> pixels(kTexSize * kTexSize * 4);
-
-        for (uint32_t y = 0; y < kTexSize; ++y)
-        {
-            for (uint32_t x = 0; x < kTexSize; ++x)
-            {
-                const bool white = ((x / kCellSize) + (y / kCellSize)) % 2 == 0;
-                const uint8_t c = white ? 230 : 50;
-                const uint32_t idx = (y * kTexSize + x) * 4;
-                pixels[idx + 0] = c;
-                pixels[idx + 1] = c;
-                pixels[idx + 2] = c;
-                pixels[idx + 3] = 255;
-            }
-        }
-        m_checkerTex = m_backend->CreateTexture(kTexSize, kTexSize, pixels.data());
-    }
 
     // ── Ground texture (grey grid pattern) ───────────────────────────────────
     {
@@ -437,23 +359,6 @@ bool RenderPlaygroundScenario::OnInit()
             }
         }
         m_groundTex = m_backend->CreateTexture(kTexSize, kTexSize, pixels.data());
-    }
-
-    // ── Cube material ────────────────────────────────────────────────────────
-    {
-        MaterialRuntime mat{};
-        mat.materialId  = 1;
-        mat.renderQueue = MaterialRenderQueue::Opaque;
-        mat.cullMode    = MaterialCullMode::Back;
-        mat.writesDepth = true;
-        mat.textures[static_cast<std::size_t>(MaterialTextureSlot::Albedo)] = m_checkerTex;
-
-        m_cubeMaterial = m_backend->CreateMaterial(mat);
-        if (m_cubeMaterial == World::MaterialId::kInvalid)
-        {
-            LOG_ERROR(kTag, "Cube material upload failed.");
-            return false;
-        }
     }
 
     // ── Ground material ──────────────────────────────────────────────────────

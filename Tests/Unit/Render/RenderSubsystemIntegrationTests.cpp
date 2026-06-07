@@ -106,6 +106,8 @@ World::RenderEntity MakeEntity(const Vec3& pos, float r = 0.05f)
 {
     World::RenderEntity e{};
     e.transform.position = pos;
+    e.mesh               = static_cast<World::MeshId>(1);
+    e.material           = static_cast<World::MaterialId>(1);
     e.boundsRadius       = r;
     e.visible            = true;
     return e;
