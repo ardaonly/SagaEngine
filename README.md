@@ -8,6 +8,25 @@ It is not a finished game engine product. Treat this repository as source for
 engine and toolchain development, not as an installable editor for making games
 end to end.
 
+## Project Status
+
+SagaEngine is currently in a temporary feature freeze.
+
+No new major systems, phases, or architectural expansions are planned during this period. The current focus is to understand, audit, document, and stabilize the existing codebase.
+
+This freeze does not mean the project is abandoned. Development is paused intentionally so the existing engine architecture, source files, public/private boundaries, build system, runtime flow, asset pipeline, rendering layer, server authority, and editor structure can be reviewed and properly owned before further expansion.
+
+This project grew quickly through exploratory development, so the current priority is codebase comprehension, ownership review, and stabilization before adding more scope.
+
+## SagaSandbox Preview
+
+Current sandbox/render snapshots from the temporary frozen development state.
+
+<p align="center">
+  <img src="docs/media/sagasandbox/render-01.png" alt="SagaSandbox render preview 1" width="48%">
+  <img src="docs/media/sagasandbox/render-02.png" alt="SagaSandbox render preview 2" width="48%">
+</p>
+
 ## Current Position
 
 The repo contains C++ engine, runtime, server, editor, application, tool, and
