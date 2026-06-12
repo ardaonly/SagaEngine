@@ -1,8 +1,8 @@
 # Saga Collaboration Review And Audit Boundary
 
-Phase 27 status is `Implemented-Unverified`.
+> Status: Local review/comment/audit report boundary
 
-Phase 27 adds a Product Shell no-UI local review, comment, and audit metadata
+This document adds a Product Shell no-UI local review, comment, and audit metadata
 report. It does not implement an approval workflow, durable audit service,
 tamper-resistant audit log, real-time collaboration, cloud workspace,
 enterprise access control, CRDT/OT, a collaboration server, full team editing,
@@ -27,11 +27,10 @@ records one local event shape. None of these records are durable project truth.
 
 ## Product Shell Report
 
-Phase 27 exposes:
-
-```bash
-build/RelWithDebInfo-0.0.9-sde/bin/Saga --local-workspace-review-smoke --project samples/StarterArena/StarterArena.sagaproj --workspace builtin:basic --actor local.actor --review-target samples/StarterArena/StarterArena.sagaproj --comment "Inspect StarterArena project metadata" --review-report-out /tmp/starter_arena_review_audit_report.json
-```
+This document describes a local Product Shell no-UI review/comment/audit smoke
+over a caller-provided project, workspace, actor, review target, comment body,
+and report output path. The exact build directory and output file are local
+evidence details, not architecture truth.
 
 The report contains:
 

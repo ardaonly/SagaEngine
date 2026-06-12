@@ -1,6 +1,6 @@
 # MultiplayerSandbox Small-Team Alpha Tutorial
 
-Status: Phase 94 onboarding evidence for the MultiplayerSandbox local team path.
+Status: Milestone 94 onboarding evidence for the MultiplayerSandbox local team path.
 
 The supported project is `samples/MultiplayerSandbox`. The tutorial path is a
 local report workflow, not hosted collaboration or realtime multiplayer editor

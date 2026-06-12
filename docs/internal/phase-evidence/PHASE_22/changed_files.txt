@@ -1,9 +1,0 @@
-Apps/Editor/main.cpp
-Tests/Unit/Editor/EditorAuthoringSpineTests.cpp
-docs/architecture/SAGA_EDITOR_SHELL_MINIMUM_WORKFLOW.md
-docs/internal/PHASE_STATUS_MATRIX.md
-docs/internal/phase-evidence/PHASE_22/EVIDENCE.md
-docs/internal/phase-evidence/PHASE_22/changed_files.txt
-docs/internal/phase-evidence/PHASE_22/commands.log
-docs/internal/phase-evidence/PHASE_22/known_limitations.md
-docs/internal/phase-evidence/PHASE_22/verification_result.json

@@ -2,7 +2,7 @@
 
 ## Status
 
-Hedef 2 Block E policy for Phases 87-92.
+Local review, comment, and transaction metadata policy.
 
 ## Storage Contract
 

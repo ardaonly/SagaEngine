@@ -1,30 +1,31 @@
 # Saga Small-Team Alpha Acceptance Test Plan
 
-Status: Phase 67 acceptance plan for Target 2 / Small-Team Alpha.
+> Status: Future acceptance matrix
 
-This plan defines the future Small-Team Alpha pass/fail path before later
-features are added. It is not the Phase 93 acceptance harness.
+This plan defines a future Small-Team Alpha pass/fail path. It is not a current
+acceptance harness, product beta, release candidate, or completed alpha
+workflow.
 
 ## Scenario Matrix
 
-| Step | Scenario | Classification | Required evidence | Roadmap phase |
-|---|---|---|---|---|
-| 1 | Two or three simulated users are represented in local/offline workflow evidence. | DeferredToLaterPhase | `workspace_session_report.json` | Phase 87 |
-| 2 | Open MultiplayerSandbox from shared project truth. | Automated | `project_validation_report.json` | Phase 66 |
-| 3 | Edit a simple supported behavior through blocks. | DeferredToLaterPhase | patch/diff evidence | Phase 72 |
-| 4 | Inspect and review the same behavior through C# source/diff views. | DeferredToLaterPhase | `diff_review_report.json` | Phase 79 |
-| 5 | Run local preview from accepted launch profiles. | Automated | `launch_preview_report.json` | Phase 84 |
-| 6 | Summarize diagnostics for the preview run. | Automated | `diagnostics_summary.json` | Phase 78 |
-| 7 | Package and publish-check the project. | Automated | `publish_report.json` | Phase 83 |
-| 8 | Use a persistent artifact lock. | DeferredToLaterPhase | `workspace_lock_report.json` | Phase 88 |
-| 9 | Add and resolve an artifact comment. | DeferredToLaterPhase | `artifact_comments_report.json` | Phase 89 |
-| 10 | Request and review a change. | DeferredToLaterPhase | `review_report.json` | Phase 90 |
-| 11 | Show Team Room activity and review queue status. | Manual | `team_room_status_report.json` | Phase 92 |
-| 12 | Produce the alpha acceptance report. | DeferredToLaterPhase | `small_team_alpha_acceptance_report.json` | Phase 93 |
+| Step | Scenario | Classification | Required evidence |
+|---|---|---|---|
+| 1 | Two or three simulated users are represented in local/offline workflow evidence. | Deferred | `workspace_session_report.json` |
+| 2 | Open MultiplayerSandbox from shared project truth. | Automated candidate | `project_validation_report.json` |
+| 3 | Edit a simple supported behavior through blocks. | Deferred | patch/diff evidence |
+| 4 | Inspect and review the same behavior through C# source/diff views. | Deferred | `diff_review_report.json` |
+| 5 | Run local preview from accepted launch profiles. | Automated candidate | `launch_preview_report.json` |
+| 6 | Summarize diagnostics for the preview run. | Automated candidate | `diagnostics_summary.json` |
+| 7 | Package and publish-check the project. | Automated candidate | `publish_report.json` |
+| 8 | Use a persistent artifact lock. | Deferred | `workspace_lock_report.json` |
+| 9 | Add and resolve an artifact comment. | Deferred | `artifact_comments_report.json` |
+| 10 | Request and review a change. | Deferred | `review_report.json` |
+| 11 | Show Team Room activity and review queue status. | Manual | `team_room_status_report.json` |
+| 12 | Produce the alpha acceptance report. | Deferred | `small_team_alpha_acceptance_report.json` |
 
-## Required Reports
+## Future Required Reports
 
-Phase 93 must eventually collect:
+A future acceptance harness must collect:
 
 - `small_team_alpha_acceptance_report.json`;
 - `project_validation_report.json`;
@@ -39,10 +40,10 @@ Phase 93 must eventually collect:
 
 ## Manual vs Automated Classification
 
-Automated entries may use existing focused CLI/native evidence. Manual entries
+Automated candidate entries may use existing focused CLI/native evidence only
+after the exact command, report, and non-claims are accepted. Manual entries
 remain explicit until a stable backend-neutral adapter or focused model test
-exists. Deferred entries belong to later Target 2 / Small-Team Alpha phases and must not be claimed
-by Phase 67.
+exists. Deferred entries are not current acceptance evidence.
 
 ## Non-Claims
 

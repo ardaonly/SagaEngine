@@ -1,6 +1,6 @@
 # Saga Release Vocabulary And Claim Levels
 
-Status: Phase 63 Technical Preview limitations and non-claims freeze.
+Status: Milestone 63 Technical Preview limitations and non-claims freeze.
 
 This document defines how Target 1 / Technical Preview may be described after Block J evidence is
 collected.
@@ -15,10 +15,10 @@ collected.
   package proof, view honesty, and collaboration metadata;
 - reports that can be inspected without claiming broader product maturity.
 
-`Technical Preview candidate` means the Phase 60-65 evidence set is being
+`Technical Preview candidate` means the Milestone 60-65 evidence set is being
 assembled or audited.
 
-`Accepted Technical Preview` means Phase 65 closure passed with focused local
+`Accepted Technical Preview` means Milestone 65 closure passed with focused local
 evidence and a recorded closure report.
 
 ## Required Non-Claims

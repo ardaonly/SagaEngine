@@ -2,8 +2,8 @@
 
 ## Status
 
-Phase 123 freezes the security and governance limitations for Hedef 3. The
-foundation is local/report-only evidence. It is not an enterprise security
+This document records the security and governance limitations for local
+report-only enterprise-facing evidence. It is not an enterprise security
 implementation.
 
 ## Data Exposure Matrix
@@ -91,8 +91,8 @@ Future work must provide separate evidence before stronger claims:
 - raw full CTest evidence when stable
 - heavy stress and real transport stress evidence when scoped
 
-## Exit Criteria
+## Guarding Rule
 
-Phase 123 is closed when these limitations are referenced by DocGuard and the
-Phase 125 closure checkpoint, and when positive enterprise/security/compliance
-claims remain blocked unless separate evidence proves them.
+These limitations must remain referenced by DocGuard, and positive
+enterprise/security/compliance claims must remain blocked unless separate
+evidence proves them.

@@ -2,8 +2,8 @@
 
 ## Status
 
-Phase 99 defines local policy semantics for Hedef 3. This is not auth, login,
-security enforcement, enterprise RBAC, filesystem protection, cloud policy, or
+This document defines local policy semantics. It is not auth, login, security
+enforcement, enterprise RBAC, filesystem protection, cloud policy, or
 WorkspaceHub.
 
 ## Model Concepts

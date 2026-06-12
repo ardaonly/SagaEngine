@@ -7,7 +7,7 @@ This report-only audit covers the public headers under:
 - `Engine/Public/SagaEngine/Render/RenderGraph`
 - `Engine/Public/SagaEngine/Render/RenderPasses`
 
-This audit began as a report-only review. Later recovery slices added the
+This audit began as a report-only review. Later hardening slices added the
 `RenderPipelineConfig` public shell and moved the low-risk
 `RGCompilation.h`, `GBufferPass.h`, and `LightingPass.h` headers private. A
 following safe-move slice moved `FrameGraphExecutor.h`, `CommandBuffer.h`,
@@ -116,7 +116,7 @@ The follow-up
 records that conservative boundary direction as a config-first public surface,
 not a stable SDK or custom pass API claim.
 
-The later RenderPipelineConfig shell phase added
+The later RenderPipelineConfig shell milestone added
 `SagaEngine/Render/RenderPipelineConfig.h` as a narrow public config DTO
 header. It does not move or rename any RenderGraph or RenderPasses headers, and
 it does not make the audited cluster a stable render SDK.

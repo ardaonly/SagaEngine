@@ -1,8 +1,8 @@
 # Saga Collaboration Role / Permission Boundary
 
-Phase 28 status is `Implemented-Unverified`.
+> Status: Local role/permission intent report boundary
 
-Phase 28 adds a Product Shell no-UI report for local actor role and permission
+This document adds a Product Shell no-UI report for local actor role and permission
 intent metadata. The report is local, read-only, and report-only. It does not
 implement enterprise permission enforcement, secure access control, an
 enterprise policy engine, durable role or permission services, networked
@@ -22,11 +22,12 @@ no cloud sync
 no real-time multi-user editing
 ```
 
-## Report Command
+## Report Command Shape
 
-```bash
-build/RelWithDebInfo-0.0.9-sde/bin/Saga --local-workspace-role-smoke --project samples/StarterArena/StarterArena.sagaproj --workspace builtin:basic --actor local.actor --role local.reviewer --permission inspect_project --role-report-out /tmp/starter_arena_role_permission_report.json
-```
+The report is produced by a local Product Shell no-UI role smoke over a
+caller-provided project, workspace, actor, role label, permission label, and
+report output path. The exact build directory and output file are local evidence
+details, not architecture truth.
 
 The report contains:
 
@@ -54,7 +55,7 @@ permission name, the project manifest as `targetArtifact`, status
 
 ## Non-Goals
 
-Phase 28 does not activate the Editor collaboration permission scaffolds and
+This document does not activate the Editor collaboration permission scaffolds and
 does not link Product Shell behavior to `PermissionManager`,
 `PermissionPolicy`, or `CollaboratorRole`.
 
@@ -62,5 +63,5 @@ The command writes only the caller-provided report output path. It does not
 mutate `.sagaproj`, scenes, scripts, SDE files, package profiles, diagnostics
 folders, report folders, workspace files, or durable collaboration metadata.
 
-Phase 30 may reference role labels in a local approval gate preview, but that
+This document may reference role labels in a local approval gate preview, but that
 does not turn role metadata into permission enforcement or enterprise policy.

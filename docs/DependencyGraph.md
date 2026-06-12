@@ -2,8 +2,8 @@
 
 > Last updated: 2026-05-15
 > Status: Active architecture contract
-> Target: A hard dependency and ownership map for Saga product, editor, runtime, server, shared contracts, collaboration, SDE, Forge, Prism, asset pipeline, scripting, and tools.
-> Scope: Module ownership, allowed dependency directions, forbidden dependency directions, public/private header boundaries, tool boundaries, artifact/report boundaries, package/runtime boundaries, and CI enforcement expectations.
+> Purpose: Dependency and ownership map for Saga product, editor, runtime, server, shared contracts, collaboration, SDE, Forge, Prism, asset pipeline, scripting, and tools.
+> Scope: Module ownership, allowed dependency directions, forbidden dependency directions, public/private header boundaries, tool boundaries, artifact/report boundaries, package/runtime boundaries, and guard expectations.
 
 ---
 
@@ -11,7 +11,7 @@
 
 This document is an architecture contract, not a suggestion list.
 
-Every roadmap and implementation plan should respect this dependency graph unless this document is intentionally updated.
+Every implementation plan and proposed architecture note should respect this dependency graph unless this document is intentionally updated.
 
 Dependency mistakes do not look dangerous at first.
 
@@ -1080,7 +1080,11 @@ That usually means architecture has already been bypassed.
 
 ---
 
-## 18. CI Enforcement
+## 18. Boundary Guards
+
+This section records desired guard coverage. Partial guard coverage is useful
+evidence, but it is not a claim that all forbidden dependencies are currently
+blocked.
 
 * [ ] Complete include-boundary test coverage.
 
@@ -1113,7 +1117,7 @@ ScriptingToolchain does not include editor UI/runtime private host internals.
   related tool ownership checks, and the SDE cleanup guard that `SagaEngine`
   must not link SDE, tool, editor, or product targets.
 
-  Done means CI can reject all forbidden target links.
+  Completion would mean local/CI checks can reject all forbidden target links.
 
 * [ ] Add Prism boundary validation.
 
@@ -1183,7 +1187,7 @@ This document defines who may depend on whom.
 
 It is a guardrail document.
 
-Not a feature roadmap.
+Not a feature backlog.
 
 ---
 

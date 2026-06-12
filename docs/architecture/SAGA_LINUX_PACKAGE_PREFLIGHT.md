@@ -1,8 +1,9 @@
 # Saga Linux Package Preflight
 
-Phase 31 status is `Implemented-Unverified`. Phase 32 status is
-`Implemented-Unverified`. Phase 33 status is `Implemented-Unverified`. Phase
-34 status is `Implemented-Unverified`.
+> Status: Linux package preflight evidence contract
+
+This document records a local package preflight report contract. It is not a
+release pipeline, package readiness claim, or final distribution validation.
 
 `scripts/package-linux-saga` is a Linux layout staging and package preflight
 checker. It stages the first Linux layout from real existing inputs, creates
@@ -12,13 +13,8 @@ enterprise readiness, prove full distribution validation, or mark a verified
 release or verified final release.
 
 The script checks for existing real inputs and the expected final distribution
-outputs, then writes a machine-readable report. The default report path is:
-
-```bash
-build/reports/linux_package_preflight_report.json
-```
-
-The report can be redirected:
+outputs, then writes a machine-readable report. The report path is local
+evidence and can be redirected:
 
 ```bash
 scripts/package-linux-saga --report-out /tmp/linux_package_preflight_report.json
@@ -59,7 +55,7 @@ release status, verified release status, or maintainer verification.
 
 ## Current Package Outputs
 
-After Phase 32, `scripts/package-linux-saga` also checks the real SDE
+After this document, `scripts/package-linux-saga` also checks the real SDE
 bootstrap staging path:
 
 ```txt
@@ -72,11 +68,11 @@ That path is valid only when produced by:
 nix-shell --run "python3 Tools/SystemDefinitionEngine/build.py --clean --jobs 1"
 ```
 
-Phase 32 does not create a fake `sde` binary, does not add a wrapper script, and
+This document does not create a fake `sde` binary, does not add a wrapper script, and
 does not absorb SDE into the root engine build. `scripts/package-linux-saga`
 still validates the candidate as a non-empty executable.
 
-With the real staged SDE CLI present, Phase 33 stages the first Linux layout at:
+With the real staged SDE CLI present, this document stages the first Linux layout at:
 
 ```txt
 build/dist/linux/Saga
@@ -85,7 +81,7 @@ build/dist/linux/Saga
 The layout is created only from real existing files and generated honest
 metadata. It is not a final distribution.
 
-After successful Phase 34 archive/checksum generation, the package preflight
+After successful this document archive/checksum generation, the package preflight
 report no longer lists the archive and checksum blockers when these real files
 exist:
 
@@ -99,9 +95,9 @@ build/dist/linux/Saga.sha256
 `Saga.tar.zst` and is compatible with `sha256sum -c`.
 
 The standalone SDE source contains a real `sde-cli` target that outputs `sde`.
-Phase 32 uses the existing standalone SDE bootstrap staging path as package
+This document uses the existing standalone SDE bootstrap staging path as package
 preflight input evidence. It does not build a Linux distribution package and
-does not stage final distribution output. Phase 33 copies the real staged `sde`
+does not stage final distribution output. This document copies the real staged `sde`
 binary into the Linux layout as a tool input; it does not modify SDE semantics
 or make SDE part of the engine runtime.
 
@@ -123,7 +119,7 @@ The Linux package preflight report does not claim:
 - server workflow correctness;
 - tool workflow correctness beyond input existence checks.
 
-No phase is marked `Verified` by this report.
+No release or historical verified status is marked by this report.
 
 ## Risks
 

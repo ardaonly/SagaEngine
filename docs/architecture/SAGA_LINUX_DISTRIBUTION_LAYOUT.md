@@ -1,7 +1,9 @@
 # Saga Linux Distribution Layout
 
-Phase 33 status is `Implemented-Unverified`. Phase 34 status is
-`Implemented-Unverified`.
+> Status: Linux distribution evidence contract
+
+This document records the expected staged Linux layout for local evidence. It
+is not a product release, package readiness claim, or current onboarding path.
 
 `scripts/package-linux-saga` stages the first Linux layout under:
 
@@ -11,7 +13,7 @@ build/dist/linux/Saga
 
 The layout is not a final distribution. It is a staging directory assembled from
 real existing binaries, tools, docs, samples, licenses, and generated metadata.
-Phase 34 creates sibling archive/checksum outputs from this layout, but those
+This document creates sibling archive/checksum outputs from this layout, but those
 outputs do not prove production readiness, enterprise readiness, full
 distribution validation, verified release status, or verified final release
 status.
@@ -57,8 +59,8 @@ When `--without-server` is used, `SagaServer` is not required or staged.
 ## Real Inputs
 
 Executables are copied or generated only after their real backing artifacts pass
-validation. Phase 33 did not create fake binaries, wrapper scripts, or
-placeholder tools. Phase 36 adds distribution-mode wrappers for `sagaproject`,
+validation. This document did not create fake binaries, wrapper scripts, or
+placeholder tools. This document adds distribution-mode wrappers for `sagaproject`,
 `sagascript`, and `sagapack`; those wrappers dispatch only to real published
 .NET tool artifacts staged under `tools/.saga-tools/` and do not fall back to
 repository paths.
@@ -96,7 +98,7 @@ omits nondeterministic timestamps.
 
 ## Packaged Tools
 
-Phase 36 publishes the real `net10.0` CLI projects for `sagaproject`,
+This document publishes the real `net10.0` CLI projects for `sagaproject`,
 `sagascript`, and `sagapack` with `dotnet publish --self-contained false`.
 The staged `tools/<name>` files are generated launchers that execute the
 packaged DLLs from `tools/.saga-tools/<name>/` through the discovered .NET 10
@@ -110,7 +112,7 @@ status.
 
 ## Archive And Checksum
 
-Phase 34 creates these sibling files from the staged layout:
+This document creates these sibling files from the staged layout:
 
 ```txt
 build/dist/linux/Saga.tar.zst
@@ -141,4 +143,4 @@ The staged layout does not claim:
 - editor workflow correctness;
 - server workflow correctness;
 - tool workflow correctness beyond input existence checks;
-- any phase `Verified` status.
+- historical verified status.

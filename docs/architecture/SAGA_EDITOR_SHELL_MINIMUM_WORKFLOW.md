@@ -1,14 +1,16 @@
 # Saga Editor Shell Minimum Workflow
 
-Phase 22 status is `Implemented-Unverified`. Phase 23 extends this report path
-with profile/view preset customization metadata.
+> Status: Editor shell report boundary
+
+This document records the minimum editor-shell inspection report boundary and
+profile/view preset customization metadata.
 
 The Saga Editor Shell minimum workflow is a report-backed inspection path over
 existing project and tool evidence. It is not a full editor workflow.
 
 ## Current Surfaces
 
-Real current surfaces used by this phase:
+Real current surfaces used by this milestone:
 
 - `Apps/Saga` owns the Product Shell boundary, including project create/open,
   target preparation, process launch, local session metadata, SagaScript gate,
@@ -26,7 +28,7 @@ Real current surfaces used by this phase:
 
 ## Minimum Workflow
 
-The minimum Phase 22 workflow is:
+The minimum this document workflow is:
 
 ```txt
 Open StarterArena metadata
@@ -37,11 +39,9 @@ Show known limitations
 Expose links/commands for runtime smoke, script/blocks evidence, server smoke, and package preflight
 ```
 
-`SagaEditor` exposes this as a no-UI inspection mode:
-
-```bash
-build/RelWithDebInfo-0.0.9/bin/SagaEditor --inspect-project samples/StarterArena/StarterArena.sagaproj --editor-shell-report /tmp/starter_arena_editor_shell_report.json
-```
+`SagaEditor` exposes this as a no-UI inspection mode over a caller-provided
+project and report output path. The exact build directory and output file are
+local evidence details, not architecture truth.
 
 The report contains project identity, editor read-model status, project browser
 sections, workflow action command/report references, customization metadata,
@@ -51,8 +51,8 @@ the existing proof commands and whether their expected reports are present.
 ## Boundary
 
 Product Shell routes workflows. SagaEditor owns future project inspection and
-editing views. Phase 22 only provides an editor-shell inspection/report proof.
-Phase 23 only adds report-level profile/view preset metadata and read-only
+editing views. This document only provides an editor-shell inspection/report proof.
+This document only adds report-level profile/view preset metadata and read-only
 capability flags.
 
 CLI tools remain the source of truth for project validation, runtime smoke,
@@ -70,13 +70,13 @@ Early customization remains limited to:
 - personal editor preferences later;
 - strict shared project truth.
 
-See `SAGA_EDITOR_CUSTOMIZATION_MODEL.md` for the Phase 23 report schema and
-non-claims. This phase does not claim maximum customization or completed
+See `SAGA_EDITOR_CUSTOMIZATION_MODEL.md` for the current contract report schema and
+non-claims. This milestone does not claim maximum customization or completed
 profile editing.
 
 ## Non-Claims
 
-Phase 22 does not implement or claim:
+This document does not implement or claim:
 
 - full editor;
 - full editor dashboard;
@@ -93,7 +93,7 @@ Phase 22 does not implement or claim:
 - StarterArena gameplay changes;
 - CSharpScriptHost changes.
 
-No phase is marked `Verified`.
+No milestone is marked `Verified`.
 
 ## Risks
 

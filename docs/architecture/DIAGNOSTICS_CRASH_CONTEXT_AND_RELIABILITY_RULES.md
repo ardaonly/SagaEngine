@@ -1,7 +1,7 @@
 # Diagnostics Crash Context And Reliability Rules
 
-Phase 3 adds the first crash-context and reliability diagnostics layer on top of
-the Phase 1 diagnostics foundation and Phase 2 operational report writer.
+This document adds the first crash-context and reliability diagnostics layer on top of
+the current contract diagnostics foundation and this document operational report writer.
 
 ## Scope
 
@@ -38,12 +38,12 @@ absence leaves existing server behavior unchanged.
 
 ## Crash Handling Policy
 
-Phase 3 implements manual crash-context report generation only. It does not
+This document implements manual crash-context report generation only. It does not
 install OS signal handlers, Windows SEH handlers, or other production crash
 capture hooks.
 
 This is intentional. The repository did not have a safe established
-signal-handler crash reporting pattern for this phase, and deterministic local
+signal-handler crash reporting pattern for this milestone, and deterministic local
 report generation is the safer first layer. Production crash safety, async-signal
 safety, stack traces, minidumps, and platform crash-handler integration are
 deferred.
@@ -72,7 +72,7 @@ include evaluated failing rules as violations.
 
 Useful rule names documented for current and future emitters include
 `server.tick.ms`, `net.sessions.active`, `world.entities.active`, and
-`memory.process.mb`. Phase 3 does not add OS memory polling.
+`memory.process.mb`. This document does not add OS memory polling.
 
 ## Lifetime Leak Diagnostics
 
@@ -90,7 +90,7 @@ lifecycle systems.
 ## ZoneServer Reliability
 
 `ZoneServer` already measures tick duration through its tick execution path.
-Phase 3 uses that real duration data to emit:
+This document uses that real duration data to emit:
 
 - `server.tick.ms`
 - `server.tick.budget_overruns`
@@ -114,13 +114,13 @@ HealthRule behavior, HealthSeverity serialization, recent logs, lifetime leak
 candidates, lifetime leak summaries, and deterministic failure paths.
 
 The server diagnostics tests cover optional diagnostics behavior, retained
-movement mutation timing, Phase 2 accepted/rejected input metrics, rejected
+movement mutation timing, this document accepted/rejected input metrics, rejected
 packet metrics, tick count metrics, tick duration metrics, and slow tick budget
 overrun diagnostics.
 
 ## Non-Claims
 
-Phase 3 non-claims: no production crash safety, no unsafe OS signal/SEH crash
+This document non-claims: no production crash safety, no unsafe OS signal/SEH crash
 handlers, no stack trace requirement, no MemoryTracker or ResourceTracker, no
 StressArena, no NetworkChaos, no StateValidation, no FaultBoundary, no
 SDE-driven diagnostics config, no remote telemetry, no production readiness, and

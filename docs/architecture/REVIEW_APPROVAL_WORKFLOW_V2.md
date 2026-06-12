@@ -1,6 +1,6 @@
 # Review Approval Workflow v2
 
-Phase 114 adds a metadata-only review approval adapter in
+This document adds a metadata-only review approval adapter in
 `Tools/SagaWorkspaceHub`.
 
 Command:

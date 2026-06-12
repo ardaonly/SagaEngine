@@ -2,7 +2,7 @@
 
 ## Status
 
-Phase 101 defines local role profiles for report-only policy evaluation. Roles
+This document defines local role profiles for report-only policy evaluation. Roles
 are not authentication, security identity, enterprise RBAC, or filesystem
 protection.
 
@@ -28,7 +28,7 @@ protection.
 - delete scene
 - export restricted artifact
 
-The Phase 101 local fixture is
+The current contract local fixture is
 `Tools/SagaPolicyKit/fixtures/default_project_roles_policy.json`.
 
 ## Required Boundaries

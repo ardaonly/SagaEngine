@@ -8,7 +8,7 @@ integration, editor workflow, or Visual Blocks implementation.
 ## Current Reality
 
 There is no dedicated Saga schema package tree in this repository today. In
-particular, Phase 20 does not create:
+particular, this document does not create:
 
 - `share/saga/schemas/`;
 - fake schema package folders;
@@ -82,7 +82,7 @@ inside SDE Core.
 
 ## Future Package Shape
 
-If a future phase adds a real Saga schema package, it should be outside the SDE
+If a future milestone adds a real Saga schema package, it should be outside the SDE
 Core source tree and should be created only when a real consumer requires it.
 A possible future shape is:
 
@@ -95,17 +95,17 @@ A possible future shape is:
   validators/
 ```
 
-This is a future package shape, not current implementation. Phase 20 does not
+This is a future package shape, not current implementation. This document does not
 claim package readiness or distribution readiness.
 
 ## Verification Boundary
 
-Phase 20 evidence is limited to:
+This document evidence is limited to:
 
 - documenting the current absence of a dedicated Saga schema package tree;
 - documenting the correct dependency direction;
 - keeping SDE Core engine-neutral;
-- passing the SDE boundary scan and local phase gates.
+- passing the SDE boundary scan and local milestone gates.
 
 Distribution readiness, package staging, runtime/editor consumption, and final
 schema package layout remain future work.

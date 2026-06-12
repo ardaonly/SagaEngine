@@ -1,5 +1,7 @@
 # Dev Scratch
 
+> Status: Historical scratch note, not current product or architecture truth
+
 Engine version: 0.0.9
 
 ## Added
@@ -16,4 +18,4 @@ Engine version: 0.0.9
 - SagaEditorComposition compiler can be produced as an executable in the SDE-enabled profile.
 - Added xcb static plugin support for Qt visible launch.
 - Added minimal runtime UI backend boundary with RmlUi isolated as a backend detail.
-- Added recovery foundation slices for runtime services, package/publish readiness, server authority, UI, and Forge updates.
+- Added foundation slices for runtime services, package/publish readiness, server authority, UI, and Forge updates.

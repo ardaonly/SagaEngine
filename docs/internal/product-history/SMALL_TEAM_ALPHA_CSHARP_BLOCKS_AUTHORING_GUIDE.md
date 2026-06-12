@@ -1,6 +1,6 @@
 # Small-Team Alpha C# + Blocks Authoring Guide
 
-Status: Phase 94 onboarding evidence for bounded C# + Blocks authoring.
+Status: Milestone 94 onboarding evidence for bounded C# + Blocks authoring.
 
 Small-Team Alpha authoring uses C# source as the canonical source truth. Visual
 block evidence is limited to supported projection and source-preserving patch

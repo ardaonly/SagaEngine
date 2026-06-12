@@ -1,6 +1,6 @@
 # Small-Team Alpha Troubleshooting
 
-Status: Phase 94 onboarding evidence for local report failures.
+Status: Milestone 94 onboarding evidence for local report failures.
 
 ## MissingEvidence
 

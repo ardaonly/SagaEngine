@@ -1,6 +1,6 @@
 # Publish Policy Integration
 
-Phase 115 extends `Tools/SagaPackager` `publish-check` with optional governance
+This document extends `Tools/SagaPackager` `publish-check` with optional governance
 evidence inputs.
 
 Command shape:

@@ -15,8 +15,9 @@ system.
   unresolved raw full CTest, and heavy checks remain warnings or deferred work.
 - Release packaging and CI hard enforcement are absent.
 
-## Background
+## Evidence Boundary
 
-- [Phase 10 closure](../recovery/phase-10-publish-gate/PHASE_10_CLOSURE_CHECKPOINT.md)
-- [Publish profile policy](../recovery/phase-10-publish-gate/PHASE_10D_PUBLISH_PROFILE_POLICY.md)
-- [Compatibility proof](../recovery/phase-10-publish-gate/PHASE_10E_PRODUCT_PACKAGING_COMPATIBILITY_PROOF.md)
+Current evidence supports deterministic publish reports and selected
+project/package blocker reporting. It does not prove a complete release
+pipeline, production packaging, CI hard enforcement, installer, updater,
+marketplace, signing, or final distribution readiness.

@@ -1,6 +1,10 @@
 # Saga Distribution StarterArena Workflow
 
-Phase 37 status is `Implemented-Unverified`.
+> Status: Distribution smoke evidence note
+
+This document records a limited StarterArena workflow smoke from an unpacked
+Linux distribution tree. It is not current product onboarding material and it
+does not claim packaged runtime/editor workflow completion.
 
 `scripts/smoke-linux-saga-dist` runs the first limited StarterArena workflow
 smoke from the unpacked Linux distribution tree:
@@ -14,7 +18,7 @@ not use repository tools, repository build directories, or repository samples.
 
 ## Passing Commands
 
-The required Phase 37 distribution-only commands are:
+The required this document distribution-only commands are:
 
 ```bash
 /tmp/saga_dist_smoke/Saga/tools/sagaproject validate \
@@ -59,7 +63,7 @@ evidence that those referenced workflows pass from the package.
 
 ## Non-Claims
 
-This phase does not claim:
+This smoke evidence does not claim:
 
 - production readiness;
 - enterprise readiness;
@@ -70,4 +74,4 @@ This phase does not claim:
 - full Visual Blocks UI;
 - Runtime StarterArena workflow success from the packaged distribution;
 - Editor inspect workflow success from the packaged distribution;
-- any phase `Verified` status.
+- any historical verified status.

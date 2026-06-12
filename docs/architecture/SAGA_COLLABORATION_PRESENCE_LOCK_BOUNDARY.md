@@ -1,8 +1,8 @@
 # Saga Collaboration Presence And Lock Boundary
 
-Phase 26 status is `Implemented-Unverified`.
+> Status: Local presence/lock report boundary
 
-Phase 26 adds a Product Shell no-UI local presence and lock metadata report. It
+This document adds a Product Shell no-UI local presence and lock metadata report. It
 does not implement real-time collaboration, networked presence, a durable lock
 service, cloud workspace, enterprise access control, CRDT/OT, a collaboration
 server, full team editing, product beta, package readiness, or distribution
@@ -26,11 +26,10 @@ not acquire, persist, enforce, broadcast, or conflict-check a lock.
 
 ## Product Shell Report
 
-Phase 26 exposes:
-
-```bash
-build/RelWithDebInfo-0.0.9-sde/bin/Saga --local-workspace-presence-lock-smoke --project samples/StarterArena/StarterArena.sagaproj --workspace builtin:basic --actor local.actor --lock-target samples/StarterArena/StarterArena.sagaproj --presence-lock-report-out /tmp/starter_arena_presence_lock_report.json
-```
+This document describes a local Product Shell no-UI presence/lock smoke over a
+caller-provided project, workspace, actor, lock target, and report output path.
+The exact build directory and output file are local evidence details, not
+architecture truth.
 
 The report contains:
 

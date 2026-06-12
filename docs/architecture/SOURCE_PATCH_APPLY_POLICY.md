@@ -1,6 +1,6 @@
 # Source Patch Application Policy
 
-Status: Policy checkpoint updated by Hedef 2 Block B Phase 72.
+Status: Source authoring write policy for SagaScript-owned patch application.
 
 This document defines source patch ownership and write rules for future
 SagaScript and SagaWeaver work.
@@ -15,12 +15,12 @@ must not bypass SagaScript for source changes.
 
 ## Preview Versus Application
 
-Preview remains the default behavior for review. Current `patch_preview.json`
-artifacts are review evidence only.
+Preview remains the default behavior for review. `patch_preview.json` artifacts
+are review evidence only.
 
-Phase 72 adds an explicit SagaScript `patch-apply` command for one operation:
-`ReplaceStringLiteral`. It is not an editor action, not a general source
-rewriter, and not a multi-file patch system.
+The explicit SagaScript-owned apply path currently supports only the bounded
+`ReplaceStringLiteral` operation. It is not an editor action, not a general
+source rewriter, and not a multi-file patch system.
 
 ## Required Write Rules
 
@@ -57,10 +57,9 @@ opaque region, invalid span, write failure, failed rollback, or failed compile
 check must produce a report with `status = "Failed"` and diagnostics. Silent
 success is not allowed.
 
-## Phase Boundary
+## Review And Rollback Boundary
 
-Phase 72 implements only SagaScript-owned `ReplaceStringLiteral` apply.
-Additional operations, undo/review UI, source diff panels, and publish/runtime
-integration remain later work. Phase 73 may add review and diff workflow only
-through model/report contracts. Neither phase may let the editor mutate C#
-source directly.
+Review, diff, and rollback behavior must remain model/report based unless a
+later source-authoring contract proves a narrower write path. Additional
+operations, undo/review UI, source diff panels, and publish/runtime integration
+remain outside this policy. No editor path may mutate C# source directly.

@@ -1,6 +1,6 @@
 # Small-Team Alpha Collaboration Guide
 
-Status: Phase 94 onboarding evidence for local/offline collaboration workflow.
+Status: Milestone 94 onboarding evidence for local/offline collaboration workflow.
 
 Small-Team Alpha collaboration is project-local metadata. Durable state belongs
 under `.saga/collaboration/`; generated reports belong under

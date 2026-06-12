@@ -1,8 +1,6 @@
 # Saga Product Shell Workflow Contract
 
-Phase 21 status is `Implemented-Unverified`. Phase 24 adds a narrow no-UI
-Product Shell workflow smoke report. Phase 25 adds a narrow no-UI local
-workspace transaction boundary report.
+Status: report-only Product Shell workflow contract.
 
 The Saga Product Shell is a:
 
@@ -10,8 +8,8 @@ The Saga Product Shell is a:
 launcher/dashboard/workflow router
 ```
 
-This document is a contract over existing entry points. The Phase 24 and Phase
-25 smokes are report-only commands over those entry points. They do not
+This document is a contract over existing entry points. The current workflow
+smokes are report-only commands over those entry points. They do not
 implement dashboard UI wiring, editor workflow panels, package distribution,
 runtime logic, server logic, SagaScript behavior, SDE behavior, Visual Blocks
 editor UI, collaboration services, cloud workspace, or real-time team editing.
@@ -40,7 +38,7 @@ The Product Shell is not:
 - C# compiler;
 - SDE compiler.
 
-SagaEditor owns future editing and inspection UI. Phase 21 does not wire that UI
+SagaEditor owns future editing and inspection UI. This document does not wire that UI
 to the workflow steps below.
 
 ## Existing Product Boundary
@@ -59,18 +57,16 @@ The repository already contains an `Apps/Saga` product shell boundary:
   product shell; it is not the editor workflow itself.
 - `Apps/Saga/SagaScriptGate.*`, `Apps/Saga/SagaPackageStaging.*`, and
   `Apps/Saga/SagaPublishReadiness.*` contain product-owned gate or report
-  services, but Phase 21 does not expand them.
+  services, but this document does not expand them.
 
 `Apps/Editor` remains the editor launcher. `Apps/EditorLab` remains a scenario
 and development shell, not the Product Shell workflow dashboard.
 
 ## Workflow Smoke
 
-Phase 24 exposes the first Product Shell workflow smoke as:
-
-```bash
-build/RelWithDebInfo-0.0.9-sde/bin/Saga --workflow-smoke --project samples/StarterArena/StarterArena.sagaproj --profile technical_preview --workflow-report-out /tmp/starter_arena_product_shell_workflow_report.json
-```
+This document describes a Product Shell workflow smoke over a caller-provided
+project, selected profile, and report output path. Exact build directories and
+report paths are local evidence details, not architecture truth.
 
 The report contains project metadata, selected profile, workflow step command
 references, expected report paths, diagnostics, known limitations, non-claims,
@@ -79,11 +75,8 @@ Missing reports and package preflight limitations remain visible.
 
 ## Local Workspace Transaction Smoke
 
-Phase 25 exposes the first local workspace transaction boundary as:
-
-```bash
-build/RelWithDebInfo-0.0.9-sde/bin/Saga --local-workspace-transaction-smoke --project samples/StarterArena/StarterArena.sagaproj --workspace builtin:basic --actor local.actor --operation InspectProject --transaction-report-out /tmp/starter_arena_local_workspace_transaction_report.json
-```
+This document describes a local workspace transaction smoke over a
+caller-provided project, workspace, actor, operation, and report output path.
 
 The report records a read-only local transaction preview over StarterArena. It
 does not write durable collaboration metadata, mutate project files, start a
@@ -134,24 +127,22 @@ The Product Shell must show the command, process exit status, and
 
 ## Edit
 
-Editing and inspection UI are out of scope for Phase 21. Future editing belongs
+Editing and inspection UI are out of scope for this document Future editing belongs
 to SagaEditor, not to hidden Product Shell behavior.
 
 The Product Shell may route to editor mode through the existing product/editor
-boundary, but this contract does not claim a completed dashboard, inspector,
+boundary, but this document does not claim a completed dashboard, inspector,
 scene editor, Visual Blocks editor, or source editor.
 
 ## Play / Runtime Smoke
 
-Existing runtime smoke entry point:
+Existing runtime smoke evidence is a bounded headless runtime command over a
+caller-provided project, smoke frame count, fixed timestep, and report output
+path.
 
-```bash
-build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --smoke-report-out /tmp/starter_arena_runtime_smoke.json --smoke-frames 30 --fixed-dt 0.016
-```
-
-The Product Shell must surface the exit status and
-`/tmp/starter_arena_runtime_smoke.json`. The smoke path is a bounded headless
-proof, not a general client launch or interactive gameplay claim.
+The Product Shell must surface the exit status and report path. The smoke path
+is a bounded headless proof, not a general client launch or interactive gameplay
+claim.
 
 ## Script / Blocks
 
@@ -174,16 +165,13 @@ roundtrip, or a completed authoring surface.
 
 ## Server Smoke
 
-Existing server-authority smoke entry point:
+Existing server-authority smoke evidence is a bounded headless server command
+over a caller-provided project, tick count, fixed timestep, report output path,
+and diagnostics output path.
 
-```bash
-build/RelWithDebInfo-0.0.9/bin/MultiplayerSandboxHeadless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-server-smoke --report-out /tmp/starter_arena_server_smoke.json --diagnostics-out /tmp/starter_arena_server_diagnostics --ticks 1 --fixed-dt 1.0
-```
-
-The Product Shell must surface the exit status,
-`/tmp/starter_arena_server_smoke.json`, and
-`/tmp/starter_arena_server_diagnostics`. This is a bounded smoke proof, not an
-internet session, production server, or multiplayer product workflow.
+The Product Shell must surface the exit status, report path, and diagnostics
+path. This is a bounded smoke proof, not an internet session, production server,
+or multiplayer product workflow.
 
 ## Diagnostics
 
@@ -219,15 +207,15 @@ Early Product Shell customization is limited to direction, not implementation:
 - personal layout later;
 - shared project truth remains strict.
 
-Phase 21 does not claim maximum customization, shared customizable workspaces,
+This document does not claim maximum customization, shared customizable workspaces,
 or implemented profile editing.
 
 ## Known Limitations
 
-- Phase 21 is a docs/evidence-only workflow contract.
-- Phase 24 is a no-UI Product Shell workflow smoke report.
-- Phase 25 is a no-UI local workspace transaction boundary report.
-- No Product Shell dashboard workflow UI is implemented by this phase.
+- This document is a docs/evidence-only workflow contract.
+- This document is a no-UI Product Shell workflow smoke report.
+- This document is a no-UI local workspace transaction boundary report.
+- No Product Shell dashboard workflow UI is implemented by this milestone.
 - No UI wiring is added for validation, smoke, scripting, blocks, diagnostics,
   or package preflight.
 - Workflow smoke command entries are references and are not executed by the
@@ -237,4 +225,4 @@ or implemented profile editing.
 - Visual Blocks evidence remains CLI-only.
 - Package preflight is not package or distribution readiness.
 - The shell must never hide failed tools or missing reports.
-- No phase is marked `Verified`.
+- No milestone is marked `Verified`.

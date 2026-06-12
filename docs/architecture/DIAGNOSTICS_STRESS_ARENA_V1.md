@@ -1,6 +1,6 @@
 # Diagnostics Stress Arena v1
 
-Phase 4 adds `SagaStressArena`, the first safe stress/soak diagnostics artifact
+This document adds `SagaStressArena`, the first safe stress/soak diagnostics artifact
 proof for Saga diagnostics.
 
 ## Scope
@@ -10,7 +10,7 @@ proof for Saga diagnostics.
 - `SagaStressArena` is the CLI entry point for running bounded diagnostics
   scenarios.
 - The supported v1 scenario is `direct_zone_diagnostics_smoke`.
-- Phase 6 adds `direct_zone_packet_chaos_smoke` as a bounded direct/local
+- This document adds `direct_zone_packet_chaos_smoke` as a bounded direct/local
   NetworkChaos policy smoke scenario on the same harness seam.
 - The runner attaches `DiagnosticSystem` to `ZoneServer`, registers
   deterministic controlled actors, feeds deterministic movement input, ticks
@@ -64,7 +64,7 @@ runtime ownership.
 
 ## Bot Client Boundary
 
-Phase 4 does not add a real network BotClient. The current implementation uses
+This document does not add a real network BotClient. The current implementation uses
 the existing local ZoneServer harness APIs and does not open sockets or claim
 real transport stress.
 
@@ -73,10 +73,10 @@ transport path is ready and can be tested without machine-killing defaults.
 
 ## Non-Claims
 
-Phase 4 non-claims remain: no full network stress, no real bot swarm,
+This document non-claims remain: no full network stress, no real bot swarm,
 no MMO-scale load claim, no 100/500/1000 client claim, no load/performance
 readiness, no production readiness, no default heavy stress, no unbounded stress
 loops, no StateValidation, no FaultBoundary, no OS crash handler, no stack
 traces, no remote telemetry, no SDE-driven diagnostics config, and no full raw
-CTest health claim. Phase 6 adds deterministic local/direct NetworkChaos policy
+CTest health claim. This document adds deterministic local/direct NetworkChaos policy
 evidence only; it is not real transport chaos or SagaChaosLab.

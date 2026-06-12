@@ -1,9 +1,0 @@
-# Phase 06 Commands Log
-
-scripts/test-taxonomy --check
-Result: passed. Label taxonomy was inspected without running CTest.
-
-scripts/verify-phase 6
-Result: passed. No phase was marked Verified.
-
-No CTest suite was run for this phase evidence.

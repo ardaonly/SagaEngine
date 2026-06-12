@@ -1,7 +1,9 @@
 # Saga Linux Distribution Smoke
 
-Phase 35 status is `Implemented-Unverified`. Phase 36 status is
-`Implemented-Unverified`. Phase 37 status is `Implemented-Unverified`.
+> Status: Linux distribution smoke evidence contract
+
+This document records a bounded archive/unpack smoke check for local evidence.
+It is not full distribution verification or product readiness.
 
 `scripts/smoke-linux-saga-dist` verifies the Linux archive by unpacking
 `build/dist/linux/Saga.tar.zst` into a clean temporary directory and running a
@@ -42,7 +44,7 @@ The smoke script:
 - runs limited help commands from unpacked binaries only;
 - runs a limited StarterArena workflow smoke from unpacked distribution paths
   only;
-- writes `build/reports/linux_distribution_smoke_report.json`.
+- writes a machine-readable distribution smoke report.
 
 Required unpacked checks include:
 
@@ -109,4 +111,4 @@ The smoke report does not claim:
 - editor workflow correctness;
 - server workflow correctness beyond help output;
 - tool workflow correctness beyond recorded help checks;
-- any phase `Verified` status.
+- historical verified status.

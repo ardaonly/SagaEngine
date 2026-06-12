@@ -17,7 +17,8 @@ have been reduced or guarded. This is not a finished editor workflow.
   complete.
 - Full visual scripting workflow and dashboard behavior are not complete.
 
-## Background
+## Evidence Boundary
 
-- [Phase 6 editor de-Qt closure](../recovery/phase-06-editor-deqt/PHASE_6R_EDITOR_PUBLIC_API_DEQT_CLOSURE.md)
-- [Phase 7 editor scaffolding closure](../recovery/phase-07-editor-scaffolding/PHASE_7_CLOSURE_AND_PHASE_8_OPENING_CHECKPOINT.md)
+Current evidence supports selected public API boundary cleanup and editor
+scaffolding. It does not prove a complete authoring workflow, complete visual
+scripting UI, complete dashboard behavior, or production editor readiness.

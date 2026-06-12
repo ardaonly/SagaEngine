@@ -1,8 +1,8 @@
 # Saga Editor Customization Model
 
-Phase 23 status is `Implemented-Unverified`.
+> Status: Editor customization report model
 
-Phase 23 adds a narrow report-level customization proof to the existing
+This document adds a narrow report-level customization proof to the existing
 `SagaEditor --inspect-project` mode. It records selected profile/view preset
 metadata, panel/workflow visibility metadata, and read-only capability flags.
 It does not change live editor UI behavior or project truth.
@@ -22,7 +22,7 @@ toolbar commands, visible tool commands, and exposure flags for graph editor,
 profiler, console, and asset browser surfaces.
 
 `EditorShell` also supports panel registration, profile commands, profile layout
-application, and customization panel commands. Phase 23 does not require a
+application, and customization panel commands. This document does not require a
 compiled editor composition snapshot and does not apply profile changes to a
 running UI.
 
@@ -91,14 +91,14 @@ mutate `.sagaproj` files, scenes, scripts, reports, package profiles, local
 overlays, or `.sde` files. Shared project truth remains owned by project files
 and existing CLI/tool reports.
 
-Phase 25 extends this boundary to local workspace transaction reporting:
+This document extends this boundary to local workspace transaction reporting:
 personal editor view/profile metadata is not shared workspace state, and a
 local transaction preview must be recorded as read-only report metadata before
 any future durable collaboration workflow can claim project mutation.
 
 ## Non-Claims
 
-Phase 23 does not implement or claim:
+This document does not implement or claim:
 
 - maximum customization;
 - a full plugin system;
@@ -109,4 +109,4 @@ Phase 23 does not implement or claim:
 - real profile editing in the UI;
 - live UI layout mutation from the no-UI inspection mode.
 
-No phase is marked `Verified`.
+No milestone is marked `Verified`.

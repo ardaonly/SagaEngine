@@ -1,6 +1,6 @@
 # Diagnostics Memory Resource Snapshot Foundation
 
-Phase 5 adds the first `SagaDiagnostics` memory/resource snapshot foundation.
+This document adds the first `SagaDiagnostics` memory/resource snapshot foundation.
 
 ## Scope
 
@@ -43,8 +43,8 @@ SagaDiagnostics must not depend on Server, Runtime, Editor, Product, Tools, or S
 ```
 
 The existing Core `MemoryTracker`, `ArenaAllocator`, and replication memory
-tracker are not connected to this Phase 5 report path. That avoids turning this
-phase into allocator replacement or production leak detection work.
+tracker are not connected to this document report path. That avoids turning this
+milestone into allocator replacement or production leak detection work.
 
 ## SagaStressArena Integration
 
@@ -58,7 +58,7 @@ real OS memory profiling and it is not a real resource leak detector.
 
 ## Non-Claims
 
-Phase 5 non-claims: no custom allocator, no operator new/delete override, no
+This document non-claims: no custom allocator, no operator new/delete override, no
 allocator replacement, no raw allocation interception, no stack traces per
 allocation, no OS memory polling, no OS handle enumeration, no real socket/file
 scanning, no full leak detection, no production memory safety claim, no

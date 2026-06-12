@@ -74,7 +74,7 @@ The old headers remain public-internal debt until a later private move removes
 or remaps their remaining direct surface.
 
 Backend and runtime composition headers are intentionally not moved in this
-phase. They need a separate decision because backend interfaces, render world
+milestone. They need a separate decision because backend interfaces, render world
 data, culling, scene view data, and material/mesh DTOs may be valid public
 contracts for tools, clients, or backend integration.
 

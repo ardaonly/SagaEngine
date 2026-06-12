@@ -2,15 +2,18 @@
 
 ## Status
 
-Phase 98 defines Hedef 3 claim discipline. It does not certify SagaEngine as
-secure, compliant, production-ready, or enterprise-ready.
+This is a dev-side vocabulary appendix for enterprise/security claim discipline.
+The canonical public guard is
+[../architecture/CLAIM_AND_EVIDENCE_POLICY.md](../architecture/CLAIM_AND_EVIDENCE_POLICY.md).
+This appendix does not certify SagaEngine as secure, compliant,
+production-ready, or enterprise-ready.
 
 ## Claim Levels
 
 | Level | Meaning |
 |---|---|
 | `NotClaimed` | No product claim is made. |
-| `Planned` | Work is roadmap-scoped but not evidenced. |
+| `Planned` | Work is proposed but not evidenced. |
 | `EvidenceDefined` | Evidence requirements are documented. |
 | `ReportOnlyEvidence` | A tool or document reports model state without enforcement. |
 | `LocalFocusedEvidence` | A bounded local test or CLI proves one behavior. |
@@ -21,8 +24,8 @@ secure, compliant, production-ready, or enterprise-ready.
 
 ## Forbidden Positive Claims
 
-These phrases must not appear as positive product claims without future evidence
-outside Phase 96-103:
+These phrases must not appear as positive product claims without current product
+and architecture evidence:
 
 - enterprise-ready
 - production-ready
@@ -46,9 +49,8 @@ prerequisite.
 
 ## Evidence Requirements
 
-| Claim family | Minimum acceptable level in Phase 96-103 |
+| Claim family | Minimum acceptable level |
 |---|---|
-| Hedef 3 opening | `EvidenceDefined` |
 | enterprise-evolvable vocabulary | `EvidenceDefined` |
 | policy domain model | `ReportOnlyEvidence` |
 | SagaPolicyKit local evaluation | `LocalFocusedEvidence` |
@@ -59,7 +61,7 @@ prerequisite.
 | security enforcement | `Blocked` |
 | cloud/realtime collaboration | `Blocked` |
 
-## Phase 98 Exit Criteria
+## Usage Rule
 
 Docs can describe enterprise-evolvable foundations only when they preserve
 non-claims for enterprise readiness, security enforcement, cloud collaboration,

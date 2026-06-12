@@ -1,11 +1,13 @@
 # SagaDiagnostics Migration Audit
 
 > Last updated: 2026-05-26
-> Status: Phase 0 documentation-first audit
+> Status: Historical diagnostics migration audit
 > Scope: Current diagnostics inventory, Public/Private migration fit, CMake/test strategy, and first implementation-slice recommendation.
 
 This audit records the current repository reality before expanding
-SagaDiagnostics. It is not an implementation phase.
+SagaDiagnostics. It is not current architecture truth, product evidence, or an
+implementation milestone. Current diagnostics claims should come from the
+focused diagnostics boundary/report docs.
 
 ## Inspected Evidence
 
@@ -18,10 +20,9 @@ Files and areas inspected for this audit:
 - `docs/architecture/TESTING_AND_EVIDENCE.md`
 - `docs/testing/TEST_SUITES.md`
 - `docs/dev/README.md`
-- `docs/dev/ITERATION_NOTES.md`
-- `docs/roadmaps/DIAGNOSTICS_ROADMAP.md`
-- `docs/roadmaps/SHARED_ROADMAP.md`
-- `docs/roadmaps/SAGA_PRODUCT_ROADMAP.md`
+- `docs/product/SAGA_ECOSYSTEM_MAP.md`
+- historical product-slice notes under `docs/internal/product-history/`
+- `docs/architecture/SOURCE_OF_TRUTH_MAP.md`
 - `CMakeLists.txt`
 - `cmake/modules/SagaTargets.cmake`
 - `cmake/modules/SagaTests.cmake`
@@ -72,10 +73,10 @@ The compatible transitional direction is:
 - keep Engine-owned diagnostics implementation in `Engine/Private/SagaEngine/Diagnostics`;
 - keep Runtime diagnostics facades in `Runtime/include` and `Runtime/src`;
 - keep Server diagnostics integration in `Server/include` and `Server/src`
-  when a later phase needs it;
+  when a later milestone needs it;
 - keep shared data-only diagnostic contracts in `Shared/include/SagaShared/Diagnostics`;
 - defer any root `Source/SagaEngine/...` migration until a dedicated layout
-  migration phase updates build rules, architecture tests, include roots, and
+  migration milestone updates build rules, architecture tests, include roots, and
   documentation together.
 
 ## Diagnostics Inventory
@@ -123,7 +124,7 @@ platform.
 
 ## Dependency Direction Rules
 
-The diagnostics dependency model for the next phases is:
+The diagnostics dependency model for the next milestones is:
 
 ```txt
 Core must not depend on Diagnostics.
@@ -148,7 +149,7 @@ direction by keeping Core logging usable without `SagaDiagnostics`.
 
 ## CMake Target Strategy
 
-Do not add a new `SagaDiagnostics` target in the next phase; it already exists.
+Do not add a new `SagaDiagnostics` target in the next milestone; it already exists.
 
 Recommended target strategy:
 
@@ -166,7 +167,7 @@ Recommended target strategy:
 
 The current build still uses recursive source collection for Engine
 diagnostics. That is a known boundary-inventory risk, but changing it is out of
-scope for this phase.
+scope for this milestone.
 
 ## Test Strategy
 
@@ -202,15 +203,14 @@ contract cleanup around the existing `SagaDiagnostics` target:
 - avoid Runtime/Server integration until the diagnostics boundary is made
   explicit and tested.
 
-This keeps the first code phase small and reviewable.
+This keeps the first code milestone small and reviewable.
 
 ## Documentation Strategy
 
 Documentation should move in lockstep with implementation slices:
 
-- update `docs/dev/ITERATION_NOTES.md` for every diagnostics slice;
-- update `docs/roadmaps/DIAGNOSTICS_ROADMAP.md` when architecture, ownership,
-  test inventory, or non-goals change;
+- update current product, architecture, or testing docs when diagnostics
+  ownership, test inventory, or non-goals change;
 - update `docs/DependencyGraph.md` only when the dependency contract itself
   changes, not for temporary implementation notes;
 - update architecture/testing docs when a new boundary test or verification
@@ -218,7 +218,7 @@ Documentation should move in lockstep with implementation slices:
 
 ## Explicit Non-Claims
 
-These are non-claims for this phase:
+These are non-claims for this milestone:
 
 - This audit does not add SagaDiagnostics code.
 - This audit does not add CMake targets.

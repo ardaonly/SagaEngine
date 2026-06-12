@@ -2,7 +2,7 @@
 
 ## Status
 
-Phase 13 status is `Implemented-Unverified`.
+> Status: C# compatibility profile evidence boundary
 
 This document defines the first Saga-compatible C# profile used by
 `sagascript compatibility-profile`. It is a compatibility and evidence
@@ -16,8 +16,9 @@ C# source remains canonical. Future Visual Blocks are source-preserving
 projections over compatible C# source spans. The profile must not be used to
 claim arbitrary C# conversion to blocks.
 
-No block edit is implemented in this phase. Compatibility reports may expose
-existing patch-oriented labels, but Phase 13 uses them only as profile metadata.
+No full block editor is implemented by this profile. Compatibility reports may
+expose existing patch-oriented labels, but this document uses them only as
+profile metadata.
 
 ## Categories
 
@@ -37,7 +38,7 @@ input surface.
 
 Low-level C# describes explicit runtime, authority, diagnostics, or tool-facing
 APIs that can still be represented as bounded profile metadata. Low-level
-source is not treated as product gameplay proof by this phase.
+source is not treated as product gameplay proof by this profile.
 
 Advanced C# remains valid C# when it compiles, but it is opaque to future block
 editing. Examples include reflection-heavy code, LINQ/lambdas, complex
@@ -46,7 +47,7 @@ flow outside the current profile.
 
 ## Fixture Contract
 
-The Phase 13 fixtures live under
+The current contract fixtures live under
 `Tools/SagaScript/tests/fixtures/csharp_blocks/`.
 
 - `projectable/`: source that should pass with projectable profile constructs.
@@ -62,7 +63,7 @@ that unsupported evidence is explicit.
 
 ## Read-Only Blocks Projection Artifact
 
-Phase 14 adds `visual_blocks_projection_v1.json` to the existing
+This document adds `visual_blocks_projection_v1.json` to the existing
 `sagascript project-blocks --source <file-or-dir> --out <dir> [--json]`
 artifact set.
 
@@ -86,16 +87,16 @@ diagnostics. They are not converted into editable blocks.
 
 ## Block Operation Contract
 
-Phase 15 adds `plan-block-edit`, a preview-only SagaScript command that consumes
+This document adds `plan-block-edit`, a preview-only SagaScript command that consumes
 `visual_blocks_projection_v1.json` and a single operation request. It emits
 `block_patch_preview_v1.json` metadata without mutating C# source.
 
-The Phase 14 projection remains read-only. Operation requests are separate
+The current contract projection remains read-only. Operation requests are separate
 transactions and do not make projection blocks editable.
 
 ## First Safe Block Edit
 
-Phase 16 adds `apply-block-edit`, a SagaScript command that consumes a passed
+This document adds `apply-block-edit`, a SagaScript command that consumes a passed
 `block_patch_preview_v1.json` for one `StringLiteralEdit`. The command writes a
 patched copy to an output directory and emits `block_patch_apply_v1.json`. It
 does not overwrite the original source file by default.
@@ -106,7 +107,7 @@ unsupported, stale, malformed, and failed-preview inputs remain rejected.
 
 ## CLI Two-Way Authoring Loop
 
-Phase 17 proves the first CLI-only C# to Visual Blocks and back loop by composing
+This document proves the first CLI-only C# to Visual Blocks and back loop by composing
 existing SagaScript commands. The loop starts from compatible C# source, emits
 compatibility and read-only projection metadata, plans one `StringLiteralEdit`,
 applies it to a copied output source file, then runs `analyze` and `compile` on
@@ -117,9 +118,9 @@ editor UI, in-place editing, runtime graph execution, or generic patching.
 
 ## Non-Claims
 
-- No Visual Blocks projection UI exists in this phase.
-- No editor-driven block editing UI exists in this phase.
+- No Visual Blocks projection UI exists in this milestone.
+- No editor-driven block editing UI exists in this milestone.
 - No in-place source mutation is performed by default.
-- No runtime gameplay behavior changes are introduced by this phase.
+- No runtime gameplay behavior changes are introduced by this milestone.
 - No arbitrary C# to blocks conversion is claimed.
-- No phase is `Verified`.
+- No milestone is `Verified`.

@@ -19,9 +19,9 @@ readiness.
 - Editor public Qt exposure is reduced and guarded, with explicit remaining
   public Qt debt.
 
-## Evidence
+## Current Evidence Boundaries
 
-- [Runtime closure](../recovery/phase-03-runtime/PHASE_3_CLOSURE_AND_PHASE_4A_OPENING_CHECKPOINT.md)
-- [Server closure](../recovery/phase-04-server-authority/PHASE_4_CLOSURE_AND_PHASE_5A_OPENING_CHECKPOINT.md)
-- [Asset/runtime closure](../recovery/phase-05-assets-runtime/PHASE_5_CLOSURE_AND_PHASE_6_OPENING_CHECKPOINT.md)
-- [Editor de-Qt closure](../recovery/phase-06-editor-deqt/PHASE_6R_EDITOR_PUBLIC_API_DEQT_CLOSURE.md)
+- [Runtime](RUNTIME.md)
+- [Server authority](SERVER.md)
+- [Assets and packages](ASSETS_AND_PACKAGES.md)
+- [Editor](EDITOR.md)

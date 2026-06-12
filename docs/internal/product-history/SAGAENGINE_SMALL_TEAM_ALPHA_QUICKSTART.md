@@ -1,6 +1,6 @@
 # SagaEngine Small-Team Alpha Quickstart
 
-Status: Phase 94 onboarding evidence for Target 2 / Small-Team Alpha.
+Status: Milestone 94 onboarding evidence for Target 2 / Small-Team Alpha.
 
 This quickstart is for a technical user validating the local Small-Team Alpha
 foundation with focused reports. It is not a public release path.

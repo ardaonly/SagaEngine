@@ -20,7 +20,7 @@ step is classification, not relocation.
 
 The counts above were not recomputed during the WorldFacade shell,
 WorldNode/SimCell cluster private migration, RenderPipelineConfig shell, or
-low-risk Render header private migration phases. Those phases added
+low-risk Render header private migration milestones. Those milestones added
 `SagaEngine/World/WorldFacade.h` as a narrow transitional public facade shell,
 moved the old WorldNode/SimCell cluster private, added and extended
 `SagaEngine/Render/RenderPipelineConfig.h` as a narrow transitional public
@@ -30,11 +30,11 @@ render config shell with post/shadow DTO coverage, and moved `RGCompilation.h`,
 `CommandRecorder.h`, and `Renderer.h` private, then added the first
 `SagaEngine/Graphics` vendor-neutral public shell.
 
-The follow-up World closure phase audited `cmake/modules/SagaInstall.cmake`.
+The follow-up World closure milestone audited `cmake/modules/SagaInstall.cmake`.
 The install rule still installs `Engine/Public/SagaEngine` wholesale via
 `install(DIRECTORY "${SAGA_ROOT}/Engine/Public/SagaEngine" ...)`; with the
 current tree, the installed World include surface would include only
-`SagaEngine/World/WorldFacade.h`. The rule was not changed in that phase.
+`SagaEngine/World/WorldFacade.h`. The rule was not changed in that milestone.
 
 Many public headers are not included outside `Engine` today. That does not make
 them safe to delete, but it does mean the installed API surface is broader than

@@ -1,7 +1,7 @@
 # Diagnostics Operational Reports And Server Observability
 
-Phase 2 adds the first operational diagnostics vertical slice on top of the
-existing Engine-shaped `SagaDiagnostics` target.
+This document describes the operational diagnostics report model layered on top
+of the Engine-shaped `SagaDiagnostics` target.
 
 ## Scope
 
@@ -59,7 +59,7 @@ timing.
 
 ## Non-Claims
 
-Phase 2 non-claims: no crash reports, no MemoryTracker/ResourceTracker, no
-StressArena, no NetworkChaos, no StateValidation, no FaultBoundary, no SDE
-diagnostics config, no remote telemetry, no production readiness, and no full
-raw CTest health claim.
+Non-claims: no crash reports, no MemoryTracker/ResourceTracker, no StressArena,
+no NetworkChaos, no StateValidation, no FaultBoundary, no SDE diagnostics
+config, no remote telemetry, no production readiness, and no full raw CTest
+health claim.

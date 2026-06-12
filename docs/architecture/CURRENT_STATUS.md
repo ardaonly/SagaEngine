@@ -2,8 +2,9 @@
 
 > Last updated: 2026-05-26
 
-SagaEngine has moved from a broad prototype toward a more structured engine and
-toolchain codebase. It is not Product Beta and not Release Candidate.
+SagaEngine is a structured engine/toolchain codebase with bounded local
+evidence and explicit non-claims. It is not product beta, not release candidate,
+and not production-ready.
 
 ## Current State
 
@@ -12,16 +13,21 @@ toolchain codebase. It is not Product Beta and not Release Candidate.
   focused local coverage.
 - The full raw CTest suite is not a current pass signal.
 - Heavy stress/load checks are opt-in and unresolved.
-- Full editor, playable runtime, production networking, and release packaging
-  remain open.
+- Full editor, playable runtime, production networking, production renderer,
+  public SDK, and release packaging remain open.
+- Source-truth and runtime-read evidence remains report-only. It does not prove
+  ClientHost, Client Preview, Runtime gameplay, Server gameplay, asset import,
+  or asset cook behavior.
 
-## Next Direction
+## Claim Boundary
 
-The next useful product slice is a playable MultiplayerSandbox path that can be
-opened, run, checked, and packaged without relying on internal-only reports.
+Use current product docs for product claims. Use architecture summaries for
+layer, ownership, source-truth, and dependency claims. Evidence reports and
+inventory docs describe what was checked; they do not turn open product gaps
+into implemented capability.
 
-## Background
+## References
 
 - [Testing summary](TESTING_AND_EVIDENCE.md)
-- [Post-recovery roadmap](../recovery/phase-11-scoring/PHASE_11E_POST_RECOVERY_ROADMAP.md)
-- [Phase 11 closure](../recovery/phase-11-scoring/PHASE_11_CLOSURE_CHECKPOINT.md)
+- [Architecture overview](ARCHITECTURE_OVERVIEW.md)
+- [Claim and evidence policy](CLAIM_AND_EVIDENCE_POLICY.md)

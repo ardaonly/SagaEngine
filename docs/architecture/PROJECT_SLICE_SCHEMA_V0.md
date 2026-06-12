@@ -1,7 +1,7 @@
 # Project Slice Schema v0
 
-Hedef 3 Phase 104 defines a project slice as local metadata for a filtered
-project view. A slice helps tools report which project artifacts are visible,
+This document defines a project slice as local metadata for a filtered project
+view. A slice helps tools report which project artifacts are visible,
 restricted, excluded, or missing for a role-oriented workflow.
 
 Project slices are not authentication, identity, role enforcement, file
@@ -106,6 +106,6 @@ Slice reports use these statuses:
 
 ## Exit Criteria
 
-Phase 104 is satisfied when a local project slice can be parsed, validated, and
+This document is satisfied when a local project slice can be parsed, validated, and
 reported without changing project files or claiming runtime, editor, server, or
 cloud behavior.

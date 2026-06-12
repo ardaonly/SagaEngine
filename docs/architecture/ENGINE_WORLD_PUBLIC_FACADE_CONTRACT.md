@@ -104,15 +104,15 @@ runtime owner.
 
 | Candidate | Assessment |
 | --- | --- |
-| `WorldFacade` | Best fit for this recovery phase. It clearly describes a boundary wrapper and does not imply ownership, service registration, or kernel internals. |
+| `WorldFacade` | Best fit for this public-surface milestone. It clearly describes a boundary wrapper and does not imply ownership, service registration, or kernel internals. |
 | `WorldRuntime` | Reasonable if the type eventually owns runtime execution, but too strong before ownership is designed. |
 | `WorldService` | Suggests service locator or dependency-injection semantics that are not established in the current World code. |
-| `WorldKernel` | Existing roadmap language, but too close to internal simulation/kernel implementation and likely to repeat the current leakage. |
+| `WorldKernel` | Older planning language, but too close to internal simulation/kernel implementation and likely to repeat the current leakage. |
 
 Recommended future facade name: `WorldFacade`.
 
-Older roadmap references to `WorldKernel` should remain roadmap context only.
-They should not drive the public facade name for this recovery phase.
+Older planning references to `WorldKernel` should remain historical context only.
+They should not drive the public facade name for this public-surface milestone.
 
 ## Transition Strategy
 
@@ -134,12 +134,12 @@ They should not drive the public facade name for this recovery phase.
 - no API guarantee yet;
 - no runtime/server ownership change yet;
 - no CMake/install change yet;
-- no further header moves in this contract;
+- no further header moves in this document;
 - no full World cleanup claim.
 
 ## Closure And Install Surface
 
-World public-surface recovery is closed as a narrow slice. The public World
+World public-surface cleanup is closed as a narrow slice. The public World
 directory contains only `SagaEngine/World/WorldFacade.h`; all old World
 internals listed above are private, and no forwarding headers were added.
 
@@ -152,7 +152,7 @@ World include surface would contain only `WorldFacade.h`.
 
 The next implementation slice should decide the first real behavior to route
 through `WorldFacade`. That slice should keep the existing `WorldNode` cluster
-private unless it is explicitly scoped as a compatibility phase, and should
+private unless it is explicitly scoped as a compatibility milestone, and should
 continue to prove that the facade can express lifecycle, configuration, status,
 minimal command submission, minimal read-only query, and diagnostics-safe
 reporting without exposing the internal WorldNode/SimCell cluster.

@@ -1,8 +1,0 @@
-scripts/build-default
-docs/testing/README.md
-docs/internal/PHASE_STATUS_MATRIX.md
-docs/internal/phase-evidence/PHASE_05/EVIDENCE.md
-docs/internal/phase-evidence/PHASE_05/commands.log
-docs/internal/phase-evidence/PHASE_05/changed_files.txt
-docs/internal/phase-evidence/PHASE_05/known_limitations.md
-docs/internal/phase-evidence/PHASE_05/verification_result.json

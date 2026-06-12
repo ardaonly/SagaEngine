@@ -1,8 +1,8 @@
 # Saga Local Workspace Transaction Boundary
 
-Phase 25 status is `Implemented-Unverified`.
+> Status: Local workspace transaction report boundary
 
-Phase 25 defines the first local workspace/collaboration transaction boundary as
+This document defines the first local workspace/collaboration transaction boundary as
 a Product Shell no-UI report proof. It does not implement full multiplayer
 collaboration, cloud workspace, enterprise permissions, real-time team editing,
 CRDT/OT, a collaboration server, product beta, package readiness, or
@@ -36,11 +36,9 @@ Real current surfaces:
 - Collaboration inventory: editor collaboration scaffolds for locks, presence,
   audit, sessions, workspace, sync, and server boundaries.
 - Local collaboration metadata reports: Product Shell no-UI presence/lock and
-  review/comment/audit report commands for Phase 26 and Phase 27.
-- Local role/permission and project slice visibility metadata reports: Product
-  Shell no-UI commands for Phase 28 and Phase 29.
-- Local approval and publish gate metadata report: Product Shell no-UI command
-  for Phase 30 that keeps publish readiness blocked and report-only.
+  review/comment/audit report commands for this document and Local role/permission and project slice visibility metadata reports: Product
+  Shell no-UI commands for this document and Local approval and publish gate metadata report: Product Shell no-UI command
+  for this document that keeps publish readiness blocked and report-only.
 - Local/offline collaboration model evidence: `SagaCollaboration` unit tests for
   identity, presence reports, metadata-only reviews, comments, locks, semantic
   transaction logs, conflicts, and Team Room report models.
@@ -48,19 +46,17 @@ Real current surfaces:
 Current missing implementation:
 
 - No cloud workspace.
-- No collaboration server proof for Phase 25.
-- No real-time multi-user editing.
+- No collaboration server proof for No real-time multi-user editing.
 - No CRDT/OT proof.
 - No enterprise permission enforcement.
 - No full editor UI or Visual Blocks editor UI.
 
 ## Local Transaction Report
 
-Phase 25 exposes the first report-only proof as:
-
-```bash
-build/RelWithDebInfo-0.0.9-sde/bin/Saga --local-workspace-transaction-smoke --project samples/StarterArena/StarterArena.sagaproj --workspace builtin:basic --actor local.actor --operation InspectProject --transaction-report-out /tmp/starter_arena_local_workspace_transaction_report.json
-```
+This document describes a report-only local Product Shell transaction smoke over
+a caller-provided project, workspace, actor, operation, and report output path.
+The exact build directory and output file are local evidence details, not
+architecture truth.
 
 The report contains:
 
@@ -88,7 +84,7 @@ The transaction object contains:
 - `readOnlyPreview: true`
 - `status`
 
-Supported operation names in Phase 25 are report examples only:
+Supported operation names in this document are report examples only:
 
 ```text
 OpenProject
@@ -98,7 +94,7 @@ ApplyCopiedSourcePatch
 RunWorkflowSmokeReference
 ```
 
-The Phase 25 report does not write `.saga/collaboration/`, append a durable
+The current contract report does not write `.saga/collaboration/`, append a durable
 transaction log, apply source patches, mutate `.sagaproj`, mutate scenes, mutate
 scripts, regenerate SDE files, start a server, or synchronize with another
 machine.
@@ -107,11 +103,11 @@ machine.
 
 - A local report can be mistaken for real-time collaboration; the report keeps
   `readOnlyPreview: true`, `verified: false`, and explicit non-claims.
-- Personal editor profiles can be mistaken for shared workspace state; Phase 25
+- Personal editor profiles can be mistaken for shared workspace state; this document
   states they are personal view metadata only.
-- Local workspace can be mistaken for cloud/team collaboration; Phase 25 is
+- Local workspace can be mistaken for cloud/team collaboration; this document is
   local and report-only.
 - Semantic transaction metadata can be mistaken for a full review/audit
-  workflow; Phase 25 records only the boundary proof.
+  workflow; this document records only the boundary proof.
 - Enterprise collaboration claims must stay deferred until policy and server
   enforcement exist.

@@ -2,7 +2,7 @@
 
 This document records the current deterministic artifact and manifest contract
 for the standalone System Definition Engine. It documents current behavior and
-Phase 19 evidence boundaries; it does not add engine, editor, runtime, scripting,
+This document evidence boundaries; it does not add engine, editor, runtime, scripting,
 Visual Blocks, package, or distribution ownership to SDE.
 
 ## Current Compile Outputs
@@ -88,9 +88,9 @@ SDE Core emits generic definition/compiler artifacts. It must not depend on:
 Saga-specific consumers and adapters may consume `SDE::Core` outputs later.
 That dependency direction must stay outside the SDE Core package.
 
-## Phase 19 Verification
+## Boundary Verification
 
-Phase 19 evidence is limited to the current standalone SDE package and tests.
+This document evidence is limited to the current standalone SDE package and tests.
 The focused tests compile equivalent native `.sde` inputs twice and check:
 
 - manifest version, domain, kind, source hash, dependency hash, model hashes, and
@@ -102,5 +102,5 @@ The focused tests compile equivalent native `.sde` inputs twice and check:
   metadata;
 - no engine/runtime/editor/server/script/Visual Blocks behavior is involved.
 
-This is not SagaEngine package/distribution proof and does not mark any phase
+This is not SagaEngine package/distribution proof and does not mark any milestone
 `Verified`.

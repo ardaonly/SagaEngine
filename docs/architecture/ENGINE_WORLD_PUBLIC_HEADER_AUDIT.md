@@ -76,7 +76,7 @@ No forwarding headers were added. No CMake install rules were changed.
 
 ## Completed First Implementation Slice
 
-The first implementation phase moved only the self-contained
+The first implementation milestone moved only the self-contained
 Partition/Streaming cluster:
 
 - `SagaEngine/World/Partition/Cell.h`
@@ -120,7 +120,7 @@ private cluster. The intended boundary is defined in
 `cmake/modules/SagaInstall.cmake` still installs
 `Engine/Public/SagaEngine` wholesale through `install(DIRECTORY
 "${SAGA_ROOT}/Engine/Public/SagaEngine" ...)`. No install rule was changed for
-this World recovery slice.
+this World public-surface slice.
 
 Because `Engine/Public/SagaEngine/World` now contains only `WorldFacade.h`, the
 current installed World include surface would also include only
@@ -143,6 +143,6 @@ This audit records the completed Partition/Streaming cluster move and the later
 WorldNode/SimCell cluster private migration. It does not claim a stable SDK/API
 or full Engine public API cleanup.
 
-World public-surface recovery is closed as a narrow slice: no old World
+World public-surface cleanup is closed as a narrow slice: no old World
 internal header remains public, no forwarding headers were added, and remaining
 work is broader Engine public API cleanup plus future `WorldFacade` behavior.
