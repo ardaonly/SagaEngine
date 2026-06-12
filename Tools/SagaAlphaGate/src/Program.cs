@@ -441,8 +441,8 @@ internal static class Program
             EvidenceScope = "Backend-neutral editor workflow model evidence only; no Editor UI, Qt UI, graph editing, or source mutation is claimed.",
             Documentation =
             [
-                "docs/architecture/EDITOR_AUTHORING_SPINE_PHASE44_49.md",
-                "docs/architecture/EDITOR_WORKFLOW_USABILITY_PHASE76_81.md",
+                "docs/architecture/EDITOR.md",
+                "docs/architecture/SAGA_EDITOR_SHELL_MINIMUM_WORKFLOW.md",
                 "docs/architecture/EDITOR_UI_IMPLEMENTATION_STRATEGY.md",
             ],
             FocusedTests = ["EditorAuthoringSpineTests"],
@@ -495,10 +495,9 @@ internal static class Program
                 EvidenceScope = item.Scope,
                 Documentation =
                 [
-                    "docs/architecture/COLLABORATION_MODEL_BLOCK_H_PHASE50_56.md",
                     "docs/architecture/SAGA_COLLABORATIVE_WORKSPACE_ARCHITECTURE.md",
                     "docs/architecture/SAGA_REVIEW_COMMENT_TRANSACTION_MODEL.md",
-                    "docs/product/SMALL_TEAM_ALPHA_COLLABORATION_GUIDE.md",
+                    "docs/internal/product-history/SMALL_TEAM_ALPHA_COLLABORATION_GUIDE.md",
                 ],
                 FocusedTests = ["CollaborationModelTests"],
                 BlockedClaims =

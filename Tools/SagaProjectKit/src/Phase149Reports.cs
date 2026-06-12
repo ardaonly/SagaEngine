@@ -306,14 +306,15 @@ internal static class Phase149Reports
     {
         var diagnostics = new List<ProjectDiagnostic>(load.Diagnostics);
         var evidence = BuildMatrix(load, evidenceRoot, diagnostics);
-        var limitationsDocPresent = FindRepoFile("docs/architecture/HEDEF4_SOURCE_TRUTH_LIMITATIONS.md") is not null;
+        const string limitationsDoc = "docs/architecture/SCENE_ENTITY_SOURCE_TRUTH_FOUNDATION.md";
+        var limitationsDocPresent = FindRepoFile(limitationsDoc) is not null;
         if (!limitationsDocPresent)
         {
             diagnostics.Add(Error(
-                "Project.Hedef4Closure.LimitationsDocMissing",
-                "Hedef4Closure",
-                "docs/architecture/HEDEF4_SOURCE_TRUTH_LIMITATIONS.md",
-                "Hedef 4 closure requires the source truth limitations freeze doc."));
+                "Project.SourceTruthClosure.LimitationsDocMissing",
+                "SourceTruthClosure",
+                limitationsDoc,
+                "Source-truth closure requires the source-truth foundation contract doc."));
         }
 
         var required = evidence.Where(item => item.Classification == "RequiredSourceTruth").ToList();

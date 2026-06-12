@@ -52,6 +52,16 @@ internal static class ClaimScanner
         Options,
         MatchTimeout);
 
+    private static readonly Regex ForbiddenArchitectureFilename = new(
+        @"(^|/)[^/]*(HEDEF|TARGET4|TARGET5|MILESTONE|PHASE|CHECKPOINT|READINESS|ROADMAP)[^/]*\.md$",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled,
+        MatchTimeout);
+
+    private static readonly Regex ForbiddenArchitectureText = new(
+        @"\b(HEDEF|Hedef\s+[0-9]+|Target\s+[45]|Milestone|MILESTONE|Phase|PHASE|phase|Roadmap|ROADMAP|roadmap|Product Vision|Core Product Vision|vision|Vision)\b",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled,
+        MatchTimeout);
+
     public static DocGuardReport Scan(string docsPath, string evidenceRoot)
     {
         var root = Path.GetFullPath(docsPath);
@@ -63,11 +73,36 @@ internal static class ClaimScanner
         foreach (var file in files)
         {
             var lines = File.ReadAllLines(file);
+            var relativePath = Normalize(root, file);
+            var architecturePath = IsArchitecturePath(root, relativePath);
+            if (architecturePath && ForbiddenArchitectureFilename.IsMatch(relativePath))
+            {
+                forbidden.Add(new ClaimMatch
+                {
+                    Category = "ArchitectureDocs",
+                    RuleId = "architecture.progressFilename",
+                    Path = relativePath,
+                    Line = 1,
+                    Text = "Architecture docs must not use progress-tracker filenames.",
+                });
+            }
+
             for (var i = 0; i < lines.Length; ++i)
             {
                 var line = lines[i];
                 allText.Add(line);
-                var relativePath = Normalize(root, file);
+                if (architecturePath && ForbiddenArchitectureText.IsMatch(line))
+                {
+                    forbidden.Add(new ClaimMatch
+                    {
+                        Category = "ArchitectureDocs",
+                        RuleId = "architecture.progressLanguage",
+                        Path = relativePath,
+                        Line = i + 1,
+                        Text = line.Trim(),
+                    });
+                }
+
                 foreach (var rule in ForbiddenRules)
                 {
                     if (!rule.Regex.IsMatch(line))
@@ -191,6 +226,17 @@ internal static class ClaimScanner
     private static string Normalize(string root, string path)
     {
         return Path.GetRelativePath(root, path).Replace('\\', '/');
+    }
+
+    private static bool IsArchitecturePath(string root, string relativePath)
+    {
+        if (relativePath.StartsWith("architecture/", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        var directoryName = new DirectoryInfo(root).Name;
+        return string.Equals(directoryName, "architecture", StringComparison.Ordinal);
     }
 
     private static bool IsMatch(string input, string pattern) =>

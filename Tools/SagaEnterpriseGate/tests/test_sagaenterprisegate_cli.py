@@ -117,11 +117,11 @@ def write_complete_fixture(root: Path) -> None:
 
 
 ENTERPRISE_DOCS = [
-    "docs/architecture/ENTERPRISE_EVOLVABLE_OPENING_CHECKPOINT.md",
     "docs/architecture/SAGA_ENTERPRISE_THREAT_MODEL_V0.md",
     "docs/dev/SAGA_ENTERPRISE_CLAIM_LEVELS.md",
+    "docs/architecture/POLICY_DOMAIN_MODEL_V0.md",
     "docs/architecture/ENTERPRISE_SECURITY_LIMITATIONS.md",
-    "docs/architecture/ENTERPRISE_EVOLVABLE_FOUNDATION_CLOSURE_CHECKPOINT.md",
+    "docs/architecture/CURRENT_STATUS.md",
 ]
 
 

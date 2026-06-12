@@ -905,11 +905,11 @@ internal static class Program
         var gateStatus = gate is null ? "MissingEvidence" : ReadString(gate, "status");
         if (inventory is null)
         {
-            diagnostics.Add(Error("Project.SourceTruth.InventoryMissing", "SourceTruth", inventoryPath, "Hedef 4 opening requires source truth inventory evidence."));
+            diagnostics.Add(Error("Project.SourceTruth.InventoryMissing", "SourceTruth", inventoryPath, "Source-truth foundation requires source truth inventory evidence."));
         }
         if (gate is null)
         {
-            diagnostics.Add(Error("Project.SourceTruth.GateMissing", "SourceTruth", gatePath, "Hedef 4 opening requires source truth gate evidence."));
+            diagnostics.Add(Error("Project.SourceTruth.GateMissing", "SourceTruth", gatePath, "Source-truth foundation requires source truth gate evidence."));
         }
 
         var residualDebt = ReadStringArray(closure, "residualDebt");
@@ -930,22 +930,22 @@ internal static class Program
             Diagnostics = SortDiagnostics(diagnostics),
             OpenedPhases =
             [
-                "Phase 126 - Hedef 4 scope freeze and claim boundary",
-                "Phase 127 - Scene and Entity source-truth contract",
-                "Phase 128 - Generated artifact and asset-reference ownership contract",
-                "Phase 129 - Runtime and Editor read-boundary contract",
-                "Phase 130 - Local source-truth fixture set",
-                "Phase 131 - Report-only source-truth inventory",
-                "Phase 132 - Report-only source-truth gate",
-                "Phase 133 - Hedef 4 opening acceptance report",
+                "Source-truth scope and claim boundary",
+                "Scene and Entity source-truth contract",
+                "Generated artifact and asset-reference ownership contract",
+                "Runtime and Editor read-boundary contract",
+                "Local source-truth fixture set",
+                "Report-only source-truth inventory",
+                "Report-only source-truth gate",
+                "Source-truth foundation acceptance report",
             ],
-            ReservedFollowUpPhases = ["Phase 134-155 reserved for follow-up planning only"],
+            ReservedFollowUpPhases = ["Follow-up source-truth and runtime-read work remains planning/report-only until implemented"],
             InventoryStatus = inventoryStatus,
             GateStatus = gateStatus,
             Docs =
             [
-                "docs/roadmaps/SAGAENGINE_TARGET4_SOURCE_TRUTH_FOUNDATION_ROADMAP.md",
                 "docs/architecture/SCENE_ENTITY_SOURCE_TRUTH_FOUNDATION.md",
+                "docs/architecture/CLIENT_PREVIEW_AND_RUNTIME_UI_STRATEGY.md",
             ],
             Reports = [inventoryPath, gatePath],
             ResidualDebt = residualDebt,
