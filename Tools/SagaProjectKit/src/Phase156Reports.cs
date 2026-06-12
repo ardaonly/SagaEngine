@@ -64,7 +64,7 @@ internal static class Phase156Reports
             Check("RuntimeReadinessGate", EvidenceStatus(evidence, "runtime-readiness"), "Runtime readiness gate remains planning-only evidence."),
             Check("PackageAlignment", EvidenceStatus(evidence, "package-alignment"), "Package source-truth alignment evidence is present."),
             Check("LaunchAlignment", EvidenceStatus(evidence, "launch-alignment"), "Launch source-truth alignment evidence is present."),
-            Check("Hedef4Closure", EvidenceStatus(evidence, "hedef4-closure"), "Hedef 4 closure evidence is present."),
+            Check("SourceTruthClosure", EvidenceStatus(evidence, "hedef4-closure"), "Source-truth closure evidence is present."),
             Check("ClientPreviewDeferred", "Deferred", "Client Preview remains deferred."),
             Check("RuntimeImplementationNotClaimed", "Passed", "Runtime read seam readiness does not implement Runtime gameplay."),
             Check("ReportOnlyInvariants", "Passed", "Report-only invariants are preserved."),

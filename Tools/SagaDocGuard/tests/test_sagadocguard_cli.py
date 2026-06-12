@@ -43,19 +43,19 @@ def write_doc(root: Path, text: str, name: str = "README.md") -> Path:
 
 def create_evidence(root: Path) -> None:
     paths = [
-        "docs/architecture/POST_DIAGNOSTICS_PRODUCT_OPENING_CHECKPOINT.md",
-        "docs/product/SAGA_PROJECT_MODEL_INVENTORY_PHASE14.md",
-        "docs/product/MULTIPLAYER_SANDBOX_PLAYABLE_VERTICAL_SLICE_PHASE20_25.md",
-        "docs/product/DIAGNOSTICS_VISIBILITY_PRODUCT_LAYER_PHASE26_28.md",
-        "docs/product/PACKAGING_PUBLISH_PROOF_PHASE29_33.md",
-        "docs/product/SAGAWEAVER_SAGASCRIPT_MVP_PHASE34_43.md",
-        "docs/architecture/EDITOR_AUTHORING_SPINE_PHASE44_49.md",
-        "docs/architecture/COLLABORATION_MODEL_BLOCK_H_PHASE50_56.md",
-        "docs/architecture/VIEW_CAPABILITY_PRODUCT_HONESTY_PHASE57_59.md",
-        "docs/product/SAGAENGINE_0_1_TECHNICAL_PREVIEW_QUICKSTART.md",
-        "docs/product/SAGA_RELEASE_VOCABULARY_AND_CLAIM_LEVELS.md",
-        "docs/product/SAGAENGINE_0_1_TECHNICAL_PREVIEW_CLOSURE_PHASE60_65.md",
-        "docs/architecture/SMALL_TEAM_ALPHA_OPENING_CHECKPOINT.md",
+        "docs/architecture/DIAGNOSTICS_MIGRATION_AUDIT.md",
+        "docs/internal/product-history/SAGA_PROJECT_MODEL_INVENTORY_MILESTONE14.md",
+        "docs/internal/product-history/MULTIPLAYER_SANDBOX_PLAYABLE_VERTICAL_SLICE_MILESTONE20_25.md",
+        "docs/internal/product-history/DIAGNOSTICS_VISIBILITY_PRODUCT_LAYER_MILESTONE26_28.md",
+        "docs/internal/product-history/PACKAGING_PUBLISH_PROOF_MILESTONE29_33.md",
+        "docs/internal/product-history/SAGAWEAVER_SAGASCRIPT_MVP_MILESTONE34_43.md",
+        "docs/architecture/EDITOR.md",
+        "docs/architecture/SAGA_COLLABORATIVE_WORKSPACE_ARCHITECTURE.md",
+        "docs/architecture/SAGA_PRODUCT_SHELL_WORKFLOW_CONTRACT.md",
+        "docs/internal/product-history/SAGAENGINE_0_1_TECHNICAL_PREVIEW_QUICKSTART.md",
+        "docs/internal/product-history/SAGA_RELEASE_VOCABULARY_AND_CLAIM_LEVELS.md",
+        "docs/internal/product-history/SAGAENGINE_0_1_TECHNICAL_PREVIEW_CLOSURE_MILESTONE60_65.md",
+        "docs/architecture/SAGA_PRODUCT_SHELL_WORKFLOW_CONTRACT.md",
         "docs/testing/SAGA_SMALL_TEAM_ALPHA_ACCEPTANCE_TEST_PLAN.md",
         "docs/architecture/SAGA_PERFORMANCE_BUDGETS.md",
         "docs/architecture/SAGA_GAMEPLAY_NODE_LIBRARY_V1.md",
@@ -64,39 +64,39 @@ def create_evidence(root: Path) -> None:
         "docs/architecture/CLIENT_PREVIEW_AND_RUNTIME_UI_STRATEGY.md",
         "docs/architecture/SAGA_GENERATED_FILES_POLICY.md",
         "docs/architecture/SAGA_ARTIFACT_CONTRACTS_V1.md",
-        "docs/architecture/SMALL_TEAM_ALPHA_BLOCK_D_EVIDENCE.md",
-        "docs/architecture/SMALL_TEAM_ALPHA_BLOCK_E_EVIDENCE.md",
-        "docs/product/SAGAENGINE_SMALL_TEAM_ALPHA_QUICKSTART.md",
-        "docs/product/MULTIPLAYER_SANDBOX_SMALL_TEAM_ALPHA_TUTORIAL.md",
-        "docs/product/SMALL_TEAM_ALPHA_CSHARP_BLOCKS_AUTHORING_GUIDE.md",
-        "docs/product/SMALL_TEAM_ALPHA_COLLABORATION_GUIDE.md",
-        "docs/product/SMALL_TEAM_ALPHA_KNOWN_LIMITATIONS.md",
-        "docs/product/SMALL_TEAM_ALPHA_TROUBLESHOOTING.md",
-        "docs/architecture/SMALL_TEAM_ALPHA_CLOSURE_CHECKPOINT.md",
-        "docs/architecture/ENTERPRISE_EVOLVABLE_OPENING_CHECKPOINT.md",
+        "docs/architecture/PUBLISH.md",
+        "docs/architecture/SAGA_COLLABORATIVE_WORKSPACE_ARCHITECTURE.md",
+        "docs/internal/product-history/SAGAENGINE_SMALL_TEAM_ALPHA_QUICKSTART.md",
+        "docs/internal/product-history/MULTIPLAYER_SANDBOX_SMALL_TEAM_ALPHA_TUTORIAL.md",
+        "docs/internal/product-history/SMALL_TEAM_ALPHA_CSHARP_BLOCKS_AUTHORING_GUIDE.md",
+        "docs/internal/product-history/SMALL_TEAM_ALPHA_COLLABORATION_GUIDE.md",
+        "docs/internal/product-history/SMALL_TEAM_ALPHA_KNOWN_LIMITATIONS.md",
+        "docs/internal/product-history/SMALL_TEAM_ALPHA_TROUBLESHOOTING.md",
+        "docs/architecture/CURRENT_STATUS.md",
+        "docs/architecture/SAGA_ENTERPRISE_THREAT_MODEL_V0.md",
         "docs/architecture/SAGA_ENTERPRISE_THREAT_MODEL_V0.md",
         "docs/dev/SAGA_ENTERPRISE_CLAIM_LEVELS.md",
         "docs/architecture/POLICY_DOMAIN_MODEL_V0.md",
         "docs/architecture/PROJECT_ROLE_PROFILES_V1.md",
         "docs/architecture/DANGEROUS_OPERATION_POLICY_GATE_V1.md",
-        "docs/architecture/POLICY_DIAGNOSTICS_INTEGRATION_PHASE103.md",
+        "docs/architecture/CLAIM_AND_EVIDENCE_POLICY.md",
         "docs/architecture/PROJECT_SLICE_SCHEMA_V0.md",
         "docs/architecture/PROJECT_SLICE_RESOLVER_V1.md",
         "docs/architecture/SOURCE_VISIBILITY_LEVELS_V1.md",
-        "docs/architecture/RESTRICTED_PROJECT_RESOLUTION_PHASE107.md",
-        "docs/architecture/VIEWKIT_POLICY_SLICE_COMPATIBILITY_PHASE108.md",
+        "docs/architecture/PROJECT_SLICE_RESOLVER_V1.md",
+        "docs/architecture/PROJECT_SLICE_SCHEMA_V0.md",
         "docs/architecture/SAGA_WORKSPACEHUB_SERVER_ARCHITECTURE.md",
         "docs/architecture/IMMUTABLE_AUDIT_LOG_V1.md",
         "docs/architecture/REVIEW_APPROVAL_WORKFLOW_V2.md",
         "docs/architecture/PUBLISH_POLICY_INTEGRATION.md",
         "docs/architecture/RESTRICTED_ARTIFACT_EXPORT_GATE.md",
-        "docs/architecture/POLICY_REGRESSION_SUITE_PHASE117.md",
-        "docs/architecture/RESTRICTED_PRESENCE_REDACTION_PHASE118.md",
-        "docs/architecture/POLICY_AWARE_EDITOR_ACTIONS_PHASE119.md",
-        "docs/architecture/PROJECT_SLICE_AWARE_TEAM_ROOM_PHASE120.md",
-        "docs/architecture/ADMIN_LEAD_GOVERNANCE_PANEL_V0_PHASE121.md",
+        "docs/architecture/POLICY_DOMAIN_MODEL_V0.md",
+        "docs/architecture/SAGA_COLLABORATION_PRESENCE_LOCK_BOUNDARY.md",
+        "docs/architecture/DANGEROUS_OPERATION_POLICY_GATE_V1.md",
+        "docs/architecture/SAGA_WORKSPACEHUB_SERVER_ARCHITECTURE.md",
+        "docs/architecture/AUTHORING_AUTHORITY_MODEL.md",
         "docs/architecture/ENTERPRISE_SECURITY_LIMITATIONS.md",
-        "docs/architecture/ENTERPRISE_EVOLVABLE_FOUNDATION_CLOSURE_CHECKPOINT.md",
+        "docs/architecture/CURRENT_STATUS.md",
     ]
     for relative in paths:
         path = root / relative
@@ -288,6 +288,54 @@ def test_auth_permission_and_stress_claims_fail() -> None:
         assert "claim.realTransportStress" in rule_ids
 
 
+def test_architecture_progress_filename_fails() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        docs = root / "docs"
+        evidence = root / "evidence"
+        create_evidence(evidence)
+        write_doc(docs, non_claim_text())
+        write_doc(docs / "architecture", "Architecture boundary.\n", "RUNTIME_MILESTONE.md")
+        report = root / "docguard_report.json"
+
+        result = run_cli("scan", "--docs", str(docs), "--evidence-root", str(evidence), "--out", str(report))
+
+        assert result.returncode == 1
+        assert any(match["ruleId"] == "architecture.progressFilename" for match in read_json(report)["forbiddenMatches"])
+
+
+def test_architecture_progress_language_fails() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        docs = root / "docs"
+        evidence = root / "evidence"
+        create_evidence(evidence)
+        write_doc(docs, non_claim_text())
+        write_doc(docs / "architecture", "Core Product " + "Vision\n", "COLLABORATION.md")
+        report = root / "docguard_report.json"
+
+        result = run_cli("scan", "--docs", str(docs), "--evidence-root", str(evidence), "--out", str(report))
+
+        assert result.returncode == 1
+        assert any(match["ruleId"] == "architecture.progressLanguage" for match in read_json(report)["forbiddenMatches"])
+
+
+def test_architecture_hedef_language_fails() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        docs = root / "docs"
+        evidence = root / "evidence"
+        create_evidence(evidence)
+        write_doc(docs, non_claim_text())
+        write_doc(docs / "architecture", "Hedef " + "4 source truth closure\n", "SOURCE_TRUTH.md")
+        report = root / "docguard_report.json"
+
+        result = run_cli("scan", "--docs", str(docs), "--evidence-root", str(evidence), "--out", str(report))
+
+        assert result.returncode == 1
+        assert any(match["ruleId"] == "architecture.progressLanguage" for match in read_json(report)["forbiddenMatches"])
+
+
 def test_report_is_deterministic() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -330,6 +378,9 @@ def main() -> None:
         test_enterprise_ready_claim_fails,
         test_security_and_compliance_claims_fail,
         test_auth_permission_and_stress_claims_fail,
+        test_architecture_progress_filename_fails,
+        test_architecture_progress_language_fails,
+        test_architecture_hedef_language_fails,
         test_report_is_deterministic,
         test_scanner_does_not_rewrite_docs,
     ]

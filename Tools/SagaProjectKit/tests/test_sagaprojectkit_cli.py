@@ -618,7 +618,7 @@ def test_source_truth_inventory_classifies_scene_entity_and_generated_artifacts(
         assert boundaries == {"clientPreview": "Deferred", "editor": "DocumentedReportOnly", "runtime": "DocumentedReportOnly"}
 
 
-def test_source_truth_gate_and_hedef4_opening_are_report_only_and_partial() -> None:
+def test_source_truth_gate_and_opening_are_report_only_and_partial() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         inventory = root / "source_truth_inventory_report.json"
@@ -652,7 +652,7 @@ def test_source_truth_gate_and_hedef4_opening_are_report_only_and_partial() -> N
         assert opening_report["status"] == "PartiallyProven"
         assert opening_report["outcome"] == "PartiallyProven"
         assert len(opening_report["openedPhases"]) == 8
-        assert opening_report["reservedFollowUpPhases"] == ["Phase 134-155 reserved for follow-up planning only"]
+        assert opening_report["reservedFollowUpPhases"] == ["Follow-up source-truth and runtime-read work remains planning/report-only until implemented"]
         assert opening_report["residualDebt"] == ["preserved debt"]
         assert opening_report["mutatesSource"] is False
 
@@ -2416,7 +2416,7 @@ def run_all() -> None:
         test_multiplayer_sandbox_validate_resolve_doctor_pass,
         test_multiplayer_sandbox_sample_slice_resolves,
         test_source_truth_inventory_classifies_scene_entity_and_generated_artifacts,
-        test_source_truth_gate_and_hedef4_opening_are_report_only_and_partial,
+        test_source_truth_gate_and_opening_are_report_only_and_partial,
         test_source_truth_inventory_diagnoses_missing_scene_truth,
         test_source_truth_inventory_diagnoses_missing_asset_reference_owner,
         test_asset_source_manifest_inventory_detects_declared_root_and_assets_source,

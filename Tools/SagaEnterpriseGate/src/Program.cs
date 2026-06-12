@@ -316,9 +316,9 @@ internal static class Program
     {
         return
         [
-            CategoryFromDoc(evidence, "OpeningCheckpoint", "docs/architecture/ENTERPRISE_EVOLVABLE_OPENING_CHECKPOINT.md", "Phase 96 opening checkpoint is present."),
-            CategoryFromDoc(evidence, "ThreatModel", "docs/architecture/SAGA_ENTERPRISE_THREAT_MODEL_V0.md", "Phase 97 threat model is present."),
-            CategoryFromDoc(evidence, "ClaimGate", "docs/dev/SAGA_ENTERPRISE_CLAIM_LEVELS.md", "Phase 98 claim level document is present."),
+            CategoryFromDoc(evidence, "ThreatModel", "docs/architecture/SAGA_ENTERPRISE_THREAT_MODEL_V0.md", "Enterprise threat model is present."),
+            CategoryFromDoc(evidence, "ClaimGate", "docs/dev/SAGA_ENTERPRISE_CLAIM_LEVELS.md", "Enterprise claim level document is present."),
+            CategoryFromDoc(evidence, "PolicyModel", "docs/architecture/POLICY_DOMAIN_MODEL_V0.md", "Policy domain model is present."),
             CategoryFromDocument(evidence, "PolicyEvaluation", item => ReadString(item.Root, "tool") == "sagapolicy" && ReadString(item.Root, "command") == "evaluate", "Policy evaluation evidence is present."),
             CategoryFromDocument(evidence, "ProjectSlice", item => ReadString(item.Root, "tool") == "sagaproject" && ReadString(item.Root, "command") is "resolve-slice" or "restricted-resolve", "Project slice or restricted resolution evidence is present."),
             CategoryFromDocument(evidence, "SourceVisibility", item => item.Root["resourceVisibility"] is JsonArray, "Source visibility classification evidence is present."),
@@ -342,7 +342,7 @@ internal static class Program
         return
         [
             StepFromDocument(evidence, "Hedef2ClosureDebt", item => ReadString(item.Root, "command") == "small-team-alpha-closure" || ReadString(item.Root, "status") == "PartiallyProven" || HasResidualDebt(item.Root), "Hedef 2 closure or residual debt evidence is present."),
-            StepFromDocs(evidence, "Phase96To98Docs", ["docs/architecture/ENTERPRISE_EVOLVABLE_OPENING_CHECKPOINT.md", "docs/architecture/SAGA_ENTERPRISE_THREAT_MODEL_V0.md", "docs/dev/SAGA_ENTERPRISE_CLAIM_LEVELS.md"], "Phase 96-98 docs are present."),
+            StepFromDocs(evidence, "EnterpriseBoundaryDocs", ["docs/architecture/SAGA_ENTERPRISE_THREAT_MODEL_V0.md", "docs/dev/SAGA_ENTERPRISE_CLAIM_LEVELS.md", "docs/architecture/POLICY_DOMAIN_MODEL_V0.md"], "Enterprise boundary documents are present."),
             StepFromDocument(evidence, "PolicyEvaluation", item => ReadString(item.Root, "tool") == "sagapolicy" && ReadString(item.Root, "command") == "evaluate", "Policy evaluation evidence is present."),
             StepFromDocument(evidence, "SliceRestrictedResolution", item => ReadString(item.Root, "tool") == "sagaproject" && ReadString(item.Root, "command") is "resolve-slice" or "restricted-resolve", "Slice/restricted resolution evidence is present."),
             StepFromDocument(evidence, "WorkspaceHubEvidence", item => ReadString(item.Root, "tool") == "sagaworkspacehub", "WorkspaceHub evidence is present."),
@@ -379,7 +379,7 @@ internal static class Program
             CategoryFromDocument(evidence, "PublishReport", item => ReadString(item.Root, "tool") == "sagapack" && ReadString(item.Root, "command") == "publish-check", "Publish report is present."),
             CategoryFromDocument(evidence, "DocGuardReport", item => ReadString(item.Root, "tool") == "sagadocguard" && ReadString(item.Root, "command") == "scan", "DocGuard report is present."),
             CategoryFromDoc(evidence, "SecurityLimitationsDoc", "docs/architecture/ENTERPRISE_SECURITY_LIMITATIONS.md", "Security limitations doc is present."),
-            CategoryFromDoc(evidence, "ClosureCheckpointDoc", "docs/architecture/ENTERPRISE_EVOLVABLE_FOUNDATION_CLOSURE_CHECKPOINT.md", "Closure checkpoint doc is present."),
+            CategoryFromDoc(evidence, "PolicyModelDoc", "docs/architecture/POLICY_DOMAIN_MODEL_V0.md", "Policy model doc is present."),
         ];
     }
 
