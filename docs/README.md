@@ -21,13 +21,11 @@ engine/toolchain codebase, not a finished game engine product or public SDK.
 - [Architecture docs](architecture/README.md) summarize current subsystem
   boundaries.
 - [Testing docs](testing/README.md) describe local verification entry points.
-- [Roadmaps](roadmaps/README.md) describe possible direction and historical
-  planning context.
 - [Development notes](dev/README.md) and [internal docs](internal/README.md)
   preserve repo history and should not be used as product onboarding material.
 
 ## Reading Rule
 
-Prefer the short product and architecture entry points first. Files with
-numbered phase, recovery, or audit-style names are background unless a current
-index points to them for a specific reason.
+Prefer the short product and architecture entry points first. Files labeled as
+appendices, proposals, history, numbered milestones, or audits are background
+unless a current index points to them for a specific reason.

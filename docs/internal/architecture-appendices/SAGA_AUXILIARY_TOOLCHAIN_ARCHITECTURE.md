@@ -2,11 +2,16 @@
 
 ## Document Status
 
-**Status:** Product-technical architecture document / toolchain planning specification
+**Status:** Proposed appendix / auxiliary toolchain idea bank
 **Scope:** SagaEngine auxiliary tools required for productization, diagnostics visibility, project validation, launch orchestration, packaging, collaboration, view capability management, policy enforcement, stress testing, state validation, and documentation claim/evidence governance.
 **Explicit exclusion:** SagaWeaver is intentionally excluded from this document because it has its own dedicated architecture document.
-**Intended repository location:** `docs/architecture/SAGA_AUXILIARY_TOOLCHAIN_ARCHITECTURE.md`
-**Primary goal:** Define which non-SagaWeaver tools SagaEngine may need, why each tool exists, what risk it reduces, which language it should be written in, which external libraries are appropriate, whether it should live inside the Saga monorepo or later become a separate repository, and how each tool should integrate with the engine.
+**Current appendix location:** `docs/internal/architecture-appendices/SAGA_AUXILIARY_TOOLCHAIN_ARCHITECTURE.md`
+**Primary goal:** Preserve toolchain direction ideas: which non-SagaWeaver tools SagaEngine may need, why each tool exists, what risk it reduces, which language it might use, which external libraries may be appropriate, whether it should live inside the Saga monorepo or later become a separate repository, and how each tool should integrate with the engine.
+
+This document is not current implementation truth, not a productization
+checklist, and not evidence that the listed tools exist or are required for
+current onboarding. Current tool evidence must come from focused tool contracts,
+local reports, and testing evidence docs.
 
 ---
 
@@ -1662,7 +1667,7 @@ It is a claim/evidence gate, not a grammar checker.
 SagaDocGuard prevents:
 
 ```text
-Roadmaps overclaiming implementation status.
+Planning docs overclaiming implementation status.
 Docs saying MVP complete without package proof.
 Docs saying enterprise-ready without project slices/audit.
 Docs saying full CTest passed without evidence.
@@ -1733,7 +1738,7 @@ web dependencies
 
 ```bash
 sagadocguard check --docs docs --reports Build/Reports --out Build/Reports/docguard_report.json
-sagadocguard claims --docs docs/roadmaps
+sagadocguard claims --docs docs
 sagadocguard nonclaims --docs docs --strict
 ```
 
@@ -1837,115 +1842,7 @@ SagaDocGuard
 
 ---
 
-# 17. Recommended Implementation Order
-
-## Phase T0 — Toolchain Decision
-
-Deliverables:
-
-```text
-SAGA_AUXILIARY_TOOLCHAIN_ARCHITECTURE.md
-Tool naming settled
-Monorepo-first rule accepted
-Shared artifact conventions accepted
-```
-
-## Phase T1 — SagaProjectKit V1
-
-```text
-project validate
-project resolve
-project doctor
-project_validation_report.json
-```
-
-## Phase T2 — SagaLaunchLab V1
-
-```text
-local server/client launch profile
-process report
-clean shutdown
-launch_preview_report.json
-```
-
-## Phase T3 — SagaProbe V1
-
-```text
-read diagnostics report
-print summary
-emit diagnostics_summary.json
-```
-
-## Phase T4 — SagaPackager / PublishGate V1
-
-```text
-validate package
-package smoke proof
-publish_report.json
-```
-
-## Phase T5 — SagaDocGuard V1
-
-```text
-heavy claim scanner
-non-claim checker
-evidence report existence checker
-docguard_report.json
-```
-
-## Phase T6 — SagaViewKit V1
-
-```text
-view capability manifest schema
-Simple/Pro view validation
-view_capability_report.json
-```
-
-## Phase T7 — SagaStressArena Expansion
-
-```text
-bot/fake-client lifecycle stress
-stress_report.json
-diagnostics integration
-```
-
-## Phase T8 — SagaChaosLab V1
-
-```text
-deterministic packet loss/latency profile
-stress integration
-chaos_report.json
-```
-
-## Phase T9 — SagaWorkspaceHub V1
-
-```text
-local presence
-locks
-basic semantic transactions
-workspace_session_report.json
-```
-
-## Phase T10 — SagaPolicyKit V1
-
-```text
-role/permission skeleton
-source visibility level validation
-basic redaction proof
-policy_check_report.json
-```
-
-## Phase T11 — SagaStateCheck V1
-
-```text
-snapshot compare
-desync report
-replication/state validation proof
-```
-
----
-
-# 18. What Not To Build Early
+# 17. What Not To Build Early
 
 Do not build early:
 

@@ -2,11 +2,16 @@
 
 ## Document Status
 
-**Status:** Architecture proposal / product-technical design document
+**Status:** Proposed appendix: source-preserving C# / Visual Blocks direction
 **Scope:** SagaEngine scripting, visual authoring, editor integration, C# source preservation, block projection, and future extension system
 **Primary goal:** Define a realistic model where users can write C#, view/edit supported regions as visual blocks, and return to C# without losing the original source text when no block edit occurred.
 
-This document is not a full implementation roadmap. It is a serious architectural definition for the desired model, including required systems, boundaries, non-goals, risks, test strategy, and staged adoption.
+This document is not current implementation truth and not a full implementation
+backlog. Current claims must come from
+[C# / Visual Authoring Boundary](../../architecture/SAGA_CSHARP_VISUAL_AUTHORING_BOUNDARY.md), the
+compact compatibility/profile/patch contracts, and accepted product docs. This
+document preserves the desired model, boundaries, non-goals, risks, and staged
+adoption ideas for future merge work.
 
 ---
 
@@ -319,9 +324,11 @@ It should provide:
 
 Full refactoring tools, advanced debugger replacement, and language server depth are later concerns.
 
-## 5.5 Not Enterprise Governance At The Core Scripting Phase
+## 5.5 Not Enterprise Governance At The Core Scripting Layer
 
-Enterprise features such as SSO, organization roles, cloud policy, approval chains, and audit dashboards are later governance layers. The scripting model should not be blocked by them.
+Features such as SSO, organization roles, cloud policy, approval chains, and
+audit dashboards are later governance layers. The scripting model should not be
+blocked by them.
 
 However, source preservation and deterministic diagnostics should be designed so enterprise governance can be added later.
 
@@ -1126,7 +1133,7 @@ Not MMO-scale early, but enough to prevent obvious regressions:
 
 # 16. Suggested Implementation Stages
 
-This is not the full roadmap, but the realistic order of construction.
+This is not the full product plan, but the realistic order of construction.
 
 ## Stage 0 — Decision Record
 

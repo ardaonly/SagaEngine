@@ -2,11 +2,16 @@
 
 ## Document Status
 
-**Status:** Architecture proposal / product-technical design document
+**Status:** Proposed appendix: collaboration/workspace architecture direction
 **Scope:** Multi-view editor collaboration, presence/cursor awareness, transaction-based project changes, role-scoped editor views, project slicing, enterprise governance, and collaboration dashboard design
 **Primary goal:** Define how multiple users can work on the same Saga project through different editor views without forcing everyone into one person's custom editor, while preserving security, auditability, and long-term enterprise readiness.
 
-This document is not a full implementation roadmap. It defines the intended collaboration model, boundaries, product principles, core systems, risks, and staged proof path.
+This document is not current implementation truth and not a delivery tracker.
+Current collaboration claims must come from
+[Saga Collaboration Current Boundary](../../architecture/SAGA_COLLABORATION_CURRENT_BOUNDARY.md)
+and the compact local report/schema boundary docs. This document preserves the
+broader collaboration model, boundaries, product principles, core systems, and
+risks for future merge work.
 
 ---
 
@@ -35,9 +40,9 @@ The shared reality is not the editor UI. The shared reality is the **Saga Projec
 
 ---
 
-# 2. Core Product Vision
+# 2. Core Collaboration Model
 
-## 2.1 What Saga Collaboration Should Be
+## 2.1 Intended Collaboration Behavior
 
 Saga collaboration should feel like a live game production room, not a remote desktop session.
 
@@ -54,7 +59,7 @@ The desired user experience:
 - Enterprise users only receive the slices of the project they are allowed to access.
 - All real changes become reviewable, auditable semantic transactions.
 
-## 2.2 What Saga Collaboration Should Not Be
+## 2.2 Forbidden Collaboration Shape
 
 Saga collaboration should not be:
 
