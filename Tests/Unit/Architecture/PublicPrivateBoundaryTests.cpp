@@ -5,6 +5,9 @@
 
 #include "SagaEngine/Graphics/Graphics.h"
 #include "SagaEngine/Render/RenderPipelineConfig.h"
+#include "SagaEngine/Render/Scene/RenderFrameSnapshot.h"
+#include "SagaEngine/Render/Streaming/RenderStreamingResidency.h"
+#include "SagaEngine/Render/World/RenderInterestWorldStreaming.h"
 #include "SagaEngine/World/WorldFacade.h"
 
 #include <filesystem>
@@ -281,6 +284,7 @@ TEST(PublicPrivateBoundaryTests, SagaGraphicsUmbrellaHeaderCompileSmoke)
     ASSERT_TRUE(std::filesystem::exists(graphicsRoot / "Graphics.h"));
 
     SagaEngine::Graphics::TextureDesc texture{};
+    texture.debugName = "architecture-texture";
     texture.width = 128u;
     texture.height = 64u;
     texture.usage =
@@ -325,6 +329,19 @@ TEST(PublicPrivateBoundaryTests, SagaGraphicsUmbrellaHeaderCompileSmoke)
     EXPECT_TRUE(bufferHandle.IsValid());
     EXPECT_TRUE(pipelineHandle.IsValid());
 
+    const auto textureQuery = backend.QueryResource(
+        SagaEngine::Graphics::GraphicsResourceKind::Texture,
+        textureHandle);
+    EXPECT_TRUE(textureQuery.live);
+    EXPECT_EQ(textureQuery.debugName, "architecture-texture");
+
+    SagaEngine::Graphics::GraphicsFrameResourceSetDesc frameResources{};
+    frameResources.resourceClass =
+        SagaEngine::Graphics::GraphicsFrameResourceClass::PerFrameTransient;
+    frameResources.maxFramesInFlight = 2u;
+    frameResources.bytesPerFrame = 1024u;
+    EXPECT_EQ(frameResources.maxFramesInFlight, 2u);
+
     backend.BeginFrame();
     backend.EndFrame();
 
@@ -366,6 +383,217 @@ TEST(PublicPrivateBoundaryTests, SagaGraphicsUmbrellaHeaderCompileSmoke)
         SagaEngine::Graphics::RenderBackendHealth::Shutdown);
 }
 
+TEST(PublicPrivateBoundaryTests, RenderShaderMaterialCookContractsAreVendorNeutral)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const std::vector<std::filesystem::path> publicRoots = {
+        root / "Engine" / "Public" / "SagaEngine" / "Render" / "Shaders",
+        root / "Engine" / "Public" / "SagaEngine" / "Render" / "Materials",
+        root / "Engine" / "Public" / "SagaEngine" / "Render" / "Assets",
+    };
+    const std::vector<std::string> forbiddenTokens = {
+        "Diligent",
+        "Vk",
+        "Vulkan",
+        "ID3D",
+        "D3D",
+        "MTL",
+        "Metal",
+    };
+
+    std::vector<std::string> offenders;
+    for (const auto& publicRoot : publicRoots)
+    {
+        ASSERT_TRUE(std::filesystem::exists(publicRoot)) << publicRoot;
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(publicRoot))
+        {
+            if (!entry.is_regular_file() || !IsCodeFile(entry.path()))
+            {
+                continue;
+            }
+
+            const auto relative = RelativeToSourceRoot(entry.path()).generic_string();
+            const auto lines = ReadLines(entry.path());
+            for (std::size_t i = 0; i < lines.size(); ++i)
+            {
+                for (const auto& token : forbiddenTokens)
+                {
+                    if (Contains(lines[i], token))
+                    {
+                        offenders.push_back(
+                            relative + ":" + std::to_string(i + 1) + ": " + token);
+                    }
+                }
+            }
+        }
+    }
+
+    EXPECT_TRUE(offenders.empty())
+        << "Shader/material/cook public contracts must remain vendor-neutral. "
+        << "First offender: "
+        << (offenders.empty() ? "" : offenders.front());
+}
+
+TEST(PublicPrivateBoundaryTests, RenderStreamingResidencyContractIsVendorNeutral)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto publicRoot =
+        root / "Engine" / "Public" / "SagaEngine" / "Render" / "Streaming";
+    ASSERT_TRUE(std::filesystem::exists(publicRoot));
+
+    const std::vector<std::string> forbiddenTokens = {
+        "Diligent",
+        "Vk",
+        "Vulkan",
+        "ID3D",
+        "D3D",
+        "MTL",
+        "Metal",
+        "native handle",
+    };
+
+    std::vector<std::string> offenders;
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(publicRoot))
+    {
+        if (!entry.is_regular_file() || !IsCodeFile(entry.path()))
+        {
+            continue;
+        }
+
+        const auto relative = RelativeToSourceRoot(entry.path()).generic_string();
+        const auto lines = ReadLines(entry.path());
+        for (std::size_t i = 0; i < lines.size(); ++i)
+        {
+            for (const auto& token : forbiddenTokens)
+            {
+                if (Contains(lines[i], token))
+                {
+                    offenders.push_back(
+                        relative + ":" + std::to_string(i + 1) + ": " + token);
+                }
+            }
+        }
+    }
+
+    EXPECT_TRUE(offenders.empty())
+        << "Render streaming residency public contracts must remain CPU-side "
+        << "and backend-neutral. First offender: "
+        << (offenders.empty() ? "" : offenders.front());
+
+    SagaEngine::Render::Streaming::RenderTextureResidencyInput texture{};
+    texture.assetId = 1u;
+    texture.authoredMipCount = 1u;
+    texture.availableMipRange = {.firstMip = 0u, .lastMip = 0u, .valid = true};
+    SagaEngine::Render::Streaming::RenderTextureStreamingDecision decision{};
+    decision.assetId = texture.assetId;
+    decision.priority.kind =
+        SagaEngine::Render::Streaming::RenderStreamingAssetKind::Texture;
+    EXPECT_EQ(
+        decision.priority.kind,
+        SagaEngine::Render::Streaming::RenderStreamingAssetKind::Texture);
+}
+
+TEST(PublicPrivateBoundaryTests, RenderSceneAndInterestContractsAreVendorNeutral)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const std::vector<std::filesystem::path> publicHeaders = {
+        root / "Engine" / "Public" / "SagaEngine" / "Render" / "Scene" /
+            "RenderFrameSnapshot.h",
+        root / "Engine" / "Public" / "SagaEngine" / "Render" / "World" /
+            "RenderInterestWorldStreaming.h",
+    };
+
+    const std::vector<std::string> forbiddenTokens = {
+        "Diligent",
+        "Vk",
+        "Vulkan",
+        "ID3D",
+        "D3D",
+        "MTL",
+        "Metal",
+        "native handle",
+    };
+
+    std::vector<std::string> offenders;
+    for (const auto& publicHeader : publicHeaders)
+    {
+        ASSERT_TRUE(std::filesystem::exists(publicHeader)) << publicHeader;
+        const auto relative = RelativeToSourceRoot(publicHeader).generic_string();
+        const auto lines = ReadLines(publicHeader);
+        for (std::size_t i = 0; i < lines.size(); ++i)
+        {
+            for (const auto& token : forbiddenTokens)
+            {
+                if (Contains(lines[i], token))
+                {
+                    offenders.push_back(
+                        relative + ":" + std::to_string(i + 1) + ": " + token);
+                }
+            }
+        }
+    }
+
+    EXPECT_TRUE(offenders.empty())
+        << "Render scene/interest public contracts must remain CPU-side "
+        << "and backend-neutral. First offender: "
+        << (offenders.empty() ? "" : offenders.front());
+
+    SagaEngine::Render::Scene::RenderViewFamily family;
+    family.views.push_back({
+        .kind = SagaEngine::Render::Scene::RenderViewKind::Main,
+        .viewIndex = 0u,
+        .stableOrder = 1u,
+    });
+    EXPECT_EQ(family.views.size(), 1u);
+
+    SagaEngine::Render::World::RenderInterestRecord record;
+    record.interest =
+        SagaEngine::Render::World::RenderInterestState::NetworkRelevant;
+    EXPECT_EQ(
+        record.visibility,
+        SagaEngine::Render::World::RenderVisibilityState::Hidden);
+}
+
+TEST(PublicPrivateBoundaryTests, MaterialGraphAuthoringContractDocumentsNonClaims)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto contractDoc =
+        root / "docs" / "architecture" /
+        "RENDER_MATERIAL_GRAPH_AUTHORING_CONTRACT.md";
+    ASSERT_TRUE(std::filesystem::exists(contractDoc));
+
+    const auto text = ReadText(contractDoc);
+    const std::vector<std::string> requiredTokens = {
+        "MaterialGraphOutputSchema",
+        "ShaderVariantBudgetConfig",
+        "MaterialAsset",
+        "does not implement an editor graph canvas",
+        "does not compile shaders",
+        "does not update native descriptor bindings",
+        "does not prove a PBR material render path or golden image",
+        "does not implement shader or material hot reload",
+    };
+
+    for (const auto& token : requiredTokens)
+    {
+        EXPECT_TRUE(Contains(text, token))
+            << "Material graph authoring contract must document: " << token;
+    }
+
+    const std::vector<std::string> forbiddenClaims = {
+        "rendered triangle",
+        "full material renderer",
+        "hot reload complete",
+        "production AAA renderer",
+    };
+
+    for (const auto& claim : forbiddenClaims)
+    {
+        EXPECT_FALSE(Contains(text, claim))
+            << "Material graph authoring contract must not claim: " << claim;
+    }
+}
+
 TEST(PublicPrivateBoundaryTests, RenderPublicApiContractDocumentsGraphicsGuardrails)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
@@ -394,6 +622,14 @@ TEST(PublicPrivateBoundaryTests, RenderPublicApiContractDocumentsGraphicsGuardra
         "does not complete R3B device-loss or swapchain recreation recovery",
         "does not create native Diligent GPU resources",
         "does not complete R5 RenderGraph execution",
+        "CPU-side render residency foundation",
+        "does not implement GPU texture upload",
+        "does not implement virtual texture residency",
+        "does not prove terrain or mesh streaming render smoke",
+        "CPU-side scene extraction and view-family foundation",
+        "does not implement a dedicated render thread",
+        "does not implement multi-view render targets",
+        "does not make network relevance the same thing as render relevance",
     };
 
     for (const auto& token : requiredTokens)
@@ -412,6 +648,78 @@ TEST(PublicPrivateBoundaryTests, RenderPublicApiContractDocumentsGraphicsGuardra
     {
         EXPECT_FALSE(Contains(text, claim))
             << "RENDER_PUBLIC_API_CONTRACT.md must not claim: " << claim;
+    }
+}
+
+TEST(PublicPrivateBoundaryTests, RenderStreamingDocsDoNotOverclaimGpuStreaming)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const std::vector<std::filesystem::path> docs = {
+        root / "TEMP.MD",
+        root / "docs" / "architecture" / "RENDER_PUBLIC_API_CONTRACT.md",
+    };
+
+    const std::vector<std::string> forbiddenClaims = {
+        "virtual texture implemented",
+        "terrain render smoke passed",
+        "GPU streaming complete",
+        "full texture streaming complete",
+        "full mesh streaming complete",
+    };
+
+    for (const auto& doc : docs)
+    {
+        ASSERT_TRUE(std::filesystem::exists(doc)) << doc;
+        const auto text = ReadText(doc);
+        for (const auto& claim : forbiddenClaims)
+        {
+            EXPECT_FALSE(Contains(text, claim))
+                << RelativeToSourceRoot(doc).generic_string()
+                << " must not claim: " << claim;
+        }
+    }
+}
+
+TEST(PublicPrivateBoundaryTests, RenderInterestWorldStreamingContractDocumentsNonClaims)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto contractDoc =
+        root / "docs" / "architecture" /
+        "RENDER_INTEREST_WORLD_STREAMING_CONTRACT.md";
+    ASSERT_TRUE(std::filesystem::exists(contractDoc));
+
+    const auto text = ReadText(contractDoc);
+    const std::vector<std::string> requiredTokens = {
+        "Network relevance",
+        "Client streaming relevance",
+        "Render visibility",
+        "Render resource residency",
+        "does not implement a terrain renderer",
+        "does not prove unloaded-zone fallback render smoke",
+        "does not make network relevance the same thing as render relevance",
+        "does not replace `Resources::StreamingManager`",
+        "does not complete GPU streaming behavior",
+        "does not implement virtual texture residency",
+    };
+
+    for (const auto& token : requiredTokens)
+    {
+        EXPECT_TRUE(Contains(text, token))
+            << "Render interest contract must document: " << token;
+    }
+
+    const std::vector<std::string> forbiddenClaims = {
+        "terrain renderer complete",
+        "multi-view render targets implemented",
+        "render thread complete",
+        "GPU streaming complete",
+        "production renderer",
+    };
+
+    for (const auto& claim : forbiddenClaims)
+    {
+        EXPECT_FALSE(Contains(text, claim))
+            << "Render interest contract must not claim: " << claim;
     }
 }
 

@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "SagaEngine/Graphics/Frame/FrameResources.h"
+
 #include <cstdint>
 #include <vector>
 
@@ -11,6 +13,8 @@ namespace SagaEngine::Graphics::Private
 
 struct FrameResourceAllocatorConfig
 {
+    GraphicsFrameResourceClass resourceClass =
+        GraphicsFrameResourceClass::PerFrameTransient;
     std::uint32_t maxFramesInFlight = 1;
     std::uint64_t bytesPerFrame = 0;
     std::uint64_t defaultAlignment = 16;
@@ -18,6 +22,8 @@ struct FrameResourceAllocatorConfig
 
 struct FrameResourceAllocation
 {
+    GraphicsFrameResourceClass resourceClass =
+        GraphicsFrameResourceClass::PerFrameTransient;
     std::uint64_t frameIndex = 0;
     std::uint32_t frameSlot = 0;
     std::uint64_t offsetBytes = 0;
@@ -32,6 +38,8 @@ struct FrameResourceAllocation
 
 struct FrameResourceAllocatorStats
 {
+    GraphicsFrameResourceClass resourceClass =
+        GraphicsFrameResourceClass::PerFrameTransient;
     std::uint64_t currentFrameIndex = 0;
     std::uint32_t currentFrameSlot = 0;
     std::uint64_t currentFrameBytes = 0;
@@ -111,6 +119,7 @@ public:
         }
 
         return {
+            m_Config.resourceClass,
             m_CurrentFrameIndex,
             m_CurrentFrameSlot,
             alignedOffset,
@@ -122,6 +131,7 @@ public:
     [[nodiscard]] FrameResourceAllocatorStats GetStats() const noexcept
     {
         FrameResourceAllocatorStats stats{};
+        stats.resourceClass = m_Config.resourceClass;
         stats.currentFrameIndex = m_CurrentFrameIndex;
         stats.currentFrameSlot = m_CurrentFrameSlot;
         stats.currentFrameBytes =
@@ -130,6 +140,18 @@ public:
         stats.failedAllocationCount = m_FailedAllocationCount;
         stats.maxFramesInFlight = m_Config.maxFramesInFlight;
         return stats;
+    }
+
+    [[nodiscard]] GraphicsFrameResourceBudget GetBudget() const noexcept
+    {
+        const auto stats = GetStats();
+        return {
+            stats.resourceClass,
+            stats.currentFrameBytes,
+            stats.peakFrameBytes,
+            stats.failedAllocationCount,
+            stats.maxFramesInFlight,
+        };
     }
 
     [[nodiscard]] std::uint64_t GetFrameBytesForTesting(

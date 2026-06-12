@@ -143,15 +143,7 @@ Graphics::GraphicsResourceQueryResult QueryDiligentBindingResource(
     auto& backend =
         *static_cast<Adapter::DiligentGraphicsBackend*>(userData);
 
-    switch (kind)
-    {
-    case Graphics::GraphicsResourceKind::Texture:
-        return backend.QueryTextureForTesting(ToTextureHandle(handle));
-    case Graphics::GraphicsResourceKind::Sampler:
-        return backend.QuerySamplerForTesting(ToSamplerHandle(handle));
-    default:
-        return {};
-    }
+    return backend.QueryResource(kind, handle);
 }
 
 class FakeRenderBackend final : public RenderBackend::IRenderBackend
@@ -723,7 +715,7 @@ TEST(GraphicsDiligentBackendAdapter, FailedCreateUpdatesLastFailure)
     EXPECT_EQ(backend->GetResourceMemoryReport().failedCreateCount, 2u);
 }
 
-TEST(GraphicsDiligentBackendAdapter, InitializedCreateReturnsRegisteredOnlyHandle)
+TEST(GraphicsDiligentBackendAdapter, InitializedCreateReturnsNativePreparedHandle)
 {
     FakeRenderState state;
     auto backend = MakeBackend(state);
@@ -841,7 +833,7 @@ TEST(GraphicsDiligentBackendAdapter, DestroyNoOpsDoNotUpdateFailure)
     EXPECT_EQ(backend->GetResourceMemoryReport().failedCreateCount, 0u);
 }
 
-TEST(GraphicsDiligentBackendAdapter, RegisteredHandlesReportBackingState)
+TEST(GraphicsDiligentBackendAdapter, NativePreparedHandlesReportBackingState)
 {
     FakeRenderState state;
     auto backend = MakeConcreteBackend(state);
@@ -854,10 +846,12 @@ TEST(GraphicsDiligentBackendAdapter, RegisteredHandlesReportBackingState)
 
     EXPECT_EQ(
         backend->GetTextureBackingForTesting(texture),
-        Graphics::GraphicsResourceBacking::RegisteredOnly);
+        Graphics::GraphicsResourceBacking::NativeGpuFuture);
     EXPECT_EQ(
         backend->GetBufferBackingForTesting(buffer),
-        Graphics::GraphicsResourceBacking::RegisteredOnly);
+        Graphics::GraphicsResourceBacking::NativeGpuFuture);
+    EXPECT_NE(backend->GetTextureNativeSerialForTesting(texture), 0u);
+    EXPECT_NE(backend->GetBufferNativeSerialForTesting(buffer), 0u);
     EXPECT_EQ(
         backend->GetTextureBackingForTesting({}),
         Graphics::GraphicsResourceBacking::Invalid);
@@ -866,13 +860,16 @@ TEST(GraphicsDiligentBackendAdapter, RegisteredHandlesReportBackingState)
     EXPECT_EQ(
         backend->GetTextureBackingForTesting(texture),
         Graphics::GraphicsResourceBacking::Invalid);
+    EXPECT_EQ(backend->GetTextureNativeSerialForTesting(texture), 0u);
 
     const auto nextTexture = backend->CreateTexture(MakeTextureDesc());
     ASSERT_TRUE(nextTexture.IsValid());
+    EXPECT_NE(backend->GetTextureNativeSerialForTesting(nextTexture), 0u);
     backend->Shutdown();
     EXPECT_EQ(
         backend->GetTextureBackingForTesting(nextTexture),
         Graphics::GraphicsResourceBacking::Invalid);
+    EXPECT_EQ(backend->GetTextureNativeSerialForTesting(nextTexture), 0u);
     EXPECT_EQ(state.textureCreateCalls, 0u);
 }
 
@@ -882,11 +879,22 @@ TEST(GraphicsDiligentBackendAdapter, QueryHelpersReportLiveKindAndBytes)
     auto backend = MakeConcreteBackend(state);
     EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
 
-    const auto texture = backend->CreateTexture(MakeTextureDesc());
-    const auto buffer = backend->CreateBuffer(MakeBufferDesc());
-    const auto shader = backend->CreateShader(MakeShaderDesc());
-    const auto pipeline = backend->CreatePipeline({});
-    const auto sampler = backend->CreateSampler({});
+    auto textureDesc = MakeTextureDesc();
+    textureDesc.debugName = "albedo";
+    auto bufferDesc = MakeBufferDesc();
+    bufferDesc.debugName = "vertices";
+    auto shaderDesc = MakeShaderDesc();
+    shaderDesc.debugName = "solid-vs";
+    Graphics::PipelineDesc pipelineDesc{};
+    pipelineDesc.debugName = "opaque-pipeline";
+    Graphics::SamplerDesc samplerDesc{};
+    samplerDesc.debugName = "linear-clamp";
+
+    const auto texture = backend->CreateTexture(textureDesc);
+    const auto buffer = backend->CreateBuffer(bufferDesc);
+    const auto shader = backend->CreateShader(shaderDesc);
+    const auto pipeline = backend->CreatePipeline(pipelineDesc);
+    const auto sampler = backend->CreateSampler(samplerDesc);
     ASSERT_TRUE(texture.IsValid());
     ASSERT_TRUE(buffer.IsValid());
     ASSERT_TRUE(shader.IsValid());
@@ -896,38 +904,52 @@ TEST(GraphicsDiligentBackendAdapter, QueryHelpersReportLiveKindAndBytes)
     auto query = backend->QueryTextureForTesting(texture);
     EXPECT_TRUE(query.live);
     EXPECT_EQ(query.kind, Graphics::GraphicsResourceKind::Texture);
-    EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::RegisteredOnly);
+    EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::NativeGpuFuture);
     EXPECT_EQ(query.approximateBytes, 64u);
+    EXPECT_EQ(query.debugName, "albedo");
+
+    query = backend->QueryResource(
+        Graphics::GraphicsResourceKind::Texture,
+        texture);
+    EXPECT_TRUE(query.live);
+    EXPECT_EQ(query.kind, Graphics::GraphicsResourceKind::Texture);
+    EXPECT_EQ(query.debugName, "albedo");
 
     query = backend->QueryBufferForTesting(buffer);
     EXPECT_TRUE(query.live);
     EXPECT_EQ(query.kind, Graphics::GraphicsResourceKind::Buffer);
-    EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::RegisteredOnly);
+    EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::NativeGpuFuture);
     EXPECT_EQ(query.approximateBytes, 128u);
+    EXPECT_EQ(query.debugName, "vertices");
 
     query = backend->QueryShaderForTesting(shader);
     EXPECT_TRUE(query.live);
     EXPECT_EQ(query.kind, Graphics::GraphicsResourceKind::Shader);
     EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::RegisteredOnly);
     EXPECT_EQ(query.approximateBytes, 32u);
+    EXPECT_EQ(query.debugName, "solid-vs");
 
     query = backend->QueryPipelineForTesting(pipeline);
     EXPECT_TRUE(query.live);
     EXPECT_EQ(query.kind, Graphics::GraphicsResourceKind::Pipeline);
     EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::RegisteredOnly);
     EXPECT_EQ(query.approximateBytes, 0u);
+    EXPECT_EQ(query.debugName, "opaque-pipeline");
 
     query = backend->QuerySamplerForTesting(sampler);
     EXPECT_TRUE(query.live);
     EXPECT_EQ(query.kind, Graphics::GraphicsResourceKind::Sampler);
-    EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::RegisteredOnly);
+    EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::NativeGpuFuture);
     EXPECT_EQ(query.approximateBytes, 0u);
+    EXPECT_EQ(query.debugName, "linear-clamp");
+    EXPECT_NE(backend->GetSamplerNativeSerialForTesting(sampler), 0u);
 
     backend->DestroyBuffer(buffer);
     query = backend->QueryBufferForTesting(buffer);
     EXPECT_FALSE(query.live);
     EXPECT_EQ(query.kind, Graphics::GraphicsResourceKind::Invalid);
     EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::Invalid);
+    EXPECT_TRUE(query.debugName.empty());
 
     backend->Shutdown();
     query = backend->QueryTextureForTesting(texture);
@@ -938,7 +960,7 @@ TEST(GraphicsDiligentBackendAdapter, QueryHelpersReportLiveKindAndBytes)
 
 TEST(
     GraphicsDiligentBackendAdapter,
-    RegisteredOnlyHandlesValidateBindingsWithoutNativeAllocation)
+    NativePreparedHandlesValidateBindingsWithoutUpload)
 {
     FakeRenderState state;
     auto backend = MakeConcreteBackend(state);
@@ -962,17 +984,17 @@ TEST(
     EXPECT_EQ(result.code, Graphics::GraphicsBindingValidationCode::None);
     EXPECT_EQ(
         backend->QueryTextureForTesting(texture).backing,
-        Graphics::GraphicsResourceBacking::RegisteredOnly);
+        Graphics::GraphicsResourceBacking::NativeGpuFuture);
     EXPECT_EQ(
         backend->QuerySamplerForTesting(sampler).backing,
-        Graphics::GraphicsResourceBacking::RegisteredOnly);
+        Graphics::GraphicsResourceBacking::NativeGpuFuture);
     EXPECT_EQ(state.textureCreateCalls, 0u);
 }
 
 TEST(GraphicsDiligentBackendAdapter, HeadlessResourceReportUsesRegisteredOnlyHandles)
 {
     FakeRenderState state;
-    auto backend = MakeBackend(state);
+    auto backend = MakeConcreteBackend(state);
 
     Graphics::RenderBackendDesc desc{};
     desc.headless = true;
@@ -985,6 +1007,10 @@ TEST(GraphicsDiligentBackendAdapter, HeadlessResourceReportUsesRegisteredOnlyHan
     const auto report = backend->GetResourceMemoryReport();
     EXPECT_EQ(report.liveTextureCount, 1u);
     EXPECT_EQ(report.textureBytes, 64u);
+    EXPECT_EQ(
+        backend->GetTextureBackingForTesting(texture),
+        Graphics::GraphicsResourceBacking::RegisteredOnly);
+    EXPECT_EQ(backend->GetTextureNativeSerialForTesting(texture), 0u);
     EXPECT_EQ(state.initializeCalls, 0u);
 }
 
@@ -999,6 +1025,7 @@ TEST(GraphicsDiligentBackendAdapter, InitialDataAcceptedWithoutNativeUpload)
         backend->CreateTexture(MakeTextureDesc(), MakeDataView(pixels));
     ASSERT_TRUE(texture.IsValid());
     EXPECT_EQ(backend->GetTextureShadowBytesForTesting(texture), 64u);
+    EXPECT_TRUE(backend->GetTextureNativeUploadDeferredForTesting(texture));
     EXPECT_EQ(state.textureCreateCalls, 0u);
 
     std::array<std::uint8_t, 128> bytes{};
@@ -1006,6 +1033,7 @@ TEST(GraphicsDiligentBackendAdapter, InitialDataAcceptedWithoutNativeUpload)
         backend->CreateBuffer(MakeBufferDesc(), MakeDataView(bytes));
     ASSERT_TRUE(buffer.IsValid());
     EXPECT_EQ(backend->GetBufferShadowBytesForTesting(buffer), 128u);
+    EXPECT_TRUE(backend->GetBufferNativeUploadDeferredForTesting(buffer));
 }
 
 TEST(GraphicsDiligentBackendAdapter, InvalidInitialDataUpdatesLastFailure)
@@ -1061,13 +1089,16 @@ TEST(GraphicsDiligentBackendAdapter, DestroyAndShutdownReleaseShadowPayload)
 
     backend->DestroyTexture(texture);
     EXPECT_EQ(backend->GetTextureShadowBytesForTesting(texture), 0u);
+    EXPECT_EQ(backend->GetTextureNativeSerialForTesting(texture), 0u);
 
     const auto nextTexture =
         backend->CreateTexture(MakeTextureDesc(), MakeDataView(pixels));
     ASSERT_TRUE(nextTexture.IsValid());
     ASSERT_EQ(backend->GetTextureShadowBytesForTesting(nextTexture), 64u);
+    ASSERT_NE(backend->GetTextureNativeSerialForTesting(nextTexture), 0u);
 
     backend->Shutdown();
     EXPECT_EQ(backend->GetTextureShadowBytesForTesting(nextTexture), 0u);
+    EXPECT_EQ(backend->GetTextureNativeSerialForTesting(nextTexture), 0u);
     EXPECT_EQ(backend->GetResourceMemoryReport().totalLiveBytes, 0u);
 }

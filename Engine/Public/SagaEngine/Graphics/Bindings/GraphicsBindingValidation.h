@@ -38,6 +38,8 @@ struct GraphicsBindingLayoutSlot
     GraphicsShaderStageFlags stages = kGraphicsShaderStageFragment;
     bool required = true;
     std::uint32_t pairedSamplerSlot = kInvalidGraphicsBindingSlot;
+    bool allowFallback = false;
+    GraphicsHandle fallbackHandle{};
 };
 
 struct GraphicsBindingLayoutDesc
@@ -62,7 +64,9 @@ enum class GraphicsBindingValidationCode : std::uint8_t
     None = 0,
     DuplicateLayoutSlot,
     DuplicateBindingSlot,
+    UnexpectedBindingSlot,
     MissingRequiredBinding,
+    MissingFallbackBinding,
     InvalidHandle,
     StaleHandle,
     WrongResourceKind,
@@ -140,6 +144,60 @@ FindGraphicsBindingResource(
     return nullptr;
 }
 
+namespace detail
+{
+
+[[nodiscard]] inline GraphicsBindingValidationResult ValidateGraphicsBindingHandle(
+    std::uint32_t slot,
+    GraphicsResourceKind expectedKind,
+    GraphicsResourceKind declaredKind,
+    GraphicsHandle handle,
+    GraphicsBindingResourceQueryFn queryResource,
+    void* userData)
+{
+    if (declaredKind != expectedKind)
+    {
+        return MakeGraphicsBindingValidationError(
+            GraphicsBindingValidationCode::WrongResourceKind,
+            slot,
+            expectedKind,
+            declaredKind);
+    }
+
+    if (!handle.IsValid())
+    {
+        return MakeGraphicsBindingValidationError(
+            GraphicsBindingValidationCode::InvalidHandle,
+            slot,
+            expectedKind);
+    }
+
+    const auto query =
+        queryResource ? queryResource(userData, declaredKind, handle)
+                      : GraphicsResourceQueryResult{};
+    if (!query.live || query.backing == GraphicsResourceBacking::Invalid)
+    {
+        return MakeGraphicsBindingValidationError(
+            GraphicsBindingValidationCode::StaleHandle,
+            slot,
+            expectedKind,
+            query.kind);
+    }
+
+    if (query.kind != expectedKind)
+    {
+        return MakeGraphicsBindingValidationError(
+            GraphicsBindingValidationCode::WrongResourceKind,
+            slot,
+            expectedKind,
+            query.kind);
+    }
+
+    return {};
+}
+
+} // namespace detail
+
 [[nodiscard]] inline GraphicsBindingValidationResult
 ValidateGraphicsBindingSet(
     const GraphicsBindingLayoutDesc& layout,
@@ -173,61 +231,72 @@ ValidateGraphicsBindingSet(
         }
     }
 
+    for (const auto& resource : bindingSet.resources)
+    {
+        if (!FindGraphicsBindingSlot(layout, resource.slot))
+        {
+            return MakeGraphicsBindingValidationError(
+                GraphicsBindingValidationCode::UnexpectedBindingSlot,
+                resource.slot,
+                GraphicsResourceKind::Invalid,
+                resource.kind);
+        }
+    }
+
     for (const auto& layoutSlot : layout.slots)
     {
         const auto* resource =
             FindGraphicsBindingResource(bindingSet, layoutSlot.slot);
+        const auto expectedKind = ToGraphicsResourceKind(layoutSlot.type);
         if (!resource)
         {
             if (layoutSlot.required)
             {
+                if (layoutSlot.allowFallback)
+                {
+                    if (!layoutSlot.fallbackHandle.IsValid())
+                    {
+                        return MakeGraphicsBindingValidationError(
+                            GraphicsBindingValidationCode::MissingFallbackBinding,
+                            layoutSlot.slot,
+                            expectedKind);
+                    }
+
+                    const auto fallbackResult =
+                        detail::ValidateGraphicsBindingHandle(
+                            layoutSlot.slot,
+                            expectedKind,
+                            expectedKind,
+                            layoutSlot.fallbackHandle,
+                            queryResource,
+                            userData);
+                    if (!fallbackResult.valid)
+                    {
+                        return fallbackResult;
+                    }
+
+                    continue;
+                }
+
                 return MakeGraphicsBindingValidationError(
                     GraphicsBindingValidationCode::MissingRequiredBinding,
                     layoutSlot.slot,
-                    ToGraphicsResourceKind(layoutSlot.type));
+                    expectedKind);
             }
 
             continue;
         }
 
-        const auto expectedKind = ToGraphicsResourceKind(layoutSlot.type);
-        if (resource->kind != expectedKind)
+        const auto resourceResult = detail::ValidateGraphicsBindingHandle(
+            layoutSlot.slot,
+            expectedKind,
+            resource->kind,
+            resource->handle,
+            queryResource,
+            userData);
+        if (!resourceResult.valid)
         {
-            return MakeGraphicsBindingValidationError(
-                GraphicsBindingValidationCode::WrongResourceKind,
-                layoutSlot.slot,
-                expectedKind,
-                resource->kind);
-        }
-
-        if (!resource->handle.IsValid())
-        {
-            return MakeGraphicsBindingValidationError(
-                GraphicsBindingValidationCode::InvalidHandle,
-                layoutSlot.slot,
-                expectedKind);
-        }
-
-        const auto query =
-            queryResource ? queryResource(userData, resource->kind,
-                                          resource->handle)
-                          : GraphicsResourceQueryResult{};
-        if (!query.live || query.backing == GraphicsResourceBacking::Invalid)
-        {
-            return MakeGraphicsBindingValidationError(
-                GraphicsBindingValidationCode::StaleHandle,
-                layoutSlot.slot,
-                expectedKind,
-                query.kind);
-        }
-
-        if (query.kind != expectedKind)
-        {
-            return MakeGraphicsBindingValidationError(
-                GraphicsBindingValidationCode::WrongResourceKind,
-                layoutSlot.slot,
-                expectedKind,
-                query.kind);
+            return resourceResult;
         }
     }
 

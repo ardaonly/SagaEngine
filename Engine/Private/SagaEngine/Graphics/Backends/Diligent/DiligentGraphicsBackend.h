@@ -18,6 +18,12 @@ namespace RenderBackend = ::SagaEngine::Render::Backend;
 class DiligentGraphicsBackend final : public IGraphicsBackend
 {
 private:
+    struct NativeResourceOwnership
+    {
+        std::uint64_t serial = 0;
+        bool uploadDeferred = false;
+    };
+
     template <typename HandleT, typename DescT>
     class ResourceRegistry
     {
@@ -25,7 +31,10 @@ private:
         [[nodiscard]] HandleT Create(
             const DescT& desc,
             std::uint64_t estimatedBytes,
-            const std::vector<std::uint8_t>& shadowPayload = {})
+            const std::vector<std::uint8_t>& shadowPayload = {},
+            GraphicsResourceBacking backing =
+                GraphicsResourceBacking::RegisteredOnly,
+            NativeResourceOwnership nativeOwnership = {})
         {
             std::uint32_t slotIndex = 0;
             if (!m_FreeSlots.empty())
@@ -36,7 +45,8 @@ private:
                 slot.desc = desc;
                 slot.estimatedBytes = estimatedBytes;
                 slot.shadowPayload = shadowPayload;
-                slot.backing = GraphicsResourceBacking::RegisteredOnly;
+                slot.backing = backing;
+                slot.nativeOwnership = nativeOwnership;
                 slot.occupied = true;
                 slot.generation = NextGeneration(slot.generation);
             }
@@ -48,7 +58,8 @@ private:
                         desc,
                         estimatedBytes,
                         shadowPayload,
-                        GraphicsResourceBacking::RegisteredOnly,
+                        backing,
+                        nativeOwnership,
                         1u,
                         true,
                     });
@@ -79,6 +90,7 @@ private:
 
             slot.occupied = false;
             slot.shadowPayload.clear();
+            slot.nativeOwnership = {};
             m_LiveCount -= 1u;
             m_LiveBytes -= slot.estimatedBytes;
             m_FreeSlots.push_back(slotIndex);
@@ -92,6 +104,7 @@ private:
                 auto& slot = m_Slots[i];
                 slot.occupied = false;
                 slot.shadowPayload.clear();
+                slot.nativeOwnership = {};
                 m_FreeSlots.push_back(i);
             }
             m_LiveCount = 0;
@@ -116,6 +129,42 @@ private:
             return static_cast<std::uint64_t>(slot.shadowPayload.size());
         }
 
+        [[nodiscard]] std::uint64_t NativeSerial(HandleT handle)
+            const noexcept
+        {
+            if (!handle.IsValid() || handle.index > m_Slots.size())
+            {
+                return 0u;
+            }
+
+            const auto slotIndex = handle.index - 1u;
+            const auto& slot = m_Slots[slotIndex];
+            if (!slot.occupied || slot.generation != handle.generation)
+            {
+                return 0u;
+            }
+
+            return slot.nativeOwnership.serial;
+        }
+
+        [[nodiscard]] bool NativeUploadDeferred(HandleT handle)
+            const noexcept
+        {
+            if (!handle.IsValid() || handle.index > m_Slots.size())
+            {
+                return false;
+            }
+
+            const auto slotIndex = handle.index - 1u;
+            const auto& slot = m_Slots[slotIndex];
+            if (!slot.occupied || slot.generation != handle.generation)
+            {
+                return false;
+            }
+
+            return slot.nativeOwnership.uploadDeferred;
+        }
+
         [[nodiscard]] std::uint32_t LiveCount() const noexcept
         {
             return m_LiveCount;
@@ -129,12 +178,24 @@ private:
         [[nodiscard]] GraphicsResourceBacking Backing(HandleT handle)
             const noexcept
         {
-            return Query(handle, GraphicsResourceKind::Invalid).backing;
+            if (!handle.IsValid() || handle.index > m_Slots.size())
+            {
+                return GraphicsResourceBacking::Invalid;
+            }
+
+            const auto slotIndex = handle.index - 1u;
+            const auto& slot = m_Slots[slotIndex];
+            if (!slot.occupied || slot.generation != handle.generation)
+            {
+                return GraphicsResourceBacking::Invalid;
+            }
+
+            return slot.backing;
         }
 
         [[nodiscard]] GraphicsResourceQueryResult Query(
             HandleT handle,
-            GraphicsResourceKind kind) const noexcept
+            GraphicsResourceKind kind) const
         {
             if (!handle.IsValid() || handle.index > m_Slots.size())
             {
@@ -153,6 +214,7 @@ private:
                 kind,
                 slot.backing,
                 slot.estimatedBytes,
+                slot.desc.debugName,
             };
         }
 
@@ -164,6 +226,7 @@ private:
             std::vector<std::uint8_t> shadowPayload{};
             GraphicsResourceBacking backing =
                 GraphicsResourceBacking::RegisteredOnly;
+            NativeResourceOwnership nativeOwnership{};
             std::uint32_t generation = 1;
             bool occupied = false;
         };
@@ -230,9 +293,22 @@ public:
         const noexcept override;
     [[nodiscard]] GraphicsResourceLeakSummary
     GetLastShutdownResourceLeakSummary() const noexcept override;
+    [[nodiscard]] GraphicsResourceQueryResult QueryResource(
+        GraphicsResourceKind kind,
+        GraphicsHandle handle) const override;
     [[nodiscard]] std::uint64_t GetTextureShadowBytesForTesting(
         TextureHandle handle) const noexcept;
     [[nodiscard]] std::uint64_t GetBufferShadowBytesForTesting(
+        BufferHandle handle) const noexcept;
+    [[nodiscard]] std::uint64_t GetTextureNativeSerialForTesting(
+        TextureHandle handle) const noexcept;
+    [[nodiscard]] std::uint64_t GetBufferNativeSerialForTesting(
+        BufferHandle handle) const noexcept;
+    [[nodiscard]] std::uint64_t GetSamplerNativeSerialForTesting(
+        SamplerHandle handle) const noexcept;
+    [[nodiscard]] bool GetTextureNativeUploadDeferredForTesting(
+        TextureHandle handle) const noexcept;
+    [[nodiscard]] bool GetBufferNativeUploadDeferredForTesting(
         BufferHandle handle) const noexcept;
     [[nodiscard]] GraphicsResourceBacking GetTextureBackingForTesting(
         TextureHandle handle) const noexcept;
@@ -256,6 +332,10 @@ private:
         BackendPreference backend) const noexcept;
     [[nodiscard]] bool CanRenderFrame() const noexcept;
     [[nodiscard]] bool CanCreateResources() const noexcept;
+    [[nodiscard]] GraphicsResourceBacking ResourceBackingForNativeResource()
+        const noexcept;
+    [[nodiscard]] NativeResourceOwnership MakeNativeResourceOwnership(
+        bool uploadDeferred) noexcept;
     template <typename HandleT>
     [[nodiscard]] HandleT RecordCreateFailure(
         GraphicsResourceFailure failure) noexcept;
@@ -282,6 +362,7 @@ private:
     GraphicsResourceLeakSummary m_LastShutdownLeakSummary{};
     std::uint64_t m_PeakLiveBytes = 0;
     std::uint64_t m_FailedCreateCount = 0;
+    std::uint64_t m_NextNativeResourceSerial = 1;
     ResourceRegistry<TextureHandle, TextureDesc> m_Textures;
     ResourceRegistry<BufferHandle, BufferDesc> m_Buffers;
     ResourceRegistry<ShaderHandle, ShaderDesc> m_Shaders;

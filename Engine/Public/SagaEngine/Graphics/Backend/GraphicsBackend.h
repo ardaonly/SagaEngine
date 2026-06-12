@@ -9,6 +9,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace SagaEngine::Graphics
@@ -172,6 +173,7 @@ struct GraphicsResourceQueryResult
     GraphicsResourceKind kind = GraphicsResourceKind::Invalid;
     GraphicsResourceBacking backing = GraphicsResourceBacking::Invalid;
     std::uint64_t approximateBytes = 0;
+    std::string debugName;
 };
 
 /// Creation-time data view. The pointer only needs to remain valid for the
@@ -255,6 +257,9 @@ public:
     GetLastResourceFailure() const noexcept = 0;
     [[nodiscard]] virtual GraphicsResourceLeakSummary
     GetLastShutdownResourceLeakSummary() const noexcept = 0;
+    [[nodiscard]] virtual GraphicsResourceQueryResult QueryResource(
+        GraphicsResourceKind kind,
+        GraphicsHandle handle) const = 0;
 };
 
 class NullGraphicsBackend final : public IGraphicsBackend
@@ -353,12 +358,24 @@ private:
         [[nodiscard]] GraphicsResourceBacking Backing(HandleT handle)
             const noexcept
         {
-            return Query(handle, GraphicsResourceKind::Invalid).backing;
+            if (!handle.IsValid() || handle.index > m_Slots.size())
+            {
+                return GraphicsResourceBacking::Invalid;
+            }
+
+            const auto slotIndex = handle.index - 1u;
+            const auto& slot = m_Slots[slotIndex];
+            if (!slot.occupied || slot.generation != handle.generation)
+            {
+                return GraphicsResourceBacking::Invalid;
+            }
+
+            return slot.backing;
         }
 
         [[nodiscard]] GraphicsResourceQueryResult Query(
             HandleT handle,
-            GraphicsResourceKind kind) const noexcept
+            GraphicsResourceKind kind) const
         {
             if (!handle.IsValid() || handle.index > m_Slots.size())
             {
@@ -377,6 +394,7 @@ private:
                 kind,
                 slot.backing,
                 slot.estimatedBytes,
+                slot.desc.debugName,
             };
         }
 
@@ -642,6 +660,29 @@ public:
         return m_LastShutdownLeakSummary;
     }
 
+    [[nodiscard]] GraphicsResourceQueryResult QueryResource(
+        GraphicsResourceKind kind,
+        GraphicsHandle handle) const override
+    {
+        switch (kind)
+        {
+        case GraphicsResourceKind::Texture:
+            return QueryTextureForTesting(ToTypedHandle<TextureHandle>(handle));
+        case GraphicsResourceKind::Buffer:
+            return QueryBufferForTesting(ToTypedHandle<BufferHandle>(handle));
+        case GraphicsResourceKind::Shader:
+            return QueryShaderForTesting(ToTypedHandle<ShaderHandle>(handle));
+        case GraphicsResourceKind::Pipeline:
+            return QueryPipelineForTesting(
+                ToTypedHandle<PipelineHandle>(handle));
+        case GraphicsResourceKind::Sampler:
+            return QuerySamplerForTesting(ToTypedHandle<SamplerHandle>(handle));
+        case GraphicsResourceKind::Invalid:
+        default:
+            return {};
+        }
+    }
+
     [[nodiscard]] GraphicsResourceBacking GetTextureBackingForTesting(
         TextureHandle handle) const noexcept
     {
@@ -695,6 +736,16 @@ public:
     }
 
 private:
+    template <typename HandleT>
+    [[nodiscard]] static constexpr HandleT ToTypedHandle(
+        GraphicsHandle handle) noexcept
+    {
+        HandleT typed{};
+        typed.index = handle.index;
+        typed.generation = handle.generation;
+        return typed;
+    }
+
     [[nodiscard]] bool CanCreateResources() const noexcept
     {
         return m_Status.initialized &&
