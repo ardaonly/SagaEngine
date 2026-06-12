@@ -74,17 +74,7 @@ Graphics::GraphicsResourceQueryResult QueryNullBackendResource(
     auto& backend =
         *static_cast<Graphics::NullGraphicsBackend*>(userData);
 
-    switch (kind)
-    {
-    case Graphics::GraphicsResourceKind::Texture:
-        return backend.QueryTextureForTesting(ToTextureHandle(handle));
-    case Graphics::GraphicsResourceKind::Buffer:
-        return backend.QueryBufferForTesting(ToBufferHandle(handle));
-    case Graphics::GraphicsResourceKind::Sampler:
-        return backend.QuerySamplerForTesting(ToSamplerHandle(handle));
-    default:
-        return {};
-    }
+    return backend.QueryResource(kind, handle);
 }
 
 Graphics::GraphicsBindingLayoutDesc MakeTextureSamplerLayout()
@@ -118,6 +108,16 @@ Graphics::GraphicsBindingLayoutDesc MakeSingleSlotLayout(
         true,
         Graphics::kInvalidGraphicsBindingSlot,
     });
+    return layout;
+}
+
+Graphics::GraphicsBindingLayoutDesc MakeFallbackSingleSlotLayout(
+    Graphics::GraphicsBindingType type,
+    Graphics::GraphicsHandle fallbackHandle)
+{
+    auto layout = MakeSingleSlotLayout(type);
+    layout.slots[0].allowFallback = true;
+    layout.slots[0].fallbackHandle = fallbackHandle;
     return layout;
 }
 
@@ -297,6 +297,146 @@ TEST(GraphicsBindingValidation, MissingRequiredBindingRejected)
         result.code,
         Graphics::GraphicsBindingValidationCode::MissingRequiredBinding);
     EXPECT_EQ(result.slot, 0u);
+}
+
+TEST(GraphicsBindingValidation, UnexpectedBindingSlotRejected)
+{
+    Graphics::NullGraphicsBackend backend;
+    ASSERT_TRUE(backend.Initialize(MakeHeadlessDesc(), {}));
+
+    const auto texture = backend.CreateTexture(MakeTextureDesc());
+    ASSERT_TRUE(texture.IsValid());
+
+    Graphics::GraphicsBindingSetDesc bindingSet{};
+    bindingSet.resources.push_back({
+        2u,
+        Graphics::GraphicsResourceKind::Texture,
+        ToGraphicsHandle(texture),
+    });
+
+    const auto result = Graphics::ValidateGraphicsBindingSet(
+        MakeSingleSlotLayout(Graphics::GraphicsBindingType::Texture),
+        bindingSet,
+        QueryNullBackendResource,
+        &backend);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(
+        result.code,
+        Graphics::GraphicsBindingValidationCode::UnexpectedBindingSlot);
+    EXPECT_EQ(result.slot, 2u);
+    EXPECT_EQ(result.actualKind, Graphics::GraphicsResourceKind::Texture);
+}
+
+TEST(GraphicsBindingValidation, MissingRequiredTextureFallbackDisabledRejected)
+{
+    Graphics::NullGraphicsBackend backend;
+    ASSERT_TRUE(backend.Initialize(MakeHeadlessDesc(), {}));
+
+    const auto texture = backend.CreateTexture(MakeTextureDesc());
+    ASSERT_TRUE(texture.IsValid());
+
+    auto layout =
+        MakeSingleSlotLayout(Graphics::GraphicsBindingType::Texture);
+    layout.slots[0].fallbackHandle = ToGraphicsHandle(texture);
+
+    const auto result = Graphics::ValidateGraphicsBindingSet(
+        layout,
+        {},
+        QueryNullBackendResource,
+        &backend);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(
+        result.code,
+        Graphics::GraphicsBindingValidationCode::MissingRequiredBinding);
+    EXPECT_EQ(result.slot, 0u);
+}
+
+TEST(GraphicsBindingValidation, MissingRequiredTextureInvalidFallbackRejected)
+{
+    Graphics::NullGraphicsBackend backend;
+    ASSERT_TRUE(backend.Initialize(MakeHeadlessDesc(), {}));
+
+    const auto result = Graphics::ValidateGraphicsBindingSet(
+        MakeFallbackSingleSlotLayout(
+            Graphics::GraphicsBindingType::Texture,
+            {}),
+        {},
+        QueryNullBackendResource,
+        &backend);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(
+        result.code,
+        Graphics::GraphicsBindingValidationCode::MissingFallbackBinding);
+    EXPECT_EQ(result.slot, 0u);
+    EXPECT_EQ(result.expectedKind, Graphics::GraphicsResourceKind::Texture);
+}
+
+TEST(GraphicsBindingValidation, MissingRequiredTextureLiveFallbackPasses)
+{
+    Graphics::NullGraphicsBackend backend;
+    ASSERT_TRUE(backend.Initialize(MakeHeadlessDesc(), {}));
+
+    const auto texture = backend.CreateTexture(MakeTextureDesc());
+    ASSERT_TRUE(texture.IsValid());
+
+    const auto result = Graphics::ValidateGraphicsBindingSet(
+        MakeFallbackSingleSlotLayout(
+            Graphics::GraphicsBindingType::Texture,
+            ToGraphicsHandle(texture)),
+        {},
+        QueryNullBackendResource,
+        &backend);
+    EXPECT_TRUE(result.valid);
+    EXPECT_EQ(result.code, Graphics::GraphicsBindingValidationCode::None);
+}
+
+TEST(GraphicsBindingValidation, MissingRequiredTextureWrongFallbackKindRejected)
+{
+    Graphics::NullGraphicsBackend backend;
+    ASSERT_TRUE(backend.Initialize(MakeHeadlessDesc(), {}));
+
+    const auto buffer = backend.CreateBuffer(MakeBufferDesc());
+    ASSERT_TRUE(buffer.IsValid());
+
+    const auto result = Graphics::ValidateGraphicsBindingSet(
+        MakeFallbackSingleSlotLayout(
+            Graphics::GraphicsBindingType::Texture,
+            ToGraphicsHandle(buffer)),
+        {},
+        QueryTextureAsBufferForTesting,
+        &backend);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(
+        result.code,
+        Graphics::GraphicsBindingValidationCode::WrongResourceKind);
+    EXPECT_EQ(result.slot, 0u);
+    EXPECT_EQ(result.expectedKind, Graphics::GraphicsResourceKind::Texture);
+    EXPECT_EQ(result.actualKind, Graphics::GraphicsResourceKind::Buffer);
+}
+
+TEST(GraphicsBindingValidation, MissingRequiredTextureStaleFallbackRejected)
+{
+    Graphics::NullGraphicsBackend backend;
+    ASSERT_TRUE(backend.Initialize(MakeHeadlessDesc(), {}));
+
+    const auto texture = backend.CreateTexture(MakeTextureDesc());
+    ASSERT_TRUE(texture.IsValid());
+    backend.DestroyTexture(texture);
+
+    const auto result = Graphics::ValidateGraphicsBindingSet(
+        MakeFallbackSingleSlotLayout(
+            Graphics::GraphicsBindingType::Texture,
+            ToGraphicsHandle(texture)),
+        {},
+        QueryNullBackendResource,
+        &backend);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(
+        result.code,
+        Graphics::GraphicsBindingValidationCode::StaleHandle);
+    EXPECT_EQ(result.slot, 0u);
+    EXPECT_EQ(result.expectedKind, Graphics::GraphicsResourceKind::Texture);
+    EXPECT_EQ(result.actualKind, Graphics::GraphicsResourceKind::Invalid);
 }
 
 TEST(GraphicsBindingValidation, OptionalSamplerCanBeOmittedWhenUnpaired)

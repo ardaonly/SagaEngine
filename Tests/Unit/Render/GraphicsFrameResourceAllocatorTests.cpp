@@ -16,6 +16,7 @@ namespace GraphicsPrivate = SagaEngine::Graphics::Private;
 GraphicsPrivate::FrameResourceAllocatorConfig MakeConfig() noexcept
 {
     GraphicsPrivate::FrameResourceAllocatorConfig config{};
+    config.resourceClass = Graphics::GraphicsFrameResourceClass::PerFrameTransient;
     config.maxFramesInFlight = 2u;
     config.bytesPerFrame = 64u;
     config.defaultAlignment = 16u;
@@ -75,6 +76,35 @@ TEST(GraphicsFrameResourceAllocator, AllocationsAreAligned)
     EXPECT_EQ(first.alignmentBytes, 16u);
     EXPECT_EQ(second.offsetBytes, 8u);
     EXPECT_EQ(second.alignmentBytes, 8u);
+}
+
+TEST(GraphicsFrameResourceAllocator, ResourceClassFlowsToAllocationStatsAndBudget)
+{
+    GraphicsPrivate::FrameResourceAllocator allocator;
+    auto config = MakeConfig();
+    config.resourceClass = Graphics::GraphicsFrameResourceClass::SwapchainSized;
+    ASSERT_TRUE(allocator.Initialize(config));
+
+    const auto allocation = allocator.Allocate(16u);
+    ASSERT_TRUE(allocation.IsValid());
+    EXPECT_EQ(
+        allocation.resourceClass,
+        Graphics::GraphicsFrameResourceClass::SwapchainSized);
+
+    const auto stats = allocator.GetStats();
+    EXPECT_EQ(
+        stats.resourceClass,
+        Graphics::GraphicsFrameResourceClass::SwapchainSized);
+    EXPECT_EQ(stats.currentFrameBytes, 16u);
+
+    const auto budget = allocator.GetBudget();
+    EXPECT_EQ(
+        budget.resourceClass,
+        Graphics::GraphicsFrameResourceClass::SwapchainSized);
+    EXPECT_EQ(budget.currentFrameBytes, 16u);
+    EXPECT_EQ(budget.peakFrameBytes, 16u);
+    EXPECT_EQ(budget.failedAllocationCount, 0u);
+    EXPECT_EQ(budget.maxFramesInFlight, 2u);
 }
 
 TEST(GraphicsFrameResourceAllocator, ZeroSizeAllocationFailsSafely)

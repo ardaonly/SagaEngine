@@ -230,6 +230,15 @@ CreateDefaultRenderBackend(const RenderBackendDesc& backend)
     return payload;
 }
 
+template <typename HandleT>
+[[nodiscard]] constexpr HandleT ToTypedHandle(GraphicsHandle handle) noexcept
+{
+    HandleT typed{};
+    typed.index = handle.index;
+    typed.generation = handle.generation;
+    return typed;
+}
+
 [[nodiscard]] constexpr std::uint64_t EstimateShaderBytes(
     const ShaderDesc& desc) noexcept
 {
@@ -403,7 +412,9 @@ TextureHandle DiligentGraphicsBackend::CreateTexture(
         m_Textures.Create(
             desc,
             EstimateTextureBytes(desc),
-            CopyShadowPayload(initialData)));
+            CopyShadowPayload(initialData),
+            ResourceBackingForNativeResource(),
+            MakeNativeResourceOwnership(initialData.sizeBytes != 0u)));
 }
 
 BufferHandle DiligentGraphicsBackend::CreateBuffer(const BufferDesc& desc)
@@ -437,7 +448,9 @@ BufferHandle DiligentGraphicsBackend::CreateBuffer(
         m_Buffers.Create(
             desc,
             EstimateBufferBytes(desc),
-            CopyShadowPayload(initialData)));
+            CopyShadowPayload(initialData),
+            ResourceBackingForNativeResource(),
+            MakeNativeResourceOwnership(initialData.sizeBytes != 0u)));
 }
 
 ShaderHandle DiligentGraphicsBackend::CreateShader(const ShaderDesc& desc)
@@ -492,7 +505,12 @@ SamplerHandle DiligentGraphicsBackend::CreateSampler(const SamplerDesc& desc)
     }
 
     return RecordSuccessfulCreate(
-        m_Samplers.Create(desc, EstimateSamplerBytes(desc)));
+        m_Samplers.Create(
+            desc,
+            EstimateSamplerBytes(desc),
+            {},
+            ResourceBackingForNativeResource(),
+            MakeNativeResourceOwnership(false)));
 }
 
 void DiligentGraphicsBackend::DestroyTexture(TextureHandle handle)
@@ -596,6 +614,28 @@ DiligentGraphicsBackend::GetLastShutdownResourceLeakSummary() const noexcept
     return m_LastShutdownLeakSummary;
 }
 
+GraphicsResourceQueryResult DiligentGraphicsBackend::QueryResource(
+    GraphicsResourceKind kind,
+    GraphicsHandle handle) const
+{
+    switch (kind)
+    {
+    case GraphicsResourceKind::Texture:
+        return QueryTextureForTesting(ToTypedHandle<TextureHandle>(handle));
+    case GraphicsResourceKind::Buffer:
+        return QueryBufferForTesting(ToTypedHandle<BufferHandle>(handle));
+    case GraphicsResourceKind::Shader:
+        return QueryShaderForTesting(ToTypedHandle<ShaderHandle>(handle));
+    case GraphicsResourceKind::Pipeline:
+        return QueryPipelineForTesting(ToTypedHandle<PipelineHandle>(handle));
+    case GraphicsResourceKind::Sampler:
+        return QuerySamplerForTesting(ToTypedHandle<SamplerHandle>(handle));
+    case GraphicsResourceKind::Invalid:
+    default:
+        return {};
+    }
+}
+
 std::uint64_t DiligentGraphicsBackend::GetTextureShadowBytesForTesting(
     TextureHandle handle) const noexcept
 {
@@ -606,6 +646,36 @@ std::uint64_t DiligentGraphicsBackend::GetBufferShadowBytesForTesting(
     BufferHandle handle) const noexcept
 {
     return m_Buffers.ShadowBytes(handle);
+}
+
+std::uint64_t DiligentGraphicsBackend::GetTextureNativeSerialForTesting(
+    TextureHandle handle) const noexcept
+{
+    return m_Textures.NativeSerial(handle);
+}
+
+std::uint64_t DiligentGraphicsBackend::GetBufferNativeSerialForTesting(
+    BufferHandle handle) const noexcept
+{
+    return m_Buffers.NativeSerial(handle);
+}
+
+std::uint64_t DiligentGraphicsBackend::GetSamplerNativeSerialForTesting(
+    SamplerHandle handle) const noexcept
+{
+    return m_Samplers.NativeSerial(handle);
+}
+
+bool DiligentGraphicsBackend::GetTextureNativeUploadDeferredForTesting(
+    TextureHandle handle) const noexcept
+{
+    return m_Textures.NativeUploadDeferred(handle);
+}
+
+bool DiligentGraphicsBackend::GetBufferNativeUploadDeferredForTesting(
+    BufferHandle handle) const noexcept
+{
+    return m_Buffers.NativeUploadDeferred(handle);
 }
 
 GraphicsResourceBacking DiligentGraphicsBackend::GetTextureBackingForTesting(
@@ -685,6 +755,30 @@ bool DiligentGraphicsBackend::CanCreateResources() const noexcept
 {
     return m_LastStatus.initialized &&
            m_LastStatus.failure == RenderBackendFailure::None;
+}
+
+GraphicsResourceBacking DiligentGraphicsBackend::ResourceBackingForNativeResource()
+    const noexcept
+{
+    if (m_Headless)
+    {
+        return GraphicsResourceBacking::RegisteredOnly;
+    }
+
+    return GraphicsResourceBacking::NativeGpuFuture;
+}
+
+DiligentGraphicsBackend::NativeResourceOwnership
+DiligentGraphicsBackend::MakeNativeResourceOwnership(
+    bool uploadDeferred) noexcept
+{
+    if (ResourceBackingForNativeResource() !=
+        GraphicsResourceBacking::NativeGpuFuture)
+    {
+        return {};
+    }
+
+    return {m_NextNativeResourceSerial++, uploadDeferred};
 }
 
 template <typename HandleT>

@@ -7,4 +7,5 @@
 #include "SagaEngine/Graphics/Bindings/GraphicsBindingValidation.h"
 #include "SagaEngine/Graphics/Core/GraphicsTypes.h"
 #include "SagaEngine/Graphics/Descs/ResourceDescs.h"
+#include "SagaEngine/Graphics/Frame/FrameResources.h"
 #include "SagaEngine/Graphics/Handles/GraphicsHandle.h"

@@ -85,7 +85,7 @@ enum class MaterialTextureSlot : std::uint8_t
 {
     Albedo    = 0,
     Normal    = 1,
-    MRA       = 2, ///< Metallic / Roughness / Ambient Occlusion packed.
+    MRA       = 2, ///< M/R/A packed material texture.
     Emissive  = 3,
     Detail    = 4,
     Mask      = 5,
@@ -115,6 +115,16 @@ enum class MaterialCullMode : std::uint8_t
     None  = 2, ///< Double-sided — foliage, cloth, decals.
 };
 
+/// CPU-side residency hint passed from material authoring into texture
+/// streaming policy.  It is not a native resource state.
+enum class MaterialTextureResidencyHint : std::uint8_t
+{
+    Default = 0,
+    Streamed,
+    AlwaysResident,
+    PlaceholderAllowed,
+};
+
 // ─── Parameter blocks ───────────────────────────────────────────────────────
 
 /// Named scalar parameter in the on-disk asset.  The name is matched
@@ -139,9 +149,11 @@ struct MaterialVectorParam
 /// consults `fallbackPath` on debug builds.
 struct MaterialTextureRef
 {
-    MaterialTextureSlot slot     = MaterialTextureSlot::Albedo;
-    std::uint64_t       assetId  = 0;
-    std::string         fallbackPath;
+    MaterialTextureSlot          slot     = MaterialTextureSlot::Albedo;
+    std::uint64_t                assetId  = 0;
+    std::string                  fallbackPath;
+    MaterialTextureResidencyHint residencyHint =
+        MaterialTextureResidencyHint::Default;
 };
 
 // ─── On-disk asset form ─────────────────────────────────────────────────────
