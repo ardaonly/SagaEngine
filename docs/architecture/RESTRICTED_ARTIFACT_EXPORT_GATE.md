@@ -1,6 +1,6 @@
 # Restricted Artifact Export Gate
 
-Phase 116 adds a local restricted export evaluator in `Tools/SagaWorkspaceHub`.
+This document adds a local restricted export evaluator in `Tools/SagaWorkspaceHub`.
 
 Command:
 

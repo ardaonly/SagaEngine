@@ -1,6 +1,6 @@
 # Diagnostics Memory Resource Snapshot Foundation
 
-Phase 5 adds the first `SagaDiagnostics` memory/resource snapshot foundation.
+This document adds the first `SagaDiagnostics` memory/resource snapshot foundation.
 
 ## Scope
 
@@ -38,8 +38,8 @@ zero summary counts.
 
 
 The existing Core `MemoryTracker`, `ArenaAllocator`, and replication memory
-tracker are not connected to this Phase 5 report path. That avoids turning this
-phase into allocator replacement or production leak detection work.
+tracker are not connected to this document report path. That avoids turning this
+milestone into allocator replacement or production leak detection work.
 
 ## SagaStressArena Integration
 

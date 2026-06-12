@@ -1,7 +1,7 @@
 # Diagnostics Operational Reports And Server Observability
 
-Phase 2 adds the first operational diagnostics vertical slice on top of the
-existing Engine-shaped `SagaDiagnostics` target.
+This document describes the operational diagnostics report model layered on top
+of the Engine-shaped `SagaDiagnostics` target.
 
 ## Scope
 

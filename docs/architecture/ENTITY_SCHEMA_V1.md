@@ -2,9 +2,9 @@
 
 ## Status
 
-Phase 139-140 report-only contract for Hedef 4. Entity schema v1 describes
-source-controlled entity truth inside a scene source file. It is not a runtime
-spawn, replication, gameplay authority, or editor placement implementation.
+Entity schema v1 describes source-controlled entity truth inside a scene source
+file. It is not a runtime spawn, replication, gameplay authority, or editor
+placement implementation.
 
 ## Required Fields
 

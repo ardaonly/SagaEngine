@@ -1,6 +1,6 @@
 # Project Slice Resolver v1
 
-Hedef 3 Phase 105 adds deterministic local resolution for project slices. The
+This document defines deterministic local resolution for project slices. The
 resolver reads a `.sagaproj` manifest and a project slice file, then writes a
 JSON report describing visible, restricted, excluded, and missing artifacts.
 
@@ -36,6 +36,6 @@ report output.
 
 ## Non-Goals
 
-Phase 105 does not add Runtime behavior, Server behavior, ClientHost behavior,
+This document does not add Runtime behavior, Server behavior, ClientHost behavior,
 Editor UI, Qt UI, workspace service work, cloud collaboration, identity,
-permission enforcement, source encryption, or later-phase work.
+permission enforcement, or source encryption.

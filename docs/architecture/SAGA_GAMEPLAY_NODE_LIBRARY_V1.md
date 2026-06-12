@@ -1,14 +1,14 @@
 # Saga Gameplay Node Library V1 Policy
 
-Status: Policy checkpoint before Hedef 2 Block B Phase 69.
+Status: Gameplay node vocabulary policy.
 
-This document defines the only gameplay node names that Phase 69-75 may treat
+This document defines the only gameplay node names that 75 may treat
 as accepted policy inputs. It does not implement node extraction, runtime node
 APIs, gameplay systems, or editor graph behavior.
 
 ## Policy Purpose
 
-Phase 69-75 needs a bounded node vocabulary before implementation starts.
+75 needs a bounded node vocabulary before implementation starts.
 Without this boundary, metadata can accidentally imply inventory, audio, ECS,
 spawn, or timer systems that are not proven by runtime evidence.
 
@@ -69,9 +69,9 @@ Forbidden implications:
 Runtime proof requires compile and binding evidence plus a focused runtime or
 tool report for the exact node behavior. Metadata alone is insufficient.
 
-## Phase 69-75 Boundary
+## Boundary
 
-Phase 69 may add metadata extraction only after this policy is satisfied.
-Phase 70 and Phase 71 may choose from the nodes above, but each node must keep
-its classification until evidence changes it. Phase 75 publish integration must
+This document may add metadata extraction only after this policy is satisfied.
+Future metadata fixtures may choose from the nodes above, but each node must keep
+its classification until evidence changes it. This document publish integration must
 reject stale or missing node metadata rather than silently accepting it.

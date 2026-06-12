@@ -2,10 +2,9 @@
 
 ## Status
 
-Phase 137-138 report-only contract for Hedef 4. Scene schema v1 describes
-source-controlled scene truth for validation and inventory. It does not add
-Runtime gameplay, Server gameplay, ClientHost behavior, Editor UI, Qt UI, asset
-import, or asset cook paths.
+Scene schema v1 describes source-controlled scene truth for validation and
+inventory. It does not add Runtime gameplay, Server gameplay, ClientHost
+behavior, Editor UI, Qt UI, asset import, or asset cook paths.
 
 ## Required Fields
 

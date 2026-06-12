@@ -1,6 +1,6 @@
 # Client Preview and Runtime UI Strategy
 
-Status: Policy checkpoint before later Hedef 2 launch and client preview work.
+Status: Architecture boundary for bounded local preview and runtime UI seams.
 
 This document defines the boundary for alpha client preview and runtime UI
 overlay work. It does not change `ClientHost`, networking, server behavior, or
@@ -15,11 +15,23 @@ The repository can continue to use server-headless and local tool evidence, but
 small-team alpha client preview must not depend on an unbounded or hard-to-exit
 client path.
 
-## Candidate Seam
+## Runtime Read Seam
 
-A future `RuntimeClientHost` or equivalent seam may be introduced if needed. It
-must be bounded, local, and report-oriented before it supports an alpha preview
-claim.
+A `RuntimeClientHost` or equivalent seam may be introduced only as a bounded,
+local, report-oriented adapter over runtime-readable project state. The seam
+must not become a second project model, a live editor back door, or an implicit
+network stack.
+
+Runtime-readable inputs are contract-only until implemented:
+
+- source-controlled scene and entity truth declared by the project manifest;
+- accepted asset references from source-truth gate evidence;
+- non-canonical generated projections only as evidence;
+- freshness evidence proving whether generated projections are fresh, partial,
+  missing, stale, or invalid.
+
+`ReadyForImplementationPlanning` style report statuses, where present in tools,
+must not be read as proof that Runtime, ClientHost, or Client Preview exists.
 
 Required seam properties:
 
@@ -28,9 +40,40 @@ Required seam properties:
 - explicit timeout;
 - deterministic report path;
 - diagnostics for launch, connection, timeout, and shutdown;
+- immutable handoff data copied from accepted scene/entity/project inputs;
+- explicit accepted asset references;
+- explicit generated-artifact freshness status;
 - no real transport stress claim;
 - no production network claim;
 - no long-running soak behavior.
+
+## Prerequisite Layer
+
+Client preview depends on reportable prerequisites rather than optimistic launch
+attempts:
+
+- source-truth scene and entity validation;
+- accepted asset references;
+- package/launch profile alignment;
+- generated projection freshness;
+- local diagnostics envelope;
+- no-network mode labels when networking is not part of the proof.
+
+Missing or stale prerequisites must produce diagnostics and a no-submit result
+instead of falling through to a partial preview claim.
+
+## Adapter Audit Contract
+
+A report-only adapter audit may read source-truth inventory, scene/entity
+validation, asset reference gates, generated freshness gates, runtime readiness
+gates, package alignment, and launch alignment evidence. Missing required
+evidence maps to `MissingEvidence`; failed or blocked required evidence maps to
+`Blocked`; partial evidence maps to `PartiallyProven`; complete evidence may
+map to `ReadyForImplementationPlanning`.
+
+The audit records missing adapter seams for scene source truth, entity source
+truth, component metadata, accepted asset references, generated projection
+evidence, and freshness evidence. It must not touch Runtime code.
 
 ## Preview Target
 
@@ -63,7 +106,7 @@ Runtime UI overlay scope is limited to status and report visibility:
 It is not a full game UI, HUD framework, menu system, live debugger, or editor
 panel replacement.
 
-## Phase Boundary
+## Boundary
 
-Later launch phases may introduce the bounded preview seam. They must not
-rewrite or migrate `ClientHost` as a side effect of this policy checkpoint.
+Preview work must not rewrite or migrate `ClientHost` as a side effect of this
+strategy. The strategy defines the handoff shape and diagnostics contract only.

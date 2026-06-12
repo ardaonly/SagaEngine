@@ -1,6 +1,6 @@
 # Saga Performance And Usability Budgets
 
-Status: Phase 68 v0 budget contract for Small-Team Alpha.
+> Status: v0 workflow budget report contract
 
 This document defines initial budgets and report semantics for alpha workflow
 discipline. It is not a benchmark suite, profiler, load test, or production

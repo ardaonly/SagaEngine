@@ -1,6 +1,6 @@
 # SagaEngine 0.1 Technical Preview Quickstart
 
-Status: Phase 60 onboarding evidence for the local Technical Preview candidate.
+Status: Milestone 60 onboarding evidence for the local Technical Preview candidate.
 
 This quickstart is for a developer working from the repository. It is not an
 installer, updater, store package, commercial distribution, or hosted service.

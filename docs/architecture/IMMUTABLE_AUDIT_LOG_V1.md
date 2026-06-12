@@ -1,6 +1,9 @@
-# Immutable Audit Log v1
+# Local Audit Chain Evidence v1
 
-Phase 113 adds a local, deterministic audit evidence adapter in
+> Former title: Immutable Audit Log v1
+> Status: Local report-only audit evidence adapter
+
+This document adds a local, deterministic audit evidence adapter in
 `Tools/SagaWorkspaceHub`.
 
 Command:

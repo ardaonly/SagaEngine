@@ -2,9 +2,8 @@
 
 ## Status
 
-Phase 136 report-only contract for Hedef 4. Generated artifacts are checked as
-freshness evidence only. SagaProjectKit does not regenerate them and does not
-edit source files.
+Generated artifacts are checked as freshness evidence only. SagaProjectKit does
+not regenerate them and does not edit source files.
 
 ## Inputs
 

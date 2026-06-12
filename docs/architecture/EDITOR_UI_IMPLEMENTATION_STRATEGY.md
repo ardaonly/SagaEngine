@@ -1,6 +1,6 @@
 # Editor UI Implementation Strategy
 
-Status: Policy checkpoint before Hedef 2 Block C and Phase 73 review work.
+Status: Editor UI boundary strategy.
 
 This document defines the editor UI boundary for upcoming alpha work. It does
 not add Qt widgets, panels, product-shell wiring, source writes, or a public Qt
@@ -12,7 +12,7 @@ The public editor authoring surface remains backend-neutral. Public models and
 contracts must continue to use plain C++ data structures and report paths that
 can be tested without Qt.
 
-Qt implementation details may exist privately in later UI phases, but Qt types
+Qt implementation details may exist privately in later UI work, but Qt types
 must not be added to public editor authoring model headers.
 
 ## First Real UI Candidate
@@ -52,11 +52,10 @@ Editor UI must not:
 
 `EditorQtPublicAbiBoundaryTests` remains the guard for public Qt exposure.
 Future UI work should keep Qt includes and Qt-owned widgets inside private
-implementation files unless a separate architecture checkpoint explicitly
-changes the public boundary.
+implementation files unless a separate architecture contract explicitly changes
+the public boundary.
 
-## Phase Boundary
+## Boundary
 
-Phase 73 may add review and diff model behavior if it remains report-backed.
-Phase 76-81 may add editor workflow usability only after the backend-neutral
-model boundary remains intact.
+Review and diff model behavior must remain report-backed. Editor workflow
+usability work must preserve the backend-neutral model boundary.

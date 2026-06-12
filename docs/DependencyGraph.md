@@ -8,7 +8,7 @@
 
 This document is an architecture contract, not a suggestion list.
 
-Every roadmap and implementation plan should respect this dependency graph unless this document is intentionally updated.
+Every implementation plan and proposed architecture note should respect this dependency graph unless this document is intentionally updated.
 
 Dependency mistakes do not look dangerous at first.
 
@@ -751,7 +751,11 @@ That usually means architecture has already been bypassed.
 
 ---
 
-## 18. CI Enforcement
+## 18. Boundary Guards
+
+This section records desired guard coverage. Partial guard coverage is useful
+evidence, but it is not a claim that all forbidden dependencies are currently
+blocked.
 
 * [ ] Complete include-boundary test coverage.
 
@@ -765,7 +769,7 @@ That usually means architecture has already been bypassed.
 
 
 
-  Done means CI can reject all forbidden target links.
+  Completion would mean local/CI checks can reject all forbidden target links.
 
 * [ ] Add Prism boundary validation.
 
@@ -833,7 +837,7 @@ This document defines who may depend on whom.
 
 It is a guardrail document.
 
-Not a feature roadmap.
+Not a feature backlog.
 
 ---
 

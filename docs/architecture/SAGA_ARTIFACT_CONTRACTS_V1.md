@@ -1,6 +1,6 @@
 # Saga Artifact Contracts V1
 
-Status: Policy checkpoint before Hedef 2 Block B and later report phases.
+Status: Shared JSON artifact envelope contract.
 
 This document defines the common JSON artifact envelope for future Saga tools.
 It does not rewrite existing artifacts or claim legacy conformance.
@@ -82,9 +82,9 @@ Partial and legacy artifacts may remain valid evidence when their owning docs
 explain their schema and limitations. They must not be described as fully
 conforming unless the artifact actually carries the envelope fields.
 
-## Phase 69-75 Requirement
+## Artifact Envelope Requirement
 
-Future Phase 69-75 artifacts must follow this envelope:
+Future 75 artifacts must follow this envelope:
 
 - node extraction reports;
 - node metadata diagnostics;
@@ -93,5 +93,5 @@ Future Phase 69-75 artifacts must follow this envelope:
 - runtime binding validation reports;
 - publish integration reports for script and node metadata.
 
-If a phase cannot use the envelope, it must document the exception before the
+If a milestone cannot use the envelope, it must document the exception before the
 artifact supports an acceptance claim.

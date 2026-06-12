@@ -1,6 +1,6 @@
 # Small-Team Alpha Known Limitations
 
-Status: Phase 94 onboarding evidence and Phase 95 closure input.
+Status: Milestone 94 onboarding evidence and Milestone 95 closure input.
 
 Small-Team Alpha closes only as an evidence-backed local foundation.
 

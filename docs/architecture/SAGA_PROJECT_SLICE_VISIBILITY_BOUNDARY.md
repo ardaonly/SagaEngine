@@ -1,8 +1,8 @@
 # Saga Project Slice Visibility Boundary
 
-Phase 29 status is `Implemented-Unverified`.
+> Status: Local project-slice visibility report boundary
 
-Phase 29 adds a Product Shell no-UI report for local project slice visibility
+This document adds a Product Shell no-UI report for local project slice visibility
 metadata. The report is a read-only metadata proof over a caller-provided target
 artifact. It does not implement secure source hiding, permission enforcement,
 restricted project resolution, a durable project slice service, cloud workspace,
@@ -20,9 +20,12 @@ no cloud sync
 no real-time multi-user editing
 ```
 
-## Report Command
+## Report Command Shape
 
-
+The report is produced by a local Product Shell no-UI slice smoke command over a
+caller-provided project, workspace, actor, slice id, target artifact, and report
+output path. The exact build directory and output path are local evidence
+details, not architecture truth.
 
 The report contains:
 
@@ -51,12 +54,12 @@ target in this metadata preview, plus `visibilitySource: "report-only"` and
 
 ## Non-Goals
 
-Phase 29 does not resolve `.saga/slices`, does not produce a restricted project
+This document does not resolve `.saga/slices`, does not produce a restricted project
 view, and does not hide files from a local user. Existing project slice
 architecture documents remain future/local tool concepts for broader slice
 resolution work.
 
 
 
-Phase 30 may reference local slice/visibility reports as related metadata, but
+This document may reference local slice/visibility reports as related metadata, but
 that does not create restricted project resolution or source hiding.

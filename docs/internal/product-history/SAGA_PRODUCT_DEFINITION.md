@@ -1,6 +1,6 @@
 # SagaEngine Technical Preview Product Definition
 
-> Phase 13 evidence for Target 1 / Technical Preview / Block B.
+> Milestone 13 evidence for Target 1 / Technical Preview / Block B.
 
 Block B opens product work from the accepted diagnostics foundation. The
 Technical Preview product spine is a project-truth layer, not a launch,
@@ -38,13 +38,13 @@ The first product proof path is:
 samples/MultiplayerSandbox
 ```
 
-For Phase 19 this path is a fixture only. It is valid project truth for
+For Milestone 19 this path is a fixture only. It is valid project truth for
 SagaProjectKit validation, resolution, and doctor checks. It is not playable
 game content and does not imply runtime/server launch behavior.
 
 ## Artifact Ownership
 
-| Artifact | Owner | Phase 13 meaning |
+| Artifact | Owner | Milestone 13 meaning |
 | --- | --- | --- |
 | `.sagaproj` | Project truth | Canonical Technical Preview project manifest. |
 | `launch_profiles.json` | Project truth | Declarative launch intent only. |
@@ -64,13 +64,13 @@ game content and does not imply runtime/server launch behavior.
   - `project_validation_report.json`
   - `project_resolution.json`
   - `project_doctor_report.json`
-- Generated reports should be written outside source truth unless a future phase
+- Generated reports should be written outside source truth unless a future milestone
   explicitly accepts a fixture.
 
 ## Block A Reference
 
 The opening evidence is recorded in
-`docs/architecture/POST_DIAGNOSTICS_PRODUCT_OPENING_CHECKPOINT.md`.
+`docs/architecture/DIAGNOSTICS_MIGRATION_AUDIT.md`.
 Block A establishes diagnostics foundation only; it does not establish
 production reliability, production networking, launch readiness, or a product
 ship gate.

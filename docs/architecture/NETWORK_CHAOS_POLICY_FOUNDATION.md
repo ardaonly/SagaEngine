@@ -1,6 +1,6 @@
 # Network Chaos Policy Foundation
 
-Phase 6 adds the first deterministic `NetworkChaosLayer` foundation for direct
+This document adds the first deterministic `NetworkChaosLayer` foundation for direct
 local packet policy tests and bounded diagnostics evidence.
 
 ## Scope
@@ -54,7 +54,7 @@ health metric snapshot path.
 
 ## SagaStressArena Integration
 
-Phase 6 adds `direct_zone_packet_chaos_smoke` as a safe extension of the
+This document adds `direct_zone_packet_chaos_smoke` as a safe extension of the
 existing direct ZoneServer harness. It runs in-process, uses `direct_no_socket`,
 feeds deterministic frames through `NetworkChaosLayer`, and writes the existing
 operational, reliability, and lifetime report artifacts.
@@ -70,7 +70,7 @@ SagaStressArenaLib may depend on SagaServerLib and SagaDiagnostics.
 
 ## Non-Claims
 
-Phase 6 does not add real socket-level packet manipulation, OS network shaping,
+This document does not add real socket-level packet manipulation, OS network shaping,
 a real network BotClient, reconnect storm testing, SagaChaosLab, MMO-scale
 network stress, production network resilience, unbounded queues, sleep-based
 latency tests, or raw full CTest health.

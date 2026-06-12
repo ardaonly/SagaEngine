@@ -1,6 +1,9 @@
 # Saga Linux Archive And Checksum
 
-Phase 34 status is `Implemented-Unverified`.
+> Status: Linux archive/checksum evidence contract
+
+This document records archive and checksum evidence semantics. It is not a
+release signing, maintainer verification, or readiness claim.
 
 `scripts/package-linux-saga` creates the first Linux archive and checksum from
 the staged layout:
@@ -57,7 +60,7 @@ The checksum is not generated if archive generation fails.
 
 ## Unpack Smoke
 
-Phase 35 adds `scripts/smoke-linux-saga-dist` as a separate unpack smoke. It
+This document adds `scripts/smoke-linux-saga-dist` as a separate unpack smoke. It
 uses `Saga.tar.zst` as the distribution input, verifies `Saga.sha256`, unpacks
 into a clean temporary directory, and runs limited checks from the unpacked
 `Saga/` tree.
@@ -82,4 +85,4 @@ Archive/checksum success does not claim:
 - editor workflow correctness;
 - server workflow correctness;
 - tool workflow correctness beyond input existence checks;
-- any phase `Verified` status.
+- historical verified status.

@@ -1,6 +1,6 @@
 # Saga Generated Files Policy
 
-Status: Policy checkpoint before Hedef 2 Block B and later tool/report phases.
+Status: Source truth and generated artifact policy.
 
 This document defines source truth, generated artifacts, package inclusion, and
 stale artifact behavior. It does not move files, rewrite generated output, or
@@ -13,7 +13,7 @@ The following are source truth when checked into the repository or project:
 - `.sagaproj` project files;
 - user scripts and sample source files;
 - launch, package, view, and tool profiles;
-- architecture, product, roadmap, testing, and developer docs;
+- architecture, product, testing, and developer docs;
 - stable sample project source and manifests.
 
 Source truth is authored and reviewed directly. Generated artifacts may support
@@ -35,7 +35,7 @@ package evidence, diagnostics summaries, and gate reports.
 
 `.saga/collaboration` is source truth only for durable collaboration metadata
 such as workspace identity, durable locks, durable comments, or durable review
-metadata when a later phase explicitly stores those records there.
+metadata when a later milestone explicitly stores those records there.
 
 Generated collaboration session, presence, dashboard, and report outputs remain
 generated. They must not become canonical source simply because they describe a
@@ -67,8 +67,7 @@ Required behavior:
 - fail gates that require fresh artifacts;
 - avoid replacing missing evidence with optimistic defaults.
 
-## Phase Boundary
+## Boundary
 
-Phase 69-75 artifacts must follow this policy. Later editor, preview,
-packaging, and collaboration reports must continue to distinguish source truth
-from generated evidence.
+All editor, preview, packaging, and collaboration reports must continue to
+distinguish source truth from generated evidence.

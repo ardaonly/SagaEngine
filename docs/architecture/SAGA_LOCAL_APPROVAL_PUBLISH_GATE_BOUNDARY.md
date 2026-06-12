@@ -1,8 +1,8 @@
 # Saga Local Approval / Publish Gate Boundary
 
-Phase 30 status is `Implemented-Unverified`.
+> Status: Local approval/publish gate report boundary
 
-Phase 30 adds a Product Shell no-UI report for local approval intent and publish
+This document adds a Product Shell no-UI report for local approval intent and publish
 gate preview metadata. The report composes the existing local collaboration
 metadata surfaces into a report-only readiness decision. It does not implement a
 real approval workflow, secure permission enforcement, enterprise policy,
@@ -21,9 +21,12 @@ no enterprise policy engine
 project truth remains unchanged
 ```
 
-## Report Command
+## Report Command Shape
 
-
+The report is produced by a local Product Shell no-UI approval-gate smoke over a
+caller-provided project, workspace, actor, role label, gate target, approval
+state, and report output path. The exact build directory and output file are
+local evidence details, not architecture truth.
 
 The report contains:
 
@@ -52,15 +55,13 @@ The `publishGate` object records a deterministic report-only `gateId`,
 `policyBacked`, `enforced`, `durable`, and `mutatesProject` flags set to
 `false`.
 
-The `readiness` object always records `canPublish: false` for Phase 30 because
+The `readiness` object always records `canPublish: false` for this document because
 package and distribution readiness are not implemented by this report.
 
 ## Non-Goals
 
-Phase 30 does not run package or distribution scripts, does not create package
+This document does not run package or distribution scripts, does not create package
 output, does not block a real publish pipeline, and does not claim package or
 distribution readiness. `scripts/package-linux-saga` remains an optional
 diagnostic outside this report.
-
-
 

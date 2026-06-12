@@ -1,6 +1,6 @@
 # Saga Linux Tool Packaging
 
-Phase 36 status is `Implemented-Unverified`.
+> Status: Linux packaged tool launcher evidence contract
 
 `scripts/package-linux-saga` stages `sagaproject`, `sagascript`, and `sagapack`
 as packaged distribution tools instead of copying the developer-tree
@@ -20,7 +20,7 @@ Those wrappers expect adjacent `.csproj` files and source trees. They are not
 suitable as-is for the unpacked Linux distribution because the distribution does
 not stage those source trees beside `Saga/tools/`.
 
-Phase 36 publishes the real .NET CLI projects with framework-dependent
+This document publishes the real .NET CLI projects with framework-dependent
 `dotnet publish` output:
 
 ```txt
@@ -47,7 +47,7 @@ files.
 
 ## Evidence Boundary
 
-The Phase 36 smoke evidence proves only that these unpacked commands run:
+The current contract smoke evidence proves only that these unpacked commands run:
 
 ```bash
 /tmp/saga_dist_smoke/Saga/tools/sagaproject --help

@@ -11,3 +11,8 @@ current onboarding paths. The current product entry points are:
 - [../../product/WHAT_IS_NOT_IMPLEMENTED.md](../../product/WHAT_IS_NOT_IMPLEMENTED.md)
 - [../../product/CURRENT_DISTRIBUTION_STATUS.md](../../product/CURRENT_DISTRIBUTION_STATUS.md)
 - [../../product/GETTING_STARTED.md](../../product/GETTING_STARTED.md)
+
+Recently retired product-surface notes preserved here:
+
+- [NEXT_PRODUCT_SLICE.md](NEXT_PRODUCT_SLICE.md)
+- [TECHNICAL_PREVIEW_CANDIDATE.md](TECHNICAL_PREVIEW_CANDIDATE.md)

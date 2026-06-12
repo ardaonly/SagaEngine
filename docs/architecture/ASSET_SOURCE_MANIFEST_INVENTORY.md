@@ -2,9 +2,9 @@
 
 ## Status
 
-Phase 134 report-only contract for Hedef 4. This document defines how
-SagaProjectKit inventories asset roots and asset source manifests without
-importing, cooking, packaging, launching, or mutating project source.
+This document defines how SagaProjectKit inventories asset roots and asset
+source manifests without importing, cooking, packaging, launching, or mutating
+project source.
 
 ## Canonical Inputs
 

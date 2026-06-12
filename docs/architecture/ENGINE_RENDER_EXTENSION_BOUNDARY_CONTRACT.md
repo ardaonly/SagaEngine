@@ -37,7 +37,7 @@ features with copied data, while private renderer code owns graph scheduling,
 pass implementation, backend command recording, and transient resource
 lifetime.
 
-The RenderPipelineConfig shell phase adds
+The RenderPipelineConfig shell milestone adds
 `SagaEngine/Render/RenderPipelineConfig.h` as the first public config-owned DTO
 surface. It is header-only and contains scalar/config/status/stat data only.
 It does not replace existing `RenderConfig`, wire renderer behavior, or move

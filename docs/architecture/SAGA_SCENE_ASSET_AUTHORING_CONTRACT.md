@@ -2,7 +2,7 @@
 
 ## Status
 
-Phase 82 source-truth policy and explicit deferrals for Block D.
+This document source-truth policy and explicit deferrals for Block D.
 
 ## Current Source Truth
 
@@ -32,5 +32,5 @@ authoring source truth for scenes, entities, prefabs, or imported assets.
 
 Full asset import, asset cooking, asset streaming, scene editing, prefab
 editing, entity placement, ClientHost asset consumption, and runtime gameplay
-source truth remain deferred until later phases add bounded contracts and
+source truth remain deferred until later milestones add bounded contracts and
 evidence.

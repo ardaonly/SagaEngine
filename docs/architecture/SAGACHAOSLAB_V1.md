@@ -1,7 +1,7 @@
 # SagaChaosLab v1
 
-Phase 7 adds `SagaChaosLab`, a bounded tool-level chaos profile runner around
-the Phase 6 deterministic `NetworkChaosLayer` and the existing direct/local
+This document adds `SagaChaosLab`, a bounded tool-level chaos profile runner around
+the current contract deterministic `NetworkChaosLayer` and the existing direct/local
 `SagaStressArena` ZoneServer harness.
 
 ## Scope

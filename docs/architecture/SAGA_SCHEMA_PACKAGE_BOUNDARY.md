@@ -5,7 +5,7 @@
 ## Current Reality
 
 There is no dedicated Saga schema package tree in this repository today. In
-particular, Phase 20 does not create:
+particular, this document does not create:
 
 
 
@@ -66,12 +66,12 @@ Saga Consumers
   validators/
 ```
 
-This is a future package shape, not current implementation. Phase 20 does not
+This is a future package shape, not current implementation. This document does not
 claim package readiness or distribution readiness.
 
 ## Verification Boundary
 
-Phase 20 evidence is limited to:
+This document evidence is limited to:
 
 
 

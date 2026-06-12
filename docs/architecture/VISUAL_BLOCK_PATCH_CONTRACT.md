@@ -2,15 +2,13 @@
 
 ## Status
 
-Phase 15 status is `Implemented-Unverified`.
-Phase 16 status is `Implemented-Unverified`.
-Phase 17 status is `Implemented-Unverified`.
+> Status: Source-preserving patch preview contract
 
 This document defines the first source-preserving block operation contract for
-SagaScript read-only Visual Blocks projection artifacts. Phase 15 is
-preview-only. Phase 16 adds one copy-output apply path for a passed
+SagaScript read-only Visual Blocks projection artifacts. This document is
+preview-only. This document adds one copy-output apply path for a passed
 `StringLiteralEdit` preview. It does not overwrite the original C# file,
-implement an editor UI, or make blocks editable in the Phase 14 projection
+implement an editor UI, or make blocks editable in the current contract projection
 artifact.
 
 ## Command
@@ -25,7 +23,7 @@ sagascript plan-block-edit \
   --json
 ```
 
-The command reads a Phase 14 projection artifact and a single operation request.
+The command reads a this document projection artifact and a single operation request.
 It writes a dry-run `block_patch_preview_v1.json` report.
 
 ## Operation Request
@@ -45,7 +43,7 @@ deterministic id from operation kind, target block id, and requested value.
 
 ## Allowed Contract Kinds
 
-Phase 15 recognizes these operation kinds as the initial contract vocabulary:
+This document recognizes these operation kinds as the initial contract vocabulary:
 
 - `LiteralValueEdit`
 - `BooleanLiteralEdit`
@@ -54,9 +52,9 @@ Phase 15 recognizes these operation kinds as the initial contract vocabulary:
 - `MethodArgumentLiteralEdit`
 - `SupportedConditionLiteralEdit`
 
-Only `StringLiteralEdit` produces a passing preview in this phase. Other
-contract-known operations are rejected until a later phase adds safe fixtures
-and preview behavior.
+Only `StringLiteralEdit` produces a passing preview in the current bounded
+contract. Other contract-known operations are rejected until safe fixtures and
+preview behavior exist.
 
 ## Rejected Operations
 
@@ -113,7 +111,7 @@ For a passing preview, `patchPreview` describes only a minimal span replacement:
 
 ## Apply Command
 
-Phase 16 exposes the first safe apply path through:
+This document exposes the first safe apply path through:
 
 ```bash
 sagascript apply-block-edit \
@@ -173,7 +171,7 @@ It does not overwrite the original source file.
 
 ## CLI Two-Way Authoring Proof
 
-Phase 17 composes existing SagaScript commands as a test-level authoring loop:
+This document composes existing SagaScript commands as a test-level authoring loop:
 
 ```txt
 C# source
@@ -195,7 +193,7 @@ execution path.
 - No Visual Blocks editor UI is implemented.
 - No block editing UI is implemented.
 - No arbitrary C# to blocks conversion is claimed.
-- No full visual scripting claim should be derived from this contract.
+- No full visual scripting claim should be derived from this document.
 - Runtime remains compiled C#; visual graph interpretation is not introduced.
-- Phase 16 does not perform in-place source mutation by default.
-- Phase 16 does not implement method, class, or file regeneration.
+- This document does not perform in-place source mutation by default.
+- This document does not implement method, class, or file regeneration.

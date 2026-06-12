@@ -1,12 +1,12 @@
 # Source Visibility Levels v1
 
-Hedef 3 Phase 106 models source visibility as a local tool/view
-classification. It does not hide files from the filesystem, enforce identity,
-encrypt source, or provide production source controls.
+This document models source visibility as a local tool/view classification. It
+does not hide files from the filesystem, enforce identity, encrypt source, or
+provide production source controls.
 
 ## Canonical Levels
 
-The roadmap-canonical visibility levels are:
+The canonical visibility levels are:
 
 - `FullSource`: source path may be reported and source-aware views may treat
   the artifact as visible.
@@ -47,6 +47,6 @@ Diagnostics View may show visibility diagnostics.
 
 ## Non-Goals
 
-This phase does not implement auth, identity, role enforcement, source
-encryption, direct filesystem protection, shared workspace service, Runtime behavior,
-Server behavior, ClientHost behavior, Editor UI, Qt UI, or later-phase work.
+This document does not implement auth, identity, role enforcement, source
+encryption, direct filesystem protection, shared workspace service, Runtime
+behavior, Server behavior, ClientHost behavior, Editor UI, or Qt UI.

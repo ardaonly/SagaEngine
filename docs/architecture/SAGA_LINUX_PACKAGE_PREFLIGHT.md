@@ -1,8 +1,9 @@
 # Saga Linux Package Preflight
 
-Phase 31 status is `Implemented-Unverified`. Phase 32 status is
-`Implemented-Unverified`. Phase 33 status is `Implemented-Unverified`. Phase
-34 status is `Implemented-Unverified`.
+> Status: Linux package preflight evidence contract
+
+This document records a local package preflight report contract. It is not a
+release pipeline, package readiness claim, or final distribution validation.
 
 `scripts/package-linux-saga` is a Linux layout staging and package preflight
 checker. It stages the first Linux layout from real existing inputs, creates
@@ -12,13 +13,8 @@ enterprise readiness, prove full distribution validation, or mark a verified
 release or verified final release.
 
 The script checks for existing real inputs and the expected final distribution
-outputs, then writes a machine-readable report. The default report path is:
-
-```bash
-build/reports/linux_package_preflight_report.json
-```
-
-The report can be redirected:
+outputs, then writes a machine-readable report. The report path is local
+evidence and can be redirected:
 
 ```bash
 scripts/package-linux-saga --report-out /tmp/linux_package_preflight_report.json
@@ -78,7 +74,7 @@ build/dist/linux/Saga
 The layout is created only from real existing files and generated honest
 metadata. It is not a final distribution.
 
-After successful Phase 34 archive/checksum generation, the package preflight
+After successful this document archive/checksum generation, the package preflight
 report no longer lists the archive and checksum blockers when these real files
 exist:
 
@@ -111,7 +107,7 @@ The Linux package preflight report does not claim:
 - server workflow correctness;
 - tool workflow correctness beyond input existence checks.
 
-No phase is marked `Verified` by this report.
+No release or historical verified status is marked by this report.
 
 ## Risks
 

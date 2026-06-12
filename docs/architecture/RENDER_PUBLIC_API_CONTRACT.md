@@ -44,23 +44,34 @@ behind the existing opaque graphics handles for null and Diligent adapter
 behavior. It also adds vendor-neutral descriptor validation, backend-global
 create failure reporting, approximate logical memory reporting, creation-time
 initial data shadow-copy validation, registered-resource liveness diagnostics,
-and a shutdown-time registered-resource leak summary. The Diligent adapter
-remains registered-only for these resources. This does not create native GPU
-resources, upload data, expose backend pointers, or claim native GPU allocation
-accounting. It does not create native Diligent GPU resources.
+debug-name propagation, public registered-resource query, and a shutdown-time
+registered-resource leak summary. The Diligent adapter remains registered-only
+for these resources. This does not create native GPU resources, upload data,
+expose backend pointers, or claim native GPU allocation accounting. It does not create native Diligent GPU resources.
 
 R4B private/CPU validation partial coverage adds vendor-neutral CPU-side
-binding vocabulary/validation, registered-resource query integration, and a
-private CPU frame resource allocator with lifecycle and alignment diagnostics.
-It does not create native descriptor sets, GPU ring buffers, upload heaps,
-native uniform buffers, or draw binding integration.
+binding vocabulary/validation, layout conformance checks for unexpected
+binding slots, registered-resource query integration, and CPU-side fallback
+binding policy for missing texture, buffer, and sampler bindings. It also adds
+a private CPU frame resource allocator with lifecycle and alignment diagnostics
+and public frame resource vocabulary for persistent, per-frame transient, and
+swapchain-sized resource classes plus CPU budget snapshots. The fallback policy
+validates fallback handles only; it does not create fallback native descriptors
+or GPU objects. It does not create native descriptor sets, GPU ring buffers,
+upload heaps, native uniform buffers, native multi-frame resource mutation, or
+draw binding integration.
 
-R5 validation/dump entry adds RenderGraph compile diagnostics and a
-deterministic text dump while preserving the existing `Compile()` bool and
-`Execute()` behavior. The diagnostics and dump coverage is deterministic test
-coverage only; it does not add a SagaGraphics execution bridge, Diligent
-execution bridge, material system, shader compiler, lighting, or post-processing
-pipeline.
+R5A validation/contract coverage adds RenderGraph resource descriptor
+diagnostics, pass-local validation, duplicate pass/resource-use diagnostics,
+compiled-state invalidation after graph mutation, compile/execution snapshot
+counts, and deterministic dump v1 while preserving the existing `Compile()`
+bool and CPU-side callback execution model. The diagnostics, dump, dirty-state
+guard, and execution snapshot coverage are deterministic CPU-side test coverage
+only. It does not add a SagaGraphics execution bridge, Diligent execution
+bridge, material system, shader compiler, lighting, or post-processing
+pipeline. It also does not add a transient aliasing allocator, native
+framebuffer/backbuffer pass, native descriptor set, upload heap, or GPU draw
+binding.
 
 R5 validation entry adds RenderGraph compile diagnostics; it remains a
 validation/dump foundation entry, not a render execution bridge.
@@ -73,6 +84,30 @@ the existing `IRenderBackend` mesh/material/texture upload and submit seam; it
 does not route through the SagaGraphics registered-only shell or claim a full
 asset-driven scene renderer.
 
+R6C/R6D CPU-side render residency foundation adds
+`SagaEngine/Render/Streaming/RenderStreamingResidency.h` as a vendor-neutral
+adapter over existing resource streaming vocabulary. It defines deterministic
+texture mip residency decisions, material-importance and distance based
+priority scoring, texture pool budget diagnostics, geometry LOD residency
+decisions for static, skinned, and terrain chunk categories, missing mip and
+missing mesh fallback diagnostics, stable request ordering, and byte-identical
+residency report serialization. The Resources subsystem remains the owner of
+asset byte streaming; this render contract interprets which mip or LOD should
+be requested and what CPU-side fallback is acceptable.
+
+R8/R8B/R8C/R11D CPU-side scene extraction and view-family foundation adds
+vendor-neutral `RenderFrameSnapshot` / `RenderViewFamily` / draw packet
+contracts plus a render interest/world streaming contract. These APIs turn
+`RenderWorld` entities and view descriptors into deterministic CPU-side draw
+packet snapshots, counters, and diagnostics. They also document that network
+relevance, client streaming relevance, render visibility, and render resource
+residency are separate concepts. This is a render-thread-compatible ownership
+contract and diagnostics foundation; it is not a dedicated render thread,
+multi-view render target implementation, terrain renderer, or GPU submission
+bridge.
+
+The high-level graphics/render pipeline boundary is documented in
+[Graphics Render Pipeline Hardening Plan](GRAPHICS_RENDER_PIPELINE_HARDENING_PLAN.md).
 The internal backend preference order is documented in
 [Graphics Backend Preference Order](GRAPHICS_BACKEND_PREFERENCE_ORDER.md).
 The conservative capability matrix is documented in
@@ -105,6 +140,12 @@ memory accounting, or resource diagnostics beyond registered-resource
 lifecycle/liveness reporting.
 It does not complete R4B native binding/frame resources.
 It does not complete R5 RenderGraph execution.
+It does not implement GPU texture upload.
+It does not implement virtual texture residency.
+It does not prove terrain or mesh streaming render smoke.
+It does not implement a dedicated render thread.
+It does not implement multi-view render targets.
+It does not make network relevance the same thing as render relevance.
 It does not turn the playable render slice into a production renderer,
 asset-pipeline scene loader, shader compiler, lighting stack, or post-process
 stack.

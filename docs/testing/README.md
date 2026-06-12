@@ -16,13 +16,13 @@ Common examples:
 
 ```sh
 git diff --check
-ctest --test-dir build/RelWithDebInfo-0.0.9 -R "<test-name>" --output-on-failure
+ctest --test-dir <build-dir> -R "<test-name>" --output-on-failure
 ```
 
 On NixOS:
 
 ```sh
-nix-shell --run "ctest --test-dir build/RelWithDebInfo-0.0.9 -R '<test-name>' --output-on-failure"
+nix-shell --run "ctest --test-dir <build-dir> -R '<test-name>' --output-on-failure"
 ```
 
 ## Local Gates

@@ -12,8 +12,11 @@ local environment and subsystem.
 - Some tools and native targets can be built and verified locally.
 - Distribution staging exists for selected artifacts.
 - A limited Linux technical-preview archive can be produced and smoke-checked.
-- Detailed candidate status is documented in
-  [Technical Preview Candidate Status](TECHNICAL_PREVIEW_CANDIDATE.md).
+- The limited Linux path may include a staged layout, archive, checksum,
+  preflight report, distribution smoke report, and candidate aggregation report.
+
+These artifacts are local evidence for supported paths. They are not a public
+release channel and they are not current onboarding requirements.
 
 ## What To Avoid
 
@@ -24,9 +27,13 @@ local environment and subsystem.
 - Do not present the technical-preview archive as a verified final release.
 - Do not claim production networking, cloud, security, editor workflow, visual
   scripting, gameplay, or scale coverage.
+- Do not treat candidate/preflight/smoke report names as release vocabulary.
 
 ## Generated Outputs
 
 Generated and build outputs should not be committed unless they are stable,
 deterministic, required as fixtures, and documented as source material. Most
 generated reports and build products should remain ignored.
+
+Historical detailed candidate notes, if needed for context, belong under
+`docs/internal/product-history/`, not in the current product surface.

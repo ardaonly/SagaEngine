@@ -5,9 +5,10 @@ Use this path if you are new to SagaEngine.
 ## Read First
 
 1. [What Is SagaEngine?](WHAT_IS_SAGAENGINE.md)
-2. [Current Capabilities](CURRENT_CAPABILITIES.md)
-3. [What Is Not Implemented](WHAT_IS_NOT_IMPLEMENTED.md)
-4. [Current Distribution Status](CURRENT_DISTRIBUTION_STATUS.md)
+2. [Saga Ecosystem Map](SAGA_ECOSYSTEM_MAP.md)
+3. [Current Capabilities](CURRENT_CAPABILITIES.md)
+4. [What Is Not Implemented](WHAT_IS_NOT_IMPLEMENTED.md)
+5. [Current Distribution Status](CURRENT_DISTRIBUTION_STATUS.md)
 
 ## First Local Checks
 
@@ -29,10 +30,11 @@ subsystem you are reviewing. For NixOS environments, run commands through
 - Do not assume all tests or heavy stress suites pass.
 - Do not treat generated reports as source files unless a fixture document says
   so.
+- Do not use old alpha, technical-preview, candidate, tutorial, or planning
+  notes as current onboarding material.
 
 ## Where To Go Next
 
 - [Architecture index](../architecture/README.md)
 - [Testing index](../testing/README.md)
-- [Roadmap index](../roadmaps/README.md)
 - [`.sagaproj` Schema v0](SAGAPROJ_SCHEMA_V0.md)
