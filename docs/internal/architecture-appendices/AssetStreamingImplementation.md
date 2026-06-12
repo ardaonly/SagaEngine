@@ -1,9 +1,8 @@
 # Asset Streaming System — Implementation Note
 
 > Last updated: 2026-05-18
-> Status: Implementation note
-> Location: `docs/AssetStreamingImplementation.md`
-> Related roadmap: `ENGINE_ROADMAP.md`
+> Status: Implementation-history appendix
+> Location: `docs/internal/architecture-appendices/AssetStreamingImplementation.md`
 > Related systems: Runtime resources, asset registry, residency cache, streaming scheduler, runtime preview, editor import/cook pipeline, asset pipeline, package manifests, build/publish pipeline, Prism stale artifact analysis.
 > Scope: Implemented runtime asset streaming architecture, design decisions, known constraints, follow-up risks, and runtime/asset-pipeline boundary alignment.
 
@@ -11,25 +10,19 @@
 
 ## 0. Document Status
 
-This document is not an active roadmap.
-
 It records the implemented asset streaming architecture for SagaEngine's runtime/resource layer.
-
-Active future work should be tracked in:
-
-```txt
-ENGINE_ROADMAP.md
-ASSET_PIPELINE_ROADMAP.md
-BUILD_PUBLISH_PIPELINE_ROADMAP.md
-FORGE_ROADMAP.md
-PRISM_ROADMAP.md
-```
 
 This document should remain useful as implementation history and design rationale.
 
-It must not be treated as the source of truth for future product direction.
+It must not be treated as the current architecture index entry point or source
+of truth for product direction.
 
-It must also not become the full asset pipeline roadmap.
+Current ownership truth belongs in:
+
+- `architecture/RUNTIME.md`
+- `architecture/ASSETS_AND_PACKAGES.md`
+- `architecture/PUBLISH.md`
+- `architecture/EDITOR.md`
 
 Runtime streaming is one part of the content pipeline.
 
@@ -43,17 +36,16 @@ This document describes the runtime asset streaming implementation.
 
 It does not own source asset import, cook, package staging, publish readiness, editor asset UX, or stale artifact analysis.
 
-Related roadmap documents:
+Related current documents:
 
 | Document                            | Purpose                                                                                             |
 | ----------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `ENGINE_ROADMAP.md`                 | Runtime/server package and manifest consumption, runtime startup validation, asset manifest loading |
-| `ASSET_PIPELINE_ROADMAP.md`         | Source asset import, metadata, cook, cooked artifacts, asset manifests, asset diagnostics           |
-| `BUILD_PUBLISH_PIPELINE_ROADMAP.md` | Validation/cook/package/publish workflow                                                            |
-| `FORGE_ROADMAP.md`                  | Build workflow orchestration and asset cook invocation                                              |
-| `PRISM_ROADMAP.md`                  | Stale cooked artifact detection and source asset → cooked artifact relationship analysis            |
-| `EDITOR_ROADMAP.md`                 | Content browser, asset inspector, import/reimport UX, asset diagnostics display                     |
-| `SHARED_ROADMAP.md`                 | Neutral asset ids, artifact refs, package manifests, diagnostics payloads                           |
+| `architecture/RUNTIME.md`           | Runtime package and manifest consumption, startup validation, asset manifest loading                |
+| `architecture/ASSETS_AND_PACKAGES.md` | Source asset, package, manifest, and asset pipeline boundaries                                   |
+| `architecture/PUBLISH.md`           | Publish report and package blocker boundary                                                        |
+| `architecture/EDITOR.md`            | Editor authoring and asset UX boundary                                                             |
+| `architecture/SDE_ARTIFACT_MANIFEST_CONTRACT.md` | SDE artifact and manifest contract                                                       |
+| `architecture/TESTING_AND_EVIDENCE.md` | Focused verification boundary                                                                  |
 | `DependencyGraph.md`                | Runtime/tool/editor/asset-pipeline ownership boundaries                                             |
 
 ---
@@ -683,7 +675,7 @@ Priority may be influenced by:
 
 * camera distance,
 * gameplay criticality,
-* preload phase,
+* preload step,
 * player proximity,
 * UI/runtime preview need,
 * explicit blocking request,
@@ -1750,30 +1742,28 @@ Runtime reports load/manifest/artifact failures.
 
 ---
 
-## 29. Relationship to Roadmaps
+## 29. Relationship to Current Ownership Docs
 
 This document records the implementation note for runtime asset streaming.
 
-Active roadmap ownership:
+Current ownership references:
 
 | Area                                                 | Owner document                      |
 | ---------------------------------------------------- | ----------------------------------- |
-| Runtime resource roadmap                             | `ENGINE_ROADMAP.md`                 |
-| Source asset import/cook                             | `ASSET_PIPELINE_ROADMAP.md`         |
-| Editor import UX / asset inspector / content browser | `EDITOR_ROADMAP.md`                 |
-| Shared ids/artifact contracts                        | `SHARED_ROADMAP.md`                 |
-| Collaboration resource ownership                     | `COLLABORATION_ROADMAP.md`          |
-| Tool ecosystem                                       | `TOOLS_ROADMAP.md`                  |
-| SDE compiler artifacts                               | `SDE_ROADMAP.md`                    |
-| Build/cook/package/publish pipeline                  | `BUILD_PUBLISH_PIPELINE_ROADMAP.md` |
-| Forge build/cook/package orchestration               | `FORGE_ROADMAP.md`                  |
-| Prism stale cooked artifact analysis                 | `PRISM_ROADMAP.md`                  |
+| Runtime resource behavior                            | `architecture/RUNTIME.md`           |
+| Source asset import/cook                             | `architecture/ASSETS_AND_PACKAGES.md` |
+| Editor import UX / asset inspector / content browser | `architecture/EDITOR.md`            |
+| Shared ids/artifact contracts                        | `architecture/SOURCE_OF_TRUTH_MAP.md` |
+| Collaboration resource ownership                     | `architecture/SAGA_COLLABORATION_CURRENT_BOUNDARY.md` |
+| Tool ecosystem                                       | focused tool contracts and local reports |
+| SDE compiler artifacts                               | `architecture/SDE_ARTIFACT_MANIFEST_CONTRACT.md` |
+| Build/cook/package/publish boundary                  | `architecture/PUBLISH.md`           |
+| Forge build/cook/package orchestration               | `architecture/PUBLISH.md`           |
+| Prism stale cooked artifact analysis                 | internal/proposed toolchain appendix |
 | Dependency boundaries                                | `DependencyGraph.md`                |
-| Diagnostics/reporting model                          | `DIAGNOSTICS_ROADMAP.md`            |
+| Diagnostics/reporting model                          | `architecture/TESTING_AND_EVIDENCE.md` |
 
 This file should not track future task progress unless it is documenting completed implementation decisions.
-
-Roadmap tasks belong in the roadmap documents.
 
 Implementation history and runtime design rationale belong here.
 
@@ -1797,15 +1787,16 @@ This implementation note does not define:
 * asset collaboration conflict resolution,
 * asset schema language design.
 
-Those belong to:
+Those belong to current architecture documents:
 
-* `ASSET_PIPELINE_ROADMAP.md`,
-* `FORGE_ROADMAP.md`,
-* `PRISM_ROADMAP.md`,
-* `EDITOR_ROADMAP.md`,
-* `BUILD_PUBLISH_PIPELINE_ROADMAP.md`,
-* `COLLABORATION_ROADMAP.md`,
-* `SDE_ROADMAP.md` where schema/artifact definitions are involved.
+* `architecture/ASSETS_AND_PACKAGES.md`,
+* `architecture/PUBLISH.md`,
+* internal/proposed toolchain appendices,
+* `architecture/EDITOR.md`,
+* `architecture/SAGA_COLLABORATION_CURRENT_BOUNDARY.md`,
+* `architecture/SDE_CURRENT_CONTRACT.md` and
+  `architecture/SDE_ARTIFACT_MANIFEST_CONTRACT.md` where schema or artifact
+  definitions are involved.
 
 Runtime streaming loads runtime-ready assets.
 

@@ -5,6 +5,17 @@
 Runtime startup, lifecycle, package startup validation, and asset bootstrap are
 partly implemented. This does not yet make a complete runtime product path.
 
+## Runtime Asset Boundary
+
+Runtime owns runtime loading, residency, runtime-ready manifest consumption,
+and runtime diagnostics for load failures. It may consume package and asset
+manifests produced by other layers.
+
+Runtime does not own editor import/cook workflows, package staging, publish
+readiness, Prism stale-artifact analysis, Forge orchestration, source asset
+normalization, or asset authoring UI. Those responsibilities remain with the
+asset pipeline, tools, publish contracts, and editor surfaces.
+
 ## Current State
 
 - Runtime startup/session/lifecycle code exists.
@@ -14,8 +25,13 @@ partly implemented. This does not yet make a complete runtime product path.
 - RuntimeServiceRegistry asset service is incomplete.
 - A full playable runtime flow is missing.
 
-## Background
+## Evidence Boundary
 
-- [Phase 3 runtime closure](../recovery/phase-03-runtime/PHASE_3_CLOSURE_AND_PHASE_4A_OPENING_CHECKPOINT.md)
-- [Phase 3 lifecycle checkpoint](../recovery/phase-03-runtime/PHASE_3C_LIFECYCLE_OWNERSHIP_CHECKPOINT.md)
-- [Phase 5 asset/runtime closure](../recovery/phase-05-assets-runtime/PHASE_5_CLOSURE_AND_PHASE_6_OPENING_CHECKPOINT.md)
+Current evidence supports runtime startup, lifecycle, package validation, and
+local asset bootstrap foundations only. It does not prove a complete client
+loop, complete gameplay runtime, production networking, or package-driven
+playability.
+
+For implementation history and rationale, see the appendix-style
+[Asset Streaming System implementation note](../internal/architecture-appendices/AssetStreamingImplementation.md).
+That note is not the current runtime/asset ownership source of truth.

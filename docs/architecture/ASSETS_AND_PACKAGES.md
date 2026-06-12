@@ -5,6 +5,16 @@
 Asset and package support exists for selected local workflows. It is not a full
 asset import/cook pipeline or release packaging system.
 
+## Runtime Consumption Boundary
+
+Runtime consumes runtime-ready assets and manifests. Asset import, cook,
+package staging, publish reports, stale artifact analysis, and editor asset UX
+belong to their own tools and contracts.
+
+The runtime asset path may validate manifests and load supported runtime
+artifacts. It must not be described as owning the full source asset pipeline or
+release packaging workflow.
+
 ## Current State
 
 - Package manifest, asset manifest, asset identity, RuntimeSmoke package, and
@@ -15,8 +25,9 @@ asset import/cook pipeline or release packaging system.
 - RuntimeServiceRegistry asset service is incomplete.
 - A playable packaged MultiplayerSandbox path is missing.
 
-## Background
+## Evidence Boundary
 
-- [Phase 5 closure](../recovery/phase-05-assets-runtime/PHASE_5_CLOSURE_AND_PHASE_6_OPENING_CHECKPOINT.md)
-- [Package asset identity report](../recovery/phase-05-assets-runtime/PHASE_5O_PUBLISH_READINESS_PACKAGE_ASSET_IDENTITY_REPORT.md)
-- [Phase 10 publish closure](../recovery/phase-10-publish-gate/PHASE_10_CLOSURE_CHECKPOINT.md)
+Current evidence supports selected package manifests, asset manifests, asset
+identity reporting, and runtime asset bootstrap paths. It does not prove a full
+asset import/cook pipeline, complete package distribution, or a playable
+packaged sample.

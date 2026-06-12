@@ -1,9 +1,9 @@
 # Client-Side Replication Pipeline — Formal Specification
 
 > Last updated: 2026-05-14
-> Status: Formal runtime specification
-> Location: `docs/ClientReplicationFormalSpec.md`
-> Related roadmap: `ENGINE_ROADMAP.md`
+> Status: Runtime correctness appendix
+> Location: `docs/internal/architecture-appendices/ClientReplicationFormalSpec.md`
+> Related current docs: `architecture/RUNTIME.md`, `architecture/SERVER.md`
 > Related systems: Packet demux, replication state machine, snapshot apply pipeline, reconciliation buffer, interpolation manager, prediction, diagnostics, runtime networking.
 > Scope: Client-side replication apply order, determinism, state transitions, thread ownership, memory boundaries, validation rules, and failure behavior.
 
@@ -11,21 +11,17 @@
 
 ## 0. Document Status
 
-This document is a formal runtime specification.
-
-It is not a roadmap.
+This document is a formal runtime correctness specification.
 
 It defines the correctness contract for the client-side replication pipeline.
-
-Roadmap progress belongs in:
-
-```txt
-ENGINE_ROADMAP.md
-```
 
 This document should describe invariants the implementation must preserve.
 
 If the implementation changes, this specification must be updated deliberately.
+
+It is not the current server/runtime entry point, not implementation evidence by
+itself, and not a production networking or complete multiplayer product claim.
+Current status belongs in `architecture/SERVER.md` and `architecture/RUNTIME.md`.
 
 ---
 
@@ -54,7 +50,7 @@ The client is a visual, predictive, interactive consumer of server truth.
 
 ---
 
-## 2. Non-Roadmap Rule
+## 2. Progress Tracking Rule
 
 This specification must not track feature progress using checklist items.
 
@@ -77,8 +73,6 @@ Tracks task ownership.
 Tracks implementation milestones.
 Tracks sprint planning.
 ```
-
-Use `ENGINE_ROADMAP.md` for progress.
 
 Use this file for correctness.
 

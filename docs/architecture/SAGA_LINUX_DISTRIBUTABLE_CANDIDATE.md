@@ -1,29 +1,30 @@
 # Saga Linux Distributable Candidate Gate
 
-Phase 38 status is `Implemented-Unverified`.
+> Status: Linux distribution evidence aggregator
+
+This document records how existing local package, archive, checksum, and smoke
+evidence can be aggregated. It is not a release gate and does not claim
+readiness.
 
 `scripts/verify-linux-saga-candidate` collects the existing Linux package,
 archive, checksum, unpack smoke, and StarterArena distribution workflow reports
-into one machine-readable candidate report:
+into one machine-readable evidence report:
 
-```txt
-build/reports/linux_distributable_candidate_report.json
-```
+The report output path is caller-controlled or tool-defaulted local evidence.
+It is not architecture truth.
 
 The gate does not rebuild or restage the package. It validates existing evidence
 from:
 
-```txt
-build/dist/linux/Saga/
-build/dist/linux/Saga.tar.zst
-build/dist/linux/Saga.sha256
-build/reports/linux_package_preflight_report.json
-build/reports/linux_distribution_smoke_report.json
-```
+- a staged Linux layout;
+- an archive;
+- a checksum;
+- a package preflight report;
+- a distribution smoke report.
 
-## Candidate Meaning
+## Evidence Meaning
 
-`candidate-with-limitations` means:
+A bounded Linux distribution evidence report means:
 
 - `scripts/package-linux-saga` produced a `preflight-passed` report;
 - the staged layout exists;
@@ -49,7 +50,7 @@ The candidate report does not claim:
 - full gameplay readiness;
 - full runtime validation;
 - cloud collaboration;
-- any phase `Verified` status.
+- historical verified status.
 
 ## Current Blockers
 
