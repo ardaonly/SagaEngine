@@ -74,7 +74,7 @@ Passing focused tests does not imply:
 - product beta or release candidate status;
 - production networking or MMO readiness;
 - complete editor workflow;
-- complete visual scripting;
+- no complete visual scripting;
 - enterprise readiness;
 - release packaging or distribution readiness.
 

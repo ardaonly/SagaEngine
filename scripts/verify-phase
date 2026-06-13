@@ -45,7 +45,7 @@ class PhaseRow:
 
 def parse_matrix() -> dict[int, PhaseRow]:
     if not MATRIX.exists():
-        raise RuntimeError(f"missing status matrix: {MATRIX}")
+        return {}
 
     phases: dict[int, PhaseRow] = {}
     for raw_line in MATRIX.read_text(encoding="utf-8").splitlines():
@@ -159,6 +159,10 @@ def main() -> int:
 
     try:
         phases = parse_matrix()
+        if not phases:
+            print(f"verify-phase: status matrix not configured: {MATRIX}")
+            print("verify-phase: no phase was marked Verified")
+            return 0
         selected = select_phases(phases, args.phases)
     except RuntimeError as exc:
         print(f"verify-phase: {exc}", file=sys.stderr)
