@@ -125,6 +125,15 @@ enum class MaterialTextureResidencyHint : std::uint8_t
     PlaceholderAllowed,
 };
 
+/// Minimal opaque shading model for the current forward runtime path.
+/// Unlit preserves the M2 texture/depth/transform behavior. LitDiffuse enables
+/// vertex-normal Lambert lighting and optional directional shadow sampling.
+enum class OpaqueShadingModel : std::uint8_t
+{
+    Unlit = 0,
+    LitDiffuse = 1,
+};
+
 // ─── Parameter blocks ───────────────────────────────────────────────────────
 
 /// Named scalar parameter in the on-disk asset.  The name is matched
@@ -198,6 +207,7 @@ struct MaterialRuntime
     ShaderTemplateHandle  shaderHandle = ShaderTemplateHandle::kInvalid;
     MaterialRenderQueue   renderQueue  = MaterialRenderQueue::Opaque;
     MaterialCullMode      cullMode     = MaterialCullMode::Back;
+    OpaqueShadingModel    shadingModel = OpaqueShadingModel::Unlit;
     bool                  writesDepth      = true;
     bool                  receivesShadows  = true;
     bool                  castsShadows     = true;

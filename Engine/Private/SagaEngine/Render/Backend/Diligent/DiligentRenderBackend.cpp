@@ -17,6 +17,8 @@
 #include <imgui.h>
 
 #include <algorithm>
+#include <array>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -159,7 +161,10 @@ struct MaterialGPU
     Diligent::RefCntAutoPtr<Diligent::IShaderResourceBinding> skinnedSrb;
     MaterialRenderQueue renderQueue = MaterialRenderQueue::Opaque;
     MaterialCullMode    cullMode   = MaterialCullMode::Back;
+    OpaqueShadingModel  shadingModel = OpaqueShadingModel::Unlit;
     bool                writesDepth = true;
+    bool                receivesShadows = true;
+    bool                castsShadows = true;
     TextureHandle       albedoTex  = TextureHandle::kInvalid;
 };
 
@@ -173,6 +178,31 @@ struct MaterialIdHash
 {
     std::size_t operator()(World::MaterialId id) const noexcept
     { return std::hash<std::uint32_t>{}(static_cast<std::uint32_t>(id)); }
+};
+
+struct DirectionalShadowSettings
+{
+    std::uint32_t resolution = 1024;
+    float orthographicExtent = 8.0f;
+    float nearPlane = 0.1f;
+    float farPlane = 24.0f;
+    float constantBias = 0.003f;
+    float normalBias = 0.006f;
+    std::uint32_t pcfRadius = 1;
+};
+
+struct ShadowResources
+{
+    Diligent::RefCntAutoPtr<Diligent::ITexture> texture;
+    Diligent::RefCntAutoPtr<Diligent::ITextureView> dsv;
+    Diligent::RefCntAutoPtr<Diligent::ITextureView> srv;
+    Diligent::RefCntAutoPtr<Diligent::IShader> depthVS;
+    Diligent::RefCntAutoPtr<Diligent::IPipelineState> depthPSO;
+    Diligent::TEXTURE_FORMAT format = Diligent::TEX_FORMAT_D32_FLOAT;
+    std::uint32_t width = 0;
+    std::uint32_t height = 0;
+    std::uint32_t creationCount = 0;
+    std::uint32_t recreationCount = 0;
 };
 
 // ─── Impl ─────────────────────────────────────────────────────────────
@@ -214,10 +244,14 @@ struct DiligentRenderBackend::Impl
 
     std::uint64_t frameIndex   = 0;
     bool          initialized  = false;
+    bool          shadowSubmitAcceptedThisFrame = false;
     RenderFrameDiagnostics currentFrameDiagnostics{};
     RenderFrameDiagnostics lastFrameDiagnostics{};
 
     Diligent::RefCntAutoPtr<Diligent::ITexture> captureStagingTexture;
+
+    DirectionalShadowSettings shadowSettings{};
+    ShadowResources           shadow{};
 
     // ── ImGui rendering resources ───────────────────────────────────
     Diligent::RefCntAutoPtr<Diligent::IPipelineState>        imguiPSO;
@@ -314,6 +348,104 @@ void CopyMappedTextureToRGBA8(const Diligent::MappedTextureSubresource& mapped,
     }
 }
 
+struct NormalMatrixRows
+{
+    float rows[12]{
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+    };
+};
+
+bool ComputeNormalMatrixRows(const ::SagaEngine::Math::Mat4& model,
+                             NormalMatrixRows& outRows) noexcept
+{
+    const float a00 = model.At(0, 0), a01 = model.At(0, 1), a02 = model.At(0, 2);
+    const float a10 = model.At(1, 0), a11 = model.At(1, 1), a12 = model.At(1, 2);
+    const float a20 = model.At(2, 0), a21 = model.At(2, 1), a22 = model.At(2, 2);
+    if (!std::isfinite(a00) || !std::isfinite(a01) || !std::isfinite(a02) ||
+        !std::isfinite(a10) || !std::isfinite(a11) || !std::isfinite(a12) ||
+        !std::isfinite(a20) || !std::isfinite(a21) || !std::isfinite(a22))
+    {
+        return false;
+    }
+
+    const float c00 =  (a11 * a22 - a12 * a21);
+    const float c01 = -(a10 * a22 - a12 * a20);
+    const float c02 =  (a10 * a21 - a11 * a20);
+    const float c10 = -(a01 * a22 - a02 * a21);
+    const float c11 =  (a00 * a22 - a02 * a20);
+    const float c12 = -(a00 * a21 - a01 * a20);
+    const float c20 =  (a01 * a12 - a02 * a11);
+    const float c21 = -(a00 * a12 - a02 * a10);
+    const float c22 =  (a00 * a11 - a01 * a10);
+
+    const float det = a00 * c00 + a01 * c01 + a02 * c02;
+    if (std::fabs(det) < 1.0e-6f)
+        return false;
+
+    const float invDet = 1.0f / det;
+
+    // Rows of inverse-transpose. Translation is intentionally excluded.
+    outRows.rows[0]  = c00 * invDet;
+    outRows.rows[1]  = c01 * invDet;
+    outRows.rows[2]  = c02 * invDet;
+    outRows.rows[3]  = 0.0f;
+    outRows.rows[4]  = c10 * invDet;
+    outRows.rows[5]  = c11 * invDet;
+    outRows.rows[6]  = c12 * invDet;
+    outRows.rows[7]  = 0.0f;
+    outRows.rows[8]  = c20 * invDet;
+    outRows.rows[9]  = c21 * invDet;
+    outRows.rows[10] = c22 * invDet;
+    outRows.rows[11] = 0.0f;
+    return true;
+}
+
+[[nodiscard]] bool NormalizeDirectionalLight(Scene::RenderLightingData& lighting) noexcept
+{
+    if (!lighting.directionalEnabled)
+        return false;
+
+    const float lenSq = lighting.directional.direction.LengthSq();
+    if (lenSq < 1.0e-6f)
+    {
+        lighting.directionalEnabled = false;
+        lighting.shadowsEnabled = false;
+        return false;
+    }
+
+    lighting.directional.direction =
+        lighting.directional.direction * (1.0f / std::sqrt(lenSq));
+    return true;
+}
+
+[[nodiscard]] ::SagaEngine::Math::Mat4 BuildDirectionalLightViewProjection(
+    const Scene::RenderLightingData& lighting,
+    const DirectionalShadowSettings& settings) noexcept
+{
+    using ::SagaEngine::Math::Mat4;
+    using ::SagaEngine::Math::Vec3;
+
+    Vec3 dir = lighting.directional.direction;
+    const float lenSq = dir.LengthSq();
+    if (lenSq < 1.0e-6f)
+        dir = {0.5f, -1.0f, 0.25f};
+    dir = dir.Normalized();
+
+    const Vec3 center{0.0f, 0.0f, 0.0f};
+    const Vec3 eye = center - dir * (settings.farPlane * 0.5f);
+    Vec3 up = Vec3::Up();
+    if (std::fabs(dir.Dot(up)) > 0.95f)
+        up = Vec3::Back();
+
+    const Mat4 view = Mat4::LookAtRH(eye, center, up);
+    const float e = settings.orthographicExtent;
+    const Mat4 proj = Mat4::OrthoRH_ZO(
+        -e, e, -e, e, settings.nearPlane, settings.farPlane);
+    return proj * view;
+}
+
 // ─── Factory init helpers (D3D12, Vulkan, D3D11, OpenGL) ─────────────
 
 #include "DiligentFactoryInit.inl"
@@ -386,7 +518,7 @@ bool DiligentRenderBackend::Initialize(const SwapchainDesc& desc)
         using namespace Diligent;
         BufferDesc cbDesc;
         cbDesc.Name           = "CameraCB";
-        cbDesc.Size           = sizeof(float) * 40;  // g_ViewProj(16) + g_Model(16) + g_LightDir(4) + g_LightColor(4)
+        cbDesc.Size           = sizeof(float) * 80;
         cbDesc.Usage          = USAGE_DYNAMIC;
         cbDesc.BindFlags      = BIND_UNIFORM_BUFFER;
         cbDesc.CPUAccessFlags = CPU_ACCESS_WRITE;
@@ -437,6 +569,18 @@ bool DiligentRenderBackend::Initialize(const SwapchainDesc& desc)
             return false;
         }
         LogDbg("Skinned VS compiled OK");
+
+        ci.Desc.ShaderType = SHADER_TYPE_VERTEX;
+        ci.Desc.Name       = "Shadow Depth VS";
+        ci.EntryPoint      = "main";
+        ci.Source          = kShadowDepthVS;
+        m_Impl->device->CreateShader(ci, &m_Impl->shadow.depthVS);
+        if (!m_Impl->shadow.depthVS)
+        {
+            LogErr("Failed to compile shadow depth vertex shader");
+            return false;
+        }
+        LogDbg("Shadow depth VS compiled OK");
     }
 
     // ── Create BoneCB (128 mat4 = 8192 bytes) ──────────────────────
@@ -509,6 +653,11 @@ void DiligentRenderBackend::Shutdown()
     m_Impl->skinnedPsoCache.clear();
     m_Impl->textureCache.clear();
     m_Impl->captureStagingTexture.Release();
+    m_Impl->shadow.depthPSO.Release();
+    m_Impl->shadow.depthVS.Release();
+    m_Impl->shadow.dsv.Release();
+    m_Impl->shadow.srv.Release();
+    m_Impl->shadow.texture.Release();
     m_Impl->defaultWhiteTex.srv.Release();
     m_Impl->defaultWhiteTex.texture.Release();
 
@@ -601,14 +750,14 @@ Diligent::RefCntAutoPtr<Diligent::IPipelineState> FindOrCreatePSO(
     psoCI.GraphicsPipeline.InputLayout.NumElements    = 8;
     psoCI.GraphicsPipeline.InputLayout.LayoutElements  = layoutElems;
 
-    // Texture/sampler resource layout: g_Albedo as DYNAMIC (changes per material)
-    // and as the immutable sampler anchor for combined sampler backends.
+    // Texture/sampler resource layout: dynamic textures change per material/frame.
     ShaderResourceVariableDesc vars[] =
     {
         { SHADER_TYPE_PIXEL, "g_Albedo", SHADER_RESOURCE_VARIABLE_TYPE_DYNAMIC },
+        { SHADER_TYPE_PIXEL, "g_ShadowMap", SHADER_RESOURCE_VARIABLE_TYPE_DYNAMIC },
     };
     psoCI.PSODesc.ResourceLayout.Variables    = vars;
-    psoCI.PSODesc.ResourceLayout.NumVariables = 1;
+    psoCI.PSODesc.ResourceLayout.NumVariables = 2;
 
     SamplerDesc sceneSamplerDesc;
     sceneSamplerDesc.MinFilter = FILTER_TYPE_LINEAR;
@@ -618,12 +767,21 @@ Diligent::RefCntAutoPtr<Diligent::IPipelineState> FindOrCreatePSO(
     sceneSamplerDesc.AddressV  = TEXTURE_ADDRESS_WRAP;
     sceneSamplerDesc.AddressW  = TEXTURE_ADDRESS_WRAP;
 
+    SamplerDesc shadowSamplerDesc;
+    shadowSamplerDesc.MinFilter = FILTER_TYPE_POINT;
+    shadowSamplerDesc.MagFilter = FILTER_TYPE_POINT;
+    shadowSamplerDesc.MipFilter = FILTER_TYPE_POINT;
+    shadowSamplerDesc.AddressU  = TEXTURE_ADDRESS_CLAMP;
+    shadowSamplerDesc.AddressV  = TEXTURE_ADDRESS_CLAMP;
+    shadowSamplerDesc.AddressW  = TEXTURE_ADDRESS_CLAMP;
+
     ImmutableSamplerDesc samplers[] =
     {
         { SHADER_TYPE_PIXEL, "g_Albedo", sceneSamplerDesc },
+        { SHADER_TYPE_PIXEL, "g_ShadowMap", shadowSamplerDesc },
     };
     psoCI.PSODesc.ResourceLayout.ImmutableSamplers    = samplers;
-    psoCI.PSODesc.ResourceLayout.NumImmutableSamplers = 1;
+    psoCI.PSODesc.ResourceLayout.NumImmutableSamplers = 2;
 
     RefCntAutoPtr<IPipelineState> pso;
     device.CreateGraphicsPipelineState(psoCI, &pso);
@@ -700,9 +858,10 @@ Diligent::RefCntAutoPtr<Diligent::IPipelineState> FindOrCreateSkinnedPSO(
     ShaderResourceVariableDesc vars[] =
     {
         { SHADER_TYPE_PIXEL, "g_Albedo", SHADER_RESOURCE_VARIABLE_TYPE_DYNAMIC },
+        { SHADER_TYPE_PIXEL, "g_ShadowMap", SHADER_RESOURCE_VARIABLE_TYPE_DYNAMIC },
     };
     psoCI.PSODesc.ResourceLayout.Variables    = vars;
-    psoCI.PSODesc.ResourceLayout.NumVariables = 1;
+    psoCI.PSODesc.ResourceLayout.NumVariables = 2;
 
     SamplerDesc sceneSamplerDesc;
     sceneSamplerDesc.MinFilter = FILTER_TYPE_LINEAR;
@@ -712,12 +871,21 @@ Diligent::RefCntAutoPtr<Diligent::IPipelineState> FindOrCreateSkinnedPSO(
     sceneSamplerDesc.AddressV  = TEXTURE_ADDRESS_WRAP;
     sceneSamplerDesc.AddressW  = TEXTURE_ADDRESS_WRAP;
 
+    SamplerDesc shadowSamplerDesc;
+    shadowSamplerDesc.MinFilter = FILTER_TYPE_POINT;
+    shadowSamplerDesc.MagFilter = FILTER_TYPE_POINT;
+    shadowSamplerDesc.MipFilter = FILTER_TYPE_POINT;
+    shadowSamplerDesc.AddressU  = TEXTURE_ADDRESS_CLAMP;
+    shadowSamplerDesc.AddressV  = TEXTURE_ADDRESS_CLAMP;
+    shadowSamplerDesc.AddressW  = TEXTURE_ADDRESS_CLAMP;
+
     ImmutableSamplerDesc samplers[] =
     {
         { SHADER_TYPE_PIXEL, "g_Albedo", sceneSamplerDesc },
+        { SHADER_TYPE_PIXEL, "g_ShadowMap", shadowSamplerDesc },
     };
     psoCI.PSODesc.ResourceLayout.ImmutableSamplers    = samplers;
-    psoCI.PSODesc.ResourceLayout.NumImmutableSamplers = 1;
+    psoCI.PSODesc.ResourceLayout.NumImmutableSamplers = 2;
 
     RefCntAutoPtr<IPipelineState> pso;
     device.CreateGraphicsPipelineState(psoCI, &pso);
@@ -736,6 +904,56 @@ Diligent::RefCntAutoPtr<Diligent::IPipelineState> FindOrCreateSkinnedPSO(
         var->Set(boneCB);
 
     cache[key] = pso;
+    return pso;
+}
+
+Diligent::RefCntAutoPtr<Diligent::IPipelineState> CreateShadowDepthPSO(
+    Diligent::IRenderDevice&  device,
+    Diligent::IShader*        shadowVS,
+    Diligent::IBuffer*        cameraCB,
+    Diligent::TEXTURE_FORMAT  depthFormat)
+{
+    using namespace Diligent;
+
+    GraphicsPipelineStateCreateInfo psoCI;
+    psoCI.PSODesc.Name         = "DirectionalShadowDepthPSO";
+    psoCI.PSODesc.PipelineType = PIPELINE_TYPE_GRAPHICS;
+    psoCI.pVS                  = shadowVS;
+    psoCI.pPS                  = nullptr;
+
+    psoCI.GraphicsPipeline.NumRenderTargets  = 0;
+    psoCI.GraphicsPipeline.DSVFormat         = depthFormat;
+    psoCI.GraphicsPipeline.PrimitiveTopology = PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    psoCI.GraphicsPipeline.DepthStencilDesc.DepthEnable      = True;
+    psoCI.GraphicsPipeline.DepthStencilDesc.DepthWriteEnable = True;
+    psoCI.GraphicsPipeline.RasterizerDesc.FrontCounterClockwise = True;
+    psoCI.GraphicsPipeline.RasterizerDesc.CullMode = CULL_MODE_BACK;
+
+    LayoutElement layoutElems[] =
+    {
+        {0, 0, 3, VT_FLOAT32, False},
+        {1, 0, 3, VT_FLOAT32, False},
+        {2, 0, 3, VT_FLOAT32, False},
+        {3, 0, 1, VT_FLOAT32, False},
+        {4, 0, 2, VT_FLOAT32, False},
+        {5, 0, 2, VT_FLOAT32, False},
+        {6, 0, 4, VT_UINT8,   False},
+        {7, 0, 4, VT_FLOAT32, False},
+    };
+    psoCI.GraphicsPipeline.InputLayout.NumElements   = 8;
+    psoCI.GraphicsPipeline.InputLayout.LayoutElements = layoutElems;
+
+    RefCntAutoPtr<IPipelineState> pso;
+    device.CreateGraphicsPipelineState(psoCI, &pso);
+    if (!pso)
+    {
+        LogErr("Failed to create directional shadow depth PSO");
+        return {};
+    }
+
+    if (auto* var = pso->GetStaticVariableByName(SHADER_TYPE_VERTEX, "CameraCB"))
+        var->Set(cameraCB);
+
     return pso;
 }
 
@@ -824,7 +1042,10 @@ World::MaterialId DiligentRenderBackend::CreateMaterial(const MaterialRuntime& r
     gpu.pso         = pso;
     gpu.renderQueue = runtime.renderQueue;
     gpu.cullMode    = runtime.cullMode;
+    gpu.shadingModel = runtime.shadingModel;
     gpu.writesDepth = runtime.writesDepth;
+    gpu.receivesShadows = runtime.receivesShadows;
+    gpu.castsShadows = runtime.castsShadows;
     gpu.albedoTex   = runtime.textures[static_cast<std::size_t>(MaterialTextureSlot::Albedo)];
 
     pso->CreateShaderResourceBinding(&gpu.srb, true);
@@ -914,6 +1135,7 @@ void DiligentRenderBackend::BeginFrame()
         return;
 
     m_Impl->currentFrameDiagnostics = {};
+    m_Impl->shadowSubmitAcceptedThisFrame = false;
 
     LogDbg("BeginFrame: enter");
 
@@ -964,6 +1186,26 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
     // ── Nothing to draw? ─────────────────────────────────────────────
     if (view.drawItems.empty()) return;
 
+    Scene::RenderLightingData lighting = view.lighting;
+    const bool hasValidDirectional = NormalizeDirectionalLight(lighting);
+    if (view.lighting.directionalEnabled && !hasValidDirectional)
+    {
+        LogDbg("Submit: zero-length directional light disabled");
+    }
+
+    const bool shadowRequested =
+        lighting.directionalEnabled && lighting.shadowsEnabled;
+    if (shadowRequested && m_Impl->shadowSubmitAcceptedThisFrame)
+    {
+        ++m_Impl->currentFrameDiagnostics.additionalFrameSubmitsRejected;
+        m_Impl->currentFrameDiagnostics.rejectedDrawItems +=
+            static_cast<std::uint32_t>(view.drawItems.size());
+        LogDbg("Submit: additional shadow-enabled Submit rejected");
+        return;
+    }
+    if (shadowRequested)
+        m_Impl->shadowSubmitAcceptedThisFrame = true;
+
     {
         char msg[128];
         std::snprintf(msg, sizeof(msg), "Submit: %zu draw item(s) on frame %llu",
@@ -974,6 +1216,222 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
     }
 
     const float* vpData = camera.viewProj.Data();
+    const auto lightViewProj =
+        BuildDirectionalLightViewProjection(lighting, m_Impl->shadowSettings);
+    const float* lightVpData = lightViewProj.Data();
+
+    auto ensureShadowResources = [&]() -> bool
+    {
+        using namespace Diligent;
+
+        const auto resolution = m_Impl->shadowSettings.resolution;
+        if (resolution == 0)
+            return false;
+
+        const bool needsRecreate =
+            !m_Impl->shadow.texture ||
+            m_Impl->shadow.width != resolution ||
+            m_Impl->shadow.height != resolution;
+
+        if (needsRecreate)
+        {
+            if (m_Impl->shadow.texture)
+            {
+                ++m_Impl->shadow.recreationCount;
+                ++m_Impl->currentFrameDiagnostics.shadowResourceRecreationCount;
+                m_Impl->shadow.dsv.Release();
+                m_Impl->shadow.srv.Release();
+                m_Impl->shadow.texture.Release();
+            }
+
+            TextureDesc texDesc;
+            texDesc.Name      = "DirectionalShadowMap";
+            texDesc.Type      = RESOURCE_DIM_TEX_2D;
+            texDesc.Width     = resolution;
+            texDesc.Height    = resolution;
+            texDesc.Format    = TEX_FORMAT_D32_FLOAT;
+            texDesc.BindFlags = BIND_DEPTH_STENCIL | BIND_SHADER_RESOURCE;
+            texDesc.Usage     = USAGE_DEFAULT;
+            texDesc.MipLevels = 1;
+
+            m_Impl->device->CreateTexture(
+                texDesc, nullptr, &m_Impl->shadow.texture);
+            if (!m_Impl->shadow.texture)
+            {
+                LogErr("Submit: failed to create directional shadow map");
+                return false;
+            }
+
+            m_Impl->shadow.dsv = m_Impl->shadow.texture->GetDefaultView(
+                TEXTURE_VIEW_DEPTH_STENCIL);
+            m_Impl->shadow.srv = m_Impl->shadow.texture->GetDefaultView(
+                TEXTURE_VIEW_SHADER_RESOURCE);
+            if (!m_Impl->shadow.dsv || !m_Impl->shadow.srv)
+            {
+                LogErr("Submit: failed to create directional shadow views");
+                m_Impl->shadow.dsv.Release();
+                m_Impl->shadow.srv.Release();
+                m_Impl->shadow.texture.Release();
+                return false;
+            }
+
+            m_Impl->shadow.width = resolution;
+            m_Impl->shadow.height = resolution;
+            m_Impl->shadow.format = TEX_FORMAT_D32_FLOAT;
+            ++m_Impl->shadow.creationCount;
+            ++m_Impl->currentFrameDiagnostics.shadowResourceCreationCount;
+        }
+
+        if (!m_Impl->shadow.depthPSO)
+        {
+            m_Impl->shadow.depthPSO = CreateShadowDepthPSO(
+                *m_Impl->device,
+                m_Impl->shadow.depthVS,
+                m_Impl->cameraCB,
+                m_Impl->shadow.format);
+            if (!m_Impl->shadow.depthPSO)
+                return false;
+        }
+
+        m_Impl->currentFrameDiagnostics.shadowMapWidth = m_Impl->shadow.width;
+        m_Impl->currentFrameDiagnostics.shadowMapHeight = m_Impl->shadow.height;
+        return true;
+    };
+
+    auto uploadCameraCB = [&](const SagaEngine::Math::Mat4& model,
+                              const NormalMatrixRows& normalRows,
+                              float shadingModel,
+                              bool shadowsEnabled)
+    {
+        Diligent::MapHelper<float> cbData(ctx, m_Impl->cameraCB,
+                                          Diligent::MAP_WRITE,
+                                          Diligent::MAP_FLAG_DISCARD);
+        for (int i = 0; i < 16; ++i) cbData[i] = vpData[i];
+        const float* mData = model.Data();
+        for (int i = 0; i < 16; ++i) cbData[16 + i] = mData[i];
+        for (int i = 0; i < 12; ++i) cbData[32 + i] = normalRows.rows[i];
+
+        cbData[44] = lighting.directional.direction.x;
+        cbData[45] = lighting.directional.direction.y;
+        cbData[46] = lighting.directional.direction.z;
+        cbData[47] = lighting.directionalEnabled ? 1.0f : 0.0f;
+
+        cbData[48] = lighting.directional.color.x;
+        cbData[49] = lighting.directional.color.y;
+        cbData[50] = lighting.directional.color.z;
+        cbData[51] = lighting.directional.intensity;
+
+        cbData[52] = lighting.ambient.color.x;
+        cbData[53] = lighting.ambient.color.y;
+        cbData[54] = lighting.ambient.color.z;
+        cbData[55] = lighting.ambient.intensity;
+
+        for (int i = 0; i < 16; ++i) cbData[56 + i] = lightVpData[i];
+
+        cbData[72] = m_Impl->shadowSettings.constantBias;
+        cbData[73] = m_Impl->shadowSettings.normalBias;
+        cbData[74] = m_Impl->shadow.width > 0
+            ? 1.0f / static_cast<float>(m_Impl->shadow.width)
+            : 1.0f / static_cast<float>(m_Impl->shadowSettings.resolution);
+        cbData[75] = shadowsEnabled ? 1.0f : 0.0f;
+
+        cbData[76] = shadingModel;
+        cbData[77] = static_cast<float>(m_Impl->shadowSettings.pcfRadius);
+        cbData[78] = 0.0f;
+        cbData[79] = 0.0f;
+    };
+
+    auto bindMeshBuffers = [&](const MeshGPU& mesh,
+                               Diligent::IBuffer*& lastVB,
+                               Diligent::IBuffer*& lastIB)
+    {
+        auto* vb = mesh.vertexBuffer.RawPtr();
+        if (vb != lastVB)
+        {
+            Diligent::Uint64 offsets[] = {0};
+            ctx->SetVertexBuffers(0, 1, &vb, offsets,
+                                  Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
+                                  Diligent::SET_VERTEX_BUFFERS_FLAG_RESET);
+            lastVB = vb;
+        }
+
+        if (mesh.indexBuffer && mesh.indexCount > 0)
+        {
+            auto* ib = mesh.indexBuffer.RawPtr();
+            if (ib != lastIB)
+            {
+                ctx->SetIndexBuffer(ib, 0,
+                                    Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+                lastIB = ib;
+            }
+        }
+    };
+
+    if (shadowRequested && ensureShadowResources())
+    {
+        using namespace Diligent;
+
+        ctx->SetRenderTargets(
+            0, nullptr, m_Impl->shadow.dsv,
+            RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+
+        Viewport shadowVp{
+            0.0f, 0.0f,
+            static_cast<float>(m_Impl->shadow.width),
+            static_cast<float>(m_Impl->shadow.height),
+            0.0f, 1.0f};
+        ctx->SetViewports(1, &shadowVp, m_Impl->shadow.width, m_Impl->shadow.height);
+        Rect shadowScissor{
+            0, 0,
+            static_cast<Int32>(m_Impl->shadow.width),
+            static_cast<Int32>(m_Impl->shadow.height)};
+        ctx->SetScissorRects(1, &shadowScissor, m_Impl->shadow.width, m_Impl->shadow.height);
+        ctx->ClearDepthStencil(
+            m_Impl->shadow.dsv,
+            CLEAR_DEPTH_FLAG,
+            1.0f, 0,
+            RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        ctx->SetPipelineState(m_Impl->shadow.depthPSO);
+
+        IBuffer* lastShadowVB = nullptr;
+        IBuffer* lastShadowIB = nullptr;
+        for (const auto& item : view.drawItems)
+        {
+            auto meshIt = m_Impl->meshCache.find(item.mesh);
+            auto matIt = m_Impl->materialCache.find(item.material);
+            if (meshIt == m_Impl->meshCache.end() ||
+                matIt == m_Impl->materialCache.end() ||
+                !matIt->second.castsShadows)
+            {
+                continue;
+            }
+
+            NormalMatrixRows normalRows{};
+            uploadCameraCB(item.model, normalRows, 0.0f, false);
+            bindMeshBuffers(meshIt->second, lastShadowVB, lastShadowIB);
+
+            if (meshIt->second.indexBuffer && meshIt->second.indexCount > 0)
+            {
+                DrawIndexedAttribs drawAttribs;
+                drawAttribs.NumIndices = meshIt->second.indexCount;
+                drawAttribs.IndexType  = VT_UINT32;
+                drawAttribs.Flags      = g_verboseGPU ? DRAW_FLAG_VERIFY_ALL
+                                                      : DRAW_FLAG_NONE;
+                ctx->DrawIndexed(drawAttribs);
+                ++m_Impl->currentFrameDiagnostics.shadowPassDrawCalls;
+            }
+        }
+
+        ++m_Impl->currentFrameDiagnostics.shadowPassExecuted;
+
+        auto* rtv = m_Impl->swapChain->GetCurrentBackBufferRTV();
+        auto* dsv = m_Impl->swapChain->GetDepthBufferDSV();
+        ctx->SetRenderTargets(
+            rtv ? 1u : 0u, rtv ? &rtv : nullptr, dsv,
+            RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        ctx->SetViewports(1, nullptr, 0, 0);
+        ctx->SetScissorRects(0, nullptr, 0, 0);
+    }
 
     // ── Draw loop ────────────────────────────────────────────────────
     Diligent::IPipelineState* lastPSO = nullptr;
@@ -1001,6 +1459,17 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
 
         auto& mesh = meshIt->second;
         auto& mat  = matIt->second;
+
+        NormalMatrixRows normalRows{};
+        if (mat.shadingModel == OpaqueShadingModel::LitDiffuse &&
+            !ComputeNormalMatrixRows(item.model, normalRows))
+        {
+            LogDbg("Submit: singular normal transform, skip lit draw");
+            ++m_Impl->currentFrameDiagnostics.rejectedDrawItems;
+            ++m_Impl->currentFrameDiagnostics.invalidNormalTransformDraws;
+            continue;
+        }
+
         ++m_Impl->currentFrameDiagnostics.submittedDrawItems;
 
         if (g_verboseGPU)
@@ -1016,28 +1485,18 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
             LogDbg(buf);
         }
 
-        // Update CameraCB per DrawItem: g_ViewProj(16) + g_Model(16) + g_LightDir(4) + g_LightColor(4).
-        {
-            Diligent::MapHelper<float> cbData(ctx, m_Impl->cameraCB,
-                                              Diligent::MAP_WRITE,
-                                              Diligent::MAP_FLAG_DISCARD);
-            for (int i = 0; i < 16; ++i) cbData[i]      = vpData[i];
-            const float* mData = item.model.Data();
-            for (int i = 0; i < 16; ++i) cbData[16 + i] = mData[i];
-
-            // g_LightDir: world-space direction TO the light (normalised).
-            // Default: sun from upper-right-front.
-            cbData[32] =  0.5774f;   // x
-            cbData[33] =  0.5774f;   // y
-            cbData[34] =  0.5774f;   // z
-            cbData[35] =  0.0f;      // w (padding)
-
-            // g_LightColor: xyz = light colour, w = ambient strength.
-            cbData[36] =  1.0f;      // R
-            cbData[37] =  0.95f;     // G
-            cbData[38] =  0.9f;      // B (warm white)
-            cbData[39] =  0.15f;     // ambient
-        }
+        const bool sampleShadows =
+            shadowRequested &&
+            mat.shadingModel == OpaqueShadingModel::LitDiffuse &&
+            mat.receivesShadows &&
+            m_Impl->shadow.srv;
+        uploadCameraCB(
+            item.model,
+            normalRows,
+            mat.shadingModel == OpaqueShadingModel::LitDiffuse ? 1.0f : 0.0f,
+            sampleShadows);
+        if (sampleShadows)
+            ++m_Impl->currentFrameDiagnostics.shadowSamplingEnabled;
         LogDbg("Submit: CameraCB mapped OK");
 
         // ── Skinned draw? Upload bone palette to BoneCB. ────────────
@@ -1109,6 +1568,14 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
                 if (auto* var = activeSrb->GetVariableByName(Diligent::SHADER_TYPE_PIXEL, "g_Albedo"))
                     var->Set(texSRV);
             }
+
+            if (auto* var = activeSrb->GetVariableByName(Diligent::SHADER_TYPE_PIXEL, "g_ShadowMap"))
+            {
+                if (m_Impl->shadow.srv)
+                    var->Set(m_Impl->shadow.srv);
+                else if (texSRV)
+                    var->Set(texSRV);
+            }
         }
 
         // PSO switch
@@ -1155,6 +1622,7 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
                                                   : Diligent::DRAW_FLAG_NONE;
             ctx->DrawIndexed(drawAttribs);
             ++m_Impl->currentFrameDiagnostics.indexedDrawCalls;
+            ++m_Impl->currentFrameDiagnostics.mainPassDrawCalls;
             m_Impl->currentFrameDiagnostics.lastIndexedIndexCount = mesh.indexCount;
             LogDbg("Submit: DrawIndexed OK");
         }
@@ -1166,6 +1634,7 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
                                                    : Diligent::DRAW_FLAG_NONE;
             ctx->Draw(drawAttribs);
             ++m_Impl->currentFrameDiagnostics.nonIndexedDrawCalls;
+            ++m_Impl->currentFrameDiagnostics.mainPassDrawCalls;
             LogDbg("Submit: Draw OK");
         }
 

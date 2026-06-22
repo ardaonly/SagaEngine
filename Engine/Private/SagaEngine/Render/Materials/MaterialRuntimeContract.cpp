@@ -140,6 +140,7 @@ MaterialRuntimeBuildResult BuildMaterialRuntime(
     result.runtime.materialId = asset.materialId;
     result.runtime.renderQueue = asset.renderQueue;
     result.runtime.cullMode = asset.cullMode;
+    result.runtime.shadingModel = OpaqueShadingModel::Unlit;
     result.runtime.writesDepth = asset.writesDepth;
     result.runtime.receivesShadows = asset.receivesShadows;
     result.runtime.castsShadows = asset.castsShadows;

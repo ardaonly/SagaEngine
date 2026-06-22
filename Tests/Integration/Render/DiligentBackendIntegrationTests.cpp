@@ -467,7 +467,9 @@ protected:
     [[nodiscard]] SagaEngine::Render::World::MaterialId CreateSolidMaterial(
         std::uint64_t materialId,
         SagaTests::Render::Rgba8 color,
-        SagaEngine::Render::TextureHandle* outTexture = nullptr)
+        SagaEngine::Render::TextureHandle* outTexture = nullptr,
+        SagaEngine::Render::OpaqueShadingModel shadingModel =
+            SagaEngine::Render::OpaqueShadingModel::Unlit)
     {
         const auto pixels = SagaTests::Render::SolidTexturePixels(color);
         const auto texture = m_Backend.CreateTexture(1u, 1u, pixels.data());
@@ -479,7 +481,11 @@ protected:
         }
 
         return m_Backend.CreateMaterial(
-            SagaTests::Render::MakeMaterial(materialId, texture));
+            SagaTests::Render::MakeMaterial(
+                materialId,
+                texture,
+                SagaEngine::Render::MaterialCullMode::Back,
+                shadingModel));
     }
 
     [[nodiscard]] RenderView MakeSingleDrawView(
@@ -1023,4 +1029,823 @@ TEST_F(DiligentGPU, DestroyedResourcesAreRejectedBySubmission)
     EXPECT_EQ(diagnostics.rejectedDrawItems, 1u);
     EXPECT_EQ(diagnostics.indexedDrawCalls, 0u);
     EXPECT_EQ(diagnostics.presentCalls, 1u);
+}
+
+TEST_F(DiligentGPU, DirectionalLightChangesSurfaceLuminance)
+{
+    const auto quad = SagaTests::Render::BuildQuadMeshAsset(1.0f, 0.0f);
+    const auto mesh = m_Backend.CreateMesh(quad);
+    ASSERT_NE(mesh, SagaEngine::Render::World::MeshId::kInvalid);
+
+    SagaEngine::Render::TextureHandle whiteTex =
+        SagaEngine::Render::TextureHandle::kInvalid;
+    const auto material = CreateSolidMaterial(
+        30u, {220u, 220u, 220u, 255u}, &whiteTex,
+        SagaEngine::Render::OpaqueShadingModel::LitDiffuse);
+    ASSERT_NE(material, SagaEngine::Render::World::MaterialId::kInvalid);
+
+    auto litView = MakeSingleDrawView(mesh, material);
+    litView.lighting.directionalEnabled = true;
+    litView.lighting.directional.direction = {0.0f, 0.0f, -1.0f};
+    litView.lighting.directional.color = {1.0f, 1.0f, 1.0f};
+    litView.lighting.directional.intensity = 1.0f;
+    litView.lighting.ambient.intensity = 0.02f;
+
+    auto darkView = litView;
+    darkView.lighting.directional.direction = {0.0f, 0.0f, 1.0f};
+
+    const auto camera = SagaTests::Render::MakeCamera();
+    const auto litCapture = RenderAndCapture(camera, litView);
+    const auto darkCapture = RenderAndCapture(camera, darkView);
+
+    const float litLum = SagaTests::Render::AverageRegionLuminance(
+        litCapture, litCapture.width / 2u, litCapture.height / 2u, 18u);
+    const float darkLum = SagaTests::Render::AverageRegionLuminance(
+        darkCapture, darkCapture.width / 2u, darkCapture.height / 2u, 18u);
+    EXPECT_GT(litLum, darkLum + 80.0f);
+
+    m_Backend.DestroyMaterial(material);
+    m_Backend.DestroyTexture(whiteTex);
+    m_Backend.DestroyMesh(mesh);
+}
+
+TEST_F(DiligentGPU, VertexNormalsAffectLighting)
+{
+    auto facingQuad = SagaTests::Render::BuildQuadMeshAsset(
+        0.32f, 0.0f, "NormalFacingQuad");
+    auto grazingQuad = SagaTests::Render::BuildQuadMeshAsset(
+        0.32f, 0.0f, "NormalGrazingQuad");
+    for (auto& vertex : grazingQuad.lods[0].vertices)
+        vertex.normal = {1.0f, 0.0f, 0.0f};
+
+    const auto facingMesh = m_Backend.CreateMesh(facingQuad);
+    const auto grazingMesh = m_Backend.CreateMesh(grazingQuad);
+    ASSERT_NE(facingMesh, SagaEngine::Render::World::MeshId::kInvalid);
+    ASSERT_NE(grazingMesh, SagaEngine::Render::World::MeshId::kInvalid);
+
+    SagaEngine::Render::TextureHandle whiteTex =
+        SagaEngine::Render::TextureHandle::kInvalid;
+    const auto material = CreateSolidMaterial(
+        31u, {230u, 230u, 230u, 255u}, &whiteTex,
+        SagaEngine::Render::OpaqueShadingModel::LitDiffuse);
+    ASSERT_NE(material, SagaEngine::Render::World::MaterialId::kInvalid);
+
+    RenderView view{};
+    DrawItem facing{};
+    facing.mesh = facingMesh;
+    facing.material = material;
+    facing.model = SagaEngine::Math::Mat4::FromTranslation({-0.45f, 0.0f, 0.0f});
+    view.drawItems.push_back(facing);
+
+    DrawItem grazing{};
+    grazing.mesh = grazingMesh;
+    grazing.material = material;
+    grazing.model = SagaEngine::Math::Mat4::FromTranslation({0.45f, 0.0f, 0.0f});
+    view.drawItems.push_back(grazing);
+
+    view.lighting.directionalEnabled = true;
+    view.lighting.directional.direction = {0.0f, 0.0f, -1.0f};
+    view.lighting.directional.color = {1.0f, 1.0f, 1.0f};
+    view.lighting.directional.intensity = 1.0f;
+    view.lighting.ambient.intensity = 0.04f;
+
+    const auto capture = RenderAndCapture(SagaTests::Render::MakeCamera(), view);
+
+    const float facingLum = SagaTests::Render::AverageRegionLuminance(
+        capture, capture.width / 2u - 36u, capture.height / 2u, 12u);
+    const float grazingLum = SagaTests::Render::AverageRegionLuminance(
+        capture, capture.width / 2u + 36u, capture.height / 2u, 12u);
+    EXPECT_GT(facingLum, grazingLum + 80.0f);
+
+    m_Backend.DestroyMaterial(material);
+    m_Backend.DestroyTexture(whiteTex);
+    m_Backend.DestroyMesh(facingMesh);
+    m_Backend.DestroyMesh(grazingMesh);
+}
+
+TEST_F(DiligentGPU, AmbientLightKeepsUnlitFacingSurfaceVisible)
+{
+    const auto quad = SagaTests::Render::BuildQuadMeshAsset(1.0f, 0.0f);
+    const auto mesh = m_Backend.CreateMesh(quad);
+    ASSERT_NE(mesh, SagaEngine::Render::World::MeshId::kInvalid);
+
+    SagaEngine::Render::TextureHandle whiteTex =
+        SagaEngine::Render::TextureHandle::kInvalid;
+    const auto material = CreateSolidMaterial(
+        32u, {200u, 200u, 200u, 255u}, &whiteTex,
+        SagaEngine::Render::OpaqueShadingModel::LitDiffuse);
+    ASSERT_NE(material, SagaEngine::Render::World::MaterialId::kInvalid);
+
+    auto noAmbientView = MakeSingleDrawView(mesh, material);
+    noAmbientView.lighting.directionalEnabled = true;
+    noAmbientView.lighting.directional.direction = {0.0f, 0.0f, 1.0f};
+    noAmbientView.lighting.directional.intensity = 1.0f;
+    noAmbientView.lighting.ambient.intensity = 0.0f;
+
+    auto ambientView = noAmbientView;
+    ambientView.lighting.ambient.color = {1.0f, 1.0f, 1.0f};
+    ambientView.lighting.ambient.intensity = 0.35f;
+
+    const auto camera = SagaTests::Render::MakeCamera();
+    const auto noAmbientCapture = RenderAndCapture(camera, noAmbientView);
+    const auto ambientCapture = RenderAndCapture(camera, ambientView);
+
+    const float noAmbientLum = SagaTests::Render::AverageRegionLuminance(
+        noAmbientCapture, noAmbientCapture.width / 2u, noAmbientCapture.height / 2u, 18u);
+    const float ambientLum = SagaTests::Render::AverageRegionLuminance(
+        ambientCapture, ambientCapture.width / 2u, ambientCapture.height / 2u, 18u);
+    EXPECT_GT(ambientLum, noAmbientLum + 45.0f);
+
+    m_Backend.DestroyMaterial(material);
+    m_Backend.DestroyTexture(whiteTex);
+    m_Backend.DestroyMesh(mesh);
+}
+
+TEST_F(DiligentGPU, UnlitMaterialIgnoresDirectionalLight)
+{
+    const auto quad = SagaTests::Render::BuildQuadMeshAsset(1.0f, 0.0f);
+    const auto mesh = m_Backend.CreateMesh(quad);
+    ASSERT_NE(mesh, SagaEngine::Render::World::MeshId::kInvalid);
+
+    SagaEngine::Render::TextureHandle blueTex =
+        SagaEngine::Render::TextureHandle::kInvalid;
+    const auto material = CreateSolidMaterial(
+        33u, {50u, 80u, 240u, 255u}, &blueTex,
+        SagaEngine::Render::OpaqueShadingModel::Unlit);
+    ASSERT_NE(material, SagaEngine::Render::World::MaterialId::kInvalid);
+
+    auto viewA = MakeSingleDrawView(mesh, material);
+    viewA.lighting.directionalEnabled = true;
+    viewA.lighting.directional.direction = {0.0f, 0.0f, -1.0f};
+    viewA.lighting.directional.intensity = 2.0f;
+    viewA.lighting.ambient.intensity = 0.0f;
+
+    auto viewB = viewA;
+    viewB.lighting.directional.direction = {0.0f, 0.0f, 1.0f};
+    viewB.lighting.ambient.intensity = 1.0f;
+
+    const auto camera = SagaTests::Render::MakeCamera();
+    const auto captureA = RenderAndCapture(camera, viewA);
+    const auto captureB = RenderAndCapture(camera, viewB);
+
+    const float lumA = SagaTests::Render::AverageRegionLuminance(
+        captureA, captureA.width / 2u, captureA.height / 2u, 18u);
+    const float lumB = SagaTests::Render::AverageRegionLuminance(
+        captureB, captureB.width / 2u, captureB.height / 2u, 18u);
+    EXPECT_NEAR(lumA, lumB, 4.0f);
+
+    m_Backend.DestroyMaterial(material);
+    m_Backend.DestroyTexture(blueTex);
+    m_Backend.DestroyMesh(mesh);
+}
+
+TEST_F(DiligentGPU, ShadowPassSubmitsDepthDraws)
+{
+    const auto cube = SagaTests::Render::BuildIndexedCubeMeshAsset();
+    const auto mesh = m_Backend.CreateMesh(cube);
+    ASSERT_NE(mesh, SagaEngine::Render::World::MeshId::kInvalid);
+
+    SagaEngine::Render::TextureHandle tex =
+        SagaEngine::Render::TextureHandle::kInvalid;
+    const auto material = CreateSolidMaterial(
+        40u, {220u, 220u, 220u, 255u}, &tex,
+        SagaEngine::Render::OpaqueShadingModel::LitDiffuse);
+    ASSERT_NE(material, SagaEngine::Render::World::MaterialId::kInvalid);
+
+    auto view = MakeSingleDrawView(mesh, material);
+    view.lighting.directionalEnabled = true;
+    view.lighting.shadowsEnabled = true;
+    view.lighting.directional.direction = {0.25f, -0.35f, -1.0f};
+    view.lighting.directional.intensity = 1.0f;
+    view.lighting.ambient.intensity = 0.2f;
+
+    const auto capture = RenderAndCapture(SagaTests::Render::MakeCamera(), view);
+    EXPECT_GT(SagaTests::Render::CountPixelsNotNear(
+                  capture, {0u, 0u, 0u, 255u}, 8), 500u);
+
+    const auto diagnostics = m_Backend.LastFrameDiagnostics();
+    EXPECT_EQ(diagnostics.shadowPassExecuted, 1u);
+    EXPECT_EQ(diagnostics.shadowPassDrawCalls, 1u);
+    EXPECT_EQ(diagnostics.mainPassDrawCalls, 1u);
+    EXPECT_EQ(diagnostics.shadowMapWidth, 1024u);
+    EXPECT_EQ(diagnostics.shadowMapHeight, 1024u);
+    EXPECT_EQ(diagnostics.shadowSamplingEnabled, 1u);
+
+    m_Backend.DestroyMaterial(material);
+    m_Backend.DestroyTexture(tex);
+    m_Backend.DestroyMesh(mesh);
+}
+
+TEST_F(DiligentGPU, ShadowMapResourceIsPersistentAcrossFrames)
+{
+    const auto cube = SagaTests::Render::BuildIndexedCubeMeshAsset();
+    const auto mesh = m_Backend.CreateMesh(cube);
+    ASSERT_NE(mesh, SagaEngine::Render::World::MeshId::kInvalid);
+
+    SagaEngine::Render::TextureHandle tex =
+        SagaEngine::Render::TextureHandle::kInvalid;
+    const auto material = CreateSolidMaterial(
+        41u, {220u, 220u, 220u, 255u}, &tex,
+        SagaEngine::Render::OpaqueShadingModel::LitDiffuse);
+    ASSERT_NE(material, SagaEngine::Render::World::MaterialId::kInvalid);
+
+    auto view = MakeSingleDrawView(mesh, material);
+    view.lighting.directionalEnabled = true;
+    view.lighting.shadowsEnabled = true;
+    view.lighting.directional.direction = {0.25f, -0.35f, -1.0f};
+    view.lighting.ambient.intensity = 0.2f;
+
+    (void)RenderAndCapture(SagaTests::Render::MakeCamera(), view);
+    auto first = m_Backend.LastFrameDiagnostics();
+    EXPECT_EQ(first.shadowResourceCreationCount, 1u);
+    EXPECT_EQ(first.shadowResourceRecreationCount, 0u);
+
+    (void)RenderAndCapture(SagaTests::Render::MakeCamera(), view);
+    auto second = m_Backend.LastFrameDiagnostics();
+    EXPECT_EQ(second.shadowResourceCreationCount, 0u);
+    EXPECT_EQ(second.shadowResourceRecreationCount, 0u);
+    EXPECT_EQ(second.shadowPassExecuted, 1u);
+
+    m_Backend.DestroyMaterial(material);
+    m_Backend.DestroyTexture(tex);
+    m_Backend.DestroyMesh(mesh);
+}
+
+TEST_F(DiligentGPU, ShadowEnabledFrameRejectsAdditionalSubmit)
+{
+    const auto cube = SagaTests::Render::BuildIndexedCubeMeshAsset();
+    const auto mesh = m_Backend.CreateMesh(cube);
+    ASSERT_NE(mesh, SagaEngine::Render::World::MeshId::kInvalid);
+
+    SagaEngine::Render::TextureHandle tex =
+        SagaEngine::Render::TextureHandle::kInvalid;
+    const auto material = CreateSolidMaterial(
+        42u, {220u, 220u, 220u, 255u}, &tex,
+        SagaEngine::Render::OpaqueShadingModel::LitDiffuse);
+    ASSERT_NE(material, SagaEngine::Render::World::MaterialId::kInvalid);
+
+    auto view = MakeSingleDrawView(mesh, material);
+    view.lighting.directionalEnabled = true;
+    view.lighting.shadowsEnabled = true;
+    view.lighting.directional.direction = {0.25f, -0.35f, -1.0f};
+    view.lighting.ambient.intensity = 0.2f;
+
+    m_Backend.BeginFrame();
+    m_Backend.Submit(SagaTests::Render::MakeCamera(), view);
+    m_Backend.Submit(SagaTests::Render::MakeCamera(), view);
+    m_Backend.EndFrame();
+
+    const auto diagnostics = m_Backend.LastFrameDiagnostics();
+    EXPECT_EQ(diagnostics.shadowPassExecuted, 1u);
+    EXPECT_EQ(diagnostics.additionalFrameSubmitsRejected, 1u);
+    EXPECT_EQ(diagnostics.mainPassDrawCalls, 1u);
+
+    m_Backend.DestroyMaterial(material);
+    m_Backend.DestroyTexture(tex);
+    m_Backend.DestroyMesh(mesh);
+}
+
+TEST_F(DiligentGPU, ShadowSamplingProducesValidatedPixels)
+{
+    const auto cube = SagaTests::Render::BuildIndexedCubeMeshAsset();
+    const auto mesh = m_Backend.CreateMesh(cube);
+    ASSERT_NE(mesh, SagaEngine::Render::World::MeshId::kInvalid);
+
+    SagaEngine::Render::TextureHandle tex =
+        SagaEngine::Render::TextureHandle::kInvalid;
+    const auto material = CreateSolidMaterial(
+        43u, {220u, 220u, 220u, 255u}, &tex,
+        SagaEngine::Render::OpaqueShadingModel::LitDiffuse);
+    ASSERT_NE(material, SagaEngine::Render::World::MaterialId::kInvalid);
+
+    auto view = MakeSingleDrawView(mesh, material);
+    view.lighting.directionalEnabled = true;
+    view.lighting.shadowsEnabled = true;
+    view.lighting.directional.direction = {0.2f, -0.4f, -1.0f};
+    view.lighting.directional.intensity = 1.0f;
+    view.lighting.ambient.intensity = 0.25f;
+
+    const auto capture = RenderAndCapture(SagaTests::Render::MakeCamera(), view);
+    EXPECT_GT(SagaTests::Render::AverageRegionLuminance(
+                  capture, capture.width / 2u, capture.height / 2u, 18u),
+              20.0f);
+    const auto diagnostics = m_Backend.LastFrameDiagnostics();
+    EXPECT_EQ(diagnostics.shadowSamplingEnabled, 1u);
+    EXPECT_EQ(diagnostics.shadowPassDrawCalls, 1u);
+
+    m_Backend.DestroyMaterial(material);
+    m_Backend.DestroyTexture(tex);
+    m_Backend.DestroyMesh(mesh);
+}
+
+TEST_F(DiligentGPU, OccluderCastsShadowOnReceiver)
+{
+    const auto receiverMesh = m_Backend.CreateMesh(
+        SagaTests::Render::BuildQuadMeshAsset(1.7f, 0.0f, "ShadowReceiver"));
+    const auto occluderMesh = m_Backend.CreateMesh(
+        SagaTests::Render::BuildIndexedCubeMeshAsset("ShadowOccluder"));
+    ASSERT_NE(receiverMesh, SagaEngine::Render::World::MeshId::kInvalid);
+    ASSERT_NE(occluderMesh, SagaEngine::Render::World::MeshId::kInvalid);
+
+    SagaEngine::Render::TextureHandle groundTex =
+        SagaEngine::Render::TextureHandle::kInvalid;
+    SagaEngine::Render::TextureHandle cubeTex =
+        SagaEngine::Render::TextureHandle::kInvalid;
+    const auto groundMat = CreateSolidMaterial(
+        44u, {210u, 210u, 210u, 255u}, &groundTex,
+        SagaEngine::Render::OpaqueShadingModel::LitDiffuse);
+    const auto cubeMat = CreateSolidMaterial(
+        45u, {180u, 180u, 180u, 255u}, &cubeTex,
+        SagaEngine::Render::OpaqueShadingModel::LitDiffuse);
+    ASSERT_NE(groundMat, SagaEngine::Render::World::MaterialId::kInvalid);
+    ASSERT_NE(cubeMat, SagaEngine::Render::World::MaterialId::kInvalid);
+
+    RenderView view{};
+    view.lighting.directionalEnabled = true;
+    view.lighting.shadowsEnabled = true;
+    view.lighting.directional.direction = {0.35f, -0.15f, -1.0f};
+    view.lighting.directional.intensity = 1.0f;
+    view.lighting.ambient.intensity = 0.25f;
+
+    DrawItem receiver{};
+    receiver.mesh = receiverMesh;
+    receiver.material = groundMat;
+    view.drawItems.push_back(receiver);
+
+    DrawItem occluder{};
+    occluder.mesh = occluderMesh;
+    occluder.material = cubeMat;
+    occluder.model =
+        SagaEngine::Math::Mat4::FromTranslation({0.0f, 0.0f, 0.65f}) *
+        SagaEngine::Math::Mat4::FromScale({0.35f, 0.35f, 0.35f});
+    view.drawItems.push_back(occluder);
+
+    auto noShadowView = view;
+    noShadowView.lighting.shadowsEnabled = false;
+
+    const auto camera = SagaTests::Render::MakeCamera();
+    const auto litCapture = RenderAndCapture(camera, noShadowView);
+    const auto shadowCapture = RenderAndCapture(camera, view);
+    const auto darker = SagaTests::Render::FindDarkerPixelCentroid(
+        litCapture, shadowCapture, 18.0f);
+
+    EXPECT_GT(darker.count, 80u);
+    const auto diagnostics = m_Backend.LastFrameDiagnostics();
+    EXPECT_EQ(diagnostics.shadowPassExecuted, 1u);
+    EXPECT_EQ(diagnostics.shadowPassDrawCalls, 2u);
+
+    m_Backend.DestroyMaterial(groundMat);
+    m_Backend.DestroyMaterial(cubeMat);
+    m_Backend.DestroyTexture(groundTex);
+    m_Backend.DestroyTexture(cubeTex);
+    m_Backend.DestroyMesh(receiverMesh);
+    m_Backend.DestroyMesh(occluderMesh);
+}
+
+TEST_F(DiligentGPU, DisablingShadowsRestoresReceiverLuminance)
+{
+    const auto receiverMesh = m_Backend.CreateMesh(
+        SagaTests::Render::BuildQuadMeshAsset(1.7f, 0.0f, "ShadowReceiverToggle"));
+    const auto occluderMesh = m_Backend.CreateMesh(
+        SagaTests::Render::BuildIndexedCubeMeshAsset("ShadowOccluderToggle"));
+    ASSERT_NE(receiverMesh, SagaEngine::Render::World::MeshId::kInvalid);
+    ASSERT_NE(occluderMesh, SagaEngine::Render::World::MeshId::kInvalid);
+
+    SagaEngine::Render::TextureHandle groundTex =
+        SagaEngine::Render::TextureHandle::kInvalid;
+    SagaEngine::Render::TextureHandle cubeTex =
+        SagaEngine::Render::TextureHandle::kInvalid;
+    const auto groundMat = CreateSolidMaterial(
+        46u, {210u, 210u, 210u, 255u}, &groundTex,
+        SagaEngine::Render::OpaqueShadingModel::LitDiffuse);
+    const auto cubeMat = CreateSolidMaterial(
+        146u, {180u, 180u, 180u, 255u}, &cubeTex,
+        SagaEngine::Render::OpaqueShadingModel::LitDiffuse);
+    ASSERT_NE(groundMat, SagaEngine::Render::World::MaterialId::kInvalid);
+    ASSERT_NE(cubeMat, SagaEngine::Render::World::MaterialId::kInvalid);
+
+    RenderView view{};
+    view.lighting.directionalEnabled = true;
+    view.lighting.shadowsEnabled = true;
+    view.lighting.directional.direction = {0.35f, -0.15f, -1.0f};
+    view.lighting.directional.intensity = 1.0f;
+    view.lighting.ambient.intensity = 0.25f;
+    DrawItem receiver{};
+    receiver.mesh = receiverMesh;
+    receiver.material = groundMat;
+    view.drawItems.push_back(receiver);
+    DrawItem occluder{};
+    occluder.mesh = occluderMesh;
+    occluder.material = cubeMat;
+    occluder.model =
+        SagaEngine::Math::Mat4::FromTranslation({0.0f, 0.0f, 0.65f}) *
+        SagaEngine::Math::Mat4::FromScale({0.35f, 0.35f, 0.35f});
+    view.drawItems.push_back(occluder);
+
+    auto noShadowView = view;
+    noShadowView.lighting.shadowsEnabled = false;
+    const auto camera = SagaTests::Render::MakeCamera();
+    const auto litCapture = RenderAndCapture(camera, noShadowView);
+    const auto noShadowDiagnostics = m_Backend.LastFrameDiagnostics();
+    const auto shadowCapture = RenderAndCapture(camera, view);
+    const auto shadowDiagnostics = m_Backend.LastFrameDiagnostics();
+    const auto darker = SagaTests::Render::FindDarkerPixelCentroid(
+        litCapture, shadowCapture, 18.0f);
+    EXPECT_GT(darker.count, 80u);
+    EXPECT_EQ(noShadowDiagnostics.shadowPassExecuted, 0u);
+    EXPECT_EQ(shadowDiagnostics.shadowPassExecuted, 1u);
+
+    m_Backend.DestroyMaterial(groundMat);
+    m_Backend.DestroyMaterial(cubeMat);
+    m_Backend.DestroyTexture(groundTex);
+    m_Backend.DestroyTexture(cubeTex);
+    m_Backend.DestroyMesh(receiverMesh);
+    m_Backend.DestroyMesh(occluderMesh);
+}
+
+TEST_F(DiligentGPU, ShadowResultIsIndependentOfMainPassDrawOrder)
+{
+    const auto receiverMesh = m_Backend.CreateMesh(
+        SagaTests::Render::BuildQuadMeshAsset(1.7f, 0.0f, "ShadowReceiverOrder"));
+    const auto occluderMesh = m_Backend.CreateMesh(
+        SagaTests::Render::BuildIndexedCubeMeshAsset("ShadowOccluderOrder"));
+    ASSERT_NE(receiverMesh, SagaEngine::Render::World::MeshId::kInvalid);
+    ASSERT_NE(occluderMesh, SagaEngine::Render::World::MeshId::kInvalid);
+
+    SagaEngine::Render::TextureHandle tex =
+        SagaEngine::Render::TextureHandle::kInvalid;
+    const auto material = CreateSolidMaterial(
+        47u, {210u, 210u, 210u, 255u}, &tex,
+        SagaEngine::Render::OpaqueShadingModel::LitDiffuse);
+    ASSERT_NE(material, SagaEngine::Render::World::MaterialId::kInvalid);
+
+    auto makeView = [&](bool cubeFirst, bool shadows)
+    {
+        RenderView view{};
+        view.lighting.directionalEnabled = true;
+        view.lighting.shadowsEnabled = shadows;
+        view.lighting.directional.direction = {0.35f, -0.15f, -1.0f};
+        view.lighting.directional.intensity = 1.0f;
+        view.lighting.ambient.intensity = 0.25f;
+
+        DrawItem receiver{};
+        receiver.mesh = receiverMesh;
+        receiver.material = material;
+        DrawItem occluder{};
+        occluder.mesh = occluderMesh;
+        occluder.material = material;
+        occluder.model =
+            SagaEngine::Math::Mat4::FromTranslation({0.0f, 0.0f, 0.65f}) *
+            SagaEngine::Math::Mat4::FromScale({0.35f, 0.35f, 0.35f});
+
+        if (cubeFirst)
+        {
+            view.drawItems.push_back(occluder);
+            view.drawItems.push_back(receiver);
+        }
+        else
+        {
+            view.drawItems.push_back(receiver);
+            view.drawItems.push_back(occluder);
+        }
+        return view;
+    };
+
+    const auto camera = SagaTests::Render::MakeCamera();
+    const auto litA = RenderAndCapture(camera, makeView(false, false));
+    const auto shadowA = RenderAndCapture(camera, makeView(false, true));
+    const auto litB = RenderAndCapture(camera, makeView(true, false));
+    const auto shadowB = RenderAndCapture(camera, makeView(true, true));
+    const auto darkerA = SagaTests::Render::FindDarkerPixelCentroid(
+        litA, shadowA, 18.0f);
+    const auto darkerB = SagaTests::Render::FindDarkerPixelCentroid(
+        litB, shadowB, 18.0f);
+    EXPECT_GT(darkerA.count, 50u);
+    EXPECT_GT(darkerB.count, 50u);
+    EXPECT_NEAR(static_cast<float>(darkerA.count),
+                static_cast<float>(darkerB.count), 1200.0f);
+
+    m_Backend.DestroyMaterial(material);
+    m_Backend.DestroyTexture(tex);
+    m_Backend.DestroyMesh(receiverMesh);
+    m_Backend.DestroyMesh(occluderMesh);
+}
+
+TEST_F(DiligentGPU, MovingOccluderMovesProjectedShadow)
+{
+    const auto receiverMesh = m_Backend.CreateMesh(
+        SagaTests::Render::BuildQuadMeshAsset(1.9f, 0.0f, "ShadowReceiverMoving"));
+    const auto occluderMesh = m_Backend.CreateMesh(
+        SagaTests::Render::BuildIndexedCubeMeshAsset("ShadowOccluderMoving"));
+    ASSERT_NE(receiverMesh, SagaEngine::Render::World::MeshId::kInvalid);
+    ASSERT_NE(occluderMesh, SagaEngine::Render::World::MeshId::kInvalid);
+
+    SagaEngine::Render::TextureHandle tex =
+        SagaEngine::Render::TextureHandle::kInvalid;
+    const auto material = CreateSolidMaterial(
+        48u, {215u, 215u, 215u, 255u}, &tex,
+        SagaEngine::Render::OpaqueShadingModel::LitDiffuse);
+    ASSERT_NE(material, SagaEngine::Render::World::MaterialId::kInvalid);
+
+    auto makeView = [&](float x, bool shadows)
+    {
+        RenderView view{};
+        view.lighting.directionalEnabled = true;
+        view.lighting.shadowsEnabled = shadows;
+        view.lighting.directional.direction = {0.35f, -0.15f, -1.0f};
+        view.lighting.directional.intensity = 1.0f;
+        view.lighting.ambient.intensity = 0.25f;
+        DrawItem receiver{};
+        receiver.mesh = receiverMesh;
+        receiver.material = material;
+        view.drawItems.push_back(receiver);
+        DrawItem occluder{};
+        occluder.mesh = occluderMesh;
+        occluder.material = material;
+        occluder.model =
+            SagaEngine::Math::Mat4::FromTranslation({x, 0.0f, 0.65f}) *
+            SagaEngine::Math::Mat4::FromScale({0.35f, 0.35f, 0.35f});
+        view.drawItems.push_back(occluder);
+        return view;
+    };
+
+    const auto camera = SagaTests::Render::MakeCamera();
+    const auto leftLit = RenderAndCapture(camera, makeView(-0.45f, false));
+    const auto leftShadow = RenderAndCapture(camera, makeView(-0.45f, true));
+    const auto rightLit = RenderAndCapture(camera, makeView(0.45f, false));
+    const auto rightShadow = RenderAndCapture(camera, makeView(0.45f, true));
+
+    const auto leftCentroid = SagaTests::Render::FindDarkerPixelCentroid(
+        leftLit, leftShadow, 18.0f);
+    const auto rightCentroid = SagaTests::Render::FindDarkerPixelCentroid(
+        rightLit, rightShadow, 18.0f);
+    EXPECT_GT(leftCentroid.count, 50u);
+    EXPECT_GT(rightCentroid.count, 50u);
+    EXPECT_GT(rightCentroid.x, leftCentroid.x + 20.0f);
+
+    m_Backend.DestroyMaterial(material);
+    m_Backend.DestroyTexture(tex);
+    m_Backend.DestroyMesh(receiverMesh);
+    m_Backend.DestroyMesh(occluderMesh);
+}
+
+TEST_F(DiligentGPU, ShadowMapOutsideProjectionRemainsLit)
+{
+    const auto quad = SagaTests::Render::BuildQuadMeshAsset(1.0f, 0.0f);
+    const auto mesh = m_Backend.CreateMesh(quad);
+    ASSERT_NE(mesh, SagaEngine::Render::World::MeshId::kInvalid);
+
+    SagaEngine::Render::TextureHandle tex =
+        SagaEngine::Render::TextureHandle::kInvalid;
+    const auto material = CreateSolidMaterial(
+        49u, {220u, 220u, 220u, 255u}, &tex,
+        SagaEngine::Render::OpaqueShadingModel::LitDiffuse);
+    ASSERT_NE(material, SagaEngine::Render::World::MaterialId::kInvalid);
+
+    auto view = MakeSingleDrawView(mesh, material);
+    view.lighting.directionalEnabled = true;
+    view.lighting.shadowsEnabled = true;
+    view.lighting.directional.direction = {0.0f, 0.0f, -1.0f};
+    view.lighting.directional.intensity = 1.0f;
+    view.lighting.ambient.intensity = 0.15f;
+
+    const auto capture = RenderAndCapture(SagaTests::Render::MakeCamera(), view);
+    EXPECT_GT(SagaTests::Render::AverageRegionLuminance(
+                  capture, capture.width / 2u, capture.height / 2u, 18u),
+              120.0f);
+
+    m_Backend.DestroyMaterial(material);
+    m_Backend.DestroyTexture(tex);
+    m_Backend.DestroyMesh(mesh);
+}
+
+TEST_F(DiligentGPU, ShadowPcfConfigPropagatesConfiguredResolution)
+{
+    const auto cube = SagaTests::Render::BuildIndexedCubeMeshAsset();
+    const auto mesh = m_Backend.CreateMesh(cube);
+    ASSERT_NE(mesh, SagaEngine::Render::World::MeshId::kInvalid);
+
+    SagaEngine::Render::TextureHandle tex =
+        SagaEngine::Render::TextureHandle::kInvalid;
+    const auto material = CreateSolidMaterial(
+        50u, {220u, 220u, 220u, 255u}, &tex,
+        SagaEngine::Render::OpaqueShadingModel::LitDiffuse);
+    ASSERT_NE(material, SagaEngine::Render::World::MaterialId::kInvalid);
+
+    auto view = MakeSingleDrawView(mesh, material);
+    view.lighting.directionalEnabled = true;
+    view.lighting.shadowsEnabled = true;
+    view.lighting.directional.direction = {0.2f, -0.4f, -1.0f};
+    view.lighting.ambient.intensity = 0.2f;
+
+    (void)RenderAndCapture(SagaTests::Render::MakeCamera(), view);
+    const auto diagnostics = m_Backend.LastFrameDiagnostics();
+    EXPECT_EQ(diagnostics.shadowMapWidth, 1024u);
+    EXPECT_EQ(diagnostics.shadowMapHeight, 1024u);
+    EXPECT_EQ(diagnostics.shadowSamplingEnabled, 1u);
+
+    m_Backend.DestroyMaterial(material);
+    m_Backend.DestroyTexture(tex);
+    m_Backend.DestroyMesh(mesh);
+}
+
+TEST_F(DiligentGPU, LightingAndShadowsRemainValidAcrossMultipleFrames)
+{
+    const auto receiverMesh = m_Backend.CreateMesh(
+        SagaTests::Render::BuildQuadMeshAsset(1.7f, 0.0f, "ShadowReceiverMulti"));
+    const auto occluderMesh = m_Backend.CreateMesh(
+        SagaTests::Render::BuildIndexedCubeMeshAsset("ShadowOccluderMulti"));
+    ASSERT_NE(receiverMesh, SagaEngine::Render::World::MeshId::kInvalid);
+    ASSERT_NE(occluderMesh, SagaEngine::Render::World::MeshId::kInvalid);
+
+    SagaEngine::Render::TextureHandle tex =
+        SagaEngine::Render::TextureHandle::kInvalid;
+    const auto material = CreateSolidMaterial(
+        51u, {210u, 210u, 210u, 255u}, &tex,
+        SagaEngine::Render::OpaqueShadingModel::LitDiffuse);
+    ASSERT_NE(material, SagaEngine::Render::World::MaterialId::kInvalid);
+
+    auto makeView = [&](bool shadows)
+    {
+        RenderView view{};
+        view.lighting.directionalEnabled = true;
+        view.lighting.shadowsEnabled = shadows;
+        view.lighting.directional.direction = {0.35f, -0.15f, -1.0f};
+        view.lighting.directional.intensity = 1.0f;
+        view.lighting.ambient.intensity = 0.25f;
+
+        DrawItem receiver{};
+        receiver.mesh = receiverMesh;
+        receiver.material = material;
+        view.drawItems.push_back(receiver);
+
+        DrawItem occluder{};
+        occluder.mesh = occluderMesh;
+        occluder.material = material;
+        occluder.model =
+            SagaEngine::Math::Mat4::FromTranslation({0.0f, 0.0f, 0.65f}) *
+            SagaEngine::Math::Mat4::FromScale({0.35f, 0.35f, 0.35f});
+        view.drawItems.push_back(occluder);
+        return view;
+    };
+
+    const auto camera = SagaTests::Render::MakeCamera();
+    const auto litCapture = RenderAndCapture(camera, makeView(false));
+
+    for (int frame = 0; frame < 3; ++frame)
+    {
+        const auto shadowCapture = RenderAndCapture(camera, makeView(true));
+        const auto darker = SagaTests::Render::FindDarkerPixelCentroid(
+            litCapture, shadowCapture, 18.0f);
+        EXPECT_GT(darker.count, 80u);
+
+        const auto diagnostics = m_Backend.LastFrameDiagnostics();
+        EXPECT_EQ(diagnostics.shadowPassExecuted, 1u);
+        EXPECT_EQ(diagnostics.shadowPassDrawCalls, 2u);
+        EXPECT_EQ(diagnostics.mainPassDrawCalls, 2u);
+        EXPECT_EQ(diagnostics.presentCalls, 1u);
+        EXPECT_EQ(diagnostics.shadowResourceRecreationCount, 0u);
+        if (frame == 0)
+            EXPECT_EQ(diagnostics.shadowResourceCreationCount, 1u);
+        else
+            EXPECT_EQ(diagnostics.shadowResourceCreationCount, 0u);
+    }
+
+    m_Backend.DestroyMaterial(material);
+    m_Backend.DestroyTexture(tex);
+    m_Backend.DestroyMesh(receiverMesh);
+    m_Backend.DestroyMesh(occluderMesh);
+}
+
+TEST_F(DiligentGPU, ResizePreservesLightingAndShadows)
+{
+    const auto receiverMesh = m_Backend.CreateMesh(
+        SagaTests::Render::BuildQuadMeshAsset(1.7f, 0.0f, "ShadowReceiverResize"));
+    const auto occluderMesh = m_Backend.CreateMesh(
+        SagaTests::Render::BuildIndexedCubeMeshAsset("ShadowOccluderResize"));
+    ASSERT_NE(receiverMesh, SagaEngine::Render::World::MeshId::kInvalid);
+    ASSERT_NE(occluderMesh, SagaEngine::Render::World::MeshId::kInvalid);
+
+    SagaEngine::Render::TextureHandle tex =
+        SagaEngine::Render::TextureHandle::kInvalid;
+    const auto material = CreateSolidMaterial(
+        52u, {210u, 210u, 210u, 255u}, &tex,
+        SagaEngine::Render::OpaqueShadingModel::LitDiffuse);
+    ASSERT_NE(material, SagaEngine::Render::World::MaterialId::kInvalid);
+
+    auto makeView = [&](bool shadows)
+    {
+        RenderView view{};
+        view.lighting.directionalEnabled = true;
+        view.lighting.shadowsEnabled = shadows;
+        view.lighting.directional.direction = {0.35f, -0.15f, -1.0f};
+        view.lighting.directional.intensity = 1.0f;
+        view.lighting.ambient.intensity = 0.25f;
+
+        DrawItem receiver{};
+        receiver.mesh = receiverMesh;
+        receiver.material = material;
+        view.drawItems.push_back(receiver);
+
+        DrawItem occluder{};
+        occluder.mesh = occluderMesh;
+        occluder.material = material;
+        occluder.model =
+            SagaEngine::Math::Mat4::FromTranslation({0.0f, 0.0f, 0.65f}) *
+            SagaEngine::Math::Mat4::FromScale({0.35f, 0.35f, 0.35f});
+        view.drawItems.push_back(occluder);
+        return view;
+    };
+
+    const auto camera = SagaTests::Render::MakeCamera();
+    (void)RenderAndCapture(camera, makeView(true));
+    auto firstDiagnostics = m_Backend.LastFrameDiagnostics();
+    EXPECT_EQ(firstDiagnostics.shadowResourceCreationCount, 1u);
+
+    SDL_SetWindowSize(m_Window, 400, 300);
+    m_Backend.OnResize(400u, 300u);
+
+    const auto resizedCamera = SagaTests::Render::MakeCamera(400.0f / 300.0f);
+    const auto litCapture = RenderAndCapture(resizedCamera, makeView(false));
+    const auto shadowCapture = RenderAndCapture(resizedCamera, makeView(true));
+    EXPECT_EQ(shadowCapture.width, 400u);
+    EXPECT_EQ(shadowCapture.height, 300u);
+
+    const auto darker = SagaTests::Render::FindDarkerPixelCentroid(
+        litCapture, shadowCapture, 18.0f);
+    EXPECT_GT(darker.count, 80u);
+
+    const auto diagnostics = m_Backend.LastFrameDiagnostics();
+    EXPECT_EQ(diagnostics.shadowPassExecuted, 1u);
+    EXPECT_EQ(diagnostics.shadowResourceCreationCount, 0u);
+    EXPECT_EQ(diagnostics.shadowResourceRecreationCount, 0u);
+    EXPECT_EQ(diagnostics.shadowMapWidth, 1024u);
+    EXPECT_EQ(diagnostics.shadowMapHeight, 1024u);
+
+    m_Backend.DestroyMaterial(material);
+    m_Backend.DestroyTexture(tex);
+    m_Backend.DestroyMesh(receiverMesh);
+    m_Backend.DestroyMesh(occluderMesh);
+}
+
+TEST_F(DiligentGPU, ShadowToggleDoesNotLeakOrUseStaleBindings)
+{
+    const auto receiverMesh = m_Backend.CreateMesh(
+        SagaTests::Render::BuildQuadMeshAsset(1.7f, 0.0f, "ShadowReceiverToggleStale"));
+    const auto occluderMesh = m_Backend.CreateMesh(
+        SagaTests::Render::BuildIndexedCubeMeshAsset("ShadowOccluderToggleStale"));
+    ASSERT_NE(receiverMesh, SagaEngine::Render::World::MeshId::kInvalid);
+    ASSERT_NE(occluderMesh, SagaEngine::Render::World::MeshId::kInvalid);
+
+    SagaEngine::Render::TextureHandle tex =
+        SagaEngine::Render::TextureHandle::kInvalid;
+    const auto material = CreateSolidMaterial(
+        53u, {210u, 210u, 210u, 255u}, &tex,
+        SagaEngine::Render::OpaqueShadingModel::LitDiffuse);
+    ASSERT_NE(material, SagaEngine::Render::World::MaterialId::kInvalid);
+
+    auto makeView = [&](bool shadows)
+    {
+        RenderView view{};
+        view.lighting.directionalEnabled = true;
+        view.lighting.shadowsEnabled = shadows;
+        view.lighting.directional.direction = {0.35f, -0.15f, -1.0f};
+        view.lighting.directional.intensity = 1.0f;
+        view.lighting.ambient.intensity = 0.25f;
+
+        DrawItem receiver{};
+        receiver.mesh = receiverMesh;
+        receiver.material = material;
+        view.drawItems.push_back(receiver);
+
+        DrawItem occluder{};
+        occluder.mesh = occluderMesh;
+        occluder.material = material;
+        occluder.model =
+            SagaEngine::Math::Mat4::FromTranslation({0.0f, 0.0f, 0.65f}) *
+            SagaEngine::Math::Mat4::FromScale({0.35f, 0.35f, 0.35f});
+        view.drawItems.push_back(occluder);
+        return view;
+    };
+
+    const auto camera = SagaTests::Render::MakeCamera();
+    const auto enabledA = RenderAndCapture(camera, makeView(true));
+    (void)enabledA;
+    const auto disabled = RenderAndCapture(camera, makeView(false));
+    const auto disabledDiagnostics = m_Backend.LastFrameDiagnostics();
+    const auto enabledB = RenderAndCapture(camera, makeView(true));
+    const auto enabledDiagnostics = m_Backend.LastFrameDiagnostics();
+
+    const auto disabledVsShadowAgain = SagaTests::Render::FindDarkerPixelCentroid(
+        disabled, enabledB, 18.0f);
+    EXPECT_GT(disabledVsShadowAgain.count, 80u);
+    EXPECT_EQ(disabledDiagnostics.shadowPassExecuted, 0u);
+    EXPECT_EQ(disabledDiagnostics.shadowSamplingEnabled, 0u);
+    EXPECT_EQ(enabledDiagnostics.shadowPassExecuted, 1u);
+    EXPECT_EQ(enabledDiagnostics.shadowSamplingEnabled, 2u);
+
+    m_Backend.DestroyMaterial(material);
+    m_Backend.DestroyTexture(tex);
+    m_Backend.DestroyMesh(receiverMesh);
+    m_Backend.DestroyMesh(occluderMesh);
 }

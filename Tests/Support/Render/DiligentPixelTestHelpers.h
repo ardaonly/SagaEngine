@@ -56,6 +56,13 @@ struct PixelBounds
     }
 };
 
+struct PixelCentroid
+{
+    float x = 0.0f;
+    float y = 0.0f;
+    std::uint32_t count = 0;
+};
+
 [[nodiscard]] inline Rgba8 PixelAt(const Backend::RenderFrameCapture& capture,
                                    std::uint32_t x,
                                    std::uint32_t y) noexcept
@@ -163,6 +170,37 @@ template <typename Predicate>
     return count;
 }
 
+[[nodiscard]] inline float Luminance(Rgba8 c) noexcept
+{
+    return 0.2126f * static_cast<float>(c.r) +
+           0.7152f * static_cast<float>(c.g) +
+           0.0722f * static_cast<float>(c.b);
+}
+
+[[nodiscard]] inline float AverageRegionLuminance(
+    const Backend::RenderFrameCapture& capture,
+    std::uint32_t centerX,
+    std::uint32_t centerY,
+    std::uint32_t halfExtent)
+{
+    const auto minX = centerX > halfExtent ? centerX - halfExtent : 0u;
+    const auto minY = centerY > halfExtent ? centerY - halfExtent : 0u;
+    const auto maxX = std::min(capture.width - 1u, centerX + halfExtent);
+    const auto maxY = std::min(capture.height - 1u, centerY + halfExtent);
+
+    float total = 0.0f;
+    std::uint32_t count = 0;
+    for (std::uint32_t y = minY; y <= maxY; ++y)
+    {
+        for (std::uint32_t x = minX; x <= maxX; ++x)
+        {
+            total += Luminance(PixelAt(capture, x, y));
+            ++count;
+        }
+    }
+    return count > 0 ? total / static_cast<float>(count) : 0.0f;
+}
+
 [[nodiscard]] inline PixelBounds FindNonClearBounds(
     const Backend::RenderFrameCapture& capture,
     Rgba8 clear,
@@ -194,6 +232,40 @@ template <typename Predicate>
         bounds.minX = bounds.minY = bounds.maxX = bounds.maxY = 0u;
     }
     return bounds;
+}
+
+[[nodiscard]] inline PixelCentroid FindDarkerPixelCentroid(
+    const Backend::RenderFrameCapture& reference,
+    const Backend::RenderFrameCapture& darker,
+    float luminanceDelta)
+{
+    PixelCentroid centroid{};
+    if (reference.width != darker.width || reference.height != darker.height)
+        return centroid;
+
+    double sumX = 0.0;
+    double sumY = 0.0;
+    for (std::uint32_t y = 0; y < reference.height; ++y)
+    {
+        for (std::uint32_t x = 0; x < reference.width; ++x)
+        {
+            const float refLum = Luminance(PixelAt(reference, x, y));
+            const float darkLum = Luminance(PixelAt(darker, x, y));
+            if (refLum > darkLum + luminanceDelta)
+            {
+                sumX += static_cast<double>(x);
+                sumY += static_cast<double>(y);
+                ++centroid.count;
+            }
+        }
+    }
+
+    if (centroid.count > 0)
+    {
+        centroid.x = static_cast<float>(sumX / centroid.count);
+        centroid.y = static_cast<float>(sumY / centroid.count);
+    }
+    return centroid;
 }
 
 [[nodiscard]] inline std::vector<std::uint8_t> SolidTexturePixels(Rgba8 color)
@@ -343,12 +415,15 @@ template <typename Predicate>
     std::uint64_t materialId,
     EngineRender::TextureHandle albedo,
     EngineRender::MaterialCullMode cullMode =
-        EngineRender::MaterialCullMode::Back)
+        EngineRender::MaterialCullMode::Back,
+    EngineRender::OpaqueShadingModel shadingModel =
+        EngineRender::OpaqueShadingModel::Unlit)
 {
     EngineRender::MaterialRuntime material{};
     material.materialId = materialId;
     material.renderQueue = EngineRender::MaterialRenderQueue::Opaque;
     material.cullMode = cullMode;
+    material.shadingModel = shadingModel;
     material.writesDepth = true;
     material.textures[
         static_cast<std::size_t>(EngineRender::MaterialTextureSlot::Albedo)] =
