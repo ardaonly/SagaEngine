@@ -84,6 +84,15 @@ the existing `IRenderBackend` mesh/material/texture upload and submit seam; it
 does not route through the SagaGraphics registered-only shell or claim a full
 asset-driven scene renderer.
 
+M2 runtime-path coverage adds a concrete/private
+`DiligentRenderBackend::CaptureCurrentColorFrame()` diagnostic used by GPU
+integration tests to read the current color backbuffer before present. The
+capture API, frame-capture DTO, and Diligent frame diagnostics are not part of
+`IRenderBackend`, `SagaGraphics`, or the installed public graphics surface. The
+allowed automated claim is pixel-correct cube coverage on the canonical
+`IRenderBackend -> DiligentRenderBackend -> Vulkan` path, not a stable public
+capture API.
+
 R6C/R6D CPU-side render residency foundation adds
 `SagaEngine/Render/Streaming/RenderStreamingResidency.h` as a vendor-neutral
 adapter over existing resource streaming vocabulary. It defines deterministic
@@ -114,6 +123,8 @@ The conservative capability matrix is documented in
 [Graphics Capability Matrix v0](GRAPHICS_CAPABILITY_MATRIX_V0.md).
 The current graphics CMake target roles are documented in
 [Graphics Target Boundary Inventory](GRAPHICS_TARGET_BOUNDARY_INVENTORY.md).
+The current private Diligent runtime proof path is documented in
+[Render Canonical Runtime Path](RENDER_CANONICAL_RUNTIME_PATH.md).
 
 ## Install Surface
 
@@ -149,6 +160,7 @@ It does not make network relevance the same thing as render relevance.
 It does not turn the playable render slice into a production renderer,
 asset-pipeline scene loader, shader compiler, lighting stack, or post-process
 stack.
+It does not turn the private Diligent frame-capture diagnostic into public API.
 It does not claim `SagaEngine/Graphics` is a stable external SDK.
 
 ## Guardrails

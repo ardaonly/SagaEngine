@@ -1699,7 +1699,11 @@ function(saga_setup_tests)
         rapidcheck::rapidcheck
         SDL2::SDL2          # DiligentBackend integration tests need a hidden window
     )
-    target_include_directories(SagaIntegrationTests PRIVATE ${SAGA_TEST_INCLUDE_DIRS})
+    target_include_directories(SagaIntegrationTests PRIVATE
+        ${SAGA_TEST_INCLUDE_DIRS}
+        ${SAGA_ROOT}/Tests/Support
+        ${SAGA_ROOT}/Engine/Private
+    )
     add_test(NAME IntegrationTests COMMAND SagaIntegrationTests)
     set_tests_properties(IntegrationTests PROPERTIES
         LABELS "integration;runtime;server;networking;replication;timing-sensitive"

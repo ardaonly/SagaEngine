@@ -62,6 +62,7 @@
 #include "RenderDevice.h"
 #include "DeviceContext.h"
 #include "SwapChain.h"
+#include "Texture.h"
 #include "PipelineState.h"
 #include "ShaderResourceBinding.h"
 #include "MapHelper.hpp"
@@ -213,6 +214,10 @@ struct DiligentRenderBackend::Impl
 
     std::uint64_t frameIndex   = 0;
     bool          initialized  = false;
+    RenderFrameDiagnostics currentFrameDiagnostics{};
+    RenderFrameDiagnostics lastFrameDiagnostics{};
+
+    Diligent::RefCntAutoPtr<Diligent::ITexture> captureStagingTexture;
 
     // ── ImGui rendering resources ───────────────────────────────────
     Diligent::RefCntAutoPtr<Diligent::IPipelineState>        imguiPSO;
@@ -251,6 +256,62 @@ void LogDbg(const char* msg)
     if (!g_verboseGPU) return;
     std::fprintf(stdout, "[DiligentBackend][dbg] %s\n", msg);
     std::fflush(stdout);
+}
+
+bool IsCaptureFormatSupported(Diligent::TEXTURE_FORMAT format) noexcept
+{
+    using namespace Diligent;
+    switch (format)
+    {
+        case TEX_FORMAT_RGBA8_UNORM:
+        case TEX_FORMAT_RGBA8_UNORM_SRGB:
+        case TEX_FORMAT_BGRA8_UNORM:
+        case TEX_FORMAT_BGRA8_UNORM_SRGB:
+            return true;
+        default:
+            return false;
+    }
+}
+
+void CopyMappedTextureToRGBA8(const Diligent::MappedTextureSubresource& mapped,
+                              Diligent::TEXTURE_FORMAT                  sourceFormat,
+                              std::uint32_t                             width,
+                              std::uint32_t                             height,
+                              std::vector<std::uint8_t>&                outPixels)
+{
+    outPixels.assign(static_cast<std::size_t>(width) * height * 4u, 0u);
+
+    const auto* srcBase = static_cast<const std::uint8_t*>(mapped.pData);
+    const bool  sourceIsBGRA =
+        sourceFormat == Diligent::TEX_FORMAT_BGRA8_UNORM ||
+        sourceFormat == Diligent::TEX_FORMAT_BGRA8_UNORM_SRGB;
+
+    for (std::uint32_t y = 0; y < height; ++y)
+    {
+        const auto* src = srcBase + static_cast<std::size_t>(mapped.Stride) * y;
+        auto* dst = outPixels.data() +
+            static_cast<std::size_t>(width) * y * 4u;
+
+        for (std::uint32_t x = 0; x < width; ++x)
+        {
+            const auto* px = src + static_cast<std::size_t>(x) * 4u;
+            auto* out = dst + static_cast<std::size_t>(x) * 4u;
+            if (sourceIsBGRA)
+            {
+                out[0] = px[2];
+                out[1] = px[1];
+                out[2] = px[0];
+                out[3] = px[3];
+            }
+            else
+            {
+                out[0] = px[0];
+                out[1] = px[1];
+                out[2] = px[2];
+                out[3] = px[3];
+            }
+        }
+    }
 }
 
 // ─── Factory init helpers (D3D12, Vulkan, D3D11, OpenGL) ─────────────
@@ -447,6 +508,7 @@ void DiligentRenderBackend::Shutdown()
     m_Impl->psoCache.clear();
     m_Impl->skinnedPsoCache.clear();
     m_Impl->textureCache.clear();
+    m_Impl->captureStagingTexture.Release();
     m_Impl->defaultWhiteTex.srv.Release();
     m_Impl->defaultWhiteTex.texture.Release();
 
@@ -470,6 +532,7 @@ void DiligentRenderBackend::OnResize(std::uint32_t width, std::uint32_t height)
 {
     if (!m_Impl->initialized || !m_Impl->swapChain) return;
     if (width == 0 || height == 0) return;
+    m_Impl->captureStagingTexture.Release();
     m_Impl->swapChain->Resize(width, height);
 }
 
@@ -850,6 +913,8 @@ void DiligentRenderBackend::BeginFrame()
     if (!m_Impl->initialized || !m_Impl->context || !m_Impl->swapChain)
         return;
 
+    m_Impl->currentFrameDiagnostics = {};
+
     LogDbg("BeginFrame: enter");
 
     auto* ctx = m_Impl->context.RawPtr();
@@ -922,6 +987,7 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
         if (meshIt == m_Impl->meshCache.end())
         {
             LogDbg("Submit: mesh not in cache, skip");
+            ++m_Impl->currentFrameDiagnostics.rejectedDrawItems;
             continue;
         }
 
@@ -929,11 +995,13 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
         if (matIt == m_Impl->materialCache.end())
         {
             LogDbg("Submit: material not in cache, skip");
+            ++m_Impl->currentFrameDiagnostics.rejectedDrawItems;
             continue;
         }
 
         auto& mesh = meshIt->second;
         auto& mat  = matIt->second;
+        ++m_Impl->currentFrameDiagnostics.submittedDrawItems;
 
         if (g_verboseGPU)
         {
@@ -1086,6 +1154,8 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
             drawAttribs.Flags      = g_verboseGPU ? Diligent::DRAW_FLAG_VERIFY_ALL
                                                   : Diligent::DRAW_FLAG_NONE;
             ctx->DrawIndexed(drawAttribs);
+            ++m_Impl->currentFrameDiagnostics.indexedDrawCalls;
+            m_Impl->currentFrameDiagnostics.lastIndexedIndexCount = mesh.indexCount;
             LogDbg("Submit: DrawIndexed OK");
         }
         else
@@ -1095,6 +1165,7 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
             drawAttribs.Flags       = g_verboseGPU ? Diligent::DRAW_FLAG_VERIFY_ALL
                                                    : Diligent::DRAW_FLAG_NONE;
             ctx->Draw(drawAttribs);
+            ++m_Impl->currentFrameDiagnostics.nonIndexedDrawCalls;
             LogDbg("Submit: Draw OK");
         }
 
@@ -1109,6 +1180,8 @@ void DiligentRenderBackend::EndFrame()
 
     LogDbg("EndFrame: Present…");
     m_Impl->swapChain->Present();
+    ++m_Impl->currentFrameDiagnostics.presentCalls;
+    m_Impl->lastFrameDiagnostics = m_Impl->currentFrameDiagnostics;
     ++m_Impl->frameIndex;
 
     if (g_verboseGPU)
@@ -1478,6 +1551,103 @@ void DiligentRenderBackend::ShutdownImGuiRendering()
     LogInfo("ImGui rendering shut down");
 }
 
+RenderCaptureResult DiligentRenderBackend::CaptureCurrentColorFrame(
+    RenderFrameCapture& outCapture)
+{
+    outCapture = {};
+
+    if (!m_Impl || !m_Impl->initialized || !m_Impl->device ||
+        !m_Impl->context || !m_Impl->swapChain)
+    {
+        return RenderCaptureResult::kNotInitialized;
+    }
+
+    using namespace Diligent;
+
+    auto* rtv = m_Impl->swapChain->GetCurrentBackBufferRTV();
+    if (!rtv)
+    {
+        return RenderCaptureResult::kBackBufferUnavailable;
+    }
+
+    auto* backBuffer = rtv->GetTexture();
+    if (!backBuffer)
+    {
+        return RenderCaptureResult::kBackBufferUnavailable;
+    }
+
+    const auto& scDesc = m_Impl->swapChain->GetDesc();
+    if (scDesc.Width == 0 || scDesc.Height == 0 ||
+        !IsCaptureFormatSupported(scDesc.ColorBufferFormat))
+    {
+        return RenderCaptureResult::kUnsupportedFormat;
+    }
+
+    if (m_Impl->captureStagingTexture)
+    {
+        const auto& stagingDesc = m_Impl->captureStagingTexture->GetDesc();
+        if (stagingDesc.Width != scDesc.Width ||
+            stagingDesc.Height != scDesc.Height ||
+            stagingDesc.Format != scDesc.ColorBufferFormat)
+        {
+            m_Impl->captureStagingTexture.Release();
+        }
+    }
+
+    if (!m_Impl->captureStagingTexture)
+    {
+        TextureDesc textureDesc;
+        textureDesc.Name           = "SagaFrameCaptureStagingTexture";
+        textureDesc.Type           = RESOURCE_DIM_TEX_2D;
+        textureDesc.Width          = scDesc.Width;
+        textureDesc.Height         = scDesc.Height;
+        textureDesc.Format         = scDesc.ColorBufferFormat;
+        textureDesc.Usage          = USAGE_STAGING;
+        textureDesc.CPUAccessFlags = CPU_ACCESS_READ;
+        textureDesc.MipLevels      = 1;
+        m_Impl->device->CreateTexture(
+            textureDesc, nullptr, &m_Impl->captureStagingTexture);
+        if (!m_Impl->captureStagingTexture)
+        {
+            return RenderCaptureResult::kCopyFailed;
+        }
+    }
+
+    m_Impl->context->SetRenderTargets(
+        0, nullptr, nullptr, RESOURCE_STATE_TRANSITION_MODE_NONE);
+
+    CopyTextureAttribs copyAttribs(
+        backBuffer,
+        RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
+        m_Impl->captureStagingTexture,
+        RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    m_Impl->context->CopyTexture(copyAttribs);
+    m_Impl->context->WaitForIdle();
+
+    MappedTextureSubresource mapped{};
+    m_Impl->context->MapTextureSubresource(
+        m_Impl->captureStagingTexture, 0, 0, MAP_READ, MAP_FLAG_DO_NOT_WAIT,
+        nullptr, mapped);
+
+    if (!mapped.pData || mapped.Stride == 0)
+    {
+        return RenderCaptureResult::kCopyFailed;
+    }
+
+    outCapture.width = scDesc.Width;
+    outCapture.height = scDesc.Height;
+    outCapture.rowPitch = scDesc.Width * 4u;
+    outCapture.format = RenderPixelFormat::RGBA8_UNORM;
+    CopyMappedTextureToRGBA8(mapped, scDesc.ColorBufferFormat,
+                             scDesc.Width, scDesc.Height,
+                             outCapture.pixels);
+
+    m_Impl->context->UnmapTextureSubresource(
+        m_Impl->captureStagingTexture, 0, 0);
+
+    return RenderCaptureResult::kSuccess;
+}
+
 // ─── Diagnostics ─────────────────────────────────────────────────────
 
 GraphicsBackendAPI DiligentRenderBackend::SelectedAPI() const noexcept
@@ -1493,6 +1663,11 @@ std::uint64_t DiligentRenderBackend::FrameIndex() const noexcept
 bool DiligentRenderBackend::IsInitialized() const noexcept
 {
     return m_Impl && m_Impl->initialized;
+}
+
+RenderFrameDiagnostics DiligentRenderBackend::LastFrameDiagnostics() const noexcept
+{
+    return m_Impl ? m_Impl->lastFrameDiagnostics : RenderFrameDiagnostics{};
 }
 
 // ─── Public factory surface ─────────────────────────────────────────

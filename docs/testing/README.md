@@ -19,11 +19,15 @@ git diff --check
 ctest --test-dir <build-dir> -R "<test-name>" --output-on-failure
 ```
 
-On NixOS:
+Inside the Nix development shell:
 
 ```sh
 nix-shell --run "ctest --test-dir <build-dir> -R '<test-name>' --output-on-failure"
 ```
+
+Nix is the preferred reproducible validation shell, not a NixOS platform
+requirement. See
+[NIX_DEVELOPMENT_AND_VALIDATION_POLICY.md](../architecture/NIX_DEVELOPMENT_AND_VALIDATION_POLICY.md).
 
 ## Local Gates
 
