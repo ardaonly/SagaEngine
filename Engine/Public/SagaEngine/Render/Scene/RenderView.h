@@ -18,6 +18,7 @@
 #pragma once
 
 #include "SagaEngine/Math/Mat4.h"
+#include "SagaEngine/Math/Vec3.h"
 #include "SagaEngine/Render/World/RenderEntity.h"
 
 #include <cstddef>
@@ -26,6 +27,31 @@
 
 namespace SagaEngine::Render::Scene
 {
+
+// ─── Lighting ─────────────────────────────────────────────────────────
+
+/// Direction is the world-space direction light rays travel. Shaders use
+/// -direction as the vector from a surface point toward the light.
+struct DirectionalLightData
+{
+    ::SagaEngine::Math::Vec3 direction{0.0f, -1.0f, 0.0f};
+    ::SagaEngine::Math::Vec3 color{1.0f, 1.0f, 1.0f};
+    float intensity = 1.0f;
+};
+
+struct AmbientLightData
+{
+    ::SagaEngine::Math::Vec3 color{1.0f, 1.0f, 1.0f};
+    float intensity = 0.0f;
+};
+
+struct RenderLightingData
+{
+    bool directionalEnabled = false;
+    bool shadowsEnabled = false;
+    DirectionalLightData directional{};
+    AmbientLightData ambient{};
+};
 
 // ─── DrawItem ─────────────────────────────────────────────────────────
 
@@ -67,6 +93,7 @@ struct DrawItem
 struct RenderView
 {
     std::vector<DrawItem> drawItems;
+    RenderLightingData lighting{};
 
     // ── Per-frame counters (diagnostic) ──────────────────────────
 
@@ -80,6 +107,7 @@ struct RenderView
     void Reset()
     {
         drawItems.clear();
+        lighting = {};
         visited          = 0;
         culledFrustum    = 0;
         culledDistance   = 0;

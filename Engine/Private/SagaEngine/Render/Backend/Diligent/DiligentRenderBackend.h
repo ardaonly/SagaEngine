@@ -49,6 +49,16 @@ struct RenderFrameDiagnostics
     std::uint32_t nonIndexedDrawCalls   = 0;
     std::uint32_t lastIndexedIndexCount = 0;
     std::uint32_t presentCalls          = 0;
+    std::uint32_t shadowPassDrawCalls   = 0;
+    std::uint32_t mainPassDrawCalls     = 0;
+    std::uint32_t shadowResourceCreationCount   = 0;
+    std::uint32_t shadowResourceRecreationCount = 0;
+    std::uint32_t shadowMapWidth        = 0;
+    std::uint32_t shadowMapHeight       = 0;
+    std::uint32_t shadowPassExecuted    = 0;
+    std::uint32_t shadowSamplingEnabled = 0;
+    std::uint32_t invalidNormalTransformDraws = 0;
+    std::uint32_t additionalFrameSubmitsRejected = 0;
 };
 
 enum class RenderPixelFormat : std::uint8_t
