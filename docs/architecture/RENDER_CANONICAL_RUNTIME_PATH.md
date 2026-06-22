@@ -55,6 +55,22 @@ BASIC LIT PLAYABLE 3D SLICE VERIFIED
 That claim requires the Sandbox scenario `directional_light_shadow_slice` to be
 launched and observed interactively. A successful build alone is not enough.
 
+## Coordinate Convention
+
+GFX-M4-0 freezes the current graphics coordinate convention before native
+SagaGraphics resource migration begins. The contract is recorded in
+[GRAPHICS_COORDINATE_CONVENTION.md](GRAPHICS_COORDINATE_CONVENTION.md).
+
+The automated coordinate claim is:
+
+```text
+GRAPHICS COORDINATE CONVENTION VERIFIED
+```
+
+This claim is limited to the current CPU math contract and the Diligent/Vulkan
+runtime fixtures listed below. It does not imply RenderGraph GPU execution or
+native SagaGraphics resource ownership.
+
 ## Capture Boundary
 
 `DiligentRenderBackend::CaptureCurrentColorFrame()` is a private/concrete
@@ -100,6 +116,22 @@ and normalizes supported RGBA8/BGRA8 UNORM or SRGB backbuffer formats into
 | `DiligentGPU.LightingAndShadowsRemainValidAcrossMultipleFrames` | Shadow resources and diagnostics remain stable across frames. |
 | `DiligentGPU.ResizePreservesLightingAndShadows` | Swapchain resize preserves the persistent shadow map path. |
 | `DiligentGPU.ShadowToggleDoesNotLeakOrUseStaleBindings` | Disabling and re-enabling shadows does not use stale visible output. |
+| `GraphicsCoordinateConvention.PerspectiveNearMapsToExpectedDepth` | PerspectiveRH_ZO maps the near plane to canonical depth 0. |
+| `GraphicsCoordinateConvention.PerspectiveFarMapsToExpectedDepth` | PerspectiveRH_ZO maps the far plane to canonical depth 1. |
+| `GraphicsCoordinateConvention.OrthographicNearFarMapToZeroOne` | OrthoRH_ZO uses the same zero-to-one depth convention. |
+| `GraphicsCoordinateConvention.ViewForwardIsNegativeZ` | Canonical camera forward is `-Z`. |
+| `GraphicsCoordinateConvention.ProjectionViewModelOrderIsPVM` | CPU math contract is `projection * view * model * position`. |
+| `GraphicsCoordinateConvention.CounterClockwiseTriangleIsFrontFacing` | CCW winding is the canonical front-face convention. |
+| `GraphicsCoordinateConvention.CanonicalUvCornersMapCorrectly` | Canonical texture UV corners use top-left texture semantics. |
+| `GraphicsCoordinateConvention.ShadowNdcToUvMapsCenterToHalfHalf` | Shadow NDC-to-UV maps center and vertical orientation deterministically. |
+| `GraphicsCoordinateConvention.NormalTransformUsesInverseTranspose` | Normal transforms use inverse-transpose semantics. |
+| `GraphicsCoordinateConvention.BackendAdjustmentAppliedExactlyOnce` | Shadow NDC-to-UV owns the covered Y inversion, avoiding double application. |
+| `CoordinateGPU.CounterClockwiseTriangleDraws` | CCW geometry survives back-face culling and produces pixels. |
+| `CoordinateGPU.ClockwiseTriangleIsCulled` | CW geometry is culled with the default back-face cull policy. |
+| `CoordinateGPU.NearGeometryOccludesFarGeometry` | Diligent/Vulkan depth output follows the canonical near/far convention. |
+| `CoordinateGPU.TextureCornersMatchCanonicalUv` | Uploaded texture quadrants match canonical UV corner semantics. |
+| `CoordinateGPU.ShadowProjectionMatchesMainConvention` | Shadow projection and main camera convention agree in a pixel shadow fixture. |
+| `CoordinateGPU.BackendAdjustmentIsNotDoubleApplied` | Vertical positioning is not double-flipped by backend adjustment. |
 
 ## Sandbox Slice
 
