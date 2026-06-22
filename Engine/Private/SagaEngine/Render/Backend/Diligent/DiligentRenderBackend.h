@@ -36,9 +36,43 @@
 #include <cstdint>
 #include <memory>
 #include <string_view>
+#include <vector>
 
 namespace SagaEngine::Render::Backend
 {
+
+struct RenderFrameDiagnostics
+{
+    std::uint32_t submittedDrawItems    = 0;
+    std::uint32_t rejectedDrawItems     = 0;
+    std::uint32_t indexedDrawCalls      = 0;
+    std::uint32_t nonIndexedDrawCalls   = 0;
+    std::uint32_t lastIndexedIndexCount = 0;
+    std::uint32_t presentCalls          = 0;
+};
+
+enum class RenderPixelFormat : std::uint8_t
+{
+    RGBA8_UNORM,
+};
+
+struct RenderFrameCapture
+{
+    std::uint32_t width    = 0;
+    std::uint32_t height   = 0;
+    std::uint32_t rowPitch = 0;
+    RenderPixelFormat format = RenderPixelFormat::RGBA8_UNORM;
+    std::vector<std::uint8_t> pixels;
+};
+
+enum class RenderCaptureResult : std::uint8_t
+{
+    kSuccess,
+    kNotInitialized,
+    kBackBufferUnavailable,
+    kUnsupportedFormat,
+    kCopyFailed,
+};
 
 // ─── DiligentRenderBackend ────────────────────────────────────────────
 
@@ -102,6 +136,11 @@ public:
     [[nodiscard]] std::uint64_t      FrameIndex()    const noexcept;
 
     [[nodiscard]] bool               IsInitialized() const noexcept;
+
+    [[nodiscard]] RenderFrameDiagnostics LastFrameDiagnostics() const noexcept;
+
+    [[nodiscard]] RenderCaptureResult CaptureCurrentColorFrame(
+        RenderFrameCapture& outCapture);
 
 private:
     struct Impl;

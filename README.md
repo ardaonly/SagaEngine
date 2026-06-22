@@ -8,16 +8,6 @@ It is not a finished game engine product. Treat this repository as source for
 engine and toolchain development, not as an installable editor for making games
 end to end.
 
-## Project Status
-
-SagaEngine is currently in a temporary feature freeze.
-
-No new major systems, phases, or architectural expansions are planned during this period. The current focus is to understand, audit, document, and stabilize the existing codebase.
-
-This freeze does not mean the project is abandoned. Development is paused intentionally so the existing engine architecture, source files, public/private boundaries, build system, runtime flow, asset pipeline, rendering layer, server authority, and editor structure can be reviewed and properly owned before further expansion.
-
-This project grew quickly through exploratory development, so the current priority is codebase comprehension, ownership review, and stabilization before adding more scope.
-
 ## SagaSandbox Preview
 
 Current sandbox/render snapshots from the temporary frozen development state.
@@ -110,13 +100,17 @@ Tools/Forge/bin/forge configure --preset linux-gcc
 Tools/Forge/bin/forge build
 ```
 
-NixOS:
+Nix development shell:
 
 ```sh
 nix-shell --run "Tools/Forge/bin/forge install --profile linux-gcc"
 nix-shell --run "Tools/Forge/bin/forge configure --preset linux-gcc"
 nix-shell --run "Tools/Forge/bin/forge build"
 ```
+
+Nix is the preferred reproducible development and validation shell for Linux
+checks, but SagaEngine is not a NixOS-only platform. See
+[NIX_DEVELOPMENT_AND_VALIDATION_POLICY.md](docs/architecture/NIX_DEVELOPMENT_AND_VALIDATION_POLICY.md).
 
 Windows:
 
@@ -155,10 +149,11 @@ Common local checks:
 
 ```sh
 git diff --check
-ctest --test-dir build/RelWithDebInfo-0.0.9 --output-on-failure
+ctest --test-dir <build-dir> --output-on-failure
 ```
 
-For NixOS-hosted checks, use `nix-shell --run "<command>"`.
+For checks inside the Nix development shell, use
+`nix-shell --run "<command>"`.
 
 ## Distribution Staging
 
