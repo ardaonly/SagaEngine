@@ -275,6 +275,52 @@ TEST(PublicPrivateBoundaryTests, PublicRenderBackendSurfaceIsVendorNeutral)
         << (offenders.empty() ? "" : offenders.front());
 }
 
+TEST(
+    PublicPrivateBoundaryTests,
+    DiligentGraphicsBackendDoesNotInitializeDiligentDeviceFactory)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto backendRoot =
+        root / "Engine" / "Private" / "SagaEngine" / "Graphics" /
+        "Backends" / "Diligent";
+    ASSERT_TRUE(std::filesystem::exists(backendRoot));
+
+    const std::vector<std::string> forbiddenTokens = {
+        "CreateDeviceAndContexts",
+        "CreateDeviceAndSwapChain",
+        "GetEngineFactory",
+        "TryInitAPI",
+    };
+
+    std::vector<std::string> offenders;
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(backendRoot))
+    {
+        if (!entry.is_regular_file() || !IsCodeFile(entry.path()))
+        {
+            continue;
+        }
+
+        const auto relative = RelativeToSourceRoot(entry.path()).generic_string();
+        const auto lines = ReadLines(entry.path());
+        for (std::size_t i = 0; i < lines.size(); ++i)
+        {
+            for (const auto& token : forbiddenTokens)
+            {
+                if (Contains(lines[i], token))
+                {
+                    offenders.push_back(
+                        relative + ":" + std::to_string(i + 1) + ": " + token);
+                }
+            }
+        }
+    }
+
+    EXPECT_TRUE(offenders.empty())
+        << "SagaGraphics Diligent adapter must borrow private device services "
+        << "instead of initializing a second Diligent device. First offender: "
+        << (offenders.empty() ? "" : offenders.front());
+}
+
 TEST(PublicPrivateBoundaryTests, SagaGraphicsUmbrellaHeaderCompileSmoke)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);

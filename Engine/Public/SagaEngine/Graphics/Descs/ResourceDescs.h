@@ -4,9 +4,11 @@
 #pragma once
 
 #include "SagaEngine/Graphics/Core/GraphicsTypes.h"
+#include "SagaEngine/Graphics/Handles/GraphicsHandle.h"
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace SagaEngine::Graphics
 {
@@ -35,21 +37,40 @@ struct BufferDesc
 struct ShaderDesc
 {
     std::string   debugName;
+    std::string   source;
+    std::string   entryPoint = "main";
+    std::string   sourceIdentity;
     ShaderStage   stage        = ShaderStage::Vertex;
     std::uint32_t byteSize     = 0;
     std::uint32_t variantKey   = 0;
     bool          debugSymbols = false;
 };
 
+struct VertexAttributeDesc
+{
+    std::uint32_t semanticIndex = 0;
+    std::uint32_t bufferSlot = 0;
+    std::uint32_t offsetBytes = 0;
+    VertexElementFormat format = VertexElementFormat::Float32x3;
+};
+
 struct PipelineDesc
 {
     std::string       debugName;
+    ShaderHandle      vertexShader{};
+    ShaderHandle      fragmentShader{};
+    std::vector<VertexAttributeDesc> vertexLayout;
     PrimitiveTopology topology         = PrimitiveTopology::TriangleList;
     ResourceFormat    colorFormat      = ResourceFormat::Bgra8Unorm;
     ResourceFormat    depthFormat      = ResourceFormat::Depth24Stencil8;
     std::uint8_t      colorTargetCount = 1;
+    std::uint8_t      sampleCount      = 1;
+    std::uint64_t     bindingCompatibilityKey = 0;
     bool              depthTest        = true;
     bool              depthWrite       = true;
+    bool              cullBackFaces    = true;
+    bool              frontCounterClockwise = true;
+    bool              alphaBlend       = false;
 };
 
 struct SamplerDesc

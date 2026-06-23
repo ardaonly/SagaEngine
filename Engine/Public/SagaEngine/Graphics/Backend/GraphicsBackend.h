@@ -66,6 +66,17 @@ enum class GraphicsResourceBacking : std::uint8_t
     Invalid = 0,
     RegisteredOnly,
     NativeGpuFuture,
+    NativeGpu,
+};
+
+enum class GraphicsResourceLifecycle : std::uint8_t
+{
+    Invalid = 0,
+    RegisteredOnly,
+    Ready,
+    PendingDestroy,
+    Retired,
+    Failed,
 };
 
 enum class GraphicsResourceKind : std::uint8_t
@@ -169,10 +180,19 @@ struct GraphicsResourceLeakSummary
 
 struct GraphicsResourceQueryResult
 {
+    bool valid = false;
     bool live = false;
     GraphicsResourceKind kind = GraphicsResourceKind::Invalid;
+    GraphicsResourceLifecycle lifecycle =
+        GraphicsResourceLifecycle::Invalid;
     GraphicsResourceBacking backing = GraphicsResourceBacking::Invalid;
+    bool nativeBacked = false;
+    std::uint64_t logicalBytes = 0;
     std::uint64_t approximateBytes = 0;
+    bool resident = false;
+    bool pendingDestroy = false;
+    std::uint64_t creationSerial = 0;
+    std::uint64_t lastUseSerial = 0;
     std::string debugName;
 };
 
@@ -269,10 +289,17 @@ private:
     class ResourceRegistry
     {
     public:
+        explicit ResourceRegistry(std::uint32_t initialGeneration = 1u)
+            : m_InitialGeneration(initialGeneration == 0u ? 1u
+                                                          : initialGeneration)
+        {
+        }
+
         [[nodiscard]] HandleT Create(
             const DescT& desc,
             std::uint64_t estimatedBytes,
-            const std::vector<std::uint8_t>& shadowPayload = {})
+            const std::vector<std::uint8_t>& shadowPayload = {},
+            std::uint64_t creationSerial = 0)
         {
             std::uint32_t slotIndex = 0;
             if (!m_FreeSlots.empty())
@@ -284,6 +311,9 @@ private:
                 slot.estimatedBytes = estimatedBytes;
                 slot.shadowPayload = shadowPayload;
                 slot.backing = GraphicsResourceBacking::RegisteredOnly;
+                slot.lifecycle = GraphicsResourceLifecycle::RegisteredOnly;
+                slot.creationSerial = creationSerial;
+                slot.lastUseSerial = 0;
                 slot.occupied = true;
                 slot.generation = NextGeneration(slot.generation);
             }
@@ -296,7 +326,10 @@ private:
                         estimatedBytes,
                         shadowPayload,
                         GraphicsResourceBacking::RegisteredOnly,
-                        1u,
+                        GraphicsResourceLifecycle::RegisteredOnly,
+                        creationSerial,
+                        0u,
+                        m_InitialGeneration,
                         true,
                     });
             }
@@ -326,6 +359,8 @@ private:
 
             slot.occupied = false;
             slot.shadowPayload.clear();
+            slot.lifecycle = GraphicsResourceLifecycle::Retired;
+            slot.lastUseSerial = slot.creationSerial;
             m_LiveCount -= 1u;
             m_LiveBytes -= slot.estimatedBytes;
             m_FreeSlots.push_back(slotIndex);
@@ -339,6 +374,8 @@ private:
                 auto& slot = m_Slots[i];
                 slot.occupied = false;
                 slot.shadowPayload.clear();
+                slot.lifecycle = GraphicsResourceLifecycle::Retired;
+                slot.lastUseSerial = slot.creationSerial;
                 m_FreeSlots.push_back(i);
             }
             m_LiveCount = 0;
@@ -391,9 +428,18 @@ private:
 
             return {
                 true,
+                true,
                 kind,
+                slot.lifecycle,
                 slot.backing,
+                slot.backing == GraphicsResourceBacking::NativeGpu,
                 slot.estimatedBytes,
+                slot.estimatedBytes,
+                slot.lifecycle == GraphicsResourceLifecycle::Ready &&
+                    slot.backing == GraphicsResourceBacking::NativeGpu,
+                slot.lifecycle == GraphicsResourceLifecycle::PendingDestroy,
+                slot.creationSerial,
+                slot.lastUseSerial,
                 slot.desc.debugName,
             };
         }
@@ -406,6 +452,10 @@ private:
             std::vector<std::uint8_t> shadowPayload{};
             GraphicsResourceBacking backing =
                 GraphicsResourceBacking::RegisteredOnly;
+            GraphicsResourceLifecycle lifecycle =
+                GraphicsResourceLifecycle::Invalid;
+            std::uint64_t creationSerial = 0;
+            std::uint64_t lastUseSerial = 0;
             std::uint32_t generation = 1;
             bool occupied = false;
         };
@@ -418,6 +468,7 @@ private:
 
         std::vector<Slot> m_Slots;
         std::vector<std::uint32_t> m_FreeSlots;
+        std::uint32_t m_InitialGeneration = 1;
         std::uint32_t m_LiveCount = 0;
         std::uint64_t m_LiveBytes = 0;
     };
@@ -486,7 +537,8 @@ public:
             m_Textures.Create(
                 desc,
                 EstimateTextureBytes(desc),
-                CopyShadowPayload(initialData)));
+                CopyShadowPayload(initialData),
+                m_NextResourceCreationSerial++));
     }
 
     BufferHandle CreateBuffer(const BufferDesc& desc) override
@@ -520,7 +572,8 @@ public:
             m_Buffers.Create(
                 desc,
                 EstimateBufferBytes(desc),
-                CopyShadowPayload(initialData)));
+                CopyShadowPayload(initialData),
+                m_NextResourceCreationSerial++));
     }
 
     ShaderHandle CreateShader(const ShaderDesc& desc) override
@@ -538,7 +591,11 @@ public:
         }
 
         return RecordSuccessfulCreate(
-            m_Shaders.Create(desc, EstimateShaderBytes(desc)));
+            m_Shaders.Create(
+                desc,
+                EstimateShaderBytes(desc),
+                {},
+                m_NextResourceCreationSerial++));
     }
 
     PipelineHandle CreatePipeline(const PipelineDesc& desc) override
@@ -556,7 +613,11 @@ public:
         }
 
         return RecordSuccessfulCreate(
-            m_Pipelines.Create(desc, EstimatePipelineBytes(desc)));
+            m_Pipelines.Create(
+                desc,
+                EstimatePipelineBytes(desc),
+                {},
+                m_NextResourceCreationSerial++));
     }
 
     SamplerHandle CreateSampler(const SamplerDesc& desc) override
@@ -574,7 +635,11 @@ public:
         }
 
         return RecordSuccessfulCreate(
-            m_Samplers.Create(desc, EstimateSamplerBytes(desc)));
+            m_Samplers.Create(
+                desc,
+                EstimateSamplerBytes(desc),
+                {},
+                m_NextResourceCreationSerial++));
     }
 
     void DestroyTexture(TextureHandle handle) override
@@ -801,6 +866,7 @@ private:
         ResourceFormat format) noexcept
     {
         return format == ResourceFormat::Rgba8Unorm ||
+               format == ResourceFormat::Rgba8UnormSrgb ||
                format == ResourceFormat::Bgra8Unorm ||
                format == ResourceFormat::Rgba16Float ||
                format == ResourceFormat::Rgba32Float ||
@@ -833,7 +899,9 @@ private:
     [[nodiscard]] static constexpr bool IsValidShaderDesc(
         const ShaderDesc& desc) noexcept
     {
-        return desc.byteSize != 0u && IsValidShaderStage(desc.stage);
+        return (desc.byteSize != 0u || !desc.source.empty()) &&
+               IsValidShaderStage(desc.stage) &&
+               (desc.source.empty() || !desc.entryPoint.empty());
     }
 
     [[nodiscard]] static constexpr bool IsValidTopology(
@@ -883,6 +951,7 @@ private:
         switch (format)
         {
         case ResourceFormat::Rgba8Unorm:
+        case ResourceFormat::Rgba8UnormSrgb:
         case ResourceFormat::Bgra8Unorm:
         case ResourceFormat::Depth24Stencil8:
         case ResourceFormat::Depth32Float:
@@ -1005,7 +1074,9 @@ private:
     [[nodiscard]] static constexpr std::uint64_t EstimateShaderBytes(
         const ShaderDesc& desc) noexcept
     {
-        return desc.byteSize;
+        return desc.source.empty()
+                   ? desc.byteSize
+                   : static_cast<std::uint64_t>(desc.source.size());
     }
 
     [[nodiscard]] static constexpr std::uint64_t EstimatePipelineBytes(
@@ -1028,11 +1099,12 @@ private:
     GraphicsResourceLeakSummary m_LastShutdownLeakSummary{};
     std::uint64_t m_PeakLiveBytes = 0;
     std::uint64_t m_FailedCreateCount = 0;
-    ResourceRegistry<TextureHandle, TextureDesc> m_Textures;
-    ResourceRegistry<BufferHandle, BufferDesc> m_Buffers;
-    ResourceRegistry<ShaderHandle, ShaderDesc> m_Shaders;
-    ResourceRegistry<PipelineHandle, PipelineDesc> m_Pipelines;
-    ResourceRegistry<SamplerHandle, SamplerDesc> m_Samplers;
+    std::uint64_t m_NextResourceCreationSerial = 1;
+    ResourceRegistry<TextureHandle, TextureDesc> m_Textures{1u};
+    ResourceRegistry<BufferHandle, BufferDesc> m_Buffers{1001u};
+    ResourceRegistry<ShaderHandle, ShaderDesc> m_Shaders{2001u};
+    ResourceRegistry<PipelineHandle, PipelineDesc> m_Pipelines{3001u};
+    ResourceRegistry<SamplerHandle, SamplerDesc> m_Samplers{4001u};
 };
 
 } // namespace SagaEngine::Graphics

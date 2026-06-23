@@ -4,6 +4,8 @@
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackend.h"
 
 #include "SagaEngine/Graphics/Backend/GraphicsRenderBackendMapping.h"
+#include "SagaEngine/Render/Backend/Diligent/DiligentNativeResourceOwner.h"
+#include "SagaEngine/Render/Backend/Diligent/DiligentRenderBackend.h"
 
 #include <cstddef>
 #include <utility>
@@ -38,6 +40,7 @@ CreateDefaultRenderBackend(const RenderBackendDesc& backend)
 [[nodiscard]] constexpr bool IsKnownFormat(ResourceFormat format) noexcept
 {
     return format == ResourceFormat::Rgba8Unorm ||
+           format == ResourceFormat::Rgba8UnormSrgb ||
            format == ResourceFormat::Bgra8Unorm ||
            format == ResourceFormat::Rgba16Float ||
            format == ResourceFormat::Rgba32Float ||
@@ -55,7 +58,9 @@ CreateDefaultRenderBackend(const RenderBackendDesc& backend)
 
 [[nodiscard]] constexpr bool IsValidBufferDesc(const BufferDesc& desc) noexcept
 {
-    return desc.sizeBytes != 0u;
+    return desc.sizeBytes != 0u &&
+           RenderBackend::DiligentNativeResourceOwner::IsBufferUsageSupported(
+               desc.usage);
 }
 
 [[nodiscard]] constexpr bool IsValidShaderStage(ShaderStage stage) noexcept
@@ -66,7 +71,9 @@ CreateDefaultRenderBackend(const RenderBackendDesc& backend)
 
 [[nodiscard]] constexpr bool IsValidShaderDesc(const ShaderDesc& desc) noexcept
 {
-    return desc.byteSize != 0u && IsValidShaderStage(desc.stage);
+    return (desc.byteSize != 0u || !desc.source.empty()) &&
+           IsValidShaderStage(desc.stage) &&
+           (desc.source.empty() || !desc.entryPoint.empty());
 }
 
 [[nodiscard]] constexpr bool IsValidTopology(
@@ -112,6 +119,7 @@ CreateDefaultRenderBackend(const RenderBackendDesc& backend)
     switch (format)
     {
     case ResourceFormat::Rgba8Unorm:
+    case ResourceFormat::Rgba8UnormSrgb:
     case ResourceFormat::Bgra8Unorm:
     case ResourceFormat::Depth24Stencil8:
     case ResourceFormat::Depth32Float:
@@ -242,7 +250,9 @@ template <typename HandleT>
 [[nodiscard]] constexpr std::uint64_t EstimateShaderBytes(
     const ShaderDesc& desc) noexcept
 {
-    return desc.byteSize;
+    return desc.source.empty()
+               ? desc.byteSize
+               : static_cast<std::uint64_t>(desc.source.size());
 }
 
 [[nodiscard]] constexpr std::uint64_t EstimatePipelineBytes(
@@ -261,6 +271,7 @@ template <typename HandleT>
 
 DiligentGraphicsBackend::DiligentGraphicsBackend()
     : m_BackendFactory(CreateDefaultRenderBackend)
+    , m_NativeOwner(std::make_unique<RenderBackend::DiligentNativeResourceOwner>())
 {
     m_LastCapabilities = MakeConservativeCapabilities();
 }
@@ -272,6 +283,7 @@ DiligentGraphicsBackend::DiligentGraphicsBackend(
     , m_BackendFactory(CreateDefaultRenderBackend)
     , m_StatusReader(statusReader ? statusReader
                                   : RenderBackend::GetRenderBackendStatus)
+    , m_NativeOwner(std::make_unique<RenderBackend::DiligentNativeResourceOwner>())
 {
     m_LastCapabilities = MakeConservativeCapabilities();
 }
@@ -283,15 +295,24 @@ DiligentGraphicsBackend::DiligentGraphicsBackend(
                                       : CreateDefaultRenderBackend)
     , m_StatusReader(statusReader ? statusReader
                                   : RenderBackend::GetRenderBackendStatus)
+    , m_NativeOwner(std::make_unique<RenderBackend::DiligentNativeResourceOwner>())
 {
     m_LastCapabilities = MakeConservativeCapabilities();
 }
+
+DiligentGraphicsBackend::~DiligentGraphicsBackend() = default;
 
 bool DiligentGraphicsBackend::Initialize(
     const RenderBackendDesc& backend,
     const SwapchainDesc& swapchain)
 {
     Shutdown();
+    m_DeviceServices = {};
+    m_NativeCreationEnabled = false;
+    if (m_NativeOwner)
+    {
+        m_NativeOwner->Bind({});
+    }
     m_LastStatus = {};
     m_LastStatus.selectedBackend = backend.preferredBackend;
 
@@ -336,9 +357,30 @@ bool DiligentGraphicsBackend::Initialize(
         SetFailure(RenderBackendFailure::InitializationFailed);
         m_RenderBackend->Shutdown();
         m_LastCapabilities = MakeConservativeCapabilities();
+        m_DeviceServices = {};
     }
     else
     {
+        if (auto* diligentBackend =
+                dynamic_cast<RenderBackend::DiligentRenderBackend*>(
+                    m_RenderBackend.get()))
+        {
+            m_DeviceServices = diligentBackend->GetDiligentDeviceServices();
+            m_NativeCreationEnabled = m_DeviceServices.IsBound();
+            if (m_NativeOwner)
+            {
+                m_NativeOwner->Bind(m_DeviceServices);
+            }
+        }
+        else
+        {
+            m_DeviceServices = {};
+            m_NativeCreationEnabled = false;
+            if (m_NativeOwner)
+            {
+                m_NativeOwner->Bind({});
+            }
+        }
         m_LastCapabilities = MakeReadyCapabilities(m_LastStatus.selectedBackend);
     }
 
@@ -355,6 +397,7 @@ void DiligentGraphicsBackend::Shutdown()
         m_RenderBackend->Shutdown();
     }
 
+    m_DeviceServices = {};
     m_HeadlessStatus.initialized = false;
     m_HeadlessStatus.health = RenderBackendHealth::Shutdown;
     m_LastStatus.initialized = false;
@@ -408,13 +451,40 @@ TextureHandle DiligentGraphicsBackend::CreateTexture(
             GraphicsResourceFailure::InvalidInitialData);
     }
 
-    return RecordSuccessfulCreate(
-        m_Textures.Create(
-            desc,
-            EstimateTextureBytes(desc),
-            CopyShadowPayload(initialData),
-            ResourceBackingForNativeResource(),
-            MakeNativeResourceOwnership(initialData.sizeBytes != 0u)));
+    const bool createNative =
+        m_NativeCreationEnabled && m_NativeOwner &&
+        m_NativeOwner->CanCreateNative();
+    const auto backing =
+        createNative ? GraphicsResourceBacking::RegisteredOnly
+                     : ResourceBackingForNativeResource();
+    auto handle = m_Textures.Create(
+        desc,
+        EstimateTextureBytes(desc),
+        CopyShadowPayload(initialData),
+        backing,
+        createNative ? NativeResourceOwnership{}
+                     : MakeNativeResourceOwnership(initialData.sizeBytes != 0u),
+        m_NextResourceCreationSerial++,
+        ResourceLifecycleForBacking(backing));
+
+    if (createNative)
+    {
+        const auto serial =
+            m_NativeOwner->CreateTextureForHandle(handle, desc, initialData);
+        if (serial == 0u)
+        {
+            m_Textures.Destroy(handle);
+            return RecordCreateFailure<TextureHandle>(
+                GraphicsResourceFailure::InvalidTextureDesc);
+        }
+        m_Textures.UpdateNativeState(
+            handle,
+            GraphicsResourceBacking::NativeGpu,
+            {serial, false},
+            GraphicsResourceLifecycle::Ready);
+    }
+
+    return RecordSuccessfulCreate(handle);
 }
 
 BufferHandle DiligentGraphicsBackend::CreateBuffer(const BufferDesc& desc)
@@ -444,13 +514,40 @@ BufferHandle DiligentGraphicsBackend::CreateBuffer(
             GraphicsResourceFailure::InvalidInitialData);
     }
 
-    return RecordSuccessfulCreate(
-        m_Buffers.Create(
-            desc,
-            EstimateBufferBytes(desc),
-            CopyShadowPayload(initialData),
-            ResourceBackingForNativeResource(),
-            MakeNativeResourceOwnership(initialData.sizeBytes != 0u)));
+    const bool createNative =
+        m_NativeCreationEnabled && m_NativeOwner &&
+        m_NativeOwner->CanCreateNative();
+    const auto backing =
+        createNative ? GraphicsResourceBacking::RegisteredOnly
+                     : ResourceBackingForNativeResource();
+    auto handle = m_Buffers.Create(
+        desc,
+        EstimateBufferBytes(desc),
+        CopyShadowPayload(initialData),
+        backing,
+        createNative ? NativeResourceOwnership{}
+                     : MakeNativeResourceOwnership(initialData.sizeBytes != 0u),
+        m_NextResourceCreationSerial++,
+        ResourceLifecycleForBacking(backing));
+
+    if (createNative)
+    {
+        const auto serial =
+            m_NativeOwner->CreateBufferForHandle(handle, desc, initialData);
+        if (serial == 0u)
+        {
+            m_Buffers.Destroy(handle);
+            return RecordCreateFailure<BufferHandle>(
+                GraphicsResourceFailure::InvalidBufferDesc);
+        }
+        m_Buffers.UpdateNativeState(
+            handle,
+            GraphicsResourceBacking::NativeGpu,
+            {serial, false},
+            GraphicsResourceLifecycle::Ready);
+    }
+
+    return RecordSuccessfulCreate(handle);
 }
 
 ShaderHandle DiligentGraphicsBackend::CreateShader(const ShaderDesc& desc)
@@ -467,8 +564,35 @@ ShaderHandle DiligentGraphicsBackend::CreateShader(const ShaderDesc& desc)
             GraphicsResourceFailure::InvalidShaderDesc);
     }
 
-    return RecordSuccessfulCreate(
-        m_Shaders.Create(desc, EstimateShaderBytes(desc)));
+    const bool createNative =
+        m_NativeCreationEnabled && m_NativeOwner &&
+        m_NativeOwner->CanCreateNative();
+    auto handle = m_Shaders.Create(
+        desc,
+        EstimateShaderBytes(desc),
+        {},
+        GraphicsResourceBacking::RegisteredOnly,
+        {},
+        m_NextResourceCreationSerial++,
+        GraphicsResourceLifecycle::RegisteredOnly);
+
+    if (createNative)
+    {
+        const auto serial = m_NativeOwner->CreateShaderForHandle(handle, desc);
+        if (serial == 0u)
+        {
+            m_Shaders.Destroy(handle);
+            return RecordCreateFailure<ShaderHandle>(
+                GraphicsResourceFailure::InvalidShaderDesc);
+        }
+        m_Shaders.UpdateNativeState(
+            handle,
+            GraphicsResourceBacking::NativeGpu,
+            {serial, false},
+            GraphicsResourceLifecycle::Ready);
+    }
+
+    return RecordSuccessfulCreate(handle);
 }
 
 PipelineHandle DiligentGraphicsBackend::CreatePipeline(
@@ -486,8 +610,36 @@ PipelineHandle DiligentGraphicsBackend::CreatePipeline(
             GraphicsResourceFailure::InvalidPipelineDesc);
     }
 
-    return RecordSuccessfulCreate(
-        m_Pipelines.Create(desc, EstimatePipelineBytes(desc)));
+    const bool createNative =
+        m_NativeCreationEnabled && m_NativeOwner &&
+        m_NativeOwner->CanCreateNative();
+    auto handle = m_Pipelines.Create(
+        desc,
+        EstimatePipelineBytes(desc),
+        {},
+        GraphicsResourceBacking::RegisteredOnly,
+        {},
+        m_NextResourceCreationSerial++,
+        GraphicsResourceLifecycle::RegisteredOnly);
+
+    if (createNative)
+    {
+        const auto serial =
+            m_NativeOwner->CreatePipelineForHandle(handle, desc);
+        if (serial == 0u)
+        {
+            m_Pipelines.Destroy(handle);
+            return RecordCreateFailure<PipelineHandle>(
+                GraphicsResourceFailure::InvalidPipelineDesc);
+        }
+        m_Pipelines.UpdateNativeState(
+            handle,
+            GraphicsResourceBacking::NativeGpu,
+            {serial, false},
+            GraphicsResourceLifecycle::Ready);
+    }
+
+    return RecordSuccessfulCreate(handle);
 }
 
 SamplerHandle DiligentGraphicsBackend::CreateSampler(const SamplerDesc& desc)
@@ -504,37 +656,82 @@ SamplerHandle DiligentGraphicsBackend::CreateSampler(const SamplerDesc& desc)
             GraphicsResourceFailure::InvalidSamplerDesc);
     }
 
-    return RecordSuccessfulCreate(
-        m_Samplers.Create(
-            desc,
-            EstimateSamplerBytes(desc),
-            {},
-            ResourceBackingForNativeResource(),
-            MakeNativeResourceOwnership(false)));
+    const bool createNative =
+        m_NativeCreationEnabled && m_NativeOwner &&
+        m_NativeOwner->CanCreateNative();
+    const auto backing =
+        createNative ? GraphicsResourceBacking::RegisteredOnly
+                     : ResourceBackingForNativeResource();
+    auto handle = m_Samplers.Create(
+        desc,
+        EstimateSamplerBytes(desc),
+        {},
+        backing,
+        createNative ? NativeResourceOwnership{} : MakeNativeResourceOwnership(false),
+        m_NextResourceCreationSerial++,
+        ResourceLifecycleForBacking(backing));
+
+    if (createNative)
+    {
+        const auto serial = m_NativeOwner->CreateSamplerForHandle(handle, desc);
+        if (serial == 0u)
+        {
+            m_Samplers.Destroy(handle);
+            return RecordCreateFailure<SamplerHandle>(
+                GraphicsResourceFailure::InvalidSamplerDesc);
+        }
+        m_Samplers.UpdateNativeState(
+            handle,
+            GraphicsResourceBacking::NativeGpu,
+            {serial, false},
+            GraphicsResourceLifecycle::Ready);
+    }
+
+    return RecordSuccessfulCreate(handle);
 }
 
 void DiligentGraphicsBackend::DestroyTexture(TextureHandle handle)
 {
+    if (m_NativeOwner)
+    {
+        m_NativeOwner->DestroyTexture(handle);
+    }
     m_Textures.Destroy(handle);
 }
 
 void DiligentGraphicsBackend::DestroyBuffer(BufferHandle handle)
 {
+    if (m_NativeOwner)
+    {
+        m_NativeOwner->DestroyBuffer(handle);
+    }
     m_Buffers.Destroy(handle);
 }
 
 void DiligentGraphicsBackend::DestroyShader(ShaderHandle handle)
 {
+    if (m_NativeOwner)
+    {
+        m_NativeOwner->DestroyShader(handle);
+    }
     m_Shaders.Destroy(handle);
 }
 
 void DiligentGraphicsBackend::DestroyPipeline(PipelineHandle handle)
 {
+    if (m_NativeOwner)
+    {
+        m_NativeOwner->DestroyPipeline(handle);
+    }
     m_Pipelines.Destroy(handle);
 }
 
 void DiligentGraphicsBackend::DestroySampler(SamplerHandle handle)
 {
+    if (m_NativeOwner)
+    {
+        m_NativeOwner->DestroySampler(handle);
+    }
     m_Samplers.Destroy(handle);
 }
 
@@ -720,6 +917,52 @@ GraphicsResourceQueryResult DiligentGraphicsBackend::QuerySamplerForTesting(
     return m_Samplers.Query(handle, GraphicsResourceKind::Sampler);
 }
 
+bool DiligentGraphicsBackend::HasNativeDeviceServicesForTesting()
+    const noexcept
+{
+    return m_DeviceServices.IsBound();
+}
+
+void DiligentGraphicsBackend::BindNativeDeviceServicesForTesting(
+    RenderBackend::DiligentDeviceServices services,
+    bool enableNativeCreation) noexcept
+{
+    m_DeviceServices = services;
+    m_NativeCreationEnabled = enableNativeCreation && services.IsBound();
+    if (m_NativeOwner)
+    {
+        m_NativeOwner->Bind(services);
+    }
+}
+
+bool DiligentGraphicsBackend::MarkBufferNativeForTesting(
+    BufferHandle handle,
+    std::uint64_t nativeSerial) noexcept
+{
+    if (nativeSerial == 0u)
+    {
+        return false;
+    }
+
+    return m_Buffers.UpdateNativeState(
+        handle,
+        GraphicsResourceBacking::NativeGpu,
+        {nativeSerial, false},
+        GraphicsResourceLifecycle::Ready);
+}
+
+::Diligent::IBuffer* DiligentGraphicsBackend::ResolveNativeBufferForTesting(
+    BufferHandle handle) const noexcept
+{
+    const auto query = m_Buffers.Query(handle, GraphicsResourceKind::Buffer);
+    if (!query.valid || !query.nativeBacked || !m_NativeOwner)
+    {
+        return nullptr;
+    }
+
+    return m_NativeOwner->ResolveBuffer(handle);
+}
+
 RenderBackendCapabilities
 DiligentGraphicsBackend::MakeConservativeCapabilities() const noexcept
 {
@@ -760,12 +1003,29 @@ bool DiligentGraphicsBackend::CanCreateResources() const noexcept
 GraphicsResourceBacking DiligentGraphicsBackend::ResourceBackingForNativeResource()
     const noexcept
 {
-    if (m_Headless)
+    if (m_Headless || !m_DeviceServices.IsBound())
     {
         return GraphicsResourceBacking::RegisteredOnly;
     }
 
     return GraphicsResourceBacking::NativeGpuFuture;
+}
+
+GraphicsResourceLifecycle DiligentGraphicsBackend::ResourceLifecycleForBacking(
+    GraphicsResourceBacking backing) const noexcept
+{
+    if (backing == GraphicsResourceBacking::NativeGpu ||
+        backing == GraphicsResourceBacking::NativeGpuFuture)
+    {
+        return GraphicsResourceLifecycle::Ready;
+    }
+
+    if (backing == GraphicsResourceBacking::RegisteredOnly)
+    {
+        return GraphicsResourceLifecycle::RegisteredOnly;
+    }
+
+    return GraphicsResourceLifecycle::Invalid;
 }
 
 DiligentGraphicsBackend::NativeResourceOwnership
@@ -859,6 +1119,10 @@ void DiligentGraphicsBackend::SetFailure(
 
 void DiligentGraphicsBackend::ReleaseResources() noexcept
 {
+    if (m_NativeOwner)
+    {
+        m_NativeOwner->ReleaseAll();
+    }
     m_Textures.ReleaseAll();
     m_Buffers.ReleaseAll();
     m_Shaders.ReleaseAll();

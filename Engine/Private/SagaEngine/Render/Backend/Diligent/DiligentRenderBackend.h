@@ -31,6 +31,7 @@
 
 #pragma once
 
+#include "SagaEngine/Render/Backend/Diligent/DiligentDeviceServices.h"
 #include "SagaEngine/Render/Backend/RenderBackendFactory.h"
 
 #include <cstdint>
@@ -148,6 +149,9 @@ public:
     [[nodiscard]] bool               IsInitialized() const noexcept;
 
     [[nodiscard]] RenderFrameDiagnostics LastFrameDiagnostics() const noexcept;
+
+    [[nodiscard]] DiligentDeviceServices GetDiligentDeviceServices()
+        const noexcept;
 
     [[nodiscard]] RenderCaptureResult CaptureCurrentColorFrame(
         RenderFrameCapture& outCapture);
