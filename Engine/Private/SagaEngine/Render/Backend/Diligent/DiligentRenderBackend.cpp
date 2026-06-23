@@ -10,6 +10,7 @@
 ///   Shutdown   → release all
 
 #include "SagaEngine/Render/Backend/Diligent/DiligentRenderBackend.h"
+#include "SagaEngine/Render/Backend/Diligent/DiligentNativeResourceOwner.h"
 #include "SagaEngine/Platform/IWindow.h"
 #include "SagaEngine/Render/Materials/MeshAsset.h"
 #include "SagaEngine/Render/Materials/Material.h"
@@ -95,6 +96,8 @@
 namespace SagaEngine::Render::Backend
 {
 
+namespace Gfx = ::SagaEngine::Graphics;
+
 // ─── String form of API enum ──────────────────────────────────────────
 
 std::string_view ToString(GraphicsBackendAPI api) noexcept
@@ -114,8 +117,8 @@ std::string_view ToString(GraphicsBackendAPI api) noexcept
 
 struct MeshGPU
 {
-    Diligent::RefCntAutoPtr<Diligent::IBuffer> vertexBuffer;
-    Diligent::RefCntAutoPtr<Diligent::IBuffer> indexBuffer;
+    Gfx::BufferHandle vertexBuffer;
+    Gfx::BufferHandle indexBuffer;
     Diligent::Uint32  vertexStride = 0;
     Diligent::Uint32  vertexCount  = 0;
     Diligent::Uint32  indexCount   = 0;
@@ -142,8 +145,7 @@ struct PSOCacheKeyHash
 
 struct TextureGPU
 {
-    Diligent::RefCntAutoPtr<Diligent::ITexture>     texture;
-    Diligent::RefCntAutoPtr<Diligent::ITextureView> srv;
+    Gfx::TextureHandle texture;
 };
 
 struct TextureHandleHash
@@ -215,6 +217,7 @@ struct DiligentRenderBackend::Impl
     Diligent::RefCntAutoPtr<Diligent::IRenderDevice>  device;
     Diligent::RefCntAutoPtr<Diligent::IDeviceContext> context;
     Diligent::RefCntAutoPtr<Diligent::ISwapChain>     swapChain;
+    DiligentNativeResourceOwner nativeResources;
 
     // ── Shared camera constant buffer ───────────────────────────────
     Diligent::RefCntAutoPtr<Diligent::IBuffer> cameraCB;
@@ -235,7 +238,7 @@ struct DiligentRenderBackend::Impl
 
     // ── Texture cache ────────────────────────────────────────────────
     std::unordered_map<TextureHandle, TextureGPU, TextureHandleHash> textureCache;
-    TextureGPU defaultWhiteTex;   // 1x1 white fallback
+    Gfx::TextureHandle defaultWhiteTex;   // 1x1 white fallback
     std::uint32_t nextTextureId = 1;
 
     // ── ID generators ───────────────────────────────────────────────
@@ -503,6 +506,11 @@ bool DiligentRenderBackend::Initialize(const SwapchainDesc& desc)
     m_Impl->selectedAPI = picked;
     m_Impl->initialized = true;
     m_Impl->frameIndex  = 0;
+    m_Impl->nativeResources.Bind({
+        m_Impl->device.RawPtr(),
+        m_Impl->context.RawPtr(),
+        m_Impl->swapChain.RawPtr(),
+    });
 
     std::string msg = "Initialized with ";
     msg += ToString(picked);
@@ -603,36 +611,28 @@ bool DiligentRenderBackend::Initialize(const SwapchainDesc& desc)
 
     // ── Create default 1x1 white texture ────────────────────────────
     {
-        using namespace Diligent;
-
         const std::uint8_t white[4] = { 255, 255, 255, 255 };
 
-        TextureDesc texDesc;
-        texDesc.Name      = "DefaultWhite1x1";
-        texDesc.Type      = RESOURCE_DIM_TEX_2D;
-        texDesc.Width     = 1;
-        texDesc.Height    = 1;
-        texDesc.Format    = TEX_FORMAT_RGBA8_UNORM;
-        texDesc.BindFlags = BIND_SHADER_RESOURCE;
-        texDesc.Usage     = USAGE_IMMUTABLE;
-        texDesc.MipLevels = 1;
+        Gfx::TextureDesc texDesc;
+        texDesc.debugName = "DefaultWhite1x1";
+        texDesc.width = 1;
+        texDesc.height = 1;
+        texDesc.format = Gfx::ResourceFormat::Rgba8Unorm;
 
-        TextureSubResData subRes;
-        subRes.pData  = white;
-        subRes.Stride = 4;
+        const Gfx::GraphicsDataView data{
+            white,
+            sizeof(white),
+            4u,
+            0u,
+        };
 
-        TextureData texData;
-        texData.pSubResources   = &subRes;
-        texData.NumSubresources = 1;
-
-        m_Impl->device->CreateTexture(texDesc, &texData, &m_Impl->defaultWhiteTex.texture);
-        if (!m_Impl->defaultWhiteTex.texture)
+        m_Impl->defaultWhiteTex =
+            m_Impl->nativeResources.CreateStandaloneTexture(texDesc, data);
+        if (!m_Impl->defaultWhiteTex.IsValid())
         {
             LogErr("Failed to create default white texture");
             return false;
         }
-        m_Impl->defaultWhiteTex.srv =
-            m_Impl->defaultWhiteTex.texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
 
         LogDbg("Default 1x1 white texture created");
     }
@@ -658,8 +658,8 @@ void DiligentRenderBackend::Shutdown()
     m_Impl->shadow.dsv.Release();
     m_Impl->shadow.srv.Release();
     m_Impl->shadow.texture.Release();
-    m_Impl->defaultWhiteTex.srv.Release();
-    m_Impl->defaultWhiteTex.texture.Release();
+    m_Impl->defaultWhiteTex = {};
+    m_Impl->nativeResources.ReleaseAll();
 
     m_Impl->boneCB.Release();
     m_Impl->cameraCB.Release();
@@ -969,26 +969,28 @@ World::MeshId DiligentRenderBackend::CreateMesh(const MeshAsset& asset)
     const auto& lod = asset.lods[0];
     if (lod.vertices.empty()) return World::MeshId::kInvalid;
 
-    using namespace Diligent;
-
     MeshGPU gpu{};
-    gpu.vertexStride = static_cast<Uint32>(sizeof(MeshVertex));
-    gpu.vertexCount  = static_cast<Uint32>(lod.vertices.size());
+    gpu.vertexStride = static_cast<Diligent::Uint32>(sizeof(MeshVertex));
+    gpu.vertexCount  = static_cast<Diligent::Uint32>(lod.vertices.size());
 
     // VB
     {
-        BufferDesc vbDesc;
-        vbDesc.Name      = "MeshVB";
-        vbDesc.Size      = static_cast<Uint64>(gpu.vertexCount) * gpu.vertexStride;
-        vbDesc.BindFlags = BIND_VERTEX_BUFFER;
-        vbDesc.Usage     = USAGE_IMMUTABLE;
+        Gfx::BufferDesc vbDesc;
+        vbDesc.debugName = "MeshVB";
+        vbDesc.sizeBytes =
+            static_cast<std::uint64_t>(gpu.vertexCount) * gpu.vertexStride;
+        vbDesc.usage = Gfx::BufferUsage::Vertex;
 
-        BufferData vbData;
-        vbData.pData    = lod.vertices.data();
-        vbData.DataSize = vbDesc.Size;
+        const Gfx::GraphicsDataView vbData{
+            lod.vertices.data(),
+            vbDesc.sizeBytes,
+            0u,
+            0u,
+        };
 
-        m_Impl->device->CreateBuffer(vbDesc, &vbData, &gpu.vertexBuffer);
-        if (!gpu.vertexBuffer)
+        gpu.vertexBuffer =
+            m_Impl->nativeResources.CreateStandaloneBuffer(vbDesc, vbData);
+        if (!gpu.vertexBuffer.IsValid())
         {
             LogErr("CreateMesh: VB creation failed");
             return World::MeshId::kInvalid;
@@ -998,20 +1000,24 @@ World::MeshId DiligentRenderBackend::CreateMesh(const MeshAsset& asset)
     // IB
     if (!lod.indices.empty())
     {
-        gpu.indexCount = static_cast<Uint32>(lod.indices.size());
+        gpu.indexCount = static_cast<Diligent::Uint32>(lod.indices.size());
 
-        BufferDesc ibDesc;
-        ibDesc.Name      = "MeshIB";
-        ibDesc.Size      = static_cast<Uint64>(gpu.indexCount) * sizeof(std::uint32_t);
-        ibDesc.BindFlags = BIND_INDEX_BUFFER;
-        ibDesc.Usage     = USAGE_IMMUTABLE;
+        Gfx::BufferDesc ibDesc;
+        ibDesc.debugName = "MeshIB";
+        ibDesc.sizeBytes =
+            static_cast<std::uint64_t>(gpu.indexCount) * sizeof(std::uint32_t);
+        ibDesc.usage = Gfx::BufferUsage::Index;
 
-        BufferData ibData;
-        ibData.pData    = lod.indices.data();
-        ibData.DataSize = ibDesc.Size;
+        const Gfx::GraphicsDataView ibData{
+            lod.indices.data(),
+            ibDesc.sizeBytes,
+            0u,
+            0u,
+        };
 
-        m_Impl->device->CreateBuffer(ibDesc, &ibData, &gpu.indexBuffer);
-        if (!gpu.indexBuffer)
+        gpu.indexBuffer =
+            m_Impl->nativeResources.CreateStandaloneBuffer(ibDesc, ibData);
+        if (!gpu.indexBuffer.IsValid())
         {
             LogErr("CreateMesh: IB creation failed");
             return World::MeshId::kInvalid;
@@ -1062,7 +1068,13 @@ World::MaterialId DiligentRenderBackend::CreateMaterial(const MaterialRuntime& r
 
 void DiligentRenderBackend::DestroyMesh(World::MeshId id)
 {
-    m_Impl->meshCache.erase(id);
+    auto it = m_Impl->meshCache.find(id);
+    if (it != m_Impl->meshCache.end())
+    {
+        m_Impl->nativeResources.DestroyBuffer(it->second.vertexBuffer);
+        m_Impl->nativeResources.DestroyBuffer(it->second.indexBuffer);
+        m_Impl->meshCache.erase(it);
+    }
 }
 
 void DiligentRenderBackend::DestroyMaterial(World::MaterialId id)
@@ -1080,34 +1092,27 @@ TextureHandle DiligentRenderBackend::CreateTexture(uint32_t width, uint32_t heig
     if (width == 0 || height == 0)
         return TextureHandle::kInvalid;
 
-    using namespace Diligent;
+    Gfx::TextureDesc texDesc;
+    texDesc.debugName = "UserTexture";
+    texDesc.width = width;
+    texDesc.height = height;
+    texDesc.format = Gfx::ResourceFormat::Rgba8Unorm;
 
-    TextureDesc texDesc;
-    texDesc.Name      = "UserTexture";
-    texDesc.Type      = RESOURCE_DIM_TEX_2D;
-    texDesc.Width     = width;
-    texDesc.Height    = height;
-    texDesc.Format    = TEX_FORMAT_RGBA8_UNORM;
-    texDesc.BindFlags = BIND_SHADER_RESOURCE;
-    texDesc.Usage     = USAGE_IMMUTABLE;
-    texDesc.MipLevels = 1;
-
-    TextureSubResData subRes;
-    subRes.pData  = rgba;
-    subRes.Stride = static_cast<Uint64>(width) * 4;
-
-    TextureData texData;
-    texData.pSubResources   = &subRes;
-    texData.NumSubresources = 1;
+    const Gfx::GraphicsDataView texData{
+        rgba,
+        static_cast<std::uint64_t>(width) * height * 4u,
+        width * 4u,
+        0u,
+    };
 
     TextureGPU gpu{};
-    m_Impl->device->CreateTexture(texDesc, &texData, &gpu.texture);
-    if (!gpu.texture)
+    gpu.texture =
+        m_Impl->nativeResources.CreateStandaloneTexture(texDesc, texData);
+    if (!gpu.texture.IsValid())
     {
         LogErr("CreateTexture: texture creation failed");
         return TextureHandle::kInvalid;
     }
-    gpu.srv = gpu.texture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
 
     auto handle = static_cast<TextureHandle>(m_Impl->nextTextureId++);
     m_Impl->textureCache[handle] = std::move(gpu);
@@ -1124,7 +1129,12 @@ TextureHandle DiligentRenderBackend::CreateTexture(uint32_t width, uint32_t heig
 
 void DiligentRenderBackend::DestroyTexture(TextureHandle tex)
 {
-    m_Impl->textureCache.erase(tex);
+    auto it = m_Impl->textureCache.find(tex);
+    if (it != m_Impl->textureCache.end())
+    {
+        m_Impl->nativeResources.DestroyTexture(it->second.texture);
+        m_Impl->textureCache.erase(it);
+    }
 }
 
 // ─── Frame lifecycle ─────────────────────────────────────────────────
@@ -1345,7 +1355,11 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
                                Diligent::IBuffer*& lastVB,
                                Diligent::IBuffer*& lastIB)
     {
-        auto* vb = mesh.vertexBuffer.RawPtr();
+        auto* vb = m_Impl->nativeResources.ResolveBuffer(mesh.vertexBuffer);
+        if (!vb)
+        {
+            return;
+        }
         if (vb != lastVB)
         {
             Diligent::Uint64 offsets[] = {0};
@@ -1355,9 +1369,13 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
             lastVB = vb;
         }
 
-        if (mesh.indexBuffer && mesh.indexCount > 0)
+        if (mesh.indexBuffer.IsValid() && mesh.indexCount > 0)
         {
-            auto* ib = mesh.indexBuffer.RawPtr();
+            auto* ib = m_Impl->nativeResources.ResolveBuffer(mesh.indexBuffer);
+            if (!ib)
+            {
+                return;
+            }
             if (ib != lastIB)
             {
                 ctx->SetIndexBuffer(ib, 0,
@@ -1410,7 +1428,8 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
             uploadCameraCB(item.model, normalRows, 0.0f, false);
             bindMeshBuffers(meshIt->second, lastShadowVB, lastShadowIB);
 
-            if (meshIt->second.indexBuffer && meshIt->second.indexCount > 0)
+            if (meshIt->second.indexBuffer.IsValid() &&
+                meshIt->second.indexCount > 0)
             {
                 DrawIndexedAttribs drawAttribs;
                 drawAttribs.NumIndices = meshIt->second.indexCount;
@@ -1474,14 +1493,16 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
 
         if (g_verboseGPU)
         {
+            auto* dbgVB = m_Impl->nativeResources.ResolveBuffer(mesh.vertexBuffer);
+            auto* dbgIB = m_Impl->nativeResources.ResolveBuffer(mesh.indexBuffer);
             char buf[256];
             std::snprintf(buf, sizeof(buf),
                 "Submit[%d]: verts=%u idx=%u stride=%u pso=%p srb=%p vb=%p ib=%p",
                 drawIdx, mesh.vertexCount, mesh.indexCount, mesh.vertexStride,
                 static_cast<void*>(mat.pso.RawPtr()),
                 static_cast<void*>(mat.srb.RawPtr()),
-                static_cast<void*>(mesh.vertexBuffer.RawPtr()),
-                static_cast<void*>(mesh.indexBuffer.RawPtr()));
+                static_cast<void*>(dbgVB),
+                static_cast<void*>(dbgIB));
             LogDbg(buf);
         }
 
@@ -1558,10 +1579,12 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
             {
                 auto texIt = m_Impl->textureCache.find(mat.albedoTex);
                 if (texIt != m_Impl->textureCache.end())
-                    texSRV = texIt->second.srv.RawPtr();
+                    texSRV = m_Impl->nativeResources.ResolveTextureSrv(
+                        texIt->second.texture);
             }
             if (!texSRV)
-                texSRV = m_Impl->defaultWhiteTex.srv.RawPtr();
+                texSRV = m_Impl->nativeResources.ResolveTextureSrv(
+                    m_Impl->defaultWhiteTex);
 
             if (texSRV)
             {
@@ -1592,7 +1615,12 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
         LogDbg("Submit: CommitShaderResources OK");
 
         // VB
-        auto* vb = mesh.vertexBuffer.RawPtr();
+        auto* vb = m_Impl->nativeResources.ResolveBuffer(mesh.vertexBuffer);
+        if (!vb)
+        {
+            ++m_Impl->currentFrameDiagnostics.rejectedDrawItems;
+            continue;
+        }
         if (vb != lastVB)
         {
             Diligent::Uint64 offsets[] = {0};
@@ -1604,9 +1632,14 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
         }
 
         // IB + Draw
-        if (mesh.indexBuffer && mesh.indexCount > 0)
+        if (mesh.indexBuffer.IsValid() && mesh.indexCount > 0)
         {
-            auto* ib = mesh.indexBuffer.RawPtr();
+            auto* ib = m_Impl->nativeResources.ResolveBuffer(mesh.indexBuffer);
+            if (!ib)
+            {
+                ++m_Impl->currentFrameDiagnostics.rejectedDrawItems;
+                continue;
+            }
             if (ib != lastIB)
             {
                 ctx->SetIndexBuffer(ib, 0,
@@ -2132,6 +2165,21 @@ std::uint64_t DiligentRenderBackend::FrameIndex() const noexcept
 bool DiligentRenderBackend::IsInitialized() const noexcept
 {
     return m_Impl && m_Impl->initialized;
+}
+
+DiligentDeviceServices DiligentRenderBackend::GetDiligentDeviceServices()
+    const noexcept
+{
+    if (!m_Impl || !m_Impl->initialized)
+    {
+        return {};
+    }
+
+    return {
+        m_Impl->device.RawPtr(),
+        m_Impl->context.RawPtr(),
+        m_Impl->swapChain.RawPtr(),
+    };
 }
 
 RenderFrameDiagnostics DiligentRenderBackend::LastFrameDiagnostics() const noexcept

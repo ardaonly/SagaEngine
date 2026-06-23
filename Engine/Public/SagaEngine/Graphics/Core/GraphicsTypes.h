@@ -21,6 +21,7 @@ enum class ResourceFormat : std::uint8_t
 {
     Unknown = 0,
     Rgba8Unorm,
+    Rgba8UnormSrgb,
     Bgra8Unorm,
     Rgba16Float,
     Rgba32Float,
@@ -68,6 +69,15 @@ enum class BufferUsage : std::uint8_t
     Index,
     Uniform,
     Storage,
+};
+
+enum class VertexElementFormat : std::uint8_t
+{
+    Float32x2 = 0,
+    Float32x3,
+    Float32x4,
+    Uint8x4,
+    Uint8x4Norm,
 };
 
 enum class TextureUsageFlags : std::uint16_t

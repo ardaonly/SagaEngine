@@ -1685,6 +1685,7 @@ function(saga_setup_tests)
     target_link_libraries(SagaIntegrationTests PRIVATE
         SagaBackend
         SagaEngine
+        SagaGraphicsPrivate
         SagaDiligentBackend
         SagaRuntimeLib
         SagaServerLib
@@ -1701,6 +1702,7 @@ function(saga_setup_tests)
         ${SAGA_ROOT}/Tests/Support
         ${SAGA_ROOT}/Engine/Private
     )
+    saga_link_diligent_backend(SagaIntegrationTests)
     add_test(NAME IntegrationTests COMMAND SagaIntegrationTests)
     set_tests_properties(IntegrationTests PROPERTIES
         LABELS "integration;runtime;server;networking;replication;timing-sensitive"

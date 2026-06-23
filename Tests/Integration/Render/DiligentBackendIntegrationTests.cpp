@@ -31,6 +31,7 @@
 ///   - Rendering correctness (pixel readback, Phase 3+)
 
 #include "SagaEngine/Platform/IWindow.h"
+#include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackend.h"
 #include "SagaEngine/Render/Backend/Diligent/DiligentRenderBackend.h"
 #include "SagaEngine/Render/Materials/Material.h"
 #include "SagaEngine/Render/Materials/MeshAsset.h"
@@ -54,9 +55,25 @@
 #if defined(Bool)
 #   undef Bool
 #endif
+#if defined(True)
+#   undef True
+#endif
+#if defined(False)
+#   undef False
+#endif
 
 #include <gtest/gtest.h>
 
+#include "RefCntAutoPtr.hpp"
+#include "RenderDevice.h"
+#include "DeviceContext.h"
+#include "SwapChain.h"
+#include "Shader.h"
+#include "PipelineState.h"
+#include "Buffer.h"
+
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -340,6 +357,12 @@ public:
         return m_backend.LastFrameDiagnostics();
     }
 
+    [[nodiscard]] DiligentDeviceServices GetDiligentDeviceServices()
+        const noexcept
+    {
+        return m_backend.GetDiligentDeviceServices();
+    }
+
     [[nodiscard]] RenderCaptureResult CaptureCurrentColorFrame(
         RenderFrameCapture& capture)
     {
@@ -506,6 +529,346 @@ protected:
 class CoordinateGPU : public DiligentGPU
 {
 };
+
+class SagaGraphicsGPU : public DiligentGPU
+{
+protected:
+    struct NativeVertex
+    {
+        float position[3];
+        float color[4];
+    };
+
+    [[nodiscard]] std::unique_ptr<
+        SagaEngine::Graphics::Backends::Diligent::DiligentGraphicsBackend>
+    CreateNativeGraphicsBackend()
+    {
+        auto backend = std::make_unique<
+            SagaEngine::Graphics::Backends::Diligent::DiligentGraphicsBackend>();
+
+        SagaEngine::Graphics::RenderBackendDesc desc{};
+        desc.headless = true;
+        EXPECT_TRUE(backend->Initialize(desc, {}));
+        backend->BindNativeDeviceServicesForTesting(
+            m_Backend.GetDiligentDeviceServices(),
+            true);
+        EXPECT_TRUE(backend->HasNativeDeviceServicesForTesting());
+        return backend;
+    }
+
+    [[nodiscard]] static SagaEngine::Graphics::GraphicsDataView DataView(
+        const void* data,
+        std::uint64_t sizeBytes) noexcept
+    {
+        return {data, sizeBytes, 0u, 0u};
+    }
+
+    [[nodiscard]] SagaEngine::Graphics::BufferHandle CreateNativeVertexBuffer(
+        SagaEngine::Graphics::Backends::Diligent::DiligentGraphicsBackend& gfx,
+        const std::array<NativeVertex, 3>& vertices)
+    {
+        SagaEngine::Graphics::BufferDesc desc{};
+        desc.debugName = "SagaGraphicsGPUVertexBuffer";
+        desc.sizeBytes = sizeof(vertices);
+        desc.usage = SagaEngine::Graphics::BufferUsage::Vertex;
+        return gfx.CreateBuffer(desc, DataView(vertices.data(), sizeof(vertices)));
+    }
+
+    [[nodiscard]] SagaEngine::Graphics::BufferHandle CreateNativeIndexBuffer(
+        SagaEngine::Graphics::Backends::Diligent::DiligentGraphicsBackend& gfx,
+        const std::array<std::uint32_t, 3>& indices)
+    {
+        SagaEngine::Graphics::BufferDesc desc{};
+        desc.debugName = "SagaGraphicsGPUIndexBuffer";
+        desc.sizeBytes = sizeof(indices);
+        desc.usage = SagaEngine::Graphics::BufferUsage::Index;
+        return gfx.CreateBuffer(desc, DataView(indices.data(), sizeof(indices)));
+    }
+
+    [[nodiscard]] Diligent::RefCntAutoPtr<Diligent::IPipelineState>
+    CreateTestPipeline(Diligent::IRenderDevice& device,
+                       Diligent::ISwapChain& swapChain)
+    {
+        using namespace Diligent;
+
+        static constexpr const char* kVS = R"(
+struct VSInput
+{
+    float3 Pos : ATTRIB0;
+    float4 Color : ATTRIB1;
+};
+
+struct PSInput
+{
+    float4 Pos : SV_POSITION;
+    float4 Color : COLOR0;
+};
+
+PSInput main(VSInput input)
+{
+    PSInput output;
+    output.Pos = float4(input.Pos, 1.0);
+    output.Color = input.Color;
+    return output;
+}
+)";
+
+        static constexpr const char* kPS = R"(
+struct PSInput
+{
+    float4 Pos : SV_POSITION;
+    float4 Color : COLOR0;
+};
+
+float4 main(PSInput input) : SV_Target
+{
+    return input.Color;
+}
+)";
+
+        ShaderCreateInfo shaderInfo;
+        shaderInfo.SourceLanguage = SHADER_SOURCE_LANGUAGE_HLSL;
+        shaderInfo.Desc.UseCombinedTextureSamplers = True;
+        shaderInfo.EntryPoint = "main";
+
+        RefCntAutoPtr<IShader> vs;
+        shaderInfo.Desc.Name = "SagaGraphicsBufferProofVS";
+        shaderInfo.Desc.ShaderType = SHADER_TYPE_VERTEX;
+        shaderInfo.Source = kVS;
+        device.CreateShader(shaderInfo, &vs);
+        if (!vs)
+        {
+            return {};
+        }
+
+        RefCntAutoPtr<IShader> ps;
+        shaderInfo.Desc.Name = "SagaGraphicsBufferProofPS";
+        shaderInfo.Desc.ShaderType = SHADER_TYPE_PIXEL;
+        shaderInfo.Source = kPS;
+        device.CreateShader(shaderInfo, &ps);
+        if (!ps)
+        {
+            return {};
+        }
+
+        const auto& scDesc = swapChain.GetDesc();
+        GraphicsPipelineStateCreateInfo psoInfo;
+        psoInfo.PSODesc.Name = "SagaGraphicsBufferProofPSO";
+        psoInfo.PSODesc.PipelineType = PIPELINE_TYPE_GRAPHICS;
+        psoInfo.pVS = vs;
+        psoInfo.pPS = ps;
+        psoInfo.GraphicsPipeline.NumRenderTargets = 1u;
+        psoInfo.GraphicsPipeline.RTVFormats[0] = scDesc.ColorBufferFormat;
+        psoInfo.GraphicsPipeline.DSVFormat = scDesc.DepthBufferFormat;
+        psoInfo.GraphicsPipeline.PrimitiveTopology =
+            PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        psoInfo.GraphicsPipeline.RasterizerDesc.CullMode = CULL_MODE_NONE;
+        psoInfo.GraphicsPipeline.DepthStencilDesc.DepthEnable = False;
+        psoInfo.GraphicsPipeline.DepthStencilDesc.DepthWriteEnable = False;
+
+        LayoutElement layout[] = {
+            {0, 0, 3, VT_FLOAT32, False,
+             static_cast<Uint32>(offsetof(NativeVertex, position))},
+            {1, 0, 4, VT_FLOAT32, False,
+             static_cast<Uint32>(offsetof(NativeVertex, color))},
+        };
+        psoInfo.GraphicsPipeline.InputLayout.LayoutElements = layout;
+        psoInfo.GraphicsPipeline.InputLayout.NumElements = 2u;
+
+        RefCntAutoPtr<IPipelineState> pso;
+        device.CreateGraphicsPipelineState(psoInfo, &pso);
+        return pso;
+    }
+
+    [[nodiscard]] RenderFrameCapture DrawNativeIndexedTriangle(
+        Diligent::IBuffer* vertexBuffer,
+        Diligent::IBuffer* indexBuffer,
+        bool* submitted)
+    {
+        if (submitted)
+        {
+            *submitted = false;
+        }
+
+        RenderFrameCapture capture{};
+        const auto services = m_Backend.GetDiligentDeviceServices();
+        EXPECT_NE(services.Device(), nullptr);
+        EXPECT_NE(services.ImmediateContext(), nullptr);
+        EXPECT_NE(services.SwapChain(), nullptr);
+        if (!services.Device() || !services.ImmediateContext() ||
+            !services.SwapChain())
+        {
+            return capture;
+        }
+
+        auto pso = CreateTestPipeline(*services.Device(), *services.SwapChain());
+        EXPECT_NE(pso.RawPtr(), nullptr);
+
+        m_Backend.BeginFrame();
+        if (vertexBuffer && indexBuffer && pso)
+        {
+            auto* ctx = services.ImmediateContext();
+            ctx->SetPipelineState(pso);
+            Diligent::IBuffer* vbs[] = {vertexBuffer};
+            Diligent::Uint64 offsets[] = {0u};
+            ctx->SetVertexBuffers(
+                0u,
+                1u,
+                vbs,
+                offsets,
+                Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
+                Diligent::SET_VERTEX_BUFFERS_FLAG_RESET);
+            ctx->SetIndexBuffer(
+                indexBuffer,
+                0u,
+                Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+
+            Diligent::DrawIndexedAttribs drawAttribs;
+            drawAttribs.NumIndices = 3u;
+            drawAttribs.IndexType = Diligent::VT_UINT32;
+            drawAttribs.Flags = Diligent::DRAW_FLAG_NONE;
+            ctx->DrawIndexed(drawAttribs);
+            if (submitted)
+            {
+                *submitted = true;
+            }
+        }
+
+        const auto result = m_Backend.CaptureCurrentColorFrame(capture);
+        m_Backend.EndFrame();
+        EXPECT_EQ(result, RenderCaptureResult::kSuccess);
+        return capture;
+    }
+
+    [[nodiscard]] static std::array<NativeVertex, 3> TriangleVertices()
+    {
+        return {{
+            {{-0.65f, -0.65f, 0.5f}, {0.0f, 1.0f, 0.0f, 1.0f}},
+            {{0.65f, -0.65f, 0.5f}, {0.0f, 1.0f, 0.0f, 1.0f}},
+            {{0.0f, 0.65f, 0.5f}, {0.0f, 1.0f, 0.0f, 1.0f}},
+        }};
+    }
+
+    [[nodiscard]] static std::array<std::uint32_t, 3> TriangleIndices()
+    {
+        return {{0u, 1u, 2u}};
+    }
+};
+
+TEST_F(SagaGraphicsGPU, NativeVertexBufferCreates)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto vertices = TriangleVertices();
+    const auto buffer = CreateNativeVertexBuffer(*gfx, vertices);
+
+    ASSERT_TRUE(buffer.IsValid());
+    const auto query = gfx->QueryBufferForTesting(buffer);
+    EXPECT_TRUE(query.valid);
+    EXPECT_EQ(query.lifecycle, SagaEngine::Graphics::GraphicsResourceLifecycle::Ready);
+    EXPECT_EQ(query.backing, SagaEngine::Graphics::GraphicsResourceBacking::NativeGpu);
+    EXPECT_TRUE(query.nativeBacked);
+    EXPECT_TRUE(query.resident);
+    EXPECT_EQ(query.logicalBytes, sizeof(vertices));
+    EXPECT_NE(gfx->ResolveNativeBufferForTesting(buffer), nullptr);
+}
+
+TEST_F(SagaGraphicsGPU, NativeIndexBufferCreates)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto indices = TriangleIndices();
+    const auto buffer = CreateNativeIndexBuffer(*gfx, indices);
+
+    ASSERT_TRUE(buffer.IsValid());
+    const auto query = gfx->QueryBufferForTesting(buffer);
+    EXPECT_TRUE(query.valid);
+    EXPECT_EQ(query.lifecycle, SagaEngine::Graphics::GraphicsResourceLifecycle::Ready);
+    EXPECT_EQ(query.backing, SagaEngine::Graphics::GraphicsResourceBacking::NativeGpu);
+    EXPECT_TRUE(query.nativeBacked);
+    EXPECT_TRUE(query.resident);
+    EXPECT_EQ(query.logicalBytes, sizeof(indices));
+    EXPECT_NE(gfx->ResolveNativeBufferForTesting(buffer), nullptr);
+}
+
+TEST_F(SagaGraphicsGPU, NativeIndexedMeshProducesPixels)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto vertices = TriangleVertices();
+    const auto indices = TriangleIndices();
+    const auto vertexBuffer = CreateNativeVertexBuffer(*gfx, vertices);
+    const auto indexBuffer = CreateNativeIndexBuffer(*gfx, indices);
+    ASSERT_TRUE(vertexBuffer.IsValid());
+    ASSERT_TRUE(indexBuffer.IsValid());
+
+    bool submitted = false;
+    const auto capture = DrawNativeIndexedTriangle(
+        gfx->ResolveNativeBufferForTesting(vertexBuffer),
+        gfx->ResolveNativeBufferForTesting(indexBuffer),
+        &submitted);
+
+    ASSERT_TRUE(submitted);
+    constexpr SagaTests::Render::Rgba8 kClear{0u, 0u, 0u, 255u};
+    EXPECT_GT(SagaTests::Render::CountPixelsNotNear(capture, kClear, 8), 500u);
+    EXPECT_GT(SagaTests::Render::CountRegionMatching(
+                  capture, capture.width / 2u, capture.height / 2u, 16u,
+                  [](SagaTests::Render::Rgba8 c)
+                  {
+                      return SagaTests::Render::IsDominantGreen(c);
+                  }),
+              40u);
+}
+
+TEST_F(SagaGraphicsGPU, DestroyedHandleCannotDraw)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto vertices = TriangleVertices();
+    const auto indices = TriangleIndices();
+    const auto vertexBuffer = CreateNativeVertexBuffer(*gfx, vertices);
+    const auto indexBuffer = CreateNativeIndexBuffer(*gfx, indices);
+    ASSERT_TRUE(vertexBuffer.IsValid());
+    ASSERT_TRUE(indexBuffer.IsValid());
+
+    gfx->DestroyBuffer(vertexBuffer);
+    EXPECT_EQ(gfx->ResolveNativeBufferForTesting(vertexBuffer), nullptr);
+
+    bool submitted = true;
+    const auto capture = DrawNativeIndexedTriangle(
+        gfx->ResolveNativeBufferForTesting(vertexBuffer),
+        gfx->ResolveNativeBufferForTesting(indexBuffer),
+        &submitted);
+
+    EXPECT_FALSE(submitted);
+    constexpr SagaTests::Render::Rgba8 kClear{0u, 0u, 0u, 255u};
+    EXPECT_EQ(SagaTests::Render::CountPixelsNotNear(capture, kClear, 8), 0u);
+}
+
+TEST_F(SagaGraphicsGPU, StaleGenerationCannotDraw)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto vertices = TriangleVertices();
+    const auto indices = TriangleIndices();
+    const auto staleVertexBuffer = CreateNativeVertexBuffer(*gfx, vertices);
+    const auto indexBuffer = CreateNativeIndexBuffer(*gfx, indices);
+    ASSERT_TRUE(staleVertexBuffer.IsValid());
+    ASSERT_TRUE(indexBuffer.IsValid());
+
+    gfx->DestroyBuffer(staleVertexBuffer);
+    const auto replacementVertexBuffer = CreateNativeVertexBuffer(*gfx, vertices);
+    ASSERT_TRUE(replacementVertexBuffer.IsValid());
+    ASSERT_EQ(replacementVertexBuffer.index, staleVertexBuffer.index);
+    ASSERT_NE(replacementVertexBuffer.generation, staleVertexBuffer.generation);
+    EXPECT_EQ(gfx->ResolveNativeBufferForTesting(staleVertexBuffer), nullptr);
+    EXPECT_NE(gfx->ResolveNativeBufferForTesting(replacementVertexBuffer), nullptr);
+
+    bool submitted = true;
+    const auto capture = DrawNativeIndexedTriangle(
+        gfx->ResolveNativeBufferForTesting(staleVertexBuffer),
+        gfx->ResolveNativeBufferForTesting(indexBuffer),
+        &submitted);
+
+    EXPECT_FALSE(submitted);
+    constexpr SagaTests::Render::Rgba8 kClear{0u, 0u, 0u, 255u};
+    EXPECT_EQ(SagaTests::Render::CountPixelsNotNear(capture, kClear, 8), 0u);
+}
 
 namespace
 {
