@@ -838,6 +838,12 @@ TEST(GraphicsDiligentBackendAdapter, ResourceMemoryReportChangesOnCreateDestroy)
     EXPECT_EQ(report.shaderBytes, 32u);
     EXPECT_EQ(report.totalLiveBytes, 224u);
     EXPECT_EQ(report.peakLiveBytes, 224u);
+    EXPECT_EQ(report.pendingDestroyBytes, 0u);
+    EXPECT_EQ(report.uploadReservedBytes, 0u);
+    EXPECT_EQ(report.uploadUsedBytes, 0u);
+    EXPECT_EQ(report.uploadInFlightBytes, 0u);
+    EXPECT_EQ(report.nativeCommittedBytes, 0u);
+    EXPECT_FALSE(report.nativeCommittedBytesKnown);
 
     backend->DestroyTexture(texture);
     report = backend->GetResourceMemoryReport();

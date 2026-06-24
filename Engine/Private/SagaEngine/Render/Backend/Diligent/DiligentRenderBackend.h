@@ -60,6 +60,12 @@ struct RenderFrameDiagnostics
     std::uint32_t shadowSamplingEnabled = 0;
     std::uint32_t invalidNormalTransformDraws = 0;
     std::uint32_t additionalFrameSubmitsRejected = 0;
+    std::uint64_t gpuSubmissionSerial = 0;
+    std::uint64_t gpuCompletedSerial = 0;
+    std::uint64_t gpuTargetedWaitCount = 0;
+    std::uint64_t gpuDeviceWideWaitCount = 0;
+    std::uint64_t gpuTimelinePollCount = 0;
+    std::uint64_t gpuTimelineSignalCount = 0;
 };
 
 enum class RenderPixelFormat : std::uint8_t

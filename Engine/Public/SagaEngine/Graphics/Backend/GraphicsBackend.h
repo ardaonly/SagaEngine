@@ -160,6 +160,21 @@ struct GraphicsResourceMemoryReport
     std::uint64_t totalLiveBytes = 0;
     std::uint64_t peakLiveBytes = 0;
     std::uint64_t failedCreateCount = 0;
+    std::uint32_t pendingDestroyTextureCount = 0;
+    std::uint32_t pendingDestroyBufferCount = 0;
+    std::uint32_t pendingDestroyShaderCount = 0;
+    std::uint32_t pendingDestroyPipelineCount = 0;
+    std::uint32_t pendingDestroySamplerCount = 0;
+    std::uint64_t pendingDestroyBytes = 0;
+    std::uint64_t uploadReservedBytes = 0;
+    std::uint64_t uploadUsedBytes = 0;
+    std::uint64_t uploadInFlightBytes = 0;
+    std::uint64_t peakUploadReservedBytes = 0;
+    std::uint64_t peakUploadUsedBytes = 0;
+    std::uint64_t nativeCommittedBytes = 0;
+    bool nativeCommittedBytesKnown = false;
+    bool overSoftBudget = false;
+    std::uint64_t softBudgetBytes = 0;
 };
 
 struct GraphicsResourceLeakSummary

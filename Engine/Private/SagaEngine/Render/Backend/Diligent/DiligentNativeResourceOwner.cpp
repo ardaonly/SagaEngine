@@ -319,6 +319,11 @@ struct DiligentNativeResourceOwner::Impl
     {
         HandleT handle{};
         std::uint64_t serial = 0;
+        std::uint64_t creationSerial = 0;
+        std::uint64_t lastUseSerial = 0;
+        std::uint64_t retireSerial = 0;
+        std::uint64_t logicalBytes = 0;
+        std::string debugName;
         bool live = false;
         bool pendingDestroy = false;
         PayloadT payload{};
@@ -381,6 +386,22 @@ struct DiligentNativeResourceOwner::Impl
     }
 
     template <typename SlotT, typename HandleT>
+    [[nodiscard]] SlotT* FindAny(
+        std::vector<SlotT>& slots,
+        HandleT handle) noexcept
+    {
+        for (auto& slot : slots)
+        {
+            if ((slot.live || slot.pendingDestroy) &&
+                SameHandle(slot.handle, handle))
+            {
+                return &slot;
+            }
+        }
+        return nullptr;
+    }
+
+    template <typename SlotT, typename HandleT>
     [[nodiscard]] const SlotT* Find(
         const std::vector<SlotT>& slots,
         HandleT handle) const noexcept
@@ -393,6 +414,44 @@ struct DiligentNativeResourceOwner::Impl
             }
         }
         return nullptr;
+    }
+
+    template <typename SlotT, typename HandleT>
+    void MarkUsed(
+        std::vector<SlotT>& slots,
+        HandleT handle,
+        std::uint64_t serial) noexcept
+    {
+        if (serial == 0u)
+        {
+            return;
+        }
+
+        if (auto* slot = FindAny(slots, handle))
+        {
+            slot->lastUseSerial = std::max(slot->lastUseSerial, serial);
+            if (slot->pendingDestroy)
+            {
+                slot->retireSerial = slot->lastUseSerial;
+            }
+        }
+    }
+
+    template <typename SlotT>
+    static void RetireSlots(
+        std::vector<SlotT>& slots,
+        std::uint64_t completedSerial) noexcept
+    {
+        slots.erase(
+            std::remove_if(
+                slots.begin(),
+                slots.end(),
+                [completedSerial](const SlotT& slot)
+                {
+                    return slot.pendingDestroy &&
+                           slot.retireSerial <= completedSerial;
+                }),
+            slots.end());
     }
 };
 
@@ -497,7 +556,9 @@ std::uint64_t DiligentNativeResourceOwner::CreateBufferForHandle(
     }
 
     const auto serial = m_Impl->nextSerial++;
-    m_Impl->buffers.push_back({handle, serial, true, false, {buffer}});
+    m_Impl->buffers.push_back(
+        {handle, serial, serial, 0u, 0u, desc.sizeBytes, desc.debugName,
+         true, false, {buffer}});
     return serial;
 }
 
@@ -565,7 +626,10 @@ std::uint64_t DiligentNativeResourceOwner::CreateTextureForHandle(
 
     const auto serial = m_Impl->nextSerial++;
     m_Impl->textures.push_back(
-        {handle, serial, true, false, {texture, srv, desc}});
+        {handle, serial, serial, 0u, 0u,
+         static_cast<std::uint64_t>(desc.width) * desc.height *
+             BytesPerPixel(desc.format),
+         desc.debugName, true, false, {texture, srv, desc}});
     return serial;
 }
 
@@ -620,7 +684,9 @@ std::uint64_t DiligentNativeResourceOwner::CreateSamplerForHandle(
     }
 
     const auto serial = m_Impl->nextSerial++;
-    m_Impl->samplers.push_back({handle, serial, true, false, {sampler, desc}});
+    m_Impl->samplers.push_back(
+        {handle, serial, serial, 0u, 0u, 0u, desc.debugName,
+         true, false, {sampler, desc}});
     return serial;
 }
 
@@ -660,7 +726,10 @@ std::uint64_t DiligentNativeResourceOwner::CreateShaderForHandle(
     }
 
     const auto serial = m_Impl->nextSerial++;
-    m_Impl->shaders.push_back({handle, serial, true, false, {shader, desc}});
+    m_Impl->shaders.push_back(
+        {handle, serial, serial, 0u, 0u,
+         static_cast<std::uint64_t>(desc.source.size()), desc.debugName,
+         true, false, {shader, desc}});
     return serial;
 }
 
@@ -753,7 +822,9 @@ std::uint64_t DiligentNativeResourceOwner::CreatePipelineForHandle(
     }
 
     const auto serial = m_Impl->nextSerial++;
-    m_Impl->pipelines.push_back({handle, serial, true, false, {pipeline, desc}});
+    m_Impl->pipelines.push_back(
+        {handle, serial, serial, 0u, 0u, 0u, desc.debugName,
+         true, false, {pipeline, desc}});
     return serial;
 }
 
@@ -788,6 +859,7 @@ void DiligentNativeResourceOwner::DestroyBuffer(
     {
         slot->live = false;
         slot->pendingDestroy = true;
+        slot->retireSerial = slot->lastUseSerial;
     }
 }
 
@@ -798,6 +870,7 @@ void DiligentNativeResourceOwner::DestroyTexture(
     {
         slot->live = false;
         slot->pendingDestroy = true;
+        slot->retireSerial = slot->lastUseSerial;
     }
 }
 
@@ -808,6 +881,7 @@ void DiligentNativeResourceOwner::DestroySampler(
     {
         slot->live = false;
         slot->pendingDestroy = true;
+        slot->retireSerial = slot->lastUseSerial;
     }
 }
 
@@ -818,6 +892,7 @@ void DiligentNativeResourceOwner::DestroyShader(
     {
         slot->live = false;
         slot->pendingDestroy = true;
+        slot->retireSerial = slot->lastUseSerial;
     }
 }
 
@@ -828,7 +903,53 @@ void DiligentNativeResourceOwner::DestroyPipeline(
     {
         slot->live = false;
         slot->pendingDestroy = true;
+        slot->retireSerial = slot->lastUseSerial;
     }
+}
+
+void DiligentNativeResourceOwner::MarkBufferUsed(
+    Gfx::BufferHandle handle,
+    std::uint64_t serial) noexcept
+{
+    m_Impl->MarkUsed(m_Impl->buffers, handle, serial);
+}
+
+void DiligentNativeResourceOwner::MarkTextureUsed(
+    Gfx::TextureHandle handle,
+    std::uint64_t serial) noexcept
+{
+    m_Impl->MarkUsed(m_Impl->textures, handle, serial);
+}
+
+void DiligentNativeResourceOwner::MarkSamplerUsed(
+    Gfx::SamplerHandle handle,
+    std::uint64_t serial) noexcept
+{
+    m_Impl->MarkUsed(m_Impl->samplers, handle, serial);
+}
+
+void DiligentNativeResourceOwner::MarkShaderUsed(
+    Gfx::ShaderHandle handle,
+    std::uint64_t serial) noexcept
+{
+    m_Impl->MarkUsed(m_Impl->shaders, handle, serial);
+}
+
+void DiligentNativeResourceOwner::MarkPipelineUsed(
+    Gfx::PipelineHandle handle,
+    std::uint64_t serial) noexcept
+{
+    m_Impl->MarkUsed(m_Impl->pipelines, handle, serial);
+}
+
+void DiligentNativeResourceOwner::RetireCompleted(
+    std::uint64_t completedSerial) noexcept
+{
+    m_Impl->RetireSlots(m_Impl->pipelines, completedSerial);
+    m_Impl->RetireSlots(m_Impl->shaders, completedSerial);
+    m_Impl->RetireSlots(m_Impl->samplers, completedSerial);
+    m_Impl->RetireSlots(m_Impl->textures, completedSerial);
+    m_Impl->RetireSlots(m_Impl->buffers, completedSerial);
 }
 
 Diligent::IBuffer* DiligentNativeResourceOwner::ResolveBuffer(

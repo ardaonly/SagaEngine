@@ -81,6 +81,18 @@ public:
     void DestroyShader(Graphics::ShaderHandle handle) noexcept;
     void DestroyPipeline(Graphics::PipelineHandle handle) noexcept;
 
+    void MarkBufferUsed(Graphics::BufferHandle handle,
+                        std::uint64_t serial) noexcept;
+    void MarkTextureUsed(Graphics::TextureHandle handle,
+                         std::uint64_t serial) noexcept;
+    void MarkSamplerUsed(Graphics::SamplerHandle handle,
+                         std::uint64_t serial) noexcept;
+    void MarkShaderUsed(Graphics::ShaderHandle handle,
+                        std::uint64_t serial) noexcept;
+    void MarkPipelineUsed(Graphics::PipelineHandle handle,
+                          std::uint64_t serial) noexcept;
+    void RetireCompleted(std::uint64_t completedSerial) noexcept;
+
     [[nodiscard]] Diligent::IBuffer* ResolveBuffer(
         Graphics::BufferHandle handle) const noexcept;
     [[nodiscard]] Diligent::ITexture* ResolveTexture(
