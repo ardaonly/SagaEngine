@@ -63,6 +63,26 @@ bool Contains(std::string_view value, std::string_view token)
     return value.find(token) != std::string_view::npos;
 }
 
+std::string_view SliceBetween(
+    std::string_view text,
+    std::string_view begin,
+    std::string_view end)
+{
+    const auto beginPos = text.find(begin);
+    if (beginPos == std::string_view::npos)
+    {
+        return {};
+    }
+
+    const auto endPos = text.find(end, beginPos + begin.size());
+    if (endPos == std::string_view::npos)
+    {
+        return text.substr(beginPos);
+    }
+
+    return text.substr(beginPos, endPos - beginPos);
+}
+
 } // namespace
 
 TEST(PublicPrivateBoundaryTests, EngineModulesDoNotExposePrivateIncludes)
@@ -805,6 +825,36 @@ TEST(PublicPrivateBoundaryTests, GraphicsPrivateRenderTestsUsePrivateStyleInclud
             << RelativeToSourceRoot(path)
             << " must not mention Private/ in include directives";
     }
+}
+
+TEST(PublicPrivateBoundaryTests, NormalFramePathDoesNotUseGlobalDeviceIdle)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto path = root / "Engine" / "Private" / "SagaEngine" /
+        "Render" / "Backend" / "Diligent" / "DiligentRenderBackend.cpp";
+    ASSERT_TRUE(std::filesystem::exists(path)) << path;
+
+    const auto text = ReadText(path);
+    const auto beginFrame = SliceBetween(
+        text,
+        "void DiligentRenderBackend::BeginFrame()",
+        "void DiligentRenderBackend::Submit(");
+    const auto submit = SliceBetween(
+        text,
+        "void DiligentRenderBackend::Submit(",
+        "void DiligentRenderBackend::EndFrame()");
+    const auto endFrame = SliceBetween(
+        text,
+        "void DiligentRenderBackend::EndFrame()",
+        "// ─── ImGui rendering");
+
+    ASSERT_FALSE(beginFrame.empty());
+    ASSERT_FALSE(submit.empty());
+    ASSERT_FALSE(endFrame.empty());
+    EXPECT_FALSE(Contains(beginFrame, "WaitForIdle("));
+    EXPECT_FALSE(Contains(submit, "WaitForIdle("));
+    EXPECT_FALSE(Contains(endFrame, "WaitForIdle("));
+    EXPECT_TRUE(Contains(text, "CaptureCurrentColorFrame"));
 }
 
 TEST(PublicPrivateBoundaryTests, SimulationPublicDoesNotIncludeInputNetworking)

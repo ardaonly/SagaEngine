@@ -10,6 +10,7 @@
 ///   Shutdown   → release all
 
 #include "SagaEngine/Render/Backend/Diligent/DiligentRenderBackend.h"
+#include "SagaEngine/Render/Backend/Diligent/DiligentGpuTimeline.h"
 #include "SagaEngine/Render/Backend/Diligent/DiligentNativeResourceOwner.h"
 #include "SagaEngine/Platform/IWindow.h"
 #include "SagaEngine/Render/Materials/MeshAsset.h"
@@ -218,6 +219,10 @@ struct DiligentRenderBackend::Impl
     Diligent::RefCntAutoPtr<Diligent::IDeviceContext> context;
     Diligent::RefCntAutoPtr<Diligent::ISwapChain>     swapChain;
     DiligentNativeResourceOwner nativeResources;
+    DiligentGpuTimeline gpuTimeline;
+    std::vector<std::uint64_t> frameSlotSerials;
+    std::uint64_t activeFrameSerial = 0;
+    std::uint32_t activeFrameSlot = 0;
 
     // ── Shared camera constant buffer ───────────────────────────────
     Diligent::RefCntAutoPtr<Diligent::IBuffer> cameraCB;
@@ -511,6 +516,18 @@ bool DiligentRenderBackend::Initialize(const SwapchainDesc& desc)
         m_Impl->context.RawPtr(),
         m_Impl->swapChain.RawPtr(),
     });
+    if (!m_Impl->gpuTimeline.Initialize(
+            m_Impl->device.RawPtr(),
+            m_Impl->context.RawPtr()))
+    {
+        LogErr("Failed to create GPU completion fence");
+        return false;
+    }
+    const auto& scDesc = m_Impl->swapChain->GetDesc();
+    const auto frameSlotCount = scDesc.BufferCount == 0u ? 3u : scDesc.BufferCount;
+    m_Impl->frameSlotSerials.assign(frameSlotCount, 0u);
+    m_Impl->activeFrameSerial = 0u;
+    m_Impl->activeFrameSlot = 0u;
 
     std::string msg = "Initialized with ";
     msg += ToString(picked);
@@ -647,6 +664,9 @@ void DiligentRenderBackend::Shutdown()
 
     ShutdownImGuiRendering();
 
+    m_Impl->gpuTimeline.ShutdownAndDrain();
+    m_Impl->nativeResources.RetireCompleted(
+        m_Impl->gpuTimeline.LastCompletedSerial());
     m_Impl->meshCache.clear();
     m_Impl->materialCache.clear();
     m_Impl->psoCache.clear();
@@ -660,6 +680,10 @@ void DiligentRenderBackend::Shutdown()
     m_Impl->shadow.texture.Release();
     m_Impl->defaultWhiteTex = {};
     m_Impl->nativeResources.ReleaseAll();
+    m_Impl->gpuTimeline.Reset();
+    m_Impl->frameSlotSerials.clear();
+    m_Impl->activeFrameSerial = 0u;
+    m_Impl->activeFrameSlot = 0u;
 
     m_Impl->boneCB.Release();
     m_Impl->cameraCB.Release();
@@ -1146,6 +1170,38 @@ void DiligentRenderBackend::BeginFrame()
 
     m_Impl->currentFrameDiagnostics = {};
     m_Impl->shadowSubmitAcceptedThisFrame = false;
+    const auto completed = m_Impl->gpuTimeline.PollCompletion();
+    m_Impl->nativeResources.RetireCompleted(completed);
+    if (!m_Impl->frameSlotSerials.empty())
+    {
+        m_Impl->activeFrameSlot =
+            static_cast<std::uint32_t>(
+                m_Impl->frameIndex % m_Impl->frameSlotSerials.size());
+        const auto slotSerial =
+            m_Impl->frameSlotSerials[m_Impl->activeFrameSlot];
+        if (slotSerial != 0u && completed < slotSerial)
+        {
+            m_Impl->gpuTimeline.WaitForSerial(slotSerial);
+            m_Impl->nativeResources.RetireCompleted(
+                m_Impl->gpuTimeline.LastCompletedSerial());
+        }
+    }
+    m_Impl->activeFrameSerial = m_Impl->gpuTimeline.BeginFrameSubmission();
+    m_Impl->currentFrameDiagnostics.gpuSubmissionSerial =
+        m_Impl->activeFrameSerial;
+    {
+        const auto timeline = m_Impl->gpuTimeline.Diagnostics();
+        m_Impl->currentFrameDiagnostics.gpuCompletedSerial =
+            timeline.lastCompletedSerial;
+        m_Impl->currentFrameDiagnostics.gpuTargetedWaitCount =
+            timeline.targetedWaitCount;
+        m_Impl->currentFrameDiagnostics.gpuDeviceWideWaitCount =
+            timeline.deviceWideWaitCount;
+        m_Impl->currentFrameDiagnostics.gpuTimelinePollCount =
+            timeline.pollCount;
+        m_Impl->currentFrameDiagnostics.gpuTimelineSignalCount =
+            timeline.signalCount;
+    }
 
     LogDbg("BeginFrame: enter");
 
@@ -1360,6 +1416,9 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
         {
             return;
         }
+        m_Impl->nativeResources.MarkBufferUsed(
+            mesh.vertexBuffer,
+            m_Impl->activeFrameSerial);
         if (vb != lastVB)
         {
             Diligent::Uint64 offsets[] = {0};
@@ -1376,6 +1435,9 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
             {
                 return;
             }
+            m_Impl->nativeResources.MarkBufferUsed(
+                mesh.indexBuffer,
+                m_Impl->activeFrameSerial);
             if (ib != lastIB)
             {
                 ctx->SetIndexBuffer(ib, 0,
@@ -1579,12 +1641,28 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
             {
                 auto texIt = m_Impl->textureCache.find(mat.albedoTex);
                 if (texIt != m_Impl->textureCache.end())
+                {
                     texSRV = m_Impl->nativeResources.ResolveTextureSrv(
                         texIt->second.texture);
+                    if (texSRV)
+                    {
+                        m_Impl->nativeResources.MarkTextureUsed(
+                            texIt->second.texture,
+                            m_Impl->activeFrameSerial);
+                    }
+                }
             }
             if (!texSRV)
+            {
                 texSRV = m_Impl->nativeResources.ResolveTextureSrv(
                     m_Impl->defaultWhiteTex);
+                if (texSRV)
+                {
+                    m_Impl->nativeResources.MarkTextureUsed(
+                        m_Impl->defaultWhiteTex,
+                        m_Impl->activeFrameSerial);
+                }
+            }
 
             if (texSRV)
             {
@@ -1621,6 +1699,9 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
             ++m_Impl->currentFrameDiagnostics.rejectedDrawItems;
             continue;
         }
+        m_Impl->nativeResources.MarkBufferUsed(
+            mesh.vertexBuffer,
+            m_Impl->activeFrameSerial);
         if (vb != lastVB)
         {
             Diligent::Uint64 offsets[] = {0};
@@ -1640,6 +1721,9 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
                 ++m_Impl->currentFrameDiagnostics.rejectedDrawItems;
                 continue;
             }
+            m_Impl->nativeResources.MarkBufferUsed(
+                mesh.indexBuffer,
+                m_Impl->activeFrameSerial);
             if (ib != lastIB)
             {
                 ctx->SetIndexBuffer(ib, 0,
@@ -1680,11 +1764,34 @@ void DiligentRenderBackend::EndFrame()
 {
     if (!m_Impl->initialized || !m_Impl->swapChain) return;
 
+    if (m_Impl->activeFrameSerial != 0u)
+    {
+        m_Impl->gpuTimeline.SignalFrameSubmitted(m_Impl->activeFrameSerial);
+    }
     LogDbg("EndFrame: Present…");
     m_Impl->swapChain->Present();
+    if (!m_Impl->frameSlotSerials.empty())
+    {
+        m_Impl->frameSlotSerials[m_Impl->activeFrameSlot] =
+            m_Impl->activeFrameSerial;
+    }
     ++m_Impl->currentFrameDiagnostics.presentCalls;
+    {
+        const auto timeline = m_Impl->gpuTimeline.Diagnostics();
+        m_Impl->currentFrameDiagnostics.gpuCompletedSerial =
+            timeline.lastCompletedSerial;
+        m_Impl->currentFrameDiagnostics.gpuTargetedWaitCount =
+            timeline.targetedWaitCount;
+        m_Impl->currentFrameDiagnostics.gpuDeviceWideWaitCount =
+            timeline.deviceWideWaitCount;
+        m_Impl->currentFrameDiagnostics.gpuTimelinePollCount =
+            timeline.pollCount;
+        m_Impl->currentFrameDiagnostics.gpuTimelineSignalCount =
+            timeline.signalCount;
+    }
     m_Impl->lastFrameDiagnostics = m_Impl->currentFrameDiagnostics;
     ++m_Impl->frameIndex;
+    m_Impl->activeFrameSerial = 0u;
 
     if (g_verboseGPU)
     {
