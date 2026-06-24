@@ -59,6 +59,19 @@ Graphics::TextureDesc MakeTextureDesc() noexcept
     return desc;
 }
 
+Graphics::TextureDesc MakeNativeTextureDesc() noexcept
+{
+    auto desc = MakeTextureDesc();
+    desc.debugName = "native-texture";
+    desc.format = Graphics::ResourceFormat::Rgba8Unorm;
+    desc.dimension = Graphics::TextureDimension::Texture2D;
+    desc.depth = 1u;
+    desc.mipLevels = 1u;
+    desc.arrayLayers = 1u;
+    desc.usage = Graphics::TextureUsageFlags::Sampled;
+    return desc;
+}
+
 Graphics::BufferDesc MakeBufferDesc() noexcept
 {
     Graphics::BufferDesc desc{};
@@ -81,6 +94,32 @@ Graphics::ShaderDesc MakeShaderDesc() noexcept
 {
     Graphics::ShaderDesc desc{};
     desc.byteSize = 32u;
+    return desc;
+}
+
+Graphics::ShaderDesc MakeNativeShaderDesc(
+    Graphics::ShaderStage stage = Graphics::ShaderStage::Vertex) noexcept
+{
+    Graphics::ShaderDesc desc{};
+    desc.debugName = stage == Graphics::ShaderStage::Vertex
+                         ? "native-vs"
+                         : "native-ps";
+    desc.stage = stage;
+    desc.entryPoint = "main";
+    desc.sourceIdentity = desc.debugName;
+    desc.source = "void main() {}";
+    return desc;
+}
+
+Graphics::SamplerDesc MakePointClampSamplerDesc() noexcept
+{
+    Graphics::SamplerDesc desc{};
+    desc.debugName = "point-clamp";
+    desc.minFilter = Graphics::FilterMode::Nearest;
+    desc.magFilter = Graphics::FilterMode::Nearest;
+    desc.addressU = Graphics::AddressMode::ClampToEdge;
+    desc.addressV = Graphics::AddressMode::ClampToEdge;
+    desc.addressW = Graphics::AddressMode::ClampToEdge;
     return desc;
 }
 
@@ -1422,4 +1461,442 @@ TEST(GraphicsDiligentBackendAdapter, DestroyAndShutdownReleaseShadowPayload)
     EXPECT_EQ(backend->GetTextureShadowBytesForTesting(nextTexture), 0u);
     EXPECT_EQ(backend->GetTextureNativeSerialForTesting(nextTexture), 0u);
     EXPECT_EQ(backend->GetResourceMemoryReport().totalLiveBytes, 0u);
+}
+
+TEST(GraphicsDiligentBackendAdapter, NativeTextureRejectsZeroWidth)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    auto desc = MakeNativeTextureDesc();
+    desc.width = 0u;
+
+    EXPECT_FALSE(backend->CreateTexture(desc).IsValid());
+    EXPECT_EQ(
+        backend->GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::InvalidTextureDesc);
+}
+
+TEST(GraphicsDiligentBackendAdapter, NativeTextureRejectsZeroHeight)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    auto desc = MakeNativeTextureDesc();
+    desc.height = 0u;
+
+    EXPECT_FALSE(backend->CreateTexture(desc).IsValid());
+    EXPECT_EQ(
+        backend->GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::InvalidTextureDesc);
+}
+
+TEST(GraphicsDiligentBackendAdapter, NativeTextureRejectsOverflow)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    auto desc = MakeNativeTextureDesc();
+    desc.width = std::numeric_limits<std::uint32_t>::max();
+    desc.height = std::numeric_limits<std::uint32_t>::max();
+    std::array<std::uint8_t, 4u> pixels{};
+
+    EXPECT_FALSE(backend->CreateTexture(desc, MakeDataView(pixels)).IsValid());
+    EXPECT_EQ(
+        backend->GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::InvalidInitialData);
+}
+
+TEST(GraphicsDiligentBackendAdapter, NativeTextureRejectsUnsupportedFormat)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    auto desc = MakeNativeTextureDesc();
+    desc.format = Graphics::ResourceFormat::Bgra8Unorm;
+
+    EXPECT_FALSE(backend->CreateTexture(desc).IsValid());
+    EXPECT_EQ(
+        backend->GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::InvalidTextureDesc);
+}
+
+TEST(GraphicsDiligentBackendAdapter, NativeTextureRejectsUnsupportedUsage)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    auto desc = MakeNativeTextureDesc();
+    desc.usage = Graphics::TextureUsageFlags::RenderTarget;
+
+    EXPECT_FALSE(backend->CreateTexture(desc).IsValid());
+    EXPECT_EQ(
+        backend->GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::InvalidTextureDesc);
+}
+
+TEST(GraphicsDiligentBackendAdapter, NativeTextureRejectsNullPayload)
+{
+    RenderBackend::DiligentNativeResourceOwner owner;
+    std::string diagnostic;
+    const auto serial = owner.CreateTextureForHandle(
+        ToTextureHandle({1u, 1u}),
+        MakeNativeTextureDesc(),
+        {},
+        &diagnostic);
+
+    EXPECT_EQ(serial, 0u);
+    EXPECT_FALSE(diagnostic.empty());
+}
+
+TEST(GraphicsDiligentBackendAdapter, NativeTextureRejectsShortRowPitch)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    std::array<std::uint8_t, 64u> pixels{};
+    auto view = MakeDataView(pixels);
+    view.rowPitchBytes = 8u;
+
+    EXPECT_FALSE(
+        backend->CreateTexture(MakeNativeTextureDesc(), view).IsValid());
+    EXPECT_EQ(
+        backend->GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::InvalidInitialData);
+}
+
+TEST(GraphicsDiligentBackendAdapter, NativeTextureRejectsInsufficientPayload)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    std::array<std::uint8_t, 63u> pixels{};
+    EXPECT_FALSE(
+        backend->CreateTexture(MakeNativeTextureDesc(), MakeDataView(pixels))
+            .IsValid());
+    EXPECT_EQ(
+        backend->GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::InvalidInitialData);
+}
+
+TEST(GraphicsDiligentBackendAdapter, NativeTextureRequiresBoundServices)
+{
+    RenderBackend::DiligentNativeResourceOwner owner;
+    std::array<std::uint8_t, 64u> pixels{};
+    std::string diagnostic;
+
+    const auto serial = owner.CreateTextureForHandle(
+        ToTextureHandle({1u, 1u}),
+        MakeNativeTextureDesc(),
+        MakeDataView(pixels),
+        &diagnostic);
+
+    EXPECT_EQ(serial, 0u);
+    EXPECT_FALSE(diagnostic.empty());
+}
+
+TEST(GraphicsDiligentBackendAdapter, NativeTextureQueryReportsNativeGpu)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    auto desc = MakeNativeTextureDesc();
+    desc.debugName = "query-native-texture";
+    const auto texture = backend->CreateTexture(desc);
+    ASSERT_TRUE(texture.IsValid());
+    ASSERT_TRUE(backend->MarkTextureNativeForTesting(texture, 77u));
+
+    const auto query = backend->QueryTextureForTesting(texture);
+    EXPECT_TRUE(query.valid);
+    EXPECT_EQ(query.lifecycle, Graphics::GraphicsResourceLifecycle::Ready);
+    EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::NativeGpu);
+    EXPECT_TRUE(query.nativeBacked);
+    EXPECT_TRUE(query.resident);
+    EXPECT_EQ(query.logicalBytes, 64u);
+    EXPECT_EQ(query.debugName, "query-native-texture");
+}
+
+TEST(GraphicsDiligentBackendAdapter, NativeTextureAcceptsLinearAndSrgbFormats)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    std::array<std::uint8_t, 64u> pixels{};
+    auto linear = MakeNativeTextureDesc();
+    auto srgb = MakeNativeTextureDesc();
+    srgb.format = Graphics::ResourceFormat::Rgba8UnormSrgb;
+
+    const auto linearHandle =
+        backend->CreateTexture(linear, MakeDataView(pixels));
+    const auto srgbHandle =
+        backend->CreateTexture(srgb, MakeDataView(pixels));
+
+    EXPECT_TRUE(linearHandle.IsValid());
+    EXPECT_TRUE(srgbHandle.IsValid());
+    EXPECT_EQ(backend->GetTextureShadowBytesForTesting(linearHandle), 64u);
+    EXPECT_EQ(backend->GetTextureShadowBytesForTesting(srgbHandle), 64u);
+}
+
+TEST(GraphicsDiligentBackendAdapter, NativeSamplerRejectsInvalidFilter)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    auto desc = MakePointClampSamplerDesc();
+    desc.minFilter = static_cast<Graphics::FilterMode>(255);
+
+    EXPECT_FALSE(backend->CreateSampler(desc).IsValid());
+    EXPECT_EQ(
+        backend->GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::InvalidSamplerDesc);
+}
+
+TEST(GraphicsDiligentBackendAdapter, NativeSamplerRejectsInvalidAddressMode)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    auto desc = MakePointClampSamplerDesc();
+    desc.addressU = static_cast<Graphics::AddressMode>(255);
+
+    EXPECT_FALSE(backend->CreateSampler(desc).IsValid());
+    EXPECT_EQ(
+        backend->GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::InvalidSamplerDesc);
+}
+
+TEST(GraphicsDiligentBackendAdapter, NativeSamplerRequiresBoundServices)
+{
+    RenderBackend::DiligentNativeResourceOwner owner;
+    std::string diagnostic;
+
+    const auto serial = owner.CreateSamplerForHandle(
+        ToSamplerHandle({1u, 4001u}),
+        MakePointClampSamplerDesc(),
+        &diagnostic);
+
+    EXPECT_EQ(serial, 0u);
+    EXPECT_FALSE(diagnostic.empty());
+}
+
+TEST(GraphicsDiligentBackendAdapter, NativeSamplerQueryReportsNativeGpu)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    auto desc = MakePointClampSamplerDesc();
+    desc.debugName = "query-native-sampler";
+    const auto sampler = backend->CreateSampler(desc);
+    ASSERT_TRUE(sampler.IsValid());
+    ASSERT_TRUE(backend->MarkSamplerNativeForTesting(sampler, 88u));
+
+    const auto query = backend->QuerySamplerForTesting(sampler);
+    EXPECT_TRUE(query.valid);
+    EXPECT_EQ(query.lifecycle, Graphics::GraphicsResourceLifecycle::Ready);
+    EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::NativeGpu);
+    EXPECT_TRUE(query.nativeBacked);
+    EXPECT_TRUE(query.resident);
+    EXPECT_EQ(query.debugName, "query-native-sampler");
+}
+
+TEST(GraphicsDiligentBackendAdapter, DestroyedTextureQueryIsInvalid)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    const auto texture = backend->CreateTexture(MakeNativeTextureDesc());
+    ASSERT_TRUE(texture.IsValid());
+    backend->DestroyTexture(texture);
+
+    EXPECT_FALSE(backend->QueryTextureForTesting(texture).valid);
+}
+
+TEST(GraphicsDiligentBackendAdapter, StaleTextureQueryIsInvalid)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    const auto texture = backend->CreateTexture(MakeNativeTextureDesc());
+    ASSERT_TRUE(texture.IsValid());
+    backend->DestroyTexture(texture);
+    const auto replacement = backend->CreateTexture(MakeNativeTextureDesc());
+    ASSERT_TRUE(replacement.IsValid());
+
+    EXPECT_FALSE(backend->QueryTextureForTesting(texture).valid);
+    EXPECT_TRUE(backend->QueryTextureForTesting(replacement).valid);
+}
+
+TEST(GraphicsDiligentBackendAdapter, WrongKindTextureQueryIsInvalid)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    const auto buffer = backend->CreateBuffer(MakeBufferDesc());
+    ASSERT_TRUE(buffer.IsValid());
+    EXPECT_FALSE(
+        backend->QueryTextureForTesting(ToTextureHandle(buffer)).valid);
+}
+
+TEST(GraphicsDiligentBackendAdapter, DestroyedSamplerQueryIsInvalid)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    const auto sampler = backend->CreateSampler(MakePointClampSamplerDesc());
+    ASSERT_TRUE(sampler.IsValid());
+    backend->DestroySampler(sampler);
+
+    EXPECT_FALSE(backend->QuerySamplerForTesting(sampler).valid);
+}
+
+TEST(GraphicsDiligentBackendAdapter, StaleSamplerQueryIsInvalid)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    const auto sampler = backend->CreateSampler(MakePointClampSamplerDesc());
+    ASSERT_TRUE(sampler.IsValid());
+    backend->DestroySampler(sampler);
+    const auto replacement = backend->CreateSampler(MakePointClampSamplerDesc());
+    ASSERT_TRUE(replacement.IsValid());
+
+    EXPECT_FALSE(backend->QuerySamplerForTesting(sampler).valid);
+    EXPECT_TRUE(backend->QuerySamplerForTesting(replacement).valid);
+}
+
+TEST(GraphicsDiligentBackendAdapter, NativeShaderRejectsEmptySource)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    Graphics::ShaderDesc shader{};
+    shader.stage = Graphics::ShaderStage::Vertex;
+    shader.entryPoint = "main";
+
+    EXPECT_FALSE(backend->CreateShader(shader).IsValid());
+    EXPECT_EQ(
+        backend->GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::InvalidShaderDesc);
+}
+
+TEST(GraphicsDiligentBackendAdapter, NativeShaderRejectsMissingEntryPoint)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    auto shader = MakeNativeShaderDesc();
+    shader.entryPoint.clear();
+
+    EXPECT_FALSE(backend->CreateShader(shader).IsValid());
+    EXPECT_EQ(
+        backend->GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::InvalidShaderDesc);
+}
+
+TEST(GraphicsDiligentBackendAdapter, NativeShaderRejectsUnsupportedStage)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    auto shader = MakeNativeShaderDesc();
+    shader.stage = Graphics::ShaderStage::Compute;
+
+    EXPECT_FALSE(backend->CreateShader(shader).IsValid());
+    EXPECT_EQ(
+        backend->GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::InvalidShaderDesc);
+}
+
+TEST(GraphicsDiligentBackendAdapter, NativeShaderQueryReportsNativeGpu)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    auto shaderDesc = MakeNativeShaderDesc();
+    shaderDesc.debugName = "query-native-shader";
+    const auto shader = backend->CreateShader(shaderDesc);
+    ASSERT_TRUE(shader.IsValid());
+    ASSERT_TRUE(backend->MarkShaderNativeForTesting(shader, 99u));
+
+    const auto query = backend->QueryShaderForTesting(shader);
+    EXPECT_TRUE(query.valid);
+    EXPECT_EQ(query.lifecycle, Graphics::GraphicsResourceLifecycle::Ready);
+    EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::NativeGpu);
+    EXPECT_TRUE(query.nativeBacked);
+    EXPECT_TRUE(query.resident);
+    EXPECT_EQ(query.debugName, "query-native-shader");
+}
+
+TEST(GraphicsDiligentBackendAdapter, NativePipelineRejectsMissingVertexShader)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+    backend->BindNativeDeviceServicesForTesting(MakeFakeDeviceServices(), true);
+
+    Graphics::PipelineDesc pipeline{};
+    pipeline.fragmentShader.index = 1u;
+    pipeline.fragmentShader.generation = 1u;
+
+    EXPECT_FALSE(backend->CreatePipeline(pipeline).IsValid());
+    EXPECT_EQ(
+        backend->GetLastResourceFailure(),
+        Graphics::GraphicsResourceFailure::InvalidPipelineDesc);
+}
+
+TEST(GraphicsDiligentBackendAdapter, NativePipelineQueryReportsNativeGpu)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    Graphics::PipelineDesc desc{};
+    desc.debugName = "query-native-pipeline";
+    const auto pipeline = backend->CreatePipeline(desc);
+    ASSERT_TRUE(pipeline.IsValid());
+    ASSERT_TRUE(backend->MarkPipelineNativeForTesting(pipeline, 100u));
+
+    const auto query = backend->QueryPipelineForTesting(pipeline);
+    EXPECT_TRUE(query.valid);
+    EXPECT_EQ(query.lifecycle, Graphics::GraphicsResourceLifecycle::Ready);
+    EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::NativeGpu);
+    EXPECT_TRUE(query.nativeBacked);
+    EXPECT_TRUE(query.resident);
+    EXPECT_EQ(query.debugName, "query-native-pipeline");
+}
+
+TEST(GraphicsDiligentBackendAdapter, DestroyedPipelineCannotResolve)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    const auto pipeline = backend->CreatePipeline({});
+    ASSERT_TRUE(pipeline.IsValid());
+    ASSERT_TRUE(backend->MarkPipelineNativeForTesting(pipeline, 101u));
+    backend->DestroyPipeline(pipeline);
+
+    EXPECT_FALSE(backend->QueryPipelineForTesting(pipeline).valid);
+    EXPECT_EQ(backend->ResolveNativePipelineForTesting(pipeline), nullptr);
 }

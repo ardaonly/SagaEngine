@@ -19,6 +19,10 @@ class DiligentNativeResourceOwner;
 namespace Diligent
 {
 struct IBuffer;
+struct ITextureView;
+struct ISampler;
+struct IShader;
+struct IPipelineState;
 }
 
 namespace SagaEngine::Graphics::Backends::Diligent
@@ -399,8 +403,28 @@ public:
     [[nodiscard]] bool MarkBufferNativeForTesting(
         BufferHandle handle,
         std::uint64_t nativeSerial) noexcept;
+    [[nodiscard]] bool MarkTextureNativeForTesting(
+        TextureHandle handle,
+        std::uint64_t nativeSerial) noexcept;
+    [[nodiscard]] bool MarkSamplerNativeForTesting(
+        SamplerHandle handle,
+        std::uint64_t nativeSerial) noexcept;
+    [[nodiscard]] bool MarkShaderNativeForTesting(
+        ShaderHandle handle,
+        std::uint64_t nativeSerial) noexcept;
+    [[nodiscard]] bool MarkPipelineNativeForTesting(
+        PipelineHandle handle,
+        std::uint64_t nativeSerial) noexcept;
     [[nodiscard]] ::Diligent::IBuffer* ResolveNativeBufferForTesting(
         BufferHandle handle) const noexcept;
+    [[nodiscard]] ::Diligent::ITextureView* ResolveNativeTextureSrvForTesting(
+        TextureHandle handle) const noexcept;
+    [[nodiscard]] ::Diligent::ISampler* ResolveNativeSamplerForTesting(
+        SamplerHandle handle) const noexcept;
+    [[nodiscard]] ::Diligent::IShader* ResolveNativeShaderForTesting(
+        ShaderHandle handle) const noexcept;
+    [[nodiscard]] ::Diligent::IPipelineState* ResolveNativePipelineForTesting(
+        PipelineHandle handle) const noexcept;
 
 private:
     [[nodiscard]] RenderBackendCapabilities MakeConservativeCapabilities()
