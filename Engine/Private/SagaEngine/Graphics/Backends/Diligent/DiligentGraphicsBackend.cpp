@@ -8,6 +8,7 @@
 #include "SagaEngine/Render/Backend/Diligent/DiligentRenderBackend.h"
 
 #include <cstddef>
+#include <limits>
 #include <utility>
 
 namespace SagaEngine::Graphics::Backends::Diligent
@@ -51,9 +52,12 @@ CreateDefaultRenderBackend(const RenderBackendDesc& backend)
 [[nodiscard]] constexpr bool IsValidTextureDesc(
     const TextureDesc& desc) noexcept
 {
-    return desc.width != 0u && desc.height != 0u && desc.depth != 0u &&
-           desc.mipLevels != 0u && desc.arrayLayers != 0u &&
-           IsKnownFormat(desc.format);
+    return desc.width != 0u && desc.height != 0u && desc.depth == 1u &&
+           desc.mipLevels == 1u && desc.arrayLayers == 1u &&
+           desc.dimension == TextureDimension::Texture2D &&
+           (desc.format == ResourceFormat::Rgba8Unorm ||
+            desc.format == ResourceFormat::Rgba8UnormSrgb) &&
+           desc.usage == TextureUsageFlags::Sampled;
 }
 
 [[nodiscard]] constexpr bool IsValidBufferDesc(const BufferDesc& desc) noexcept
@@ -65,8 +69,7 @@ CreateDefaultRenderBackend(const RenderBackendDesc& backend)
 
 [[nodiscard]] constexpr bool IsValidShaderStage(ShaderStage stage) noexcept
 {
-    return stage == ShaderStage::Vertex || stage == ShaderStage::Fragment ||
-           stage == ShaderStage::Compute;
+    return stage == ShaderStage::Vertex || stage == ShaderStage::Fragment;
 }
 
 [[nodiscard]] constexpr bool IsValidShaderDesc(const ShaderDesc& desc) noexcept
@@ -173,6 +176,11 @@ CreateDefaultRenderBackend(const RenderBackendDesc& backend)
         return false;
     }
 
+    if (desc.width >
+        std::numeric_limits<std::uint64_t>::max() / bytesPerPixel)
+    {
+        return false;
+    }
     const auto rowBytes =
         static_cast<std::uint64_t>(desc.width) * bytesPerPixel;
     if (initialData.rowPitchBytes != 0u &&
@@ -185,6 +193,13 @@ CreateDefaultRenderBackend(const RenderBackendDesc& backend)
         initialData.rowPitchBytes == 0u
             ? rowBytes
             : static_cast<std::uint64_t>(initialData.rowPitchBytes);
+    if (desc.height != 0u &&
+        effectiveRowPitch >
+            std::numeric_limits<std::uint64_t>::max() /
+                static_cast<std::uint64_t>(desc.height))
+    {
+        return false;
+    }
     const auto sliceBytes =
         effectiveRowPitch * static_cast<std::uint64_t>(desc.height);
     if (initialData.slicePitchBytes != 0u &&
@@ -197,11 +212,17 @@ CreateDefaultRenderBackend(const RenderBackendDesc& backend)
         initialData.slicePitchBytes == 0u
             ? sliceBytes
             : static_cast<std::uint64_t>(initialData.slicePitchBytes);
+    if (desc.depth != 0u &&
+        effectiveSlicePitch >
+            std::numeric_limits<std::uint64_t>::max() /
+                static_cast<std::uint64_t>(desc.depth))
+    {
+        return false;
+    }
     const auto requiredBytes =
         effectiveSlicePitch * static_cast<std::uint64_t>(desc.depth);
 
-    return initialData.sizeBytes >= requiredBytes &&
-           initialData.sizeBytes <= EstimateTextureBytes(desc);
+    return initialData.sizeBytes >= requiredBytes;
 }
 
 [[nodiscard]] constexpr std::uint64_t EstimateBufferBytes(
@@ -477,11 +498,12 @@ TextureHandle DiligentGraphicsBackend::CreateTexture(
             return RecordCreateFailure<TextureHandle>(
                 GraphicsResourceFailure::InvalidTextureDesc);
         }
-        m_Textures.UpdateNativeState(
+        const bool updated = m_Textures.UpdateNativeState(
             handle,
             GraphicsResourceBacking::NativeGpu,
             {serial, false},
             GraphicsResourceLifecycle::Ready);
+        (void)updated;
     }
 
     return RecordSuccessfulCreate(handle);
@@ -540,11 +562,12 @@ BufferHandle DiligentGraphicsBackend::CreateBuffer(
             return RecordCreateFailure<BufferHandle>(
                 GraphicsResourceFailure::InvalidBufferDesc);
         }
-        m_Buffers.UpdateNativeState(
+        const bool updated = m_Buffers.UpdateNativeState(
             handle,
             GraphicsResourceBacking::NativeGpu,
             {serial, false},
             GraphicsResourceLifecycle::Ready);
+        (void)updated;
     }
 
     return RecordSuccessfulCreate(handle);
@@ -585,11 +608,12 @@ ShaderHandle DiligentGraphicsBackend::CreateShader(const ShaderDesc& desc)
             return RecordCreateFailure<ShaderHandle>(
                 GraphicsResourceFailure::InvalidShaderDesc);
         }
-        m_Shaders.UpdateNativeState(
+        const bool updated = m_Shaders.UpdateNativeState(
             handle,
             GraphicsResourceBacking::NativeGpu,
             {serial, false},
             GraphicsResourceLifecycle::Ready);
+        (void)updated;
     }
 
     return RecordSuccessfulCreate(handle);
@@ -632,11 +656,12 @@ PipelineHandle DiligentGraphicsBackend::CreatePipeline(
             return RecordCreateFailure<PipelineHandle>(
                 GraphicsResourceFailure::InvalidPipelineDesc);
         }
-        m_Pipelines.UpdateNativeState(
+        const bool updated = m_Pipelines.UpdateNativeState(
             handle,
             GraphicsResourceBacking::NativeGpu,
             {serial, false},
             GraphicsResourceLifecycle::Ready);
+        (void)updated;
     }
 
     return RecordSuccessfulCreate(handle);
@@ -680,11 +705,12 @@ SamplerHandle DiligentGraphicsBackend::CreateSampler(const SamplerDesc& desc)
             return RecordCreateFailure<SamplerHandle>(
                 GraphicsResourceFailure::InvalidSamplerDesc);
         }
-        m_Samplers.UpdateNativeState(
+        const bool updated = m_Samplers.UpdateNativeState(
             handle,
             GraphicsResourceBacking::NativeGpu,
             {serial, false},
             GraphicsResourceLifecycle::Ready);
+        (void)updated;
     }
 
     return RecordSuccessfulCreate(handle);
@@ -951,6 +977,70 @@ bool DiligentGraphicsBackend::MarkBufferNativeForTesting(
         GraphicsResourceLifecycle::Ready);
 }
 
+bool DiligentGraphicsBackend::MarkTextureNativeForTesting(
+    TextureHandle handle,
+    std::uint64_t nativeSerial) noexcept
+{
+    if (nativeSerial == 0u)
+    {
+        return false;
+    }
+
+    return m_Textures.UpdateNativeState(
+        handle,
+        GraphicsResourceBacking::NativeGpu,
+        {nativeSerial, false},
+        GraphicsResourceLifecycle::Ready);
+}
+
+bool DiligentGraphicsBackend::MarkSamplerNativeForTesting(
+    SamplerHandle handle,
+    std::uint64_t nativeSerial) noexcept
+{
+    if (nativeSerial == 0u)
+    {
+        return false;
+    }
+
+    return m_Samplers.UpdateNativeState(
+        handle,
+        GraphicsResourceBacking::NativeGpu,
+        {nativeSerial, false},
+        GraphicsResourceLifecycle::Ready);
+}
+
+bool DiligentGraphicsBackend::MarkShaderNativeForTesting(
+    ShaderHandle handle,
+    std::uint64_t nativeSerial) noexcept
+{
+    if (nativeSerial == 0u)
+    {
+        return false;
+    }
+
+    return m_Shaders.UpdateNativeState(
+        handle,
+        GraphicsResourceBacking::NativeGpu,
+        {nativeSerial, false},
+        GraphicsResourceLifecycle::Ready);
+}
+
+bool DiligentGraphicsBackend::MarkPipelineNativeForTesting(
+    PipelineHandle handle,
+    std::uint64_t nativeSerial) noexcept
+{
+    if (nativeSerial == 0u)
+    {
+        return false;
+    }
+
+    return m_Pipelines.UpdateNativeState(
+        handle,
+        GraphicsResourceBacking::NativeGpu,
+        {nativeSerial, false},
+        GraphicsResourceLifecycle::Ready);
+}
+
 ::Diligent::IBuffer* DiligentGraphicsBackend::ResolveNativeBufferForTesting(
     BufferHandle handle) const noexcept
 {
@@ -961,6 +1051,56 @@ bool DiligentGraphicsBackend::MarkBufferNativeForTesting(
     }
 
     return m_NativeOwner->ResolveBuffer(handle);
+}
+
+::Diligent::ITextureView*
+DiligentGraphicsBackend::ResolveNativeTextureSrvForTesting(
+    TextureHandle handle) const noexcept
+{
+    const auto query = m_Textures.Query(handle, GraphicsResourceKind::Texture);
+    if (!query.valid || !query.nativeBacked || !m_NativeOwner)
+    {
+        return nullptr;
+    }
+
+    return m_NativeOwner->ResolveTextureSrv(handle);
+}
+
+::Diligent::ISampler* DiligentGraphicsBackend::ResolveNativeSamplerForTesting(
+    SamplerHandle handle) const noexcept
+{
+    const auto query = m_Samplers.Query(handle, GraphicsResourceKind::Sampler);
+    if (!query.valid || !query.nativeBacked || !m_NativeOwner)
+    {
+        return nullptr;
+    }
+
+    return m_NativeOwner->ResolveSampler(handle);
+}
+
+::Diligent::IShader* DiligentGraphicsBackend::ResolveNativeShaderForTesting(
+    ShaderHandle handle) const noexcept
+{
+    const auto query = m_Shaders.Query(handle, GraphicsResourceKind::Shader);
+    if (!query.valid || !query.nativeBacked || !m_NativeOwner)
+    {
+        return nullptr;
+    }
+
+    return m_NativeOwner->ResolveShader(handle);
+}
+
+::Diligent::IPipelineState*
+DiligentGraphicsBackend::ResolveNativePipelineForTesting(
+    PipelineHandle handle) const noexcept
+{
+    const auto query = m_Pipelines.Query(handle, GraphicsResourceKind::Pipeline);
+    if (!query.valid || !query.nativeBacked || !m_NativeOwner)
+    {
+        return nullptr;
+    }
+
+    return m_NativeOwner->ResolvePipeline(handle);
 }
 
 RenderBackendCapabilities

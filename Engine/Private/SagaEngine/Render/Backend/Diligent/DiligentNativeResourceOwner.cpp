@@ -51,6 +51,8 @@ void SetDiagnostic(std::string* out, const char* message)
 
 constexpr std::uint64_t kMaxB3NativeBufferBytes =
     256ull * 1024ull * 1024ull;
+constexpr std::uint64_t kMaxM4NativeTextureBytes =
+    256ull * 1024ull * 1024ull;
 
 [[nodiscard]] Diligent::BIND_FLAGS ToBindFlags(Gfx::BufferUsage usage) noexcept
 {
@@ -241,6 +243,73 @@ constexpr std::uint64_t kMaxB3NativeBufferBytes =
     return payload;
 }
 
+[[nodiscard]] bool IsSupportedNativeTextureDesc(
+    const Gfx::TextureDesc& desc) noexcept
+{
+    if (desc.dimension != Gfx::TextureDimension::Texture2D ||
+        desc.width == 0u || desc.height == 0u || desc.depth != 1u ||
+        desc.mipLevels != 1u || desc.arrayLayers != 1u ||
+        desc.usage != Gfx::TextureUsageFlags::Sampled)
+    {
+        return false;
+    }
+
+    if (desc.format != Gfx::ResourceFormat::Rgba8Unorm &&
+        desc.format != Gfx::ResourceFormat::Rgba8UnormSrgb)
+    {
+        return false;
+    }
+
+    const auto bpp = BytesPerPixel(desc.format);
+    if (bpp == 0u ||
+        desc.width > std::numeric_limits<std::uint64_t>::max() / bpp)
+    {
+        return false;
+    }
+
+    const auto rowBytes = static_cast<std::uint64_t>(desc.width) * bpp;
+    if (desc.height >
+        std::numeric_limits<std::uint64_t>::max() / rowBytes)
+    {
+        return false;
+    }
+
+    return rowBytes * static_cast<std::uint64_t>(desc.height) <=
+           kMaxM4NativeTextureBytes;
+}
+
+[[nodiscard]] bool IsSupportedNativeTextureData(
+    const Gfx::TextureDesc& desc,
+    Gfx::GraphicsDataView initialData) noexcept
+{
+    if (!initialData.data || initialData.sizeBytes == 0u)
+    {
+        return false;
+    }
+
+    const auto bpp = BytesPerPixel(desc.format);
+    const auto rowBytes = static_cast<std::uint64_t>(desc.width) * bpp;
+    if (initialData.rowPitchBytes != 0u &&
+        static_cast<std::uint64_t>(initialData.rowPitchBytes) < rowBytes)
+    {
+        return false;
+    }
+
+    const auto srcRowPitch =
+        initialData.rowPitchBytes == 0u
+            ? rowBytes
+            : static_cast<std::uint64_t>(initialData.rowPitchBytes);
+    if (desc.height >
+        std::numeric_limits<std::uint64_t>::max() / srcRowPitch)
+    {
+        return false;
+    }
+
+    const auto requiredBytes =
+        srcRowPitch * static_cast<std::uint64_t>(desc.height);
+    return initialData.sizeBytes >= requiredBytes;
+}
+
 } // namespace
 
 struct DiligentNativeResourceOwner::Impl
@@ -264,21 +333,25 @@ struct DiligentNativeResourceOwner::Impl
     {
         Diligent::RefCntAutoPtr<Diligent::ITexture> texture;
         Diligent::RefCntAutoPtr<Diligent::ITextureView> srv;
+        Gfx::TextureDesc desc{};
     };
 
     struct SamplerPayload
     {
         Diligent::RefCntAutoPtr<Diligent::ISampler> sampler;
+        Gfx::SamplerDesc desc{};
     };
 
     struct ShaderPayload
     {
         Diligent::RefCntAutoPtr<Diligent::IShader> shader;
+        Gfx::ShaderDesc desc{};
     };
 
     struct PipelinePayload
     {
         Diligent::RefCntAutoPtr<Diligent::IPipelineState> pipeline;
+        Gfx::PipelineDesc desc{};
     };
 
     DiligentDeviceServices services{};
@@ -440,21 +513,19 @@ std::uint64_t DiligentNativeResourceOwner::CreateTextureForHandle(
         return 0u;
     }
 
-    if (desc.dimension != Gfx::TextureDimension::Texture2D ||
-        desc.depth != 1u || desc.mipLevels != 1u || desc.arrayLayers != 1u)
+    if (!IsSupportedNativeTextureDesc(desc))
     {
-        SetDiagnostic(diagnostic, "Only 2D mip0 single-slice textures are native in M4");
+        SetDiagnostic(diagnostic, "Unsupported native Saga texture descriptor");
+        return 0u;
+    }
+
+    if (!IsSupportedNativeTextureData(desc, initialData))
+    {
+        SetDiagnostic(diagnostic, "Invalid native Saga texture initial data");
         return 0u;
     }
 
     const auto format = ToTextureFormat(desc.format);
-    if (format != Diligent::TEX_FORMAT_RGBA8_UNORM &&
-        format != Diligent::TEX_FORMAT_RGBA8_UNORM_SRGB)
-    {
-        SetDiagnostic(diagnostic, "Unsupported native Saga texture format");
-        return 0u;
-    }
-
     auto payload = CopyTexturePayload(desc, initialData);
     const auto stride = static_cast<Diligent::Uint64>(desc.width) * 4u;
 
@@ -493,7 +564,8 @@ std::uint64_t DiligentNativeResourceOwner::CreateTextureForHandle(
     }
 
     const auto serial = m_Impl->nextSerial++;
-    m_Impl->textures.push_back({handle, serial, true, false, {texture, srv}});
+    m_Impl->textures.push_back(
+        {handle, serial, true, false, {texture, srv, desc}});
     return serial;
 }
 
@@ -548,7 +620,7 @@ std::uint64_t DiligentNativeResourceOwner::CreateSamplerForHandle(
     }
 
     const auto serial = m_Impl->nextSerial++;
-    m_Impl->samplers.push_back({handle, serial, true, false, {sampler}});
+    m_Impl->samplers.push_back({handle, serial, true, false, {sampler, desc}});
     return serial;
 }
 
@@ -573,8 +645,7 @@ std::uint64_t DiligentNativeResourceOwner::CreateShaderForHandle(
 
     Diligent::ShaderCreateInfo ci;
     ci.SourceLanguage = Diligent::SHADER_SOURCE_LANGUAGE_HLSL;
-    ci.Desc.UseCombinedTextureSamplers = Diligent::True;
-    ci.Desc.CombinedSamplerSuffix = "_sampler";
+    ci.Desc.UseCombinedTextureSamplers = Diligent::False;
     ci.Desc.ShaderType = shaderType;
     ci.Desc.Name = desc.debugName.empty() ? nullptr : desc.debugName.c_str();
     ci.EntryPoint = desc.entryPoint.c_str();
@@ -589,7 +660,7 @@ std::uint64_t DiligentNativeResourceOwner::CreateShaderForHandle(
     }
 
     const auto serial = m_Impl->nextSerial++;
-    m_Impl->shaders.push_back({handle, serial, true, false, {shader}});
+    m_Impl->shaders.push_back({handle, serial, true, false, {shader, desc}});
     return serial;
 }
 
@@ -604,9 +675,13 @@ std::uint64_t DiligentNativeResourceOwner::CreatePipelineForHandle(
         return 0u;
     }
 
-    auto* vs = ResolveShader(desc.vertexShader);
-    auto* ps = ResolveShader(desc.fragmentShader);
-    if (!vs || !ps)
+    const auto* vsSlot = m_Impl->Find(m_Impl->shaders, desc.vertexShader);
+    const auto* psSlot = m_Impl->Find(m_Impl->shaders, desc.fragmentShader);
+    auto* vs = vsSlot ? vsSlot->payload.shader.RawPtr() : nullptr;
+    auto* ps = psSlot ? psSlot->payload.shader.RawPtr() : nullptr;
+    if (!vs || !ps ||
+        vsSlot->payload.desc.stage != Gfx::ShaderStage::Vertex ||
+        psSlot->payload.desc.stage != Gfx::ShaderStage::Fragment)
     {
         SetDiagnostic(diagnostic, "Native pipeline requires native VS and PS handles");
         return 0u;
@@ -632,6 +707,8 @@ std::uint64_t DiligentNativeResourceOwner::CreatePipelineForHandle(
     Diligent::GraphicsPipelineStateCreateInfo ci;
     ci.PSODesc.Name = desc.debugName.empty() ? nullptr : desc.debugName.c_str();
     ci.PSODesc.PipelineType = Diligent::PIPELINE_TYPE_GRAPHICS;
+    ci.PSODesc.ResourceLayout.DefaultVariableType =
+        Diligent::SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE;
     ci.pVS = vs;
     ci.pPS = ps;
     ci.GraphicsPipeline.NumRenderTargets = desc.colorTargetCount;
@@ -676,7 +753,7 @@ std::uint64_t DiligentNativeResourceOwner::CreatePipelineForHandle(
     }
 
     const auto serial = m_Impl->nextSerial++;
-    m_Impl->pipelines.push_back({handle, serial, true, false, {pipeline}});
+    m_Impl->pipelines.push_back({handle, serial, true, false, {pipeline, desc}});
     return serial;
 }
 
