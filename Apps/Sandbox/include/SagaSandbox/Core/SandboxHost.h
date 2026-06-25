@@ -34,6 +34,7 @@ namespace SagaSandbox
 {
 
 class DebugHud;
+class SandboxImGuiOverlayAdapter;
 
 // ─── SandboxHost ──────────────────────────────────────────────────────────────
 
@@ -93,6 +94,7 @@ private:
     SandboxConfig              m_config;
     ScenarioManager            m_scenarioManager;
     std::unique_ptr<DebugHud>  m_debugHud;
+    std::unique_ptr<SandboxImGuiOverlayAdapter> m_imguiOverlayAdapter;
 
     /// GPU backend. Created in OnInit when headless == false.
     /// Null until InitRenderBackend succeeds. Scenarios may query this

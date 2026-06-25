@@ -10,6 +10,7 @@
 #include "SagaEngine/Render/World/RenderInterestWorldStreaming.h"
 #include "SagaEngine/World/WorldFacade.h"
 
+#include <array>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -846,7 +847,7 @@ TEST(PublicPrivateBoundaryTests, NormalFramePathDoesNotUseGlobalDeviceIdle)
     const auto endFrame = SliceBetween(
         text,
         "void DiligentRenderBackend::EndFrame()",
-        "// ─── ImGui rendering");
+        "// ─── Overlay rendering");
 
     ASSERT_FALSE(beginFrame.empty());
     ASSERT_FALSE(submit.empty());
@@ -855,6 +856,171 @@ TEST(PublicPrivateBoundaryTests, NormalFramePathDoesNotUseGlobalDeviceIdle)
     EXPECT_FALSE(Contains(submit, "WaitForIdle("));
     EXPECT_FALSE(Contains(endFrame, "WaitForIdle("));
     EXPECT_TRUE(Contains(text, "CaptureCurrentColorFrame"));
+}
+
+TEST(PublicPrivateBoundaryTests, DiligentRenderBackendDoesNotDependOnImGui)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto diligentDir = root / "Engine" / "Private" / "SagaEngine" /
+        "Render" / "Backend" / "Diligent";
+    const auto backendCpp = diligentDir / "DiligentRenderBackend.cpp";
+    const auto backendH = diligentDir / "DiligentRenderBackend.h";
+    const auto publicFactory = root / "Engine" / "Public" / "SagaEngine" /
+        "Render" / "Backend" / "RenderBackendFactory.h";
+
+    ASSERT_TRUE(std::filesystem::exists(backendCpp)) << backendCpp;
+    ASSERT_TRUE(std::filesystem::exists(backendH)) << backendH;
+    ASSERT_TRUE(std::filesystem::exists(publicFactory)) << publicFactory;
+
+    const std::array paths{backendCpp, backendH, publicFactory};
+    for (const auto& path : paths)
+    {
+        const auto text = ReadText(path);
+        EXPECT_FALSE(Contains(text, "imgui.h")) << RelativeToSourceRoot(path);
+        EXPECT_FALSE(Contains(text, "ImGui")) << RelativeToSourceRoot(path);
+        EXPECT_FALSE(Contains(text, "ImDraw")) << RelativeToSourceRoot(path);
+        EXPECT_FALSE(Contains(text, "ImTextureID")) << RelativeToSourceRoot(path);
+    }
+}
+
+TEST(PublicPrivateBoundaryTests, OldImGuiRenderApiSymbolsAreRemoved)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const std::array<std::string, 3> oldSymbols = {
+        std::string("InitBackend") + "ImGuiRendering",
+        std::string("RenderBackend") + "ImGuiDrawData",
+        std::string("ShutdownBackend") + "ImGuiRendering",
+    };
+
+    std::vector<std::string> offenders;
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(root))
+    {
+        if (!entry.is_regular_file() || !IsCodeFile(entry.path()))
+        {
+            continue;
+        }
+
+        const auto relative = RelativeToSourceRoot(entry.path()).generic_string();
+        if (relative == "Tests/Unit/Architecture/PublicPrivateBoundaryTests.cpp")
+        {
+            continue;
+        }
+        const auto text = ReadText(entry.path());
+        for (const auto& symbol : oldSymbols)
+        {
+            if (Contains(text, symbol))
+            {
+                offenders.push_back(relative + ": " + symbol);
+            }
+        }
+    }
+
+    EXPECT_TRUE(offenders.empty())
+        << "Old public ImGui render API symbols must stay removed. First offender: "
+        << (offenders.empty() ? "" : offenders.front());
+}
+
+TEST(PublicPrivateBoundaryTests, PublicRenderHeadersContainNoImGuiTypes)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto renderPublic =
+        root / "Engine" / "Public" / "SagaEngine" / "Render";
+    ASSERT_TRUE(std::filesystem::exists(renderPublic));
+
+    const std::array<std::string_view, 4> forbidden = {
+        "ImGui",
+        "ImDraw",
+        "ImTextureID",
+        "imgui.h",
+    };
+
+    std::vector<std::string> offenders;
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(renderPublic))
+    {
+        if (!entry.is_regular_file() || !IsCodeFile(entry.path()))
+        {
+            continue;
+        }
+
+        const auto relative = RelativeToSourceRoot(entry.path()).generic_string();
+        const auto text = ReadText(entry.path());
+        for (const auto token : forbidden)
+        {
+            if (Contains(text, token))
+            {
+                offenders.push_back(relative + ": " + std::string(token));
+            }
+        }
+    }
+
+    EXPECT_TRUE(offenders.empty())
+        << "Public render headers must not expose ImGui types. First offender: "
+        << (offenders.empty() ? "" : offenders.front());
+}
+
+TEST(PublicPrivateBoundaryTests, AllRepositoryCallsitesUseOverlayApi)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const std::array<std::string_view, 5> requiredSymbols = {
+        "InitBackendOverlayRendering",
+        "RenderBackendOverlayFrame",
+        "ShutdownBackendOverlayRendering",
+        "CreateBackendOverlayTexture",
+        "DestroyBackendOverlayTexture",
+    };
+    const auto factory = root / "Engine" / "Public" / "SagaEngine" /
+        "Render" / "Backend" / "RenderBackendFactory.h";
+    const auto factoryText = ReadText(factory);
+
+    for (const auto symbol : requiredSymbols)
+    {
+        EXPECT_TRUE(Contains(factoryText, symbol))
+            << "Missing public overlay API: " << symbol;
+    }
+
+    const auto sandboxAdapter = root / "Apps" / "Sandbox" / "src" / "UI" /
+        "SandboxImGuiOverlayAdapter.cpp";
+    ASSERT_TRUE(std::filesystem::exists(sandboxAdapter));
+    const auto sandboxText = ReadText(sandboxAdapter);
+    EXPECT_TRUE(Contains(sandboxText, "InitBackendOverlayRendering"));
+    EXPECT_TRUE(Contains(sandboxText, "RenderBackendOverlayFrame"));
+    EXPECT_TRUE(Contains(sandboxText, "CreateBackendOverlayTexture"));
+    EXPECT_TRUE(Contains(sandboxText, "DestroyBackendOverlayTexture"));
+}
+
+TEST(PublicPrivateBoundaryTests, SandboxUsesOnlyPublicOverlayApi)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto sandboxUi =
+        root / "Apps" / "Sandbox" / "include" / "SagaSandbox" / "UI";
+    const auto sandboxSrc = root / "Apps" / "Sandbox" / "src" / "UI";
+
+    std::vector<std::string> offenders;
+    for (const auto& base : {sandboxUi, sandboxSrc})
+    {
+        ASSERT_TRUE(std::filesystem::exists(base)) << base;
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(base))
+        {
+            if (!entry.is_regular_file() || !IsCodeFile(entry.path()))
+            {
+                continue;
+            }
+
+            const auto relative = RelativeToSourceRoot(entry.path()).generic_string();
+            const auto text = ReadText(entry.path());
+            if (Contains(text, "SagaEngine/Render/Backend/Diligent/") ||
+                Contains(text, "DiligentOverlayRenderer") ||
+                Contains(text, "DiligentRenderBackend"))
+            {
+                offenders.push_back(relative);
+            }
+        }
+    }
+
+    EXPECT_TRUE(offenders.empty())
+        << "Sandbox UI must reach overlay rendering only through public API. "
+        << "First offender: "
+        << (offenders.empty() ? "" : offenders.front());
 }
 
 TEST(PublicPrivateBoundaryTests, SimulationPublicDoesNotIncludeInputNetworking)

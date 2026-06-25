@@ -1,11 +1,8 @@
-/// @file DiligentImGuiShaders.inl
-/// @brief Embedded HLSL shader source for ImGui rendering through Diligent.
-///
-/// Included from DiligentRenderBackend.cpp inside an anonymous namespace.
-/// Not a standalone translation unit.
+/// @file DiligentOverlayShaders.inl
+/// @brief Embedded HLSL shader source for generic overlay rendering.
 
-static constexpr const char* kImGuiVS = R"(
-cbuffer ImGuiCB : register(b0)
+static constexpr const char* kOverlayVS = R"(
+cbuffer OverlayCB : register(b0)
 {
     float4x4 ProjectionMatrix;
 };
@@ -32,7 +29,7 @@ void main(in VS_INPUT input, out PS_INPUT output)
 }
 )";
 
-static constexpr const char* kImGuiPS = R"(
+static constexpr const char* kOverlayPS = R"(
 Texture2D    g_Texture : register(t0);
 SamplerState g_Texture_sampler : register(s0);
 

@@ -12,6 +12,7 @@
 
 #include "SagaSandbox/Core/SandboxHost.h"
 #include "SagaSandbox/UI/DebugHud.h"
+#include "SagaSandbox/UI/SandboxImGuiOverlayAdapter.h"
 #include "SagaSandbox/Core/ScenarioRegistry.h"
 #include <SagaEngine/Core/Log/Log.h>
 #include <SagaEngine/Core/Time/Time.h>
@@ -73,7 +74,7 @@ void SandboxHost::OnInit()
     m_scenarioManager.SetContext(ctx);
 
     // ── 4. Initialise ImGui (skip in headless mode) ───────────────────────────
-    // ImGui frame ticking is enabled only when the Diligent ImGui renderer is
+    // ImGui frame ticking is enabled only when the generic overlay renderer is
     // available. The context may still exist without GPU so shutdown stays
     // uniform, but no draw data is produced in GPU-less mode.
     if (!m_config.headless)
@@ -148,8 +149,8 @@ void SandboxHost::OnShutdown()
         ShutdownImGui();
     }
 
-    // Backend shuts down AFTER ImGui (ImGui may hold GPU resources in the
-    // future once the ImGui→Diligent rendering path is wired).
+    // Backend shuts down AFTER ImGui because the sandbox overlay adapter owns
+    // backend overlay textures for the ImGui font atlas.
     ShutdownRenderBackend();
 
     LOG_INFO(kTag, "SandboxHost shutdown complete.");
@@ -293,13 +294,16 @@ void SandboxHost::InitImGui()
         io.DisplaySize.y = static_cast<float>(window->GetHeight());
     }
 
-    // Initialize the Diligent-based ImGui renderer (PSO, font atlas, etc.).
+    // Initialize the generic overlay renderer and the sandbox ImGui adapter.
     m_imguiGpuReady = false;
     if (IsRenderBackendReady(m_renderBackend.get()))
     {
-        if (!RB::InitBackendImGuiRendering(*m_renderBackend))
+        m_imguiOverlayAdapter =
+            std::make_unique<SandboxImGuiOverlayAdapter>();
+        if (!m_imguiOverlayAdapter->Initialize(*m_renderBackend))
         {
             LOG_WARN(kTag, "ImGui GPU renderer init failed — HUD will be invisible.");
+            m_imguiOverlayAdapter.reset();
         }
         else
         {
@@ -313,8 +317,11 @@ void SandboxHost::InitImGui()
 
 void SandboxHost::ShutdownImGui()
 {
-    if (m_renderBackend)
-        RB::ShutdownBackendImGuiRendering(*m_renderBackend);
+    if (m_renderBackend && m_imguiOverlayAdapter)
+    {
+        m_imguiOverlayAdapter->Shutdown(*m_renderBackend);
+        m_imguiOverlayAdapter.reset();
+    }
 
     ImGui::DestroyContext();
     m_imguiReady = false;
@@ -356,10 +363,11 @@ void SandboxHost::TickImGui(float dt)
 
     ImGui::Render();
 
-    // Submit ImGui draw data to the GPU.
-    if (IsRenderBackendReady(m_renderBackend.get()))
+    // Submit ImGui draw data through the generic overlay API.
+    if (IsRenderBackendReady(m_renderBackend.get()) && m_imguiOverlayAdapter)
     {
-        RB::RenderBackendImGuiDrawData(*m_renderBackend, ImGui::GetDrawData());
+        m_imguiOverlayAdapter->Render(
+            *m_renderBackend, ImGui::GetDrawData());
     }
 }
 

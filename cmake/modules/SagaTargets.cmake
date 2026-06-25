@@ -280,8 +280,6 @@ function(saga_create_engine_targets)
     target_link_libraries(SagaDiligentBackend
         PUBLIC
             SagaEngine
-        PRIVATE
-            imgui::imgui
     )
     saga_link_diligent_backend(SagaDiligentBackend)
 

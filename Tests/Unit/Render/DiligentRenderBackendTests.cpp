@@ -174,6 +174,18 @@ TEST(DiligentBackend, ConfigCtorPropagates)
     EXPECT_EQ(backend.FrameIndex(), 0u);
 }
 
+TEST(DiligentBackend, OverlayTextureHandleRequiresIndexAndGeneration)
+{
+    EXPECT_FALSE(RenderOverlayTextureHandle{}.IsValid());
+    EXPECT_FALSE(static_cast<bool>(RenderOverlayTextureHandle{}));
+    EXPECT_FALSE((RenderOverlayTextureHandle{1u, 0u}).IsValid());
+    EXPECT_FALSE((RenderOverlayTextureHandle{0u, 1u}).IsValid());
+
+    const RenderOverlayTextureHandle valid{7u, 3u};
+    EXPECT_TRUE(valid.IsValid());
+    EXPECT_TRUE(static_cast<bool>(valid));
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 //  2. Initialize — defensive failure paths
 // ═══════════════════════════════════════════════════════════════════════
