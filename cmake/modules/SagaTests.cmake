@@ -333,6 +333,7 @@ function(saga_setup_tests)
         SagaCollaboration
         SagaAssetPipelineLib
         SagaBackend
+        SagaSandboxLib
         SagaEditorLib    # needed by Tests/Unit/Editor/* (block authoring,
                          # InspectorEditing, persona, viewport, etc.)
         GTest::gtest

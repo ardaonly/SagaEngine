@@ -129,19 +129,15 @@ public:
                 const Scene::RenderView& view) override;
     void EndFrame() override;
 
-    // ── ImGui rendering ────────────────────────────────────────
+    // ── Overlay rendering ──────────────────────────────────────
 
-    /// Create ImGui PSO, font atlas texture, and projection CB.
-    /// Call once after Initialize() succeeds. Returns false on failure.
-    [[nodiscard]] bool InitImGuiRendering();
-
-    /// Render ImGui draw data. Call between Submit() and EndFrame().
-    /// @param drawData  Raw pointer to ImDrawData (void* avoids leaking
-    ///                  imgui.h into this engine header).
-    void RenderImGuiDrawData(const void* drawData);
-
-    /// Release all ImGui GPU resources.
-    void ShutdownImGuiRendering();
+    [[nodiscard]] bool InitOverlayRendering();
+    [[nodiscard]] RenderOverlayTextureHandle CreateOverlayTexture(
+        const RenderOverlayTextureDesc& desc,
+        const std::uint8_t* rgbaPixels);
+    void DestroyOverlayTexture(RenderOverlayTextureHandle texture);
+    void RenderOverlayFrame(const RenderOverlayFrame& frame);
+    void ShutdownOverlayRendering();
 
     // ── Diagnostics ─────────────────────────────────────────────
 

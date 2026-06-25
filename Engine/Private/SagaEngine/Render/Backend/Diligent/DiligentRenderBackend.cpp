@@ -10,13 +10,14 @@
 ///   Shutdown   → release all
 
 #include "SagaEngine/Render/Backend/Diligent/DiligentRenderBackend.h"
+#include "SagaEngine/Render/Backend/Diligent/DiligentFrameCapture.h"
 #include "SagaEngine/Render/Backend/Diligent/DiligentGpuTimeline.h"
 #include "SagaEngine/Render/Backend/Diligent/DiligentNativeResourceOwner.h"
+#include "SagaEngine/Render/Backend/Diligent/DiligentOverlayRenderer.h"
+#include "SagaEngine/Render/Backend/Diligent/DiligentPipelineCache.h"
 #include "SagaEngine/Platform/IWindow.h"
 #include "SagaEngine/Render/Materials/MeshAsset.h"
 #include "SagaEngine/Render/Materials/Material.h"
-
-#include <imgui.h>
 
 #include <algorithm>
 #include <array>
@@ -125,25 +126,6 @@ struct MeshGPU
     Diligent::Uint32  indexCount   = 0;
 };
 
-struct PSOCacheKey
-{
-    std::uint8_t  cullMode    = 0;   // MaterialCullMode
-    std::uint8_t  renderQueue = 0;   // MaterialRenderQueue
-    bool          writesDepth = true;
-
-    bool operator==(const PSOCacheKey&) const = default;
-};
-
-struct PSOCacheKeyHash
-{
-    std::size_t operator()(const PSOCacheKey& k) const noexcept
-    {
-        // Simple hash — few unique keys expected.
-        return std::size_t(k.cullMode) | (std::size_t(k.renderQueue) << 8)
-             | (std::size_t(k.writesDepth) << 16);
-    }
-};
-
 struct TextureGPU
 {
     Gfx::TextureHandle texture;
@@ -159,9 +141,13 @@ struct MaterialGPU
 {
     Diligent::RefCntAutoPtr<Diligent::IPipelineState>         pso;
     Diligent::RefCntAutoPtr<Diligent::IShaderResourceBinding> srb;
+    Diligent::IShaderResourceVariable* albedoVariable = nullptr;
+    Diligent::IShaderResourceVariable* shadowVariable = nullptr;
     // Skinned variant (created on demand when first skinned draw uses this material).
     Diligent::RefCntAutoPtr<Diligent::IPipelineState>         skinnedPso;
     Diligent::RefCntAutoPtr<Diligent::IShaderResourceBinding> skinnedSrb;
+    Diligent::IShaderResourceVariable* skinnedAlbedoVariable = nullptr;
+    Diligent::IShaderResourceVariable* skinnedShadowVariable = nullptr;
     MaterialRenderQueue renderQueue = MaterialRenderQueue::Opaque;
     MaterialCullMode    cullMode   = MaterialCullMode::Back;
     OpaqueShadingModel  shadingModel = OpaqueShadingModel::Unlit;
@@ -256,22 +242,11 @@ struct DiligentRenderBackend::Impl
     RenderFrameDiagnostics currentFrameDiagnostics{};
     RenderFrameDiagnostics lastFrameDiagnostics{};
 
-    Diligent::RefCntAutoPtr<Diligent::ITexture> captureStagingTexture;
+    DiligentFrameCapture frameCapture;
+    DiligentOverlayRenderer overlayRenderer;
 
     DirectionalShadowSettings shadowSettings{};
     ShadowResources           shadow{};
-
-    // ── ImGui rendering resources ───────────────────────────────────
-    Diligent::RefCntAutoPtr<Diligent::IPipelineState>        imguiPSO;
-    Diligent::RefCntAutoPtr<Diligent::IShaderResourceBinding> imguiSRB;
-    Diligent::RefCntAutoPtr<Diligent::IBuffer>               imguiCB;       // projection matrix
-    Diligent::RefCntAutoPtr<Diligent::IBuffer>               imguiVB;
-    Diligent::RefCntAutoPtr<Diligent::IBuffer>               imguiIB;
-    Diligent::RefCntAutoPtr<Diligent::ITextureView>          imguiFontSRV;
-    Diligent::RefCntAutoPtr<Diligent::ITexture>              imguiFontTex;
-    std::uint32_t imguiVBSize = 0;   // current VB capacity in bytes
-    std::uint32_t imguiIBSize = 0;   // current IB capacity in bytes
-    bool          imguiReady  = false;
 };
 
 // ─── Small logging helpers ───────────────────────────────────────────
@@ -298,62 +273,6 @@ void LogDbg(const char* msg)
     if (!g_verboseGPU) return;
     std::fprintf(stdout, "[DiligentBackend][dbg] %s\n", msg);
     std::fflush(stdout);
-}
-
-bool IsCaptureFormatSupported(Diligent::TEXTURE_FORMAT format) noexcept
-{
-    using namespace Diligent;
-    switch (format)
-    {
-        case TEX_FORMAT_RGBA8_UNORM:
-        case TEX_FORMAT_RGBA8_UNORM_SRGB:
-        case TEX_FORMAT_BGRA8_UNORM:
-        case TEX_FORMAT_BGRA8_UNORM_SRGB:
-            return true;
-        default:
-            return false;
-    }
-}
-
-void CopyMappedTextureToRGBA8(const Diligent::MappedTextureSubresource& mapped,
-                              Diligent::TEXTURE_FORMAT                  sourceFormat,
-                              std::uint32_t                             width,
-                              std::uint32_t                             height,
-                              std::vector<std::uint8_t>&                outPixels)
-{
-    outPixels.assign(static_cast<std::size_t>(width) * height * 4u, 0u);
-
-    const auto* srcBase = static_cast<const std::uint8_t*>(mapped.pData);
-    const bool  sourceIsBGRA =
-        sourceFormat == Diligent::TEX_FORMAT_BGRA8_UNORM ||
-        sourceFormat == Diligent::TEX_FORMAT_BGRA8_UNORM_SRGB;
-
-    for (std::uint32_t y = 0; y < height; ++y)
-    {
-        const auto* src = srcBase + static_cast<std::size_t>(mapped.Stride) * y;
-        auto* dst = outPixels.data() +
-            static_cast<std::size_t>(width) * y * 4u;
-
-        for (std::uint32_t x = 0; x < width; ++x)
-        {
-            const auto* px = src + static_cast<std::size_t>(x) * 4u;
-            auto* out = dst + static_cast<std::size_t>(x) * 4u;
-            if (sourceIsBGRA)
-            {
-                out[0] = px[2];
-                out[1] = px[1];
-                out[2] = px[0];
-                out[3] = px[3];
-            }
-            else
-            {
-                out[0] = px[0];
-                out[1] = px[1];
-                out[2] = px[2];
-                out[3] = px[3];
-            }
-        }
-    }
 }
 
 struct NormalMatrixRows
@@ -461,10 +380,6 @@ bool ComputeNormalMatrixRows(const ::SagaEngine::Math::Mat4& model,
 // ─── Embedded HLSL shader source ─────────────────────────────────────
 
 #include "DiligentShaders.inl"
-
-// ─── Embedded HLSL for ImGui overlay ────────────────────────────────
-
-#include "DiligentImGuiShaders.inl"
 
 } // anonymous namespace
 
@@ -662,7 +577,7 @@ void DiligentRenderBackend::Shutdown()
 {
     if (!m_Impl || !m_Impl->initialized) return;
 
-    ShutdownImGuiRendering();
+    ShutdownOverlayRendering();
 
     m_Impl->gpuTimeline.ShutdownAndDrain();
     m_Impl->nativeResources.RetireCompleted(
@@ -672,7 +587,7 @@ void DiligentRenderBackend::Shutdown()
     m_Impl->psoCache.clear();
     m_Impl->skinnedPsoCache.clear();
     m_Impl->textureCache.clear();
-    m_Impl->captureStagingTexture.Release();
+    m_Impl->frameCapture.Reset();
     m_Impl->shadow.depthPSO.Release();
     m_Impl->shadow.depthVS.Release();
     m_Impl->shadow.dsv.Release();
@@ -705,283 +620,42 @@ void DiligentRenderBackend::OnResize(std::uint32_t width, std::uint32_t height)
 {
     if (!m_Impl->initialized || !m_Impl->swapChain) return;
     if (width == 0 || height == 0) return;
-    m_Impl->captureStagingTexture.Release();
+    m_Impl->frameCapture.Reset();
+    const auto oldFrameSlotCount =
+        static_cast<std::uint32_t>(m_Impl->frameSlotSerials.size());
     m_Impl->swapChain->Resize(width, height);
+
+    const auto& scDesc = m_Impl->swapChain->GetDesc();
+    const auto newFrameSlotCount =
+        scDesc.BufferCount == 0u ? 3u : scDesc.BufferCount;
+    if (newFrameSlotCount == oldFrameSlotCount)
+    {
+        return;
+    }
+
+    std::uint64_t latestSlotSerial = 0u;
+    for (const auto serial : m_Impl->frameSlotSerials)
+    {
+        latestSlotSerial = std::max(latestSlotSerial, serial);
+    }
+    if (latestSlotSerial != 0u)
+    {
+        m_Impl->gpuTimeline.WaitForSerial(latestSlotSerial);
+        m_Impl->nativeResources.RetireCompleted(
+            m_Impl->gpuTimeline.LastCompletedSerial());
+    }
+
+    m_Impl->frameSlotSerials.assign(newFrameSlotCount, 0u);
+    if (m_Impl->activeFrameSlot >= newFrameSlotCount)
+    {
+        m_Impl->activeFrameSlot = 0u;
+    }
+    if (m_Impl->overlayRenderer.IsReady())
+    {
+        (void)m_Impl->overlayRenderer.ReconfigureFrameSlots(
+            newFrameSlotCount);
+    }
 }
-
-// ─── PSO helper (private to this TU) ────────────────────────────────
-
-namespace
-{
-
-/// Creates or retrieves a cached PSO for the given key.
-/// Takes raw Diligent pointers to avoid referencing the private Impl type
-/// from the anonymous namespace (same fix as Phase 2 triangle helpers).
-Diligent::RefCntAutoPtr<Diligent::IPipelineState> FindOrCreatePSO(
-    std::unordered_map<PSOCacheKey, Diligent::RefCntAutoPtr<Diligent::IPipelineState>, PSOCacheKeyHash>& cache,
-    Diligent::IRenderDevice&  device,
-    Diligent::ISwapChain&     swapChain,
-    Diligent::IShader*        solidVS,
-    Diligent::IShader*        solidPS,
-    Diligent::IBuffer*        cameraCB,
-    const PSOCacheKey&        key)
-{
-    auto it = cache.find(key);
-    if (it != cache.end())
-        return it->second;
-
-    using namespace Diligent;
-
-    GraphicsPipelineStateCreateInfo psoCI;
-    psoCI.PSODesc.Name         = "SolidPSO";
-    psoCI.PSODesc.PipelineType = PIPELINE_TYPE_GRAPHICS;
-    psoCI.pVS                  = solidVS;
-    psoCI.pPS                  = solidPS;
-
-    const auto& scDesc = swapChain.GetDesc();
-    psoCI.GraphicsPipeline.NumRenderTargets  = 1;
-    psoCI.GraphicsPipeline.RTVFormats[0]     = scDesc.ColorBufferFormat;
-    psoCI.GraphicsPipeline.DSVFormat         = scDesc.DepthBufferFormat;
-    psoCI.GraphicsPipeline.PrimitiveTopology = PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-
-    // Depth
-    psoCI.GraphicsPipeline.DepthStencilDesc.DepthEnable      = True;
-    psoCI.GraphicsPipeline.DepthStencilDesc.DepthWriteEnable  = key.writesDepth ? True : False;
-
-    // Cull — CCW front face (standard 3D convention; matches glTF, OBJ, FBX).
-    psoCI.GraphicsPipeline.RasterizerDesc.FrontCounterClockwise = True;
-    switch (static_cast<MaterialCullMode>(key.cullMode))
-    {
-        case MaterialCullMode::Back:  psoCI.GraphicsPipeline.RasterizerDesc.CullMode = CULL_MODE_BACK;  break;
-        case MaterialCullMode::Front: psoCI.GraphicsPipeline.RasterizerDesc.CullMode = CULL_MODE_FRONT; break;
-        case MaterialCullMode::None:  psoCI.GraphicsPipeline.RasterizerDesc.CullMode = CULL_MODE_NONE;  break;
-    }
-
-    // Input layout matching MeshVertex (76 bytes):
-    //   pos(3f) normal(3f) tangent(3f) handedness(1f) uv0(2f) uv1(2f)
-    //   boneIndices(4u8) boneWeights(4f)
-    LayoutElement layoutElems[] =
-    {
-        {0, 0, 3, VT_FLOAT32, False},  // Pos
-        {1, 0, 3, VT_FLOAT32, False},  // Normal
-        {2, 0, 3, VT_FLOAT32, False},  // Tangent
-        {3, 0, 1, VT_FLOAT32, False},  // Handedness
-        {4, 0, 2, VT_FLOAT32, False},  // UV0
-        {5, 0, 2, VT_FLOAT32, False},  // UV1
-        {6, 0, 4, VT_UINT8,   False},  // BoneIndices
-        {7, 0, 4, VT_FLOAT32, False},  // BoneWeights
-    };
-    psoCI.GraphicsPipeline.InputLayout.NumElements    = 8;
-    psoCI.GraphicsPipeline.InputLayout.LayoutElements  = layoutElems;
-
-    // Texture/sampler resource layout: dynamic textures change per material/frame.
-    ShaderResourceVariableDesc vars[] =
-    {
-        { SHADER_TYPE_PIXEL, "g_Albedo", SHADER_RESOURCE_VARIABLE_TYPE_DYNAMIC },
-        { SHADER_TYPE_PIXEL, "g_ShadowMap", SHADER_RESOURCE_VARIABLE_TYPE_DYNAMIC },
-    };
-    psoCI.PSODesc.ResourceLayout.Variables    = vars;
-    psoCI.PSODesc.ResourceLayout.NumVariables = 2;
-
-    SamplerDesc sceneSamplerDesc;
-    sceneSamplerDesc.MinFilter = FILTER_TYPE_LINEAR;
-    sceneSamplerDesc.MagFilter = FILTER_TYPE_LINEAR;
-    sceneSamplerDesc.MipFilter = FILTER_TYPE_LINEAR;
-    sceneSamplerDesc.AddressU  = TEXTURE_ADDRESS_WRAP;
-    sceneSamplerDesc.AddressV  = TEXTURE_ADDRESS_WRAP;
-    sceneSamplerDesc.AddressW  = TEXTURE_ADDRESS_WRAP;
-
-    SamplerDesc shadowSamplerDesc;
-    shadowSamplerDesc.MinFilter = FILTER_TYPE_POINT;
-    shadowSamplerDesc.MagFilter = FILTER_TYPE_POINT;
-    shadowSamplerDesc.MipFilter = FILTER_TYPE_POINT;
-    shadowSamplerDesc.AddressU  = TEXTURE_ADDRESS_CLAMP;
-    shadowSamplerDesc.AddressV  = TEXTURE_ADDRESS_CLAMP;
-    shadowSamplerDesc.AddressW  = TEXTURE_ADDRESS_CLAMP;
-
-    ImmutableSamplerDesc samplers[] =
-    {
-        { SHADER_TYPE_PIXEL, "g_Albedo", sceneSamplerDesc },
-        { SHADER_TYPE_PIXEL, "g_ShadowMap", shadowSamplerDesc },
-    };
-    psoCI.PSODesc.ResourceLayout.ImmutableSamplers    = samplers;
-    psoCI.PSODesc.ResourceLayout.NumImmutableSamplers = 2;
-
-    RefCntAutoPtr<IPipelineState> pso;
-    device.CreateGraphicsPipelineState(psoCI, &pso);
-    if (!pso)
-    {
-        LogErr("Failed to create PSO");
-        return {};
-    }
-
-    // Bind CameraCB as a static variable on VS and PS.
-    if (auto* var = pso->GetStaticVariableByName(SHADER_TYPE_VERTEX, "CameraCB"))
-        var->Set(cameraCB);
-    if (auto* var = pso->GetStaticVariableByName(SHADER_TYPE_PIXEL, "CameraCB"))
-        var->Set(cameraCB);
-
-    cache[key] = pso;
-    return pso;
-}
-
-/// Same as FindOrCreatePSO but uses the skinned VS and binds BoneCB.
-Diligent::RefCntAutoPtr<Diligent::IPipelineState> FindOrCreateSkinnedPSO(
-    std::unordered_map<PSOCacheKey, Diligent::RefCntAutoPtr<Diligent::IPipelineState>, PSOCacheKeyHash>& cache,
-    Diligent::IRenderDevice&  device,
-    Diligent::ISwapChain&     swapChain,
-    Diligent::IShader*        skinnedVS,
-    Diligent::IShader*        solidPS,
-    Diligent::IBuffer*        cameraCB,
-    Diligent::IBuffer*        boneCB,
-    const PSOCacheKey&        key)
-{
-    auto it = cache.find(key);
-    if (it != cache.end())
-        return it->second;
-
-    using namespace Diligent;
-
-    GraphicsPipelineStateCreateInfo psoCI;
-    psoCI.PSODesc.Name         = "SkinnedPSO";
-    psoCI.PSODesc.PipelineType = PIPELINE_TYPE_GRAPHICS;
-    psoCI.pVS                  = skinnedVS;
-    psoCI.pPS                  = solidPS;
-
-    const auto& scDesc = swapChain.GetDesc();
-    psoCI.GraphicsPipeline.NumRenderTargets  = 1;
-    psoCI.GraphicsPipeline.RTVFormats[0]     = scDesc.ColorBufferFormat;
-    psoCI.GraphicsPipeline.DSVFormat         = scDesc.DepthBufferFormat;
-    psoCI.GraphicsPipeline.PrimitiveTopology = PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-
-    psoCI.GraphicsPipeline.DepthStencilDesc.DepthEnable      = True;
-    psoCI.GraphicsPipeline.DepthStencilDesc.DepthWriteEnable  = key.writesDepth ? True : False;
-
-    psoCI.GraphicsPipeline.RasterizerDesc.FrontCounterClockwise = True;
-    switch (static_cast<MaterialCullMode>(key.cullMode))
-    {
-        case MaterialCullMode::Back:  psoCI.GraphicsPipeline.RasterizerDesc.CullMode = CULL_MODE_BACK;  break;
-        case MaterialCullMode::Front: psoCI.GraphicsPipeline.RasterizerDesc.CullMode = CULL_MODE_FRONT; break;
-        case MaterialCullMode::None:  psoCI.GraphicsPipeline.RasterizerDesc.CullMode = CULL_MODE_NONE;  break;
-    }
-
-    LayoutElement layoutElems[] =
-    {
-        {0, 0, 3, VT_FLOAT32, False},  // Pos
-        {1, 0, 3, VT_FLOAT32, False},  // Normal
-        {2, 0, 3, VT_FLOAT32, False},  // Tangent
-        {3, 0, 1, VT_FLOAT32, False},  // Handedness
-        {4, 0, 2, VT_FLOAT32, False},  // UV0
-        {5, 0, 2, VT_FLOAT32, False},  // UV1
-        {6, 0, 4, VT_UINT8,   False},  // BoneIndices
-        {7, 0, 4, VT_FLOAT32, False},  // BoneWeights
-    };
-    psoCI.GraphicsPipeline.InputLayout.NumElements    = 8;
-    psoCI.GraphicsPipeline.InputLayout.LayoutElements  = layoutElems;
-
-    ShaderResourceVariableDesc vars[] =
-    {
-        { SHADER_TYPE_PIXEL, "g_Albedo", SHADER_RESOURCE_VARIABLE_TYPE_DYNAMIC },
-        { SHADER_TYPE_PIXEL, "g_ShadowMap", SHADER_RESOURCE_VARIABLE_TYPE_DYNAMIC },
-    };
-    psoCI.PSODesc.ResourceLayout.Variables    = vars;
-    psoCI.PSODesc.ResourceLayout.NumVariables = 2;
-
-    SamplerDesc sceneSamplerDesc;
-    sceneSamplerDesc.MinFilter = FILTER_TYPE_LINEAR;
-    sceneSamplerDesc.MagFilter = FILTER_TYPE_LINEAR;
-    sceneSamplerDesc.MipFilter = FILTER_TYPE_LINEAR;
-    sceneSamplerDesc.AddressU  = TEXTURE_ADDRESS_WRAP;
-    sceneSamplerDesc.AddressV  = TEXTURE_ADDRESS_WRAP;
-    sceneSamplerDesc.AddressW  = TEXTURE_ADDRESS_WRAP;
-
-    SamplerDesc shadowSamplerDesc;
-    shadowSamplerDesc.MinFilter = FILTER_TYPE_POINT;
-    shadowSamplerDesc.MagFilter = FILTER_TYPE_POINT;
-    shadowSamplerDesc.MipFilter = FILTER_TYPE_POINT;
-    shadowSamplerDesc.AddressU  = TEXTURE_ADDRESS_CLAMP;
-    shadowSamplerDesc.AddressV  = TEXTURE_ADDRESS_CLAMP;
-    shadowSamplerDesc.AddressW  = TEXTURE_ADDRESS_CLAMP;
-
-    ImmutableSamplerDesc samplers[] =
-    {
-        { SHADER_TYPE_PIXEL, "g_Albedo", sceneSamplerDesc },
-        { SHADER_TYPE_PIXEL, "g_ShadowMap", shadowSamplerDesc },
-    };
-    psoCI.PSODesc.ResourceLayout.ImmutableSamplers    = samplers;
-    psoCI.PSODesc.ResourceLayout.NumImmutableSamplers = 2;
-
-    RefCntAutoPtr<IPipelineState> pso;
-    device.CreateGraphicsPipelineState(psoCI, &pso);
-    if (!pso)
-    {
-        LogErr("Failed to create skinned PSO");
-        return {};
-    }
-
-    // Bind CameraCB and BoneCB as static variables.
-    if (auto* var = pso->GetStaticVariableByName(SHADER_TYPE_VERTEX, "CameraCB"))
-        var->Set(cameraCB);
-    if (auto* var = pso->GetStaticVariableByName(SHADER_TYPE_PIXEL, "CameraCB"))
-        var->Set(cameraCB);
-    if (auto* var = pso->GetStaticVariableByName(SHADER_TYPE_VERTEX, "BoneCB"))
-        var->Set(boneCB);
-
-    cache[key] = pso;
-    return pso;
-}
-
-Diligent::RefCntAutoPtr<Diligent::IPipelineState> CreateShadowDepthPSO(
-    Diligent::IRenderDevice&  device,
-    Diligent::IShader*        shadowVS,
-    Diligent::IBuffer*        cameraCB,
-    Diligent::TEXTURE_FORMAT  depthFormat)
-{
-    using namespace Diligent;
-
-    GraphicsPipelineStateCreateInfo psoCI;
-    psoCI.PSODesc.Name         = "DirectionalShadowDepthPSO";
-    psoCI.PSODesc.PipelineType = PIPELINE_TYPE_GRAPHICS;
-    psoCI.pVS                  = shadowVS;
-    psoCI.pPS                  = nullptr;
-
-    psoCI.GraphicsPipeline.NumRenderTargets  = 0;
-    psoCI.GraphicsPipeline.DSVFormat         = depthFormat;
-    psoCI.GraphicsPipeline.PrimitiveTopology = PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    psoCI.GraphicsPipeline.DepthStencilDesc.DepthEnable      = True;
-    psoCI.GraphicsPipeline.DepthStencilDesc.DepthWriteEnable = True;
-    psoCI.GraphicsPipeline.RasterizerDesc.FrontCounterClockwise = True;
-    psoCI.GraphicsPipeline.RasterizerDesc.CullMode = CULL_MODE_BACK;
-
-    LayoutElement layoutElems[] =
-    {
-        {0, 0, 3, VT_FLOAT32, False},
-        {1, 0, 3, VT_FLOAT32, False},
-        {2, 0, 3, VT_FLOAT32, False},
-        {3, 0, 1, VT_FLOAT32, False},
-        {4, 0, 2, VT_FLOAT32, False},
-        {5, 0, 2, VT_FLOAT32, False},
-        {6, 0, 4, VT_UINT8,   False},
-        {7, 0, 4, VT_FLOAT32, False},
-    };
-    psoCI.GraphicsPipeline.InputLayout.NumElements   = 8;
-    psoCI.GraphicsPipeline.InputLayout.LayoutElements = layoutElems;
-
-    RefCntAutoPtr<IPipelineState> pso;
-    device.CreateGraphicsPipelineState(psoCI, &pso);
-    if (!pso)
-    {
-        LogErr("Failed to create directional shadow depth PSO");
-        return {};
-    }
-
-    if (auto* var = pso->GetStaticVariableByName(SHADER_TYPE_VERTEX, "CameraCB"))
-        var->Set(cameraCB);
-
-    return pso;
-}
-
-} // anonymous namespace
 
 // ─── Resource upload ─────────────────────────────────────────────────
 
@@ -1084,6 +758,10 @@ World::MaterialId DiligentRenderBackend::CreateMaterial(const MaterialRuntime& r
         LogErr("CreateMaterial: SRB creation failed");
         return World::MaterialId::kInvalid;
     }
+    gpu.albedoVariable = gpu.srb->GetVariableByName(
+        SHADER_TYPE_PIXEL, "g_Albedo");
+    gpu.shadowVariable = gpu.srb->GetVariableByName(
+        SHADER_TYPE_PIXEL, "g_ShadowMap");
 
     auto id = static_cast<World::MaterialId>(m_Impl->nextMaterialId++);
     m_Impl->materialCache[id] = std::move(gpu);
@@ -1615,23 +1293,40 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
                     m_Impl->cameraCB, m_Impl->boneCB, key);
 
                 if (mat.skinnedPso)
+                {
                     mat.skinnedPso->CreateShaderResourceBinding(&mat.skinnedSrb, true);
+                    if (mat.skinnedSrb)
+                    {
+                        mat.skinnedAlbedoVariable =
+                            mat.skinnedSrb->GetVariableByName(
+                                Diligent::SHADER_TYPE_PIXEL, "g_Albedo");
+                        mat.skinnedShadowVariable =
+                            mat.skinnedSrb->GetVariableByName(
+                                Diligent::SHADER_TYPE_PIXEL, "g_ShadowMap");
+                    }
+                }
             }
         }
 
         // Choose PSO and SRB based on skinning.
         Diligent::IPipelineState*         activePso = nullptr;
         Diligent::IShaderResourceBinding* activeSrb = nullptr;
+        Diligent::IShaderResourceVariable* albedoVariable = nullptr;
+        Diligent::IShaderResourceVariable* shadowVariable = nullptr;
 
         if (isSkinned && mat.skinnedPso && mat.skinnedSrb)
         {
             activePso = mat.skinnedPso.RawPtr();
             activeSrb = mat.skinnedSrb.RawPtr();
+            albedoVariable = mat.skinnedAlbedoVariable;
+            shadowVariable = mat.skinnedShadowVariable;
         }
         else
         {
             activePso = mat.pso.RawPtr();
             activeSrb = mat.srb.RawPtr();
+            albedoVariable = mat.albedoVariable;
+            shadowVariable = mat.shadowVariable;
         }
 
         // Bind albedo texture SRV on the active SRB.
@@ -1664,18 +1359,17 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
                 }
             }
 
-            if (texSRV)
+            if (texSRV && albedoVariable)
             {
-                if (auto* var = activeSrb->GetVariableByName(Diligent::SHADER_TYPE_PIXEL, "g_Albedo"))
-                    var->Set(texSRV);
+                albedoVariable->Set(texSRV);
             }
 
-            if (auto* var = activeSrb->GetVariableByName(Diligent::SHADER_TYPE_PIXEL, "g_ShadowMap"))
+            if (shadowVariable)
             {
                 if (m_Impl->shadow.srv)
-                    var->Set(m_Impl->shadow.srv);
+                    shadowVariable->Set(m_Impl->shadow.srv);
                 else if (texSRV)
-                    var->Set(texSRV);
+                    shadowVariable->Set(texSRV);
             }
         }
 
@@ -1802,459 +1496,64 @@ void DiligentRenderBackend::EndFrame()
     }
 }
 
-// ─── ImGui rendering ─────────────────────────────────────────────────
+// ─── Overlay rendering ───────────────────────────────────────────────
 
-bool DiligentRenderBackend::InitImGuiRendering()
+bool DiligentRenderBackend::InitOverlayRendering()
 {
     if (!m_Impl || !m_Impl->initialized) return false;
-    if (m_Impl->imguiReady) return true;
-
-    using namespace Diligent;
-
-    auto& dev = *m_Impl->device;
-    auto& sc  = *m_Impl->swapChain;
-
-    // ── Compile ImGui shaders ────────────────────────────────────────
-    RefCntAutoPtr<IShader> vsShader, psShader;
-    {
-        ShaderCreateInfo ci;
-        ci.SourceLanguage = SHADER_SOURCE_LANGUAGE_HLSL;
-        ci.Desc.UseCombinedTextureSamplers = True;
-        ci.Desc.CombinedSamplerSuffix      = "_sampler";
-
-        ci.Desc.ShaderType = SHADER_TYPE_VERTEX;
-        ci.Desc.Name       = "ImGui VS";
-        ci.EntryPoint      = "main";
-        ci.Source           = kImGuiVS;
-        dev.CreateShader(ci, &vsShader);
-
-        ci.Desc.ShaderType = SHADER_TYPE_PIXEL;
-        ci.Desc.Name       = "ImGui PS";
-        ci.Source           = kImGuiPS;
-        dev.CreateShader(ci, &psShader);
-
-        if (!vsShader || !psShader)
-        {
-            LogErr("ImGui: failed to compile shaders");
-            return false;
-        }
-    }
-
-    // ── Create PSO ───────────────────────────────────────────────────
-    {
-        GraphicsPipelineStateCreateInfo psoCI;
-        psoCI.PSODesc.Name         = "ImGuiPSO";
-        psoCI.PSODesc.PipelineType = PIPELINE_TYPE_GRAPHICS;
-        psoCI.pVS                  = vsShader;
-        psoCI.pPS                  = psShader;
-
-        const auto& scDesc = sc.GetDesc();
-        psoCI.GraphicsPipeline.NumRenderTargets  = 1;
-        psoCI.GraphicsPipeline.RTVFormats[0]     = scDesc.ColorBufferFormat;
-        psoCI.GraphicsPipeline.DSVFormat         = scDesc.DepthBufferFormat;
-        psoCI.GraphicsPipeline.PrimitiveTopology = PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-
-        // No depth test/write for UI overlay.
-        psoCI.GraphicsPipeline.DepthStencilDesc.DepthEnable     = False;
-        psoCI.GraphicsPipeline.DepthStencilDesc.DepthWriteEnable = False;
-
-        // No culling.
-        psoCI.GraphicsPipeline.RasterizerDesc.CullMode      = CULL_MODE_NONE;
-        psoCI.GraphicsPipeline.RasterizerDesc.ScissorEnable  = True;
-
-        // Alpha blending: SrcAlpha * Src + (1 - SrcAlpha) * Dst.
-        auto& rt0 = psoCI.GraphicsPipeline.BlendDesc.RenderTargets[0];
-        rt0.BlendEnable   = True;
-        rt0.SrcBlend      = BLEND_FACTOR_SRC_ALPHA;
-        rt0.DestBlend     = BLEND_FACTOR_INV_SRC_ALPHA;
-        rt0.BlendOp       = BLEND_OPERATION_ADD;
-        rt0.SrcBlendAlpha = BLEND_FACTOR_ONE;
-        rt0.DestBlendAlpha = BLEND_FACTOR_INV_SRC_ALPHA;
-        rt0.BlendOpAlpha  = BLEND_OPERATION_ADD;
-        rt0.RenderTargetWriteMask = COLOR_MASK_ALL;
-
-        // Input layout matching ImDrawVert (20 bytes):
-        //   pos(float2, 0) uv(float2, 8) col(uint8x4_norm, 16)
-        LayoutElement layoutElems[] =
-        {
-            { 0, 0, 2, VT_FLOAT32, False },       // ATTRIB0: pos
-            { 1, 0, 2, VT_FLOAT32, False },       // ATTRIB1: uv
-            { 2, 0, 4, VT_UINT8,   True  },       // ATTRIB2: col (normalized)
-        };
-        psoCI.GraphicsPipeline.InputLayout.NumElements   = 3;
-        psoCI.GraphicsPipeline.InputLayout.LayoutElements = layoutElems;
-
-        // Shader resource layout: one texture + sampler in pixel shader.
-        ShaderResourceVariableDesc vars[] =
-        {
-            { SHADER_TYPE_PIXEL, "g_Texture", SHADER_RESOURCE_VARIABLE_TYPE_DYNAMIC },
-        };
-        psoCI.PSODesc.ResourceLayout.Variables    = vars;
-        psoCI.PSODesc.ResourceLayout.NumVariables = 1;
-
-        // Default SamplerDesc is LINEAR + CLAMP — exactly what ImGui needs.
-        SamplerDesc imguiSamplerDesc;
-        imguiSamplerDesc.MinFilter = FILTER_TYPE_LINEAR;
-        imguiSamplerDesc.MagFilter = FILTER_TYPE_LINEAR;
-        imguiSamplerDesc.MipFilter = FILTER_TYPE_LINEAR;
-        imguiSamplerDesc.AddressU  = TEXTURE_ADDRESS_CLAMP;
-        imguiSamplerDesc.AddressV  = TEXTURE_ADDRESS_CLAMP;
-        imguiSamplerDesc.AddressW  = TEXTURE_ADDRESS_CLAMP;
-
-        ImmutableSamplerDesc samplers[] =
-        {
-            { SHADER_TYPE_PIXEL, "g_Texture", imguiSamplerDesc },
-        };
-        psoCI.PSODesc.ResourceLayout.ImmutableSamplers    = samplers;
-        psoCI.PSODesc.ResourceLayout.NumImmutableSamplers = 1;
-
-        dev.CreateGraphicsPipelineState(psoCI, &m_Impl->imguiPSO);
-        if (!m_Impl->imguiPSO)
-        {
-            LogErr("ImGui: failed to create PSO");
-            return false;
-        }
-    }
-
-    // ── Create projection constant buffer ────────────────────────────
-    {
-        BufferDesc cbDesc;
-        cbDesc.Name           = "ImGuiCB";
-        cbDesc.Size           = sizeof(float) * 16;
-        cbDesc.Usage          = USAGE_DYNAMIC;
-        cbDesc.BindFlags      = BIND_UNIFORM_BUFFER;
-        cbDesc.CPUAccessFlags = CPU_ACCESS_WRITE;
-        dev.CreateBuffer(cbDesc, nullptr, &m_Impl->imguiCB);
-        if (!m_Impl->imguiCB)
-        {
-            LogErr("ImGui: failed to create CB");
-            return false;
-        }
-
-        if (auto* var = m_Impl->imguiPSO->GetStaticVariableByName(SHADER_TYPE_VERTEX, "ImGuiCB"))
-            var->Set(m_Impl->imguiCB);
-    }
-
-    // ── Create font atlas texture ────────────────────────────────────
-    {
-        ImGuiIO& io = ImGui::GetIO();
-        unsigned char* pixels = nullptr;
-        int width = 0, height = 0;
-        io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
-
-        TextureDesc texDesc;
-        texDesc.Name      = "ImGui Font Atlas";
-        texDesc.Type      = RESOURCE_DIM_TEX_2D;
-        texDesc.Width     = static_cast<Uint32>(width);
-        texDesc.Height    = static_cast<Uint32>(height);
-        texDesc.Format    = TEX_FORMAT_RGBA8_UNORM;
-        texDesc.BindFlags = BIND_SHADER_RESOURCE;
-        texDesc.Usage     = USAGE_IMMUTABLE;
-        texDesc.MipLevels = 1;
-
-        TextureSubResData subRes;
-        subRes.pData  = pixels;
-        subRes.Stride = static_cast<Uint64>(width) * 4;
-
-        TextureData texData;
-        texData.pSubResources   = &subRes;
-        texData.NumSubresources = 1;
-
-        dev.CreateTexture(texDesc, &texData, &m_Impl->imguiFontTex);
-        if (!m_Impl->imguiFontTex)
-        {
-            LogErr("ImGui: failed to create font atlas texture");
-            return false;
-        }
-
-        m_Impl->imguiFontSRV = m_Impl->imguiFontTex->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE);
-
-        // Store font atlas texture ID so ImGui can reference it.
-        io.Fonts->SetTexID(reinterpret_cast<ImTextureID>(m_Impl->imguiFontSRV.RawPtr()));
-    }
-
-    // ── Create SRB ───────────────────────────────────────────────────
-    m_Impl->imguiPSO->CreateShaderResourceBinding(&m_Impl->imguiSRB, true);
-    if (!m_Impl->imguiSRB)
-    {
-        LogErr("ImGui: failed to create SRB");
-        return false;
-    }
-
-    m_Impl->imguiReady = true;
-    LogInfo("ImGui rendering initialised");
-    return true;
+    return m_Impl->overlayRenderer.Initialize(
+        GetDiligentDeviceServices(),
+        m_Impl->nativeResources,
+        static_cast<std::uint32_t>(m_Impl->frameSlotSerials.size()));
 }
 
-void DiligentRenderBackend::RenderImGuiDrawData(const void* rawDrawData)
+RenderOverlayTextureHandle DiligentRenderBackend::CreateOverlayTexture(
+    const RenderOverlayTextureDesc& desc,
+    const std::uint8_t* rgbaPixels)
 {
-    if (!m_Impl || !m_Impl->imguiReady || !rawDrawData) return;
-
-    const auto* drawData = static_cast<const ImDrawData*>(rawDrawData);
-    if (drawData->TotalVtxCount <= 0) return;
-
-    using namespace Diligent;
-
-    auto* ctx = m_Impl->context.RawPtr();
-
-    // ── Grow vertex buffer if needed ─────────────────────────────────
-    const auto vbNeeded = static_cast<Uint32>(drawData->TotalVtxCount) * static_cast<Uint32>(sizeof(ImDrawVert));
-    if (vbNeeded > m_Impl->imguiVBSize)
+    if (!m_Impl || !m_Impl->initialized) return {};
+    if (!m_Impl->overlayRenderer.IsReady() && !InitOverlayRendering())
     {
-        m_Impl->imguiVB.Release();
-        m_Impl->imguiVBSize = vbNeeded + 4096;
-
-        BufferDesc desc;
-        desc.Name           = "ImGui VB";
-        desc.Size           = m_Impl->imguiVBSize;
-        desc.BindFlags      = BIND_VERTEX_BUFFER;
-        desc.Usage          = USAGE_DYNAMIC;
-        desc.CPUAccessFlags = CPU_ACCESS_WRITE;
-        m_Impl->device->CreateBuffer(desc, nullptr, &m_Impl->imguiVB);
+        return {};
     }
 
-    // ── Grow index buffer if needed ──────────────────────────────────
-    const auto ibNeeded = static_cast<Uint32>(drawData->TotalIdxCount) * static_cast<Uint32>(sizeof(ImDrawIdx));
-    if (ibNeeded > m_Impl->imguiIBSize)
-    {
-        m_Impl->imguiIB.Release();
-        m_Impl->imguiIBSize = ibNeeded + 4096;
-
-        BufferDesc desc;
-        desc.Name           = "ImGui IB";
-        desc.Size           = m_Impl->imguiIBSize;
-        desc.BindFlags      = BIND_INDEX_BUFFER;
-        desc.Usage          = USAGE_DYNAMIC;
-        desc.CPUAccessFlags = CPU_ACCESS_WRITE;
-        m_Impl->device->CreateBuffer(desc, nullptr, &m_Impl->imguiIB);
-    }
-
-    // ── Upload vertex/index data ─────────────────────────────────────
-    {
-        MapHelper<ImDrawVert> vtx(ctx, m_Impl->imguiVB, MAP_WRITE, MAP_FLAG_DISCARD);
-        MapHelper<ImDrawIdx>  idx(ctx, m_Impl->imguiIB, MAP_WRITE, MAP_FLAG_DISCARD);
-
-        ImDrawVert* vtxDst = vtx;
-        ImDrawIdx*  idxDst = idx;
-
-        for (int n = 0; n < drawData->CmdListsCount; ++n)
-        {
-            const ImDrawList* cmdList = drawData->CmdLists[n];
-            std::memcpy(vtxDst, cmdList->VtxBuffer.Data,
-                        static_cast<size_t>(cmdList->VtxBuffer.Size) * sizeof(ImDrawVert));
-            std::memcpy(idxDst, cmdList->IdxBuffer.Data,
-                        static_cast<size_t>(cmdList->IdxBuffer.Size) * sizeof(ImDrawIdx));
-            vtxDst += cmdList->VtxBuffer.Size;
-            idxDst += cmdList->IdxBuffer.Size;
-        }
-    }
-
-    // ── Update projection matrix ─────────────────────────────────────
-    {
-        const float L = drawData->DisplayPos.x;
-        const float R = L + drawData->DisplaySize.x;
-        const float T = drawData->DisplayPos.y;
-        const float B = T + drawData->DisplaySize.y;
-
-        // Column-major orthographic projection (D3D depth 0..1).
-        // mul(ProjectionMatrix, float4(pos, 0, 1)) in the shader.
-        const float mvp[16] =
-        {
-            2.0f / (R - L),       0.0f,                 0.0f, 0.0f,
-            0.0f,                 2.0f / (T - B),       0.0f, 0.0f,
-            0.0f,                 0.0f,                 0.5f, 0.0f,
-            (R + L) / (L - R),   (T + B) / (B - T),   0.5f, 1.0f,
-        };
-
-        MapHelper<float> cb(ctx, m_Impl->imguiCB, MAP_WRITE, MAP_FLAG_DISCARD);
-        std::memcpy(cb, mvp, sizeof(mvp));
-    }
-
-    // ── Set pipeline state ───────────────────────────────────────────
-    ctx->SetPipelineState(m_Impl->imguiPSO);
-
-    // ── Bind VB / IB ─────────────────────────────────────────────────
-    {
-        IBuffer* vbs[] = { m_Impl->imguiVB };
-        Uint64 offsets[] = { 0 };
-        ctx->SetVertexBuffers(0, 1, vbs, offsets,
-                              RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
-                              SET_VERTEX_BUFFERS_FLAG_RESET);
-        ctx->SetIndexBuffer(m_Impl->imguiIB, 0,
-                            RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-    }
-
-    // ── Draw each command list ───────────────────────────────────────
-    int globalIdxOffset = 0;
-    int globalVtxOffset = 0;
-
-    const ImVec2 clipOff = drawData->DisplayPos;
-
-    for (int n = 0; n < drawData->CmdListsCount; ++n)
-    {
-        const ImDrawList* cmdList = drawData->CmdLists[n];
-
-        for (int cmdIdx = 0; cmdIdx < cmdList->CmdBuffer.Size; ++cmdIdx)
-        {
-            const ImDrawCmd& cmd = cmdList->CmdBuffer[cmdIdx];
-
-            if (cmd.UserCallback)
-            {
-                cmd.UserCallback(cmdList, &cmd);
-                continue;
-            }
-
-            // Scissor rect.
-            const float clipX = cmd.ClipRect.x - clipOff.x;
-            const float clipY = cmd.ClipRect.y - clipOff.y;
-            const float clipW = cmd.ClipRect.z - clipOff.x;
-            const float clipH = cmd.ClipRect.w - clipOff.y;
-
-            Rect scissor;
-            scissor.left   = static_cast<Int32>(clipX);
-            scissor.top    = static_cast<Int32>(clipY);
-            scissor.right  = static_cast<Int32>(clipW);
-            scissor.bottom = static_cast<Int32>(clipH);
-            ctx->SetScissorRects(1, &scissor, 0, 0);
-
-            // Bind texture.
-            auto* texSRV = reinterpret_cast<ITextureView*>(cmd.GetTexID());
-            if (texSRV)
-            {
-                if (auto* var = m_Impl->imguiSRB->GetVariableByName(SHADER_TYPE_PIXEL, "g_Texture"))
-                    var->Set(texSRV);
-            }
-
-            ctx->CommitShaderResources(m_Impl->imguiSRB,
-                                       RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-
-            DrawIndexedAttribs drawAttribs;
-            drawAttribs.NumIndices  = cmd.ElemCount;
-            drawAttribs.IndexType   = sizeof(ImDrawIdx) == 2 ? VT_UINT16 : VT_UINT32;
-            drawAttribs.FirstIndexLocation = static_cast<Uint32>(cmd.IdxOffset + globalIdxOffset);
-            drawAttribs.BaseVertex         = static_cast<Int32>(cmd.VtxOffset + globalVtxOffset);
-            drawAttribs.Flags              = g_verboseGPU ? DRAW_FLAG_VERIFY_ALL : DRAW_FLAG_NONE;
-            ctx->DrawIndexed(drawAttribs);
-        }
-
-        globalIdxOffset += cmdList->IdxBuffer.Size;
-        globalVtxOffset += cmdList->VtxBuffer.Size;
-    }
+    return m_Impl->overlayRenderer.CreateTexture(desc, rgbaPixels);
 }
 
-void DiligentRenderBackend::ShutdownImGuiRendering()
+void DiligentRenderBackend::DestroyOverlayTexture(
+    RenderOverlayTextureHandle texture)
 {
-    if (!m_Impl || !m_Impl->imguiReady) return;
+    if (!m_Impl) return;
+    m_Impl->overlayRenderer.DestroyTexture(texture);
+}
 
-    m_Impl->imguiSRB.Release();
-    m_Impl->imguiPSO.Release();
-    m_Impl->imguiCB.Release();
-    m_Impl->imguiVB.Release();
-    m_Impl->imguiIB.Release();
-    m_Impl->imguiFontSRV.Release();
-    m_Impl->imguiFontTex.Release();
-    m_Impl->imguiVBSize = 0;
-    m_Impl->imguiIBSize = 0;
-    m_Impl->imguiReady  = false;
+void DiligentRenderBackend::RenderOverlayFrame(
+    const ::SagaEngine::Render::Backend::RenderOverlayFrame& frame)
+{
+    if (!m_Impl || !m_Impl->initialized) return;
+    m_Impl->overlayRenderer.Render(
+        frame,
+        m_Impl->activeFrameSerial,
+        m_Impl->activeFrameSlot);
+}
 
-    LogInfo("ImGui rendering shut down");
+void DiligentRenderBackend::ShutdownOverlayRendering()
+{
+    if (!m_Impl) return;
+    m_Impl->overlayRenderer.Shutdown();
 }
 
 RenderCaptureResult DiligentRenderBackend::CaptureCurrentColorFrame(
     RenderFrameCapture& outCapture)
 {
-    outCapture = {};
-
-    if (!m_Impl || !m_Impl->initialized || !m_Impl->device ||
-        !m_Impl->context || !m_Impl->swapChain)
+    if (!m_Impl || !m_Impl->initialized)
     {
+        outCapture = {};
         return RenderCaptureResult::kNotInitialized;
     }
 
-    using namespace Diligent;
-
-    auto* rtv = m_Impl->swapChain->GetCurrentBackBufferRTV();
-    if (!rtv)
-    {
-        return RenderCaptureResult::kBackBufferUnavailable;
-    }
-
-    auto* backBuffer = rtv->GetTexture();
-    if (!backBuffer)
-    {
-        return RenderCaptureResult::kBackBufferUnavailable;
-    }
-
-    const auto& scDesc = m_Impl->swapChain->GetDesc();
-    if (scDesc.Width == 0 || scDesc.Height == 0 ||
-        !IsCaptureFormatSupported(scDesc.ColorBufferFormat))
-    {
-        return RenderCaptureResult::kUnsupportedFormat;
-    }
-
-    if (m_Impl->captureStagingTexture)
-    {
-        const auto& stagingDesc = m_Impl->captureStagingTexture->GetDesc();
-        if (stagingDesc.Width != scDesc.Width ||
-            stagingDesc.Height != scDesc.Height ||
-            stagingDesc.Format != scDesc.ColorBufferFormat)
-        {
-            m_Impl->captureStagingTexture.Release();
-        }
-    }
-
-    if (!m_Impl->captureStagingTexture)
-    {
-        TextureDesc textureDesc;
-        textureDesc.Name           = "SagaFrameCaptureStagingTexture";
-        textureDesc.Type           = RESOURCE_DIM_TEX_2D;
-        textureDesc.Width          = scDesc.Width;
-        textureDesc.Height         = scDesc.Height;
-        textureDesc.Format         = scDesc.ColorBufferFormat;
-        textureDesc.Usage          = USAGE_STAGING;
-        textureDesc.CPUAccessFlags = CPU_ACCESS_READ;
-        textureDesc.MipLevels      = 1;
-        m_Impl->device->CreateTexture(
-            textureDesc, nullptr, &m_Impl->captureStagingTexture);
-        if (!m_Impl->captureStagingTexture)
-        {
-            return RenderCaptureResult::kCopyFailed;
-        }
-    }
-
-    m_Impl->context->SetRenderTargets(
-        0, nullptr, nullptr, RESOURCE_STATE_TRANSITION_MODE_NONE);
-
-    CopyTextureAttribs copyAttribs(
-        backBuffer,
-        RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
-        m_Impl->captureStagingTexture,
-        RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-    m_Impl->context->CopyTexture(copyAttribs);
-    m_Impl->context->WaitForIdle();
-
-    MappedTextureSubresource mapped{};
-    m_Impl->context->MapTextureSubresource(
-        m_Impl->captureStagingTexture, 0, 0, MAP_READ, MAP_FLAG_DO_NOT_WAIT,
-        nullptr, mapped);
-
-    if (!mapped.pData || mapped.Stride == 0)
-    {
-        return RenderCaptureResult::kCopyFailed;
-    }
-
-    outCapture.width = scDesc.Width;
-    outCapture.height = scDesc.Height;
-    outCapture.rowPitch = scDesc.Width * 4u;
-    outCapture.format = RenderPixelFormat::RGBA8_UNORM;
-    CopyMappedTextureToRGBA8(mapped, scDesc.ColorBufferFormat,
-                             scDesc.Width, scDesc.Height,
-                             outCapture.pixels);
-
-    m_Impl->context->UnmapTextureSubresource(
-        m_Impl->captureStagingTexture, 0, 0);
-
-    return RenderCaptureResult::kSuccess;
+    return m_Impl->frameCapture.Capture(
+        GetDiligentDeviceServices(), outCapture);
 }
 
 // ─── Diagnostics ─────────────────────────────────────────────────────
@@ -2323,27 +1622,54 @@ RenderBackendStatus GetRenderBackendStatus(
     };
 }
 
-bool InitBackendImGuiRendering(IRenderBackend& backend)
+bool InitBackendOverlayRendering(IRenderBackend& backend)
 {
     auto* diligent = dynamic_cast<DiligentRenderBackend*>(&backend);
-    return diligent && diligent->InitImGuiRendering();
+    return diligent && diligent->InitOverlayRendering();
 }
 
-void RenderBackendImGuiDrawData(IRenderBackend& backend, const void* drawData)
+RenderOverlayTextureHandle CreateBackendOverlayTexture(
+    IRenderBackend& backend,
+    const RenderOverlayTextureDesc& desc,
+    const std::uint8_t* rgbaPixels)
+{
+    auto* diligent = dynamic_cast<DiligentRenderBackend*>(&backend);
+    if (!diligent)
+    {
+        return {};
+    }
+
+    return diligent->CreateOverlayTexture(desc, rgbaPixels);
+}
+
+void DestroyBackendOverlayTexture(
+    IRenderBackend& backend,
+    RenderOverlayTextureHandle texture)
 {
     auto* diligent = dynamic_cast<DiligentRenderBackend*>(&backend);
     if (diligent)
     {
-        diligent->RenderImGuiDrawData(drawData);
+        diligent->DestroyOverlayTexture(texture);
     }
 }
 
-void ShutdownBackendImGuiRendering(IRenderBackend& backend)
+void RenderBackendOverlayFrame(
+    IRenderBackend& backend,
+    const RenderOverlayFrame& frame)
 {
     auto* diligent = dynamic_cast<DiligentRenderBackend*>(&backend);
     if (diligent)
     {
-        diligent->ShutdownImGuiRendering();
+        diligent->RenderOverlayFrame(frame);
+    }
+}
+
+void ShutdownBackendOverlayRendering(IRenderBackend& backend)
+{
+    auto* diligent = dynamic_cast<DiligentRenderBackend*>(&backend);
+    if (diligent)
+    {
+        diligent->ShutdownOverlayRendering();
     }
 }
 
