@@ -17,6 +17,9 @@ function(saga_create_graphics_targets)
     target_sources(SagaGraphicsPrivate PRIVATE
         ${SAGA_ROOT}/Engine/Private/SagaEngine/Graphics/GraphicsPrivateAnchor.cpp
         ${SAGA_ROOT}/Engine/Private/SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackend.cpp
+        ${SAGA_ROOT}/Engine/Private/SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackendDiagnostics.cpp
+        ${SAGA_ROOT}/Engine/Private/SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackendFrame.cpp
+        ${SAGA_ROOT}/Engine/Private/SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackendResources.cpp
     )
 
     target_include_directories(SagaGraphicsPrivate PRIVATE

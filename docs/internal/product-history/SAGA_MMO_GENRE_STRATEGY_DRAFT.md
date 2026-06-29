@@ -1,3 +1,12 @@
+> **Status: Superseded historical draft**
+>
+> The current online-world product direction is defined by
+> `docs/product/SAGA_MMO_GENRE_FOCUS.md`.
+>
+> This document is retained only for historical context. It is not a current
+> roadmap, implementation contract, capability claim, or architecture source of
+> truth.
+
 # Saga MMO Genre Strategy Draft
 
 > Historical draft only. This is not the current source of truth for Saga's
