@@ -1,12 +1,50 @@
 # SagaEngine
 
-SagaEngine is an active game engine and toolchain codebase. It focuses on
-runtime/server boundaries, editor and authoring infrastructure, project
-tooling, scripting analysis, packaging, diagnostics, and tests.
+SagaEngine is an active open-source game engine and toolchain codebase. It
+focuses on runtime/server boundaries, editor and authoring infrastructure,
+project tooling, C# source authoring, packaging, diagnostics, and tests.
+
+The engine, base editor, and core authoring tools are intended to remain open
+and forkable under the repository's applicable licenses.
 
 It is not a finished game engine product. Treat this repository as source for
 engine and toolchain development, not as an installable editor for making games
 end to end.
+
+## Product Direction
+
+SagaEngine's selected long-term specialization is **creator-driven persistent
+community worlds**: independent, self-hosted online games built around
+authoritative simulation, persistent state, modular gameplay packages, and C#
+plus visual authoring.
+
+C# source is intended to remain the canonical behavior source. High-level and
+low-level Visual Blocks are intended to use the same semantic, compile, and
+runtime path rather than creating separate behavior truths or runtimes.
+
+Optional hosted collaboration, managed services, LTS, or enterprise offerings
+may exist separately, but they are not intended to become mandatory for
+independent source builds, self-hosting, or distribution under the applicable
+licenses.
+
+This is a product direction, not a claim that the repository is already a
+finished MMO engine, editor, runtime product, production networking stack,
+extension SDK, hosted service, or public SDK.
+
+Repository license, notice, contributor, third-party, and trademark documents
+remain legally authoritative. Product direction does not authorize the use of
+leaked, proprietary, tainted, or license-unclear source code.
+
+Start with:
+
+- [`docs/README.md`](docs/README.md)
+- [`docs/product/README.md`](docs/product/README.md)
+- [`docs/product/WHAT_IS_SAGAENGINE.md`](docs/product/WHAT_IS_SAGAENGINE.md)
+- [`docs/product/SAGA_MMO_GENRE_FOCUS.md`](docs/product/SAGA_MMO_GENRE_FOCUS.md)
+- [`docs/product/CURRENT_CAPABILITIES.md`](docs/product/CURRENT_CAPABILITIES.md)
+- [`docs/product/WHAT_IS_NOT_IMPLEMENTED.md`](docs/product/WHAT_IS_NOT_IMPLEMENTED.md)
+- [`docs/product/SAGA_ECOSYSTEM_MAP.md`](docs/product/SAGA_ECOSYSTEM_MAP.md)
+- [`docs/product/GETTING_STARTED.md`](docs/product/GETTING_STARTED.md)
 
 ## SagaSandbox Preview
 
@@ -56,7 +94,9 @@ are background material, not the best source for current product status.
 
 The likely public CLI surface is intentionally small:
 
-- `SagaScript` - C# / SagaScript analysis and source-authoring workflows.
+- `SagaScript` - C# analysis, compilation, source discovery, and
+  source-authoring workflows. `SagaScript` is a toolchain name, not a second
+  canonical gameplay language.
 - `SagaProjectKit` - project manifest validation and resolution.
 - `SagaPackager` - package/profile checks and packaging-related workflows.
 

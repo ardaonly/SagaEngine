@@ -342,6 +342,194 @@ TEST(
         << (offenders.empty() ? "" : offenders.front());
 }
 
+TEST(PublicPrivateBoundaryTests, DiligentBackendSplitFilesStaySmall)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+
+    struct Budget
+    {
+        std::filesystem::path path;
+        std::size_t maxLines = 0;
+    };
+
+    const std::vector<Budget> budgets = {
+        {
+            root / "Engine" / "Private" / "SagaEngine" / "Render" /
+                "Backend" / "Diligent" / "DiligentRenderBackend.cpp",
+            700u,
+        },
+        {
+            root / "Engine" / "Private" / "SagaEngine" / "Render" /
+                "Backend" / "Diligent" / "DiligentRenderBackendSubmit.cpp",
+            900u,
+        },
+        {
+            root / "Engine" / "Private" / "SagaEngine" / "Render" /
+                "Backend" / "Diligent" / "DiligentRenderBackendResources.cpp",
+            500u,
+        },
+        {
+            root / "Engine" / "Private" / "SagaEngine" / "Render" /
+                "Backend" / "Diligent" / "DiligentRenderBackendFrame.cpp",
+            500u,
+        },
+        {
+            root / "Engine" / "Private" / "SagaEngine" / "Render" /
+                "Backend" / "Diligent" / "DiligentRenderBackendOverlayApi.cpp",
+            500u,
+        },
+        {
+            root / "Engine" / "Private" / "SagaEngine" / "Graphics" /
+                "Backends" / "Diligent" / "DiligentGraphicsBackend.cpp",
+            500u,
+        },
+        {
+            root / "Engine" / "Private" / "SagaEngine" / "Graphics" /
+                "Backends" / "Diligent" / "DiligentGraphicsBackendResources.cpp",
+            500u,
+        },
+        {
+            root / "Engine" / "Private" / "SagaEngine" / "Graphics" /
+                "Backends" / "Diligent" / "DiligentGraphicsBackendFrame.cpp",
+            500u,
+        },
+        {
+            root / "Engine" / "Private" / "SagaEngine" / "Graphics" /
+                "Backends" / "Diligent" / "DiligentGraphicsBackendDiagnostics.cpp",
+            500u,
+        },
+        {
+            root / "Engine" / "Private" / "SagaEngine" / "Graphics" /
+                "Backends" / "Diligent" / "DiligentGraphicsBackend.h",
+            350u,
+        },
+    };
+
+    std::vector<std::string> offenders;
+    for (const auto& budget : budgets)
+    {
+        ASSERT_TRUE(std::filesystem::exists(budget.path)) << budget.path;
+        const auto lineCount = ReadLines(budget.path).size();
+        if (lineCount > budget.maxLines)
+        {
+            offenders.push_back(
+                RelativeToSourceRoot(budget.path).generic_string() + ": " +
+                std::to_string(lineCount) + " > " +
+                std::to_string(budget.maxLines));
+        }
+    }
+
+    EXPECT_TRUE(offenders.empty())
+        << "Diligent backend split files exceeded their line budgets. "
+        << "First offender: "
+        << (offenders.empty() ? "" : offenders.front());
+}
+
+TEST(PublicPrivateBoundaryTests, DiligentBackendSplitResponsibilitiesStayPut)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto renderRoot =
+        root / "Engine" / "Private" / "SagaEngine" / "Render" /
+        "Backend" / "Diligent";
+    const auto graphicsRoot =
+        root / "Engine" / "Private" / "SagaEngine" / "Graphics" /
+        "Backends" / "Diligent";
+
+    const auto renderBackend =
+        ReadText(renderRoot / "DiligentRenderBackend.cpp");
+    const auto renderResources =
+        ReadText(renderRoot / "DiligentRenderBackendResources.cpp");
+    const auto renderFrame =
+        ReadText(renderRoot / "DiligentRenderBackendFrame.cpp");
+    const auto renderSubmit =
+        ReadText(renderRoot / "DiligentRenderBackendSubmit.cpp");
+    const auto renderOverlay =
+        ReadText(renderRoot / "DiligentRenderBackendOverlayApi.cpp");
+    const auto graphicsBackend =
+        ReadText(graphicsRoot / "DiligentGraphicsBackend.cpp");
+    const auto graphicsResources =
+        ReadText(graphicsRoot / "DiligentGraphicsBackendResources.cpp");
+    const auto graphicsValidation =
+        ReadText(graphicsRoot / "DiligentGraphicsBackendValidation.h");
+
+    struct ExpectedSymbol
+    {
+        std::string_view fileRole;
+        std::string_view text;
+        std::string_view symbol;
+    };
+
+    const std::vector<ExpectedSymbol> required = {
+        {"render resources", renderResources, "DiligentRenderBackend::CreateMesh"},
+        {"render resources", renderResources, "DiligentRenderBackend::CreateMaterial"},
+        {"render resources", renderResources, "DiligentRenderBackend::CreateTexture"},
+        {"render frame", renderFrame, "DiligentRenderBackend::BeginFrame"},
+        {"render frame", renderFrame, "DiligentRenderBackend::EndFrame"},
+        {"render submit", renderSubmit, "DiligentRenderBackend::Submit"},
+        {"render submit", renderSubmit, "CreateShadowDepthPSO"},
+        {"render overlay", renderOverlay, "DiligentRenderBackend::InitOverlayRendering"},
+        {"render overlay", renderOverlay, "DiligentRenderBackend::CaptureCurrentColorFrame"},
+        {"graphics resources", graphicsResources, "DiligentGraphicsBackend::CreateTexture"},
+        {"graphics resources", graphicsResources, "DiligentGraphicsBackend::DestroyTexture"},
+        {"graphics validation", graphicsValidation, "IsValidTextureDesc"},
+        {"graphics validation", graphicsValidation, "EstimateTextureBytes"},
+    };
+
+    std::vector<std::string> offenders;
+    for (const auto& item : required)
+    {
+        if (!Contains(item.text, item.symbol))
+        {
+            offenders.push_back(
+                std::string(item.fileRole) + " missing " +
+                std::string(item.symbol));
+        }
+    }
+
+    const std::vector<std::string_view> renderRootForbidden = {
+        "DiligentRenderBackend::CreateMesh",
+        "DiligentRenderBackend::CreateMaterial",
+        "DiligentRenderBackend::CreateTexture",
+        "DiligentRenderBackend::BeginFrame",
+        "DiligentRenderBackend::Submit",
+        "DiligentRenderBackend::EndFrame",
+        "DiligentRenderBackend::InitOverlayRendering",
+        "DiligentRenderBackend::CaptureCurrentColorFrame",
+        "CreateShadowDepthPSO",
+    };
+    for (const auto symbol : renderRootForbidden)
+    {
+        if (Contains(renderBackend, symbol))
+        {
+            offenders.push_back(
+                "render root contains split symbol " + std::string(symbol));
+        }
+    }
+
+    const std::vector<std::string_view> graphicsRootForbidden = {
+        "DiligentGraphicsBackend::CreateTexture",
+        "DiligentGraphicsBackend::CreateBuffer",
+        "DiligentGraphicsBackend::CreateShader",
+        "DiligentGraphicsBackend::CreatePipeline",
+        "DiligentGraphicsBackend::CreateSampler",
+        "DiligentGraphicsBackend::DestroyTexture",
+        "IsValidTextureDesc",
+        "EstimateTextureBytes",
+    };
+    for (const auto symbol : graphicsRootForbidden)
+    {
+        if (Contains(graphicsBackend, symbol))
+        {
+            offenders.push_back(
+                "graphics root contains split symbol " + std::string(symbol));
+        }
+    }
+
+    EXPECT_TRUE(offenders.empty())
+        << "Diligent backend split responsibilities drifted. First offender: "
+        << (offenders.empty() ? "" : offenders.front());
+}
+
 TEST(PublicPrivateBoundaryTests, SagaGraphicsUmbrellaHeaderCompileSmoke)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
@@ -831,23 +1019,31 @@ TEST(PublicPrivateBoundaryTests, GraphicsPrivateRenderTestsUsePrivateStyleInclud
 TEST(PublicPrivateBoundaryTests, NormalFramePathDoesNotUseGlobalDeviceIdle)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
-    const auto path = root / "Engine" / "Private" / "SagaEngine" /
-        "Render" / "Backend" / "Diligent" / "DiligentRenderBackend.cpp";
-    ASSERT_TRUE(std::filesystem::exists(path)) << path;
+    const auto diligentDir = root / "Engine" / "Private" / "SagaEngine" /
+        "Render" / "Backend" / "Diligent";
+    const auto framePath = diligentDir / "DiligentRenderBackendFrame.cpp";
+    const auto submitPath = diligentDir / "DiligentRenderBackendSubmit.cpp";
+    const auto overlayPath = diligentDir / "DiligentRenderBackendOverlayApi.cpp";
+    ASSERT_TRUE(std::filesystem::exists(diligentDir)) << diligentDir;
+    ASSERT_TRUE(std::filesystem::exists(framePath)) << framePath;
+    ASSERT_TRUE(std::filesystem::exists(submitPath)) << submitPath;
+    ASSERT_TRUE(std::filesystem::exists(overlayPath)) << overlayPath;
 
-    const auto text = ReadText(path);
+    const auto frameText = ReadText(framePath);
+    const auto submitText = ReadText(submitPath);
+    const auto overlayText = ReadText(overlayPath);
     const auto beginFrame = SliceBetween(
-        text,
+        frameText,
         "void DiligentRenderBackend::BeginFrame()",
-        "void DiligentRenderBackend::Submit(");
-    const auto submit = SliceBetween(
-        text,
-        "void DiligentRenderBackend::Submit(",
         "void DiligentRenderBackend::EndFrame()");
+    const auto submit = SliceBetween(
+        submitText,
+        "void DiligentRenderBackend::Submit(",
+        "} // namespace SagaEngine::Render::Backend");
     const auto endFrame = SliceBetween(
-        text,
+        frameText,
         "void DiligentRenderBackend::EndFrame()",
-        "// ─── Overlay rendering");
+        "} // namespace SagaEngine::Render::Backend");
 
     ASSERT_FALSE(beginFrame.empty());
     ASSERT_FALSE(submit.empty());
@@ -855,7 +1051,7 @@ TEST(PublicPrivateBoundaryTests, NormalFramePathDoesNotUseGlobalDeviceIdle)
     EXPECT_FALSE(Contains(beginFrame, "WaitForIdle("));
     EXPECT_FALSE(Contains(submit, "WaitForIdle("));
     EXPECT_FALSE(Contains(endFrame, "WaitForIdle("));
-    EXPECT_TRUE(Contains(text, "CaptureCurrentColorFrame"));
+    EXPECT_TRUE(Contains(overlayText, "CaptureCurrentColorFrame"));
 }
 
 TEST(PublicPrivateBoundaryTests, DiligentRenderBackendDoesNotDependOnImGui)

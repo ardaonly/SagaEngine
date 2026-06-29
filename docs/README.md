@@ -1,5 +1,42 @@
 # SagaEngine Documentation
 
+
+<!-- SAGA_CURRENT_PRODUCT_DOCS_START -->
+## Current Product Documentation
+
+Product direction, current capabilities, and non-claims start here.
+
+This is the current product-documentation set. Runtime, scripting, online
+architecture, security, testing, release, governance, and debt/risk documents
+remain separate ownership areas and must be added or revised only from verified
+implementation and evidence.
+
+- [`product/README.md`](product/README.md)
+- [`product/WHAT_IS_SAGAENGINE.md`](product/WHAT_IS_SAGAENGINE.md)
+- [`product/SAGA_MMO_GENRE_FOCUS.md`](product/SAGA_MMO_GENRE_FOCUS.md)
+- [`product/CURRENT_CAPABILITIES.md`](product/CURRENT_CAPABILITIES.md)
+- [`product/WHAT_IS_NOT_IMPLEMENTED.md`](product/WHAT_IS_NOT_IMPLEMENTED.md)
+- [`product/SAGA_ECOSYSTEM_MAP.md`](product/SAGA_ECOSYSTEM_MAP.md)
+- [`product/GETTING_STARTED.md`](product/GETTING_STARTED.md)
+
+The selected Persistent Community Worlds direction is a product-priority
+decision. It is not proof that a complete MMO, persistent-world, creator, or
+self-hosting product is implemented.
+
+For ownership and dependency structure, use
+[`architecture/ARCHITECTURE_OVERVIEW.md`](architecture/ARCHITECTURE_OVERVIEW.md).
+For documentation claim rules, use
+[`architecture/CLAIM_AND_EVIDENCE_POLICY.md`](architecture/CLAIM_AND_EVIDENCE_POLICY.md).
+For current test entry points, use [`testing/README.md`](testing/README.md).
+
+Historical drafts, milestone documents, closure notes, and old strategy files
+must not override current product or architecture documents.
+
+Contribution and third-party provenance rules are defined in
+[`../CONTRIBUTING.md`](../CONTRIBUTING.md). Product documentation does not
+replace license, notice, security, contributor, or trademark authority.
+<!-- SAGA_CURRENT_PRODUCT_DOCS_END -->
+
 This directory explains what SagaEngine is today and where to find current
 technical details.
 
