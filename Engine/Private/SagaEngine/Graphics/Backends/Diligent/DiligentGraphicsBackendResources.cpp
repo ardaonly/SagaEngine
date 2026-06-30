@@ -447,6 +447,8 @@ void DiligentGraphicsBackend::ReleaseResources() noexcept
     {
         m_NativeOwner->ReleaseAll();
     }
+    m_NativeBindingSets.clear();
+    m_CompiledBindingLayouts.clear();
     m_Textures.ReleaseAll();
     m_Buffers.ReleaseAll();
     m_Shaders.ReleaseAll();

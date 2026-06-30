@@ -193,6 +193,14 @@ void DiligentGraphicsBackend::Resize(std::uint32_t width, std::uint32_t height)
     }
 }
 
+std::uint64_t DiligentGraphicsBackend::PackHandleKey(
+    std::uint32_t index,
+    std::uint32_t generation) noexcept
+{
+    return (static_cast<std::uint64_t>(generation) << 32u) |
+           static_cast<std::uint64_t>(index);
+}
+
 
 RenderBackendCapabilities
 DiligentGraphicsBackend::MakeConservativeCapabilities() const noexcept

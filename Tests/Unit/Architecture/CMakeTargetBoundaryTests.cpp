@@ -494,6 +494,122 @@ TEST(CMakeTargetBoundaryTests, SagaGraphicsPrivateTargetIsPrivateBoundaryShell)
     }
 }
 
+TEST(CMakeTargetBoundaryTests, DiligentBindingCompilerIsPrivateGraphicsOwned)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto compiler =
+        root / "Engine" / "Private" / "SagaEngine" / "Graphics" /
+        "Backends" / "Diligent" / "DiligentBindingCompiler.cpp";
+    const auto records =
+        root / "Engine" / "Private" / "SagaEngine" / "Graphics" /
+        "Backends" / "Diligent" / "DiligentBindingRecords.h";
+    const auto targetsText = ReadText(CMakeModulePath("SagaGraphicsTargets.cmake"));
+
+    ASSERT_TRUE(std::filesystem::exists(compiler));
+    ASSERT_TRUE(std::filesystem::exists(records));
+    EXPECT_TRUE(ContainsToken(
+        compiler.generic_string(),
+        "Engine/Private/SagaEngine/Graphics/Backends/Diligent"))
+        << "Native binding compiler must stay inside the private Diligent "
+           "graphics backend.";
+    EXPECT_TRUE(ContainsToken(
+        targetsText,
+        "Engine/Private/SagaEngine/Graphics/Backends/Diligent/*.cpp"))
+        << "Private Diligent graphics backend sources must be captured by "
+           "the SagaGraphicsPrivate source glob.";
+    EXPECT_TRUE(ContainsToken(
+        targetsText,
+        "saga_assert_diligent_graphics_backend_single_owner"))
+        << "Diligent graphics backend sources must keep the single-owner "
+           "configure assertion.";
+}
+
+TEST(CMakeTargetBoundaryTests, SagaGraphicsCoreStaysVendorNeutral)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const std::vector<std::filesystem::path> graphicsCoreFiles = {
+        root / "Engine" / "Private" / "SagaEngine" / "Graphics" /
+            "Backend" / "NullGraphicsBackend.cpp",
+        root / "Engine" / "Private" / "SagaEngine" / "Graphics" /
+            "Bindings" / "GraphicsBindingValidation.cpp",
+    };
+    const std::vector<std::string> forbiddenTokens = {
+        "Diligent",
+        "Vulkan",
+        "Vk",
+        "D3D",
+        "Metal",
+        "CreateShaderResourceBinding",
+        "GetVariableByName",
+    };
+
+    for (const auto& file : graphicsCoreFiles)
+    {
+        const auto text = ReadText(file);
+        for (const auto& token : forbiddenTokens)
+        {
+            EXPECT_FALSE(ContainsToken(text, token))
+                << "SagaGraphicsCore source must stay vendor/native neutral: "
+                << file.generic_string() << " contains " << token;
+        }
+    }
+}
+
+TEST(CMakeTargetBoundaryTests, DiligentBindingCompilerDoesNotUseSrbMutationApis)
+{
+    const auto compiler =
+        std::filesystem::path(SAGA_SOURCE_ROOT) / "Engine" / "Private" /
+        "SagaEngine" / "Graphics" / "Backends" / "Diligent" /
+        "DiligentBindingCompiler.cpp";
+    const auto text = ReadText(compiler);
+
+    for (const auto& token : {
+             "CreateShaderResourceBinding",
+             "GetVariableByName",
+             "IShaderResourceBinding",
+             "ShaderResourceBinding",
+         })
+    {
+        EXPECT_FALSE(ContainsToken(text, token))
+            << "B1 compiler path must not create or mutate Diligent SRBs: "
+            << token;
+    }
+}
+
+TEST(CMakeTargetBoundaryTests, DiligentBindingCompilerDoesNotMigrateDrawOwnership)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const std::vector<std::filesystem::path> files = {
+        root / "Engine" / "Private" / "SagaEngine" / "Graphics" /
+            "Backends" / "Diligent" / "DiligentBindingCompiler.cpp",
+        root / "Engine" / "Private" / "SagaEngine" / "Graphics" /
+            "Backends" / "Diligent" / "DiligentBindingCompiler.h",
+        root / "Engine" / "Private" / "SagaEngine" / "Graphics" /
+            "Backends" / "Diligent" / "DiligentBindingRecords.h",
+    };
+    const std::vector<std::string> forbiddenTokens = {
+        "DiligentRenderBackendSubmit",
+        "DiligentRenderBackendResources",
+        "CreateMaterial",
+        "Submit(",
+        "DrawIndexed",
+        "shadowVariable",
+        "skinnedSrb",
+    };
+
+    for (const auto& file : files)
+    {
+        const auto text = ReadText(file);
+        for (const auto& token : forbiddenTokens)
+        {
+            EXPECT_FALSE(ContainsToken(text, token))
+                << "B1 must not migrate submit/material/shadow ownership into "
+                   "the binding compiler: "
+                << file.generic_string() << " contains " << token;
+        }
+    }
+}
+
 TEST(CMakeTargetBoundaryTests, GraphicsInstallSurfaceDoesNotInstallVendorBackends)
 {
     const auto installPath = CMakeModulePath("SagaInstall.cmake");

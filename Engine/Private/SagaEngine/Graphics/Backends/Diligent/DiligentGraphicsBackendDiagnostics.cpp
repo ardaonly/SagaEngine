@@ -293,6 +293,36 @@ DiligentGraphicsBackend::ResolveNativePipelineForTesting(
     return m_NativeOwner->ResolvePipeline(handle);
 }
 
+std::uint32_t DiligentGraphicsBackend::GetCompiledBindingLayoutCountForTesting()
+    const noexcept
+{
+    return static_cast<std::uint32_t>(m_CompiledBindingLayouts.size());
+}
+
+const DiligentCompiledBindingLayout*
+DiligentGraphicsBackend::ResolveCompiledBindingLayoutForTesting(
+    BindingLayoutHandle handle) const noexcept
+{
+    const auto it = m_CompiledBindingLayouts.find(
+        PackHandleKey(handle.index, handle.generation));
+    return it == m_CompiledBindingLayouts.end() ? nullptr : &it->second;
+}
+
+std::uint32_t DiligentGraphicsBackend::GetNativeBindingSetRecordCountForTesting()
+    const noexcept
+{
+    return static_cast<std::uint32_t>(m_NativeBindingSets.size());
+}
+
+const DiligentNativeBindingSetRecord*
+DiligentGraphicsBackend::ResolveNativeBindingSetRecordForTesting(
+    BindingSetHandle handle) const noexcept
+{
+    const auto it = m_NativeBindingSets.find(
+        PackHandleKey(handle.index, handle.generation));
+    return it == m_NativeBindingSets.end() ? nullptr : &it->second;
+}
+
 GraphicsResourceMemoryReport DiligentGraphicsBackend::BuildResourceMemoryReport()
     const noexcept
 {
