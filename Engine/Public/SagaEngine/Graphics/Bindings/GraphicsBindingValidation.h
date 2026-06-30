@@ -1,63 +1,14 @@
 /// @file GraphicsBindingValidation.h
-/// @brief CPU-side vendor-neutral binding validation helpers.
+/// @brief CPU-side vendor-neutral binding contract validation helpers.
 
 #pragma once
 
-#include "SagaEngine/Graphics/Backend/GraphicsBackend.h"
-#include "SagaEngine/Graphics/Handles/GraphicsHandle.h"
+#include "SagaEngine/Graphics/Bindings/GraphicsBindingTypes.h"
 
-#include <cstddef>
 #include <cstdint>
-#include <vector>
 
 namespace SagaEngine::Graphics
 {
-
-inline constexpr std::uint32_t kInvalidGraphicsBindingSlot = 0xFFFFFFFFu;
-
-using GraphicsShaderStageFlags = std::uint32_t;
-
-inline constexpr GraphicsShaderStageFlags kGraphicsShaderStageVertex =
-    1u << 0u;
-inline constexpr GraphicsShaderStageFlags kGraphicsShaderStageFragment =
-    1u << 1u;
-inline constexpr GraphicsShaderStageFlags kGraphicsShaderStageCompute =
-    1u << 2u;
-
-enum class GraphicsBindingType : std::uint8_t
-{
-    Texture = 0,
-    Buffer,
-    Sampler,
-};
-
-struct GraphicsBindingLayoutSlot
-{
-    std::uint32_t slot = 0;
-    GraphicsBindingType type = GraphicsBindingType::Texture;
-    GraphicsShaderStageFlags stages = kGraphicsShaderStageFragment;
-    bool required = true;
-    std::uint32_t pairedSamplerSlot = kInvalidGraphicsBindingSlot;
-    bool allowFallback = false;
-    GraphicsHandle fallbackHandle{};
-};
-
-struct GraphicsBindingLayoutDesc
-{
-    std::vector<GraphicsBindingLayoutSlot> slots{};
-};
-
-struct GraphicsBindingResourceRef
-{
-    std::uint32_t slot = 0;
-    GraphicsResourceKind kind = GraphicsResourceKind::Invalid;
-    GraphicsHandle handle{};
-};
-
-struct GraphicsBindingSetDesc
-{
-    std::vector<GraphicsBindingResourceRef> resources{};
-};
 
 enum class GraphicsBindingValidationCode : std::uint8_t
 {
@@ -71,6 +22,16 @@ enum class GraphicsBindingValidationCode : std::uint8_t
     StaleHandle,
     WrongResourceKind,
     MissingPairedSampler,
+    DuplicateStableId,
+    ZeroArrayCount,
+    ArrayCountOutOfRange,
+    EmptyStageMask,
+    InvalidStageMask,
+    UnsupportedBindingType,
+    ArrayElementOutOfRange,
+    InvalidBufferRange,
+    StaleBindingLayout,
+    ExplicitCompatibilityKeyMismatch,
 };
 
 struct GraphicsBindingValidationResult
@@ -98,237 +59,61 @@ using GraphicsBindingResourceQueryFn = GraphicsResourceQueryResult (*)(
         return GraphicsResourceKind::Buffer;
     case GraphicsBindingType::Sampler:
         return GraphicsResourceKind::Sampler;
+    case GraphicsBindingType::StorageBuffer:
     default:
         return GraphicsResourceKind::Invalid;
     }
 }
 
-[[nodiscard]] inline GraphicsBindingValidationResult
-MakeGraphicsBindingValidationError(
+[[nodiscard]] constexpr bool IsSupportedGraphicsBindingType(
+    GraphicsBindingType type) noexcept
+{
+    return type == GraphicsBindingType::Texture ||
+           type == GraphicsBindingType::Buffer ||
+           type == GraphicsBindingType::Sampler;
+}
+
+[[nodiscard]] GraphicsBindingValidationResult MakeGraphicsBindingValidationError(
     GraphicsBindingValidationCode code,
     std::uint32_t slot,
     GraphicsResourceKind expectedKind = GraphicsResourceKind::Invalid,
-    GraphicsResourceKind actualKind = GraphicsResourceKind::Invalid)
-{
-    return {false, code, slot, expectedKind, actualKind};
-}
+    GraphicsResourceKind actualKind = GraphicsResourceKind::Invalid);
 
-[[nodiscard]] inline const GraphicsBindingLayoutSlot* FindGraphicsBindingSlot(
-    const GraphicsBindingLayoutDesc& layout,
-    std::uint32_t slot) noexcept
-{
-    for (const auto& layoutSlot : layout.slots)
-    {
-        if (layoutSlot.slot == slot)
-        {
-            return &layoutSlot;
-        }
-    }
+[[nodiscard]] GraphicsBindingLayoutDesc NormalizeGraphicsBindingLayout(
+    const GraphicsBindingLayoutDesc& layout);
 
-    return nullptr;
-}
+/// Deterministic process-independent key for the current binding schema and
+/// algorithm. It is a fast rejection/cache-bucketing value, not a collision-
+/// proof identity or persisted cooked-asset ABI. Disk/cooked versioning belongs
+/// with GFX-M8 / R6I.
+[[nodiscard]] std::uint64_t ComputeGraphicsBindingLayoutKey(
+    const GraphicsBindingLayoutDesc& layout);
 
-[[nodiscard]] inline const GraphicsBindingResourceRef*
-FindGraphicsBindingResource(
-    const GraphicsBindingSetDesc& bindingSet,
-    std::uint32_t slot) noexcept
-{
-    for (const auto& resource : bindingSet.resources)
-    {
-        if (resource.slot == slot)
-        {
-            return &resource;
-        }
-    }
+[[nodiscard]] bool AreGraphicsBindingLayoutsCanonicallyEqual(
+    const GraphicsBindingLayoutDesc& lhs,
+    const GraphicsBindingLayoutDesc& rhs);
 
-    return nullptr;
-}
+[[nodiscard]] bool AreGraphicsBindingLayoutsCompatible(
+    const GraphicsBindingLayoutDesc& lhs,
+    const GraphicsBindingLayoutDesc& rhs);
 
-namespace detail
-{
+[[nodiscard]] bool AreGraphicsBindingLayoutsCompatible(
+    const GraphicsBindingLayoutDesc& lhs,
+    std::uint64_t lhsKey,
+    const GraphicsBindingLayoutDesc& rhs,
+    std::uint64_t rhsKey);
 
-[[nodiscard]] inline GraphicsBindingValidationResult ValidateGraphicsBindingHandle(
-    std::uint32_t slot,
-    GraphicsResourceKind expectedKind,
-    GraphicsResourceKind declaredKind,
-    GraphicsHandle handle,
-    GraphicsBindingResourceQueryFn queryResource,
-    void* userData)
-{
-    if (declaredKind != expectedKind)
-    {
-        return MakeGraphicsBindingValidationError(
-            GraphicsBindingValidationCode::WrongResourceKind,
-            slot,
-            expectedKind,
-            declaredKind);
-    }
+[[nodiscard]] GraphicsBindingValidationResult ValidateGraphicsBindingLayout(
+    const GraphicsBindingLayoutDesc& layout);
 
-    if (!handle.IsValid())
-    {
-        return MakeGraphicsBindingValidationError(
-            GraphicsBindingValidationCode::InvalidHandle,
-            slot,
-            expectedKind);
-    }
-
-    const auto query =
-        queryResource ? queryResource(userData, declaredKind, handle)
-                      : GraphicsResourceQueryResult{};
-    if (!query.live || query.backing == GraphicsResourceBacking::Invalid)
-    {
-        return MakeGraphicsBindingValidationError(
-            GraphicsBindingValidationCode::StaleHandle,
-            slot,
-            expectedKind,
-            query.kind);
-    }
-
-    if (query.kind != expectedKind)
-    {
-        return MakeGraphicsBindingValidationError(
-            GraphicsBindingValidationCode::WrongResourceKind,
-            slot,
-            expectedKind,
-            query.kind);
-    }
-
-    return {};
-}
-
-} // namespace detail
-
-[[nodiscard]] inline GraphicsBindingValidationResult
-ValidateGraphicsBindingSet(
+[[nodiscard]] GraphicsBindingValidationResult ValidateGraphicsBindingSet(
     const GraphicsBindingLayoutDesc& layout,
     const GraphicsBindingSetDesc& bindingSet,
     GraphicsBindingResourceQueryFn queryResource,
-    void* userData)
-{
-    for (std::size_t i = 0; i < layout.slots.size(); ++i)
-    {
-        for (std::size_t j = i + 1u; j < layout.slots.size(); ++j)
-        {
-            if (layout.slots[i].slot == layout.slots[j].slot)
-            {
-                return MakeGraphicsBindingValidationError(
-                    GraphicsBindingValidationCode::DuplicateLayoutSlot,
-                    layout.slots[i].slot);
-            }
-        }
-    }
+    void* userData);
 
-    for (std::size_t i = 0; i < bindingSet.resources.size(); ++i)
-    {
-        for (std::size_t j = i + 1u; j < bindingSet.resources.size(); ++j)
-        {
-            if (bindingSet.resources[i].slot == bindingSet.resources[j].slot)
-            {
-                return MakeGraphicsBindingValidationError(
-                    GraphicsBindingValidationCode::DuplicateBindingSlot,
-                    bindingSet.resources[i].slot);
-            }
-        }
-    }
-
-    for (const auto& resource : bindingSet.resources)
-    {
-        if (!FindGraphicsBindingSlot(layout, resource.slot))
-        {
-            return MakeGraphicsBindingValidationError(
-                GraphicsBindingValidationCode::UnexpectedBindingSlot,
-                resource.slot,
-                GraphicsResourceKind::Invalid,
-                resource.kind);
-        }
-    }
-
-    for (const auto& layoutSlot : layout.slots)
-    {
-        const auto* resource =
-            FindGraphicsBindingResource(bindingSet, layoutSlot.slot);
-        const auto expectedKind = ToGraphicsResourceKind(layoutSlot.type);
-        if (!resource)
-        {
-            if (layoutSlot.required)
-            {
-                if (layoutSlot.allowFallback)
-                {
-                    if (!layoutSlot.fallbackHandle.IsValid())
-                    {
-                        return MakeGraphicsBindingValidationError(
-                            GraphicsBindingValidationCode::MissingFallbackBinding,
-                            layoutSlot.slot,
-                            expectedKind);
-                    }
-
-                    const auto fallbackResult =
-                        detail::ValidateGraphicsBindingHandle(
-                            layoutSlot.slot,
-                            expectedKind,
-                            expectedKind,
-                            layoutSlot.fallbackHandle,
-                            queryResource,
-                            userData);
-                    if (!fallbackResult.valid)
-                    {
-                        return fallbackResult;
-                    }
-
-                    continue;
-                }
-
-                return MakeGraphicsBindingValidationError(
-                    GraphicsBindingValidationCode::MissingRequiredBinding,
-                    layoutSlot.slot,
-                    expectedKind);
-            }
-
-            continue;
-        }
-
-        const auto resourceResult = detail::ValidateGraphicsBindingHandle(
-            layoutSlot.slot,
-            expectedKind,
-            resource->kind,
-            resource->handle,
-            queryResource,
-            userData);
-        if (!resourceResult.valid)
-        {
-            return resourceResult;
-        }
-    }
-
-    for (const auto& layoutSlot : layout.slots)
-    {
-        if (layoutSlot.type != GraphicsBindingType::Texture ||
-            layoutSlot.pairedSamplerSlot == kInvalidGraphicsBindingSlot)
-        {
-            continue;
-        }
-
-        const auto* texture =
-            FindGraphicsBindingResource(bindingSet, layoutSlot.slot);
-        if (!texture)
-        {
-            continue;
-        }
-
-        const auto* sampler = FindGraphicsBindingResource(
-            bindingSet,
-            layoutSlot.pairedSamplerSlot);
-        if (!sampler || sampler->kind != GraphicsResourceKind::Sampler)
-        {
-            return MakeGraphicsBindingValidationError(
-                GraphicsBindingValidationCode::MissingPairedSampler,
-                layoutSlot.slot,
-                GraphicsResourceKind::Sampler,
-                sampler ? sampler->kind : GraphicsResourceKind::Invalid);
-        }
-    }
-
-    return {};
-}
+[[nodiscard]] std::uint32_t CountGraphicsBindingFallbackRequirements(
+    const GraphicsBindingLayoutDesc& layout,
+    const GraphicsBindingSetDesc& bindingSet);
 
 } // namespace SagaEngine::Graphics
