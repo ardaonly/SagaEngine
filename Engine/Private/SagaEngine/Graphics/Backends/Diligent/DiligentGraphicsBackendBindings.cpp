@@ -2,10 +2,12 @@
 /// @brief Logical binding layout/set CRUD for the Diligent graphics adapter.
 
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackend.h"
+#include "SagaEngine/Graphics/Backends/Diligent/DiligentBindingCompiler.h"
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackendValidation.h"
 #include "SagaEngine/Graphics/Bindings/GraphicsBindingValidation.h"
 
 #include <algorithm>
+#include <utility>
 
 namespace SagaEngine::Graphics::Backends::Diligent
 {
@@ -89,6 +91,19 @@ BindingLayoutHandle DiligentGraphicsBackend::CreateBindingLayout(
         {},
         m_NextResourceCreationSerial++,
         GraphicsResourceLifecycle::RegisteredOnly);
+
+    auto compiled = CompileDiligentBindingLayout(handle, normalized);
+    if (compiled.status != DiligentBindingCompileStatus::Compiled)
+    {
+        m_BindingLayouts.Destroy(handle);
+        m_LastResourceFailure =
+            GraphicsResourceFailure::InvalidBindingLayoutDesc;
+        ++m_FailedCreateCount;
+        return {};
+    }
+
+    m_CompiledBindingLayouts[PackHandleKey(handle.index, handle.generation)] =
+        std::move(compiled);
     m_LastResourceFailure = GraphicsResourceFailure::None;
     return handle;
 }
@@ -132,6 +147,33 @@ BindingSetHandle DiligentGraphicsBackend::CreateBindingSet(
         {},
         m_NextResourceCreationSerial++,
         GraphicsResourceLifecycle::RegisteredOnly);
+
+    const auto compiledLayoutIt = m_CompiledBindingLayouts.find(
+        PackHandleKey(desc.layout.index, desc.layout.generation));
+    if (compiledLayoutIt == m_CompiledBindingLayouts.end())
+    {
+        m_BindingSets.Destroy(handle);
+        m_LastResourceFailure = GraphicsResourceFailure::InvalidBindingSetDesc;
+        ++m_FailedCreateCount;
+        return {};
+    }
+
+    auto nativeRecord = CompileDiligentNativeBindingSet(
+        handle,
+        normalized,
+        compiledLayoutIt->second,
+        QueryDiligentBindingResource,
+        this);
+    if (nativeRecord.status != DiligentBindingCompileStatus::Compiled)
+    {
+        m_BindingSets.Destroy(handle);
+        m_LastResourceFailure = GraphicsResourceFailure::InvalidBindingSetDesc;
+        ++m_FailedCreateCount;
+        return {};
+    }
+
+    m_NativeBindingSets[PackHandleKey(handle.index, handle.generation)] =
+        std::move(nativeRecord);
     m_LastResourceFailure = GraphicsResourceFailure::None;
     return handle;
 }
@@ -139,11 +181,14 @@ BindingSetHandle DiligentGraphicsBackend::CreateBindingSet(
 void DiligentGraphicsBackend::DestroyBindingLayout(
     BindingLayoutHandle handle)
 {
+    m_CompiledBindingLayouts.erase(
+        PackHandleKey(handle.index, handle.generation));
     m_BindingLayouts.Destroy(handle);
 }
 
 void DiligentGraphicsBackend::DestroyBindingSet(BindingSetHandle handle)
 {
+    m_NativeBindingSets.erase(PackHandleKey(handle.index, handle.generation));
     m_BindingSets.Destroy(handle);
 }
 

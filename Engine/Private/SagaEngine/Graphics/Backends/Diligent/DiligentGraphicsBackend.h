@@ -4,12 +4,14 @@
 #pragma once
 
 #include "SagaEngine/Graphics/Backend/GraphicsBackend.h"
+#include "SagaEngine/Graphics/Backends/Diligent/DiligentBindingRecords.h"
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsResourceRegistry.h"
 #include "SagaEngine/Render/Backend/Diligent/DiligentDeviceServices.h"
 #include "SagaEngine/Render/Backend/RenderBackendFactory.h"
 
 #include <cstdint>
 #include <memory>
+#include <unordered_map>
 
 namespace SagaEngine::Render::Backend
 {
@@ -159,6 +161,16 @@ public:
         ShaderHandle handle) const noexcept;
     [[nodiscard]] ::Diligent::IPipelineState* ResolveNativePipelineForTesting(
         PipelineHandle handle) const noexcept;
+    [[nodiscard]] std::uint32_t GetCompiledBindingLayoutCountForTesting()
+        const noexcept;
+    [[nodiscard]] const DiligentCompiledBindingLayout*
+    ResolveCompiledBindingLayoutForTesting(
+        BindingLayoutHandle handle) const noexcept;
+    [[nodiscard]] std::uint32_t GetNativeBindingSetRecordCountForTesting()
+        const noexcept;
+    [[nodiscard]] const DiligentNativeBindingSetRecord*
+    ResolveNativeBindingSetRecordForTesting(
+        BindingSetHandle handle) const noexcept;
 
 private:
     [[nodiscard]] RenderBackendCapabilities MakeConservativeCapabilities()
@@ -182,6 +194,9 @@ private:
         const noexcept;
     [[nodiscard]] static GraphicsResourceLeakSummary
     BuildLeakSummary(const GraphicsResourceMemoryReport& report) noexcept;
+    [[nodiscard]] static std::uint64_t PackHandleKey(
+        std::uint32_t index,
+        std::uint32_t generation) noexcept;
     void SetFailure(RenderBackendFailure failure) noexcept;
     void SetFrameSkipped(RenderBackendFailure failure) noexcept;
     void ReleaseResources() noexcept;
@@ -213,6 +228,10 @@ private:
         m_BindingLayouts{5001u};
     ResourceRegistry<BindingSetHandle, GraphicsBindingSetDesc>
         m_BindingSets{6001u};
+    std::unordered_map<std::uint64_t, DiligentCompiledBindingLayout>
+        m_CompiledBindingLayouts;
+    std::unordered_map<std::uint64_t, DiligentNativeBindingSetRecord>
+        m_NativeBindingSets;
 };
 
 [[nodiscard]] std::unique_ptr<IGraphicsBackend> CreateDiligentGraphicsBackend();
