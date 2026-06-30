@@ -7,11 +7,23 @@
 
 #include <array>
 #include <cstdint>
+#include <type_traits>
+#include <utility>
 
 namespace
 {
 
 namespace Graphics = SagaEngine::Graphics;
+
+static_assert(!std::is_copy_constructible_v<Graphics::NullGraphicsBackend>);
+static_assert(!std::is_copy_assignable_v<Graphics::NullGraphicsBackend>);
+static_assert(std::is_move_constructible_v<Graphics::NullGraphicsBackend>);
+static_assert(std::is_move_assignable_v<Graphics::NullGraphicsBackend>);
+static_assert(
+    std::is_nothrow_move_constructible_v<Graphics::NullGraphicsBackend>);
+static_assert(
+    std::is_nothrow_move_assignable_v<Graphics::NullGraphicsBackend>);
+static_assert(std::is_destructible_v<Graphics::NullGraphicsBackend>);
 
 Graphics::RenderBackendDesc MakeHeadlessDesc() noexcept
 {
@@ -584,6 +596,77 @@ TEST(GraphicsNullBackendResources, DestroyAndShutdownClearInitialDataResources)
             .IsValid());
     backend.Shutdown();
     EXPECT_EQ(backend.GetResourceMemoryReport().liveTextureCount, 0u);
+    EXPECT_EQ(backend.GetResourceMemoryReport().totalLiveBytes, 0u);
+}
+
+TEST(GraphicsNullBackendResources, MoveConstructTransfersRegistryOwnership)
+{
+    Graphics::NullGraphicsBackend backend;
+    ASSERT_TRUE(backend.Initialize(MakeHeadlessDesc(), {}));
+
+    const auto texture = backend.CreateTexture(MakeTextureDesc());
+    const auto buffer = backend.CreateBuffer(MakeBufferDesc());
+    ASSERT_TRUE(texture.IsValid());
+    ASSERT_TRUE(buffer.IsValid());
+
+    Graphics::NullGraphicsBackend moved(std::move(backend));
+    EXPECT_TRUE(moved.QueryTextureForTesting(texture).live);
+    EXPECT_TRUE(moved.QueryBufferForTesting(buffer).live);
+    EXPECT_EQ(moved.GetResourceMemoryReport().liveTextureCount, 1u);
+    EXPECT_EQ(moved.GetResourceMemoryReport().liveBufferCount, 1u);
+
+    EXPECT_FALSE(backend.QueryTextureForTesting(texture).live);
+    EXPECT_EQ(backend.GetResourceMemoryReport().totalLiveBytes, 0u);
+    backend.DestroyTexture(texture);
+    backend.Shutdown();
+
+    EXPECT_TRUE(moved.QueryTextureForTesting(texture).live);
+    moved.DestroyTexture(texture);
+    moved.DestroyBuffer(buffer);
+    EXPECT_EQ(moved.GetResourceMemoryReport().totalLiveBytes, 0u);
+}
+
+TEST(GraphicsNullBackendResources, MoveAssignTransfersUniqueRegistryOwnership)
+{
+    Graphics::NullGraphicsBackend source;
+    ASSERT_TRUE(source.Initialize(MakeHeadlessDesc(), {}));
+    const auto texture = source.CreateTexture(MakeTextureDesc());
+    ASSERT_TRUE(texture.IsValid());
+
+    Graphics::NullGraphicsBackend target;
+    ASSERT_TRUE(target.Initialize(MakeHeadlessDesc(), {}));
+    const auto oldBuffer = target.CreateBuffer(MakeBufferDesc());
+    ASSERT_TRUE(oldBuffer.IsValid());
+
+    target = std::move(source);
+
+    EXPECT_TRUE(target.QueryTextureForTesting(texture).live);
+    EXPECT_FALSE(target.QueryBufferForTesting(oldBuffer).live);
+    EXPECT_EQ(target.GetResourceMemoryReport().liveTextureCount, 1u);
+    EXPECT_EQ(target.GetResourceMemoryReport().liveBufferCount, 0u);
+
+    source.Shutdown();
+    source.DestroyTexture(texture);
+    EXPECT_TRUE(target.QueryTextureForTesting(texture).live);
+
+    target.Shutdown();
+    EXPECT_FALSE(target.QueryTextureForTesting(texture).live);
+}
+
+TEST(GraphicsNullBackendResources, SelfMoveAssignKeepsRegistryOwnedOnce)
+{
+    Graphics::NullGraphicsBackend backend;
+    ASSERT_TRUE(backend.Initialize(MakeHeadlessDesc(), {}));
+    const auto texture = backend.CreateTexture(MakeTextureDesc());
+    ASSERT_TRUE(texture.IsValid());
+
+    backend = std::move(backend);
+
+    EXPECT_TRUE(backend.QueryTextureForTesting(texture).live);
+    EXPECT_EQ(backend.GetResourceMemoryReport().liveTextureCount, 1u);
+
+    backend.Shutdown();
+    EXPECT_FALSE(backend.QueryTextureForTesting(texture).live);
     EXPECT_EQ(backend.GetResourceMemoryReport().totalLiveBytes, 0u);
 }
 

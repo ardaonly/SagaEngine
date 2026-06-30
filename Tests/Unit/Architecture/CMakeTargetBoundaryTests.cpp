@@ -356,6 +356,7 @@ TEST(CMakeTargetBoundaryTests, SagaGraphicsTargetIsVendorNeutralPublicShell)
     const auto lines = ReadLines(path);
     const auto text = ReadText(path);
     const auto calls = ExtractTargetLinkCalls(lines);
+    const auto engineCalls = ExtractTargetLinkCalls(ReadLines(SagaTargetsPath()));
     const auto rootText = ReadText(CMakeListsPath());
 
     EXPECT_TRUE(ContainsToken(rootText, "include(SagaGraphicsTargets)"))
@@ -366,20 +367,82 @@ TEST(CMakeTargetBoundaryTests, SagaGraphicsTargetIsVendorNeutralPublicShell)
 
     EXPECT_TRUE(ContainsToken(text, "add_library(SagaGraphics INTERFACE)"))
         << "SagaGraphics must exist as a public interface target.";
+    EXPECT_TRUE(ContainsToken(text, "add_library(SagaGraphicsCore STATIC)"))
+        << "SagaGraphicsCore must own vendor-neutral public implementation "
+           "symbols.";
+    EXPECT_TRUE(ContainsToken(text, "saga_get_graphics_core_sources"))
+        << "Graphics core implementation sources must be defined in one "
+           "shared CMake helper.";
+    EXPECT_TRUE(ContainsToken(
+        text,
+        "target_sources(SagaGraphicsCore PRIVATE\n"
+        "        ${SAGA_GRAPHICS_CORE_SOURCES}"))
+        << "SagaGraphicsCore must compile the shared graphics core source "
+           "list.";
     EXPECT_TRUE(ContainsToken(
         text,
         "target_include_directories(SagaGraphics INTERFACE\n"
-        "        ${SAGA_ROOT}/Engine/Public"))
-        << "SagaGraphics must expose only the Engine/Public include root.";
+        "        $<BUILD_INTERFACE:${SAGA_ROOT}/Engine/Public>\n"
+        "        $<INSTALL_INTERFACE:include>"))
+        << "SagaGraphics must expose only the public include root in build "
+           "and install trees.";
+    EXPECT_TRUE(ContainsToken(
+        text,
+        "target_include_directories(SagaGraphicsCore PUBLIC\n"
+        "        $<BUILD_INTERFACE:${SAGA_ROOT}/Engine/Public>\n"
+        "        $<INSTALL_INTERFACE:include>"))
+        << "SagaGraphicsCore must expose only the public include root in "
+           "build and install trees.";
+    EXPECT_TRUE(ContainsToken(
+        text,
+        "target_link_libraries(SagaGraphics INTERFACE\n"
+        "        SagaGraphicsCore"))
+        << "SagaGraphics must expose vendor-neutral implementation symbols "
+           "through SagaGraphicsCore.";
 
+    const std::vector<std::string> forbidden = {
+        "SagaGraphicsPrivate",
+        "SagaDiligentBackend",
+        "VendorDiligent",
+        "Diligent-",
+        "Vulkan::",
+        "D3D",
+        "OpenGL",
+        "Metal",
+    };
     for (const auto& call : calls)
     {
-        EXPECT_NE(call.target, "SagaGraphics")
-            << "SagaGraphics must not link vendor, backend, native API, or "
-               "backend library targets. Offending call in "
-            << path.generic_string() << ":" << call.line
-            << "\n" << call.text;
+        if (call.target != "SagaGraphics")
+        {
+            continue;
+        }
+
+        EXPECT_TRUE(ContainsToken(call.text, "SagaGraphicsCore"))
+            << "SagaGraphics may only link its vendor-neutral core. "
+            << "Offending call in " << path.generic_string() << ":"
+            << call.line << "\n" << call.text;
+        for (const auto& dependency : forbidden)
+        {
+            EXPECT_FALSE(ContainsToken(call.text, dependency))
+                << "SagaGraphics must not link vendor, backend, native API, "
+                   "or private graphics targets. Offending dependency: "
+                << dependency << " in " << path.generic_string() << ":"
+                << call.line << "\n" << call.text;
+        }
     }
+
+    bool sawEngineGraphicsLink = false;
+    for (const auto& call : engineCalls)
+    {
+        if (call.target == "SagaEngine" &&
+            ContainsToken(call.text, "SagaGraphics"))
+        {
+            sawEngineGraphicsLink = true;
+        }
+    }
+    EXPECT_TRUE(sawEngineGraphicsLink)
+        << "SagaEngine must consume the public SagaGraphics target instead "
+           "of compiling public graphics implementation sources directly.";
 }
 
 TEST(CMakeTargetBoundaryTests, SagaGraphicsPrivateTargetIsPrivateBoundaryShell)
@@ -464,6 +527,19 @@ TEST(CMakeTargetBoundaryTests, GraphicsInstallSurfaceDoesNotInstallVendorBackend
         graphicsInstallText,
         "DESTINATION \"${CMAKE_INSTALL_INCLUDEDIR}/SagaEngine\""))
         << "Graphics headers must install below include/SagaEngine.";
+    EXPECT_TRUE(ContainsToken(graphicsInstallText, "SagaGraphicsCore"))
+        << "SagaGraphicsCore must be installed as the public implementation "
+           "dependency for SagaGraphics.";
+    EXPECT_TRUE(ContainsToken(graphicsInstallText, "SagaGraphics"))
+        << "SagaGraphics must be installed as the public consumer target.";
+    EXPECT_TRUE(ContainsToken(graphicsInstallText, "EXPORT SagaEngineTargets"))
+        << "Graphics targets must use the package export set.";
+    EXPECT_TRUE(ContainsToken(graphicsInstallText, "NAMESPACE SagaEngine::"))
+        << "Installed graphics targets must use the SagaEngine:: namespace.";
+    EXPECT_TRUE(ContainsToken(
+        graphicsInstallText,
+        "SagaEngineConfig.cmake"))
+        << "Installed graphics consumers must have a package config.";
 
     const std::vector<std::string> forbiddenInstallTokens = {
         "Vendor/Diligent",

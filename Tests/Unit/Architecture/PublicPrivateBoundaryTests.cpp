@@ -64,6 +64,18 @@ bool Contains(std::string_view value, std::string_view token)
     return value.find(token) != std::string_view::npos;
 }
 
+std::size_t CountOccurrences(std::string_view value, std::string_view token)
+{
+    std::size_t count = 0;
+    std::size_t cursor = 0;
+    while ((cursor = value.find(token, cursor)) != std::string_view::npos)
+    {
+        ++count;
+        cursor += token.size();
+    }
+    return count;
+}
+
 std::string_view SliceBetween(
     std::string_view text,
     std::string_view begin,
@@ -379,6 +391,11 @@ TEST(PublicPrivateBoundaryTests, DiligentBackendSplitFilesStaySmall)
             500u,
         },
         {
+            root / "Engine" / "Private" / "SagaEngine" / "Render" /
+                "Backend" / "Diligent" / "DiligentRenderBackendPrivate.h",
+            260u,
+        },
+        {
             root / "Engine" / "Private" / "SagaEngine" / "Graphics" /
                 "Backends" / "Diligent" / "DiligentGraphicsBackend.cpp",
             500u,
@@ -386,6 +403,11 @@ TEST(PublicPrivateBoundaryTests, DiligentBackendSplitFilesStaySmall)
         {
             root / "Engine" / "Private" / "SagaEngine" / "Graphics" /
                 "Backends" / "Diligent" / "DiligentGraphicsBackendResources.cpp",
+            500u,
+        },
+        {
+            root / "Engine" / "Private" / "SagaEngine" / "Graphics" /
+                "Backends" / "Diligent" / "DiligentGraphicsBackendBindings.cpp",
             500u,
         },
         {
@@ -425,6 +447,84 @@ TEST(PublicPrivateBoundaryTests, DiligentBackendSplitFilesStaySmall)
         << (offenders.empty() ? "" : offenders.front());
 }
 
+TEST(PublicPrivateBoundaryTests, DiligentRenderBackendPrivateHeaderStaysNarrow)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto privateHeader =
+        root / "Engine" / "Private" / "SagaEngine" / "Render" /
+        "Backend" / "Diligent" / "DiligentRenderBackendPrivate.h";
+    ASSERT_TRUE(std::filesystem::exists(privateHeader)) << privateHeader;
+
+    const auto text = ReadText(privateHeader);
+    EXPECT_LE(ReadLines(privateHeader).size(), 260u)
+        << "DiligentRenderBackendPrivate.h must stay a narrow split header";
+
+    const std::vector<std::string_view> forbiddenTokens = {
+        "ImGui",
+        "ImDraw",
+        "ImTextureID",
+        "imgui.h",
+        "static DiligentNativeResourceOwner",
+        "inline DiligentNativeResourceOwner",
+        "static DiligentGpuTimeline",
+        "inline DiligentGpuTimeline",
+        "static DiligentOverlayRenderer",
+        "inline DiligentOverlayRenderer",
+        "static DiligentFrameCapture",
+        "inline DiligentFrameCapture",
+        "static DiligentPipelineCache",
+        "inline DiligentPipelineCache",
+        "static Diligent::RefCntAutoPtr",
+        "inline Diligent::RefCntAutoPtr",
+        "static std::unique_ptr",
+        "inline std::unique_ptr",
+        "static std::shared_ptr",
+        "inline std::shared_ptr",
+    };
+
+    std::vector<std::string> offenders;
+    for (const auto token : forbiddenTokens)
+    {
+        if (Contains(text, token))
+        {
+            offenders.push_back(std::string(token));
+        }
+    }
+
+    EXPECT_EQ(CountOccurrences(text, "inline bool g_verboseGPU"), 1u)
+        << "Only the existing verbose GPU flag may remain as inline mutable state";
+    EXPECT_TRUE(offenders.empty())
+        << "DiligentRenderBackendPrivate.h gained forbidden private-header content. "
+        << "First offender: "
+        << (offenders.empty() ? "" : offenders.front());
+
+    const auto publicRoot = root / "Engine" / "Public";
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(publicRoot))
+    {
+        if (!entry.is_regular_file() || !IsCodeFile(entry.path()))
+        {
+            continue;
+        }
+
+        EXPECT_FALSE(Contains(ReadText(entry.path()), "DiligentRenderBackendPrivate.h"))
+            << RelativeToSourceRoot(entry.path())
+            << " must not include the private render backend split header";
+    }
+
+    const auto cmakeRoot = root / "cmake";
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(cmakeRoot))
+    {
+        if (!entry.is_regular_file() || entry.path().extension() != ".cmake")
+        {
+            continue;
+        }
+
+        EXPECT_FALSE(Contains(ReadText(entry.path()), "DiligentRenderBackendPrivate.h"))
+            << RelativeToSourceRoot(entry.path())
+            << " must not install or expose the private render backend split header";
+    }
+}
+
 TEST(PublicPrivateBoundaryTests, DiligentBackendSplitResponsibilitiesStayPut)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
@@ -449,6 +549,8 @@ TEST(PublicPrivateBoundaryTests, DiligentBackendSplitResponsibilitiesStayPut)
         ReadText(graphicsRoot / "DiligentGraphicsBackend.cpp");
     const auto graphicsResources =
         ReadText(graphicsRoot / "DiligentGraphicsBackendResources.cpp");
+    const auto graphicsBindings =
+        ReadText(graphicsRoot / "DiligentGraphicsBackendBindings.cpp");
     const auto graphicsValidation =
         ReadText(graphicsRoot / "DiligentGraphicsBackendValidation.h");
 
@@ -471,6 +573,9 @@ TEST(PublicPrivateBoundaryTests, DiligentBackendSplitResponsibilitiesStayPut)
         {"render overlay", renderOverlay, "DiligentRenderBackend::CaptureCurrentColorFrame"},
         {"graphics resources", graphicsResources, "DiligentGraphicsBackend::CreateTexture"},
         {"graphics resources", graphicsResources, "DiligentGraphicsBackend::DestroyTexture"},
+        {"graphics bindings", graphicsBindings, "DiligentGraphicsBackend::CreateBindingLayout"},
+        {"graphics bindings", graphicsBindings, "DiligentGraphicsBackend::CreateBindingSet"},
+        {"graphics bindings", graphicsBindings, "DiligentGraphicsBackend::QueryBindingLayout"},
         {"graphics validation", graphicsValidation, "IsValidTextureDesc"},
         {"graphics validation", graphicsValidation, "EstimateTextureBytes"},
     };
@@ -512,6 +617,8 @@ TEST(PublicPrivateBoundaryTests, DiligentBackendSplitResponsibilitiesStayPut)
         "DiligentGraphicsBackend::CreateShader",
         "DiligentGraphicsBackend::CreatePipeline",
         "DiligentGraphicsBackend::CreateSampler",
+        "DiligentGraphicsBackend::CreateBindingLayout",
+        "DiligentGraphicsBackend::CreateBindingSet",
         "DiligentGraphicsBackend::DestroyTexture",
         "IsValidTextureDesc",
         "EstimateTextureBytes",
@@ -528,6 +635,89 @@ TEST(PublicPrivateBoundaryTests, DiligentBackendSplitResponsibilitiesStayPut)
     EXPECT_TRUE(offenders.empty())
         << "Diligent backend split responsibilities drifted. First offender: "
         << (offenders.empty() ? "" : offenders.front());
+}
+
+TEST(PublicPrivateBoundaryTests, GraphicsBindingContractStaysVendorNeutral)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const std::vector<std::filesystem::path> publicHeaders = {
+        root / "Engine" / "Public" / "SagaEngine" / "Graphics" /
+            "Bindings" / "GraphicsBindingTypes.h",
+        root / "Engine" / "Public" / "SagaEngine" / "Graphics" /
+            "Bindings" / "GraphicsBindingValidation.h",
+        root / "Engine" / "Public" / "SagaEngine" / "Graphics" /
+            "Handles" / "GraphicsHandle.h",
+    };
+
+    const std::vector<std::string> forbiddenTokens = {
+        "Diligent",
+        "IRenderDevice",
+        "IDeviceContext",
+        "IPipelineState",
+        "IShaderResourceBinding",
+        "IShaderResourceVariable",
+        "ITextureView",
+        "IBuffer",
+        "RefCntAutoPtr",
+        "ImGui",
+        "ImDrawData",
+        "ImTextureID",
+        "Vulkan",
+        "Vk",
+        "ID3D",
+        "native pointer",
+    };
+
+    std::vector<std::string> offenders;
+    for (const auto& header : publicHeaders)
+    {
+        ASSERT_TRUE(std::filesystem::exists(header)) << header;
+        const auto relative = RelativeToSourceRoot(header).generic_string();
+        const auto lines = ReadLines(header);
+        for (std::size_t i = 0; i < lines.size(); ++i)
+        {
+            for (const auto& token : forbiddenTokens)
+            {
+                if (Contains(lines[i], token))
+                {
+                    offenders.push_back(
+                        relative + ":" + std::to_string(i + 1) + ": " + token);
+                }
+            }
+        }
+    }
+
+    EXPECT_TRUE(offenders.empty())
+        << "Public graphics binding contract must stay vendor-neutral. "
+        << "First offender: "
+        << (offenders.empty() ? "" : offenders.front());
+
+    const auto handles =
+        ReadText(root / "Engine" / "Public" / "SagaEngine" / "Graphics" /
+                 "Handles" / "GraphicsHandle.h");
+    EXPECT_TRUE(Contains(handles, "struct BindingLayoutHandle final : GraphicsHandle"));
+    EXPECT_TRUE(Contains(handles, "struct BindingSetHandle final : GraphicsHandle"));
+    EXPECT_FALSE(Contains(handles, "void*"));
+    EXPECT_FALSE(Contains(handles, "uintptr_t"));
+}
+
+TEST(PublicPrivateBoundaryTests, M5ABindingImplementationDoesNotOwnNativeSrb)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto graphicsRoot =
+        root / "Engine" / "Private" / "SagaEngine" / "Graphics" /
+        "Backends" / "Diligent";
+    const auto bindingImpl =
+        ReadText(graphicsRoot / "DiligentGraphicsBackendBindings.cpp");
+    const auto resourceImpl =
+        ReadText(graphicsRoot / "DiligentGraphicsBackendResources.cpp");
+
+    EXPECT_FALSE(Contains(bindingImpl, "CreateShaderResourceBinding"));
+    EXPECT_FALSE(Contains(bindingImpl, "GetVariableByName"));
+    EXPECT_FALSE(Contains(bindingImpl, "IShaderResourceBinding"));
+    EXPECT_FALSE(Contains(bindingImpl, "IShaderResourceVariable"));
+    EXPECT_FALSE(Contains(resourceImpl, "DiligentGraphicsBackend::CreateBindingLayout"));
+    EXPECT_FALSE(Contains(resourceImpl, "DiligentGraphicsBackend::CreateBindingSet"));
 }
 
 TEST(PublicPrivateBoundaryTests, SagaGraphicsUmbrellaHeaderCompileSmoke)
@@ -984,9 +1174,44 @@ TEST(PublicPrivateBoundaryTests, GraphicsPrivateRenderTestsUsePrivateStyleInclud
     const std::vector<std::pair<std::filesystem::path, std::string>> testFiles = {
         {
             root / "Tests" / "Unit" / "Render" /
-                "GraphicsDiligentBackendAdapterTests.cpp",
+                "GraphicsDiligentBackendTestHelpers.h",
             "#include \"SagaEngine/Graphics/Backends/Diligent/"
             "DiligentGraphicsBackend.h\"",
+        },
+        {
+            root / "Tests" / "Unit" / "Render" /
+                "GraphicsDiligentBackendLifecycleTests.cpp",
+            "#include \"GraphicsDiligentBackendTestHelpers.h\"",
+        },
+        {
+            root / "Tests" / "Unit" / "Render" /
+                "GraphicsDiligentBackendBindingTests.cpp",
+            "#include \"GraphicsDiligentBackendTestHelpers.h\"",
+        },
+        {
+            root / "Tests" / "Unit" / "Render" /
+                "GraphicsDiligentBackendResourceRegistryTests.cpp",
+            "#include \"GraphicsDiligentBackendTestHelpers.h\"",
+        },
+        {
+            root / "Tests" / "Unit" / "Render" /
+                "GraphicsDiligentBackendNativeBufferTests.cpp",
+            "#include \"GraphicsDiligentBackendTestHelpers.h\"",
+        },
+        {
+            root / "Tests" / "Unit" / "Render" /
+                "GraphicsDiligentBackendNativeTextureTests.cpp",
+            "#include \"GraphicsDiligentBackendTestHelpers.h\"",
+        },
+        {
+            root / "Tests" / "Unit" / "Render" /
+                "GraphicsDiligentBackendNativeSamplerTests.cpp",
+            "#include \"GraphicsDiligentBackendTestHelpers.h\"",
+        },
+        {
+            root / "Tests" / "Unit" / "Render" /
+                "GraphicsDiligentBackendNativeShaderPipelineTests.cpp",
+            "#include \"GraphicsDiligentBackendTestHelpers.h\"",
         },
         {
             root / "Tests" / "Unit" / "Render" /

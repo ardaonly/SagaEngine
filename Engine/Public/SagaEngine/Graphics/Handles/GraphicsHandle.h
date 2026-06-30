@@ -24,5 +24,7 @@ struct BufferHandle final : GraphicsHandle {};
 struct ShaderHandle final : GraphicsHandle {};
 struct PipelineHandle final : GraphicsHandle {};
 struct SamplerHandle final : GraphicsHandle {};
+struct BindingLayoutHandle final : GraphicsHandle {};
+struct BindingSetHandle final : GraphicsHandle {};
 
 } // namespace SagaEngine::Graphics

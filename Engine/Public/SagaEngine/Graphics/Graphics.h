@@ -4,6 +4,7 @@
 #pragma once
 
 #include "SagaEngine/Graphics/Backend/GraphicsBackend.h"
+#include "SagaEngine/Graphics/Bindings/GraphicsBindingTypes.h"
 #include "SagaEngine/Graphics/Bindings/GraphicsBindingValidation.h"
 #include "SagaEngine/Graphics/Core/GraphicsTypes.h"
 #include "SagaEngine/Graphics/Descs/ResourceDescs.h"

@@ -43,12 +43,34 @@ function(saga_create_engine_targets)
     saga_collect_sources(SAGA_PRODUCT_SOURCES Apps/Saga)
     saga_collect_sources(CORE_LOG_SOURCES Engine/Private/SagaEngine/Core/Log)
     saga_collect_sources(DIAGNOSTICS_SOURCES Engine/Private/SagaEngine/Diagnostics)
+    saga_get_graphics_core_sources(SAGA_GRAPHICS_CORE_SOURCES)
+    file(GLOB_RECURSE SAGA_DILIGENT_GRAPHICS_BACKEND_IMPL_SOURCES CONFIGURE_DEPENDS
+        "${SAGA_ROOT}/Engine/Private/SagaEngine/Graphics/Backends/Diligent/*.cpp"
+    )
 
     # Exclude launcher files from library sources.
     list(FILTER ENGINE_SOURCES  EXCLUDE REGEX ".*/[Mm]ain\\.cpp$")
     list(FILTER ENGINE_SOURCES  EXCLUDE REGEX ".*/Engine/Private/SagaEngine/Core/Log/.*\\.cpp$")
     list(FILTER ENGINE_SOURCES  EXCLUDE REGEX ".*/Engine/Private/SagaEngine/Diagnostics/.*\\.cpp$")
     list(FILTER ENGINE_SOURCES  EXCLUDE REGEX ".*/Engine/Private/SagaEngine/Render/Backend/Diligent/.*\\.cpp$")
+    list(FILTER ENGINE_SOURCES  EXCLUDE REGEX ".*/Engine/Private/SagaEngine/Graphics/Backends/Diligent/.*\\.cpp$")
+    list(REMOVE_ITEM ENGINE_SOURCES ${SAGA_GRAPHICS_CORE_SOURCES})
+    foreach(_saga_graphics_core_source IN LISTS SAGA_GRAPHICS_CORE_SOURCES)
+        list(FIND ENGINE_SOURCES "${_saga_graphics_core_source}" _saga_engine_source_index)
+        if(NOT _saga_engine_source_index EQUAL -1)
+            message(FATAL_ERROR
+                "Graphics core source must be owned by SagaGraphicsCore, "
+                "not SagaEngine: ${_saga_graphics_core_source}")
+        endif()
+    endforeach()
+    foreach(_saga_diligent_graphics_source IN LISTS SAGA_DILIGENT_GRAPHICS_BACKEND_IMPL_SOURCES)
+        list(FIND ENGINE_SOURCES "${_saga_diligent_graphics_source}" _saga_engine_source_index)
+        if(NOT _saga_engine_source_index EQUAL -1)
+            message(FATAL_ERROR
+                "Diligent graphics backend source must be owned by SagaGraphicsPrivate, "
+                "not SagaEngine: ${_saga_diligent_graphics_source}")
+        endif()
+    endforeach()
     list(FILTER SANDBOX_SOURCES EXCLUDE REGEX ".*/Launchers/.*\\.cpp$")
     # Editor/src/main.cpp is a legacy stub; Apps/Editor/main.cpp is the launcher.
     list(FILTER EDITOR_SOURCES  EXCLUDE REGEX ".*/[Mm]ain\\.cpp$")
@@ -241,6 +263,15 @@ function(saga_create_engine_targets)
     target_sources(SagaEngine PRIVATE
         ${ENGINE_SOURCES}
     )
+    get_target_property(_saga_engine_target_sources SagaEngine SOURCES)
+    foreach(_saga_diligent_graphics_source IN LISTS SAGA_DILIGENT_GRAPHICS_BACKEND_IMPL_SOURCES)
+        list(FIND _saga_engine_target_sources "${_saga_diligent_graphics_source}" _saga_engine_target_source_index)
+        if(NOT _saga_engine_target_source_index EQUAL -1)
+            message(FATAL_ERROR
+                "Diligent graphics backend source must not be compiled by SagaEngine: "
+                "${_saga_diligent_graphics_source}")
+        endif()
+    endforeach()
 
     target_include_directories(SagaEngine PUBLIC
         ${SAGA_ROOT}/Engine/Public
@@ -255,6 +286,7 @@ function(saga_create_engine_targets)
 
     target_link_libraries(SagaEngine PUBLIC
         SagaCoreLog
+        SagaGraphics
         SagaShared
     )
     target_link_libraries(SagaEngine PRIVATE

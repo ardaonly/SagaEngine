@@ -88,6 +88,15 @@ function(saga_setup_tests)
     set(SAGA_DIAGNOSTIC_FOUNDATION_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/Diagnostics/DiagnosticFoundationTests.cpp"
     )
+    set(SAGA_GRAPHICS_PUBLIC_CONSUMER_LINK_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Link/SagaGraphicsPublicConsumerLinkTest.cpp"
+    )
+    set(SAGA_GRAPHICS_INSTALLED_CONSUMER_TEST_SCRIPT
+        "${SAGA_ROOT}/Tests/Link/SagaGraphicsInstalledConsumerTest.cmake"
+    )
+    set(SAGA_GRAPHICS_INSTALLED_CONSUMER_SOURCE_DIR
+        "${SAGA_ROOT}/Tests/Link/SagaGraphicsInstalledConsumerProject"
+    )
     set(SAGA_DIAGNOSTIC_REPORT_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/Diagnostics/DiagnosticReportTests.cpp"
     )
@@ -326,6 +335,7 @@ function(saga_setup_tests)
     target_link_libraries(SagaUnitTests PRIVATE
         SagaEngine
         SagaDiligentBackend
+        SagaGraphicsPrivate
         SagaDiagnostics
         SagaRuntimeLib
         SagaServerLib
@@ -356,6 +366,39 @@ function(saga_setup_tests)
     set_tests_properties(UnitTests PROPERTIES
         LABELS "unit;runtime;server;networking;replication;asset;editor"
     )
+
+    # --- Public graphics consumer link test --------------------------------
+    if(EXISTS "${SAGA_GRAPHICS_PUBLIC_CONSUMER_LINK_TEST_SOURCE}")
+        add_executable(SagaGraphicsPublicConsumerLinkTest
+            "${SAGA_GRAPHICS_PUBLIC_CONSUMER_LINK_TEST_SOURCE}"
+        )
+        saga_apply_compiler_flags(SagaGraphicsPublicConsumerLinkTest)
+        target_link_libraries(SagaGraphicsPublicConsumerLinkTest PRIVATE
+            SagaGraphics
+        )
+        set_target_properties(SagaGraphicsPublicConsumerLinkTest PROPERTIES
+            FOLDER "Tests/Link"
+        )
+        add_test(
+            NAME SagaGraphicsPublicConsumerLinkTest
+            COMMAND SagaGraphicsPublicConsumerLinkTest)
+        set_tests_properties(SagaGraphicsPublicConsumerLinkTest PROPERTIES
+            LABELS "link;graphics;public")
+    endif()
+
+    if(EXISTS "${SAGA_GRAPHICS_INSTALLED_CONSUMER_TEST_SCRIPT}")
+        add_test(
+            NAME SagaGraphicsInstalledConsumerTest
+            COMMAND ${CMAKE_COMMAND}
+                -DSAGA_BUILD_DIR=${CMAKE_BINARY_DIR}
+                -DSAGA_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/installed/SagaGraphicsConsumer
+                -DSAGA_DOWNSTREAM_SOURCE_DIR=${SAGA_GRAPHICS_INSTALLED_CONSUMER_SOURCE_DIR}
+                -DSAGA_DOWNSTREAM_BINARY_DIR=${CMAKE_BINARY_DIR}/installed-consumer-build/SagaGraphics
+                -DSAGA_SOURCE_ROOT=${SAGA_ROOT}
+                -P ${SAGA_GRAPHICS_INSTALLED_CONSUMER_TEST_SCRIPT})
+        set_tests_properties(SagaGraphicsInstalledConsumerTest PROPERTIES
+            LABELS "link;graphics;public;install")
+    endif()
 
     # --- Diagnostics foundation tests ---------------------------------------
     if(EXISTS "${SAGA_DIAGNOSTIC_FOUNDATION_TEST_SOURCE}")
@@ -1663,6 +1706,7 @@ function(saga_setup_tests)
     if(ARCHITECTURE_TEST_SOURCES)
         add_executable(SagaArchitectureTests ${ARCHITECTURE_TEST_SOURCES})
         target_link_libraries(SagaArchitectureTests PRIVATE
+            SagaEngine
             SagaShared
             SagaCollaboration
             GTest::gtest

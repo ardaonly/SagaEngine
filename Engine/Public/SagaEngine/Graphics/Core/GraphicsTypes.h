@@ -4,6 +4,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 
 namespace SagaEngine::Graphics
 {
@@ -88,6 +89,52 @@ enum class TextureUsageFlags : std::uint16_t
     DepthStencil = 1u << 2u,
     TransferSrc  = 1u << 3u,
     TransferDst  = 1u << 4u,
+};
+
+enum class GraphicsResourceBacking : std::uint8_t
+{
+    Invalid = 0,
+    RegisteredOnly,
+    NativeGpuFuture,
+    NativeGpu,
+};
+
+enum class GraphicsResourceLifecycle : std::uint8_t
+{
+    Invalid = 0,
+    RegisteredOnly,
+    Ready,
+    PendingDestroy,
+    Retired,
+    Failed,
+};
+
+enum class GraphicsResourceKind : std::uint8_t
+{
+    Invalid = 0,
+    Texture,
+    Buffer,
+    Shader,
+    Pipeline,
+    Sampler,
+};
+
+struct GraphicsResourceQueryResult
+{
+    bool valid = false;
+    bool live = false;
+    GraphicsResourceKind kind = GraphicsResourceKind::Invalid;
+    GraphicsResourceLifecycle lifecycle =
+        GraphicsResourceLifecycle::Invalid;
+    GraphicsResourceBacking backing = GraphicsResourceBacking::Invalid;
+    bool nativeBacked = false;
+    std::uint64_t logicalBytes = 0;
+    std::uint64_t approximateBytes = 0;
+    bool resident = false;
+    bool pendingDestroy = false;
+    std::uint64_t creationSerial = 0;
+    std::uint64_t lastUseSerial = 0;
+    std::string debugName;
 };
 
 [[nodiscard]] constexpr TextureUsageFlags operator|(

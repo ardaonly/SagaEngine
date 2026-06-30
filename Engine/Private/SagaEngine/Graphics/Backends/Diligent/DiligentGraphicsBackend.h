@@ -70,12 +70,18 @@ public:
     [[nodiscard]] ShaderHandle CreateShader(const ShaderDesc& desc) override;
     [[nodiscard]] PipelineHandle CreatePipeline(const PipelineDesc& desc) override;
     [[nodiscard]] SamplerHandle CreateSampler(const SamplerDesc& desc) override;
+    [[nodiscard]] BindingLayoutHandle CreateBindingLayout(
+        const GraphicsBindingLayoutDesc& desc) override;
+    [[nodiscard]] BindingSetHandle CreateBindingSet(
+        const GraphicsBindingSetDesc& desc) override;
 
     void DestroyTexture(TextureHandle handle) override;
     void DestroyBuffer(BufferHandle handle) override;
     void DestroyShader(ShaderHandle handle) override;
     void DestroyPipeline(PipelineHandle handle) override;
     void DestroySampler(SamplerHandle handle) override;
+    void DestroyBindingLayout(BindingLayoutHandle handle) override;
+    void DestroyBindingSet(BindingSetHandle handle) override;
 
     void BeginFrame() override;
     void EndFrame() override;
@@ -92,6 +98,10 @@ public:
     [[nodiscard]] GraphicsResourceQueryResult QueryResource(
         GraphicsResourceKind kind,
         GraphicsHandle handle) const override;
+    [[nodiscard]] GraphicsBindingLayoutQueryResult QueryBindingLayout(
+        BindingLayoutHandle handle) const override;
+    [[nodiscard]] GraphicsBindingSetQueryResult QueryBindingSet(
+        BindingSetHandle handle) const override;
     [[nodiscard]] std::uint64_t GetTextureShadowBytesForTesting(
         TextureHandle handle) const noexcept;
     [[nodiscard]] std::uint64_t GetBufferShadowBytesForTesting(
@@ -199,6 +209,10 @@ private:
     ResourceRegistry<ShaderHandle, ShaderDesc> m_Shaders{2001u};
     ResourceRegistry<PipelineHandle, PipelineDesc> m_Pipelines{3001u};
     ResourceRegistry<SamplerHandle, SamplerDesc> m_Samplers{4001u};
+    ResourceRegistry<BindingLayoutHandle, GraphicsBindingLayoutDesc>
+        m_BindingLayouts{5001u};
+    ResourceRegistry<BindingSetHandle, GraphicsBindingSetDesc>
+        m_BindingSets{6001u};
 };
 
 [[nodiscard]] std::unique_ptr<IGraphicsBackend> CreateDiligentGraphicsBackend();

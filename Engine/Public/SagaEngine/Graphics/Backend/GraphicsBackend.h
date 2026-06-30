@@ -4,13 +4,14 @@
 #pragma once
 
 #include "SagaEngine/Graphics/Core/GraphicsTypes.h"
+#include "SagaEngine/Graphics/Bindings/GraphicsBindingTypes.h"
 #include "SagaEngine/Graphics/Descs/ResourceDescs.h"
 #include "SagaEngine/Graphics/Handles/GraphicsHandle.h"
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
-#include <vector>
 
 namespace SagaEngine::Graphics
 {
@@ -59,34 +60,9 @@ enum class GraphicsResourceFailure : std::uint8_t
     InvalidPipelineDesc,
     InvalidSamplerDesc,
     InvalidInitialData,
-};
-
-enum class GraphicsResourceBacking : std::uint8_t
-{
-    Invalid = 0,
-    RegisteredOnly,
-    NativeGpuFuture,
-    NativeGpu,
-};
-
-enum class GraphicsResourceLifecycle : std::uint8_t
-{
-    Invalid = 0,
-    RegisteredOnly,
-    Ready,
-    PendingDestroy,
-    Retired,
-    Failed,
-};
-
-enum class GraphicsResourceKind : std::uint8_t
-{
-    Invalid = 0,
-    Texture,
-    Buffer,
-    Shader,
-    Pipeline,
-    Sampler,
+    InvalidBindingLayoutDesc,
+    InvalidBindingSetDesc,
+    UnsupportedBindingContract,
 };
 
 enum class RenderQualityPreset : std::uint8_t
@@ -193,24 +169,6 @@ struct GraphicsResourceLeakSummary
     std::uint64_t totalLeakedBytes = 0;
 };
 
-struct GraphicsResourceQueryResult
-{
-    bool valid = false;
-    bool live = false;
-    GraphicsResourceKind kind = GraphicsResourceKind::Invalid;
-    GraphicsResourceLifecycle lifecycle =
-        GraphicsResourceLifecycle::Invalid;
-    GraphicsResourceBacking backing = GraphicsResourceBacking::Invalid;
-    bool nativeBacked = false;
-    std::uint64_t logicalBytes = 0;
-    std::uint64_t approximateBytes = 0;
-    bool resident = false;
-    bool pendingDestroy = false;
-    std::uint64_t creationSerial = 0;
-    std::uint64_t lastUseSerial = 0;
-    std::string debugName;
-};
-
 /// Creation-time data view. The pointer only needs to remain valid for the
 /// duration of the create call; backends copy accepted data immediately and
 /// never retain the caller-owned pointer.
@@ -273,12 +231,24 @@ public:
         const PipelineDesc& desc) = 0;
     [[nodiscard]] virtual SamplerHandle CreateSampler(
         const SamplerDesc& desc) = 0;
+    [[nodiscard]] virtual BindingLayoutHandle CreateBindingLayout(
+        const GraphicsBindingLayoutDesc&)
+    {
+        return {};
+    }
+    [[nodiscard]] virtual BindingSetHandle CreateBindingSet(
+        const GraphicsBindingSetDesc&)
+    {
+        return {};
+    }
 
     virtual void DestroyTexture(TextureHandle handle) = 0;
     virtual void DestroyBuffer(BufferHandle handle) = 0;
     virtual void DestroyShader(ShaderHandle handle) = 0;
     virtual void DestroyPipeline(PipelineHandle handle) = 0;
     virtual void DestroySampler(SamplerHandle handle) = 0;
+    virtual void DestroyBindingLayout(BindingLayoutHandle) {}
+    virtual void DestroyBindingSet(BindingSetHandle) {}
 
     virtual void BeginFrame() = 0;
     virtual void EndFrame() = 0;
@@ -295,831 +265,102 @@ public:
     [[nodiscard]] virtual GraphicsResourceQueryResult QueryResource(
         GraphicsResourceKind kind,
         GraphicsHandle handle) const = 0;
-};
-
-class NullGraphicsBackend final : public IGraphicsBackend
-{
-private:
-    template <typename HandleT, typename DescT>
-    class ResourceRegistry
+    [[nodiscard]] virtual GraphicsBindingLayoutQueryResult QueryBindingLayout(
+        BindingLayoutHandle) const
     {
-    public:
-        explicit ResourceRegistry(std::uint32_t initialGeneration = 1u)
-            : m_InitialGeneration(initialGeneration == 0u ? 1u
-                                                          : initialGeneration)
-        {
-        }
-
-        [[nodiscard]] HandleT Create(
-            const DescT& desc,
-            std::uint64_t estimatedBytes,
-            const std::vector<std::uint8_t>& shadowPayload = {},
-            std::uint64_t creationSerial = 0)
-        {
-            std::uint32_t slotIndex = 0;
-            if (!m_FreeSlots.empty())
-            {
-                slotIndex = m_FreeSlots.back();
-                m_FreeSlots.pop_back();
-                auto& slot = m_Slots[slotIndex];
-                slot.desc = desc;
-                slot.estimatedBytes = estimatedBytes;
-                slot.shadowPayload = shadowPayload;
-                slot.backing = GraphicsResourceBacking::RegisteredOnly;
-                slot.lifecycle = GraphicsResourceLifecycle::RegisteredOnly;
-                slot.creationSerial = creationSerial;
-                slot.lastUseSerial = 0;
-                slot.occupied = true;
-                slot.generation = NextGeneration(slot.generation);
-            }
-            else
-            {
-                slotIndex = static_cast<std::uint32_t>(m_Slots.size());
-                m_Slots.push_back(
-                    {
-                        desc,
-                        estimatedBytes,
-                        shadowPayload,
-                        GraphicsResourceBacking::RegisteredOnly,
-                        GraphicsResourceLifecycle::RegisteredOnly,
-                        creationSerial,
-                        0u,
-                        m_InitialGeneration,
-                        true,
-                    });
-            }
-
-            m_LiveCount += 1u;
-            m_LiveBytes += estimatedBytes;
-
-            HandleT handle;
-            handle.index = slotIndex + 1u;
-            handle.generation = m_Slots[slotIndex].generation;
-            return handle;
-        }
-
-        void Destroy(HandleT handle)
-        {
-            if (!handle.IsValid() || handle.index > m_Slots.size())
-            {
-                return;
-            }
-
-            const auto slotIndex = handle.index - 1u;
-            auto& slot = m_Slots[slotIndex];
-            if (!slot.occupied || slot.generation != handle.generation)
-            {
-                return;
-            }
-
-            slot.occupied = false;
-            slot.shadowPayload.clear();
-            slot.lifecycle = GraphicsResourceLifecycle::Retired;
-            slot.lastUseSerial = slot.creationSerial;
-            m_LiveCount -= 1u;
-            m_LiveBytes -= slot.estimatedBytes;
-            m_FreeSlots.push_back(slotIndex);
-        }
-
-        void ReleaseAll()
-        {
-            m_FreeSlots.clear();
-            for (std::uint32_t i = 0; i < m_Slots.size(); ++i)
-            {
-                auto& slot = m_Slots[i];
-                slot.occupied = false;
-                slot.shadowPayload.clear();
-                slot.lifecycle = GraphicsResourceLifecycle::Retired;
-                slot.lastUseSerial = slot.creationSerial;
-                m_FreeSlots.push_back(i);
-            }
-            m_LiveCount = 0;
-            m_LiveBytes = 0;
-        }
-
-        [[nodiscard]] std::uint32_t LiveCount() const noexcept
-        {
-            return m_LiveCount;
-        }
-
-        [[nodiscard]] std::uint64_t LiveBytes() const noexcept
-        {
-            return m_LiveBytes;
-        }
-
-        [[nodiscard]] GraphicsResourceBacking Backing(HandleT handle)
-            const noexcept
-        {
-            if (!handle.IsValid() || handle.index > m_Slots.size())
-            {
-                return GraphicsResourceBacking::Invalid;
-            }
-
-            const auto slotIndex = handle.index - 1u;
-            const auto& slot = m_Slots[slotIndex];
-            if (!slot.occupied || slot.generation != handle.generation)
-            {
-                return GraphicsResourceBacking::Invalid;
-            }
-
-            return slot.backing;
-        }
-
-        [[nodiscard]] GraphicsResourceQueryResult Query(
-            HandleT handle,
-            GraphicsResourceKind kind) const
-        {
-            if (!handle.IsValid() || handle.index > m_Slots.size())
-            {
-                return {};
-            }
-
-            const auto slotIndex = handle.index - 1u;
-            const auto& slot = m_Slots[slotIndex];
-            if (!slot.occupied || slot.generation != handle.generation)
-            {
-                return {};
-            }
-
-            return {
-                true,
-                true,
-                kind,
-                slot.lifecycle,
-                slot.backing,
-                slot.backing == GraphicsResourceBacking::NativeGpu,
-                slot.estimatedBytes,
-                slot.estimatedBytes,
-                slot.lifecycle == GraphicsResourceLifecycle::Ready &&
-                    slot.backing == GraphicsResourceBacking::NativeGpu,
-                slot.lifecycle == GraphicsResourceLifecycle::PendingDestroy,
-                slot.creationSerial,
-                slot.lastUseSerial,
-                slot.desc.debugName,
-            };
-        }
-
-    private:
-        struct Slot
-        {
-            DescT desc{};
-            std::uint64_t estimatedBytes = 0;
-            std::vector<std::uint8_t> shadowPayload{};
-            GraphicsResourceBacking backing =
-                GraphicsResourceBacking::RegisteredOnly;
-            GraphicsResourceLifecycle lifecycle =
-                GraphicsResourceLifecycle::Invalid;
-            std::uint64_t creationSerial = 0;
-            std::uint64_t lastUseSerial = 0;
-            std::uint32_t generation = 1;
-            bool occupied = false;
-        };
-
-        [[nodiscard]] static constexpr std::uint32_t NextGeneration(
-            std::uint32_t generation) noexcept
-        {
-            return generation == 0xFFFFFFFFu ? 1u : generation + 1u;
-        }
-
-        std::vector<Slot> m_Slots;
-        std::vector<std::uint32_t> m_FreeSlots;
-        std::uint32_t m_InitialGeneration = 1;
-        std::uint32_t m_LiveCount = 0;
-        std::uint64_t m_LiveBytes = 0;
-    };
-
-public:
-    bool Initialize(
-        const RenderBackendDesc& backend,
-        const SwapchainDesc&) override
-    {
-        m_Status.selectedBackend = backend.preferredBackend;
-        m_Status.initialized = true;
-        m_Status.health =
-            backend.headless ? RenderBackendHealth::Headless
-                             : RenderBackendHealth::Ready;
-        m_Status.failure = RenderBackendFailure::None;
-        return true;
-    }
-
-    void Shutdown() override
-    {
-        m_LastShutdownLeakSummary =
-            BuildLeakSummary(GetResourceMemoryReport());
-        m_Textures.ReleaseAll();
-        m_Buffers.ReleaseAll();
-        m_Shaders.ReleaseAll();
-        m_Pipelines.ReleaseAll();
-        m_Samplers.ReleaseAll();
-        m_Status.initialized = false;
-        m_Status.health = RenderBackendHealth::Shutdown;
-    }
-
-    void Resize(std::uint32_t width, std::uint32_t height) override
-    {
-        m_Width = width;
-        m_Height = height;
-    }
-
-    TextureHandle CreateTexture(const TextureDesc& desc) override
-    {
-        return CreateTexture(desc, {});
-    }
-
-    TextureHandle CreateTexture(
-        const TextureDesc& desc,
-        GraphicsDataView initialData) override
-    {
-        if (!CanCreateResources())
-        {
-            return RecordCreateFailure<TextureHandle>(
-                GraphicsResourceFailure::BackendNotInitialized);
-        }
-
-        if (!IsValidTextureDesc(desc))
-        {
-            return RecordCreateFailure<TextureHandle>(
-                GraphicsResourceFailure::InvalidTextureDesc);
-        }
-
-        if (!IsValidTextureInitialData(desc, initialData))
-        {
-            return RecordCreateFailure<TextureHandle>(
-                GraphicsResourceFailure::InvalidInitialData);
-        }
-
-        return RecordSuccessfulCreate(
-            m_Textures.Create(
-                desc,
-                EstimateTextureBytes(desc),
-                CopyShadowPayload(initialData),
-                m_NextResourceCreationSerial++));
-    }
-
-    BufferHandle CreateBuffer(const BufferDesc& desc) override
-    {
-        return CreateBuffer(desc, {});
-    }
-
-    BufferHandle CreateBuffer(
-        const BufferDesc& desc,
-        GraphicsDataView initialData) override
-    {
-        if (!CanCreateResources())
-        {
-            return RecordCreateFailure<BufferHandle>(
-                GraphicsResourceFailure::BackendNotInitialized);
-        }
-
-        if (!IsValidBufferDesc(desc))
-        {
-            return RecordCreateFailure<BufferHandle>(
-                GraphicsResourceFailure::InvalidBufferDesc);
-        }
-
-        if (!IsValidBufferInitialData(desc, initialData))
-        {
-            return RecordCreateFailure<BufferHandle>(
-                GraphicsResourceFailure::InvalidInitialData);
-        }
-
-        return RecordSuccessfulCreate(
-            m_Buffers.Create(
-                desc,
-                EstimateBufferBytes(desc),
-                CopyShadowPayload(initialData),
-                m_NextResourceCreationSerial++));
-    }
-
-    ShaderHandle CreateShader(const ShaderDesc& desc) override
-    {
-        if (!CanCreateResources())
-        {
-            return RecordCreateFailure<ShaderHandle>(
-                GraphicsResourceFailure::BackendNotInitialized);
-        }
-
-        if (!IsValidShaderDesc(desc))
-        {
-            return RecordCreateFailure<ShaderHandle>(
-                GraphicsResourceFailure::InvalidShaderDesc);
-        }
-
-        return RecordSuccessfulCreate(
-            m_Shaders.Create(
-                desc,
-                EstimateShaderBytes(desc),
-                {},
-                m_NextResourceCreationSerial++));
-    }
-
-    PipelineHandle CreatePipeline(const PipelineDesc& desc) override
-    {
-        if (!CanCreateResources())
-        {
-            return RecordCreateFailure<PipelineHandle>(
-                GraphicsResourceFailure::BackendNotInitialized);
-        }
-
-        if (!IsValidPipelineDesc(desc))
-        {
-            return RecordCreateFailure<PipelineHandle>(
-                GraphicsResourceFailure::InvalidPipelineDesc);
-        }
-
-        return RecordSuccessfulCreate(
-            m_Pipelines.Create(
-                desc,
-                EstimatePipelineBytes(desc),
-                {},
-                m_NextResourceCreationSerial++));
-    }
-
-    SamplerHandle CreateSampler(const SamplerDesc& desc) override
-    {
-        if (!CanCreateResources())
-        {
-            return RecordCreateFailure<SamplerHandle>(
-                GraphicsResourceFailure::BackendNotInitialized);
-        }
-
-        if (!IsValidSamplerDesc(desc))
-        {
-            return RecordCreateFailure<SamplerHandle>(
-                GraphicsResourceFailure::InvalidSamplerDesc);
-        }
-
-        return RecordSuccessfulCreate(
-            m_Samplers.Create(
-                desc,
-                EstimateSamplerBytes(desc),
-                {},
-                m_NextResourceCreationSerial++));
-    }
-
-    void DestroyTexture(TextureHandle handle) override
-    {
-        m_Textures.Destroy(handle);
-    }
-
-    void DestroyBuffer(BufferHandle handle) override
-    {
-        m_Buffers.Destroy(handle);
-    }
-
-    void DestroyShader(ShaderHandle handle) override
-    {
-        m_Shaders.Destroy(handle);
-    }
-
-    void DestroyPipeline(PipelineHandle handle) override
-    {
-        m_Pipelines.Destroy(handle);
-    }
-
-    void DestroySampler(SamplerHandle handle) override
-    {
-        m_Samplers.Destroy(handle);
-    }
-
-    void BeginFrame() override
-    {
-        ++m_Status.frameIndex;
-    }
-
-    void EndFrame() override {}
-
-    [[nodiscard]] RenderBackendStatus GetStatus() const noexcept override
-    {
-        return m_Status;
-    }
-
-    [[nodiscard]] RenderBackendCapabilities GetCapabilities()
-        const noexcept override
-    {
-        RenderBackendCapabilities capabilities{};
-        capabilities.backend = m_Status.selectedBackend;
-        capabilities.qualityCeiling = RenderQualityPreset::Low;
-        capabilities.maxTexture2DSize = 1024u;
-        capabilities.maxColorAttachments = 1u;
-        capabilities.maxFramesInFlight = 1u;
-        return capabilities;
-    }
-
-    [[nodiscard]] GraphicsResourceMemoryReport GetResourceMemoryReport()
-        const noexcept override
-    {
-        GraphicsResourceMemoryReport report{};
-        report.liveTextureCount = m_Textures.LiveCount();
-        report.liveBufferCount = m_Buffers.LiveCount();
-        report.liveShaderCount = m_Shaders.LiveCount();
-        report.livePipelineCount = m_Pipelines.LiveCount();
-        report.liveSamplerCount = m_Samplers.LiveCount();
-        report.textureBytes = m_Textures.LiveBytes();
-        report.bufferBytes = m_Buffers.LiveBytes();
-        report.shaderBytes = m_Shaders.LiveBytes();
-        report.pipelineBytes = m_Pipelines.LiveBytes();
-        report.samplerBytes = m_Samplers.LiveBytes();
-        report.totalLiveBytes =
-            report.textureBytes + report.bufferBytes + report.shaderBytes +
-            report.pipelineBytes + report.samplerBytes;
-        report.peakLiveBytes = m_PeakLiveBytes;
-        report.failedCreateCount = m_FailedCreateCount;
-        return report;
-    }
-
-    [[nodiscard]] GraphicsResourceFailure GetLastResourceFailure()
-        const noexcept override
-    {
-        return m_LastResourceFailure;
-    }
-
-    [[nodiscard]] GraphicsResourceLeakSummary
-    GetLastShutdownResourceLeakSummary() const noexcept override
-    {
-        return m_LastShutdownLeakSummary;
-    }
-
-    [[nodiscard]] GraphicsResourceQueryResult QueryResource(
-        GraphicsResourceKind kind,
-        GraphicsHandle handle) const override
-    {
-        switch (kind)
-        {
-        case GraphicsResourceKind::Texture:
-            return QueryTextureForTesting(ToTypedHandle<TextureHandle>(handle));
-        case GraphicsResourceKind::Buffer:
-            return QueryBufferForTesting(ToTypedHandle<BufferHandle>(handle));
-        case GraphicsResourceKind::Shader:
-            return QueryShaderForTesting(ToTypedHandle<ShaderHandle>(handle));
-        case GraphicsResourceKind::Pipeline:
-            return QueryPipelineForTesting(
-                ToTypedHandle<PipelineHandle>(handle));
-        case GraphicsResourceKind::Sampler:
-            return QuerySamplerForTesting(ToTypedHandle<SamplerHandle>(handle));
-        case GraphicsResourceKind::Invalid:
-        default:
-            return {};
-        }
-    }
-
-    [[nodiscard]] GraphicsResourceBacking GetTextureBackingForTesting(
-        TextureHandle handle) const noexcept
-    {
-        return m_Textures.Backing(handle);
-    }
-
-    [[nodiscard]] GraphicsResourceBacking GetBufferBackingForTesting(
-        BufferHandle handle) const noexcept
-    {
-        return m_Buffers.Backing(handle);
-    }
-
-    [[nodiscard]] GraphicsResourceQueryResult QueryTextureForTesting(
-        TextureHandle handle) const noexcept
-    {
-        return m_Textures.Query(handle, GraphicsResourceKind::Texture);
-    }
-
-    [[nodiscard]] GraphicsResourceQueryResult QueryBufferForTesting(
-        BufferHandle handle) const noexcept
-    {
-        return m_Buffers.Query(handle, GraphicsResourceKind::Buffer);
-    }
-
-    [[nodiscard]] GraphicsResourceQueryResult QueryShaderForTesting(
-        ShaderHandle handle) const noexcept
-    {
-        return m_Shaders.Query(handle, GraphicsResourceKind::Shader);
-    }
-
-    [[nodiscard]] GraphicsResourceQueryResult QueryPipelineForTesting(
-        PipelineHandle handle) const noexcept
-    {
-        return m_Pipelines.Query(handle, GraphicsResourceKind::Pipeline);
-    }
-
-    [[nodiscard]] GraphicsResourceQueryResult QuerySamplerForTesting(
-        SamplerHandle handle) const noexcept
-    {
-        return m_Samplers.Query(handle, GraphicsResourceKind::Sampler);
-    }
-
-    [[nodiscard]] std::uint32_t Width() const noexcept
-    {
-        return m_Width;
-    }
-
-    [[nodiscard]] std::uint32_t Height() const noexcept
-    {
-        return m_Height;
-    }
-
-private:
-    template <typename HandleT>
-    [[nodiscard]] static constexpr HandleT ToTypedHandle(
-        GraphicsHandle handle) noexcept
-    {
-        HandleT typed{};
-        typed.index = handle.index;
-        typed.generation = handle.generation;
-        return typed;
-    }
-
-    [[nodiscard]] bool CanCreateResources() const noexcept
-    {
-        return m_Status.initialized &&
-               m_Status.failure == RenderBackendFailure::None;
-    }
-
-    template <typename HandleT>
-    [[nodiscard]] HandleT RecordCreateFailure(
-        GraphicsResourceFailure failure) noexcept
-    {
-        m_LastResourceFailure = failure;
-        ++m_FailedCreateCount;
         return {};
     }
-
-    template <typename HandleT>
-    [[nodiscard]] HandleT RecordSuccessfulCreate(HandleT handle) noexcept
+    [[nodiscard]] virtual GraphicsBindingSetQueryResult QueryBindingSet(
+        BindingSetHandle) const
     {
-        m_LastResourceFailure = GraphicsResourceFailure::None;
-        const auto report = GetResourceMemoryReport();
-        if (report.totalLiveBytes > m_PeakLiveBytes)
-        {
-            m_PeakLiveBytes = report.totalLiveBytes;
-        }
-        return handle;
+        return {};
     }
+};
 
-    [[nodiscard]] static constexpr GraphicsResourceLeakSummary
-    BuildLeakSummary(const GraphicsResourceMemoryReport& report) noexcept
-    {
-        GraphicsResourceLeakSummary summary{};
-        summary.hadLiveResources = report.totalLiveBytes != 0u ||
-                                   report.liveTextureCount != 0u ||
-                                   report.liveBufferCount != 0u ||
-                                   report.liveShaderCount != 0u ||
-                                   report.livePipelineCount != 0u ||
-                                   report.liveSamplerCount != 0u;
-        summary.leakedTextureCount = report.liveTextureCount;
-        summary.leakedBufferCount = report.liveBufferCount;
-        summary.leakedShaderCount = report.liveShaderCount;
-        summary.leakedPipelineCount = report.livePipelineCount;
-        summary.leakedSamplerCount = report.liveSamplerCount;
-        summary.textureBytes = report.textureBytes;
-        summary.bufferBytes = report.bufferBytes;
-        summary.shaderBytes = report.shaderBytes;
-        summary.pipelineBytes = report.pipelineBytes;
-        summary.samplerBytes = report.samplerBytes;
-        summary.totalLeakedBytes = report.totalLiveBytes;
-        return summary;
-    }
+/// Vendor-neutral no-op graphics backend. It is noncopyable and noexcept
+/// movable. A moved-from instance is valid but inert: Initialize fails,
+/// Shutdown and destroy operations are no-op, and create operations return
+/// invalid handles.
+class NullGraphicsBackend final : public IGraphicsBackend
+{
+public:
+    NullGraphicsBackend();
+    ~NullGraphicsBackend() override;
+    NullGraphicsBackend(const NullGraphicsBackend&) = delete;
+    NullGraphicsBackend& operator=(const NullGraphicsBackend&) = delete;
+    NullGraphicsBackend(NullGraphicsBackend&&) noexcept;
+    NullGraphicsBackend& operator=(NullGraphicsBackend&&) noexcept;
 
-    [[nodiscard]] static constexpr bool IsKnownFormat(
-        ResourceFormat format) noexcept
-    {
-        return format == ResourceFormat::Rgba8Unorm ||
-               format == ResourceFormat::Rgba8UnormSrgb ||
-               format == ResourceFormat::Bgra8Unorm ||
-               format == ResourceFormat::Rgba16Float ||
-               format == ResourceFormat::Rgba32Float ||
-               format == ResourceFormat::Depth24Stencil8 ||
-               format == ResourceFormat::Depth32Float;
-    }
+    bool Initialize(
+        const RenderBackendDesc& backend,
+        const SwapchainDesc& swapchain) override;
+    void Shutdown() override;
+    void Resize(std::uint32_t width, std::uint32_t height) override;
 
-    [[nodiscard]] static constexpr bool IsValidTextureDesc(
-        const TextureDesc& desc) noexcept
-    {
-        return desc.width != 0u && desc.height != 0u && desc.depth != 0u &&
-               desc.mipLevels != 0u && desc.arrayLayers != 0u &&
-               IsKnownFormat(desc.format);
-    }
-
-    [[nodiscard]] static constexpr bool IsValidBufferDesc(
-        const BufferDesc& desc) noexcept
-    {
-        return desc.sizeBytes != 0u;
-    }
-
-    [[nodiscard]] static constexpr bool IsValidShaderStage(
-        ShaderStage stage) noexcept
-    {
-        return stage == ShaderStage::Vertex ||
-               stage == ShaderStage::Fragment ||
-               stage == ShaderStage::Compute;
-    }
-
-    [[nodiscard]] static constexpr bool IsValidShaderDesc(
-        const ShaderDesc& desc) noexcept
-    {
-        return (desc.byteSize != 0u || !desc.source.empty()) &&
-               IsValidShaderStage(desc.stage) &&
-               (desc.source.empty() || !desc.entryPoint.empty());
-    }
-
-    [[nodiscard]] static constexpr bool IsValidTopology(
-        PrimitiveTopology topology) noexcept
-    {
-        return topology == PrimitiveTopology::TriangleList ||
-               topology == PrimitiveTopology::TriangleStrip ||
-               topology == PrimitiveTopology::LineList;
-    }
-
-    [[nodiscard]] static constexpr bool IsValidPipelineDesc(
-        const PipelineDesc& desc) noexcept
-    {
-        return desc.colorTargetCount != 0u && desc.colorTargetCount <= 8u &&
-               IsValidTopology(desc.topology) &&
-               IsKnownFormat(desc.colorFormat) &&
-               IsKnownFormat(desc.depthFormat);
-    }
-
-    [[nodiscard]] static constexpr bool IsValidFilterMode(
-        FilterMode mode) noexcept
-    {
-        return mode == FilterMode::Nearest || mode == FilterMode::Linear;
-    }
-
-    [[nodiscard]] static constexpr bool IsValidAddressMode(
-        AddressMode mode) noexcept
-    {
-        return mode == AddressMode::ClampToEdge ||
-               mode == AddressMode::Repeat ||
-               mode == AddressMode::MirrorRepeat;
-    }
-
-    [[nodiscard]] static constexpr bool IsValidSamplerDesc(
-        const SamplerDesc& desc) noexcept
-    {
-        return IsValidFilterMode(desc.minFilter) &&
-               IsValidFilterMode(desc.magFilter) &&
-               IsValidAddressMode(desc.addressU) &&
-               IsValidAddressMode(desc.addressV) &&
-               IsValidAddressMode(desc.addressW);
-    }
-
-    [[nodiscard]] static constexpr std::uint64_t BytesPerPixel(
-        ResourceFormat format) noexcept
-    {
-        switch (format)
-        {
-        case ResourceFormat::Rgba8Unorm:
-        case ResourceFormat::Rgba8UnormSrgb:
-        case ResourceFormat::Bgra8Unorm:
-        case ResourceFormat::Depth24Stencil8:
-        case ResourceFormat::Depth32Float:
-            return 4u;
-        case ResourceFormat::Rgba16Float:
-            return 8u;
-        case ResourceFormat::Rgba32Float:
-            return 16u;
-        case ResourceFormat::Unknown:
-        default:
-            return 0u;
-        }
-    }
-
-    [[nodiscard]] static constexpr std::uint64_t EstimateTextureBytes(
-        const TextureDesc& desc) noexcept
-    {
-        std::uint64_t totalPixels = 0;
-        std::uint64_t width = desc.width;
-        std::uint64_t height = desc.height;
-        std::uint64_t depth = desc.depth;
-
-        for (std::uint16_t mip = 0; mip < desc.mipLevels; ++mip)
-        {
-            totalPixels += width * height * depth * desc.arrayLayers;
-            width = width > 1u ? width / 2u : 1u;
-            height = height > 1u ? height / 2u : 1u;
-            depth = depth > 1u ? depth / 2u : 1u;
-        }
-
-        return totalPixels * BytesPerPixel(desc.format);
-    }
-
-    [[nodiscard]] static constexpr bool IsValidTextureInitialData(
+    [[nodiscard]] TextureHandle CreateTexture(const TextureDesc& desc) override;
+    [[nodiscard]] TextureHandle CreateTexture(
         const TextureDesc& desc,
-        GraphicsDataView initialData) noexcept
-    {
-        if (initialData.sizeBytes == 0u)
-        {
-            return true;
-        }
-
-        if (!initialData.data)
-        {
-            return false;
-        }
-
-        const auto bytesPerPixel = BytesPerPixel(desc.format);
-        if (bytesPerPixel == 0u)
-        {
-            return false;
-        }
-
-        const auto rowBytes =
-            static_cast<std::uint64_t>(desc.width) * bytesPerPixel;
-        if (initialData.rowPitchBytes != 0u &&
-            initialData.rowPitchBytes < rowBytes)
-        {
-            return false;
-        }
-
-        const auto effectiveRowPitch =
-            initialData.rowPitchBytes == 0u
-                ? rowBytes
-                : static_cast<std::uint64_t>(initialData.rowPitchBytes);
-        const auto sliceBytes =
-            effectiveRowPitch * static_cast<std::uint64_t>(desc.height);
-        if (initialData.slicePitchBytes != 0u &&
-            initialData.slicePitchBytes < sliceBytes)
-        {
-            return false;
-        }
-
-        const auto effectiveSlicePitch =
-            initialData.slicePitchBytes == 0u
-                ? sliceBytes
-                : static_cast<std::uint64_t>(initialData.slicePitchBytes);
-        const auto requiredBytes =
-            effectiveSlicePitch * static_cast<std::uint64_t>(desc.depth);
-
-        return initialData.sizeBytes >= requiredBytes &&
-               initialData.sizeBytes <= EstimateTextureBytes(desc);
-    }
-
-    [[nodiscard]] static constexpr std::uint64_t EstimateBufferBytes(
-        const BufferDesc& desc) noexcept
-    {
-        return desc.sizeBytes;
-    }
-
-    [[nodiscard]] static constexpr bool IsValidBufferInitialData(
+        GraphicsDataView initialData) override;
+    [[nodiscard]] BufferHandle CreateBuffer(const BufferDesc& desc) override;
+    [[nodiscard]] BufferHandle CreateBuffer(
         const BufferDesc& desc,
-        GraphicsDataView initialData) noexcept
-    {
-        if (initialData.sizeBytes == 0u)
-        {
-            return true;
-        }
+        GraphicsDataView initialData) override;
+    [[nodiscard]] ShaderHandle CreateShader(const ShaderDesc& desc) override;
+    [[nodiscard]] PipelineHandle CreatePipeline(const PipelineDesc& desc) override;
+    [[nodiscard]] SamplerHandle CreateSampler(const SamplerDesc& desc) override;
+    [[nodiscard]] BindingLayoutHandle CreateBindingLayout(
+        const GraphicsBindingLayoutDesc& desc) override;
+    [[nodiscard]] BindingSetHandle CreateBindingSet(
+        const GraphicsBindingSetDesc& desc) override;
 
-        return initialData.data && initialData.sizeBytes <= desc.sizeBytes;
-    }
+    void DestroyTexture(TextureHandle handle) override;
+    void DestroyBuffer(BufferHandle handle) override;
+    void DestroyShader(ShaderHandle handle) override;
+    void DestroyPipeline(PipelineHandle handle) override;
+    void DestroySampler(SamplerHandle handle) override;
+    void DestroyBindingLayout(BindingLayoutHandle handle) override;
+    void DestroyBindingSet(BindingSetHandle handle) override;
 
-    [[nodiscard]] static std::vector<std::uint8_t> CopyShadowPayload(
-        GraphicsDataView initialData)
-    {
-        std::vector<std::uint8_t> payload;
-        if (!initialData.data || initialData.sizeBytes == 0u)
-        {
-            return payload;
-        }
+    void BeginFrame() override;
+    void EndFrame() override;
 
-        const auto* bytes =
-            static_cast<const std::uint8_t*>(initialData.data);
-        payload.assign(
-            bytes,
-            bytes + static_cast<std::size_t>(initialData.sizeBytes));
-        return payload;
-    }
+    [[nodiscard]] RenderBackendStatus GetStatus() const noexcept override;
+    [[nodiscard]] RenderBackendCapabilities GetCapabilities()
+        const noexcept override;
+    [[nodiscard]] GraphicsResourceMemoryReport GetResourceMemoryReport()
+        const noexcept override;
+    [[nodiscard]] GraphicsResourceFailure GetLastResourceFailure()
+        const noexcept override;
+    [[nodiscard]] GraphicsResourceLeakSummary
+    GetLastShutdownResourceLeakSummary() const noexcept override;
+    [[nodiscard]] GraphicsResourceQueryResult QueryResource(
+        GraphicsResourceKind kind,
+        GraphicsHandle handle) const override;
+    [[nodiscard]] GraphicsBindingLayoutQueryResult QueryBindingLayout(
+        BindingLayoutHandle handle) const override;
+    [[nodiscard]] GraphicsBindingSetQueryResult QueryBindingSet(
+        BindingSetHandle handle) const override;
 
-    [[nodiscard]] static constexpr std::uint64_t EstimateShaderBytes(
-        const ShaderDesc& desc) noexcept
-    {
-        return desc.source.empty()
-                   ? desc.byteSize
-                   : static_cast<std::uint64_t>(desc.source.size());
-    }
+    [[nodiscard]] GraphicsResourceBacking GetTextureBackingForTesting(
+        TextureHandle handle) const noexcept;
+    [[nodiscard]] GraphicsResourceBacking GetBufferBackingForTesting(
+        BufferHandle handle) const noexcept;
+    [[nodiscard]] GraphicsResourceQueryResult QueryTextureForTesting(
+        TextureHandle handle) const noexcept;
+    [[nodiscard]] GraphicsResourceQueryResult QueryBufferForTesting(
+        BufferHandle handle) const noexcept;
+    [[nodiscard]] GraphicsResourceQueryResult QueryShaderForTesting(
+        ShaderHandle handle) const noexcept;
+    [[nodiscard]] GraphicsResourceQueryResult QueryPipelineForTesting(
+        PipelineHandle handle) const noexcept;
+    [[nodiscard]] GraphicsResourceQueryResult QuerySamplerForTesting(
+        SamplerHandle handle) const noexcept;
+    [[nodiscard]] std::uint32_t Width() const noexcept;
+    [[nodiscard]] std::uint32_t Height() const noexcept;
 
-    [[nodiscard]] static constexpr std::uint64_t EstimatePipelineBytes(
-        const PipelineDesc&) noexcept
-    {
-        return 0u;
-    }
-
-    [[nodiscard]] static constexpr std::uint64_t EstimateSamplerBytes(
-        const SamplerDesc&) noexcept
-    {
-        return 0u;
-    }
-
-    RenderBackendStatus m_Status{};
-    std::uint32_t       m_Width = 0;
-    std::uint32_t       m_Height = 0;
-    GraphicsResourceFailure m_LastResourceFailure =
-        GraphicsResourceFailure::None;
-    GraphicsResourceLeakSummary m_LastShutdownLeakSummary{};
-    std::uint64_t m_PeakLiveBytes = 0;
-    std::uint64_t m_FailedCreateCount = 0;
-    std::uint64_t m_NextResourceCreationSerial = 1;
-    ResourceRegistry<TextureHandle, TextureDesc> m_Textures{1u};
-    ResourceRegistry<BufferHandle, BufferDesc> m_Buffers{1001u};
-    ResourceRegistry<ShaderHandle, ShaderDesc> m_Shaders{2001u};
-    ResourceRegistry<PipelineHandle, PipelineDesc> m_Pipelines{3001u};
-    ResourceRegistry<SamplerHandle, SamplerDesc> m_Samplers{4001u};
+private:
+    struct Impl;
+    std::unique_ptr<Impl> m_Impl;
 };
 
 } // namespace SagaEngine::Graphics

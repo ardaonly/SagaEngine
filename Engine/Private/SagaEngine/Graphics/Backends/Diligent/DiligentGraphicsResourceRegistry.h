@@ -262,6 +262,23 @@ public:
         };
     }
 
+    [[nodiscard]] const DescT* ResolveDesc(HandleT handle) const noexcept
+    {
+        if (!handle.IsValid() || handle.index > m_Slots.size())
+        {
+            return nullptr;
+        }
+
+        const auto slotIndex = handle.index - 1u;
+        const auto& slot = m_Slots[slotIndex];
+        if (!slot.occupied || slot.generation != handle.generation)
+        {
+            return nullptr;
+        }
+
+        return &slot.desc;
+    }
+
 private:
     struct Slot
     {

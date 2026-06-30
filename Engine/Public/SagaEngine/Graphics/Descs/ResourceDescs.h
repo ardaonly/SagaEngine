@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "SagaEngine/Graphics/Bindings/GraphicsBindingTypes.h"
 #include "SagaEngine/Graphics/Core/GraphicsTypes.h"
 #include "SagaEngine/Graphics/Handles/GraphicsHandle.h"
 
@@ -71,6 +72,8 @@ struct PipelineDesc
     bool              cullBackFaces    = true;
     bool              frontCounterClockwise = true;
     bool              alphaBlend       = false;
+    BindingLayoutHandle bindingLayout{};
+    GraphicsBindingLayoutDesc bindingCompatibilityLayout{};
 };
 
 struct SamplerDesc

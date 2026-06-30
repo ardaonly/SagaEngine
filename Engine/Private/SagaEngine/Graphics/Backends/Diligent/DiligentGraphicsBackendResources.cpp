@@ -3,6 +3,7 @@
 
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackend.h"
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackendValidation.h"
+#include "SagaEngine/Graphics/Bindings/GraphicsBindingValidation.h"
 
 #include "SagaEngine/Render/Backend/Diligent/DiligentNativeResourceOwner.h"
 
@@ -198,12 +199,58 @@ PipelineHandle DiligentGraphicsBackend::CreatePipeline(
             GraphicsResourceFailure::InvalidPipelineDesc);
     }
 
+    PipelineDesc storedDesc = desc;
+    if (desc.bindingLayout.IsValid())
+    {
+        const auto layout = QueryBindingLayout(desc.bindingLayout);
+        if (!layout.live)
+        {
+            return RecordCreateFailure<PipelineHandle>(
+                GraphicsResourceFailure::InvalidPipelineDesc);
+        }
+
+        if (desc.bindingCompatibilityKey != 0u &&
+            desc.bindingCompatibilityKey != layout.compatibilityKey)
+        {
+            return RecordCreateFailure<PipelineHandle>(
+                GraphicsResourceFailure::InvalidPipelineDesc);
+        }
+
+        if (!desc.bindingCompatibilityLayout.slots.empty())
+        {
+            if (!ValidateGraphicsBindingLayout(desc.bindingCompatibilityLayout)
+                     .valid)
+            {
+                return RecordCreateFailure<PipelineHandle>(
+                    GraphicsResourceFailure::InvalidPipelineDesc);
+            }
+
+            const auto requestedKey =
+                desc.bindingCompatibilityKey != 0u
+                    ? desc.bindingCompatibilityKey
+                    : ComputeGraphicsBindingLayoutKey(
+                          desc.bindingCompatibilityLayout);
+            if (!AreGraphicsBindingLayoutsCompatible(
+                    desc.bindingCompatibilityLayout,
+                    requestedKey,
+                    layout.canonicalLayout,
+                    layout.compatibilityKey))
+            {
+                return RecordCreateFailure<PipelineHandle>(
+                    GraphicsResourceFailure::InvalidPipelineDesc);
+            }
+        }
+
+        storedDesc.bindingCompatibilityKey = layout.compatibilityKey;
+        storedDesc.bindingCompatibilityLayout = layout.canonicalLayout;
+    }
+
     const bool createNative =
         m_NativeCreationEnabled && m_NativeOwner &&
         m_NativeOwner->CanCreateNative();
     auto handle = m_Pipelines.Create(
-        desc,
-        EstimatePipelineBytes(desc),
+        storedDesc,
+        EstimatePipelineBytes(storedDesc),
         {},
         GraphicsResourceBacking::RegisteredOnly,
         {},
@@ -213,7 +260,7 @@ PipelineHandle DiligentGraphicsBackend::CreatePipeline(
     if (createNative)
     {
         const auto serial =
-            m_NativeOwner->CreatePipelineForHandle(handle, desc);
+            m_NativeOwner->CreatePipelineForHandle(handle, storedDesc);
         if (serial == 0u)
         {
             m_Pipelines.Destroy(handle);
@@ -405,6 +452,8 @@ void DiligentGraphicsBackend::ReleaseResources() noexcept
     m_Shaders.ReleaseAll();
     m_Pipelines.ReleaseAll();
     m_Samplers.ReleaseAll();
+    m_BindingSets.ReleaseAll();
+    m_BindingLayouts.ReleaseAll();
 }
 
 } // namespace SagaEngine::Graphics::Backends::Diligent
