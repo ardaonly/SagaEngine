@@ -3,6 +3,7 @@
 
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackend.h"
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentBindingCache.h"
+#include "SagaEngine/Graphics/Backends/Diligent/DiligentFallbackResources.h"
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackendValidation.h"
 #include "SagaEngine/Graphics/Bindings/GraphicsBindingValidation.h"
 
@@ -463,6 +464,10 @@ HandleT DiligentGraphicsBackend::RecordSuccessfulCreate(HandleT handle) noexcept
 
 void DiligentGraphicsBackend::ReleaseResources() noexcept
 {
+    if (m_FallbackResources)
+    {
+        m_FallbackResources->Release(*this, m_NativeBindingDiagnostics);
+    }
     if (m_NativeBindingCache)
     {
         m_NativeBindingCache->Clear(m_NativeBindingDiagnostics);

@@ -127,6 +127,17 @@ struct DiligentNativeBindingDiagnostics
     std::uint64_t unsupportedBindingRejects = 0;
     std::uint64_t fallbackTextureUses = 0;
     std::uint64_t fallbackSamplerUses = 0;
+    std::uint64_t fallbackInitializationAttempts = 0;
+    std::uint64_t fallbackInitializationSuccesses = 0;
+    std::uint64_t fallbackInitializationFailures = 0;
+    std::uint64_t fallbackTextureCreates = 0;
+    std::uint64_t fallbackSamplerCreates = 0;
+    std::uint64_t fallbackRequiredBindingRejects = 0;
+    std::uint64_t fallbackStaleExplicitResourceRejects = 0;
+    std::uint64_t fallbackReleaseCount = 0;
+    std::uint64_t fallbackGeneration = 0;
+    std::uint64_t fallbackInternalResourceCount = 0;
+    bool fallbackLiveState = false;
     std::uint64_t quarantinedSrbCount = 0;
     std::uint64_t quarantinedSrbPeak = 0;
 };

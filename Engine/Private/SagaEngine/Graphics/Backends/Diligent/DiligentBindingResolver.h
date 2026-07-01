@@ -41,6 +41,7 @@ struct DiligentResolvedBindingSet
     BindingLayoutHandle layout{};
     std::uint64_t pipelineCreationSerial = 0;
     std::uint64_t compatibilityKey = 0;
+    std::uint64_t fallbackGeneration = 0;
     GraphicsBindingLayoutDesc canonicalLayout{};
     std::vector<DiligentResolvedBindingResource> resources{};
     std::vector<std::string> diagnostics{};

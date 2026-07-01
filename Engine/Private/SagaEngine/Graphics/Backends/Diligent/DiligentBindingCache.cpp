@@ -62,6 +62,7 @@ void HashAppend(std::size_t& hash, std::uint64_t value) noexcept
     key.bindingSetIndex = resolved.bindingSet.index;
     key.bindingSetGeneration = resolved.bindingSet.generation;
     key.compatibilityKey = resolved.compatibilityKey;
+    key.fallbackGeneration = resolved.fallbackGeneration;
 
     key.resources.reserve(resolved.resources.size());
     for (const auto& resource : resolved.resources)

@@ -3,6 +3,7 @@
 
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackend.h"
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentBindingCache.h"
+#include "SagaEngine/Graphics/Backends/Diligent/DiligentFallbackResources.h"
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackendValidation.h"
 
 #include "SagaEngine/Render/Backend/Diligent/DiligentNativeResourceOwner.h"
@@ -342,6 +343,12 @@ DiligentGraphicsBackend::GetNativeBindingDiagnosticsForTesting()
         m_NativeBindingCache ? m_NativeBindingCache->EntryCount() : 0u;
     diagnostics.quarantinedSrbCount =
         m_NativeBindingCache ? m_NativeBindingCache->QuarantinedCount() : 0u;
+    diagnostics.fallbackGeneration =
+        m_FallbackResources ? m_FallbackResources->Generation() : 0u;
+    diagnostics.fallbackLiveState =
+        m_FallbackResources ? m_FallbackResources->Live() : false;
+    diagnostics.fallbackInternalResourceCount =
+        m_FallbackResources ? m_FallbackResources->InternalResourceCount() : 0u;
     return diagnostics;
 }
 
@@ -359,6 +366,49 @@ DiligentGraphicsBackend::GetNativeBindingQuarantinedSrbCountForTesting()
     return m_NativeBindingCache ? m_NativeBindingCache->QuarantinedCount() : 0u;
 }
 
+TextureHandle DiligentGraphicsBackend::GetFallbackWhiteTextureForTesting()
+    const noexcept
+{
+    return m_FallbackResources ? m_FallbackResources->WhiteTexture()
+                               : TextureHandle{};
+}
+
+SamplerHandle DiligentGraphicsBackend::GetFallbackMaterialSamplerForTesting()
+    const noexcept
+{
+    return m_FallbackResources ? m_FallbackResources->MaterialSampler()
+                               : SamplerHandle{};
+}
+
+std::uint64_t DiligentGraphicsBackend::GetFallbackGenerationForTesting()
+    const noexcept
+{
+    return m_FallbackResources ? m_FallbackResources->Generation() : 0u;
+}
+
+bool DiligentGraphicsBackend::InitializeFallbackResourcesForTesting() noexcept
+{
+    return m_FallbackResources &&
+           m_FallbackResources->Initialize(*this, m_NativeBindingDiagnostics);
+}
+
+void DiligentGraphicsBackend::ReleaseFallbackResourcesForTesting() noexcept
+{
+    if (m_FallbackResources)
+    {
+        m_FallbackResources->Release(*this, m_NativeBindingDiagnostics);
+    }
+}
+
+void DiligentGraphicsBackend::ForceNextFallbackSamplerFailureForTesting(
+    bool enabled) noexcept
+{
+    if (m_FallbackResources)
+    {
+        m_FallbackResources->ForceNextSamplerFailureForTesting(enabled);
+    }
+}
+
 GraphicsResourceMemoryReport DiligentGraphicsBackend::BuildResourceMemoryReport()
     const noexcept
 {
@@ -373,6 +423,26 @@ GraphicsResourceMemoryReport DiligentGraphicsBackend::BuildResourceMemoryReport(
     report.shaderBytes = m_Shaders.LiveBytes();
     report.pipelineBytes = m_Pipelines.LiveBytes();
     report.samplerBytes = m_Samplers.LiveBytes();
+    if (m_FallbackResources)
+    {
+        if (m_FallbackResources->Live())
+        {
+            if (report.liveTextureCount != 0u)
+            {
+                --report.liveTextureCount;
+            }
+            if (report.liveSamplerCount != 0u)
+            {
+                --report.liveSamplerCount;
+            }
+            const auto textureBytes =
+                m_FallbackResources->InternalTextureBytes();
+            report.textureBytes =
+                report.textureBytes > textureBytes
+                    ? report.textureBytes - textureBytes
+                    : 0u;
+        }
+    }
     report.totalLiveBytes =
         report.textureBytes + report.bufferBytes + report.shaderBytes +
         report.pipelineBytes + report.samplerBytes;
