@@ -242,3 +242,36 @@ TEST(
         Graphics::GraphicsResourceBacking::NativeGpuFuture);
     EXPECT_EQ(state.textureCreateCalls, 0u);
 }
+
+TEST(NativeBindingResolver, DestroyedBindingSetCannotHitCache)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    const auto layout = backend->CreateBindingLayout(MakeTextureSamplerLayout());
+    const auto texture = backend->CreateTexture(MakeTextureDesc());
+    const auto sampler = backend->CreateSampler({});
+    ASSERT_TRUE(layout.IsValid());
+    ASSERT_TRUE(texture.IsValid());
+    ASSERT_TRUE(sampler.IsValid());
+
+    Graphics::PipelineDesc pipelineDesc{};
+    pipelineDesc.bindingLayout = layout;
+    const auto pipeline = backend->CreatePipeline(pipelineDesc);
+    ASSERT_TRUE(pipeline.IsValid());
+
+    const auto bindingSet =
+        backend->CreateBindingSet(MakeTextureSet(layout, texture, sampler));
+    ASSERT_TRUE(bindingSet.IsValid());
+    backend->DestroyBindingSet(bindingSet);
+
+    EXPECT_EQ(
+        backend->ResolveNativeBindingSrbForTesting(pipeline, bindingSet),
+        nullptr);
+    const auto diagnostics =
+        backend->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_EQ(diagnostics.staleBindingSetRejects, 1u);
+    EXPECT_EQ(diagnostics.nativeBindingCacheHits, 0u);
+    EXPECT_EQ(backend->GetNativeBindingCacheEntryCountForTesting(), 0u);
+}
