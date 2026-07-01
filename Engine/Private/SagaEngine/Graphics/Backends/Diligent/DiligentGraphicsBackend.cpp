@@ -3,6 +3,7 @@
 
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackend.h"
 
+#include "SagaEngine/Graphics/Backends/Diligent/DiligentBindingCache.h"
 #include "SagaEngine/Graphics/Backend/GraphicsRenderBackendMapping.h"
 #include "SagaEngine/Render/Backend/Diligent/DiligentNativeResourceOwner.h"
 #include "SagaEngine/Render/Backend/Diligent/DiligentRenderBackend.h"
@@ -41,6 +42,7 @@ CreateDefaultRenderBackend(const RenderBackendDesc& backend)
 DiligentGraphicsBackend::DiligentGraphicsBackend()
     : m_BackendFactory(CreateDefaultRenderBackend)
     , m_NativeOwner(std::make_unique<RenderBackend::DiligentNativeResourceOwner>())
+    , m_NativeBindingCache(std::make_unique<DiligentBindingCache>())
 {
     m_LastCapabilities = MakeConservativeCapabilities();
 }
@@ -53,6 +55,7 @@ DiligentGraphicsBackend::DiligentGraphicsBackend(
     , m_StatusReader(statusReader ? statusReader
                                   : RenderBackend::GetRenderBackendStatus)
     , m_NativeOwner(std::make_unique<RenderBackend::DiligentNativeResourceOwner>())
+    , m_NativeBindingCache(std::make_unique<DiligentBindingCache>())
 {
     m_LastCapabilities = MakeConservativeCapabilities();
 }
@@ -65,6 +68,7 @@ DiligentGraphicsBackend::DiligentGraphicsBackend(
     , m_StatusReader(statusReader ? statusReader
                                   : RenderBackend::GetRenderBackendStatus)
     , m_NativeOwner(std::make_unique<RenderBackend::DiligentNativeResourceOwner>())
+    , m_NativeBindingCache(std::make_unique<DiligentBindingCache>())
 {
     m_LastCapabilities = MakeConservativeCapabilities();
 }

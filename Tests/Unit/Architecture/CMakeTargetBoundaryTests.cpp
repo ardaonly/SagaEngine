@@ -576,6 +576,29 @@ TEST(CMakeTargetBoundaryTests, DiligentBindingCompilerDoesNotUseSrbMutationApis)
     }
 }
 
+TEST(CMakeTargetBoundaryTests, NativeBindingSrbApisAreCacheScoped)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto graphicsRoot = root / "Engine" / "Private" / "SagaEngine" /
+                              "Graphics" / "Backends" / "Diligent";
+    const auto compiler = ReadText(graphicsRoot / "DiligentBindingCompiler.cpp");
+    const auto resolver = ReadText(graphicsRoot / "DiligentBindingResolver.cpp");
+    const auto cache = ReadText(graphicsRoot / "DiligentBindingCache.cpp");
+
+    EXPECT_FALSE(ContainsToken(compiler, "CreateShaderResourceBinding"));
+    EXPECT_FALSE(ContainsToken(compiler, "GetVariableByName"));
+    EXPECT_FALSE(ContainsToken(resolver, "CreateShaderResourceBinding"));
+    EXPECT_FALSE(ContainsToken(resolver, "GetVariableByName"));
+    EXPECT_TRUE(ContainsToken(cache, "CreateShaderResourceBinding"));
+    EXPECT_TRUE(ContainsToken(cache, "GetVariableByName"));
+
+    const auto submit =
+        ReadText(root / "Engine" / "Private" / "SagaEngine" / "Render" /
+                 "Backend" / "Diligent" / "DiligentRenderBackendSubmit.cpp");
+    EXPECT_FALSE(ContainsToken(submit, "DiligentBindingCache"));
+    EXPECT_FALSE(ContainsToken(submit, "ResolveNativeBindingSrb"));
+}
+
 TEST(CMakeTargetBoundaryTests, DiligentBindingCompilerDoesNotMigrateDrawOwnership)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);

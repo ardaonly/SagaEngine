@@ -2,6 +2,7 @@
 /// @brief Diagnostics, queries, and testing native resolves for the Diligent graphics adapter.
 
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackend.h"
+#include "SagaEngine/Graphics/Backends/Diligent/DiligentBindingCache.h"
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackendValidation.h"
 
 #include "SagaEngine/Render/Backend/Diligent/DiligentNativeResourceOwner.h"
@@ -321,6 +322,41 @@ DiligentGraphicsBackend::ResolveNativeBindingSetRecordForTesting(
     const auto it = m_NativeBindingSets.find(
         PackHandleKey(handle.index, handle.generation));
     return it == m_NativeBindingSets.end() ? nullptr : &it->second;
+}
+
+::Diligent::IShaderResourceBinding*
+DiligentGraphicsBackend::ResolveNativeBindingSrbForTesting(
+    PipelineHandle pipeline,
+    BindingSetHandle bindingSet) noexcept
+{
+    const auto result = ResolveNativeBindingSrb(pipeline, bindingSet);
+    return result.success ? result.srb : nullptr;
+}
+
+DiligentNativeBindingDiagnostics
+DiligentGraphicsBackend::GetNativeBindingDiagnosticsForTesting()
+    const noexcept
+{
+    auto diagnostics = m_NativeBindingDiagnostics;
+    diagnostics.nativeBindingCacheEntries =
+        m_NativeBindingCache ? m_NativeBindingCache->EntryCount() : 0u;
+    diagnostics.quarantinedSrbCount =
+        m_NativeBindingCache ? m_NativeBindingCache->QuarantinedCount() : 0u;
+    return diagnostics;
+}
+
+std::uint64_t
+DiligentGraphicsBackend::GetNativeBindingCacheEntryCountForTesting()
+    const noexcept
+{
+    return m_NativeBindingCache ? m_NativeBindingCache->EntryCount() : 0u;
+}
+
+std::uint64_t
+DiligentGraphicsBackend::GetNativeBindingQuarantinedSrbCountForTesting()
+    const noexcept
+{
+    return m_NativeBindingCache ? m_NativeBindingCache->QuarantinedCount() : 0u;
 }
 
 GraphicsResourceMemoryReport DiligentGraphicsBackend::BuildResourceMemoryReport()

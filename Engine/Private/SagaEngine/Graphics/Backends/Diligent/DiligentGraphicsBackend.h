@@ -24,6 +24,7 @@ struct IBuffer;
 struct ITextureView;
 struct ISampler;
 struct IShader;
+struct IShaderResourceBinding;
 struct IPipelineState;
 }
 
@@ -31,6 +32,10 @@ namespace SagaEngine::Graphics::Backends::Diligent
 {
 
 namespace RenderBackend = ::SagaEngine::Render::Backend;
+
+class DiligentBindingCache;
+struct DiligentBindingCacheResolveResult;
+struct DiligentResolvedBindingSet;
 
 class DiligentGraphicsBackend final : public IGraphicsBackend
 {
@@ -171,6 +176,16 @@ public:
     [[nodiscard]] const DiligentNativeBindingSetRecord*
     ResolveNativeBindingSetRecordForTesting(
         BindingSetHandle handle) const noexcept;
+    [[nodiscard]] ::Diligent::IShaderResourceBinding*
+    ResolveNativeBindingSrbForTesting(
+        PipelineHandle pipeline,
+        BindingSetHandle bindingSet) noexcept;
+    [[nodiscard]] DiligentNativeBindingDiagnostics
+    GetNativeBindingDiagnosticsForTesting() const noexcept;
+    [[nodiscard]] std::uint64_t GetNativeBindingCacheEntryCountForTesting()
+        const noexcept;
+    [[nodiscard]] std::uint64_t GetNativeBindingQuarantinedSrbCountForTesting()
+        const noexcept;
 
 private:
     [[nodiscard]] RenderBackendCapabilities MakeConservativeCapabilities()
@@ -200,6 +215,12 @@ private:
     void SetFailure(RenderBackendFailure failure) noexcept;
     void SetFrameSkipped(RenderBackendFailure failure) noexcept;
     void ReleaseResources() noexcept;
+    [[nodiscard]] DiligentResolvedBindingSet ResolveNativeBindingSet(
+        PipelineHandle pipeline,
+        BindingSetHandle bindingSet) noexcept;
+    [[nodiscard]] DiligentBindingCacheResolveResult ResolveNativeBindingSrb(
+        PipelineHandle pipeline,
+        BindingSetHandle bindingSet) noexcept;
 
     std::unique_ptr<RenderBackend::IRenderBackend> m_RenderBackend;
     BackendFactory m_BackendFactory = nullptr;
@@ -232,6 +253,8 @@ private:
         m_CompiledBindingLayouts;
     std::unordered_map<std::uint64_t, DiligentNativeBindingSetRecord>
         m_NativeBindingSets;
+    std::unique_ptr<DiligentBindingCache> m_NativeBindingCache;
+    DiligentNativeBindingDiagnostics m_NativeBindingDiagnostics{};
 };
 
 [[nodiscard]] std::unique_ptr<IGraphicsBackend> CreateDiligentGraphicsBackend();

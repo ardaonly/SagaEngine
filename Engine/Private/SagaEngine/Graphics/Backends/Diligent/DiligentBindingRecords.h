@@ -27,6 +27,27 @@ enum class DiligentCompiledBindingKind : std::uint8_t
     Sampler,
 };
 
+enum class DiligentBindingFailureReason : std::uint8_t
+{
+    None = 0,
+    MissingLayout,
+    MissingBindingSet,
+    MissingPipeline,
+    PipelineIncompatible,
+    CanonicalLayoutMismatch,
+    ResourceKindMismatch,
+    StaleResource,
+    ResourceGenerationMismatch,
+    NativePayloadMissing,
+    RequiredBindingMissing,
+    UnsupportedBinding,
+    UnsupportedArrayBinding,
+    UnsupportedBufferRange,
+    FallbackRequired,
+    SrbCreationFailed,
+    VariableLookupFailed,
+};
+
 struct DiligentCompiledBindingEntry
 {
     GraphicsBindingStableId stableId = 0;
@@ -81,6 +102,33 @@ struct DiligentNativeBindingSetRecord
     std::vector<DiligentNativeBindingResourceRecord> fallbackRequirements{};
     std::vector<std::string> diagnostics{};
     DiligentBindingCompileStatus status = DiligentBindingCompileStatus::Invalid;
+};
+
+struct DiligentNativeBindingDiagnostics
+{
+    std::uint64_t nativeBindingResolveAttempts = 0;
+    std::uint64_t nativeBindingResolveSuccesses = 0;
+    std::uint64_t nativeBindingResolveFailures = 0;
+    std::uint64_t nativeBindingCacheHits = 0;
+    std::uint64_t nativeBindingCacheMisses = 0;
+    std::uint64_t nativeBindingCacheEntries = 0;
+    std::uint64_t nativeBindingCacheInvalidations = 0;
+    std::uint64_t nativeBindingSrbCreates = 0;
+    std::uint64_t nativeBindingSrbCreateFailures = 0;
+    std::uint64_t nativeBindingVariableLookups = 0;
+    std::uint64_t nativeBindingVariableLookupFailures = 0;
+    std::uint64_t staleLayoutRejects = 0;
+    std::uint64_t staleBindingSetRejects = 0;
+    std::uint64_t stalePipelineRejects = 0;
+    std::uint64_t staleResourceRejects = 0;
+    std::uint64_t resourceKindMismatchRejects = 0;
+    std::uint64_t canonicalLayoutMismatchRejects = 0;
+    std::uint64_t requiredBindingMissingRejects = 0;
+    std::uint64_t unsupportedBindingRejects = 0;
+    std::uint64_t fallbackTextureUses = 0;
+    std::uint64_t fallbackSamplerUses = 0;
+    std::uint64_t quarantinedSrbCount = 0;
+    std::uint64_t quarantinedSrbPeak = 0;
 };
 
 [[nodiscard]] bool AreDiligentCompiledBindingLayoutsCompatible(

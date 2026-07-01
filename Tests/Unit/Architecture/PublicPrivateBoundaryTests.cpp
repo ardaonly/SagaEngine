@@ -701,7 +701,7 @@ TEST(PublicPrivateBoundaryTests, GraphicsBindingContractStaysVendorNeutral)
     EXPECT_FALSE(Contains(handles, "uintptr_t"));
 }
 
-TEST(PublicPrivateBoundaryTests, M5ABindingImplementationDoesNotOwnNativeSrb)
+TEST(PublicPrivateBoundaryTests, BindingMetadataImplementationDoesNotOwnNativeSrb)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
     const auto graphicsRoot =

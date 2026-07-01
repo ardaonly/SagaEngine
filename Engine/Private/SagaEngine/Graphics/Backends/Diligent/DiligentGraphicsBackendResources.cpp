@@ -2,6 +2,7 @@
 /// @brief Resource create/destroy implementation for the Diligent graphics adapter.
 
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackend.h"
+#include "SagaEngine/Graphics/Backends/Diligent/DiligentBindingCache.h"
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackendValidation.h"
 #include "SagaEngine/Graphics/Bindings/GraphicsBindingValidation.h"
 
@@ -329,6 +330,11 @@ SamplerHandle DiligentGraphicsBackend::CreateSampler(const SamplerDesc& desc)
 
 void DiligentGraphicsBackend::DestroyTexture(TextureHandle handle)
 {
+    m_NativeBindingCache->InvalidateResource(
+        GraphicsResourceKind::Texture,
+        handle,
+        DiligentBindingFailureReason::StaleResource,
+        m_NativeBindingDiagnostics);
     if (m_NativeOwner)
     {
         m_NativeOwner->DestroyTexture(handle);
@@ -338,6 +344,11 @@ void DiligentGraphicsBackend::DestroyTexture(TextureHandle handle)
 
 void DiligentGraphicsBackend::DestroyBuffer(BufferHandle handle)
 {
+    m_NativeBindingCache->InvalidateResource(
+        GraphicsResourceKind::Buffer,
+        handle,
+        DiligentBindingFailureReason::StaleResource,
+        m_NativeBindingDiagnostics);
     if (m_NativeOwner)
     {
         m_NativeOwner->DestroyBuffer(handle);
@@ -356,6 +367,10 @@ void DiligentGraphicsBackend::DestroyShader(ShaderHandle handle)
 
 void DiligentGraphicsBackend::DestroyPipeline(PipelineHandle handle)
 {
+    m_NativeBindingCache->InvalidatePipeline(
+        handle,
+        DiligentBindingFailureReason::MissingPipeline,
+        m_NativeBindingDiagnostics);
     if (m_NativeOwner)
     {
         m_NativeOwner->DestroyPipeline(handle);
@@ -365,6 +380,11 @@ void DiligentGraphicsBackend::DestroyPipeline(PipelineHandle handle)
 
 void DiligentGraphicsBackend::DestroySampler(SamplerHandle handle)
 {
+    m_NativeBindingCache->InvalidateResource(
+        GraphicsResourceKind::Sampler,
+        handle,
+        DiligentBindingFailureReason::StaleResource,
+        m_NativeBindingDiagnostics);
     if (m_NativeOwner)
     {
         m_NativeOwner->DestroySampler(handle);
@@ -443,6 +463,10 @@ HandleT DiligentGraphicsBackend::RecordSuccessfulCreate(HandleT handle) noexcept
 
 void DiligentGraphicsBackend::ReleaseResources() noexcept
 {
+    if (m_NativeBindingCache)
+    {
+        m_NativeBindingCache->Clear(m_NativeBindingDiagnostics);
+    }
     if (m_NativeOwner)
     {
         m_NativeOwner->ReleaseAll();

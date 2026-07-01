@@ -70,6 +70,7 @@
 #include "SwapChain.h"
 #include "Shader.h"
 #include "PipelineState.h"
+#include "ShaderResourceBinding.h"
 #include "Buffer.h"
 
 #include <array>
@@ -758,6 +759,159 @@ float4 main(PSInput input) : SV_Target
         return gfx.CreatePipeline(desc);
     }
 
+    [[nodiscard]] SagaEngine::Graphics::GraphicsBindingLayoutDesc
+    MakeNativeAlbedoBindingLayout()
+    {
+        SagaEngine::Graphics::GraphicsBindingLayoutDesc layout{};
+        layout.debugName = "SagaGraphicsGPUNativeAlbedoLayout";
+
+        SagaEngine::Graphics::GraphicsBindingLayoutSlot texture{};
+        texture.slot = 0u;
+        texture.stableId = 100u;
+        texture.type = SagaEngine::Graphics::GraphicsBindingType::SampledTexture;
+        texture.stages = SagaEngine::Graphics::kGraphicsShaderStageFragment;
+        texture.required = true;
+        texture.pairedSamplerSlot = 1u;
+        layout.slots.push_back(texture);
+
+        SagaEngine::Graphics::GraphicsBindingLayoutSlot sampler{};
+        sampler.slot = 1u;
+        sampler.stableId = 101u;
+        sampler.type = SagaEngine::Graphics::GraphicsBindingType::Sampler;
+        sampler.stages = SagaEngine::Graphics::kGraphicsShaderStageFragment;
+        sampler.required = true;
+        layout.slots.push_back(sampler);
+
+        return layout;
+    }
+
+    [[nodiscard]] SagaEngine::Graphics::GraphicsBindingSetDesc
+    MakeNativeAlbedoBindingSet(
+        SagaEngine::Graphics::BindingLayoutHandle layout,
+        SagaEngine::Graphics::TextureHandle texture,
+        SagaEngine::Graphics::SamplerHandle sampler)
+    {
+        SagaEngine::Graphics::GraphicsBindingSetDesc desc{};
+        desc.debugName = "SagaGraphicsGPUNativeAlbedoSet";
+        desc.layout = layout;
+
+        SagaEngine::Graphics::GraphicsBindingResourceRef textureRef{};
+        textureRef.slot = 0u;
+        textureRef.stableId = 100u;
+        textureRef.kind = SagaEngine::Graphics::GraphicsResourceKind::Texture;
+        textureRef.handle = texture;
+        desc.resources.push_back(textureRef);
+
+        SagaEngine::Graphics::GraphicsBindingResourceRef samplerRef{};
+        samplerRef.slot = 1u;
+        samplerRef.stableId = 101u;
+        samplerRef.kind = SagaEngine::Graphics::GraphicsResourceKind::Sampler;
+        samplerRef.handle = sampler;
+        desc.resources.push_back(samplerRef);
+
+        return desc;
+    }
+
+    [[nodiscard]] SagaEngine::Graphics::ShaderHandle CreateNativeAlbedoShader(
+        SagaEngine::Graphics::Backends::Diligent::DiligentGraphicsBackend& gfx,
+        SagaEngine::Graphics::ShaderStage stage)
+    {
+        static constexpr const char* kVS = R"(
+struct VSInput
+{
+    float3 Pos : ATTRIB0;
+    float2 Uv : ATTRIB1;
+};
+
+struct PSInput
+{
+    float4 Pos : SV_POSITION;
+    float2 Uv : TEXCOORD0;
+};
+
+PSInput main(VSInput input)
+{
+    PSInput output;
+    output.Pos = float4(input.Pos, 1.0);
+    output.Uv = input.Uv;
+    return output;
+}
+)";
+
+        static constexpr const char* kPS = R"(
+Texture2D g_Albedo;
+SamplerState g_Albedo_sampler;
+
+struct PSInput
+{
+    float4 Pos : SV_POSITION;
+    float2 Uv : TEXCOORD0;
+};
+
+float4 main(PSInput input) : SV_Target
+{
+    return g_Albedo.Sample(g_Albedo_sampler, input.Uv);
+}
+)";
+
+        SagaEngine::Graphics::ShaderDesc desc{};
+        desc.debugName = stage == SagaEngine::Graphics::ShaderStage::Vertex
+                             ? "SagaGraphicsGPUNativeBindingVS"
+                             : "SagaGraphicsGPUNativeBindingPS";
+        desc.stage = stage;
+        desc.entryPoint = "main";
+        desc.sourceIdentity = desc.debugName;
+        desc.source = stage == SagaEngine::Graphics::ShaderStage::Vertex
+                          ? kVS
+                          : kPS;
+        return gfx.CreateShader(desc);
+    }
+
+    [[nodiscard]] SagaEngine::Graphics::PipelineHandle CreateNativeAlbedoPipeline(
+        SagaEngine::Graphics::Backends::Diligent::DiligentGraphicsBackend& gfx,
+        SagaEngine::Graphics::BindingLayoutHandle layout)
+    {
+        auto vs = CreateNativeAlbedoShader(
+            gfx,
+            SagaEngine::Graphics::ShaderStage::Vertex);
+        auto ps = CreateNativeAlbedoShader(
+            gfx,
+            SagaEngine::Graphics::ShaderStage::Fragment);
+        if (!vs.IsValid() || !ps.IsValid())
+        {
+            return {};
+        }
+
+        const auto services = m_Backend.GetDiligentDeviceServices();
+        const auto& scDesc = services.SwapChain()->GetDesc();
+
+        SagaEngine::Graphics::PipelineDesc desc{};
+        desc.debugName = "SagaGraphicsGPUNativeBindingPipeline";
+        desc.vertexShader = vs;
+        desc.fragmentShader = ps;
+        desc.bindingLayout = layout;
+        desc.colorFormat = scDesc.ColorBufferFormat == Diligent::TEX_FORMAT_BGRA8_UNORM
+            ? SagaEngine::Graphics::ResourceFormat::Bgra8Unorm
+            : SagaEngine::Graphics::ResourceFormat::Rgba8Unorm;
+        desc.depthFormat = scDesc.DepthBufferFormat == Diligent::TEX_FORMAT_D32_FLOAT
+            ? SagaEngine::Graphics::ResourceFormat::Depth32Float
+            : SagaEngine::Graphics::ResourceFormat::Depth24Stencil8;
+        desc.depthTest = false;
+        desc.depthWrite = false;
+        desc.cullBackFaces = false;
+        desc.vertexLayout.push_back({
+            0u,
+            0u,
+            static_cast<std::uint32_t>(offsetof(NativeTexturedVertex, position)),
+            SagaEngine::Graphics::VertexElementFormat::Float32x3});
+        desc.vertexLayout.push_back({
+            1u,
+            0u,
+            static_cast<std::uint32_t>(offsetof(NativeTexturedVertex, uv)),
+            SagaEngine::Graphics::VertexElementFormat::Float32x2});
+        return gfx.CreatePipeline(desc);
+    }
+
     [[nodiscard]] Diligent::RefCntAutoPtr<Diligent::IPipelineState>
     CreateTestPipeline(Diligent::IRenderDevice& device,
                        Diligent::ISwapChain& swapChain)
@@ -976,6 +1130,65 @@ float4 main(PSInput input) : SV_Target
 
         m_Backend.BeginFrame();
         if (vertexBuffer && indexBuffer && pipeline && textureSrv && sampler && srb)
+        {
+            auto* ctx = services.ImmediateContext();
+            ctx->SetPipelineState(pipeline);
+            ctx->CommitShaderResources(
+                srb,
+                Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+            Diligent::IBuffer* vbs[] = {vertexBuffer};
+            Diligent::Uint64 offsets[] = {0u};
+            ctx->SetVertexBuffers(
+                0u,
+                1u,
+                vbs,
+                offsets,
+                Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
+                Diligent::SET_VERTEX_BUFFERS_FLAG_RESET);
+            ctx->SetIndexBuffer(
+                indexBuffer,
+                0u,
+                Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+
+            Diligent::DrawIndexedAttribs drawAttribs;
+            drawAttribs.NumIndices = 6u;
+            drawAttribs.IndexType = Diligent::VT_UINT32;
+            drawAttribs.Flags = Diligent::DRAW_FLAG_NONE;
+            ctx->DrawIndexed(drawAttribs);
+            if (submitted)
+            {
+                *submitted = true;
+            }
+        }
+
+        const auto result = m_Backend.CaptureCurrentColorFrame(capture);
+        m_Backend.EndFrame();
+        EXPECT_EQ(result, RenderCaptureResult::kSuccess);
+        return capture;
+    }
+
+    [[nodiscard]] RenderFrameCapture DrawNativeBoundTexturedQuad(
+        Diligent::IBuffer* vertexBuffer,
+        Diligent::IBuffer* indexBuffer,
+        Diligent::IPipelineState* pipeline,
+        Diligent::IShaderResourceBinding* srb,
+        bool* submitted)
+    {
+        if (submitted)
+        {
+            *submitted = false;
+        }
+
+        RenderFrameCapture capture{};
+        const auto services = m_Backend.GetDiligentDeviceServices();
+        EXPECT_NE(services.ImmediateContext(), nullptr);
+        if (!services.ImmediateContext())
+        {
+            return capture;
+        }
+
+        m_Backend.BeginFrame();
+        if (vertexBuffer && indexBuffer && pipeline && srb)
         {
             auto* ctx = services.ImmediateContext();
             ctx->SetPipelineState(pipeline);
@@ -1637,6 +1850,117 @@ TEST_F(SagaGraphicsGPU, NativeTextureUploadProducesPixels)
                       return SagaTests::Render::IsDominantRed(c);
                   }),
               100u);
+}
+
+TEST_F(SagaGraphicsGPU, NativeBindingCacheCreatesAndReusesSrb)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto vertices = TexturedQuadVertices();
+    const auto vertexBuffer = CreateNativeTexturedVertexBuffer(*gfx, vertices);
+    const auto indexBuffer = CreateNativeQuadIndexBuffer(*gfx);
+    constexpr std::array<std::uint8_t, 16> kRedTexture{
+        255u, 0u, 0u, 255u,
+        255u, 0u, 0u, 255u,
+        255u, 0u, 0u, 255u,
+        255u, 0u, 0u, 255u};
+    const auto texture = CreateNativeTexture(*gfx, kRedTexture);
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet = gfx->CreateBindingSet(
+        MakeNativeAlbedoBindingSet(layout, texture, sampler));
+
+    ASSERT_TRUE(vertexBuffer.IsValid());
+    ASSERT_TRUE(indexBuffer.IsValid());
+    ASSERT_TRUE(texture.IsValid());
+    ASSERT_TRUE(sampler.IsValid());
+    ASSERT_TRUE(layout.IsValid());
+    ASSERT_TRUE(pipeline.IsValid());
+    ASSERT_TRUE(bindingSet.IsValid());
+    EXPECT_NE(gfx->ResolveNativeTextureSrvForTesting(texture), nullptr);
+    EXPECT_NE(gfx->ResolveNativeSamplerForTesting(sampler), nullptr);
+    EXPECT_NE(gfx->ResolveNativePipelineForTesting(pipeline), nullptr);
+
+    auto* firstSrb = gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet);
+    ASSERT_NE(firstSrb, nullptr);
+    const auto afterMiss = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_EQ(afterMiss.nativeBindingResolveSuccesses, 1u);
+    EXPECT_EQ(afterMiss.nativeBindingCacheMisses, 1u);
+    EXPECT_EQ(afterMiss.nativeBindingCacheHits, 0u);
+    EXPECT_EQ(afterMiss.nativeBindingSrbCreates, 1u);
+    EXPECT_EQ(afterMiss.nativeBindingVariableLookups, 2u);
+    EXPECT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 1u);
+
+    auto* secondSrb = gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet);
+    ASSERT_NE(secondSrb, nullptr);
+    EXPECT_EQ(secondSrb, firstSrb);
+    const auto afterHit = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_EQ(afterHit.nativeBindingResolveSuccesses, 2u);
+    EXPECT_EQ(afterHit.nativeBindingCacheMisses, 1u);
+    EXPECT_EQ(afterHit.nativeBindingCacheHits, 1u);
+    EXPECT_EQ(afterHit.nativeBindingSrbCreates, 1u);
+    EXPECT_EQ(afterHit.nativeBindingVariableLookups, 2u);
+    EXPECT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 1u);
+
+    bool submitted = false;
+    const auto capture = DrawNativeBoundTexturedQuad(
+        gfx->ResolveNativeBufferForTesting(vertexBuffer),
+        gfx->ResolveNativeBufferForTesting(indexBuffer),
+        gfx->ResolveNativePipelineForTesting(pipeline),
+        secondSrb,
+        &submitted);
+
+    ASSERT_TRUE(submitted);
+    EXPECT_GT(SagaTests::Render::CountRegionMatching(
+                  capture, capture.width / 2u, capture.height / 2u, 24u,
+                  [](SagaTests::Render::Rgba8 c)
+                  {
+                      return SagaTests::Render::IsDominantRed(c);
+                  }),
+              100u);
+}
+
+TEST_F(SagaGraphicsGPU, NativeBindingCacheInvalidatesDestroyedTexture)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    constexpr std::array<std::uint8_t, 16> kRedTexture{
+        255u, 0u, 0u, 255u,
+        255u, 0u, 0u, 255u,
+        255u, 0u, 0u, 255u,
+        255u, 0u, 0u, 255u};
+    const auto texture = CreateNativeTexture(*gfx, kRedTexture);
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet = gfx->CreateBindingSet(
+        MakeNativeAlbedoBindingSet(layout, texture, sampler));
+
+    ASSERT_TRUE(texture.IsValid());
+    ASSERT_TRUE(sampler.IsValid());
+    ASSERT_TRUE(layout.IsValid());
+    ASSERT_TRUE(pipeline.IsValid());
+    ASSERT_TRUE(bindingSet.IsValid());
+
+    auto* firstSrb = gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet);
+    ASSERT_NE(firstSrb, nullptr);
+    EXPECT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 1u);
+    EXPECT_EQ(gfx->GetNativeBindingQuarantinedSrbCountForTesting(), 0u);
+
+    gfx->DestroyTexture(texture);
+    EXPECT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 0u);
+    EXPECT_EQ(gfx->GetNativeBindingQuarantinedSrbCountForTesting(), 1u);
+    EXPECT_EQ(gfx->ResolveNativeTextureSrvForTesting(texture), nullptr);
+
+    EXPECT_EQ(
+        gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet),
+        nullptr);
+    const auto diagnostics = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_EQ(diagnostics.nativeBindingSrbCreates, 1u);
+    EXPECT_EQ(diagnostics.nativeBindingCacheInvalidations, 1u);
+    EXPECT_EQ(diagnostics.staleResourceRejects, 1u);
+    EXPECT_EQ(diagnostics.nativeBindingCacheHits, 0u);
+    EXPECT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 0u);
+    EXPECT_EQ(gfx->GetNativeBindingQuarantinedSrbCountForTesting(), 1u);
 }
 
 TEST_F(SagaGraphicsGPU, NativeShaderPipelineProducesPixels)

@@ -75,6 +75,7 @@ function(saga_create_graphics_targets)
     target_link_libraries(SagaGraphicsPrivate PRIVATE
         SagaDiligentBackend
     )
+    saga_link_diligent_backend(SagaGraphicsPrivate)
 
     set_target_properties(SagaGraphicsPrivate PROPERTIES
         FOLDER "Engine/Graphics"
