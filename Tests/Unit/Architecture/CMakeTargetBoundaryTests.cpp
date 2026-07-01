@@ -587,10 +587,13 @@ TEST(CMakeTargetBoundaryTests, NativeBindingSrbApisAreCacheScoped)
 
     EXPECT_FALSE(ContainsToken(compiler, "CreateShaderResourceBinding"));
     EXPECT_FALSE(ContainsToken(compiler, "GetVariableByName"));
+    EXPECT_FALSE(ContainsToken(compiler, "GetStaticVariableByName"));
     EXPECT_FALSE(ContainsToken(resolver, "CreateShaderResourceBinding"));
     EXPECT_FALSE(ContainsToken(resolver, "GetVariableByName"));
+    EXPECT_FALSE(ContainsToken(resolver, "GetStaticVariableByName"));
     EXPECT_TRUE(ContainsToken(cache, "CreateShaderResourceBinding"));
     EXPECT_TRUE(ContainsToken(cache, "GetVariableByName"));
+    EXPECT_TRUE(ContainsToken(cache, "GetStaticVariableByName"));
 
     const auto submit =
         ReadText(root / "Engine" / "Private" / "SagaEngine" / "Render" /

@@ -1277,6 +1277,242 @@ float4 main(PSInput input) : SV_Target
     }
 };
 
+class BindingGPU : public SagaGraphicsGPU
+{
+protected:
+    using DiligentBackend =
+        SagaEngine::Graphics::Backends::Diligent::DiligentGraphicsBackend;
+
+    [[nodiscard]] static constexpr std::array<std::uint8_t, 16> SolidTexture(
+        std::uint8_t r,
+        std::uint8_t g,
+        std::uint8_t b,
+        std::uint8_t a = 255u) noexcept
+    {
+        return {
+            r, g, b, a,
+            r, g, b, a,
+            r, g, b, a,
+            r, g, b, a};
+    }
+
+    [[nodiscard]] static SagaTests::Render::Rgba8 Red() noexcept
+    {
+        return {255u, 0u, 0u, 255u};
+    }
+
+    [[nodiscard]] static SagaTests::Render::Rgba8 Green() noexcept
+    {
+        return {0u, 255u, 0u, 255u};
+    }
+
+    [[nodiscard]] static SagaTests::Render::Rgba8 Blue() noexcept
+    {
+        return {0u, 0u, 255u, 255u};
+    }
+
+    [[nodiscard]] static SagaTests::Render::Rgba8 White() noexcept
+    {
+        return {255u, 255u, 255u, 255u};
+    }
+
+    [[nodiscard]] static std::uint32_t CountCenterColor(
+        const RenderFrameCapture& capture,
+        SagaTests::Render::Rgba8 expected,
+        std::uint8_t tolerance = 12u)
+    {
+        return SagaTests::Render::CountRegionMatching(
+            capture,
+            capture.width / 2u,
+            capture.height / 2u,
+            24u,
+            [expected, tolerance](SagaTests::Render::Rgba8 c)
+            {
+                return SagaTests::Render::ColorNear(c, expected, tolerance);
+            });
+    }
+
+    void ExpectCenterColor(
+        const RenderFrameCapture& capture,
+        SagaTests::Render::Rgba8 expected,
+        std::uint8_t tolerance = 12u)
+    {
+        EXPECT_GT(CountCenterColor(capture, expected, tolerance), 100u);
+    }
+
+    [[nodiscard]] SagaEngine::Graphics::BufferHandle CreateNativeConstantBuffer(
+        DiligentBackend& gfx,
+        std::array<float, 4> color)
+    {
+        SagaEngine::Graphics::BufferDesc desc{};
+        desc.debugName = "BindingGPUConstantBuffer";
+        desc.sizeBytes = sizeof(color);
+        desc.usage = SagaEngine::Graphics::BufferUsage::Uniform;
+        return gfx.CreateBuffer(desc, DataView(color.data(), sizeof(color)));
+    }
+
+    [[nodiscard]] SagaEngine::Graphics::BufferHandle CreateNativeWrongUsageBuffer(
+        DiligentBackend& gfx)
+    {
+        std::array<float, 4> payload{1.0f, 0.0f, 0.0f, 1.0f};
+        SagaEngine::Graphics::BufferDesc desc{};
+        desc.debugName = "BindingGPUWrongUsageBuffer";
+        desc.sizeBytes = sizeof(payload);
+        desc.usage = SagaEngine::Graphics::BufferUsage::Vertex;
+        return gfx.CreateBuffer(desc, DataView(payload.data(), sizeof(payload)));
+    }
+
+    [[nodiscard]] SagaEngine::Graphics::GraphicsBindingLayoutDesc
+    MakeNativeConstantBindingLayout()
+    {
+        SagaEngine::Graphics::GraphicsBindingLayoutDesc layout{};
+        layout.debugName = "BindingGPUConstantLayout";
+        SagaEngine::Graphics::GraphicsBindingLayoutSlot cb{};
+        cb.slot = 0u;
+        cb.stableId = 300u;
+        cb.type = SagaEngine::Graphics::GraphicsBindingType::ConstantBuffer;
+        cb.stages = SagaEngine::Graphics::kGraphicsShaderStageFragment;
+        cb.frequency = SagaEngine::Graphics::GraphicsBindingFrequency::Material;
+        cb.required = true;
+        layout.slots.push_back(cb);
+        return layout;
+    }
+
+    [[nodiscard]] SagaEngine::Graphics::GraphicsBindingSetDesc
+    MakeNativeConstantBindingSet(
+        SagaEngine::Graphics::BindingLayoutHandle layout,
+        SagaEngine::Graphics::BufferHandle buffer,
+        std::uint64_t offset = 0u,
+        std::uint64_t range = 0u)
+    {
+        SagaEngine::Graphics::GraphicsBindingSetDesc desc{};
+        desc.debugName = "BindingGPUConstantSet";
+        desc.layout = layout;
+        SagaEngine::Graphics::GraphicsBindingResourceRef ref{};
+        ref.slot = 0u;
+        ref.stableId = 300u;
+        ref.kind = SagaEngine::Graphics::GraphicsResourceKind::Buffer;
+        ref.handle = buffer;
+        ref.bufferOffsetBytes = offset;
+        ref.bufferRangeBytes = range;
+        desc.resources.push_back(ref);
+        return desc;
+    }
+
+    [[nodiscard]] SagaEngine::Graphics::ShaderHandle CreateNativeConstantShader(
+        DiligentBackend& gfx,
+        SagaEngine::Graphics::ShaderStage stage)
+    {
+        static constexpr const char* kVS = R"(
+struct VSInput
+{
+    float3 Pos : ATTRIB0;
+    float2 Uv : ATTRIB1;
+};
+
+struct PSInput
+{
+    float4 Pos : SV_POSITION;
+};
+
+PSInput main(VSInput input)
+{
+    PSInput output;
+    output.Pos = float4(input.Pos, 1.0);
+    return output;
+}
+)";
+
+        static constexpr const char* kPS = R"(
+cbuffer CameraCB
+{
+    float4 g_BindingGpuColor;
+};
+
+float4 main() : SV_Target
+{
+    return g_BindingGpuColor;
+}
+)";
+
+        SagaEngine::Graphics::ShaderDesc desc{};
+        desc.debugName = stage == SagaEngine::Graphics::ShaderStage::Vertex
+                             ? "BindingGPUConstantVS"
+                             : "BindingGPUConstantPS";
+        desc.stage = stage;
+        desc.entryPoint = "main";
+        desc.sourceIdentity = desc.debugName;
+        desc.source = stage == SagaEngine::Graphics::ShaderStage::Vertex
+                          ? kVS
+                          : kPS;
+        return gfx.CreateShader(desc);
+    }
+
+    [[nodiscard]] SagaEngine::Graphics::PipelineHandle
+    CreateNativeConstantPipeline(
+        DiligentBackend& gfx,
+        SagaEngine::Graphics::BindingLayoutHandle layout)
+    {
+        auto vs = CreateNativeConstantShader(
+            gfx,
+            SagaEngine::Graphics::ShaderStage::Vertex);
+        auto ps = CreateNativeConstantShader(
+            gfx,
+            SagaEngine::Graphics::ShaderStage::Fragment);
+        if (!vs.IsValid() || !ps.IsValid())
+        {
+            return {};
+        }
+
+        const auto services = m_Backend.GetDiligentDeviceServices();
+        const auto& scDesc = services.SwapChain()->GetDesc();
+
+        SagaEngine::Graphics::PipelineDesc desc{};
+        desc.debugName = "BindingGPUConstantPipeline";
+        desc.vertexShader = vs;
+        desc.fragmentShader = ps;
+        desc.bindingLayout = layout;
+        desc.colorFormat = scDesc.ColorBufferFormat == Diligent::TEX_FORMAT_BGRA8_UNORM
+            ? SagaEngine::Graphics::ResourceFormat::Bgra8Unorm
+            : SagaEngine::Graphics::ResourceFormat::Rgba8Unorm;
+        desc.depthFormat = scDesc.DepthBufferFormat == Diligent::TEX_FORMAT_D32_FLOAT
+            ? SagaEngine::Graphics::ResourceFormat::Depth32Float
+            : SagaEngine::Graphics::ResourceFormat::Depth24Stencil8;
+        desc.depthTest = false;
+        desc.depthWrite = false;
+        desc.cullBackFaces = false;
+        desc.vertexLayout.push_back({
+            0u,
+            0u,
+            static_cast<std::uint32_t>(offsetof(NativeTexturedVertex, position)),
+            SagaEngine::Graphics::VertexElementFormat::Float32x3});
+        desc.vertexLayout.push_back({
+            1u,
+            0u,
+            static_cast<std::uint32_t>(offsetof(NativeTexturedVertex, uv)),
+            SagaEngine::Graphics::VertexElementFormat::Float32x2});
+        return gfx.CreatePipeline(desc);
+    }
+
+    [[nodiscard]] RenderFrameCapture DrawResolvedTextured(
+        DiligentBackend& gfx,
+        SagaEngine::Graphics::PipelineHandle pipeline,
+        SagaEngine::Graphics::BindingSetHandle bindingSet,
+        bool* submitted = nullptr)
+    {
+        const auto vertices = TexturedQuadVertices();
+        const auto vertexBuffer = CreateNativeTexturedVertexBuffer(gfx, vertices);
+        const auto indexBuffer = CreateNativeQuadIndexBuffer(gfx);
+        auto* srb = gfx.ResolveNativeBindingSrbForTesting(pipeline, bindingSet);
+        return DrawNativeBoundTexturedQuad(
+            gfx.ResolveNativeBufferForTesting(vertexBuffer),
+            gfx.ResolveNativeBufferForTesting(indexBuffer),
+            gfx.ResolveNativePipelineForTesting(pipeline),
+            srb,
+            submitted);
+    }
+};
+
 class OverlayGPU : public DiligentGPU
 {
 protected:
@@ -2163,6 +2399,1073 @@ TEST_F(SagaGraphicsGPU, NativeBindingMissingOptionalSamplerUsesCanonicalSampler)
                           12);
                   }),
               100u);
+}
+
+TEST_F(BindingGPU, NativeSampledTextureProducesExpectedPixels)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, sampler));
+    ASSERT_TRUE(bindingSet.IsValid());
+
+    bool submitted = false;
+    const auto capture = DrawResolvedTextured(*gfx, pipeline, bindingSet, &submitted);
+    ASSERT_TRUE(submitted);
+    ExpectCenterColor(capture, Red());
+}
+
+TEST_F(BindingGPU, DifferentTextureBindingSetsProduceDifferentPixels)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto red = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto green = CreateNativeTexture(*gfx, SolidTexture(0u, 255u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto redSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, red, sampler));
+    const auto greenSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, green, sampler));
+    ASSERT_TRUE(redSet.IsValid());
+    ASSERT_TRUE(greenSet.IsValid());
+
+    bool redSubmitted = false;
+    const auto redCapture = DrawResolvedTextured(
+        *gfx,
+        pipeline,
+        redSet,
+        &redSubmitted);
+    bool greenSubmitted = false;
+    const auto greenCapture = DrawResolvedTextured(
+        *gfx,
+        pipeline,
+        greenSet,
+        &greenSubmitted);
+
+    ASSERT_TRUE(redSubmitted);
+    ASSERT_TRUE(greenSubmitted);
+    ExpectCenterColor(redCapture, Red());
+    ExpectCenterColor(greenCapture, Green());
+    EXPECT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 2u);
+}
+
+TEST_F(BindingGPU, BindingSetSwapChangesPixels)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto red = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto blue = CreateNativeTexture(*gfx, SolidTexture(0u, 0u, 255u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto redSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, red, sampler));
+    const auto blueSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, blue, sampler));
+    ASSERT_TRUE(redSet.IsValid());
+    ASSERT_TRUE(blueSet.IsValid());
+
+    bool a = false;
+    const auto first = DrawResolvedTextured(*gfx, pipeline, redSet, &a);
+    bool b = false;
+    const auto second = DrawResolvedTextured(*gfx, pipeline, blueSet, &b);
+    bool c = false;
+    const auto third = DrawResolvedTextured(*gfx, pipeline, redSet, &c);
+
+    ASSERT_TRUE(a);
+    ASSERT_TRUE(b);
+    ASSERT_TRUE(c);
+    ExpectCenterColor(first, Red());
+    ExpectCenterColor(second, Blue());
+    ExpectCenterColor(third, Red());
+}
+
+TEST_F(BindingGPU, CacheHitPreservesTexturePixels)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(0u, 255u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, sampler));
+    ASSERT_TRUE(bindingSet.IsValid());
+
+    bool firstSubmitted = false;
+    const auto first = DrawResolvedTextured(
+        *gfx,
+        pipeline,
+        bindingSet,
+        &firstSubmitted);
+    const auto afterMiss = gfx->GetNativeBindingDiagnosticsForTesting();
+    bool secondSubmitted = false;
+    const auto second = DrawResolvedTextured(
+        *gfx,
+        pipeline,
+        bindingSet,
+        &secondSubmitted);
+    const auto afterHit = gfx->GetNativeBindingDiagnosticsForTesting();
+
+    ASSERT_TRUE(firstSubmitted);
+    ASSERT_TRUE(secondSubmitted);
+    ExpectCenterColor(first, Green());
+    ExpectCenterColor(second, Green());
+    EXPECT_EQ(afterHit.nativeBindingSrbCreates, afterMiss.nativeBindingSrbCreates);
+    EXPECT_EQ(
+        afterHit.nativeBindingVariableLookups,
+        afterMiss.nativeBindingVariableLookups);
+    EXPECT_GT(afterHit.nativeBindingCacheHits, afterMiss.nativeBindingCacheHits);
+}
+
+TEST_F(BindingGPU, MissingOptionalTextureProducesWhitePixels)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout =
+        gfx->CreateBindingLayout(
+            MakeNativeOptionalFallbackAlbedoBindingLayout(false, true));
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoSamplerOnlyBindingSet(layout, sampler));
+    ASSERT_TRUE(bindingSet.IsValid());
+
+    bool submitted = false;
+    const auto capture = DrawResolvedTextured(*gfx, pipeline, bindingSet, &submitted);
+    ASSERT_TRUE(submitted);
+    ExpectCenterColor(capture, White());
+    const auto diagnostics = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_EQ(diagnostics.fallbackTextureUses, 1u);
+}
+
+TEST_F(BindingGPU, MissingRequiredTextureRejectsDraw)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoSamplerOnlyBindingSet(layout, sampler));
+    EXPECT_FALSE(bindingSet.IsValid());
+    EXPECT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 0u);
+}
+
+TEST_F(BindingGPU, DestroyedTextureRejectsDraw)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, sampler));
+    ASSERT_TRUE(bindingSet.IsValid());
+    ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+
+    gfx->DestroyTexture(texture);
+    EXPECT_EQ(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    const auto diagnostics = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_EQ(diagnostics.staleResourceRejects, 1u);
+    EXPECT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 0u);
+    EXPECT_EQ(gfx->GetNativeBindingQuarantinedSrbCountForTesting(), 1u);
+}
+
+TEST_F(BindingGPU, StaleExplicitTextureDoesNotUseFallback)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout =
+        gfx->CreateBindingLayout(
+            MakeNativeOptionalFallbackAlbedoBindingLayout(false, true));
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, sampler));
+    ASSERT_TRUE(bindingSet.IsValid());
+    ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+
+    gfx->DestroyTexture(texture);
+    EXPECT_EQ(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    const auto diagnostics = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_EQ(diagnostics.fallbackTextureUses, 0u);
+    EXPECT_EQ(diagnostics.fallbackStaleExplicitResourceRejects, 1u);
+}
+
+TEST_F(BindingGPU, ValidTextureRecoversAfterRejectedDraw)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto staleTexture =
+        CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto validTexture =
+        CreateNativeTexture(*gfx, SolidTexture(0u, 255u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto staleSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, staleTexture, sampler));
+    const auto validSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, validTexture, sampler));
+    ASSERT_TRUE(staleSet.IsValid());
+    ASSERT_TRUE(validSet.IsValid());
+    gfx->DestroyTexture(staleTexture);
+    EXPECT_EQ(gfx->ResolveNativeBindingSrbForTesting(pipeline, staleSet), nullptr);
+
+    bool submitted = false;
+    const auto capture = DrawResolvedTextured(*gfx, pipeline, validSet, &submitted);
+    ASSERT_TRUE(submitted);
+    ExpectCenterColor(capture, Green());
+}
+
+TEST_F(BindingGPU, NativeSamplerBindingProducesExpectedPixels)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(0u, 0u, 255u));
+    const auto sampler = CreateNativeSampler(*gfx, false, true);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, sampler));
+    ASSERT_TRUE(bindingSet.IsValid());
+
+    bool submitted = false;
+    const auto capture = DrawResolvedTextured(*gfx, pipeline, bindingSet, &submitted);
+    ASSERT_TRUE(submitted);
+    ExpectCenterColor(capture, Blue());
+}
+
+TEST_F(BindingGPU, MissingOptionalSamplerUsesCanonicalSampler)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto layout =
+        gfx->CreateBindingLayout(
+            MakeNativeOptionalFallbackAlbedoBindingLayout(false, false));
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoEmptyBindingSet(layout));
+    ASSERT_TRUE(bindingSet.IsValid());
+
+    bool submitted = false;
+    const auto capture = DrawResolvedTextured(*gfx, pipeline, bindingSet, &submitted);
+    ASSERT_TRUE(submitted);
+    ExpectCenterColor(capture, White());
+    const auto diagnostics = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_EQ(diagnostics.fallbackSamplerUses, 1u);
+}
+
+TEST_F(BindingGPU, MissingRequiredSamplerRejectsDraw)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, {}));
+    EXPECT_FALSE(bindingSet.IsValid());
+    EXPECT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 0u);
+}
+
+TEST_F(BindingGPU, DestroyedSamplerRejectsDraw)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, sampler));
+    ASSERT_TRUE(bindingSet.IsValid());
+    ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+
+    gfx->DestroySampler(sampler);
+    EXPECT_EQ(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    const auto diagnostics = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_EQ(diagnostics.staleResourceRejects, 1u);
+}
+
+TEST_F(BindingGPU, StaleExplicitSamplerDoesNotUseFallback)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout =
+        gfx->CreateBindingLayout(
+            MakeNativeOptionalFallbackAlbedoBindingLayout(true, false));
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, sampler));
+    ASSERT_TRUE(bindingSet.IsValid());
+    ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+
+    gfx->DestroySampler(sampler);
+    EXPECT_EQ(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    const auto diagnostics = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_EQ(diagnostics.fallbackSamplerUses, 0u);
+    EXPECT_EQ(diagnostics.fallbackStaleExplicitResourceRejects, 1u);
+}
+
+TEST_F(BindingGPU, ConstantBufferChangesPixelColor)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto buffer =
+        CreateNativeConstantBuffer(*gfx, {0.0f, 1.0f, 0.0f, 1.0f});
+    const auto layout = gfx->CreateBindingLayout(MakeNativeConstantBindingLayout());
+    const auto pipeline = CreateNativeConstantPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeConstantBindingSet(layout, buffer));
+    ASSERT_TRUE(bindingSet.IsValid());
+
+    bool submitted = false;
+    const auto capture = DrawResolvedTextured(*gfx, pipeline, bindingSet, &submitted);
+    ASSERT_TRUE(submitted);
+    ExpectCenterColor(capture, Green());
+}
+
+TEST_F(BindingGPU, DifferentConstantBuffersProduceDifferentPixels)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto redBuffer =
+        CreateNativeConstantBuffer(*gfx, {1.0f, 0.0f, 0.0f, 1.0f});
+    const auto blueBuffer =
+        CreateNativeConstantBuffer(*gfx, {0.0f, 0.0f, 1.0f, 1.0f});
+    const auto layout = gfx->CreateBindingLayout(MakeNativeConstantBindingLayout());
+    const auto pipeline = CreateNativeConstantPipeline(*gfx, layout);
+    const auto redSet =
+        gfx->CreateBindingSet(MakeNativeConstantBindingSet(layout, redBuffer));
+    const auto blueSet =
+        gfx->CreateBindingSet(MakeNativeConstantBindingSet(layout, blueBuffer));
+    ASSERT_TRUE(redSet.IsValid());
+    ASSERT_TRUE(blueSet.IsValid());
+
+    bool redSubmitted = false;
+    const auto redCapture = DrawResolvedTextured(*gfx, pipeline, redSet, &redSubmitted);
+    bool blueSubmitted = false;
+    const auto blueCapture = DrawResolvedTextured(
+        *gfx,
+        pipeline,
+        blueSet,
+        &blueSubmitted);
+
+    ASSERT_TRUE(redSubmitted);
+    ASSERT_TRUE(blueSubmitted);
+    ExpectCenterColor(redCapture, Red());
+    ExpectCenterColor(blueCapture, Blue());
+}
+
+TEST_F(BindingGPU, ConstantBufferCacheHitPreservesPixels)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto buffer =
+        CreateNativeConstantBuffer(*gfx, {1.0f, 0.0f, 0.0f, 1.0f});
+    const auto layout = gfx->CreateBindingLayout(MakeNativeConstantBindingLayout());
+    const auto pipeline = CreateNativeConstantPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeConstantBindingSet(layout, buffer));
+    ASSERT_TRUE(bindingSet.IsValid());
+
+    bool firstSubmitted = false;
+    const auto first = DrawResolvedTextured(
+        *gfx,
+        pipeline,
+        bindingSet,
+        &firstSubmitted);
+    const auto afterMiss = gfx->GetNativeBindingDiagnosticsForTesting();
+    bool secondSubmitted = false;
+    const auto second = DrawResolvedTextured(
+        *gfx,
+        pipeline,
+        bindingSet,
+        &secondSubmitted);
+    const auto afterHit = gfx->GetNativeBindingDiagnosticsForTesting();
+
+    ASSERT_TRUE(firstSubmitted);
+    ASSERT_TRUE(secondSubmitted);
+    ExpectCenterColor(first, Red());
+    ExpectCenterColor(second, Red());
+    EXPECT_EQ(afterHit.nativeBindingSrbCreates, afterMiss.nativeBindingSrbCreates);
+    EXPECT_EQ(
+        afterHit.nativeBindingVariableLookups,
+        afterMiss.nativeBindingVariableLookups);
+}
+
+TEST_F(BindingGPU, DestroyedConstantBufferRejectsDraw)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto buffer =
+        CreateNativeConstantBuffer(*gfx, {1.0f, 0.0f, 0.0f, 1.0f});
+    const auto layout = gfx->CreateBindingLayout(MakeNativeConstantBindingLayout());
+    const auto pipeline = CreateNativeConstantPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeConstantBindingSet(layout, buffer));
+    ASSERT_TRUE(bindingSet.IsValid());
+    ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+
+    gfx->DestroyBuffer(buffer);
+    EXPECT_EQ(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    const auto diagnostics = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_EQ(diagnostics.staleResourceRejects, 1u);
+}
+
+TEST_F(BindingGPU, WrongBufferUsageRejectsDraw)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto buffer = CreateNativeWrongUsageBuffer(*gfx);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeConstantBindingLayout());
+    const auto pipeline = CreateNativeConstantPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeConstantBindingSet(layout, buffer));
+    ASSERT_TRUE(bindingSet.IsValid());
+
+    EXPECT_EQ(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    const auto diagnostics = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_EQ(diagnostics.staleResourceRejects, 1u);
+    EXPECT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 0u);
+}
+
+TEST_F(BindingGPU, NonZeroSubrangeRejectsDraw)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto buffer =
+        CreateNativeConstantBuffer(*gfx, {1.0f, 0.0f, 0.0f, 1.0f});
+    const auto layout = gfx->CreateBindingLayout(MakeNativeConstantBindingLayout());
+    const auto pipeline = CreateNativeConstantPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeConstantBindingSet(layout, buffer, 4u, 8u));
+    ASSERT_TRUE(bindingSet.IsValid());
+
+    EXPECT_EQ(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    const auto diagnostics = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_EQ(diagnostics.unsupportedBindingRejects, 1u);
+}
+
+TEST_F(BindingGPU, ValidConstantBufferRecoversAfterRejectedDraw)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto badBuffer = CreateNativeWrongUsageBuffer(*gfx);
+    const auto goodBuffer =
+        CreateNativeConstantBuffer(*gfx, {0.0f, 1.0f, 0.0f, 1.0f});
+    const auto layout = gfx->CreateBindingLayout(MakeNativeConstantBindingLayout());
+    const auto pipeline = CreateNativeConstantPipeline(*gfx, layout);
+    const auto badSet =
+        gfx->CreateBindingSet(MakeNativeConstantBindingSet(layout, badBuffer));
+    const auto goodSet =
+        gfx->CreateBindingSet(MakeNativeConstantBindingSet(layout, goodBuffer));
+    ASSERT_TRUE(badSet.IsValid());
+    ASSERT_TRUE(goodSet.IsValid());
+    EXPECT_EQ(gfx->ResolveNativeBindingSrbForTesting(pipeline, badSet), nullptr);
+
+    bool submitted = false;
+    const auto capture = DrawResolvedTextured(*gfx, pipeline, goodSet, &submitted);
+    ASSERT_TRUE(submitted);
+    ExpectCenterColor(capture, Green());
+}
+
+TEST_F(BindingGPU, SameKeyDifferentCanonicalLayoutRejectsDraw)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, sampler));
+    ASSERT_TRUE(bindingSet.IsValid());
+    ASSERT_TRUE(gfx->CorruptNativeBindingSetCanonicalLayoutForTesting(bindingSet));
+
+    EXPECT_EQ(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    const auto diagnostics = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_EQ(diagnostics.canonicalLayoutMismatchRejects, 1u);
+    EXPECT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 0u);
+}
+
+TEST_F(BindingGPU, StaleBindingLayoutRejectsDraw)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, sampler));
+    ASSERT_TRUE(bindingSet.IsValid());
+
+    gfx->DestroyBindingLayout(layout);
+    EXPECT_EQ(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    const auto diagnostics = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_EQ(diagnostics.staleLayoutRejects, 1u);
+}
+
+TEST_F(BindingGPU, StaleBindingSetRejectsDraw)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, sampler));
+    ASSERT_TRUE(bindingSet.IsValid());
+
+    gfx->DestroyBindingSet(bindingSet);
+    EXPECT_EQ(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    const auto diagnostics = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_EQ(diagnostics.staleBindingSetRejects, 1u);
+}
+
+TEST_F(BindingGPU, DestroyedPipelineRejectsDraw)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, sampler));
+    ASSERT_TRUE(bindingSet.IsValid());
+
+    gfx->DestroyPipeline(pipeline);
+    EXPECT_EQ(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    const auto diagnostics = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_EQ(diagnostics.stalePipelineRejects, 1u);
+}
+
+TEST_F(BindingGPU, PipelineGenerationSeparatesCacheEntries)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipelineA = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto pipelineB = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, sampler));
+    ASSERT_TRUE(bindingSet.IsValid());
+
+    ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipelineA, bindingSet), nullptr);
+    ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipelineB, bindingSet), nullptr);
+    EXPECT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 2u);
+}
+
+TEST_F(BindingGPU, WrongResourceKindRejectsDraw)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto buffer =
+        CreateNativeConstantBuffer(*gfx, {1.0f, 0.0f, 0.0f, 1.0f});
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    SagaEngine::Graphics::GraphicsBindingSetDesc desc{};
+    desc.layout = layout;
+    SagaEngine::Graphics::GraphicsBindingResourceRef textureRef{};
+    textureRef.slot = 0u;
+    textureRef.stableId = 100u;
+    textureRef.kind = SagaEngine::Graphics::GraphicsResourceKind::Buffer;
+    textureRef.handle = buffer;
+    desc.resources.push_back(textureRef);
+    SagaEngine::Graphics::GraphicsBindingResourceRef samplerRef{};
+    samplerRef.slot = 1u;
+    samplerRef.stableId = 101u;
+    samplerRef.kind = SagaEngine::Graphics::GraphicsResourceKind::Sampler;
+    samplerRef.handle = sampler;
+    desc.resources.push_back(samplerRef);
+
+    const auto bindingSet = gfx->CreateBindingSet(desc);
+    EXPECT_FALSE(bindingSet.IsValid());
+    EXPECT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 0u);
+}
+
+TEST_F(BindingGPU, UnsupportedStorageBufferRejectsDraw)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    auto layoutDesc = MakeNativeConstantBindingLayout();
+    layoutDesc.slots[0].type =
+        SagaEngine::Graphics::GraphicsBindingType::StorageBuffer;
+    const auto layout = gfx->CreateBindingLayout(layoutDesc);
+    EXPECT_FALSE(layout.IsValid());
+}
+
+TEST_F(BindingGPU, SrbCreatedOnceAfterWarmup)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, sampler));
+    ASSERT_TRUE(bindingSet.IsValid());
+    ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    const auto warm = gfx->GetNativeBindingDiagnosticsForTesting();
+
+    for (int i = 0; i < 25; ++i)
+    {
+        ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    }
+    const auto hot = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_EQ(hot.nativeBindingSrbCreates, warm.nativeBindingSrbCreates);
+    EXPECT_EQ(hot.nativeBindingVariableLookups, warm.nativeBindingVariableLookups);
+    EXPECT_EQ(
+        hot.nativeBindingStaticVariableLookups,
+        warm.nativeBindingStaticVariableLookups);
+    EXPECT_EQ(hot.nativeBindingCacheHits, warm.nativeBindingCacheHits + 25u);
+}
+
+TEST_F(BindingGPU, VariableLookupOccursOnlyOnCacheMiss)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, sampler));
+    ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    const auto miss = gfx->GetNativeBindingDiagnosticsForTesting();
+    ASSERT_GT(miss.nativeBindingVariableLookups, 0u);
+
+    ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    const auto hit = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_EQ(hit.nativeBindingVariableLookups, miss.nativeBindingVariableLookups);
+    EXPECT_EQ(hit.nativeBindingCacheHits, miss.nativeBindingCacheHits + 1u);
+}
+
+TEST_F(BindingGPU, GetStaticVariableLookupOccursOnlyOnCacheMiss)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, sampler));
+    ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    const auto miss = gfx->GetNativeBindingDiagnosticsForTesting();
+
+    ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    const auto hit = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_EQ(
+        hit.nativeBindingStaticVariableLookups,
+        miss.nativeBindingStaticVariableLookups);
+    EXPECT_EQ(hit.nativeBindingCacheHits, miss.nativeBindingCacheHits + 1u);
+}
+
+TEST_F(BindingGPU, CacheHitDoesNotCreateFallbackResources)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto layout =
+        gfx->CreateBindingLayout(
+            MakeNativeOptionalFallbackAlbedoBindingLayout(false, false));
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoEmptyBindingSet(layout));
+    ASSERT_TRUE(bindingSet.IsValid());
+    ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    const auto warm = gfx->GetNativeBindingDiagnosticsForTesting();
+    ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    const auto hot = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_EQ(hot.fallbackTextureCreates, warm.fallbackTextureCreates);
+    EXPECT_EQ(hot.fallbackSamplerCreates, warm.fallbackSamplerCreates);
+    EXPECT_EQ(hot.nativeBindingSrbCreates, warm.nativeBindingSrbCreates);
+}
+
+TEST_F(BindingGPU, BindingSetChangeCreatesSeparateEntry)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto red = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto green = CreateNativeTexture(*gfx, SolidTexture(0u, 255u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto redSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, red, sampler));
+    const auto greenSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, green, sampler));
+    ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipeline, redSet), nullptr);
+    ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipeline, greenSet), nullptr);
+    EXPECT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 2u);
+}
+
+TEST_F(BindingGPU, PipelineChangeCreatesSeparateEntry)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto firstPipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto secondPipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, sampler));
+    ASSERT_NE(
+        gfx->ResolveNativeBindingSrbForTesting(firstPipeline, bindingSet),
+        nullptr);
+    ASSERT_NE(
+        gfx->ResolveNativeBindingSrbForTesting(secondPipeline, bindingSet),
+        nullptr);
+    EXPECT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 2u);
+}
+
+TEST_F(BindingGPU, ResourceGenerationChangeInvalidatesEntry)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, sampler));
+    ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+
+    gfx->DestroyTexture(texture);
+    EXPECT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 0u);
+    EXPECT_EQ(gfx->GetNativeBindingQuarantinedSrbCountForTesting(), 1u);
+}
+
+TEST_F(BindingGPU, InvalidatedSrbIsRemovedFromLookup)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, sampler));
+    ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    ASSERT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 1u);
+
+    gfx->DestroyTexture(texture);
+    EXPECT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 0u);
+    EXPECT_EQ(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+}
+
+TEST_F(BindingGPU, InvalidatedSrbMovesToQuarantine)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, sampler));
+    ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+
+    gfx->DestroyTexture(texture);
+    const auto diagnostics = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_EQ(diagnostics.quarantinedSrbCount, 1u);
+    EXPECT_EQ(diagnostics.quarantinedSrbPeak, 1u);
+}
+
+TEST_F(BindingGPU, QuarantinedEntryIsNeverReused)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto staleTexture = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto validTexture = CreateNativeTexture(*gfx, SolidTexture(0u, 255u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto staleSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, staleTexture, sampler));
+    ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipeline, staleSet), nullptr);
+    gfx->DestroyTexture(staleTexture);
+    ASSERT_EQ(gfx->GetNativeBindingQuarantinedSrbCountForTesting(), 1u);
+
+    const auto validSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, validTexture, sampler));
+    ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipeline, validSet), nullptr);
+    EXPECT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 1u);
+    EXPECT_EQ(gfx->GetNativeBindingQuarantinedSrbCountForTesting(), 1u);
+}
+
+TEST_F(BindingGPU, FallbackGenerationChangeInvalidatesEntry)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto layout =
+        gfx->CreateBindingLayout(
+            MakeNativeOptionalFallbackAlbedoBindingLayout(false, false));
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoEmptyBindingSet(layout));
+    ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    const auto warm = gfx->GetNativeBindingDiagnosticsForTesting();
+    gfx->ReleaseFallbackResourcesForTesting();
+    ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    const auto afterRecreate = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_GT(afterRecreate.fallbackGeneration, warm.fallbackGeneration);
+    EXPECT_GT(afterRecreate.nativeBindingCacheMisses, warm.nativeBindingCacheMisses);
+}
+
+TEST_F(BindingGPU, FailedResolveDoesNotPublishEntry)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, sampler));
+    gfx->DestroyTexture(texture);
+    EXPECT_EQ(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    EXPECT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 0u);
+}
+
+TEST_F(BindingGPU, MultipleBindingSetsRemainIndependent)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto red = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto green = CreateNativeTexture(*gfx, SolidTexture(0u, 255u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto redSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, red, sampler));
+    const auto greenSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, green, sampler));
+
+    bool redSubmitted = false;
+    const auto redCapture = DrawResolvedTextured(*gfx, pipeline, redSet, &redSubmitted);
+    bool greenSubmitted = false;
+    const auto greenCapture = DrawResolvedTextured(
+        *gfx,
+        pipeline,
+        greenSet,
+        &greenSubmitted);
+    ASSERT_TRUE(redSubmitted);
+    ASSERT_TRUE(greenSubmitted);
+    ExpectCenterColor(redCapture, Red());
+    ExpectCenterColor(greenCapture, Green());
+}
+
+TEST_F(BindingGPU, RejectedDrawDoesNotPoisonFollowingDraw)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto staleTexture =
+        CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto validTexture =
+        CreateNativeTexture(*gfx, SolidTexture(0u, 255u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto staleSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, staleTexture, sampler));
+    const auto validSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, validTexture, sampler));
+    gfx->DestroyTexture(staleTexture);
+    EXPECT_EQ(gfx->ResolveNativeBindingSrbForTesting(pipeline, staleSet), nullptr);
+
+    bool submitted = false;
+    const auto capture = DrawResolvedTextured(*gfx, pipeline, validSet, &submitted);
+    ASSERT_TRUE(submitted);
+    ExpectCenterColor(capture, Green());
+}
+
+TEST_F(BindingGPU, FallbackBindingDoesNotLeakIntoExplicitBinding)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto explicitTexture =
+        CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout =
+        gfx->CreateBindingLayout(
+            MakeNativeOptionalFallbackAlbedoBindingLayout(false, true));
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto fallbackSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoSamplerOnlyBindingSet(layout, sampler));
+    const auto explicitSet =
+        gfx->CreateBindingSet(
+            MakeNativeAlbedoBindingSet(layout, explicitTexture, sampler));
+
+    bool fallbackSubmitted = false;
+    const auto fallbackCapture = DrawResolvedTextured(
+        *gfx,
+        pipeline,
+        fallbackSet,
+        &fallbackSubmitted);
+    bool explicitSubmitted = false;
+    const auto explicitCapture = DrawResolvedTextured(
+        *gfx,
+        pipeline,
+        explicitSet,
+        &explicitSubmitted);
+    ASSERT_TRUE(fallbackSubmitted);
+    ASSERT_TRUE(explicitSubmitted);
+    ExpectCenterColor(fallbackCapture, White());
+    ExpectCenterColor(explicitCapture, Red());
+}
+
+TEST_F(BindingGPU, BindingSurvivesMultipleFrames)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(0u, 255u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, sampler));
+
+    for (int i = 0; i < 3; ++i)
+    {
+        bool submitted = false;
+        const auto capture =
+            DrawResolvedTextured(*gfx, pipeline, bindingSet, &submitted);
+        ASSERT_TRUE(submitted);
+        ExpectCenterColor(capture, Green());
+    }
+    const auto diagnostics = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_GE(diagnostics.nativeBindingCacheHits, 2u);
+}
+
+TEST_F(BindingGPU, DestroyedResourceIsRejectedOnFollowingFrame)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, sampler));
+    bool submitted = false;
+    const auto capture = DrawResolvedTextured(*gfx, pipeline, bindingSet, &submitted);
+    ASSERT_TRUE(submitted);
+    ExpectCenterColor(capture, Red());
+
+    gfx->DestroyTexture(texture);
+    EXPECT_EQ(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+}
+
+TEST_F(BindingGPU, FallbackResourcesRemainStableAcrossFrames)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto layout =
+        gfx->CreateBindingLayout(
+            MakeNativeOptionalFallbackAlbedoBindingLayout(false, false));
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoEmptyBindingSet(layout));
+    std::uint64_t generation = 0;
+    for (int i = 0; i < 3; ++i)
+    {
+        bool submitted = false;
+        const auto capture =
+            DrawResolvedTextured(*gfx, pipeline, bindingSet, &submitted);
+        ASSERT_TRUE(submitted);
+        ExpectCenterColor(capture, White());
+        const auto diagnostics = gfx->GetNativeBindingDiagnosticsForTesting();
+        if (i == 0)
+        {
+            generation = diagnostics.fallbackGeneration;
+        }
+        EXPECT_EQ(diagnostics.fallbackGeneration, generation);
+    }
+}
+
+TEST_F(BindingGPU, ResizePreservesPersistentTextureBinding)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(0u, 255u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, sampler));
+    m_Backend.OnResize(400u, 300u);
+
+    bool submitted = false;
+    const auto capture = DrawResolvedTextured(*gfx, pipeline, bindingSet, &submitted);
+    ASSERT_TRUE(submitted);
+    ExpectCenterColor(capture, Green());
+}
+
+TEST_F(BindingGPU, ResizePreservesFallbackBinding)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto layout =
+        gfx->CreateBindingLayout(
+            MakeNativeOptionalFallbackAlbedoBindingLayout(false, false));
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoEmptyBindingSet(layout));
+    m_Backend.OnResize(400u, 300u);
+
+    bool submitted = false;
+    const auto capture = DrawResolvedTextured(*gfx, pipeline, bindingSet, &submitted);
+    ASSERT_TRUE(submitted);
+    ExpectCenterColor(capture, White());
+}
+
+TEST_F(BindingGPU, DestroyAfterSubmitDoesNotCrashUnderQuarantinePolicy)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, sampler));
+    bool submitted = false;
+    const auto capture = DrawResolvedTextured(*gfx, pipeline, bindingSet, &submitted);
+    ASSERT_TRUE(submitted);
+    ExpectCenterColor(capture, Red());
+
+    gfx->DestroyTexture(texture);
+    EXPECT_EQ(gfx->GetNativeBindingQuarantinedSrbCountForTesting(), 1u);
+}
+
+TEST_F(BindingGPU, ReleaseClearsCacheAndQuarantine)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, sampler));
+    ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    gfx->DestroyTexture(texture);
+    ASSERT_EQ(gfx->GetNativeBindingQuarantinedSrbCountForTesting(), 1u);
+    gfx->Shutdown();
+    EXPECT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 0u);
+    EXPECT_EQ(gfx->GetNativeBindingQuarantinedSrbCountForTesting(), 0u);
+}
+
+TEST_F(BindingGPU, FailedFallbackInitializationDoesNotPublishEntry)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto layout =
+        gfx->CreateBindingLayout(
+            MakeNativeOptionalFallbackAlbedoBindingLayout(false, false));
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoEmptyBindingSet(layout));
+    gfx->ForceNextFallbackSamplerFailureForTesting(true);
+    EXPECT_EQ(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    EXPECT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 0u);
+
+    bool submitted = false;
+    const auto capture = DrawResolvedTextured(*gfx, pipeline, bindingSet, &submitted);
+    ASSERT_TRUE(submitted);
+    ExpectCenterColor(capture, White());
+}
+
+TEST_F(BindingGPU, PerformanceSmokeRepeatedResolveKeepsHotPathCountersStable)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto texture = CreateNativeTexture(*gfx, SolidTexture(255u, 0u, 0u));
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoBindingSet(layout, texture, sampler));
+    ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    const auto warm = gfx->GetNativeBindingDiagnosticsForTesting();
+    for (int i = 0; i < 1000; ++i)
+    {
+        ASSERT_NE(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+    }
+    const auto hot = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 1u);
+    EXPECT_EQ(hot.nativeBindingSrbCreates, warm.nativeBindingSrbCreates);
+    EXPECT_EQ(hot.nativeBindingVariableLookups, warm.nativeBindingVariableLookups);
+    EXPECT_EQ(
+        hot.nativeBindingStaticVariableLookups,
+        warm.nativeBindingStaticVariableLookups);
+    EXPECT_EQ(hot.nativeBindingCacheHits, warm.nativeBindingCacheHits + 1000u);
 }
 
 TEST_F(SagaGraphicsGPU, NativeShaderPipelineProducesPixels)

@@ -325,6 +325,21 @@ DiligentGraphicsBackend::ResolveNativeBindingSetRecordForTesting(
     return it == m_NativeBindingSets.end() ? nullptr : &it->second;
 }
 
+bool DiligentGraphicsBackend::CorruptNativeBindingSetCanonicalLayoutForTesting(
+    BindingSetHandle handle) noexcept
+{
+    const auto it = m_NativeBindingSets.find(
+        PackHandleKey(handle.index, handle.generation));
+    if (it == m_NativeBindingSets.end() ||
+        it->second.canonicalLayout.slots.empty())
+    {
+        return false;
+    }
+
+    ++it->second.canonicalLayout.slots.front().arrayCount;
+    return true;
+}
+
 ::Diligent::IShaderResourceBinding*
 DiligentGraphicsBackend::ResolveNativeBindingSrbForTesting(
     PipelineHandle pipeline,

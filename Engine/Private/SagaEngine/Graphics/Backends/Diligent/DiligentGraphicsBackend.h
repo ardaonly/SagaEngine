@@ -177,6 +177,8 @@ public:
     [[nodiscard]] const DiligentNativeBindingSetRecord*
     ResolveNativeBindingSetRecordForTesting(
         BindingSetHandle handle) const noexcept;
+    [[nodiscard]] bool CorruptNativeBindingSetCanonicalLayoutForTesting(
+        BindingSetHandle handle) noexcept;
     [[nodiscard]] ::Diligent::IShaderResourceBinding*
     ResolveNativeBindingSrbForTesting(
         PipelineHandle pipeline,

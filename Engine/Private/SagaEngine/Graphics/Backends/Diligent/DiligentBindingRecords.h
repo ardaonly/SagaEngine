@@ -116,6 +116,7 @@ struct DiligentNativeBindingDiagnostics
     std::uint64_t nativeBindingSrbCreates = 0;
     std::uint64_t nativeBindingSrbCreateFailures = 0;
     std::uint64_t nativeBindingVariableLookups = 0;
+    std::uint64_t nativeBindingStaticVariableLookups = 0;
     std::uint64_t nativeBindingVariableLookupFailures = 0;
     std::uint64_t staleLayoutRejects = 0;
     std::uint64_t staleBindingSetRejects = 0;
