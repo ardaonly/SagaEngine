@@ -163,6 +163,44 @@ TEST(GraphicsDiligentBackendAdapter, OptionalBindingRecordsFallbackWithoutNative
         nativeRecord->fallbackRequirements[0].handle.IsValid());
 }
 
+TEST(FallbackResources, FailedNativeInitializationDoesNotPublishState)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    EXPECT_FALSE(backend->InitializeFallbackResourcesForTesting());
+
+    const auto diagnostics =
+        backend->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_EQ(diagnostics.fallbackInitializationAttempts, 1u);
+    EXPECT_EQ(diagnostics.fallbackInitializationSuccesses, 0u);
+    EXPECT_EQ(diagnostics.fallbackInitializationFailures, 1u);
+    EXPECT_FALSE(diagnostics.fallbackLiveState);
+    EXPECT_EQ(diagnostics.fallbackInternalResourceCount, 0u);
+    EXPECT_FALSE(backend->GetFallbackWhiteTextureForTesting().IsValid());
+    EXPECT_FALSE(backend->GetFallbackMaterialSamplerForTesting().IsValid());
+    EXPECT_EQ(backend->GetResourceMemoryReport().liveTextureCount, 0u);
+    EXPECT_EQ(backend->GetResourceMemoryReport().liveSamplerCount, 0u);
+}
+
+TEST(FallbackResources, ReleaseIsIdempotentWhenInitializationFailed)
+{
+    FakeRenderState state;
+    auto backend = MakeConcreteBackend(state);
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
+
+    EXPECT_FALSE(backend->InitializeFallbackResourcesForTesting());
+    backend->ReleaseFallbackResourcesForTesting();
+    backend->ReleaseFallbackResourcesForTesting();
+
+    const auto diagnostics =
+        backend->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_FALSE(diagnostics.fallbackLiveState);
+    EXPECT_EQ(diagnostics.fallbackInternalResourceCount, 0u);
+    EXPECT_EQ(backend->GetResourceMemoryReport().totalLiveBytes, 0u);
+}
+
 TEST(GraphicsDiligentBackendAdapter, SameKeyDifferentCanonicalLayoutIsIncompatible)
 {
     FakeRenderState state;

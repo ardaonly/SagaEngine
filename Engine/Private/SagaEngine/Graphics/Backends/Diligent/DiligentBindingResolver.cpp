@@ -4,6 +4,7 @@
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackend.h"
 
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentBindingCache.h"
+#include "SagaEngine/Graphics/Backends/Diligent/DiligentFallbackResources.h"
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentBindingResolver.h"
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackendValidation.h"
 #include "SagaEngine/Graphics/Bindings/GraphicsBindingValidation.h"
@@ -81,6 +82,7 @@ void CountFailure(
     case DiligentBindingFailureReason::RequiredBindingMissing:
     case DiligentBindingFailureReason::FallbackRequired:
         ++diagnostics.requiredBindingMissingRejects;
+        ++diagnostics.fallbackRequiredBindingRejects;
         break;
     case DiligentBindingFailureReason::UnsupportedBinding:
     case DiligentBindingFailureReason::UnsupportedArrayBinding:
@@ -95,6 +97,47 @@ void CountFailure(
 [[nodiscard]] bool IsSampledTextureDesc(const TextureDesc& desc) noexcept
 {
     return HasFlag(desc.usage, TextureUsageFlags::Sampled);
+}
+
+[[nodiscard]] bool IsFallbackPolicyAllowed(
+    const DiligentCompiledBindingEntry& entry) noexcept
+{
+    if (entry.required)
+    {
+        return false;
+    }
+
+    if (entry.kind == DiligentCompiledBindingKind::SampledTexture)
+    {
+        return entry.fallbackPolicy ==
+               GraphicsBindingFallbackPolicy::OptionalSampledTexture;
+    }
+
+    if (entry.kind == DiligentCompiledBindingKind::Sampler)
+    {
+        return entry.fallbackPolicy ==
+               GraphicsBindingFallbackPolicy::OptionalSampler;
+    }
+
+    return false;
+}
+
+[[nodiscard]] bool HasResourceForEntry(
+    const DiligentNativeBindingSetRecord& nativeSet,
+    const DiligentCompiledBindingEntry& entry) noexcept
+{
+    for (const auto& resource : nativeSet.resources)
+    {
+        if (entry.stableId != 0u && resource.stableId == entry.stableId)
+        {
+            return true;
+        }
+        if (entry.stableId == 0u && resource.slot == entry.slot)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 } // namespace
@@ -192,19 +235,165 @@ DiligentResolvedBindingSet DiligentGraphicsBackend::ResolveNativeBindingSet(
         return resolved;
     }
 
-    if (!nativeSet.fallbackRequirements.empty())
-    {
-        AddDiagnostic(
-            resolved,
-            DiligentBindingFailureReason::FallbackRequired,
-            "binding set requires fallback resources not implemented in B2");
-        CountFailure(m_NativeBindingDiagnostics, resolved.failure);
-        return resolved;
-    }
-
     resolved.pipelineCreationSerial = pipelineQuery.creationSerial;
     resolved.compatibilityKey = compiledLayout.compatibilityKey;
     resolved.canonicalLayout = compiledLayout.canonicalLayout;
+
+    for (const auto& entry : compiledLayout.entries)
+    {
+        if (entry.required || entry.shaderVariableName.empty() ||
+            HasResourceForEntry(nativeSet, entry))
+        {
+            continue;
+        }
+
+        if (entry.fallbackPolicy == GraphicsBindingFallbackPolicy::None)
+        {
+            AddDiagnostic(
+                resolved,
+                DiligentBindingFailureReason::FallbackRequired,
+                "optional binding is omitted without an allowed fallback policy");
+            CountFailure(m_NativeBindingDiagnostics, resolved.failure);
+            return resolved;
+        }
+    }
+
+    for (const auto& fallback : nativeSet.fallbackRequirements)
+    {
+        const auto* entry = FindEntry(compiledLayout, fallback);
+        if (!entry)
+        {
+            AddDiagnostic(
+                resolved,
+                DiligentBindingFailureReason::ResourceKindMismatch,
+                "fallback requirement no longer has a compiled entry");
+            CountFailure(m_NativeBindingDiagnostics, resolved.failure);
+            return resolved;
+        }
+
+        if (entry->arrayCount != 1u || fallback.arrayElement != 0u)
+        {
+            AddDiagnostic(
+                resolved,
+                DiligentBindingFailureReason::UnsupportedArrayBinding,
+                "array fallback bindings are not supported in B3");
+            CountFailure(m_NativeBindingDiagnostics, resolved.failure);
+            return resolved;
+        }
+
+        if (!IsFallbackPolicyAllowed(*entry))
+        {
+            AddDiagnostic(
+                resolved,
+                DiligentBindingFailureReason::FallbackRequired,
+                "optional binding has no supported B3 fallback policy");
+            CountFailure(m_NativeBindingDiagnostics, resolved.failure);
+            return resolved;
+        }
+
+        if (!m_FallbackResources)
+        {
+            AddDiagnostic(
+                resolved,
+                DiligentBindingFailureReason::FallbackRequired,
+                "fallback resource owner is unavailable");
+            CountFailure(m_NativeBindingDiagnostics, resolved.failure);
+            return resolved;
+        }
+
+        DiligentFallbackResourceIdentity fallbackIdentity{};
+        if (entry->kind == DiligentCompiledBindingKind::SampledTexture)
+        {
+            fallbackIdentity = m_FallbackResources->ResolveWhiteTexture(
+                *this,
+                m_NativeBindingDiagnostics);
+        }
+        else if (entry->kind == DiligentCompiledBindingKind::Sampler)
+        {
+            fallbackIdentity = m_FallbackResources->ResolveMaterialSampler(
+                *this,
+                m_NativeBindingDiagnostics);
+        }
+
+        if (!fallbackIdentity.valid)
+        {
+            AddDiagnostic(
+                resolved,
+                DiligentBindingFailureReason::FallbackRequired,
+                "fallback resource initialization failed");
+            CountFailure(m_NativeBindingDiagnostics, resolved.failure);
+            return resolved;
+        }
+
+        DiligentResolvedBindingResource resolvedResource{};
+        resolvedResource.entry = entry;
+        resolvedResource.record = fallback;
+        resolvedResource.record.kind = fallbackIdentity.kind;
+        resolvedResource.record.handle = fallbackIdentity.handle;
+        resolvedResource.record.resourceCreationSerial =
+            fallbackIdentity.creationSerial;
+        resolvedResource.query =
+            QueryResource(fallbackIdentity.kind, fallbackIdentity.handle);
+        resolvedResource.usedFallback = true;
+
+        if (!resolvedResource.query.live ||
+            resolvedResource.query.kind != fallbackIdentity.kind ||
+            resolvedResource.query.creationSerial !=
+                fallbackIdentity.creationSerial ||
+            !resolvedResource.query.nativeBacked || !m_NativeOwner)
+        {
+            AddDiagnostic(
+                resolved,
+                DiligentBindingFailureReason::NativePayloadMissing,
+                "fallback resource has no valid native payload");
+            CountFailure(m_NativeBindingDiagnostics, resolved.failure);
+            return resolved;
+        }
+
+        if (entry->kind == DiligentCompiledBindingKind::SampledTexture)
+        {
+            const auto textureHandle =
+                ToTypedHandle<TextureHandle>(fallbackIdentity.handle);
+            const auto* textureDesc = m_Textures.ResolveDesc(textureHandle);
+            auto* srv = m_NativeOwner->ResolveTextureSrv(textureHandle);
+            if (!textureDesc || !IsSampledTextureDesc(*textureDesc) || !srv)
+            {
+                AddDiagnostic(
+                    resolved,
+                    DiligentBindingFailureReason::NativePayloadMissing,
+                    "fallback texture has no valid SRV");
+                CountFailure(m_NativeBindingDiagnostics, resolved.failure);
+                return resolved;
+            }
+            resolvedResource.textureView = srv;
+            resolvedResource.nativeObject =
+                static_cast<::Diligent::IDeviceObject*>(srv);
+            ++m_NativeBindingDiagnostics.fallbackTextureUses;
+        }
+        else if (entry->kind == DiligentCompiledBindingKind::Sampler)
+        {
+            const auto samplerHandle =
+                ToTypedHandle<SamplerHandle>(fallbackIdentity.handle);
+            auto* sampler = m_NativeOwner->ResolveSampler(samplerHandle);
+            if (!sampler)
+            {
+                AddDiagnostic(
+                    resolved,
+                    DiligentBindingFailureReason::NativePayloadMissing,
+                    "fallback sampler has no native payload");
+                CountFailure(m_NativeBindingDiagnostics, resolved.failure);
+                return resolved;
+            }
+            resolvedResource.sampler = sampler;
+            resolvedResource.nativeObject =
+                static_cast<::Diligent::IDeviceObject*>(sampler);
+            ++m_NativeBindingDiagnostics.fallbackSamplerUses;
+        }
+
+        resolvedResource.valid = true;
+        resolved.fallbackGeneration = fallbackIdentity.fallbackGeneration;
+        resolved.resources.push_back(std::move(resolvedResource));
+    }
 
     for (const auto& resource : nativeSet.resources)
     {
@@ -236,6 +425,12 @@ DiligentResolvedBindingSet DiligentGraphicsBackend::ResolveNativeBindingSet(
         if (!resolvedResource.query.live ||
             resolvedResource.query.kind != resource.kind)
         {
+            if (entry->kind == DiligentCompiledBindingKind::SampledTexture ||
+                entry->kind == DiligentCompiledBindingKind::Sampler)
+            {
+                ++m_NativeBindingDiagnostics
+                      .fallbackStaleExplicitResourceRejects;
+            }
             AddDiagnostic(
                 resolved,
                 DiligentBindingFailureReason::StaleResource,
@@ -247,6 +442,12 @@ DiligentResolvedBindingSet DiligentGraphicsBackend::ResolveNativeBindingSet(
         if (resolvedResource.query.creationSerial !=
             resource.resourceCreationSerial)
         {
+            if (entry->kind == DiligentCompiledBindingKind::SampledTexture ||
+                entry->kind == DiligentCompiledBindingKind::Sampler)
+            {
+                ++m_NativeBindingDiagnostics
+                      .fallbackStaleExplicitResourceRejects;
+            }
             AddDiagnostic(
                 resolved,
                 DiligentBindingFailureReason::ResourceGenerationMismatch,

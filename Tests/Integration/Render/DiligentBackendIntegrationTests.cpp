@@ -785,6 +785,28 @@ float4 main(PSInput input) : SV_Target
         return layout;
     }
 
+    [[nodiscard]] SagaEngine::Graphics::GraphicsBindingLayoutDesc
+    MakeNativeOptionalFallbackAlbedoBindingLayout(
+        bool textureRequired,
+        bool samplerRequired)
+    {
+        auto layout = MakeNativeAlbedoBindingLayout();
+        layout.debugName = "SagaGraphicsGPUNativeFallbackAlbedoLayout";
+        layout.slots[0].required = textureRequired;
+        layout.slots[0].fallbackPolicy =
+            textureRequired
+                ? SagaEngine::Graphics::GraphicsBindingFallbackPolicy::None
+                : SagaEngine::Graphics::GraphicsBindingFallbackPolicy::
+                      OptionalSampledTexture;
+        layout.slots[1].required = samplerRequired;
+        layout.slots[1].fallbackPolicy =
+            samplerRequired
+                ? SagaEngine::Graphics::GraphicsBindingFallbackPolicy::None
+                : SagaEngine::Graphics::GraphicsBindingFallbackPolicy::
+                      OptionalSampler;
+        return layout;
+    }
+
     [[nodiscard]] SagaEngine::Graphics::GraphicsBindingSetDesc
     MakeNativeAlbedoBindingSet(
         SagaEngine::Graphics::BindingLayoutHandle layout,
@@ -809,6 +831,34 @@ float4 main(PSInput input) : SV_Target
         samplerRef.handle = sampler;
         desc.resources.push_back(samplerRef);
 
+        return desc;
+    }
+
+    [[nodiscard]] SagaEngine::Graphics::GraphicsBindingSetDesc
+    MakeNativeAlbedoSamplerOnlyBindingSet(
+        SagaEngine::Graphics::BindingLayoutHandle layout,
+        SagaEngine::Graphics::SamplerHandle sampler)
+    {
+        SagaEngine::Graphics::GraphicsBindingSetDesc desc{};
+        desc.debugName = "SagaGraphicsGPUNativeFallbackSamplerOnlySet";
+        desc.layout = layout;
+
+        SagaEngine::Graphics::GraphicsBindingResourceRef samplerRef{};
+        samplerRef.slot = 1u;
+        samplerRef.stableId = 101u;
+        samplerRef.kind = SagaEngine::Graphics::GraphicsResourceKind::Sampler;
+        samplerRef.handle = sampler;
+        desc.resources.push_back(samplerRef);
+        return desc;
+    }
+
+    [[nodiscard]] SagaEngine::Graphics::GraphicsBindingSetDesc
+    MakeNativeAlbedoEmptyBindingSet(
+        SagaEngine::Graphics::BindingLayoutHandle layout)
+    {
+        SagaEngine::Graphics::GraphicsBindingSetDesc desc{};
+        desc.debugName = "SagaGraphicsGPUNativeFallbackEmptySet";
+        desc.layout = layout;
         return desc;
     }
 
@@ -1961,6 +2011,158 @@ TEST_F(SagaGraphicsGPU, NativeBindingCacheInvalidatesDestroyedTexture)
     EXPECT_EQ(diagnostics.nativeBindingCacheHits, 0u);
     EXPECT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 0u);
     EXPECT_EQ(gfx->GetNativeBindingQuarantinedSrbCountForTesting(), 1u);
+}
+
+TEST_F(SagaGraphicsGPU, NativeBindingMissingOptionalTextureUsesWhiteFallback)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto vertices = TexturedQuadVertices();
+    const auto vertexBuffer = CreateNativeTexturedVertexBuffer(*gfx, vertices);
+    const auto indexBuffer = CreateNativeQuadIndexBuffer(*gfx);
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout =
+        gfx->CreateBindingLayout(
+            MakeNativeOptionalFallbackAlbedoBindingLayout(false, true));
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoSamplerOnlyBindingSet(layout, sampler));
+
+    ASSERT_TRUE(vertexBuffer.IsValid());
+    ASSERT_TRUE(indexBuffer.IsValid());
+    ASSERT_TRUE(sampler.IsValid());
+    ASSERT_TRUE(layout.IsValid());
+    ASSERT_TRUE(pipeline.IsValid());
+    ASSERT_TRUE(bindingSet.IsValid());
+
+    auto* srb = gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet);
+    ASSERT_NE(srb, nullptr);
+    const auto diagnostics = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_TRUE(diagnostics.fallbackLiveState);
+    EXPECT_EQ(diagnostics.fallbackTextureUses, 1u);
+    EXPECT_EQ(diagnostics.fallbackSamplerUses, 0u);
+    EXPECT_EQ(diagnostics.fallbackTextureCreates, 1u);
+    EXPECT_EQ(diagnostics.fallbackSamplerCreates, 1u);
+    EXPECT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 1u);
+
+    bool submitted = false;
+    const auto capture = DrawNativeBoundTexturedQuad(
+        gfx->ResolveNativeBufferForTesting(vertexBuffer),
+        gfx->ResolveNativeBufferForTesting(indexBuffer),
+        gfx->ResolveNativePipelineForTesting(pipeline),
+        srb,
+        &submitted);
+
+    ASSERT_TRUE(submitted);
+    EXPECT_GT(SagaTests::Render::CountRegionMatching(
+                  capture, capture.width / 2u, capture.height / 2u, 24u,
+                  [](SagaTests::Render::Rgba8 c)
+                  {
+                      return SagaTests::Render::ColorNear(
+                          c,
+                          {255u, 255u, 255u, 255u},
+                          12);
+                  }),
+              100u);
+}
+
+TEST_F(SagaGraphicsGPU, NativeBindingMissingRequiredTextureRejects)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout = gfx->CreateBindingLayout(MakeNativeAlbedoBindingLayout());
+    ASSERT_TRUE(sampler.IsValid());
+    ASSERT_TRUE(layout.IsValid());
+
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoSamplerOnlyBindingSet(layout, sampler));
+    EXPECT_FALSE(bindingSet.IsValid());
+    EXPECT_EQ(
+        gfx->GetLastResourceFailure(),
+        SagaEngine::Graphics::GraphicsResourceFailure::InvalidBindingSetDesc);
+}
+
+TEST_F(SagaGraphicsGPU, NativeBindingStaleExplicitTextureDoesNotFallback)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    constexpr std::array<std::uint8_t, 16> kRedTexture{
+        255u, 0u, 0u, 255u,
+        255u, 0u, 0u, 255u,
+        255u, 0u, 0u, 255u,
+        255u, 0u, 0u, 255u};
+    const auto texture = CreateNativeTexture(*gfx, kRedTexture);
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto layout =
+        gfx->CreateBindingLayout(
+            MakeNativeOptionalFallbackAlbedoBindingLayout(false, true));
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet = gfx->CreateBindingSet(
+        MakeNativeAlbedoBindingSet(layout, texture, sampler));
+    ASSERT_TRUE(texture.IsValid());
+    ASSERT_TRUE(sampler.IsValid());
+    ASSERT_TRUE(layout.IsValid());
+    ASSERT_TRUE(pipeline.IsValid());
+    ASSERT_TRUE(bindingSet.IsValid());
+
+    auto* firstSrb = gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet);
+    ASSERT_NE(firstSrb, nullptr);
+    EXPECT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 1u);
+
+    gfx->DestroyTexture(texture);
+    EXPECT_EQ(gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet), nullptr);
+
+    const auto diagnostics = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_EQ(diagnostics.fallbackTextureUses, 0u);
+    EXPECT_EQ(diagnostics.fallbackStaleExplicitResourceRejects, 1u);
+    EXPECT_EQ(diagnostics.staleResourceRejects, 1u);
+    EXPECT_EQ(gfx->GetNativeBindingCacheEntryCountForTesting(), 0u);
+}
+
+TEST_F(SagaGraphicsGPU, NativeBindingMissingOptionalSamplerUsesCanonicalSampler)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto vertices = TexturedQuadVertices();
+    const auto vertexBuffer = CreateNativeTexturedVertexBuffer(*gfx, vertices);
+    const auto indexBuffer = CreateNativeQuadIndexBuffer(*gfx);
+    const auto layout =
+        gfx->CreateBindingLayout(
+            MakeNativeOptionalFallbackAlbedoBindingLayout(false, false));
+    const auto pipeline = CreateNativeAlbedoPipeline(*gfx, layout);
+    const auto bindingSet =
+        gfx->CreateBindingSet(MakeNativeAlbedoEmptyBindingSet(layout));
+
+    ASSERT_TRUE(vertexBuffer.IsValid());
+    ASSERT_TRUE(indexBuffer.IsValid());
+    ASSERT_TRUE(layout.IsValid());
+    ASSERT_TRUE(pipeline.IsValid());
+    ASSERT_TRUE(bindingSet.IsValid());
+
+    auto* srb = gfx->ResolveNativeBindingSrbForTesting(pipeline, bindingSet);
+    ASSERT_NE(srb, nullptr);
+    const auto diagnostics = gfx->GetNativeBindingDiagnosticsForTesting();
+    EXPECT_EQ(diagnostics.fallbackTextureUses, 1u);
+    EXPECT_EQ(diagnostics.fallbackSamplerUses, 1u);
+    EXPECT_EQ(diagnostics.fallbackTextureCreates, 1u);
+    EXPECT_EQ(diagnostics.fallbackSamplerCreates, 1u);
+
+    bool submitted = false;
+    const auto capture = DrawNativeBoundTexturedQuad(
+        gfx->ResolveNativeBufferForTesting(vertexBuffer),
+        gfx->ResolveNativeBufferForTesting(indexBuffer),
+        gfx->ResolveNativePipelineForTesting(pipeline),
+        srb,
+        &submitted);
+
+    ASSERT_TRUE(submitted);
+    EXPECT_GT(SagaTests::Render::CountRegionMatching(
+                  capture, capture.width / 2u, capture.height / 2u, 24u,
+                  [](SagaTests::Render::Rgba8 c)
+                  {
+                      return SagaTests::Render::ColorNear(
+                          c,
+                          {255u, 255u, 255u, 255u},
+                          12);
+                  }),
+              100u);
 }
 
 TEST_F(SagaGraphicsGPU, NativeShaderPipelineProducesPixels)

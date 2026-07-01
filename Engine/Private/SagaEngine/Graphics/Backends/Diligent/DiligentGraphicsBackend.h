@@ -34,6 +34,7 @@ namespace SagaEngine::Graphics::Backends::Diligent
 namespace RenderBackend = ::SagaEngine::Render::Backend;
 
 class DiligentBindingCache;
+class DiligentFallbackResources;
 struct DiligentBindingCacheResolveResult;
 struct DiligentResolvedBindingSet;
 
@@ -186,6 +187,15 @@ public:
         const noexcept;
     [[nodiscard]] std::uint64_t GetNativeBindingQuarantinedSrbCountForTesting()
         const noexcept;
+    [[nodiscard]] TextureHandle GetFallbackWhiteTextureForTesting()
+        const noexcept;
+    [[nodiscard]] SamplerHandle GetFallbackMaterialSamplerForTesting()
+        const noexcept;
+    [[nodiscard]] std::uint64_t GetFallbackGenerationForTesting()
+        const noexcept;
+    [[nodiscard]] bool InitializeFallbackResourcesForTesting() noexcept;
+    void ReleaseFallbackResourcesForTesting() noexcept;
+    void ForceNextFallbackSamplerFailureForTesting(bool enabled) noexcept;
 
 private:
     [[nodiscard]] RenderBackendCapabilities MakeConservativeCapabilities()
@@ -254,6 +264,7 @@ private:
     std::unordered_map<std::uint64_t, DiligentNativeBindingSetRecord>
         m_NativeBindingSets;
     std::unique_ptr<DiligentBindingCache> m_NativeBindingCache;
+    std::unique_ptr<DiligentFallbackResources> m_FallbackResources;
     DiligentNativeBindingDiagnostics m_NativeBindingDiagnostics{};
 };
 

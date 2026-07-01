@@ -599,6 +599,37 @@ TEST(CMakeTargetBoundaryTests, NativeBindingSrbApisAreCacheScoped)
     EXPECT_FALSE(ContainsToken(submit, "ResolveNativeBindingSrb"));
 }
 
+TEST(CMakeTargetBoundaryTests, DiligentFallbackResourcesArePrivateGraphicsOwned)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto graphicsRoot = root / "Engine" / "Private" / "SagaEngine" /
+                              "Graphics" / "Backends" / "Diligent";
+    const auto fallbackCpp = graphicsRoot / "DiligentFallbackResources.cpp";
+    const auto fallbackHeader = graphicsRoot / "DiligentFallbackResources.h";
+    const auto targetsText = ReadText(CMakeModulePath("SagaGraphicsTargets.cmake"));
+
+    ASSERT_TRUE(std::filesystem::exists(fallbackCpp));
+    ASSERT_TRUE(std::filesystem::exists(fallbackHeader));
+    EXPECT_TRUE(ContainsToken(
+        targetsText,
+        "Engine/Private/SagaEngine/Graphics/Backends/Diligent/*.cpp"));
+    EXPECT_TRUE(ContainsToken(
+        targetsText,
+        "saga_assert_diligent_graphics_backend_single_owner"));
+
+    const auto compiler = ReadText(graphicsRoot / "DiligentBindingCompiler.cpp");
+    const auto cache = ReadText(graphicsRoot / "DiligentBindingCache.cpp");
+    const auto fallback = ReadText(fallbackCpp);
+    EXPECT_FALSE(ContainsToken(compiler, "DiligentFallbackResources"));
+    EXPECT_FALSE(ContainsToken(cache, "DiligentFallbackResources"));
+    EXPECT_TRUE(ContainsToken(fallback, "CreateTexture"));
+    EXPECT_TRUE(ContainsToken(fallback, "CreateSampler"));
+    EXPECT_FALSE(ContainsToken(fallback, "CreateShaderResourceBinding"));
+    EXPECT_FALSE(ContainsToken(fallback, "GetVariableByName"));
+    EXPECT_FALSE(ContainsToken(fallback, "CreateDevice"));
+    EXPECT_FALSE(ContainsToken(fallback, "CreateSwapChain"));
+}
+
 TEST(CMakeTargetBoundaryTests, DiligentBindingCompilerDoesNotMigrateDrawOwnership)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
