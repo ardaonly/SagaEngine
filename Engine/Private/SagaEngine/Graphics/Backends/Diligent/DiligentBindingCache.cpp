@@ -242,6 +242,7 @@ DiligentBindingCacheResolveResult DiligentBindingCache::ResolveOrCreate(
             }
 
             ++diagnostics.nativeBindingVariableLookups;
+            ++diagnostics.nativeBindingStaticVariableLookups;
             auto* variable = pipeline.GetStaticVariableByName(
                 static_cast<::Diligent::SHADER_TYPE>(stage),
                 resource.entry->shaderVariableName.c_str());
