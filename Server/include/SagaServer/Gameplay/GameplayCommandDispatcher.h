@@ -71,9 +71,9 @@ struct RegisteredCommand
 /// RPC-level limiter cannot discriminate between CastSpell and ChatMessage.
 struct TokenBucket
 {
-    std::uint32_t capacity       = 1;   ///< Burst size.
-    std::uint32_t tokensPerSec   = 1;   ///< Refill rate.
-    double        tokens         = 1.0;
+    std::uint32_t capacity       = 0;   ///< Burst size; zero until initialized.
+    std::uint32_t tokensPerSec   = 0;   ///< Refill rate; zero until initialized.
+    double        tokens         = 0.0;
     std::uint64_t lastRefillUs   = 0;
 
     [[nodiscard]] bool TryConsume(std::uint64_t nowUs) noexcept;
@@ -92,8 +92,12 @@ struct TokenBucket
 class GameplayCommandDispatcher
 {
 public:
+    using ClockFn = std::function<std::uint64_t()>;
+
     GameplayCommandDispatcher();
+    explicit GameplayCommandDispatcher(ClockFn nowMicros);
     ~GameplayCommandDispatcher() = default;
+
 
     GameplayCommandDispatcher(const GameplayCommandDispatcher&)            = delete;
     GameplayCommandDispatcher& operator=(const GameplayCommandDispatcher&) = delete;
@@ -157,9 +161,11 @@ private:
     static constexpr std::size_t kMaxOpCodes = 256;
     std::array<RegisteredCommand, kMaxOpCodes> m_Commands;
 
+    ClockFn m_NowMicros;
+
     mutable std::mutex m_RateMutex;
     std::unordered_map<std::uint64_t,
-        std::array<TokenBucket, kMaxOpCodes>>  m_ClientBuckets;
+        std::array<TokenBucket, kMaxOpCodes>> m_ClientBuckets;
 };
 
 } // namespace SagaServer::Gameplay

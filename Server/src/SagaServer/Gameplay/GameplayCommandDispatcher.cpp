@@ -54,7 +54,15 @@ bool TokenBucket::TryConsume(std::uint64_t nowUs) noexcept
 
 // ─── GameplayCommandDispatcher ────────────────────────────────────────
 
-GameplayCommandDispatcher::GameplayCommandDispatcher() = default;
+GameplayCommandDispatcher::GameplayCommandDispatcher()
+    : GameplayCommandDispatcher(ClockFn{NowMicros})
+{
+}
+
+GameplayCommandDispatcher::GameplayCommandDispatcher(ClockFn nowMicros)
+    : m_NowMicros(nowMicros ? nowMicros : ClockFn{NowMicros})
+{
+}
 
 bool GameplayCommandDispatcher::Install(RPCDispatch& rpcDispatch)
 {
@@ -156,16 +164,18 @@ bool GameplayCommandDispatcher::AllowOpCode(std::uint64_t          clientId,
     const auto opIndex = static_cast<std::size_t>(op);
     TokenBucket& bucket = buckets[opIndex];
 
+    const std::uint64_t nowUs = m_NowMicros();
+
     // Lazy-init on first use; keep capacity == rate for simple 1-second window.
     if (bucket.tokensPerSec == 0)
     {
         bucket.tokensPerSec = rateLimitPerSec;
         bucket.capacity     = rateLimitPerSec;
         bucket.tokens       = static_cast<double>(rateLimitPerSec);
-        bucket.lastRefillUs = NowMicros();
+        bucket.lastRefillUs = nowUs;
     }
 
-    return bucket.TryConsume(NowMicros());
+    return bucket.TryConsume(nowUs);
 }
 
 } // namespace SagaServer::Gameplay
