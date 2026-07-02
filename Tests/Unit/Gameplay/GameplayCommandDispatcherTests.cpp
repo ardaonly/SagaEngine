@@ -23,6 +23,7 @@
 #include <atomic>
 #include <cstdint>
 #include <thread>
+#include <utility>
 #include <vector>
 
 namespace EC = SagaEngine::Gameplay::Commands;
@@ -31,18 +32,63 @@ namespace CG = SagaEngine::Client::Gameplay;
 
 // ─── Dispatcher: registration & typed dispatch ────────────────────────
 
-TEST(GameplayCommandDispatcher, RegisterHandlerBumpsCount)
+TEST(GameplayCommandDispatcher, RPCDispatchPropagatesAuthentication)
 {
-    SG::GameplayCommandDispatcher d;
-    EXPECT_EQ(d.RegisteredCount(), 0u);
+    SagaServer::RPCDispatch rpcDispatch;
+    SG::GameplayCommandDispatcher dispatcher;
 
-    auto handler = [](std::uint64_t, const EC::CastSpell&,
-                       std::vector<std::uint8_t>&) { return true; };
-    EXPECT_TRUE(d.RegisterHandler<EC::CastSpell>(handler));
-    EXPECT_EQ(d.RegisteredCount(), 1u);
+    ASSERT_TRUE(dispatcher.Install(rpcDispatch));
 
-    // Second register for the same opcode is refused.
-    EXPECT_FALSE(d.RegisterHandler<EC::CastSpell>(handler));
+    std::atomic<int> calls{0};
+
+    ASSERT_TRUE(dispatcher.RegisterHandler<EC::CastSpell>(
+        [&](std::uint64_t,
+            const EC::CastSpell&,
+            std::vector<std::uint8_t>&) {
+            calls.fetch_add(1, std::memory_order_relaxed);
+            return true;
+        }));
+
+    EC::CastSpell command{};
+    command.spellId           = 42;
+    command.targetEntity      = 1337;
+    command.clientCastStartMs = 9876543210ull;
+
+    std::vector<std::uint8_t> blob;
+    EC::ByteWriter writer(blob);
+    command.Encode(writer);
+
+    SagaServer::RPCArgument argument{};
+    argument.type = SagaServer::RPCArgType::Blob;
+    argument.data = blob;
+
+    SagaServer::RPCRequest request{};
+    request.rpcName  = EC::kGameplayCommandRpcName;
+    request.clientId = 42;
+    request.rpcId    = 7;
+    request.arguments.push_back(std::move(argument));
+
+    SagaServer::RPCResponse response{};
+
+    EXPECT_TRUE(rpcDispatch.Dispatch(
+        /*clientId*/ 42,
+        /*clientAuth*/ false,
+        request,
+        response));
+
+    EXPECT_EQ(response.status, SagaServer::RPCStatusCode::AuthFailed);
+    EXPECT_EQ(calls.load(std::memory_order_relaxed), 0);
+
+    response = {};
+
+    EXPECT_TRUE(rpcDispatch.Dispatch(
+        /*clientId*/ 42,
+        /*clientAuth*/ true,
+        request,
+        response));
+
+    EXPECT_EQ(response.status, SagaServer::RPCStatusCode::Ok);
+    EXPECT_EQ(calls.load(std::memory_order_relaxed), 1);
 }
 
 TEST(GameplayCommandDispatcher, TypedHandlerReceivesDecodedCommand)

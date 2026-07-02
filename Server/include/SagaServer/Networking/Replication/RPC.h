@@ -174,14 +174,16 @@ struct RPCResponse
 // ─── RPC handler signature ──────────────────────────────────────────────
 
 /// RPC handler function type.
-/// @param clientId  The client session that initiated the request.
-/// @param request   Decoded RPC request (arguments validated by the codec).
-/// @param outResponse  Output: response to send back to the client.
-/// @return true if the handler succeeded (status = Ok); false for errors.
+/// @param clientId    The client session that initiated the request.
+/// @param clientAuth  True if the client is authenticated.
+/// @param request     Decoded RPC request (arguments validated by the codec).
+/// @param outResponse Output: response to send back to the client.
+/// @return true if the handler completed successfully; false for errors.
 using RPCHandlerFn = std::function<bool(
-    uint64_t       clientId,
+    uint64_t          clientId,
+    bool              clientAuth,
     const RPCRequest& request,
-    RPCResponse&   outResponse)>;
+    RPCResponse&      outResponse)>;
 
 // ─── RPC codec ──────────────────────────────────────────────────────────
 
