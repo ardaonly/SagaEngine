@@ -1032,6 +1032,138 @@ TEST(CMakeTargetBoundaryTests, RuntimeAndServerTargetsDoNotLinkEditorDevOrToolTa
     }
 }
 
+TEST(CMakeTargetBoundaryTests, DedicatedServerTargetsStayHeadless)
+{
+    const auto path = SagaTargetsPath();
+    const auto lines = ReadLines(path);
+    const auto calls = ExtractTargetLinkCalls(lines);
+
+    const std::vector<std::string> serverTargets = {
+        "SagaServerLib",
+        "SagaServer",
+    };
+    const std::vector<std::string> forbiddenDependencies = {
+        "SagaPlatformSDL",
+        "SagaBackend",
+        "SDL2::",
+        "imgui::",
+        "Qt6::",
+        "rmlui::",
+        "RmlUi",
+        "Diligent",
+        "libpqxx::",
+        "pqxx::",
+        "hiredis::",
+        "redis++::",
+    };
+
+    for (const auto& target : serverTargets)
+    {
+        const auto offenders =
+            FindForbiddenLinks(calls, target, forbiddenDependencies);
+
+        for (const auto& offender : offenders)
+        {
+            ADD_FAILURE()
+                << "Headless server target " << target
+                << " must not link "
+                << JoinNames(FindForbiddenDependencyNames(
+                       offender,
+                       forbiddenDependencies))
+                << ". Offending call in " << path.generic_string()
+                << ":" << offender.line << "\n" << offender.text;
+        }
+
+        const std::string blanketCall =
+            "saga_link_thirdparty(" + target + ")";
+
+        for (std::size_t i = 0; i < lines.size(); ++i)
+        {
+            if (ContainsToken(lines[i], blanketCall))
+            {
+                ADD_FAILURE()
+                    << "Headless server target " << target
+                    << " must use explicit dependencies instead of "
+                    << blanketCall << ". Offending line in "
+                    << path.generic_string() << ":" << (i + 1)
+                    << "\n" << lines[i];
+            }
+        }
+    }
+}
+
+TEST(CMakeTargetBoundaryTests, SDLPlatformSourcesStayOutsideSagaEngine)
+{
+    const auto path = SagaTargetsPath();
+    const auto text = ReadText(path);
+    const auto calls = ExtractTargetLinkCalls(ReadLines(path));
+
+    EXPECT_TRUE(ContainsToken(
+        text,
+        "set(SAGA_PLATFORM_SDL_SOURCES"))
+        << "SDL implementation sources must have an explicit source group.";
+
+    for (const auto& source : {
+             "Input/Backends/SDL/SDLInputBackend.cpp",
+             "Platform/SDL/SDLDebugRenderer2D.cpp",
+             "Platform/SDL/SDLPlatformFactory.cpp",
+             "Platform/SDL/SDLWindow.cpp",
+         })
+    {
+        EXPECT_TRUE(ContainsToken(text, source))
+            << "SagaPlatformSDL source list is missing " << source;
+    }
+
+    EXPECT_TRUE(ContainsToken(
+        text,
+        "list(REMOVE_ITEM ENGINE_SOURCES ${SAGA_PLATFORM_SDL_SOURCES})"))
+        << "SDL implementation sources must be removed from SagaEngine.";
+
+    EXPECT_TRUE(ContainsToken(
+        text,
+        "target_sources(SagaPlatformSDL PRIVATE"))
+        << "SagaPlatformSDL must own the SDL implementation sources.";
+
+    bool sawSDLTargetLink = false;
+    for (const auto& call : calls)
+    {
+        if (call.target != "SagaPlatformSDL")
+        {
+            continue;
+        }
+
+        sawSDLTargetLink = true;
+        EXPECT_TRUE(ContainsToken(call.text, "SagaEngine"))
+            << "SagaPlatformSDL must build on the vendor-neutral engine.";
+        EXPECT_TRUE(ContainsToken(call.text, "SDL2::SDL2"))
+            << "SagaPlatformSDL must explicitly own the SDL2 dependency.";
+    }
+
+    EXPECT_TRUE(sawSDLTargetLink)
+        << "Expected a target_link_libraries call for SagaPlatformSDL.";
+
+    const auto engineOffenders = FindForbiddenLinks(
+        calls,
+        "SagaEngine",
+        {
+            "SagaPlatformSDL",
+            "SDL2::",
+            "imgui::",
+            "libpqxx::",
+            "hiredis::",
+            "redis++::",
+        });
+
+    for (const auto& offender : engineOffenders)
+    {
+        ADD_FAILURE()
+            << "SagaEngine must remain free of concrete SDL, UI, and "
+               "persistence dependencies. Offending call in "
+            << path.generic_string() << ":" << offender.line
+            << "\n" << offender.text;
+    }
+}
+
 TEST(CMakeTargetBoundaryTests, SagaEnginePublicHeadersDoNotExposeSdeTypes)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);

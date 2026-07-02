@@ -33,6 +33,13 @@ function(saga_create_engine_targets)
     saga_collect_sources(SAGA_STATE_CHECK_SOURCES Tools/SagaStateCheck/src)
     saga_collect_sources(MULTIPLAYER_SANDBOX_HEADLESS_SOURCES Tools/MultiplayerSandboxHeadless/src)
     saga_collect_sources(ENGINE_SOURCES  Engine/Private)
+
+    set(SAGA_PLATFORM_SDL_SOURCES
+        ${SAGA_ROOT}/Engine/Private/SagaEngine/Input/Backends/SDL/SDLInputBackend.cpp
+        ${SAGA_ROOT}/Engine/Private/SagaEngine/Platform/SDL/SDLDebugRenderer2D.cpp
+        ${SAGA_ROOT}/Engine/Private/SagaEngine/Platform/SDL/SDLPlatformFactory.cpp
+        ${SAGA_ROOT}/Engine/Private/SagaEngine/Platform/SDL/SDLWindow.cpp
+    )
     saga_collect_sources(DILIGENT_BACKEND_SOURCES Engine/Private/SagaEngine/Render/Backend/Diligent)
     saga_collect_sources(BACKEND_SOURCES Backends/src)
     saga_collect_sources(RUNTIME_SOURCES  Runtime/src)
@@ -55,6 +62,7 @@ function(saga_create_engine_targets)
     list(FILTER ENGINE_SOURCES  EXCLUDE REGEX ".*/Engine/Private/SagaEngine/Render/Backend/Diligent/.*\\.cpp$")
     list(FILTER ENGINE_SOURCES  EXCLUDE REGEX ".*/Engine/Private/SagaEngine/Graphics/Backends/Diligent/.*\\.cpp$")
     list(REMOVE_ITEM ENGINE_SOURCES ${SAGA_GRAPHICS_CORE_SOURCES})
+    list(REMOVE_ITEM ENGINE_SOURCES ${SAGA_PLATFORM_SDL_SOURCES})
     foreach(_saga_graphics_core_source IN LISTS SAGA_GRAPHICS_CORE_SOURCES)
         list(FIND ENGINE_SOURCES "${_saga_graphics_core_source}" _saga_engine_source_index)
         if(NOT _saga_engine_source_index EQUAL -1)
@@ -258,7 +266,6 @@ function(saga_create_engine_targets)
     # --- Engine Library ------------------------------------------------------
     add_library(SagaEngine STATIC)
     saga_apply_compiler_flags(SagaEngine)
-    saga_link_thirdparty(SagaEngine)
 
     target_sources(SagaEngine PRIVATE
         ${ENGINE_SOURCES}
@@ -288,10 +295,33 @@ function(saga_create_engine_targets)
         SagaCoreLog
         SagaGraphics
         SagaShared
+        glm::glm
     )
     target_link_libraries(SagaEngine PRIVATE
+        nlohmann_json::nlohmann_json
         ${SAGA_DOTNET_NETHOST_LIBRARY}
         ${CMAKE_DL_LIBS}
+    )
+
+    # --- SDL Platform Implementation ----------------------------------------
+    add_library(SagaPlatformSDL STATIC)
+    saga_apply_compiler_flags(SagaPlatformSDL)
+
+    target_sources(SagaPlatformSDL PRIVATE
+        ${SAGA_PLATFORM_SDL_SOURCES}
+    )
+
+    target_include_directories(SagaPlatformSDL PRIVATE
+        ${SAGA_ROOT}/Engine/Private
+    )
+
+    target_link_libraries(SagaPlatformSDL PRIVATE
+        SagaEngine
+        SDL2::SDL2
+    )
+
+    set_target_properties(SagaPlatformSDL PROPERTIES
+        FOLDER "Engine/Platform"
     )
 
     # --- Diligent Render Backend --------------------------------------------
@@ -348,7 +378,6 @@ function(saga_create_engine_targets)
     # --- Server Authority Library --------------------------------------------
     add_library(SagaServerLib STATIC)
     saga_apply_compiler_flags(SagaServerLib)
-    saga_link_thirdparty(SagaServerLib)
 
     target_sources(SagaServerLib PRIVATE
         ${SERVER_SOURCES}
@@ -361,6 +390,7 @@ function(saga_create_engine_targets)
     target_link_libraries(SagaServerLib PUBLIC
         SagaEngine
         SagaShared
+        asio::asio
     )
 
     target_link_libraries(SagaServerLib PRIVATE
@@ -535,6 +565,10 @@ function(saga_create_engine_targets)
         SagaRuntimeLib
         SagaServerLib
         SagaBackend
+    )
+
+    target_link_libraries(SagaSandboxLib PRIVATE
+        SagaPlatformSDL
     )
 
     target_sources(SagaSandboxLib PRIVATE
@@ -751,6 +785,7 @@ function(saga_create_engine_targets)
         SagaRuntimeLib
         SagaServerLib
         SagaEngine
+        SagaPlatformSDL
         SagaBackend
     )
 
@@ -780,6 +815,7 @@ function(saga_create_engine_targets)
         SagaRuntimeLib
         SagaServerLib
         SagaEngine
+        SagaPlatformSDL
         SagaBackend
     )
 
@@ -799,8 +835,9 @@ function(saga_create_engine_targets)
     )
 
     saga_apply_compiler_flags(SagaServer)
-    saga_link_thirdparty(SagaServer)
-    target_link_libraries(SagaServer PRIVATE SagaServerLib SagaEngine SagaBackend)
+    target_link_libraries(SagaServer PRIVATE
+        SagaServerLib
+    )
 
     # --- SagaEditor Executable ------------------------------------------------
     # qt_add_executable with WIN32 generates the WinMain shim on Windows so
