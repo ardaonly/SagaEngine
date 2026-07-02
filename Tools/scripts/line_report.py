@@ -50,7 +50,7 @@ DEFAULT_EXCLUDE_NAMES = {
     ".venv", "venv",
     "node_modules",
     "build", "dist", "out", "bin", "obj", "Build",
-    "_deps", "CMakeFiles",
+    "_deps", "CMakeFiles", "Vendor", "docs"
 }
 
 DEFAULT_EXCLUDE_GLOBS = {
