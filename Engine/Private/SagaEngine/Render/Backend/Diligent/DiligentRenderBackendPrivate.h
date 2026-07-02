@@ -5,6 +5,7 @@
 
 #include "SagaEngine/Render/Backend/Diligent/DiligentRenderBackend.h"
 #include "SagaEngine/Render/Backend/Diligent/DiligentFrameCapture.h"
+#include "SagaEngine/Render/Backend/Diligent/DiligentFrameSlotTracker.h"
 #include "SagaEngine/Render/Backend/Diligent/DiligentGpuTimeline.h"
 #include "SagaEngine/Render/Backend/Diligent/DiligentNativeResourceOwner.h"
 #include "SagaEngine/Render/Backend/Diligent/DiligentOverlayRenderer.h"
@@ -152,9 +153,7 @@ struct DiligentRenderBackend::Impl
     Diligent::RefCntAutoPtr<Diligent::ISwapChain>     swapChain;
     DiligentNativeResourceOwner nativeResources;
     DiligentGpuTimeline gpuTimeline;
-    std::vector<std::uint64_t> frameSlotSerials;
-    std::uint64_t activeFrameSerial = 0;
-    std::uint32_t activeFrameSlot = 0;
+    DiligentFrameSlotTracker frameSlots;
 
     Diligent::RefCntAutoPtr<Diligent::IBuffer> cameraCB;
 

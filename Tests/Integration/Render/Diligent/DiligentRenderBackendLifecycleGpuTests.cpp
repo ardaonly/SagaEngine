@@ -50,6 +50,14 @@ TEST_F(DiligentGPU, BeginEndWithoutSubmit)
     EXPECT_EQ(m_Backend.FrameIndex(), 1u);
 }
 
+TEST_F(DiligentGPU, DoubleEndFrameDoesNotAdvanceFrameIndex)
+{
+    m_Backend.BeginFrame();
+    m_Backend.EndFrame();
+    m_Backend.EndFrame();
+    EXPECT_EQ(m_Backend.FrameIndex(), 1u);
+}
+
 TEST_F(DiligentGPU, MultipleSubmitsPerFrame)
 {
     // Valid: multiple cameras submit per frame.
@@ -196,4 +204,3 @@ TEST_F(DiligentGPU, CreateMaterialReturnsValidWithLiveDevice)
     const auto id = m_Backend.CreateMaterial(material);
     EXPECT_NE(id, SagaEngine::Render::World::MaterialId::kInvalid);
 }
-
