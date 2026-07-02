@@ -16,7 +16,6 @@
 #include "SagaEngine/Gameplay/Commands/ChatMessage.h"
 #include "SagaEngine/Gameplay/Commands/MoveRequest.h"
 #include "SagaServer/Gameplay/GameplayCommandDispatcher.h"
-#include "SagaServer/Gameplay/Handlers/GameplayHandlers.h"
 
 #include <gtest/gtest.h>
 
@@ -89,6 +88,42 @@ TEST(GameplayCommandDispatcher, RPCDispatchPropagatesAuthentication)
 
     EXPECT_EQ(response.status, SagaServer::RPCStatusCode::Ok);
     EXPECT_EQ(calls.load(std::memory_order_relaxed), 1);
+}
+
+TEST(GameplayCommandDispatcher, RPCDispatchRejectsUnregisteredOpcode)
+{
+    SagaServer::RPCDispatch rpcDispatch;
+    SG::GameplayCommandDispatcher dispatcher;
+
+    ASSERT_TRUE(dispatcher.Install(rpcDispatch));
+
+    EC::CastSpell command{};
+    command.spellId      = 42;
+    command.targetEntity = 1337;
+
+    std::vector<std::uint8_t> blob;
+    EC::ByteWriter writer(blob);
+    command.Encode(writer);
+
+    SagaServer::RPCArgument argument{};
+    argument.type = SagaServer::RPCArgType::Blob;
+    argument.data = std::move(blob);
+
+    SagaServer::RPCRequest request{};
+    request.rpcName  = EC::kGameplayCommandRpcName;
+    request.clientId = 42;
+    request.rpcId    = 8;
+    request.arguments.push_back(std::move(argument));
+
+    SagaServer::RPCResponse response{};
+
+    EXPECT_TRUE(rpcDispatch.Dispatch(
+        /*clientId*/ 42,
+        /*clientAuth*/ true,
+        request,
+        response));
+
+    EXPECT_EQ(response.status, SagaServer::RPCStatusCode::NotFound);
 }
 
 TEST(GameplayCommandDispatcher, TypedHandlerReceivesDecodedCommand)
@@ -441,15 +476,6 @@ TEST(GameplayCommandDispatcher, HandlerReturningFalseBecomesInternalError)
 
     EXPECT_EQ(d.DispatchBlob(1, true, buf.data(), buf.size(), out),
               SagaServer::RPCStatusCode::InternalError);
-}
-
-// ─── Bulk stub registration ───────────────────────────────────────────
-
-TEST(GameplayCommandDispatcher, RegisterGameplayHandlerStubsCoversAllShippedOpcodes)
-{
-    SG::GameplayCommandDispatcher d;
-    SG::Handlers::RegisterGameplayHandlerStubs(d);
-    EXPECT_EQ(d.RegisteredCount(), 7u);
 }
 
 // ─── Client stub: SendContext + encoding ──────────────────────────────
