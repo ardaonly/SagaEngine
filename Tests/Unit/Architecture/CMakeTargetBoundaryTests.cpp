@@ -449,8 +449,8 @@ TEST(CMakeTargetBoundaryTests, DiligentGpuIntegrationTestIdentitiesStayStable)
         ++suiteCounts[identity.substr(0, dot)];
     }
 
-    EXPECT_EQ(identities.size(), 133u);
-    EXPECT_EQ(suiteCounts["DiligentGPU"], 42);
+    EXPECT_EQ(identities.size(), 134u);
+    EXPECT_EQ(suiteCounts["DiligentGPU"], 43);
     EXPECT_EQ(suiteCounts["CoordinateGPU"], 6);
     EXPECT_EQ(suiteCounts["SagaGraphicsGPU"], 16);
     EXPECT_EQ(suiteCounts["BindingGPU"], 52);
@@ -483,6 +483,110 @@ TEST(CMakeTargetBoundaryTests, DiligentGpuSplitSourcesAreOwnedByIntegrationTarge
                "SagaIntegrationTests: "
             << rel;
     }
+}
+
+TEST(CMakeTargetBoundaryTests, DiligentFrameSlotTrackerStaysPrivateAndSingleOwned)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto trackerSource =
+        root / "Engine" / "Private" / "SagaEngine" / "Render" /
+        "Backend" / "Diligent" / "DiligentFrameSlotTracker.cpp";
+    const auto trackerHeader =
+        root / "Engine" / "Private" / "SagaEngine" / "Render" /
+        "Backend" / "Diligent" / "DiligentFrameSlotTracker.h";
+    const auto backendPrivate =
+        root / "Engine" / "Private" / "SagaEngine" / "Render" /
+        "Backend" / "Diligent" / "DiligentRenderBackendPrivate.h";
+
+    ASSERT_TRUE(std::filesystem::exists(trackerSource));
+    ASSERT_TRUE(std::filesystem::exists(trackerHeader));
+    ASSERT_TRUE(std::filesystem::exists(backendPrivate));
+
+    const auto trackerHeaderText = ReadText(trackerHeader);
+    EXPECT_TRUE(ContainsToken(
+        trackerHeaderText,
+        "DiligentFrameSlotTracker(const DiligentFrameSlotTracker&) = delete"))
+        << "Frame-slot tracker must remain non-copyable.";
+    EXPECT_TRUE(ContainsToken(
+        trackerHeaderText,
+        "DiligentFrameSlotTracker(DiligentFrameSlotTracker&&) = delete"))
+        << "Frame-slot tracker must remain non-movable.";
+
+    const auto backendPrivateText = ReadText(backendPrivate);
+    EXPECT_EQ(backendPrivateText.find("frameSlotSerials"), std::string::npos)
+        << "Raw frame slot serial storage must not return to backend Impl.";
+    EXPECT_EQ(backendPrivateText.find("activeFrameSlot"), std::string::npos)
+        << "Raw active frame slot storage must not return to backend Impl.";
+    EXPECT_EQ(backendPrivateText.find("activeFrameSerial"), std::string::npos)
+        << "Raw active frame serial storage must not return to backend Impl.";
+    EXPECT_EQ(CountOccurrences(backendPrivateText, "DiligentGpuTimeline gpuTimeline"), 1u)
+        << "DiligentRenderBackend must keep exactly one GPU timeline owner.";
+
+    const auto ninjaPath = BuildNinjaPath();
+    ASSERT_TRUE(std::filesystem::exists(ninjaPath))
+        << "Generated build.ninja is required for compile ownership checks: "
+        << ninjaPath.generic_string();
+    const auto ninja = ReadText(ninjaPath);
+    const auto trackerRel = RelativeToSourceRoot(trackerSource);
+
+    const auto diligentObject =
+        "build CMakeFiles/SagaDiligentBackend.dir/" + trackerRel + ".o:";
+    EXPECT_EQ(CountOccurrences(ninja, diligentObject), 1u)
+        << "DiligentFrameSlotTracker.cpp must be compiled exactly once by "
+           "SagaDiligentBackend.";
+
+    const auto engineObject =
+        "build CMakeFiles/SagaEngine.dir/" + trackerRel + ".o:";
+    const auto graphicsPrivateObject =
+        "build CMakeFiles/SagaGraphicsPrivate.dir/" + trackerRel + ".o:";
+    EXPECT_EQ(CountOccurrences(ninja, engineObject), 0u)
+        << "DiligentFrameSlotTracker.cpp must not be compiled by SagaEngine.";
+    EXPECT_EQ(CountOccurrences(ninja, graphicsPrivateObject), 0u)
+        << "DiligentFrameSlotTracker.cpp must not be compiled by SagaGraphicsPrivate.";
+
+    EXPECT_EQ(ReadText(SagaTargetsPath()).find("DiligentFrameSlotTracker"),
+              std::string::npos)
+        << "Tracker ownership should come from the private Diligent backend glob.";
+    EXPECT_EQ(ReadText(CMakeModulePath("SagaInstall.cmake")).find(
+                  "DiligentFrameSlotTracker"),
+              std::string::npos)
+        << "Tracker header must not be installed.";
+    EXPECT_EQ(ReadText(CMakeModulePath("SagaInstallGraphics.cmake")).find(
+                  "DiligentFrameSlotTracker"),
+              std::string::npos)
+        << "Tracker header must not be installed through graphics exports.";
+}
+
+TEST(CMakeTargetBoundaryTests, M5C1DoesNotContainFrameArenaImplementation)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto renderRoot =
+        root / "Engine" / "Private" / "SagaEngine" / "Render" /
+        "Backend" / "Diligent";
+    const auto graphicsRoot =
+        root / "Engine" / "Private" / "SagaEngine" / "Graphics";
+
+    const std::vector<std::string> forbiddenTokens = {
+        "FrameUploadArena",
+        "UploadArena",
+        "ConstantSlice",
+        "SetBufferRange(",
+    };
+
+    auto offenders = FindForbiddenText(renderRoot, forbiddenTokens);
+    const auto graphicsOffenders = FindForbiddenText(graphicsRoot, {
+        "FrameUploadArena",
+        "UploadArena",
+    });
+    offenders.insert(
+        offenders.end(),
+        graphicsOffenders.begin(),
+        graphicsOffenders.end());
+
+    EXPECT_TRUE(offenders.empty())
+        << "M5-C1 must not introduce M5-C2 frame arena or constant-slice code. "
+        << "First offender: "
+        << (offenders.empty() ? "" : offenders.front());
 }
 
 TEST(CMakeTargetBoundaryTests, SagaProductLibDoesNotLinkEditorLabTargets)

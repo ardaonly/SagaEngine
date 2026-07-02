@@ -106,9 +106,7 @@ bool DiligentRenderBackend::Initialize(const SwapchainDesc& desc)
     }
     const auto& scDesc = m_Impl->swapChain->GetDesc();
     const auto frameSlotCount = scDesc.BufferCount == 0u ? 3u : scDesc.BufferCount;
-    m_Impl->frameSlotSerials.assign(frameSlotCount, 0u);
-    m_Impl->activeFrameSerial = 0u;
-    m_Impl->activeFrameSlot = 0u;
+    (void)m_Impl->frameSlots.Configure(frameSlotCount);
 
     std::string msg = "Initialized with ";
     msg += ToString(picked);
@@ -262,9 +260,7 @@ void DiligentRenderBackend::Shutdown()
     m_Impl->defaultWhiteTex = {};
     m_Impl->nativeResources.ReleaseAll();
     m_Impl->gpuTimeline.Reset();
-    m_Impl->frameSlotSerials.clear();
-    m_Impl->activeFrameSerial = 0u;
-    m_Impl->activeFrameSlot = 0u;
+    m_Impl->frameSlots.Reset();
 
     m_Impl->boneCB.Release();
     m_Impl->cameraCB.Release();
@@ -288,7 +284,7 @@ void DiligentRenderBackend::OnResize(std::uint32_t width, std::uint32_t height)
     if (width == 0 || height == 0) return;
     m_Impl->frameCapture.Reset();
     const auto oldFrameSlotCount =
-        static_cast<std::uint32_t>(m_Impl->frameSlotSerials.size());
+        m_Impl->frameSlots.FrameSlotCount();
     m_Impl->swapChain->Resize(width, height);
 
     const auto& scDesc = m_Impl->swapChain->GetDesc();
@@ -299,11 +295,7 @@ void DiligentRenderBackend::OnResize(std::uint32_t width, std::uint32_t height)
         return;
     }
 
-    std::uint64_t latestSlotSerial = 0u;
-    for (const auto serial : m_Impl->frameSlotSerials)
-    {
-        latestSlotSerial = std::max(latestSlotSerial, serial);
-    }
+    const auto latestSlotSerial = m_Impl->frameSlots.LatestSubmittedSerial();
     if (latestSlotSerial != 0u)
     {
         m_Impl->gpuTimeline.WaitForSerial(latestSlotSerial);
@@ -311,11 +303,7 @@ void DiligentRenderBackend::OnResize(std::uint32_t width, std::uint32_t height)
             m_Impl->gpuTimeline.LastCompletedSerial());
     }
 
-    m_Impl->frameSlotSerials.assign(newFrameSlotCount, 0u);
-    if (m_Impl->activeFrameSlot >= newFrameSlotCount)
-    {
-        m_Impl->activeFrameSlot = 0u;
-    }
+    (void)m_Impl->frameSlots.Configure(newFrameSlotCount);
     if (m_Impl->overlayRenderer.IsReady())
     {
         (void)m_Impl->overlayRenderer.ReconfigureFrameSlots(

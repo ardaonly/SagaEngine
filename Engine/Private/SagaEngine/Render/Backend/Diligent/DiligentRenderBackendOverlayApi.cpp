@@ -12,7 +12,7 @@ bool DiligentRenderBackend::InitOverlayRendering()
     return m_Impl->overlayRenderer.Initialize(
         GetDiligentDeviceServices(),
         m_Impl->nativeResources,
-        static_cast<std::uint32_t>(m_Impl->frameSlotSerials.size()));
+        m_Impl->frameSlots.FrameSlotCount());
 }
 
 RenderOverlayTextureHandle DiligentRenderBackend::CreateOverlayTexture(
@@ -41,8 +41,8 @@ void DiligentRenderBackend::RenderOverlayFrame(
     if (!m_Impl || !m_Impl->initialized) return;
     m_Impl->overlayRenderer.Render(
         frame,
-        m_Impl->activeFrameSerial,
-        m_Impl->activeFrameSlot);
+        m_Impl->frameSlots.ActiveFrameSerial(),
+        m_Impl->frameSlots.ActiveFrameSlot());
 }
 
 void DiligentRenderBackend::ShutdownOverlayRendering()

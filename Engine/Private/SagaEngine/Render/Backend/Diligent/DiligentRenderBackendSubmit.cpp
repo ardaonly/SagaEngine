@@ -116,6 +116,7 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
         return;
 
     auto* ctx = m_Impl->context.RawPtr();
+    const auto activeFrameSerial = m_Impl->frameSlots.ActiveFrameSerial();
 
     // ── Nothing to draw? ─────────────────────────────────────────────
     if (view.drawItems.empty()) return;
@@ -286,7 +287,7 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
         }
         m_Impl->nativeResources.MarkBufferUsed(
             mesh.vertexBuffer,
-            m_Impl->activeFrameSerial);
+            activeFrameSerial);
         if (vb != lastVB)
         {
             Diligent::Uint64 offsets[] = {0};
@@ -305,7 +306,7 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
             }
             m_Impl->nativeResources.MarkBufferUsed(
                 mesh.indexBuffer,
-                m_Impl->activeFrameSerial);
+                activeFrameSerial);
             if (ib != lastIB)
             {
                 ctx->SetIndexBuffer(ib, 0,
@@ -533,7 +534,7 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
                     {
                         m_Impl->nativeResources.MarkTextureUsed(
                             texIt->second.texture,
-                            m_Impl->activeFrameSerial);
+                            activeFrameSerial);
                     }
                 }
             }
@@ -545,7 +546,7 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
                 {
                     m_Impl->nativeResources.MarkTextureUsed(
                         m_Impl->defaultWhiteTex,
-                        m_Impl->activeFrameSerial);
+                        activeFrameSerial);
                 }
             }
 
@@ -585,7 +586,7 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
         }
         m_Impl->nativeResources.MarkBufferUsed(
             mesh.vertexBuffer,
-            m_Impl->activeFrameSerial);
+            activeFrameSerial);
         if (vb != lastVB)
         {
             Diligent::Uint64 offsets[] = {0};
@@ -607,7 +608,7 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
             }
             m_Impl->nativeResources.MarkBufferUsed(
                 mesh.indexBuffer,
-                m_Impl->activeFrameSerial);
+                activeFrameSerial);
             if (ib != lastIB)
             {
                 ctx->SetIndexBuffer(ib, 0,

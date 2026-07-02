@@ -10,28 +10,35 @@ void DiligentRenderBackend::BeginFrame()
 {
     if (!m_Impl->initialized || !m_Impl->context || !m_Impl->swapChain)
         return;
+    if (m_Impl->frameSlots.ActiveFrameOpen())
+    {
+        LogErr("BeginFrame ignored: frame already active");
+        return;
+    }
 
     m_Impl->currentFrameDiagnostics = {};
     m_Impl->shadowSubmitAcceptedThisFrame = false;
     const auto completed = m_Impl->gpuTimeline.PollCompletion();
     m_Impl->nativeResources.RetireCompleted(completed);
-    if (!m_Impl->frameSlotSerials.empty())
+    const auto slotBegin =
+        m_Impl->frameSlots.BeginFrame(m_Impl->frameIndex, completed);
+    if (!slotBegin.valid)
     {
-        m_Impl->activeFrameSlot =
-            static_cast<std::uint32_t>(
-                m_Impl->frameIndex % m_Impl->frameSlotSerials.size());
-        const auto slotSerial =
-            m_Impl->frameSlotSerials[m_Impl->activeFrameSlot];
-        if (slotSerial != 0u && completed < slotSerial)
-        {
-            m_Impl->gpuTimeline.WaitForSerial(slotSerial);
-            m_Impl->nativeResources.RetireCompleted(
-                m_Impl->gpuTimeline.LastCompletedSerial());
-        }
+        LogErr("BeginFrame rejected by frame slot tracker");
+        return;
     }
-    m_Impl->activeFrameSerial = m_Impl->gpuTimeline.BeginFrameSubmission();
+    if (slotBegin.waitRequired)
+    {
+        m_Impl->gpuTimeline.WaitForSerial(slotBegin.waitSerial);
+        m_Impl->nativeResources.RetireCompleted(
+            m_Impl->gpuTimeline.LastCompletedSerial());
+        m_Impl->frameSlots.MarkWaitCompleted(
+            m_Impl->gpuTimeline.LastCompletedSerial());
+    }
+    const auto activeFrameSerial = m_Impl->gpuTimeline.BeginFrameSubmission();
+    m_Impl->frameSlots.BeginSubmission(activeFrameSerial);
     m_Impl->currentFrameDiagnostics.gpuSubmissionSerial =
-        m_Impl->activeFrameSerial;
+        activeFrameSerial;
     {
         const auto timeline = m_Impl->gpuTimeline.Diagnostics();
         m_Impl->currentFrameDiagnostics.gpuCompletedSerial =
@@ -88,18 +95,20 @@ void DiligentRenderBackend::BeginFrame()
 void DiligentRenderBackend::EndFrame()
 {
     if (!m_Impl->initialized || !m_Impl->swapChain) return;
-
-    if (m_Impl->activeFrameSerial != 0u)
+    if (!m_Impl->frameSlots.ActiveFrameOpen())
     {
-        m_Impl->gpuTimeline.SignalFrameSubmitted(m_Impl->activeFrameSerial);
+        LogDbg("EndFrame ignored: no active frame");
+        return;
+    }
+
+    const auto activeFrameSerial = m_Impl->frameSlots.ActiveFrameSerial();
+    if (activeFrameSerial != 0u)
+    {
+        m_Impl->gpuTimeline.SignalFrameSubmitted(activeFrameSerial);
     }
     LogDbg("EndFrame: Present…");
     m_Impl->swapChain->Present();
-    if (!m_Impl->frameSlotSerials.empty())
-    {
-        m_Impl->frameSlotSerials[m_Impl->activeFrameSlot] =
-            m_Impl->activeFrameSerial;
-    }
+    m_Impl->frameSlots.EndFrame();
     ++m_Impl->currentFrameDiagnostics.presentCalls;
     {
         const auto timeline = m_Impl->gpuTimeline.Diagnostics();
@@ -116,7 +125,6 @@ void DiligentRenderBackend::EndFrame()
     }
     m_Impl->lastFrameDiagnostics = m_Impl->currentFrameDiagnostics;
     ++m_Impl->frameIndex;
-    m_Impl->activeFrameSerial = 0u;
 
     if (g_verboseGPU)
     {
