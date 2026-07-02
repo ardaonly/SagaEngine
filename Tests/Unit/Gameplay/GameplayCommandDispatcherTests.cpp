@@ -177,61 +177,254 @@ TEST(GameplayCommandDispatcher, UnauthenticatedClientIsRejectedWhenTraitsRequire
               SagaServer::RPCStatusCode::AuthFailed);
 }
 
-TEST(GameplayCommandDispatcher, PerClientPerOpcodeRateLimit)
+TEST(GameplayCommandDispatcher, UsesTraitCapacityAndDeterministicRefill)
 {
-    SG::GameplayCommandDispatcher d;
-    // ChatMessage trait: 4 msgs/sec capacity.
+    std::uint64_t nowUs = 1'000'000;
+
+    SG::GameplayCommandDispatcher d(
+        [&nowUs]() -> std::uint64_t {
+            return nowUs;
+        });
+
     std::atomic<int> hits{0};
-    d.RegisterHandler<EC::ChatMessage>(
-        [&](std::uint64_t, const EC::ChatMessage&,
+    ASSERT_TRUE(d.RegisterHandler<EC::ChatMessage>(
+        [&](std::uint64_t,
+            const EC::ChatMessage&,
             std::vector<std::uint8_t>&) {
             hits.fetch_add(1, std::memory_order_relaxed);
             return true;
-        });
+        }));
 
     EC::ChatMessage cmd{};
     cmd.text = "spam";
-    std::vector<std::uint8_t> buf;
-    EC::ByteWriter w(buf); cmd.Encode(w);
 
-    // Burst through the bucket quickly — capacity is 4.
-    int ok = 0, limited = 0;
+    std::vector<std::uint8_t> buf;
+    EC::ByteWriter writer(buf);
+    cmd.Encode(writer);
+
     std::vector<std::uint8_t> out;
-    for (int i = 0; i < 20; ++i)
+
+    // ChatMessage has a four-command burst capacity.
+    for (int i = 0; i < 4; ++i)
     {
-        auto s = d.DispatchBlob(/*clientId*/99, true,
-                                  buf.data(), buf.size(), out);
-        if (s == SagaServer::RPCStatusCode::Ok)            ++ok;
-        else if (s == SagaServer::RPCStatusCode::RateLimited) ++limited;
-        else FAIL() << "unexpected status";
+        EXPECT_EQ(d.DispatchBlob(
+                      /*clientId*/ 99,
+                      /*clientAuth*/ true,
+                      buf.data(),
+                      buf.size(),
+                      out),
+                  SagaServer::RPCStatusCode::Ok);
     }
-    EXPECT_GE(ok, 1);
-    EXPECT_LE(ok, 5);          // Capacity is 4; tiny refill during the loop may add 0-1.
-    EXPECT_GT(limited, 0);
-    EXPECT_EQ(ok + limited, 20);
+
+    EXPECT_EQ(d.DispatchBlob(
+                  /*clientId*/ 99,
+                  /*clientAuth*/ true,
+                  buf.data(),
+                  buf.size(),
+                  out),
+              SagaServer::RPCStatusCode::RateLimited);
+
+    EXPECT_EQ(hits.load(std::memory_order_relaxed), 4);
+
+    // Four tokens per second means one token is restored after 250 ms.
+    nowUs += 250'000;
+
+    EXPECT_EQ(d.DispatchBlob(
+                  /*clientId*/ 99,
+                  /*clientAuth*/ true,
+                  buf.data(),
+                  buf.size(),
+                  out),
+              SagaServer::RPCStatusCode::Ok);
+
+    EXPECT_EQ(d.DispatchBlob(
+                  /*clientId*/ 99,
+                  /*clientAuth*/ true,
+                  buf.data(),
+                  buf.size(),
+                  out),
+              SagaServer::RPCStatusCode::RateLimited);
+
+    EXPECT_EQ(hits.load(std::memory_order_relaxed), 5);
 }
 
-TEST(GameplayCommandDispatcher, RateLimitIsPerClient)
+TEST(GameplayCommandDispatcher, RateLimitStateIsIndependentPerClient)
 {
-    SG::GameplayCommandDispatcher d;
-    d.RegisterHandler<EC::ChatMessage>(
-        [](std::uint64_t, const EC::ChatMessage&,
-           std::vector<std::uint8_t>&) { return true; });
+    std::uint64_t nowUs = 1'000'000;
+
+    SG::GameplayCommandDispatcher d(
+        [&nowUs]() -> std::uint64_t {
+            return nowUs;
+        });
+
+    std::atomic<int> hits{0};
+
+    ASSERT_TRUE(d.RegisterHandler<EC::ChatMessage>(
+        [&](std::uint64_t,
+            const EC::ChatMessage&,
+            std::vector<std::uint8_t>&) {
+            hits.fetch_add(1, std::memory_order_relaxed);
+            return true;
+        }));
 
     EC::ChatMessage cmd{};
+    cmd.text = "per-client";
+
     std::vector<std::uint8_t> buf;
-    EC::ByteWriter w(buf); cmd.Encode(w);
+    EC::ByteWriter writer(buf);
+    cmd.Encode(writer);
+
     std::vector<std::uint8_t> out;
 
-    // Drain client 1's bucket.
-    SagaServer::RPCStatusCode last = SagaServer::RPCStatusCode::Ok;
-    for (int i = 0; i < 10; ++i)
-        last = d.DispatchBlob(/*clientId*/1, true, buf.data(), buf.size(), out);
-    EXPECT_EQ(last, SagaServer::RPCStatusCode::RateLimited);
+    // Exhaust client 1's four-token bucket.
+    for (int i = 0; i < 4; ++i)
+    {
+        EXPECT_EQ(d.DispatchBlob(
+                      /*clientId*/ 1,
+                      /*clientAuth*/ true,
+                      buf.data(),
+                      buf.size(),
+                      out),
+                  SagaServer::RPCStatusCode::Ok);
+    }
 
-    // Client 2 must still get through.
-    auto s = d.DispatchBlob(/*clientId*/2, true, buf.data(), buf.size(), out);
-    EXPECT_EQ(s, SagaServer::RPCStatusCode::Ok);
+    EXPECT_EQ(d.DispatchBlob(
+                  /*clientId*/ 1,
+                  /*clientAuth*/ true,
+                  buf.data(),
+                  buf.size(),
+                  out),
+              SagaServer::RPCStatusCode::RateLimited);
+
+    // Client 2 has a separate, fully initialized bucket.
+    EXPECT_EQ(d.DispatchBlob(
+                  /*clientId*/ 2,
+                  /*clientAuth*/ true,
+                  buf.data(),
+                  buf.size(),
+                  out),
+              SagaServer::RPCStatusCode::Ok);
+
+    EXPECT_EQ(hits.load(std::memory_order_relaxed), 5);
+
+    // Refill client 1 by exactly one token.
+    nowUs += 250'000;
+
+    EXPECT_EQ(d.DispatchBlob(
+                  /*clientId*/ 1,
+                  /*clientAuth*/ true,
+                  buf.data(),
+                  buf.size(),
+                  out),
+              SagaServer::RPCStatusCode::Ok);
+
+    EXPECT_EQ(d.DispatchBlob(
+                  /*clientId*/ 1,
+                  /*clientAuth*/ true,
+                  buf.data(),
+                  buf.size(),
+                  out),
+              SagaServer::RPCStatusCode::RateLimited);
+
+    // Client 2 still retains the remainder of its own bucket.
+    EXPECT_EQ(d.DispatchBlob(
+                  /*clientId*/ 2,
+                  /*clientAuth*/ true,
+                  buf.data(),
+                  buf.size(),
+                  out),
+              SagaServer::RPCStatusCode::Ok);
+
+    EXPECT_EQ(hits.load(std::memory_order_relaxed), 7);
+}
+
+TEST(GameplayCommandDispatcher, RateLimitStateIsIndependentPerOpcode)
+{
+    std::uint64_t nowUs = 1'000'000;
+
+    SG::GameplayCommandDispatcher d(
+        [&nowUs]() -> std::uint64_t {
+            return nowUs;
+        });
+
+    std::atomic<int> chatHits{0};
+    std::atomic<int> castHits{0};
+
+    ASSERT_TRUE(d.RegisterHandler<EC::ChatMessage>(
+        [&](std::uint64_t,
+            const EC::ChatMessage&,
+            std::vector<std::uint8_t>&) {
+            chatHits.fetch_add(1, std::memory_order_relaxed);
+            return true;
+        }));
+
+    ASSERT_TRUE(d.RegisterHandler<EC::CastSpell>(
+        [&](std::uint64_t,
+            const EC::CastSpell&,
+            std::vector<std::uint8_t>&) {
+            castHits.fetch_add(1, std::memory_order_relaxed);
+            return true;
+        }));
+
+    EC::ChatMessage chat{};
+    chat.text = "opcode-isolation";
+
+    std::vector<std::uint8_t> chatBlob;
+    EC::ByteWriter chatWriter(chatBlob);
+    chat.Encode(chatWriter);
+
+    EC::CastSpell cast{};
+    cast.spellId      = 7;
+    cast.targetEntity = 42;
+
+    std::vector<std::uint8_t> castBlob;
+    EC::ByteWriter castWriter(castBlob);
+    cast.Encode(castWriter);
+
+    std::vector<std::uint8_t> out;
+
+    // Exhaust ChatMessage's four-token bucket.
+    for (int i = 0; i < 4; ++i)
+    {
+        EXPECT_EQ(d.DispatchBlob(
+                      /*clientId*/ 99,
+                      /*clientAuth*/ true,
+                      chatBlob.data(),
+                      chatBlob.size(),
+                      out),
+                  SagaServer::RPCStatusCode::Ok);
+    }
+
+    EXPECT_EQ(d.DispatchBlob(
+                  /*clientId*/ 99,
+                  /*clientAuth*/ true,
+                  chatBlob.data(),
+                  chatBlob.size(),
+                  out),
+              SagaServer::RPCStatusCode::RateLimited);
+
+    // CastSpell uses a separate ten-token bucket for the same client.
+    for (int i = 0; i < 10; ++i)
+    {
+        EXPECT_EQ(d.DispatchBlob(
+                      /*clientId*/ 99,
+                      /*clientAuth*/ true,
+                      castBlob.data(),
+                      castBlob.size(),
+                      out),
+                  SagaServer::RPCStatusCode::Ok);
+    }
+
+    EXPECT_EQ(d.DispatchBlob(
+                  /*clientId*/ 99,
+                  /*clientAuth*/ true,
+                  castBlob.data(),
+                  castBlob.size(),
+                  out),
+              SagaServer::RPCStatusCode::RateLimited);
+
+    EXPECT_EQ(chatHits.load(std::memory_order_relaxed), 4);
+    EXPECT_EQ(castHits.load(std::memory_order_relaxed), 10);
 }
 
 TEST(GameplayCommandDispatcher, HandlerReturningFalseBecomesInternalError)
