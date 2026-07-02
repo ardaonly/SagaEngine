@@ -3,8 +3,11 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <array>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -270,7 +273,217 @@ std::filesystem::path CMakeModulePath(std::string_view filename)
            "cmake" / "modules" / std::string(filename);
 }
 
+std::filesystem::path BuildNinjaPath()
+{
+    return std::filesystem::path(SAGA_BUILD_ROOT) / "build.ninja";
+}
+
+std::size_t CountLines(const std::filesystem::path& path)
+{
+    std::ifstream input(path);
+    std::size_t count = 0;
+    std::string line;
+    while (std::getline(input, line))
+    {
+        ++count;
+    }
+    return count;
+}
+
+std::vector<std::filesystem::path> FindFilesWithExtension(
+    const std::filesystem::path& root,
+    std::string_view extension)
+{
+    std::vector<std::filesystem::path> files;
+    if (!std::filesystem::exists(root))
+    {
+        return files;
+    }
+
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(root))
+    {
+        if (entry.is_regular_file() &&
+            entry.path().extension().string() == extension)
+        {
+            files.push_back(entry.path());
+        }
+    }
+
+    std::sort(files.begin(), files.end());
+    return files;
+}
+
+std::string RelativeToSourceRoot(const std::filesystem::path& path)
+{
+    return std::filesystem::relative(
+        path,
+        std::filesystem::path(SAGA_SOURCE_ROOT)).generic_string();
+}
+
+std::string ExtractGTestIdentity(const std::string& line)
+{
+    constexpr std::array<std::string_view, 2> markers = {
+        "TEST_F(",
+        "TEST(",
+    };
+
+    for (const auto marker : markers)
+    {
+        const auto start = line.find(marker);
+        if (start == std::string::npos)
+        {
+            continue;
+        }
+
+        const auto args = start + marker.size();
+        const auto comma = line.find(',', args);
+        const auto close = line.find(')', comma == std::string::npos ? args : comma);
+        if (comma == std::string::npos || close == std::string::npos)
+        {
+            return {};
+        }
+
+        return Trim(std::string_view(line).substr(args, comma - args)) +
+               "." +
+               Trim(std::string_view(line).substr(comma + 1, close - comma - 1));
+    }
+
+    return {};
+}
+
+std::map<std::string, int> ExtractGTestIdentityCounts(
+    const std::filesystem::path& root)
+{
+    std::map<std::string, int> counts;
+    for (const auto& file : FindFilesWithExtension(root, ".cpp"))
+    {
+        for (const auto& line : ReadLines(file))
+        {
+            const auto identity = ExtractGTestIdentity(line);
+            if (!identity.empty())
+            {
+                ++counts[identity];
+            }
+        }
+    }
+    return counts;
+}
+
+std::size_t CountOccurrences(std::string_view text, std::string_view needle)
+{
+    std::size_t count = 0;
+    std::size_t pos = 0;
+    while ((pos = text.find(needle, pos)) != std::string_view::npos)
+    {
+        ++count;
+        pos += needle.size();
+    }
+    return count;
+}
+
 } // namespace
+
+TEST(CMakeTargetBoundaryTests, DiligentGpuIntegrationSplitDoesNotRegressToMonolith)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto renderRoot = root / "Tests" / "Integration" / "Render";
+    const auto diligentRoot = renderRoot / "Diligent";
+
+    EXPECT_FALSE(std::filesystem::exists(
+        renderRoot / "DiligentBackendIntegrationTests.cpp"))
+        << "Diligent GPU integration tests must stay split under "
+           "Tests/Integration/Render/Diligent/.";
+    ASSERT_TRUE(std::filesystem::exists(diligentRoot));
+
+    for (const auto& file : FindFilesWithExtension(renderRoot, ".cpp"))
+    {
+        EXPECT_LT(CountLines(file), 2000u)
+            << "Integration render test source is too large: "
+            << RelativeToSourceRoot(file);
+    }
+
+    for (const auto& file : FindFilesWithExtension(diligentRoot, ".cpp"))
+    {
+        EXPECT_LE(CountLines(file), 650u)
+            << "Diligent GPU split source exceeded its measured line budget: "
+            << RelativeToSourceRoot(file);
+    }
+}
+
+TEST(CMakeTargetBoundaryTests, DiligentGpuFixtureHeadersStayFocused)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto diligentRoot =
+        root / "Tests" / "Integration" / "Render" / "Diligent";
+    const std::map<std::string, std::size_t> budgets = {
+        {"DiligentGpuTestFixture.h", 130u},
+        {"SagaGraphicsGpuTestFixture.h", 150u},
+        {"BindingGpuTestFixture.h", 80u},
+    };
+
+    for (const auto& [name, budget] : budgets)
+    {
+        const auto file = diligentRoot / name;
+        ASSERT_TRUE(std::filesystem::exists(file))
+            << "Missing Diligent GPU fixture header: " << file.generic_string();
+        EXPECT_LE(CountLines(file), budget)
+            << "Fixture header exceeded its measured line budget: "
+            << RelativeToSourceRoot(file);
+    }
+}
+
+TEST(CMakeTargetBoundaryTests, DiligentGpuIntegrationTestIdentitiesStayStable)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto diligentRoot =
+        root / "Tests" / "Integration" / "Render" / "Diligent";
+    const auto identities = ExtractGTestIdentityCounts(diligentRoot);
+
+    std::map<std::string, int> suiteCounts;
+    for (const auto& [identity, count] : identities)
+    {
+        EXPECT_EQ(count, 1) << "Duplicate GPU integration test identity: "
+                            << identity;
+        const auto dot = identity.find('.');
+        ASSERT_NE(dot, std::string::npos);
+        ++suiteCounts[identity.substr(0, dot)];
+    }
+
+    EXPECT_EQ(identities.size(), 133u);
+    EXPECT_EQ(suiteCounts["DiligentGPU"], 42);
+    EXPECT_EQ(suiteCounts["CoordinateGPU"], 6);
+    EXPECT_EQ(suiteCounts["SagaGraphicsGPU"], 16);
+    EXPECT_EQ(suiteCounts["BindingGPU"], 52);
+    EXPECT_EQ(suiteCounts["OverlayGPU"], 17);
+    EXPECT_EQ(suiteCounts.size(), 5u);
+}
+
+TEST(CMakeTargetBoundaryTests, DiligentGpuSplitSourcesAreOwnedByIntegrationTargetOnce)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto diligentRoot =
+        root / "Tests" / "Integration" / "Render" / "Diligent";
+    const auto ninjaPath = BuildNinjaPath();
+    ASSERT_TRUE(std::filesystem::exists(ninjaPath))
+        << "Generated build.ninja is required for compile ownership checks: "
+        << ninjaPath.generic_string();
+
+    const auto ninja = ReadText(ninjaPath);
+    EXPECT_EQ(ninja.find("DiligentBackendIntegrationTests.cpp"),
+              std::string::npos)
+        << "Removed Diligent GPU monolith must not be compiled.";
+
+    for (const auto& file : FindFilesWithExtension(diligentRoot, ".cpp"))
+    {
+        const auto rel = RelativeToSourceRoot(file);
+        const auto object =
+            "build CMakeFiles/SagaIntegrationTests.dir/" + rel + ".o:";
+        EXPECT_EQ(CountOccurrences(ninja, object), 1u)
+            << "Diligent split source must be compiled exactly once by "
+               "SagaIntegrationTests: "
+            << rel;
+    }
+}
 
 TEST(CMakeTargetBoundaryTests, SagaProductLibDoesNotLinkEditorLabTargets)
 {

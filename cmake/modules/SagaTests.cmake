@@ -360,6 +360,7 @@ function(saga_setup_tests)
     )
     target_compile_definitions(SagaUnitTests PRIVATE
         SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+        SAGA_BUILD_ROOT="${CMAKE_BINARY_DIR}"
         SAGA_WITH_SDE=$<BOOL:${SAGA_WITH_SDE}>
     )
     add_test(NAME UnitTests COMMAND SagaUnitTests)
@@ -1716,6 +1717,7 @@ function(saga_setup_tests)
         target_include_directories(SagaArchitectureTests PRIVATE ${SAGA_TEST_INCLUDE_DIRS})
         target_compile_definitions(SagaArchitectureTests PRIVATE
             SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+            SAGA_BUILD_ROOT="${CMAKE_BINARY_DIR}"
         )
         add_test(NAME ArchitectureTests COMMAND SagaArchitectureTests)
         set_tests_properties(ArchitectureTests PROPERTIES LABELS "architecture;unit")
