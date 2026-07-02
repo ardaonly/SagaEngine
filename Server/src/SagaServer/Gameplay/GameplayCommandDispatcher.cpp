@@ -65,8 +65,9 @@ bool GameplayCommandDispatcher::Install(RPCDispatch& rpcDispatch)
     // that opcode's traits require auth. (This keeps login-adjacent
     // commands possible without a second RPC entry.)
     auto handler = [this](std::uint64_t       clientId,
-                          const RPCRequest&   request,
-                          RPCResponse&        response) -> bool
+                      bool                clientAuth,
+                      const RPCRequest&   request,
+                      RPCResponse&        response) -> bool
     {
         // Payload is expected as a single Blob argument.
         if (request.arguments.size() != 1 ||
@@ -77,17 +78,12 @@ bool GameplayCommandDispatcher::Install(RPCDispatch& rpcDispatch)
         }
 
         const auto& blob = request.arguments[0].data;
-        // clientAuth is not known at this layer — RPCDispatch normally checks
-        // it before calling us. We defer to "authenticated" here; the real
-        // auth state must be piped in from the transport when this is wired
-        // into production. For now, assume true and let traits gate.
-        constexpr bool kClientAuth = true;
 
         response.status = DispatchBlob(clientId,
-                                         kClientAuth,
-                                         blob.data(),
-                                         blob.size(),
-                                         response.resultData);
+                                    clientAuth,
+                                    blob.data(),
+                                    blob.size(),
+                                    response.resultData);
         return response.status == RPCStatusCode::Ok;
     };
 

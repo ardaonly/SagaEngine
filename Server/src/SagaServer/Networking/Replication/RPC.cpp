@@ -364,16 +364,24 @@ bool RPCDispatch::Dispatch(uint64_t clientId, bool clientAuth,
         rateLimiter.RecordCall(nowUs);
     }
 
-    // Call the handler.
-    const bool success = entry.handler(clientId, request, outResponse);
+    // Call the handler and propagate the authenticated session state.
+    const bool success =
+        entry.handler(clientId, clientAuth, request, outResponse);
+
     if (!success)
     {
-        outResponse.status = RPCStatusCode::InternalError;
+        // Preserve an explicit error status produced by the handler.
+        if (outResponse.status == RPCStatusCode::Ok)
+            outResponse.status = RPCStatusCode::InternalError;
+
         LOG_WARN(kTag, "RPC '%s' handler failed for client %llu",
-                 request.rpcName.c_str(), static_cast<unsigned long long>(clientId));
+                request.rpcName.c_str(),
+                static_cast<unsigned long long>(clientId));
     }
-    else
+    else if (outResponse.status == RPCStatusCode::InternalError)
     {
+        // InternalError is the initial sentinel value. A successful handler that
+        // did not explicitly provide a status therefore completed normally.
         outResponse.status = RPCStatusCode::Ok;
     }
 
