@@ -73,7 +73,7 @@ class SagaEngineConan(ConanFile):
         "with_profiling": False,
         "with_sde": False,
         "gtest/*:build_gmock": True,
-        "qt/*:shared": False,
+        "qt/*:shared": True,
         "qt/*:qtbase": True,
         # SagaEditor links Qt Core/Gui/Widgets only. ConanCenter's Qt recipe
         # enables all "essential" modules by default, including qttools and
