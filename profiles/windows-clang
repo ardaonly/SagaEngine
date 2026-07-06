@@ -13,6 +13,7 @@ tools.build:compiler_executables={"c":"clang-cl", "cpp":"clang-cl"}
 
 [options]
 *:shared=False
+qt/*:shared=True
 *:fPIC=True
 
 [buildenv]

@@ -17,6 +17,7 @@ class SagaEngineConan(ConanFile):
     def requirements(self):
         self.requires("nlohmann_json/3.11.3")
         self.requires("asio/1.30.2")
+        self.requires("openssl/3.6.2")
         self.requires("qt/6.8.3")
         # Linux-only window-system packages. Do not add them to Windows/macOS
         # graphs; those platforms neither build nor need Wayland/XKB.

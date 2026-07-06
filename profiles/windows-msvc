@@ -15,6 +15,7 @@ tools.microsoft.msbuild:vs_version=17
 
 [options]
 *:shared=False
+qt/*:shared=True
 *:fPIC=True
 
 [buildenv]
