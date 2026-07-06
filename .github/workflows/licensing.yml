@@ -12,6 +12,8 @@ jobs:
   licensing-policy:
     name: License foundation and policy
     runs-on: ubuntu-latest
+    outputs:
+      base_ref: ${{ steps.base.outputs.base_ref }}
 
     steps:
       - name: Checkout repository
@@ -102,3 +104,94 @@ jobs:
           python3 Tools/Licensing/validate_license_policy.py \
             --report \
             --base-ref "${{ steps.base.outputs.base_ref }}"
+
+  configured-graph:
+    name: Configured CMake licensing graph
+    needs: licensing-policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Read project version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="$(tr -d '\r\n' < VERSION)"
+          test -n "$version"
+
+          echo "SAGA_ENGINE_VERSION=$version" >> "$GITHUB_ENV"
+          echo "SAGA_BUILD_DIR=build/RelWithDebInfo-$version" >> "$GITHUB_ENV"
+
+          echo "Version: $version"
+          echo "Build directory: build/RelWithDebInfo-$version"
+
+      - name: Install Conan
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python3 -m pip install --user \
+            --disable-pip-version-check \
+            "conan==2.0.17"
+
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/conan" --version
+
+      - name: Configure Conan profile
+        shell: bash
+        run: |
+          set -euo pipefail
+          conan profile detect --force
+
+      - name: Resolve build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          conan install . \
+            --build=missing \
+            -s build_type=RelWithDebInfo \
+            -o "&:with_sde=False" \
+            -c tools.build:jobs=2 \
+            -c tools.system.package_manager:mode=install \
+            -c tools.system.package_manager:sudo=True
+
+      - name: Prepare CMake File API query
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p "$SAGA_BUILD_DIR/.cmake/api/v1/query"
+          touch "$SAGA_BUILD_DIR/.cmake/api/v1/query/codemodel-v2"
+
+      - name: Configure SagaEngine graph
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          source "$SAGA_BUILD_DIR/generators/conanbuild.sh"
+
+          cmake --preset linux-gcc \
+            -DCMAKE_C_COMPILER_LAUNCHER= \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=
+
+          test -d "$SAGA_BUILD_DIR/.cmake/api/v1/reply"
+
+      - name: Validate configured licensing graph
+        shell: bash
+        env:
+          BASE_REF: ${{ needs.licensing-policy.outputs.base_ref }}
+        run: |
+          set -euo pipefail
+
+          python3 Tools/Licensing/validate_license_policy.py \
+            --report \
+            --base-ref "$BASE_REF" \
+            --cmake-build-dir "$SAGA_BUILD_DIR"
