@@ -31,7 +31,7 @@ The following boundaries remain separate:
 
 This migration does not retroactively change an earlier release.
 
-Effective migration commit: pending activation record.
+Effective migration commit: `8a39e5fbfc3fa9c687dde14a033d6c795763946b`.
 
 ## Approved target model
 

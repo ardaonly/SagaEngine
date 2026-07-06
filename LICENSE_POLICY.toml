@@ -9,7 +9,7 @@ policy_revision = "1.0"
 policy_status = "active"
 repository_state = "transitional"
 reviewed_branch = "main"
-reviewed_commit = "0f97a096a1d31a23f5df56376937ef4b2936ed1a"
+reviewed_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 reviewed_project_version = "0.0.10"
 review_record_paths = [
   ".github/workflows/licensing.yml",
@@ -28,7 +28,7 @@ review_record_paths = [
   "docs/licensing/decisions/LIC-DEC-0001.md",
 ]
 decision_record = "LIC-DEC-0001"
-effective_from_commit = ""
+effective_from_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 approved_by = ["Arda Koyuncu"]
 
 [validation]
@@ -130,7 +130,7 @@ target_license_expression = "MPL-2.0"
 provenance_review = "cleared"
 licensing_authority_review = "cleared"
 migration_status = "effective"
-effective_commit = ""
+effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
 id = "saga-runtime"
@@ -147,7 +147,7 @@ target_license_expression = "MPL-2.0"
 provenance_review = "cleared"
 licensing_authority_review = "cleared"
 migration_status = "effective"
-effective_commit = ""
+effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
 id = "saga-server"
@@ -164,7 +164,7 @@ target_license_expression = "MPL-2.0"
 provenance_review = "cleared"
 licensing_authority_review = "cleared"
 migration_status = "effective"
-effective_commit = ""
+effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
 id = "saga-shared"
@@ -181,7 +181,7 @@ target_license_expression = "MPL-2.0"
 provenance_review = "cleared"
 licensing_authority_review = "cleared"
 migration_status = "effective"
-effective_commit = ""
+effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
 id = "saga-collaboration"
@@ -198,7 +198,7 @@ target_license_expression = "MPL-2.0"
 provenance_review = "cleared"
 licensing_authority_review = "cleared"
 migration_status = "effective"
-effective_commit = ""
+effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
 id = "saga-backends"
@@ -215,7 +215,7 @@ target_license_expression = "MPL-2.0"
 provenance_review = "cleared"
 licensing_authority_review = "cleared"
 migration_status = "effective"
-effective_commit = ""
+effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
 id = "saga-apps"
@@ -232,7 +232,7 @@ target_license_expression = "MPL-2.0"
 provenance_review = "cleared"
 licensing_authority_review = "cleared"
 migration_status = "effective"
-effective_commit = ""
+effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
 id = "saga-editor-current-restricted"
@@ -256,7 +256,7 @@ target_license_expression = "MPL-2.0"
 provenance_review = "cleared"
 licensing_authority_review = "cleared"
 migration_status = "effective"
-effective_commit = ""
+effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 notes = "Editor target is MPL-2.0; current restricted treatment remains until the Editor migration batch is effective."
 
 [[domains]]
@@ -274,7 +274,7 @@ target_license_expression = "MPL-2.0"
 provenance_review = "cleared"
 licensing_authority_review = "cleared"
 migration_status = "effective"
-effective_commit = ""
+effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
 id = "saga-cmake"
@@ -291,7 +291,7 @@ target_license_expression = "MPL-2.0"
 provenance_review = "cleared"
 licensing_authority_review = "cleared"
 migration_status = "effective"
-effective_commit = ""
+effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
 id = "saga-scripts"
@@ -308,7 +308,7 @@ target_license_expression = "MPL-2.0"
 provenance_review = "cleared"
 licensing_authority_review = "cleared"
 migration_status = "effective"
-effective_commit = ""
+effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
 id = "saga-profiles"
@@ -325,7 +325,7 @@ target_license_expression = "MPL-2.0"
 provenance_review = "cleared"
 licensing_authority_review = "cleared"
 migration_status = "effective"
-effective_commit = ""
+effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
 id = "saga-core-metadata"
@@ -342,7 +342,7 @@ target_license_expression = "MPL-2.0"
 provenance_review = "cleared"
 licensing_authority_review = "cleared"
 migration_status = "effective"
-effective_commit = ""
+effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
 id = "saga-schemas"
@@ -359,7 +359,7 @@ target_license_expression = "MPL-2.0"
 provenance_review = "cleared"
 licensing_authority_review = "cleared"
 migration_status = "effective"
-effective_commit = ""
+effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
 id = "saga-tools"
@@ -376,7 +376,7 @@ target_license_expression = "MPL-2.0"
 provenance_review = "cleared"
 licensing_authority_review = "cleared"
 migration_status = "effective"
-effective_commit = ""
+effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
 id = "generic-forge"
@@ -562,7 +562,7 @@ target_license_expression = "MPL-2.0"
 provenance_review = "cleared"
 licensing_authority_review = "cleared"
 migration_status = "effective"
-effective_commit = ""
+effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 notes = "Saga-owned integration metadata adjacent to, but not part of, the Diligent submodule."
 
 [[domains]]
@@ -682,7 +682,7 @@ target_license_expression = "MPL-2.0"
 provenance_review = "cleared"
 licensing_authority_review = "cleared"
 migration_status = "effective"
-effective_commit = ""
+effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
 id = "repository-root-build"
@@ -714,7 +714,7 @@ target_license_expression = "MPL-2.0"
 provenance_review = "cleared"
 licensing_authority_review = "cleared"
 migration_status = "effective"
-effective_commit = ""
+effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
 id = "licensing-governance-docs"

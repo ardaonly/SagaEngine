@@ -38,7 +38,7 @@ The repository remains mixed-license:
 The previous Saga Editor restricted treatment is historical for the Editor
 source domain migrated by this decision.
 
-Effective migration commit: pending activation record.
+Effective migration commit: `8a39e5fbfc3fa9c687dde14a033d6c795763946b`.
 
 ## Enforcement
 

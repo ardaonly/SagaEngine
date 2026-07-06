@@ -102,4 +102,4 @@ The following boundaries remain unchanged:
 - Documentation, samples, templates, generated outputs, content, and
   user-created material follow their separate policy domains.
 
-Effective migration commit: pending activation record.
+Effective migration commit: `8a39e5fbfc3fa9c687dde14a033d6c795763946b`.
