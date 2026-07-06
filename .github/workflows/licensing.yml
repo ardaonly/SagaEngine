@@ -49,6 +49,49 @@ jobs:
       - name: Check licensing tool syntax
         run: python3 -m py_compile Tools/Licensing/*.py
 
+      - name: Verify DCO sign-offs
+        shell: bash
+        env:
+          BASE_REF: ${{ steps.base.outputs.base_ref }}
+        run: |
+          set -euo pipefail
+
+          failures=0
+          checked=0
+
+          while IFS= read -r commit; do
+            [[ -n "$commit" ]] || continue
+
+            parent_line="$(git rev-list --parents -n 1 "$commit")"
+            parent_count=$(( $(wc -w <<< "$parent_line") - 1 ))
+
+            # Pull-request checkout refs may contain a synthetic merge commit.
+            # The contribution commits themselves remain subject to DCO.
+            if (( parent_count > 1 )); then
+              echo "Skipping merge commit: $commit"
+              continue
+            fi
+
+            checked=$((checked + 1))
+
+            if ! git show -s --format=%B "$commit" |
+              grep -Eiq                 '^Signed-off-by:[[:space:]]+.+[[:space:]]+<[^<>[:space:]]+@[^<>[:space:]]+>[[:space:]]*$'
+            then
+              echo "::error title=DCO sign-off missing::Commit $commit does not contain a valid Signed-off-by trailer."
+              failures=$((failures + 1))
+            else
+              echo "DCO sign-off present: $commit"
+            fi
+          done < <(git rev-list --reverse "${BASE_REF}..HEAD")
+
+          if (( failures > 0 )); then
+            echo "$failures commit(s) failed DCO validation."
+            exit 1
+          fi
+
+          echo "DCO validation passed for $checked non-merge commit(s)."
+
+
       - name: Verify canonical license foundation
         run: |
           python3 Tools/Licensing/verify_license_texts.py \
