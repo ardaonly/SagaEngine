@@ -12,6 +12,7 @@ tools.cmake.cmaketoolchain:generator=Ninja
 
 [options]
 *:shared=False
+qt/*:shared=True
 *:fPIC=True
 
 [buildenv]
