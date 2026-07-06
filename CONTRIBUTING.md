@@ -84,3 +84,25 @@ When provenance or license compatibility is unclear:
 This policy is an engineering contribution rule and is not legal advice. The
 repository's license, notice, contributor, and third-party files remain legally
 authoritative.
+
+<!-- SAGA-LICENSING-DCO:BEGIN -->
+## Licensing, DCO, and contribution authority
+
+SagaEngine uses Developer Certificate of Origin 1.1. Every contribution must
+carry a valid `Signed-off-by` trailer from a person with authority to submit
+the work.
+
+Contributions use inbound-equals-outbound: the contribution is accepted under
+the current effective license of the affected file or path at merge time. A
+future target recorded in `LICENSE_POLICY.toml` is not the inbound license
+until its migration becomes effective.
+
+Contributors must disclose copied, adapted, generated, or AI-assisted material
+and retain sufficient provenance evidence. A contribution must not import
+material under incompatible terms or material the contributor lacks authority
+to submit.
+
+Squash, co-authored, bot-assisted, and generated commits must preserve valid
+DCO and provenance records. Contributions to unresolved licensing domains may
+be frozen until the domain is classified.
+<!-- SAGA-LICENSING-DCO:END -->

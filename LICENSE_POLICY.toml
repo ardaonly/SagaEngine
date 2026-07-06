@@ -1,0 +1,1322 @@
+# SPDX-FileCopyrightText: 2026 Arda Koyuncu
+# SPDX-License-Identifier: MPL-2.0
+#
+# Transitional machine-readable licensing policy.
+# Target licenses are non-effective until dedicated migration records exist.
+
+schema_version = 3
+policy_revision = "draft-review"
+policy_status = "draft-transitional-review"
+repository_state = "transitional"
+reviewed_branch = "main"
+reviewed_commit = "b384b74f3efa12a635718260b15c828d454d777b"
+reviewed_project_version = "0.0.10"
+decision_record = "LIC-DEC-0001"
+effective_from_commit = ""
+approved_by = []
+
+[validation]
+path_format = "repository-relative-posix"
+case_sensitive = true
+include_untracked_nonignored = true
+unclassified_action = "report"
+overlap_action = "deny"
+unknown_field_action = "deny"
+metadata_conflict_action = "deny"
+unresolved_license_action = "report"
+cmake_graph_action = "report"
+legacy_policy_conflict_action = "deny"
+rename_domain_change_action = "report"
+lfs_pointer_action = "deny"
+orphan_required_rule_action = "report"
+external_symlink_action = "deny"
+submodule_inherits_parent_policy = false
+submodule_missing_action = "report"
+target_drift_action = "report"
+governance_missing_action = "deny"
+untracked_exclude_patterns = [".saga-private/**", "Build/**", "build/**", ".agents/**", ".codex/**", ".core/**"]
+
+[metadata]
+precedence = [
+  "applicable-legal-grant",
+  "verified-upstream-terms",
+  "embedded-spdx",
+  "sidecar",
+  "reuse-dep5",
+  "effective-migration-record",
+  "policy-record",
+]
+conflict_action = "deny"
+
+[legacy]
+path_rules_path = "core/manifest/path_rules.json"
+path_rules_status = "deprecated-generated-compatibility"
+path_rules_source_of_truth = "LICENSE_POLICY.toml"
+duplicate_license_paths = ["LICENSES/LICENSE", "LICENSES/LICENSE-EDITOR"]
+notice_path = "LICENSES/NOTICE"
+transition_status = "cleanup-complete"
+cleanup_status = "complete"
+files_are_normative_until_cleanup = false
+
+[governance]
+required_documents = [
+  "LICENSE.md",
+  "docs/LICENSING.md",
+  "docs/licensing/LICENSE_STABILITY.md",
+  "docs/licensing/GENERATED_OUTPUTS.md",
+  "docs/licensing/PLUGIN_LICENSING.md",
+  "docs/licensing/THIRD_PARTY_NOTICES.md",
+  "docs/licensing/decisions/LIC-DEC-0001.md",
+  "docs/licensing/TRANSITION_CHECKLIST.md",
+]
+contributing_document = "CONTRIBUTING.md"
+contributing_section_source = "docs/licensing/CONTRIBUTING_DCO_SECTION.md"
+contributing_marker_begin = "<!-- SAGA-LICENSING-DCO:BEGIN -->"
+contributing_marker_end = "<!-- SAGA-LICENSING-DCO:END -->"
+contributing_update_status = "required-before-foundation-commit"
+
+[target_validation]
+inventory_status = "reviewed-core"
+configured_graph_required_in_report = false
+configured_graph_required_in_strict = false
+unrecorded_target_patterns = ["Saga*", "saga-*"]
+source_domain_comparison = "exact-when-graph-available"
+dependency_comparison = "informational"
+install_surface_comparison = "declared-vs-file-api"
+
+# ---------------------------------------------------------------------------
+# Rights holders
+# ---------------------------------------------------------------------------
+
+[[rights_holders]]
+id = "RH-ARDA-KOYUNCU"
+legal_name = "Arda Koyuncu"
+status = "pending-final-verification"
+basis = "repository-provenance-review"
+relicensing_authority = "conditional"
+
+# ---------------------------------------------------------------------------
+# Repository licensing domains
+# ---------------------------------------------------------------------------
+
+[[domains]]
+id = "saga-engine"
+priority = 100
+paths = ["Engine/**"]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "Apache-2.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "MPL-2.0"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "approved-not-effective"
+effective_commit = ""
+
+[[domains]]
+id = "saga-runtime"
+priority = 100
+paths = ["Runtime/**"]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "Apache-2.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "MPL-2.0"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "approved-not-effective"
+effective_commit = ""
+
+[[domains]]
+id = "saga-server"
+priority = 100
+paths = ["Server/**"]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "Apache-2.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "MPL-2.0"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "approved-not-effective"
+effective_commit = ""
+
+[[domains]]
+id = "saga-shared"
+priority = 100
+paths = ["Shared/**"]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "Apache-2.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "MPL-2.0"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "approved-not-effective"
+effective_commit = ""
+
+[[domains]]
+id = "saga-collaboration"
+priority = 100
+paths = ["Collaboration/**"]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "Apache-2.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "MPL-2.0"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "approved-not-effective"
+effective_commit = ""
+
+[[domains]]
+id = "saga-backends"
+priority = 100
+paths = ["Backends/**"]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "Apache-2.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "MPL-2.0"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "approved-not-effective"
+effective_commit = ""
+
+[[domains]]
+id = "saga-apps"
+priority = 100
+paths = ["Apps/**"]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "Apache-2.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "MPL-2.0"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "approved-not-effective"
+effective_commit = ""
+
+[[domains]]
+id = "saga-editor-current-restricted"
+priority = 400
+paths = [
+  "Editor/**",
+  "Apps/SagaDev/**",
+  "Apps/Editor/**",
+  "Apps/EditorLab/**",
+  "Apps/SagaEditorComposer/**",
+  "Schemas/Saga/Editor/**",
+]
+required = true
+domain_owner = "SagaEditor"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "LicenseRef-Saga-Editor-Restricted"
+target_license_mode = "fixed-spdx"
+target_license_expression = "MPL-2.0"
+provenance_review = "conditional"
+licensing_authority_review = "conditional"
+migration_status = "approved-not-effective"
+effective_commit = ""
+notes = "Editor target is MPL-2.0; current restricted treatment remains until the Editor migration batch is effective."
+
+[[domains]]
+id = "saga-tests"
+priority = 100
+paths = ["Tests/**"]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "Apache-2.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "MPL-2.0"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "approved-not-effective"
+effective_commit = ""
+
+[[domains]]
+id = "saga-cmake"
+priority = 100
+paths = ["cmake/**"]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "Apache-2.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "MPL-2.0"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "approved-not-effective"
+effective_commit = ""
+
+[[domains]]
+id = "saga-scripts"
+priority = 100
+paths = ["scripts/**"]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "Apache-2.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "MPL-2.0"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "approved-not-effective"
+effective_commit = ""
+
+[[domains]]
+id = "saga-profiles"
+priority = 100
+paths = ["profiles/**"]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "Apache-2.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "MPL-2.0"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "approved-not-effective"
+effective_commit = ""
+
+[[domains]]
+id = "saga-core-metadata"
+priority = 100
+paths = ["core/**"]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "Apache-2.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "MPL-2.0"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "approved-not-effective"
+effective_commit = ""
+
+[[domains]]
+id = "saga-schemas"
+priority = 100
+paths = ["Schemas/**"]
+required = false
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "Apache-2.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "MPL-2.0"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "approved-not-effective"
+effective_commit = ""
+
+[[domains]]
+id = "saga-tools"
+priority = 100
+paths = ["Tools/**"]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "Apache-2.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "MPL-2.0"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "approved-not-effective"
+effective_commit = ""
+
+[[domains]]
+id = "generic-forge"
+priority = 400
+paths = ["Tools/Forge/**"]
+required = true
+domain_owner = "Forge"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "Apache-2.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "Apache-2.0"
+provenance_review = "pending-path-verification"
+licensing_authority_review = "conditional"
+migration_status = "unchanged"
+effective_commit = ""
+
+[[domains]]
+id = "saga-licensing-tools"
+priority = 500
+paths = ["Tools/Licensing/**"]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "MPL-2.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "MPL-2.0"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "unchanged"
+effective_commit = ""
+
+[[domains]]
+id = "prism-removal-candidate"
+priority = 400
+paths = ["Tools/Prism/**"]
+required = true
+domain_owner = "Prism"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "Apache-2.0"
+target_license_mode = "not-applicable"
+target_license_expression = ""
+provenance_review = "pending"
+licensing_authority_review = "not-applicable"
+migration_status = "excluded"
+lifecycle = "removal-candidate"
+effective_commit = ""
+
+[[domains]]
+id = "sde-removal-candidate"
+priority = 400
+paths = ["Tools/SystemDefinitionEngine/**"]
+required = true
+domain_owner = "SystemDefinitionEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "Apache-2.0"
+target_license_mode = "not-applicable"
+target_license_expression = ""
+provenance_review = "pending"
+licensing_authority_review = "not-applicable"
+migration_status = "excluded"
+lifecycle = "removal-candidate"
+effective_commit = ""
+
+[[domains]]
+id = "saga-documentation"
+priority = 100
+paths = ["docs/**", "README.md", "CONTRIBUTING.md"]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "Apache-2.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "CC-BY-4.0"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "approved-not-effective"
+effective_commit = ""
+notes = "Copyable snippets require separate 0BSD files or explicit snippet registry entries."
+
+
+[[domains]]
+id = "saga-sample-documentation"
+priority = 1200
+paths = [
+  "samples/**/README.md",
+  "samples/**/ACCEPTANCE.md",
+  "samples/**/KNOWN_LIMITATIONS.md",
+]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "Apache-2.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "CC-BY-4.0"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "approved-not-effective"
+effective_commit = ""
+notes = "Sample documentation prose; target CC-BY-4.0 after migration."
+
+[[domains]]
+id = "saga-sample-project-files"
+priority = 1200
+paths = [
+  "samples/**/*.cs",
+  "samples/**/*.json",
+  "samples/**/*.sagaproj",
+]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "Apache-2.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "0BSD"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "approved-not-effective"
+effective_commit = ""
+notes = "Copyable sample code and project metadata; target 0BSD after migration."
+
+[[domains]]
+id = "saga-samples"
+priority = 100
+paths = ["samples/**"]
+required = false
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-required"
+current_license_expression = "Apache-2.0"
+target_license_mode = "file-specific"
+target_license_expression = ""
+provenance_review = "conditional"
+licensing_authority_review = "conditional"
+migration_status = "approved-not-effective"
+effective_commit = ""
+notes = "Code, fixtures and assets require artifact-specific classification."
+
+[[domains]]
+id = "saga-content"
+priority = 100
+paths = ["Content/**"]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "Apache-2.0"
+target_license_mode = "file-specific"
+target_license_expression = ""
+provenance_review = "conditional"
+licensing_authority_review = "conditional"
+migration_status = "approved-not-effective"
+effective_commit = ""
+
+
+[[domains]]
+id = "saga-diligent-integration-metadata"
+priority = 1100
+paths = ["Vendor/Diligent.Saga/**"]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "Apache-2.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "MPL-2.0"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "approved-not-effective"
+effective_commit = ""
+notes = "Saga-owned integration metadata adjacent to, but not part of, the Diligent submodule."
+
+[[domains]]
+id = "vendor-upstream"
+priority = 1000
+paths = ["Vendor/**"]
+required = true
+domain_owner = "upstream"
+rights_holder_refs = []
+current_license_mode = "upstream-file-specific"
+resolution_requirement = "upstream-evidence-required"
+current_license_expression = ""
+target_license_mode = "upstream-file-specific"
+target_license_expression = ""
+provenance_review = "upstream-controlled"
+licensing_authority_review = "upstream-controlled"
+migration_status = "unchanged"
+effective_commit = ""
+
+[[domains]]
+id = "license-texts"
+priority = 1000
+paths = ["LICENSES/**"]
+required = true
+domain_owner = "mixed"
+rights_holder_refs = []
+current_license_mode = "file-specific"
+resolution_requirement = "canonical-manifest"
+current_license_expression = ""
+target_license_mode = "file-specific"
+target_license_expression = ""
+provenance_review = "mixed"
+licensing_authority_review = "mixed"
+migration_status = "unchanged"
+effective_commit = ""
+
+[[domains]]
+id = "root-license-index"
+priority = 1000
+paths = ["LICENSE.md"]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "CC-BY-4.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "CC-BY-4.0"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "unchanged"
+effective_commit = ""
+
+[[domains]]
+id = "license-policy"
+priority = 1000
+paths = ["LICENSE_POLICY.toml"]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "MPL-2.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "MPL-2.0"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "unchanged"
+effective_commit = ""
+
+[[domains]]
+id = "dco-document"
+priority = 1000
+paths = ["DCO"]
+required = true
+domain_owner = "upstream"
+rights_holder_refs = []
+current_license_mode = "file-specific"
+resolution_requirement = "upstream-document"
+current_license_expression = ""
+target_license_mode = "file-specific"
+target_license_expression = ""
+provenance_review = "upstream-controlled"
+licensing_authority_review = "upstream-controlled"
+migration_status = "unchanged"
+effective_commit = ""
+
+[[domains]]
+id = "license-foundation-metadata"
+priority = 1000
+paths = ["LICENSE_TEXT_SOURCES.toml", "SHA256SUMS", ".reuse/**"]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "0BSD"
+target_license_mode = "fixed-spdx"
+target_license_expression = "0BSD"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "unchanged"
+effective_commit = ""
+
+[[domains]]
+id = "repository-automation"
+priority = 100
+paths = [".github/**"]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "Apache-2.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "MPL-2.0"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "approved-not-effective"
+effective_commit = ""
+
+[[domains]]
+id = "repository-root-build"
+priority = 100
+paths = [
+  ".clang-format",
+  ".clang-tidy",
+  ".dockerignore",
+  ".gitignore",
+  ".gitmodules",
+  "CMakeLists.txt",
+  "CMakePresets.json",
+  "VERSION",
+  "conanfile.py",
+  "export.sh",
+  "forge.lock",
+  "forge.toml",
+  "shell.nix",
+  "version.json",
+]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "Apache-2.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "MPL-2.0"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "approved-not-effective"
+effective_commit = ""
+
+[[domains]]
+id = "licensing-governance-docs"
+priority = 900
+paths = [
+  "docs/LICENSING.md",
+  "docs/licensing/LICENSE_STABILITY.md",
+  "docs/licensing/GENERATED_OUTPUTS.md",
+  "docs/licensing/PLUGIN_LICENSING.md",
+  "docs/licensing/THIRD_PARTY_NOTICES.md",
+  "docs/licensing/decisions/**",
+  "docs/licensing/LICENSE_FOUNDATION.md",
+  "docs/licensing/README.md",
+  "docs/licensing/TRANSITION_CHECKLIST.md",
+]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "CC-BY-4.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "CC-BY-4.0"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "unchanged"
+effective_commit = ""
+
+[[domains]]
+id = "contributing-dco-fragment"
+priority = 1000
+paths = ["docs/licensing/CONTRIBUTING_DCO_SECTION.md"]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "Apache-2.0 OR CC-BY-4.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "Apache-2.0 OR CC-BY-4.0"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "unchanged"
+effective_commit = ""
+
+[[domains]]
+id = "legacy-path-rules-compatibility"
+priority = 1000
+paths = ["core/manifest/path_rules.json", "core/manifest/path_rules.json.license"]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "0BSD"
+target_license_mode = "fixed-spdx"
+target_license_expression = "0BSD"
+provenance_review = "pending"
+licensing_authority_review = "conditional"
+migration_status = "unchanged"
+effective_commit = ""
+
+
+
+
+# ---------------------------------------------------------------------------
+# Configured build target inventory
+# ---------------------------------------------------------------------------
+
+[[targets]]
+name = "SagaCoreLog"
+source_domains = ["saga-engine"]
+public_dependencies = []
+private_dependencies = []
+runtime_dependencies = []
+target_license_expression = "MPL-2.0"
+distribution = "installed-not-exported"
+review = "install-export-review-required"
+blockers = ["install-export-boundary-review"]
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["Apache-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = true
+expected_exported_target = false
+export_validation = "manual-pending"
+[[targets]]
+name = "SagaDiagnostics"
+source_domains = ["saga-engine"]
+public_dependencies = []
+private_dependencies = ["SagaCoreLog"]
+runtime_dependencies = []
+target_license_expression = "MPL-2.0"
+distribution = "installed-not-exported"
+review = "install-export-review-required"
+blockers = ["install-export-boundary-review"]
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["Apache-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = true
+expected_exported_target = false
+export_validation = "manual-pending"
+[[targets]]
+name = "SagaShared"
+source_domains = ["saga-shared"]
+public_dependencies = []
+private_dependencies = ["SagaCoreLog"]
+runtime_dependencies = []
+target_license_expression = "MPL-2.0"
+distribution = "installed-not-exported"
+review = "install-export-review-required"
+blockers = ["install-export-boundary-review"]
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["Apache-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = true
+expected_exported_target = false
+export_validation = "manual-pending"
+[[targets]]
+name = "SagaCollaboration"
+source_domains = ["saga-collaboration"]
+public_dependencies = []
+private_dependencies = ["SagaShared"]
+runtime_dependencies = []
+target_license_expression = "MPL-2.0"
+distribution = "installed-not-exported"
+review = "install-export-review-required"
+blockers = ["install-export-boundary-review"]
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["Apache-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = true
+expected_exported_target = false
+export_validation = "manual-pending"
+[[targets]]
+name = "SagaAssetPipelineLib"
+source_domains = ["saga-tools"]
+public_dependencies = []
+private_dependencies = ["SagaShared"]
+runtime_dependencies = []
+target_license_expression = "MPL-2.0"
+distribution = "internal-tooling"
+review = "pending-configured-graph"
+blockers = []
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["Apache-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = false
+expected_exported_target = false
+export_validation = "manual-pending"
+[[targets]]
+name = "SagaPipelineLib"
+source_domains = ["saga-tools"]
+public_dependencies = []
+private_dependencies = ["SagaAssetPipelineLib"]
+runtime_dependencies = []
+target_license_expression = "MPL-2.0"
+distribution = "internal-tooling"
+review = "pending-configured-graph"
+blockers = []
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["Apache-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = false
+expected_exported_target = false
+export_validation = "manual-pending"
+[[targets]]
+name = "SagaEditorCompositionLib"
+source_domains = ["saga-editor-current-restricted"]
+public_dependencies = []
+private_dependencies = ["SagaShared"]
+runtime_dependencies = []
+target_license_expression = "MPL-2.0"
+distribution = "internal-editor-tooling"
+review = "conditional"
+blockers = ["editor-provenance-review"]
+graph_required = false
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["LicenseRef-Saga-Editor-Restricted"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = false
+expected_exported_target = false
+export_validation = "manual-pending"
+[[targets]]
+name = "SagaGraphicsCore"
+source_domains = ["saga-engine"]
+public_dependencies = []
+private_dependencies = []
+runtime_dependencies = []
+target_license_expression = "MPL-2.0"
+distribution = "installed-exported"
+review = "package-metadata-required"
+blockers = ["installed-license-bundle-review"]
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["Apache-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = true
+expected_exported_target = true
+export_validation = "manual-pending"
+
+[[targets]]
+name = "SagaGraphics"
+source_domains = ["saga-engine"]
+public_dependencies = ["SagaGraphicsCore"]
+private_dependencies = []
+runtime_dependencies = []
+target_license_expression = "MPL-2.0"
+distribution = "installed-exported"
+review = "package-metadata-required"
+blockers = ["installed-license-bundle-review"]
+graph_required = false
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["Apache-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = true
+expected_exported_target = true
+export_validation = "manual-pending"
+[[targets]]
+name = "SagaGraphicsPrivate"
+source_domains = ["saga-engine"]
+public_dependencies = []
+private_dependencies = ["SagaGraphicsCore"]
+runtime_dependencies = []
+target_license_expression = "MPL-2.0"
+distribution = "internal"
+review = "pending-configured-graph"
+blockers = []
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["Apache-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = false
+expected_exported_target = false
+export_validation = "manual-pending"
+
+[[targets]]
+name = "SagaEngine"
+source_domains = ["saga-engine"]
+public_dependencies = ["SagaShared"]
+private_dependencies = ["SagaCoreLog", "SagaDiagnostics"]
+runtime_dependencies = []
+target_license_expression = "MPL-2.0"
+distribution = "installed-not-exported"
+review = "package-boundary-incomplete"
+blockers = ["install-export-boundary-review"]
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["Apache-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = true
+expected_exported_target = false
+export_validation = "manual-pending"
+
+[[targets]]
+name = "SagaPlatformSDL"
+source_domains = ["saga-engine"]
+public_dependencies = []
+private_dependencies = ["SagaEngine"]
+runtime_dependencies = ["SDL"]
+target_license_expression = "MPL-2.0"
+distribution = "internal"
+review = "pending-configured-graph"
+blockers = []
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["Apache-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = false
+expected_exported_target = false
+export_validation = "manual-pending"
+
+[[targets]]
+name = "SagaDiligentBackend"
+source_domains = ["saga-engine"]
+public_dependencies = []
+private_dependencies = ["VendorDiligent", "SagaGraphicsPrivate"]
+runtime_dependencies = ["Vendor/Diligent"]
+target_license_expression = "MPL-2.0"
+distribution = "internal"
+review = "preserve-upstream-boundary"
+blockers = ["configured-source-domain-confirmation"]
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["Apache-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = false
+expected_exported_target = false
+export_validation = "manual-pending"
+
+[[targets]]
+name = "SagaRuntimeLib"
+source_domains = ["saga-runtime"]
+public_dependencies = ["SagaEngine"]
+private_dependencies = ["SagaShared"]
+runtime_dependencies = []
+target_license_expression = "MPL-2.0"
+distribution = "installed-not-exported"
+review = "install-export-review-required"
+blockers = ["install-export-boundary-review"]
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["Apache-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = true
+expected_exported_target = false
+export_validation = "manual-pending"
+
+[[targets]]
+name = "SagaServerLib"
+source_domains = ["saga-server"]
+public_dependencies = ["SagaEngine"]
+private_dependencies = ["SagaShared"]
+runtime_dependencies = []
+target_license_expression = "MPL-2.0"
+distribution = "installed-not-exported"
+review = "install-export-review-required"
+blockers = ["install-export-boundary-review"]
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["Apache-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = true
+expected_exported_target = false
+export_validation = "manual-pending"
+
+[[targets]]
+name = "SagaStressArenaLib"
+source_domains = ["saga-tools"]
+public_dependencies = []
+private_dependencies = ["SagaRuntimeLib", "SagaServerLib"]
+runtime_dependencies = []
+target_license_expression = "MPL-2.0"
+distribution = "internal-diagnostics"
+review = "pending-configured-graph"
+blockers = []
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["Apache-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = false
+expected_exported_target = false
+export_validation = "manual-pending"
+[[targets]]
+name = "SagaChaosLabLib"
+source_domains = ["saga-tools"]
+public_dependencies = []
+private_dependencies = ["SagaRuntimeLib", "SagaServerLib"]
+runtime_dependencies = []
+target_license_expression = "MPL-2.0"
+distribution = "internal-diagnostics"
+review = "pending-configured-graph"
+blockers = []
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["Apache-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = false
+expected_exported_target = false
+export_validation = "manual-pending"
+[[targets]]
+name = "SagaStateCheckLib"
+source_domains = ["saga-tools"]
+public_dependencies = []
+private_dependencies = ["SagaRuntimeLib", "SagaServerLib"]
+runtime_dependencies = []
+target_license_expression = "MPL-2.0"
+distribution = "internal-diagnostics"
+review = "pending-configured-graph"
+blockers = []
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["Apache-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = false
+expected_exported_target = false
+export_validation = "manual-pending"
+[[targets]]
+name = "MultiplayerSandboxHeadlessLib"
+source_domains = ["saga-tools"]
+public_dependencies = []
+private_dependencies = ["SagaRuntimeLib", "SagaServerLib"]
+runtime_dependencies = []
+target_license_expression = "MPL-2.0"
+distribution = "internal-diagnostics"
+review = "pending-configured-graph"
+blockers = []
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["Apache-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = false
+expected_exported_target = false
+export_validation = "manual-pending"
+[[targets]]
+name = "SagaBackend"
+source_domains = ["saga-backends"]
+public_dependencies = ["SagaEngine"]
+private_dependencies = []
+runtime_dependencies = []
+target_license_expression = "MPL-2.0"
+distribution = "installed-not-exported"
+review = "public-purpose-required"
+blockers = ["public-purpose-review"]
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["Apache-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = true
+expected_exported_target = false
+export_validation = "manual-pending"
+
+[[targets]]
+name = "SagaSandboxLib"
+source_domains = ["saga-apps"]
+public_dependencies = []
+private_dependencies = ["SagaRuntimeLib", "SagaBackend"]
+runtime_dependencies = []
+target_license_expression = "MPL-2.0"
+distribution = "internal-diagnostics"
+review = "classification-required"
+blockers = ["configured-source-domain-confirmation"]
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["Apache-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = false
+expected_exported_target = false
+export_validation = "manual-pending"
+
+[[targets]]
+name = "SagaEditorLib"
+source_domains = ["saga-editor-current-restricted"]
+public_dependencies = []
+private_dependencies = ["SagaEngine", "SagaRuntimeLib", "SagaServerLib", "SagaShared"]
+runtime_dependencies = []
+target_license_expression = "MPL-2.0"
+distribution = "internal-editor"
+review = "conditional"
+blockers = ["editor-provenance-review"]
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["LicenseRef-Saga-Editor-Restricted"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = false
+expected_exported_target = false
+export_validation = "manual-pending"
+[[targets]]
+name = "SagaEditorLabLib"
+source_domains = ["saga-editor-current-restricted"]
+public_dependencies = []
+private_dependencies = ["SagaEditorLib"]
+runtime_dependencies = []
+target_license_expression = "MPL-2.0"
+distribution = "internal-development"
+review = "conditional"
+blockers = ["editor-provenance-review"]
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["LicenseRef-Saga-Editor-Restricted"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = false
+expected_exported_target = false
+export_validation = "manual-pending"
+
+[[targets]]
+name = "SagaProductLib"
+source_domains = [
+  "saga-engine",
+  "saga-runtime",
+  "saga-server",
+  "saga-shared",
+  "saga-collaboration",
+  "saga-backends",
+  "saga-editor-current-restricted",
+]
+public_dependencies = []
+private_dependencies = ["SagaEngine", "SagaRuntimeLib", "SagaServerLib", "SagaEditorLib"]
+runtime_dependencies = []
+target_license_expression = "MPL-2.0"
+distribution = "disabled-in-reviewed-build"
+review = "blocked-pending-sde-removal"
+blockers = ["sde-removal", "editor-provenance-review", "configured-source-domain-confirmation"]
+graph_required = false
+current_license_mode = "mixed-source-composition"
+current_license_expressions = ["LicenseRef-Saga-Editor-Restricted", "Apache-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = false
+expected_exported_target = false
+export_validation = "manual-pending"
+
+[[targets]]
+name = "SagaEditorLabBridge"
+source_domains = ["saga-editor-current-restricted"]
+public_dependencies = []
+private_dependencies = ["SagaEditorLabLib"]
+runtime_dependencies = []
+target_license_expression = "MPL-2.0"
+distribution = "optional-development"
+review = "conditional"
+blockers = ["editor-provenance-review"]
+graph_required = false
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["LicenseRef-Saga-Editor-Restricted"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = false
+expected_exported_target = false
+export_validation = "manual-pending"
+
+# ---------------------------------------------------------------------------
+# Recursive submodule inventory
+# ---------------------------------------------------------------------------
+
+[[submodules]]
+path = "Vendor/Diligent"
+commit = "650c2f1f4e2b568100af221261a235c570701af3"
+license_mode = "upstream-file-specific"
+review = "recursive-review-required"
+
+[[submodules]]
+path = "Vendor/Diligent/ThirdParty/SPIRV-Cross"
+commit = "fb0c1a307cca4b4a9d891837bf4c44d17fe2d324"
+license_mode = "upstream-file-specific"
+review = "upstream-controlled"
+
+[[submodules]]
+path = "Vendor/Diligent/ThirdParty/SPIRV-Headers"
+commit = "b824a462d4256d720bebb40e78b9eb8f78bbb305"
+license_mode = "upstream-file-specific"
+review = "upstream-controlled"
+
+[[submodules]]
+path = "Vendor/Diligent/ThirdParty/SPIRV-Tools"
+commit = "262bdab48146c937467f826699a40da0fdfc0f1a"
+license_mode = "upstream-file-specific"
+review = "upstream-controlled"
+
+[[submodules]]
+path = "Vendor/Diligent/ThirdParty/Vulkan-Headers"
+commit = "2fa203425eb4af9dfc6b03f97ef72b0b5bcb8350"
+license_mode = "upstream-file-specific"
+review = "upstream-controlled"
+
+[[submodules]]
+path = "Vendor/Diligent/ThirdParty/glslang"
+commit = "b5782e52ee2f7b3e40bb9c80d15b47016e008bc9"
+license_mode = "upstream-file-specific"
+review = "upstream-controlled"
+
+[[submodules]]
+path = "Vendor/Diligent/ThirdParty/googletest"
+commit = "85087857ad10bd407cd6ed2f52f7ea9752db621f"
+license_mode = "upstream-file-specific"
+review = "upstream-controlled"
+
+[[submodules]]
+path = "Vendor/Diligent/ThirdParty/volk"
+commit = "4f3bcee79618a9abe79f4c717c50379197c77512"
+license_mode = "upstream-file-specific"
+review = "upstream-controlled"
+
+[[submodules]]
+path = "Vendor/Diligent/ThirdParty/xxHash"
+commit = "66979328cf3f15cecdc61ea58c9f81e6071f8983"
+license_mode = "upstream-file-specific"
+review = "upstream-controlled"

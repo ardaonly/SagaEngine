@@ -1,0 +1,9 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+
+Files: SHA256SUMS
+Copyright: 2026 Arda Koyuncu
+License: 0BSD
+
+Files: .reuse/dep5
+Copyright: 2026 Arda Koyuncu
+License: 0BSD

@@ -1,200 +1,437 @@
 {
-  "schema": "sagaengine.path_rules.v0",
-  "version": "0.1",
-  "mode": "observation",
-  "description": "Declarative path-to-license inventory. Phase 1 tooling reports drift but does not enforce these rules as a hard policy gate.",
+  "schema": "sagaengine.path_rules.v1",
+  "version": "1.0",
+  "mode": "deprecated-compatibility",
+  "authoritative": false,
+  "source_of_truth": "LICENSE_POLICY.toml",
+  "generated_by": "Tools/Licensing/generate_legacy_path_rules.py",
+  "description": "Compatibility projection only. LICENSE_POLICY.toml is authoritative.",
   "rules": [
     {
-      "pattern": "Engine/**",
-      "license": "Apache-2.0"
+      "pattern": "samples/**/*.cs",
+      "license": "Apache-2.0",
+      "domain_id": "saga-sample-project-files",
+      "priority": 1200
     },
     {
-      "pattern": "Runtime/**",
-      "license": "Apache-2.0"
+      "pattern": "samples/**/*.json",
+      "license": "Apache-2.0",
+      "domain_id": "saga-sample-project-files",
+      "priority": 1200
     },
     {
-      "pattern": "Server/**",
-      "license": "Apache-2.0"
+      "pattern": "samples/**/*.sagaproj",
+      "license": "Apache-2.0",
+      "domain_id": "saga-sample-project-files",
+      "priority": 1200
     },
     {
-      "pattern": "Shared/**",
-      "license": "Apache-2.0"
+      "pattern": "samples/**/ACCEPTANCE.md",
+      "license": "Apache-2.0",
+      "domain_id": "saga-sample-documentation",
+      "priority": 1200
     },
     {
-      "pattern": "Collaboration/**",
-      "license": "Apache-2.0"
+      "pattern": "samples/**/KNOWN_LIMITATIONS.md",
+      "license": "Apache-2.0",
+      "domain_id": "saga-sample-documentation",
+      "priority": 1200
     },
     {
-      "pattern": "Content/**",
-      "license": "Apache-2.0"
-    },
-    {
-      "pattern": "Backends/**",
-      "license": "Apache-2.0"
-    },
-    {
-      "pattern": "Tools/**",
-      "license": "Apache-2.0"
-    },
-    {
-      "pattern": "Tests/**",
-      "license": "Apache-2.0"
-    },
-    {
-      "pattern": "docs/**",
-      "license": "Apache-2.0"
-    },
-    {
-      "pattern": "cmake/**",
-      "license": "Apache-2.0"
-    },
-    {
-      "pattern": "Vendor/Diligent/**",
-      "license": "Apache-2.0"
+      "pattern": "samples/**/README.md",
+      "license": "Apache-2.0",
+      "domain_id": "saga-sample-documentation",
+      "priority": 1200
     },
     {
       "pattern": "Vendor/Diligent.Saga/**",
-      "license": "Apache-2.0"
+      "license": "Apache-2.0",
+      "domain_id": "saga-diligent-integration-metadata",
+      "priority": 1100
     },
     {
-      "pattern": "profiles/**",
-      "license": "Apache-2.0"
+      "pattern": ".reuse/**",
+      "license": "0BSD",
+      "domain_id": "license-foundation-metadata",
+      "priority": 1000
     },
     {
-      "pattern": "core/manifest/**",
-      "license": "Apache-2.0"
-    },
-    {
-      "pattern": "core/export/**",
-      "license": "Apache-2.0"
-    },
-    {
-      "pattern": "Apps/Client/**",
-      "license": "Apache-2.0"
-    },
-    {
-      "pattern": "Apps/Server/**",
-      "license": "Apache-2.0"
-    },
-    {
-      "pattern": "Apps/Sandbox/**",
-      "license": "Apache-2.0"
-    },
-    {
-      "pattern": "Apps/RenderClientSmokeTest/**",
-      "license": "Apache-2.0"
-    },
-    {
-      "pattern": "Apps/Runtime/**",
-      "license": "Apache-2.0"
-    },
-    {
-      "pattern": "Apps/Saga/**",
-      "license": "Apache-2.0"
-    },
-    {
-      "pattern": "Apps/SagaDev/**",
-      "license": "SAGA-EDITOR-READONLY-NOAI"
-    },
-    {
-      "pattern": "Editor/**",
-      "license": "SAGA-EDITOR-READONLY-NOAI"
-    },
-    {
-      "pattern": "Apps/Editor/**",
-      "license": "SAGA-EDITOR-READONLY-NOAI"
-    },
-    {
-      "pattern": "Apps/EditorLab/**",
-      "license": "SAGA-EDITOR-READONLY-NOAI"
-    },
-    {
-      "pattern": "Apps/SagaEditorComposer/**",
-      "license": "SAGA-EDITOR-READONLY-NOAI"
-    },
-    {
-      "pattern": "Schemas/Saga/Editor/**",
-      "license": "SAGA-EDITOR-READONLY-NOAI"
-    },
-    {
-      "pattern": "LICENSES/**",
-      "license": "MIXED"
+      "pattern": "DCO",
+      "license": "FILE-SPECIFIC",
+      "domain_id": "dco-document",
+      "priority": 1000
     },
     {
       "pattern": "LICENSE.md",
-      "license": "MIXED"
+      "license": "CC-BY-4.0",
+      "domain_id": "root-license-index",
+      "priority": 1000
     },
     {
-      "pattern": "LICENSE",
-      "license": "MIXED"
+      "pattern": "LICENSES/**",
+      "license": "FILE-SPECIFIC",
+      "domain_id": "license-texts",
+      "priority": 1000
     },
     {
-      "pattern": "README.md",
-      "license": "Apache-2.0"
+      "pattern": "LICENSE_POLICY.toml",
+      "license": "MPL-2.0",
+      "domain_id": "license-policy",
+      "priority": 1000
     },
     {
-      "pattern": "CodingStandards.md",
-      "license": "Apache-2.0"
+      "pattern": "LICENSE_TEXT_SOURCES.toml",
+      "license": "0BSD",
+      "domain_id": "license-foundation-metadata",
+      "priority": 1000
     },
     {
-      "pattern": "ENGINE.MD",
-      "license": "Apache-2.0"
+      "pattern": "SHA256SUMS",
+      "license": "0BSD",
+      "domain_id": "license-foundation-metadata",
+      "priority": 1000
     },
     {
-      "pattern": "CMakeLists.txt",
-      "license": "Apache-2.0"
+      "pattern": "Vendor/**",
+      "license": "UPSTREAM",
+      "domain_id": "vendor-upstream",
+      "priority": 1000
     },
     {
-      "pattern": "CMakePresets.json",
-      "license": "Apache-2.0"
+      "pattern": "core/manifest/path_rules.json",
+      "license": "0BSD",
+      "domain_id": "legacy-path-rules-compatibility",
+      "priority": 1000
     },
     {
-      "pattern": "conanfile.py",
-      "license": "Apache-2.0"
+      "pattern": "core/manifest/path_rules.json.license",
+      "license": "0BSD",
+      "domain_id": "legacy-path-rules-compatibility",
+      "priority": 1000
     },
     {
-      "pattern": "version.json",
-      "license": "Apache-2.0"
+      "pattern": "docs/licensing/CONTRIBUTING_DCO_SECTION.md",
+      "license": "Apache-2.0 OR CC-BY-4.0",
+      "domain_id": "contributing-dco-fragment",
+      "priority": 1000
     },
     {
-      "pattern": "VERSION",
-      "license": "Apache-2.0"
+      "pattern": "docs/LICENSING.md",
+      "license": "CC-BY-4.0",
+      "domain_id": "licensing-governance-docs",
+      "priority": 900
     },
     {
-      "pattern": "forge.toml",
-      "license": "Apache-2.0"
+      "pattern": "docs/licensing/GENERATED_OUTPUTS.md",
+      "license": "CC-BY-4.0",
+      "domain_id": "licensing-governance-docs",
+      "priority": 900
     },
     {
-      "pattern": "forge.lock",
-      "license": "Apache-2.0"
+      "pattern": "docs/licensing/LICENSE_FOUNDATION.md",
+      "license": "CC-BY-4.0",
+      "domain_id": "licensing-governance-docs",
+      "priority": 900
     },
     {
-      "pattern": "export.sh",
-      "license": "Apache-2.0"
+      "pattern": "docs/licensing/LICENSE_STABILITY.md",
+      "license": "CC-BY-4.0",
+      "domain_id": "licensing-governance-docs",
+      "priority": 900
     },
     {
-      "pattern": "shell.nix",
-      "license": "Apache-2.0"
+      "pattern": "docs/licensing/PLUGIN_LICENSING.md",
+      "license": "CC-BY-4.0",
+      "domain_id": "licensing-governance-docs",
+      "priority": 900
     },
     {
-      "pattern": ".github/**",
-      "license": "Apache-2.0"
+      "pattern": "docs/licensing/README.md",
+      "license": "CC-BY-4.0",
+      "domain_id": "licensing-governance-docs",
+      "priority": 900
     },
     {
-      "pattern": ".gitignore",
-      "license": "Apache-2.0"
+      "pattern": "docs/licensing/THIRD_PARTY_NOTICES.md",
+      "license": "CC-BY-4.0",
+      "domain_id": "licensing-governance-docs",
+      "priority": 900
     },
     {
-      "pattern": ".dockerignore",
-      "license": "Apache-2.0"
+      "pattern": "docs/licensing/TRANSITION_CHECKLIST.md",
+      "license": "CC-BY-4.0",
+      "domain_id": "licensing-governance-docs",
+      "priority": 900
+    },
+    {
+      "pattern": "docs/licensing/decisions/**",
+      "license": "CC-BY-4.0",
+      "domain_id": "licensing-governance-docs",
+      "priority": 900
+    },
+    {
+      "pattern": "Tools/Licensing/**",
+      "license": "MPL-2.0",
+      "domain_id": "saga-licensing-tools",
+      "priority": 500
+    },
+    {
+      "pattern": "Apps/Editor/**",
+      "license": "LicenseRef-Saga-Editor-Restricted",
+      "domain_id": "saga-editor-current-restricted",
+      "priority": 400
+    },
+    {
+      "pattern": "Apps/EditorLab/**",
+      "license": "LicenseRef-Saga-Editor-Restricted",
+      "domain_id": "saga-editor-current-restricted",
+      "priority": 400
+    },
+    {
+      "pattern": "Apps/SagaDev/**",
+      "license": "LicenseRef-Saga-Editor-Restricted",
+      "domain_id": "saga-editor-current-restricted",
+      "priority": 400
+    },
+    {
+      "pattern": "Apps/SagaEditorComposer/**",
+      "license": "LicenseRef-Saga-Editor-Restricted",
+      "domain_id": "saga-editor-current-restricted",
+      "priority": 400
+    },
+    {
+      "pattern": "Editor/**",
+      "license": "LicenseRef-Saga-Editor-Restricted",
+      "domain_id": "saga-editor-current-restricted",
+      "priority": 400
+    },
+    {
+      "pattern": "Schemas/Saga/Editor/**",
+      "license": "LicenseRef-Saga-Editor-Restricted",
+      "domain_id": "saga-editor-current-restricted",
+      "priority": 400
+    },
+    {
+      "pattern": "Tools/Forge/**",
+      "license": "Apache-2.0",
+      "domain_id": "generic-forge",
+      "priority": 400
+    },
+    {
+      "pattern": "Tools/Prism/**",
+      "license": "Apache-2.0",
+      "domain_id": "prism-removal-candidate",
+      "priority": 400
+    },
+    {
+      "pattern": "Tools/SystemDefinitionEngine/**",
+      "license": "Apache-2.0",
+      "domain_id": "sde-removal-candidate",
+      "priority": 400
     },
     {
       "pattern": ".clang-format",
-      "license": "Apache-2.0"
+      "license": "Apache-2.0",
+      "domain_id": "repository-root-build",
+      "priority": 100
     },
     {
       "pattern": ".clang-tidy",
-      "license": "Apache-2.0"
+      "license": "Apache-2.0",
+      "domain_id": "repository-root-build",
+      "priority": 100
+    },
+    {
+      "pattern": ".dockerignore",
+      "license": "Apache-2.0",
+      "domain_id": "repository-root-build",
+      "priority": 100
+    },
+    {
+      "pattern": ".github/**",
+      "license": "Apache-2.0",
+      "domain_id": "repository-automation",
+      "priority": 100
+    },
+    {
+      "pattern": ".gitignore",
+      "license": "Apache-2.0",
+      "domain_id": "repository-root-build",
+      "priority": 100
+    },
+    {
+      "pattern": ".gitmodules",
+      "license": "Apache-2.0",
+      "domain_id": "repository-root-build",
+      "priority": 100
+    },
+    {
+      "pattern": "Apps/**",
+      "license": "Apache-2.0",
+      "domain_id": "saga-apps",
+      "priority": 100
+    },
+    {
+      "pattern": "Backends/**",
+      "license": "Apache-2.0",
+      "domain_id": "saga-backends",
+      "priority": 100
+    },
+    {
+      "pattern": "CMakeLists.txt",
+      "license": "Apache-2.0",
+      "domain_id": "repository-root-build",
+      "priority": 100
+    },
+    {
+      "pattern": "CMakePresets.json",
+      "license": "Apache-2.0",
+      "domain_id": "repository-root-build",
+      "priority": 100
+    },
+    {
+      "pattern": "CONTRIBUTING.md",
+      "license": "Apache-2.0",
+      "domain_id": "saga-documentation",
+      "priority": 100
+    },
+    {
+      "pattern": "Collaboration/**",
+      "license": "Apache-2.0",
+      "domain_id": "saga-collaboration",
+      "priority": 100
+    },
+    {
+      "pattern": "Content/**",
+      "license": "Apache-2.0",
+      "domain_id": "saga-content",
+      "priority": 100
+    },
+    {
+      "pattern": "Engine/**",
+      "license": "Apache-2.0",
+      "domain_id": "saga-engine",
+      "priority": 100
+    },
+    {
+      "pattern": "README.md",
+      "license": "Apache-2.0",
+      "domain_id": "saga-documentation",
+      "priority": 100
+    },
+    {
+      "pattern": "Runtime/**",
+      "license": "Apache-2.0",
+      "domain_id": "saga-runtime",
+      "priority": 100
+    },
+    {
+      "pattern": "Schemas/**",
+      "license": "Apache-2.0",
+      "domain_id": "saga-schemas",
+      "priority": 100
+    },
+    {
+      "pattern": "Server/**",
+      "license": "Apache-2.0",
+      "domain_id": "saga-server",
+      "priority": 100
+    },
+    {
+      "pattern": "Shared/**",
+      "license": "Apache-2.0",
+      "domain_id": "saga-shared",
+      "priority": 100
+    },
+    {
+      "pattern": "Tests/**",
+      "license": "Apache-2.0",
+      "domain_id": "saga-tests",
+      "priority": 100
+    },
+    {
+      "pattern": "Tools/**",
+      "license": "Apache-2.0",
+      "domain_id": "saga-tools",
+      "priority": 100
+    },
+    {
+      "pattern": "VERSION",
+      "license": "Apache-2.0",
+      "domain_id": "repository-root-build",
+      "priority": 100
+    },
+    {
+      "pattern": "cmake/**",
+      "license": "Apache-2.0",
+      "domain_id": "saga-cmake",
+      "priority": 100
+    },
+    {
+      "pattern": "conanfile.py",
+      "license": "Apache-2.0",
+      "domain_id": "repository-root-build",
+      "priority": 100
+    },
+    {
+      "pattern": "core/**",
+      "license": "Apache-2.0",
+      "domain_id": "saga-core-metadata",
+      "priority": 100
+    },
+    {
+      "pattern": "docs/**",
+      "license": "Apache-2.0",
+      "domain_id": "saga-documentation",
+      "priority": 100
+    },
+    {
+      "pattern": "export.sh",
+      "license": "Apache-2.0",
+      "domain_id": "repository-root-build",
+      "priority": 100
+    },
+    {
+      "pattern": "forge.lock",
+      "license": "Apache-2.0",
+      "domain_id": "repository-root-build",
+      "priority": 100
+    },
+    {
+      "pattern": "forge.toml",
+      "license": "Apache-2.0",
+      "domain_id": "repository-root-build",
+      "priority": 100
+    },
+    {
+      "pattern": "profiles/**",
+      "license": "Apache-2.0",
+      "domain_id": "saga-profiles",
+      "priority": 100
+    },
+    {
+      "pattern": "samples/**",
+      "license": "Apache-2.0",
+      "domain_id": "saga-samples",
+      "priority": 100
+    },
+    {
+      "pattern": "scripts/**",
+      "license": "Apache-2.0",
+      "domain_id": "saga-scripts",
+      "priority": 100
+    },
+    {
+      "pattern": "shell.nix",
+      "license": "Apache-2.0",
+      "domain_id": "repository-root-build",
+      "priority": 100
+    },
+    {
+      "pattern": "version.json",
+      "license": "Apache-2.0",
+      "domain_id": "repository-root-build",
+      "priority": 100
     }
   ]
 }

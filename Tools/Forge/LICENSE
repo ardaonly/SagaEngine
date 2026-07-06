@@ -7,7 +7,7 @@ Copyright 2026 Arda Koyuncu
 This standalone Forge export is licensed under the Apache License, Version 2.0.
 The full license text is available in the SagaEngine monorepo at:
 
-    LICENSES/LICENSE
+    LICENSES/Apache-2.0.txt
 
 When exported as a standalone repository or package, include the full
 Apache-2.0 text in this file.
