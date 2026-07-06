@@ -1,0 +1,112 @@
+# SPDX-FileCopyrightText: 2026 Arda Koyuncu
+# SPDX-License-Identifier: 0BSD
+
+schema_version = 2
+retrieved_at = "2026-07-05"
+hash_algorithm = "SHA-256"
+strict_validation = true
+
+[[files]]
+path = "LICENSES/MPL-2.0.txt"
+identifier = "MPL-2.0"
+title = "Mozilla Public License Version 2.0"
+publisher = "Mozilla Foundation"
+document_type = "license-text"
+content_integrity = "verbatim"
+source_kind = "authoritative-url"
+source_url = "https://www.mozilla.org/MPL/2.0/index.txt"
+reference_url = "https://www.mozilla.org/en-US/MPL/"
+retrieval_method = "direct-download"
+content_type = "text/plain"
+bytes = 16726
+sha256 = "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04"
+
+[[files]]
+path = "LICENSES/Apache-2.0.txt"
+identifier = "Apache-2.0"
+title = "Apache License Version 2.0"
+publisher = "Apache Software Foundation"
+document_type = "license-text"
+content_integrity = "verbatim"
+source_kind = "authoritative-url"
+source_url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
+reference_url = "https://www.apache.org/licenses/"
+retrieval_method = "direct-download"
+content_type = "text/plain"
+bytes = 11358
+sha256 = "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+
+[[files]]
+path = "LICENSES/0BSD.txt"
+identifier = "0BSD"
+title = "BSD Zero Clause License"
+publisher = "SPDX License List"
+document_type = "license-text"
+content_integrity = "verbatim"
+source_kind = "immutable-versioned-url"
+source_url = "https://raw.githubusercontent.com/spdx/license-list-data/v3.28.0/text/0BSD.txt"
+reference_url = "https://github.com/spdx/license-list-data/releases/tag/v3.28.0"
+source_revision = "v3.28.0"
+retrieval_method = "direct-download"
+content_type = "text/plain"
+bytes = 643
+sha256 = "e3f18c71e10d673590eb9856c1d79dd3b4b0d65404efb5e8584dbede7edd608b"
+
+[[files]]
+path = "LICENSES/CC-BY-4.0.txt"
+identifier = "CC-BY-4.0"
+title = "Creative Commons Attribution 4.0 International"
+publisher = "Creative Commons"
+document_type = "license-text"
+content_integrity = "verbatim"
+source_kind = "authoritative-url"
+source_url = "https://creativecommons.org/licenses/by/4.0/legalcode.txt"
+reference_url = "https://creativecommons.org/licenses/by/4.0/legalcode.en"
+retrieval_method = "direct-download"
+content_type = "text/plain"
+bytes = 18656
+sha256 = "9e5f1b3c610b9c2da5c313bf81d577a7d1acec686bdb0384edefa6df0f90cd94"
+
+[[files]]
+path = "LICENSES/CC0-1.0.txt"
+identifier = "CC0-1.0"
+title = "CC0 1.0 Universal"
+publisher = "Creative Commons"
+document_type = "license-text"
+content_integrity = "verbatim"
+source_kind = "authoritative-url"
+source_url = "https://creativecommons.org/publicdomain/zero/1.0/legalcode.txt"
+reference_url = "https://creativecommons.org/publicdomain/zero/1.0/legalcode"
+retrieval_method = "direct-download"
+content_type = "text/plain"
+bytes = 7048
+sha256 = "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499"
+
+[[files]]
+path = "LICENSES/LicenseRef-Saga-Editor-Restricted.txt"
+identifier = "LicenseRef-Saga-Editor-Restricted"
+title = "Saga Editor Read-Only No-AI License"
+publisher = "Arda Koyuncu"
+document_type = "custom-license-text"
+content_integrity = "verbatim-from-current-repository-license"
+source_kind = "repository-current-license"
+source_path = "LICENSES/LICENSE-EDITOR"
+retrieval_method = "repository-copy"
+content_type = "text/plain"
+bytes = 1967
+sha256 = "27ee33cb5493838c31b94a7ebd0debf40f928a28f65c01fe578f6a9aaaef6629"
+
+[[files]]
+path = "DCO"
+identifier = "DCO-1.1"
+title = "Developer Certificate of Origin Version 1.1"
+publisher = "The Linux Foundation and its contributors"
+document_type = "contribution-certificate"
+content_integrity = "verbatim"
+source_kind = "authoritative-url"
+source_url = "https://developercertificate.org/"
+reference_url = "https://developercertificate.org/"
+retrieval_method = "verbatim-transcription-from-official-page"
+content_type = "text/plain"
+bytes = 1365
+sha256 = "dac2b0a921aaf4bcaf484dc082fbea072398bedecf5f1d4dcce7e122bbe5d2d5"
