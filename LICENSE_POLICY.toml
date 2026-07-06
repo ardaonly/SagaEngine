@@ -12,6 +12,7 @@ reviewed_branch = "main"
 reviewed_commit = "0571b4b2e63d944cc5fa709ea9d2ec7758bc1bd4"
 reviewed_project_version = "0.0.10"
 review_record_paths = [
+  ".github/workflows/licensing.yml",
   "LICENSE_POLICY.toml",
   "SHA256SUMS",
   "Tools/Licensing/validate_license_policy.py",
