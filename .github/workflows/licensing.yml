@@ -203,3 +203,39 @@ jobs:
             --report \
             --base-ref "$BASE_REF" \
             --cmake-build-dir "$SAGA_BUILD_DIR"
+
+      - name: Build installed SDK smoke-test prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          source "$SAGA_BUILD_DIR/generators/conanbuild.sh"
+
+          cmake --build "$SAGA_BUILD_DIR" \
+            --parallel 2 \
+            --target \
+              SagaCoreLog \
+              SagaDiagnostics \
+              SagaShared \
+              SagaCollaboration \
+              SagaEngine \
+              SagaRuntimeLib \
+              SagaServerLib \
+              SagaBackend \
+              SagaGraphicsCore
+
+      - name: Verify installed SDK and licensing payload
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          source "$SAGA_BUILD_DIR/generators/conanbuild.sh"
+
+          if [[ -f "$SAGA_BUILD_DIR/generators/conanrun.sh" ]]; then
+            source "$SAGA_BUILD_DIR/generators/conanrun.sh"
+          fi
+
+          ctest \
+            --test-dir "$SAGA_BUILD_DIR" \
+            --output-on-failure \
+            -R '^SagaGraphicsInstalledConsumerTest$'

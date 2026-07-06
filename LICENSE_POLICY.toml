@@ -15,6 +15,7 @@ review_record_paths = [
   ".github/workflows/licensing.yml",
   "LICENSE_POLICY.toml",
   "SHA256SUMS",
+  "Tests/Link/SagaGraphicsInstalledConsumerTest.cmake",
   "Tools/Licensing/validate_license_policy.py",
 ]
 decision_record = "LIC-DEC-0001"
