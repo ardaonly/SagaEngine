@@ -17,6 +17,7 @@ review_record_paths = [
   "SHA256SUMS",
   "Tests/Link/SagaGraphicsInstalledConsumerTest.cmake",
   "Tools/Licensing/validate_license_policy.py",
+  "cmake/modules/SagaInstallGraphics.cmake",
 ]
 decision_record = "LIC-DEC-0001"
 effective_from_commit = ""
