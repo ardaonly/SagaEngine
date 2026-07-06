@@ -5,7 +5,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Licensing Transition Checklist
 
-> Status: DRAFT — operational checklist, not a legal grant.
+> Status: ACTIVE — operational checklist and migration record; not a standalone legal grant.
 
 ## A. Review overlay
 
@@ -89,3 +89,17 @@ Completed in the current working tree:
 - foundation verification runs with `--strict-cleanup`.
 
 Do not restore the removed duplicate paths.
+
+## E. Completed Saga-owned source migration batch
+
+The completed Saga-owned source migration batch covers Engine, Runtime, Server, Shared, Collaboration, Backends, applications, Editor, tests, CMake and build logic, scripts, profiles, core metadata, schemas, Saga-specific tools, Diligent integration metadata, repository automation, and repository root build files.
+
+The following boundaries remain unchanged:
+
+- Generic Forge remains Apache-2.0.
+- Vendor and third-party files retain upstream licensing.
+- Historical Apache-2.0 releases remain valid.
+- Documentation, samples, templates, generated outputs, content, and
+  user-created material follow their separate policy domains.
+
+Effective migration commit: pending activation record.

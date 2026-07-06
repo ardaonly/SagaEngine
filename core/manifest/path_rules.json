@@ -45,7 +45,7 @@
     },
     {
       "pattern": "Vendor/Diligent.Saga/**",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "saga-diligent-integration-metadata",
       "priority": 1100
     },
@@ -177,37 +177,37 @@
     },
     {
       "pattern": "Apps/Editor/**",
-      "license": "LicenseRef-Saga-Editor-Restricted",
+      "license": "MPL-2.0",
       "domain_id": "saga-editor-current-restricted",
       "priority": 400
     },
     {
       "pattern": "Apps/EditorLab/**",
-      "license": "LicenseRef-Saga-Editor-Restricted",
+      "license": "MPL-2.0",
       "domain_id": "saga-editor-current-restricted",
       "priority": 400
     },
     {
       "pattern": "Apps/SagaDev/**",
-      "license": "LicenseRef-Saga-Editor-Restricted",
+      "license": "MPL-2.0",
       "domain_id": "saga-editor-current-restricted",
       "priority": 400
     },
     {
       "pattern": "Apps/SagaEditorComposer/**",
-      "license": "LicenseRef-Saga-Editor-Restricted",
+      "license": "MPL-2.0",
       "domain_id": "saga-editor-current-restricted",
       "priority": 400
     },
     {
       "pattern": "Editor/**",
-      "license": "LicenseRef-Saga-Editor-Restricted",
+      "license": "MPL-2.0",
       "domain_id": "saga-editor-current-restricted",
       "priority": 400
     },
     {
       "pattern": "Schemas/Saga/Editor/**",
-      "license": "LicenseRef-Saga-Editor-Restricted",
+      "license": "MPL-2.0",
       "domain_id": "saga-editor-current-restricted",
       "priority": 400
     },
@@ -231,61 +231,61 @@
     },
     {
       "pattern": ".clang-format",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "repository-root-build",
       "priority": 100
     },
     {
       "pattern": ".clang-tidy",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "repository-root-build",
       "priority": 100
     },
     {
       "pattern": ".dockerignore",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "repository-root-build",
       "priority": 100
     },
     {
       "pattern": ".github/**",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "repository-automation",
       "priority": 100
     },
     {
       "pattern": ".gitignore",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "repository-root-build",
       "priority": 100
     },
     {
       "pattern": ".gitmodules",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "repository-root-build",
       "priority": 100
     },
     {
       "pattern": "Apps/**",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "saga-apps",
       "priority": 100
     },
     {
       "pattern": "Backends/**",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "saga-backends",
       "priority": 100
     },
     {
       "pattern": "CMakeLists.txt",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "repository-root-build",
       "priority": 100
     },
     {
       "pattern": "CMakePresets.json",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "repository-root-build",
       "priority": 100
     },
@@ -297,7 +297,7 @@
     },
     {
       "pattern": "Collaboration/**",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "saga-collaboration",
       "priority": 100
     },
@@ -309,7 +309,7 @@
     },
     {
       "pattern": "Engine/**",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "saga-engine",
       "priority": 100
     },
@@ -321,61 +321,61 @@
     },
     {
       "pattern": "Runtime/**",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "saga-runtime",
       "priority": 100
     },
     {
       "pattern": "Schemas/**",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "saga-schemas",
       "priority": 100
     },
     {
       "pattern": "Server/**",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "saga-server",
       "priority": 100
     },
     {
       "pattern": "Shared/**",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "saga-shared",
       "priority": 100
     },
     {
       "pattern": "Tests/**",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "saga-tests",
       "priority": 100
     },
     {
       "pattern": "Tools/**",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "saga-tools",
       "priority": 100
     },
     {
       "pattern": "VERSION",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "repository-root-build",
       "priority": 100
     },
     {
       "pattern": "cmake/**",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "saga-cmake",
       "priority": 100
     },
     {
       "pattern": "conanfile.py",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "repository-root-build",
       "priority": 100
     },
     {
       "pattern": "core/**",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "saga-core-metadata",
       "priority": 100
     },
@@ -387,25 +387,25 @@
     },
     {
       "pattern": "export.sh",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "repository-root-build",
       "priority": 100
     },
     {
       "pattern": "forge.lock",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "repository-root-build",
       "priority": 100
     },
     {
       "pattern": "forge.toml",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "repository-root-build",
       "priority": 100
     },
     {
       "pattern": "profiles/**",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "saga-profiles",
       "priority": 100
     },
@@ -417,19 +417,19 @@
     },
     {
       "pattern": "scripts/**",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "saga-scripts",
       "priority": 100
     },
     {
       "pattern": "shell.nix",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "repository-root-build",
       "priority": 100
     },
     {
       "pattern": "version.json",
-      "license": "Apache-2.0",
+      "license": "MPL-2.0",
       "domain_id": "repository-root-build",
       "priority": 100
     }

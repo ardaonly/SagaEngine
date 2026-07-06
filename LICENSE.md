@@ -11,29 +11,31 @@ This document is an index. It does not replace the license text, file-level
 metadata, verified upstream terms, or the machine-readable repository policy
 that applies to a specific file.
 
-## Current transitional state
+## Current effective licensing state
 
-The repository is undergoing a controlled licensing migration.
+The MPL-centered mixed-license model is effective for the Saga-owned source
+domains recorded as `migration_status = "effective"` in
+`LICENSE_POLICY.toml`.
 
-The intended licensing model is not yet effective for every existing file.
-Current and target licenses must therefore be read separately.
+The effective source scope includes Engine, Runtime, Server, Shared, Collaboration, Backends, applications, Editor, tests, CMake and build logic, scripts, profiles, core metadata, schemas, Saga-specific tools, Diligent integration metadata, repository automation, and repository root build files.
 
-- Most existing Saga-owned engine, runtime, server, build, test and tooling
-  files are currently under Apache-2.0.
-- Existing Editor-owned paths remain under the restricted
-  `LicenseRef-Saga-Editor-Restricted` terms until their dedicated MPL migration
-  becomes effective.
+The following boundaries remain separate:
+
+- Generic Forge remains under Apache-2.0.
 - Vendor and third-party files remain under their actual upstream terms.
-- Historical tags and releases remain governed by the licensing state in their
-  own source snapshots.
+- Documentation, samples, templates, generated outputs, content, and
+  user-created material continue to follow their separately recorded policy
+  domains.
+- Historical tags, commits, and releases remain governed by the licensing
+  state in their own source snapshots.
 
-The transition must not be interpreted as retroactively changing an earlier
-release.
+This migration does not retroactively change an earlier release.
+
+Effective migration commit: pending activation record.
 
 ## Approved target model
 
-Subject to verified rights, provenance and dedicated migration commits, the
-approved target model is:
+The repository's effective and remaining target treatments are:
 
 | Area | Approved target treatment |
 |---|---|
@@ -49,8 +51,9 @@ approved target model is:
 | Eligible Saga-owned sample assets | CC0-1.0 |
 | Vendor and third-party content | Upstream terms |
 
-The Editor's restricted license is transitional. The final target for
-Saga-owned Editor source is MPL-2.0, not a permanent read-only model.
+The previous Editor-specific restricted treatment is historical for the
+Saga-owned Editor source domain recorded as effective. That source is now
+licensed under MPL-2.0.
 
 ## License resolution
 
@@ -129,9 +132,10 @@ inbound license before that target becomes effective.
 
 ## Status
 
-This licensing index is transitional. It establishes no bulk relicensing by
-itself.
+This licensing index is active for policy domains recorded as effective. The
+repository remains transitional only for domains that retain a target-only,
+excluded, user-selected, file-specific, or upstream-controlled treatment.
 
-Detailed public guidance is maintained in `docs/LICENSING.md`. During the
-transition, unresolved content must fail closed rather than being assigned a
-license by assumption.
+Detailed public guidance is maintained in `docs/LICENSING.md`. Unresolved
+content continues to fail closed rather than being assigned a license by
+assumption.

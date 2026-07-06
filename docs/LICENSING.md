@@ -5,12 +5,26 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # SagaEngine Licensing Guide
 
-> Status: DRAFT — transitional and non-effective for bulk relicensing.
+> Status: ACTIVE — effective for the Saga-owned source domains recorded in `LICENSE_POLICY.toml`.
 
-SagaEngine is moving to an MPL-2.0-centered mixed-license model. This document
-explains the approved target, the current transitional state, and the boundary
-between Saga-owned source, user projects, generated output, documentation,
-assets, and third-party material.
+SagaEngine uses an MPL-2.0-centered mixed-license model. This document
+explains the effective Saga-owned source treatment, the remaining
+transitional domains, and the boundary between Saga-owned source, user
+projects, generated output, documentation, assets, and third-party
+material.
+
+## Effective source migration
+
+The effective MPL-2.0 source migration covers Engine, Runtime, Server, Shared, Collaboration, Backends, applications, Editor, tests, CMake and build logic, scripts, profiles, core metadata, schemas, Saga-specific tools, Diligent integration metadata, repository automation, and repository root build files.
+
+Generic Forge remains Apache-2.0. Vendor and third-party material remains under
+its upstream terms. Documentation, samples, templates, generated outputs,
+content, and user-created material continue to follow their separate policy
+domains.
+
+Historical releases retain their historical licensing grants.
+
+Effective migration commit: pending activation record.
 
 ## Approved target
 
@@ -25,15 +39,19 @@ assets, and third-party material.
 - Eligible Saga-owned sample assets: CC0-1.0.
 - Vendor and third-party material: verified upstream terms.
 
-The Editor's read-only license is transitional. The approved final target for
-Saga-owned Editor source is MPL-2.0.
+The previous Editor-specific restricted treatment is historical for the
+Saga-owned Editor source domain recorded as effective. That source is now
+licensed under MPL-2.0.
 
 ## Current versus target
 
-A target recorded in `LICENSE_POLICY.toml` is not an effective legal grant.
-Existing files change license only through an approved migration batch that
-has sufficient provenance and licensing-authority evidence, file metadata,
-documentation updates, validation, and an effective commit record.
+A target recorded in `LICENSE_POLICY.toml` is not an effective legal grant
+until the required provenance, licensing-authority, metadata, validation, and
+effective-commit records exist.
+
+The Saga-owned source domains listed in the effective migration section have
+completed that process. Other target-only domains remain non-effective until
+they receive their own recorded migration.
 
 Historical releases retain the licensing state contained in their own source
 snapshot.
