@@ -24,7 +24,7 @@ domains.
 
 Historical releases retain their historical licensing grants.
 
-Effective migration commit: pending activation record.
+Effective migration commit: `8a39e5fbfc3fa9c687dde14a033d6c795763946b`.
 
 ## Approved target
 
