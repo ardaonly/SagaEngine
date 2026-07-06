@@ -105,10 +105,14 @@ jobs:
             --report \
             --base-ref "${{ steps.base.outputs.base_ref }}"
 
+  # Temporary repository-level Conan/CMake path.
+  # Move this behind Forge only after Forge's provider, profile, lock/frozen,
+  # and CMake integration contracts are implemented and proven.
   configured-graph:
     name: Configured CMake licensing graph
     needs: licensing-policy
-    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
 
     steps:
@@ -132,18 +136,21 @@ jobs:
           echo "Version: $version"
           echo "Build directory: build/RelWithDebInfo-$version"
 
-      - name: Install Conan
+      - name: Install pinned build tools
         shell: bash
         run: |
           set -euo pipefail
 
           python3 -m pip install --user \
             --disable-pip-version-check \
-            "conan==2.30.0"
+            "conan==2.30.0" \
+            "cmake==3.28.1"
 
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
           "$HOME/.local/bin/conan" --version
           "$HOME/.local/bin/conan" remote list
+          "$HOME/.local/bin/cmake" --version
 
       - name: Configure Conan profile
         shell: bash
