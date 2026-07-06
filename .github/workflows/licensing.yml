@@ -139,10 +139,11 @@ jobs:
 
           python3 -m pip install --user \
             --disable-pip-version-check \
-            "conan==2.0.17"
+            "conan==2.30.0"
 
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           "$HOME/.local/bin/conan" --version
+          "$HOME/.local/bin/conan" remote list
 
       - name: Configure Conan profile
         shell: bash
