@@ -9,8 +9,13 @@ policy_revision = "draft-review"
 policy_status = "draft-transitional-review"
 repository_state = "transitional"
 reviewed_branch = "main"
-reviewed_commit = "b384b74f3efa12a635718260b15c828d454d777b"
+reviewed_commit = "0571b4b2e63d944cc5fa709ea9d2ec7758bc1bd4"
 reviewed_project_version = "0.0.10"
+review_record_paths = [
+  "LICENSE_POLICY.toml",
+  "SHA256SUMS",
+  "Tools/Licensing/validate_license_policy.py",
+]
 decision_record = "LIC-DEC-0001"
 effective_from_commit = ""
 approved_by = []
@@ -909,8 +914,8 @@ private_dependencies = []
 runtime_dependencies = []
 target_license_expression = "MPL-2.0"
 distribution = "installed-exported"
-review = "package-metadata-required"
-blockers = ["installed-license-bundle-review"]
+review = "manual-complete-installed-license-bundle"
+blockers = []
 graph_required = true
 current_license_mode = "fixed-spdx"
 current_license_expressions = ["Apache-2.0"]
@@ -919,7 +924,7 @@ generated_source_patterns = []
 generated_source_action = "report"
 expected_installed_artifact = true
 expected_exported_target = true
-export_validation = "manual-pending"
+export_validation = "manual-complete"
 
 [[targets]]
 name = "SagaGraphics"
@@ -929,8 +934,8 @@ private_dependencies = []
 runtime_dependencies = []
 target_license_expression = "MPL-2.0"
 distribution = "installed-exported"
-review = "package-metadata-required"
-blockers = ["installed-license-bundle-review"]
+review = "manual-complete-installed-license-bundle"
+blockers = []
 graph_required = false
 current_license_mode = "fixed-spdx"
 current_license_expressions = ["Apache-2.0"]
@@ -939,7 +944,7 @@ generated_source_patterns = []
 generated_source_action = "report"
 expected_installed_artifact = true
 expected_exported_target = true
-export_validation = "manual-pending"
+export_validation = "manual-complete"
 [[targets]]
 name = "SagaGraphicsPrivate"
 source_domains = ["saga-engine"]

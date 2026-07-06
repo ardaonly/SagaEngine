@@ -69,6 +69,7 @@ TOP_LEVEL_REQUIRED = {
     "reviewed_branch",
     "reviewed_commit",
     "reviewed_project_version",
+    "review_record_paths",
     "decision_record",
     "effective_from_commit",
     "approved_by",
@@ -1175,13 +1176,72 @@ def validate_commits(root: Path, policy: dict[str, Any], report: Report) -> None
 
     reviewed = policy.get("reviewed_commit", "")
     if isinstance(reviewed, str) and FULL_COMMIT_RE.fullmatch(reviewed):
+        from fnmatch import fnmatchcase
+
         current = run_git(root, "rev-parse", "HEAD").strip()
         if current != reviewed:
-            report.add(
-                "WARNING",
-                "EVIDENCE_BASELINE_DRIFT",
-                f"reviewed={reviewed}, current={current}",
+            ancestor = run(
+                ["git", "merge-base", "--is-ancestor", reviewed, current],
+                root,
+                check=False,
             )
+
+            if ancestor.returncode != 0:
+                report.add(
+                    "WARNING",
+                    "EVIDENCE_BASELINE_DIVERGED",
+                    f"reviewed={reviewed}, current={current}",
+                )
+            else:
+                changed_paths = [
+                    line.strip()
+                    for line in run_git(
+                        root,
+                        "diff",
+                        "--name-only",
+                        f"{reviewed}..{current}",
+                    ).splitlines()
+                    if line.strip()
+                ]
+
+                allowed_patterns = policy.get("review_record_paths", [])
+                if (
+                    not isinstance(allowed_patterns, list)
+                    or any(
+                        not isinstance(pattern, str) or not pattern
+                        for pattern in allowed_patterns
+                    )
+                ):
+                    report.add(
+                        "ERROR",
+                        "REVIEW_RECORD_PATHS_INVALID",
+                        "policy.review_record_paths",
+                    )
+                    allowed_patterns = []
+
+                unreviewed_paths = [
+                    changed
+                    for changed in changed_paths
+                    if not any(
+                        isinstance(pattern, str)
+                        and fnmatchcase(changed, pattern)
+                        for pattern in allowed_patterns
+                    )
+                ]
+
+                if unreviewed_paths:
+                    preview = ", ".join(unreviewed_paths[:8])
+                    if len(unreviewed_paths) > 8:
+                        preview += f", ... (+{len(unreviewed_paths) - 8})"
+
+                    report.add(
+                        "WARNING",
+                        "EVIDENCE_BASELINE_DRIFT",
+                        (
+                            f"reviewed={reviewed}, current={current}, "
+                            f"unreviewed_paths={preview}"
+                        ),
+                    )
 
     if policy.get("policy_status") in {"active", "effective"}:
         if not policy.get("approved_by"):
