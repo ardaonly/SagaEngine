@@ -1,0 +1,60 @@
+name: Licensing Policy
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  licensing-policy:
+    name: License foundation and policy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select comparison base
+        id: base
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+
+          zero_sha="0000000000000000000000000000000000000000"
+
+          if [[ "$EVENT_NAME" == "pull_request" && -n "${PR_BASE_SHA:-}" ]]; then
+            base_ref="$PR_BASE_SHA"
+          elif [[ "$EVENT_NAME" == "push" \
+               && -n "${PUSH_BEFORE_SHA:-}" \
+               && "$PUSH_BEFORE_SHA" != "$zero_sha" ]]; then
+            base_ref="$PUSH_BEFORE_SHA"
+          else
+            base_ref="$(git rev-parse HEAD^ 2>/dev/null || git rev-parse HEAD)"
+          fi
+
+          git cat-file -e "${base_ref}^{commit}"
+          echo "base_ref=$base_ref" >> "$GITHUB_OUTPUT"
+          echo "Comparison base: $base_ref"
+
+      - name: Check licensing tool syntax
+        run: python3 -m py_compile Tools/Licensing/*.py
+
+      - name: Verify canonical license foundation
+        run: |
+          python3 Tools/Licensing/verify_license_texts.py \
+            --strict-cleanup
+
+      - name: Validate repository license policy
+        run: |
+          python3 Tools/Licensing/validate_license_policy.py \
+            --report \
+            --base-ref "${{ steps.base.outputs.base_ref }}"
