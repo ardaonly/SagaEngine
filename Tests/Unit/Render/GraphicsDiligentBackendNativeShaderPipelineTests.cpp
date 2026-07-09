@@ -77,8 +77,6 @@ TEST(GraphicsDiligentBackendAdapter, NativePipelineRejectsMissingVertexShader)
     FakeRenderState state;
     auto backend = MakeConcreteBackend(state);
     EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
-    backend->BindNativeDeviceServicesForTesting(MakeFakeDeviceServices(), true);
-
     Graphics::PipelineDesc pipeline{};
     pipeline.fragmentShader.index = 1u;
     pipeline.fragmentShader.generation = 1u;

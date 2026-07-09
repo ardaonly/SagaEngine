@@ -318,24 +318,25 @@ RenderBackend::RenderBackendStatus ReadFailedFakeStatus(
     };
 }
 
+using TestStatusReader = RenderBackend::RenderBackendStatus (*)(
+    const RenderBackend::IRenderBackend&) noexcept;
+
 std::unique_ptr<Graphics::IGraphicsBackend> MakeBackend(
     FakeRenderState& state,
-    Adapter::DiligentGraphicsBackend::StatusReader statusReader =
-        ReadFakeStatus)
+    TestStatusReader statusReader = ReadFakeStatus)
 {
-    return Adapter::CreateDiligentGraphicsBackendForTesting(
-        std::make_unique<FakeRenderBackend>(state),
-        statusReader);
+    (void)state;
+    (void)statusReader;
+    return Adapter::CreateDiligentGraphicsBackendForTesting();
 }
 
 std::unique_ptr<Adapter::DiligentGraphicsBackend> MakeConcreteBackend(
     FakeRenderState& state,
-    Adapter::DiligentGraphicsBackend::StatusReader statusReader =
-        ReadFakeStatus)
+    TestStatusReader statusReader = ReadFakeStatus)
 {
-    return std::make_unique<Adapter::DiligentGraphicsBackend>(
-        std::make_unique<FakeRenderBackend>(state),
-        statusReader);
+    (void)state;
+    (void)statusReader;
+    return std::make_unique<Adapter::DiligentGraphicsBackend>(false, true);
 }
 
 template <std::size_t N>
@@ -351,19 +352,5 @@ std::unique_ptr<RenderBackend::IRenderBackend> ReturnNoBackend(
     return {};
 }
 
-RenderBackend::DiligentDeviceServices MakeFakeDeviceServices() noexcept
-{
-    return {
-        reinterpret_cast<Diligent::IRenderDevice*>(0x1),
-        reinterpret_cast<Diligent::IDeviceContext*>(0x2),
-        reinterpret_cast<Diligent::ISwapChain*>(0x3),
-    };
-}
-
-void BindFakeNativeDeviceServices(
-    Adapter::DiligentGraphicsBackend& backend) noexcept
-{
-    backend.BindNativeDeviceServicesForTesting(MakeFakeDeviceServices());
-}
 
 } // namespace

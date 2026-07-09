@@ -36,9 +36,10 @@ namespace SagaEngine::Graphics::Backends::Diligent
            desc.usage == TextureUsageFlags::Sampled;
 }
 
-[[nodiscard]] constexpr bool IsValidBufferDesc(const BufferDesc& desc) noexcept
+[[nodiscard]] inline bool IsValidBufferDesc(const BufferDesc& desc) noexcept
 {
-    return desc.sizeBytes != 0u &&
+    return ::SagaEngine::Render::Backend::DiligentNativeResourceOwner::IsBufferSizeSupported(
+               desc.sizeBytes) &&
            ::SagaEngine::Render::Backend::DiligentNativeResourceOwner::IsBufferUsageSupported(
                desc.usage);
 }
@@ -66,6 +67,16 @@ namespace SagaEngine::Graphics::Backends::Diligent
 [[nodiscard]] constexpr bool IsValidPipelineDesc(
     const PipelineDesc& desc) noexcept
 {
+    if (!desc.fragmentShader.IsValid() && desc.vertexShader.IsValid())
+    {
+        return false;
+    }
+
+    if (desc.fragmentShader.IsValid() && !desc.vertexShader.IsValid())
+    {
+        return false;
+    }
+
     return desc.colorTargetCount != 0u && desc.colorTargetCount <= 8u &&
            IsValidTopology(desc.topology) && IsKnownFormat(desc.colorFormat) &&
            IsKnownFormat(desc.depthFormat);

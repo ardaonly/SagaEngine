@@ -5,18 +5,33 @@
 
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentBindingRecords.h"
 #include "SagaEngine/Graphics/Handles/GraphicsHandle.h"
+#include "SagaEngine/Render/Backend/Diligent/DiligentNativeResourceToken.h"
 
 #include <cstdint>
 
+namespace Diligent
+{
+struct ITextureView;
+struct ISampler;
+} // namespace Diligent
+
+namespace SagaEngine::Render::Backend
+{
+class DiligentNativeResourceOwner;
+} // namespace SagaEngine::Render::Backend
+
 namespace SagaEngine::Graphics::Backends::Diligent
 {
-
-class DiligentGraphicsBackend;
 
 struct DiligentFallbackResourceIdentity
 {
     GraphicsResourceKind kind = GraphicsResourceKind::Invalid;
     GraphicsHandle handle{};
+    ::SagaEngine::Render::Backend::DiligentNativeResourceToken nativeToken{};
+    // Private TODO: callers should eventually request runtime-owned
+    // fallback binding operations instead of carrying raw native payloads.
+    ::Diligent::ITextureView* textureView = nullptr;
+    ::Diligent::ISampler* sampler = nullptr;
     std::uint64_t creationSerial = 0;
     std::uint64_t fallbackGeneration = 0;
     bool valid = false;
@@ -26,17 +41,17 @@ class DiligentFallbackResources final
 {
 public:
     [[nodiscard]] bool Initialize(
-        DiligentGraphicsBackend& backend,
+        ::SagaEngine::Render::Backend::DiligentNativeResourceOwner& owner,
         DiligentNativeBindingDiagnostics& diagnostics) noexcept;
     void Release(
-        DiligentGraphicsBackend& backend,
+        ::SagaEngine::Render::Backend::DiligentNativeResourceOwner& owner,
         DiligentNativeBindingDiagnostics& diagnostics) noexcept;
 
     [[nodiscard]] DiligentFallbackResourceIdentity ResolveWhiteTexture(
-        DiligentGraphicsBackend& backend,
+        ::SagaEngine::Render::Backend::DiligentNativeResourceOwner& owner,
         DiligentNativeBindingDiagnostics& diagnostics) noexcept;
     [[nodiscard]] DiligentFallbackResourceIdentity ResolveMaterialSampler(
-        DiligentGraphicsBackend& backend,
+        ::SagaEngine::Render::Backend::DiligentNativeResourceOwner& owner,
         DiligentNativeBindingDiagnostics& diagnostics) noexcept;
 
     [[nodiscard]] TextureHandle WhiteTexture() const noexcept;
@@ -57,6 +72,10 @@ private:
 
     TextureHandle m_WhiteTexture{};
     SamplerHandle m_MaterialSampler{};
+    ::SagaEngine::Render::Backend::DiligentNativeTextureToken
+        m_WhiteTextureToken{};
+    ::SagaEngine::Render::Backend::DiligentNativeSamplerToken
+        m_MaterialSamplerToken{};
     std::uint64_t m_WhiteTextureCreationSerial = 0;
     std::uint64_t m_MaterialSamplerCreationSerial = 0;
     std::uint64_t m_Generation = 0;

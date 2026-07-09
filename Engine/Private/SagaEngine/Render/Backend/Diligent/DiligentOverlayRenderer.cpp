@@ -3,8 +3,10 @@
 
 #include "SagaEngine/Render/Backend/Diligent/DiligentOverlayRenderer.h"
 
+#include "SagaEngine/Core/Log/LogCategories.h"
 #include "SagaEngine/Graphics/Backend/GraphicsBackend.h"
 #include "SagaEngine/Graphics/Descs/ResourceDescs.h"
+#include "SagaEngine/Render/Backend/Diligent/DiligentDeviceServices.h"
 #include "SagaEngine/Render/Backend/Diligent/DiligentNativeResourceOwner.h"
 
 #include "DiligentOverlayShaders.inl"
@@ -22,9 +24,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
-#include <cstdio>
 #include <cstring>
 #include <limits>
+#include <new>
 #include <utility>
 #include <type_traits>
 
@@ -43,12 +45,6 @@ static_assert(offsetof(RenderOverlayVertex, colorRgba8) == 16u);
 constexpr std::size_t kMaxOverlayVertices = 1'000'000u;
 constexpr std::size_t kMaxOverlayIndices = 3'000'000u;
 constexpr std::uint32_t kDefaultOverlayFrameSlots = 3u;
-
-void LogOverlayError(const char* msg)
-{
-    std::fprintf(stderr, "[DiligentOverlay][error] %s\n", msg);
-    std::fflush(stderr);
-}
 
 [[nodiscard]] std::uint32_t ByteSizeOrZero(
     std::size_t count,
@@ -101,7 +97,7 @@ bool ValidateOverlayFrameForTests(const RenderOverlayFrame& frame) noexcept
         framebufferWidth > kMaxFramebufferDimension ||
         framebufferHeight > kMaxFramebufferDimension)
     {
-        LogOverlayError("overlay framebuffer dimensions are invalid");
+        LOG_CAT_ERROR(Render, "overlay framebuffer dimensions are invalid");
         return false;
     }
 
@@ -115,7 +111,7 @@ bool ValidateOverlayFrameForTests(const RenderOverlayFrame& frame) noexcept
             totalVertexCount > kMaxOverlayVertices - list.vertices.size() ||
             totalIndexCount > kMaxOverlayIndices - list.indices.size())
         {
-            LogOverlayError("overlay frame exceeds vertex/index budget");
+            LOG_CAT_ERROR(Render, "overlay frame exceeds vertex/index budget");
             return false;
         }
 
@@ -127,7 +123,7 @@ bool ValidateOverlayFrameForTests(const RenderOverlayFrame& frame) noexcept
             list.indices.size() >
                 static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max()))
         {
-            LogOverlayError("overlay draw list exceeds 32-bit offsets");
+            LOG_CAT_ERROR(Render, "overlay draw list exceeds 32-bit offsets");
             return false;
         }
 
@@ -144,18 +140,18 @@ bool ValidateOverlayFrameForTests(const RenderOverlayFrame& frame) noexcept
             if (cmd.indexOffset > indexCount ||
                 cmd.elementCount > indexCount - cmd.indexOffset)
             {
-                LogOverlayError("overlay command index range is out of bounds");
+                LOG_CAT_ERROR(Render, "overlay command index range is out of bounds");
                 return false;
             }
             if (cmd.vertexOffset > vertexCount)
             {
-                LogOverlayError("overlay command vertex offset is out of bounds");
+                LOG_CAT_ERROR(Render, "overlay command vertex offset is out of bounds");
                 return false;
             }
             if (submittedIndexCount >
                 kMaxOverlayIndices - static_cast<std::size_t>(cmd.elementCount))
             {
-                LogOverlayError("overlay frame exceeds submitted index budget");
+                LOG_CAT_ERROR(Render, "overlay frame exceeds submitted index budget");
                 return false;
             }
             submittedIndexCount += static_cast<std::size_t>(cmd.elementCount);
@@ -169,7 +165,7 @@ bool ValidateOverlayFrameForTests(const RenderOverlayFrame& frame) noexcept
             }
             if (maxIndex >= vertexCount - cmd.vertexOffset)
             {
-                LogOverlayError("overlay command references an out-of-range vertex");
+                LOG_CAT_ERROR(Render, "overlay command references an out-of-range vertex");
                 return false;
             }
         }
@@ -350,36 +346,40 @@ bool DiligentOverlayRenderer::CheckRenderThread(
         return true;
     }
 
-    std::fprintf(
-        stderr,
-        "[DiligentOverlay][error] %s called from non-render thread\n",
+    LOG_CAT_ERROR(
+        Render,
+        "%s called from non-render thread",
         operation ? operation : "overlay operation");
-    std::fflush(stderr);
     return false;
 }
 
 bool DiligentOverlayRenderer::Initialize(
-    DiligentDeviceServices services,
-    DiligentNativeResourceOwner& nativeResources,
+    DiligentRuntime::DiligentGraphicsRuntime& runtime,
     std::uint32_t frameSlotCount)
 {
     if (m_ready)
     {
         return CheckRenderThread("Initialize");
     }
+    auto services = runtime.Services();
     if (!services.IsBound())
     {
         return false;
     }
 
     m_ownerThread = std::this_thread::get_id();
+    auto rollback = [this]() noexcept
+    {
+        Shutdown();
+        return false;
+    };
 
     using namespace Diligent;
 
-    m_services = services;
-    m_nativeResources = &nativeResources;
-    auto& dev = *m_services.Device();
-    auto& sc = *m_services.SwapChain();
+    m_runtime = &runtime;
+    m_nativeResources = &runtime.NativeResources();
+    auto& dev = *services.Device();
+    auto& sc = *services.SwapChain();
 
     RefCntAutoPtr<IShader> vsShader;
     RefCntAutoPtr<IShader> psShader;
@@ -402,8 +402,8 @@ bool DiligentOverlayRenderer::Initialize(
 
         if (!vsShader || !psShader)
         {
-            LogOverlayError("failed to compile shaders");
-            return false;
+            LOG_CAT_ERROR(Render, "failed to compile shaders");
+            return rollback();
         }
     }
 
@@ -471,8 +471,8 @@ bool DiligentOverlayRenderer::Initialize(
         dev.CreateGraphicsPipelineState(psoCI, &m_pso);
         if (!m_pso)
         {
-            LogOverlayError("failed to create PSO");
-            return false;
+            LOG_CAT_ERROR(Render, "failed to create PSO");
+            return rollback();
         }
     }
 
@@ -486,8 +486,8 @@ bool DiligentOverlayRenderer::Initialize(
         dev.CreateBuffer(cbDesc, nullptr, &m_cb);
         if (!m_cb)
         {
-            LogOverlayError("failed to create projection constant buffer");
-            return false;
+            LOG_CAT_ERROR(Render, "failed to create projection constant buffer");
+            return rollback();
         }
 
         if (auto* var = m_pso->GetStaticVariableByName(
@@ -497,26 +497,28 @@ bool DiligentOverlayRenderer::Initialize(
         }
     }
 
-    m_pso->CreateShaderResourceBinding(&m_srb, true);
-    if (!m_srb)
+    m_binding = runtime.CreateOverlayBinding(*m_pso);
+    if (!m_binding.IsValid())
     {
-        LogOverlayError("failed to create shader resource binding");
-        return false;
-    }
-    m_textureVariable = m_srb->GetVariableByName(
-        SHADER_TYPE_PIXEL, "g_Texture");
-    if (!m_textureVariable)
-    {
-        LogOverlayError("failed to bind overlay texture variable");
-        return false;
+        LOG_CAT_ERROR(Render, "failed to create shader resource binding");
+        return rollback();
     }
 
     if (frameSlotCount == 0u)
     {
         frameSlotCount = kDefaultOverlayFrameSlots;
     }
-    m_frameBuffers.assign(frameSlotCount, {});
+    try
+    {
+        m_frameBuffers.assign(frameSlotCount, {});
+    }
+    catch (const std::bad_alloc&)
+    {
+        LOG_CAT_ERROR(Render, "failed to allocate overlay frame buffers");
+        return rollback();
+    }
 
+    m_runtime = &runtime;
     m_ready = true;
     return true;
 }
@@ -535,14 +537,17 @@ void DiligentOverlayRenderer::Shutdown()
             m_nativeResources->DestroyTexture(nativeTexture);
         }
     }
-    m_srb.Release();
-    m_textureVariable = nullptr;
+    if (m_runtime)
+    {
+        m_runtime->DestroyMaterialBinding(m_binding);
+    }
+    m_binding = {};
+    m_runtime = nullptr;
     m_pso.Release();
     m_cb.Release();
     m_frameBuffers.clear();
     m_ready = false;
     m_nativeResources = nullptr;
-    m_services = {};
     m_ownerThread = {};
 }
 
@@ -638,11 +643,19 @@ void DiligentOverlayRenderer::Render(
     {
         return;
     }
-    if (!m_ready || !m_services.IsBound() || m_frameBuffers.empty())
+    const auto services = m_runtime ? m_runtime->Services()
+                                    : DiligentDeviceServices{};
+    if (!m_ready || !services.IsBound() || m_frameBuffers.empty())
     {
         return;
     }
     if (!ValidateOverlayFrameForTests(frame))
+    {
+        return;
+    }
+    auto binding = m_runtime ? m_runtime->ResolveOverlayBinding(m_binding)
+                             : DiligentRuntime::NativeOverlayBindingView{};
+    if (!binding.IsValid())
     {
         return;
     }
@@ -664,8 +677,8 @@ void DiligentOverlayRenderer::Render(
 
     using namespace Diligent;
 
-    auto* ctx = m_services.ImmediateContext();
-    auto* dev = m_services.Device();
+    auto* ctx = services.ImmediateContext();
+    auto* dev = services.Device();
 
     const auto vbNeeded = ByteSizeOrZero(
         totalVertexCount, sizeof(RenderOverlayVertex));
@@ -820,7 +833,7 @@ void DiligentOverlayRenderer::Render(
             if (!std::isfinite(clipLeft) || !std::isfinite(clipTop) ||
                 !std::isfinite(clipRight) || !std::isfinite(clipBottom))
             {
-                LogOverlayError("overlay command clip rect is not finite");
+                LOG_CAT_ERROR(Render, "overlay command clip rect is not finite");
                 continue;
             }
 
@@ -837,9 +850,9 @@ void DiligentOverlayRenderer::Render(
 
             ctx->SetScissorRects(1, &scissor, 0, 0);
 
-            m_textureVariable->Set(texture.srv);
+            binding.textureVariable->Set(texture.srv);
             ctx->CommitShaderResources(
-                m_srb, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+                binding.srb, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
             DrawIndexedAttribs drawAttribs;
             drawAttribs.NumIndices = cmd.elementCount;
@@ -859,7 +872,7 @@ void DiligentOverlayRenderer::Render(
                 globalVertexOffset,
                 static_cast<std::uint32_t>(list.vertices.size())))
         {
-            LogOverlayError("overlay global offsets overflowed");
+            LOG_CAT_ERROR(Render, "overlay global offsets overflowed");
             return;
         }
         globalIndexOffset += static_cast<std::uint32_t>(list.indices.size());

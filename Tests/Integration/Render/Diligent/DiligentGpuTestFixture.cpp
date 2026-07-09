@@ -200,9 +200,10 @@ RenderFrameDiagnostics TestDiligentRenderBackend::LastFrameDiagnostics() const n
     return m_backend.LastFrameDiagnostics();
 }
 
-DiligentDeviceServices TestDiligentRenderBackend::GetDiligentDeviceServices() const noexcept
+SagaEngine::Graphics::Backends::Diligent::Runtime::DiligentGraphicsRuntime&
+TestDiligentRenderBackend::RuntimeForIntegrationTesting() noexcept
 {
-    return m_backend.GetDiligentDeviceServices();
+    return m_backend.RuntimeForIntegrationTesting();
 }
 
 RenderCaptureResult TestDiligentRenderBackend::CaptureCurrentColorFrame(

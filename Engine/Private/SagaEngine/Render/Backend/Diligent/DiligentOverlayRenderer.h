@@ -4,7 +4,7 @@
 #pragma once
 
 #include "SagaEngine/Render/Backend/Diligent/DiligentOverlayTextureRegistry.h"
-#include "SagaEngine/Render/Backend/Diligent/DiligentDeviceServices.h"
+#include "SagaEngine/Graphics/Backends/Diligent/Runtime/DiligentGraphicsRuntime.h"
 
 #include "RefCntAutoPtr.hpp"
 
@@ -16,14 +16,14 @@ namespace Diligent
 {
 struct IBuffer;
 struct IPipelineState;
-struct IShaderResourceBinding;
-struct IShaderResourceVariable;
 struct ITexture;
 struct ITextureView;
 } // namespace Diligent
 
 namespace SagaEngine::Render::Backend
 {
+
+namespace DiligentRuntime = ::SagaEngine::Graphics::Backends::Diligent::Runtime;
 
 class DiligentNativeResourceOwner;
 
@@ -37,8 +37,7 @@ public:
     DiligentOverlayRenderer& operator=(const DiligentOverlayRenderer&) = delete;
 
     [[nodiscard]] bool Initialize(
-        DiligentDeviceServices services,
-        DiligentNativeResourceOwner& nativeResources,
+        DiligentRuntime::DiligentGraphicsRuntime& runtime,
         std::uint32_t frameSlotCount);
     void Shutdown();
 
@@ -83,11 +82,10 @@ private:
         RenderOverlayTextureHandle texture) noexcept;
     [[nodiscard]] bool CheckRenderThread(const char* operation) const noexcept;
 
-    DiligentDeviceServices m_services{};
     DiligentNativeResourceOwner* m_nativeResources = nullptr;
+    DiligentRuntime::DiligentGraphicsRuntime* m_runtime = nullptr;
     Diligent::RefCntAutoPtr<Diligent::IPipelineState> m_pso;
-    Diligent::RefCntAutoPtr<Diligent::IShaderResourceBinding> m_srb;
-    Diligent::IShaderResourceVariable* m_textureVariable = nullptr;
+    DiligentRuntime::NativeShaderBindingHandle m_binding;
     Diligent::RefCntAutoPtr<Diligent::IBuffer> m_cb;
     std::vector<FrameBuffers> m_frameBuffers;
     DiligentOverlayTextureRegistry m_textureRegistry;

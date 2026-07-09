@@ -8,39 +8,27 @@ namespace SagaEngine::Render::Backend
 
 void DiligentRenderBackend::BeginFrame()
 {
-    if (!m_Impl->initialized || !m_Impl->context || !m_Impl->swapChain)
+    if (!m_Impl->runtime->IsInitialized() || !m_Impl->runtime->Context() ||
+        !m_Impl->runtime->SwapChain())
         return;
-    if (m_Impl->frameSlots.ActiveFrameOpen())
+    if (m_Impl->runtime->FrameSlots().ActiveFrameOpen())
     {
-        LogErr("BeginFrame ignored: frame already active");
+        LOG_CAT_ERROR(Render, "BeginFrame ignored: frame already active");
         return;
     }
 
     m_Impl->currentFrameDiagnostics = {};
     m_Impl->shadowSubmitAcceptedThisFrame = false;
-    const auto completed = m_Impl->gpuTimeline.PollCompletion();
-    m_Impl->nativeResources.RetireCompleted(completed);
-    const auto slotBegin =
-        m_Impl->frameSlots.BeginFrame(m_Impl->frameIndex, completed);
-    if (!slotBegin.valid)
+    auto frame = m_Impl->runtime->BeginFrame(0u);
+    if (!frame.token.IsValid())
     {
-        LogErr("BeginFrame rejected by frame slot tracker");
+        LOG_CAT_ERROR(Render, "BeginFrame rejected by frame slot tracker");
         return;
     }
-    if (slotBegin.waitRequired)
-    {
-        m_Impl->gpuTimeline.WaitForSerial(slotBegin.waitSerial);
-        m_Impl->nativeResources.RetireCompleted(
-            m_Impl->gpuTimeline.LastCompletedSerial());
-        m_Impl->frameSlots.MarkWaitCompleted(
-            m_Impl->gpuTimeline.LastCompletedSerial());
-    }
-    const auto activeFrameSerial = m_Impl->gpuTimeline.BeginFrameSubmission();
-    m_Impl->frameSlots.BeginSubmission(activeFrameSerial);
     m_Impl->currentFrameDiagnostics.gpuSubmissionSerial =
-        activeFrameSerial;
+        frame.token.submissionSerial;
     {
-        const auto timeline = m_Impl->gpuTimeline.Diagnostics();
+        const auto timeline = m_Impl->runtime->Timeline().Diagnostics();
         m_Impl->currentFrameDiagnostics.gpuCompletedSerial =
             timeline.lastCompletedSerial;
         m_Impl->currentFrameDiagnostics.gpuTargetedWaitCount =
@@ -53,34 +41,35 @@ void DiligentRenderBackend::BeginFrame()
             timeline.signalCount;
     }
 
-    LogDbg("BeginFrame: enter");
+    LOG_CAT_DEBUG(Render, "BeginFrame: enter");
 
-    auto* ctx = m_Impl->context.RawPtr();
-    auto* sc  = m_Impl->swapChain.RawPtr();
+    auto* ctx = m_Impl->runtime->Context();
+    auto* sc  = m_Impl->runtime->SwapChain();
 
     auto* rtv = sc->GetCurrentBackBufferRTV();
     auto* dsv = sc->GetDepthBufferDSV();
 
-    if (g_verboseGPU)
+    if (m_Impl->gpuValidation)
     {
         char buf[128];
         std::snprintf(buf, sizeof(buf), "BeginFrame: rtv=%p dsv=%p frame=%llu",
                       static_cast<void*>(rtv), static_cast<void*>(dsv),
-                      static_cast<unsigned long long>(m_Impl->frameIndex));
-        LogDbg(buf);
+                      static_cast<unsigned long long>(
+                          m_Impl->runtime->Status().frameIndex));
+        LOG_CAT_DEBUG(Render, buf);
     }
 
     ctx->SetRenderTargets(
         rtv ? 1u : 0u, rtv ? &rtv : nullptr, dsv,
         Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
-    LogDbg("BeginFrame: SetRenderTargets OK");
+    LOG_CAT_DEBUG(Render, "BeginFrame: SetRenderTargets OK");
 
     if (rtv)
         ctx->ClearRenderTarget(rtv, m_Impl->config.clearColor,
                                Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
-    LogDbg("BeginFrame: ClearRenderTarget OK");
+    LOG_CAT_DEBUG(Render, "BeginFrame: ClearRenderTarget OK");
 
     if (dsv && !m_Impl->config.skipDepthClear)
         ctx->ClearDepthStencil(dsv,
@@ -88,30 +77,25 @@ void DiligentRenderBackend::BeginFrame()
                                m_Impl->config.clearDepth, m_Impl->config.clearStencil,
                                Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
-    LogDbg("BeginFrame: done");
+    LOG_CAT_DEBUG(Render, "BeginFrame: done");
 }
 
 
 void DiligentRenderBackend::EndFrame()
 {
-    if (!m_Impl->initialized || !m_Impl->swapChain) return;
-    if (!m_Impl->frameSlots.ActiveFrameOpen())
+    if (!m_Impl->runtime->IsInitialized() || !m_Impl->runtime->SwapChain())
+        return;
+    if (!m_Impl->runtime->FrameSlots().ActiveFrameOpen())
     {
-        LogDbg("EndFrame ignored: no active frame");
+        LOG_CAT_DEBUG(Render, "EndFrame ignored: no active frame");
         return;
     }
 
-    const auto activeFrameSerial = m_Impl->frameSlots.ActiveFrameSerial();
-    if (activeFrameSerial != 0u)
-    {
-        m_Impl->gpuTimeline.SignalFrameSubmitted(activeFrameSerial);
-    }
-    LogDbg("EndFrame: Present…");
-    m_Impl->swapChain->Present();
-    m_Impl->frameSlots.EndFrame();
+    LOG_CAT_DEBUG(Render, "EndFrame: Present…");
+    m_Impl->runtime->PresentActiveFrame();
     ++m_Impl->currentFrameDiagnostics.presentCalls;
     {
-        const auto timeline = m_Impl->gpuTimeline.Diagnostics();
+        const auto timeline = m_Impl->runtime->Timeline().Diagnostics();
         m_Impl->currentFrameDiagnostics.gpuCompletedSerial =
             timeline.lastCompletedSerial;
         m_Impl->currentFrameDiagnostics.gpuTargetedWaitCount =
@@ -124,14 +108,14 @@ void DiligentRenderBackend::EndFrame()
             timeline.signalCount;
     }
     m_Impl->lastFrameDiagnostics = m_Impl->currentFrameDiagnostics;
-    ++m_Impl->frameIndex;
 
-    if (g_verboseGPU)
+    if (m_Impl->gpuValidation)
     {
         char buf[64];
         std::snprintf(buf, sizeof(buf), "EndFrame: frame %llu done",
-                      static_cast<unsigned long long>(m_Impl->frameIndex));
-        LogDbg(buf);
+                      static_cast<unsigned long long>(
+                          m_Impl->runtime->Status().frameIndex + 1u));
+        LOG_CAT_DEBUG(Render, buf);
     }
 }
 

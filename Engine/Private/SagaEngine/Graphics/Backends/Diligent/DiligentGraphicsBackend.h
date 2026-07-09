@@ -6,8 +6,7 @@
 #include "SagaEngine/Graphics/Backend/GraphicsBackend.h"
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentBindingRecords.h"
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsResourceRegistry.h"
-#include "SagaEngine/Render/Backend/Diligent/DiligentDeviceServices.h"
-#include "SagaEngine/Render/Backend/RenderBackendFactory.h"
+#include "SagaEngine/Graphics/Backends/Diligent/Runtime/DiligentGraphicsRuntime.h"
 
 #include <cstdint>
 #include <memory>
@@ -32,8 +31,8 @@ namespace SagaEngine::Graphics::Backends::Diligent
 {
 
 namespace RenderBackend = ::SagaEngine::Render::Backend;
+namespace Runtime = ::SagaEngine::Graphics::Backends::Diligent::Runtime;
 
-class DiligentBindingCache;
 class DiligentFallbackResources;
 struct DiligentBindingCacheResolveResult;
 struct DiligentResolvedBindingSet;
@@ -47,18 +46,13 @@ private:
     using ResourceRegistry = Detail::ResourceRegistry<HandleT, DescT>;
 
 public:
-    using StatusReader = RenderBackend::RenderBackendStatus (*)(
-        const RenderBackend::IRenderBackend&) noexcept;
-    using BackendFactory = std::unique_ptr<RenderBackend::IRenderBackend> (*)(
-        const RenderBackendDesc&);
-
     DiligentGraphicsBackend();
     explicit DiligentGraphicsBackend(
-        std::unique_ptr<RenderBackend::IRenderBackend> backend,
-        StatusReader statusReader = RenderBackend::GetRenderBackendStatus);
-    explicit DiligentGraphicsBackend(
-        BackendFactory backendFactory,
-        StatusReader statusReader = RenderBackend::GetRenderBackendStatus);
+        Runtime::DiligentGraphicsRuntime& externalRuntime);
+    explicit DiligentGraphicsBackend(bool forceHeadlessForTesting);
+    DiligentGraphicsBackend(
+        bool forceHeadlessForTesting,
+        bool forceReadyForTesting);
     ~DiligentGraphicsBackend() override;
 
     [[nodiscard]] bool Initialize(
@@ -139,9 +133,6 @@ public:
     [[nodiscard]] GraphicsResourceQueryResult QuerySamplerForTesting(
         SamplerHandle handle) const noexcept;
     [[nodiscard]] bool HasNativeDeviceServicesForTesting() const noexcept;
-    void BindNativeDeviceServicesForTesting(
-        RenderBackend::DiligentDeviceServices services,
-        bool enableNativeCreation = false) noexcept;
     [[nodiscard]] bool MarkBufferNativeForTesting(
         BufferHandle handle,
         std::uint64_t nativeSerial) noexcept;
@@ -234,16 +225,17 @@ private:
         PipelineHandle pipeline,
         BindingSetHandle bindingSet) noexcept;
 
-    std::unique_ptr<RenderBackend::IRenderBackend> m_RenderBackend;
-    BackendFactory m_BackendFactory = nullptr;
-    StatusReader m_StatusReader = RenderBackend::GetRenderBackendStatus;
+    std::unique_ptr<Runtime::DiligentGraphicsRuntime> m_OwnedRuntime;
+    Runtime::DiligentGraphicsRuntime* m_Runtime = nullptr;
+    bool m_ExternalRuntime = false;
     RenderBackendStatus m_HeadlessStatus{};
     RenderBackendStatus m_LastStatus{};
     RenderBackendCapabilities m_LastCapabilities{};
-    RenderBackend::DiligentDeviceServices m_DeviceServices{};
-    std::unique_ptr<RenderBackend::DiligentNativeResourceOwner> m_NativeOwner;
+    RenderBackend::DiligentNativeResourceOwner* m_NativeOwner = nullptr;
     bool m_NativeCreationEnabled = false;
     bool m_Headless = false;
+    bool m_ForceHeadlessForTesting = false;
+    bool m_ForceReadyForTesting = false;
     bool m_SurfaceMinimized = false;
     GraphicsResourceFailure m_LastResourceFailure =
         GraphicsResourceFailure::None;
@@ -265,21 +257,11 @@ private:
         m_CompiledBindingLayouts;
     std::unordered_map<std::uint64_t, DiligentNativeBindingSetRecord>
         m_NativeBindingSets;
-    std::unique_ptr<DiligentBindingCache> m_NativeBindingCache;
-    std::unique_ptr<DiligentFallbackResources> m_FallbackResources;
     DiligentNativeBindingDiagnostics m_NativeBindingDiagnostics{};
 };
 
 [[nodiscard]] std::unique_ptr<IGraphicsBackend> CreateDiligentGraphicsBackend();
 [[nodiscard]] std::unique_ptr<IGraphicsBackend>
-CreateDiligentGraphicsBackendForTesting(
-    std::unique_ptr<RenderBackend::IRenderBackend> backend,
-    DiligentGraphicsBackend::StatusReader statusReader =
-        RenderBackend::GetRenderBackendStatus);
-[[nodiscard]] std::unique_ptr<IGraphicsBackend>
-CreateDiligentGraphicsBackendForTesting(
-    DiligentGraphicsBackend::BackendFactory backendFactory,
-    DiligentGraphicsBackend::StatusReader statusReader =
-        RenderBackend::GetRenderBackendStatus);
+CreateDiligentGraphicsBackendForTesting();
 
 } // namespace SagaEngine::Graphics::Backends::Diligent

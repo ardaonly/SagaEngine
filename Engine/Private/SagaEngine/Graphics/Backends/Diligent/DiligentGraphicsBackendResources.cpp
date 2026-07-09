@@ -2,20 +2,15 @@
 /// @brief Resource create/destroy implementation for the Diligent graphics adapter.
 
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackend.h"
-#include "SagaEngine/Graphics/Backends/Diligent/DiligentBindingCache.h"
+#include "SagaEngine/Graphics/Backends/Diligent/Runtime/DiligentBindingCache.h"
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentFallbackResources.h"
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackendValidation.h"
 #include "SagaEngine/Graphics/Bindings/GraphicsBindingValidation.h"
-
+#include "SagaEngine/Render/Backend/Diligent/DiligentGpuTimeline.h"
 #include "SagaEngine/Render/Backend/Diligent/DiligentNativeResourceOwner.h"
+namespace SagaEngine::Graphics::Backends::Diligent {
 
-namespace SagaEngine::Graphics::Backends::Diligent
-{
-
-TextureHandle DiligentGraphicsBackend::CreateTexture(const TextureDesc& desc)
-{
-    return CreateTexture(desc, {});
-}
+TextureHandle DiligentGraphicsBackend::CreateTexture(const TextureDesc& desc) { return CreateTexture(desc, {}); }
 
 TextureHandle DiligentGraphicsBackend::CreateTexture(
     const TextureDesc& desc,
@@ -57,8 +52,10 @@ TextureHandle DiligentGraphicsBackend::CreateTexture(
 
     if (createNative)
     {
-        const auto serial =
-            m_NativeOwner->CreateTextureForHandle(handle, desc, initialData);
+        const auto token = m_NativeOwner->AllocateToken(
+            RenderBackend::DiligentNativeResourceKind::Texture);
+        const auto serial = m_NativeOwner->CreateTextureForToken(
+            token, desc, initialData);
         if (serial == 0u)
         {
             m_Textures.Destroy(handle);
@@ -68,7 +65,7 @@ TextureHandle DiligentGraphicsBackend::CreateTexture(
         const bool updated = m_Textures.UpdateNativeState(
             handle,
             GraphicsResourceBacking::NativeGpu,
-            {serial, false},
+            {token, serial, false},
             GraphicsResourceLifecycle::Ready);
         (void)updated;
     }
@@ -76,10 +73,7 @@ TextureHandle DiligentGraphicsBackend::CreateTexture(
     return RecordSuccessfulCreate(handle);
 }
 
-BufferHandle DiligentGraphicsBackend::CreateBuffer(const BufferDesc& desc)
-{
-    return CreateBuffer(desc, {});
-}
+BufferHandle DiligentGraphicsBackend::CreateBuffer(const BufferDesc& desc) { return CreateBuffer(desc, {}); }
 
 BufferHandle DiligentGraphicsBackend::CreateBuffer(
     const BufferDesc& desc,
@@ -121,8 +115,10 @@ BufferHandle DiligentGraphicsBackend::CreateBuffer(
 
     if (createNative)
     {
+        const auto token = m_NativeOwner->AllocateToken(
+            RenderBackend::DiligentNativeResourceKind::Buffer);
         const auto serial =
-            m_NativeOwner->CreateBufferForHandle(handle, desc, initialData);
+            m_NativeOwner->CreateBufferForToken(token, desc, initialData);
         if (serial == 0u)
         {
             m_Buffers.Destroy(handle);
@@ -132,7 +128,7 @@ BufferHandle DiligentGraphicsBackend::CreateBuffer(
         const bool updated = m_Buffers.UpdateNativeState(
             handle,
             GraphicsResourceBacking::NativeGpu,
-            {serial, false},
+            {token, serial, false},
             GraphicsResourceLifecycle::Ready);
         (void)updated;
     }
@@ -168,7 +164,9 @@ ShaderHandle DiligentGraphicsBackend::CreateShader(const ShaderDesc& desc)
 
     if (createNative)
     {
-        const auto serial = m_NativeOwner->CreateShaderForHandle(handle, desc);
+        const auto token = m_NativeOwner->AllocateToken(
+            RenderBackend::DiligentNativeResourceKind::Shader);
+        const auto serial = m_NativeOwner->CreateShaderForToken(token, desc);
         if (serial == 0u)
         {
             m_Shaders.Destroy(handle);
@@ -178,7 +176,7 @@ ShaderHandle DiligentGraphicsBackend::CreateShader(const ShaderDesc& desc)
         const bool updated = m_Shaders.UpdateNativeState(
             handle,
             GraphicsResourceBacking::NativeGpu,
-            {serial, false},
+            {token, serial, false},
             GraphicsResourceLifecycle::Ready);
         (void)updated;
     }
@@ -261,8 +259,15 @@ PipelineHandle DiligentGraphicsBackend::CreatePipeline(
 
     if (createNative)
     {
-        const auto serial =
-            m_NativeOwner->CreatePipelineForHandle(handle, storedDesc);
+        const auto pipelineToken = m_NativeOwner->AllocateToken(
+            RenderBackend::DiligentNativeResourceKind::Pipeline);
+        const auto vertexShaderToken = m_Shaders.NativeToken(storedDesc.vertexShader);
+        const auto fragmentShaderToken = m_Shaders.NativeToken(storedDesc.fragmentShader);
+        const auto serial = m_NativeOwner->CreatePipelineForToken(
+            pipelineToken,
+            vertexShaderToken,
+            fragmentShaderToken,
+            storedDesc);
         if (serial == 0u)
         {
             m_Pipelines.Destroy(handle);
@@ -272,7 +277,7 @@ PipelineHandle DiligentGraphicsBackend::CreatePipeline(
         const bool updated = m_Pipelines.UpdateNativeState(
             handle,
             GraphicsResourceBacking::NativeGpu,
-            {serial, false},
+            {pipelineToken, serial, false},
             GraphicsResourceLifecycle::Ready);
         (void)updated;
     }
@@ -311,7 +316,9 @@ SamplerHandle DiligentGraphicsBackend::CreateSampler(const SamplerDesc& desc)
 
     if (createNative)
     {
-        const auto serial = m_NativeOwner->CreateSamplerForHandle(handle, desc);
+        const auto token = m_NativeOwner->AllocateToken(
+            RenderBackend::DiligentNativeResourceKind::Sampler);
+        const auto serial = m_NativeOwner->CreateSamplerForToken(token, desc);
         if (serial == 0u)
         {
             m_Samplers.Destroy(handle);
@@ -321,7 +328,7 @@ SamplerHandle DiligentGraphicsBackend::CreateSampler(const SamplerDesc& desc)
         const bool updated = m_Samplers.UpdateNativeState(
             handle,
             GraphicsResourceBacking::NativeGpu,
-            {serial, false},
+            {token, serial, false},
             GraphicsResourceLifecycle::Ready);
         (void)updated;
     }
@@ -331,28 +338,30 @@ SamplerHandle DiligentGraphicsBackend::CreateSampler(const SamplerDesc& desc)
 
 void DiligentGraphicsBackend::DestroyTexture(TextureHandle handle)
 {
-    m_NativeBindingCache->InvalidateResource(
+    m_Runtime->BindingCache().InvalidateResource(
         GraphicsResourceKind::Texture,
         handle,
+        m_Runtime->DeferredReleaseSerial(),
         DiligentBindingFailureReason::StaleResource,
         m_NativeBindingDiagnostics);
     if (m_NativeOwner)
     {
-        m_NativeOwner->DestroyTexture(handle);
+        m_NativeOwner->DestroyTexture(m_Textures.NativeToken(handle));
     }
     m_Textures.Destroy(handle);
 }
 
 void DiligentGraphicsBackend::DestroyBuffer(BufferHandle handle)
 {
-    m_NativeBindingCache->InvalidateResource(
+    m_Runtime->BindingCache().InvalidateResource(
         GraphicsResourceKind::Buffer,
         handle,
+        m_Runtime->DeferredReleaseSerial(),
         DiligentBindingFailureReason::StaleResource,
         m_NativeBindingDiagnostics);
     if (m_NativeOwner)
     {
-        m_NativeOwner->DestroyBuffer(handle);
+        m_NativeOwner->DestroyBuffer(m_Buffers.NativeToken(handle));
     }
     m_Buffers.Destroy(handle);
 }
@@ -361,38 +370,39 @@ void DiligentGraphicsBackend::DestroyShader(ShaderHandle handle)
 {
     if (m_NativeOwner)
     {
-        m_NativeOwner->DestroyShader(handle);
+        m_NativeOwner->DestroyShader(m_Shaders.NativeToken(handle));
     }
     m_Shaders.Destroy(handle);
 }
 
 void DiligentGraphicsBackend::DestroyPipeline(PipelineHandle handle)
 {
-    m_NativeBindingCache->InvalidatePipeline(
+    m_Runtime->BindingCache().InvalidatePipeline(
         handle,
+        m_Runtime->DeferredReleaseSerial(),
         DiligentBindingFailureReason::MissingPipeline,
         m_NativeBindingDiagnostics);
     if (m_NativeOwner)
     {
-        m_NativeOwner->DestroyPipeline(handle);
+        m_NativeOwner->DestroyPipeline(m_Pipelines.NativeToken(handle));
     }
     m_Pipelines.Destroy(handle);
 }
 
 void DiligentGraphicsBackend::DestroySampler(SamplerHandle handle)
 {
-    m_NativeBindingCache->InvalidateResource(
+    m_Runtime->BindingCache().InvalidateResource(
         GraphicsResourceKind::Sampler,
         handle,
+        m_Runtime->DeferredReleaseSerial(),
         DiligentBindingFailureReason::StaleResource,
         m_NativeBindingDiagnostics);
     if (m_NativeOwner)
     {
-        m_NativeOwner->DestroySampler(handle);
+        m_NativeOwner->DestroySampler(m_Samplers.NativeToken(handle));
     }
     m_Samplers.Destroy(handle);
 }
-
 
 bool DiligentGraphicsBackend::CanCreateResources() const noexcept
 {
@@ -400,10 +410,10 @@ bool DiligentGraphicsBackend::CanCreateResources() const noexcept
            m_LastStatus.failure == RenderBackendFailure::None;
 }
 
-GraphicsResourceBacking DiligentGraphicsBackend::ResourceBackingForNativeResource()
-    const noexcept
+GraphicsResourceBacking
+DiligentGraphicsBackend::ResourceBackingForNativeResource() const noexcept
 {
-    if (m_Headless || !m_DeviceServices.IsBound())
+    if (m_Headless || !m_NativeOwner || !m_NativeOwner->CanCreateNative())
     {
         return GraphicsResourceBacking::RegisteredOnly;
     }
@@ -438,7 +448,7 @@ DiligentGraphicsBackend::MakeNativeResourceOwnership(
         return {};
     }
 
-    return {m_NextNativeResourceSerial++, uploadDeferred};
+    return {{}, m_NextNativeResourceSerial++, uploadDeferred};
 }
 
 template <typename HandleT>
@@ -464,15 +474,13 @@ HandleT DiligentGraphicsBackend::RecordSuccessfulCreate(HandleT handle) noexcept
 
 void DiligentGraphicsBackend::ReleaseResources() noexcept
 {
-    if (m_FallbackResources)
+    if (m_Runtime)
     {
-        m_FallbackResources->Release(*this, m_NativeBindingDiagnostics);
+        m_Runtime->FallbackResources().Release(m_Runtime->NativeResources(), m_NativeBindingDiagnostics);
     }
-    if (m_NativeBindingCache)
-    {
-        m_NativeBindingCache->Clear(m_NativeBindingDiagnostics);
-    }
-    if (m_NativeOwner)
+    m_Runtime->BindingCache().Clear(m_Runtime->DeferredReleaseSerial(), m_NativeBindingDiagnostics);
+    m_Runtime->RetireCompleted(m_Runtime->Timeline().LastCompletedSerial());
+    if (m_NativeOwner && !m_ExternalRuntime)
     {
         m_NativeOwner->ReleaseAll();
     }

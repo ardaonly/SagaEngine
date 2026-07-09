@@ -10,13 +10,14 @@
 #include "SagaEngine/Render/Backend/Diligent/DiligentNativeResourceOwner.h"
 #include "SagaEngine/Render/Backend/Diligent/DiligentOverlayRenderer.h"
 #include "SagaEngine/Render/Backend/Diligent/DiligentPipelineCache.h"
+#include "SagaEngine/Graphics/Backends/Diligent/Runtime/DiligentGraphicsRuntime.h"
+#include "SagaEngine/Core/Log/LogCategories.h"
 #include "SagaEngine/Render/Materials/Material.h"
 #include "SagaEngine/Render/Materials/MeshAsset.h"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cstdio>
 #include <cstring>
 #include <string>
 #include <unordered_map>
@@ -66,6 +67,7 @@ namespace SagaEngine::Render::Backend
 {
 
 namespace Gfx = ::SagaEngine::Graphics;
+namespace DiligentRuntime = ::SagaEngine::Graphics::Backends::Diligent::Runtime;
 
 struct MeshGPU
 {
@@ -90,13 +92,9 @@ struct TextureHandleHash
 struct MaterialGPU
 {
     Diligent::RefCntAutoPtr<Diligent::IPipelineState>         pso;
-    Diligent::RefCntAutoPtr<Diligent::IShaderResourceBinding> srb;
-    Diligent::IShaderResourceVariable* albedoVariable = nullptr;
-    Diligent::IShaderResourceVariable* shadowVariable = nullptr;
+    DiligentRuntime::NativeShaderBindingHandle binding;
     Diligent::RefCntAutoPtr<Diligent::IPipelineState>         skinnedPso;
-    Diligent::RefCntAutoPtr<Diligent::IShaderResourceBinding> skinnedSrb;
-    Diligent::IShaderResourceVariable* skinnedAlbedoVariable = nullptr;
-    Diligent::IShaderResourceVariable* skinnedShadowVariable = nullptr;
+    DiligentRuntime::NativeShaderBindingHandle skinnedBinding;
     MaterialRenderQueue renderQueue = MaterialRenderQueue::Opaque;
     MaterialCullMode    cullMode   = MaterialCullMode::Back;
     OpaqueShadingModel  shadingModel = OpaqueShadingModel::Unlit;
@@ -146,14 +144,7 @@ struct ShadowResources
 struct DiligentRenderBackend::Impl
 {
     RenderBackendConfig                    config{};
-    GraphicsBackendAPI                       selectedAPI = GraphicsBackendAPI::kAuto;
-
-    Diligent::RefCntAutoPtr<Diligent::IRenderDevice>  device;
-    Diligent::RefCntAutoPtr<Diligent::IDeviceContext> context;
-    Diligent::RefCntAutoPtr<Diligent::ISwapChain>     swapChain;
-    DiligentNativeResourceOwner nativeResources;
-    DiligentGpuTimeline gpuTimeline;
-    DiligentFrameSlotTracker frameSlots;
+    std::unique_ptr<DiligentRuntime::DiligentGraphicsRuntime> runtime;
 
     Diligent::RefCntAutoPtr<Diligent::IBuffer> cameraCB;
 
@@ -169,15 +160,15 @@ struct DiligentRenderBackend::Impl
     std::unordered_map<PSOCacheKey, Diligent::RefCntAutoPtr<Diligent::IPipelineState>, PSOCacheKeyHash> skinnedPsoCache;
 
     std::unordered_map<TextureHandle, TextureGPU, TextureHandleHash> textureCache;
-    Gfx::TextureHandle defaultWhiteTex;
     std::uint32_t nextTextureId = 1;
 
     std::uint32_t nextMeshId     = 1;
     std::uint32_t nextMaterialId = 1;
 
     std::uint64_t frameIndex   = 0;
-    bool          initialized  = false;
     bool          shadowSubmitAcceptedThisFrame = false;
+    bool          gpuValidation = false;
+    bool          rendererInitialized = false;
     RenderFrameDiagnostics currentFrameDiagnostics{};
     RenderFrameDiagnostics lastFrameDiagnostics{};
 
@@ -187,26 +178,5 @@ struct DiligentRenderBackend::Impl
     DirectionalShadowSettings shadowSettings{};
     ShadowResources           shadow{};
 };
-
-inline bool g_verboseGPU = false;
-
-inline void LogInfo(const char* msg)
-{
-    std::fprintf(stdout, "[DiligentBackend] %s\n", msg);
-    std::fflush(stdout);
-}
-
-inline void LogErr(const char* msg)
-{
-    std::fprintf(stderr, "[DiligentBackend][error] %s\n", msg);
-    std::fflush(stderr);
-}
-
-inline void LogDbg(const char* msg)
-{
-    if (!g_verboseGPU) return;
-    std::fprintf(stdout, "[DiligentBackend][dbg] %s\n", msg);
-    std::fflush(stdout);
-}
 
 } // namespace SagaEngine::Render::Backend

@@ -1,7 +1,7 @@
 /// @file DiligentBindingCache.cpp
 /// @brief Private native Diligent SRB cache for Saga binding sets.
 
-#include "SagaEngine/Graphics/Backends/Diligent/DiligentBindingCache.h"
+#include "SagaEngine/Graphics/Backends/Diligent/Runtime/DiligentBindingCache.h"
 
 #include "DeviceObject.h"
 #include "PipelineState.h"
@@ -317,6 +317,7 @@ DiligentBindingCacheResolveResult DiligentBindingCache::ResolveOrCreate(
 
 void DiligentBindingCache::Quarantine(
     DiligentNativeBindingCacheEntry& entry,
+    std::uint64_t retireAfterSerial,
     DiligentBindingFailureReason reason,
     DiligentNativeBindingDiagnostics& diagnostics) noexcept
 {
@@ -324,7 +325,7 @@ void DiligentBindingCache::Quarantine(
     entry.invalidationReason = reason;
     if (entry.srb)
     {
-        m_QuarantinedSrbs.push_back(entry.srb);
+        m_QuarantinedSrbs.push_back({entry.srb, retireAfterSerial});
         diagnostics.quarantinedSrbCount =
             static_cast<std::uint64_t>(m_QuarantinedSrbs.size());
         diagnostics.quarantinedSrbPeak = std::max(
@@ -335,6 +336,7 @@ void DiligentBindingCache::Quarantine(
 
 void DiligentBindingCache::InvalidatePipeline(
     PipelineHandle handle,
+    std::uint64_t retireAfterSerial,
     DiligentBindingFailureReason reason,
     DiligentNativeBindingDiagnostics& diagnostics) noexcept
 {
@@ -343,7 +345,7 @@ void DiligentBindingCache::InvalidatePipeline(
         if (it->first.pipelineIndex == handle.index &&
             it->first.pipelineGeneration == handle.generation)
         {
-            Quarantine(it->second, reason, diagnostics);
+            Quarantine(it->second, retireAfterSerial, reason, diagnostics);
             it = m_Entries.erase(it);
             ++diagnostics.nativeBindingCacheInvalidations;
             continue;
@@ -356,6 +358,7 @@ void DiligentBindingCache::InvalidatePipeline(
 
 void DiligentBindingCache::InvalidateLayout(
     BindingLayoutHandle handle,
+    std::uint64_t retireAfterSerial,
     DiligentBindingFailureReason reason,
     DiligentNativeBindingDiagnostics& diagnostics) noexcept
 {
@@ -364,7 +367,7 @@ void DiligentBindingCache::InvalidateLayout(
         if (it->first.layoutIndex == handle.index &&
             it->first.layoutGeneration == handle.generation)
         {
-            Quarantine(it->second, reason, diagnostics);
+            Quarantine(it->second, retireAfterSerial, reason, diagnostics);
             it = m_Entries.erase(it);
             ++diagnostics.nativeBindingCacheInvalidations;
             continue;
@@ -377,6 +380,7 @@ void DiligentBindingCache::InvalidateLayout(
 
 void DiligentBindingCache::InvalidateBindingSet(
     BindingSetHandle handle,
+    std::uint64_t retireAfterSerial,
     DiligentBindingFailureReason reason,
     DiligentNativeBindingDiagnostics& diagnostics) noexcept
 {
@@ -385,7 +389,7 @@ void DiligentBindingCache::InvalidateBindingSet(
         if (it->first.bindingSetIndex == handle.index &&
             it->first.bindingSetGeneration == handle.generation)
         {
-            Quarantine(it->second, reason, diagnostics);
+            Quarantine(it->second, retireAfterSerial, reason, diagnostics);
             it = m_Entries.erase(it);
             ++diagnostics.nativeBindingCacheInvalidations;
             continue;
@@ -399,6 +403,7 @@ void DiligentBindingCache::InvalidateBindingSet(
 void DiligentBindingCache::InvalidateResource(
     GraphicsResourceKind kind,
     GraphicsHandle handle,
+    std::uint64_t retireAfterSerial,
     DiligentBindingFailureReason reason,
     DiligentNativeBindingDiagnostics& diagnostics) noexcept
 {
@@ -416,7 +421,7 @@ void DiligentBindingCache::InvalidateResource(
             });
         if (matches)
         {
-            Quarantine(it->second, reason, diagnostics);
+            Quarantine(it->second, retireAfterSerial, reason, diagnostics);
             it = m_Entries.erase(it);
             ++diagnostics.nativeBindingCacheInvalidations;
             continue;
@@ -428,6 +433,38 @@ void DiligentBindingCache::InvalidateResource(
 }
 
 void DiligentBindingCache::Clear(
+    std::uint64_t retireAfterSerial,
+    DiligentNativeBindingDiagnostics& diagnostics) noexcept
+{
+    for (auto& [_, entry] : m_Entries)
+    {
+        Quarantine(
+            entry,
+            retireAfterSerial,
+            DiligentBindingFailureReason::StaleResource,
+            diagnostics);
+    }
+    m_Entries.clear();
+    diagnostics.nativeBindingCacheEntries = 0;
+    diagnostics.quarantinedSrbCount =
+        static_cast<std::uint64_t>(m_QuarantinedSrbs.size());
+}
+
+void DiligentBindingCache::RetireCompleted(
+    std::uint64_t completedSerial) noexcept
+{
+    m_QuarantinedSrbs.erase(
+        std::remove_if(
+            m_QuarantinedSrbs.begin(),
+            m_QuarantinedSrbs.end(),
+            [completedSerial](const QuarantinedSrb& entry)
+            {
+                return entry.retireAfterSerial <= completedSerial;
+            }),
+        m_QuarantinedSrbs.end());
+}
+
+void DiligentBindingCache::ForceRelease(
     DiligentNativeBindingDiagnostics& diagnostics) noexcept
 {
     m_Entries.clear();

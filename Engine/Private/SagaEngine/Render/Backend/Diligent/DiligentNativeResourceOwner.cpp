@@ -317,6 +317,7 @@ struct DiligentNativeResourceOwner::Impl
     template <typename HandleT, typename PayloadT>
     struct Slot
     {
+        DiligentNativeResourceToken token{};
         HandleT handle{};
         std::uint64_t serial = 0;
         std::uint64_t creationSerial = 0;
@@ -361,6 +362,7 @@ struct DiligentNativeResourceOwner::Impl
 
     DiligentDeviceServices services{};
     std::uint64_t nextSerial = 1;
+    std::uint32_t nextNativeIndex = 1;
     std::uint32_t nextBufferIndex = 1;
     std::uint32_t nextTextureIndex = 1;
 
@@ -385,6 +387,25 @@ struct DiligentNativeResourceOwner::Impl
         return nullptr;
     }
 
+    template <typename SlotT>
+    [[nodiscard]] SlotT* Find(
+        std::vector<SlotT>& slots,
+        DiligentNativeResourceToken token) noexcept
+    {
+        if (!token.IsValid())
+        {
+            return nullptr;
+        }
+        for (auto& slot : slots)
+        {
+            if (slot.live && slot.token == token)
+            {
+                return &slot;
+            }
+        }
+        return nullptr;
+    }
+
     template <typename SlotT, typename HandleT>
     [[nodiscard]] SlotT* FindAny(
         std::vector<SlotT>& slots,
@@ -401,6 +422,25 @@ struct DiligentNativeResourceOwner::Impl
         return nullptr;
     }
 
+    template <typename SlotT>
+    [[nodiscard]] SlotT* FindAny(
+        std::vector<SlotT>& slots,
+        DiligentNativeResourceToken token) noexcept
+    {
+        if (!token.IsValid())
+        {
+            return nullptr;
+        }
+        for (auto& slot : slots)
+        {
+            if ((slot.live || slot.pendingDestroy) && slot.token == token)
+            {
+                return &slot;
+            }
+        }
+        return nullptr;
+    }
+
     template <typename SlotT, typename HandleT>
     [[nodiscard]] const SlotT* Find(
         const std::vector<SlotT>& slots,
@@ -409,6 +449,25 @@ struct DiligentNativeResourceOwner::Impl
         for (const auto& slot : slots)
         {
             if (slot.live && SameHandle(slot.handle, handle))
+            {
+                return &slot;
+            }
+        }
+        return nullptr;
+    }
+
+    template <typename SlotT>
+    [[nodiscard]] const SlotT* Find(
+        const std::vector<SlotT>& slots,
+        DiligentNativeResourceToken token) const noexcept
+    {
+        if (!token.IsValid())
+        {
+            return nullptr;
+        }
+        for (const auto& slot : slots)
+        {
+            if (slot.live && slot.token == token)
             {
                 return &slot;
             }
@@ -435,6 +494,35 @@ struct DiligentNativeResourceOwner::Impl
                 slot->retireSerial = slot->lastUseSerial;
             }
         }
+    }
+
+    [[nodiscard]] DiligentNativeResourceToken AllocateToken(
+        DiligentNativeResourceKind kind) noexcept
+    {
+        if (kind == DiligentNativeResourceKind::Invalid)
+        {
+            return {};
+        }
+        return {kind, nextNativeIndex++, 1u};
+    }
+
+    template <typename SlotT>
+    [[nodiscard]] bool ContainsToken(
+        const std::vector<SlotT>& slots,
+        DiligentNativeResourceToken token) const noexcept
+    {
+        if (!token.IsValid())
+        {
+            return false;
+        }
+        for (const auto& slot : slots)
+        {
+            if ((slot.live || slot.pendingDestroy) && slot.token == token)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     template <typename SlotT>
@@ -499,12 +587,25 @@ bool DiligentNativeResourceOwner::IsBufferSizeSupported(
            sizeBytes <= kMaxB3NativeBufferBytes;
 }
 
-std::uint64_t DiligentNativeResourceOwner::CreateBufferForHandle(
-    Gfx::BufferHandle handle,
+DiligentNativeResourceToken DiligentNativeResourceOwner::AllocateToken(
+    DiligentNativeResourceKind kind) noexcept
+{
+    return m_Impl->AllocateToken(kind);
+}
+
+std::uint64_t DiligentNativeResourceOwner::CreateBufferForToken(
+    DiligentNativeBufferToken token,
     const Gfx::BufferDesc& desc,
     Gfx::GraphicsDataView initialData,
     std::string* diagnostic)
 {
+    if (token.kind != DiligentNativeResourceKind::Buffer ||
+        m_Impl->ContainsToken(m_Impl->buffers, token))
+    {
+        SetDiagnostic(diagnostic, "Duplicate or wrong-kind native buffer token");
+        return 0u;
+    }
+
     if (!CanCreateNative())
     {
         SetDiagnostic(diagnostic, "Diligent device services are not bound");
@@ -557,17 +658,24 @@ std::uint64_t DiligentNativeResourceOwner::CreateBufferForHandle(
 
     const auto serial = m_Impl->nextSerial++;
     m_Impl->buffers.push_back(
-        {handle, serial, serial, 0u, 0u, desc.sizeBytes, desc.debugName,
+        {token, {}, serial, serial, 0u, 0u, desc.sizeBytes, desc.debugName,
          true, false, {buffer}});
     return serial;
 }
 
-std::uint64_t DiligentNativeResourceOwner::CreateTextureForHandle(
-    Gfx::TextureHandle handle,
+std::uint64_t DiligentNativeResourceOwner::CreateTextureForToken(
+    DiligentNativeTextureToken token,
     const Gfx::TextureDesc& desc,
     Gfx::GraphicsDataView initialData,
     std::string* diagnostic)
 {
+    if (token.kind != DiligentNativeResourceKind::Texture ||
+        m_Impl->ContainsToken(m_Impl->textures, token))
+    {
+        SetDiagnostic(diagnostic, "Duplicate or wrong-kind native texture token");
+        return 0u;
+    }
+
     if (!CanCreateNative())
     {
         SetDiagnostic(diagnostic, "Diligent device services are not bound");
@@ -626,18 +734,25 @@ std::uint64_t DiligentNativeResourceOwner::CreateTextureForHandle(
 
     const auto serial = m_Impl->nextSerial++;
     m_Impl->textures.push_back(
-        {handle, serial, serial, 0u, 0u,
+        {token, {}, serial, serial, 0u, 0u,
          static_cast<std::uint64_t>(desc.width) * desc.height *
              BytesPerPixel(desc.format),
          desc.debugName, true, false, {texture, srv, desc}});
     return serial;
 }
 
-std::uint64_t DiligentNativeResourceOwner::CreateSamplerForHandle(
-    Gfx::SamplerHandle handle,
+std::uint64_t DiligentNativeResourceOwner::CreateSamplerForToken(
+    DiligentNativeSamplerToken token,
     const Gfx::SamplerDesc& desc,
     std::string* diagnostic)
 {
+    if (token.kind != DiligentNativeResourceKind::Sampler ||
+        m_Impl->ContainsToken(m_Impl->samplers, token))
+    {
+        SetDiagnostic(diagnostic, "Duplicate or wrong-kind native sampler token");
+        return 0u;
+    }
+
     if (!CanCreateNative())
     {
         SetDiagnostic(diagnostic, "Diligent device services are not bound");
@@ -685,16 +800,23 @@ std::uint64_t DiligentNativeResourceOwner::CreateSamplerForHandle(
 
     const auto serial = m_Impl->nextSerial++;
     m_Impl->samplers.push_back(
-        {handle, serial, serial, 0u, 0u, 0u, desc.debugName,
+        {token, {}, serial, serial, 0u, 0u, 0u, desc.debugName,
          true, false, {sampler, desc}});
     return serial;
 }
 
-std::uint64_t DiligentNativeResourceOwner::CreateShaderForHandle(
-    Gfx::ShaderHandle handle,
+std::uint64_t DiligentNativeResourceOwner::CreateShaderForToken(
+    DiligentNativeShaderToken token,
     const Gfx::ShaderDesc& desc,
     std::string* diagnostic)
 {
+    if (token.kind != DiligentNativeResourceKind::Shader ||
+        m_Impl->ContainsToken(m_Impl->shaders, token))
+    {
+        SetDiagnostic(diagnostic, "Duplicate or wrong-kind native shader token");
+        return 0u;
+    }
+
     if (!CanCreateNative())
     {
         SetDiagnostic(diagnostic, "Diligent device services are not bound");
@@ -727,25 +849,49 @@ std::uint64_t DiligentNativeResourceOwner::CreateShaderForHandle(
 
     const auto serial = m_Impl->nextSerial++;
     m_Impl->shaders.push_back(
-        {handle, serial, serial, 0u, 0u,
+        {token, {}, serial, serial, 0u, 0u,
          static_cast<std::uint64_t>(desc.source.size()), desc.debugName,
          true, false, {shader, desc}});
     return serial;
 }
 
-std::uint64_t DiligentNativeResourceOwner::CreatePipelineForHandle(
-    Gfx::PipelineHandle handle,
+std::uint64_t DiligentNativeResourceOwner::CreatePipelineForToken(
+    DiligentNativePipelineToken token,
     const Gfx::PipelineDesc& desc,
     std::string* diagnostic)
 {
+    const auto* vsSlot = m_Impl->Find(m_Impl->shaders, desc.vertexShader);
+    const auto* psSlot = m_Impl->Find(m_Impl->shaders, desc.fragmentShader);
+    return CreatePipelineForToken(
+        token,
+        vsSlot ? vsSlot->token : DiligentNativeShaderToken{},
+        psSlot ? psSlot->token : DiligentNativeShaderToken{},
+        desc,
+        diagnostic);
+}
+
+std::uint64_t DiligentNativeResourceOwner::CreatePipelineForToken(
+    DiligentNativePipelineToken token,
+    DiligentNativeShaderToken vertexShader,
+    DiligentNativeShaderToken fragmentShader,
+    const Gfx::PipelineDesc& desc,
+    std::string* diagnostic)
+{
+    if (token.kind != DiligentNativeResourceKind::Pipeline ||
+        m_Impl->ContainsToken(m_Impl->pipelines, token))
+    {
+        SetDiagnostic(diagnostic, "Duplicate or wrong-kind native pipeline token");
+        return 0u;
+    }
+
     if (!CanCreateNative())
     {
         SetDiagnostic(diagnostic, "Diligent device services are not bound");
         return 0u;
     }
 
-    const auto* vsSlot = m_Impl->Find(m_Impl->shaders, desc.vertexShader);
-    const auto* psSlot = m_Impl->Find(m_Impl->shaders, desc.fragmentShader);
+    const auto* vsSlot = m_Impl->Find(m_Impl->shaders, vertexShader);
+    const auto* psSlot = m_Impl->Find(m_Impl->shaders, fragmentShader);
     auto* vs = vsSlot ? vsSlot->payload.shader.RawPtr() : nullptr;
     auto* ps = psSlot ? psSlot->payload.shader.RawPtr() : nullptr;
     if (!vs || !ps ||
@@ -823,8 +969,103 @@ std::uint64_t DiligentNativeResourceOwner::CreatePipelineForHandle(
 
     const auto serial = m_Impl->nextSerial++;
     m_Impl->pipelines.push_back(
-        {handle, serial, serial, 0u, 0u, 0u, desc.debugName,
+        {token, {}, serial, serial, 0u, 0u, 0u, desc.debugName,
          true, false, {pipeline, desc}});
+    return serial;
+}
+
+std::uint64_t DiligentNativeResourceOwner::CreateBufferForHandle(
+    Gfx::BufferHandle handle,
+    const Gfx::BufferDesc& desc,
+    Gfx::GraphicsDataView initialData,
+    std::string* diagnostic)
+{
+    const auto token = AllocateToken(DiligentNativeResourceKind::Buffer);
+    const auto serial = CreateBufferForToken(
+        token,
+        desc,
+        initialData,
+        diagnostic);
+    if (serial != 0u)
+    {
+        if (auto* slot = m_Impl->Find(m_Impl->buffers, token))
+        {
+            slot->handle = handle;
+        }
+    }
+    return serial;
+}
+
+std::uint64_t DiligentNativeResourceOwner::CreateTextureForHandle(
+    Gfx::TextureHandle handle,
+    const Gfx::TextureDesc& desc,
+    Gfx::GraphicsDataView initialData,
+    std::string* diagnostic)
+{
+    const auto token = AllocateToken(DiligentNativeResourceKind::Texture);
+    const auto serial = CreateTextureForToken(
+        token,
+        desc,
+        initialData,
+        diagnostic);
+    if (serial != 0u)
+    {
+        if (auto* slot = m_Impl->Find(m_Impl->textures, token))
+        {
+            slot->handle = handle;
+        }
+    }
+    return serial;
+}
+
+std::uint64_t DiligentNativeResourceOwner::CreateSamplerForHandle(
+    Gfx::SamplerHandle handle,
+    const Gfx::SamplerDesc& desc,
+    std::string* diagnostic)
+{
+    const auto token = AllocateToken(DiligentNativeResourceKind::Sampler);
+    const auto serial = CreateSamplerForToken(token, desc, diagnostic);
+    if (serial != 0u)
+    {
+        if (auto* slot = m_Impl->Find(m_Impl->samplers, token))
+        {
+            slot->handle = handle;
+        }
+    }
+    return serial;
+}
+
+std::uint64_t DiligentNativeResourceOwner::CreateShaderForHandle(
+    Gfx::ShaderHandle handle,
+    const Gfx::ShaderDesc& desc,
+    std::string* diagnostic)
+{
+    const auto token = AllocateToken(DiligentNativeResourceKind::Shader);
+    const auto serial = CreateShaderForToken(token, desc, diagnostic);
+    if (serial != 0u)
+    {
+        if (auto* slot = m_Impl->Find(m_Impl->shaders, token))
+        {
+            slot->handle = handle;
+        }
+    }
+    return serial;
+}
+
+std::uint64_t DiligentNativeResourceOwner::CreatePipelineForHandle(
+    Gfx::PipelineHandle handle,
+    const Gfx::PipelineDesc& desc,
+    std::string* diagnostic)
+{
+    const auto token = AllocateToken(DiligentNativeResourceKind::Pipeline);
+    const auto serial = CreatePipelineForToken(token, desc, diagnostic);
+    if (serial != 0u)
+    {
+        if (auto* slot = m_Impl->Find(m_Impl->pipelines, token))
+        {
+            slot->handle = handle;
+        }
+    }
     return serial;
 }
 
@@ -850,6 +1091,61 @@ Gfx::TextureHandle DiligentNativeResourceOwner::CreateStandaloneTexture(
     return CreateTextureForHandle(handle, desc, initialData, diagnostic) == 0u
                ? Gfx::TextureHandle{}
                : handle;
+}
+
+void DiligentNativeResourceOwner::DestroyBuffer(
+    DiligentNativeBufferToken token) noexcept
+{
+    if (auto* slot = m_Impl->Find(m_Impl->buffers, token))
+    {
+        slot->live = false;
+        slot->pendingDestroy = true;
+        slot->retireSerial = slot->lastUseSerial;
+    }
+}
+
+void DiligentNativeResourceOwner::DestroyTexture(
+    DiligentNativeTextureToken token) noexcept
+{
+    if (auto* slot = m_Impl->Find(m_Impl->textures, token))
+    {
+        slot->live = false;
+        slot->pendingDestroy = true;
+        slot->retireSerial = slot->lastUseSerial;
+    }
+}
+
+void DiligentNativeResourceOwner::DestroySampler(
+    DiligentNativeSamplerToken token) noexcept
+{
+    if (auto* slot = m_Impl->Find(m_Impl->samplers, token))
+    {
+        slot->live = false;
+        slot->pendingDestroy = true;
+        slot->retireSerial = slot->lastUseSerial;
+    }
+}
+
+void DiligentNativeResourceOwner::DestroyShader(
+    DiligentNativeShaderToken token) noexcept
+{
+    if (auto* slot = m_Impl->Find(m_Impl->shaders, token))
+    {
+        slot->live = false;
+        slot->pendingDestroy = true;
+        slot->retireSerial = slot->lastUseSerial;
+    }
+}
+
+void DiligentNativeResourceOwner::DestroyPipeline(
+    DiligentNativePipelineToken token) noexcept
+{
+    if (auto* slot = m_Impl->Find(m_Impl->pipelines, token))
+    {
+        slot->live = false;
+        slot->pendingDestroy = true;
+        slot->retireSerial = slot->lastUseSerial;
+    }
 }
 
 void DiligentNativeResourceOwner::DestroyBuffer(
@@ -942,6 +1238,41 @@ void DiligentNativeResourceOwner::MarkPipelineUsed(
     m_Impl->MarkUsed(m_Impl->pipelines, handle, serial);
 }
 
+void DiligentNativeResourceOwner::MarkBufferUsed(
+    DiligentNativeBufferToken token,
+    std::uint64_t serial) noexcept
+{
+    m_Impl->MarkUsed(m_Impl->buffers, token, serial);
+}
+
+void DiligentNativeResourceOwner::MarkTextureUsed(
+    DiligentNativeTextureToken token,
+    std::uint64_t serial) noexcept
+{
+    m_Impl->MarkUsed(m_Impl->textures, token, serial);
+}
+
+void DiligentNativeResourceOwner::MarkSamplerUsed(
+    DiligentNativeSamplerToken token,
+    std::uint64_t serial) noexcept
+{
+    m_Impl->MarkUsed(m_Impl->samplers, token, serial);
+}
+
+void DiligentNativeResourceOwner::MarkShaderUsed(
+    DiligentNativeShaderToken token,
+    std::uint64_t serial) noexcept
+{
+    m_Impl->MarkUsed(m_Impl->shaders, token, serial);
+}
+
+void DiligentNativeResourceOwner::MarkPipelineUsed(
+    DiligentNativePipelineToken token,
+    std::uint64_t serial) noexcept
+{
+    m_Impl->MarkUsed(m_Impl->pipelines, token, serial);
+}
+
 void DiligentNativeResourceOwner::RetireCompleted(
     std::uint64_t completedSerial) noexcept
 {
@@ -991,6 +1322,72 @@ Diligent::IPipelineState* DiligentNativeResourceOwner::ResolvePipeline(
     Gfx::PipelineHandle handle) const noexcept
 {
     const auto* slot = m_Impl->Find(m_Impl->pipelines, handle);
+    return slot ? slot->payload.pipeline.RawPtr() : nullptr;
+}
+
+Diligent::IBuffer* DiligentNativeResourceOwner::ResolveBuffer(
+    DiligentNativeBufferToken token) const noexcept
+{
+    if (token.kind != DiligentNativeResourceKind::Buffer)
+    {
+        return nullptr;
+    }
+    const auto* slot = m_Impl->Find(m_Impl->buffers, token);
+    return slot ? slot->payload.buffer.RawPtr() : nullptr;
+}
+
+Diligent::ITexture* DiligentNativeResourceOwner::ResolveTexture(
+    DiligentNativeTextureToken token) const noexcept
+{
+    if (token.kind != DiligentNativeResourceKind::Texture)
+    {
+        return nullptr;
+    }
+    const auto* slot = m_Impl->Find(m_Impl->textures, token);
+    return slot ? slot->payload.texture.RawPtr() : nullptr;
+}
+
+Diligent::ITextureView* DiligentNativeResourceOwner::ResolveTextureSrv(
+    DiligentNativeTextureToken token) const noexcept
+{
+    if (token.kind != DiligentNativeResourceKind::Texture)
+    {
+        return nullptr;
+    }
+    const auto* slot = m_Impl->Find(m_Impl->textures, token);
+    return slot ? slot->payload.srv.RawPtr() : nullptr;
+}
+
+Diligent::ISampler* DiligentNativeResourceOwner::ResolveSampler(
+    DiligentNativeSamplerToken token) const noexcept
+{
+    if (token.kind != DiligentNativeResourceKind::Sampler)
+    {
+        return nullptr;
+    }
+    const auto* slot = m_Impl->Find(m_Impl->samplers, token);
+    return slot ? slot->payload.sampler.RawPtr() : nullptr;
+}
+
+Diligent::IShader* DiligentNativeResourceOwner::ResolveShader(
+    DiligentNativeShaderToken token) const noexcept
+{
+    if (token.kind != DiligentNativeResourceKind::Shader)
+    {
+        return nullptr;
+    }
+    const auto* slot = m_Impl->Find(m_Impl->shaders, token);
+    return slot ? slot->payload.shader.RawPtr() : nullptr;
+}
+
+Diligent::IPipelineState* DiligentNativeResourceOwner::ResolvePipeline(
+    DiligentNativePipelineToken token) const noexcept
+{
+    if (token.kind != DiligentNativeResourceKind::Pipeline)
+    {
+        return nullptr;
+    }
+    const auto* slot = m_Impl->Find(m_Impl->pipelines, token);
     return slot ? slot->payload.pipeline.RawPtr() : nullptr;
 }
 

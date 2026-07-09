@@ -3,11 +3,8 @@
 
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackend.h"
 
-#include "SagaEngine/Graphics/Backends/Diligent/DiligentBindingCache.h"
-#include "SagaEngine/Graphics/Backends/Diligent/DiligentFallbackResources.h"
 #include "SagaEngine/Graphics/Backend/GraphicsRenderBackendMapping.h"
 #include "SagaEngine/Render/Backend/Diligent/DiligentNativeResourceOwner.h"
-#include "SagaEngine/Render/Backend/Diligent/DiligentRenderBackend.h"
 
 #include <utility>
 
@@ -31,50 +28,38 @@ namespace
     return renderDesc;
 }
 
-[[nodiscard]] std::unique_ptr<RenderBackend::IRenderBackend>
-CreateDefaultRenderBackend(const RenderBackendDesc& backend)
-{
-    return RenderBackend::CreateRenderBackend(
-        Mapping::ToRenderBackendConfig(backend));
-}
-
 } // anonymous namespace
 
 DiligentGraphicsBackend::DiligentGraphicsBackend()
-    : m_BackendFactory(CreateDefaultRenderBackend)
-    , m_NativeOwner(std::make_unique<RenderBackend::DiligentNativeResourceOwner>())
-    , m_NativeBindingCache(std::make_unique<DiligentBindingCache>())
-    , m_FallbackResources(std::make_unique<DiligentFallbackResources>())
+    : m_OwnedRuntime(std::make_unique<Runtime::DiligentGraphicsRuntime>())
+    , m_Runtime(m_OwnedRuntime.get())
+    , m_NativeOwner(&m_Runtime->NativeResources())
 {
     m_LastCapabilities = MakeConservativeCapabilities();
 }
 
 DiligentGraphicsBackend::DiligentGraphicsBackend(
-    std::unique_ptr<RenderBackend::IRenderBackend> backend,
-    StatusReader statusReader)
-    : m_RenderBackend(std::move(backend))
-    , m_BackendFactory(CreateDefaultRenderBackend)
-    , m_StatusReader(statusReader ? statusReader
-                                  : RenderBackend::GetRenderBackendStatus)
-    , m_NativeOwner(std::make_unique<RenderBackend::DiligentNativeResourceOwner>())
-    , m_NativeBindingCache(std::make_unique<DiligentBindingCache>())
-    , m_FallbackResources(std::make_unique<DiligentFallbackResources>())
+    Runtime::DiligentGraphicsRuntime& externalRuntime)
+    : m_Runtime(&externalRuntime)
+    , m_ExternalRuntime(true)
+    , m_NativeOwner(&m_Runtime->NativeResources())
 {
     m_LastCapabilities = MakeConservativeCapabilities();
 }
 
 DiligentGraphicsBackend::DiligentGraphicsBackend(
-    BackendFactory backendFactory,
-    StatusReader statusReader)
-    : m_BackendFactory(backendFactory ? backendFactory
-                                      : CreateDefaultRenderBackend)
-    , m_StatusReader(statusReader ? statusReader
-                                  : RenderBackend::GetRenderBackendStatus)
-    , m_NativeOwner(std::make_unique<RenderBackend::DiligentNativeResourceOwner>())
-    , m_NativeBindingCache(std::make_unique<DiligentBindingCache>())
-    , m_FallbackResources(std::make_unique<DiligentFallbackResources>())
+    bool forceHeadlessForTesting)
+    : DiligentGraphicsBackend()
 {
-    m_LastCapabilities = MakeConservativeCapabilities();
+    m_ForceHeadlessForTesting = forceHeadlessForTesting;
+}
+
+DiligentGraphicsBackend::DiligentGraphicsBackend(
+    bool forceHeadlessForTesting,
+    bool forceReadyForTesting)
+    : DiligentGraphicsBackend(forceHeadlessForTesting)
+{
+    m_ForceReadyForTesting = forceReadyForTesting;
 }
 
 DiligentGraphicsBackend::~DiligentGraphicsBackend() = default;
@@ -83,17 +68,50 @@ bool DiligentGraphicsBackend::Initialize(
     const RenderBackendDesc& backend,
     const SwapchainDesc& swapchain)
 {
-    Shutdown();
-    m_DeviceServices = {};
-    m_NativeCreationEnabled = false;
-    if (m_NativeOwner)
+    if (m_ExternalRuntime)
     {
-        m_NativeOwner->Bind({});
+        ReleaseResources();
     }
+    else
+    {
+        Shutdown();
+    }
+    m_NativeCreationEnabled = false;
+    m_NativeOwner = &m_Runtime->NativeResources();
     m_LastStatus = {};
     m_LastStatus.selectedBackend = backend.preferredBackend;
 
-    m_Headless = backend.headless;
+    if (m_ExternalRuntime)
+    {
+        if (!m_Runtime->IsInitialized())
+        {
+            SetFailure(RenderBackendFailure::InitializationFailed);
+            m_LastCapabilities = MakeConservativeCapabilities();
+            return false;
+        }
+
+        m_Headless = false;
+        m_LastStatus =
+            Mapping::ToGraphicsBackendStatus(m_Runtime->Status());
+        m_NativeCreationEnabled =
+            m_NativeOwner && m_NativeOwner->CanCreateNative();
+        m_LastCapabilities =
+            MakeReadyCapabilities(m_LastStatus.selectedBackend);
+        return m_NativeCreationEnabled;
+    }
+
+    if (m_ForceReadyForTesting)
+    {
+        m_Headless = false;
+        m_LastStatus.frameIndex = 0;
+        m_LastStatus.initialized = true;
+        m_LastStatus.health = RenderBackendHealth::Ready;
+        m_LastStatus.failure = RenderBackendFailure::None;
+        m_LastCapabilities = MakeReadyCapabilities(backend.preferredBackend);
+        return true;
+    }
+
+    m_Headless = backend.headless || m_ForceHeadlessForTesting;
     if (m_Headless)
     {
         m_HeadlessStatus.selectedBackend = backend.preferredBackend;
@@ -114,50 +132,24 @@ bool DiligentGraphicsBackend::Initialize(
         return false;
     }
 
-    if (!m_RenderBackend)
-    {
-        m_RenderBackend = m_BackendFactory(backend);
-    }
-
-    if (!m_RenderBackend)
-    {
-        SetFailure(RenderBackendFailure::BackendUnavailable);
-        return false;
-    }
-
     const bool initialized =
-        m_RenderBackend->Initialize(ToRenderSwapchainDesc(swapchain));
+        m_Runtime->Initialize(
+            Mapping::ToRenderBackendConfig(backend),
+            ToRenderSwapchainDesc(swapchain));
     m_LastStatus =
-        Mapping::ToGraphicsBackendStatus(m_StatusReader(*m_RenderBackend));
+        Mapping::ToGraphicsBackendStatus(m_Runtime->Status());
     if (!initialized)
     {
         SetFailure(RenderBackendFailure::InitializationFailed);
-        m_RenderBackend->Shutdown();
+        m_Runtime->Shutdown();
         m_LastCapabilities = MakeConservativeCapabilities();
-        m_DeviceServices = {};
+        m_NativeOwner = &m_Runtime->NativeResources();
     }
     else
     {
-        if (auto* diligentBackend =
-                dynamic_cast<RenderBackend::DiligentRenderBackend*>(
-                    m_RenderBackend.get()))
-        {
-            m_DeviceServices = diligentBackend->GetDiligentDeviceServices();
-            m_NativeCreationEnabled = m_DeviceServices.IsBound();
-            if (m_NativeOwner)
-            {
-                m_NativeOwner->Bind(m_DeviceServices);
-            }
-        }
-        else
-        {
-            m_DeviceServices = {};
-            m_NativeCreationEnabled = false;
-            if (m_NativeOwner)
-            {
-                m_NativeOwner->Bind({});
-            }
-        }
+        m_NativeOwner = &m_Runtime->NativeResources();
+        m_NativeCreationEnabled =
+            m_NativeOwner && m_NativeOwner->CanCreateNative();
         m_LastCapabilities = MakeReadyCapabilities(m_LastStatus.selectedBackend);
     }
 
@@ -169,12 +161,13 @@ void DiligentGraphicsBackend::Shutdown()
     m_LastShutdownLeakSummary = BuildLeakSummary(BuildResourceMemoryReport());
     ReleaseResources();
 
-    if (m_RenderBackend)
+    if (m_Runtime && !m_ExternalRuntime)
     {
-        m_RenderBackend->Shutdown();
+        m_Runtime->Shutdown();
     }
 
-    m_DeviceServices = {};
+    m_NativeOwner = m_Runtime ? &m_Runtime->NativeResources() : nullptr;
+    m_NativeCreationEnabled = false;
     m_HeadlessStatus.initialized = false;
     m_HeadlessStatus.health = RenderBackendHealth::Shutdown;
     m_LastStatus.initialized = false;
@@ -196,7 +189,7 @@ void DiligentGraphicsBackend::Resize(std::uint32_t width, std::uint32_t height)
     m_SurfaceMinimized = false;
     if (CanRenderFrame())
     {
-        m_RenderBackend->OnResize(width, height);
+        m_Runtime->Resize(width, height);
         m_LastStatus = GetStatus();
     }
 }
@@ -236,7 +229,7 @@ RenderBackendCapabilities DiligentGraphicsBackend::MakeReadyCapabilities(
 
 bool DiligentGraphicsBackend::CanRenderFrame() const noexcept
 {
-    return m_RenderBackend && !m_SurfaceMinimized &&
+    return m_Runtime && !m_SurfaceMinimized &&
            m_LastStatus.initialized &&
            m_LastStatus.failure == RenderBackendFailure::None;
 }
@@ -265,21 +258,9 @@ std::unique_ptr<IGraphicsBackend> CreateDiligentGraphicsBackend()
 }
 
 std::unique_ptr<IGraphicsBackend> CreateDiligentGraphicsBackendForTesting(
-    std::unique_ptr<RenderBackend::IRenderBackend> backend,
-    DiligentGraphicsBackend::StatusReader statusReader)
+)
 {
-    return std::make_unique<DiligentGraphicsBackend>(
-        std::move(backend),
-        statusReader);
-}
-
-std::unique_ptr<IGraphicsBackend> CreateDiligentGraphicsBackendForTesting(
-    DiligentGraphicsBackend::BackendFactory backendFactory,
-    DiligentGraphicsBackend::StatusReader statusReader)
-{
-    return std::make_unique<DiligentGraphicsBackend>(
-        backendFactory,
-        statusReader);
+    return std::make_unique<DiligentGraphicsBackend>(true);
 }
 
 } // namespace SagaEngine::Graphics::Backends::Diligent

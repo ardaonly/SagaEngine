@@ -2,7 +2,7 @@
 /// @brief Logical binding layout/set CRUD for the Diligent graphics adapter.
 
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackend.h"
-#include "SagaEngine/Graphics/Backends/Diligent/DiligentBindingCache.h"
+#include "SagaEngine/Graphics/Backends/Diligent/Runtime/DiligentBindingCache.h"
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentBindingCompiler.h"
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackendValidation.h"
 #include "SagaEngine/Graphics/Bindings/GraphicsBindingValidation.h"
@@ -182,8 +182,9 @@ BindingSetHandle DiligentGraphicsBackend::CreateBindingSet(
 void DiligentGraphicsBackend::DestroyBindingLayout(
     BindingLayoutHandle handle)
 {
-    m_NativeBindingCache->InvalidateLayout(
+    m_Runtime->BindingCache().InvalidateLayout(
         handle,
+        m_Runtime->DeferredReleaseSerial(),
         DiligentBindingFailureReason::MissingLayout,
         m_NativeBindingDiagnostics);
     m_CompiledBindingLayouts.erase(
@@ -193,8 +194,9 @@ void DiligentGraphicsBackend::DestroyBindingLayout(
 
 void DiligentGraphicsBackend::DestroyBindingSet(BindingSetHandle handle)
 {
-    m_NativeBindingCache->InvalidateBindingSet(
+    m_Runtime->BindingCache().InvalidateBindingSet(
         handle,
+        m_Runtime->DeferredReleaseSerial(),
         DiligentBindingFailureReason::MissingBindingSet,
         m_NativeBindingDiagnostics);
     m_NativeBindingSets.erase(PackHandleKey(handle.index, handle.generation));

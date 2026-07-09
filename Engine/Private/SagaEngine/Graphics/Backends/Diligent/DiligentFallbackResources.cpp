@@ -3,8 +3,8 @@
 
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentFallbackResources.h"
 
-#include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackend.h"
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackendValidation.h"
+#include "SagaEngine/Render/Backend/Diligent/DiligentNativeResourceOwner.h"
 
 #include <array>
 
@@ -56,25 +56,21 @@ namespace
 } // namespace
 
 bool DiligentFallbackResources::Initialize(
-    DiligentGraphicsBackend& backend,
+    ::SagaEngine::Render::Backend::DiligentNativeResourceOwner& owner,
     DiligentNativeBindingDiagnostics& diagnostics) noexcept
 {
     ++diagnostics.fallbackInitializationAttempts;
     if (m_Live)
     {
-        const auto textureQuery = backend.QueryTextureForTesting(m_WhiteTexture);
-        const auto samplerQuery = backend.QuerySamplerForTesting(m_MaterialSampler);
-        if (textureQuery.live && textureQuery.nativeBacked &&
-            samplerQuery.live && samplerQuery.nativeBacked &&
-            backend.ResolveNativeTextureSrvForTesting(m_WhiteTexture) &&
-            backend.ResolveNativeSamplerForTesting(m_MaterialSampler))
+        if (owner.ResolveTextureSrv(m_WhiteTextureToken) &&
+            owner.ResolveSampler(m_MaterialSamplerToken))
         {
             ++diagnostics.fallbackInitializationSuccesses;
             PublishDiagnostics(diagnostics);
             return true;
         }
 
-        Release(backend, diagnostics);
+        Release(owner, diagnostics);
     }
 
     if (m_Initializing)
@@ -93,9 +89,13 @@ bool DiligentFallbackResources::Initialize(
     };
 
     const auto textureDesc = MakeWhiteTextureDesc();
-    const auto texture =
-        backend.CreateTexture(textureDesc, WhiteTextureData(kWhitePixel));
-    if (!texture.IsValid())
+    const auto textureToken = owner.AllocateToken(
+        ::SagaEngine::Render::Backend::DiligentNativeResourceKind::Texture);
+    const auto textureSerial = owner.CreateTextureForToken(
+        textureToken,
+        textureDesc,
+        WhiteTextureData(kWhitePixel));
+    if (textureSerial == 0u || !owner.ResolveTextureSrv(textureToken))
     {
         m_Initializing = false;
         ++diagnostics.fallbackInitializationFailures;
@@ -104,21 +104,10 @@ bool DiligentFallbackResources::Initialize(
     }
     ++diagnostics.fallbackTextureCreates;
 
-    const auto textureQuery = backend.QueryTextureForTesting(texture);
-    if (!textureQuery.live || !textureQuery.nativeBacked ||
-        !backend.ResolveNativeTextureSrvForTesting(texture))
-    {
-        backend.DestroyTexture(texture);
-        m_Initializing = false;
-        ++diagnostics.fallbackInitializationFailures;
-        PublishDiagnostics(diagnostics);
-        return false;
-    }
-
     if (m_ForceNextSamplerFailure)
     {
         m_ForceNextSamplerFailure = false;
-        backend.DestroyTexture(texture);
+        owner.DestroyTexture(textureToken);
         m_Initializing = false;
         ++diagnostics.fallbackInitializationFailures;
         PublishDiagnostics(diagnostics);
@@ -126,10 +115,14 @@ bool DiligentFallbackResources::Initialize(
     }
 
     const auto samplerDesc = MakeMaterialSamplerDesc();
-    const auto sampler = backend.CreateSampler(samplerDesc);
-    if (!sampler.IsValid())
+    const auto samplerToken = owner.AllocateToken(
+        ::SagaEngine::Render::Backend::DiligentNativeResourceKind::Sampler);
+    const auto samplerSerial = owner.CreateSamplerForToken(
+        samplerToken,
+        samplerDesc);
+    if (samplerSerial == 0u || !owner.ResolveSampler(samplerToken))
     {
-        backend.DestroyTexture(texture);
+        owner.DestroyTexture(textureToken);
         m_Initializing = false;
         ++diagnostics.fallbackInitializationFailures;
         PublishDiagnostics(diagnostics);
@@ -137,22 +130,14 @@ bool DiligentFallbackResources::Initialize(
     }
     ++diagnostics.fallbackSamplerCreates;
 
-    const auto samplerQuery = backend.QuerySamplerForTesting(sampler);
-    if (!samplerQuery.live || !samplerQuery.nativeBacked ||
-        !backend.ResolveNativeSamplerForTesting(sampler))
-    {
-        backend.DestroySampler(sampler);
-        backend.DestroyTexture(texture);
-        m_Initializing = false;
-        ++diagnostics.fallbackInitializationFailures;
-        PublishDiagnostics(diagnostics);
-        return false;
-    }
-
-    m_WhiteTexture = texture;
-    m_MaterialSampler = sampler;
-    m_WhiteTextureCreationSerial = textureQuery.creationSerial;
-    m_MaterialSamplerCreationSerial = samplerQuery.creationSerial;
+    m_WhiteTextureToken = textureToken;
+    m_MaterialSamplerToken = samplerToken;
+    m_WhiteTexture.index = textureToken.index;
+    m_WhiteTexture.generation = textureToken.generation;
+    m_MaterialSampler.index = samplerToken.index;
+    m_MaterialSampler.generation = samplerToken.generation;
+    m_WhiteTextureCreationSerial = textureSerial;
+    m_MaterialSamplerCreationSerial = samplerSerial;
     m_Live = true;
     ++m_Generation;
     m_Initializing = false;
@@ -162,7 +147,7 @@ bool DiligentFallbackResources::Initialize(
 }
 
 void DiligentFallbackResources::Release(
-    DiligentGraphicsBackend& backend,
+    ::SagaEngine::Render::Backend::DiligentNativeResourceOwner& owner,
     DiligentNativeBindingDiagnostics& diagnostics) noexcept
 {
     if (!m_Live)
@@ -171,58 +156,62 @@ void DiligentFallbackResources::Release(
         return;
     }
 
-    const auto sampler = m_MaterialSampler;
-    const auto texture = m_WhiteTexture;
+    const auto sampler = m_MaterialSamplerToken;
+    const auto texture = m_WhiteTextureToken;
     ResetPublishedState();
     ++m_Generation;
     ++diagnostics.fallbackReleaseCount;
 
     if (sampler.IsValid())
     {
-        backend.DestroySampler(sampler);
+        owner.DestroySampler(sampler);
     }
     if (texture.IsValid())
     {
-        backend.DestroyTexture(texture);
+        owner.DestroyTexture(texture);
     }
 
     PublishDiagnostics(diagnostics);
 }
 
 DiligentFallbackResourceIdentity DiligentFallbackResources::ResolveWhiteTexture(
-    DiligentGraphicsBackend& backend,
+    ::SagaEngine::Render::Backend::DiligentNativeResourceOwner& owner,
     DiligentNativeBindingDiagnostics& diagnostics) noexcept
 {
     DiligentFallbackResourceIdentity identity{};
-    if (!Initialize(backend, diagnostics))
+    if (!Initialize(owner, diagnostics))
     {
         return identity;
     }
 
     identity.kind = GraphicsResourceKind::Texture;
     identity.handle = m_WhiteTexture;
+    identity.nativeToken = m_WhiteTextureToken;
+    identity.textureView = owner.ResolveTextureSrv(m_WhiteTextureToken);
     identity.creationSerial = m_WhiteTextureCreationSerial;
     identity.fallbackGeneration = m_Generation;
-    identity.valid = true;
+    identity.valid = identity.textureView != nullptr;
     return identity;
 }
 
 DiligentFallbackResourceIdentity
 DiligentFallbackResources::ResolveMaterialSampler(
-    DiligentGraphicsBackend& backend,
+    ::SagaEngine::Render::Backend::DiligentNativeResourceOwner& owner,
     DiligentNativeBindingDiagnostics& diagnostics) noexcept
 {
     DiligentFallbackResourceIdentity identity{};
-    if (!Initialize(backend, diagnostics))
+    if (!Initialize(owner, diagnostics))
     {
         return identity;
     }
 
     identity.kind = GraphicsResourceKind::Sampler;
     identity.handle = m_MaterialSampler;
+    identity.nativeToken = m_MaterialSamplerToken;
+    identity.sampler = owner.ResolveSampler(m_MaterialSamplerToken);
     identity.creationSerial = m_MaterialSamplerCreationSerial;
     identity.fallbackGeneration = m_Generation;
-    identity.valid = true;
+    identity.valid = identity.sampler != nullptr;
     return identity;
 }
 
@@ -288,6 +277,8 @@ void DiligentFallbackResources::ResetPublishedState() noexcept
 {
     m_WhiteTexture = {};
     m_MaterialSampler = {};
+    m_WhiteTextureToken = {};
+    m_MaterialSamplerToken = {};
     m_WhiteTextureCreationSerial = 0;
     m_MaterialSamplerCreationSerial = 0;
     m_Live = false;

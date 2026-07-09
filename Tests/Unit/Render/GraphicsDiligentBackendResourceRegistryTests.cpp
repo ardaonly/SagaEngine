@@ -331,7 +331,6 @@ TEST(GraphicsDiligentBackendAdapter, QueryHelpersReportLiveKindAndBytes)
     FakeRenderState state;
     auto backend = MakeConcreteBackend(state);
     EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
-    BindFakeNativeDeviceServices(*backend);
 
     auto textureDesc = MakeTextureDesc();
     textureDesc.debugName = "albedo";
@@ -358,7 +357,7 @@ TEST(GraphicsDiligentBackendAdapter, QueryHelpersReportLiveKindAndBytes)
     auto query = backend->QueryTextureForTesting(texture);
     EXPECT_TRUE(query.live);
     EXPECT_EQ(query.kind, Graphics::GraphicsResourceKind::Texture);
-    EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::NativeGpuFuture);
+    EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::RegisteredOnly);
     EXPECT_EQ(query.approximateBytes, 64u);
     EXPECT_EQ(query.debugName, "albedo");
 
@@ -372,7 +371,7 @@ TEST(GraphicsDiligentBackendAdapter, QueryHelpersReportLiveKindAndBytes)
     query = backend->QueryBufferForTesting(buffer);
     EXPECT_TRUE(query.live);
     EXPECT_EQ(query.kind, Graphics::GraphicsResourceKind::Buffer);
-    EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::NativeGpuFuture);
+    EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::RegisteredOnly);
     EXPECT_EQ(query.approximateBytes, 128u);
     EXPECT_EQ(query.debugName, "vertices");
 
@@ -393,10 +392,10 @@ TEST(GraphicsDiligentBackendAdapter, QueryHelpersReportLiveKindAndBytes)
     query = backend->QuerySamplerForTesting(sampler);
     EXPECT_TRUE(query.live);
     EXPECT_EQ(query.kind, Graphics::GraphicsResourceKind::Sampler);
-    EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::NativeGpuFuture);
+    EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::RegisteredOnly);
     EXPECT_EQ(query.approximateBytes, 0u);
     EXPECT_EQ(query.debugName, "linear-clamp");
-    EXPECT_NE(backend->GetSamplerNativeSerialForTesting(sampler), 0u);
+    EXPECT_EQ(backend->GetSamplerNativeSerialForTesting(sampler), 0u);
 
     backend->DestroyBuffer(buffer);
     query = backend->QueryBufferForTesting(buffer);
@@ -440,14 +439,13 @@ TEST(GraphicsDiligentBackendAdapter, InitialDataAcceptedWithoutNativeUpload)
     FakeRenderState state;
     auto backend = MakeConcreteBackend(state);
     EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
-    BindFakeNativeDeviceServices(*backend);
 
     std::array<std::uint8_t, 64> pixels{};
     const auto texture =
         backend->CreateTexture(MakeTextureDesc(), MakeDataView(pixels));
     ASSERT_TRUE(texture.IsValid());
     EXPECT_EQ(backend->GetTextureShadowBytesForTesting(texture), 64u);
-    EXPECT_TRUE(backend->GetTextureNativeUploadDeferredForTesting(texture));
+    EXPECT_FALSE(backend->GetTextureNativeUploadDeferredForTesting(texture));
     EXPECT_EQ(state.textureCreateCalls, 0u);
 
     std::array<std::uint8_t, 128> bytes{};
@@ -455,7 +453,7 @@ TEST(GraphicsDiligentBackendAdapter, InitialDataAcceptedWithoutNativeUpload)
         backend->CreateBuffer(MakeBufferDesc(), MakeDataView(bytes));
     ASSERT_TRUE(buffer.IsValid());
     EXPECT_EQ(backend->GetBufferShadowBytesForTesting(buffer), 128u);
-    EXPECT_TRUE(backend->GetBufferNativeUploadDeferredForTesting(buffer));
+    EXPECT_FALSE(backend->GetBufferNativeUploadDeferredForTesting(buffer));
 }
 
 TEST(GraphicsDiligentBackendAdapter, InvalidInitialDataUpdatesLastFailure)
@@ -487,7 +485,6 @@ TEST(GraphicsDiligentBackendAdapter, InitialDataDoesNotTouchRenderBackendUploadP
     FakeRenderState state;
     auto backend = MakeConcreteBackend(state);
     EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
-    BindFakeNativeDeviceServices(*backend);
 
     std::array<std::uint8_t, 64> pixels{};
     EXPECT_TRUE(
@@ -503,7 +500,6 @@ TEST(GraphicsDiligentBackendAdapter, DestroyAndShutdownReleaseShadowPayload)
     FakeRenderState state;
     auto backend = MakeConcreteBackend(state);
     EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
-    BindFakeNativeDeviceServices(*backend);
 
     std::array<std::uint8_t, 64> pixels{};
     const auto texture =
@@ -519,7 +515,7 @@ TEST(GraphicsDiligentBackendAdapter, DestroyAndShutdownReleaseShadowPayload)
         backend->CreateTexture(MakeTextureDesc(), MakeDataView(pixels));
     ASSERT_TRUE(nextTexture.IsValid());
     ASSERT_EQ(backend->GetTextureShadowBytesForTesting(nextTexture), 64u);
-    ASSERT_NE(backend->GetTextureNativeSerialForTesting(nextTexture), 0u);
+    ASSERT_EQ(backend->GetTextureNativeSerialForTesting(nextTexture), 0u);
 
     backend->Shutdown();
     EXPECT_EQ(backend->GetTextureShadowBytesForTesting(nextTexture), 0u);

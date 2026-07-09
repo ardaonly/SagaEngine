@@ -10,7 +10,6 @@ TEST(GraphicsDiligentBackendAdapter, NativePreparedHandlesReportBackingState)
     FakeRenderState state;
     auto backend = MakeConcreteBackend(state);
     EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
-    BindFakeNativeDeviceServices(*backend);
 
     const auto texture = backend->CreateTexture(MakeTextureDesc());
     const auto buffer = backend->CreateBuffer(MakeBufferDesc());
@@ -19,12 +18,12 @@ TEST(GraphicsDiligentBackendAdapter, NativePreparedHandlesReportBackingState)
 
     EXPECT_EQ(
         backend->GetTextureBackingForTesting(texture),
-        Graphics::GraphicsResourceBacking::NativeGpuFuture);
+        Graphics::GraphicsResourceBacking::RegisteredOnly);
     EXPECT_EQ(
         backend->GetBufferBackingForTesting(buffer),
-        Graphics::GraphicsResourceBacking::NativeGpuFuture);
-    EXPECT_NE(backend->GetTextureNativeSerialForTesting(texture), 0u);
-    EXPECT_NE(backend->GetBufferNativeSerialForTesting(buffer), 0u);
+        Graphics::GraphicsResourceBacking::RegisteredOnly);
+    EXPECT_EQ(backend->GetTextureNativeSerialForTesting(texture), 0u);
+    EXPECT_EQ(backend->GetBufferNativeSerialForTesting(buffer), 0u);
     EXPECT_EQ(
         backend->GetTextureBackingForTesting({}),
         Graphics::GraphicsResourceBacking::Invalid);
@@ -37,7 +36,7 @@ TEST(GraphicsDiligentBackendAdapter, NativePreparedHandlesReportBackingState)
 
     const auto nextTexture = backend->CreateTexture(MakeTextureDesc());
     ASSERT_TRUE(nextTexture.IsValid());
-    EXPECT_NE(backend->GetTextureNativeSerialForTesting(nextTexture), 0u);
+    EXPECT_EQ(backend->GetTextureNativeSerialForTesting(nextTexture), 0u);
     backend->Shutdown();
     EXPECT_EQ(
         backend->GetTextureBackingForTesting(nextTexture),
@@ -66,10 +65,6 @@ TEST(GraphicsDiligentBackendAdapter, NativeBufferRejectsOverflow)
     FakeRenderState state;
     auto backend = MakeConcreteBackend(state);
     EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
-    backend->BindNativeDeviceServicesForTesting(
-        MakeFakeDeviceServices(),
-        true);
-
     auto desc = MakeNativeBufferDesc(
         Graphics::BufferUsage::Vertex,
         std::numeric_limits<std::uint64_t>::max());
@@ -129,10 +124,6 @@ TEST(GraphicsDiligentBackendAdapter, FailedNativeCreationReturnsInvalidHandle)
     FakeRenderState state;
     auto backend = MakeConcreteBackend(state);
     EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
-    backend->BindNativeDeviceServicesForTesting(
-        MakeFakeDeviceServices(),
-        true);
-
     auto desc = MakeNativeBufferDesc(
         Graphics::BufferUsage::Vertex,
         std::numeric_limits<std::uint64_t>::max());
@@ -213,9 +204,7 @@ TEST(GraphicsDiligentBackendAdapter, NativeBufferCarriesDebugName)
     EXPECT_EQ(query.debugName, "camera-constants");
 }
 
-TEST(
-    GraphicsDiligentBackendAdapter,
-    DeviceServicesAreOptionalUntilRuntimeBound)
+TEST(GraphicsDiligentBackendAdapter, ForcedReadyUnitBackendStaysRegisteredOnly)
 {
     FakeRenderState state;
     auto backend = MakeConcreteBackend(state);
@@ -242,23 +231,20 @@ TEST(
     EXPECT_EQ(query.lastUseSerial, 0u);
     EXPECT_EQ(backend->GetTextureNativeSerialForTesting(unboundTexture), 0u);
 
-    BindFakeNativeDeviceServices(*backend);
-    EXPECT_TRUE(backend->HasNativeDeviceServicesForTesting());
+    const auto buffer = backend->CreateBuffer(MakeBufferDesc());
+    ASSERT_TRUE(buffer.IsValid());
 
-    const auto boundBuffer = backend->CreateBuffer(MakeBufferDesc());
-    ASSERT_TRUE(boundBuffer.IsValid());
-
-    query = backend->QueryBufferForTesting(boundBuffer);
+    query = backend->QueryBufferForTesting(buffer);
     EXPECT_TRUE(query.valid);
     EXPECT_TRUE(query.live);
     EXPECT_EQ(query.kind, Graphics::GraphicsResourceKind::Buffer);
-    EXPECT_EQ(query.lifecycle, Graphics::GraphicsResourceLifecycle::Ready);
-    EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::NativeGpuFuture);
+    EXPECT_EQ(query.lifecycle, Graphics::GraphicsResourceLifecycle::RegisteredOnly);
+    EXPECT_EQ(query.backing, Graphics::GraphicsResourceBacking::RegisteredOnly);
     EXPECT_FALSE(query.nativeBacked);
     EXPECT_EQ(query.logicalBytes, 128u);
     EXPECT_FALSE(query.resident);
     EXPECT_NE(query.creationSerial, 0u);
-    EXPECT_NE(backend->GetBufferNativeSerialForTesting(boundBuffer), 0u);
+    EXPECT_EQ(backend->GetBufferNativeSerialForTesting(buffer), 0u);
 }
 
 TEST(GraphicsDiligentBackendAdapter, NativeBackendDoesNotCreateSecondDevice)
@@ -266,17 +252,14 @@ TEST(GraphicsDiligentBackendAdapter, NativeBackendDoesNotCreateSecondDevice)
     FakeRenderState state;
     auto backend = MakeConcreteBackend(state);
     EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
-    EXPECT_EQ(state.initializeCalls, 1u);
-
-    BindFakeNativeDeviceServices(*backend);
-    EXPECT_TRUE(backend->HasNativeDeviceServicesForTesting());
+    EXPECT_EQ(state.initializeCalls, 0u);
 
     const auto texture = backend->CreateTexture(MakeTextureDesc());
     const auto buffer = backend->CreateBuffer(MakeBufferDesc());
     ASSERT_TRUE(texture.IsValid());
     ASSERT_TRUE(buffer.IsValid());
 
-    EXPECT_EQ(state.initializeCalls, 1u);
+    EXPECT_EQ(state.initializeCalls, 0u);
     EXPECT_EQ(state.textureCreateCalls, 0u);
     EXPECT_EQ(state.beginFrameCalls, 0u);
     EXPECT_EQ(state.endFrameCalls, 0u);

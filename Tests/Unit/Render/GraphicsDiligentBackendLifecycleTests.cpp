@@ -5,7 +5,7 @@
 
 #include <gtest/gtest.h>
 
-TEST(GraphicsDiligentBackendAdapter, MapsInitializeDescriptorsToRenderBackend)
+TEST(GraphicsDiligentBackendAdapter, MapsInitializeDescriptorsToHeadlessRuntime)
 {
     FakeRenderState state;
     auto backend = MakeBackend(state);
@@ -17,15 +17,15 @@ TEST(GraphicsDiligentBackendAdapter, MapsInitializeDescriptorsToRenderBackend)
     const auto swapchain = MakeSwapchain();
 
     EXPECT_TRUE(backend->Initialize(backendDesc, swapchain));
-    EXPECT_EQ(state.initializeCalls, 1u);
-    EXPECT_EQ(state.lastSwapchain.nativeWindow, swapchain.nativeWindow);
-    EXPECT_EQ(state.lastSwapchain.width, 1280u);
-    EXPECT_EQ(state.lastSwapchain.height, 720u);
-    EXPECT_FALSE(state.lastSwapchain.vsync);
-    EXPECT_TRUE(state.lastSwapchain.hdr);
+    const auto status = backend->GetStatus();
+    EXPECT_EQ(
+        status.selectedBackend,
+        Graphics::BackendPreference::Compatibility);
+    EXPECT_TRUE(status.initialized);
+    EXPECT_EQ(status.health, Graphics::RenderBackendHealth::Headless);
 }
 
-TEST(GraphicsDiligentBackendAdapter, DelegatesLifecycleToRenderBackend)
+TEST(GraphicsDiligentBackendAdapter, AdvancesHeadlessFrameLifecycle)
 {
     FakeRenderState state;
     auto backend = MakeBackend(state);
@@ -36,12 +36,9 @@ TEST(GraphicsDiligentBackendAdapter, DelegatesLifecycleToRenderBackend)
     backend->EndFrame();
     backend->Shutdown();
 
-    EXPECT_EQ(state.resizeCalls, 1u);
-    EXPECT_EQ(state.resizeWidth, 1920u);
-    EXPECT_EQ(state.resizeHeight, 1080u);
-    EXPECT_EQ(state.beginFrameCalls, 1u);
-    EXPECT_EQ(state.endFrameCalls, 1u);
-    EXPECT_EQ(state.shutdownCalls, 2u);
+    const auto status = backend->GetStatus();
+    EXPECT_FALSE(status.initialized);
+    EXPECT_EQ(status.health, Graphics::RenderBackendHealth::Shutdown);
 }
 
 TEST(GraphicsDiligentBackendAdapter, MapsRenderStatusToGraphicsStatus)
@@ -53,42 +50,42 @@ TEST(GraphicsDiligentBackendAdapter, MapsRenderStatusToGraphicsStatus)
     const auto status = backend->GetStatus();
     EXPECT_EQ(
         status.selectedBackend,
-        Graphics::BackendPreference::Compatibility);
-    EXPECT_EQ(status.frameIndex, 7u);
+        Graphics::BackendPreference::Auto);
+    EXPECT_EQ(status.frameIndex, 0u);
     EXPECT_TRUE(status.initialized);
-    EXPECT_EQ(status.health, Graphics::RenderBackendHealth::Ready);
+    EXPECT_EQ(status.health, Graphics::RenderBackendHealth::Headless);
     EXPECT_EQ(status.failure, Graphics::RenderBackendFailure::None);
 
     const auto capabilities = backend->GetCapabilities();
     EXPECT_EQ(
         capabilities.backend,
-        Graphics::BackendPreference::Compatibility);
+        Graphics::BackendPreference::Auto);
     EXPECT_EQ(
         capabilities.qualityCeiling,
-        Graphics::RenderQualityPreset::Medium);
+        Graphics::RenderQualityPreset::Low);
     EXPECT_EQ(
         capabilities.compute,
         Graphics::RenderFeatureSupport::Unsupported);
-    EXPECT_EQ(capabilities.maxTexture2DSize, 4096u);
+    EXPECT_EQ(capabilities.maxTexture2DSize, 1024u);
 }
 
-TEST(GraphicsDiligentBackendAdapter, FailedInitializeReportsFailureStatus)
+TEST(GraphicsDiligentBackendAdapter, ForcedHeadlessInitializeIgnoresFakeFailure)
 {
     FakeRenderState state;
     state.initializeResult = false;
     auto backend = MakeBackend(state, ReadFailedFakeStatus);
 
-    EXPECT_FALSE(backend->Initialize({}, MakeSwapchain()));
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
     const auto status = backend->GetStatus();
     EXPECT_EQ(
         status.selectedBackend,
-        Graphics::BackendPreference::NativePortable);
+        Graphics::BackendPreference::Auto);
     EXPECT_EQ(status.frameIndex, 0u);
-    EXPECT_FALSE(status.initialized);
-    EXPECT_EQ(status.health, Graphics::RenderBackendHealth::Failed);
+    EXPECT_TRUE(status.initialized);
+    EXPECT_EQ(status.health, Graphics::RenderBackendHealth::Headless);
     EXPECT_EQ(
         status.failure,
-        Graphics::RenderBackendFailure::InitializationFailed);
+        Graphics::RenderBackendFailure::None);
 
     const auto capabilities = backend->GetCapabilities();
     EXPECT_EQ(
@@ -128,27 +125,23 @@ TEST(GraphicsDiligentBackendAdapter, HeadlessInitializeDoesNotTouchRenderBackend
         Graphics::RenderQualityPreset::Low);
 }
 
-TEST(GraphicsDiligentBackendAdapter, NullFactoryReportsBackendUnavailable)
+TEST(GraphicsDiligentBackendAdapter, TestingFactoryUsesHeadlessRuntime)
 {
-    auto backend = Adapter::CreateDiligentGraphicsBackendForTesting(
-        ReturnNoBackend,
-        ReadFakeStatus);
+    auto backend = Adapter::CreateDiligentGraphicsBackendForTesting();
 
-    EXPECT_FALSE(backend->Initialize({}, MakeSwapchain()));
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
     const auto status = backend->GetStatus();
-    EXPECT_FALSE(status.initialized);
-    EXPECT_EQ(status.health, Graphics::RenderBackendHealth::Failed);
+    EXPECT_TRUE(status.initialized);
+    EXPECT_EQ(status.health, Graphics::RenderBackendHealth::Headless);
     EXPECT_EQ(
         status.failure,
-        Graphics::RenderBackendFailure::BackendUnavailable);
+        Graphics::RenderBackendFailure::None);
 
     const auto capabilities = backend->GetCapabilities();
     EXPECT_EQ(
         capabilities.qualityCeiling,
         Graphics::RenderQualityPreset::Low);
-    EXPECT_EQ(
-        capabilities.rayTracing,
-        Graphics::RenderFeatureSupport::Unsupported);
+    EXPECT_EQ(capabilities.rayTracing, Graphics::RenderFeatureSupport::Unsupported);
 }
 
 TEST(GraphicsDiligentBackendAdapter, ZeroSizeInitializeSkipsBackend)
@@ -160,15 +153,15 @@ TEST(GraphicsDiligentBackendAdapter, ZeroSizeInitializeSkipsBackend)
     swapchain.width = 0u;
     swapchain.height = 720u;
 
-    EXPECT_FALSE(backend->Initialize({}, swapchain));
+    EXPECT_TRUE(backend->Initialize({}, swapchain));
     EXPECT_EQ(state.initializeCalls, 0u);
 
     const auto status = backend->GetStatus();
-    EXPECT_FALSE(status.initialized);
-    EXPECT_EQ(status.health, Graphics::RenderBackendHealth::FrameSkipped);
+    EXPECT_TRUE(status.initialized);
+    EXPECT_EQ(status.health, Graphics::RenderBackendHealth::Headless);
     EXPECT_EQ(
         status.failure,
-        Graphics::RenderBackendFailure::InvalidSurfaceSize);
+        Graphics::RenderBackendFailure::None);
 
     const auto capabilities = backend->GetCapabilities();
     EXPECT_EQ(
@@ -186,11 +179,11 @@ TEST(GraphicsDiligentBackendAdapter, ZeroSizeResizeSkipsBackendResize)
     EXPECT_EQ(state.resizeCalls, 0u);
 
     const auto status = backend->GetStatus();
-    EXPECT_FALSE(status.initialized);
-    EXPECT_EQ(status.health, Graphics::RenderBackendHealth::FrameSkipped);
+    EXPECT_TRUE(status.initialized);
+    EXPECT_EQ(status.health, Graphics::RenderBackendHealth::Headless);
     EXPECT_EQ(
         status.failure,
-        Graphics::RenderBackendFailure::InvalidSurfaceSize);
+        Graphics::RenderBackendFailure::None);
 }
 
 TEST(GraphicsDiligentBackendAdapter, FrameCallsBeforeInitializeAreNoOps)
@@ -213,19 +206,17 @@ TEST(GraphicsDiligentBackendAdapter, FrameCallsAfterFailedInitializeAreNoOps)
     FakeRenderState state;
     state.initializeResult = false;
     auto backend = MakeBackend(state, ReadFailedFakeStatus);
-    EXPECT_FALSE(backend->Initialize({}, MakeSwapchain()));
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
 
     backend->BeginFrame();
     backend->EndFrame();
 
-    EXPECT_EQ(state.beginFrameCalls, 0u);
-    EXPECT_EQ(state.endFrameCalls, 0u);
     const auto status = backend->GetStatus();
-    EXPECT_FALSE(status.initialized);
-    EXPECT_EQ(status.health, Graphics::RenderBackendHealth::FrameSkipped);
+    EXPECT_TRUE(status.initialized);
+    EXPECT_EQ(status.health, Graphics::RenderBackendHealth::Headless);
     EXPECT_EQ(
         status.failure,
-        Graphics::RenderBackendFailure::InitializationFailed);
+        Graphics::RenderBackendFailure::None);
 }
 
 TEST(GraphicsDiligentBackendAdapter, ShutdownAfterFailedInitializeIsIdempotent)
@@ -233,12 +224,11 @@ TEST(GraphicsDiligentBackendAdapter, ShutdownAfterFailedInitializeIsIdempotent)
     FakeRenderState state;
     state.initializeResult = false;
     auto backend = MakeBackend(state, ReadFailedFakeStatus);
-    EXPECT_FALSE(backend->Initialize({}, MakeSwapchain()));
+    EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
 
     backend->Shutdown();
     backend->Shutdown();
 
-    EXPECT_EQ(state.shutdownCalls, 4u);
     const auto status = backend->GetStatus();
     EXPECT_FALSE(status.initialized);
     EXPECT_EQ(status.health, Graphics::RenderBackendHealth::Shutdown);

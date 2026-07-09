@@ -49,7 +49,9 @@ public:
     [[nodiscard]] std::uint64_t FrameIndex() const noexcept;
     [[nodiscard]] bool IsInitialized() const noexcept;
     [[nodiscard]] SagaEngine::Render::Backend::RenderFrameDiagnostics LastFrameDiagnostics() const noexcept;
-    [[nodiscard]] SagaEngine::Render::Backend::DiligentDeviceServices GetDiligentDeviceServices() const noexcept;
+    [[nodiscard]]
+    SagaEngine::Graphics::Backends::Diligent::Runtime::DiligentGraphicsRuntime&
+    RuntimeForIntegrationTesting() noexcept;
     [[nodiscard]] SagaEngine::Render::Backend::RenderCaptureResult CaptureCurrentColorFrame(
         SagaEngine::Render::Backend::RenderFrameCapture& capture);
     [[nodiscard]] SagaEngine::Render::Backend::IRenderBackend& BackendInterface() noexcept;
