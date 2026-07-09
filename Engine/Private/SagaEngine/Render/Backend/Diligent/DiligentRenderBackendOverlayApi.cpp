@@ -8,18 +8,17 @@ namespace SagaEngine::Render::Backend
 
 bool DiligentRenderBackend::InitOverlayRendering()
 {
-    if (!m_Impl || !m_Impl->initialized) return false;
+    if (!m_Impl || !m_Impl->runtime->IsInitialized()) return false;
     return m_Impl->overlayRenderer.Initialize(
-        GetDiligentDeviceServices(),
-        m_Impl->nativeResources,
-        m_Impl->frameSlots.FrameSlotCount());
+        *m_Impl->runtime,
+        m_Impl->runtime->FrameSlots().FrameSlotCount());
 }
 
 RenderOverlayTextureHandle DiligentRenderBackend::CreateOverlayTexture(
     const RenderOverlayTextureDesc& desc,
     const std::uint8_t* rgbaPixels)
 {
-    if (!m_Impl || !m_Impl->initialized) return {};
+    if (!m_Impl || !m_Impl->runtime->IsInitialized()) return {};
     if (!m_Impl->overlayRenderer.IsReady() && !InitOverlayRendering())
     {
         return {};
@@ -38,11 +37,11 @@ void DiligentRenderBackend::DestroyOverlayTexture(
 void DiligentRenderBackend::RenderOverlayFrame(
     const ::SagaEngine::Render::Backend::RenderOverlayFrame& frame)
 {
-    if (!m_Impl || !m_Impl->initialized) return;
+    if (!m_Impl || !m_Impl->runtime->IsInitialized()) return;
     m_Impl->overlayRenderer.Render(
         frame,
-        m_Impl->frameSlots.ActiveFrameSerial(),
-        m_Impl->frameSlots.ActiveFrameSlot());
+        m_Impl->runtime->FrameSlots().ActiveFrameSerial(),
+        m_Impl->runtime->FrameSlots().ActiveFrameSlot());
 }
 
 void DiligentRenderBackend::ShutdownOverlayRendering()
@@ -54,14 +53,13 @@ void DiligentRenderBackend::ShutdownOverlayRendering()
 RenderCaptureResult DiligentRenderBackend::CaptureCurrentColorFrame(
     RenderFrameCapture& outCapture)
 {
-    if (!m_Impl || !m_Impl->initialized)
+    if (!m_Impl || !m_Impl->runtime->IsInitialized())
     {
         outCapture = {};
         return RenderCaptureResult::kNotInitialized;
     }
 
-    return m_Impl->frameCapture.Capture(
-        GetDiligentDeviceServices(), outCapture);
+    return m_Impl->frameCapture.Capture(*m_Impl->runtime, outCapture);
 }
 
 // ─── Diagnostics ─────────────────────────────────────────────────────

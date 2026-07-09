@@ -188,7 +188,7 @@ BindingGPU::CreateNativeConstantPipeline(
         return {};
     }
 
-    const auto services = m_Backend.GetDiligentDeviceServices();
+    const auto services = m_Backend.RuntimeForIntegrationTesting().Services();
     const auto& scDesc = services.SwapChain()->GetDesc();
 
     SagaEngine::Graphics::PipelineDesc desc{};
@@ -196,7 +196,8 @@ BindingGPU::CreateNativeConstantPipeline(
     desc.vertexShader = vs;
     desc.fragmentShader = ps;
     desc.bindingLayout = layout;
-    desc.colorFormat = scDesc.ColorBufferFormat == Diligent::TEX_FORMAT_BGRA8_UNORM
+    desc.colorFormat = scDesc.ColorBufferFormat == Diligent::TEX_FORMAT_BGRA8_UNORM ||
+        scDesc.ColorBufferFormat == Diligent::TEX_FORMAT_BGRA8_UNORM_SRGB
         ? SagaEngine::Graphics::ResourceFormat::Bgra8Unorm
         : SagaEngine::Graphics::ResourceFormat::Rgba8Unorm;
     desc.depthFormat = scDesc.DepthBufferFormat == Diligent::TEX_FORMAT_D32_FLOAT

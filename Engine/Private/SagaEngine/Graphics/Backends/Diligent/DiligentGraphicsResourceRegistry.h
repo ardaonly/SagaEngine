@@ -4,6 +4,7 @@
 #pragma once
 
 #include "SagaEngine/Graphics/Backend/GraphicsBackend.h"
+#include "SagaEngine/Render/Backend/Diligent/DiligentNativeResourceToken.h"
 
 #include <cstdint>
 #include <vector>
@@ -13,6 +14,7 @@ namespace SagaEngine::Graphics::Backends::Diligent::Detail
 
 struct NativeResourceOwnership
 {
+    ::SagaEngine::Render::Backend::DiligentNativeResourceToken token{};
     std::uint64_t serial = 0;
     bool uploadDeferred = false;
 };
@@ -198,6 +200,24 @@ public:
         }
 
         return slot.nativeOwnership.uploadDeferred;
+    }
+
+    [[nodiscard]] ::SagaEngine::Render::Backend::DiligentNativeResourceToken
+    NativeToken(HandleT handle) const noexcept
+    {
+        if (!handle.IsValid() || handle.index > m_Slots.size())
+        {
+            return {};
+        }
+
+        const auto slotIndex = handle.index - 1u;
+        const auto& slot = m_Slots[slotIndex];
+        if (!slot.occupied || slot.generation != handle.generation)
+        {
+            return {};
+        }
+
+        return slot.nativeOwnership.token;
     }
 
     [[nodiscard]] std::uint32_t LiveCount() const noexcept

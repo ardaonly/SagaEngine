@@ -102,19 +102,19 @@ inline constexpr const char* Test        = "test";
 // kept for backwards compatibility with existing call sites.
 
 #define LOG_CAT_TRACE(cat, fmt, ...) \
-    LOG_TRACE(::SagaEngine::Core::Log::Category::cat, fmt, ##__VA_ARGS__)
+    SAGA_LOG_TRACE(::SagaEngine::Core::Log::Category::cat, fmt, ##__VA_ARGS__)
 
 #define LOG_CAT_DEBUG(cat, fmt, ...) \
-    LOG_DEBUG(::SagaEngine::Core::Log::Category::cat, fmt, ##__VA_ARGS__)
+    SAGA_LOG_DEBUG(::SagaEngine::Core::Log::Category::cat, fmt, ##__VA_ARGS__)
 
 #define LOG_CAT_INFO(cat, fmt, ...) \
-    LOG_INFO(::SagaEngine::Core::Log::Category::cat, fmt, ##__VA_ARGS__)
+    SAGA_LOG_INFO(::SagaEngine::Core::Log::Category::cat, fmt, ##__VA_ARGS__)
 
 #define LOG_CAT_WARN(cat, fmt, ...) \
-    LOG_WARN(::SagaEngine::Core::Log::Category::cat, fmt, ##__VA_ARGS__)
+    SAGA_LOG_WARN(::SagaEngine::Core::Log::Category::cat, fmt, ##__VA_ARGS__)
 
 #define LOG_CAT_ERROR(cat, fmt, ...) \
-    LOG_ERROR(::SagaEngine::Core::Log::Category::cat, fmt, ##__VA_ARGS__)
+    SAGA_LOG_ERROR(::SagaEngine::Core::Log::Category::cat, fmt, ##__VA_ARGS__)
 
 #define LOG_CAT_CRITICAL(cat, fmt, ...) \
-    LOG_CRITICAL(::SagaEngine::Core::Log::Category::cat, fmt, ##__VA_ARGS__)
+    SAGA_LOG_CRITICAL(::SagaEngine::Core::Log::Category::cat, fmt, ##__VA_ARGS__)

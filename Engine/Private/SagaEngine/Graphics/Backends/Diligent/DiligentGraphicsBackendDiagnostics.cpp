@@ -2,7 +2,7 @@
 /// @brief Diagnostics, queries, and testing native resolves for the Diligent graphics adapter.
 
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackend.h"
-#include "SagaEngine/Graphics/Backends/Diligent/DiligentBindingCache.h"
+#include "SagaEngine/Graphics/Backends/Diligent/Runtime/DiligentBindingCache.h"
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentFallbackResources.h"
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackendValidation.h"
 
@@ -138,19 +138,7 @@ GraphicsResourceQueryResult DiligentGraphicsBackend::QuerySamplerForTesting(
 bool DiligentGraphicsBackend::HasNativeDeviceServicesForTesting()
     const noexcept
 {
-    return m_DeviceServices.IsBound();
-}
-
-void DiligentGraphicsBackend::BindNativeDeviceServicesForTesting(
-    RenderBackend::DiligentDeviceServices services,
-    bool enableNativeCreation) noexcept
-{
-    m_DeviceServices = services;
-    m_NativeCreationEnabled = enableNativeCreation && services.IsBound();
-    if (m_NativeOwner)
-    {
-        m_NativeOwner->Bind(services);
-    }
+    return m_NativeOwner && m_NativeOwner->CanCreateNative();
 }
 
 bool DiligentGraphicsBackend::MarkBufferNativeForTesting(
@@ -165,7 +153,7 @@ bool DiligentGraphicsBackend::MarkBufferNativeForTesting(
     return m_Buffers.UpdateNativeState(
         handle,
         GraphicsResourceBacking::NativeGpu,
-        {nativeSerial, false},
+        {{}, nativeSerial, false},
         GraphicsResourceLifecycle::Ready);
 }
 
@@ -181,7 +169,7 @@ bool DiligentGraphicsBackend::MarkTextureNativeForTesting(
     return m_Textures.UpdateNativeState(
         handle,
         GraphicsResourceBacking::NativeGpu,
-        {nativeSerial, false},
+        {{}, nativeSerial, false},
         GraphicsResourceLifecycle::Ready);
 }
 
@@ -197,7 +185,7 @@ bool DiligentGraphicsBackend::MarkSamplerNativeForTesting(
     return m_Samplers.UpdateNativeState(
         handle,
         GraphicsResourceBacking::NativeGpu,
-        {nativeSerial, false},
+        {{}, nativeSerial, false},
         GraphicsResourceLifecycle::Ready);
 }
 
@@ -213,7 +201,7 @@ bool DiligentGraphicsBackend::MarkShaderNativeForTesting(
     return m_Shaders.UpdateNativeState(
         handle,
         GraphicsResourceBacking::NativeGpu,
-        {nativeSerial, false},
+        {{}, nativeSerial, false},
         GraphicsResourceLifecycle::Ready);
 }
 
@@ -229,7 +217,7 @@ bool DiligentGraphicsBackend::MarkPipelineNativeForTesting(
     return m_Pipelines.UpdateNativeState(
         handle,
         GraphicsResourceBacking::NativeGpu,
-        {nativeSerial, false},
+        {{}, nativeSerial, false},
         GraphicsResourceLifecycle::Ready);
 }
 
@@ -242,7 +230,7 @@ bool DiligentGraphicsBackend::MarkPipelineNativeForTesting(
         return nullptr;
     }
 
-    return m_NativeOwner->ResolveBuffer(handle);
+    return m_NativeOwner->ResolveBuffer(m_Buffers.NativeToken(handle));
 }
 
 ::Diligent::ITextureView*
@@ -255,7 +243,7 @@ DiligentGraphicsBackend::ResolveNativeTextureSrvForTesting(
         return nullptr;
     }
 
-    return m_NativeOwner->ResolveTextureSrv(handle);
+    return m_NativeOwner->ResolveTextureSrv(m_Textures.NativeToken(handle));
 }
 
 ::Diligent::ISampler* DiligentGraphicsBackend::ResolveNativeSamplerForTesting(
@@ -267,7 +255,7 @@ DiligentGraphicsBackend::ResolveNativeTextureSrvForTesting(
         return nullptr;
     }
 
-    return m_NativeOwner->ResolveSampler(handle);
+    return m_NativeOwner->ResolveSampler(m_Samplers.NativeToken(handle));
 }
 
 ::Diligent::IShader* DiligentGraphicsBackend::ResolveNativeShaderForTesting(
@@ -279,7 +267,7 @@ DiligentGraphicsBackend::ResolveNativeTextureSrvForTesting(
         return nullptr;
     }
 
-    return m_NativeOwner->ResolveShader(handle);
+    return m_NativeOwner->ResolveShader(m_Shaders.NativeToken(handle));
 }
 
 ::Diligent::IPipelineState*
@@ -292,7 +280,7 @@ DiligentGraphicsBackend::ResolveNativePipelineForTesting(
         return nullptr;
     }
 
-    return m_NativeOwner->ResolvePipeline(handle);
+    return m_NativeOwner->ResolvePipeline(m_Pipelines.NativeToken(handle));
 }
 
 std::uint32_t DiligentGraphicsBackend::GetCompiledBindingLayoutCountForTesting()
@@ -355,15 +343,17 @@ DiligentGraphicsBackend::GetNativeBindingDiagnosticsForTesting()
 {
     auto diagnostics = m_NativeBindingDiagnostics;
     diagnostics.nativeBindingCacheEntries =
-        m_NativeBindingCache ? m_NativeBindingCache->EntryCount() : 0u;
+        m_Runtime ? m_Runtime->BindingCache().EntryCount() : 0u;
     diagnostics.quarantinedSrbCount =
-        m_NativeBindingCache ? m_NativeBindingCache->QuarantinedCount() : 0u;
-    diagnostics.fallbackGeneration =
-        m_FallbackResources ? m_FallbackResources->Generation() : 0u;
-    diagnostics.fallbackLiveState =
-        m_FallbackResources ? m_FallbackResources->Live() : false;
-    diagnostics.fallbackInternalResourceCount =
-        m_FallbackResources ? m_FallbackResources->InternalResourceCount() : 0u;
+        m_Runtime ? m_Runtime->BindingCache().QuarantinedCount() : 0u;
+    if (m_Runtime)
+    {
+        const auto& fallback = m_Runtime->FallbackResources();
+        diagnostics.fallbackGeneration = fallback.Generation();
+        diagnostics.fallbackLiveState = fallback.Live();
+        diagnostics.fallbackInternalResourceCount =
+            fallback.InternalResourceCount();
+    }
     return diagnostics;
 }
 
@@ -371,56 +361,61 @@ std::uint64_t
 DiligentGraphicsBackend::GetNativeBindingCacheEntryCountForTesting()
     const noexcept
 {
-    return m_NativeBindingCache ? m_NativeBindingCache->EntryCount() : 0u;
+    return m_Runtime ? m_Runtime->BindingCache().EntryCount() : 0u;
 }
 
 std::uint64_t
 DiligentGraphicsBackend::GetNativeBindingQuarantinedSrbCountForTesting()
     const noexcept
 {
-    return m_NativeBindingCache ? m_NativeBindingCache->QuarantinedCount() : 0u;
+    return m_Runtime ? m_Runtime->BindingCache().QuarantinedCount() : 0u;
 }
 
 TextureHandle DiligentGraphicsBackend::GetFallbackWhiteTextureForTesting()
     const noexcept
 {
-    return m_FallbackResources ? m_FallbackResources->WhiteTexture()
-                               : TextureHandle{};
+    return m_Runtime ? m_Runtime->FallbackResources().WhiteTexture()
+                     : TextureHandle{};
 }
 
 SamplerHandle DiligentGraphicsBackend::GetFallbackMaterialSamplerForTesting()
     const noexcept
 {
-    return m_FallbackResources ? m_FallbackResources->MaterialSampler()
-                               : SamplerHandle{};
+    return m_Runtime ? m_Runtime->FallbackResources().MaterialSampler()
+                     : SamplerHandle{};
 }
 
 std::uint64_t DiligentGraphicsBackend::GetFallbackGenerationForTesting()
     const noexcept
 {
-    return m_FallbackResources ? m_FallbackResources->Generation() : 0u;
+    return m_Runtime ? m_Runtime->FallbackResources().Generation() : 0u;
 }
 
 bool DiligentGraphicsBackend::InitializeFallbackResourcesForTesting() noexcept
 {
-    return m_FallbackResources &&
-           m_FallbackResources->Initialize(*this, m_NativeBindingDiagnostics);
+    return m_Runtime &&
+           m_Runtime->FallbackResources().Initialize(
+               m_Runtime->NativeResources(),
+               m_NativeBindingDiagnostics);
 }
 
 void DiligentGraphicsBackend::ReleaseFallbackResourcesForTesting() noexcept
 {
-    if (m_FallbackResources)
+    if (m_Runtime)
     {
-        m_FallbackResources->Release(*this, m_NativeBindingDiagnostics);
+        m_Runtime->FallbackResources().Release(
+            m_Runtime->NativeResources(),
+            m_NativeBindingDiagnostics);
     }
 }
 
 void DiligentGraphicsBackend::ForceNextFallbackSamplerFailureForTesting(
     bool enabled) noexcept
 {
-    if (m_FallbackResources)
+    if (m_Runtime)
     {
-        m_FallbackResources->ForceNextSamplerFailureForTesting(enabled);
+        m_Runtime->FallbackResources().ForceNextSamplerFailureForTesting(
+            enabled);
     }
 }
 
@@ -438,26 +433,6 @@ GraphicsResourceMemoryReport DiligentGraphicsBackend::BuildResourceMemoryReport(
     report.shaderBytes = m_Shaders.LiveBytes();
     report.pipelineBytes = m_Pipelines.LiveBytes();
     report.samplerBytes = m_Samplers.LiveBytes();
-    if (m_FallbackResources)
-    {
-        if (m_FallbackResources->Live())
-        {
-            if (report.liveTextureCount != 0u)
-            {
-                --report.liveTextureCount;
-            }
-            if (report.liveSamplerCount != 0u)
-            {
-                --report.liveSamplerCount;
-            }
-            const auto textureBytes =
-                m_FallbackResources->InternalTextureBytes();
-            report.textureBytes =
-                report.textureBytes > textureBytes
-                    ? report.textureBytes - textureBytes
-                    : 0u;
-        }
-    }
     report.totalLiveBytes =
         report.textureBytes + report.bufferBytes + report.shaderBytes +
         report.pipelineBytes + report.samplerBytes;

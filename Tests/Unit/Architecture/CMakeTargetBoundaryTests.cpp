@@ -449,10 +449,10 @@ TEST(CMakeTargetBoundaryTests, DiligentGpuIntegrationTestIdentitiesStayStable)
         ++suiteCounts[identity.substr(0, dot)];
     }
 
-    EXPECT_EQ(identities.size(), 134u);
+    EXPECT_EQ(identities.size(), 136u);
     EXPECT_EQ(suiteCounts["DiligentGPU"], 43);
     EXPECT_EQ(suiteCounts["CoordinateGPU"], 6);
-    EXPECT_EQ(suiteCounts["SagaGraphicsGPU"], 16);
+    EXPECT_EQ(suiteCounts["SagaGraphicsGPU"], 18);
     EXPECT_EQ(suiteCounts["BindingGPU"], 52);
     EXPECT_EQ(suiteCounts["OverlayGPU"], 17);
     EXPECT_EQ(suiteCounts.size(), 5u);
@@ -497,10 +497,14 @@ TEST(CMakeTargetBoundaryTests, DiligentFrameSlotTrackerStaysPrivateAndSingleOwne
     const auto backendPrivate =
         root / "Engine" / "Private" / "SagaEngine" / "Render" /
         "Backend" / "Diligent" / "DiligentRenderBackendPrivate.h";
+    const auto runtimeSource =
+        root / "Engine" / "Private" / "SagaEngine" / "Graphics" /
+        "Backends" / "Diligent" / "Runtime" / "DiligentGraphicsRuntime.cpp";
 
     ASSERT_TRUE(std::filesystem::exists(trackerSource));
     ASSERT_TRUE(std::filesystem::exists(trackerHeader));
     ASSERT_TRUE(std::filesystem::exists(backendPrivate));
+    ASSERT_TRUE(std::filesystem::exists(runtimeSource));
 
     const auto trackerHeaderText = ReadText(trackerHeader);
     EXPECT_TRUE(ContainsToken(
@@ -519,8 +523,12 @@ TEST(CMakeTargetBoundaryTests, DiligentFrameSlotTrackerStaysPrivateAndSingleOwne
         << "Raw active frame slot storage must not return to backend Impl.";
     EXPECT_EQ(backendPrivateText.find("activeFrameSerial"), std::string::npos)
         << "Raw active frame serial storage must not return to backend Impl.";
-    EXPECT_EQ(CountOccurrences(backendPrivateText, "DiligentGpuTimeline gpuTimeline"), 1u)
-        << "DiligentRenderBackend must keep exactly one GPU timeline owner.";
+    EXPECT_EQ(CountOccurrences(backendPrivateText, "DiligentGpuTimeline gpuTimeline"), 0u)
+        << "DiligentRenderBackend must not own the GPU timeline after the "
+           "canonical runtime migration.";
+    const auto runtimeText = ReadText(runtimeSource);
+    EXPECT_EQ(CountOccurrences(runtimeText, "DiligentGpuTimeline gpuTimeline"), 1u)
+        << "DiligentGraphicsRuntime must keep exactly one GPU timeline owner.";
 
     const auto ninjaPath = BuildNinjaPath();
     ASSERT_TRUE(std::filesystem::exists(ninjaPath))
@@ -530,10 +538,10 @@ TEST(CMakeTargetBoundaryTests, DiligentFrameSlotTrackerStaysPrivateAndSingleOwne
     const auto trackerRel = RelativeToSourceRoot(trackerSource);
 
     const auto diligentObject =
-        "build CMakeFiles/SagaDiligentBackend.dir/" + trackerRel + ".o:";
+        "build CMakeFiles/SagaDiligentRuntime.dir/" + trackerRel + ".o:";
     EXPECT_EQ(CountOccurrences(ninja, diligentObject), 1u)
         << "DiligentFrameSlotTracker.cpp must be compiled exactly once by "
-           "SagaDiligentBackend.";
+           "SagaDiligentRuntime.";
 
     const auto engineObject =
         "build CMakeFiles/SagaEngine.dir/" + trackerRel + ".o:";
@@ -557,36 +565,33 @@ TEST(CMakeTargetBoundaryTests, DiligentFrameSlotTrackerStaysPrivateAndSingleOwne
         << "Tracker header must not be installed through graphics exports.";
 }
 
-TEST(CMakeTargetBoundaryTests, M5C1DoesNotContainFrameArenaImplementation)
+TEST(CMakeTargetBoundaryTests, DiligentRuntimeOwnsFrameArenaImplementation)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
-    const auto renderRoot =
-        root / "Engine" / "Private" / "SagaEngine" / "Render" /
-        "Backend" / "Diligent";
-    const auto graphicsRoot =
-        root / "Engine" / "Private" / "SagaEngine" / "Graphics";
+    const auto runtimeHeader =
+        root / "Engine" / "Private" / "SagaEngine" / "Graphics" / "Backends" / "Diligent" / "Runtime" /
+        "DiligentGraphicsRuntime.h";
+    const auto runtimeSource =
+        root / "Engine" / "Private" / "SagaEngine" / "Graphics" / "Backends" / "Diligent" / "Runtime" /
+        "DiligentGraphicsRuntime.cpp";
+    ASSERT_TRUE(std::filesystem::exists(runtimeHeader));
+    ASSERT_TRUE(std::filesystem::exists(runtimeSource));
 
-    const std::vector<std::string> forbiddenTokens = {
-        "FrameUploadArena",
-        "UploadArena",
-        "ConstantSlice",
-        "SetBufferRange(",
-    };
+    const auto headerText = ReadText(runtimeHeader);
+    EXPECT_TRUE(ContainsToken(headerText, "FrameToken"));
+    EXPECT_TRUE(ContainsToken(headerText, "ConstantSlice"));
+    EXPECT_TRUE(ContainsToken(headerText, "DiligentFrameUploadArena"));
+    EXPECT_TRUE(ContainsToken(headerText, "GraphicsCommandEncoder"));
+    EXPECT_TRUE(ContainsToken(headerText, "GraphicsRenderPassEncoder"));
 
-    auto offenders = FindForbiddenText(renderRoot, forbiddenTokens);
-    const auto graphicsOffenders = FindForbiddenText(graphicsRoot, {
-        "FrameUploadArena",
-        "UploadArena",
-    });
-    offenders.insert(
-        offenders.end(),
-        graphicsOffenders.begin(),
-        graphicsOffenders.end());
-
-    EXPECT_TRUE(offenders.empty())
-        << "M5-C1 must not introduce M5-C2 frame arena or constant-slice code. "
-        << "First offender: "
-        << (offenders.empty() ? "" : offenders.front());
+    const auto ninjaPath = BuildNinjaPath();
+    ASSERT_TRUE(std::filesystem::exists(ninjaPath));
+    const auto ninja = ReadText(ninjaPath);
+    const auto runtimeRel = RelativeToSourceRoot(runtimeSource);
+    const auto runtimeObject =
+        "build CMakeFiles/SagaDiligentRuntime.dir/" + runtimeRel + ".o:";
+    EXPECT_EQ(CountOccurrences(ninja, runtimeObject), 1u)
+        << "DiligentGraphicsRuntime.cpp must be compiled by SagaDiligentRuntime.";
 }
 
 TEST(CMakeTargetBoundaryTests, SagaProductLibDoesNotLinkEditorLabTargets)
@@ -720,6 +725,7 @@ TEST(CMakeTargetBoundaryTests, SagaGraphicsTargetIsVendorNeutralPublicShell)
     const std::vector<std::string> forbidden = {
         "SagaGraphicsPrivate",
         "SagaDiligentBackend",
+        "SagaDiligentRuntime",
         "VendorDiligent",
         "Diligent-",
         "Vulkan::",
@@ -785,9 +791,9 @@ TEST(CMakeTargetBoundaryTests, SagaGraphicsPrivateTargetIsPrivateBoundaryShell)
     EXPECT_TRUE(ContainsToken(
         text,
         "target_link_libraries(SagaGraphicsPrivate PRIVATE\n"
-        "        SagaDiligentBackend"))
-        << "R3A-lite allows SagaGraphicsPrivate to depend on the concrete "
-           "render backend target.";
+        "        SagaDiligentRuntime"))
+        << "SagaGraphicsPrivate must consume the canonical private Diligent "
+           "runtime target.";
 
     const std::vector<std::string> forbidden = {
         "VendorDiligent",
@@ -820,7 +826,9 @@ TEST(CMakeTargetBoundaryTests, DiligentBindingCompilerIsPrivateGraphicsOwned)
     const auto records =
         root / "Engine" / "Private" / "SagaEngine" / "Graphics" /
         "Backends" / "Diligent" / "DiligentBindingRecords.h";
-    const auto targetsText = ReadText(CMakeModulePath("SagaGraphicsTargets.cmake"));
+    const auto targetsText = ReadText(CMakeModulePath("SagaTargets.cmake"));
+    const auto graphicsTargetsText =
+        ReadText(CMakeModulePath("SagaGraphicsTargets.cmake"));
 
     ASSERT_TRUE(std::filesystem::exists(compiler));
     ASSERT_TRUE(std::filesystem::exists(records));
@@ -833,9 +841,9 @@ TEST(CMakeTargetBoundaryTests, DiligentBindingCompilerIsPrivateGraphicsOwned)
         targetsText,
         "Engine/Private/SagaEngine/Graphics/Backends/Diligent/*.cpp"))
         << "Private Diligent graphics backend sources must be captured by "
-           "the SagaGraphicsPrivate source glob.";
+           "the DiligentGraphicsRuntime source glob.";
     EXPECT_TRUE(ContainsToken(
-        targetsText,
+        graphicsTargetsText,
         "saga_assert_diligent_graphics_backend_single_owner"))
         << "Diligent graphics backend sources must keep the single-owner "
            "configure assertion.";
@@ -900,7 +908,8 @@ TEST(CMakeTargetBoundaryTests, NativeBindingSrbApisAreCacheScoped)
                               "Graphics" / "Backends" / "Diligent";
     const auto compiler = ReadText(graphicsRoot / "DiligentBindingCompiler.cpp");
     const auto resolver = ReadText(graphicsRoot / "DiligentBindingResolver.cpp");
-    const auto cache = ReadText(graphicsRoot / "DiligentBindingCache.cpp");
+    const auto cache =
+        ReadText(graphicsRoot / "Runtime" / "DiligentBindingCache.cpp");
 
     EXPECT_FALSE(ContainsToken(compiler, "CreateShaderResourceBinding"));
     EXPECT_FALSE(ContainsToken(compiler, "GetVariableByName"));
@@ -938,7 +947,8 @@ TEST(CMakeTargetBoundaryTests, DiligentFallbackResourcesArePrivateGraphicsOwned)
         "saga_assert_diligent_graphics_backend_single_owner"));
 
     const auto compiler = ReadText(graphicsRoot / "DiligentBindingCompiler.cpp");
-    const auto cache = ReadText(graphicsRoot / "DiligentBindingCache.cpp");
+    const auto cache =
+        ReadText(graphicsRoot / "Runtime" / "DiligentBindingCache.cpp");
     const auto fallback = ReadText(fallbackCpp);
     EXPECT_FALSE(ContainsToken(compiler, "DiligentFallbackResources"));
     EXPECT_FALSE(ContainsToken(cache, "DiligentFallbackResources"));
@@ -1032,9 +1042,9 @@ TEST(CMakeTargetBoundaryTests, GraphicsInstallSurfaceDoesNotInstallVendorBackend
         << "Installed graphics consumers must have a package config.";
 
     const std::vector<std::string> forbiddenInstallTokens = {
-        "Vendor/Diligent",
         "VendorDiligent",
         "SagaDiligentBackend",
+        "SagaDiligentRuntime",
         "SagaGraphicsPrivate",
         "Diligent-",
         "Vulkan::",
@@ -1058,6 +1068,8 @@ TEST(CMakeTargetBoundaryTests, GraphicsInstallSurfaceDoesNotInstallVendorBackend
         << "VendorDiligent must not be installed as a public target.";
     EXPECT_FALSE(ContainsToken(installText, "SagaDiligentBackend"))
         << "Concrete Diligent backend target must not be installed.";
+    EXPECT_FALSE(ContainsToken(installText, "SagaDiligentRuntime"))
+        << "Private Diligent runtime target must not be installed.";
     EXPECT_FALSE(ContainsToken(installText, "SagaGraphicsPrivate"))
         << "Private graphics implementation target must not be installed.";
 

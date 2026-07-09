@@ -17,15 +17,17 @@ only the `Engine/Public` include root. It must not link or publish:
 
 - `VendorDiligent`
 - `SagaDiligentBackend`
+- `SagaDiligentRuntime`
 - Diligent targets
 - native API targets or libraries for Vulkan, D3D, OpenGL, or Metal
 - concrete backend libraries
 
 `SagaGraphicsPrivate` is the private CMake implementation target for graphics
-backend ownership. It may depend on `SagaGraphics` and may privately link
-`SagaDiligentBackend` for the R3A-lite lifecycle adapter, but it must not
-install, publish, or directly link `VendorDiligent`, Diligent targets, or native
-API targets.
+backend ownership. It may depend on `SagaGraphics` and may privately link the
+canonical `SagaDiligentRuntime` target, but it must not install, publish, or
+directly link `SagaDiligentBackend`, `VendorDiligent`, Diligent targets, or
+native API targets. `SagaDiligentBackend` is a temporary high-level
+`IRenderBackend` adapter over the same private runtime.
 
 R3B-lite adds vendor-neutral `RenderBackendHealth` and `RenderBackendFailure`
 status vocabulary to the public graphics shell so failed initialization, backend
@@ -135,8 +137,9 @@ vendor-neutral and must not require vendored or native graphics include paths.
 
 The install surface must not install `Vendor/Diligent` headers under
 `include/Vendor`, and must not install `VendorDiligent` or
-`SagaDiligentBackend` target artifacts. Third-party license/notice files may
-still be installed outside the include and target surface.
+`SagaDiligentBackend` or `SagaDiligentRuntime` target artifacts. Third-party
+license/notice files may still be installed outside the include and target
+surface.
 
 ## Explicit Non-Goals
 

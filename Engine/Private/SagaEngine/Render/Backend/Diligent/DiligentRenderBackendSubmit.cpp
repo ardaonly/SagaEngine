@@ -2,6 +2,7 @@
 /// @brief Scene submit and shadow pass execution for DiligentRenderBackend.
 
 #include "SagaEngine/Render/Backend/Diligent/DiligentRenderBackendPrivate.h"
+#include "SagaEngine/Graphics/Backends/Diligent/DiligentFallbackResources.h"
 
 namespace SagaEngine::Render::Backend
 {
@@ -112,11 +113,11 @@ bool ComputeNormalMatrixRows(const ::SagaEngine::Math::Mat4& model,
 void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
                                    const Scene::RenderView& view)
 {
-    if (!m_Impl->initialized || !m_Impl->context || !m_Impl->cameraCB)
+    if (!m_Impl->runtime->IsInitialized() || !m_Impl->runtime->Context() || !m_Impl->cameraCB)
         return;
 
-    auto* ctx = m_Impl->context.RawPtr();
-    const auto activeFrameSerial = m_Impl->frameSlots.ActiveFrameSerial();
+    auto* ctx = m_Impl->runtime->Context();
+    const auto activeFrameSerial = m_Impl->runtime->FrameSlots().ActiveFrameSerial();
 
     // ── Nothing to draw? ─────────────────────────────────────────────
     if (view.drawItems.empty()) return;
@@ -125,7 +126,7 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
     const bool hasValidDirectional = NormalizeDirectionalLight(lighting);
     if (view.lighting.directionalEnabled && !hasValidDirectional)
     {
-        LogDbg("Submit: zero-length directional light disabled");
+        LOG_CAT_DEBUG(Render, "Submit: zero-length directional light disabled");
     }
 
     const bool shadowRequested =
@@ -135,7 +136,7 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
         ++m_Impl->currentFrameDiagnostics.additionalFrameSubmitsRejected;
         m_Impl->currentFrameDiagnostics.rejectedDrawItems +=
             static_cast<std::uint32_t>(view.drawItems.size());
-        LogDbg("Submit: additional shadow-enabled Submit rejected");
+        LOG_CAT_DEBUG(Render, "Submit: additional shadow-enabled Submit rejected");
         return;
     }
     if (shadowRequested)
@@ -145,9 +146,9 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
         char msg[128];
         std::snprintf(msg, sizeof(msg), "Submit: %zu draw item(s) on frame %llu",
                       view.drawItems.size(),
-                      static_cast<unsigned long long>(m_Impl->frameIndex));
-        LogDbg(msg);
-        if (m_Impl->frameIndex == 0) LogInfo(msg);
+                      static_cast<unsigned long long>(m_Impl->runtime->Status().frameIndex));
+        LOG_CAT_DEBUG(Render, msg);
+        if (m_Impl->runtime->Status().frameIndex == 0) LOG_CAT_INFO(Render, msg);
     }
 
     const float* vpData = camera.viewProj.Data();
@@ -189,11 +190,11 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
             texDesc.Usage     = USAGE_DEFAULT;
             texDesc.MipLevels = 1;
 
-            m_Impl->device->CreateTexture(
+            m_Impl->runtime->Device()->CreateTexture(
                 texDesc, nullptr, &m_Impl->shadow.texture);
             if (!m_Impl->shadow.texture)
             {
-                LogErr("Submit: failed to create directional shadow map");
+                LOG_CAT_ERROR(Render, "Submit: failed to create directional shadow map");
                 return false;
             }
 
@@ -203,7 +204,7 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
                 TEXTURE_VIEW_SHADER_RESOURCE);
             if (!m_Impl->shadow.dsv || !m_Impl->shadow.srv)
             {
-                LogErr("Submit: failed to create directional shadow views");
+                LOG_CAT_ERROR(Render, "Submit: failed to create directional shadow views");
                 m_Impl->shadow.dsv.Release();
                 m_Impl->shadow.srv.Release();
                 m_Impl->shadow.texture.Release();
@@ -220,7 +221,7 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
         if (!m_Impl->shadow.depthPSO)
         {
             m_Impl->shadow.depthPSO = CreateShadowDepthPSO(
-                *m_Impl->device,
+                *m_Impl->runtime->Device(),
                 m_Impl->shadow.depthVS,
                 m_Impl->cameraCB,
                 m_Impl->shadow.format);
@@ -280,12 +281,12 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
                                Diligent::IBuffer*& lastVB,
                                Diligent::IBuffer*& lastIB)
     {
-        auto* vb = m_Impl->nativeResources.ResolveBuffer(mesh.vertexBuffer);
+        auto* vb = m_Impl->runtime->NativeResources().ResolveBuffer(mesh.vertexBuffer);
         if (!vb)
         {
             return;
         }
-        m_Impl->nativeResources.MarkBufferUsed(
+        m_Impl->runtime->NativeResources().MarkBufferUsed(
             mesh.vertexBuffer,
             activeFrameSerial);
         if (vb != lastVB)
@@ -299,12 +300,12 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
 
         if (mesh.indexBuffer.IsValid() && mesh.indexCount > 0)
         {
-            auto* ib = m_Impl->nativeResources.ResolveBuffer(mesh.indexBuffer);
+            auto* ib = m_Impl->runtime->NativeResources().ResolveBuffer(mesh.indexBuffer);
             if (!ib)
             {
                 return;
             }
-            m_Impl->nativeResources.MarkBufferUsed(
+            m_Impl->runtime->NativeResources().MarkBufferUsed(
                 mesh.indexBuffer,
                 activeFrameSerial);
             if (ib != lastIB)
@@ -365,7 +366,7 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
                 DrawIndexedAttribs drawAttribs;
                 drawAttribs.NumIndices = meshIt->second.indexCount;
                 drawAttribs.IndexType  = VT_UINT32;
-                drawAttribs.Flags      = g_verboseGPU ? DRAW_FLAG_VERIFY_ALL
+                drawAttribs.Flags      = m_Impl->gpuValidation ? DRAW_FLAG_VERIFY_ALL
                                                       : DRAW_FLAG_NONE;
                 ctx->DrawIndexed(drawAttribs);
                 ++m_Impl->currentFrameDiagnostics.shadowPassDrawCalls;
@@ -374,8 +375,8 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
 
         ++m_Impl->currentFrameDiagnostics.shadowPassExecuted;
 
-        auto* rtv = m_Impl->swapChain->GetCurrentBackBufferRTV();
-        auto* dsv = m_Impl->swapChain->GetDepthBufferDSV();
+        auto* rtv = m_Impl->runtime->SwapChain()->GetCurrentBackBufferRTV();
+        auto* dsv = m_Impl->runtime->SwapChain()->GetDepthBufferDSV();
         ctx->SetRenderTargets(
             rtv ? 1u : 0u, rtv ? &rtv : nullptr, dsv,
             RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
@@ -394,7 +395,7 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
         auto meshIt = m_Impl->meshCache.find(item.mesh);
         if (meshIt == m_Impl->meshCache.end())
         {
-            LogDbg("Submit: mesh not in cache, skip");
+            LOG_CAT_DEBUG(Render, "Submit: mesh not in cache, skip");
             ++m_Impl->currentFrameDiagnostics.rejectedDrawItems;
             continue;
         }
@@ -402,7 +403,7 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
         auto matIt = m_Impl->materialCache.find(item.material);
         if (matIt == m_Impl->materialCache.end())
         {
-            LogDbg("Submit: material not in cache, skip");
+            LOG_CAT_DEBUG(Render, "Submit: material not in cache, skip");
             ++m_Impl->currentFrameDiagnostics.rejectedDrawItems;
             continue;
         }
@@ -414,7 +415,7 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
         if (mat.shadingModel == OpaqueShadingModel::LitDiffuse &&
             !ComputeNormalMatrixRows(item.model, normalRows))
         {
-            LogDbg("Submit: singular normal transform, skip lit draw");
+            LOG_CAT_DEBUG(Render, "Submit: singular normal transform, skip lit draw");
             ++m_Impl->currentFrameDiagnostics.rejectedDrawItems;
             ++m_Impl->currentFrameDiagnostics.invalidNormalTransformDraws;
             continue;
@@ -422,19 +423,20 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
 
         ++m_Impl->currentFrameDiagnostics.submittedDrawItems;
 
-        if (g_verboseGPU)
+        if (m_Impl->gpuValidation)
         {
-            auto* dbgVB = m_Impl->nativeResources.ResolveBuffer(mesh.vertexBuffer);
-            auto* dbgIB = m_Impl->nativeResources.ResolveBuffer(mesh.indexBuffer);
+            auto* dbgVB = m_Impl->runtime->NativeResources().ResolveBuffer(mesh.vertexBuffer);
+            auto* dbgIB = m_Impl->runtime->NativeResources().ResolveBuffer(mesh.indexBuffer);
             char buf[256];
             std::snprintf(buf, sizeof(buf),
-                "Submit[%d]: verts=%u idx=%u stride=%u pso=%p srb=%p vb=%p ib=%p",
+                "Submit[%d]: verts=%u idx=%u stride=%u pso=%p binding=%u:%u vb=%p ib=%p",
                 drawIdx, mesh.vertexCount, mesh.indexCount, mesh.vertexStride,
                 static_cast<void*>(mat.pso.RawPtr()),
-                static_cast<void*>(mat.srb.RawPtr()),
+                mat.binding.index,
+                mat.binding.generation,
                 static_cast<void*>(dbgVB),
                 static_cast<void*>(dbgIB));
-            LogDbg(buf);
+            LOG_CAT_DEBUG(Render, buf);
         }
 
         const bool sampleShadows =
@@ -449,7 +451,7 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
             sampleShadows);
         if (sampleShadows)
             ++m_Impl->currentFrameDiagnostics.shadowSamplingEnabled;
-        LogDbg("Submit: CameraCB mapped OK");
+        LOG_CAT_DEBUG(Render, "Submit: CameraCB mapped OK");
 
         // ── Skinned draw? Upload bone palette to BoneCB. ────────────
         const bool isSkinned = (item.boneMatrices != nullptr && item.boneCount > 0);
@@ -468,7 +470,7 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
                 const std::size_t remaining = (128 - item.boneCount) * 16;
                 std::memset(&boneData[floatCount], 0, remaining * sizeof(float));
             }
-            LogDbg("Submit: BoneCB uploaded");
+            LOG_CAT_DEBUG(Render, "Submit: BoneCB uploaded");
 
             // Lazily create skinned PSO + SRB for this material if needed.
             if (!mat.skinnedPso)
@@ -479,45 +481,41 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
                 key.writesDepth = mat.writesDepth;
 
                 mat.skinnedPso = FindOrCreateSkinnedPSO(
-                    m_Impl->skinnedPsoCache, *m_Impl->device, *m_Impl->swapChain,
+                    m_Impl->skinnedPsoCache, *m_Impl->runtime->Device(), *m_Impl->runtime->SwapChain(),
                     m_Impl->skinnedVS, m_Impl->solidPS,
                     m_Impl->cameraCB, m_Impl->boneCB, key);
 
                 if (mat.skinnedPso)
                 {
-                    mat.skinnedPso->CreateShaderResourceBinding(&mat.skinnedSrb, true);
-                    if (mat.skinnedSrb)
-                    {
-                        mat.skinnedAlbedoVariable =
-                            mat.skinnedSrb->GetVariableByName(
-                                Diligent::SHADER_TYPE_PIXEL, "g_Albedo");
-                        mat.skinnedShadowVariable =
-                            mat.skinnedSrb->GetVariableByName(
-                                Diligent::SHADER_TYPE_PIXEL, "g_ShadowMap");
-                    }
+                    mat.skinnedBinding =
+                        m_Impl->runtime->CreateMaterialBinding(
+                            *mat.skinnedPso);
                 }
             }
         }
 
         // Choose PSO and SRB based on skinning.
         Diligent::IPipelineState*         activePso = nullptr;
-        Diligent::IShaderResourceBinding* activeSrb = nullptr;
-        Diligent::IShaderResourceVariable* albedoVariable = nullptr;
-        Diligent::IShaderResourceVariable* shadowVariable = nullptr;
+        auto activeBinding =
+            DiligentRuntime::NativeShaderBindingView{};
 
-        if (isSkinned && mat.skinnedPso && mat.skinnedSrb)
+        if (isSkinned && mat.skinnedPso && mat.skinnedBinding.IsValid())
         {
             activePso = mat.skinnedPso.RawPtr();
-            activeSrb = mat.skinnedSrb.RawPtr();
-            albedoVariable = mat.skinnedAlbedoVariable;
-            shadowVariable = mat.skinnedShadowVariable;
+            activeBinding =
+                m_Impl->runtime->ResolveMaterialBinding(mat.skinnedBinding);
         }
         else
         {
             activePso = mat.pso.RawPtr();
-            activeSrb = mat.srb.RawPtr();
-            albedoVariable = mat.albedoVariable;
-            shadowVariable = mat.shadowVariable;
+            activeBinding =
+                m_Impl->runtime->ResolveMaterialBinding(mat.binding);
+        }
+
+        if (!activePso || !activeBinding.IsValid())
+        {
+            ++m_Impl->currentFrameDiagnostics.rejectedDrawItems;
+            continue;
         }
 
         // Bind albedo texture SRV on the active SRB.
@@ -528,11 +526,11 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
                 auto texIt = m_Impl->textureCache.find(mat.albedoTex);
                 if (texIt != m_Impl->textureCache.end())
                 {
-                    texSRV = m_Impl->nativeResources.ResolveTextureSrv(
+                    texSRV = m_Impl->runtime->NativeResources().ResolveTextureSrv(
                         texIt->second.texture);
                     if (texSRV)
                     {
-                        m_Impl->nativeResources.MarkTextureUsed(
+                        m_Impl->runtime->NativeResources().MarkTextureUsed(
                             texIt->second.texture,
                             activeFrameSerial);
                     }
@@ -540,27 +538,32 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
             }
             if (!texSRV)
             {
-                texSRV = m_Impl->nativeResources.ResolveTextureSrv(
-                    m_Impl->defaultWhiteTex);
-                if (texSRV)
+                Gfx::Backends::Diligent::DiligentNativeBindingDiagnostics
+                    fallbackDiagnostics{};
+                const auto fallback =
+                    m_Impl->runtime->FallbackResources().ResolveWhiteTexture(
+                        m_Impl->runtime->NativeResources(),
+                        fallbackDiagnostics);
+                texSRV = fallback.textureView;
+                if (fallback.nativeToken.IsValid())
                 {
-                    m_Impl->nativeResources.MarkTextureUsed(
-                        m_Impl->defaultWhiteTex,
+                    m_Impl->runtime->NativeResources().MarkTextureUsed(
+                        fallback.nativeToken,
                         activeFrameSerial);
                 }
             }
 
-            if (texSRV && albedoVariable)
+            if (texSRV && activeBinding.albedoVariable)
             {
-                albedoVariable->Set(texSRV);
+                activeBinding.albedoVariable->Set(texSRV);
             }
 
-            if (shadowVariable)
+            if (activeBinding.shadowVariable)
             {
                 if (m_Impl->shadow.srv)
-                    shadowVariable->Set(m_Impl->shadow.srv);
+                    activeBinding.shadowVariable->Set(m_Impl->shadow.srv);
                 else if (texSRV)
-                    shadowVariable->Set(texSRV);
+                    activeBinding.shadowVariable->Set(texSRV);
             }
         }
 
@@ -569,22 +572,22 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
         {
             ctx->SetPipelineState(activePso);
             lastPSO = activePso;
-            LogDbg("Submit: SetPipelineState OK");
+            LOG_CAT_DEBUG(Render, "Submit: SetPipelineState OK");
         }
 
         // SRB
-        ctx->CommitShaderResources(activeSrb,
+        ctx->CommitShaderResources(activeBinding.srb,
                                    Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-        LogDbg("Submit: CommitShaderResources OK");
+        LOG_CAT_DEBUG(Render, "Submit: CommitShaderResources OK");
 
         // VB
-        auto* vb = m_Impl->nativeResources.ResolveBuffer(mesh.vertexBuffer);
+        auto* vb = m_Impl->runtime->NativeResources().ResolveBuffer(mesh.vertexBuffer);
         if (!vb)
         {
             ++m_Impl->currentFrameDiagnostics.rejectedDrawItems;
             continue;
         }
-        m_Impl->nativeResources.MarkBufferUsed(
+        m_Impl->runtime->NativeResources().MarkBufferUsed(
             mesh.vertexBuffer,
             activeFrameSerial);
         if (vb != lastVB)
@@ -594,19 +597,19 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
                                   Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
                                   Diligent::SET_VERTEX_BUFFERS_FLAG_RESET);
             lastVB = vb;
-            LogDbg("Submit: SetVertexBuffers OK");
+            LOG_CAT_DEBUG(Render, "Submit: SetVertexBuffers OK");
         }
 
         // IB + Draw
         if (mesh.indexBuffer.IsValid() && mesh.indexCount > 0)
         {
-            auto* ib = m_Impl->nativeResources.ResolveBuffer(mesh.indexBuffer);
+            auto* ib = m_Impl->runtime->NativeResources().ResolveBuffer(mesh.indexBuffer);
             if (!ib)
             {
                 ++m_Impl->currentFrameDiagnostics.rejectedDrawItems;
                 continue;
             }
-            m_Impl->nativeResources.MarkBufferUsed(
+            m_Impl->runtime->NativeResources().MarkBufferUsed(
                 mesh.indexBuffer,
                 activeFrameSerial);
             if (ib != lastIB)
@@ -614,35 +617,35 @@ void DiligentRenderBackend::Submit(const Scene::Camera&     camera,
                 ctx->SetIndexBuffer(ib, 0,
                                     Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
                 lastIB = ib;
-                LogDbg("Submit: SetIndexBuffer OK");
+                LOG_CAT_DEBUG(Render, "Submit: SetIndexBuffer OK");
             }
 
             Diligent::DrawIndexedAttribs drawAttribs;
             drawAttribs.NumIndices = mesh.indexCount;
             drawAttribs.IndexType  = Diligent::VT_UINT32;
-            drawAttribs.Flags      = g_verboseGPU ? Diligent::DRAW_FLAG_VERIFY_ALL
+            drawAttribs.Flags      = m_Impl->gpuValidation ? Diligent::DRAW_FLAG_VERIFY_ALL
                                                   : Diligent::DRAW_FLAG_NONE;
             ctx->DrawIndexed(drawAttribs);
             ++m_Impl->currentFrameDiagnostics.indexedDrawCalls;
             ++m_Impl->currentFrameDiagnostics.mainPassDrawCalls;
             m_Impl->currentFrameDiagnostics.lastIndexedIndexCount = mesh.indexCount;
-            LogDbg("Submit: DrawIndexed OK");
+            LOG_CAT_DEBUG(Render, "Submit: DrawIndexed OK");
         }
         else
         {
             Diligent::DrawAttribs drawAttribs;
             drawAttribs.NumVertices = mesh.vertexCount;
-            drawAttribs.Flags       = g_verboseGPU ? Diligent::DRAW_FLAG_VERIFY_ALL
+            drawAttribs.Flags       = m_Impl->gpuValidation ? Diligent::DRAW_FLAG_VERIFY_ALL
                                                    : Diligent::DRAW_FLAG_NONE;
             ctx->Draw(drawAttribs);
             ++m_Impl->currentFrameDiagnostics.nonIndexedDrawCalls;
             ++m_Impl->currentFrameDiagnostics.mainPassDrawCalls;
-            LogDbg("Submit: Draw OK");
+            LOG_CAT_DEBUG(Render, "Submit: Draw OK");
         }
 
         ++drawIdx;
     }
-    LogDbg("Submit: done");
+    LOG_CAT_DEBUG(Render, "Submit: done");
 }
 
 

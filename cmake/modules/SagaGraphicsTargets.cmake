@@ -46,24 +46,9 @@ function(saga_create_graphics_targets)
     add_library(SagaGraphicsPrivate STATIC)
     saga_apply_compiler_flags(SagaGraphicsPrivate)
 
-    file(GLOB_RECURSE SAGA_DILIGENT_GRAPHICS_BACKEND_IMPL_SOURCES CONFIGURE_DEPENDS
-        "${SAGA_ROOT}/Engine/Private/SagaEngine/Graphics/Backends/Diligent/*.cpp"
-    )
-
     target_sources(SagaGraphicsPrivate PRIVATE
         ${SAGA_ROOT}/Engine/Private/SagaEngine/Graphics/GraphicsPrivateAnchor.cpp
-        ${SAGA_DILIGENT_GRAPHICS_BACKEND_IMPL_SOURCES}
     )
-
-    get_target_property(_saga_graphics_private_sources SagaGraphicsPrivate SOURCES)
-    foreach(_saga_diligent_graphics_source IN LISTS SAGA_DILIGENT_GRAPHICS_BACKEND_IMPL_SOURCES)
-        list(FIND _saga_graphics_private_sources "${_saga_diligent_graphics_source}" _saga_source_index)
-        if(_saga_source_index EQUAL -1)
-            message(FATAL_ERROR
-                "Diligent graphics backend source is not owned by SagaGraphicsPrivate: "
-                "${_saga_diligent_graphics_source}")
-        endif()
-    endforeach()
 
     target_include_directories(SagaGraphicsPrivate PRIVATE
         ${SAGA_ROOT}/Engine/Private
@@ -73,9 +58,8 @@ function(saga_create_graphics_targets)
         SagaGraphics
     )
     target_link_libraries(SagaGraphicsPrivate PRIVATE
-        SagaDiligentBackend
+        SagaDiligentRuntime
     )
-    saga_link_diligent_backend(SagaGraphicsPrivate)
 
     set_target_properties(SagaGraphicsPrivate PROPERTIES
         FOLDER "Engine/Graphics"
@@ -131,6 +115,6 @@ function(saga_assert_diligent_graphics_backend_single_owner)
     foreach(_saga_diligent_graphics_source IN LISTS _saga_diligent_graphics_backend_impl_sources)
         saga_assert_source_has_single_owner(
             "${_saga_diligent_graphics_source}"
-            SagaGraphicsPrivate)
+            SagaDiligentRuntime)
     endforeach()
 endfunction()

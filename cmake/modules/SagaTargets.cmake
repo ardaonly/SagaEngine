@@ -33,6 +33,7 @@ function(saga_create_engine_targets)
     saga_collect_sources(SAGA_STATE_CHECK_SOURCES Tools/SagaStateCheck/src)
     saga_collect_sources(MULTIPLAYER_SANDBOX_HEADLESS_SOURCES Tools/MultiplayerSandboxHeadless/src)
     saga_collect_sources(ENGINE_SOURCES  Engine/Private)
+    saga_collect_sources(SAGA_DILIGENT_RUNTIME_SOURCES Engine/Private/SagaEngine/Graphics/Backends/Diligent/Runtime)
 
     set(SAGA_PLATFORM_SDL_SOURCES
         ${SAGA_ROOT}/Engine/Private/SagaEngine/Input/Backends/SDL/SDLInputBackend.cpp
@@ -54,11 +55,14 @@ function(saga_create_engine_targets)
     file(GLOB_RECURSE SAGA_DILIGENT_GRAPHICS_BACKEND_IMPL_SOURCES CONFIGURE_DEPENDS
         "${SAGA_ROOT}/Engine/Private/SagaEngine/Graphics/Backends/Diligent/*.cpp"
     )
+    list(FILTER SAGA_DILIGENT_GRAPHICS_BACKEND_IMPL_SOURCES
+        EXCLUDE REGEX ".*/Engine/Private/SagaEngine/Graphics/Backends/Diligent/Runtime/.*\\.cpp$")
 
     # Exclude launcher files from library sources.
     list(FILTER ENGINE_SOURCES  EXCLUDE REGEX ".*/[Mm]ain\\.cpp$")
     list(FILTER ENGINE_SOURCES  EXCLUDE REGEX ".*/Engine/Private/SagaEngine/Core/Log/.*\\.cpp$")
     list(FILTER ENGINE_SOURCES  EXCLUDE REGEX ".*/Engine/Private/SagaEngine/Diagnostics/.*\\.cpp$")
+    list(FILTER ENGINE_SOURCES  EXCLUDE REGEX ".*/Engine/Private/SagaEngine/Graphics/Backends/Diligent/Runtime/.*\\.cpp$")
     list(FILTER ENGINE_SOURCES  EXCLUDE REGEX ".*/Engine/Private/SagaEngine/Render/Backend/Diligent/.*\\.cpp$")
     list(FILTER ENGINE_SOURCES  EXCLUDE REGEX ".*/Engine/Private/SagaEngine/Graphics/Backends/Diligent/.*\\.cpp$")
     list(REMOVE_ITEM ENGINE_SOURCES ${SAGA_GRAPHICS_CORE_SOURCES})
@@ -75,7 +79,7 @@ function(saga_create_engine_targets)
         list(FIND ENGINE_SOURCES "${_saga_diligent_graphics_source}" _saga_engine_source_index)
         if(NOT _saga_engine_source_index EQUAL -1)
             message(FATAL_ERROR
-                "Diligent graphics backend source must be owned by SagaGraphicsPrivate, "
+                "Diligent graphics backend source must be owned by SagaDiligentRuntime, "
                 "not SagaEngine: ${_saga_diligent_graphics_source}")
         endif()
     endforeach()
@@ -324,12 +328,41 @@ function(saga_create_engine_targets)
         FOLDER "Engine/Platform"
     )
 
+    # --- Diligent Runtime ----------------------------------------------------
+    add_library(SagaDiligentRuntime STATIC)
+    saga_apply_compiler_flags(SagaDiligentRuntime)
+
+    target_sources(SagaDiligentRuntime PRIVATE
+        ${SAGA_DILIGENT_RUNTIME_SOURCES}
+        ${DILIGENT_BACKEND_SOURCES}
+        ${SAGA_DILIGENT_GRAPHICS_BACKEND_IMPL_SOURCES}
+    )
+
+    target_include_directories(SagaDiligentRuntime
+        PUBLIC
+            ${SAGA_ROOT}/Engine/Public
+        PRIVATE
+            ${SAGA_ROOT}/Engine/Private
+    )
+
+    target_link_libraries(SagaDiligentRuntime
+        PUBLIC
+            SagaGraphicsCore
+        PRIVATE
+            SagaCoreLog
+    )
+    saga_link_diligent_backend(SagaDiligentRuntime)
+
+    set_target_properties(SagaDiligentRuntime PROPERTIES
+        FOLDER "Engine/Graphics"
+    )
+
     # --- Diligent Render Backend --------------------------------------------
     add_library(SagaDiligentBackend STATIC)
     saga_apply_compiler_flags(SagaDiligentBackend)
 
     target_sources(SagaDiligentBackend PRIVATE
-        ${DILIGENT_BACKEND_SOURCES}
+        ${SAGA_ROOT}/Engine/Private/SagaEngine/Render/Backend/Diligent/DiligentBackendTargetAnchor.cpp
     )
 
     target_include_directories(SagaDiligentBackend
@@ -342,8 +375,9 @@ function(saga_create_engine_targets)
     target_link_libraries(SagaDiligentBackend
         PUBLIC
             SagaEngine
+        PRIVATE
+            SagaDiligentRuntime
     )
-    saga_link_diligent_backend(SagaDiligentBackend)
 
     set_target_properties(SagaDiligentBackend PROPERTIES
         FOLDER "Engine/Render"

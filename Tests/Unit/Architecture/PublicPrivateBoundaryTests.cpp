@@ -310,7 +310,7 @@ TEST(PublicPrivateBoundaryTests, PublicRenderBackendSurfaceIsVendorNeutral)
 
 TEST(
     PublicPrivateBoundaryTests,
-    DiligentGraphicsBackendDoesNotInitializeDiligentDeviceFactory)
+    OnlyDiligentRuntimeInitializesDiligentDeviceFactory)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
     const auto backendRoot =
@@ -334,6 +334,12 @@ TEST(
         }
 
         const auto relative = RelativeToSourceRoot(entry.path()).generic_string();
+        if (Contains(
+                relative,
+                "Engine/Private/SagaEngine/Graphics/Backends/Diligent/Runtime/"))
+        {
+            continue;
+        }
         const auto lines = ReadLines(entry.path());
         for (std::size_t i = 0; i < lines.size(); ++i)
         {
@@ -349,9 +355,19 @@ TEST(
     }
 
     EXPECT_TRUE(offenders.empty())
-        << "SagaGraphics Diligent adapter must borrow private device services "
-        << "instead of initializing a second Diligent device. First offender: "
+        << "Only the canonical Diligent runtime may initialize native "
+           "Diligent device factories. First offender: "
         << (offenders.empty() ? "" : offenders.front());
+
+    const auto factoryText = ReadText(
+        backendRoot / "Runtime" / "DiligentDeviceFactory.cpp");
+    EXPECT_TRUE(Contains(factoryText, "TryInitAPI"))
+        << "DiligentDeviceFactory.cpp must be the runtime-owned native "
+           "device initialization implementation.";
+    EXPECT_FALSE(std::filesystem::exists(
+        backendRoot / "Runtime" / "DiligentFactoryInit.inl"))
+        << "Factory initialization must not return to an included .inl "
+           "implementation.";
 }
 
 TEST(PublicPrivateBoundaryTests, DiligentBackendSplitFilesStaySmall)
@@ -491,8 +507,8 @@ TEST(PublicPrivateBoundaryTests, DiligentRenderBackendPrivateHeaderStaysNarrow)
         }
     }
 
-    EXPECT_EQ(CountOccurrences(text, "inline bool g_verboseGPU"), 1u)
-        << "Only the existing verbose GPU flag may remain as inline mutable state";
+    EXPECT_EQ(CountOccurrences(text, "g_verboseGPU"), 0u)
+        << "Diligent GPU validation must be per-runtime state, not global mutable state";
     EXPECT_TRUE(offenders.empty())
         << "DiligentRenderBackendPrivate.h gained forbidden private-header content. "
         << "First offender: "
@@ -523,6 +539,104 @@ TEST(PublicPrivateBoundaryTests, DiligentRenderBackendPrivateHeaderStaysNarrow)
             << RelativeToSourceRoot(entry.path())
             << " must not install or expose the private render backend split header";
     }
+}
+
+TEST(PublicPrivateBoundaryTests, DiligentSourcesUseCanonicalRenderLogging)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const std::array<std::filesystem::path, 2> diligentRoots = {
+        root / "Engine" / "Private" / "SagaEngine" / "Graphics" /
+            "Backends" / "Diligent",
+        root / "Engine" / "Private" / "SagaEngine" / "Render" /
+            "Backend" / "Diligent",
+    };
+    const std::array<std::string_view, 9> forbiddenTokens = {
+        "LogInfo(",
+        "LogErr(",
+        "LogDbg(",
+        "RuntimeLogErr",
+        "std::fprintf",
+        "::fprintf",
+        "fprintf(",
+        "g_verboseGPU",
+        "RuntimeLOG_CAT_ERROR",
+    };
+
+    std::vector<std::string> offenders;
+    for (const auto& diligentRoot : diligentRoots)
+    {
+        ASSERT_TRUE(std::filesystem::exists(diligentRoot));
+        for (const auto& entry :
+             std::filesystem::recursive_directory_iterator(diligentRoot))
+        {
+            if (!entry.is_regular_file() || !IsCodeFile(entry.path()))
+            {
+                continue;
+            }
+
+            const auto text = ReadText(entry.path());
+            for (const auto token : forbiddenTokens)
+            {
+                if (Contains(text, token))
+                {
+                    offenders.push_back(
+                        RelativeToSourceRoot(entry.path()).generic_string() +
+                        ": " + std::string(token));
+                }
+            }
+        }
+    }
+
+    EXPECT_TRUE(offenders.empty())
+        << "Diligent sources must use LOG_CAT_* with the Render category "
+           "instead of local logging helpers or direct stdio. First offender: "
+        << (offenders.empty() ? "" : offenders.front());
+}
+
+TEST(PublicPrivateBoundaryTests, DiligentRuntimeCleanupDebtDoesNotReturn)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto runtimeRoot =
+        root / "Engine" / "Private" / "SagaEngine" / "Graphics" /
+        "Backends" / "Diligent" / "Runtime";
+    const auto renderRoot =
+        root / "Engine" / "Private" / "SagaEngine" / "Render" /
+        "Backend" / "Diligent";
+    const std::array<std::string_view, 5> forbiddenTokens = {
+        "defaultWhiteTex",
+        "IGraphicsRuntime",
+        "DeferredDestructionQueue",
+        "m_nextFrameIndex",
+        "m_nextSubmissionSerial",
+    };
+
+    std::vector<std::string> offenders;
+    for (const auto& base : {runtimeRoot, renderRoot})
+    {
+        ASSERT_TRUE(std::filesystem::exists(base));
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(base))
+        {
+            if (!entry.is_regular_file() || !IsCodeFile(entry.path()))
+            {
+                continue;
+            }
+
+            const auto text = ReadText(entry.path());
+            for (const auto token : forbiddenTokens)
+            {
+                if (Contains(text, token))
+                {
+                    offenders.push_back(
+                        RelativeToSourceRoot(entry.path()).generic_string() +
+                        ": " + std::string(token));
+                }
+            }
+        }
+    }
+
+    EXPECT_TRUE(offenders.empty())
+        << "Diligent runtime cleanup debt returned. First offender: "
+        << (offenders.empty() ? "" : offenders.front());
 }
 
 TEST(PublicPrivateBoundaryTests, DiligentBackendSplitResponsibilitiesStayPut)
@@ -718,6 +832,56 @@ TEST(PublicPrivateBoundaryTests, BindingMetadataImplementationDoesNotOwnNativeSr
     EXPECT_FALSE(Contains(bindingImpl, "IShaderResourceVariable"));
     EXPECT_FALSE(Contains(resourceImpl, "DiligentGraphicsBackend::CreateBindingLayout"));
     EXPECT_FALSE(Contains(resourceImpl, "DiligentGraphicsBackend::CreateBindingSet"));
+}
+
+TEST(PublicPrivateBoundaryTests, NativeSrbStorageStaysInsideDiligentRuntime)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto privateRoot = root / "Engine" / "Private" / "SagaEngine";
+    const auto runtimeMarker =
+        std::filesystem::path("Graphics") / "Backends" / "Diligent" /
+        "Runtime";
+
+    const std::array<std::string_view, 4> forbiddenStorage = {
+        "RefCntAutoPtr<Diligent::IShaderResourceBinding>",
+        "RefCntAutoPtr<::Diligent::IShaderResourceBinding>",
+        "Diligent::IShaderResourceVariable*",
+        "::Diligent::IShaderResourceVariable*",
+    };
+
+    std::vector<std::string> offenders;
+    for (const auto& entry :
+         std::filesystem::recursive_directory_iterator(privateRoot))
+    {
+        if (!entry.is_regular_file() || !IsCodeFile(entry.path()))
+        {
+            continue;
+        }
+
+        const auto relative = std::filesystem::relative(
+            entry.path(),
+            privateRoot);
+        if (Contains(relative.generic_string(), runtimeMarker.generic_string()))
+        {
+            continue;
+        }
+
+        const auto text = ReadText(entry.path());
+        for (const auto token : forbiddenStorage)
+        {
+            if (Contains(text, token))
+            {
+                offenders.push_back(
+                    RelativeToSourceRoot(entry.path()).generic_string() +
+                    ": " + std::string(token));
+            }
+        }
+    }
+
+    EXPECT_TRUE(offenders.empty())
+        << "Native SRB and shader-variable storage must stay under the "
+           "canonical Diligent runtime subtree. First offender: "
+        << (offenders.empty() ? "" : offenders.front());
 }
 
 TEST(PublicPrivateBoundaryTests, SagaGraphicsUmbrellaHeaderCompileSmoke)
@@ -1100,7 +1264,6 @@ TEST(PublicPrivateBoundaryTests, RenderStreamingDocsDoNotOverclaimGpuStreaming)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
     const std::vector<std::filesystem::path> docs = {
-        root / "TEMP.MD",
         root / "docs" / "architecture" / "RENDER_PUBLIC_API_CONTRACT.md",
     };
 

@@ -144,6 +144,23 @@ TEST(GraphicsDiligentBackendAdapter, NativeTextureRequiresBoundServices)
     EXPECT_FALSE(diagnostic.empty());
 }
 
+TEST(GraphicsDiligentBackendAdapter, NativeTokensRejectWrongResourceFamily)
+{
+    RenderBackend::DiligentNativeResourceOwner owner;
+    std::string diagnostic;
+    const auto wrongKindToken = owner.AllocateToken(
+        RenderBackend::DiligentNativeResourceKind::Buffer);
+
+    const auto serial = owner.CreateTextureForToken(
+        wrongKindToken,
+        MakeNativeTextureDesc(),
+        {},
+        &diagnostic);
+
+    EXPECT_EQ(serial, 0u);
+    EXPECT_FALSE(diagnostic.empty());
+}
+
 TEST(GraphicsDiligentBackendAdapter, NativeTextureQueryReportsNativeGpu)
 {
     FakeRenderState state;

@@ -1,10 +1,10 @@
 /// @file DiligentRenderBackend.h
-/// @brief Phase 3 Diligent implementation of the IRenderBackend seam.
+/// @brief Diligent implementation of the IRenderBackend seam.
 ///
 /// Layer  : SagaEngine / Render / Backend / Diligent
 /// Purpose: Concrete GPU backend with real mesh/material pipeline.
 ///
-///   Phase 3 capabilities:
+///   Current capabilities:
 ///     * Initialize    — device + context + swapchain + CameraCB + solid shaders.
 ///     * CreateMesh    — upload VB + IB from MeshAsset LOD 0, cache by MeshId.
 ///     * CreateMaterial— lookup/create PSO (keyed by cull/queue/depth), create SRB.
@@ -23,7 +23,7 @@
 ///   - Init/device errors log and return false. Per-frame draw-time errors
 ///     log and skip the draw — the frame lifecycle never skips EndFrame.
 ///   - One renderer per process. Non-copyable, non-movable.
-///   - Factory init and shader source are split into .inl files for clarity.
+///   - Factory init is runtime-owned; shader source is kept private here.
 ///
 /// Not this class's problem:
 ///   - Descriptor heaps, resource streaming, command-list multi-threading
@@ -38,6 +38,11 @@
 #include <memory>
 #include <string_view>
 #include <vector>
+
+namespace SagaEngine::Graphics::Backends::Diligent::Runtime
+{
+class DiligentGraphicsRuntime;
+}
 
 namespace SagaEngine::Render::Backend
 {
@@ -90,6 +95,8 @@ enum class RenderCaptureResult : std::uint8_t
     kUnsupportedFormat,
     kCopyFailed,
 };
+
+class DiligentNativeResourceOwner;
 
 // ─── DiligentRenderBackend ────────────────────────────────────────────
 
@@ -152,9 +159,9 @@ public:
 
     [[nodiscard]] RenderFrameDiagnostics LastFrameDiagnostics() const noexcept;
 
-    [[nodiscard]] DiligentDeviceServices GetDiligentDeviceServices()
-        const noexcept;
-
+    [[nodiscard]]
+    ::SagaEngine::Graphics::Backends::Diligent::Runtime::DiligentGraphicsRuntime&
+    RuntimeForIntegrationTesting() noexcept;
     [[nodiscard]] RenderCaptureResult CaptureCurrentColorFrame(
         RenderFrameCapture& outCapture);
 

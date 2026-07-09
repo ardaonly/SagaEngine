@@ -1,5 +1,8 @@
 #include "SagaGraphicsGpuTestFixture.h"
 
+#include "SagaEngine/Render/Backend/Diligent/DiligentNativeResourceOwner.h"
+#include "SagaEngine/Render/Backend/Diligent/DiligentNativeResourceToken.h"
+
 using namespace SagaEngine::Render::Backend;
 
 TEST_F(SagaGraphicsGPU, NativeVertexBufferCreates)
@@ -159,4 +162,67 @@ TEST_F(SagaGraphicsGPU, NativeTextureUploadProducesPixels)
               100u);
 }
 
+TEST_F(SagaGraphicsGPU, FirstGraphicsTextureDoesNotResolveStandaloneWhite)
+{
+    auto gfx = CreateNativeGraphicsBackend();
+    const auto vertices = TexturedQuadVertices();
+    const auto vertexBuffer = CreateNativeTexturedVertexBuffer(*gfx, vertices);
+    const auto indexBuffer = CreateNativeQuadIndexBuffer(*gfx);
+    constexpr std::array<std::uint8_t, 16> kRedTexture{
+        255u, 0u, 0u, 255u,
+        255u, 0u, 0u, 255u,
+        255u, 0u, 0u, 255u,
+        255u, 0u, 0u, 255u};
+    const auto texture = CreateNativeTexture(*gfx, kRedTexture);
+    ASSERT_EQ(texture.index, 1u);
+    ASSERT_EQ(texture.generation, 1u);
+    const auto sampler = CreateNativeSampler(*gfx, true, false);
+    const auto pipeline = CreateNativeTexturedPipeline(*gfx);
 
+    bool submitted = false;
+    const auto capture = DrawNativeTexturedQuad(
+        gfx->ResolveNativeBufferForTesting(vertexBuffer),
+        gfx->ResolveNativeBufferForTesting(indexBuffer),
+        gfx->ResolveNativePipelineForTesting(pipeline),
+        gfx->ResolveNativeTextureSrvForTesting(texture),
+        gfx->ResolveNativeSamplerForTesting(sampler),
+        &submitted);
+
+    ASSERT_TRUE(submitted);
+    EXPECT_GT(SagaTests::Render::CountRegionMatching(
+                  capture, capture.width / 2u, capture.height / 2u, 24u,
+                  [](SagaTests::Render::Rgba8 c)
+                  {
+                      return SagaTests::Render::IsDominantRed(c);
+                  }),
+              100u);
+}
+
+TEST_F(SagaGraphicsGPU, NativeSamplerRetiresOnlyAfterCompletedSerial)
+{
+    auto& owner = m_Backend.RuntimeForIntegrationTesting().NativeResources();
+    const auto token = owner.AllocateToken(
+        DiligentNativeResourceKind::Sampler);
+
+    SagaEngine::Graphics::SamplerDesc desc{};
+    desc.debugName = "serial-retired-sampler";
+    desc.minFilter = SagaEngine::Graphics::FilterMode::Nearest;
+    desc.magFilter = SagaEngine::Graphics::FilterMode::Nearest;
+    desc.addressU = SagaEngine::Graphics::AddressMode::ClampToEdge;
+    desc.addressV = SagaEngine::Graphics::AddressMode::ClampToEdge;
+    desc.addressW = SagaEngine::Graphics::AddressMode::ClampToEdge;
+
+    ASSERT_NE(owner.CreateSamplerForToken(token, desc), 0u);
+    ASSERT_NE(owner.ResolveSampler(token), nullptr);
+
+    constexpr std::uint64_t kUseSerial = 9u;
+    owner.MarkSamplerUsed(token, kUseSerial);
+    owner.DestroySampler(token);
+    EXPECT_NE(owner.ResolveSampler(token), nullptr);
+
+    owner.RetireCompleted(kUseSerial - 1u);
+    EXPECT_NE(owner.ResolveSampler(token), nullptr);
+
+    owner.RetireCompleted(kUseSerial);
+    EXPECT_EQ(owner.ResolveSampler(token), nullptr);
+}

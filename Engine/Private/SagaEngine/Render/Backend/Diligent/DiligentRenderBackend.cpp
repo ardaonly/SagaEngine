@@ -4,29 +4,6 @@
 #include "SagaEngine/Render/Backend/Diligent/DiligentRenderBackendPrivate.h"
 #include "SagaEngine/Platform/IWindow.h"
 
-#if D3D12_SUPPORTED
-#   include "EngineFactoryD3D12.h"
-#endif
-#if VULKAN_SUPPORTED
-#   include "EngineFactoryVk.h"
-#endif
-#if D3D11_SUPPORTED
-#   include "EngineFactoryD3D11.h"
-#endif
-#if GL_SUPPORTED
-#   include "EngineFactoryOpenGL.h"
-#endif
-
-#if PLATFORM_WIN32 || defined(_WIN32)
-#   ifndef NOMINMAX
-#       define NOMINMAX 1
-#   endif
-#   ifndef WIN32_LEAN_AND_MEAN
-#       define WIN32_LEAN_AND_MEAN 1
-#   endif
-#   include <windows.h>
-#endif
-
 namespace SagaEngine::Render::Backend
 {
 
@@ -46,18 +23,23 @@ std::string_view ToString(GraphicsBackendAPI api) noexcept
 namespace
 {
 
-#include "DiligentFactoryInit.inl"
 #include "DiligentShaders.inl"
 
 } // anonymous namespace
 
 DiligentRenderBackend::DiligentRenderBackend()
-    : m_Impl(std::make_unique<Impl>()) {}
+    : m_Impl(std::make_unique<Impl>())
+{
+    m_Impl->runtime =
+        std::make_unique<DiligentRuntime::DiligentGraphicsRuntime>();
+}
 
 DiligentRenderBackend::DiligentRenderBackend(RenderBackendConfig cfg)
     : m_Impl(std::make_unique<Impl>())
 {
     m_Impl->config = cfg;
+    m_Impl->runtime =
+        std::make_unique<DiligentRuntime::DiligentGraphicsRuntime>();
 }
 
 DiligentRenderBackend::~DiligentRenderBackend()
@@ -69,53 +51,31 @@ DiligentRenderBackend::~DiligentRenderBackend()
 
 bool DiligentRenderBackend::Initialize(const SwapchainDesc& desc)
 {
-    if (m_Impl->initialized) return true;
-
-    g_verboseGPU = m_Impl->config.enableValidation;
-
-    if (desc.width == 0 || desc.height == 0)
+    if (m_Impl->rendererInitialized) return true;
+    if (m_Impl->runtime->IsInitialized())
     {
-        LogErr("Initialize called with zero-sized swapchain");
-        return false;
+        Shutdown();
     }
 
-    const auto picked = TryInitAPI(
-        m_Impl->config.preferredAPI, desc, m_Impl->config,
-        m_Impl->device, m_Impl->context, m_Impl->swapChain);
+    m_Impl->gpuValidation = m_Impl->config.enableValidation;
 
-    if (picked == GraphicsBackendAPI::kAuto)
+    if (!m_Impl->runtime->Initialize(m_Impl->config, desc))
     {
-        LogErr("No Diligent graphics API was available for the host");
         return false;
     }
-
-    m_Impl->selectedAPI = picked;
-    m_Impl->initialized = true;
-    m_Impl->frameIndex  = 0;
-    m_Impl->nativeResources.Bind({
-        m_Impl->device.RawPtr(),
-        m_Impl->context.RawPtr(),
-        m_Impl->swapChain.RawPtr(),
-    });
-    if (!m_Impl->gpuTimeline.Initialize(
-            m_Impl->device.RawPtr(),
-            m_Impl->context.RawPtr()))
-    {
-        LogErr("Failed to create GPU completion fence");
+    auto rollback = [this]() {
+        Shutdown();
         return false;
-    }
-    const auto& scDesc = m_Impl->swapChain->GetDesc();
-    const auto frameSlotCount = scDesc.BufferCount == 0u ? 3u : scDesc.BufferCount;
-    (void)m_Impl->frameSlots.Configure(frameSlotCount);
+    };
 
     std::string msg = "Initialized with ";
-    msg += ToString(picked);
+    msg += ToString(m_Impl->runtime->Status().selectedAPI);
     msg += " (";
     msg += std::to_string(desc.width);
     msg += "x";
     msg += std::to_string(desc.height);
     msg += ")";
-    LogInfo(msg.c_str());
+    LOG_CAT_INFO(Render, msg.c_str());
 
     // ── Create CameraCB ──────────────────────────────────────────────
     {
@@ -126,11 +86,12 @@ bool DiligentRenderBackend::Initialize(const SwapchainDesc& desc)
         cbDesc.Usage          = USAGE_DYNAMIC;
         cbDesc.BindFlags      = BIND_UNIFORM_BUFFER;
         cbDesc.CPUAccessFlags = CPU_ACCESS_WRITE;
-        m_Impl->device->CreateBuffer(cbDesc, nullptr, &m_Impl->cameraCB);
+        m_Impl->runtime->Device()->CreateBuffer(
+            cbDesc, nullptr, &m_Impl->cameraCB);
         if (!m_Impl->cameraCB)
         {
-            LogErr("Failed to create CameraCB");
-            return false;
+            LOG_CAT_ERROR(Render, "Failed to create CameraCB");
+            return rollback();
         }
     }
 
@@ -146,45 +107,45 @@ bool DiligentRenderBackend::Initialize(const SwapchainDesc& desc)
         ci.Desc.Name       = "Solid VS";
         ci.EntryPoint      = "main";
         ci.Source           = kSolidVS;
-        m_Impl->device->CreateShader(ci, &m_Impl->solidVS);
+        m_Impl->runtime->Device()->CreateShader(ci, &m_Impl->solidVS);
 
         ci.Desc.ShaderType = SHADER_TYPE_PIXEL;
         ci.Desc.Name       = "Solid PS";
         ci.Source           = kSolidPS;
-        m_Impl->device->CreateShader(ci, &m_Impl->solidPS);
+        m_Impl->runtime->Device()->CreateShader(ci, &m_Impl->solidPS);
 
         if (!m_Impl->solidVS || !m_Impl->solidPS)
         {
-            LogErr("Failed to compile solid-color shaders");
-            return false;
+            LOG_CAT_ERROR(Render, "Failed to compile solid-color shaders");
+            return rollback();
         }
-        LogDbg("Solid shaders compiled OK");
+        LOG_CAT_DEBUG(Render, "Solid shaders compiled OK");
 
         // Skinned vertex shader (shares the same PS).
         ci.Desc.ShaderType = SHADER_TYPE_VERTEX;
         ci.Desc.Name       = "Skinned VS";
         ci.EntryPoint      = "main";
         ci.Source           = kSkinnedVS;
-        m_Impl->device->CreateShader(ci, &m_Impl->skinnedVS);
+        m_Impl->runtime->Device()->CreateShader(ci, &m_Impl->skinnedVS);
 
         if (!m_Impl->skinnedVS)
         {
-            LogErr("Failed to compile skinned vertex shader");
-            return false;
+            LOG_CAT_ERROR(Render, "Failed to compile skinned vertex shader");
+            return rollback();
         }
-        LogDbg("Skinned VS compiled OK");
+        LOG_CAT_DEBUG(Render, "Skinned VS compiled OK");
 
         ci.Desc.ShaderType = SHADER_TYPE_VERTEX;
         ci.Desc.Name       = "Shadow Depth VS";
         ci.EntryPoint      = "main";
         ci.Source          = kShadowDepthVS;
-        m_Impl->device->CreateShader(ci, &m_Impl->shadow.depthVS);
+        m_Impl->runtime->Device()->CreateShader(ci, &m_Impl->shadow.depthVS);
         if (!m_Impl->shadow.depthVS)
         {
-            LogErr("Failed to compile shadow depth vertex shader");
-            return false;
+            LOG_CAT_ERROR(Render, "Failed to compile shadow depth vertex shader");
+            return rollback();
         }
-        LogDbg("Shadow depth VS compiled OK");
+        LOG_CAT_DEBUG(Render, "Shadow depth VS compiled OK");
     }
 
     // ── Create BoneCB (128 mat4 = 8192 bytes) ──────────────────────
@@ -196,56 +157,40 @@ bool DiligentRenderBackend::Initialize(const SwapchainDesc& desc)
         cbDesc.Usage          = USAGE_DYNAMIC;
         cbDesc.BindFlags      = BIND_UNIFORM_BUFFER;
         cbDesc.CPUAccessFlags = CPU_ACCESS_WRITE;
-        m_Impl->device->CreateBuffer(cbDesc, nullptr, &m_Impl->boneCB);
+        m_Impl->runtime->Device()->CreateBuffer(
+            cbDesc, nullptr, &m_Impl->boneCB);
         if (!m_Impl->boneCB)
         {
-            LogErr("Failed to create BoneCB");
-            return false;
+            LOG_CAT_ERROR(Render, "Failed to create BoneCB");
+            return rollback();
         }
-        LogDbg("BoneCB created (8192 bytes)");
+        LOG_CAT_DEBUG(Render, "BoneCB created (8192 bytes)");
     }
 
-    // ── Create default 1x1 white texture ────────────────────────────
-    {
-        const std::uint8_t white[4] = { 255, 255, 255, 255 };
-
-        Gfx::TextureDesc texDesc;
-        texDesc.debugName = "DefaultWhite1x1";
-        texDesc.width = 1;
-        texDesc.height = 1;
-        texDesc.format = Gfx::ResourceFormat::Rgba8Unorm;
-
-        const Gfx::GraphicsDataView data{
-            white,
-            sizeof(white),
-            4u,
-            0u,
-        };
-
-        m_Impl->defaultWhiteTex =
-            m_Impl->nativeResources.CreateStandaloneTexture(texDesc, data);
-        if (!m_Impl->defaultWhiteTex.IsValid())
-        {
-            LogErr("Failed to create default white texture");
-            return false;
-        }
-
-        LogDbg("Default 1x1 white texture created");
-    }
-
-    LogInfo("Phase 3: backend ready");
+    LOG_CAT_INFO(Render, "Diligent render backend ready");
+    m_Impl->rendererInitialized = true;
     return true;
 }
 
 void DiligentRenderBackend::Shutdown()
 {
-    if (!m_Impl || !m_Impl->initialized) return;
+    if (!m_Impl || !m_Impl->runtime)
+    {
+        return;
+    }
+    if (!m_Impl->runtime->IsInitialized() && !m_Impl->rendererInitialized)
+    {
+        return;
+    }
 
     ShutdownOverlayRendering();
 
-    m_Impl->gpuTimeline.ShutdownAndDrain();
-    m_Impl->nativeResources.RetireCompleted(
-        m_Impl->gpuTimeline.LastCompletedSerial());
+    for (auto& [id, material] : m_Impl->materialCache)
+    {
+        (void)id;
+        m_Impl->runtime->DestroyMaterialBinding(material.binding);
+        m_Impl->runtime->DestroyMaterialBinding(material.skinnedBinding);
+    }
     m_Impl->meshCache.clear();
     m_Impl->materialCache.clear();
     m_Impl->psoCache.clear();
@@ -257,53 +202,33 @@ void DiligentRenderBackend::Shutdown()
     m_Impl->shadow.dsv.Release();
     m_Impl->shadow.srv.Release();
     m_Impl->shadow.texture.Release();
-    m_Impl->defaultWhiteTex = {};
-    m_Impl->nativeResources.ReleaseAll();
-    m_Impl->gpuTimeline.Reset();
-    m_Impl->frameSlots.Reset();
-
     m_Impl->boneCB.Release();
     m_Impl->cameraCB.Release();
     m_Impl->solidVS.Release();
     m_Impl->skinnedVS.Release();
     m_Impl->solidPS.Release();
 
-    if (m_Impl->context) m_Impl->context->Flush();
-    m_Impl->swapChain.Release();
-    m_Impl->context.Release();
-    m_Impl->device.Release();
+    m_Impl->runtime->Shutdown();
+    m_Impl->rendererInitialized = false;
 
-    m_Impl->initialized = false;
-    m_Impl->selectedAPI = GraphicsBackendAPI::kAuto;
-    LogInfo("Shutdown complete");
+    LOG_CAT_INFO(Render, "Shutdown complete");
 }
 
 void DiligentRenderBackend::OnResize(std::uint32_t width, std::uint32_t height)
 {
-    if (!m_Impl->initialized || !m_Impl->swapChain) return;
+    if (!m_Impl->runtime->IsInitialized() || !m_Impl->runtime->SwapChain())
+        return;
     if (width == 0 || height == 0) return;
     m_Impl->frameCapture.Reset();
-    const auto oldFrameSlotCount =
-        m_Impl->frameSlots.FrameSlotCount();
-    m_Impl->swapChain->Resize(width, height);
+    const auto oldFrameSlotCount = m_Impl->runtime->FrameSlotCount();
+    m_Impl->runtime->Resize(width, height);
 
-    const auto& scDesc = m_Impl->swapChain->GetDesc();
-    const auto newFrameSlotCount =
-        scDesc.BufferCount == 0u ? 3u : scDesc.BufferCount;
+    const auto newFrameSlotCount = m_Impl->runtime->FrameSlotCount();
     if (newFrameSlotCount == oldFrameSlotCount)
     {
         return;
     }
 
-    const auto latestSlotSerial = m_Impl->frameSlots.LatestSubmittedSerial();
-    if (latestSlotSerial != 0u)
-    {
-        m_Impl->gpuTimeline.WaitForSerial(latestSlotSerial);
-        m_Impl->nativeResources.RetireCompleted(
-            m_Impl->gpuTimeline.LastCompletedSerial());
-    }
-
-    (void)m_Impl->frameSlots.Configure(newFrameSlotCount);
     if (m_Impl->overlayRenderer.IsReady())
     {
         (void)m_Impl->overlayRenderer.ReconfigureFrameSlots(
@@ -315,32 +240,26 @@ void DiligentRenderBackend::OnResize(std::uint32_t width, std::uint32_t height)
 
 GraphicsBackendAPI DiligentRenderBackend::SelectedAPI() const noexcept
 {
-    return m_Impl ? m_Impl->selectedAPI : GraphicsBackendAPI::kAuto;
+    return m_Impl && m_Impl->runtime
+        ? m_Impl->runtime->Status().selectedAPI
+        : GraphicsBackendAPI::kAuto;
 }
 
 std::uint64_t DiligentRenderBackend::FrameIndex() const noexcept
 {
-    return m_Impl ? m_Impl->frameIndex : 0ull;
+    return m_Impl && m_Impl->runtime ? m_Impl->runtime->Status().frameIndex
+                                     : 0ull;
 }
 
 bool DiligentRenderBackend::IsInitialized() const noexcept
 {
-    return m_Impl && m_Impl->initialized;
+    return m_Impl && m_Impl->runtime && m_Impl->runtime->IsInitialized();
 }
 
-DiligentDeviceServices DiligentRenderBackend::GetDiligentDeviceServices()
-    const noexcept
+::SagaEngine::Graphics::Backends::Diligent::Runtime::DiligentGraphicsRuntime&
+DiligentRenderBackend::RuntimeForIntegrationTesting() noexcept
 {
-    if (!m_Impl || !m_Impl->initialized)
-    {
-        return {};
-    }
-
-    return {
-        m_Impl->device.RawPtr(),
-        m_Impl->context.RawPtr(),
-        m_Impl->swapChain.RawPtr(),
-    };
+    return *m_Impl->runtime;
 }
 
 RenderFrameDiagnostics DiligentRenderBackend::LastFrameDiagnostics() const noexcept

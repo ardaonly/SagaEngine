@@ -78,11 +78,12 @@ void CopyMappedTextureToRGBA8(
 } // namespace
 
 RenderCaptureResult DiligentFrameCapture::Capture(
-    DiligentDeviceServices services,
+    Graphics::Backends::Diligent::Runtime::DiligentGraphicsRuntime& runtime,
     RenderFrameCapture& outCapture)
 {
     outCapture = {};
 
+    auto services = runtime.Services();
     if (!services.IsBound())
     {
         return RenderCaptureResult::kNotInitialized;

@@ -3,31 +3,20 @@
 
 #include "SagaEngine/Render/Backend/Diligent/DiligentPipelineCache.h"
 
+#include "SagaEngine/Core/Log/LogCategories.h"
+
 #include "Buffer.h"
 #include "PipelineState.h"
 #include "RenderDevice.h"
 #include "Shader.h"
 #include "SwapChain.h"
 
-#include <cstdio>
-
 namespace SagaEngine::Render::Backend
 {
 
-namespace
-{
-
-void LogErr(const char* msg)
-{
-    std::fprintf(stderr, "[DiligentBackend][error] %s\n", msg);
-    std::fflush(stderr);
-}
-
-} // namespace
-
 /// Creates or retrieves a cached PSO for the given key.
 /// Takes raw Diligent pointers to avoid referencing the private Impl type
-/// from the anonymous namespace (same fix as Phase 2 triangle helpers).
+/// from the anonymous namespace.
 Diligent::RefCntAutoPtr<Diligent::IPipelineState> FindOrCreatePSO(
     std::unordered_map<PSOCacheKey, Diligent::RefCntAutoPtr<Diligent::IPipelineState>, PSOCacheKeyHash>& cache,
     Diligent::IRenderDevice&  device,
@@ -122,7 +111,7 @@ Diligent::RefCntAutoPtr<Diligent::IPipelineState> FindOrCreatePSO(
     device.CreateGraphicsPipelineState(psoCI, &pso);
     if (!pso)
     {
-        LogErr("Failed to create PSO");
+        LOG_CAT_ERROR(Render, "Failed to create PSO");
         return {};
     }
 
@@ -226,7 +215,7 @@ Diligent::RefCntAutoPtr<Diligent::IPipelineState> FindOrCreateSkinnedPSO(
     device.CreateGraphicsPipelineState(psoCI, &pso);
     if (!pso)
     {
-        LogErr("Failed to create skinned PSO");
+        LOG_CAT_ERROR(Render, "Failed to create skinned PSO");
         return {};
     }
 
@@ -282,7 +271,7 @@ Diligent::RefCntAutoPtr<Diligent::IPipelineState> CreateShadowDepthPSO(
     device.CreateGraphicsPipelineState(psoCI, &pso);
     if (!pso)
     {
-        LogErr("Failed to create directional shadow depth PSO");
+        LOG_CAT_ERROR(Render, "Failed to create directional shadow depth PSO");
         return {};
     }
 

@@ -25,9 +25,9 @@ void DiligentGraphicsBackend::BeginFrame()
         return;
     }
 
-    if (m_RenderBackend)
+    if (m_Runtime)
     {
-        m_RenderBackend->BeginFrame();
+        (void)m_Runtime->BeginFrame(0u);
         m_LastStatus = GetStatus();
     }
 }
@@ -40,9 +40,9 @@ void DiligentGraphicsBackend::EndFrame()
         return;
     }
 
-    if (m_RenderBackend)
+    if (m_Runtime)
     {
-        m_RenderBackend->EndFrame();
+        m_Runtime->PresentActiveFrame();
         m_LastStatus = GetStatus();
     }
 }
@@ -54,12 +54,12 @@ RenderBackendStatus DiligentGraphicsBackend::GetStatus() const noexcept
         return m_HeadlessStatus;
     }
 
-    if (!m_RenderBackend || !m_LastStatus.initialized || m_SurfaceMinimized)
+    if (!m_Runtime || !m_LastStatus.initialized || m_SurfaceMinimized)
     {
         return m_LastStatus;
     }
 
-    return Mapping::ToGraphicsBackendStatus(m_StatusReader(*m_RenderBackend));
+    return Mapping::ToGraphicsBackendStatus(m_Runtime->Status());
 }
 
 RenderBackendCapabilities DiligentGraphicsBackend::GetCapabilities()

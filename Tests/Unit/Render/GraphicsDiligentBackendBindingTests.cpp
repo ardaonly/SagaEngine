@@ -254,7 +254,6 @@ TEST(
     FakeRenderState state;
     auto backend = MakeConcreteBackend(state);
     EXPECT_TRUE(backend->Initialize({}, MakeSwapchain()));
-    BindFakeNativeDeviceServices(*backend);
 
     const auto texture = backend->CreateTexture(MakeTextureDesc());
     const auto sampler = backend->CreateSampler({});
@@ -274,10 +273,10 @@ TEST(
     EXPECT_EQ(result.code, Graphics::GraphicsBindingValidationCode::None);
     EXPECT_EQ(
         backend->QueryTextureForTesting(texture).backing,
-        Graphics::GraphicsResourceBacking::NativeGpuFuture);
+        Graphics::GraphicsResourceBacking::RegisteredOnly);
     EXPECT_EQ(
         backend->QuerySamplerForTesting(sampler).backing,
-        Graphics::GraphicsResourceBacking::NativeGpuFuture);
+        Graphics::GraphicsResourceBacking::RegisteredOnly);
     EXPECT_EQ(state.textureCreateCalls, 0u);
 }
 

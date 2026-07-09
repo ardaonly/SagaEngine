@@ -8,7 +8,7 @@ namespace SagaEngine::Render::Backend
 
 World::MeshId DiligentRenderBackend::CreateMesh(const MeshAsset& asset)
 {
-    if (!m_Impl->initialized || !m_Impl->device) return World::MeshId::kInvalid;
+    if (!m_Impl->runtime->IsInitialized() || !m_Impl->runtime->Device()) return World::MeshId::kInvalid;
     if (asset.lodCount == 0) return World::MeshId::kInvalid;
 
     const auto& lod = asset.lods[0];
@@ -34,10 +34,10 @@ World::MeshId DiligentRenderBackend::CreateMesh(const MeshAsset& asset)
         };
 
         gpu.vertexBuffer =
-            m_Impl->nativeResources.CreateStandaloneBuffer(vbDesc, vbData);
+            m_Impl->runtime->NativeResources().CreateStandaloneBuffer(vbDesc, vbData);
         if (!gpu.vertexBuffer.IsValid())
         {
-            LogErr("CreateMesh: VB creation failed");
+            LOG_CAT_ERROR(Render, "CreateMesh: VB creation failed");
             return World::MeshId::kInvalid;
         }
     }
@@ -61,10 +61,11 @@ World::MeshId DiligentRenderBackend::CreateMesh(const MeshAsset& asset)
         };
 
         gpu.indexBuffer =
-            m_Impl->nativeResources.CreateStandaloneBuffer(ibDesc, ibData);
+            m_Impl->runtime->NativeResources().CreateStandaloneBuffer(ibDesc, ibData);
         if (!gpu.indexBuffer.IsValid())
         {
-            LogErr("CreateMesh: IB creation failed");
+            LOG_CAT_ERROR(Render, "CreateMesh: IB creation failed");
+            m_Impl->runtime->NativeResources().DestroyBuffer(gpu.vertexBuffer);
             return World::MeshId::kInvalid;
         }
     }
@@ -76,14 +77,14 @@ World::MeshId DiligentRenderBackend::CreateMesh(const MeshAsset& asset)
 
 World::MaterialId DiligentRenderBackend::CreateMaterial(const MaterialRuntime& runtime)
 {
-    if (!m_Impl->initialized || !m_Impl->device) return World::MaterialId::kInvalid;
+    if (!m_Impl->runtime->IsInitialized() || !m_Impl->runtime->Device()) return World::MaterialId::kInvalid;
 
     PSOCacheKey key{};
     key.cullMode    = static_cast<std::uint8_t>(runtime.cullMode);
     key.renderQueue = static_cast<std::uint8_t>(runtime.renderQueue);
     key.writesDepth = runtime.writesDepth;
 
-    auto pso = FindOrCreatePSO(m_Impl->psoCache, *m_Impl->device, *m_Impl->swapChain,
+    auto pso = FindOrCreatePSO(m_Impl->psoCache, *m_Impl->runtime->Device(), *m_Impl->runtime->SwapChain(),
                                 m_Impl->solidVS, m_Impl->solidPS, m_Impl->cameraCB, key);
     if (!pso) return World::MaterialId::kInvalid;
 
@@ -99,16 +100,12 @@ World::MaterialId DiligentRenderBackend::CreateMaterial(const MaterialRuntime& r
     gpu.castsShadows = runtime.castsShadows;
     gpu.albedoTex   = runtime.textures[static_cast<std::size_t>(MaterialTextureSlot::Albedo)];
 
-    pso->CreateShaderResourceBinding(&gpu.srb, true);
-    if (!gpu.srb)
+    gpu.binding = m_Impl->runtime->CreateMaterialBinding(*pso);
+    if (!gpu.binding.IsValid())
     {
-        LogErr("CreateMaterial: SRB creation failed");
+        LOG_CAT_ERROR(Render, "CreateMaterial: SRB creation failed");
         return World::MaterialId::kInvalid;
     }
-    gpu.albedoVariable = gpu.srb->GetVariableByName(
-        SHADER_TYPE_PIXEL, "g_Albedo");
-    gpu.shadowVariable = gpu.srb->GetVariableByName(
-        SHADER_TYPE_PIXEL, "g_ShadowMap");
 
     auto id = static_cast<World::MaterialId>(m_Impl->nextMaterialId++);
     m_Impl->materialCache[id] = std::move(gpu);
@@ -120,15 +117,23 @@ void DiligentRenderBackend::DestroyMesh(World::MeshId id)
     auto it = m_Impl->meshCache.find(id);
     if (it != m_Impl->meshCache.end())
     {
-        m_Impl->nativeResources.DestroyBuffer(it->second.vertexBuffer);
-        m_Impl->nativeResources.DestroyBuffer(it->second.indexBuffer);
+        m_Impl->runtime->NativeResources().DestroyBuffer(it->second.vertexBuffer);
+        m_Impl->runtime->NativeResources().DestroyBuffer(it->second.indexBuffer);
         m_Impl->meshCache.erase(it);
     }
 }
 
 void DiligentRenderBackend::DestroyMaterial(World::MaterialId id)
 {
-    m_Impl->materialCache.erase(id);
+    auto it = m_Impl->materialCache.find(id);
+    if (it == m_Impl->materialCache.end())
+    {
+        return;
+    }
+
+    m_Impl->runtime->DestroyMaterialBinding(it->second.binding);
+    m_Impl->runtime->DestroyMaterialBinding(it->second.skinnedBinding);
+    m_Impl->materialCache.erase(it);
 }
 
 // ─── Texture upload ─────────────────────────────────────────────────
@@ -136,7 +141,7 @@ void DiligentRenderBackend::DestroyMaterial(World::MaterialId id)
 TextureHandle DiligentRenderBackend::CreateTexture(uint32_t width, uint32_t height,
                                                     const uint8_t* rgba)
 {
-    if (!m_Impl->initialized || !m_Impl->device || !rgba)
+    if (!m_Impl->runtime->IsInitialized() || !m_Impl->runtime->Device() || !rgba)
         return TextureHandle::kInvalid;
     if (width == 0 || height == 0)
         return TextureHandle::kInvalid;
@@ -156,10 +161,10 @@ TextureHandle DiligentRenderBackend::CreateTexture(uint32_t width, uint32_t heig
 
     TextureGPU gpu{};
     gpu.texture =
-        m_Impl->nativeResources.CreateStandaloneTexture(texDesc, texData);
+        m_Impl->runtime->NativeResources().CreateStandaloneTexture(texDesc, texData);
     if (!gpu.texture.IsValid())
     {
-        LogErr("CreateTexture: texture creation failed");
+        LOG_CAT_ERROR(Render, "CreateTexture: texture creation failed");
         return TextureHandle::kInvalid;
     }
 
@@ -170,7 +175,7 @@ TextureHandle DiligentRenderBackend::CreateTexture(uint32_t width, uint32_t heig
         char buf[128];
         std::snprintf(buf, sizeof(buf), "CreateTexture: %ux%u → handle %u",
                       width, height, static_cast<unsigned>(handle));
-        LogDbg(buf);
+        LOG_CAT_DEBUG(Render, buf);
     }
 
     return handle;
@@ -181,7 +186,7 @@ void DiligentRenderBackend::DestroyTexture(TextureHandle tex)
     auto it = m_Impl->textureCache.find(tex);
     if (it != m_Impl->textureCache.end())
     {
-        m_Impl->nativeResources.DestroyTexture(it->second.texture);
+        m_Impl->runtime->NativeResources().DestroyTexture(it->second.texture);
         m_Impl->textureCache.erase(it);
     }
 }

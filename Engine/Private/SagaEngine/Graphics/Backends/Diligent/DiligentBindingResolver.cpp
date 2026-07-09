@@ -3,7 +3,7 @@
 
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackend.h"
 
-#include "SagaEngine/Graphics/Backends/Diligent/DiligentBindingCache.h"
+#include "SagaEngine/Graphics/Backends/Diligent/Runtime/DiligentBindingCache.h"
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentFallbackResources.h"
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentBindingResolver.h"
 #include "SagaEngine/Graphics/Backends/Diligent/DiligentGraphicsBackendValidation.h"
@@ -211,7 +211,7 @@ DiligentResolvedBindingSet DiligentGraphicsBackend::ResolveNativeBindingSet(
     const auto* pipelineDesc = m_Pipelines.ResolveDesc(pipeline);
     if (!pipelineQuery.live || !pipelineQuery.nativeBacked ||
         !pipelineDesc || !m_NativeOwner ||
-        !m_NativeOwner->ResolvePipeline(pipeline))
+        !m_NativeOwner->ResolvePipeline(m_Pipelines.NativeToken(pipeline)))
     {
         AddDiagnostic(
             resolved,
@@ -291,7 +291,7 @@ DiligentResolvedBindingSet DiligentGraphicsBackend::ResolveNativeBindingSet(
             return resolved;
         }
 
-        if (!m_FallbackResources)
+        if (!m_Runtime)
         {
             AddDiagnostic(
                 resolved,
@@ -302,16 +302,17 @@ DiligentResolvedBindingSet DiligentGraphicsBackend::ResolveNativeBindingSet(
         }
 
         DiligentFallbackResourceIdentity fallbackIdentity{};
+        auto& fallbackResources = m_Runtime->FallbackResources();
         if (entry->kind == DiligentCompiledBindingKind::SampledTexture)
         {
-            fallbackIdentity = m_FallbackResources->ResolveWhiteTexture(
-                *this,
+            fallbackIdentity = fallbackResources.ResolveWhiteTexture(
+                m_Runtime->NativeResources(),
                 m_NativeBindingDiagnostics);
         }
         else if (entry->kind == DiligentCompiledBindingKind::Sampler)
         {
-            fallbackIdentity = m_FallbackResources->ResolveMaterialSampler(
-                *this,
+            fallbackIdentity = fallbackResources.ResolveMaterialSampler(
+                m_Runtime->NativeResources(),
                 m_NativeBindingDiagnostics);
         }
 
@@ -332,15 +333,21 @@ DiligentResolvedBindingSet DiligentGraphicsBackend::ResolveNativeBindingSet(
         resolvedResource.record.handle = fallbackIdentity.handle;
         resolvedResource.record.resourceCreationSerial =
             fallbackIdentity.creationSerial;
-        resolvedResource.query =
-            QueryResource(fallbackIdentity.kind, fallbackIdentity.handle);
+        resolvedResource.query.valid = true;
+        resolvedResource.query.live = true;
+        resolvedResource.query.kind = fallbackIdentity.kind;
+        resolvedResource.query.lifecycle = GraphicsResourceLifecycle::Ready;
+        resolvedResource.query.backing = GraphicsResourceBacking::NativeGpu;
+        resolvedResource.query.nativeBacked = true;
+        resolvedResource.query.creationSerial =
+            fallbackIdentity.creationSerial;
         resolvedResource.usedFallback = true;
 
         if (!resolvedResource.query.live ||
             resolvedResource.query.kind != fallbackIdentity.kind ||
             resolvedResource.query.creationSerial !=
                 fallbackIdentity.creationSerial ||
-            !resolvedResource.query.nativeBacked || !m_NativeOwner)
+            !resolvedResource.query.nativeBacked)
         {
             AddDiagnostic(
                 resolved,
@@ -352,11 +359,8 @@ DiligentResolvedBindingSet DiligentGraphicsBackend::ResolveNativeBindingSet(
 
         if (entry->kind == DiligentCompiledBindingKind::SampledTexture)
         {
-            const auto textureHandle =
-                ToTypedHandle<TextureHandle>(fallbackIdentity.handle);
-            const auto* textureDesc = m_Textures.ResolveDesc(textureHandle);
-            auto* srv = m_NativeOwner->ResolveTextureSrv(textureHandle);
-            if (!textureDesc || !IsSampledTextureDesc(*textureDesc) || !srv)
+            auto* srv = fallbackIdentity.textureView;
+            if (!srv)
             {
                 AddDiagnostic(
                     resolved,
@@ -372,9 +376,7 @@ DiligentResolvedBindingSet DiligentGraphicsBackend::ResolveNativeBindingSet(
         }
         else if (entry->kind == DiligentCompiledBindingKind::Sampler)
         {
-            const auto samplerHandle =
-                ToTypedHandle<SamplerHandle>(fallbackIdentity.handle);
-            auto* sampler = m_NativeOwner->ResolveSampler(samplerHandle);
+            auto* sampler = fallbackIdentity.sampler;
             if (!sampler)
             {
                 AddDiagnostic(
@@ -482,7 +484,8 @@ DiligentResolvedBindingSet DiligentGraphicsBackend::ResolveNativeBindingSet(
             const auto textureHandle =
                 ToTypedHandle<TextureHandle>(resource.handle);
             const auto* textureDesc = m_Textures.ResolveDesc(textureHandle);
-            auto* srv = m_NativeOwner->ResolveTextureSrv(textureHandle);
+            auto* srv = m_NativeOwner->ResolveTextureSrv(
+                m_Textures.NativeToken(textureHandle));
             if (!textureDesc || !IsSampledTextureDesc(*textureDesc) || !srv)
             {
                 AddDiagnostic(
@@ -510,7 +513,8 @@ DiligentResolvedBindingSet DiligentGraphicsBackend::ResolveNativeBindingSet(
             }
             const auto samplerHandle =
                 ToTypedHandle<SamplerHandle>(resource.handle);
-            auto* sampler = m_NativeOwner->ResolveSampler(samplerHandle);
+            auto* sampler = m_NativeOwner->ResolveSampler(
+                m_Samplers.NativeToken(samplerHandle));
             if (!sampler)
             {
                 AddDiagnostic(
@@ -549,7 +553,8 @@ DiligentResolvedBindingSet DiligentGraphicsBackend::ResolveNativeBindingSet(
             const auto bufferHandle =
                 ToTypedHandle<BufferHandle>(resource.handle);
             const auto* bufferDesc = m_Buffers.ResolveDesc(bufferHandle);
-            auto* buffer = m_NativeOwner->ResolveBuffer(bufferHandle);
+            auto* buffer = m_NativeOwner->ResolveBuffer(
+                m_Buffers.NativeToken(bufferHandle));
             if (!bufferDesc || bufferDesc->usage != BufferUsage::Uniform ||
                 !buffer)
             {
@@ -596,7 +601,8 @@ DiligentGraphicsBackend::ResolveNativeBindingSrb(
         return {nullptr, resolved.failure, false, false};
     }
 
-    auto* nativePipeline = m_NativeOwner->ResolvePipeline(pipeline);
+    auto* nativePipeline = m_NativeOwner->ResolvePipeline(
+        m_Pipelines.NativeToken(pipeline));
     if (!nativePipeline)
     {
         ++m_NativeBindingDiagnostics.nativeBindingResolveFailures;
@@ -609,7 +615,7 @@ DiligentGraphicsBackend::ResolveNativeBindingSrb(
         };
     }
 
-    auto result = m_NativeBindingCache->ResolveOrCreate(
+    auto result = m_Runtime->BindingCache().ResolveOrCreate(
         *nativePipeline,
         resolved,
         m_NativeBindingDiagnostics);

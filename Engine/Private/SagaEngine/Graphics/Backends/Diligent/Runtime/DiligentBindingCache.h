@@ -113,22 +113,30 @@ public:
 
     void InvalidatePipeline(
         PipelineHandle handle,
+        std::uint64_t retireAfterSerial,
         DiligentBindingFailureReason reason,
         DiligentNativeBindingDiagnostics& diagnostics) noexcept;
     void InvalidateLayout(
         BindingLayoutHandle handle,
+        std::uint64_t retireAfterSerial,
         DiligentBindingFailureReason reason,
         DiligentNativeBindingDiagnostics& diagnostics) noexcept;
     void InvalidateBindingSet(
         BindingSetHandle handle,
+        std::uint64_t retireAfterSerial,
         DiligentBindingFailureReason reason,
         DiligentNativeBindingDiagnostics& diagnostics) noexcept;
     void InvalidateResource(
         GraphicsResourceKind kind,
         GraphicsHandle handle,
+        std::uint64_t retireAfterSerial,
         DiligentBindingFailureReason reason,
         DiligentNativeBindingDiagnostics& diagnostics) noexcept;
-    void Clear(DiligentNativeBindingDiagnostics& diagnostics) noexcept;
+    void Clear(
+        std::uint64_t retireAfterSerial,
+        DiligentNativeBindingDiagnostics& diagnostics) noexcept;
+    void RetireCompleted(std::uint64_t completedSerial) noexcept;
+    void ForceRelease(DiligentNativeBindingDiagnostics& diagnostics) noexcept;
 
     [[nodiscard]] std::uint64_t EntryCount() const noexcept;
     [[nodiscard]] std::uint64_t QuarantinedCount() const noexcept;
@@ -141,12 +149,17 @@ private:
 
     void Quarantine(
         DiligentNativeBindingCacheEntry& entry,
+        std::uint64_t retireAfterSerial,
         DiligentBindingFailureReason reason,
         DiligentNativeBindingDiagnostics& diagnostics) noexcept;
 
     EntryMap m_Entries;
-    std::vector<::Diligent::RefCntAutoPtr<::Diligent::IShaderResourceBinding>>
-        m_QuarantinedSrbs;
+    struct QuarantinedSrb
+    {
+        ::Diligent::RefCntAutoPtr<::Diligent::IShaderResourceBinding> srb;
+        std::uint64_t retireAfterSerial = 0;
+    };
+    std::vector<QuarantinedSrb> m_QuarantinedSrbs;
     std::uint64_t m_NextCreationSerial = 1;
 };
 

@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "SagaEngine/Render/Backend/Diligent/DiligentDeviceServices.h"
+#include "SagaEngine/Graphics/Backends/Diligent/Runtime/DiligentGraphicsRuntime.h"
 #include "SagaEngine/Render/Backend/Diligent/DiligentRenderBackend.h"
 
 #include "RefCntAutoPtr.hpp"
@@ -20,7 +20,7 @@ class DiligentFrameCapture final
 {
 public:
     [[nodiscard]] RenderCaptureResult Capture(
-        DiligentDeviceServices services,
+        Graphics::Backends::Diligent::Runtime::DiligentGraphicsRuntime& runtime,
         RenderFrameCapture& outCapture);
 
     void Reset();

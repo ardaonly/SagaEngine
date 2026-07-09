@@ -25,14 +25,21 @@ SagaEngine::Graphics::Backends::Diligent::DiligentGraphicsBackend>
 SagaGraphicsGPU::CreateNativeGraphicsBackend()
 {
     auto backend = std::make_unique<
-        SagaEngine::Graphics::Backends::Diligent::DiligentGraphicsBackend>();
+        SagaEngine::Graphics::Backends::Diligent::DiligentGraphicsBackend>(
+            m_Backend.RuntimeForIntegrationTesting());
 
     SagaEngine::Graphics::RenderBackendDesc desc{};
-    desc.headless = true;
-    EXPECT_TRUE(backend->Initialize(desc, {}));
-    backend->BindNativeDeviceServicesForTesting(
-        m_Backend.GetDiligentDeviceServices(),
-        true);
+#if defined(__linux__)
+    desc.preferredBackend =
+        SagaEngine::Graphics::BackendPreference::NativePortable;
+#endif
+
+    SagaEngine::Graphics::SwapchainDesc swapchain{};
+    swapchain.nativeWindow = GetNativeHandle(m_Window);
+    swapchain.width = kWidth;
+    swapchain.height = kHeight;
+    swapchain.vsync = false;
+    EXPECT_TRUE(backend->Initialize(desc, swapchain));
     EXPECT_TRUE(backend->HasNativeDeviceServicesForTesting());
     return backend;
 }
@@ -195,14 +202,15 @@ SagaEngine::Graphics::PipelineHandle SagaGraphicsGPU::CreateNativeTexturedPipeli
         return {};
     }
 
-    const auto services = m_Backend.GetDiligentDeviceServices();
+    const auto services = m_Backend.RuntimeForIntegrationTesting().Services();
     const auto& scDesc = services.SwapChain()->GetDesc();
 
     SagaEngine::Graphics::PipelineDesc desc{};
     desc.debugName = "SagaGraphicsGPUTexturedPipeline";
     desc.vertexShader = vs;
     desc.fragmentShader = ps;
-    desc.colorFormat = scDesc.ColorBufferFormat == Diligent::TEX_FORMAT_BGRA8_UNORM
+    desc.colorFormat = scDesc.ColorBufferFormat == Diligent::TEX_FORMAT_BGRA8_UNORM ||
+        scDesc.ColorBufferFormat == Diligent::TEX_FORMAT_BGRA8_UNORM_SRGB
         ? SagaEngine::Graphics::ResourceFormat::Bgra8Unorm
         : SagaEngine::Graphics::ResourceFormat::Rgba8Unorm;
     desc.depthFormat = scDesc.DepthBufferFormat == Diligent::TEX_FORMAT_D32_FLOAT
@@ -330,7 +338,7 @@ RenderFrameCapture SagaGraphicsGPU::DrawNativeIndexedTriangle(
     }
 
     RenderFrameCapture capture{};
-    const auto services = m_Backend.GetDiligentDeviceServices();
+    const auto services = m_Backend.RuntimeForIntegrationTesting().Services();
     EXPECT_NE(services.Device(), nullptr);
     EXPECT_NE(services.ImmediateContext(), nullptr);
     EXPECT_NE(services.SwapChain(), nullptr);
@@ -418,7 +426,7 @@ RenderFrameCapture SagaGraphicsGPU::DrawNativeTexturedQuad(
     }
 
     RenderFrameCapture capture{};
-    const auto services = m_Backend.GetDiligentDeviceServices();
+    const auto services = m_Backend.RuntimeForIntegrationTesting().Services();
     EXPECT_NE(services.ImmediateContext(), nullptr);
     if (!services.ImmediateContext())
     {
@@ -437,6 +445,12 @@ RenderFrameCapture SagaGraphicsGPU::DrawNativeTexturedQuad(
                 "g_Tex"))
         {
             var->Set(textureSrv);
+        }
+        if (auto* var = srb->GetVariableByName(
+                Diligent::SHADER_TYPE_PIXEL,
+                "g_Tex_sampler"))
+        {
+            var->Set(sampler);
         }
     }
 
@@ -492,7 +506,7 @@ RenderFrameCapture SagaGraphicsGPU::DrawNativeBoundTexturedQuad(
     }
 
     RenderFrameCapture capture{};
-    const auto services = m_Backend.GetDiligentDeviceServices();
+    const auto services = m_Backend.RuntimeForIntegrationTesting().Services();
     EXPECT_NE(services.ImmediateContext(), nullptr);
     if (!services.ImmediateContext())
     {
