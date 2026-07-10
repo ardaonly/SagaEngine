@@ -673,8 +673,8 @@ const char* ToString(SagaShared::Publish::PublishBlockerKind kind) noexcept
             return "ToolchainInvalid";
         case SagaShared::Publish::PublishBlockerKind::Unknown:
             return "Unknown";
-        case SagaShared::Publish::PublishBlockerKind::SDECompileError:
-            return "SDECompileError";
+        case SagaShared::Publish::PublishBlockerKind::ProjectDataValidationError:
+            return "ProjectDataValidationError";
         case SagaShared::Publish::PublishBlockerKind::GraphValidationError:
             return "GraphValidationError";
         case SagaShared::Publish::PublishBlockerKind::AuthorityValidationError:

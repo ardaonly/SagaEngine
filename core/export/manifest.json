@@ -6,10 +6,6 @@
     "ardaonly/*"
   ],
   "tools": {
-    "Prism": {
-      "path": "Tools/Prism",
-      "repo": "ardaonly/prism"
-    },
     "Forge": {
       "path": "Tools/Forge",
       "repo": "ardaonly/forge"

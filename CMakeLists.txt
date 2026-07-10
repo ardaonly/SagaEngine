@@ -13,7 +13,7 @@ message(STATUS "Engine root: ${SAGA_ROOT}")
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules")
 
-
+option(SAGA_WITH_EDITORLAB_DEV_PANEL "Mount the dev-only EditorLab panel in Saga editor mode" OFF)
 
 include(SagaVersioning)
 include(SagaCompilerFlags)
@@ -34,8 +34,6 @@ saga_configure_executable_output_directory()
 saga_init_versioning()
 saga_setup_thirdparty()
 saga_setup_diligent_vendor()
-
-
 
 saga_create_graphics_targets()
 saga_create_engine_targets()
