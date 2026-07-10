@@ -14,16 +14,18 @@
 - The smoke loop reads spawn, bounds, camera metadata, input, and expected
   results from the declared scene resource.
 - `Scripts/GameRules.cs` is compile/analyze evidence, one controlled runtime
-  pure-method invocation smoke, and one focused C# lifecycle proof.
+  pure-method invocation smoke, one focused C# lifecycle proof, and optional
+  runtime smoke lifecycle evidence.
 - StarterArena runtime smoke can load the compiled C# assembly only when
-  `--invoke-starter-arena-script` is passed with valid script metadata.
+  `--invoke-starter-arena-script` or
+  `--run-starter-arena-script-lifecycle` is passed with valid script metadata.
 - The only invoked method is `GameRules.AddPickupScore(10, 5)`, and the smoke
   expects result `15`.
-- StarterArena has only the focused `GameRules` C# lifecycle proof; arbitrary
-  script methods remain unsupported.
-- The controlled invocation smoke requires a .NET host environment where
-  `hostfxr` is discoverable.
+- StarterArena has only the focused `GameRules` C# lifecycle proof and runtime
+  smoke lifecycle evidence; arbitrary script methods remain unsupported.
+- The controlled invocation and lifecycle smokes require a .NET host
+  environment where `hostfxr` is discoverable.
 - Restart behavior is reported as deferred.
 - No Visual Blocks, editor workflow, external client/server networking, broad
-  runtime C# gameplay loop binding, package output, distribution output, or
-  fake runtime smoke evidence exists for this sample.
+  runtime C# gameplay loop binding, package install, package output, or
+  distribution output exists for this sample.

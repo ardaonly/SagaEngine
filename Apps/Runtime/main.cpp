@@ -3,7 +3,7 @@
 ///
 /// v0.0.8 ships a role-based runtime binary while the runtime core is still
 /// being separated from the older client entrypoint. Keep editor/tooling
-/// dependencies out of this adapter; Phase 2 should split Runtime Core from
+/// dependencies out of this adapter; Runtime Core should remain separate from
 /// optional client UI semantics.
 
 #include "ClientHost.h"
@@ -13,6 +13,7 @@
 #include <SagaEngine/Platform/PlatformFactory.h>
 #include <SagaEngine/Resources/AssetRegistry.h>
 #include <SagaEngine/Scripting/CSharpScriptHost.hpp>
+#include <SagaEngine/Scripting/ScriptLifecycleService.hpp>
 
 #include <SagaRuntime/RuntimeServiceRegistry.hpp>
 #include <SagaRuntime/RuntimeServiceRegistryDiagnostics.hpp>
@@ -50,6 +51,7 @@ struct RuntimeCommandLine
     std::filesystem::path scriptArtifactsPath;
     bool starterArenaSmoke = false;
     bool invokeStarterArenaScript = false;
+    bool runStarterArenaScriptLifecycle = false;
     std::uint32_t smokeFrames = 30;
     double fixedDtSeconds = 1.0 / 60.0;
 };
@@ -150,6 +152,17 @@ struct StarterArenaScriptInvocationResult
     std::vector<std::int32_t> arguments;
     std::int32_t expectedResult = 15;
     std::int32_t result = 0;
+};
+
+struct StarterArenaScriptLifecycleResult
+{
+    bool requested = false;
+    bool attempted = false;
+    bool passed = false;
+    std::string mode;
+    std::string scriptId;
+    std::string typeName;
+    std::vector<std::string> callbacksObserved;
 };
 
 struct StarterArenaDiagnostic
@@ -1616,9 +1629,17 @@ StarterArenaScriptBindingMetadata LoadStarterArenaScriptBindingMetadata(
     return metadata;
 }
 
-Json ScriptBindingToJson(
-    const StarterArenaScriptBindingMetadata& metadata,
-    std::string_view execution)
+std::string ScriptBindingExecution(
+    const StarterArenaScriptBindingMetadata& metadata)
+{
+    if (!metadata.provided)
+    {
+        return "NotProvided";
+    }
+    return metadata.valid ? "MetadataOnly" : "Invalid";
+}
+
+Json ScriptBindingToJson(const StarterArenaScriptBindingMetadata& metadata)
 {
     Json callableMethods = Json::array();
     for (const std::string& method : metadata.callableMethods)
@@ -1646,21 +1667,7 @@ Json ScriptBindingToJson(
         {"targetFramework", metadata.targetFramework},
         {"assemblyPath", metadata.assemblyPath},
         {"runtimeConfigPath", metadata.runtimeConfigPath},
-        {"execution", std::string(execution)}};
-}
-
-std::string ScriptBindingExecution(
-    const StarterArenaScriptInvocationResult& invocation)
-{
-    if (invocation.passed)
-    {
-        return "Invoked";
-    }
-    if (invocation.attempted)
-    {
-        return "Failed";
-    }
-    return "NotExecuted";
+        {"execution", ScriptBindingExecution(metadata)}};
 }
 
 Json ScriptInvocationToJson(
@@ -1672,11 +1679,20 @@ Json ScriptInvocationToJson(
         arguments.push_back(argument);
     }
 
+    std::string execution = "NotRequested";
+    if (invocation.requested)
+    {
+        execution = invocation.attempted
+            ? (invocation.passed ? "Invoked" : "Failed")
+            : "NotExecuted";
+    }
+
     return Json{
         {"status",
          invocation.requested
              ? (invocation.passed ? "Passed" : "Failed")
              : "NotRequested"},
+        {"execution", execution},
         {"mode", invocation.mode},
         {"method", invocation.method},
         {"typeName", invocation.typeName},
@@ -1684,6 +1700,36 @@ Json ScriptInvocationToJson(
         {"expectedResult", invocation.expectedResult},
         {"result", invocation.result},
         {"attempted", invocation.attempted}};
+}
+
+Json ScriptLifecycleToJson(
+    const StarterArenaScriptLifecycleResult& lifecycle)
+{
+    Json callbacks = Json::array();
+    for (const std::string& callback : lifecycle.callbacksObserved)
+    {
+        callbacks.push_back(callback);
+    }
+
+    std::string execution = "NotRequested";
+    if (lifecycle.requested)
+    {
+        execution = lifecycle.attempted
+            ? (lifecycle.passed ? "Invoked" : "Failed")
+            : "NotExecuted";
+    }
+
+    return Json{
+        {"status",
+         lifecycle.requested
+             ? (lifecycle.passed ? "Passed" : "Failed")
+             : "NotRequested"},
+        {"scriptId", lifecycle.scriptId},
+        {"typeName", lifecycle.typeName},
+        {"execution", execution},
+        {"mode", lifecycle.mode},
+        {"callbacksObserved", callbacks},
+        {"attempted", lifecycle.attempted}};
 }
 
 Json DiagnosticsToJson(const std::vector<StarterArenaDiagnostic>& diagnostics)
@@ -1895,6 +1941,160 @@ StarterArenaScriptInvocationResult RunStarterArenaScriptInvocation(
     return invocation;
 }
 
+bool HasScriptLog(
+    const std::vector<SagaEngine::Scripting::ScriptLogEvent>& logs,
+    std::string_view message)
+{
+    return std::any_of(
+        logs.begin(),
+        logs.end(),
+        [message](const SagaEngine::Scripting::ScriptLogEvent& event)
+        {
+            return event.message == message;
+        });
+}
+
+StarterArenaScriptLifecycleResult RunStarterArenaScriptLifecycle(
+    const StarterArenaProject& project,
+    const StarterArenaScriptBindingMetadata& metadata,
+    const double fixedDtSeconds,
+    std::vector<StarterArenaDiagnostic>& diagnostics)
+{
+    StarterArenaScriptLifecycleResult lifecycle;
+    lifecycle.requested = true;
+    lifecycle.mode = "FocusedStarterArenaLifecycle";
+    lifecycle.scriptId = metadata.scriptId;
+    lifecycle.typeName = metadata.typeName;
+
+    if (!metadata.provided || !metadata.valid)
+    {
+        diagnostics.push_back({
+            "StarterArena.ScriptLifecycle.MetadataRequired",
+            "StarterArena script lifecycle smoke requires valid script metadata."});
+        return lifecycle;
+    }
+
+    const std::filesystem::path assemblyPath =
+        ResolveStarterArenaArtifactPath(project, metadata.assemblyPath);
+    const std::filesystem::path runtimeBridgePath =
+        assemblyPath.parent_path() / "SagaScript.RuntimeBridge.dll";
+    std::error_code existsError;
+    if (assemblyPath.empty() || !std::filesystem::exists(assemblyPath, existsError))
+    {
+        diagnostics.push_back({
+            "StarterArena.ScriptLifecycle.AssemblyMissing",
+            "StarterArena script assembly was not found: " +
+                GenericPath(assemblyPath)});
+        return lifecycle;
+    }
+    if (!std::filesystem::exists(runtimeBridgePath, existsError))
+    {
+        diagnostics.push_back({
+            "StarterArena.ScriptLifecycle.RuntimeBridgeMissing",
+            "SagaScript runtime bridge was not found next to the script assembly: " +
+                GenericPath(runtimeBridgePath)});
+        return lifecycle;
+    }
+
+    std::vector<SagaEngine::Scripting::ScriptLogEvent> logs;
+    SagaEngine::Scripting::CSharpScriptHostOptions hostOptions;
+    hostOptions.runtimeBridgeAssembly = runtimeBridgePath;
+    hostOptions.logSink =
+        [&logs](const SagaEngine::Scripting::ScriptLogEvent& event)
+        {
+            logs.push_back(event);
+        };
+    SagaEngine::Scripting::CSharpScriptHost host(std::move(hostOptions));
+    SagaEngine::Scripting::ScriptPackageValidationOptions validationOptions;
+    validationOptions.expectedPackageDestination = "server";
+    SagaEngine::Scripting::ScriptLifecycleService lifecycleService(
+        host,
+        {},
+        validationOptions);
+
+    SagaEngine::Scripting::ScriptPackageLoadRequest loadRequest;
+    loadRequest.packageRoot = project.projectRoot;
+    loadRequest.scriptArtifactManifest = metadata.artifactsPath;
+    loadRequest.packageId = "starter-arena";
+    const auto load = lifecycleService.LoadPackage(loadRequest);
+    if (!load.Succeeded())
+    {
+        AppendScriptHostDiagnostics(
+            "StarterArena.ScriptLifecycle.LoadFailure",
+            load.diagnostics,
+            diagnostics);
+        return lifecycle;
+    }
+
+    SagaEngine::Scripting::ScriptInstanceCreateRequest createRequest;
+    createRequest.package = load.package;
+    createRequest.classId.value = metadata.typeName;
+    createRequest.scriptId = metadata.scriptId;
+    lifecycle.attempted = true;
+    const auto instance = lifecycleService.CreateInstance(createRequest);
+    if (!instance.Succeeded())
+    {
+        AppendScriptHostDiagnostics(
+            "StarterArena.ScriptLifecycle.CreateFailure",
+            instance.diagnostics,
+            diagnostics);
+        return lifecycle;
+    }
+
+    const auto start = lifecycleService.StartInstance(instance.instance);
+    if (!start.Succeeded())
+    {
+        AppendScriptHostDiagnostics(
+            "StarterArena.ScriptLifecycle.LifecycleFailure",
+            start.diagnostics,
+            diagnostics);
+        return lifecycle;
+    }
+
+    const auto update =
+        lifecycleService.UpdateInstance(instance.instance, fixedDtSeconds);
+    if (!update.Succeeded())
+    {
+        AppendScriptHostDiagnostics(
+            "StarterArena.ScriptLifecycle.LifecycleFailure",
+            update.diagnostics,
+            diagnostics);
+        return lifecycle;
+    }
+
+    const auto destroy = lifecycleService.DestroyInstance(instance.instance);
+    if (!destroy.Succeeded())
+    {
+        AppendScriptHostDiagnostics(
+            "StarterArena.ScriptLifecycle.LifecycleFailure",
+            destroy.diagnostics,
+            diagnostics);
+        return lifecycle;
+    }
+
+    const std::vector<std::pair<std::string_view, std::string_view>> expected = {
+        {"OnCreate", "StarterArena.GameRules.OnCreate"},
+        {"OnStart", "StarterArena.GameRules.OnStart"},
+        {"OnUpdate", "StarterArena.GameRules.OnUpdate"},
+        {"OnDestroy", "StarterArena.GameRules.OnDestroy"}};
+    for (const auto& [callback, message] : expected)
+    {
+        if (HasScriptLog(logs, message))
+        {
+            lifecycle.callbacksObserved.emplace_back(callback);
+            continue;
+        }
+
+        diagnostics.push_back({
+            "StarterArena.ScriptLifecycle.CallbackMissing",
+            "StarterArena lifecycle smoke did not observe " +
+                std::string(callback) + "."});
+    }
+
+    lifecycle.passed = lifecycle.callbacksObserved.size() == expected.size();
+    return lifecycle;
+}
+
 int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine)
 {
     std::vector<StarterArenaDiagnostic> diagnostics;
@@ -1930,6 +2130,7 @@ int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine)
             commandLine.scriptArtifactsPath,
             diagnostics);
     StarterArenaScriptInvocationResult scriptInvocation;
+    StarterArenaScriptLifecycleResult scriptLifecycle;
     if (commandLine.invokeStarterArenaScript)
     {
         if (project.has_value())
@@ -1948,6 +2149,25 @@ int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine)
             diagnostics.push_back({
                 "StarterArena.ScriptInvocation.ProjectRequired",
                 "Controlled StarterArena script invocation requires a valid project."});
+        }
+    }
+    if (commandLine.runStarterArenaScriptLifecycle)
+    {
+        if (project.has_value())
+        {
+            scriptLifecycle = RunStarterArenaScriptLifecycle(
+                *project,
+                scriptBinding,
+                commandLine.fixedDtSeconds,
+                diagnostics);
+        }
+        else
+        {
+            scriptLifecycle.requested = true;
+            scriptLifecycle.mode = "FocusedStarterArenaLifecycle";
+            diagnostics.push_back({
+                "StarterArena.ScriptLifecycle.ProjectRequired",
+                "StarterArena script lifecycle smoke requires a valid project."});
         }
     }
 
@@ -2001,9 +2221,11 @@ int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine)
         !scriptBinding.provided || scriptBinding.valid;
     const bool scriptInvocationPassed =
         !scriptInvocation.requested || scriptInvocation.passed;
+    const bool scriptLifecyclePassed =
+        !scriptLifecycle.requested || scriptLifecycle.passed;
     const bool canRun =
         loopCanRun && expectationsPassed && scriptBindingPassed &&
-        scriptInvocationPassed && diagnostics.empty();
+        scriptInvocationPassed && scriptLifecyclePassed && diagnostics.empty();
     const std::string sceneSource = scene.has_value()
         ? "ProjectSceneReference"
         : "ProjectSceneReferenceMissing";
@@ -2045,10 +2267,9 @@ int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine)
             {"sceneSource", sceneSource}
         }},
         {"scene", sceneReport},
-        {"scriptBinding", ScriptBindingToJson(
-            scriptBinding,
-            ScriptBindingExecution(scriptInvocation))},
+        {"scriptBinding", ScriptBindingToJson(scriptBinding)},
         {"scriptInvocation", ScriptInvocationToJson(scriptInvocation)},
+        {"scriptLifecycle", ScriptLifecycleToJson(scriptLifecycle)},
         {"settings", {
             {"headless", commandLine.launchOptions.headless},
             {"frames", commandLine.smokeFrames},
@@ -2064,18 +2285,25 @@ int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine)
             {"quitBehavior", "DeterministicEndOfSmoke"}
         }},
         {"expectations", expectationsReport},
-        {"nonClaims", Json::array({
-            "No interactive gameplay proof",
-            "No renderer proof",
-            "No client or network dependency",
-            "No server-authoritative multiplayer",
-            "No arbitrary C# script invocation",
-            "No C# script lifecycle execution",
-            "No runtime C# gameplay loop binding",
-            "No Visual Blocks",
-            "No editor workflow",
-            "No package or distribution output"
-        })},
+        {"nonClaims", [&scriptLifecycle]()
+        {
+            Json nonClaims = Json::array({
+                "No interactive gameplay proof",
+                "No renderer proof",
+                "No client or network dependency",
+                "No server-authoritative multiplayer",
+                "No arbitrary C# script invocation",
+                "No runtime C# gameplay loop binding",
+                "No Visual Blocks",
+                "No editor workflow",
+                "No package install or distribution output"
+            });
+            if (!scriptLifecycle.passed)
+            {
+                nonClaims.push_back("No C# script lifecycle execution");
+            }
+            return nonClaims;
+        }()},
         {"diagnostics", DiagnosticsToJson(diagnostics)}
     };
 
@@ -2101,10 +2329,11 @@ int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine)
 
     LOG_INFO(
         kLogTag,
-        "StarterArena scene smoke passed: scene='%s' scriptBinding='%s' scriptInvocation='%s' frames=%u final=(%.3f, %.3f) clamps=%u report='%s'",
+        "StarterArena scene smoke passed: scene='%s' scriptBinding='%s' scriptInvocation='%s' scriptLifecycle='%s' frames=%u final=(%.3f, %.3f) clamps=%u report='%s'",
         scene.has_value() ? scene->sceneId.c_str() : "",
         scriptBinding.provided ? (scriptBinding.valid ? "Passed" : "Failed") : "NotProvided",
         scriptInvocation.requested ? (scriptInvocation.passed ? "Passed" : "Failed") : "NotRequested",
+        scriptLifecycle.requested ? (scriptLifecycle.passed ? "Passed" : "Failed") : "NotRequested",
         commandLine.smokeFrames,
         x,
         y,
@@ -2168,6 +2397,10 @@ static RuntimeCommandLine ParseArgs(int argc, char* argv[])
         {
             commandLine.invokeStarterArenaScript = true;
         }
+        else if (arg == "--run-starter-arena-script-lifecycle")
+        {
+            commandLine.runStarterArenaScriptLifecycle = true;
+        }
         else if (arg == "--smoke-report-out" && i + 1 < argc)
         {
             commandLine.smokeReportOut = std::filesystem::path(argv[++i]);
@@ -2199,6 +2432,8 @@ static RuntimeCommandLine ParseArgs(int argc, char* argv[])
                         "                         Optional StarterArena script_artifacts.json smoke input\n"
                         "  --invoke-starter-arena-script\n"
                         "                         Invoke controlled StarterArena AddPickupScore smoke\n"
+                        "  --run-starter-arena-script-lifecycle\n"
+                        "                         Invoke focused StarterArena GameRules lifecycle smoke\n"
                         "  --smoke-report-out <path>\n"
                         "                         Write StarterArena smoke report JSON\n"
                         "  --smoke-frames <n>    StarterArena smoke frame count (default: 30)\n"
