@@ -30,10 +30,6 @@ function(saga_setup_tests)
         "${SAGA_ROOT}/Tests/Unit/*.cpp"
     )
 
-    file(GLOB_RECURSE SAGA_EDITOR_COMPOSITION_TEST_SOURCES CONFIGURE_DEPENDS
-        "${SAGA_ROOT}/Tests/Tools/SagaEditorComposition/*.cpp"
-    )
-
     file(GLOB_RECURSE SAGA_PIPELINE_TEST_SOURCES CONFIGURE_DEPENDS
         "${SAGA_ROOT}/Tests/Tools/SagaPipeline/*.cpp"
     )
@@ -351,9 +347,7 @@ function(saga_setup_tests)
         GTest::gtest_main
         rapidcheck::rapidcheck
     )
-    if(SAGA_WITH_SDE)
-        target_link_libraries(SagaUnitTests PRIVATE SagaProductLib)
-    endif()
+    target_link_libraries(SagaUnitTests PRIVATE SagaProductLib)
     target_include_directories(SagaUnitTests PRIVATE ${SAGA_TEST_INCLUDE_DIRS})
     target_include_directories(SagaUnitTests PRIVATE
         ${SAGA_ROOT}/Engine/Private
@@ -361,7 +355,6 @@ function(saga_setup_tests)
     target_compile_definitions(SagaUnitTests PRIVATE
         SAGA_SOURCE_ROOT="${SAGA_ROOT}"
         SAGA_BUILD_ROOT="${CMAKE_BINARY_DIR}"
-        SAGA_WITH_SDE=$<BOOL:${SAGA_WITH_SDE}>
     )
     add_test(NAME UnitTests COMMAND SagaUnitTests)
     set_tests_properties(UnitTests PROPERTIES
@@ -762,49 +755,6 @@ function(saga_setup_tests)
         set_tests_properties(MovementDirtyReplicationBridgeTests PROPERTIES
             LABELS "unit;server;replication"
         )
-    endif()
-
-    # --- Saga editor composition tool tests --------------------------------
-    if(SAGA_EDITOR_COMPOSITION_TEST_SOURCES)
-        if(SAGA_WITH_SDE AND TARGET SagaEditorCompositionLib)
-            add_executable(SagaEditorCompositionTests
-                ${SAGA_EDITOR_COMPOSITION_TEST_SOURCES}
-            )
-            target_link_libraries(SagaEditorCompositionTests PRIVATE
-                SagaEditorCompositionLib
-                SagaEditorLib
-                GTest::gtest
-                GTest::gmock
-                GTest::gtest_main
-            )
-            target_include_directories(SagaEditorCompositionTests PRIVATE
-                ${SAGA_ROOT}/Tools/SagaEditorComposition/include
-                ${SAGA_ROOT}/Editor/include
-                $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
-            )
-            target_compile_definitions(SagaEditorCompositionTests PRIVATE
-                SAGA_SOURCE_ROOT="${SAGA_ROOT}"
-            )
-            set_target_properties(SagaEditorCompositionTests PROPERTIES
-                FOLDER "Tests/Tools"
-            )
-            add_test(NAME SagaEditorCompositionTests COMMAND SagaEditorCompositionTests)
-            set_tests_properties(SagaEditorCompositionTests PROPERTIES
-                LABELS "tools;sde;editor;editor-composition"
-            )
-            if(TARGET saga-editor-composition-compiler)
-                add_test(
-                    NAME SagaEditorCompositionCompilerHelp
-                    COMMAND saga-editor-composition-compiler --help
-                )
-                set_tests_properties(SagaEditorCompositionCompilerHelp PROPERTIES
-                    LABELS "tools;sde;editor;editor-composition"
-                )
-            endif()
-        else()
-            message(STATUS
-                "SagaEditorCompositionTests skipped because SAGA_WITH_SDE is OFF")
-        endif()
     endif()
 
     # --- Saga pipeline tool tests ------------------------------------------
@@ -1635,8 +1585,8 @@ function(saga_setup_tests)
     # --- Saga product tests -------------------------------------------------
     #
     # Keep product orchestration tests in a separate target so package-staging
-    # checks can run in SDE-enabled builds without rebuilding every unit test.
-    if(SAGA_WITH_SDE AND SAGA_PRODUCT_TEST_SOURCES)
+    # checks can run without rebuilding every unit test.
+    if(SAGA_PRODUCT_TEST_SOURCES)
         add_executable(SagaProductTests ${SAGA_PRODUCT_TEST_SOURCES})
         saga_link_thirdparty(SagaProductTests)
         target_link_libraries(SagaProductTests PRIVATE

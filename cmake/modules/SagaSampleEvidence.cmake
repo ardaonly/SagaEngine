@@ -20,7 +20,7 @@ function(saga_setup_sample_executable_evidence)
         SagaServer
     )
 
-    if(SAGA_WITH_SDE AND TARGET Saga)
+    if(TARGET Saga)
         list(APPEND _saga_sample_evidence_dependencies Saga)
     endif()
 

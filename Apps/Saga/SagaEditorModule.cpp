@@ -15,7 +15,10 @@
 #include "SagaEditor/UI/Qt/QtUIMainWindow.h"
 #include "SagaEditor/Commands/CommandRegistry.h"
 
+#include <nlohmann/json.hpp>
+
 #include <filesystem>
+#include <fstream>
 #include <iterator>
 #include <string>
 #include <utility>
@@ -61,7 +64,7 @@ void AddProductProjectMenu(SagaEditor::ShellLayout& layout)
     project.title = "Project";
     project.items = {
         {
-            "Validate/Compile Project Data",
+            "Validate Project Data",
             "saga.command.build",
             "",
             false
@@ -77,14 +80,72 @@ void AddProductProjectMenu(SagaEditor::ShellLayout& layout)
     layout.menus.insert(insertAt, std::move(project));
 }
 
-[[nodiscard]] std::string FormatCompileSummary(const SagaSdeCompileResult& result)
+constexpr const char* kProjectManifestFile = "saga.project.json";
+
+[[nodiscard]] std::string FormatValidationSummary(
+    const SagaProjectDataValidationResult& result)
 {
-    if (result.ok && result.hashes)
+    if (result.ok)
     {
-        return "SDE clean | artifact=" + result.hashes->artifactHash;
+        return "Project data valid | manifest=" +
+            result.manifestPath.filename().string();
     }
 
     return result.message;
+}
+
+[[nodiscard]] SagaProjectDataValidationResult ValidateProjectManifest(
+    const SagaProjectManifest& project)
+{
+    SagaProjectDataValidationResult result;
+    result.manifestPath = project.root / kProjectManifestFile;
+    if (!std::filesystem::exists(result.manifestPath))
+    {
+        result.state = "Missing";
+        result.message =
+            "Project data validation failed: product manifest is missing.";
+        result.diagnostics.push_back(result.manifestPath.string());
+        return result;
+    }
+
+    std::ifstream input(result.manifestPath);
+    if (!input.is_open())
+    {
+        result.state = "Unreadable";
+        result.message =
+            "Project data validation failed: product manifest is unreadable.";
+        result.diagnostics.push_back(result.manifestPath.string());
+        return result;
+    }
+
+    nlohmann::json manifest;
+    try
+    {
+        input >> manifest;
+    }
+    catch (const nlohmann::json::exception& e)
+    {
+        result.state = "InvalidJson";
+        result.message =
+            "Project data validation failed: product manifest JSON is invalid.";
+        result.diagnostics.push_back(e.what());
+        return result;
+    }
+
+    if (!manifest.contains("projectId") || !manifest["projectId"].is_string() ||
+        !manifest.contains("displayName") || !manifest["displayName"].is_string())
+    {
+        result.state = "InvalidManifest";
+        result.message =
+            "Project data validation failed: product manifest must contain string projectId and displayName.";
+        result.diagnostics.push_back(result.manifestPath.string());
+        return result;
+    }
+
+    result.ok = true;
+    result.state = "Valid";
+    result.message = "Project data validation succeeded.";
+    return result;
 }
 
 [[nodiscard]] std::vector<EditorModePanelProvider>& EditorModePanelProviders()
@@ -111,7 +172,6 @@ struct SagaEditorModule::Impl
     SagaPreparedProjectSession session;
     bool active = false;
     CloseProjectCallback onCloseProject;
-    SagaSdeCompiler sdeCompiler;
     std::unique_ptr<SagaEditor::EditorHost> host;
     std::unique_ptr<SagaEditor::EditorShell> shell;
 
@@ -174,11 +234,11 @@ struct SagaEditorModule::Impl
         });
         registry.Register({
             "saga.command.build",
-            "Validate/Compile Project Data",
+            "Validate Project Data",
             "Project",
             [this]()
             {
-                (void)CompileProjectData();
+                (void)ValidateProjectData();
             },
             true
         });
@@ -192,28 +252,15 @@ struct SagaEditorModule::Impl
         shell->SetShellLayout(std::move(layout));
     }
 
-    [[nodiscard]] SagaSdeCompileResult CompileProjectData()
+    [[nodiscard]] SagaProjectDataValidationResult ValidateProjectData()
     {
-        const std::filesystem::path compileRoot =
-            session.project.sdeRoot.empty()
-                ? session.project.root
-                : session.project.sdeRoot;
-        SagaSdeCompileResult result =
-            sdeCompiler.Compile(compileRoot);
+        SagaProjectDataValidationResult result =
+            ValidateProjectManifest(session.project);
 
         Log(result.ok ? SagaEditor::LogSeverity::Info
                       : SagaEditor::LogSeverity::Error,
             result.message);
         Log(SagaEditor::LogSeverity::Info, "state=" + result.state);
-        if (result.hashes)
-        {
-            Log(SagaEditor::LogSeverity::Info,
-                "schemaHash=" + result.hashes->schemaHash);
-            Log(SagaEditor::LogSeverity::Info,
-                "dataHash=" + result.hashes->dataHash);
-            Log(SagaEditor::LogSeverity::Info,
-                "artifactHash=" + result.hashes->artifactHash);
-        }
         for (const std::string& diagnostic : result.diagnostics)
         {
             Log(result.ok ? SagaEditor::LogSeverity::Info
@@ -224,7 +271,7 @@ struct SagaEditorModule::Impl
         if (shell)
         {
             shell->GetMainWindow().SetStatusMessage(
-                FormatCompileSummary(result));
+                FormatValidationSummary(result));
         }
         return result;
     }
@@ -263,7 +310,7 @@ bool SagaEditorModule::Activate(SagaEditorNativeMount mount,
     workspace.root = m_impl->session.project.root;
     workspace.initialProfileId = "saga.profile.basic";
     workspace.layoutPreset = "Default";
-    workspace.sdeValidated = true;
+    workspace.workspaceValidated = false;
 
     if (!m_impl->host->Init(
             std::make_unique<SagaEditor::MemoryEditorSettingsStore>(),
@@ -345,9 +392,9 @@ void SagaEditorModule::Shutdown()
     m_impl->active = false;
 }
 
-SagaSdeCompileResult SagaEditorModule::ValidateAndCompile()
+SagaProjectDataValidationResult SagaEditorModule::ValidateProjectData()
 {
-    return m_impl->CompileProjectData();
+    return m_impl->ValidateProjectData();
 }
 
 bool SagaEditorModule::IsActive() const noexcept

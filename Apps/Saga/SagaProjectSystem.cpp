@@ -11,7 +11,6 @@
 #include <cstdlib>
 #include <fstream>
 #include <random>
-#include <sstream>
 
 namespace SagaProduct
 {
@@ -19,7 +18,6 @@ namespace
 {
 
 constexpr const char* kProjectManifestFile = "saga.project.json";
-constexpr const char* kDefaultSdeRoot = ".sde";
 
 [[nodiscard]] std::filesystem::path DefaultRecentProjectsPath()
 {
@@ -70,91 +68,6 @@ void WriteTextFile(const std::filesystem::path& path, const std::string& text)
     std::filesystem::create_directories(path.parent_path());
     std::ofstream out(path, std::ios::trunc);
     out << text;
-}
-
-void WriteMinimumSdeWorkspace(const std::filesystem::path& root,
-                              const SagaProjectManifest& manifest)
-{
-    std::ostringstream workspace;
-    workspace
-        << "sde version 1\n\n"
-        << "package Saga.Workspace\n\n"
-        << "model SagaWorkspace version 1 {\n"
-        << "  field displayName Text required\n"
-        << "  field editorProfile Text required\n"
-        << "  field runtimeRole Text required\n"
-        << "  field serverRole Text required\n"
-        << "}\n\n"
-        << "instance SagaWorkspace " << manifest.projectId << " {\n"
-        << "  displayName = \"" << manifest.displayName << "\"\n"
-        << "  editorProfile = \"saga.profile.basic\"\n"
-        << "  runtimeRole = \"SagaRuntime\"\n"
-        << "  serverRole = \"SagaServer\"\n"
-        << "}\n";
-    WriteTextFile(root / "source" / "workspace.sde", workspace.str());
-
-    WriteTextFile(root / "source" / "editor" / "profiles.sde", R"(sde version 1
-
-package Saga.Editor.Customization
-
-model EditorProfile version 1 {
-  field displayName Text required
-  field description Text optional
-  field layoutPresetId Text required
-  field shortcutMapId Text required
-  field defaultPanels List<Text> optional
-  field defaultToolbarCommands List<Text> optional
-  field visibleToolCommands List<Text> optional
-  field shortcutBindings List<Text> optional
-  field showMenuBar Boolean optional
-  field showStatusBar Boolean optional
-  field showMainToolbar Boolean optional
-  field exposesGraphEditor Boolean optional
-  field exposesProfiler Boolean optional
-  field exposesConsole Boolean optional
-  field exposesAssetBrowser Boolean optional
-}
-
-instance EditorProfile saga.profile.project_basic {
-  displayName = "Project Basic"
-  description = "Project-authored guided workspace."
-  layoutPresetId = "basic"
-  shortcutMapId = "saga.shortcuts.basic"
-  defaultPanels = ["saga.panel.production_dashboard", "saga.panel.hierarchy", "saga.panel.viewport", "saga.panel.console"]
-  defaultToolbarCommands = ["saga.command.world.play", "saga.command.world.stop", "saga.command.file.save"]
-  visibleToolCommands = ["saga.command.world.play", "saga.command.world.stop", "saga.command.file.save"]
-  shortcutBindings = ["Ctrl+S|saga.command.file.save|Ctrl+S"]
-  showMenuBar = true
-  showStatusBar = true
-  showMainToolbar = true
-  exposesGraphEditor = true
-  exposesProfiler = false
-  exposesConsole = true
-  exposesAssetBrowser = false
-}
-)");
-}
-
-[[nodiscard]] std::filesystem::path ResolveManifestSdeRoot(
-    const std::filesystem::path& projectRoot,
-    const nlohmann::json& manifest)
-{
-    const std::string configured =
-        manifest.value("sdeRoot", std::string{kDefaultSdeRoot});
-    const std::filesystem::path candidate =
-        std::filesystem::path(configured).is_absolute()
-            ? std::filesystem::path(configured)
-            : projectRoot / configured;
-
-    if (std::filesystem::exists(candidate / "source") ||
-        std::filesystem::exists(candidate / "schemas") ||
-        std::filesystem::exists(candidate / "data"))
-    {
-        return candidate;
-    }
-
-    // Compatibility for projects created before the .sde convention.
-    return projectRoot;
 }
 
 [[nodiscard]] std::string RandomRoomSuffix()
@@ -214,10 +127,6 @@ SagaProjectResult SagaProjectSystem::CreateProject(
     }
 
     std::error_code ec;
-    const std::filesystem::path sdeRoot = root / kDefaultSdeRoot;
-    std::filesystem::create_directories(sdeRoot / "source" / "editor", ec);
-    std::filesystem::create_directories(sdeRoot / "artifacts", ec);
-    std::filesystem::create_directories(sdeRoot / "cache", ec);
     std::filesystem::create_directories(root / "Assets", ec);
     std::filesystem::create_directories(root / "Scripts", ec);
     std::filesystem::create_directories(root / "Generated", ec);
@@ -233,15 +142,12 @@ SagaProjectResult SagaProjectSystem::CreateProject(
     manifest.projectId = projectId;
     manifest.displayName = displayName;
     manifest.root = root;
-    manifest.sdeRoot = sdeRoot;
 
     nlohmann::json json;
     json["schemaVersion"] = 1;
     json["projectId"] = manifest.projectId;
     json["displayName"] = manifest.displayName;
-    json["sdeRoot"] = kDefaultSdeRoot;
     WriteTextFile(root / kProjectManifestFile, json.dump(2));
-    WriteMinimumSdeWorkspace(sdeRoot, manifest);
 
     result.ok = true;
     result.manifest = std::move(manifest);
@@ -289,21 +195,10 @@ SagaProjectResult SagaProjectSystem::OpenProject(
             "Project manifest must contain string projectId and displayName.";
         return result;
     }
-    const std::filesystem::path sdeRoot = ResolveManifestSdeRoot(root, json);
-    if (!std::filesystem::exists(sdeRoot / "source") &&
-        (!std::filesystem::exists(sdeRoot / "schemas") ||
-         !std::filesystem::exists(sdeRoot / "data")))
-    {
-        result.error =
-            "Project must contain .sde/source or legacy .sde/schemas and .sde/data.";
-        return result;
-    }
-
     result.ok = true;
     result.manifest.projectId = json["projectId"].get<std::string>();
     result.manifest.displayName = json["displayName"].get<std::string>();
     result.manifest.root = root;
-    result.manifest.sdeRoot = sdeRoot;
     RememberProject(result.manifest);
     return result;
 }

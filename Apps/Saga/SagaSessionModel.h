@@ -19,16 +19,16 @@ enum class SagaProductTargetKind
     Server,
 };
 
-/// SDE-backed workspace definition consumed by product startup.
+/// Workspace definition consumed by product startup.
 struct SagaWorkspaceDefinition
 {
-    std::string           id;             ///< Stable workspace id from SDE data.
+    std::string           id;             ///< Stable workspace id from product data.
     std::string           displayName;    ///< Human-readable workspace label.
-    std::filesystem::path root;           ///< Root directory of the validated SDE project.
+    std::filesystem::path root;           ///< Root directory of the validated product workspace.
     std::string           editorProfile;  ///< Editor profile id requested by the workspace.
     std::string           runtimeRole;    ///< Runtime role name declared by the workspace.
     std::string           serverRole;     ///< Server role name declared by the workspace.
-    std::string           artifactHash;   ///< SDE artifact hash for deterministic identity.
+    std::string           artifactHash;   ///< Workspace artifact hash for deterministic identity.
 };
 
 /// Prepared product session after workspace validation.

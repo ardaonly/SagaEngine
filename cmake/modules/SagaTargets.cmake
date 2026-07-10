@@ -26,7 +26,6 @@ function(saga_create_engine_targets)
     saga_collect_sources(SHARED_SOURCES Shared/src)
     saga_collect_sources(COLLABORATION_SOURCES Collaboration/src)
     saga_collect_sources(ASSET_PIPELINE_SOURCES Tools/AssetPipeline/src)
-    saga_collect_sources(SAGA_EDITOR_COMPOSITION_SOURCES Tools/SagaEditorComposition/src)
     saga_collect_sources(SAGA_PIPELINE_SOURCES Tools/SagaPipeline/src)
     saga_collect_sources(SAGA_STRESS_ARENA_SOURCES Tools/SagaStressArena/src)
     saga_collect_sources(SAGA_CHAOS_LAB_SOURCES Tools/SagaChaosLab/src)
@@ -198,8 +197,8 @@ function(saga_create_engine_targets)
     )
 
     # --- Saga Pipeline Tool --------------------------------------------------
-    # Saga-specific workflow orchestration lives here so Forge, Prism, SDE, and
-    # SagaTools can remain generic or thin.
+    # Saga-specific workflow orchestration lives here so generic tools remain
+    # thin and do not become product owners.
     add_library(SagaPipelineLib STATIC)
     saga_apply_compiler_flags(SagaPipelineLib)
 
@@ -225,47 +224,6 @@ function(saga_create_engine_targets)
     set_target_properties(saga-pipeline PROPERTIES
         FOLDER "Tools/SagaPipeline"
     )
-
-    # --- Saga Editor Composition Tool ----------------------------------------
-    # Saga-specific artifact generation is intentionally outside the standalone
-    # SDE package tree. This tool consumes SDE's public facade and graph APIs.
-    if(SAGA_WITH_SDE)
-        add_library(SagaEditorCompositionLib STATIC)
-        saga_apply_compiler_flags(SagaEditorCompositionLib)
-
-        target_sources(SagaEditorCompositionLib PRIVATE
-            ${SAGA_EDITOR_COMPOSITION_SOURCES}
-        )
-
-        target_include_directories(SagaEditorCompositionLib PUBLIC
-            ${SAGA_ROOT}/Tools/SagaEditorComposition/include
-        )
-
-        target_link_libraries(SagaEditorCompositionLib
-            PUBLIC
-                SDE::Core
-            PRIVATE
-                nlohmann_json::nlohmann_json
-        )
-
-        set_target_properties(SagaEditorCompositionLib PROPERTIES
-            FOLDER "Tools/SagaEditorComposition"
-        )
-
-        add_executable(saga-editor-composition-compiler
-            ${SAGA_ROOT}/Tools/SagaEditorComposition/cli/main.cpp
-        )
-        saga_apply_compiler_flags(saga-editor-composition-compiler)
-        target_link_libraries(saga-editor-composition-compiler PRIVATE
-            SagaEditorCompositionLib
-        )
-        set_target_properties(saga-editor-composition-compiler PROPERTIES
-            FOLDER "Tools/SagaEditorComposition"
-        )
-    else()
-        message(STATUS
-            "saga-editor-composition-compiler skipped because SAGA_WITH_SDE is OFF")
-    endif()
 
     # --- Engine Library ------------------------------------------------------
     add_library(SagaEngine STATIC)
@@ -650,13 +608,6 @@ function(saga_create_engine_targets)
         OpenSSL::Crypto
     )
 
-    if(SAGA_WITH_SDE)
-        target_link_libraries(SagaEditorLib PRIVATE SDE::Core)
-    endif()
-    target_compile_definitions(SagaEditorLib PRIVATE
-        SAGA_WITH_SDE=$<BOOL:${SAGA_WITH_SDE}>
-    )
-
     set_target_properties(SagaEditorLib PROPERTIES
         FOLDER "Editor"
     )
@@ -691,106 +642,90 @@ function(saga_create_engine_targets)
     )
 
     # --- Saga Product Orchestration Library -----------------------------------
-    if(SAGA_WITH_SDE)
-        add_library(SagaProductLib STATIC)
-        saga_apply_compiler_flags(SagaProductLib)
-        saga_link_thirdparty(SagaProductLib)
+    add_library(SagaProductLib STATIC)
+    saga_apply_compiler_flags(SagaProductLib)
+    saga_link_thirdparty(SagaProductLib)
 
-        target_sources(SagaProductLib PRIVATE
-            ${SAGA_PRODUCT_SOURCES}
+    target_sources(SagaProductLib PRIVATE
+        ${SAGA_PRODUCT_SOURCES}
+    )
+
+    target_include_directories(SagaProductLib PUBLIC
+        ${SAGA_ROOT}/Apps/Saga
+    )
+
+    target_link_libraries(SagaProductLib PUBLIC
+        SagaEngine
+        SagaShared
+        SagaCollaboration
+        SagaRuntimeLib
+        SagaServerLib
+        Qt6::Core
+        Qt6::Widgets
+    )
+
+    target_link_libraries(SagaProductLib PRIVATE
+        SagaAssetPipelineLib
+        SagaBackend
+        SagaEditorLib
+    )
+
+    target_compile_definitions(SagaProductLib PUBLIC
+        SAGA_PRODUCT_VERSION="${CMAKE_PROJECT_VERSION}"
+        SAGA_PRODUCT_GIT_COMMIT="${SAGA_GIT_COMMIT}"
+        SAGA_PRODUCT_PLATFORM="${CMAKE_SYSTEM_NAME}"
+    )
+    set_target_properties(SagaProductLib PROPERTIES
+        FOLDER "Apps/Saga"
+    )
+
+    if(SAGA_WITH_EDITORLAB_DEV_PANEL)
+        add_library(SagaEditorLabBridge STATIC
+            ${SAGA_ROOT}/Apps/SagaDev/SagaEditorLabBridge.h
+            ${SAGA_ROOT}/Apps/SagaDev/SagaEditorLabBridge.cpp
         )
-
-        target_include_directories(SagaProductLib PUBLIC
-            ${SAGA_ROOT}/Apps/Saga
+        saga_apply_compiler_flags(SagaEditorLabBridge)
+        saga_link_thirdparty(SagaEditorLabBridge)
+        target_include_directories(SagaEditorLabBridge PUBLIC
+            ${SAGA_ROOT}/Apps/SagaDev
         )
-
-        target_link_libraries(SagaProductLib PUBLIC
-            SagaEngine
-            SagaShared
-            SagaCollaboration
-            SagaRuntimeLib
-            SagaServerLib
-            Qt6::Core
-            Qt6::Widgets
+        target_link_libraries(SagaEditorLabBridge PUBLIC
+            SagaProductLib
+            SagaEditorLabLib
         )
-
-        target_link_libraries(SagaProductLib PRIVATE
-            SagaAssetPipelineLib
-            SagaBackend
-            SagaEditorLib
-            SDE::Core
+        set_target_properties(SagaEditorLabBridge PROPERTIES
+            FOLDER "Apps/SagaDev"
         )
-
-        target_compile_definitions(SagaProductLib PUBLIC
-            SAGA_PRODUCT_VERSION="${CMAKE_PROJECT_VERSION}"
-            SAGA_PRODUCT_GIT_COMMIT="${SAGA_GIT_COMMIT}"
-            SAGA_PRODUCT_PLATFORM="${CMAKE_SYSTEM_NAME}"
-            SAGA_BUILTIN_BASIC_WORKSPACE_ROOT="${SAGA_ROOT}/Apps/Saga/Definitions/BasicWorkspace"
-        )
-        target_compile_definitions(SagaProductLib PRIVATE SAGA_WITH_SDE=1)
-
-        set_target_properties(SagaProductLib PROPERTIES
-            FOLDER "Apps/Saga"
-        )
-
-        if(SAGA_WITH_EDITORLAB_DEV_PANEL)
-            add_library(SagaEditorLabBridge STATIC
-                ${SAGA_ROOT}/Apps/SagaDev/SagaEditorLabBridge.h
-                ${SAGA_ROOT}/Apps/SagaDev/SagaEditorLabBridge.cpp
-            )
-            saga_apply_compiler_flags(SagaEditorLabBridge)
-            saga_link_thirdparty(SagaEditorLabBridge)
-            target_include_directories(SagaEditorLabBridge PUBLIC
-                ${SAGA_ROOT}/Apps/SagaDev
-            )
-            target_link_libraries(SagaEditorLabBridge PUBLIC
-                SagaProductLib
-                SagaEditorLabLib
-            )
-            set_target_properties(SagaEditorLabBridge PROPERTIES
-                FOLDER "Apps/SagaDev"
-            )
-        endif()
     endif()
 
     # --- Application Executables ----------------------------------------------
-    if(SAGA_WITH_SDE)
-        qt_add_executable(Saga WIN32
-            ${SAGA_ROOT}/Apps/Saga/main.cpp
-            ${SAGA_ROOT}/Apps/Saga/SagaQtStaticPlugins.cpp
-        )
+    qt_add_executable(Saga WIN32
+        ${SAGA_ROOT}/Apps/Saga/main.cpp
+        ${SAGA_ROOT}/Apps/Saga/SagaQtStaticPlugins.cpp
+    )
 
-        saga_apply_compiler_flags(Saga)
-        saga_link_thirdparty(Saga)
-        target_link_libraries(Saga PRIVATE SagaProductLib)
-        if(SAGA_WITH_EDITORLAB_DEV_PANEL)
-            target_link_libraries(Saga PRIVATE SagaEditorLabBridge)
-            target_compile_definitions(Saga PRIVATE SAGA_WITH_EDITORLAB_DEV_PANEL=1)
-        else()
-            target_compile_definitions(Saga PRIVATE SAGA_WITH_EDITORLAB_DEV_PANEL=0)
-        endif()
-        if(TARGET qt::qt)
-            target_link_libraries(Saga PRIVATE qt::qt)
-        elseif(TARGET Qt6::QXcbIntegrationPlugin)
-            target_link_libraries(Saga PRIVATE Qt6::QXcbIntegrationPlugin)
-        endif()
-        if(COMMAND qt_import_plugins AND TARGET Qt6::QXcbIntegrationPlugin)
-            qt_import_plugins(Saga INCLUDE Qt6::QXcbIntegrationPlugin)
-        endif()
-
-        set_target_properties(Saga PROPERTIES
-            OUTPUT_NAME "Saga"
-            FOLDER      "Apps"
-        )
+    saga_apply_compiler_flags(Saga)
+    saga_link_thirdparty(Saga)
+    target_link_libraries(Saga PRIVATE SagaProductLib)
+    if(SAGA_WITH_EDITORLAB_DEV_PANEL)
+        target_link_libraries(Saga PRIVATE SagaEditorLabBridge)
+        target_compile_definitions(Saga PRIVATE SAGA_WITH_EDITORLAB_DEV_PANEL=1)
     else()
-        add_custom_target(Saga
-            COMMAND ${CMAKE_COMMAND} -E echo
-                    "Saga requires SAGA_WITH_SDE=ON because SDE is the mandatory workspace contract."
-            COMMAND ${CMAKE_COMMAND} -E false
-            COMMENT "Saga product target requires SDE"
-            VERBATIM
-        )
+        target_compile_definitions(Saga PRIVATE SAGA_WITH_EDITORLAB_DEV_PANEL=0)
     endif()
+    if(TARGET qt::qt)
+        target_link_libraries(Saga PRIVATE qt::qt)
+    elseif(TARGET Qt6::QXcbIntegrationPlugin)
+        target_link_libraries(Saga PRIVATE Qt6::QXcbIntegrationPlugin)
+    endif()
+    if(COMMAND qt_import_plugins AND TARGET Qt6::QXcbIntegrationPlugin)
+        qt_import_plugins(Saga INCLUDE Qt6::QXcbIntegrationPlugin)
+    endif()
+
+    set_target_properties(Saga PROPERTIES
+        OUTPUT_NAME "Saga"
+        FOLDER      "Apps"
+    )
 
     # SagaRuntime is the shipped runtime/player role. For v0.0.8 it reuses the
     # client host through a temporary adapter entry point; the long-term split is

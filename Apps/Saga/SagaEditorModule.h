@@ -4,9 +4,9 @@
 #pragma once
 
 #include "SagaProjectSystem.h"
-#include "SagaSdeCompiler.h"
 
 #include <functional>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <vector>
@@ -26,6 +26,16 @@ struct SagaPreparedProjectSession
 {
     SagaProjectManifest project;      ///< Product-selected project.
     std::string         sessionLabel; ///< Local session status or empty.
+};
+
+/// Result of validating the product-owned project data needed by editor mode.
+struct SagaProjectDataValidationResult
+{
+    bool                     ok = false; ///< True when the product manifest is readable and valid.
+    std::filesystem::path    manifestPath;
+    std::string              state;
+    std::string              message;
+    std::vector<std::string> diagnostics;
 };
 
 /// Native UI mount handles supplied by the product shell.
@@ -53,8 +63,8 @@ public:
     /// Unmount editor widgets and destroy editor services.
     void Shutdown();
 
-    /// Run the real SDE compiler path and update visible diagnostics.
-    [[nodiscard]] SagaSdeCompileResult ValidateAndCompile();
+    /// Validate the product project manifest and update visible diagnostics.
+    [[nodiscard]] SagaProjectDataValidationResult ValidateProjectData();
 
     [[nodiscard]] bool IsActive() const noexcept;
     [[nodiscard]] const SagaPreparedProjectSession& Session() const noexcept;

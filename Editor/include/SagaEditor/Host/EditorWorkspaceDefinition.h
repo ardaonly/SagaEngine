@@ -16,7 +16,7 @@ struct EditorWorkspaceDefinition
     std::filesystem::path root;             ///< Resolved editor workspace root.
     std::string           initialProfileId; ///< Optional editor profile id.
     std::string           layoutPreset;     ///< Optional editor layout preset.
-    bool                  sdeValidated = false; ///< True when product SDE validation passed.
+    bool                  workspaceValidated = false; ///< True when product workspace validation passed.
 };
 
 } // namespace SagaEditor

@@ -6,17 +6,9 @@
     "ardaonly/*"
   ],
   "tools": {
-    "Prism": {
-      "path": "Tools/Prism",
-      "repo": "ardaonly/prism"
-    },
     "Forge": {
       "path": "Tools/Forge",
       "repo": "ardaonly/forge"
-    },
-    "SDE": {
-      "path": "Tools/SystemDefinitionEngine",
-      "repo": "ardaonly/SystemDefinitionEngine"
     }
   }
 }

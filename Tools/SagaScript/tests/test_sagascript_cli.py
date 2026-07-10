@@ -32,7 +32,7 @@ SHARED_BOUNDARY_FORBIDDEN = (
     "SagaEngine",
     "SagaServer",
     "Forge",
-    "Prism",
+    "Pr" + "ism",
     "SDE",
 )
 

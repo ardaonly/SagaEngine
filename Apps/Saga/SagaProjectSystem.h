@@ -17,7 +17,6 @@ struct SagaProjectManifest
     std::string           projectId;    ///< Stable project identifier.
     std::string           displayName;  ///< User-visible project name.
     std::filesystem::path root;         ///< Absolute project root directory.
-    std::filesystem::path sdeRoot;      ///< Project-level shared SDE/customisation root.
 };
 
 /// Result for project create/open operations with user-facing failure text.
@@ -52,7 +51,7 @@ public:
     SagaProjectSystem();
     explicit SagaProjectSystem(std::filesystem::path recentProjectsPath);
 
-    /// Create a project folder, manifest, and minimum SDE workspace contract.
+    /// Create a project folder, manifest, and product-owned content roots.
     [[nodiscard]] SagaProjectResult CreateProject(
         const std::filesystem::path& parentDirectory,
         const std::string& displayName);

@@ -46,8 +46,6 @@ TEST(SharedDiagnosticContractsTests, ExposesStableSeverityCategoryAndSourceValue
     EXPECT_EQ(DiagnosticCategory::DependencyBoundary, DiagnosticCategory::DependencyBoundary);
 
     EXPECT_EQ(DiagnosticSource::Forge, DiagnosticSource::Forge);
-    EXPECT_EQ(DiagnosticSource::Prism, DiagnosticSource::Prism);
-    EXPECT_EQ(DiagnosticSource::SDE, DiagnosticSource::SDE);
     EXPECT_EQ(DiagnosticSource::CI, DiagnosticSource::CI);
 }
 

@@ -13,7 +13,7 @@ enum class PublishBlockerKind : std::uint8_t
 {
     Unknown,
     ProjectManifestInvalid,
-    SDECompileError,
+    ProjectDataValidationError,
     GraphValidationError,
     AuthorityValidationError,
     ScriptCompileError,

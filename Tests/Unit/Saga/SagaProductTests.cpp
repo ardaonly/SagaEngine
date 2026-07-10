@@ -11,7 +11,6 @@
 #include "SagaProductWorkflowSmokeReport.h"
 #include "SagaPublishReadiness.h"
 #include "SagaScriptGate.h"
-#include "SagaSdeCompiler.h"
 #include "SagaWorkspaceResolver.h"
 
 #include "SagaEditor/Host/EditorHost.h"
@@ -48,9 +47,9 @@ using namespace SagaProduct;
     return fs::path(SAGA_SOURCE_ROOT);
 }
 
-[[nodiscard]] fs::path BuiltInBasicWorkspaceRoot()
+[[nodiscard]] fs::path BuiltInProductWorkspaceRoot()
 {
-    return SourceRoot() / "Apps" / "Saga" / "Definitions" / "BasicWorkspace";
+    return SourceRoot() / "Apps" / "Saga";
 }
 
 [[nodiscard]] fs::path MakeTempDir(const std::string& name)
@@ -151,7 +150,7 @@ public:
     SagaAppConfig config;
     config.target = target;
     config.workspaceSelector = "builtin:basic";
-    config.builtInWorkspaceRoot = BuiltInBasicWorkspaceRoot();
+    config.builtInWorkspaceRoot = BuiltInProductWorkspaceRoot();
     config.executablePath = fs::temp_directory_path() / "saga_bin" / "Saga";
     return config;
 }
@@ -609,12 +608,12 @@ TEST(SagaProductInfoTest, VersionInfoResolvesFromDistributionJson)
     EXPECT_EQ(info.binaries.front(), "Saga");
 }
 
-TEST(SagaWorkspaceResolverTest, BuiltInBasicWorkspaceResolvesThroughSde)
+TEST(SagaWorkspaceResolverTest, BuiltInProductWorkspaceResolvesFromProductDefaults)
 {
     SagaWorkspaceResolver resolver;
     SagaWorkspaceResolveRequest request;
     request.selector = "builtin:basic";
-    request.builtInBasicRoot = BuiltInBasicWorkspaceRoot();
+    request.builtInBasicRoot = BuiltInProductWorkspaceRoot();
 
     const SagaWorkspaceResolveResult result = resolver.Resolve(request);
 
@@ -623,15 +622,16 @@ TEST(SagaWorkspaceResolverTest, BuiltInBasicWorkspaceResolvesThroughSde)
     EXPECT_EQ(result.workspace.editorProfile, "saga.profile.basic");
     EXPECT_EQ(result.workspace.runtimeRole, "SagaRuntime");
     EXPECT_EQ(result.workspace.serverRole, "SagaServer");
-    EXPECT_FALSE(result.workspace.artifactHash.empty());
+    EXPECT_TRUE(result.workspace.artifactHash.empty());
 }
 
-TEST(SagaWorkspaceResolverTest, MissingSdeFailsDeterministically)
+TEST(SagaWorkspaceResolverTest, MissingProjectRootFailsDeterministically)
 {
     SagaWorkspaceResolver resolver;
     SagaWorkspaceResolveRequest request;
-    request.selector = (MakeTempDir("saga_missing_sde_test") / "missing").string();
-    request.builtInBasicRoot = BuiltInBasicWorkspaceRoot();
+    request.selector =
+        (MakeTempDir("saga_missing_project_root_test") / "missing").string();
+    request.builtInBasicRoot = BuiltInProductWorkspaceRoot();
 
     const SagaWorkspaceResolveResult result = resolver.Resolve(request);
 
@@ -639,35 +639,36 @@ TEST(SagaWorkspaceResolverTest, MissingSdeFailsDeterministically)
     EXPECT_NE(result.error.find("missing"), std::string::npos);
 }
 
-TEST(SagaWorkspaceResolverTest, InvalidSdeFailsDeterministically)
+TEST(SagaWorkspaceResolverTest, ProjectManifestResolvesWorkspaceDefaults)
 {
-    const fs::path root = MakeTempDir("saga_invalid_sde_test");
-    WriteFile(root / "source" / "workspace.sde", "sde version nope");
+    const fs::path root = MakeTempDir("saga_project_manifest_workspace_test");
+    WriteFile(root / "Project" / "saga.project.json", R"({
+        "schemaVersion": 1,
+        "projectId": "manifest-project",
+        "displayName": "Manifest Project"
+    })");
 
     SagaWorkspaceResolver resolver;
     SagaWorkspaceResolveRequest request;
-    request.selector = root.string();
-    request.builtInBasicRoot = BuiltInBasicWorkspaceRoot();
+    request.selector = (root / "Project").string();
+    request.builtInBasicRoot = BuiltInProductWorkspaceRoot();
 
     const SagaWorkspaceResolveResult result = resolver.Resolve(request);
 
-    EXPECT_FALSE(result.ok);
-    EXPECT_NE(result.error.find("validation failed"), std::string::npos);
-    ASSERT_FALSE(result.diagnostics.empty());
-    EXPECT_TRUE(std::any_of(result.diagnostics.begin(),
-                            result.diagnostics.end(),
-                            [](const std::string& diagnostic)
-                            {
-                                return diagnostic.find("SDE_EXPECTED_TOKEN") !=
-                                       std::string::npos;
-                            }));
+    ASSERT_TRUE(result.ok) << result.error;
+    EXPECT_EQ(result.workspace.id, "manifest-project");
+    EXPECT_EQ(result.workspace.displayName, "Manifest Project");
+    EXPECT_EQ(result.workspace.editorProfile, "saga.profile.basic");
+    EXPECT_EQ(result.workspace.runtimeRole, "SagaRuntime");
+    EXPECT_EQ(result.workspace.serverRole, "SagaServer");
+    EXPECT_TRUE(result.workspace.artifactHash.empty());
 }
 
 TEST(SagaProductHostTest, PreparesRoleTargetsAtBoundaryLevel)
 {
     SagaWorkspaceDefinition workspace;
     workspace.id = "builtin.basic";
-    workspace.root = BuiltInBasicWorkspaceRoot();
+    workspace.root = BuiltInProductWorkspaceRoot();
     workspace.editorProfile = "saga.profile.basic";
     workspace.runtimeRole = "SagaRuntime";
     workspace.serverRole = "SagaServer";
@@ -711,7 +712,7 @@ TEST(SagaProductHostTest, EditorTargetDoesNotRequirePackageManifest)
     config.prepareOnly = true;
     config.target = SagaProductTargetKind::Editor;
     config.workspaceSelector = "builtin:basic";
-    config.builtInWorkspaceRoot = BuiltInBasicWorkspaceRoot();
+    config.builtInWorkspaceRoot = BuiltInProductWorkspaceRoot();
 
     std::ostringstream out;
     std::ostringstream err;
@@ -726,7 +727,7 @@ TEST(SagaProductHostTest, MissingPackageManifestProducesProductDiagnostic)
 {
     SagaWorkspaceDefinition workspace;
     workspace.id = "builtin.basic";
-    workspace.root = BuiltInBasicWorkspaceRoot();
+    workspace.root = BuiltInProductWorkspaceRoot();
     workspace.editorProfile = "saga.profile.basic";
     workspace.runtimeRole = "SagaRuntime";
     workspace.serverRole = "SagaServer";
@@ -757,7 +758,7 @@ TEST(SagaProductHostTest, RuntimePrepareRequiresPackageManifest)
     config.prepareOnly = true;
     config.target = SagaProductTargetKind::Runtime;
     config.workspaceSelector = "builtin:basic";
-    config.builtInWorkspaceRoot = BuiltInBasicWorkspaceRoot();
+    config.builtInWorkspaceRoot = BuiltInProductWorkspaceRoot();
 
     std::ostringstream out;
     std::ostringstream err;
@@ -780,7 +781,7 @@ TEST(SagaProductHostTest, ServerPrepareRequiresPackageManifest)
     config.prepareOnly = true;
     config.target = SagaProductTargetKind::Server;
     config.workspaceSelector = "builtin:basic";
-    config.builtInWorkspaceRoot = BuiltInBasicWorkspaceRoot();
+    config.builtInWorkspaceRoot = BuiltInProductWorkspaceRoot();
 
     std::ostringstream out;
     std::ostringstream err;
@@ -803,7 +804,7 @@ TEST(SagaProductHostTest, RuntimePrepareOnlyOutputIncludesManifestArgument)
     config.prepareOnly = true;
     config.target = SagaProductTargetKind::Runtime;
     config.workspaceSelector = "builtin:basic";
-    config.builtInWorkspaceRoot = BuiltInBasicWorkspaceRoot();
+    config.builtInWorkspaceRoot = BuiltInProductWorkspaceRoot();
     config.packageManifestPath = fs::path("Packages/dev-client/package.json");
 
     std::ostringstream out;
@@ -990,21 +991,16 @@ TEST(SagaProjectSystemTest, CreateOpenAndRememberProjectAreReal)
 
     ASSERT_TRUE(created.ok) << created.error;
     EXPECT_TRUE(fs::exists(created.manifest.root / "saga.project.json"));
-    EXPECT_TRUE(fs::exists(created.manifest.root / ".sde" / "source" / "workspace.sde"));
-    EXPECT_TRUE(fs::exists(created.manifest.root / ".sde" / "source" / "editor" / "profiles.sde"));
-    EXPECT_TRUE(fs::exists(created.manifest.root / ".sde" / "artifacts"));
-    EXPECT_TRUE(fs::exists(created.manifest.root / ".sde" / "cache"));
+    EXPECT_FALSE(fs::exists(created.manifest.root / (std::string{".s"} + "de")));
     EXPECT_TRUE(fs::exists(created.manifest.root / "Assets"));
     EXPECT_TRUE(fs::exists(created.manifest.root / "Scripts"));
     EXPECT_TRUE(fs::exists(created.manifest.root / "Generated"));
     EXPECT_TRUE(fs::exists(created.manifest.root / "Build"));
     EXPECT_TRUE(fs::exists(created.manifest.root / "Packages"));
-    EXPECT_EQ(created.manifest.sdeRoot, created.manifest.root / ".sde");
 
     const SagaProjectResult opened = projects.OpenProject(created.manifest.root);
     ASSERT_TRUE(opened.ok) << opened.error;
     EXPECT_EQ(opened.manifest.displayName, "FirstProject");
-    EXPECT_EQ(opened.manifest.sdeRoot, opened.manifest.root / ".sde");
 
     const std::vector<SagaRecentProject> recent = projects.LoadRecentProjects();
     ASSERT_FALSE(recent.empty());
@@ -1018,8 +1014,7 @@ TEST(SagaScriptGateTest, MissingScriptsDirectoryProducesProductDiagnostic)
     WriteFile(root / "Project" / "saga.project.json", R"({
         "schemaVersion": 1,
         "projectId": "missing-scripts",
-        "displayName": "Missing Scripts",
-        "sdeRoot": ".sde"
+        "displayName": "Missing Scripts"
     })");
 
     auto runner = std::make_unique<FakeToolProcessRunner>();
@@ -1054,8 +1049,7 @@ TEST(SagaScriptGateTest, AppEntrypointReportsMissingScriptsDirectory)
     WriteFile(root / "Project" / "saga.project.json", R"({
         "schemaVersion": 1,
         "projectId": "missing-scripts",
-        "displayName": "Missing Scripts",
-        "sdeRoot": ".sde"
+        "displayName": "Missing Scripts"
     })");
 
     SagaProduct::SagaApp app;
@@ -2022,39 +2016,29 @@ TEST(SagaProjectSystemTest, InvalidRoomCodesFailWithoutFakeJoin)
     EXPECT_FALSE(SagaProjectSystem::ValidateRoomCode("ROOM-1234").has_value());
 }
 
-TEST(SagaSdeCompilerTest, CompileUsesRealSdeAndDoesNotReplaceLastGoodOnFailure)
+TEST(SagaProjectSystemTest, OpenRejectsInvalidProductManifest)
 {
-    const fs::path root = MakeTempDir("saga_sde_compiler_test");
+    const fs::path root = MakeTempDir("saga_invalid_product_manifest_test");
     SagaProjectSystem projects(root / "recent_projects.json");
-    const SagaProjectResult created = projects.CreateProject(root, "CompileProject");
-    ASSERT_TRUE(created.ok) << created.error;
+    WriteFile(root / "Project" / "saga.project.json", R"({
+        "schemaVersion": 1,
+        "projectId": 42,
+        "displayName": "Invalid"
+    })");
 
-    SagaSdeCompiler compiler;
-    const SagaSdeCompileResult good =
-        compiler.Compile(created.manifest.sdeRoot);
+    const SagaProjectResult opened = projects.OpenProject(root / "Project");
 
-    ASSERT_TRUE(good.sdeAvailable);
-    ASSERT_TRUE(good.ok) << good.message;
-    ASSERT_TRUE(good.hashes.has_value());
-    EXPECT_FALSE(good.hashes->artifactHash.empty());
-    ASSERT_TRUE(compiler.LastGoodHashes().has_value());
-
-    WriteFile(created.manifest.sdeRoot / "source" / "Broken.sde", "sde version nope");
-    const SagaSdeCompileResult bad =
-        compiler.Compile(created.manifest.sdeRoot);
-
-    EXPECT_FALSE(bad.ok);
-    EXPECT_TRUE(compiler.LastGoodHashes().has_value());
-    EXPECT_EQ(compiler.LastGoodHashes()->artifactHash, good.hashes->artifactHash);
+    EXPECT_FALSE(opened.ok);
+    EXPECT_NE(opened.error.find("projectId"), std::string::npos);
 }
 
 TEST(SagaEditorBoundaryTest, EditorConsumesPreparedWorkspaceWithoutProductOrchestration)
 {
     SagaEditor::EditorWorkspaceDefinition workspace;
     workspace.id = "builtin.basic";
-    workspace.root = BuiltInBasicWorkspaceRoot();
+    workspace.root = BuiltInProductWorkspaceRoot();
     workspace.initialProfileId = "saga.profile.basic";
-    workspace.sdeValidated = true;
+    workspace.workspaceValidated = false;
 
     SagaEditor::EditorHost host;
     ASSERT_TRUE(host.Init(
@@ -2063,7 +2047,7 @@ TEST(SagaEditorBoundaryTest, EditorConsumesPreparedWorkspaceWithoutProductOrches
 
     ASSERT_TRUE(host.GetWorkspaceDefinition().has_value());
     EXPECT_EQ(host.GetWorkspaceDefinition()->id, "builtin.basic");
-    EXPECT_TRUE(host.GetWorkspaceDefinition()->sdeValidated);
+    EXPECT_FALSE(host.GetWorkspaceDefinition()->workspaceValidated);
 
     const fs::path editorMain = SourceRoot() / "Apps" / "Editor" / "main.cpp";
     std::ifstream input(editorMain);

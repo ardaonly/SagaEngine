@@ -64,20 +64,6 @@ function(_saga_assert_no_qt_link target_name)
 endfunction()
 
 function(saga_setup_distribution)
-    if(NOT SAGA_WITH_SDE)
-        add_custom_target(SagaDistribution
-            COMMAND ${CMAKE_COMMAND} -E echo
-                    "SagaDistribution requires SAGA_WITH_SDE=ON because Saga is the product entry point."
-            COMMAND ${CMAKE_COMMAND} -E false
-            COMMENT "Saga distribution requires SDE"
-            VERBATIM
-        )
-        set_target_properties(SagaDistribution PROPERTIES
-            FOLDER "Distribution"
-        )
-        return()
-    endif()
-
     set(SAGA_DISTRIBUTION_VERSION "${CMAKE_PROJECT_VERSION}"
         CACHE STRING "SAGA production distribution version label" FORCE)
 
@@ -222,11 +208,6 @@ function(saga_setup_distribution)
             COMPONENT SagaDistribution
         )
     endif()
-
-    install(DIRECTORY "${SAGA_ROOT}/Apps/Saga/Definitions/BasicWorkspace/"
-        DESTINATION config/workspaces/basic
-        COMPONENT SagaDistribution
-    )
 
     if(EXISTS "${SAGA_ROOT}/LICENSES")
         install(DIRECTORY "${SAGA_ROOT}/LICENSES/"

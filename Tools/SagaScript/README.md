@@ -31,7 +31,7 @@ Current non-goals:
 
 - No runtime or server execution.
 - No editor UI.
-- No Forge or Prism implementation ownership.
+- No build orchestrator or repository-analysis implementation ownership.
 - No complete visual node authoring.
 - No general C# conversion.
 - No behavior-equivalent C# regeneration.

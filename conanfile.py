@@ -40,13 +40,6 @@ class SagaEngineConan(ConanFile):
         self.requires("rapidcheck/cci.20231215")
         self.requires("glm/0.9.9.8")
 
-        # SDE is packaged independently (see Tools/SystemDefinitionEngine/conanfile.py).
-        # Publish it once with `conan create Tools/SystemDefinitionEngine` and enable
-        # this option to link the engine against SDE::Core.
-        if self.options.with_sde:
-            self.requires("sde/0.1.1")
-
-
     def build_requirements(self):
         self.tool_requires("cmake/3.28.1")
         self.tool_requires("ninja/1.12.1")
@@ -60,7 +53,6 @@ class SagaEngineConan(ConanFile):
         "with_server": [True, False],
         "with_editor": [True, False],
         "with_profiling": [True, False],
-        "with_sde": [True, False],
     }
 
     default_options = {
@@ -72,7 +64,6 @@ class SagaEngineConan(ConanFile):
         "with_server": True,
         "with_editor": True,
         "with_profiling": False,
-        "with_sde": False,
         "gtest/*:build_gmock": True,
         "qt/*:shared": True,
         "qt/*:qtbase": True,
@@ -92,12 +83,8 @@ class SagaEngineConan(ConanFile):
     def layout(self):
         cmake_layout(self)
         versioned_build = f"build/RelWithDebInfo-{self.version}"
-        if self.options.with_sde:
-            self.folders.build = f"{versioned_build}-sde"
-            self.folders.generators = f"{versioned_build}-sde/generators"
-        else:
-            self.folders.build = versioned_build
-            self.folders.generators = f"{versioned_build}/generators"
+        self.folders.build = versioned_build
+        self.folders.generators = f"{versioned_build}/generators"
 
     def generate(self):
         tc = CMakeToolchain(self)
@@ -114,7 +101,6 @@ class SagaEngineConan(ConanFile):
         tc.variables["SAGA_ENABLE_SERVER"] = self.options.with_server
         tc.variables["SAGA_ENABLE_EDITOR"] = self.options.with_editor
         tc.variables["SAGA_ENABLE_PROFILING"] = self.options.with_profiling
-        tc.variables["SAGA_WITH_SDE"]         = bool(self.options.with_sde)
         tc.variables["CMAKE_C_COMPILER_LAUNCHER"] = "sccache"
         tc.variables["CMAKE_CXX_COMPILER_LAUNCHER"] = "sccache"
         tc.variables["SAGA_BUILD_REPRODUCIBLE"] = "ON"

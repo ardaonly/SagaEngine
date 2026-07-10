@@ -1,5 +1,5 @@
 /// @file SagaWorkspaceResolver.h
-/// @brief Resolves and validates SDE-backed Saga workspace definitions.
+/// @brief Resolves and validates product-backed Saga workspace definitions.
 
 #pragma once
 
@@ -12,7 +12,7 @@
 namespace SagaProduct
 {
 
-/// Request for resolving a workspace selector into a validated SDE contract.
+/// Request for resolving a workspace selector into a product workspace contract.
 struct SagaWorkspaceResolveRequest
 {
     std::string           selector = "builtin:basic";
@@ -28,11 +28,11 @@ struct SagaWorkspaceResolveResult
     std::vector<std::string> diagnostics;
 };
 
-/// Owns product-level SDE workspace resolution policy.
+/// Owns product-level workspace resolution policy.
 class SagaWorkspaceResolver
 {
 public:
-    /// Resolve and validate the requested SDE workspace definition.
+    /// Resolve and validate the requested workspace definition.
     [[nodiscard]] SagaWorkspaceResolveResult Resolve(
         const SagaWorkspaceResolveRequest& request) const;
 };
