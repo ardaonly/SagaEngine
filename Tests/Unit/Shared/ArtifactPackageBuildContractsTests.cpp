@@ -165,7 +165,7 @@ TEST(SharedBuildContractsTests, BuildProfileAndReportCarryStepsAndOutputs)
 
     BuildStepResult step;
     step.stepId = "compile-graphs";
-    step.stepKind = BuildStepKind::CompileSDE;
+    step.stepKind = BuildStepKind::ValidateGraph;
     step.status = BuildStatus::SucceededWithWarnings;
     step.outputs.push_back(output);
     step.diagnosticSummary.Add(
@@ -186,7 +186,7 @@ TEST(SharedBuildContractsTests, BuildProfileAndReportCarryStepsAndOutputs)
     EXPECT_EQ(report.buildId.value, "build-42");
     EXPECT_EQ(report.status, BuildStatus::SucceededWithWarnings);
     ASSERT_EQ(report.steps.size(), 1u);
-    EXPECT_EQ(report.steps[0].stepKind, BuildStepKind::CompileSDE);
+    EXPECT_EQ(report.steps[0].stepKind, BuildStepKind::ValidateGraph);
     EXPECT_EQ(report.steps[0].diagnosticSummary.warningCount, 1u);
     ASSERT_EQ(report.artifactOutputs.size(), 1u);
     EXPECT_EQ(report.artifactOutputs[0].id.value, "artifact://graphs/combat");

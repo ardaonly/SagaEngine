@@ -147,7 +147,6 @@ Rules:
 * Do not introduce tool-specific marker files solely for repository discovery.
 * Shared Python modules belong under `Tools/common/`.
 * Executable maintenance scripts belong under `Tools/scripts/`.
-* Do not add ad-hoc discovery or maintenance scripts when `git`, `rg`, Prism, or an existing maintained script already covers the workflow.
 * Do not hand-edit generated output to satisfy repository standards. Change the authoritative source, template, or generator instead.
 
 ---

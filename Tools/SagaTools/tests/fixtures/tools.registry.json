@@ -1,11 +1,9 @@
 {
   "tools": {
     "forge": "/usr/local/bin/forge",
-    "prism": "/opt/prism/bin/prism-graph",
     "host": "/opt/saga/Tools/Host/host.sh"
   },
   "installers": {
-    "forge": "/path/to/Forge/build.py",
-    "prism": "/path/to/Prism/build.py"
+    "forge": "/path/to/Forge/build.py"
   }
 }

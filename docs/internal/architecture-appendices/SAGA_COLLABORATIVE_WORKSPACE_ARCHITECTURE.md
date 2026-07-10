@@ -1444,7 +1444,6 @@ Deliverables:
 
 # 21. Major Risks
 
-## 21.1 Shared Editor Misdesign
 
 Risk:
 

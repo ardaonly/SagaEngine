@@ -56,7 +56,7 @@ Do not assume that:
 - a fixture is a finished sample;
 - a focused test proves full product readiness;
 - a planning document proves implementation;
-- the MMO product focus means complete MMO capability already exists;
+- the MMO product focus means shipped persistent multiplayer capability already exists;
 - a public-looking header is a stable installed SDK;
 - every tool or executable represents a permanent product boundary.
 

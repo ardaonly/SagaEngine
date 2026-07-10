@@ -1,7 +1,6 @@
 # Saga Dependency Graph
 
 > Purpose: Current dependency and ownership map for Saga product, editor,
-> runtime, server, shared contracts, collaboration, Forge, Prism, asset
 > pipeline, scripting, and tools.
 
 This document describes current dependency direction. It is not a roadmap,
@@ -56,7 +55,6 @@ Shared contracts
 | Engine core | Runtime-neutral contracts, math, ECS/simulation, platform/graphics contracts | Product/editor/server/app ownership |
 | Shared contracts | Stable ids, manifests, diagnostics, package and scripting vocabulary | Implementations or upward includes |
 | Forge | Build and repository orchestration | Product shell behavior, runtime/editor/server internals, implementation ownership for other tools |
-| Prism | Repository-analysis tooling when used explicitly | Build ownership, source mutation, runtime/editor/server ownership |
 | Asset pipeline | Asset import/cook/report ownership | Runtime execution or editor UI ownership |
 | SagaScript | C# analysis, manifest/artifact emission, selected compile/toolchain work | Runtime/server execution or editor UI ownership |
 

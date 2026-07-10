@@ -56,6 +56,7 @@ TEXT_EXTENSIONS = {
     ".json", ".jsonl",
     ".toml", ".yml", ".yaml",
     ".xml",
+    ".sagaproj",
     ".nix",
     ".in",
 }

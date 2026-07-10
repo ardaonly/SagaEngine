@@ -3,7 +3,6 @@
 > Last updated: 2026-05-18
 > Status: Implementation-history appendix
 > Location: `docs/internal/architecture-appendices/AssetStreamingImplementation.md`
-> Related systems: Runtime resources, asset registry, residency cache, streaming scheduler, runtime preview, editor import/cook pipeline, asset pipeline, package manifests, build/publish pipeline, Prism stale artifact analysis.
 > Scope: Implemented runtime asset streaming architecture, design decisions, known constraints, follow-up risks, and runtime/asset-pipeline boundary alignment.
 
 ---
@@ -102,7 +101,6 @@ It must not own:
 * publishing workflows,
 * collaboration session state,
 * product project lifecycle,
-* Prism stale artifact analysis,
 * Forge build/cook orchestration.
 
 Correct ownership:
@@ -117,7 +115,6 @@ AssetPipeline
 Forge
   owns build workflow orchestration, cook invocation, package staging, and report aggregation
 
-Prism
   owns stale artifact and source → cooked artifact relationship analysis
 
 SagaEditor
@@ -197,7 +194,6 @@ Runtime should not silently fall back to source asset loading in a shipping pack
 If a cooked artifact is missing or stale, the correct owners are:
 
 ```txt
-AssetPipeline / Forge / Prism
 ```
 
 not runtime streaming.
@@ -338,7 +334,6 @@ AssetId identifies what asset the runtime wants.
 It does not describe how the editor imported it.
 ```
 
-`AssetId` may eventually become a shared neutral contract if editor, runtime, asset pipeline, Forge, Prism, and package manifests all need the same stable identifier.
 
 Implementation ownership still remains separate:
 
@@ -803,7 +798,6 @@ Runtime streaming consumes runtime-ready cooked artifacts.
 AssetPipeline owns source import/cook behavior.
 Editor owns asset authoring UX.
 Forge owns build/package orchestration.
-Prism owns stale cooked artifact analysis.
 ```
 
 Reason:
@@ -1091,7 +1085,6 @@ Runtime should not silently fall back to source asset loading in a shipping pack
 If a cooked artifact is missing or stale, the correct owner is the build/asset pipeline:
 
 ```txt
-AssetPipeline / Forge / Prism
 ```
 
 not runtime streaming.
@@ -1582,7 +1575,6 @@ Runtime loading and residency stay in Engine.
 Editor import/cook stays out of runtime streaming.
 AssetPipeline owns source import/cook behavior.
 Forge owns package staging and build orchestration.
-Prism owns stale artifact relationship analysis.
 ```
 
 ---
@@ -1652,7 +1644,6 @@ Runtime implementation stays in Engine.
 Editor/tool implementation stays with owning systems.
 AssetPipeline owns source import/cook implementation.
 Forge owns package staging.
-Prism owns stale relationship analysis.
 ```
 
 ---
@@ -1720,7 +1711,6 @@ Impact:
 Mitigation:
 
 ```txt
-Prism detects stale cooked artifacts.
 Forge blocks publish/package where required.
 AssetPipeline regenerates cooked artifacts.
 Runtime reports load/manifest/artifact failures.
@@ -1744,7 +1734,6 @@ Current ownership references:
 | Tool ecosystem                                       | focused tool contracts and local reports |
 | Build/cook/package/publish boundary                  | `architecture/PUBLISH.md`           |
 | Forge build/cook/package orchestration               | `architecture/PUBLISH.md`           |
-| Prism stale cooked artifact analysis                 | internal/proposed toolchain appendix |
 | Dependency boundaries                                | `DependencyGraph.md`                |
 | Diagnostics/reporting model                          | `architecture/TESTING_AND_EVIDENCE.md` |
 
@@ -1767,7 +1756,6 @@ This implementation note does not define:
 * publish readiness rules,
 * editor content browser UX,
 * asset metadata authoring UX,
-* Prism stale artifact analysis,
 * Forge build/cook orchestration,
 * asset collaboration conflict resolution,
 * asset schema language design.
@@ -1795,7 +1783,6 @@ Preserve these decisions:
 Runtime asset streaming consumes runtime-ready cooked artifacts.
 AssetPipeline owns source import/cook behavior.
 Forge owns build/package orchestration.
-Prism owns stale cooked artifact analysis.
 SagaEditor owns asset authoring UX.
 Runtime/server validate manifests and artifacts at startup/load time.
 Runtime should not silently load arbitrary source assets in shipping packages.

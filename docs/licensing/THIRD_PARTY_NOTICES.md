@@ -22,7 +22,6 @@ The current dependency review is based on:
 - SagaEngine version `0.0.10`;
 - the `linux-gcc` Conan profile;
 - the `RelWithDebInfo` build type;
-- `with_sde=False`;
 - Qt configured as a shared library;
 - OpenSSL declared as a direct dependency;
 - the recursively initialized `Vendor/Diligent` submodule graph.

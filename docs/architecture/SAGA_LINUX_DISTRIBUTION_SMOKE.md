@@ -48,13 +48,27 @@ The smoke script:
 
 Required unpacked checks include:
 
-
+```txt
+Saga/bin/Saga
+Saga/bin/SagaEditor
+Saga/bin/SagaRuntime
+Saga/bin/SagaServer
+Saga/tools/sagaproject
+Saga/tools/sagascript
+Saga/tools/sagapack
+Saga/BUILD_INFO.json
+Saga/VERSION
+Saga/VERIFY.txt
+Saga/KNOWN_LIMITATIONS.md
+Saga/samples/StarterArena
+```
 
 ## Current Limitations
 
 The current passing status is `passed-with-limitations`.
 
-
+`sagascript`, and `sagapack` help commands pass from the unpacked distribution
+tree.
 
 The unpacked StarterArena workflow smoke currently passes these required
 distribution-only commands:

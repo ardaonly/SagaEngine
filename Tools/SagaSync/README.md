@@ -58,7 +58,15 @@ SagaSync v1 manages the SagaEngine monorepo plus the mirror tools configured in
 
 It can:
 
-
+- show SagaEngine branch, dirty count, ahead/behind, and head commit,
+- evaluate export health as Ready, Stale, Blocked, or Unknown,
+- show Quick, Forge, and Export Safety verification profiles,
+- track session-local verification run results, duration, and last run time,
+- mark ready export state as unverified until Export Safety has run,
+- preview a read-only commit plan with grouped files and suggested messages,
+- run export dry-runs,
+- run basic verification commands,
+- suggest a conservative commit/export queue.
 
 It does not:
 

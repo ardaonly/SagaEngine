@@ -81,7 +81,6 @@ fn print_usage(os: &mut dyn Write) {
     let _ = writeln!(os, "    --version                print the dispatcher's version and exit 0\n");
     let _ = writeln!(os, "ANY OTHER FIRST WORD is treated as a tool name and forwarded:\n");
     let _ = writeln!(os, "    tools forge build --build=path/to/project/build");
-    let _ = writeln!(os, "    tools prism --repo-root . -o prism.raw.json");
     let _ = writeln!(os, "    tools host status\n");
     let _ = writeln!(os, "REGISTRY DISCOVERY ORDER:");
     let _ = writeln!(os, "    1. --registry <path>");

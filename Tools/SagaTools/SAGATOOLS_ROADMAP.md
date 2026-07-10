@@ -1,12 +1,20 @@
 # SagaTools — Tool Dispatcher Roadmap
 
-
+> Last updated: 2026-05-14  
+> Status: Active roadmap  
+> Target: A thin, stable command dispatcher for Saga’s standalone developer tools.  
 
 ---
 
 ## 0. Roadmap Convention
 
-
+- `[x]` — Shipped. The note after the item names the files, modules, or integration points that represent the work and highlights any decisions worth preserving.
+- `[ ]` — Open. Either unstarted or partially explored; the item describes the finished production state rather than interim scaffolding.
+- Shipped items must name the files, modules, or integration points that represent the completed work.
+- Open items must describe the finished state, not temporary scaffolding.
+- SagaTools must stay thin.
+- SagaTools may discover, list, launch, and route commands to tools.
+- SagaTools must not become a second build system, compiler, code intelligence engine, project shell, or editor backend.
 
 ---
 
@@ -18,7 +26,11 @@ This document defines the roadmap for `SagaTools`.
 
 It exists to provide a consistent command surface such as:
 
-
+```txt
+sagatools forge ...
+sagatools doctor ...
+sagatools list
+```
 
 It does not own the tools it invokes.
 
@@ -28,12 +40,11 @@ Correct ownership:
 SagaTools
   thin dispatcher
 
-
+  deterministic data compiler
 
 Forge
   build workflow frontend
 
-Prism
   code intelligence and graph builder
 ```
 
@@ -56,7 +67,13 @@ A dispatcher that owns everything is not a dispatcher; it is uncontrolled tool o
 
 ## 2. Companion Documents
 
-
+| Document | Purpose |
+|---|---|
+| `docs/roadmaps/TOOLS_ROADMAP.md` | Tool ecosystem index and ownership map |
+| `Tools/SagaTools/SAGATOOLS_ROADMAP.md` | SagaTools dispatcher roadmap |
+| `Tools/Forge/FORGE_ROADMAP.md` | Forge build workflow frontend roadmap |
+| `DependencyGraph.md` | Dependency and ownership boundary rules |
+| `SHARED_ROADMAP.md` | Shared contracts consumed by approved tools |
 
 ---
 
@@ -98,7 +115,11 @@ A dispatcher that owns everything is not a dispatcher; it is uncontrolled tool o
 
   Done means SagaTools does not own:
 
-
+  - Forge build graph execution,
+  - Forge package build policy,
+  - editor UI,
+  - runtime/server execution,
+  - product project lifecycle.
 
 ---
 
@@ -114,11 +135,10 @@ A dispatcher that owns everything is not a dispatcher; it is uncontrolled tool o
   ```
 
 
-
   Done means SagaTools can route commands such as:
 
-
-
+  ```txt
+  ```
 
 
 - [ ] Integrate Forge as a dispatched tool.
@@ -134,18 +154,12 @@ A dispatcher that owns everything is not a dispatcher; it is uncontrolled tool o
 
   without owning Forge build workflow implementation.
 
-- [ ] Integrate Prism as a dispatched tool.
 
   Done means SagaTools can route commands such as:
 
   ```txt
-  sagatools prism index ...
-  sagatools prism query ...
-  sagatools prism graph ...
-  sagatools prism doctor ...
   ```
 
-  without owning Prism indexing or graph logic.
 
 - [ ] Support future tools through a stable registration/discovery model.
 
@@ -161,7 +175,13 @@ A dispatcher that owns everything is not a dispatcher; it is uncontrolled tool o
 
   Required commands:
 
-
+  ```txt
+  sagatools help
+  sagatools version
+  sagatools list
+  sagatools doctor
+  sagatools forge
+  ```
 
 - [ ] Provide consistent help output.
 
@@ -199,15 +219,15 @@ A dispatcher that owns everything is not a dispatcher; it is uncontrolled tool o
 
 Correct:
 
-
-
-
+```txt
+```
 
 
 
 Incorrect:
 
-
+```txt
+```
 
 That is how “thin launcher” becomes “second compiler wearing a hat”.
 
@@ -426,7 +446,9 @@ Tools/SagaTools/src/Diagnostic.cpp
 
   Done means diagnostics preserve source tool identity:
 
-
+  ```txt
+  sourceTool: forge
+  ```
 
 ---
 
@@ -531,7 +553,6 @@ Tools/SagaTools/include/SagaTools/ToolProtocolVersion.hpp
 - [ ] Keep protocol minimal.
 
 
-
   It only needs enough metadata to route and report.
 
 ---
@@ -582,19 +603,16 @@ A rewrite is not a personality transplant.
 
 
 
-
-
   Example commands:
 
-
-
+  ```txt
+  ```
 
 
   Done means SagaTools does not include:
 
-
-
-
+  ```txt
+  ```
 
 
 
@@ -633,20 +651,13 @@ It is a shrug with a stack trace nearby.
 
 ---
 
-## 16. Integration with Prism
 
-- [ ] Route Prism commands through SagaTools.
 
   Example commands:
 
   ```txt
-  sagatools prism index
-  sagatools prism query <symbol>
-  sagatools prism graph
-  sagatools prism doctor
   ```
 
-- [ ] Preserve Prism ownership.
 
   Done means SagaTools does not own:
 
@@ -656,9 +667,7 @@ It is a shrug with a stack trace nearby.
   - code intelligence database,
   - semantic query engine.
 
-- [ ] Forward Prism diagnostics and machine-readable output.
 
-  Done means Prism can be used by scripts and CI through SagaTools without losing structured output.
 
 ---
 
@@ -668,17 +677,25 @@ It is a shrug with a stack trace nearby.
 
   Done means doctor checks:
 
-
+  - SagaTools configuration,
+  - workspace detection,
+  - tool discovery,
+  - Forge availability,
+  - executable permissions,
+  - protocol compatibility,
+  - basic command launchability.
 
 - [ ] Keep doctor shallow.
 
   Done means `sagatools doctor` does not deeply validate:
 
-
+  - Forge build correctness,
 
 Instead, it delegates deep checks:
 
-
+```txt
+sagatools forge doctor
+```
 
 SagaTools doctor verifies the dispatch layer.
 
@@ -704,7 +721,9 @@ Wild idea: the owning tool should own its own health checks.
 
 Example:
 
-
+```txt
+forge    Forge Build Frontend       available   Tools/Forge/...
+```
 
 - [ ] Support `sagatools list --json`.
 
@@ -803,7 +822,7 @@ Example:
 
   Done means SagaTools can launch:
 
-
+  - Forge doctor,
 
   when those tools are available in the build environment.
 
@@ -826,7 +845,12 @@ Example:
 
   Required forbidden dependencies:
 
-
+  ```txt
+  SagaTools → Forge implementation internals
+  SagaTools → SagaEditor UI
+  SagaTools → SagaServer private headers
+  SagaTools → Saga product shell internals
+  ```
 
 - [ ] Add JSON output compatibility test.
 
@@ -907,10 +931,8 @@ SagaTools must not absorb what tools do.
   ```
 
 
-
 - [ ] Move Forge-specific roadmap content back to `FORGE_ROADMAP.md`.
 
-- [ ] Move Prism-specific roadmap content back to `PRISM_ROADMAP.md`.
 
 - [ ] Keep common tool ecosystem overview in `TOOLS_ROADMAP.md`.
 
@@ -922,11 +944,25 @@ SagaTools must not absorb what tools do.
 
 SagaTools does not own:
 
-
+- Forge build workflow implementation,
+- Saga product shell,
+- editor UI,
+- runtime/server execution,
+- collaboration implementation,
+- package cooking internals,
+- source indexing internals,
+- graph database internals,
+- project dashboard UX.
 
 Related ownership:
 
-
+| Area | Owner |
+|---|---|
+| Tool ecosystem index | `docs/roadmaps/TOOLS_ROADMAP.md` |
+| Tool dispatcher | `Tools/SagaTools/SAGATOOLS_ROADMAP.md` |
+| Build workflow frontend | `Tools/Forge/FORGE_ROADMAP.md` |
+| Product shell | `Saga` |
+| Shared contracts | `SagaShared` |
 
 ---
 
@@ -937,10 +973,8 @@ Related ownership:
 - [ ] SagaTools can list available tools.
 
 
-
 - [ ] SagaTools can route commands to Forge.
 
-- [ ] SagaTools can route commands to Prism.
 
 - [ ] SagaTools forwards arguments safely.
 
@@ -986,7 +1020,12 @@ and what exit code to return.
 
 It should not know:
 
-
+```txt
+how Forge builds packages,
+how Saga opens projects,
+how the editor renders panels,
+or how the server simulates authority.
+```
 
 A dispatcher is successful when nothing interesting happens inside it.
 

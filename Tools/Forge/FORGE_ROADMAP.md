@@ -1,12 +1,25 @@
 # Forge — Build Workflow Frontend Roadmap
 
-
+> Last updated: 2026-05-15
+> Status: Active roadmap
+> Target: A production-grade, backend-neutral, CI-friendly build workflow frontend for Saga projects and standalone C++ projects.
 
 ---
 
 ## 0. Roadmap Convention
 
-
+* `[x]` — Shipped. The note after the item names concrete files, commands, tests, modules, or integration points that represent completed work.
+* `[ ]` — Open. The item describes the finished production state, not temporary scaffolding.
+* Shipped Forge work must include command behavior, adapter boundaries, diagnostics, and tests where practical.
+* Open Forge work must describe observable CLI/build behavior, not vague build-system ambition.
+* Forge is a build workflow frontend.
+* Forge is not CMake.
+* Forge is not Conan.
+* Forge is not the asset importer/cooker implementation.
+* Forge is not the C# scripting compiler.
+* Forge is not the Saga product shell.
+* Forge may invoke tools, collect reports, enforce gates, stage artifacts, and generate build/package/publish reports.
+* Tool implementation internals remain owned by the owning tool/module.
 
 A build workflow frontend should know what to run, when to run it, what artifacts to expect, and why failure happened.
 
@@ -19,14 +32,34 @@ It should not become every tool it invokes.
 This document defines the roadmap for Forge.
 
 
-
 Forge owns:
 
-
+* manifest parsing,
+* build model lowering,
+* backend-neutral build planning,
+* command dispatch,
+* tool executable resolution,
+* toolchain probing,
+* strict/frozen checks,
+* build/test/install wrappers,
+* script compile invocation as a step,
+* asset cook invocation as a step,
+* package staging orchestration,
+* manifest/report aggregation,
+* diagnostics aggregation,
+* build/publish exit codes.
 
 Forge does not own:
 
-
+* CMake internals,
+* Conan internals,
+* asset importer/cooker internals,
+* C# compiler/scripting host internals,
+* Saga product shell,
+* SagaEditor panels,
+* runtime/server execution,
+* server authority implementation,
+* runtime package validation implementation.
 
 Correct model:
 
@@ -43,7 +76,8 @@ Forge
 
 Incorrect model:
 
-
+```txt
+```
 
 That is not integration.
 
@@ -57,12 +91,10 @@ That is toolchain hoarding.
 | ----------------------------------- | ------------------------------------------------------------------------- |
 | `BUILD_PUBLISH_PIPELINE_ROADMAP.md` | Full validate/compile/cook/analyze/package/publish pipeline               |
 | `SAGA_PRODUCT_ROADMAP.md`           | Saga product shell that initiates and displays build/publish workflows    |
-| `SDE_ROADMAP.md`                    | Standalone deterministic compiler invoked by Forge                        |
 | `SAGA_GAMEPLAY_GRAPH_ROADMAP.md`    | Graph artifacts and graph validation expectations                         |
 | `AUTHORING_AUTHORITY_MODEL.md`      | Authority/persistence/replication/prediction validation metadata          |
 | `SAGA_SCRIPTING_ROADMAP.md`         | Script compile, block bindings, generated C# artifacts, scripting reports |
 | `ASSET_PIPELINE_ROADMAP.md`         | Source asset import/cook/artifact/manifest pipeline                       |
-| `PRISM_ROADMAP.md`                  | Stale artifact and boundary analysis invoked/consumed by Forge            |
 | `SHARED_ROADMAP.md`                 | Shared build/artifact/package/publish report contracts                    |
 | `ENGINE_ROADMAP.md`                 | Runtime/server package and manifest consumption expectations              |
 | `EDITOR_ROADMAP.md`                 | Editor build/publish status UX consuming Forge reports                    |
@@ -196,11 +228,21 @@ That is toolchain hoarding.
 
   Done means Forge can:
 
-
+  * invoke CMake,
+  * invoke Conan,
+  * invoke script compiler/toolchain,
+  * invoke asset cook tool/service,
+  * validate expected outputs,
+  * aggregate reports,
+  * stage packages,
+  * write build/package/publish reports.
 
   But Forge does not:
 
-
+  * compile C# itself unless through a script compiler adapter boundary,
+  * decode/import source textures/meshes/audio internally,
+  * execute runtime/server gameplay,
+  * own product UI.
 
 * [ ] Treat every non-build subsystem as an external step or adapter boundary.
 
@@ -223,7 +265,15 @@ Not as random includes from another subsystem’s private implementation.
 
 Allowed dependency directions:
 
-
+```txt
+Forge → CMakeAdapter / ConanAdapter implementation
+Forge → ToolEnv / EnvProbe
+Forge → Forge manifest/build model/plan internals
+Forge → script compiler executable/service boundary
+Forge → asset cook executable/service boundary
+Forge → SagaShared build/artifact/package/diagnostic contracts where approved
+Forge → project files/manifests/reports
+```
 
 ---
 
@@ -231,11 +281,24 @@ Allowed dependency directions:
 
 Forbidden dependency directions:
 
-
+```txt
+Forge → Saga product shell internals
+Forge → SagaEditor UI
+Forge → Runtime private internals
+Forge → Server private internals
+Forge → asset importer/cooker private implementation
+Forge → scripting host/compiler private implementation
+Forge → Qt UI
+```
 
 Forbidden shortcuts:
 
-
+```txt
+Forge directly cooks textures internally.
+Forge directly launches editor UI.
+Forge directly validates server authority by including server-private code.
+Forge silently ignores stale generated/cooked artifacts.
+```
 
 ---
 
@@ -283,7 +346,6 @@ Forbidden shortcuts:
 * [ ] Add `forge validate`.
 
 
-
   Expected usage:
 
   ```txt
@@ -293,15 +355,14 @@ Forbidden shortcuts:
   ```
 
 
-
   Done means Forge can invoke:
 
-
+  ```txt
+  ```
 
   through configured tool boundaries and collect reports.
 
 * [ ] Add `forge graph` validation/build step surface where useful.
-
 
 
 * [ ] Add `forge scripts` or script compile step surface.
@@ -338,7 +399,12 @@ Forbidden shortcuts:
 
   Done means Forge checks:
 
-
+  * toolchain,
+  * configured tools,
+  * script compiler availability,
+  * asset cook tool availability,
+  * project manifest sanity,
+  * writable build/package/report directories.
 
 ---
 
@@ -379,7 +445,14 @@ Forbidden shortcuts:
 
   Done means Forge can locate and consume:
 
-
+  ```txt
+  saga.project.json
+  forge.toml
+  package/build profile manifests
+  script roots
+  asset roots
+  generated/build/package roots
+  ```
 
 * [ ] Avoid duplicating product manifest truth.
 
@@ -409,7 +482,12 @@ Forbidden shortcuts:
 
   Done means profiles can configure:
 
-
+  * graph validation severity,
+  * authority validation severity,
+  * script analyzer severity,
+  * asset cook strictness,
+  * package manifest validation strictness,
+  * publish blocker policy.
 
 ---
 
@@ -417,7 +495,7 @@ Forbidden shortcuts:
 
 Possible future `forge.toml` or Saga build-profile sections:
 
-
+```toml
 
 [scripts]
 root = "Scripts"
@@ -526,8 +604,6 @@ ConfigureBackend
 BuildBackend
 RunTests
 InstallTarget
-ValidateSDE
-CompileSDE
 ValidateGameplayGraph
 ValidateAuthority
 GenerateGraphCode
@@ -535,8 +611,6 @@ ValidateScripts
 CompileScripts
 ValidateAssets
 CookAssets
-RunPrismBoundaryChecks
-RunPrismStaleChecks
 StageClientPackage
 StageServerPackage
 StageEditorPreviewPackage
@@ -570,8 +644,6 @@ Tools/Forge/include/Forge/Steps/ScriptValidateStep.hpp
 Tools/Forge/include/Forge/Steps/ScriptCompileStep.hpp
 Tools/Forge/include/Forge/Steps/AssetValidateStep.hpp
 Tools/Forge/include/Forge/Steps/AssetCookStep.hpp
-Tools/Forge/include/Forge/Steps/PrismBoundaryCheckStep.hpp
-Tools/Forge/include/Forge/Steps/PrismStaleCheckStep.hpp
 Tools/Forge/include/Forge/Steps/PackageStageStep.hpp
 Tools/Forge/include/Forge/Steps/ManifestGenerateStep.hpp
 Tools/Forge/include/Forge/Steps/PublishReadinessStep.hpp
@@ -670,22 +742,30 @@ Backend collection is not product maturity.
 
   Done means ToolEnv can resolve:
 
-
+  * cmake,
+  * ctest,
+  * conan,
+  * compiler,
+  * dotnet or script compiler tool,
+  * asset cook tool,
+  * package tool where applicable.
 
 * [ ] Expand `EnvProbe` for Saga pipeline tools.
 
   Done means `forge env --json` can report:
 
-
+  * cmake version,
+  * conan version,
+  * compiler version,
+  * script compiler version,
+  * asset cook tool version,
+  * package tool version.
 
 * [ ] Add profile-level tool requirements.
 
   Done means shipping profiles can require stricter tool/version matches than dev profiles.
 
 ---
-
-
-
 
 
 
@@ -711,9 +791,6 @@ Tools/Forge/src/Steps/SdeCompileStep.cpp
 
 
 
-
-
-
   Done means Forge reads:
 
   * diagnostics JSON,
@@ -723,17 +800,17 @@ Tools/Forge/src/Steps/SdeCompileStep.cpp
   * generated output manifests.
 
 
-
   Done means:
 
-
+  * validation errors fail validation/profile where required,
+  * compile errors block artifact staging,
+  * partial failed outputs are not treated as valid,
 
 ---
 
 ## 13. Gameplay Graph and Authority Integration
 
 * [ ] Add graph validation step.
-
 
 
   * graph artifact presence,
@@ -857,11 +934,8 @@ Tools/Forge/src/Steps/AssetCookStep.cpp
 
 ---
 
-## 16. Prism Integration
 
-* [ ] Add Prism adapter.
 
-  Done means Forge can invoke Prism checks:
 
   * boundary validation,
   * stale artifact validation,
@@ -871,15 +945,8 @@ Tools/Forge/src/Steps/AssetCookStep.cpp
 Expected files:
 
 ```txt
-Tools/Forge/include/Forge/Adapters/PrismAdapter.hpp
-Tools/Forge/src/Adapters/PrismAdapter.cpp
-Tools/Forge/include/Forge/Steps/PrismBoundaryCheckStep.hpp
-Tools/Forge/include/Forge/Steps/PrismStaleCheckStep.hpp
-Tools/Forge/src/Steps/PrismBoundaryCheckStep.cpp
-Tools/Forge/src/Steps/PrismStaleCheckStep.cpp
 ```
 
-* [ ] Consume Prism reports.
 
   Done means Forge reads:
 
@@ -889,9 +956,7 @@ Tools/Forge/src/Steps/PrismStaleCheckStep.cpp
   * generated origin reports,
   * package relationship reports.
 
-* [ ] Keep Prism implementation outside Forge.
 
-  Done means Forge does not index source, own symbol graphs, or inspect internal Prism databases.
 
 ---
 
@@ -1062,7 +1127,6 @@ Tools/Forge/src/Reports/BuildReportWriter.cpp
   ```txt
   ProjectManifestInvalid
   ToolchainInvalid
-  SDECompileError
   GraphValidationError
   AuthorityValidationError
   ScriptCompileError
@@ -1142,7 +1206,6 @@ Tools/Forge/src/Diagnostics/DiagnosticCollector.cpp
   BuildPlan validation diagnostics now flow through `DiagnosticCollector` before entering build reports. Source-system/resource/artifact refs, suggested actions, raw tool diagnostics, and cross-tool normalization remain open.
 
 * [ ] Normalize tool diagnostics.
-
 
 
 * [ ] Emit machine-readable reports.
@@ -1228,7 +1291,12 @@ No one wants a 4,000-line terminal scroll as the only artifact of failure.
 
   Done means future lock files may record:
 
-
+  * dependency install mode,
+  * tool versions,
+  * schema package versions,
+  * script compiler version,
+  * asset cook tool version,
+  * package profile versions.
 
 * [ ] Keep lock files human-inspectable.
 
@@ -1329,7 +1397,6 @@ Forge must remain useful beyond Saga-specific projects where practical.
 * [ ] Make Saga pipeline features opt-in.
 
 
-
 * [ ] Keep errors clear when Saga-only commands are used in non-Saga project.
 
   Example:
@@ -1339,7 +1406,6 @@ Forge must remain useful beyond Saga-specific projects where practical.
   ```
 
 Forge can serve Saga without becoming unusable for smaller C++ projects.
-
 
 
 ---
@@ -1356,7 +1422,6 @@ Forge can serve Saga without becoming unusable for smaller C++ projects.
   python3 -m py_compile Tools/scripts/export_tool_mirrors.py Tools/SagaTools/setup.py
   cargo check --manifest-path Tools/SagaTools/Cargo.toml
   python3 Tools/SagaTools/setup.py --no-smoke --no-symlink
-  ./export.sh --dry-run --tool Prism
   ```
 
   Note: these are ecosystem checks, not complete Forge tests. Forge needs its own pipeline tests.
@@ -1392,7 +1457,6 @@ Forge can serve Saga without becoming unusable for smaller C++ projects.
   * SdeAdapter command construction,
   * ScriptCompilerAdapter command construction,
   * AssetPipelineAdapter command construction,
-  * PrismAdapter command construction,
   * ToolEnv override behavior,
   * `--explain` output.
 
@@ -1404,7 +1468,14 @@ Forge can serve Saga without becoming unusable for smaller C++ projects.
 
   Required coverage:
 
-
+  * project validation,
+  * graph validation step,
+  * authority validation step,
+  * script compile step,
+  * asset cook step,
+  * package staging step,
+  * manifest generation step,
+  * publish readiness step.
 
 ---
 
@@ -1433,7 +1504,11 @@ Forge can serve Saga without becoming unusable for smaller C++ projects.
 
   Required coverage:
 
-
+  * valid CI build passes,
+  * script compile error fails,
+  * stale asset fails,
+  * authority package error fails,
+  * publish blocker returns correct exit code.
 
 ---
 
@@ -1443,7 +1518,12 @@ The first Forge production pipeline slice should use a minimal Saga project.
 
 Required project contents:
 
-
+```txt
+saga.project.json
+forge.toml
+Scripts/QuestXp.cs
+Assets/terrain_albedo.png
+```
 
 Required workflow:
 
@@ -1455,7 +1535,18 @@ forge publish-check --profile shipping-full
 
 Required behavior:
 
-
+1. Forge resolves workspace.
+2. Forge validates project and Forge manifests.
+3. Forge probes toolchain and required tools.
+6. Forge invokes script compile adapter.
+7. Forge invokes asset cook adapter.
+9. Forge stages client package.
+10. Forge stages server package.
+11. Forge writes artifact/package manifests.
+12. Forge writes build/diagnostics reports.
+13. Forge publish-check reports `Ready`.
+14. Modifying the texture without recook creates `StaleArtifact` blocker.
+15. Moving a server-only graph artifact into client package creates `AuthorityValidationError` blocker.
 
 This proves Forge is not just a CMake wrapper anymore.
 
@@ -1467,7 +1558,15 @@ It becomes the build workflow frontend for a real Saga project.
 
 Forge must not become:
 
-
+* a replacement for CMake,
+* a replacement for Conan,
+* asset importer/cooker implementation,
+* C# compiler/scripting host,
+* Saga product shell,
+* SagaEditor UI,
+* runtime/server launcher with hidden package validation bypass,
+* deployment platform backend,
+* a generic magical build language.
 
 Forge coordinates.
 
@@ -1516,7 +1615,6 @@ Mitigation:
 
 * content hashes,
 * dependency manifests,
-* Prism stale checks,
 * Forge package validation,
 * publish readiness blockers.
 
@@ -1562,7 +1660,6 @@ Tools/Forge/include/Forge/Adapters/ConanAdapter.hpp
 Tools/Forge/include/Forge/Adapters/SdeAdapter.hpp
 Tools/Forge/include/Forge/Adapters/ScriptCompilerAdapter.hpp
 Tools/Forge/include/Forge/Adapters/AssetPipelineAdapter.hpp
-Tools/Forge/include/Forge/Adapters/PrismAdapter.hpp
 Tools/Forge/src/Adapters/
 ```
 
@@ -1578,8 +1675,6 @@ Tools/Forge/include/Forge/Steps/ScriptValidateStep.hpp
 Tools/Forge/include/Forge/Steps/ScriptCompileStep.hpp
 Tools/Forge/include/Forge/Steps/AssetValidateStep.hpp
 Tools/Forge/include/Forge/Steps/AssetCookStep.hpp
-Tools/Forge/include/Forge/Steps/PrismBoundaryCheckStep.hpp
-Tools/Forge/include/Forge/Steps/PrismStaleCheckStep.hpp
 Tools/Forge/include/Forge/Steps/PackageStageStep.hpp
 Tools/Forge/include/Forge/Steps/ManifestGenerateStep.hpp
 Tools/Forge/include/Forge/Steps/PublishReadinessStep.hpp
@@ -1631,7 +1726,21 @@ Expected reports:
 
 Preserve these decisions:
 
-
+```txt
+Forge is a build workflow frontend.
+Forge remains useful for standalone C++ projects.
+Forge coordinates Saga pipeline steps when a Saga project is present.
+BuildModel is backend-neutral.
+BuildPlan describes actual executable steps.
+Adapters own external tool invocation.
+ToolEnv resolves executables.
+EnvProbe verifies toolchain state.
+Asset pipeline owns importer/cooker behavior; Forge invokes it.
+Scripting toolchain owns script compile behavior; Forge invokes it.
+Forge stages packages and writes manifests/reports.
+Forge publish-check reports exact blockers.
+Forge does not own product UI, runtime execution, server authority, compiler internals, asset cooker internals, or script host internals.
+```
 
 The build pipeline should become boring in the best possible way:
 

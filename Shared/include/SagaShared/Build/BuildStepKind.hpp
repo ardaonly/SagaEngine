@@ -13,11 +13,9 @@ enum class BuildStepKind : std::uint8_t
 {
     Unknown,
     Configure,
-    CompileSDE,
     ValidateGraph,
     CompileScript,
     CookAsset,
-    RunPrism,
     GenerateArtifactManifest,
     StagePackage,
     GeneratePackageManifest,

@@ -1,6 +1,8 @@
 # Forge Schema Reference
 
-
+> Last updated: 2026-05-15
+> Status: Proposed schema reference
+> Target: A stable, conservative `forge.toml` schema for Forge's standalone C++ workflow and Saga build/publish pipeline integration.
 
 ---
 
@@ -14,7 +16,13 @@ Its job is to describe enough project/tool/build/pipeline configuration for Forg
 
 It must not become:
 
-
+* a CMake replacement,
+* a Conan replacement,
+* a script language,
+* an asset pipeline language,
+* a package scripting language,
+* a product project manifest replacement,
+* a dumping ground for every prototype flag.
 
 Correct model:
 
@@ -59,7 +67,14 @@ conanfile.py / conanfile.txt where applicable
 
 Saga project:
 
-
+```txt
+saga.project.json
+forge.toml
+Scripts/
+Assets/
+Build/
+Packages/
+```
 
 Rule:
 
@@ -138,11 +153,37 @@ schemaVersion = 1
 
 Allowed top-level sections:
 
-
+```toml
+[project]
+[toolchain]
+[build]
+[deps]
+[env]
+[profiles]
+[saga]
+[scripts]
+[assets]
+[package]
+[publish]
+[reports]
+```
 
 Section status:
 
-
+| Section       | Status            | Purpose                                         |
+| ------------- | ----------------- | ----------------------------------------------- |
+| `[project]`   | Active            | General project metadata                        |
+| `[toolchain]` | Active            | Required external tool versions/pins            |
+| `[build]`     | Active            | Backend/build directory/config defaults         |
+| `[deps]`      | Active            | Dependency manager/install mode                 |
+| `[env]`       | Active            | Tool executable overrides and environment hints |
+| `[profiles]`  | Proposed          | Named build profiles                            |
+| `[saga]`      | Proposed          | Optional Saga project integration               |
+| `[scripts]`   | Reserved/Proposed | Optional scripting pipeline roots/options       |
+| `[assets]`    | Reserved/Proposed | Optional asset pipeline roots/options           |
+| `[package]`   | Reserved/Proposed | Optional package staging options                |
+| `[publish]`   | Reserved/Proposed | Optional publish-check policy                   |
+| `[reports]`   | Proposed          | Report output paths/options                     |
 
 Important:
 
@@ -214,7 +255,17 @@ ninja = ">=1.11"
 
 Fields:
 
-
+| Field             |       Type | Required | Status   | Meaning                             |
+| ----------------- | ---------: | -------: | -------- | ----------------------------------- |
+| `cmake`           |     string |       no | Active   | Required CMake version constraint   |
+| `conan`           |     string |       no | Active   | Required Conan version constraint   |
+| `compiler`        |     string |       no | Active   | Compiler family hint/pin            |
+| `compilerVersion` |     string |       no | Proposed | Compiler version constraint         |
+| `cppStandard`     | string/int |       no | Active   | Required C++ standard               |
+| `ninja`           |     string |       no | Proposed | Ninja version constraint            |
+| `forge`           |     string |       no | Proposed | Forge version constraint            |
+| `dotnet`          |     string |       no | Reserved | .NET SDK/script compiler constraint |
+| `assetPipeline`   |     string |       no | Reserved | Asset pipeline tool version         |
 
 Rules:
 
@@ -341,11 +392,23 @@ Configure tool executable overrides and environment hints.
 
 Example:
 
-
+```toml
+[env]
+cmake = "/usr/bin/cmake"
+conan = "/home/user/.local/bin/conan"
+```
 
 Fields:
 
-
+| Field            |   Type | Required | Status   | Meaning                             |
+| ---------------- | -----: | -------: | -------- | ----------------------------------- |
+| `cmake`          | string |       no | Active   | CMake executable override           |
+| `ctest`          | string |       no | Active   | CTest executable override           |
+| `conan`          | string |       no | Active   | Conan executable override           |
+| `ninja`          | string |       no | Proposed | Ninja executable override           |
+| `assetPipeline`  | string |       no | Reserved | Asset pipeline executable override  |
+| `scriptCompiler` | string |       no | Reserved | Script compiler executable override |
+| `host`           | string |       no | Proposed | Host tool executable override       |
 
 Rules:
 
@@ -365,11 +428,32 @@ Status: Proposed.
 
 Example:
 
+```toml
+[profiles.editor-preview]
+config = "Debug"
+target = "SagaEditor"
+strict = false
+scripts = true
+assets = true
+package = "editor-preview"
 
+[profiles.ci]
+config = "Debug"
+target = "all"
+strict = true
+scripts = true
+assets = true
+package = false
 
-
-
-
+[profiles.shipping-full]
+config = "Release"
+target = "all"
+strict = true
+scripts = true
+assets = true
+package = "shipping-full"
+publishCheck = true
+```
 
 Required profile names for Saga projects:
 
@@ -387,7 +471,17 @@ shipping-full
 
 Profile fields:
 
-
+| Field               |        Type | Required | Status            | Meaning                             |
+| ------------------- | ----------: | -------: | ----------------- | ----------------------------------- |
+| `config`            |      string |       no | Proposed          | Build config                        |
+| `target`            |      string |       no | Proposed          | Backend target                      |
+| `strict`            |        bool |       no | Proposed          | Enable strict validation            |
+| `frozen`            |        bool |       no | Proposed          | Enable frozen checks                |
+| `scripts`           | bool/string |       no | Reserved/Proposed | Enable script step/config           |
+| `assets`            | bool/string |       no | Reserved/Proposed | Enable asset step/config            |
+| `package`           | bool/string |       no | Proposed          | Package profile/kind                |
+| `publishCheck`      |        bool |       no | Proposed          | Run publish readiness check         |
+| `collaborationGate` | bool/string |       no | Reserved          | Collaboration gate policy           |
 
 Rules:
 
@@ -448,20 +542,23 @@ defaultProfile = "editor-preview"
 ---
 
 
-
 Purpose:
-
 
 
 Status: Proposed.
 
 Example:
 
-
+```toml
+mode = "compile"
+```
 
 Fields:
 
-
+| Field            |         Type | Required | Status   | Meaning                                                 |
+| ---------------- | -----------: | -------: | -------- | ------------------------------------------------------- |
+| `mode`           |       string |       no | Proposed | `validate` or `compile`                                 |
+| `schemaPackages` | array/string |       no | Reserved | Extra schema package roots                              |
 
 Allowed `mode` values:
 
@@ -471,7 +568,6 @@ compile
 ```
 
 Rules:
-
 
 
 ---
@@ -559,18 +655,15 @@ Rules:
 
 ---
 
-## 15. `[prism]`
 
 Purpose:
 
-Configure Prism analysis.
 
 Status: Proposed.
 
 Example:
 
 ```toml
-[prism]
 enabled = true
 reports = "Build/Reports"
 boundaries = true
@@ -583,19 +676,13 @@ Fields:
 
 | Field             |   Type | Required | Status   | Meaning                        |
 | ----------------- | -----: | -------: | -------- | ------------------------------ |
-| `enabled`         |   bool |       no | Proposed | Enable Prism checks by default |
-| `reports`         | string |       no | Proposed | Prism report output directory  |
 | `boundaries`      |   bool |       no | Proposed | Run boundary checks            |
 | `stale`           |   bool |       no | Proposed | Run stale artifact checks      |
 | `packages`        |   bool |       no | Proposed | Run package consistency checks |
 | `generatedOrigin` |   bool |       no | Proposed | Run generated origin checks    |
-| `config`          | string |       no | Reserved | Optional `prism.toml` path     |
 
 Rules:
 
-* Prism emits reports.
-* Forge decides whether Prism diagnostics block build/publish by profile policy.
-* Prism does not build/cook/compile/package.
 
 ---
 
@@ -686,7 +773,6 @@ Example:
 [publish]
 defaultProfile = "shipping-full"
 report = "Build/Reports/publish_report.json"
-requirePrism = true
 requireFreshAssets = true
 requireCleanCollaboration = true
 ```
@@ -697,7 +783,6 @@ Fields:
 | --------------------------- | -----: | -------: | ----------------- | -------------------------------- |
 | `defaultProfile`            | string |       no | Reserved/Proposed | Default publish profile          |
 | `report`                    | string |       no | Reserved/Proposed | Publish report path              |
-| `requirePrism`              |   bool |       no | Reserved/Proposed | Require Prism checks             |
 | `requireFreshAssets`        |   bool |       no | Reserved/Proposed | Block stale cooked assets        |
 | `requireCleanCollaboration` |   bool |       no | Reserved          | Block unresolved conflicts/locks |
 | `allowWarnings`             |   bool |       no | Reserved          | Allow publish with warnings      |
@@ -730,7 +815,14 @@ publish = "Build/Reports/publish_report.json"
 
 Fields:
 
-
+| Field               |   Type | Required | Status   | Meaning                          |
+| ------------------- | -----: | -------: | -------- | -------------------------------- |
+| `root`              | string |       no | Proposed | Default report root              |
+| `build`             | string |       no | Proposed | Build report path                |
+| `diagnostics`       | string |       no | Proposed | Combined diagnostics report path |
+| `publish`           | string |       no | Proposed | Publish report path              |
+| `assetDiagnostics`  | string |       no | Reserved | Asset diagnostics report path    |
+| `scriptDiagnostics` | string |       no | Reserved | Script diagnostics report path   |
 
 Rules:
 
@@ -834,7 +926,6 @@ forge test
 ```
 
 
-
 ---
 
 ## 22. Example: Minimal Saga Project
@@ -847,7 +938,11 @@ name = "ExampleSagaProject"
 version = "0.1.0"
 language = "cpp-saga"
 
-
+[toolchain]
+cmake = ">=3.26"
+conan = ">=2.0"
+compiler = "clang"
+cppStandard = "20"
 
 [build]
 backend = "cmake"
@@ -863,9 +958,8 @@ mode = "conan"
 projectManifest = "saga.project.json"
 defaultProfile = "editor-preview"
 
+mode = "compile"
 
-
-[prism]
 enabled = true
 reports = "Build/Reports"
 boundaries = true
@@ -878,11 +972,25 @@ build = "Build/Reports/build_report.json"
 diagnostics = "Build/Reports/diagnostics_report.json"
 publish = "Build/Reports/publish_report.json"
 
+[profiles.editor-preview]
+config = "Debug"
+target = "SagaEditor"
+strict = false
+package = "editor-preview"
 
+[profiles.ci]
+config = "Debug"
+target = "all"
+strict = true
+package = false
 
-
-
-
+[profiles.shipping-full]
+config = "Release"
+target = "all"
+strict = true
+package = "shipping-full"
+publishCheck = true
+```
 
 This is still conservative.
 
@@ -902,7 +1010,13 @@ name = "ExampleMMO"
 version = "0.1.0"
 language = "cpp-saga"
 
-
+[toolchain]
+cmake = ">=3.26"
+conan = ">=2.0"
+compiler = "clang"
+cppStandard = "20"
+dotnet = ">=8.0"
+assetPipeline = ">=0.1.0"
 
 [build]
 backend = "cmake"
@@ -919,7 +1033,7 @@ lockfile = "forge.lock"
 projectManifest = "saga.project.json"
 defaultProfile = "editor-preview"
 
-
+mode = "compile"
 
 [scripts]
 root = "Scripts"
@@ -935,7 +1049,6 @@ manifest = "Build/Manifests/assets.json"
 diagnostics = "Build/Reports/asset_diagnostics.json"
 profile = "dev"
 
-[prism]
 enabled = true
 reports = "Build/Reports"
 boundaries = true
@@ -964,7 +1077,6 @@ manifest = "Build/Manifests/package_manifest.server.json"
 [publish]
 defaultProfile = "shipping-full"
 report = "Build/Reports/publish_report.json"
-requirePrism = true
 requireFreshAssets = true
 requireCleanCollaboration = true
 
@@ -973,12 +1085,26 @@ root = "Build/Reports"
 build = "Build/Reports/build_report.json"
 diagnostics = "Build/Reports/diagnostics_report.json"
 publish = "Build/Reports/publish_report.json"
-prismStale = "Build/Reports/prism_stale_report.json"
-prismBoundary = "Build/Reports/prism_boundary_report.json"
 
+[profiles.dev-local-client-server]
+config = "Debug"
+target = "all"
+strict = false
+scripts = true
+assets = true
+package = "dev-local-client-server"
 
-
-
+[profiles.shipping-full]
+config = "Release"
+target = "all"
+strict = true
+frozen = true
+scripts = true
+assets = true
+package = "shipping-full"
+publishCheck = true
+collaborationGate = "strict"
+```
 
 Use this as a direction, not as stable promise until Forge pipeline implementation catches up.
 
@@ -988,7 +1114,17 @@ Use this as a direction, not as stable promise until Forge pipeline implementati
 
 Recommended paths:
 
-
+```txt
+Build/Artifacts/Scripts/
+Build/Artifacts/Assets/
+Build/Manifests/
+Build/Reports/
+Packages/editor-preview/
+Packages/dev-client/
+Packages/dev-server/
+Packages/shipping-client/
+Packages/shipping-server/
+```
 
 Recommended report paths:
 
@@ -996,11 +1132,8 @@ Recommended report paths:
 Build/Reports/build_report.json
 Build/Reports/diagnostics_report.json
 Build/Reports/publish_report.json
-Build/Reports/sde_diagnostics.json
 Build/Reports/script_diagnostics.json
 Build/Reports/asset_diagnostics.json
-Build/Reports/prism_stale_report.json
-Build/Reports/prism_boundary_report.json
 ```
 
 Rules:
@@ -1017,7 +1150,16 @@ Rules:
 
 Lockfile may eventually record:
 
-
+```txt
+dependency install mode
+dependency versions
+tool versions
+schema package versions
+script compiler version
+asset pipeline version
+package profile versions
+profile hash
+```
 
 Rules:
 
@@ -1130,7 +1272,16 @@ Tools/Forge/tests/ForgeProfileSchemaTests.cpp
 
 This schema must not define:
 
-
+* CMake target graph internals,
+* Conan dependency graph internals,
+* gameplay graph node syntax,
+* C# compile rules in detail,
+* asset importer/cooker internals,
+* runtime/server execution logic,
+* collaboration conflict resolution behavior,
+* product UI layout,
+* editor panel layout,
+* deployment provider configuration.
 
 Those belong to their owners.
 
@@ -1144,7 +1295,16 @@ It should not become the place where ownership disappears.
 
 Preserve these decisions:
 
-
+```txt
+forge.toml is a build workflow manifest.
+Forge lowers forge.toml into BuildModel and BuildPlan.
+Standalone C++ projects remain supported.
+Saga-specific sections are optional.
+Reserved sections must be honestly marked until implementation exists.
+Unknown fields fail under --strict.
+Reports and manifests are first-class outputs.
+forge.toml must not duplicate saga.project.json entirely.
+```
 
 The schema should grow slowly.
 
