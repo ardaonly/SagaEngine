@@ -33,7 +33,6 @@ build/dist/linux/Saga/
     sagaproject
     sagapack
     sagascript
-    sde
     .saga-tools/
       sagaproject/
       sagapack/
@@ -64,18 +63,6 @@ placeholder tools. This document adds distribution-mode wrappers for `sagaprojec
 `sagascript`, and `sagapack`; those wrappers dispatch only to real published
 .NET tool artifacts staged under `tools/.saga-tools/` and do not fall back to
 repository paths.
-
-The SDE input is the real staged executable from:
-
-```txt
-Tools/SystemDefinitionEngine/bin/sde
-```
-
-That file is valid only when produced by the standalone SDE bootstrap build path:
-
-```bash
-nix-shell --run "python3 Tools/SystemDefinitionEngine/build.py --clean --jobs 1"
-```
 
 ## Metadata
 

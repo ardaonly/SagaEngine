@@ -55,8 +55,7 @@ current bounded distribution claim.
 | `sagaproject` | Project-manifest validation, resolution, and doctor-style reporting | Supported validation paths exist | Stable public project SDK |
 | `sagascript` | Selected C# analysis, compilation, source discovery, artifact, and authoring workflows | Useful source-authoring infrastructure exists | Complete managed runtime or arbitrary C# round trip |
 | `sagapack` and package tooling | Package/profile inspection, staging, archive, checksum, preflight, and smoke reporting | Bounded local paths exist | Full publishing, installer, updater, signing, or marketplace system |
-| System Definition Engine | Deterministic data compilation and generated-artifact boundary | Toolchain artifact role exists | Runtime, editor, product shell, or gameplay ownership |
-| Prism | Static repository, code, dependency, and artifact intelligence | Analysis tooling exists | Build ownership, source mutation, runtime ownership, or canonical artifact production |
+| Prism | Standalone retained repository-analysis/history surface outside the first-playable Saga product path | Standalone tool sources remain in repo | Active Saga product, scripting, build, runtime, or canonical artifact ownership |
 | `StarterArena` | Sample or workflow fixture according to verified behavior | Limited workflow evidence may exist | Automatically a finished sample game |
 | `MultiplayerSandbox` | Deterministic integration fixture for project, script, package, validation, and headless workflows | Fixture and report paths exist | Finished or playable multiplayer sample |
 | Diagnostics and tests | Focused, reproducible evidence about bounded behavior | Unit, integration, architecture, GPU, CLI, and report foundations exist | Product readiness or permanent full-suite health |

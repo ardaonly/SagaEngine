@@ -55,24 +55,7 @@ release status, verified release status, or maintainer verification.
 
 ## Current Package Outputs
 
-After this document, `scripts/package-linux-saga` also checks the real SDE
-bootstrap staging path:
-
-```txt
-Tools/SystemDefinitionEngine/bin/sde
-```
-
-That path is valid only when produced by:
-
-```bash
-nix-shell --run "python3 Tools/SystemDefinitionEngine/build.py --clean --jobs 1"
-```
-
-This document does not create a fake `sde` binary, does not add a wrapper script, and
-does not absorb SDE into the root engine build. `scripts/package-linux-saga`
-still validates the candidate as a non-empty executable.
-
-With the real staged SDE CLI present, this document stages the first Linux layout at:
+This document stages the first Linux layout at:
 
 ```txt
 build/dist/linux/Saga
@@ -93,13 +76,6 @@ build/dist/linux/Saga.sha256
 `Saga.tar.zst` is generated only from `build/dist/linux/Saga/` and contains
 `Saga/` as the top-level archive directory. `Saga.sha256` covers only
 `Saga.tar.zst` and is compatible with `sha256sum -c`.
-
-The standalone SDE source contains a real `sde-cli` target that outputs `sde`.
-This document uses the existing standalone SDE bootstrap staging path as package
-preflight input evidence. It does not build a Linux distribution package and
-does not stage final distribution output. This document copies the real staged `sde`
-binary into the Linux layout as a tool input; it does not modify SDE semantics
-or make SDE part of the engine runtime.
 
 ## Non-Claims
 
@@ -124,11 +100,9 @@ No release or historical verified status is marked by this report.
 ## Risks
 
 - The preflight report could be mistaken for package output.
-- The real staged SDE CLI could be mistaken for full package readiness.
 - The staged layout could be mistaken for a final distribution.
 - The archive could be mistaken for a production release.
 - The checksum could be mistaken for full distribution validation.
-- SDE package proof could be mistaken for a staged `sde` executable.
 - Placeholder binaries could hide missing tools.
 - Archive or checksum language could imply distribution readiness.
 - A future script success could mask missing runtime, editor, server, or tool

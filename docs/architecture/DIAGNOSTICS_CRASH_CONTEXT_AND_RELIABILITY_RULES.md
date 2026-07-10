@@ -29,7 +29,7 @@ the current contract diagnostics foundation and this document operational report
 Core must not depend on Diagnostics.
 SagaDiagnostics may depend on Core/CoreLog and privately on nlohmann_json.
 Server may privately depend on SagaDiagnostics.
-SagaDiagnostics must not depend on Server, Runtime, Editor, Product, Tools, or SDE.
+SagaDiagnostics must not depend on Server, Runtime, Editor, Product, Tools.
 ```
 
 Crash/reliability report construction stays in Engine diagnostics. Server
@@ -123,5 +123,5 @@ overrun diagnostics.
 This document non-claims: no production crash safety, no unsafe OS signal/SEH crash
 handlers, no stack trace requirement, no MemoryTracker or ResourceTracker, no
 StressArena, no NetworkChaos, no StateValidation, no FaultBoundary, no
-SDE-driven diagnostics config, no remote telemetry, no production readiness, and
+external diagnostics config, no remote telemetry no production readiness, and
 no full raw CTest health claim.

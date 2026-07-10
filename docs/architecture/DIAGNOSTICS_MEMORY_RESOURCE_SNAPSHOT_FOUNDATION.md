@@ -39,7 +39,7 @@ zero summary counts.
 Core must not depend on Diagnostics.
 SagaDiagnostics may depend on Core/CoreLog and privately on nlohmann_json.
 Server and Tools may depend on SagaDiagnostics at their owning boundaries.
-SagaDiagnostics must not depend on Server, Runtime, Editor, Product, Tools, or SDE.
+SagaDiagnostics must not depend on Server, Runtime, Editor, Product, Tools.
 ```
 
 The existing Core `MemoryTracker`, `ArenaAllocator`, and replication memory
@@ -63,5 +63,5 @@ allocator replacement, no raw allocation interception, no stack traces per
 allocation, no OS memory polling, no OS handle enumeration, no real socket/file
 scanning, no full leak detection, no production memory safety claim, no
 NetworkChaos, no StateValidation, no FaultBoundary, no remote telemetry, no
-SDE-driven diagnostics config, no production readiness, and no full raw CTest
+external diagnostics config no production readiness and no full raw CTest
 health claim.

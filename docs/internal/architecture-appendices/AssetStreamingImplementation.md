@@ -44,7 +44,6 @@ Related current documents:
 | `architecture/ASSETS_AND_PACKAGES.md` | Source asset, package, manifest, and asset pipeline boundaries                                   |
 | `architecture/PUBLISH.md`           | Publish report and package blocker boundary                                                        |
 | `architecture/EDITOR.md`            | Editor authoring and asset UX boundary                                                             |
-| `architecture/SDE_ARTIFACT_MANIFEST_CONTRACT.md` | SDE artifact and manifest contract                                                       |
 | `architecture/TESTING_AND_EVIDENCE.md` | Focused verification boundary                                                                  |
 | `DependencyGraph.md`                | Runtime/tool/editor/asset-pipeline ownership boundaries                                             |
 
@@ -97,7 +96,6 @@ It must not own:
 * drag-and-drop authoring workflows,
 * asset inspector UI,
 * project content browser UI,
-* SDE schema/data compilation,
 * broad third-party asset normalization,
 * production asset cooking policy,
 * package staging,
@@ -1287,11 +1285,8 @@ Asset streaming imports Editor/include/SagaEditor/Collaboration
 
 ---
 
-## 20. SDE Boundary
 
-SDE remains a standalone deterministic data compiler.
 
-Asset streaming may consume SDE-produced runtime artifacts.
 
 Allowed examples:
 
@@ -1304,19 +1299,10 @@ Allowed examples:
 Forbidden dependency direction:
 
 ```txt
-SDE → SagaEngine
-SDE → SagaEditor
-SDE → SagaServer
-SDE → SagaShared
-SDE → SagaCollaboration
-SDE → Forge
-SDE → Prism
-SDE → SagaTools
 ```
 
 Runtime asset streaming should consume outputs.
 
-It should not pull SDE compiler internals into the runtime.
 
 A compiler is allowed to produce artifacts.
 
@@ -1756,7 +1742,6 @@ Current ownership references:
 | Shared ids/artifact contracts                        | `architecture/SOURCE_OF_TRUTH_MAP.md` |
 | Collaboration resource ownership                     | `architecture/SAGA_COLLABORATION_CURRENT_BOUNDARY.md` |
 | Tool ecosystem                                       | focused tool contracts and local reports |
-| SDE compiler artifacts                               | `architecture/SDE_ARTIFACT_MANIFEST_CONTRACT.md` |
 | Build/cook/package/publish boundary                  | `architecture/PUBLISH.md`           |
 | Forge build/cook/package orchestration               | `architecture/PUBLISH.md`           |
 | Prism stale cooked artifact analysis                 | internal/proposed toolchain appendix |
@@ -1794,8 +1779,6 @@ Those belong to current architecture documents:
 * internal/proposed toolchain appendices,
 * `architecture/EDITOR.md`,
 * `architecture/SAGA_COLLABORATION_CURRENT_BOUNDARY.md`,
-* `architecture/SDE_CURRENT_CONTRACT.md` and
-  `architecture/SDE_ARTIFACT_MANIFEST_CONTRACT.md` where schema or artifact
   definitions are involved.
 
 Runtime streaming loads runtime-ready assets.
@@ -1819,7 +1802,6 @@ Runtime should not silently load arbitrary source assets in shipping packages.
 Invalid asset package state should produce structured diagnostics.
 Runtime loading and residency stay in Engine.
 Editor import/cook stays out of runtime streaming.
-SDE remains standalone and may produce artifacts consumed by runtime.
 Collaboration state is not owned by runtime streaming.
 ```
 

@@ -141,14 +141,6 @@ Transitive dependencies introduced by Qt, SDL, RmlUi, Diligent, or another
 component must be reviewed against the actual distribution. The complete Conan
 graph must not be copied blindly into every notice bundle.
 
-## Optional dependency
-
-SystemDefinitionEngine (`sde/0.1.1`) is independently packaged and disabled in
-the reviewed dependency graph.
-
-Enabling it changes artifact composition and requires a new configured graph
-and distribution review.
-
 ## Dependency acceptance policy
 
 | License or condition | Default decision |

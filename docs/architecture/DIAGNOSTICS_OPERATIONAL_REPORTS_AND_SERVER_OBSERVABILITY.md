@@ -22,7 +22,7 @@ of the Engine-shaped `SagaDiagnostics` target.
 Core must not depend on Diagnostics.
 SagaDiagnostics may depend on Core/CoreLog and privately on nlohmann_json.
 Server may privately depend on SagaDiagnostics.
-SagaDiagnostics must not depend on Server, Runtime, Editor, Product, Tools, or SDE.
+SagaDiagnostics must not depend on Server, Runtime, Editor, Product, Tools.
 ```
 
 This keeps the report writer local to Engine diagnostics and keeps server
@@ -60,6 +60,6 @@ timing.
 ## Non-Claims
 
 Non-claims: no crash reports, no MemoryTracker/ResourceTracker, no StressArena,
-no NetworkChaos, no StateValidation, no FaultBoundary, no SDE diagnostics
-config, no remote telemetry, no production readiness, and no full raw CTest
+no NetworkChaos, no StateValidation, no FaultBoundary, no external tool diagnostics
+config, no remote telemetry no production readiness and no full raw CTest
 health claim.

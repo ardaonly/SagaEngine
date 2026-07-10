@@ -89,7 +89,6 @@ This document does not implement or claim:
 - runtime engine changes;
 - server changes;
 - SagaScript changes;
-- SDE changes;
 - StarterArena gameplay changes;
 - CSharpScriptHost changes.
 

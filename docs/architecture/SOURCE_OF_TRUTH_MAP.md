@@ -20,7 +20,6 @@ The same data must not be treated as all of these at once.
 | `.sagaproj` | Source of truth | Project-level manifest truth for supported project validation, resolution, profiles, and declared project roots. |
 | Authored C# source | Source of truth | Canonical authored behavior source where current scripting/authoring docs define C# as canonical. |
 | Visual blocks | Projection | A view/edit surface over accepted source or graph data unless a current architecture decision explicitly promotes a specific block format to source truth. |
-| SDE source definitions | Source of truth for SDE-owned data | SDE source and schemas are authored inputs to deterministic validation/compile flows. |
 | Generated code, source maps, projections, reports, and manifests | Generated artifacts | Outputs derived from declared inputs. They must remain reproducible or report stale/missing state. |
 | Package manifests | Generated artifact and package evidence | Package/runtime consumption input, but not authoring source truth for scenes, entities, prefabs, scripts, or imported assets. |
 | Runtime client state | Runtime execution state | Local visual/predictive state. It is not authoritative multiplayer truth. |

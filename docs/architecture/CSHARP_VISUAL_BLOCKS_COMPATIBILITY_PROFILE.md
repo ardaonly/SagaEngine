@@ -7,7 +7,7 @@
 This document defines the first Saga-compatible C# profile used by
 `sagascript compatibility-profile`. It is a compatibility and evidence
 boundary only. It does not implement Visual Blocks, source patching, block
-editor UI, runtime gameplay changes, server behavior, package output, or SDE
+editor UI, runtime gameplay changes, server behavior, package output, or package-tool
 work.
 
 ## Canonical Source Rule

@@ -11,7 +11,7 @@ launcher/dashboard/workflow router
 This document is a contract over existing entry points. The current workflow
 smokes are report-only commands over those entry points. They do not
 implement dashboard UI wiring, editor workflow panels, package distribution,
-runtime logic, server logic, SagaScript behavior, SDE behavior, Visual Blocks
+runtime logic, server logic, SagaScript behavior, Visual Blocks
 editor UI, collaboration services, cloud workspace, or real-time team editing.
 
 ## Role
@@ -36,7 +36,6 @@ The Product Shell is not:
 - enterprise workspace server;
 - runtime engine;
 - C# compiler;
-- SDE compiler.
 
 SagaEditor owns future editing and inspection UI. This document does not wire that UI
 to the workflow steps below.

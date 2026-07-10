@@ -133,7 +133,7 @@ Runtime may depend on Diagnostics where a Runtime-owned boundary needs it.
 Server may depend on Diagnostics where a Server-owned boundary needs it.
 Net/Networking may depend on Diagnostics through its owning module boundary.
 Tools may depend on Diagnostics contracts or reports where appropriate.
-Diagnostics must not hard-depend on SDE.
+Diagnostics must not hard-depend on external tool implementations.
 Shared diagnostics contracts must remain data-only and must not own emitters.
 ```
 
@@ -155,7 +155,7 @@ Recommended target strategy:
 
 - keep the existing `SagaDiagnostics` target while auditing its public header
   surface;
-- avoid adding SDE, Editor, Server, Runtime, Tools, or Apps as hard dependencies
+- avoid adding Editor, Server, Runtime, Tools, Apps, or external tool implementations as hard dependencies
   of `SagaDiagnostics`;
 - keep `SagaCoreLog` lower-level than `SagaDiagnostics`;
 - add new diagnostics source files only under the current Engine diagnostics
@@ -197,7 +197,7 @@ contract cleanup around the existing `SagaDiagnostics` target:
 - document the minimal public surface expected from
   `Engine/Public/SagaEngine/Diagnostics`;
 - add or refine architecture coverage that proves diagnostics public headers do
-  not include Server, Editor, Apps, Tools, SDE, or private paths;
+  not include Server, Editor, Apps, Tools, or private paths;
 - verify `SagaDiagnostics` does not gain hard dependencies beyond Core logging
   and standard library needs;
 - avoid Runtime/Server integration until the diagnostics boundary is made

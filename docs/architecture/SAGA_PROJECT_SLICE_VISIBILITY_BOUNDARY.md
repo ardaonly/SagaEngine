@@ -60,7 +60,7 @@ architecture documents remain future/local tool concepts for broader slice
 resolution work.
 
 The command writes only the caller-provided report output path. It does not
-mutate `.sagaproj`, scenes, scripts, SDE files, package profiles, diagnostics
+mutate `.sagaproj`, scenes, scripts files, package profiles, diagnostics
 folders, report folders, workspace files, or durable project slice metadata.
 
 This document may reference local slice/visibility reports as related metadata, but

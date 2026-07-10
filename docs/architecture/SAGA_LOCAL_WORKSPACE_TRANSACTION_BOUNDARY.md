@@ -28,7 +28,7 @@ contracts, and future durable project-owned metadata.
 Real current surfaces:
 
 - Product Shell session/workspace metadata: `SagaSessionModel`,
-  `SagaWorkspaceResolver`, built-in `BasicWorkspace` SDE data, and no-UI report
+  `SagaWorkspaceResolver`, built-in workspace data, and no-UI report
   commands.
 - Editor read models: no-UI StarterArena inspection, project browser,
   diagnostics, script projection, patch preview/review, and profile/capability
@@ -96,7 +96,7 @@ RunWorkflowSmokeReference
 
 The current contract report does not write `.saga/collaboration/`, append a durable
 transaction log, apply source patches, mutate `.sagaproj`, mutate scenes, mutate
-scripts, regenerate SDE files, start a server, or synchronize with another
+scripts, regenerate generated tool files, start a server, or synchronize with another
 machine.
 
 ## Risks And Guardrails

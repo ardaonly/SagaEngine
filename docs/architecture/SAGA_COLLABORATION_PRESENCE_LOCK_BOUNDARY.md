@@ -56,7 +56,7 @@ The `lock` object records a deterministic `lockId`, `targetArtifact`,
 
 ## Shared Project Truth
 
-The report does not mutate `.sagaproj`, scenes, scripts, SDE files, package
+The report does not mutate `.sagaproj`, scenes, scripts files, package
 profiles, diagnostics folders, report folders, or workspace files. The only
 write is the caller-provided report output path. Local report output is not
 shared project truth.

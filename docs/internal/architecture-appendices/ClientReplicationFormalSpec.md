@@ -100,7 +100,6 @@ It does not own:
 - server authority implementation,
 - editor collaboration policy,
 - product session lifecycle,
-- SDE compiler internals,
 - editor UI,
 - asset import/cook workflows,
 - transport backend implementation,
@@ -1510,11 +1509,8 @@ This should be obvious, which is exactly why it must be written down.
 
 ---
 
-## 33. SDE Boundary
 
-SDE remains a standalone deterministic data compiler.
 
-Client replication may consume runtime artifacts produced by build/cook/SDE pipelines.
 
 Allowed examples:
 
@@ -1529,12 +1525,6 @@ diagnostic payload
 Forbidden dependency direction:
 
 ```txt
-Client replication → SDE compiler internals
-SDE → SagaEngine runtime headers
-SDE → SagaEditor headers
-SDE → SagaServer headers
-SDE → SagaShared headers
-SDE → SagaCollaboration headers
 ```
 
 Replication consumes runtime-ready schema/artifact references.
