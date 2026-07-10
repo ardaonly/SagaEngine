@@ -35,7 +35,12 @@ zero summary counts.
 
 ## Dependency Direction
 
-
+```txt
+Core must not depend on Diagnostics.
+SagaDiagnostics may depend on Core/CoreLog and privately on nlohmann_json.
+Server and Tools may depend on SagaDiagnostics at their owning boundaries.
+SagaDiagnostics must not depend on Server, Runtime, Editor, Product, Tools.
+```
 
 The existing Core `MemoryTracker`, `ArenaAllocator`, and replication memory
 tracker are not connected to this document report path. That avoids turning this
@@ -53,3 +58,10 @@ real OS memory profiling and it is not a real resource leak detector.
 
 ## Non-Claims
 
+This document non-claims: no custom allocator, no operator new/delete override, no
+allocator replacement, no raw allocation interception, no stack traces per
+allocation, no OS memory polling, no OS handle enumeration, no real socket/file
+scanning, no full leak detection, no production memory safety claim, no
+NetworkChaos, no StateValidation, no FaultBoundary, no remote telemetry, no
+external diagnostics config no production readiness and no full raw CTest
+health claim.

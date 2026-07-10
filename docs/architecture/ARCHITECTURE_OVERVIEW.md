@@ -48,7 +48,9 @@ contracts and small shared data types, but implementation managers, concrete
 backends, server policies, editor UI, and tool internals should not become
 installed engine API by default.
 
-
+Runtime consumes project/package artifacts and engine contracts. It should not
+own editor authoring, asset import/cook, server authority, build tooling, or
+compiler/tool internals.
 
 Server owns authoritative simulation decisions. Clients may request, predict,
 render, and interpolate; server state remains the multiplayer authority.

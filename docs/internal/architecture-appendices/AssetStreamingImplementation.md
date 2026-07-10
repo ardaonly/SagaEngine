@@ -38,7 +38,14 @@ It does not own source asset import, cook, package staging, publish readiness, e
 
 Related current documents:
 
-
+| Document                            | Purpose                                                                                             |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `architecture/RUNTIME.md`           | Runtime package and manifest consumption, startup validation, asset manifest loading                |
+| `architecture/ASSETS_AND_PACKAGES.md` | Source asset, package, manifest, and asset pipeline boundaries                                   |
+| `architecture/PUBLISH.md`           | Publish report and package blocker boundary                                                        |
+| `architecture/EDITOR.md`            | Editor authoring and asset UX boundary                                                             |
+| `architecture/TESTING_AND_EVIDENCE.md` | Focused verification boundary                                                                  |
+| `DependencyGraph.md`                | Runtime/tool/editor/asset-pipeline ownership boundaries                                             |
 
 ---
 
@@ -85,7 +92,18 @@ It may own:
 
 It must not own:
 
-
+* editor import UX,
+* drag-and-drop authoring workflows,
+* asset inspector UI,
+* project content browser UI,
+* broad third-party asset normalization,
+* production asset cooking policy,
+* package staging,
+* publishing workflows,
+* collaboration session state,
+* product project lifecycle,
+* Prism stale artifact analysis,
+* Forge build/cook orchestration.
 
 Correct ownership:
 
@@ -1270,9 +1288,6 @@ Asset streaming imports Editor/include/SagaEditor/Collaboration
 
 
 
-
-
-
 Allowed examples:
 
 * compiled graph artifact reference,
@@ -1283,10 +1298,10 @@ Allowed examples:
 
 Forbidden dependency direction:
 
-
+```txt
+```
 
 Runtime asset streaming should consume outputs.
-
 
 
 A compiler is allowed to produce artifacts.
@@ -1719,7 +1734,19 @@ This document records the implementation note for runtime asset streaming.
 
 Current ownership references:
 
-
+| Area                                                 | Owner document                      |
+| ---------------------------------------------------- | ----------------------------------- |
+| Runtime resource behavior                            | `architecture/RUNTIME.md`           |
+| Source asset import/cook                             | `architecture/ASSETS_AND_PACKAGES.md` |
+| Editor import UX / asset inspector / content browser | `architecture/EDITOR.md`            |
+| Shared ids/artifact contracts                        | `architecture/SOURCE_OF_TRUTH_MAP.md` |
+| Collaboration resource ownership                     | `architecture/SAGA_COLLABORATION_CURRENT_BOUNDARY.md` |
+| Tool ecosystem                                       | focused tool contracts and local reports |
+| Build/cook/package/publish boundary                  | `architecture/PUBLISH.md`           |
+| Forge build/cook/package orchestration               | `architecture/PUBLISH.md`           |
+| Prism stale cooked artifact analysis                 | internal/proposed toolchain appendix |
+| Dependency boundaries                                | `DependencyGraph.md`                |
+| Diagnostics/reporting model                          | `architecture/TESTING_AND_EVIDENCE.md` |
 
 This file should not track future task progress unless it is documenting completed implementation decisions.
 
@@ -1752,8 +1779,6 @@ Those belong to current architecture documents:
 * internal/proposed toolchain appendices,
 * `architecture/EDITOR.md`,
 * `architecture/SAGA_COLLABORATION_CURRENT_BOUNDARY.md`,
-* `architecture/SDE_CURRENT_CONTRACT.md` and
-  `architecture/SDE_ARTIFACT_MANIFEST_CONTRACT.md` where schema or artifact
   definitions are involved.
 
 Runtime streaming loads runtime-ready assets.
@@ -1766,7 +1791,19 @@ It does not own the entire content pipeline.
 
 Preserve these decisions:
 
-
+```txt
+Runtime asset streaming consumes runtime-ready cooked artifacts.
+AssetPipeline owns source import/cook behavior.
+Forge owns build/package orchestration.
+Prism owns stale cooked artifact analysis.
+SagaEditor owns asset authoring UX.
+Runtime/server validate manifests and artifacts at startup/load time.
+Runtime should not silently load arbitrary source assets in shipping packages.
+Invalid asset package state should produce structured diagnostics.
+Runtime loading and residency stay in Engine.
+Editor import/cook stays out of runtime streaming.
+Collaboration state is not owned by runtime streaming.
+```
 
 The runtime asset system should be strict about what it consumes.
 

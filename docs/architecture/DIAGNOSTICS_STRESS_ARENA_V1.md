@@ -73,3 +73,10 @@ transport path is ready and can be tested without machine-killing defaults.
 
 ## Non-Claims
 
+This document non-claims remain: no full network stress, no real bot swarm,
+no MMO-scale load claim, no 100/500/1000 client claim, no load/performance
+readiness no production readiness, no default heavy stress, no unbounded stress
+loops, no StateValidation, no FaultBoundary, no OS crash handler, no stack
+traces, no remote telemetry, no external diagnostics config and no full raw
+CTest health claim. This document adds deterministic local/direct NetworkChaos policy
+evidence only; it is not real transport chaos or SagaChaosLab.

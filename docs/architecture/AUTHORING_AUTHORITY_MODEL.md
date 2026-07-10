@@ -47,7 +47,9 @@ SagaEditor may display authority context, block requirements, source spans,
 prediction safety, replication effects, and diagnostics. It must not write C#
 source directly or silently override authority errors.
 
-
+Scripting and package tools own deterministic authoring validation artifacts where
+implemented. Their artifacts may describe required authority, actual authority,
+source ranges, severity, and suggested correction.
 
 Runtime may consume client-safe artifacts for local preview, UI, visual, and
 prediction-safe behavior. Runtime is not authoritative for multiplayer state.

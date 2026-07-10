@@ -12,7 +12,7 @@ and runtime diagnostics for load failures. It may consume package and asset
 manifests produced by other layers.
 
 Runtime does not own editor import/cook workflows, package staging, publish
-readiness, Prism stale-artifact analysis, Forge orchestration, source asset
+readiness, repository-analysis tooling, Forge orchestration, source asset
 normalization, or asset authoring UI. Those responsibilities remain with the
 asset pipeline, tools, publish contracts, and editor surfaces.
 

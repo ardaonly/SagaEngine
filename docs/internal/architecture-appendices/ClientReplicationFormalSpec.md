@@ -97,7 +97,13 @@ It may define:
 
 It does not own:
 
-
+- server authority implementation,
+- editor collaboration policy,
+- product session lifecycle,
+- editor UI,
+- asset import/cook workflows,
+- transport backend implementation,
+- collaboration backend implementation.
 
 ---
 
@@ -1506,9 +1512,6 @@ This should be obvious, which is exactly why it must be written down.
 
 
 
-
-
-
 Allowed examples:
 
 ```txt
@@ -1521,7 +1524,8 @@ diagnostic payload
 
 Forbidden dependency direction:
 
-
+```txt
+```
 
 Replication consumes runtime-ready schema/artifact references.
 

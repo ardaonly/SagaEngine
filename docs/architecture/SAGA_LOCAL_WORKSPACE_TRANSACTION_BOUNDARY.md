@@ -27,7 +27,21 @@ contracts, and future durable project-owned metadata.
 
 Real current surfaces:
 
-
+- Product Shell session/workspace metadata: `SagaSessionModel`,
+  `SagaWorkspaceResolver`, built-in workspace data, and no-UI report
+  commands.
+- Editor read models: no-UI StarterArena inspection, project browser,
+  diagnostics, script projection, patch preview/review, and profile/capability
+  metadata.
+- Collaboration inventory: editor collaboration scaffolds for locks, presence,
+  audit, sessions, workspace, sync, and server boundaries.
+- Local collaboration metadata reports: Product Shell no-UI presence/lock and
+  review/comment/audit report commands for this document and Local role/permission and project slice visibility metadata reports: Product
+  Shell no-UI commands for this document and Local approval and publish gate metadata report: Product Shell no-UI command
+  for this document that keeps publish readiness blocked and report-only.
+- Local/offline collaboration model evidence: `SagaCollaboration` unit tests for
+  identity, presence reports, metadata-only reviews, comments, locks, semantic
+  transaction logs, conflicts, and Team Room report models.
 
 Current missing implementation:
 
@@ -80,7 +94,10 @@ ApplyCopiedSourcePatch
 RunWorkflowSmokeReference
 ```
 
-
+The current contract report does not write `.saga/collaboration/`, append a durable
+transaction log, apply source patches, mutate `.sagaproj`, mutate scenes, mutate
+scripts, regenerate generated tool files, start a server, or synchronize with another
+machine.
 
 ## Risks And Guardrails
 

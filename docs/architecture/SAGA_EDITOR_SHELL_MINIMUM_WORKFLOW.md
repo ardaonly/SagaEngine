@@ -78,7 +78,19 @@ profile editing.
 
 This document does not implement or claim:
 
-
+- full editor;
+- full editor dashboard;
+- Visual Blocks editor UI;
+- drag/drop editing;
+- in-place C# editing;
+- package builder;
+- distribution pipeline;
+- collaboration server;
+- runtime engine changes;
+- server changes;
+- SagaScript changes;
+- StarterArena gameplay changes;
+- CSharpScriptHost changes.
 
 No milestone is marked `Verified`.
 

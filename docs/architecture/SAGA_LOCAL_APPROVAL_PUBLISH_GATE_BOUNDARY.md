@@ -65,3 +65,7 @@ output, does not block a real publish pipeline, and does not claim package or
 distribution readiness. `scripts/package-linux-saga` remains an optional
 diagnostic outside this report.
 
+The command writes only the caller-provided report output path. It does not
+mutate `.sagaproj`, scenes, scripts files, package profiles, diagnostics
+folders, report folders, workspace files, package output, or durable approval,
+policy, audit, or collaboration metadata.

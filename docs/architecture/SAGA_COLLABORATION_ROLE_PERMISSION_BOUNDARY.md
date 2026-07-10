@@ -59,7 +59,9 @@ This document does not activate the Editor collaboration permission scaffolds an
 does not link Product Shell behavior to `PermissionManager`,
 `PermissionPolicy`, or `CollaboratorRole`.
 
-
+The command writes only the caller-provided report output path. It does not
+mutate `.sagaproj`, scenes, scripts files, package profiles, diagnostics
+folders, report folders, workspace files, or durable collaboration metadata.
 
 This document may reference role labels in a local approval gate preview, but that
 does not turn role metadata into permission enforcement or enterprise policy.

@@ -55,17 +55,7 @@ release status, verified release status, or maintainer verification.
 
 ## Current Package Outputs
 
-
-
-
-
-That path is valid only when produced by:
-
-
-
-
-
-
+This document stages the first Linux layout at:
 
 ```txt
 build/dist/linux/Saga
@@ -86,8 +76,6 @@ build/dist/linux/Saga.sha256
 `Saga.tar.zst` is generated only from `build/dist/linux/Saga/` and contains
 `Saga/` as the top-level archive directory. `Saga.sha256` covers only
 `Saga.tar.zst` and is compatible with `sha256sum -c`.
-
-
 
 ## Non-Claims
 
@@ -111,3 +99,11 @@ No release or historical verified status is marked by this report.
 
 ## Risks
 
+- The preflight report could be mistaken for package output.
+- The staged layout could be mistaken for a final distribution.
+- The archive could be mistaken for a production release.
+- The checksum could be mistaken for full distribution validation.
+- Placeholder binaries could hide missing tools.
+- Archive or checksum language could imply distribution readiness.
+- A future script success could mask missing runtime, editor, server, or tool
+  workflows.

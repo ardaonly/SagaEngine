@@ -22,7 +22,36 @@ status.
 
 The staged layout is:
 
-
+```txt
+build/dist/linux/Saga/
+  bin/
+    Saga
+    SagaEditor
+    SagaRuntime
+    SagaServer
+  tools/
+    sagaproject
+    sagapack
+    sagascript
+    .saga-tools/
+      sagaproject/
+      sagapack/
+      sagascript/
+  samples/
+    StarterArena/
+  docs/
+    README.md
+    product/
+      GETTING_STARTED.md
+      CURRENT_CAPABILITIES.md
+      WHAT_IS_NOT_IMPLEMENTED.md
+      CURRENT_DISTRIBUTION_STATUS.md
+  licenses/
+  VERSION
+  VERIFY.txt
+  KNOWN_LIMITATIONS.md
+  BUILD_INFO.json
+```
 
 When `--without-server` is used, `SagaServer` is not required or staged.
 
@@ -34,14 +63,6 @@ placeholder tools. This document adds distribution-mode wrappers for `sagaprojec
 `sagascript`, and `sagapack`; those wrappers dispatch only to real published
 .NET tool artifacts staged under `tools/.saga-tools/` and do not fall back to
 repository paths.
-
-
-
-
-
-
-
-
 
 ## Metadata
 

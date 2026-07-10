@@ -126,7 +126,16 @@ platform.
 
 The diagnostics dependency model for the next milestones is:
 
-
+```txt
+Core must not depend on Diagnostics.
+Diagnostics may depend on Core.
+Runtime may depend on Diagnostics where a Runtime-owned boundary needs it.
+Server may depend on Diagnostics where a Server-owned boundary needs it.
+Net/Networking may depend on Diagnostics through its owning module boundary.
+Tools may depend on Diagnostics contracts or reports where appropriate.
+Diagnostics must not hard-depend on external tool implementations.
+Shared diagnostics contracts must remain data-only and must not own emitters.
+```
 
 Current CMake partially matches this:
 
@@ -144,7 +153,17 @@ Do not add a new `SagaDiagnostics` target in the next milestone; it already exis
 
 Recommended target strategy:
 
-
+- keep the existing `SagaDiagnostics` target while auditing its public header
+  surface;
+- avoid adding Editor, Server, Runtime, Tools, Apps, or external tool implementations as hard dependencies
+  of `SagaDiagnostics`;
+- keep `SagaCoreLog` lower-level than `SagaDiagnostics`;
+- add new diagnostics source files only under the current Engine diagnostics
+  roots until a dedicated layout migration exists;
+- avoid broad `PUBLIC` dependencies from `SagaDiagnostics` unless a public
+  header requires the dependency;
+- add focused CMake/architecture tests before enforcing any new dependency rule
+  as a hard gate.
 
 The current build still uses recursive source collection for Engine
 diagnostics. That is a known boundary-inventory risk, but changing it is out of
@@ -175,7 +194,14 @@ Recommended next test direction:
 The recommended first code slice after this audit is a narrow dependency and
 contract cleanup around the existing `SagaDiagnostics` target:
 
-
+- document the minimal public surface expected from
+  `Engine/Public/SagaEngine/Diagnostics`;
+- add or refine architecture coverage that proves diagnostics public headers do
+  not include Server, Editor, Apps, Tools, or private paths;
+- verify `SagaDiagnostics` does not gain hard dependencies beyond Core logging
+  and standard library needs;
+- avoid Runtime/Server integration until the diagnostics boundary is made
+  explicit and tested.
 
 This keeps the first code milestone small and reviewable.
 

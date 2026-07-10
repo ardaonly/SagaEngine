@@ -86,7 +86,10 @@ No preset hides failures or removes known limitations.
 
 ## Shared Truth Boundary
 
-
+Customization metadata is personal editor/report preference only. It must not
+mutate `.sagaproj` files, scenes, scripts, reports, package profiles, or local
+overlays. Shared project truth remains owned by project files
+and existing CLI/tool reports.
 
 This document extends this boundary to local workspace transaction reporting:
 personal editor view/profile metadata is not shared workspace state, and a
