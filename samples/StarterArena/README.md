@@ -1,27 +1,25 @@
 # StarterArena Runtime Smoke Sample
 
 `StarterArena` is a future sample definition for project metadata validation.
-It now has a narrow `SagaRuntime` headless smoke seam.
+It now has a narrow `SagaRuntime` headless smoke path.
 
 This is not an interactive game. The runtime smoke command consumes the
 `.sagaproj` file and the declared scene resource at
 `Scenes/arena.scene.json`, runs a deterministic scene-backed local loop in
 headless mode, writes a smoke report, and exits. The sample also has one C#
 script for SagaScript compile/analyze evidence. When script manifests are
-provided, the runtime smoke can either record script metadata only or, with an
-explicit opt-in flag, load the compiled script assembly and invoke exactly one
-known pure method: `GameRules.AddPickupScore(10, 5)`. A focused runtime test
-also compiles the real `GameRules` script, loads its generated script artifact,
-creates a C# instance, and invokes its lifecycle methods through the existing
-script host. This is not arbitrary script execution, renderer/client gameplay,
-Visual Blocks, editor workflow, package output, or distribution output. Server
+provided, the runtime smoke can record script metadata only, invoke exactly one
+known pure method with an explicit opt-in flag, or record focused `GameRules`
+C# lifecycle evidence with a separate explicit opt-in flag. This is not
+arbitrary script execution, renderer/client gameplay, Visual Blocks, editor
+workflow, package install, package output, or distribution output. Server
 authority evidence is tracked separately through a bounded socket-free headless
 smoke.
 
 Runtime smoke command:
 
 ```sh
-build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --smoke-report-out /tmp/starter_arena_runtime_smoke.json --smoke-frames 30 --fixed-dt 0.016
+<build-dir>/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --smoke-report-out /tmp/starter_arena_runtime_smoke.json --smoke-frames 30 --fixed-dt 0.016
 ```
 
 The tracked directories exist only because the current project schema validates
@@ -30,7 +28,7 @@ the diagnostics and generated report paths:
 - `Diagnostics`
 - `Build/Reports`
 
-The tracked scene resource exists only for the bounded runtime smoke seam:
+The tracked scene resource exists only for the bounded runtime smoke path:
 
 - `Scenes/arena.scene.json`
 
@@ -55,22 +53,40 @@ nix-shell --run "SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY=Engine/Managed/SagaScript.Ru
 Focused runtime script metadata smoke:
 
 ```sh
-build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --smoke-report-out /tmp/starter_arena_script_binding_smoke.json --smoke-frames 30 --fixed-dt 0.016
+<build-dir>/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --smoke-report-out /tmp/starter_arena_script_binding_smoke.json --smoke-frames 30 --fixed-dt 0.016
 ```
+
+This records `scriptBinding.status: Passed` and
+`scriptBinding.execution: MetadataOnly`. It does not load or invoke the C#
+assembly.
 
 Focused runtime script invocation smoke:
 
 ```sh
-nix-shell --run "build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --invoke-starter-arena-script --smoke-report-out /tmp/starter_arena_script_invocation_smoke.json --smoke-frames 30 --fixed-dt 0.016"
+nix-shell --run "<build-dir>/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --invoke-starter-arena-script --smoke-report-out /tmp/starter_arena_script_invocation_smoke.json --smoke-frames 30 --fixed-dt 0.016"
 ```
 
-The invocation smoke requires a .NET host environment; use the dev shell unless
-`hostfxr` is already discoverable in the local environment.
+This records controlled pure-method evidence under `scriptInvocation`:
+`scriptInvocation.execution: Invoked`, method `AddPickupScore`, arguments
+`[10, 5]`, and result `15`.
+
+Focused runtime script lifecycle smoke:
+
+```sh
+nix-shell --run "<build-dir>/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --run-starter-arena-script-lifecycle --smoke-report-out /tmp/starter_arena_script_lifecycle_smoke.json --smoke-frames 30 --fixed-dt 0.016"
+```
+
+This records focused lifecycle evidence under `scriptLifecycle`:
+`scriptLifecycle.execution: Invoked`, the `GameRules` script id/type, and the
+`OnCreate`, `OnStart`, `OnUpdate`, and `OnDestroy` callbacks.
+
+The invocation and lifecycle smokes require a .NET host environment; use the dev
+shell unless `hostfxr` is already discoverable in the local environment.
 
 Focused server-authoritative smoke:
 
 ```sh
-build/RelWithDebInfo-0.0.9/bin/MultiplayerSandboxHeadless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-server-smoke --report-out /tmp/starter_arena_server_smoke.json --diagnostics-out /tmp/starter_arena_server_diagnostics --ticks 1 --fixed-dt 1.0
+<build-dir>/bin/MultiplayerSandboxHeadless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-server-smoke --report-out /tmp/starter_arena_server_smoke.json --diagnostics-out /tmp/starter_arena_server_diagnostics --ticks 1 --fixed-dt 1.0
 ```
 
 This server smoke is local and deterministic. It proves server-owned state,

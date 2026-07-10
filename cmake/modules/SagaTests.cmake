@@ -147,6 +147,9 @@ function(saga_setup_tests)
     set(SAGA_CSHARP_GAMEPLAY_PROOF_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/Runtime/CSharpGameplayProofTests.cpp"
     )
+    set(STARTER_ARENA_RUNTIME_SMOKE_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Runtime/StarterArenaRuntimeSmokeTests.cpp"
+    )
     set(SAGA_ACTOR_OWNERSHIP_REGISTRY_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/Server/ActorOwnershipRegistryTests.cpp"
     )
@@ -222,6 +225,7 @@ function(saga_setup_tests)
         ${SAGA_RUNTIME_SERVICE_REGISTRY_DIAGNOSTICS_TEST_SOURCE}
         ${SAGA_CSHARP_SCRIPT_HOST_TEST_SOURCE}
         ${SAGA_CSHARP_GAMEPLAY_PROOF_TEST_SOURCE}
+        ${STARTER_ARENA_RUNTIME_SMOKE_TEST_SOURCE}
         ${SAGA_ACTOR_OWNERSHIP_REGISTRY_TEST_SOURCE}
         ${SAGA_AUTHORITATIVE_MOVEMENT_CORE_TEST_SOURCE}
         ${SAGA_AUTHORITATIVE_MOVEMENT_INPUT_ADAPTER_TEST_SOURCE}
@@ -1504,6 +1508,36 @@ function(saga_setup_tests)
         )
         add_test(NAME CSharpGameplayProofTests COMMAND CSharpGameplayProofTests)
         set_tests_properties(CSharpGameplayProofTests PROPERTIES LABELS "unit;runtime;scripting;csharp")
+    endif()
+
+    # --- StarterArena runtime smoke tests ----------------------------------
+    if(EXISTS "${STARTER_ARENA_RUNTIME_SMOKE_TEST_SOURCE}" AND
+       TARGET SagaRuntime AND
+       TARGET SagaScriptRuntimeBridge)
+        add_executable(StarterArenaRuntimeSmokeTests
+            ${STARTER_ARENA_RUNTIME_SMOKE_TEST_SOURCE}
+        )
+        add_dependencies(StarterArenaRuntimeSmokeTests
+            SagaRuntime
+            SagaScriptRuntimeBridge
+        )
+        target_link_libraries(StarterArenaRuntimeSmokeTests PRIVATE
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+            nlohmann_json::nlohmann_json
+        )
+        target_compile_definitions(StarterArenaRuntimeSmokeTests PRIVATE
+            SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+            SAGA_RUNTIME_EXECUTABLE="$<TARGET_FILE:SagaRuntime>"
+            SAGA_SCRIPT_RUNTIME_BRIDGE_ASSEMBLY="${SAGA_SCRIPT_RUNTIME_BRIDGE_ASSEMBLY}"
+            SAGA_DOTNET_EXECUTABLE="${SAGA_DOTNET_EXECUTABLE}"
+            SAGA_DOTNET_ROOT="${SAGA_DOTNET_ROOT}"
+        )
+        add_test(NAME StarterArenaRuntimeSmokeTests
+            COMMAND StarterArenaRuntimeSmokeTests)
+        set_tests_properties(StarterArenaRuntimeSmokeTests PROPERTIES
+            LABELS "unit;runtime;scripting;csharp;sample")
     endif()
 
     # --- Script binding runtime thin runner --------------------------------
