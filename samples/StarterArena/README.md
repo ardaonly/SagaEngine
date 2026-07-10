@@ -1,7 +1,7 @@
 # StarterArena Runtime Smoke Sample
 
 `StarterArena` is a future sample definition for project metadata validation.
-It now has a narrow `SagaRuntime` smoke seam for Phase 10.
+It now has a narrow `SagaRuntime` headless smoke seam.
 
 This is not an interactive game. The runtime smoke command consumes the
 `.sagaproj` file and the declared scene resource at
@@ -10,9 +10,11 @@ headless mode, writes a smoke report, and exits. The sample also has one C#
 script for SagaScript compile/analyze evidence. When script manifests are
 provided, the runtime smoke can either record script metadata only or, with an
 explicit opt-in flag, load the compiled script assembly and invoke exactly one
-known pure method: `GameRules.AddPickupScore(10, 5)`. This is not arbitrary
-script execution, C# lifecycle execution, renderer/client gameplay, Visual
-Blocks, editor workflow, package output, or distribution output. Server
+known pure method: `GameRules.AddPickupScore(10, 5)`. A focused runtime test
+also compiles the real `GameRules` script, loads its generated script artifact,
+creates a C# instance, and invokes its lifecycle methods through the existing
+script host. This is not arbitrary script execution, renderer/client gameplay,
+Visual Blocks, editor workflow, package output, or distribution output. Server
 authority evidence is tracked separately through a bounded socket-free headless
 smoke.
 
@@ -32,7 +34,8 @@ The tracked scene resource exists only for the bounded runtime smoke seam:
 
 - `Scenes/arena.scene.json`
 
-The tracked script source exists only for SagaScript compile/analyze evidence:
+The tracked script source exists only for SagaScript compile/analyze evidence
+and the focused C# lifecycle proof:
 
 - `Scripts/GameRules.cs`
 
@@ -75,5 +78,5 @@ one accepted input, one rejected invalid input, and one authoritative snapshot
 report. It is not full multiplayer gameplay and does not start an external
 client.
 
-Phase 10 acceptance notes are tracked in `ACCEPTANCE.md`. Known limitations are
-tracked in `KNOWN_LIMITATIONS.md`.
+Acceptance notes are tracked in `ACCEPTANCE.md`. Known limitations are tracked
+in `KNOWN_LIMITATIONS.md`.
