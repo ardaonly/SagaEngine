@@ -1,5 +1,5 @@
 /// @file EditorCompositionTests.cpp
-/// @brief Unit tests for SDE-backed editor composition artifact consumption.
+/// @brief Unit tests for editor composition artifact consumption.
 
 #include "SagaEditor/Composition/EditorCompositionArtifactLoader.h"
 #include "SagaEditor/Composition/EditorCompositionDiff.h"
@@ -55,7 +55,7 @@ void WriteFile(const fs::path& path, const std::string& text)
       "schemaPackage": "saga.editor",
       "schemaPackageVersion": 1,
       "compositionId": "saga.editor.default",
-      "sourceMapRef": "Build/SDE/SourceMaps/saga.editor.default.sourcemap.json",
+      "sourceMapRef": "Build/Graphs/SourceMaps/saga.editor.default.sourcemap.json",
       "metadata": {
         "displayName": "Saga Default Editor",
         "description": "Compiled test fixture for editor composition."

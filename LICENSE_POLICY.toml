@@ -242,8 +242,6 @@ paths = [
   "Apps/SagaDev/**",
   "Apps/Editor/**",
   "Apps/EditorLab/**",
-  "Apps/SagaEditorComposer/**",
-  "Schemas/Saga/Editor/**",
 ]
 required = true
 domain_owner = "SagaEditor"
@@ -410,42 +408,6 @@ target_license_expression = "MPL-2.0"
 provenance_review = "pending"
 licensing_authority_review = "conditional"
 migration_status = "unchanged"
-effective_commit = ""
-
-[[domains]]
-id = "prism-removal-candidate"
-priority = 400
-paths = ["Tools/Prism/**"]
-required = true
-domain_owner = "Prism"
-rights_holder_refs = ["RH-ARDA-KOYUNCU"]
-current_license_mode = "fixed-spdx"
-resolution_requirement = "metadata-or-policy-default"
-current_license_expression = "Apache-2.0"
-target_license_mode = "not-applicable"
-target_license_expression = ""
-provenance_review = "pending"
-licensing_authority_review = "not-applicable"
-migration_status = "excluded"
-lifecycle = "removal-candidate"
-effective_commit = ""
-
-[[domains]]
-id = "sde-removal-candidate"
-priority = 400
-paths = ["Tools/SystemDefinitionEngine/**"]
-required = true
-domain_owner = "SystemDefinitionEngine"
-rights_holder_refs = ["RH-ARDA-KOYUNCU"]
-current_license_mode = "fixed-spdx"
-resolution_requirement = "metadata-or-policy-default"
-current_license_expression = "Apache-2.0"
-target_license_mode = "not-applicable"
-target_license_expression = ""
-provenance_review = "pending"
-licensing_authority_review = "not-applicable"
-migration_status = "excluded"
-lifecycle = "removal-candidate"
 effective_commit = ""
 
 [[domains]]
@@ -871,44 +833,6 @@ distribution = "internal-tooling"
 review = "pending-configured-graph"
 blockers = []
 graph_required = true
-current_license_mode = "fixed-spdx"
-current_license_expressions = ["MPL-2.0"]
-target_license_mode = "fixed-spdx"
-generated_source_patterns = []
-generated_source_action = "report"
-expected_installed_artifact = false
-expected_exported_target = false
-export_validation = "manual-pending"
-[[targets]]
-name = "SagaPipelineLib"
-source_domains = ["saga-tools"]
-public_dependencies = []
-private_dependencies = ["SagaAssetPipelineLib"]
-runtime_dependencies = []
-target_license_expression = "MPL-2.0"
-distribution = "internal-tooling"
-review = "pending-configured-graph"
-blockers = []
-graph_required = true
-current_license_mode = "fixed-spdx"
-current_license_expressions = ["MPL-2.0"]
-target_license_mode = "fixed-spdx"
-generated_source_patterns = []
-generated_source_action = "report"
-expected_installed_artifact = false
-expected_exported_target = false
-export_validation = "manual-pending"
-[[targets]]
-name = "SagaEditorCompositionLib"
-source_domains = ["saga-editor-current-restricted"]
-public_dependencies = []
-private_dependencies = ["SagaShared"]
-runtime_dependencies = []
-target_license_expression = "MPL-2.0"
-distribution = "internal-editor-tooling"
-review = "conditional"
-blockers = []
-graph_required = false
 current_license_mode = "fixed-spdx"
 current_license_expressions = ["MPL-2.0"]
 target_license_mode = "fixed-spdx"

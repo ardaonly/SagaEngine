@@ -283,7 +283,7 @@ void PopulateBuiltinScenarioState(FakeScenarioRuntimeAdapter& adapter)
     adapter.state["editor.core.identity.stable"] = "true";
     adapter.state["editor.engine_bridge.identity.stable"] = "true";
     adapter.state["editor.customization.builtin.available"] = "true";
-    adapter.state["editor.customization.project.source"] = ".sde";
+    adapter.state["editor.customization.project.source"] = "builtin";
     adapter.state["editor.customization.user.source"] = "~/.config/Saga";
     adapter.state["editor.customization.project.profiles.loaded"] = "true";
     adapter.state["editor.customization.user.override.applied"] = "true";

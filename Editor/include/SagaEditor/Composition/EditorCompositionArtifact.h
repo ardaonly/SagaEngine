@@ -1,5 +1,5 @@
 /// @file EditorCompositionArtifact.h
-/// @brief Data model for compiled SDE editor composition artifacts.
+/// @brief Data model for compiled editor composition artifacts.
 
 #pragma once
 
@@ -14,7 +14,7 @@ using EditorCompositionArtifactVersion = uint32_t;
 
 inline constexpr EditorCompositionArtifactVersion kCurrentEditorCompositionArtifactVersion = 1;
 
-/// Stable metadata emitted by the SDE editor composition artifact writer.
+/// Stable metadata emitted by the editor composition artifact writer.
 struct EditorCompositionMetadata
 {
     std::string displayName;
@@ -99,7 +99,7 @@ struct EditorModeDefinition
     std::vector<std::string> requiredPanels;
 };
 
-/// Immutable compiled artifact produced from saga.editor SDE source definitions.
+/// Immutable compiled artifact produced from editor composition source definitions.
 struct EditorCompositionArtifact
 {
     std::string artifactKind;

@@ -1073,7 +1073,7 @@ TEST(EditorLabCustomizationScenarioTest, CapturesProjectAndUserPrecedence)
 
     EXPECT_EQ(steps[0].assertion.statePath,
               "editor.customization.builtin.available");
-    EXPECT_EQ(steps[1].assertion.expectedValue, ".sde");
+    EXPECT_EQ(steps[1].assertion.expectedValue, "builtin");
     EXPECT_EQ(steps[2].assertion.expectedValue, "~/.config/Saga");
     EXPECT_EQ(steps[4].assertion.statePath,
               "editor.customization.project.profiles.loaded");

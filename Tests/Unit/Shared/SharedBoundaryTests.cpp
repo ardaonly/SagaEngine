@@ -33,7 +33,6 @@ TEST(SharedBoundaryTests, PublicHeadersDoNotIncludeUpperLayers)
         "SagaServer/",
         "SagaCollaboration/",
         "Apps/Saga/",
-        "SDE/",
         "<Q",
     };
 

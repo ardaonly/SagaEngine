@@ -62,7 +62,7 @@ struct ProductionDashboardPanel::Impl
         engineCommit = AddRow(form, "Commit");
         profile = AddRow(form, "Workspace Profile");
         persona = AddRow(form, "Persona");
-        customization = AddRow(form, "SDE Customization");
+        customization = AddRow(form, "Project Customization");
         customizationSource = AddRow(form, "Customization Source");
 
         root->addLayout(form);
@@ -105,7 +105,7 @@ struct ProductionDashboardPanel::Impl
         const EditorCustomizationStatus& status =
             host.GetCustomizationCatalog().Status();
         customization->setText(QStringLiteral("%1 - %2")
-            .arg(BoolText(status.sdeAvailable),
+            .arg(BoolText(status.loaded),
                  ValueText(status.message)));
         customizationSource->setText(
             QString::fromStdString(status.sourceRoot.generic_string()));

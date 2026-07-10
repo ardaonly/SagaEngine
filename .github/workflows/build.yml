@@ -24,7 +24,6 @@ jobs:
             Tools/scripts/export_tool_mirrors.py \
             Tools/scripts/report_boundary_status.py \
             Tools/Forge/build.py \
-            Tools/Prism/build.py \
             Tools/SagaTools/setup.py
 
       - name: Run boundary report

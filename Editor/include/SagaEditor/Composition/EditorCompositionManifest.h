@@ -1,5 +1,5 @@
 /// @file EditorCompositionManifest.h
-/// @brief Manifest model for locating compiled SDE editor composition outputs.
+/// @brief Manifest model for locating compiled editor composition outputs.
 
 #pragma once
 

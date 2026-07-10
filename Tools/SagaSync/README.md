@@ -59,7 +59,6 @@ SagaSync v1 manages the SagaEngine monorepo plus the mirror tools configured in
 It can:
 
 - show SagaEngine branch, dirty count, ahead/behind, and head commit,
-- show Forge/Prism/SDE export state from `.core/export/state`,
 - evaluate export health as Ready, Stale, Blocked, or Unknown,
 - show Quick, Forge, and Export Safety verification profiles,
 - track session-local verification run results, duration, and last run time,

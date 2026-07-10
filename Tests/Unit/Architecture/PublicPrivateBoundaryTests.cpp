@@ -182,7 +182,6 @@ TEST(PublicPrivateBoundaryTests, DiagnosticsPublicHeadersDoNotDependUpward)
         const auto text = ReadText(entry.path());
         if (text.find("SagaServer/") != std::string::npos ||
             text.find("SagaEditor/") != std::string::npos ||
-            text.find("SDE/") != std::string::npos ||
             text.find("SagaEngine/Server/") != std::string::npos ||
             text.find("SagaEngine/Editor/") != std::string::npos ||
             text.find("SagaEngine/Core/Private/") != std::string::npos)
@@ -192,7 +191,7 @@ TEST(PublicPrivateBoundaryTests, DiagnosticsPublicHeadersDoNotDependUpward)
     }
 
     EXPECT_TRUE(offenders.empty())
-        << "SagaDiagnostics public headers must not depend on Server, Editor, or SDE.";
+        << "SagaDiagnostics public headers must not depend on Server or Editor.";
 }
 
 TEST(PublicPrivateBoundaryTests, EnginePublicDoesNotExposeServerOrConcreteBackends)

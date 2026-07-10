@@ -3,18 +3,9 @@
 SagaEditor workspace customization is user preference data layered on top of a
 compiled editor composition snapshot.
 
-Canonical editor structure is not stored in customization overlays. The source
-of truth for editor structure is:
-
-```txt
-Editor/CompositionSources/source/*.sde
-```
-
-The product pipeline compiles that source through SagaPipeline and the
-SagaEditorComposition tool into generated artifacts and manifests under
-`Build/Artifacts`, `Build/Manifests`, and `Build/Reports`. Editor runtime code
-loads documented compiled manifests and artifacts. It does not invoke Forge,
-SDE, SagaPipeline, or the composition compiler at startup.
+Canonical editor structure is not stored in customization overlays. Editor
+runtime code loads documented compiled manifests and artifacts. It does not
+invoke build tools at runtime.
 
 The safe customization flow is:
 
@@ -58,8 +49,6 @@ EditorHost
 
 The workspace panel edits only user overlay visibility deltas through the session. It does
 not parse overlay JSON directly, decide whether panels are editable, mutate the
-resolved composition snapshot, discover shell panels itself, edit `.sde` source,
-or invoke Forge, SDE, SagaPipeline, or the composition compiler.
 
 Locked, internal-only, or unavailable panels are rendered as non-editable rows
 with a locked reason. Missing composition state produces an unconfigured view
@@ -125,13 +114,9 @@ SagaEditor --smoke --no-show --windowed --smoke-timeout-ms 1000
 
 Smoke mode initializes the normal editor app, host, shell, and registered
 product panels, including Customize Workspace, then runs a bounded UI event loop
-and exits. It does not invoke SDE, Forge, SagaPipeline, or composition compiler
 tools at runtime.
 
 ## Boundaries
 
 - Customization model, controller, diagnostics, and store code are Qt-free.
-- Customization core does not parse `.sde`.
 - SagaEditor consumes compiled manifests and artifacts only.
-- SagaPipeline owns product orchestration; editor runtime does not invoke it.
-- Apps/SagaEditorComposer and internal mutation tools are deferred.

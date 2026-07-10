@@ -22,7 +22,7 @@ void PopulateDefaultState(std::unordered_map<std::string, std::string>& state)
     state["editor.core.identity.stable"] = "true";
     state["editor.engine_bridge.identity.stable"] = "true";
     state["editor.customization.builtin.available"] = "true";
-    state["editor.customization.project.source"] = ".sde";
+    state["editor.customization.project.source"] = "builtin";
     state["editor.customization.user.source"] = "~/.config/Saga";
     state["editor.customization.project.profiles.loaded"] = "true";
     state["editor.customization.user.override.applied"] = "true";

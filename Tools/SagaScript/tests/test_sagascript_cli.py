@@ -33,7 +33,6 @@ SHARED_BOUNDARY_FORBIDDEN = (
     "SagaServer",
     "Forge",
     "Pr" + "ism",
-    "SDE",
 )
 
 

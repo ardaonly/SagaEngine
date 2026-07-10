@@ -3,7 +3,6 @@
 > Last updated: 2026-05-15
 > Status: Active roadmap
 > Target: A production-grade, backend-neutral, CI-friendly build workflow frontend for Saga projects and standalone C++ projects.
-> Scope: Manifest parsing, build model lowering, backend adapters, toolchain probing, SDE invocation, graph validation, authority validation, script compile orchestration, asset cook orchestration, Prism analysis steps, package staging, manifest generation, publish readiness checks, diagnostics aggregation, lock/frozen behavior, NixOS/tool environment integration, and external usability.
 
 ---
 
@@ -16,8 +15,6 @@
 * Forge is a build workflow frontend.
 * Forge is not CMake.
 * Forge is not Conan.
-* Forge is not SDE.
-* Forge is not Prism.
 * Forge is not the asset importer/cooker implementation.
 * Forge is not the C# scripting compiler.
 * Forge is not the Saga product shell.
@@ -34,7 +31,6 @@ It should not become every tool it invokes.
 
 This document defines the roadmap for Forge.
 
-Forge is the build workflow frontend for Saga projects and standalone C++ projects. It provides one coherent command surface over CMake, Conan, SDE, script compile steps, asset cook steps, Prism analysis, package staging, and publish readiness checks.
 
 Forge owns:
 
@@ -46,10 +42,8 @@ Forge owns:
 * toolchain probing,
 * strict/frozen checks,
 * build/test/install wrappers,
-* SDE invocation as a step,
 * script compile invocation as a step,
 * asset cook invocation as a step,
-* Prism analysis invocation as a step,
 * package staging orchestration,
 * manifest/report aggregation,
 * diagnostics aggregation,
@@ -59,8 +53,6 @@ Forge does not own:
 
 * CMake internals,
 * Conan internals,
-* SDE compiler internals,
-* Prism indexer internals,
 * asset importer/cooker internals,
 * C# compiler/scripting host internals,
 * Saga product shell,
@@ -85,7 +77,6 @@ Forge
 Incorrect model:
 
 ```txt
-Forge parses SDE AST, compiles scripts itself, cooks textures internally, indexes code like Prism, and launches product UI.
 ```
 
 That is not integration.
@@ -100,12 +91,10 @@ That is toolchain hoarding.
 | ----------------------------------- | ------------------------------------------------------------------------- |
 | `BUILD_PUBLISH_PIPELINE_ROADMAP.md` | Full validate/compile/cook/analyze/package/publish pipeline               |
 | `SAGA_PRODUCT_ROADMAP.md`           | Saga product shell that initiates and displays build/publish workflows    |
-| `SDE_ROADMAP.md`                    | Standalone deterministic compiler invoked by Forge                        |
 | `SAGA_GAMEPLAY_GRAPH_ROADMAP.md`    | Graph artifacts and graph validation expectations                         |
 | `AUTHORING_AUTHORITY_MODEL.md`      | Authority/persistence/replication/prediction validation metadata          |
 | `SAGA_SCRIPTING_ROADMAP.md`         | Script compile, block bindings, generated C# artifacts, scripting reports |
 | `ASSET_PIPELINE_ROADMAP.md`         | Source asset import/cook/artifact/manifest pipeline                       |
-| `PRISM_ROADMAP.md`                  | Stale artifact and boundary analysis invoked/consumed by Forge            |
 | `SHARED_ROADMAP.md`                 | Shared build/artifact/package/publish report contracts                    |
 | `ENGINE_ROADMAP.md`                 | Runtime/server package and manifest consumption expectations              |
 | `EDITOR_ROADMAP.md`                 | Editor build/publish status UX consuming Forge reports                    |
@@ -241,10 +230,8 @@ That is toolchain hoarding.
 
   * invoke CMake,
   * invoke Conan,
-  * invoke SDE,
   * invoke script compiler/toolchain,
   * invoke asset cook tool/service,
-  * invoke Prism,
   * validate expected outputs,
   * aggregate reports,
   * stage packages,
@@ -252,11 +239,8 @@ That is toolchain hoarding.
 
   But Forge does not:
 
-  * parse SDE AST,
-  * run SDE semantic passes internally,
   * compile C# itself unless through a script compiler adapter boundary,
   * decode/import source textures/meshes/audio internally,
-  * index source code like Prism,
   * execute runtime/server gameplay,
   * own product UI.
 
@@ -285,10 +269,8 @@ Allowed dependency directions:
 Forge → CMakeAdapter / ConanAdapter implementation
 Forge → ToolEnv / EnvProbe
 Forge → Forge manifest/build model/plan internals
-Forge → SDE executable or public compiler facade where explicitly approved
 Forge → script compiler executable/service boundary
 Forge → asset cook executable/service boundary
-Forge → Prism executable/report boundary
 Forge → SagaShared build/artifact/package/diagnostic contracts where approved
 Forge → project files/manifests/reports
 ```
@@ -304,8 +286,6 @@ Forge → Saga product shell internals
 Forge → SagaEditor UI
 Forge → Runtime private internals
 Forge → Server private internals
-Forge → SDE parser/AST/semantic internals
-Forge → Prism index database internals
 Forge → asset importer/cooker private implementation
 Forge → scripting host/compiler private implementation
 Forge → Qt UI
@@ -314,9 +294,7 @@ Forge → Qt UI
 Forbidden shortcuts:
 
 ```txt
-Forge directly compiles SDE by including compiler passes.
 Forge directly cooks textures internally.
-Forge directly indexes generated C# source like Prism.
 Forge directly launches editor UI.
 Forge directly validates server authority by including server-private code.
 Forge silently ignores stale generated/cooked artifacts.
@@ -367,7 +345,6 @@ Forge silently ignores stale generated/cooked artifacts.
 
 * [ ] Add `forge validate`.
 
-  Done means `forge validate` can run project/toolchain/SDE/graph/script/asset/package validation without necessarily building final binaries.
 
   Expected usage:
 
@@ -377,20 +354,16 @@ Forge silently ignores stale generated/cooked artifacts.
   forge validate --json
   ```
 
-* [ ] Add `forge sde` command group or SDE step integration.
 
   Done means Forge can invoke:
 
   ```txt
-  sde validate
-  sde compile
   ```
 
   through configured tool boundaries and collect reports.
 
 * [ ] Add `forge graph` validation/build step surface where useful.
 
-  Done means graph validation is represented in build plans as SDE/graph artifact validation, not as editor-only behavior.
 
 * [ ] Add `forge scripts` or script compile step surface.
 
@@ -428,8 +401,6 @@ Forge silently ignores stale generated/cooked artifacts.
 
   * toolchain,
   * configured tools,
-  * SDE availability,
-  * Prism availability,
   * script compiler availability,
   * asset cook tool availability,
   * project manifest sanity,
@@ -478,7 +449,6 @@ Forge silently ignores stale generated/cooked artifacts.
   saga.project.json
   forge.toml
   package/build profile manifests
-  SDE roots
   script roots
   asset roots
   generated/build/package roots
@@ -512,12 +482,10 @@ Forge silently ignores stale generated/cooked artifacts.
 
   Done means profiles can configure:
 
-  * SDE validation severity,
   * graph validation severity,
   * authority validation severity,
   * script analyzer severity,
   * asset cook strictness,
-  * Prism stale check policy,
   * package manifest validation strictness,
   * publish blocker policy.
 
@@ -528,9 +496,6 @@ Forge silently ignores stale generated/cooked artifacts.
 Possible future `forge.toml` or Saga build-profile sections:
 
 ```toml
-[sde]
-root = ".sde"
-out = "Generated/SDE"
 
 [scripts]
 root = "Scripts"
@@ -639,8 +604,6 @@ ConfigureBackend
 BuildBackend
 RunTests
 InstallTarget
-ValidateSDE
-CompileSDE
 ValidateGameplayGraph
 ValidateAuthority
 GenerateGraphCode
@@ -648,8 +611,6 @@ ValidateScripts
 CompileScripts
 ValidateAssets
 CookAssets
-RunPrismBoundaryChecks
-RunPrismStaleChecks
 StageClientPackage
 StageServerPackage
 StageEditorPreviewPackage
@@ -683,8 +644,6 @@ Tools/Forge/include/Forge/Steps/ScriptValidateStep.hpp
 Tools/Forge/include/Forge/Steps/ScriptCompileStep.hpp
 Tools/Forge/include/Forge/Steps/AssetValidateStep.hpp
 Tools/Forge/include/Forge/Steps/AssetCookStep.hpp
-Tools/Forge/include/Forge/Steps/PrismBoundaryCheckStep.hpp
-Tools/Forge/include/Forge/Steps/PrismStaleCheckStep.hpp
 Tools/Forge/include/Forge/Steps/PackageStageStep.hpp
 Tools/Forge/include/Forge/Steps/ManifestGenerateStep.hpp
 Tools/Forge/include/Forge/Steps/PublishReadinessStep.hpp
@@ -787,8 +746,6 @@ Backend collection is not product maturity.
   * ctest,
   * conan,
   * compiler,
-  * sde,
-  * prism,
   * dotnet or script compiler tool,
   * asset cook tool,
   * package tool where applicable.
@@ -800,8 +757,6 @@ Backend collection is not product maturity.
   * cmake version,
   * conan version,
   * compiler version,
-  * sde version,
-  * prism version,
   * script compiler version,
   * asset cook tool version,
   * package tool version.
@@ -812,11 +767,8 @@ Backend collection is not product maturity.
 
 ---
 
-## 12. SDE Integration
 
-* [ ] Add SDE tool adapter.
 
-  Done means Forge can invoke SDE via:
 
   * executable path from ToolEnv,
   * configured source root,
@@ -836,11 +788,8 @@ Tools/Forge/src/Steps/SdeValidateStep.cpp
 Tools/Forge/src/Steps/SdeCompileStep.cpp
 ```
 
-* [ ] Treat SDE as standalone compiler.
 
-  Done means Forge never includes SDE parser/AST/semantic internals.
 
-* [ ] Consume SDE reports.
 
   Done means Forge reads:
 
@@ -850,14 +799,12 @@ Tools/Forge/src/Steps/SdeCompileStep.cpp
   * source maps,
   * generated output manifests.
 
-* [ ] Fail correctly on SDE errors.
 
   Done means:
 
   * validation errors fail validation/profile where required,
   * compile errors block artifact staging,
   * partial failed outputs are not treated as valid,
-  * build report includes SDE diagnostics and output refs.
 
 ---
 
@@ -865,7 +812,6 @@ Tools/Forge/src/Steps/SdeCompileStep.cpp
 
 * [ ] Add graph validation step.
 
-  Done means Forge can validate graph outputs from SDE for:
 
   * graph artifact presence,
   * graph schema version,
@@ -988,11 +934,8 @@ Tools/Forge/src/Steps/AssetCookStep.cpp
 
 ---
 
-## 16. Prism Integration
 
-* [ ] Add Prism adapter.
 
-  Done means Forge can invoke Prism checks:
 
   * boundary validation,
   * stale artifact validation,
@@ -1002,15 +945,8 @@ Tools/Forge/src/Steps/AssetCookStep.cpp
 Expected files:
 
 ```txt
-Tools/Forge/include/Forge/Adapters/PrismAdapter.hpp
-Tools/Forge/src/Adapters/PrismAdapter.cpp
-Tools/Forge/include/Forge/Steps/PrismBoundaryCheckStep.hpp
-Tools/Forge/include/Forge/Steps/PrismStaleCheckStep.hpp
-Tools/Forge/src/Steps/PrismBoundaryCheckStep.cpp
-Tools/Forge/src/Steps/PrismStaleCheckStep.cpp
 ```
 
-* [ ] Consume Prism reports.
 
   Done means Forge reads:
 
@@ -1020,9 +956,7 @@ Tools/Forge/src/Steps/PrismStaleCheckStep.cpp
   * generated origin reports,
   * package relationship reports.
 
-* [ ] Keep Prism implementation outside Forge.
 
-  Done means Forge does not index source, own symbol graphs, or inspect internal Prism databases.
 
 ---
 
@@ -1193,7 +1127,6 @@ Tools/Forge/src/Reports/BuildReportWriter.cpp
   ```txt
   ProjectManifestInvalid
   ToolchainInvalid
-  SDECompileError
   GraphValidationError
   AuthorityValidationError
   ScriptCompileError
@@ -1274,7 +1207,6 @@ Tools/Forge/src/Diagnostics/DiagnosticCollector.cpp
 
 * [ ] Normalize tool diagnostics.
 
-  Done means SDE/script/asset/Prism/CMake/Conan diagnostics can be included in a single build report without losing original source/tool context.
 
 * [ ] Emit machine-readable reports.
 
@@ -1361,7 +1293,6 @@ No one wants a 4,000-line terminal scroll as the only artifact of failure.
 
   * dependency install mode,
   * tool versions,
-  * SDE compiler version,
   * schema package versions,
   * script compiler version,
   * asset cook tool version,
@@ -1465,7 +1396,6 @@ Forge must remain useful beyond Saga-specific projects where practical.
 
 * [ ] Make Saga pipeline features opt-in.
 
-  Done means non-Saga projects are not forced to define SDE/scripts/assets/package profiles.
 
 * [ ] Keep errors clear when Saga-only commands are used in non-Saga project.
 
@@ -1477,7 +1407,6 @@ Forge must remain useful beyond Saga-specific projects where practical.
 
 Forge can serve Saga without becoming unusable for smaller C++ projects.
 
-That is the same lesson as SDE: reusable tools are stronger than captive ones.
 
 ---
 
@@ -1493,7 +1422,6 @@ That is the same lesson as SDE: reusable tools are stronger than captive ones.
   python3 -m py_compile Tools/scripts/export_tool_mirrors.py Tools/SagaTools/setup.py
   cargo check --manifest-path Tools/SagaTools/Cargo.toml
   python3 Tools/SagaTools/setup.py --no-smoke --no-symlink
-  ./export.sh --dry-run --tool Prism
   ```
 
   Note: these are ecosystem checks, not complete Forge tests. Forge needs its own pipeline tests.
@@ -1529,7 +1457,6 @@ That is the same lesson as SDE: reusable tools are stronger than captive ones.
   * SdeAdapter command construction,
   * ScriptCompilerAdapter command construction,
   * AssetPipelineAdapter command construction,
-  * PrismAdapter command construction,
   * ToolEnv override behavior,
   * `--explain` output.
 
@@ -1542,12 +1469,10 @@ That is the same lesson as SDE: reusable tools are stronger than captive ones.
   Required coverage:
 
   * project validation,
-  * SDE validate/compile step,
   * graph validation step,
   * authority validation step,
   * script compile step,
   * asset cook step,
-  * Prism stale check step,
   * package staging step,
   * manifest generation step,
   * publish readiness step.
@@ -1580,7 +1505,6 @@ That is the same lesson as SDE: reusable tools are stronger than captive ones.
   Required coverage:
 
   * valid CI build passes,
-  * SDE error fails,
   * script compile error fails,
   * stale asset fails,
   * authority package error fails,
@@ -1597,7 +1521,6 @@ Required project contents:
 ```txt
 saga.project.json
 forge.toml
-.sde/quest_reward.sde
 Scripts/QuestXp.cs
 Assets/terrain_albedo.png
 ```
@@ -1615,11 +1538,8 @@ Required behavior:
 1. Forge resolves workspace.
 2. Forge validates project and Forge manifests.
 3. Forge probes toolchain and required tools.
-4. Forge invokes SDE validate/compile.
-5. Forge validates graph and authority metadata from SDE outputs.
 6. Forge invokes script compile adapter.
 7. Forge invokes asset cook adapter.
-8. Forge invokes Prism stale/boundary checks.
 9. Forge stages client package.
 10. Forge stages server package.
 11. Forge writes artifact/package manifests.
@@ -1640,8 +1560,6 @@ Forge must not become:
 
 * a replacement for CMake,
 * a replacement for Conan,
-* SDE compiler implementation,
-* Prism indexer implementation,
 * asset importer/cooker implementation,
 * C# compiler/scripting host,
 * Saga product shell,
@@ -1697,7 +1615,6 @@ Mitigation:
 
 * content hashes,
 * dependency manifests,
-* Prism stale checks,
 * Forge package validation,
 * publish readiness blockers.
 
@@ -1743,7 +1660,6 @@ Tools/Forge/include/Forge/Adapters/ConanAdapter.hpp
 Tools/Forge/include/Forge/Adapters/SdeAdapter.hpp
 Tools/Forge/include/Forge/Adapters/ScriptCompilerAdapter.hpp
 Tools/Forge/include/Forge/Adapters/AssetPipelineAdapter.hpp
-Tools/Forge/include/Forge/Adapters/PrismAdapter.hpp
 Tools/Forge/src/Adapters/
 ```
 
@@ -1759,8 +1675,6 @@ Tools/Forge/include/Forge/Steps/ScriptValidateStep.hpp
 Tools/Forge/include/Forge/Steps/ScriptCompileStep.hpp
 Tools/Forge/include/Forge/Steps/AssetValidateStep.hpp
 Tools/Forge/include/Forge/Steps/AssetCookStep.hpp
-Tools/Forge/include/Forge/Steps/PrismBoundaryCheckStep.hpp
-Tools/Forge/include/Forge/Steps/PrismStaleCheckStep.hpp
 Tools/Forge/include/Forge/Steps/PackageStageStep.hpp
 Tools/Forge/include/Forge/Steps/ManifestGenerateStep.hpp
 Tools/Forge/include/Forge/Steps/PublishReadinessStep.hpp
@@ -1821,8 +1735,6 @@ BuildPlan describes actual executable steps.
 Adapters own external tool invocation.
 ToolEnv resolves executables.
 EnvProbe verifies toolchain state.
-SDE remains standalone and is invoked through tool/public API boundaries.
-Prism remains analysis owner and is invoked/read through reports.
 Asset pipeline owns importer/cooker behavior; Forge invokes it.
 Scripting toolchain owns script compile behavior; Forge invokes it.
 Forge stages packages and writes manifests/reports.

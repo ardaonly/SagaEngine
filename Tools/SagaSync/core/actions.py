@@ -37,6 +37,4 @@ def default_toolbar_actions() -> tuple[SafeAction, ...]:
         export_plan_action(),
         export_all_dry_run_action(),
         export_tool_dry_run_action("Forge"),
-        export_tool_dry_run_action("Prism"),
-        export_tool_dry_run_action("SDE"),
     )

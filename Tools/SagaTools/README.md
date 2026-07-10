@@ -2,7 +2,6 @@
 
 > **Thin dispatcher.** Maps short logical names to executable paths and
 > launches them as child processes. Knows nothing about Forge's build
-> graph, nothing about Prism's parser, nothing about the engine. Owns
 > a single artefact: a flat JSON registry.
 
 ---
@@ -26,7 +25,6 @@ That single command does, in order:
    to set, ever**.
 3. Runs `tools install forge` — builds the Forge binary into
    `Tools/Forge/bin/`.
-4. Runs `tools install prism` — sets up the Prism Python pipeline
    launcher (and the C++ extractor too, if LLVM is available).
 5. Prints the one line you need to add `bin/` to your `PATH` for the
    current shell.
@@ -37,7 +35,6 @@ After PATH is set, this is what daily use looks like:
 tools list                 # see what is registered and resolvable
 tools forge --help         # Forge's own help
 tools forge build          # delegates to forge build
-tools prism --version      # delegates to prism
 tools host status          # delegates to Tools/Host/host.sh
 tools where forge          # print the resolved binary path
 ```
@@ -51,7 +48,6 @@ cargo build --release
 python3 setup.py
 
 tools install forge                  # later, on demand
-tools install prism
 ```
 
 The **only** prerequisites are `cargo` (Rust toolchain ≥ 1.0) and Python 3.8+ on
@@ -106,7 +102,6 @@ rewrite them, does not inject anything of its own.
 |----------|---------|
 | **An orchestrator.** | The dispatcher does not chain tools, does not understand pipelines, does not pipe step N to step N+1. |
 | **A build system.** | If you want a build, run `tools forge build`. The build logic is in Forge. |
-| **A code indexer.** | If you want a graph, run `tools prism …`. The indexer is in Prism. |
 | **A god-tool.** | If `tools` ever grows a `tools build` subcommand that internally invokes Forge with hard-coded flags, that subcommand has been smuggled in from the wrong layer. Reject it. |
 
 The single load-bearing property: **deleting `tools` does not break
@@ -149,12 +144,10 @@ both are optional per tool.
   "schema_version": "1.0",
   "tools": {
     "forge": "/path/to/forge",
-    "prism": "/path/to/prism",
     "host": "/path/to/SagaEngine/Tools/Host/host.sh"
   },
   "installers": {
     "forge": "../../Forge/build.py",
-    "prism": "../../Prism/build.py"
   }
 }
 ```
@@ -189,11 +182,9 @@ work without `--registry`, copy `Tools/SagaTools/config/tools.registry.json`
 to `<exe-dir>/config/tools.registry.json` (which is exactly what
 `setup.py` does for you).
 
-For Forge and Prism, their own bootstrap scripts work the same way:
 
 ```bash
 python3 Tools/Forge/build.py    # builds forge into Tools/Forge/bin/
-python3 Tools/Prism/build.py         # builds prism into Tools/Prism/bin/
 ```
 
 ---
@@ -203,8 +194,6 @@ python3 Tools/Prism/build.py         # builds prism into Tools/Prism/bin/
 The contents of `Tools/SagaTools/` become the new repo root with zero
 rewrites. There is nothing inside it that includes a SagaEngine header,
 links a SagaEngine library, or assumes the engine repository layout.
-The same is true for `Tools/Forge/` and `Tools/Prism/extractor/` +
-`Tools/Prism/pipeline/`. All three projects can be split independently.
 
 ---
 
@@ -218,14 +207,11 @@ The Rust version eliminates several classes of bugs:
 3. **No narrow/wide string confusion** — `std::process::Command` handles quoting
 4. **Memory safety** — Rust's ownership model prevents entire bug classes
 
-**Forge and Prism remain in C++** (as per roadmap):
 - Forge: CMake/Conan wrapper, hard reason to stay in C++
-- Prism: Clang LibTooling, hard reason to stay in C++
 
 The boundary stays exactly as before:
 ```
 SagaTools (Rust)  →  std::process::Command::spawn(forge_exe, args)  →  forge (C++)
-                →  std::process::Command::spawn(prism_exe, args)  →  prism (C++)
 ```
 
 No FFI. No shared library. No header sharing. Process boundary only.

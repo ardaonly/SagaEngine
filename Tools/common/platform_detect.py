@@ -3,7 +3,6 @@
 platform_detect.py — shared platform-detection helpers for SagaEngine build tooling.
 
 Consumed by:
-  Tools/Prism/build.py          (from common import platform_detect as _pd)
   Tools/SagaTools/setup.py      (from common import platform_detect as _pd)
   Tools/Forge/build.py     (optional import with fallback)
 
@@ -428,7 +427,7 @@ def llvm_not_found_hint(prefix: str = "") -> str:
     kind = detect()
     lines = [
         f"{prefix}WARNING: no LLVM installation detected.\n",
-        f"{prefix}Skipping prism-extract. Pass --llvm-dir <path> to force.\n",
+        f"{prefix}Skipping LLVM-dependent tooling. Pass --llvm-dir <path> to force.\n",
         f"{prefix}Install hints:\n",
     ]
     if kind == PlatformKind.NIXOS:

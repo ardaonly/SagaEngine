@@ -3,10 +3,10 @@
 setup.py — one-shot SagaTools Rust bootstrap.
 
     python3 Tools/SagaTools/setup.py            # build the Rust dispatcher only
-    python3 Tools/SagaTools/setup.py --all      # ALSO install forge + prism
+    python3 Tools/SagaTools/setup.py --all      # ALSO install forge
 
 Prerequisites: cargo (Rust toolchain) and Python 3.8+ on PATH.
-Forge and Prism remain in C++ (as per roadmap).
+Forge remains a standalone tool.
 """
 
 from __future__ import annotations
@@ -49,7 +49,7 @@ def read_engine_version() -> str:
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(prog="sagatools setup.py",
-        description="Build SagaTools Rust dispatcher (and optionally bootstrap forge + prism).")
+        description="Build SagaTools Rust dispatcher (and optionally bootstrap forge).")
     p.add_argument("--debug", action="store_true",
                    help="Build with debug mode.")
     p.add_argument("--clean", action="store_true",
@@ -57,7 +57,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--jobs", "-j", type=int, default=0,
                    help="Parallel build jobs (default: cargo's autoselection).")
     p.add_argument("--all", action="store_true",
-                   help="After building tools, also run `tools install forge` and `tools install prism`.")
+                   help="After building tools, also run `tools install forge`.")
     p.add_argument("--no-smoke", action="store_true",
                    help="Skip the post-build smoke test.")
     p.add_argument("--no-symlink", action="store_true",
@@ -168,24 +168,18 @@ def stage_registry(out_path: Path) -> None:
         return os.path.abspath(str(HERE.parent.joinpath(*parts)))
     
     forge_exe       = _abs("Forge", "bin", "forge.exe" if is_win else "forge")
-    prism_exe       = _abs("Prism", "bin", "prism-graph.cmd" if is_win else "prism-graph")
-    saga_pipeline_exe = _abs("..", "build", f"RelWithDebInfo-{engine_version}", "bin",
-                             "saga-pipeline.exe" if is_win else "saga-pipeline")
     host_exe        = _abs("Host", "host.sh")
     sagasync_exe    = _abs("SagaSync", "sagasync.cmd" if is_win else "sagasync")
     forge_installer = _abs("Forge", "build.py")
-    prism_installer = _abs("Prism", "build.py")
     
     payload = {
         "schema_version": "1.0",
         "tools":      {
             "forge": forge_exe,
-            "prism": prism_exe,
-            "saga-pipeline": saga_pipeline_exe,
             "host": host_exe,
             "sagasync": sagasync_exe,
         },
-        "installers": {"forge": forge_installer, "prism": prism_installer},
+        "installers": {"forge": forge_installer},
     }
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(
@@ -326,7 +320,6 @@ def print_next_steps(tools_bin: Path) -> None:
     print()
     print("    tools list")
     print("    tools forge --help")
-    print("    tools prism --version")
     print("    tools host status")
     print()
     print("=" * 70)
@@ -371,7 +364,6 @@ def main() -> int:
     
     if args.all:
         cascade_install(staged, "forge")
-        cascade_install(staged, "prism")
     
     print_next_steps(staged)
     return 0

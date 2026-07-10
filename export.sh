@@ -11,8 +11,6 @@ Usage:
   ./export.sh all                   Same as no args.
   ./export.sh plan                  Dry-run all configured tools.
   ./export.sh forge                 Export only Forge.
-  ./export.sh prism                 Export only Prism.
-  ./export.sh sde                   Export only SystemDefinitionEngine.
   ./export.sh changed-since <ref>   Export tools changed since an explicit ref.
   ./export.sh commit-guide          Print suggested monorepo commit groups.
 
@@ -32,12 +30,8 @@ Suggested commit groups:
     git add -A -- Apps/Editor Apps/EditorLab Apps/Saga Editor Tests/Unit/Editor Tests/Unit/Saga
     git commit -m "feat(editor): add first Saga product prototype"
 
-  SDE:
-    git add -A -- Tools/SystemDefinitionEngine
-    git commit -m "feat(sde): establish compiler foundation"
-
   Tools:
-    git add -A -- Tools/Forge Tools/Host Tools/Prism Tools/SagaTools Tools/common Tools/scripts export.sh core/export .github/workflows/export-tools.yml .dockerignore
+    git add -A -- Tools/Forge Tools/Host Tools/SagaTools Tools/common Tools/scripts export.sh core/export .github/workflows/export-tools.yml .dockerignore
     git commit -m "feat(tools): add export and host automation"
 
   Docs/Project:
@@ -72,14 +66,6 @@ if [ "$#" -gt 0 ]; then
         forge|Forge)
             shift
             exec python3 "$runner" --repo-root "$repo_root" --tool Forge "$@"
-            ;;
-        prism|Prism)
-            shift
-            exec python3 "$runner" --repo-root "$repo_root" --tool Prism "$@"
-            ;;
-        sde|SDE)
-            shift
-            exec python3 "$runner" --repo-root "$repo_root" --tool SDE "$@"
             ;;
         changed-since)
             shift

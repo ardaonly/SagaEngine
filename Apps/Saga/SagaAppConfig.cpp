@@ -112,7 +112,7 @@ std::string SagaUsageText()
 {
     return
         "Usage: Saga [options]\n"
-        "  --workspace <path|builtin:basic>  SDE workspace definition root\n"
+        "  --workspace <path|builtin:basic>  Product workspace root\n"
         "  --target <editor|runtime|server>  Product role to prepare\n"
         "  --package-manifest <path>         Startup package manifest for runtime/server targets\n"
         "  --validate-sagascript <project>   Run SagaScript project validation through Forge gate\n"

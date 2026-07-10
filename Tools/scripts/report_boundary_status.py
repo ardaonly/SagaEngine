@@ -41,11 +41,6 @@ SCAN_ROOTS = (
     "Tools",
 )
 
-PRISM_OUTPUT_EXTENSIONS = {
-    ".json",
-    ".txt",
-}
-
 EDITOR_PATH_TOKENS = (
     "Editor/",
     "Apps/Editor/",
@@ -156,49 +151,10 @@ def collect_editor_include_warnings(repo_root: Path) -> list[str]:
     return warnings
 
 
-def collect_prism_output_warnings(repo_root: Path) -> list[str]:
-    warnings: list[str] = []
-
-    for path in repo_root.rglob("*"):
-        if not path.is_file() or path.suffix not in PRISM_OUTPUT_EXTENSIONS:
-            continue
-        if ".prism" not in path.parts and not path.name.startswith("prism."):
-            continue
-
-        try:
-            text = read_text(path)
-        except OSError:
-            continue
-
-        if any(token in text for token in EDITOR_PATH_TOKENS):
-            warnings.append(path.relative_to(repo_root).as_posix())
-
-    return warnings
-
-
 def collect_metadata_warnings(repo_root: Path) -> list[str]:
     warnings: list[str] = []
 
-    sde_version = repo_root / "Tools/SystemDefinitionEngine/version.json"
-    if sde_version.exists():
-        try:
-            data = json.loads(sde_version.read_text(encoding="utf-8"))
-            if data.get("license") != APACHE:
-                warnings.append(f"{sde_version.relative_to(repo_root)}: license is {data.get('license')!r}")
-        except (OSError, json.JSONDecodeError) as exc:
-            warnings.append(f"{sde_version.relative_to(repo_root)}: could not read license metadata: {exc}")
-
-    sde_conan = repo_root / "Tools/SystemDefinitionEngine/conanfile.py"
-    if sde_conan.exists():
-        text = read_text(sde_conan)
-        if "license     = \"Apache-2.0\"" not in text and "license = \"Apache-2.0\"" not in text:
-            warnings.append(f"{sde_conan.relative_to(repo_root)}: Conan license metadata is not Apache-2.0")
-
-    for license_file in (
-        repo_root / "Tools/Prism/LICENSE",
-        repo_root / "Tools/Forge/LICENSE",
-        repo_root / "Tools/SystemDefinitionEngine/LICENSE",
-    ):
+    for license_file in (repo_root / "Tools/Forge/LICENSE",):
         if not license_file.exists():
             warnings.append(f"{license_file.relative_to(repo_root)}: missing standalone license file")
             continue
@@ -252,15 +208,13 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     unmatched = collect_unmatched(files, rules)
     editor_includes = collect_editor_include_warnings(repo_root)
-    prism_outputs = collect_prism_output_warnings(repo_root)
     metadata = collect_metadata_warnings(repo_root)
 
     print_section("path inventory", unmatched, "all files match a declared path rule")
     print_section("editor include drift", editor_includes, "no editor includes found outside editor roots")
-    print_section("prism output drift", prism_outputs, "no restricted editor tokens found in Prism outputs")
     print_section("license metadata", metadata, "tool metadata matches the target license model")
 
-    total_warnings = len(unmatched) + len(editor_includes) + len(prism_outputs) + len(metadata)
+    total_warnings = len(unmatched) + len(editor_includes) + len(metadata)
     print(f"\n[boundary] warnings : {total_warnings}")
     print("[boundary] result   : report-only; warnings do not fail Phase 1 CI")
     return 0

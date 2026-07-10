@@ -3,7 +3,6 @@
 > Last updated: 2026-05-14  
 > Status: Active roadmap  
 > Target: A thin, stable command dispatcher for Saga’s standalone developer tools.  
-> Scope: Tool discovery, command routing, process dispatch, shared CLI conventions, diagnostics forwarding, workspace-aware invocation, and integration with SDE, Forge, Prism, and future tools.
 
 ---
 
@@ -14,7 +13,6 @@
 - Shipped items must name the files, modules, or integration points that represent the completed work.
 - Open items must describe the finished state, not temporary scaffolding.
 - SagaTools must stay thin.
-- SagaTools must not own the implementation of SDE, Forge, Prism, or any future standalone tool.
 - SagaTools may discover, list, launch, and route commands to tools.
 - SagaTools must not become a second build system, compiler, code intelligence engine, project shell, or editor backend.
 
@@ -29,9 +27,7 @@ This document defines the roadmap for `SagaTools`.
 It exists to provide a consistent command surface such as:
 
 ```txt
-sagatools sde ...
 sagatools forge ...
-sagatools prism ...
 sagatools doctor ...
 sagatools list
 ```
@@ -44,13 +40,11 @@ Correct ownership:
 SagaTools
   thin dispatcher
 
-SDE
   deterministic data compiler
 
 Forge
   build workflow frontend
 
-Prism
   code intelligence and graph builder
 ```
 
@@ -77,9 +71,7 @@ A dispatcher that owns everything is not a dispatcher; it is uncontrolled tool o
 |---|---|
 | `docs/roadmaps/TOOLS_ROADMAP.md` | Tool ecosystem index and ownership map |
 | `Tools/SagaTools/SAGATOOLS_ROADMAP.md` | SagaTools dispatcher roadmap |
-| `Tools/SystemDefinitionEngine/SDE_ROADMAP.md` | SDE deterministic data compiler roadmap |
 | `Tools/Forge/FORGE_ROADMAP.md` | Forge build workflow frontend roadmap |
-| `Tools/Prism/PRISM_ROADMAP.md` | Prism code intelligence roadmap |
 | `DependencyGraph.md` | Dependency and ownership boundary rules |
 | `SHARED_ROADMAP.md` | Shared contracts consumed by approved tools |
 
@@ -123,14 +115,8 @@ A dispatcher that owns everything is not a dispatcher; it is uncontrolled tool o
 
   Done means SagaTools does not own:
 
-  - SDE compiler AST,
-  - SDE parser,
-  - SDE optimizer,
-  - SDE code generation,
   - Forge build graph execution,
   - Forge package build policy,
-  - Prism indexing engine,
-  - Prism graph database,
   - editor UI,
   - runtime/server execution,
   - product project lifecycle.
@@ -148,17 +134,12 @@ A dispatcher that owns everything is not a dispatcher; it is uncontrolled tool o
   Tools/SagaTools/SAGATOOLS_ROADMAP.md
   ```
 
-- [ ] Integrate SDE as a dispatched tool.
 
   Done means SagaTools can route commands such as:
 
   ```txt
-  sagatools sde validate ...
-  sagatools sde compile ...
-  sagatools sde inspect ...
   ```
 
-  without importing SDE compiler internals.
 
 - [ ] Integrate Forge as a dispatched tool.
 
@@ -173,18 +154,12 @@ A dispatcher that owns everything is not a dispatcher; it is uncontrolled tool o
 
   without owning Forge build workflow implementation.
 
-- [ ] Integrate Prism as a dispatched tool.
 
   Done means SagaTools can route commands such as:
 
   ```txt
-  sagatools prism index ...
-  sagatools prism query ...
-  sagatools prism graph ...
-  sagatools prism doctor ...
   ```
 
-  without owning Prism indexing or graph logic.
 
 - [ ] Support future tools through a stable registration/discovery model.
 
@@ -205,9 +180,7 @@ A dispatcher that owns everything is not a dispatcher; it is uncontrolled tool o
   sagatools version
   sagatools list
   sagatools doctor
-  sagatools sde
   sagatools forge
-  sagatools prism
   ```
 
 - [ ] Provide consistent help output.
@@ -247,17 +220,13 @@ A dispatcher that owns everything is not a dispatcher; it is uncontrolled tool o
 Correct:
 
 ```txt
-sagatools sde compile --schema ./Data/game.sde --out ./Build/generated
 ```
 
-SagaTools routes to SDE.
 
-SDE parses `compile`, `--schema`, and `--out`.
 
 Incorrect:
 
 ```txt
-SagaTools reimplements SDE compile argument parsing.
 ```
 
 That is how “thin launcher” becomes “second compiler wearing a hat”.
@@ -478,9 +447,7 @@ Tools/SagaTools/src/Diagnostic.cpp
   Done means diagnostics preserve source tool identity:
 
   ```txt
-  sourceTool: sde
   sourceTool: forge
-  sourceTool: prism
   ```
 
 ---
@@ -585,7 +552,6 @@ Tools/SagaTools/include/SagaTools/ToolProtocolVersion.hpp
 
 - [ ] Keep protocol minimal.
 
-  SagaTools should not define deep internal protocols for SDE/Forge/Prism.
 
   It only needs enough metadata to route and report.
 
@@ -635,34 +601,20 @@ A rewrite is not a personality transplant.
 
 ---
 
-## 14. Integration with SDE
 
-- [ ] Route SDE commands through SagaTools.
 
   Example commands:
 
   ```txt
-  sagatools sde validate <schema>
-  sagatools sde compile <schema> --out <dir>
-  sagatools sde inspect <artifact>
-  sagatools sde doctor
   ```
 
-- [ ] Preserve SDE independence.
 
   Done means SagaTools does not include:
 
   ```txt
-  Tools/SystemDefinitionEngine/src/**
-  SDE parser internals
-  SDE AST internals
-  SDE optimizer internals
-  SDE codegen internals
   ```
 
-- [ ] Forward SDE diagnostics.
 
-  Done means SDE compile/validation diagnostics pass through SagaTools while preserving source location and tool identity.
 
 ---
 
@@ -699,20 +651,13 @@ It is a shrug with a stack trace nearby.
 
 ---
 
-## 16. Integration with Prism
 
-- [ ] Route Prism commands through SagaTools.
 
   Example commands:
 
   ```txt
-  sagatools prism index
-  sagatools prism query <symbol>
-  sagatools prism graph
-  sagatools prism doctor
   ```
 
-- [ ] Preserve Prism ownership.
 
   Done means SagaTools does not own:
 
@@ -722,9 +667,7 @@ It is a shrug with a stack trace nearby.
   - code intelligence database,
   - semantic query engine.
 
-- [ ] Forward Prism diagnostics and machine-readable output.
 
-  Done means Prism can be used by scripts and CI through SagaTools without losing structured output.
 
 ---
 
@@ -737,9 +680,7 @@ It is a shrug with a stack trace nearby.
   - SagaTools configuration,
   - workspace detection,
   - tool discovery,
-  - SDE availability,
   - Forge availability,
-  - Prism availability,
   - executable permissions,
   - protocol compatibility,
   - basic command launchability.
@@ -748,16 +689,12 @@ It is a shrug with a stack trace nearby.
 
   Done means `sagatools doctor` does not deeply validate:
 
-  - SDE schema correctness,
   - Forge build correctness,
-  - Prism graph correctness.
 
 Instead, it delegates deep checks:
 
 ```txt
-sagatools sde doctor
 sagatools forge doctor
-sagatools prism doctor
 ```
 
 SagaTools doctor verifies the dispatch layer.
@@ -785,9 +722,7 @@ Wild idea: the owning tool should own its own health checks.
 Example:
 
 ```txt
-sde      System Definition Engine   available   Tools/SystemDefinitionEngine/...
 forge    Forge Build Frontend       available   Tools/Forge/...
-prism    Prism Code Intelligence    missing     not found
 ```
 
 - [ ] Support `sagatools list --json`.
@@ -887,9 +822,7 @@ prism    Prism Code Intelligence    missing     not found
 
   Done means SagaTools can launch:
 
-  - SDE doctor,
   - Forge doctor,
-  - Prism doctor,
 
   when those tools are available in the build environment.
 
@@ -913,9 +846,7 @@ prism    Prism Code Intelligence    missing     not found
   Required forbidden dependencies:
 
   ```txt
-  SagaTools → SDE compiler internals
   SagaTools → Forge implementation internals
-  SagaTools → Prism implementation internals
   SagaTools → SagaEditor UI
   SagaTools → SagaServer private headers
   SagaTools → Saga product shell internals
@@ -999,11 +930,9 @@ SagaTools must not absorb what tools do.
   exit
   ```
 
-- [ ] Move SDE-specific roadmap content back to `SDE_ROADMAP.md`.
 
 - [ ] Move Forge-specific roadmap content back to `FORGE_ROADMAP.md`.
 
-- [ ] Move Prism-specific roadmap content back to `PRISM_ROADMAP.md`.
 
 - [ ] Keep common tool ecosystem overview in `TOOLS_ROADMAP.md`.
 
@@ -1015,9 +944,7 @@ SagaTools must not absorb what tools do.
 
 SagaTools does not own:
 
-- SDE compiler implementation,
 - Forge build workflow implementation,
-- Prism code intelligence implementation,
 - Saga product shell,
 - editor UI,
 - runtime/server execution,
@@ -1033,9 +960,7 @@ Related ownership:
 |---|---|
 | Tool ecosystem index | `docs/roadmaps/TOOLS_ROADMAP.md` |
 | Tool dispatcher | `Tools/SagaTools/SAGATOOLS_ROADMAP.md` |
-| Deterministic data compiler | `Tools/SystemDefinitionEngine/SDE_ROADMAP.md` |
 | Build workflow frontend | `Tools/Forge/FORGE_ROADMAP.md` |
-| Code intelligence | `Tools/Prism/PRISM_ROADMAP.md` |
 | Product shell | `Saga` |
 | Shared contracts | `SagaShared` |
 
@@ -1047,11 +972,9 @@ Related ownership:
 
 - [ ] SagaTools can list available tools.
 
-- [ ] SagaTools can route commands to SDE.
 
 - [ ] SagaTools can route commands to Forge.
 
-- [ ] SagaTools can route commands to Prism.
 
 - [ ] SagaTools forwards arguments safely.
 
@@ -1098,9 +1021,7 @@ and what exit code to return.
 It should not know:
 
 ```txt
-how SDE compiles schemas,
 how Forge builds packages,
-how Prism indexes code,
 how Saga opens projects,
 how the editor renders panels,
 or how the server simulates authority.

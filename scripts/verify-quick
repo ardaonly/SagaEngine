@@ -23,7 +23,10 @@ echo "verify-quick: this does not mark any phase Verified"
 run_check git diff --check
 run_check scripts/scan-claims README.md docs samples Tools
 run_check scripts/verify-phase all
-run_check scripts/check-boundaries
+run_check python3 Tools/scripts/report_boundary_status.py --repo-root .
+run_check python3 Tools/scripts/check_public_private_boundary.py --repo-root .
+run_check python3 Tools/scripts/check_qt_boundary.py .
+run_check python3 Tools/scripts/check_engine_server_boundary.py --repo-root .
 
 echo
 if [[ $status -eq 0 ]]; then

@@ -54,11 +54,11 @@ TEST(ArtifactStartupValidatorTests, ValidManifestWithExistingArtifactSucceeds)
     {
       "id": "quest_reward_graph",
       "kind": "graph",
-      "path": "Build/Artifacts/SDE/quest_reward.graph.json"
+      "path": "Build/Artifacts/Graphs/quest_reward.graph.json"
     }
   ]
 })");
-    WriteTempFile(manifestPath.parent_path() / "Build" / "Artifacts" / "SDE" /
+    WriteTempFile(manifestPath.parent_path() / "Build" / "Artifacts" / "Graphs" /
                       "quest_reward.graph.json",
                   "{}");
 
@@ -109,11 +109,11 @@ TEST(ArtifactStartupValidatorTests, EmptyArtifactIdFailsStartupPolicy)
     {
       "id": "",
       "kind": "graph",
-      "path": "Build/Artifacts/SDE/quest_reward.graph.json"
+      "path": "Build/Artifacts/Graphs/quest_reward.graph.json"
     }
   ]
 })");
-    WriteTempFile(manifestPath.parent_path() / "Build" / "Artifacts" / "SDE" /
+    WriteTempFile(manifestPath.parent_path() / "Build" / "Artifacts" / "Graphs" /
                       "quest_reward.graph.json",
                   "{}");
 
@@ -135,19 +135,19 @@ TEST(ArtifactStartupValidatorTests, DuplicateArtifactIdsFailStartupPolicy)
     {
       "id": "quest_reward_graph",
       "kind": "graph",
-      "path": "Build/Artifacts/SDE/quest_reward_a.graph.json"
+      "path": "Build/Artifacts/Graphs/quest_reward_a.graph.json"
     },
     {
       "id": "quest_reward_graph",
       "kind": "graph",
-      "path": "Build/Artifacts/SDE/quest_reward_b.graph.json"
+      "path": "Build/Artifacts/Graphs/quest_reward_b.graph.json"
     }
   ]
 })");
-    WriteTempFile(manifestPath.parent_path() / "Build" / "Artifacts" / "SDE" /
+    WriteTempFile(manifestPath.parent_path() / "Build" / "Artifacts" / "Graphs" /
                       "quest_reward_a.graph.json",
                   "{}");
-    WriteTempFile(manifestPath.parent_path() / "Build" / "Artifacts" / "SDE" /
+    WriteTempFile(manifestPath.parent_path() / "Build" / "Artifacts" / "Graphs" /
                       "quest_reward_b.graph.json",
                   "{}");
 
@@ -239,7 +239,7 @@ TEST(ArtifactStartupValidatorTests, MissingReferencedArtifactFileReturnsFileMiss
     {
       "id": "quest_reward_graph",
       "kind": "graph",
-      "path": "Build/Artifacts/SDE/missing.graph.json"
+      "path": "Build/Artifacts/Graphs/missing.graph.json"
     }
   ]
 })");

@@ -41,7 +41,7 @@ struct ArtifactManifestLoadOptions
     std::filesystem::path artifactBaseDirectory;     ///< Base path for relative artifact references.
 };
 
-/// Reads runtime artifact manifests without depending on SDE, Forge, or Prism internals.
+/// Reads runtime artifact manifests without depending on build-tool internals.
 class ArtifactManifestLoader
 {
 public:

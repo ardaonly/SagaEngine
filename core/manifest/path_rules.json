@@ -194,19 +194,7 @@
       "priority": 400
     },
     {
-      "pattern": "Apps/SagaEditorComposer/**",
-      "license": "MPL-2.0",
-      "domain_id": "saga-editor-current-restricted",
-      "priority": 400
-    },
-    {
       "pattern": "Editor/**",
-      "license": "MPL-2.0",
-      "domain_id": "saga-editor-current-restricted",
-      "priority": 400
-    },
-    {
-      "pattern": "Schemas/Saga/Editor/**",
       "license": "MPL-2.0",
       "domain_id": "saga-editor-current-restricted",
       "priority": 400
@@ -215,18 +203,6 @@
       "pattern": "Tools/Forge/**",
       "license": "Apache-2.0",
       "domain_id": "generic-forge",
-      "priority": 400
-    },
-    {
-      "pattern": "Tools/Prism/**",
-      "license": "Apache-2.0",
-      "domain_id": "prism-removal-candidate",
-      "priority": 400
-    },
-    {
-      "pattern": "Tools/SystemDefinitionEngine/**",
-      "license": "Apache-2.0",
-      "domain_id": "sde-removal-candidate",
       "priority": 400
     },
     {

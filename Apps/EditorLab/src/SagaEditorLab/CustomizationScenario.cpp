@@ -10,7 +10,7 @@ std::vector<ScenarioStep> MakeCustomizationPrecedenceScenario()
 {
     return {
         ScenarioStep::MakeAssertion("editor.customization.builtin.available", "true"),
-        ScenarioStep::MakeAssertion("editor.customization.project.source", ".sde"),
+        ScenarioStep::MakeAssertion("editor.customization.project.source", "builtin"),
         ScenarioStep::MakeAssertion("editor.customization.user.source", "~/.config/Saga"),
         ScenarioStep::MakeSnapshot("customization.builtin"),
         ScenarioStep::MakeAssertion("editor.customization.project.profiles.loaded", "true"),

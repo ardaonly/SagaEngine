@@ -1405,7 +1405,6 @@ Mitigation:
 - block compatibility profile;
 - do not represent every syntax detail visually.
 
-## 17.4 Performance Misdesign
 
 If runtime executes block graphs dynamically, performance will suffer.
 

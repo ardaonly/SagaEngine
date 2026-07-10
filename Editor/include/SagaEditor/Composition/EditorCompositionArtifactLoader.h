@@ -1,5 +1,5 @@
 /// @file EditorCompositionArtifactLoader.h
-/// @brief Loads compiled SDE editor composition manifests and artifacts.
+/// @brief Loads compiled editor composition manifests and artifacts.
 
 #pragma once
 
@@ -37,7 +37,7 @@ struct EditorCompositionLoadResult
     std::vector<EditorCompositionDiagnostic> diagnostics;
 };
 
-/// Loader for SDE-emitted editor composition JSON artifacts and manifests.
+/// Loader for editor composition JSON artifacts and manifests.
 class EditorCompositionArtifactLoader
 {
 public:

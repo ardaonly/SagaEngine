@@ -11,7 +11,7 @@ namespace SagaEditorLab
 {
 
 /// Validates the professional editor customisation stack:
-/// built-ins < project .sde < user-private overrides.
+/// built-ins < user-private overrides.
 [[nodiscard]] std::vector<ScenarioStep> MakeCustomizationPrecedenceScenario();
 
 } // namespace SagaEditorLab

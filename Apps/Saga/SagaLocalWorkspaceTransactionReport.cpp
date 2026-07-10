@@ -136,7 +136,7 @@ struct ProjectMetadata
     return {
         "Local workspace transaction smoke is a no-UI report-only boundary proof.",
         "The report does not write durable collaboration metadata.",
-        "The report does not mutate project files, scenes, scripts, or SDE files.",
+        "The report does not mutate project files, scenes, or scripts.",
         "Personal editor view/profile metadata is not shared project truth.",
         "Semantic transaction metadata is not a real-time collaboration workflow.",
         "Enterprise policy, cloud sync, CRDT/OT, and collaboration server work are deferred.",

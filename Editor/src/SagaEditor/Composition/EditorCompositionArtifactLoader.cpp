@@ -1,5 +1,5 @@
 /// @file EditorCompositionArtifactLoader.cpp
-/// @brief JSON loader for SDE-emitted editor composition artifacts and manifests.
+/// @brief JSON loader for editor composition artifacts and manifests.
 
 #include "SagaEditor/Composition/EditorCompositionArtifactLoader.h"
 

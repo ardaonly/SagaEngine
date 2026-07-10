@@ -116,7 +116,7 @@ public:
     [[nodiscard]] const EditorNotificationCenter&
         GetEditorNotificationCenter() const noexcept;
 
-    /// SDE-backed editor customization catalog and its load status.
+    /// Editor customization catalog and its load status.
     [[nodiscard]] EditorCustomizationCatalog& GetCustomizationCatalog() noexcept;
 
     /// Safe workspace customization session for future Customize Workspace UI.

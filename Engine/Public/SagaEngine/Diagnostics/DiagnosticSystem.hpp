@@ -22,7 +22,7 @@
 namespace SagaEngine::Diagnostics
 {
 
-/// Coordinates diagnostics subsystems without depending on server or SDE startup.
+/// Coordinates diagnostics subsystems without depending on server startup.
 class DiagnosticSystem
 {
 public:

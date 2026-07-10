@@ -3,7 +3,6 @@
 > Last updated: 2026-05-15
 > Status: Proposed schema reference
 > Target: A stable, conservative `forge.toml` schema for Forge's standalone C++ workflow and Saga build/publish pipeline integration.
-> Scope: Project metadata, toolchain pins, build backend configuration, dependencies, environment overrides, SDE integration, script pipeline integration, asset pipeline integration, Prism integration, build profiles, package profiles, publish checks, reports, and future reserved sections.
 
 ---
 
@@ -19,7 +18,6 @@ It must not become:
 
 * a CMake replacement,
 * a Conan replacement,
-* an SDE language,
 * a script language,
 * an asset pipeline language,
 * a package scripting language,
@@ -72,7 +70,6 @@ Saga project:
 ```txt
 saga.project.json
 forge.toml
-.sde/
 Scripts/
 Assets/
 Build/
@@ -164,10 +161,8 @@ Allowed top-level sections:
 [env]
 [profiles]
 [saga]
-[sde]
 [scripts]
 [assets]
-[prism]
 [package]
 [publish]
 [reports]
@@ -184,10 +179,8 @@ Section status:
 | `[env]`       | Active            | Tool executable overrides and environment hints |
 | `[profiles]`  | Proposed          | Named build profiles                            |
 | `[saga]`      | Proposed          | Optional Saga project integration               |
-| `[sde]`       | Proposed          | Optional SDE roots/options                      |
 | `[scripts]`   | Reserved/Proposed | Optional scripting pipeline roots/options       |
 | `[assets]`    | Reserved/Proposed | Optional asset pipeline roots/options           |
-| `[prism]`     | Reserved/Proposed | Optional analysis roots/options                 |
 | `[package]`   | Reserved/Proposed | Optional package staging options                |
 | `[publish]`   | Reserved/Proposed | Optional publish-check policy                   |
 | `[reports]`   | Proposed          | Report output paths/options                     |
@@ -270,9 +263,7 @@ Fields:
 | `compilerVersion` |     string |       no | Proposed | Compiler version constraint         |
 | `cppStandard`     | string/int |       no | Active   | Required C++ standard               |
 | `ninja`           |     string |       no | Proposed | Ninja version constraint            |
-| `sde`             |     string |       no | Proposed | SDE version constraint              |
 | `forge`           |     string |       no | Proposed | Forge version constraint            |
-| `prism`           |     string |       no | Proposed | Prism version constraint            |
 | `dotnet`          |     string |       no | Reserved | .NET SDK/script compiler constraint |
 | `assetPipeline`   |     string |       no | Reserved | Asset pipeline tool version         |
 
@@ -405,8 +396,6 @@ Example:
 [env]
 cmake = "/usr/bin/cmake"
 conan = "/home/user/.local/bin/conan"
-sde = "Tools/SystemDefinitionEngine/bin/sde"
-prism = "Tools/Prism/bin/prism"
 ```
 
 Fields:
@@ -417,8 +406,6 @@ Fields:
 | `ctest`          | string |       no | Active   | CTest executable override           |
 | `conan`          | string |       no | Active   | Conan executable override           |
 | `ninja`          | string |       no | Proposed | Ninja executable override           |
-| `sde`            | string |       no | Proposed | SDE executable override             |
-| `prism`          | string |       no | Proposed | Prism executable override           |
 | `assetPipeline`  | string |       no | Reserved | Asset pipeline executable override  |
 | `scriptCompiler` | string |       no | Reserved | Script compiler executable override |
 | `host`           | string |       no | Proposed | Host tool executable override       |
@@ -446,30 +433,24 @@ Example:
 config = "Debug"
 target = "SagaEditor"
 strict = false
-sde = true
 scripts = true
 assets = true
-prism = false
 package = "editor-preview"
 
 [profiles.ci]
 config = "Debug"
 target = "all"
 strict = true
-sde = true
 scripts = true
 assets = true
-prism = true
 package = false
 
 [profiles.shipping-full]
 config = "Release"
 target = "all"
 strict = true
-sde = true
 scripts = true
 assets = true
-prism = true
 package = "shipping-full"
 publishCheck = true
 ```
@@ -496,10 +477,8 @@ Profile fields:
 | `target`            |      string |       no | Proposed          | Backend target                      |
 | `strict`            |        bool |       no | Proposed          | Enable strict validation            |
 | `frozen`            |        bool |       no | Proposed          | Enable frozen checks                |
-| `sde`               | bool/string |       no | Proposed          | Enable SDE step or named SDE config |
 | `scripts`           | bool/string |       no | Reserved/Proposed | Enable script step/config           |
 | `assets`            | bool/string |       no | Reserved/Proposed | Enable asset step/config            |
-| `prism`             | bool/string |       no | Proposed          | Enable Prism checks/config          |
 | `package`           | bool/string |       no | Proposed          | Package profile/kind                |
 | `publishCheck`      |        bool |       no | Proposed          | Run publish readiness check         |
 | `collaborationGate` | bool/string |       no | Reserved          | Collaboration gate policy           |
@@ -562,22 +541,15 @@ defaultProfile = "editor-preview"
 
 ---
 
-## 12. `[sde]`
 
 Purpose:
 
-Configure SDE invocation for projects that use SDE.
 
 Status: Proposed.
 
 Example:
 
 ```toml
-[sde]
-root = ".sde"
-out = "Build/Artifacts/SDE"
-artifacts = "Build/Manifests/sde_artifacts.json"
-diagnostics = "Build/Reports/sde_diagnostics.json"
 mode = "compile"
 ```
 
@@ -585,15 +557,8 @@ Fields:
 
 | Field            |         Type | Required | Status   | Meaning                                                 |
 | ---------------- | -----------: | -------: | -------- | ------------------------------------------------------- |
-| `root`           |       string |       no | Proposed | SDE source root                                         |
-| `out`            |       string |       no | Proposed | SDE output directory                                    |
-| `artifacts`      |       string |       no | Proposed | SDE artifact manifest output                            |
-| `dependencies`   |       string |       no | Proposed | SDE dependency manifest output                          |
-| `sourceMaps`     |       string |       no | Proposed | SDE source map output root/file                         |
-| `diagnostics`    |       string |       no | Proposed | SDE diagnostics report path                             |
 | `mode`           |       string |       no | Proposed | `validate` or `compile`                                 |
 | `schemaPackages` | array/string |       no | Reserved | Extra schema package roots                              |
-| `strict`         |         bool |       no | Proposed | Treat SDE warnings as build errors where profile allows |
 
 Allowed `mode` values:
 
@@ -604,10 +569,6 @@ compile
 
 Rules:
 
-* Forge invokes SDE through `SdeAdapter`.
-* Forge must not include SDE parser/AST/semantic internals.
-* SDE must remain standalone and usable outside Saga.
-* Saga-specific schema packages are inputs, not SDE core dependencies.
 
 ---
 
@@ -694,18 +655,15 @@ Rules:
 
 ---
 
-## 15. `[prism]`
 
 Purpose:
 
-Configure Prism analysis.
 
 Status: Proposed.
 
 Example:
 
 ```toml
-[prism]
 enabled = true
 reports = "Build/Reports"
 boundaries = true
@@ -718,19 +676,13 @@ Fields:
 
 | Field             |   Type | Required | Status   | Meaning                        |
 | ----------------- | -----: | -------: | -------- | ------------------------------ |
-| `enabled`         |   bool |       no | Proposed | Enable Prism checks by default |
-| `reports`         | string |       no | Proposed | Prism report output directory  |
 | `boundaries`      |   bool |       no | Proposed | Run boundary checks            |
 | `stale`           |   bool |       no | Proposed | Run stale artifact checks      |
 | `packages`        |   bool |       no | Proposed | Run package consistency checks |
 | `generatedOrigin` |   bool |       no | Proposed | Run generated origin checks    |
-| `config`          | string |       no | Reserved | Optional `prism.toml` path     |
 
 Rules:
 
-* Prism emits reports.
-* Forge decides whether Prism diagnostics block build/publish by profile policy.
-* Prism does not build/cook/compile/package.
 
 ---
 
@@ -821,7 +773,6 @@ Example:
 [publish]
 defaultProfile = "shipping-full"
 report = "Build/Reports/publish_report.json"
-requirePrism = true
 requireFreshAssets = true
 requireCleanCollaboration = true
 ```
@@ -832,7 +783,6 @@ Fields:
 | --------------------------- | -----: | -------: | ----------------- | -------------------------------- |
 | `defaultProfile`            | string |       no | Reserved/Proposed | Default publish profile          |
 | `report`                    | string |       no | Reserved/Proposed | Publish report path              |
-| `requirePrism`              |   bool |       no | Reserved/Proposed | Require Prism checks             |
 | `requireFreshAssets`        |   bool |       no | Reserved/Proposed | Block stale cooked assets        |
 | `requireCleanCollaboration` |   bool |       no | Reserved          | Block unresolved conflicts/locks |
 | `allowWarnings`             |   bool |       no | Reserved          | Allow publish with warnings      |
@@ -871,9 +821,6 @@ Fields:
 | `build`             | string |       no | Proposed | Build report path                |
 | `diagnostics`       | string |       no | Proposed | Combined diagnostics report path |
 | `publish`           | string |       no | Proposed | Publish report path              |
-| `prismStale`        | string |       no | Proposed | Prism stale report path          |
-| `prismBoundary`     | string |       no | Proposed | Prism boundary report path       |
-| `sdeDiagnostics`    | string |       no | Proposed | SDE diagnostics report path      |
 | `assetDiagnostics`  | string |       no | Reserved | Asset diagnostics report path    |
 | `scriptDiagnostics` | string |       no | Reserved | Script diagnostics report path   |
 
@@ -978,7 +925,6 @@ forge build
 forge test
 ```
 
-No Saga/SDE/script/asset/package sections required.
 
 ---
 
@@ -997,8 +943,6 @@ cmake = ">=3.26"
 conan = ">=2.0"
 compiler = "clang"
 cppStandard = "20"
-sde = ">=0.1.0"
-prism = ">=0.1.0"
 
 [build]
 backend = "cmake"
@@ -1014,15 +958,8 @@ mode = "conan"
 projectManifest = "saga.project.json"
 defaultProfile = "editor-preview"
 
-[sde]
-root = ".sde"
-out = "Build/Artifacts/SDE"
-artifacts = "Build/Manifests/sde_artifacts.json"
-dependencies = "Build/Manifests/sde_dependencies.json"
-diagnostics = "Build/Reports/sde_diagnostics.json"
 mode = "compile"
 
-[prism]
 enabled = true
 reports = "Build/Reports"
 boundaries = true
@@ -1039,24 +976,18 @@ publish = "Build/Reports/publish_report.json"
 config = "Debug"
 target = "SagaEditor"
 strict = false
-sde = true
-prism = false
 package = "editor-preview"
 
 [profiles.ci]
 config = "Debug"
 target = "all"
 strict = true
-sde = true
-prism = true
 package = false
 
 [profiles.shipping-full]
 config = "Release"
 target = "all"
 strict = true
-sde = true
-prism = true
 package = "shipping-full"
 publishCheck = true
 ```
@@ -1084,8 +1015,6 @@ cmake = ">=3.26"
 conan = ">=2.0"
 compiler = "clang"
 cppStandard = "20"
-sde = ">=0.1.0"
-prism = ">=0.1.0"
 dotnet = ">=8.0"
 assetPipeline = ">=0.1.0"
 
@@ -1104,13 +1033,6 @@ lockfile = "forge.lock"
 projectManifest = "saga.project.json"
 defaultProfile = "editor-preview"
 
-[sde]
-root = ".sde"
-out = "Build/Artifacts/SDE"
-artifacts = "Build/Manifests/sde_artifacts.json"
-dependencies = "Build/Manifests/sde_dependencies.json"
-sourceMaps = "Build/Manifests/sde_source_maps.json"
-diagnostics = "Build/Reports/sde_diagnostics.json"
 mode = "compile"
 
 [scripts]
@@ -1127,7 +1049,6 @@ manifest = "Build/Manifests/assets.json"
 diagnostics = "Build/Reports/asset_diagnostics.json"
 profile = "dev"
 
-[prism]
 enabled = true
 reports = "Build/Reports"
 boundaries = true
@@ -1156,7 +1077,6 @@ manifest = "Build/Manifests/package_manifest.server.json"
 [publish]
 defaultProfile = "shipping-full"
 report = "Build/Reports/publish_report.json"
-requirePrism = true
 requireFreshAssets = true
 requireCleanCollaboration = true
 
@@ -1165,17 +1085,13 @@ root = "Build/Reports"
 build = "Build/Reports/build_report.json"
 diagnostics = "Build/Reports/diagnostics_report.json"
 publish = "Build/Reports/publish_report.json"
-prismStale = "Build/Reports/prism_stale_report.json"
-prismBoundary = "Build/Reports/prism_boundary_report.json"
 
 [profiles.dev-local-client-server]
 config = "Debug"
 target = "all"
 strict = false
-sde = true
 scripts = true
 assets = true
-prism = true
 package = "dev-local-client-server"
 
 [profiles.shipping-full]
@@ -1183,10 +1099,8 @@ config = "Release"
 target = "all"
 strict = true
 frozen = true
-sde = true
 scripts = true
 assets = true
-prism = true
 package = "shipping-full"
 publishCheck = true
 collaborationGate = "strict"
@@ -1201,7 +1115,6 @@ Use this as a direction, not as stable promise until Forge pipeline implementati
 Recommended paths:
 
 ```txt
-Build/Artifacts/SDE/
 Build/Artifacts/Scripts/
 Build/Artifacts/Assets/
 Build/Manifests/
@@ -1219,11 +1132,8 @@ Recommended report paths:
 Build/Reports/build_report.json
 Build/Reports/diagnostics_report.json
 Build/Reports/publish_report.json
-Build/Reports/sde_diagnostics.json
 Build/Reports/script_diagnostics.json
 Build/Reports/asset_diagnostics.json
-Build/Reports/prism_stale_report.json
-Build/Reports/prism_boundary_report.json
 ```
 
 Rules:
@@ -1244,7 +1154,6 @@ Lockfile may eventually record:
 dependency install mode
 dependency versions
 tool versions
-SDE compiler version
 schema package versions
 script compiler version
 asset pipeline version
@@ -1365,11 +1274,9 @@ This schema must not define:
 
 * CMake target graph internals,
 * Conan dependency graph internals,
-* SDE language syntax,
 * gameplay graph node syntax,
 * C# compile rules in detail,
 * asset importer/cooker internals,
-* Prism analysis internals,
 * runtime/server execution logic,
 * collaboration conflict resolution behavior,
 * product UI layout,
@@ -1393,12 +1300,10 @@ forge.toml is a build workflow manifest.
 Forge lowers forge.toml into BuildModel and BuildPlan.
 Standalone C++ projects remain supported.
 Saga-specific sections are optional.
-SDE/script/asset/Prism/package/publish sections must route through adapters/steps.
 Reserved sections must be honestly marked until implementation exists.
 Unknown fields fail under --strict.
 Reports and manifests are first-class outputs.
 forge.toml must not duplicate saga.project.json entirely.
-forge.toml must not become CMake, SDE, asset pipeline, script compiler, or product shell.
 ```
 
 The schema should grow slowly.

@@ -40,7 +40,6 @@ Read-only findings:
   `Runtime`, `Server`, `Editor`, or `Apps`.
 - Direct include use is limited to public render headers including each other
   and matching implementation files under `Engine/Private/SagaEngine/Render`.
-- `Tools/Prism` search hits are documentation/example text, not includes of the
   SagaEngine render headers.
 
 ## Direct Include Matrix

@@ -62,7 +62,7 @@ TEST(ArtifactManifestLoaderTests, ValidManifestLoadsArtifactReferences)
     EXPECT_EQ(result.manifest.artifacts[0].id, "quest_reward_graph");
     EXPECT_EQ(result.manifest.artifacts[0].kind, ArtifactKind::Graph);
     EXPECT_EQ(result.manifest.artifacts[0].path,
-              "Build/Artifacts/SDE/quest_reward.graph.json");
+              "Build/Artifacts/Graphs/quest_reward.graph.json");
     ASSERT_TRUE(result.manifest.artifacts[0].hash.has_value());
     EXPECT_EQ(*result.manifest.artifacts[0].hash, "optional-for-now");
 }
@@ -227,7 +227,7 @@ TEST(ArtifactManifestLoaderTests, MissingArtifactIdReturnsMissingField)
   "artifacts": [
     {
       "kind": "graph",
-      "path": "Build/Artifacts/SDE/quest_reward.graph.json"
+      "path": "Build/Artifacts/Graphs/quest_reward.graph.json"
     }
   ]
 })");
@@ -251,7 +251,7 @@ TEST(ArtifactManifestLoaderTests, NonStringArtifactIdReturnsInvalidField)
     {
       "id": 7,
       "kind": "graph",
-      "path": "Build/Artifacts/SDE/quest_reward.graph.json"
+      "path": "Build/Artifacts/Graphs/quest_reward.graph.json"
     }
   ]
 })");
@@ -274,7 +274,7 @@ TEST(ArtifactManifestLoaderTests, MissingArtifactKindReturnsMissingField)
   "artifacts": [
     {
       "id": "quest_reward_graph",
-      "path": "Build/Artifacts/SDE/quest_reward.graph.json"
+      "path": "Build/Artifacts/Graphs/quest_reward.graph.json"
     }
   ]
 })");
@@ -298,7 +298,7 @@ TEST(ArtifactManifestLoaderTests, NonStringArtifactKindReturnsInvalidField)
     {
       "id": "quest_reward_graph",
       "kind": 7,
-      "path": "Build/Artifacts/SDE/quest_reward.graph.json"
+      "path": "Build/Artifacts/Graphs/quest_reward.graph.json"
     }
   ]
 })");
@@ -360,7 +360,7 @@ TEST(ArtifactManifestLoaderTests, UnknownKindReturnsUnknownKind)
     {
       "id": "quest_reward_graph",
       "kind": "mystery",
-      "path": "Build/Artifacts/SDE/quest_reward.graph.json"
+      "path": "Build/Artifacts/Graphs/quest_reward.graph.json"
     }
   ]
 })");
@@ -384,7 +384,7 @@ TEST(ArtifactManifestLoaderTests, OptionalHashStringIsAccepted)
     {
       "id": "quest_reward_graph",
       "kind": "graph",
-      "path": "Build/Artifacts/SDE/quest_reward.graph.json",
+      "path": "Build/Artifacts/Graphs/quest_reward.graph.json",
       "hash": "sha256:abc"
     }
   ]
@@ -408,7 +408,7 @@ TEST(ArtifactManifestLoaderTests, NonStringHashReturnsInvalidField)
     {
       "id": "quest_reward_graph",
       "kind": "graph",
-      "path": "Build/Artifacts/SDE/quest_reward.graph.json",
+      "path": "Build/Artifacts/Graphs/quest_reward.graph.json",
       "hash": 7
     }
   ]
@@ -433,7 +433,7 @@ TEST(ArtifactManifestLoaderTests, DefaultOptionsDoNotValidateArtifactFileExisten
     {
       "id": "quest_reward_graph",
       "kind": "graph",
-      "path": "Build/Artifacts/SDE/missing.graph.json"
+      "path": "Build/Artifacts/Graphs/missing.graph.json"
     }
   ]
 })");
@@ -443,14 +443,14 @@ TEST(ArtifactManifestLoaderTests, DefaultOptionsDoNotValidateArtifactFileExisten
     ASSERT_TRUE(result.Succeeded());
     ASSERT_EQ(result.manifest.artifacts.size(), 1u);
     EXPECT_EQ(result.manifest.artifacts[0].path,
-              "Build/Artifacts/SDE/missing.graph.json");
+              "Build/Artifacts/Graphs/missing.graph.json");
 }
 
 TEST(ArtifactManifestLoaderTests, ValidationSucceedsWhenArtifactFileExistsUnderBaseDirectory)
 {
     const auto baseDirectory =
         TempArtifactDirectory("saga_artifact_manifest_existing_base");
-    WriteTempFile(baseDirectory / "Build" / "Artifacts" / "SDE" / "quest_reward.graph.json",
+    WriteTempFile(baseDirectory / "Build" / "Artifacts" / "Graphs" / "quest_reward.graph.json",
                   "{}");
     const auto manifestPath = WriteTempManifest(
         "saga_artifact_manifest_existing_base.json",
@@ -460,7 +460,7 @@ TEST(ArtifactManifestLoaderTests, ValidationSucceedsWhenArtifactFileExistsUnderB
     {
       "id": "quest_reward_graph",
       "kind": "graph",
-      "path": "Build/Artifacts/SDE/quest_reward.graph.json"
+      "path": "Build/Artifacts/Graphs/quest_reward.graph.json"
     }
   ]
 })");
@@ -488,7 +488,7 @@ TEST(ArtifactManifestLoaderTests, ValidationReturnsFileMissingWhenArtifactFileIs
     {
       "id": "quest_reward_graph",
       "kind": "graph",
-      "path": "Build/Artifacts/SDE/missing.graph.json"
+      "path": "Build/Artifacts/Graphs/missing.graph.json"
     }
   ]
 })");
@@ -513,7 +513,7 @@ TEST(ArtifactManifestLoaderTests, ValidationUsesManifestDirectoryWhenBaseDirecto
 {
     const auto manifestDirectory =
         TempArtifactDirectory("saga_artifact_manifest_parent_base");
-    WriteTempFile(manifestDirectory / "Build" / "Artifacts" / "SDE" /
+    WriteTempFile(manifestDirectory / "Build" / "Artifacts" / "Graphs" /
                       "quest_reward.graph.json",
                   "{}");
     const auto manifestPath = manifestDirectory / "artifact_manifest.json";
@@ -524,7 +524,7 @@ TEST(ArtifactManifestLoaderTests, ValidationUsesManifestDirectoryWhenBaseDirecto
     {
       "id": "quest_reward_graph",
       "kind": "graph",
-      "path": "Build/Artifacts/SDE/quest_reward.graph.json"
+      "path": "Build/Artifacts/Graphs/quest_reward.graph.json"
     }
   ]
 })");

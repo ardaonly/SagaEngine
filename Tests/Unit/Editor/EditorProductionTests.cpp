@@ -418,23 +418,18 @@ TEST(EditorProductionHostTest, BuiltinProfilesExposeProductionDashboard)
     }
 }
 
-TEST(EditorCustomizationCatalogTest, DefaultsToBuiltinsWhenSdeUnavailable)
+TEST(EditorCustomizationCatalogTest, DefaultsToBuiltins)
 {
     EditorCustomizationCatalog catalog;
     ASSERT_TRUE(catalog.Init({}));
 
     const EditorCustomizationStatus& status = catalog.Status();
-#if SAGA_WITH_SDE
-    EXPECT_TRUE(status.sdeAvailable);
-#else
-    EXPECT_FALSE(status.sdeAvailable);
     EXPECT_FALSE(status.loaded);
     EXPECT_NE(status.message.find("built-in"), std::string::npos);
-#endif
     EXPECT_FALSE(status.sourceRoot.empty());
 }
 
-TEST(EditorCustomizationCatalogTest, LoadsProjectSdeProfilesWhenAvailable)
+TEST(EditorCustomizationCatalogTest, LeavesProjectProfilesEmpty)
 {
     EditorCustomizationCatalog catalog;
     const fs::path workspaceRoot =
@@ -444,26 +439,9 @@ TEST(EditorCustomizationCatalogTest, LoadsProjectSdeProfilesWhenAvailable)
     ASSERT_TRUE(catalog.Init(workspaceRoot));
 
     const EditorCustomizationStatus& status = catalog.Status();
-    EXPECT_EQ(status.sourceRoot.filename(), ".sde");
+    EXPECT_EQ(status.sourceRoot.filename(), "EditorCustomization");
     EXPECT_FALSE(status.userConfigRoot.empty());
-
-#if SAGA_WITH_SDE
-    ASSERT_FALSE(catalog.Snapshot().projectProfiles.empty());
-    EXPECT_TRUE(Contains(
-        [&catalog]()
-        {
-            std::vector<std::string> ids;
-            for (const EditorProfile& profile :
-                 catalog.Snapshot().projectProfiles)
-            {
-                ids.push_back(profile.id);
-            }
-            return ids;
-        }(),
-        "saga.profile.project_basic"));
-#else
     EXPECT_TRUE(catalog.Snapshot().projectProfiles.empty());
-#endif
 }
 
 } // namespace

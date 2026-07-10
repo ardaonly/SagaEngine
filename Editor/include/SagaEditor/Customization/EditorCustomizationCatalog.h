@@ -15,7 +15,6 @@ namespace SagaEditor
 
 struct EditorCustomizationStatus
 {
-    bool                     sdeAvailable = false;
     bool                     loaded = false;
     std::filesystem::path    sourceRoot;
     std::filesystem::path    userConfigRoot;
@@ -24,17 +23,16 @@ struct EditorCustomizationStatus
 };
 
 /// Data-driven editor customisation snapshot. Project-authored entries come
-/// from `<Project>/.sde`; user-private overrides live under the settings store
-/// and platform user config directory.
+/// from built-in editor contracts; user-private overrides live under the
+/// settings store and platform user config directory.
 struct EditorCustomizationSnapshot
 {
     std::vector<EditorProfile> projectProfiles;
     std::vector<UIPersona>     projectPersonas;
 };
 
-/// Editor-only customisation loader. It can load SDE-backed workflow data when
-/// SDE is enabled, but customisation remains limited to presentation/workflow
-/// declarations and never edits engine/runtime semantics.
+/// Editor-only customisation loader. Customisation remains limited to
+/// presentation/workflow declarations and never edits engine/runtime semantics.
 class EditorCustomizationCatalog
 {
 public:

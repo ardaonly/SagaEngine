@@ -30,10 +30,6 @@ function(saga_setup_tests)
         "${SAGA_ROOT}/Tests/Unit/*.cpp"
     )
 
-    file(GLOB_RECURSE SAGA_PIPELINE_TEST_SOURCES CONFIGURE_DEPENDS
-        "${SAGA_ROOT}/Tests/Tools/SagaPipeline/*.cpp"
-    )
-
     set(SAGA_STRESS_ARENA_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/Tools/SagaStressArenaTests.cpp"
     )
@@ -754,39 +750,6 @@ function(saga_setup_tests)
             COMMAND MovementDirtyReplicationBridgeTests)
         set_tests_properties(MovementDirtyReplicationBridgeTests PROPERTIES
             LABELS "unit;server;replication"
-        )
-    endif()
-
-    # --- Saga pipeline tool tests ------------------------------------------
-    if(SAGA_PIPELINE_TEST_SOURCES AND TARGET SagaPipelineLib)
-        add_executable(SagaPipelineTests
-            ${SAGA_PIPELINE_TEST_SOURCES}
-        )
-        target_link_libraries(SagaPipelineTests PRIVATE
-            SagaPipelineLib
-            GTest::gtest
-            GTest::gmock
-            GTest::gtest_main
-        )
-        target_include_directories(SagaPipelineTests PRIVATE
-            ${SAGA_ROOT}/Tools/SagaPipeline/include
-            $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
-        )
-        target_compile_definitions(SagaPipelineTests PRIVATE
-            SAGA_SOURCE_ROOT="${SAGA_ROOT}"
-        )
-        if(TARGET saga-editor-composition-compiler)
-            add_dependencies(SagaPipelineTests saga-editor-composition-compiler)
-            target_compile_definitions(SagaPipelineTests PRIVATE
-                SAGA_EDITOR_COMPOSITION_COMPILER="$<TARGET_FILE:saga-editor-composition-compiler>"
-            )
-        endif()
-        set_target_properties(SagaPipelineTests PROPERTIES
-            FOLDER "Tests/Tools"
-        )
-        add_test(NAME SagaPipelineTests COMMAND SagaPipelineTests)
-        set_tests_properties(SagaPipelineTests PROPERTIES
-            LABELS "tools;pipeline;integration"
         )
     endif()
 

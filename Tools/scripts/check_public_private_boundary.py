@@ -14,7 +14,7 @@ SOURCE_SUFFIXES = {".c", ".cc", ".cpp", ".cxx", *HEADER_SUFFIXES}
 
 PRIVATE_INCLUDE_RE = re.compile(r"#\s*include\s*[<\"]([^>\"]*Private/[^>\"]*)[>\"]")
 DIAGNOSTICS_FORBIDDEN_RE = re.compile(
-    r"#\s*include\s*[<\"](?:SagaServer/|SagaEditor/|SDE/|SagaEngine/Server/|SagaEngine/Editor/|SagaEngine/Core/Private/)[^>\"]*[>\"]"
+    r"#\s*include\s*[<\"](?:SagaServer/|SagaEditor/|SagaEngine/Server/|SagaEngine/Editor/|SagaEngine/Core/Private/)[^>\"]*[>\"]"
 )
 SIMULATION_FORBIDDEN_RE = re.compile(
     r"#\s*include\s*[<\"]SagaEngine/Input/Networking/[^>\"]*[>\"]"

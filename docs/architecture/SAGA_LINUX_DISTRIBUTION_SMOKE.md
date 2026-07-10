@@ -56,7 +56,6 @@ Saga/bin/SagaServer
 Saga/tools/sagaproject
 Saga/tools/sagascript
 Saga/tools/sagapack
-Saga/tools/sde
 Saga/BUILD_INFO.json
 Saga/VERSION
 Saga/VERIFY.txt
@@ -68,7 +67,6 @@ Saga/samples/StarterArena
 
 The current passing status is `passed-with-limitations`.
 
-The unpacked `sde`, `Saga`, `SagaRuntime`, `SagaServer`, `sagaproject`,
 `sagascript`, and `sagapack` help commands pass from the unpacked distribution
 tree.
 

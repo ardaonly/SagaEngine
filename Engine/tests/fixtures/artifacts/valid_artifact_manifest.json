@@ -4,7 +4,7 @@
     {
       "id": "quest_reward_graph",
       "kind": "graph",
-      "path": "Build/Artifacts/SDE/quest_reward.graph.json",
+      "path": "Build/Artifacts/Graphs/quest_reward.graph.json",
       "hash": "optional-for-now"
     }
   ]
