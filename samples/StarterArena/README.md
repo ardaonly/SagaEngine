@@ -1,9 +1,10 @@
-# StarterArena Runtime Smoke Sample
+# StarterArena Runtime Sample
 
 `StarterArena` is a future sample definition for project metadata validation.
-It now has a narrow `SagaRuntime` headless smoke path.
+It has a narrow `SagaRuntime` headless smoke path and an explicit visible-frame
+path.
 
-This is not an interactive game. The runtime smoke command consumes the
+This is not an interactive game. The headless runtime smoke command consumes the
 `.sagaproj` file and the declared scene resource at
 `Scenes/arena.scene.json`, runs a deterministic scene-backed local loop in
 headless mode, writes a smoke report, and exits. The sample also has one C#
@@ -12,9 +13,13 @@ provided, the runtime smoke can record script metadata only, invoke exactly one
 known pure method with an explicit opt-in flag, or record focused `GameRules`
 C# lifecycle evidence with a separate explicit opt-in flag. The invocation and
 lifecycle flags can be used together, and the report records them independently.
-This is not arbitrary script execution, renderer/client gameplay, Visual
+This is not arbitrary script execution, interactive gameplay, Visual
 Blocks, editor workflow, package install, package output, or distribution
-output. Server authority evidence is tracked separately through a bounded
+output. The visible command consumes the same project and scene metadata,
+advances the same deterministic simulation kernel, and renders an arena,
+boundary markers, and a player marker through the existing render backend.
+It does not read input devices or execute C#. Server authority evidence is
+tracked separately through a bounded
 socket-free headless smoke.
 
 Runtime smoke command:
@@ -23,13 +28,25 @@ Runtime smoke command:
 <build-dir>/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --smoke-report-out /tmp/starter_arena_runtime_smoke.json --smoke-frames 30 --fixed-dt 0.016
 ```
 
+Visible frame command:
+
+```sh
+<build-dir>/bin/SagaRuntime --project samples/StarterArena/StarterArena.sagaproj --starter-arena-playable --playable-frames 30 --playable-report-out /tmp/starter_arena_playable.json --fixed-dt 0.016
+```
+
+Omit `--playable-frames` to keep the visible window open until it is closed.
+The bounded form writes project, scene, simulation, backend, presented-frame,
+draw-submission, player-marker, viewport, teardown, diagnostic, and non-claim
+evidence. `--starter-arena-playable` rejects `--headless`; the headless contract
+continues to use `--starter-arena-smoke`.
+
 The tracked directories exist only because the current project schema validates
 the diagnostics and generated report paths:
 
 - `Diagnostics`
 - `Build/Reports`
 
-The tracked scene resource exists only for the bounded runtime smoke path:
+The tracked scene resource exists only for the bounded smoke and visible paths:
 
 - `Scenes/arena.scene.json`
 
@@ -51,9 +68,10 @@ nix-shell --run "dotnet build Engine/Managed/SagaScript.RuntimeBridge/SagaScript
 nix-shell --run "SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY=Engine/Managed/SagaScript.RuntimeBridge/bin/Release/net10.0/SagaScript.RuntimeBridge.dll Tools/SagaScript/sagascript compile --source samples/StarterArena/Scripts --out /tmp/starter_arena_sagascript/Manifests --artifacts-out /tmp/starter_arena_sagascript/Artifacts/Scripts --project-root samples/StarterArena --assembly-name StarterArenaScripts --diagnostics /tmp/starter_arena_sagascript/sagascript_diagnostics.json --json"
 ```
 
-Generated manifests, assemblies, diagnostics, and runtime smoke reports should
-stay under temporary output roots such as `/tmp/starter_arena_sagascript`; they
-must not be written into `samples/StarterArena`.
+Generated manifests, assemblies, diagnostics, runtime smoke reports, and
+visible-frame reports should stay under temporary output roots such as
+`/tmp/starter_arena_sagascript`; they must not be written into
+`samples/StarterArena`.
 
 Focused runtime script metadata smoke:
 

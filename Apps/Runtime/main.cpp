@@ -9,6 +9,7 @@
 #include "ClientHost.h"
 #include "RuntimeAssetStartupBootstrap.hpp"
 #include "RuntimeCommandLine.h"
+#include "StarterArenaPlayable.h"
 #include "StarterArenaSmoke.h"
 
 #include <SagaEngine/Core/Log/Log.h>
@@ -351,6 +352,10 @@ SagaRuntimeApp::RuntimeCommandLine ParseArgs(int argc, char* argv[])
         {
             commandLine.starterArenaSmoke = true;
         }
+        else if (arg == "--starter-arena-playable")
+        {
+            commandLine.starterArenaPlayable = true;
+        }
         else if (arg == "--script-manifest" && i + 1 < argc)
         {
             commandLine.scriptManifestPath = std::filesystem::path(argv[++i]);
@@ -376,6 +381,16 @@ SagaRuntimeApp::RuntimeCommandLine ParseArgs(int argc, char* argv[])
             commandLine.smokeFrames =
                 static_cast<std::uint32_t>(std::stoul(argv[++i]));
         }
+        else if (arg == "--playable-frames" && i + 1 < argc)
+        {
+            commandLine.playableFramesProvided = true;
+            commandLine.playableFrames =
+                static_cast<std::uint32_t>(std::stoul(argv[++i]));
+        }
+        else if (arg == "--playable-report-out" && i + 1 < argc)
+        {
+            commandLine.playableReportOut = std::filesystem::path(argv[++i]);
+        }
         else if (arg == "--fixed-dt" && i + 1 < argc)
         {
             commandLine.fixedDtSeconds = std::stod(argv[++i]);
@@ -392,6 +407,8 @@ SagaRuntimeApp::RuntimeCommandLine ParseArgs(int argc, char* argv[])
                         "                         Resolve package-relative manifest and asset paths from this directory\n"
                         "  --project <path>      .sagaproj path for bounded sample smoke modes\n"
                         "  --starter-arena-smoke Run bounded local StarterArena smoke and exit\n"
+                        "  --starter-arena-playable\n"
+                        "                         Run the visible StarterArena frame (not headless)\n"
                         "  --script-manifest <path>\n"
                         "                         Optional StarterArena script_bindings.json smoke input\n"
                         "  --script-artifacts <path>\n"
@@ -403,6 +420,9 @@ SagaRuntimeApp::RuntimeCommandLine ParseArgs(int argc, char* argv[])
                         "  --smoke-report-out <path>\n"
                         "                         Write StarterArena smoke report JSON\n"
                         "  --smoke-frames <n>    StarterArena smoke frame count (default: 30)\n"
+                        "  --playable-frames <n> Bound visible StarterArena run to n presented frames\n"
+                        "  --playable-report-out <path>\n"
+                        "                         Write visible StarterArena report JSON\n"
                         "  --fixed-dt <seconds>  StarterArena fixed timestep (default: 0.0166667)\n"
                         "  --help, --?           Show this help\n");
             std::exit(0);
@@ -419,9 +439,26 @@ int main(int argc, char* argv[])
     SagaEngine::Core::Log::Init();
 
     auto commandLine = ParseArgs(argc, argv);
+    if (commandLine.starterArenaSmoke && commandLine.starterArenaPlayable)
+    {
+        LOG_ERROR(
+            kLogTag,
+            "--starter-arena-smoke and --starter-arena-playable are mutually exclusive.");
+        SagaEngine::Core::Log::Shutdown();
+        return 2;
+    }
     if (commandLine.starterArenaSmoke)
     {
         const int result = SagaRuntimeApp::RunStarterArenaSmoke(commandLine);
+        SagaEngine::Core::Log::Shutdown();
+        return result;
+    }
+
+    if (commandLine.starterArenaPlayable)
+    {
+        auto platformFactory = Saga::CreateSDLPlatformFactory();
+        Saga::PlatformFactory::Set(platformFactory.get());
+        const int result = SagaRuntimeApp::RunStarterArenaPlayable(commandLine);
         SagaEngine::Core::Log::Shutdown();
         return result;
     }

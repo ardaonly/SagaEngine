@@ -19,6 +19,23 @@ Accepted runtime smoke evidence:
   Visual Blocks, editor workflow, package install, package output, and
   distribution output as non-claims.
 
+Accepted visible-frame evidence:
+
+- `SagaRuntime --project samples/StarterArena/StarterArena.sagaproj --starter-arena-playable --playable-frames 30` exits `0` on a supported display/GPU environment;
+- `--starter-arena-playable` is rejected when combined with `--headless`;
+- the visible report records the same project id, scene id, spawn, bounds,
+  camera, fixed timestep, test input, final position, and clamp count used by
+  headless smoke;
+- the report records a concrete initialized backend, exactly the requested
+  presented-frame count, nonzero draw submissions, and
+  `playerDrawSubmitted: true`;
+- the report records completed render-resource and backend shutdown;
+- GPU evidence contains non-clear arena pixels and distinct ground, player,
+  and boundary color regions;
+- visible reports and generated resources stay outside `samples/StarterArena`;
+- the visible path does not use `ClientHost`, networking, input devices,
+  editor code, or C# execution.
+
 Accepted SagaScript compile and metadata evidence:
 
 - `sagaproject validate` accepts the `Scripts` folder reference;
@@ -103,7 +120,7 @@ Accepted server-authoritative smoke evidence:
 - the report keeps full multiplayer, MMO proof, editor workflow, package
   install, package output, and Visual Blocks as non-claims.
 
-This is not acceptance for interactive gameplay, renderer-visible gameplay, a
-reusable scene system, arbitrary C# execution, Visual Blocks, package launch,
+This is not acceptance for interactive gameplay, a reusable scene system,
+arbitrary C# execution, Visual Blocks, package launch,
 package install, editor launch, full multiplayer gameplay, external
 client/server networking, or MMO-scale networking.

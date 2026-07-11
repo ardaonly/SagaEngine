@@ -449,8 +449,8 @@ TEST(CMakeTargetBoundaryTests, DiligentGpuIntegrationTestIdentitiesStayStable)
         ++suiteCounts[identity.substr(0, dot)];
     }
 
-    EXPECT_EQ(identities.size(), 136u);
-    EXPECT_EQ(suiteCounts["DiligentGPU"], 43);
+    EXPECT_EQ(identities.size(), 137u);
+    EXPECT_EQ(suiteCounts["DiligentGPU"], 44);
     EXPECT_EQ(suiteCounts["CoordinateGPU"], 6);
     EXPECT_EQ(suiteCounts["SagaGraphicsGPU"], 18);
     EXPECT_EQ(suiteCounts["BindingGPU"], 52);

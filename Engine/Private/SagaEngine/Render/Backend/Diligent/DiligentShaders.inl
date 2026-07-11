@@ -230,7 +230,7 @@ float ComputeShadowVisibility(float3 worldPos, float3 normal, float3 lightToSurf
         [unroll]
         for (int x = -1; x <= 1; ++x)
         {
-            float2 sampleUv = uv + float2((float)x, (float)y) * texel;
+            float2 sampleUv = uv + float2(float(x), float(y)) * texel;
             if (sampleUv.x < 0.0 || sampleUv.x > 1.0 ||
                 sampleUv.y < 0.0 || sampleUv.y > 1.0)
             {

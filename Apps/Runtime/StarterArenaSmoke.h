@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -143,6 +144,13 @@ struct StarterArenaLoopResult
 
 [[nodiscard]] std::string GenericPath(const std::filesystem::path& path);
 [[nodiscard]] bool NearlyEqual(double left, double right);
+
+[[nodiscard]] std::optional<StarterArenaProject> LoadStarterArenaProject(
+    const std::filesystem::path& input,
+    std::vector<StarterArenaDiagnostic>& diagnostics);
+[[nodiscard]] std::optional<StarterArenaScene> LoadStarterArenaScene(
+    const StarterArenaProject& project,
+    std::vector<StarterArenaDiagnostic>& diagnostics);
 
 [[nodiscard]] int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine);
 

@@ -636,3 +636,80 @@ TEST(StarterArenaRuntimeSmokeTests, GeneratedArtifactsStayOutsideStarterArenaSam
     EXPECT_FALSE(std::filesystem::exists(
         sampleRoot / "Build" / "Reports" / "starter_arena_artifact_hygiene.json"));
 }
+
+TEST(StarterArenaRuntimeSmokeTests, VisibleModeRejectsHeadlessBeforeExecution)
+{
+    const auto root =
+        TempProjectRoot("saga_starter_arena_visible_headless_rejected");
+    CopyStarterArenaSample(root);
+    const auto reportPath =
+        std::filesystem::temp_directory_path() /
+        "saga_starter_arena_visible_headless_rejected.json";
+    std::filesystem::remove(reportPath);
+
+    const std::string command =
+        ShellQuote(SagaRuntimeExecutable()) + " --headless --project " +
+        ShellQuote(root / "StarterArena.sagaproj") +
+        " --starter-arena-playable --playable-frames 2" +
+        " --playable-report-out " + ShellQuote(reportPath);
+    ASSERT_NE(RunCommand(command), 0);
+    ASSERT_TRUE(std::filesystem::exists(reportPath));
+
+    const auto report = ReadJson(reportPath);
+    EXPECT_EQ(report.value("status", ""), "Failed");
+    EXPECT_EQ(report["render"].value("status", ""), "NotInitialized");
+    EXPECT_EQ(report["render"].value("presentedFrames", 1u), 0u);
+    EXPECT_TRUE(ContainsDiagnosticCode(
+        report["diagnostics"],
+        "StarterArena.Playable.VisibleRequired"));
+}
+
+TEST(StarterArenaRuntimeSmokeTests, BoundedVisibleModeWritesStableReport)
+{
+#if !defined(_WIN32)
+    if (std::getenv("DISPLAY") == nullptr &&
+        std::getenv("WAYLAND_DISPLAY") == nullptr)
+    {
+        GTEST_SKIP() << "No display is available for bounded visible evidence.";
+    }
+#endif
+    const auto root = TempProjectRoot("saga_starter_arena_visible_bounded");
+    CopyStarterArenaSample(root);
+    const auto reportPath =
+        std::filesystem::temp_directory_path() /
+        "saga_starter_arena_visible_bounded.json";
+    std::filesystem::remove(reportPath);
+    const auto stdoutPath = root / "Build" / "Reports" / "playable.stdout";
+    const auto stderrPath = root / "Build" / "Reports" / "playable.stderr";
+
+    const std::string command =
+        ShellQuote(SagaRuntimeExecutable()) + " --project " +
+        ShellQuote(root / "StarterArena.sagaproj") +
+        " --starter-arena-playable --playable-frames 30" +
+        " --playable-report-out " + ShellQuote(reportPath) +
+        " --fixed-dt 0.016 > " + ShellQuote(stdoutPath) +
+        " 2> " + ShellQuote(stderrPath);
+    ASSERT_EQ(RunCommand(command), 0)
+        << ReadFile(stdoutPath) << "\n" << ReadFile(stderrPath);
+
+    const auto report = ReadJson(reportPath);
+    EXPECT_EQ(report.value("status", ""), "Passed");
+    EXPECT_EQ(report["project"].value("projectId", ""), "starter-arena");
+    EXPECT_EQ(report["scene"].value("sceneId", ""),
+              "starter-arena-local-loop");
+    EXPECT_EQ(report["simulation"].value("ticks", 0u), 30u);
+    EXPECT_DOUBLE_EQ(
+        report["simulation"]["finalPosition"].value("x", 0.0), 1.0);
+    EXPECT_NEAR(
+        report["simulation"]["finalPosition"].value("y", 0.0),
+        0.96,
+        0.000001);
+    EXPECT_EQ(report["render"].value("status", ""), "Passed");
+    EXPECT_TRUE(report["render"].value("initialized", false));
+    EXPECT_EQ(report["render"].value("presentedFrames", 0u), 30u);
+    EXPECT_GT(report["render"].value("totalDrawItems", 0u), 0u);
+    EXPECT_TRUE(report["render"].value("playerDrawSubmitted", false));
+    EXPECT_EQ(report["render"].value("shutdown", ""), "Completed");
+    EXPECT_TRUE(report["diagnostics"].empty());
+    EXPECT_FALSE(IsPathWithin(reportPath, StarterArenaRoot()));
+}
