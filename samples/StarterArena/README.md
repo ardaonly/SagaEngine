@@ -10,11 +10,12 @@ headless mode, writes a smoke report, and exits. The sample also has one C#
 script for SagaScript compile/analyze evidence. When script manifests are
 provided, the runtime smoke can record script metadata only, invoke exactly one
 known pure method with an explicit opt-in flag, or record focused `GameRules`
-C# lifecycle evidence with a separate explicit opt-in flag. This is not
-arbitrary script execution, renderer/client gameplay, Visual Blocks, editor
-workflow, package install, package output, or distribution output. Server
-authority evidence is tracked separately through a bounded socket-free headless
-smoke.
+C# lifecycle evidence with a separate explicit opt-in flag. The invocation and
+lifecycle flags can be used together, and the report records them independently.
+This is not arbitrary script execution, renderer/client gameplay, Visual
+Blocks, editor workflow, package install, package output, or distribution
+output. Server authority evidence is tracked separately through a bounded
+socket-free headless smoke.
 
 Runtime smoke command:
 
@@ -50,6 +51,10 @@ nix-shell --run "dotnet build Engine/Managed/SagaScript.RuntimeBridge/SagaScript
 nix-shell --run "SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY=Engine/Managed/SagaScript.RuntimeBridge/bin/Release/net10.0/SagaScript.RuntimeBridge.dll Tools/SagaScript/sagascript compile --source samples/StarterArena/Scripts --out /tmp/starter_arena_sagascript/Manifests --artifacts-out /tmp/starter_arena_sagascript/Artifacts/Scripts --project-root samples/StarterArena --assembly-name StarterArenaScripts --diagnostics /tmp/starter_arena_sagascript/sagascript_diagnostics.json --json"
 ```
 
+Generated manifests, assemblies, diagnostics, and runtime smoke reports should
+stay under temporary output roots such as `/tmp/starter_arena_sagascript`; they
+must not be written into `samples/StarterArena`.
+
 Focused runtime script metadata smoke:
 
 ```sh
@@ -79,6 +84,16 @@ nix-shell --run "<build-dir>/bin/SagaRuntime --headless --project samples/Starte
 This records focused lifecycle evidence under `scriptLifecycle`:
 `scriptLifecycle.execution: Invoked`, the `GameRules` script id/type, and the
 `OnCreate`, `OnStart`, `OnUpdate`, and `OnDestroy` callbacks.
+
+Focused combined invocation and lifecycle smoke:
+
+```sh
+nix-shell --run "<build-dir>/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --invoke-starter-arena-script --run-starter-arena-script-lifecycle --smoke-report-out /tmp/starter_arena_script_combined_smoke.json --smoke-frames 30 --fixed-dt 0.016"
+```
+
+This records `scriptBinding.execution: MetadataOnly` while reporting
+`scriptInvocation.execution: Invoked` and `scriptLifecycle.execution: Invoked`
+independently.
 
 The invocation and lifecycle smokes require a .NET host environment; use the dev
 shell unless `hostfxr` is already discoverable in the local environment.

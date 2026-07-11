@@ -15,7 +15,8 @@
   results from the declared scene resource.
 - `Scripts/GameRules.cs` is compile/analyze evidence, one controlled runtime
   pure-method invocation smoke, one focused C# lifecycle proof, and optional
-  runtime smoke lifecycle evidence.
+  runtime smoke lifecycle evidence. Runtime invocation and lifecycle evidence
+  can be requested together, but they remain separate report sections.
 - StarterArena runtime smoke can load the compiled C# assembly only when
   `--invoke-starter-arena-script` or
   `--run-starter-arena-script-lifecycle` is passed with valid script metadata.
@@ -25,6 +26,8 @@
   smoke lifecycle evidence; arbitrary script methods remain unsupported.
 - The controlled invocation and lifecycle smokes require a .NET host
   environment where `hostfxr` is discoverable.
+- Generated StarterArena script artifacts and smoke reports are expected to
+  live under temporary output roots, not under `samples/StarterArena`.
 - Restart behavior is reported as deferred.
 - No Visual Blocks, editor workflow, external client/server networking, broad
   runtime C# gameplay loop binding, package install, package output, or

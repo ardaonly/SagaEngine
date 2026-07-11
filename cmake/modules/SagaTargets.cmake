@@ -707,8 +707,15 @@ function(saga_create_engine_targets)
 
     add_executable(SagaRuntime
         ${SAGA_ROOT}/Apps/Runtime/main.cpp
+        ${SAGA_ROOT}/Apps/Runtime/RuntimeCommandLine.h
         ${SAGA_ROOT}/Apps/Runtime/RuntimeAssetStartupBootstrap.hpp
         ${SAGA_ROOT}/Apps/Runtime/RuntimeAssetStartupBootstrap.cpp
+        ${SAGA_ROOT}/Apps/Runtime/StarterArenaSmoke.h
+        ${SAGA_ROOT}/Apps/Runtime/StarterArenaSmoke.cpp
+        ${SAGA_ROOT}/Apps/Runtime/StarterArenaSmokeReport.h
+        ${SAGA_ROOT}/Apps/Runtime/StarterArenaSmokeReport.cpp
+        ${SAGA_ROOT}/Apps/Runtime/StarterArenaSmokeScript.h
+        ${SAGA_ROOT}/Apps/Runtime/StarterArenaSmokeScript.cpp
         ${SAGA_RUNTIME_COMMON_SOURCES}
     )
 
