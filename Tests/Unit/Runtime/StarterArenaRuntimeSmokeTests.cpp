@@ -181,6 +181,7 @@ void ConfigureDotnetEnvironment()
     std::filesystem::remove_all(root);
     std::filesystem::create_directories(root / "Scripts");
     std::filesystem::create_directories(root / "Scenes");
+    std::filesystem::create_directories(root / "Input");
     std::filesystem::create_directories(root / "Diagnostics");
     std::filesystem::create_directories(root / "Build" / "Reports");
     return root;
@@ -199,6 +200,10 @@ void CopyStarterArenaSample(const std::filesystem::path& root)
     std::filesystem::copy_file(
         StarterArenaRoot() / "Scenes" / "arena.scene.json",
         root / "Scenes" / "arena.scene.json",
+        std::filesystem::copy_options::overwrite_existing);
+    std::filesystem::copy_file(
+        StarterArenaRoot() / "Input" / "playable.synthetic-input.json",
+        root / "Input" / "playable.synthetic-input.json",
         std::filesystem::copy_options::overwrite_existing);
 }
 
@@ -664,6 +669,44 @@ TEST(StarterArenaRuntimeSmokeTests, VisibleModeRejectsHeadlessBeforeExecution)
         "StarterArena.Playable.VisibleRequired"));
 }
 
+TEST(StarterArenaRuntimeSmokeTests,
+     PlayableInputFlagsWithoutPlayableModeFailBeforeRuntimeStartup)
+{
+    const auto root =
+        TempProjectRoot("saga_starter_arena_playable_flags_without_mode");
+    const auto scriptPath = root / "Input" / "unused.json";
+    WriteFile(scriptPath, "{}");
+
+    const auto runRejectedCommand = [&](const std::string& arguments,
+                                        const char* outputName,
+                                        const char* reportName) {
+        const auto outputPath = root / "Build" / "Reports" / outputName;
+        const auto reportPath = root / "Build" / "Reports" / reportName;
+        std::filesystem::remove(reportPath);
+        const std::string command =
+            ShellQuote(SagaRuntimeExecutable()) + " " + arguments +
+            " --playable-report-out " + ShellQuote(reportPath) +
+            " > " + ShellQuote(outputPath) + " 2>&1";
+
+        EXPECT_EQ(RunCommand(command), 2);
+        const std::string output = ReadFile(outputPath);
+        EXPECT_NE(output.find("--playable-input-source and "
+                              "--playable-input-script require "
+                              "--starter-arena-playable."),
+                  std::string::npos);
+        EXPECT_EQ(output.find("Runtime service registry startup"),
+                  std::string::npos);
+        EXPECT_FALSE(std::filesystem::exists(reportPath));
+    };
+
+    runRejectedCommand("--playable-input-source synthetic",
+                       "source.stdout",
+                       "source-report.json");
+    runRejectedCommand("--playable-input-script " + ShellQuote(scriptPath),
+                       "script.stdout",
+                       "script-report.json");
+}
+
 TEST(StarterArenaRuntimeSmokeTests, BoundedVisibleModeWritesStableReport)
 {
 #if !defined(_WIN32)
@@ -698,6 +741,29 @@ TEST(StarterArenaRuntimeSmokeTests, BoundedVisibleModeWritesStableReport)
     EXPECT_EQ(report["scene"].value("sceneId", ""),
               "starter-arena-local-loop");
     EXPECT_EQ(report["simulation"].value("ticks", 0u), 30u);
+    EXPECT_EQ(report["input"].value("status", ""), "Passed");
+    EXPECT_EQ(report["input"].value("source", ""), "scene");
+    EXPECT_EQ(report["input"].value("framesWithInput", 0u), 30u);
+    EXPECT_FALSE(report["input"].value("realDeviceObserved", true));
+    const auto& mapping = report["input"]["mapping"];
+    EXPECT_EQ(mapping.value("MoveLeft", ""), "A");
+    EXPECT_EQ(mapping.value("MoveRight", ""), "D");
+    EXPECT_EQ(mapping.value("MoveUp", ""), "W");
+    EXPECT_EQ(mapping.value("MoveDown", ""), "S");
+    EXPECT_EQ(mapping.value("Quit", ""), "Escape");
+    EXPECT_EQ(mapping["keys"]["MoveLeft"], mapping["MoveLeft"]);
+    EXPECT_EQ(mapping["keys"]["MoveRight"], mapping["MoveRight"]);
+    EXPECT_EQ(mapping["keys"]["MoveUp"], mapping["MoveUp"]);
+    EXPECT_EQ(mapping["keys"]["MoveDown"], mapping["MoveDown"]);
+    EXPECT_EQ(mapping["keys"]["Quit"], mapping["Quit"]);
+    EXPECT_EQ(mapping.value("axisConvention", ""),
+              "positiveXRight_positiveYUpForward");
+    EXPECT_EQ(mapping.value("countSemantics", ""), "activeTicks");
+    EXPECT_EQ(mapping.value("diagonalPolicy", ""),
+              "normalizedForSyntheticAndKeyboard");
+    EXPECT_DOUBLE_EQ(mapping.value("actionMovementSpeed", 0.0), 2.0);
+    EXPECT_EQ(mapping.value("sceneInputSemantics", ""),
+              "authoredVelocityPreserved");
     EXPECT_DOUBLE_EQ(
         report["simulation"]["finalPosition"].value("x", 0.0), 1.0);
     EXPECT_NEAR(
@@ -712,4 +778,111 @@ TEST(StarterArenaRuntimeSmokeTests, BoundedVisibleModeWritesStableReport)
     EXPECT_EQ(report["render"].value("shutdown", ""), "Completed");
     EXPECT_TRUE(report["diagnostics"].empty());
     EXPECT_FALSE(IsPathWithin(reportPath, StarterArenaRoot()));
+}
+
+TEST(StarterArenaRuntimeSmokeTests, BoundedSyntheticVisibleModeWritesInputEvidence)
+{
+#if !defined(_WIN32)
+    if (std::getenv("DISPLAY") == nullptr &&
+        std::getenv("WAYLAND_DISPLAY") == nullptr)
+    {
+        GTEST_SKIP() << "No display is available for bounded visible evidence.";
+    }
+#endif
+    const auto root = TempProjectRoot("saga_starter_arena_visible_synthetic");
+    CopyStarterArenaSample(root);
+    const auto reportPath = std::filesystem::temp_directory_path() /
+                            "saga_starter_arena_visible_synthetic.json";
+    std::filesystem::remove(reportPath);
+    const auto stdoutPath = root / "Build" / "Reports" / "synthetic.stdout";
+    const auto stderrPath = root / "Build" / "Reports" / "synthetic.stderr";
+    const std::string command =
+        ShellQuote(SagaRuntimeExecutable()) + " --project " +
+        ShellQuote(root / "StarterArena.sagaproj") +
+        " --starter-arena-playable --playable-frames 30" +
+        " --playable-input-source synthetic --playable-input-script " +
+        ShellQuote(root / "Input" / "playable.synthetic-input.json") +
+        " --playable-report-out " + ShellQuote(reportPath) +
+        " --fixed-dt 0.016 > " + ShellQuote(stdoutPath) +
+        " 2> " + ShellQuote(stderrPath);
+    ASSERT_EQ(RunCommand(command), 0)
+        << ReadFile(stdoutPath) << "\n" << ReadFile(stderrPath);
+
+    const auto report = ReadJson(reportPath);
+    EXPECT_EQ(report.value("status", ""), "Passed");
+    EXPECT_EQ(report["input"].value("status", ""), "Passed");
+    EXPECT_EQ(report["input"].value("source", ""), "synthetic");
+    EXPECT_EQ(report["input"].value("framesWithInput", 0u), 30u);
+    EXPECT_EQ(report["input"]["actionsObserved"].value("MoveRight", 0u), 15u);
+    EXPECT_EQ(report["input"]["actionsObserved"].value("MoveUp", 0u), 15u);
+    EXPECT_FALSE(report["input"].value("realDeviceObserved", true));
+    EXPECT_NEAR(report["simulation"]["finalPosition"].value("x", 0.0),
+                0.48,
+                0.000001);
+    EXPECT_NEAR(report["simulation"]["finalPosition"].value("y", 0.0),
+                0.48,
+                0.000001);
+    EXPECT_GT(report["render"].value("totalDrawItems", 0u), 0u);
+    EXPECT_TRUE(report["render"].value("playerDrawSubmitted", false));
+}
+
+TEST(StarterArenaRuntimeSmokeTests, InvalidPlayableInputSourceFailsClearly)
+{
+    const auto root = TempProjectRoot("saga_starter_arena_invalid_input_source");
+    CopyStarterArenaSample(root);
+    const auto reportPath = std::filesystem::temp_directory_path() /
+                            "saga_starter_arena_invalid_input_source.json";
+    std::filesystem::remove(reportPath);
+    const std::string command = ShellQuote(SagaRuntimeExecutable()) + " --project " +
+        ShellQuote(root / "StarterArena.sagaproj") +
+        " --starter-arena-playable --playable-input-source controller" +
+        " --playable-report-out " + ShellQuote(reportPath);
+    ASSERT_NE(RunCommand(command), 0);
+    const auto report = ReadJson(reportPath);
+    EXPECT_EQ(report["input"].value("status", ""), "Failed");
+    EXPECT_EQ(report["input"].value("source", ""), "invalid");
+    EXPECT_TRUE(ContainsDiagnosticCode(
+        report["diagnostics"], "StarterArena.Playable.InputSourceInvalid"));
+}
+
+TEST(StarterArenaRuntimeSmokeTests, SyntheticPlayableInputRequiresScript)
+{
+    const auto root = TempProjectRoot("saga_starter_arena_missing_input_script");
+    CopyStarterArenaSample(root);
+    const auto reportPath = std::filesystem::temp_directory_path() /
+                            "saga_starter_arena_missing_input_script.json";
+    std::filesystem::remove(reportPath);
+    const std::string command = ShellQuote(SagaRuntimeExecutable()) + " --project " +
+        ShellQuote(root / "StarterArena.sagaproj") +
+        " --starter-arena-playable --playable-input-source synthetic" +
+        " --playable-report-out " + ShellQuote(reportPath);
+    ASSERT_NE(RunCommand(command), 0);
+    const auto report = ReadJson(reportPath);
+    EXPECT_EQ(report["input"].value("status", ""), "Failed");
+    EXPECT_EQ(report["input"].value("source", ""), "synthetic");
+    EXPECT_TRUE(ContainsDiagnosticCode(
+        report["diagnostics"], "StarterArena.Playable.InputScriptRequired"));
+}
+
+TEST(StarterArenaRuntimeSmokeTests, MalformedPlayableInputScriptFailsClearly)
+{
+    const auto root = TempProjectRoot("saga_starter_arena_invalid_input_script");
+    CopyStarterArenaSample(root);
+    const auto scriptPath = root / "Input" / "invalid.json";
+    std::ofstream script(scriptPath);
+    script << R"({"schemaVersion":1,"sourceKind":"StarterArenaSyntheticInput","segments":[{"startTick":0,"endTickExclusive":1,"actions":["Jump"]}]})";
+    script.close();
+    const auto reportPath = std::filesystem::temp_directory_path() /
+                            "saga_starter_arena_invalid_input_script.json";
+    std::filesystem::remove(reportPath);
+    const std::string command = ShellQuote(SagaRuntimeExecutable()) + " --project " +
+        ShellQuote(root / "StarterArena.sagaproj") +
+        " --starter-arena-playable --playable-input-source synthetic" +
+        " --playable-input-script " + ShellQuote(scriptPath) +
+        " --playable-report-out " + ShellQuote(reportPath);
+    ASSERT_NE(RunCommand(command), 0);
+    const auto report = ReadJson(reportPath);
+    EXPECT_EQ(report["input"].value("status", ""), "Failed");
+    EXPECT_TRUE(ContainsDiagnosticCode(
+        report["diagnostics"], "StarterArena.Playable.InputScriptInvalid"));
 }

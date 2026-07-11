@@ -899,11 +899,12 @@ StarterArenaLoopResult RunStarterArenaLoop(
     {
         StarterArenaSimulationState simulation =
             MakeStarterArenaSimulation(*scene);
+        auto inputProvider = CreateSceneInputProvider(loop.inputVector);
         for (std::uint32_t frame = 0; frame < commandLine.smokeFrames; ++frame)
         {
             StepStarterArenaSimulation(
                 simulation,
-                loop.inputVector,
+                inputProvider->Read(frame),
                 commandLine.fixedDtSeconds);
         }
         loop.finalPosition = simulation.position;

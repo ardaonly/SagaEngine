@@ -4,6 +4,7 @@
 #pragma once
 
 #include "StarterArenaSmoke.h"
+#include "StarterArenaInput.h"
 
 #include <cstdint>
 
@@ -22,7 +23,7 @@ struct StarterArenaSimulationState
     const StarterArenaScene& scene) noexcept;
 
 void StepStarterArenaSimulation(StarterArenaSimulationState& state,
-                                StarterArenaVec2 input,
+                                const StarterArenaInputFrame& input,
                                 double fixedDtSeconds) noexcept;
 
 } // namespace SagaRuntimeApp

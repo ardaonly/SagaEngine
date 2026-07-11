@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "sourceKind": "StarterArenaSyntheticInput",
+  "segments": [
+    {
+      "startTick": 0,
+      "endTickExclusive": 15,
+      "actions": ["MoveRight"]
+    },
+    {
+      "startTick": 15,
+      "endTickExclusive": 30,
+      "actions": ["MoveUp"]
+    }
+  ]
+}

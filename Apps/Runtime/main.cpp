@@ -391,6 +391,14 @@ SagaRuntimeApp::RuntimeCommandLine ParseArgs(int argc, char* argv[])
         {
             commandLine.playableReportOut = std::filesystem::path(argv[++i]);
         }
+        else if (arg == "--playable-input-source" && i + 1 < argc)
+        {
+            commandLine.playableInputSource = argv[++i];
+        }
+        else if (arg == "--playable-input-script" && i + 1 < argc)
+        {
+            commandLine.playableInputScript = std::filesystem::path(argv[++i]);
+        }
         else if (arg == "--fixed-dt" && i + 1 < argc)
         {
             commandLine.fixedDtSeconds = std::stod(argv[++i]);
@@ -423,6 +431,10 @@ SagaRuntimeApp::RuntimeCommandLine ParseArgs(int argc, char* argv[])
                         "  --playable-frames <n> Bound visible StarterArena run to n presented frames\n"
                         "  --playable-report-out <path>\n"
                         "                         Write visible StarterArena report JSON\n"
+                        "  --playable-input-source <scene|synthetic|keyboard>\n"
+                        "                         Select visible StarterArena input (default: scene)\n"
+                        "  --playable-input-script <path>\n"
+                        "                         Synthetic input JSON (required for synthetic source)\n"
                         "  --fixed-dt <seconds>  StarterArena fixed timestep (default: 0.0166667)\n"
                         "  --help, --?           Show this help\n");
             std::exit(0);
@@ -439,6 +451,16 @@ int main(int argc, char* argv[])
     SagaEngine::Core::Log::Init();
 
     auto commandLine = ParseArgs(argc, argv);
+    if (!commandLine.starterArenaPlayable &&
+        (commandLine.playableInputSource != "scene" ||
+         !commandLine.playableInputScript.empty()))
+    {
+        LOG_ERROR(kLogTag,
+                  "--playable-input-source and --playable-input-script require "
+                  "--starter-arena-playable.");
+        SagaEngine::Core::Log::Shutdown();
+        return 2;
+    }
     if (commandLine.starterArenaSmoke && commandLine.starterArenaPlayable)
     {
         LOG_ERROR(
