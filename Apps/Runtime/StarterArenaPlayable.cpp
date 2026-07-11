@@ -4,6 +4,7 @@
 #include "StarterArenaPlayable.h"
 
 #include "StarterArenaPlayableScene.h"
+#include "StarterArenaInput.h"
 #include "StarterArenaSimulation.h"
 #include "StarterArenaSmoke.h"
 
@@ -48,6 +49,7 @@ struct PlayableEvidence
     std::uint32_t lastVisitedEntities = 0;
     std::uint32_t lastCulledEntities = 0;
     StarterArenaSimulationState simulation;
+    StarterArenaInputEvidence input;
 };
 
 bool IsPathInside(const std::filesystem::path& child, const std::filesystem::path& parent)
@@ -86,9 +88,11 @@ class StarterArenaPlayableHost final : public Saga::Application
 public:
     StarterArenaPlayableHost(const StarterArenaScene& scene,
                              const RuntimeCommandLine& commandLine,
+                             std::unique_ptr<IStarterArenaInputProvider> inputProvider,
                              PlayableEvidence& evidence,
                              std::vector<StarterArenaDiagnostic>& diagnostics)
         : Application("StarterArena"), scene_(scene), commandLine_(commandLine),
+          inputProvider_(std::move(inputProvider)),
           evidence_(evidence), diagnostics_(diagnostics)
     {
         evidence_.requestedFrames = commandLine.playableFrames;
@@ -119,6 +123,19 @@ private:
             Fail("StarterArena.Playable.NativeWindowMissing",
                  "The render backend could not obtain an OS-native window handle.");
             return;
+        }
+
+        if (!inputProvider_ && evidence_.input.source == StarterArenaInputSource::Keyboard)
+        {
+            std::string inputError;
+            inputProvider_ = CreateKeyboardInputProvider(
+                SagaEngine::Platform::CreateSDLInputBackend(nativeWindow), inputError);
+            if (!inputProvider_)
+            {
+                evidence_.input.status = "Failed";
+                Fail("StarterArena.Playable.KeyboardInitializationFailed", inputError);
+                return;
+            }
         }
 
         RB::RenderBackendConfig backendConfig;
@@ -180,9 +197,9 @@ private:
             return;
         }
 
-        StepStarterArenaSimulation(evidence_.simulation,
-                                   scene_.testInput,
-                                   commandLine_.fixedDtSeconds);
+        const StarterArenaInputFrame input = inputProvider_->Read(evidence_.simulation.ticks);
+        RecordStarterArenaInput(input, evidence_.input);
+        StepStarterArenaSimulation(evidence_.simulation, input, commandLine_.fixedDtSeconds);
         UpdateStarterArenaPlayerTransform(renderWorld_,
                                           playableScene_.player,
                                           evidence_.simulation.position);
@@ -201,6 +218,12 @@ private:
         backend_->Submit(playableScene_.camera, view);
         backend_->EndFrame();
         ++evidence_.presentedFrames;
+
+        if (input.actions.quit)
+        {
+            RequestClose();
+            return;
+        }
 
         if (commandLine_.playableFrames > 0u &&
             evidence_.presentedFrames >= commandLine_.playableFrames)
@@ -223,11 +246,17 @@ private:
             backend_->Shutdown();
             backend_.reset();
         }
+        if (inputProvider_)
+        {
+            inputProvider_->Shutdown();
+        }
+        FinalizeStarterArenaInputEvidence(evidence_.input);
         evidence_.shutdownComplete = true;
     }
 
     const StarterArenaScene& scene_;
     const RuntimeCommandLine& commandLine_;
+    std::unique_ptr<IStarterArenaInputProvider> inputProvider_;
     PlayableEvidence& evidence_;
     std::vector<StarterArenaDiagnostic>& diagnostics_;
     std::unique_ptr<RB::IRenderBackend> backend_;
@@ -274,8 +303,44 @@ Json BuildReport(const RuntimeCommandLine& commandLine,
           {"ticks", evidence.simulation.ticks},
           {"fixedDtSeconds", commandLine.fixedDtSeconds},
           {"inputVector", scene ? Vec2Json(scene->testInput) : Json(nullptr)},
+          {"initialPosition", scene ? Vec2Json(scene->playerSpawn) : Json(nullptr)},
           {"finalPosition", Vec2Json(evidence.simulation.position)},
           {"clampCount", evidence.simulation.clampCount}}},
+        {"input",
+         {{"status", evidence.input.status},
+          {"source", ToString(evidence.input.source)},
+          {"actionsObserved",
+           {{"MoveLeft", evidence.input.moveLeftCount},
+            {"MoveRight", evidence.input.moveRightCount},
+            {"MoveUp", evidence.input.moveUpCount},
+            {"MoveDown", evidence.input.moveDownCount},
+            {"Quit", evidence.input.quitCount}}},
+          {"framesWithInput", evidence.input.framesWithInput},
+          {"syntheticScriptPath",
+           evidence.input.syntheticScriptPath.empty()
+               ? Json(nullptr)
+               : Json(GenericPath(evidence.input.syntheticScriptPath))},
+          {"realDeviceObserved", evidence.input.realDeviceObserved},
+          {"mapping",
+           {{"MoveLeft", "A"},
+            {"MoveRight", "D"},
+            {"MoveUp", "W"},
+            {"MoveDown", "S"},
+            {"Quit", "Escape"},
+            {"keys",
+             {{"MoveLeft", "A"},
+              {"MoveRight", "D"},
+              {"MoveUp", "W"},
+              {"MoveDown", "S"},
+              {"Quit", "Escape"}}},
+            {"axisConvention", "positiveXRight_positiveYUpForward"},
+            {"countSemantics", "activeTicks"},
+            {"diagonalPolicy", "normalizedForSyntheticAndKeyboard"},
+            {"actionMovementSpeed", 2.0},
+            {"sceneInputSemantics", "authoredVelocityPreserved"}}},
+          {"nonClaims",
+           Json::array({"No input device evidence for scene or synthetic sources",
+                        "No real keyboard evidence when status is NoInputObserved"})}}},
         {"render",
          {{"status", passed ? "Passed" : (evidence.initialized ? "Failed" : "NotInitialized")},
           {"backend", evidence.backend},
@@ -302,7 +367,7 @@ Json BuildReport(const RuntimeCommandLine& commandLine,
           {"playerDrawSubmitted", evidence.playerDrawSubmitted},
           {"cleanShutdown", evidence.shutdownComplete}}},
         {"nonClaims",
-         Json::array({"No interactive input proof",
+         Json::array({"No broader interactive gameplay proof",
                       "No C# world mutation proof",
                       "No editor workflow proof",
                       "No networking or multiplayer proof",
@@ -348,6 +413,36 @@ bool WriteReport(const std::filesystem::path& path, const Json& report, std::str
 int RunStarterArenaPlayable(const RuntimeCommandLine& commandLine)
 {
     std::vector<StarterArenaDiagnostic> diagnostics;
+    std::optional<StarterArenaInputSource> inputSource;
+    if (commandLine.playableInputSource == "scene")
+    {
+        inputSource = StarterArenaInputSource::Scene;
+    }
+    else if (commandLine.playableInputSource == "synthetic")
+    {
+        inputSource = StarterArenaInputSource::Synthetic;
+    }
+    else if (commandLine.playableInputSource == "keyboard")
+    {
+        inputSource = StarterArenaInputSource::Keyboard;
+    }
+    else
+    {
+        diagnostics.push_back({"StarterArena.Playable.InputSourceInvalid",
+                               "--playable-input-source must be scene, synthetic, or keyboard."});
+    }
+    if (inputSource == StarterArenaInputSource::Synthetic &&
+        commandLine.playableInputScript.empty())
+    {
+        diagnostics.push_back({"StarterArena.Playable.InputScriptRequired",
+                               "Synthetic input requires --playable-input-script <path>."});
+    }
+    if (inputSource != StarterArenaInputSource::Synthetic &&
+        !commandLine.playableInputScript.empty())
+    {
+        diagnostics.push_back({"StarterArena.Playable.InputScriptUnexpected",
+                               "--playable-input-script is only valid for synthetic input."});
+    }
     if (commandLine.launchOptions.headless)
     {
         diagnostics.push_back({"StarterArena.Playable.VisibleRequired",
@@ -388,13 +483,39 @@ int RunStarterArenaPlayable(const RuntimeCommandLine& commandLine)
     }
 
     PlayableEvidence evidence;
+    evidence.input.source = inputSource.value_or(StarterArenaInputSource::Invalid);
+    evidence.input.syntheticScriptPath = commandLine.playableInputScript;
+    if (!inputSource ||
+        (inputSource != StarterArenaInputSource::Synthetic &&
+         !commandLine.playableInputScript.empty()) ||
+        (inputSource == StarterArenaInputSource::Synthetic &&
+         commandLine.playableInputScript.empty()))
+    {
+        evidence.input.status = "Failed";
+    }
     if (scene)
     {
         evidence.simulation = MakeStarterArenaSimulation(*scene);
     }
+    std::unique_ptr<IStarterArenaInputProvider> inputProvider;
+    if (diagnostics.empty() && scene && inputSource == StarterArenaInputSource::Scene)
+    {
+        inputProvider = CreateSceneInputProvider(scene->testInput);
+    }
+    else if (diagnostics.empty() && scene && inputSource == StarterArenaInputSource::Synthetic)
+    {
+        std::string inputError;
+        inputProvider = CreateSyntheticInputProvider(commandLine.playableInputScript, inputError);
+        if (!inputProvider)
+        {
+            evidence.input.status = "Failed";
+            diagnostics.push_back({"StarterArena.Playable.InputScriptInvalid", inputError});
+        }
+    }
     if (diagnostics.empty() && scene)
     {
-        StarterArenaPlayableHost host(*scene, commandLine, evidence, diagnostics);
+        StarterArenaPlayableHost host(
+            *scene, commandLine, std::move(inputProvider), evidence, diagnostics);
         host.Run();
         if (!evidence.initialized && diagnostics.empty())
         {

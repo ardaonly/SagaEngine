@@ -1548,11 +1548,13 @@ function(saga_setup_tests)
     if(EXISTS "${STARTER_ARENA_PLAYABLE_TEST_SOURCE}")
         add_executable(StarterArenaPlayableTests
             ${STARTER_ARENA_PLAYABLE_TEST_SOURCE}
+            ${SAGA_ROOT}/Apps/Runtime/StarterArenaInput.cpp
             ${SAGA_ROOT}/Apps/Runtime/StarterArenaSimulation.cpp
             ${SAGA_ROOT}/Apps/Runtime/StarterArenaPlayableScene.cpp
         )
         target_link_libraries(StarterArenaPlayableTests PRIVATE
             SagaEngine
+            nlohmann_json::nlohmann_json
             GTest::gtest
             GTest::gmock
             GTest::gtest_main
@@ -1560,6 +1562,9 @@ function(saga_setup_tests)
         target_include_directories(StarterArenaPlayableTests PRIVATE
             ${SAGA_ROOT}/Apps/Runtime
             ${SAGA_ROOT}/Engine/Public
+        )
+        target_compile_definitions(StarterArenaPlayableTests PRIVATE
+            SAGA_SOURCE_ROOT="${SAGA_ROOT}"
         )
         add_test(NAME StarterArenaPlayableTests
             COMMAND StarterArenaPlayableTests)
@@ -1706,6 +1711,8 @@ function(saga_setup_tests)
 
     add_executable(SagaIntegrationTests ${INTEGRATION_SOURCES})
     target_sources(SagaIntegrationTests PRIVATE
+        ${SAGA_ROOT}/Apps/Runtime/StarterArenaInput.cpp
+        ${SAGA_ROOT}/Apps/Runtime/StarterArenaSimulation.cpp
         ${SAGA_ROOT}/Apps/Runtime/StarterArenaPlayableScene.cpp
     )
     saga_link_thirdparty(SagaIntegrationTests)
@@ -1729,6 +1736,9 @@ function(saga_setup_tests)
         ${SAGA_ROOT}/Tests/Support
         ${SAGA_ROOT}/Engine/Private
         ${SAGA_ROOT}/Apps/Runtime
+    )
+    target_compile_definitions(SagaIntegrationTests PRIVATE
+        SAGA_SOURCE_ROOT="${SAGA_ROOT}"
     )
     saga_link_diligent_backend(SagaIntegrationTests)
     add_test(NAME IntegrationTests COMMAND SagaIntegrationTests)

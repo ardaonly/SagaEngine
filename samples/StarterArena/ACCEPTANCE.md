@@ -33,8 +33,39 @@ Accepted visible-frame evidence:
 - GPU evidence contains non-clear arena pixels and distinct ground, player,
   and boundary color regions;
 - visible reports and generated resources stay outside `samples/StarterArena`;
-- the visible path does not use `ClientHost`, networking, input devices,
-  editor code, or C# execution.
+- the visible path does not use `ClientHost`, networking, editor code, or C#
+  execution.
+
+Accepted input-flow evidence:
+
+- the default visible command keeps scene-authored input and its existing final
+  position;
+- `--playable-input-source synthetic` requires a valid
+  `--playable-input-script` and produces the same result across bounded runs;
+- the tracked 30-tick synthetic script records 15 `MoveRight` ticks, 15
+  `MoveUp` ticks, `framesWithInput: 30`, and final position `(0.48, 0.48)` at
+  fixed dt `0.016`;
+- opposing actions cancel, diagonal movement is normalized, and movement remains
+  clamped to scene bounds;
+- fake-backend tests exercise keyboard events through `InputManager`,
+  `InputActionMap`, and `GameplayInputFrame` without injecting OS events;
+- the visible report preserves existing fields and adds input status, source,
+  action counts, mapping, synthetic script path, input-frame count, and
+  real-device observation;
+- invalid sources and malformed synthetic scripts fail before rendering with
+  explicit diagnostics;
+- synthetic GPU evidence updates the player marker from the authoritative
+  simulation position while preserving nonzero draw and pixel evidence;
+- keyboard mode without a mapped key succeeds with
+  `input.status: NoInputObserved` and `realDeviceObserved: false`.
+
+Pending manual keyboard evidence:
+
+- Arda runs keyboard mode and moves the marker with a mapped key;
+- the resulting report records `input.source: keyboard`,
+  `input.status: Passed`, `input.realDeviceObserved: true`, and
+  `input.framesWithInput` greater than zero;
+- the report records a final position different from the initial position.
 
 Accepted SagaScript compile and metadata evidence:
 
@@ -120,7 +151,7 @@ Accepted server-authoritative smoke evidence:
 - the report keeps full multiplayer, MMO proof, editor workflow, package
   install, package output, and Visual Blocks as non-claims.
 
-This is not acceptance for interactive gameplay, a reusable scene system,
+This is not acceptance for broad interactive gameplay, a reusable scene system,
 arbitrary C# execution, Visual Blocks, package launch,
 package install, editor launch, full multiplayer gameplay, external
 client/server networking, or MMO-scale networking.

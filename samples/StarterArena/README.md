@@ -4,7 +4,7 @@
 It has a narrow `SagaRuntime` headless smoke path and an explicit visible-frame
 path.
 
-This is not an interactive game. The headless runtime smoke command consumes the
+This is not a complete game. The headless runtime smoke command consumes the
 `.sagaproj` file and the declared scene resource at
 `Scenes/arena.scene.json`, runs a deterministic scene-backed local loop in
 headless mode, writes a smoke report, and exits. The sample also has one C#
@@ -13,14 +13,17 @@ provided, the runtime smoke can record script metadata only, invoke exactly one
 known pure method with an explicit opt-in flag, or record focused `GameRules`
 C# lifecycle evidence with a separate explicit opt-in flag. The invocation and
 lifecycle flags can be used together, and the report records them independently.
-This is not arbitrary script execution, interactive gameplay, Visual
+This is not arbitrary script execution, broad interactive gameplay, Visual
 Blocks, editor workflow, package install, package output, or distribution
 output. The visible command consumes the same project and scene metadata,
 advances the same deterministic simulation kernel, and renders an arena,
 boundary markers, and a player marker through the existing render backend.
-It does not read input devices or execute C#. Server authority evidence is
-tracked separately through a bounded
-socket-free headless smoke.
+Visible mode accepts scene-authored deterministic input, a validated synthetic
+JSON input script, or an explicit keyboard source. All three feed the same
+fixed-step app-local simulation and visible player transform. Keyboard mode uses
+the existing `InputManager`, SDL input backend, keyboard device, and action map;
+it does not execute C#. Server authority evidence is tracked separately through
+a bounded socket-free headless smoke.
 
 Runtime smoke command:
 
@@ -34,8 +37,27 @@ Visible frame command:
 <build-dir>/bin/SagaRuntime --project samples/StarterArena/StarterArena.sagaproj --starter-arena-playable --playable-frames 30 --playable-report-out /tmp/starter_arena_playable.json --fixed-dt 0.016
 ```
 
+Deterministic synthetic input command:
+
+```sh
+<build-dir>/bin/SagaRuntime --project samples/StarterArena/StarterArena.sagaproj --starter-arena-playable --playable-frames 30 --playable-input-source synthetic --playable-input-script samples/StarterArena/Input/playable.synthetic-input.json --playable-report-out /tmp/starter_arena_playable_synthetic.json --fixed-dt 0.016
+```
+
+Manual keyboard command:
+
+```sh
+<build-dir>/bin/SagaRuntime --project samples/StarterArena/StarterArena.sagaproj --starter-arena-playable --playable-input-source keyboard --playable-report-out /tmp/starter_arena_playable_keyboard.json --fixed-dt 0.016
+```
+
+Keyboard bindings are `W`, `A`, `S`, and `D`; `Escape` requests close. An idle
+bounded keyboard run succeeds with `input.status: NoInputObserved`. Real keyboard
+evidence remains pending until a manual report records source `keyboard`, status
+`Passed`, `realDeviceObserved: true`, at least one input frame, and a changed
+final position. Automated tests do not inject or claim a real key press.
+
 Omit `--playable-frames` to keep the visible window open until it is closed.
-The bounded form writes project, scene, simulation, backend, presented-frame,
+The bounded form writes project, scene, input source and action counts,
+simulation, backend, presented-frame,
 draw-submission, player-marker, viewport, teardown, diagnostic, and non-claim
 evidence. `--starter-arena-playable` rejects `--headless`; the headless contract
 continues to use `--starter-arena-smoke`.
@@ -49,6 +71,11 @@ the diagnostics and generated report paths:
 The tracked scene resource exists only for the bounded smoke and visible paths:
 
 - `Scenes/arena.scene.json`
+
+The tracked synthetic input resource is deterministic test source, not generated
+output:
+
+- `Input/playable.synthetic-input.json`
 
 The tracked script source exists only for SagaScript compile/analyze evidence
 and the focused C# lifecycle proof:

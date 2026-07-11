@@ -3,8 +3,12 @@
 
 #include "DiligentGpuTestFixture.h"
 #include "StarterArenaPlayableScene.h"
+#include "StarterArenaInput.h"
+#include "StarterArenaSimulation.h"
 
 #include <SagaEngine/Render/World/RenderWorld.h>
+#include <cstdint>
+#include <filesystem>
 
 namespace
 {
@@ -29,6 +33,25 @@ TEST_F(DiligentGPU, StarterArenaFrameProducesArenaPlayerAndBoundaryPixels)
     auto scene = SagaRuntimeApp::CreateStarterArenaPlayableScene(
         m_Backend.BackendInterface(), world, MakeStarterArenaGpuScene(), kWidth, kHeight);
     ASSERT_TRUE(scene.IsValid());
+
+    std::string inputError;
+    const auto inputScript = std::filesystem::path(SAGA_SOURCE_ROOT) /
+                             "samples/StarterArena/Input/playable.synthetic-input.json";
+    auto inputProvider = SagaRuntimeApp::CreateSyntheticInputProvider(inputScript, inputError);
+    ASSERT_NE(inputProvider, nullptr) << inputError;
+    auto simulation = SagaRuntimeApp::MakeStarterArenaSimulation(MakeStarterArenaGpuScene());
+    for (std::uint32_t tick = 0; tick < 30u; ++tick)
+    {
+        SagaRuntimeApp::StepStarterArenaSimulation(
+            simulation, inputProvider->Read(tick), 0.016);
+    }
+    SagaRuntimeApp::UpdateStarterArenaPlayerTransform(world, scene.player, simulation.position);
+    EXPECT_NEAR(simulation.position.x, 0.48, 0.000001);
+    EXPECT_NEAR(simulation.position.y, 0.48, 0.000001);
+    const auto* player = world.Get(scene.player);
+    ASSERT_NE(player, nullptr);
+    EXPECT_NEAR(player->transform.position.x, 0.48f, 0.000001f);
+    EXPECT_NEAR(player->transform.position.z, 0.48f, 0.000001f);
 
     const auto view = SagaRuntimeApp::BuildStarterArenaPlayableView(world, scene.camera);
     ASSERT_TRUE(SagaRuntimeApp::ViewContainsEntity(view, scene.player));

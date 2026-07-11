@@ -17,11 +17,11 @@ StarterArenaSimulationState MakeStarterArenaSimulation(const StarterArenaScene& 
 }
 
 void StepStarterArenaSimulation(StarterArenaSimulationState& state,
-                                StarterArenaVec2 input,
+                                const StarterArenaInputFrame& input,
                                 double fixedDtSeconds) noexcept
 {
-    const double nextX = state.position.x + input.x * fixedDtSeconds;
-    const double nextY = state.position.y + input.y * fixedDtSeconds;
+    const double nextX = state.position.x + input.movementVelocity.x * fixedDtSeconds;
+    const double nextY = state.position.y + input.movementVelocity.y * fixedDtSeconds;
     const double clampedX = std::clamp(nextX, state.bounds.minX, state.bounds.maxX);
     const double clampedY = std::clamp(nextY, state.bounds.minY, state.bounds.maxY);
     if (clampedX != nextX || clampedY != nextY)
