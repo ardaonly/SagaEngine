@@ -19,6 +19,13 @@
 namespace
 {
 
+void WriteFile(const std::filesystem::path& path, const std::string& contents)
+{
+    std::filesystem::create_directories(path.parent_path());
+    std::ofstream output(path);
+    output << contents;
+}
+
 [[nodiscard]] std::string ReadFile(const std::filesystem::path& path)
 {
     std::ifstream input(path);
@@ -333,7 +340,7 @@ void CopyStarterArenaSample(const std::filesystem::path& root)
 
 } // namespace
 
-TEST(StarterArenaRuntimeSmokeTests, DefaultSmokeReportsLifecycleNotRequested)
+TEST(StarterArenaRuntimeSmokeTests, DefaultSmokeReportsProjectSceneAndNoScriptExecution)
 {
     const auto root =
         TempProjectRoot("saga_starter_arena_runtime_smoke_default");
@@ -348,9 +355,18 @@ TEST(StarterArenaRuntimeSmokeTests, DefaultSmokeReportsLifecycleNotRequested)
     EXPECT_EQ(report.value("status", ""), "Passed");
     EXPECT_EQ(report["project"].value("projectId", ""), "starter-arena");
     EXPECT_EQ(report["project"].value("sceneSource", ""), "ProjectSceneReference");
+    EXPECT_TRUE(report["project"].value("projectPath", "").find("StarterArena.sagaproj") !=
+        std::string::npos);
     EXPECT_EQ(report["scene"].value("sceneId", ""), "starter-arena-local-loop");
+    EXPECT_EQ(report["scene"].value("source", ""), "Scenes/arena.scene.json");
+    EXPECT_DOUBLE_EQ(report["scene"]["playerSpawn"].value("x", 1.0), 0.0);
+    EXPECT_TRUE(report["scene"].contains("bounds"));
+    EXPECT_TRUE(report["scene"].contains("expected"));
     EXPECT_EQ(report["settings"].value("frames", 0), 30);
     EXPECT_DOUBLE_EQ(report["settings"].value("fixedDtSeconds", 0.0), 0.016);
+    EXPECT_EQ(report["loop"].value("frames", 0), 30);
+    EXPECT_DOUBLE_EQ(report["loop"].value("fixedDtSeconds", 0.0), 0.016);
+    EXPECT_EQ(report["loop"].value("status", ""), "Passed");
     EXPECT_DOUBLE_EQ(report["loop"]["inputVector"].value("x", 0.0), 4.0);
     EXPECT_DOUBLE_EQ(report["loop"]["inputVector"].value("y", 0.0), 2.0);
     EXPECT_DOUBLE_EQ(report["loop"]["finalPosition"].value("x", 0.0), 1.0);
@@ -375,7 +391,7 @@ TEST(StarterArenaRuntimeSmokeTests, DefaultSmokeReportsLifecycleNotRequested)
         "No C# script lifecycle execution"));
 }
 
-TEST(StarterArenaRuntimeSmokeTests, MetadataOnlySmokeValidatesScriptArtifactsWithoutExecution)
+TEST(StarterArenaRuntimeSmokeTests, MetadataOnlySmokeAcceptsScriptArtifactsWithoutExecution)
 {
     const auto root =
         TempProjectRoot("saga_starter_arena_runtime_smoke_metadata_only");
@@ -414,7 +430,7 @@ TEST(StarterArenaRuntimeSmokeTests, MetadataOnlySmokeValidatesScriptArtifactsWit
     EXPECT_TRUE(report["diagnostics"].empty());
 }
 
-TEST(StarterArenaRuntimeSmokeTests, ControlledInvocationReportsAddPickupScoreEvidence)
+TEST(StarterArenaRuntimeSmokeTests, ControlledInvocationSmokeInvokesOnlyAddPickupScore)
 {
     const auto root =
         TempProjectRoot("saga_starter_arena_runtime_smoke_invocation");
@@ -437,7 +453,11 @@ TEST(StarterArenaRuntimeSmokeTests, ControlledInvocationReportsAddPickupScoreEvi
     const auto& invocation = report["scriptInvocation"];
     EXPECT_EQ(invocation.value("status", ""), "Passed");
     EXPECT_EQ(invocation.value("execution", ""), "Invoked");
+    EXPECT_EQ(invocation.value("scriptId", ""), "script://starter-arena/game-rules");
+    EXPECT_EQ(invocation.value("typeName", ""), "StarterArena.Scripts.GameRules");
     EXPECT_EQ(invocation.value("method", ""), "AddPickupScore");
+    EXPECT_FALSE(invocation.contains("className"));
+    EXPECT_FALSE(invocation.contains("requestedMethod"));
     ASSERT_TRUE(invocation["arguments"].is_array());
     ASSERT_EQ(invocation["arguments"].size(), 2U);
     EXPECT_EQ(invocation["arguments"][0].get<int>(), 10);
@@ -451,7 +471,7 @@ TEST(StarterArenaRuntimeSmokeTests, ControlledInvocationReportsAddPickupScoreEvi
     EXPECT_TRUE(report["diagnostics"].empty());
 }
 
-TEST(StarterArenaRuntimeSmokeTests, OptInSmokeReportsGameRulesLifecycle)
+TEST(StarterArenaRuntimeSmokeTests, LifecycleSmokeRunsGameRulesLifecycle)
 {
     const auto root =
         TempProjectRoot("saga_starter_arena_runtime_smoke_lifecycle");
@@ -490,7 +510,38 @@ TEST(StarterArenaRuntimeSmokeTests, OptInSmokeReportsGameRulesLifecycle)
         StarterArenaRoot() / "Build" / "Manifests" / "script_artifacts.json"));
 }
 
-TEST(StarterArenaRuntimeSmokeTests, MissingScriptMetadataFailsBeforeLifecycle)
+TEST(StarterArenaRuntimeSmokeTests, CombinedInvocationAndLifecycleSmokeReportsBothIndependently)
+{
+    const auto root =
+        TempProjectRoot("saga_starter_arena_runtime_smoke_combined");
+    CopyStarterArenaSample(root);
+    ASSERT_TRUE(CompileStarterArenaScripts(root));
+
+    const auto reportPath =
+        root / "Build" / "Reports" / "starter_arena_combined_smoke.json";
+    const std::string args =
+        MetadataArgs(root) +
+        " --invoke-starter-arena-script --run-starter-arena-script-lifecycle";
+    const int exitCode = RunStarterArenaSmoke(root, reportPath, args);
+    ASSERT_EQ(exitCode, 0) << ReadFile(root / "Build" / "Reports" / "runtime.stderr");
+
+    const auto report = ReadJson(reportPath);
+    EXPECT_EQ(report.value("status", ""), "Passed");
+    EXPECT_EQ(report["scriptBinding"].value("status", ""), "Passed");
+    EXPECT_EQ(report["scriptBinding"].value("execution", ""), "MetadataOnly");
+    EXPECT_EQ(report["scriptInvocation"].value("status", ""), "Passed");
+    EXPECT_EQ(report["scriptInvocation"].value("execution", ""), "Invoked");
+    EXPECT_EQ(report["scriptInvocation"].value("method", ""), "AddPickupScore");
+    EXPECT_EQ(report["scriptInvocation"].value("result", 0), 15);
+    EXPECT_EQ(report["scriptLifecycle"].value("status", ""), "Passed");
+    EXPECT_EQ(report["scriptLifecycle"].value("execution", ""), "Invoked");
+    EXPECT_TRUE(ContainsString(
+        report["scriptLifecycle"]["callbacksObserved"],
+        "OnCreate"));
+    EXPECT_TRUE(report["diagnostics"].empty());
+}
+
+TEST(StarterArenaRuntimeSmokeTests, LifecycleSmokeFailsWithoutMetadataBeforeExecution)
 {
     const auto root =
         TempProjectRoot("saga_starter_arena_runtime_smoke_missing_metadata");
@@ -515,7 +566,34 @@ TEST(StarterArenaRuntimeSmokeTests, MissingScriptMetadataFailsBeforeLifecycle)
         "StarterArena.ScriptLifecycle.MetadataRequired"));
 }
 
-TEST(StarterArenaRuntimeSmokeTests, GeneratedArtifactsStayUnderTempRoots)
+TEST(StarterArenaRuntimeSmokeTests, InvalidArtifactManifestFailsClearly)
+{
+    const auto root =
+        TempProjectRoot("saga_starter_arena_runtime_smoke_invalid_artifacts");
+    CopyStarterArenaSample(root);
+    ASSERT_TRUE(CompileStarterArenaScripts(root));
+    WriteFile(
+        root / "Build" / "Manifests" / "script_artifacts.json",
+        "{\n  \"targetFramework\": \"net10.0\",\n  \"artifacts\": {}\n}\n");
+
+    const auto reportPath =
+        root / "Build" / "Reports" / "starter_arena_invalid_artifacts.json";
+    const int exitCode =
+        RunStarterArenaSmoke(root, reportPath, MetadataArgs(root));
+    ASSERT_NE(exitCode, 0);
+
+    const auto report = ReadJson(reportPath);
+    EXPECT_EQ(report.value("status", ""), "Failed");
+    EXPECT_EQ(report["scriptBinding"].value("status", ""), "Failed");
+    EXPECT_EQ(report["scriptBinding"].value("execution", ""), "Invalid");
+    EXPECT_EQ(report["scriptInvocation"].value("status", ""), "NotRequested");
+    EXPECT_EQ(report["scriptLifecycle"].value("status", ""), "NotRequested");
+    EXPECT_TRUE(ContainsDiagnosticCode(
+        report["diagnostics"],
+        "StarterArena.ScriptBinding.ArtifactsInvalid"));
+}
+
+TEST(StarterArenaRuntimeSmokeTests, GeneratedArtifactsStayOutsideStarterArenaSample)
 {
     const auto root =
         TempProjectRoot("saga_starter_arena_runtime_smoke_artifact_hygiene");
