@@ -1,6 +1,7 @@
 # StarterArena Known Limitations
 
-- StarterArena has only a bounded headless runtime smoke loop.
+- StarterArena has a bounded headless runtime smoke loop and a separate visible
+  frame mode.
 - StarterArena is not an interactive playable game.
 - StarterArena has one bounded socket-free server-authoritative smoke, not full
   multiplayer gameplay.
@@ -11,6 +12,14 @@
   runtime/client sample launch command.
 - The `--starter-arena-smoke` path bypasses `ClientHost`, renderer setup, and
   UDP/client networking.
+- The `--starter-arena-playable` path also bypasses `ClientHost` and networking,
+  but initializes the existing platform window and render backend.
+- Visible mode uses scene test input for deterministic motion. It does not yet
+  read keyboard, mouse, or gamepad actions.
+- Visible mode renders app-local procedural arena geometry. It does not prove
+  cooked asset loading or a reusable scene renderer.
+- Script metadata, invocation, and lifecycle flags remain headless smoke modes;
+  visible mode rejects them until world mutation is integrated explicitly.
 - The smoke loop reads spawn, bounds, camera metadata, input, and expected
   results from the declared scene resource.
 - `Scripts/GameRules.cs` is compile/analyze evidence, one controlled runtime
@@ -26,8 +35,9 @@
   smoke lifecycle evidence; arbitrary script methods remain unsupported.
 - The controlled invocation and lifecycle smokes require a .NET host
   environment where `hostfxr` is discoverable.
-- Generated StarterArena script artifacts and smoke reports are expected to
-  live under temporary output roots, not under `samples/StarterArena`.
+- Generated StarterArena script artifacts, smoke reports, and visible reports
+  are expected to live under temporary output roots, not under
+  `samples/StarterArena`.
 - Restart behavior is reported as deferred.
 - No Visual Blocks, editor workflow, external client/server networking, broad
   runtime C# gameplay loop binding, package install, package output, or

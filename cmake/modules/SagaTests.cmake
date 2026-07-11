@@ -150,6 +150,9 @@ function(saga_setup_tests)
     set(STARTER_ARENA_RUNTIME_SMOKE_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/Runtime/StarterArenaRuntimeSmokeTests.cpp"
     )
+    set(STARTER_ARENA_PLAYABLE_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Runtime/StarterArenaPlayableTests.cpp"
+    )
     set(SAGA_ACTOR_OWNERSHIP_REGISTRY_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/Server/ActorOwnershipRegistryTests.cpp"
     )
@@ -226,6 +229,7 @@ function(saga_setup_tests)
         ${SAGA_CSHARP_SCRIPT_HOST_TEST_SOURCE}
         ${SAGA_CSHARP_GAMEPLAY_PROOF_TEST_SOURCE}
         ${STARTER_ARENA_RUNTIME_SMOKE_TEST_SOURCE}
+        ${STARTER_ARENA_PLAYABLE_TEST_SOURCE}
         ${SAGA_ACTOR_OWNERSHIP_REGISTRY_TEST_SOURCE}
         ${SAGA_AUTHORITATIVE_MOVEMENT_CORE_TEST_SOURCE}
         ${SAGA_AUTHORITATIVE_MOVEMENT_INPUT_ADAPTER_TEST_SOURCE}
@@ -1540,6 +1544,29 @@ function(saga_setup_tests)
             LABELS "unit;runtime;scripting;csharp;sample")
     endif()
 
+    # --- StarterArena visible frame contract tests -------------------------
+    if(EXISTS "${STARTER_ARENA_PLAYABLE_TEST_SOURCE}")
+        add_executable(StarterArenaPlayableTests
+            ${STARTER_ARENA_PLAYABLE_TEST_SOURCE}
+            ${SAGA_ROOT}/Apps/Runtime/StarterArenaSimulation.cpp
+            ${SAGA_ROOT}/Apps/Runtime/StarterArenaPlayableScene.cpp
+        )
+        target_link_libraries(StarterArenaPlayableTests PRIVATE
+            SagaEngine
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(StarterArenaPlayableTests PRIVATE
+            ${SAGA_ROOT}/Apps/Runtime
+            ${SAGA_ROOT}/Engine/Public
+        )
+        add_test(NAME StarterArenaPlayableTests
+            COMMAND StarterArenaPlayableTests)
+        set_tests_properties(StarterArenaPlayableTests PROPERTIES
+            LABELS "unit;runtime;render;sample")
+    endif()
+
     # --- Script binding runtime thin runner --------------------------------
     if(TARGET SagaScriptRuntimeBridge AND
        EXISTS "${SAGA_ROOT}/Tests/Tools/ScriptBindingRuntimeRunner.cpp")
@@ -1678,6 +1705,9 @@ function(saga_setup_tests)
     # --- Integration tests --------------------------------------------------
 
     add_executable(SagaIntegrationTests ${INTEGRATION_SOURCES})
+    target_sources(SagaIntegrationTests PRIVATE
+        ${SAGA_ROOT}/Apps/Runtime/StarterArenaPlayableScene.cpp
+    )
     saga_link_thirdparty(SagaIntegrationTests)
     target_link_libraries(SagaIntegrationTests PRIVATE
         SagaBackend
@@ -1698,12 +1728,18 @@ function(saga_setup_tests)
         ${SAGA_TEST_INCLUDE_DIRS}
         ${SAGA_ROOT}/Tests/Support
         ${SAGA_ROOT}/Engine/Private
+        ${SAGA_ROOT}/Apps/Runtime
     )
     saga_link_diligent_backend(SagaIntegrationTests)
     add_test(NAME IntegrationTests COMMAND SagaIntegrationTests)
     set_tests_properties(IntegrationTests PROPERTIES
         LABELS "integration;runtime;server;networking;replication;timing-sensitive"
     )
+    add_test(NAME StarterArenaPlayableGpuTests
+        COMMAND SagaIntegrationTests
+            --gtest_filter=DiligentGPU.StarterArenaFrameProducesArenaPlayerAndBoundaryPixels)
+    set_tests_properties(StarterArenaPlayableGpuTests PROPERTIES
+        LABELS "integration;runtime;render;gpu;sample")
 
     # --- Replication tests --------------------------------------------------
     #

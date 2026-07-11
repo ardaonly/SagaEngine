@@ -3,6 +3,7 @@
 
 #include "StarterArenaSmoke.h"
 
+#include "StarterArenaSimulation.h"
 #include "StarterArenaSmokeReport.h"
 #include "StarterArenaSmokeScript.h"
 
@@ -620,7 +621,7 @@ bool ReadSceneReferences(
     return ok;
 }
 
-std::optional<StarterArenaProject> LoadStarterArenaProject(
+std::optional<StarterArenaProject> LoadStarterArenaProjectImpl(
     const std::filesystem::path& input,
     std::vector<StarterArenaDiagnostic>& diagnostics)
 {
@@ -739,7 +740,7 @@ std::optional<StarterArenaProject> LoadStarterArenaProject(
     return project;
 }
 
-std::optional<StarterArenaScene> LoadStarterArenaScene(
+std::optional<StarterArenaScene> LoadStarterArenaSceneImpl(
     const StarterArenaProject& project,
     std::vector<StarterArenaDiagnostic>& diagnostics)
 {
@@ -896,25 +897,17 @@ StarterArenaLoopResult RunStarterArenaLoop(
 
     if (loop.canRun)
     {
+        StarterArenaSimulationState simulation =
+            MakeStarterArenaSimulation(*scene);
         for (std::uint32_t frame = 0; frame < commandLine.smokeFrames; ++frame)
         {
-            const double nextX =
-                loop.finalPosition.x +
-                loop.inputVector.x * commandLine.fixedDtSeconds;
-            const double nextY =
-                loop.finalPosition.y +
-                loop.inputVector.y * commandLine.fixedDtSeconds;
-            const double clampedX =
-                std::clamp(nextX, loop.bounds.minX, loop.bounds.maxX);
-            const double clampedY =
-                std::clamp(nextY, loop.bounds.minY, loop.bounds.maxY);
-            if (clampedX != nextX || clampedY != nextY)
-            {
-                ++loop.clampCount;
-            }
-            loop.finalPosition.x = clampedX;
-            loop.finalPosition.y = clampedY;
+            StepStarterArenaSimulation(
+                simulation,
+                loop.inputVector,
+                commandLine.fixedDtSeconds);
         }
+        loop.finalPosition = simulation.position;
+        loop.clampCount = simulation.clampCount;
     }
 
     loop.expectationsPassed =
@@ -933,6 +926,20 @@ StarterArenaLoopResult RunStarterArenaLoop(
 }
 
 } // namespace
+
+std::optional<StarterArenaProject> LoadStarterArenaProject(
+    const std::filesystem::path& input,
+    std::vector<StarterArenaDiagnostic>& diagnostics)
+{
+    return LoadStarterArenaProjectImpl(input, diagnostics);
+}
+
+std::optional<StarterArenaScene> LoadStarterArenaScene(
+    const StarterArenaProject& project,
+    std::vector<StarterArenaDiagnostic>& diagnostics)
+{
+    return LoadStarterArenaSceneImpl(project, diagnostics);
+}
 
 std::string GenericPath(const std::filesystem::path& path)
 {

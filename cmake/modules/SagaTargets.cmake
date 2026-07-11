@@ -716,6 +716,12 @@ function(saga_create_engine_targets)
         ${SAGA_ROOT}/Apps/Runtime/StarterArenaSmokeReport.cpp
         ${SAGA_ROOT}/Apps/Runtime/StarterArenaSmokeScript.h
         ${SAGA_ROOT}/Apps/Runtime/StarterArenaSmokeScript.cpp
+        ${SAGA_ROOT}/Apps/Runtime/StarterArenaSimulation.h
+        ${SAGA_ROOT}/Apps/Runtime/StarterArenaSimulation.cpp
+        ${SAGA_ROOT}/Apps/Runtime/StarterArenaPlayable.h
+        ${SAGA_ROOT}/Apps/Runtime/StarterArenaPlayable.cpp
+        ${SAGA_ROOT}/Apps/Runtime/StarterArenaPlayableScene.h
+        ${SAGA_ROOT}/Apps/Runtime/StarterArenaPlayableScene.cpp
         ${SAGA_RUNTIME_COMMON_SOURCES}
     )
 
@@ -731,6 +737,7 @@ function(saga_create_engine_targets)
         SagaRuntimeLib
         SagaServerLib
         SagaEngine
+        SagaDiligentBackend
         SagaPlatformSDL
         SagaBackend
     )

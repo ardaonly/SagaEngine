@@ -16,12 +16,16 @@ struct RuntimeCommandLine
     SagaRuntime::RuntimeLaunchOptions launchOptions;
     std::filesystem::path projectPath;
     std::filesystem::path smokeReportOut;
+    std::filesystem::path playableReportOut;
     std::filesystem::path scriptManifestPath;
     std::filesystem::path scriptArtifactsPath;
     bool starterArenaSmoke = false;
+    bool starterArenaPlayable = false;
+    bool playableFramesProvided = false;
     bool invokeStarterArenaScript = false;
     bool runStarterArenaScriptLifecycle = false;
     std::uint32_t smokeFrames = 30;
+    std::uint32_t playableFrames = 0;
     double fixedDtSeconds = 1.0 / 60.0;
 };
 
