@@ -4,6 +4,7 @@
 #include "SagaApp.h"
 
 #include "SagaEditorModule.h"
+#include "FirstPlayableHumanCapture.h"
 #include "FirstPlayableWorkflow.h"
 #include "SagaLocalCollaborationMetadataReports.h"
 #include "SagaLocalWorkspaceTransactionReport.h"
@@ -84,6 +85,7 @@ constexpr int kExitConfigurationFailure = 2;
     const SagaAppConfig& config) noexcept
 {
     return config.publishCheck ||
+        config.firstPlayableHumanCapture ||
         config.firstPlayableCheck ||
         config.localWorkspaceApprovalGateSmoke ||
         config.localWorkspaceSliceSmoke ||
@@ -97,6 +99,46 @@ constexpr int kExitConfigurationFailure = 2;
         config.prepareOnly ||
         config.target == SagaProductTargetKind::Runtime ||
         config.target == SagaProductTargetKind::Server;
+}
+
+[[nodiscard]] FirstPlayableWorkflowRequest MakeFirstPlayableRequest(
+    const SagaAppConfig& config, bool humanCapture)
+{
+    FirstPlayableWorkflowRequest request;
+    request.runtime.projectManifest = config.workflowProjectPath;
+    request.runtime.runtimeExecutable = config.runtimeExecutable.empty() ?
+        config.executablePath.parent_path() / "SagaRuntime" :
+        config.runtimeExecutable;
+    request.runtime.sagaScriptExecutable = config.sagaScriptExecutable;
+    request.runtime.runtimeBridgeAssembly = config.runtimeBridgeAssembly;
+    if (request.runtime.runtimeBridgeAssembly.empty())
+    {
+        if (const char* bridge = std::getenv("SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY"))
+            request.runtime.runtimeBridgeAssembly = bridge;
+    }
+    if (request.runtime.runtimeBridgeAssembly.empty())
+    {
+        request.runtime.runtimeBridgeAssembly =
+            config.executablePath.parent_path().parent_path() /
+            "Managed" / "SagaScript.RuntimeBridge" /
+            "SagaScript.RuntimeBridge.dll";
+    }
+    request.runtime.timeout = std::chrono::milliseconds(config.firstPlayableTimeoutMs);
+    if (config.firstPlayableOutputDirectory.empty())
+    {
+        const auto stamp = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        request.runtime.outputDirectory = std::filesystem::temp_directory_path() /
+            ((humanCapture ? "saga-first-playable-human-" : "saga-first-playable-") +
+             std::to_string(stamp));
+    }
+    else request.runtime.outputDirectory = config.firstPlayableOutputDirectory;
+    request.summaryPath = config.firstPlayableSummaryPath.empty() ?
+        request.runtime.outputDirectory / "first_playable_summary.json" :
+        config.firstPlayableSummaryPath;
+    if (!config.firstPlayableKeyboardReportPath.empty())
+        request.keyboardReportPath = config.firstPlayableKeyboardReportPath;
+    return request;
 }
 
 void ConfigureBundledRuntimeEnvironment(const SagaAppConfig& config)
@@ -487,6 +529,25 @@ int SagaApp::Run(const SagaAppConfig& config,
                  std::ostream& out,
                  std::ostream& err)
 {
+    if (config.firstPlayableHumanCapture)
+    {
+        if (config.workflowProjectPath.empty())
+        {
+            err << "Saga: --first-playable-human-capture requires --project <.sagaproj>\n";
+            return kExitConfigurationFailure;
+        }
+        FirstPlayableHumanCaptureRequest request;
+        request.workflow = MakeFirstPlayableRequest(config, true);
+        request.frames = static_cast<std::uint32_t>(config.firstPlayableHumanFrames);
+        request.timeout = std::chrono::milliseconds(
+            config.firstPlayableHumanTimeoutMs);
+        FirstPlayableHumanCapture capture;
+        const auto result = capture.Run(request, out, err);
+        if (result.status == EvidenceStatus::Passed) return kExitOk;
+        return result.status == EvidenceStatus::Incomplete ?
+            kExitConfigurationFailure : kExitStartupFailure;
+    }
+
     if (config.firstPlayableCheck)
     {
         if (config.workflowProjectPath.empty())
@@ -495,44 +556,7 @@ int SagaApp::Run(const SagaAppConfig& config,
             return kExitConfigurationFailure;
         }
 
-        FirstPlayableWorkflowRequest request;
-        request.runtime.projectManifest = config.workflowProjectPath;
-        request.runtime.runtimeExecutable = config.runtimeExecutable.empty() ?
-            config.executablePath.parent_path() / "SagaRuntime" :
-            config.runtimeExecutable;
-        request.runtime.sagaScriptExecutable = config.sagaScriptExecutable;
-        request.runtime.runtimeBridgeAssembly = config.runtimeBridgeAssembly;
-        if (request.runtime.runtimeBridgeAssembly.empty())
-        {
-            if (const char* bridge =
-                    std::getenv("SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY"))
-                request.runtime.runtimeBridgeAssembly = bridge;
-        }
-        if (request.runtime.runtimeBridgeAssembly.empty())
-        {
-            request.runtime.runtimeBridgeAssembly =
-                config.executablePath.parent_path().parent_path() /
-                "Managed" / "SagaScript.RuntimeBridge" /
-                "SagaScript.RuntimeBridge.dll";
-        }
-        request.runtime.timeout =
-            std::chrono::milliseconds(config.firstPlayableTimeoutMs);
-        if (config.firstPlayableOutputDirectory.empty())
-        {
-            const auto stamp = std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::system_clock::now().time_since_epoch()).count();
-            request.runtime.outputDirectory = std::filesystem::temp_directory_path() /
-                ("saga-first-playable-" + std::to_string(stamp));
-        }
-        else
-        {
-            request.runtime.outputDirectory = config.firstPlayableOutputDirectory;
-        }
-        request.summaryPath = config.firstPlayableSummaryPath.empty() ?
-            request.runtime.outputDirectory / "first_playable_summary.json" :
-            config.firstPlayableSummaryPath;
-        if (!config.firstPlayableKeyboardReportPath.empty())
-            request.keyboardReportPath = config.firstPlayableKeyboardReportPath;
+        FirstPlayableWorkflowRequest request = MakeFirstPlayableRequest(config, false);
 
         const FirstPlayableWorkflowResult result =
             RunFirstPlayableWorkflow(request, out, err);

@@ -375,9 +375,9 @@ Json BuildReport(const RuntimeCommandLine& commandLine,
         diagnosticArray.push_back({{"code", diagnostic.code}, {"message", diagnostic.message}});
     }
 
-    const bool frameExpectation = evidence.presentedFrames > 0u &&
-                                  (evidence.requestedFrames == 0u ||
-                                   evidence.presentedFrames == evidence.requestedFrames);
+    const bool frameExpectation = StarterArenaFrameExpectationSatisfied(
+        commandLine.playableInputSource == "keyboard", evidence.requestedFrames,
+        evidence.presentedFrames, evidence.input.quitCount);
     Json topLevelNonClaims;
     if (evidence.gameplay.enabled && evidence.gameplay.passed)
     {
@@ -662,9 +662,9 @@ int RunStarterArenaPlayable(const RuntimeCommandLine& commandLine)
         }
     }
 
-    const bool framesPassed = evidence.presentedFrames > 0u &&
-                              (commandLine.playableFrames == 0u ||
-                               evidence.presentedFrames == commandLine.playableFrames);
+    const bool framesPassed = StarterArenaFrameExpectationSatisfied(
+        commandLine.playableInputSource == "keyboard", commandLine.playableFrames,
+        evidence.presentedFrames, evidence.input.quitCount);
     const bool passed = diagnostics.empty() && project && scene && evidence.initialized &&
                         evidence.sceneReady && evidence.playerDrawSubmitted && framesPassed &&
                         evidence.shutdownComplete &&

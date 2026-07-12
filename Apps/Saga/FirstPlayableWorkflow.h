@@ -9,15 +9,36 @@
 
 #include <filesystem>
 #include <iosfwd>
+#include <optional>
 
 namespace SagaProduct
 {
+
+enum class FirstPlayableOperatorMode
+{
+    Capture,
+    Import,
+};
+
+struct FirstPlayableOperatorEvidenceInput
+{
+    FirstPlayableOperatorMode mode = FirstPlayableOperatorMode::Capture;
+    EvidenceStatus status = EvidenceStatus::Incomplete;
+    std::optional<EvidenceProcessResult> process;
+    std::filesystem::path originalReportPath;
+    std::filesystem::path captureReportPath;
+    std::filesystem::path stdoutPath;
+    std::filesystem::path stderrPath;
+    std::vector<FirstPlayableDiagnostic> diagnostics;
+};
 
 struct FirstPlayableWorkflowRequest
 {
     RuntimeEvidenceRunRequest runtime;
     std::filesystem::path summaryPath;
     std::optional<std::filesystem::path> keyboardReportPath;
+    std::optional<FirstPlayableWorkspacePolicySession> workspaceSession;
+    std::optional<FirstPlayableOperatorEvidenceInput> operatorEvidence;
 };
 
 struct FirstPlayableWorkflowResult

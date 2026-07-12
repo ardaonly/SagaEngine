@@ -14,6 +14,12 @@ namespace SagaProduct
 namespace
 {
 using Json = nlohmann::json;
+
+const char* ToString(FirstPlayableOperatorMode mode) noexcept
+{
+    return mode == FirstPlayableOperatorMode::Capture ? "Capture" : "Import";
+}
+
 Json DiagnosticJson(const FirstPlayableDiagnostic& diagnostic)
 {
     Json value = {{"severity", ToString(diagnostic.severity)},
@@ -75,12 +81,24 @@ Json GateJson(const FirstPlayableWorkflowResult& result,
     Json checks = Json::array();
     for (const auto& check : result.gate.checks)
         checks.push_back({{"id", check.id}, {"status", ToString(check.status)}});
+    const bool keyboardPackaged =
+        result.gate.manualEvidence.status == EvidenceStatus::Passed &&
+        std::filesystem::is_regular_file(result.runtime.outputDirectory /
+            "manual" / "real_keyboard_report.json");
+    const bool capturePackaged = std::filesystem::is_regular_file(
+        result.runtime.outputDirectory / "manual" /
+        "real_keyboard_capture_report.json");
     Json manual = {{"status", ToString(result.gate.manualEvidence.status)},
-        {"reportPath", result.gate.manualEvidence.reportPath ?
+        {"reportPath", keyboardPackaged ?
+            Json("manual/real_keyboard_report.json") : Json(nullptr)},
+        {"originalReportPath", result.gate.manualEvidence.reportPath ?
             Json(result.gate.manualEvidence.reportPath->string()) : Json(nullptr)},
+        {"captureReportPath", capturePackaged ?
+            Json("manual/real_keyboard_capture_report.json") : Json(nullptr)},
         {"sha256", result.gate.manualEvidence.reportSha256},
         {"realDeviceObserved", result.gate.manualEvidence.realDeviceObserved},
-        {"framesWithInput", result.gate.manualEvidence.framesWithInput}};
+        {"framesWithInput", result.gate.manualEvidence.framesWithInput},
+        {"movementDistance", result.gate.manualEvidence.movementDistance}};
     return {{"schemaVersion", 1}, {"tool", "Saga"},
         {"command", "first-playable-check"},
         {"gate", {{"status", ToString(result.gate.status)},
@@ -146,6 +164,140 @@ Json SummaryJson(const FirstPlayableWorkflowResult& result,
         {"evidenceManifestPath", result.evidenceManifestPath.string()},
         {"diagnostics", diagnostics}, {"nonClaims", result.gate.nonClaims}};
 }
+
+void OperatorFailure(FirstPlayableWorkflowResult& result,
+                     const std::filesystem::path& path,
+                     std::string message)
+{
+    FirstPlayableDiagnostic diagnostic;
+    diagnostic.code = "ProductShell.HumanCapture.ReportImportFailed";
+    diagnostic.message = std::move(message);
+    diagnostic.path = path;
+    diagnostic.actionHint = "Use a fresh external output root and retry the human capture.";
+    result.gate.diagnostics.push_back(std::move(diagnostic));
+    result.gate.status = FirstPlayableGateStatus::Rejected;
+    result.status = EvidenceStatus::Failed;
+    for (auto& check : result.gate.checks)
+        if (check.id == "human-capture") check.status = EvidenceStatus::Failed;
+}
+
+bool CopyOperatorArtifact(const std::filesystem::path& source,
+                          const std::filesystem::path& destination,
+                          bool required,
+                          FirstPlayableWorkflowResult& result)
+{
+    if (source.empty() || !std::filesystem::is_regular_file(source))
+    {
+        if (required)
+            OperatorFailure(result, source,
+                "required human-capture artifact is missing");
+        return !required;
+    }
+    std::error_code ec;
+    std::filesystem::create_directories(destination.parent_path(), ec);
+    if (!ec) std::filesystem::copy_file(source, destination,
+        std::filesystem::copy_options::overwrite_existing, ec);
+    if (ec)
+    {
+        OperatorFailure(result, destination,
+            "could not import human-capture artifact: " + ec.message());
+        return false;
+    }
+    return true;
+}
+
+bool ImportValidatedKeyboardEvidence(FirstPlayableWorkflowResult& result)
+{
+    if (result.gate.manualEvidence.status != EvidenceStatus::Passed ||
+        !result.gate.manualEvidence.reportPath)
+        return true;
+    const auto imported = result.runtime.outputDirectory / "manual" /
+        "real_keyboard_report.json";
+    std::error_code ec;
+    std::filesystem::create_directories(imported.parent_path(), ec);
+    if (!ec) std::filesystem::copy_file(*result.gate.manualEvidence.reportPath,
+        imported, std::filesystem::copy_options::overwrite_existing, ec);
+    if (!ec) return true;
+    FirstPlayableDiagnostic diagnostic;
+    diagnostic.code = "ProductShell.FirstPlayable.EvidenceManifestWriteFailed";
+    diagnostic.message = "could not stage validated keyboard evidence: " + ec.message();
+    diagnostic.path = imported;
+    diagnostic.actionHint = "Use a writable fresh evidence output directory and retry.";
+    result.gate.diagnostics.push_back(std::move(diagnostic));
+    result.gate.evidenceBundle = EvidenceStatus::Failed;
+    result.gate.status = FirstPlayableGateStatus::Rejected;
+    result.status = EvidenceStatus::Failed;
+    for (auto& check : result.gate.checks)
+        if (check.id == "evidence-bundle") check.status = EvidenceStatus::Failed;
+    return false;
+}
+
+Json PositionJson(const std::optional<FirstPlayableEvidencePosition>& position)
+{
+    if (!position) return nullptr;
+    return {{"x", position->x}, {"y", position->y}};
+}
+
+bool WriteOperatorEvidence(const FirstPlayableOperatorEvidenceInput& evidence,
+                           FirstPlayableWorkflowResult& result)
+{
+    const auto manualRoot = result.runtime.outputDirectory / "manual";
+    const bool required = evidence.status == EvidenceStatus::Passed;
+    if (evidence.mode == FirstPlayableOperatorMode::Capture)
+    {
+        CopyOperatorArtifact(evidence.captureReportPath,
+            manualRoot / "real_keyboard_capture_report.json", required, result);
+        CopyOperatorArtifact(evidence.stdoutPath,
+            manualRoot / "keyboard_capture_stdout.txt", required, result);
+        CopyOperatorArtifact(evidence.stderrPath,
+            manualRoot / "keyboard_capture_stderr.txt", required, result);
+    }
+    Json diagnostics = Json::array();
+    for (const auto& diagnostic : evidence.diagnostics)
+        diagnostics.push_back(DiagnosticJson(diagnostic));
+    for (const auto& diagnostic : result.gate.manualEvidence.diagnostics)
+        diagnostics.push_back(DiagnosticJson(diagnostic));
+    EvidenceStatus operatorStatus = evidence.status;
+    for (const auto& check : result.gate.checks)
+        if (check.id == "human-capture") operatorStatus = check.status;
+    Json runtime = {{"started", false}, {"timedOut", false}, {"exitCode", nullptr},
+        {"durationMs", 0}, {"stdoutPath", nullptr}, {"stderrPath", nullptr},
+        {"reportPath", nullptr}};
+    if (evidence.process)
+    {
+        runtime = {{"started", evidence.process->started},
+            {"timedOut", evidence.process->timedOut},
+            {"exitCode", evidence.process->exitCode},
+            {"durationMs", evidence.process->duration.count()},
+            {"stdoutPath", "manual/keyboard_capture_stdout.txt"},
+            {"stderrPath", "manual/keyboard_capture_stderr.txt"},
+            {"reportPath", "manual/real_keyboard_capture_report.json"}};
+    }
+    const Json report = {{"schemaVersion", 1}, {"tool", "Saga"},
+        {"command", "first-playable-human-capture"},
+        {"status", ToString(operatorStatus)}, {"mode", ToString(evidence.mode)},
+        {"runtime", std::move(runtime)},
+        {"keyboardEvidence", {
+            {"status", ToString(result.gate.manualEvidence.status)},
+            {"source", result.gate.manualEvidence.source},
+            {"realDeviceObserved", result.gate.manualEvidence.realDeviceObserved},
+            {"framesWithInput", result.gate.manualEvidence.framesWithInput},
+            {"initialPosition", PositionJson(result.gate.manualEvidence.initialPosition)},
+            {"finalPosition", PositionJson(result.gate.manualEvidence.finalPosition)},
+            {"movementDistance", result.gate.manualEvidence.movementDistance},
+            {"sha256", result.gate.manualEvidence.reportSha256},
+            {"originalReportPath", evidence.originalReportPath.string()},
+            {"importedReportPath", result.gate.manualEvidence.status == EvidenceStatus::Passed ?
+                Json("manual/real_keyboard_report.json") : Json(nullptr)}}},
+        {"gateStatus", ToString(result.gate.status)},
+        {"nonClaims", Json::array({"No broad interactive gameplay claim",
+            "No production input UX claim", "No platform-wide device compatibility claim",
+            "No full game or editor claim", "No package install or distribution claim"})},
+        {"diagnostics", std::move(diagnostics)}};
+    return FirstPlayableEvidenceBundle::WriteJson(
+        manualRoot / "human_capture_report.json", report,
+        result.gate.diagnostics, "ProductShell.HumanCapture.ReportImportFailed");
+}
 } // namespace
 
 FirstPlayableWorkflowResult RunFirstPlayableWorkflow(
@@ -158,8 +310,9 @@ FirstPlayableWorkflowResult RunFirstPlayableWorkflow(
     result.gatePath = outputRoot / "first_playable_gate.json";
     result.sourceManifestPath = outputRoot / "source_manifest.json";
     result.evidenceManifestPath = outputRoot / "evidence_manifest.json";
-    const auto session = FirstPlayableWorkspacePolicy::Begin(
-        request.runtime.projectManifest, outputRoot, result.summaryPath);
+    const auto session = request.workspaceSession ? *request.workspaceSession :
+        FirstPlayableWorkspacePolicy::Begin(
+            request.runtime.projectManifest, outputRoot, result.summaryPath);
     if (session.status == EvidenceStatus::Passed)
     {
         RuntimeEvidenceRunner runner;
@@ -188,8 +341,17 @@ FirstPlayableWorkflowResult RunFirstPlayableWorkflow(
     auto workspace = FirstPlayableWorkspacePolicy::Complete(session);
     auto manual = FirstPlayableManualEvidence::Validate(request.keyboardReportPath);
     auto claims = FirstPlayablePublicClaimAudit::Run(session.projectRoot);
+    std::optional<FirstPlayableGateCheck> operatorCheck;
+    if (request.operatorEvidence)
+        operatorCheck = FirstPlayableGateCheck{"human-capture",
+            request.operatorEvidence->status};
     result.gate = FirstPlayableGate::Evaluate(result.runtime,
-        result.visualBlocksDescriptor, std::move(workspace), std::move(manual), std::move(claims));
+        result.visualBlocksDescriptor, std::move(workspace), std::move(manual),
+        std::move(claims), operatorCheck);
+    if (request.operatorEvidence)
+        result.gate.diagnostics.insert(result.gate.diagnostics.end(),
+            request.operatorEvidence->diagnostics.begin(),
+            request.operatorEvidence->diagnostics.end());
     result.gate.reportPath = result.gatePath;
     result.status = (result.gate.status == FirstPlayableGateStatus::Accepted ||
         result.gate.status == FirstPlayableGateStatus::AcceptedWithManualEvidencePending) ?
@@ -200,6 +362,11 @@ FirstPlayableWorkflowResult RunFirstPlayableWorkflow(
     for (const auto& profile : result.runtime.profiles) Merge(capabilities, profile.report.capabilities);
     if (session.status == EvidenceStatus::Passed)
     {
+        if (request.operatorEvidence &&
+            !WriteOperatorEvidence(*request.operatorEvidence, result))
+            OperatorFailure(result, result.runtime.outputDirectory / "manual" /
+                "human_capture_report.json", "could not write human-capture report");
+        ImportValidatedKeyboardEvidence(result);
         const bool gateWritten = FirstPlayableEvidenceBundle::WriteJson(
             result.gatePath, GateJson(result, capabilities),
             result.gate.diagnostics, "ProductShell.FirstPlayable.GateReportWriteFailed");
