@@ -153,6 +153,21 @@ Accepted gameplay-spine evidence:
 - default smoke, metadata-only, lifecycle-only, and default visible modes do
   not claim or perform gameplay mutation.
 
+Accepted Product Shell diagnostics evidence:
+
+- `Saga --first-playable-check` owns subprocess execution and report parsing
+  without including StarterArena runtime-private headers;
+- all generated script artifacts, runtime reports, stdout/stderr captures, and
+  the consolidated summary are written outside the sample source tree;
+- smoke, lifecycle/invocation, gameplay, visible synthetic, and visible
+  gameplay profiles must all pass for the consolidated status to pass;
+- runtime reports remain authoritative and malformed or contradictory reports
+  fail with stable Product Shell diagnostics;
+- real keyboard evidence is reported as `PendingManualEvidence` and is not
+  fabricated as passed;
+- the surface does not claim a full editor, Visual Blocks, package install or
+  distribution, multiplayer, or production readiness.
+
 Accepted server-authoritative smoke evidence:
 
 - `MultiplayerSandboxHeadless --starter-arena-server-smoke` exits `0`;

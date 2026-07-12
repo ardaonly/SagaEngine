@@ -159,6 +159,27 @@ material was submitted. Default visible mode still does not execute C#.
 The invocation and lifecycle smokes require a .NET host environment; use the dev
 shell unless `hostfxr` is already discoverable in the local environment.
 
+## Product Shell first-playable diagnostics
+
+The Saga Product Shell can compile the sample scripts into a generated output
+root, run the five mandatory runtime evidence profiles, validate their JSON
+reports, and write one consolidated summary:
+
+```sh
+<build-dir>/bin/Saga --first-playable-check --project samples/StarterArena/StarterArena.sagaproj --runtime-executable <build-dir>/bin/SagaRuntime --sagascript-tool Tools/SagaScript/sagascript --runtime-bridge-assembly <build-dir>/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.dll --first-playable-output /tmp/saga-first-playable
+```
+
+The command covers headless smoke, controlled invocation and lifecycle,
+headless gameplay, visible synthetic input, and visible gameplay reflection.
+Runtime JSON reports remain the evidence source. Compiler output, process
+captures, profile reports, and `first_playable_summary.json` remain under the
+selected generated directory and never under this sample source tree.
+
+This diagnostics surface is not a full editor, Visual Blocks, package install
+or distribution, multiplayer, or production-readiness proof. Real keyboard
+input remains `PendingManualEvidence` until a human-run keyboard report records
+real device input and movement.
+
 Focused server-authoritative smoke:
 
 ```sh
