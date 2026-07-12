@@ -196,6 +196,25 @@ layout, instances, execution order, or generated code. Real keyboard input
 remains `PendingManualEvidence` until a human-run keyboard report records real
 device input and movement.
 
+The release-candidate gate validates this existing sample project and writes
+`first_playable_gate.json`, `source_manifest.json`, and
+`evidence_manifest.json` beside the consolidated summary. A missing manual
+keyboard report produces `AcceptedWithManualEvidencePending`; a supplied
+report is imported only after its real-device, input-frame, and movement
+evidence validates. Keyboard-provider behavior remains external test evidence
+from `StarterArenaPlayableTests`.
+
+Canonical release-candidate non-claims:
+
+- No project creation workflow claim
+- No full editor claim
+- No Visual Blocks canvas claim
+- No Visual Blocks runtime graph claim
+- No generated C# from blocks claim
+- No multiplayer claim
+- No package install or distribution claim
+- No production readiness claim
+
 Focused server-authoritative smoke:
 
 ```sh

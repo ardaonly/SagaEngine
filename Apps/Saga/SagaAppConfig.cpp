@@ -132,6 +132,7 @@ std::string SagaUsageText()
         "  --first-playable-check            Run StarterArena Product Shell evidence workflow\n"
         "  --first-playable-output <dir>     Generated evidence directory (outside project source)\n"
         "  --first-playable-summary-out <path> Consolidated JSON summary path\n"
+        "  --first-playable-keyboard-report <path> Optional real-keyboard report to validate\n"
         "  --runtime-executable <path>       SagaRuntime executable override\n"
         "  --runtime-bridge-assembly <path> Managed SagaScript runtime bridge assembly\n"
         "  --first-playable-timeout-ms <ms> Per-process timeout (positive integer)\n"
@@ -399,6 +400,16 @@ SagaConfigResult ParseSagaAppConfig(int argc, char* argv[])
                 return result;
             }
             result.config.firstPlayableSummaryPath = argv[++i];
+        }
+        else if (arg == "--first-playable-keyboard-report")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --first-playable-keyboard-report requires a path";
+                return result;
+            }
+            result.config.firstPlayableKeyboardReportPath = argv[++i];
         }
         else if (arg == "--runtime-executable")
         {

@@ -164,6 +164,13 @@ Accepted Product Shell diagnostics evidence:
   consolidated status to pass;
 - runtime reports remain authoritative and malformed or contradictory reports
   fail with stable Product Shell diagnostics;
+- the release-candidate gate writes a gate report, source manifest, and
+  evidence manifest under a fresh generated output root;
+- automated evidence may be accepted with real keyboard evidence explicitly
+  pending; only a supplied and validated real-device report changes it to
+  passed;
+- the workflow validates the existing `.sagaproj`; there is no project
+  creation workflow in this acceptance batch;
 - `Scripts/GameRules.cs` is the authored source of truth; the strict 12-block
   representation catalog is generated in-process only after generated
   binding/artifact manifests and lifecycle/gameplay runtime evidence validate;

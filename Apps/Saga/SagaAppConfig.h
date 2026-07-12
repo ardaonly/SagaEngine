@@ -39,6 +39,7 @@ struct SagaAppConfig
     std::filesystem::path workflowReportPath;
     std::filesystem::path firstPlayableOutputDirectory;
     std::filesystem::path firstPlayableSummaryPath;
+    std::filesystem::path firstPlayableKeyboardReportPath;
     std::filesystem::path runtimeExecutable;
     std::filesystem::path runtimeBridgeAssembly;
     std::filesystem::path localWorkspaceTransactionReportPath;

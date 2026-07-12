@@ -45,6 +45,9 @@
 - The Product Shell first-playable workflow is a CLI diagnostics and JSON
   summary surface, not an editor panel or project-creation workflow. Its
   visible profiles require an available window and graphics backend.
+- The release-candidate gate accepts the automated spine with manual keyboard
+  evidence pending. Keyboard-provider behavior is external unit-test evidence;
+  it is not re-run or promoted to real-device evidence by the gate.
 - `Scripts/GameRules.cs` is the source of truth. There is no checked-in block
   JSON; Product Shell generates a read-only representation report outside the
   sample after generated metadata and runtime evidence pass.

@@ -47,6 +47,7 @@ namespace
 
 constexpr int kExitOk = 0;
 constexpr int kExitStartupFailure = 1;
+constexpr int kExitConfigurationFailure = 2;
 
 [[nodiscard]] std::filesystem::path ResolvePreparedExecutablePath(
     const SagaAppConfig& config,
@@ -491,7 +492,7 @@ int SagaApp::Run(const SagaAppConfig& config,
         if (config.workflowProjectPath.empty())
         {
             err << "Saga: --first-playable-check requires --project <.sagaproj>\n";
-            return kExitStartupFailure;
+            return kExitConfigurationFailure;
         }
 
         FirstPlayableWorkflowRequest request;
@@ -530,11 +531,16 @@ int SagaApp::Run(const SagaAppConfig& config,
         request.summaryPath = config.firstPlayableSummaryPath.empty() ?
             request.runtime.outputDirectory / "first_playable_summary.json" :
             config.firstPlayableSummaryPath;
+        if (!config.firstPlayableKeyboardReportPath.empty())
+            request.keyboardReportPath = config.firstPlayableKeyboardReportPath;
 
         const FirstPlayableWorkflowResult result =
             RunFirstPlayableWorkflow(request, out, err);
-        return result.status == EvidenceStatus::Passed ?
-            kExitOk : kExitStartupFailure;
+        if (result.gate.status == FirstPlayableGateStatus::Accepted ||
+            result.gate.status == FirstPlayableGateStatus::AcceptedWithManualEvidencePending)
+            return kExitOk;
+        return result.gate.status == FirstPlayableGateStatus::Incomplete ?
+            kExitConfigurationFailure : kExitStartupFailure;
     }
 
     if (config.validateSagaScript)
