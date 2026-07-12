@@ -165,6 +165,7 @@ const char* ToString(EvidenceStatus status) noexcept
         case EvidenceStatus::NotPresent: return "NotPresent";
         case EvidenceStatus::NoInputObserved: return "NoInputObserved";
         case EvidenceStatus::PendingManualEvidence: return "PendingManualEvidence";
+        case EvidenceStatus::ExternalTestEvidence: return "ExternalTestEvidence";
     }
     return "Incomplete";
 }

@@ -229,7 +229,8 @@ TEST(FirstPlayableConfigTest, ParsesProductShellWorkflowOptions)
         "Saga", "--first-playable-check", "--project", "StarterArena.sagaproj",
         "--first-playable-output", "/tmp/evidence", "--runtime-executable",
         "/tmp/SagaRuntime", "--runtime-bridge-assembly", "/tmp/bridge.dll",
-        "--first-playable-timeout-ms", "1234"};
+        "--first-playable-timeout-ms", "1234",
+        "--first-playable-keyboard-report", "/tmp/keyboard.json"};
     std::vector<char*> argv;
     for (std::string& value : values) argv.push_back(value.data());
 
@@ -240,6 +241,7 @@ TEST(FirstPlayableConfigTest, ParsesProductShellWorkflowOptions)
     EXPECT_TRUE(parsed.config.firstPlayableCheck);
     EXPECT_EQ(parsed.config.firstPlayableTimeoutMs, 1234);
     EXPECT_EQ(parsed.config.firstPlayableOutputDirectory, "/tmp/evidence");
+    EXPECT_EQ(parsed.config.firstPlayableKeyboardReportPath, "/tmp/keyboard.json");
 }
 
 } // namespace

@@ -21,6 +21,7 @@ enum class EvidenceStatus
     NotPresent,
     NoInputObserved,
     PendingManualEvidence,
+    ExternalTestEvidence,
 };
 
 enum class EvidenceSeverity
