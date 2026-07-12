@@ -25,6 +25,8 @@ using Json = nlohmann::json;
     if (diagnostic.profileId) value["profileId"] = *diagnostic.profileId;
     if (diagnostic.path) value["path"] = diagnostic.path->string();
     if (diagnostic.actionHint) value["actionHint"] = *diagnostic.actionHint;
+    if (diagnostic.blockId) value["blockId"] = *diagnostic.blockId;
+    if (diagnostic.fieldPath) value["fieldPath"] = *diagnostic.fieldPath;
     return value;
 }
 
@@ -67,6 +69,29 @@ FirstPlayableWorkflowResult RunFirstPlayableWorkflow(
     result.status = result.runtime.prepared && result.runtime.profiles.size() == 5 ?
         EvidenceStatus::Passed : EvidenceStatus::Failed;
 
+    VisualBlocksDescriptorGenerationRequest descriptorRequest;
+    descriptorRequest.originalProjectManifest =
+        std::filesystem::absolute(request.runtime.projectManifest);
+    descriptorRequest.generatedWorkspace = result.runtime.outputDirectory /
+        "workspace";
+    descriptorRequest.bindingManifestPath = result.runtime.scriptManifest;
+    descriptorRequest.artifactManifestPath = result.runtime.scriptArtifacts;
+    descriptorRequest.reportPath = result.runtime.outputDirectory / "profiles" /
+        kVisualBlocksDescriptorProfileId / "report.json";
+    for (const RuntimeEvidenceProfileResult& profile : result.runtime.profiles)
+    {
+        if (profile.profile == RuntimeEvidenceProfile::StarterArenaLifecycle)
+            descriptorRequest.lifecycleEvidence = {
+                profile.status, profile.reportPath};
+        else if (profile.profile == RuntimeEvidenceProfile::StarterArenaGameplay)
+            descriptorRequest.gameplayEvidence = {
+                profile.status, profile.reportPath};
+    }
+    result.visualBlocksDescriptor =
+        GenerateVisualBlocksDescriptorReport(descriptorRequest);
+    if (result.visualBlocksDescriptor.status != EvidenceStatus::Passed)
+        result.status = EvidenceStatus::Failed;
+
     RuntimeEvidenceCapabilities capabilities;
     Json profiles = Json::array();
     Json diagnostics = Json::array();
@@ -96,6 +121,22 @@ FirstPlayableWorkflowResult RunFirstPlayableWorkflow(
         if (profile.status != EvidenceStatus::Passed)
             result.status = EvidenceStatus::Failed;
     }
+    Json descriptorDiagnostics = Json::array();
+    for (const FirstPlayableDiagnostic& diagnostic :
+         result.visualBlocksDescriptor.diagnostics)
+    {
+        descriptorDiagnostics.push_back(DiagnosticJson(diagnostic));
+        diagnostics.push_back(DiagnosticJson(diagnostic));
+    }
+    profiles.push_back({
+        {"id", kVisualBlocksDescriptorProfileId},
+        {"status", ToString(result.visualBlocksDescriptor.status)},
+        {"generation", "InProcessReadOnlyGeneration"},
+        {"processLaunched", false},
+        {"csharpExecuted", false},
+        {"reportPath", result.visualBlocksDescriptor.reportPath.string()},
+        {"diagnostics", descriptorDiagnostics},
+    });
 
     const Json capabilityJson = {
         {"project", ToString(capabilities.project)},
@@ -107,6 +148,8 @@ FirstPlayableWorkflowResult RunFirstPlayableWorkflow(
         {"gameplay", ToString(capabilities.gameplay)},
         {"input", ToString(capabilities.input)},
         {"render", ToString(capabilities.render)},
+        {"visualBlocksDescriptor",
+            ToString(result.visualBlocksDescriptor.status)},
     };
     const Json summary = {
         {"schemaVersion", 1},
@@ -122,6 +165,10 @@ FirstPlayableWorkflowResult RunFirstPlayableWorkflow(
         {"nonClaims", {
             "No full editor workflow claim",
             "No Visual Blocks canvas claim",
+            "No Visual Blocks runtime execution claim",
+            "No generated C# from blocks claim",
+            "No editor graph editing claim",
+            "No production block library claim",
             "No networking or multiplayer claim",
             "No package install or distribution claim",
             "No production readiness claim",
@@ -152,6 +199,8 @@ FirstPlayableWorkflowResult RunFirstPlayableWorkflow(
         << "Gameplay: " << ToString(capabilities.gameplay) << '\n'
         << "Input: " << ToString(capabilities.input) << '\n'
         << "Render: " << ToString(capabilities.render) << '\n'
+        << "Visual Blocks Descriptor: "
+        << ToString(result.visualBlocksDescriptor.status) << '\n'
         << "Real Keyboard: PendingManualEvidence\n"
         << "Diagnostics: " << diagnostics.size() << '\n'
         << "Generated Reports: " << result.runtime.outputDirectory << '\n'

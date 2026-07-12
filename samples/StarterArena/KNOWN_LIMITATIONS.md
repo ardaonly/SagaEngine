@@ -45,9 +45,17 @@
 - The Product Shell first-playable workflow is a CLI diagnostics and JSON
   summary surface, not an editor panel or project-creation workflow. Its
   visible profiles require an available window and graphics backend.
+- `Scripts/GameRules.cs` is the source of truth. There is no checked-in block
+  JSON; Product Shell generates a read-only representation report outside the
+  sample after generated metadata and runtime evidence pass.
+- The generated catalog has no canvas, graph instances or edges, graph
+  execution, layout, generated C# from blocks, editor graph editing, reusable
+  production block library, or package/distribution behavior. The generator
+  never launches SagaRuntime or executes C#; lifecycle and gameplay runtime
+  reports remain the authority for observed behavior.
 - Restart behavior is reported as deferred.
 - The state port is not arbitrary key/value storage, ECS access, or a broad
   gameplay scripting framework.
-- No Visual Blocks, editor workflow, external client/server networking, package
-  install, package output, or
-  distribution output exists for this sample.
+- No Visual Blocks canvas or runtime, editor graph workflow, external
+  client/server networking, package install, package output, or distribution
+  output exists for this sample.

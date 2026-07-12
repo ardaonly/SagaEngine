@@ -38,6 +38,8 @@ struct FirstPlayableDiagnostic
     std::optional<std::string> profileId;
     std::optional<std::filesystem::path> path;
     std::optional<std::string> actionHint;
+    std::optional<std::string> blockId;
+    std::optional<std::string> fieldPath;
 };
 
 struct RuntimeEvidenceCapabilities

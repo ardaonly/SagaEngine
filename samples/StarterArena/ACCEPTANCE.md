@@ -159,14 +159,23 @@ Accepted Product Shell diagnostics evidence:
   without including StarterArena runtime-private headers;
 - all generated script artifacts, runtime reports, stdout/stderr captures, and
   the consolidated summary are written outside the sample source tree;
-- smoke, lifecycle/invocation, gameplay, visible synthetic, and visible
-  gameplay profiles must all pass for the consolidated status to pass;
+- smoke, lifecycle/invocation, gameplay, visible synthetic, visible gameplay,
+  and the in-process Visual Blocks descriptor profile must all pass for the
+  consolidated status to pass;
 - runtime reports remain authoritative and malformed or contradictory reports
   fail with stable Product Shell diagnostics;
+- `Scripts/GameRules.cs` is the authored source of truth; the strict 12-block
+  representation catalog is generated in-process only after generated
+  binding/artifact manifests and lifecycle/gameplay runtime evidence validate;
+- the descriptor report stays under the selected generated output root and
+  records `processLaunched: false` and `csharpExecuted: false`;
+- descriptor generation does not launch a process, execute C#, edit the sample,
+  require checked-in block JSON, or depend on Editor VisualScripting types;
 - real keyboard evidence is reported as `PendingManualEvidence` and is not
   fabricated as passed;
-- the surface does not claim a full editor, Visual Blocks, package install or
-  distribution, multiplayer, or production readiness.
+- the descriptor makes no canvas, graph execution, generated C# from blocks,
+  editor graph editing, production block library, package install/distribution,
+  networking/multiplayer, or production-readiness claim.
 
 Accepted server-authoritative smoke evidence:
 

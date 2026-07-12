@@ -4,6 +4,7 @@
 #pragma once
 
 #include "RuntimeEvidenceRunner.h"
+#include "VisualBlocksDescriptor.h"
 
 #include <filesystem>
 #include <iosfwd>
@@ -22,6 +23,7 @@ struct FirstPlayableWorkflowResult
     EvidenceStatus status = EvidenceStatus::Incomplete;
     std::filesystem::path summaryPath;
     RuntimeEvidenceRunResult runtime;
+    VisualBlocksDescriptorGenerationResult visualBlocksDescriptor;
 };
 
 [[nodiscard]] FirstPlayableWorkflowResult RunFirstPlayableWorkflow(
