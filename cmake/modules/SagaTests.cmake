@@ -1550,6 +1550,7 @@ function(saga_setup_tests)
             ${STARTER_ARENA_PLAYABLE_TEST_SOURCE}
             ${SAGA_ROOT}/Apps/Runtime/StarterArenaInput.cpp
             ${SAGA_ROOT}/Apps/Runtime/StarterArenaSimulation.cpp
+            ${SAGA_ROOT}/Apps/Runtime/StarterArenaGameplayState.cpp
             ${SAGA_ROOT}/Apps/Runtime/StarterArenaPlayableScene.cpp
         )
         target_link_libraries(StarterArenaPlayableTests PRIVATE
@@ -1713,6 +1714,7 @@ function(saga_setup_tests)
     target_sources(SagaIntegrationTests PRIVATE
         ${SAGA_ROOT}/Apps/Runtime/StarterArenaInput.cpp
         ${SAGA_ROOT}/Apps/Runtime/StarterArenaSimulation.cpp
+        ${SAGA_ROOT}/Apps/Runtime/StarterArenaGameplayState.cpp
         ${SAGA_ROOT}/Apps/Runtime/StarterArenaPlayableScene.cpp
     )
     saga_link_thirdparty(SagaIntegrationTests)

@@ -36,6 +36,19 @@
       "finalX": 1.0,
       "finalY": 0.96,
       "clampCount": 15
+    },
+    "gameplay": {
+      "pickup": {
+        "id": "starter.pickup.0",
+        "position": { "x": 0.48, "y": 0.24 },
+        "radius": 0.05,
+        "scoreValue": 10
+      },
+      "expected": {
+        "score": 10,
+        "pickupCollected": true,
+        "playerState": "powered"
+      }
     }
   }
 }

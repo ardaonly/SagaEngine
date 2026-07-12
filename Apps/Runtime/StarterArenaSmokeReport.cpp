@@ -164,6 +164,57 @@ StarterArenaSmokeJson DiagnosticsToJson(
     return result;
 }
 
+StarterArenaSmokeJson GameplayToJson(const StarterArenaGameplayState& state)
+{
+    const auto mutationValue = [](const StarterArenaGameplayMutation& mutation,
+                                  const std::string& value) -> StarterArenaSmokeJson {
+        if (mutation.operation == "SetBool") return value == "true";
+        if (mutation.operation == "AddInt32") return std::stoi(value);
+        return value;
+    };
+    StarterArenaSmokeJson mutations = StarterArenaSmokeJson::array();
+    for (const auto& mutation : state.mutations)
+        mutations.push_back({{"tick", mutation.tick}, {"phase", mutation.phase},
+                             {"operation", mutation.operation}, {"target", mutation.target},
+                             {"before", mutationValue(mutation, mutation.beforeValue)},
+                             {"after", mutationValue(mutation, mutation.afterValue)},
+                             {"status", mutation.status}, {"diagnostic", mutation.diagnostic}});
+    StarterArenaSmokeJson callbacks = StarterArenaSmokeJson::array();
+    for (const auto& callback : state.callbacksObserved) callbacks.push_back(callback);
+    const auto triggerPosition = state.mutationPosition
+        ? state.mutationPosition
+        : state.firstReachablePosition;
+    return {{"status", state.enabled ? (state.passed ? "Passed" : "Failed") : "NotRequested"},
+            {"enabled", state.enabled}, {"source", state.enabled ? "GameRules" : ""},
+            {"capability", "Sample.StarterArena.GameplayState"},
+            {"initialState", {{"score", 0}, {"pickupCollected", false},
+                              {"playerState", "normal"}}},
+            {"finalState", {{"score", state.score},
+                            {"pickupCollected", state.pickupCollected},
+                            {"playerState", state.playerState}}},
+            {"expectations", {{"score", 10}, {"pickupCollected", true},
+                              {"playerState", "powered"}}},
+            {"pickup", {{"id", state.pickup.id},
+                        {"position", Vec2ToJson(state.pickup.position)},
+                        {"radius", state.pickup.radius},
+                        {"scoreValue", state.pickup.scoreValue}}},
+            {"trigger", {{"kind", "PlayerOverlapsPickup"},
+                         {"firstReachableTick", state.firstReachableTick ? StarterArenaSmokeJson(*state.firstReachableTick) : StarterArenaSmokeJson(nullptr)},
+                         {"mutationTick", state.mutationTick ? StarterArenaSmokeJson(*state.mutationTick) : StarterArenaSmokeJson(nullptr)},
+                         {"playerPosition", triggerPosition
+                            ? Vec2ToJson(*triggerPosition)
+                            : StarterArenaSmokeJson(nullptr)}}},
+            {"lifecycle", {{"callbacksObserved", callbacks},
+                           {"updateCount", state.updateCount}}},
+            {"mutations", mutations},
+            {"nonClaims", StarterArenaSmokeJson::array({
+                "No broad gameplay scripting API claim",
+                "No arbitrary world or ECS access claim",
+                "No editor or Visual Blocks workflow claim",
+                "No networking, replication, or prediction claim",
+                "No production readiness claim"})}};
+}
+
 StarterArenaSmokeJson BuildSceneReport(
     const StarterArenaScene* scene,
     const StarterArenaLoopResult& loop)
@@ -257,6 +308,7 @@ StarterArenaSmokeJson BuildStarterArenaSmokeReport(
         {"scriptBinding", ScriptBindingToJson(input.scriptBinding)},
         {"scriptInvocation", ScriptInvocationToJson(input.scriptInvocation)},
         {"scriptLifecycle", ScriptLifecycleToJson(input.scriptLifecycle)},
+        {"gameplay", GameplayToJson(input.gameplay)},
         {"settings", {
             {"headless", commandLine.launchOptions.headless},
             {"frames", commandLine.smokeFrames},

@@ -718,6 +718,8 @@ function(saga_create_engine_targets)
         ${SAGA_ROOT}/Apps/Runtime/StarterArenaSmokeScript.cpp
         ${SAGA_ROOT}/Apps/Runtime/StarterArenaSimulation.h
         ${SAGA_ROOT}/Apps/Runtime/StarterArenaSimulation.cpp
+        ${SAGA_ROOT}/Apps/Runtime/StarterArenaGameplayState.h
+        ${SAGA_ROOT}/Apps/Runtime/StarterArenaGameplayState.cpp
         ${SAGA_ROOT}/Apps/Runtime/StarterArenaInput.h
         ${SAGA_ROOT}/Apps/Runtime/StarterArenaInput.cpp
         ${SAGA_ROOT}/Apps/Runtime/StarterArenaPlayable.h

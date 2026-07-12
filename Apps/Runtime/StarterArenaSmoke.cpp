@@ -368,6 +368,59 @@ bool ReadExpectedField(
     return ok;
 }
 
+bool ReadGameplayField(const Json& object,
+                       StarterArenaScene& scene,
+                       std::vector<StarterArenaDiagnostic>& diagnostics)
+{
+    const Json* gameplay = FindObjectField(object, "gameplay", "starterArenaSmoke.gameplay",
+                                            diagnostics, "StarterArena.Scene.GameplayInvalid");
+    if (gameplay == nullptr) return false;
+    const Json* pickup = FindObjectField(*gameplay, "pickup", "starterArenaSmoke.gameplay.pickup",
+                                         diagnostics, "StarterArena.Scene.GameplayInvalid");
+    const Json* expected = FindObjectField(*gameplay, "expected", "starterArenaSmoke.gameplay.expected",
+                                           diagnostics, "StarterArena.Scene.GameplayInvalid");
+    if (pickup == nullptr || expected == nullptr) return false;
+    bool ok = true;
+    ok &= ReadRequiredStringField(*pickup, "id", "starterArenaSmoke.gameplay.pickup.id",
+                                  scene.pickupId, diagnostics, "StarterArena.Scene.GameplayInvalid");
+    ok &= ReadVec2Field(*pickup, "position", "starterArenaSmoke.gameplay.pickup.position",
+                        scene.pickupPosition, diagnostics);
+    ok &= ReadNumberField(*pickup, "radius", "starterArenaSmoke.gameplay.pickup.radius",
+                          scene.pickupRadius, diagnostics, "StarterArena.Scene.GameplayInvalid");
+    std::uint32_t scoreValue = 0;
+    ok &= ReadUintField(*pickup, "scoreValue", "starterArenaSmoke.gameplay.pickup.scoreValue",
+                        scoreValue, diagnostics, "StarterArena.Scene.GameplayInvalid");
+    std::uint32_t expectedScore = 0;
+    ok &= ReadUintField(*expected, "score", "starterArenaSmoke.gameplay.expected.score",
+                        expectedScore, diagnostics, "StarterArena.Scene.GameplayInvalid");
+    const auto collected = expected->find("pickupCollected");
+    if (collected == expected->end() || !collected->is_boolean())
+    {
+        diagnostics.push_back({"StarterArena.Scene.GameplayInvalid",
+                               "Expected pickupCollected must be a boolean."});
+        ok = false;
+    }
+    else scene.expectedPickupCollected = collected->get<bool>();
+    ok &= ReadRequiredStringField(*expected, "playerState",
+                                  "starterArenaSmoke.gameplay.expected.playerState",
+                                  scene.expectedPlayerState, diagnostics,
+                                  "StarterArena.Scene.GameplayInvalid");
+    scene.pickupScoreValue = static_cast<std::int32_t>(scoreValue);
+    scene.expectedGameplayScore = static_cast<std::int32_t>(expectedScore);
+    if (scene.pickupId != "starter.pickup.0" || scene.pickupRadius <= 0.0 ||
+        !std::isfinite(scene.pickupRadius) || scoreValue != 10 || expectedScore != 10 ||
+        !scene.expectedPickupCollected ||
+        scene.pickupPosition.x < scene.bounds.minX || scene.pickupPosition.x > scene.bounds.maxX ||
+        scene.pickupPosition.y < scene.bounds.minY || scene.pickupPosition.y > scene.bounds.maxY ||
+        scene.expectedPlayerState != "powered")
+    {
+        diagnostics.push_back({"StarterArena.Scene.GameplayInvalid",
+                               "StarterArena supports one in-bounds 10-point collected powered pickup."});
+        ok = false;
+    }
+    return ok;
+}
+
 std::optional<std::filesystem::path> ResolveProjectManifest(
     const std::filesystem::path& input,
     std::vector<StarterArenaDiagnostic>& diagnostics)
@@ -871,6 +924,7 @@ std::optional<StarterArenaScene> LoadStarterArenaSceneImpl(
             scene.testInput,
             diagnostics);
         ReadExpectedField(*smokeObject, scene.expected, diagnostics);
+        ReadGameplayField(*smokeObject, scene, diagnostics);
     }
 
     if (diagnostics.size() != diagnosticStart)
@@ -885,6 +939,7 @@ StarterArenaLoopResult RunStarterArenaLoop(
     const RuntimeCommandLine& commandLine,
     const std::optional<StarterArenaProject>& project,
     const std::optional<StarterArenaScene>& scene,
+    StarterArenaGameplaySession* gameplaySession,
     std::vector<StarterArenaDiagnostic>& diagnostics)
 {
     StarterArenaLoopResult loop;
@@ -906,6 +961,12 @@ StarterArenaLoopResult RunStarterArenaLoop(
                 simulation,
                 inputProvider->Read(frame),
                 commandLine.fixedDtSeconds);
+            if (gameplaySession != nullptr &&
+                !gameplaySession->Update(simulation.ticks, simulation.position,
+                                         commandLine.fixedDtSeconds, diagnostics))
+            {
+                break;
+            }
         }
         loop.finalPosition = simulation.position;
         loop.clampCount = simulation.clampCount;
@@ -989,6 +1050,15 @@ int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine)
             diagnostics);
     StarterArenaScriptInvocationResult scriptInvocation;
     StarterArenaScriptLifecycleResult scriptLifecycle;
+    StarterArenaGameplayState gameplay;
+    if (scene)
+    {
+        gameplay.pickup.id = scene->pickupId;
+        gameplay.pickup.position = scene->pickupPosition;
+        gameplay.pickup.radius = scene->pickupRadius;
+        gameplay.pickup.scoreValue = scene->pickupScoreValue;
+        gameplay.playerPosition = scene->playerSpawn;
+    }
     if (commandLine.invokeStarterArenaScript)
     {
         if (project.has_value())
@@ -1009,7 +1079,18 @@ int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine)
                 "Controlled StarterArena script invocation requires a valid project."});
         }
     }
-    if (commandLine.runStarterArenaScriptLifecycle)
+    std::unique_ptr<StarterArenaGameplaySession> gameplaySession;
+    if (commandLine.runStarterArenaGameplay)
+    {
+        if (project && scene)
+            gameplaySession = CreateStarterArenaGameplaySession(
+                *project, scriptBinding, gameplay, diagnostics);
+        else
+            diagnostics.push_back({"StarterArena.Gameplay.MetadataRequired",
+                                   "Gameplay proof requires a valid project and scene."});
+    }
+    if (commandLine.runStarterArenaScriptLifecycle &&
+        !commandLine.runStarterArenaGameplay)
     {
         if (project.has_value())
         {
@@ -1030,7 +1111,31 @@ int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine)
     }
 
     StarterArenaLoopResult loop =
-        RunStarterArenaLoop(commandLine, project, scene, diagnostics);
+        RunStarterArenaLoop(commandLine, project, scene, gameplaySession.get(), diagnostics);
+    if (gameplaySession)
+    {
+        static_cast<void>(gameplaySession->Shutdown(diagnostics));
+        scriptLifecycle.requested = true;
+        scriptLifecycle.attempted = gameplay.attempted;
+        scriptLifecycle.mode = "StarterArenaGameplayLifecycle";
+        scriptLifecycle.scriptId = scriptBinding.scriptId;
+        scriptLifecycle.typeName = scriptBinding.typeName;
+        scriptLifecycle.callbacksObserved = gameplay.callbacksObserved;
+        scriptLifecycle.passed = gameplay.callbacksObserved.size() == 4u;
+        gameplay.passed = gameplay.score == (scene ? scene->expectedGameplayScore : 10) &&
+                          gameplay.pickupCollected == (scene && scene->expectedPickupCollected) &&
+                          gameplay.playerState == (scene ? scene->expectedPlayerState : "powered") &&
+                          gameplay.mutations.size() == 3u;
+        if (!gameplay.pickupCollected)
+            diagnostics.push_back({"StarterArena.Gameplay.PickupNotReached",
+                                   "Gameplay proof ended before the pickup was collected."});
+        if (scene && gameplay.score != scene->expectedGameplayScore)
+            diagnostics.push_back({"StarterArena.Gameplay.FinalScoreMismatch",
+                                   "Gameplay score did not match the scene expectation."});
+        if (scene && gameplay.playerState != scene->expectedPlayerState)
+            diagnostics.push_back({"StarterArena.Gameplay.FinalPlayerStateMismatch",
+                                   "Gameplay player state did not match the scene expectation."});
+    }
     const bool scriptBindingPassed =
         !scriptBinding.provided || scriptBinding.valid;
     const bool scriptInvocationPassed =
@@ -1051,6 +1156,7 @@ int RunStarterArenaSmoke(const RuntimeCommandLine& commandLine)
         scriptBinding,
         scriptInvocation,
         scriptLifecycle,
+        gameplay,
         loop,
         diagnostics,
         canRun,

@@ -4,6 +4,7 @@
 #pragma once
 
 #include "StarterArenaSmoke.h"
+#include "StarterArenaGameplayState.h"
 
 #include <filesystem>
 #include <nlohmann/json.hpp>
@@ -23,6 +24,7 @@ struct StarterArenaSmokeReportInput
     const StarterArenaScriptBindingMetadata& scriptBinding;
     const StarterArenaScriptInvocationResult& scriptInvocation;
     const StarterArenaScriptLifecycleResult& scriptLifecycle;
+    const StarterArenaGameplayState& gameplay;
     const StarterArenaLoopResult& loop;
     const std::vector<StarterArenaDiagnostic>& diagnostics;
     bool canRun = false;

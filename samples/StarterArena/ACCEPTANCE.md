@@ -137,6 +137,22 @@ Accepted combined runtime smoke evidence:
 - the smoke report records `scriptLifecycle.status: Passed` and
   `scriptLifecycle.execution: Invoked`.
 
+Accepted gameplay-spine evidence:
+
+- gameplay requires both `--run-starter-arena-gameplay` and
+  `--run-starter-arena-script-lifecycle` plus valid metadata/artifacts;
+- scene or synthetic input drives the existing simulation into the declared
+  `starter.pickup.0` zone;
+- managed `GameRules.OnUpdate` uses only the explicitly granted typed state
+  port to collect the pickup, add score `10`, and set `powered` state;
+- reports record the input-derived position, ordered typed mutations,
+  lifecycle phase/tick, initial/final state, and stable diagnostics;
+- visible synthetic proof records the pickup draw before collection, its
+  absence on the last frame, powered-player submission, and
+  `gameplayStateReflected: true`;
+- default smoke, metadata-only, lifecycle-only, and default visible modes do
+  not claim or perform gameplay mutation.
+
 Accepted server-authoritative smoke evidence:
 
 - `MultiplayerSandboxHeadless --starter-arena-server-smoke` exits `0`;
@@ -151,7 +167,7 @@ Accepted server-authoritative smoke evidence:
 - the report keeps full multiplayer, MMO proof, editor workflow, package
   install, package output, and Visual Blocks as non-claims.
 
-This is not acceptance for broad interactive gameplay, a reusable scene system,
-arbitrary C# execution, Visual Blocks, package launch,
+This is not acceptance for broad gameplay scripting, arbitrary world/ECS
+access, a reusable scene system, arbitrary C# execution, Visual Blocks, package launch,
 package install, editor launch, full multiplayer gameplay, external
 client/server networking, or MMO-scale networking.

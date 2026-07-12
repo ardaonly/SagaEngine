@@ -161,14 +161,18 @@ bool StarterArenaPlayableResources::IsValid() const noexcept
            playerMaterial != RenderWorld::MaterialId::kInvalid &&
            groundMaterial != RenderWorld::MaterialId::kInvalid &&
            boundaryMaterial != RenderWorld::MaterialId::kInvalid &&
+           pickupMaterial != RenderWorld::MaterialId::kInvalid &&
+           poweredPlayerMaterial != RenderWorld::MaterialId::kInvalid &&
            playerTexture != TextureHandle::kInvalid && groundTexture != TextureHandle::kInvalid &&
-           boundaryTexture != TextureHandle::kInvalid;
+           boundaryTexture != TextureHandle::kInvalid && pickupTexture != TextureHandle::kInvalid &&
+           poweredPlayerTexture != TextureHandle::kInvalid;
 }
 
 bool StarterArenaPlayableScene::IsValid() const noexcept
 {
     return resources.IsValid() && ground != RenderWorld::RenderEntityId::kInvalid &&
            player != RenderWorld::RenderEntityId::kInvalid &&
+           pickup != RenderWorld::RenderEntityId::kInvalid &&
            std::all_of(boundaries.begin(), boundaries.end(), [](auto entity) {
                return entity != RenderWorld::RenderEntityId::kInvalid;
            });
@@ -220,15 +224,23 @@ StarterArenaPlayableScene CreateStarterArenaPlayableScene(RenderBackend::IRender
     const auto playerPixels = SolidPixels(245u, 190u, 45u);
     const auto groundPixels = SolidPixels(42u, 92u, 65u);
     const auto boundaryPixels = SolidPixels(210u, 70u, 65u);
+    const auto pickupPixels = SolidPixels(75u, 220u, 245u);
+    const auto poweredPixels = SolidPixels(175u, 85u, 245u);
     resources.playerTexture = backend.CreateTexture(4u, 4u, playerPixels.data());
     resources.groundTexture = backend.CreateTexture(4u, 4u, groundPixels.data());
     resources.boundaryTexture = backend.CreateTexture(4u, 4u, boundaryPixels.data());
+    resources.pickupTexture = backend.CreateTexture(4u, 4u, pickupPixels.data());
+    resources.poweredPlayerTexture = backend.CreateTexture(4u, 4u, poweredPixels.data());
     resources.playerMaterial = backend.CreateMaterial(
         MakeMaterial(0x53544111u, resources.playerTexture));
     resources.groundMaterial = backend.CreateMaterial(
         MakeMaterial(0x53544112u, resources.groundTexture));
     resources.boundaryMaterial = backend.CreateMaterial(
         MakeMaterial(0x53544113u, resources.boundaryTexture));
+    resources.pickupMaterial = backend.CreateMaterial(
+        MakeMaterial(0x53544114u, resources.pickupTexture));
+    resources.poweredPlayerMaterial = backend.CreateMaterial(
+        MakeMaterial(0x53544115u, resources.poweredPlayerTexture));
     if (!resources.IsValid())
     {
         DestroyStarterArenaPlayableScene(backend, world, result);
@@ -250,6 +262,12 @@ StarterArenaPlayableScene CreateStarterArenaPlayableScene(RenderBackend::IRender
     playerTransform.scale = {0.24f, 0.8f, 0.24f};
     result.player = world.Create(
         MakeEntity(resources.cubeMesh, resources.playerMaterial, playerTransform, 0.5f));
+
+    Transform pickupTransform = Transform::FromPosition(
+        StarterArenaWorldPosition(scene.pickupPosition, 0.18f));
+    pickupTransform.scale = {0.16f, 0.16f, 0.16f};
+    result.pickup = world.Create(
+        MakeEntity(resources.cubeMesh, resources.pickupMaterial, pickupTransform, 0.2f));
 
     constexpr float thickness = 0.06f;
     constexpr float wallHeight = 0.12f;
@@ -288,6 +306,23 @@ void UpdateStarterArenaPlayerTransform(RenderWorld::RenderWorld& world,
     entity->transform.position = StarterArenaWorldPosition(position);
 }
 
+void ApplyStarterArenaGameplayReflection(RenderWorld::RenderWorld& world,
+                                         StarterArenaPlayableScene& scene,
+                                         bool pickupCollected,
+                                         bool powered) noexcept
+{
+    if (powered)
+    {
+        if (auto* player = world.Get(scene.player))
+            player->material = scene.resources.poweredPlayerMaterial;
+    }
+    if (pickupCollected && scene.pickup != RenderWorld::RenderEntityId::kInvalid)
+    {
+        world.Destroy(scene.pickup);
+        scene.pickup = RenderWorld::RenderEntityId::kInvalid;
+    }
+}
+
 RenderScene::RenderView BuildStarterArenaPlayableView(const RenderWorld::RenderWorld& world,
                                                       const RenderScene::Camera& camera)
 {
@@ -314,12 +349,14 @@ void DestroyStarterArenaPlayableScene(RenderBackend::IRenderBackend& backend,
                                       StarterArenaPlayableScene& scene) noexcept
 {
     world.Destroy(scene.player);
+    world.Destroy(scene.pickup);
     world.Destroy(scene.ground);
     for (const auto entity : scene.boundaries)
     {
         world.Destroy(entity);
     }
     scene.player = RenderWorld::RenderEntityId::kInvalid;
+    scene.pickup = RenderWorld::RenderEntityId::kInvalid;
     scene.ground = RenderWorld::RenderEntityId::kInvalid;
     scene.boundaries.fill(RenderWorld::RenderEntityId::kInvalid);
 
@@ -330,6 +367,10 @@ void DestroyStarterArenaPlayableScene(RenderBackend::IRenderBackend& backend,
         backend.DestroyMaterial(resources.groundMaterial);
     if (resources.boundaryMaterial != RenderWorld::MaterialId::kInvalid)
         backend.DestroyMaterial(resources.boundaryMaterial);
+    if (resources.pickupMaterial != RenderWorld::MaterialId::kInvalid)
+        backend.DestroyMaterial(resources.pickupMaterial);
+    if (resources.poweredPlayerMaterial != RenderWorld::MaterialId::kInvalid)
+        backend.DestroyMaterial(resources.poweredPlayerMaterial);
     if (resources.cubeMesh != RenderWorld::MeshId::kInvalid)
         backend.DestroyMesh(resources.cubeMesh);
     if (resources.groundMesh != RenderWorld::MeshId::kInvalid)
@@ -340,6 +381,10 @@ void DestroyStarterArenaPlayableScene(RenderBackend::IRenderBackend& backend,
         backend.DestroyTexture(resources.groundTexture);
     if (resources.boundaryTexture != TextureHandle::kInvalid)
         backend.DestroyTexture(resources.boundaryTexture);
+    if (resources.pickupTexture != TextureHandle::kInvalid)
+        backend.DestroyTexture(resources.pickupTexture);
+    if (resources.poweredPlayerTexture != TextureHandle::kInvalid)
+        backend.DestroyTexture(resources.poweredPlayerTexture);
     resources = {};
 }
 

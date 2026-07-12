@@ -5,6 +5,7 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -390,6 +391,9 @@ TEST(StarterArenaRuntimeSmokeTests, DefaultSmokeReportsProjectSceneAndNoScriptEx
     EXPECT_EQ(report["scriptLifecycle"].value("execution", ""), "NotRequested");
     EXPECT_FALSE(report["scriptLifecycle"].value("attempted", true));
     EXPECT_TRUE(report["scriptLifecycle"]["callbacksObserved"].empty());
+    EXPECT_EQ(report["gameplay"].value("status", ""), "NotRequested");
+    EXPECT_FALSE(report["gameplay"].value("enabled", true));
+    EXPECT_TRUE(report["gameplay"]["mutations"].empty());
     EXPECT_TRUE(report["diagnostics"].empty());
     EXPECT_TRUE(ContainsString(
         report["nonClaims"],
@@ -432,6 +436,7 @@ TEST(StarterArenaRuntimeSmokeTests, MetadataOnlySmokeAcceptsScriptArtifactsWitho
     EXPECT_EQ(report["scriptLifecycle"].value("status", ""), "NotRequested");
     EXPECT_EQ(report["scriptLifecycle"].value("execution", ""), "NotRequested");
     EXPECT_FALSE(report["scriptLifecycle"].value("attempted", true));
+    EXPECT_EQ(report["gameplay"].value("status", ""), "NotRequested");
     EXPECT_TRUE(report["diagnostics"].empty());
 }
 
@@ -513,6 +518,51 @@ TEST(StarterArenaRuntimeSmokeTests, LifecycleSmokeRunsGameRulesLifecycle)
     EXPECT_TRUE(report["diagnostics"].empty());
     EXPECT_FALSE(std::filesystem::exists(
         StarterArenaRoot() / "Build" / "Manifests" / "script_artifacts.json"));
+}
+
+TEST(StarterArenaRuntimeSmokeTests, GameplayLifecycleMutatesDeterministicState)
+{
+    const auto root = TempProjectRoot("saga_starter_arena_gameplay_lifecycle");
+    CopyStarterArenaSample(root);
+    ASSERT_TRUE(CompileStarterArenaScripts(root));
+    const auto reportPath = std::filesystem::temp_directory_path() /
+                            "saga_starter_arena_gameplay_lifecycle.json";
+    std::filesystem::remove(reportPath);
+    const std::string args = MetadataArgs(root) +
+        " --run-starter-arena-script-lifecycle --run-starter-arena-gameplay";
+    ASSERT_EQ(RunStarterArenaSmoke(root, reportPath, args), 0)
+        << ReadFile(root / "Build" / "Reports" / "runtime.stderr");
+
+    const auto report = ReadJson(reportPath);
+    EXPECT_EQ(report["gameplay"].value("status", ""), "Passed");
+    EXPECT_EQ(report["gameplay"]["finalState"].value("score", 0), 10);
+    EXPECT_TRUE(report["gameplay"]["finalState"].value("pickupCollected", false));
+    EXPECT_EQ(report["gameplay"]["finalState"].value("playerState", ""), "powered");
+    EXPECT_EQ(report["gameplay"]["mutations"].size(), 3u);
+    EXPECT_EQ(report["gameplay"]["mutations"][0].value("phase", ""), "OnUpdate");
+    const auto& trigger = report["gameplay"]["trigger"]["playerPosition"];
+    const auto& pickup = report["gameplay"]["pickup"];
+    const double triggerDx = trigger.value("x", 0.0) - pickup["position"].value("x", 0.0);
+    const double triggerDy = trigger.value("y", 0.0) - pickup["position"].value("y", 0.0);
+    EXPECT_LE(triggerDx * triggerDx + triggerDy * triggerDy,
+              pickup.value("radius", 0.0) * pickup.value("radius", 0.0));
+    EXPECT_FALSE(std::abs(trigger.value("x", 0.0) -
+                          report["loop"]["finalPosition"].value("x", 0.0)) <= 0.000001 &&
+                 std::abs(trigger.value("y", 0.0) -
+                          report["loop"]["finalPosition"].value("y", 0.0)) <= 0.000001);
+    EXPECT_EQ(report["scriptLifecycle"].value("execution", ""), "Invoked");
+    EXPECT_TRUE(report["diagnostics"].empty());
+}
+
+TEST(StarterArenaRuntimeSmokeTests, GameplayFlagRequiresLifecycle)
+{
+    const auto root = TempProjectRoot("saga_starter_arena_gameplay_flag_rejected");
+    CopyStarterArenaSample(root);
+    const auto reportPath = std::filesystem::temp_directory_path() /
+                            "saga_starter_arena_gameplay_flag_rejected.json";
+    std::filesystem::remove(reportPath);
+    EXPECT_EQ(RunStarterArenaSmoke(root, reportPath, "--run-starter-arena-gameplay"), 2);
+    EXPECT_FALSE(std::filesystem::exists(reportPath));
 }
 
 TEST(StarterArenaRuntimeSmokeTests, CombinedInvocationAndLifecycleSmokeReportsBothIndependently)
@@ -745,6 +795,9 @@ TEST(StarterArenaRuntimeSmokeTests, BoundedVisibleModeWritesStableReport)
     EXPECT_EQ(report["input"].value("source", ""), "scene");
     EXPECT_EQ(report["input"].value("framesWithInput", 0u), 30u);
     EXPECT_FALSE(report["input"].value("realDeviceObserved", true));
+    EXPECT_EQ(report["gameplay"].value("status", ""), "NotRequested");
+    EXPECT_FALSE(report["gameplay"].value("enabled", true));
+    EXPECT_TRUE(ContainsString(report["nonClaims"], "No C# world mutation proof"));
     const auto& mapping = report["input"]["mapping"];
     EXPECT_EQ(mapping.value("MoveLeft", ""), "A");
     EXPECT_EQ(mapping.value("MoveRight", ""), "D");
@@ -824,6 +877,57 @@ TEST(StarterArenaRuntimeSmokeTests, BoundedSyntheticVisibleModeWritesInputEviden
                 0.000001);
     EXPECT_GT(report["render"].value("totalDrawItems", 0u), 0u);
     EXPECT_TRUE(report["render"].value("playerDrawSubmitted", false));
+}
+
+TEST(StarterArenaRuntimeSmokeTests, VisibleSyntheticGameplayReflectsManagedMutation)
+{
+#if !defined(_WIN32)
+    if (std::getenv("DISPLAY") == nullptr && std::getenv("WAYLAND_DISPLAY") == nullptr)
+        GTEST_SKIP() << "No display is available for visible gameplay evidence.";
+#endif
+    const auto root = TempProjectRoot("saga_starter_arena_visible_gameplay");
+    CopyStarterArenaSample(root);
+    ASSERT_TRUE(CompileStarterArenaScripts(root));
+    const auto reportPath = std::filesystem::temp_directory_path() /
+                            "saga_starter_arena_visible_gameplay.json";
+    std::filesystem::remove(reportPath);
+    const auto stdoutPath = root / "Build" / "Reports" / "gameplay.stdout";
+    const auto stderrPath = root / "Build" / "Reports" / "gameplay.stderr";
+    const std::string command = ShellQuote(SagaRuntimeExecutable()) + " --project " +
+        ShellQuote(root / "StarterArena.sagaproj") +
+        " --starter-arena-playable --playable-frames 30" +
+        " --playable-input-source synthetic --playable-input-script " +
+        ShellQuote(root / "Input" / "playable.synthetic-input.json") +
+        " --run-starter-arena-script-lifecycle --run-starter-arena-gameplay " +
+        MetadataArgs(root) + " --playable-report-out " + ShellQuote(reportPath) +
+        " --fixed-dt 0.016 > " + ShellQuote(stdoutPath) + " 2> " + ShellQuote(stderrPath);
+    ASSERT_EQ(RunCommand(command), 0) << ReadFile(stdoutPath) << "\n" << ReadFile(stderrPath);
+
+    const auto report = ReadJson(reportPath);
+    EXPECT_EQ(report["gameplay"].value("status", ""), "Passed");
+    EXPECT_EQ(report["gameplay"]["finalState"].value("score", 0), 10);
+    EXPECT_TRUE(report["gameplay"]["finalState"].value("pickupCollected", false));
+    EXPECT_EQ(report["gameplay"]["finalState"].value("playerState", ""), "powered");
+    EXPECT_TRUE(report["render"].value("pickupDrawSubmittedBeforeCollection", false));
+    EXPECT_FALSE(report["render"].value("pickupDrawSubmittedLastFrame", true));
+    EXPECT_TRUE(report["render"].value("poweredPlayerDrawSubmitted", false));
+    EXPECT_TRUE(report["render"].value("gameplayStateReflected", false));
+    EXPECT_FALSE(ContainsString(report["nonClaims"], "No C# world mutation proof"));
+    EXPECT_TRUE(ContainsString(report["nonClaims"],
+                               "No broad gameplay scripting API claim"));
+    const auto& trigger = report["gameplay"]["trigger"]["playerPosition"];
+    const auto& pickup = report["gameplay"]["pickup"];
+    const double triggerDx = trigger.value("x", 0.0) - pickup["position"].value("x", 0.0);
+    const double triggerDy = trigger.value("y", 0.0) - pickup["position"].value("y", 0.0);
+    EXPECT_LE(triggerDx * triggerDx + triggerDy * triggerDy,
+              pickup.value("radius", 0.0) * pickup.value("radius", 0.0));
+    EXPECT_FALSE(std::abs(trigger.value("x", 0.0) -
+                          report["simulation"]["finalPosition"].value("x", 0.0)) <= 0.000001 &&
+                 std::abs(trigger.value("y", 0.0) -
+                          report["simulation"]["finalPosition"].value("y", 0.0)) <= 0.000001);
+    EXPECT_NEAR(report["simulation"]["finalPosition"].value("x", 0.0), 0.48, 0.000001);
+    EXPECT_NEAR(report["simulation"]["finalPosition"].value("y", 0.0), 0.48, 0.000001);
+    EXPECT_TRUE(report["diagnostics"].empty());
 }
 
 TEST(StarterArenaRuntimeSmokeTests, InvalidPlayableInputSourceFailsClearly)
