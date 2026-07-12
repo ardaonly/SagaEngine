@@ -77,7 +77,10 @@ struct SagaAppConfig
     bool                  publishCheck = false;
     bool                  workflowSmoke = false;
     bool                  firstPlayableCheck = false;
+    bool                  firstPlayableHumanCapture = false;
     int                   firstPlayableTimeoutMs = 30000;
+    int                   firstPlayableHumanTimeoutMs = 30000;
+    int                   firstPlayableHumanFrames = 600;
     bool                  localWorkspaceTransactionSmoke = false;
     bool                  localWorkspacePresenceLockSmoke = false;
     bool                  localWorkspaceReviewSmoke = false;

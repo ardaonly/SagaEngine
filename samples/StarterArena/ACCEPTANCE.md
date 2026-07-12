@@ -59,13 +59,21 @@ Accepted input-flow evidence:
 - keyboard mode without a mapped key succeeds with
   `input.status: NoInputObserved` and `realDeviceObserved: false`.
 
-Pending manual keyboard evidence:
+Accepted human keyboard evidence capture:
 
-- Arda runs keyboard mode and moves the marker with a mapped key;
+- `Saga --first-playable-human-capture` launches the existing visible Runtime
+  keyboard mode, or imports a report supplied explicitly by the operator;
+- the operator moves the marker with a mapped key and may press Escape to end
+  the bounded capture early;
 - the resulting report records `input.source: keyboard`,
   `input.status: Passed`, `input.realDeviceObserved: true`, and
   `input.framesWithInput` greater than zero;
-- the report records a final position different from the initial position.
+- the report records finite initial/final positions and measurable movement;
+- the imported report hash exactly matches the validated captured or supplied
+  report;
+- valid human evidence changes the authoritative RC gate to `Accepted`;
+- absent evidence remains `PendingManualEvidence` only for the normal automated
+  RC command, while invalid capture evidence rejects the human-capture command.
 
 Accepted SagaScript compile and metadata evidence:
 
@@ -180,6 +188,12 @@ Accepted Product Shell diagnostics evidence:
   require checked-in block JSON, or depend on Editor VisualScripting types;
 - real keyboard evidence is reported as `PendingManualEvidence` and is not
   fabricated as passed;
+- the human-capture operator workflow writes its report and raw process captures
+  under the external evidence root, reuses the strict keyboard validator, and
+  does not substitute synthetic or fake-keyboard test evidence;
+- the operator workflow is focused human input proof, not production input UX,
+  broad interactive gameplay, full editor behavior, project creation, or a
+  device/platform compatibility matrix;
 - the descriptor makes no canvas, graph execution, generated C# from blocks,
   editor graph editing, production block library, package install/distribution,
   networking/multiplayer, or production-readiness claim.

@@ -130,12 +130,15 @@ std::string SagaUsageText()
         "  --profile <id>                    Workflow smoke profile/view preset id\n"
         "  --workflow-report-out <path>      Workflow smoke report output path\n"
         "  --first-playable-check            Run StarterArena Product Shell evidence workflow\n"
+        "  --first-playable-human-capture    Capture/import real keyboard evidence, then run the gate\n"
         "  --first-playable-output <dir>     Generated evidence directory (outside project source)\n"
         "  --first-playable-summary-out <path> Consolidated JSON summary path\n"
         "  --first-playable-keyboard-report <path> Optional real-keyboard report to validate\n"
         "  --runtime-executable <path>       SagaRuntime executable override\n"
         "  --runtime-bridge-assembly <path> Managed SagaScript runtime bridge assembly\n"
         "  --first-playable-timeout-ms <ms> Per-process timeout (positive integer)\n"
+        "  --first-playable-human-timeout-ms <ms> Human capture timeout (default 30000)\n"
+        "  --first-playable-human-frames <n> Human capture frame bound (default 600)\n"
         "  --local-workspace-transaction-smoke Emit local workspace transaction report\n"
         "  --local-workspace-presence-lock-smoke Emit local presence/lock metadata report\n"
         "  --local-workspace-review-smoke Emit local review/comment/audit metadata report\n"
@@ -351,6 +354,10 @@ SagaConfigResult ParseSagaAppConfig(int argc, char* argv[])
         {
             result.config.firstPlayableCheck = true;
         }
+        else if (arg == "--first-playable-human-capture")
+        {
+            result.config.firstPlayableHumanCapture = true;
+        }
         else if (arg == "--project")
         {
             if (!HasValue(i, argc))
@@ -455,6 +462,36 @@ SagaConfigResult ParseSagaAppConfig(int argc, char* argv[])
                 result.error = "Saga: --first-playable-timeout-ms requires a positive integer";
                 return result;
             }
+        }
+        else if (arg == "--first-playable-human-timeout-ms" ||
+                 arg == "--first-playable-human-frames")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: " + arg + " requires a positive integer";
+                return result;
+            }
+            int value = 0;
+            try
+            {
+                value = std::stoi(argv[++i]);
+            }
+            catch (...)
+            {
+                result.ok = false;
+                result.error = "Saga: " + arg + " requires a positive integer";
+                return result;
+            }
+            if (value <= 0)
+            {
+                result.ok = false;
+                result.error = "Saga: " + arg + " requires a positive integer";
+                return result;
+            }
+            if (arg == "--first-playable-human-timeout-ms")
+                result.config.firstPlayableHumanTimeoutMs = value;
+            else result.config.firstPlayableHumanFrames = value;
         }
         else if (arg == "--local-workspace-transaction-smoke")
         {
@@ -713,6 +750,21 @@ SagaConfigResult ParseSagaAppConfig(int argc, char* argv[])
         }
     }
 
+    if (result.config.firstPlayableHumanCapture &&
+        (result.config.firstPlayableCheck || result.config.workflowSmoke ||
+         result.config.validateSagaScript || result.config.stagePackages ||
+         result.config.publishCheck || result.config.prepareOnly ||
+         result.config.localWorkspaceTransactionSmoke ||
+         result.config.localWorkspacePresenceLockSmoke ||
+         result.config.localWorkspaceReviewSmoke ||
+         result.config.localWorkspaceRoleSmoke ||
+         result.config.localWorkspaceSliceSmoke ||
+         result.config.localWorkspaceApprovalGateSmoke ||
+         result.config.target != SagaProductTargetKind::Editor))
+    {
+        result.ok = false;
+        result.error = "Saga: --first-playable-human-capture conflicts with another command mode";
+    }
     return result;
 }
 

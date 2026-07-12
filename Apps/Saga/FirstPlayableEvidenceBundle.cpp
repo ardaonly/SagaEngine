@@ -96,6 +96,13 @@ FirstPlayableEvidenceBundleResult FirstPlayableEvidenceBundle::Write(
             Failure(result.diagnostics,
                 "ProductShell.FirstPlayable.EvidenceManifestWriteFailed",
                 "could not import validated keyboard evidence", imported);
+        const auto captured = outputRoot / "manual" /
+            "real_keyboard_capture_report.json";
+        if (std::filesystem::is_regular_file(captured) &&
+            Hash(captured) != gate.manualEvidence.reportSha256)
+            Failure(result.diagnostics,
+                "ProductShell.FirstPlayable.EvidenceManifestWriteFailed",
+                "captured and imported keyboard evidence hashes differ", captured);
     }
     Json artifacts = Json::array();
     std::error_code ec;
@@ -154,7 +161,22 @@ FirstPlayableEvidenceBundleResult FirstPlayableEvidenceBundle::Write(
     profiles.push_back({{"id", kVisualBlocksDescriptorProfileId},
         {"report", std::filesystem::relative(descriptor.reportPath, outputRoot).generic_string()},
         {"stdout", nullptr}, {"stderr", nullptr}});
-    const Json manifest = {{"schemaVersion", 1}, {"tool", "Saga"},
+    const auto importedKeyboard = outputRoot / "manual" / "real_keyboard_report.json";
+    const auto captureKeyboard = outputRoot / "manual" /
+        "real_keyboard_capture_report.json";
+    const bool keyboardImported = gate.manualEvidence.status == EvidenceStatus::Passed &&
+        std::filesystem::is_regular_file(importedKeyboard);
+    Json realKeyboard = {
+        {"status", ToString(gate.manualEvidence.status)},
+        {"role", "manual-real-keyboard-report"},
+        {"path", keyboardImported ? Json("manual/real_keyboard_report.json") : Json(nullptr)},
+        {"sha256", keyboardImported ? Json(gate.manualEvidence.reportSha256) : Json(nullptr)},
+        {"originalPath", gate.manualEvidence.reportPath ?
+            Json(gate.manualEvidence.reportPath->string()) : Json(nullptr)},
+        {"captureReportPath", std::filesystem::is_regular_file(captureKeyboard) ?
+            Json("manual/real_keyboard_capture_report.json") : Json(nullptr)},
+    };
+    const Json manifest = {{"schemaVersion", 2}, {"tool", "Saga"},
         {"command", "first-playable-check"},
         {"status", result.diagnostics.empty() ? "Passed" : "Failed"},
         {"outputRoot", outputRoot.string()},
@@ -162,7 +184,7 @@ FirstPlayableEvidenceBundleResult FirstPlayableEvidenceBundle::Write(
         {"gate", std::filesystem::relative(gatePath, outputRoot).generic_string()},
         {"sourceManifest", "source_manifest.json"},
         {"profiles", profiles},
-        {"manualEvidence", {{"realKeyboard", ToString(gate.manualEvidence.status)}}},
+        {"manualEvidence", {{"realKeyboard", std::move(realKeyboard)}}},
         {"nonClaims", gate.nonClaims}, {"artifacts", artifacts}};
     if (!WriteJson(result.evidenceManifestPath, manifest, result.diagnostics,
                    "ProductShell.FirstPlayable.EvidenceManifestWriteFailed"))

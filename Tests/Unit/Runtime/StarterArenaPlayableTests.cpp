@@ -2,6 +2,7 @@
 /// @brief GPU-free contract tests for the visible StarterArena frame.
 
 #include "StarterArenaPlayableScene.h"
+#include "StarterArenaPlayable.h"
 #include "StarterArenaInput.h"
 #include "StarterArenaGameplayState.h"
 #include "StarterArenaSimulation.h"
@@ -344,6 +345,14 @@ TEST(StarterArenaPlayableTests, IdleKeyboardEvidenceDoesNotFailTheRun)
     EXPECT_EQ(evidence.status, "NoInputObserved");
     EXPECT_FALSE(evidence.realDeviceObserved);
     EXPECT_EQ(evidence.framesWithInput, 0u);
+}
+
+TEST(StarterArenaPlayableTests, KeyboardEscapeCanCompleteBoundedCaptureEarly)
+{
+    EXPECT_TRUE(App::StarterArenaFrameExpectationSatisfied(true, 600u, 12u, 1u));
+    EXPECT_FALSE(App::StarterArenaFrameExpectationSatisfied(false, 600u, 12u, 1u));
+    EXPECT_FALSE(App::StarterArenaFrameExpectationSatisfied(true, 600u, 12u, 0u));
+    EXPECT_TRUE(App::StarterArenaFrameExpectationSatisfied(true, 600u, 600u, 0u));
 }
 
 TEST(StarterArenaPlayableTests, SyntheticParserRejectsMalformedContracts)

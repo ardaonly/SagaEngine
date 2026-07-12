@@ -71,7 +71,8 @@ FirstPlayableManualEvidenceResult FirstPlayableManualEvidence::Validate(
                 Fail(result, "ProductShell.FirstPlayable.GateManualKeyboardInvalid",
                      "keyboard report contains an error diagnostic", *result.reportPath);
     const Json inputSection = root.value("input", Json::object());
-    if (inputSection.value("source", "") != "keyboard" ||
+    result.source = inputSection.value("source", "");
+    if (result.source != "keyboard" ||
         inputSection.value("status", "") != "Passed")
         Fail(result, "ProductShell.FirstPlayable.KeyboardReportSourceMismatch",
              "keyboard report must record a Passed keyboard source", *result.reportPath);
@@ -104,10 +105,19 @@ FirstPlayableManualEvidenceResult FirstPlayableManualEvidence::Validate(
         !coordinate(final, "x") || !coordinate(final, "y"))
         Fail(result, "ProductShell.FirstPlayable.KeyboardReportMalformed",
              "keyboard report requires finite initial and final positions", *result.reportPath);
-    else if (std::abs(initial["x"].get<double>() - final["x"].get<double>()) <= 1e-6 &&
-             std::abs(initial["y"].get<double>() - final["y"].get<double>()) <= 1e-6)
-        Fail(result, "ProductShell.FirstPlayable.KeyboardReportNoMovement",
-             "keyboard report records no player movement", *result.reportPath);
+    else
+    {
+        result.initialPosition = FirstPlayableEvidencePosition{
+            initial["x"].get<double>(), initial["y"].get<double>()};
+        result.finalPosition = FirstPlayableEvidencePosition{
+            final["x"].get<double>(), final["y"].get<double>()};
+        result.movementDistance = std::hypot(
+            result.finalPosition->x - result.initialPosition->x,
+            result.finalPosition->y - result.initialPosition->y);
+        if (result.movementDistance <= 1e-6)
+            Fail(result, "ProductShell.FirstPlayable.KeyboardReportNoMovement",
+                 "keyboard report records no player movement", *result.reportPath);
+    }
     if (result.diagnostics.empty()) result.status = EvidenceStatus::Passed;
     return result;
 }

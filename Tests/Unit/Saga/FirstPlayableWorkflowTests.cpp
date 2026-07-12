@@ -244,4 +244,41 @@ TEST(FirstPlayableConfigTest, ParsesProductShellWorkflowOptions)
     EXPECT_EQ(parsed.config.firstPlayableKeyboardReportPath, "/tmp/keyboard.json");
 }
 
+TEST(FirstPlayableConfigTest, ParsesHumanCaptureOptionsAndRejectsModeConflict)
+{
+    std::vector<std::string> values = {"Saga", "--first-playable-human-capture",
+        "--project", "StarterArena.sagaproj", "--first-playable-human-frames", "900",
+        "--first-playable-human-timeout-ms", "45000"};
+    std::vector<char*> argv;
+    for (std::string& value : values) argv.push_back(value.data());
+    auto parsed = ParseSagaAppConfig(static_cast<int>(argv.size()), argv.data());
+    ASSERT_TRUE(parsed.ok) << parsed.error;
+    EXPECT_TRUE(parsed.config.firstPlayableHumanCapture);
+    EXPECT_EQ(parsed.config.firstPlayableHumanFrames, 900);
+    EXPECT_EQ(parsed.config.firstPlayableHumanTimeoutMs, 45000);
+
+    values.push_back("--first-playable-check");
+    argv.clear();
+    for (std::string& value : values) argv.push_back(value.data());
+    parsed = ParseSagaAppConfig(static_cast<int>(argv.size()), argv.data());
+    EXPECT_FALSE(parsed.ok);
+}
+
+TEST(FirstPlayableConfigTest, RejectsInvalidHumanCaptureBounds)
+{
+    for (const auto& arguments : std::vector<std::vector<std::string>>{
+        {"Saga", "--first-playable-human-capture",
+            "--first-playable-human-frames", "0"},
+        {"Saga", "--first-playable-human-capture",
+            "--first-playable-human-timeout-ms", "invalid"}})
+    {
+        auto values = arguments;
+        std::vector<char*> argv;
+        for (std::string& value : values) argv.push_back(value.data());
+        const auto parsed = ParseSagaAppConfig(
+            static_cast<int>(argv.size()), argv.data());
+        EXPECT_FALSE(parsed.ok);
+    }
+}
+
 } // namespace

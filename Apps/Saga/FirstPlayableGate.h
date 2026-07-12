@@ -9,6 +9,7 @@
 #include "VisualBlocksDescriptor.h"
 
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -51,6 +52,7 @@ public:
         const VisualBlocksDescriptorGenerationResult& descriptor,
         FirstPlayableWorkspacePolicyResult workspace,
         FirstPlayableManualEvidenceResult manual,
-        FirstPlayablePublicClaimAuditResult claims);
+        FirstPlayablePublicClaimAuditResult claims,
+        std::optional<FirstPlayableGateCheck> operatorCheck = std::nullopt);
 };
 } // namespace SagaProduct

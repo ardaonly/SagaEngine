@@ -111,6 +111,10 @@ TEST(FirstPlayableManualEvidenceTest, MissingIsPendingAndValidReportPasses)
     EXPECT_EQ(result.status, EvidenceStatus::Passed);
     EXPECT_TRUE(result.realDeviceObserved);
     EXPECT_EQ(result.framesWithInput, 2u);
+    EXPECT_EQ(result.source, "keyboard");
+    ASSERT_TRUE(result.initialPosition.has_value());
+    ASSERT_TRUE(result.finalPosition.has_value());
+    EXPECT_NEAR(result.movementDistance, 0.1, 1e-9);
 }
 
 TEST(FirstPlayableManualEvidenceTest, RejectsFakeIdleAndMalformedReports)
@@ -216,6 +220,33 @@ TEST(FirstPlayableGateTest, PreflightFailureIsIncompleteWithoutProfileFailureCla
         }));
 }
 
+TEST(FirstPlayableGateTest, HumanCaptureCheckControlsFinalGateStatus)
+{
+    RuntimeEvidenceRunResult runtime;
+    runtime.prepared = true;
+    for (auto profile : {RuntimeEvidenceProfile::StarterArenaSmoke,
+        RuntimeEvidenceProfile::StarterArenaLifecycle,
+        RuntimeEvidenceProfile::StarterArenaGameplay,
+        RuntimeEvidenceProfile::StarterArenaVisibleSynthetic,
+        RuntimeEvidenceProfile::StarterArenaVisibleGameplay})
+        runtime.profiles.push_back({profile, EvidenceStatus::Passed});
+    VisualBlocksDescriptorGenerationResult descriptor;
+    descriptor.status = EvidenceStatus::Passed;
+    FirstPlayableWorkspacePolicyResult workspace;
+    workspace.status = workspace.sourceIntegrity = EvidenceStatus::Passed;
+    FirstPlayablePublicClaimAuditResult claims;
+    claims.status = EvidenceStatus::Passed;
+    FirstPlayableManualEvidenceResult manual;
+    manual.status = EvidenceStatus::Passed;
+    const auto rejected = FirstPlayableGate::Evaluate(runtime, descriptor, workspace,
+        manual, claims, FirstPlayableGateCheck{"human-capture", EvidenceStatus::Failed});
+    EXPECT_EQ(rejected.status, FirstPlayableGateStatus::Rejected);
+    ASSERT_EQ(rejected.checks.size(), 5u);
+    const auto incomplete = FirstPlayableGate::Evaluate(runtime, descriptor, workspace,
+        manual, claims, FirstPlayableGateCheck{"human-capture", EvidenceStatus::Incomplete});
+    EXPECT_EQ(incomplete.status, FirstPlayableGateStatus::Incomplete);
+}
+
 TEST(FirstPlayableEvidenceBundleTest, ManifestListsSixProfilesWithRelativePaths)
 {
     const auto output = fs::temp_directory_path() / "saga_gate_bundle";
@@ -255,7 +286,10 @@ TEST(FirstPlayableEvidenceBundleTest, ManifestListsSixProfilesWithRelativePaths)
         output, runtime, descriptor, gate, summary, gatePath);
     ASSERT_EQ(result.status, EvidenceStatus::Passed);
     const Json manifest = Read(result.evidenceManifestPath);
+    EXPECT_EQ(manifest["schemaVersion"], 2);
     EXPECT_EQ(manifest["profiles"].size(), 6u);
+    EXPECT_EQ(manifest["manualEvidence"]["realKeyboard"]["status"],
+              "PendingManualEvidence");
     for (const Json& artifact : manifest["artifacts"])
     {
         EXPECT_FALSE(artifact.value("path", "").starts_with("/"));

@@ -16,8 +16,10 @@
   but initializes the existing platform window and render backend.
 - Visible mode supports scene-authored input, deterministic synthetic JSON
   input, and explicit keyboard input through the existing engine input path.
-- Real keyboard control remains pending manual evidence. An idle keyboard run
-  reports `NoInputObserved` without failing.
+- The normal automated RC gate leaves real keyboard control pending unless an
+  explicit validated report is supplied. The separate Product Shell human
+  capture command can collect and import that report; an idle keyboard run
+  still reports `NoInputObserved` and cannot pass human evidence validation.
 - Input bindings are fixed to WASD and Escape for this sample-local slice; there
   is no remapping UI, mouse movement, gamepad mapping, or generic controller
   framework.
@@ -48,6 +50,10 @@
 - The release-candidate gate accepts the automated spine with manual keyboard
   evidence pending. Keyboard-provider behavior is external unit-test evidence;
   it is not re-run or promoted to real-device evidence by the gate.
+- The human capture command is a bounded operator console workflow, not a full
+  game, full editor, production input UX, rebinding surface, controller path,
+  or platform-wide device compatibility proof. It launches the existing
+  Runtime keyboard mode and consumes only its JSON evidence report.
 - `Scripts/GameRules.cs` is the source of truth. There is no checked-in block
   JSON; Product Shell generates a read-only representation report outside the
   sample after generated metadata and runtime evidence pass.

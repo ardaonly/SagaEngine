@@ -204,6 +204,28 @@ report is imported only after its real-device, input-frame, and movement
 evidence validates. Keyboard-provider behavior remains external test evidence
 from `StarterArenaPlayableTests`.
 
+The automated RC gate and the human operator capture are separate Product
+Shell workflows. The automated command above may accept the proof spine while
+leaving real keyboard evidence pending. The operator command opens the same
+visible Runtime keyboard path, asks the operator to move with `W`, `A`, `S`, or
+`D`, strictly validates the resulting real-device report, imports it into the
+external evidence package, and then runs the authoritative RC gate:
+
+```sh
+<build-dir>/bin/Saga --first-playable-human-capture --project samples/StarterArena/StarterArena.sagaproj --runtime-executable <build-dir>/bin/SagaRuntime --sagascript-tool Tools/SagaScript/sagascript --runtime-bridge-assembly <build-dir>/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.dll --first-playable-output /tmp/saga-first-playable-human
+```
+
+By default the visible capture is bounded to 600 frames and 30 seconds.
+`Escape` may end it early after movement has been observed. A valid capture is
+copied byte-for-byte to `manual/real_keyboard_report.json`, and its SHA-256 is
+recorded in the evidence manifest. A previously captured report can instead be
+validated without launching a second capture by adding
+`--first-playable-keyboard-report <path>`. Valid human evidence can upgrade the
+gate to `Accepted`; idle, synthetic, malformed, or non-moving evidence is
+rejected. This focused workflow is not a full game, full editor, production
+input UX, or a platform-wide keyboard/device compatibility claim. It does not
+create projects, execute Visual Blocks graphs, or package/distribute a game.
+
 Canonical release-candidate non-claims:
 
 - No project creation workflow claim

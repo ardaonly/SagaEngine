@@ -41,7 +41,8 @@ FirstPlayableGateResult FirstPlayableGate::Evaluate(
     const VisualBlocksDescriptorGenerationResult& descriptor,
     FirstPlayableWorkspacePolicyResult workspace,
     FirstPlayableManualEvidenceResult manual,
-    FirstPlayablePublicClaimAuditResult claims)
+    FirstPlayablePublicClaimAuditResult claims,
+    std::optional<FirstPlayableGateCheck> operatorCheck)
 {
     FirstPlayableGateResult result;
     result.workspacePolicy = std::move(workspace);
@@ -77,6 +78,7 @@ FirstPlayableGateResult FirstPlayableGate::Evaluate(
         {"public-claims", result.publicClaims.status},
         {"evidence-bundle", result.evidenceBundle},
     };
+    if (operatorCheck) result.checks.push_back(*operatorCheck);
     result.diagnostics.insert(result.diagnostics.end(), runtime.diagnostics.begin(),
                               runtime.diagnostics.end());
     result.diagnostics.insert(result.diagnostics.end(), descriptor.diagnostics.begin(),
@@ -88,11 +90,15 @@ FirstPlayableGateResult FirstPlayableGate::Evaluate(
     result.diagnostics.insert(result.diagnostics.end(), result.manualEvidence.diagnostics.begin(),
                               result.manualEvidence.diagnostics.end());
 
-    if (preflightIncomplete)
+    const bool operatorIncomplete = operatorCheck &&
+        operatorCheck->status == EvidenceStatus::Incomplete;
+    const bool operatorFailed = operatorCheck &&
+        operatorCheck->status != EvidenceStatus::Passed && !operatorIncomplete;
+    if (preflightIncomplete || operatorIncomplete)
         result.status = FirstPlayableGateStatus::Incomplete;
     else if (!mandatory || result.workspacePolicy.status != EvidenceStatus::Passed ||
         result.publicClaims.status != EvidenceStatus::Passed ||
-        result.manualEvidence.status == EvidenceStatus::Failed)
+        result.manualEvidence.status == EvidenceStatus::Failed || operatorFailed)
         result.status = FirstPlayableGateStatus::Rejected;
     else if (result.manualEvidence.status == EvidenceStatus::PendingManualEvidence)
         result.status = FirstPlayableGateStatus::AcceptedWithManualEvidencePending;
