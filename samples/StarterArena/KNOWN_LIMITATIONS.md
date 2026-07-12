@@ -42,6 +42,9 @@
 - Generated StarterArena script artifacts, smoke reports, and visible reports
   are expected to live under temporary output roots, not under
   `samples/StarterArena`.
+- The Product Shell first-playable workflow is a CLI diagnostics and JSON
+  summary surface, not an editor panel or project-creation workflow. Its
+  visible profiles require an available window and graphics backend.
 - Restart behavior is reported as deferred.
 - The state port is not arbitrary key/value storage, ECS access, or a broad
   gameplay scripting framework.

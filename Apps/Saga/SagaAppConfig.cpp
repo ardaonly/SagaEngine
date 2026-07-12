@@ -129,6 +129,12 @@ std::string SagaUsageText()
         "  --project <path>                  Project manifest for workflow smoke\n"
         "  --profile <id>                    Workflow smoke profile/view preset id\n"
         "  --workflow-report-out <path>      Workflow smoke report output path\n"
+        "  --first-playable-check            Run StarterArena Product Shell evidence workflow\n"
+        "  --first-playable-output <dir>     Generated evidence directory (outside project source)\n"
+        "  --first-playable-summary-out <path> Consolidated JSON summary path\n"
+        "  --runtime-executable <path>       SagaRuntime executable override\n"
+        "  --runtime-bridge-assembly <path> Managed SagaScript runtime bridge assembly\n"
+        "  --first-playable-timeout-ms <ms> Per-process timeout (positive integer)\n"
         "  --local-workspace-transaction-smoke Emit local workspace transaction report\n"
         "  --local-workspace-presence-lock-smoke Emit local presence/lock metadata report\n"
         "  --local-workspace-review-smoke Emit local review/comment/audit metadata report\n"
@@ -340,6 +346,10 @@ SagaConfigResult ParseSagaAppConfig(int argc, char* argv[])
         {
             result.config.workflowSmoke = true;
         }
+        else if (arg == "--first-playable-check")
+        {
+            result.config.firstPlayableCheck = true;
+        }
         else if (arg == "--project")
         {
             if (!HasValue(i, argc))
@@ -369,6 +379,71 @@ SagaConfigResult ParseSagaAppConfig(int argc, char* argv[])
                 return result;
             }
             result.config.workflowReportPath = std::filesystem::path(argv[++i]);
+        }
+        else if (arg == "--first-playable-output")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --first-playable-output requires a directory";
+                return result;
+            }
+            result.config.firstPlayableOutputDirectory = argv[++i];
+        }
+        else if (arg == "--first-playable-summary-out")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --first-playable-summary-out requires a path";
+                return result;
+            }
+            result.config.firstPlayableSummaryPath = argv[++i];
+        }
+        else if (arg == "--runtime-executable")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --runtime-executable requires a path";
+                return result;
+            }
+            result.config.runtimeExecutable = argv[++i];
+        }
+        else if (arg == "--runtime-bridge-assembly")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --runtime-bridge-assembly requires a path";
+                return result;
+            }
+            result.config.runtimeBridgeAssembly = argv[++i];
+        }
+        else if (arg == "--first-playable-timeout-ms")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --first-playable-timeout-ms requires a positive integer";
+                return result;
+            }
+            try
+            {
+                result.config.firstPlayableTimeoutMs = std::stoi(argv[++i]);
+            }
+            catch (...)
+            {
+                result.ok = false;
+                result.error = "Saga: --first-playable-timeout-ms requires a positive integer";
+                return result;
+            }
+            if (result.config.firstPlayableTimeoutMs <= 0)
+            {
+                result.ok = false;
+                result.error = "Saga: --first-playable-timeout-ms requires a positive integer";
+                return result;
+            }
         }
         else if (arg == "--local-workspace-transaction-smoke")
         {

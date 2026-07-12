@@ -37,6 +37,10 @@ struct SagaAppConfig
     std::filesystem::path publishReportPath;
     std::filesystem::path workflowProjectPath;
     std::filesystem::path workflowReportPath;
+    std::filesystem::path firstPlayableOutputDirectory;
+    std::filesystem::path firstPlayableSummaryPath;
+    std::filesystem::path runtimeExecutable;
+    std::filesystem::path runtimeBridgeAssembly;
     std::filesystem::path localWorkspaceTransactionReportPath;
     std::filesystem::path localWorkspacePresenceLockReportPath;
     std::filesystem::path localWorkspaceLockTargetPath;
@@ -71,6 +75,8 @@ struct SagaAppConfig
     bool                  stagePackages = false;
     bool                  publishCheck = false;
     bool                  workflowSmoke = false;
+    bool                  firstPlayableCheck = false;
+    int                   firstPlayableTimeoutMs = 30000;
     bool                  localWorkspaceTransactionSmoke = false;
     bool                  localWorkspacePresenceLockSmoke = false;
     bool                  localWorkspaceReviewSmoke = false;
