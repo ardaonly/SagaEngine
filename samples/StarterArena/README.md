@@ -162,23 +162,39 @@ shell unless `hostfxr` is already discoverable in the local environment.
 ## Product Shell first-playable diagnostics
 
 The Saga Product Shell can compile the sample scripts into a generated output
-root, run the five mandatory runtime evidence profiles, validate their JSON
-reports, and write one consolidated summary:
+root, run five mandatory runtime evidence profiles, then run the mandatory
+in-process `starter-arena-visual-blocks-descriptor` profile and write one
+consolidated summary:
 
 ```sh
 <build-dir>/bin/Saga --first-playable-check --project samples/StarterArena/StarterArena.sagaproj --runtime-executable <build-dir>/bin/SagaRuntime --sagascript-tool Tools/SagaScript/sagascript --runtime-bridge-assembly <build-dir>/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.dll --first-playable-output /tmp/saga-first-playable
 ```
 
 The command covers headless smoke, controlled invocation and lifecycle,
-headless gameplay, visible synthetic input, and visible gameplay reflection.
+headless gameplay, visible synthetic input, visible gameplay reflection, and
+read-only generation of a 12-block descriptor from C# and generated evidence.
+`Scripts/GameRules.cs` is the only authored source of truth. The Product Shell
+cross-checks the original and workspace C# hashes, callable metadata and
+artifacts, lifecycle callbacks, and typed gameplay mutations before it creates
+the in-memory catalog. There is no checked-in block JSON.
+
+The consolidated summary exposes `capabilities.visualBlocksDescriptor`, while
+the detailed generated proof is written to
+`profiles/starter-arena-visual-blocks-descriptor/report.json`. That profile
+records `processLaunched: false` and `csharpExecuted: false`; the five runtime
+reports remain authoritative for actual C# lifecycle and gameplay execution.
 Runtime JSON reports remain the evidence source. Compiler output, process
 captures, profile reports, and `first_playable_summary.json` remain under the
 selected generated directory and never under this sample source tree.
 
-This diagnostics surface is not a full editor, Visual Blocks, package install
-or distribution, multiplayer, or production-readiness proof. Real keyboard
-input remains `PendingManualEvidence` until a human-run keyboard report records
-real device input and movement.
+The generated descriptor makes exactly these non-claims: no Visual Blocks
+canvas, graph execution, generated C# from blocks, editor graph editing,
+production block library,
+package install/distribution, networking/multiplayer, or production readiness.
+It is read-only evidence outside the sample and contains no graph edges,
+layout, instances, execution order, or generated code. Real keyboard input
+remains `PendingManualEvidence` until a human-run keyboard report records real
+device input and movement.
 
 Focused server-authoritative smoke:
 
