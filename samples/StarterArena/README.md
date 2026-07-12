@@ -140,6 +140,22 @@ This records `scriptBinding.execution: MetadataOnly` while reporting
 `scriptInvocation.execution: Invoked` and `scriptLifecycle.execution: Invoked`
 independently.
 
+Focused gameplay-spine smoke:
+
+```sh
+nix-shell --run "<build-dir>/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --run-starter-arena-script-lifecycle --run-starter-arena-gameplay --smoke-report-out /tmp/starter_arena_gameplay_smoke.json --smoke-frames 30 --fixed-dt 0.016"
+```
+
+The opt-in gameplay proof keeps one managed `GameRules` instance alive across
+the deterministic loop. Input-derived player position reaches the scene pickup,
+and the capability-gated app-local state port records collection, score `10`,
+and player state `powered` with ordered before/after mutations.
+
+The same two gameplay flags may be combined with bounded visible synthetic
+mode and valid script metadata. The visible report proves that the pickup was
+submitted before collection, omitted afterward, and the powered player
+material was submitted. Default visible mode still does not execute C#.
+
 The invocation and lifecycle smokes require a .NET host environment; use the dev
 shell unless `hostfxr` is already discoverable in the local environment.
 

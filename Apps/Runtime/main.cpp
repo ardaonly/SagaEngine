@@ -372,6 +372,10 @@ SagaRuntimeApp::RuntimeCommandLine ParseArgs(int argc, char* argv[])
         {
             commandLine.runStarterArenaScriptLifecycle = true;
         }
+        else if (arg == "--run-starter-arena-gameplay")
+        {
+            commandLine.runStarterArenaGameplay = true;
+        }
         else if (arg == "--smoke-report-out" && i + 1 < argc)
         {
             commandLine.smokeReportOut = std::filesystem::path(argv[++i]);
@@ -425,6 +429,8 @@ SagaRuntimeApp::RuntimeCommandLine ParseArgs(int argc, char* argv[])
                         "                         Invoke controlled StarterArena AddPickupScore smoke\n"
                         "  --run-starter-arena-script-lifecycle\n"
                         "                         Invoke focused StarterArena GameRules lifecycle smoke\n"
+                        "  --run-starter-arena-gameplay\n"
+                        "                         Run opt-in StarterArena C# gameplay state proof\n"
                         "  --smoke-report-out <path>\n"
                         "                         Write StarterArena smoke report JSON\n"
                         "  --smoke-frames <n>    StarterArena smoke frame count (default: 30)\n"
@@ -451,6 +457,15 @@ int main(int argc, char* argv[])
     SagaEngine::Core::Log::Init();
 
     auto commandLine = ParseArgs(argc, argv);
+    if (commandLine.runStarterArenaGameplay &&
+        !commandLine.runStarterArenaScriptLifecycle)
+    {
+        LOG_ERROR(kLogTag,
+                  "--run-starter-arena-gameplay requires "
+                  "--run-starter-arena-script-lifecycle.");
+        SagaEngine::Core::Log::Shutdown();
+        return 2;
+    }
     if (!commandLine.starterArenaPlayable &&
         (commandLine.playableInputSource != "scene" ||
          !commandLine.playableInputScript.empty()))

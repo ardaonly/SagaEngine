@@ -18,6 +18,22 @@ public sealed class GameRules : SagaScript
     public override void OnUpdate(float deltaTime)
     {
         Context.Log.Info("StarterArena.GameRules.OnUpdate");
+        if (!Context.State.IsAvailable ||
+            !Context.State.TryGetBool("starter.pickup.0.reachable", out var reachable) ||
+            !Context.State.TryGetBool("starter.pickup.0.collected", out var collected) ||
+            !reachable || collected)
+        {
+            return;
+        }
+
+        if (!Context.State.TrySetBool("starter.pickup.0.collected", true) ||
+            !Context.State.TryAddInt32("starter.score", 10, out _) ||
+            !Context.State.TrySetString("starter.player.state", "powered"))
+        {
+            Context.Log.Error("StarterArena.GameRules.GameplayMutationFailed");
+            return;
+        }
+        Context.Log.Info("StarterArena.GameRules.GameplayMutationPassed");
     }
 
     public override void OnDestroy()

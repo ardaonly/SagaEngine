@@ -20,6 +20,8 @@ struct CSharpScriptHostOptions
     std::filesystem::path runtimeBridgeAssembly; ///< SagaScript.RuntimeBridge.dll path.
     std::filesystem::path dotnetRoot;            ///< Optional dotnet root override.
     ISagaScriptWorld* world = nullptr;           ///< Optional engine world facade.
+    ISagaScriptStatePort* statePort = nullptr;   ///< Optional typed application state facade.
+    bool grantStatePortAccess = false;           ///< Explicit host grant for the optional state port.
     ScriptLogSink logSink;                       ///< Optional managed script log sink.
 };
 

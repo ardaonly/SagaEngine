@@ -82,6 +82,13 @@ struct StarterArenaScene
     StarterArenaCamera camera;
     StarterArenaVec2 testInput;
     StarterArenaExpected expected;
+    std::string pickupId;
+    StarterArenaVec2 pickupPosition;
+    double pickupRadius = 0.0;
+    std::int32_t pickupScoreValue = 0;
+    std::int32_t expectedGameplayScore = 0;
+    bool expectedPickupCollected = false;
+    std::string expectedPlayerState;
 };
 
 struct StarterArenaScriptBindingMetadata

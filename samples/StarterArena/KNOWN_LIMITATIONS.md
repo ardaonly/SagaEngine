@@ -23,19 +23,18 @@
   framework.
 - Visible mode renders app-local procedural arena geometry. It does not prove
   cooked asset loading or a reusable scene renderer.
-- Script metadata, invocation, and lifecycle flags remain headless smoke modes;
-  visible mode rejects them until world mutation is integrated explicitly.
+- Script metadata and lifecycle flags remain headless by default. Visible mode
+  accepts them only with the explicit `--run-starter-arena-gameplay` proof.
 - The smoke loop reads spawn, bounds, camera metadata, input, and expected
   results from the declared scene resource.
 - `Scripts/GameRules.cs` is compile/analyze evidence, one controlled runtime
   pure-method invocation smoke, one focused C# lifecycle proof, and optional
-  runtime smoke lifecycle evidence. Runtime invocation and lifecycle evidence
-  can be requested together, but they remain separate report sections.
+  gameplay-spine evidence through four whitelisted typed state operations.
 - StarterArena runtime smoke can load the compiled C# assembly only when
   `--invoke-starter-arena-script` or
   `--run-starter-arena-script-lifecycle` is passed with valid script metadata.
-- The only invoked method is `GameRules.AddPickupScore(10, 5)`, and the smoke
-  expects result `15`.
+- The controlled method remains `GameRules.AddPickupScore(10, 5) == 15`.
+  Gameplay mode separately runs lifecycle updates against one scene pickup.
 - StarterArena has only the focused `GameRules` C# lifecycle proof and runtime
   smoke lifecycle evidence; arbitrary script methods remain unsupported.
 - The controlled invocation and lifecycle smokes require a .NET host
@@ -44,6 +43,8 @@
   are expected to live under temporary output roots, not under
   `samples/StarterArena`.
 - Restart behavior is reported as deferred.
-- No Visual Blocks, editor workflow, external client/server networking, broad
-  runtime C# gameplay loop binding, package install, package output, or
+- The state port is not arbitrary key/value storage, ECS access, or a broad
+  gameplay scripting framework.
+- No Visual Blocks, editor workflow, external client/server networking, package
+  install, package output, or
   distribution output exists for this sample.

@@ -180,6 +180,16 @@ struct ScriptEntityPositionResult : ScriptHostOperationResult
     ScriptVector3 position;
 };
 
+struct ScriptStateBoolResult : ScriptHostOperationResult
+{
+    bool value = false;
+};
+
+struct ScriptStateInt32Result : ScriptHostOperationResult
+{
+    std::int32_t value = 0;
+};
+
 struct ScriptLogEvent
 {
     ScriptInstanceHandle instance;
@@ -204,6 +214,26 @@ public:
 
     [[nodiscard]] virtual ScriptEntityPositionResult GetPosition(
         ScriptEntityHandle entity) const = 0;
+};
+
+/// Optional typed state port supplied by a host application. Implementations
+/// remain responsible for whitelisting keys and operations.
+class ISagaScriptStatePort
+{
+public:
+    virtual ~ISagaScriptStatePort() = default;
+
+    [[nodiscard]] virtual ScriptStateBoolResult GetBool(
+        const std::string& key) const = 0;
+    [[nodiscard]] virtual ScriptStateInt32Result AddInt32(
+        const std::string& key,
+        std::int32_t delta) = 0;
+    [[nodiscard]] virtual ScriptHostOperationResult SetBool(
+        const std::string& key,
+        bool value) = 0;
+    [[nodiscard]] virtual ScriptHostOperationResult SetString(
+        const std::string& key,
+        const std::string& value) = 0;
 };
 
 class ISagaScriptHost
@@ -286,6 +316,8 @@ inline constexpr const char* InvalidEntityHandle =
     "Script.Host.InvalidEntityHandle";
 inline constexpr const char* ScriptWorldUnavailable =
     "Script.Host.ScriptWorldUnavailable";
+inline constexpr const char* ScriptStatePortUnavailable =
+    "Script.Host.ScriptStatePortUnavailable";
 inline constexpr const char* UiNamedActionUnsupported =
     "Script.Host.UiNamedActionUnsupported";
 inline constexpr const char* UiNamedActionMethodMissing =

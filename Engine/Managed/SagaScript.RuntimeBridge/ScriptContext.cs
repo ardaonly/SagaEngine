@@ -24,11 +24,13 @@ public sealed class ScriptContext
     {
         Host = host;
         World = new ScriptWorld(host);
+        State = new ScriptStatePort(host);
         Self = new ScriptEntity(host, selfEntityHandle);
         Log = new ScriptLogger(host);
     }
 
     public ScriptWorld World { get; }
+    public ScriptStatePort State { get; }
     public ScriptEntity Self { get; }
     public ScriptLogger Log { get; }
 
@@ -38,6 +40,33 @@ public sealed class ScriptContext
     {
         return new ScriptContext(null, 0);
     }
+}
+
+public sealed class ScriptStatePort
+{
+    internal ScriptStatePort(NativeScriptHost? host) { Host = host; }
+
+    public bool IsAvailable => Host is not null && Host.StatePortAvailable();
+
+    public bool TryGetBool(string key, out bool value)
+    {
+        value = false;
+        return Host is not null && Host.TryGetBool(key, out value);
+    }
+
+    public bool TryAddInt32(string key, int delta, out int value)
+    {
+        value = 0;
+        return Host is not null && Host.TryAddInt32(key, delta, out value);
+    }
+
+    public bool TrySetBool(string key, bool value) =>
+        Host is not null && Host.TrySetBool(key, value);
+
+    public bool TrySetString(string key, string value) =>
+        Host is not null && Host.TrySetString(key, value);
+
+    private NativeScriptHost? Host { get; }
 }
 
 public sealed class ScriptWorld
@@ -144,6 +173,11 @@ public unsafe struct NativeCallbackTable
     public delegate* unmanaged[Cdecl]<long, byte*, long*, int> CreateEntity;
     public delegate* unmanaged[Cdecl]<long, long, float, float, float, int> SetPosition;
     public delegate* unmanaged[Cdecl]<long, long, float*, float*, float*, int> GetPosition;
+    public delegate* unmanaged[Cdecl]<long, byte*, int*, int> GetStateBool;
+    public delegate* unmanaged[Cdecl]<long, byte*, int, int*, int> AddStateInt32;
+    public delegate* unmanaged[Cdecl]<long, byte*, int, int> SetStateBool;
+    public delegate* unmanaged[Cdecl]<long, byte*, byte*, int> SetStateString;
+    public delegate* unmanaged[Cdecl]<long, int> StatePortAvailable;
 }
 
 internal unsafe sealed class NativeScriptHost
@@ -198,6 +232,61 @@ internal unsafe sealed class NativeScriptHost
 
         position = new ScriptVector3(x, y, z);
         return true;
+    }
+
+    public bool TryGetBool(string key, out bool value)
+    {
+        value = false;
+        if (Callbacks.GetStateBool == null) return false;
+        var buffer = ToNullTerminatedUtf8(key);
+        var raw = 0;
+        fixed (byte* pointer = buffer)
+        {
+            var status = Callbacks.GetStateBool(ContextHandle, pointer, &raw);
+            value = raw != 0;
+            return status == NativeCallbackStatus.Ok;
+        }
+    }
+
+    public bool StatePortAvailable() =>
+        Callbacks.StatePortAvailable != null && Callbacks.StatePortAvailable(ContextHandle) != 0;
+
+    public bool TryAddInt32(string key, int delta, out int value)
+    {
+        value = 0;
+        if (Callbacks.AddStateInt32 == null) return false;
+        var buffer = ToNullTerminatedUtf8(key);
+        var updated = 0;
+        fixed (byte* pointer = buffer)
+        {
+            var status = Callbacks.AddStateInt32(ContextHandle, pointer, delta, &updated);
+            value = updated;
+            return status == NativeCallbackStatus.Ok;
+        }
+    }
+
+    public bool TrySetBool(string key, bool value)
+    {
+        if (Callbacks.SetStateBool == null) return false;
+        var buffer = ToNullTerminatedUtf8(key);
+        fixed (byte* pointer = buffer)
+        {
+            return Callbacks.SetStateBool(ContextHandle, pointer, value ? 1 : 0) ==
+                NativeCallbackStatus.Ok;
+        }
+    }
+
+    public bool TrySetString(string key, string value)
+    {
+        if (Callbacks.SetStateString == null) return false;
+        var keyBuffer = ToNullTerminatedUtf8(key);
+        var valueBuffer = ToNullTerminatedUtf8(value);
+        fixed (byte* keyPointer = keyBuffer)
+        fixed (byte* valuePointer = valueBuffer)
+        {
+            return Callbacks.SetStateString(ContextHandle, keyPointer, valuePointer) ==
+                NativeCallbackStatus.Ok;
+        }
     }
 
     public void Log(ScriptLogLevel level, string message)

@@ -3,6 +3,7 @@
 
 #include "StarterArenaPlayableScene.h"
 #include "StarterArenaInput.h"
+#include "StarterArenaGameplayState.h"
 #include "StarterArenaSimulation.h"
 
 #include <gtest/gtest.h>
@@ -174,6 +175,41 @@ TEST(StarterArenaPlayableTests, SharedSimulationMatchesHeadlessExpectation)
     EXPECT_NEAR(simulation.position.y, 0.96, 0.000001);
 }
 
+TEST(StarterArenaPlayableTests, GameplayFacadeWhitelistsAndRecordsTypedMutations)
+{
+    App::StarterArenaGameplayState state;
+    state.enabled = true;
+    state.pickup.position = {0.48, 0.24};
+    state.pickup.radius = 0.05;
+    App::StarterArenaGameplayFacade facade(state);
+    facade.SetPhase("OnUpdate");
+    facade.SetRuntimeSnapshot(23u, {0.48, 0.256});
+
+    const auto reachable = facade.GetBool("starter.pickup.0.reachable");
+    ASSERT_TRUE(reachable.Succeeded());
+    EXPECT_TRUE(reachable.value);
+    EXPECT_TRUE(facade.SetBool("starter.pickup.0.collected", true).Succeeded());
+    const auto score = facade.AddInt32("starter.score", 10);
+    ASSERT_TRUE(score.Succeeded());
+    EXPECT_EQ(score.value, 10);
+    EXPECT_TRUE(facade.SetString("starter.player.state", "powered").Succeeded());
+    EXPECT_EQ(state.mutations.size(), 3u);
+    EXPECT_EQ(state.mutations[0].phase, "OnUpdate");
+    EXPECT_EQ(state.mutations[0].beforeValue, "false");
+    EXPECT_EQ(state.mutations[0].afterValue, "true");
+}
+
+TEST(StarterArenaPlayableTests, GameplayFacadeRejectsUnsafeOperations)
+{
+    App::StarterArenaGameplayState state;
+    App::StarterArenaGameplayFacade facade(state);
+    facade.SetRuntimeSnapshot(1u, {0.0, 0.0});
+    EXPECT_FALSE(facade.SetBool("starter.pickup.0.collected", true).Succeeded());
+    EXPECT_FALSE(facade.AddInt32("unknown.score", 10).Succeeded());
+    EXPECT_FALSE(facade.SetString("starter.player.state", "invincible").Succeeded());
+    EXPECT_TRUE(state.mutations.empty());
+}
+
 TEST(StarterArenaPlayableTests, AppLocalInputDoesNotReferenceForbiddenRuntimePaths)
 {
     const auto sourceRoot = std::filesystem::path(SAGA_SOURCE_ROOT);
@@ -337,13 +373,13 @@ TEST(StarterArenaPlayableTests, SceneBuildsCameraArenaAndPlayerDraw)
     auto scene = App::CreateStarterArenaPlayableScene(backend, world, sceneSource, 1280u, 720u);
 
     ASSERT_TRUE(scene.IsValid());
-    EXPECT_EQ(world.LiveCount(), 6u);
+    EXPECT_EQ(world.LiveCount(), 7u);
     EXPECT_FLOAT_EQ(scene.camera.position.x, 0.0f);
     EXPECT_FLOAT_EQ(scene.camera.position.y, 5.0f);
     EXPECT_FLOAT_EQ(scene.camera.position.z, 0.0f);
 
     auto view = App::BuildStarterArenaPlayableView(world, scene.camera);
-    EXPECT_EQ(view.visited, 6u);
+    EXPECT_EQ(view.visited, 7u);
     EXPECT_GE(view.DrawCount(), 2u);
     EXPECT_TRUE(App::ViewContainsEntity(view, scene.player));
 

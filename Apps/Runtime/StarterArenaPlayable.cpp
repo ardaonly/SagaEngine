@@ -4,9 +4,11 @@
 #include "StarterArenaPlayable.h"
 
 #include "StarterArenaPlayableScene.h"
+#include "StarterArenaGameplayState.h"
 #include "StarterArenaInput.h"
 #include "StarterArenaSimulation.h"
 #include "StarterArenaSmoke.h"
+#include "StarterArenaSmokeScript.h"
 
 #include <SagaEngine/Core/Application/Application.h>
 #include <SagaEngine/Core/Log/Log.h>
@@ -50,6 +52,13 @@ struct PlayableEvidence
     std::uint32_t lastCulledEntities = 0;
     StarterArenaSimulationState simulation;
     StarterArenaInputEvidence input;
+    StarterArenaGameplayState gameplay;
+    bool pickupDrawSubmittedBeforeCollection = false;
+    bool pickupDrawSubmittedLastFrame = false;
+    bool normalPlayerDrawSubmitted = false;
+    bool poweredPlayerDrawSubmitted = false;
+    bool gameplayStateReflected = false;
+    std::optional<std::uint32_t> reflectionAppliedTick;
 };
 
 bool IsPathInside(const std::filesystem::path& child, const std::filesystem::path& parent)
@@ -83,16 +92,61 @@ Json BoundsJson(const StarterArenaBounds& bounds)
         {"minX", bounds.minX}, {"maxX", bounds.maxX}, {"minY", bounds.minY}, {"maxY", bounds.maxY}};
 }
 
+Json GameplayJson(const StarterArenaGameplayState& state)
+{
+    const auto mutationValue = [](const StarterArenaGameplayMutation& mutation,
+                                  const std::string& value) -> Json {
+        if (mutation.operation == "SetBool") return value == "true";
+        if (mutation.operation == "AddInt32") return std::stoi(value);
+        return value;
+    };
+    Json mutations = Json::array();
+    for (const auto& mutation : state.mutations)
+        mutations.push_back({{"tick", mutation.tick}, {"phase", mutation.phase},
+                             {"operation", mutation.operation}, {"target", mutation.target},
+                             {"before", mutationValue(mutation, mutation.beforeValue)},
+                             {"after", mutationValue(mutation, mutation.afterValue)},
+                             {"status", mutation.status}, {"diagnostic", mutation.diagnostic}});
+    Json callbacks = Json::array();
+    for (const auto& callback : state.callbacksObserved) callbacks.push_back(callback);
+    const auto triggerPosition = state.mutationPosition
+        ? state.mutationPosition
+        : state.firstReachablePosition;
+    return {{"status", state.enabled ? (state.passed ? "Passed" : "Failed") : "NotRequested"},
+            {"enabled", state.enabled}, {"source", state.enabled ? "GameRules" : ""},
+            {"capability", "Sample.StarterArena.GameplayState"},
+            {"initialState", {{"score", 0}, {"pickupCollected", false}, {"playerState", "normal"}}},
+            {"finalState", {{"score", state.score}, {"pickupCollected", state.pickupCollected},
+                            {"playerState", state.playerState}}},
+            {"expectations", {{"score", 10}, {"pickupCollected", true},
+                              {"playerState", "powered"}}},
+            {"pickup", {{"id", state.pickup.id}, {"position", Vec2Json(state.pickup.position)},
+                        {"radius", state.pickup.radius}, {"scoreValue", state.pickup.scoreValue}}},
+            {"trigger", {{"kind", "PlayerOverlapsPickup"},
+                         {"firstReachableTick", state.firstReachableTick ? Json(*state.firstReachableTick) : Json(nullptr)},
+                         {"mutationTick", state.mutationTick ? Json(*state.mutationTick) : Json(nullptr)},
+                         {"playerPosition", triggerPosition
+                            ? Vec2Json(*triggerPosition)
+                            : Json(nullptr)}}},
+            {"lifecycle", {{"callbacksObserved", callbacks}, {"updateCount", state.updateCount}}},
+            {"mutations", mutations},
+            {"nonClaims", Json::array({"No broad gameplay scripting API claim",
+                "No arbitrary world or ECS access claim", "No editor or Visual Blocks workflow claim",
+                "No networking, replication, or prediction claim", "No production readiness claim"})}};
+}
+
 class StarterArenaPlayableHost final : public Saga::Application
 {
 public:
     StarterArenaPlayableHost(const StarterArenaScene& scene,
                              const RuntimeCommandLine& commandLine,
                              std::unique_ptr<IStarterArenaInputProvider> inputProvider,
+                             std::unique_ptr<StarterArenaGameplaySession> gameplaySession,
                              PlayableEvidence& evidence,
                              std::vector<StarterArenaDiagnostic>& diagnostics)
         : Application("StarterArena"), scene_(scene), commandLine_(commandLine),
           inputProvider_(std::move(inputProvider)),
+          gameplaySession_(std::move(gameplaySession)),
           evidence_(evidence), diagnostics_(diagnostics)
     {
         evidence_.requestedFrames = commandLine.playableFrames;
@@ -200,9 +254,26 @@ private:
         const StarterArenaInputFrame input = inputProvider_->Read(evidence_.simulation.ticks);
         RecordStarterArenaInput(input, evidence_.input);
         StepStarterArenaSimulation(evidence_.simulation, input, commandLine_.fixedDtSeconds);
+        if (gameplaySession_ && !gameplaySession_->Update(
+                evidence_.simulation.ticks, evidence_.simulation.position,
+                commandLine_.fixedDtSeconds, diagnostics_))
+        {
+            RequestClose();
+            return;
+        }
         UpdateStarterArenaPlayerTransform(renderWorld_,
                                           playableScene_.player,
                                           evidence_.simulation.position);
+        if (evidence_.gameplay.enabled)
+        {
+            const bool newlyReflected = evidence_.gameplay.pickupCollected &&
+                                        !evidence_.reflectionAppliedTick;
+            ApplyStarterArenaGameplayReflection(renderWorld_, playableScene_,
+                evidence_.gameplay.pickupCollected,
+                evidence_.gameplay.playerState == "powered");
+            if (newlyReflected)
+                evidence_.reflectionAppliedTick = evidence_.simulation.ticks;
+        }
 
         RenderScene::RenderView view = BuildStarterArenaPlayableView(renderWorld_,
                                                                      playableScene_.camera);
@@ -213,6 +284,17 @@ private:
         evidence_.totalDrawItems += view.DrawCount();
         evidence_.playerDrawSubmitted = evidence_.playerDrawSubmitted ||
                                         ViewContainsEntity(view, playableScene_.player);
+        const bool pickupSubmitted = playableScene_.pickup != RenderWorld::RenderEntityId::kInvalid &&
+                                     ViewContainsEntity(view, playableScene_.pickup);
+        evidence_.pickupDrawSubmittedLastFrame = pickupSubmitted;
+        if (!evidence_.gameplay.pickupCollected)
+            evidence_.pickupDrawSubmittedBeforeCollection =
+                evidence_.pickupDrawSubmittedBeforeCollection || pickupSubmitted;
+        const bool playerSubmitted = ViewContainsEntity(view, playableScene_.player);
+        if (evidence_.gameplay.playerState == "powered")
+            evidence_.poweredPlayerDrawSubmitted = evidence_.poweredPlayerDrawSubmitted || playerSubmitted;
+        else
+            evidence_.normalPlayerDrawSubmitted = evidence_.normalPlayerDrawSubmitted || playerSubmitted;
 
         backend_->BeginFrame();
         backend_->Submit(playableScene_.camera, view);
@@ -234,6 +316,21 @@ private:
 
     void OnShutdown() override
     {
+        if (gameplaySession_)
+        {
+            static_cast<void>(gameplaySession_->Shutdown(diagnostics_));
+            evidence_.gameplay.passed = evidence_.gameplay.score == 10 &&
+                evidence_.gameplay.pickupCollected &&
+                evidence_.gameplay.playerState == "powered" &&
+                evidence_.gameplay.mutations.size() == 3u;
+            evidence_.gameplayStateReflected = evidence_.gameplay.passed &&
+                evidence_.pickupDrawSubmittedBeforeCollection &&
+                !evidence_.pickupDrawSubmittedLastFrame &&
+                evidence_.poweredPlayerDrawSubmitted;
+            if (!evidence_.gameplayStateReflected)
+                diagnostics_.push_back({"StarterArena.Gameplay.ReflectionMismatch",
+                                        "Visible render state did not reflect final gameplay state."});
+        }
         Saga::IWindow* window = GetWindow();
         if (window != nullptr)
         {
@@ -257,6 +354,7 @@ private:
     const StarterArenaScene& scene_;
     const RuntimeCommandLine& commandLine_;
     std::unique_ptr<IStarterArenaInputProvider> inputProvider_;
+    std::unique_ptr<StarterArenaGameplaySession> gameplaySession_;
     PlayableEvidence& evidence_;
     std::vector<StarterArenaDiagnostic>& diagnostics_;
     std::unique_ptr<RB::IRenderBackend> backend_;
@@ -280,6 +378,27 @@ Json BuildReport(const RuntimeCommandLine& commandLine,
     const bool frameExpectation = evidence.presentedFrames > 0u &&
                                   (evidence.requestedFrames == 0u ||
                                    evidence.presentedFrames == evidence.requestedFrames);
+    Json topLevelNonClaims;
+    if (evidence.gameplay.enabled && evidence.gameplay.passed)
+    {
+        topLevelNonClaims = Json::array({
+            "No broad gameplay scripting API claim",
+            "No arbitrary world or ECS access claim",
+            "No editor workflow proof",
+            "No networking or multiplayer proof",
+            "No package install or distribution proof",
+            "No production readiness claim"});
+    }
+    else
+    {
+        topLevelNonClaims = Json::array({
+            "No broader interactive gameplay proof",
+            "No C# world mutation proof",
+            "No editor workflow proof",
+            "No networking or multiplayer proof",
+            "No package install or distribution proof",
+            "No production readiness claim"});
+    }
     return {
         {"status", passed ? "Passed" : "Failed"},
         {"project",
@@ -341,6 +460,7 @@ Json BuildReport(const RuntimeCommandLine& commandLine,
           {"nonClaims",
            Json::array({"No input device evidence for scene or synthetic sources",
                         "No real keyboard evidence when status is NoInputObserved"})}}},
+        {"gameplay", GameplayJson(evidence.gameplay)},
         {"render",
          {{"status", passed ? "Passed" : (evidence.initialized ? "Failed" : "NotInitialized")},
           {"backend", evidence.backend},
@@ -352,6 +472,12 @@ Json BuildReport(const RuntimeCommandLine& commandLine,
           {"visitedEntitiesLastFrame", evidence.lastVisitedEntities},
           {"culledEntitiesLastFrame", evidence.lastCulledEntities},
           {"playerDrawSubmitted", evidence.playerDrawSubmitted},
+          {"pickupDrawSubmittedBeforeCollection", evidence.pickupDrawSubmittedBeforeCollection},
+          {"pickupDrawSubmittedLastFrame", evidence.pickupDrawSubmittedLastFrame},
+          {"normalPlayerDrawSubmitted", evidence.normalPlayerDrawSubmitted},
+          {"poweredPlayerDrawSubmitted", evidence.poweredPlayerDrawSubmitted},
+          {"reflectionAppliedTick", evidence.reflectionAppliedTick ? Json(*evidence.reflectionAppliedTick) : Json(nullptr)},
+          {"gameplayStateReflected", evidence.gameplayStateReflected},
           {"placeholderViewCount", 0},
           {"viewport", {{"width", evidence.viewportWidth}, {"height", evidence.viewportHeight}}},
           {"resizeCount", evidence.resizeCount},
@@ -366,13 +492,7 @@ Json BuildReport(const RuntimeCommandLine& commandLine,
           {"framesPresented", frameExpectation},
           {"playerDrawSubmitted", evidence.playerDrawSubmitted},
           {"cleanShutdown", evidence.shutdownComplete}}},
-        {"nonClaims",
-         Json::array({"No broader interactive gameplay proof",
-                      "No C# world mutation proof",
-                      "No editor workflow proof",
-                      "No networking or multiplayer proof",
-                      "No package install or distribution proof",
-                      "No production readiness claim"})},
+        {"nonClaims", std::move(topLevelNonClaims)},
         {"diagnostics", std::move(diagnosticArray)}};
 }
 
@@ -459,8 +579,10 @@ int RunStarterArenaPlayable(const RuntimeCommandLine& commandLine)
         diagnostics.push_back({"StarterArena.Playable.FrameCountInvalid",
                                "--playable-frames must be greater than zero when provided."});
     }
-    if (commandLine.invokeStarterArenaScript || commandLine.runStarterArenaScriptLifecycle ||
-        !commandLine.scriptManifestPath.empty() || !commandLine.scriptArtifactsPath.empty())
+    if (commandLine.invokeStarterArenaScript ||
+        ((commandLine.runStarterArenaScriptLifecycle ||
+          !commandLine.scriptManifestPath.empty() || !commandLine.scriptArtifactsPath.empty()) &&
+         !commandLine.runStarterArenaGameplay))
     {
         diagnostics.push_back(
             {"StarterArena.Playable.ScriptModeDeferred",
@@ -496,6 +618,21 @@ int RunStarterArenaPlayable(const RuntimeCommandLine& commandLine)
     if (scene)
     {
         evidence.simulation = MakeStarterArenaSimulation(*scene);
+        evidence.gameplay.pickup.id = scene->pickupId;
+        evidence.gameplay.pickup.position = scene->pickupPosition;
+        evidence.gameplay.pickup.radius = scene->pickupRadius;
+        evidence.gameplay.pickup.scoreValue = scene->pickupScoreValue;
+        evidence.gameplay.playerPosition = scene->playerSpawn;
+    }
+    StarterArenaScriptBindingMetadata scriptBinding;
+    std::unique_ptr<StarterArenaGameplaySession> gameplaySession;
+    if (commandLine.runStarterArenaGameplay)
+    {
+        scriptBinding = LoadStarterArenaScriptBindingMetadata(
+            commandLine.scriptManifestPath, commandLine.scriptArtifactsPath, diagnostics);
+        if (diagnostics.empty() && project && scene)
+            gameplaySession = CreateStarterArenaGameplaySession(
+                *project, scriptBinding, evidence.gameplay, diagnostics);
     }
     std::unique_ptr<IStarterArenaInputProvider> inputProvider;
     if (diagnostics.empty() && scene && inputSource == StarterArenaInputSource::Scene)
@@ -515,7 +652,8 @@ int RunStarterArenaPlayable(const RuntimeCommandLine& commandLine)
     if (diagnostics.empty() && scene)
     {
         StarterArenaPlayableHost host(
-            *scene, commandLine, std::move(inputProvider), evidence, diagnostics);
+            *scene, commandLine, std::move(inputProvider), std::move(gameplaySession),
+            evidence, diagnostics);
         host.Run();
         if (!evidence.initialized && diagnostics.empty())
         {
@@ -529,7 +667,9 @@ int RunStarterArenaPlayable(const RuntimeCommandLine& commandLine)
                                evidence.presentedFrames == commandLine.playableFrames);
     const bool passed = diagnostics.empty() && project && scene && evidence.initialized &&
                         evidence.sceneReady && evidence.playerDrawSubmitted && framesPassed &&
-                        evidence.shutdownComplete;
+                        evidence.shutdownComplete &&
+                        (!commandLine.runStarterArenaGameplay ||
+                         (evidence.gameplay.passed && evidence.gameplayStateReflected));
     Json report = BuildReport(commandLine,
                               project ? &*project : nullptr,
                               scene ? &*scene : nullptr,

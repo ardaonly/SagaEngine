@@ -43,13 +43,15 @@ constexpr std::string_view kArtifactsManifestFileName = "script_artifacts.json";
 constexpr std::string_view kBridgeTypeName =
     "SagaEngine.Scripting.RuntimeBridge.NativeBridge, SagaScript.RuntimeBridge";
 constexpr std::size_t kBridgeErrorBufferSize = 2048;
-constexpr std::int32_t kNativeCallbackTableVersion = 1;
+constexpr std::int32_t kNativeCallbackTableVersion = 2;
 constexpr std::string_view kCapabilityCreateEntity =
     "Gameplay.World.CreateEntity";
 constexpr std::string_view kCapabilityTransformRead =
     "Gameplay.Transform.Read";
 constexpr std::string_view kCapabilityTransformWrite =
     "Gameplay.Transform.Write";
+constexpr std::string_view kCapabilityStatePort =
+    "Sample.StarterArena.GameplayState";
 
 enum class BridgeStatus : int
 {
@@ -86,6 +88,13 @@ using NativeSetPositionCallbackFn =
     int (*)(std::int64_t, std::int64_t, float, float, float);
 using NativeGetPositionCallbackFn =
     int (*)(std::int64_t, std::int64_t, float*, float*, float*);
+using NativeGetStateBoolCallbackFn = int (*)(std::int64_t, const char*, int*);
+using NativeAddStateInt32CallbackFn =
+    int (*)(std::int64_t, const char*, std::int32_t, std::int32_t*);
+using NativeSetStateBoolCallbackFn = int (*)(std::int64_t, const char*, int);
+using NativeSetStateStringCallbackFn =
+    int (*)(std::int64_t, const char*, const char*);
+using NativeStatePortAvailableCallbackFn = int (*)(std::int64_t);
 
 struct NativeCallbackTable
 {
@@ -94,6 +103,11 @@ struct NativeCallbackTable
     NativeCreateEntityCallbackFn createEntity = nullptr;
     NativeSetPositionCallbackFn setPosition = nullptr;
     NativeGetPositionCallbackFn getPosition = nullptr;
+    NativeGetStateBoolCallbackFn getStateBool = nullptr;
+    NativeAddStateInt32CallbackFn addStateInt32 = nullptr;
+    NativeSetStateBoolCallbackFn setStateBool = nullptr;
+    NativeSetStateStringCallbackFn setStateString = nullptr;
+    NativeStatePortAvailableCallbackFn statePortAvailable = nullptr;
 };
 
 using BridgeLoadAssemblyFn = int (*)(const char*, char*, int, std::int64_t*);
@@ -645,6 +659,11 @@ struct CSharpScriptHost::Impl
             &CSharpScriptHost::Impl::CreateEntityCallback,
             &CSharpScriptHost::Impl::SetPositionCallback,
             &CSharpScriptHost::Impl::GetPositionCallback,
+            &CSharpScriptHost::Impl::GetStateBoolCallback,
+            &CSharpScriptHost::Impl::AddStateInt32Callback,
+            &CSharpScriptHost::Impl::SetStateBoolCallback,
+            &CSharpScriptHost::Impl::SetStateStringCallback,
+            &CSharpScriptHost::Impl::StatePortAvailableCallback,
         };
 
         for (const auto& managedPackage : packageIterator->second.managedPackages)
@@ -926,6 +945,10 @@ struct CSharpScriptHost::Impl
         std::string_view capability,
         std::string operation)
     {
+        if (capability == kCapabilityStatePort && options.grantStatePortAccess)
+        {
+            return true;
+        }
         if (state.grantedCapabilities.find(std::string(capability)) !=
             state.grantedCapabilities.end())
         {
@@ -955,6 +978,21 @@ struct CSharpScriptHost::Impl
             ScriptHostDiagnostics::ScriptWorldUnavailable,
             "Script world unavailable",
             "Managed script attempted a world operation without an engine world facade.");
+        diagnostic.metadata["operation"] = std::move(operation);
+        RecordDiagnostic(state, std::move(diagnostic));
+        return false;
+    }
+
+    [[nodiscard]] bool RequireStatePort(InstanceState& state, std::string operation)
+    {
+        if (options.statePort != nullptr)
+        {
+            return true;
+        }
+        auto diagnostic = MakeDiagnostic(
+            ScriptHostDiagnostics::ScriptStatePortUnavailable,
+            "Script state port unavailable",
+            "Managed script attempted a state operation without an application state facade.");
         diagnostic.metadata["operation"] = std::move(operation);
         RecordDiagnostic(state, std::move(diagnostic));
         return false;
@@ -1158,6 +1196,84 @@ struct CSharpScriptHost::Impl
         return NativeCallbackStatus::Ok;
     }
 
+    [[nodiscard]] NativeCallbackStatus GetStateBoolFromManaged(
+        std::int64_t contextHandle, const char* key, int* value)
+    {
+        if (value == nullptr || key == nullptr) return NativeCallbackStatus::InvalidArgument;
+        auto* state = FindInstanceByContext(contextHandle);
+        if (state == nullptr) return NativeCallbackStatus::InvalidArgument;
+        if (!RequireCapability(*state, kCapabilityStatePort, "State.GetBool"))
+            return NativeCallbackStatus::CapabilityDenied;
+        if (!RequireStatePort(*state, "State.GetBool"))
+            return NativeCallbackStatus::WorldUnavailable;
+        auto result = options.statePort->GetBool(key);
+        if (!result.Succeeded())
+        {
+            RecordWorldDiagnostics(*state, std::move(result.diagnostics));
+            return NativeCallbackStatus::OperationFailed;
+        }
+        *value = result.value ? 1 : 0;
+        return NativeCallbackStatus::Ok;
+    }
+
+    [[nodiscard]] NativeCallbackStatus AddStateInt32FromManaged(
+        std::int64_t contextHandle, const char* key, std::int32_t delta, std::int32_t* value)
+    {
+        if (value == nullptr || key == nullptr) return NativeCallbackStatus::InvalidArgument;
+        auto* state = FindInstanceByContext(contextHandle);
+        if (state == nullptr) return NativeCallbackStatus::InvalidArgument;
+        if (!RequireCapability(*state, kCapabilityStatePort, "State.AddInt32"))
+            return NativeCallbackStatus::CapabilityDenied;
+        if (!RequireStatePort(*state, "State.AddInt32"))
+            return NativeCallbackStatus::WorldUnavailable;
+        auto result = options.statePort->AddInt32(key, delta);
+        if (!result.Succeeded())
+        {
+            RecordWorldDiagnostics(*state, std::move(result.diagnostics));
+            return NativeCallbackStatus::OperationFailed;
+        }
+        *value = result.value;
+        return NativeCallbackStatus::Ok;
+    }
+
+    [[nodiscard]] NativeCallbackStatus SetStateBoolFromManaged(
+        std::int64_t contextHandle, const char* key, int value)
+    {
+        if (key == nullptr) return NativeCallbackStatus::InvalidArgument;
+        auto* state = FindInstanceByContext(contextHandle);
+        if (state == nullptr) return NativeCallbackStatus::InvalidArgument;
+        if (!RequireCapability(*state, kCapabilityStatePort, "State.SetBool"))
+            return NativeCallbackStatus::CapabilityDenied;
+        if (!RequireStatePort(*state, "State.SetBool"))
+            return NativeCallbackStatus::WorldUnavailable;
+        auto result = options.statePort->SetBool(key, value != 0);
+        if (!result.Succeeded())
+        {
+            RecordWorldDiagnostics(*state, std::move(result.diagnostics));
+            return NativeCallbackStatus::OperationFailed;
+        }
+        return NativeCallbackStatus::Ok;
+    }
+
+    [[nodiscard]] NativeCallbackStatus SetStateStringFromManaged(
+        std::int64_t contextHandle, const char* key, const char* value)
+    {
+        if (key == nullptr || value == nullptr) return NativeCallbackStatus::InvalidArgument;
+        auto* state = FindInstanceByContext(contextHandle);
+        if (state == nullptr) return NativeCallbackStatus::InvalidArgument;
+        if (!RequireCapability(*state, kCapabilityStatePort, "State.SetString"))
+            return NativeCallbackStatus::CapabilityDenied;
+        if (!RequireStatePort(*state, "State.SetString"))
+            return NativeCallbackStatus::WorldUnavailable;
+        auto result = options.statePort->SetString(key, value);
+        if (!result.Succeeded())
+        {
+            RecordWorldDiagnostics(*state, std::move(result.diagnostics));
+            return NativeCallbackStatus::OperationFailed;
+        }
+        return NativeCallbackStatus::Ok;
+    }
+
     [[nodiscard]] static std::int64_t AllocateContextHandle(Impl* impl)
     {
         std::lock_guard lock(ContextRegistryMutex());
@@ -1288,6 +1404,41 @@ struct CSharpScriptHost::Impl
         {
             return static_cast<int>(NativeCallbackStatus::OperationFailed);
         }
+    }
+
+    static int GetStateBoolCallback(std::int64_t contextHandle, const char* key, int* value) noexcept
+    {
+        try { auto* impl = LookupContext(contextHandle); return impl == nullptr ? 1 : static_cast<int>(impl->GetStateBoolFromManaged(contextHandle, key, value)); }
+        catch (...) { return static_cast<int>(NativeCallbackStatus::OperationFailed); }
+    }
+
+    static int AddStateInt32Callback(std::int64_t contextHandle, const char* key, std::int32_t delta, std::int32_t* value) noexcept
+    {
+        try { auto* impl = LookupContext(contextHandle); return impl == nullptr ? 1 : static_cast<int>(impl->AddStateInt32FromManaged(contextHandle, key, delta, value)); }
+        catch (...) { return static_cast<int>(NativeCallbackStatus::OperationFailed); }
+    }
+
+    static int SetStateBoolCallback(std::int64_t contextHandle, const char* key, int value) noexcept
+    {
+        try { auto* impl = LookupContext(contextHandle); return impl == nullptr ? 1 : static_cast<int>(impl->SetStateBoolFromManaged(contextHandle, key, value)); }
+        catch (...) { return static_cast<int>(NativeCallbackStatus::OperationFailed); }
+    }
+
+    static int SetStateStringCallback(std::int64_t contextHandle, const char* key, const char* value) noexcept
+    {
+        try { auto* impl = LookupContext(contextHandle); return impl == nullptr ? 1 : static_cast<int>(impl->SetStateStringFromManaged(contextHandle, key, value)); }
+        catch (...) { return static_cast<int>(NativeCallbackStatus::OperationFailed); }
+    }
+
+    static int StatePortAvailableCallback(std::int64_t contextHandle) noexcept
+    {
+        try
+        {
+            auto* impl = LookupContext(contextHandle);
+            return impl != nullptr && impl->FindInstanceByContext(contextHandle) != nullptr &&
+                   impl->options.statePort != nullptr && impl->options.grantStatePortAccess ? 1 : 0;
+        }
+        catch (...) { return 0; }
     }
 
     struct ArtifactEntry

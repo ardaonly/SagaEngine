@@ -156,6 +156,127 @@ bool HasScriptLog(
 
 } // namespace
 
+struct StarterArenaGameplaySession::Impl
+{
+    StarterArenaGameplayState& state;
+    StarterArenaGameplayFacade facade;
+    std::vector<SagaEngine::Scripting::ScriptLogEvent> logs;
+    std::unique_ptr<SagaEngine::Scripting::CSharpScriptHost> host;
+    std::unique_ptr<SagaEngine::Scripting::ScriptLifecycleService> service;
+    SagaEngine::Scripting::ScriptInstanceHandle instance;
+    bool started = false;
+    bool stopped = false;
+    explicit Impl(StarterArenaGameplayState& value) : state(value), facade(value) {}
+};
+
+StarterArenaGameplaySession::StarterArenaGameplaySession(std::unique_ptr<Impl> impl)
+    : impl_(std::move(impl)) {}
+StarterArenaGameplaySession::~StarterArenaGameplaySession() = default;
+StarterArenaGameplaySession::StarterArenaGameplaySession(StarterArenaGameplaySession&&) noexcept = default;
+StarterArenaGameplaySession& StarterArenaGameplaySession::operator=(StarterArenaGameplaySession&&) noexcept = default;
+
+std::unique_ptr<StarterArenaGameplaySession> CreateStarterArenaGameplaySession(
+    const StarterArenaProject& project, const StarterArenaScriptBindingMetadata& metadata,
+    StarterArenaGameplayState& state, std::vector<StarterArenaDiagnostic>& diagnostics)
+{
+    state.enabled = true;
+    if (!metadata.provided || !metadata.valid)
+    {
+        diagnostics.push_back({"StarterArena.Gameplay.MetadataRequired",
+                               "Gameplay proof requires valid script metadata."});
+        return nullptr;
+    }
+    const auto assemblyPath = ResolveStarterArenaArtifactPath(project, metadata.assemblyPath);
+    const auto runtimeBridgePath = assemblyPath.parent_path() / "SagaScript.RuntimeBridge.dll";
+    std::error_code error;
+    if (assemblyPath.empty() || !std::filesystem::exists(assemblyPath, error) ||
+        !std::filesystem::exists(runtimeBridgePath, error))
+    {
+        diagnostics.push_back({"StarterArena.Gameplay.ArtifactMissing",
+                               "Gameplay script assembly or runtime bridge is missing."});
+        return nullptr;
+    }
+    auto impl = std::make_unique<StarterArenaGameplaySession::Impl>(state);
+    SagaEngine::Scripting::CSharpScriptHostOptions options;
+    options.runtimeBridgeAssembly = runtimeBridgePath;
+    options.statePort = &impl->facade;
+    options.grantStatePortAccess = true;
+    options.logSink = [&logs = impl->logs](const auto& event) { logs.push_back(event); };
+    impl->host = std::make_unique<SagaEngine::Scripting::CSharpScriptHost>(std::move(options));
+    SagaEngine::Scripting::ScriptPackageValidationOptions validation;
+    validation.expectedPackageDestination = "server";
+    impl->service = std::make_unique<SagaEngine::Scripting::ScriptLifecycleService>(
+        *impl->host, SagaEngine::Scripting::ScriptDiagnosticSink{}, validation);
+    SagaEngine::Scripting::ScriptPackageLoadRequest loadRequest;
+    loadRequest.packageRoot = project.projectRoot;
+    loadRequest.scriptArtifactManifest = metadata.artifactsPath;
+    loadRequest.packageId = "starter-arena";
+    const auto load = impl->service->LoadPackage(loadRequest);
+    if (!load.Succeeded())
+    {
+        AppendScriptHostDiagnostics("StarterArena.Gameplay.LoadFailure", load.diagnostics, diagnostics);
+        return nullptr;
+    }
+    SagaEngine::Scripting::ScriptInstanceCreateRequest create;
+    create.package = load.package;
+    create.classId.value = metadata.typeName;
+    create.scriptId = metadata.scriptId;
+    state.attempted = true;
+    const auto instance = impl->service->CreateInstance(create);
+    if (!instance.Succeeded())
+    {
+        AppendScriptHostDiagnostics("StarterArena.Gameplay.CreateFailure", instance.diagnostics, diagnostics);
+        return nullptr;
+    }
+    impl->instance = instance.instance;
+    impl->facade.SetPhase("OnStart");
+    const auto start = impl->service->StartInstance(instance.instance);
+    if (!start.Succeeded())
+    {
+        AppendScriptHostDiagnostics("StarterArena.Gameplay.StartFailure", start.diagnostics, diagnostics);
+        return nullptr;
+    }
+    impl->started = true;
+    state.callbacksObserved = {"OnCreate", "OnStart"};
+    return std::unique_ptr<StarterArenaGameplaySession>(
+        new StarterArenaGameplaySession(std::move(impl)));
+}
+
+bool StarterArenaGameplaySession::Update(std::uint32_t tick,
+    StarterArenaVec2 playerPosition, double fixedDtSeconds,
+    std::vector<StarterArenaDiagnostic>& diagnostics)
+{
+    if (!impl_ || !impl_->started || impl_->stopped) return false;
+    impl_->facade.SetRuntimeSnapshot(tick, playerPosition);
+    impl_->facade.SetPhase("OnUpdate");
+    const auto result = impl_->service->UpdateInstance(impl_->instance, fixedDtSeconds);
+    if (!result.Succeeded())
+    {
+        AppendScriptHostDiagnostics("StarterArena.Gameplay.UpdateFailure", result.diagnostics, diagnostics);
+        return false;
+    }
+    ++impl_->state.updateCount;
+    if (std::find(impl_->state.callbacksObserved.begin(), impl_->state.callbacksObserved.end(),
+                  "OnUpdate") == impl_->state.callbacksObserved.end())
+        impl_->state.callbacksObserved.emplace_back("OnUpdate");
+    return true;
+}
+
+bool StarterArenaGameplaySession::Shutdown(std::vector<StarterArenaDiagnostic>& diagnostics)
+{
+    if (!impl_ || !impl_->started || impl_->stopped) return true;
+    impl_->facade.SetPhase("OnDestroy");
+    const auto result = impl_->service->DestroyInstance(impl_->instance);
+    impl_->stopped = true;
+    if (!result.Succeeded())
+    {
+        AppendScriptHostDiagnostics("StarterArena.Gameplay.DestroyFailure", result.diagnostics, diagnostics);
+        return false;
+    }
+    impl_->state.callbacksObserved.emplace_back("OnDestroy");
+    return true;
+}
+
 StarterArenaScriptBindingMetadata LoadStarterArenaScriptBindingMetadata(
     const std::filesystem::path& manifestPath,
     const std::filesystem::path& artifactsPath,

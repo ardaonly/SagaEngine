@@ -106,6 +106,11 @@ public static unsafe class NativeBridge
 
         try
         {
+            if (callbacks is not null && callbacks->Version != 2)
+            {
+                WriteError(errorBuffer, errorBufferLength, "Native callback table version mismatch.");
+                return BridgeStatus.InvalidArgument;
+            }
             var type = package.Assembly.GetType(managedClassName, throwOnError: false, ignoreCase: false);
             if (type is null)
             {
