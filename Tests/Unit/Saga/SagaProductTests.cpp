@@ -7,15 +7,12 @@
 #include "SagaLocalWorkspaceTransactionReport.h"
 #include "SagaPackageStaging.h"
 #include "SagaProjectSystem.h"
+#include "SagaProcessService.h"
 #include "SagaProductHost.h"
 #include "SagaProductWorkflowSmokeReport.h"
 #include "SagaPublishReadiness.h"
 #include "SagaScriptGate.h"
 #include "SagaWorkspaceResolver.h"
-
-#include "SagaEditor/Host/EditorHost.h"
-#include "SagaEditor/Host/EditorWorkspaceDefinition.h"
-#include "SagaEditor/Settings/MemoryEditorSettingsStore.h"
 
 #include <SagaEngine/Packages/PackageManifestLoader.hpp>
 
@@ -214,6 +211,32 @@ TEST(SagaAppConfigTest, DefaultConfigCanBeCreated)
     EXPECT_EQ(result.config.workspaceSelector, "builtin:basic");
     EXPECT_EQ(result.config.target, SagaProductTargetKind::Editor);
     EXPECT_FALSE(result.config.prepareOnly);
+}
+
+TEST(SagaProcessServiceTest, AllowsOnlyTypedExecutableIdentities)
+{
+    EXPECT_TRUE(SagaProcessService::IsExecutableAllowed(
+        SagaProcessTargetId::Editor, "/opt/saga/bin/SagaEditor"));
+    EXPECT_TRUE(SagaProcessService::IsExecutableAllowed(
+        SagaProcessTargetId::Runtime, "/opt/saga/bin/SagaRuntime"));
+    EXPECT_TRUE(SagaProcessService::IsExecutableAllowed(
+        SagaProcessTargetId::Forge, "forge"));
+    EXPECT_TRUE(SagaProcessService::IsExecutableAllowed(
+        SagaProcessTargetId::SagaScript, "sagascript"));
+    EXPECT_FALSE(SagaProcessService::IsExecutableAllowed(
+        SagaProcessTargetId::Runtime, "/bin/sh"));
+    EXPECT_FALSE(SagaProcessService::IsExecutableAllowed(
+        SagaProcessTargetId::Editor, "/opt/saga/bin/EditorLab"));
+}
+
+TEST(SagaProcessServiceTest, EnvironmentOverridesUseExactAllowlist)
+{
+    EXPECT_TRUE(SagaProcessService::IsEnvironmentKeyAllowed(
+        "SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY"));
+    EXPECT_TRUE(SagaProcessService::IsEnvironmentKeyAllowed(
+        "QT_QPA_PLATFORM"));
+    EXPECT_FALSE(SagaProcessService::IsEnvironmentKeyAllowed("PATH"));
+    EXPECT_FALSE(SagaProcessService::IsEnvironmentKeyAllowed("LD_PRELOAD"));
 }
 
 TEST(SagaAppConfigTest, QtLaunchArgumentsArePassedThrough)
@@ -699,17 +722,19 @@ TEST(SagaProductHostTest, PreparesRoleTargetsAtBoundaryLevel)
 
     session.target = SagaProductTargetKind::Editor;
     SagaPreparedTarget editor = host.PrepareTarget(session);
-    EXPECT_EQ(editor.executableName, "Saga");
-    EXPECT_EQ(editor.moduleName, "SagaEditorModule");
-    EXPECT_TRUE(editor.sameProcess);
-    EXPECT_TRUE(editor.arguments.empty());
+    EXPECT_EQ(editor.executableName, "SagaEditor");
+    EXPECT_EQ(editor.availability, SagaLaunchTargetAvailability::Available);
+    ASSERT_EQ(editor.arguments.size(), 4u);
+    EXPECT_EQ(editor.arguments[0], "--workspace");
+    EXPECT_EQ(editor.arguments[1], workspace.root.string());
+    EXPECT_EQ(editor.arguments[2], "--profile");
+    EXPECT_EQ(editor.arguments[3], "saga.profile.basic");
 
     session.target = SagaProductTargetKind::Runtime;
     session.packageManifestPath = fs::path("Packages/dev-client/package.json");
     SagaPreparedTarget runtime = host.PrepareTarget(session);
     EXPECT_EQ(runtime.executableName, "SagaRuntime");
-    EXPECT_EQ(runtime.moduleName, "SagaRuntimeModule");
-    EXPECT_FALSE(runtime.sameProcess);
+    EXPECT_EQ(runtime.availability, SagaLaunchTargetAvailability::Bounded);
     ASSERT_EQ(runtime.arguments.size(), 2u);
     EXPECT_EQ(runtime.arguments[0], "--package-manifest");
     EXPECT_EQ(runtime.arguments[1], "Packages/dev-client/package.json");
@@ -718,8 +743,8 @@ TEST(SagaProductHostTest, PreparesRoleTargetsAtBoundaryLevel)
     session.packageManifestPath = fs::path("Packages/dev-server/package.json");
     SagaPreparedTarget server = host.PrepareTarget(session);
     EXPECT_TRUE(server.executableName.empty());
-    EXPECT_TRUE(server.moduleName.empty());
     EXPECT_TRUE(server.arguments.empty());
+    EXPECT_EQ(server.availability, SagaLaunchTargetAvailability::Unsupported);
 }
 
 TEST(SagaProductHostTest, EditorTargetDoesNotRequirePackageManifest)
@@ -1002,10 +1027,13 @@ TEST(SagaProductHostTest, NonZeroLaunchExitCodeIsReportedAndReturned)
               std::string::npos);
 }
 
-TEST(SagaProductHostTest, EditorTargetDoesNotUseProcessLauncher)
+TEST(SagaProductHostTest, EditorTargetUsesExternalProcessLauncher)
 {
     auto launcher = std::make_unique<FakeProcessLauncher>();
     FakeProcessLauncher* launcherPtr = launcher.get();
+    launcherPtr->result.ok = true;
+    launcherPtr->result.started = true;
+    launcherPtr->result.exitCode = 0;
     SagaProduct::SagaApp app(std::move(launcher));
 
     SagaAppConfig config = MakeBasicTargetConfig(SagaProductTargetKind::Editor);
@@ -1015,9 +1043,12 @@ TEST(SagaProductHostTest, EditorTargetDoesNotUseProcessLauncher)
     const int exitCode = app.Run(config, out, err);
 
     EXPECT_EQ(exitCode, 0);
-    EXPECT_TRUE(launcherPtr->requests.empty());
+    ASSERT_EQ(launcherPtr->requests.size(), 1u);
+    EXPECT_EQ(launcherPtr->requests[0].target, SagaProductTargetKind::Editor);
+    EXPECT_EQ(launcherPtr->requests[0].executablePath,
+              config.executablePath.parent_path() / "SagaEditor");
     EXPECT_NE(out.str().find("target=editor"), std::string::npos);
-    EXPECT_EQ(out.str().find("launch.exitCode="), std::string::npos);
+    EXPECT_NE(out.str().find("launch.exitCode="), std::string::npos);
     EXPECT_TRUE(err.str().empty());
 }
 
@@ -2070,37 +2101,6 @@ TEST(SagaProjectSystemTest, OpenRejectsInvalidProductManifest)
 
     EXPECT_FALSE(opened.ok);
     EXPECT_NE(opened.error.find("projectId"), std::string::npos);
-}
-
-TEST(SagaEditorBoundaryTest, EditorConsumesPreparedWorkspaceWithoutProductOrchestration)
-{
-    SagaEditor::EditorWorkspaceDefinition workspace;
-    workspace.id = "builtin.basic";
-    workspace.root = BuiltInProductWorkspaceRoot();
-    workspace.initialProfileId = "saga.profile.basic";
-    workspace.workspaceValidated = false;
-
-    SagaEditor::EditorHost host;
-    ASSERT_TRUE(host.Init(
-        std::make_unique<SagaEditor::MemoryEditorSettingsStore>(),
-        workspace));
-
-    ASSERT_TRUE(host.GetWorkspaceDefinition().has_value());
-    EXPECT_EQ(host.GetWorkspaceDefinition()->id, "builtin.basic");
-    EXPECT_FALSE(host.GetWorkspaceDefinition()->workspaceValidated);
-
-    const fs::path editorMain = SourceRoot() / "Apps" / "Editor" / "main.cpp";
-    std::ifstream input(editorMain);
-    ASSERT_TRUE(input.is_open());
-    const std::string text((std::istreambuf_iterator<char>(input)),
-                           std::istreambuf_iterator<char>());
-
-    EXPECT_EQ(text.find("--host"), std::string::npos);
-    EXPECT_EQ(text.find("--join"), std::string::npos);
-    EXPECT_EQ(text.find("--server"), std::string::npos);
-    EXPECT_EQ(text.find("SagaProduct"), std::string::npos);
-
-    host.Shutdown();
 }
 
 } // namespace

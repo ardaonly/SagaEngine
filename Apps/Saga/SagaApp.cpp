@@ -670,14 +670,13 @@ int SagaApp::Run(const SagaAppConfig& config,
     out << "workspace=" << prepared.workspace.id << '\n';
     out << "target=" << ToString(prepared.kind) << '\n';
     out << "executable=" << prepared.executableName << '\n';
-    out << "module=" << prepared.moduleName << '\n';
-    out << "sameProcess=" << (prepared.sameProcess ? "true" : "false") << '\n';
+    out << "availability=" << ToString(prepared.availability) << '\n';
     for (const std::string& argument : prepared.arguments)
     {
         out << "argument=" << argument << '\n';
     }
 
-    if (config.prepareOnly || prepared.kind == SagaProductTargetKind::Editor)
+    if (config.prepareOnly)
     {
         return kExitOk;
     }

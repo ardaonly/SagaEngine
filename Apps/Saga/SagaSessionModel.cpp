@@ -50,4 +50,15 @@ const char* ToString(SagaProductDiagnosticPhase phase) noexcept
     return "unknown";
 }
 
+const char* ToString(SagaLaunchTargetAvailability availability) noexcept
+{
+    switch (availability)
+    {
+        case SagaLaunchTargetAvailability::Available: return "available";
+        case SagaLaunchTargetAvailability::Bounded: return "bounded";
+        case SagaLaunchTargetAvailability::Unsupported: return "unsupported";
+    }
+    return "unsupported";
+}
+
 } // namespace SagaProduct
