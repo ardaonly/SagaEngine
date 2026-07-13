@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <map>
 #include <memory>
+#include <stop_token>
 #include <string>
 #include <vector>
 
@@ -33,12 +34,14 @@ struct EvidenceProcessRequest
     std::filesystem::path workingDirectory;
     std::map<std::string, std::string> environment;
     std::chrono::milliseconds timeout{30000};
+    std::stop_token stopToken;
 };
 
 struct EvidenceProcessResult
 {
     bool started = false;
     bool timedOut = false;
+    bool cancelled = false;
     int exitCode = -1;
     std::chrono::milliseconds duration{0};
     std::string standardOutput;
@@ -69,6 +72,7 @@ struct RuntimeEvidenceRunRequest
     std::filesystem::path sagaScriptExecutable;
     std::filesystem::path runtimeBridgeAssembly;
     std::chrono::milliseconds timeout{30000};
+    std::stop_token stopToken;
 };
 
 struct RuntimeEvidenceProfileResult

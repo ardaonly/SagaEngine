@@ -29,6 +29,7 @@ struct SagaAppConfig
 {
     std::filesystem::path executablePath;
     std::filesystem::path versionInfoPath;
+    std::filesystem::path launcherDistributionReportPath;
     std::filesystem::path builtInWorkspaceRoot;
     std::filesystem::path sagaScriptProjectRoot;
     std::filesystem::path packageStageProjectRoot;

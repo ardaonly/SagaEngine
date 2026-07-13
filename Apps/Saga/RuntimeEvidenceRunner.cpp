@@ -115,6 +115,7 @@ EvidenceProcessResult QtEvidenceProcessRunner::Run(
     processRequest.workingDirectory = request.workingDirectory;
     processRequest.environment = request.environment;
     processRequest.timeout = request.timeout;
+    processRequest.stopToken = request.stopToken;
 
     SagaProcessService service;
     const SagaProductProcessResult process = service.Run(processRequest);
@@ -122,6 +123,7 @@ EvidenceProcessResult QtEvidenceProcessRunner::Run(
     EvidenceProcessResult result;
     result.started = process.started;
     result.timedOut = process.timedOut;
+    result.cancelled = process.cancelled;
     result.exitCode = process.exitCode;
     result.duration = process.duration;
     result.standardOutput = process.standardOutput;
@@ -305,6 +307,7 @@ RuntimeEvidenceRunResult RuntimeEvidenceRunner::Run(
         request.sagaScriptExecutable;
     compile.workingDirectory = workspaceRoot;
     compile.timeout = request.timeout;
+    compile.stopToken = request.stopToken;
     compile.environment["SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY"] =
         std::filesystem::absolute(request.runtimeBridgeAssembly).string();
     compile.arguments = {
@@ -321,11 +324,12 @@ RuntimeEvidenceRunResult RuntimeEvidenceRunner::Run(
               compilation.standardOutput);
     WriteText(result.outputDirectory / "script" / "sagascript.stderr.txt",
               compilation.standardError);
-    if (!compilation.started || compilation.timedOut || compilation.exitCode != 0 ||
+    if (!compilation.started || compilation.timedOut || compilation.cancelled || compilation.exitCode != 0 ||
         !std::filesystem::exists(result.scriptManifest) ||
         !std::filesystem::exists(result.scriptArtifacts))
     {
         AddDiagnostic(result.diagnostics,
+            compilation.cancelled ? "ProductShell.FirstPlayable.ProcessCancelled" :
             compilation.timedOut ? "ProductShell.FirstPlayable.ProcessTimedOut" :
             "ProductShell.FirstPlayable.ProcessExitFailed",
             "SagaScript evidence preparation failed", compilerDiagnostics);
@@ -347,6 +351,7 @@ RuntimeEvidenceRunResult RuntimeEvidenceRunner::Run(
         process.executable = std::filesystem::absolute(request.runtimeExecutable);
         process.workingDirectory = workspaceRoot;
         process.timeout = request.timeout;
+        process.stopToken = request.stopToken;
         process.environment["SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY"] =
             std::filesystem::absolute(request.runtimeBridgeAssembly).string();
         process.arguments = BuildProfileArguments(profile, result,
@@ -358,6 +363,10 @@ RuntimeEvidenceRunResult RuntimeEvidenceRunner::Run(
             AddDiagnostic(profileResult.diagnostics,
                 "ProductShell.FirstPlayable.ProcessLaunchFailed",
                 "SagaRuntime failed to start", process.executable, profileId);
+        else if (profileResult.process.cancelled)
+            AddDiagnostic(profileResult.diagnostics,
+                "ProductShell.FirstPlayable.ProcessCancelled",
+                "SagaRuntime profile was cancelled", profileResult.stderrPath, profileId);
         else if (profileResult.process.timedOut)
             AddDiagnostic(profileResult.diagnostics,
                 "ProductShell.FirstPlayable.ProcessTimedOut",
@@ -377,6 +386,7 @@ RuntimeEvidenceRunResult RuntimeEvidenceRunner::Run(
         profileResult.status = profileResult.diagnostics.empty() ?
             EvidenceStatus::Passed : EvidenceStatus::Failed;
         result.profiles.push_back(std::move(profileResult));
+        if (request.stopToken.stop_requested()) break;
     }
     return result;
 }
