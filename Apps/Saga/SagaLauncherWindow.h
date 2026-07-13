@@ -1,24 +1,20 @@
 /// @file SagaLauncherWindow.h
-/// @brief Declares the Product Shell launcher window and external Editor handoff.
+/// @brief Thin Qt Widgets renderer for the Product Launcher state.
 
 #pragma once
 
 #include <QMainWindow>
-
 #include <filesystem>
 
 namespace SagaProduct
 {
 
-class ISagaProcessLauncher;
-
-/// Product Shell window for project discovery and external Editor launch.
 class SagaLauncherWindow final : public QMainWindow
 {
 public:
-    SagaLauncherWindow(std::filesystem::path productExecutable,
-                       ISagaProcessLauncher& processLauncher,
-                       QWidget* parent = nullptr);
+    explicit SagaLauncherWindow(std::filesystem::path productExecutable,
+                                std::filesystem::path distributionReport = {},
+                                QWidget* parent = nullptr);
     ~SagaLauncherWindow() override;
 
 private:

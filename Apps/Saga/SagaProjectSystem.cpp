@@ -6,11 +6,9 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
-#include <chrono>
 #include <cctype>
 #include <cstdlib>
 #include <fstream>
-#include <random>
 
 namespace SagaProduct
 {
@@ -68,27 +66,6 @@ void WriteTextFile(const std::filesystem::path& path, const std::string& text)
     std::filesystem::create_directories(path.parent_path());
     std::ofstream out(path, std::ios::trunc);
     out << text;
-}
-
-[[nodiscard]] std::string RandomRoomSuffix()
-{
-    static constexpr char kAlphabet[] = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    std::mt19937 rng(static_cast<std::mt19937::result_type>(
-        std::chrono::steady_clock::now().time_since_epoch().count()));
-    std::uniform_int_distribution<std::size_t> dist(0, sizeof(kAlphabet) - 2);
-
-    std::string suffix;
-    suffix.reserve(4);
-    for (int i = 0; i < 4; ++i)
-    {
-        suffix.push_back(kAlphabet[dist(rng)]);
-    }
-    return suffix;
-}
-
-[[nodiscard]] bool IsRoomCodeCharacter(char c) noexcept
-{
-    return std::isalnum(static_cast<unsigned char>(c)) || c == '-';
 }
 
 } // namespace
@@ -289,37 +266,6 @@ void SagaProjectSystem::RememberProject(const SagaProjectManifest& manifest)
 
     std::filesystem::create_directories(m_recentProjectsPath.parent_path());
     WriteTextFile(m_recentProjectsPath, json.dump(2));
-}
-
-SagaLocalSession SagaProjectSystem::StartLocalSession() const
-{
-    SagaLocalSession session;
-    session.hosting = true;
-    session.roomCode = "LOCAL-" + RandomRoomSuffix();
-    session.status = "Hosting local session. Remote networking is unavailable.";
-    return session;
-}
-
-std::optional<std::string> SagaProjectSystem::ValidateRoomCode(
-    const std::string& roomCode)
-{
-    if (roomCode.empty())
-    {
-        return "Room code is required.";
-    }
-    if (roomCode.size() < 8 || roomCode.size() > 20)
-    {
-        return "Room code must be 8 to 20 characters.";
-    }
-    if (std::find(roomCode.begin(), roomCode.end(), '-') == roomCode.end())
-    {
-        return "Room code must contain a prefix and code separated by '-'.";
-    }
-    if (!std::all_of(roomCode.begin(), roomCode.end(), IsRoomCodeCharacter))
-    {
-        return "Room code may only contain letters, numbers, and '-'.";
-    }
-    return std::nullopt;
 }
 
 const std::filesystem::path& SagaProjectSystem::RecentProjectsPath() const noexcept

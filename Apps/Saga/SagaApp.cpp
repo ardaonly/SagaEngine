@@ -189,7 +189,8 @@ int SagaApp::Run(int argc,
     ConfigureBundledRuntimeEnvironment(config);
 
     QApplication qtApp(argc, argv);
-    SagaLauncherWindow window(config.executablePath, *m_processLauncher);
+    SagaLauncherWindow window(
+        config.executablePath, config.launcherDistributionReportPath);
     window.show();
     return qtApp.exec();
 }

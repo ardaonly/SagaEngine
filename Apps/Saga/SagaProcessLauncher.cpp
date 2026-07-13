@@ -27,7 +27,7 @@ namespace
     return diagnostic;
 }
 
-[[nodiscard]] SagaProcessTargetId ToProcessTarget(
+[[nodiscard]] std::optional<SagaProcessTargetId> ToProcessTarget(
     SagaProductTargetKind target)
 {
     switch (target)
@@ -37,9 +37,9 @@ namespace
         case SagaProductTargetKind::Runtime:
             return SagaProcessTargetId::Runtime;
         case SagaProductTargetKind::Server:
-            return SagaProcessTargetId::Runtime;
+            return std::nullopt;
     }
-    return SagaProcessTargetId::Runtime;
+    return std::nullopt;
 }
 
 } // namespace
@@ -51,8 +51,20 @@ SagaProcessLaunchResult SagaProcessLauncher::Launch(
 {
     SagaProcessLaunchResult result;
 
+    const auto processTarget = ToProcessTarget(request.target);
+    if (!processTarget.has_value())
+    {
+        result.classification = SagaProcessExitClassification::InvalidRequest;
+        result.diagnostics.push_back(MakeLaunchDiagnostic(
+            request.target,
+            SagaProductDiagnostics::ServerExecutionUnsupported,
+            "Product dedicated-server execution is not implemented.",
+            request.executablePath));
+        return result;
+    }
+
     SagaProductProcessRequest processRequest;
-    processRequest.target = ToProcessTarget(request.target);
+    processRequest.target = *processTarget;
     processRequest.executable = request.executablePath;
     processRequest.arguments = request.arguments;
     processRequest.workingDirectory = request.workingDirectory;

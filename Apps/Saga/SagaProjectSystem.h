@@ -1,10 +1,9 @@
 /// @file SagaProjectSystem.h
-/// @brief Product-owned project manifest, recent project, and local session model.
+/// @brief Compatibility project helper used by package and publish workflows.
 
 #pragma once
 
 #include <filesystem>
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -36,15 +35,7 @@ struct SagaRecentProject
     std::string           warning;
 };
 
-/// Local-only session state for the first production shell pass.
-struct SagaLocalSession
-{
-    bool        hosting = false; ///< True when a local session is active.
-    std::string roomCode;
-    std::string status;
-};
-
-/// Owns Saga project manifest I/O and recent project persistence.
+/// Temporary compatibility adapter; the launcher uses SagaProjectCatalog.
 class SagaProjectSystem
 {
 public:
@@ -65,13 +56,6 @@ public:
 
     /// Insert or refresh a recent project entry.
     void RememberProject(const SagaProjectManifest& manifest);
-
-    /// Generate a local room code without implying remote networking.
-    [[nodiscard]] SagaLocalSession StartLocalSession() const;
-
-    /// Validate a user-entered room code format.
-    [[nodiscard]] static std::optional<std::string> ValidateRoomCode(
-        const std::string& roomCode);
 
     [[nodiscard]] const std::filesystem::path& RecentProjectsPath() const noexcept;
 

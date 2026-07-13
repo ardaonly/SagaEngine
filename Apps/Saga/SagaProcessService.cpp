@@ -10,7 +10,6 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
-#include <limits>
 
 namespace SagaProduct
 {
@@ -74,6 +73,7 @@ const char* ToString(SagaProcessTargetId target) noexcept
     {
         case SagaProcessTargetId::Editor: return "editor";
         case SagaProcessTargetId::Runtime: return "runtime";
+        case SagaProcessTargetId::SagaProject: return "sagaproject";
         case SagaProcessTargetId::Forge: return "forge";
         case SagaProcessTargetId::SagaScript: return "sagascript";
     }
@@ -90,6 +90,7 @@ const char* ToString(SagaProcessExitClassification classification) noexcept
         case SagaProcessExitClassification::Failed: return "failed";
         case SagaProcessExitClassification::Crashed: return "crashed";
         case SagaProcessExitClassification::TimedOut: return "timed_out";
+        case SagaProcessExitClassification::Cancelled: return "cancelled";
         case SagaProcessExitClassification::InvalidRequest: return "invalid_request";
     }
     return "unknown";
@@ -110,6 +111,8 @@ bool SagaProcessService::IsExecutableAllowed(
             return basename == "SagaEditor";
         case SagaProcessTargetId::Runtime:
             return basename == "SagaRuntime";
+        case SagaProcessTargetId::SagaProject:
+            return basename == "sagaproject";
         case SagaProcessTargetId::Forge:
             return basename == "forge";
         case SagaProcessTargetId::SagaScript:
@@ -222,24 +225,39 @@ SagaProductProcessResult SagaProcessService::Run(
     }
 
     result.started = true;
-    const qint64 timeoutCount = request.timeout.count();
-    const int timeout = timeoutCount > std::numeric_limits<int>::max() ?
-        std::numeric_limits<int>::max() : static_cast<int>(timeoutCount);
-    if (!process.waitForFinished(timeout))
+    const auto deadline = startedAt + request.timeout;
+    while (process.state() != QProcess::NotRunning)
     {
-        result.timedOut = true;
+        if (request.stopToken.stop_requested())
+        {
+            result.cancelled = true;
+            break;
+        }
+        if (Clock::now() >= deadline)
+        {
+            result.timedOut = true;
+            break;
+        }
+        process.waitForFinished(50);
+    }
+    if (result.cancelled || result.timedOut)
+    {
         process.terminate();
-        if (!process.waitForFinished(1000))
+        if (!process.waitForFinished(750))
         {
             process.kill();
-            process.waitForFinished(1000);
+            process.waitForFinished(750);
         }
     }
 
     result.standardOutput = BoundedText(process.readAllStandardOutput());
     result.standardError = BoundedText(process.readAllStandardError());
     result.exitCode = process.exitCode();
-    if (result.timedOut)
+    if (result.cancelled)
+    {
+        result.classification = SagaProcessExitClassification::Cancelled;
+    }
+    else if (result.timedOut)
     {
         result.classification = SagaProcessExitClassification::TimedOut;
     }

@@ -165,6 +165,7 @@ std::string SagaUsageText()
         "  --forge <path>                    Forge executable for SagaScript validation\n"
         "  --sagascript-tool <path>          SagaScript executable for SagaScript validation\n"
         "  --version-info <path>             Distribution version.json path\n"
+        "  --launcher-distribution-report <path> Read-only launcher distribution report override\n"
         "  --prepare-only                    Dev diagnostic: validate and print target prep\n"
         "  --help                            Show this help\n";
 }
@@ -228,6 +229,17 @@ SagaConfigResult ParseSagaAppConfig(int argc, char* argv[])
                 return result;
             }
             result.config.versionInfoPath = argv[++i];
+        }
+        else if (arg == "--launcher-distribution-report")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error =
+                    "Saga: --launcher-distribution-report requires a path";
+                return result;
+            }
+            result.config.launcherDistributionReportPath = argv[++i];
         }
         else if (arg == "--package-manifest")
         {

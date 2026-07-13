@@ -6,6 +6,7 @@
 #include <chrono>
 #include <filesystem>
 #include <map>
+#include <stop_token>
 #include <string>
 #include <vector>
 
@@ -17,6 +18,7 @@ enum class SagaProcessTargetId
 {
     Editor,
     Runtime,
+    SagaProject,
     Forge,
     SagaScript,
 };
@@ -37,6 +39,7 @@ enum class SagaProcessExitClassification
     Failed,
     Crashed,
     TimedOut,
+    Cancelled,
     InvalidRequest,
 };
 
@@ -50,6 +53,7 @@ struct SagaProductProcessRequest
     std::map<std::string, std::string> environment;
     std::chrono::milliseconds timeout{30000};
     SagaProcessExecutionMode mode = SagaProcessExecutionMode::WaitForCompletion;
+    std::stop_token stopToken; ///< Cooperative cancellation requested by the launcher task.
 };
 
 /// Captured and classified result from the Product Shell process boundary.
@@ -57,6 +61,7 @@ struct SagaProductProcessResult
 {
     bool started = false;
     bool timedOut = false;
+    bool cancelled = false;
     int exitCode = -1;
     std::chrono::milliseconds duration{0};
     SagaProcessExitClassification classification =
