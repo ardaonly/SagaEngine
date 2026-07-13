@@ -1,8 +1,8 @@
 /// @file SagaLauncherTargets.cpp
 
-#include "SagaLauncherTargets.h"
+#include "Targets/SagaLauncherTargets.h"
 
-#include "SagaSessionModel.h"
+#include "Projects/SagaSessionModel.h"
 
 #include <algorithm>
 #include <chrono>

@@ -3,7 +3,7 @@
 
 #include "SagaPackageStaging.h"
 
-#include "SagaProjectSystem.h"
+#include "Projects/SagaProjectSystem.h"
 
 #include <SagaAssetPipeline/Packages/PackageManifestWriter.hpp>
 #include <SagaEngine/Packages/PackageManifestLoader.hpp>

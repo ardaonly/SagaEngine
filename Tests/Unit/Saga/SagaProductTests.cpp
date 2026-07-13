@@ -6,13 +6,13 @@
 #include "SagaLocalCollaborationMetadataReports.h"
 #include "SagaLocalWorkspaceTransactionReport.h"
 #include "SagaPackageStaging.h"
-#include "SagaProjectSystem.h"
-#include "SagaProcessService.h"
+#include "Projects/SagaProjectSystem.h"
+#include "Processes/SagaProcessService.h"
 #include "App/SagaProductHost.h"
 #include "SagaProductWorkflowSmokeReport.h"
 #include "SagaPublishReadiness.h"
 #include "SagaScriptGate.h"
-#include "SagaWorkspaceResolver.h"
+#include "Projects/SagaWorkspaceResolver.h"
 
 #include <SagaEngine/Packages/PackageManifestLoader.hpp>
 

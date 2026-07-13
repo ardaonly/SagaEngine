@@ -1396,7 +1396,7 @@ TEST(CMakeTargetBoundaryTests, LegacyServerExecutableAndSourceOwnershipStayRetir
         root / "Tools" / "Host" / "host.sh",
         root / "Tools" / "Host" / "docker" / "docker-compose.yml",
         root / "Apps" / "Saga" / "App" / "SagaProductHost.cpp",
-        root / "Apps" / "Saga" / "SagaWorkspaceResolver.cpp",
+        root / "Apps" / "Saga" / "Projects" / "SagaWorkspaceResolver.cpp",
     };
     for (const auto& path : executableSurfaces)
     {
@@ -2019,14 +2019,16 @@ TEST(CMakeTargetBoundaryTests, ProductLauncherUiStaysTypedAndProductOwned)
 TEST(CMakeTargetBoundaryTests, UnsupportedLauncherTargetsCannotMapToProcesses)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT) / "Apps" / "Saga";
-    const std::string launcher = ReadText(root / "SagaProcessLauncher.cpp");
+    const std::string launcher =
+        ReadText(root / "Processes" / "SagaProcessLauncher.cpp");
     const auto serverCase = launcher.find("case SagaProductTargetKind::Server:");
     ASSERT_NE(serverCase, std::string::npos);
     const auto serverMapping = launcher.substr(serverCase, 160);
     EXPECT_TRUE(ContainsToken(serverMapping, "std::nullopt"));
     EXPECT_FALSE(ContainsToken(serverMapping, "SagaProcessTargetId::Runtime"));
 
-    const std::string targets = ReadText(root / "SagaLauncherTargets.cpp");
+    const std::string targets =
+        ReadText(root / "Targets" / "SagaLauncherTargets.cpp");
     for (const std::string& diagnostic : {
              "GenericRuntimeUnsupported", "ServerExecutionUnsupported",
              "WorldServerUnsupported", "CloudCollaborationUnsupported"})

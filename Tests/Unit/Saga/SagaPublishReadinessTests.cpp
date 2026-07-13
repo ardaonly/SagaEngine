@@ -1,7 +1,7 @@
 /// @file SagaPublishReadinessTests.cpp
 /// @brief Focused publish readiness package/asset identity report tests.
 
-#include "SagaProjectSystem.h"
+#include "Projects/SagaProjectSystem.h"
 #include "SagaPublishReadiness.h"
 
 #include <gtest/gtest.h>

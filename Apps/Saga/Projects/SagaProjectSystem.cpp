@@ -1,7 +1,7 @@
 /// @file SagaProjectSystem.cpp
 /// @brief Product project manifest and recent project persistence implementation.
 
-#include "SagaProjectSystem.h"
+#include "Projects/SagaProjectSystem.h"
 
 #include <nlohmann/json.hpp>
 

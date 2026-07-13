@@ -3,7 +3,7 @@
 
 #include "SagaPublishReadiness.h"
 
-#include "SagaProjectSystem.h"
+#include "Projects/SagaProjectSystem.h"
 
 #include <SagaEngine/Assets/AssetManifestLoader.hpp>
 #include <SagaEngine/Packages/PackageManifestLoader.hpp>
