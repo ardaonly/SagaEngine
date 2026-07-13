@@ -1,6 +1,6 @@
 # Runtime
 
-> Last updated: 2026-05-26
+> Last updated: 2026-07-13
 
 Runtime startup, lifecycle, package startup validation, and asset bootstrap are
 partly implemented. This does not yet make a complete runtime product path.
@@ -19,9 +19,11 @@ asset pipeline, tools, publish contracts, and editor surfaces.
 ## Current State
 
 - Runtime startup/session/lifecycle code exists.
+- Runtime owns its application host and does not reuse the retired standalone
+  client application.
 - Runtime package validation and local startup asset bootstrap code exists.
 - Runtime read-only asset access exists.
-- ClientHost/runtime asset consumption is incomplete.
+- Complete runtime asset consumption is incomplete.
 - RuntimeServiceRegistry asset service is incomplete.
 - A full playable runtime flow is missing.
 

@@ -93,5 +93,5 @@ process is added, it must:
 SagaWorkspaceHub does not implement cloud-hosted workspace behavior, realtime
 collaboration, websocket transport, account login, auth, security identity,
 enterprise RBAC, actual permission checks, CRDT or operational transform merge,
-source protection, Runtime gameplay, Server gameplay, ClientHost, Editor UI,
+source protection, Runtime gameplay, Server gameplay, client preview, Editor UI,
 Qt UI, SagaScript patch behavior, package format changes, or workflow gates.

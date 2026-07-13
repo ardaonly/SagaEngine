@@ -21,7 +21,7 @@
         "--fixed-dt",
         "1.0"
       ],
-      "notes": "Phase 22 server-only local preview. Runtime client preview remains deferred until a safe bounded ClientHost seam exists."
+      "notes": "Phase 22 server-only local preview. Runtime client preview remains deferred; no legacy standalone client executable is shipped."
     }
   ]
 }

@@ -4,7 +4,7 @@
 
 This document defines the source-truth boundary for scene and entity data. It is
 documentation and report-only evidence; it does not add runtime, server,
-ClientHost, editor UI, Qt UI, asset import, or asset cook behavior.
+client preview, editor UI, Qt UI, asset import, or asset cook behavior.
 
 ## Source Truth Definitions
 
@@ -41,7 +41,7 @@ package summaries, launch summaries, editor diagnostics, stale projections, and
 asset import/cook outputs must not become canonical runtime source truth.
 
 Runtime read behavior remains report-only here. This document does not wire
-Runtime gameplay, Server gameplay, ClientHost, asset consumption, or preview
+Runtime gameplay, Server gameplay, client preview, asset consumption, or preview
 launch behavior.
 
 ## Editor Read Boundaries
@@ -59,7 +59,7 @@ proven through deterministic reports.
 - No Release Candidate status.
 - No Production Readiness status.
 - No Playable Editor status.
-- No Client Preview or ClientHost implementation.
+- No Client Preview implementation.
 - No Runtime gameplay or Server gameplay implementation.
 - No asset import or asset cook implementation.
 - No raw full CTest, heavy stress, soak, bot swarm, or real transport proof.

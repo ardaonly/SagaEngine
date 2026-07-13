@@ -31,6 +31,6 @@ authoring source truth for scenes, entities, prefabs, or imported assets.
 ## Deferred Work
 
 Full asset import, asset cooking, asset streaming, scene editing, prefab
-editing, entity placement, ClientHost asset consumption, and runtime gameplay
-source truth remain deferred until later milestones add bounded contracts and
-evidence.
+editing, entity placement, complete runtime asset consumption, and runtime
+gameplay source truth remain deferred until later milestones add bounded
+contracts and evidence.

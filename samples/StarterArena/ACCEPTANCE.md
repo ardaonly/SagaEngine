@@ -33,8 +33,8 @@ Accepted visible-frame evidence:
 - GPU evidence contains non-clear arena pixels and distinct ground, player,
   and boundary color regions;
 - visible reports and generated resources stay outside `samples/StarterArena`;
-- the visible path does not use `ClientHost`, networking, editor code, or C#
-  execution.
+- the visible path uses only Runtime-owned app-local composition and does not
+  use networking, editor code, or C# execution.
 
 Accepted input-flow evidence:
 

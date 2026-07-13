@@ -49,4 +49,4 @@ Diagnostics View may show visibility diagnostics.
 
 This document does not implement auth, identity, role enforcement, source
 encryption, direct filesystem protection, shared workspace service, Runtime
-behavior, Server behavior, ClientHost behavior, Editor UI, or Qt UI.
+behavior, Server behavior, client preview behavior, Editor UI, or Qt UI.

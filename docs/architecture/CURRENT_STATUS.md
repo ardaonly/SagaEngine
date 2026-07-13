@@ -1,6 +1,6 @@
 # Current Architecture Status
 
-> Last updated: 2026-05-26
+> Last updated: 2026-07-13
 
 SagaEngine is a structured engine/toolchain codebase with bounded local
 evidence and explicit non-claims. It is not product beta, not release candidate,
@@ -15,9 +15,10 @@ and not production-ready.
 - Heavy stress/load checks are opt-in and unresolved.
 - Full editor, playable runtime, production networking, production renderer,
   public SDK, and release packaging remain open.
-- Source-truth and runtime-read evidence remains report-only. It does not prove
-  ClientHost, Client Preview, Runtime gameplay, Server gameplay, asset import,
-  or asset cook behavior.
+- Source-truth and runtime-read evidence remains report-only. The retired
+  standalone client host is not a supported path, and this evidence does not
+  prove Client Preview, Runtime gameplay, Server gameplay, asset import, or
+  asset cook behavior.
 
 ## Claim Boundary
 
