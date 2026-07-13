@@ -1,5 +1,5 @@
 /// @file SagaProductWorkflowSmokeReport.h
-/// @brief Report-only Product Shell workflow smoke model.
+/// @brief Typed schema-2 Product Shell workflow status/report model.
 
 #pragma once
 

@@ -46,7 +46,7 @@ current bounded distribution claim.
 
 | Area | Intended ownership | Current bounded evidence | Explicit non-claim |
 | --- | --- | --- | --- |
-| `Saga` product layer | Product shell, project/workspace session model, typed target resolution, bounded process handoff, diagnostics, and product checks | External Editor handoff and allowlisted Editor/Runtime/tool process requests exist | Finished launcher or end-to-end workflow |
+| `Saga` product layer | Product shell, project/workspace session model, typed target resolution, bounded process handoff, diagnostics, and product checks | External Editor handoff, allowlisted Editor/Runtime/tool process requests, and schema-2 typed workflow action/status reports exist | Finished launcher, executable workflow automation, generic server action, or end-to-end workflow |
 | `SagaEditor` | Thin executable host over `SagaEditorLib`; Editor owns project inspection and authoring UX | Clean schema-2 typed inspection plus editor scaffolding exist | Complete editor or Visual Blocks product |
 | `SagaRuntime` | Standalone runtime host over reusable Runtime services | Startup, lifecycle, package, and bounded StarterArena modes exist; generic project mode is rejected | Generic or finished playable runtime |
 | `SagaServerLib` and server foundations | Reusable authoritative simulation, validation, state mutation, sessions, and replication foundations | Narrow authority, movement, ownership, replication, and diagnostics evidence exists; no product dedicated-server executable is shipped | Product server execution, production networking, scale proof, or MMO readiness |

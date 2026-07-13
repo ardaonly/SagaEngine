@@ -1,232 +1,194 @@
 # Saga Product Shell Workflow Contract
 
-Status: bounded Product Shell ownership and workflow contract.
+Status: bounded Product Shell ownership and typed workflow-status contract.
 
-The Saga Product Shell is a:
-
-```txt
-launcher/dashboard/workflow router
-```
-
-This document is a contract over existing entry points. The Product Shell owns
-a bounded launcher window, project/session models, typed target preparation,
-and process handoff. Workflow smokes remain report-backed commands. They do not
-implement editor workflow panels, package distribution,
-runtime logic, server logic, SagaScript behavior, Visual Blocks
-editor UI, collaboration services, cloud workspace, or real-time team editing.
+The Saga Product Shell is a bounded launcher/dashboard/workflow router. It owns
+project and session models, typed target preparation, process handoff, and
+report aggregation. It does not own editor implementation, runtime logic,
+server logic, SagaScript behavior, Visual Blocks editor UI, collaboration
+services, cloud workspace, or real-time team editing.
 
 ## Role
 
 The Product Shell may route a user through local workflows that already have
-CLI or process-level evidence. Its first honest workflow is report-first: every
-tool handoff preserves typed arguments, exit classification, report path, and
-diagnostics path or diagnostics payload. It does not execute shell command
-strings.
+tool, process, or report evidence. Process handoff uses typed arguments through
+the allowlisted Product process boundary. The workflow-smoke report itself is
+different: it records typed action identities, ownership, availability,
+status, and expected report locations without embedding or executing an
+invocation.
 
-The Product Shell must not claim success without a real tool report. A failed
-tool remains visible as a failed workflow step. Package preflight failure is a
-current limitation, not a hidden pass.
+The Product Shell must not claim success without real evidence. Missing reports
+remain visible. Package preflight is bounded evidence, not package or
+distribution readiness.
 
 ## Non-Roles
 
 The Product Shell is not:
 
-- full editor;
+- a full editor;
 - Visual Blocks editor UI;
-- package builder;
-- distribution pipeline;
-- enterprise workspace server;
-- runtime engine;
-- C# compiler;
+- a package builder or distribution pipeline;
+- an enterprise workspace server;
+- the runtime engine;
+- a C# compiler;
+- a dedicated-server product host.
 
-SagaEditor owns future editing and inspection UI. This document does not wire that UI
-to the workflow steps below.
+SagaEditor owns editing and inspection UI. Generic server execution remains
+unsupported, and repository-only server evidence is not a Product Shell action.
 
 ## Existing Product Boundary
 
-The repository already contains an `Apps/Saga` product shell boundary:
+The repository contains an explicit `Apps/Saga` product boundary:
 
-- `Apps/Saga/SagaProjectSystem.*` creates and opens product shell project
-  manifests, tracks recent projects, and manages local-only session labels.
-- `Apps/Saga/SagaProductHost.*` prepares target metadata for editor, runtime,
-  and server roles without owning those modules.
-- `Apps/Saga/SagaProcessService.*` is the only Product-owned `QProcess`
-  implementation. It accepts typed Editor, Runtime, Forge, or SagaScript
-  identities, an environment-key allowlist, and bounded timeouts; it never
-  invokes a command shell.
-- `Apps/Saga/SagaProcessLauncher.*` adapts prepared product targets to that
-  service.
-- `Apps/Saga/SagaSessionModel.*` defines product workspace, target, and
-  diagnostic data.
-- `Apps/Saga/SagaLauncherWindow.*` owns the bounded launcher UI. Opening a
-  project hands off to the external `SagaEditor` executable.
-- `Apps/Saga/SagaScriptGate.*`, `Apps/Saga/SagaPackageStaging.*`, and
-  `Apps/Saga/SagaPublishReadiness.*` contain product-owned gate or report
-  services, but this document does not expand them.
+- `SagaProjectSystem.*` creates and opens Product Shell project manifests,
+  tracks recent projects, and manages local-only session labels.
+- `SagaProductHost.*` prepares typed Editor and Runtime targets and returns a
+  stable unsupported result for server targets.
+- `SagaProcessService.*` is the only Product-owned `QProcess` implementation.
+  It accepts allowlisted executable identities, a bounded environment policy,
+  and bounded timeouts; it never invokes a shell.
+- `SagaProcessLauncher.*` adapts prepared Product targets to that service.
+- `SagaSessionModel.*` defines Product workspace, target, and diagnostic data.
+- `SagaLauncherWindow.*` owns the bounded launcher UI. Opening a project hands
+  off to the external `SagaEditor` executable.
+- `SagaScriptGate.*`, `SagaPackageStaging.*`, and
+  `SagaPublishReadiness.*` contain Product-owned gate or report services but do
+  not expand the workflow-smoke claim.
 
-`Apps/Editor` is a thin editor executable host; editor implementation and
+`Apps/Editor` is a thin executable host. Editor implementation and project
 inspection live in `Editor/` and `SagaEditorLib`. `Apps/EditorLab` remains a
-scenario/development shell and its optional bridge is off by default.
+development scenario surface, and its optional bridge is off by default.
 
-## Workflow Smoke
+## Workflow Smoke Schema 2
 
-This document describes a Product Shell workflow smoke over a caller-provided
-project, selected profile, and report output path. Exact build directories and
-report paths are local evidence details, not architecture truth.
+The workflow-smoke output is clean schema 2. There is no schema 1 fallback.
+Its top-level contract is:
 
-The report contains project metadata, selected profile, workflow step command
-references, expected report paths, diagnostics, known limitations, non-claims,
-and `verified: false`. It does not execute the referenced workflow tools.
-Missing reports and package preflight limitations remain visible.
+```txt
+schemaVersion: 2
+tool: Saga
+action: workflow-smoke
+status
+verified: false
+project
+profile
+workflowActions
+reportReferences
+diagnostics
+knownLimitations
+nonClaims
+```
+
+Every `workflowActions` entry contains:
+
+```txt
+id
+status
+actionKind
+owner
+expectedReportPath
+availability
+unavailableReason or diagnosticId when applicable
+```
+
+The exact current action identities are:
+
+```txt
+project_validation
+editor_inspection
+runtime_smoke
+sagascript_analyze_compile
+visual_blocks_cli_chain
+package_preflight
+known_limitations
+```
+
+The report contains no shell text, legacy workflow-step shape, or separate
+invocation list. `reportReferences` maps an action identity and observed status
+to its expected report path. The report does not execute any action.
 
 ## Local Workspace Transaction Smoke
 
-This document describes a local workspace transaction smoke over a
-caller-provided project, workspace, actor, operation, and report output path.
+The local workspace transaction smoke is a separate caller-provided project,
+workspace, actor, operation, and report-output contract. It records a read-only
+local transaction preview. It does not write durable collaboration metadata,
+mutate project files, start a collaboration server, or provide cloud/team
+synchronization.
 
-The report records a read-only local transaction preview over StarterArena. It
-does not write durable collaboration metadata, mutate project files, start a
-collaboration server, or provide cloud/team synchronization.
+## Workflow Actions
 
-## Workflow Contract
+### Project Validation
 
-The first honest Product Shell workflow is:
+`project_validation` is owned by `sagaproject`. The action records availability,
+the current report status, and the expected validation report. Validation
+failure remains visible and is never converted into a pass.
 
-1. Open StarterArena.
-2. Validate project metadata.
-3. Run runtime smoke.
-4. Run SagaScript analyze and compile.
-5. Generate and read block projection plus safe edit evidence through the
-   CLI-only Visual Blocks chain.
-6. Show or read diagnostics and reports.
-7. Run package preflight when requested.
-8. Surface the unsupported server target and other limitations without a
-   launch instruction.
+### Editor Inspection
 
-The CLI tools remain the source of truth for proof. A Product Shell UI may make
-these steps easier to launch and read later, but it may not replace or mask the
-underlying reports.
+`editor_inspection` is owned by `SagaEditor`. Product Shell prepares an external
+Editor request and does not link or compile Editor implementation. The action
+is a status/report reference; Editor owns inspection behavior and its clean
+schema-2 report.
 
-## Open Project
+This does not claim a completed dashboard, inspector, scene editor, Visual
+Blocks editor, or source editor.
 
-Current project truth for this workflow is:
+### Runtime Smoke
 
-```txt
-samples/StarterArena/StarterArena.sagaproj
-```
+`runtime_smoke` is owned by `SagaRuntime`. It refers to bounded StarterArena
+headless evidence over a caller-selected project and report path. It is not a
+generic project-execution or interactive gameplay claim.
 
-The shell contract may treat this as the selected project path. It must also
-surface that StarterArena currently has no launch profiles in the project
-manifest and that runtime/server evidence uses bounded smoke entry points
-directly.
+### Script Analysis and Compilation
 
-## Validate Project
+`sagascript_analyze_compile` is owned by `sagascript`. It refers to the selected
+source-analysis and artifact-report evidence. Product Shell does not own the
+compiler or embed a tool invocation in the workflow-smoke report.
 
-Existing validation entry point:
+### Visual Blocks CLI Chain
 
-```bash
-nix-shell --run "Tools/SagaProjectKit/sagaproject validate --project samples/StarterArena/StarterArena.sagaproj --out /tmp/starter_arena_validate.json"
-```
+`visual_blocks_cli_chain` is owned by `sagascript` and has `cli_only`
+availability. It refers to projection and safe-edit evidence. It does not
+describe Visual Blocks editor UI, arbitrary C# roundtrip, or a completed
+authoring surface.
 
-The Product Shell must show the command, process exit status, and
-`/tmp/starter_arena_validate.json`. Validation failure remains a failed step.
+### Package Preflight
 
-## Edit
+`package_preflight` is owned by `package-linux-saga` and has `preflight_only`
+availability. Its limitation diagnostic states that preflight is not package
+or distribution readiness. The action does not change the exact three-app and
+three-public-tool package whitelist.
 
-Editing and inspection belong to SagaEditor, not to hidden Product Shell
-behavior. Product Shell prepares an external `SagaEditor --workspace ...
---profile ...` request and does not link or compile Editor implementation.
+### Known Limitations
 
-The Product Shell may route to editor mode through the existing product/editor
-boundary, but this document does not claim a completed dashboard, inspector,
-scene editor, Visual Blocks editor, or source editor.
-
-## Play / Runtime Smoke
-
-Existing runtime smoke evidence is a bounded headless runtime command over a
-caller-provided project, smoke frame count, fixed timestep, and report output
-path.
-
-The Product Shell must surface the exit status and report path. The smoke path
-is a bounded headless proof, not a general client launch or interactive gameplay
-claim.
-
-## Script / Blocks
-
-Existing SagaScript analyze and compile entry points:
-
-```bash
-Tools/SagaScript/sagascript analyze --source samples/StarterArena/Scripts --out /tmp/starter_arena_sagascript
-Tools/SagaScript/sagascript compile --source samples/StarterArena/Scripts --out /tmp/starter_arena_sagascript/Manifests --artifacts-out /tmp/starter_arena_sagascript/Artifacts/Scripts --project-root samples/StarterArena --assembly-name StarterArenaScripts --diagnostics /tmp/starter_arena_sagascript/sagascript_diagnostics.json --json
-```
-
-Existing Visual Blocks proof is CLI-only. The supported chain is:
-
-```txt
-compatibility-profile -> project-blocks -> plan-block-edit -> apply-block-edit -> analyze -> compile
-```
-
-The Product Shell contract may show the generated reports and diagnostics from
-that chain. It must not describe this as Visual Blocks editor UI, arbitrary C#
-roundtrip, or a completed authoring surface.
+`known_limitations` is a Product status reference. It keeps the workflow's
+bounded evidence and non-claims visible without turning unavailable product
+features or repository development fixtures into launcher actions.
 
 ## Unsupported Server Target
 
 The Product Shell may display declarative future server metadata, but target
 resolution returns a stable unsupported diagnostic and never constructs a
-process request. Repository-only server-authority fixtures are not launcher
-actions and do not establish a dedicated-server product executable.
+process request. No server action appears in the schema-2 workflow action set.
+Repository-only authority fixtures do not establish a dedicated-server product
+executable or generic server support.
 
 ## Diagnostics
 
-The workflow dashboard may read and link to local outputs such as:
-
-- `/tmp/*_smoke.json`;
-- SagaScript diagnostics reports;
-- project validation reports;
-- server diagnostics directories.
-
-Diagnostics visibility must preserve source command, exit status, report path,
-and failure state. Missing reports are a failure or limitation, not success.
-
-## Package Preflight
-
-Existing package preflight entry point:
-
-```bash
-scripts/package-linux-saga
-```
-
-This script is preflight-only. It is expected to fail honestly until real
-distribution inputs and output layout exist. The Product Shell may expose that
-failure as a known limitation when the user requests package preflight, but it
-must not treat it as package readiness or distribution readiness.
-
-## Customization Direction
-
-Early Product Shell customization is limited to direction, not implementation:
-
-- profile and view presets;
-- panel and workflow visibility;
-- personal layout later;
-- shared project truth remains strict.
-
-This document does not claim maximum customization, shared customizable workspaces,
-or implemented profile editing.
+The Product Shell may read and link to local validation, runtime, Editor,
+SagaScript, and package-preflight reports. The workflow-smoke report preserves
+typed action identity, observed status, availability, and report path. Missing
+reports are a limitation or failure, never implicit success.
 
 ## Known Limitations
 
-- This document is a docs/evidence-only workflow contract.
-- This document is a no-UI Product Shell workflow smoke report.
-- This document is a no-UI local workspace transaction boundary report.
-- No Product Shell dashboard workflow UI is implemented by this milestone.
-- No UI wiring is added for validation, smoke, scripting, blocks, diagnostics,
-  or package preflight.
-- Workflow smoke command entries are references and are not executed by the
-  report.
+- Workflow smoke is report-only and does not execute its typed actions.
+- No Product Shell dashboard workflow UI is completed by this milestone.
 - Local workspace transaction smoke is read-only and report-only.
-- StarterArena has no launch profiles in its project manifest.
+- StarterArena has no general launch-profile or generic runtime-execution claim.
 - Visual Blocks evidence remains CLI-only.
 - Package preflight is not package or distribution readiness.
-- The shell must never hide failed tools or missing reports.
-- No milestone is marked `Verified`.
+- Repository-only server evidence is not a Product Shell workflow action.
+- Generic server execution and a dedicated-server product executable remain
+  unsupported.
+- No phase is marked `Verified` by this report.
