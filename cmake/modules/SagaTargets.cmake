@@ -628,8 +628,6 @@ function(saga_create_engine_targets)
         SagaEngine
         SagaShared
         SagaCollaboration
-        SagaRuntimeLib
-        SagaServerLib
         Qt6::Core
         Qt6::Widgets
     )
@@ -637,7 +635,6 @@ function(saga_create_engine_targets)
     target_link_libraries(SagaProductLib PRIVATE
         SagaAssetPipelineLib
         SagaBackend
-        SagaEditorLib
     )
 
     target_compile_definitions(SagaProductLib PUBLIC
@@ -660,7 +657,6 @@ function(saga_create_engine_targets)
             ${SAGA_ROOT}/Apps/SagaDev
         )
         target_link_libraries(SagaEditorLabBridge PUBLIC
-            SagaProductLib
             SagaEditorLabLib
         )
         set_target_properties(SagaEditorLabBridge PROPERTIES
@@ -677,12 +673,6 @@ function(saga_create_engine_targets)
     saga_apply_compiler_flags(Saga)
     saga_link_thirdparty(Saga)
     target_link_libraries(Saga PRIVATE SagaProductLib)
-    if(SAGA_WITH_EDITORLAB_DEV_PANEL)
-        target_link_libraries(Saga PRIVATE SagaEditorLabBridge)
-        target_compile_definitions(Saga PRIVATE SAGA_WITH_EDITORLAB_DEV_PANEL=1)
-    else()
-        target_compile_definitions(Saga PRIVATE SAGA_WITH_EDITORLAB_DEV_PANEL=0)
-    endif()
     if(TARGET qt::qt)
         target_link_libraries(Saga PRIVATE qt::qt)
     elseif(TARGET Qt6::QXcbIntegrationPlugin)
