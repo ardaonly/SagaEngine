@@ -1,7 +1,7 @@
 /// @file SagaSessionModel.cpp
 /// @brief Product-level workspace session and launch target helpers.
 
-#include "SagaSessionModel.h"
+#include "Projects/SagaSessionModel.h"
 
 namespace SagaProduct
 {

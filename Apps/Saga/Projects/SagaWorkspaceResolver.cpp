@@ -1,7 +1,7 @@
 /// @file SagaWorkspaceResolver.cpp
 /// @brief Product manifest backed Saga workspace resolution implementation.
 
-#include "SagaWorkspaceResolver.h"
+#include "Projects/SagaWorkspaceResolver.h"
 
 #include <nlohmann/json.hpp>
 

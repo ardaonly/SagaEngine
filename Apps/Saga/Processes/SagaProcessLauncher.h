@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "SagaProcessService.h"
-#include "SagaSessionModel.h"
+#include "Processes/SagaProcessService.h"
+#include "Projects/SagaSessionModel.h"
 
 #include <chrono>
 #include <filesystem>

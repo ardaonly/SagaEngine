@@ -9,7 +9,7 @@
 #include "SagaLocalWorkspaceTransactionReport.h"
 #include "Launcher/SagaLauncherWindow.h"
 #include "SagaPackageStaging.h"
-#include "SagaProjectSystem.h"
+#include "Projects/SagaProjectSystem.h"
 #include "SagaProductWorkflowSmokeReport.h"
 #include "SagaPublishReadiness.h"
 #include "SagaScriptGate.h"

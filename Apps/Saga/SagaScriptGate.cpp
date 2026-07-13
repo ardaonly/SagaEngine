@@ -2,7 +2,7 @@
 /// @brief Product-owned SagaScript validation gate orchestration.
 
 #include "SagaScriptGate.h"
-#include "SagaProcessService.h"
+#include "Processes/SagaProcessService.h"
 
 #include <ostream>
 #include <utility>

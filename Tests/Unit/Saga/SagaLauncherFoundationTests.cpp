@@ -3,10 +3,10 @@
 
 #include "Launcher/SagaLauncherController.h"
 #include "SagaLauncherReports.h"
-#include "SagaLauncherTargets.h"
-#include "SagaProcessService.h"
-#include "SagaProjectCatalog.h"
-#include "SagaSessionModel.h"
+#include "Targets/SagaLauncherTargets.h"
+#include "Processes/SagaProcessService.h"
+#include "Projects/SagaProjectCatalog.h"
+#include "Projects/SagaSessionModel.h"
 
 #include <gtest/gtest.h>
 

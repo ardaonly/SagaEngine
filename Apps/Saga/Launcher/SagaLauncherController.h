@@ -5,8 +5,8 @@
 
 #include "Launcher/SagaLauncherModel.h"
 #include "SagaLauncherReports.h"
-#include "SagaLauncherTargets.h"
-#include "SagaProjectCatalog.h"
+#include "Targets/SagaLauncherTargets.h"
+#include "Projects/SagaProjectCatalog.h"
 
 #include <atomic>
 #include <functional>

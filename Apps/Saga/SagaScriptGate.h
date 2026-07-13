@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "SagaSessionModel.h"
+#include "Projects/SagaSessionModel.h"
 
 #include <filesystem>
 #include <iosfwd>
