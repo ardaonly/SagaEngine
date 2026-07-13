@@ -1869,3 +1869,26 @@ TEST(CMakeTargetBoundaryTests, AppsEditorDoesNotInvokeCompositionToolchain)
         << "First offender: "
         << (offenders.empty() ? "" : offenders.front());
 }
+
+TEST(CMakeTargetBoundaryTests, AppSpineBaselineNamesStayExplicit)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const std::string targets = ReadText(SagaTargetsPath());
+    for (const std::string& target : {
+             "Saga", "SagaRuntime", "SagaEditor", "EditorLab", "SagaSandbox"})
+    {
+        EXPECT_TRUE(ContainsToken(targets, "add_executable(" + target))
+            << "Expected explicit app-spine target " << target;
+    }
+    for (const auto& retired : {
+             root / "Apps" / "Client",
+             root / "Apps" / "Server",
+             root / "Apps" / "WorldServer",
+             root / "Apps" / "NetworkLab",
+             root / "Apps" / "Shared"})
+    {
+        EXPECT_FALSE(std::filesystem::exists(retired))
+            << "Retired or forbidden app surface restored: "
+            << retired.generic_string();
+    }
+}
