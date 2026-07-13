@@ -1992,3 +1992,42 @@ TEST(CMakeTargetBoundaryTests, AppSpineBaselineNamesStayExplicit)
             << retired.generic_string();
     }
 }
+
+TEST(CMakeTargetBoundaryTests, ProductLauncherUiStaysTypedAndProductOwned)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT) / "Apps" / "Saga";
+    const std::string window = ReadText(root / "SagaLauncherWindow.cpp");
+    const std::string model = ReadText(root / "SagaLauncherModel.h");
+    EXPECT_TRUE(ContainsToken(window, "SagaLauncherController"));
+    EXPECT_TRUE(ContainsToken(window, "SagaLauncherActionId::OpenEditor"));
+    for (const std::string& forbidden : {
+             "QInputDialog", "QLineEdit", "CreateProject(", "Host Session",
+             "Join Room", "MultiplayerSandboxHeadless", "EditorLab"})
+    {
+        EXPECT_FALSE(ContainsToken(window, forbidden)) << forbidden;
+    }
+    for (const std::string& forbidden : {
+             "executablePath", "arguments", "commandText", "rawArguments"})
+    {
+        EXPECT_FALSE(ContainsToken(model, forbidden)) << forbidden;
+    }
+}
+
+TEST(CMakeTargetBoundaryTests, UnsupportedLauncherTargetsCannotMapToProcesses)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT) / "Apps" / "Saga";
+    const std::string launcher = ReadText(root / "SagaProcessLauncher.cpp");
+    const auto serverCase = launcher.find("case SagaProductTargetKind::Server:");
+    ASSERT_NE(serverCase, std::string::npos);
+    const auto serverMapping = launcher.substr(serverCase, 160);
+    EXPECT_TRUE(ContainsToken(serverMapping, "std::nullopt"));
+    EXPECT_FALSE(ContainsToken(serverMapping, "SagaProcessTargetId::Runtime"));
+
+    const std::string targets = ReadText(root / "SagaLauncherTargets.cpp");
+    for (const std::string& diagnostic : {
+             "GenericRuntimeUnsupported", "ServerExecutionUnsupported",
+             "WorldServerUnsupported", "CloudCollaborationUnsupported"})
+    {
+        EXPECT_TRUE(ContainsToken(targets, diagnostic)) << diagnostic;
+    }
+}

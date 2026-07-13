@@ -236,6 +236,20 @@ TEST(SagaAppConfigTest, DefaultConfigCanBeCreated)
     EXPECT_FALSE(result.config.prepareOnly);
 }
 
+TEST(SagaAppConfigTest, LauncherDistributionReportOverrideIsReadOnlyInput)
+{
+    const char* argvRaw[] = {
+        "Saga", "--launcher-distribution-report", "/tmp/distribution-report.json"};
+    auto* argv = const_cast<char**>(argvRaw);
+
+    const SagaConfigResult result = ParseSagaAppConfig(3, argv);
+
+    ASSERT_TRUE(result.ok) << result.error;
+    EXPECT_EQ(result.config.launcherDistributionReportPath,
+              fs::path("/tmp/distribution-report.json"));
+    EXPECT_FALSE(result.config.prepareOnly);
+}
+
 TEST(SagaProcessServiceTest, AllowsOnlyTypedExecutableIdentities)
 {
     EXPECT_TRUE(SagaProcessService::IsExecutableAllowed(
@@ -2150,14 +2164,6 @@ TEST(SagaPublishReadinessTest, AppEntrypointWritesPublishReport)
     EXPECT_NE(out.str().find("publish.status=ready"), std::string::npos);
     EXPECT_NE(out.str().find("publish.blockers=0"), std::string::npos);
     EXPECT_TRUE(err.str().empty());
-}
-
-TEST(SagaProjectSystemTest, InvalidRoomCodesFailWithoutFakeJoin)
-{
-    EXPECT_TRUE(SagaProjectSystem::ValidateRoomCode("").has_value());
-    EXPECT_TRUE(SagaProjectSystem::ValidateRoomCode("BAD").has_value());
-    EXPECT_TRUE(SagaProjectSystem::ValidateRoomCode("ROOM 1234").has_value());
-    EXPECT_FALSE(SagaProjectSystem::ValidateRoomCode("ROOM-1234").has_value());
 }
 
 TEST(SagaProjectSystemTest, OpenRejectsInvalidProductManifest)

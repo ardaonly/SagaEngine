@@ -1638,6 +1638,24 @@ function(saga_setup_tests)
         set_tests_properties(SagaProductTests PROPERTIES LABELS "product;unit")
     endif()
 
+    # --- Product Launcher Qt Widgets tests --------------------------------
+    set(SAGA_LAUNCHER_UI_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/LauncherUi/SagaLauncherUiTests.cpp")
+    if(EXISTS "${SAGA_LAUNCHER_UI_TEST_SOURCE}")
+        add_executable(SagaLauncherUiTests ${SAGA_LAUNCHER_UI_TEST_SOURCE})
+        saga_link_thirdparty(SagaLauncherUiTests)
+        target_link_libraries(SagaLauncherUiTests PRIVATE
+            SagaProductLib
+            GTest::gtest
+        )
+        target_include_directories(SagaLauncherUiTests PRIVATE
+            ${SAGA_TEST_INCLUDE_DIRS})
+        add_test(NAME SagaLauncherUiTests COMMAND SagaLauncherUiTests)
+        set_tests_properties(SagaLauncherUiTests PROPERTIES
+            LABELS "product;ui"
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    endif()
+
     # --- Editor authoring spine tests ---------------------------------------
     if(EXISTS "${EDITOR_AUTHORING_SPINE_TEST_SOURCE}")
         add_executable(EditorAuthoringSpineTests
