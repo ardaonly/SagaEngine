@@ -1,7 +1,7 @@
 /// @file VisualBlocksDescriptorTests.cpp
 /// @brief Evidence-only generation tests for mandatory profile six.
 
-#include "VisualBlocksDescriptor.h"
+#include "VisualBlocks/VisualBlocksDescriptor.h"
 
 #include <QCryptographicHash>
 

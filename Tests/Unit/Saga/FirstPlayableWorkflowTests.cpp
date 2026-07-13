@@ -1,8 +1,8 @@
 /// @file FirstPlayableWorkflowTests.cpp
 /// @brief Focused Product Shell first-playable runner and report tests.
 
-#include "RuntimeEvidenceReport.h"
-#include "RuntimeEvidenceRunner.h"
+#include "Reports/RuntimeEvidenceReport.h"
+#include "FirstPlayable/RuntimeEvidenceRunner.h"
 #include "App/SagaAppConfig.h"
 
 #include <QStandardPaths>

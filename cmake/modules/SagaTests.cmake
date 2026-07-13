@@ -903,9 +903,9 @@ function(saga_setup_tests)
     if(EXISTS "${SAGA_PACKAGE_STAGING_TEST_SOURCE}")
         add_executable(SagaPackageStagingTests
             ${SAGA_PACKAGE_STAGING_TEST_SOURCE}
-            ${SAGA_ROOT}/Apps/Saga/SagaPackageStaging.cpp
+            ${SAGA_ROOT}/Apps/Saga/Packaging/SagaPackageStaging.cpp
             ${SAGA_ROOT}/Apps/Saga/Projects/SagaProjectSystem.cpp
-            ${SAGA_ROOT}/Apps/Saga/SagaPublishReadiness.cpp
+            ${SAGA_ROOT}/Apps/Saga/Packaging/SagaPublishReadiness.cpp
             ${SAGA_ROOT}/Apps/Saga/Projects/SagaSessionModel.cpp
         )
         target_link_libraries(SagaPackageStagingTests PRIVATE
@@ -934,7 +934,7 @@ function(saga_setup_tests)
         add_executable(SagaPublishReadinessTests
             ${SAGA_PUBLISH_READINESS_TEST_SOURCE}
             ${SAGA_ROOT}/Apps/Saga/Projects/SagaProjectSystem.cpp
-            ${SAGA_ROOT}/Apps/Saga/SagaPublishReadiness.cpp
+            ${SAGA_ROOT}/Apps/Saga/Packaging/SagaPublishReadiness.cpp
         )
         target_link_libraries(SagaPublishReadinessTests PRIVATE
             SagaEngine

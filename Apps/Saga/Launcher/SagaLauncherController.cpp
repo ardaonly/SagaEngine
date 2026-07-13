@@ -2,7 +2,7 @@
 
 #include "Launcher/SagaLauncherController.h"
 
-#include "FirstPlayableWorkflow.h"
+#include "FirstPlayable/FirstPlayableWorkflow.h"
 #include "Processes/SagaProcessService.h"
 
 #include <algorithm>

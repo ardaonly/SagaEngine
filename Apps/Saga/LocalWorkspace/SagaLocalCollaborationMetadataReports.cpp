@@ -1,7 +1,7 @@
 /// @file SagaLocalCollaborationMetadataReports.cpp
 /// @brief Report-only local collaboration metadata boundary proofs.
 
-#include "SagaLocalCollaborationMetadataReports.h"
+#include "LocalWorkspace/SagaLocalCollaborationMetadataReports.h"
 
 #include <nlohmann/json.hpp>
 

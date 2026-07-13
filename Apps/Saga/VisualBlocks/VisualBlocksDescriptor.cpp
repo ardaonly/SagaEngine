@@ -1,7 +1,7 @@
 /// @file VisualBlocksDescriptor.cpp
 /// @brief Read-only Product Shell generation from C# and generated evidence.
 
-#include "VisualBlocksDescriptor.h"
+#include "VisualBlocks/VisualBlocksDescriptor.h"
 
 #include <QCryptographicHash>
 

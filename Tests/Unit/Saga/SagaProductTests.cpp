@@ -3,15 +3,15 @@
 
 #include "App/SagaAppConfig.h"
 #include "App/SagaApp.h"
-#include "SagaLocalCollaborationMetadataReports.h"
-#include "SagaLocalWorkspaceTransactionReport.h"
-#include "SagaPackageStaging.h"
+#include "LocalWorkspace/SagaLocalCollaborationMetadataReports.h"
+#include "LocalWorkspace/SagaLocalWorkspaceTransactionReport.h"
+#include "Packaging/SagaPackageStaging.h"
 #include "Projects/SagaProjectSystem.h"
 #include "Processes/SagaProcessService.h"
 #include "App/SagaProductHost.h"
-#include "SagaProductWorkflowSmokeReport.h"
-#include "SagaPublishReadiness.h"
-#include "SagaScriptGate.h"
+#include "Reports/SagaProductWorkflowSmokeReport.h"
+#include "Packaging/SagaPublishReadiness.h"
+#include "Scripting/SagaScriptGate.h"
 #include "Projects/SagaWorkspaceResolver.h"
 
 #include <SagaEngine/Packages/PackageManifestLoader.hpp>

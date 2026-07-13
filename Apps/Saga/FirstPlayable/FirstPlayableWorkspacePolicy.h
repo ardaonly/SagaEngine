@@ -2,7 +2,7 @@
 /// @brief Source-integrity and generated-output policy for the RC gate.
 #pragma once
 
-#include "RuntimeEvidenceReport.h"
+#include "Reports/RuntimeEvidenceReport.h"
 
 #include <filesystem>
 #include <map>

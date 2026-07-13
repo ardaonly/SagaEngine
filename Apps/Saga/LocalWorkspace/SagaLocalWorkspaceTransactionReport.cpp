@@ -1,7 +1,7 @@
 /// @file SagaLocalWorkspaceTransactionReport.cpp
 /// @brief Report-only local workspace transaction boundary proof.
 
-#include "SagaLocalWorkspaceTransactionReport.h"
+#include "LocalWorkspace/SagaLocalWorkspaceTransactionReport.h"
 
 #include <nlohmann/json.hpp>
 

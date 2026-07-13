@@ -1,5 +1,5 @@
 /// @file FirstPlayableWorkspacePolicy.cpp
-#include "FirstPlayableWorkspacePolicy.h"
+#include "FirstPlayable/FirstPlayableWorkspacePolicy.h"
 
 #include <QByteArrayView>
 #include <QCryptographicHash>

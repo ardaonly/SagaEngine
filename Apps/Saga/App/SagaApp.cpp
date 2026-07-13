@@ -3,16 +3,16 @@
 
 #include "App/SagaApp.h"
 
-#include "FirstPlayableHumanCapture.h"
-#include "FirstPlayableWorkflow.h"
-#include "SagaLocalCollaborationMetadataReports.h"
-#include "SagaLocalWorkspaceTransactionReport.h"
+#include "FirstPlayable/FirstPlayableHumanCapture.h"
+#include "FirstPlayable/FirstPlayableWorkflow.h"
+#include "LocalWorkspace/SagaLocalCollaborationMetadataReports.h"
+#include "LocalWorkspace/SagaLocalWorkspaceTransactionReport.h"
 #include "Launcher/SagaLauncherWindow.h"
-#include "SagaPackageStaging.h"
+#include "Packaging/SagaPackageStaging.h"
 #include "Projects/SagaProjectSystem.h"
-#include "SagaProductWorkflowSmokeReport.h"
-#include "SagaPublishReadiness.h"
-#include "SagaScriptGate.h"
+#include "Reports/SagaProductWorkflowSmokeReport.h"
+#include "Packaging/SagaPublishReadiness.h"
+#include "Scripting/SagaScriptGate.h"
 
 #include <QApplication>
 #include <QByteArray>

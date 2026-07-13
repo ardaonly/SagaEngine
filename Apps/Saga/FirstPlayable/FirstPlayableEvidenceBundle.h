@@ -2,7 +2,7 @@
 /// @brief Writes durable first-playable source and evidence manifests.
 #pragma once
 
-#include "FirstPlayableGate.h"
+#include "FirstPlayable/FirstPlayableGate.h"
 
 #include <filesystem>
 #include <nlohmann/json_fwd.hpp>

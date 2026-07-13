@@ -1,7 +1,7 @@
 /// @file FirstPlayableGateTests.cpp
 /// @brief Focused release-candidate gate policy tests.
-#include "FirstPlayableGate.h"
-#include "FirstPlayableEvidenceBundle.h"
+#include "FirstPlayable/FirstPlayableGate.h"
+#include "FirstPlayable/FirstPlayableEvidenceBundle.h"
 
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>

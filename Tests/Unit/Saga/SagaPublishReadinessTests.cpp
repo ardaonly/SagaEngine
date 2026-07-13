@@ -2,7 +2,7 @@
 /// @brief Focused publish readiness package/asset identity report tests.
 
 #include "Projects/SagaProjectSystem.h"
-#include "SagaPublishReadiness.h"
+#include "Packaging/SagaPublishReadiness.h"
 
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>

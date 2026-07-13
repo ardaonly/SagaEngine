@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include "RuntimeEvidenceRunner.h"
-#include "VisualBlocksDescriptor.h"
-#include "FirstPlayableGate.h"
+#include "FirstPlayable/RuntimeEvidenceRunner.h"
+#include "VisualBlocks/VisualBlocksDescriptor.h"
+#include "FirstPlayable/FirstPlayableGate.h"
 
 #include <filesystem>
 #include <iosfwd>

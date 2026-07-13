@@ -1,7 +1,7 @@
 /// @file FirstPlayableHumanCaptureTests.cpp
 /// @brief Focused operator-workflow tests for real-keyboard evidence capture.
 
-#include "FirstPlayableHumanCapture.h"
+#include "FirstPlayable/FirstPlayableHumanCapture.h"
 
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
