@@ -174,7 +174,6 @@ Tools/Forge/bin/forge build
 Tools/Forge/bin/forge build --target SagaEngine
 Tools/Forge/bin/forge build --target SagaEditor
 Tools/Forge/bin/forge build --target SagaRuntime
-Tools/Forge/bin/forge build --target SagaServer
 ```
 
 Use `forge run <tool>` when invoking CMake, Conan, or Ninja through the same
@@ -201,12 +200,13 @@ For checks inside the Nix development shell, use
 is a packaging target for existing artifacts. It is not a public release,
 installer, marketplace package, or production support workflow.
 
-Role binaries may include:
+Current packaged role binaries are:
 
 - `Saga`
 - `SagaEditor`
 - `SagaRuntime`
-- `SagaServer`
 
 Standalone supported execution is provided through `SagaRuntime` project
-modes. There is no separate legacy client executable.
+modes. There is no separate legacy client executable, and no product
+dedicated-server executable is currently shipped. The reusable server
+foundations remain available through `SagaServerLib`.

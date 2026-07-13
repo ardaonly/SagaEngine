@@ -21,7 +21,7 @@
         "--fixed-dt",
         "1.0"
       ],
-      "notes": "Phase 22 server-only local preview. Runtime client preview remains deferred; no legacy standalone client executable is shipped."
+      "notes": "Bounded headless authority preview only. It is not a product dedicated server or a replacement for the retired snapshot probe. Runtime client preview remains deferred; no legacy standalone client executable is shipped."
     }
   ]
 }

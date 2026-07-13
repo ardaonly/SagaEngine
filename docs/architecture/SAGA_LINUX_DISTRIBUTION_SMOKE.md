@@ -52,7 +52,6 @@ Required unpacked checks include:
 Saga/bin/Saga
 Saga/bin/SagaEditor
 Saga/bin/SagaRuntime
-Saga/bin/SagaServer
 Saga/tools/sagaproject
 Saga/tools/sagascript
 Saga/tools/sagapack
@@ -107,6 +106,6 @@ The smoke report does not claim:
 - cloud collaboration;
 - runtime workflow correctness beyond help output;
 - editor workflow correctness;
-- server workflow correctness beyond help output;
+- product dedicated-server workflow correctness;
 - tool workflow correctness beyond recorded help checks;
 - historical verified status.
