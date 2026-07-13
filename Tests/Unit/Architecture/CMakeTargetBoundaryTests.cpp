@@ -675,6 +675,106 @@ TEST(CMakeTargetBoundaryTests, SagaProductLibDoesNotLinkEditorLabTargets)
     }
 }
 
+TEST(CMakeTargetBoundaryTests, ProductShellLinksOnlyProductOwnedLibraries)
+{
+    const auto path = SagaTargetsPath();
+    const auto calls = ExtractTargetLinkCalls(ReadLines(path));
+    const std::vector<std::string> forbidden = {
+        "SagaEditorLib",
+        "SagaRuntimeLib",
+        "SagaServerLib",
+        "SagaEditorLabLib",
+        "SagaSandboxLib",
+    };
+    const auto offenders = FindForbiddenLinks(calls, "SagaProductLib", forbidden);
+    for (const auto& offender : offenders)
+    {
+        ADD_FAILURE()
+            << "Product Shell must use process boundaries instead of linking "
+            << JoinNames(FindForbiddenDependencyNames(offender, forbidden))
+            << ". Offending call in " << path.generic_string()
+            << ":" << offender.line << "\n" << offender.text;
+    }
+}
+
+TEST(CMakeTargetBoundaryTests, ProductRuntimeAndEditorAppsHaveExactOwnershipDirection)
+{
+    const auto path = SagaTargetsPath();
+    const auto calls = ExtractTargetLinkCalls(ReadLines(path));
+    const std::map<std::string, std::vector<std::string>> forbidden = {
+        {"SagaRuntime", {"SagaProductLib", "SagaEditorLib", "SagaServerLib",
+                         "SagaEditorLabLib", "SagaSandboxLib"}},
+        {"SagaEditor", {"SagaProductLib", "SagaRuntimeLib", "SagaServerLib",
+                        "SagaEditorLabLib", "SagaSandboxLib"}},
+        {"Saga", {"SagaEditorLib", "SagaRuntimeLib", "SagaServerLib",
+                  "SagaSandboxLib"}},
+    };
+
+    for (const auto& [target, dependencies] : forbidden)
+    {
+        for (const auto& offender : FindForbiddenLinks(calls, target, dependencies))
+        {
+            ADD_FAILURE()
+                << target << " has forbidden app-spine dependency "
+                << JoinNames(FindForbiddenDependencyNames(offender, dependencies))
+                << ". Offending call in " << path.generic_string()
+                << ":" << offender.line << "\n" << offender.text;
+        }
+    }
+}
+
+TEST(CMakeTargetBoundaryTests, ProductAndRuntimeEntrypointsStayThin)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const std::string editorMain = ReadText(root / "Apps" / "Editor" / "main.cpp");
+    const std::string runtimeMain = ReadText(root / "Apps" / "Runtime" / "main.cpp");
+    const std::string runtimeApplication =
+        ReadText(root / "Apps" / "Runtime" / "RuntimeApplication.cpp");
+    const std::string productSources = ReadText(root / "Apps" / "Saga" / "SagaApp.cpp");
+
+    EXPECT_TRUE(ContainsToken(editorMain, "RunEditorApplication"));
+    EXPECT_FALSE(ContainsToken(editorMain, "QJson"));
+    EXPECT_FALSE(ContainsToken(editorMain, "inspect-project"));
+    EXPECT_TRUE(ContainsToken(runtimeMain, "RunRuntimeApplication"));
+    EXPECT_FALSE(ContainsToken(runtimeMain, "StarterArena"));
+    EXPECT_FALSE(ContainsToken(runtimeApplication, "--server"));
+    EXPECT_FALSE(ContainsToken(runtimeApplication, "--port"));
+    EXPECT_FALSE(ContainsToken(productSources, "SagaEditor/"));
+    EXPECT_FALSE(ContainsToken(productSources, "SagaEditorModule"));
+    EXPECT_FALSE(std::filesystem::exists(
+        root / "Apps" / "Saga" / "SagaEditorModule.cpp"));
+    EXPECT_FALSE(std::filesystem::exists(
+        root / "Apps" / "Saga" / "SagaEditorModule.h"));
+}
+
+TEST(CMakeTargetBoundaryTests, ProductShellHasOneQtProcessOwner)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT) / "Apps" / "Saga";
+    std::vector<std::filesystem::path> owners;
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(root))
+    {
+        if (!entry.is_regular_file() || entry.path().extension() != ".cpp")
+        {
+            continue;
+        }
+        if (ContainsToken(ReadText(entry.path()), "#include <QProcess>"))
+        {
+            owners.push_back(entry.path().filename());
+        }
+    }
+    ASSERT_EQ(owners.size(), 1u);
+    EXPECT_EQ(owners.front(), std::filesystem::path("SagaProcessService.cpp"));
+}
+
+TEST(CMakeTargetBoundaryTests, UnitTestsConsumeEditorLabThroughItsLibraryOwner)
+{
+    const std::string tests = ReadText(CMakeModulePath("SagaTests.cmake"));
+    const std::string unitTarget =
+        ExtractTargetCall(tests, "add_executable", "SagaUnitTests");
+    EXPECT_FALSE(ContainsToken(unitTarget, "EDITORLAB_SOURCES"));
+    EXPECT_TRUE(ContainsToken(tests, "SagaEditorLabLib"));
+}
+
 TEST(CMakeTargetBoundaryTests, SagaAssetPipelineLibDoesNotLinkRuntimeEditorProductOrToolOwners)
 {
     const auto path = SagaTargetsPath();
@@ -1747,7 +1847,7 @@ TEST(CMakeTargetBoundaryTests, EditorLabBridgeIsGuardedByDevPanelFlag)
         << path.generic_string();
 }
 
-TEST(CMakeTargetBoundaryTests, SagaLinksEditorLabBridgeOnlyBehindDevPanelFlag)
+TEST(CMakeTargetBoundaryTests, SagaEditorLinksEditorLabBridgeOnlyBehindDevPanelFlag)
 {
     const auto path = SagaTargetsPath();
     const auto lines = ReadLines(path);
@@ -1757,7 +1857,7 @@ TEST(CMakeTargetBoundaryTests, SagaLinksEditorLabBridgeOnlyBehindDevPanelFlag)
     bool sawSagaBridgeLink = false;
     for (const auto& call : calls)
     {
-        if (call.target != "Saga" ||
+        if (call.target != "SagaEditor" ||
             !ContainsToken(call.text, "SagaEditorLabBridge"))
         {
             continue;
@@ -1766,14 +1866,14 @@ TEST(CMakeTargetBoundaryTests, SagaLinksEditorLabBridgeOnlyBehindDevPanelFlag)
         sawSagaBridgeLink = true;
         ASSERT_GT(call.line, 0u);
         EXPECT_TRUE(IsLineInsideIfGuard(lines, call.line - 1, guardName))
-            << "Forbidden unguarded dependency: Saga may link "
+                << "Forbidden unguarded dependency: SagaEditor may link "
             << "SagaEditorLabBridge only inside if(" << guardName
             << "). Offending call in " << path.generic_string()
             << ":" << call.line << "\n" << call.text;
     }
 
     EXPECT_TRUE(sawSagaBridgeLink)
-        << "Expected Saga executable to link SagaEditorLabBridge behind if("
+        << "Expected SagaEditor executable to link SagaEditorLabBridge behind if("
         << guardName << ") in " << path.generic_string();
 }
 

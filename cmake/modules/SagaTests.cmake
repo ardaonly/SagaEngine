@@ -330,7 +330,7 @@ function(saga_setup_tests)
 
     # --- Unit tests ---------------------------------------------------------
 
-    add_executable(SagaUnitTests ${UNIT_TEST_SOURCES} ${EDITORLAB_SOURCES})
+    add_executable(SagaUnitTests ${UNIT_TEST_SOURCES})
     target_sources(SagaUnitTests PRIVATE
         ${SAGA_ROOT}/Apps/Runtime/RuntimeHost.cpp
     )
@@ -349,6 +349,7 @@ function(saga_setup_tests)
         SagaSandboxLib
         SagaEditorLib    # needed by Tests/Unit/Editor/* (block authoring,
                          # InspectorEditing, persona, viewport, etc.)
+        SagaEditorLabLib # needed by dev-only EditorLab owner tests
         GTest::gtest
         GTest::gmock
         GTest::gtest_main
