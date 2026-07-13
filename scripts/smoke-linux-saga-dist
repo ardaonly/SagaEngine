@@ -422,7 +422,6 @@ def main() -> int:
         "bin/Saga",
         "bin/SagaEditor",
         "bin/SagaRuntime",
-        "bin/SagaServer",
         "bin/sagaproject",
         "bin/sagascript",
         "bin/sagapack",
@@ -439,7 +438,6 @@ def main() -> int:
         "bin/Saga",
         "bin/SagaEditor",
         "bin/SagaRuntime",
-        "bin/SagaServer",
         "bin/sagaproject",
         "bin/sagascript",
         "bin/sagapack",
@@ -463,7 +461,6 @@ def main() -> int:
     if unpack_root.is_dir():
         run_command(commands, [str(unpack_root / "bin" / "Saga"), "--help"], required=True, label="unpacked Saga help")
         run_command(commands, [str(unpack_root / "bin" / "SagaRuntime"), "--help"], required=True, label="unpacked SagaRuntime help")
-        run_command(commands, [str(unpack_root / "bin" / "SagaServer"), "--help"], required=True, label="unpacked SagaServer help")
         run_command(
             commands,
             [str(unpack_root / "bin" / "SagaEditor"), "--help"],
