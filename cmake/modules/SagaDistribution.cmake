@@ -75,17 +75,16 @@ function(saga_setup_distribution)
         "${CMAKE_BINARY_DIR}/dist/${SAGA_DISTRIBUTION_NAME}"
         CACHE PATH "SAGA staged production distribution directory")
 
-    foreach(_target IN ITEMS Saga SagaRuntime SagaServer)
+    foreach(_target IN ITEMS Saga SagaRuntime)
         if(NOT TARGET ${_target})
             message(FATAL_ERROR "SAGA distribution requires target '${_target}'")
         endif()
     endforeach()
 
     _saga_assert_no_qt_link(SagaRuntime)
-    _saga_assert_no_qt_link(SagaServer)
 
     if(UNIX AND NOT APPLE)
-        set_target_properties(Saga SagaRuntime SagaServer PROPERTIES
+        set_target_properties(Saga SagaRuntime PROPERTIES
             INSTALL_RPATH "$ORIGIN/../lib"
         )
     endif()

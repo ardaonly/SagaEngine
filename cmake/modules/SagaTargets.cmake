@@ -740,21 +740,6 @@ function(saga_create_engine_targets)
         FOLDER      "Apps"
     )
 
-    add_executable(SagaServer
-        ${SAGA_ROOT}/Apps/Server/main.cpp
-        ${SAGA_ROOT}/Apps/Server/TestSnapshotServer.h
-        ${SAGA_ROOT}/Apps/Server/TestSnapshotServer.cpp
-    )
-
-    target_include_directories(SagaServer PRIVATE
-        ${SAGA_ROOT}/Apps/Server
-    )
-
-    saga_apply_compiler_flags(SagaServer)
-    target_link_libraries(SagaServer PRIVATE
-        SagaServerLib
-    )
-
     # --- SagaEditor Executable ------------------------------------------------
     # qt_add_executable with WIN32 generates the WinMain shim on Windows so
     # Apps/Editor/main.cpp can use a standard int main() on all platforms.

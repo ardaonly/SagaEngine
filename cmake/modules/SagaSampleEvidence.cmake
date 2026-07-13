@@ -17,7 +17,6 @@ function(saga_setup_sample_executable_evidence)
     set(_saga_sample_evidence_dependencies
         SagaRuntime
         MultiplayerSandboxHeadless
-        SagaServer
     )
 
     if(TARGET Saga)
