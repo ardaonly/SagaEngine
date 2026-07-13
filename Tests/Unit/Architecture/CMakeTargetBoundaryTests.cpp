@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <map>
@@ -125,7 +126,19 @@ std::string ExtractTargetCall(
 {
     const std::string marker =
         std::string(command) + "(" + std::string(target);
-    const auto start = text.find(marker);
+    auto start = text.find(marker);
+    while (start != std::string::npos)
+    {
+        const auto afterTarget = start + marker.size();
+        if (afterTarget == text.size() ||
+            std::isspace(static_cast<unsigned char>(text[afterTarget])) ||
+            text[afterTarget] == ')')
+        {
+            break;
+        }
+        start = text.find(marker, afterTarget);
+    }
+
     if (start == std::string::npos)
     {
         return {};
@@ -142,6 +155,31 @@ std::string ExtractTargetCall(
 bool ContainsToken(const std::string& text, const std::string& token)
 {
     return text.find(token) != std::string::npos;
+}
+
+bool ContainsCMakeToken(std::string_view text, std::string_view token)
+{
+    auto isTokenCharacter = [](char value) {
+        const auto character = static_cast<unsigned char>(value);
+        return std::isalnum(character) || value == '_' || value == '-' ||
+               value == ':';
+    };
+
+    std::size_t position = text.find(token);
+    while (position != std::string_view::npos)
+    {
+        const bool startsAtBoundary =
+            position == 0 || !isTokenCharacter(text[position - 1]);
+        const auto after = position + token.size();
+        const bool endsAtBoundary =
+            after == text.size() || !isTokenCharacter(text[after]);
+        if (startsAtBoundary && endsAtBoundary)
+        {
+            return true;
+        }
+        position = text.find(token, after);
+    }
+    return false;
 }
 
 bool IsCodeOrBuildFile(const std::filesystem::path& path)
@@ -1193,6 +1231,87 @@ TEST(CMakeTargetBoundaryTests, SagaRuntimeOwnsOnlyRuntimeAppSourcesAndIncludes)
     EXPECT_FALSE(ContainsToken(includes, "Apps/Server"))
         << "SagaRuntime must not include Apps/Server. Offending call:\n"
         << includes;
+}
+
+TEST(CMakeTargetBoundaryTests, LegacyClientExecutableAndSourceOwnershipStayRetired)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto path = SagaTargetsPath();
+    const std::string text = ReadText(path);
+    const auto linkCalls = ExtractTargetLinkCalls(ReadLines(path));
+
+    EXPECT_TRUE(ExtractTargetCall(text, "add_executable", "SagaApp").empty())
+        << "The retired SagaApp executable target must not be restored.";
+    EXPECT_FALSE(ContainsToken(text, "OUTPUT_NAME \"SagaClient\""))
+        << "The retired SagaClient executable identity must not be restored.";
+    EXPECT_FALSE(ContainsToken(text, "Apps/Client"))
+        << "No CMake source or include variable may own Apps/Client.";
+
+    for (const auto& call : linkCalls)
+    {
+        EXPECT_FALSE(ContainsCMakeToken(call.text, "SagaApp"))
+            << "No CMake target may link the retired SagaApp target. "
+            << "Offending call in " << path.generic_string() << ":"
+            << call.line << "\n" << call.text;
+    }
+
+    EXPECT_FALSE(std::filesystem::exists(root / "Apps" / "Client"))
+        << "The retired Apps/Client implementation directory must stay absent.";
+}
+
+TEST(CMakeTargetBoundaryTests, ProductAndEditorTargetsStayClientAppFree)
+{
+    const auto path = SagaTargetsPath();
+    const std::string text = ReadText(path);
+    const std::vector<std::string> productAndEditorTargets = {
+        "Saga",
+        "SagaProductLib",
+        "SagaEditor",
+        "SagaEditorLib",
+    };
+
+    for (const auto& target : productAndEditorTargets)
+    {
+        const std::string executable =
+            ExtractTargetCall(text, "add_executable", target);
+        const std::string qtExecutable =
+            ExtractTargetCall(text, "qt_add_executable", target);
+        const std::string library =
+            ExtractTargetCall(text, "add_library", target);
+        const std::string includes =
+            ExtractTargetCall(text, "target_include_directories", target);
+        const std::string ownership =
+            executable + qtExecutable + library + includes;
+
+        EXPECT_FALSE(ContainsToken(ownership, "Apps/Client"))
+            << target << " must not compile or include Apps/Client. "
+            << "Offending CMake calls:\n" << ownership;
+    }
+}
+
+TEST(CMakeTargetBoundaryTests, InstallAndDistributionStayLegacyClientFree)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const std::vector<std::filesystem::path> paths = {
+        CMakeModulePath("SagaInstall.cmake"),
+        CMakeModulePath("SagaInstallGraphics.cmake"),
+        CMakeModulePath("SagaDistribution.cmake"),
+        root / "scripts" / "package-linux-saga",
+    };
+
+    for (const auto& path : paths)
+    {
+        ASSERT_TRUE(std::filesystem::exists(path))
+            << "Expected install/package contract is missing: "
+            << path.generic_string();
+        const std::string text = ReadText(path);
+        EXPECT_FALSE(ContainsToken(text, "Apps/Client"))
+            << path.generic_string()
+            << " must not stage the retired client implementation.";
+        EXPECT_FALSE(ContainsToken(text, "SagaClient"))
+            << path.generic_string()
+            << " must not install or stage the retired executable.";
+    }
 }
 
 TEST(CMakeTargetBoundaryTests, DedicatedServerTargetsStayHeadless)

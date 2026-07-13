@@ -13,8 +13,7 @@ RuntimeHostResult RuntimeHost::Run() const
     result.diagnosticId =
         RuntimeHostDiagnostics::LegacyConnectedClientUnsupported;
     result.message =
-        "SagaRuntime no longer runs the legacy connected-client mode. "
-        "Use SagaClient for the legacy network client, or select a supported "
+        "Connected-client mode is unsupported. Select a supported "
         "SagaRuntime project mode.";
     return result;
 }

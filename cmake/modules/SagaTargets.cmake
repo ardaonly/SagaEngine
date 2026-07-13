@@ -697,12 +697,6 @@ function(saga_create_engine_targets)
         FOLDER      "Apps"
     )
 
-    # Legacy client sources remain owned only by the SagaClient executable.
-    set(SAGA_CLIENT_HOST_SOURCES
-        ${SAGA_ROOT}/Apps/Client/ClientHost.h
-        ${SAGA_ROOT}/Apps/Client/ClientHost.cpp
-    )
-
     add_executable(SagaRuntime
         ${SAGA_ROOT}/Apps/Runtime/main.cpp
         ${SAGA_ROOT}/Apps/Runtime/RuntimeCommandLine.h
@@ -744,36 +738,6 @@ function(saga_create_engine_targets)
     set_target_properties(SagaRuntime PROPERTIES
         OUTPUT_NAME "SagaRuntime"
         FOLDER      "Apps"
-    )
-
-    # Legacy/dev-only client binary. It is intentionally excluded from the
-    # SAGA production distribution so product identity stays role-based.
-    set(SAGA_CLIENT_SOURCES
-        ${SAGA_ROOT}/Apps/Client/main.cpp
-        ${SAGA_CLIENT_HOST_SOURCES}
-    )
-
-    add_executable(SagaApp ${SAGA_CLIENT_SOURCES})
-
-    target_include_directories(SagaApp PRIVATE
-        ${SAGA_ROOT}/Apps/Client
-    )
-
-    target_compile_definitions(SagaApp PRIVATE SDL_MAIN_HANDLED)
-
-    saga_apply_compiler_flags(SagaApp)
-    saga_link_thirdparty(SagaApp)
-    target_link_libraries(SagaApp PRIVATE
-        SagaRuntimeLib
-        SagaServerLib
-        SagaEngine
-        SagaPlatformSDL
-        SagaBackend
-    )
-
-    set_target_properties(SagaApp PROPERTIES
-        OUTPUT_NAME "SagaClient"
-        FOLDER      "Dev/Legacy"
     )
 
     add_executable(SagaServer

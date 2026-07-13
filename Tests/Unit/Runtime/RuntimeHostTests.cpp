@@ -18,8 +18,10 @@ TEST(RuntimeHostTests, LegacyConnectedClientModeFailsWithStableDiagnostic)
     EXPECT_EQ(
         result.diagnosticId,
         SagaRuntimeApp::RuntimeHostDiagnostics::LegacyConnectedClientUnsupported);
-    EXPECT_NE(result.message.find("SagaClient"), std::string::npos);
-    EXPECT_NE(result.message.find("legacy connected-client mode"),
+    EXPECT_EQ(result.message.find("SagaClient"), std::string::npos);
+    EXPECT_NE(result.message.find("Connected-client mode is unsupported"),
+              std::string::npos);
+    EXPECT_NE(result.message.find("supported SagaRuntime project mode"),
               std::string::npos);
 }
 
