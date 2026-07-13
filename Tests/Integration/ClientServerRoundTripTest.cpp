@@ -33,7 +33,8 @@ namespace SagaEngine::Testing {
 static constexpr const char* kTag = "RoundTripTest";
 
 // ─── Test component definition ────────────────────────────────────────────────
-// Mirrors the layout used by TestSnapshotServer and ClientHost.
+// Preserves the test-transform layout formerly shared by TestSnapshotServer
+// and the retired standalone client probe.
 
 struct alignas(8) TestTransformComponent
 {
