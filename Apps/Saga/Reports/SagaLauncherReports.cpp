@@ -1,6 +1,6 @@
 /// @file SagaLauncherReports.cpp
 
-#include "SagaLauncherReports.h"
+#include "Reports/SagaLauncherReports.h"
 
 #include <algorithm>
 #include <cctype>

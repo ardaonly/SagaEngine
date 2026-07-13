@@ -1,5 +1,5 @@
 /// @file FirstPlayableGate.cpp
-#include "FirstPlayableGate.h"
+#include "FirstPlayable/FirstPlayableGate.h"
 
 namespace SagaProduct
 {

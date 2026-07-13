@@ -1,9 +1,9 @@
 /// @file FirstPlayableHumanCapture.cpp
 /// @brief Bounded real-keyboard capture and RC-gate import orchestration.
 
-#include "FirstPlayableHumanCapture.h"
+#include "FirstPlayable/FirstPlayableHumanCapture.h"
 
-#include "FirstPlayableEvidenceBundle.h"
+#include "FirstPlayable/FirstPlayableEvidenceBundle.h"
 
 #include <nlohmann/json.hpp>
 

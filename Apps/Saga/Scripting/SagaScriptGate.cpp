@@ -1,7 +1,7 @@
 /// @file SagaScriptGate.cpp
 /// @brief Product-owned SagaScript validation gate orchestration.
 
-#include "SagaScriptGate.h"
+#include "Scripting/SagaScriptGate.h"
 #include "Processes/SagaProcessService.h"
 
 #include <ostream>

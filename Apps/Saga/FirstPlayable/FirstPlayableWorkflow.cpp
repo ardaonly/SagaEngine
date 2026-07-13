@@ -1,8 +1,8 @@
 /// @file FirstPlayableWorkflow.cpp
 /// @brief Product Shell first-playable release-candidate evidence workflow.
-#include "FirstPlayableWorkflow.h"
+#include "FirstPlayable/FirstPlayableWorkflow.h"
 
-#include "FirstPlayableEvidenceBundle.h"
+#include "FirstPlayable/FirstPlayableEvidenceBundle.h"
 
 #include <nlohmann/json.hpp>
 

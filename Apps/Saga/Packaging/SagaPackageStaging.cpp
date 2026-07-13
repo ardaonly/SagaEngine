@@ -1,7 +1,7 @@
 /// @file SagaPackageStaging.cpp
 /// @brief Product-owned package manifest staging for Saga projects.
 
-#include "SagaPackageStaging.h"
+#include "Packaging/SagaPackageStaging.h"
 
 #include "Projects/SagaProjectSystem.h"
 

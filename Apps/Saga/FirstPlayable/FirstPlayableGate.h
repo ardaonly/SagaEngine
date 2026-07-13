@@ -2,11 +2,11 @@
 /// @brief Release-candidate gate aggregation for first-playable evidence.
 #pragma once
 
-#include "FirstPlayableManualEvidence.h"
-#include "FirstPlayablePublicClaimAudit.h"
-#include "FirstPlayableWorkspacePolicy.h"
-#include "RuntimeEvidenceRunner.h"
-#include "VisualBlocksDescriptor.h"
+#include "FirstPlayable/FirstPlayableManualEvidence.h"
+#include "FirstPlayable/FirstPlayablePublicClaimAudit.h"
+#include "FirstPlayable/FirstPlayableWorkspacePolicy.h"
+#include "FirstPlayable/RuntimeEvidenceRunner.h"
+#include "VisualBlocks/VisualBlocksDescriptor.h"
 
 #include <filesystem>
 #include <optional>

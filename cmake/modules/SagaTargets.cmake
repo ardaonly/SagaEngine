@@ -46,7 +46,59 @@ function(saga_create_engine_targets)
     saga_collect_sources(SANDBOX_SOURCES  Apps/Sandbox/src)
     saga_collect_sources(EDITOR_SOURCES   Editor/src)
     saga_collect_sources(EDITORLAB_SOURCES Apps/EditorLab/src)
-    saga_collect_sources(SAGA_PRODUCT_SOURCES Apps/Saga)
+    set(SAGA_PRODUCT_SOURCES
+        # App
+        ${SAGA_ROOT}/Apps/Saga/App/SagaApp.cpp
+        ${SAGA_ROOT}/Apps/Saga/App/SagaAppConfig.cpp
+        ${SAGA_ROOT}/Apps/Saga/App/SagaProductHost.cpp
+
+        # Launcher
+        ${SAGA_ROOT}/Apps/Saga/Launcher/SagaLauncherController.cpp
+        ${SAGA_ROOT}/Apps/Saga/Launcher/SagaLauncherModel.cpp
+        ${SAGA_ROOT}/Apps/Saga/Launcher/SagaLauncherWindow.cpp
+
+        # Projects
+        ${SAGA_ROOT}/Apps/Saga/Projects/SagaProjectCatalog.cpp
+        ${SAGA_ROOT}/Apps/Saga/Projects/SagaProjectSystem.cpp
+        ${SAGA_ROOT}/Apps/Saga/Projects/SagaSessionModel.cpp
+        ${SAGA_ROOT}/Apps/Saga/Projects/SagaWorkspaceResolver.cpp
+
+        # Targets
+        ${SAGA_ROOT}/Apps/Saga/Targets/SagaLauncherTargets.cpp
+
+        # Reports
+        ${SAGA_ROOT}/Apps/Saga/Reports/RuntimeEvidenceReport.cpp
+        ${SAGA_ROOT}/Apps/Saga/Reports/SagaLauncherReports.cpp
+        ${SAGA_ROOT}/Apps/Saga/Reports/SagaProductWorkflowSmokeReport.cpp
+
+        # Processes
+        ${SAGA_ROOT}/Apps/Saga/Processes/SagaProcessLauncher.cpp
+        ${SAGA_ROOT}/Apps/Saga/Processes/SagaProcessService.cpp
+
+        # FirstPlayable
+        ${SAGA_ROOT}/Apps/Saga/FirstPlayable/FirstPlayableEvidenceBundle.cpp
+        ${SAGA_ROOT}/Apps/Saga/FirstPlayable/FirstPlayableGate.cpp
+        ${SAGA_ROOT}/Apps/Saga/FirstPlayable/FirstPlayableHumanCapture.cpp
+        ${SAGA_ROOT}/Apps/Saga/FirstPlayable/FirstPlayableManualEvidence.cpp
+        ${SAGA_ROOT}/Apps/Saga/FirstPlayable/FirstPlayablePublicClaimAudit.cpp
+        ${SAGA_ROOT}/Apps/Saga/FirstPlayable/FirstPlayableWorkflow.cpp
+        ${SAGA_ROOT}/Apps/Saga/FirstPlayable/FirstPlayableWorkspacePolicy.cpp
+        ${SAGA_ROOT}/Apps/Saga/FirstPlayable/RuntimeEvidenceRunner.cpp
+
+        # Packaging
+        ${SAGA_ROOT}/Apps/Saga/Packaging/SagaPackageStaging.cpp
+        ${SAGA_ROOT}/Apps/Saga/Packaging/SagaPublishReadiness.cpp
+
+        # Scripting
+        ${SAGA_ROOT}/Apps/Saga/Scripting/SagaScriptGate.cpp
+
+        # VisualBlocks
+        ${SAGA_ROOT}/Apps/Saga/VisualBlocks/VisualBlocksDescriptor.cpp
+
+        # LocalWorkspace
+        ${SAGA_ROOT}/Apps/Saga/LocalWorkspace/SagaLocalCollaborationMetadataReports.cpp
+        ${SAGA_ROOT}/Apps/Saga/LocalWorkspace/SagaLocalWorkspaceTransactionReport.cpp
+    )
     saga_collect_sources(CORE_LOG_SOURCES Engine/Private/SagaEngine/Core/Log)
     saga_collect_sources(DIAGNOSTICS_SOURCES Engine/Private/SagaEngine/Diagnostics)
     saga_get_graphics_core_sources(SAGA_GRAPHICS_CORE_SOURCES)
@@ -84,8 +136,6 @@ function(saga_create_engine_targets)
     list(FILTER SANDBOX_SOURCES EXCLUDE REGEX ".*/Launchers/.*\\.cpp$")
     # Editor/src/main.cpp is a legacy stub; Apps/Editor/main.cpp is the launcher.
     list(FILTER EDITOR_SOURCES  EXCLUDE REGEX ".*/[Mm]ain\\.cpp$")
-    list(FILTER SAGA_PRODUCT_SOURCES EXCLUDE REGEX ".*/[Mm]ain\\.cpp$")
-    list(FILTER SAGA_PRODUCT_SOURCES EXCLUDE REGEX ".*/SagaQtStaticPlugins\\.cpp$")
 
     # --- Core Log Module ---------------------------------------------------
     add_library(SagaCoreLog STATIC)
@@ -620,7 +670,7 @@ function(saga_create_engine_targets)
         ${SAGA_PRODUCT_SOURCES}
     )
 
-    target_include_directories(SagaProductLib PUBLIC
+    target_include_directories(SagaProductLib PRIVATE
         ${SAGA_ROOT}/Apps/Saga
     )
 
@@ -672,6 +722,9 @@ function(saga_create_engine_targets)
 
     saga_apply_compiler_flags(Saga)
     saga_link_thirdparty(Saga)
+    target_include_directories(Saga PRIVATE
+        ${SAGA_ROOT}/Apps/Saga
+    )
     target_link_libraries(Saga PRIVATE SagaProductLib)
     if(TARGET qt::qt)
         target_link_libraries(Saga PRIVATE qt::qt)

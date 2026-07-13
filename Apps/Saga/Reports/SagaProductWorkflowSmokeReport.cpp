@@ -1,7 +1,7 @@
 /// @file SagaProductWorkflowSmokeReport.cpp
 /// @brief Report-only Product Shell workflow smoke model.
 
-#include "SagaProductWorkflowSmokeReport.h"
+#include "Reports/SagaProductWorkflowSmokeReport.h"
 
 #include <nlohmann/json.hpp>
 

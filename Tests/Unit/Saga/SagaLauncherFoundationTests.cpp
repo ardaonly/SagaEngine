@@ -2,7 +2,7 @@
 /// @brief Focused Product Launcher foundation contracts.
 
 #include "Launcher/SagaLauncherController.h"
-#include "SagaLauncherReports.h"
+#include "Reports/SagaLauncherReports.h"
 #include "Targets/SagaLauncherTargets.h"
 #include "Processes/SagaProcessService.h"
 #include "Projects/SagaProjectCatalog.h"
