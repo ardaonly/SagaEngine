@@ -27,6 +27,10 @@ and not production-ready.
   and a minimum Qt Widgets view. Project selection never auto-launches Editor;
   Editor handoff is an explicit external action. This does not establish a
   finished launcher, generic Runtime/server/world/cloud support, or readiness.
+- `Apps/Saga` is physically organized into responsibility-owned App, Launcher,
+  Projects, Targets, Reports, Processes, FirstPlayable, Packaging, Scripting,
+  VisualBlocks, and LocalWorkspace folders. `SagaProductLib` remains the single
+  Product app library; this layout split does not change Product behavior.
 - The default Linux candidate has an exact three-application/three-CLI
   whitelist with blocking extra-executable checks and file-level inventory.
   Native dependency closure and clean-machine evidence remain open.
