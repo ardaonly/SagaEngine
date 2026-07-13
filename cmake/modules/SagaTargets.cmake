@@ -739,7 +739,7 @@ function(saga_create_engine_targets)
     )
 
     target_include_directories(SagaEditor PRIVATE
-        ${SAGA_ROOT}/Editor/include   # access SagaEditor/App/* headers
+        ${SAGA_ROOT}/Editor/include
     )
 
     saga_apply_compiler_flags(SagaEditor)
@@ -747,6 +747,20 @@ function(saga_create_engine_targets)
     target_link_libraries(SagaEditor PRIVATE
         SagaEditorLib   # all editor logic + transitive Qt6::Widgets
     )
+
+    if(SAGA_WITH_EDITORLAB_DEV_PANEL)
+        target_link_libraries(SagaEditor PRIVATE SagaEditorLabBridge)
+        target_include_directories(SagaEditor PRIVATE
+            ${SAGA_ROOT}/Apps/SagaDev
+        )
+        target_compile_definitions(SagaEditor PRIVATE
+            SAGA_WITH_EDITORLAB_DEV_PANEL=1
+        )
+    else()
+        target_compile_definitions(SagaEditor PRIVATE
+            SAGA_WITH_EDITORLAB_DEV_PANEL=0
+        )
+    endif()
 
     if(TARGET Qt6::QXcbIntegrationPlugin)
         if(TARGET qt::qt)
