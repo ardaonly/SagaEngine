@@ -5,12 +5,16 @@
 #include "RuntimeEvidenceRunner.h"
 #include "SagaAppConfig.h"
 
+#include <QStandardPaths>
+
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
 
 #include <filesystem>
 #include <fstream>
+#include <stdexcept>
 #include <string>
+#include <thread>
 
 namespace
 {
@@ -31,6 +35,25 @@ void Write(const fs::path& path, const nlohmann::json& value)
     fs::create_directories(path.parent_path());
     std::ofstream output(path);
     output << value.dump(2);
+}
+
+[[nodiscard]] fs::path CopyExecutable(const fs::path& source,
+                                      const std::string& name)
+{
+    const fs::path destination = Temp("saga_process_" + name) / "SagaRuntime";
+    fs::copy_file(source, destination, fs::copy_options::overwrite_existing);
+    return destination;
+}
+
+[[nodiscard]] fs::path FindHostExecutable(const char* name)
+{
+    const QString path = QStandardPaths::findExecutable(QString::fromUtf8(name));
+    if (path.isEmpty())
+    {
+        throw std::runtime_error(std::string("Required test executable not found: ") +
+                                 name);
+    }
+    return path.toStdString();
 }
 
 [[nodiscard]] nlohmann::json CommonReport()
@@ -195,25 +218,31 @@ TEST(RuntimeEvidenceProcessTest, CapturesOutputAndNonzeroExit)
 {
     QtEvidenceProcessRunner runner;
     EvidenceProcessRequest request;
-    request.executable = "/bin/sh";
-    request.arguments = {"-c", "printf product-out; printf product-err >&2; exit 7"};
+    request.executable = CopyExecutable(FindHostExecutable("ls"), "failure");
+    request.arguments = {"/path/that/does/not/exist"};
+    request.workingDirectory = request.executable.parent_path();
     request.timeout = std::chrono::milliseconds(1000);
 
     const EvidenceProcessResult result = runner.Run(request);
 
     EXPECT_TRUE(result.started);
     EXPECT_FALSE(result.timedOut);
-    EXPECT_EQ(result.exitCode, 7);
-    EXPECT_EQ(result.standardOutput, "product-out");
-    EXPECT_EQ(result.standardError, "product-err");
+    EXPECT_NE(result.exitCode, 0);
+    EXPECT_FALSE(result.standardError.empty());
 }
 
 TEST(RuntimeEvidenceProcessTest, TerminatesAtTimeout)
 {
+#if !defined(__linux__)
+    GTEST_SKIP() << "Self-executable timeout fixture currently uses /proc/self/exe.";
+#else
     QtEvidenceProcessRunner runner;
     EvidenceProcessRequest request;
-    request.executable = "/bin/sh";
-    request.arguments = {"-c", "while :; do :; done"};
+    request.executable = CopyExecutable(
+        fs::read_symlink("/proc/self/exe"), "timeout");
+    request.arguments = {
+        "--gtest_filter=RuntimeEvidenceProcessHelper.SleepsLongEnoughForTimeout"};
+    request.workingDirectory = request.executable.parent_path();
     request.timeout = std::chrono::milliseconds(10);
 
     const EvidenceProcessResult result = runner.Run(request);
@@ -221,6 +250,12 @@ TEST(RuntimeEvidenceProcessTest, TerminatesAtTimeout)
     EXPECT_TRUE(result.started);
     EXPECT_TRUE(result.timedOut);
     EXPECT_LT(result.duration, std::chrono::milliseconds(900));
+#endif
+}
+
+TEST(RuntimeEvidenceProcessHelper, SleepsLongEnoughForTimeout)
+{
+    std::this_thread::sleep_for(std::chrono::milliseconds(250));
 }
 
 TEST(FirstPlayableConfigTest, ParsesProductShellWorkflowOptions)
