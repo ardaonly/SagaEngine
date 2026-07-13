@@ -13,6 +13,11 @@ and not production-ready.
   dedicated-server executable is currently implemented or shipped.
 - Runtime, `SagaServerLib` authority foundations, assets, editor boundaries,
   and packaging each have focused local coverage.
+- The app spine is explicit: `Saga` owns product orchestration and typed
+  process handoff, `SagaEditor` is a thin host over Editor-owned behavior, and
+  `SagaRuntime` is a standalone host with no Product, Editor, Sandbox,
+  EditorLab, or server-library dependency. Generic Runtime project execution
+  remains unsupported.
 - The default Linux candidate has an exact three-application/three-CLI
   whitelist with blocking extra-executable checks and file-level inventory.
   Native dependency closure and clean-machine evidence remain open.

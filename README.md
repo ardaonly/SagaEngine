@@ -216,7 +216,10 @@ default package. Passing the package whitelist does not establish clean-machine
 portability or release readiness because the Python archive does not yet stage
 the native dependency closure.
 
-Standalone supported execution is provided through `SagaRuntime` project
-modes. There is no separate legacy client executable, and no product
-dedicated-server executable is currently shipped. The reusable server
-foundations remain available through `SagaServerLib`.
+`Saga` is the Product Shell and launches the independently owned `SagaEditor`
+process through a typed, allowlisted request. `SagaEditor` delegates editor
+behavior to `SagaEditorLib`; `SagaRuntime` remains a standalone host for the
+bounded StarterArena smoke/playable modes. Generic Runtime project execution
+is still explicitly unsupported. There is no separate legacy client
+executable, and no product dedicated-server executable is currently shipped.
+The reusable server foundations remain available through `SagaServerLib`.

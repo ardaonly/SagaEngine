@@ -14,8 +14,9 @@ Real current surfaces used by this milestone:
 
 - `Apps/Saga` owns the Product Shell boundary, including project create/open,
   target preparation, process launch, local session metadata, SagaScript gate,
-  package staging, publish readiness, and same-process editor mounting.
-- `Apps/Editor` owns the standalone `SagaEditor` launcher.
+  package staging, and publish readiness. It launches the editor externally.
+- `Apps/Editor` is the thin standalone `SagaEditor` host: process bootstrap,
+  Qt static-plugin registration, and delegation only.
 - `Apps/EditorLab` owns scenario/development shell flows.
 - `Editor` contains `EditorApp`, `EditorHost`, `EditorShell`, profile/layout
   plumbing, panels, and read-only authoring models such as
@@ -34,19 +35,20 @@ The minimum this document workflow is:
 Open StarterArena metadata
 Show project identity/status
 Show validation report path/status
-Show available workflow actions as shell entries
+Show available workflow actions as typed entries
 Show known limitations
-Expose links/commands for runtime smoke, script/blocks evidence, server smoke, and package preflight
+Expose bounded report paths for runtime smoke, script/blocks evidence, and package preflight
 ```
 
 `SagaEditor` exposes this as a no-UI inspection mode over a caller-provided
 project and report output path. The exact build directory and output file are
 local evidence details, not architecture truth.
 
-The report contains project identity, editor read-model status, project browser
-sections, workflow action command/report references, customization metadata,
-diagnostics, and known limitations. The mode does not run the tools; it records
-the existing proof commands and whether their expected reports are present.
+The clean schema-2 report contains project identity, editor read-model status,
+project browser sections, typed action ownership/availability, customization
+metadata, diagnostics, and limitations. It has no schema-1 fallback, deprecated
+command field, `command: null`, or shell command string. The mode does not run
+the tools.
 
 ## Boundary
 
@@ -55,10 +57,10 @@ editing views. This document only provides an editor-shell inspection/report pro
 This document only adds report-level profile/view preset metadata and read-only
 capability flags.
 
-CLI tools remain the source of truth for project validation, runtime smoke,
-SagaScript, CLI-only Visual Blocks evidence, server smoke, and package
-preflight. The editor shell must not hide failed commands, missing reports, or
-known limitations.
+CLI tools remain the source of truth for project validation, bounded runtime
+smoke, SagaScript, CLI-only Visual Blocks evidence, and package preflight. The
+editor shell must not hide missing reports or known limitations. Repository-only
+server evidence is intentionally not emitted as an Editor action.
 
 ## Customization Direction
 

@@ -2,8 +2,8 @@
 
 > Status: Editor customization report model
 
-This document adds a narrow report-level customization proof to the existing
-`SagaEditor --inspect-project` mode. It records selected profile/view preset
+This document records a narrow report-level customization proof in the
+Editor-owned, clean schema-2 `SagaEditor --inspect-project` mode. It records selected profile/view preset
 metadata, panel/workflow visibility metadata, and read-only capability flags.
 It does not change live editor UI behavior or project truth.
 
@@ -71,18 +71,20 @@ build support.
 
 ## Visibility Rules
 
-No preset hides failures or removes known limitations.
+No preset hides failures or removes known limitations. The schema-2 export
+filters the legacy `server-smoke` workflow visibility entry because a
+repository-only server fixture is not a product Editor action.
 
-- `technical_preview` makes project, runtime smoke, server smoke, package
+- `technical_preview` makes project, runtime smoke, package
   preflight, and CLI-only script projection references primary.
 - `script_authoring` makes project, SagaScript analyze/compile, and CLI-only
-  block evidence primary. Runtime, server, and package references remain
+  block evidence primary. Runtime and package references remain
   available but secondary.
-- `diagnostics` makes project validation, runtime smoke, and server smoke
-  report references primary. Script, block, and package references remain
+- `diagnostics` makes project validation and runtime smoke report references
+  primary. Script, block, and package references remain
   available but secondary.
-- `server_authority` makes project and server smoke report references primary.
-  Runtime, script, block, and package references remain available but secondary.
+- `server_authority` remains a built-in profile alias, but does not create a
+  server action. Runtime, script, block, and package references remain bounded.
 
 ## Shared Truth Boundary
 
