@@ -1472,6 +1472,90 @@ TEST(CMakeTargetBoundaryTests, InstallAndDistributionStayLegacyClientFree)
     }
 }
 
+TEST(CMakeTargetBoundaryTests, ProductDistributionWhitelistStaysExactAndDevelopmentSeparate)
+{
+    const auto distributionPath = CMakeModulePath("SagaDistribution.cmake");
+    const auto installPath = CMakeModulePath("SagaInstall.cmake");
+    const std::string distribution = ReadText(distributionPath);
+    const std::string development = ReadText(installPath);
+
+    EXPECT_TRUE(ContainsToken(
+        distribution,
+        "set(_saga_product_distribution_targets Saga SagaEditor SagaRuntime)"))
+        << "SagaDistribution must declare the exact three native product apps.";
+    EXPECT_TRUE(ContainsToken(
+        distribution,
+        "install(TARGETS ${_saga_product_distribution_targets}"));
+    EXPECT_TRUE(ContainsToken(
+        distribution,
+        "DEPENDS ${_saga_product_distribution_targets}"));
+    EXPECT_FALSE(ContainsToken(distribution, "plugins/"))
+        << "Product distribution must not copy the broad Qt plugin tree.";
+    EXPECT_FALSE(ContainsToken(distribution, "file(MAKE_DIRECTORY"))
+        << "Product distribution must not create empty future placeholders.";
+
+    const std::vector<std::string> forbiddenProductTargets = {
+        "EditorLab",
+        "SagaSandbox",
+        "SagaStressArena",
+        "SagaChaosLab",
+        "SagaStateCheck",
+        "MultiplayerSandboxHeadless",
+        "RenderClientSmokeTest",
+    };
+    for (const auto& target : forbiddenProductTargets)
+    {
+        EXPECT_FALSE(ContainsToken(distribution, target))
+            << target << " must remain outside SagaDistribution.";
+    }
+
+    EXPECT_TRUE(ContainsToken(development, "COMPONENT SagaDevelopment"));
+    EXPECT_TRUE(ContainsToken(development, "SagaServerLib"))
+        << "SagaServerLib remains a legal development library artifact.";
+    EXPECT_FALSE(ContainsToken(distribution, "SagaServerLib"))
+        << "SagaServerLib must not enter the default product component.";
+}
+
+TEST(CMakeTargetBoundaryTests, DefaultDistributionPolicyIsExplicitAndSourcePlaceholdersStayAbsent)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto policyPath = root / "scripts" / "saga_linux_distribution_policy.py";
+    const auto packagePath = root / "scripts" / "package-linux-saga";
+    const std::string policy = ReadText(policyPath);
+    const std::string package = ReadText(packagePath);
+
+    for (const auto& token : {
+             "PRODUCT_APPLICATIONS",
+             "PUBLIC_TOOLS",
+             "ALLOWED_EXECUTABLE_PATHS",
+             "FORBIDDEN_EXECUTABLE_NAMES",
+             "EXCLUDED_DEV_TOOLS",
+             "EXCLUDED_RETIRED_TOOLS",
+             "EXCLUDED_SOURCE_SURFACES",
+         })
+    {
+        EXPECT_TRUE(ContainsToken(policy, token))
+            << "Missing canonical distribution policy constant " << token;
+    }
+    EXPECT_TRUE(ContainsToken(package, "validate_layout(output)"));
+    EXPECT_FALSE(ContainsToken(package, "glob(\"build/bin"));
+    EXPECT_FALSE(ContainsToken(package, "rglob(\"build/bin"));
+
+    for (const auto& relative : {
+             "Apps/Client",
+             "Apps/Server",
+             "Apps/WorldServer",
+             "Apps/NetworkLab",
+             "Apps/Shared",
+             "Tools/SDE",
+             "Tools/Prism",
+         })
+    {
+        EXPECT_FALSE(std::filesystem::exists(root / relative))
+            << relative << " must remain absent from current source ownership.";
+    }
+}
+
 TEST(CMakeTargetBoundaryTests, DedicatedServerTargetsStayHeadless)
 {
     const auto path = SagaTargetsPath();

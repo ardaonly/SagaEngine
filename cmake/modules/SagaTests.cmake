@@ -1688,6 +1688,16 @@ function(saga_setup_tests)
     #
     # Keep boundary and contract checks runnable without pulling in the Qt-heavy
     # editor unit-test link graph.
+    find_program(_saga_python3 NAMES python3)
+    if(_saga_python3 AND
+       EXISTS "${SAGA_ROOT}/Tests/Tools/test_linux_distribution_whitelist.py")
+        add_test(NAME SagaLinuxDistributionWhitelistTests
+            COMMAND "${_saga_python3}"
+                "${SAGA_ROOT}/Tests/Tools/test_linux_distribution_whitelist.py")
+        set_tests_properties(SagaLinuxDistributionWhitelistTests PROPERTIES
+            LABELS "package;architecture")
+    endif()
+
     if(ARCHITECTURE_TEST_SOURCES)
         add_executable(SagaArchitectureTests ${ARCHITECTURE_TEST_SOURCES})
         target_link_libraries(SagaArchitectureTests PRIVATE
