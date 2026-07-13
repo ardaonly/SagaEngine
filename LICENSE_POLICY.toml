@@ -1156,6 +1156,34 @@ expected_exported_target = false
 export_validation = "manual-pending"
 
 [[targets]]
+name = "SagaProductLib"
+source_domains = [
+  "saga-engine",
+  "saga-runtime",
+  "saga-server",
+  "saga-shared",
+  "saga-collaboration",
+  "saga-backends",
+  "saga-editor-current-restricted",
+]
+public_dependencies = []
+private_dependencies = ["SagaEngine", "SagaRuntimeLib", "SagaServerLib", "SagaEditorLib"]
+runtime_dependencies = []
+target_license_expression = "MPL-2.0"
+distribution = "disabled-in-reviewed-build"
+review = "classification-required"
+blockers = ["configured-source-domain-confirmation"]
+graph_required = false
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["MPL-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = false
+expected_exported_target = false
+export_validation = "manual-pending"
+
+[[targets]]
 name = "SagaEditorLabBridge"
 source_domains = ["saga-editor-current-restricted"]
 public_dependencies = []
