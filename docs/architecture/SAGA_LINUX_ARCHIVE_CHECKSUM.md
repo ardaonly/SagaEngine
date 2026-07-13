@@ -38,6 +38,12 @@ The archive root is `Saga/`. The archive must not include build caches, `.git`,
 reports outside the staged layout, sibling archive/checksum files, or unrelated
 artifacts.
 
+Before archive generation, the staged filesystem must pass the exact whitelist
+and produce a sorted file-level manifest with SHA-256, size, kind, and
+executable-bit information. Smoke validates archive entry names before unpacking
+and validates the full filesystem afterward. Required presence is insufficient
+when a forbidden or unknown entry is also present.
+
 If `tar` with `--zstd` support or the `zstd` executable is unavailable, the
 script must block honestly and must not produce a different archive format.
 

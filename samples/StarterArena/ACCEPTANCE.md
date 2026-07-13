@@ -201,6 +201,8 @@ Accepted Product Shell diagnostics evidence:
 Accepted server-authoritative smoke evidence:
 
 - `MultiplayerSandboxHeadless --starter-arena-server-smoke` exits `0`;
+- this command is repository-only development evidence; the default Linux
+  package intentionally does not include `MultiplayerSandboxHeadless`;
 - the report records `projectId: starter-arena`;
 - the report records `serverAuthority: true`;
 - the report records `networkMode: HeadlessSmoke`;

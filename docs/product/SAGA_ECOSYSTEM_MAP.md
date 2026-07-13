@@ -59,6 +59,13 @@ current bounded distribution claim.
 | `MultiplayerSandbox` | Deterministic integration fixture for project, script, package, validation, and headless workflows | Fixture and report paths exist | Finished or playable multiplayer sample |
 | Diagnostics and tests | Focused, reproducible evidence about bounded behavior | Unit, integration, architecture, GPU, CLI, and report foundations exist | Product readiness or permanent full-suite health |
 
+The default Linux candidate packages exactly the three application roles
+`Saga`, `SagaEditor`, and `SagaRuntime` plus the three public CLIs above.
+Developer labs, sample headless programs, probes, gates, and test executables
+remain repository/build evidence. Development libraries and headers, including
+`SagaServerLib`, belong to the separate CMake development component and are not
+default product executables.
+
 ## Ownership Boundaries
 
 Saga product architecture depends on explicit ownership:

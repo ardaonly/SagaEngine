@@ -31,11 +31,15 @@ A bounded Linux distribution evidence report means:
 - `Saga.tar.zst` exists;
 - `Saga.sha256` exists and verifies;
 - the archive entries are rooted at `Saga/`;
+- the schema-v2 file manifest matches the layout exactly;
+- application, public-tool, exclusion, license, and notice sets are exact;
+- package, smoke, and candidate reports share the same package/version/commit
+  identity;
 - distribution smoke status is `passed-with-limitations`;
 - unpacked tool help checks pass;
 - unpacked StarterArena `sagaproject validate`, `sagascript analyze`, and
   `Saga --workflow-smoke` pass;
-- Runtime and Editor workflow blockers are still recorded.
+- current Runtime and Editor limitations are consumed from the smoke report.
 
 ## Non-Claims
 
@@ -52,14 +56,11 @@ The candidate report does not claim:
 - cloud collaboration;
 - historical verified status.
 
-## Current Blockers
+## Current Limitations
 
-The packaged Runtime StarterArena smoke remains blocked because the packaged
-`SagaRuntime` path enters normal client startup, attempts UDP transport setup,
-and does not write the requested smoke report.
-
-The packaged Editor inspect command remains blocked because packaged
-`SagaEditor` reports `unknown argument '--inspect-project'`.
+The candidate gate does not hardcode Runtime or Editor outcomes. It carries the
+current smoke report limitations forward, requires editor executable presence,
+and does not launch the GUI in headless validation.
 
 The Product Shell workflow report is no-UI and report-only. It is not proof that
 referenced developer-tree commands ran from the packaged distribution.

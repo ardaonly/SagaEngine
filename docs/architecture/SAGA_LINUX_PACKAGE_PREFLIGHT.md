@@ -12,6 +12,11 @@ package outputs. It does not build binaries, prove production readiness, prove
 enterprise readiness, prove full distribution validation, or mark a verified
 release or verified final release.
 
+It must run on Linux from the repository root. Publishing the three CLIs needs
+a .NET 10 SDK (with direct, Nix-store, and `nix-shell` discovery paths), while
+archive generation needs tar Zstandard support and `zstd`. The packaged CLIs
+remain framework-dependent and need a compatible runtime after unpacking.
+
 The script checks for existing real inputs and the expected final distribution
 outputs, then writes a machine-readable report. The report path is local
 evidence and can be redirected:
@@ -20,11 +25,19 @@ evidence and can be redirected:
 scripts/package-linux-saga --report-out /tmp/linux_package_preflight_report.json
 ```
 
-## Report Contract
+## Report Contract (schema version 2)
 
 The report schema records:
 
 - `schemaVersion`
+- `packageName`, `version`, `gitCommit`, and `platform`
+- `stagingDir`, `archivePath`, and `checksumPath`
+- `stagedFiles` (sorted path, kind, size, SHA-256, executable flag, and link
+  target when applicable)
+- `includedApplications` and `includedPublicTools`
+- `excludedDevTools`, `excludedRetiredTools`, and `excludedSourceSurfaces`
+- `licenseFiles`, `notices`, and `thirdPartyManifests`
+- `limitations`
 - `tool: "package-linux-saga"`
 - `status: "blocked"` or `"preflight-passed"`
 - `verified: false`
@@ -46,8 +59,15 @@ The report schema records:
 `requiredInputs` contains every checked item. Each checked item is also recorded
 in either `availableInputs` or `missingInputs`.
 
+The compatibility fields `includedTargets` and `publicTools` remain for one
+schema transition and must exactly equal the new canonical sets. An empty
+`thirdPartyManifests` array is intentional: no SBOM or machine-readable
+third-party manifest is claimed.
+
 If any checked item is missing, the script exits `1`, sets
 `status: "blocked"`, and records the exact blocker strings in `diagnostics`.
+Before checking inputs it removes the old layout, archive, and checksum; a
+failed stage also removes partial output.
 If every checked item is available, the script exits `0` and sets
 `status: "preflight-passed"`. A passed preflight still does not claim production
 readiness, enterprise readiness, full distribution validation, verified final

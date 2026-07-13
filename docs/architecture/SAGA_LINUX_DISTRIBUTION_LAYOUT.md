@@ -46,6 +46,9 @@ build/dist/linux/Saga/
       WHAT_IS_NOT_IMPLEMENTED.md
       CURRENT_DISTRIBUTION_STATUS.md
   licenses/
+    LICENSE-SAGA.md
+    THIRD_PARTY_NOTICES.md
+    *.txt
   VERSION
   VERIFY.txt
   KNOWN_LIMITATIONS.md
@@ -55,6 +58,13 @@ build/dist/linux/Saga/
 No product dedicated-server executable is staged. Server-domain package
 metadata and `SagaServerLib` development artifacts are separate contracts and
 do not imply a packaged server process.
+
+The executable whitelist is exact: the three applications above, the three
+public wrappers in both `bin/` and `tools/`, and one apphost beneath each
+approved `.saga-tools` payload root. Developer, lab, probe, test, sample-only,
+and retired executable identities are blocking exclusions. Unknown top-level
+paths and unknown executable-bit files are also rejected. Native libraries are
+not copied by scanning `build/bin` or `build/lib`.
 
 ## Real Inputs
 
@@ -80,18 +90,24 @@ also states that the layout is not a verified release. It records current
 missing product areas, including full editor UI, Visual Blocks editor UI,
 enterprise collaboration, and cloud workspace.
 
-`BUILD_INFO.json` records staged inputs, the build directory, output directory,
-source commit when available, non-claims, and `verified: false`. It intentionally
-omits nondeterministic timestamps.
+`BUILD_INFO.json` uses schema version 2 and records exact application, public
+tool, exclusion, license, notice, and limitation identities plus
+`verified: false`. It also records `builtAtUtc`; reproducible archive metadata
+normalizes tar timestamps independently.
 
 ## Packaged Tools
 
 This document publishes the real `net10.0` CLI projects for `sagaproject`,
 `sagascript`, and `sagapack` with `dotnet publish --self-contained false`.
 The staged `tools/<name>` files are generated launchers that execute the
-packaged DLLs from `tools/.saga-tools/<name>/` through the discovered .NET 10
-command. They are not placeholder wrappers and do not use repository `.csproj`
+packaged DLLs from `tools/.saga-tools/<name>/` through `dotnet` (or an explicit
+`SAGA_DOTNET` override). They are not placeholder wrappers and do not use repository `.csproj`
 files.
+
+The Python archive currently does not stage native shared-library dependency
+closure, Qt support assets, or fontconfig resources. It therefore makes no
+clean-machine or portable-distribution claim. The separate CMake component
+derives native dependencies from the same three application targets.
 
 The packaged tool proof is limited to unpacked distribution help checks. It
 does not claim full tool workflows, production readiness, enterprise readiness,

@@ -243,6 +243,10 @@ Focused server-authoritative smoke:
 <build-dir>/bin/MultiplayerSandboxHeadless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-server-smoke --report-out /tmp/starter_arena_server_smoke.json --diagnostics-out /tmp/starter_arena_server_diagnostics --ticks 1 --fixed-dt 1.0
 ```
 
+This is repository-only development/sample evidence. The executable is not
+included in the default Linux package and packaged users must not expect this
+command to exist.
+
 This server smoke is local and deterministic. It proves server-owned state,
 one accepted input, one rejected invalid input, and one authoritative snapshot
 report. It is not full multiplayer gameplay and does not start an external

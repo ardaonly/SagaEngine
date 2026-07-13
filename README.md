@@ -206,6 +206,16 @@ Current packaged role binaries are:
 - `SagaEditor`
 - `SagaRuntime`
 
+The default Linux candidate also publishes exactly three user-facing CLIs:
+`sagaproject`, `sagapack`, and `sagascript`. Their published payloads ship
+under `tools/.saga-tools/`; their source projects do not.
+
+Developer labs, sandboxes, stress/chaos tools, sample headless executables,
+probes, and test binaries may exist in a build tree but are rejected from the
+default package. Passing the package whitelist does not establish clean-machine
+portability or release readiness because the Python archive does not yet stage
+the native dependency closure.
+
 Standalone supported execution is provided through `SagaRuntime` project
 modes. There is no separate legacy client executable, and no product
 dedicated-server executable is currently shipped. The reusable server

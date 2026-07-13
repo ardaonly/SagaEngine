@@ -12,11 +12,18 @@ local environment and subsystem.
 - Some tools and native targets can be built and verified locally.
 - Distribution staging exists for selected artifacts.
 - A limited Linux technical-preview archive can be produced and smoke-checked.
+- That candidate archive is constrained to exactly `Saga`, `SagaEditor`, and
+  `SagaRuntime`, plus the published `sagaproject`, `sagapack`, and `sagascript`
+  CLIs. Developer/lab/probe/test executables are not default package artifacts.
 - The limited Linux path may include a staged layout, archive, checksum,
   preflight report, distribution smoke report, and candidate aggregation report.
 
 These artifacts are local evidence for supported paths. They are not a public
 release channel and they are not current onboarding requirements.
+
+The archive includes the Saga license, third-party notices, and license texts,
+but no SBOM. The Python path does not yet stage native dependency closure, so it
+does not establish clean-machine portability.
 
 ## What To Avoid
 

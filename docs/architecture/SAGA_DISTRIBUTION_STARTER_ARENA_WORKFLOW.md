@@ -44,18 +44,12 @@ The required this document distribution-only commands are:
 These commands provide project validation, a narrow SagaScript analysis pass, and
 a no-UI Product Shell workflow report.
 
-## Recorded Blockers
+## Recorded Limitations
 
-The packaged Runtime StarterArena smoke is recorded as blocked. The current
-packaged `SagaRuntime` command enters normal client startup, attempts UDP
-transport setup, and does not write the requested runtime smoke report.
-
-The packaged Editor inspect command is recorded as blocked. The current
-packaged `SagaEditor` reports:
-
-```txt
-SagaEditor: unknown argument '--inspect-project'
-```
+The packaged Runtime StarterArena command is optional bounded evidence; its
+current result is recorded directly in the smoke report without a hardcoded
+historical diagnosis. `SagaEditor` is executable-presence checked but is not
+launched by headless archive smoke.
 
 The Product Shell workflow report is report-only. Its internal developer-tree
 command references are not executed by the distribution smoke and are not
@@ -72,6 +66,6 @@ This smoke evidence does not claim:
 - full gameplay readiness;
 - full editor workflow;
 - full Visual Blocks UI;
-- Runtime StarterArena workflow success from the packaged distribution;
-- Editor inspect workflow success from the packaged distribution;
+- Runtime StarterArena workflow success unless the current smoke report records it;
+- Editor GUI or inspect workflow success;
 - any historical verified status.

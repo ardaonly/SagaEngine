@@ -13,6 +13,9 @@ and not production-ready.
   dedicated-server executable is currently implemented or shipped.
 - Runtime, `SagaServerLib` authority foundations, assets, editor boundaries,
   and packaging each have focused local coverage.
+- The default Linux candidate has an exact three-application/three-CLI
+  whitelist with blocking extra-executable checks and file-level inventory.
+  Native dependency closure and clean-machine evidence remain open.
 - The full raw CTest suite is not a current pass signal.
 - Heavy stress/load checks are opt-in and unresolved.
 - Full editor, playable runtime, production networking, production renderer,
