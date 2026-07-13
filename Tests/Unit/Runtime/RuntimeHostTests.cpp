@@ -8,7 +8,7 @@
 namespace
 {
 
-TEST(RuntimeHostTests, LegacyConnectedClientModeFailsWithStableDiagnostic)
+TEST(RuntimeHostTests, GenericProjectModeFailsWithStableDiagnostic)
 {
     const SagaRuntimeApp::RuntimeHostResult result =
         SagaRuntimeApp::RuntimeHost{}.Run();
@@ -17,11 +17,11 @@ TEST(RuntimeHostTests, LegacyConnectedClientModeFailsWithStableDiagnostic)
     EXPECT_EQ(result.exitCode, 2);
     EXPECT_EQ(
         result.diagnosticId,
-        SagaRuntimeApp::RuntimeHostDiagnostics::LegacyConnectedClientUnsupported);
+        SagaRuntimeApp::RuntimeHostDiagnostics::GenericProjectModeUnsupported);
     EXPECT_EQ(result.message.find("SagaClient"), std::string::npos);
-    EXPECT_NE(result.message.find("Connected-client mode is unsupported"),
+    EXPECT_NE(result.message.find("Generic project execution is unsupported"),
               std::string::npos);
-    EXPECT_NE(result.message.find("supported SagaRuntime project mode"),
+    EXPECT_NE(result.message.find("Generic project execution is unsupported"),
               std::string::npos);
 }
 

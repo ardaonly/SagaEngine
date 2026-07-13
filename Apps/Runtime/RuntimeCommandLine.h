@@ -27,6 +27,7 @@ struct RuntimeCommandLine
     bool invokeStarterArenaScript = false;
     bool runStarterArenaScriptLifecycle = false;
     bool runStarterArenaGameplay = false;
+    bool showHelp = false;
     std::string playableInputSource = "scene";
     std::uint32_t smokeFrames = 30;
     std::uint32_t playableFrames = 0;

@@ -11,10 +11,10 @@ RuntimeHostResult RuntimeHost::Run() const
     RuntimeHostResult result;
     result.exitCode = 2;
     result.diagnosticId =
-        RuntimeHostDiagnostics::LegacyConnectedClientUnsupported;
+        RuntimeHostDiagnostics::GenericProjectModeUnsupported;
     result.message =
-        "Connected-client mode is unsupported. Select a supported "
-        "SagaRuntime project mode.";
+        "Generic project execution is unsupported. Select a bounded "
+        "SagaRuntime mode such as StarterArena smoke or playable evidence.";
     return result;
 }
 
