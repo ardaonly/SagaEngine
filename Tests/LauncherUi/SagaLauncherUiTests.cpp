@@ -1,7 +1,7 @@
 /// @file SagaLauncherUiTests.cpp
 /// @brief Offscreen durable minimum Product Launcher UI contracts.
 
-#include "SagaLauncherWindow.h"
+#include "Launcher/SagaLauncherWindow.h"
 
 #include <gtest/gtest.h>
 

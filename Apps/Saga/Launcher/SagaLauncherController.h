@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "SagaLauncherModel.h"
+#include "Launcher/SagaLauncherModel.h"
 #include "SagaLauncherReports.h"
 #include "SagaLauncherTargets.h"
 #include "SagaProjectCatalog.h"

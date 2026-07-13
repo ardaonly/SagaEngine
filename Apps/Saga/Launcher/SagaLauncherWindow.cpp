@@ -1,9 +1,9 @@
 /// @file SagaLauncherWindow.cpp
 /// @brief Renders launcher state and dispatches typed controller actions.
 
-#include "SagaLauncherWindow.h"
+#include "Launcher/SagaLauncherWindow.h"
 
-#include "SagaLauncherController.h"
+#include "Launcher/SagaLauncherController.h"
 
 #include <QFileDialog>
 #include <QGroupBox>

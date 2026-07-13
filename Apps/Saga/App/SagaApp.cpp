@@ -1,13 +1,13 @@
 /// @file SagaApp.cpp
 /// @brief Saga product orchestration lifecycle implementation.
 
-#include "SagaApp.h"
+#include "App/SagaApp.h"
 
 #include "FirstPlayableHumanCapture.h"
 #include "FirstPlayableWorkflow.h"
 #include "SagaLocalCollaborationMetadataReports.h"
 #include "SagaLocalWorkspaceTransactionReport.h"
-#include "SagaLauncherWindow.h"
+#include "Launcher/SagaLauncherWindow.h"
 #include "SagaPackageStaging.h"
 #include "SagaProjectSystem.h"
 #include "SagaProductWorkflowSmokeReport.h"

@@ -1,7 +1,7 @@
 /// @file SagaLauncherFoundationTests.cpp
 /// @brief Focused Product Launcher foundation contracts.
 
-#include "SagaLauncherController.h"
+#include "Launcher/SagaLauncherController.h"
 #include "SagaLauncherReports.h"
 #include "SagaLauncherTargets.h"
 #include "SagaProcessService.h"
