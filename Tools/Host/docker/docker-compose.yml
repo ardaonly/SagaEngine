@@ -28,23 +28,6 @@ services:
       timeout: 5s
       retries: 5
 
-  saga-server:
-    image: ${SAGA_HOST_SERVER_IMAGE:-sagaengine-server:local}
-    build:
-      context: .
-      dockerfile: Tools/Host/docker/Dockerfile
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    ports:
-      - "${SAGA_HOST_SERVER_PORT:-7777}:${SAGA_HOST_SERVER_PORT:-7777}/udp"
-    command:
-      - "--port"
-      - "${SAGA_HOST_SERVER_PORT:-7777}"
-    restart: unless-stopped
-
 volumes:
   postgres_data:
   redis_data:

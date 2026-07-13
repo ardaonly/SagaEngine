@@ -84,7 +84,6 @@ Host automation is registered the same way:
 tools host start
 tools host stop
 tools host restart
-tools host rebuild
 tools host logs
 tools host status
 ```
