@@ -1169,7 +1169,6 @@ TEST(CMakeTargetBoundaryTests, RuntimeAndServerTargetsDoNotLinkEditorDevOrToolTa
         "SagaRuntimeLib",
         "SagaServerLib",
         "SagaRuntime",
-        "SagaServer",
     };
     const std::vector<std::string> forbidden = {
         "SagaEditorLib",
@@ -1259,6 +1258,70 @@ TEST(CMakeTargetBoundaryTests, LegacyClientExecutableAndSourceOwnershipStayRetir
         << "The retired Apps/Client implementation directory must stay absent.";
 }
 
+TEST(CMakeTargetBoundaryTests, LegacyServerExecutableAndSourceOwnershipStayRetired)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto targetsPath = SagaTargetsPath();
+    const std::string targetsText = ReadText(targetsPath);
+    const auto linkCalls = ExtractTargetLinkCalls(ReadLines(targetsPath));
+
+    EXPECT_TRUE(ExtractTargetCall(
+                    targetsText, "add_executable", "SagaServer").empty())
+        << "The retired SagaServer executable target must not be restored.";
+    EXPECT_FALSE(ContainsToken(targetsText, "OUTPUT_NAME \"SagaServer\""))
+        << "The retired SagaServer executable identity must not be restored.";
+    EXPECT_FALSE(ContainsToken(targetsText, "Apps/Server"))
+        << "No CMake source or include variable may own Apps/Server.";
+
+    for (const auto& call : linkCalls)
+    {
+        EXPECT_FALSE(ContainsCMakeToken(call.text, "SagaServer"))
+            << "No CMake target may link the retired SagaServer executable. "
+            << "Offending call in " << targetsPath.generic_string() << ":"
+            << call.line << "\n" << call.text;
+    }
+
+    EXPECT_FALSE(std::filesystem::exists(root / "Apps" / "Server"))
+        << "The retired Apps/Server probe directory must stay absent.";
+    EXPECT_FALSE(std::filesystem::exists(root / "Apps" / "WorldServer"))
+        << "A product-looking WorldServer placeholder requires new evidence.";
+
+    const std::vector<std::filesystem::path> executableSurfaces = {
+        CMakeModulePath("SagaDistribution.cmake"),
+        CMakeModulePath("SagaSampleEvidence.cmake"),
+        root / "scripts" / "package-linux-saga",
+        root / "scripts" / "verify-linux-distribution-contract",
+        root / "scripts" / "smoke-linux-saga-dist",
+        root / "Tools" / "Host" / "host.sh",
+        root / "Tools" / "Host" / "docker" / "docker-compose.yml",
+        root / "Apps" / "Saga" / "SagaProductHost.cpp",
+        root / "Apps" / "Saga" / "SagaWorkspaceResolver.cpp",
+    };
+    for (const auto& path : executableSurfaces)
+    {
+        ASSERT_TRUE(std::filesystem::exists(path))
+            << "Expected retirement surface is missing: "
+            << path.generic_string();
+        const std::string text = ReadText(path);
+        EXPECT_FALSE(ContainsToken(text, "SagaServer"))
+            << path.generic_string()
+            << " must not require, stage, or execute the retired server app.";
+        EXPECT_FALSE(ContainsToken(text, "Apps/Server"))
+            << path.generic_string()
+            << " must not own the retired server app sources.";
+        EXPECT_FALSE(ContainsToken(text, "saga-server"))
+            << path.generic_string()
+            << " must not restore the retired server service.";
+        EXPECT_FALSE(ContainsToken(text, "--without-server"))
+            << path.generic_string()
+            << " must not restore the obsolete package compatibility switch.";
+    }
+
+    EXPECT_FALSE(std::filesystem::exists(
+        root / "Tools" / "Host" / "docker" / "Dockerfile"))
+        << "Host tooling must not restore a legacy server image.";
+}
+
 TEST(CMakeTargetBoundaryTests, ProductAndEditorTargetsStayClientAppFree)
 {
     const auto path = SagaTargetsPath();
@@ -1322,7 +1385,6 @@ TEST(CMakeTargetBoundaryTests, DedicatedServerTargetsStayHeadless)
 
     const std::vector<std::string> serverTargets = {
         "SagaServerLib",
-        "SagaServer",
     };
     const std::vector<std::string> forbiddenDependencies = {
         "SagaPlatformSDL",
