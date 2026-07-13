@@ -22,7 +22,6 @@ struct BuildProfile
     TargetPlatform targetPlatform;
     Packages::PackageKind outputPackageKind = Packages::PackageKind::Client;
     BuildConfiguration configuration;
-    std::string sdeOptionsRef;
     std::string graphValidationPolicy;
     std::string scriptCompilePolicy;
     std::string assetCookPolicy;
