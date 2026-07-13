@@ -697,10 +697,8 @@ function(saga_create_engine_targets)
         FOLDER      "Apps"
     )
 
-    # SagaRuntime is the shipped runtime/player role. For v0.0.8 it reuses the
-    # client host through a temporary adapter entry point; the long-term split is
-    # Runtime Core + optional client UI.
-    set(SAGA_RUNTIME_COMMON_SOURCES
+    # Legacy client sources remain owned only by the SagaClient executable.
+    set(SAGA_CLIENT_HOST_SOURCES
         ${SAGA_ROOT}/Apps/Client/ClientHost.h
         ${SAGA_ROOT}/Apps/Client/ClientHost.cpp
     )
@@ -708,6 +706,8 @@ function(saga_create_engine_targets)
     add_executable(SagaRuntime
         ${SAGA_ROOT}/Apps/Runtime/main.cpp
         ${SAGA_ROOT}/Apps/Runtime/RuntimeCommandLine.h
+        ${SAGA_ROOT}/Apps/Runtime/RuntimeHost.h
+        ${SAGA_ROOT}/Apps/Runtime/RuntimeHost.cpp
         ${SAGA_ROOT}/Apps/Runtime/RuntimeAssetStartupBootstrap.hpp
         ${SAGA_ROOT}/Apps/Runtime/RuntimeAssetStartupBootstrap.cpp
         ${SAGA_ROOT}/Apps/Runtime/StarterArenaSmoke.h
@@ -726,11 +726,6 @@ function(saga_create_engine_targets)
         ${SAGA_ROOT}/Apps/Runtime/StarterArenaPlayable.cpp
         ${SAGA_ROOT}/Apps/Runtime/StarterArenaPlayableScene.h
         ${SAGA_ROOT}/Apps/Runtime/StarterArenaPlayableScene.cpp
-        ${SAGA_RUNTIME_COMMON_SOURCES}
-    )
-
-    target_include_directories(SagaRuntime PRIVATE
-        ${SAGA_ROOT}/Apps/Client
     )
 
     target_compile_definitions(SagaRuntime PRIVATE SDL_MAIN_HANDLED)
@@ -755,7 +750,7 @@ function(saga_create_engine_targets)
     # SAGA production distribution so product identity stays role-based.
     set(SAGA_CLIENT_SOURCES
         ${SAGA_ROOT}/Apps/Client/main.cpp
-        ${SAGA_RUNTIME_COMMON_SOURCES}
+        ${SAGA_CLIENT_HOST_SOURCES}
     )
 
     add_executable(SagaApp ${SAGA_CLIENT_SOURCES})

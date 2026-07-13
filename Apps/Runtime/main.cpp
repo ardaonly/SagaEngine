@@ -1,14 +1,9 @@
 /// @file main.cpp
-/// @brief Temporary SagaRuntime adapter over the current client host.
-///
-/// v0.0.8 ships a role-based runtime binary while the runtime core is still
-/// being separated from the older client entrypoint. Keep editor/tooling
-/// dependencies out of this adapter; Runtime Core should remain separate from
-/// optional client UI semantics.
+/// @brief Dispatches standalone runtime modes through Runtime-owned boundaries.
 
-#include "ClientHost.h"
 #include "RuntimeAssetStartupBootstrap.hpp"
 #include "RuntimeCommandLine.h"
+#include "RuntimeHost.h"
 #include "StarterArenaPlayable.h"
 #include "StarterArenaSmoke.h"
 
@@ -16,8 +11,6 @@
 #include <SagaEngine/Platform/PlatformFactory.h>
 #include <SagaEngine/Resources/AssetRegistry.h>
 
-#include <SagaRuntime/RuntimeServiceRegistry.hpp>
-#include <SagaRuntime/RuntimeServiceRegistryDiagnostics.hpp>
 #include <SagaRuntime/RuntimeStartupDiagnostics.hpp>
 #include <SagaRuntime/RuntimeStartupSession.hpp>
 
@@ -25,57 +18,12 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
-#include <memory>
 #include <string>
-#include <utility>
 
 namespace
 {
 
 constexpr const char* kLogTag = "Runtime";
-
-class RuntimeBootstrapService final : public SagaRuntime::IRuntimeService
-{
-public:
-    RuntimeBootstrapService()
-    {
-        m_descriptor.serviceId = "runtime.app.bootstrap";
-        m_descriptor.displayName = "Runtime App Bootstrap";
-        m_descriptor.category = "app";
-    }
-
-    const SagaRuntime::RuntimeServiceDescriptor& Descriptor() const noexcept override
-    {
-        return m_descriptor;
-    }
-
-    SagaRuntime::RuntimeServiceLifecycleResult Start() override
-    {
-        return SagaRuntime::RuntimeServiceLifecycle::Transition(
-            m_descriptor,
-            SagaRuntime::RuntimeServiceState::Registered,
-            SagaRuntime::RuntimeServiceState::Started);
-    }
-
-    SagaRuntime::RuntimeServiceLifecycleResult Tick() override
-    {
-        SagaRuntime::RuntimeServiceLifecycleResult result;
-        result.descriptor = m_descriptor;
-        result.state = SagaRuntime::RuntimeServiceState::Started;
-        return result;
-    }
-
-    SagaRuntime::RuntimeServiceLifecycleResult Stop() override
-    {
-        return SagaRuntime::RuntimeServiceLifecycle::Transition(
-            m_descriptor,
-            SagaRuntime::RuntimeServiceState::Started,
-            SagaRuntime::RuntimeServiceState::Stopped);
-    }
-
-private:
-    SagaRuntime::RuntimeServiceDescriptor m_descriptor;
-};
 
 void LogStartupDiagnostic(
     const SagaRuntime::RuntimeStartupDiagnosticView& diagnostic)
@@ -113,130 +61,6 @@ void LogAssetBootstrapDiagnostic(
                   "Startup asset bootstrap resolved path: %s",
                   resolvedPath.c_str());
     }
-}
-
-const char* ToRuntimeServiceRegistryStateName(
-    SagaRuntime::RuntimeServiceRegistryReportState state) noexcept
-{
-    switch (state)
-    {
-        case SagaRuntime::RuntimeServiceRegistryReportState::Ready:
-            return "ready";
-        case SagaRuntime::RuntimeServiceRegistryReportState::Blocked:
-            return "blocked";
-        case SagaRuntime::RuntimeServiceRegistryReportState::Idle:
-            return "idle";
-    }
-
-    return "unknown";
-}
-
-void LogRuntimeServiceDiagnostic(
-    const SagaRuntime::RuntimeServiceDiagnosticView& diagnostic)
-{
-    switch (diagnostic.severity)
-    {
-        case SagaRuntime::RuntimeServiceDiagnosticSeverity::Error:
-            LOG_ERROR(kLogTag,
-                      "Runtime service diagnostic: %s: %s",
-                      diagnostic.serviceId.c_str(),
-                      diagnostic.message.c_str());
-            return;
-        case SagaRuntime::RuntimeServiceDiagnosticSeverity::Warning:
-            LOG_WARN(kLogTag,
-                     "Runtime service diagnostic: %s: %s",
-                     diagnostic.serviceId.c_str(),
-                     diagnostic.message.c_str());
-            return;
-        case SagaRuntime::RuntimeServiceDiagnosticSeverity::Info:
-            LOG_INFO(kLogTag,
-                     "Runtime service diagnostic: %s: %s",
-                     diagnostic.serviceId.c_str(),
-                     diagnostic.message.c_str());
-            return;
-    }
-}
-
-void LogRuntimeServiceRegistryReport(
-    const char* operationName,
-    const SagaRuntime::RuntimeServiceRegistryReport& report)
-{
-    const auto summary =
-        SagaRuntime::RuntimeServiceRegistryDiagnostics::Summarize(report);
-
-    if (summary.state == SagaRuntime::RuntimeServiceRegistryReportState::Blocked)
-    {
-        LOG_ERROR(kLogTag,
-                  "Runtime service %s blocked: services=%zu diagnostics=%zu errors=%zu warnings=%zu",
-                  operationName,
-                  summary.serviceResultCount,
-                  summary.diagnosticCount,
-                  summary.errorDiagnosticCount,
-                  summary.warningDiagnosticCount);
-    }
-    else
-    {
-        LOG_INFO(kLogTag,
-                 "Runtime service %s %s: services=%zu diagnostics=%zu",
-                 operationName,
-                 ToRuntimeServiceRegistryStateName(summary.state),
-                 summary.serviceResultCount,
-                 summary.diagnosticCount);
-    }
-
-    for (const SagaRuntime::RuntimeServiceDiagnosticView& diagnostic :
-         SagaRuntime::RuntimeServiceRegistryDiagnostics::BuildDiagnosticViews(report))
-    {
-        LogRuntimeServiceDiagnostic(diagnostic);
-    }
-}
-
-SagaRuntime::RuntimeServiceRegistryReport ReportForResult(
-    SagaRuntime::RuntimeServiceLifecycleResult result)
-{
-    SagaRuntime::RuntimeServiceRegistryReport report;
-    for (const SagaRuntime::RuntimeServiceDiagnostic& diagnostic :
-         result.diagnostics)
-    {
-        report.diagnostics.push_back(diagnostic);
-    }
-    report.results.push_back(std::move(result));
-    return report;
-}
-
-bool StartRuntimeServices(SagaRuntime::RuntimeServiceRegistry& registry)
-{
-    SagaRuntime::RuntimeServiceLifecycleResult registration =
-        registry.Register(std::make_unique<RuntimeBootstrapService>());
-    if (!registration.Succeeded())
-    {
-        LogRuntimeServiceRegistryReport(
-            "registration",
-            ReportForResult(std::move(registration)));
-        return false;
-    }
-
-    SagaRuntime::RuntimeServiceRegistryReport startReport = registry.StartAll();
-    LogRuntimeServiceRegistryReport("startup", startReport);
-    return startReport.Succeeded();
-}
-
-void StopRuntimeServices(SagaRuntime::RuntimeServiceRegistry& registry)
-{
-    SagaRuntime::RuntimeServiceRegistryReport stopReport = registry.StopAll();
-    LogRuntimeServiceRegistryReport("shutdown", stopReport);
-}
-
-Saga::ClientConfig ToClientConfig(
-    const SagaRuntime::RuntimeSessionDescriptor& descriptor)
-{
-    Saga::ClientConfig config;
-    config.serverHost = descriptor.serverHost;
-    config.serverPort = descriptor.serverPort;
-    config.headless = descriptor.headless;
-    config.enableRuntimeUi = descriptor.enableStartupUi;
-    config.uiContentRoot = descriptor.startupContentRoot;
-    return config;
 }
 
 SagaRuntime::RuntimeStartupReport PrepareRuntimeStartup(
@@ -516,21 +340,15 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    SagaRuntime::RuntimeServiceRegistry runtimeServices;
-    if (!StartRuntimeServices(runtimeServices))
+    const SagaRuntimeApp::RuntimeHostResult hostResult =
+        SagaRuntimeApp::RuntimeHost{}.Run();
+    if (!hostResult.ok)
     {
-        SagaEngine::Core::Log::Shutdown();
-        return 1;
+        LOG_ERROR(kLogTag,
+                  "%s: %s",
+                  hostResult.diagnosticId.c_str(),
+                  hostResult.message.c_str());
     }
-
-    auto platformFactory = Saga::CreateSDLPlatformFactory();
-    Saga::PlatformFactory::Set(platformFactory.get());
-
-    Saga::ClientHost host(ToClientConfig(startupReport.sessionDescriptor));
-    host.Run();
-
-    StopRuntimeServices(runtimeServices);
-
     SagaEngine::Core::Log::Shutdown();
-    return 0;
+    return hostResult.exitCode;
 }
