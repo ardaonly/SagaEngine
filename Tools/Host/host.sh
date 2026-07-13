@@ -17,17 +17,15 @@ Usage:
   host.sh <command> [args]
 
 Commands:
-  start       Start the SagaEngine host stack
-  stop        Stop the host stack without deleting volumes
-  restart     Restart the host stack
-  rebuild     Rebuild and restart the saga-server container
+  start       Start the local dependency stack
+  stop        Stop the dependency stack without deleting volumes
+  restart     Restart the dependency stack
   logs        Show/follow Docker Compose logs
   status      Show Docker Compose service status
   help        Show this help
 
 Environment:
   SAGA_HOST_PROJECT        Compose project name (default: sagaengine-host)
-  SAGA_HOST_SERVER_PORT    UDP server port (default: 7777)
   SAGA_HOST_POSTGRES_PORT  Postgres host port (default: 5432)
   SAGA_HOST_REDIS_PORT     Redis host port (default: 6379)
 EOF
@@ -70,22 +68,16 @@ fi
 
 case "$command_name" in
     start|up)
-        printf '[host] starting SagaEngine host stack (%s)\n' "$project_name"
+        printf '[host] starting local dependency stack (%s)\n' "$project_name"
         run_compose up -d
         ;;
     stop)
-        printf '[host] stopping SagaEngine host stack (%s)\n' "$project_name"
+        printf '[host] stopping local dependency stack (%s)\n' "$project_name"
         run_compose stop "$@"
         ;;
     restart)
-        printf '[host] restarting SagaEngine host stack (%s)\n' "$project_name"
+        printf '[host] restarting local dependency stack (%s)\n' "$project_name"
         run_compose restart "$@"
-        ;;
-    rebuild)
-        printf '[host] rebuilding saga-server image\n'
-        run_compose build saga-server
-        printf '[host] starting rebuilt saga-server\n'
-        run_compose up -d saga-server
         ;;
     logs)
         run_compose logs -f "$@"
