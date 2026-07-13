@@ -27,12 +27,12 @@ enforcement gate and does not change build behavior.
 
 | ID | Classification | Evidence | Boundary risk |
 |---|---|---|---|
-| CBI-001 | report-only legacy violation | `cmake/modules/SagaTargets.cmake` uses recursive source collection for major targets. | Misplaced files can silently enter a target without explicit ownership review. |
+| CBI-001 | report-only legacy violation | `cmake/modules/SagaTargets.cmake` still uses recursive source collection for several major targets; `SagaProductLib` now uses an explicit, responsibility-grouped source list. | Misplaced files can silently enter the remaining recursive targets; Apps/Saga layout and ownership guards protect the Product source list. |
 | CBI-002 | report-only legacy violation | `cmake/modules/SagaTests.cmake` collects broad test source sets. | Tests can join broad executables and inherit too much include/link access. |
 | CBI-003 | candidate for include-root restriction | `SagaEngine` exports both `Engine/Public` and `Runtime/include`. | Engine consumers can see Runtime headers through the Engine target interface. |
 | CBI-004 | candidate for public API cleanup | `SagaEditorLib` publicly links Qt and public Editor headers expose Qt-shaped types. | Qt remains part of the Editor public ABI until those headers are redesigned. |
 | CBI-005 | resolved app-spine boundary | `SagaProductLib` links Product-owned foundations and Qt but no longer links `SagaEditorLib`, `SagaRuntimeLib`, or `SagaServerLib`. | Architecture tests reject upward Editor/Runtime/Server implementation coupling. |
-| CBI-006 | Product Launcher Foundation ownership | `SagaProductLib` owns Qt-independent launcher state/controller/catalog/target/report services and the thin Qt Widgets renderer. `SagaProcessService.cpp` remains the sole `QProcess` owner. | Product and offscreen UI tests guard the exact action allowlist, disabled unsupported targets, no raw process UI, and unchanged app dependency direction. |
+| CBI-006 | Product Launcher Foundation ownership | `SagaProductLib` owns Qt-independent launcher state/controller/catalog/target/report services and the thin Qt Widgets renderer. Product sources are physically split by responsibility under `Apps/Saga`; `Apps/Saga/Processes/SagaProcessService.cpp` remains the sole `QProcess` owner. | Product, offscreen UI, and architecture tests guard the exact action allowlist, disabled unsupported targets, no raw process UI, source-folder ownership, and unchanged app dependency direction. |
 | CBI-007 | uncertain, needs inspection | `SagaBackend` exports a mixed backend include root. | Consumers can include generic backend service paths without clear ownership. |
 | CBI-008 | candidate for test graph narrowing | Architecture and product tests inherit broad include roots. | Include-boundary tests are weaker when the test target can already see most modules. |
 
