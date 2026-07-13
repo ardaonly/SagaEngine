@@ -3,7 +3,7 @@
 ## Status
 
 Scene schema v1 describes source-controlled scene truth for validation and
-inventory. It does not add Runtime gameplay, Server gameplay, ClientHost
+inventory. It does not add Runtime gameplay, Server gameplay, client preview
 behavior, Editor UI, Qt UI, asset import, or asset cook paths.
 
 ## Required Fields

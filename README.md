@@ -208,5 +208,5 @@ Role binaries may include:
 - `SagaRuntime`
 - `SagaServer`
 
-`SagaClient` is a legacy development alias and is not part of the intended
-distribution surface.
+Standalone supported execution is provided through `SagaRuntime` project
+modes. There is no separate legacy client executable.

@@ -3,13 +3,13 @@
 Status: Architecture boundary for bounded local preview and runtime UI seams.
 
 This document defines the boundary for alpha client preview and runtime UI
-overlay work. It does not change `ClientHost`, networking, server behavior, or
-runtime UI.
+overlay work. It does not add networking, server behavior, or runtime UI.
 
 ## Client Preview Decision
 
-The existing `ClientHost` is blocked for alpha client preview claims until a
-bounded report seam exists.
+The legacy standalone client host has been retired. No legacy client executable
+is shipped, and alpha client preview remains blocked until a bounded Runtime-
+owned report seam exists.
 
 The repository can continue to use server-headless and local tool evidence, but
 small-team alpha client preview must not depend on an unbounded or hard-to-exit
@@ -17,10 +17,10 @@ client path.
 
 ## Runtime Read Seam
 
-A `RuntimeClientHost` or equivalent seam may be introduced only as a bounded,
-local, report-oriented adapter over runtime-readable project state. The seam
-must not become a second project model, a live editor back door, or an implicit
-network stack.
+A future Runtime preview seam may be introduced only as a bounded, local,
+report-oriented adapter over runtime-readable project state. The seam must not
+become a second project model, a live editor back door, or an implicit network
+stack.
 
 Runtime-readable inputs are contract-only until implemented:
 
@@ -31,7 +31,7 @@ Runtime-readable inputs are contract-only until implemented:
   missing, stale, or invalid.
 
 `ReadyForImplementationPlanning` style report statuses, where present in tools,
-must not be read as proof that Runtime, ClientHost, or Client Preview exists.
+must not be read as proof that a complete Runtime or Client Preview exists.
 
 Required seam properties:
 
@@ -108,5 +108,6 @@ panel replacement.
 
 ## Boundary
 
-Preview work must not rewrite or migrate `ClientHost` as a side effect of this
-strategy. The strategy defines the handoff shape and diagnostics contract only.
+Preview work must not restore the retired client application as a side effect
+of this strategy. The strategy defines the handoff shape and diagnostics
+contract only.

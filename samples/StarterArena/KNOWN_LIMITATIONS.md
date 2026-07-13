@@ -10,9 +10,9 @@
 - No launch profile is declared for StarterArena.
 - `SagaLaunchLab` currently exposes server/headless launch commands, not a
   runtime/client sample launch command.
-- The `--starter-arena-smoke` path bypasses `ClientHost`, renderer setup, and
-  UDP/client networking.
-- The `--starter-arena-playable` path also bypasses `ClientHost` and networking,
+- The `--starter-arena-smoke` path is Runtime-owned and does not initialize
+  renderer setup or UDP/client networking.
+- The `--starter-arena-playable` path is also Runtime-owned and socket-free,
   but initializes the existing platform window and render backend.
 - Visible mode supports scene-authored input, deterministic synthetic JSON
   input, and explicit keyboard input through the existing engine input path.

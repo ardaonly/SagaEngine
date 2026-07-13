@@ -38,7 +38,7 @@ implementation.
 - No cloud transport, authenticated identity, account login, tenant isolation,
   organization administration, realtime authorization, or production audit
   storage is proven.
-- No Runtime, Server, ClientHost, Editor UI, or Qt UI proof is implied by
+- No Runtime, Server, client preview, Editor UI, or Qt UI proof is implied by
   WorkspaceHub reports.
 - Presence and Team Room outputs are filtered report artifacts, not proof that
   unauthorized clients never receive data over a real transport.
@@ -69,7 +69,7 @@ implementation.
 - no artifact export security
 - no Runtime proof
 - no Server proof
-- no ClientHost proof
+- no client preview proof
 - no Editor UI proof
 - no Qt UI proof
 - no raw full CTest

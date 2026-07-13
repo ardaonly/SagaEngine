@@ -36,6 +36,6 @@ report output.
 
 ## Non-Goals
 
-This document does not add Runtime behavior, Server behavior, ClientHost behavior,
-Editor UI, Qt UI, workspace service work, cloud collaboration, identity,
-permission enforcement, or source encryption.
+This document does not add Runtime behavior, Server behavior, client preview
+behavior, Editor UI, Qt UI, workspace service work, cloud collaboration,
+identity, permission enforcement, or source encryption.

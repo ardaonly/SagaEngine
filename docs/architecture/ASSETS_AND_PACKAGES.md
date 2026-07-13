@@ -1,6 +1,6 @@
 # Assets And Packages
 
-> Last updated: 2026-05-26
+> Last updated: 2026-07-13
 
 Asset and package support exists for selected local workflows. It is not a full
 asset import/cook pipeline or release packaging system.
@@ -21,7 +21,7 @@ release packaging workflow.
   runtime asset bootstrap support exist.
 - Package checks can report package/asset/identity coverage.
 - Full AssetPipeline source discovery/import/cook is incomplete.
-- ClientHost/runtime asset consumption is incomplete.
+- Complete runtime asset consumption is incomplete.
 - RuntimeServiceRegistry asset service is incomplete.
 - A playable packaged MultiplayerSandbox path is missing.
 

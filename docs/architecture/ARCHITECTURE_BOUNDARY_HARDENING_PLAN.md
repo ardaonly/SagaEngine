@@ -14,7 +14,7 @@ the architecture meaning of the highest-risk ownership drifts.
 ## Risk Areas
 
 1. Audit `SagaProductLib` as a product dependency hub.
-2. Define the `SagaRuntime` and `Apps/Client` ownership contract.
+2. Preserve the independent `SagaRuntime` application boundary.
 3. Keep `SagaSandboxLib` out of architecture-clean proof claims.
 4. Separate broad test health from boundary and conformance evidence.
 
@@ -48,36 +48,38 @@ Non-goal:
 
 - Do not refactor `SagaProductLib` in the same slice as this report.
 
-## SagaRuntime And Apps/Client
+## SagaRuntime Application Boundary
 
-Current evidence: `CMAKE_BOUNDARY_INVENTORY.md` classifies `SagaRuntime` source
-reuse as CBI-012.
+Current evidence: `SagaRuntime` owns its app-local sources and architecture
+tests reject sources or includes from other application roots.
 
-`SagaRuntime` currently builds with `Apps/Client/ClientHost` sources. This is a
-physical ownership drift, not just a CMake visibility issue.
+The legacy client executable and its app-private host were retired after the
+Runtime host was extracted. Runtime no longer compiles or includes client app
+sources, and no compatibility target remains.
 
 Required contract:
 
 ```txt
-Apps/Client -> Runtime
-Runtime -X-> Apps/Client
+Runtime -> Runtime-owned libraries and app-local composition
+Runtime -X-> other application implementation roots
 ```
 
 Runtime may expose reusable startup, package, asset, lifecycle, and service
-contracts. Client app code may consume those contracts. Runtime must not depend
-on app-host sources as its long-term execution model.
+contracts. It must not depend on sources owned by another executable as its
+execution model.
 
-Report-only follow-up:
+Enforced boundary:
 
-- Record the current `ClientHost` reuse as a temporary exception.
-- Define the narrow Runtime-owned startup/client-host contract before moving
-  files.
-- Add focused Runtime boundary tests only after the contract exists.
+- `SagaRuntime` sources and includes remain Runtime-owned.
+- Product Shell and Editor targets do not compile or include retired client
+  app paths.
+- No legacy client target, output identity, install rule, or package entry may
+  be restored implicitly.
 
 Non-goal:
 
-- Do not move `ClientHost` or redesign UI, rendering, network, or gameplay
-  startup in this report-only slice.
+- This boundary does not claim a generic connected-client loop, client preview,
+  production networking, or complete runtime gameplay.
 
 ## SagaSandboxLib
 
