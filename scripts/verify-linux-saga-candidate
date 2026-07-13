@@ -10,6 +10,14 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from saga_linux_distribution_policy import (
+    PACKAGE_NAME,
+    PACKAGE_SCHEMA_VERSION,
+    inventory_matches,
+    validate_layout,
+    validate_metadata_sets,
+)
+
 
 DEFAULT_LAYOUT = Path("build/dist/linux/Saga")
 DEFAULT_ARCHIVE = Path("build/dist/linux/Saga.tar.zst")
@@ -155,6 +163,7 @@ def command_present(report: dict[str, Any], label: str) -> bool:
 
 def validate_package_report(
     package_report: dict[str, Any] | None,
+    layout: Path,
     checks: list[dict[str, Any]],
     blockers: list[str],
 ) -> None:
@@ -162,6 +171,36 @@ def validate_package_report(
         add_check(checks, label="package report parsed", status="blocked", message="package report is unavailable")
         blockers.append("package report is unavailable")
         return
+
+    schema_ok = package_report.get("schemaVersion") == PACKAGE_SCHEMA_VERSION
+    add_check(
+        checks,
+        label="package report schema",
+        status="passed" if schema_ok else "blocked",
+        message=f"expected schemaVersion {PACKAGE_SCHEMA_VERSION}, got {package_report.get('schemaVersion')!r}" if not schema_ok else None,
+    )
+    identity_ok = package_report.get("packageName") == PACKAGE_NAME
+    add_check(
+        checks,
+        label="package identity",
+        status="passed" if identity_ok else "blocked",
+        message=f"expected packageName {PACKAGE_NAME!r}" if not identity_ok else None,
+    )
+    metadata_errors = validate_metadata_sets(package_report)
+    add_check(
+        checks,
+        label="package exact application, tool, and exclusion sets",
+        status="passed" if not metadata_errors else "blocked",
+        message="; ".join(metadata_errors) if metadata_errors else None,
+    )
+    inventory = package_report.get("stagedFiles")
+    inventory_ok = isinstance(inventory, list) and inventory_matches(layout, inventory)
+    add_check(
+        checks,
+        label="package staged file inventory",
+        status="passed" if inventory_ok else "blocked",
+        message="stagedFiles does not exactly match the current layout" if not inventory_ok else None,
+    )
 
     add_check(
         checks,
@@ -258,21 +297,9 @@ def validate_smoke_report(
             message=f"expected command status passed, got {status!r}",
         )
 
-    for label in [
-        "StarterArena SagaRuntime packaged smoke",
-        "StarterArena SagaEditor inspect-project",
-    ]:
-        present = command_present(smoke_report, label)
-        status = command_status(smoke_report, label)
-        add_check(
-            checks,
-            label=f"{label} blocker recorded",
-            status="passed" if present and status == "blocked" else "blocked",
-            required=False,
-            message=f"expected recorded blocked limitation, got {status!r}" if not (present and status == "blocked") else None,
-        )
-        if present and status == "blocked":
-            known_limitations.append(f"{label} remains blocked in the packaged distribution smoke.")
+    for limitation in smoke_report.get("knownLimitations", []):
+        if isinstance(limitation, str):
+            known_limitations.append(limitation)
 
     for check in checks:
         if check.get("status") == "blocked" and str(check.get("label", "")).startswith(("smoke", "distribution", "StarterArena")) and check.get("required", True):
@@ -300,6 +327,15 @@ def validate_artifacts(
         status="passed" if layout.is_dir() else "blocked",
         message=f"missing layout: {layout}" if not layout.is_dir() else None,
     )
+    if layout.is_dir():
+        policy_errors = validate_layout(layout)
+        add_check(
+            checks,
+            label="staged Linux layout whitelist",
+            status="passed" if not policy_errors else "blocked",
+            message="; ".join(policy_errors) if policy_errors else None,
+        )
+        blockers.extend(policy_errors)
     add_check(
         checks,
         label="archive exists",
@@ -416,8 +452,6 @@ def main() -> int:
     diagnostics: list[str] = []
     known_limitations: list[str] = [
         "This candidate gate collects package, archive, checksum, unpack smoke, and limited StarterArena workflow evidence only.",
-        "Packaged SagaRuntime StarterArena smoke remains blocked.",
-        "Packaged SagaEditor inspect-project remains blocked.",
         "Product Shell workflow evidence is no-UI and report-only.",
     ]
 
@@ -432,6 +466,25 @@ def main() -> int:
     if smoke_error:
         diagnostics.append(smoke_error)
         blockers.append(smoke_error)
+    if package_report is not None:
+        for limitation in package_report.get("limitations", []):
+            if isinstance(limitation, str):
+                known_limitations.append(limitation)
+    if package_report is not None and smoke_report is not None:
+        identity_fields = ["packageName", "version", "gitCommit"]
+        mismatches = [
+            field
+            for field in identity_fields
+            if package_report.get(field) != smoke_report.get(field)
+        ]
+        add_check(
+            checks,
+            label="package and smoke identity",
+            status="passed" if not mismatches else "blocked",
+            message=f"package/smoke identity differs for: {mismatches}" if mismatches else None,
+        )
+        if mismatches:
+            blockers.append(f"package/smoke identity differs for: {mismatches}")
 
     validate_artifacts(
         layout=layout,
@@ -442,7 +495,7 @@ def main() -> int:
         commands=commands,
         blockers=blockers,
     )
-    validate_package_report(package_report, checks, blockers)
+    validate_package_report(package_report, layout, checks, blockers)
     validate_smoke_report(smoke_report, checks, blockers, known_limitations)
     non_claims = validate_non_claims(package_report, smoke_report, checks)
 
@@ -466,11 +519,14 @@ def main() -> int:
         exit_code = 0
 
     report = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "tool": "verify-linux-saga-candidate",
         "status": status,
         "verified": False,
         "sourceCommit": source_commit(),
+        "packageName": package_report.get("packageName") if package_report else None,
+        "version": package_report.get("version") if package_report else None,
+        "gitCommit": package_report.get("gitCommit") if package_report else None,
         "layout": path_text(layout),
         "archive": path_text(archive),
         "checksum": path_text(checksum),
