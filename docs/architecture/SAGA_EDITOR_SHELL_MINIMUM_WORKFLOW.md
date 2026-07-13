@@ -12,9 +12,10 @@ existing project and tool evidence. It is not a full editor workflow.
 
 Real current surfaces used by this milestone:
 
-- `Apps/Saga` owns the Product Shell boundary, including project create/open,
-  target preparation, process launch, local session metadata, SagaScript gate,
-  package staging, and publish readiness. It launches the editor externally.
+- `Apps/Saga` owns canonical project selection, recent state, typed target and
+  action orchestration, report/distribution views, SagaScript gates, package
+  staging, and publish checks. Selecting a project does not launch the Editor;
+  a separate explicit action hands off to the external `SagaEditor` host.
 - `Apps/Editor` is the thin standalone `SagaEditor` host: process bootstrap,
   Qt static-plugin registration, and delegation only.
 - `Apps/EditorLab` owns scenario/development shell flows.
@@ -61,6 +62,11 @@ CLI tools remain the source of truth for project validation, bounded runtime
 smoke, SagaScript, CLI-only Visual Blocks evidence, and package preflight. The
 editor shell must not hide missing reports or known limitations. Repository-only
 server evidence is intentionally not emitted as an Editor action.
+
+The Product Launcher does not expose project creation, raw process arguments,
+or generic Runtime/server/world/cloud execution. Its bounded Editor action
+passes the selected project root across the existing external process boundary;
+Editor implementation remains entirely in `SagaEditorLib`.
 
 ## Customization Direction
 

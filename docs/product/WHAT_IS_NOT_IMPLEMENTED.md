@@ -132,8 +132,9 @@ Current evidence does not establish:
 - long-term C++ binary ABI stability;
 - complete semantic-versioning or compatibility guarantees;
 - a finalized official-distribution or trademark policy;
-- an installer, updater, launcher, signing service, marketplace, or publishing
-  platform;
+- a finished or polished launcher/dashboard, installer, updater, signing
+  service, marketplace, or publishing platform (the bounded Product Launcher
+  Foundation is not that completion claim);
 - hosted collaboration, managed operations, LTS, or enterprise service
   availability;
 - supported production deployment or commercial support commitments.

@@ -21,6 +21,12 @@ and not production-ready.
 - Product workflow smoke uses clean schema 2 typed action/status/report
   references. It embeds no shell invocation, has no schema 1 fallback, and
   does not expose repository-only server evidence as a Product action.
+- The bounded Product Launcher Foundation now owns canonical `.sagaproj`
+  selection, versioned recent state, exact target/action models, one-at-a-time
+  asynchronous execution with cancellation, known-report/distribution readers,
+  and a minimum Qt Widgets view. Project selection never auto-launches Editor;
+  Editor handoff is an explicit external action. This does not establish a
+  finished launcher, generic Runtime/server/world/cloud support, or readiness.
 - The default Linux candidate has an exact three-application/three-CLI
   whitelist with blocking extra-executable checks and file-level inventory.
   Native dependency closure and clean-machine evidence remain open.

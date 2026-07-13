@@ -4,6 +4,12 @@ StarterArena acceptance is intentionally narrow and evidence-based. The sample
 is useful when each supported path exits successfully, writes deterministic
 evidence, and keeps unsupported product claims explicit.
 
+The Product Launcher may enter only the bounded smoke, synthetic-input visible,
+and first-playable paths below after selecting this schema-0 `.sagaproj`.
+Opening the project and opening SagaEditor remain separate operations. Generic
+Runtime and all server/world/cloud rows stay disabled; repository-only
+server-headless evidence is not launcher acceptance.
+
 Accepted runtime smoke evidence:
 
 - `SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke` exits `0`;

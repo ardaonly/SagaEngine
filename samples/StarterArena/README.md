@@ -25,6 +25,13 @@ the existing `InputManager`, SDL input backend, keyboard device, and action map;
 it does not execute C#. Server authority evidence is tracked separately through
 a bounded socket-free headless smoke.
 
+The `Saga` Product Launcher exposes only the fixed 30-frame headless smoke,
+fixed 30-frame visible synthetic-input action, and existing first-playable
+check for a selected `starter-arena` project. Their reports are written under
+launcher application-data/evidence roots, not this source project. Manual
+keyboard capture and repository-only server-headless evidence remain CLI or
+operator workflows, not primary launcher actions.
+
 Runtime smoke command:
 
 ```sh
