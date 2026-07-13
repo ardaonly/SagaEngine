@@ -56,13 +56,21 @@ SagaPreparedTarget SagaProductHost::PrepareTarget(
     switch (session.target)
     {
         case SagaProductTargetKind::Editor:
-            prepared.moduleName = "SagaEditorModule";
-            prepared.executableName = "Saga";
+            prepared.executableName = "SagaEditor";
+            prepared.availability = SagaLaunchTargetAvailability::Available;
+            prepared.arguments = {
+                "--workspace",
+                session.workspace.root.string(),
+            };
+            if (!session.workspace.editorProfile.empty())
+            {
+                prepared.arguments.push_back("--profile");
+                prepared.arguments.push_back(session.workspace.editorProfile);
+            }
             break;
         case SagaProductTargetKind::Runtime:
-            prepared.moduleName = "SagaRuntimeModule";
             prepared.executableName = "SagaRuntime";
-            prepared.sameProcess = false;
+            prepared.availability = SagaLaunchTargetAvailability::Bounded;
             if (session.packageManifestPath.has_value())
             {
                 prepared.arguments.push_back("--package-manifest");
@@ -70,6 +78,7 @@ SagaPreparedTarget SagaProductHost::PrepareTarget(
             }
             break;
         case SagaProductTargetKind::Server:
+            prepared.availability = SagaLaunchTargetAvailability::Unsupported;
             break;
     }
 

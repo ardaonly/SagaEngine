@@ -59,14 +59,22 @@ struct SagaProductDiagnostic
     std::optional<std::filesystem::path> path;                             ///< Optional path related to the diagnostic.
 };
 
-/// Boundary-level same-process module preparation result.
+/// Availability level exposed by the Product Shell target resolver.
+enum class SagaLaunchTargetAvailability
+{
+    Available,
+    Bounded,
+    Unsupported,
+};
+
+/// Boundary-level external process preparation result.
 struct SagaPreparedTarget
 {
     SagaProductTargetKind    kind = SagaProductTargetKind::Editor;
-    std::string              moduleName;
     std::string              executableName;
     std::vector<std::string> arguments;
-    bool                     sameProcess = true;
+    SagaLaunchTargetAvailability availability =
+        SagaLaunchTargetAvailability::Unsupported;
     SagaWorkspaceDefinition  workspace;
 };
 
@@ -114,5 +122,7 @@ inline constexpr const char* PackageStageScriptArtifactInvalid =
 [[nodiscard]] bool ParseTargetKind(const std::string& text,
                                    SagaProductTargetKind& out) noexcept;
 [[nodiscard]] const char* ToString(SagaProductDiagnosticPhase phase) noexcept;
+[[nodiscard]] const char* ToString(
+    SagaLaunchTargetAvailability availability) noexcept;
 
 } // namespace SagaProduct
