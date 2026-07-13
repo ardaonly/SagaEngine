@@ -203,7 +203,8 @@ Accepted server-authoritative smoke evidence:
 - `MultiplayerSandboxHeadless --starter-arena-server-smoke` exits `0`;
 - this command is repository-only development evidence; the default Linux
   package intentionally does not include `MultiplayerSandboxHeadless`;
-- it is not a Product Shell launch action or Editor schema-2 action;
+- it is not a Product Shell launch action, is absent from Product Workflow
+  Smoke schema 2, and is not an Editor schema-2 action;
 - the report records `projectId: starter-arena`;
 - the report records `serverAuthority: true`;
 - the report records `networkMode: HeadlessSmoke`;

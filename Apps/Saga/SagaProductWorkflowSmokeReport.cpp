@@ -26,24 +26,6 @@ struct ProjectMetadata
     std::vector<nlohmann::json> diagnostics;
 };
 
-[[nodiscard]] std::string ShellQuote(const fs::path& path)
-{
-    std::string quoted = "'";
-    for (const char ch : path.string())
-    {
-        if (ch == '\'')
-        {
-            quoted += "'\\''";
-        }
-        else
-        {
-            quoted += ch;
-        }
-    }
-    quoted += "'";
-    return quoted;
-}
-
 [[nodiscard]] nlohmann::json Diagnostic(std::string code,
                                         std::string message,
                                         const fs::path& path = {})
@@ -64,20 +46,33 @@ struct ProjectMetadata
     return fs::exists(expectedReportPath) ? "available" : "missing_report";
 }
 
-[[nodiscard]] nlohmann::json WorkflowStep(std::string id,
-                                          std::string status,
-                                          std::string command,
-                                          const fs::path& expectedReportPath,
-                                          std::vector<nlohmann::json> diagnostics = {})
+[[nodiscard]] nlohmann::json WorkflowAction(
+    std::string id,
+    std::string status,
+    std::string actionKind,
+    std::string owner,
+    const fs::path& expectedReportPath,
+    std::string availability,
+    std::string unavailableReason = {},
+    std::string diagnosticId = {})
 {
-    nlohmann::json step;
-    step["id"] = std::move(id);
-    step["status"] = std::move(status);
-    step["command"] = std::move(command);
-    step["expectedReportPath"] =
+    nlohmann::json action;
+    action["id"] = std::move(id);
+    action["status"] = std::move(status);
+    action["actionKind"] = std::move(actionKind);
+    action["owner"] = std::move(owner);
+    action["expectedReportPath"] =
         expectedReportPath.empty() ? "" : expectedReportPath.string();
-    step["diagnostics"] = std::move(diagnostics);
-    return step;
+    action["availability"] = std::move(availability);
+    if (!unavailableReason.empty())
+    {
+        action["unavailableReason"] = std::move(unavailableReason);
+    }
+    if (!diagnosticId.empty())
+    {
+        action["diagnosticId"] = std::move(diagnosticId);
+    }
+    return action;
 }
 
 [[nodiscard]] ProjectMetadata LoadProjectMetadata(const fs::path& inputPath)
@@ -141,10 +136,12 @@ struct ProjectMetadata
 {
     return {
         "Product Shell workflow smoke is a report-only workflow router proof, not a full dashboard UI.",
-        "Workflow commands are references and are not executed by this smoke report.",
+        "Typed workflow actions are status/report references and are not executed by this smoke report.",
         "SagaEditor owns inspection and future editing views.",
         "Visual Blocks evidence remains CLI-only and is not Visual Blocks editor UI.",
-        "Package preflight is a known limitation and is not package or distribution readiness.",
+        "Package preflight remains bounded evidence and is not package or distribution readiness.",
+        "Repository-only server evidence is not a Product Shell workflow action.",
+        "Generic server execution remains unsupported and no dedicated-server executable is included.",
         "No phase is marked Verified by this report.",
     };
 }
@@ -160,15 +157,17 @@ struct ProjectMetadata
         "product beta",
         "enterprise-ready workflow",
         "maximum customization",
+        "generic server support",
+        "dedicated-server product workflow",
     };
 }
 
-[[nodiscard]] nlohmann::json ReportReference(const nlohmann::json& step)
+[[nodiscard]] nlohmann::json ReportReference(const nlohmann::json& action)
 {
     nlohmann::json reference;
-    reference["stepId"] = step["id"];
-    reference["status"] = step["status"];
-    reference["path"] = step["expectedReportPath"];
+    reference["actionId"] = action["id"];
+    reference["status"] = action["status"];
+    reference["path"] = action["expectedReportPath"];
     return reference;
 }
 
@@ -190,99 +189,76 @@ SagaProductWorkflowSmokeResult WriteProductWorkflowSmokeReport(
     const fs::path runtimeReport =
         tempRoot / "starter_arena_runtime_smoke.json";
     const fs::path sagaScriptRoot = tempRoot / "starter_arena_sagascript";
-    const fs::path serverReport =
-        tempRoot / "starter_arena_server_smoke.json";
-    const fs::path serverDiagnostics =
-        tempRoot / "starter_arena_server_diagnostics";
+    const fs::path packagePreflightReport =
+        tempRoot / "saga_linux_package_preflight_report.json";
 
-    std::vector<nlohmann::json> steps;
-    steps.push_back(WorkflowStep(
+    std::vector<nlohmann::json> actions;
+    actions.push_back(WorkflowAction(
         "project_validation",
         ReferenceStatus(validationReport),
-        "nix-shell --run \"Tools/SagaProjectKit/sagaproject validate --project " +
-            ShellQuote(projectManifest) + " --out " +
-            ShellQuote(validationReport) + "\"",
-        validationReport));
-    steps.push_back(WorkflowStep(
+        "project-validation",
+        "sagaproject",
+        validationReport,
+        "available"));
+    actions.push_back(WorkflowAction(
         "editor_inspection",
         ReferenceStatus(editorReport),
-        "build/RelWithDebInfo-0.0.9/bin/SagaEditor --inspect-project " +
-            ShellQuote(projectManifest) + " --profile " + request.profile +
-            " --editor-shell-report " + ShellQuote(editorReport),
-        editorReport));
-    steps.push_back(WorkflowStep(
+        "editor-inspection",
+        "SagaEditor",
+        editorReport,
+        "available"));
+    actions.push_back(WorkflowAction(
         "runtime_smoke",
         ReferenceStatus(runtimeReport),
-        "build/RelWithDebInfo-0.0.9/bin/SagaRuntime --headless --project " +
-            ShellQuote(projectManifest) +
-            " --starter-arena-smoke --smoke-report-out " +
-            ShellQuote(runtimeReport) +
-            " --smoke-frames 30 --fixed-dt 0.016",
-        runtimeReport));
-    steps.push_back(WorkflowStep(
+        "runtime-smoke",
+        "SagaRuntime",
+        runtimeReport,
+        "bounded"));
+    actions.push_back(WorkflowAction(
         "sagascript_analyze_compile",
         ReferenceStatus(sagaScriptRoot / "Manifests" / "script_artifacts.json"),
-        "Tools/SagaScript/sagascript analyze --source " +
-            ShellQuote(projectRoot / "Scripts") + " --out " +
-            ShellQuote(sagaScriptRoot) +
-            " && Tools/SagaScript/sagascript compile --source " +
-            ShellQuote(projectRoot / "Scripts") + " --out " +
-            ShellQuote(sagaScriptRoot / "Manifests") +
-            " --artifacts-out " +
-            ShellQuote(sagaScriptRoot / "Artifacts" / "Scripts") +
-            " --project-root " + ShellQuote(projectRoot) +
-            " --assembly-name StarterArenaScripts --diagnostics " +
-            ShellQuote(sagaScriptRoot / "sagascript_diagnostics.json") +
-            " --json",
-        sagaScriptRoot / "Manifests" / "script_artifacts.json"));
-    steps.push_back(WorkflowStep(
+        "script-analysis-compile",
+        "sagascript",
+        sagaScriptRoot / "Manifests" / "script_artifacts.json",
+        "available"));
+    actions.push_back(WorkflowAction(
         "visual_blocks_cli_chain",
         ReferenceStatus(sagaScriptRoot / "visual_blocks_projection_v1.json"),
-        "compatibility-profile -> project-blocks -> plan-block-edit -> apply-block-edit -> analyze -> compile",
+        "visual-blocks-cli-chain",
+        "sagascript",
         sagaScriptRoot / "visual_blocks_projection_v1.json",
-        { Diagnostic("Saga.Workflow.VisualBlocksCliOnly",
-                     "Visual Blocks evidence is CLI-only and is not editor UI.") }));
-    steps.push_back(WorkflowStep(
-        "server_authority_smoke",
-        ReferenceStatus(serverReport),
-        "build/RelWithDebInfo-0.0.9/bin/MultiplayerSandboxHeadless --project " +
-            ShellQuote(projectManifest) +
-            " --starter-arena-server-smoke --report-out " +
-            ShellQuote(serverReport) + " --diagnostics-out " +
-            ShellQuote(serverDiagnostics) + " --ticks 1 --fixed-dt 1.0",
-        serverReport));
-    steps.push_back(WorkflowStep(
+        "cli_only",
+        "Visual Blocks remains a CLI-only evidence chain.",
+        "Saga.Workflow.VisualBlocksCliOnly"));
+    actions.push_back(WorkflowAction(
         "package_preflight",
-        "blocked",
-        "scripts/package-linux-saga",
-        {},
-        { Diagnostic("Saga.Workflow.PackagePreflightLimitation",
-                     "Package preflight is not package or distribution readiness.") }));
-    steps.push_back(WorkflowStep(
+        ReferenceStatus(packagePreflightReport),
+        "package-preflight",
+        "package-linux-saga",
+        packagePreflightReport,
+        "preflight_only",
+        "Package preflight is not package or distribution readiness.",
+        "Saga.Workflow.PackagePreflightOnly"));
+    actions.push_back(WorkflowAction(
         "known_limitations",
         "available",
-        "",
+        "status-reference",
+        "Saga",
         {},
-        KnownLimitations()));
+        "available"));
 
-    std::vector<nlohmann::json> commands;
     std::vector<nlohmann::json> reportReferences;
-    for (const nlohmann::json& step : steps)
+    for (const nlohmann::json& action : actions)
     {
-        commands.push_back(nlohmann::json{
-            { "stepId", step["id"] },
-            { "command", step["command"] },
-            { "status", step["status"] },
-        });
-        reportReferences.push_back(ReportReference(step));
+        reportReferences.push_back(ReportReference(action));
     }
 
     bool hasFailedProject = !project.ok;
     bool hasLimitations = true;
-    for (const nlohmann::json& step : steps)
+    for (const nlohmann::json& action : actions)
     {
-        const std::string status = step.value("status", "");
-        if (status == "missing_report" || status == "blocked")
+        const std::string status = action.value("status", "");
+        if (status == "missing_report")
         {
             hasLimitations = true;
         }
@@ -296,9 +272,9 @@ SagaProductWorkflowSmokeResult WriteProductWorkflowSmokeReport(
         (hasLimitations ? "PassedWithLimitations" : "Passed");
 
     nlohmann::json report;
-    report["schemaVersion"] = 1;
+    report["schemaVersion"] = 2;
     report["tool"] = "Saga";
-    report["command"] = "workflow-smoke";
+    report["action"] = "workflow-smoke";
     report["status"] = result.status;
     report["verified"] = false;
     report["project"] = {
@@ -311,8 +287,7 @@ SagaProductWorkflowSmokeResult WriteProductWorkflowSmokeReport(
         { "requestedProfileId", request.profile.empty() ?
             "technical_preview" : request.profile },
     };
-    report["workflowSteps"] = std::move(steps);
-    report["commands"] = std::move(commands);
+    report["workflowActions"] = std::move(actions);
     report["reportReferences"] = std::move(reportReferences);
     report["diagnostics"] = project.diagnostics;
     report["knownLimitations"] = KnownLimitations();

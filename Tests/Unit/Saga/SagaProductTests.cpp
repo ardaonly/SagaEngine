@@ -167,22 +167,45 @@ public:
     return diagnostic;
 }
 
-[[nodiscard]] const nlohmann::json* FindWorkflowStep(
+[[nodiscard]] const nlohmann::json* FindWorkflowAction(
     const nlohmann::json& report,
-    const std::string& stepId)
+    const std::string& actionId)
 {
-    if (!report.contains("workflowSteps") || !report["workflowSteps"].is_array())
+    if (!report.contains("workflowActions") ||
+        !report["workflowActions"].is_array())
     {
         return nullptr;
     }
-    for (const nlohmann::json& step : report["workflowSteps"])
+    for (const nlohmann::json& action : report["workflowActions"])
     {
-        if (step.value("id", std::string{}) == stepId)
+        if (action.value("id", std::string{}) == actionId)
         {
-            return &step;
+            return &action;
         }
     }
     return nullptr;
+}
+
+[[nodiscard]] bool ContainsJsonKeyRecursively(const nlohmann::json& value,
+                                              const std::string& key)
+{
+    if (value.is_object())
+    {
+        if (value.contains(key)) return true;
+        for (const auto& [name, child] : value.items())
+        {
+            (void)name;
+            if (ContainsJsonKeyRecursively(child, key)) return true;
+        }
+    }
+    else if (value.is_array())
+    {
+        for (const auto& child : value)
+        {
+            if (ContainsJsonKeyRecursively(child, key)) return true;
+        }
+    }
+    return false;
 }
 
 [[nodiscard]] bool JsonArrayContainsString(const nlohmann::json& array,
@@ -1443,25 +1466,75 @@ TEST(SagaProductWorkflowSmokeTest,
 
     std::ifstream input(reportPath);
     const nlohmann::json report = nlohmann::json::parse(input);
+    EXPECT_EQ(report["schemaVersion"], 2);
     EXPECT_EQ(report["tool"], "Saga");
-    EXPECT_EQ(report["command"], "workflow-smoke");
+    EXPECT_EQ(report["action"], "workflow-smoke");
     EXPECT_EQ(report["verified"], false);
     EXPECT_EQ(report["status"], "PassedWithLimitations");
     EXPECT_EQ(report["project"]["projectId"], "starter-arena");
     EXPECT_EQ(report["profile"]["requestedProfileId"], "technical_preview");
 
+    const std::vector<std::string> expectedActionIds = {
+        "project_validation",
+        "editor_inspection",
+        "runtime_smoke",
+        "sagascript_analyze_compile",
+        "visual_blocks_cli_chain",
+        "package_preflight",
+        "known_limitations",
+    };
+    ASSERT_TRUE(report["workflowActions"].is_array());
+    ASSERT_EQ(report["workflowActions"].size(), expectedActionIds.size());
+    for (std::size_t index = 0; index < expectedActionIds.size(); ++index)
+    {
+        const nlohmann::json& action = report["workflowActions"][index];
+        EXPECT_EQ(action["id"], expectedActionIds[index]);
+        EXPECT_TRUE(action.contains("status"));
+        EXPECT_TRUE(action.contains("actionKind"));
+        EXPECT_TRUE(action.contains("owner"));
+        EXPECT_TRUE(action.contains("expectedReportPath"));
+        EXPECT_TRUE(action.contains("availability"));
+    }
+
     const nlohmann::json* editorInspection =
-        FindWorkflowStep(report, "editor_inspection");
+        FindWorkflowAction(report, "editor_inspection");
     ASSERT_NE(editorInspection, nullptr);
-    EXPECT_NE((*editorInspection)["command"].get<std::string>().find(
-                  "SagaEditor --inspect-project"),
-              std::string::npos);
+    EXPECT_EQ((*editorInspection)["actionKind"], "editor-inspection");
+    EXPECT_EQ((*editorInspection)["owner"], "SagaEditor");
+    EXPECT_EQ((*editorInspection)["availability"], "available");
 
     const nlohmann::json* packagePreflight =
-        FindWorkflowStep(report, "package_preflight");
+        FindWorkflowAction(report, "package_preflight");
     ASSERT_NE(packagePreflight, nullptr);
-    EXPECT_EQ((*packagePreflight)["status"], "blocked");
-    EXPECT_EQ((*packagePreflight)["command"], "scripts/package-linux-saga");
+    EXPECT_EQ((*packagePreflight)["actionKind"], "package-preflight");
+    EXPECT_EQ((*packagePreflight)["owner"], "package-linux-saga");
+    EXPECT_EQ((*packagePreflight)["availability"], "preflight_only");
+    EXPECT_EQ((*packagePreflight)["diagnosticId"],
+              "Saga.Workflow.PackagePreflightOnly");
+
+    ASSERT_TRUE(report["reportReferences"].is_array());
+    EXPECT_EQ(report["reportReferences"].size(), expectedActionIds.size());
+    EXPECT_FALSE(ContainsJsonKeyRecursively(report, "command"));
+    EXPECT_FALSE(report.contains("workflowSteps"));
+    EXPECT_FALSE(report.contains("commands"));
+
+    const std::string serialized = report.dump();
+    const std::vector<std::string> forbiddenReportContent = {
+        "nix-shell --run",
+        " && ",
+        " --project ",
+        " -> ",
+        std::string("build/RelWithDebInfo-") + "0.0.9",
+        std::string("server_") + "authority_smoke",
+        std::string("MultiplayerSandbox") + "Headless",
+        "SagaServer",
+        "SagaClient",
+    };
+    for (const std::string& forbidden : forbiddenReportContent)
+    {
+        EXPECT_EQ(serialized.find(forbidden), std::string::npos)
+            << "Forbidden workflow-smoke content: " << forbidden;
+    }
 
     EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
                                         "full product dashboard"));
