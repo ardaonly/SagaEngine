@@ -41,9 +41,8 @@ Saga/tools/.saga-tools/sagapack/
 ```
 
 The visible `Saga/tools/<name>` files are generated distribution launchers. They
-execute the packaged DLLs from `tools/.saga-tools/<name>/` through the discovered
-.NET 10 command and do not fall back to repository paths or repository project
-files.
+execute the packaged DLLs from `tools/.saga-tools/<name>/` through `dotnet` (or
+`SAGA_DOTNET`) and do not fall back to repository paths or project files.
 
 ## Evidence Boundary
 
@@ -55,14 +54,21 @@ The current contract smoke evidence proves only that these unpacked commands run
 /tmp/saga_dist_smoke/Saga/tools/sagapack --help
 ```
 
-It does not prove full tool workflows, StarterArena validation, full editor
+The archive smoke also requires `sagaproject validate` and `sagascript analyze`
+for packaged StarterArena. It does not prove full tool workflows, full editor
 workflow, Visual Blocks UI, production readiness, enterprise readiness, full
 distribution validation, verified release status, or verified final release
 status.
 
 ## Runtime Requirement
 
-The published tools are framework-dependent `net10.0` applications. The
-distribution launcher records the .NET 10 command discovered during staging and
-also allows `SAGA_DOTNET` to point at another compatible .NET command. This is
-not portability or production-readiness evidence.
+The published tools are framework-dependent `net10.0` applications. Staging
+requires a .NET 10 SDK; execution requires a compatible runtime. Direct,
+Nix-store, and `nix-shell` discovery are environment-specific staging paths.
+The launcher defaults to `dotnet` and allows `SAGA_DOTNET` to select another
+compatible command.
+
+Only published CLI artifacts ship; no tool source tree is packaged. In
+particular, `sagapack smoke` remains repository/developer evidence because it
+requires an externally supplied sample headless binary that is intentionally
+excluded from the default package.

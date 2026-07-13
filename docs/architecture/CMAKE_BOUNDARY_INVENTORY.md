@@ -35,6 +35,15 @@ enforcement gate and does not change build behavior.
 | CBI-007 | uncertain, needs inspection | `SagaBackend` exports a mixed backend include root. | Consumers can include generic backend service paths without clear ownership. |
 | CBI-008 | candidate for test graph narrowing | Architecture and product tests inherit broad include roots. | Include-boundary tests are weaker when the test target can already see most modules. |
 
+## Distribution Components
+
+`SagaDistribution` is the product candidate component and installs exactly
+`Saga`, `SagaEditor`, and `SagaRuntime`, deriving runtime dependencies from all
+three. It does not install development/lab/test targets, broad Qt plugin trees,
+headers, or development libraries. `SagaDevelopment` remains a separate SDK
+and library component; `SagaServerLib` is legal there and is not a product
+executable.
+
 ## Retired Boundaries
 
 - CBI-006 is resolved: Runtime owns its app-local host, and the legacy client

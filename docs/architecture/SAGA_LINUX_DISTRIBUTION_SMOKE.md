@@ -36,11 +36,14 @@ not silently fall back to repository tools or repository paths.
 The smoke script:
 
 - verifies `Saga.sha256` with `sha256sum -c`;
-- checks that the archive entries are rooted at `Saga/`;
+- checks that archive entries are rooted at `Saga/`, safe, and permitted by the
+  package whitelist before extraction;
 - deletes and recreates the requested temporary work directory;
 - unpacks the archive into that temporary directory;
 - validates required files, directories, and executable bits from the unpacked
   tree;
+- rejects forbidden basenames, unknown files, extra applications/tools, test
+  executables, and every unrecognized executable-bit file;
 - runs limited help commands from unpacked binaries only;
 - runs a limited StarterArena workflow smoke from unpacked distribution paths
   only;
@@ -78,15 +81,12 @@ Saga/tools/sagascript analyze
 Saga/bin/Saga --workflow-smoke
 ```
 
-`SagaEditor --help` is recorded as a skipped limitation because the binary does
-not expose that help path.
+`SagaEditor` is required and executable-presence checked, but the headless smoke
+does not launch its GUI until a stable supported headless command exists.
 
-`SagaRuntime --starter-arena-smoke` from the packaged distribution is recorded
-as blocked because the current binary enters normal client startup, attempts UDP
-transport setup, and does not produce the requested smoke report.
-
-`SagaEditor --inspect-project` from the packaged distribution is recorded as
-blocked because the current binary reports `unknown argument '--inspect-project'`.
+`SagaRuntime --starter-arena-smoke` remains an optional bounded command. Its
+current exit code and output are recorded rather than converted into a fixed
+historical blocker statement.
 
 The Product Shell workflow output is report-only. Any developer-tree command
 references inside that product report are not executed by the distribution
