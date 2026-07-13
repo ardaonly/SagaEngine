@@ -930,6 +930,7 @@ def stage_layout(
         "buildType": build_type,
         "builtAtUtc": built_at_utc,
         "includedTargets": included_targets,
+        "publicTools": ["sagaproject", "sagapack", "sagascript"],
         "samples": ["StarterArena"],
         "knownLimitationsFile": "KNOWN_LIMITATIONS.md",
         "verification": {

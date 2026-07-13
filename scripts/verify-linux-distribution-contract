@@ -222,6 +222,7 @@ def validate_build_info(
     if missing_fields:
         blockers.append(f"missing BUILD_INFO fields: {missing_fields}")
 
+    expected_tools = {"sagaproject", "sagapack", "sagascript"}
     actual_tools = set(data.get("publicTools", [])) if isinstance(data.get("publicTools"), list) else set()
     missing_tools = sorted(expected_tools - actual_tools)
     add_check(
