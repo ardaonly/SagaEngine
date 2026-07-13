@@ -48,7 +48,6 @@ CURRENT_REQUIRED_FILES = [
     "bin/sagaproject",
     "bin/sagapack",
     "bin/sagascript",
-    "bin/sde",
     "docs/README.md",
     "docs/GETTING_STARTED.md",
     "docs/CURRENT_CAPABILITIES.md",
@@ -73,7 +72,6 @@ EXECUTABLE_FILES = {
     "bin/sagaproject",
     "bin/sagapack",
     "bin/sagascript",
-    "bin/sde",
 }
 
 FINAL_TARGET_DIRS = [
@@ -224,7 +222,7 @@ def validate_build_info(
     if missing_fields:
         blockers.append(f"missing BUILD_INFO fields: {missing_fields}")
 
-    expected_tools = {"sagaproject", "sagapack", "sagascript", "sde"}
+    expected_tools = {"sagaproject", "sagapack", "sagascript"}
     actual_tools = set(data.get("publicTools", [])) if isinstance(data.get("publicTools"), list) else set()
     missing_tools = sorted(expected_tools - actual_tools)
     add_check(

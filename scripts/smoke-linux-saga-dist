@@ -425,11 +425,9 @@ def main() -> int:
         "bin/sagaproject",
         "bin/sagascript",
         "bin/sagapack",
-        "bin/sde",
         "tools/sagaproject",
         "tools/sagascript",
         "tools/sagapack",
-        "tools/sde",
     ]
     required_dirs = [
         "samples/StarterArena",
@@ -443,11 +441,9 @@ def main() -> int:
         "bin/sagaproject",
         "bin/sagascript",
         "bin/sagapack",
-        "bin/sde",
         "tools/sagaproject",
         "tools/sagascript",
         "tools/sagapack",
-        "tools/sde",
     }
     for rel in required_files:
         path = unpack_root / rel
@@ -463,7 +459,6 @@ def main() -> int:
             diagnostics.append(f"required unpacked directory missing: Saga/{rel}")
 
     if unpack_root.is_dir():
-        run_command(commands, [str(unpack_root / "bin" / "sde"), "--help"], required=True, label="unpacked sde help")
         run_command(commands, [str(unpack_root / "bin" / "Saga"), "--help"], required=True, label="unpacked Saga help")
         run_command(commands, [str(unpack_root / "bin" / "SagaRuntime"), "--help"], required=True, label="unpacked SagaRuntime help")
         run_command(

@@ -58,9 +58,7 @@ def read_version() -> str:
 def default_build_dirs(config: str) -> list[Path]:
     version = read_version()
     candidates = [
-        Path(f"build/RelWithDebInfo-{version}-sde"),
         Path(f"build/RelWithDebInfo-{version}"),
-        Path(f"build/{config}-{version}-sde"),
         Path(f"build/{config}-{version}"),
         Path("build/RelWithDebInfo"),
         Path("build"),
@@ -714,11 +712,9 @@ test -x bin/SagaRuntime
 test -x tools/sagaproject
 test -x tools/sagapack
 test -x tools/sagascript
-test -x tools/sde
 test -x bin/sagaproject
 test -x bin/sagapack
 test -x bin/sagascript
-test -x bin/sde
 test -d samples/StarterArena
 test -f README.md
 test -f docs/README.md
@@ -859,8 +855,6 @@ def stage_layout(
         available_inputs=available_inputs,
         missing_inputs=missing_inputs,
     )
-    copy_file(resolved_input(available_inputs, "sde CLI"), output / "tools" / "sde", staged_inputs, "sde CLI")
-    copy_file(resolved_input(available_inputs, "sde CLI"), output / "bin" / "sde", staged_inputs, "sde CLI public bin wrapper")
 
     copy_tree(resolved_input(available_inputs, "StarterArena sample"), output / "samples" / "StarterArena", staged_inputs, "StarterArena sample")
     copy_file(resolved_input(available_inputs, "root README"), output / "docs" / "README.md", staged_inputs, "root README")
@@ -936,7 +930,7 @@ def stage_layout(
         "buildType": build_type,
         "builtAtUtc": built_at_utc,
         "includedTargets": included_targets,
-        "publicTools": ["sagaproject", "sagapack", "sagascript", "sde"],
+        "publicTools": ["sagaproject", "sagapack", "sagascript"],
         "samples": ["StarterArena"],
         "knownLimitationsFile": "KNOWN_LIMITATIONS.md",
         "verification": {
@@ -1018,11 +1012,9 @@ def staged_layout_missing(output: Path) -> list[str]:
         "bin/sagaproject",
         "bin/sagapack",
         "bin/sagascript",
-        "bin/sde",
         "tools/sagaproject",
         "tools/sagapack",
         "tools/sagascript",
-        "tools/sde",
         "docs/README.md",
         "docs/GETTING_STARTED.md",
         "docs/CURRENT_CAPABILITIES.md",
@@ -1051,11 +1043,9 @@ def staged_layout_missing(output: Path) -> list[str]:
         "bin/sagaproject",
         "bin/sagapack",
         "bin/sagascript",
-        "bin/sde",
         "tools/sagaproject",
         "tools/sagapack",
         "tools/sagascript",
-        "tools/sde",
     }
     for rel in required_files:
         path = output / rel
