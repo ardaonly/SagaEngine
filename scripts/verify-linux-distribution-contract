@@ -10,6 +10,14 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from saga_linux_distribution_policy import (
+    PACKAGE_NAME,
+    PACKAGE_SCHEMA_VERSION,
+    inventory_matches,
+    validate_layout as validate_policy_layout,
+    validate_metadata_sets,
+)
+
 
 DEFAULT_LAYOUT = Path("build/dist/linux/Saga")
 DEFAULT_ARCHIVE = Path("build/dist/linux/Saga.tar.zst")
@@ -22,6 +30,8 @@ PHASE_MATRIX = Path("docs/internal/PHASE_STATUS_MATRIX.md")
 
 
 REQUIRED_BUILD_INFO_FIELDS = [
+    "schemaVersion",
+    "packageName",
     "product",
     "channel",
     "platform",
@@ -34,6 +44,15 @@ REQUIRED_BUILD_INFO_FIELDS = [
     "samples",
     "knownLimitationsFile",
     "verification",
+    "includedApplications",
+    "includedPublicTools",
+    "excludedDevTools",
+    "excludedRetiredTools",
+    "excludedSourceSurfaces",
+    "licenseFiles",
+    "notices",
+    "thirdPartyManifests",
+    "limitations",
 ]
 
 CURRENT_REQUIRED_FILES = [
@@ -48,6 +67,8 @@ CURRENT_REQUIRED_FILES = [
     "bin/sagaproject",
     "bin/sagapack",
     "bin/sagascript",
+    "licenses/LICENSE-SAGA.md",
+    "licenses/THIRD_PARTY_NOTICES.md",
     "docs/README.md",
     "docs/GETTING_STARTED.md",
     "docs/CURRENT_CAPABILITIES.md",
@@ -161,7 +182,7 @@ def add_check(
     return status == "passed" or not required
 
 
-def validate_layout(layout: Path, checks: list[dict[str, Any]], blockers: list[str]) -> None:
+def validate_distribution_layout(layout: Path, checks: list[dict[str, Any]], blockers: list[str]) -> None:
     add_check(
         checks,
         label="layout root exists",
@@ -171,6 +192,15 @@ def validate_layout(layout: Path, checks: list[dict[str, Any]], blockers: list[s
     if not layout.is_dir():
         blockers.append(f"missing layout: {layout}")
         return
+
+    policy_errors = validate_policy_layout(layout)
+    add_check(
+        checks,
+        label="exact distribution whitelist",
+        status="passed" if not policy_errors else "blocked",
+        message="; ".join(policy_errors) if policy_errors else None,
+    )
+    blockers.extend(policy_errors)
 
     for rel in CURRENT_REQUIRED_FILES:
         path = layout / rel
@@ -222,17 +252,24 @@ def validate_build_info(
     if missing_fields:
         blockers.append(f"missing BUILD_INFO fields: {missing_fields}")
 
-    expected_tools = {"sagaproject", "sagapack", "sagascript"}
-    actual_tools = set(data.get("publicTools", [])) if isinstance(data.get("publicTools"), list) else set()
-    missing_tools = sorted(expected_tools - actual_tools)
+    schema_ok = data.get("schemaVersion") == PACKAGE_SCHEMA_VERSION
     add_check(
         checks,
-        label="BUILD_INFO public tools",
-        status="passed" if not missing_tools else "blocked",
-        message=f"missing public tools in BUILD_INFO: {missing_tools}" if missing_tools else None,
+        label="BUILD_INFO schema version",
+        status="passed" if schema_ok else "blocked",
+        message=f"expected schemaVersion {PACKAGE_SCHEMA_VERSION}, got {data.get('schemaVersion')!r}" if not schema_ok else None,
     )
-    if missing_tools:
-        blockers.append(f"missing public tools in BUILD_INFO: {missing_tools}")
+    if not schema_ok:
+        blockers.append("BUILD_INFO schema version is not current")
+
+    metadata_errors = validate_metadata_sets(data)
+    add_check(
+        checks,
+        label="BUILD_INFO exact application, tool, and exclusion sets",
+        status="passed" if not metadata_errors else "blocked",
+        message="; ".join(metadata_errors) if metadata_errors else None,
+    )
+    blockers.extend(metadata_errors)
 
     add_check(
         checks,
@@ -260,6 +297,7 @@ def validate_build_info(
 
 def validate_reports(
     *,
+    layout: Path,
     package_report_path: Path,
     smoke_report_path: Path,
     candidate_report_path: Path,
@@ -268,11 +306,12 @@ def validate_reports(
     known_limitations: list[str],
 ) -> None:
     expectations = [
-        (package_report_path, "package-linux-saga", {"preflight-passed"}),
-        (smoke_report_path, "smoke-linux-saga-dist", {"passed-with-limitations"}),
-        (candidate_report_path, "verify-linux-saga-candidate", {"candidate-with-limitations"}),
+        (package_report_path, "package-linux-saga", {"preflight-passed"}, 2),
+        (smoke_report_path, "smoke-linux-saga-dist", {"passed-with-limitations"}, 2),
+        (candidate_report_path, "verify-linux-saga-candidate", {"candidate-with-limitations"}, 2),
     ]
-    for path, tool, allowed_statuses in expectations:
+    identities: list[tuple[str, tuple[Any, Any, Any]]] = []
+    for path, tool, allowed_statuses, schema_version in expectations:
         report, error = read_json(path)
         if error:
             add_check(checks, label=f"{tool} report parsed", status="blocked", message=error)
@@ -280,6 +319,15 @@ def validate_reports(
             continue
         assert report is not None
         status = report.get("status")
+        schema_ok = report.get("schemaVersion") == schema_version
+        add_check(
+            checks,
+            label=f"{tool} report schema",
+            status="passed" if schema_ok else "blocked",
+            message=f"expected schemaVersion {schema_version}, got {report.get('schemaVersion')!r}" if not schema_ok else None,
+        )
+        if not schema_ok:
+            blockers.append(f"{tool} report schema is not current")
         add_check(
             checks,
             label=f"{tool} report status",
@@ -299,6 +347,44 @@ def validate_reports(
         for limitation in report.get("knownLimitations", []):
             if isinstance(limitation, str):
                 known_limitations.append(limitation)
+        identity = (report.get("packageName"), report.get("version"), report.get("gitCommit"))
+        identities.append((tool, identity))
+        if tool == "package-linux-saga":
+            metadata_errors = validate_metadata_sets(report)
+            inventory = report.get("stagedFiles")
+            if metadata_errors:
+                blockers.extend(metadata_errors)
+            add_check(
+                checks,
+                label="package report exact application, tool, and exclusion sets",
+                status="passed" if not metadata_errors else "blocked",
+                message="; ".join(metadata_errors) if metadata_errors else None,
+            )
+            inventory_ok = isinstance(inventory, list) and inventory_matches(layout, inventory)
+            add_check(
+                checks,
+                label="package report stagedFiles completeness",
+                status="passed" if inventory_ok else "blocked",
+                message="stagedFiles does not exactly match the current layout" if not inventory_ok else None,
+            )
+            if not inventory_ok:
+                blockers.append("package report stagedFiles does not match layout")
+
+    expected_identity = identities[0][1] if identities else None
+    identity_ok = bool(expected_identity) and expected_identity[0] == PACKAGE_NAME and all(
+        identity == expected_identity for _tool, identity in identities
+    )
+    add_check(
+        checks,
+        label="report-chain package identity",
+        status="passed" if identity_ok else "blocked",
+        message=f"report identities differ: {identities}" if not identity_ok else None,
+    )
+    if not identity_ok:
+        blockers.append("package, smoke, and candidate reports do not share one package identity")
+    head = source_commit()
+    if expected_identity and expected_identity[2] != head:
+        blockers.append("report-chain gitCommit does not match current HEAD")
 
 
 def validate_final_gaps(layout: Path, checks: list[dict[str, Any]], final_gaps: list[str]) -> None:
@@ -373,9 +459,10 @@ def main() -> int:
     ]
     final_gaps: list[str] = []
 
-    validate_layout(layout, checks, blockers)
+    validate_distribution_layout(layout, checks, blockers)
     build_info = validate_build_info(layout, checks, blockers, final_gaps) if layout.is_dir() else None
     validate_reports(
+        layout=layout,
         package_report_path=package_report_path,
         smoke_report_path=smoke_report_path,
         candidate_report_path=candidate_report_path,
@@ -408,10 +495,13 @@ def main() -> int:
     required_blockers = [check for check in checks if check.get("required", True) and check.get("status") == "blocked"]
     status = "blocked" if required_blockers or blockers else "passed-with-limitations"
     report = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "tool": "verify-linux-distribution-contract",
         "status": status,
         "verified": False,
+        "packageName": build_info.get("packageName") if build_info else None,
+        "version": build_info.get("version") if build_info else None,
+        "gitCommit": build_info.get("commit") if build_info else None,
         "layout": path_text(layout),
         "archive": path_text(archive),
         "checksum": path_text(checksum),

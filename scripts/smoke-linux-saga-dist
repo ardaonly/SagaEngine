@@ -5,10 +5,19 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+from saga_linux_distribution_policy import (
+    PACKAGE_NAME,
+    PACKAGE_SCHEMA_VERSION,
+    validate_archive_entries,
+    validate_layout,
+    validate_metadata_sets,
+)
 
 
 DEFAULT_ARCHIVE = Path("build/dist/linux/Saga.tar.zst")
@@ -75,6 +84,27 @@ def run_command(
     optional_failure_status: str = "skipped",
 ) -> bool:
     expected = expected_exit_codes or {0}
+    environment = os.environ.copy()
+    if "SAGA_DOTNET" not in environment:
+        candidates: list[Path] = []
+        current_dotnet = shutil.which("dotnet")
+        if current_dotnet is not None:
+            candidates.append(Path(current_dotnet))
+        candidates.extend(sorted(Path("/nix/store").glob("*dotnet-sdk-10*/bin/dotnet")))
+        dotnet = None
+        for candidate in candidates:
+            runtime_check = subprocess.run(
+                [str(candidate), "--list-runtimes"],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+            )
+            if runtime_check.returncode == 0 and "Microsoft.NETCore.App 10." in runtime_check.stdout:
+                dotnet = str(candidate)
+                break
+        if dotnet is not None:
+            environment["SAGA_DOTNET"] = dotnet
     try:
         result = subprocess.run(
             args,
@@ -84,6 +114,7 @@ def run_command(
             stderr=subprocess.PIPE,
             text=True,
             timeout=timeout,
+            env=environment,
         )
         status = "passed" if result.returncode in expected else ("blocked" if required else optional_failure_status)
         entry: dict[str, object] = {
@@ -127,8 +158,9 @@ def verify_archive_root(archive: Path) -> tuple[bool, list[str], str | None]:
     if result.returncode != 0:
         return False, [], result.stderr.strip() or "tar listing failed"
     entries = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-    ok = bool(entries) and all(entry == "Saga/" or entry.startswith("Saga/") for entry in entries)
-    return ok, entries, None if ok else "archive root is not Saga/"
+    errors = validate_archive_entries(entries, PACKAGE_NAME)
+    ok = not errors
+    return ok, entries, None if ok else "; ".join(errors)
 
 
 def write_report(report_out: Path, report: dict[str, object]) -> None:
@@ -151,7 +183,6 @@ def run_starter_arena_workflow(
     sagascript_out = work_dir / "starter_arena_sagascript_analyze"
     product_report = work_dir / "starter_arena_product_shell_workflow_report.json"
     runtime_report = work_dir / "starter_arena_runtime_smoke.json"
-    editor_report = work_dir / "starter_arena_editor_shell_report.json"
 
     starter_diagnostics: list[str] = []
     required_results: list[bool] = []
@@ -233,8 +264,8 @@ def run_starter_arena_workflow(
         label="StarterArena SagaRuntime packaged smoke",
         timeout=30,
         limitation=(
-            "Packaged SagaRuntime StarterArena smoke is blocked in this distribution smoke; "
-            "the current binary enters normal client startup, attempts UDP transport setup, and does not produce the requested smoke report."
+            "Packaged SagaRuntime StarterArena smoke did not satisfy its bounded optional command contract; "
+            "see the recorded exit code and output for the current result."
         ),
         optional_failure_status="blocked",
     )
@@ -244,28 +275,12 @@ def run_starter_arena_workflow(
         starter_diagnostics.append(message)
         diagnostics.append(message)
 
-    editor_ok = run_command(
-        commands,
-        [
-            str(unpack_root / "bin" / "SagaEditor"),
-            "--inspect-project",
-            str(project),
-            "--profile",
-            "technical_preview",
-            "--editor-shell-report",
-            str(editor_report),
-        ],
-        required=False,
-        label="StarterArena SagaEditor inspect-project",
-        timeout=10,
-        limitation="Packaged SagaEditor inspect smoke is blocked: SagaEditor reports unknown argument '--inspect-project'.",
-        optional_failure_status="blocked",
+    editor_message = (
+        "SagaEditor is presence-checked only; headless archive smoke does not launch the GUI "
+        "until a stable supported headless command exists."
     )
-    add_artifact(artifacts, label="StarterArena editor shell report", path=editor_report, required=False, kind="json-report")
-    if not editor_ok:
-        message = "StarterArena SagaEditor inspect-project is blocked; SagaEditor reports unknown argument '--inspect-project'."
-        starter_diagnostics.append(message)
-        diagnostics.append(message)
+    starter_diagnostics.append(editor_message)
+    known_limitations.append(editor_message)
 
     report_only_message = (
         "StarterArena product shell workflow output is report-only; referenced developer-tree commands inside that report "
@@ -284,10 +299,7 @@ def run_starter_arena_workflow(
             "StarterArena sagascript analyze",
             "StarterArena Saga workflow-smoke",
         ],
-        "blockedCommands": [
-            "StarterArena SagaRuntime packaged smoke",
-            "StarterArena SagaEditor inspect-project",
-        ],
+        "blockedCommands": [] if runtime_ok else ["StarterArena SagaRuntime packaged smoke"],
         "diagnostics": starter_diagnostics,
         "nonClaims": [
             "StarterArena workflow smoke does not claim full gameplay readiness.",
@@ -329,7 +341,7 @@ def main() -> int:
         "This smoke does not claim full gameplay readiness.",
         "This smoke does not claim cloud collaboration.",
         "sagaproject, sagascript, and sagapack checks are limited to packaged help output from the unpacked distribution.",
-        "SagaEditor does not currently expose a --help smoke path in the unpacked distribution.",
+        "SagaEditor is executable-presence checked but is not launched in headless archive smoke.",
     ]
     non_claims = [
         "This report does not claim production readiness; the distribution is not production-ready.",
@@ -349,7 +361,7 @@ def main() -> int:
     if not archive.is_file() or not checksum.is_file():
         diagnostics.append("archive or checksum file is missing")
         report = {
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "tool": "smoke-linux-saga-dist",
             "status": "blocked",
             "verified": False,
@@ -379,7 +391,7 @@ def main() -> int:
     root_ok, archive_entries, root_error = verify_archive_root(archive)
     add_check(
         checks,
-        label="archive Saga/ root",
+        label="archive whitelist and Saga/ root",
         path=archive,
         status="passed" if root_ok else "blocked",
         kind="archive",
@@ -458,16 +470,31 @@ def main() -> int:
         if not ok:
             diagnostics.append(f"required unpacked directory missing: Saga/{rel}")
 
+    build_info: dict[str, object] = {}
+    if unpack_root.is_dir():
+        policy_errors = validate_layout(unpack_root)
+        try:
+            build_info = json.loads((unpack_root / "BUILD_INFO.json").read_text(encoding="utf-8"))
+            if build_info.get("schemaVersion") != PACKAGE_SCHEMA_VERSION:
+                policy_errors.append(
+                    f"BUILD_INFO schemaVersion must be {PACKAGE_SCHEMA_VERSION}, got {build_info.get('schemaVersion')!r}"
+                )
+            policy_errors.extend(validate_metadata_sets(build_info))
+        except (OSError, json.JSONDecodeError) as exc:
+            policy_errors.append(f"BUILD_INFO validation failed: {exc}")
+        add_check(
+            checks,
+            label="unpacked exact distribution whitelist",
+            path=Path("Saga"),
+            status="passed" if not policy_errors else "blocked",
+            kind="policy",
+            message=None if not policy_errors else "; ".join(sorted(set(policy_errors))),
+        )
+        diagnostics.extend(sorted(set(policy_errors)))
+
     if unpack_root.is_dir():
         run_command(commands, [str(unpack_root / "bin" / "Saga"), "--help"], required=True, label="unpacked Saga help")
         run_command(commands, [str(unpack_root / "bin" / "SagaRuntime"), "--help"], required=True, label="unpacked SagaRuntime help")
-        run_command(
-            commands,
-            [str(unpack_root / "bin" / "SagaEditor"), "--help"],
-            required=False,
-            label="unpacked SagaEditor help",
-            limitation="SagaEditor does not currently expose a --help smoke path.",
-        )
         for tool in ["sagaproject", "sagascript", "sagapack"]:
             tool_ok = run_command(
                 commands,
@@ -510,7 +537,7 @@ def main() -> int:
         exit_code = 0
 
     report = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "tool": "smoke-linux-saga-dist",
         "status": status,
         "verified": False,
@@ -518,6 +545,10 @@ def main() -> int:
         "checksum": path_text(checksum),
         "unpackRoot": path_text(unpack_root),
         "archiveEntriesPreview": archive_entries[:80],
+        "archiveEntries": archive_entries,
+        "packageName": build_info.get("packageName"),
+        "version": build_info.get("version"),
+        "gitCommit": build_info.get("commit"),
         "checks": checks,
         "commands": commands,
         "artifacts": artifacts,
