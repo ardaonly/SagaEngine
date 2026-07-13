@@ -118,6 +118,27 @@ std::vector<CMakeLinkCall> ExtractTargetLinkCalls(
     return calls;
 }
 
+std::string ExtractTargetCall(
+    const std::string& text,
+    std::string_view command,
+    std::string_view target)
+{
+    const std::string marker =
+        std::string(command) + "(" + std::string(target);
+    const auto start = text.find(marker);
+    if (start == std::string::npos)
+    {
+        return {};
+    }
+
+    const auto end = text.find(')', start);
+    if (end == std::string::npos)
+    {
+        return text.substr(start);
+    }
+    return text.substr(start, end - start + 1);
+}
+
 bool ContainsToken(const std::string& text, const std::string& token)
 {
     return text.find(token) != std::string::npos;
@@ -1116,6 +1137,7 @@ TEST(CMakeTargetBoundaryTests, RuntimeAndServerTargetsDoNotLinkEditorDevOrToolTa
         "SagaEditorLib",
         "SagaEditorLabLib",
         "SagaEditorLabBridge",
+        "SagaSandboxLib",
         "SagaProductLib",
         "SagaAssetPipelineLib",
         "Forge",
@@ -1134,6 +1156,43 @@ TEST(CMakeTargetBoundaryTests, RuntimeAndServerTargetsDoNotLinkEditorDevOrToolTa
                 << ":" << offender.line << "\n" << offender.text;
         }
     }
+}
+
+TEST(CMakeTargetBoundaryTests, SagaRuntimeOwnsOnlyRuntimeAppSourcesAndIncludes)
+{
+    const auto path = SagaTargetsPath();
+    const std::string text = ReadText(path);
+    const std::string sources =
+        ExtractTargetCall(text, "add_executable", "SagaRuntime");
+    const std::string includes =
+        ExtractTargetCall(text, "target_include_directories", "SagaRuntime");
+
+    ASSERT_FALSE(sources.empty())
+        << "SagaRuntime add_executable call not found in "
+        << path.generic_string();
+
+    const std::vector<std::string> forbiddenSourceRoots = {
+        "Apps/Client",
+        "Apps/Server",
+        "Apps/Saga/",
+        "Apps/Editor/",
+        "Apps/EditorLab",
+        "Apps/Sandbox",
+        "Apps/SagaDev",
+    };
+    for (const auto& forbidden : forbiddenSourceRoots)
+    {
+        EXPECT_FALSE(ContainsToken(sources, forbidden))
+            << "SagaRuntime must not compile app implementation from "
+            << forbidden << ". Offending call:\n" << sources;
+    }
+
+    EXPECT_FALSE(ContainsToken(includes, "Apps/Client"))
+        << "SagaRuntime must not include Apps/Client. Offending call:\n"
+        << includes;
+    EXPECT_FALSE(ContainsToken(includes, "Apps/Server"))
+        << "SagaRuntime must not include Apps/Server. Offending call:\n"
+        << includes;
 }
 
 TEST(CMakeTargetBoundaryTests, DedicatedServerTargetsStayHeadless)

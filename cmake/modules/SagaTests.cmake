@@ -331,6 +331,9 @@ function(saga_setup_tests)
     # --- Unit tests ---------------------------------------------------------
 
     add_executable(SagaUnitTests ${UNIT_TEST_SOURCES} ${EDITORLAB_SOURCES})
+    target_sources(SagaUnitTests PRIVATE
+        ${SAGA_ROOT}/Apps/Runtime/RuntimeHost.cpp
+    )
     saga_link_thirdparty(SagaUnitTests)
     target_link_libraries(SagaUnitTests PRIVATE
         SagaEngine
@@ -355,6 +358,7 @@ function(saga_setup_tests)
     target_include_directories(SagaUnitTests PRIVATE ${SAGA_TEST_INCLUDE_DIRS})
     target_include_directories(SagaUnitTests PRIVATE
         ${SAGA_ROOT}/Engine/Private
+        ${SAGA_ROOT}/Apps/Runtime
     )
     target_compile_definitions(SagaUnitTests PRIVATE
         SAGA_SOURCE_ROOT="${SAGA_ROOT}"
