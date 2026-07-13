@@ -31,7 +31,7 @@ enforcement gate and does not change build behavior.
 | CBI-002 | report-only legacy violation | `cmake/modules/SagaTests.cmake` collects broad test source sets. | Tests can join broad executables and inherit too much include/link access. |
 | CBI-003 | candidate for include-root restriction | `SagaEngine` exports both `Engine/Public` and `Runtime/include`. | Engine consumers can see Runtime headers through the Engine target interface. |
 | CBI-004 | candidate for public API cleanup | `SagaEditorLib` publicly links Qt and public Editor headers expose Qt-shaped types. | Qt remains part of the Editor public ABI until those headers are redesigned. |
-| CBI-005 | candidate for PRIVATE conversion | `SagaProductLib` republishes Engine, Runtime, Server, Collaboration, and Qt. | Product orchestration can become a transitive dependency hub. |
+| CBI-005 | resolved app-spine boundary | `SagaProductLib` links Product-owned foundations and Qt but no longer links `SagaEditorLib`, `SagaRuntimeLib`, or `SagaServerLib`. | Architecture tests reject upward Editor/Runtime/Server implementation coupling. |
 | CBI-007 | uncertain, needs inspection | `SagaBackend` exports a mixed backend include root. | Consumers can include generic backend service paths without clear ownership. |
 | CBI-008 | candidate for test graph narrowing | Architecture and product tests inherit broad include roots. | Include-boundary tests are weaker when the test target can already see most modules. |
 
@@ -54,6 +54,10 @@ executable.
   and Linux package surface are absent. `SagaServerLib` and its public include
   namespace remain supported foundations. Architecture tests enforce the
   distinction.
+- Product Shell launches `SagaEditor` externally through a typed process
+  request. `SagaEditor` delegates to `SagaEditorLib`; `SagaRuntime` delegates to
+  its app-local host and no longer links `SagaServerLib`. EditorLab and Sandbox
+  remain development-only and are not default Product dependencies.
 
 ## Guard Model
 

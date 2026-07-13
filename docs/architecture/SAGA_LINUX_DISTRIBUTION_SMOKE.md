@@ -81,8 +81,9 @@ Saga/tools/sagascript analyze
 Saga/bin/Saga --workflow-smoke
 ```
 
-`SagaEditor` is required and executable-presence checked, but the headless smoke
-does not launch its GUI until a stable supported headless command exists.
+`SagaEditor` is required and executable-presence checked. Its Editor-owned
+`--inspect-project` path now emits clean schema 2, but archive smoke still does
+not launch the GUI and does not treat inspection as full Editor readiness.
 
 `SagaRuntime --starter-arena-smoke` remains an optional bounded command. Its
 current exit code and output are recorded rather than converted into a fixed

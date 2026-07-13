@@ -245,7 +245,8 @@ Focused server-authoritative smoke:
 
 This is repository-only development/sample evidence. The executable is not
 included in the default Linux package and packaged users must not expect this
-command to exist.
+command to exist. It is not a Product Shell launch action and is not emitted by
+the Editor schema-2 inspection report.
 
 This server smoke is local and deterministic. It proves server-owned state,
 one accepted input, one rejected invalid input, and one authoritative snapshot

@@ -15,6 +15,9 @@ local environment and subsystem.
 - That candidate archive is constrained to exactly `Saga`, `SagaEditor`, and
   `SagaRuntime`, plus the published `sagaproject`, `sagapack`, and `sagascript`
   CLIs. Developer/lab/probe/test executables are not default package artifacts.
+- The app-spine refactor does not expand that whitelist: `Saga` remains the
+  Product Shell, `SagaEditor` remains the external Editor host, and
+  `SagaRuntime` remains the standalone bounded Runtime host.
 - The limited Linux path may include a staged layout, archive, checksum,
   preflight report, distribution smoke report, and candidate aggregation report.
 

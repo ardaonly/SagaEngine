@@ -1,6 +1,6 @@
 # Saga Product Shell Workflow Contract
 
-Status: report-only Product Shell workflow contract.
+Status: bounded Product Shell ownership and workflow contract.
 
 The Saga Product Shell is a:
 
@@ -8,9 +8,10 @@ The Saga Product Shell is a:
 launcher/dashboard/workflow router
 ```
 
-This document is a contract over existing entry points. The current workflow
-smokes are report-only commands over those entry points. They do not
-implement dashboard UI wiring, editor workflow panels, package distribution,
+This document is a contract over existing entry points. The Product Shell owns
+a bounded launcher window, project/session models, typed target preparation,
+and process handoff. Workflow smokes remain report-backed commands. They do not
+implement editor workflow panels, package distribution,
 runtime logic, server logic, SagaScript behavior, Visual Blocks
 editor UI, collaboration services, cloud workspace, or real-time team editing.
 
@@ -18,8 +19,9 @@ editor UI, collaboration services, cloud workspace, or real-time team editing.
 
 The Product Shell may route a user through local workflows that already have
 CLI or process-level evidence. Its first honest workflow is report-first: every
-tool handoff must preserve the command, exit status, report path, and
-diagnostics path or diagnostics payload.
+tool handoff preserves typed arguments, exit classification, report path, and
+diagnostics path or diagnostics payload. It does not execute shell command
+strings.
 
 The Product Shell must not claim success without a real tool report. A failed
 tool remains visible as a failed workflow step. Package preflight failure is a
@@ -48,18 +50,23 @@ The repository already contains an `Apps/Saga` product shell boundary:
   manifests, tracks recent projects, and manages local-only session labels.
 - `Apps/Saga/SagaProductHost.*` prepares target metadata for editor, runtime,
   and server roles without owning those modules.
-- `Apps/Saga/SagaProcessLauncher.*` is the product-local process launch
-  abstraction.
+- `Apps/Saga/SagaProcessService.*` is the only Product-owned `QProcess`
+  implementation. It accepts typed Editor, Runtime, Forge, or SagaScript
+  identities, an environment-key allowlist, and bounded timeouts; it never
+  invokes a command shell.
+- `Apps/Saga/SagaProcessLauncher.*` adapts prepared product targets to that
+  service.
 - `Apps/Saga/SagaSessionModel.*` defines product workspace, target, and
   diagnostic data.
-- `Apps/Saga/SagaEditorModule.*` is the same-process editor facade used by the
-  product shell; it is not the editor workflow itself.
+- `Apps/Saga/SagaLauncherWindow.*` owns the bounded launcher UI. Opening a
+  project hands off to the external `SagaEditor` executable.
 - `Apps/Saga/SagaScriptGate.*`, `Apps/Saga/SagaPackageStaging.*`, and
   `Apps/Saga/SagaPublishReadiness.*` contain product-owned gate or report
   services, but this document does not expand them.
 
-`Apps/Editor` remains the editor launcher. `Apps/EditorLab` remains a scenario
-and development shell, not the Product Shell workflow dashboard.
+`Apps/Editor` is a thin editor executable host; editor implementation and
+inspection live in `Editor/` and `SagaEditorLib`. `Apps/EditorLab` remains a
+scenario/development shell and its optional bridge is off by default.
 
 ## Workflow Smoke
 
@@ -91,10 +98,10 @@ The first honest Product Shell workflow is:
 4. Run SagaScript analyze and compile.
 5. Generate and read block projection plus safe edit evidence through the
    CLI-only Visual Blocks chain.
-6. Run server-authority smoke.
-7. Show or read diagnostics and reports.
-8. Run package preflight when requested.
-9. Surface current capabilities and known limitations.
+6. Show or read diagnostics and reports.
+7. Run package preflight when requested.
+8. Surface the unsupported server target and other limitations without a
+   launch instruction.
 
 The CLI tools remain the source of truth for proof. A Product Shell UI may make
 these steps easier to launch and read later, but it may not replace or mask the
@@ -126,8 +133,9 @@ The Product Shell must show the command, process exit status, and
 
 ## Edit
 
-Editing and inspection UI are out of scope for this document Future editing belongs
-to SagaEditor, not to hidden Product Shell behavior.
+Editing and inspection belong to SagaEditor, not to hidden Product Shell
+behavior. Product Shell prepares an external `SagaEditor --workspace ...
+--profile ...` request and does not link or compile Editor implementation.
 
 The Product Shell may route to editor mode through the existing product/editor
 boundary, but this document does not claim a completed dashboard, inspector,
@@ -162,15 +170,12 @@ The Product Shell contract may show the generated reports and diagnostics from
 that chain. It must not describe this as Visual Blocks editor UI, arbitrary C#
 roundtrip, or a completed authoring surface.
 
-## Server Smoke
+## Unsupported Server Target
 
-Existing server-authority smoke evidence is a bounded headless server command
-over a caller-provided project, tick count, fixed timestep, report output path,
-and diagnostics output path.
-
-The Product Shell must surface the exit status, report path, and diagnostics
-path. This is a bounded smoke proof, not an internet session, production server,
-or multiplayer product workflow.
+The Product Shell may display declarative future server metadata, but target
+resolution returns a stable unsupported diagnostic and never constructs a
+process request. Repository-only server-authority fixtures are not launcher
+actions and do not establish a dedicated-server product executable.
 
 ## Diagnostics
 

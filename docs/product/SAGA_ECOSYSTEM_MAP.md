@@ -46,9 +46,9 @@ current bounded distribution claim.
 
 | Area | Intended ownership | Current bounded evidence | Explicit non-claim |
 | --- | --- | --- | --- |
-| `Saga` product layer | Product lifecycle and orchestration across project, authoring, preview, build, package, run, publish, and diagnostics entry points | Product and composition foundations exist | Finished product shell or end-to-end workflow |
-| `SagaEditor` | Scene, asset, script, graph, diagnostics, and preview authoring UX | Editor scaffolding and boundary work exist | Complete editor or Visual Blocks product |
-| `SagaRuntime` | Client and game execution over validated project/package artifacts | Startup, lifecycle, asset, package, and smoke foundations exist | Finished playable runtime |
+| `Saga` product layer | Product shell, project/workspace session model, typed target resolution, bounded process handoff, diagnostics, and product checks | External Editor handoff and allowlisted Editor/Runtime/tool process requests exist | Finished launcher or end-to-end workflow |
+| `SagaEditor` | Thin executable host over `SagaEditorLib`; Editor owns project inspection and authoring UX | Clean schema-2 typed inspection plus editor scaffolding exist | Complete editor or Visual Blocks product |
+| `SagaRuntime` | Standalone runtime host over reusable Runtime services | Startup, lifecycle, package, and bounded StarterArena modes exist; generic project mode is rejected | Generic or finished playable runtime |
 | `SagaServerLib` and server foundations | Reusable authoritative simulation, validation, state mutation, sessions, and replication foundations | Narrow authority, movement, ownership, replication, and diagnostics evidence exists; no product dedicated-server executable is shipped | Product server execution, production networking, scale proof, or MMO readiness |
 | Engine Core | Runtime-neutral primitives, ECS/simulation, math, diagnostics, graphics contracts, platform boundaries, and package vocabulary | Focused foundations exist across several subsystems | Product/editor ownership, genre policy, or backend-native public SDK |
 | Forge | Build and repository orchestration through explicit commands and tool boundaries | Build/toolchain workflows exist | Universal product shell or owner of every tool implementation |
@@ -70,7 +70,8 @@ default product executables.
 
 Saga product architecture depends on explicit ownership:
 
-- The product layer coordinates public module and tool boundaries.
+- The product layer coordinates public module and tool boundaries and launches
+  the Editor externally; it does not own Editor or Runtime implementation.
 - The editor owns authoring presentation and editor-side commands.
 - Runtime owns client and game execution.
 - Server owns authoritative multiplayer decisions and state.
