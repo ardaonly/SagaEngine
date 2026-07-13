@@ -8,9 +8,11 @@ and not production-ready.
 
 ## Current State
 
-- Engine, runtime, server, editor, tool, and test code are present.
-- Runtime, server authority, assets, editor boundaries, and packaging each have
-  focused local coverage.
+- Engine, runtime, reusable server foundations, editor, tool, and test code are
+  present. The legacy snapshot-probe server app has been retired; no product
+  dedicated-server executable is currently implemented or shipped.
+- Runtime, `SagaServerLib` authority foundations, assets, editor boundaries,
+  and packaging each have focused local coverage.
 - The full raw CTest suite is not a current pass signal.
 - Heavy stress/load checks are opt-in and unresolved.
 - Full editor, playable runtime, production networking, production renderer,

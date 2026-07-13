@@ -28,7 +28,6 @@ build/dist/linux/Saga/
     Saga
     SagaEditor
     SagaRuntime
-    SagaServer
   tools/
     sagaproject
     sagapack
@@ -53,7 +52,9 @@ build/dist/linux/Saga/
   BUILD_INFO.json
 ```
 
-When `--without-server` is used, `SagaServer` is not required or staged.
+No product dedicated-server executable is staged. Server-domain package
+metadata and `SagaServerLib` development artifacts are separate contracts and
+do not imply a packaged server process.
 
 ## Real Inputs
 
@@ -69,7 +70,7 @@ repository paths.
 `VERSION` is copied from the repository root `VERSION` file.
 
 `VERIFY.txt` contains staged-layout presence checks and archive/checksum
-commands. It does not verify runtime, editor, server, tool workflows,
+commands. It does not verify runtime, editor, dedicated-server, or tool workflows,
 production readiness, enterprise readiness, full distribution validation, or
 verified release status, or verified final release status.
 

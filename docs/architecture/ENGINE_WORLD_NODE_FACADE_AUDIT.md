@@ -36,9 +36,9 @@ rg -n '\b(WorldNode|SimCell|DomainScheduler|EventStream|RelevanceGraph|ClientSes
 | `SagaEngine/World/WorldNode.h` | None | `WorldNode.cpp` | None |
 
 No direct include of these five headers was found from `Tests`, `Tools`,
-`Runtime`, `Server`, `Editor`, or `Apps`. The only non-Engine hit in the
-supporting symbol search was an `Apps/Server/TestSnapshotServer.h` comment that
-mentions future WorldNode wiring; it is not a dependency.
+`Runtime`, `Server`, `Editor`, or `Apps`. A historical comment in the now-retired
+synthetic server probe mentioned future WorldNode wiring; it was never a
+dependency.
 
 ## Symbol Usage Summary
 

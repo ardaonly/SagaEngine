@@ -40,6 +40,11 @@ enforcement gate and does not change build behavior.
 - CBI-006 is resolved: Runtime owns its app-local host, and the legacy client
   executable, source directory, output identity, install surface, and package
   surface are absent. Architecture tests enforce this boundary.
+- The legacy synthetic snapshot server app is retired: `Apps/Server`, the
+  `SagaServer` executable target, Product Shell launch handoff, host container,
+  and Linux package surface are absent. `SagaServerLib` and its public include
+  namespace remain supported foundations. Architecture tests enforce the
+  distinction.
 
 ## Guard Model
 
@@ -56,6 +61,8 @@ Guard candidates and enforced cleaned boundaries:
 - Runtime, Product Shell, and Editor targets must not compile or include the
   retired client app, and the retired executable must remain absent from build,
   install, and distribution rules;
+- no product target, distribution rule, package script, or host helper may
+  restore the retired server app or executable; `SagaServerLib` remains legal;
 - Server public headers must not include Editor, Product shell, tool/compiler
   internals, or Qt UI;
 - Engine public headers must not include Server, Editor, Apps, Product, or
