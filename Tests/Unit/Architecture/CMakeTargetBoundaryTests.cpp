@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <set>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -760,11 +761,230 @@ TEST(CMakeTargetBoundaryTests, ProductShellHasOneQtProcessOwner)
         }
         if (ContainsToken(ReadText(entry.path()), "#include <QProcess>"))
         {
-            owners.push_back(entry.path().filename());
+            owners.push_back(std::filesystem::relative(entry.path(), root));
         }
     }
     ASSERT_EQ(owners.size(), 1u);
-    EXPECT_EQ(owners.front(), std::filesystem::path("SagaProcessService.cpp"));
+    EXPECT_EQ(owners.front(),
+              std::filesystem::path("Processes") / "SagaProcessService.cpp");
+}
+
+TEST(CMakeTargetBoundaryTests, AppsSagaRootContainsOnlyApprovedSubdirectories)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT) / "Apps" / "Saga";
+    const std::set<std::string> approved = {
+        "App",
+        "FirstPlayable",
+        "Launcher",
+        "LocalWorkspace",
+        "Packaging",
+        "Processes",
+        "Projects",
+        "Reports",
+        "Scripting",
+        "Targets",
+        "VisualBlocks",
+    };
+    std::set<std::string> actual;
+
+    for (const auto& entry : std::filesystem::directory_iterator(root))
+    {
+        if (entry.is_directory())
+        {
+            actual.insert(entry.path().filename().string());
+            continue;
+        }
+        if (entry.is_regular_file())
+        {
+            EXPECT_NE(entry.path().extension(), ".cpp")
+                << "Apps/Saga root must not own source: "
+                << entry.path().generic_string();
+            EXPECT_NE(entry.path().extension(), ".h")
+                << "Apps/Saga root must not own headers: "
+                << entry.path().generic_string();
+        }
+    }
+
+    EXPECT_EQ(actual, approved);
+}
+
+TEST(CMakeTargetBoundaryTests, AppsSagaFilesStayInResponsibleFolders)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT) / "Apps" / "Saga";
+    std::map<std::string, std::string> expected;
+    const auto addPair = [&expected](const std::string& folder,
+                                     const std::string& stem) {
+        expected.emplace(stem + ".cpp", folder);
+        expected.emplace(stem + ".h", folder);
+    };
+
+    addPair("App", "SagaApp");
+    addPair("App", "SagaAppConfig");
+    addPair("App", "SagaProductHost");
+    expected.emplace("main.cpp", "App");
+    expected.emplace("SagaQtStaticPlugins.cpp", "App");
+
+    addPair("Launcher", "SagaLauncherController");
+    addPair("Launcher", "SagaLauncherModel");
+    addPair("Launcher", "SagaLauncherWindow");
+
+    addPair("Projects", "SagaProjectCatalog");
+    addPair("Projects", "SagaProjectSystem");
+    addPair("Projects", "SagaSessionModel");
+    addPair("Projects", "SagaWorkspaceResolver");
+
+    addPair("Targets", "SagaLauncherTargets");
+
+    addPair("Reports", "RuntimeEvidenceReport");
+    addPair("Reports", "SagaLauncherReports");
+    addPair("Reports", "SagaProductWorkflowSmokeReport");
+
+    addPair("Processes", "SagaProcessLauncher");
+    addPair("Processes", "SagaProcessService");
+
+    addPair("FirstPlayable", "FirstPlayableEvidenceBundle");
+    addPair("FirstPlayable", "FirstPlayableGate");
+    addPair("FirstPlayable", "FirstPlayableHumanCapture");
+    addPair("FirstPlayable", "FirstPlayableManualEvidence");
+    addPair("FirstPlayable", "FirstPlayablePublicClaimAudit");
+    addPair("FirstPlayable", "FirstPlayableWorkflow");
+    addPair("FirstPlayable", "FirstPlayableWorkspacePolicy");
+    addPair("FirstPlayable", "RuntimeEvidenceRunner");
+
+    addPair("Packaging", "SagaPackageStaging");
+    addPair("Packaging", "SagaPublishReadiness");
+    addPair("Scripting", "SagaScriptGate");
+    addPair("VisualBlocks", "VisualBlocksDescriptor");
+    addPair("LocalWorkspace", "SagaLocalCollaborationMetadataReports");
+    addPair("LocalWorkspace", "SagaLocalWorkspaceTransactionReport");
+
+    std::set<std::string> seen;
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(root))
+    {
+        if (!entry.is_regular_file() ||
+            (entry.path().extension() != ".cpp" &&
+             entry.path().extension() != ".h"))
+        {
+            continue;
+        }
+
+        const auto filename = entry.path().filename().string();
+        const auto owner = expected.find(filename);
+        ASSERT_NE(owner, expected.end())
+            << "Unclassified Apps/Saga source: "
+            << entry.path().generic_string();
+        EXPECT_EQ(entry.path().parent_path().filename().string(), owner->second)
+            << filename << " belongs in Apps/Saga/" << owner->second;
+        EXPECT_TRUE(seen.insert(filename).second)
+            << "Duplicate Apps/Saga source filename: " << filename;
+    }
+
+    EXPECT_EQ(seen.size(), expected.size());
+    for (const auto& [filename, folder] : expected)
+    {
+        EXPECT_TRUE(std::filesystem::is_regular_file(root / folder / filename))
+            << "Expected Apps/Saga source is missing: "
+            << (root / folder / filename).generic_string();
+    }
+}
+
+TEST(CMakeTargetBoundaryTests, AppsSagaIncludesUseResponsibilityPrefixes)
+{
+    const auto sourceRoot = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto productRoot = sourceRoot / "Apps" / "Saga";
+    const std::set<std::string> productHeaders = {
+        "FirstPlayableEvidenceBundle.h",
+        "FirstPlayableGate.h",
+        "FirstPlayableHumanCapture.h",
+        "FirstPlayableManualEvidence.h",
+        "FirstPlayablePublicClaimAudit.h",
+        "FirstPlayableWorkflow.h",
+        "FirstPlayableWorkspacePolicy.h",
+        "RuntimeEvidenceReport.h",
+        "RuntimeEvidenceRunner.h",
+        "SagaApp.h",
+        "SagaAppConfig.h",
+        "SagaLauncherController.h",
+        "SagaLauncherModel.h",
+        "SagaLauncherReports.h",
+        "SagaLauncherTargets.h",
+        "SagaLauncherWindow.h",
+        "SagaLocalCollaborationMetadataReports.h",
+        "SagaLocalWorkspaceTransactionReport.h",
+        "SagaPackageStaging.h",
+        "SagaProcessLauncher.h",
+        "SagaProcessService.h",
+        "SagaProductHost.h",
+        "SagaProductWorkflowSmokeReport.h",
+        "SagaProjectCatalog.h",
+        "SagaProjectSystem.h",
+        "SagaPublishReadiness.h",
+        "SagaScriptGate.h",
+        "SagaSessionModel.h",
+        "SagaWorkspaceResolver.h",
+        "VisualBlocksDescriptor.h",
+    };
+    const std::vector<std::filesystem::path> scanRoots = {
+        productRoot,
+        sourceRoot / "Tests" / "Unit" / "Saga",
+        sourceRoot / "Tests" / "LauncherUi",
+    };
+
+    for (const auto& scanRoot : scanRoots)
+    {
+        for (const auto& entry :
+             std::filesystem::recursive_directory_iterator(scanRoot))
+        {
+            if (!entry.is_regular_file() ||
+                (entry.path().extension() != ".cpp" &&
+                 entry.path().extension() != ".h"))
+            {
+                continue;
+            }
+            const auto lines = ReadLines(entry.path());
+            for (std::size_t lineIndex = 0; lineIndex < lines.size(); ++lineIndex)
+            {
+                constexpr std::string_view marker = "#include \"";
+                const auto start = lines[lineIndex].find(marker);
+                if (start == std::string::npos)
+                {
+                    continue;
+                }
+                const auto valueStart = start + marker.size();
+                const auto end = lines[lineIndex].find('"', valueStart);
+                if (end == std::string::npos)
+                {
+                    continue;
+                }
+                const auto include =
+                    lines[lineIndex].substr(valueStart, end - valueStart);
+                if (include.find('/') == std::string::npos &&
+                    productHeaders.count(include) != 0u)
+                {
+                    ADD_FAILURE()
+                        << entry.path().generic_string() << ":"
+                        << (lineIndex + 1)
+                        << " uses obsolete flat Product include " << include;
+                }
+            }
+        }
+    }
+
+    const auto targets = ReadText(SagaTargetsPath());
+    const auto productIncludes = ExtractTargetCall(
+        targets, "target_include_directories", "SagaProductLib");
+    EXPECT_TRUE(ContainsToken(productIncludes, "PRIVATE"));
+    EXPECT_TRUE(ContainsToken(productIncludes, "${SAGA_ROOT}/Apps/Saga"));
+    for (const auto& folder : {
+             "App", "Launcher", "Projects", "Targets", "Reports",
+             "Processes", "FirstPlayable", "Packaging", "Scripting",
+             "VisualBlocks", "LocalWorkspace"})
+    {
+        EXPECT_FALSE(ContainsToken(
+            productIncludes, "${SAGA_ROOT}/Apps/Saga/" + std::string(folder)))
+            << "SagaProductLib must not add a folder-specific include root: "
+            << folder;
+    }
 }
 
 TEST(CMakeTargetBoundaryTests, UnitTestsConsumeEditorLabThroughItsLibraryOwner)
