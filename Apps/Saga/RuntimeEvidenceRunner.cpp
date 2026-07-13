@@ -2,10 +2,7 @@
 /// @brief Product Shell subprocess runner for first-playable runtime evidence.
 
 #include "RuntimeEvidenceRunner.h"
-
-#include <QProcess>
-#include <QProcessEnvironment>
-#include <QStringList>
+#include "SagaProcessService.h"
 
 #include <nlohmann/json.hpp>
 
@@ -18,16 +15,6 @@ namespace SagaProduct
 {
 namespace
 {
-
-using Clock = std::chrono::steady_clock;
-
-[[nodiscard]] QStringList ToQStringList(const std::vector<std::string>& values)
-{
-    QStringList result;
-    for (const std::string& value : values)
-        result.push_back(QString::fromStdString(value));
-    return result;
-}
 
 void WriteText(const std::filesystem::path& path, const std::string& text)
 {
@@ -120,46 +107,26 @@ const char* ToString(RuntimeEvidenceProfile profile) noexcept
 EvidenceProcessResult QtEvidenceProcessRunner::Run(
     const EvidenceProcessRequest& request)
 {
-    EvidenceProcessResult result;
-    QProcess process;
-    process.setProgram(QString::fromStdString(request.executable.string()));
-    process.setArguments(ToQStringList(request.arguments));
-    process.setProcessChannelMode(QProcess::SeparateChannels);
-    if (!request.workingDirectory.empty())
-        process.setWorkingDirectory(QString::fromStdString(
-            request.workingDirectory.string()));
-    QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
-    for (const auto& [key, value] : request.environment)
-        environment.insert(QString::fromStdString(key), QString::fromStdString(value));
-    process.setProcessEnvironment(environment);
+    SagaProductProcessRequest processRequest;
+    processRequest.target = request.executable.filename() == "sagascript" ?
+        SagaProcessTargetId::SagaScript : SagaProcessTargetId::Runtime;
+    processRequest.executable = request.executable;
+    processRequest.arguments = request.arguments;
+    processRequest.workingDirectory = request.workingDirectory;
+    processRequest.environment = request.environment;
+    processRequest.timeout = request.timeout;
 
-    const auto startedAt = Clock::now();
-    process.start();
-    if (!process.waitForStarted())
-    {
-        result.startError = process.errorString().toStdString();
-        result.duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-            Clock::now() - startedAt);
-        return result;
-    }
-    result.started = true;
-    if (!process.waitForFinished(static_cast<int>(request.timeout.count())))
-    {
-        result.timedOut = true;
-        process.terminate();
-        if (!process.waitForFinished(1000))
-        {
-            process.kill();
-            process.waitForFinished(1000);
-        }
-    }
-    result.standardOutput = process.readAllStandardOutput().toStdString();
-    result.standardError = process.readAllStandardError().toStdString();
-    result.exitCode = process.exitCode();
-    if (process.exitStatus() != QProcess::NormalExit && result.exitCode == 0)
-        result.exitCode = 1;
-    result.duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-        Clock::now() - startedAt);
+    SagaProcessService service;
+    const SagaProductProcessResult process = service.Run(processRequest);
+
+    EvidenceProcessResult result;
+    result.started = process.started;
+    result.timedOut = process.timedOut;
+    result.exitCode = process.exitCode;
+    result.duration = process.duration;
+    result.standardOutput = process.standardOutput;
+    result.standardError = process.standardError;
+    result.startError = process.error;
     return result;
 }
 

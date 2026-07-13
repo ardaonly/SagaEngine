@@ -3,10 +3,6 @@
 
 #include "SagaProcessLauncher.h"
 
-#include <QProcess>
-#include <QString>
-#include <QStringList>
-
 #include <ostream>
 #include <string>
 #include <utility>
@@ -31,15 +27,19 @@ namespace
     return diagnostic;
 }
 
-[[nodiscard]] QStringList ToQStringList(
-    const std::vector<std::string>& arguments)
+[[nodiscard]] SagaProcessTargetId ToProcessTarget(
+    SagaProductTargetKind target)
 {
-    QStringList result;
-    for (const std::string& argument : arguments)
+    switch (target)
     {
-        result.push_back(QString::fromStdString(argument));
+        case SagaProductTargetKind::Editor:
+            return SagaProcessTargetId::Editor;
+        case SagaProductTargetKind::Runtime:
+            return SagaProcessTargetId::Runtime;
+        case SagaProductTargetKind::Server:
+            return SagaProcessTargetId::Runtime;
     }
-    return result;
+    return SagaProcessTargetId::Runtime;
 }
 
 } // namespace
@@ -51,47 +51,49 @@ SagaProcessLaunchResult SagaProcessLauncher::Launch(
 {
     SagaProcessLaunchResult result;
 
-    QProcess process;
-    process.setProgram(QString::fromStdString(request.executablePath.string()));
-    process.setArguments(ToQStringList(request.arguments));
-    process.setProcessChannelMode(QProcess::SeparateChannels);
-    if (!request.workingDirectory.empty())
-    {
-        process.setWorkingDirectory(
-            QString::fromStdString(request.workingDirectory.string()));
-    }
+    SagaProductProcessRequest processRequest;
+    processRequest.target = ToProcessTarget(request.target);
+    processRequest.executable = request.executablePath;
+    processRequest.arguments = request.arguments;
+    processRequest.workingDirectory = request.workingDirectory;
+    processRequest.timeout = request.timeout;
+    processRequest.mode = request.mode;
 
-    process.start();
-    if (!process.waitForStarted())
+    SagaProcessService service;
+    const SagaProductProcessResult process = service.Run(processRequest);
+    result.started = process.started;
+    result.exitCode = process.exitCode;
+    result.classification = process.classification;
+    out << process.standardOutput;
+    err << process.standardError;
+
+    if (!process.started)
     {
         result.diagnostics.push_back(MakeLaunchDiagnostic(
             request.target,
             SagaProductDiagnostics::ProcessStartFailed,
             std::string(ToString(request.target)) +
-                " target process failed to start: " +
-                process.errorString().toStdString(),
+                " target process failed to start: " + process.error,
             request.executablePath));
         return result;
     }
 
-    result.started = true;
-    process.waitForFinished(-1);
-
-    out << process.readAllStandardOutput().toStdString();
-    err << process.readAllStandardError().toStdString();
-
-    result.exitCode = process.exitCode();
-    if (process.exitStatus() != QProcess::NormalExit)
+    if (process.classification == SagaProcessExitClassification::Detached)
+    {
+        result.ok = true;
+        return result;
+    }
+    if (process.classification == SagaProcessExitClassification::TimedOut)
     {
         result.diagnostics.push_back(MakeLaunchDiagnostic(
             request.target,
             SagaProductDiagnostics::ProcessExitedWithFailure,
-            std::string(ToString(request.target)) + " target process crashed",
+            std::string(ToString(request.target)) + " target process timed out",
             request.executablePath));
         return result;
     }
-
-    if (result.exitCode != 0)
+    if (process.classification == SagaProcessExitClassification::Crashed ||
+        process.classification == SagaProcessExitClassification::Failed)
     {
         result.diagnostics.push_back(MakeLaunchDiagnostic(
             request.target,

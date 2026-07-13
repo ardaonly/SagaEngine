@@ -2,10 +2,7 @@
 /// @brief Product-owned SagaScript validation gate orchestration.
 
 #include "SagaScriptGate.h"
-
-#include <QProcess>
-#include <QString>
-#include <QStringList>
+#include "SagaProcessService.h"
 
 #include <ostream>
 #include <utility>
@@ -33,17 +30,6 @@ constexpr const char* kProjectManifestFile = "saga.project.json";
     return diagnostic;
 }
 
-[[nodiscard]] QStringList ToQStringList(
-    const std::vector<std::string>& arguments)
-{
-    QStringList result;
-    for (const std::string& argument : arguments)
-    {
-        result.push_back(QString::fromStdString(argument));
-    }
-    return result;
-}
-
 [[nodiscard]] std::filesystem::path AbsoluteProjectRoot(
     const std::filesystem::path& projectRoot)
 {
@@ -61,32 +47,19 @@ SagaToolProcessResult SagaToolProcessRunner::Run(
 {
     SagaToolProcessResult result;
 
-    QProcess process;
-    process.setProgram(QString::fromStdString(request.executablePath.string()));
-    process.setArguments(ToQStringList(request.arguments));
-    process.setProcessChannelMode(QProcess::SeparateChannels);
-    if (!request.workingDirectory.empty())
-    {
-        process.setWorkingDirectory(
-            QString::fromStdString(request.workingDirectory.string()));
-    }
+    SagaProductProcessRequest processRequest;
+    processRequest.target = SagaProcessTargetId::Forge;
+    processRequest.executable = request.executablePath;
+    processRequest.arguments = request.arguments;
+    processRequest.workingDirectory = request.workingDirectory;
 
-    process.start();
-    if (!process.waitForStarted())
-    {
-        result.startError = process.errorString().toStdString();
-        return result;
-    }
-
-    result.started = true;
-    process.waitForFinished(-1);
-    result.standardOutput = process.readAllStandardOutput().toStdString();
-    result.standardError = process.readAllStandardError().toStdString();
-    result.exitCode = process.exitCode();
-    if (process.exitStatus() != QProcess::NormalExit && result.exitCode == 0)
-    {
-        result.exitCode = 1;
-    }
+    SagaProcessService service;
+    const SagaProductProcessResult process = service.Run(processRequest);
+    result.started = process.started;
+    result.exitCode = process.exitCode;
+    result.standardOutput = process.standardOutput;
+    result.standardError = process.standardError;
+    result.startError = process.error;
     return result;
 }
 
