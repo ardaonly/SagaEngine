@@ -1322,6 +1322,101 @@ TEST(CMakeTargetBoundaryTests, LegacyServerExecutableAndSourceOwnershipStayRetir
         << "Host tooling must not restore a legacy server image.";
 }
 
+TEST(CMakeTargetBoundaryTests, RetiredSdeAndPrismSurfacesStayAbsent)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const std::vector<std::string> retiredTokens = {
+        "SDE",
+        "sde",
+        "Prism",
+        "prism",
+    };
+
+    EXPECT_FALSE(std::filesystem::exists(root / "Tools" / "SDE"));
+    EXPECT_FALSE(std::filesystem::exists(
+        root / "Tools" / "SystemDefinitionEngine"));
+    EXPECT_FALSE(std::filesystem::exists(root / "Tools" / "Prism"));
+
+    auto expectNoRetiredToolTokens = [&](const std::filesystem::path& path)
+    {
+        ASSERT_TRUE(std::filesystem::is_regular_file(path))
+            << "Expected retirement surface is missing: "
+            << path.generic_string();
+        const std::string text = ReadText(path);
+        for (const auto& token : retiredTokens)
+        {
+            EXPECT_FALSE(ContainsToken(text, token))
+                << path.generic_string()
+                << " must not expose the retired tool token " << token;
+        }
+    };
+
+    const std::vector<std::filesystem::path> exactSurfaces = {
+        root / "CMakeLists.txt",
+        root / "scripts" / "package-linux-saga",
+        root / "scripts" / "smoke-linux-saga-dist",
+        root / "scripts" / "verify-linux-distribution-contract",
+        root / "Tools" / "SagaTools" / "setup.py",
+        root / "Tools" / "SagaTools" / "tests" / "fixtures" /
+            "tools.registry.json",
+        root / "Shared" / "include" / "SagaShared" / "Build" /
+            "BuildProfile.hpp",
+        root / "Editor" / "include" / "SagaEditor" / "Diagnostics" /
+            "EditorDiagnostic.h",
+        root / "LICENSE_POLICY.toml",
+    };
+    for (const auto& path : exactSurfaces)
+    {
+        expectNoRetiredToolTokens(path);
+    }
+
+    for (const auto& entry :
+         std::filesystem::recursive_directory_iterator(root / "cmake"))
+    {
+        if (entry.is_regular_file() &&
+            (entry.path().extension() == ".cmake" ||
+             entry.path().filename() == "CMakeLists.txt"))
+        {
+            expectNoRetiredToolTokens(entry.path());
+        }
+    }
+
+    const std::vector<std::filesystem::path> currentDocRoots = {
+        root / "docs" / "product",
+        root / "docs" / "architecture",
+        root / "samples",
+        root / "Tools",
+    };
+    for (const auto& docRoot : currentDocRoots)
+    {
+        if (!std::filesystem::exists(docRoot))
+        {
+            continue;
+        }
+        for (const auto& entry :
+             std::filesystem::recursive_directory_iterator(docRoot))
+        {
+            if (!entry.is_regular_file())
+            {
+                continue;
+            }
+            const auto filename = entry.path().filename();
+            const auto extension = entry.path().extension();
+            const bool currentDocument =
+                extension == ".md" &&
+                (docRoot != root / "Tools" || filename == "README.md");
+            const bool sampleMetadata =
+                docRoot == root / "samples" && extension == ".json";
+            if (currentDocument || sampleMetadata)
+            {
+                expectNoRetiredToolTokens(entry.path());
+            }
+        }
+    }
+
+    expectNoRetiredToolTokens(root / "README.md");
+}
+
 TEST(CMakeTargetBoundaryTests, ProductAndEditorTargetsStayClientAppFree)
 {
     const auto path = SagaTargetsPath();
