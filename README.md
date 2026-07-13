@@ -216,10 +216,22 @@ default package. Passing the package whitelist does not establish clean-machine
 portability or release readiness because the Python archive does not yet stage
 the native dependency closure.
 
-`Saga` is the Product Shell and launches the independently owned `SagaEditor`
-process through a typed, allowlisted request. `SagaEditor` delegates editor
-behavior to `SagaEditorLib`; `SagaRuntime` remains a standalone host for the
-bounded StarterArena smoke/playable modes. Generic Runtime project execution
-is still explicitly unsupported. There is no separate legacy client
+`Saga` now contains the bounded Product Launcher Foundation. It selects
+canonical schema-0 `.sagaproj` projects, keeps a platform-local recent-project
+list, displays typed targets/reports/distribution evidence, and schedules one
+allowlisted cancellable action at a time. Selecting a project does not launch
+anything: opening the independently owned `SagaEditor` process is a separate
+explicit action. The only Runtime buttons are the fixed 30-frame StarterArena
+smoke and synthetic-input playable paths plus the existing first-playable
+check. Missing or unsupported generic Runtime, server, world-server, and cloud
+collaboration rows remain visible and disabled.
+An operator may supply `--launcher-distribution-report <path>` at startup for
+read-only schema-2 status inspection; the GUI has no arbitrary report browser
+and does not run package scripts.
+
+`SagaEditor` delegates editor behavior to `SagaEditorLib`; `SagaRuntime` remains
+a standalone host. Project creation is intentionally absent until genuine
+`.sagaproj` authoring is defined. Generic Runtime project execution is still
+explicitly unsupported. There is no separate legacy client
 executable, and no product dedicated-server executable is currently shipped.
 The reusable server foundations remain available through `SagaServerLib`.

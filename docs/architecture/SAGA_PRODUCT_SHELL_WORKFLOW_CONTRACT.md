@@ -40,8 +40,14 @@ unsupported, and repository-only server evidence is not a Product Shell action.
 
 The repository contains an explicit `Apps/Saga` product boundary:
 
-- `SagaProjectSystem.*` creates and opens Product Shell project manifests,
-  tracks recent projects, and manages local-only session labels.
+- `SagaProjectCatalog.*` opens canonical schema-0 `.sagaproj` inputs and treats
+  `saga.project.json` only as legacy compatibility.
+- `SagaRecentProjectsStore` persists bounded project metadata in the injected
+  platform application-config path. `SagaProjectSystem.*` remains a temporary
+  package/publish compatibility adapter and is not the launcher catalog.
+- `SagaLauncherModel.*`, `SagaLauncherTargets.*`, and
+  `SagaLauncherController.*` own typed state, exact target resolution,
+  single-action scheduling, and cancellation without Qt widget dependencies.
 - `SagaProductHost.*` prepares typed Editor and Runtime targets and returns a
   stable unsupported result for server targets.
 - `SagaProcessService.*` is the only Product-owned `QProcess` implementation.
@@ -49,8 +55,9 @@ The repository contains an explicit `Apps/Saga` product boundary:
   and bounded timeouts; it never invokes a shell.
 - `SagaProcessLauncher.*` adapts prepared Product targets to that service.
 - `SagaSessionModel.*` defines Product workspace, target, and diagnostic data.
-- `SagaLauncherWindow.*` owns the bounded launcher UI. Opening a project hands
-  off to the external `SagaEditor` executable.
+- `SagaLauncherWindow.*` renders controller snapshots and dispatches typed
+  actions. Project selection and the external `SagaEditor` handoff are separate
+  operations.
 - `SagaScriptGate.*`, `SagaPackageStaging.*`, and
   `SagaPublishReadiness.*` contain Product-owned gate or report services but do
   not expand the workflow-smoke claim.
@@ -183,7 +190,8 @@ reports are a limitation or failure, never implicit success.
 ## Known Limitations
 
 - Workflow smoke is report-only and does not execute its typed actions.
-- No Product Shell dashboard workflow UI is completed by this milestone.
+- The minimum Product Launcher Foundation UI exists; a finished or polished
+  dashboard/workflow product is not completed by this milestone.
 - Local workspace transaction smoke is read-only and report-only.
 - StarterArena has no general launch-profile or generic runtime-execution claim.
 - Visual Blocks evidence remains CLI-only.

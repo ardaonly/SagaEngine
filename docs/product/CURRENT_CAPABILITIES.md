@@ -62,6 +62,24 @@ doctor-style reporting for supported inputs.
 The `.sagaproj` schema is early and should be treated as a project/tooling
 contract rather than a stable public SDK.
 
+The `Saga` Product Launcher Foundation treats schema-0 `.sagaproj` as canonical
+project input. A directory may resolve one immediate `.sagaproj`; legacy
+`saga.project.json` remains a compatibility fallback only. The launcher keeps
+at most twelve recent entries in platform application configuration, preserves
+missing entries as disabled, and never auto-launches the Editor when a project
+is selected.
+
+Typed launcher state exposes explicit Editor handoff, authoritative
+`sagaproject` validation, bounded StarterArena Runtime smoke/playable actions,
+the existing first-playable check, known report status, and read-only
+distribution identity. Executable paths and argument vectors are owned by the
+allowlisted action executor, not the UI. Long actions run asynchronously, only
+one executable action may run at once, and cancellation is cooperative and
+bounded.
+The CLI-only `--launcher-distribution-report <path>` override selects a known
+schema-2 distribution evidence input for the read-only panel. It does not add
+a package, archive, signing, or publishing action.
+
 ## Scripting And Authoring Tooling
 
 The `SagaScript` toolchain contains selected C# analysis, compilation, source

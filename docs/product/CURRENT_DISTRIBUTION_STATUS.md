@@ -18,6 +18,10 @@ local environment and subsystem.
 - The app-spine refactor does not expand that whitelist: `Saga` remains the
   Product Shell, `SagaEditor` remains the external Editor host, and
   `SagaRuntime` remains the standalone bounded Runtime host.
+- The Product Launcher Foundation does not expand that identity or run package
+  scripts. Its distribution panel only reads known schema-2 evidence, preserves
+  `verified: false` and limitations, and reports an exact-identity mismatch
+  without mutating staged output.
 - The limited Linux path may include a staged layout, archive, checksum,
   preflight report, distribution smoke report, and candidate aggregation report.
 
