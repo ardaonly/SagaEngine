@@ -689,6 +689,8 @@ function(saga_create_engine_targets)
 
     add_executable(SagaRuntime
         ${SAGA_ROOT}/Apps/Runtime/main.cpp
+        ${SAGA_ROOT}/Apps/Runtime/RuntimeApplication.h
+        ${SAGA_ROOT}/Apps/Runtime/RuntimeApplication.cpp
         ${SAGA_ROOT}/Apps/Runtime/RuntimeCommandLine.h
         ${SAGA_ROOT}/Apps/Runtime/RuntimeHost.h
         ${SAGA_ROOT}/Apps/Runtime/RuntimeHost.cpp
@@ -718,7 +720,6 @@ function(saga_create_engine_targets)
     saga_link_thirdparty(SagaRuntime)
     target_link_libraries(SagaRuntime PRIVATE
         SagaRuntimeLib
-        SagaServerLib
         SagaEngine
         SagaDiligentBackend
         SagaPlatformSDL

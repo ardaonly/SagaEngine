@@ -11,8 +11,8 @@ namespace SagaRuntimeApp
 namespace RuntimeHostDiagnostics
 {
 
-inline constexpr const char* LegacyConnectedClientUnsupported =
-    "Runtime.Host.LegacyConnectedClientUnsupported";
+inline constexpr const char* GenericProjectModeUnsupported =
+    "Runtime.Host.GenericProjectModeUnsupported";
 
 } // namespace RuntimeHostDiagnostics
 
@@ -29,7 +29,7 @@ struct RuntimeHostResult
 class RuntimeHost
 {
 public:
-    /// Reject the retired connected-client adapter until a generic player loop exists.
+    /// Reject generic project execution until a supported player loop exists.
     [[nodiscard]] RuntimeHostResult Run() const;
 };
 
