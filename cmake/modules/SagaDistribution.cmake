@@ -1,4 +1,4 @@
-# ─── SAGA production distribution staging ─────────────────────────────────────
+# ─── SAGA product candidate distribution staging ──────────────────────────────
 
 function(_saga_distribution_platform out_var)
     if(WIN32)
@@ -65,7 +65,7 @@ endfunction()
 
 function(saga_setup_distribution)
     set(SAGA_DISTRIBUTION_VERSION "${CMAKE_PROJECT_VERSION}"
-        CACHE STRING "SAGA production distribution version label" FORCE)
+        CACHE STRING "SAGA candidate distribution version label" FORCE)
 
     _saga_distribution_platform(SAGA_DISTRIBUTION_PLATFORM)
 
@@ -73,9 +73,10 @@ function(saga_setup_distribution)
         "SAGA-${SAGA_DISTRIBUTION_PLATFORM}-v${SAGA_DISTRIBUTION_VERSION}")
     set(SAGA_DISTRIBUTION_DIR
         "${CMAKE_BINARY_DIR}/dist/${SAGA_DISTRIBUTION_NAME}"
-        CACHE PATH "SAGA staged production distribution directory")
+        CACHE PATH "SAGA staged candidate distribution directory")
 
-    foreach(_target IN ITEMS Saga SagaRuntime)
+    set(_saga_product_distribution_targets Saga SagaEditor SagaRuntime)
+    foreach(_target IN LISTS _saga_product_distribution_targets)
         if(NOT TARGET ${_target})
             message(FATAL_ERROR "SAGA distribution requires target '${_target}'")
         endif()
@@ -84,7 +85,7 @@ function(saga_setup_distribution)
     _saga_assert_no_qt_link(SagaRuntime)
 
     if(UNIX AND NOT APPLE)
-        set_target_properties(Saga SagaRuntime PROPERTIES
+        set_target_properties(${_saga_product_distribution_targets} PROPERTIES
             INSTALL_RPATH "$ORIGIN/../lib"
         )
     endif()
@@ -96,7 +97,7 @@ function(saga_setup_distribution)
         @ONLY
     )
 
-    install(TARGETS Saga
+    install(TARGETS ${_saga_product_distribution_targets}
         RUNTIME_DEPENDENCY_SET SagaDistributionRuntimeDeps
         RUNTIME DESTINATION bin COMPONENT SagaDistribution
         BUNDLE  DESTINATION .   COMPONENT SagaDistribution
@@ -119,28 +120,6 @@ function(saga_setup_distribution)
 
     install(FILES "${_version_json}"
         DESTINATION .
-        COMPONENT SagaDistribution
-    )
-
-    install(CODE
-        "file(MAKE_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}/assets\")\n"
-        "file(MAKE_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}/config\")\n"
-        COMPONENT SagaDistribution
-    )
-
-    get_filename_component(_saga_qt_prefix "${Qt6_DIR}/../../.." ABSOLUTE)
-    install(DIRECTORY "${_saga_qt_prefix}/plugins/"
-        DESTINATION plugins
-        COMPONENT SagaDistribution
-        OPTIONAL
-        FILES_MATCHING
-            PATTERN "*.so"
-            PATTERN "*.dylib"
-            PATTERN "*.dll"
-    )
-
-    install(CODE
-        "file(WRITE \"\${CMAKE_INSTALL_PREFIX}/bin/qt.conf\" \"[Paths]\\nPlugins = ../plugins\\n\")\n"
         COMPONENT SagaDistribution
     )
 
@@ -223,12 +202,19 @@ function(saga_setup_distribution)
         )
     endif()
 
+    if(EXISTS "${SAGA_ROOT}/docs/licensing/THIRD_PARTY_NOTICES.md")
+        install(FILES "${SAGA_ROOT}/docs/licensing/THIRD_PARTY_NOTICES.md"
+            DESTINATION LICENSES
+            COMPONENT SagaDistribution
+        )
+    endif()
+
     add_custom_target(SagaDistribution
         COMMAND ${CMAKE_COMMAND} -E rm -rf "${SAGA_DISTRIBUTION_DIR}"
         COMMAND ${CMAKE_COMMAND} --install "${CMAKE_BINARY_DIR}"
                 --prefix "${SAGA_DISTRIBUTION_DIR}"
                 --component SagaDistribution
-        DEPENDS Saga
+        DEPENDS ${_saga_product_distribution_targets}
         COMMENT "Staging ${SAGA_DISTRIBUTION_NAME}"
         VERBATIM
     )
