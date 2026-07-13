@@ -83,6 +83,8 @@ namespace SagaProductDiagnostics
 
 inline constexpr const char* PackageManifestMissing =
     "Saga.Target.PackageManifestMissing";
+inline constexpr const char* ServerExecutionUnsupported =
+    "Saga.Target.ServerExecutionUnsupported";
 inline constexpr const char* ProcessStartFailed =
     "Saga.Target.ProcessStartFailed";
 inline constexpr const char* ProcessExitedWithFailure =

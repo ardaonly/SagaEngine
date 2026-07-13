@@ -621,7 +621,7 @@ TEST(SagaWorkspaceResolverTest, BuiltInProductWorkspaceResolvesFromProductDefaul
     EXPECT_EQ(result.workspace.id, "builtin.basic");
     EXPECT_EQ(result.workspace.editorProfile, "saga.profile.basic");
     EXPECT_EQ(result.workspace.runtimeRole, "SagaRuntime");
-    EXPECT_EQ(result.workspace.serverRole, "SagaServer");
+    EXPECT_TRUE(result.workspace.serverRole.empty());
     EXPECT_TRUE(result.workspace.artifactHash.empty());
 }
 
@@ -660,8 +660,28 @@ TEST(SagaWorkspaceResolverTest, ProjectManifestResolvesWorkspaceDefaults)
     EXPECT_EQ(result.workspace.displayName, "Manifest Project");
     EXPECT_EQ(result.workspace.editorProfile, "saga.profile.basic");
     EXPECT_EQ(result.workspace.runtimeRole, "SagaRuntime");
-    EXPECT_EQ(result.workspace.serverRole, "SagaServer");
+    EXPECT_TRUE(result.workspace.serverRole.empty());
     EXPECT_TRUE(result.workspace.artifactHash.empty());
+}
+
+TEST(SagaWorkspaceResolverTest, ExplicitFutureServerMetadataRemainsDeclarative)
+{
+    const fs::path root = MakeTempDir("saga_server_metadata_workspace_test");
+    WriteFile(root / "saga.project.json", R"({
+        "schemaVersion": 1,
+        "projectId": "server-metadata-project",
+        "displayName": "Server Metadata Project",
+        "serverRole": "future.dedicated.metadata"
+    })");
+
+    SagaWorkspaceResolver resolver;
+    SagaWorkspaceResolveRequest request;
+    request.selector = root.string();
+
+    const SagaWorkspaceResolveResult result = resolver.Resolve(request);
+
+    ASSERT_TRUE(result.ok) << result.error;
+    EXPECT_EQ(result.workspace.serverRole, "future.dedicated.metadata");
 }
 
 TEST(SagaProductHostTest, PreparesRoleTargetsAtBoundaryLevel)
@@ -671,7 +691,7 @@ TEST(SagaProductHostTest, PreparesRoleTargetsAtBoundaryLevel)
     workspace.root = BuiltInProductWorkspaceRoot();
     workspace.editorProfile = "saga.profile.basic";
     workspace.runtimeRole = "SagaRuntime";
-    workspace.serverRole = "SagaServer";
+    workspace.serverRole.clear();
 
     SagaProductHost host;
     SagaSessionModel session;
@@ -697,12 +717,9 @@ TEST(SagaProductHostTest, PreparesRoleTargetsAtBoundaryLevel)
     session.target = SagaProductTargetKind::Server;
     session.packageManifestPath = fs::path("Packages/dev-server/package.json");
     SagaPreparedTarget server = host.PrepareTarget(session);
-    EXPECT_EQ(server.executableName, "SagaServer");
-    EXPECT_EQ(server.moduleName, "SagaServerModule");
-    EXPECT_FALSE(server.sameProcess);
-    ASSERT_EQ(server.arguments.size(), 2u);
-    EXPECT_EQ(server.arguments[0], "--package-manifest");
-    EXPECT_EQ(server.arguments[1], "Packages/dev-server/package.json");
+    EXPECT_TRUE(server.executableName.empty());
+    EXPECT_TRUE(server.moduleName.empty());
+    EXPECT_TRUE(server.arguments.empty());
 }
 
 TEST(SagaProductHostTest, EditorTargetDoesNotRequirePackageManifest)
@@ -730,7 +747,7 @@ TEST(SagaProductHostTest, MissingPackageManifestProducesProductDiagnostic)
     workspace.root = BuiltInProductWorkspaceRoot();
     workspace.editorProfile = "saga.profile.basic";
     workspace.runtimeRole = "SagaRuntime";
-    workspace.serverRole = "SagaServer";
+    workspace.serverRole.clear();
 
     SagaProductHost host;
     SagaSessionModel session;
@@ -774,7 +791,7 @@ TEST(SagaProductHostTest, RuntimePrepareRequiresPackageManifest)
               std::string::npos);
 }
 
-TEST(SagaProductHostTest, ServerPrepareRequiresPackageManifest)
+TEST(SagaProductHostTest, ServerPreparationIsExplicitlyUnsupported)
 {
     SagaProduct::SagaApp app;
     SagaAppConfig config;
@@ -782,6 +799,7 @@ TEST(SagaProductHostTest, ServerPrepareRequiresPackageManifest)
     config.target = SagaProductTargetKind::Server;
     config.workspaceSelector = "builtin:basic";
     config.builtInWorkspaceRoot = BuiltInProductWorkspaceRoot();
+    config.packageManifestPath = fs::path("Packages/dev-server/package.json");
 
     std::ostringstream out;
     std::ostringstream err;
@@ -789,12 +807,13 @@ TEST(SagaProductHostTest, ServerPrepareRequiresPackageManifest)
 
     EXPECT_EQ(exitCode, 1);
     const std::string error = err.str();
-    EXPECT_NE(error.find("diagnostic.id=Saga.Target.PackageManifestMissing"),
+    EXPECT_NE(error.find("diagnostic.id=Saga.Target.ServerExecutionUnsupported"),
               std::string::npos);
     EXPECT_NE(error.find("diagnostic.target=server"), std::string::npos);
     EXPECT_NE(error.find("diagnostic.phase=target_preparation"), std::string::npos);
-    EXPECT_NE(error.find("diagnostic.message=server target requires --package-manifest"),
+    EXPECT_NE(error.find("diagnostic.message=Product dedicated-server execution is not implemented."),
               std::string::npos);
+    EXPECT_EQ(error.find("SagaServer"), std::string::npos);
 }
 
 TEST(SagaProductHostTest, RuntimePrepareOnlyOutputIncludesManifestArgument)
@@ -848,13 +867,10 @@ TEST(SagaProductHostTest, RuntimeTargetLaunchesWhenNotPrepareOnly)
     EXPECT_TRUE(err.str().empty());
 }
 
-TEST(SagaProductHostTest, ServerTargetLaunchesWhenNotPrepareOnly)
+TEST(SagaProductHostTest, ServerTargetNeverCreatesProcessLaunchRequest)
 {
     auto launcher = std::make_unique<FakeProcessLauncher>();
     FakeProcessLauncher* launcherPtr = launcher.get();
-    launcherPtr->result.ok = true;
-    launcherPtr->result.started = true;
-    launcherPtr->result.exitCode = 0;
     SagaProduct::SagaApp app(std::move(launcher));
 
     SagaAppConfig config = MakeBasicTargetConfig(SagaProductTargetKind::Server);
@@ -864,17 +880,41 @@ TEST(SagaProductHostTest, ServerTargetLaunchesWhenNotPrepareOnly)
     std::ostringstream err;
     const int exitCode = app.Run(config, out, err);
 
-    EXPECT_EQ(exitCode, 0);
-    ASSERT_EQ(launcherPtr->requests.size(), 1u);
-    const SagaProcessLaunchRequest& request = launcherPtr->requests[0];
-    EXPECT_EQ(request.target, SagaProductTargetKind::Server);
-    EXPECT_EQ(request.executablePath,
-              config.executablePath.parent_path() / "SagaServer");
-    ASSERT_EQ(request.arguments.size(), 2u);
-    EXPECT_EQ(request.arguments[0], "--package-manifest");
-    EXPECT_EQ(request.arguments[1], "Packages/dev-server/package.json");
-    EXPECT_NE(out.str().find("launch.exitCode=0"), std::string::npos);
-    EXPECT_TRUE(err.str().empty());
+    EXPECT_EQ(exitCode, 1);
+    EXPECT_TRUE(launcherPtr->requests.empty());
+    EXPECT_TRUE(out.str().empty());
+    EXPECT_NE(err.str().find("Saga.Target.ServerExecutionUnsupported"),
+              std::string::npos);
+}
+
+TEST(SagaProductHostTest, FutureServerMetadataDoesNotBecomeLaunchInstruction)
+{
+    const fs::path root = MakeTempDir("saga_future_server_metadata_test");
+    WriteFile(root / "saga.project.json", R"({
+        "schemaVersion": 1,
+        "projectId": "future-server-metadata",
+        "displayName": "Future Server Metadata",
+        "serverRole": "future.dedicated.metadata"
+    })");
+
+    auto launcher = std::make_unique<FakeProcessLauncher>();
+    FakeProcessLauncher* launcherPtr = launcher.get();
+    SagaProduct::SagaApp app(std::move(launcher));
+
+    SagaAppConfig config = MakeBasicTargetConfig(SagaProductTargetKind::Server);
+    config.workspaceSelector = root.string();
+    config.packageManifestPath = fs::path("Packages/future-server/package.json");
+
+    std::ostringstream out;
+    std::ostringstream err;
+    const int exitCode = app.Run(config, out, err);
+
+    EXPECT_EQ(exitCode, 1);
+    EXPECT_TRUE(launcherPtr->requests.empty());
+    EXPECT_TRUE(out.str().empty());
+    EXPECT_NE(err.str().find("Saga.Target.ServerExecutionUnsupported"),
+              std::string::npos);
+    EXPECT_EQ(err.str().find("future.dedicated.metadata"), std::string::npos);
 }
 
 TEST(SagaProductHostTest, PrepareOnlyDoesNotLaunchRuntimeTarget)
@@ -938,14 +978,14 @@ TEST(SagaProductHostTest, NonZeroLaunchExitCodeIsReportedAndReturned)
     launcherPtr->result.started = true;
     launcherPtr->result.exitCode = 7;
     launcherPtr->result.diagnostics.push_back(MakeTestLaunchDiagnostic(
-        SagaProductTargetKind::Server,
+        SagaProductTargetKind::Runtime,
         SagaProductDiagnostics::ProcessExitedWithFailure,
-        "server target process exited with code 7",
-        fs::temp_directory_path() / "saga_bin" / "SagaServer"));
+        "runtime target process exited with code 7",
+        fs::temp_directory_path() / "saga_bin" / "SagaRuntime"));
     SagaProduct::SagaApp app(std::move(launcher));
 
-    SagaAppConfig config = MakeBasicTargetConfig(SagaProductTargetKind::Server);
-    config.packageManifestPath = fs::path("Packages/dev-server/package.json");
+    SagaAppConfig config = MakeBasicTargetConfig(SagaProductTargetKind::Runtime);
+    config.packageManifestPath = fs::path("Packages/dev-client/package.json");
 
     std::ostringstream out;
     std::ostringstream err;
@@ -957,8 +997,8 @@ TEST(SagaProductHostTest, NonZeroLaunchExitCodeIsReportedAndReturned)
     const std::string error = err.str();
     EXPECT_NE(error.find("diagnostic.id=Saga.Target.ProcessExitedWithFailure"),
               std::string::npos);
-    EXPECT_NE(error.find("diagnostic.target=server"), std::string::npos);
-    EXPECT_NE(error.find("diagnostic.message=server target process exited with code 7"),
+    EXPECT_NE(error.find("diagnostic.target=runtime"), std::string::npos);
+    EXPECT_NE(error.find("diagnostic.message=runtime target process exited with code 7"),
               std::string::npos);
 }
 

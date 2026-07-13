@@ -18,7 +18,6 @@ constexpr const char* kDefaultWorkspaceId = "builtin.basic";
 constexpr const char* kDefaultDisplayName = "Basic Workspace";
 constexpr const char* kDefaultEditorProfile = "saga.profile.basic";
 constexpr const char* kDefaultRuntimeRole = "SagaRuntime";
-constexpr const char* kDefaultServerRole = "SagaServer";
 
 [[nodiscard]] std::filesystem::path ResolveSelector(
     const SagaWorkspaceResolveRequest& request,
@@ -99,7 +98,7 @@ constexpr const char* kDefaultServerRole = "SagaServer";
     workspace.runtimeRole =
         manifest.value("runtimeRole", std::string{kDefaultRuntimeRole});
     workspace.serverRole =
-        manifest.value("serverRole", std::string{kDefaultServerRole});
+        manifest.value("serverRole", std::string{});
     return true;
 }
 
@@ -112,7 +111,6 @@ constexpr const char* kDefaultServerRole = "SagaServer";
     workspace.root = std::filesystem::absolute(root);
     workspace.editorProfile = kDefaultEditorProfile;
     workspace.runtimeRole = kDefaultRuntimeRole;
-    workspace.serverRole = kDefaultServerRole;
     return workspace;
 }
 
