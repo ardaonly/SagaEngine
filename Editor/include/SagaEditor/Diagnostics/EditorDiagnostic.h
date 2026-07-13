@@ -41,7 +41,7 @@ struct EditorDiagnostic
 {
     EditorDiagnosticId id = kInvalidEditorDiagnosticId; ///< Stable id assigned by the service.
     EditorDiagnosticSeverity severity = EditorDiagnosticSeverity::Info;
-    std::string source = "editor"; ///< Producing subsystem, e.g. "asset-import" or "sde".
+    std::string source = "editor"; ///< Producing subsystem, e.g. "asset-import" or "script-compiler".
     std::string code;              ///< Stable machine-readable diagnostic code.
     std::string message;           ///< User-facing problem description.
     EditorDiagnosticLocation location;

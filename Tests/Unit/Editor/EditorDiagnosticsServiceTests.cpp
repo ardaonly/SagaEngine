@@ -82,7 +82,7 @@ TEST(EditorDiagnosticsServiceTest, SubscribersReceiveInitialAndChangedSnapshots)
         });
 
     ASSERT_NE(subscription, kInvalidEditorDiagnosticsSubscription);
-    service.Add(MakeDiagnostic("sde",
+    service.Add(MakeDiagnostic("script-compiler",
                                EditorDiagnosticSeverity::Warning,
                                "Unused graph node"));
     service.Add(MakeDiagnostic("runtime-preview",
@@ -102,7 +102,7 @@ TEST(EditorDiagnosticsServiceTest, ReplaceSourceRefreshesOneProducer)
     service.Add(MakeDiagnostic("asset-import",
                                EditorDiagnosticSeverity::Error,
                                "Old asset error"));
-    service.Add(MakeDiagnostic("sde",
+    service.Add(MakeDiagnostic("script-compiler",
                                EditorDiagnosticSeverity::Warning,
                                "Graph warning"));
 
@@ -117,7 +117,7 @@ TEST(EditorDiagnosticsServiceTest, ReplaceSourceRefreshesOneProducer)
     EXPECT_EQ(service.ReplaceSource("asset-import", std::move(refreshed)), 2u);
 
     ASSERT_EQ(service.GetAll().size(), 3u);
-    EXPECT_EQ(service.GetAll()[0].source, "sde");
+    EXPECT_EQ(service.GetAll()[0].source, "script-compiler");
     EXPECT_EQ(service.GetAll()[1].source, "asset-import");
     EXPECT_EQ(service.GetAll()[2].source, "asset-import");
     EXPECT_EQ(service.GetBySeverity(EditorDiagnosticSeverity::Error).size(), 1u);
