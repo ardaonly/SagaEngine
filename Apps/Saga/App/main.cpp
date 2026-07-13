@@ -1,8 +1,8 @@
 /// @file main.cpp
 /// @brief Saga product orchestration entry point.
 
-#include "SagaApp.h"
-#include "SagaAppConfig.h"
+#include "App/SagaApp.h"
+#include "App/SagaAppConfig.h"
 
 #include <iostream>
 

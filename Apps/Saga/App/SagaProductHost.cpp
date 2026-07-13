@@ -1,7 +1,7 @@
 /// @file SagaProductHost.cpp
 /// @brief Product host boundary implementation for Saga role targets.
 
-#include "SagaProductHost.h"
+#include "App/SagaProductHost.h"
 
 namespace SagaProduct
 {

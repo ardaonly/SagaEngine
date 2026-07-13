@@ -1,6 +1,6 @@
 /// @file SagaLauncherModel.cpp
 
-#include "SagaLauncherModel.h"
+#include "Launcher/SagaLauncherModel.h"
 
 namespace SagaProduct
 {

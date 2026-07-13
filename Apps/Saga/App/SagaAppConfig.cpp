@@ -1,7 +1,7 @@
 /// @file SagaAppConfig.cpp
 /// @brief Product startup configuration and distribution metadata loading.
 
-#include "SagaAppConfig.h"
+#include "App/SagaAppConfig.h"
 
 #include <nlohmann/json.hpp>
 

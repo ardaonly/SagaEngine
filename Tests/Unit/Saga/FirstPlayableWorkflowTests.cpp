@@ -3,7 +3,7 @@
 
 #include "RuntimeEvidenceReport.h"
 #include "RuntimeEvidenceRunner.h"
-#include "SagaAppConfig.h"
+#include "App/SagaAppConfig.h"
 
 #include <QStandardPaths>
 

@@ -666,8 +666,8 @@ function(saga_create_engine_targets)
 
     # --- Application Executables ----------------------------------------------
     qt_add_executable(Saga WIN32
-        ${SAGA_ROOT}/Apps/Saga/main.cpp
-        ${SAGA_ROOT}/Apps/Saga/SagaQtStaticPlugins.cpp
+        ${SAGA_ROOT}/Apps/Saga/App/main.cpp
+        ${SAGA_ROOT}/Apps/Saga/App/SagaQtStaticPlugins.cpp
     )
 
     saga_apply_compiler_flags(Saga)

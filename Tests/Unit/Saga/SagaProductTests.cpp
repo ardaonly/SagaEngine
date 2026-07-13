@@ -1,14 +1,14 @@
 /// @file SagaProductTests.cpp
 /// @brief Tests for Saga product orchestration startup boundaries.
 
-#include "SagaAppConfig.h"
-#include "SagaApp.h"
+#include "App/SagaAppConfig.h"
+#include "App/SagaApp.h"
 #include "SagaLocalCollaborationMetadataReports.h"
 #include "SagaLocalWorkspaceTransactionReport.h"
 #include "SagaPackageStaging.h"
 #include "SagaProjectSystem.h"
 #include "SagaProcessService.h"
-#include "SagaProductHost.h"
+#include "App/SagaProductHost.h"
 #include "SagaProductWorkflowSmokeReport.h"
 #include "SagaPublishReadiness.h"
 #include "SagaScriptGate.h"

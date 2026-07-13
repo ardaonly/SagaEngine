@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include "SagaAppConfig.h"
+#include "App/SagaAppConfig.h"
 #include "SagaProcessLauncher.h"
-#include "SagaProductHost.h"
+#include "App/SagaProductHost.h"
 #include "SagaWorkspaceResolver.h"
 
 #include <memory>

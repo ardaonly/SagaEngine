@@ -730,7 +730,8 @@ TEST(CMakeTargetBoundaryTests, ProductAndRuntimeEntrypointsStayThin)
     const std::string runtimeMain = ReadText(root / "Apps" / "Runtime" / "main.cpp");
     const std::string runtimeApplication =
         ReadText(root / "Apps" / "Runtime" / "RuntimeApplication.cpp");
-    const std::string productSources = ReadText(root / "Apps" / "Saga" / "SagaApp.cpp");
+    const std::string productSources =
+        ReadText(root / "Apps" / "Saga" / "App" / "SagaApp.cpp");
 
     EXPECT_TRUE(ContainsToken(editorMain, "RunEditorApplication"));
     EXPECT_FALSE(ContainsToken(editorMain, "QJson"));
@@ -1394,7 +1395,7 @@ TEST(CMakeTargetBoundaryTests, LegacyServerExecutableAndSourceOwnershipStayRetir
         root / "scripts" / "smoke-linux-saga-dist",
         root / "Tools" / "Host" / "host.sh",
         root / "Tools" / "Host" / "docker" / "docker-compose.yml",
-        root / "Apps" / "Saga" / "SagaProductHost.cpp",
+        root / "Apps" / "Saga" / "App" / "SagaProductHost.cpp",
         root / "Apps" / "Saga" / "SagaWorkspaceResolver.cpp",
     };
     for (const auto& path : executableSurfaces)
@@ -1996,8 +1997,10 @@ TEST(CMakeTargetBoundaryTests, AppSpineBaselineNamesStayExplicit)
 TEST(CMakeTargetBoundaryTests, ProductLauncherUiStaysTypedAndProductOwned)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT) / "Apps" / "Saga";
-    const std::string window = ReadText(root / "SagaLauncherWindow.cpp");
-    const std::string model = ReadText(root / "SagaLauncherModel.h");
+    const std::string window =
+        ReadText(root / "Launcher" / "SagaLauncherWindow.cpp");
+    const std::string model =
+        ReadText(root / "Launcher" / "SagaLauncherModel.h");
     EXPECT_TRUE(ContainsToken(window, "SagaLauncherController"));
     EXPECT_TRUE(ContainsToken(window, "SagaLauncherActionId::OpenEditor"));
     for (const std::string& forbidden : {
