@@ -11,8 +11,19 @@ namespace
 [[nodiscard]] bool RequiresStartupPackageManifest(
     SagaProductTargetKind target) noexcept
 {
-    return target == SagaProductTargetKind::Runtime ||
-        target == SagaProductTargetKind::Server;
+    return target == SagaProductTargetKind::Runtime;
+}
+
+[[nodiscard]] SagaProductDiagnostic MakeServerExecutionUnsupportedDiagnostic()
+{
+    SagaProductDiagnostic diagnostic;
+    diagnostic.target = SagaProductTargetKind::Server;
+    diagnostic.phase = SagaProductDiagnosticPhase::TargetPreparation;
+    diagnostic.diagnosticId =
+        SagaProductDiagnostics::ServerExecutionUnsupported;
+    diagnostic.message =
+        "Product dedicated-server execution is not implemented.";
+    return diagnostic;
 }
 
 [[nodiscard]] std::string MissingPackageManifestMessage(
@@ -46,6 +57,7 @@ SagaPreparedTarget SagaProductHost::PrepareTarget(
     {
         case SagaProductTargetKind::Editor:
             prepared.moduleName = "SagaEditorModule";
+            prepared.executableName = "Saga";
             break;
         case SagaProductTargetKind::Runtime:
             prepared.moduleName = "SagaRuntimeModule";
@@ -58,19 +70,7 @@ SagaPreparedTarget SagaProductHost::PrepareTarget(
             }
             break;
         case SagaProductTargetKind::Server:
-            prepared.moduleName = "SagaServerModule";
-            prepared.executableName = "SagaServer";
-            prepared.sameProcess = false;
-            if (session.packageManifestPath.has_value())
-            {
-                prepared.arguments.push_back("--package-manifest");
-                prepared.arguments.push_back(session.packageManifestPath->string());
-            }
             break;
-    }
-    if (prepared.executableName.empty())
-    {
-        prepared.executableName = "Saga";
     }
 
     return prepared;
@@ -82,6 +82,13 @@ SagaTargetPreparationResult SagaProductHost::PrepareTargetWithDiagnostics(
     SagaTargetPreparationResult result;
     result.target.kind = session.target;
     result.target.workspace = session.workspace;
+
+    if (session.target == SagaProductTargetKind::Server)
+    {
+        result.diagnostics.push_back(
+            MakeServerExecutionUnsupportedDiagnostic());
+        return result;
+    }
 
     if (RequiresStartupPackageManifest(session.target) &&
         !session.packageManifestPath.has_value())
