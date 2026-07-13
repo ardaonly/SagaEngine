@@ -694,8 +694,7 @@ def stage_packaged_dotnet_tools(
     return statuses
 
 
-def verification_text(*, without_server: bool) -> str:
-    server_check = "" if without_server else "test -x bin/SagaServer\n"
+def verification_text() -> str:
     return f"""# Saga Linux Layout Verification
 
 This file describes presence checks for the staged layout and archive/checksum
@@ -712,7 +711,7 @@ python3 -m json.tool BUILD_INFO.json
 test -x bin/Saga
 test -x bin/SagaEditor
 test -x bin/SagaRuntime
-{server_check}test -x tools/sagaproject
+test -x tools/sagaproject
 test -x tools/sagapack
 test -x tools/sagascript
 test -x tools/sde
@@ -837,7 +836,6 @@ def stage_layout(
     missing: list[str],
     required_inputs: list[dict[str, object]],
     missing_inputs: list[dict[str, object]],
-    without_server: bool,
 ) -> dict[str, object]:
     staged_inputs: list[dict[str, object]] = []
 
@@ -850,8 +848,6 @@ def stage_layout(
         ("SagaEditor shell", "SagaEditor"),
         ("SagaRuntime executable", "SagaRuntime"),
     ]
-    if not without_server:
-        binaries.append(("SagaServer executable", "SagaServer"))
     for label, name in binaries:
         copy_file(resolved_input(available_inputs, label), output / "bin" / name, staged_inputs, label)
 
@@ -899,7 +895,7 @@ def stage_layout(
     version_source = resolved_input(available_inputs, "root VERSION")
     copy_file(version_source, output / "VERSION", staged_inputs, "root VERSION")
 
-    (output / "VERIFY.txt").write_text(verification_text(without_server=without_server), encoding="utf-8")
+    (output / "VERIFY.txt").write_text(verification_text(), encoding="utf-8")
     staged_inputs.append(
         {
             "label": "staged VERIFY.txt",
@@ -929,7 +925,7 @@ def stage_layout(
 
     source_commit = git_commit()
     built_at_utc = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    included_targets = ["Saga", "SagaEditor", "SagaRuntime"] + ([] if without_server else ["SagaServer"])
+    included_targets = ["Saga", "SagaEditor", "SagaRuntime"]
     build_info: dict[str, object] = {
         "schemaVersion": 1,
         "product": "SagaEngine",
@@ -958,7 +954,6 @@ def stage_layout(
         "buildDir": path_text(build_dir),
         "checksumTarget": path_text(checksum_path_for(output)),
         "output": path_text(output),
-        "withoutServer": without_server,
         "stagedInputs": staged_inputs,
         "toolPackagingStatus": tool_packaging_status,
         "missingInputs": missing,
@@ -1010,7 +1005,7 @@ def stale_package_outputs(archive_path: Path, checksum_path: Path) -> None:
             path.unlink()
 
 
-def staged_layout_missing(output: Path, without_server: bool) -> list[str]:
+def staged_layout_missing(output: Path) -> list[str]:
     required_files = [
         "VERSION",
         "VERIFY.txt",
@@ -1038,8 +1033,6 @@ def staged_layout_missing(output: Path, without_server: bool) -> list[str]:
         "docs/PACKAGING.md",
         "docs/CUSTOMIZATION.md",
     ]
-    if not without_server:
-        required_files.append("bin/SagaServer")
     required_dirs = [
         "samples/StarterArena",
         "docs/product",
@@ -1055,7 +1048,6 @@ def staged_layout_missing(output: Path, without_server: bool) -> list[str]:
         "bin/Saga",
         "bin/SagaEditor",
         "bin/SagaRuntime",
-        "bin/SagaServer",
         "bin/sagaproject",
         "bin/sagapack",
         "bin/sagascript",
@@ -1119,7 +1111,6 @@ def generate_archive_and_checksum(
     output: Path,
     archive_path: Path,
     checksum_path: Path,
-    without_server: bool,
     missing: list[str],
     required_inputs: list[dict[str, object]],
     available_inputs: list[dict[str, object]],
@@ -1132,7 +1123,7 @@ def generate_archive_and_checksum(
         "status": "blocked",
     }
 
-    layout_missing = staged_layout_missing(output, without_server)
+    layout_missing = staged_layout_missing(output)
     layout_ready = not layout_missing
     layout_message = None
     if not layout_ready:
@@ -1278,7 +1269,6 @@ def main() -> int:
         default=str(DEFAULT_REPORT),
         help="Machine-readable preflight report path.",
     )
-    parser.add_argument("--without-server", action="store_true", help="Do not require SagaServer.")
     args = parser.parse_args()
 
     build_dir_candidates = [Path(args.build_dir)] if args.build_dir else default_build_dirs(args.config)
@@ -1324,9 +1314,6 @@ def main() -> int:
     check_binary("Saga product shell", [bin_dir / "Saga"], missing, required_inputs, available_inputs, missing_inputs, category="binary")
     check_binary("SagaEditor shell", [bin_dir / "SagaEditor"], missing, required_inputs, available_inputs, missing_inputs, category="binary")
     check_binary("SagaRuntime executable", [bin_dir / "SagaRuntime"], missing, required_inputs, available_inputs, missing_inputs, category="binary")
-    if not args.without_server:
-        check_binary("SagaServer executable", [bin_dir / "SagaServer"], missing, required_inputs, available_inputs, missing_inputs, category="binary")
-
     check_binary("sagaproject CLI", [Path("Tools/SagaProjectKit/sagaproject")], missing, required_inputs, available_inputs, missing_inputs, category="tool")
     check_binary("sagapack CLI", [Path("Tools/SagaPackager/sagapack")], missing, required_inputs, available_inputs, missing_inputs, category="tool")
     check_binary("sagascript CLI", [Path("Tools/SagaScript/sagascript")], missing, required_inputs, available_inputs, missing_inputs, category="tool")
@@ -1356,7 +1343,6 @@ def main() -> int:
             missing=missing,
             required_inputs=required_inputs,
             missing_inputs=missing_inputs,
-            without_server=bool(args.without_server),
         )
 
     archive_generation_status: dict[str, object] = {
@@ -1369,7 +1355,6 @@ def main() -> int:
             output=output,
             archive_path=archive_path,
             checksum_path=checksum_path,
-            without_server=bool(args.without_server),
             missing=missing,
             required_inputs=required_inputs,
             available_inputs=available_inputs,
@@ -1430,7 +1415,6 @@ def main() -> int:
         "verified": False,
         "config": {
             "config": args.config,
-            "withoutServer": bool(args.without_server),
             "buildDirArgument": args.build_dir,
             "outputArgument": args.output,
             "reportOut": path_text(report_path),
