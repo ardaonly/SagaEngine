@@ -1,6 +1,6 @@
 Build/
-!Shared/include/SagaShared/Build/
-!Shared/include/SagaShared/Build/*.hpp
+!Engine/Source/Runtime/Assets/Public/SagaShared/Build/
+!Engine/Source/Runtime/Assets/Public/SagaShared/Build/*.hpp
 Bin/
 bin/
 obj/
@@ -71,8 +71,8 @@ Thumbs.db
 *.downloads
 *.conan.lock
 Build
-!Shared/include/SagaShared/Build/
-!Shared/include/SagaShared/Build/*.hpp
+!Engine/Source/Runtime/Assets/Public/SagaShared/Build/
+!Engine/Source/Runtime/Assets/Public/SagaShared/Build/*.hpp
 python
 python_path.txt
 
@@ -85,4 +85,4 @@ imgui.ini
 .core/export/state/
 
 # MultiplayerSandbox generated evidence
-samples/MultiplayerSandbox/Generated/
+Samples/MultiplayerSandbox/Generated/
