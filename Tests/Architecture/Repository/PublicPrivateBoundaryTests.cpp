@@ -354,7 +354,9 @@ TEST(PublicPrivateBoundaryTests, CanonicalPublicAndPrivateOwnersExist)
         root / "Engine/Source/Runtime/ServerAuthority/Public/SagaEngine/ServerAuthority",
         root / "Engine/Source/Runtime/ServerAuthority/Private/SagaEngine/ServerAuthority",
         root / "Engine/Source/Runtime/Persistence/Public/SagaEngine/Persistence",
-        root / "Engine/Source/Runtime/UI/Public/SagaEngine/UI/Backends",
+        root / "Engine/Source/Runtime/Persistence/Private/SagaEngine/Persistence/Backends",
+        root / "Engine/Source/Runtime/UI/Public/SagaEngine/UI",
+        root / "Engine/Source/Runtime/UI/Private/Backends",
         root / "Engine/Source/Editor/EditorQt/Public/SagaEditorQt",
         root / "Engine/Source/Editor/VisualBlocksEditor/Public/SagaEditor/VisualBlocks",
     };

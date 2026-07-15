@@ -278,11 +278,25 @@ TEST(RuntimeBackendBoundaryTests, PersistenceVendorDetailsStayPrivate)
         << (publicOffenders.empty() ? "" : publicOffenders.front());
 
     const auto postgresqlSource =
-        persistenceRoot / "Private/Persistence/Database/PostgreSQLImpl.cpp";
+        persistenceRoot /
+        "Private/SagaEngine/Persistence/Backends/PostgreSQL/PostgreSQLImpl.cpp";
     const auto redisSource =
-        persistenceRoot / "Private/Persistence/Database/RedisImpl.cpp";
+        persistenceRoot /
+        "Private/SagaEngine/Persistence/Backends/Redis/RedisImpl.cpp";
+    const auto postgresqlHeader =
+        persistenceRoot /
+        "Private/SagaEngine/Persistence/Backends/PostgreSQL/PostgreSQLImpl.h";
+    const auto redisHeader =
+        persistenceRoot /
+        "Private/SagaEngine/Persistence/Backends/Redis/RedisImpl.h";
     ASSERT_TRUE(std::filesystem::is_regular_file(postgresqlSource));
     ASSERT_TRUE(std::filesystem::is_regular_file(redisSource));
+    ASSERT_TRUE(std::filesystem::is_regular_file(postgresqlHeader));
+    ASSERT_TRUE(std::filesystem::is_regular_file(redisHeader));
+    EXPECT_FALSE(std::filesystem::exists(
+        publicRoot / "SagaEngine/Persistence/Database/PostgreSQLImpl.h"));
+    EXPECT_FALSE(std::filesystem::exists(
+        publicRoot / "SagaEngine/Persistence/Database/RedisImpl.h"));
     EXPECT_TRUE(HasAnyToken(
         StripCommentsAndLiterals(ReadText(postgresqlSource)), {"pqxx::"}));
     EXPECT_TRUE(HasAnyToken(
@@ -307,4 +321,18 @@ TEST(RuntimeBackendBoundaryTests, PersistenceVendorDetailsStayPrivate)
     EXPECT_TRUE(vendorSourceOffenders.empty())
         << "Persistence vendor source escaped Private ownership: "
         << (vendorSourceOffenders.empty() ? "" : vendorSourceOffenders.front());
+}
+
+TEST(RuntimeBackendBoundaryTests, RmlUiAdapterStaysPrivate)
+{
+    const auto uiRoot =
+        std::filesystem::path(SAGA_SOURCE_ROOT) / "Engine/Source/Runtime/UI";
+    const auto privateAdapter = uiRoot / "Private/Backends/RmlUi";
+
+    EXPECT_FALSE(std::filesystem::exists(
+        uiRoot / "Public/SagaEngine/UI/Backends/RmlUiUiBackend.h"));
+    EXPECT_TRUE(std::filesystem::is_regular_file(
+        privateAdapter / "RmlUiUiBackend.h"));
+    EXPECT_TRUE(std::filesystem::is_regular_file(
+        privateAdapter / "RmlUiUiBackend.cpp"));
 }
