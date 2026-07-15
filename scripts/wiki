@@ -527,7 +527,16 @@ def render_dco_bridge() -> str:
     source = re.sub(r"\A<!--.*?-->\s*", "", source, count=1, flags=re.DOTALL).strip()
     if not source.startswith("## Licensing, DCO, and contribution authority"):
         raise WikiError("contribution policy source has an unexpected heading")
-    return "<!-- Generated from SagaWiki/policy/contributing-dco.md by scripts/wiki build. -->\n" + source + "\n"
+    return (
+        "<!--\n"
+        "SPDX-FileCopyrightText: 2026 Arda Koyuncu\n"
+        "SPDX-License-Identifier: "
+        "Apache-2.0 OR CC-BY-4.0\n"
+        "-->\n"
+        "<!-- Generated from SagaWiki/policy/contributing-dco.md by scripts/wiki build. -->\n"
+        + source
+        + "\n"
+    )
 
 
 def git(*args: str) -> subprocess.CompletedProcess[str]:
@@ -670,7 +679,7 @@ def command_verify() -> int:
                     flags=re.DOTALL,
                 )
                 bridge_body = re.sub(
-                    r"\A<!--.*?-->\s*", "", expected_bridge, count=1, flags=re.DOTALL
+                    r"\A(?:<!--.*?-->\s*)+", "", expected_bridge, flags=re.DOTALL
                 ).strip()
                 if not match or match.group(1).strip() != bridge_body:
                     errors.append("CONTRIBUTING.md DCO section differs from the Wiki policy source")
