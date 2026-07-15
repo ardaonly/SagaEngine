@@ -401,6 +401,46 @@ TEST(PublicPrivateBoundaryTests, VisualBlocksRuntimeHostsStayPrivate)
         publicVisualBlocks / "Imports/SourceMapImport.h"));
 }
 
+TEST(PublicPrivateBoundaryTests, CollaborationConcreteImplementationsStayPrivate)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT) /
+        "Engine/Source/Editor/EditorCollaboration";
+    const auto publicCollaboration = root / "Public/SagaEditor/Collaboration";
+    const auto privateCollaboration = root / "Private/SagaEditor/Collaboration";
+    constexpr std::array<std::string_view, 15> concreteHeaders = {
+        "Audit/AuditLogger.h",
+        "Authority/AuthorityManager.h",
+        "Client/CollaborationClient.h",
+        "Client/PeerRegistry.h",
+        "Locks/LockManager.h",
+        "Permissions/PermissionManager.h",
+        "Presence/PresenceManager.h",
+        "Replay/OperationLog.h",
+        "Server/CollaborationServer.h",
+        "Server/CollaborationServerRouter.h",
+        "Session/CollaborationSession.h",
+        "Sync/CrdtSceneDocument.h",
+        "Sync/EditOperationQueue.h",
+        "Sync/SyncTransportImpl.h",
+        "Workspace/CollaborativeWorkspace.h",
+    };
+
+    for (const auto relative : concreteHeaders)
+    {
+        EXPECT_FALSE(std::filesystem::exists(publicCollaboration / relative))
+            << relative;
+        EXPECT_TRUE(std::filesystem::is_regular_file(privateCollaboration / relative))
+            << relative;
+    }
+
+    EXPECT_TRUE(std::filesystem::is_regular_file(
+        publicCollaboration / "Client/ICollaborationClient.h"));
+    EXPECT_TRUE(std::filesystem::is_regular_file(
+        publicCollaboration / "Sync/EditOperation.h"));
+    EXPECT_TRUE(std::filesystem::is_regular_file(
+        publicCollaboration / "Workspace/WorkspaceSnapshot.h"));
+}
+
 TEST(PublicPrivateBoundaryTests, PublicHeadersDoNotExposeImplementationVendorTypes)
 {
     std::vector<std::string> offenders;
