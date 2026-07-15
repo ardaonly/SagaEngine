@@ -248,7 +248,7 @@ std::vector<std::filesystem::path> PublicHeadersToScan()
 
     for (const auto* module : {
              "EditorCore", "EditorFramework", "EditorAuthoring",
-             "VisualBlocksEditor", "EditorScripting", "EditorCollaboration",
+             "VisualBlocksEditor", "EditorCollaboration",
              "EditorExperimental"})
     {
         const auto publicRoot =
