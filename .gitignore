@@ -62,6 +62,14 @@ CMakeUserPresets
 *.saga-private/
 TEMP.MD
 
+# Local Saga audit/report artifacts
+SAGA_*_AUDIT/
+SAGA_*_AUDIT.zip
+SAGA_CUTOVER_REVIEW/
+SAGA_CUTOVER_FINAL_REPORT/
+repomix-output.xml
+*repomix*.xml
+
 .DS_Store
 Thumbs.db
 
