@@ -1,11 +1,13 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <initializer_list>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace
@@ -16,6 +18,70 @@ std::string ReadText(const std::filesystem::path& path)
     std::ostringstream buffer;
     buffer << input.rdbuf();
     return buffer.str();
+}
+
+std::string ExtractTargetCalls(
+    std::string_view text,
+    std::string_view command,
+    std::string_view target)
+{
+    const std::string marker =
+        std::string(command) + "(" + std::string(target);
+    std::string calls;
+    auto cursor = text.find(marker);
+    while (cursor != std::string_view::npos)
+    {
+        const auto afterTarget = cursor + marker.size();
+        if (afterTarget < text.size() &&
+            !std::isspace(static_cast<unsigned char>(text[afterTarget])) &&
+            text[afterTarget] != ')')
+        {
+            cursor = text.find(marker, afterTarget);
+            continue;
+        }
+
+        std::size_t depth = 0;
+        auto end = cursor;
+        for (; end < text.size(); ++end)
+        {
+            if (text[end] == '(')
+            {
+                ++depth;
+            }
+            else if (text[end] == ')' && --depth == 0)
+            {
+                ++end;
+                break;
+            }
+        }
+        calls.append(text.substr(cursor, end - cursor));
+        calls.push_back('\n');
+        cursor = text.find(marker, end);
+    }
+    return calls;
+}
+
+bool ContainsCMakeToken(std::string_view text, std::string_view token)
+{
+    const auto isTokenCharacter = [](char value) {
+        return std::isalnum(static_cast<unsigned char>(value)) != 0 ||
+               value == '_' || value == '-' || value == ':';
+    };
+    auto cursor = text.find(token);
+    while (cursor != std::string_view::npos)
+    {
+        const bool leftBoundary =
+            cursor == 0 || !isTokenCharacter(text[cursor - 1]);
+        const auto right = cursor + token.size();
+        const bool rightBoundary =
+            right == text.size() || !isTokenCharacter(text[right]);
+        if (leftBoundary && rightBoundary)
+        {
+            return true;
+        }
+        cursor = text.find(token, right);
+    }
+    return false;
 }
 }
 
@@ -77,6 +143,71 @@ TEST(CMakeTargetBoundaryTests, ModuleRegistrationKeepsAggregateTargets)
     {
         EXPECT_NE(targets.find(target), std::string::npos) << target;
     }
+}
+
+TEST(CMakeTargetBoundaryTests, ServerTargetAvoidsClientAndVendorBackends)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto targets = ReadText(root / "cmake/modules/SagaTargets.cmake");
+    const auto serverLinks =
+        ExtractTargetCalls(targets, "target_link_libraries", "SagaServerLib");
+    ASSERT_FALSE(serverLinks.empty());
+
+    for (const auto* forbidden : {"SagaPlatformSDL", "SagaBackend"})
+    {
+        EXPECT_FALSE(ContainsCMakeToken(serverLinks, forbidden))
+            << "SagaServerLib directly links forbidden client/vendor target "
+            << forbidden;
+    }
+    for (const auto* forbiddenFamily : {
+             "Qt6::", "qt::", "SDL2::", "RmlUi::", "rmlui::",
+             "Diligent"})
+    {
+        EXPECT_EQ(serverLinks.find(forbiddenFamily), std::string::npos)
+            << "SagaServerLib directly links forbidden target family "
+            << forbiddenFamily;
+    }
+}
+
+TEST(CMakeTargetBoundaryTests, GraphicsAggregateKeepsNativeLifecyclePrivate)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto targets = ReadText(root / "cmake/modules/SagaTargets.cmake");
+    const auto graphicsTargets =
+        ReadText(root / "cmake/modules/SagaGraphicsTargets.cmake");
+    const auto rhiManifest =
+        ReadText(root / "Engine/Source/Runtime/RHI/CMakeLists.txt");
+    const auto renderManifest =
+        ReadText(root / "Engine/Source/Runtime/Render/CMakeLists.txt");
+
+    EXPECT_NE(
+        graphicsTargets.find("add_library(SagaGraphics INTERFACE)"),
+        std::string::npos);
+    const auto aggregateLinks = ExtractTargetCalls(
+        graphicsTargets, "target_link_libraries", "SagaGraphics");
+    EXPECT_TRUE(ContainsCMakeToken(aggregateLinks, "SagaGraphicsCore"));
+    EXPECT_FALSE(ContainsCMakeToken(aggregateLinks, "SagaDiligentRuntime"));
+
+    EXPECT_NE(
+        targets.find("add_library(SagaDiligentRuntime STATIC)"),
+        std::string::npos);
+    EXPECT_NE(
+        targets.find(
+            "saga_get_registered_sources(SagaDiligentRuntime"),
+        std::string::npos);
+    EXPECT_NE(
+        targets.find("target_sources(SagaDiligentRuntime PRIVATE"),
+        std::string::npos);
+    EXPECT_NE(
+        rhiManifest.find("TARGET SagaDiligentRuntime"),
+        std::string::npos);
+    EXPECT_NE(
+        renderManifest.find("TARGET SagaDiligentRuntime"),
+        std::string::npos);
+
+    const auto privateLinks = ExtractTargetCalls(
+        graphicsTargets, "target_link_libraries", "SagaGraphicsPrivate");
+    EXPECT_TRUE(ContainsCMakeToken(privateLinks, "SagaDiligentRuntime"));
 }
 
 TEST(CMakeTargetBoundaryTests, LegacyOwnershipRootsStayAbsent)

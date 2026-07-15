@@ -1,10 +1,12 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace
@@ -23,14 +25,334 @@ std::string ReadText(const std::filesystem::path& path)
     buffer << input.rdbuf();
     return buffer.str();
 }
+
+std::string StripComments(std::string_view text)
+{
+    enum class State
+    {
+        Code,
+        LineComment,
+        BlockComment,
+        StringLiteral,
+        CharLiteral,
+    };
+
+    std::string result(text);
+    State state = State::Code;
+    bool escaped = false;
+    for (std::size_t i = 0; i < result.size(); ++i)
+    {
+        const char c = result[i];
+        const char next = i + 1 < result.size() ? result[i + 1] : '\0';
+        switch (state)
+        {
+        case State::Code:
+            if (c == '/' && next == '/')
+            {
+                result[i] = result[i + 1] = ' ';
+                ++i;
+                state = State::LineComment;
+            }
+            else if (c == '/' && next == '*')
+            {
+                result[i] = result[i + 1] = ' ';
+                ++i;
+                state = State::BlockComment;
+            }
+            else if (c == '"')
+            {
+                escaped = false;
+                state = State::StringLiteral;
+            }
+            else if (c == '\'')
+            {
+                escaped = false;
+                state = State::CharLiteral;
+            }
+            break;
+        case State::LineComment:
+            if (c == '\n')
+            {
+                state = State::Code;
+            }
+            else
+            {
+                result[i] = ' ';
+            }
+            break;
+        case State::BlockComment:
+            if (c == '*' && next == '/')
+            {
+                result[i] = result[i + 1] = ' ';
+                ++i;
+                state = State::Code;
+            }
+            else if (c != '\n')
+            {
+                result[i] = ' ';
+            }
+            break;
+        case State::StringLiteral:
+        case State::CharLiteral:
+            if (!escaped &&
+                ((state == State::StringLiteral && c == '"') ||
+                 (state == State::CharLiteral && c == '\'')))
+            {
+                state = State::Code;
+            }
+            escaped = !escaped && c == '\\';
+            if (c != '\\')
+            {
+                escaped = false;
+            }
+            break;
+        }
+    }
+    return result;
 }
 
-TEST(PublicPrivateBoundaryTests, CanonicalPublicOwnersExist)
+std::string StripStringAndCharLiterals(std::string_view text)
+{
+    std::string result(text);
+    bool inString = false;
+    bool inChar = false;
+    bool escaped = false;
+    for (char& c : result)
+    {
+        if (!inString && !inChar)
+        {
+            if (c == '"')
+            {
+                c = ' ';
+                inString = true;
+            }
+            else if (c == '\'')
+            {
+                c = ' ';
+                inChar = true;
+            }
+            continue;
+        }
+
+        const char original = c;
+        if (c != '\n')
+        {
+            c = ' ';
+        }
+        if (!escaped && ((inString && original == '"') ||
+                         (inChar && original == '\'')))
+        {
+            inString = false;
+            inChar = false;
+        }
+        escaped = !escaped && original == '\\';
+        if (original != '\\')
+        {
+            escaped = false;
+        }
+    }
+    return result;
+}
+
+bool IsIdentifierChar(char value)
+{
+    return std::isalnum(static_cast<unsigned char>(value)) != 0 ||
+           value == '_';
+}
+
+bool ContainsWord(std::string_view text, std::string_view word)
+{
+    auto cursor = text.find(word);
+    while (cursor != std::string_view::npos)
+    {
+        const bool leftBoundary = cursor == 0 ||
+                                  !IsIdentifierChar(text[cursor - 1]);
+        const auto right = cursor + word.size();
+        const bool rightBoundary = right == text.size() ||
+                                   !IsIdentifierChar(text[right]);
+        if (leftBoundary && rightBoundary)
+        {
+            return true;
+        }
+        cursor = text.find(word, cursor + 1);
+    }
+    return false;
+}
+
+bool ContainsQtType(std::string_view code)
+{
+    if (code.find("Qt::") != std::string_view::npos ||
+        ContainsWord(code, "Q_OBJECT"))
+    {
+        return true;
+    }
+
+    for (const auto* type : {
+             "QObject", "QWidget", "QMainWindow", "QStackedWidget",
+             "QString", "QVariant", "QModelIndex", "QAction", "QMenu",
+             "QDockWidget", "QApplication", "QTreeView", "QTableView",
+             "QSettings", "QIcon", "QtCore", "QtGui", "QtWidgets"})
+    {
+        if (ContainsWord(code, type))
+        {
+            return true;
+        }
+    }
+    auto abstractType = code.find("QAbstract");
+    while (abstractType != std::string_view::npos)
+    {
+        if (abstractType == 0 || !IsIdentifierChar(code[abstractType - 1]))
+        {
+            return true;
+        }
+        abstractType = code.find("QAbstract", abstractType + 1);
+    }
+    return false;
+}
+
+std::vector<std::string> IncludeTargets(std::string_view commentsRemoved)
+{
+    std::istringstream lines{std::string(commentsRemoved)};
+    std::vector<std::string> targets;
+    std::string line;
+    while (std::getline(lines, line))
+    {
+        std::size_t cursor = 0;
+        while (cursor < line.size() &&
+               std::isspace(static_cast<unsigned char>(line[cursor])) != 0)
+        {
+            ++cursor;
+        }
+        if (cursor == line.size() || line[cursor++] != '#')
+        {
+            continue;
+        }
+        while (cursor < line.size() &&
+               std::isspace(static_cast<unsigned char>(line[cursor])) != 0)
+        {
+            ++cursor;
+        }
+        constexpr std::string_view directive = "include";
+        if (line.compare(cursor, directive.size(), directive) != 0)
+        {
+            continue;
+        }
+        cursor += directive.size();
+        while (cursor < line.size() &&
+               std::isspace(static_cast<unsigned char>(line[cursor])) != 0)
+        {
+            ++cursor;
+        }
+        if (cursor == line.size() ||
+            (line[cursor] != '<' && line[cursor] != '"'))
+        {
+            continue;
+        }
+        const char close = line[cursor] == '<' ? '>' : '"';
+        const auto end = line.find(close, cursor + 1);
+        if (end != std::string::npos)
+        {
+            targets.push_back(line.substr(cursor + 1, end - cursor - 1));
+        }
+    }
+    return targets;
+}
+
+bool ContainsPrivateInclude(std::string_view commentsRemoved)
+{
+    for (const auto& target : IncludeTargets(commentsRemoved))
+    {
+        if (target.find("Private/") != std::string::npos)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::string FindVendorExposure(
+    std::string_view commentsRemoved,
+    bool allowQt)
+{
+    for (const auto& include : IncludeTargets(commentsRemoved))
+    {
+        for (const auto* vendorRoot : {
+                 "DiligentCore/", "SDL", "pqxx/", "hiredis/",
+                 "sw/redis++/", "RmlUi/"})
+        {
+            if (include.rfind(vendorRoot, 0) == 0)
+            {
+                return include;
+            }
+        }
+        const bool qtHeader = include.rfind("Qt", 0) == 0 ||
+                              (include.size() > 1 && include[0] == 'Q' &&
+                               std::isupper(static_cast<unsigned char>(
+                                   include[1])) != 0);
+        if (!allowQt && qtHeader)
+        {
+            return include;
+        }
+    }
+
+    const auto code = StripStringAndCharLiterals(commentsRemoved);
+    for (const auto* typeToken : {
+             "Diligent::", "RefCntAutoPtr<", "Rml::", "pqxx::",
+             "sw::redis::", "SDL_"})
+    {
+        if (code.find(typeToken) != std::string::npos)
+        {
+            return typeToken;
+        }
+    }
+    for (const auto* hiredisType : {
+             "redisContext", "redisAsyncContext", "redisReply"})
+    {
+        if (ContainsWord(code, hiredisType))
+        {
+            return hiredisType;
+        }
+    }
+    if (!allowQt && ContainsQtType(code))
+    {
+        return "Qt type";
+    }
+    return {};
+}
+
+std::vector<std::filesystem::path> PublicHeaders()
+{
+    const auto sourceRoot =
+        std::filesystem::path(SAGA_SOURCE_ROOT) / "Engine/Source";
+    std::vector<std::filesystem::path> headers;
+    for (const auto* groupName : {"Runtime", "Editor"})
+    {
+        const auto group = sourceRoot / groupName;
+        for (const auto& entry :
+             std::filesystem::recursive_directory_iterator(group))
+        {
+            if (entry.is_regular_file() && IsHeader(entry.path()) &&
+                entry.path().generic_string().find("/Public/") !=
+                    std::string::npos)
+            {
+                headers.push_back(entry.path());
+            }
+        }
+    }
+    return headers;
+}
+} // namespace
+
+TEST(PublicPrivateBoundaryTests, CanonicalPublicAndPrivateOwnersExist)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
     const std::array owners = {
         root / "Engine/Source/Runtime/Networking/Public/SagaEngine/Networking",
+        root / "Engine/Source/Runtime/Networking/Private/SagaEngine/Networking",
         root / "Engine/Source/Runtime/Replication/Public/SagaEngine/Replication",
+        root / "Engine/Source/Runtime/Replication/Private/SagaEngine/Replication",
+        root / "Engine/Source/Runtime/ServerAuthority/Public/SagaEngine/ServerAuthority",
+        root / "Engine/Source/Runtime/ServerAuthority/Private/SagaEngine/ServerAuthority",
         root / "Engine/Source/Runtime/Persistence/Public/SagaEngine/Persistence",
         root / "Engine/Source/Runtime/UI/Public/SagaEngine/UI/Backends",
         root / "Engine/Source/Editor/EditorQt/Public/SagaEditorQt",
@@ -42,46 +364,38 @@ TEST(PublicPrivateBoundaryTests, CanonicalPublicOwnersExist)
     }
 }
 
-TEST(PublicPrivateBoundaryTests, QtIsOwnedOnlyByEditorQt)
+TEST(PublicPrivateBoundaryTests, RuntimeAndEditorPublicHeadersDoNotIncludePrivatePaths)
 {
-    const auto editorRoot = std::filesystem::path(SAGA_SOURCE_ROOT) / "Engine/Source/Editor";
     std::vector<std::filesystem::path> offenders;
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(editorRoot))
+    for (const auto& header : PublicHeaders())
     {
-        if (!entry.is_regular_file() || !IsHeader(entry.path()) ||
-            entry.path().string().find("/Public/") == std::string::npos ||
-            entry.path().string().find("/EditorQt/") != std::string::npos)
+        const auto commentsRemoved = StripComments(ReadText(header));
+        if (ContainsPrivateInclude(commentsRemoved))
         {
-            continue;
-        }
-        const auto text = ReadText(entry.path());
-        if (text.find("#include <Q") != std::string::npos ||
-            text.find("#include <Qt") != std::string::npos)
-        {
-            offenders.push_back(entry.path());
+            offenders.push_back(header);
         }
     }
-    EXPECT_TRUE(offenders.empty()) << "Qt includes leaked outside EditorQt public ownership";
+    EXPECT_TRUE(offenders.empty())
+        << "A Runtime or Editor public header includes a Private path: "
+        << (offenders.empty() ? "" : offenders.front().generic_string());
 }
 
-TEST(PublicPrivateBoundaryTests, RuntimePublicHeadersDoNotExposeVendorNamespaces)
+TEST(PublicPrivateBoundaryTests, PublicHeadersDoNotExposeImplementationVendorTypes)
 {
-    const auto runtimeRoot = std::filesystem::path(SAGA_SOURCE_ROOT) / "Engine/Source/Runtime";
-    std::vector<std::filesystem::path> offenders;
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(runtimeRoot))
+    std::vector<std::string> offenders;
+    for (const auto& header : PublicHeaders())
     {
-        if (!entry.is_regular_file() || !IsHeader(entry.path()) ||
-            entry.path().string().find("/Public/") == std::string::npos)
+        const auto path = header.generic_string();
+        const bool editorQtOwner =
+            path.find("/Editor/EditorQt/Public/") != std::string::npos;
+        const auto commentsRemoved = StripComments(ReadText(header));
+        const auto token = FindVendorExposure(commentsRemoved, editorQtOwner);
+        if (!token.empty())
         {
-            continue;
-        }
-        const auto text = ReadText(entry.path());
-        if (text.find("Diligent::") != std::string::npos ||
-            text.find("Rml::") != std::string::npos ||
-            text.find("asio::") != std::string::npos)
-        {
-            offenders.push_back(entry.path());
+            offenders.push_back(path + ": " + token);
         }
     }
-    EXPECT_TRUE(offenders.empty()) << "A vendor namespace leaked through a runtime public header";
+    EXPECT_TRUE(offenders.empty())
+        << "A public header exposes an implementation vendor type/include: "
+        << (offenders.empty() ? "" : offenders.front());
 }

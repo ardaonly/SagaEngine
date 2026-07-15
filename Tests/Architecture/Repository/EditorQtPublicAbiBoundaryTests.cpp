@@ -211,6 +211,8 @@ std::vector<Finding> FindQtExposureInHeader(const std::filesystem::path& path)
             "QApplication",
             "QTreeView",
             "QTableView",
+            "QSettings",
+            "QIcon",
             "QtCore",
             "QtGui",
             "QtWidgets",
