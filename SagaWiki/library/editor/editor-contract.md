@@ -23,6 +23,8 @@ Qt types belong to EditorQt or private Qt implementation. Runtime public headers
 
 Durable customization is contract-based: registered commands, panels, inspectors, authoring actions, and extension descriptors. A concrete widget tree or application singleton is not a stable extension API merely because it is visible in a public include path.
 
+EditorExperimental currently contains extension manifests, registry/loading, host lifecycle, context, command/panel bridges, and a serialization hook. Those public headers are an experimental in-process surface. They do not establish a stable plugin ABI, package schema, compatibility window, security sandbox, distribution channel, or plugin licensing domain.
+
 ## Minimum shell workflow
 
 The current shell and authoring surfaces support bounded project inspection, panel/workspace configuration, selection, save/undo/redo routing, script evidence views, and scenario-driven checks. A report or scenario action proves only that routed workflow; it must not be described as a completed interactive dashboard. EditorLab remains a development/scenario program, not a second editor contract owner.
@@ -32,3 +34,5 @@ The current shell and authoring surfaces support bounded project inspection, pan
 The repository contains editor modules, programs, and workflow evidence, but SagaWiki does not claim a finished editor product, complete asset pipeline, polished onboarding, or stable third-party plugin API.
 
 See [Editor shell and authoring contracts](../reference/editor-shell-and-authoring.md) for the complete module, shell, Qt, panel, transaction, inspector, scene/asset, customization, and workflow boundary.
+
+The current extension-shaped API and its explicit limits are documented in [Experimental editor extensions](../reference/experimental-editor-extensions.md).

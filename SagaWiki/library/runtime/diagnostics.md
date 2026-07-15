@@ -7,7 +7,9 @@ reviewed_against: 0.0.11-post-cutover
 
 # Diagnostics and reliability
 
-Diagnostics are part of runtime ownership, not a log-file afterthought. The Diagnostics module provides structured reports, fault and crash context, server metrics, memory tracking, and resource snapshots that other systems can consume without redefining their own report formats.
+Diagnostics are part of runtime ownership, not a log-file afterthought. The Diagnostics module provides structured reports, fault and crash context, health and server-oriented metrics, and deterministic memory/resource snapshots that other systems can consume without redefining their own report formats.
+
+Core owns the lower-level process mechanisms: logging and sinks, asynchronous log queues, rotation, `CrashHandler`, and `MemoryTracker`. Diagnostics owns structured diagnostic values and higher-level aggregation. Core observations can feed a Diagnostics report, but a log entry or crash callback is not itself the complete reporting contract.
 
 ## Crash and fault context
 
@@ -30,3 +32,5 @@ These facilities are foundations for diagnosis. They are not a general leak dete
 The durable contract is structured, deterministic, owner-provided diagnostic data. Individual sample report paths and one-off audit snapshots belong in evidence storage or Git history, not in the wiki.
 
 See [Diagnostics, reliability, and observability](../reference/diagnostics-reliability-and-observability.md) for fault/crash boundaries, health, leak/resource snapshots, server-oriented reports, and evidence limits.
+
+Core lifecycle, logging, scheduling, and low-level memory ownership are described in [Runtime foundations: Core, Math, ECS, and Simulation](../reference/runtime-foundations.md).

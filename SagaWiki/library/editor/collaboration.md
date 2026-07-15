@@ -31,4 +31,10 @@ Project changes and review comments may be shared domain state. Panel layout, lo
 
 The existence of server, router, client, sync, CRDT, audit, or manager types does not establish a shipped real-time multi-user editor, hosted service, production security model, tenant isolation, encrypted transport, or operational collaboration backend. Concrete implementations may be transitional or experimental even when their value types are durable.
 
+| Current public area | Contract reading |
+| --- | --- |
+| Workspace, transaction, presence, lock, permission, role, review, and event values | Durable candidates when they remain transport- and UI-neutral. |
+| Interfaces and bounded policy inputs/results | Cross-module contract candidates with focused deterministic evidence. |
+| Concrete server/router/client, sync transport, CRDT/log, manager, and audit implementations | Public surface requiring future privatization or experimental classification; not product evidence. |
+
 See [Collaboration transactions and local policy](../reference/collaboration-transactions-and-policy.md) for workspace/transaction records, presence, locks, reviews, roles, dangerous operations, conflicts, sessions, and the concrete-public-surface warning.

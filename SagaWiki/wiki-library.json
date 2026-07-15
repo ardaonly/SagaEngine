@@ -6,6 +6,291 @@
     "ref": "904278d3f4ee80c1852a73c2dbb03afbd723798e",
     "docs_root": "docs"
   },
+  "repository_coverage": {
+    "scan_roots": [
+      "Engine/Source/Runtime",
+      "Engine/Source/Editor",
+      "Engine/Source/Programs",
+      "Tools"
+    ],
+    "state": {
+      "saga_server": "placeholder"
+    },
+    "owners": [
+      {
+        "path": "Engine/Source/Runtime/Assets",
+        "pages": [
+          "reference-runtime-assets-packages",
+          "reference-asset-pipeline"
+        ]
+      },
+      {
+        "path": "Engine/Source/Runtime/Audio",
+        "pages": [
+          "reference-ui-audio"
+        ]
+      },
+      {
+        "path": "Engine/Source/Runtime/Core",
+        "pages": [
+          "reference-runtime-foundations"
+        ]
+      },
+      {
+        "path": "Engine/Source/Runtime/Diagnostics",
+        "pages": [
+          "diagnostics",
+          "reference-diagnostics"
+        ]
+      },
+      {
+        "path": "Engine/Source/Runtime/ECS",
+        "pages": [
+          "reference-runtime-foundations"
+        ]
+      },
+      {
+        "path": "Engine/Source/Runtime/Input",
+        "pages": [
+          "reference-input-platform"
+        ]
+      },
+      {
+        "path": "Engine/Source/Runtime/Math",
+        "pages": [
+          "reference-runtime-foundations"
+        ]
+      },
+      {
+        "path": "Engine/Source/Runtime/Networking",
+        "pages": [
+          "reference-replication-authority"
+        ]
+      },
+      {
+        "path": "Engine/Source/Runtime/Persistence",
+        "pages": [
+          "reference-persistence"
+        ]
+      },
+      {
+        "path": "Engine/Source/Runtime/RHI",
+        "pages": [
+          "reference-rendering"
+        ]
+      },
+      {
+        "path": "Engine/Source/Runtime/Render",
+        "pages": [
+          "reference-rendering"
+        ]
+      },
+      {
+        "path": "Engine/Source/Runtime/Replication",
+        "pages": [
+          "reference-replication-authority"
+        ]
+      },
+      {
+        "path": "Engine/Source/Runtime/Resources",
+        "pages": [
+          "reference-resource-streaming"
+        ]
+      },
+      {
+        "path": "Engine/Source/Runtime/SagaRuntime",
+        "pages": [
+          "runtime-lifecycle",
+          "reference-runtime-assets-packages"
+        ]
+      },
+      {
+        "path": "Engine/Source/Runtime/Scripting",
+        "pages": [
+          "reference-runtime-scripting"
+        ]
+      },
+      {
+        "path": "Engine/Source/Runtime/ServerAuthority",
+        "pages": [
+          "reference-replication-authority"
+        ]
+      },
+      {
+        "path": "Engine/Source/Runtime/Simulation",
+        "pages": [
+          "reference-runtime-foundations",
+          "reference-world-simulation"
+        ]
+      },
+      {
+        "path": "Engine/Source/Runtime/UI",
+        "pages": [
+          "reference-ui-audio"
+        ]
+      },
+      {
+        "path": "Engine/Source/Runtime/World",
+        "pages": [
+          "world-boundary",
+          "reference-world-simulation"
+        ]
+      },
+      {
+        "path": "Engine/Source/Editor/EditorAuthoring",
+        "pages": [
+          "reference-editor-shell",
+          "reference-scene-project-slices"
+        ]
+      },
+      {
+        "path": "Engine/Source/Editor/EditorCollaboration",
+        "pages": [
+          "collaboration",
+          "reference-collaboration-policy"
+        ]
+      },
+      {
+        "path": "Engine/Source/Editor/EditorCore",
+        "pages": [
+          "editor-contract",
+          "reference-editor-shell"
+        ]
+      },
+      {
+        "path": "Engine/Source/Editor/EditorExperimental",
+        "pages": [
+          "reference-experimental-extensions"
+        ]
+      },
+      {
+        "path": "Engine/Source/Editor/EditorFramework",
+        "pages": [
+          "editor-contract",
+          "reference-editor-shell"
+        ]
+      },
+      {
+        "path": "Engine/Source/Editor/EditorQt",
+        "pages": [
+          "editor-contract",
+          "reference-editor-shell"
+        ]
+      },
+      {
+        "path": "Engine/Source/Editor/EditorScripting",
+        "pages": [
+          "csharp-visual-blocks"
+        ]
+      },
+      {
+        "path": "Engine/Source/Editor/VisualBlocksEditor",
+        "pages": [
+          "csharp-visual-blocks",
+          "reference-csharp-visual-blocks"
+        ]
+      },
+      {
+        "path": "Engine/Source/Programs/SagaEditor",
+        "pages": [
+          "programs-workflows"
+        ]
+      },
+      {
+        "path": "Engine/Source/Programs/SagaEditorLab",
+        "pages": [
+          "programs-workflows"
+        ]
+      },
+      {
+        "path": "Engine/Source/Programs/SagaLauncher",
+        "pages": [
+          "programs-workflows"
+        ]
+      },
+      {
+        "path": "Engine/Source/Programs/SagaRuntime",
+        "pages": [
+          "programs-workflows",
+          "reference-runtime-assets-packages"
+        ]
+      },
+      {
+        "path": "Engine/Source/Programs/SagaSandbox",
+        "pages": [
+          "programs-workflows"
+        ]
+      },
+      {
+        "path": "Engine/Source/Programs/SagaServer",
+        "pages": [
+          "programs-workflows",
+          "reference-replication-authority"
+        ]
+      },
+      {
+        "path": "Tools/AssetPipeline",
+        "pages": [
+          "reference-asset-pipeline"
+        ]
+      },
+      {
+        "path": "Tools/Developer",
+        "pages": [
+          "testing-evidence",
+          "reference-testing-evidence"
+        ]
+      },
+      {
+        "path": "Tools/Forge",
+        "pages": [
+          "build-package-publish",
+          "reference-build-distribution"
+        ]
+      },
+      {
+        "path": "Tools/Licensing",
+        "pages": [
+          "licensing",
+          "reference-licensing"
+        ]
+      },
+      {
+        "path": "Tools/SagaPackager",
+        "pages": [
+          "build-package-publish",
+          "reference-build-distribution"
+        ]
+      },
+      {
+        "path": "Tools/SagaProjectKit",
+        "pages": [
+          "getting-started",
+          "reference-source-artifacts-projects"
+        ]
+      },
+      {
+        "path": "Tools/SagaScript",
+        "pages": [
+          "csharp-visual-blocks",
+          "reference-runtime-scripting"
+        ]
+      },
+      {
+        "path": "Tools/SagaTools",
+        "pages": [
+          "build-package-publish"
+        ]
+      },
+      {
+        "path": "Tools/common",
+        "pages": [
+          "ownership-dependencies",
+          "build-package-publish"
+        ]
+      }
+    ]
+  },
   "sections": [
     "Start here",
     "Architecture",
@@ -549,6 +834,112 @@
         "docs/architecture/PUBLISH_POLICY_INTEGRATION.md",
         "docs/product/SAGAPROJ_SCHEMA_V0.md"
       ]
+    },
+    {
+      "id": "reference-runtime-foundations",
+      "source": "library/reference/runtime-foundations.md",
+      "title": "Runtime foundations: Core, Math, ECS, and Simulation",
+      "section": "Technical reference",
+      "summary": "Current low-level runtime ownership for lifecycle, work scheduling, math, entities, deterministic state, physics, and animation.",
+      "status": "bounded",
+      "tags": [
+        "core",
+        "math",
+        "ecs",
+        "simulation",
+        "determinism"
+      ],
+      "source_docs": []
+    },
+    {
+      "id": "reference-runtime-scripting",
+      "source": "library/reference/runtime-scripting-host-and-lifecycle.md",
+      "title": "Runtime scripting host and lifecycle",
+      "section": "Technical reference",
+      "summary": "The current C# host, package validation, binding, capability, authority, lifecycle, and world-access boundaries.",
+      "status": "bounded",
+      "tags": [
+        "scripting",
+        "csharp",
+        "lifecycle",
+        "capabilities"
+      ],
+      "source_docs": []
+    },
+    {
+      "id": "reference-input-platform",
+      "source": "library/reference/input-and-platform-contracts.md",
+      "title": "Input and platform contracts",
+      "section": "Technical reference",
+      "summary": "Device input, action mapping, command transport, prediction, platform abstractions, and the private SDL implementation boundary.",
+      "status": "bounded",
+      "tags": [
+        "input",
+        "platform",
+        "sdl",
+        "prediction"
+      ],
+      "source_docs": []
+    },
+    {
+      "id": "reference-asset-pipeline",
+      "source": "library/reference/asset-pipeline-and-manifest-generation.md",
+      "title": "Asset pipeline and manifest generation",
+      "section": "Technical reference",
+      "summary": "Deterministic asset identity and Runtime-compatible identity, asset, and package manifest generation.",
+      "status": "bounded",
+      "tags": [
+        "asset-pipeline",
+        "identity",
+        "manifests",
+        "packages"
+      ],
+      "source_docs": []
+    },
+    {
+      "id": "reference-persistence",
+      "source": "library/reference/persistence-contracts.md",
+      "title": "Persistence contracts",
+      "section": "Technical reference",
+      "summary": "Database, asynchronous query, pool, migration, cache, presence, pub/sub, and event-log boundaries with current backend debt.",
+      "status": "bounded",
+      "tags": [
+        "persistence",
+        "database",
+        "event-log",
+        "presence"
+      ],
+      "source_docs": []
+    },
+    {
+      "id": "reference-ui-audio",
+      "source": "library/reference/ui-and-audio-contracts.md",
+      "title": "UI and audio contracts",
+      "section": "Technical reference",
+      "summary": "Runtime UI routing, screens, resources, named actions, audio events, queues, filters, and backend ownership.",
+      "status": "bounded",
+      "tags": [
+        "ui",
+        "audio",
+        "rmlui",
+        "backends"
+      ],
+      "source_docs": []
+    },
+    {
+      "id": "reference-experimental-extensions",
+      "source": "library/reference/experimental-editor-extensions.md",
+      "title": "Experimental editor extensions",
+      "section": "Technical reference",
+      "summary": "The existing extension host surface and the compatibility, packaging, security, and licensing guarantees it does not establish.",
+      "status": "bounded",
+      "tags": [
+        "editor",
+        "extensions",
+        "experimental",
+        "non-claims"
+      ],
+      "source_docs": []
     },
     {
       "id": "reference-resource-streaming",

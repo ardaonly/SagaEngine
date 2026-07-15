@@ -299,6 +299,7 @@ def validate_registry(registry: dict[str, Any]) -> None:
     sections = registry.get("sections")
     pages = registry.get("pages")
     history = registry.get("historical_reference")
+    coverage = registry.get("repository_coverage")
     if not isinstance(sections, list) or not sections or not all(isinstance(x, str) for x in sections):
         raise WikiError("wiki-library.json: sections must be a non-empty string array")
     if len(set(sections)) != len(sections):
@@ -307,6 +308,19 @@ def validate_registry(registry: dict[str, Any]) -> None:
         raise WikiError("wiki-library.json: pages must be a non-empty array")
     if not isinstance(history, dict) or not all(history.get(x) for x in ("label", "ref", "docs_root")):
         raise WikiError("wiki-library.json: incomplete historical_reference")
+    if not isinstance(coverage, dict):
+        raise WikiError("wiki-library.json: repository_coverage must be an object")
+    scan_roots = coverage.get("scan_roots")
+    owners = coverage.get("owners")
+    state = coverage.get("state")
+    if not isinstance(scan_roots, list) or not scan_roots or not all(
+        isinstance(path, str) and path for path in scan_roots
+    ):
+        raise WikiError("wiki-library.json: repository_coverage.scan_roots must be a non-empty string array")
+    if not isinstance(owners, list) or not owners:
+        raise WikiError("wiki-library.json: repository_coverage.owners must be a non-empty array")
+    if not isinstance(state, dict) or state.get("saga_server") not in {"placeholder", "implemented"}:
+        raise WikiError("wiki-library.json: repository_coverage.state.saga_server is invalid")
 
     ids: set[str] = set()
     sources: set[str] = set()
@@ -335,6 +349,80 @@ def validate_registry(registry: dict[str, Any]) -> None:
         ):
             raise WikiError(f"wiki-library.json: invalid historical sources for {article_id}")
 
+    owner_paths: set[str] = set()
+    for index, owner in enumerate(owners):
+        if not isinstance(owner, dict) or set(owner) != {"path", "pages"}:
+            raise WikiError(f"wiki-library.json: repository owner {index} is malformed")
+        path = owner["path"]
+        page_ids = owner["pages"]
+        if (
+            not isinstance(path, str)
+            or path.startswith("/")
+            or posixpath.normpath(path) != path
+            or path.startswith("../")
+        ):
+            raise WikiError(f"wiki-library.json: invalid repository owner path {path!r}")
+        if path in owner_paths:
+            raise WikiError(f"wiki-library.json: duplicate repository owner path {path}")
+        owner_paths.add(path)
+        if not isinstance(page_ids, list) or not page_ids or not all(
+            isinstance(page_id, str) and page_id in ids for page_id in page_ids
+        ):
+            raise WikiError(f"wiki-library.json: invalid coverage pages for {path}")
+
+
+def validate_repo_alignment(
+    registry: dict[str, Any], articles: list[Article]
+) -> list[str]:
+    """Validate that the Wiki coverage map still describes current owners."""
+
+    errors: list[str] = []
+    coverage = registry["repository_coverage"]
+    declared = {owner["path"] for owner in coverage["owners"]}
+    discovered: set[str] = set()
+
+    for root_value in coverage["scan_roots"]:
+        root = REPO_ROOT / root_value
+        if not root.is_dir():
+            errors.append(f"repository coverage root is missing: {root_value}")
+            continue
+        discovered.update(
+            path.relative_to(REPO_ROOT).as_posix()
+            for path in root.iterdir()
+            if path.is_dir()
+        )
+
+    for path in sorted(discovered - declared):
+        errors.append(f"repository owner has no SagaWiki coverage: {path}")
+    for path in sorted(declared - discovered):
+        errors.append(f"SagaWiki coverage names a missing repository owner: {path}")
+
+    article_by_id = {article.entry["id"]: article for article in articles}
+    server_root = REPO_ROOT / "Engine/Source/Programs/SagaServer"
+    server_entrypoints = [
+        path
+        for path in server_root.rglob("*")
+        if path.is_file()
+        and path.suffix.lower() in {".c", ".cc", ".cpp", ".cxx"}
+        and re.search(r"\bmain\s*\(", path.read_text(encoding="utf-8", errors="ignore"))
+    ]
+    actual_server_state = "implemented" if server_entrypoints else "placeholder"
+    expected_server_state = coverage["state"]["saga_server"]
+    if actual_server_state != expected_server_state:
+        errors.append(
+            "SagaServer repository state changed: registry says "
+            f"{expected_server_state}, repository is {actual_server_state}"
+        )
+    program_article = article_by_id.get("programs-workflows")
+    placeholder_statement = "no current executable implementation"
+    if program_article:
+        has_placeholder_statement = placeholder_statement in program_article.body.lower()
+        if actual_server_state == "placeholder" and not has_placeholder_statement:
+            errors.append("programs-workflows must state that SagaServer has no current executable implementation")
+        if actual_server_state == "implemented" and has_placeholder_statement:
+            errors.append("programs-workflows still describes an implemented SagaServer as a placeholder")
+
+    return errors
 
 
 def load_articles() -> tuple[dict[str, Any], list[Article]]:
@@ -554,6 +642,7 @@ def command_verify() -> int:
 
         errors.extend(validate_links(articles))
         errors.extend(validate_claims(articles))
+        errors.extend(validate_repo_alignment(registry, articles))
 
         origin, available = old_docs_paths(registry)
         selected = selected_old_docs(registry)
