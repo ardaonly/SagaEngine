@@ -4,9 +4,6 @@ saga_add_runtime_module(RHI
     SOURCES
         Private/SagaEngine/Graphics/Backend/GraphicsRenderBackendMapping.h
         Private/SagaEngine/Graphics/Frame/FrameResourceAllocator.h
-        Private/SagaEngine/RHI/Backends/Diligent/BufferDiligent.cpp
-        Private/SagaEngine/RHI/Backends/Diligent/DeviceDiligent.cpp
-        Private/SagaEngine/RHI/Backends/Diligent/ShaderDiligent.cpp
         Private/SagaEngine/RHI/RHI.cpp
         Public/SagaEngine/Graphics/Backend/GraphicsBackend.h
         Public/SagaEngine/Graphics/Bindings/GraphicsBindingTypes.h

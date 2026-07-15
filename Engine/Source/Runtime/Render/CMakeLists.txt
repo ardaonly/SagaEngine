@@ -18,9 +18,6 @@ saga_add_runtime_module(Render
         Private/SagaEngine/Render/RenderGraph/RenderGraph.cpp
         Private/SagaEngine/Render/RenderGraph/RenderGraphFrameExecutor.cpp
         Private/SagaEngine/Render/RenderGraph/RenderGraphFrameExecutor.h
-        Private/SagaEngine/Render/RenderPass.cpp
-        Private/SagaEngine/Render/RenderPasses/GBufferPass.h
-        Private/SagaEngine/Render/RenderPasses/LightingPass.h
         Private/SagaEngine/Render/RenderSubsystem.cpp
         Private/SagaEngine/Render/Renderer.cpp
         Private/SagaEngine/Render/Renderer.h

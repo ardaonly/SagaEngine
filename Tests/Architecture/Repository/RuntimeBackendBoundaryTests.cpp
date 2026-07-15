@@ -222,6 +222,27 @@ TEST(RuntimeBackendBoundaryTests, DiligentDeviceFactoryIsTheOnlyNativeLifecycleC
     EXPECT_EQ(owners.front(), expectedOwner);
 }
 
+TEST(RuntimeBackendBoundaryTests, SpeculativeRenderPlaceholdersStayAbsent)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    for (const auto& placeholder : {
+             "Engine/Source/Runtime/RHI/Private/SagaEngine/RHI/Backends/"
+             "Diligent/BufferDiligent.cpp",
+             "Engine/Source/Runtime/RHI/Private/SagaEngine/RHI/Backends/"
+             "Diligent/DeviceDiligent.cpp",
+             "Engine/Source/Runtime/RHI/Private/SagaEngine/RHI/Backends/"
+             "Diligent/ShaderDiligent.cpp",
+             "Engine/Source/Runtime/Render/Private/SagaEngine/Render/"
+             "RenderPass.cpp",
+             "Engine/Source/Runtime/Render/Private/SagaEngine/Render/"
+             "RenderPasses/GBufferPass.h",
+             "Engine/Source/Runtime/Render/Private/SagaEngine/Render/"
+             "RenderPasses/LightingPass.h"})
+    {
+        EXPECT_FALSE(std::filesystem::exists(root / placeholder)) << placeholder;
+    }
+}
+
 TEST(RuntimeBackendBoundaryTests, WaitForIdleIsLimitedToDiagnosticFrameCapture)
 {
     const auto runtimeRoot =
