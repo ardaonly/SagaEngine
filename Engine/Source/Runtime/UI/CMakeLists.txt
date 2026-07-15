@@ -3,7 +3,7 @@ saga_add_runtime_module(UI
     TARGET SagaBackend
     SOURCES
         Private/Backends/RmlUi/RmlUiUiBackend.cpp
-        Public/SagaEngine/UI/Backends/RmlUiUiBackend.h
+        Private/Backends/RmlUi/RmlUiUiBackend.h
 )
 
 saga_add_runtime_module(UI

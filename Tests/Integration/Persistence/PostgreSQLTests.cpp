@@ -1,4 +1,4 @@
-#include <SagaEngine/Persistence/Database/PostgreSQLImpl.h>
+#include "SagaEngine/Persistence/Backends/PostgreSQL/PostgreSQLImpl.h"
 #include <SagaEngine/Persistence/Types.h>
 #include <gtest/gtest.h>
 

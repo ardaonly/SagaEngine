@@ -1,5 +1,5 @@
 #include <SagaEngine/Persistence/EventSourcing/EventLog.h>
-#include <SagaEngine/Persistence/Database/PostgreSQLImpl.h>
+#include "SagaEngine/Persistence/Backends/PostgreSQL/PostgreSQLImpl.h"
 #include <gtest/gtest.h>
 #include <thread>
 #include <chrono>
