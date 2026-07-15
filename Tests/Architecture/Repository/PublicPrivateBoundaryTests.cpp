@@ -382,6 +382,25 @@ TEST(PublicPrivateBoundaryTests, RuntimeAndEditorPublicHeadersDoNotIncludePrivat
         << (offenders.empty() ? "" : offenders.front().generic_string());
 }
 
+TEST(PublicPrivateBoundaryTests, VisualBlocksRuntimeHostsStayPrivate)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT) /
+        "Engine/Source/Editor/VisualBlocksEditor";
+    const auto publicVisualBlocks = root / "Public/SagaEditor/VisualBlocks";
+    const auto privateVisualBlocks = root / "Private/SagaEditor/VisualBlocks";
+
+    EXPECT_FALSE(std::filesystem::exists(publicVisualBlocks / "Runtime"));
+    EXPECT_FALSE(std::filesystem::exists(publicVisualBlocks / "Evaluation"));
+    EXPECT_TRUE(std::filesystem::is_regular_file(
+        privateVisualBlocks / "Runtime/ScriptHost.h"));
+    EXPECT_TRUE(std::filesystem::is_regular_file(
+        privateVisualBlocks / "Evaluation/GraphEvaluationRunner.h"));
+    EXPECT_TRUE(std::filesystem::is_regular_file(
+        publicVisualBlocks / "Graphs/GraphDocument.h"));
+    EXPECT_TRUE(std::filesystem::is_regular_file(
+        publicVisualBlocks / "Imports/SourceMapImport.h"));
+}
+
 TEST(PublicPrivateBoundaryTests, PublicHeadersDoNotExposeImplementationVendorTypes)
 {
     std::vector<std::string> offenders;

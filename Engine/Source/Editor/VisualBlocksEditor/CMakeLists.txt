@@ -16,13 +16,23 @@ saga_add_editor_module(VisualBlocksEditor
         Private/SagaEditor/VisualBlocks/Editor/NodeGraphToolbar.cpp
         Private/SagaEditor/VisualBlocks/Graphs/GraphDocument.cpp
         Private/SagaEditor/VisualBlocks/Evaluation/GraphEvaluationRunner.cpp
+        Private/SagaEditor/VisualBlocks/Evaluation/GraphEvaluationRunner.h
         Private/SagaEditor/VisualBlocks/Evaluation/EvaluationSession.cpp
+        Private/SagaEditor/VisualBlocks/Evaluation/EvaluationSession.h
         Private/SagaEditor/VisualBlocks/Evaluation/EvaluationWorld.cpp
+        Private/SagaEditor/VisualBlocks/Evaluation/EvaluationWorld.h
         Private/SagaEditor/VisualBlocks/Runtime/CoreClrHost.cpp
+        Private/SagaEditor/VisualBlocks/Runtime/CoreClrHost.h
         Private/SagaEditor/VisualBlocks/Runtime/ManagedToNativeBridge.cpp
+        Private/SagaEditor/VisualBlocks/Runtime/ManagedToNativeBridge.h
+        Private/SagaEditor/VisualBlocks/Runtime/NativeToManagedBridge.h
         Private/SagaEditor/VisualBlocks/Runtime/ScriptAssemblyContext.cpp
+        Private/SagaEditor/VisualBlocks/Runtime/ScriptAssemblyContext.h
+        Private/SagaEditor/VisualBlocks/Runtime/ScriptBridge.h
         Private/SagaEditor/VisualBlocks/Runtime/ScriptHost.cpp
+        Private/SagaEditor/VisualBlocks/Runtime/ScriptHost.h
         Private/SagaEditor/VisualBlocks/Runtime/ScriptHotReloadManager.cpp
+        Private/SagaEditor/VisualBlocks/Runtime/ScriptHotReloadManager.h
         Public/SagaEditor/VisualBlocks/Blocks/BlockCategory.h
         Public/SagaEditor/VisualBlocks/Blocks/BlockDefinition.h
         Public/SagaEditor/VisualBlocks/Blocks/BlockIR.h
@@ -59,16 +69,6 @@ saga_add_editor_module(VisualBlocksEditor
         Public/SagaEditor/VisualBlocks/Nodes/NodeLibraryPanel.h
         Public/SagaEditor/VisualBlocks/Pins/PinRenderer.h
         Public/SagaEditor/VisualBlocks/Pins/PinTypeStyle.h
-        Public/SagaEditor/VisualBlocks/Evaluation/GraphEvaluationRunner.h
-        Public/SagaEditor/VisualBlocks/Evaluation/EvaluationSession.h
-        Public/SagaEditor/VisualBlocks/Evaluation/EvaluationWorld.h
-        Public/SagaEditor/VisualBlocks/Runtime/CoreClrHost.h
-        Public/SagaEditor/VisualBlocks/Runtime/ManagedToNativeBridge.h
-        Public/SagaEditor/VisualBlocks/Runtime/NativeToManagedBridge.h
-        Public/SagaEditor/VisualBlocks/Runtime/ScriptAssemblyContext.h
-        Public/SagaEditor/VisualBlocks/Runtime/ScriptBridge.h
-        Public/SagaEditor/VisualBlocks/Runtime/ScriptHost.h
-        Public/SagaEditor/VisualBlocks/Runtime/ScriptHotReloadManager.h
         Public/SagaEditor/VisualBlocks/TypeSystem/TypeBrowser.h
         Public/SagaEditor/VisualBlocks/TypeSystem/TypeInspector.h
 )
