@@ -220,3 +220,14 @@ TEST(CMakeTargetBoundaryTests, LegacyOwnershipRootsStayAbsent)
         EXPECT_FALSE(std::filesystem::exists(root / legacy)) << legacy;
     }
 }
+
+TEST(CMakeTargetBoundaryTests, EmptyOwnershipPlaceholdersStayAbsent)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    for (const auto& placeholder : {
+             root / "Engine/Source/Editor/EditorScripting",
+             root / "Engine/Source/Programs/SagaServer"})
+    {
+        EXPECT_FALSE(std::filesystem::exists(placeholder)) << placeholder;
+    }
+}

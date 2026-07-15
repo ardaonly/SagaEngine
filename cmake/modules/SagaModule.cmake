@@ -132,13 +132,11 @@ function(saga_register_source_modules)
         Engine/Source/Editor/EditorQt/CMakeLists.txt
         Engine/Source/Editor/EditorAuthoring/CMakeLists.txt
         Engine/Source/Editor/VisualBlocksEditor/CMakeLists.txt
-        Engine/Source/Editor/EditorScripting/CMakeLists.txt
         Engine/Source/Editor/EditorCollaboration/CMakeLists.txt
         Engine/Source/Editor/EditorExperimental/CMakeLists.txt
         Engine/Source/Programs/SagaLauncher/CMakeLists.txt
         Engine/Source/Programs/SagaEditor/CMakeLists.txt
         Engine/Source/Programs/SagaRuntime/CMakeLists.txt
-        Engine/Source/Programs/SagaServer/CMakeLists.txt
         Engine/Source/Programs/SagaSandbox/CMakeLists.txt
         Engine/Source/Programs/SagaEditorLab/CMakeLists.txt
         Tools/SagaPackager/CMakeLists.txt
