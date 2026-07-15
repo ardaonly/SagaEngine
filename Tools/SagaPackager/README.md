@@ -21,8 +21,14 @@ truth is reported as `MissingSourceOfTruth`. The tool does not build shipping
 distribution artifacts, upload anything, migrate ClientHost, import/cook
 assets, or change runtime/server/editor gameplay code.
 
-`publish-check` accepts optional governance reports. When supplied,
-they add report-only gates for policy, review approval, audit evidence, and
-restricted export evidence. Missing, malformed, denied, review-required, or
-blocked supplied evidence blocks the check; omitting these inputs preserves the
-existing publish-check behavior.
+`publish-check` accepts optional, precomputed governance reports. These reports
+are external inputs produced outside SagaPackager; SagaPackager consumes and
+validates them but does not produce them. In particular, this repository does
+not bundle a SagaPolicyKit workflow. The `--policy-report` option remains an
+optional input contract, not a claim that a policy-report producer ships with
+SagaPackager.
+
+When supplied, governance reports add report-only gates for policy, review
+approval, audit evidence, and restricted export evidence. Missing, malformed,
+denied, review-required, or blocked supplied evidence blocks the check;
+omitting these inputs preserves the existing publish-check behavior.

@@ -343,23 +343,6 @@ migration_status = "effective"
 effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
-id = "saga-schemas"
-priority = 100
-paths = ["Schemas/**"]
-required = false
-domain_owner = "SagaEngine"
-rights_holder_refs = ["RH-ARDA-KOYUNCU"]
-current_license_mode = "fixed-spdx"
-resolution_requirement = "metadata-or-policy-default"
-current_license_expression = "MPL-2.0"
-target_license_mode = "fixed-spdx"
-target_license_expression = "MPL-2.0"
-provenance_review = "cleared"
-licensing_authority_review = "cleared"
-migration_status = "effective"
-effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
-
-[[domains]]
 id = "saga-tools"
 priority = 100
 paths = ["Tools/**"]

@@ -80,7 +80,7 @@ METADATA_REQUIREMENTS = {
     ),
     "SagaWiki/pages/licensing.html": (
         "SPDX-FileCopyrightText: 2026 Arda Koyuncu",
-        "SPDX-License-Identifier: CC-BY-4.0",
+        "SPDX-License-Identifier: Apache-2.0 OR CC-BY-4.0",
     ),
     "LICENSES/THIRD_PARTY_NOTICES.md": (
         "SPDX-License-Identifier: CC-BY-4.0",
