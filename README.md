@@ -35,10 +35,11 @@ scripts/build
 scripts/test
 scripts/verify
 scripts/package
-scripts/wiki 8000
+scripts/wiki build
+scripts/wiki verify
 ```
 
-They delegate to Forge, the owning verification tools, SagaPackager, or the local SagaWiki HTTP server. They contain no product logic.
+The wiki wrapper owns standard-library-only documentation generation and verification. The other wrappers delegate to Forge, the owning verification tools, or SagaPackager and contain no product logic.
 
 ## Public tooling direction
 
@@ -56,10 +57,11 @@ SagaTools remains the stable dispatcher. Developer checks below `Tools/Developer
 
 ## Documentation
 
-Open [SagaWiki](SagaWiki/index.html) directly, or run:
+Build and verify [SagaWiki](SagaWiki/index.html), then open it directly:
 
 ```sh
-scripts/wiki 8000
+scripts/wiki build
+scripts/wiki verify
 ```
 
-Then visit `http://localhost:8000`. Historical audits, plans, and reports are not retained as current documentation.
+No local server, network access, or browser-side Markdown loader is required. Historical audits, plans, and reports are not retained as current documentation.

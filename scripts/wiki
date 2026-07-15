@@ -1,6 +1,1060 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env python3
+"""Build and verify the Markdown-backed SagaWiki without external packages."""
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$ROOT"
-exec python3 -m http.server "${1:-8000}" --directory SagaWiki
+from __future__ import annotations
+
+import html
+import json
+import posixpath
+import re
+import subprocess
+import sys
+from collections import Counter
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+WIKI_ROOT = ROOT / "SagaWiki"
+REGISTRY_PATH = WIKI_ROOT / "wiki-pages.json"
+PREFERRED_OLD_DOCS_COMMIT = "177bfde6"
+HISTORICAL_OLD_DOCS_COMMITS = (
+    ("SagaEngine 0.0.10", "904278d3f4ee80c1852a73c2dbb03afbd723798e"),
+)
+
+CLASSIFICATIONS = (
+    "MERGED_CURRENT",
+    "SHOULD_MERGE",
+    "DELETE_HISTORY_ONLY",
+    "PRIVATE_ARCHIVE_CANDIDATE",
+    "NEEDS_ARDA_DECISION",
+)
+
+BANNED_PAGE_NAME_TERMS = (
+    "MILESTONE",
+    "TECHNICAL_PREVIEW",
+    "SMALL_TEAM_ALPHA",
+    "HARDENING_PLAN",
+    "INVENTORY",
+    "AUDIT",
+    "PHASE",
+)
+
+CLAIM_PHRASES = (
+    "finished public sdk",
+    "finished editor",
+    "production networking",
+    "production collaboration",
+    "shipped persistent worlds",
+)
+
+NEGATION_MARKERS = (
+    " not ",
+    " no ",
+    " never ",
+    " without ",
+    " does not ",
+    " do not ",
+    " is not ",
+    " are not ",
+    " isn't ",
+    " aren't ",
+    " non-claim",
+)
+
+INLINE_PATTERN = re.compile(
+    r"!\[([^\]]*)\]\(([^)\s]+)\)"
+    r"|\[([^\]]+)\]\(([^)\s]+)\)"
+    r"|`([^`]+)`"
+    r"|\*\*([^*]+)\*\*"
+    r"|\*([^*]+)\*"
+)
+
+MERGED_CURRENT_PATHS = {
+    "docs/CodingStandards.md",
+    "docs/DependencyGraph.md",
+    "docs/LICENSING.md",
+    "docs/architecture/ARCHITECTURE_OVERVIEW.md",
+    "docs/architecture/ASSETS_AND_PACKAGES.md",
+    "docs/architecture/AUTHORING_AUTHORITY_MODEL.md",
+    "docs/architecture/CLAIM_AND_EVIDENCE_POLICY.md",
+    "docs/architecture/CSHARP_VISUAL_BLOCKS_COMPATIBILITY_PROFILE.md",
+    "docs/architecture/EDITOR.md",
+    "docs/architecture/ENTERPRISE_SECURITY_LIMITATIONS.md",
+    "docs/architecture/GENERATED_ARTIFACT_FRESHNESS_CONTRACT.md",
+    "docs/architecture/GRAPHICS_COORDINATE_CONVENTION.md",
+    "docs/architecture/NIX_DEVELOPMENT_AND_VALIDATION_POLICY.md",
+    "docs/architecture/OWNERSHIP.md",
+    "docs/architecture/PUBLISH.md",
+    "docs/architecture/PUBLISH_POLICY_INTEGRATION.md",
+    "docs/architecture/RENDER_CANONICAL_RUNTIME_PATH.md",
+    "docs/architecture/RUNTIME.md",
+    "docs/architecture/SAGA_COLLABORATION_CURRENT_BOUNDARY.md",
+    "docs/architecture/SAGA_COLLABORATION_PRESENCE_LOCK_BOUNDARY.md",
+    "docs/architecture/SAGA_COLLABORATION_ROLE_PERMISSION_BOUNDARY.md",
+    "docs/architecture/SAGA_CSHARP_VISUAL_AUTHORING_BOUNDARY.md",
+    "docs/architecture/SAGA_EDITOR_CUSTOMIZATION_MODEL.md",
+    "docs/architecture/SAGA_GENERATED_FILES_POLICY.md",
+    "docs/architecture/SAGA_LOCAL_WORKSPACE_TRANSACTION_BOUNDARY.md",
+    "docs/architecture/SAGA_PRODUCT_SHELL_WORKFLOW_CONTRACT.md",
+    "docs/architecture/SAGA_REVIEW_COMMENT_TRANSACTION_MODEL.md",
+    "docs/architecture/SCENE_ENTITY_SOURCE_TRUTH_FOUNDATION.md",
+    "docs/architecture/SERVER.md",
+    "docs/architecture/SOURCE_OF_TRUTH_MAP.md",
+    "docs/architecture/SOURCE_PATCH_APPLY_POLICY.md",
+    "docs/architecture/TESTING_AND_EVIDENCE.md",
+    "docs/architecture/VISUAL_BLOCK_PATCH_CONTRACT.md",
+    "docs/licensing/GENERATED_OUTPUTS.md",
+    "docs/licensing/LICENSE_FOUNDATION.md",
+    "docs/licensing/LICENSE_STABILITY.md",
+    "docs/licensing/README.md",
+    "docs/licensing/THIRD_PARTY_NOTICES.md",
+    "docs/licensing/decisions/LIC-DEC-0001.md",
+    "docs/product/CURRENT_CAPABILITIES.md",
+    "docs/product/GETTING_STARTED.md",
+    "docs/product/README.md",
+    "docs/product/SAGAPROJ_SCHEMA_V0.md",
+    "docs/product/WHAT_IS_NOT_IMPLEMENTED.md",
+    "docs/product/WHAT_IS_SAGAENGINE.md",
+    "docs/testing/README.md",
+    "docs/testing/TEST_SUITES.md",
+}
+
+SHOULD_MERGE_REASONS = {
+    "docs/architecture/DIAGNOSTICS_CRASH_CONTEXT_AND_RELIABILITY_RULES.md":
+        "Crash-context ownership and failure capture need a current, code-checked diagnostics summary before merging.",
+    "docs/architecture/DIAGNOSTICS_OPERATIONAL_REPORTS_AND_SERVER_OBSERVABILITY.md":
+        "Operational report ownership remains useful, but current diagnostics producers and non-claims must be revalidated first.",
+    "docs/architecture/ENGINE_RENDER_EXTENSION_BOUNDARY_CONTRACT.md":
+        "Current render extension points need public-consumer verification before their supported boundary is documented.",
+    "docs/architecture/ENGINE_WORLD_PUBLIC_FACADE_CONTRACT.md":
+        "The current World public facade needs header and consumer review before a durable contract is stated.",
+    "docs/architecture/GRAPHICS_BACKEND_PREFERENCE_ORDER.md":
+        "Backend selection and fallback order remain useful but must be checked against the current private RHI bootstrap.",
+    "docs/architecture/RENDER_INTEREST_WORLD_STREAMING_CONTRACT.md":
+        "The interest-to-render streaming boundary needs current World, Replication, and Render ownership evidence.",
+    "docs/architecture/RENDER_LIGHTING_STRATEGY.md":
+        "A concise lighting boundary would be useful after current renderer capability and evidence review.",
+    "docs/architecture/RENDER_MATERIAL_GRAPH_AUTHORING_CONTRACT.md":
+        "Material authoring, generated data, and runtime consumption ownership need current Editor/Render validation.",
+    "docs/architecture/RENDER_PUBLIC_API_CONTRACT.md":
+        "The vendor-neutral render API needs an installed-consumer review before expanding its public documentation.",
+    "docs/architecture/SAGA_SCENE_ASSET_AUTHORING_CONTRACT.md":
+        "Scene and asset authoring ownership needs current EditorAuthoring and source-manifest evidence before merging.",
+}
+
+NEEDS_DECISION_REASONS: dict[str, str] = {}
+
+PRIVATE_ARCHIVE_REASONS = {
+    "docs/licensing/PLUGIN_LICENSING.md":
+        "This is useful future reference for Arda if stable plugin contracts become real, but it is not valid current public SagaWiki policy.",
+    "docs/architecture/SAGA_WORKSPACEHUB_SERVER_ARCHITECTURE.md":
+        "This speculative hosted-workspace design names a retired tool and would overstate current collaboration; keep it out of public SagaWiki.",
+    "docs/internal/product-history/SAGA_MMO_GENRE_STRATEGY_DRAFT.md":
+        "This broad genre strategy is private product-direction history and must not become public SagaWiki positioning.",
+    "docs/internal/product-history/SAGA_PRODUCT_DEFINITION.md":
+        "The durable neutral product boundary was merged, but the full historical strategy document should remain private context.",
+}
+
+DELETE_HISTORY_PATHS = {
+    "docs/architecture/APPS_SANDBOX_ROLE.md",
+    "docs/architecture/CLIENT_PREVIEW_AND_RUNTIME_UI_STRATEGY.md",
+    "docs/architecture/DIAGNOSTICS_MEMORY_RESOURCE_SNAPSHOT_FOUNDATION.md",
+    "docs/architecture/DIAGNOSTICS_STRESS_ARENA_V1.md",
+    "docs/architecture/EDITOR_UI_IMPLEMENTATION_STRATEGY.md",
+    "docs/architecture/NETWORK_CHAOS_POLICY_FOUNDATION.md",
+    "docs/architecture/RESTRICTED_ARTIFACT_EXPORT_GATE.md",
+    "docs/architecture/SAGA_EDITOR_SHELL_MINIMUM_WORKFLOW.md",
+    "docs/architecture/SAGA_LINUX_DISTRIBUTION_LAYOUT.md",
+    "docs/architecture/SAGA_LOCAL_APPROVAL_PUBLISH_GATE_BOUNDARY.md",
+    "docs/architecture/SAGA_MMO_GENRE_FOCUS.md",
+    "docs/architecture/SAGA_PERFORMANCE_BUDGETS.md",
+    "docs/architecture/SAGA_PROJECT_SLICE_VISIBILITY_BOUNDARY.md",
+    "docs/architecture/SAGA_SCHEMA_PACKAGE_BOUNDARY.md",
+    "docs/architecture/SDE_ARTIFACT_MANIFEST_CONTRACT.md",
+    "docs/architecture/SDE_CURRENT_CONTRACT.md",
+    "docs/dev/SAGA_ENTERPRISE_CLAIM_LEVELS.md",
+    "docs/dev/SCRATCH.md",
+    "docs/internal/product-history/SAGA_RELEASE_VOCABULARY_AND_CLAIM_LEVELS.md",
+    "docs/licensing/CONTRIBUTING_DCO_SECTION.md",
+    "docs/product/SAGA_ECOSYSTEM_MAP.md",
+    "docs/product/SAGA_MMO_GENRE_FOCUS.md",
+}
+
+STALE_VERSIONED_PATHS = {
+    "docs/architecture/DANGEROUS_OPERATION_POLICY_GATE_V1.md",
+    "docs/architecture/ENTITY_SCHEMA_V1.md",
+    "docs/architecture/GRAPHICS_CAPABILITY_MATRIX_V0.md",
+    "docs/architecture/IMMUTABLE_AUDIT_LOG_V1.md",
+    "docs/architecture/POLICY_DOMAIN_MODEL_V0.md",
+    "docs/architecture/PROJECT_ROLE_PROFILES_V1.md",
+    "docs/architecture/PROJECT_SLICE_RESOLVER_V1.md",
+    "docs/architecture/PROJECT_SLICE_SCHEMA_V0.md",
+    "docs/architecture/REVIEW_APPROVAL_WORKFLOW_V2.md",
+    "docs/architecture/SAGACHAOSLAB_V1.md",
+    "docs/architecture/SAGA_ARTIFACT_CONTRACTS_V1.md",
+    "docs/architecture/SAGA_ENTERPRISE_THREAT_MODEL_V0.md",
+    "docs/architecture/SAGA_GAMEPLAY_NODE_LIBRARY_V1.md",
+    "docs/architecture/SCENE_SCHEMA_V1.md",
+    "docs/architecture/SOURCE_VISIBILITY_LEVELS_V1.md",
+}
+
+STALE_NAME_MARKERS = (
+    "MILESTONE",
+    "TECHNICAL_PREVIEW",
+    "SMALL_TEAM_ALPHA",
+    "HARDENING_PLAN",
+    "_AUDIT",
+    "_INVENTORY",
+    "CURRENT_STATUS",
+    "TRANSITION_CHECKLIST",
+    "MIGRATION",
+    "CANDIDATE",
+    "NEXT_PRODUCT_SLICE",
+    "ACCEPTANCE_TEST_PLAN",
+    "CURRENT_DISTRIBUTION_STATUS",
+    "DISTRIBUTION_STARTER_ARENA_WORKFLOW",
+    "LINUX_ARCHIVE_CHECKSUM",
+    "LINUX_DISTRIBUTION_SMOKE",
+    "LINUX_PACKAGE_PREFLIGHT",
+    "LINUX_TOOL_PACKAGING",
+    "SAMPLE_EXECUTABLE_EVIDENCE",
+)
+
+
+class WikiError(RuntimeError):
+    """A user-actionable wiki build or verification error."""
+
+
+def git_bytes(*args: str, check: bool = True) -> bytes:
+    result = subprocess.run(
+        ["git", *args],
+        cwd=ROOT,
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if check and result.returncode != 0:
+        message = result.stderr.decode("utf-8", errors="replace").strip()
+        raise WikiError(f"git {' '.join(args)} failed: {message}")
+    return result.stdout
+
+
+def git_text(*args: str, check: bool = True) -> str:
+    return git_bytes(*args, check=check).decode("utf-8", errors="replace")
+
+
+def ensure_wiki_relative(path_text: str, kind: str) -> str:
+    normalized = posixpath.normpath(path_text)
+    if (
+        not path_text
+        or path_text.startswith("/")
+        or normalized == ".."
+        or normalized.startswith("../")
+    ):
+        raise WikiError(f"{kind} must stay below SagaWiki: {path_text!r}")
+    return normalized
+
+
+def load_registry() -> list[dict[str, str]]:
+    try:
+        raw = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise WikiError("SagaWiki/wiki-pages.json does not exist") from exc
+    except json.JSONDecodeError as exc:
+        raise WikiError(f"invalid wiki registry JSON: {exc}") from exc
+    if not isinstance(raw, list) or not raw:
+        raise WikiError("wiki registry must be a non-empty JSON array")
+
+    pages: list[dict[str, str]] = []
+    seen_sources: set[str] = set()
+    seen_outputs: set[str] = set()
+    for number, item in enumerate(raw, start=1):
+        if not isinstance(item, dict) or set(item) != {"source", "output", "title"}:
+            raise WikiError(
+                f"registry entry {number} must contain only source, output, and title"
+            )
+        if not all(isinstance(item[key], str) and item[key] for key in item):
+            raise WikiError(f"registry entry {number} contains an empty non-string field")
+        source = ensure_wiki_relative(item["source"], "registry source")
+        output = ensure_wiki_relative(item["output"], "registry output")
+        if not source.startswith("content/") or not source.endswith(".md"):
+            raise WikiError(f"registry source must be content/*.md: {source}")
+        if output != "index.html" and not (
+            output.startswith("pages/") and output.endswith(".html")
+        ):
+            raise WikiError(f"registry output must be index.html or pages/*.html: {output}")
+        if source in seen_sources or output in seen_outputs:
+            raise WikiError(f"duplicate registry source or output at entry {number}")
+        seen_sources.add(source)
+        seen_outputs.add(output)
+        pages.append({"source": source, "output": output, "title": item["title"]})
+
+    if pages[0]["output"] != "index.html":
+        raise WikiError("the first registry entry must generate SagaWiki/index.html")
+    if sum(page["output"] == "index.html" for page in pages) != 1:
+        raise WikiError("the registry must contain exactly one index.html output")
+    return pages
+
+
+def parse_markdown(page: dict[str, str]) -> tuple[dict[str, str], str]:
+    source_path = WIKI_ROOT / page["source"]
+    try:
+        text = source_path.read_text(encoding="utf-8")
+    except FileNotFoundError as exc:
+        raise WikiError(f"missing registry source: SagaWiki/{page['source']}") from exc
+    lines = text.splitlines()
+    if not lines or lines[0] != "---":
+        raise WikiError(f"missing front matter in SagaWiki/{page['source']}")
+    try:
+        end = lines.index("---", 1)
+    except ValueError as exc:
+        raise WikiError(f"unterminated front matter in SagaWiki/{page['source']}") from exc
+
+    metadata: dict[str, str] = {}
+    for line in lines[1:end]:
+        if not line.strip():
+            continue
+        if ":" not in line:
+            raise WikiError(f"invalid front matter line in SagaWiki/{page['source']}: {line}")
+        key, value = line.split(":", 1)
+        key = key.strip()
+        value = value.strip()
+        if not key or not value or key in metadata:
+            raise WikiError(f"invalid front matter field in SagaWiki/{page['source']}: {line}")
+        metadata[key] = value
+
+    required = {"title", "status", "owner", "generated_html"}
+    if set(metadata) != required:
+        raise WikiError(
+            f"front matter in SagaWiki/{page['source']} must contain exactly "
+            "title, status, owner, and generated_html"
+        )
+    if metadata["title"] != page["title"]:
+        raise WikiError(f"title mismatch for SagaWiki/{page['source']}")
+    if metadata["owner"] != "SagaWiki":
+        raise WikiError(f"owner must be SagaWiki in SagaWiki/{page['source']}")
+    if metadata["generated_html"] != page["output"]:
+        raise WikiError(f"generated_html mismatch for SagaWiki/{page['source']}")
+    expected_status = "continuity" if page["source"] == "content/docs-continuity.md" else "current"
+    if metadata["status"] != expected_status:
+        raise WikiError(f"status must be {expected_status} in SagaWiki/{page['source']}")
+    return metadata, "\n".join(lines[end + 1 :]).strip() + "\n"
+
+
+def rewrite_url(
+    url: str,
+    source: str,
+    output: str,
+    source_to_output: dict[str, str],
+) -> str:
+    if url.startswith(("#", "/")) or re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", url):
+        return url
+    match = re.match(r"^([^?#]*)(.*)$", url)
+    if not match:
+        return url
+    path_part, suffix = match.groups()
+    if not path_part:
+        return url
+    target = posixpath.normpath(posixpath.join(posixpath.dirname(source), path_part))
+    if target == ".." or target.startswith("../"):
+        raise WikiError(f"Markdown link escapes SagaWiki in {source}: {url}")
+    target = source_to_output.get(target, target)
+    output_dir = posixpath.dirname(output) or "."
+    return posixpath.relpath(target, output_dir) + suffix
+
+
+def render_inline(
+    text: str,
+    source: str,
+    output: str,
+    source_to_output: dict[str, str],
+) -> str:
+    parts: list[str] = []
+    position = 0
+    for match in INLINE_PATTERN.finditer(text):
+        parts.append(html.escape(text[position : match.start()]))
+        if match.group(1) is not None:
+            alt = html.escape(match.group(1), quote=True)
+            url = rewrite_url(match.group(2), source, output, source_to_output)
+            parts.append(f'<img src="{html.escape(url, quote=True)}" alt="{alt}">')
+        elif match.group(3) is not None:
+            label = html.escape(match.group(3))
+            url = rewrite_url(match.group(4), source, output, source_to_output)
+            parts.append(f'<a href="{html.escape(url, quote=True)}">{label}</a>')
+        elif match.group(5) is not None:
+            parts.append(f"<code>{html.escape(match.group(5))}</code>")
+        elif match.group(6) is not None:
+            parts.append(f"<strong>{html.escape(match.group(6))}</strong>")
+        else:
+            parts.append(f"<em>{html.escape(match.group(7))}</em>")
+        position = match.end()
+    parts.append(html.escape(text[position:]))
+    return "".join(parts)
+
+
+def table_cells(line: str) -> list[str]:
+    stripped = line.strip()
+    if stripped.startswith("|"):
+        stripped = stripped[1:]
+    if stripped.endswith("|"):
+        stripped = stripped[:-1]
+    return [cell.strip() for cell in stripped.split("|")]
+
+
+def is_table_separator(line: str) -> bool:
+    cells = table_cells(line)
+    return bool(cells) and all(re.fullmatch(r":?-{3,}:?", cell) for cell in cells)
+
+
+def starts_block(lines: list[str], index: int) -> bool:
+    line = lines[index]
+    if not line.strip():
+        return True
+    if re.match(r"^#{1,3}\s+", line) or line.startswith("```"):
+        return True
+    if re.match(r"^\s*[-*]\s+", line) or re.match(r"^\s*\d+\.\s+", line):
+        return True
+    return index + 1 < len(lines) and "|" in line and is_table_separator(lines[index + 1])
+
+
+def render_markdown(
+    markdown: str,
+    source: str,
+    output: str,
+    source_to_output: dict[str, str],
+) -> str:
+    lines = markdown.splitlines()
+    rendered: list[str] = []
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        if not line.strip():
+            index += 1
+            continue
+
+        fence = re.match(r"^```([^`]*)$", line)
+        if fence:
+            language = fence.group(1).strip()
+            index += 1
+            code: list[str] = []
+            while index < len(lines) and lines[index] != "```":
+                code.append(lines[index])
+                index += 1
+            if index == len(lines):
+                raise WikiError(f"unterminated fenced code block in SagaWiki/{source}")
+            language_attr = (
+                f' class="language-{html.escape(language, quote=True)}"' if language else ""
+            )
+            rendered.append(
+                f"<pre><code{language_attr}>{html.escape(chr(10).join(code))}</code></pre>"
+            )
+            index += 1
+            continue
+
+        heading = re.match(r"^(#{1,3})\s+(.+)$", line)
+        if heading:
+            level = len(heading.group(1))
+            body = render_inline(heading.group(2), source, output, source_to_output)
+            rendered.append(f"<h{level}>{body}</h{level}>")
+            index += 1
+            continue
+
+        if index + 1 < len(lines) and "|" in line and is_table_separator(lines[index + 1]):
+            headers = table_cells(line)
+            separators = table_cells(lines[index + 1])
+            if len(headers) != len(separators):
+                raise WikiError(f"table column mismatch in SagaWiki/{source}")
+            index += 2
+            rows: list[list[str]] = []
+            while index < len(lines) and lines[index].strip() and "|" in lines[index]:
+                cells = table_cells(lines[index])
+                if len(cells) != len(headers):
+                    raise WikiError(f"table column mismatch in SagaWiki/{source}")
+                rows.append(cells)
+                index += 1
+            table = ["<table>", "<thead><tr>"]
+            table.extend(
+                f"<th>{render_inline(cell, source, output, source_to_output)}</th>"
+                for cell in headers
+            )
+            table.extend(("</tr></thead>", "<tbody>"))
+            for row in rows:
+                table.append("<tr>")
+                table.extend(
+                    f"<td>{render_inline(cell, source, output, source_to_output)}</td>"
+                    for cell in row
+                )
+                table.append("</tr>")
+            table.extend(("</tbody>", "</table>"))
+            rendered.append("".join(table))
+            continue
+
+        unordered = re.match(r"^\s*[-*]\s+(.+)$", line)
+        ordered = re.match(r"^\s*\d+\.\s+(.+)$", line)
+        if unordered or ordered:
+            tag = "ul" if unordered else "ol"
+            pattern = r"^\s*[-*]\s+(.+)$" if unordered else r"^\s*\d+\.\s+(.+)$"
+            items: list[str] = []
+            while index < len(lines):
+                item = re.match(pattern, lines[index])
+                if not item:
+                    break
+                items.append(
+                    f"<li>{render_inline(item.group(1), source, output, source_to_output)}</li>"
+                )
+                index += 1
+            rendered.append(f"<{tag}>{''.join(items)}</{tag}>")
+            continue
+
+        paragraph = [line.strip()]
+        index += 1
+        while index < len(lines) and not starts_block(lines, index):
+            paragraph.append(lines[index].strip())
+            index += 1
+        paragraph_text = " ".join(paragraph)
+        body = render_inline(paragraph_text, source, output, source_to_output)
+        class_attr = ' class="notice"' if paragraph_text.startswith("**Status:**") else ""
+        rendered.append(f"<p{class_attr}>{body}</p>")
+    return "\n".join(rendered)
+
+
+def render_pages(pages: list[dict[str, str]]) -> dict[str, str]:
+    source_to_output = {page["source"]: page["output"] for page in pages}
+    generated: dict[str, str] = {}
+    for page in pages:
+        metadata, markdown = parse_markdown(page)
+        body = render_markdown(markdown, page["source"], page["output"], source_to_output)
+        output_dir = posixpath.dirname(page["output"]) or "."
+        css_path = posixpath.relpath("assets/style.css", output_dir)
+        if page["output"] == "index.html":
+            links = "".join(
+                f'<a href="{html.escape(other["output"], quote=True)}">'
+                f'{html.escape(other["title"])}</a>'
+                for other in pages
+                if other["output"] != "index.html"
+            )
+            navigation = f"<nav>{links}</nav>"
+            paragraph_end = body.find("</p>")
+            if paragraph_end >= 0:
+                paragraph_end += len("</p>")
+                body = body[:paragraph_end] + "\n" + navigation + body[paragraph_end:]
+            else:
+                body = navigation + "\n" + body
+            html_title = metadata["title"]
+        else:
+            back_path = posixpath.relpath("index.html", output_dir)
+            body = (
+                f'<nav><a href="{html.escape(back_path, quote=True)}">SagaWiki</a></nav>\n'
+                + body
+            )
+            html_title = f'{metadata["title"]} | SagaWiki'
+
+        notice = (
+            f"<!-- Generated from SagaWiki/{page['source']} by scripts/wiki build. "
+            "Edit Markdown source. -->"
+        )
+        generated[page["output"]] = (
+            "<!doctype html>\n"
+            f"{notice}\n"
+            '<html lang="en">\n'
+            "<head>\n"
+            '  <meta charset="utf-8">\n'
+            '  <meta name="viewport" content="width=device-width">\n'
+            f"  <title>{html.escape(html_title)}</title>\n"
+            f'  <link rel="stylesheet" href="{html.escape(css_path, quote=True)}">\n'
+            "</head>\n"
+            "<body>\n"
+            "<main>\n"
+            f"{body}\n"
+            "</main>\n"
+            "</body>\n"
+            "</html>\n"
+        )
+    return generated
+
+
+def write_if_changed(path: Path, content: str) -> bool:
+    if path.exists() and path.read_text(encoding="utf-8") == content:
+        return False
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+    return True
+
+
+def build() -> None:
+    pages = load_registry()
+    generated = render_pages(pages)
+    updated = sum(
+        write_if_changed(WIKI_ROOT / output, content)
+        for output, content in generated.items()
+    )
+    print(f"SagaWiki build passed: {len(generated)} pages, {updated} updated")
+
+
+def check_page_names(errors: list[str]) -> None:
+    page_files = sorted(WIKI_ROOT.rglob("*.md")) + sorted(WIKI_ROOT.rglob("*.html"))
+    for path in page_files:
+        relative = path.relative_to(WIKI_ROOT).as_posix()
+        name = path.name.upper()
+        for term in ("V0", "V1", "V2", *BANNED_PAGE_NAME_TERMS):
+            if term in name:
+                errors.append(f"banned term {term} in page filename: {relative}")
+
+
+def check_non_claims(pages: list[dict[str, str]], errors: list[str]) -> None:
+    for page in pages:
+        text = (WIKI_ROOT / page["source"]).read_text(encoding="utf-8")
+        sentences = re.split(r"(?<=[.!?])\s+|\n+", text)
+        for sentence in sentences:
+            normalized = " " + " ".join(sentence.lower().split()) + " "
+            for phrase in CLAIM_PHRASES:
+                if phrase in normalized and not any(marker in normalized for marker in NEGATION_MARKERS):
+                    errors.append(
+                        f"unqualified capability claim {phrase!r} in SagaWiki/{page['source']}"
+                    )
+
+
+def verify() -> None:
+    pages = load_registry()
+    errors: list[str] = []
+    sources = {page["source"] for page in pages}
+    outputs = {page["output"] for page in pages}
+    actual_sources = {
+        path.relative_to(WIKI_ROOT).as_posix()
+        for path in (WIKI_ROOT / "content").rglob("*.md")
+    }
+    if sources != actual_sources:
+        missing = sorted(sources - actual_sources)
+        unregistered = sorted(actual_sources - sources)
+        if missing:
+            errors.append(f"missing registry sources: {', '.join(missing)}")
+        if unregistered:
+            errors.append(f"unregistered Markdown sources: {', '.join(unregistered)}")
+
+    actual_outputs = {
+        path.relative_to(WIKI_ROOT).as_posix()
+        for path in WIKI_ROOT.rglob("*.html")
+    }
+    if outputs != actual_outputs:
+        missing = sorted(outputs - actual_outputs)
+        unregistered = sorted(actual_outputs - outputs)
+        if missing:
+            errors.append(f"missing generated outputs: {', '.join(missing)}")
+        if unregistered:
+            errors.append(f"unregistered HTML outputs: {', '.join(unregistered)}")
+
+    continuity_source = "content/docs-continuity.md"
+    if continuity_source not in sources or not (WIKI_ROOT / continuity_source).exists():
+        errors.append("SagaWiki/content/docs-continuity.md is missing or unregistered")
+    check_page_names(errors)
+    check_non_claims(pages, errors)
+
+    try:
+        expected = render_pages(pages)
+    except WikiError as exc:
+        errors.append(str(exc))
+        expected = {}
+    for page in pages:
+        output_path = WIKI_ROOT / page["output"]
+        if not output_path.exists() or page["output"] not in expected:
+            continue
+        actual = output_path.read_text(encoding="utf-8")
+        output_dir = posixpath.dirname(page["output"]) or "."
+        css_path = posixpath.relpath("assets/style.css", output_dir)
+        expected_css = f'<link rel="stylesheet" href="{css_path}">'
+        if expected_css not in actual:
+            errors.append(f"wrong CSS path in SagaWiki/{page['output']}")
+        expected_notice = (
+            f"<!-- Generated from SagaWiki/{page['source']} by scripts/wiki build. "
+            "Edit Markdown source. -->"
+        )
+        if expected_notice not in actual:
+            errors.append(f"missing generated notice in SagaWiki/{page['output']}")
+        if actual != expected[page["output"]]:
+            errors.append(
+                f"stale generated output: SagaWiki/{page['output']} (run scripts/wiki build)"
+            )
+    if errors:
+        for error in errors:
+            print(f"ERROR: {error}", file=sys.stderr)
+        raise WikiError(f"SagaWiki verify failed with {len(errors)} error(s)")
+    print(f"SagaWiki verify passed: {len(pages)} registered pages are current")
+
+
+def find_old_docs_commit() -> str:
+    preferred = subprocess.run(
+        ["git", "cat-file", "-e", f"{PREFERRED_OLD_DOCS_COMMIT}^{{commit}}"],
+        cwd=ROOT,
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    if preferred.returncode == 0:
+        return git_text("rev-parse", PREFERRED_OLD_DOCS_COMMIT).strip()
+
+    history = git_text(
+        "log", "--all", "--name-status", "--format=commit:%H", "--", "docs"
+    ).splitlines()
+    commit = ""
+    for line in history:
+        if line.startswith("commit:"):
+            commit = line.removeprefix("commit:").strip()
+            continue
+        if commit and line.startswith("D\t") and line.removeprefix("D\t").startswith("docs/"):
+            candidate = f"{commit}^"
+            if git_text("ls-tree", "-r", "--name-only", candidate, "--", "docs").strip():
+                return git_text("rev-parse", candidate).strip()
+    raise WikiError("could not discover a commit containing the deleted docs/ tree")
+
+
+def suggested_destination(path: str, content: str) -> str:
+    upper_path = path.upper()
+    upper_name = Path(path).name.upper()
+
+    if path == "docs/CodingStandards.md":
+        return "toolchain.md"
+    if path == "docs/DependencyGraph.md":
+        return "architecture.md"
+    if path == "docs/LICENSING.md" or path.startswith("docs/licensing/"):
+        return "licensing.md"
+    if path.startswith("docs/testing/"):
+        return "testing.md"
+    if path.startswith("docs/media/"):
+        return "index.md"
+
+    if path.startswith("docs/product/"):
+        if "GETTING_STARTED" in upper_name:
+            return "getting-started.md"
+        if "WHAT_IS_NOT_IMPLEMENTED" in upper_name:
+            return "not-implemented.md"
+        if "SAGAPROJ" in upper_name:
+            return "source-of-truth.md"
+        return "product.md"
+
+    if path.startswith("docs/internal/product-history/"):
+        if "CSHARP" in upper_name or "SAGASCRIPT" in upper_name:
+            return "scripting.md"
+        if "COLLABORATION" in upper_name:
+            return "editor.md"
+        if any(term in upper_name for term in ("QUICKSTART", "TROUBLESHOOTING")):
+            return "getting-started.md"
+        if "KNOWN_LIMITATIONS" in upper_name:
+            return "not-implemented.md"
+        return "product.md"
+
+    if path.startswith("docs/internal/architecture-appendices/"):
+        if "ASSETSTREAMING" in upper_name:
+            return "runtime.md"
+        if "REPLICATION" in upper_name:
+            return "server-authority.md"
+        if "SOURCE_BRIDGE" in upper_name or "SAGAWEAVER" in upper_name:
+            return "scripting.md"
+        if "CAPABILITY_PACKAGE" in upper_name:
+            return "module-boundaries.md"
+        if "TOOLCHAIN" in upper_name:
+            return "toolchain.md"
+        if "COLLABORATIVE" in upper_name:
+            return "editor.md"
+        if "CSHARP" in upper_name:
+            return "scripting.md"
+        return "architecture.md"
+
+    if path.startswith("docs/dev/"):
+        return "not-implemented.md"
+
+    if any(term in upper_name for term in ("WHAT_IS_NOT_IMPLEMENTED", "KNOWN_LIMITATIONS")):
+        return "not-implemented.md"
+    if any(
+        term in upper_name
+        for term in (
+            "SOURCE_OF_TRUTH",
+            "GENERATED_ARTIFACT",
+            "GENERATED_FILES",
+            "SOURCE_MANIFEST",
+            "ARTIFACT_CONTRACT",
+            "SCENE_ENTITY_SOURCE",
+        )
+    ):
+        return "source-of-truth.md"
+    if any(
+        term in upper_name
+        for term in ("VISUAL_BLOCK", "CSHARP", "SAGASCRIPT", "SOURCE_PATCH", "GAMEPLAY_NODE")
+    ):
+        return "scripting.md"
+    if any(
+        term in upper_name
+        for term in ("TEST", "EVIDENCE", "DIAGNOSTICS", "STRESS", "CHAOS", "PERFORMANCE")
+    ):
+        return "testing.md"
+    if any(
+        term in upper_name
+        for term in ("SERVER", "AUTHORITY", "REPLICATION", "NETWORK", "SECURITY", "THREAT_MODEL")
+    ):
+        return "server-authority.md"
+    if any(
+        term in upper_name
+        for term in (
+            "EDITOR",
+            "COLLABORATION",
+            "WORKSPACE",
+            "AUTHORING",
+            "SCENE",
+            "REVIEW_COMMENT",
+            "APPROVAL",
+        )
+    ):
+        return "editor.md"
+    if any(term in upper_name for term in ("RENDER", "GRAPHICS", "RUNTIME", "ASSET", "CLIENT_PREVIEW")):
+        if any(term in upper_name for term in ("BOUNDARY", "PUBLIC_API", "PUBLIC_HEADER", "EXTENSION")):
+            return "module-boundaries.md"
+        return "runtime.md"
+    if "GETTING_STARTED" in upper_name or "QUICKSTART" in upper_name:
+        return "getting-started.md"
+    if any(
+        term in upper_name
+        for term in ("CMAKE", "NIX", "TOOLCHAIN", "PUBLISH", "DISTRIBUTION", "PACKAGE_PREFLIGHT")
+    ):
+        return "toolchain.md"
+    if "OWNERSHIP" in upper_name or "REPOSITORY_LAYOUT" in upper_name:
+        return "repository-layout.md"
+    if any(term in upper_name for term in ("PRODUCT", "ECOSYSTEM", "MMO_GENRE")):
+        return "product.md"
+    if any(term in upper_name for term in ("BOUNDARY", "PUBLIC_API", "PUBLIC_SURFACE", "PUBLIC_FACADE")):
+        return "module-boundaries.md"
+    if path == "docs/README.md":
+        return "architecture.md"
+
+    # Content is consulted only as a last resort so incidental words do not
+    # override the document's path-owned subject.
+    content_prefix = content[:2000].lower()
+    if "license" in content_prefix:
+        return "licensing.md"
+    if "source of truth" in content_prefix:
+        return "source-of-truth.md"
+    return "architecture.md"
+
+
+def classify_old_doc(path: str, content: str) -> tuple[str, str, str]:
+    destination = suggested_destination(path, content)
+    upper_name = Path(path).name.upper()
+    if path.startswith("docs/media/"):
+        return (
+            "MERGED_CURRENT",
+            "index.md",
+            "The bounded render evidence is already present under SagaWiki/assets.",
+        )
+    if path in MERGED_CURRENT_PATHS:
+        return (
+            "MERGED_CURRENT",
+            destination,
+            f"Its durable boundary is represented in current `{destination}`; the old file remains historical evidence only.",
+        )
+    if path in SHOULD_MERGE_REASONS:
+        return (
+            "SHOULD_MERGE",
+            destination,
+            SHOULD_MERGE_REASONS[path],
+        )
+    if path in NEEDS_DECISION_REASONS:
+        return (
+            "NEEDS_ARDA_DECISION",
+            destination,
+            NEEDS_DECISION_REASONS[path],
+        )
+    if path in PRIVATE_ARCHIVE_REASONS:
+        return (
+            "PRIVATE_ARCHIVE_CANDIDATE",
+            destination,
+            PRIVATE_ARCHIVE_REASONS[path],
+        )
+    if path.startswith("docs/internal/architecture-appendices/"):
+        return (
+            "PRIVATE_ARCHIVE_CANDIDATE",
+            destination,
+            "This large internal proposal or formal note mixes durable ideas with unverified detail and should not become public SagaWiki text.",
+        )
+    if path.startswith("docs/internal/product-history/"):
+        return (
+            "DELETE_HISTORY_ONLY",
+            destination,
+            "This dated product-history artifact has no current authority; Git history is sufficient.",
+        )
+    if (
+        path in DELETE_HISTORY_PATHS
+        or path in STALE_VERSIONED_PATHS
+        or any(marker in upper_name for marker in STALE_NAME_MARKERS)
+    ):
+        return (
+            "DELETE_HISTORY_ONLY",
+            destination,
+            "This dated plan, snapshot, retired-tool contract, or strategy is not current authority; Git history is sufficient.",
+        )
+    if path.endswith("/README.md"):
+        return (
+            "DELETE_HISTORY_ONLY",
+            destination,
+            "This retired docs-tree index only navigated removed material; Git history is sufficient.",
+        )
+    return (
+        "DELETE_HISTORY_ONLY",
+        destination,
+        "No durable gap remains after the current-source review; Git history is sufficient.",
+    )
+
+
+def manual_priority(item: tuple[str, str, str, str]) -> tuple[int, int, str]:
+    path, classification, destination, _reason = item
+    class_rank = 0 if classification == "NEEDS_ARDA_DECISION" else 1
+    destination_order = {
+        "source-of-truth.md": 0,
+        "scripting.md": 1,
+        "editor.md": 2,
+        "runtime.md": 3,
+        "server-authority.md": 4,
+        "module-boundaries.md": 5,
+        "testing.md": 6,
+        "licensing.md": 7,
+        "toolchain.md": 8,
+        "repository-layout.md": 9,
+        "product.md": 10,
+        "architecture.md": 11,
+        "not-implemented.md": 12,
+        "getting-started.md": 13,
+    }
+    return class_rank, destination_order.get(destination, 99), path
+
+
+def old_docs_report() -> None:
+    commit = find_old_docs_commit()
+    path_sources = {
+        path: commit
+        for path in git_text("ls-tree", "-r", "--name-only", commit, "--", "docs").splitlines()
+        if path
+    }
+    if not path_sources:
+        raise WikiError(f"no docs/ files found in {commit}")
+
+    historical_sources: list[tuple[str, str]] = []
+    for label, reference in HISTORICAL_OLD_DOCS_COMMITS:
+        resolved = git_text("rev-parse", f"{reference}^{{commit}}").strip()
+        historical_sources.append((label, resolved))
+        for path in git_text(
+            "ls-tree", "-r", "--name-only", resolved, "--", "docs"
+        ).splitlines():
+            if path:
+                path_sources.setdefault(path, resolved)
+
+    records: list[tuple[str, str, str, str]] = []
+    for path in sorted(path_sources):
+        content = git_bytes("show", f"{path_sources[path]}:{path}").decode(
+            "utf-8", errors="replace"
+        )
+        classification, destination, reason = classify_old_doc(path, content)
+        records.append((path, classification, destination, reason))
+
+    counts = Counter(record[1] for record in records)
+    candidates = [
+        record
+        for record in records
+        if record[1] in {"NEEDS_ARDA_DECISION", "SHOULD_MERGE"}
+    ]
+    top_ten = sorted(candidates, key=manual_priority)[:10]
+    lines = [
+        "---",
+        "title: Docs Continuity Map",
+        "status: continuity",
+        "owner: SagaWiki",
+        "generated_html: pages/docs-continuity.html",
+        "---",
+        "",
+        "# Docs Continuity Map",
+        "",
+        "This page is a continuity map, not an audit dump. It records how the retired `docs/` tree should inform later evidence-checked SagaWiki expansion without restoring that tree or treating historical claims as current capability.",
+        "",
+        "## Old docs sources",
+        "",
+        f"The primary continuity tree comes from commit `{commit}`. Shared paths use that later pre-deletion snapshot.",
+        "",
+    ]
+    lines.extend(
+        f"The historical comparison also inspected {label} commit `{resolved}`; files unique to that snapshot are included without restoring `docs/`."
+        for label, resolved in historical_sources
+    )
+    lines.extend([
+        "",
+        "Current 0.0.11 HEAD remains authoritative. Historical text affects this map only after current source and focused evidence review.",
+        "",
+        "## Classification summary",
+        "",
+        "| Classification | Files |",
+        "| --- | ---: |",
+    ])
+    lines.extend(f"| `{classification}` | {counts[classification]} |" for classification in CLASSIFICATIONS)
+    lines.extend(
+        (
+            "",
+            "## Manual review priority",
+            "",
+            "Review these documents first before any later wiki expansion. Classification is a routing decision, not evidence that their historical statements remain true.",
+            "",
+        )
+    )
+    lines.extend(
+        f"{number}. `{path}` — `{classification}` → `{destination}`"
+        for number, (path, classification, destination, _reason) in enumerate(top_ten, start=1)
+    )
+    lines.extend(
+        (
+            "",
+            "## Continuity table",
+            "",
+            "| Old docs path | Classification | Suggested SagaWiki destination | Reason |",
+            "| --- | --- | --- | --- |",
+        )
+    )
+    for path, classification, destination, reason in records:
+        lines.append(f"| `{path}` | `{classification}` | `{destination}` | {reason} |")
+    lines.append("")
+
+    output = WIKI_ROOT / "content" / "docs-continuity.md"
+    changed = write_if_changed(output, "\n".join(lines))
+    counts_text = ", ".join(
+        f"{classification}={counts[classification]}" for classification in CLASSIFICATIONS
+    )
+    state = "updated" if changed else "unchanged"
+    historical_text = ", ".join(
+        f"{label}={resolved}" for label, resolved in historical_sources
+    )
+    print(
+        f"Docs continuity report {state}; source commit {commit}; "
+        f"historical refs {historical_text}; {counts_text}"
+    )
+
+
+def usage() -> str:
+    return "usage: scripts/wiki {build|verify|old-docs-report}"
+
+
+def main() -> int:
+    if len(sys.argv) != 2:
+        print(usage(), file=sys.stderr)
+        return 2
+    command = sys.argv[1]
+    try:
+        if command == "build":
+            build()
+        elif command == "verify":
+            verify()
+        elif command == "old-docs-report":
+            old_docs_report()
+        else:
+            print(usage(), file=sys.stderr)
+            return 2
+    except WikiError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
