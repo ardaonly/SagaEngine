@@ -13,9 +13,9 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROJECT = REPO_ROOT / "Tools" / "SagaPackager" / "SagaPackager.csproj"
-SAMPLE_ROOT = REPO_ROOT / "samples" / "MultiplayerSandbox"
-NATIVE_BIN_DIR = REPO_ROOT / "build" / "RelWithDebInfo-0.0.9" / "bin"
-PROFILE = "technical-preview-server-headless"
+SAMPLE_ROOT = REPO_ROOT / "Samples" / "MultiplayerSandbox"
+NATIVE_BIN_DIR = REPO_ROOT / "build" / "RelWithDebInfo-0.0.11" / "bin"
+PROFILE = "project-readiness-server-headless"
 
 
 def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
@@ -99,7 +99,7 @@ def write_clean_summary(path: Path) -> None:
         path,
         {
             "schemaVersion": 1,
-            "tool": "sagaprobe",
+            "tool": "diagnostic-check",
             "command": "summarize",
             "status": "Passed",
             "summary": {
@@ -138,70 +138,14 @@ def write_policy_report(path: Path, decision: str = "Allow") -> None:
         path,
         {
             "schemaVersion": 1,
-            "tool": "sagapolicy",
+            "tool": "policy-validation",
             "command": "evaluate",
             "status": status,
             "decision": decision,
             "subject": "local-user",
-            "resource": "package://technical-preview-server-headless",
+            "resource": "package://project-readiness-server-headless",
             "action": "PublishCheck",
             "role": "ReleaseOperator",
-            "mutatesSource": False,
-            "enforcement": "ReportOnly",
-            "diagnostics": [],
-        },
-    )
-
-
-def write_review_approval_report(path: Path, decision: str = "ApprovedMetadataOnly") -> None:
-    write_json(
-        path,
-        {
-            "schemaVersion": 1,
-            "tool": "sagaworkspacehub",
-            "command": "review-approval",
-            "status": "Passed" if decision == "ApprovedMetadataOnly" else "Blocked",
-            "decision": decision,
-            "review": {"reviewId": "review-001"},
-            "mutatesSource": False,
-            "enforcement": "ReportOnly",
-            "diagnostics": [],
-        },
-    )
-
-
-def write_audit_report(path: Path, status: str = "Passed") -> None:
-    write_json(
-        path,
-        {
-            "schemaVersion": 1,
-            "tool": "sagaworkspacehub",
-            "command": "audit-log",
-            "status": status,
-            "events": [],
-            "summary": {"eventCount": 0, "countsByEventType": {}, "hashChainStatus": "NotSupplied"},
-            "mutatesSource": False,
-            "enforcement": "ReportOnly",
-            "diagnostics": [],
-        },
-    )
-
-
-def write_restricted_export_report(path: Path, blocked_exports: int = 0) -> None:
-    write_json(
-        path,
-        {
-            "schemaVersion": 1,
-            "tool": "sagaworkspacehub",
-            "command": "restricted-export",
-            "status": "Passed" if blocked_exports == 0 else "Blocked",
-            "allowedExports": [],
-            "blockedExports": [{} for _ in range(blocked_exports)],
-            "counts": {
-                "allowedExports": 1 if blocked_exports == 0 else 0,
-                "blockedExports": blocked_exports,
-                "restrictedArtifacts": blocked_exports,
-            },
             "mutatesSource": False,
             "enforcement": "ReportOnly",
             "diagnostics": [],
@@ -566,7 +510,7 @@ def test_publish_check_passes_and_blocks_on_evidence() -> None:
             blocking_summary,
             {
                 "schemaVersion": 1,
-                "tool": "sagaprobe",
+                "tool": "diagnostic-check",
                 "status": "Failed",
                 "summary": {"criticalDiagnosticCount": 1},
             },
@@ -589,7 +533,7 @@ def test_publish_check_passes_and_blocks_on_evidence() -> None:
         assert load(blocked)["status"] == "Blocked"
 
 
-def test_publish_check_accepts_and_blocks_governance_evidence() -> None:
+def test_publish_check_accepts_and_blocks_policy_evidence() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         project_root = copy_sample(root)
@@ -598,13 +542,7 @@ def test_publish_check_accepts_and_blocks_governance_evidence() -> None:
         summary = root / "diagnostics_summary.json"
         write_clean_summary(summary)
         policy = root / "policy_evaluation_report.json"
-        approval = root / "review_approval_report.json"
-        audit = root / "audit_report.json"
-        restricted = root / "restricted_export_report.json"
         write_policy_report(policy)
-        write_review_approval_report(approval)
-        write_audit_report(audit)
-        write_restricted_export_report(restricted)
         publish = root / "publish_report.json"
 
         result = run_cli(
@@ -619,12 +557,6 @@ def test_publish_check_accepts_and_blocks_governance_evidence() -> None:
             str(summary),
             "--policy-report",
             str(policy),
-            "--review-approval-report",
-            str(approval),
-            "--audit-report",
-            str(audit),
-            "--restricted-export-report",
-            str(restricted),
             "--out",
             str(publish),
         )
@@ -633,21 +565,11 @@ def test_publish_check_accepts_and_blocks_governance_evidence() -> None:
         report = load(publish)
         assert report["status"] == "Passed"
         assert any(e["kind"] == "policyReport" and e["status"] == "Present" for e in report["requiredEvidence"])
-        for gate in ["PolicyReportAccepted", "ReviewApprovalAccepted", "AuditEvidenceAccepted", "RestrictedExportAccepted"]:
-            assert any(g["name"] == gate and g["status"] == "Passed" for g in report["gates"])
+        assert any(g["name"] == "PolicyReportAccepted" and g["status"] == "Passed" for g in report["gates"])
 
-        cases = [
-            ("policy-deny", lambda: write_policy_report(policy, "Deny"), "PolicyReportAccepted"),
-            ("review-blocked", lambda: write_review_approval_report(approval, "BlockedByPolicy"), "ReviewApprovalAccepted"),
-            ("audit-malformed", lambda: audit.write_text("{ invalid", encoding="utf-8"), "AuditEvidenceAccepted"),
-            ("restricted-blocked", lambda: write_restricted_export_report(restricted, 1), "RestrictedExportAccepted"),
-        ]
-        for name, mutate, gate_name in cases:
+        for name, decision in [("policy-deny", "Deny"), ("policy-review", "RequiresReview")]:
             write_policy_report(policy)
-            write_review_approval_report(approval)
-            write_audit_report(audit)
-            write_restricted_export_report(restricted)
-            mutate()
+            write_policy_report(policy, decision)
             blocked = root / f"{name}_publish_report.json"
             blocked_result = run_cli(
                 "publish-check",
@@ -661,19 +583,13 @@ def test_publish_check_accepts_and_blocks_governance_evidence() -> None:
                 str(summary),
                 "--policy-report",
                 str(policy),
-                "--review-approval-report",
-                str(approval),
-                "--audit-report",
-                str(audit),
-                "--restricted-export-report",
-                str(restricted),
                 "--out",
                 str(blocked),
             )
             blocked_report = load(blocked)
             assert blocked_result.returncode == 1
             assert blocked_report["status"] == "Blocked"
-            assert any(g["name"] == gate_name and g["status"] == "Blocked" for g in blocked_report["gates"])
+            assert any(g["name"] == "PolicyReportAccepted" and g["status"] == "Blocked" for g in blocked_report["gates"])
 
 
 def test_packaged_smoke_runs_headless_and_records_client_deferral() -> None:
@@ -769,7 +685,7 @@ def run_all() -> None:
         test_profile_matrix_reports_supported_headless_profile_without_publish_evidence,
         test_source_truth_alignment_reads_profiles_and_supplied_gates_without_staging,
         test_publish_check_passes_and_blocks_on_evidence,
-        test_publish_check_accepts_and_blocks_governance_evidence,
+        test_publish_check_accepts_and_blocks_policy_evidence,
         test_packaged_smoke_runs_headless_and_records_client_deferral,
         test_smoke_missing_package_or_executable_fails_clearly,
         test_missing_project_returns_missing_input,

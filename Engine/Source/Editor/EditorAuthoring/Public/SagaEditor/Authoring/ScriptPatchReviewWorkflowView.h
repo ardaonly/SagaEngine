@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SagaEditor/Authoring/ScriptPatchPreviewView.h"
+#include "SagaEditor/Authoring/ScriptPatchEvaluationView.h"
 
 #include <filesystem>
 #include <string>
@@ -50,6 +50,6 @@ struct ScriptPatchReviewWorkflowView
 };
 
 [[nodiscard]] ScriptPatchReviewWorkflowView LoadScriptPatchReviewWorkflowView(
-    const TechnicalPreviewProjectView& project);
+    const ProjectReadinessView& project);
 
 } // namespace SagaEditor::Authoring

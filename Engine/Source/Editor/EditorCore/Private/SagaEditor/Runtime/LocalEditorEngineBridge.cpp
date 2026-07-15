@@ -32,7 +32,7 @@ namespace
 LocalEditorEngineBridge::LocalEditorEngineBridge()
 {
     m_snapshot.displayName = "Local Engine Bridge";
-    m_snapshot.runtimeRole = "Editor Preview Runtime";
+    m_snapshot.runtimeRole = "Editor Evaluation Runtime";
     m_snapshot.engineVersion = BuildVersion();
     m_snapshot.gitCommit = BuildCommit();
     m_snapshot.message = "Not initialised";

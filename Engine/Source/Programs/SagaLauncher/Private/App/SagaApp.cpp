@@ -5,14 +5,14 @@
 
 #include "FirstPlayable/FirstPlayableHumanCapture.h"
 #include "FirstPlayable/FirstPlayableWorkflow.h"
-#include "LocalWorkspace/SagaLocalCollaborationMetadataReports.h"
-#include "LocalWorkspace/SagaLocalWorkspaceTransactionReport.h"
+#include "ProductIntegration/SagaLocalCollaborationMetadataReports.h"
+#include "ProductIntegration/SagaLocalWorkspaceTransactionReport.h"
 #include "Launcher/SagaLauncherWindow.h"
-#include "Packaging/SagaPackageStaging.h"
+#include "ProductIntegration/SagaPackageStaging.h"
 #include "Projects/SagaProjectSystem.h"
 #include "Reports/SagaProductWorkflowSmokeReport.h"
-#include "Packaging/SagaPublishReadiness.h"
-#include "Scripting/SagaScriptGate.h"
+#include "ProductIntegration/SagaPublishReadiness.h"
+#include "ProductIntegration/SagaScriptGate.h"
 
 #include <QApplication>
 #include <QByteArray>
@@ -154,7 +154,7 @@ void WriteProductDiagnostic(std::ostream& output,
 {
     output << "diagnostic.id=" << diagnostic.diagnosticId << '\n';
     output << "diagnostic.target=" << ToString(diagnostic.target) << '\n';
-    output << "diagnostic.phase=" << ToString(diagnostic.phase) << '\n';
+    output << "diagnostic.stage=" << ToString(diagnostic.stage) << '\n';
     output << "diagnostic.message=" << diagnostic.message << '\n';
     if (diagnostic.path.has_value())
     {

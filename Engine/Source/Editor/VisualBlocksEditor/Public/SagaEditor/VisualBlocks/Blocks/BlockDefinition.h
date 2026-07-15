@@ -3,14 +3,14 @@
 
 #pragma once
 
-#include "SagaEditor/VisualScripting/Blocks/BlockKind.h"
-#include "SagaEditor/VisualScripting/Blocks/BlockSlot.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockKind.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockSlot.h"
 
 #include <cstdint>
 #include <string>
 #include <vector>
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 // ─── Label Fragment ───────────────────────────────────────────────────────────
@@ -98,4 +98,4 @@ struct BlockDefinition
     }
 };
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

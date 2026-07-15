@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "SagaEditor/VisualScripting/Blocks/BlockInstance.h"
-#include "SagaEditor/VisualScripting/Blocks/BlockStack.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockInstance.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockStack.h"
 
 #include <cstdint>
 #include <memory>
@@ -13,7 +13,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 class BlockLibrary;
@@ -132,4 +132,4 @@ private:
     std::unique_ptr<Impl> m_impl;
 };
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

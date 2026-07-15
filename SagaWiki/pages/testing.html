@@ -1,0 +1,8 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Testing | SagaWiki</title><link rel="stylesheet" href="../assets/style.css"></head><body><main><p><a href="../index.html">SagaWiki</a></p><h1>Testing and evidence</h1>
+<table><tr><th>Area</th><th>Purpose</th></tr><tr><td>Unit</td><td>Focused behavior retained during module purification.</td></tr><tr><td>Architecture</td><td>Repository layout, public/private, target, and dependency rules.</td></tr><tr><td>Integration</td><td>Editor workflows and client/server interactions.</td></tr><tr><td>GPU/Diligent</td><td>Backend-specific render integration evidence.</td></tr><tr><td>Contract/InstalledConsumer</td><td>Exported package and link-consumer contracts.</td></tr><tr><td>Support/Stress</td><td>Reusable stress infrastructure, not a product claim.</td></tr><tr><td>Evidence/FirstPlayable</td><td>Bounded executable and evidence scenarios.</td></tr></table>
+<p><code>Tests/Unit</code> is intentionally transitional during the hard cutover. Remaining behavior tests stay there until module-local target purity is completed in a later change; this does not make Unit the permanent owner.</p>
+<p>A passing focused test proves only its declared inputs, configuration, and assertions. It does not imply release readiness, cross-platform parity, production scale, security certification, or full-suite health.</p>
+<pre><code>cmake --preset linux-gcc
+cmake --build --preset linux-gcc -j2
+ctest --test-dir build/RelWithDebInfo-0.0.11 --output-on-failure</code></pre>
+</main></body></html>

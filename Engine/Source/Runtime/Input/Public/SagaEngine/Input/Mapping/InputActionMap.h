@@ -85,7 +85,7 @@ private:
     bool ResolveChord(
         const InputChord&  chord,
         const InputState&  state,
-        ActionPhase&       outPhase,
+        ActionState&       outState,
         float&             outValue
     ) const noexcept;
 

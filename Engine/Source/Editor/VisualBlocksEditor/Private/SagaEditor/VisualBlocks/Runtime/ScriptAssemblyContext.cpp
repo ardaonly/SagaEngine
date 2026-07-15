@@ -1,9 +1,9 @@
 /// @file ScriptAssemblyContext.cpp
 /// @brief Pimpl scaffolding — auto-generated stub bodies.
 
-#include "SagaEditor/VisualScripting/Runtime/ScriptAssemblyContext.h"
+#include "SagaEditor/VisualBlocks/Runtime/ScriptAssemblyContext.h"
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 // ─── Pimpl Definition ────────────────────────────────────────────────────────
@@ -33,4 +33,4 @@ bool ScriptAssemblyContext::IsLoaded() const noexcept
     return false;
 }
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

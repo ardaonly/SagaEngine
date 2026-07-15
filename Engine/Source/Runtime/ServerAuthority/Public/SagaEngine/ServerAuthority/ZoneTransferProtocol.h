@@ -1,7 +1,7 @@
 /// @file ZoneTransferProtocol.h
 /// @brief Shard-mesh wire format for cross-zone entity handoff.
 ///
-/// Layer  : SagaServer / Networking / Server
+/// Layer  : SagaEngine / ServerAuthority
 /// Purpose: `ConnectionMigration.h` describes the *client-facing* side of
 ///          the handoff dance — what the player's connection sees, which
 ///          token they carry, which endpoint they reconnect to.  That is
@@ -37,7 +37,7 @@
 
 #pragma once
 
-#include "SagaServer/Networking/Server/ConnectionMigration.h"
+#include "SagaEngine/ServerAuthority/ConnectionMigration.h"
 
 #include <cstdint>
 #include <string>

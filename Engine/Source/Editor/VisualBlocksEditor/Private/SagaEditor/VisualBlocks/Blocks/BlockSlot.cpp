@@ -1,11 +1,11 @@
 /// @file BlockSlot.cpp
 /// @brief Implementation of slot identity, definition, and fill types.
 
-#include "SagaEditor/VisualScripting/Blocks/BlockSlot.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockSlot.h"
 
 #include <utility>
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 // ─── Slot Kind Identity ───────────────────────────────────────────────────────
@@ -144,4 +144,4 @@ BlockSlotFill BlockSlotFill::MakeExpression(std::uint64_t instanceId) noexcept
     return f;
 }
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

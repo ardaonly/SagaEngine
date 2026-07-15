@@ -1,5 +1,5 @@
 /// @file CollaborationModel.hpp
-/// @brief Local/offline collaboration metadata model for Technical Preview.
+/// @brief Local/offline collaboration metadata model for Technical Evaluation.
 
 #pragma once
 
@@ -21,7 +21,7 @@ enum class CollaborationArtifactKind : std::uint8_t
 {
     ProjectMetadata,
     SagaScriptArtifactReview,
-    PatchPreviewReview,
+    PatchEvaluationReview,
     DiagnosticsReview,
     Notes,
     Unsupported,
@@ -29,7 +29,7 @@ enum class CollaborationArtifactKind : std::uint8_t
 
 enum class CollaborationOperationKind : std::uint8_t
 {
-    ReviewPatchPreview,
+    ReviewPatchEvaluation,
     MarkArtifactReviewed,
     AddNote,
     ResolveNote,
@@ -46,7 +46,7 @@ enum class CollaborationTransactionStatus : std::uint8_t
 
 enum class CollaborationConflictCategory : std::uint8_t
 {
-    SamePatchPreviewReviewedByMultipleActors,
+    SamePatchEvaluationReviewedByMultipleActors,
     StaleSourceHash,
     MissingTargetArtifact,
     UnsupportedOperation,

@@ -1,7 +1,7 @@
 /// @file BackpressureSignal.h
 /// @brief Backpressure signaling interface between network transport and replication.
 ///
-/// Layer  : SagaServer / Networking / Core
+/// Layer  : SagaEngine / Networking
 /// Purpose: When the network transport layer's send queue fills beyond a
 ///          configurable threshold, the replication system must reduce its
 ///          output rate — either by dropping lower-priority entity updates or
@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "SagaServer/Networking/Core/NetworkTypes.h"
+#include "SagaEngine/Networking/NetworkTypes.h"
 
 #include <atomic>
 #include <cstdint>
@@ -61,7 +61,7 @@ using OnBackpressureFn = std::function<void(ClientId clientId, float level)>;
 /// Central backpressure coordinator.
 ///
 /// Ownership:
-///   Created once by the ZoneServer and shared (by raw pointer) with both the
+///   Created once by the authority host and shared (by raw pointer) with both the
 ///   transport layer (writer) and the ReplicationManager (reader/listener).
 class BackpressureSignal final
 {

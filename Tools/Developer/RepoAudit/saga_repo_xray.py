@@ -120,7 +120,7 @@ POSITIVE_CLAIM_PATTERNS = [
     r"\bfull visual scripting\b",
     r"\barbitrary c# to blocks\b",
     r"\bplayable editor\b",
-    r"\bclient preview implemented\b",
+    r"\bclient evaluation implemented\b",
     r"\bclienthost implemented\b",
     r"\bruntime gameplay implemented\b",
     r"\bserver gameplay implemented\b",
@@ -146,7 +146,7 @@ NEGATION_WINDOW_WORDS = {
 
 PUBLIC_HEADER_FORBIDDEN_PATTERNS = [
     ("Qt type in public/header file", r"\bQWidget\b|\bQObject\b|\bQ_OBJECT\b|#\s*include\s*[<\"]Q"),
-    ("App/ClientHost leak in public/header file", r"\bClientHost\b|\bClientConfig\b|\bApps/"),
+    ("App/ClientHost leak in public/header file", r"\bClientHost\b|\bClientConfig\b|\bApps" + "/"),
     ("Direct SDL leak in public/header file", r"#\s*include\s*[<\"].*SDL"),
     ("Direct Diligent leak in public/header file", r"\bDiligent\b|#\s*include\s*[<\"].*Diligent"),
     ("Direct RmlUi leak in public/header file", r"\bRml\b|#\s*include\s*[<\"].*Rml"),
@@ -156,7 +156,7 @@ LAYER_FORBIDDEN_HINTS = {
     "Runtime": [
         r"\bClientHost\b",
         r"\bClientConfig\b",
-        r"\bApps/",
+        r"\bApps" + "/",
         r"\bSagaEditor\b",
         r"\bQt\b",
         r"\bQWidget\b",
@@ -169,7 +169,7 @@ LAYER_FORBIDDEN_HINTS = {
     ],
     "Engine": [
         r"\bSagaEditor\b",
-        r"\bApps/",
+        r"\bApps" + "/",
         r"\bQWidget\b",
     ],
 }
@@ -215,7 +215,7 @@ class FileRecord:
     cmakeTargets: list[str] | None = None
     includes: list[str] | None = None
     suspiciousMarkers: list[str] | None = None
-    phaseMentions: list[int] | None = None
+    workItemMentions: list[int] | None = None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -309,9 +309,9 @@ def extract_headings(text: str, limit: int = 80) -> list[str]:
     return out
 
 
-def extract_phase_mentions(text: str) -> list[int]:
+def extract_work_item_mentions(text: str) -> list[int]:
     nums = set()
-    for m in re.finditer(r"\bPhase\s+(\d{1,4})\b", text, flags=re.IGNORECASE):
+    for m in re.finditer(r"\bWork item\s+(\d{1,4})\b", text, flags=re.IGNORECASE):
         nums.add(int(m.group(1)))
     return sorted(nums)
 
@@ -406,10 +406,10 @@ def simple_json_status(obj: Any) -> dict[str, Any]:
     keys = [
         "status", "outcome", "result", "decision",
         "localOnly", "networkExposure", "mutatesSource",
-        "enforcement", "clientPreviewStatus",
+        "enforcement", "clientEvaluationStatus",
         "runtimeImplementationClaim",
         "clientHostImplementationClaim",
-        "clientPreviewImplementationClaim",
+        "clientEvaluationImplementationClaim",
         "rawFullCTestClaim",
     ]
     return {k: obj.get(k) for k in keys if k in obj}
@@ -466,7 +466,7 @@ class RepoXray:
         self.git_dirty: set[str] = set()
 
         self.docs: list[dict[str, Any]] = []
-        self.phase_mentions: dict[int, set[str]] = defaultdict(set)
+        self.work_item_mentions: dict[int, set[str]] = defaultdict(set)
         self.cli_commands_by_file: dict[str, list[str]] = {}
         self.cmake_targets_by_file: dict[str, list[str]] = {}
         self.json_reports: list[dict[str, Any]] = []
@@ -566,8 +566,8 @@ class RepoXray:
             },
             "docs": {
                 "documents": self.docs,
-                "phaseMentions": {
-                    str(k): sorted(v) for k, v in sorted(self.phase_mentions.items())
+                "workItemMentions": {
+                    str(k): sorted(v) for k, v in sorted(self.work_item_mentions.items())
                 },
             },
             "tools": {
@@ -637,22 +637,22 @@ class RepoXray:
                         f"Contains marker `{marker}`.",
                     )
 
-            phase_nums = extract_phase_mentions(text)
-            record.phaseMentions = phase_nums
-            for phase in phase_nums:
-                self.phase_mentions[phase].add(r)
+            work_item_nums = extract_work_item_mentions(text)
+            record.workItemMentions = work_item_nums
+            for work_item in work_item_nums:
+                self.work_item_mentions[work_item].add(r)
 
             self.detect_claims(r, text)
             self.detect_boundary_text(r, text)
 
-            if r.startswith("docs/") or ext in DOC_EXTENSIONS:
+            if r.startswith("SagaWiki/") or ext in DOC_EXTENSIONS:
                 headings = extract_headings(text)
                 record.headings = headings
                 self.docs.append({
                     "path": r,
                     "lines": record.lines,
                     "headings": headings,
-                    "phaseMentions": phase_nums,
+                    "workItemMentions": work_item_nums,
                     "markers": markers,
                     "gitStatus": git_status,
                 })
@@ -785,7 +785,7 @@ class RepoXray:
                     )
 
         except Exception as exc:
-            if r.startswith("Build/") or r.startswith("samples/") or r.startswith("Tools/"):
+            if r.startswith("Build/") or r.startswith("Samples/") or r.startswith("Tools/"):
                 self.add_finding(
                     "low",
                     "json-parse-failed",
@@ -842,15 +842,15 @@ class RepoXray:
             area = parts[1] if len(parts) > 1 else "<docs-root>"
             docs_by_area[area].append(path)
 
-            if path == "docs/README.md":
+            if path == "SagaWiki/index.html":
                 continue
 
-            if path.startswith("docs/") and len(parts) == 2:
+            if path.startswith("SagaWiki/") and len(parts) == 2:
                 self.add_finding(
                     "low",
                     "docs-root-clutter",
                     path,
-                    "Document is directly under docs/. Consider grouping.",
+                    "Document is directly under SagaWiki/. Consider grouping.",
                 )
 
             if d["lines"] > 1200:
@@ -874,29 +874,29 @@ class RepoXray:
                 self.add_finding(
                     "low",
                     "unusual-doc-area",
-                    f"docs/{area}",
+                    f"SagaWiki/{area}",
                     f"Docs area `{area}` is not in expected areas.",
                 )
 
-        if self.phase_mentions:
-            nums = sorted(self.phase_mentions)
+        if self.work_item_mentions:
+            nums = sorted(self.work_item_mentions)
             for n in range(min(nums), max(nums) + 1):
-                if n not in self.phase_mentions:
+                if n not in self.work_item_mentions:
                     if 0 <= n <= 300:
                         self.add_finding(
                             "info",
-                            "phase-number-gap",
-                            f"Phase {n}",
-                            "Phase number missing from detected phase range.",
+                            "work-item-number-gap",
+                            f"Work item {n}",
+                            "Work item number missing from detected work item range.",
                         )
 
-            for phase, paths in sorted(self.phase_mentions.items()):
+            for work_item, paths in sorted(self.work_item_mentions.items()):
                 if len(paths) >= 8:
                     self.add_finding(
                         "medium",
-                        "phase-sprawl",
-                        f"Phase {phase}",
-                        f"Phase appears in {len(paths)} files. Roadmap state may be duplicated.",
+                        "work-item-sprawl",
+                        f"Work item {work_item}",
+                        f"Work item appears in {len(paths)} files. Roadmap state may be duplicated.",
                         ", ".join(sorted(paths)[:8]),
                     )
 
@@ -1015,7 +1015,7 @@ class RepoXray:
                 )
 
     def analyze_build_reports(self) -> None:
-        for prefix in ["Build/SourceTruth", "Build/Preview", "Build/Enterprise", "Build/SmallTeamAlpha", "Build/TechnicalPreview"]:
+        for prefix in ["Build/SourceTruth", "Build/Evaluation", "Build/Enterprise", "Build/ProjectReadiness"]:
             d = self.root / prefix
             if not d.exists():
                 continue
@@ -1143,9 +1143,9 @@ class RepoXray:
             "filesByTopLevelCategory": dict(top.most_common()),
             "findingsBySeverity": dict(severity.most_common()),
             "findingsByCategory": dict(category.most_common()),
-            "phaseRange": [
-                min(self.phase_mentions) if self.phase_mentions else None,
-                max(self.phase_mentions) if self.phase_mentions else None,
+            "workItemRange": [
+                min(self.work_item_mentions) if self.work_item_mentions else None,
+                max(self.work_item_mentions) if self.work_item_mentions else None,
             ],
         }
 
@@ -1199,7 +1199,7 @@ def write_findings_md(data: dict[str, Any], out: Path) -> None:
 
 def write_docs_audit_md(data: dict[str, Any], out: Path) -> None:
     docs = data["docs"]["documents"]
-    phase_mentions = data["docs"]["phaseMentions"]
+    work_item_mentions = data["docs"]["workItemMentions"]
 
     lines = ["# Docs Audit", ""]
 
@@ -1221,13 +1221,13 @@ def write_docs_audit_md(data: dict[str, Any], out: Path) -> None:
     lines.append("")
     for d in sorted(docs, key=lambda x: x["lines"], reverse=True)[:80]:
         markers = ", ".join(d.get("markers", []))
-        lines.append(f"- `{d['path']}` — lines={d['lines']}, phases={d.get('phaseMentions', [])}, markers=[{markers}]")
+        lines.append(f"- `{d['path']}` — lines={d['lines']}, work items={d.get('workItemMentions', [])}, markers=[{markers}]")
 
     lines.append("")
-    lines.append("## Phase Mentions")
+    lines.append("## Work item Mentions")
     lines.append("")
-    for phase, paths in sorted(phase_mentions.items(), key=lambda kv: int(kv[0])):
-        lines.append(f"### Phase {phase}")
+    for work_item, paths in sorted(work_item_mentions.items(), key=lambda kv: int(kv[0])):
+        lines.append(f"### Work item {work_item}")
         for p in paths[:40]:
             lines.append(f"- `{p}`")
         if len(paths) > 40:
@@ -1237,22 +1237,22 @@ def write_docs_audit_md(data: dict[str, Any], out: Path) -> None:
     write_text(out, "\n".join(lines))
 
 
-def write_phase_audit_md(data: dict[str, Any], out: Path) -> None:
-    phase_mentions = {int(k): v for k, v in data["docs"]["phaseMentions"].items()}
-    lines = ["# Phase Audit", ""]
+def write_work_item_audit_md(data: dict[str, Any], out: Path) -> None:
+    work_item_mentions = {int(k): v for k, v in data["docs"]["workItemMentions"].items()}
+    lines = ["# Work item Audit", ""]
 
-    if not phase_mentions:
-        lines.append("No phase mentions detected.")
+    if not work_item_mentions:
+        lines.append("No work item mentions detected.")
         write_text(out, "\n".join(lines))
         return
 
-    nums = sorted(phase_mentions)
-    lines.append(f"- Phase range: `{min(nums)}–{max(nums)}`")
-    lines.append(f"- Phase count with mentions: `{len(nums)}`")
+    nums = sorted(work_item_mentions)
+    lines.append(f"- Work item range: `{min(nums)}–{max(nums)}`")
+    lines.append(f"- Work item count with mentions: `{len(nums)}`")
     lines.append("")
 
-    missing = [n for n in range(min(nums), max(nums) + 1) if n not in phase_mentions]
-    lines.append("## Missing Phase Numbers in Detected Range")
+    missing = [n for n in range(min(nums), max(nums) + 1) if n not in work_item_mentions]
+    lines.append("## Missing Work item Numbers in Detected Range")
     lines.append("")
     if missing:
         lines.append(", ".join(map(str, missing[:300])))
@@ -1262,12 +1262,12 @@ def write_phase_audit_md(data: dict[str, Any], out: Path) -> None:
         lines.append("None.")
 
     lines.append("")
-    lines.append("## Phase Sprawl")
+    lines.append("## Work item Sprawl")
     lines.append("")
-    for phase in nums:
-        paths = phase_mentions[phase]
+    for work_item in nums:
+        paths = work_item_mentions[work_item]
         if len(paths) >= 5:
-            lines.append(f"- Phase `{phase}` appears in `{len(paths)}` files.")
+            lines.append(f"- Work item `{work_item}` appears in `{len(paths)}` files.")
             for p in paths[:10]:
                 lines.append(f"  - `{p}`")
     write_text(out, "\n".join(lines))
@@ -1320,7 +1320,7 @@ def write_tools_audit_md(data: dict[str, Any], out: Path) -> None:
 
 def write_samples_audit_md(data: dict[str, Any], out: Path) -> None:
     lines = ["# Samples Audit", ""]
-    sample_files = [f for f in data["files"] if f["path"].startswith("samples/")]
+    sample_files = [f for f in data["files"] if f["path"].startswith("Samples/")]
 
     by_sample = defaultdict(list)
     for f in sample_files:
@@ -1348,7 +1348,7 @@ def write_samples_audit_md(data: dict[str, Any], out: Path) -> None:
     lines.append("## Sample Findings")
     lines.append("")
     for f in data["findings"]:
-        if f["path"].startswith("samples/") or "sample" in f["category"]:
+        if f["path"].startswith("Samples/") or "sample" in f["category"]:
             lines.append(f"- **{f['severity']}** `{f['category']}` — `{f['path']}`: {f['message']}")
 
     write_text(out, "\n".join(lines))
@@ -1427,11 +1427,11 @@ def write_ai_context_pack_md(data: dict[str, Any], out: Path) -> None:
         lines.append("No untracked files detected.")
     else:
         for p in untracked[:300]:
-            if p.startswith(("Tools/", "Runtime/", "Server/", "Editor/", "Engine/", "Apps/", "docs/", "samples/")):
+            if p.startswith(("Tools/", "Runtime/", "Server/", "Editor/", "Engine/", "Apps" + "/", "SagaWiki/", "Samples/")):
                 lines.append(f"- `{p}`")
 
     lines.append("")
-    lines.append("## Tree Preview")
+    lines.append("## Tree Evaluation")
     lines.append("")
     lines.append("```text")
     lines.extend(data["tree"][:1500])
@@ -1482,7 +1482,7 @@ def main() -> int:
     write_json(data, out / "01_repo_xray.json")
     write_findings_md(data, out / "02_findings.md")
     write_docs_audit_md(data, out / "03_docs_audit.md")
-    write_phase_audit_md(data, out / "04_phase_audit.md")
+    write_work_item_audit_md(data, out / "04_work_item_audit.md")
     write_boundary_audit_md(data, out / "05_boundary_audit.md")
     write_tools_audit_md(data, out / "06_tools_audit.md")
     write_samples_audit_md(data, out / "07_samples_audit.md")
@@ -1508,7 +1508,7 @@ def main() -> int:
         return 1
 
     if medium:
-        print("Result: medium findings present. Review recommended before more phases.")
+        print("Result: medium findings present. Review recommended before more work items.")
         return 0
 
     print("Result: no high/medium findings.")

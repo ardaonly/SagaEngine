@@ -5,9 +5,9 @@
 #include "SagaEditor/Authoring/ScriptArtifactIndex.h"
 #include "SagaEditor/Authoring/ScriptBehaviorInspectorView.h"
 #include "SagaEditor/Authoring/ScriptBehaviorProjectionView.h"
-#include "SagaEditor/Authoring/ScriptPatchPreviewView.h"
+#include "SagaEditor/Authoring/ScriptPatchEvaluationView.h"
 #include "SagaEditor/Authoring/ScriptPatchReviewWorkflowView.h"
-#include "SagaEditor/Authoring/TechnicalPreviewProjectView.h"
+#include "SagaEditor/Authoring/ProjectReadinessView.h"
 #include "SagaEditor/Authoring/ViewNavigationWorkflowState.h"
 
 #include <gtest/gtest.h>
@@ -356,13 +356,13 @@ void WriteCoreArtifacts(const fs::path& root)
 
 } // namespace
 
-TEST(EditorAuthoringSpineTests, LoadsTechnicalPreviewProjectSubsetReadOnly)
+TEST(EditorAuthoringSpineTests, LoadsProjectReadinessProjectSubsetReadOnly)
 {
     const fs::path root = MakeTempRoot("project_subset");
     const fs::path manifest = WriteProject(root);
 
     const auto before = fs::last_write_time(manifest);
-    TechnicalPreviewProjectView view = LoadTechnicalPreviewProjectView(manifest);
+    ProjectReadinessView view = LoadProjectReadinessView(manifest);
 
     ASSERT_TRUE(view.ok);
     EXPECT_EQ(view.projectId, "multiplayer-sandbox");
@@ -382,7 +382,7 @@ TEST(EditorAuthoringSpineTests, InvalidProjectSubsetReportsEditorParseFailure)
     const fs::path manifest = root / "Broken.sagaproj";
     WriteFile(manifest, "{ invalid json");
 
-    TechnicalPreviewProjectView view = LoadTechnicalPreviewProjectView(manifest);
+    ProjectReadinessView view = LoadProjectReadinessView(manifest);
 
     EXPECT_FALSE(view.ok);
     ASSERT_FALSE(view.diagnostics.empty());
@@ -400,7 +400,7 @@ TEST(EditorAuthoringSpineTests, ArtifactIndexUsesHashFreshnessNotMtime)
     const fs::path manifest = WriteProject(root);
     WriteCoreArtifacts(root);
 
-    TechnicalPreviewProjectView view = LoadTechnicalPreviewProjectView(manifest);
+    ProjectReadinessView view = LoadProjectReadinessView(manifest);
     ScriptArtifactIndex index = BuildScriptArtifactIndex(view);
 
     EXPECT_EQ(index.overallStatus, ScriptArtifactStatus::Ready);
@@ -438,7 +438,7 @@ TEST(EditorAuthoringSpineTests, ArtifactIndexReportsMissingSourceAndUnknownFresh
     WriteCoreArtifacts(root);
     fs::remove(root / "Scripts" / "DoorLogic.High.cs");
 
-    TechnicalPreviewProjectView view = LoadTechnicalPreviewProjectView(manifest);
+    ProjectReadinessView view = LoadProjectReadinessView(manifest);
     ScriptArtifactIndex missingSourceIndex = BuildScriptArtifactIndex(view);
     const auto sourceMapIt = std::find_if(
         missingSourceIndex.artifacts.begin(),
@@ -481,7 +481,7 @@ TEST(EditorAuthoringSpineTests, ProjectionViewIsReadOnlyAndPreservesAxes)
     const fs::path manifest = WriteProject(root);
     WriteCoreArtifacts(root);
 
-    TechnicalPreviewProjectView project = LoadTechnicalPreviewProjectView(manifest);
+    ProjectReadinessView project = LoadProjectReadinessView(manifest);
     ScriptBehaviorProjectionLoadResult result =
         LoadScriptBehaviorProjectionViews(project);
 
@@ -501,21 +501,21 @@ TEST(EditorAuthoringSpineTests, ProjectionViewIsReadOnlyAndPreservesAxes)
     fs::remove_all(root);
 }
 
-TEST(EditorAuthoringSpineTests, PatchPreviewReviewNeverExposesApply)
+TEST(EditorAuthoringSpineTests, PatchEvaluationReviewNeverExposesApply)
 {
-    const fs::path root = MakeTempRoot("patch_preview");
+    const fs::path root = MakeTempRoot("patch_evaluation");
     const fs::path manifest = WriteProject(root);
-    WriteFile(root / "Build" / "SagaScript" / "patch_preview.json", R"({
+    WriteFile(root / "Build" / "SagaScript" / "patch_evaluation.json", R"({
   "schemaVersion": 1,
   "tool": "sagascript",
-  "command": "patch-preview",
+  "command": "patch-evaluation",
   "status": "Passed",
   "operation": "ReplaceStringLiteral",
   "nodeId": "node.high.literal",
   "sourceFile": "Scripts/DoorLogic.High.cs",
   "baseSourceHash": ")" + std::string(kEmptySha256) + R"(",
   "mutatesSource": false,
-  "preview": {
+  "evaluation": {
     "startByte": 12,
     "endByte": 17,
     "oldText": "\"key\"",
@@ -525,15 +525,15 @@ TEST(EditorAuthoringSpineTests, PatchPreviewReviewNeverExposesApply)
   "diagnostics": []
 })");
 
-    TechnicalPreviewProjectView project = LoadTechnicalPreviewProjectView(manifest);
-    ScriptPatchPreviewView preview = LoadScriptPatchPreviewView(project);
+    ProjectReadinessView project = LoadProjectReadinessView(manifest);
+    ScriptPatchEvaluationView evaluation = LoadScriptPatchEvaluationView(project);
 
-    ASSERT_TRUE(preview.ok);
-    EXPECT_FALSE(preview.mutatesSource);
-    EXPECT_FALSE(preview.applyAvailable);
-    EXPECT_EQ(preview.operation, "ReplaceStringLiteral");
-    EXPECT_EQ(preview.oldText, "\"key\"");
-    EXPECT_EQ(preview.newText, "\"gold_key\"");
+    ASSERT_TRUE(evaluation.ok);
+    EXPECT_FALSE(evaluation.mutatesSource);
+    EXPECT_FALSE(evaluation.applyAvailable);
+    EXPECT_EQ(evaluation.operation, "ReplaceStringLiteral");
+    EXPECT_EQ(evaluation.oldText, "\"key\"");
+    EXPECT_EQ(evaluation.newText, "\"gold_key\"");
 
     fs::remove_all(root);
 }
@@ -544,7 +544,7 @@ TEST(EditorAuthoringSpineTests, InspectorShowsBindingsAndUnsupportedReasons)
     const fs::path manifest = WriteProject(root);
     WriteCoreArtifacts(root);
 
-    TechnicalPreviewProjectView project = LoadTechnicalPreviewProjectView(manifest);
+    ProjectReadinessView project = LoadProjectReadinessView(manifest);
     ScriptBehaviorInspectorLoadResult result =
         LoadScriptBehaviorInspectorViews(project);
 
@@ -620,10 +620,10 @@ TEST(EditorAuthoringSpineTests, ProjectBrowserListsWorkflowSectionsReadOnly)
 TEST(EditorAuthoringSpineTests, StarterArenaLoadsMinimumEditorShellWorkflowReadOnly)
 {
     const fs::path manifest = fs::path(SAGA_SOURCE_ROOT) /
-        "samples" / "StarterArena" / "StarterArena.sagaproj";
+        "Samples" / "StarterArena" / "StarterArena.sagaproj";
 
-    TechnicalPreviewProjectView project =
-        LoadTechnicalPreviewProjectView(manifest);
+    ProjectReadinessView project =
+        LoadProjectReadinessView(manifest);
     ProjectBrowserWorkflowView browser =
         LoadProjectBrowserWorkflowView(manifest);
 
@@ -677,10 +677,10 @@ TEST(EditorAuthoringSpineTests, StarterArenaLoadsMinimumEditorShellWorkflowReadO
               browser.diagnostics.end());
 }
 
-TEST(EditorAuthoringSpineTests, StarterArenaCustomizationReportUsesTechnicalPreviewDefault)
+TEST(EditorAuthoringSpineTests, StarterArenaCustomizationReportUsesProjectReadinessDefault)
 {
     const fs::path manifest = fs::path(SAGA_SOURCE_ROOT) /
-        "samples" / "StarterArena" / "StarterArena.sagaproj";
+        "Samples" / "StarterArena" / "StarterArena.sagaproj";
     const auto beforeWriteTime = fs::last_write_time(manifest);
 
     EditorShellCustomizationReport report =
@@ -688,9 +688,9 @@ TEST(EditorAuthoringSpineTests, StarterArenaCustomizationReportUsesTechnicalPrev
 
     EXPECT_EQ(fs::last_write_time(manifest), beforeWriteTime);
     EXPECT_EQ(report.status, "Ready");
-    EXPECT_EQ(report.requestedProfileId, "technical_preview");
+    EXPECT_EQ(report.requestedProfileId, "project_readiness");
     EXPECT_EQ(report.resolvedProfileId, "saga.profile.basic");
-    EXPECT_EQ(report.viewPresetId, "technical_preview");
+    EXPECT_EQ(report.viewPresetId, "project_readiness");
     EXPECT_EQ(report.layoutPresetId, "basic");
     EXPECT_EQ(report.shortcutMapId, "saga.shortcuts.basic");
     EXPECT_TRUE(report.personalPreferenceOnly);
@@ -716,7 +716,7 @@ TEST(EditorAuthoringSpineTests, StarterArenaCustomizationReportUsesTechnicalPrev
 TEST(EditorAuthoringSpineTests, StarterArenaCustomizationReportUsesScriptAuthoringAlias)
 {
     const fs::path manifest = fs::path(SAGA_SOURCE_ROOT) /
-        "samples" / "StarterArena" / "StarterArena.sagaproj";
+        "Samples" / "StarterArena" / "StarterArena.sagaproj";
     const auto beforeWriteTime = fs::last_write_time(manifest);
 
     EditorShellCustomizationReport report =
@@ -754,7 +754,7 @@ TEST(EditorAuthoringSpineTests, CustomizationReportUnknownProfileFallsBackReadOn
     EXPECT_EQ(report.status, "UnknownProfile");
     EXPECT_EQ(report.requestedProfileId, "missing_profile");
     EXPECT_EQ(report.resolvedProfileId, "saga.profile.basic");
-    EXPECT_EQ(report.viewPresetId, "technical_preview");
+    EXPECT_EQ(report.viewPresetId, "project_readiness");
     ASSERT_EQ(report.diagnostics.size(), 1u);
     EXPECT_NE(report.diagnostics[0].find("missing_profile"), std::string::npos);
     EXPECT_FALSE(report.capabilities.canMutateProjectManifest);
@@ -791,7 +791,7 @@ TEST(EditorAuthoringSpineTests, BehaviorInspectorConsumesAllScriptEvidence)
   ]
 })");
 
-    TechnicalPreviewProjectView project = LoadTechnicalPreviewProjectView(manifest);
+    ProjectReadinessView project = LoadProjectReadinessView(manifest);
     ScriptBehaviorInspectorLoadResult result =
         LoadScriptBehaviorInspectorViews(project);
 
@@ -850,7 +850,7 @@ TEST(EditorAuthoringSpineTests, BehaviorInspectorBlocksRuntimeBackedMissingEvide
   "diagnostics": []
 })");
 
-    TechnicalPreviewProjectView project = LoadTechnicalPreviewProjectView(manifest);
+    ProjectReadinessView project = LoadProjectReadinessView(manifest);
     ScriptBehaviorInspectorLoadResult result =
         LoadScriptBehaviorInspectorViews(project);
 
@@ -875,7 +875,7 @@ TEST(EditorAuthoringSpineTests, DiagnosticsPanelGroupsSummaryAndMissingReport)
     WriteFile(root / "package_profiles.json", "{}");
     WriteFile(root / "Build" / "Reports" / "diagnostics_summary.json", R"({
   "schemaVersion": 1,
-  "tool": "sagaprobe",
+  "tool": "diagnostic-check",
   "command": "summarize",
   "status": "Attention",
   "diagnostics": [
@@ -900,7 +900,7 @@ TEST(EditorAuthoringSpineTests, DiagnosticsPanelGroupsSummaryAndMissingReport)
   ]
 })");
 
-    TechnicalPreviewProjectView project = LoadTechnicalPreviewProjectView(manifest);
+    ProjectReadinessView project = LoadProjectReadinessView(manifest);
     DiagnosticsPanelView panel = LoadDiagnosticsPanelView(project);
 
     EXPECT_FALSE(panel.refresh.writesFiles);
@@ -929,7 +929,7 @@ TEST(EditorAuthoringSpineTests, PatchReviewWorkflowDisplaysSagaScriptEvidenceOnl
     WriteFile(root / "Scripts" / "DoorLogic.High.cs", "\"key\"");
     const std::string before = ReadFile(root / "Scripts" /
         "DoorLogic.High.cs");
-    WriteFile(root / "Build" / "SagaScript" / "patch_preview.json", R"({
+    WriteFile(root / "Build" / "SagaScript" / "patch_evaluation.json", R"({
   "schemaVersion": 1,
   "status": "Passed",
   "operation": "ReplaceStringLiteral",
@@ -938,7 +938,7 @@ TEST(EditorAuthoringSpineTests, PatchReviewWorkflowDisplaysSagaScriptEvidenceOnl
   "sourceFile": "Scripts/DoorLogic.High.cs",
   "baseSourceHash": ")" + std::string(kEmptySha256) + R"(",
   "mutatesSource": false,
-  "preview": {
+  "evaluation": {
     "startByte": 0,
     "endByte": 5,
     "oldText": "\"key\"",
@@ -995,7 +995,7 @@ TEST(EditorAuthoringSpineTests, PatchReviewWorkflowDisplaysSagaScriptEvidenceOnl
   "diagnostics": []
 })");
 
-    TechnicalPreviewProjectView project = LoadTechnicalPreviewProjectView(manifest);
+    ProjectReadinessView project = LoadProjectReadinessView(manifest);
     ScriptPatchReviewWorkflowView review =
         LoadScriptPatchReviewWorkflowView(project);
 
@@ -1021,7 +1021,7 @@ TEST(EditorAuthoringSpineTests, SceneAssetBrowserReportsMissingSourceTruth)
     const fs::path manifest = WriteProject(root);
     WriteFile(root / "Assets" / "README.md", "asset root");
 
-    TechnicalPreviewProjectView project = LoadTechnicalPreviewProjectView(manifest);
+    ProjectReadinessView project = LoadProjectReadinessView(manifest);
     SceneAssetBrowserInventoryView inventory =
         LoadSceneAssetBrowserInventoryView(project);
 
@@ -1044,7 +1044,7 @@ TEST(EditorAuthoringSpineTests, ViewSwitchingPreservesSelectionAndReadOnlyPolicy
     const fs::path manifest = WriteProject(root);
     WriteCoreArtifacts(root);
 
-    TechnicalPreviewProjectView project = LoadTechnicalPreviewProjectView(manifest);
+    ProjectReadinessView project = LoadProjectReadinessView(manifest);
     ScriptBehaviorInspectorLoadResult inspector =
         LoadScriptBehaviorInspectorViews(project);
     ASSERT_EQ(inspector.behaviors.size(), 2u);

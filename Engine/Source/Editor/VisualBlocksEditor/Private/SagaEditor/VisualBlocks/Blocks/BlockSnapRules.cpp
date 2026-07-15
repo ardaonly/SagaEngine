@@ -1,15 +1,15 @@
 /// @file BlockSnapRules.cpp
 /// @brief Implementation of the block-canvas snap-rule predicate.
 
-#include "SagaEditor/VisualScripting/Blocks/BlockSnapRules.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockSnapRules.h"
 
-#include "SagaEditor/VisualScripting/Blocks/BlockLibrary.h"
-#include "SagaEditor/VisualScripting/Blocks/BlockScript.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockLibrary.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockScript.h"
 
 #include <algorithm>
 #include <utility>
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 // ─── Identity Strings ─────────────────────────────────────────────────────────
@@ -339,4 +339,4 @@ SnapVerdict CanSnap(const std::string&     draggedOpcode,
     return Reject(SnapRejection::UnknownOpcode);
 }
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

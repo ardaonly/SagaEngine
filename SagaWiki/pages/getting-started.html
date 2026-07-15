@@ -1,0 +1,9 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Getting started | SagaWiki</title><link rel="stylesheet" href="../assets/style.css"></head><body><main><p><a href="../index.html">SagaWiki</a></p><h1>Getting started</h1>
+<h2>Prerequisites</h2><p>Use Python 3, CMake, Conan 2, Ninja, a matching C++ compiler, and the profiles under <code>profiles/</code>. The Nix shell is the preferred reproducible Linux environment but is not a product platform requirement.</p>
+<h2>Linux</h2><pre><code>nix-shell --run "Tools/Forge/bin/forge install --profile linux-gcc"
+nix-shell --run "cmake --preset linux-gcc"
+nix-shell --run "cmake --build --preset linux-gcc"
+ctest --test-dir build/RelWithDebInfo-0.0.11 --output-on-failure</code></pre>
+<p>The stable root wrappers are <code>scripts/build</code>, <code>scripts/test</code>, <code>scripts/verify</code>, <code>scripts/package</code>, and <code>scripts/wiki</code>. They delegate to owning tools and contain no product logic.</p>
+<h2>Project inputs</h2><p>A <code>.sagaproj</code> manifest is the canonical project input. Use <code>Tools/SagaProjectKit/sagaproject validate --project &lt;path&gt;</code> before assuming a sample or package is valid.</p>
+</main></body></html>

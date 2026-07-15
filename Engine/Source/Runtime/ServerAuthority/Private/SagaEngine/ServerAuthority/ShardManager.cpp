@@ -1,7 +1,7 @@
 /// @file ShardManager.cpp
 /// @brief ShardManager implementation.
 
-#include "SagaServer/Networking/Server/ShardManager.h"
+#include "SagaEngine/ServerAuthority/ShardManager.h"
 #include "SagaEngine/Core/Log/Log.h"
 
 #include <algorithm>
@@ -11,7 +11,7 @@
 #include <limits>
 #include <mutex>
 
-namespace SagaServer::Networking
+namespace SagaEngine::ServerAuthority
 {
 
 static constexpr const char* kTag = "ShardManager";
@@ -329,4 +329,4 @@ void ShardManager::SetOnZoneUnreachable(OnZoneUnreachableCallback cb)
     m_onZoneUnreachable = std::move(cb);
 }
 
-} // namespace SagaServer::Networking
+} // namespace SagaEngine::ServerAuthority

@@ -1,7 +1,7 @@
 /// @file QtPanel.cpp
 /// @brief Qt implementation of the QtPanel base class.
 
-#include "SagaEditor/UI/Qt/QtPanel.h"
+#include "SagaEditorQt/QtPanel.h"
 
 namespace SagaEditor
 {

@@ -1,7 +1,7 @@
 /// @file ZoneServerMovementAuthorityTests.cpp
 /// @brief Socket-free tests for ZoneServer authoritative movement intake wiring.
 
-#include "SagaServer/Networking/Server/ZoneServer.h"
+#include "SagaEngine/ServerAuthority/ZoneServer.h"
 
 #include "SagaEngine/Input/Commands/InputCommandSerializer.h"
 
@@ -20,16 +20,16 @@ using SagaEngine::Input::InputCommandSerializer;
 using SagaEngine::Input::MakeInputCommand;
 using SagaEngine::Networking::ClientId;
 using SagaEngine::Networking::PacketType;
-using SagaEngine::Server::Simulation::ActorOwnershipResult;
-using SagaEngine::Server::Simulation::AuthoritativeMovementCommandIntakeDecision;
-using SagaEngine::Server::Simulation::AuthoritativeMovementDecision;
-using SagaEngine::Server::Simulation::EntityId;
-using SagaEngine::Server::Simulation::Vector3;
-using SagaServer::Networking::IZoneServerListener;
-using SagaServer::Networking::NormalizedServerPacketView;
-using SagaServer::Networking::ServerPacketNormalizationStatus;
-using SagaServer::Networking::ZoneServer;
-using SagaServer::Networking::ZoneServerConfig;
+using SagaEngine::ServerAuthority::Simulation::ActorOwnershipResult;
+using SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementCommandIntakeDecision;
+using SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementDecision;
+using SagaEngine::ServerAuthority::Simulation::EntityId;
+using SagaEngine::ServerAuthority::Simulation::Vector3;
+using SagaEngine::ServerAuthority::IZoneServerListener;
+using SagaEngine::Networking::NormalizedServerPacketView;
+using SagaEngine::Networking::ServerPacketNormalizationStatus;
+using SagaEngine::ServerAuthority::ZoneServer;
+using SagaEngine::ServerAuthority::ZoneServerConfig;
 
 constexpr ClientId kClient = 31;
 constexpr EntityId kEntity = 7001;
@@ -38,10 +38,10 @@ std::vector<std::uint8_t> MakeFrame(PacketType packetType,
                                     const std::vector<std::uint8_t>& payload)
 {
     std::vector<std::uint8_t> frame(
-        SagaServer::Networking::kServerPacketFrameHeaderSize + payload.size());
+        SagaEngine::Networking::kServerPacketFrameHeaderSize + payload.size());
 
     const std::uint16_t magic =
-        SagaServer::Networking::kServerPacketFrameMagic;
+        SagaEngine::Networking::kServerPacketFrameMagic;
     const std::uint32_t bodyLength =
         static_cast<std::uint32_t>(payload.size());
 
@@ -52,7 +52,7 @@ std::vector<std::uint8_t> MakeFrame(PacketType packetType,
     if (!payload.empty())
     {
         std::memcpy(
-            frame.data() + SagaServer::Networking::kServerPacketFrameHeaderSize,
+            frame.data() + SagaEngine::Networking::kServerPacketFrameHeaderSize,
             payload.data(),
             payload.size());
     }

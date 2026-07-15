@@ -64,7 +64,7 @@ def main() -> int:
     parser.add_argument("--root", type=Path)
     parser.add_argument(
         "--output",
-        default="core/manifest/path_rules.json",
+        default="Tools/Developer/BoundaryCheck/Policies/path_rules.json",
     )
     args = parser.parse_args()
 

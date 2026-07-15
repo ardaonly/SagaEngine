@@ -13,7 +13,7 @@ enum class PackageKind : std::uint8_t
 {
     Client,
     Server,
-    EditorPreview,
+    EditorEvaluation,
     Tool,
     Content,
     Shared,

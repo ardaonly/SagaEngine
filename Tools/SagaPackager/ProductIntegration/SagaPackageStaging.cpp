@@ -1,7 +1,7 @@
 /// @file SagaPackageStaging.cpp
 /// @brief Product-owned package manifest staging for Saga projects.
 
-#include "Packaging/SagaPackageStaging.h"
+#include "ProductIntegration/SagaPackageStaging.h"
 
 #include "Projects/SagaProjectSystem.h"
 
@@ -58,7 +58,7 @@ void WriteJsonFile(const std::filesystem::path& path, const nlohmann::json& json
     std::filesystem::path path)
 {
     SagaProductDiagnostic diagnostic;
-    diagnostic.phase = SagaProductDiagnosticPhase::ProjectValidation;
+    diagnostic.stage = SagaProductDiagnosticStage::ProjectValidation;
     diagnostic.diagnosticId = id;
     diagnostic.message = std::move(message);
     diagnostic.path = std::move(path);
@@ -499,7 +499,7 @@ void WriteStageReport(const SagaPackageStagingRequest& request,
     {
         nlohmann::json item;
         item["id"] = diagnostic.diagnosticId;
-        item["phase"] = ToString(diagnostic.phase);
+        item["stage"] = ToString(diagnostic.stage);
         item["message"] = diagnostic.message;
         if (diagnostic.path.has_value())
         {

@@ -39,8 +39,8 @@ struct SagaSessionModel
     std::optional<std::filesystem::path> packageManifestPath; ///< Explicit startup package manifest for runtime/server.
 };
 
-/// Product phase that produced a preparation/startup diagnostic.
-enum class SagaProductDiagnosticPhase
+/// Product stage that produced a preparation/startup diagnostic.
+enum class SagaProductDiagnosticStage
 {
     Config = 0,
     WorkspaceResolution,
@@ -53,7 +53,7 @@ enum class SagaProductDiagnosticPhase
 struct SagaProductDiagnostic
 {
     SagaProductTargetKind target = SagaProductTargetKind::Editor;          ///< Product role affected by the diagnostic.
-    SagaProductDiagnosticPhase phase = SagaProductDiagnosticPhase::Config; ///< Product phase that produced the diagnostic.
+    SagaProductDiagnosticStage stage = SagaProductDiagnosticStage::Config; ///< Product stage that produced the diagnostic.
     std::string diagnosticId;                                              ///< Stable product-local diagnostic id.
     std::string message;                                                   ///< Human-readable diagnostic message.
     std::optional<std::filesystem::path> path;                             ///< Optional path related to the diagnostic.
@@ -121,7 +121,7 @@ inline constexpr const char* PackageStageScriptArtifactInvalid =
 [[nodiscard]] const char* ToString(SagaProductTargetKind kind) noexcept;
 [[nodiscard]] bool ParseTargetKind(const std::string& text,
                                    SagaProductTargetKind& out) noexcept;
-[[nodiscard]] const char* ToString(SagaProductDiagnosticPhase phase) noexcept;
+[[nodiscard]] const char* ToString(SagaProductDiagnosticStage stage) noexcept;
 [[nodiscard]] const char* ToString(
     SagaLaunchTargetAvailability availability) noexcept;
 

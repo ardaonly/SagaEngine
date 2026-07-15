@@ -1,14 +1,14 @@
 /// @file BlockAuthoringTests.cpp
 /// @brief GoogleTest coverage for the block-based authoring model.
 
-#include "SagaEditor/VisualScripting/Blocks/BlockCategory.h"
-#include "SagaEditor/VisualScripting/Blocks/BlockDefinition.h"
-#include "SagaEditor/VisualScripting/Blocks/BlockInstance.h"
-#include "SagaEditor/VisualScripting/Blocks/BlockKind.h"
-#include "SagaEditor/VisualScripting/Blocks/BlockLibrary.h"
-#include "SagaEditor/VisualScripting/Blocks/BlockScript.h"
-#include "SagaEditor/VisualScripting/Blocks/BlockSlot.h"
-#include "SagaEditor/VisualScripting/Blocks/BlockStack.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockCategory.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockDefinition.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockInstance.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockKind.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockLibrary.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockScript.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockSlot.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockStack.h"
 
 #include <gtest/gtest.h>
 
@@ -18,7 +18,7 @@
 namespace
 {
 
-using namespace SagaEditor::VisualScripting;
+using namespace SagaEditor::VisualBlocks;
 
 // ─── BlockKind ────────────────────────────────────────────────────────────────
 

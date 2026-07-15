@@ -1,15 +1,15 @@
 /// @file BlockToIRLowerer.cpp
 /// @brief BlockScript → IRProgram lowering pass.
 
-#include "SagaEditor/VisualScripting/Blocks/BlockToIRLowerer.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockToIRLowerer.h"
 
-#include "SagaEditor/VisualScripting/Blocks/BlockLibrary.h"
-#include "SagaEditor/VisualScripting/Blocks/BlockScript.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockLibrary.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockScript.h"
 
 #include <algorithm>
 #include <utility>
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 bool LowerResult::Ok() const noexcept
@@ -377,4 +377,4 @@ LowerResult LowerBlockScript(const BlockScript&  script,
     return result;
 }
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

@@ -29,11 +29,11 @@ struct WorkflowRule
     const std::string& requestedProfileId)
 {
     const std::string requested =
-        requestedProfileId.empty() ? "technical_preview" : requestedProfileId;
+        requestedProfileId.empty() ? "project_readiness" : requestedProfileId;
 
-    if (requested == "technical_preview")
+    if (requested == "project_readiness")
     {
-        return { requested, "saga.profile.basic", "technical_preview", true };
+        return { requested, "saga.profile.basic", "project_readiness", true };
     }
     if (requested == "script_authoring")
     {
@@ -51,7 +51,7 @@ struct WorkflowRule
     const std::string resolved = ResolveEditorProfileId(requested);
     if (resolved == "saga.profile.basic")
     {
-        return { requested, resolved, "technical_preview", true };
+        return { requested, resolved, "project_readiness", true };
     }
     if (resolved == "saga.profile.node_editor")
     {
@@ -60,14 +60,14 @@ struct WorkflowRule
     if (resolved == "saga.profile.standard_pipeline" ||
         resolved == "saga.profile.custom")
     {
-        return { requested, resolved, "technical_preview", true };
+        return { requested, resolved, "project_readiness", true };
     }
     if (resolved == "saga.profile.advanced_pipeline")
     {
         return { requested, resolved, "diagnostics", true };
     }
 
-    return { requested, "saga.profile.basic", "technical_preview", false };
+    return { requested, "saga.profile.basic", "project_readiness", false };
 }
 
 [[nodiscard]] SagaEditor::EditorProfile MakeResolvedProfile(
@@ -95,13 +95,13 @@ struct WorkflowRule
 [[nodiscard]] std::vector<EditorShellWorkflowVisibility> WorkflowVisibilityFor(
     const std::string& viewPresetId)
 {
-    static constexpr std::array<WorkflowRule, 7> kTechnicalPreview{ {
-        { "validate-project", true, "Project metadata reference is primary for technical preview inspection." },
-        { "runtime-smoke", true, "Runtime smoke report reference is primary technical preview evidence." },
+    static constexpr std::array<WorkflowRule, 7> kProjectReadiness{ {
+        { "validate-project", true, "Project metadata reference is primary for technical evaluation inspection." },
+        { "runtime-smoke", true, "Runtime smoke report reference is primary technical evaluation evidence." },
         { "sagascript-analyze", false, "SagaScript analyze reference remains available as secondary script evidence." },
         { "sagascript-compile", false, "SagaScript compile reference remains available as secondary script evidence." },
         { "visual-blocks-cli-chain", true, "Script projection is visible only as CLI evidence, not Visual Blocks editor UI." },
-        { "server-smoke", true, "Server-authority smoke report reference is visible technical preview evidence." },
+        { "server-smoke", true, "Server-authority smoke report reference is visible technical evaluation evidence." },
         { "package-preflight", true, "Package preflight reference is visible but is not distribution readiness." },
     } };
 
@@ -135,7 +135,7 @@ struct WorkflowRule
         { "package-preflight", false, "Package preflight reference remains available but secondary." },
     } };
 
-    const auto* selected = &kTechnicalPreview;
+    const auto* selected = &kProjectReadiness;
     if (viewPresetId == "script_authoring")
     {
         selected = &kScriptAuthoring;
@@ -189,7 +189,7 @@ EditorShellCustomizationReport BuildEditorShellCustomizationReport(
     {
         report.diagnostics.push_back(
             "Unknown editor profile or view preset '" + selection.requestedProfileId +
-            "'; using technical_preview report metadata.");
+            "'; using project_readiness report metadata.");
     }
 
     return report;

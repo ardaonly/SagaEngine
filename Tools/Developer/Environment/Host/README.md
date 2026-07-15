@@ -1,6 +1,6 @@
 # SagaEngine Host Helper
 
-`Tools/Host` is a small Docker Compose wrapper for local development
+`Tools/Developer/Environment/Host` is a small Docker Compose wrapper for local development
 dependencies.
 
 Use it through SagaTools after running `Tools/SagaTools/setup.py`:
@@ -16,7 +16,7 @@ tools host status
 Direct invocation also works:
 
 ```bash
-Tools/Host/host.sh start
+Tools/Developer/Environment/Host/host.sh start
 ```
 
 The helper starts PostgreSQL and Redis. It does not launch an engine product

@@ -1,14 +1,14 @@
 /// @file ReplicationGraph.cpp
 /// @brief ReplicationGraph implementation.
 
-#include "SagaServer/Networking/Replication/ReplicationGraph.h"
+#include "SagaEngine/Replication/ReplicationGraph.h"
 #include "SagaEngine/Core/Log/Log.h"
 
 #include <algorithm>
 #include <cassert>
 #include <cmath>
 
-namespace SagaEngine::Networking::Replication
+namespace SagaEngine::Replication
 {
 
 static constexpr const char* kTag = "ReplicationGraph";
@@ -300,4 +300,4 @@ const ReplicationGraphConfig& ReplicationGraph::GetConfig() const noexcept
     return m_config;
 }
 
-} // namespace SagaEngine::Networking::Replication
+} // namespace SagaEngine::Replication

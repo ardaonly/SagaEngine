@@ -47,9 +47,9 @@ StarterArenaGameplayFacade::StarterArenaGameplayFacade(StarterArenaGameplayState
 {
 }
 
-void StarterArenaGameplayFacade::SetPhase(std::string phase)
+void StarterArenaGameplayFacade::SetLifecycleEvent(std::string lifecycleEvent)
 {
-    state_.phase = std::move(phase);
+    state_.lifecycleEvent = std::move(lifecycleEvent);
 }
 
 void StarterArenaGameplayFacade::SetRuntimeSnapshot(
@@ -96,7 +96,7 @@ StarterArenaGameplayFacade::AddInt32(const std::string& key, std::int32_t delta)
             "StarterArena.Gameplay.UnsupportedOperation", "Score mutation would overflow.");
     const auto before = state_.score;
     state_.score += delta;
-    state_.mutations.push_back({state_.tick, state_.phase, "AddInt32", key,
+    state_.mutations.push_back({state_.tick, state_.lifecycleEvent, "AddInt32", key,
                                 std::to_string(before), std::to_string(state_.score),
                                 "Passed", {}});
     ScriptStateInt32Result result;
@@ -123,7 +123,7 @@ StarterArenaGameplayFacade::SetBool(const std::string& key, bool value)
     state_.pickupCollected = true;
     state_.mutationTick = state_.tick;
     state_.mutationPosition = state_.playerPosition;
-    state_.mutations.push_back({state_.tick, state_.phase, "SetBool", key,
+    state_.mutations.push_back({state_.tick, state_.lifecycleEvent, "SetBool", key,
                                 "false", Bool(value), "Passed", {}});
     ScriptHostOperationResult result;
     result.succeeded = true;
@@ -141,7 +141,7 @@ StarterArenaGameplayFacade::SetString(const std::string& key, const std::string&
             "StarterArena.Gameplay.UnsupportedOperation", "Unsupported player state: " + value);
     const auto before = state_.playerState;
     state_.playerState = value;
-    state_.mutations.push_back({state_.tick, state_.phase, "SetString", key,
+    state_.mutations.push_back({state_.tick, state_.lifecycleEvent, "SetString", key,
                                 before, value, before == value ? "NoChange" : "Passed", {}});
     ScriptHostOperationResult result;
     result.succeeded = true;

@@ -1,9 +1,9 @@
 /// @file GraphDocument.cpp
 /// @brief Pimpl scaffolding — auto-generated stub bodies.
 
-#include "SagaEditor/VisualScripting/Graphs/GraphDocument.h"
+#include "SagaEditor/VisualBlocks/Graphs/GraphDocument.h"
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 // ─── Pimpl Definition ────────────────────────────────────────────────────────
@@ -58,4 +58,4 @@ void GraphDocument::MarkClean()
     /* stub */
 }
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

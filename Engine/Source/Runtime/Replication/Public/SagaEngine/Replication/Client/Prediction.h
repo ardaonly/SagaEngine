@@ -1,7 +1,7 @@
 /// @file Prediction.h
 /// @brief Server-side client prediction bookkeeping — authoritative input reconciliation.
 ///
-/// Layer  : SagaServer / Networking / Client
+/// Layer  : SagaEngine / Replication
 /// Purpose: The server needs to track what input commands each client has sent,
 ///          which commands the server has already processed, and which commands
 ///          are still pending.  When the server processes a client's input command,
@@ -35,7 +35,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace SagaServer::Networking {
+namespace SagaEngine::Replication {
 
 // ─── Input sequence numbers ─────────────────────────────────────────────
 
@@ -245,4 +245,4 @@ private:
     std::unordered_map<uint64_t, std::unique_ptr<ClientPredictionTracker>> m_trackers;
 };
 
-} // namespace SagaServer::Networking
+} // namespace SagaEngine::Replication

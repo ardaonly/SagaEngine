@@ -17,7 +17,7 @@ namespace
 {
 
 using Json = nlohmann::ordered_json;
-namespace NetworkChaosMetrics = SagaServer::Networking::NetworkChaosMetrics;
+namespace NetworkChaosMetrics = SagaEngine::Networking::NetworkChaosMetrics;
 
 constexpr int kExitSuccess = 0;
 constexpr int kExitInvalidProfile = 4;

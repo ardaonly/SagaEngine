@@ -1,1 +1,39 @@
-# Source ownership is registered through SagaModule.cmake.
+saga_add_runtime_module(Scripting
+    MODULE_DIR Engine/Source/Runtime/Scripting
+    TARGET SagaEngine
+    SOURCES
+        Private/SagaEngine/Scripting/CSharpScriptHost.cpp
+        Private/SagaEngine/Scripting/ScriptBindingManifestLoader.cpp
+        Private/SagaEngine/Scripting/ScriptBindingRuntime.cpp
+        Private/SagaEngine/Scripting/ScriptLifecycleService.cpp
+        Private/SagaEngine/Scripting/ScriptPackageValidator.cpp
+        Private/SagaEngine/Scripting/WorldStateScriptWorld.cpp
+        Public/SagaEngine/Scripting.hpp
+        Public/SagaEngine/Scripting/Authoring.hpp
+        Public/SagaEngine/Scripting/Authoring/ScriptBindingManifestLoader.hpp
+        Public/SagaEngine/Scripting/Authoring/ScriptBindingRuntime.hpp
+        Public/SagaEngine/Scripting/CSharpScriptHost.hpp
+        Public/SagaEngine/Scripting/ISagaScriptHost.hpp
+        Public/SagaEngine/Scripting/LowLevel.hpp
+        Public/SagaEngine/Scripting/LowLevel/ISagaScriptHost.hpp
+        Public/SagaEngine/Scripting/LowLevel/ScriptDiagnostics.hpp
+        Public/SagaEngine/Scripting/LowLevel/ScriptHandles.hpp
+        Public/SagaEngine/Scripting/LowLevel/ScriptHostInterfaces.hpp
+        Public/SagaEngine/Scripting/LowLevel/ScriptLifecycleContracts.hpp
+        Public/SagaEngine/Scripting/LowLevel/ScriptLifecycleService.hpp
+        Public/SagaEngine/Scripting/LowLevel/ScriptPackageValidator.hpp
+        Public/SagaEngine/Scripting/Namespace.hpp
+        Public/SagaEngine/Scripting/ScriptBindingManifestLoader.hpp
+        Public/SagaEngine/Scripting/ScriptBindingRuntime.hpp
+        Public/SagaEngine/Scripting/ScriptLifecycleService.hpp
+        Public/SagaEngine/Scripting/ScriptPackageValidator.hpp
+        Public/SagaEngine/Scripting/WorldStateScriptWorld.hpp
+        Public/SagaShared/Scripting/GeneratedCodeOriginDescriptor.hpp
+        Public/SagaShared/Scripting/ScriptArtifactRef.hpp
+        Public/SagaShared/Scripting/ScriptAuthorityDescriptor.hpp
+        Public/SagaShared/Scripting/ScriptBindingDescriptor.hpp
+        Public/SagaShared/Scripting/ScriptCapabilityDescriptor.hpp
+        Public/SagaShared/Scripting/ScriptDiagnosticPayload.hpp
+        Public/SagaShared/Scripting/ScriptId.hpp
+        Public/SagaShared/Scripting/ScriptManifest.hpp
+)

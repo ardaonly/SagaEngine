@@ -23,9 +23,9 @@ EXCLUDED_PARTS = {
 }
 
 EXCLUDED_PREFIXES = {
-    Path("docs/dev"),
-    Path("docs/internal"),
-    Path("docs/recovery"),
+    Path("SagaWiki/dev"),
+    Path("SagaWiki/internal"),
+    Path("SagaWiki/recovery"),
 }
 
 RULES = [

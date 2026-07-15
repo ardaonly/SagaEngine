@@ -1,7 +1,7 @@
 /// @file SagaScriptGate.cpp
 /// @brief Product-owned SagaScript validation gate orchestration.
 
-#include "Scripting/SagaScriptGate.h"
+#include "ProductIntegration/SagaScriptGate.h"
 #include "Processes/SagaProcessService.h"
 
 #include <ostream>
@@ -20,7 +20,7 @@ constexpr const char* kProjectManifestFile = "saga.project.json";
     std::filesystem::path path = {})
 {
     SagaProductDiagnostic diagnostic;
-    diagnostic.phase = SagaProductDiagnosticPhase::ProjectValidation;
+    diagnostic.stage = SagaProductDiagnosticStage::ProjectValidation;
     diagnostic.diagnosticId = diagnosticId;
     diagnostic.message = std::move(message);
     if (!path.empty())

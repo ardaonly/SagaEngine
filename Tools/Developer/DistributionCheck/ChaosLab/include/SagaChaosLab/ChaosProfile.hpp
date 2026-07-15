@@ -5,7 +5,7 @@
 
 #include "SagaStressArena/StressTier.hpp"
 
-#include "SagaServer/Networking/Core/NetworkChaosLayer.h"
+#include "SagaEngine/Networking/NetworkChaosLayer.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -30,7 +30,7 @@ struct ChaosProfile
     std::uint32_t ticks = 0;
     std::uint32_t maxDurationSec = 0;
     std::filesystem::path reportDirectory;
-    SagaServer::Networking::NetworkChaosConfig chaosConfig;
+    SagaEngine::Networking::NetworkChaosConfig chaosConfig;
 };
 
 /// Result of loading or validating a chaos profile.

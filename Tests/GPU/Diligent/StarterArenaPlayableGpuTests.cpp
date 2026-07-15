@@ -36,7 +36,7 @@ TEST_F(DiligentGPU, StarterArenaFrameProducesArenaPlayerAndBoundaryPixels)
 
     std::string inputError;
     const auto inputScript = std::filesystem::path(SAGA_SOURCE_ROOT) /
-                             "samples/StarterArena/Input/playable.synthetic-input.json";
+                             "Samples/StarterArena/Input/playable.synthetic-input.json";
     auto inputProvider = SagaRuntimeApp::CreateSyntheticInputProvider(inputScript, inputError);
     ASSERT_NE(inputProvider, nullptr) << inputError;
     auto simulation = SagaRuntimeApp::MakeStarterArenaSimulation(MakeStarterArenaGpuScene());

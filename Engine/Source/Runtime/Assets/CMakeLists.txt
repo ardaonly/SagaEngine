@@ -1,1 +1,51 @@
-# Source ownership is registered through SagaModule.cmake.
+saga_add_runtime_module(Assets
+    MODULE_DIR Engine/Source/Runtime/Assets
+    TARGET SagaEngine
+    SOURCES
+        Private/SagaEngine/Artifacts/ArtifactManifestLoader.cpp
+        Private/SagaEngine/Artifacts/ArtifactStartupValidator.cpp
+        Private/SagaEngine/Assets/AssetManifestLoader.cpp
+        Private/SagaEngine/Packages/PackageManifestLoader.cpp
+        Private/SagaEngine/Packages/PackageStartupValidator.cpp
+        Public/SagaEngine/Artifacts/ArtifactKind.hpp
+        Public/SagaEngine/Artifacts/ArtifactManifest.hpp
+        Public/SagaEngine/Artifacts/ArtifactManifestLoader.hpp
+        Public/SagaEngine/Artifacts/ArtifactRef.hpp
+        Public/SagaEngine/Artifacts/ArtifactStartupValidator.hpp
+        Public/SagaEngine/Assets/AssetManifest.hpp
+        Public/SagaEngine/Assets/AssetManifestLoader.hpp
+        Public/SagaEngine/Packages/PackageManifest.hpp
+        Public/SagaEngine/Packages/PackageManifestLoader.hpp
+        Public/SagaEngine/Packages/PackageStartupValidator.hpp
+        Public/SagaShared/Artifacts/ArtifactDependency.hpp
+        Public/SagaShared/Artifacts/ArtifactHash.hpp
+        Public/SagaShared/Artifacts/ArtifactId.hpp
+        Public/SagaShared/Artifacts/ArtifactKind.hpp
+        Public/SagaShared/Artifacts/ArtifactManifest.hpp
+        Public/SagaShared/Artifacts/ArtifactRef.hpp
+        Public/SagaShared/Artifacts/ArtifactStatus.hpp
+        Public/SagaShared/Build/BuildConfiguration.hpp
+        Public/SagaShared/Build/BuildId.hpp
+        Public/SagaShared/Build/BuildProfile.hpp
+        Public/SagaShared/Build/BuildProfileId.hpp
+        Public/SagaShared/Build/BuildReport.hpp
+        Public/SagaShared/Build/BuildStatus.hpp
+        Public/SagaShared/Build/BuildStepKind.hpp
+        Public/SagaShared/Build/BuildStepResult.hpp
+        Public/SagaShared/Build/TargetPlatform.hpp
+        Public/SagaShared/Packages/PackageCompatibility.hpp
+        Public/SagaShared/Packages/PackageDependency.hpp
+        Public/SagaShared/Packages/PackageId.hpp
+        Public/SagaShared/Packages/PackageKind.hpp
+        Public/SagaShared/Packages/PackageManifest.hpp
+        Public/SagaShared/Packages/PackageValidationResult.hpp
+        Public/SagaShared/Packages/PackageVersion.hpp
+        Public/SagaShared/Project/ProjectDescriptor.hpp
+        Public/SagaShared/Project/ProjectValidationState.hpp
+        Public/SagaShared/Project/ProjectVersion.hpp
+        Public/SagaShared/Publish/PublishBlocker.hpp
+        Public/SagaShared/Publish/PublishBlockerKind.hpp
+        Public/SagaShared/Publish/PublishReadiness.hpp
+        Public/SagaShared/Publish/PublishReport.hpp
+        Public/SagaShared/Publish/PublishStatus.hpp
+)

@@ -232,7 +232,7 @@ TEST_F(PersistenceIntegrationTest, StateRebuildFromSnapshotPlusEvents)
     InMemoryEventLog eventLog;
     InMemorySnapshotStore store;
 
-    // Phase 1: Build initial world and snapshot at tick 10
+    // Step 1: Build initial world and snapshot at tick 10
     WorldState initialWorld;
     for (int i = 0; i < 50; ++i)
     {
@@ -244,7 +244,7 @@ TEST_F(PersistenceIntegrationTest, StateRebuildFromSnapshotPlusEvents)
     const uint64_t snapshotTick = 10;
     store.Save(snapshotTick, eventLog.CurrentSequence(), initialWorld.Serialize());
 
-    // Phase 2: Append more events (simulate 50 more entity creations)
+    // Step 2: Append more events (simulate 50 more entity creations)
     for (int i = 50; i < 100; ++i)
     {
         WorldState partialWorld;
@@ -255,7 +255,7 @@ TEST_F(PersistenceIntegrationTest, StateRebuildFromSnapshotPlusEvents)
         eventLog.Append("EntityCreated", partialWorld.Serialize(), entity.id);
     }
 
-    // Phase 3: Rebuild from snapshot + events
+    // Step 3: Rebuild from snapshot + events
     PersistedSnapshot snapshot;
     const bool snapOk = store.Load(snapshotTick, snapshot);
     ASSERT_TRUE(snapOk);

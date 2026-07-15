@@ -85,9 +85,9 @@ TEST(EditorDiagnosticsServiceTest, SubscribersReceiveInitialAndChangedSnapshots)
     service.Add(MakeDiagnostic("script-compiler",
                                EditorDiagnosticSeverity::Warning,
                                "Unused graph node"));
-    service.Add(MakeDiagnostic("runtime-preview",
+    service.Add(MakeDiagnostic("runtime-evaluation",
                                EditorDiagnosticSeverity::Info,
-                               "Preview restarted"));
+                               "Evaluation restarted"));
 
     ASSERT_EQ(snapshotSizes, (std::vector<std::size_t>{0, 1, 2}));
 

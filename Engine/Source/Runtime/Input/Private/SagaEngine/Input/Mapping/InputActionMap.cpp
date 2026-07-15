@@ -55,11 +55,11 @@ namespace
             rhs);
     }
 
-    /// Resolve a digital input transition into an action phase and value.
+    /// Resolve a digital input transition into an action state and value.
     [[nodiscard]] bool ResolveDigitalTransition(
         bool curDown,
         bool prevDown,
-        ActionPhase& outPhase,
+        ActionState& outState,
         float& outValue) noexcept
     {
         if (!curDown && !prevDown)
@@ -69,17 +69,17 @@ namespace
 
         if (curDown && !prevDown)
         {
-            outPhase = ActionPhase::Pressed;
+            outState = ActionState::Pressed;
             outValue = 1.f;
         }
         else if (!curDown && prevDown)
         {
-            outPhase = ActionPhase::Released;
+            outState = ActionState::Released;
             outValue = 0.f;
         }
         else
         {
-            outPhase = ActionPhase::Held;
+            outState = ActionState::Held;
             outValue = 1.f;
         }
 
@@ -184,17 +184,17 @@ void InputActionMap::Resolve(
 {
     for (const auto& binding : m_bindings)
     {
-        ActionPhase phase = ActionPhase::Pressed;
+        ActionState actionState = ActionState::Pressed;
         float value = 0.f;
 
-        if (!ResolveChord(binding.chord, state, phase, value))
+        if (!ResolveChord(binding.chord, state, actionState, value))
         {
             continue;
         }
 
         outEvents.push_back(InputActionEvent{
             .id = binding.id,
-            .phase = phase,
+            .state = actionState,
             .value = value,
             .tick = tick
         });
@@ -205,7 +205,7 @@ void InputActionMap::Resolve(
 bool InputActionMap::ResolveChord(
     const InputChord& chord,
     const InputState& state,
-    ActionPhase& outPhase,
+    ActionState& outState,
     float& outValue) const noexcept
 {
     return std::visit(
@@ -222,7 +222,7 @@ bool InputActionMap::ResolveChord(
 
                 const bool curDown = state.keyboard.IsDown(c.key);
                 const bool prevDown = state.keyboard.WasDown(c.key);
-                return ResolveDigitalTransition(curDown, prevDown, outPhase, outValue);
+                return ResolveDigitalTransition(curDown, prevDown, outState, outValue);
             }
             else if constexpr (std::is_same_v<T, MouseButtonChord>)
             {
@@ -235,7 +235,7 @@ bool InputActionMap::ResolveChord(
                 const bool prevDown = state.mouse.buttonsPrevious.test(
                     static_cast<size_t>(c.button));
 
-                return ResolveDigitalTransition(curDown, prevDown, outPhase, outValue);
+                return ResolveDigitalTransition(curDown, prevDown, outState, outValue);
             }
             else if constexpr (std::is_same_v<T, GamepadButtonChord>)
             {
@@ -248,7 +248,7 @@ bool InputActionMap::ResolveChord(
                 const bool prevDown = state.gamepad.buttonsPrevious.test(
                     static_cast<size_t>(c.button));
 
-                return ResolveDigitalTransition(curDown, prevDown, outPhase, outValue);
+                return ResolveDigitalTransition(curDown, prevDown, outState, outValue);
             }
             else if constexpr (std::is_same_v<T, GamepadAxisChord>)
             {
@@ -268,7 +268,7 @@ bool InputActionMap::ResolveChord(
 
                 const float normalized = (effective - threshold) / (1.f - threshold);
                 outValue = ClampUnit(normalized);
-                outPhase = ActionPhase::Analog;
+                outState = ActionState::Analog;
                 return true;
             }
 

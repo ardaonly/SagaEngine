@@ -47,7 +47,7 @@ struct ViewNavigationWorkflowState
 [[nodiscard]] const char* ToString(EditorWorkflowViewKind viewKind) noexcept;
 
 [[nodiscard]] ViewNavigationWorkflowState BuildViewNavigationWorkflowState(
-    const TechnicalPreviewProjectView& project,
+    const ProjectReadinessView& project,
     const ScriptBehaviorInspectorLoadResult& inspector,
     const ViewNavigationSelectionState& selection);
 

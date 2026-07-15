@@ -3,13 +3,13 @@
 
 #pragma once
 
-#include "SagaServer/Networking/Core/NetworkTypes.h"
-#include "SagaServer/Networking/Core/Packet.h"
+#include "SagaEngine/Networking/NetworkTypes.h"
+#include "SagaEngine/Networking/Packet.h"
 
 #include <cstddef>
 #include <cstdint>
 
-namespace SagaServer::Networking
+namespace SagaEngine::Networking
 {
 
 using SagaEngine::Networking::ClientId;
@@ -61,4 +61,4 @@ struct ServerPacketNormalizationResult
 
 [[nodiscard]] bool IsKnownServerPacketType(PacketType packetType) noexcept;
 
-} // namespace SagaServer::Networking
+} // namespace SagaEngine::Networking

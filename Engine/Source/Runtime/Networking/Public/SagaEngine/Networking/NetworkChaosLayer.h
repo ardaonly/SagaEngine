@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "SagaServer/Networking/Core/NetworkTypes.h"
+#include "SagaEngine/Networking/NetworkTypes.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -15,7 +15,7 @@ namespace SagaEngine::Diagnostics
 class DiagnosticSystem;
 }
 
-namespace SagaServer::Networking
+namespace SagaEngine::Networking
 {
 
 using SagaEngine::Networking::ClientId;
@@ -126,4 +126,4 @@ private:
     std::deque<DeferredFrame> deferredFrames_;
 };
 
-} // namespace SagaServer::Networking
+} // namespace SagaEngine::Networking

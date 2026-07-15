@@ -1,6 +1,6 @@
 #pragma once
-#include <Services/Persistence/IDatabase.h>
-#include <Services/Persistence/Types.h>
+#include <SagaEngine/Persistence/IDatabase.h>
+#include <SagaEngine/Persistence/Types.h>
 #include <SagaEngine/Core/Profiling/Profiler.h>
 #include <vector>
 #include <deque>

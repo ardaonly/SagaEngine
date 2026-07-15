@@ -1,6 +1,6 @@
 #pragma once
 #include <string>
-namespace SagaEditor::VisualScripting {
+namespace SagaEditor::VisualBlocks {
 class ScriptBridge {
 public:
     bool   CallManaged(const std::string& typeName,
@@ -8,4 +8,4 @@ public:
                         const std::string& argsJson,
                         std::string&       resultJson);
 };
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

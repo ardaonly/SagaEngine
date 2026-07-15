@@ -83,20 +83,6 @@ bytes = 7048
 sha256 = "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499"
 
 [[files]]
-path = "LICENSES/LicenseRef-Saga-Editor-Restricted.txt"
-identifier = "LicenseRef-Saga-Editor-Restricted"
-title = "Saga Editor Read-Only No-AI License"
-publisher = "Arda Koyuncu"
-document_type = "custom-license-text"
-content_integrity = "verbatim-from-current-repository-license"
-source_kind = "repository-current-license"
-source_path = "LICENSES/LICENSE-EDITOR"
-retrieval_method = "repository-copy"
-content_type = "text/plain"
-bytes = 1967
-sha256 = "27ee33cb5493838c31b94a7ebd0debf40f928a28f65c01fe578f6a9aaaef6629"
-
-[[files]]
 path = "DCO"
 identifier = "DCO-1.1"
 title = "Developer Certificate of Origin Version 1.1"

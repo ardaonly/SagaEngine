@@ -1,7 +1,7 @@
 /// @file AuthoritativeMovementCoreTests.cpp
 /// @brief Unit tests for the server-owned authoritative movement core.
 
-#include "SagaServer/Simulation/AuthoritativeMovementCore.h"
+#include "SagaEngine/ServerAuthority/Simulation/AuthoritativeMovementCore.h"
 
 #include <gtest/gtest.h>
 
@@ -11,14 +11,14 @@
 namespace
 {
 
-using SagaEngine::Server::Simulation::AuthoritativeMovementCore;
-using SagaEngine::Server::Simulation::AuthoritativeMovementCoreConfig;
-using SagaEngine::Server::Simulation::AuthoritativeMovementDecision;
-using SagaEngine::Server::Simulation::ClientId;
-using SagaEngine::Server::Simulation::EntityId;
-using SagaEngine::Server::Simulation::InputCommand;
-using SagaEngine::Server::Simulation::MovementDecision;
-using SagaEngine::Server::Simulation::Vector3;
+using SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementCore;
+using SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementCoreConfig;
+using SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementDecision;
+using SagaEngine::ServerAuthority::Simulation::ClientId;
+using SagaEngine::ServerAuthority::Simulation::EntityId;
+using SagaEngine::ServerAuthority::Simulation::InputCommand;
+using SagaEngine::ServerAuthority::Simulation::MovementDecision;
+using SagaEngine::ServerAuthority::Simulation::Vector3;
 
 constexpr ClientId kClient = 7;
 constexpr EntityId kEntity = 42;

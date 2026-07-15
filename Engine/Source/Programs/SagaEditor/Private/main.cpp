@@ -2,7 +2,7 @@
 /// @brief Provides the thin SagaEditor platform entry point.
 
 #include "SagaEditor/Host/EditorApplicationRunner.h"
-#include "SagaEditor/UI/Qt/QtUIFactory.h"
+#include "SagaEditorQt/QtUIFactory.h"
 
 #if SAGA_WITH_EDITORLAB_DEV_PANEL
 #include "SagaEditorLabBridge.h"

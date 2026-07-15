@@ -896,7 +896,7 @@ def upstream_license_evidence(
         "LICENSE.txt",
         "LICENSE.TXT",
         "License.txt",
-        "LICENSE.md",
+        "LICENSE",
         "COPYING",
         "COPYING.txt",
     )
@@ -1230,16 +1230,16 @@ def validate_commits(root: Path, policy: dict[str, Any], report: Report) -> None
                 ]
 
                 if unreviewed_paths:
-                    preview = ", ".join(unreviewed_paths[:8])
+                    evaluation = ", ".join(unreviewed_paths[:8])
                     if len(unreviewed_paths) > 8:
-                        preview += f", ... (+{len(unreviewed_paths) - 8})"
+                        evaluation += f", ... (+{len(unreviewed_paths) - 8})"
 
                     report.add(
                         "WARNING",
                         "EVIDENCE_BASELINE_DRIFT",
                         (
                             f"reviewed={reviewed}, current={current}, "
-                            f"unreviewed_paths={preview}"
+                            f"unreviewed_paths={evaluation}"
                         ),
                     )
 

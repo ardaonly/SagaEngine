@@ -131,7 +131,7 @@ internal static class PackagedSmokeRunner
                 new DeferredStage
                 {
                     Name = "Client packaged launch",
-                    Reason = "No accepted bounded ClientHost package preview/report seam exists.",
+                    Reason = "No accepted bounded ClientHost package evaluation/report seam exists.",
                 },
             ],
             Diagnostics = diagnostics,

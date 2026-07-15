@@ -1,9 +1,9 @@
 /// @file ZoneServer.cpp
 /// @brief ZoneServer — production-grade authoritative headless zone server.
 
-#include "SagaServer/Networking/Server/ZoneServer.h"
-#include "SagaServer/Networking/Client/ConnectionManager.h"
-#include "SagaServer/Networking/Core/NetworkTypes.h"
+#include "SagaEngine/ServerAuthority/ZoneServer.h"
+#include "SagaEngine/ServerAuthority/ConnectionManager.h"
+#include "SagaEngine/Networking/NetworkTypes.h"
 #include "SagaEngine/Simulation/SimulationTick.h"
 #include "SagaEngine/Simulation/WorldState.h"
 #include "SagaEngine/Core/Log/Log.h"
@@ -18,24 +18,43 @@
 #include <cmath>
 #include <thread>
 
-namespace SagaServer::Networking
+namespace SagaEngine::ServerAuthority
 {
 
 using namespace std::chrono_literals;
 
 static constexpr const char* kTag = "ZoneServer";
 
+struct ZoneServer::NetworkRuntime
+{
+    explicit NetworkRuntime(ZoneServer& server)
+        : owner(server)
+        , workGuard(asio::make_work_guard(ioContext))
+    {
+    }
+
+    void StartAccept();
+    void HandleAccept(const asio::error_code& ec, asio::ip::tcp::socket socket);
+
+    ZoneServer& owner;
+    asio::io_context ioContext;
+    asio::executor_work_guard<asio::io_context::executor_type> workGuard;
+    std::unique_ptr<asio::ip::tcp::acceptor> acceptor;
+    std::vector<std::thread> ioThreads;
+    std::unique_ptr<ConnectionManager> connectionManager;
+};
+
 // ─── Construction ─────────────────────────────────────────────────────────────
 
 ZoneServer::ZoneServer(ZoneServerConfig config)
     : m_config(std::move(config))
-    , m_workGuard(asio::make_work_guard(m_ioContext))
+    , m_networkRuntime(std::make_unique<NetworkRuntime>(*this))
     , m_actorOwnershipRegistry(
-          std::make_unique<SagaEngine::Server::Simulation::ActorOwnershipRegistry>())
+          std::make_unique<SagaEngine::ServerAuthority::Simulation::ActorOwnershipRegistry>())
     , m_movementCommandIntake(
-          std::make_unique<SagaEngine::Server::Simulation::AuthoritativeMovementCommandIntake>())
+          std::make_unique<SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementCommandIntake>())
     , m_movementDirtyReplicationBridge(
-          std::make_unique<SagaEngine::Networking::Replication::MovementDirtyReplicationBridge>())
+          std::make_unique<SagaEngine::Replication::MovementDirtyReplicationBridge>())
 {
     m_lastStatsLog = std::chrono::steady_clock::now();
 }
@@ -85,23 +104,23 @@ void ZoneServer::Run()
 
     for (uint32_t i = 0; i < ioThreadCount; ++i)
     {
-        m_ioThreads.emplace_back([this, i]()
+        m_networkRuntime->ioThreads.emplace_back([this, i]()
         {
             LOG_DEBUG(kTag, "IO thread %u started", i);
             try
             {
-                m_ioContext.run();
+                m_networkRuntime->ioContext.run();
             }
             catch (const std::exception& ex)
             {
                 LOG_ERROR(kTag, "IO thread %u threw exception: %s — restarting poll", i, ex.what());
-                m_ioContext.run();
+                m_networkRuntime->ioContext.run();
             }
             LOG_DEBUG(kTag, "IO thread %u exited", i);
         });
     }
 
-    StartAccept();
+    m_networkRuntime->StartAccept();
 
     NotifyServerStarted();
 
@@ -110,13 +129,13 @@ void ZoneServer::Run()
     if (m_tickThread.joinable())
         m_tickThread.join();
 
-    m_workGuard.reset();
-    m_ioContext.stop();
+    m_networkRuntime->workGuard.reset();
+    m_networkRuntime->ioContext.stop();
 
-    for (auto& t : m_ioThreads)
+    for (auto& t : m_networkRuntime->ioThreads)
         if (t.joinable()) t.join();
 
-    m_ioThreads.clear();
+    m_networkRuntime->ioThreads.clear();
 
     NotifyServerStopped();
 
@@ -148,10 +167,10 @@ void ZoneServer::Destroy()
         m_replicationManager.reset();
     }
 
-    if (m_connectionManager)
+    if (m_networkRuntime->connectionManager)
     {
-        m_connectionManager->Shutdown();
-        m_connectionManager.reset();
+        m_networkRuntime->connectionManager->Shutdown();
+        m_networkRuntime->connectionManager.reset();
     }
 
     m_interestManager.reset();
@@ -197,7 +216,7 @@ bool ZoneServer::InitSimulation()
 
 bool ZoneServer::InitInterest()
 {
-    using namespace SagaEngine::Networking::Interest;
+    using namespace SagaEngine::Replication::Interest;
 
     InterestConfig cfg;
     cfg.defaultRadius       = 500.0f;
@@ -211,7 +230,7 @@ bool ZoneServer::InitInterest()
 
 bool ZoneServer::InitReplication()
 {
-    using namespace SagaEngine::Networking::Replication;
+    using namespace SagaEngine::Replication;
 
     m_replicationManager = std::make_unique<ReplicationManager>();
     m_replicationManager->Initialize(m_config.maxClients);
@@ -235,9 +254,11 @@ bool ZoneServer::InitNetworking()
     connCfg.receiveBufferSize     = 65536;
     connCfg.sendQueueCapacity     = 4096;
 
-    m_connectionManager = std::make_unique<ConnectionManager>(connCfg, m_ioContext);
+    m_networkRuntime->connectionManager =
+        std::make_unique<ConnectionManager>(
+            connCfg, m_networkRuntime->ioContext);
 
-    m_connectionManager->SetOnClientConnected([this](ClientId clientId)
+    m_networkRuntime->connectionManager->SetOnClientConnected([this](ClientId clientId)
     {
         m_replicationManager->AddClient(clientId);
         m_stats.currentClientCount.fetch_add(1, std::memory_order_relaxed);
@@ -249,7 +270,7 @@ bool ZoneServer::InitNetworking()
                  m_stats.currentClientCount.load());
     });
 
-    m_connectionManager->SetOnClientDisconnected([this](ClientId clientId)
+    m_networkRuntime->connectionManager->SetOnClientDisconnected([this](ClientId clientId)
     {
         m_replicationManager->RemoveClient(clientId);
         (void)UnregisterControlledActor(clientId);
@@ -264,7 +285,7 @@ bool ZoneServer::InitNetworking()
                  m_stats.currentClientCount.load());
     });
 
-    m_connectionManager->SetOnPacketReceived([this](ClientId clientId,
+    m_networkRuntime->connectionManager->SetOnPacketReceived([this](ClientId clientId,
                                                     const uint8_t* data,
                                                     std::size_t    size)
     {
@@ -272,7 +293,7 @@ bool ZoneServer::InitNetworking()
         m_stats.totalBytesReceived.fetch_add(size, std::memory_order_relaxed);
     });
 
-    if (!m_connectionManager->Initialize())
+    if (!m_networkRuntime->connectionManager->Initialize())
     {
         LOG_ERROR(kTag, "ConnectionManager initialization failed");
         return false;
@@ -289,19 +310,19 @@ bool ZoneServer::InitNetworking()
 
     const asio::ip::tcp::endpoint endpoint(addr, m_config.port);
 
-    m_acceptor = std::make_unique<asio::ip::tcp::acceptor>(m_ioContext);
-    m_acceptor->open(endpoint.protocol(), ec);
+    m_networkRuntime->acceptor = std::make_unique<asio::ip::tcp::acceptor>(m_networkRuntime->ioContext);
+    m_networkRuntime->acceptor->open(endpoint.protocol(), ec);
     if (ec) { LOG_ERROR(kTag, "acceptor open: %s", ec.message().c_str()); return false; }
 
-    m_acceptor->set_option(asio::ip::tcp::acceptor::reuse_address(true), ec);
-    m_acceptor->bind(endpoint, ec);
+    m_networkRuntime->acceptor->set_option(asio::ip::tcp::acceptor::reuse_address(true), ec);
+    m_networkRuntime->acceptor->bind(endpoint, ec);
     if (ec) { LOG_ERROR(kTag, "acceptor bind: %s", ec.message().c_str()); return false; }
 
-    m_acceptor->listen(asio::socket_base::max_listen_connections, ec);
+    m_networkRuntime->acceptor->listen(asio::socket_base::max_listen_connections, ec);
     if (ec) { LOG_ERROR(kTag, "acceptor listen: %s", ec.message().c_str()); return false; }
 
     m_boundPort.store(
-        m_acceptor->local_endpoint().port(),
+        m_networkRuntime->acceptor->local_endpoint().port(),
         std::memory_order_release);
 
     LOG_INFO(kTag, "TCP acceptor listening on %s:%u",
@@ -311,22 +332,22 @@ bool ZoneServer::InitNetworking()
 
 // ─── Accept loop ──────────────────────────────────────────────────────────────
 
-void ZoneServer::StartAccept()
+void ZoneServer::NetworkRuntime::StartAccept()
 {
-    if (!m_acceptor || !m_acceptor->is_open())
+    if (!acceptor || !acceptor->is_open())
         return;
 
-    m_acceptor->async_accept(
+    acceptor->async_accept(
         [this](const asio::error_code& ec, asio::ip::tcp::socket socket)
         {
             HandleAccept(ec, std::move(socket));
         });
 }
 
-void ZoneServer::HandleAccept(const asio::error_code& ec,
-                               asio::ip::tcp::socket   socket)
+void ZoneServer::NetworkRuntime::HandleAccept(
+    const asio::error_code& ec, asio::ip::tcp::socket socket)
 {
-    if (m_shutdownRequested.load(std::memory_order_acquire))
+    if (owner.m_shutdownRequested.load(std::memory_order_acquire))
         return;
 
     if (ec)
@@ -337,11 +358,11 @@ void ZoneServer::HandleAccept(const asio::error_code& ec,
         return;
     }
 
-    const uint32_t current = m_stats.currentClientCount.load(std::memory_order_relaxed);
-    if (current >= m_config.maxClients)
+    const uint32_t current = owner.m_stats.currentClientCount.load(std::memory_order_relaxed);
+    if (current >= owner.m_config.maxClients)
     {
         LOG_WARN(kTag, "Client cap reached (%u/%u) — rejecting incoming connection from %s",
-                 current, m_config.maxClients,
+                 current, owner.m_config.maxClients,
                  socket.remote_endpoint(const_cast<asio::error_code&>(ec)).address().to_string().c_str());
         asio::error_code closeEc;
         socket.close(closeEc);
@@ -361,7 +382,7 @@ void ZoneServer::HandleAccept(const asio::error_code& ec,
     asio::error_code nodelayEc;
     socket.set_option(asio::ip::tcp::no_delay(true), nodelayEc);
 
-    m_connectionManager->AcceptSocket(std::move(socket));
+    connectionManager->AcceptSocket(std::move(socket));
 
     StartAccept();
 }
@@ -420,19 +441,19 @@ void ZoneServer::ExecuteTick(uint64_t tickIndex, double fixedDelta)
 {
     const auto tickStart = std::chrono::steady_clock::now();
 
-    // ── Phase 1: drain inbound input packets ─────────────────────────────────
+    // ── Step 1: drain inbound input packets ─────────────────────────────────
     DrainInputPackets();
 
-    // ── Phase 2: step authoritative simulation ────────────────────────────────
+    // ── Step 2: step authoritative simulation ────────────────────────────────
     StepSimulation(tickIndex, fixedDelta);
 
-    // ── Phase 3: flush replication to all connected clients ──────────────────
+    // ── Step 3: flush replication to all connected clients ──────────────────
     FlushReplication(tickIndex);
 
-    // ── Phase 4: pump pending Asio I/O without blocking ─────────────────────
+    // ── Step 4: pump pending Asio I/O without blocking ─────────────────────
     PumpNetworkIO();
 
-    // ── Phase 5: tick accounting ──────────────────────────────────────────────
+    // ── Step 5: tick accounting ──────────────────────────────────────────────
     m_stats.totalTicksProcessed.fetch_add(1, std::memory_order_relaxed);
 
     const uint64_t durationUs = static_cast<uint64_t>(
@@ -459,20 +480,22 @@ void ZoneServer::ExecuteTick(uint64_t tickIndex, double fixedDelta)
 
 void ZoneServer::DrainInputPackets()
 {
-    if (!m_connectionManager)
+    if (!m_networkRuntime->connectionManager)
         return;
 
-    m_connectionManager->DrainInboundPackets(
+    m_networkRuntime->connectionManager->DrainInboundPackets(
         [this](ClientId clientId, const uint8_t* data, std::size_t size)
         {
             (void)ProcessRawInboundPacket(clientId, data, size);
         });
 }
 
-ServerPacketNormalizationStatus ZoneServer::ProcessRawInboundPacket(
+::SagaEngine::Networking::ServerPacketNormalizationStatus
+ZoneServer::ProcessRawInboundPacket(
     ClientId clientId, const std::uint8_t* data, std::size_t size)
 {
-    const auto result = NormalizeServerPacketFrame(clientId, data, size);
+    const auto result = ::SagaEngine::Networking::NormalizeServerPacketFrame(
+        clientId, data, size);
     if (!result.Succeeded())
     {
         m_stats.totalPacketsRejected.fetch_add(1, std::memory_order_relaxed);
@@ -494,7 +517,7 @@ ServerPacketNormalizationStatus ZoneServer::ProcessRawInboundPacket(
 }
 
 void ZoneServer::HandleNormalizedInboundPacket(
-    const NormalizedServerPacketView& packet)
+    const ::SagaEngine::Networking::NormalizedServerPacketView& packet)
 {
     if (m_config.enableDetailedPacketLog)
     {
@@ -513,7 +536,7 @@ void ZoneServer::HandleNormalizedInboundPacket(
         return;
     }
 
-    SagaEngine::Server::Simulation::AuthoritativeMovementCommandPacketView intakePacket;
+    SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementCommandPacketView intakePacket;
     intakePacket.clientId = packet.clientId;
     intakePacket.packetType = packet.packetType;
     intakePacket.payload = packet.payload;
@@ -546,10 +569,10 @@ void ZoneServer::StepSimulation(uint64_t tickIndex, double fixedDelta)
     (void)m_worldState; // Suppress unused warning
 }
 
-SagaEngine::Server::Simulation::AuthoritativeMovementTickReport
+SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementTickReport
 ZoneServer::TickMovementAuthority(uint64_t tickIndex, double fixedDelta)
 {
-    SagaEngine::Server::Simulation::AuthoritativeMovementTickReport report;
+    SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementTickReport report;
     RecordDiagnosticCounter("server.tick.count");
     if (!m_movementCommandIntake || fixedDelta <= 0.0 || !std::isfinite(fixedDelta))
     {
@@ -575,14 +598,15 @@ ZoneServer::TickMovementAuthority(uint64_t tickIndex, double fixedDelta)
 
 void ZoneServer::FlushReplication(uint64_t /*tickIndex*/)
 {
-    if (!m_replicationManager || !m_connectionManager)
+    if (!m_replicationManager || !m_networkRuntime->connectionManager)
         return;
 
     const float dt = static_cast<float>(m_simTick->FixedDelta());
     m_replicationManager->GatherDirtyEntities(dt);
 
-    m_connectionManager->ForEachConnectedClient(
-        [this](ClientId clientId, ConnectionSendFn sendFn)
+    m_networkRuntime->connectionManager->ForEachConnectedClient(
+        [this](ClientId clientId,
+               ConnectionSendFn sendFn)
         {
             m_replicationManager->SendUpdates(clientId,
                 [this, &sendFn](const uint8_t* data, std::size_t size)
@@ -599,7 +623,7 @@ void ZoneServer::PumpNetworkIO()
     // poll() rather than run() — returns immediately when no handlers are ready.
     // This lets the tick thread touch Asio handlers (timers, completions) without
     // blocking on the next I/O event.
-    m_ioContext.poll();
+    m_networkRuntime->ioContext.poll();
 }
 
 // ─── Stats ────────────────────────────────────────────────────────────────────
@@ -681,33 +705,33 @@ SagaEngine::Simulation::WorldState* ZoneServer::GetWorldState() noexcept
     return m_worldState.get();
 }
 
-SagaEngine::Networking::Replication::ReplicationManager*
+SagaEngine::Replication::ReplicationManager*
 ZoneServer::GetReplicationManager() noexcept
 {
     return m_replicationManager.get();
 }
 
-SagaEngine::Server::Simulation::ActorOwnershipResult
+SagaEngine::ServerAuthority::Simulation::ActorOwnershipResult
 ZoneServer::RegisterControlledActor(
     ClientId clientId,
-    SagaEngine::Server::Simulation::EntityId entityId,
-    SagaEngine::Server::Simulation::Vector3 initialPosition)
+    SagaEngine::ServerAuthority::Simulation::EntityId entityId,
+    SagaEngine::ServerAuthority::Simulation::Vector3 initialPosition)
 {
     if (!m_actorOwnershipRegistry || !m_movementCommandIntake)
-        return SagaEngine::Server::Simulation::ActorOwnershipResult::NotFound;
+        return SagaEngine::ServerAuthority::Simulation::ActorOwnershipResult::NotFound;
 
     const auto result = m_actorOwnershipRegistry->RegisterOwnership(
         clientId,
         entityId,
         initialPosition);
 
-    if (result != SagaEngine::Server::Simulation::ActorOwnershipResult::Registered)
+    if (result != SagaEngine::ServerAuthority::Simulation::ActorOwnershipResult::Registered)
         return result;
 
     if (!m_movementCommandIntake->RegisterActor(clientId, entityId, initialPosition))
     {
         (void)m_actorOwnershipRegistry->UnregisterClient(clientId);
-        return SagaEngine::Server::Simulation::ActorOwnershipResult::NotFound;
+        return SagaEngine::ServerAuthority::Simulation::ActorOwnershipResult::NotFound;
     }
 
     RecordActiveControlledActorCount();
@@ -715,15 +739,15 @@ ZoneServer::RegisterControlledActor(
     return result;
 }
 
-SagaEngine::Server::Simulation::ActorOwnershipResult
+SagaEngine::ServerAuthority::Simulation::ActorOwnershipResult
 ZoneServer::UnregisterControlledActor(ClientId clientId)
 {
     if (!m_actorOwnershipRegistry || !m_movementCommandIntake)
-        return SagaEngine::Server::Simulation::ActorOwnershipResult::NotFound;
+        return SagaEngine::ServerAuthority::Simulation::ActorOwnershipResult::NotFound;
 
     const auto existingActor = m_actorOwnershipRegistry->FindByClient(clientId);
     const auto result = m_actorOwnershipRegistry->UnregisterClient(clientId);
-    if (result == SagaEngine::Server::Simulation::ActorOwnershipResult::Unregistered)
+    if (result == SagaEngine::ServerAuthority::Simulation::ActorOwnershipResult::Unregistered)
     {
         m_movementCommandIntake->UnregisterActor(clientId);
         RecordActiveControlledActorCount();
@@ -736,7 +760,7 @@ ZoneServer::UnregisterControlledActor(ClientId clientId)
     return result;
 }
 
-std::optional<SagaEngine::Server::Simulation::ControlledActor>
+std::optional<SagaEngine::ServerAuthority::Simulation::ControlledActor>
 ZoneServer::FindControlledActor(ClientId clientId) const
 {
     if (!m_actorOwnershipRegistry)
@@ -788,7 +812,7 @@ void ZoneServer::NotifyClientDisconnected(ClientId clientId)
 }
 
 void ZoneServer::NotifyInboundPacketNormalized(
-    const NormalizedServerPacketView& packet)
+    const ::SagaEngine::Networking::NormalizedServerPacketView& packet)
 {
     std::lock_guard<std::mutex> lock(m_listenerMutex);
     for (auto* l : m_listeners) l->OnInboundPacketNormalized(packet);
@@ -835,10 +859,10 @@ void ZoneServer::RecordActiveControlledActorCount()
 }
 
 void ZoneServer::RecordMovementIntakeDiagnostics(
-    const SagaEngine::Server::Simulation::AuthoritativeMovementCommandIntakeResult& result)
+    const SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementCommandIntakeResult& result)
 {
-    using SagaEngine::Server::Simulation::AuthoritativeMovementCommandIntakeDecision;
-    using SagaEngine::Server::Simulation::AuthoritativeMovementDecision;
+    using SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementCommandIntakeDecision;
+    using SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementDecision;
 
     if (result.decision ==
         AuthoritativeMovementCommandIntakeDecision::MalformedInput)
@@ -1089,7 +1113,7 @@ void ZoneServer::RecordSessionDisconnectedLifecycle(ClientId clientId, uint64_t 
 
 void ZoneServer::RecordEntityCreatedLifecycle(
     ClientId clientId,
-    SagaEngine::Server::Simulation::EntityId entityId,
+    SagaEngine::ServerAuthority::Simulation::EntityId entityId,
     uint64_t tick)
 {
     if (!m_diagnostics)
@@ -1124,7 +1148,7 @@ void ZoneServer::RecordEntityCreatedLifecycle(
 
 void ZoneServer::RecordEntityDestroyedLifecycle(
     ClientId clientId,
-    SagaEngine::Server::Simulation::EntityId entityId,
+    SagaEngine::ServerAuthority::Simulation::EntityId entityId,
     uint64_t tick)
 {
     if (!m_diagnostics)
@@ -1195,21 +1219,22 @@ void ZoneServer::ForceTick(double wallDeltaSeconds)
                     m_simTick->FixedDelta());
 }
 
-ServerPacketNormalizationStatus ZoneServer::ProcessRawInboundPacketForTesting(
+::SagaEngine::Networking::ServerPacketNormalizationStatus
+ZoneServer::ProcessRawInboundPacketForTesting(
     ClientId clientId, const std::uint8_t* data, std::size_t size)
 {
     return ProcessRawInboundPacket(clientId, data, size);
 }
 
-SagaEngine::Server::Simulation::AuthoritativeMovementTickReport
+SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementTickReport
 ZoneServer::TickMovementForTesting(uint64_t tickIndex, double fixedDelta)
 {
     return TickMovementAuthority(tickIndex, fixedDelta);
 }
 
-std::optional<SagaEngine::Server::Simulation::Vector3>
+std::optional<SagaEngine::ServerAuthority::Simulation::Vector3>
 ZoneServer::GetControlledActorPositionForTesting(
-    SagaEngine::Server::Simulation::EntityId entityId) const
+    SagaEngine::ServerAuthority::Simulation::EntityId entityId) const
 {
     if (!m_movementCommandIntake)
         return std::nullopt;
@@ -1218,14 +1243,14 @@ ZoneServer::GetControlledActorPositionForTesting(
 }
 
 std::optional<
-    SagaEngine::Server::Simulation::AuthoritativeMovementCommandIntakeResult>
+    SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementCommandIntakeResult>
 ZoneServer::GetLastMovementIntakeResultForTesting() const
 {
     std::lock_guard<std::mutex> lock(m_movementAuthorityMutex);
     return m_lastMovementIntakeResult;
 }
 
-std::vector<SagaEngine::Networking::Replication::MovementDirtyReplicationIntent>
+std::vector<SagaEngine::Replication::MovementDirtyReplicationIntent>
 ZoneServer::ConsumeMovementDirtyReplicationIntentsForTesting()
 {
     if (!m_movementDirtyReplicationBridge)
@@ -1263,4 +1288,4 @@ void ZoneServer::RecordSessionDisconnectedForTesting(ClientId clientId)
     RecordSessionDisconnectedLifecycle(clientId);
 }
 
-} // namespace SagaServer::Networking
+} // namespace SagaEngine::ServerAuthority

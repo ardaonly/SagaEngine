@@ -11,7 +11,7 @@
 ///            - Serialization/deserialization of dirty masks
 ///            - Edge cases (64 components, overflow, underflow)
 
-#include "SagaServer/Networking/Replication/WorldSnapshotWire.h"
+#include "SagaEngine/Replication/WorldSnapshotWire.h"
 #include "SagaEngine/Core/Log/Log.h"
 
 #include <gtest/gtest.h>
@@ -19,7 +19,7 @@
 #include <cstdint>
 #include <vector>
 
-using namespace SagaServer;
+using namespace SagaEngine::Replication;
 
 // ─── ComponentMask Bit Operations ───────────────────────────────────────────
 

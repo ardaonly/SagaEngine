@@ -18,7 +18,7 @@
 
 #include "SagaEngine/ECS/Entity.h"
 #include "SagaEngine/ECS/Component.h"
-#include "SagaServer/Networking/Core/NetworkTypes.h"
+#include "SagaEngine/Networking/NetworkTypes.h"
 
 #include <array>
 #include <atomic>
@@ -29,7 +29,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace SagaEngine::Networking::Replication
+namespace SagaEngine::Replication
 {
 
 using EntityId       = ECS::EntityId;
@@ -329,4 +329,4 @@ private:
     std::atomic<uint64_t>                                     m_sequence{0};
 };
 
-} // namespace SagaEngine::Networking::Replication
+} // namespace SagaEngine::Replication

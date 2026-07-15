@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the Linux Saga technical-preview candidate evidence."""
+"""Validate the Linux Saga distribution candidate evidence."""
 
 from __future__ import annotations
 
@@ -25,7 +25,6 @@ DEFAULT_CHECKSUM = Path("build/dist/linux/Saga.sha256")
 DEFAULT_PACKAGE_REPORT = Path("build/reports/linux_package_preflight_report.json")
 DEFAULT_SMOKE_REPORT = Path("build/reports/linux_distribution_smoke_report.json")
 DEFAULT_REPORT = Path("build/reports/linux_distributable_candidate_report.json")
-PHASE_MATRIX = Path("docs/internal/PHASE_STATUS_MATRIX.md")
 
 
 def path_text(path: Path) -> str:
@@ -99,8 +98,8 @@ def run_command(args: list[str], *, cwd: Path | None = None) -> dict[str, Any]:
             "args": args,
             "cwd": path_text(cwd) if cwd else None,
             "exitCode": result.returncode,
-            "stdoutPreview": result.stdout[:2000],
-            "stderrPreview": result.stderr[:2000],
+            "stdoutEvaluation": result.stdout[:2000],
+            "stderrEvaluation": result.stderr[:2000],
             "status": "passed" if result.returncode == 0 else "blocked",
         }
     except subprocess.TimeoutExpired as exc:
@@ -109,8 +108,8 @@ def run_command(args: list[str], *, cwd: Path | None = None) -> dict[str, Any]:
             "cwd": path_text(cwd) if cwd else None,
             "status": "blocked",
             "message": "timed out after 60s",
-            "stdoutPreview": (exc.stdout or "")[:2000],
-            "stderrPreview": (exc.stderr or "")[:2000],
+            "stdoutEvaluation": (exc.stdout or "")[:2000],
+            "stderrEvaluation": (exc.stderr or "")[:2000],
         }
 
 
@@ -126,28 +125,6 @@ def source_commit() -> str | None:
         return None
     commit = result.stdout.strip()
     return commit or None
-
-
-def phase_statuses() -> list[dict[str, Any]]:
-    if not PHASE_MATRIX.exists():
-        return []
-    phases: list[dict[str, Any]] = []
-    for raw_line in PHASE_MATRIX.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line.startswith("|") or line.startswith("|---") or line.startswith("| Phase "):
-            continue
-        cells = [cell.strip().strip("`") for cell in line.strip("|").split("|")]
-        if len(cells) < 7 or not cells[0].isdigit():
-            continue
-        phases.append(
-            {
-                "phase": int(cells[0]),
-                "name": cells[1],
-                "status": cells[2],
-                "requiredGate": cells[4],
-            }
-        )
-    return phases
 
 
 def command_status(report: dict[str, Any], label: str) -> str | None:
@@ -366,7 +343,7 @@ def validate_artifacts(
         tar_command = run_command(["tar", "-tf", str(archive)])
         tar_command["label"] = "candidate archive listing"
         commands.append(tar_command)
-        entries = [line.strip() for line in str(tar_command.get("stdoutPreview", "")).splitlines() if line.strip()]
+        entries = [line.strip() for line in str(tar_command.get("stdoutEvaluation", "")).splitlines() if line.strip()]
         root_ok = tar_command.get("status") == "passed" and bool(entries) and all(
             entry == "Saga/" or entry.startswith("Saga/") for entry in entries
         )
@@ -375,7 +352,7 @@ def validate_artifacts(
             label="archive Saga/ root",
             status="passed" if root_ok else "blocked",
             message="archive root is not Saga/" if not root_ok else None,
-            details={"entriesPreview": entries[:40]},
+            details={"entriesEvaluation": entries[:40]},
         )
     else:
         blockers.append(f"missing archive: {archive}")
@@ -401,7 +378,7 @@ def validate_non_claims(
         "This candidate report does not claim full gameplay readiness.",
         "This candidate report does not claim full runtime validation.",
         "This candidate report does not claim cloud collaboration.",
-        "This candidate report does not mark any phase Verified.",
+        "This candidate report does not establish release readiness.",
     ]
 
     evidence_blob = json.dumps((package_report or {}).get("nonClaims", [])) + json.dumps((smoke_report or {}).get("nonClaims", []))
@@ -499,17 +476,6 @@ def main() -> int:
     validate_smoke_report(smoke_report, checks, blockers, known_limitations)
     non_claims = validate_non_claims(package_report, smoke_report, checks)
 
-    phases = phase_statuses()
-    verified_phases = [phase for phase in phases if phase.get("status") == "Verified"]
-    add_check(
-        checks,
-        label="no phase marked Verified",
-        status="passed" if not verified_phases else "blocked",
-        message=f"phases marked Verified: {verified_phases}" if verified_phases else None,
-    )
-    if verified_phases:
-        blockers.append("one or more phases are marked Verified")
-
     required_blocked = [check for check in checks if check.get("required", True) and check.get("status") == "blocked"]
     if required_blocked or blockers:
         status = "blocked"
@@ -539,7 +505,6 @@ def main() -> int:
         "blockers": sorted(set(blockers)),
         "diagnostics": diagnostics,
         "nonClaims": non_claims,
-        "phaseStatuses": phases,
     }
     write_report(report_out, report)
 

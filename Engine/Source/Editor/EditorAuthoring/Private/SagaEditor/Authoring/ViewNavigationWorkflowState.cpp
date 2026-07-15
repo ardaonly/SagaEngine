@@ -73,7 +73,7 @@ const char* ToString(const EditorWorkflowViewKind viewKind) noexcept
 }
 
 ViewNavigationWorkflowState BuildViewNavigationWorkflowState(
-    const TechnicalPreviewProjectView& project,
+    const ProjectReadinessView& project,
     const ScriptBehaviorInspectorLoadResult& inspector,
     const ViewNavigationSelectionState& selection)
 {

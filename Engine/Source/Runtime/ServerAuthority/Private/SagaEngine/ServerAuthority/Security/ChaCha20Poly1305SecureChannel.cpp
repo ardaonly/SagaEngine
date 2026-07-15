@@ -13,7 +13,7 @@
 ///   3. A working AEAD that the transport can exercise in integration
 ///      tests long before a proper handshake lands.
 
-#include "SagaServer/Networking/Security/ChaCha20Poly1305SecureChannel.h"
+#include "SagaEngine/ServerAuthority/Security/ChaCha20Poly1305SecureChannel.h"
 
 #include "SagaEngine/Core/Log/Log.h"
 
@@ -559,7 +559,7 @@ SecureChannelResult ChaCha20Poly1305SecureChannel::HandleInbound(
     std::vector<std::uint8_t>& /*outbound*/)
 {
     // The PSK channel has no handshake.  Any inbound bytes during
-    // the handshake phase are ignored; callers should not be
+    // the handshake step are ignored; callers should not be
     // calling this method at all because `State()` returns
     // `Established` immediately after construction.
     state_ = HandshakeState::Established;

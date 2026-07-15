@@ -31,7 +31,7 @@ constexpr KnownArtifact kKnownArtifacts[] = {
     {"sourceMap", "source_map.json", true},
     {"runtimeBindings", "runtime_bindings.json", false},
     {"nodeMetadata", "node_metadata.json", false},
-    {"patchPreview", "patch_preview.json", false},
+    {"patchEvaluation", "patch_evaluation.json", false},
 };
 
 [[nodiscard]] int StatusRank(const ScriptArtifactStatus status) noexcept
@@ -155,7 +155,7 @@ constexpr KnownArtifact kKnownArtifacts[] = {
     return it->get<std::string>();
 }
 
-[[nodiscard]] fs::path ResolveSourcePath(const TechnicalPreviewProjectView& project,
+[[nodiscard]] fs::path ResolveSourcePath(const ProjectReadinessView& project,
                                          const std::string& sourceFile)
 {
     fs::path path(sourceFile);
@@ -167,7 +167,7 @@ constexpr KnownArtifact kKnownArtifacts[] = {
 }
 
 [[nodiscard]] ScriptArtifactStatus LoadSourceMapFreshness(
-    const TechnicalPreviewProjectView& project,
+    const ProjectReadinessView& project,
     const Json& json,
     ScriptArtifactEntry& entry)
 {
@@ -263,7 +263,7 @@ const char* ToString(const ScriptArtifactStatus status) noexcept
 }
 
 ScriptArtifactIndex BuildScriptArtifactIndex(
-    const TechnicalPreviewProjectView& project)
+    const ProjectReadinessView& project)
 {
     ScriptArtifactIndex index;
     index.artifactRoot = (project.projectRoot / "Build" / "SagaScript")

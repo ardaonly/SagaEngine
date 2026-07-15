@@ -1,7 +1,7 @@
 /// @file FragmentAssembler.cpp
 /// @brief Implementation of MTU-safe packet fragmentation and reassembly.
 
-#include "SagaServer/Networking/Core/FragmentAssembler.h"
+#include "SagaEngine/Networking/FragmentAssembler.h"
 
 #include <SagaEngine/Core/Log/Log.h>
 

@@ -1,9 +1,9 @@
 /// @file NodeGraphToolbar.cpp
 /// @brief Pimpl scaffolding — auto-generated stub bodies.
 
-#include "SagaEditor/VisualScripting/Editor/NodeGraphToolbar.h"
+#include "SagaEditor/VisualBlocks/Editor/NodeGraphToolbar.h"
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 // ─── Pimpl Definition ────────────────────────────────────────────────────────
@@ -22,4 +22,4 @@ void NodeGraphToolbar::RemoveAction(const std::string& /*id*/)
     /* stub */
 }
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

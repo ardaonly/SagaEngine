@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 // ─── Brand Colour ─────────────────────────────────────────────────────────────
@@ -67,4 +67,4 @@ struct BlockCategory
 /// All nine built-in categories in their canonical palette order.
 [[nodiscard]] std::vector<BlockCategory> MakeBuiltinCategories();
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

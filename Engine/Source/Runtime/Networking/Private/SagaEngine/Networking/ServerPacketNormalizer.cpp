@@ -1,11 +1,11 @@
 /// @file ServerPacketNormalizer.cpp
 /// @brief Server packet frame normalization implementation.
 
-#include "SagaServer/Networking/Core/ServerPacketNormalizer.h"
+#include "SagaEngine/Networking/ServerPacketNormalizer.h"
 
 #include <cstring>
 
-namespace SagaServer::Networking
+namespace SagaEngine::Networking
 {
 
 namespace
@@ -106,4 +106,4 @@ ServerPacketNormalizationResult NormalizeServerPacketFrame(
     return result;
 }
 
-} // namespace SagaServer::Networking
+} // namespace SagaEngine::Networking

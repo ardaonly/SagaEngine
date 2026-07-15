@@ -8,7 +8,7 @@
 #include <variant>
 #include <vector>
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 // ─── Slot Kind ────────────────────────────────────────────────────────────────
@@ -147,4 +147,4 @@ struct BlockSlotFill
     [[nodiscard]] static BlockSlotFill MakeExpression(std::uint64_t instanceId) noexcept;
 };
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

@@ -3,15 +3,15 @@
 
 #include "App/SagaAppConfig.h"
 #include "App/SagaApp.h"
-#include "LocalWorkspace/SagaLocalCollaborationMetadataReports.h"
-#include "LocalWorkspace/SagaLocalWorkspaceTransactionReport.h"
-#include "Packaging/SagaPackageStaging.h"
+#include "ProductIntegration/SagaLocalCollaborationMetadataReports.h"
+#include "ProductIntegration/SagaLocalWorkspaceTransactionReport.h"
+#include "ProductIntegration/SagaPackageStaging.h"
 #include "Projects/SagaProjectSystem.h"
 #include "Processes/SagaProcessService.h"
 #include "App/SagaProductHost.h"
 #include "Reports/SagaProductWorkflowSmokeReport.h"
-#include "Packaging/SagaPublishReadiness.h"
-#include "Scripting/SagaScriptGate.h"
+#include "ProductIntegration/SagaPublishReadiness.h"
+#include "ProductIntegration/SagaScriptGate.h"
 #include "Projects/SagaWorkspaceResolver.h"
 
 #include <SagaEngine/Packages/PackageManifestLoader.hpp>
@@ -46,7 +46,7 @@ using namespace SagaProduct;
 
 [[nodiscard]] fs::path BuiltInProductWorkspaceRoot()
 {
-    return SourceRoot() / "Apps" / "Saga";
+    return SourceRoot() / "Engine" / "Source" / "Programs" / "SagaLauncher";
 }
 
 [[nodiscard]] fs::path MakeTempDir(const std::string& name)
@@ -160,7 +160,7 @@ public:
 {
     SagaProductDiagnostic diagnostic;
     diagnostic.target = target;
-    diagnostic.phase = SagaProductDiagnosticPhase::StartupHandoff;
+    diagnostic.stage = SagaProductDiagnosticStage::StartupHandoff;
     diagnostic.diagnosticId = diagnosticId;
     diagnostic.message = std::move(message);
     diagnostic.path = std::move(path);
@@ -398,9 +398,9 @@ TEST(SagaAppConfigTest, WorkflowSmokeArgumentsAreParsed)
         "Saga",
         "--workflow-smoke",
         "--project",
-        "samples/StarterArena/StarterArena.sagaproj",
+        "Samples/StarterArena/StarterArena.sagaproj",
         "--profile",
-        "technical_preview",
+        "project_readiness",
         "--workflow-report-out",
         "/tmp/starter_arena_product_shell_workflow_report.json",
     };
@@ -411,8 +411,8 @@ TEST(SagaAppConfigTest, WorkflowSmokeArgumentsAreParsed)
     ASSERT_TRUE(result.ok) << result.error;
     EXPECT_TRUE(result.config.workflowSmoke);
     EXPECT_EQ(result.config.workflowProjectPath,
-              fs::path("samples/StarterArena/StarterArena.sagaproj"));
-    EXPECT_EQ(result.config.workflowProfile, "technical_preview");
+              fs::path("Samples/StarterArena/StarterArena.sagaproj"));
+    EXPECT_EQ(result.config.workflowProfile, "project_readiness");
     EXPECT_EQ(result.config.workflowReportPath,
               fs::path("/tmp/starter_arena_product_shell_workflow_report.json"));
 }
@@ -423,7 +423,7 @@ TEST(SagaAppConfigTest, LocalWorkspaceTransactionSmokeArgumentsAreParsed)
         "Saga",
         "--local-workspace-transaction-smoke",
         "--project",
-        "samples/StarterArena/StarterArena.sagaproj",
+        "Samples/StarterArena/StarterArena.sagaproj",
         "--workspace",
         "builtin:basic",
         "--actor",
@@ -440,7 +440,7 @@ TEST(SagaAppConfigTest, LocalWorkspaceTransactionSmokeArgumentsAreParsed)
     ASSERT_TRUE(result.ok) << result.error;
     EXPECT_TRUE(result.config.localWorkspaceTransactionSmoke);
     EXPECT_EQ(result.config.workflowProjectPath,
-              fs::path("samples/StarterArena/StarterArena.sagaproj"));
+              fs::path("Samples/StarterArena/StarterArena.sagaproj"));
     EXPECT_EQ(result.config.workspaceSelector, "builtin:basic");
     EXPECT_EQ(result.config.localWorkspaceActorId, "local.actor");
     EXPECT_EQ(result.config.localWorkspaceOperationKind, "InspectProject");
@@ -455,13 +455,13 @@ TEST(SagaAppConfigTest, LocalWorkspacePresenceLockSmokeArgumentsAreParsed)
         "Saga",
         "--local-workspace-presence-lock-smoke",
         "--project",
-        "samples/StarterArena/StarterArena.sagaproj",
+        "Samples/StarterArena/StarterArena.sagaproj",
         "--workspace",
         "builtin:basic",
         "--actor",
         "local.actor",
         "--lock-target",
-        "samples/StarterArena/StarterArena.sagaproj",
+        "Samples/StarterArena/StarterArena.sagaproj",
         "--presence-lock-report-out",
         "/tmp/starter_arena_presence_lock_report.json",
     };
@@ -472,11 +472,11 @@ TEST(SagaAppConfigTest, LocalWorkspacePresenceLockSmokeArgumentsAreParsed)
     ASSERT_TRUE(result.ok) << result.error;
     EXPECT_TRUE(result.config.localWorkspacePresenceLockSmoke);
     EXPECT_EQ(result.config.workflowProjectPath,
-              fs::path("samples/StarterArena/StarterArena.sagaproj"));
+              fs::path("Samples/StarterArena/StarterArena.sagaproj"));
     EXPECT_EQ(result.config.workspaceSelector, "builtin:basic");
     EXPECT_EQ(result.config.localWorkspaceActorId, "local.actor");
     EXPECT_EQ(result.config.localWorkspaceLockTargetPath,
-              fs::path("samples/StarterArena/StarterArena.sagaproj"));
+              fs::path("Samples/StarterArena/StarterArena.sagaproj"));
     EXPECT_EQ(result.config.localWorkspacePresenceLockReportPath,
               fs::path("/tmp/starter_arena_presence_lock_report.json"));
 }
@@ -487,13 +487,13 @@ TEST(SagaAppConfigTest, LocalWorkspaceReviewSmokeArgumentsAreParsed)
         "Saga",
         "--local-workspace-review-smoke",
         "--project",
-        "samples/StarterArena/StarterArena.sagaproj",
+        "Samples/StarterArena/StarterArena.sagaproj",
         "--workspace",
         "builtin:basic",
         "--actor",
         "local.actor",
         "--review-target",
-        "samples/StarterArena/StarterArena.sagaproj",
+        "Samples/StarterArena/StarterArena.sagaproj",
         "--comment",
         "Inspect StarterArena project metadata",
         "--review-report-out",
@@ -506,11 +506,11 @@ TEST(SagaAppConfigTest, LocalWorkspaceReviewSmokeArgumentsAreParsed)
     ASSERT_TRUE(result.ok) << result.error;
     EXPECT_TRUE(result.config.localWorkspaceReviewSmoke);
     EXPECT_EQ(result.config.workflowProjectPath,
-              fs::path("samples/StarterArena/StarterArena.sagaproj"));
+              fs::path("Samples/StarterArena/StarterArena.sagaproj"));
     EXPECT_EQ(result.config.workspaceSelector, "builtin:basic");
     EXPECT_EQ(result.config.localWorkspaceActorId, "local.actor");
     EXPECT_EQ(result.config.localWorkspaceReviewTargetPath,
-              fs::path("samples/StarterArena/StarterArena.sagaproj"));
+              fs::path("Samples/StarterArena/StarterArena.sagaproj"));
     EXPECT_EQ(result.config.localWorkspaceReviewComment,
               "Inspect StarterArena project metadata");
     EXPECT_EQ(result.config.localWorkspaceReviewReportPath,
@@ -523,7 +523,7 @@ TEST(SagaAppConfigTest, LocalWorkspaceRoleSmokeArgumentsAreParsed)
         "Saga",
         "--local-workspace-role-smoke",
         "--project",
-        "samples/StarterArena/StarterArena.sagaproj",
+        "Samples/StarterArena/StarterArena.sagaproj",
         "--workspace",
         "builtin:basic",
         "--actor",
@@ -542,7 +542,7 @@ TEST(SagaAppConfigTest, LocalWorkspaceRoleSmokeArgumentsAreParsed)
     ASSERT_TRUE(result.ok) << result.error;
     EXPECT_TRUE(result.config.localWorkspaceRoleSmoke);
     EXPECT_EQ(result.config.workflowProjectPath,
-              fs::path("samples/StarterArena/StarterArena.sagaproj"));
+              fs::path("Samples/StarterArena/StarterArena.sagaproj"));
     EXPECT_EQ(result.config.workspaceSelector, "builtin:basic");
     EXPECT_EQ(result.config.localWorkspaceActorId, "local.actor");
     EXPECT_EQ(result.config.localWorkspaceRoleName, "local.reviewer");
@@ -557,7 +557,7 @@ TEST(SagaAppConfigTest, LocalWorkspaceSliceSmokeArgumentsAreParsed)
         "Saga",
         "--local-workspace-slice-smoke",
         "--project",
-        "samples/StarterArena/StarterArena.sagaproj",
+        "Samples/StarterArena/StarterArena.sagaproj",
         "--workspace",
         "builtin:basic",
         "--actor",
@@ -565,7 +565,7 @@ TEST(SagaAppConfigTest, LocalWorkspaceSliceSmokeArgumentsAreParsed)
         "--slice",
         "starterarena.project_overview",
         "--slice-target",
-        "samples/StarterArena/StarterArena.sagaproj",
+        "Samples/StarterArena/StarterArena.sagaproj",
         "--slice-report-out",
         "/tmp/starter_arena_project_slice_report.json",
     };
@@ -576,13 +576,13 @@ TEST(SagaAppConfigTest, LocalWorkspaceSliceSmokeArgumentsAreParsed)
     ASSERT_TRUE(result.ok) << result.error;
     EXPECT_TRUE(result.config.localWorkspaceSliceSmoke);
     EXPECT_EQ(result.config.workflowProjectPath,
-              fs::path("samples/StarterArena/StarterArena.sagaproj"));
+              fs::path("Samples/StarterArena/StarterArena.sagaproj"));
     EXPECT_EQ(result.config.workspaceSelector, "builtin:basic");
     EXPECT_EQ(result.config.localWorkspaceActorId, "local.actor");
     EXPECT_EQ(result.config.localWorkspaceSliceName,
               "starterarena.project_overview");
     EXPECT_EQ(result.config.localWorkspaceSliceTargetPath,
-              fs::path("samples/StarterArena/StarterArena.sagaproj"));
+              fs::path("Samples/StarterArena/StarterArena.sagaproj"));
     EXPECT_EQ(result.config.localWorkspaceSliceReportPath,
               fs::path("/tmp/starter_arena_project_slice_report.json"));
 }
@@ -593,7 +593,7 @@ TEST(SagaAppConfigTest, LocalWorkspaceApprovalGateSmokeArgumentsAreParsed)
         "Saga",
         "--local-workspace-approval-gate-smoke",
         "--project",
-        "samples/StarterArena/StarterArena.sagaproj",
+        "Samples/StarterArena/StarterArena.sagaproj",
         "--workspace",
         "builtin:basic",
         "--actor",
@@ -601,9 +601,9 @@ TEST(SagaAppConfigTest, LocalWorkspaceApprovalGateSmokeArgumentsAreParsed)
         "--role",
         "local.reviewer",
         "--gate-target",
-        "samples/StarterArena/StarterArena.sagaproj",
+        "Samples/StarterArena/StarterArena.sagaproj",
         "--approval-state",
-        "approved-local-preview",
+        "approved-local-evaluation",
         "--approval-gate-report-out",
         "/tmp/starter_arena_approval_gate_report.json",
     };
@@ -614,14 +614,14 @@ TEST(SagaAppConfigTest, LocalWorkspaceApprovalGateSmokeArgumentsAreParsed)
     ASSERT_TRUE(result.ok) << result.error;
     EXPECT_TRUE(result.config.localWorkspaceApprovalGateSmoke);
     EXPECT_EQ(result.config.workflowProjectPath,
-              fs::path("samples/StarterArena/StarterArena.sagaproj"));
+              fs::path("Samples/StarterArena/StarterArena.sagaproj"));
     EXPECT_EQ(result.config.workspaceSelector, "builtin:basic");
     EXPECT_EQ(result.config.localWorkspaceActorId, "local.actor");
     EXPECT_EQ(result.config.localWorkspaceRoleName, "local.reviewer");
     EXPECT_EQ(result.config.localWorkspaceGateTargetPath,
-              fs::path("samples/StarterArena/StarterArena.sagaproj"));
+              fs::path("Samples/StarterArena/StarterArena.sagaproj"));
     EXPECT_EQ(result.config.localWorkspaceApprovalState,
-              "approved-local-preview");
+              "approved-local-evaluation");
     EXPECT_EQ(result.config.localWorkspaceApprovalGateReportPath,
               fs::path("/tmp/starter_arena_approval_gate_report.json"));
 }
@@ -823,7 +823,7 @@ TEST(SagaProductHostTest, MissingPackageManifestProducesProductDiagnostic)
     ASSERT_EQ(result.diagnostics.size(), 1u);
     const SagaProductDiagnostic& diagnostic = result.diagnostics[0];
     EXPECT_EQ(diagnostic.target, SagaProductTargetKind::Runtime);
-    EXPECT_EQ(diagnostic.phase, SagaProductDiagnosticPhase::TargetPreparation);
+    EXPECT_EQ(diagnostic.stage, SagaProductDiagnosticStage::TargetPreparation);
     EXPECT_EQ(diagnostic.diagnosticId,
               SagaProductDiagnostics::PackageManifestMissing);
     EXPECT_EQ(diagnostic.message, "runtime target requires --package-manifest");
@@ -848,7 +848,7 @@ TEST(SagaProductHostTest, RuntimePrepareRequiresPackageManifest)
     EXPECT_NE(error.find("diagnostic.id=Saga.Target.PackageManifestMissing"),
               std::string::npos);
     EXPECT_NE(error.find("diagnostic.target=runtime"), std::string::npos);
-    EXPECT_NE(error.find("diagnostic.phase=target_preparation"), std::string::npos);
+    EXPECT_NE(error.find("diagnostic.stage=target_preparation"), std::string::npos);
     EXPECT_NE(error.find("diagnostic.message=runtime target requires --package-manifest"),
               std::string::npos);
 }
@@ -872,7 +872,7 @@ TEST(SagaProductHostTest, ServerPreparationIsExplicitlyUnsupported)
     EXPECT_NE(error.find("diagnostic.id=Saga.Target.ServerExecutionUnsupported"),
               std::string::npos);
     EXPECT_NE(error.find("diagnostic.target=server"), std::string::npos);
-    EXPECT_NE(error.find("diagnostic.phase=target_preparation"), std::string::npos);
+    EXPECT_NE(error.find("diagnostic.stage=target_preparation"), std::string::npos);
     EXPECT_NE(error.find("diagnostic.message=Product dedicated-server execution is not implemented."),
               std::string::npos);
     EXPECT_EQ(error.find("SagaServer"), std::string::npos);
@@ -1026,7 +1026,7 @@ TEST(SagaProductHostTest, LaunchStartFailureIsReportedDeterministically)
     EXPECT_NE(error.find("diagnostic.id=Saga.Target.ProcessStartFailed"),
               std::string::npos);
     EXPECT_NE(error.find("diagnostic.target=runtime"), std::string::npos);
-    EXPECT_NE(error.find("diagnostic.phase=startup_handoff"), std::string::npos);
+    EXPECT_NE(error.find("diagnostic.stage=startup_handoff"), std::string::npos);
     EXPECT_NE(error.find("diagnostic.message=runtime target process failed to start: test failure"),
               std::string::npos);
     EXPECT_NE(error.find("diagnostic.path="), std::string::npos);
@@ -1141,8 +1141,8 @@ TEST(SagaScriptGateTest, MissingScriptsDirectoryProducesProductDiagnostic)
     EXPECT_FALSE(result.started);
     EXPECT_TRUE(runnerPtr->requests.empty());
     ASSERT_EQ(result.diagnostics.size(), 1u);
-    EXPECT_EQ(result.diagnostics[0].phase,
-              SagaProductDiagnosticPhase::ProjectValidation);
+    EXPECT_EQ(result.diagnostics[0].stage,
+              SagaProductDiagnosticStage::ProjectValidation);
     EXPECT_EQ(result.diagnostics[0].diagnosticId,
               SagaProductDiagnostics::SagaScriptSourceMissing);
     EXPECT_NE(result.diagnostics[0].message.find("Scripts"),
@@ -1172,7 +1172,7 @@ TEST(SagaScriptGateTest, AppEntrypointReportsMissingScriptsDirectory)
     EXPECT_EQ(exitCode, 1);
     EXPECT_NE(err.str().find("diagnostic.id=Saga.Project.SagaScript.SourceMissing"),
               std::string::npos);
-    EXPECT_NE(err.str().find("diagnostic.phase=project_validation"),
+    EXPECT_NE(err.str().find("diagnostic.stage=project_validation"),
               std::string::npos);
     EXPECT_NE(out.str().find("sagascript.source="), std::string::npos);
     EXPECT_EQ(out.str().find("target="), std::string::npos);
@@ -1462,9 +1462,9 @@ TEST(SagaProductWorkflowSmokeTest,
     SagaProduct::SagaApp app;
     SagaAppConfig config;
     config.workflowSmoke = true;
-    config.workflowProjectPath = SourceRoot() / "samples" / "StarterArena" /
+    config.workflowProjectPath = SourceRoot() / "Samples" / "StarterArena" /
         "StarterArena.sagaproj";
-    config.workflowProfile = "technical_preview";
+    config.workflowProfile = "project_readiness";
     config.workflowReportPath = reportPath;
 
     std::ostringstream out;
@@ -1486,7 +1486,7 @@ TEST(SagaProductWorkflowSmokeTest,
     EXPECT_EQ(report["verified"], false);
     EXPECT_EQ(report["status"], "PassedWithLimitations");
     EXPECT_EQ(report["project"]["projectId"], "starter-arena");
-    EXPECT_EQ(report["profile"]["requestedProfileId"], "technical_preview");
+    EXPECT_EQ(report["profile"]["requestedProfileId"], "project_readiness");
 
     const std::vector<std::string> expectedActionIds = {
         "project_validation",
@@ -1563,7 +1563,7 @@ TEST(SagaLocalWorkspaceTransactionSmokeTest,
         MakeTempDir("saga_local_workspace_transaction_smoke_test");
     const fs::path reportPath =
         root / "starter_arena_local_workspace_transaction_report.json";
-    const fs::path manifest = SourceRoot() / "samples" / "StarterArena" /
+    const fs::path manifest = SourceRoot() / "Samples" / "StarterArena" /
         "StarterArena.sagaproj";
     const std::string manifestBefore = ReadFile(manifest);
     const auto manifestWriteTimeBefore = fs::last_write_time(manifest);
@@ -1603,7 +1603,7 @@ TEST(SagaLocalWorkspaceTransactionSmokeTest,
     EXPECT_EQ(report["transaction"]["projectId"], "starter-arena");
     EXPECT_EQ(report["transaction"]["actorId"], "local.actor");
     EXPECT_EQ(report["transaction"]["operationKind"], "InspectProject");
-    EXPECT_TRUE(report["transaction"]["readOnlyPreview"].get<bool>());
+    EXPECT_TRUE(report["transaction"]["readOnlyEvaluation"].get<bool>());
     EXPECT_EQ(report["transaction"]["status"], "ready");
     EXPECT_NE(report["transaction"]["transactionId"].get<std::string>().find(
                   "local-transaction:builtin.basic:starter-arena:local.actor:InspectProject"),
@@ -1629,7 +1629,7 @@ TEST(SagaLocalPresenceLockSmokeTest,
         MakeTempDir("saga_local_presence_lock_smoke_test");
     const fs::path reportPath =
         root / "starter_arena_presence_lock_report.json";
-    const fs::path manifest = SourceRoot() / "samples" / "StarterArena" /
+    const fs::path manifest = SourceRoot() / "Samples" / "StarterArena" /
         "StarterArena.sagaproj";
     const std::string manifestBefore = ReadFile(manifest);
     const auto manifestWriteTimeBefore = fs::last_write_time(manifest);
@@ -1672,7 +1672,7 @@ TEST(SagaLocalPresenceLockSmokeTest,
     EXPECT_FALSE(report["presence"]["durable"].get<bool>());
     EXPECT_FALSE(report["presence"]["networked"].get<bool>());
     EXPECT_EQ(report["lock"]["targetArtifact"], fs::absolute(manifest).string());
-    EXPECT_EQ(report["lock"]["lockMode"], "ReadOnlyPreview");
+    EXPECT_EQ(report["lock"]["lockMode"], "ReadOnlyEvaluation");
     EXPECT_EQ(report["lock"]["status"], "Ready");
     EXPECT_EQ(report["lock"]["conflictStatus"], "NotChecked");
     EXPECT_FALSE(report["lock"]["durable"].get<bool>());
@@ -1699,7 +1699,7 @@ TEST(SagaLocalReviewAuditSmokeTest,
         MakeTempDir("saga_local_review_audit_smoke_test");
     const fs::path reportPath =
         root / "starter_arena_review_audit_report.json";
-    const fs::path manifest = SourceRoot() / "samples" / "StarterArena" /
+    const fs::path manifest = SourceRoot() / "Samples" / "StarterArena" /
         "StarterArena.sagaproj";
     const std::string manifestBefore = ReadFile(manifest);
     const auto manifestWriteTimeBefore = fs::last_write_time(manifest);
@@ -1744,7 +1744,7 @@ TEST(SagaLocalReviewAuditSmokeTest,
     EXPECT_FALSE(report["review"]["durable"].get<bool>());
     EXPECT_FALSE(report["review"]["requiresApproval"].get<bool>());
     EXPECT_FALSE(report["review"]["mutatesProject"].get<bool>());
-    EXPECT_EQ(report["comment"]["bodyPreview"],
+    EXPECT_EQ(report["comment"]["bodyEvaluation"],
               "Inspect StarterArena project metadata");
     EXPECT_EQ(report["comment"]["source"], "report-only");
     EXPECT_FALSE(report["comment"]["durable"].get<bool>());
@@ -1782,7 +1782,7 @@ TEST(SagaLocalRolePermissionSmokeTest,
         MakeTempDir("saga_local_role_permission_smoke_test");
     const fs::path reportPath =
         root / "starter_arena_role_permission_report.json";
-    const fs::path manifest = SourceRoot() / "samples" / "StarterArena" /
+    const fs::path manifest = SourceRoot() / "Samples" / "StarterArena" /
         "StarterArena.sagaproj";
     const std::string manifestBefore = ReadFile(manifest);
     const auto manifestWriteTimeBefore = fs::last_write_time(manifest);
@@ -1861,7 +1861,7 @@ TEST(SagaLocalProjectSliceSmokeTest,
         MakeTempDir("saga_local_project_slice_smoke_test");
     const fs::path reportPath =
         root / "starter_arena_project_slice_report.json";
-    const fs::path manifest = SourceRoot() / "samples" / "StarterArena" /
+    const fs::path manifest = SourceRoot() / "Samples" / "StarterArena" /
         "StarterArena.sagaproj";
     const std::string manifestBefore = ReadFile(manifest);
     const auto manifestWriteTimeBefore = fs::last_write_time(manifest);
@@ -1933,7 +1933,7 @@ TEST(SagaLocalApprovalGateSmokeTest,
         MakeTempDir("saga_local_approval_gate_smoke_test");
     const fs::path reportPath =
         root / "starter_arena_approval_gate_report.json";
-    const fs::path manifest = SourceRoot() / "samples" / "StarterArena" /
+    const fs::path manifest = SourceRoot() / "Samples" / "StarterArena" /
         "StarterArena.sagaproj";
     const std::string manifestBefore = ReadFile(manifest);
     const auto manifestWriteTimeBefore = fs::last_write_time(manifest);
@@ -1946,7 +1946,7 @@ TEST(SagaLocalApprovalGateSmokeTest,
     config.localWorkspaceActorId = "local.actor";
     config.localWorkspaceRoleName = "local.reviewer";
     config.localWorkspaceGateTargetPath = manifest;
-    config.localWorkspaceApprovalState = "approved-local-preview";
+    config.localWorkspaceApprovalState = "approved-local-evaluation";
     config.localWorkspaceApprovalGateReportPath = reportPath;
 
     std::ostringstream out;
@@ -1976,7 +1976,7 @@ TEST(SagaLocalApprovalGateSmokeTest,
     EXPECT_EQ(report["approval"]["roleName"], "local.reviewer");
     EXPECT_EQ(report["approval"]["targetArtifact"],
               fs::absolute(manifest).lexically_normal().string());
-    EXPECT_EQ(report["approval"]["approvalState"], "ApprovedLocalPreview");
+    EXPECT_EQ(report["approval"]["approvalState"], "ApprovedLocalEvaluation");
     EXPECT_EQ(report["approval"]["source"], "report-only");
     EXPECT_FALSE(report["approval"]["durable"].get<bool>());
     EXPECT_FALSE(report["approval"]["enforced"].get<bool>());
@@ -1998,7 +1998,7 @@ TEST(SagaLocalApprovalGateSmokeTest,
               std::string::npos);
     EXPECT_TRUE(JsonArrayContainsString(
         report["readiness"]["blockingLimitations"],
-        "Package preflight is blocked in this metadata-only preview."));
+        "Package preflight is blocked in this metadata-only evaluation."));
     EXPECT_TRUE(JsonArrayContainsString(
         report["readiness"]["referencedReports"],
         "local-workspace-review-smoke"));
@@ -2006,7 +2006,7 @@ TEST(SagaLocalApprovalGateSmokeTest,
         report["readiness"]["referencedReports"],
         "workflow-smoke package_preflight reference"));
     EXPECT_NE(report["approval"]["approvalId"].get<std::string>().find(
-                  "local-approval:builtin.basic:starter-arena:local.actor:local.reviewer:ApprovedLocalPreview:"),
+                  "local-approval:builtin.basic:starter-arena:local.actor:local.reviewer:ApprovedLocalEvaluation:"),
               std::string::npos);
     EXPECT_NE(report["publishGate"]["gateId"].get<std::string>().find(
                   "local-approval-gate:builtin.basic:starter-arena:local.actor:"),

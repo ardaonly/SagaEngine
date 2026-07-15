@@ -1,7 +1,7 @@
 /// @file RleSnapshotCompressor.cpp
 /// @brief Implementation of the byte-oriented RLE snapshot codec.
 
-#include "SagaServer/Networking/Replication/RleSnapshotCompressor.h"
+#include "SagaEngine/Replication/RleSnapshotCompressor.h"
 
 #include <cstring>
 #include <memory>

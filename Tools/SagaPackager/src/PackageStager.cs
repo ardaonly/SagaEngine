@@ -119,7 +119,7 @@ internal static class PackageStager
         {
             schemaVersion = 1,
             status = "Placeholder",
-            message = "No runtime metadata beyond package manifest validation is packaged in this phase.",
+            message = "No runtime metadata beyond package manifest validation is packaged by this profile.",
         });
     }
 

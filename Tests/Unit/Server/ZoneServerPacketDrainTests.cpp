@@ -1,7 +1,7 @@
 /// @file ZoneServerPacketDrainTests.cpp
 /// @brief Tests for ZoneServer raw inbound frame normalization.
 
-#include "SagaServer/Networking/Server/ZoneServer.h"
+#include "SagaEngine/ServerAuthority/ZoneServer.h"
 
 #include <gtest/gtest.h>
 
@@ -14,20 +14,20 @@ namespace
 
 using SagaEngine::Networking::ClientId;
 using SagaEngine::Networking::PacketType;
-using SagaServer::Networking::IZoneServerListener;
-using SagaServer::Networking::NormalizedServerPacketView;
-using SagaServer::Networking::ServerPacketNormalizationStatus;
-using SagaServer::Networking::ZoneServer;
-using SagaServer::Networking::ZoneServerConfig;
+using SagaEngine::ServerAuthority::IZoneServerListener;
+using SagaEngine::Networking::NormalizedServerPacketView;
+using SagaEngine::Networking::ServerPacketNormalizationStatus;
+using SagaEngine::ServerAuthority::ZoneServer;
+using SagaEngine::ServerAuthority::ZoneServerConfig;
 
 std::vector<std::uint8_t> MakeFrame(PacketType packetType,
                                     const std::vector<std::uint8_t>& payload)
 {
     std::vector<std::uint8_t> frame(
-        SagaServer::Networking::kServerPacketFrameHeaderSize + payload.size());
+        SagaEngine::Networking::kServerPacketFrameHeaderSize + payload.size());
 
     const std::uint16_t magic =
-        SagaServer::Networking::kServerPacketFrameMagic;
+        SagaEngine::Networking::kServerPacketFrameMagic;
     const std::uint32_t bodyLength =
         static_cast<std::uint32_t>(payload.size());
 
@@ -38,7 +38,7 @@ std::vector<std::uint8_t> MakeFrame(PacketType packetType,
     if (!payload.empty())
     {
         std::memcpy(
-            frame.data() + SagaServer::Networking::kServerPacketFrameHeaderSize,
+            frame.data() + SagaEngine::Networking::kServerPacketFrameHeaderSize,
             payload.data(),
             payload.size());
     }
@@ -102,7 +102,7 @@ TEST(ZoneServerPacketDrainTests, ValidInputFrameReachesNormalizedHandler)
     EXPECT_EQ(observer.clientId, clientId);
     EXPECT_EQ(observer.packetType, PacketType::InputCommand);
     EXPECT_EQ(observer.payload, frame.data() +
-                                SagaServer::Networking::kServerPacketFrameHeaderSize);
+                                SagaEngine::Networking::kServerPacketFrameHeaderSize);
     EXPECT_EQ(observer.payloadSize, payload.size());
     EXPECT_EQ(observer.payloadBytes, payload);
     EXPECT_EQ(server.GetStats().totalPacketsNormalized.load(), 1u);

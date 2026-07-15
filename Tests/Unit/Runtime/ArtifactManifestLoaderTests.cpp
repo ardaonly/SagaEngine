@@ -24,7 +24,7 @@ using SagaEngine::Artifacts::ArtifactManifestLoadOptions;
 [[nodiscard]] std::filesystem::path FixturePath(const char* name)
 {
     return std::filesystem::path(SAGA_SOURCE_ROOT) /
-           "Engine" / "tests" / "fixtures" / "artifacts" / name;
+           "Tests" / "Fixtures" / "Assets" / "ArtifactManifests" / name;
 }
 
 [[nodiscard]] std::filesystem::path WriteTempManifest(const char* name, const char* contents)

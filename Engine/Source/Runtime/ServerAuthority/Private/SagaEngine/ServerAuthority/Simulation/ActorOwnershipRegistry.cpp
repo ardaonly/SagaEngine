@@ -1,9 +1,9 @@
 /// @file ActorOwnershipRegistry.cpp
 /// @brief ActorOwnershipRegistry implementation.
 
-#include "SagaServer/Simulation/ActorOwnershipRegistry.h"
+#include "SagaEngine/ServerAuthority/Simulation/ActorOwnershipRegistry.h"
 
-namespace SagaEngine::Server::Simulation
+namespace SagaEngine::ServerAuthority::Simulation
 {
 
 ActorOwnershipResult ActorOwnershipRegistry::RegisterOwnership(
@@ -140,4 +140,4 @@ void ActorOwnershipRegistry::Clear()
     m_ByEntity.clear();
 }
 
-} // namespace SagaEngine::Server::Simulation
+} // namespace SagaEngine::ServerAuthority::Simulation

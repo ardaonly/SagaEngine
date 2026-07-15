@@ -49,7 +49,7 @@ jobs:
         if: steps.mirror-token.outputs.available == 'true'
         env:
           MIRROR_TOKEN: ${{ secrets.MIRROR_TOKEN }}
-        run: ./export.sh --since "${{ github.event.before }}"
+        run: scripts/export --since "${{ github.event.before }}"
 
       - name: Skip export without mirror token
         if: steps.mirror-token.outputs.available != 'true'

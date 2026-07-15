@@ -124,8 +124,8 @@ def run_command(
             "exitCode": result.returncode,
             "required": required,
             "status": status,
-            "stdoutPreview": result.stdout[:2000],
-            "stderrPreview": result.stderr[:2000],
+            "stdoutEvaluation": result.stdout[:2000],
+            "stderrEvaluation": result.stderr[:2000],
         }
         if limitation and status != "passed":
             entry["message"] = limitation
@@ -140,8 +140,8 @@ def run_command(
                 "required": required,
                 "status": "blocked" if required else optional_failure_status,
                 "message": f"timed out after {timeout}s",
-                "stdoutPreview": (exc.stdout or "")[:2000],
-                "stderrPreview": (exc.stderr or "")[:2000],
+                "stdoutEvaluation": (exc.stdout or "")[:2000],
+                "stderrEvaluation": (exc.stderr or "")[:2000],
             }
         )
         return not required and optional_failure_status != "blocked"
@@ -234,7 +234,7 @@ def run_starter_arena_workflow(
                 "--project",
                 str(project),
                 "--profile",
-                "technical_preview",
+                "project_readiness",
                 "--workflow-report-out",
                 str(product_report),
             ],
@@ -288,7 +288,7 @@ def run_starter_arena_workflow(
     )
     starter_diagnostics.append(report_only_message)
     known_limitations.append(report_only_message)
-    known_limitations.append("Phase 37 does not execute Visual Blocks workflow commands.")
+    known_limitations.append("The distribution smoke does not execute Visual Blocks workflow commands.")
 
     status = "passed-with-limitations" if all(required_results) else "blocked"
     return {
@@ -352,7 +352,7 @@ def main() -> int:
         "This report does not claim full Visual Blocks UI.",
         "This report does not claim full gameplay readiness.",
         "This report does not claim cloud collaboration.",
-        "This report does not mark any phase Verified.",
+        "This report does not mark any delivery stage verified.",
     ]
 
     add_check(checks, label="archive file", path=archive, status="passed" if archive.is_file() else "blocked", kind="file")
@@ -442,8 +442,8 @@ def main() -> int:
         "tools/sagapack",
     ]
     required_dirs = [
-        "samples/StarterArena",
-        "docs/product",
+        "Samples/StarterArena",
+        "SagaWiki/pages",
         "licenses",
     ]
     executables = {
@@ -544,7 +544,7 @@ def main() -> int:
         "archive": path_text(archive),
         "checksum": path_text(checksum),
         "unpackRoot": path_text(unpack_root),
-        "archiveEntriesPreview": archive_entries[:80],
+        "archiveEntriesEvaluation": archive_entries[:80],
         "archiveEntries": archive_entries,
         "packageName": build_info.get("packageName"),
         "version": build_info.get("version"),

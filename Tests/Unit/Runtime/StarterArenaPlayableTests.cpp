@@ -183,7 +183,7 @@ TEST(StarterArenaPlayableTests, GameplayFacadeWhitelistsAndRecordsTypedMutations
     state.pickup.position = {0.48, 0.24};
     state.pickup.radius = 0.05;
     App::StarterArenaGameplayFacade facade(state);
-    facade.SetPhase("OnUpdate");
+    facade.SetLifecycleEvent("OnUpdate");
     facade.SetRuntimeSnapshot(23u, {0.48, 0.256});
 
     const auto reachable = facade.GetBool("starter.pickup.0.reachable");
@@ -195,7 +195,7 @@ TEST(StarterArenaPlayableTests, GameplayFacadeWhitelistsAndRecordsTypedMutations
     EXPECT_EQ(score.value, 10);
     EXPECT_TRUE(facade.SetString("starter.player.state", "powered").Succeeded());
     EXPECT_EQ(state.mutations.size(), 3u);
-    EXPECT_EQ(state.mutations[0].phase, "OnUpdate");
+    EXPECT_EQ(state.mutations[0].lifecycleEvent, "OnUpdate");
     EXPECT_EQ(state.mutations[0].beforeValue, "false");
     EXPECT_EQ(state.mutations[0].afterValue, "true");
 }
@@ -214,14 +214,14 @@ TEST(StarterArenaPlayableTests, GameplayFacadeRejectsUnsafeOperations)
 TEST(StarterArenaPlayableTests, AppLocalInputDoesNotReferenceForbiddenRuntimePaths)
 {
     const auto sourceRoot = std::filesystem::path(SAGA_SOURCE_ROOT);
-    for (const auto relative : {"Apps/Runtime/StarterArenaInput.h",
-                                "Apps/Runtime/StarterArenaInput.cpp"})
+    for (const auto relative : {"Samples/StarterArena/Source/StarterArenaInput.h",
+                                "Samples/StarterArena/Source/StarterArenaInput.cpp"})
     {
         std::ifstream input(sourceRoot / relative);
         ASSERT_TRUE(input) << relative;
         const std::string text((std::istreambuf_iterator<char>(input)),
                                std::istreambuf_iterator<char>());
-        for (const auto forbidden : {"ClientHost", "Apps/Sandbox", "Apps/Server",
+        for (const auto forbidden : {"ClientHost", "SagaEngine/ServerAuthority",
                                      "InputCommand", "replication", "prediction"})
         {
             EXPECT_EQ(text.find(forbidden), std::string::npos)

@@ -1,7 +1,7 @@
 /// @file NetworkChaosLayerTests.cpp
 /// @brief Tests deterministic direct-frame NetworkChaos policy behavior.
 
-#include "SagaServer/Networking/Core/NetworkChaosLayer.h"
+#include "SagaEngine/Networking/NetworkChaosLayer.h"
 
 #include "SagaEngine/Diagnostics/DiagnosticSystem.hpp"
 
@@ -16,11 +16,11 @@
 namespace
 {
 
-using SagaServer::Networking::NetworkChaosConfig;
-using SagaServer::Networking::NetworkChaosDecisionKind;
-using SagaServer::Networking::NetworkChaosFrame;
-using SagaServer::Networking::NetworkChaosLayer;
-namespace Metrics = SagaServer::Networking::NetworkChaosMetrics;
+using SagaEngine::Networking::NetworkChaosConfig;
+using SagaEngine::Networking::NetworkChaosDecisionKind;
+using SagaEngine::Networking::NetworkChaosFrame;
+using SagaEngine::Networking::NetworkChaosLayer;
+namespace Metrics = SagaEngine::Networking::NetworkChaosMetrics;
 
 NetworkChaosFrame Frame(std::uint64_t clientId, std::uint8_t marker)
 {

@@ -1,7 +1,7 @@
 /// @file QtSettingsStore.cpp
 /// @brief QSettings-backed implementation of IEditorSettingsStore.
 
-#include "SagaEditor/UI/Qt/QtSettingsStore.h"
+#include "SagaEditorQt/QtSettingsStore.h"
 
 #include <QSettings>
 #include <QString>

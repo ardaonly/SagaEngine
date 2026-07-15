@@ -1,9 +1,9 @@
 /// @file BlockKind.cpp
 /// @brief Implementation of the block-based shape vocabulary.
 
-#include "SagaEditor/VisualScripting/Blocks/BlockKind.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockKind.h"
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 // ─── Identity ─────────────────────────────────────────────────────────────────
@@ -35,4 +35,4 @@ BlockKind BlockKindFromId(const std::string& id) noexcept
     return BlockKind::Stack;
 }
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

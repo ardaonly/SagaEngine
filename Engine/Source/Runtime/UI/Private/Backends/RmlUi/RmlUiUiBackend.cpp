@@ -1,7 +1,7 @@
 /// @file RmlUiUiBackend.cpp
 /// @brief RmlUi implementation of the minimal Saga runtime UI backend.
 
-#include "SagaBackends/UI/RmlUiUiBackend.h"
+#include "SagaEngine/UI/Backends/RmlUiUiBackend.h"
 
 #include "SagaEngine/UI/IUiEventQueue.h"
 #include "SagaEngine/UI/IUiResourceProvider.h"
@@ -27,7 +27,7 @@
 #include <utility>
 #include <vector>
 
-namespace SagaEngine::Backends::UI
+namespace SagaEngine::UI::Backends
 {
 namespace
 {
@@ -1053,4 +1053,4 @@ std::unique_ptr<SagaUI::IUiBackend> CreateRmlUiUiBackend()
     return std::make_unique<RmlUiBackend>();
 }
 
-} // namespace SagaEngine::Backends::UI
+} // namespace SagaEngine::UI::Backends

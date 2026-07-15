@@ -1,5 +1,5 @@
 /// @file DiligentRenderBackendTests.cpp
-/// @brief Unit tests for the Phase 1 Diligent IRenderBackend implementation.
+/// @brief Unit tests for the Step 1 Diligent IRenderBackend implementation.
 ///
 /// Layer  : Tests / Unit / Render
 /// Purpose: Validates every reachable code path in DiligentRenderBackend
@@ -18,7 +18,7 @@
 ///            - Config propagation (clear colour, API preference, etc.)
 ///            - Diagnostic readout coherence (FrameIndex, SelectedAPI, …)
 ///            - ToString enum completeness
-///            - Phase 1 resource stubs (CreateMesh / CreateMaterial → kInvalid)
+///            - Step 1 resource stubs (CreateMesh / CreateMaterial → kInvalid)
 ///
 ///          GPU-present tests (Initialize succeeds, BeginFrame clears, …)
 ///          belong in Tests/Integration/ gated behind a "has-gpu" label.
@@ -371,7 +371,7 @@ TEST(DiligentBackend, DestructorAfterFailedInitSafe)
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-//  5. Phase 1 resource stubs
+//  5. Step 1 resource stubs
 // ═══════════════════════════════════════════════════════════════════════
 
 TEST(DiligentBackend, CreateMeshReturnsInvalid)
@@ -379,7 +379,7 @@ TEST(DiligentBackend, CreateMeshReturnsInvalid)
     DiligentRenderBackend backend;
     // MeshAsset and MaterialRuntime are forward-declared in
     // IRenderBackend.h but never defined yet — we pass a
-    // reinterpret-cast dummy to satisfy the reference.  Phase 1 never
+    // reinterpret-cast dummy to satisfy the reference.  Step 1 never
     // touches the argument; it just returns kInvalid immediately.
     struct FakeMeshAsset {} fakeMesh;
     const auto id = backend.CreateMesh(

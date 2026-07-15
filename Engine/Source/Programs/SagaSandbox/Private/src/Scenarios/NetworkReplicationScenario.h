@@ -25,8 +25,8 @@
 #include <SagaEngine/Input/Commands/InputCommandBuffer.h>
 #include <SagaEngine/Simulation/WorldState.h>
 #include <SagaEngine/Simulation/SimulationTick.h>
-#include <SagaServer/Networking/Replication/ReplicationManager.h>
-#include <SagaServer/Networking/Core/ReliableChannel.h>
+#include <SagaEngine/Replication/ReplicationManager.h>
+#include <SagaEngine/Networking/ReliableChannel.h>
 #include <memory>
 
 namespace SagaSandbox
@@ -64,7 +64,7 @@ private:
     std::unique_ptr<SagaEngine::Simulation::WorldState>         m_serverWorld;
     std::unique_ptr<SagaEngine::Simulation::SimulationTick>     m_serverSimTick;
     std::unique_ptr<SagaEngine::Input::ServerInputProcessor> m_serverInputProcessor;
-    std::unique_ptr<SagaEngine::Networking::Replication::ReplicationManager> m_replicationManager;
+    std::unique_ptr<SagaEngine::Replication::ReplicationManager> m_replicationManager;
     std::unique_ptr<SagaEngine::Networking::ReliableChannel>    m_serverChannel;
 
     // ── Client side ───────────────────────────────────────────────────────────

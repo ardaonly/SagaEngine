@@ -295,7 +295,7 @@ TEST_F(ClientServerRoundTripTest, FullLoopInputSnapshotReconcile)
     const float errorThresholdSq = 0.04f;
     uint32_t inputSeq = 0;
 
-    // Phase 1: Client predicts 10 ticks.
+    // Step 1: Client predicts 10 ticks.
     for (int tick = 0; tick < 10; ++tick)
     {
         inputSeq++;
@@ -325,11 +325,11 @@ TEST_F(ClientServerRoundTripTest, FullLoopInputSnapshotReconcile)
         reconciliation.Record(pred);
     }
 
-    // Phase 2: Server sends snapshot (we read directly from the world).
+    // Step 2: Server sends snapshot (we read directly from the world).
     auto* serverTc = m_world->GetComponent<TestTransformComponent>(m_entityHandle.id);
     Math::Vec3 serverPos(serverTc->x, serverTc->y, serverTc->z);
 
-    // Phase 3: Client receives snapshot and reconciles.
+    // Step 3: Client receives snapshot and reconciles.
     Client::Prediction::AuthoritativeState auth;
     auth.ackedInputSeq = inputSeq; // server acked all inputs
     auth.position = serverPos;

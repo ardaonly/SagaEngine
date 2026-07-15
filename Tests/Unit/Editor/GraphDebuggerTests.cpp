@@ -1,9 +1,9 @@
 /// @file GraphDebuggerTests.cpp
 /// @brief Placeholder — real cases land alongside the matching subsystems.
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 // GraphDebuggerTests — placeholder; see EDITOR_ROADMAP.md section 7 for the test plan.
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

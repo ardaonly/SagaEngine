@@ -1,7 +1,7 @@
 /// @file NodePalette.cpp
 /// @brief Qt backend implementation of the visual scripting node palette panel.
 
-#include "SagaEditor/VisualScripting/Editor/NodePalette.h"
+#include "SagaEditor/VisualBlocks/Editor/NodePalette.h"
 
 #include <QLabel>
 #include <QVBoxLayout>
@@ -9,7 +9,7 @@
 
 #include <memory>
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 struct NodePalette::Impl
@@ -56,4 +56,4 @@ void NodePalette::OnInit() {}
 
 void NodePalette::OnShutdown() {}
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

@@ -1,7 +1,7 @@
 /// @file NodeLibraryPanel.cpp
 /// @brief Qt backend implementation of the visual scripting node library panel.
 
-#include "SagaEditor/VisualScripting/Nodes/NodeLibraryPanel.h"
+#include "SagaEditor/VisualBlocks/Nodes/NodeLibraryPanel.h"
 
 #include <QLabel>
 #include <QVBoxLayout>
@@ -9,7 +9,7 @@
 
 #include <memory>
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 struct NodeLibraryPanel::Impl
@@ -58,4 +58,4 @@ void NodeLibraryPanel::OnInit() {}
 
 void NodeLibraryPanel::OnShutdown() {}
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

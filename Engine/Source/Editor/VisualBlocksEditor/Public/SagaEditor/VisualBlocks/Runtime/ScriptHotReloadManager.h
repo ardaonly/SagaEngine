@@ -2,7 +2,7 @@
 #include <functional>
 #include <memory>
 #include <string>
-namespace SagaEditor::VisualScripting {
+namespace SagaEditor::VisualBlocks {
 class ScriptHotReloadManager {
 public:
     ScriptHotReloadManager();
@@ -13,4 +13,4 @@ public:
 private:
     struct Impl; std::unique_ptr<Impl> m_impl;
 };
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

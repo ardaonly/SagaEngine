@@ -15,7 +15,7 @@
 #include "SagaEngine/Core/Time/Time.h"
 #include "SagaEngine/Core/Log/Log.h"
 #include "SagaEngine/Math/Vec3.h"
-#include "SagaEngine/Networking/Replication/SnapshotBuilder.h"
+#include "SagaEngine/Replication/SnapshotBuilder.h"
 
 #include <algorithm>
 #include <chrono>
@@ -46,7 +46,7 @@ struct WorldNode::SnapshotBuildState
     {
     }
 
-    SagaEngine::Networking::Replication::SnapshotBuilder builder;
+    SagaEngine::Replication::SnapshotBuilder builder;
 };
 
 WorldNode::WorldNode() = default;
@@ -95,22 +95,22 @@ void WorldNode::Tick() noexcept
     const auto tickStart = steady_clock::now();
     m_worldTick++;
 
-    // Phase 1: Drain client input.
+    // Step 1: Drain client input.
     DrainInput();
 
-    // Phase 2: Step the simulation (ECS systems run here).
+    // Step 2: Step the simulation (ECS systems run here).
     StepSimulation();
 
-    // Phase 3: Fire domains at their scheduled rates.
+    // Step 3: Fire domains at their scheduled rates.
     FireDomains();
 
-    // Phase 4: Update the relevance graph.
+    // Step 4: Update the relevance graph.
     UpdateRelevance();
 
-    // Phase 5: Replicate state to clients.
+    // Step 5: Replicate state to clients.
     ReplicateToClients();
 
-    // Phase 6: Flush cell events to the event stream.
+    // Step 6: Flush cell events to the event stream.
     FlushEvents();
 
     const auto tickEnd = steady_clock::now();
@@ -374,7 +374,7 @@ void WorldNode::DrainInput() noexcept
     // 3. Attach validated commands to the controlled entity's command buffer
     // 4. Discard stale/duplicate commands to prevent replay attacks
     //
-    // For now, this is a no-op placeholder that maintains the tick-phase
+    // For now, this is a no-op placeholder that maintains the tick-stage
     // structure while the networking integration is finalized.
     for (auto& [sid, session] : m_clients)
     {
@@ -388,7 +388,7 @@ void WorldNode::DrainInput() noexcept
 
 /// Execute registered ECS systems on the world state.
 /// For the vertical slice, simulation is driven by Authority::Tick() externally.
-/// This stub maintains the tick-phase structure; production integration wires
+/// This stub maintains the tick-stage structure; production integration wires
 /// Authority into the WorldNode lifecycle.
 ///
 /// External API mapping: SagaEngine::Simulation::Authority::Tick() → system dispatch

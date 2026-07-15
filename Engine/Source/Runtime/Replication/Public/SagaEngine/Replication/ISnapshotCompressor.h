@@ -1,7 +1,7 @@
 /// @file ISnapshotCompressor.h
 /// @brief Pluggable compression interface for WorldSnapshots and DeltaSnapshots.
 ///
-/// Layer  : SagaServer / Networking / Replication
+/// Layer  : SagaEngine / Replication
 /// Purpose: The replication layer must not care *how* snapshot bytes are
 ///          compressed — it only cares that the bytes get smaller for the
 ///          wire and can be round-tripped losslessly.  A pluggable interface

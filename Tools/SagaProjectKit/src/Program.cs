@@ -23,23 +23,23 @@ internal static class Program
 
             var command = args[0];
             if (command is not ("validate" or "resolve" or "doctor" or "resolve-slice" or "restricted-resolve" or
-                "source-truth-inventory" or "source-truth-gate" or "hedef4-opening" or
+                "source-truth-inventory" or "source-truth-gate" or "asset-workflow-opening" or
                 "asset-source-manifest-inventory" or "asset-reference-gate" or
                 "generated-freshness-gate" or "scene-entity-validate" or
                 "component-metadata-ownership" or "editor-inspection-model" or
                 "editor-source-truth-read" or "runtime-read-model-audit" or
                 "runtime-readiness-gate" or "source-truth-scenario" or
-                "client-preview-prerequisite-audit" or "clienthost-boundary-plan" or
+                "client-evaluation-prerequisite-audit" or "clienthost-boundary-plan" or
                 "asset-import-cook-deferral" or "broad-test-health-preflight" or
-                "hedef4-evidence-matrix" or "hedef4-closure" or
-                "runtime-readiness-v2" or "clienthost-preview-ownership-boundary" or
-                "client-preview-launch-profile-contract" or "client-preview-no-network-plan" or
-                "client-preview-diagnostics-shell" or "client-preview-blocker-matrix" or
-                "minimal-runtime-read-seam-plan" or "minimal-clienthost-preview-shell-plan" or
-                "package-launch-preview-alignment-plan" or "editorless-preview-workflow-plan" or
-                "preview-evidence-gate" or "preview-asset-import-cook-prerequisite" or
+                "asset-workflow-evidence-matrix" or "asset-workflow-closure" or
+                "runtime-readiness-v2" or "clienthost-evaluation-ownership-boundary" or
+                "client-evaluation-launch-profile-contract" or "client-evaluation-no-network-plan" or
+                "client-evaluation-diagnostics-shell" or "client-evaluation-blocker-matrix" or
+                "minimal-runtime-read-seam-plan" or "minimal-clienthost-evaluation-shell-plan" or
+                "package-launch-evaluation-alignment-plan" or "editorless-evaluation-workflow-plan" or
+                "evaluation-evidence-gate" or "evaluation-asset-import-cook-prerequisite" or
                 "runtime-asset-consumption-prerequisite" or "runtime-projection-freshness-gate" or
-                "client-preview-regression-fixture-plan" or "preview-focused-test-health-gate"))
+                "client-evaluation-regression-fixture-plan" or "evaluation-focused-test-health-gate"))
             {
                 Console.Error.WriteLine($"Unknown command: {command}");
                 PrintUsage();
@@ -77,7 +77,7 @@ internal static class Program
                 "restricted-resolve" => RunRestrictedResolve(options),
                 "source-truth-inventory" => RunSourceTruthInventory(options),
                 "source-truth-gate" => RunSourceTruthGate(options),
-                "hedef4-opening" => RunHedef4Opening(options),
+                "asset-workflow-opening" => RunAssetWorkflowOpening(options),
                 "asset-source-manifest-inventory" => RunAssetSourceManifestInventory(options),
                 "asset-reference-gate" => RunAssetReferenceGate(options),
                 "generated-freshness-gate" => RunGeneratedFreshnessGate(options),
@@ -88,28 +88,28 @@ internal static class Program
                 "runtime-read-model-audit" => RunRuntimeReadModelAudit(options),
                 "runtime-readiness-gate" => RunRuntimeReadinessGate(options),
                 "source-truth-scenario" => RunSourceTruthScenario(options),
-                "client-preview-prerequisite-audit" => RunClientPreviewPrerequisiteAudit(options),
+                "client-evaluation-prerequisite-audit" => RunClientEvaluationPrerequisiteAudit(options),
                 "clienthost-boundary-plan" => RunClientHostBoundaryPlan(options),
                 "asset-import-cook-deferral" => RunAssetImportCookDeferral(options),
                 "broad-test-health-preflight" => RunBroadTestHealthPreflight(options),
-                "hedef4-evidence-matrix" => RunHedef4EvidenceMatrix(options),
-                "hedef4-closure" => RunHedef4Closure(options),
+                "asset-workflow-evidence-matrix" => RunAssetWorkflowEvidenceMatrix(options),
+                "asset-workflow-closure" => RunAssetWorkflowClosure(options),
                 "runtime-readiness-v2" => RunRuntimeReadinessV2(options),
-                "clienthost-preview-ownership-boundary" => RunClientHostPreviewOwnershipBoundary(options),
-                "client-preview-launch-profile-contract" => RunClientPreviewLaunchProfileContract(options),
-                "client-preview-no-network-plan" => RunClientPreviewNoNetworkPlan(options),
-                "client-preview-diagnostics-shell" => RunClientPreviewDiagnosticsShell(options),
-                "client-preview-blocker-matrix" => RunClientPreviewBlockerMatrix(options),
+                "clienthost-evaluation-ownership-boundary" => RunClientHostEvaluationOwnershipBoundary(options),
+                "client-evaluation-launch-profile-contract" => RunClientEvaluationLaunchProfileContract(options),
+                "client-evaluation-no-network-plan" => RunClientEvaluationNoNetworkPlan(options),
+                "client-evaluation-diagnostics-shell" => RunClientEvaluationDiagnosticsShell(options),
+                "client-evaluation-blocker-matrix" => RunClientEvaluationBlockerMatrix(options),
                 "minimal-runtime-read-seam-plan" => RunMinimalRuntimeReadSeamPlan(options),
-                "minimal-clienthost-preview-shell-plan" => RunMinimalClientHostPreviewShellPlan(options),
-                "package-launch-preview-alignment-plan" => RunPackageLaunchPreviewAlignmentPlan(options),
-                "editorless-preview-workflow-plan" => RunEditorlessPreviewWorkflowPlan(options),
-                "preview-evidence-gate" => RunPreviewEvidenceGate(options),
-                "preview-asset-import-cook-prerequisite" => RunAssetImportCookPrerequisite(options),
+                "minimal-clienthost-evaluation-shell-plan" => RunMinimalClientHostEvaluationShellPlan(options),
+                "package-launch-evaluation-alignment-plan" => RunPackageLaunchEvaluationAlignmentPlan(options),
+                "editorless-evaluation-workflow-plan" => RunEditorlessEvaluationWorkflowPlan(options),
+                "evaluation-evidence-gate" => RunEvaluationEvidenceGate(options),
+                "evaluation-asset-import-cook-prerequisite" => RunAssetImportCookPrerequisite(options),
                 "runtime-asset-consumption-prerequisite" => RunRuntimeAssetConsumptionPrerequisite(options),
                 "runtime-projection-freshness-gate" => RunRuntimeProjectionFreshnessGate(options),
-                "client-preview-regression-fixture-plan" => RunClientPreviewRegressionFixturePlan(options),
-                "preview-focused-test-health-gate" => RunPreviewFocusedTestHealthGate(options),
+                "client-evaluation-regression-fixture-plan" => RunClientEvaluationRegressionFixturePlan(options),
+                "evaluation-focused-test-health-gate" => RunEvaluationFocusedTestHealthGate(options),
                 _ => InvalidUsage,
             };
         }
@@ -248,17 +248,17 @@ internal static class Program
         return report.Status == "Failed" ? ValidationFailed : Passed;
     }
 
-    private static int RunHedef4Opening(CommandOptions options)
+    private static int RunAssetWorkflowOpening(CommandOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.InventoryReportPath) ||
             string.IsNullOrWhiteSpace(options.GateReportPath))
         {
-            Console.Error.WriteLine("hedef4-opening requires --inventory-report and --gate-report.");
+            Console.Error.WriteLine("asset-workflow-opening requires --inventory-report and --gate-report.");
             return InvalidUsage;
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = BuildHedef4Opening(load, options.InventoryReportPath, options.GateReportPath, options.EnterpriseClosurePath);
+        var report = BuildAssetWorkflowOpening(load, options.InventoryReportPath, options.GateReportPath, options.EnterpriseClosurePath);
         ReportWriter.Write(options.OutputPath, report);
         return report.Status == "Failed" ? ValidationFailed : Passed;
     }
@@ -266,7 +266,7 @@ internal static class Program
     private static int RunAssetSourceManifestInventory(CommandOptions options)
     {
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase134Reports.BuildAssetSourceManifestInventory(load);
+        var report = AssetSourceManifestReports.BuildAssetSourceManifestInventory(load);
         ReportWriter.Write(options.OutputPath, report);
         return report.Status == "Failed" ? ValidationFailed : Passed;
     }
@@ -281,7 +281,7 @@ internal static class Program
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase134Reports.BuildAssetReferenceGate(load, options.SourceTruthInventoryPath, options.AssetManifestInventoryPath);
+        var report = AssetSourceManifestReports.BuildAssetReferenceGate(load, options.SourceTruthInventoryPath, options.AssetManifestInventoryPath);
         ReportWriter.Write(options.OutputPath, report);
         return report.Status == "Failed" ? ValidationFailed : Passed;
     }
@@ -295,7 +295,7 @@ internal static class Program
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase134Reports.BuildGeneratedFreshnessGate(load, options.InventoryPath);
+        var report = AssetSourceManifestReports.BuildGeneratedFreshnessGate(load, options.InventoryPath);
         ReportWriter.Write(options.OutputPath, report);
         return report.Status == "Failed" ? ValidationFailed : Passed;
     }
@@ -303,7 +303,7 @@ internal static class Program
     private static int RunSceneEntityValidate(CommandOptions options)
     {
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase134Reports.BuildSceneEntityValidation(load);
+        var report = AssetSourceManifestReports.BuildSceneEntityValidation(load);
         ReportWriter.Write(options.OutputPath, report);
         return report.Status == "Failed" ? ValidationFailed : Passed;
     }
@@ -318,7 +318,7 @@ internal static class Program
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase141Reports.BuildComponentMetadataOwnership(load, options.SceneValidationPath, options.FreshnessPath);
+        var report = MetadataOwnershipReports.BuildComponentMetadataOwnership(load, options.SceneValidationPath, options.FreshnessPath);
         ReportWriter.Write(options.OutputPath, report);
         return report.Status == "Failed" ? ValidationFailed : Passed;
     }
@@ -333,7 +333,7 @@ internal static class Program
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase141Reports.BuildEditorInspectionModel(load, options.SceneValidationPath, options.FreshnessPath);
+        var report = MetadataOwnershipReports.BuildEditorInspectionModel(load, options.SceneValidationPath, options.FreshnessPath);
         ReportWriter.Write(options.OutputPath, report);
         return report.Status == "Failed" ? ValidationFailed : Passed;
     }
@@ -347,7 +347,7 @@ internal static class Program
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase141Reports.BuildEditorSourceTruthRead(load, options.InspectionModelPath);
+        var report = MetadataOwnershipReports.BuildEditorSourceTruthRead(load, options.InspectionModelPath);
         ReportWriter.Write(options.OutputPath, report);
         return report.Status == "Failed" ? ValidationFailed : Passed;
     }
@@ -362,7 +362,7 @@ internal static class Program
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase141Reports.BuildRuntimeReadModelAudit(load, options.SceneValidationPath, options.FreshnessPath);
+        var report = MetadataOwnershipReports.BuildRuntimeReadModelAudit(load, options.SceneValidationPath, options.FreshnessPath);
         ReportWriter.Write(options.OutputPath, report);
         return report.Status == "Failed" ? ValidationFailed : Passed;
     }
@@ -378,7 +378,7 @@ internal static class Program
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase141Reports.BuildRuntimeReadinessGate(load, options.SceneValidationPath, options.FreshnessPath, options.RuntimeReadModelPath);
+        var report = MetadataOwnershipReports.BuildRuntimeReadinessGate(load, options.SceneValidationPath, options.FreshnessPath, options.RuntimeReadModelPath);
         ReportWriter.Write(options.OutputPath, report);
         return report.Status == "Failed" ? ValidationFailed : Passed;
     }
@@ -392,35 +392,35 @@ internal static class Program
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase141Reports.BuildSourceTruthScenario(load, options.EvidenceRootPath);
+        var report = MetadataOwnershipReports.BuildSourceTruthScenario(load, options.EvidenceRootPath);
         ReportWriter.Write(options.OutputPath, report);
         return report.Status == "Failed" ? ValidationFailed : Passed;
     }
 
-    private static int RunClientPreviewPrerequisiteAudit(CommandOptions options)
+    private static int RunClientEvaluationPrerequisiteAudit(CommandOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.EvidenceRootPath))
         {
-            Console.Error.WriteLine("client-preview-prerequisite-audit requires --evidence-root.");
+            Console.Error.WriteLine("client-evaluation-prerequisite-audit requires --evidence-root.");
             return InvalidUsage;
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase149Reports.BuildClientPreviewPrerequisiteAudit(load, options.EvidenceRootPath);
+        var report = ClientReadinessReports.BuildClientEvaluationPrerequisiteAudit(load, options.EvidenceRootPath);
         ReportWriter.Write(options.OutputPath, report);
         return report.Status == "Failed" ? ValidationFailed : Passed;
     }
 
     private static int RunClientHostBoundaryPlan(CommandOptions options)
     {
-        if (string.IsNullOrWhiteSpace(options.ClientPreviewPrerequisitePath))
+        if (string.IsNullOrWhiteSpace(options.ClientEvaluationPrerequisitePath))
         {
-            Console.Error.WriteLine("clienthost-boundary-plan requires --client-preview-prerequisite.");
+            Console.Error.WriteLine("clienthost-boundary-plan requires --client-evaluation-prerequisite.");
             return InvalidUsage;
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase149Reports.BuildClientHostBoundaryPlan(load, options.ClientPreviewPrerequisitePath);
+        var report = ClientReadinessReports.BuildClientHostBoundaryPlan(load, options.ClientEvaluationPrerequisitePath);
         ReportWriter.Write(options.OutputPath, report);
         return report.Status == "Failed" ? ValidationFailed : Passed;
     }
@@ -434,7 +434,7 @@ internal static class Program
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase149Reports.BuildAssetImportCookDeferral(load, options.AssetManifestInventoryPath);
+        var report = ClientReadinessReports.BuildAssetImportCookDeferral(load, options.AssetManifestInventoryPath);
         ReportWriter.Write(options.OutputPath, report);
         return report.Status == "Failed" ? ValidationFailed : Passed;
     }
@@ -448,35 +448,35 @@ internal static class Program
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase149Reports.BuildBroadTestHealthPreflight(load, options.EvidenceRootPath);
+        var report = ClientReadinessReports.BuildBroadTestHealthPreflight(load, options.EvidenceRootPath);
         ReportWriter.Write(options.OutputPath, report);
         return report.Status == "Failed" ? ValidationFailed : Passed;
     }
 
-    private static int RunHedef4EvidenceMatrix(CommandOptions options)
+    private static int RunAssetWorkflowEvidenceMatrix(CommandOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.EvidenceRootPath))
         {
-            Console.Error.WriteLine("hedef4-evidence-matrix requires --evidence-root.");
+            Console.Error.WriteLine("asset-workflow-evidence-matrix requires --evidence-root.");
             return InvalidUsage;
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase149Reports.BuildHedef4EvidenceMatrix(load, options.EvidenceRootPath);
+        var report = ClientReadinessReports.BuildAssetWorkflowEvidenceMatrix(load, options.EvidenceRootPath);
         ReportWriter.Write(options.OutputPath, report);
         return report.Status == "Failed" ? ValidationFailed : Passed;
     }
 
-    private static int RunHedef4Closure(CommandOptions options)
+    private static int RunAssetWorkflowClosure(CommandOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.EvidenceRootPath))
         {
-            Console.Error.WriteLine("hedef4-closure requires --evidence-root.");
+            Console.Error.WriteLine("asset-workflow-closure requires --evidence-root.");
             return InvalidUsage;
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase149Reports.BuildHedef4Closure(load, options.EvidenceRootPath);
+        var report = ClientReadinessReports.BuildAssetWorkflowClosure(load, options.EvidenceRootPath);
         ReportWriter.Write(options.OutputPath, report);
         return report.Status == "Failed" ? ValidationFailed : Passed;
     }
@@ -490,71 +490,71 @@ internal static class Program
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase156Reports.BuildRuntimeReadinessV2(load, options.EvidenceRootPath);
+        var report = RuntimeReadinessReports.BuildRuntimeReadinessV2(load, options.EvidenceRootPath);
         ReportWriter.Write(options.OutputPath, report);
         return report.ReadinessStatus is "Blocked" or "MissingEvidence" ? ValidationFailed : Passed;
     }
 
-    private static int RunClientHostPreviewOwnershipBoundary(CommandOptions options)
+    private static int RunClientHostEvaluationOwnershipBoundary(CommandOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.RuntimeReadinessV2Path))
         {
-            Console.Error.WriteLine("clienthost-preview-ownership-boundary requires --runtime-readiness-v2.");
+            Console.Error.WriteLine("clienthost-evaluation-ownership-boundary requires --runtime-readiness-v2.");
             return InvalidUsage;
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase161Reports.BuildClientHostPreviewOwnershipBoundary(load, options.RuntimeReadinessV2Path);
+        var report = ClientHostBoundaryReports.BuildClientHostEvaluationOwnershipBoundary(load, options.RuntimeReadinessV2Path);
         ReportWriter.Write(options.OutputPath, report);
         return report.ReadinessStatus is "Blocked" or "MissingEvidence" ? ValidationFailed : Passed;
     }
 
-    private static int RunClientPreviewLaunchProfileContract(CommandOptions options)
+    private static int RunClientEvaluationLaunchProfileContract(CommandOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.RuntimeReadinessV2Path))
         {
-            Console.Error.WriteLine("client-preview-launch-profile-contract requires --runtime-readiness-v2.");
+            Console.Error.WriteLine("client-evaluation-launch-profile-contract requires --runtime-readiness-v2.");
             return InvalidUsage;
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase161Reports.BuildClientPreviewLaunchProfileContract(load, options.RuntimeReadinessV2Path);
+        var report = ClientHostBoundaryReports.BuildClientEvaluationLaunchProfileContract(load, options.RuntimeReadinessV2Path);
         ReportWriter.Write(options.OutputPath, report);
         return report.ReadinessStatus is "Blocked" or "MissingEvidence" ? ValidationFailed : Passed;
     }
 
-    private static int RunClientPreviewNoNetworkPlan(CommandOptions options)
+    private static int RunClientEvaluationNoNetworkPlan(CommandOptions options)
     {
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase161Reports.BuildClientPreviewNoNetworkPlan(load);
+        var report = ClientHostBoundaryReports.BuildClientEvaluationNoNetworkPlan(load);
         ReportWriter.Write(options.OutputPath, report);
         return report.ReadinessStatus is "Blocked" or "MissingEvidence" ? ValidationFailed : Passed;
     }
 
-    private static int RunClientPreviewDiagnosticsShell(CommandOptions options)
-    {
-        if (string.IsNullOrWhiteSpace(options.EvidenceRootPath))
-        {
-            Console.Error.WriteLine("client-preview-diagnostics-shell requires --evidence-root.");
-            return InvalidUsage;
-        }
-
-        var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase161Reports.BuildClientPreviewDiagnosticsShell(load, options.EvidenceRootPath);
-        ReportWriter.Write(options.OutputPath, report);
-        return report.ReadinessStatus is "Blocked" or "MissingEvidence" ? ValidationFailed : Passed;
-    }
-
-    private static int RunClientPreviewBlockerMatrix(CommandOptions options)
+    private static int RunClientEvaluationDiagnosticsShell(CommandOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.EvidenceRootPath))
         {
-            Console.Error.WriteLine("client-preview-blocker-matrix requires --evidence-root.");
+            Console.Error.WriteLine("client-evaluation-diagnostics-shell requires --evidence-root.");
             return InvalidUsage;
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase161Reports.BuildClientPreviewBlockerMatrix(load, options.EvidenceRootPath);
+        var report = ClientHostBoundaryReports.BuildClientEvaluationDiagnosticsShell(load, options.EvidenceRootPath);
+        ReportWriter.Write(options.OutputPath, report);
+        return report.ReadinessStatus is "Blocked" or "MissingEvidence" ? ValidationFailed : Passed;
+    }
+
+    private static int RunClientEvaluationBlockerMatrix(CommandOptions options)
+    {
+        if (string.IsNullOrWhiteSpace(options.EvidenceRootPath))
+        {
+            Console.Error.WriteLine("client-evaluation-blocker-matrix requires --evidence-root.");
+            return InvalidUsage;
+        }
+
+        var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
+        var report = ClientHostBoundaryReports.BuildClientEvaluationBlockerMatrix(load, options.EvidenceRootPath);
         ReportWriter.Write(options.OutputPath, report);
         return report.ReadinessStatus is "Blocked" or "MissingEvidence" ? ValidationFailed : Passed;
     }
@@ -568,63 +568,63 @@ internal static class Program
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase166Reports.BuildMinimalRuntimeReadSeamPlan(load, options.EvidenceRootPath);
+        var report = RuntimeReadSeamReports.BuildMinimalRuntimeReadSeamPlan(load, options.EvidenceRootPath);
         ReportWriter.Write(options.OutputPath, report);
         return report.ReadinessStatus is "Blocked" or "MissingEvidence" ? ValidationFailed : Passed;
     }
 
-    private static int RunMinimalClientHostPreviewShellPlan(CommandOptions options)
+    private static int RunMinimalClientHostEvaluationShellPlan(CommandOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.EvidenceRootPath))
         {
-            Console.Error.WriteLine("minimal-clienthost-preview-shell-plan requires --evidence-root.");
+            Console.Error.WriteLine("minimal-clienthost-evaluation-shell-plan requires --evidence-root.");
             return InvalidUsage;
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase166Reports.BuildMinimalClientHostPreviewShellPlan(load, options.EvidenceRootPath);
+        var report = RuntimeReadSeamReports.BuildMinimalClientHostEvaluationShellPlan(load, options.EvidenceRootPath);
         ReportWriter.Write(options.OutputPath, report);
         return report.ReadinessStatus is "Blocked" or "MissingEvidence" ? ValidationFailed : Passed;
     }
 
-    private static int RunPackageLaunchPreviewAlignmentPlan(CommandOptions options)
+    private static int RunPackageLaunchEvaluationAlignmentPlan(CommandOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.EvidenceRootPath))
         {
-            Console.Error.WriteLine("package-launch-preview-alignment-plan requires --evidence-root.");
+            Console.Error.WriteLine("package-launch-evaluation-alignment-plan requires --evidence-root.");
             return InvalidUsage;
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase166Reports.BuildPackageLaunchPreviewAlignmentPlan(load, options.EvidenceRootPath);
+        var report = RuntimeReadSeamReports.BuildPackageLaunchEvaluationAlignmentPlan(load, options.EvidenceRootPath);
         ReportWriter.Write(options.OutputPath, report);
         return report.ReadinessStatus is "Blocked" or "MissingEvidence" ? ValidationFailed : Passed;
     }
 
-    private static int RunEditorlessPreviewWorkflowPlan(CommandOptions options)
+    private static int RunEditorlessEvaluationWorkflowPlan(CommandOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.EvidenceRootPath))
         {
-            Console.Error.WriteLine("editorless-preview-workflow-plan requires --evidence-root.");
+            Console.Error.WriteLine("editorless-evaluation-workflow-plan requires --evidence-root.");
             return InvalidUsage;
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase166Reports.BuildEditorlessPreviewWorkflowPlan(load, options.EvidenceRootPath);
+        var report = RuntimeReadSeamReports.BuildEditorlessEvaluationWorkflowPlan(load, options.EvidenceRootPath);
         ReportWriter.Write(options.OutputPath, report);
         return report.ReadinessStatus is "Blocked" or "MissingEvidence" ? ValidationFailed : Passed;
     }
 
-    private static int RunPreviewEvidenceGate(CommandOptions options)
+    private static int RunEvaluationEvidenceGate(CommandOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.EvidenceRootPath))
         {
-            Console.Error.WriteLine("preview-evidence-gate requires --evidence-root.");
+            Console.Error.WriteLine("evaluation-evidence-gate requires --evidence-root.");
             return InvalidUsage;
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase166Reports.BuildPreviewEvidenceGate(load, options.EvidenceRootPath);
+        var report = RuntimeReadSeamReports.BuildEvaluationEvidenceGate(load, options.EvidenceRootPath);
         ReportWriter.Write(options.OutputPath, report);
         return report.ReadinessStatus is "Blocked" or "MissingEvidence" ? ValidationFailed : Passed;
     }
@@ -633,12 +633,12 @@ internal static class Program
     {
         if (string.IsNullOrWhiteSpace(options.EvidenceRootPath))
         {
-            Console.Error.WriteLine("preview-asset-import-cook-prerequisite requires --evidence-root.");
+            Console.Error.WriteLine("evaluation-asset-import-cook-prerequisite requires --evidence-root.");
             return InvalidUsage;
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase171Reports.BuildAssetImportCookPrerequisite(load, options.EvidenceRootPath);
+        var report = AssetImportCookReports.BuildAssetImportCookPrerequisite(load, options.EvidenceRootPath);
         ReportWriter.Write(options.OutputPath, report);
         return report.ReadinessStatus is "Blocked" or "MissingEvidence" ? ValidationFailed : Passed;
     }
@@ -646,14 +646,14 @@ internal static class Program
     private static int RunRuntimeAssetConsumptionPrerequisite(CommandOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.SourceTruthRootPath) ||
-            string.IsNullOrWhiteSpace(options.PreviewRootPath))
+            string.IsNullOrWhiteSpace(options.EvaluationRootPath))
         {
-            Console.Error.WriteLine("runtime-asset-consumption-prerequisite requires --source-truth-root and --preview-root.");
+            Console.Error.WriteLine("runtime-asset-consumption-prerequisite requires --source-truth-root and --evaluation-root.");
             return InvalidUsage;
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase171Reports.BuildRuntimeAssetConsumptionPrerequisite(load, options.SourceTruthRootPath, options.PreviewRootPath);
+        var report = AssetImportCookReports.BuildRuntimeAssetConsumptionPrerequisite(load, options.SourceTruthRootPath, options.EvaluationRootPath);
         ReportWriter.Write(options.OutputPath, report);
         return report.ReadinessStatus is "Blocked" or "MissingEvidence" ? ValidationFailed : Passed;
     }
@@ -667,35 +667,35 @@ internal static class Program
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase171Reports.BuildRuntimeProjectionFreshnessGate(load, options.SourceTruthRootPath);
+        var report = AssetImportCookReports.BuildRuntimeProjectionFreshnessGate(load, options.SourceTruthRootPath);
         ReportWriter.Write(options.OutputPath, report);
         return report.ReadinessStatus is "Blocked" or "MissingEvidence" ? ValidationFailed : Passed;
     }
 
-    private static int RunClientPreviewRegressionFixturePlan(CommandOptions options)
+    private static int RunClientEvaluationRegressionFixturePlan(CommandOptions options)
     {
-        if (string.IsNullOrWhiteSpace(options.PreviewRootPath))
+        if (string.IsNullOrWhiteSpace(options.EvaluationRootPath))
         {
-            Console.Error.WriteLine("client-preview-regression-fixture-plan requires --preview-root.");
+            Console.Error.WriteLine("client-evaluation-regression-fixture-plan requires --evaluation-root.");
             return InvalidUsage;
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase171Reports.BuildClientPreviewRegressionFixturePlan(load, options.PreviewRootPath);
+        var report = AssetImportCookReports.BuildClientEvaluationRegressionFixturePlan(load, options.EvaluationRootPath);
         ReportWriter.Write(options.OutputPath, report);
         return report.ReadinessStatus is "Blocked" or "MissingEvidence" ? ValidationFailed : Passed;
     }
 
-    private static int RunPreviewFocusedTestHealthGate(CommandOptions options)
+    private static int RunEvaluationFocusedTestHealthGate(CommandOptions options)
     {
-        if (string.IsNullOrWhiteSpace(options.PreviewRootPath))
+        if (string.IsNullOrWhiteSpace(options.EvaluationRootPath))
         {
-            Console.Error.WriteLine("preview-focused-test-health-gate requires --preview-root.");
+            Console.Error.WriteLine("evaluation-focused-test-health-gate requires --evaluation-root.");
             return InvalidUsage;
         }
 
         var load = new ProjectManifestLoader().Load(options.ProjectPath, checkReferences: true);
-        var report = Phase171Reports.BuildPreviewFocusedTestHealthGate(load, options.PreviewRootPath);
+        var report = AssetImportCookReports.BuildEvaluationFocusedTestHealthGate(load, options.EvaluationRootPath);
         ReportWriter.Write(options.OutputPath, report);
         return report.ReadinessStatus is "Blocked" or "MissingEvidence" ? ValidationFailed : Passed;
     }
@@ -870,7 +870,7 @@ internal static class Program
             checks.Add(Check("MissingSourceTruthDiagnosticsRegistered", HasDiagnosticRule(inventory, "Project.SourceTruth.MissingSceneSourceTruth") ? "Passed" : "Failed", "Missing source truth diagnostics are registered."));
             checks.Add(Check("StaleGeneratedEvidenceDiagnosed", HasDiagnosticRule(inventory, "Project.SourceTruth.GeneratedArtifactStale") ? "Passed" : "Failed", "Stale generated evidence diagnostics are registered."));
             checks.Add(Check("RuntimeEditorReadBoundariesReportOnly", HasBoundary(inventory, "runtime", "DocumentedReportOnly") && HasBoundary(inventory, "editor", "DocumentedReportOnly") ? "Passed" : "Failed", "Runtime and Editor read boundaries remain documented/report-only."));
-            checks.Add(Check("ClientPreviewDeferred", HasBoundary(inventory, "clientPreview", "Deferred") ? "Passed" : "Failed", "Client preview remains deferred."));
+            checks.Add(Check("ClientEvaluationDeferred", HasBoundary(inventory, "clientEvaluation", "Deferred") ? "Passed" : "Failed", "Client evaluation remains deferred."));
             checks.Add(Check("ReportOnlyInvariants", ReadBool(inventory, "localOnly") && ReadString(inventory, "networkExposure") == "None" && !ReadBool(inventory, "mutatesSource") && ReadString(inventory, "enforcement") == "ReportOnly" ? "Passed" : "Failed", "Report-only invariants are preserved."));
         }
 
@@ -892,7 +892,7 @@ internal static class Program
         };
     }
 
-    private static Hedef4OpeningReport BuildHedef4Opening(ManifestLoadResult load, string inventoryPath, string gatePath, string enterpriseClosurePath)
+    private static AssetWorkflowOpeningReport BuildAssetWorkflowOpening(ManifestLoadResult load, string inventoryPath, string gatePath, string enterpriseClosurePath)
     {
         var diagnostics = new List<ProjectDiagnostic>(load.Diagnostics);
         var inventory = LoadJsonObject(inventoryPath, diagnostics, "Project.SourceTruth.InventoryMalformed");
@@ -921,14 +921,14 @@ internal static class Program
         var status = diagnostics.Any(item => item.Severity == "Error") || gateStatus == "Failed" || inventoryStatus == "Failed"
             ? "Failed"
             : "PartiallyProven";
-        return new Hedef4OpeningReport
+        return new AssetWorkflowOpeningReport
         {
-            Command = "hedef4-opening",
+            Command = "asset-workflow-opening",
             Status = status,
             Outcome = status == "Failed" ? "Blocked" : "PartiallyProven",
             Project = BuildProjectSummary(load),
             Diagnostics = SortDiagnostics(diagnostics),
-            OpenedPhases =
+            OpenedResponsibilities =
             [
                 "Source-truth scope and claim boundary",
                 "Scene and Entity source-truth contract",
@@ -939,20 +939,21 @@ internal static class Program
                 "Report-only source-truth gate",
                 "Source-truth foundation acceptance report",
             ],
-            ReservedFollowUpPhases = ["Follow-up source-truth and runtime-read work remains planning/report-only until implemented"],
+            ReservedFollowUps = ["Follow-up source-truth and runtime-read work remains planning/report-only until implemented"],
             InventoryStatus = inventoryStatus,
             GateStatus = gateStatus,
             Docs =
             [
-                "docs/architecture/SCENE_ENTITY_SOURCE_TRUTH_FOUNDATION.md",
-                "docs/architecture/CLIENT_PREVIEW_AND_RUNTIME_UI_STRATEGY.md",
+                "SagaWiki/pages/source-of-truth.html",
+                "SagaWiki/pages/editor.html",
+                "SagaWiki/pages/scripting.html",
             ],
             Reports = [inventoryPath, gatePath],
             ResidualDebt = residualDebt,
             NonClaims =
             [
-                "No productization milestone is claimed.",
-                "No release-track milestone is claimed.",
+                "No productization completion is claimed.",
+                "No release-track completion is claimed.",
                 "No production readiness is claimed.",
                 "No ClientHost, Runtime gameplay, Server gameplay, Editor UI, Qt UI, asset import, or asset cook implementation is claimed.",
                 "No raw full CTest, heavy stress, soak, bot swarm, or real transport stress proof is claimed.",
@@ -996,8 +997,8 @@ internal static class Program
 
     private static readonly List<string> SourceTruthResidualDebt =
     [
-        "Hedef 3 asset workflow source truth debt remains visible.",
-        "ClientHost preview remains deferred.",
+        "Asset workflow asset workflow source truth debt remains visible.",
+        "ClientHost evaluation remains deferred.",
         "Editor UI and Qt UI remain deferred.",
         "Runtime gameplay and Server gameplay remain deferred.",
         "Asset import and asset cook remain deferred.",
@@ -1161,7 +1162,7 @@ internal static class Program
             return;
         }
 
-        foreach (var boundaryName in new[] { "runtime", "editor", "clientPreview" })
+        foreach (var boundaryName in new[] { "runtime", "editor", "clientEvaluation" })
         {
             if (!boundaries.TryGetProperty(boundaryName, out var boundary) || boundary.ValueKind != JsonValueKind.Object)
             {
@@ -1174,7 +1175,7 @@ internal static class Program
             }
 
             var status = ReadString(boundary, "status");
-            var expectedStatus = boundaryName == "clientPreview" ? "Deferred" : "DocumentedReportOnly";
+            var expectedStatus = boundaryName == "clientEvaluation" ? "Deferred" : "DocumentedReportOnly";
             if (status != expectedStatus)
             {
                 diagnostics.Add(Error(
@@ -1488,12 +1489,12 @@ internal static class Program
                     }
                     options.RuntimeReadinessV2Path = args[++i];
                     break;
-                case "--client-preview-prerequisite":
+                case "--client-evaluation-prerequisite":
                     if (i + 1 >= args.Length)
                     {
-                        return CommandOptions.Fail("--client-preview-prerequisite requires a value.");
+                        return CommandOptions.Fail("--client-evaluation-prerequisite requires a value.");
                     }
-                    options.ClientPreviewPrerequisitePath = args[++i];
+                    options.ClientEvaluationPrerequisitePath = args[++i];
                     break;
                 case "--evidence-root":
                     if (i + 1 >= args.Length)
@@ -1509,12 +1510,12 @@ internal static class Program
                     }
                     options.SourceTruthRootPath = args[++i];
                     break;
-                case "--preview-root":
+                case "--evaluation-root":
                     if (i + 1 >= args.Length)
                     {
-                        return CommandOptions.Fail("--preview-root requires a value.");
+                        return CommandOptions.Fail("--evaluation-root requires a value.");
                     }
-                    options.PreviewRootPath = args[++i];
+                    options.EvaluationRootPath = args[++i];
                     break;
                 default:
                     return CommandOptions.Fail($"Unknown argument: {args[i]}");
@@ -1535,7 +1536,7 @@ internal static class Program
         Console.Error.WriteLine("  sagaproject restricted-resolve --project <path> --slice <project_slice.json> --out <report>");
         Console.Error.WriteLine("  sagaproject source-truth-inventory --project <path> --out <source_truth_inventory_report.json>");
         Console.Error.WriteLine("  sagaproject source-truth-gate --project <path> --inventory-report <source_truth_inventory_report.json> --out <source_truth_gate_report.json>");
-        Console.Error.WriteLine("  sagaproject hedef4-opening --project <path> --inventory-report <source_truth_inventory_report.json> --gate-report <source_truth_gate_report.json> [--enterprise-closure <enterprise_closure_report.json>] --out <hedef4_opening_report.json>");
+        Console.Error.WriteLine("  sagaproject asset-workflow-opening --project <path> --inventory-report <source_truth_inventory_report.json> --gate-report <source_truth_gate_report.json> [--enterprise-closure <enterprise_closure_report.json>] --out <asset_workflow_opening_report.json>");
         Console.Error.WriteLine("  sagaproject asset-source-manifest-inventory --project <path> --out <asset_source_manifest_inventory_report.json>");
         Console.Error.WriteLine("  sagaproject asset-reference-gate --project <path> --source-truth-inventory <source_truth_inventory_report.json> --asset-manifest-inventory <asset_source_manifest_inventory_report.json> --out <asset_reference_gate_report.json>");
         Console.Error.WriteLine("  sagaproject generated-freshness-gate --project <path> --inventory <source_truth_inventory_report.json> --out <generated_artifact_freshness_report.json>");
@@ -1546,28 +1547,28 @@ internal static class Program
         Console.Error.WriteLine("  sagaproject runtime-read-model-audit --project <path> --scene-validation <scene_entity_validation_report.json> --freshness <generated_artifact_freshness_report.json> --out <runtime_read_model_audit_report.json>");
         Console.Error.WriteLine("  sagaproject runtime-readiness-gate --project <path> --scene-validation <scene_entity_validation_report.json> --freshness <generated_artifact_freshness_report.json> --runtime-read-model <runtime_read_model_audit_report.json> --out <runtime_readiness_gate_report.json>");
         Console.Error.WriteLine("  sagaproject source-truth-scenario --project <path> --evidence-root <Build/SourceTruth> --out <source_truth_scenario_report.json>");
-        Console.Error.WriteLine("  sagaproject client-preview-prerequisite-audit --project <path> --evidence-root <Build/SourceTruth> --out <client_preview_prerequisite_audit_report.json>");
-        Console.Error.WriteLine("  sagaproject clienthost-boundary-plan --project <path> --client-preview-prerequisite <client_preview_prerequisite_audit_report.json> --out <clienthost_boundary_plan_report.json>");
+        Console.Error.WriteLine("  sagaproject client-evaluation-prerequisite-audit --project <path> --evidence-root <Build/SourceTruth> --out <client_evaluation_prerequisite_audit_report.json>");
+        Console.Error.WriteLine("  sagaproject clienthost-boundary-plan --project <path> --client-evaluation-prerequisite <client_evaluation_prerequisite_audit_report.json> --out <clienthost_boundary_plan_report.json>");
         Console.Error.WriteLine("  sagaproject asset-import-cook-deferral --project <path> --asset-manifest-inventory <asset_source_manifest_inventory_report.json> --out <asset_import_cook_deferral_report.json>");
         Console.Error.WriteLine("  sagaproject broad-test-health-preflight --project <path> --evidence-root <Build/SourceTruth> --out <broad_test_health_preflight_report.json>");
-        Console.Error.WriteLine("  sagaproject hedef4-evidence-matrix --project <path> --evidence-root <Build/SourceTruth> --out <hedef4_evidence_matrix_report.json>");
-        Console.Error.WriteLine("  sagaproject hedef4-closure --project <path> --evidence-root <Build/SourceTruth> --out <hedef4_closure_report.json>");
+        Console.Error.WriteLine("  sagaproject asset-workflow-evidence-matrix --project <path> --evidence-root <Build/SourceTruth> --out <asset_workflow_evidence_matrix_report.json>");
+        Console.Error.WriteLine("  sagaproject asset-workflow-closure --project <path> --evidence-root <Build/SourceTruth> --out <asset_workflow_closure_report.json>");
         Console.Error.WriteLine("  sagaproject runtime-readiness-v2 --project <path> --evidence-root <Build/SourceTruth> --out <runtime_readiness_v2_report.json>");
-        Console.Error.WriteLine("  sagaproject clienthost-preview-ownership-boundary --project <path> --runtime-readiness-v2 <runtime_readiness_v2_report.json> --out <clienthost_preview_ownership_boundary_report.json>");
-        Console.Error.WriteLine("  sagaproject client-preview-launch-profile-contract --project <path> --runtime-readiness-v2 <runtime_readiness_v2_report.json> --out <client_preview_launch_profile_contract_report.json>");
-        Console.Error.WriteLine("  sagaproject client-preview-no-network-plan --project <path> --out <client_preview_no_network_plan_report.json>");
-        Console.Error.WriteLine("  sagaproject client-preview-diagnostics-shell --project <path> --evidence-root <Build/Preview> --out <client_preview_diagnostics_shell_report.json>");
-        Console.Error.WriteLine("  sagaproject client-preview-blocker-matrix --project <path> --evidence-root <Build/Preview> --out <client_preview_blocker_matrix_report.json>");
-        Console.Error.WriteLine("  sagaproject minimal-runtime-read-seam-plan --project <path> --evidence-root <Build/Preview> --out <minimal_runtime_read_seam_plan_report.json>");
-        Console.Error.WriteLine("  sagaproject minimal-clienthost-preview-shell-plan --project <path> --evidence-root <Build/Preview> --out <minimal_clienthost_preview_shell_plan_report.json>");
-        Console.Error.WriteLine("  sagaproject package-launch-preview-alignment-plan --project <path> --evidence-root <Build/Preview> --out <package_launch_preview_alignment_plan_report.json>");
-        Console.Error.WriteLine("  sagaproject editorless-preview-workflow-plan --project <path> --evidence-root <Build/Preview> --out <editorless_preview_workflow_plan_report.json>");
-        Console.Error.WriteLine("  sagaproject preview-evidence-gate --project <path> --evidence-root <Build/Preview> --out <preview_evidence_gate_report.json>");
-        Console.Error.WriteLine("  sagaproject preview-asset-import-cook-prerequisite --project <path> --evidence-root <Build/SourceTruth> --out <asset_import_cook_prerequisite_report.json>");
-        Console.Error.WriteLine("  sagaproject runtime-asset-consumption-prerequisite --project <path> --source-truth-root <Build/SourceTruth> --preview-root <Build/Preview> --out <runtime_asset_consumption_prerequisite_report.json>");
+        Console.Error.WriteLine("  sagaproject clienthost-evaluation-ownership-boundary --project <path> --runtime-readiness-v2 <runtime_readiness_v2_report.json> --out <clienthost_evaluation_ownership_boundary_report.json>");
+        Console.Error.WriteLine("  sagaproject client-evaluation-launch-profile-contract --project <path> --runtime-readiness-v2 <runtime_readiness_v2_report.json> --out <client_evaluation_launch_profile_contract_report.json>");
+        Console.Error.WriteLine("  sagaproject client-evaluation-no-network-plan --project <path> --out <client_evaluation_no_network_plan_report.json>");
+        Console.Error.WriteLine("  sagaproject client-evaluation-diagnostics-shell --project <path> --evidence-root <Build/Evaluation> --out <client_evaluation_diagnostics_shell_report.json>");
+        Console.Error.WriteLine("  sagaproject client-evaluation-blocker-matrix --project <path> --evidence-root <Build/Evaluation> --out <client_evaluation_blocker_matrix_report.json>");
+        Console.Error.WriteLine("  sagaproject minimal-runtime-read-seam-plan --project <path> --evidence-root <Build/Evaluation> --out <minimal_runtime_read_seam_plan_report.json>");
+        Console.Error.WriteLine("  sagaproject minimal-clienthost-evaluation-shell-plan --project <path> --evidence-root <Build/Evaluation> --out <minimal_clienthost_evaluation_shell_plan_report.json>");
+        Console.Error.WriteLine("  sagaproject package-launch-evaluation-alignment-plan --project <path> --evidence-root <Build/Evaluation> --out <package_launch_evaluation_alignment_plan_report.json>");
+        Console.Error.WriteLine("  sagaproject editorless-evaluation-workflow-plan --project <path> --evidence-root <Build/Evaluation> --out <editorless_evaluation_workflow_plan_report.json>");
+        Console.Error.WriteLine("  sagaproject evaluation-evidence-gate --project <path> --evidence-root <Build/Evaluation> --out <evaluation_evidence_gate_report.json>");
+        Console.Error.WriteLine("  sagaproject evaluation-asset-import-cook-prerequisite --project <path> --evidence-root <Build/SourceTruth> --out <asset_import_cook_prerequisite_report.json>");
+        Console.Error.WriteLine("  sagaproject runtime-asset-consumption-prerequisite --project <path> --source-truth-root <Build/SourceTruth> --evaluation-root <Build/Evaluation> --out <runtime_asset_consumption_prerequisite_report.json>");
         Console.Error.WriteLine("  sagaproject runtime-projection-freshness-gate --project <path> --source-truth-root <Build/SourceTruth> --out <runtime_projection_freshness_gate_report.json>");
-        Console.Error.WriteLine("  sagaproject client-preview-regression-fixture-plan --project <path> --preview-root <Build/Preview> --out <client_preview_regression_fixture_plan_report.json>");
-        Console.Error.WriteLine("  sagaproject preview-focused-test-health-gate --project <path> --preview-root <Build/Preview> --out <preview_focused_test_health_gate_report.json>");
+        Console.Error.WriteLine("  sagaproject client-evaluation-regression-fixture-plan --project <path> --evaluation-root <Build/Evaluation> --out <client_evaluation_regression_fixture_plan_report.json>");
+        Console.Error.WriteLine("  sagaproject evaluation-focused-test-health-gate --project <path> --evaluation-root <Build/Evaluation> --out <evaluation_focused_test_health_gate_report.json>");
     }
 
     private sealed class CommandOptions
@@ -1587,10 +1588,10 @@ internal static class Program
         public string InspectionModelPath { get; set; } = "";
         public string RuntimeReadModelPath { get; set; } = "";
         public string RuntimeReadinessV2Path { get; set; } = "";
-        public string ClientPreviewPrerequisitePath { get; set; } = "";
+        public string ClientEvaluationPrerequisitePath { get; set; } = "";
         public string EvidenceRootPath { get; set; } = "";
         public string SourceTruthRootPath { get; set; } = "";
-        public string PreviewRootPath { get; set; } = "";
+        public string EvaluationRootPath { get; set; } = "";
         public string OutputPath { get; set; } = "";
 
         public static CommandOptions Fail(string error)

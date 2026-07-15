@@ -1,4 +1,4 @@
-"""Read-only commit plan preview for SagaSync."""
+"""Read-only commit plan evaluation for SagaSync."""
 
 from __future__ import annotations
 
@@ -65,6 +65,10 @@ def parse_status_line(line: str) -> CommitPlanFile | None:
 def _tool_name_from_path(path: str) -> str | None:
     parts = path.split("/")
     if len(parts) >= 2 and parts[0] == "Tools" and parts[1]:
+        if len(parts) >= 4 and parts[1:3] == ["Developer", "Environment"]:
+            return parts[3]
+        if len(parts) >= 3 and parts[1] == "Developer" and parts[2]:
+            return parts[2]
         return parts[1]
     return None
 
@@ -77,7 +81,7 @@ def _group_key(file: CommitPlanFile, manifest: ExportManifest) -> tuple[str, str
     tool_name = _tool_name_from_path(file.path)
     if tool_name is not None:
         return (GROUP_TOOL, tool_name)
-    if file.path.startswith("docs/"):
+    if file.path.startswith("SagaWiki/"):
         return (GROUP_DOCS, "Documentation")
     if "/" not in file.path or file.path.startswith(("core/", "src/", "include/", "tests/")):
         return (GROUP_SOURCE, "SagaEngine")

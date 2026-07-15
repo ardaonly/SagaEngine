@@ -32,7 +32,7 @@ struct ComponentEditorDescriptor
 /// dockable `IPanel` showing that component's editable fields. The
 /// inspector queries this registry every time the active selection
 /// changes, so factories must be cheap and side-effect-free; expensive
-/// state (icons, undo handles, asset previews) belongs inside the
+/// state (icons, undo handles, asset evaluations) belongs inside the
 /// produced panel, not the factory closure.
 class ComponentEditorRegistry
 {

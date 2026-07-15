@@ -1,14 +1,14 @@
 /// @file MovementValidator.cpp
 /// @brief MovementValidator implementation — server-authoritative movement gate.
 
-#include "SagaServer/Simulation/MovementValidator.h"
+#include "SagaEngine/ServerAuthority/Simulation/MovementValidator.h"
 #include "SagaEngine/Core/Log/Log.h"
 
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 
-namespace SagaEngine::Server::Simulation
+namespace SagaEngine::ServerAuthority::Simulation
 {
 
 static constexpr const char* kTag = "MovementValidator";
@@ -302,4 +302,4 @@ std::size_t MovementValidator::GetTrackedCount() const
     return m_Records.size();
 }
 
-} // namespace SagaEngine::Server::Simulation
+} // namespace SagaEngine::ServerAuthority::Simulation

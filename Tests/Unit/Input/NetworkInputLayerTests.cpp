@@ -15,8 +15,8 @@
 #include "SagaEngine/Input/Networking/InputCommandInbox.h"
 #include "SagaEngine/Input/Networking/ServerInputProcessor.h"
 #include "SagaEngine/Input/Networking/InputPacketHandler.h"
-#include "SagaServer/Networking/Core/Packet.h"
-#include "SagaServer/Networking/Core/NetworkTypes.h"
+#include "SagaEngine/Networking/Packet.h"
+#include "SagaEngine/Networking/NetworkTypes.h"
 
 using namespace SagaEngine::Input;
 using namespace SagaEngine::Networking;

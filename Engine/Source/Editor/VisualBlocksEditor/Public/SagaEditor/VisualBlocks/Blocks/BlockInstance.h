@@ -3,14 +3,14 @@
 
 #pragma once
 
-#include "SagaEditor/VisualScripting/Blocks/BlockSlot.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockSlot.h"
 
 #include <cstdint>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 // ─── Identity ─────────────────────────────────────────────────────────────────
@@ -89,4 +89,4 @@ struct BlockInstance
     }
 };
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

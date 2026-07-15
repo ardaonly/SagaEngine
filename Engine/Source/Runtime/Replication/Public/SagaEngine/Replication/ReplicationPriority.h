@@ -1,7 +1,7 @@
 /// @file ReplicationPriority.h
 /// @brief Replication priority classes and per-entity priority assignment.
 ///
-/// Layer  : SagaServer / Networking / Replication
+/// Layer  : SagaEngine / Replication
 /// Purpose: Entities are categorised into four priority tiers that control
 ///          their update frequency and bandwidth allocation during replication.
 ///          Critical entities (e.g. the player's own avatar, nearby combat targets)
@@ -24,7 +24,7 @@
 #include <mutex>
 #include <unordered_map>
 
-namespace SagaEngine::Networking::Replication
+namespace SagaEngine::Replication
 {
 
 using EntityId = ECS::EntityId;
@@ -155,4 +155,4 @@ private:
     std::unordered_map<EntityId, PriorityClass>      m_table;
 };
 
-} // namespace SagaEngine::Networking::Replication
+} // namespace SagaEngine::Replication

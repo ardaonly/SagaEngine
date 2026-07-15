@@ -3,7 +3,7 @@
 #include <memory>
 #include <string>
 #include <vector>
-namespace SagaEditor::VisualScripting {
+namespace SagaEditor::VisualBlocks {
 struct NodeId  { uint64_t value; };
 struct PinId   { uint64_t value; };
 struct LinkId  { uint64_t value; };
@@ -24,4 +24,4 @@ public:
 private:
     struct Impl; std::unique_ptr<Impl> m_impl;
 };
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

@@ -1,7 +1,7 @@
 /// @file main.cpp
-/// @brief CLI entrypoint for bounded MultiplayerSandbox headless preview.
+/// @brief CLI entrypoint for bounded MultiplayerSandbox headless evaluation.
 
-#include "MultiplayerSandboxHeadless/HeadlessPreview.hpp"
+#include "MultiplayerSandboxHeadless/HeadlessEvaluation.hpp"
 
 #include <cstdlib>
 #include <iostream>
@@ -10,14 +10,14 @@
 namespace
 {
 
-using MultiplayerSandboxHeadless::HeadlessPreviewOptions;
+using MultiplayerSandboxHeadless::HeadlessEvaluationOptions;
 
 struct ParseResult
 {
     bool ok{true};
     bool help{false};
     std::string error;
-    HeadlessPreviewOptions options;
+    HeadlessEvaluationOptions options;
 };
 
 [[nodiscard]] bool HasValue(int index, int argc) noexcept
@@ -114,10 +114,10 @@ int main(int argc, char* argv[])
     }
 
     const auto report =
-        MultiplayerSandboxHeadless::RunHeadlessPreview(parsed.options);
+        MultiplayerSandboxHeadless::RunHeadlessEvaluation(parsed.options);
 
     std::string error;
-    if (!MultiplayerSandboxHeadless::WriteHeadlessPreviewReportJson(
+    if (!MultiplayerSandboxHeadless::WriteHeadlessEvaluationReportJson(
             report,
             parsed.options.reportOut,
             error))

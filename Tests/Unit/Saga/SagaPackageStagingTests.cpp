@@ -1,9 +1,9 @@
 /// @file SagaPackageStagingTests.cpp
 /// @brief Focused tests for Saga package staging without the full product shell.
 
-#include "Packaging/SagaPackageStaging.h"
+#include "ProductIntegration/SagaPackageStaging.h"
 #include "Projects/SagaProjectSystem.h"
-#include "Packaging/SagaPublishReadiness.h"
+#include "ProductIntegration/SagaPublishReadiness.h"
 
 #include <SagaAssetPipeline/Assets/AssetManifestWriter.hpp>
 #include <SagaAssetPipeline/Identity/AssetIdentityManifestWriter.hpp>

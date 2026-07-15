@@ -289,7 +289,7 @@ void PrintUsage(std::ostream& os)
         "    test       [--build=DIR] [--label=LABEL|--suite=NAME] [--jobs=N] [--verbose]\n"
         "    install-target [--build=DIR] [--prefix=DIR] [--component=NAME]\n"
         "    plan       <command> [--json] [--write-report]\n"
-        "                                                 preview Forge build plan report\n"
+        "                                                 evaluation Forge build plan report\n"
         "    gate run --name=NAME --tool=EXE --diagnostics=FILE -- <tool args>\n"
         "                                                 run external diagnostics gate\n"
         "    presets    [build|test|configure]         list available CMake presets\n"

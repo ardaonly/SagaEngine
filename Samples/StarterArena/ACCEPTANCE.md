@@ -12,7 +12,7 @@ server-headless evidence is not launcher acceptance.
 
 Accepted runtime smoke evidence:
 
-- `SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke` exits `0`;
+- `SagaRuntime --headless --project Samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke` exits `0`;
 - the smoke report has `status: Passed`;
 - the report records `project.projectId: starter-arena`;
 - the report records `project.projectPath`;
@@ -27,7 +27,7 @@ Accepted runtime smoke evidence:
 
 Accepted visible-frame evidence:
 
-- `SagaRuntime --project samples/StarterArena/StarterArena.sagaproj --starter-arena-playable --playable-frames 30` exits `0` on a supported display/GPU environment;
+- `SagaRuntime --project Samples/StarterArena/StarterArena.sagaproj --starter-arena-playable --playable-frames 30` exits `0` on a supported display/GPU environment;
 - `--starter-arena-playable` is rejected when combined with `--headless`;
 - the visible report records the same project id, scene id, spawn, bounds,
   camera, fixed timestep, test input, final position, and clamp count used by
@@ -38,7 +38,7 @@ Accepted visible-frame evidence:
 - the report records completed render-resource and backend shutdown;
 - GPU evidence contains non-clear arena pixels and distinct ground, player,
   and boundary color regions;
-- visible reports and generated resources stay outside `samples/StarterArena`;
+- visible reports and generated resources stay outside `Samples/StarterArena`;
 - the visible path uses only Runtime-owned app-local composition and does not
   use networking, editor code, or C# execution.
 
@@ -90,7 +90,7 @@ Accepted SagaScript compile and metadata evidence:
 - generated metadata records `script://starter-arena/game-rules`,
   `StarterArena.Scripts.GameRules`, `AddPickupScore`, and `net10.0`;
 - generated manifests, assemblies, diagnostics, and smoke reports stay outside
-  `samples/StarterArena`;
+  `Samples/StarterArena`;
 - metadata-only runtime smoke records `scriptBinding.status: Passed` and
   `scriptBinding.execution: MetadataOnly`;
 - incomplete or missing script metadata inputs fail with clear diagnostics.
@@ -121,7 +121,7 @@ Accepted C# lifecycle evidence:
 - the test invokes create, start, update, and destroy lifecycle methods;
 - deterministic log evidence records the `GameRules` lifecycle callbacks;
 - the test does not require graphics, GPU, editor UI, networking, multiplayer,
-  package installation, or generated artifacts inside `samples/StarterArena`.
+  package installation, or generated artifacts inside `Samples/StarterArena`.
 
 Accepted runtime smoke lifecycle evidence:
 
@@ -160,7 +160,7 @@ Accepted gameplay-spine evidence:
 - managed `GameRules.OnUpdate` uses only the explicitly granted typed state
   port to collect the pickup, add score `10`, and set `powered` state;
 - reports record the input-derived position, ordered typed mutations,
-  lifecycle phase/tick, initial/final state, and stable diagnostics;
+  lifecycle event/tick, initial/final state, and stable diagnostics;
 - visible synthetic proof records the pickup draw before collection, its
   absence on the last frame, powered-player submission, and
   `gameplayStateReflected: true`;

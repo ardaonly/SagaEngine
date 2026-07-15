@@ -2,7 +2,7 @@ function(saga_setup_graphics_install)
     include(GNUInstallDirs)
     include(CMakePackageConfigHelpers)
 
-    install(DIRECTORY "${SAGA_ROOT}/Engine/Public/SagaEngine/Graphics"
+    install(DIRECTORY "${SAGA_ROOT}/Engine/Source/Runtime/RHI/Public/SagaEngine/Graphics"
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/SagaEngine"
         COMPONENT SagaDevelopment
     )

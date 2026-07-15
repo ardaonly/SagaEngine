@@ -42,7 +42,7 @@
     },
     {
       "kind": "PackageProfile",
-      "id": "technical-preview-server-headless",
+      "id": "project-readiness-server-headless",
       "path": "package_profiles.json",
       "visibility": "SummaryOnly"
     }

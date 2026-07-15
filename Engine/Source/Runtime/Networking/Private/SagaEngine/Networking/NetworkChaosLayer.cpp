@@ -1,14 +1,14 @@
 /// @file NetworkChaosLayer.cpp
 /// @brief Implements deterministic direct-frame network chaos policy.
 
-#include "SagaServer/Networking/Core/NetworkChaosLayer.h"
+#include "SagaEngine/Networking/NetworkChaosLayer.h"
 
 #include "SagaEngine/Diagnostics/DiagnosticSystem.hpp"
 
 #include <algorithm>
 #include <utility>
 
-namespace SagaServer::Networking
+namespace SagaEngine::Networking
 {
 namespace
 {
@@ -210,4 +210,4 @@ void NetworkChaosLayer::RecordQueueDepth()
         static_cast<double>(deferredFrames_.size()));
 }
 
-} // namespace SagaServer::Networking
+} // namespace SagaEngine::Networking

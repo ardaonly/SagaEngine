@@ -1,7 +1,7 @@
 /// @file QtUIMainWindow.cpp
 /// @brief Qt implementation of IUIMainWindow.
 
-#include "SagaEditor/UI/Qt/QtUIMainWindow.h"
+#include "SagaEditorQt/QtUIMainWindow.h"
 #include "SagaEditor/Shell/ShellLayout.h"
 
 #include <QMainWindow>

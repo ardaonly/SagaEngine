@@ -1,0 +1,5 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Server authority | SagaWiki</title><link rel="stylesheet" href="../assets/style.css"></head><body><main><p><a href="../index.html">SagaWiki</a></p><h1>Server authority</h1>
+<p>ServerAuthority owns zones, shards, authoritative connection implementation, gameplay command dispatch, movement validation, security policy, ownership, and authoritative simulation decisions. Clients may request and predict; they do not become multiplayer authority.</p>
+<p><code>ConnectionManager</code> and <code>ServerConnection</code> are private implementation classes consumed by ServerAuthority internals. Generic connection and transport contracts belong in Networking only when they are authority-neutral. A dedicated public authority-connection contract should be introduced only when a real external consumer requires one.</p>
+<h2>Evidence boundary</h2><p>Focused server and client/server tests demonstrate their named scenarios only. They do not establish production scale, deployment topology, hostile-network security, persistence durability, operations readiness, or service availability.</p>
+</main></body></html>

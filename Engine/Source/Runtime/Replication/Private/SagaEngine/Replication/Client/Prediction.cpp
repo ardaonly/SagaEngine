@@ -1,15 +1,15 @@
 /// @file Prediction.cpp
 /// @brief Server-side client prediction bookkeeping implementation.
 ///
-/// Layer  : SagaServer / Networking / Client
+/// Layer  : SagaEngine / Replication
 /// Purpose: Production implementation of the server-side prediction tracker
 ///          and bookkeeper with sequence validation, circular history buffer,
 ///          and thread-safe multi-client management.
 
-#include "SagaServer/Networking/Client/Prediction.h"
+#include "SagaEngine/Replication/Client/Prediction.h"
 #include "SagaEngine/Core/Log/Log.h"
 
-namespace SagaServer::Networking {
+namespace SagaEngine::Replication {
 
 static constexpr const char* kTag = "ClientPrediction";
 
@@ -281,4 +281,4 @@ uint32_t ClientPredictionBookkeeper::TrackerCount() const noexcept
     return static_cast<uint32_t>(m_trackers.size());
 }
 
-} // namespace SagaServer::Networking
+} // namespace SagaEngine::Replication

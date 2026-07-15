@@ -1,15 +1,15 @@
 /// @file ServerConnection.cpp
 /// @brief ServerConnection — per-client TCP connection with full state machine.
 
-#include "SagaServer/Networking/Server/ServerConnection.h"
-#include "SagaServer/Networking/Core/ServerPacketNormalizer.h"
+#include "SagaEngine/ServerAuthority/ServerConnection.h"
+#include "SagaEngine/Networking/ServerPacketNormalizer.h"
 #include "SagaEngine/Core/Log/Log.h"
 
 #include <cassert>
 #include <chrono>
 #include <cstring>
 
-namespace SagaServer::Networking
+namespace SagaEngine::ServerAuthority
 {
 
 using namespace std::chrono_literals;
@@ -17,7 +17,8 @@ using namespace std::chrono_literals;
 static constexpr const char* kTag = "ServerConnection";
 
 // Wire layout of our framing header: [magic:2][type:1][flags:1][bodyLen:4]
-static constexpr std::size_t kHeaderSize = kServerPacketFrameHeaderSize;
+static constexpr std::size_t kHeaderSize =
+    ::SagaEngine::Networking::kServerPacketFrameHeaderSize;
 
 // ─── Construction ─────────────────────────────────────────────────────────────
 
@@ -93,7 +94,8 @@ bool ServerConnection::Send(const uint8_t* data, std::size_t size)
     if (m_state.load(std::memory_order_relaxed) == ServerConnectionState::Disconnected)
         return false;
 
-    if (size == 0 || size > kServerPacketFrameMaxBodyBytes)
+    if (size == 0 ||
+        size > ::SagaEngine::Networking::kServerPacketFrameMaxBodyBytes)
     {
         LOG_WARN(kTag, "Client %llu: rejecting send of %zu bytes (invalid size)",
                  static_cast<unsigned long long>(m_clientId), size);
@@ -227,7 +229,7 @@ void ServerConnection::HandleReceiveHeader(const asio::error_code& ec, std::size
     uint16_t magic;
     std::memcpy(&magic, m_headerBuf.data(), sizeof(magic));
 
-    if (magic != kServerPacketFrameMagic)
+    if (magic != ::SagaEngine::Networking::kServerPacketFrameMagic)
     {
         LOG_WARN(kTag, "Client %llu: bad magic 0x%04X — possible protocol mismatch",
                  static_cast<unsigned long long>(m_clientId), magic);
@@ -238,12 +240,12 @@ void ServerConnection::HandleReceiveHeader(const asio::error_code& ec, std::size
     uint32_t bodyLen;
     std::memcpy(&bodyLen, m_headerBuf.data() + 4, sizeof(bodyLen));
 
-    if (bodyLen > kServerPacketFrameMaxBodyBytes)
+    if (bodyLen > ::SagaEngine::Networking::kServerPacketFrameMaxBodyBytes)
     {
         LOG_WARN(kTag, "Client %llu: body length %u exceeds max %u",
                  static_cast<unsigned long long>(m_clientId),
                  bodyLen,
-                 kServerPacketFrameMaxBodyBytes);
+                 ::SagaEngine::Networking::kServerPacketFrameMaxBodyBytes);
         HandleDisconnect(-4);
         return;
     }
@@ -598,4 +600,4 @@ std::chrono::steady_clock::time_point ServerConnection::GetLastReceivedTime() co
             m_lastReceivedTime.load(std::memory_order_relaxed)));
 }
 
-} // namespace SagaServer::Networking
+} // namespace SagaEngine::ServerAuthority

@@ -37,7 +37,7 @@ def discover_repo_root(start: Path) -> Path:
 
     current = start.resolve()
     for candidate in (current, *current.parents):
-        if (candidate / "core" / "export" / "manifest.json").exists():
+        if (candidate / "Tools" / "Developer" / "RepoAudit" / "export-manifest.json").exists():
             return candidate
     return current
 

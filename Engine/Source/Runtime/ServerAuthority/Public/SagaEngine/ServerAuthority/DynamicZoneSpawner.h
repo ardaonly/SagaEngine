@@ -1,7 +1,7 @@
 /// @file DynamicZoneSpawner.h
 /// @brief On-demand zone process creation and teardown protocol.
 ///
-/// Layer  : SagaServer / Networking / Server
+/// Layer  : SagaEngine / ServerAuthority
 /// Purpose: Static zone allocation (one process per named zone, started
 ///          at cluster boot) is fine for a launch-day map, but it
 ///          wastes compute as soon as the world has optional content:
@@ -40,7 +40,7 @@
 
 #pragma once
 
-#include "SagaServer/Networking/Server/ConnectionMigration.h" // ZoneId, AccountId
+#include "SagaEngine/ServerAuthority/ConnectionMigration.h" // ZoneId, AccountId
 
 #include <cstdint>
 #include <functional>

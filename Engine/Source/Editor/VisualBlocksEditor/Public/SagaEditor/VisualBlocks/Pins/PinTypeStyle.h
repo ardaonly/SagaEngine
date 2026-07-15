@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <string>
-namespace SagaEditor::VisualScripting {
+namespace SagaEditor::VisualBlocks {
 struct PinStyle {
     uint32_t    color       = 0xFFFFFFFF; ///< RGBA
     std::string shape       = "circle";   ///< circle | square | diamond
@@ -12,4 +12,4 @@ public:
     static PinStyle ForType(const std::string& pinType);
     static void     Register(const std::string& pinType, PinStyle style);
 };
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

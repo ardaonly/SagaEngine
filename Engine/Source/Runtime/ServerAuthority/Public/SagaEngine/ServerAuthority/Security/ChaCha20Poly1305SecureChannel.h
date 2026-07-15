@@ -1,7 +1,7 @@
 /// @file ChaCha20Poly1305SecureChannel.h
 /// @brief Dependency-free ChaCha20-Poly1305 AEAD backend for ISecureChannel.
 ///
-/// Layer  : SagaServer / Networking / Security
+/// Layer  : SagaEngine / ServerAuthority
 /// Purpose: Ship a real, production-capable secure channel *today*,
 ///          without pulling OpenSSL / libsodium into the build.  The
 ///          backend implements ChaCha20-Poly1305 per RFC 8439 — the
@@ -43,7 +43,7 @@
 
 #pragma once
 
-#include "SagaServer/Networking/Security/ISecureChannel.h"
+#include "SagaEngine/ServerAuthority/Security/ISecureChannel.h"
 
 #include <array>
 #include <cstddef>
@@ -166,7 +166,7 @@ public:
         std::size_t                inboundSize,
         std::vector<std::uint8_t>& outbound) override;
 
-    // ── Traffic phase ────────────────────────────────────────────────────
+    // ── Traffic mode ────────────────────────────────────────────────────
 
     [[nodiscard]] SecureChannelResult Encrypt(
         const std::uint8_t*        plaintext,

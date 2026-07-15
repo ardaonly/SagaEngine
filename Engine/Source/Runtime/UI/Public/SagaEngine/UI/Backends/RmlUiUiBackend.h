@@ -7,11 +7,11 @@
 
 #include <memory>
 
-namespace SagaEngine::Backends::UI
+namespace SagaEngine::UI::Backends
 {
 
 /// Create the RmlUi-backed runtime UI backend without exposing RmlUi types.
 [[nodiscard]] std::unique_ptr<::SagaEngine::UI::IUiBackend>
 CreateRmlUiUiBackend();
 
-} // namespace SagaEngine::Backends::UI
+} // namespace SagaEngine::UI::Backends

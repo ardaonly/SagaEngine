@@ -48,7 +48,7 @@ def _read_json(path: Path) -> Mapping[str, Any]:
 
 
 def load_export_manifest(repo_root: Path) -> ExportManifest:
-    path = repo_root / "core" / "export" / "manifest.json"
+    path = repo_root / "Tools" / "Developer" / "RepoAudit" / "export-manifest.json"
     data = _read_json(path)
     raw_tools = data.get("tools", {})
     if not isinstance(raw_tools, dict):

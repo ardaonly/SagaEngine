@@ -1,0 +1,14 @@
+{
+  "schema": "sagaengine.tool_export.v0",
+  "version": "0.1",
+  "target_branch": "main",
+  "allowed_repos": [
+    "ardaonly/*"
+  ],
+  "tools": {
+    "Forge": {
+      "path": "Tools/Forge",
+      "repo": "ardaonly/forge"
+    }
+  }
+}

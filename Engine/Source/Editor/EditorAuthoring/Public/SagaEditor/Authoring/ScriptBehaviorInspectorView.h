@@ -35,6 +35,6 @@ struct ScriptBehaviorInspectorLoadResult
 };
 
 [[nodiscard]] ScriptBehaviorInspectorLoadResult LoadScriptBehaviorInspectorViews(
-    const TechnicalPreviewProjectView& project);
+    const ProjectReadinessView& project);
 
 } // namespace SagaEditor::Authoring

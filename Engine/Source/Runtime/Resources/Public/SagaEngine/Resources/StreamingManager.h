@@ -33,7 +33,7 @@
 ///     requests that have not yet been picked up are dropped at
 ///     dispatch time so cancelled background prefetches do not
 ///     block a critical request behind them.
-///   - Shutdown is two-phase.  `Shutdown()` first sets the
+///   - Shutdown is two-step. `Shutdown()` first sets the
 ///     shutting-down flag so `Submit` rejects with
 ///     `StreamingStatus::ShuttingDown`, then notifies every worker
 ///     to exit, joins them, and finally walks the queue to

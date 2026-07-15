@@ -1,7 +1,7 @@
 /// @file AuthoritativeMovementCommandIntakeTests.cpp
 /// @brief Unit tests for normalized authoritative movement command intake.
 
-#include "SagaServer/Simulation/AuthoritativeMovementCommandIntake.h"
+#include "SagaEngine/ServerAuthority/Simulation/AuthoritativeMovementCommandIntake.h"
 
 #include "SagaEngine/Input/Commands/InputCommandSerializer.h"
 
@@ -18,14 +18,14 @@ using SagaEngine::Input::InputCommand;
 using SagaEngine::Input::InputCommandSerializer;
 using SagaEngine::Input::MakeInputCommand;
 using SagaEngine::Networking::PacketType;
-using SagaEngine::Server::Simulation::AuthoritativeMovementCommandIntake;
-using SagaEngine::Server::Simulation::AuthoritativeMovementCommandIntakeConfig;
-using SagaEngine::Server::Simulation::AuthoritativeMovementCommandIntakeDecision;
-using SagaEngine::Server::Simulation::AuthoritativeMovementCommandPacketView;
-using SagaEngine::Server::Simulation::AuthoritativeMovementDecision;
-using SagaEngine::Server::Simulation::ClientId;
-using SagaEngine::Server::Simulation::EntityId;
-using SagaEngine::Server::Simulation::Vector3;
+using SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementCommandIntake;
+using SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementCommandIntakeConfig;
+using SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementCommandIntakeDecision;
+using SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementCommandPacketView;
+using SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementDecision;
+using SagaEngine::ServerAuthority::Simulation::ClientId;
+using SagaEngine::ServerAuthority::Simulation::EntityId;
+using SagaEngine::ServerAuthority::Simulation::Vector3;
 
 constexpr ClientId kClient = 21;
 constexpr EntityId kEntity = 909;

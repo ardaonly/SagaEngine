@@ -18,7 +18,7 @@ python3 -m pip install PySide6
 On NixOS or Nix-enabled systems:
 
 ```sh
-cd Tools/SagaSync
+cd Tools/Developer/Environment/SagaSync
 nix-shell
 python3 sagasync.py
 ```
@@ -26,7 +26,7 @@ python3 sagasync.py
 The non-GUI smoke check does not require PySide6:
 
 ```sh
-python3 Tools/SagaSync/sagasync.py --smoke
+python3 Tools/Developer/Environment/SagaSync/sagasync.py --smoke
 ```
 
 ## Usage
@@ -34,7 +34,7 @@ python3 Tools/SagaSync/sagasync.py --smoke
 Run directly:
 
 ```sh
-python3 Tools/SagaSync/sagasync.py
+python3 Tools/Developer/Environment/SagaSync/sagasync.py
 ```
 
 Or via SagaTools after running `Tools/SagaTools/setup.py`:
@@ -43,8 +43,8 @@ Or via SagaTools after running `Tools/SagaTools/setup.py`:
 tools sagasync
 ```
 
-The registry points to `Tools/SagaSync/sagasync` on Linux/macOS and
-`Tools/SagaSync/sagasync.cmd` on Windows.
+The registry points to `Tools/Developer/Environment/SagaSync/sagasync` on Linux/macOS and
+`Tools/Developer/Environment/SagaSync/sagasync.cmd` on Windows.
 
 ## Structure
 
@@ -54,7 +54,7 @@ The registry points to `Tools/SagaSync/sagasync` on Linux/macOS and
 ## MVP Scope
 
 SagaSync v1 manages the SagaEngine monorepo plus the mirror tools configured in
-`core/export/manifest.json`.
+`Tools/Developer/RepoAudit/export-manifest.json`.
 
 It can:
 
@@ -63,7 +63,7 @@ It can:
 - show Quick, Forge, and Export Safety verification profiles,
 - track session-local verification run results, duration, and last run time,
 - mark ready export state as unverified until Export Safety has run,
-- preview a read-only commit plan with grouped files and suggested messages,
+- evaluation a read-only commit plan with grouped files and suggested messages,
 - run export dry-runs,
 - run basic verification commands,
 - suggest a conservative commit/export queue.

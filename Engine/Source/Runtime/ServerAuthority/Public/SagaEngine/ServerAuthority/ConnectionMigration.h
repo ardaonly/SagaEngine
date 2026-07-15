@@ -1,7 +1,7 @@
 /// @file ConnectionMigration.h
 /// @brief Zone-transfer handoff protocol for seamless player migration.
 ///
-/// Layer  : SagaServer / Networking / Server
+/// Layer  : SagaEngine / ServerAuthority
 /// Purpose: An MMO's world is larger than any single zone process can
 ///          hold.  When a player walks across a zone boundary we must
 ///          (a) pick them up on the destination zone, (b) preserve
@@ -154,10 +154,10 @@ struct ZoneMigrateDirective
 
 // ─── Bookkeeping helper ─────────────────────────────────────────────────────
 
-/// Tiny state machine a ServerConnection embeds to know what phase of
+/// Tiny state machine a ServerConnection embeds to know what stage of
 /// the migration it is in.  Lives on the *source* side of the handoff;
 /// the destination only sees a fresh, post-token connection.
-enum class MigrationPhase : std::uint8_t
+enum class MigrationStage : std::uint8_t
 {
     None = 0,              ///< Default — normal gameplay.
     RequestSent,           ///< Shipped to destination, awaiting ack.

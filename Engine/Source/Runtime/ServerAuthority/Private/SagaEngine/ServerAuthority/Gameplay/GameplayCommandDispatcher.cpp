@@ -1,14 +1,14 @@
 /// @file GameplayCommandDispatcher.cpp
 /// @brief Typed fan-out + per-opcode rate limiting for gameplay commands.
 
-#include "SagaServer/Gameplay/GameplayCommandDispatcher.h"
+#include "SagaEngine/ServerAuthority/Gameplay/GameplayCommandDispatcher.h"
 
 #include "SagaEngine/Core/Log/Log.h"
 
 #include <chrono>
 #include <cstring>
 
-namespace SagaServer::Gameplay
+namespace SagaEngine::ServerAuthority::Gameplay
 {
 
 namespace
@@ -64,7 +64,8 @@ GameplayCommandDispatcher::GameplayCommandDispatcher(ClockFn nowMicros)
 {
 }
 
-bool GameplayCommandDispatcher::Install(RPCDispatch& rpcDispatch)
+bool GameplayCommandDispatcher::Install(
+    ::SagaEngine::Replication::RPCDispatch& rpcDispatch)
 {
     // Register a single RPC entry. Per-opcode auth / rate-limit is enforced
     // inside this dispatcher, not by the RPC layer. We therefore pass
@@ -74,14 +75,16 @@ bool GameplayCommandDispatcher::Install(RPCDispatch& rpcDispatch)
     // commands possible without a second RPC entry.)
     auto handler = [this](std::uint64_t       clientId,
                       bool                clientAuth,
-                      const RPCRequest&   request,
-                      RPCResponse&        response) -> bool
+                      const ::SagaEngine::Replication::RPCRequest& request,
+                      ::SagaEngine::Replication::RPCResponse& response) -> bool
     {
         // Payload is expected as a single Blob argument.
         if (request.arguments.size() != 1 ||
-            request.arguments[0].type != RPCArgType::Blob)
+            request.arguments[0].type !=
+                ::SagaEngine::Replication::RPCArgType::Blob)
         {
-            response.status = RPCStatusCode::BadArgs;
+            response.status =
+                ::SagaEngine::Replication::RPCStatusCode::BadArgs;
             return false;
         }
 
@@ -92,7 +95,8 @@ bool GameplayCommandDispatcher::Install(RPCDispatch& rpcDispatch)
                                     blob.data(),
                                     blob.size(),
                                     response.resultData);
-        return response.status == RPCStatusCode::Ok;
+        return response.status ==
+            ::SagaEngine::Replication::RPCStatusCode::Ok;
     };
 
     const bool ok = rpcDispatch.Register(
@@ -106,7 +110,8 @@ bool GameplayCommandDispatcher::Install(RPCDispatch& rpcDispatch)
     return ok;
 }
 
-RPCStatusCode GameplayCommandDispatcher::DispatchBlob(
+::SagaEngine::Replication::RPCStatusCode
+GameplayCommandDispatcher::DispatchBlob(
     std::uint64_t              clientId,
     bool                       clientAuth,
     const std::uint8_t*        data,
@@ -114,30 +119,30 @@ RPCStatusCode GameplayCommandDispatcher::DispatchBlob(
     std::vector<std::uint8_t>& outResult)
 {
     if (data == nullptr || size < EngineCommands::kGameplayCommandHeaderSize)
-        return RPCStatusCode::BadArgs;
+        return ::SagaEngine::Replication::RPCStatusCode::BadArgs;
     if (size > EngineCommands::kMaxGameplayCommandPayload)
-        return RPCStatusCode::BadArgs;
+        return ::SagaEngine::Replication::RPCStatusCode::BadArgs;
 
     // ── Peek OpCode without consuming. ────────────────────────────────
     EngineCommands::OpCode op = EngineCommands::OpCode::None;
     if (!EngineCommands::ByteReader::PeekOpCode(data, size, op))
-        return RPCStatusCode::BadArgs;
+        return ::SagaEngine::Replication::RPCStatusCode::BadArgs;
 
     const auto opIndex = static_cast<std::size_t>(op);
     if (opIndex >= kMaxOpCodes)
-        return RPCStatusCode::NotFound;
+        return ::SagaEngine::Replication::RPCStatusCode::NotFound;
 
     RegisteredCommand& entry = m_Commands[opIndex];
     if (!entry.registered)
-        return RPCStatusCode::NotFound;
+        return ::SagaEngine::Replication::RPCStatusCode::NotFound;
 
     // ── Auth gate. ────────────────────────────────────────────────────
     if (entry.traits.requiresAuth && !clientAuth)
-        return RPCStatusCode::AuthFailed;
+        return ::SagaEngine::Replication::RPCStatusCode::AuthFailed;
 
     // ── Rate-limit gate. ──────────────────────────────────────────────
     if (!AllowOpCode(clientId, op, entry.traits.rateLimitPerSecond))
-        return RPCStatusCode::RateLimited;
+        return ::SagaEngine::Replication::RPCStatusCode::RateLimited;
 
     // ── Decode + handler call. ────────────────────────────────────────
     return entry.dispatch(clientId, data, size, outResult);
@@ -178,4 +183,4 @@ bool GameplayCommandDispatcher::AllowOpCode(std::uint64_t          clientId,
     return bucket.TryConsume(nowUs);
 }
 
-} // namespace SagaServer::Gameplay
+} // namespace SagaEngine::ServerAuthority::Gameplay

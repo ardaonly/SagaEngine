@@ -1,7 +1,7 @@
 /// @file WorldSnapshotWire.h
 /// @brief Server-side snapshot builder for full-world and delta replication.
 ///
-/// Layer  : SagaServer / Networking / Replication
+/// Layer  : SagaEngine / Replication
 /// Purpose: Production-level snapshot builder that produces binary wire-format
 ///          payloads for network transmission. Supports:
 ///            - Full world snapshots (client connect / stale baseline)
@@ -36,7 +36,7 @@
 #include <vector>
 #include <functional>
 
-namespace SagaServer {
+namespace SagaEngine::Replication {
 
 using ComponentMask = SagaShared::Replication::ComponentMask;
 inline constexpr ComponentMask COMPONENT_TRANSFORM = SagaShared::Replication::COMPONENT_TRANSFORM;

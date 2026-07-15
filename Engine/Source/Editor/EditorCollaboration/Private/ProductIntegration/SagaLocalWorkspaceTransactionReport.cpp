@@ -1,7 +1,7 @@
 /// @file SagaLocalWorkspaceTransactionReport.cpp
 /// @brief Report-only local workspace transaction boundary proof.
 
-#include "LocalWorkspace/SagaLocalWorkspaceTransactionReport.h"
+#include "ProductIntegration/SagaLocalWorkspaceTransactionReport.h"
 
 #include <nlohmann/json.hpp>
 
@@ -140,7 +140,7 @@ struct ProjectMetadata
         "Personal editor view/profile metadata is not shared project truth.",
         "Semantic transaction metadata is not a real-time collaboration workflow.",
         "Enterprise policy, cloud sync, CRDT/OT, and collaboration server work are deferred.",
-        "No phase is marked Verified by this report.",
+        "No delivery stage is marked verified by this report.",
     };
 }
 
@@ -206,7 +206,7 @@ SagaLocalWorkspaceTransactionResult WriteLocalWorkspaceTransactionReport(
         { "actorId", actorId },
         { "operationKind", operationKind },
         { "targetArtifact", project.manifestPath.string() },
-        { "readOnlyPreview", true },
+        { "readOnlyEvaluation", true },
         { "status", transactionStatus },
     };
     report["operationExamples"] = OperationExamples();

@@ -2,8 +2,8 @@
   "schemaVersion": 0,
   "profiles": [
     {
-      "id": "technical-preview-server-headless",
-      "displayName": "Technical Preview Server Headless",
+      "id": "project-readiness-server-headless",
+      "displayName": "Technical Evaluation Server Headless",
       "role": "server",
       "outputDirectory": "Build/Packages/MultiplayerSandbox/server-headless",
       "diagnosticsDirectory": "Diagnostics",

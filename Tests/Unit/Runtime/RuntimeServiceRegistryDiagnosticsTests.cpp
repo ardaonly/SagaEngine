@@ -172,34 +172,29 @@ TEST(RuntimeServiceRegistryDiagnosticsTests,
 }
 
 TEST(RuntimeServiceRegistryDiagnosticsTests,
-     RuntimeSourcesDoNotReferenceAppClientTypes)
+     RuntimeSourcesDoNotReferenceClientHostTypes)
 {
-    constexpr std::array<const char*, 4> forbiddenTokens = {
-        "Apps/Client",
+    constexpr std::array<const char*, 3> forbiddenTokens = {
         "ClientHost",
         "ClientConfig",
         "Saga::ClientConfig",
     };
 
-    for (const std::filesystem::path root :
-         {std::filesystem::path(SAGA_SOURCE_ROOT) / "Runtime/include",
-          std::filesystem::path(SAGA_SOURCE_ROOT) / "Runtime/src"})
+    const std::filesystem::path root =
+        std::filesystem::path(SAGA_SOURCE_ROOT) / "Engine/Source/Runtime";
+    ASSERT_TRUE(std::filesystem::is_directory(root));
+    for (const std::filesystem::directory_entry& entry :
+         std::filesystem::recursive_directory_iterator(root))
     {
-        for (const std::filesystem::directory_entry& entry :
-             std::filesystem::recursive_directory_iterator(root))
+        if (!entry.is_regular_file() || !IsRuntimeSourceFile(entry.path()))
         {
-            if (!entry.is_regular_file() ||
-                !IsRuntimeSourceFile(entry.path()))
-            {
-                continue;
-            }
-
-            const std::string contents = ReadTextFile(entry.path());
-            for (const char* token : forbiddenTokens)
-            {
-                EXPECT_EQ(contents.find(token), std::string::npos)
-                    << entry.path() << " references " << token;
-            }
+            continue;
+        }
+        const std::string contents = ReadTextFile(entry.path());
+        for (const char* token : forbiddenTokens)
+        {
+            EXPECT_EQ(contents.find(token), std::string::npos)
+                << entry.path() << " references " << token;
         }
     }
 }

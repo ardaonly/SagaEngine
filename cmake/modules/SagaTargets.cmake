@@ -22,99 +22,29 @@ macro(saga_configure_executable_output_directory)
 endmacro()
 
 function(saga_create_engine_targets)
-
-    saga_collect_sources(SHARED_SOURCES Shared/src)
-    saga_collect_sources(COLLABORATION_SOURCES Collaboration/src)
+    saga_get_registered_sources(SagaShared SHARED_SOURCES)
+    saga_get_registered_sources(SagaCollaboration COLLABORATION_SOURCES)
     saga_collect_sources(ASSET_PIPELINE_SOURCES Tools/AssetPipeline/src)
-    saga_collect_sources(SAGA_STRESS_ARENA_SOURCES Tools/SagaStressArena/src)
-    saga_collect_sources(SAGA_CHAOS_LAB_SOURCES Tools/SagaChaosLab/src)
-    saga_collect_sources(SAGA_STATE_CHECK_SOURCES Tools/SagaStateCheck/src)
-    saga_collect_sources(MULTIPLAYER_SANDBOX_HEADLESS_SOURCES Tools/MultiplayerSandboxHeadless/src)
-    saga_collect_sources(ENGINE_SOURCES  Engine/Private)
-    saga_collect_sources(SAGA_DILIGENT_RUNTIME_SOURCES Engine/Private/SagaEngine/Graphics/Backends/Diligent/Runtime)
-
-    set(SAGA_PLATFORM_SDL_SOURCES
-        ${SAGA_ROOT}/Engine/Private/SagaEngine/Input/Backends/SDL/SDLInputBackend.cpp
-        ${SAGA_ROOT}/Engine/Private/SagaEngine/Platform/SDL/SDLDebugRenderer2D.cpp
-        ${SAGA_ROOT}/Engine/Private/SagaEngine/Platform/SDL/SDLPlatformFactory.cpp
-        ${SAGA_ROOT}/Engine/Private/SagaEngine/Platform/SDL/SDLWindow.cpp
-    )
-    saga_collect_sources(DILIGENT_BACKEND_SOURCES Engine/Private/SagaEngine/Render/Backend/Diligent)
-    saga_collect_sources(BACKEND_SOURCES Backends/src)
-    saga_collect_sources(RUNTIME_SOURCES  Runtime/src)
-    saga_collect_sources(SERVER_SOURCES   Server/src)
-    saga_collect_sources(SANDBOX_SOURCES  Apps/Sandbox/src)
-    saga_collect_sources(EDITOR_SOURCES   Editor/src)
-    saga_collect_sources(EDITORLAB_SOURCES Apps/EditorLab/src)
-    set(SAGA_PRODUCT_SOURCES
-        # App
-        ${SAGA_ROOT}/Apps/Saga/App/SagaApp.cpp
-        ${SAGA_ROOT}/Apps/Saga/App/SagaAppConfig.cpp
-        ${SAGA_ROOT}/Apps/Saga/App/SagaProductHost.cpp
-
-        # Launcher
-        ${SAGA_ROOT}/Apps/Saga/Launcher/SagaLauncherController.cpp
-        ${SAGA_ROOT}/Apps/Saga/Launcher/SagaLauncherModel.cpp
-        ${SAGA_ROOT}/Apps/Saga/Launcher/SagaLauncherWindow.cpp
-
-        # Projects
-        ${SAGA_ROOT}/Apps/Saga/Projects/SagaProjectCatalog.cpp
-        ${SAGA_ROOT}/Apps/Saga/Projects/SagaProjectSystem.cpp
-        ${SAGA_ROOT}/Apps/Saga/Projects/SagaSessionModel.cpp
-        ${SAGA_ROOT}/Apps/Saga/Projects/SagaWorkspaceResolver.cpp
-
-        # Targets
-        ${SAGA_ROOT}/Apps/Saga/Targets/SagaLauncherTargets.cpp
-
-        # Reports
-        ${SAGA_ROOT}/Apps/Saga/Reports/RuntimeEvidenceReport.cpp
-        ${SAGA_ROOT}/Apps/Saga/Reports/SagaLauncherReports.cpp
-        ${SAGA_ROOT}/Apps/Saga/Reports/SagaProductWorkflowSmokeReport.cpp
-
-        # Processes
-        ${SAGA_ROOT}/Apps/Saga/Processes/SagaProcessLauncher.cpp
-        ${SAGA_ROOT}/Apps/Saga/Processes/SagaProcessService.cpp
-
-        # FirstPlayable
-        ${SAGA_ROOT}/Apps/Saga/FirstPlayable/FirstPlayableEvidenceBundle.cpp
-        ${SAGA_ROOT}/Apps/Saga/FirstPlayable/FirstPlayableGate.cpp
-        ${SAGA_ROOT}/Apps/Saga/FirstPlayable/FirstPlayableHumanCapture.cpp
-        ${SAGA_ROOT}/Apps/Saga/FirstPlayable/FirstPlayableManualEvidence.cpp
-        ${SAGA_ROOT}/Apps/Saga/FirstPlayable/FirstPlayablePublicClaimAudit.cpp
-        ${SAGA_ROOT}/Apps/Saga/FirstPlayable/FirstPlayableWorkflow.cpp
-        ${SAGA_ROOT}/Apps/Saga/FirstPlayable/FirstPlayableWorkspacePolicy.cpp
-        ${SAGA_ROOT}/Apps/Saga/FirstPlayable/RuntimeEvidenceRunner.cpp
-
-        # Packaging
-        ${SAGA_ROOT}/Apps/Saga/Packaging/SagaPackageStaging.cpp
-        ${SAGA_ROOT}/Apps/Saga/Packaging/SagaPublishReadiness.cpp
-
-        # Scripting
-        ${SAGA_ROOT}/Apps/Saga/Scripting/SagaScriptGate.cpp
-
-        # VisualBlocks
-        ${SAGA_ROOT}/Apps/Saga/VisualBlocks/VisualBlocksDescriptor.cpp
-
-        # LocalWorkspace
-        ${SAGA_ROOT}/Apps/Saga/LocalWorkspace/SagaLocalCollaborationMetadataReports.cpp
-        ${SAGA_ROOT}/Apps/Saga/LocalWorkspace/SagaLocalWorkspaceTransactionReport.cpp
-    )
-    saga_collect_sources(CORE_LOG_SOURCES Engine/Private/SagaEngine/Core/Log)
-    saga_collect_sources(DIAGNOSTICS_SOURCES Engine/Private/SagaEngine/Diagnostics)
+    saga_collect_sources(SAGA_STRESS_ARENA_SOURCES Tests/Support/Stress/SagaStressArena/src)
+    saga_collect_sources(SAGA_CHAOS_LAB_SOURCES Tools/Developer/DistributionCheck/ChaosLab/src)
+    saga_collect_sources(SAGA_STATE_CHECK_SOURCES Tools/Developer/DistributionCheck/StateCheck/src)
+    saga_collect_sources(MULTIPLAYER_SANDBOX_HEADLESS_SOURCES Samples/MultiplayerSandbox/Source/Headless)
+    saga_get_registered_sources(SagaEngine ENGINE_SOURCES)
+    saga_get_registered_sources(SagaDiligentRuntime SAGA_DILIGENT_RUNTIME_SOURCES)
+    saga_get_registered_sources(SagaPlatformSDL SAGA_PLATFORM_SDL_SOURCES)
+    saga_get_registered_sources(SagaBackend BACKEND_SOURCES)
+    saga_get_registered_sources(SagaRuntimeLib RUNTIME_SOURCES)
+    saga_get_registered_sources(SagaServerLib SERVER_SOURCES)
+    saga_get_registered_sources(SagaSandboxLib SANDBOX_SOURCES)
+    saga_get_registered_sources(SagaEditorLib EDITOR_SOURCES)
+    saga_get_registered_sources(SagaEditorLabLib EDITORLAB_SOURCES)
+    saga_get_registered_sources(SagaProductLib SAGA_PRODUCT_SOURCES)
+    saga_get_registered_sources(SagaCoreLog CORE_LOG_SOURCES)
+    saga_get_registered_sources(SagaDiagnostics DIAGNOSTICS_SOURCES)
     saga_get_graphics_core_sources(SAGA_GRAPHICS_CORE_SOURCES)
-    file(GLOB_RECURSE SAGA_DILIGENT_GRAPHICS_BACKEND_IMPL_SOURCES CONFIGURE_DEPENDS
-        "${SAGA_ROOT}/Engine/Private/SagaEngine/Graphics/Backends/Diligent/*.cpp"
-    )
-    list(FILTER SAGA_DILIGENT_GRAPHICS_BACKEND_IMPL_SOURCES
-        EXCLUDE REGEX ".*/Engine/Private/SagaEngine/Graphics/Backends/Diligent/Runtime/.*\\.cpp$")
+    set(SAGA_DILIGENT_GRAPHICS_BACKEND_IMPL_SOURCES ${SAGA_DILIGENT_RUNTIME_SOURCES})
 
     # Exclude launcher files from library sources.
-    list(FILTER ENGINE_SOURCES  EXCLUDE REGEX ".*/[Mm]ain\\.cpp$")
-    list(FILTER ENGINE_SOURCES  EXCLUDE REGEX ".*/Engine/Private/SagaEngine/Core/Log/.*\\.cpp$")
-    list(FILTER ENGINE_SOURCES  EXCLUDE REGEX ".*/Engine/Private/SagaEngine/Diagnostics/.*\\.cpp$")
-    list(FILTER ENGINE_SOURCES  EXCLUDE REGEX ".*/Engine/Private/SagaEngine/Graphics/Backends/Diligent/Runtime/.*\\.cpp$")
-    list(FILTER ENGINE_SOURCES  EXCLUDE REGEX ".*/Engine/Private/SagaEngine/Render/Backend/Diligent/.*\\.cpp$")
-    list(FILTER ENGINE_SOURCES  EXCLUDE REGEX ".*/Engine/Private/SagaEngine/Graphics/Backends/Diligent/.*\\.cpp$")
     list(REMOVE_ITEM ENGINE_SOURCES ${SAGA_GRAPHICS_CORE_SOURCES})
     list(REMOVE_ITEM ENGINE_SOURCES ${SAGA_PLATFORM_SDL_SOURCES})
     foreach(_saga_graphics_core_source IN LISTS SAGA_GRAPHICS_CORE_SOURCES)
@@ -133,9 +63,6 @@ function(saga_create_engine_targets)
                 "not SagaEngine: ${_saga_diligent_graphics_source}")
         endif()
     endforeach()
-    list(FILTER SANDBOX_SOURCES EXCLUDE REGEX ".*/Launchers/.*\\.cpp$")
-    # Editor/src/main.cpp is a legacy stub; Apps/Editor/main.cpp is the launcher.
-    list(FILTER EDITOR_SOURCES  EXCLUDE REGEX ".*/[Mm]ain\\.cpp$")
 
     # --- Core Log Module ---------------------------------------------------
     add_library(SagaCoreLog STATIC)
@@ -147,9 +74,9 @@ function(saga_create_engine_targets)
 
     target_include_directories(SagaCoreLog
         PUBLIC
-            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         PRIVATE
-            ${SAGA_ROOT}/Engine/Private
+            ${SAGA_MODULE_PRIVATE_INCLUDE_DIRS}
     )
 
     if(WIN32)
@@ -170,9 +97,9 @@ function(saga_create_engine_targets)
 
     target_include_directories(SagaDiagnostics
         PUBLIC
-            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         PRIVATE
-            ${SAGA_ROOT}/Engine/Private
+            ${SAGA_MODULE_PRIVATE_INCLUDE_DIRS}
     )
 
     target_link_libraries(SagaDiagnostics PUBLIC
@@ -187,16 +114,7 @@ function(saga_create_engine_targets)
     )
 
     # --- Shared Contract Library ---------------------------------------------
-    add_library(SagaShared STATIC)
-    saga_apply_compiler_flags(SagaShared)
-
-    target_sources(SagaShared PRIVATE
-        ${SHARED_SOURCES}
-    )
-
-    target_include_directories(SagaShared PUBLIC
-        ${SAGA_ROOT}/Shared/include
-    )
+    add_library(SagaShared INTERFACE)
 
     set_target_properties(SagaShared PROPERTIES
         FOLDER "Shared"
@@ -211,7 +129,7 @@ function(saga_create_engine_targets)
     )
 
     target_include_directories(SagaCollaboration PUBLIC
-        ${SAGA_ROOT}/Collaboration/include
+        ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
     )
 
     target_link_libraries(SagaCollaboration PUBLIC
@@ -263,12 +181,12 @@ function(saga_create_engine_targets)
     endforeach()
 
     target_include_directories(SagaEngine PUBLIC
-        ${SAGA_ROOT}/Engine/Public
-        ${SAGA_ROOT}/Runtime/include
+        ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+        ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
     )
 
     target_include_directories(SagaEngine PRIVATE
-        ${SAGA_ROOT}/Engine/Private
+        ${SAGA_MODULE_PRIVATE_INCLUDE_DIRS}
         ${SAGA_OPENSSL_INCLUDE_DIRS}
         ${SAGA_DOTNET_HOST_INCLUDE_DIR}
     )
@@ -294,7 +212,7 @@ function(saga_create_engine_targets)
     )
 
     target_include_directories(SagaPlatformSDL PRIVATE
-        ${SAGA_ROOT}/Engine/Private
+        ${SAGA_MODULE_PRIVATE_INCLUDE_DIRS}
     )
 
     target_link_libraries(SagaPlatformSDL PRIVATE
@@ -312,15 +230,13 @@ function(saga_create_engine_targets)
 
     target_sources(SagaDiligentRuntime PRIVATE
         ${SAGA_DILIGENT_RUNTIME_SOURCES}
-        ${DILIGENT_BACKEND_SOURCES}
-        ${SAGA_DILIGENT_GRAPHICS_BACKEND_IMPL_SOURCES}
     )
 
     target_include_directories(SagaDiligentRuntime
         PUBLIC
-            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         PRIVATE
-            ${SAGA_ROOT}/Engine/Private
+            ${SAGA_MODULE_PRIVATE_INCLUDE_DIRS}
     )
 
     target_link_libraries(SagaDiligentRuntime
@@ -339,15 +255,14 @@ function(saga_create_engine_targets)
     add_library(SagaDiligentBackend STATIC)
     saga_apply_compiler_flags(SagaDiligentBackend)
 
-    target_sources(SagaDiligentBackend PRIVATE
-        ${SAGA_ROOT}/Engine/Private/SagaEngine/Render/Backend/Diligent/DiligentBackendTargetAnchor.cpp
-    )
+    saga_get_registered_sources(SagaDiligentBackend SAGA_DILIGENT_BACKEND_SOURCES)
+    target_sources(SagaDiligentBackend PRIVATE ${SAGA_DILIGENT_BACKEND_SOURCES})
 
     target_include_directories(SagaDiligentBackend
         PUBLIC
-            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         PRIVATE
-            ${SAGA_ROOT}/Engine/Private
+            ${SAGA_MODULE_PRIVATE_INCLUDE_DIRS}
     )
 
     target_link_libraries(SagaDiligentBackend
@@ -371,7 +286,7 @@ function(saga_create_engine_targets)
     )
 
     target_include_directories(SagaRuntimeLib PUBLIC
-        ${SAGA_ROOT}/Runtime/include
+        ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
     )
 
     target_link_libraries(SagaRuntimeLib PUBLIC
@@ -396,7 +311,7 @@ function(saga_create_engine_targets)
     )
 
     target_include_directories(SagaServerLib PUBLIC
-        ${SAGA_ROOT}/Server/include
+        ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
     )
 
     target_link_libraries(SagaServerLib PUBLIC
@@ -425,22 +340,20 @@ function(saga_create_engine_targets)
     )
 
     target_include_directories(SagaStressArenaLib PUBLIC
-        ${SAGA_ROOT}/Tools/SagaStressArena/include
-        ${SAGA_ROOT}/Server/include
-        ${SAGA_ROOT}/Engine/Public
+        ${SAGA_ROOT}/Tests/Support/Stress/SagaStressArena/include
     )
 
-    target_link_libraries(SagaStressArenaLib PRIVATE
+    target_link_libraries(SagaStressArenaLib PUBLIC
         SagaServerLib
         SagaDiagnostics
     )
 
     set_target_properties(SagaStressArenaLib PROPERTIES
-        FOLDER "Tools/SagaStressArena"
+        FOLDER "Tests/Support/Stress"
     )
 
     add_executable(SagaStressArena
-        ${SAGA_ROOT}/Tools/SagaStressArena/cli/main.cpp
+        ${SAGA_ROOT}/Tests/Support/Stress/SagaStressArena/cli/main.cpp
     )
     saga_apply_compiler_flags(SagaStressArena)
     saga_link_thirdparty(SagaStressArena)
@@ -448,7 +361,7 @@ function(saga_create_engine_targets)
         SagaStressArenaLib
     )
     set_target_properties(SagaStressArena PROPERTIES
-        FOLDER "Tools/SagaStressArena"
+        FOLDER "Tests/Support/Stress"
     )
 
     # --- Saga Chaos Lab Tool -----------------------------------------------
@@ -462,25 +375,26 @@ function(saga_create_engine_targets)
     )
 
     target_include_directories(SagaChaosLabLib PUBLIC
-        ${SAGA_ROOT}/Tools/SagaChaosLab/include
-        ${SAGA_ROOT}/Tools/SagaStressArena/include
-        ${SAGA_ROOT}/Server/include
-        ${SAGA_ROOT}/Engine/Public
+        ${SAGA_ROOT}/Tools/Developer/DistributionCheck/ChaosLab/include
+        ${SAGA_ROOT}/Tests/Support/Stress/SagaStressArena/include
     )
 
-    target_link_libraries(SagaChaosLabLib PRIVATE
+    target_link_libraries(SagaChaosLabLib PUBLIC
         SagaStressArenaLib
         SagaServerLib
         SagaDiagnostics
+    )
+
+    target_link_libraries(SagaChaosLabLib PRIVATE
         nlohmann_json::nlohmann_json
     )
 
     set_target_properties(SagaChaosLabLib PROPERTIES
-        FOLDER "Tools/SagaChaosLab"
+        FOLDER "Tools/Developer/DistributionCheck"
     )
 
     add_executable(SagaChaosLab
-        ${SAGA_ROOT}/Tools/SagaChaosLab/cli/main.cpp
+        ${SAGA_ROOT}/Tools/Developer/DistributionCheck/ChaosLab/cli/main.cpp
     )
     saga_apply_compiler_flags(SagaChaosLab)
     saga_link_thirdparty(SagaChaosLab)
@@ -488,7 +402,7 @@ function(saga_create_engine_targets)
         SagaChaosLabLib
     )
     set_target_properties(SagaChaosLab PROPERTIES
-        FOLDER "Tools/SagaChaosLab"
+        FOLDER "Tools/Developer/DistributionCheck"
     )
 
     # --- Saga State Check Tool ---------------------------------------------
@@ -501,7 +415,7 @@ function(saga_create_engine_targets)
     )
 
     target_include_directories(SagaStateCheckLib PUBLIC
-        ${SAGA_ROOT}/Tools/SagaStateCheck/include
+        ${SAGA_ROOT}/Tools/Developer/DistributionCheck/StateCheck/include
     )
 
     target_link_libraries(SagaStateCheckLib PRIVATE
@@ -509,11 +423,11 @@ function(saga_create_engine_targets)
     )
 
     set_target_properties(SagaStateCheckLib PROPERTIES
-        FOLDER "Tools/SagaStateCheck"
+        FOLDER "Tools/Developer/DistributionCheck"
     )
 
     # --- MultiplayerSandbox Headless Tool ----------------------------------
-    # Bounded server-side sample proof for the Technical Preview vertical.
+    # Bounded server-side sample proof for the Technical Evaluation vertical.
     add_library(MultiplayerSandboxHeadlessLib STATIC)
     saga_apply_compiler_flags(MultiplayerSandboxHeadlessLib)
     saga_link_thirdparty(MultiplayerSandboxHeadlessLib)
@@ -523,9 +437,7 @@ function(saga_create_engine_targets)
     )
 
     target_include_directories(MultiplayerSandboxHeadlessLib PUBLIC
-        ${SAGA_ROOT}/Tools/MultiplayerSandboxHeadless/include
-        ${SAGA_ROOT}/Server/include
-        ${SAGA_ROOT}/Engine/Public
+        ${SAGA_ROOT}/Samples/MultiplayerSandbox/Source/HeadlessInclude
     )
 
     target_link_libraries(MultiplayerSandboxHeadlessLib PRIVATE
@@ -539,7 +451,7 @@ function(saga_create_engine_targets)
     )
 
     add_executable(MultiplayerSandboxHeadless
-        ${SAGA_ROOT}/Tools/MultiplayerSandboxHeadless/cli/main.cpp
+        ${SAGA_ROOT}/Samples/MultiplayerSandbox/Source/HeadlessCli/main.cpp
     )
     saga_apply_compiler_flags(MultiplayerSandboxHeadless)
     saga_link_thirdparty(MultiplayerSandboxHeadless)
@@ -563,7 +475,8 @@ function(saga_create_engine_targets)
     )
 
     target_include_directories(SagaBackend PUBLIC
-        ${SAGA_ROOT}/Backends/include
+        ${SAGA_ROOT}/Engine/Source/Runtime/Persistence/Public
+        ${SAGA_ROOT}/Engine/Source/Runtime/UI/Public
     )
 
     # --- Sandbox Library ------------------------------------------------------
@@ -588,15 +501,15 @@ function(saga_create_engine_targets)
     )
 
     target_include_directories(SagaSandboxLib PRIVATE
-        ${SAGA_ROOT}/Apps/Sandbox/include
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaSandbox/Private/include
     )
 
     target_include_directories(SagaSandboxLib PRIVATE
-        ${SAGA_ROOT}/Apps/Sandbox/src
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaSandbox/Private/src
     )
 
     # --- Editor Library -------------------------------------------------------
-    # All editor logic lives in Editor/. Apps/Editor/main.cpp is the thin launcher.
+    # All editor logic lives in editor modules; the SagaEditor program is a thin launcher.
     # Qt handles the WinMain shim on Windows via qt_add_executable(WIN32).
     add_library(SagaEditorLib STATIC)
     saga_apply_compiler_flags(SagaEditorLib)
@@ -606,7 +519,12 @@ function(saga_create_engine_targets)
     )
 
     target_include_directories(SagaEditorLib PUBLIC
-        ${SAGA_ROOT}/Editor/include
+        ${SAGA_ROOT}/Engine/Source/Editor/EditorCore/Public
+        ${SAGA_ROOT}/Engine/Source/Editor/EditorFramework/Public
+        ${SAGA_ROOT}/Engine/Source/Editor/EditorQt/Public
+        ${SAGA_ROOT}/Engine/Source/Editor/EditorAuthoring/Public
+        ${SAGA_ROOT}/Engine/Source/Editor/VisualBlocksEditor/Public
+        ${SAGA_ROOT}/Engine/Source/Editor/EditorCollaboration/Public
     )
     target_include_directories(SagaEditorLib PRIVATE
         ${SAGA_OPENSSL_INCLUDE_DIRS}
@@ -643,9 +561,9 @@ function(saga_create_engine_targets)
 
     target_include_directories(SagaEditorLabLib
         PUBLIC
-            ${SAGA_ROOT}/Apps/EditorLab/include
+            ${SAGA_ROOT}/Engine/Source/Programs/SagaEditorLab/Private/include
         PRIVATE
-            ${SAGA_ROOT}/Apps/EditorLab/src
+            ${SAGA_ROOT}/Engine/Source/Programs/SagaEditorLab/Private/src
     )
 
     target_link_libraries(SagaEditorLabLib PUBLIC
@@ -658,7 +576,7 @@ function(saga_create_engine_targets)
     )
 
     set_target_properties(SagaEditorLabLib PROPERTIES
-        FOLDER "Apps/EditorLab"
+        FOLDER "Programs/EditorLab"
     )
 
     # --- Saga Product Orchestration Library -----------------------------------
@@ -671,7 +589,12 @@ function(saga_create_engine_targets)
     )
 
     target_include_directories(SagaProductLib PRIVATE
-        ${SAGA_ROOT}/Apps/Saga
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaLauncher/Private
+        ${SAGA_ROOT}/Tests/Evidence/FirstPlayable/Source
+        ${SAGA_ROOT}/Tools/SagaPackager
+        ${SAGA_ROOT}/Tools/SagaScript
+        ${SAGA_ROOT}/Engine/Source/Editor/VisualBlocksEditor/Private/ProductIntegration
+        ${SAGA_ROOT}/Engine/Source/Editor/EditorCollaboration/Private/ProductIntegration
     )
 
     target_link_libraries(SagaProductLib PUBLIC
@@ -693,37 +616,35 @@ function(saga_create_engine_targets)
         SAGA_PRODUCT_PLATFORM="${CMAKE_SYSTEM_NAME}"
     )
     set_target_properties(SagaProductLib PROPERTIES
-        FOLDER "Apps/Saga"
+        FOLDER "Programs/Saga"
     )
 
     if(SAGA_WITH_EDITORLAB_DEV_PANEL)
         add_library(SagaEditorLabBridge STATIC
-            ${SAGA_ROOT}/Apps/SagaDev/SagaEditorLabBridge.h
-            ${SAGA_ROOT}/Apps/SagaDev/SagaEditorLabBridge.cpp
+            ${SAGA_ROOT}/Engine/Source/Developer/SagaDev/SagaEditorLabBridge.h
+            ${SAGA_ROOT}/Engine/Source/Developer/SagaDev/SagaEditorLabBridge.cpp
         )
         saga_apply_compiler_flags(SagaEditorLabBridge)
         saga_link_thirdparty(SagaEditorLabBridge)
         target_include_directories(SagaEditorLabBridge PUBLIC
-            ${SAGA_ROOT}/Apps/SagaDev
+            ${SAGA_ROOT}/Engine/Source/Developer/SagaDev
         )
         target_link_libraries(SagaEditorLabBridge PUBLIC
             SagaEditorLabLib
         )
         set_target_properties(SagaEditorLabBridge PROPERTIES
-            FOLDER "Apps/SagaDev"
+            FOLDER "Programs/SagaDev"
         )
     endif()
 
     # --- Application Executables ----------------------------------------------
-    qt_add_executable(Saga WIN32
-        ${SAGA_ROOT}/Apps/Saga/App/main.cpp
-        ${SAGA_ROOT}/Apps/Saga/App/SagaQtStaticPlugins.cpp
-    )
+    saga_get_registered_sources(Saga SAGA_LAUNCHER_PROGRAM_SOURCES)
+    qt_add_executable(Saga WIN32 ${SAGA_LAUNCHER_PROGRAM_SOURCES})
 
     saga_apply_compiler_flags(Saga)
     saga_link_thirdparty(Saga)
     target_include_directories(Saga PRIVATE
-        ${SAGA_ROOT}/Apps/Saga
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaLauncher/Private
     )
     target_link_libraries(Saga PRIVATE SagaProductLib)
     if(TARGET qt::qt)
@@ -740,32 +661,27 @@ function(saga_create_engine_targets)
         FOLDER      "Apps"
     )
 
+    saga_get_registered_sources(SagaRuntime SAGA_RUNTIME_PROGRAM_SOURCES)
     add_executable(SagaRuntime
-        ${SAGA_ROOT}/Apps/Runtime/main.cpp
-        ${SAGA_ROOT}/Apps/Runtime/RuntimeApplication.h
-        ${SAGA_ROOT}/Apps/Runtime/RuntimeApplication.cpp
-        ${SAGA_ROOT}/Apps/Runtime/RuntimeCommandLine.h
-        ${SAGA_ROOT}/Apps/Runtime/RuntimeHost.h
-        ${SAGA_ROOT}/Apps/Runtime/RuntimeHost.cpp
-        ${SAGA_ROOT}/Apps/Runtime/RuntimeAssetStartupBootstrap.hpp
-        ${SAGA_ROOT}/Apps/Runtime/RuntimeAssetStartupBootstrap.cpp
-        ${SAGA_ROOT}/Apps/Runtime/StarterArenaSmoke.h
-        ${SAGA_ROOT}/Apps/Runtime/StarterArenaSmoke.cpp
-        ${SAGA_ROOT}/Apps/Runtime/StarterArenaSmokeReport.h
-        ${SAGA_ROOT}/Apps/Runtime/StarterArenaSmokeReport.cpp
-        ${SAGA_ROOT}/Apps/Runtime/StarterArenaSmokeScript.h
-        ${SAGA_ROOT}/Apps/Runtime/StarterArenaSmokeScript.cpp
-        ${SAGA_ROOT}/Apps/Runtime/StarterArenaSimulation.h
-        ${SAGA_ROOT}/Apps/Runtime/StarterArenaSimulation.cpp
-        ${SAGA_ROOT}/Apps/Runtime/StarterArenaGameplayState.h
-        ${SAGA_ROOT}/Apps/Runtime/StarterArenaGameplayState.cpp
-        ${SAGA_ROOT}/Apps/Runtime/StarterArenaInput.h
-        ${SAGA_ROOT}/Apps/Runtime/StarterArenaInput.cpp
-        ${SAGA_ROOT}/Apps/Runtime/StarterArenaPlayable.h
-        ${SAGA_ROOT}/Apps/Runtime/StarterArenaPlayable.cpp
-        ${SAGA_ROOT}/Apps/Runtime/StarterArenaPlayableScene.h
-        ${SAGA_ROOT}/Apps/Runtime/StarterArenaPlayableScene.cpp
+        ${SAGA_RUNTIME_PROGRAM_SOURCES}
+        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSmoke.h
+        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSmoke.cpp
+        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSmokeReport.h
+        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSmokeReport.cpp
+        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSmokeScript.h
+        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSmokeScript.cpp
+        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSimulation.h
+        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSimulation.cpp
+        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaGameplayState.h
+        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaGameplayState.cpp
+        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaInput.h
+        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaInput.cpp
+        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaPlayable.h
+        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaPlayable.cpp
+        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaPlayableScene.h
+        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaPlayableScene.cpp
     )
+    target_include_directories(SagaRuntime PRIVATE ${SAGA_ROOT}/Samples/StarterArena/Source)
 
     target_compile_definitions(SagaRuntime PRIVATE SDL_MAIN_HANDLED)
 
@@ -786,14 +702,17 @@ function(saga_create_engine_targets)
 
     # --- SagaEditor Executable ------------------------------------------------
     # qt_add_executable with WIN32 generates the WinMain shim on Windows so
-    # Apps/Editor/main.cpp can use a standard int main() on all platforms.
-    qt_add_executable(SagaEditor WIN32
-        ${SAGA_ROOT}/Apps/Editor/main.cpp
-        ${SAGA_ROOT}/Apps/Editor/SagaEditorQtStaticPlugins.cpp
-    )
+    # The SagaEditor launcher can use a standard int main() on all platforms.
+    saga_get_registered_sources(SagaEditor SAGA_EDITOR_PROGRAM_SOURCES)
+    qt_add_executable(SagaEditor WIN32 ${SAGA_EDITOR_PROGRAM_SOURCES})
 
     target_include_directories(SagaEditor PRIVATE
-        ${SAGA_ROOT}/Editor/include
+        ${SAGA_ROOT}/Engine/Source/Editor/EditorCore/Public
+        ${SAGA_ROOT}/Engine/Source/Editor/EditorFramework/Public
+        ${SAGA_ROOT}/Engine/Source/Editor/EditorQt/Public
+        ${SAGA_ROOT}/Engine/Source/Editor/EditorAuthoring/Public
+        ${SAGA_ROOT}/Engine/Source/Editor/VisualBlocksEditor/Public
+        ${SAGA_ROOT}/Engine/Source/Editor/EditorCollaboration/Public
     )
 
     saga_apply_compiler_flags(SagaEditor)
@@ -805,7 +724,7 @@ function(saga_create_engine_targets)
     if(SAGA_WITH_EDITORLAB_DEV_PANEL)
         target_link_libraries(SagaEditor PRIVATE SagaEditorLabBridge)
         target_include_directories(SagaEditor PRIVATE
-            ${SAGA_ROOT}/Apps/SagaDev
+            ${SAGA_ROOT}/Engine/Source/Developer/SagaDev
         )
         target_compile_definitions(SagaEditor PRIVATE
             SAGA_WITH_EDITORLAB_DEV_PANEL=1
@@ -875,15 +794,12 @@ function(saga_create_engine_targets)
 
     # --- EditorLab Executable ------------------------------------------------
     # Development-only lab surface for deterministic editor scenario experiments.
-    qt_add_executable(EditorLab WIN32
-        ${SAGA_ROOT}/Apps/EditorLab/main.cpp
-        ${SAGA_ROOT}/Apps/EditorLab/EditorLabQtStaticPlugins.cpp
-    )
+    saga_get_registered_sources(EditorLab SAGA_EDITORLAB_PROGRAM_SOURCES)
+    qt_add_executable(EditorLab WIN32 ${SAGA_EDITORLAB_PROGRAM_SOURCES})
 
     target_include_directories(EditorLab PRIVATE
-        ${SAGA_ROOT}/Apps/EditorLab/include
-        ${SAGA_ROOT}/Apps/EditorLab/src
-        ${SAGA_ROOT}/Editor/include
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaEditorLab/Private/include
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaEditorLab/Private/src
     )
 
     saga_apply_compiler_flags(EditorLab)
@@ -908,7 +824,7 @@ function(saga_create_engine_targets)
     )
 
     # --- Sandbox Executable ---------------------------------------------------
-    set(_saga_sandbox_main "${SAGA_ROOT}/Apps/Sandbox/Launchers/SandboxMain.cpp")
+    set(_saga_sandbox_main "${SAGA_ROOT}/Engine/Source/Programs/SagaSandbox/Private/Launchers/SandboxMain.cpp")
 
     if(NOT EXISTS "${_saga_sandbox_main}")
         message(FATAL_ERROR "SagaSandbox launcher not found: ${_saga_sandbox_main}")
@@ -927,7 +843,7 @@ function(saga_create_engine_targets)
     saga_link_thirdparty(SagaSandbox)
 
     target_include_directories(SagaSandbox PRIVATE
-        ${SAGA_ROOT}/Apps/Sandbox/include
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaSandbox/Private/include
     )
 
     get_target_property(_saga_sandbox_sources_after_helpers SagaSandbox SOURCES)
@@ -947,25 +863,14 @@ function(saga_create_engine_targets)
         FOLDER      "Apps"
     )
 
-    # --- RenderClientSmokeTest -------------------------------------------
-    # Headless, CI-safe smoke test for the RenderClientApp facade.
-    # No GPU, no window - exercises bind/update/release and multi-camera slots
-    # against NullRenderBackend.
-    set(_saga_render_smoke "${SAGA_ROOT}/Apps/RenderClientSmokeTest/main.cpp")
-    if(EXISTS "${_saga_render_smoke}")
-        add_executable(RenderClientSmokeTest "${_saga_render_smoke}")
-        saga_apply_compiler_flags(RenderClientSmokeTest)
-        saga_link_thirdparty(RenderClientSmokeTest)
-        target_link_libraries(RenderClientSmokeTest PRIVATE
-            SagaRuntimeLib
-            SagaServerLib
-            SagaEngine
-            SagaBackend
-        )
-        set_target_properties(RenderClientSmokeTest PROPERTIES
-            FOLDER "Apps"
-        )
-        add_test(NAME RenderClientSmokeTest COMMAND RenderClientSmokeTest)
-    endif()
+    foreach(_saga_registered_target IN ITEMS
+        SagaCoreLog SagaDiagnostics SagaCollaboration SagaEngine
+        SagaPlatformSDL SagaDiligentRuntime SagaDiligentBackend SagaRuntimeLib
+        SagaServerLib SagaBackend SagaSandboxLib SagaEditorLib SagaEditorLabLib
+        SagaProductLib Saga SagaRuntime SagaEditor EditorLab SagaSandbox)
+        if(TARGET ${_saga_registered_target})
+            saga_apply_registered_usage(${_saga_registered_target})
+        endif()
+    endforeach()
 
 endfunction()

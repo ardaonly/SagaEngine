@@ -1,7 +1,7 @@
 /// @file ServerLifecycleDiagnosticsTests.cpp
 /// @brief Verifies bounded direct/local ZoneServer lifecycle diagnostics.
 
-#include "SagaServer/Networking/Server/ZoneServer.h"
+#include "SagaEngine/ServerAuthority/ZoneServer.h"
 
 #include "SagaEngine/Diagnostics/DiagnosticConfig.hpp"
 #include "SagaEngine/Diagnostics/DiagnosticSystem.hpp"
@@ -24,11 +24,11 @@ using SagaEngine::Diagnostics::DiagnosticReportWriter;
 using SagaEngine::Diagnostics::DiagnosticSystem;
 using SagaEngine::Diagnostics::ServerLifecycleTracker;
 using SagaEngine::Networking::ClientId;
-using SagaEngine::Server::Simulation::ActorOwnershipResult;
-using SagaEngine::Server::Simulation::EntityId;
-using SagaEngine::Server::Simulation::Vector3;
-using SagaServer::Networking::ZoneServer;
-using SagaServer::Networking::ZoneServerConfig;
+using SagaEngine::ServerAuthority::Simulation::ActorOwnershipResult;
+using SagaEngine::ServerAuthority::Simulation::EntityId;
+using SagaEngine::ServerAuthority::Simulation::Vector3;
+using SagaEngine::ServerAuthority::ZoneServer;
+using SagaEngine::ServerAuthority::ZoneServerConfig;
 
 constexpr ClientId kClient = 77;
 constexpr EntityId kEntity = 1201;

@@ -7,7 +7,7 @@
 
 #include <memory>
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 class NodeCategoryBrowser;
@@ -31,4 +31,4 @@ private:
     std::unique_ptr<Impl> m_impl;
 };
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

@@ -1,11 +1,11 @@
 /// @file BlockIR.cpp
 /// @brief Implementation of the canonical IR types + value/statement builders.
 
-#include "SagaEditor/VisualScripting/Blocks/BlockIR.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockIR.h"
 
 #include <utility>
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 // ─── IRType Identity ──────────────────────────────────────────────────────────
@@ -220,4 +220,4 @@ std::vector<const IRProcedure*> IRProgram::EntryPoints() const
     return out;
 }
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

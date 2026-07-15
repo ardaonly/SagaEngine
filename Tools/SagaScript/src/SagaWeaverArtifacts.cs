@@ -1,5 +1,5 @@
 // SagaWeaverArtifacts.cs
-// Source-preserving SagaBehavior analysis, projection, and patch-preview artifacts.
+// Source-preserving SagaBehavior analysis, projection, and patch-evaluation artifacts.
 
 using System.Security.Cryptography;
 using System.Text;
@@ -568,7 +568,7 @@ internal static class SagaWeaverArtifacts
         };
     }
 
-    public static JsonObject BuildBlockEditPreview(string projectionPath, string operationPath)
+    public static JsonObject BuildBlockEditEvaluation(string projectionPath, string operationPath)
     {
         var diagnostics = new List<SagaDiagnostic>();
         var projection = ReadBlockOperationJsonObjectFile(projectionPath, "visual blocks projection", diagnostics);
@@ -597,15 +597,15 @@ internal static class SagaWeaverArtifacts
         {
             if (ForbiddenBlockOperationKinds.Contains(operationKind))
             {
-                diagnostics.Add(BlockOperationError("Script.BlockOperation.ForbiddenOperation", $"Block operation '{operationKind}' is forbidden by the Phase 15 contract."));
+                diagnostics.Add(BlockOperationError("Script.BlockOperation.ForbiddenOperation", $"Block operation '{operationKind}' is forbidden by the block-operation contract."));
             }
             else if (!BlockOperationKinds.Contains(operationKind))
             {
-                diagnostics.Add(BlockOperationError("Script.BlockOperation.UnsupportedOperation", $"Block operation '{operationKind}' is not part of the Phase 15 contract."));
+                diagnostics.Add(BlockOperationError("Script.BlockOperation.UnsupportedOperation", $"Block operation '{operationKind}' is not part of the block-operation contract."));
             }
             else if (operationKind != "StringLiteralEdit")
             {
-                diagnostics.Add(BlockOperationError("Script.BlockOperation.NotImplementedForPreview", $"Block operation '{operationKind}' is contract-known but not previewable in Phase 15."));
+                diagnostics.Add(BlockOperationError("Script.BlockOperation.NotImplementedForEvaluation", $"Block operation '{operationKind}' is contract-known but not evaluationable."));
             }
         }
 
@@ -627,7 +627,7 @@ internal static class SagaWeaverArtifacts
         var blockKind = ReadString(target, "blockKind");
         var sourceHash = ReadString(target, "sourceHash");
         var span = ReadSpan(target?["sourceSpan"] as JsonObject);
-        JsonObject? patchPreview = null;
+        JsonObject? patchEvaluation = null;
 
         if (target is not null)
         {
@@ -641,7 +641,7 @@ internal static class SagaWeaverArtifacts
             }
             if (classification != "EditableByPatch")
             {
-                diagnostics.Add(BlockOperationError("Script.BlockOperation.NotPatchCapable", $"Target classification '{classification}' is not patch-capable in Phase 15.", sourceFile));
+                diagnostics.Add(BlockOperationError("Script.BlockOperation.NotPatchCapable", $"Target classification '{classification}' is not patch-capable.", sourceFile));
             }
             if (span is null)
             {
@@ -668,7 +668,7 @@ internal static class SagaWeaverArtifacts
         var status = summary.HasBlockingDiagnostics ? "Failed" : "Passed";
         if (status == "Passed" && span is not null)
         {
-            patchPreview = new JsonObject
+            patchEvaluation = new JsonObject
             {
                 ["mutatesSource"] = false,
                 ["replacementKind"] = "MinimalSpanReplacement",
@@ -691,7 +691,7 @@ internal static class SagaWeaverArtifacts
             ["targetSourceSpan"] = span is null ? null : SpanJson(span),
             ["requestedValue"] = requestedValue,
             ["status"] = status,
-            ["patchPreview"] = patchPreview,
+            ["patchEvaluation"] = patchEvaluation,
             ["diagnostics"] = JsonSerializerNode.Diagnostics(sortedDiagnostics),
             ["summary"] = JsonSerializerNode.Summary(summary),
             ["sourcePreservation"] = "SourceNotMutated",
@@ -701,55 +701,55 @@ internal static class SagaWeaverArtifacts
     }
 
     public static JsonObject BuildBlockEditApply(
-        string previewPath,
+        string evaluationPath,
         string sourceRoot,
         string outputDirectory)
     {
         var diagnostics = new List<SagaDiagnostic>();
-        var preview = ReadBlockOperationJsonObjectFile(previewPath, "block patch preview", diagnostics);
+        var evaluation = ReadBlockOperationJsonObjectFile(evaluationPath, "block patch evaluation", diagnostics);
 
-        var sourceFile = ReadString(preview, "sourceFile");
-        var operationId = ReadString(preview, "operationId");
-        var operationKind = ReadString(preview, "operationKind");
-        var targetBlockId = ReadString(preview, "targetBlockId");
-        var targetSourceHash = ReadString(preview, "targetSourceHash");
-        var span = ReadSpan(preview?["targetSourceSpan"] as JsonObject);
-        var patchPreview = preview?["patchPreview"] as JsonObject;
-        var replacementText = ReadString(patchPreview, "replacementText");
+        var sourceFile = ReadString(evaluation, "sourceFile");
+        var operationId = ReadString(evaluation, "operationId");
+        var operationKind = ReadString(evaluation, "operationKind");
+        var targetBlockId = ReadString(evaluation, "targetBlockId");
+        var targetSourceHash = ReadString(evaluation, "targetSourceHash");
+        var span = ReadSpan(evaluation?["targetSourceSpan"] as JsonObject);
+        var patchEvaluation = evaluation?["patchEvaluation"] as JsonObject;
+        var replacementText = ReadString(patchEvaluation, "replacementText");
         var resolvedSourceFile = "";
         var patchedSourceFile = "";
         var originalHash = "";
         var patchedHash = "";
         var changedSpanOnly = false;
 
-        if (preview is not null)
+        if (evaluation is not null)
         {
             foreach (var required in new[] { "command", "sourceFile", "operationId", "operationKind", "targetBlockId", "targetSourceHash" })
             {
-                if (!HasStringField(preview, required))
+                if (!HasStringField(evaluation, required))
                 {
-                    diagnostics.Add(BlockOperationError("Script.BlockApply.MissingField", $"apply-block-edit requires preview field '{required}'."));
+                    diagnostics.Add(BlockOperationError("Script.BlockApply.MissingField", $"apply-block-edit requires evaluation field '{required}'."));
                 }
             }
-            if (ReadString(preview, "command") != "plan-block-edit")
+            if (ReadString(evaluation, "command") != "plan-block-edit")
             {
-                diagnostics.Add(BlockOperationError("Script.BlockApply.InvalidPreview", "apply-block-edit requires a plan-block-edit preview report.", sourceFile));
+                diagnostics.Add(BlockOperationError("Script.BlockApply.InvalidEvaluation", "apply-block-edit requires a plan-block-edit evaluation report.", sourceFile));
             }
-            if (ReadString(preview, "status") != "Passed")
+            if (ReadString(evaluation, "status") != "Passed")
             {
-                diagnostics.Add(BlockOperationError("Script.BlockApply.PreviewFailed", "apply-block-edit requires a passed block edit preview.", sourceFile));
+                diagnostics.Add(BlockOperationError("Script.BlockApply.EvaluationFailed", "apply-block-edit requires a passed block edit evaluation.", sourceFile));
             }
             if (operationKind != "StringLiteralEdit")
             {
-                diagnostics.Add(BlockOperationError("Script.BlockApply.UnsupportedOperation", $"apply-block-edit only supports StringLiteralEdit in Phase 16, not '{operationKind}'.", sourceFile));
+                diagnostics.Add(BlockOperationError("Script.BlockApply.UnsupportedOperation", $"apply-block-edit only supports StringLiteralEdit, not '{operationKind}'.", sourceFile));
             }
-            if (!HasBoolField(preview, "mutatesSource"))
+            if (!HasBoolField(evaluation, "mutatesSource"))
             {
-                diagnostics.Add(BlockOperationError("Script.BlockApply.MissingField", "apply-block-edit requires preview field 'mutatesSource'.", sourceFile));
+                diagnostics.Add(BlockOperationError("Script.BlockApply.MissingField", "apply-block-edit requires evaluation field 'mutatesSource'.", sourceFile));
             }
-            else if (ReadBool(preview, "mutatesSource"))
+            else if (ReadBool(evaluation, "mutatesSource"))
             {
-                diagnostics.Add(BlockOperationError("Script.BlockApply.MutatingPreview", "apply-block-edit requires a non-mutating preview report.", sourceFile));
+                diagnostics.Add(BlockOperationError("Script.BlockApply.MutatingEvaluation", "apply-block-edit requires a non-mutating evaluation report.", sourceFile));
             }
             if (span is null)
             {
@@ -757,48 +757,48 @@ internal static class SagaWeaverArtifacts
             }
         }
 
-        if (patchPreview is null)
+        if (patchEvaluation is null)
         {
-            diagnostics.Add(BlockOperationError("Script.BlockApply.PatchPreviewMissing", "apply-block-edit requires patchPreview metadata.", sourceFile));
+            diagnostics.Add(BlockOperationError("Script.BlockApply.PatchEvaluationMissing", "apply-block-edit requires patchEvaluation metadata.", sourceFile));
         }
         else
         {
             foreach (var required in new[] { "startByte", "endByte" })
             {
-                if (!HasIntField(patchPreview, required))
+                if (!HasIntField(patchEvaluation, required))
                 {
-                    diagnostics.Add(BlockOperationError("Script.BlockApply.MissingField", $"apply-block-edit requires patchPreview field '{required}'.", sourceFile));
+                    diagnostics.Add(BlockOperationError("Script.BlockApply.MissingField", $"apply-block-edit requires patchEvaluation field '{required}'.", sourceFile));
                 }
             }
-            if (!HasStringField(patchPreview, "replacementKind"))
+            if (!HasStringField(patchEvaluation, "replacementKind"))
             {
-                diagnostics.Add(BlockOperationError("Script.BlockApply.MissingField", "apply-block-edit requires patchPreview field 'replacementKind'.", sourceFile));
+                diagnostics.Add(BlockOperationError("Script.BlockApply.MissingField", "apply-block-edit requires patchEvaluation field 'replacementKind'.", sourceFile));
             }
-            if (!HasStringField(patchPreview, "replacementText"))
+            if (!HasStringField(patchEvaluation, "replacementText"))
             {
-                diagnostics.Add(BlockOperationError("Script.BlockApply.MissingField", "apply-block-edit requires patchPreview field 'replacementText'.", sourceFile));
+                diagnostics.Add(BlockOperationError("Script.BlockApply.MissingField", "apply-block-edit requires patchEvaluation field 'replacementText'.", sourceFile));
             }
-            if (!HasBoolField(patchPreview, "mutatesSource"))
+            if (!HasBoolField(patchEvaluation, "mutatesSource"))
             {
-                diagnostics.Add(BlockOperationError("Script.BlockApply.MissingField", "apply-block-edit requires patchPreview field 'mutatesSource'.", sourceFile));
+                diagnostics.Add(BlockOperationError("Script.BlockApply.MissingField", "apply-block-edit requires patchEvaluation field 'mutatesSource'.", sourceFile));
             }
-            if (ReadString(patchPreview, "replacementKind") != "MinimalSpanReplacement")
+            if (ReadString(patchEvaluation, "replacementKind") != "MinimalSpanReplacement")
             {
                 diagnostics.Add(BlockOperationError("Script.BlockApply.UnsupportedReplacement", "apply-block-edit only supports MinimalSpanReplacement.", sourceFile));
             }
-            if (ReadBool(patchPreview, "mutatesSource"))
+            if (ReadBool(patchEvaluation, "mutatesSource"))
             {
-                diagnostics.Add(BlockOperationError("Script.BlockApply.MutatingPreview", "apply-block-edit requires patchPreview.mutatesSource to be false.", sourceFile));
+                diagnostics.Add(BlockOperationError("Script.BlockApply.MutatingEvaluation", "apply-block-edit requires patchEvaluation.mutatesSource to be false.", sourceFile));
             }
             if (!IsQuotedStringLiteral(replacementText))
             {
                 diagnostics.Add(BlockOperationError("Script.BlockApply.InvalidReplacement", "Replacement text must be a valid quoted C# string literal.", sourceFile));
             }
             if (span is not null &&
-                (ReadInt(patchPreview, "startByte") != span.StartByte ||
-                 ReadInt(patchPreview, "endByte") != span.EndByte))
+                (ReadInt(patchEvaluation, "startByte") != span.StartByte ||
+                 ReadInt(patchEvaluation, "endByte") != span.EndByte))
             {
-                diagnostics.Add(BlockOperationError("Script.BlockApply.SourceSpanMismatch", "patchPreview byte bounds must match targetSourceSpan.", sourceFile));
+                diagnostics.Add(BlockOperationError("Script.BlockApply.SourceSpanMismatch", "patchEvaluation byte bounds must match targetSourceSpan.", sourceFile));
             }
         }
 
@@ -811,11 +811,11 @@ internal static class SagaWeaverArtifacts
             resolvedSourceFile = ResolveBlockApplySourceFile(sourceRoot, sourceFile);
             if (string.IsNullOrWhiteSpace(resolvedSourceFile))
             {
-                diagnostics.Add(BlockOperationError("Script.BlockApply.SourceFileOutsideRoot", "Preview source file is outside --source-root.", sourceFile));
+                diagnostics.Add(BlockOperationError("Script.BlockApply.SourceFileOutsideRoot", "Evaluation source file is outside --source-root.", sourceFile));
             }
             else if (!File.Exists(resolvedSourceFile))
             {
-                diagnostics.Add(BlockOperationError("Script.BlockApply.SourceFileMissing", "Preview source file does not exist.", resolvedSourceFile));
+                diagnostics.Add(BlockOperationError("Script.BlockApply.SourceFileMissing", "Evaluation source file does not exist.", resolvedSourceFile));
             }
         }
 
@@ -830,7 +830,7 @@ internal static class SagaWeaverArtifacts
                 if (!string.IsNullOrWhiteSpace(targetSourceHash) &&
                     !originalHash.Equals(targetSourceHash, StringComparison.OrdinalIgnoreCase))
                 {
-                    diagnostics.Add(BlockOperationError("Script.BlockApply.SourceHashMismatch", "Current source hash does not match block patch preview targetSourceHash.", resolvedSourceFile));
+                    diagnostics.Add(BlockOperationError("Script.BlockApply.SourceHashMismatch", "Current source hash does not match block patch evaluation targetSourceHash.", resolvedSourceFile));
                 }
                 if (span is not null)
                 {
@@ -930,7 +930,7 @@ internal static class SagaWeaverArtifacts
         checkedArtifacts.AddRange([nodeLibrary.Check, nodeMetadata.Check, runtimeBindings.Check, compatibilityProfile.Check]);
         var patchFiles = new (string File, string Command, bool MutatesSource)[]
         {
-            ("patch_preview.json", "patch-preview", false),
+            ("patch_evaluation.json", "patch-evaluation", false),
             ("patch_apply_report.json", "patch-apply", true),
             ("patch_diff_report.json", "patch-diff", false),
             ("patch_review_report.json", "patch-review", false),
@@ -1070,7 +1070,7 @@ internal static class SagaWeaverArtifacts
         };
     }
 
-    public static JsonObject BuildPatchPreview(
+    public static JsonObject BuildPatchEvaluation(
         IReadOnlyList<string> sourceFiles,
         string sourceMapPath,
         string patchRequestPath)
@@ -1150,14 +1150,14 @@ internal static class SagaWeaverArtifacts
         {
             ["schemaVersion"] = 1,
             ["tool"] = ToolInfo.Name,
-            ["command"] = "patch-preview",
+            ["command"] = "patch-evaluation",
             ["status"] = status,
             ["operation"] = operation,
             ["nodeId"] = nodeId,
             ["sourceFile"] = sourceFile,
             ["baseSourceHash"] = baseSourceHash,
             ["mutatesSource"] = false,
-            ["preview"] = status == "Passed" && span is not null
+            ["evaluation"] = status == "Passed" && span is not null
                 ? new JsonObject
                 {
                     ["startByte"] = span.StartByte,
@@ -1831,7 +1831,7 @@ internal static class SagaWeaverArtifacts
     {
         if (node.Kind == "StringLiteral" &&
             !node.ReadOnly &&
-            node.ProjectionCompatibility == "EditablePreviewOnly" &&
+            node.ProjectionCompatibility == "EditableEvaluationOnly" &&
             node.Capability != "Deferred" &&
             node.SourceSpan is not null)
         {
@@ -1852,11 +1852,11 @@ internal static class SagaWeaverArtifacts
     {
         return classification switch
         {
-            "EditableByPatch" => "String literal is eligible for ReplaceStringLiteral patch preview/apply.",
+            "EditableByPatch" => "String literal is eligible for ReplaceStringLiteral patch evaluation/apply.",
             "Opaque" => node.OpaqueReason ?? "Construct is preserved with source links but is not safely editable.",
             "Unsupported" => "Construct is outside the current Saga-compatible authoring profile.",
             _ when node.Capability == "Deferred" => "Deferred node is disclosed as read-only and is not runtime proof.",
-            _ => "Construct is projectable for inspection but not source-mutable in this phase."
+            _ => "Construct is projectable for inspection but not source-mutable under the current contract."
         };
     }
 
@@ -2512,7 +2512,7 @@ internal static class SagaWeaverArtifacts
                 ApiLevel = metadata.Level,
                 ApiDomain = metadata.Domain,
                 Capability = "ProjectionOnly",
-                ProjectionCompatibility = compatibility == "Supported" ? "EditablePreviewOnly" : "Opaque",
+                ProjectionCompatibility = compatibility == "Supported" ? "EditableEvaluationOnly" : "Opaque",
                 ReadOnly = simpleViewAdvanced || compatibility != "Supported",
                 SourceSpan = ToSpan(sourceText, tree, literal.GetLocation()),
                 LiteralValue = literal.Token.ValueText,
@@ -2941,7 +2941,7 @@ internal static class SagaWeaverArtifacts
     private static JsonArray BlockOperationNonClaims()
     {
         var nonClaims = new JsonArray();
-        nonClaims.Add("PreviewOnly");
+        nonClaims.Add("EvaluationOnly");
         nonClaims.Add("NoSourceMutation");
         nonClaims.Add("NoPatchApply");
         nonClaims.Add("NoVisualBlocksEditor");
@@ -3039,7 +3039,7 @@ internal static class SagaWeaverArtifacts
         }
 
         var projectionCompatibility = ReadString(node, "projectionCompatibility");
-        if (projectionCompatibility != "EditablePreviewOnly")
+        if (projectionCompatibility != "EditableEvaluationOnly")
         {
             diagnostics.Add(Error("Script.Patch.UnsupportedProjectionCompatibility", $"Patch target projection compatibility is '{projectionCompatibility}'."));
         }

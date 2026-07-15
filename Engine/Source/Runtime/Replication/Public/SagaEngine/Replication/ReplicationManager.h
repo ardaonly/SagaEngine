@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include "SagaServer/Networking/Core/Packet.h"
-#include "SagaServer/Networking/Core/NetworkTypes.h"
-#include "SagaServer/Networking/Interest/InterestArea.h"
+#include "SagaEngine/Networking/Packet.h"
+#include "SagaEngine/Networking/NetworkTypes.h"
+#include "SagaEngine/Replication/Interest/InterestArea.h"
 #include "SagaEngine/ECS/Entity.h"
 #include "SagaEngine/ECS/Component.h"
 
@@ -25,7 +25,7 @@ namespace SagaEngine::Simulation
     class WorldState;
 }
 
-namespace SagaEngine::Networking::Replication
+namespace SagaEngine::Replication
 {
 
 using EntityId        = ECS::EntityId;
@@ -172,4 +172,4 @@ uint32_t ReplicationManager::RegisterRPC(const char* name, Func handler, bool re
     return def.id;
 }
 
-} // namespace SagaEngine::Networking::Replication
+} // namespace SagaEngine::Replication

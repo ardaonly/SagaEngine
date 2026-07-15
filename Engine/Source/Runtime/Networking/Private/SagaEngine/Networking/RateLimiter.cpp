@@ -1,7 +1,7 @@
 /// @file RateLimiter.cpp
 /// @brief RateLimiter implementation — token bucket with quarantine cooldown.
 
-#include "SagaServer/Networking/Core/RateLimiter.h"
+#include "SagaEngine/Networking/RateLimiter.h"
 #include "SagaEngine/Core/Log/Log.h"
 
 #include <algorithm>

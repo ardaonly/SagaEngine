@@ -29,7 +29,7 @@
 #include <string>
 #include <vector>
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 // ─── IR Type ──────────────────────────────────────────────────────────────────
@@ -195,4 +195,4 @@ struct IRProgram
     [[nodiscard]] std::vector<const IRProcedure*> EntryPoints() const;
 };
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

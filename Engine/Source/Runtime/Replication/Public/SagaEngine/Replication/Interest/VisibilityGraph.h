@@ -1,7 +1,7 @@
 /// @file VisibilityGraph.h
 /// @brief Uniform-grid spatial visibility graph for wide-area interest management.
 ///
-/// Layer  : SagaServer / Networking / Interest
+/// Layer  : SagaEngine / Replication
 /// Purpose: Partitions world space into fixed-size cells so that per-tick
 ///          visibility queries — "which entities are within view of this
 ///          client?" — can run in O(k) over a bounded neighbourhood instead
@@ -10,7 +10,7 @@
 ///
 /// Design:
 ///   - Cells are addressed by integer (cellX, cellZ) pairs (XZ-plane world,
-///     Y ignored for broad-phase — vertical culling happens downstream).
+///     Y ignored for broad pass — vertical culling happens downstream).
 ///   - Entity membership is updated incrementally on position change.
 ///   - Client observers are subscribed to a square ring of cells centred on
 ///     the viewer — radius is measured in cells, not metres.
@@ -19,8 +19,8 @@
 
 #pragma once
 
-#include "SagaServer/Networking/Core/NetworkTypes.h"
-#include "SagaServer/Networking/Interest/InterestArea.h"
+#include "SagaEngine/Networking/NetworkTypes.h"
+#include "SagaEngine/Replication/Interest/InterestArea.h"
 #include "SagaEngine/ECS/Entity.h"
 
 #include <cstddef>
@@ -32,7 +32,7 @@
 #include <utility>
 #include <vector>
 
-namespace SagaEngine::Networking::Interest
+namespace SagaEngine::Replication::Interest
 {
 
 // ─── Cell Coordinates ─────────────────────────────────────────────────────────
@@ -102,7 +102,7 @@ struct VisibilityGraphStats
 
 // ─── VisibilityGraph ──────────────────────────────────────────────────────────
 
-/// Spatial grid backing the broad-phase of interest management.
+/// Spatial grid backing the broad pass of interest management.
 ///
 /// Threading: public API is safe to call from multiple simulation threads.
 /// Read-only queries acquire a shared lock; mutations acquire an exclusive
@@ -214,4 +214,4 @@ private:
     OnEntityInvisibleFn m_OnEntityInvisible;
 };
 
-} // namespace SagaEngine::Networking::Interest
+} // namespace SagaEngine::Replication::Interest

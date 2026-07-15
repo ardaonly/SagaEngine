@@ -475,6 +475,25 @@ struct DiligentNativeResourceOwner::Impl
         return nullptr;
     }
 
+    template <typename SlotT>
+    [[nodiscard]] const SlotT* FindAny(
+        const std::vector<SlotT>& slots,
+        DiligentNativeResourceToken token) const noexcept
+    {
+        if (!token.IsValid())
+        {
+            return nullptr;
+        }
+        for (const auto& slot : slots)
+        {
+            if ((slot.live || slot.pendingDestroy) && slot.token == token)
+            {
+                return &slot;
+            }
+        }
+        return nullptr;
+    }
+
     template <typename SlotT, typename HandleT>
     void MarkUsed(
         std::vector<SlotT>& slots,
@@ -1332,7 +1351,7 @@ Diligent::IBuffer* DiligentNativeResourceOwner::ResolveBuffer(
     {
         return nullptr;
     }
-    const auto* slot = m_Impl->Find(m_Impl->buffers, token);
+    const auto* slot = m_Impl->FindAny(m_Impl->buffers, token);
     return slot ? slot->payload.buffer.RawPtr() : nullptr;
 }
 
@@ -1343,7 +1362,7 @@ Diligent::ITexture* DiligentNativeResourceOwner::ResolveTexture(
     {
         return nullptr;
     }
-    const auto* slot = m_Impl->Find(m_Impl->textures, token);
+    const auto* slot = m_Impl->FindAny(m_Impl->textures, token);
     return slot ? slot->payload.texture.RawPtr() : nullptr;
 }
 
@@ -1354,7 +1373,7 @@ Diligent::ITextureView* DiligentNativeResourceOwner::ResolveTextureSrv(
     {
         return nullptr;
     }
-    const auto* slot = m_Impl->Find(m_Impl->textures, token);
+    const auto* slot = m_Impl->FindAny(m_Impl->textures, token);
     return slot ? slot->payload.srv.RawPtr() : nullptr;
 }
 
@@ -1365,7 +1384,7 @@ Diligent::ISampler* DiligentNativeResourceOwner::ResolveSampler(
     {
         return nullptr;
     }
-    const auto* slot = m_Impl->Find(m_Impl->samplers, token);
+    const auto* slot = m_Impl->FindAny(m_Impl->samplers, token);
     return slot ? slot->payload.sampler.RawPtr() : nullptr;
 }
 
@@ -1376,7 +1395,7 @@ Diligent::IShader* DiligentNativeResourceOwner::ResolveShader(
     {
         return nullptr;
     }
-    const auto* slot = m_Impl->Find(m_Impl->shaders, token);
+    const auto* slot = m_Impl->FindAny(m_Impl->shaders, token);
     return slot ? slot->payload.shader.RawPtr() : nullptr;
 }
 
@@ -1387,7 +1406,7 @@ Diligent::IPipelineState* DiligentNativeResourceOwner::ResolvePipeline(
     {
         return nullptr;
     }
-    const auto* slot = m_Impl->Find(m_Impl->pipelines, token);
+    const auto* slot = m_Impl->FindAny(m_Impl->pipelines, token);
     return slot ? slot->payload.pipeline.RawPtr() : nullptr;
 }
 

@@ -1,11 +1,11 @@
 /// @file BlockSnapAndIRTests.cpp
 /// @brief GoogleTest coverage for snap rules, IR primitives, and the lowerer.
 
-#include "SagaEditor/VisualScripting/Blocks/BlockIR.h"
-#include "SagaEditor/VisualScripting/Blocks/BlockLibrary.h"
-#include "SagaEditor/VisualScripting/Blocks/BlockScript.h"
-#include "SagaEditor/VisualScripting/Blocks/BlockSnapRules.h"
-#include "SagaEditor/VisualScripting/Blocks/BlockToIRLowerer.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockIR.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockLibrary.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockScript.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockSnapRules.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockToIRLowerer.h"
 
 #include <gtest/gtest.h>
 
@@ -15,7 +15,7 @@
 namespace
 {
 
-using namespace SagaEditor::VisualScripting;
+using namespace SagaEditor::VisualBlocks;
 
 // ─── Shared Fixture ───────────────────────────────────────────────────────────
 

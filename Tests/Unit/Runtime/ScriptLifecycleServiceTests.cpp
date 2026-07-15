@@ -1132,15 +1132,15 @@ TEST(ScriptLifecycleServiceTests, EngineScriptingBoundaryHasNoEditorOrRuntimeHos
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
     const std::vector<std::filesystem::path> files = {
-        root / "Engine" / "Public" / "SagaEngine" / "Scripting" /
+        root / "Engine" / "Source" / "Runtime" / "Scripting" / "Public" / "SagaEngine" / "Scripting" /
             "ISagaScriptHost.hpp",
-        root / "Engine" / "Public" / "SagaEngine" / "Scripting" /
+        root / "Engine" / "Source" / "Runtime" / "Scripting" / "Public" / "SagaEngine" / "Scripting" /
             "ScriptLifecycleService.hpp",
-        root / "Engine" / "Private" / "SagaEngine" / "Scripting" /
+        root / "Engine" / "Source" / "Runtime" / "Scripting" / "Private" / "SagaEngine" / "Scripting" /
             "ScriptLifecycleService.cpp",
-        root / "Engine" / "Public" / "SagaEngine" / "Scripting" /
+        root / "Engine" / "Source" / "Runtime" / "Scripting" / "Public" / "SagaEngine" / "Scripting" /
             "ScriptPackageValidator.hpp",
-        root / "Engine" / "Private" / "SagaEngine" / "Scripting" /
+        root / "Engine" / "Source" / "Runtime" / "Scripting" / "Private" / "SagaEngine" / "Scripting" /
             "ScriptPackageValidator.cpp",
     };
 

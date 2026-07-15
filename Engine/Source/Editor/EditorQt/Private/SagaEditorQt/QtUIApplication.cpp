@@ -1,7 +1,7 @@
 /// @file QtUIApplication.cpp
 /// @brief Qt implementation of IUIApplication.
 
-#include "SagaEditor/UI/Qt/QtUIApplication.h"
+#include "SagaEditorQt/QtUIApplication.h"
 #include <QApplication>
 #include <QTimer>
 

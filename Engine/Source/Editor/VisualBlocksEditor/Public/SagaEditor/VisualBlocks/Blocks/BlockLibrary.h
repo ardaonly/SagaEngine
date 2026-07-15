@@ -3,14 +3,14 @@
 
 #pragma once
 
-#include "SagaEditor/VisualScripting/Blocks/BlockCategory.h"
-#include "SagaEditor/VisualScripting/Blocks/BlockDefinition.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockCategory.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockDefinition.h"
 
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 // ─── Block Library ────────────────────────────────────────────────────────────
@@ -83,4 +83,4 @@ private:
     std::unordered_map<std::string, BlockDefinition> m_definitions;
 };
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

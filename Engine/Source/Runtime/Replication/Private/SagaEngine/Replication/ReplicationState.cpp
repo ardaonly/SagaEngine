@@ -1,13 +1,13 @@
 /// @file ReplicationState.cpp
 /// @brief GlobalEntityVersionTable and ReplicationStateManager implementations.
 
-#include "SagaServer/Networking/Replication/ReplicationState.h"
+#include "SagaEngine/Replication/ReplicationState.h"
 #include "SagaEngine/Core/Log/Log.h"
 
 #include <algorithm>
 #include <cassert>
 
-namespace SagaEngine::Networking::Replication
+namespace SagaEngine::Replication
 {
 
 static constexpr const char* kTag = "ReplicationState";
@@ -291,4 +291,4 @@ uint64_t ReplicationStateManager::GetCurrentSequence() const noexcept
     return m_sequence.load(std::memory_order_relaxed);
 }
 
-} // namespace SagaEngine::Networking::Replication
+} // namespace SagaEngine::Replication

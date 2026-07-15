@@ -78,7 +78,7 @@ struct DrawItem
     /// the culling pipeline so the LOD pass does not recompute it.
     float        distanceSq = 0.0f;
 
-    // ── Skeletal skinning (Phase 4) ─────────────────────────────────
+    // ── Skeletal skinning (Step 4) ─────────────────────────────────
     /// Pointer to an array of skin matrices (world * inverseBind) for
     /// this draw.  nullptr means unskinned — the backend uses the static
     /// VS.  The pointer must remain valid until Submit() returns.  The

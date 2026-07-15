@@ -22,9 +22,9 @@ void LogCmd(const std::string& exe, const std::vector<std::string>& args)
     std::cerr << "\n";
 }
 
-void LogJobPlan(const char* phase, const JobPlan& plan)
+void LogJobPlan(const char* step, const JobPlan& plan)
 {
-    std::cerr << "[forge/scheduler] " << phase
+    std::cerr << "[forge/scheduler] " << step
               << " jobs=" << plan.finalJobs
               << " requested=" << (plan.requestedJobs == 0 ? std::string("auto") : std::to_string(plan.requestedJobs))
               << " detected=" << plan.detectedJobs

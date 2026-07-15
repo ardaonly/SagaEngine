@@ -121,7 +121,7 @@ TEST(SagaScriptContractsTests, BindingManifestCarriesDiagnosticsAndGeneratedOrig
     diagnostic.diagnostic.severity = DiagnosticSeverity::Warning;
     diagnostic.diagnostic.category = DiagnosticCategory::Script;
     diagnostic.diagnostic.source = DiagnosticSource::ScriptingToolchain;
-    diagnostic.diagnostic.code.value = "Script.Binding.GeneratedPreview";
+    diagnostic.diagnostic.code.value = "Script.Binding.GeneratedEvaluation";
     manifest.diagnostics.push_back(diagnostic);
     manifest.diagnosticSummary.Add(diagnostic.diagnostic);
 

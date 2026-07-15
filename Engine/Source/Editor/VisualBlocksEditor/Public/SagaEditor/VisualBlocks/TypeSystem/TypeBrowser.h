@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
-namespace SagaEditor::VisualScripting {
+namespace SagaEditor::VisualBlocks {
 struct TypeEntry { std::string fullName; std::string displayName; std::string category; };
 class TypeBrowser {
 public:
@@ -11,4 +11,4 @@ public:
 private:
     std::vector<TypeEntry> m_types;
 };
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

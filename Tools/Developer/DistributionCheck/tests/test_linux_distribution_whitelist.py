@@ -15,8 +15,8 @@ import tempfile
 import unittest
 
 
-ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "scripts"))
+ROOT = Path(__file__).resolve().parents[4]
+sys.path.insert(0, str(ROOT / "Tools" / "Developer" / "DistributionCheck"))
 
 from saga_linux_distribution_policy import (  # noqa: E402
     ALLOWED_EXECUTABLE_PATHS,
@@ -37,7 +37,7 @@ from saga_linux_distribution_policy import (  # noqa: E402
 
 
 def load_packager():
-    path = ROOT / "scripts" / "package-linux-saga"
+    path = ROOT / "Tools" / "SagaPackager" / "package-linux-saga.py"
     spec = importlib.util.spec_from_loader(
         "package_linux_saga", SourceFileLoader("package_linux_saga", str(path))
     )

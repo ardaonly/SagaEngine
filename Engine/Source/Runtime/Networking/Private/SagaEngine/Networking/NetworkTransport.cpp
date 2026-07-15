@@ -1,15 +1,20 @@
 /// @file NetworkTransport.cpp
 /// @brief UdpTransport full implementation — Boost.Asio async UDP with send queue and keepalive.
 
-#include "SagaServer/Networking/Core/NetworkTransport.h"
+#include "SagaEngine/Networking/NetworkTransport.h"
 #include "SagaEngine/Core/Log/Log.h"
 
 #include <asio.hpp>
 #include <asio/steady_timer.hpp>
 
 #include <cassert>
+#include <atomic>
 #include <chrono>
 #include <cstring>
+#include <mutex>
+#include <queue>
+#include <thread>
+#include <vector>
 
 namespace SagaEngine::Networking
 {
@@ -21,11 +26,48 @@ static constexpr std::size_t kRecvBufSz = 65536;
 static constexpr uint32_t    kKeepaliveIntervalMs = 2000;
 static constexpr uint32_t    kConnectTimeoutMs    = 5000;
 
+struct UdpTransport::Impl
+{
+    struct PendingSend
+    {
+        std::vector<uint8_t> data;
+        uint32_t timestamp{0};
+        uint32_t retryCount{0};
+    };
+
+    asio::io_context ioContext;
+    std::unique_ptr<asio::ip::udp::socket> socket;
+    std::unique_ptr<asio::steady_timer> connectTimer;
+    std::unique_ptr<asio::steady_timer> keepAliveTimer;
+    std::thread ioThread;
+    std::atomic<bool> running{false};
+
+    ConnectionState state{ConnectionState::Disconnected};
+    NetworkConfig config;
+    NetworkAddress remoteAddress;
+    ConnectionId connectionId{0};
+
+    NetworkStatistics stats;
+    mutable std::mutex statsMutex;
+
+    std::queue<PendingSend> sendQueue;
+    mutable std::mutex sendQueueMutex;
+
+    std::vector<uint8_t> receiveBuffer;
+    asio::ip::udp::endpoint receiveEndpoint;
+
+    OnConnectedCallback onConnected;
+    OnDisconnectedCallback onDisconnected;
+    OnPacketReceivedCallback onPacketReceived;
+    OnStateChangedCallback onStateChanged;
+};
+
 // ─── Construction ─────────────────────────────────────────────────────────────
 
 UdpTransport::UdpTransport()
-    : m_ReceiveBuffer(kRecvBufSz)
+    : m_Impl(std::make_unique<Impl>())
 {
+    m_Impl->receiveBuffer.resize(kRecvBufSz);
 }
 
 UdpTransport::~UdpTransport()
@@ -37,42 +79,42 @@ UdpTransport::~UdpTransport()
 
 bool UdpTransport::Initialize(const NetworkConfig& config)
 {
-    m_Config = config;
+    m_Impl->config = config;
 
     asio::error_code ec;
 
-    m_Socket = std::make_unique<asio::ip::udp::socket>(m_IoContext);
-    m_Socket->open(asio::ip::udp::v4(), ec);
+    m_Impl->socket = std::make_unique<asio::ip::udp::socket>(m_Impl->ioContext);
+    m_Impl->socket->open(asio::ip::udp::v4(), ec);
     if (ec)
     {
         LOG_ERROR(kTag, "Socket open failed: %s", ec.message().c_str());
         return false;
     }
 
-    m_Socket->set_option(asio::socket_base::reuse_address(true), ec);
-    m_Socket->set_option(asio::socket_base::receive_buffer_size(kRecvBufSz), ec);
-    m_Socket->set_option(asio::socket_base::send_buffer_size(65536), ec);
+    m_Impl->socket->set_option(asio::socket_base::reuse_address(true), ec);
+    m_Impl->socket->set_option(asio::socket_base::receive_buffer_size(kRecvBufSz), ec);
+    m_Impl->socket->set_option(asio::socket_base::send_buffer_size(65536), ec);
 
     // Bind to any port for client-side usage.
-    m_Socket->bind(asio::ip::udp::endpoint(asio::ip::udp::v4(), 0), ec);
+    m_Impl->socket->bind(asio::ip::udp::endpoint(asio::ip::udp::v4(), 0), ec);
     if (ec)
     {
         LOG_ERROR(kTag, "Bind failed: %s", ec.message().c_str());
         return false;
     }
 
-    m_ConnectTimer   = std::make_unique<asio::steady_timer>(m_IoContext);
-    m_KeepAliveTimer = std::make_unique<asio::steady_timer>(m_IoContext);
+    m_Impl->connectTimer   = std::make_unique<asio::steady_timer>(m_Impl->ioContext);
+    m_Impl->keepAliveTimer = std::make_unique<asio::steady_timer>(m_Impl->ioContext);
 
-    m_Running.store(true, std::memory_order_release);
+    m_Impl->running.store(true, std::memory_order_release);
 
-    m_IoThread = std::thread([this]()
+    m_Impl->ioThread = std::thread([this]()
     {
         LOG_DEBUG(kTag, "IO thread started");
-        auto workGuard = asio::make_work_guard(m_IoContext);
+        auto workGuard = asio::make_work_guard(m_Impl->ioContext);
         try
         {
-            m_IoContext.run();
+            m_Impl->ioContext.run();
         }
         catch (const std::exception& ex)
         {
@@ -82,7 +124,7 @@ bool UdpTransport::Initialize(const NetworkConfig& config)
     });
 
     LOG_INFO(kTag, "Initialized — local port %u",
-             m_Socket->local_endpoint().port());
+             m_Impl->socket->local_endpoint().port());
     return true;
 }
 
@@ -90,21 +132,21 @@ bool UdpTransport::Initialize(const NetworkConfig& config)
 
 void UdpTransport::Shutdown()
 {
-    if (!m_Running.exchange(false, std::memory_order_acq_rel))
+    if (!m_Impl->running.exchange(false, std::memory_order_acq_rel))
         return;
 
     SetState(ConnectionState::Disconnected);
 
     asio::error_code ec;
-    if (m_ConnectTimer)   m_ConnectTimer->cancel(ec);
-    if (m_KeepAliveTimer) m_KeepAliveTimer->cancel(ec);
-    if (m_Socket && m_Socket->is_open())
-        m_Socket->close(ec);
+    if (m_Impl->connectTimer)   m_Impl->connectTimer->cancel(ec);
+    if (m_Impl->keepAliveTimer) m_Impl->keepAliveTimer->cancel(ec);
+    if (m_Impl->socket && m_Impl->socket->is_open())
+        m_Impl->socket->close(ec);
 
-    m_IoContext.stop();
+    m_Impl->ioContext.stop();
 
-    if (m_IoThread.joinable())
-        m_IoThread.join();
+    if (m_Impl->ioThread.joinable())
+        m_Impl->ioThread.join();
 
     LOG_INFO(kTag, "Shutdown complete");
 }
@@ -127,13 +169,13 @@ bool UdpTransport::Connect(const NetworkAddress& address)
         return false;
     }
 
-    m_RemoteAddress = address;
-    m_ReceiveEndpoint = asio::ip::udp::endpoint(asioAddr, address.port);
+    m_Impl->remoteAddress = address;
+    m_Impl->receiveEndpoint = asio::ip::udp::endpoint(asioAddr, address.port);
 
     SetState(ConnectionState::Connecting);
 
     // UDP "connect" sets the default send destination and filters received datagrams.
-    m_Socket->connect(m_ReceiveEndpoint, ec);
+    m_Impl->socket->connect(m_Impl->receiveEndpoint, ec);
     if (ec)
     {
         LOG_ERROR(kTag, "UDP connect failed: %s", ec.message().c_str());
@@ -142,8 +184,8 @@ bool UdpTransport::Connect(const NetworkAddress& address)
     }
 
     // Start a timeout so we don't wait forever for the remote to respond.
-    m_ConnectTimer->expires_after(std::chrono::milliseconds(kConnectTimeoutMs));
-    m_ConnectTimer->async_wait([this](const asio::error_code& timerEc)
+    m_Impl->connectTimer->expires_after(std::chrono::milliseconds(kConnectTimeoutMs));
+    m_Impl->connectTimer->async_wait([this](const asio::error_code& timerEc)
     {
         if (timerEc) return;
         if (GetState() == ConnectionState::Connecting)
@@ -172,8 +214,8 @@ void UdpTransport::Disconnect(int reason)
         return;
 
     asio::error_code ec;
-    if (m_ConnectTimer)   m_ConnectTimer->cancel(ec);
-    if (m_KeepAliveTimer) m_KeepAliveTimer->cancel(ec);
+    if (m_Impl->connectTimer)   m_Impl->connectTimer->cancel(ec);
+    if (m_Impl->keepAliveTimer) m_Impl->keepAliveTimer->cancel(ec);
 
     SetState(ConnectionState::Disconnected);
     InvokeOnDisconnected(reason);
@@ -188,7 +230,7 @@ bool UdpTransport::Send(const uint8_t* data, std::size_t size)
     if (!data || size == 0 || size > 65507)
         return false;
 
-    PendingSend pending;
+    Impl::PendingSend pending;
     pending.data.assign(data, data + size);
     pending.timestamp   = static_cast<uint32_t>(
         std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -196,8 +238,8 @@ bool UdpTransport::Send(const uint8_t* data, std::size_t size)
     pending.retryCount  = 0;
 
     {
-        std::lock_guard<std::mutex> lock(m_SendQueueMutex);
-        m_SendQueue.push(std::move(pending));
+        std::lock_guard<std::mutex> lock(m_Impl->sendQueueMutex);
+        m_Impl->sendQueue.push(std::move(pending));
     }
 
     ProcessSendQueue();
@@ -206,31 +248,31 @@ bool UdpTransport::Send(const uint8_t* data, std::size_t size)
 
 void UdpTransport::ProcessSendQueue()
 {
-    PendingSend pending;
+    Impl::PendingSend pending;
     bool hasPending = false;
 
     {
-        std::lock_guard<std::mutex> lock(m_SendQueueMutex);
-        if (!m_SendQueue.empty())
+        std::lock_guard<std::mutex> lock(m_Impl->sendQueueMutex);
+        if (!m_Impl->sendQueue.empty())
         {
-            pending    = std::move(m_SendQueue.front());
-            m_SendQueue.pop();
+            pending    = std::move(m_Impl->sendQueue.front());
+            m_Impl->sendQueue.pop();
             hasPending = true;
         }
     }
 
-    if (!hasPending || !m_Socket || !m_Socket->is_open())
+    if (!hasPending || !m_Impl->socket || !m_Impl->socket->is_open())
         return;
 
-    m_Socket->async_send(
+    m_Impl->socket->async_send(
         asio::buffer(pending.data.data(), pending.data.size()),
         [this](const asio::error_code& ec, std::size_t bytes)
         {
             if (!ec)
             {
-                std::lock_guard<std::mutex> lock(m_StatsMutex);
-                m_Stats.bytesSent    += bytes;
-                m_Stats.packetsSent  += 1;
+                std::lock_guard<std::mutex> lock(m_Impl->statsMutex);
+                m_Impl->stats.bytesSent    += bytes;
+                m_Impl->stats.packetsSent  += 1;
             }
             else if (ec != asio::error::operation_aborted)
             {
@@ -250,22 +292,22 @@ void UdpTransport::Receive()
 
 void UdpTransport::StartReceive()
 {
-    if (!m_Running.load(std::memory_order_relaxed) ||
-        !m_Socket || !m_Socket->is_open())
+    if (!m_Impl->running.load(std::memory_order_relaxed) ||
+        !m_Impl->socket || !m_Impl->socket->is_open())
         return;
 
-    m_Socket->async_receive_from(
-        asio::buffer(m_ReceiveBuffer.data(), m_ReceiveBuffer.size()),
-        m_ReceiveEndpoint,
+    m_Impl->socket->async_receive_from(
+        asio::buffer(m_Impl->receiveBuffer.data(), m_Impl->receiveBuffer.size()),
+        m_Impl->receiveEndpoint,
         [this](const asio::error_code& ec, std::size_t bytes)
         {
             HandleReceive(ec, bytes);
         });
 }
 
-void UdpTransport::HandleReceive(const asio::error_code& ec, std::size_t bytesTransferred)
+void UdpTransport::HandleReceive(const std::error_code& ec, std::size_t bytesTransferred)
 {
-    if (!m_Running.load(std::memory_order_relaxed))
+    if (!m_Impl->running.load(std::memory_order_relaxed))
         return;
 
     if (ec)
@@ -285,23 +327,23 @@ void UdpTransport::HandleReceive(const asio::error_code& ec, std::size_t bytesTr
     }
 
     {
-        std::lock_guard<std::mutex> lock(m_StatsMutex);
-        m_Stats.bytesReceived   += bytesTransferred;
-        m_Stats.packetsReceived += 1;
+        std::lock_guard<std::mutex> lock(m_Impl->statsMutex);
+        m_Impl->stats.bytesReceived   += bytesTransferred;
+        m_Impl->stats.packetsReceived += 1;
     }
 
     // If we were still Connecting, consider this the handshake response.
     if (GetState() == ConnectionState::Connecting)
     {
         asio::error_code timerEc;
-        m_ConnectTimer->cancel(timerEc);
+        m_Impl->connectTimer->cancel(timerEc);
 
         SetState(ConnectionState::Connected);
         InvokeOnConnected();
         StartKeepAliveTimer();
     }
 
-    InvokeOnPacketReceived(m_ReceiveBuffer.data(), bytesTransferred);
+    InvokeOnPacketReceived(m_Impl->receiveBuffer.data(), bytesTransferred);
     StartReceive();
 }
 
@@ -309,19 +351,19 @@ void UdpTransport::HandleReceive(const asio::error_code& ec, std::size_t bytesTr
 
 void UdpTransport::StartKeepAliveTimer()
 {
-    if (!m_Running.load(std::memory_order_relaxed))
+    if (!m_Impl->running.load(std::memory_order_relaxed))
         return;
 
-    m_KeepAliveTimer->expires_after(std::chrono::milliseconds(kKeepaliveIntervalMs));
-    m_KeepAliveTimer->async_wait([this](const asio::error_code& ec)
+    m_Impl->keepAliveTimer->expires_after(std::chrono::milliseconds(kKeepaliveIntervalMs));
+    m_Impl->keepAliveTimer->async_wait([this](const asio::error_code& ec)
     {
         HandleKeepAliveTimer(ec);
     });
 }
 
-void UdpTransport::HandleKeepAliveTimer(const asio::error_code& ec)
+void UdpTransport::HandleKeepAliveTimer(const std::error_code& ec)
 {
-    if (ec || !m_Running.load(std::memory_order_relaxed))
+    if (ec || !m_Impl->running.load(std::memory_order_relaxed))
         return;
 
     if (GetState() == ConnectionState::Connected)
@@ -347,8 +389,8 @@ void UdpTransport::SendKeepAlive()
     Send(probe, sizeof(probe));
 
     {
-        std::lock_guard<std::mutex> lock(m_StatsMutex);
-        m_Stats.heartbeatsSent += 1;
+        std::lock_guard<std::mutex> lock(m_Impl->statsMutex);
+        m_Impl->stats.heartbeatsSent += 1;
     }
 }
 
@@ -356,18 +398,31 @@ void UdpTransport::SendKeepAlive()
 
 void UdpTransport::SetState(ConnectionState newState)
 {
-    const ConnectionState old = m_State;
+    const ConnectionState old = m_Impl->state;
     if (old == newState)
         return;
 
-    m_State = newState;
+    m_Impl->state = newState;
     InvokeOnStateChanged(newState);
+}
+
+ConnectionState UdpTransport::GetState() const
+{
+    return m_Impl->state;
+}
+
+NetworkAddress UdpTransport::GetRemoteAddress() const
+{
+    return m_Impl->remoteAddress;
 }
 
 NetworkAddress UdpTransport::GetLocalAddress() const
 {
+    if (!m_Impl->socket)
+        return NetworkAddress{};
+
     asio::error_code ec;
-    const auto ep = m_Socket->local_endpoint(ec);
+    const auto ep = m_Impl->socket->local_endpoint(ec);
     if (ec)
         return NetworkAddress{};
 
@@ -377,34 +432,54 @@ NetworkAddress UdpTransport::GetLocalAddress() const
     return addr;
 }
 
+void UdpTransport::SetOnConnected(OnConnectedCallback cb)
+{
+    m_Impl->onConnected = std::move(cb);
+}
+
+void UdpTransport::SetOnDisconnected(OnDisconnectedCallback cb)
+{
+    m_Impl->onDisconnected = std::move(cb);
+}
+
+void UdpTransport::SetOnPacketReceived(OnPacketReceivedCallback cb)
+{
+    m_Impl->onPacketReceived = std::move(cb);
+}
+
+void UdpTransport::SetOnStateChanged(OnStateChangedCallback cb)
+{
+    m_Impl->onStateChanged = std::move(cb);
+}
+
 // ─── Callback invocation ──────────────────────────────────────────────────────
 
 void UdpTransport::InvokeOnConnected()
 {
-    if (m_OnConnected) m_OnConnected(m_ConnectionId);
+    if (m_Impl->onConnected) m_Impl->onConnected(m_Impl->connectionId);
 }
 
 void UdpTransport::InvokeOnDisconnected(int reason)
 {
-    if (m_OnDisconnected) m_OnDisconnected(m_ConnectionId, reason);
+    if (m_Impl->onDisconnected) m_Impl->onDisconnected(m_Impl->connectionId, reason);
 }
 
 void UdpTransport::InvokeOnPacketReceived(const uint8_t* data, std::size_t size)
 {
-    if (m_OnPacketReceived) m_OnPacketReceived(m_ConnectionId, data, size);
+    if (m_Impl->onPacketReceived) m_Impl->onPacketReceived(m_Impl->connectionId, data, size);
 }
 
 void UdpTransport::InvokeOnStateChanged(ConnectionState newState)
 {
-    if (m_OnStateChanged) m_OnStateChanged(m_ConnectionId, newState);
+    if (m_Impl->onStateChanged) m_Impl->onStateChanged(m_Impl->connectionId, newState);
 }
 
 // ─── Statistics ───────────────────────────────────────────────────────────────
 
 NetworkStatistics UdpTransport::GetStatistics() const
 {
-    std::lock_guard<std::mutex> lock(m_StatsMutex);
-    return m_Stats;
+    std::lock_guard<std::mutex> lock(m_Impl->statsMutex);
+    return m_Impl->stats;
 }
 
 // ─── TransportFactory ─────────────────────────────────────────────────────────

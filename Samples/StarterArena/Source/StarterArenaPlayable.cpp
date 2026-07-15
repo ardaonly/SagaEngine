@@ -102,7 +102,7 @@ Json GameplayJson(const StarterArenaGameplayState& state)
     };
     Json mutations = Json::array();
     for (const auto& mutation : state.mutations)
-        mutations.push_back({{"tick", mutation.tick}, {"phase", mutation.phase},
+        mutations.push_back({{"tick", mutation.tick}, {"lifecycleEvent", mutation.lifecycleEvent},
                              {"operation", mutation.operation}, {"target", mutation.target},
                              {"before", mutationValue(mutation, mutation.beforeValue)},
                              {"after", mutationValue(mutation, mutation.afterValue)},

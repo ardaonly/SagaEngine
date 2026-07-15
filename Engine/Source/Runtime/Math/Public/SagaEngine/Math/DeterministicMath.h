@@ -13,14 +13,14 @@
 ///          some accuracy for reproducibility, which is exactly the correct
 ///          trade-off for gameplay logic.
 ///
-/// Strategy (phase 1 — current file):
+/// Current strategy:
 ///   - Fixed-point rational approximations via integer math where possible.
 ///   - `volatile` rounding fences around std:: calls to disable compiler
 ///     re-association so at least *one* binary produces stable results.
 ///   - A central SetRoundingMode() hook the simulation bootstrap can call
 ///     once at start-up to lock FE_TONEAREST across all threads.
 ///
-/// Strategy (future phase 2, tracked in roadmap):
+/// Reserved follow-up strategy:
 ///   - Full fixed-point Q16.16 / Q32.32 vector math pipeline.
 ///   - Cross-compiler bit-identical transcendentals via polynomial tables.
 ///

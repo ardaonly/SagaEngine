@@ -1,9 +1,9 @@
 /// @file ScriptHotReloadManager.cpp
 /// @brief Pimpl scaffolding — auto-generated stub bodies.
 
-#include "SagaEditor/VisualScripting/Runtime/ScriptHotReloadManager.h"
+#include "SagaEditor/VisualBlocks/Runtime/ScriptHotReloadManager.h"
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 // ─── Pimpl Definition ────────────────────────────────────────────────────────
@@ -33,4 +33,4 @@ void ScriptHotReloadManager::SetOnReloaded(std::function<void(const std::string&
     /* stub */
 }
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

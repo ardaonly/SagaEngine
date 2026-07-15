@@ -32,6 +32,6 @@ struct SceneAssetBrowserInventoryView
 };
 
 [[nodiscard]] SceneAssetBrowserInventoryView LoadSceneAssetBrowserInventoryView(
-    const TechnicalPreviewProjectView& project);
+    const ProjectReadinessView& project);
 
 } // namespace SagaEditor::Authoring

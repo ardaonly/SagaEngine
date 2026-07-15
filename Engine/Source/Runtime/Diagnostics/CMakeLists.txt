@@ -1,1 +1,54 @@
-# Source ownership is registered through SagaModule.cmake.
+saga_add_runtime_module(Diagnostics
+    MODULE_DIR Engine/Source/Runtime/Diagnostics
+    TARGET SagaDiagnostics
+    SOURCES
+        Private/SagaEngine/Diagnostics/Crash/CrashReportBuilder.cpp
+        Private/SagaEngine/Diagnostics/DiagnosticSystem.cpp
+        Private/SagaEngine/Diagnostics/Fault/FaultBoundary.cpp
+        Private/SagaEngine/Diagnostics/Health/HealthMonitor.cpp
+        Private/SagaEngine/Diagnostics/Health/HealthRule.cpp
+        Private/SagaEngine/Diagnostics/Health/HealthSnapshot.cpp
+        Private/SagaEngine/Diagnostics/Lifetime/LifetimeLeakDiagnostic.cpp
+        Private/SagaEngine/Diagnostics/Lifetime/LifetimeTracker.cpp
+        Private/SagaEngine/Diagnostics/Memory/MemorySnapshot.cpp
+        Private/SagaEngine/Diagnostics/Memory/MemoryTracker.cpp
+        Private/SagaEngine/Diagnostics/Report/DiagnosticReportWriter.cpp
+        Private/SagaEngine/Diagnostics/Resource/ResourceSnapshot.cpp
+        Private/SagaEngine/Diagnostics/Resource/ResourceTracker.cpp
+        Private/SagaEngine/Diagnostics/ServerLifecycle/ServerLifecycleTracker.cpp
+        Public/SagaEngine/Diagnostics/Crash/CrashContext.hpp
+        Public/SagaEngine/Diagnostics/Crash/CrashReport.hpp
+        Public/SagaEngine/Diagnostics/Crash/CrashReportBuilder.hpp
+        Public/SagaEngine/Diagnostics/DiagnosticConfig.hpp
+        Public/SagaEngine/Diagnostics/DiagnosticSystem.hpp
+        Public/SagaEngine/Diagnostics/Fault/FaultBoundary.hpp
+        Public/SagaEngine/Diagnostics/Fault/FaultReport.hpp
+        Public/SagaEngine/Diagnostics/Health/HealthMetric.hpp
+        Public/SagaEngine/Diagnostics/Health/HealthMonitor.hpp
+        Public/SagaEngine/Diagnostics/Health/HealthRule.hpp
+        Public/SagaEngine/Diagnostics/Health/HealthRuleResult.hpp
+        Public/SagaEngine/Diagnostics/Health/HealthSeverity.hpp
+        Public/SagaEngine/Diagnostics/Health/HealthSnapshot.hpp
+        Public/SagaEngine/Diagnostics/Lifetime/LifetimeHandle.hpp
+        Public/SagaEngine/Diagnostics/Lifetime/LifetimeLeakDiagnostic.hpp
+        Public/SagaEngine/Diagnostics/Lifetime/LifetimeRecord.hpp
+        Public/SagaEngine/Diagnostics/Lifetime/LifetimeTracker.hpp
+        Public/SagaEngine/Diagnostics/Memory/MemoryRecord.hpp
+        Public/SagaEngine/Diagnostics/Memory/MemoryScope.hpp
+        Public/SagaEngine/Diagnostics/Memory/MemorySnapshot.hpp
+        Public/SagaEngine/Diagnostics/Memory/MemoryTracker.hpp
+        Public/SagaEngine/Diagnostics/Report/DiagnosticReport.hpp
+        Public/SagaEngine/Diagnostics/Report/DiagnosticReportWriter.hpp
+        Public/SagaEngine/Diagnostics/Resource/ResourceRecord.hpp
+        Public/SagaEngine/Diagnostics/Resource/ResourceSnapshot.hpp
+        Public/SagaEngine/Diagnostics/Resource/ResourceTracker.hpp
+        Public/SagaEngine/Diagnostics/Resource/ResourceType.hpp
+        Public/SagaEngine/Diagnostics/ServerLifecycle/ServerLifecycleTracker.hpp
+        Public/SagaShared/Diagnostics/DiagnosticCategory.hpp
+        Public/SagaShared/Diagnostics/DiagnosticCode.hpp
+        Public/SagaShared/Diagnostics/DiagnosticLocation.hpp
+        Public/SagaShared/Diagnostics/DiagnosticPayload.hpp
+        Public/SagaShared/Diagnostics/DiagnosticSeverity.hpp
+        Public/SagaShared/Diagnostics/DiagnosticSource.hpp
+        Public/SagaShared/Diagnostics/DiagnosticSummary.hpp
+)
