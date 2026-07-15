@@ -47,16 +47,11 @@ saga_add_editor_module(VisualBlocksEditor
         Public/SagaEditor/VisualBlocks/Compiler/CompileEvaluationAdapter.h
         Public/SagaEditor/VisualBlocks/Compiler/ErrorSurfaceAdapter.h
         Public/SagaEditor/VisualBlocks/Debugger/BreakpointController.h
-        Public/SagaEditor/VisualBlocks/Debugger/ExecutionTraceView.h
-        Public/SagaEditor/VisualBlocks/Debugger/GraphDebuggerView.h
         Public/SagaEditor/VisualBlocks/Debugger/WatchController.h
-        Public/SagaEditor/VisualBlocks/Editor/BreakpointPanel.h
         Public/SagaEditor/VisualBlocks/Editor/ExecutionOverlay.h
         Public/SagaEditor/VisualBlocks/Editor/GraphEditor.h
         Public/SagaEditor/VisualBlocks/Editor/NodeGraphToolbar.h
-        Public/SagaEditor/VisualBlocks/Editor/NodePalette.h
         Public/SagaEditor/VisualBlocks/Editor/NodeWidgets.h
-        Public/SagaEditor/VisualBlocks/Editor/WatchPanel.h
         Public/SagaEditor/VisualBlocks/Graphs/GraphDocument.h
         Public/SagaEditor/VisualBlocks/Graphs/GraphLayout.h
         Public/SagaEditor/VisualBlocks/Graphs/GraphMetadata.h
@@ -66,7 +61,6 @@ saga_add_editor_module(VisualBlocksEditor
         Public/SagaEditor/VisualBlocks/Imports/TextScriptImporter.h
         Public/SagaEditor/VisualBlocks/Imports/VisualScriptingGraphImporter.h
         Public/SagaEditor/VisualBlocks/Nodes/NodeCategoryBrowser.h
-        Public/SagaEditor/VisualBlocks/Nodes/NodeLibraryPanel.h
         Public/SagaEditor/VisualBlocks/Pins/PinRenderer.h
         Public/SagaEditor/VisualBlocks/Pins/PinTypeStyle.h
         Public/SagaEditor/VisualBlocks/TypeSystem/TypeBrowser.h
