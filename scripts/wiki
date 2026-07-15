@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build and verify the Markdown-backed SagaWiki without external packages."""
+"""Build and verify the offline, Markdown-backed SagaWiki knowledge reader."""
 
 from __future__ import annotations
 
@@ -9,27 +9,24 @@ import posixpath
 import re
 import subprocess
 import sys
-from collections import Counter
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 
-ROOT = Path(__file__).resolve().parents[1]
-WIKI_ROOT = ROOT / "SagaWiki"
-REGISTRY_PATH = WIKI_ROOT / "wiki-pages.json"
-PREFERRED_OLD_DOCS_COMMIT = "177bfde6"
-HISTORICAL_OLD_DOCS_COMMITS = (
-    ("SagaEngine 0.0.10", "904278d3f4ee80c1852a73c2dbb03afbd723798e"),
-)
-
-CLASSIFICATIONS = (
-    "MERGED_CURRENT",
-    "SHOULD_MERGE",
-    "DELETE_HISTORY_ONLY",
-    "PRIVATE_ARCHIVE_CANDIDATE",
-    "NEEDS_ARDA_DECISION",
-)
-
-BANNED_PAGE_NAME_TERMS = (
+REPO_ROOT = Path(__file__).resolve().parent.parent
+WIKI_ROOT = REPO_ROOT / "SagaWiki"
+REGISTRY_PATH = WIKI_ROOT / "wiki-library.json"
+INDEX_PATH = WIKI_ROOT / "index.html"
+STYLE_PATH = WIKI_ROOT / "assets" / "style.css"
+SCRIPT_PATH = WIKI_ROOT / "assets" / "wiki.js"
+DCO_SOURCE_PATH = WIKI_ROOT / "policy" / "contributing-dco.md"
+DCO_BRIDGE_PATH = WIKI_ROOT / "pages" / "licensing.html"
+DCO_MARKER_BEGIN = "<!-- SAGA-LICENSING-DCO:BEGIN -->"
+DCO_MARKER_END = "<!-- SAGA-LICENSING-DCO:END -->"
+ALLOWED_STATUS = {"current", "bounded", "guide", "policy"}
+REQUIRED_META = {"title", "status", "owner", "reviewed_against"}
+BANNED_NAME_PARTS = {
     "MILESTONE",
     "TECHNICAL_PREVIEW",
     "SMALL_TEAM_ALPHA",
@@ -37,456 +34,212 @@ BANNED_PAGE_NAME_TERMS = (
     "INVENTORY",
     "AUDIT",
     "PHASE",
-)
-
-CLAIM_PHRASES = (
+}
+CLAIM_PATTERNS = (
     "finished public sdk",
     "finished editor",
     "production networking",
     "production collaboration",
     "shipped persistent worlds",
+    "shipped persistent community worlds",
 )
-
-NEGATION_MARKERS = (
-    " not ",
+NEGATION_WORDS = (
     " no ",
-    " never ",
-    " without ",
-    " does not ",
-    " do not ",
-    " is not ",
-    " are not ",
-    " isn't ",
-    " aren't ",
-    " non-claim",
-)
-
-INLINE_PATTERN = re.compile(
-    r"!\[([^\]]*)\]\(([^)\s]+)\)"
-    r"|\[([^\]]+)\]\(([^)\s]+)\)"
-    r"|`([^`]+)`"
-    r"|\*\*([^*]+)\*\*"
-    r"|\*([^*]+)\*"
-)
-
-MERGED_CURRENT_PATHS = {
-    "docs/CodingStandards.md",
-    "docs/DependencyGraph.md",
-    "docs/LICENSING.md",
-    "docs/architecture/ARCHITECTURE_OVERVIEW.md",
-    "docs/architecture/ASSETS_AND_PACKAGES.md",
-    "docs/architecture/AUTHORING_AUTHORITY_MODEL.md",
-    "docs/architecture/CLAIM_AND_EVIDENCE_POLICY.md",
-    "docs/architecture/CSHARP_VISUAL_BLOCKS_COMPATIBILITY_PROFILE.md",
-    "docs/architecture/EDITOR.md",
-    "docs/architecture/ENTERPRISE_SECURITY_LIMITATIONS.md",
-    "docs/architecture/GENERATED_ARTIFACT_FRESHNESS_CONTRACT.md",
-    "docs/architecture/GRAPHICS_COORDINATE_CONVENTION.md",
-    "docs/architecture/NIX_DEVELOPMENT_AND_VALIDATION_POLICY.md",
-    "docs/architecture/OWNERSHIP.md",
-    "docs/architecture/PUBLISH.md",
-    "docs/architecture/PUBLISH_POLICY_INTEGRATION.md",
-    "docs/architecture/RENDER_CANONICAL_RUNTIME_PATH.md",
-    "docs/architecture/RUNTIME.md",
-    "docs/architecture/SAGA_COLLABORATION_CURRENT_BOUNDARY.md",
-    "docs/architecture/SAGA_COLLABORATION_PRESENCE_LOCK_BOUNDARY.md",
-    "docs/architecture/SAGA_COLLABORATION_ROLE_PERMISSION_BOUNDARY.md",
-    "docs/architecture/SAGA_CSHARP_VISUAL_AUTHORING_BOUNDARY.md",
-    "docs/architecture/SAGA_EDITOR_CUSTOMIZATION_MODEL.md",
-    "docs/architecture/SAGA_GENERATED_FILES_POLICY.md",
-    "docs/architecture/SAGA_LOCAL_WORKSPACE_TRANSACTION_BOUNDARY.md",
-    "docs/architecture/SAGA_PRODUCT_SHELL_WORKFLOW_CONTRACT.md",
-    "docs/architecture/SAGA_REVIEW_COMMENT_TRANSACTION_MODEL.md",
-    "docs/architecture/SCENE_ENTITY_SOURCE_TRUTH_FOUNDATION.md",
-    "docs/architecture/SERVER.md",
-    "docs/architecture/SOURCE_OF_TRUTH_MAP.md",
-    "docs/architecture/SOURCE_PATCH_APPLY_POLICY.md",
-    "docs/architecture/TESTING_AND_EVIDENCE.md",
-    "docs/architecture/VISUAL_BLOCK_PATCH_CONTRACT.md",
-    "docs/licensing/GENERATED_OUTPUTS.md",
-    "docs/licensing/LICENSE_FOUNDATION.md",
-    "docs/licensing/LICENSE_STABILITY.md",
-    "docs/licensing/README.md",
-    "docs/licensing/THIRD_PARTY_NOTICES.md",
-    "docs/licensing/decisions/LIC-DEC-0001.md",
-    "docs/product/CURRENT_CAPABILITIES.md",
-    "docs/product/GETTING_STARTED.md",
-    "docs/product/README.md",
-    "docs/product/SAGAPROJ_SCHEMA_V0.md",
-    "docs/product/WHAT_IS_NOT_IMPLEMENTED.md",
-    "docs/product/WHAT_IS_SAGAENGINE.md",
-    "docs/testing/README.md",
-    "docs/testing/TEST_SUITES.md",
-}
-
-SHOULD_MERGE_REASONS = {
-    "docs/architecture/DIAGNOSTICS_CRASH_CONTEXT_AND_RELIABILITY_RULES.md":
-        "Crash-context ownership and failure capture need a current, code-checked diagnostics summary before merging.",
-    "docs/architecture/DIAGNOSTICS_OPERATIONAL_REPORTS_AND_SERVER_OBSERVABILITY.md":
-        "Operational report ownership remains useful, but current diagnostics producers and non-claims must be revalidated first.",
-    "docs/architecture/ENGINE_RENDER_EXTENSION_BOUNDARY_CONTRACT.md":
-        "Current render extension points need public-consumer verification before their supported boundary is documented.",
-    "docs/architecture/ENGINE_WORLD_PUBLIC_FACADE_CONTRACT.md":
-        "The current World public facade needs header and consumer review before a durable contract is stated.",
-    "docs/architecture/GRAPHICS_BACKEND_PREFERENCE_ORDER.md":
-        "Backend selection and fallback order remain useful but must be checked against the current private RHI bootstrap.",
-    "docs/architecture/RENDER_INTEREST_WORLD_STREAMING_CONTRACT.md":
-        "The interest-to-render streaming boundary needs current World, Replication, and Render ownership evidence.",
-    "docs/architecture/RENDER_LIGHTING_STRATEGY.md":
-        "A concise lighting boundary would be useful after current renderer capability and evidence review.",
-    "docs/architecture/RENDER_MATERIAL_GRAPH_AUTHORING_CONTRACT.md":
-        "Material authoring, generated data, and runtime consumption ownership need current Editor/Render validation.",
-    "docs/architecture/RENDER_PUBLIC_API_CONTRACT.md":
-        "The vendor-neutral render API needs an installed-consumer review before expanding its public documentation.",
-    "docs/architecture/SAGA_SCENE_ASSET_AUTHORING_CONTRACT.md":
-        "Scene and asset authoring ownership needs current EditorAuthoring and source-manifest evidence before merging.",
-}
-
-NEEDS_DECISION_REASONS: dict[str, str] = {}
-
-PRIVATE_ARCHIVE_REASONS = {
-    "docs/licensing/PLUGIN_LICENSING.md":
-        "This is useful future reference for Arda if stable plugin contracts become real, but it is not valid current public SagaWiki policy.",
-    "docs/architecture/SAGA_WORKSPACEHUB_SERVER_ARCHITECTURE.md":
-        "This speculative hosted-workspace design names a retired tool and would overstate current collaboration; keep it out of public SagaWiki.",
-    "docs/internal/product-history/SAGA_MMO_GENRE_STRATEGY_DRAFT.md":
-        "This broad genre strategy is private product-direction history and must not become public SagaWiki positioning.",
-    "docs/internal/product-history/SAGA_PRODUCT_DEFINITION.md":
-        "The durable neutral product boundary was merged, but the full historical strategy document should remain private context.",
-}
-
-DELETE_HISTORY_PATHS = {
-    "docs/architecture/APPS_SANDBOX_ROLE.md",
-    "docs/architecture/CLIENT_PREVIEW_AND_RUNTIME_UI_STRATEGY.md",
-    "docs/architecture/DIAGNOSTICS_MEMORY_RESOURCE_SNAPSHOT_FOUNDATION.md",
-    "docs/architecture/DIAGNOSTICS_STRESS_ARENA_V1.md",
-    "docs/architecture/EDITOR_UI_IMPLEMENTATION_STRATEGY.md",
-    "docs/architecture/NETWORK_CHAOS_POLICY_FOUNDATION.md",
-    "docs/architecture/RESTRICTED_ARTIFACT_EXPORT_GATE.md",
-    "docs/architecture/SAGA_EDITOR_SHELL_MINIMUM_WORKFLOW.md",
-    "docs/architecture/SAGA_LINUX_DISTRIBUTION_LAYOUT.md",
-    "docs/architecture/SAGA_LOCAL_APPROVAL_PUBLISH_GATE_BOUNDARY.md",
-    "docs/architecture/SAGA_MMO_GENRE_FOCUS.md",
-    "docs/architecture/SAGA_PERFORMANCE_BUDGETS.md",
-    "docs/architecture/SAGA_PROJECT_SLICE_VISIBILITY_BOUNDARY.md",
-    "docs/architecture/SAGA_SCHEMA_PACKAGE_BOUNDARY.md",
-    "docs/architecture/SDE_ARTIFACT_MANIFEST_CONTRACT.md",
-    "docs/architecture/SDE_CURRENT_CONTRACT.md",
-    "docs/dev/SAGA_ENTERPRISE_CLAIM_LEVELS.md",
-    "docs/dev/SCRATCH.md",
-    "docs/internal/product-history/SAGA_RELEASE_VOCABULARY_AND_CLAIM_LEVELS.md",
-    "docs/licensing/CONTRIBUTING_DCO_SECTION.md",
-    "docs/product/SAGA_ECOSYSTEM_MAP.md",
-    "docs/product/SAGA_MMO_GENRE_FOCUS.md",
-}
-
-STALE_VERSIONED_PATHS = {
-    "docs/architecture/DANGEROUS_OPERATION_POLICY_GATE_V1.md",
-    "docs/architecture/ENTITY_SCHEMA_V1.md",
-    "docs/architecture/GRAPHICS_CAPABILITY_MATRIX_V0.md",
-    "docs/architecture/IMMUTABLE_AUDIT_LOG_V1.md",
-    "docs/architecture/POLICY_DOMAIN_MODEL_V0.md",
-    "docs/architecture/PROJECT_ROLE_PROFILES_V1.md",
-    "docs/architecture/PROJECT_SLICE_RESOLVER_V1.md",
-    "docs/architecture/PROJECT_SLICE_SCHEMA_V0.md",
-    "docs/architecture/REVIEW_APPROVAL_WORKFLOW_V2.md",
-    "docs/architecture/SAGACHAOSLAB_V1.md",
-    "docs/architecture/SAGA_ARTIFACT_CONTRACTS_V1.md",
-    "docs/architecture/SAGA_ENTERPRISE_THREAT_MODEL_V0.md",
-    "docs/architecture/SAGA_GAMEPLAY_NODE_LIBRARY_V1.md",
-    "docs/architecture/SCENE_SCHEMA_V1.md",
-    "docs/architecture/SOURCE_VISIBILITY_LEVELS_V1.md",
-}
-
-STALE_NAME_MARKERS = (
-    "MILESTONE",
-    "TECHNICAL_PREVIEW",
-    "SMALL_TEAM_ALPHA",
-    "HARDENING_PLAN",
-    "_AUDIT",
-    "_INVENTORY",
-    "CURRENT_STATUS",
-    "TRANSITION_CHECKLIST",
-    "MIGRATION",
-    "CANDIDATE",
-    "NEXT_PRODUCT_SLICE",
-    "ACCEPTANCE_TEST_PLAN",
-    "CURRENT_DISTRIBUTION_STATUS",
-    "DISTRIBUTION_STARTER_ARENA_WORKFLOW",
-    "LINUX_ARCHIVE_CHECKSUM",
-    "LINUX_DISTRIBUTION_SMOKE",
-    "LINUX_PACKAGE_PREFLIGHT",
-    "LINUX_TOOL_PACKAGING",
-    "SAMPLE_EXECUTABLE_EVIDENCE",
+    " not ",
+    "without ",
+    "does not ",
+    "do not ",
+    "isn't ",
+    "is not ",
+    "must not ",
 )
 
 
 class WikiError(RuntimeError):
-    """A user-actionable wiki build or verification error."""
+    """A deterministic Wiki source or generation error."""
 
 
-def git_bytes(*args: str, check: bool = True) -> bytes:
-    result = subprocess.run(
-        ["git", *args],
-        cwd=ROOT,
-        check=False,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    if check and result.returncode != 0:
-        message = result.stderr.decode("utf-8", errors="replace").strip()
-        raise WikiError(f"git {' '.join(args)} failed: {message}")
-    return result.stdout
+@dataclass
+class Article:
+    entry: dict[str, Any]
+    metadata: dict[str, str]
+    markdown: str
+    body: str
+    rendered: str
+    toc: list[dict[str, str]]
 
 
-def git_text(*args: str, check: bool = True) -> str:
-    return git_bytes(*args, check=check).decode("utf-8", errors="replace")
-
-
-def ensure_wiki_relative(path_text: str, kind: str) -> str:
-    normalized = posixpath.normpath(path_text)
-    if (
-        not path_text
-        or path_text.startswith("/")
-        or normalized == ".."
-        or normalized.startswith("../")
-    ):
-        raise WikiError(f"{kind} must stay below SagaWiki: {path_text!r}")
-    return normalized
-
-
-def load_registry() -> list[dict[str, str]]:
+def load_json(path: Path) -> dict[str, Any]:
     try:
-        raw = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
+        value = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
-        raise WikiError("SagaWiki/wiki-pages.json does not exist") from exc
+        raise WikiError(f"missing registry: {path.relative_to(REPO_ROOT)}") from exc
     except json.JSONDecodeError as exc:
-        raise WikiError(f"invalid wiki registry JSON: {exc}") from exc
-    if not isinstance(raw, list) or not raw:
-        raise WikiError("wiki registry must be a non-empty JSON array")
-
-    pages: list[dict[str, str]] = []
-    seen_sources: set[str] = set()
-    seen_outputs: set[str] = set()
-    for number, item in enumerate(raw, start=1):
-        if not isinstance(item, dict) or set(item) != {"source", "output", "title"}:
-            raise WikiError(
-                f"registry entry {number} must contain only source, output, and title"
-            )
-        if not all(isinstance(item[key], str) and item[key] for key in item):
-            raise WikiError(f"registry entry {number} contains an empty non-string field")
-        source = ensure_wiki_relative(item["source"], "registry source")
-        output = ensure_wiki_relative(item["output"], "registry output")
-        if not source.startswith("content/") or not source.endswith(".md"):
-            raise WikiError(f"registry source must be content/*.md: {source}")
-        if output != "index.html" and not (
-            output.startswith("pages/") and output.endswith(".html")
-        ):
-            raise WikiError(f"registry output must be index.html or pages/*.html: {output}")
-        if source in seen_sources or output in seen_outputs:
-            raise WikiError(f"duplicate registry source or output at entry {number}")
-        seen_sources.add(source)
-        seen_outputs.add(output)
-        pages.append({"source": source, "output": output, "title": item["title"]})
-
-    if pages[0]["output"] != "index.html":
-        raise WikiError("the first registry entry must generate SagaWiki/index.html")
-    if sum(page["output"] == "index.html" for page in pages) != 1:
-        raise WikiError("the registry must contain exactly one index.html output")
-    return pages
+        raise WikiError(f"invalid registry JSON: {exc}") from exc
+    if not isinstance(value, dict):
+        raise WikiError("wiki-library.json must contain a JSON object")
+    return value
 
 
-def parse_markdown(page: dict[str, str]) -> tuple[dict[str, str], str]:
-    source_path = WIKI_ROOT / page["source"]
-    try:
-        text = source_path.read_text(encoding="utf-8")
-    except FileNotFoundError as exc:
-        raise WikiError(f"missing registry source: SagaWiki/{page['source']}") from exc
+def parse_front_matter(text: str, source: str) -> tuple[dict[str, str], str]:
     lines = text.splitlines()
     if not lines or lines[0] != "---":
-        raise WikiError(f"missing front matter in SagaWiki/{page['source']}")
+        raise WikiError(f"{source}: missing opening front matter delimiter")
     try:
         end = lines.index("---", 1)
     except ValueError as exc:
-        raise WikiError(f"unterminated front matter in SagaWiki/{page['source']}") from exc
+        raise WikiError(f"{source}: missing closing front matter delimiter") from exc
 
     metadata: dict[str, str] = {}
-    for line in lines[1:end]:
+    for number, line in enumerate(lines[1:end], 2):
         if not line.strip():
             continue
         if ":" not in line:
-            raise WikiError(f"invalid front matter line in SagaWiki/{page['source']}: {line}")
+            raise WikiError(f"{source}:{number}: malformed front matter")
         key, value = line.split(":", 1)
         key = key.strip()
         value = value.strip()
         if not key or not value or key in metadata:
-            raise WikiError(f"invalid front matter field in SagaWiki/{page['source']}: {line}")
+            raise WikiError(f"{source}:{number}: invalid or duplicate metadata key")
         metadata[key] = value
 
-    required = {"title", "status", "owner", "generated_html"}
-    if set(metadata) != required:
-        raise WikiError(
-            f"front matter in SagaWiki/{page['source']} must contain exactly "
-            "title, status, owner, and generated_html"
-        )
-    if metadata["title"] != page["title"]:
-        raise WikiError(f"title mismatch for SagaWiki/{page['source']}")
-    if metadata["owner"] != "SagaWiki":
-        raise WikiError(f"owner must be SagaWiki in SagaWiki/{page['source']}")
-    if metadata["generated_html"] != page["output"]:
-        raise WikiError(f"generated_html mismatch for SagaWiki/{page['source']}")
-    expected_status = "continuity" if page["source"] == "content/docs-continuity.md" else "current"
-    if metadata["status"] != expected_status:
-        raise WikiError(f"status must be {expected_status} in SagaWiki/{page['source']}")
-    return metadata, "\n".join(lines[end + 1 :]).strip() + "\n"
+    missing = REQUIRED_META - metadata.keys()
+    if missing:
+        raise WikiError(f"{source}: missing metadata: {', '.join(sorted(missing))}")
+    body = "\n".join(lines[end + 1 :]).strip() + "\n"
+    return metadata, body
 
 
-def rewrite_url(
-    url: str,
-    source: str,
-    output: str,
-    source_to_output: dict[str, str],
-) -> str:
-    if url.startswith(("#", "/")) or re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", url):
-        return url
-    match = re.match(r"^([^?#]*)(.*)$", url)
-    if not match:
-        return url
-    path_part, suffix = match.groups()
-    if not path_part:
-        return url
-    target = posixpath.normpath(posixpath.join(posixpath.dirname(source), path_part))
-    if target == ".." or target.startswith("../"):
-        raise WikiError(f"Markdown link escapes SagaWiki in {source}: {url}")
-    target = source_to_output.get(target, target)
-    output_dir = posixpath.dirname(output) or "."
-    return posixpath.relpath(target, output_dir) + suffix
+def slugify(value: str) -> str:
+    value = re.sub(r"`([^`]*)`", r"\1", value).lower()
+    value = re.sub(r"[^a-z0-9]+", "-", value).strip("-")
+    return value or "section"
 
 
-def render_inline(
-    text: str,
-    source: str,
-    output: str,
-    source_to_output: dict[str, str],
-) -> str:
-    parts: list[str] = []
-    position = 0
-    for match in INLINE_PATTERN.finditer(text):
-        parts.append(html.escape(text[position : match.start()]))
-        if match.group(1) is not None:
-            alt = html.escape(match.group(1), quote=True)
-            url = rewrite_url(match.group(2), source, output, source_to_output)
-            parts.append(f'<img src="{html.escape(url, quote=True)}" alt="{alt}">')
-        elif match.group(3) is not None:
-            label = html.escape(match.group(3))
-            url = rewrite_url(match.group(4), source, output, source_to_output)
-            parts.append(f'<a href="{html.escape(url, quote=True)}">{label}</a>')
-        elif match.group(5) is not None:
-            parts.append(f"<code>{html.escape(match.group(5))}</code>")
-        elif match.group(6) is not None:
-            parts.append(f"<strong>{html.escape(match.group(6))}</strong>")
-        else:
-            parts.append(f"<em>{html.escape(match.group(7))}</em>")
-        position = match.end()
-    parts.append(html.escape(text[position:]))
-    return "".join(parts)
+def resolve_link(target: str, source: str, source_to_id: dict[str, str]) -> str:
+    if target.startswith(("https://", "http://", "mailto:", "#")):
+        return target
+    path, marker, fragment = target.partition("#")
+    if path.endswith(".md"):
+        resolved = posixpath.normpath(posixpath.join(posixpath.dirname(source), path))
+        article_id = source_to_id.get(resolved)
+        if article_id:
+            suffix = f"/{slugify(fragment)}" if marker and fragment else ""
+            return f"#{article_id}{suffix}"
+    return target
 
 
-def table_cells(line: str) -> list[str]:
-    stripped = line.strip()
-    if stripped.startswith("|"):
-        stripped = stripped[1:]
-    if stripped.endswith("|"):
-        stripped = stripped[:-1]
-    return [cell.strip() for cell in stripped.split("|")]
+INLINE_RE = re.compile(
+    r"`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|(?<!\*)\*([^*]+)\*(?!\*)"
+)
 
 
-def is_table_separator(line: str) -> bool:
-    cells = table_cells(line)
+def render_inline(text: str, source: str, source_to_id: dict[str, str]) -> str:
+    output: list[str] = []
+    cursor = 0
+    for match in INLINE_RE.finditer(text):
+        output.append(html.escape(text[cursor : match.start()]))
+        code, label, target, strong, emphasis = match.groups()
+        if code is not None:
+            output.append(f"<code>{html.escape(code)}</code>")
+        elif label is not None and target is not None:
+            href = resolve_link(target.strip(), source, source_to_id)
+            output.append(
+                f'<a href="{html.escape(href, quote=True)}">{html.escape(label)}</a>'
+            )
+        elif strong is not None:
+            output.append(f"<strong>{html.escape(strong)}</strong>")
+        elif emphasis is not None:
+            output.append(f"<em>{html.escape(emphasis)}</em>")
+        cursor = match.end()
+    output.append(html.escape(text[cursor:]))
+    return "".join(output)
+
+
+def split_table_row(line: str) -> list[str]:
+    return [cell.strip() for cell in line.strip().strip("|").split("|")]
+
+
+def is_table_rule(line: str) -> bool:
+    cells = split_table_row(line)
     return bool(cells) and all(re.fullmatch(r":?-{3,}:?", cell) for cell in cells)
 
 
-def starts_block(lines: list[str], index: int) -> bool:
-    line = lines[index]
-    if not line.strip():
-        return True
-    if re.match(r"^#{1,3}\s+", line) or line.startswith("```"):
-        return True
-    if re.match(r"^\s*[-*]\s+", line) or re.match(r"^\s*\d+\.\s+", line):
-        return True
-    return index + 1 < len(lines) and "|" in line and is_table_separator(lines[index + 1])
-
-
 def render_markdown(
-    markdown: str,
-    source: str,
-    output: str,
-    source_to_output: dict[str, str],
-) -> str:
-    lines = markdown.splitlines()
-    rendered: list[str] = []
-    index = 0
-    while index < len(lines):
-        line = lines[index]
+    body: str, source: str, article_id: str, source_to_id: dict[str, str]
+) -> tuple[str, list[dict[str, str]]]:
+    lines = body.splitlines()
+    output: list[str] = []
+    toc: list[dict[str, str]] = []
+    used_slugs: dict[str, int] = {}
+    i = 0
+
+    def heading_slug(title: str) -> str:
+        base = slugify(title)
+        used_slugs[base] = used_slugs.get(base, 0) + 1
+        return base if used_slugs[base] == 1 else f"{base}-{used_slugs[base]}"
+
+    while i < len(lines):
+        line = lines[i]
         if not line.strip():
-            index += 1
+            i += 1
             continue
 
-        fence = re.match(r"^```([^`]*)$", line)
+        fence = re.match(r"^```\s*([A-Za-z0-9_+.-]*)\s*$", line)
         if fence:
-            language = fence.group(1).strip()
-            index += 1
-            code: list[str] = []
-            while index < len(lines) and lines[index] != "```":
-                code.append(lines[index])
-                index += 1
-            if index == len(lines):
-                raise WikiError(f"unterminated fenced code block in SagaWiki/{source}")
-            language_attr = (
-                f' class="language-{html.escape(language, quote=True)}"' if language else ""
+            language = fence.group(1)
+            code_lines: list[str] = []
+            i += 1
+            while i < len(lines) and not lines[i].startswith("```"):
+                code_lines.append(lines[i])
+                i += 1
+            if i == len(lines):
+                raise WikiError(f"{source}: unclosed fenced code block")
+            language_attr = f' class="language-{html.escape(language)}"' if language else ""
+            output.append(
+                f"<pre><code{language_attr}>{html.escape(chr(10).join(code_lines))}</code></pre>"
             )
-            rendered.append(
-                f"<pre><code{language_attr}>{html.escape(chr(10).join(code))}</code></pre>"
-            )
-            index += 1
+            i += 1
             continue
 
-        heading = re.match(r"^(#{1,3})\s+(.+)$", line)
+        heading = re.match(r"^(#{1,3})\s+(.+?)\s*$", line)
         if heading:
             level = len(heading.group(1))
-            body = render_inline(heading.group(2), source, output, source_to_output)
-            rendered.append(f"<h{level}>{body}</h{level}>")
-            index += 1
+            title = heading.group(2)
+            slug = heading_slug(title)
+            output.append(
+                f'<h{level} id="{html.escape(slug)}">'
+                f"{render_inline(title, source, source_to_id)}</h{level}>"
+            )
+            if level > 1:
+                toc.append({"title": re.sub(r"[`*_]", "", title), "slug": slug, "level": str(level)})
+            i += 1
             continue
 
-        if index + 1 < len(lines) and "|" in line and is_table_separator(lines[index + 1]):
-            headers = table_cells(line)
-            separators = table_cells(lines[index + 1])
-            if len(headers) != len(separators):
-                raise WikiError(f"table column mismatch in SagaWiki/{source}")
-            index += 2
+        if line.strip() in {"---", "***"}:
+            output.append("<hr>")
+            i += 1
+            continue
+
+        if i + 1 < len(lines) and "|" in line and is_table_rule(lines[i + 1]):
+            headers = split_table_row(line)
+            i += 2
             rows: list[list[str]] = []
-            while index < len(lines) and lines[index].strip() and "|" in lines[index]:
-                cells = table_cells(lines[index])
-                if len(cells) != len(headers):
-                    raise WikiError(f"table column mismatch in SagaWiki/{source}")
-                rows.append(cells)
-                index += 1
-            table = ["<table>", "<thead><tr>"]
-            table.extend(
-                f"<th>{render_inline(cell, source, output, source_to_output)}</th>"
-                for cell in headers
+            while i < len(lines) and "|" in lines[i] and lines[i].strip():
+                rows.append(split_table_row(lines[i]))
+                i += 1
+            output.append("<div class=\"table-scroll\"><table><thead><tr>")
+            output.extend(
+                f"<th>{render_inline(cell, source, source_to_id)}</th>" for cell in headers
             )
-            table.extend(("</tr></thead>", "<tbody>"))
+            output.append("</tr></thead><tbody>")
             for row in rows:
-                table.append("<tr>")
-                table.extend(
-                    f"<td>{render_inline(cell, source, output, source_to_output)}</td>"
-                    for cell in row
-                )
-                table.append("</tr>")
-            table.extend(("</tbody>", "</table>"))
-            rendered.append("".join(table))
+                output.append("<tr>")
+                for column in range(len(headers)):
+                    value = row[column] if column < len(row) else ""
+                    output.append(f"<td>{render_inline(value, source, source_to_id)}</td>")
+                output.append("</tr>")
+            output.append("</tbody></table></div>")
             continue
 
         unordered = re.match(r"^\s*[-*]\s+(.+)$", line)
@@ -494,567 +247,423 @@ def render_markdown(
         if unordered or ordered:
             tag = "ul" if unordered else "ol"
             pattern = r"^\s*[-*]\s+(.+)$" if unordered else r"^\s*\d+\.\s+(.+)$"
-            items: list[str] = []
-            while index < len(lines):
-                item = re.match(pattern, lines[index])
+            output.append(f"<{tag}>")
+            while i < len(lines):
+                item = re.match(pattern, lines[i])
                 if not item:
                     break
-                items.append(
-                    f"<li>{render_inline(item.group(1), source, output, source_to_output)}</li>"
+                output.append(
+                    f"<li>{render_inline(item.group(1), source, source_to_id)}</li>"
                 )
-                index += 1
-            rendered.append(f"<{tag}>{''.join(items)}</{tag}>")
+                i += 1
+            output.append(f"</{tag}>")
+            continue
+
+        if line.startswith("> "):
+            quote: list[str] = []
+            while i < len(lines) and lines[i].startswith("> "):
+                quote.append(lines[i][2:])
+                i += 1
+            output.append(
+                f"<blockquote><p>{render_inline(' '.join(quote), source, source_to_id)}</p></blockquote>"
+            )
             continue
 
         paragraph = [line.strip()]
-        index += 1
-        while index < len(lines) and not starts_block(lines, index):
-            paragraph.append(lines[index].strip())
-            index += 1
-        paragraph_text = " ".join(paragraph)
-        body = render_inline(paragraph_text, source, output, source_to_output)
-        class_attr = ' class="notice"' if paragraph_text.startswith("**Status:**") else ""
-        rendered.append(f"<p{class_attr}>{body}</p>")
-    return "\n".join(rendered)
-
-
-def render_pages(pages: list[dict[str, str]]) -> dict[str, str]:
-    source_to_output = {page["source"]: page["output"] for page in pages}
-    generated: dict[str, str] = {}
-    for page in pages:
-        metadata, markdown = parse_markdown(page)
-        body = render_markdown(markdown, page["source"], page["output"], source_to_output)
-        output_dir = posixpath.dirname(page["output"]) or "."
-        css_path = posixpath.relpath("assets/style.css", output_dir)
-        if page["output"] == "index.html":
-            links = "".join(
-                f'<a href="{html.escape(other["output"], quote=True)}">'
-                f'{html.escape(other["title"])}</a>'
-                for other in pages
-                if other["output"] != "index.html"
-            )
-            navigation = f"<nav>{links}</nav>"
-            paragraph_end = body.find("</p>")
-            if paragraph_end >= 0:
-                paragraph_end += len("</p>")
-                body = body[:paragraph_end] + "\n" + navigation + body[paragraph_end:]
-            else:
-                body = navigation + "\n" + body
-            html_title = metadata["title"]
-        else:
-            back_path = posixpath.relpath("index.html", output_dir)
-            body = (
-                f'<nav><a href="{html.escape(back_path, quote=True)}">SagaWiki</a></nav>\n'
-                + body
-            )
-            html_title = f'{metadata["title"]} | SagaWiki'
-
-        notice = (
-            f"<!-- Generated from SagaWiki/{page['source']} by scripts/wiki build. "
-            "Edit Markdown source. -->"
+        i += 1
+        while i < len(lines) and lines[i].strip():
+            candidate = lines[i]
+            if (
+                re.match(r"^(#{1,3})\s+", candidate)
+                or re.match(r"^```", candidate)
+                or re.match(r"^\s*[-*]\s+", candidate)
+                or re.match(r"^\s*\d+\.\s+", candidate)
+                or candidate.startswith("> ")
+                or (i + 1 < len(lines) and "|" in candidate and is_table_rule(lines[i + 1]))
+            ):
+                break
+            paragraph.append(candidate.strip())
+            i += 1
+        output.append(
+            f"<p>{render_inline(' '.join(paragraph), source, source_to_id)}</p>"
         )
-        generated[page["output"]] = (
-            "<!doctype html>\n"
-            f"{notice}\n"
-            '<html lang="en">\n'
-            "<head>\n"
-            '  <meta charset="utf-8">\n'
-            '  <meta name="viewport" content="width=device-width">\n'
-            f"  <title>{html.escape(html_title)}</title>\n"
-            f'  <link rel="stylesheet" href="{html.escape(css_path, quote=True)}">\n'
-            "</head>\n"
-            "<body>\n"
-            "<main>\n"
-            f"{body}\n"
-            "</main>\n"
-            "</body>\n"
-            "</html>\n"
+
+    if not output or not output[0].startswith("<h1"):
+        raise WikiError(f"{source}: article body must start with one H1 heading")
+    return "\n".join(output), toc
+
+
+def validate_registry(registry: dict[str, Any]) -> None:
+    if registry.get("schema_version") != 1:
+        raise WikiError("wiki-library.json: schema_version must be 1")
+    sections = registry.get("sections")
+    pages = registry.get("pages")
+    history = registry.get("historical_reference")
+    if not isinstance(sections, list) or not sections or not all(isinstance(x, str) for x in sections):
+        raise WikiError("wiki-library.json: sections must be a non-empty string array")
+    if len(set(sections)) != len(sections):
+        raise WikiError("wiki-library.json: section names must be unique")
+    if not isinstance(pages, list) or not pages:
+        raise WikiError("wiki-library.json: pages must be a non-empty array")
+    if not isinstance(history, dict) or not all(history.get(x) for x in ("label", "ref", "docs_root")):
+        raise WikiError("wiki-library.json: incomplete historical_reference")
+
+    ids: set[str] = set()
+    sources: set[str] = set()
+    required = {"id", "source", "title", "section", "summary", "status", "tags", "source_docs"}
+    for index, entry in enumerate(pages):
+        if not isinstance(entry, dict) or required - entry.keys():
+            raise WikiError(f"wiki-library.json: page {index} has missing fields")
+        article_id = entry["id"]
+        source = entry["source"]
+        if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", article_id):
+            raise WikiError(f"wiki-library.json: invalid id {article_id!r}")
+        if article_id in ids or source in sources:
+            raise WikiError(f"wiki-library.json: duplicate id or source at page {index}")
+        ids.add(article_id)
+        sources.add(source)
+        if entry["section"] not in sections:
+            raise WikiError(f"wiki-library.json: unknown section for {article_id}")
+        if entry["status"] not in ALLOWED_STATUS:
+            raise WikiError(f"wiki-library.json: invalid status for {article_id}")
+        if not source.startswith("library/") or not source.endswith(".md"):
+            raise WikiError(f"wiki-library.json: source outside library for {article_id}")
+        if not isinstance(entry["tags"], list) or not all(isinstance(x, str) for x in entry["tags"]):
+            raise WikiError(f"wiki-library.json: tags must be strings for {article_id}")
+        if not isinstance(entry["source_docs"], list) or not all(
+            isinstance(x, str) and x.startswith("docs/") for x in entry["source_docs"]
+        ):
+            raise WikiError(f"wiki-library.json: invalid historical sources for {article_id}")
+
+
+
+def load_articles() -> tuple[dict[str, Any], list[Article]]:
+    registry = load_json(REGISTRY_PATH)
+    validate_registry(registry)
+    source_to_id = {entry["source"]: entry["id"] for entry in registry["pages"]}
+    articles: list[Article] = []
+    for entry in registry["pages"]:
+        path = WIKI_ROOT / entry["source"]
+        try:
+            markdown = path.read_text(encoding="utf-8")
+        except FileNotFoundError as exc:
+            raise WikiError(f"missing article source: {entry['source']}") from exc
+        metadata, body = parse_front_matter(markdown, entry["source"])
+        if metadata["title"] != entry["title"]:
+            raise WikiError(f"{entry['source']}: title differs from registry")
+        if metadata["status"] != entry["status"]:
+            raise WikiError(f"{entry['source']}: status differs from registry")
+        if metadata["owner"] != "SagaWiki":
+            raise WikiError(f"{entry['source']}: owner must be SagaWiki")
+        rendered, toc = render_markdown(body, entry["source"], entry["id"], source_to_id)
+        articles.append(Article(entry, metadata, markdown, body, rendered, toc))
+    return registry, articles
+
+
+def json_for_html(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+
+
+def render_index(registry: dict[str, Any], articles: list[Article]) -> str:
+    article_data = []
+    for article in articles:
+        value = dict(article.entry)
+        value.update(
+            {
+                "markdown": article.markdown,
+                "html": article.rendered,
+                "toc": article.toc,
+            }
         )
-    return generated
+        article_data.append(value)
 
-
-def write_if_changed(path: Path, content: str) -> bool:
-    if path.exists() and path.read_text(encoding="utf-8") == content:
-        return False
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-    return True
-
-
-def build() -> None:
-    pages = load_registry()
-    generated = render_pages(pages)
-    updated = sum(
-        write_if_changed(WIKI_ROOT / output, content)
-        for output, content in generated.items()
+    data = {
+        "title": registry["title"],
+        "sections": registry["sections"],
+        "historical_reference": registry["historical_reference"],
+        "pages": article_data,
+    }
+    direct_links = "\n".join(
+        f'<li><a href="{html.escape(article.entry["source"], quote=True)}">'
+        f'{html.escape(article.entry["title"])}</a></li>'
+        for article in articles
     )
-    print(f"SagaWiki build passed: {len(generated)} pages, {updated} updated")
+    static_links = "\n".join(
+        f'<li><a href="#{html.escape(article.entry["id"])}">'
+        f'{html.escape(article.entry["title"])}</a> '
+        f'<small>{html.escape(article.entry["section"])}</small></li>'
+        for article in articles
+    )
+    return f'''<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="SagaEngine's current, Markdown-backed architecture and contract knowledge base.">
+  <title>SagaWiki — SagaEngine knowledge base</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<!-- Generated from SagaWiki/library/*.md by scripts/wiki build. Edit Markdown sources. -->
+<div class="wiki-shell">
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="SagaWiki home">SagaWiki</a>
+    <label class="search"><span class="sr-only">Search the wiki</span><input id="wiki-search" type="search" placeholder="Search documentation" autocomplete="off"></label>
+    <button id="nav-toggle" class="icon-button" type="button" aria-label="Toggle navigation" aria-expanded="false">☰</button>
+  </header>
+  <aside id="wiki-sidebar" class="sidebar" aria-label="Wiki navigation">
+    <nav id="wiki-nav"></nav>
+    <footer><a href="library/governance/documentation-selection.md">Documentation policy</a></footer>
+  </aside>
+  <main id="wiki-main" tabindex="-1">
+    <section id="static-home" class="static-home">
+      <h1>SagaWiki</h1>
+      <p>Current SagaEngine architecture, contracts, workflows, and boundaries.</p>
+      <ul class="static-list">{static_links}</ul>
+    </section>
+    <noscript><section class="noscript"><h2>JavaScript is disabled</h2><p>The Markdown sources remain directly readable:</p><ul>{direct_links}</ul></section></noscript>
+  </main>
+</div>
+<script id="wiki-data" type="application/json">{json_for_html(data)}</script>
+<script src="assets/wiki.js"></script>
+</body>
+</html>
+'''
 
 
-def check_page_names(errors: list[str]) -> None:
-    page_files = sorted(WIKI_ROOT.rglob("*.md")) + sorted(WIKI_ROOT.rglob("*.html"))
-    for path in page_files:
-        relative = path.relative_to(WIKI_ROOT).as_posix()
-        name = path.name.upper()
-        for term in ("V0", "V1", "V2", *BANNED_PAGE_NAME_TERMS):
-            if term in name:
-                errors.append(f"banned term {term} in page filename: {relative}")
+def render_dco_bridge() -> str:
+    try:
+        source = DCO_SOURCE_PATH.read_text(encoding="utf-8")
+    except FileNotFoundError as exc:
+        raise WikiError("missing contribution policy source: SagaWiki/policy/contributing-dco.md") from exc
+    source = re.sub(r"\A<!--.*?-->\s*", "", source, count=1, flags=re.DOTALL).strip()
+    if not source.startswith("## Licensing, DCO, and contribution authority"):
+        raise WikiError("contribution policy source has an unexpected heading")
+    return "<!-- Generated from SagaWiki/policy/contributing-dco.md by scripts/wiki build. -->\n" + source + "\n"
 
 
-def check_non_claims(pages: list[dict[str, str]], errors: list[str]) -> None:
-    for page in pages:
-        text = (WIKI_ROOT / page["source"]).read_text(encoding="utf-8")
-        sentences = re.split(r"(?<=[.!?])\s+|\n+", text)
-        for sentence in sentences:
-            normalized = " " + " ".join(sentence.lower().split()) + " "
-            for phrase in CLAIM_PHRASES:
-                if phrase in normalized and not any(marker in normalized for marker in NEGATION_MARKERS):
-                    errors.append(
-                        f"unqualified capability claim {phrase!r} in SagaWiki/{page['source']}"
-                    )
+def git(*args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", *args], cwd=REPO_ROOT, text=True, capture_output=True, check=False
+    )
 
 
-def verify() -> None:
-    pages = load_registry()
+def git_has_ref(ref: str) -> bool:
+    return git("cat-file", "-e", f"{ref}^{{commit}}").returncode == 0
+
+
+def old_docs_paths(registry: dict[str, Any]) -> tuple[str, set[str]]:
+    history = registry["historical_reference"]
+    ref = history["ref"]
+    docs_root = history["docs_root"]
+    if git_has_ref(ref):
+        result = git("ls-tree", "-r", "--name-only", ref, "--", docs_root)
+        if result.returncode != 0:
+            raise WikiError(f"cannot inspect historical reference {ref}: {result.stderr.strip()}")
+        return ref, {line for line in result.stdout.splitlines() if line}
+
+    sibling = REPO_ROOT.parent / "SagaEngine 0.0.10" / docs_root
+    if sibling.is_dir():
+        paths = {
+            f"{docs_root}/{path.relative_to(sibling).as_posix()}"
+            for path in sibling.rglob("*")
+            if path.is_file()
+        }
+        return str(sibling.parent), paths
+    raise WikiError(f"historical reference {ref} is unavailable in Git and no sibling 0.0.10 docs exists")
+
+
+def selected_old_docs(registry: dict[str, Any]) -> set[str]:
+    return {path for entry in registry["pages"] for path in entry["source_docs"]}
+
+
+def validate_links(articles: list[Article]) -> list[str]:
     errors: list[str] = []
-    sources = {page["source"] for page in pages}
-    outputs = {page["output"] for page in pages}
-    actual_sources = {
-        path.relative_to(WIKI_ROOT).as_posix()
-        for path in (WIKI_ROOT / "content").rglob("*.md")
-    }
-    if sources != actual_sources:
-        missing = sorted(sources - actual_sources)
-        unregistered = sorted(actual_sources - sources)
-        if missing:
-            errors.append(f"missing registry sources: {', '.join(missing)}")
-        if unregistered:
-            errors.append(f"unregistered Markdown sources: {', '.join(unregistered)}")
-
-    actual_outputs = {
-        path.relative_to(WIKI_ROOT).as_posix()
-        for path in WIKI_ROOT.rglob("*.html")
-    }
-    if outputs != actual_outputs:
-        missing = sorted(outputs - actual_outputs)
-        unregistered = sorted(actual_outputs - outputs)
-        if missing:
-            errors.append(f"missing generated outputs: {', '.join(missing)}")
-        if unregistered:
-            errors.append(f"unregistered HTML outputs: {', '.join(unregistered)}")
-
-    continuity_source = "content/docs-continuity.md"
-    if continuity_source not in sources or not (WIKI_ROOT / continuity_source).exists():
-        errors.append("SagaWiki/content/docs-continuity.md is missing or unregistered")
-    check_page_names(errors)
-    check_non_claims(pages, errors)
-
-    try:
-        expected = render_pages(pages)
-    except WikiError as exc:
-        errors.append(str(exc))
-        expected = {}
-    for page in pages:
-        output_path = WIKI_ROOT / page["output"]
-        if not output_path.exists() or page["output"] not in expected:
-            continue
-        actual = output_path.read_text(encoding="utf-8")
-        output_dir = posixpath.dirname(page["output"]) or "."
-        css_path = posixpath.relpath("assets/style.css", output_dir)
-        expected_css = f'<link rel="stylesheet" href="{css_path}">'
-        if expected_css not in actual:
-            errors.append(f"wrong CSS path in SagaWiki/{page['output']}")
-        expected_notice = (
-            f"<!-- Generated from SagaWiki/{page['source']} by scripts/wiki build. "
-            "Edit Markdown source. -->"
-        )
-        if expected_notice not in actual:
-            errors.append(f"missing generated notice in SagaWiki/{page['output']}")
-        if actual != expected[page["output"]]:
-            errors.append(
-                f"stale generated output: SagaWiki/{page['output']} (run scripts/wiki build)"
-            )
-    if errors:
-        for error in errors:
-            print(f"ERROR: {error}", file=sys.stderr)
-        raise WikiError(f"SagaWiki verify failed with {len(errors)} error(s)")
-    print(f"SagaWiki verify passed: {len(pages)} registered pages are current")
+    sources = {article.entry["source"] for article in articles}
+    link_re = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+    for article in articles:
+        source = article.entry["source"]
+        for target in link_re.findall(article.body):
+            path = target.split("#", 1)[0]
+            if not path or path.startswith(("http://", "https://", "mailto:")):
+                continue
+            resolved = posixpath.normpath(posixpath.join(posixpath.dirname(source), path))
+            if path.endswith(".md") and resolved not in sources:
+                errors.append(f"{source}: unresolved Markdown link {target}")
+            elif not path.endswith(".md") and not (WIKI_ROOT / resolved).exists():
+                errors.append(f"{source}: unresolved local link {target}")
+    return errors
 
 
-def find_old_docs_commit() -> str:
-    preferred = subprocess.run(
-        ["git", "cat-file", "-e", f"{PREFERRED_OLD_DOCS_COMMIT}^{{commit}}"],
-        cwd=ROOT,
-        check=False,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    if preferred.returncode == 0:
-        return git_text("rev-parse", PREFERRED_OLD_DOCS_COMMIT).strip()
-
-    history = git_text(
-        "log", "--all", "--name-status", "--format=commit:%H", "--", "docs"
-    ).splitlines()
-    commit = ""
-    for line in history:
-        if line.startswith("commit:"):
-            commit = line.removeprefix("commit:").strip()
-            continue
-        if commit and line.startswith("D\t") and line.removeprefix("D\t").startswith("docs/"):
-            candidate = f"{commit}^"
-            if git_text("ls-tree", "-r", "--name-only", candidate, "--", "docs").strip():
-                return git_text("rev-parse", candidate).strip()
-    raise WikiError("could not discover a commit containing the deleted docs/ tree")
+def validate_claims(articles: list[Article]) -> list[str]:
+    errors: list[str] = []
+    for article in articles:
+        source = article.entry["source"]
+        for number, line in enumerate(article.body.splitlines(), 1):
+            normalized = f" {line.lower()} "
+            for phrase in CLAIM_PATTERNS:
+                if phrase in normalized and not any(word in normalized for word in NEGATION_WORDS):
+                    errors.append(f"{source}:{number}: unsupported completion claim: {phrase}")
+    return errors
 
 
-def suggested_destination(path: str, content: str) -> str:
-    upper_path = path.upper()
-    upper_name = Path(path).name.upper()
-
-    if path == "docs/CodingStandards.md":
-        return "toolchain.md"
-    if path == "docs/DependencyGraph.md":
-        return "architecture.md"
-    if path == "docs/LICENSING.md" or path.startswith("docs/licensing/"):
-        return "licensing.md"
-    if path.startswith("docs/testing/"):
-        return "testing.md"
-    if path.startswith("docs/media/"):
-        return "index.md"
-
-    if path.startswith("docs/product/"):
-        if "GETTING_STARTED" in upper_name:
-            return "getting-started.md"
-        if "WHAT_IS_NOT_IMPLEMENTED" in upper_name:
-            return "not-implemented.md"
-        if "SAGAPROJ" in upper_name:
-            return "source-of-truth.md"
-        return "product.md"
-
-    if path.startswith("docs/internal/product-history/"):
-        if "CSHARP" in upper_name or "SAGASCRIPT" in upper_name:
-            return "scripting.md"
-        if "COLLABORATION" in upper_name:
-            return "editor.md"
-        if any(term in upper_name for term in ("QUICKSTART", "TROUBLESHOOTING")):
-            return "getting-started.md"
-        if "KNOWN_LIMITATIONS" in upper_name:
-            return "not-implemented.md"
-        return "product.md"
-
-    if path.startswith("docs/internal/architecture-appendices/"):
-        if "ASSETSTREAMING" in upper_name:
-            return "runtime.md"
-        if "REPLICATION" in upper_name:
-            return "server-authority.md"
-        if "SOURCE_BRIDGE" in upper_name or "SAGAWEAVER" in upper_name:
-            return "scripting.md"
-        if "CAPABILITY_PACKAGE" in upper_name:
-            return "module-boundaries.md"
-        if "TOOLCHAIN" in upper_name:
-            return "toolchain.md"
-        if "COLLABORATIVE" in upper_name:
-            return "editor.md"
-        if "CSHARP" in upper_name:
-            return "scripting.md"
-        return "architecture.md"
-
-    if path.startswith("docs/dev/"):
-        return "not-implemented.md"
-
-    if any(term in upper_name for term in ("WHAT_IS_NOT_IMPLEMENTED", "KNOWN_LIMITATIONS")):
-        return "not-implemented.md"
-    if any(
-        term in upper_name
-        for term in (
-            "SOURCE_OF_TRUTH",
-            "GENERATED_ARTIFACT",
-            "GENERATED_FILES",
-            "SOURCE_MANIFEST",
-            "ARTIFACT_CONTRACT",
-            "SCENE_ENTITY_SOURCE",
-        )
-    ):
-        return "source-of-truth.md"
-    if any(
-        term in upper_name
-        for term in ("VISUAL_BLOCK", "CSHARP", "SAGASCRIPT", "SOURCE_PATCH", "GAMEPLAY_NODE")
-    ):
-        return "scripting.md"
-    if any(
-        term in upper_name
-        for term in ("TEST", "EVIDENCE", "DIAGNOSTICS", "STRESS", "CHAOS", "PERFORMANCE")
-    ):
-        return "testing.md"
-    if any(
-        term in upper_name
-        for term in ("SERVER", "AUTHORITY", "REPLICATION", "NETWORK", "SECURITY", "THREAT_MODEL")
-    ):
-        return "server-authority.md"
-    if any(
-        term in upper_name
-        for term in (
-            "EDITOR",
-            "COLLABORATION",
-            "WORKSPACE",
-            "AUTHORING",
-            "SCENE",
-            "REVIEW_COMMENT",
-            "APPROVAL",
-        )
-    ):
-        return "editor.md"
-    if any(term in upper_name for term in ("RENDER", "GRAPHICS", "RUNTIME", "ASSET", "CLIENT_PREVIEW")):
-        if any(term in upper_name for term in ("BOUNDARY", "PUBLIC_API", "PUBLIC_HEADER", "EXTENSION")):
-            return "module-boundaries.md"
-        return "runtime.md"
-    if "GETTING_STARTED" in upper_name or "QUICKSTART" in upper_name:
-        return "getting-started.md"
-    if any(
-        term in upper_name
-        for term in ("CMAKE", "NIX", "TOOLCHAIN", "PUBLISH", "DISTRIBUTION", "PACKAGE_PREFLIGHT")
-    ):
-        return "toolchain.md"
-    if "OWNERSHIP" in upper_name or "REPOSITORY_LAYOUT" in upper_name:
-        return "repository-layout.md"
-    if any(term in upper_name for term in ("PRODUCT", "ECOSYSTEM", "MMO_GENRE")):
-        return "product.md"
-    if any(term in upper_name for term in ("BOUNDARY", "PUBLIC_API", "PUBLIC_SURFACE", "PUBLIC_FACADE")):
-        return "module-boundaries.md"
-    if path == "docs/README.md":
-        return "architecture.md"
-
-    # Content is consulted only as a last resort so incidental words do not
-    # override the document's path-owned subject.
-    content_prefix = content[:2000].lower()
-    if "license" in content_prefix:
-        return "licensing.md"
-    if "source of truth" in content_prefix:
-        return "source-of-truth.md"
-    return "architecture.md"
-
-
-def classify_old_doc(path: str, content: str) -> tuple[str, str, str]:
-    destination = suggested_destination(path, content)
-    upper_name = Path(path).name.upper()
-    if path.startswith("docs/media/"):
-        return (
-            "MERGED_CURRENT",
-            "index.md",
-            "The bounded render evidence is already present under SagaWiki/assets.",
-        )
-    if path in MERGED_CURRENT_PATHS:
-        return (
-            "MERGED_CURRENT",
-            destination,
-            f"Its durable boundary is represented in current `{destination}`; the old file remains historical evidence only.",
-        )
-    if path in SHOULD_MERGE_REASONS:
-        return (
-            "SHOULD_MERGE",
-            destination,
-            SHOULD_MERGE_REASONS[path],
-        )
-    if path in NEEDS_DECISION_REASONS:
-        return (
-            "NEEDS_ARDA_DECISION",
-            destination,
-            NEEDS_DECISION_REASONS[path],
-        )
-    if path in PRIVATE_ARCHIVE_REASONS:
-        return (
-            "PRIVATE_ARCHIVE_CANDIDATE",
-            destination,
-            PRIVATE_ARCHIVE_REASONS[path],
-        )
-    if path.startswith("docs/internal/architecture-appendices/"):
-        return (
-            "PRIVATE_ARCHIVE_CANDIDATE",
-            destination,
-            "This large internal proposal or formal note mixes durable ideas with unverified detail and should not become public SagaWiki text.",
-        )
-    if path.startswith("docs/internal/product-history/"):
-        return (
-            "DELETE_HISTORY_ONLY",
-            destination,
-            "This dated product-history artifact has no current authority; Git history is sufficient.",
-        )
-    if (
-        path in DELETE_HISTORY_PATHS
-        or path in STALE_VERSIONED_PATHS
-        or any(marker in upper_name for marker in STALE_NAME_MARKERS)
-    ):
-        return (
-            "DELETE_HISTORY_ONLY",
-            destination,
-            "This dated plan, snapshot, retired-tool contract, or strategy is not current authority; Git history is sufficient.",
-        )
-    if path.endswith("/README.md"):
-        return (
-            "DELETE_HISTORY_ONLY",
-            destination,
-            "This retired docs-tree index only navigated removed material; Git history is sufficient.",
-        )
-    return (
-        "DELETE_HISTORY_ONLY",
-        destination,
-        "No durable gap remains after the current-source review; Git history is sufficient.",
-    )
-
-
-def manual_priority(item: tuple[str, str, str, str]) -> tuple[int, int, str]:
-    path, classification, destination, _reason = item
-    class_rank = 0 if classification == "NEEDS_ARDA_DECISION" else 1
-    destination_order = {
-        "source-of-truth.md": 0,
-        "scripting.md": 1,
-        "editor.md": 2,
-        "runtime.md": 3,
-        "server-authority.md": 4,
-        "module-boundaries.md": 5,
-        "testing.md": 6,
-        "licensing.md": 7,
-        "toolchain.md": 8,
-        "repository-layout.md": 9,
-        "product.md": 10,
-        "architecture.md": 11,
-        "not-implemented.md": 12,
-        "getting-started.md": 13,
-    }
-    return class_rank, destination_order.get(destination, 99), path
-
-
-def old_docs_report() -> None:
-    commit = find_old_docs_commit()
-    path_sources = {
-        path: commit
-        for path in git_text("ls-tree", "-r", "--name-only", commit, "--", "docs").splitlines()
-        if path
-    }
-    if not path_sources:
-        raise WikiError(f"no docs/ files found in {commit}")
-
-    historical_sources: list[tuple[str, str]] = []
-    for label, reference in HISTORICAL_OLD_DOCS_COMMITS:
-        resolved = git_text("rev-parse", f"{reference}^{{commit}}").strip()
-        historical_sources.append((label, resolved))
-        for path in git_text(
-            "ls-tree", "-r", "--name-only", resolved, "--", "docs"
-        ).splitlines():
-            if path:
-                path_sources.setdefault(path, resolved)
-
-    records: list[tuple[str, str, str, str]] = []
-    for path in sorted(path_sources):
-        content = git_bytes("show", f"{path_sources[path]}:{path}").decode(
-            "utf-8", errors="replace"
-        )
-        classification, destination, reason = classify_old_doc(path, content)
-        records.append((path, classification, destination, reason))
-
-    counts = Counter(record[1] for record in records)
-    candidates = [
-        record
-        for record in records
-        if record[1] in {"NEEDS_ARDA_DECISION", "SHOULD_MERGE"}
-    ]
-    top_ten = sorted(candidates, key=manual_priority)[:10]
-    lines = [
-        "---",
-        "title: Docs Continuity Map",
-        "status: continuity",
-        "owner: SagaWiki",
-        "generated_html: pages/docs-continuity.html",
-        "---",
-        "",
-        "# Docs Continuity Map",
-        "",
-        "This page is a continuity map, not an audit dump. It records how the retired `docs/` tree should inform later evidence-checked SagaWiki expansion without restoring that tree or treating historical claims as current capability.",
-        "",
-        "## Old docs sources",
-        "",
-        f"The primary continuity tree comes from commit `{commit}`. Shared paths use that later pre-deletion snapshot.",
-        "",
-    ]
-    lines.extend(
-        f"The historical comparison also inspected {label} commit `{resolved}`; files unique to that snapshot are included without restoring `docs/`."
-        for label, resolved in historical_sources
-    )
-    lines.extend([
-        "",
-        "Current 0.0.11 HEAD remains authoritative. Historical text affects this map only after current source and focused evidence review.",
-        "",
-        "## Classification summary",
-        "",
-        "| Classification | Files |",
-        "| --- | ---: |",
-    ])
-    lines.extend(f"| `{classification}` | {counts[classification]} |" for classification in CLASSIFICATIONS)
-    lines.extend(
-        (
-            "",
-            "## Manual review priority",
-            "",
-            "Review these documents first before any later wiki expansion. Classification is a routing decision, not evidence that their historical statements remain true.",
-            "",
-        )
-    )
-    lines.extend(
-        f"{number}. `{path}` — `{classification}` → `{destination}`"
-        for number, (path, classification, destination, _reason) in enumerate(top_ten, start=1)
-    )
-    lines.extend(
-        (
-            "",
-            "## Continuity table",
-            "",
-            "| Old docs path | Classification | Suggested SagaWiki destination | Reason |",
-            "| --- | --- | --- | --- |",
-        )
-    )
-    for path, classification, destination, reason in records:
-        lines.append(f"| `{path}` | `{classification}` | `{destination}` | {reason} |")
-    lines.append("")
-
-    output = WIKI_ROOT / "content" / "docs-continuity.md"
-    changed = write_if_changed(output, "\n".join(lines))
-    counts_text = ", ".join(
-        f"{classification}={counts[classification]}" for classification in CLASSIFICATIONS
-    )
-    state = "updated" if changed else "unchanged"
-    historical_text = ", ".join(
-        f"{label}={resolved}" for label, resolved in historical_sources
-    )
+def command_build() -> int:
+    registry, articles = load_articles()
+    output = render_index(registry, articles)
+    INDEX_PATH.write_text(output, encoding="utf-8")
+    DCO_BRIDGE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    DCO_BRIDGE_PATH.write_text(render_dco_bridge(), encoding="utf-8")
     print(
-        f"Docs continuity report {state}; source commit {commit}; "
-        f"historical refs {historical_text}; {counts_text}"
+        f"built {INDEX_PATH.relative_to(REPO_ROOT)} from {len(articles)} Markdown articles "
+        "and refreshed the licensing policy bridge"
     )
-
-
-def usage() -> str:
-    return "usage: scripts/wiki {build|verify|old-docs-report}"
-
-
-def main() -> int:
-    if len(sys.argv) != 2:
-        print(usage(), file=sys.stderr)
-        return 2
-    command = sys.argv[1]
-    try:
-        if command == "build":
-            build()
-        elif command == "verify":
-            verify()
-        elif command == "old-docs-report":
-            old_docs_report()
-        else:
-            print(usage(), file=sys.stderr)
-            return 2
-    except WikiError as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
-        return 1
     return 0
 
 
+def command_verify() -> int:
+    try:
+        registry, articles = load_articles()
+        errors: list[str] = []
+
+        actual_sources = {
+            path.relative_to(WIKI_ROOT).as_posix()
+            for path in (WIKI_ROOT / "library").rglob("*.md")
+        }
+        registered_sources = {article.entry["source"] for article in articles}
+        if actual_sources != registered_sources:
+            for path in sorted(actual_sources - registered_sources):
+                errors.append(f"unregistered Markdown source: {path}")
+            for path in sorted(registered_sources - actual_sources):
+                errors.append(f"registered source missing from library: {path}")
+
+        retired_content = WIKI_ROOT / "content"
+        if retired_content.exists() and any(retired_content.rglob("*")):
+            errors.append("retired source tree is not empty: SagaWiki/content")
+        pages_root = WIKI_ROOT / "pages"
+        page_files = {path for path in pages_root.rglob("*") if path.is_file()} if pages_root.exists() else set()
+        unexpected_pages = page_files - {DCO_BRIDGE_PATH}
+        for path in sorted(unexpected_pages):
+            errors.append(f"retired browsable page remains: {path.relative_to(REPO_ROOT)}")
+        if (WIKI_ROOT / "wiki-pages.json").exists():
+            errors.append("retired registry still exists: SagaWiki/wiki-pages.json")
+
+        for article in articles:
+            filename = Path(article.entry["source"]).name.upper()
+            if any(term in filename for term in BANNED_NAME_PARTS):
+                errors.append(f"banned historical identity in filename: {article.entry['source']}")
+
+        errors.extend(validate_links(articles))
+        errors.extend(validate_claims(articles))
+
+        origin, available = old_docs_paths(registry)
+        selected = selected_old_docs(registry)
+        for path in sorted(selected - available):
+            errors.append(f"historical source is missing at {origin}: {path}")
+
+        if not STYLE_PATH.is_file() or not SCRIPT_PATH.is_file():
+            errors.append("reader assets are incomplete")
+        expected_bridge = render_dco_bridge()
+        if not DCO_BRIDGE_PATH.is_file():
+            errors.append("licensing policy bridge is missing; run scripts/wiki build")
+        elif DCO_BRIDGE_PATH.read_text(encoding="utf-8") != expected_bridge:
+            errors.append("licensing policy bridge is stale; run scripts/wiki build")
+        else:
+            contributing_path = REPO_ROOT / "CONTRIBUTING.md"
+            if not contributing_path.is_file():
+                errors.append("CONTRIBUTING.md is missing")
+            else:
+                contributing = contributing_path.read_text(encoding="utf-8")
+                match = re.search(
+                    re.escape(DCO_MARKER_BEGIN)
+                    + r"\s*(.*?)\s*"
+                    + re.escape(DCO_MARKER_END),
+                    contributing,
+                    flags=re.DOTALL,
+                )
+                bridge_body = re.sub(
+                    r"\A<!--.*?-->\s*", "", expected_bridge, count=1, flags=re.DOTALL
+                ).strip()
+                if not match or match.group(1).strip() != bridge_body:
+                    errors.append("CONTRIBUTING.md DCO section differs from the Wiki policy source")
+        expected = render_index(registry, articles)
+        if not INDEX_PATH.is_file():
+            errors.append("generated SagaWiki/index.html is missing")
+        elif INDEX_PATH.read_text(encoding="utf-8") != expected:
+            errors.append("SagaWiki/index.html is stale; run scripts/wiki build")
+        else:
+            index = INDEX_PATH.read_text(encoding="utf-8")
+            for required in (
+                'href="assets/style.css"',
+                'src="assets/wiki.js"',
+                'id="wiki-data"',
+                "Generated from SagaWiki/library/*.md",
+            ):
+                if required not in index:
+                    errors.append(f"generated index is missing {required}")
+
+        if errors:
+            print("SagaWiki verification failed:", file=sys.stderr)
+            for error in errors:
+                print(f"  ERROR: {error}", file=sys.stderr)
+            return 1
+        print(
+            f"verified {len(articles)} articles, {len(registry['sections'])} areas, "
+            f"and {len(selected)} selected historical sources ({origin})"
+        )
+        return 0
+    except WikiError as exc:
+        print(f"SagaWiki verification failed: {exc}", file=sys.stderr)
+        return 1
+
+
+def command_old_docs_report() -> int:
+    try:
+        registry, articles = load_articles()
+        origin, available = old_docs_paths(registry)
+        selected = selected_old_docs(registry)
+        missing = selected - available
+        if missing:
+            raise WikiError("selected historical sources are missing: " + ", ".join(sorted(missing)))
+        print("SagaWiki historical documentation selection")
+        print(f"Reference: {registry['historical_reference']['label']} ({origin})")
+        print(f"Historical docs files: {len(available)}")
+        print(f"Selected source documents: {len(selected)}")
+        print(f"Not copied as standalone pages: {len(available) - len(selected)}")
+        print(f"Curated current articles: {len(articles)}")
+        print("\nSelected inputs by knowledge area:")
+        for section in registry["sections"]:
+            section_pages = [a for a in articles if a.entry["section"] == section]
+            section_sources = {path for a in section_pages for path in a.entry["source_docs"]}
+            print(f"  {section}: {len(section_pages)} articles, {len(section_sources)} historical inputs")
+        print("\nProtocol: retain only current ownership, source-truth, contract, evidence, workflow, and non-claim knowledge likely to matter in six months.")
+        print("Historical plans, milestones, audits, inventories, migration closures, evidence bundles, retired identities, and product strategy remain in Git history.")
+        return 0
+    except WikiError as exc:
+        print(f"old-docs-report failed: {exc}", file=sys.stderr)
+        return 1
+
+
+def usage() -> int:
+    print("usage: scripts/wiki {build|verify|old-docs-report}", file=sys.stderr)
+    return 2
+
+
+def main(argv: list[str]) -> int:
+    if len(argv) != 2:
+        return usage()
+    command = argv[1]
+    if command == "build":
+        try:
+            return command_build()
+        except WikiError as exc:
+            print(f"build failed: {exc}", file=sys.stderr)
+            return 1
+    if command == "verify":
+        return command_verify()
+    if command == "old-docs-report":
+        return command_old_docs_report()
+    return usage()
+
+
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main(sys.argv))

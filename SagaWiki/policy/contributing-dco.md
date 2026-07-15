@@ -1,4 +1,8 @@
-<!-- Generated from SagaWiki/policy/contributing-dco.md by scripts/wiki build. -->
+<!--
+SPDX-FileCopyrightText: 2026 Arda Koyuncu
+SPDX-License-Identifier: Apache-2.0
+-->
+
 ## Licensing, DCO, and contribution authority
 
 SagaEngine uses Developer Certificate of Origin 1.1. Every contribution must

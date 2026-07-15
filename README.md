@@ -2,7 +2,7 @@
 
 SagaEngine is an active open-source game-engine and authoring-toolchain codebase focused on explicit module ownership, authoritative simulation, project/package contracts, C# source authoring, rendering foundations, editor infrastructure, and evidence-bounded development.
 
-It is not a finished game-engine product, public SDK, production networking stack, or end-to-end editor workflow. See [SagaWiki](SagaWiki/index.html) for the canonical human-facing documentation and [not-implemented boundaries](SagaWiki/pages/not-implemented.html) before interpreting repository foundations as product completion.
+It is not a finished game-engine product, public SDK, production networking stack, or end-to-end editor workflow. See [SagaWiki](SagaWiki/index.html) for the canonical human-facing documentation and [capability boundaries](SagaWiki/index.html#non-claims) before interpreting repository foundations as product completion.
 
 ## Repository layout
 
@@ -15,7 +15,7 @@ It is not a finished game-engine product, public SDK, production networking stac
 - `SagaWiki` — canonical current product and architecture documentation.
 - `LICENSES` — SPDX license texts and authoritative third-party notices.
 
-The legacy top-level source roots are retired. The detailed ownership table is in [Repository layout](SagaWiki/pages/repository-layout.html) and the dependency rules are in [Module boundaries](SagaWiki/pages/module-boundaries.html).
+The legacy top-level source roots are retired. The current map is in [Repository map](SagaWiki/index.html#repository-map), and dependency rules are in [Ownership and dependency direction](SagaWiki/index.html#ownership-dependencies).
 
 ## Build
 
@@ -64,4 +64,4 @@ scripts/wiki build
 scripts/wiki verify
 ```
 
-No local server, network access, or browser-side Markdown loader is required. Historical audits, plans, and reports are not retained as current documentation.
+No local server, network access, or browser-side Markdown loader is required. Edit the sources under `SagaWiki/library/`; the reader adds search, knowledge-area filters, status boundaries, and historical-source traceability. Historical audits, plans, and reports are not retained as current documentation.

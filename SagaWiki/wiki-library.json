@@ -1,0 +1,833 @@
+{
+  "schema_version": 1,
+  "title": "SagaWiki",
+  "historical_reference": {
+    "label": "SagaEngine 0.0.10",
+    "ref": "904278d3f4ee80c1852a73c2dbb03afbd723798e",
+    "docs_root": "docs"
+  },
+  "sections": [
+    "Start here",
+    "Architecture",
+    "Runtime",
+    "Editor and scripting",
+    "Evidence and operations",
+    "Governance",
+    "Technical reference"
+  ],
+  "pages": [
+    {
+      "id": "overview",
+      "source": "library/start/overview.md",
+      "title": "SagaEngine at a glance",
+      "section": "Start here",
+      "summary": "Product shape, evidence boundaries, and how to read this knowledge base.",
+      "status": "current",
+      "tags": [
+        "product",
+        "orientation",
+        "non-claims"
+      ],
+      "source_docs": [
+        "docs/product/WHAT_IS_SAGAENGINE.md",
+        "docs/product/CURRENT_CAPABILITIES.md"
+      ]
+    },
+    {
+      "id": "getting-started",
+      "source": "library/start/getting-started.md",
+      "title": "Getting started",
+      "section": "Start here",
+      "summary": "The current repository entry path, project inputs, and safe first commands.",
+      "status": "guide",
+      "tags": [
+        "build",
+        "projects",
+        "onboarding"
+      ],
+      "source_docs": [
+        "docs/product/GETTING_STARTED.md",
+        "docs/product/SAGAPROJ_SCHEMA_V0.md"
+      ]
+    },
+    {
+      "id": "repository-map",
+      "source": "library/start/repository-map.md",
+      "title": "Repository map",
+      "section": "Start here",
+      "summary": "Post-cutover module owners, programs, tools, evidence, and retired roots.",
+      "status": "current",
+      "tags": [
+        "layout",
+        "modules",
+        "ownership"
+      ],
+      "source_docs": [
+        "docs/architecture/ARCHITECTURE_OVERVIEW.md",
+        "docs/architecture/OWNERSHIP.md"
+      ]
+    },
+    {
+      "id": "programs-workflows",
+      "source": "library/start/programs-and-workflows.md",
+      "title": "Programs and local workflows",
+      "section": "Start here",
+      "summary": "Bounded roles for runtime, editor, launcher, lab, sandbox, and the empty server program owner.",
+      "status": "bounded",
+      "tags": [
+        "programs",
+        "launcher",
+        "sandbox",
+        "workflows"
+      ],
+      "source_docs": [
+        "docs/architecture/SAGA_PRODUCT_SHELL_WORKFLOW_CONTRACT.md",
+        "docs/architecture/APPS_SANDBOX_ROLE.md",
+        "docs/architecture/SAGA_EDITOR_SHELL_MINIMUM_WORKFLOW.md"
+      ]
+    },
+    {
+      "id": "ownership-dependencies",
+      "source": "library/architecture/ownership-and-dependencies.md",
+      "title": "Ownership and dependency direction",
+      "section": "Architecture",
+      "summary": "How filesystem, targets, APIs, and artifacts preserve one owner and one dependency direction.",
+      "status": "current",
+      "tags": [
+        "dependencies",
+        "cmake",
+        "targets"
+      ],
+      "source_docs": [
+        "docs/DependencyGraph.md",
+        "docs/architecture/ARCHITECTURE_OVERVIEW.md",
+        "docs/architecture/OWNERSHIP.md"
+      ]
+    },
+    {
+      "id": "public-private-contracts",
+      "source": "library/architecture/public-private-contracts.md",
+      "title": "Public and private contracts",
+      "section": "Architecture",
+      "summary": "Contract visibility, implementation privacy, vendor boundaries, and installed consumers.",
+      "status": "current",
+      "tags": [
+        "public-api",
+        "private",
+        "vendors"
+      ],
+      "source_docs": [
+        "docs/architecture/ARCHITECTURE_OVERVIEW.md",
+        "docs/architecture/ENGINE_RENDER_EXTENSION_BOUNDARY_CONTRACT.md",
+        "docs/architecture/RENDER_PUBLIC_API_CONTRACT.md"
+      ]
+    },
+    {
+      "id": "source-of-truth",
+      "source": "library/architecture/source-of-truth.md",
+      "title": "Source-of-truth map",
+      "section": "Architecture",
+      "summary": "Authorities and derived artifacts for projects, scripts, scenes, builds, licenses, docs, and evidence.",
+      "status": "policy",
+      "tags": [
+        "source-truth",
+        "generated",
+        "freshness"
+      ],
+      "source_docs": [
+        "docs/architecture/SOURCE_OF_TRUTH_MAP.md",
+        "docs/architecture/GENERATED_ARTIFACT_FRESHNESS_CONTRACT.md",
+        "docs/architecture/SAGA_GENERATED_FILES_POLICY.md",
+        "docs/architecture/SCENE_ENTITY_SOURCE_TRUTH_FOUNDATION.md",
+        "docs/product/SAGAPROJ_SCHEMA_V0.md",
+        "docs/architecture/SAGA_ARTIFACT_CONTRACTS_V1.md",
+        "docs/architecture/PROJECT_SLICE_RESOLVER_V1.md",
+        "docs/architecture/PROJECT_SLICE_SCHEMA_V0.md",
+        "docs/architecture/SAGA_PROJECT_SLICE_VISIBILITY_BOUNDARY.md",
+        "docs/architecture/SOURCE_VISIBILITY_LEVELS_V1.md"
+      ]
+    },
+    {
+      "id": "runtime-lifecycle",
+      "source": "library/runtime/runtime-lifecycle.md",
+      "title": "Runtime lifecycle",
+      "section": "Runtime",
+      "summary": "Composition, ordered startup and shutdown, frame ownership, and content inputs.",
+      "status": "bounded",
+      "tags": [
+        "startup",
+        "shutdown",
+        "frames"
+      ],
+      "source_docs": [
+        "docs/architecture/RUNTIME.md",
+        "docs/architecture/ASSETS_AND_PACKAGES.md",
+        "docs/architecture/RENDER_CANONICAL_RUNTIME_PATH.md"
+      ]
+    },
+    {
+      "id": "world-boundary",
+      "source": "library/runtime/world.md",
+      "title": "World facade and simulation boundary",
+      "section": "Runtime",
+      "summary": "The narrow public World facade, private partition/streaming implementation, simulation truth, and evidence limits.",
+      "status": "bounded",
+      "tags": [
+        "world",
+        "simulation",
+        "facade",
+        "streaming"
+      ],
+      "source_docs": [
+        "docs/architecture/ENGINE_WORLD_PUBLIC_FACADE_CONTRACT.md"
+      ]
+    },
+    {
+      "id": "rendering",
+      "source": "library/runtime/rendering.md",
+      "title": "Rendering contracts",
+      "section": "Runtime",
+      "summary": "Render/RHI ownership, coordinate convention, backend privacy, world interest, materials, and evidence.",
+      "status": "bounded",
+      "tags": [
+        "render",
+        "rhi",
+        "diligent",
+        "graphics"
+      ],
+      "source_docs": [
+        "docs/architecture/RENDER_CANONICAL_RUNTIME_PATH.md",
+        "docs/architecture/GRAPHICS_CAPABILITY_MATRIX_V0.md",
+        "docs/architecture/GRAPHICS_COORDINATE_CONVENTION.md",
+        "docs/architecture/ENGINE_RENDER_EXTENSION_BOUNDARY_CONTRACT.md",
+        "docs/architecture/RENDER_PUBLIC_API_CONTRACT.md",
+        "docs/architecture/GRAPHICS_BACKEND_PREFERENCE_ORDER.md",
+        "docs/architecture/RENDER_INTEREST_WORLD_STREAMING_CONTRACT.md",
+        "docs/architecture/RENDER_LIGHTING_STRATEGY.md",
+        "docs/architecture/RENDER_MATERIAL_GRAPH_AUTHORING_CONTRACT.md"
+      ]
+    },
+    {
+      "id": "diagnostics",
+      "source": "library/runtime/diagnostics.md",
+      "title": "Diagnostics and reliability",
+      "section": "Runtime",
+      "summary": "Crash context, fault boundaries, operational reports, and memory/resource snapshots.",
+      "status": "bounded",
+      "tags": [
+        "diagnostics",
+        "reliability",
+        "memory",
+        "resources"
+      ],
+      "source_docs": [
+        "docs/architecture/DIAGNOSTICS_CRASH_CONTEXT_AND_RELIABILITY_RULES.md",
+        "docs/architecture/DIAGNOSTICS_OPERATIONAL_REPORTS_AND_SERVER_OBSERVABILITY.md",
+        "docs/architecture/DIAGNOSTICS_MEMORY_RESOURCE_SNAPSHOT_FOUNDATION.md"
+      ]
+    },
+    {
+      "id": "networking-authority",
+      "source": "library/runtime/networking-and-authority.md",
+      "title": "Networking, replication, and authority",
+      "section": "Runtime",
+      "summary": "Transport, replication, authoritative decisions, chaos injection, and evidence limits.",
+      "status": "bounded",
+      "tags": [
+        "networking",
+        "replication",
+        "server-authority",
+        "chaos"
+      ],
+      "source_docs": [
+        "docs/architecture/SERVER.md",
+        "docs/architecture/AUTHORING_AUTHORITY_MODEL.md",
+        "docs/architecture/NETWORK_CHAOS_POLICY_FOUNDATION.md",
+        "docs/internal/architecture-appendices/ClientReplicationFormalSpec.md"
+      ]
+    },
+    {
+      "id": "persistence-packages",
+      "source": "library/runtime/persistence-and-packages.md",
+      "title": "Persistence, assets, and packages",
+      "section": "Runtime",
+      "summary": "Storage interfaces, asset/resource ownership, project manifests, and package staging.",
+      "status": "bounded",
+      "tags": [
+        "persistence",
+        "assets",
+        "packages",
+        "manifest"
+      ],
+      "source_docs": [
+        "docs/architecture/ASSETS_AND_PACKAGES.md",
+        "docs/architecture/ASSET_SOURCE_MANIFEST_INVENTORY.md",
+        "docs/product/SAGAPROJ_SCHEMA_V0.md",
+        "docs/architecture/PUBLISH_POLICY_INTEGRATION.md",
+        "docs/internal/architecture-appendices/AssetStreamingImplementation.md"
+      ]
+    },
+    {
+      "id": "editor-contract",
+      "source": "library/editor/editor-contract.md",
+      "title": "Editor contract",
+      "section": "Editor and scripting",
+      "summary": "Editor module ownership, authoring transactions, personal view state, Qt, and customization.",
+      "status": "bounded",
+      "tags": [
+        "editor",
+        "qt",
+        "authoring"
+      ],
+      "source_docs": [
+        "docs/architecture/EDITOR.md",
+        "docs/architecture/SAGA_EDITOR_CUSTOMIZATION_MODEL.md",
+        "docs/architecture/SAGA_EDITOR_SHELL_MINIMUM_WORKFLOW.md"
+      ]
+    },
+    {
+      "id": "csharp-visual-blocks",
+      "source": "library/editor/csharp-and-visual-blocks.md",
+      "title": "C# and Visual Blocks",
+      "section": "Editor and scripting",
+      "summary": "C# authority, Visual Blocks projection, derived artifacts, and stale-safe patching.",
+      "status": "current",
+      "tags": [
+        "csharp",
+        "visual-blocks",
+        "patching",
+        "scripting"
+      ],
+      "source_docs": [
+        "docs/architecture/SAGA_CSHARP_VISUAL_AUTHORING_BOUNDARY.md",
+        "docs/architecture/CSHARP_VISUAL_BLOCKS_COMPATIBILITY_PROFILE.md",
+        "docs/architecture/VISUAL_BLOCK_PATCH_CONTRACT.md",
+        "docs/architecture/SOURCE_PATCH_APPLY_POLICY.md",
+        "docs/architecture/SAGA_GAMEPLAY_NODE_LIBRARY_V1.md"
+      ]
+    },
+    {
+      "id": "collaboration",
+      "source": "library/editor/collaboration.md",
+      "title": "Collaboration semantics",
+      "section": "Editor and scripting",
+      "summary": "Semantic transactions, presence, locks, permissions, shared state, and explicit product limits.",
+      "status": "bounded",
+      "tags": [
+        "collaboration",
+        "transactions",
+        "presence",
+        "locks"
+      ],
+      "source_docs": [
+        "docs/architecture/SAGA_COLLABORATION_CURRENT_BOUNDARY.md",
+        "docs/architecture/SAGA_COLLABORATION_PRESENCE_LOCK_BOUNDARY.md",
+        "docs/architecture/SAGA_COLLABORATION_REVIEW_AUDIT_BOUNDARY.md",
+        "docs/architecture/SAGA_COLLABORATION_ROLE_PERMISSION_BOUNDARY.md",
+        "docs/architecture/SAGA_LOCAL_WORKSPACE_TRANSACTION_BOUNDARY.md",
+        "docs/architecture/SAGA_REVIEW_COMMENT_TRANSACTION_MODEL.md",
+        "docs/architecture/SAGA_LOCAL_APPROVAL_PUBLISH_GATE_BOUNDARY.md",
+        "docs/architecture/REVIEW_APPROVAL_WORKFLOW_V2.md",
+        "docs/architecture/DANGEROUS_OPERATION_POLICY_GATE_V1.md",
+        "docs/architecture/PROJECT_ROLE_PROFILES_V1.md",
+        "docs/architecture/POLICY_DOMAIN_MODEL_V0.md"
+      ]
+    },
+    {
+      "id": "scene-authoring",
+      "source": "library/editor/scene-authoring.md",
+      "title": "Scene and entity authoring",
+      "section": "Editor and scripting",
+      "summary": "Project-owned scene identity, semantic changes, inspector/viewport boundaries, and imports.",
+      "status": "bounded",
+      "tags": [
+        "scene",
+        "entities",
+        "assets",
+        "authoring"
+      ],
+      "source_docs": [
+        "docs/architecture/SAGA_SCENE_ASSET_AUTHORING_CONTRACT.md",
+        "docs/architecture/SCENE_ENTITY_SOURCE_TRUTH_FOUNDATION.md",
+        "docs/architecture/SCENE_SCHEMA_V1.md",
+        "docs/architecture/ENTITY_SCHEMA_V1.md"
+      ]
+    },
+    {
+      "id": "testing-evidence",
+      "source": "library/evidence/testing.md",
+      "title": "Testing and evidence",
+      "section": "Evidence and operations",
+      "summary": "Test categories, public/private evidence, safe local acceptance, and report integrity.",
+      "status": "policy",
+      "tags": [
+        "tests",
+        "evidence",
+        "gpu",
+        "stress"
+      ],
+      "source_docs": [
+        "docs/architecture/TESTING_AND_EVIDENCE.md",
+        "docs/architecture/CLAIM_AND_EVIDENCE_POLICY.md",
+        "docs/testing/TEST_SUITES.md",
+        "docs/architecture/SAGACHAOSLAB_V1.md"
+      ]
+    },
+    {
+      "id": "sample-evidence",
+      "source": "library/evidence/sample-evidence.md",
+      "title": "Sample executable evidence",
+      "section": "Evidence and operations",
+      "summary": "How declarations, builds, launches, behavior, and manual observations support sample claims.",
+      "status": "bounded",
+      "tags": [
+        "samples",
+        "executables",
+        "claims"
+      ],
+      "source_docs": [
+        "docs/architecture/SAMPLE_EXECUTABLE_EVIDENCE.md",
+        "docs/architecture/CLAIM_AND_EVIDENCE_POLICY.md"
+      ]
+    },
+    {
+      "id": "build-package-publish",
+      "source": "library/toolchain/build-package-publish.md",
+      "title": "Build, package, and publish toolchain",
+      "section": "Evidence and operations",
+      "summary": "Forge, CMake, wrappers, package staging, publish boundaries, and repository hygiene.",
+      "status": "guide",
+      "tags": [
+        "forge",
+        "cmake",
+        "package",
+        "publish"
+      ],
+      "source_docs": [
+        "docs/CodingStandards.md",
+        "docs/architecture/NIX_DEVELOPMENT_AND_VALIDATION_POLICY.md",
+        "docs/architecture/PUBLISH.md",
+        "docs/architecture/PUBLISH_POLICY_INTEGRATION.md",
+        "docs/architecture/SAGA_LINUX_DISTRIBUTION_LAYOUT.md",
+        "docs/architecture/SAGA_LINUX_PACKAGE_PREFLIGHT.md",
+        "docs/architecture/SAGA_LINUX_ARCHIVE_CHECKSUM.md",
+        "docs/architecture/SAGA_LINUX_DISTRIBUTION_SMOKE.md",
+        "docs/architecture/SAGA_LINUX_TOOL_PACKAGING.md"
+      ]
+    },
+    {
+      "id": "licensing",
+      "source": "library/governance/licensing.md",
+      "title": "Licensing authority",
+      "section": "Governance",
+      "summary": "Current policy authority, derived controls, stability, and the absent plugin domain.",
+      "status": "policy",
+      "tags": [
+        "license",
+        "policy",
+        "spdx"
+      ],
+      "source_docs": [
+        "docs/licensing/LICENSE_STABILITY.md",
+        "docs/licensing/GENERATED_OUTPUTS.md",
+        "docs/licensing/LICENSE_FOUNDATION.md",
+        "docs/licensing/decisions/LIC-DEC-0001.md",
+        "docs/licensing/THIRD_PARTY_NOTICES.md",
+        "docs/licensing/CONTRIBUTING_DCO_SECTION.md"
+      ]
+    },
+    {
+      "id": "non-claims",
+      "source": "library/governance/non-claims.md",
+      "title": "Capability boundaries and non-claims",
+      "section": "Governance",
+      "summary": "What current foundations must not be mistaken for across product, editor, online, rendering, and samples.",
+      "status": "policy",
+      "tags": [
+        "non-claims",
+        "capabilities",
+        "scope"
+      ],
+      "source_docs": [
+        "docs/product/WHAT_IS_NOT_IMPLEMENTED.md",
+        "docs/product/CURRENT_CAPABILITIES.md"
+      ]
+    },
+    {
+      "id": "documentation-selection",
+      "source": "library/governance/documentation-selection.md",
+      "title": "Documentation selection protocol",
+      "section": "Governance",
+      "summary": "The six-month value test, historical exclusions, private references, and source traceability.",
+      "status": "policy",
+      "tags": [
+        "documentation",
+        "history",
+        "maintenance"
+      ],
+      "source_docs": []
+    },
+    {
+      "id": "reference-product-capabilities",
+      "source": "library/reference/product-and-capability-boundaries.md",
+      "title": "Product and capability reference",
+      "section": "Technical reference",
+      "summary": "Detailed product definition, capability evidence levels, entry workflows, and explicit limits.",
+      "status": "bounded",
+      "tags": [
+        "product",
+        "capabilities",
+        "evidence",
+        "non-claims"
+      ],
+      "source_docs": [
+        "docs/product/WHAT_IS_SAGAENGINE.md",
+        "docs/product/CURRENT_CAPABILITIES.md",
+        "docs/product/GETTING_STARTED.md",
+        "docs/product/WHAT_IS_NOT_IMPLEMENTED.md"
+      ]
+    },
+    {
+      "id": "reference-ownership-dependencies",
+      "source": "library/reference/ownership-and-dependency-contracts.md",
+      "title": "Ownership and dependency contracts",
+      "section": "Technical reference",
+      "summary": "Detailed post-cutover owners, layer direction, dependency visibility, target roles, and review rules.",
+      "status": "current",
+      "tags": [
+        "ownership",
+        "dependencies",
+        "public-api",
+        "targets"
+      ],
+      "source_docs": [
+        "docs/CodingStandards.md",
+        "docs/DependencyGraph.md",
+        "docs/architecture/ARCHITECTURE_OVERVIEW.md",
+        "docs/architecture/OWNERSHIP.md"
+      ]
+    },
+    {
+      "id": "reference-source-artifacts-projects",
+      "source": "library/reference/source-artifact-and-project-contracts.md",
+      "title": "Source, artifact, and project contracts",
+      "section": "Technical reference",
+      "summary": "Authority and freshness rules for projects, source, generated artifacts, scenes, packages, and reports.",
+      "status": "current",
+      "tags": [
+        "source-truth",
+        "artifacts",
+        "projects",
+        "freshness"
+      ],
+      "source_docs": [
+        "docs/architecture/SOURCE_OF_TRUTH_MAP.md",
+        "docs/architecture/GENERATED_ARTIFACT_FRESHNESS_CONTRACT.md",
+        "docs/architecture/SAGA_GENERATED_FILES_POLICY.md",
+        "docs/architecture/SAGA_ARTIFACT_CONTRACTS_V1.md",
+        "docs/product/SAGAPROJ_SCHEMA_V0.md",
+        "docs/architecture/SCENE_ENTITY_SOURCE_TRUTH_FOUNDATION.md"
+      ]
+    },
+    {
+      "id": "reference-runtime-assets-packages",
+      "source": "library/reference/runtime-lifecycle-assets-and-packages.md",
+      "title": "Runtime lifecycle, assets, and packages",
+      "section": "Technical reference",
+      "summary": "Runtime composition, ordered startup/shutdown, manifests, identity, artifacts, packages, and evidence.",
+      "status": "bounded",
+      "tags": [
+        "runtime",
+        "lifecycle",
+        "assets",
+        "packages"
+      ],
+      "source_docs": [
+        "docs/architecture/RUNTIME.md",
+        "docs/architecture/ASSETS_AND_PACKAGES.md",
+        "docs/architecture/ASSET_SOURCE_MANIFEST_INVENTORY.md",
+        "docs/architecture/PUBLISH_POLICY_INTEGRATION.md",
+        "docs/product/SAGAPROJ_SCHEMA_V0.md"
+      ]
+    },
+    {
+      "id": "reference-resource-streaming",
+      "source": "library/reference/resource-streaming-and-residency.md",
+      "title": "Resource streaming and residency",
+      "section": "Technical reference",
+      "summary": "Asset identity, VFS, sources, scheduling, residency handles, LRU budgets, threading, failure, and tests.",
+      "status": "bounded",
+      "tags": [
+        "resources",
+        "streaming",
+        "residency",
+        "assets"
+      ],
+      "source_docs": [
+        "docs/architecture/ASSET_SOURCE_MANIFEST_INVENTORY.md",
+        "docs/internal/architecture-appendices/AssetStreamingImplementation.md"
+      ]
+    },
+    {
+      "id": "reference-rendering",
+      "source": "library/reference/rendering-contracts.md",
+      "title": "Rendering and graphics contracts",
+      "section": "Technical reference",
+      "summary": "RHI/Render ownership, public vocabulary, coordinates, native lifecycle, frames, materials, lighting, and evidence.",
+      "status": "bounded",
+      "tags": [
+        "render",
+        "rhi",
+        "diligent",
+        "graphics"
+      ],
+      "source_docs": [
+        "docs/architecture/ENGINE_RENDER_EXTENSION_BOUNDARY_CONTRACT.md",
+        "docs/architecture/GRAPHICS_BACKEND_PREFERENCE_ORDER.md",
+        "docs/architecture/GRAPHICS_CAPABILITY_MATRIX_V0.md",
+        "docs/architecture/GRAPHICS_COORDINATE_CONVENTION.md",
+        "docs/architecture/RENDER_CANONICAL_RUNTIME_PATH.md",
+        "docs/architecture/RENDER_INTEREST_WORLD_STREAMING_CONTRACT.md",
+        "docs/architecture/RENDER_LIGHTING_STRATEGY.md",
+        "docs/architecture/RENDER_MATERIAL_GRAPH_AUTHORING_CONTRACT.md",
+        "docs/architecture/RENDER_PUBLIC_API_CONTRACT.md"
+      ]
+    },
+    {
+      "id": "reference-world-simulation",
+      "source": "library/reference/world-and-simulation-contracts.md",
+      "title": "World and simulation contracts",
+      "section": "Technical reference",
+      "summary": "World facade, source/live truth layers, activation, cells, relevance, commands, cancellation, and evidence.",
+      "status": "bounded",
+      "tags": [
+        "world",
+        "simulation",
+        "facade",
+        "streaming"
+      ],
+      "source_docs": [
+        "docs/architecture/ENGINE_WORLD_PUBLIC_FACADE_CONTRACT.md",
+        "docs/architecture/SCENE_ENTITY_SOURCE_TRUTH_FOUNDATION.md"
+      ]
+    },
+    {
+      "id": "reference-replication-authority",
+      "source": "library/reference/replication-networking-and-authority.md",
+      "title": "Replication, networking, and server authority",
+      "section": "Technical reference",
+      "summary": "Formal receive/apply pipeline, baselines/deltas, authority, prediction, interest, bounds, chaos, and evidence.",
+      "status": "bounded",
+      "tags": [
+        "replication",
+        "networking",
+        "authority",
+        "server"
+      ],
+      "source_docs": [
+        "docs/architecture/AUTHORING_AUTHORITY_MODEL.md",
+        "docs/architecture/NETWORK_CHAOS_POLICY_FOUNDATION.md",
+        "docs/architecture/SERVER.md",
+        "docs/internal/architecture-appendices/ClientReplicationFormalSpec.md"
+      ]
+    },
+    {
+      "id": "reference-diagnostics",
+      "source": "library/reference/diagnostics-reliability-and-observability.md",
+      "title": "Diagnostics, reliability, and observability",
+      "section": "Technical reference",
+      "summary": "Stable diagnostics, fault/crash boundaries, health, lifetime leaks, memory/resource snapshots, and operations.",
+      "status": "bounded",
+      "tags": [
+        "diagnostics",
+        "reliability",
+        "observability",
+        "health"
+      ],
+      "source_docs": [
+        "docs/architecture/DIAGNOSTICS_CRASH_CONTEXT_AND_RELIABILITY_RULES.md",
+        "docs/architecture/DIAGNOSTICS_MEMORY_RESOURCE_SNAPSHOT_FOUNDATION.md",
+        "docs/architecture/DIAGNOSTICS_OPERATIONAL_REPORTS_AND_SERVER_OBSERVABILITY.md"
+      ]
+    },
+    {
+      "id": "reference-editor-shell",
+      "source": "library/reference/editor-shell-and-authoring.md",
+      "title": "Editor shell and authoring contracts",
+      "section": "Technical reference",
+      "summary": "Editor owners, shell workflows, shared versus personal state, Qt, transactions, customization, and evidence.",
+      "status": "bounded",
+      "tags": [
+        "editor",
+        "authoring",
+        "qt",
+        "workflows"
+      ],
+      "source_docs": [
+        "docs/architecture/APPS_SANDBOX_ROLE.md",
+        "docs/architecture/EDITOR.md",
+        "docs/architecture/SAGA_EDITOR_CUSTOMIZATION_MODEL.md",
+        "docs/architecture/SAGA_EDITOR_SHELL_MINIMUM_WORKFLOW.md",
+        "docs/architecture/SAGA_PRODUCT_SHELL_WORKFLOW_CONTRACT.md"
+      ]
+    },
+    {
+      "id": "reference-csharp-visual-blocks",
+      "source": "library/reference/csharp-and-visual-blocks-contracts.md",
+      "title": "C# and Visual Blocks contracts",
+      "section": "Technical reference",
+      "summary": "C# authority, compatibility/projection, graph and IR limits, exact patching, staleness, and runtime boundary.",
+      "status": "current",
+      "tags": [
+        "csharp",
+        "visual-blocks",
+        "patching",
+        "source-truth"
+      ],
+      "source_docs": [
+        "docs/architecture/CSHARP_VISUAL_BLOCKS_COMPATIBILITY_PROFILE.md",
+        "docs/architecture/SAGA_CSHARP_VISUAL_AUTHORING_BOUNDARY.md",
+        "docs/architecture/SAGA_GAMEPLAY_NODE_LIBRARY_V1.md",
+        "docs/architecture/SOURCE_PATCH_APPLY_POLICY.md",
+        "docs/architecture/VISUAL_BLOCK_PATCH_CONTRACT.md"
+      ]
+    },
+    {
+      "id": "reference-collaboration-policy",
+      "source": "library/reference/collaboration-transactions-and-policy.md",
+      "title": "Collaboration transactions and local policy",
+      "section": "Technical reference",
+      "summary": "Semantic transactions, presence, locks, review, roles, local policy, conflicts, sessions, and non-claims.",
+      "status": "bounded",
+      "tags": [
+        "collaboration",
+        "transactions",
+        "locks",
+        "policy"
+      ],
+      "source_docs": [
+        "docs/architecture/DANGEROUS_OPERATION_POLICY_GATE_V1.md",
+        "docs/architecture/POLICY_DOMAIN_MODEL_V0.md",
+        "docs/architecture/PROJECT_ROLE_PROFILES_V1.md",
+        "docs/architecture/REVIEW_APPROVAL_WORKFLOW_V2.md",
+        "docs/architecture/SAGA_COLLABORATION_CURRENT_BOUNDARY.md",
+        "docs/architecture/SAGA_COLLABORATION_PRESENCE_LOCK_BOUNDARY.md",
+        "docs/architecture/SAGA_COLLABORATION_REVIEW_AUDIT_BOUNDARY.md",
+        "docs/architecture/SAGA_COLLABORATION_ROLE_PERMISSION_BOUNDARY.md",
+        "docs/architecture/SAGA_LOCAL_APPROVAL_PUBLISH_GATE_BOUNDARY.md",
+        "docs/architecture/SAGA_LOCAL_WORKSPACE_TRANSACTION_BOUNDARY.md",
+        "docs/architecture/SAGA_REVIEW_COMMENT_TRANSACTION_MODEL.md"
+      ]
+    },
+    {
+      "id": "reference-scene-project-slices",
+      "source": "library/reference/scene-entity-and-project-slice-contracts.md",
+      "title": "Scene, entity, and project-slice contracts",
+      "section": "Technical reference",
+      "summary": "Scene/entity schema and transactions, asset references, project slices, resolver rules, and visibility levels.",
+      "status": "bounded",
+      "tags": [
+        "scene",
+        "entity",
+        "project-slices",
+        "visibility"
+      ],
+      "source_docs": [
+        "docs/architecture/ENTITY_SCHEMA_V1.md",
+        "docs/architecture/PROJECT_SLICE_RESOLVER_V1.md",
+        "docs/architecture/PROJECT_SLICE_SCHEMA_V0.md",
+        "docs/architecture/SAGA_PROJECT_SLICE_VISIBILITY_BOUNDARY.md",
+        "docs/architecture/SAGA_SCENE_ASSET_AUTHORING_CONTRACT.md",
+        "docs/architecture/SCENE_ENTITY_SOURCE_TRUTH_FOUNDATION.md",
+        "docs/architecture/SCENE_SCHEMA_V1.md",
+        "docs/architecture/SOURCE_VISIBILITY_LEVELS_V1.md"
+      ]
+    },
+    {
+      "id": "reference-testing-evidence",
+      "source": "library/reference/testing-claims-and-evidence.md",
+      "title": "Testing, claims, and evidence",
+      "section": "Technical reference",
+      "summary": "Claim vocabulary, suite taxonomy, installed/private/GPU boundaries, safe acceptance, chaos, and reports.",
+      "status": "policy",
+      "tags": [
+        "testing",
+        "claims",
+        "evidence",
+        "gpu",
+        "stress"
+      ],
+      "source_docs": [
+        "docs/architecture/CLAIM_AND_EVIDENCE_POLICY.md",
+        "docs/architecture/SAGACHAOSLAB_V1.md",
+        "docs/architecture/SAMPLE_EXECUTABLE_EVIDENCE.md",
+        "docs/architecture/TESTING_AND_EVIDENCE.md",
+        "docs/testing/TEST_SUITES.md"
+      ]
+    },
+    {
+      "id": "reference-build-distribution",
+      "source": "library/reference/build-package-and-distribution-contracts.md",
+      "title": "Build, package, and distribution contracts",
+      "section": "Technical reference",
+      "summary": "Current build owners, exact Linux layout, tool packaging, preflight, archive/checksum, unpacked smoke, and publish.",
+      "status": "bounded",
+      "tags": [
+        "build",
+        "package",
+        "distribution",
+        "publish"
+      ],
+      "source_docs": [
+        "docs/architecture/NIX_DEVELOPMENT_AND_VALIDATION_POLICY.md",
+        "docs/architecture/PUBLISH.md",
+        "docs/architecture/PUBLISH_POLICY_INTEGRATION.md",
+        "docs/architecture/SAGA_LINUX_ARCHIVE_CHECKSUM.md",
+        "docs/architecture/SAGA_LINUX_DISTRIBUTION_LAYOUT.md",
+        "docs/architecture/SAGA_LINUX_DISTRIBUTION_SMOKE.md",
+        "docs/architecture/SAGA_LINUX_PACKAGE_PREFLIGHT.md",
+        "docs/architecture/SAGA_LINUX_TOOL_PACKAGING.md"
+      ]
+    },
+    {
+      "id": "reference-licensing",
+      "source": "library/reference/licensing-contribution-and-third-party.md",
+      "title": "Licensing, contribution, and third-party governance",
+      "section": "Technical reference",
+      "summary": "Current authority chain, domains, MPL direction, DCO, provenance, third-party and artifact release review.",
+      "status": "policy",
+      "tags": [
+        "licensing",
+        "dco",
+        "third-party",
+        "provenance"
+      ],
+      "source_docs": [
+        "docs/licensing/CONTRIBUTING_DCO_SECTION.md",
+        "docs/licensing/GENERATED_OUTPUTS.md",
+        "docs/licensing/LICENSE_FOUNDATION.md",
+        "docs/licensing/LICENSE_STABILITY.md",
+        "docs/licensing/THIRD_PARTY_NOTICES.md",
+        "docs/licensing/decisions/LIC-DEC-0001.md"
+      ]
+    },
+    {
+      "id": "reference-engineering-review",
+      "source": "library/reference/engineering-conventions-and-review.md",
+      "title": "Engineering conventions and contract review",
+      "section": "Technical reference",
+      "summary": "Durable coding/documentation conventions, public-contract clarity, mappings, hygiene, tests, and review questions.",
+      "status": "guide",
+      "tags": [
+        "coding",
+        "review",
+        "hygiene",
+        "contracts"
+      ],
+      "source_docs": [
+        "docs/CodingStandards.md",
+        "docs/DependencyGraph.md"
+      ]
+    }
+  ]
+}
