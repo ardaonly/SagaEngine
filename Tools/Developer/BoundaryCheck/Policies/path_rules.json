@@ -206,6 +206,54 @@
       "priority": 400
     },
     {
+      "pattern": "Engine/Source/Editor/EditorCollaboration/**/SagaShared/**",
+      "license": "MPL-2.0",
+      "domain_id": "saga-shared",
+      "priority": 300
+    },
+    {
+      "pattern": "Engine/Source/Runtime/Persistence/**",
+      "license": "MPL-2.0",
+      "domain_id": "saga-backends",
+      "priority": 300
+    },
+    {
+      "pattern": "Engine/Source/Runtime/ServerAuthority/**",
+      "license": "MPL-2.0",
+      "domain_id": "saga-server",
+      "priority": 300
+    },
+    {
+      "pattern": "Engine/Source/Runtime/UI/**/Backends/**",
+      "license": "MPL-2.0",
+      "domain_id": "saga-backends",
+      "priority": 300
+    },
+    {
+      "pattern": "Tools/Developer/BoundaryCheck/Policies/**",
+      "license": "MPL-2.0",
+      "domain_id": "saga-core-metadata",
+      "priority": 300
+    },
+    {
+      "pattern": "Engine/Source/Editor/EditorCollaboration/**",
+      "license": "MPL-2.0",
+      "domain_id": "saga-collaboration",
+      "priority": 250
+    },
+    {
+      "pattern": "Engine/Source/Programs/**",
+      "license": "MPL-2.0",
+      "domain_id": "saga-apps",
+      "priority": 200
+    },
+    {
+      "pattern": "Engine/Source/Runtime/**",
+      "license": "MPL-2.0",
+      "domain_id": "saga-runtime",
+      "priority": 200
+    },
+    {
       "pattern": ".clang-format",
       "license": "MPL-2.0",
       "domain_id": "repository-root-build",
@@ -266,48 +314,6 @@
       "priority": 100
     },
     {
-      "pattern": "Engine/Source/Editor/EditorCollaboration/**",
-      "license": "MPL-2.0",
-      "domain_id": "saga-collaboration",
-      "priority": 100
-    },
-    {
-      "pattern": "Engine/Source/Editor/EditorCollaboration/**/SagaShared/**",
-      "license": "MPL-2.0",
-      "domain_id": "saga-shared",
-      "priority": 100
-    },
-    {
-      "pattern": "Engine/Source/Programs/**",
-      "license": "MPL-2.0",
-      "domain_id": "saga-apps",
-      "priority": 100
-    },
-    {
-      "pattern": "Engine/Source/Runtime/**",
-      "license": "MPL-2.0",
-      "domain_id": "saga-runtime",
-      "priority": 100
-    },
-    {
-      "pattern": "Engine/Source/Runtime/Persistence/**",
-      "license": "MPL-2.0",
-      "domain_id": "saga-backends",
-      "priority": 100
-    },
-    {
-      "pattern": "Engine/Source/Runtime/ServerAuthority/**",
-      "license": "MPL-2.0",
-      "domain_id": "saga-server",
-      "priority": 100
-    },
-    {
-      "pattern": "Engine/Source/Runtime/UI/**/Backends/**",
-      "license": "MPL-2.0",
-      "domain_id": "saga-backends",
-      "priority": 100
-    },
-    {
       "pattern": "README.md",
       "license": "Apache-2.0",
       "domain_id": "saga-documentation",
@@ -332,12 +338,6 @@
       "priority": 100
     },
     {
-      "pattern": "Schemas/**",
-      "license": "MPL-2.0",
-      "domain_id": "saga-schemas",
-      "priority": 100
-    },
-    {
       "pattern": "Tests/**",
       "license": "MPL-2.0",
       "domain_id": "saga-tests",
@@ -347,12 +347,6 @@
       "pattern": "Tools/**",
       "license": "MPL-2.0",
       "domain_id": "saga-tools",
-      "priority": 100
-    },
-    {
-      "pattern": "Tools/Developer/BoundaryCheck/Policies/**",
-      "license": "MPL-2.0",
-      "domain_id": "saga-core-metadata",
       "priority": 100
     },
     {
@@ -374,7 +368,7 @@
       "priority": 100
     },
     {
-      "pattern": "scripts/export",
+      "pattern": "export.sh",
       "license": "MPL-2.0",
       "domain_id": "repository-root-build",
       "priority": 100

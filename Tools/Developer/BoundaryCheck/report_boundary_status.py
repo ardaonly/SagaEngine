@@ -19,7 +19,6 @@ from typing import Iterable, Sequence
 
 DEFAULT_MANIFEST = Path("Tools/Developer/BoundaryCheck/Policies/path_rules.json")
 APACHE = "Apache-2.0"
-EDITOR_LICENSE = "SAGA-EDITOR-READONLY-NOAI"
 
 SOURCE_EXTENSIONS = {
     ".c",
