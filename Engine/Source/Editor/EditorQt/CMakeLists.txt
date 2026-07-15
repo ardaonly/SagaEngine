@@ -5,16 +5,12 @@ saga_add_editor_module(EditorQt
         Private/SagaEditorQt/Commands/CommandPalette.cpp
         Private/SagaEditorQt/Host/EditorProjectInspection.cpp
         Private/SagaEditorQt/Panels/AssetBrowserPanel.cpp
-        Private/SagaEditorQt/Panels/CollaborationPanel.cpp
         Private/SagaEditorQt/Panels/ConsolePanel.cpp
         Private/SagaEditorQt/Panels/CustomizeWorkspacePanel.cpp
-        Private/SagaEditorQt/Panels/GraphViewportPanel.cpp
         Private/SagaEditorQt/Panels/HierarchyPanel.cpp
         Private/SagaEditorQt/Panels/InspectorPanel.cpp
         Private/SagaEditorQt/Panels/ProblemsPanel.cpp
         Private/SagaEditorQt/Panels/ProductionDashboardPanel.cpp
-        Private/SagaEditorQt/Panels/ProfilerPanel.cpp
-        Private/SagaEditorQt/Panels/ProjectBrowserPanel.cpp
         Private/SagaEditorQt/Panels/ShortcutPreferencesPanel.cpp
         Private/SagaEditorQt/Panels/WorldViewportPanel.cpp
         Private/SagaEditorQt/QtPanel.cpp
@@ -23,13 +19,7 @@ saga_add_editor_module(EditorQt
         Private/SagaEditorQt/QtUIFactory.cpp
         Private/SagaEditorQt/QtUIMainWindow.cpp
         Private/SagaEditorQt/Themes/ThemeRegistry.cpp
-        Private/SagaEditorQt/VisualScripting/Debugger/ExecutionTraceView.cpp
-        Private/SagaEditorQt/VisualScripting/Debugger/GraphDebuggerView.cpp
-        Private/SagaEditorQt/VisualScripting/Editor/BreakpointPanel.cpp
         Private/SagaEditorQt/VisualScripting/Editor/GraphCanvas.h
-        Private/SagaEditorQt/VisualScripting/Editor/NodePalette.cpp
-        Private/SagaEditorQt/VisualScripting/Editor/WatchPanel.cpp
-        Private/SagaEditorQt/VisualScripting/Nodes/NodeLibraryPanel.cpp
         Public/SagaEditorQt/QtPanel.h
         Public/SagaEditorQt/QtSettingsStore.h
         Public/SagaEditorQt/QtUIApplication.h

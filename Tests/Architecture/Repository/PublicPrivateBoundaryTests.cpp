@@ -441,6 +441,58 @@ TEST(PublicPrivateBoundaryTests, CollaborationConcreteImplementationsStayPrivate
         publicCollaboration / "Workspace/WorkspaceSnapshot.h"));
 }
 
+TEST(PublicPrivateBoundaryTests, UnregisteredPlaceholderPanelsStayAbsent)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    constexpr std::array<std::string_view, 20> placeholderPanels = {
+        "Engine/Source/Editor/EditorFramework/Public/SagaEditor/Panels/"
+        "CollaborationPanel.h",
+        "Engine/Source/Editor/EditorFramework/Public/SagaEditor/Panels/"
+        "GraphViewportPanel.h",
+        "Engine/Source/Editor/EditorFramework/Public/SagaEditor/Panels/"
+        "ProfilerPanel.h",
+        "Engine/Source/Editor/EditorFramework/Public/SagaEditor/Panels/"
+        "ProjectBrowserPanel.h",
+        "Engine/Source/Editor/EditorQt/Private/SagaEditorQt/Panels/"
+        "CollaborationPanel.cpp",
+        "Engine/Source/Editor/EditorQt/Private/SagaEditorQt/Panels/"
+        "GraphViewportPanel.cpp",
+        "Engine/Source/Editor/EditorQt/Private/SagaEditorQt/Panels/"
+        "ProfilerPanel.cpp",
+        "Engine/Source/Editor/EditorQt/Private/SagaEditorQt/Panels/"
+        "ProjectBrowserPanel.cpp",
+        "Engine/Source/Editor/VisualBlocksEditor/Public/SagaEditor/VisualBlocks/"
+        "Debugger/ExecutionTraceView.h",
+        "Engine/Source/Editor/VisualBlocksEditor/Public/SagaEditor/VisualBlocks/"
+        "Debugger/GraphDebuggerView.h",
+        "Engine/Source/Editor/VisualBlocksEditor/Public/SagaEditor/VisualBlocks/"
+        "Editor/BreakpointPanel.h",
+        "Engine/Source/Editor/VisualBlocksEditor/Public/SagaEditor/VisualBlocks/"
+        "Editor/NodePalette.h",
+        "Engine/Source/Editor/VisualBlocksEditor/Public/SagaEditor/VisualBlocks/"
+        "Editor/WatchPanel.h",
+        "Engine/Source/Editor/VisualBlocksEditor/Public/SagaEditor/VisualBlocks/"
+        "Nodes/NodeLibraryPanel.h",
+        "Engine/Source/Editor/EditorQt/Private/SagaEditorQt/VisualScripting/"
+        "Debugger/ExecutionTraceView.cpp",
+        "Engine/Source/Editor/EditorQt/Private/SagaEditorQt/VisualScripting/"
+        "Debugger/GraphDebuggerView.cpp",
+        "Engine/Source/Editor/EditorQt/Private/SagaEditorQt/VisualScripting/"
+        "Editor/BreakpointPanel.cpp",
+        "Engine/Source/Editor/EditorQt/Private/SagaEditorQt/VisualScripting/"
+        "Editor/NodePalette.cpp",
+        "Engine/Source/Editor/EditorQt/Private/SagaEditorQt/VisualScripting/"
+        "Editor/WatchPanel.cpp",
+        "Engine/Source/Editor/EditorQt/Private/SagaEditorQt/VisualScripting/"
+        "Nodes/NodeLibraryPanel.cpp",
+    };
+
+    for (const auto path : placeholderPanels)
+    {
+        EXPECT_FALSE(std::filesystem::exists(root / path)) << path;
+    }
+}
+
 TEST(PublicPrivateBoundaryTests, PublicHeadersDoNotExposeImplementationVendorTypes)
 {
     std::vector<std::string> offenders;

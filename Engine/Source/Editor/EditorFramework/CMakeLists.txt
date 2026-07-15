@@ -89,17 +89,13 @@ saga_add_editor_module(EditorFramework
         Public/SagaEditor/Localization/TranslationCatalog.h
         Public/SagaEditor/Notifications/EditorNotificationCenter.h
         Public/SagaEditor/Panels/AssetBrowserPanel.h
-        Public/SagaEditor/Panels/CollaborationPanel.h
         Public/SagaEditor/Panels/ConsolePanel.h
         Public/SagaEditor/Panels/CustomizeWorkspacePanel.h
-        Public/SagaEditor/Panels/GraphViewportPanel.h
         Public/SagaEditor/Panels/HierarchyPanel.h
         Public/SagaEditor/Panels/IPanel.h
         Public/SagaEditor/Panels/InspectorPanel.h
         Public/SagaEditor/Panels/ProblemsPanel.h
         Public/SagaEditor/Panels/ProductionDashboardPanel.h
-        Public/SagaEditor/Panels/ProfilerPanel.h
-        Public/SagaEditor/Panels/ProjectBrowserPanel.h
         Public/SagaEditor/Panels/ShortcutPreferencesPanel.h
         Public/SagaEditor/Panels/WorldViewportPanel.h
         Public/SagaEditor/Persona/BlockVisualStyle.h
