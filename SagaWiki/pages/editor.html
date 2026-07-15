@@ -1,6 +1,24 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Editor | SagaWiki</title><link rel="stylesheet" href="../assets/style.css"></head><body><main><p><a href="../index.html">SagaWiki</a></p><h1>Editor</h1>
+<!doctype html>
+<!-- Generated from SagaWiki/content/editor.md by scripts/wiki build. Edit Markdown source. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>Editor | SagaWiki</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<main>
+<nav><a href="../index.html">SagaWiki</a></nav>
+<h1>Editor</h1>
 <p>The editor source is divided by responsibility. EditorCore owns toolkit-neutral editor state and services. EditorFramework owns toolkit-neutral commands, layouts, panels, personas, and workflow contracts. EditorQt owns the Qt application, windows, settings, panels, and toolkit adapters. EditorAuthoring owns scene, prefab, world, asset, pipeline, gizmo, and inspection workflows.</p>
-<p>EditorCollaboration owns local collaboration contracts and services; it does not establish a hosted collaboration product. EditorExperimental contains explicitly non-stable experiments. Program entry points under <code>Engine/Source/Programs</code> remain thin and keep program-specific implementation private.</p>
-<h2>Personal view and shared state</h2><p>The source-controlled project model is shared state; workspace layout, selection, viewport, cursor, and other personal editor-view state remain local to each participant. Changes to shared project meaning are represented as semantic transactions, while personal view changes are not project transactions. Local locks, presence, review, and conflict metadata do not establish a hosted collaboration service or claims of authentication, authorization, transport security, or enterprise security.</p>
-<h2>Qt boundary</h2><p>Qt headers and types must not leak through generic <code>SagaEditor/</code> public contracts. Public Qt-facing contracts, when unavoidable, use <code>SagaEditorQt/</code>. GraphCanvas is currently a private EditorQt implementation detail rather than a public ABI.</p>
-</main></body></html>
+<p>EditorScripting owns managed authoring integration, while VisualBlocksEditor owns block projection and block-editing presentation over SagaScript artifacts. EditorCollaboration owns local collaboration contracts and services; it does not establish a hosted collaboration product. EditorExperimental contains explicitly non-stable experiments. Program entry points under <code>Engine/Source/Programs</code> remain thin and keep program-specific implementation private.</p>
+<h2>Authoring boundary</h2>
+<p>The editor may request, preview, display, and review source-changing operations through SagaScript-owned artifacts. It does not become the C# compiler, canonical behavior store, runtime authority, package authority, or an independent direct source writer.</p>
+<h2>Personal view and shared state</h2>
+<p>The source-controlled project model is shared state; workspace layout, selection, viewport, cursor, and other personal editor-view state remain local to each participant. Changes to shared project meaning are represented as semantic transactions, while personal view changes are not project transactions. Local locks, presence, review, and conflict metadata do not establish a hosted collaboration service or claims of authentication, authorization, transport security, or enterprise security.</p>
+<h2>Qt boundary</h2>
+<p>Qt headers and types must not leak through generic <code>SagaEditor/</code> public contracts. Public Qt-facing contracts, when unavoidable, use <code>SagaEditorQt/</code>. GraphCanvas is currently a private EditorQt implementation detail rather than a public ABI.</p>
+</main>
+</body>
+</html>

@@ -1,11 +1,23 @@
-<!--
-SPDX-FileCopyrightText: 2026 Arda Koyuncu
-SPDX-License-Identifier: Apache-2.0 OR CC-BY-4.0
--->
-<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Licensing | SagaWiki</title><link rel="stylesheet" href="../assets/style.css"></head><body><main><p><a href="../index.html">SagaWiki</a></p><h1>Licensing</h1>
+<!doctype html>
+<!-- Generated from SagaWiki/content/licensing.md by scripts/wiki build. Edit Markdown source. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>Licensing | SagaWiki</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<main>
+<nav><a href="../index.html">SagaWiki</a></nav>
+<h1>Licensing</h1>
 <p><code>LICENSE</code> is the repository’s authoritative primary license text. Saga-owned engine and editor source follows the current MPL-2.0-centered policy. SPDX license texts and the authoritative third-party notice are under <code>LICENSES/</code>. The former Editor-restricted license is historical and is not part of current policy or the canonical license bundle.</p>
 <p><code>LICENSE_POLICY.toml</code> is the machine-readable authority for repository path domains and license resolution. Forge, vendor, imported, sample, documentation, and other scoped areas follow the license domains recorded there; vendor and imported code retain their applicable upstream notices. <code>Tools/Developer/BoundaryCheck/Policies/path_rules.json</code> is a derived compatibility projection, and <code>SHA256SUMS</code> is a derived integrity control. Neither replaces the policy, source license texts, <code>LICENSE_TEXT_SOURCES.toml</code>, or REUSE metadata.</p>
 <p>Generated output inherits licensing only through explicit policy. Product direction does not authorize proprietary, leaked, tainted, or license-unclear source.</p>
-<pre><code>python3 Tools/Licensing/regenerate_license_checksums.py --check
+<h2>Stability rule</h2>
+<p>A path move or generated copy does not silently change licensing. Historical source snapshots retain the license state recorded in those snapshots, while current files resolve through current policy, provenance, SPDX/REUSE metadata, and authoritative texts. Vendor and imported material retain their upstream terms, and unresolved rights fail closed rather than inheriting a convenient repository default.</p>
+<pre><code class="language-sh">python3 Tools/Licensing/regenerate_license_checksums.py --check
 python3 Tools/Licensing/verify_license_texts.py</code></pre>
-</main></body></html>
+</main>
+</body>
+</html>

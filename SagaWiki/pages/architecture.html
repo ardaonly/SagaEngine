@@ -1,6 +1,19 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Architecture | SagaWiki</title><link rel="stylesheet" href="../assets/style.css"></head><body><main><p><a href="../index.html">SagaWiki</a></p><h1>Architecture</h1>
-<p class="lead">Dependencies point toward stable contracts and artifacts; ownership follows runtime, editor, program, tool, sample, and test modules.</p>
-<h2>Layer direction</h2><pre><code>Programs and Editor
+<!doctype html>
+<!-- Generated from SagaWiki/content/architecture.md by scripts/wiki build. Edit Markdown source. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>Architecture | SagaWiki</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<main>
+<nav><a href="../index.html">SagaWiki</a></nav>
+<h1>Architecture</h1>
+<p>Dependencies point toward stable contracts and artifacts; ownership follows runtime, editor, program, tool, sample, and test modules.</p>
+<h2>Layer direction</h2>
+<pre><code class="language-text">Programs and Editor
         ↓
 Runtime modules and public contracts
         ↓
@@ -8,6 +21,13 @@ Core, Math, ECS, low-level graphics vocabulary
 
 Offline Tools → manifests, packages, reports → Runtime / ServerAuthority</code></pre>
 <p>Runtime consumes project and package artifacts. ServerAuthority owns authoritative decisions. Editor owns authoring presentation and commands. Tools own offline validation, compilation, packaging, and reporting. Reports never become source truth merely because they exist.</p>
-<h2>Aggregate targets</h2><p>The hard cutover preserves existing exported and aggregate CMake target names. Module CMake files register explicit sources, include roots, and dependencies into those targets. A target-purity decomposition is intentionally deferred.</p>
-<h2>Dependency rule</h2><p>Generic Networking owns transport and protocol primitives. Replication owns client replication, prediction, interpolation, snapshots, interest, and RPC. ServerAuthority owns zones, authoritative connections, gameplay validation, security policy, and server simulation.</p>
-</main></body></html>
+<h2>Ownership and artifact flow</h2>
+<p>Reusable module contracts point downward toward Core, Math, ECS, and vendor-neutral runtime vocabulary. Concrete backend managers, editor UI, server policy, and tool implementation stay with their owning modules rather than becoming public engine API by default.</p>
+<p>Source-controlled project inputs flow through validation, analysis, compilation, and packaging tools into generated artifacts and manifests consumed by Runtime or ServerAuthority. Diagnostics and tests describe what was checked; they do not replace authored inputs or promote a bounded result into product readiness.</p>
+<h2>Aggregate targets</h2>
+<p>The hard cutover preserves existing exported and aggregate CMake target names. Module CMake files register explicit sources, include roots, and dependencies into those targets. A target-purity decomposition is intentionally deferred.</p>
+<h2>Dependency rule</h2>
+<p>Generic Networking owns transport and protocol primitives. Replication owns client replication, prediction, interpolation, snapshots, interest, and RPC. ServerAuthority owns zones, authoritative connections, gameplay validation, security policy, and server simulation.</p>
+</main>
+</body>
+</html>
