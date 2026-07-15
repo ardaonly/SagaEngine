@@ -1,12 +1,12 @@
 /// @file BlockLibrary.cpp
 /// @brief Implementation of the block-library registry + built-ins.
 
-#include "SagaEditor/VisualScripting/Blocks/BlockLibrary.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockLibrary.h"
 
 #include <algorithm>
 #include <utility>
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 namespace
@@ -310,4 +310,4 @@ std::size_t BlockLibrary::DefinitionCount() const noexcept
     return m_definitions.size();
 }
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

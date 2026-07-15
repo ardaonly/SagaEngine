@@ -35,7 +35,7 @@ After PATH is set, this is what daily use looks like:
 tools list                 # see what is registered and resolvable
 tools forge --help         # Forge's own help
 tools forge build          # delegates to forge build
-tools host status          # delegates to Tools/Host/host.sh
+tools host status          # delegates to Tools/Developer/Environment/Host/host.sh
 tools where forge          # print the resolved binary path
 ```
 
@@ -143,7 +143,7 @@ both are optional per tool.
   "schema_version": "1.0",
   "tools": {
     "forge": "/path/to/forge",
-    "host": "/path/to/SagaEngine/Tools/Host/host.sh"
+    "host": "/path/to/SagaEngine/Tools/Developer/Environment/Host/host.sh"
   },
   "installers": {
     "forge": "../../Forge/build.py",

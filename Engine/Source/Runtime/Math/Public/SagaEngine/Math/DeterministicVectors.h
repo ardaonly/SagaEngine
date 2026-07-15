@@ -1,14 +1,14 @@
 /// @file DeterministicVectors.h
-/// @brief Q16.16 fixed-point Vec3 / Quat for deterministic simulation (phase 2).
+/// @brief Q16.16 fixed-point Vec3 / Quat for deterministic simulation.
 ///
 /// Layer  : SagaEngine / Math
-/// Purpose: Phase 1 (`DeterministicMath.h`) gave us fixed-point scalars
+/// Purpose: `DeterministicMath.h` provides fixed-point scalars
 ///          and polynomial transcendentals.  That is enough to start
 ///          running a deterministic sim, but every time the sim touches
 ///          a position or velocity it still has to cross the float
 ///          boundary, and float drift immediately undoes all the work.
 ///
-///          Phase 2 closes the loop: `FixedVec3` and `FixedQuat` store
+///          `FixedVec3` and `FixedQuat` store
 ///          their components as `Fixed16`, operate on them with pure
 ///          integer math, and never take a single detour through
 ///          `std::sin` or `std::sqrt`.  Bit-identical replays across

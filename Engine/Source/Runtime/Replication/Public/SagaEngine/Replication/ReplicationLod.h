@@ -1,7 +1,7 @@
 /// @file ReplicationLod.h
 /// @brief Distance-based level-of-detail tiers for replication update rate.
 ///
-/// Layer  : SagaServer / Networking / Replication
+/// Layer  : SagaEngine / Replication
 /// Purpose: Sending every entity at the full simulation tick rate wastes
 ///          bandwidth on distant players that cannot tell the difference.
 ///          This header defines a small set of LOD tiers and the rule that
@@ -28,7 +28,7 @@
 
 #include <cstdint>
 
-namespace SagaEngine::Networking::Replication
+namespace SagaEngine::Replication
 {
 
 // ─── LOD levels ──────────────────────────────────────────────────────────────
@@ -132,4 +132,4 @@ private:
     LodTier tiers_[kTierCount]{};
 };
 
-} // namespace SagaEngine::Networking::Replication
+} // namespace SagaEngine::Replication

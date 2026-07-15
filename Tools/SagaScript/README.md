@@ -13,18 +13,18 @@ Current scope:
 - Analyze `[SagaBehavior]` metadata for the Block F source-preserving
   SagaWeaver MVP.
 - Extract `[SagaLibrary]` and `[SagaNode]` metadata into a deterministic node
-  library report for the Phase 69-71 authoring expansion.
+  library report for the current authoring surface.
 - Project supported `Gameplay + High` and `Gameplay + Low` C# into read-only
   block metadata with exact source spans.
 - Emit `analysis_report.json`, `runtime_bindings.json`, `source_map.json`,
   `projection_report.json`, and `node_metadata.json`.
 - Emit `node_library_report.json` from `extract-nodes`.
-- Preview one safe `ReplaceStringLiteral` patch without mutating source.
+- Evaluation one safe `ReplaceStringLiteral` patch without mutating source.
 - Apply one safe `ReplaceStringLiteral` patch through SagaScript with source
   hash validation, backup, same-directory temp write, exact byte-span
   verification, rollback on failed post-check, and stale-artifact reporting.
 - Emit non-mutating diff and review reports for one `ReplaceStringLiteral`
-  patch, and roll back a passed Phase 72 apply report through SagaScript-only
+  patch, and roll back a passed apply report through SagaScript-only
   hash-gated backup restore.
 
 Current non-goals:
@@ -51,7 +51,7 @@ Tools/SagaScript/sagascript analyze --source Scripts --out Build/SagaScript
 Tools/SagaScript/sagascript emit-bindings --source Scripts --out Build/SagaScript
 Tools/SagaScript/sagascript project-blocks --source Scripts --out Build/SagaScript
 Tools/SagaScript/sagascript extract-nodes --source Scripts --out Build/SagaScript
-Tools/SagaScript/sagascript patch-preview --source Scripts --source-map Build/SagaScript/source_map.json --request patch_request.json --out Build/SagaScript/patch_preview.json
+Tools/SagaScript/sagascript patch-evaluation --source Scripts --source-map Build/SagaScript/source_map.json --request patch_request.json --out Build/SagaScript/patch_evaluation.json
 Tools/SagaScript/sagascript patch-apply --source Scripts --source-map Build/SagaScript/source_map.json --request patch_request.json --out Build/SagaScript/patch_apply_report.json
 Tools/SagaScript/sagascript patch-diff --source Scripts --source-map Build/SagaScript/source_map.json --request patch_request.json --out Build/SagaScript/patch_diff_report.json
 Tools/SagaScript/sagascript patch-review --diff Build/SagaScript/patch_diff_report.json --decision Approved --reviewer reviewer://local --out Build/SagaScript/patch_review_report.json
@@ -135,7 +135,7 @@ Block F implements the `Gameplay + High` and `Gameplay + Low` projection proof.
 Other domains are schema-defined for future expansion and must not be claimed as
 implemented unless a focused test proves them.
 
-## Phase 69-71 Node Library Metadata
+## Node Library Metadata
 
 `extract-nodes` scans C# source for `[SagaLibrary]` and `[SagaNode]` metadata
 without executing gameplay code or mutating source. It writes
@@ -150,7 +150,7 @@ The built-in gameplay node fixtures used by tests are metadata fixtures only:
 `ProjectionOnly` and `Deferred` are not runtime proof. Deferred nodes must stay
 disclosed/read-only in projection and view honesty checks.
 
-## Phase 74-75 Compatibility And Script Evidence
+## Compatibility And Script Evidence
 
 `compatibility-profile` writes `csharp_compatibility_profile_v2.json` with
 conservative classifications for Saga-compatible C# source. Current

@@ -264,7 +264,7 @@ DeltaSnapshotApplyFn MakeDeltaSnapshotApplyFn(const AuthorityTable& authority)
             }
         }
 
-        // Two-phase apply: sort → validate → commit.
+        // Two-step apply: sort → validate → commit.
         ValidateResult vr = journal.Apply(world);
         if (vr != ValidateResult::Ok)
         {

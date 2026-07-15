@@ -1,0 +1,13 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Architecture | SagaWiki</title><link rel="stylesheet" href="../assets/style.css"></head><body><main><p><a href="../index.html">SagaWiki</a></p><h1>Architecture</h1>
+<p class="lead">Dependencies point toward stable contracts and artifacts; ownership follows runtime, editor, program, tool, sample, and test modules.</p>
+<h2>Layer direction</h2><pre><code>Programs and Editor
+        ↓
+Runtime modules and public contracts
+        ↓
+Core, Math, ECS, low-level graphics vocabulary
+
+Offline Tools → manifests, packages, reports → Runtime / ServerAuthority</code></pre>
+<p>Runtime consumes project and package artifacts. ServerAuthority owns authoritative decisions. Editor owns authoring presentation and commands. Tools own offline validation, compilation, packaging, and reporting. Reports never become source truth merely because they exist.</p>
+<h2>Aggregate targets</h2><p>The hard cutover preserves existing exported and aggregate CMake target names. Module CMake files register explicit sources, include roots, and dependencies into those targets. A target-purity decomposition is intentionally deferred.</p>
+<h2>Dependency rule</h2><p>Generic Networking owns transport and protocol primitives. Replication owns client replication, prediction, interpolation, snapshots, interest, and RPC. ServerAuthority owns zones, authoritative connections, gameplay validation, security policy, and server simulation.</p>
+</main></body></html>

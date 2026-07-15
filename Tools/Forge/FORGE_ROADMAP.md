@@ -613,7 +613,7 @@ ValidateAssets
 CookAssets
 StageClientPackage
 StageServerPackage
-StageEditorPreviewPackage
+StageEditorEvaluationPackage
 GenerateArtifactManifest
 GeneratePackageManifest
 ValidatePackageManifest
@@ -1419,7 +1419,7 @@ Forge can serve Saga without becoming unusable for smaller C++ projects.
   Existing examples:
 
   ```txt
-  python3 -m py_compile Tools/scripts/export_tool_mirrors.py Tools/SagaTools/setup.py
+  python3 -m py_compile Tools/Developer/RepoAudit/export_tool_mirrors.py Tools/SagaTools/setup.py
   cargo check --manifest-path Tools/SagaTools/Cargo.toml
   python3 Tools/SagaTools/setup.py --no-smoke --no-symlink
   ```

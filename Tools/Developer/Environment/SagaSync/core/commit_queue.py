@@ -59,13 +59,13 @@ def build_commit_queue(status: GitStatus, manifest: ExportManifest) -> tuple[Com
                     order=order,
                 title=f"Export {tool.name} mirror",
                 detail=f"{tool.path} changed; run export dry-run before mirror push.",
-                command_hint=f"./export.sh {tool.name.lower()} --dry-run",
+                command_hint=f"scripts/export {tool.name.lower()} --dry-run",
                     blocked=bool(paths),
                 )
             )
             order += 1
 
-    if any(path.startswith("docs/") for path in paths):
+    if any(path.startswith("SagaWiki/") for path in paths):
         items.append(
             CommitQueueItem(
                 order=order,
@@ -82,7 +82,7 @@ def build_commit_queue(status: GitStatus, manifest: ExportManifest) -> tuple[Com
                 order=1,
                 title="No commit needed",
                 detail="Source repository is clean.",
-                command_hint="./export.sh plan",
+                command_hint="scripts/export plan",
             )
         )
 

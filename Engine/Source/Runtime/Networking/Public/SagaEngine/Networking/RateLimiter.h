@@ -1,7 +1,7 @@
 /// @file RateLimiter.h
 /// @brief Per-connection token-bucket rate limiter for packet count and bandwidth.
 ///
-/// Layer  : SagaServer / Networking / Core
+/// Layer  : SagaEngine / Networking
 /// Purpose: Defends the server tick loop against flooding by bounding how
 ///          many packets and how many bytes a single client may deliver per
 ///          second. Two independent token buckets run in parallel for each
@@ -21,7 +21,7 @@
 
 #pragma once
 
-#include "SagaServer/Networking/Core/NetworkTypes.h"
+#include "SagaEngine/Networking/NetworkTypes.h"
 
 #include <chrono>
 #include <cstddef>

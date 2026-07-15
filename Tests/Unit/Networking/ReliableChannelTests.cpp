@@ -1,7 +1,7 @@
 /// @file ReliableChannelTests.cpp
 /// @brief Unit tests for ReliableChannel with SACK, fast retransmit, NACK, and Karn's Algorithm.
 
-#include "SagaServer/Networking/Core/ReliableChannel.h"
+#include "SagaEngine/Networking/ReliableChannel.h"
 #include <gtest/gtest.h>
 #include <thread>
 #include <chrono>

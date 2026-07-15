@@ -1,10 +1,10 @@
-#include "SagaServer/Networking/Interest/InterestArea.h"
-#include "SagaServer/Networking/Replication/ReplicationManager.h"
+#include "SagaEngine/Replication/Interest/InterestArea.h"
+#include "SagaEngine/Replication/ReplicationManager.h"
 #include <gtest/gtest.h>
 #include <thread>
 #include <chrono>
 
-using namespace SagaEngine::Networking::Interest;
+using namespace SagaEngine::Replication::Interest;
 
 class InterestTest : public ::testing::Test {
 protected:
@@ -136,7 +136,7 @@ TEST_F(InterestTest, DestroyArea) {
 }
 
 TEST_F(InterestTest, ReplicationIntegration) {
-    auto replication = std::make_unique<SagaEngine::Networking::Replication::ReplicationManager>();
+    auto replication = std::make_unique<SagaEngine::Replication::ReplicationManager>();
     replication->Initialize(100);
     replication->SetInterestManager(_interest.get());
     

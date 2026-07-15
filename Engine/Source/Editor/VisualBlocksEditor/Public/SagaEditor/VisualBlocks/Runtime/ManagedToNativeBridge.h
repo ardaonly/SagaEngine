@@ -2,7 +2,7 @@
 #include <memory>
 #include <functional>
 #include <string>
-namespace SagaEditor::VisualScripting {
+namespace SagaEditor::VisualBlocks {
 class ManagedToNativeBridge {
 public:
     
@@ -14,4 +14,4 @@ using Handler = std::function<std::string(const std::string& argsJson)>;
 private:
     struct Impl; std::unique_ptr<Impl> m_impl;
 };
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

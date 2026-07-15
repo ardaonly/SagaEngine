@@ -10,7 +10,7 @@
 ///       AcceptSocket(). Tests here cover the observable state of a freshly
 ///       initialised manager (zero clients, clean stats) and concurrent reads.
 
-#include "SagaServer/Networking/Client/ConnectionManager.h"
+#include "SagaEngine/ServerAuthority/ConnectionManager.h"
 #include "SagaEngine/Core/Log/Log.h"
 
 #include <gtest/gtest.h>
@@ -18,7 +18,8 @@
 #include <vector>
 #include <atomic>
 
-using namespace SagaServer::Networking;
+using namespace SagaEngine::ServerAuthority;
+using SagaEngine::Networking::ClientId;
 
 class ConnectionManagerTest : public ::testing::Test
 {
@@ -74,7 +75,7 @@ TEST_F(ConnectionManagerTest, InitialStatsAreZero)
 
 TEST_F(ConnectionManagerTest, GetClientStatsReturnsFalseForUnknownId)
 {
-    ServerConnectionStats out{};
+    SagaEngine::ServerAuthority::ServerConnectionStats out{};
     EXPECT_FALSE(_manager->GetClientStats(static_cast<ClientId>(1), out));
 }
 

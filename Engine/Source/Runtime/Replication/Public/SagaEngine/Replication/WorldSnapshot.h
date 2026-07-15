@@ -1,7 +1,7 @@
 /// @file WorldSnapshot.h
 /// @brief Full world state capture for checkpoint, reconnect, and replay.
 ///
-/// Layer  : SagaServer / Networking / Replication
+/// Layer  : SagaEngine / Replication
 /// Purpose: WorldSnapshot serialises the entire replicated entity set into a
 ///          self-contained binary blob. Used for:
 ///            - Client reconnect: send full state on rejoin instead of delta history.
@@ -18,7 +18,7 @@
 
 #include "SagaEngine/ECS/Entity.h"
 #include "SagaEngine/ECS/Component.h"
-#include "SagaServer/Networking/Replication/ReplicationState.h"
+#include "SagaEngine/Replication/ReplicationState.h"
 
 #include <chrono>
 #include <cstddef>
@@ -28,7 +28,7 @@
 #include <string>
 #include <vector>
 
-namespace SagaEngine::Networking::Replication
+namespace SagaEngine::Replication
 {
 
 // ─── SnapshotFileHeader ───────────────────────────────────────────────────────
@@ -162,4 +162,4 @@ private:
                                        std::string&              errorOut) const;
 };
 
-} // namespace SagaEngine::Networking::Replication
+} // namespace SagaEngine::Replication

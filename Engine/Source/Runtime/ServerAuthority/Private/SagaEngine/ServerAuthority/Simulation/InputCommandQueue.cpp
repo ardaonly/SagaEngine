@@ -1,14 +1,14 @@
 /// @file InputCommandQueue.cpp
 /// @brief InputCommandQueue and InputCommandRouter implementations.
 
-#include "SagaServer/Simulation/InputCommandQueue.h"
+#include "SagaEngine/ServerAuthority/Simulation/InputCommandQueue.h"
 #include "SagaEngine/Core/Log/Log.h"
 
 #include <algorithm>
 #include <chrono>
 #include <utility>
 
-namespace SagaEngine::Server::Simulation
+namespace SagaEngine::ServerAuthority::Simulation
 {
 
 static constexpr const char* kTag = "InputQueue";
@@ -302,4 +302,4 @@ InputQueueStats InputCommandRouter::GetStatistics(ClientId clientId) const
     return it->second->GetStatistics();
 }
 
-} // namespace SagaEngine::Server::Simulation
+} // namespace SagaEngine::ServerAuthority::Simulation

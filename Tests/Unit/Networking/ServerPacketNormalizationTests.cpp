@@ -1,7 +1,7 @@
 /// @file ServerPacketNormalizationTests.cpp
 /// @brief Tests for ServerConnection frame normalization.
 
-#include "SagaServer/Networking/Core/ServerPacketNormalizer.h"
+#include "SagaEngine/Networking/ServerPacketNormalizer.h"
 
 #include <gtest/gtest.h>
 
@@ -13,17 +13,17 @@ namespace
 
 using SagaEngine::Networking::ClientId;
 using SagaEngine::Networking::PacketType;
-using SagaServer::Networking::NormalizeServerPacketFrame;
-using SagaServer::Networking::ServerPacketNormalizationStatus;
+using SagaEngine::Networking::NormalizeServerPacketFrame;
+using SagaEngine::Networking::ServerPacketNormalizationStatus;
 
 std::vector<std::uint8_t> MakeFrame(PacketType packetType,
                                     const std::vector<std::uint8_t>& payload)
 {
     std::vector<std::uint8_t> frame(
-        SagaServer::Networking::kServerPacketFrameHeaderSize + payload.size());
+        SagaEngine::Networking::kServerPacketFrameHeaderSize + payload.size());
 
     const std::uint16_t magic =
-        SagaServer::Networking::kServerPacketFrameMagic;
+        SagaEngine::Networking::kServerPacketFrameMagic;
     const std::uint32_t bodyLength =
         static_cast<std::uint32_t>(payload.size());
 
@@ -34,7 +34,7 @@ std::vector<std::uint8_t> MakeFrame(PacketType packetType,
     if (!payload.empty())
     {
         std::memcpy(
-            frame.data() + SagaServer::Networking::kServerPacketFrameHeaderSize,
+            frame.data() + SagaEngine::Networking::kServerPacketFrameHeaderSize,
             payload.data(),
             payload.size());
     }
@@ -119,7 +119,7 @@ TEST(ServerPacketNormalizationTests, OversizedBodyLengthRejects)
 {
     auto frame = MakeFrame(PacketType::InputCommand, {});
     const std::uint32_t oversized =
-        SagaServer::Networking::kServerPacketFrameMaxBodyBytes + 1;
+        SagaEngine::Networking::kServerPacketFrameMaxBodyBytes + 1;
     std::memcpy(frame.data() + 4, &oversized, sizeof(oversized));
 
     const auto result = NormalizeServerPacketFrame(1, frame.data(), frame.size());

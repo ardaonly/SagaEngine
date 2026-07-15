@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-set -u
+set -uo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$ROOT"
 
 status=0
@@ -17,16 +17,15 @@ run_check() {
     fi
 }
 
-echo "verify-quick: local verification infrastructure gate"
-echo "verify-quick: this does not mark any phase Verified"
+echo "verify: repository and module boundary checks"
 
 run_check git diff --check
-run_check scripts/scan-claims README.md docs samples Tools
-run_check scripts/verify-phase all
-run_check python3 Tools/scripts/report_boundary_status.py --repo-root .
-run_check python3 Tools/scripts/check_public_private_boundary.py --repo-root .
-run_check python3 Tools/scripts/check_qt_boundary.py .
-run_check python3 Tools/scripts/check_engine_server_boundary.py --repo-root .
+run_check python3 Tools/Licensing/regenerate_license_checksums.py --check
+run_check python3 Tools/Licensing/verify_license_texts.py
+run_check python3 Tools/Developer/BoundaryCheck/report_boundary_status.py --repo-root .
+run_check python3 Tools/Developer/BoundaryCheck/check_public_private_boundary.py --repo-root .
+run_check python3 Tools/Developer/BoundaryCheck/check_qt_boundary.py .
+run_check python3 Tools/Developer/BoundaryCheck/check_engine_server_boundary.py --repo-root .
 
 echo
 if [[ $status -eq 0 ]]; then

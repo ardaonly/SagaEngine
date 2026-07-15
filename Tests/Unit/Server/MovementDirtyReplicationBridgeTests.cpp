@@ -1,8 +1,8 @@
 /// @file MovementDirtyReplicationBridgeTests.cpp
 /// @brief Deterministic tests for authoritative movement dirty replication intent.
 
-#include "SagaServer/Networking/Replication/MovementDirtyReplicationBridge.h"
-#include "SagaServer/Networking/Server/ZoneServer.h"
+#include "SagaEngine/Replication/MovementDirtyReplicationBridge.h"
+#include "SagaEngine/ServerAuthority/ZoneServer.h"
 
 #include "SagaEngine/Input/Commands/InputCommandSerializer.h"
 
@@ -21,17 +21,17 @@ using SagaEngine::Input::InputCommandSerializer;
 using SagaEngine::Input::MakeInputCommand;
 using SagaEngine::Networking::ClientId;
 using SagaEngine::Networking::PacketType;
-using SagaEngine::Networking::Replication::MovementDirtyReplicationBridge;
-using SagaEngine::Networking::Replication::MovementDirtyReplicationIntent;
-using SagaEngine::Server::Simulation::ActorOwnershipResult;
-using SagaEngine::Server::Simulation::AuthoritativeMovementCommandIntakeDecision;
-using SagaEngine::Server::Simulation::AuthoritativeMovementDecision;
-using SagaEngine::Server::Simulation::AuthoritativeMovementTickReport;
-using SagaEngine::Server::Simulation::EntityId;
-using SagaEngine::Server::Simulation::Vector3;
-using SagaServer::Networking::ServerPacketNormalizationStatus;
-using SagaServer::Networking::ZoneServer;
-using SagaServer::Networking::ZoneServerConfig;
+using SagaEngine::Replication::MovementDirtyReplicationBridge;
+using SagaEngine::Replication::MovementDirtyReplicationIntent;
+using SagaEngine::ServerAuthority::Simulation::ActorOwnershipResult;
+using SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementCommandIntakeDecision;
+using SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementDecision;
+using SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementTickReport;
+using SagaEngine::ServerAuthority::Simulation::EntityId;
+using SagaEngine::ServerAuthority::Simulation::Vector3;
+using SagaEngine::Networking::ServerPacketNormalizationStatus;
+using SagaEngine::ServerAuthority::ZoneServer;
+using SagaEngine::ServerAuthority::ZoneServerConfig;
 
 constexpr ClientId kClient = 41;
 constexpr EntityId kEntity = 8101;
@@ -40,10 +40,10 @@ std::vector<std::uint8_t> MakeFrame(PacketType packetType,
                                     const std::vector<std::uint8_t>& payload)
 {
     std::vector<std::uint8_t> frame(
-        SagaServer::Networking::kServerPacketFrameHeaderSize + payload.size());
+        SagaEngine::Networking::kServerPacketFrameHeaderSize + payload.size());
 
     const std::uint16_t magic =
-        SagaServer::Networking::kServerPacketFrameMagic;
+        SagaEngine::Networking::kServerPacketFrameMagic;
     const std::uint32_t bodyLength =
         static_cast<std::uint32_t>(payload.size());
 
@@ -54,7 +54,7 @@ std::vector<std::uint8_t> MakeFrame(PacketType packetType,
     if (!payload.empty())
     {
         std::memcpy(
-            frame.data() + SagaServer::Networking::kServerPacketFrameHeaderSize,
+            frame.data() + SagaEngine::Networking::kServerPacketFrameHeaderSize,
             payload.data(),
             payload.size());
     }

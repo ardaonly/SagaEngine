@@ -2,7 +2,7 @@
 #include <memory>
 #include <functional>
 #include <string>
-namespace SagaEditor::VisualScripting {
+namespace SagaEditor::VisualBlocks {
 class NodeGraphToolbar {
 public:
     
@@ -14,4 +14,4 @@ void AddAction(const std::string& id, const std::string& label,
 private:
     struct Impl; std::unique_ptr<Impl> m_impl;
 };
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

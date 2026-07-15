@@ -1,7 +1,7 @@
 /// @file SchemaVersion.h
 /// @brief Versioning metadata for snapshot / RPC wire schemas.
 ///
-/// Layer  : SagaServer / Networking / Replication
+/// Layer  : SagaEngine / Replication
 /// Purpose: An MMO's wire format is not stable — components get added,
 ///          fields get renamed, enums get extended.  We need three things
 ///          at once:

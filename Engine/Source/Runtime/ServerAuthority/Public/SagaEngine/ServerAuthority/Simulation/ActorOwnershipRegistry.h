@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "SagaServer/Simulation/InputCommandQueue.h"
-#include "SagaServer/Simulation/MovementValidator.h"
+#include "SagaEngine/ServerAuthority/Simulation/InputCommandQueue.h"
+#include "SagaEngine/ServerAuthority/Simulation/MovementValidator.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -12,7 +12,7 @@
 #include <optional>
 #include <unordered_map>
 
-namespace SagaEngine::Server::Simulation
+namespace SagaEngine::ServerAuthority::Simulation
 {
 
 /// Actor controlled by one connected client.
@@ -65,4 +65,4 @@ private:
     std::unordered_map<EntityId, ClientId>        m_ByEntity;
 };
 
-} // namespace SagaEngine::Server::Simulation
+} // namespace SagaEngine::ServerAuthority::Simulation

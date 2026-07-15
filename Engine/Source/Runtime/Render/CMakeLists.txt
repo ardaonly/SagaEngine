@@ -1,1 +1,97 @@
-# Source ownership is registered through SagaModule.cmake.
+saga_add_runtime_module(Render
+    MODULE_DIR Engine/Source/Runtime/Render
+    TARGET SagaEngine
+    SOURCES
+        Private/SagaEngine/Render/Assets/RenderAssetManifest.cpp
+        Private/SagaEngine/Render/Bridge/NetEntityBinding.cpp
+        Private/SagaEngine/Render/CommandRecording/CommandBuffer.cpp
+        Private/SagaEngine/Render/CommandRecording/CommandBuffer.h
+        Private/SagaEngine/Render/CommandRecording/CommandRecorder.h
+        Private/SagaEngine/Render/Culling/CullingPipeline.cpp
+        Private/SagaEngine/Render/FrameGraphExecutor.cpp
+        Private/SagaEngine/Render/FrameGraphExecutor.h
+        Private/SagaEngine/Render/Materials/MaterialGraphContract.cpp
+        Private/SagaEngine/Render/Materials/MaterialRuntimeContract.cpp
+        Private/SagaEngine/Render/RenderCommand.cpp
+        Private/SagaEngine/Render/RenderGraph/RGCompilation.cpp
+        Private/SagaEngine/Render/RenderGraph/RGCompilation.h
+        Private/SagaEngine/Render/RenderGraph/RenderGraph.cpp
+        Private/SagaEngine/Render/RenderGraph/RenderGraphFrameExecutor.cpp
+        Private/SagaEngine/Render/RenderGraph/RenderGraphFrameExecutor.h
+        Private/SagaEngine/Render/RenderPass.cpp
+        Private/SagaEngine/Render/RenderPasses/GBufferPass.h
+        Private/SagaEngine/Render/RenderPasses/LightingPass.h
+        Private/SagaEngine/Render/RenderSubsystem.cpp
+        Private/SagaEngine/Render/Renderer.cpp
+        Private/SagaEngine/Render/Renderer.h
+        Private/SagaEngine/Render/Scene/RenderFrameSnapshot.cpp
+        Private/SagaEngine/Render/Shaders/ShaderPipelineContract.cpp
+        Private/SagaEngine/Render/Shaders/ShaderVariantBudget.cpp
+        Private/SagaEngine/Render/Streaming/RenderStreamingResidency.cpp
+        Private/SagaEngine/Render/World/RenderInterestWorldStreaming.cpp
+        Private/SagaEngine/Render/World/RenderWorld.cpp
+        Public/SagaEngine/Render/Assets/RenderAssetManifest.h
+        Public/SagaEngine/Render/Backend/IRenderBackend.h
+        Public/SagaEngine/Render/Backend/RenderBackendFactory.h
+        Public/SagaEngine/Render/Bridge/NetEntityBinding.h
+        Public/SagaEngine/Render/Culling/CullingPipeline.h
+        Public/SagaEngine/Render/LOD/LODSelector.h
+        Public/SagaEngine/Render/Materials/Material.h
+        Public/SagaEngine/Render/Materials/MaterialGraphContract.h
+        Public/SagaEngine/Render/Materials/MaterialRuntimeContract.h
+        Public/SagaEngine/Render/Materials/MeshAsset.h
+        Public/SagaEngine/Render/RenderCore.h
+        Public/SagaEngine/Render/RenderGraph/RGPass.h
+        Public/SagaEngine/Render/RenderGraph/RGTypes.h
+        Public/SagaEngine/Render/RenderGraph/RenderGraph.h
+        Public/SagaEngine/Render/RenderPasses/PostProcessGraph.h
+        Public/SagaEngine/Render/RenderPasses/ShadowMap.h
+        Public/SagaEngine/Render/RenderPipelineConfig.h
+        Public/SagaEngine/Render/RenderSubsystem.h
+        Public/SagaEngine/Render/Scene/Camera.h
+        Public/SagaEngine/Render/Scene/FrameContext.h
+        Public/SagaEngine/Render/Scene/Frustum.h
+        Public/SagaEngine/Render/Scene/RenderFrameSnapshot.h
+        Public/SagaEngine/Render/Scene/RenderView.h
+        Public/SagaEngine/Render/Shaders/ShaderPipelineContract.h
+        Public/SagaEngine/Render/Shaders/ShaderVariantBudget.h
+        Public/SagaEngine/Render/Streaming/RenderStreamingResidency.h
+        Public/SagaEngine/Render/World/RenderEntity.h
+        Public/SagaEngine/Render/World/RenderInterestWorldStreaming.h
+        Public/SagaEngine/Render/World/RenderWorld.h
+)
+
+saga_add_runtime_module(Render
+    MODULE_DIR Engine/Source/Runtime/Render
+    TARGET SagaDiligentBackend
+    SOURCES
+        Private/SagaEngine/Render/Backend/Diligent/DiligentBackendTargetAnchor.cpp
+)
+
+saga_add_runtime_module(Render
+    MODULE_DIR Engine/Source/Runtime/Render
+    TARGET SagaDiligentRuntime
+    SOURCES
+        Private/SagaEngine/Render/Backend/Diligent/DiligentDeviceServices.h
+        Private/SagaEngine/Render/Backend/Diligent/DiligentFrameCapture.cpp
+        Private/SagaEngine/Render/Backend/Diligent/DiligentFrameCapture.h
+        Private/SagaEngine/Render/Backend/Diligent/DiligentFrameSlotTracker.cpp
+        Private/SagaEngine/Render/Backend/Diligent/DiligentFrameSlotTracker.h
+        Private/SagaEngine/Render/Backend/Diligent/DiligentGpuTimeline.cpp
+        Private/SagaEngine/Render/Backend/Diligent/DiligentGpuTimeline.h
+        Private/SagaEngine/Render/Backend/Diligent/DiligentNativeResourceOwner.cpp
+        Private/SagaEngine/Render/Backend/Diligent/DiligentNativeResourceOwner.h
+        Private/SagaEngine/Render/Backend/Diligent/DiligentNativeResourceToken.h
+        Private/SagaEngine/Render/Backend/Diligent/DiligentOverlayRenderer.cpp
+        Private/SagaEngine/Render/Backend/Diligent/DiligentOverlayRenderer.h
+        Private/SagaEngine/Render/Backend/Diligent/DiligentOverlayTextureRegistry.h
+        Private/SagaEngine/Render/Backend/Diligent/DiligentPipelineCache.cpp
+        Private/SagaEngine/Render/Backend/Diligent/DiligentPipelineCache.h
+        Private/SagaEngine/Render/Backend/Diligent/DiligentRenderBackend.cpp
+        Private/SagaEngine/Render/Backend/Diligent/DiligentRenderBackend.h
+        Private/SagaEngine/Render/Backend/Diligent/DiligentRenderBackendFrame.cpp
+        Private/SagaEngine/Render/Backend/Diligent/DiligentRenderBackendOverlayApi.cpp
+        Private/SagaEngine/Render/Backend/Diligent/DiligentRenderBackendPrivate.h
+        Private/SagaEngine/Render/Backend/Diligent/DiligentRenderBackendResources.cpp
+        Private/SagaEngine/Render/Backend/Diligent/DiligentRenderBackendSubmit.cpp
+)

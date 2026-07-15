@@ -429,13 +429,13 @@ Status: Proposed.
 Example:
 
 ```toml
-[profiles.editor-preview]
+[profiles.editor-evaluation]
 config = "Debug"
 target = "SagaEditor"
 strict = false
 scripts = true
 assets = true
-package = "editor-preview"
+package = "editor-evaluation"
 
 [profiles.ci]
 config = "Debug"
@@ -458,7 +458,7 @@ publishCheck = true
 Required profile names for Saga projects:
 
 ```txt
-editor-preview
+editor-evaluation
 dev-client
 dev-server
 dev-local-client-server
@@ -506,7 +506,7 @@ Example:
 [saga]
 projectManifest = "saga.project.json"
 workspaceRoot = "."
-defaultProfile = "editor-preview"
+defaultProfile = "editor-evaluation"
 ```
 
 Fields:
@@ -536,7 +536,7 @@ Good:
 ```toml
 [saga]
 projectManifest = "saga.project.json"
-defaultProfile = "editor-preview"
+defaultProfile = "editor-evaluation"
 ```
 
 ---
@@ -699,11 +699,11 @@ Example:
 ```toml
 [package]
 out = "Packages"
-default = "editor-preview"
+default = "editor-evaluation"
 
-[package.profiles.editor-preview]
-kind = "editor-preview"
-out = "Packages/editor-preview"
+[package.profiles.editor-evaluation]
+kind = "editor-evaluation"
+out = "Packages/editor-evaluation"
 
 [package.profiles.dev-client]
 kind = "client"
@@ -744,7 +744,7 @@ Package profile fields:
 Allowed package kinds:
 
 ```txt
-editor-preview
+editor-evaluation
 client
 server
 full
@@ -956,7 +956,7 @@ mode = "conan"
 
 [saga]
 projectManifest = "saga.project.json"
-defaultProfile = "editor-preview"
+defaultProfile = "editor-evaluation"
 
 mode = "compile"
 
@@ -972,11 +972,11 @@ build = "Build/Reports/build_report.json"
 diagnostics = "Build/Reports/diagnostics_report.json"
 publish = "Build/Reports/publish_report.json"
 
-[profiles.editor-preview]
+[profiles.editor-evaluation]
 config = "Debug"
 target = "SagaEditor"
 strict = false
-package = "editor-preview"
+package = "editor-evaluation"
 
 [profiles.ci]
 config = "Debug"
@@ -1031,7 +1031,7 @@ lockfile = "forge.lock"
 
 [saga]
 projectManifest = "saga.project.json"
-defaultProfile = "editor-preview"
+defaultProfile = "editor-evaluation"
 
 mode = "compile"
 
@@ -1058,11 +1058,11 @@ generatedOrigin = true
 
 [package]
 out = "Packages"
-default = "editor-preview"
+default = "editor-evaluation"
 
-[package.profiles.editor-preview]
-kind = "editor-preview"
-out = "Packages/editor-preview"
+[package.profiles.editor-evaluation]
+kind = "editor-evaluation"
+out = "Packages/editor-evaluation"
 
 [package.profiles.dev-client]
 kind = "client"
@@ -1119,7 +1119,7 @@ Build/Artifacts/Scripts/
 Build/Artifacts/Assets/
 Build/Manifests/
 Build/Reports/
-Packages/editor-preview/
+Packages/editor-evaluation/
 Packages/dev-client/
 Packages/dev-server/
 Packages/shipping-client/

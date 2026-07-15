@@ -8,8 +8,8 @@
 #include "SagaEngine/Diagnostics/Health/HealthRule.hpp"
 #include "SagaEngine/Diagnostics/Report/DiagnosticReportWriter.hpp"
 #include "SagaEngine/Input/Commands/InputCommandSerializer.h"
-#include "SagaServer/Networking/Core/NetworkChaosLayer.h"
-#include "SagaServer/Networking/Server/ZoneServer.h"
+#include "SagaEngine/Networking/NetworkChaosLayer.h"
+#include "SagaEngine/ServerAuthority/ZoneServer.h"
 
 #include <chrono>
 #include <cstdint>
@@ -36,15 +36,15 @@ using SagaEngine::Input::InputCommandSerializer;
 using SagaEngine::Input::MakeInputCommand;
 using SagaEngine::Networking::ClientId;
 using SagaEngine::Networking::PacketType;
-using SagaEngine::Server::Simulation::ActorOwnershipResult;
-using SagaEngine::Server::Simulation::EntityId;
-using SagaEngine::Server::Simulation::Vector3;
-using SagaServer::Networking::NetworkChaosConfig;
-using SagaServer::Networking::NetworkChaosFrame;
-using SagaServer::Networking::NetworkChaosLayer;
-using SagaServer::Networking::ServerPacketNormalizationStatus;
-using SagaServer::Networking::ZoneServer;
-using SagaServer::Networking::ZoneServerConfig;
+using SagaEngine::ServerAuthority::Simulation::ActorOwnershipResult;
+using SagaEngine::ServerAuthority::Simulation::EntityId;
+using SagaEngine::ServerAuthority::Simulation::Vector3;
+using SagaEngine::Networking::NetworkChaosConfig;
+using SagaEngine::Networking::NetworkChaosFrame;
+using SagaEngine::Networking::NetworkChaosLayer;
+using SagaEngine::Networking::ServerPacketNormalizationStatus;
+using SagaEngine::ServerAuthority::ZoneServer;
+using SagaEngine::ServerAuthority::ZoneServerConfig;
 namespace CrashReportKinds = SagaEngine::Diagnostics::CrashReportKinds;
 
 constexpr int kExitSuccess = 0;
@@ -197,10 +197,10 @@ void RecordMemoryResourceProof(DiagnosticSystem& diagnostics,
     const std::vector<std::uint8_t>& payload)
 {
     std::vector<std::uint8_t> frame(
-        SagaServer::Networking::kServerPacketFrameHeaderSize + payload.size());
+        SagaEngine::Networking::kServerPacketFrameHeaderSize + payload.size());
 
     const std::uint16_t magic =
-        SagaServer::Networking::kServerPacketFrameMagic;
+        SagaEngine::Networking::kServerPacketFrameMagic;
     const std::uint32_t bodyLength =
         static_cast<std::uint32_t>(payload.size());
 
@@ -211,7 +211,7 @@ void RecordMemoryResourceProof(DiagnosticSystem& diagnostics,
     if (!payload.empty())
     {
         std::memcpy(
-            frame.data() + SagaServer::Networking::kServerPacketFrameHeaderSize,
+            frame.data() + SagaEngine::Networking::kServerPacketFrameHeaderSize,
             payload.data(),
             payload.size());
     }

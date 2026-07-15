@@ -159,11 +159,11 @@ internal sealed class SourceTruthGateReport : ProjectReport
     public string Enforcement { get; init; } = "ReportOnly";
 }
 
-internal sealed class Hedef4OpeningReport : ProjectReport
+internal sealed class AssetWorkflowOpeningReport : ProjectReport
 {
     public string Outcome { get; init; } = "PartiallyProven";
-    public List<string> OpenedPhases { get; init; } = [];
-    public List<string> ReservedFollowUpPhases { get; init; } = [];
+    public List<string> OpenedResponsibilities { get; init; } = [];
+    public List<string> ReservedFollowUps { get; init; } = [];
     public string InventoryStatus { get; init; } = "";
     public string GateStatus { get; init; } = "";
     public List<string> Docs { get; init; } = [];
@@ -272,11 +272,11 @@ internal sealed class SourceTruthScenarioReport : ReportOnlyProjectReport
     public List<string> NonClaims { get; init; } = [];
 }
 
-internal sealed class ClientPreviewPrerequisiteAuditReport : ReportOnlyProjectReport
+internal sealed class ClientEvaluationPrerequisiteAuditReport : ReportOnlyProjectReport
 {
     public string Outcome { get; init; } = "MissingEvidence";
     public string EvidenceRoot { get; init; } = "";
-    public string ClientPreviewStatus { get; init; } = "Deferred";
+    public string ClientEvaluationStatus { get; init; } = "Deferred";
     public List<ScenarioEvidenceItem> PriorEvidence { get; init; } = [];
     public List<SourceTruthGateCheck> Checks { get; init; } = [];
     public List<FutureSeamItem> RequiredFutureSeams { get; init; } = [];
@@ -288,8 +288,8 @@ internal sealed class ClientPreviewPrerequisiteAuditReport : ReportOnlyProjectRe
 internal sealed class ClientHostBoundaryPlanReport : ReportOnlyProjectReport
 {
     public string Outcome { get; init; } = "MissingEvidence";
-    public string FutureSeamName { get; init; } = "ClientPreviewRuntimeReadSeam";
-    public string ClientPreviewStatus { get; init; } = "Deferred";
+    public string FutureSeamName { get; init; } = "ClientEvaluationRuntimeReadSeam";
+    public string ClientEvaluationStatus { get; init; } = "Deferred";
     public string PrerequisiteStatus { get; init; } = "MissingEvidence";
     public List<FutureBoundaryInputItem> FutureInputs { get; init; } = [];
     public List<string> ForbiddenDirectOwnership { get; init; } = [];
@@ -318,7 +318,7 @@ internal sealed class BroadTestHealthPreflightReport : ReportOnlyProjectReport
     public List<string> NonClaims { get; init; } = [];
 }
 
-internal sealed class Hedef4EvidenceMatrixReport : ReportOnlyProjectReport
+internal sealed class AssetWorkflowEvidenceMatrixReport : ReportOnlyProjectReport
 {
     public string Outcome { get; init; } = "MissingEvidence";
     public string EvidenceRoot { get; init; } = "";
@@ -327,7 +327,7 @@ internal sealed class Hedef4EvidenceMatrixReport : ReportOnlyProjectReport
     public List<string> NonClaims { get; init; } = [];
 }
 
-internal sealed class Hedef4ClosureReport : ReportOnlyProjectReport
+internal sealed class AssetWorkflowClosureReport : ReportOnlyProjectReport
 {
     public string Outcome { get; init; } = "Blocked";
     public string EvidenceRoot { get; init; } = "";
@@ -345,7 +345,7 @@ internal sealed class RuntimeReadinessV2Report : ReportOnlyProjectReport
     public string PlanningScope { get; init; } = "Runtime read seam implementation planning only.";
     public string RuntimeImplementationClaim { get; init; } = "NotImplemented";
     public string ClientHostImplementationClaim { get; init; } = "NotImplemented";
-    public string ClientPreviewStatus { get; init; } = "Deferred";
+    public string ClientEvaluationStatus { get; init; } = "Deferred";
     public List<RuntimeReadinessEvidenceItem> RequiredEvidence { get; init; } = [];
     public List<RuntimeReadAdapterAuditItem> AdapterAudit { get; init; } = [];
     public List<RuntimeReadInputItem> FutureReadableInputs { get; init; } = [];
@@ -357,12 +357,12 @@ internal sealed class RuntimeReadinessV2Report : ReportOnlyProjectReport
     public List<string> NonClaims { get; init; } = [];
 }
 
-internal sealed class ClientHostPreviewOwnershipBoundaryReport : ReportOnlyProjectReport
+internal sealed class ClientHostEvaluationOwnershipBoundaryReport : ReportOnlyProjectReport
 {
     public string ReadinessStatus { get; init; } = "MissingEvidence";
     public string RuntimeReadinessV2Status { get; init; } = "MissingEvidence";
     public string ClientHostImplementationClaim { get; init; } = "NotImplemented";
-    public string ClientPreviewStatus { get; init; } = "Deferred";
+    public string ClientEvaluationStatus { get; init; } = "Deferred";
     public List<FutureBoundaryInputItem> AllowedFutureInputs { get; init; } = [];
     public List<string> ForbiddenDirectOwnership { get; init; } = [];
     public List<string> DeferredSystems { get; init; } = [];
@@ -370,12 +370,12 @@ internal sealed class ClientHostPreviewOwnershipBoundaryReport : ReportOnlyProje
     public List<string> NonClaims { get; init; } = [];
 }
 
-internal sealed class ClientPreviewLaunchProfileContractReport : ReportOnlyProjectReport
+internal sealed class ClientEvaluationLaunchProfileContractReport : ReportOnlyProjectReport
 {
     public string ReadinessStatus { get; init; } = "MissingEvidence";
     public string RuntimeReadinessV2Status { get; init; } = "MissingEvidence";
-    public string ClientPreviewStatus { get; init; } = "Deferred";
-    public string PlannedProfileId { get; init; } = "client-preview-local-no-network";
+    public string ClientEvaluationStatus { get; init; } = "Deferred";
+    public string PlannedProfileId { get; init; } = "client-evaluation-local-no-network";
     public string PlannedProfileStatus { get; init; } = "DeferredProfileNotImplemented";
     public List<LaunchProfileContractItem> CurrentLaunchProfiles { get; init; } = [];
     public List<LaunchProfileContractItem> CurrentPackageProfiles { get; init; } = [];
@@ -385,10 +385,10 @@ internal sealed class ClientPreviewLaunchProfileContractReport : ReportOnlyProje
     public List<string> NonClaims { get; init; } = [];
 }
 
-internal sealed class ClientPreviewNoNetworkPlanReport : ReportOnlyProjectReport
+internal sealed class ClientEvaluationNoNetworkPlanReport : ReportOnlyProjectReport
 {
     public string ReadinessStatus { get; init; } = "PartiallyProven";
-    public string ClientPreviewStatus { get; init; } = "Deferred";
+    public string ClientEvaluationStatus { get; init; } = "Deferred";
     public string NoNetworkModeStatus { get; init; } = "PlanOnly";
     public List<SourceTruthGateCheck> NoNetworkDefinition { get; init; } = [];
     public List<RuntimeReadInputItem> AllowedLaterSimulatedInputs { get; init; } = [];
@@ -398,7 +398,7 @@ internal sealed class ClientPreviewNoNetworkPlanReport : ReportOnlyProjectReport
     public List<string> NonClaims { get; init; } = [];
 }
 
-internal sealed class ClientPreviewDiagnosticsShellReport : ReportOnlyProjectReport
+internal sealed class ClientEvaluationDiagnosticsShellReport : ReportOnlyProjectReport
 {
     public string ReadinessStatus { get; init; } = "MissingEvidence";
     public string EvidenceRoot { get; init; } = "";
@@ -412,15 +412,15 @@ internal sealed class ClientPreviewDiagnosticsShellReport : ReportOnlyProjectRep
     public List<string> ImplementationBlockers { get; init; } = [];
 }
 
-internal sealed class ClientPreviewBlockerMatrixReport : ReportOnlyProjectReport
+internal sealed class ClientEvaluationBlockerMatrixReport : ReportOnlyProjectReport
 {
     public string ReadinessStatus { get; init; } = "MissingEvidence";
     public string EvidenceRoot { get; init; } = "";
-    public string ClientPreviewImplementationClaim { get; init; } = "NotImplemented";
+    public string ClientEvaluationImplementationClaim { get; init; } = "NotImplemented";
     public string ClientHostImplementationClaim { get; init; } = "NotImplemented";
     public string RuntimeImplementationClaim { get; init; } = "NotImplemented";
     public List<ReportEvidenceStatusItem> RequiredReports { get; init; } = [];
-    public List<ClientPreviewBlockerMatrixRow> Blockers { get; init; } = [];
+    public List<ClientEvaluationBlockerMatrixRow> Blockers { get; init; } = [];
     public List<string> NonClaims { get; init; } = [];
 }
 
@@ -430,7 +430,7 @@ internal sealed class MinimalRuntimeReadSeamPlanReport : ReportOnlyProjectReport
     public string EvidenceRoot { get; init; } = "";
     public string RuntimeImplementationClaim { get; init; } = "NotImplemented";
     public string ClientHostImplementationClaim { get; init; } = "NotImplemented";
-    public string ClientPreviewImplementationClaim { get; init; } = "NotImplemented";
+    public string ClientEvaluationImplementationClaim { get; init; } = "NotImplemented";
     public string FutureSeamName { get; init; } = "RuntimeReadSeamV1";
     public List<ReportEvidenceStatusItem> RequiredReports { get; init; } = [];
     public List<RuntimeReadInputItem> FirstRuntimeConsumedSourceTruth { get; init; } = [];
@@ -443,31 +443,31 @@ internal sealed class MinimalRuntimeReadSeamPlanReport : ReportOnlyProjectReport
     public List<string> NonClaims { get; init; } = [];
 }
 
-internal sealed class MinimalClientHostPreviewShellPlanReport : ReportOnlyProjectReport
+internal sealed class MinimalClientHostEvaluationShellPlanReport : ReportOnlyProjectReport
 {
     public string ReadinessStatus { get; init; } = "MissingEvidence";
     public string EvidenceRoot { get; init; } = "";
     public string ClientHostImplementationClaim { get; init; } = "NotImplemented";
     public string RuntimeImplementationClaim { get; init; } = "NotImplemented";
-    public string ClientPreviewImplementationClaim { get; init; } = "NotImplemented";
-    public string FutureSeamName { get; init; } = "ClientHostPreviewShellV1";
+    public string ClientEvaluationImplementationClaim { get; init; } = "NotImplemented";
+    public string FutureSeamName { get; init; } = "ClientHostEvaluationShellV1";
     public List<ReportEvidenceStatusItem> RequiredReports { get; init; } = [];
-    public List<PreviewOwnershipItem> ClientHostFutureOwnership { get; init; } = [];
-    public List<PreviewOwnershipItem> RuntimeFutureOwnership { get; init; } = [];
-    public List<PreviewOwnershipItem> LaunchProfileFutureOwnership { get; init; } = [];
+    public List<EvaluationOwnershipItem> ClientHostFutureOwnership { get; init; } = [];
+    public List<EvaluationOwnershipItem> RuntimeFutureOwnership { get; init; } = [];
+    public List<EvaluationOwnershipItem> LaunchProfileFutureOwnership { get; init; } = [];
     public List<string> OutsideClientHost { get; init; } = [];
     public List<string> StartupDiagnosticsWithoutGameplay { get; init; } = [];
     public List<string> NonClaims { get; init; } = [];
 }
 
-internal sealed class PackageLaunchPreviewAlignmentPlanReport : ReportOnlyProjectReport
+internal sealed class PackageLaunchEvaluationAlignmentPlanReport : ReportOnlyProjectReport
 {
     public string ReadinessStatus { get; init; } = "MissingEvidence";
     public string EvidenceRoot { get; init; } = "";
-    public string ClientPreviewImplementationClaim { get; init; } = "NotImplemented";
-    public string RequiredLaunchProfileId { get; init; } = "client-preview-local-no-network";
+    public string ClientEvaluationImplementationClaim { get; init; } = "NotImplemented";
+    public string RequiredLaunchProfileId { get; init; } = "client-evaluation-local-no-network";
     public string RequiredLaunchProfileStatus { get; init; } = "DeferredProfileNotImplemented";
-    public string RequiredPackageProfileId { get; init; } = "technical-preview-client-preview-local";
+    public string RequiredPackageProfileId { get; init; } = "project-readiness-client-evaluation-local";
     public string RequiredPackageProfileStatus { get; init; } = "DeferredProfileNotImplemented";
     public List<ReportEvidenceStatusItem> RequiredReports { get; init; } = [];
     public List<LaunchProfileContractItem> CurrentLaunchProfiles { get; init; } = [];
@@ -478,11 +478,11 @@ internal sealed class PackageLaunchPreviewAlignmentPlanReport : ReportOnlyProjec
     public List<string> NonClaims { get; init; } = [];
 }
 
-internal sealed class EditorlessPreviewWorkflowPlanReport : ReportOnlyProjectReport
+internal sealed class EditorlessEvaluationWorkflowPlanReport : ReportOnlyProjectReport
 {
     public string ReadinessStatus { get; init; } = "MissingEvidence";
     public string EvidenceRoot { get; init; } = "";
-    public string ClientPreviewImplementationClaim { get; init; } = "NotImplemented";
+    public string ClientEvaluationImplementationClaim { get; init; } = "NotImplemented";
     public string PlayableEditorClaim { get; init; } = "NotClaimed";
     public string FutureTrigger { get; init; } = "Future CLI/report workflow only.";
     public List<ReportEvidenceStatusItem> RequiredReports { get; init; } = [];
@@ -492,13 +492,13 @@ internal sealed class EditorlessPreviewWorkflowPlanReport : ReportOnlyProjectRep
     public List<string> NonClaims { get; init; } = [];
 }
 
-internal sealed class PreviewEvidenceGateReport : ReportOnlyProjectReport
+internal sealed class EvaluationEvidenceGateReport : ReportOnlyProjectReport
 {
     public string ReadinessStatus { get; init; } = "MissingEvidence";
     public string EvidenceRoot { get; init; } = "";
     public string RuntimeImplementationClaim { get; init; } = "NotImplemented";
     public string ClientHostImplementationClaim { get; init; } = "NotImplemented";
-    public string ClientPreviewImplementationClaim { get; init; } = "NotImplemented";
+    public string ClientEvaluationImplementationClaim { get; init; } = "NotImplemented";
     public List<ReportEvidenceStatusItem> RequiredReports { get; init; } = [];
     public List<SourceTruthGateCheck> Checks { get; init; } = [];
     public List<string> DeferredImplementationWork { get; init; } = [];
@@ -513,7 +513,7 @@ internal sealed class AssetImportCookPrerequisiteReport : ReportOnlyProjectRepor
     public string AssetCookImplementationClaim { get; init; } = "NotImplemented";
     public List<ReportEvidenceStatusItem> RequiredEvidence { get; init; } = [];
     public List<PrerequisiteEvidenceItem> AssetSourceTruth { get; init; } = [];
-    public List<ResolvedAssetReferenceItem> AcceptedFuturePreviewReferences { get; init; } = [];
+    public List<ResolvedAssetReferenceItem> AcceptedFutureEvaluationReferences { get; init; } = [];
     public List<PrerequisiteEvidenceItem> EvidenceOnlyArtifacts { get; init; } = [];
     public List<PipelinePrerequisiteItem> MissingPipelines { get; init; } = [];
     public List<SourceTruthGateCheck> Checks { get; init; } = [];
@@ -524,11 +524,11 @@ internal sealed class RuntimeAssetConsumptionPrerequisiteReport : ReportOnlyProj
 {
     public string ReadinessStatus { get; init; } = "MissingEvidence";
     public string SourceTruthRoot { get; init; } = "";
-    public string PreviewRoot { get; init; } = "";
+    public string EvaluationRoot { get; init; } = "";
     public string RuntimeAssetConsumptionSeamClaim { get; init; } = "NotImplemented";
     public string RuntimeImplementationClaim { get; init; } = "NotImplemented";
     public List<ReportEvidenceStatusItem> RequiredEvidence { get; init; } = [];
-    public List<RuntimeReadInputItem> FutureRuntimePreviewAssetNeeds { get; init; } = [];
+    public List<RuntimeReadInputItem> FutureRuntimeEvaluationAssetNeeds { get; init; } = [];
     public List<ResolvedAssetReferenceItem> AcceptedAssetReferences { get; init; } = [];
     public List<RuntimeForbiddenSourceTruthItem> ForbiddenRuntimeAssetInputs { get; init; } = [];
     public List<RuntimeReadAdapterAuditItem> MissingRuntimeAssetConsumptionSeams { get; init; } = [];
@@ -551,20 +551,20 @@ internal sealed class RuntimeProjectionFreshnessGateReport : ReportOnlyProjectRe
     public List<string> NonClaims { get; init; } = [];
 }
 
-internal sealed class ClientPreviewRegressionFixturePlanReport : ReportOnlyProjectReport
+internal sealed class ClientEvaluationRegressionFixturePlanReport : ReportOnlyProjectReport
 {
     public string ReadinessStatus { get; init; } = "MissingEvidence";
-    public string PreviewRoot { get; init; } = "";
+    public string EvaluationRoot { get; init; } = "";
     public List<ReportEvidenceStatusItem> RequiredReports { get; init; } = [];
-    public List<ClientPreviewRegressionFixtureItem> Fixtures { get; init; } = [];
+    public List<ClientEvaluationRegressionFixtureItem> Fixtures { get; init; } = [];
     public List<string> ForbiddenExecution { get; init; } = [];
     public List<string> NonClaims { get; init; } = [];
 }
 
-internal sealed class PreviewFocusedTestHealthGateReport : ReportOnlyProjectReport
+internal sealed class EvaluationFocusedTestHealthGateReport : ReportOnlyProjectReport
 {
     public string ReadinessStatus { get; init; } = "MissingEvidence";
-    public string PreviewRoot { get; init; } = "";
+    public string EvaluationRoot { get; init; } = "";
     public string RawFullCTestClaim { get; init; } = "Unclaimed";
     public string HeavyStressClaim { get; init; } = "Unclaimed";
     public string RealTransportProofClaim { get; init; } = "Unclaimed";
@@ -594,7 +594,7 @@ internal sealed class PipelinePrerequisiteItem
     public string Status { get; init; } = "NotImplemented";
 }
 
-internal sealed class ClientPreviewRegressionFixtureItem
+internal sealed class ClientEvaluationRegressionFixtureItem
 {
     public string FixtureId { get; init; } = "";
     public List<string> RequiredEvidence { get; init; } = [];
@@ -606,7 +606,7 @@ internal sealed class ClientPreviewRegressionFixtureItem
 internal sealed class RuntimeReadinessEvidenceItem
 {
     public string EvidenceId { get; init; } = "";
-    public string PhaseRange { get; init; } = "";
+    public string EvidenceScope { get; init; } = "";
     public string Command { get; init; } = "";
     public string Path { get; init; } = "";
     public string SourceStatus { get; init; } = "Missing";
@@ -649,7 +649,7 @@ internal sealed class ReportEvidenceStatusItem
     public bool Required { get; init; } = true;
 }
 
-internal sealed class ClientPreviewBlockerMatrixRow
+internal sealed class ClientEvaluationBlockerMatrixRow
 {
     public string BlockerId { get; init; } = "";
     public string Area { get; init; } = "";
@@ -659,7 +659,7 @@ internal sealed class ClientPreviewBlockerMatrixRow
     public string Summary { get; init; } = "";
 }
 
-internal sealed class PreviewOwnershipItem
+internal sealed class EvaluationOwnershipItem
 {
     public string Owner { get; init; } = "";
     public string Responsibility { get; init; } = "";
@@ -773,7 +773,7 @@ internal sealed class TestHealthEvidenceItem
 internal sealed class EvidenceMatrixItem
 {
     public string EvidenceId { get; init; } = "";
-    public string PhaseRange { get; init; } = "";
+    public string EvidenceScope { get; init; } = "";
     public string Path { get; init; } = "";
     public string SourceStatus { get; init; } = "Missing";
     public string MatrixStatus { get; init; } = "MissingEvidence";

@@ -187,7 +187,7 @@ const char* ToString(const DiagnosticsPanelSeverity severity) noexcept
 }
 
 DiagnosticsPanelView LoadDiagnosticsPanelView(
-    const TechnicalPreviewProjectView& project)
+    const ProjectReadinessView& project)
 {
     return LoadDiagnosticsPanelView(
         LoadProjectBrowserWorkflowView(project.manifestPath),

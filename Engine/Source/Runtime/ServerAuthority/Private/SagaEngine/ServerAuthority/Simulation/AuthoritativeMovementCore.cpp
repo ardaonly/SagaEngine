@@ -1,12 +1,12 @@
 /// @file AuthoritativeMovementCore.cpp
 /// @brief AuthoritativeMovementCore implementation.
 
-#include "SagaServer/Simulation/AuthoritativeMovementCore.h"
+#include "SagaEngine/ServerAuthority/Simulation/AuthoritativeMovementCore.h"
 
 #include <algorithm>
 #include <cmath>
 
-namespace SagaEngine::Server::Simulation
+namespace SagaEngine::ServerAuthority::Simulation
 {
 
 namespace
@@ -306,4 +306,4 @@ void AuthoritativeMovementCore::MarkDirtyLocked(EntityId entityId,
         m_DirtyEntities.push_back(entityId);
 }
 
-} // namespace SagaEngine::Server::Simulation
+} // namespace SagaEngine::ServerAuthority::Simulation

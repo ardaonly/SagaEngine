@@ -132,7 +132,7 @@ void SetEnvironment(const char* name, const std::string& value)
 
 [[nodiscard]] std::filesystem::path StarterArenaRoot()
 {
-    return SourceRoot() / "samples" / "StarterArena";
+    return SourceRoot() / "Samples" / "StarterArena";
 }
 
 [[nodiscard]] std::filesystem::path SagaScriptExecutable()
@@ -160,7 +160,7 @@ void ConfigureDotnetEnvironment()
     SetEnvironment("SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY", RuntimeBridgeAssembly());
     SetEnvironment("DOTNET_ROOT", std::filesystem::path(SAGA_DOTNET_ROOT));
     SetEnvironment("DOTNET_CLI_HOME", "/tmp/sagascript-dotnet-home-runtime-smoke");
-    SetEnvironment("NUGET_PACKAGES", "/tmp/sagascript-nuget-runtime-smoke");
+    SetEnvironment("NUGET_PACKAGES", std::filesystem::path(SAGA_NUGET_PACKAGES));
     SetEnvironment("DOTNET_CLI_TELEMETRY_OPTOUT", "1");
 
     const auto dotnetDirectory = DotnetExecutable().parent_path().string();
@@ -539,7 +539,7 @@ TEST(StarterArenaRuntimeSmokeTests, GameplayLifecycleMutatesDeterministicState)
     EXPECT_TRUE(report["gameplay"]["finalState"].value("pickupCollected", false));
     EXPECT_EQ(report["gameplay"]["finalState"].value("playerState", ""), "powered");
     EXPECT_EQ(report["gameplay"]["mutations"].size(), 3u);
-    EXPECT_EQ(report["gameplay"]["mutations"][0].value("phase", ""), "OnUpdate");
+    EXPECT_EQ(report["gameplay"]["mutations"][0].value("lifecycleEvent", ""), "OnUpdate");
     const auto& trigger = report["gameplay"]["trigger"]["playerPosition"];
     const auto& pickup = report["gameplay"]["pickup"];
     const double triggerDx = trigger.value("x", 0.0) - pickup["position"].value("x", 0.0);

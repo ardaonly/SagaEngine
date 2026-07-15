@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "SagaServer/Simulation/AuthoritativeMovementInputAdapter.h"
+#include "SagaEngine/ServerAuthority/Simulation/AuthoritativeMovementInputAdapter.h"
 #include "SagaEngine/Networking/NetworkTypes.h"
 
 #include <cstddef>
@@ -11,7 +11,7 @@
 #include <optional>
 #include <vector>
 
-namespace SagaEngine::Server::Simulation
+namespace SagaEngine::ServerAuthority::Simulation
 {
 
 /// Configuration for the normalized command-intake seam.
@@ -79,4 +79,4 @@ private:
     AuthoritativeMovementInputAdapter m_InputAdapter;
 };
 
-} // namespace SagaEngine::Server::Simulation
+} // namespace SagaEngine::ServerAuthority::Simulation

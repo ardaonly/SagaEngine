@@ -1,7 +1,7 @@
 /// @file AuthoritativeMovementInputAdapterTests.cpp
 /// @brief Unit tests for the Engine-input to server movement-core adapter.
 
-#include "SagaServer/Simulation/AuthoritativeMovementInputAdapter.h"
+#include "SagaEngine/ServerAuthority/Simulation/AuthoritativeMovementInputAdapter.h"
 
 #include <gtest/gtest.h>
 
@@ -10,12 +10,12 @@ namespace
 
 using SagaEngine::Input::FixedFromFloat;
 using SagaEngine::Input::MakeInputCommand;
-using SagaEngine::Server::Simulation::AuthoritativeMovementDecision;
-using SagaEngine::Server::Simulation::AuthoritativeMovementInputAdapter;
-using SagaEngine::Server::Simulation::AuthoritativeMovementInputAdapterConfig;
-using SagaEngine::Server::Simulation::ClientId;
-using SagaEngine::Server::Simulation::EntityId;
-using SagaEngine::Server::Simulation::Vector3;
+using SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementDecision;
+using SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementInputAdapter;
+using SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementInputAdapterConfig;
+using SagaEngine::ServerAuthority::Simulation::ClientId;
+using SagaEngine::ServerAuthority::Simulation::EntityId;
+using SagaEngine::ServerAuthority::Simulation::Vector3;
 
 constexpr ClientId kClient = 9;
 constexpr ClientId kOtherClient = 10;

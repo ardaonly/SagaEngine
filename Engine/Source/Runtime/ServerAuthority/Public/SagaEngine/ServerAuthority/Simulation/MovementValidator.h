@@ -1,7 +1,7 @@
 /// @file MovementValidator.h
 /// @brief Server-side movement anti-cheat — speed, teleport, and trajectory gating.
 ///
-/// Layer  : SagaServer / Simulation
+/// Layer  : SagaEngine / ServerAuthority
 /// Purpose: Client-predicted movement must be validated by the authoritative
 ///          server before being accepted into the simulation. MovementValidator
 ///          is a pure function object that remembers the last trusted state of
@@ -18,8 +18,8 @@
 
 #pragma once
 
-#include "SagaServer/Networking/Core/NetworkTypes.h"
-#include "SagaServer/Networking/Interest/InterestArea.h"
+#include "SagaEngine/Networking/NetworkTypes.h"
+#include "SagaEngine/Replication/Interest/InterestArea.h"
 #include "SagaEngine/ECS/Entity.h"
 
 #include <cstddef>
@@ -28,11 +28,11 @@
 #include <optional>
 #include <unordered_map>
 
-namespace SagaEngine::Server::Simulation
+namespace SagaEngine::ServerAuthority::Simulation
 {
 
 using EntityId = ECS::EntityId;
-using Vector3  = ::SagaEngine::Networking::Interest::Vector3;
+using Vector3  = ::SagaEngine::Replication::Interest::Vector3;
 
 // ─── Result Codes ─────────────────────────────────────────────────────────────
 
@@ -137,4 +137,4 @@ private:
     std::unordered_map<EntityId, EntityRecord> m_Records;
 };
 
-} // namespace SagaEngine::Server::Simulation
+} // namespace SagaEngine::ServerAuthority::Simulation

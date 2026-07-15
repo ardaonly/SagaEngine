@@ -1,7 +1,7 @@
 /// @file CrossZoneVisibility.h
 /// @brief Shared visibility of boundary entities between adjacent zones.
 ///
-/// Layer  : SagaServer / Networking / Server
+/// Layer  : SagaEngine / ServerAuthority
 /// Purpose: Zones are not isolated islands.  A player standing near a
 ///          zone boundary can *see* players, NPCs, and effects from the
 ///          neighbouring zone long before they step across.  If we only
@@ -37,7 +37,7 @@
 #pragma once
 
 #include "SagaEngine/Math/Vec3.h"
-#include "SagaServer/Networking/Server/ConnectionMigration.h" // for ZoneId
+#include "SagaEngine/ServerAuthority/ConnectionMigration.h" // for ZoneId
 
 #include <cstdint>
 #include <vector>

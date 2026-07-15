@@ -1,7 +1,7 @@
 /// @file GraphDebuggerView.cpp
 /// @brief Qt backend implementation of the visual scripting graph debugger view.
 
-#include "SagaEditor/VisualScripting/Debugger/GraphDebuggerView.h"
+#include "SagaEditor/VisualBlocks/Debugger/GraphDebuggerView.h"
 
 #include <QLabel>
 #include <QVBoxLayout>
@@ -9,7 +9,7 @@
 
 #include <memory>
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 struct GraphDebuggerView::Impl
@@ -56,4 +56,4 @@ void GraphDebuggerView::OnInit() {}
 
 void GraphDebuggerView::OnShutdown() {}
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

@@ -145,8 +145,8 @@ SagaLauncherActionResult SagaLauncherActionExecutor::Execute(
                     result.status == SagaLauncherActionStatus::PassedWithLimitations
                 ? SagaProcessExitClassification::Succeeded
                 : SagaProcessExitClassification::Failed;
-        result.standardOutputPreview = out.str();
-        result.standardErrorPreview = err.str();
+        result.standardOutputEvaluation = out.str();
+        result.standardErrorEvaluation = err.str();
         for (const auto& [type, path] : {std::pair{"first-playable-summary", workflow.summaryPath},
                                          std::pair{"first-playable-gate", workflow.gatePath}})
         {
@@ -245,8 +245,8 @@ SagaLauncherActionResult SagaLauncherActionExecutor::Execute(
             result.exitCode = process.exitCode;
         result.processExitClassification = process.classification;
         result.status = MapProcessStatus(process.classification);
-        result.standardOutputPreview = process.standardOutput;
-        result.standardErrorPreview = process.standardError;
+        result.standardOutputEvaluation = process.standardOutput;
+        result.standardErrorEvaluation = process.standardError;
         if (!process.error.empty())
             result.diagnostics.push_back(Diagnostic("Saga.Launcher.Action.ProcessFailed",
                                                     SagaLauncherDiagnosticSeverity::Error,

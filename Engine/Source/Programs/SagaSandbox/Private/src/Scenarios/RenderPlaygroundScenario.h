@@ -2,7 +2,7 @@
 /// @brief Multi-object scene with frustum culling and WASD fly-camera.
 ///
 /// Layer  : Sandbox / Scenarios / Catalog
-/// Purpose: Exercises the full Phase 3+ render pipeline end-to-end:
+/// Purpose: Exercises the full render pipeline end-to-end:
 ///          100+ objects, frustum culling, textured + lit materials,
 ///          per-object transforms, ImGui debug stats overlay.
 

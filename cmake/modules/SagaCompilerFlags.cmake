@@ -50,9 +50,6 @@ function(saga_apply_compiler_flags target_name)
     endif()
 
     target_include_directories(${target_name} PRIVATE
-        ${CMAKE_SOURCE_DIR}/Engine
-        ${CMAKE_SOURCE_DIR}/Backends
-        ${CMAKE_SOURCE_DIR}/Runtime
         ${CMAKE_BINARY_DIR}/generated
     )
 endfunction()

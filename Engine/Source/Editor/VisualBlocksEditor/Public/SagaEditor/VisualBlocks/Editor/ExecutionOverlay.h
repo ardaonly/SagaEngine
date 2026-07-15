@@ -1,6 +1,6 @@
 #pragma once
-#include "SagaEditor/VisualScripting/Graphs/GraphDocument.h"
-namespace SagaEditor::VisualScripting {
+#include "SagaEditor/VisualBlocks/Graphs/GraphDocument.h"
+namespace SagaEditor::VisualBlocks {
 class ExecutionOverlay {
 public:
     void HighlightNode(NodeId id);
@@ -9,4 +9,4 @@ public:
 private:
     NodeId m_highlighted{0};
 };
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

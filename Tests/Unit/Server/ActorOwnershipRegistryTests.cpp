@@ -1,18 +1,18 @@
 /// @file ActorOwnershipRegistryTests.cpp
 /// @brief Unit tests for server actor ownership mapping.
 
-#include "SagaServer/Simulation/ActorOwnershipRegistry.h"
+#include "SagaEngine/ServerAuthority/Simulation/ActorOwnershipRegistry.h"
 
 #include <gtest/gtest.h>
 
 namespace
 {
 
-using SagaEngine::Server::Simulation::ActorOwnershipRegistry;
-using SagaEngine::Server::Simulation::ActorOwnershipResult;
-using SagaEngine::Server::Simulation::ClientId;
-using SagaEngine::Server::Simulation::EntityId;
-using SagaEngine::Server::Simulation::Vector3;
+using SagaEngine::ServerAuthority::Simulation::ActorOwnershipRegistry;
+using SagaEngine::ServerAuthority::Simulation::ActorOwnershipResult;
+using SagaEngine::ServerAuthority::Simulation::ClientId;
+using SagaEngine::ServerAuthority::Simulation::EntityId;
+using SagaEngine::ServerAuthority::Simulation::Vector3;
 
 constexpr ClientId kClient = 11;
 constexpr ClientId kOtherClient = 12;

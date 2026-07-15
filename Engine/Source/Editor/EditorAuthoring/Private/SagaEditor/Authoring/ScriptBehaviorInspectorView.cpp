@@ -14,7 +14,7 @@ namespace
 using Json = nlohmann::json;
 namespace fs = std::filesystem;
 
-[[nodiscard]] fs::path ArtifactRoot(const TechnicalPreviewProjectView& project)
+[[nodiscard]] fs::path ArtifactRoot(const ProjectReadinessView& project)
 {
     return (project.projectRoot / "Build" / "SagaScript").lexically_normal();
 }
@@ -98,7 +98,7 @@ struct RuntimeBindingEvidence
 };
 
 [[nodiscard]] RuntimeBindingEvidence LoadRuntimeBindingEvidence(
-    const TechnicalPreviewProjectView& project,
+    const ProjectReadinessView& project,
     std::vector<AuthoringDiagnostic>& diagnostics)
 {
     RuntimeBindingEvidence evidence;
@@ -153,7 +153,7 @@ struct NodeMetadataEvidence
 };
 
 [[nodiscard]] NodeMetadataEvidence LoadNodeMetadataEvidence(
-    const TechnicalPreviewProjectView& project,
+    const ProjectReadinessView& project,
     std::vector<AuthoringDiagnostic>& diagnostics)
 {
     NodeMetadataEvidence evidence;
@@ -190,7 +190,7 @@ struct NodeMetadataEvidence
 
 [[nodiscard]] std::unordered_map<std::string, std::string>
 LoadCompatibilityClassifications(
-    const TechnicalPreviewProjectView& project,
+    const ProjectReadinessView& project,
     std::vector<AuthoringDiagnostic>& diagnostics)
 {
     std::unordered_map<std::string, std::string> classifications;
@@ -223,7 +223,7 @@ LoadCompatibilityClassifications(
 }
 
 void LoadOptionalValidationDiagnostics(
-    const TechnicalPreviewProjectView& project,
+    const ProjectReadinessView& project,
     std::vector<AuthoringDiagnostic>& diagnostics)
 {
     const fs::path path =
@@ -247,7 +247,7 @@ void LoadOptionalValidationDiagnostics(
 } // namespace
 
 ScriptBehaviorInspectorLoadResult LoadScriptBehaviorInspectorViews(
-    const TechnicalPreviewProjectView& project)
+    const ProjectReadinessView& project)
 {
     ScriptBehaviorInspectorLoadResult result;
     if (!project.ok)

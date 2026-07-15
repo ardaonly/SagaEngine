@@ -20,7 +20,7 @@ namespace
 {
     SagaProductDiagnostic diagnostic;
     diagnostic.target = target;
-    diagnostic.phase = SagaProductDiagnosticPhase::StartupHandoff;
+    diagnostic.stage = SagaProductDiagnosticStage::StartupHandoff;
     diagnostic.diagnosticId = diagnosticId;
     diagnostic.message = std::move(message);
     diagnostic.path = std::move(path);

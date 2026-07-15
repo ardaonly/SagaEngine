@@ -15,7 +15,7 @@
 #include "SagaEngine/Gameplay/Commands/CastSpell.h"
 #include "SagaEngine/Gameplay/Commands/ChatMessage.h"
 #include "SagaEngine/Gameplay/Commands/MoveRequest.h"
-#include "SagaServer/Gameplay/GameplayCommandDispatcher.h"
+#include "SagaEngine/ServerAuthority/Gameplay/GameplayCommandDispatcher.h"
 
 #include <gtest/gtest.h>
 
@@ -26,14 +26,14 @@
 #include <vector>
 
 namespace EC = SagaEngine::Gameplay::Commands;
-namespace SG = SagaServer::Gameplay;
+namespace SG = SagaEngine::ServerAuthority::Gameplay;
 namespace CG = SagaEngine::Client::Gameplay;
 
 // ─── Dispatcher: registration & typed dispatch ────────────────────────
 
 TEST(GameplayCommandDispatcher, RPCDispatchPropagatesAuthentication)
 {
-    SagaServer::RPCDispatch rpcDispatch;
+    SagaEngine::Replication::RPCDispatch rpcDispatch;
     SG::GameplayCommandDispatcher dispatcher;
 
     ASSERT_TRUE(dispatcher.Install(rpcDispatch));
@@ -57,17 +57,17 @@ TEST(GameplayCommandDispatcher, RPCDispatchPropagatesAuthentication)
     EC::ByteWriter writer(blob);
     command.Encode(writer);
 
-    SagaServer::RPCArgument argument{};
-    argument.type = SagaServer::RPCArgType::Blob;
+    SagaEngine::Replication::RPCArgument argument{};
+    argument.type = SagaEngine::Replication::RPCArgType::Blob;
     argument.data = blob;
 
-    SagaServer::RPCRequest request{};
+    SagaEngine::Replication::RPCRequest request{};
     request.rpcName  = EC::kGameplayCommandRpcName;
     request.clientId = 42;
     request.rpcId    = 7;
     request.arguments.push_back(std::move(argument));
 
-    SagaServer::RPCResponse response{};
+    SagaEngine::Replication::RPCResponse response{};
 
     EXPECT_TRUE(rpcDispatch.Dispatch(
         /*clientId*/ 42,
@@ -75,7 +75,7 @@ TEST(GameplayCommandDispatcher, RPCDispatchPropagatesAuthentication)
         request,
         response));
 
-    EXPECT_EQ(response.status, SagaServer::RPCStatusCode::AuthFailed);
+    EXPECT_EQ(response.status, SagaEngine::Replication::RPCStatusCode::AuthFailed);
     EXPECT_EQ(calls.load(std::memory_order_relaxed), 0);
 
     response = {};
@@ -86,13 +86,13 @@ TEST(GameplayCommandDispatcher, RPCDispatchPropagatesAuthentication)
         request,
         response));
 
-    EXPECT_EQ(response.status, SagaServer::RPCStatusCode::Ok);
+    EXPECT_EQ(response.status, SagaEngine::Replication::RPCStatusCode::Ok);
     EXPECT_EQ(calls.load(std::memory_order_relaxed), 1);
 }
 
 TEST(GameplayCommandDispatcher, RPCDispatchRejectsUnregisteredOpcode)
 {
-    SagaServer::RPCDispatch rpcDispatch;
+    SagaEngine::Replication::RPCDispatch rpcDispatch;
     SG::GameplayCommandDispatcher dispatcher;
 
     ASSERT_TRUE(dispatcher.Install(rpcDispatch));
@@ -105,17 +105,17 @@ TEST(GameplayCommandDispatcher, RPCDispatchRejectsUnregisteredOpcode)
     EC::ByteWriter writer(blob);
     command.Encode(writer);
 
-    SagaServer::RPCArgument argument{};
-    argument.type = SagaServer::RPCArgType::Blob;
+    SagaEngine::Replication::RPCArgument argument{};
+    argument.type = SagaEngine::Replication::RPCArgType::Blob;
     argument.data = std::move(blob);
 
-    SagaServer::RPCRequest request{};
+    SagaEngine::Replication::RPCRequest request{};
     request.rpcName  = EC::kGameplayCommandRpcName;
     request.clientId = 42;
     request.rpcId    = 8;
     request.arguments.push_back(std::move(argument));
 
-    SagaServer::RPCResponse response{};
+    SagaEngine::Replication::RPCResponse response{};
 
     EXPECT_TRUE(rpcDispatch.Dispatch(
         /*clientId*/ 42,
@@ -123,7 +123,7 @@ TEST(GameplayCommandDispatcher, RPCDispatchRejectsUnregisteredOpcode)
         request,
         response));
 
-    EXPECT_EQ(response.status, SagaServer::RPCStatusCode::NotFound);
+    EXPECT_EQ(response.status, SagaEngine::Replication::RPCStatusCode::NotFound);
 }
 
 TEST(GameplayCommandDispatcher, TypedHandlerReceivesDecodedCommand)
@@ -155,7 +155,7 @@ TEST(GameplayCommandDispatcher, TypedHandlerReceivesDecodedCommand)
     std::vector<std::uint8_t> out;
     auto status = d.DispatchBlob(/*clientId*/42, /*auth*/true,
                                    buf.data(), buf.size(), out);
-    EXPECT_EQ(status, SagaServer::RPCStatusCode::Ok);
+    EXPECT_EQ(status, SagaEngine::Replication::RPCStatusCode::Ok);
     EXPECT_EQ(calls.load(), 1);
     EXPECT_EQ(seenClient, 42u);
     EXPECT_EQ(received.spellId,           sent.spellId);
@@ -177,7 +177,7 @@ TEST(GameplayCommandDispatcher, UnknownOpcodeReturnsNotFound)
 
     std::vector<std::uint8_t> out;
     auto status = d.DispatchBlob(1, true, buf.data(), buf.size(), out);
-    EXPECT_EQ(status, SagaServer::RPCStatusCode::NotFound);
+    EXPECT_EQ(status, SagaEngine::Replication::RPCStatusCode::NotFound);
 }
 
 TEST(GameplayCommandDispatcher, MalformedBlobReturnsBadArgs)
@@ -190,9 +190,9 @@ TEST(GameplayCommandDispatcher, MalformedBlobReturnsBadArgs)
     std::uint8_t scraps[3] = {0x00, 0x00, 0x00};
     std::vector<std::uint8_t> out;
     EXPECT_EQ(d.DispatchBlob(1, true, scraps, sizeof(scraps), out),
-              SagaServer::RPCStatusCode::BadArgs);
+              SagaEngine::Replication::RPCStatusCode::BadArgs);
     EXPECT_EQ(d.DispatchBlob(1, true, nullptr, 0, out),
-              SagaServer::RPCStatusCode::BadArgs);
+              SagaEngine::Replication::RPCStatusCode::BadArgs);
 }
 
 TEST(GameplayCommandDispatcher, UnauthenticatedClientIsRejectedWhenTraitsRequireAuth)
@@ -209,7 +209,7 @@ TEST(GameplayCommandDispatcher, UnauthenticatedClientIsRejectedWhenTraitsRequire
     std::vector<std::uint8_t> out;
     EXPECT_EQ(d.DispatchBlob(1, /*auth*/false,
                               buf.data(), buf.size(), out),
-              SagaServer::RPCStatusCode::AuthFailed);
+              SagaEngine::Replication::RPCStatusCode::AuthFailed);
 }
 
 TEST(GameplayCommandDispatcher, UsesTraitCapacityAndDeterministicRefill)
@@ -248,7 +248,7 @@ TEST(GameplayCommandDispatcher, UsesTraitCapacityAndDeterministicRefill)
                       buf.data(),
                       buf.size(),
                       out),
-                  SagaServer::RPCStatusCode::Ok);
+                  SagaEngine::Replication::RPCStatusCode::Ok);
     }
 
     EXPECT_EQ(d.DispatchBlob(
@@ -257,7 +257,7 @@ TEST(GameplayCommandDispatcher, UsesTraitCapacityAndDeterministicRefill)
                   buf.data(),
                   buf.size(),
                   out),
-              SagaServer::RPCStatusCode::RateLimited);
+              SagaEngine::Replication::RPCStatusCode::RateLimited);
 
     EXPECT_EQ(hits.load(std::memory_order_relaxed), 4);
 
@@ -270,7 +270,7 @@ TEST(GameplayCommandDispatcher, UsesTraitCapacityAndDeterministicRefill)
                   buf.data(),
                   buf.size(),
                   out),
-              SagaServer::RPCStatusCode::Ok);
+              SagaEngine::Replication::RPCStatusCode::Ok);
 
     EXPECT_EQ(d.DispatchBlob(
                   /*clientId*/ 99,
@@ -278,7 +278,7 @@ TEST(GameplayCommandDispatcher, UsesTraitCapacityAndDeterministicRefill)
                   buf.data(),
                   buf.size(),
                   out),
-              SagaServer::RPCStatusCode::RateLimited);
+              SagaEngine::Replication::RPCStatusCode::RateLimited);
 
     EXPECT_EQ(hits.load(std::memory_order_relaxed), 5);
 }
@@ -320,7 +320,7 @@ TEST(GameplayCommandDispatcher, RateLimitStateIsIndependentPerClient)
                       buf.data(),
                       buf.size(),
                       out),
-                  SagaServer::RPCStatusCode::Ok);
+                  SagaEngine::Replication::RPCStatusCode::Ok);
     }
 
     EXPECT_EQ(d.DispatchBlob(
@@ -329,7 +329,7 @@ TEST(GameplayCommandDispatcher, RateLimitStateIsIndependentPerClient)
                   buf.data(),
                   buf.size(),
                   out),
-              SagaServer::RPCStatusCode::RateLimited);
+              SagaEngine::Replication::RPCStatusCode::RateLimited);
 
     // Client 2 has a separate, fully initialized bucket.
     EXPECT_EQ(d.DispatchBlob(
@@ -338,7 +338,7 @@ TEST(GameplayCommandDispatcher, RateLimitStateIsIndependentPerClient)
                   buf.data(),
                   buf.size(),
                   out),
-              SagaServer::RPCStatusCode::Ok);
+              SagaEngine::Replication::RPCStatusCode::Ok);
 
     EXPECT_EQ(hits.load(std::memory_order_relaxed), 5);
 
@@ -351,7 +351,7 @@ TEST(GameplayCommandDispatcher, RateLimitStateIsIndependentPerClient)
                   buf.data(),
                   buf.size(),
                   out),
-              SagaServer::RPCStatusCode::Ok);
+              SagaEngine::Replication::RPCStatusCode::Ok);
 
     EXPECT_EQ(d.DispatchBlob(
                   /*clientId*/ 1,
@@ -359,7 +359,7 @@ TEST(GameplayCommandDispatcher, RateLimitStateIsIndependentPerClient)
                   buf.data(),
                   buf.size(),
                   out),
-              SagaServer::RPCStatusCode::RateLimited);
+              SagaEngine::Replication::RPCStatusCode::RateLimited);
 
     // Client 2 still retains the remainder of its own bucket.
     EXPECT_EQ(d.DispatchBlob(
@@ -368,7 +368,7 @@ TEST(GameplayCommandDispatcher, RateLimitStateIsIndependentPerClient)
                   buf.data(),
                   buf.size(),
                   out),
-              SagaServer::RPCStatusCode::Ok);
+              SagaEngine::Replication::RPCStatusCode::Ok);
 
     EXPECT_EQ(hits.load(std::memory_order_relaxed), 7);
 }
@@ -427,7 +427,7 @@ TEST(GameplayCommandDispatcher, RateLimitStateIsIndependentPerOpcode)
                       chatBlob.data(),
                       chatBlob.size(),
                       out),
-                  SagaServer::RPCStatusCode::Ok);
+                  SagaEngine::Replication::RPCStatusCode::Ok);
     }
 
     EXPECT_EQ(d.DispatchBlob(
@@ -436,7 +436,7 @@ TEST(GameplayCommandDispatcher, RateLimitStateIsIndependentPerOpcode)
                   chatBlob.data(),
                   chatBlob.size(),
                   out),
-              SagaServer::RPCStatusCode::RateLimited);
+              SagaEngine::Replication::RPCStatusCode::RateLimited);
 
     // CastSpell uses a separate ten-token bucket for the same client.
     for (int i = 0; i < 10; ++i)
@@ -447,7 +447,7 @@ TEST(GameplayCommandDispatcher, RateLimitStateIsIndependentPerOpcode)
                       castBlob.data(),
                       castBlob.size(),
                       out),
-                  SagaServer::RPCStatusCode::Ok);
+                  SagaEngine::Replication::RPCStatusCode::Ok);
     }
 
     EXPECT_EQ(d.DispatchBlob(
@@ -456,7 +456,7 @@ TEST(GameplayCommandDispatcher, RateLimitStateIsIndependentPerOpcode)
                   castBlob.data(),
                   castBlob.size(),
                   out),
-              SagaServer::RPCStatusCode::RateLimited);
+              SagaEngine::Replication::RPCStatusCode::RateLimited);
 
     EXPECT_EQ(chatHits.load(std::memory_order_relaxed), 4);
     EXPECT_EQ(castHits.load(std::memory_order_relaxed), 10);
@@ -475,7 +475,7 @@ TEST(GameplayCommandDispatcher, HandlerReturningFalseBecomesInternalError)
     std::vector<std::uint8_t> out;
 
     EXPECT_EQ(d.DispatchBlob(1, true, buf.data(), buf.size(), out),
-              SagaServer::RPCStatusCode::InternalError);
+              SagaEngine::Replication::RPCStatusCode::InternalError);
 }
 
 // ─── Client stub: SendContext + encoding ──────────────────────────────
@@ -549,7 +549,7 @@ TEST(GameplayRoundTrip, ClientStubThroughDispatcherToTypedHandler)
             std::vector<std::uint8_t> out;
             auto s = dispatcher.DispatchBlob(/*clientId*/123, /*auth*/true,
                                                data, n, out);
-            return s == SagaServer::RPCStatusCode::Ok;
+            return s == SagaEngine::Replication::RPCStatusCode::Ok;
         });
 
     EXPECT_TRUE(client.Say(EC::ChatChannel::Guild,

@@ -1,7 +1,7 @@
 /// @file NetworkTransport.h
 /// @brief Async UDP transport layer built on Boost.Asio with send queue, keepalive, and handshake.
 ///
-/// Layer  : SagaServer / Networking / Core
+/// Layer  : SagaEngine / Networking
 /// Purpose: Provides the INetworkTransport interface and a production UdpTransport
 ///          implementation. UdpTransport manages a dedicated IO thread, an async
 ///          send queue with back-pressure, automatic keepalive probing, and a
@@ -14,21 +14,14 @@
 
 #pragma once
 
-#include "SagaServer/Networking/Core/NetworkTypes.h"
-#include "SagaServer/Networking/Core/Packet.h"
+#include "SagaEngine/Networking/NetworkTypes.h"
+#include "SagaEngine/Networking/Packet.h"
 
-#include <asio.hpp>
-#include <asio/steady_timer.hpp>
-
-#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
-#include <mutex>
-#include <queue>
-#include <thread>
-#include <vector>
+#include <system_error>
 
 namespace SagaEngine::Networking
 {
@@ -82,73 +75,31 @@ public:
     bool Send(const uint8_t* data, std::size_t size) override;
     void Receive() override;
 
-    ConnectionState   GetState() const override      { return m_State; }
+    ConnectionState   GetState() const override;
     NetworkStatistics GetStatistics() const override;
 
-    void SetOnConnected(OnConnectedCallback cb) override       { m_OnConnected = std::move(cb); }
-    void SetOnDisconnected(OnDisconnectedCallback cb) override { m_OnDisconnected = std::move(cb); }
-    void SetOnPacketReceived(OnPacketReceivedCallback cb) override { m_OnPacketReceived = std::move(cb); }
-    void SetOnStateChanged(OnStateChangedCallback cb) override { m_OnStateChanged = std::move(cb); }
+    void SetOnConnected(OnConnectedCallback cb) override;
+    void SetOnDisconnected(OnDisconnectedCallback cb) override;
+    void SetOnPacketReceived(OnPacketReceivedCallback cb) override;
+    void SetOnStateChanged(OnStateChangedCallback cb) override;
 
     // ── Extended queries ──────────────────────────────────────────────────────
 
-    [[nodiscard]] NetworkAddress GetRemoteAddress() const { return m_RemoteAddress; }
+    [[nodiscard]] NetworkAddress GetRemoteAddress() const;
     [[nodiscard]] NetworkAddress GetLocalAddress()  const;
 
 private:
-    // ── Asio runtime ──────────────────────────────────────────────────────────
-
-    asio::io_context                            m_IoContext;
-    std::unique_ptr<asio::ip::udp::socket>      m_Socket;
-    std::unique_ptr<asio::steady_timer>         m_ConnectTimer;
-    std::unique_ptr<asio::steady_timer>         m_KeepAliveTimer;
-    std::thread                                 m_IoThread;
-    std::atomic<bool>                           m_Running{false};
-
-    // ── Connection state ──────────────────────────────────────────────────────
-
-    ConnectionState  m_State{ConnectionState::Disconnected};
-    NetworkConfig    m_Config;
-    NetworkAddress   m_RemoteAddress;
-    ConnectionId     m_ConnectionId{0};
-
-    // ── Statistics ────────────────────────────────────────────────────────────
-
-    NetworkStatistics     m_Stats;
-    mutable std::mutex    m_StatsMutex;
-
-    // ── Send queue ────────────────────────────────────────────────────────────
-
-    struct PendingSend
-    {
-        std::vector<uint8_t> data;
-        uint32_t             timestamp{0};
-        uint32_t             retryCount{0};
-    };
-
-    std::queue<PendingSend> m_SendQueue;
-    mutable std::mutex      m_SendQueueMutex;
-
-    // ── Receive buffer ────────────────────────────────────────────────────────
-
-    std::vector<uint8_t>      m_ReceiveBuffer;
-    asio::ip::udp::endpoint   m_ReceiveEndpoint;
-
-    // ── Callbacks ─────────────────────────────────────────────────────────────
-
-    OnConnectedCallback      m_OnConnected;
-    OnDisconnectedCallback   m_OnDisconnected;
-    OnPacketReceivedCallback m_OnPacketReceived;
-    OnStateChangedCallback   m_OnStateChanged;
+    struct Impl;
+    std::unique_ptr<Impl> m_Impl;
 
     // ── Internal methods ──────────────────────────────────────────────────────
 
     void SetState(ConnectionState newState);
     void StartReceive();
-    void HandleReceive(const asio::error_code& ec, std::size_t bytesTransferred);
+    void HandleReceive(const std::error_code& ec, std::size_t bytesTransferred);
     void ProcessSendQueue();
     void StartKeepAliveTimer();
-    void HandleKeepAliveTimer(const asio::error_code& ec);
+    void HandleKeepAliveTimer(const std::error_code& ec);
     void SendKeepAlive();
 
     void InvokeOnConnected();

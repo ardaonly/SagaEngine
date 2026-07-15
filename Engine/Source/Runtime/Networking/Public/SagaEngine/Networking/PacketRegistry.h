@@ -1,7 +1,7 @@
 /// @file PacketRegistry.h
 /// @brief Thread-safe dispatch table mapping PacketType values to server-side handlers.
 ///
-/// Layer  : SagaServer / Networking / Core
+/// Layer  : SagaEngine / Networking
 /// Purpose: Every packet that reaches the server tick loop funnels through a
 ///          single dispatch point. PacketRegistry owns the handler lookup
 ///          table, enforces handler ownership, tracks per-type statistics,
@@ -19,8 +19,8 @@
 
 #pragma once
 
-#include "SagaServer/Networking/Core/NetworkTypes.h"
-#include "SagaServer/Networking/Core/Packet.h"
+#include "SagaEngine/Networking/NetworkTypes.h"
+#include "SagaEngine/Networking/Packet.h"
 
 #include <array>
 #include <atomic>

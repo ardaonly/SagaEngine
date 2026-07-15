@@ -1,5 +1,5 @@
 /// @file RuntimeAssetStartupBootstrapTests.cpp
-/// @brief Focused tests for the Apps/Runtime asset bootstrap helper seam.
+/// @brief Focused tests for the SagaRuntime asset bootstrap helper seam.
 
 #include "RuntimeAssetStartupBootstrap.hpp"
 

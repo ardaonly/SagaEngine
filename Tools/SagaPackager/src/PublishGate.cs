@@ -10,10 +10,7 @@ internal static class PublishGate
         string packageReportPath,
         string diagnosticsSummaryPath,
         string scriptValidationPath = "",
-        string policyReportPath = "",
-        string reviewApprovalReportPath = "",
-        string auditReportPath = "",
-        string restrictedExportReportPath = "")
+        string policyReportPath = "")
     {
         var resolved = new ProjectResolver().Resolve(projectPath, profileId);
         var diagnostics = resolved.Diagnostics.ToList();
@@ -30,18 +27,6 @@ internal static class PublishGate
         {
             AddEvidence(evidence, "policyReport", policyReportPath);
         }
-        if (!string.IsNullOrWhiteSpace(reviewApprovalReportPath))
-        {
-            AddEvidence(evidence, "reviewApprovalReport", reviewApprovalReportPath);
-        }
-        if (!string.IsNullOrWhiteSpace(auditReportPath))
-        {
-            AddEvidence(evidence, "auditReport", auditReportPath);
-        }
-        if (!string.IsNullOrWhiteSpace(restrictedExportReportPath))
-        {
-            AddEvidence(evidence, "restrictedExportReport", restrictedExportReportPath);
-        }
 
         AddGate(gates, "ProjectValid", ProjectResolver.HasErrors(resolved.Diagnostics) ? "Blocked" : "Passed", resolved.ManifestPath, "Project/profile validation gate.");
         AddGate(gates, "PackageProfileValid", resolved.Profile is null ? "Blocked" : "Passed", resolved.PackageProfilesPath, "Package profile gate.");
@@ -54,15 +39,6 @@ internal static class PublishGate
         JsonObject? policyReport = string.IsNullOrWhiteSpace(policyReportPath)
             ? null
             : LoadJson(policyReportPath, diagnostics, "Publish.PolicyReport");
-        JsonObject? reviewApprovalReport = string.IsNullOrWhiteSpace(reviewApprovalReportPath)
-            ? null
-            : LoadJson(reviewApprovalReportPath, diagnostics, "Publish.ReviewApprovalReport");
-        JsonObject? auditReport = string.IsNullOrWhiteSpace(auditReportPath)
-            ? null
-            : LoadJson(auditReportPath, diagnostics, "Publish.AuditReport");
-        JsonObject? restrictedExportReport = string.IsNullOrWhiteSpace(restrictedExportReportPath)
-            ? null
-            : LoadJson(restrictedExportReportPath, diagnostics, "Publish.RestrictedExportReport");
 
         var stagePassed = packageReport is not null &&
             ReadString(packageReport, "tool") == "sagapack" &&
@@ -112,51 +88,6 @@ internal static class PublishGate
                 policyAccepted ? "Passed" : "Blocked",
                 policyReportPath,
                 "Policy report must be supplied and allow publish-check metadata evaluation.");
-        }
-
-        if (!string.IsNullOrWhiteSpace(reviewApprovalReportPath))
-        {
-            var reviewAccepted = reviewApprovalReport is not null &&
-                ReadString(reviewApprovalReport, "tool") == "sagaworkspacehub" &&
-                ReadString(reviewApprovalReport, "command") == "review-approval" &&
-                ReadString(reviewApprovalReport, "status") == "Passed" &&
-                ReadString(reviewApprovalReport, "decision") == "ApprovedMetadataOnly";
-            AddGate(
-                gates,
-                "ReviewApprovalAccepted",
-                reviewAccepted ? "Passed" : "Blocked",
-                reviewApprovalReportPath,
-                "Review approval report must be approved metadata-only evidence.");
-        }
-
-        if (!string.IsNullOrWhiteSpace(auditReportPath))
-        {
-            var auditAccepted = auditReport is not null &&
-                ReadString(auditReport, "tool") == "sagaworkspacehub" &&
-                ReadString(auditReport, "command") == "audit-log" &&
-                ReadString(auditReport, "status") == "Passed";
-            AddGate(
-                gates,
-                "AuditEvidenceAccepted",
-                auditAccepted ? "Passed" : "Blocked",
-                auditReportPath,
-                "Audit report must be passed local audit evidence.");
-        }
-
-        if (!string.IsNullOrWhiteSpace(restrictedExportReportPath))
-        {
-            var counts = restrictedExportReport?["counts"] as JsonObject;
-            var restrictedExportAccepted = restrictedExportReport is not null &&
-                ReadString(restrictedExportReport, "tool") == "sagaworkspacehub" &&
-                ReadString(restrictedExportReport, "command") == "restricted-export" &&
-                ReadString(restrictedExportReport, "status") == "Passed" &&
-                ReadInt(counts, "blockedExports") == 0;
-            AddGate(
-                gates,
-                "RestrictedExportAccepted",
-                restrictedExportAccepted ? "Passed" : "Blocked",
-                restrictedExportReportPath,
-                "Restricted export report must have no blocked exports.");
         }
 
         if (gates.Any(g => g.Status == "Blocked" || g.Status == "Failed"))

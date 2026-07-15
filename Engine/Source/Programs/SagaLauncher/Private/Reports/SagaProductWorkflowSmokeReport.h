@@ -12,7 +12,7 @@ namespace SagaProduct
 struct SagaProductWorkflowSmokeRequest
 {
     std::filesystem::path projectManifestPath;
-    std::string profile = "technical_preview";
+    std::string profile = "project_readiness";
     std::filesystem::path reportPath;
 };
 

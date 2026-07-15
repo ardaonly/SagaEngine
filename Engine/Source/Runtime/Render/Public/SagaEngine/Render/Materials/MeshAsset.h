@@ -84,7 +84,7 @@ struct MeshVertex
     MeshVec2 uv0;
     MeshVec2 uv1;
 
-    // ── Skinning data (Phase 4) ─────────────────────────────────────────
+    // ── Skinning data (Step 4) ─────────────────────────────────────────
     /// Up to 4 bone influences per vertex.  Indices reference joints in
     /// the Skeleton; weights sum to 1.0.  Unskinned meshes leave these
     /// zeroed — the shader checks boneWeights[0] == 0 to skip skinning.

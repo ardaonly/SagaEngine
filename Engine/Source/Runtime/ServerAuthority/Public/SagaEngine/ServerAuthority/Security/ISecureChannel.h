@@ -1,7 +1,7 @@
 /// @file ISecureChannel.h
 /// @brief Pluggable encryption/authentication layer between transport and packet pipeline.
 ///
-/// Layer  : SagaServer / Networking / Security
+/// Layer  : SagaEngine / ServerAuthority
 /// Purpose: The wire path today is `UdpTransport → Packet → dispatcher`.
 ///          A production MMO can't ship with that: login credentials,
 ///          chat, and trade actions must be confidential on the wire.
@@ -71,7 +71,7 @@ enum class HandshakeState : std::uint8_t
 /// Abstract encrypted channel.  One instance per connection.  The
 /// transport feeds raw inbound bytes via `HandleInbound` until
 /// `State() == Established`, then switches to `Decrypt`/`Encrypt` for
-/// the traffic phase.
+/// the traffic mode.
 ///
 /// Memory ownership: all `std::vector` arguments are owned by the
 /// caller.  Backends may append to `output` but must not retain
@@ -115,7 +115,7 @@ public:
         std::size_t               inboundSize,
         std::vector<std::uint8_t>& outbound) = 0;
 
-    // ── Traffic phase ─────────────────────────────────────────────────────
+    // ── Traffic mode ─────────────────────────────────────────────────────
 
     /// Encrypt a full application-level packet.  Must be called only
     /// after `State() == Established`.  `output` is replaced, not

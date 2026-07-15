@@ -1,10 +1,10 @@
 /// @file QtUIFactory.cpp
 /// @brief Qt implementation of IUIFactory.
 
-#include "SagaEditor/UI/Qt/QtUIFactory.h"
-#include "SagaEditor/UI/Qt/QtUIApplication.h"
-#include "SagaEditor/UI/Qt/QtSettingsStore.h"
-#include "SagaEditor/UI/Qt/QtUIMainWindow.h"
+#include "SagaEditorQt/QtUIFactory.h"
+#include "SagaEditorQt/QtUIApplication.h"
+#include "SagaEditorQt/QtSettingsStore.h"
+#include "SagaEditorQt/QtUIMainWindow.h"
 
 namespace SagaEditor
 {

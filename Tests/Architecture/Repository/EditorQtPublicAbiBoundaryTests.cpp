@@ -187,7 +187,7 @@ std::vector<Finding> FindQtExposureInHeader(const std::filesystem::path& path)
             AddFinding(findings, file, i + 1, "QtInclude", trimmed);
         }
 
-        if (trimmed.find("SagaEditor/UI/Qt/QtPanel.h") != std::string::npos)
+        if (trimmed.find("SagaEditorQt/QtPanel.h") != std::string::npos)
         {
             AddFinding(findings, file, i + 1, "QtPanelInclude", trimmed);
         }
@@ -242,26 +242,27 @@ std::vector<Finding> FindQtExposureInHeader(const std::filesystem::path& path)
 std::vector<std::filesystem::path> PublicHeadersToScan()
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
-    const auto editorInclude = root / "Editor" / "include";
     std::vector<std::filesystem::path> headers;
 
-    if (std::filesystem::exists(editorInclude))
+    for (const auto* module : {
+             "EditorCore", "EditorFramework", "EditorAuthoring",
+             "VisualBlocksEditor", "EditorScripting", "EditorCollaboration",
+             "EditorExperimental"})
     {
+        const auto publicRoot =
+            root / "Engine" / "Source" / "Editor" / module / "Public";
+        if (!std::filesystem::exists(publicRoot))
+        {
+            continue;
+        }
         for (const auto& entry :
-             std::filesystem::recursive_directory_iterator(editorInclude))
+             std::filesystem::recursive_directory_iterator(publicRoot))
         {
             if (entry.is_regular_file() && IsHeaderFile(entry.path()))
             {
                 headers.push_back(entry.path());
             }
         }
-    }
-
-    const auto sagaEditorModule =
-        root / "Apps" / "Saga" / "SagaEditorModule.h";
-    if (std::filesystem::exists(sagaEditorModule))
-    {
-        headers.push_back(sagaEditorModule);
     }
 
     std::sort(headers.begin(), headers.end());
@@ -271,14 +272,9 @@ std::vector<std::filesystem::path> PublicHeadersToScan()
 using TokenSet = std::set<std::string>;
 using Allowlist = std::map<std::string, TokenSet>;
 
-const Allowlist& CurrentLegacyQtExposureAllowlist()
+const Allowlist& QtExposureAllowlist()
 {
-    static const Allowlist allowlist = {
-        {"Editor/include/SagaEditor/UI/Qt/QtPanel.h",
-         {"QtInclude", "Q_OBJECT", "QWidget", "QtPanel"}},
-        {"Editor/include/SagaEditor/VisualScripting/Editor/GraphCanvas.h",
-         {"QtPanelInclude", "QtPanel"}},
-    };
+    static const Allowlist allowlist;
     return allowlist;
 }
 
@@ -296,9 +292,9 @@ TEST(EditorQtPublicAbiBoundaryTests, PublicHeadersDoNotGrowQtExposure)
 {
     const auto headers = PublicHeadersToScan();
     ASSERT_FALSE(headers.empty())
-        << "Phase 6B guard expected Editor/include public headers to exist.";
+        << "Editor module public headers must exist.";
 
-    const auto& allowlist = CurrentLegacyQtExposureAllowlist();
+    const auto& allowlist = QtExposureAllowlist();
     std::vector<Finding> allowedFindings;
     std::vector<Finding> violations;
     std::map<std::string, TokenSet> observedAllowedTokens;
@@ -346,9 +342,9 @@ TEST(EditorQtPublicAbiBoundaryTests, PublicHeadersDoNotGrowQtExposure)
         }
     }
 
-    std::cout << "Phase 6B Editor Qt public ABI boundary guard\n";
+    std::cout << "Editor Qt public ABI boundary guard\n";
     std::cout << "Scanned public headers: " << headers.size() << "\n";
-    std::cout << "Allowed legacy Qt exposure findings: "
+    std::cout << "Allowed Qt exposure findings: "
               << allowedFindings.size() << "\n";
     std::cout << "Violation count: " << violations.size() << "\n";
     std::cout << "Allowed entries:\n";
@@ -371,9 +367,6 @@ TEST(EditorQtPublicAbiBoundaryTests, PublicHeadersDoNotGrowQtExposure)
         }
     }
 
-    std::cout << "Reminder: Phase 6B is a guard, not Qt removal; current "
-                 "legacy leaks stay explicit until a later slice removes them.\n";
-
     EXPECT_TRUE(missingAllowlistEntries.empty())
         << "Qt exposure allowlist contains files that were not scanned. First "
            "missing entry: "
@@ -385,6 +378,6 @@ TEST(EditorQtPublicAbiBoundaryTests, PublicHeadersDoNotGrowQtExposure)
         << (missingAllowedTokens.empty() ? "" : missingAllowedTokens.front());
 
     EXPECT_TRUE(violations.empty())
-        << "New public Qt exposure is blocked by Phase 6B. First violation: "
+        << "Public Qt exposure is confined to EditorQt. First violation: "
         << (violations.empty() ? "" : FormatFinding(violations.front()));
 }

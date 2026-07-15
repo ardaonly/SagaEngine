@@ -1,7 +1,7 @@
 /// @file InputCommandQueue.h
 /// @brief Per-player server-side input command buffer with sequencing and lag compensation.
 ///
-/// Layer  : SagaServer / Simulation
+/// Layer  : SagaEngine / ServerAuthority
 /// Purpose: Client input arrives on the network thread, gets framed as
 ///          InputCommand packets, and must then be consumed deterministically
 ///          by the simulation tick. InputCommandQueue sits between those two
@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include "SagaServer/Networking/Core/NetworkTypes.h"
+#include "SagaEngine/Networking/NetworkTypes.h"
 
 #include <array>
 #include <cstddef>
@@ -31,7 +31,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace SagaEngine::Server::Simulation
+namespace SagaEngine::ServerAuthority::Simulation
 {
 
 using ClientId = ::SagaEngine::Networking::ClientId;
@@ -182,4 +182,4 @@ private:
     std::unordered_map<ClientId, std::unique_ptr<InputCommandQueue>> m_Queues;
 };
 
-} // namespace SagaEngine::Server::Simulation
+} // namespace SagaEngine::ServerAuthority::Simulation

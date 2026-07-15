@@ -1,1 +1,39 @@
-# Source ownership is registered through SagaModule.cmake.
+saga_add_runtime_module(Resources
+    MODULE_DIR Engine/Source/Runtime/Resources
+    TARGET SagaEngine
+    SOURCES
+        Private/SagaEngine/Resources/AssetIdResolver.cpp
+        Private/SagaEngine/Resources/AssetIdentityManifestLoader.cpp
+        Private/SagaEngine/Resources/AssetManifestRegistryAdapter.cpp
+        Private/SagaEngine/Resources/AssetRegistry.cpp
+        Private/SagaEngine/Resources/AssetTypes/MeshStreamer.cpp
+        Private/SagaEngine/Resources/AssetTypes/TextureStreamer.cpp
+        Private/SagaEngine/Resources/FileAssetSource.cpp
+        Private/SagaEngine/Resources/Formats/GltfMeshImporter.cpp
+        Private/SagaEngine/Resources/Formats/GltfMeshImporter.h
+        Private/SagaEngine/Resources/Formats/TextureImporter.cpp
+        Private/SagaEngine/Resources/ResourceManager.cpp
+        Private/SagaEngine/Resources/ResourceStreamingPipeline.cpp
+        Private/SagaEngine/Resources/RuntimeAssetRegistryBootstrapper.cpp
+        Private/SagaEngine/Resources/StreamingBudget.cpp
+        Private/SagaEngine/Resources/StreamingManager.cpp
+        Private/SagaEngine/Resources/VirtualFileAssetSource.cpp
+        Private/SagaEngine/Resources/VirtualFileSystem.cpp
+        Public/SagaEngine/Resources/AssetIdResolver.h
+        Public/SagaEngine/Resources/AssetIdentityManifest.h
+        Public/SagaEngine/Resources/AssetManifestRegistryAdapter.h
+        Public/SagaEngine/Resources/AssetRegistry.h
+        Public/SagaEngine/Resources/AssetTypes/MeshStreamer.h
+        Public/SagaEngine/Resources/AssetTypes/TextureStreamer.h
+        Public/SagaEngine/Resources/FileAssetSource.h
+        Public/SagaEngine/Resources/Formats/TextureImporter.h
+        Public/SagaEngine/Resources/IAssetSource.h
+        Public/SagaEngine/Resources/ResourceManager.h
+        Public/SagaEngine/Resources/ResourceStreamingPipeline.h
+        Public/SagaEngine/Resources/RuntimeAssetRegistryBootstrapper.h
+        Public/SagaEngine/Resources/StreamingBudget.h
+        Public/SagaEngine/Resources/StreamingManager.h
+        Public/SagaEngine/Resources/StreamingRequest.h
+        Public/SagaEngine/Resources/VirtualFileAssetSource.h
+        Public/SagaEngine/Resources/VirtualFileSystem.h
+)

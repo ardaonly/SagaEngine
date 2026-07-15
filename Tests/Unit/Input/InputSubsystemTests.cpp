@@ -282,7 +282,7 @@ TEST_F(InputActionMapTest, BindAndResolvePressed)
 
     ASSERT_EQ(events.size(), 1u);
     EXPECT_EQ(events[0].id,    A(Action::Jump));
-    EXPECT_EQ(events[0].phase, ActionPhase::Pressed);
+    EXPECT_EQ(events[0].state, ActionState::Pressed);
     EXPECT_FLOAT_EQ(events[0].value, 1.f);
     EXPECT_EQ(events[0].tick, 1u);
 }
@@ -297,7 +297,7 @@ TEST_F(InputActionMapTest, ResolveHeld)
     map.Resolve(state, 2, events);
 
     ASSERT_EQ(events.size(), 1u);
-    EXPECT_EQ(events[0].phase, ActionPhase::Held);
+    EXPECT_EQ(events[0].state, ActionState::Held);
 }
 
 TEST_F(InputActionMapTest, ResolveReleased)
@@ -310,7 +310,7 @@ TEST_F(InputActionMapTest, ResolveReleased)
     map.Resolve(state, 3, events);
 
     ASSERT_EQ(events.size(), 1u);
-    EXPECT_EQ(events[0].phase, ActionPhase::Released);
+    EXPECT_EQ(events[0].state, ActionState::Released);
     EXPECT_FLOAT_EQ(events[0].value, 0.f);
 }
 
@@ -338,7 +338,7 @@ TEST_F(InputActionMapTest, MouseButtonBinding)
 
     ASSERT_EQ(events.size(), 1u);
     EXPECT_EQ(events[0].id,    A(Action::Fire));
-    EXPECT_EQ(events[0].phase, ActionPhase::Pressed);
+    EXPECT_EQ(events[0].state, ActionState::Pressed);
 }
 
 TEST_F(InputActionMapTest, GamepadAxisBinding)
@@ -355,7 +355,7 @@ TEST_F(InputActionMapTest, GamepadAxisBinding)
     map.Resolve(state, 1, events);
 
     ASSERT_EQ(events.size(), 1u);
-    EXPECT_EQ(events[0].phase, ActionPhase::Analog);
+    EXPECT_EQ(events[0].state, ActionState::Analog);
     EXPECT_GT(events[0].value, 0.f);
     EXPECT_LE(events[0].value, 1.f);
 }
@@ -524,8 +524,8 @@ TEST(DeviceRegistryTest, GetDevicesOfType)
 TEST(GameplayInputFrameTest, WasPressedQuery)
 {
     GameplayInputFrame frame;
-    frame.actions.push_back({ A(Action::Jump), ActionPhase::Pressed, 1.f, 5 });
-    frame.actions.push_back({ A(Action::Fire), ActionPhase::Held,    1.f, 5 });
+    frame.actions.push_back({ A(Action::Jump), ActionState::Pressed, 1.f, 5 });
+    frame.actions.push_back({ A(Action::Fire), ActionState::Held,    1.f, 5 });
 
     EXPECT_TRUE (frame.WasPressed(A(Action::Jump)));
     EXPECT_FALSE(frame.WasPressed(A(Action::Fire)));   // Held, not Pressed
@@ -535,7 +535,7 @@ TEST(GameplayInputFrameTest, WasPressedQuery)
 TEST(GameplayInputFrameTest, IsHeldQuery)
 {
     GameplayInputFrame frame;
-    frame.actions.push_back({ A(Action::Fire), ActionPhase::Held, 1.f, 5 });
+    frame.actions.push_back({ A(Action::Fire), ActionState::Held, 1.f, 5 });
 
     EXPECT_TRUE(frame.IsHeld(A(Action::Fire)));
 }
@@ -543,7 +543,7 @@ TEST(GameplayInputFrameTest, IsHeldQuery)
 TEST(GameplayInputFrameTest, WasReleasedQuery)
 {
     GameplayInputFrame frame;
-    frame.actions.push_back({ A(Action::Jump), ActionPhase::Released, 0.f, 5 });
+    frame.actions.push_back({ A(Action::Jump), ActionState::Released, 0.f, 5 });
 
     EXPECT_TRUE(frame.WasReleased(A(Action::Jump)));
 }
@@ -551,7 +551,7 @@ TEST(GameplayInputFrameTest, WasReleasedQuery)
 TEST(GameplayInputFrameTest, GetValueQuery)
 {
     GameplayInputFrame frame;
-    frame.actions.push_back({ A(Action::MoveForward), ActionPhase::Analog, 0.75f, 5 });
+    frame.actions.push_back({ A(Action::MoveForward), ActionState::Analog, 0.75f, 5 });
 
     EXPECT_FLOAT_EQ(frame.GetValue(A(Action::MoveForward)), 0.75f);
     EXPECT_FLOAT_EQ(frame.GetValue(A(Action::Jump)), 0.f);  // not present

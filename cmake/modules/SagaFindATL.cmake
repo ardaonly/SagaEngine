@@ -130,7 +130,7 @@ function(saga_find_atl)
             "D:/Program Files (x86)/Microsoft Visual Studio"
         )
         set(_vs_years "2022" "2019" "2017")
-        set(_vs_editions "Community" "Professional" "Enterprise" "BuildTools" "Preview")
+        set(_vs_editions "Community" "Professional" "Enterprise" "BuildTools" "Evaluation")
 
         foreach(_pf IN LISTS _pf_roots)
             foreach(_year IN LISTS _vs_years)

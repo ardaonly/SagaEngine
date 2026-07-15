@@ -1,9 +1,6 @@
 function(saga_get_graphics_core_sources out_var)
-    set(${out_var}
-        "${SAGA_ROOT}/Engine/Private/SagaEngine/Graphics/Backend/NullGraphicsBackend.cpp"
-        "${SAGA_ROOT}/Engine/Private/SagaEngine/Graphics/Bindings/GraphicsBindingValidation.cpp"
-        PARENT_SCOPE
-    )
+    saga_get_registered_sources(SagaGraphicsCore _sources)
+    set(${out_var} ${_sources} PARENT_SCOPE)
 endfunction()
 
 function(saga_create_graphics_targets)
@@ -18,9 +15,9 @@ function(saga_create_graphics_targets)
     )
 
     target_include_directories(SagaGraphicsCore PUBLIC
-        $<BUILD_INTERFACE:${SAGA_ROOT}/Engine/Public>
         $<INSTALL_INTERFACE:include>
     )
+    saga_apply_registered_usage(SagaGraphicsCore)
 
     set_target_properties(SagaGraphicsCore PROPERTIES
         FOLDER "Engine/Graphics"
@@ -30,7 +27,7 @@ function(saga_create_graphics_targets)
     add_library(SagaGraphics INTERFACE)
 
     target_include_directories(SagaGraphics INTERFACE
-        $<BUILD_INTERFACE:${SAGA_ROOT}/Engine/Public>
+        $<BUILD_INTERFACE:${SAGA_ROOT}/Engine/Source/Runtime/RHI/Public>
         $<INSTALL_INTERFACE:include>
     )
 
@@ -46,13 +43,9 @@ function(saga_create_graphics_targets)
     add_library(SagaGraphicsPrivate STATIC)
     saga_apply_compiler_flags(SagaGraphicsPrivate)
 
-    target_sources(SagaGraphicsPrivate PRIVATE
-        ${SAGA_ROOT}/Engine/Private/SagaEngine/Graphics/GraphicsPrivateAnchor.cpp
-    )
-
-    target_include_directories(SagaGraphicsPrivate PRIVATE
-        ${SAGA_ROOT}/Engine/Private
-    )
+    saga_get_registered_sources(SagaGraphicsPrivate SAGA_GRAPHICS_PRIVATE_SOURCES)
+    target_sources(SagaGraphicsPrivate PRIVATE ${SAGA_GRAPHICS_PRIVATE_SOURCES})
+    saga_apply_registered_usage(SagaGraphicsPrivate)
 
     target_link_libraries(SagaGraphicsPrivate PUBLIC
         SagaGraphics
@@ -108,9 +101,7 @@ function(saga_assert_diligent_graphics_backend_single_owner)
             SagaGraphicsCore)
     endforeach()
 
-    file(GLOB_RECURSE _saga_diligent_graphics_backend_impl_sources CONFIGURE_DEPENDS
-        "${SAGA_ROOT}/Engine/Private/SagaEngine/Graphics/Backends/Diligent/*.cpp"
-    )
+    saga_get_registered_sources(SagaDiligentRuntime _saga_diligent_graphics_backend_impl_sources)
 
     foreach(_saga_diligent_graphics_source IN LISTS _saga_diligent_graphics_backend_impl_sources)
         saga_assert_source_has_single_owner(

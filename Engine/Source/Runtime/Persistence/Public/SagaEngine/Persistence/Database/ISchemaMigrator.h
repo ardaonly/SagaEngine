@@ -45,7 +45,7 @@
 
 #pragma once
 
-#include "Services/Persistence/Database/IDatabaseConnectionPool.h"
+#include "SagaEngine/Persistence/Database/IDatabaseConnectionPool.h"
 
 #include <cstdint>
 #include <memory>

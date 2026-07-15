@@ -52,7 +52,7 @@ struct DiagnosticsPanelView
 [[nodiscard]] const char* ToString(DiagnosticsPanelSeverity severity) noexcept;
 
 [[nodiscard]] DiagnosticsPanelView LoadDiagnosticsPanelView(
-    const TechnicalPreviewProjectView& project);
+    const ProjectReadinessView& project);
 
 [[nodiscard]] DiagnosticsPanelView LoadDiagnosticsPanelView(
     const ProjectBrowserWorkflowView& projectBrowser,

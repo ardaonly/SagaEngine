@@ -10,7 +10,7 @@ These files are source-trust fixtures:
   read-only source-linked nodes.
 
 The C# files remain canonical source. SagaScript analysis, projection, source
-maps, runtime binding metadata, and patch previews must not rewrite them.
+maps, runtime binding metadata, and patch evaluations must not rewrite them.
 
 This folder does not provide finished gameplay, editor node UI, live code
 reload, debug tooling, runtime-backed C# blocks, or a hardened script sandbox.

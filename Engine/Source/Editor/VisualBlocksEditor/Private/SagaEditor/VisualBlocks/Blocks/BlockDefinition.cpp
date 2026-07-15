@@ -1,11 +1,11 @@
 /// @file BlockDefinition.cpp
 /// @brief Implementation of the block-definition palette template.
 
-#include "SagaEditor/VisualScripting/Blocks/BlockDefinition.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockDefinition.h"
 
 #include <utility>
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 // ─── Label Fragment Builders ──────────────────────────────────────────────────
@@ -74,4 +74,4 @@ bool BlockDefinition::operator==(const BlockDefinition& o) const noexcept
         && hatEventId     == o.hatEventId;
 }
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

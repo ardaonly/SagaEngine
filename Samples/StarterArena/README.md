@@ -35,25 +35,25 @@ operator workflows, not primary launcher actions.
 Runtime smoke command:
 
 ```sh
-<build-dir>/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --smoke-report-out /tmp/starter_arena_runtime_smoke.json --smoke-frames 30 --fixed-dt 0.016
+<build-dir>/bin/SagaRuntime --headless --project Samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --smoke-report-out /tmp/starter_arena_runtime_smoke.json --smoke-frames 30 --fixed-dt 0.016
 ```
 
 Visible frame command:
 
 ```sh
-<build-dir>/bin/SagaRuntime --project samples/StarterArena/StarterArena.sagaproj --starter-arena-playable --playable-frames 30 --playable-report-out /tmp/starter_arena_playable.json --fixed-dt 0.016
+<build-dir>/bin/SagaRuntime --project Samples/StarterArena/StarterArena.sagaproj --starter-arena-playable --playable-frames 30 --playable-report-out /tmp/starter_arena_playable.json --fixed-dt 0.016
 ```
 
 Deterministic synthetic input command:
 
 ```sh
-<build-dir>/bin/SagaRuntime --project samples/StarterArena/StarterArena.sagaproj --starter-arena-playable --playable-frames 30 --playable-input-source synthetic --playable-input-script samples/StarterArena/Input/playable.synthetic-input.json --playable-report-out /tmp/starter_arena_playable_synthetic.json --fixed-dt 0.016
+<build-dir>/bin/SagaRuntime --project Samples/StarterArena/StarterArena.sagaproj --starter-arena-playable --playable-frames 30 --playable-input-source synthetic --playable-input-script Samples/StarterArena/Input/playable.synthetic-input.json --playable-report-out /tmp/starter_arena_playable_synthetic.json --fixed-dt 0.016
 ```
 
 Manual keyboard command:
 
 ```sh
-<build-dir>/bin/SagaRuntime --project samples/StarterArena/StarterArena.sagaproj --starter-arena-playable --playable-input-source keyboard --playable-report-out /tmp/starter_arena_playable_keyboard.json --fixed-dt 0.016
+<build-dir>/bin/SagaRuntime --project Samples/StarterArena/StarterArena.sagaproj --starter-arena-playable --playable-input-source keyboard --playable-report-out /tmp/starter_arena_playable_keyboard.json --fixed-dt 0.016
 ```
 
 Keyboard bindings are `W`, `A`, `S`, and `D`; `Escape` requests close. An idle
@@ -92,25 +92,25 @@ and the focused C# lifecycle proof:
 Expected focused check:
 
 ```sh
-nix-shell --run "Tools/SagaProjectKit/sagaproject validate --project samples/StarterArena/StarterArena.sagaproj --out /tmp/starter_arena_validate.json"
+nix-shell --run "Tools/SagaProjectKit/sagaproject validate --project Samples/StarterArena/StarterArena.sagaproj --out /tmp/starter_arena_validate.json"
 ```
 
 Focused SagaScript compile smoke:
 
 ```sh
 nix-shell --run "dotnet build Engine/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.csproj -c Release"
-nix-shell --run "SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY=Engine/Managed/SagaScript.RuntimeBridge/bin/Release/net10.0/SagaScript.RuntimeBridge.dll Tools/SagaScript/sagascript compile --source samples/StarterArena/Scripts --out /tmp/starter_arena_sagascript/Manifests --artifacts-out /tmp/starter_arena_sagascript/Artifacts/Scripts --project-root samples/StarterArena --assembly-name StarterArenaScripts --diagnostics /tmp/starter_arena_sagascript/sagascript_diagnostics.json --json"
+nix-shell --run "SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY=Engine/Managed/SagaScript.RuntimeBridge/bin/Release/net10.0/SagaScript.RuntimeBridge.dll Tools/SagaScript/sagascript compile --source Samples/StarterArena/Scripts --out /tmp/starter_arena_sagascript/Manifests --artifacts-out /tmp/starter_arena_sagascript/Artifacts/Scripts --project-root Samples/StarterArena --assembly-name StarterArenaScripts --diagnostics /tmp/starter_arena_sagascript/sagascript_diagnostics.json --json"
 ```
 
 Generated manifests, assemblies, diagnostics, runtime smoke reports, and
 visible-frame reports should stay under temporary output roots such as
 `/tmp/starter_arena_sagascript`; they must not be written into
-`samples/StarterArena`.
+`Samples/StarterArena`.
 
 Focused runtime script metadata smoke:
 
 ```sh
-<build-dir>/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --smoke-report-out /tmp/starter_arena_script_binding_smoke.json --smoke-frames 30 --fixed-dt 0.016
+<build-dir>/bin/SagaRuntime --headless --project Samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --smoke-report-out /tmp/starter_arena_script_binding_smoke.json --smoke-frames 30 --fixed-dt 0.016
 ```
 
 This records `scriptBinding.status: Passed` and
@@ -120,7 +120,7 @@ assembly.
 Focused runtime script invocation smoke:
 
 ```sh
-nix-shell --run "<build-dir>/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --invoke-starter-arena-script --smoke-report-out /tmp/starter_arena_script_invocation_smoke.json --smoke-frames 30 --fixed-dt 0.016"
+nix-shell --run "<build-dir>/bin/SagaRuntime --headless --project Samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --invoke-starter-arena-script --smoke-report-out /tmp/starter_arena_script_invocation_smoke.json --smoke-frames 30 --fixed-dt 0.016"
 ```
 
 This records controlled pure-method evidence under `scriptInvocation`:
@@ -130,7 +130,7 @@ This records controlled pure-method evidence under `scriptInvocation`:
 Focused runtime script lifecycle smoke:
 
 ```sh
-nix-shell --run "<build-dir>/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --run-starter-arena-script-lifecycle --smoke-report-out /tmp/starter_arena_script_lifecycle_smoke.json --smoke-frames 30 --fixed-dt 0.016"
+nix-shell --run "<build-dir>/bin/SagaRuntime --headless --project Samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --run-starter-arena-script-lifecycle --smoke-report-out /tmp/starter_arena_script_lifecycle_smoke.json --smoke-frames 30 --fixed-dt 0.016"
 ```
 
 This records focused lifecycle evidence under `scriptLifecycle`:
@@ -140,7 +140,7 @@ This records focused lifecycle evidence under `scriptLifecycle`:
 Focused combined invocation and lifecycle smoke:
 
 ```sh
-nix-shell --run "<build-dir>/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --invoke-starter-arena-script --run-starter-arena-script-lifecycle --smoke-report-out /tmp/starter_arena_script_combined_smoke.json --smoke-frames 30 --fixed-dt 0.016"
+nix-shell --run "<build-dir>/bin/SagaRuntime --headless --project Samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --invoke-starter-arena-script --run-starter-arena-script-lifecycle --smoke-report-out /tmp/starter_arena_script_combined_smoke.json --smoke-frames 30 --fixed-dt 0.016"
 ```
 
 This records `scriptBinding.execution: MetadataOnly` while reporting
@@ -150,7 +150,7 @@ independently.
 Focused gameplay-spine smoke:
 
 ```sh
-nix-shell --run "<build-dir>/bin/SagaRuntime --headless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --run-starter-arena-script-lifecycle --run-starter-arena-gameplay --smoke-report-out /tmp/starter_arena_gameplay_smoke.json --smoke-frames 30 --fixed-dt 0.016"
+nix-shell --run "<build-dir>/bin/SagaRuntime --headless --project Samples/StarterArena/StarterArena.sagaproj --starter-arena-smoke --script-manifest /tmp/starter_arena_sagascript/Manifests/script_bindings.json --script-artifacts /tmp/starter_arena_sagascript/Manifests/script_artifacts.json --run-starter-arena-script-lifecycle --run-starter-arena-gameplay --smoke-report-out /tmp/starter_arena_gameplay_smoke.json --smoke-frames 30 --fixed-dt 0.016"
 ```
 
 The opt-in gameplay proof keeps one managed `GameRules` instance alive across
@@ -174,7 +174,7 @@ in-process `starter-arena-visual-blocks-descriptor` profile and write one
 consolidated summary:
 
 ```sh
-<build-dir>/bin/Saga --first-playable-check --project samples/StarterArena/StarterArena.sagaproj --runtime-executable <build-dir>/bin/SagaRuntime --sagascript-tool Tools/SagaScript/sagascript --runtime-bridge-assembly <build-dir>/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.dll --first-playable-output /tmp/saga-first-playable
+<build-dir>/bin/Saga --first-playable-check --project Samples/StarterArena/StarterArena.sagaproj --runtime-executable <build-dir>/bin/SagaRuntime --sagascript-tool Tools/SagaScript/sagascript --runtime-bridge-assembly <build-dir>/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.dll --first-playable-output /tmp/saga-first-playable
 ```
 
 The command covers headless smoke, controlled invocation and lifecycle,
@@ -219,7 +219,7 @@ visible Runtime keyboard path, asks the operator to move with `W`, `A`, `S`, or
 external evidence package, and then runs the authoritative RC gate:
 
 ```sh
-<build-dir>/bin/Saga --first-playable-human-capture --project samples/StarterArena/StarterArena.sagaproj --runtime-executable <build-dir>/bin/SagaRuntime --sagascript-tool Tools/SagaScript/sagascript --runtime-bridge-assembly <build-dir>/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.dll --first-playable-output /tmp/saga-first-playable-human
+<build-dir>/bin/Saga --first-playable-human-capture --project Samples/StarterArena/StarterArena.sagaproj --runtime-executable <build-dir>/bin/SagaRuntime --sagascript-tool Tools/SagaScript/sagascript --runtime-bridge-assembly <build-dir>/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.dll --first-playable-output /tmp/saga-first-playable-human
 ```
 
 By default the visible capture is bounded to 600 frames and 30 seconds.
@@ -247,7 +247,7 @@ Canonical release-candidate non-claims:
 Focused server-authoritative smoke:
 
 ```sh
-<build-dir>/bin/MultiplayerSandboxHeadless --project samples/StarterArena/StarterArena.sagaproj --starter-arena-server-smoke --report-out /tmp/starter_arena_server_smoke.json --diagnostics-out /tmp/starter_arena_server_diagnostics --ticks 1 --fixed-dt 1.0
+<build-dir>/bin/MultiplayerSandboxHeadless --project Samples/StarterArena/StarterArena.sagaproj --starter-arena-server-smoke --report-out /tmp/starter_arena_server_smoke.json --diagnostics-out /tmp/starter_arena_server_diagnostics --ticks 1 --fixed-dt 1.0
 ```
 
 This is repository-only development/sample evidence. The executable is not

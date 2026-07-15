@@ -13,8 +13,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROJECT = REPO_ROOT / "Tools" / "SagaProjectKit" / "SagaProjectKit.csproj"
-SAMPLE_PROJECT = REPO_ROOT / "samples" / "MultiplayerSandbox" / "MultiplayerSandbox.sagaproj"
-SAMPLE_SLICE = REPO_ROOT / "samples" / "MultiplayerSandbox" / ".saga" / "slices" / "designer-local.slice.json"
+SAMPLE_PROJECT = REPO_ROOT / "Samples" / "MultiplayerSandbox" / "MultiplayerSandbox.sagaproj"
+SAMPLE_SLICE = REPO_ROOT / "Samples" / "MultiplayerSandbox" / ".saga" / "slices" / "designer-local.slice.json"
 
 
 def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
@@ -45,8 +45,8 @@ def valid_manifest() -> dict[str, object]:
         "displayName": "Fixture Project",
         "engineCompatibility": {
             "minimumVersion": "0.0.9",
-            "targetVersion": "0.1-technical-preview",
-            "channel": "technical-preview",
+            "targetVersion": "0.1-project-readiness",
+            "channel": "project-readiness",
         },
         "paths": {
             "diagnostics": "Diagnostics",
@@ -122,7 +122,7 @@ def source_truth_scene(
         "readBoundaries": {
             "runtime": {"status": "DocumentedReportOnly", "summary": "Runtime read is deferred."},
             "editor": {"status": "DocumentedReportOnly", "summary": "Editor inspection is report-only."},
-            "clientPreview": {"status": "Deferred", "summary": "Client preview is deferred."},
+            "clientEvaluation": {"status": "Deferred", "summary": "Client evaluation is deferred."},
         },
     }
 
@@ -615,7 +615,7 @@ def test_source_truth_inventory_classifies_scene_entity_and_generated_artifacts(
         assert report["summary"]["staleGeneratedEvidence"] == 1
         assert any(d["code"] == "Project.SourceTruth.GeneratedArtifactStale" for d in report["diagnostics"])
         boundaries = {item["boundary"]: item["status"] for item in report["readBoundaries"]}
-        assert boundaries == {"clientPreview": "Deferred", "editor": "DocumentedReportOnly", "runtime": "DocumentedReportOnly"}
+        assert boundaries == {"clientEvaluation": "Deferred", "editor": "DocumentedReportOnly", "runtime": "DocumentedReportOnly"}
 
 
 def test_source_truth_gate_and_opening_are_report_only_and_partial() -> None:
@@ -624,13 +624,13 @@ def test_source_truth_gate_and_opening_are_report_only_and_partial() -> None:
         inventory = root / "source_truth_inventory_report.json"
         gate = root / "source_truth_gate_report.json"
         closure = root / "enterprise_closure_report.json"
-        opening = root / "hedef4_opening_report.json"
+        opening = root / "asset_workflow_opening_report.json"
         write_json(closure, {"outcome": "PartiallyProven", "residualDebt": ["preserved debt"]})
 
         assert run_cli("source-truth-inventory", "--project", str(SAMPLE_PROJECT), "--out", str(inventory)).returncode == 0
         gate_result = run_cli("source-truth-gate", "--project", str(SAMPLE_PROJECT), "--inventory-report", str(inventory), "--out", str(gate))
         opening_result = run_cli(
-            "hedef4-opening",
+            "asset-workflow-opening",
             "--project",
             str(SAMPLE_PROJECT),
             "--inventory-report",
@@ -651,8 +651,8 @@ def test_source_truth_gate_and_opening_are_report_only_and_partial() -> None:
         assert all(check["status"] == "Passed" for check in gate_report["checks"])
         assert opening_report["status"] == "PartiallyProven"
         assert opening_report["outcome"] == "PartiallyProven"
-        assert len(opening_report["openedPhases"]) == 8
-        assert opening_report["reservedFollowUpPhases"] == ["Follow-up source-truth and runtime-read work remains planning/report-only until implemented"]
+        assert len(opening_report["openedResponsibilities"]) == 8
+        assert opening_report["reservedFollowUps"] == ["Follow-up source-truth and runtime-read work remains planning/report-only until implemented"]
         assert opening_report["residualDebt"] == ["preserved debt"]
         assert opening_report["mutatesSource"] is False
 
@@ -1015,7 +1015,7 @@ def test_scene_entity_validate_diagnoses_missing_asset_owner_and_generated_canon
         assert "Project.SceneEntity.GeneratedArtifactCanonical" in codes
 
 
-def test_phase134_reports_do_not_mutate_source_files() -> None:
+def test_asset_source_manifest_reports_do_not_mutate_source_files() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp) / "Project"
         manifest = create_source_truth_project(root)
@@ -1051,7 +1051,7 @@ def test_phase134_reports_do_not_mutate_source_files() -> None:
         assert (root / "Generated" / "SourceTruth" / "fixture.generated.json").read_text(encoding="utf-8") == before["generated"]
 
 
-def write_phase141_inputs(root: Path, manifest: Path) -> tuple[Path, Path]:
+def write_metadata_ownership_inputs(root: Path, manifest: Path) -> tuple[Path, Path]:
     source_truth = root / "source_truth_inventory_report.json"
     scene_validation = root / "scene_entity_validation_report.json"
     freshness = root / "generated_artifact_freshness_report.json"
@@ -1064,7 +1064,7 @@ def write_phase141_inputs(root: Path, manifest: Path) -> tuple[Path, Path]:
 def test_component_metadata_ownership_accepts_known_components_and_evidence_only_generated() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        scene_validation, freshness = write_phase141_inputs(root, SAMPLE_PROJECT)
+        scene_validation, freshness = write_metadata_ownership_inputs(root, SAMPLE_PROJECT)
         out = root / "component_metadata_ownership_report.json"
 
         result = run_cli(
@@ -1097,7 +1097,7 @@ def test_component_metadata_ownership_diagnoses_unknown_component_type() -> None
         scene["entities"][0]["components"].append({"type": "UnknownComponent", "properties": {}})  # type: ignore[index]
         write_json(root / "Scenes" / "fixture.scene.json", scene)
         write_json(root / "Generated" / "SourceTruth" / "fixture.generated.json", {"sourceHash": "source-hash-v1"})
-        scene_validation, freshness = write_phase141_inputs(Path(tmp), manifest)
+        scene_validation, freshness = write_metadata_ownership_inputs(Path(tmp), manifest)
         out = Path(tmp) / "component_metadata_ownership_report.json"
 
         result = run_cli(
@@ -1120,7 +1120,7 @@ def test_component_metadata_ownership_diagnoses_unknown_component_type() -> None
 def test_editor_inspection_and_read_are_report_only_and_source_backed() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        scene_validation, freshness = write_phase141_inputs(root, SAMPLE_PROJECT)
+        scene_validation, freshness = write_metadata_ownership_inputs(root, SAMPLE_PROJECT)
         inspection = root / "editor_inspection_model_report.json"
         read = root / "editor_source_truth_read_report.json"
 
@@ -1183,7 +1183,7 @@ def test_editor_source_truth_read_fails_missing_scene_and_generated_canonical_cl
 def test_runtime_audit_and_readiness_are_planning_only_with_stale_generated_debt() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        scene_validation, freshness = write_phase141_inputs(root, SAMPLE_PROJECT)
+        scene_validation, freshness = write_metadata_ownership_inputs(root, SAMPLE_PROJECT)
         audit = root / "runtime_read_model_audit_report.json"
         readiness = root / "runtime_readiness_gate_report.json"
 
@@ -1222,7 +1222,7 @@ def test_runtime_audit_and_readiness_are_planning_only_with_stale_generated_debt
         assert readiness_report["runtimeImplementationClaim"] == "Runtime not implemented."
 
 
-def test_source_truth_scenario_is_deterministic_and_preserves_client_preview_deferral() -> None:
+def test_source_truth_scenario_is_deterministic_and_preserves_client_evaluation_deferral() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         evidence_root = Path(tmp) / "Build" / "SourceTruth"
         evidence_root.mkdir(parents=True)
@@ -1250,7 +1250,7 @@ def test_source_truth_scenario_is_deterministic_and_preserves_client_preview_def
         assert first.read_text(encoding="utf-8") == second.read_text(encoding="utf-8")
         report = load_report(first)
         assert report["outcome"] == "PartiallyProven"
-        assert "Client Preview deferral is explicit." in report["explicitDeferrals"]
+        assert "Client Evaluation deferral is explicit." in report["explicitDeferrals"]
 
         (evidence_root / "component_metadata_ownership_report.json").unlink()
         blocked = Path(tmp) / "scenario_blocked.json"
@@ -1259,7 +1259,7 @@ def test_source_truth_scenario_is_deterministic_and_preserves_client_preview_def
         assert load_report(blocked)["outcome"] == "Blocked"
 
 
-def write_phase149_seed_evidence(evidence_root: Path) -> None:
+def write_client_readiness_seed_evidence(evidence_root: Path) -> None:
     evidence_root.mkdir(parents=True, exist_ok=True)
     for filename, status in [
         ("source_truth_inventory_report.json", "PartiallyProven"),
@@ -1308,7 +1308,7 @@ def write_phase149_seed_evidence(evidence_root: Path) -> None:
         write_json(evidence_root / filename, payload)
 
 
-def write_phase156_seed_evidence(evidence_root: Path, *, partial: bool = True) -> None:
+def write_runtime_readiness_seed_evidence(evidence_root: Path, *, partial: bool = True) -> None:
     evidence_root.mkdir(parents=True, exist_ok=True)
     statuses = {
         "source_truth_inventory_report.json": "PartiallyProven" if partial else "Passed",
@@ -1319,7 +1319,7 @@ def write_phase156_seed_evidence(evidence_root: Path, *, partial: bool = True) -
         "runtime_readiness_gate_report.json": "PartiallyProven" if partial else "ReadyForPlanning",
         "package_source_truth_alignment_report.json": "Passed",
         "launch_source_truth_alignment_report.json": "PartiallyProven" if partial else "Passed",
-        "hedef4_closure_report.json": "PartiallyProven" if partial else "SourceTruthFoundationEstablished",
+        "asset_workflow_closure_report.json": "PartiallyProven" if partial else "SourceTruthFoundationEstablished",
     }
     for filename, status in statuses.items():
         write_json(
@@ -1342,32 +1342,32 @@ def assert_report_only_invariants(report: dict[str, object]) -> None:
     assert report["enforcement"] == "ReportOnly"
 
 
-def test_phase149_155_reports_are_deterministic_report_only_and_deferred() -> None:
+def test_client_readiness_155_reports_are_deterministic_report_only_and_deferred() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         evidence_root = root / "Build" / "SourceTruth"
-        write_phase149_seed_evidence(evidence_root)
+        write_client_readiness_seed_evidence(evidence_root)
 
-        prereq = evidence_root / "client_preview_prerequisite_audit_report.json"
-        prereq_second = root / "client_preview_prerequisite_audit_report_second.json"
-        first_prereq = run_cli("client-preview-prerequisite-audit", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evidence_root), "--out", str(prereq))
-        second_prereq = run_cli("client-preview-prerequisite-audit", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evidence_root), "--out", str(prereq_second))
+        prereq = evidence_root / "client_evaluation_prerequisite_audit_report.json"
+        prereq_second = root / "client_evaluation_prerequisite_audit_report_second.json"
+        first_prereq = run_cli("client-evaluation-prerequisite-audit", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evidence_root), "--out", str(prereq))
+        second_prereq = run_cli("client-evaluation-prerequisite-audit", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evidence_root), "--out", str(prereq_second))
         assert first_prereq.returncode == 0, first_prereq.stderr + first_prereq.stdout
         assert second_prereq.returncode == 0, second_prereq.stderr + second_prereq.stdout
         assert prereq.read_text(encoding="utf-8") == prereq_second.read_text(encoding="utf-8")
         prereq_report = load_report(prereq)
         assert_report_only_invariants(prereq_report)
-        assert prereq_report["clientPreviewStatus"] == "Deferred"
-        assert prereq_report["requiredFutureSeams"][0]["seamName"] == "ClientPreviewRuntimeReadSeam"
+        assert prereq_report["clientEvaluationStatus"] == "Deferred"
+        assert prereq_report["requiredFutureSeams"][0]["seamName"] == "ClientEvaluationRuntimeReadSeam"
         assert "No Product Beta is claimed." in prereq_report["nonClaims"]
-        assert "No Client Preview implementation is claimed." in prereq_report["nonClaims"]
+        assert "No Client Evaluation implementation is claimed." in prereq_report["nonClaims"]
 
         boundary = evidence_root / "clienthost_boundary_plan_report.json"
         boundary_result = run_cli(
             "clienthost-boundary-plan",
             "--project",
             str(SAMPLE_PROJECT),
-            "--client-preview-prerequisite",
+            "--client-evaluation-prerequisite",
             str(prereq),
             "--out",
             str(boundary),
@@ -1375,7 +1375,7 @@ def test_phase149_155_reports_are_deterministic_report_only_and_deferred() -> No
         assert boundary_result.returncode == 0, boundary_result.stderr + boundary_result.stdout
         boundary_report = load_report(boundary)
         assert_report_only_invariants(boundary_report)
-        assert boundary_report["futureSeamName"] == "ClientPreviewRuntimeReadSeam"
+        assert boundary_report["futureSeamName"] == "ClientEvaluationRuntimeReadSeam"
         assert "NetworkTransport" in boundary_report["deferredConcerns"]
         assert any("must not own scene/entity source truth" in item for item in boundary_report["forbiddenDirectOwnership"])
 
@@ -1407,12 +1407,12 @@ def test_phase149_155_reports_are_deterministic_report_only_and_deferred() -> No
         assert health_report["unclaimedEvidence"][0]["status"] == "Unclaimed"
         assert {item["status"] for item in health_report["deferredEvidence"]} == {"Deferred"}
 
-        matrix = evidence_root / "hedef4_evidence_matrix_report.json"
-        closure = evidence_root / "hedef4_closure_report.json"
-        matrix_first = run_cli("hedef4-evidence-matrix", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evidence_root), "--out", str(matrix))
-        matrix_second_path = root / "hedef4_evidence_matrix_report_second.json"
-        matrix_second = run_cli("hedef4-evidence-matrix", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evidence_root), "--out", str(matrix_second_path))
-        closure_result = run_cli("hedef4-closure", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evidence_root), "--out", str(closure))
+        matrix = evidence_root / "asset_workflow_evidence_matrix_report.json"
+        closure = evidence_root / "asset_workflow_closure_report.json"
+        matrix_first = run_cli("asset-workflow-evidence-matrix", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evidence_root), "--out", str(matrix))
+        matrix_second_path = root / "asset_workflow_evidence_matrix_report_second.json"
+        matrix_second = run_cli("asset-workflow-evidence-matrix", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evidence_root), "--out", str(matrix_second_path))
+        closure_result = run_cli("asset-workflow-closure", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evidence_root), "--out", str(closure))
 
         assert matrix_first.returncode == 0, matrix_first.stderr + matrix_first.stdout
         assert matrix_second.returncode == 0, matrix_second.stderr + matrix_second.stdout
@@ -1427,19 +1427,19 @@ def test_phase149_155_reports_are_deterministic_report_only_and_deferred() -> No
         assert all(item["matrixStatus"] != "Passed" for item in matrix_report["evidence"] if item["sourceStatus"] == "Missing")
         assert closure_report["outcome"] in {"PartiallyProven", "SourceTruthFoundationEstablished"}
         assert closure_report["limitationsDocPresent"] is True
-        assert closure_report["nextTargetRecommendations"] == ["Future Client Preview / Runtime Read Seam planning only."]
+        assert closure_report["nextTargetRecommendations"] == ["Future Client Evaluation / Runtime Read Seam planning only."]
 
 
-def test_phase150_and_155_block_when_required_evidence_is_missing() -> None:
+def test_client_host_boundary_and_155_block_when_required_evidence_is_missing() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        missing_prereq = root / "missing_client_preview_prerequisite_report.json"
+        missing_prereq = root / "missing_client_evaluation_prerequisite_report.json"
         boundary = root / "clienthost_boundary_plan_report.json"
         boundary_result = run_cli(
             "clienthost-boundary-plan",
             "--project",
             str(SAMPLE_PROJECT),
-            "--client-preview-prerequisite",
+            "--client-evaluation-prerequisite",
             str(missing_prereq),
             "--out",
             str(boundary),
@@ -1449,19 +1449,19 @@ def test_phase150_and_155_block_when_required_evidence_is_missing() -> None:
 
         evidence_root = root / "Build" / "SourceTruth"
         evidence_root.mkdir(parents=True)
-        closure = root / "hedef4_closure_report.json"
-        closure_result = run_cli("hedef4-closure", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evidence_root), "--out", str(closure))
+        closure = root / "asset_workflow_closure_report.json"
+        closure_result = run_cli("asset-workflow-closure", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evidence_root), "--out", str(closure))
         assert closure_result.returncode == 1
         closure_report = load_report(closure)
         assert closure_report["outcome"] == "Blocked"
         assert all(item["matrixStatus"] != "Passed" for item in closure_report["requiredEvidence"] if item["sourceStatus"] == "Missing")
 
 
-def test_runtime_readiness_v2_reports_partial_from_hedef4_evidence_and_is_deterministic() -> None:
+def test_runtime_readiness_v2_reports_partial_from_asset_workflow_evidence_and_is_deterministic() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         evidence_root = root / "Build" / "SourceTruth"
-        write_phase156_seed_evidence(evidence_root, partial=True)
+        write_runtime_readiness_seed_evidence(evidence_root, partial=True)
         first = root / "runtime_readiness_v2_report_first.json"
         second = root / "runtime_readiness_v2_report_second.json"
 
@@ -1476,11 +1476,11 @@ def test_runtime_readiness_v2_reports_partial_from_hedef4_evidence_and_is_determ
         assert report["command"] == "runtime-readiness-v2"
         assert report["status"] == "PartiallyProven"
         assert report["readinessStatus"] == "PartiallyProven"
-        assert report["clientPreviewStatus"] == "Deferred"
+        assert report["clientEvaluationStatus"] == "Deferred"
         assert report["clientHostImplementationClaim"] == "NotImplemented"
         assert report["runtimeImplementationClaim"] == "NotImplemented"
         assert "No ClientHost implementation is claimed." in report["nonClaims"]
-        assert "ReadyForImplementationPlanning does not mean Runtime, ClientHost, or Client Preview exists." in report["nonClaims"]
+        assert "ReadyForImplementationPlanning does not mean Runtime, ClientHost, or Client Evaluation exists." in report["nonClaims"]
         assert {item["status"] for item in report["adapterAudit"]} == {"MissingAdapterSeamWithPartialEvidence", "MissingAdapterSeam"}
         assert any(item["kind"] == "StaleGeneratedProjection" for item in report["forbiddenRuntimeSourceTruth"])
         assert len(report["fixtureContract"]) == 6
@@ -1496,7 +1496,7 @@ def test_runtime_readiness_v2_missing_and_blocked_evidence_do_not_pass() -> None
         "runtime_readiness_gate_report.json",
         "package_source_truth_alignment_report.json",
         "launch_source_truth_alignment_report.json",
-        "hedef4_closure_report.json",
+        "asset_workflow_closure_report.json",
     }
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -1515,7 +1515,7 @@ def test_runtime_readiness_v2_missing_and_blocked_evidence_do_not_pass() -> None
 
         for filename in sorted(required_files):
             evidence_root = root / f"Evidence-{filename}"
-            write_phase156_seed_evidence(evidence_root, partial=False)
+            write_runtime_readiness_seed_evidence(evidence_root, partial=False)
             write_json(
                 evidence_root / filename,
                 {
@@ -1538,7 +1538,7 @@ def test_runtime_readiness_v2_ready_for_implementation_planning_is_not_implement
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         evidence_root = root / "Build" / "SourceTruth"
-        write_phase156_seed_evidence(evidence_root, partial=False)
+        write_runtime_readiness_seed_evidence(evidence_root, partial=False)
         out = root / "runtime_readiness_v2_report.json"
 
         result = run_cli("runtime-readiness-v2", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evidence_root), "--out", str(out))
@@ -1548,24 +1548,24 @@ def test_runtime_readiness_v2_ready_for_implementation_planning_is_not_implement
         assert report["readinessStatus"] == "ReadyForImplementationPlanning"
         assert report["runtimeImplementationClaim"] == "NotImplemented"
         assert report["clientHostImplementationClaim"] == "NotImplemented"
-        assert report["clientPreviewStatus"] == "Deferred"
+        assert report["clientEvaluationStatus"] == "Deferred"
         assert report["planningScope"] == "Runtime read seam implementation planning only."
         assert_report_only_invariants(report)
 
 
-def test_clienthost_preview_ownership_boundary_reads_runtime_readiness_and_is_deterministic() -> None:
+def test_clienthost_evaluation_ownership_boundary_reads_runtime_readiness_and_is_deterministic() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         evidence_root = root / "Build" / "SourceTruth"
-        write_phase156_seed_evidence(evidence_root, partial=True)
+        write_runtime_readiness_seed_evidence(evidence_root, partial=True)
         runtime = root / "runtime_readiness_v2_report.json"
         runtime_result = run_cli("runtime-readiness-v2", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evidence_root), "--out", str(runtime))
         assert runtime_result.returncode == 0, runtime_result.stderr + runtime_result.stdout
 
-        first = root / "clienthost_preview_ownership_boundary_report.json"
-        second = root / "clienthost_preview_ownership_boundary_report_second.json"
+        first = root / "clienthost_evaluation_ownership_boundary_report.json"
+        second = root / "clienthost_evaluation_ownership_boundary_report_second.json"
         first_result = run_cli(
-            "clienthost-preview-ownership-boundary",
+            "clienthost-evaluation-ownership-boundary",
             "--project",
             str(SAMPLE_PROJECT),
             "--runtime-readiness-v2",
@@ -1574,7 +1574,7 @@ def test_clienthost_preview_ownership_boundary_reads_runtime_readiness_and_is_de
             str(first),
         )
         second_result = run_cli(
-            "clienthost-preview-ownership-boundary",
+            "clienthost-evaluation-ownership-boundary",
             "--project",
             str(SAMPLE_PROJECT),
             "--runtime-readiness-v2",
@@ -1591,18 +1591,18 @@ def test_clienthost_preview_ownership_boundary_reads_runtime_readiness_and_is_de
         assert report["readinessStatus"] == "PartiallyProven"
         assert report["runtimeReadinessV2Status"] == "PartiallyProven"
         assert report["clientHostImplementationClaim"] == "NotImplemented"
-        assert report["clientPreviewStatus"] == "Deferred"
+        assert report["clientEvaluationStatus"] == "Deferred"
         assert any("scene/entity source truth" in item for item in report["forbiddenDirectOwnership"])
-        assert any(item["inputId"] == "phase162-launch-profile-contract" for item in report["allowedFutureInputs"])
+        assert any(item["inputId"] == "launch_profile_contract-launch-profile-contract" for item in report["allowedFutureInputs"])
 
 
-def test_clienthost_preview_ownership_boundary_missing_runtime_is_missing_evidence() -> None:
+def test_clienthost_evaluation_ownership_boundary_missing_runtime_is_missing_evidence() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        out = root / "clienthost_preview_ownership_boundary_report.json"
+        out = root / "clienthost_evaluation_ownership_boundary_report.json"
 
         result = run_cli(
-            "clienthost-preview-ownership-boundary",
+            "clienthost-evaluation-ownership-boundary",
             "--project",
             str(SAMPLE_PROJECT),
             "--runtime-readiness-v2",
@@ -1617,17 +1617,17 @@ def test_clienthost_preview_ownership_boundary_missing_runtime_is_missing_eviden
         assert_report_only_invariants(report)
 
 
-def test_client_preview_launch_profile_contract_classifies_server_profile_and_does_not_launch() -> None:
+def test_client_evaluation_launch_profile_contract_classifies_server_profile_and_does_not_launch() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         evidence_root = root / "Build" / "SourceTruth"
-        write_phase156_seed_evidence(evidence_root, partial=True)
+        write_runtime_readiness_seed_evidence(evidence_root, partial=True)
         runtime = root / "runtime_readiness_v2_report.json"
         assert run_cli("runtime-readiness-v2", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evidence_root), "--out", str(runtime)).returncode == 0
 
-        out = root / "client_preview_launch_profile_contract_report.json"
+        out = root / "client_evaluation_launch_profile_contract_report.json"
         result = run_cli(
-            "client-preview-launch-profile-contract",
+            "client-evaluation-launch-profile-contract",
             "--project",
             str(SAMPLE_PROJECT),
             "--runtime-readiness-v2",
@@ -1640,23 +1640,23 @@ def test_client_preview_launch_profile_contract_classifies_server_profile_and_do
         report = load_report(out)
         assert_report_only_invariants(report)
         assert report["readinessStatus"] == "PartiallyProven"
-        assert report["clientPreviewStatus"] == "Deferred"
-        assert report["plannedProfileId"] == "client-preview-local-no-network"
+        assert report["clientEvaluationStatus"] == "Deferred"
+        assert report["plannedProfileId"] == "client-evaluation-local-no-network"
         assert report["plannedProfileStatus"] == "DeferredProfileNotImplemented"
         assert any(
             item["profileId"] == "local-server-headless" and item["classification"] == "ServerHeadlessEvidenceOnly"
             for item in report["currentLaunchProfiles"]
         )
-        assert "No process launch is permitted in this phase." in report["cannotLaunchYet"]
+        assert "No process launch is permitted in the current planning state." in report["cannotLaunchYet"]
         assert any(item["checkId"] == "NoProcessLaunched" and item["status"] == "Passed" for item in report["checks"])
 
 
-def test_client_preview_launch_profile_contract_missing_and_blocked_runtime_do_not_pass() -> None:
+def test_client_evaluation_launch_profile_contract_missing_and_blocked_runtime_do_not_pass() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         missing = root / "missing_contract_report.json"
         missing_result = run_cli(
-            "client-preview-launch-profile-contract",
+            "client-evaluation-launch-profile-contract",
             "--project",
             str(SAMPLE_PROJECT),
             "--runtime-readiness-v2",
@@ -1682,7 +1682,7 @@ def test_client_preview_launch_profile_contract_missing_and_blocked_runtime_do_n
         )
         blocked = root / "blocked_contract_report.json"
         blocked_result = run_cli(
-            "client-preview-launch-profile-contract",
+            "client-evaluation-launch-profile-contract",
             "--project",
             str(SAMPLE_PROJECT),
             "--runtime-readiness-v2",
@@ -1694,11 +1694,11 @@ def test_client_preview_launch_profile_contract_missing_and_blocked_runtime_do_n
         assert load_report(blocked)["readinessStatus"] == "Blocked"
 
 
-def test_client_preview_no_network_plan_is_local_only_and_not_network_proof() -> None:
+def test_client_evaluation_no_network_plan_is_local_only_and_not_network_proof() -> None:
     with tempfile.TemporaryDirectory() as tmp:
-        out = Path(tmp) / "client_preview_no_network_plan_report.json"
+        out = Path(tmp) / "client_evaluation_no_network_plan_report.json"
 
-        result = run_cli("client-preview-no-network-plan", "--project", str(SAMPLE_PROJECT), "--out", str(out))
+        result = run_cli("client-evaluation-no-network-plan", "--project", str(SAMPLE_PROJECT), "--out", str(out))
 
         assert result.returncode == 0, result.stderr + result.stdout
         report = load_report(out)
@@ -1711,28 +1711,28 @@ def test_client_preview_no_network_plan_is_local_only_and_not_network_proof() ->
         assert any(item["kind"] == "ReplicationProof" for item in report["forbiddenLaterInputs"])
 
 
-def test_client_preview_diagnostics_shell_aggregates_prior_reports_deterministically() -> None:
+def test_client_evaluation_diagnostics_shell_aggregates_prior_reports_deterministically() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         source_truth_root = root / "Build" / "SourceTruth"
-        preview_root = root / "Build" / "Preview"
-        write_phase156_seed_evidence(source_truth_root, partial=True)
-        preview_root.mkdir(parents=True)
+        evaluation_root = root / "Build" / "Evaluation"
+        write_runtime_readiness_seed_evidence(source_truth_root, partial=True)
+        evaluation_root.mkdir(parents=True)
 
-        runtime = preview_root / "runtime_readiness_v2_report.json"
-        boundary = preview_root / "clienthost_preview_ownership_boundary_report.json"
-        launch = preview_root / "client_preview_launch_profile_contract_report.json"
-        no_network = preview_root / "client_preview_no_network_plan_report.json"
-        shell = preview_root / "client_preview_diagnostics_shell_report.json"
-        shell_second = root / "client_preview_diagnostics_shell_report_second.json"
+        runtime = evaluation_root / "runtime_readiness_v2_report.json"
+        boundary = evaluation_root / "clienthost_evaluation_ownership_boundary_report.json"
+        launch = evaluation_root / "client_evaluation_launch_profile_contract_report.json"
+        no_network = evaluation_root / "client_evaluation_no_network_plan_report.json"
+        shell = evaluation_root / "client_evaluation_diagnostics_shell_report.json"
+        shell_second = root / "client_evaluation_diagnostics_shell_report_second.json"
 
         assert run_cli("runtime-readiness-v2", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(source_truth_root), "--out", str(runtime)).returncode == 0
-        assert run_cli("clienthost-preview-ownership-boundary", "--project", str(SAMPLE_PROJECT), "--runtime-readiness-v2", str(runtime), "--out", str(boundary)).returncode == 0
-        assert run_cli("client-preview-launch-profile-contract", "--project", str(SAMPLE_PROJECT), "--runtime-readiness-v2", str(runtime), "--out", str(launch)).returncode == 0
-        assert run_cli("client-preview-no-network-plan", "--project", str(SAMPLE_PROJECT), "--out", str(no_network)).returncode == 0
+        assert run_cli("clienthost-evaluation-ownership-boundary", "--project", str(SAMPLE_PROJECT), "--runtime-readiness-v2", str(runtime), "--out", str(boundary)).returncode == 0
+        assert run_cli("client-evaluation-launch-profile-contract", "--project", str(SAMPLE_PROJECT), "--runtime-readiness-v2", str(runtime), "--out", str(launch)).returncode == 0
+        assert run_cli("client-evaluation-no-network-plan", "--project", str(SAMPLE_PROJECT), "--out", str(no_network)).returncode == 0
 
-        first_result = run_cli("client-preview-diagnostics-shell", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(preview_root), "--out", str(shell))
-        second_result = run_cli("client-preview-diagnostics-shell", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(preview_root), "--out", str(shell_second))
+        first_result = run_cli("client-evaluation-diagnostics-shell", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evaluation_root), "--out", str(shell))
+        second_result = run_cli("client-evaluation-diagnostics-shell", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evaluation_root), "--out", str(shell_second))
 
         assert first_result.returncode == 0, first_result.stderr + first_result.stdout
         assert second_result.returncode == 0, second_result.stderr + second_result.stdout
@@ -1743,18 +1743,18 @@ def test_client_preview_diagnostics_shell_aggregates_prior_reports_deterministic
         assert report["runtimeReadinessV2Status"] == "PartiallyProven"
         assert report["clientHostBoundaryStatus"] == "PartiallyProven"
         assert "asset import/cook" in report["deferredSystems"]
-        assert "No Client Preview implementation is claimed." in report["nonClaims"]
+        assert "No Client Evaluation implementation is claimed." in report["nonClaims"]
         assert "ClientHost is not implemented." in report["implementationBlockers"]
 
 
-def test_client_preview_diagnostics_shell_missing_inputs_are_missing_evidence() -> None:
+def test_client_evaluation_diagnostics_shell_missing_inputs_are_missing_evidence() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        evidence_root = root / "Build" / "Preview"
+        evidence_root = root / "Build" / "Evaluation"
         evidence_root.mkdir(parents=True)
-        out = root / "client_preview_diagnostics_shell_report.json"
+        out = root / "client_evaluation_diagnostics_shell_report.json"
 
-        result = run_cli("client-preview-diagnostics-shell", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evidence_root), "--out", str(out))
+        result = run_cli("client-evaluation-diagnostics-shell", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evidence_root), "--out", str(out))
 
         assert result.returncode == 1
         report = load_report(out)
@@ -1762,58 +1762,58 @@ def test_client_preview_diagnostics_shell_missing_inputs_are_missing_evidence() 
         assert all(item["readinessStatus"] == "MissingEvidence" for item in report["requiredInputs"])
 
 
-def test_client_preview_blocker_matrix_current_partial_and_missing_reports_do_not_pass() -> None:
+def test_client_evaluation_blocker_matrix_current_partial_and_missing_reports_do_not_pass() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         source_truth_root = root / "Build" / "SourceTruth"
-        preview_root = root / "Build" / "Preview"
-        write_phase156_seed_evidence(source_truth_root, partial=True)
-        preview_root.mkdir(parents=True)
+        evaluation_root = root / "Build" / "Evaluation"
+        write_runtime_readiness_seed_evidence(source_truth_root, partial=True)
+        evaluation_root.mkdir(parents=True)
 
-        runtime = preview_root / "runtime_readiness_v2_report.json"
-        boundary = preview_root / "clienthost_preview_ownership_boundary_report.json"
-        launch = preview_root / "client_preview_launch_profile_contract_report.json"
-        no_network = preview_root / "client_preview_no_network_plan_report.json"
-        shell = preview_root / "client_preview_diagnostics_shell_report.json"
-        matrix = preview_root / "client_preview_blocker_matrix_report.json"
+        runtime = evaluation_root / "runtime_readiness_v2_report.json"
+        boundary = evaluation_root / "clienthost_evaluation_ownership_boundary_report.json"
+        launch = evaluation_root / "client_evaluation_launch_profile_contract_report.json"
+        no_network = evaluation_root / "client_evaluation_no_network_plan_report.json"
+        shell = evaluation_root / "client_evaluation_diagnostics_shell_report.json"
+        matrix = evaluation_root / "client_evaluation_blocker_matrix_report.json"
 
         assert run_cli("runtime-readiness-v2", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(source_truth_root), "--out", str(runtime)).returncode == 0
-        assert run_cli("clienthost-preview-ownership-boundary", "--project", str(SAMPLE_PROJECT), "--runtime-readiness-v2", str(runtime), "--out", str(boundary)).returncode == 0
-        assert run_cli("client-preview-launch-profile-contract", "--project", str(SAMPLE_PROJECT), "--runtime-readiness-v2", str(runtime), "--out", str(launch)).returncode == 0
-        assert run_cli("client-preview-no-network-plan", "--project", str(SAMPLE_PROJECT), "--out", str(no_network)).returncode == 0
-        assert run_cli("client-preview-diagnostics-shell", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(preview_root), "--out", str(shell)).returncode == 0
+        assert run_cli("clienthost-evaluation-ownership-boundary", "--project", str(SAMPLE_PROJECT), "--runtime-readiness-v2", str(runtime), "--out", str(boundary)).returncode == 0
+        assert run_cli("client-evaluation-launch-profile-contract", "--project", str(SAMPLE_PROJECT), "--runtime-readiness-v2", str(runtime), "--out", str(launch)).returncode == 0
+        assert run_cli("client-evaluation-no-network-plan", "--project", str(SAMPLE_PROJECT), "--out", str(no_network)).returncode == 0
+        assert run_cli("client-evaluation-diagnostics-shell", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evaluation_root), "--out", str(shell)).returncode == 0
 
-        result = run_cli("client-preview-blocker-matrix", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(preview_root), "--out", str(matrix))
+        result = run_cli("client-evaluation-blocker-matrix", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evaluation_root), "--out", str(matrix))
 
         assert result.returncode == 0, result.stderr + result.stdout
         report = load_report(matrix)
         assert_report_only_invariants(report)
         assert report["readinessStatus"] == "PartiallyProven"
-        assert report["clientPreviewImplementationClaim"] == "NotImplemented"
+        assert report["clientEvaluationImplementationClaim"] == "NotImplemented"
         assert report["clientHostImplementationClaim"] == "NotImplemented"
         assert report["runtimeImplementationClaim"] == "NotImplemented"
-        assert "ReadyForImplementationPlanning does not mean Client Preview is implemented." in report["nonClaims"]
+        assert "ReadyForImplementationPlanning does not mean Client Evaluation is implemented." in report["nonClaims"]
         assert any(item["blockerId"] == "networking-explicitly-forbidden" and item["implementationStatus"] == "Forbidden" for item in report["blockers"])
 
-        missing_root = root / "MissingPreview"
+        missing_root = root / "MissingEvaluation"
         missing_root.mkdir()
-        missing_matrix = root / "missing_client_preview_blocker_matrix_report.json"
-        missing_result = run_cli("client-preview-blocker-matrix", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(missing_root), "--out", str(missing_matrix))
+        missing_matrix = root / "missing_client_evaluation_blocker_matrix_report.json"
+        missing_result = run_cli("client-evaluation-blocker-matrix", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(missing_root), "--out", str(missing_matrix))
         assert missing_result.returncode == 1
         assert load_report(missing_matrix)["readinessStatus"] == "MissingEvidence"
 
 
-def test_client_preview_blocker_matrix_ready_planning_is_not_implementation() -> None:
+def test_client_evaluation_blocker_matrix_ready_planning_is_not_implementation() -> None:
     required_reports = [
         ("runtime-readiness-v2", "runtime_readiness_v2_report.json"),
-        ("clienthost-preview-ownership-boundary", "clienthost_preview_ownership_boundary_report.json"),
-        ("client-preview-launch-profile-contract", "client_preview_launch_profile_contract_report.json"),
-        ("client-preview-no-network-plan", "client_preview_no_network_plan_report.json"),
-        ("client-preview-diagnostics-shell", "client_preview_diagnostics_shell_report.json"),
+        ("clienthost-evaluation-ownership-boundary", "clienthost_evaluation_ownership_boundary_report.json"),
+        ("client-evaluation-launch-profile-contract", "client_evaluation_launch_profile_contract_report.json"),
+        ("client-evaluation-no-network-plan", "client_evaluation_no_network_plan_report.json"),
+        ("client-evaluation-diagnostics-shell", "client_evaluation_diagnostics_shell_report.json"),
     ]
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        evidence_root = root / "Build" / "Preview"
+        evidence_root = root / "Build" / "Evaluation"
         for command, filename in required_reports:
             write_json(
                 evidence_root / filename,
@@ -1827,52 +1827,52 @@ def test_client_preview_blocker_matrix_ready_planning_is_not_implementation() ->
                     "enforcement": "ReportOnly",
                 },
             )
-        out = root / "client_preview_blocker_matrix_report.json"
+        out = root / "client_evaluation_blocker_matrix_report.json"
 
-        result = run_cli("client-preview-blocker-matrix", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evidence_root), "--out", str(out))
+        result = run_cli("client-evaluation-blocker-matrix", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evidence_root), "--out", str(out))
 
         assert result.returncode == 0, result.stderr + result.stdout
         report = load_report(out)
         assert report["readinessStatus"] == "ReadyForImplementationPlanning"
-        assert report["clientPreviewImplementationClaim"] == "NotImplemented"
+        assert report["clientEvaluationImplementationClaim"] == "NotImplemented"
         assert report["clientHostImplementationClaim"] == "NotImplemented"
         assert report["runtimeImplementationClaim"] == "NotImplemented"
-        assert "ReadyForImplementationPlanning does not mean Client Preview is implemented." in report["nonClaims"]
+        assert "ReadyForImplementationPlanning does not mean Client Evaluation is implemented." in report["nonClaims"]
         assert_report_only_invariants(report)
 
 
-def create_phase166_preview_evidence(root: Path, *, partial: bool = True) -> Path:
+def create_runtime_read_seam_evaluation_evidence(root: Path, *, partial: bool = True) -> Path:
     source_truth_root = root / "Build" / "SourceTruth"
-    preview_root = root / "Build" / "Preview"
-    write_phase156_seed_evidence(source_truth_root, partial=partial)
-    preview_root.mkdir(parents=True, exist_ok=True)
+    evaluation_root = root / "Build" / "Evaluation"
+    write_runtime_readiness_seed_evidence(source_truth_root, partial=partial)
+    evaluation_root.mkdir(parents=True, exist_ok=True)
 
-    runtime = preview_root / "runtime_readiness_v2_report.json"
-    boundary = preview_root / "clienthost_preview_ownership_boundary_report.json"
-    launch = preview_root / "client_preview_launch_profile_contract_report.json"
-    no_network = preview_root / "client_preview_no_network_plan_report.json"
-    diagnostics = preview_root / "client_preview_diagnostics_shell_report.json"
-    blocker = preview_root / "client_preview_blocker_matrix_report.json"
-    runtime_plan = preview_root / "minimal_runtime_read_seam_plan_report.json"
-    shell_plan = preview_root / "minimal_clienthost_preview_shell_plan_report.json"
-    package_launch = preview_root / "package_launch_preview_alignment_plan_report.json"
-    editorless = preview_root / "editorless_preview_workflow_plan_report.json"
+    runtime = evaluation_root / "runtime_readiness_v2_report.json"
+    boundary = evaluation_root / "clienthost_evaluation_ownership_boundary_report.json"
+    launch = evaluation_root / "client_evaluation_launch_profile_contract_report.json"
+    no_network = evaluation_root / "client_evaluation_no_network_plan_report.json"
+    diagnostics = evaluation_root / "client_evaluation_diagnostics_shell_report.json"
+    blocker = evaluation_root / "client_evaluation_blocker_matrix_report.json"
+    runtime_plan = evaluation_root / "minimal_runtime_read_seam_plan_report.json"
+    shell_plan = evaluation_root / "minimal_clienthost_evaluation_shell_plan_report.json"
+    package_launch = evaluation_root / "package_launch_evaluation_alignment_plan_report.json"
+    editorless = evaluation_root / "editorless_evaluation_workflow_plan_report.json"
 
     assert run_cli("runtime-readiness-v2", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(source_truth_root), "--out", str(runtime)).returncode == 0
-    assert run_cli("clienthost-preview-ownership-boundary", "--project", str(SAMPLE_PROJECT), "--runtime-readiness-v2", str(runtime), "--out", str(boundary)).returncode == 0
-    assert run_cli("client-preview-launch-profile-contract", "--project", str(SAMPLE_PROJECT), "--runtime-readiness-v2", str(runtime), "--out", str(launch)).returncode == 0
-    assert run_cli("client-preview-no-network-plan", "--project", str(SAMPLE_PROJECT), "--out", str(no_network)).returncode == 0
-    assert run_cli("client-preview-diagnostics-shell", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(preview_root), "--out", str(diagnostics)).returncode == 0
-    assert run_cli("client-preview-blocker-matrix", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(preview_root), "--out", str(blocker)).returncode == 0
-    assert run_cli("minimal-runtime-read-seam-plan", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(preview_root), "--out", str(runtime_plan)).returncode == 0
-    assert run_cli("minimal-clienthost-preview-shell-plan", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(preview_root), "--out", str(shell_plan)).returncode == 0
-    assert run_cli("package-launch-preview-alignment-plan", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(preview_root), "--out", str(package_launch)).returncode == 0
-    assert run_cli("editorless-preview-workflow-plan", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(preview_root), "--out", str(editorless)).returncode == 0
-    return preview_root
+    assert run_cli("clienthost-evaluation-ownership-boundary", "--project", str(SAMPLE_PROJECT), "--runtime-readiness-v2", str(runtime), "--out", str(boundary)).returncode == 0
+    assert run_cli("client-evaluation-launch-profile-contract", "--project", str(SAMPLE_PROJECT), "--runtime-readiness-v2", str(runtime), "--out", str(launch)).returncode == 0
+    assert run_cli("client-evaluation-no-network-plan", "--project", str(SAMPLE_PROJECT), "--out", str(no_network)).returncode == 0
+    assert run_cli("client-evaluation-diagnostics-shell", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evaluation_root), "--out", str(diagnostics)).returncode == 0
+    assert run_cli("client-evaluation-blocker-matrix", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evaluation_root), "--out", str(blocker)).returncode == 0
+    assert run_cli("minimal-runtime-read-seam-plan", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evaluation_root), "--out", str(runtime_plan)).returncode == 0
+    assert run_cli("minimal-clienthost-evaluation-shell-plan", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evaluation_root), "--out", str(shell_plan)).returncode == 0
+    assert run_cli("package-launch-evaluation-alignment-plan", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evaluation_root), "--out", str(package_launch)).returncode == 0
+    assert run_cli("editorless-evaluation-workflow-plan", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evaluation_root), "--out", str(editorless)).returncode == 0
+    return evaluation_root
 
 
-def write_phase171_source_truth_evidence(evidence_root: Path, *, partial: bool = True) -> None:
-    write_phase156_seed_evidence(evidence_root, partial=partial)
+def write_asset_import_cook_source_truth_evidence(evidence_root: Path, *, partial: bool = True) -> None:
+    write_runtime_readiness_seed_evidence(evidence_root, partial=partial)
     write_json(
         evidence_root / "asset_source_manifest_inventory_report.json",
         {
@@ -2012,18 +2012,18 @@ def write_phase171_source_truth_evidence(evidence_root: Path, *, partial: bool =
     )
 
 
-def create_phase171_175_evidence(root: Path, *, partial: bool = True) -> tuple[Path, Path]:
+def create_asset_import_cook_workflow_evidence(root: Path, *, partial: bool = True) -> tuple[Path, Path]:
     source_truth_root = root / "Build" / "SourceTruth"
-    preview_root = create_phase166_preview_evidence(root, partial=partial)
-    write_phase171_source_truth_evidence(source_truth_root, partial=partial)
+    evaluation_root = create_runtime_read_seam_evaluation_evidence(root, partial=partial)
+    write_asset_import_cook_source_truth_evidence(source_truth_root, partial=partial)
     assert run_cli(
-        "preview-asset-import-cook-prerequisite",
+        "evaluation-asset-import-cook-prerequisite",
         "--project",
         str(SAMPLE_PROJECT),
         "--evidence-root",
         str(source_truth_root),
         "--out",
-        str(preview_root / "asset_import_cook_prerequisite_report.json"),
+        str(evaluation_root / "asset_import_cook_prerequisite_report.json"),
     ).returncode == 0
     assert run_cli(
         "runtime-asset-consumption-prerequisite",
@@ -2031,10 +2031,10 @@ def create_phase171_175_evidence(root: Path, *, partial: bool = True) -> tuple[P
         str(SAMPLE_PROJECT),
         "--source-truth-root",
         str(source_truth_root),
-        "--preview-root",
-        str(preview_root),
+        "--evaluation-root",
+        str(evaluation_root),
         "--out",
-        str(preview_root / "runtime_asset_consumption_prerequisite_report.json"),
+        str(evaluation_root / "runtime_asset_consumption_prerequisite_report.json"),
     ).returncode == 0
     assert run_cli(
         "runtime-projection-freshness-gate",
@@ -2043,37 +2043,37 @@ def create_phase171_175_evidence(root: Path, *, partial: bool = True) -> tuple[P
         "--source-truth-root",
         str(source_truth_root),
         "--out",
-        str(preview_root / "runtime_projection_freshness_gate_report.json"),
+        str(evaluation_root / "runtime_projection_freshness_gate_report.json"),
     ).returncode == 0
     assert run_cli(
-        "preview-evidence-gate",
+        "evaluation-evidence-gate",
         "--project",
         str(SAMPLE_PROJECT),
         "--evidence-root",
-        str(preview_root),
+        str(evaluation_root),
         "--out",
-        str(preview_root / "preview_evidence_gate_report.json"),
+        str(evaluation_root / "evaluation_evidence_gate_report.json"),
     ).returncode == 0
     assert run_cli(
-        "client-preview-regression-fixture-plan",
+        "client-evaluation-regression-fixture-plan",
         "--project",
         str(SAMPLE_PROJECT),
-        "--preview-root",
-        str(preview_root),
+        "--evaluation-root",
+        str(evaluation_root),
         "--out",
-        str(preview_root / "client_preview_regression_fixture_plan_report.json"),
+        str(evaluation_root / "client_evaluation_regression_fixture_plan_report.json"),
     ).returncode == 0
-    return source_truth_root, preview_root
+    return source_truth_root, evaluation_root
 
 
 def test_minimal_runtime_read_seam_plan_is_deterministic_and_planning_only() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        preview_root = create_phase166_preview_evidence(root, partial=True)
-        first = preview_root / "minimal_runtime_read_seam_plan_report.json"
+        evaluation_root = create_runtime_read_seam_evaluation_evidence(root, partial=True)
+        first = evaluation_root / "minimal_runtime_read_seam_plan_report.json"
         second = root / "minimal_runtime_read_seam_plan_report_second.json"
 
-        result = run_cli("minimal-runtime-read-seam-plan", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(preview_root), "--out", str(second))
+        result = run_cli("minimal-runtime-read-seam-plan", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evaluation_root), "--out", str(second))
 
         assert result.returncode == 0, result.stderr + result.stdout
         assert first.read_text(encoding="utf-8") == second.read_text(encoding="utf-8")
@@ -2083,7 +2083,7 @@ def test_minimal_runtime_read_seam_plan_is_deterministic_and_planning_only() -> 
         assert report["futureSeamName"] == "RuntimeReadSeamV1"
         assert report["runtimeImplementationClaim"] == "NotImplemented"
         assert report["clientHostImplementationClaim"] == "NotImplemented"
-        assert report["clientPreviewImplementationClaim"] == "NotImplemented"
+        assert report["clientEvaluationImplementationClaim"] == "NotImplemented"
         assert any(item["inputId"] == "validated-project-scene-source-truth" for item in report["firstRuntimeConsumedSourceTruth"])
         assert any(item["classification"] == "EvidenceOnlyWhenFreshOrExplicitlyPartial" for item in report["evidenceOnlyGeneratedProjections"])
         assert "Runtime read seam adapter files" in report["futureTouchCandidates"]
@@ -2093,7 +2093,7 @@ def test_minimal_runtime_read_seam_plan_is_deterministic_and_planning_only() -> 
 def test_minimal_runtime_read_seam_plan_missing_required_evidence_does_not_pass() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        evidence_root = root / "Build" / "Preview"
+        evidence_root = root / "Build" / "Evaluation"
         evidence_root.mkdir(parents=True)
         out = root / "minimal_runtime_read_seam_plan_report.json"
 
@@ -2106,38 +2106,38 @@ def test_minimal_runtime_read_seam_plan_missing_required_evidence_does_not_pass(
         assert_report_only_invariants(report)
 
 
-def test_minimal_clienthost_preview_shell_plan_keeps_clienthost_unimplemented() -> None:
+def test_minimal_clienthost_evaluation_shell_plan_keeps_clienthost_unimplemented() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        preview_root = create_phase166_preview_evidence(root, partial=True)
-        out = preview_root / "minimal_clienthost_preview_shell_plan_report.json"
+        evaluation_root = create_runtime_read_seam_evaluation_evidence(root, partial=True)
+        out = evaluation_root / "minimal_clienthost_evaluation_shell_plan_report.json"
 
         report = load_report(out)
 
         assert_report_only_invariants(report)
         assert report["readinessStatus"] == "PartiallyProven"
-        assert report["futureSeamName"] == "ClientHostPreviewShellV1"
+        assert report["futureSeamName"] == "ClientHostEvaluationShellV1"
         assert report["clientHostImplementationClaim"] == "NotImplemented"
         assert report["runtimeImplementationClaim"] == "NotImplemented"
-        assert report["clientPreviewImplementationClaim"] == "NotImplemented"
-        assert any(item["responsibility"] == "Local preview lifecycle shell" for item in report["clientHostFutureOwnership"])
+        assert report["clientEvaluationImplementationClaim"] == "NotImplemented"
+        assert any(item["responsibility"] == "Local evaluation lifecycle shell" for item in report["clientHostFutureOwnership"])
         assert "scene/entity source truth ownership" in report["outsideClientHost"]
         assert "no server launched" in report["startupDiagnosticsWithoutGameplay"]
 
 
-def test_package_launch_preview_alignment_plan_does_not_stage_or_launch() -> None:
+def test_package_launch_evaluation_alignment_plan_does_not_stage_or_launch() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        preview_root = create_phase166_preview_evidence(root, partial=True)
-        out = preview_root / "package_launch_preview_alignment_plan_report.json"
+        evaluation_root = create_runtime_read_seam_evaluation_evidence(root, partial=True)
+        out = evaluation_root / "package_launch_evaluation_alignment_plan_report.json"
 
         report = load_report(out)
 
         assert_report_only_invariants(report)
         assert report["readinessStatus"] == "PartiallyProven"
-        assert report["requiredLaunchProfileId"] == "client-preview-local-no-network"
+        assert report["requiredLaunchProfileId"] == "client-evaluation-local-no-network"
         assert report["requiredLaunchProfileStatus"] == "DeferredProfileNotImplemented"
-        assert report["requiredPackageProfileId"] == "technical-preview-client-preview-local"
+        assert report["requiredPackageProfileId"] == "project-readiness-client-evaluation-local"
         assert report["requiredPackageProfileStatus"] == "DeferredProfileNotImplemented"
         assert any(item["classification"] == "ServerHeadlessEvidenceOnly" for item in report["currentLaunchProfiles"])
         assert any(item["classification"] == "ServerHeadlessPackageEvidenceOnly" for item in report["currentPackageProfiles"])
@@ -2146,31 +2146,31 @@ def test_package_launch_preview_alignment_plan_does_not_stage_or_launch() -> Non
         assert "server-headless profiles" in report["notRuntimeProof"]
 
 
-def test_editorless_preview_workflow_plan_does_not_claim_playable_editor() -> None:
+def test_editorless_evaluation_workflow_plan_does_not_claim_playable_editor() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        preview_root = create_phase166_preview_evidence(root, partial=True)
-        out = preview_root / "editorless_preview_workflow_plan_report.json"
+        evaluation_root = create_runtime_read_seam_evaluation_evidence(root, partial=True)
+        out = evaluation_root / "editorless_evaluation_workflow_plan_report.json"
 
         report = load_report(out)
 
         assert_report_only_invariants(report)
         assert report["readinessStatus"] == "PartiallyProven"
-        assert report["clientPreviewImplementationClaim"] == "NotImplemented"
+        assert report["clientEvaluationImplementationClaim"] == "NotImplemented"
         assert report["playableEditorClaim"] == "NotClaimed"
         assert report["futureTrigger"] == "Future CLI/report workflow only."
         assert "Playable Editor workflow" in report["impossibleWithoutEditorUi"]
         assert "No Playable Editor is claimed." in report["nonClaims"]
-        assert any(item["inputId"] == "preview-planning-reports" for item in report["consumedInputs"])
+        assert any(item["inputId"] == "evaluation-planning-reports" for item in report["consumedInputs"])
 
 
-def test_preview_evidence_gate_current_partial_missing_and_blocked_evidence() -> None:
+def test_evaluation_evidence_gate_current_partial_missing_and_blocked_evidence() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        preview_root = create_phase166_preview_evidence(root, partial=True)
-        out = preview_root / "preview_evidence_gate_report.json"
+        evaluation_root = create_runtime_read_seam_evaluation_evidence(root, partial=True)
+        out = evaluation_root / "evaluation_evidence_gate_report.json"
 
-        result = run_cli("preview-evidence-gate", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(preview_root), "--out", str(out))
+        result = run_cli("evaluation-evidence-gate", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evaluation_root), "--out", str(out))
 
         assert result.returncode == 0, result.stderr + result.stdout
         report = load_report(out)
@@ -2178,19 +2178,19 @@ def test_preview_evidence_gate_current_partial_missing_and_blocked_evidence() ->
         assert report["readinessStatus"] == "PartiallyProven"
         assert report["runtimeImplementationClaim"] == "NotImplemented"
         assert report["clientHostImplementationClaim"] == "NotImplemented"
-        assert report["clientPreviewImplementationClaim"] == "NotImplemented"
-        assert "ReadyForImplementationPlanning does not mean Client Preview is implemented." in report["nonClaims"]
+        assert report["clientEvaluationImplementationClaim"] == "NotImplemented"
+        assert "ReadyForImplementationPlanning does not mean Client Evaluation is implemented." in report["nonClaims"]
 
-        missing_root = root / "MissingPreview"
+        missing_root = root / "MissingEvaluation"
         missing_root.mkdir()
-        missing_out = root / "missing_preview_evidence_gate_report.json"
-        missing_result = run_cli("preview-evidence-gate", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(missing_root), "--out", str(missing_out))
+        missing_out = root / "missing_evaluation_evidence_gate_report.json"
+        missing_result = run_cli("evaluation-evidence-gate", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(missing_root), "--out", str(missing_out))
         assert missing_result.returncode == 1
         assert load_report(missing_out)["readinessStatus"] == "MissingEvidence"
 
-        blocked_root = root / "BlockedPreview"
-        create_phase166_preview_evidence(root / "BlockedSeed", partial=False)
-        shutil.copytree(root / "BlockedSeed" / "Build" / "Preview", blocked_root)
+        blocked_root = root / "BlockedEvaluation"
+        create_runtime_read_seam_evaluation_evidence(root / "BlockedSeed", partial=False)
+        shutil.copytree(root / "BlockedSeed" / "Build" / "Evaluation", blocked_root)
         write_json(
             blocked_root / "minimal_runtime_read_seam_plan_report.json",
             {
@@ -2203,28 +2203,28 @@ def test_preview_evidence_gate_current_partial_missing_and_blocked_evidence() ->
                 "enforcement": "ReportOnly",
             },
         )
-        blocked_out = root / "blocked_preview_evidence_gate_report.json"
-        blocked_result = run_cli("preview-evidence-gate", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(blocked_root), "--out", str(blocked_out))
+        blocked_out = root / "blocked_evaluation_evidence_gate_report.json"
+        blocked_result = run_cli("evaluation-evidence-gate", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(blocked_root), "--out", str(blocked_out))
         assert blocked_result.returncode == 1
         assert load_report(blocked_out)["readinessStatus"] == "Blocked"
 
 
-def test_preview_evidence_gate_ready_planning_is_not_implementation() -> None:
+def test_evaluation_evidence_gate_ready_planning_is_not_implementation() -> None:
     required_reports = [
         ("runtime-readiness-v2", "runtime_readiness_v2_report.json"),
-        ("clienthost-preview-ownership-boundary", "clienthost_preview_ownership_boundary_report.json"),
-        ("client-preview-launch-profile-contract", "client_preview_launch_profile_contract_report.json"),
-        ("client-preview-no-network-plan", "client_preview_no_network_plan_report.json"),
-        ("client-preview-diagnostics-shell", "client_preview_diagnostics_shell_report.json"),
-        ("client-preview-blocker-matrix", "client_preview_blocker_matrix_report.json"),
+        ("clienthost-evaluation-ownership-boundary", "clienthost_evaluation_ownership_boundary_report.json"),
+        ("client-evaluation-launch-profile-contract", "client_evaluation_launch_profile_contract_report.json"),
+        ("client-evaluation-no-network-plan", "client_evaluation_no_network_plan_report.json"),
+        ("client-evaluation-diagnostics-shell", "client_evaluation_diagnostics_shell_report.json"),
+        ("client-evaluation-blocker-matrix", "client_evaluation_blocker_matrix_report.json"),
         ("minimal-runtime-read-seam-plan", "minimal_runtime_read_seam_plan_report.json"),
-        ("minimal-clienthost-preview-shell-plan", "minimal_clienthost_preview_shell_plan_report.json"),
-        ("package-launch-preview-alignment-plan", "package_launch_preview_alignment_plan_report.json"),
-        ("editorless-preview-workflow-plan", "editorless_preview_workflow_plan_report.json"),
+        ("minimal-clienthost-evaluation-shell-plan", "minimal_clienthost_evaluation_shell_plan_report.json"),
+        ("package-launch-evaluation-alignment-plan", "package_launch_evaluation_alignment_plan_report.json"),
+        ("editorless-evaluation-workflow-plan", "editorless_evaluation_workflow_plan_report.json"),
     ]
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        evidence_root = root / "Build" / "Preview"
+        evidence_root = root / "Build" / "Evaluation"
         for command, filename in required_reports:
             write_json(
                 evidence_root / filename,
@@ -2238,30 +2238,30 @@ def test_preview_evidence_gate_ready_planning_is_not_implementation() -> None:
                     "enforcement": "ReportOnly",
                 },
             )
-        out = root / "preview_evidence_gate_report.json"
+        out = root / "evaluation_evidence_gate_report.json"
 
-        result = run_cli("preview-evidence-gate", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evidence_root), "--out", str(out))
+        result = run_cli("evaluation-evidence-gate", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evidence_root), "--out", str(out))
 
         assert result.returncode == 0, result.stderr + result.stdout
         report = load_report(out)
         assert report["readinessStatus"] == "ReadyForImplementationPlanning"
         assert report["runtimeImplementationClaim"] == "NotImplemented"
         assert report["clientHostImplementationClaim"] == "NotImplemented"
-        assert report["clientPreviewImplementationClaim"] == "NotImplemented"
-        assert "ReadyForImplementationPlanning does not mean Client Preview is implemented." in report["nonClaims"]
+        assert report["clientEvaluationImplementationClaim"] == "NotImplemented"
+        assert "ReadyForImplementationPlanning does not mean Client Evaluation is implemented." in report["nonClaims"]
         assert_report_only_invariants(report)
 
 
-def test_phase171_asset_import_cook_prerequisite_is_partial_and_evidence_only() -> None:
+def test_asset_import_cook_asset_import_cook_prerequisite_is_partial_and_evidence_only() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         evidence_root = root / "Build" / "SourceTruth"
-        write_phase171_source_truth_evidence(evidence_root, partial=True)
+        write_asset_import_cook_source_truth_evidence(evidence_root, partial=True)
         first = root / "asset_import_cook_prerequisite_report.json"
         second = root / "asset_import_cook_prerequisite_report_second.json"
 
-        first_result = run_cli("preview-asset-import-cook-prerequisite", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evidence_root), "--out", str(first))
-        second_result = run_cli("preview-asset-import-cook-prerequisite", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evidence_root), "--out", str(second))
+        first_result = run_cli("evaluation-asset-import-cook-prerequisite", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evidence_root), "--out", str(first))
+        second_result = run_cli("evaluation-asset-import-cook-prerequisite", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(evidence_root), "--out", str(second))
 
         assert first_result.returncode == 0, first_result.stderr + first_result.stdout
         assert second_result.returncode == 0, second_result.stderr + second_result.stdout
@@ -2273,15 +2273,15 @@ def test_phase171_asset_import_cook_prerequisite_is_partial_and_evidence_only() 
         assert report["assetCookImplementationClaim"] == "NotImplemented"
         assert any(item["path"] == "Assets/assets.source.json" and item["canonical"] is True for item in report["assetSourceTruth"])
         assert any(item["classification"] == "EvidenceOnly" and item["canonical"] is False for item in report["evidenceOnlyArtifacts"])
-        assert report["acceptedFuturePreviewReferences"][0]["path"] == "Assets/README.md"
+        assert report["acceptedFutureEvaluationReferences"][0]["path"] == "Assets/README.md"
         assert {item["status"] for item in report["missingPipelines"]} == {"NotImplemented"}
 
 
-def test_phase172_runtime_asset_consumption_prerequisite_keeps_runtime_unimplemented() -> None:
+def test_runtime_asset_consumption_runtime_asset_consumption_prerequisite_keeps_runtime_unimplemented() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        source_truth_root, preview_root = create_phase171_175_evidence(root, partial=True)
-        out = preview_root / "runtime_asset_consumption_prerequisite_report.json"
+        source_truth_root, evaluation_root = create_asset_import_cook_workflow_evidence(root, partial=True)
+        out = evaluation_root / "runtime_asset_consumption_prerequisite_report.json"
 
         report = load_report(out)
 
@@ -2295,11 +2295,11 @@ def test_phase172_runtime_asset_consumption_prerequisite_keeps_runtime_unimpleme
         assert str(source_truth_root) in report["sourceTruthRoot"]
 
 
-def test_phase173_runtime_projection_freshness_gate_keeps_projections_noncanonical() -> None:
+def test_runtime_projection_freshness_runtime_projection_freshness_gate_keeps_projections_noncanonical() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         source_truth_root = root / "Build" / "SourceTruth"
-        write_phase171_source_truth_evidence(source_truth_root, partial=True)
+        write_asset_import_cook_source_truth_evidence(source_truth_root, partial=True)
         first = root / "runtime_projection_freshness_gate_report.json"
         second = root / "runtime_projection_freshness_gate_report_second.json"
 
@@ -2318,14 +2318,14 @@ def test_phase173_runtime_projection_freshness_gate_keeps_projections_noncanonic
         assert all(item["canonical"] is False for item in report["nonCanonicalGeneratedProjections"])
 
 
-def test_phase174_client_preview_regression_fixture_plan_is_plan_only() -> None:
+def test_client_regression_fixture_client_evaluation_regression_fixture_plan_is_plan_only() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        _, preview_root = create_phase171_175_evidence(root, partial=True)
-        first = preview_root / "client_preview_regression_fixture_plan_report.json"
-        second = root / "client_preview_regression_fixture_plan_report_second.json"
+        _, evaluation_root = create_asset_import_cook_workflow_evidence(root, partial=True)
+        first = evaluation_root / "client_evaluation_regression_fixture_plan_report.json"
+        second = root / "client_evaluation_regression_fixture_plan_report_second.json"
 
-        result = run_cli("client-preview-regression-fixture-plan", "--project", str(SAMPLE_PROJECT), "--preview-root", str(preview_root), "--out", str(second))
+        result = run_cli("client-evaluation-regression-fixture-plan", "--project", str(SAMPLE_PROJECT), "--evaluation-root", str(evaluation_root), "--out", str(second))
 
         assert result.returncode == 0, result.stderr + result.stdout
         assert first.read_text(encoding="utf-8") == second.read_text(encoding="utf-8")
@@ -2336,7 +2336,7 @@ def test_phase174_client_preview_regression_fixture_plan_is_plan_only() -> None:
             "valid-minimal-scene-entity",
             "stale-projection",
             "missing-asset",
-            "no-network-preview",
+            "no-network-evaluation",
             "clienthost-not-implemented",
             "runtime-read-seam-missing",
         }
@@ -2344,15 +2344,15 @@ def test_phase174_client_preview_regression_fixture_plan_is_plan_only() -> None:
         assert "No sockets." in report["forbiddenExecution"]
 
 
-def test_phase175_preview_focused_test_health_gate_preserves_unclaimed_rows() -> None:
+def test_focused_test_health_evaluation_focused_test_health_gate_preserves_unclaimed_rows() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        _, preview_root = create_phase171_175_evidence(root, partial=True)
-        first = preview_root / "preview_focused_test_health_gate_report.json"
-        second = root / "preview_focused_test_health_gate_report_second.json"
+        _, evaluation_root = create_asset_import_cook_workflow_evidence(root, partial=True)
+        first = evaluation_root / "evaluation_focused_test_health_gate_report.json"
+        second = root / "evaluation_focused_test_health_gate_report_second.json"
 
-        first_result = run_cli("preview-focused-test-health-gate", "--project", str(SAMPLE_PROJECT), "--preview-root", str(preview_root), "--out", str(first))
-        second_result = run_cli("preview-focused-test-health-gate", "--project", str(SAMPLE_PROJECT), "--preview-root", str(preview_root), "--out", str(second))
+        first_result = run_cli("evaluation-focused-test-health-gate", "--project", str(SAMPLE_PROJECT), "--evaluation-root", str(evaluation_root), "--out", str(first))
+        second_result = run_cli("evaluation-focused-test-health-gate", "--project", str(SAMPLE_PROJECT), "--evaluation-root", str(evaluation_root), "--out", str(second))
 
         assert first_result.returncode == 0, first_result.stderr + first_result.stdout
         assert second_result.returncode == 0, second_result.stderr + second_result.stdout
@@ -2367,19 +2367,19 @@ def test_phase175_preview_focused_test_health_gate_preserves_unclaimed_rows() ->
         assert {"raw-full-ctest", "heavy-stress", "real-transport-proof"}.issubset({item["evidenceId"] for item in report["unclaimedEvidence"]})
 
 
-def test_phase171_175_missing_and_blocked_evidence_do_not_pass() -> None:
+def test_asset_import_cook_workflow_missing_and_blocked_evidence_do_not_pass() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         missing_root = root / "Missing"
         missing_root.mkdir()
         missing_out = root / "asset_import_cook_missing.json"
-        missing = run_cli("preview-asset-import-cook-prerequisite", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(missing_root), "--out", str(missing_out))
+        missing = run_cli("evaluation-asset-import-cook-prerequisite", "--project", str(SAMPLE_PROJECT), "--evidence-root", str(missing_root), "--out", str(missing_out))
         assert missing.returncode == 1
         assert load_report(missing_out)["readinessStatus"] == "MissingEvidence"
 
-        _, preview_root = create_phase171_175_evidence(root / "BlockedSeed", partial=False)
+        _, evaluation_root = create_asset_import_cook_workflow_evidence(root / "BlockedSeed", partial=False)
         write_json(
-            preview_root / "runtime_asset_consumption_prerequisite_report.json",
+            evaluation_root / "runtime_asset_consumption_prerequisite_report.json",
             {
                 "command": "runtime-asset-consumption-prerequisite",
                 "readinessStatus": "Blocked",
@@ -2390,8 +2390,8 @@ def test_phase171_175_missing_and_blocked_evidence_do_not_pass() -> None:
                 "enforcement": "ReportOnly",
             },
         )
-        blocked_out = root / "client_preview_regression_fixture_plan_blocked.json"
-        blocked = run_cli("client-preview-regression-fixture-plan", "--project", str(SAMPLE_PROJECT), "--preview-root", str(preview_root), "--out", str(blocked_out))
+        blocked_out = root / "client_evaluation_regression_fixture_plan_blocked.json"
+        blocked = run_cli("client-evaluation-regression-fixture-plan", "--project", str(SAMPLE_PROJECT), "--evaluation-root", str(evaluation_root), "--out", str(blocked_out))
         assert blocked.returncode == 1
         assert load_report(blocked_out)["readinessStatus"] == "Blocked"
 
@@ -2429,40 +2429,40 @@ def run_all() -> None:
         test_scene_entity_validate_accepts_valid_scene_and_reports_invariants,
         test_scene_entity_validate_diagnoses_duplicate_missing_and_malformed_schema,
         test_scene_entity_validate_diagnoses_missing_asset_owner_and_generated_canonical,
-        test_phase134_reports_do_not_mutate_source_files,
+        test_asset_source_manifest_reports_do_not_mutate_source_files,
         test_component_metadata_ownership_accepts_known_components_and_evidence_only_generated,
         test_component_metadata_ownership_diagnoses_unknown_component_type,
         test_editor_inspection_and_read_are_report_only_and_source_backed,
         test_editor_source_truth_read_fails_missing_scene_and_generated_canonical_claim,
         test_runtime_audit_and_readiness_are_planning_only_with_stale_generated_debt,
-        test_source_truth_scenario_is_deterministic_and_preserves_client_preview_deferral,
-        test_phase149_155_reports_are_deterministic_report_only_and_deferred,
-        test_phase150_and_155_block_when_required_evidence_is_missing,
-        test_runtime_readiness_v2_reports_partial_from_hedef4_evidence_and_is_deterministic,
+        test_source_truth_scenario_is_deterministic_and_preserves_client_evaluation_deferral,
+        test_client_readiness_155_reports_are_deterministic_report_only_and_deferred,
+        test_client_host_boundary_and_155_block_when_required_evidence_is_missing,
+        test_runtime_readiness_v2_reports_partial_from_asset_workflow_evidence_and_is_deterministic,
         test_runtime_readiness_v2_missing_and_blocked_evidence_do_not_pass,
         test_runtime_readiness_v2_ready_for_implementation_planning_is_not_implementation,
-        test_clienthost_preview_ownership_boundary_reads_runtime_readiness_and_is_deterministic,
-        test_clienthost_preview_ownership_boundary_missing_runtime_is_missing_evidence,
-        test_client_preview_launch_profile_contract_classifies_server_profile_and_does_not_launch,
-        test_client_preview_launch_profile_contract_missing_and_blocked_runtime_do_not_pass,
-        test_client_preview_no_network_plan_is_local_only_and_not_network_proof,
-        test_client_preview_diagnostics_shell_aggregates_prior_reports_deterministically,
-        test_client_preview_diagnostics_shell_missing_inputs_are_missing_evidence,
-        test_client_preview_blocker_matrix_current_partial_and_missing_reports_do_not_pass,
-        test_client_preview_blocker_matrix_ready_planning_is_not_implementation,
+        test_clienthost_evaluation_ownership_boundary_reads_runtime_readiness_and_is_deterministic,
+        test_clienthost_evaluation_ownership_boundary_missing_runtime_is_missing_evidence,
+        test_client_evaluation_launch_profile_contract_classifies_server_profile_and_does_not_launch,
+        test_client_evaluation_launch_profile_contract_missing_and_blocked_runtime_do_not_pass,
+        test_client_evaluation_no_network_plan_is_local_only_and_not_network_proof,
+        test_client_evaluation_diagnostics_shell_aggregates_prior_reports_deterministically,
+        test_client_evaluation_diagnostics_shell_missing_inputs_are_missing_evidence,
+        test_client_evaluation_blocker_matrix_current_partial_and_missing_reports_do_not_pass,
+        test_client_evaluation_blocker_matrix_ready_planning_is_not_implementation,
         test_minimal_runtime_read_seam_plan_is_deterministic_and_planning_only,
         test_minimal_runtime_read_seam_plan_missing_required_evidence_does_not_pass,
-        test_minimal_clienthost_preview_shell_plan_keeps_clienthost_unimplemented,
-        test_package_launch_preview_alignment_plan_does_not_stage_or_launch,
-        test_editorless_preview_workflow_plan_does_not_claim_playable_editor,
-        test_preview_evidence_gate_current_partial_missing_and_blocked_evidence,
-        test_preview_evidence_gate_ready_planning_is_not_implementation,
-        test_phase171_asset_import_cook_prerequisite_is_partial_and_evidence_only,
-        test_phase172_runtime_asset_consumption_prerequisite_keeps_runtime_unimplemented,
-        test_phase173_runtime_projection_freshness_gate_keeps_projections_noncanonical,
-        test_phase174_client_preview_regression_fixture_plan_is_plan_only,
-        test_phase175_preview_focused_test_health_gate_preserves_unclaimed_rows,
-        test_phase171_175_missing_and_blocked_evidence_do_not_pass,
+        test_minimal_clienthost_evaluation_shell_plan_keeps_clienthost_unimplemented,
+        test_package_launch_evaluation_alignment_plan_does_not_stage_or_launch,
+        test_editorless_evaluation_workflow_plan_does_not_claim_playable_editor,
+        test_evaluation_evidence_gate_current_partial_missing_and_blocked_evidence,
+        test_evaluation_evidence_gate_ready_planning_is_not_implementation,
+        test_asset_import_cook_asset_import_cook_prerequisite_is_partial_and_evidence_only,
+        test_runtime_asset_consumption_runtime_asset_consumption_prerequisite_keeps_runtime_unimplemented,
+        test_runtime_projection_freshness_runtime_projection_freshness_gate_keeps_projections_noncanonical,
+        test_client_regression_fixture_client_evaluation_regression_fixture_plan_is_plan_only,
+        test_focused_test_health_evaluation_focused_test_health_gate_preserves_unclaimed_rows,
+        test_asset_import_cook_workflow_missing_and_blocked_evidence_do_not_pass,
     ]
     for test in tests:
         test()

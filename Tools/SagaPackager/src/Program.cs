@@ -154,10 +154,7 @@ internal static class Program
             options.PackageReportPath,
             options.DiagnosticsSummaryPath,
             options.ScriptValidationPath,
-            options.PolicyReportPath,
-            options.ReviewApprovalReportPath,
-            options.AuditReportPath,
-            options.RestrictedExportReportPath);
+            options.PolicyReportPath);
         ReportWriter.Write(options.OutPath, report);
         Console.WriteLine($"sagapack publish-check: {report.Status}");
         return report.Status == "Passed" ? Passed : Failed;
@@ -232,7 +229,7 @@ internal static class Program
         Console.Error.WriteLine("  sagapack profile-matrix --project <path> [--package-report <stage-report>] [--diagnostics-summary <summary>] --out <report>");
         Console.Error.WriteLine("  sagapack source-truth-alignment --project <path> --source-truth-gate <report> --asset-reference-gate <report> --out <report>");
         Console.Error.WriteLine("  sagapack stage --project <path> --profile <id> --out <report>");
-        Console.Error.WriteLine("  sagapack publish-check --project <path> --profile <id> --package-report <report> --diagnostics-summary <summary> [--script-validation <report>] [--policy-report <report>] [--review-approval-report <report>] [--audit-report <report>] [--restricted-export-report <report>] --out <report>");
+        Console.Error.WriteLine("  sagapack publish-check --project <path> --profile <id> --package-report <report> --diagnostics-summary <summary> [--script-validation <report>] [--policy-report <report>] --out <report>");
         Console.Error.WriteLine("  sagapack smoke --project <path> --profile <id> --package-report <report> --out <report> --timeout-sec <n> --bin-dir <dir>");
     }
 
@@ -246,9 +243,6 @@ internal static class Program
         string DiagnosticsSummaryPath,
         string ScriptValidationPath,
         string PolicyReportPath,
-        string ReviewApprovalReportPath,
-        string AuditReportPath,
-        string RestrictedExportReportPath,
         string SourceTruthGatePath,
         string AssetReferenceGatePath,
         string BinDir,
@@ -263,9 +257,6 @@ internal static class Program
             string diagnosticsSummary = "";
             string scriptValidation = "";
             string policyReport = "";
-            string reviewApprovalReport = "";
-            string auditReport = "";
-            string restrictedExportReport = "";
             string sourceTruthGate = "";
             string assetReferenceGate = "";
             string binDir = "";
@@ -296,15 +287,6 @@ internal static class Program
                     case "--policy-report" when i + 1 < args.Length:
                         policyReport = args[++i];
                         break;
-                    case "--review-approval-report" when i + 1 < args.Length:
-                        reviewApprovalReport = args[++i];
-                        break;
-                    case "--audit-report" when i + 1 < args.Length:
-                        auditReport = args[++i];
-                        break;
-                    case "--restricted-export-report" when i + 1 < args.Length:
-                        restrictedExportReport = args[++i];
-                        break;
                     case "--source-truth-gate" when i + 1 < args.Length:
                         sourceTruthGate = args[++i];
                         break;
@@ -325,12 +307,12 @@ internal static class Program
                 }
             }
 
-            return new CommandOptions(true, "", project, profile, output, packageReport, diagnosticsSummary, scriptValidation, policyReport, reviewApprovalReport, auditReport, restrictedExportReport, sourceTruthGate, assetReferenceGate, binDir, timeout);
+            return new CommandOptions(true, "", project, profile, output, packageReport, diagnosticsSummary, scriptValidation, policyReport, sourceTruthGate, assetReferenceGate, binDir, timeout);
         }
 
         private static CommandOptions Fail(string error)
         {
-            return new CommandOptions(false, error, "", "", "", "", "", "", "", "", "", "", "", "", "", 5);
+            return new CommandOptions(false, error, "", "", "", "", "", "", "", "", "", "", 5);
         }
     }
 }

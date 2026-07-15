@@ -40,22 +40,29 @@ PUBLIC_TOOLS = (
 ALLOWED_ROOT_FILES = frozenset(
     {"BUILD_INFO.json", "KNOWN_LIMITATIONS.md", "README.md", "VERIFY.txt", "VERSION"}
 )
-ALLOWED_TOP_LEVEL_DIRECTORIES = frozenset({"bin", "docs", "licenses", "samples", "tools"})
+ALLOWED_TOP_LEVEL_DIRECTORIES = frozenset(
+    {"bin", "SagaWiki", "licenses", "samples", "tools"}
+)
 APPROVED_DOCUMENTS = frozenset(
     {
-        "docs/BUILDING_FROM_SOURCE.md",
-        "docs/CURRENT_CAPABILITIES.md",
-        "docs/CUSTOMIZATION.md",
-        "docs/GETTING_STARTED.md",
-        "docs/KNOWN_LIMITATIONS.md",
-        "docs/PACKAGING.md",
-        "docs/README.md",
-        "docs/SCRIPTING.md",
-        "docs/VISUAL_BLOCKS.md",
-        "docs/product/CURRENT_CAPABILITIES.md",
-        "docs/product/CURRENT_DISTRIBUTION_STATUS.md",
-        "docs/product/GETTING_STARTED.md",
-        "docs/product/WHAT_IS_NOT_IMPLEMENTED.md",
+        "SagaWiki/assets/sandbox-render-01.png",
+        "SagaWiki/assets/sandbox-render-02.png",
+        "SagaWiki/assets/style.css",
+        "SagaWiki/index.html",
+        "SagaWiki/pages/architecture.html",
+        "SagaWiki/pages/editor.html",
+        "SagaWiki/pages/getting-started.html",
+        "SagaWiki/pages/licensing.html",
+        "SagaWiki/pages/module-boundaries.html",
+        "SagaWiki/pages/not-implemented.html",
+        "SagaWiki/pages/product.html",
+        "SagaWiki/pages/repository-layout.html",
+        "SagaWiki/pages/runtime.html",
+        "SagaWiki/pages/scripting.html",
+        "SagaWiki/pages/server-authority.html",
+        "SagaWiki/pages/source-of-truth.html",
+        "SagaWiki/pages/testing.html",
+        "SagaWiki/pages/toolchain.html",
     }
 )
 REQUIRED_LICENSE_PATHS = frozenset(
@@ -101,10 +108,6 @@ EXCLUDED_DEV_TOOLS = (
     {"name": "RenderClientSmokeTest", "reason": "test/probe identity"},
     {"name": "Forge", "reason": "developer build orchestrator"},
     {"name": "SagaTools", "reason": "developer repository tooling"},
-    {"name": "SagaAlphaGate", "reason": "CI/internal evidence"},
-    {"name": "SagaEnterpriseGate", "reason": "internal policy evidence"},
-    {"name": "SagaLaunchLab", "reason": "developer sample launch lab"},
-    {"name": "SagaProbe", "reason": "internal report probe"},
     {"name": "test-executables", "reason": "test-only binaries"},
 )
 EXCLUDED_RETIRED_TOOLS = (
@@ -113,15 +116,7 @@ EXCLUDED_RETIRED_TOOLS = (
     {"name": "SagaClient", "reason": "retired legacy client executable"},
     {"name": "SagaServer", "reason": "retired server executable; SagaServerLib remains legal"},
 )
-EXCLUDED_SOURCE_SURFACES = (
-    {"path": "Apps/Client", "reason": "retired client ownership"},
-    {"path": "Apps/NetworkLab", "reason": "future placeholder is not a package surface"},
-    {"path": "Apps/Server", "reason": "retired server executable ownership"},
-    {"path": "Apps/Shared", "reason": "retired ownership dump"},
-    {"path": "Apps/WorldServer", "reason": "future placeholder is not a package surface"},
-    {"path": "Tools/Prism", "reason": "retired tool ownership"},
-    {"path": "Tools/SDE", "reason": "retired tool ownership"},
-)
+EXCLUDED_SOURCE_SURFACES = ()
 
 LIMITATIONS = (
     "The packager is Linux-only and must be run from the Saga repository root.",

@@ -1,7 +1,7 @@
 /// @file ShardManager.h
 /// @brief Shard-level zone routing, load balancing, and capacity management.
 ///
-/// Layer  : SagaServer / Networking / Server
+/// Layer  : SagaEngine / ServerAuthority
 /// Purpose: ShardManager maintains the registry of all ZoneServer instances
 ///          within a shard partition. It routes incoming client sessions to the
 ///          least-loaded zone, enforces per-zone capacity, and handles zone
@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include "SagaServer/Networking/Core/NetworkTypes.h"
+#include "SagaEngine/Networking/NetworkTypes.h"
 
 #include <atomic>
 #include <chrono>
@@ -23,7 +23,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace SagaServer::Networking
+namespace SagaEngine::ServerAuthority
 {
 
 // Bring engine networking types into scope
@@ -162,4 +162,4 @@ private:
     OnZoneUnreachableCallback m_onZoneUnreachable;
 };
 
-} // namespace SagaServer::Networking
+} // namespace SagaEngine::ServerAuthority

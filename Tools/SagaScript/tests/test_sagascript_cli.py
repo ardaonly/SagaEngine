@@ -181,11 +181,11 @@ def run_plan_block_edit(projection: Path, operation: Path, report: Path) -> subp
     )
 
 
-def run_apply_block_edit(preview: Path, source_root: Path, out_dir: Path) -> subprocess.CompletedProcess[str]:
+def run_apply_block_edit(evaluation: Path, source_root: Path, out_dir: Path) -> subprocess.CompletedProcess[str]:
     return run_cli(
         "apply-block-edit",
-        "--preview",
-        str(preview),
+        "--evaluation",
+        str(evaluation),
         "--source-root",
         str(source_root),
         "--out",
@@ -928,7 +928,7 @@ def test_readonly_visual_blocks_projection_unsupported_fixture_reports_diagnosti
         assert any(diagnostic["severity"] == "Error" for diagnostic in report["diagnostics"])
 
 
-def test_block_operation_contract_previews_string_literal_without_mutating_source() -> None:
+def test_block_operation_contract_evaluations_string_literal_without_mutating_source() -> None:
     fixture = CSHARP_BLOCKS_FIXTURES / "projectable" / "GameRulesProjectable.cs"
     before = fixture.read_bytes()
     with tempfile.TemporaryDirectory() as tmp:
@@ -943,7 +943,7 @@ def test_block_operation_contract_previews_string_literal_without_mutating_sourc
             target_block_id=target["blockId"],
             requested_value="gold_key",
         )
-        report_path = root / "block_patch_preview_v1.json"
+        report_path = root / "block_patch_evaluation_v1.json"
 
         result = run_plan_block_edit(out_dir / "visual_blocks_projection_v1.json", operation, report_path)
 
@@ -958,11 +958,11 @@ def test_block_operation_contract_previews_string_literal_without_mutating_sourc
         assert "NoSourceMutation" in report["nonClaims"]
         assert report["targetSourceHash"] == target["sourceHash"]
         assert report["targetSourceSpan"] == target["sourceSpan"]
-        assert report["patchPreview"]["mutatesSource"] is False
-        assert report["patchPreview"]["replacementKind"] == "MinimalSpanReplacement"
-        assert report["patchPreview"]["replacementText"] == '"gold_key"'
-        assert report["patchPreview"]["startByte"] == target["sourceSpan"]["startByte"]
-        assert report["patchPreview"]["endByte"] == target["sourceSpan"]["endByte"]
+        assert report["patchEvaluation"]["mutatesSource"] is False
+        assert report["patchEvaluation"]["replacementKind"] == "MinimalSpanReplacement"
+        assert report["patchEvaluation"]["replacementText"] == '"gold_key"'
+        assert report["patchEvaluation"]["startByte"] == target["sourceSpan"]["startByte"]
+        assert report["patchEvaluation"]["endByte"] == target["sourceSpan"]["endByte"]
 
 
 def test_block_operation_contract_rejects_forbidden_operation_without_mutating_source() -> None:
@@ -980,7 +980,7 @@ def test_block_operation_contract_rejects_forbidden_operation_without_mutating_s
             target_block_id=target["blockId"],
             requested_value="rewrite everything",
         )
-        report_path = root / "forbidden_block_patch_preview_v1.json"
+        report_path = root / "forbidden_block_patch_evaluation_v1.json"
 
         result = run_plan_block_edit(out_dir / "visual_blocks_projection_v1.json", operation, report_path)
 
@@ -988,7 +988,7 @@ def test_block_operation_contract_rejects_forbidden_operation_without_mutating_s
         assert fixture.read_bytes() == before
         report = json.loads(report_path.read_text(encoding="utf-8"))
         assert report["status"] == "Failed"
-        assert report["patchPreview"] is None
+        assert report["patchEvaluation"] is None
         codes = {diagnostic["code"] for diagnostic in report["diagnostics"]}
         assert "Script.BlockOperation.ForbiddenOperation" in codes
 
@@ -1008,7 +1008,7 @@ def test_block_operation_contract_rejects_unknown_operation_without_mutating_sou
             target_block_id=target["blockId"],
             requested_value="gold_key",
         )
-        report_path = root / "unknown_block_patch_preview_v1.json"
+        report_path = root / "unknown_block_patch_evaluation_v1.json"
 
         result = run_plan_block_edit(out_dir / "visual_blocks_projection_v1.json", operation, report_path)
 
@@ -1016,7 +1016,7 @@ def test_block_operation_contract_rejects_unknown_operation_without_mutating_sou
         assert fixture.read_bytes() == before
         report = json.loads(report_path.read_text(encoding="utf-8"))
         assert report["status"] == "Failed"
-        assert report["patchPreview"] is None
+        assert report["patchEvaluation"] is None
         codes = {diagnostic["code"] for diagnostic in report["diagnostics"]}
         assert "Script.BlockOperation.UnsupportedOperation" in codes
 
@@ -1036,7 +1036,7 @@ def test_block_operation_contract_rejects_opaque_block_without_mutating_source()
             target_block_id=target["blockId"],
             requested_value="gold_key",
         )
-        report_path = root / "opaque_block_patch_preview_v1.json"
+        report_path = root / "opaque_block_patch_evaluation_v1.json"
 
         result = run_plan_block_edit(out_dir / "visual_blocks_projection_v1.json", operation, report_path)
 
@@ -1063,7 +1063,7 @@ def test_block_operation_contract_rejects_unsupported_block_without_mutating_sou
             target_block_id=target["blockId"],
             requested_value="gold_key",
         )
-        report_path = root / "unsupported_block_patch_preview_v1.json"
+        report_path = root / "unsupported_block_patch_evaluation_v1.json"
 
         result = run_plan_block_edit(out_dir / "visual_blocks_projection_v1.json", operation, report_path)
 
@@ -1111,13 +1111,13 @@ public sealed class CommentedLogic
             target_block_id=target["blockId"],
             requested_value="gold_key",
         )
-        preview_path = root / "block_patch_preview_v1.json"
-        preview_result = run_plan_block_edit(out_dir / "visual_blocks_projection_v1.json", operation, preview_path)
-        assert preview_result.returncode == 0, preview_result.stderr + preview_result.stdout
-        preview = json.loads(preview_path.read_text(encoding="utf-8"))
+        evaluation_path = root / "block_patch_evaluation_v1.json"
+        evaluation_result = run_plan_block_edit(out_dir / "visual_blocks_projection_v1.json", operation, evaluation_path)
+        assert evaluation_result.returncode == 0, evaluation_result.stderr + evaluation_result.stdout
+        evaluation = json.loads(evaluation_path.read_text(encoding="utf-8"))
 
         apply_out = root / "apply-out"
-        result = run_apply_block_edit(preview_path, root, apply_out)
+        result = run_apply_block_edit(evaluation_path, root, apply_out)
 
         assert result.returncode == 0, result.stderr + result.stdout
         assert source.read_bytes() == before
@@ -1134,7 +1134,7 @@ public sealed class CommentedLogic
         assert report["mutatesSource"] is False
         assert report["changedSpanOnly"] is True
         assert report["sourcePreservation"] == "CopiedSourceWithSingleSpanReplacement"
-        assert report["originalHash"] == preview["targetSourceHash"]
+        assert report["originalHash"] == evaluation["targetSourceHash"]
         assert report["patchedHash"] != report["originalHash"]
         assert "NoInPlaceMutationByDefault" in report["nonClaims"]
         assert before[:start] == patched[:start]
@@ -1146,7 +1146,7 @@ public sealed class CommentedLogic
         assert "Door.Open(door); // keep inline comment" in patched_text
 
 
-def test_apply_block_edit_rejects_failed_preview_without_mutating_source() -> None:
+def test_apply_block_edit_rejects_failed_evaluation_without_mutating_source() -> None:
     fixture = CSHARP_BLOCKS_FIXTURES / "advanced_opaque" / "GameRulesAdvancedOpaque.cs"
     before = fixture.read_bytes()
     with tempfile.TemporaryDirectory() as tmp:
@@ -1161,12 +1161,12 @@ def test_apply_block_edit_rejects_failed_preview_without_mutating_source() -> No
             target_block_id=target["blockId"],
             requested_value="gold_key",
         )
-        preview_path = root / "opaque_block_patch_preview_v1.json"
-        preview_result = run_plan_block_edit(out_dir / "visual_blocks_projection_v1.json", operation, preview_path)
-        assert preview_result.returncode == 1
+        evaluation_path = root / "opaque_block_patch_evaluation_v1.json"
+        evaluation_result = run_plan_block_edit(out_dir / "visual_blocks_projection_v1.json", operation, evaluation_path)
+        assert evaluation_result.returncode == 1
 
         apply_out = root / "apply-out"
-        result = run_apply_block_edit(preview_path, fixture.parent, apply_out)
+        result = run_apply_block_edit(evaluation_path, fixture.parent, apply_out)
 
         assert result.returncode == 1
         assert fixture.read_bytes() == before
@@ -1174,7 +1174,7 @@ def test_apply_block_edit_rejects_failed_preview_without_mutating_source() -> No
         assert report["status"] == "Failed"
         assert report["patchedSourceFile"] == ""
         codes = {diagnostic["code"] for diagnostic in report["diagnostics"]}
-        assert "Script.BlockApply.PreviewFailed" in codes
+        assert "Script.BlockApply.EvaluationFailed" in codes
 
 
 def test_apply_block_edit_rejects_stale_source_hash_without_mutating_source() -> None:
@@ -1194,14 +1194,14 @@ def test_apply_block_edit_rejects_stale_source_hash_without_mutating_source() ->
             target_block_id=target["blockId"],
             requested_value="gold_key",
         )
-        preview_path = root / "block_patch_preview_v1.json"
-        preview_result = run_plan_block_edit(out_dir / "visual_blocks_projection_v1.json", operation, preview_path)
-        assert preview_result.returncode == 0, preview_result.stderr + preview_result.stdout
+        evaluation_path = root / "block_patch_evaluation_v1.json"
+        evaluation_result = run_plan_block_edit(out_dir / "visual_blocks_projection_v1.json", operation, evaluation_path)
+        assert evaluation_result.returncode == 0, evaluation_result.stderr + evaluation_result.stdout
         source.write_text(source.read_text(encoding="utf-8").replace('"key"', '"stale_key"', 1), encoding="utf-8")
         before_apply = source.read_bytes()
 
         apply_out = root / "apply-out"
-        result = run_apply_block_edit(preview_path, root, apply_out)
+        result = run_apply_block_edit(evaluation_path, root, apply_out)
 
         assert result.returncode == 1
         assert source.read_bytes() == before_apply
@@ -1212,7 +1212,7 @@ def test_apply_block_edit_rejects_stale_source_hash_without_mutating_source() ->
         assert "Script.BlockApply.SourceHashMismatch" in codes
 
 
-def test_apply_block_edit_rejects_malformed_preview_inputs_without_mutating_source() -> None:
+def test_apply_block_edit_rejects_malformed_evaluation_inputs_without_mutating_source() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         source = write_source(root, "DoorLogic.High.cs", high_level_gameplay_source())
@@ -1230,16 +1230,16 @@ def test_apply_block_edit_rejects_malformed_preview_inputs_without_mutating_sour
             target_block_id=target["blockId"],
             requested_value="gold_key",
         )
-        preview_path = root / "block_patch_preview_v1.json"
-        preview_result = run_plan_block_edit(out_dir / "visual_blocks_projection_v1.json", operation, preview_path)
-        assert preview_result.returncode == 0, preview_result.stderr + preview_result.stdout
-        valid_preview = json.loads(preview_path.read_text(encoding="utf-8"))
-        span_preview = json.loads(json.dumps(valid_preview))
-        span_preview["patchPreview"]["startByte"] = span_preview["patchPreview"]["startByte"] + 1
-        preview_path.write_text(json.dumps(span_preview), encoding="utf-8")
+        evaluation_path = root / "block_patch_evaluation_v1.json"
+        evaluation_result = run_plan_block_edit(out_dir / "visual_blocks_projection_v1.json", operation, evaluation_path)
+        assert evaluation_result.returncode == 0, evaluation_result.stderr + evaluation_result.stdout
+        valid_evaluation = json.loads(evaluation_path.read_text(encoding="utf-8"))
+        span_evaluation = json.loads(json.dumps(valid_evaluation))
+        span_evaluation["patchEvaluation"]["startByte"] = span_evaluation["patchEvaluation"]["startByte"] + 1
+        evaluation_path.write_text(json.dumps(span_evaluation), encoding="utf-8")
 
         apply_out = root / "apply-out"
-        result = run_apply_block_edit(preview_path, root, apply_out)
+        result = run_apply_block_edit(evaluation_path, root, apply_out)
 
         assert result.returncode == 1
         assert source.read_bytes() == before
@@ -1249,11 +1249,11 @@ def test_apply_block_edit_rejects_malformed_preview_inputs_without_mutating_sour
         codes = {diagnostic["code"] for diagnostic in report["diagnostics"]}
         assert "Script.BlockApply.SourceSpanMismatch" in codes
 
-        invalid_replacement = json.loads(json.dumps(valid_preview))
-        invalid_replacement["patchPreview"]["replacementText"] = "not quoted"
-        preview_path.write_text(json.dumps(invalid_replacement), encoding="utf-8")
+        invalid_replacement = json.loads(json.dumps(valid_evaluation))
+        invalid_replacement["patchEvaluation"]["replacementText"] = "not quoted"
+        evaluation_path.write_text(json.dumps(invalid_replacement), encoding="utf-8")
         apply_out = root / "apply-out-invalid-replacement"
-        result = run_apply_block_edit(preview_path, root, apply_out)
+        result = run_apply_block_edit(evaluation_path, root, apply_out)
 
         assert result.returncode == 1
         assert source.read_bytes() == before
@@ -1285,15 +1285,15 @@ def test_two_way_authoring_cli_loop_analyzes_and_compiles_patched_copy() -> None
             root,
             operation_kind="StringLiteralEdit",
             target_block_id=target["blockId"],
-            requested_value="phase17_key",
+            requested_value="case17_key",
         )
-        preview_path = root / "block_patch_preview_v1.json"
-        preview_result = run_plan_block_edit(blocks_out / "visual_blocks_projection_v1.json", operation, preview_path)
-        assert preview_result.returncode == 0, preview_result.stderr + preview_result.stdout
-        preview = json.loads(preview_path.read_text(encoding="utf-8"))
+        evaluation_path = root / "block_patch_evaluation_v1.json"
+        evaluation_result = run_plan_block_edit(blocks_out / "visual_blocks_projection_v1.json", operation, evaluation_path)
+        assert evaluation_result.returncode == 0, evaluation_result.stderr + evaluation_result.stdout
+        evaluation = json.loads(evaluation_path.read_text(encoding="utf-8"))
 
         apply_out = root / "apply"
-        apply_result = run_apply_block_edit(preview_path, fixture, apply_out)
+        apply_result = run_apply_block_edit(evaluation_path, fixture, apply_out)
         assert apply_result.returncode == 0, apply_result.stderr + apply_result.stdout
         apply_report = json.loads((apply_out / "block_patch_apply_v1.json").read_text(encoding="utf-8"))
         patched_source = Path(apply_report["patchedSourceFile"])
@@ -1301,7 +1301,7 @@ def test_two_way_authoring_cli_loop_analyzes_and_compiles_patched_copy() -> None
         assert fixture.read_bytes() == before
 
         patched = patched_source.read_bytes()
-        replacement = b'"phase17_key"'
+        replacement = b'"case17_key"'
         start = apply_report["targetSourceSpan"]["startByte"]
         end = apply_report["targetSourceSpan"]["endByte"]
         assert apply_report["status"] == "Passed"
@@ -1310,7 +1310,7 @@ def test_two_way_authoring_cli_loop_analyzes_and_compiles_patched_copy() -> None
         assert before[:start] == patched[:start]
         assert before[end:] == patched[start + len(replacement):]
         patched_text = patched.decode("utf-8")
-        assert '"phase17_key"' in patched_text
+        assert '"case17_key"' in patched_text
         assert "using Saga;\nusing SagaEngine.Scripting;" in patched_text
         assert "// preserve this comment" in patched_text
 
@@ -1340,15 +1340,15 @@ def test_two_way_authoring_cli_loop_analyzes_and_compiles_patched_copy() -> None
             root / "opaque",
             operation_kind="StringLiteralEdit",
             target_block_id=opaque_target["blockId"],
-            requested_value="phase17_key",
+            requested_value="case17_key",
         )
-        opaque_preview = root / "opaque_block_patch_preview_v1.json"
-        opaque_preview_result = run_plan_block_edit(
+        opaque_evaluation = root / "opaque_block_patch_evaluation_v1.json"
+        opaque_evaluation_result = run_plan_block_edit(
             opaque_out / "visual_blocks_projection_v1.json",
             opaque_operation,
-            opaque_preview,
+            opaque_evaluation,
         )
-        assert opaque_preview_result.returncode == 1
+        assert opaque_evaluation_result.returncode == 1
 
         authoring_report = {
             "schemaVersion": 1,
@@ -1359,7 +1359,7 @@ def test_two_way_authoring_cli_loop_analyzes_and_compiles_patched_copy() -> None
             "operations": [json.loads(operation.read_text(encoding="utf-8"))],
             "profileReport": str(profile_out / "csharp_compatibility_profile_v2.json"),
             "projectionReport": str(blocks_out / "visual_blocks_projection_v1.json"),
-            "previewReport": str(preview_path),
+            "evaluationReport": str(evaluation_path),
             "applyReport": str(apply_out / "block_patch_apply_v1.json"),
             "patchedAnalyzeResult": str(analyze_out / "sagascript_diagnostics.json"),
             "patchedCompileResult": str(manifest_dir / "script_artifacts.json"),
@@ -1421,10 +1421,10 @@ def test_validate_artifacts_blocks_runtime_backed_without_evidence_and_bad_patch
         bindings["bindings"][0]["nodes"][0]["capability"] = "RuntimeBacked"
         bindings["bindings"][0]["nodes"][0]["runtimeProof"] = "RuntimeBackedWithEvidenceMissing"
         bindings_path.write_text(json.dumps(bindings), encoding="utf-8")
-        (artifact_root / "patch_preview.json").write_text(json.dumps({
+        (artifact_root / "patch_evaluation.json").write_text(json.dumps({
             "schemaVersion": 1,
             "tool": "sagascript",
-            "command": "patch-preview",
+            "command": "patch-evaluation",
             "status": "Passed",
             "mutatesSource": True,
         }), encoding="utf-8")
@@ -1523,7 +1523,7 @@ public sealed class AdvancedUnsupported
         assert any(node["kind"] == "Opaque" and node["readOnly"] is True for node in nodes)
 
 
-def test_patch_preview_replaces_string_literal_without_mutating_source() -> None:
+def test_patch_evaluation_replaces_string_literal_without_mutating_source() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         source = write_source(root, "DoorLogic.High.cs", high_level_gameplay_source())
@@ -1544,10 +1544,10 @@ def test_patch_preview_replaces_string_literal_without_mutating_source() -> None
             "baseSourceHash": source_map["files"][0]["sourceHash"],
             "replacement": "gold_key",
         }), encoding="utf-8")
-        preview = root / "patch_preview.json"
+        evaluation = root / "patch_evaluation.json"
 
         result = run_cli(
-            "patch-preview",
+            "patch-evaluation",
             "--source",
             str(source),
             "--source-map",
@@ -1555,19 +1555,19 @@ def test_patch_preview_replaces_string_literal_without_mutating_source() -> None
             "--request",
             str(request),
             "--out",
-            str(preview),
+            str(evaluation),
             "--json",
         )
 
         assert result.returncode == 0, result.stderr + result.stdout
         assert source.read_bytes() == before
-        payload = json.loads(preview.read_text(encoding="utf-8"))
+        payload = json.loads(evaluation.read_text(encoding="utf-8"))
         assert payload["mutatesSource"] is False
-        assert payload["preview"]["oldText"] == '"key"'
-        assert payload["preview"]["newText"] == '"gold_key"'
+        assert payload["evaluation"]["oldText"] == '"key"'
+        assert payload["evaluation"]["newText"] == '"gold_key"'
 
 
-def test_patch_preview_rejects_stale_hash() -> None:
+def test_patch_evaluation_rejects_stale_hash() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         source = write_source(root, "DoorLogic.High.cs", high_level_gameplay_source())
@@ -1589,7 +1589,7 @@ def test_patch_preview_rejects_stale_hash() -> None:
         }), encoding="utf-8")
 
         result = run_cli(
-            "patch-preview",
+            "patch-evaluation",
             "--source",
             str(source),
             "--source-map",
@@ -1597,12 +1597,12 @@ def test_patch_preview_rejects_stale_hash() -> None:
             "--request",
             str(request),
             "--out",
-            str(root / "patch_preview.json"),
+            str(root / "patch_evaluation.json"),
             "--json",
         )
 
         assert result.returncode == 1
-        payload = json.loads((root / "patch_preview.json").read_text(encoding="utf-8"))
+        payload = json.loads((root / "patch_evaluation.json").read_text(encoding="utf-8"))
         codes = {diagnostic["code"] for diagnostic in payload["diagnostics"]}
         assert "Script.Patch.SourceHashMismatch" in codes
 
@@ -1838,7 +1838,7 @@ def test_patch_apply_post_check_failure_rolls_back_original_bytes() -> None:
         assert Path(report["backupPath"]).exists()
 
 
-def test_patch_diff_emits_deterministic_preview_without_mutating_source() -> None:
+def test_patch_diff_emits_deterministic_evaluation_without_mutating_source() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         source = write_source(root, "DoorLogic.High.cs", high_level_gameplay_source())
@@ -1974,8 +1974,8 @@ def test_patch_review_approval_and_rejection_are_report_only() -> None:
 
         approved = root / "patch_review_approved.json"
         rejected = root / "patch_review_rejected.json"
-        approved_result = run_patch_review(diff_report, "Approved", "reviewer://phase73", approved)
-        rejected_result = run_patch_review(diff_report, "Rejected", "reviewer://phase73", rejected)
+        approved_result = run_patch_review(diff_report, "Approved", "reviewer://case73", approved)
+        rejected_result = run_patch_review(diff_report, "Rejected", "reviewer://case73", rejected)
 
         assert approved_result.returncode == 0, approved_result.stderr + approved_result.stdout
         assert rejected_result.returncode == 0, rejected_result.stderr + rejected_result.stdout
@@ -2001,7 +2001,7 @@ def test_patch_review_rejects_failed_or_malformed_diff_report_and_invalid_decisi
             "status": "Failed",
             "mutatesSource": False,
         }), encoding="utf-8")
-        result = run_patch_review(failed_diff, "Approved", "reviewer://phase73", root / "failed_review.json")
+        result = run_patch_review(failed_diff, "Approved", "reviewer://case73", root / "failed_review.json")
 
         assert result.returncode == 1
         report = json.loads((root / "failed_review.json").read_text(encoding="utf-8"))
@@ -2016,7 +2016,7 @@ def test_patch_review_rejects_failed_or_malformed_diff_report_and_invalid_decisi
             "status": "Passed",
             "mutatesSource": True,
         }), encoding="utf-8")
-        result = run_patch_review(malformed, "Maybe", "reviewer://phase73", root / "malformed_review.json")
+        result = run_patch_review(malformed, "Maybe", "reviewer://case73", root / "malformed_review.json")
 
         assert result.returncode == 1
         report = json.loads((root / "malformed_review.json").read_text(encoding="utf-8"))
@@ -2235,23 +2235,23 @@ if __name__ == "__main__":
         test_readonly_visual_blocks_projection_partially_projectable_fixture,
         test_readonly_visual_blocks_projection_advanced_opaque_fixture,
         test_readonly_visual_blocks_projection_unsupported_fixture_reports_diagnostics,
-        test_block_operation_contract_previews_string_literal_without_mutating_source,
+        test_block_operation_contract_evaluations_string_literal_without_mutating_source,
         test_block_operation_contract_rejects_forbidden_operation_without_mutating_source,
         test_block_operation_contract_rejects_unknown_operation_without_mutating_source,
         test_block_operation_contract_rejects_opaque_block_without_mutating_source,
         test_block_operation_contract_rejects_unsupported_block_without_mutating_source,
         test_apply_block_edit_writes_patched_copy_without_mutating_source,
-        test_apply_block_edit_rejects_failed_preview_without_mutating_source,
+        test_apply_block_edit_rejects_failed_evaluation_without_mutating_source,
         test_apply_block_edit_rejects_stale_source_hash_without_mutating_source,
-        test_apply_block_edit_rejects_malformed_preview_inputs_without_mutating_source,
+        test_apply_block_edit_rejects_malformed_evaluation_inputs_without_mutating_source,
         test_two_way_authoring_cli_loop_analyzes_and_compiles_patched_copy,
         test_validate_artifacts_accepts_consistent_projection_only_evidence,
         test_validate_artifacts_blocks_runtime_backed_without_evidence_and_bad_patch_report,
         test_project_blocks_discloses_deferred_nodes_as_read_only,
         test_project_blocks_discloses_low_level_nodes_for_simple_view,
         test_unsupported_code_projects_as_opaque_and_no_edit_preserves_bytes,
-        test_patch_preview_replaces_string_literal_without_mutating_source,
-        test_patch_preview_rejects_stale_hash,
+        test_patch_evaluation_replaces_string_literal_without_mutating_source,
+        test_patch_evaluation_rejects_stale_hash,
         test_patch_apply_replaces_string_literal_exact_span_only,
         test_patch_apply_preserves_comments_whitespace_and_using_order,
         test_patch_apply_rejects_stale_hash_and_preserves_source,
@@ -2261,7 +2261,7 @@ if __name__ == "__main__":
         test_patch_apply_rejects_deferred_and_non_string_target,
         test_patch_apply_reports_stale_artifacts_without_regenerating,
         test_patch_apply_post_check_failure_rolls_back_original_bytes,
-        test_patch_diff_emits_deterministic_preview_without_mutating_source,
+        test_patch_diff_emits_deterministic_evaluation_without_mutating_source,
         test_patch_diff_rejects_stale_hash_and_preserves_source,
         test_patch_diff_rejects_missing_or_wrong_expected_old_text,
         test_patch_diff_rejects_readonly_opaque_deferred_and_non_string_targets,

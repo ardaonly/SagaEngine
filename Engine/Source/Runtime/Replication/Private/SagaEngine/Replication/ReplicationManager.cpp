@@ -1,8 +1,8 @@
 /// @file ReplicationManager.cpp
 /// @brief Server-side replication manager implementation.
 
-#include "SagaServer/Networking/Replication/ReplicationManager.h"
-#include "SagaServer/Networking/Interest/InterestArea.h"
+#include "SagaEngine/Replication/ReplicationManager.h"
+#include "SagaEngine/Replication/Interest/InterestArea.h"
 #include "SagaEngine/Simulation/Authority.h"
 #include "SagaEngine/Simulation/WorldState.h"
 #include "SagaEngine/Core/Log/Log.h"
@@ -10,7 +10,7 @@
 #include <algorithm>
 #include <limits>
 
-namespace SagaEngine::Networking::Replication
+namespace SagaEngine::Replication
 {
 
 struct ReplicationManager::Impl
@@ -304,7 +304,8 @@ void ReplicationManager::SendUpdates(
     if (work.empty())
         return;
 
-    Packet updatePacket(PacketType::DeltaSnapshot);
+    ::SagaEngine::Networking::Packet updatePacket(
+        ::SagaEngine::Networking::PacketType::DeltaSnapshot);
     updatePacket.Write(static_cast<uint32_t>(work.size()));
 
     for (const auto& upd : work)
@@ -521,4 +522,4 @@ void ReplicationManager::ProcessEntityDelta(ClientReplicationState& clientState,
     clientState.isDirty = true;
 }
 
-} // namespace SagaEngine::Networking::Replication
+} // namespace SagaEngine::Replication

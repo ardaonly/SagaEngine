@@ -26,7 +26,7 @@ std::string ReadText(const std::filesystem::path& path)
 std::vector<std::filesystem::path> LayeredPublicHeaders()
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT) /
-        "Engine" / "Public" / "SagaEngine";
+        "Engine" / "Source" / "Runtime" / "Scripting" / "Public" / "SagaEngine";
     std::vector<std::filesystem::path> headers = {
         root / "Scripting.hpp",
         root / "Scripting" / "Namespace.hpp",
@@ -116,7 +116,7 @@ TEST(SagaPublicScriptingApiTests, LayeredHeadersDoNotExposeConcreteRuntimeDepend
 TEST(SagaPublicScriptingApiTests, LowLevelHeadersDoNotIncludeAuthoring)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT) /
-        "Engine" / "Public" / "SagaEngine" / "Scripting";
+        "Engine" / "Source" / "Runtime" / "Scripting" / "Public" / "SagaEngine" / "Scripting";
     std::vector<std::filesystem::path> lowLevelHeaders = {
         root / "LowLevel.hpp",
     };

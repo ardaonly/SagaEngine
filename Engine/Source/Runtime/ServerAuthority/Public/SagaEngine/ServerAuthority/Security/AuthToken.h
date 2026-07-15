@@ -1,7 +1,7 @@
 /// @file AuthToken.h
 /// @brief Opaque authentication token type + validator interface.
 ///
-/// Layer  : SagaServer / Networking / Security
+/// Layer  : SagaEngine / ServerAuthority
 /// Purpose: SagaEngine needs a neutral abstraction for "is this client who
 ///          they say they are?" that the handshake layer can consult without
 ///          caring whether the backing implementation is JWT, Paseto, HMAC
@@ -19,7 +19,7 @@
 ///
 /// Integration:
 ///   - ServerConnection state machine calls `IAuthTokenValidator::Validate`
-///     once during the "authenticate" phase.  On success it stores the
+///     once during the "authenticate" step.  On success it stores the
 ///     returned `AuthContext` and transitions to "connected".
 ///   - The concrete backend (JWT, custom, dev stub) is installed at
 ///     ZoneServer construction time via dependency injection.

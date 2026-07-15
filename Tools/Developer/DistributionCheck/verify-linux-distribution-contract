@@ -26,7 +26,6 @@ DEFAULT_PACKAGE_REPORT = Path("build/reports/linux_package_preflight_report.json
 DEFAULT_SMOKE_REPORT = Path("build/reports/linux_distribution_smoke_report.json")
 DEFAULT_CANDIDATE_REPORT = Path("build/reports/linux_distributable_candidate_report.json")
 DEFAULT_REPORT = Path("build/reports/linux_distribution_contract_report.json")
-PHASE_MATRIX = Path("docs/internal/PHASE_STATUS_MATRIX.md")
 
 
 REQUIRED_BUILD_INFO_FIELDS = [
@@ -69,20 +68,22 @@ CURRENT_REQUIRED_FILES = [
     "bin/sagascript",
     "licenses/LICENSE-SAGA.md",
     "licenses/THIRD_PARTY_NOTICES.md",
-    "docs/README.md",
-    "docs/GETTING_STARTED.md",
-    "docs/CURRENT_CAPABILITIES.md",
-    "docs/KNOWN_LIMITATIONS.md",
-    "docs/BUILDING_FROM_SOURCE.md",
-    "docs/SCRIPTING.md",
-    "docs/VISUAL_BLOCKS.md",
-    "docs/PACKAGING.md",
-    "docs/CUSTOMIZATION.md",
+    "SagaWiki/index.html",
+    "SagaWiki/pages/getting-started.html",
+    "SagaWiki/pages/product.html",
+    "SagaWiki/pages/not-implemented.html",
+    "SagaWiki/pages/editor.html",
+    "SagaWiki/pages/scripting.html",
+    "SagaWiki/pages/runtime.html",
+    "SagaWiki/pages/server-authority.html",
+    "SagaWiki/pages/testing.html",
+    "SagaWiki/pages/toolchain.html",
+    "SagaWiki/assets/style.css",
 ]
 
 CURRENT_REQUIRED_DIRS = [
-    "samples/StarterArena",
-    "docs",
+    "Samples/StarterArena",
+    "SagaWiki",
     "licenses",
 ]
 
@@ -136,28 +137,6 @@ def source_commit() -> str | None:
         return None
     commit = result.stdout.strip()
     return commit or None
-
-
-def phase_statuses() -> list[dict[str, Any]]:
-    if not PHASE_MATRIX.exists():
-        return []
-    phases: list[dict[str, Any]] = []
-    for raw_line in PHASE_MATRIX.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line.startswith("|") or line.startswith("|---") or line.startswith("| Phase "):
-            continue
-        cells = [cell.strip().strip("`") for cell in line.strip("|").split("|")]
-        if len(cells) < 7 or not cells[0].isdigit():
-            continue
-        phases.append(
-            {
-                "phase": int(cells[0]),
-                "name": cells[1],
-                "status": cells[2],
-                "requiredGate": cells[4],
-            }
-        )
-    return phases
 
 
 def add_check(
@@ -419,7 +398,7 @@ def validate_non_claims(checks: list[dict[str, Any]]) -> list[str]:
         "This contract report does not claim full editor workflow.",
         "This contract report does not claim full Visual Blocks UI.",
         "This contract report does not claim full collaboration.",
-        "This contract report does not mark any phase Verified.",
+        "This contract report does not establish release readiness.",
     ]
     blob = json.dumps(non_claims)
     for needle in ["production", "enterprise", "verified final release", "full gameplay", "full editor", "Visual Blocks UI"]:
@@ -455,7 +434,7 @@ def main() -> int:
     blockers: list[str] = []
     known_limitations: list[str] = [
         "This contract check validates current candidate evidence only.",
-        "Final Linux technical preview acceptance still requires maintainer verification.",
+        "Final Linux candidate acceptance still requires maintainer verification.",
     ]
     final_gaps: list[str] = []
 
@@ -481,16 +460,6 @@ def main() -> int:
         blockers.append(f"missing archive: {archive}")
     if not checksum_ok:
         blockers.append(f"missing checksum: {checksum}")
-
-    verified_phases = [phase for phase in phase_statuses() if phase.get("status") == "Verified"]
-    add_check(
-        checks,
-        label="no phase marked Verified",
-        status="passed" if not verified_phases else "blocked",
-        message=f"phases marked Verified: {verified_phases}" if verified_phases else None,
-    )
-    if verified_phases:
-        blockers.append("one or more phases are marked Verified")
 
     required_blockers = [check for check in checks if check.get("required", True) and check.get("status") == "blocked"]
     status = "blocked" if required_blockers or blockers else "passed-with-limitations"

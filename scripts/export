@@ -1,0 +1,35 @@
+#!/usr/bin/env sh
+set -eu
+
+repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+runner="$repo_root/Tools/Developer/RepoAudit/export_tool_mirrors.py"
+
+case "${1:-}" in
+    -h|--help|help)
+        exec python3 "$runner" --repo-root "$repo_root" --help
+        ;;
+    all)
+        shift
+        exec python3 "$runner" --repo-root "$repo_root" "$@"
+        ;;
+    plan)
+        shift
+        exec python3 "$runner" --repo-root "$repo_root" --dry-run "$@"
+        ;;
+    forge|Forge)
+        shift
+        exec python3 "$runner" --repo-root "$repo_root" --tool Forge "$@"
+        ;;
+    changed-since)
+        shift
+        if [ "$#" -eq 0 ]; then
+            echo "scripts/export: changed-since requires a git ref" >&2
+            exit 2
+        fi
+        ref=$1
+        shift
+        exec python3 "$runner" --repo-root "$repo_root" --since "$ref" "$@"
+        ;;
+esac
+
+exec python3 "$runner" --repo-root "$repo_root" "$@"

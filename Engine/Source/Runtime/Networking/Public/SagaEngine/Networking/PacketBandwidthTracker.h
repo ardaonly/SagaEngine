@@ -1,7 +1,7 @@
 /// @file PacketBandwidthTracker.h
 /// @brief Per-packet-type bandwidth accounting for diagnostics and tuning.
 ///
-/// Layer  : SagaServer / Networking / Core
+/// Layer  : SagaEngine / Networking
 /// Purpose: When the bandwidth budget is tight it is critical to know WHICH
 ///          packet types dominate the wire.  Tuning replication rates
 ///          without per-type stats is guesswork.  This tracker sits in the

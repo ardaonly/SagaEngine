@@ -1,7 +1,7 @@
 /// @file WatchPanel.cpp
 /// @brief Qt backend implementation of the visual scripting watch panel.
 
-#include "SagaEditor/VisualScripting/Editor/WatchPanel.h"
+#include "SagaEditor/VisualBlocks/Editor/WatchPanel.h"
 
 #include <QLabel>
 #include <QVBoxLayout>
@@ -9,7 +9,7 @@
 
 #include <memory>
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 struct WatchPanel::Impl
@@ -56,4 +56,4 @@ void WatchPanel::OnInit() {}
 
 void WatchPanel::OnShutdown() {}
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

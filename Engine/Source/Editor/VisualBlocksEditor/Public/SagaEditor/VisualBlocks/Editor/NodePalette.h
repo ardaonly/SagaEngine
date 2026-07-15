@@ -7,7 +7,7 @@
 
 #include <memory>
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 /// Dockable node palette surface; Qt widget ownership stays private.
@@ -29,4 +29,4 @@ private:
     std::unique_ptr<Impl> m_impl;
 };
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

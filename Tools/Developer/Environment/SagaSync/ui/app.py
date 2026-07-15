@@ -15,8 +15,8 @@ def run_gui(repo_root: Path) -> int:
             "[sagasync] PySide6 is required for the GUI.\n"
             f"[sagasync] missing module: {missing}\n"
             "[sagasync] install it with: python3 -m pip install PySide6\n"
-            "[sagasync] or use: cd Tools/SagaSync && nix-shell && python3 sagasync.py\n"
-            "[sagasync] non-GUI check: python3 Tools/SagaSync/sagasync.py --smoke",
+            "[sagasync] or use: cd Tools/Developer/Environment/SagaSync && nix-shell && python3 sagasync.py\n"
+            "[sagasync] non-GUI check: python3 Tools/Developer/Environment/SagaSync/sagasync.py --smoke",
             file=sys.stderr,
         )
         return 2

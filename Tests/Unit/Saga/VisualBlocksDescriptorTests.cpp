@@ -1,7 +1,7 @@
 /// @file VisualBlocksDescriptorTests.cpp
 /// @brief Evidence-only generation tests for mandatory profile six.
 
-#include "VisualBlocks/VisualBlocksDescriptor.h"
+#include "ProductIntegration/VisualBlocksDescriptor.h"
 
 #include <QCryptographicHash>
 
@@ -83,7 +83,7 @@ struct Fixture
 
         WriteJson(project, {{"projectId", "starter-arena"}});
         fs::create_directories(project.parent_path() / "Scripts");
-        fs::copy_file(SourceRoot() / "samples" / "StarterArena" / "Scripts" /
+        fs::copy_file(SourceRoot() / "Samples" / "StarterArena" / "Scripts" /
             "GameRules.cs", project.parent_path() / "Scripts" / "GameRules.cs");
         fs::create_directories(workspace / "Scripts");
         fs::copy_file(project.parent_path() / "Scripts" / "GameRules.cs",
@@ -291,12 +291,12 @@ TEST(VisualBlocksDescriptorGenerationTest, RejectsCapabilityAndMutationMismatch)
 
 TEST(VisualBlocksDescriptorBoundaryTest, GeneratorHasNoExecutionOrPrivateDependencies)
 {
-    std::ifstream input(SourceRoot() / "Apps" / "Saga" /
-                        "VisualBlocksDescriptor.cpp");
+    std::ifstream input(SourceRoot() /
+        "Engine/Source/Editor/VisualBlocksEditor/Private/ProductIntegration/VisualBlocksDescriptor.cpp");
     const std::string source((std::istreambuf_iterator<char>(input)),
                              std::istreambuf_iterator<char>());
     for (const char* forbidden : {"QProcess", "EvidenceProcessRunner",
-        "Apps/Runtime", "VisualScripting", "Networking", "ECS", "void*",
+        "SagaEngine/Networking", "SagaEngine/ECS", "void*",
         "uintptr_t", "ScriptHandle"})
         EXPECT_EQ(source.find(forbidden), std::string::npos) << forbidden;
 }

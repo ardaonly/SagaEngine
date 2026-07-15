@@ -1,7 +1,7 @@
 /// @file ReplicationGraph.h
 /// @brief Per-client entity relevancy graph with priority queues and bandwidth budgeting.
 ///
-/// Layer  : SagaServer / Networking / Replication
+/// Layer  : SagaEngine / Replication
 /// Purpose: ReplicationGraph answers "which entities should be sent to which
 ///          client this tick?" combining spatial interest queries, priority
 ///          scoring, bandwidth budget enforcement, and hysteresis on enter/leave
@@ -14,11 +14,11 @@
 
 #pragma once
 
-#include "SagaServer/Networking/Interest/InterestArea.h"
-#include "SagaServer/Networking/Replication/ReplicationPriority.h"
-#include "SagaServer/Networking/Replication/ReplicationState.h"
+#include "SagaEngine/Replication/Interest/InterestArea.h"
+#include "SagaEngine/Replication/ReplicationPriority.h"
+#include "SagaEngine/Replication/ReplicationState.h"
 #include "SagaEngine/ECS/Entity.h"
-#include "SagaServer/Networking/Core/NetworkTypes.h"
+#include "SagaEngine/Networking/NetworkTypes.h"
 
 #include <chrono>
 #include <cstdint>
@@ -28,7 +28,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace SagaEngine::Networking::Replication
+namespace SagaEngine::Replication
 {
 
 using EntityId = ECS::EntityId;
@@ -158,4 +158,4 @@ private:
     std::unordered_map<ClientId, ClientGraphState>   m_clientStates;
 };
 
-} // namespace SagaEngine::Networking::Replication
+} // namespace SagaEngine::Replication

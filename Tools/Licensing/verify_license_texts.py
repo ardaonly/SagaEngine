@@ -62,7 +62,7 @@ ALLOWED_SOURCE_KINDS = {
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 METADATA_REQUIREMENTS = {
-    "LICENSE.md": (
+    "LICENSE": (
         "SPDX-FileCopyrightText: 2026 Arda Koyuncu",
         "SPDX-License-Identifier: CC-BY-4.0",
     ),
@@ -74,34 +74,15 @@ METADATA_REQUIREMENTS = {
         "SPDX-FileCopyrightText: 2026 Arda Koyuncu",
         "SPDX-License-Identifier: 0BSD",
     ),
-    "core/manifest/path_rules.json.license": (
+    "Tools/Developer/BoundaryCheck/Policies/path_rules.json.license": (
         "SPDX-FileCopyrightText: 2026 Arda Koyuncu",
         "SPDX-License-Identifier: 0BSD",
     ),
-    "docs/LICENSING.md": (
+    "SagaWiki/pages/licensing.html": (
         "SPDX-FileCopyrightText: 2026 Arda Koyuncu",
         "SPDX-License-Identifier: CC-BY-4.0",
     ),
-    "docs/licensing/CONTRIBUTING_DCO_SECTION.md": (
-        "SPDX-FileCopyrightText: 2026 Arda Koyuncu",
-        "SPDX-License-Identifier: Apache-2.0 OR CC-BY-4.0",
-    ),
-    "docs/licensing/GENERATED_OUTPUTS.md": (
-        "SPDX-License-Identifier: CC-BY-4.0",
-    ),
-    "docs/licensing/LICENSE_STABILITY.md": (
-        "SPDX-License-Identifier: CC-BY-4.0",
-    ),
-    "docs/licensing/PLUGIN_LICENSING.md": (
-        "SPDX-License-Identifier: CC-BY-4.0",
-    ),
-    "docs/licensing/THIRD_PARTY_NOTICES.md": (
-        "SPDX-License-Identifier: CC-BY-4.0",
-    ),
-    "docs/licensing/TRANSITION_CHECKLIST.md": (
-        "SPDX-License-Identifier: CC-BY-4.0",
-    ),
-    "docs/licensing/decisions/LIC-DEC-0001.md": (
+    "LICENSES/THIRD_PARTY_NOTICES.md": (
         "SPDX-License-Identifier: CC-BY-4.0",
     ),
     "Tools/Licensing/apply_contributing_dco.py": (
@@ -258,12 +239,6 @@ def validate_manifest(root: Path, failures: list[str]) -> tuple[dict, set[str]]:
     if zero_bsd.get("source_url") != expected_url:
         failures.append("0BSD source_url must be pinned to v3.28.0")
 
-    editor = by_id.get("LicenseRef-Saga-Editor-Restricted", {})
-    if editor.get("document_type") != "custom-license-text":
-        failures.append("Restricted Editor text must be custom-license-text")
-    if editor.get("source_path") != "LICENSES/LICENSE-EDITOR":
-        failures.append("Restricted Editor source_path must preserve legacy origin")
-
     return data, seen_paths
 
 
@@ -313,12 +288,6 @@ def main() -> int:
         failures.append(
             f"--strict-cleanup requires legacy removal: {sorted(legacy_existing)}"
         )
-
-    canonical_editor = root / "LICENSES/LicenseRef-Saga-Editor-Restricted.txt"
-    legacy_editor = root / "LICENSES/LICENSE-EDITOR"
-    if legacy_editor.is_file() and canonical_editor.is_file():
-        if legacy_editor.read_bytes() != canonical_editor.read_bytes():
-            failures.append("Legacy Editor text differs from canonical LicenseRef text")
 
     for relative in sorted(expected_checksum_paths(
         root,

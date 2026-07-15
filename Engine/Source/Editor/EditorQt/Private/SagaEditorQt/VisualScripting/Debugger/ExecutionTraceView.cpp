@@ -1,7 +1,7 @@
 /// @file ExecutionTraceView.cpp
 /// @brief Qt backend implementation of the visual scripting execution trace view.
 
-#include "SagaEditor/VisualScripting/Debugger/ExecutionTraceView.h"
+#include "SagaEditor/VisualBlocks/Debugger/ExecutionTraceView.h"
 
 #include <QLabel>
 #include <QVBoxLayout>
@@ -9,7 +9,7 @@
 
 #include <memory>
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 struct ExecutionTraceView::Impl
@@ -56,4 +56,4 @@ void ExecutionTraceView::OnInit() {}
 
 void ExecutionTraceView::OnShutdown() {}
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

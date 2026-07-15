@@ -1,7 +1,7 @@
 /// @file SagaPublishReadiness.cpp
 /// @brief Product-owned publish readiness gate and report writer.
 
-#include "Packaging/SagaPublishReadiness.h"
+#include "ProductIntegration/SagaPublishReadiness.h"
 
 #include "Projects/SagaProjectSystem.h"
 

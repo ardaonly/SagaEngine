@@ -306,8 +306,8 @@ const char* ToString(CollaborationArtifactKind kind) noexcept
         return "ProjectMetadata";
     case CollaborationArtifactKind::SagaScriptArtifactReview:
         return "SagaScriptArtifactReview";
-    case CollaborationArtifactKind::PatchPreviewReview:
-        return "PatchPreviewReview";
+    case CollaborationArtifactKind::PatchEvaluationReview:
+        return "PatchEvaluationReview";
     case CollaborationArtifactKind::DiagnosticsReview:
         return "DiagnosticsReview";
     case CollaborationArtifactKind::Notes:
@@ -322,8 +322,8 @@ const char* ToString(CollaborationOperationKind kind) noexcept
 {
     switch (kind)
     {
-    case CollaborationOperationKind::ReviewPatchPreview:
-        return "ReviewPatchPreview";
+    case CollaborationOperationKind::ReviewPatchEvaluation:
+        return "ReviewPatchEvaluation";
     case CollaborationOperationKind::MarkArtifactReviewed:
         return "MarkArtifactReviewed";
     case CollaborationOperationKind::AddNote:
@@ -356,8 +356,8 @@ const char* ToString(CollaborationConflictCategory category) noexcept
 {
     switch (category)
     {
-    case CollaborationConflictCategory::SamePatchPreviewReviewedByMultipleActors:
-        return "SamePatchPreviewReviewedByMultipleActors";
+    case CollaborationConflictCategory::SamePatchEvaluationReviewedByMultipleActors:
+        return "SamePatchEvaluationReviewedByMultipleActors";
     case CollaborationConflictCategory::StaleSourceHash:
         return "StaleSourceHash";
     case CollaborationConflictCategory::MissingTargetArtifact:
@@ -530,14 +530,14 @@ bool IsValid(const CollaborationWorkspaceState& state) noexcept
 bool IsLockableArtifactKind(CollaborationArtifactKind kind) noexcept
 {
     return kind == CollaborationArtifactKind::SagaScriptArtifactReview ||
-           kind == CollaborationArtifactKind::PatchPreviewReview ||
+           kind == CollaborationArtifactKind::PatchEvaluationReview ||
            kind == CollaborationArtifactKind::DiagnosticsReview ||
            kind == CollaborationArtifactKind::Notes;
 }
 
 bool IsSemanticTransactionOperation(CollaborationOperationKind operation) noexcept
 {
-    return operation == CollaborationOperationKind::ReviewPatchPreview ||
+    return operation == CollaborationOperationKind::ReviewPatchEvaluation ||
            operation == CollaborationOperationKind::MarkArtifactReviewed ||
            operation == CollaborationOperationKind::AddNote ||
            operation == CollaborationOperationKind::ResolveNote ||
@@ -1358,12 +1358,12 @@ TransactionSubmission LocalCollaborationMetadataStore::SubmitTransaction(
                       "operation base source hash does not match target artifact");
     }
 
-    if (transaction.operationKind == CollaborationOperationKind::ReviewPatchPreview)
+    if (transaction.operationKind == CollaborationOperationKind::ReviewPatchEvaluation)
     {
         const auto it = std::find_if(m_transactions.begin(), m_transactions.end(),
             [&transaction](const SemanticTransaction& item)
             {
-                return item.operationKind == CollaborationOperationKind::ReviewPatchPreview &&
+                return item.operationKind == CollaborationOperationKind::ReviewPatchEvaluation &&
                        item.targetArtifactKind == transaction.targetArtifactKind &&
                        item.targetPath == transaction.targetPath &&
                        item.actorId != transaction.actorId;
@@ -1371,8 +1371,8 @@ TransactionSubmission LocalCollaborationMetadataStore::SubmitTransaction(
         if (it != m_transactions.end())
         {
             return Reject(std::move(transaction),
-                          CollaborationConflictCategory::SamePatchPreviewReviewedByMultipleActors,
-                          "patch preview was already reviewed by another actor");
+                          CollaborationConflictCategory::SamePatchEvaluationReviewedByMultipleActors,
+                          "patch evaluation was already reviewed by another actor");
         }
     }
 

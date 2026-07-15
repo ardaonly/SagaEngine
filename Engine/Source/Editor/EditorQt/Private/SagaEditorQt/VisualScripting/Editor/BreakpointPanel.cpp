@@ -1,7 +1,7 @@
 /// @file BreakpointPanel.cpp
 /// @brief Qt backend implementation of the visual scripting breakpoint panel.
 
-#include "SagaEditor/VisualScripting/Editor/BreakpointPanel.h"
+#include "SagaEditor/VisualBlocks/Editor/BreakpointPanel.h"
 
 #include <QLabel>
 #include <QVBoxLayout>
@@ -9,7 +9,7 @@
 
 #include <memory>
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 struct BreakpointPanel::Impl
@@ -56,4 +56,4 @@ void BreakpointPanel::OnInit() {}
 
 void BreakpointPanel::OnShutdown() {}
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

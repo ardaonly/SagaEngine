@@ -55,7 +55,7 @@ struct SagaLocalApprovalGateReportRequest
     std::string actorId = "local.actor";
     std::string roleName;
     std::filesystem::path gateTargetPath;
-    std::string approvalState = "approved-local-preview";
+    std::string approvalState = "approved-local-evaluation";
     std::filesystem::path reportPath;
 };
 

@@ -1,9 +1,9 @@
 /// @file BlockInstance.cpp
 /// @brief Implementation of placed-block-instance equality.
 
-#include "SagaEditor/VisualScripting/Blocks/BlockInstance.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockInstance.h"
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 // ─── Equality ─────────────────────────────────────────────────────────────────
@@ -43,4 +43,4 @@ bool BlockInstance::operator==(const BlockInstance& o) const noexcept
     return true;
 }
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

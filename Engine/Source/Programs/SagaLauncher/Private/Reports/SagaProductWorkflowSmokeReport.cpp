@@ -142,7 +142,7 @@ struct ProjectMetadata
         "Package preflight remains bounded evidence and is not package or distribution readiness.",
         "Repository-only server evidence is not a Product Shell workflow action.",
         "Generic server execution remains unsupported and no dedicated-server executable is included.",
-        "No phase is marked Verified by this report.",
+        "No delivery stage is marked verified by this report.",
     };
 }
 
@@ -285,7 +285,7 @@ SagaProductWorkflowSmokeResult WriteProductWorkflowSmokeReport(
     };
     report["profile"] = {
         { "requestedProfileId", request.profile.empty() ?
-            "technical_preview" : request.profile },
+            "project_readiness" : request.profile },
     };
     report["workflowActions"] = std::move(actions);
     report["reportReferences"] = std::move(reportReferences);

@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 
-DEFAULT_MANIFEST = Path("core/export/manifest.json")
+DEFAULT_MANIFEST = Path("Tools/Developer/RepoAudit/export-manifest.json")
 DEFAULT_STATE_DIR = Path(".core/export/state")
 EXPECTED_SCHEMA = "sagaengine.tool_export.v0"
 SUPPORTED_VERSION = "0.1"

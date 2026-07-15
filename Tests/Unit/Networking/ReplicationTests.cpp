@@ -1,7 +1,7 @@
 /// @file ReplicationTests.cpp
 /// @brief Unit tests for replication manager behavior.
 
-#include "SagaServer/Networking/Replication/ReplicationManager.h"
+#include "SagaEngine/Replication/ReplicationManager.h"
 #include "SagaEngine/Simulation/WorldState.h"
 #include "SagaEngine/Simulation/Authority.h"
 #include "SagaEngine/ECS/Component.h"
@@ -10,7 +10,7 @@
 #include <cstring>
 #include <mutex>
 
-using namespace SagaEngine::Networking::Replication;
+using namespace SagaEngine::Replication;
 
 struct TestPositionComponent
 {

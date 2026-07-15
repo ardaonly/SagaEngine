@@ -1,17 +1,17 @@
 /// @file RPC.cpp
 /// @brief RPC codec and dispatch table implementation.
 ///
-/// Layer  : SagaServer / Networking / Replication
+/// Layer  : SagaEngine / Replication
 /// Purpose: Production implementation of the RPC system with TLV encoding,
 ///          rate limiting, and dispatch table.
 
-#include "SagaServer/Networking/Replication/RPC.h"
+#include "SagaEngine/Replication/RPC.h"
 #include "SagaEngine/Core/Log/Log.h"
 
 #include <chrono>
 #include <cstring>
 
-namespace SagaServer {
+namespace SagaEngine::Replication {
 
 using namespace std::chrono;
 

@@ -1,1 +1,141 @@
-# Source ownership is registered through SagaModule.cmake.
+saga_add_editor_module(EditorCollaboration
+    MODULE_DIR Engine/Source/Editor/EditorCollaboration
+    TARGET SagaEditorLib
+    SOURCES
+        Private/SagaEditor/Collaboration/Audit/AuditLogger.cpp
+        Private/SagaEditor/Collaboration/Authority/AuthorityManager.cpp
+        Private/SagaEditor/Collaboration/Client/CollaborationClient.cpp
+        Private/SagaEditor/Collaboration/Client/PeerRegistry.cpp
+        Private/SagaEditor/Collaboration/Locks/LockManager.cpp
+        Private/SagaEditor/Collaboration/Permissions/PermissionManager.cpp
+        Private/SagaEditor/Collaboration/Presence/PresenceManager.cpp
+        Private/SagaEditor/Collaboration/Replay/OperationLog.cpp
+        Private/SagaEditor/Collaboration/Server/CollaborationServer.cpp
+        Private/SagaEditor/Collaboration/Server/CollaborationServerRouter.cpp
+        Private/SagaEditor/Collaboration/Session/CollaborationSession.cpp
+        Private/SagaEditor/Collaboration/Sync/CrdtSceneDocument.cpp
+        Private/SagaEditor/Collaboration/Sync/EditOperationQueue.cpp
+        Private/SagaEditor/Collaboration/Sync/SyncTransportImpl.cpp
+        Private/SagaEditor/Collaboration/Workspace/CollaborativeWorkspace.cpp
+        Public/SagaEditor/Collaboration/Audit/AuditEvent.h
+        Public/SagaEditor/Collaboration/Audit/AuditEventType.h
+        Public/SagaEditor/Collaboration/Audit/AuditExporter.h
+        Public/SagaEditor/Collaboration/Audit/AuditFilter.h
+        Public/SagaEditor/Collaboration/Audit/AuditLogger.h
+        Public/SagaEditor/Collaboration/Audit/IAuditLogger.h
+        Public/SagaEditor/Collaboration/Authority/AuthorityElection.h
+        Public/SagaEditor/Collaboration/Authority/AuthorityEvent.h
+        Public/SagaEditor/Collaboration/Authority/AuthorityHandoff.h
+        Public/SagaEditor/Collaboration/Authority/AuthorityManager.h
+        Public/SagaEditor/Collaboration/Authority/AuthorityMode.h
+        Public/SagaEditor/Collaboration/Authority/IAuthorityManager.h
+        Public/SagaEditor/Collaboration/Client/CollaborationClient.h
+        Public/SagaEditor/Collaboration/Client/CollaborationClientConfig.h
+        Public/SagaEditor/Collaboration/Client/ICollaborationClient.h
+        Public/SagaEditor/Collaboration/Client/PeerInfo.h
+        Public/SagaEditor/Collaboration/Client/PeerRegistry.h
+        Public/SagaEditor/Collaboration/ConflictResolution/ConflictResolutionPipeline.h
+        Public/SagaEditor/Collaboration/ConflictResolution/ConflictStrategy.h
+        Public/SagaEditor/Collaboration/ConflictResolution/EditConflict.h
+        Public/SagaEditor/Collaboration/ConflictResolution/IConflictResolver.h
+        Public/SagaEditor/Collaboration/ConflictResolution/LastWriteWinsResolver.h
+        Public/SagaEditor/Collaboration/ConflictResolution/ServerAuthoritativeResolver.h
+        Public/SagaEditor/Collaboration/ConflictResolution/ThreeWayMerge.h
+        Public/SagaEditor/Collaboration/Locks/ILockManager.h
+        Public/SagaEditor/Collaboration/Locks/LockConflictHandler.h
+        Public/SagaEditor/Collaboration/Locks/LockEvent.h
+        Public/SagaEditor/Collaboration/Locks/LockHeartbeat.h
+        Public/SagaEditor/Collaboration/Locks/LockManager.h
+        Public/SagaEditor/Collaboration/Locks/LockPolicy.h
+        Public/SagaEditor/Collaboration/Locks/LockToken.h
+        Public/SagaEditor/Collaboration/Merge/HierarchyMerge.h
+        Public/SagaEditor/Collaboration/Merge/IMergeStrategy.h
+        Public/SagaEditor/Collaboration/Merge/MergeResult.h
+        Public/SagaEditor/Collaboration/Merge/PropertyMerge.h
+        Public/SagaEditor/Collaboration/Merge/SceneMerge.h
+        Public/SagaEditor/Collaboration/Permissions/CollaboratorRole.h
+        Public/SagaEditor/Collaboration/Permissions/IPermissionManager.h
+        Public/SagaEditor/Collaboration/Permissions/PermissionDeniedReason.h
+        Public/SagaEditor/Collaboration/Permissions/PermissionEnforcer.h
+        Public/SagaEditor/Collaboration/Permissions/PermissionManager.h
+        Public/SagaEditor/Collaboration/Permissions/PermissionPolicy.h
+        Public/SagaEditor/Collaboration/Presence/CursorBroadcast.h
+        Public/SagaEditor/Collaboration/Presence/IPresenceManager.h
+        Public/SagaEditor/Collaboration/Presence/PresenceEvent.h
+        Public/SagaEditor/Collaboration/Presence/PresenceInfo.h
+        Public/SagaEditor/Collaboration/Presence/PresenceManager.h
+        Public/SagaEditor/Collaboration/Presence/PresenceOverlayData.h
+        Public/SagaEditor/Collaboration/Presence/SelectionBroadcast.h
+        Public/SagaEditor/Collaboration/Replay/EditHistory.h
+        Public/SagaEditor/Collaboration/Replay/IOperationLog.h
+        Public/SagaEditor/Collaboration/Replay/OperationLog.h
+        Public/SagaEditor/Collaboration/Replay/OperationLogEntry.h
+        Public/SagaEditor/Collaboration/Replay/ReplayController.h
+        Public/SagaEditor/Collaboration/Server/CollaborationServer.h
+        Public/SagaEditor/Collaboration/Server/CollaborationServerRouter.h
+        Public/SagaEditor/Collaboration/Server/CollaborationServerState.h
+        Public/SagaEditor/Collaboration/Server/ICollaborationServer.h
+        Public/SagaEditor/Collaboration/Session/CollaborationSession.h
+        Public/SagaEditor/Collaboration/Session/CollaborationSessionState.h
+        Public/SagaEditor/Collaboration/Session/CollaborationToken.h
+        Public/SagaEditor/Collaboration/Session/ICollaborationSession.h
+        Public/SagaEditor/Collaboration/Session/SessionConfig.h
+        Public/SagaEditor/Collaboration/Session/SessionHandshake.h
+        Public/SagaEditor/Collaboration/Session/SessionHeartbeat.h
+        Public/SagaEditor/Collaboration/Session/SessionId.h
+        Public/SagaEditor/Collaboration/Sync/CrdtSceneDocument.h
+        Public/SagaEditor/Collaboration/Sync/EditOperation.h
+        Public/SagaEditor/Collaboration/Sync/EditOperationQueue.h
+        Public/SagaEditor/Collaboration/Sync/ISyncTransport.h
+        Public/SagaEditor/Collaboration/Sync/OperationVector.h
+        Public/SagaEditor/Collaboration/Sync/OperationalTransform.h
+        Public/SagaEditor/Collaboration/Sync/SyncConfig.h
+        Public/SagaEditor/Collaboration/Sync/SyncFlushScheduler.h
+        Public/SagaEditor/Collaboration/Sync/SyncTransportImpl.h
+        Public/SagaEditor/Collaboration/Workspace/CollaborativeWorkspace.h
+        Public/SagaEditor/Collaboration/Workspace/ICollaborativeWorkspace.h
+        Public/SagaEditor/Collaboration/Workspace/WorkspaceDocument.h
+        Public/SagaEditor/Collaboration/Workspace/WorkspaceDocumentState.h
+        Public/SagaEditor/Collaboration/Workspace/WorkspaceSnapshot.h
+        Public/SagaEditor/Collaboration/Workspace/WorkspaceSyncPolicy.h
+)
+
+saga_add_program(EditorCollaborationProductIntegration
+    MODULE_DIR Engine/Source/Editor/EditorCollaboration
+    TARGET SagaProductLib
+    SOURCES
+        Private/ProductIntegration/SagaLocalCollaborationMetadataReports.cpp
+        Private/ProductIntegration/SagaLocalCollaborationMetadataReports.h
+        Private/ProductIntegration/SagaLocalWorkspaceTransactionReport.cpp
+        Private/ProductIntegration/SagaLocalWorkspaceTransactionReport.h
+)
+
+saga_add_editor_module(EditorCollaboration
+    MODULE_DIR Engine/Source/Editor/EditorCollaboration
+    TARGET SagaCollaboration
+    SOURCES
+        Private/SagaCollaboration/CollaborationModel.cpp
+        Private/SagaCollaboration/CollaborationServices.cpp
+        Private/SagaShared/CollaborationContracts.cpp
+        Public/SagaCollaboration/ChangeStreamService.hpp
+        Public/SagaCollaboration/ClaimService.hpp
+        Public/SagaCollaboration/CollaborationBackend.hpp
+        Public/SagaCollaboration/CollaborationModel.hpp
+        Public/SagaCollaboration/CollaborationService.hpp
+        Public/SagaCollaboration/ConflictService.hpp
+        Public/SagaCollaboration/LockService.hpp
+        Public/SagaCollaboration/PermissionService.hpp
+        Public/SagaCollaboration/PresenceService.hpp
+        Public/SagaCollaboration/SessionService.hpp
+        Public/SagaShared/Collaboration/CollaborationDiagnostic.hpp
+        Public/SagaShared/Collaboration/ParticipantId.hpp
+        Public/SagaShared/Collaboration/PermissionGrant.hpp
+        Public/SagaShared/Collaboration/PresenceSnapshot.hpp
+        Public/SagaShared/Collaboration/ResourceClaim.hpp
+        Public/SagaShared/Collaboration/ResourceLock.hpp
+        Public/SagaShared/Collaboration/RoomCode.hpp
+        Public/SagaShared/Collaboration/SessionDescriptor.hpp
+        Public/SagaShared/Collaboration/SessionId.hpp
+        Public/SagaShared/Workspace/WorkspaceDescriptor.hpp
+        Public/SagaShared/Workspace/WorkspaceSyncState.hpp
+)

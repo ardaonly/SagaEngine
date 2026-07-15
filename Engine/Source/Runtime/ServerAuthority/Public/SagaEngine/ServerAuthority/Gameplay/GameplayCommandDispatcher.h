@@ -1,7 +1,7 @@
 /// @file GameplayCommandDispatcher.h
 /// @brief Fan-out from a single RPC entry ("gcmd") to typed gameplay handlers.
 ///
-/// Layer  : SagaServer / Gameplay
+/// Layer  : SagaEngine / ServerAuthority
 /// Purpose: Gameplay commands arrive through the generic RPC system as a
 ///          single Blob argument under RPC name "gcmd". This dispatcher is
 ///          the middle layer that:
@@ -21,7 +21,7 @@
 #include "SagaEngine/Gameplay/Commands/CommandCodec.h"
 #include "SagaEngine/Gameplay/Commands/CommandTraits.h"
 #include "SagaEngine/Gameplay/Commands/OpCode.h"
-#include "SagaServer/Networking/Replication/RPC.h"
+#include "SagaEngine/Replication/RPC.h"
 
 #include <array>
 #include <cstdint>
@@ -31,7 +31,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace SagaServer::Gameplay
+namespace SagaEngine::ServerAuthority::Gameplay
 {
 
 namespace EngineCommands = ::SagaEngine::Gameplay::Commands;
@@ -53,7 +53,7 @@ using TypedHandlerFn = std::function<bool(
 /// the concrete command struct.
 struct RegisteredCommand
 {
-    using DispatchFn = std::function<RPCStatusCode(
+    using DispatchFn = std::function<::SagaEngine::Replication::RPCStatusCode(
         std::uint64_t                   clientId,
         const std::uint8_t*             data,
         std::size_t                     size,
@@ -104,7 +104,7 @@ public:
 
     /// Wire the dispatcher into the RPC dispatch table under "gcmd".
     /// Must be called exactly once per RPCDispatch instance.
-    bool Install(RPCDispatch& rpcDispatch);
+    bool Install(::SagaEngine::Replication::RPCDispatch& rpcDispatch);
 
     /// Register a typed handler for one OpCode. The OpCode is inferred from
     /// CommandT::kOpCode; CommandTraits<Op> provides auth / reliability /
@@ -126,23 +126,24 @@ public:
             std::uint64_t              clientId,
             const std::uint8_t*        data,
             std::size_t                size,
-            std::vector<std::uint8_t>& outResult) -> RPCStatusCode
+            std::vector<std::uint8_t>& outResult) -> ::SagaEngine::Replication::RPCStatusCode
         {
             EngineCommands::ByteReader reader(data, size);
             CommandT cmd{};
             if (!CommandT::Decode(reader, cmd))
-                return RPCStatusCode::BadArgs;
+                return ::SagaEngine::Replication::RPCStatusCode::BadArgs;
 
             return h(clientId, cmd, outResult)
-                ? RPCStatusCode::Ok
-                : RPCStatusCode::InternalError;
+                ? ::SagaEngine::Replication::RPCStatusCode::Ok
+                : ::SagaEngine::Replication::RPCStatusCode::InternalError;
         };
         return true;
     }
 
     /// Direct entry point used by the RPC bridge callback. Exposed so
     /// tests can drive the dispatcher without going through RPCDispatch.
-    RPCStatusCode DispatchBlob(std::uint64_t              clientId,
+    ::SagaEngine::Replication::RPCStatusCode DispatchBlob(
+                                std::uint64_t              clientId,
                                 bool                       clientAuth,
                                 const std::uint8_t*        data,
                                 std::size_t                size,
@@ -168,4 +169,4 @@ private:
         std::array<TokenBucket, kMaxOpCodes>> m_ClientBuckets;
 };
 
-} // namespace SagaServer::Gameplay
+} // namespace SagaEngine::ServerAuthority::Gameplay

@@ -48,7 +48,7 @@ namespace fs = std::filesystem;
 } // namespace
 
 SceneAssetBrowserInventoryView LoadSceneAssetBrowserInventoryView(
-    const TechnicalPreviewProjectView& project)
+    const ProjectReadinessView& project)
 {
     SceneAssetBrowserInventoryView view;
     view.projectRoot = project.projectRoot;

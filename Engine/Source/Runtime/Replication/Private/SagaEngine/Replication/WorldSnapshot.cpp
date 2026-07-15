@@ -1,14 +1,14 @@
 /// @file WorldSnapshot.cpp
 /// @brief WorldSnapshotCapture and WorldSnapshotDecoder implementations.
 
-#include "SagaServer/Networking/Replication/WorldSnapshot.h"
+#include "SagaEngine/Replication/WorldSnapshot.h"
 #include "SagaEngine/Core/Log/Log.h"
 
 #include <cassert>
 #include <chrono>
 #include <cstring>
 
-namespace SagaEngine::Networking::Replication
+namespace SagaEngine::Replication
 {
 
 static constexpr const char* kTag = "WorldSnapshot";
@@ -311,4 +311,4 @@ bool WorldSnapshotDecoder::ValidateHeader(const SnapshotFileHeader& hdr,
     return true;
 }
 
-} // namespace SagaEngine::Networking::Replication
+} // namespace SagaEngine::Replication

@@ -235,7 +235,7 @@ public:
     [[nodiscard]] uint64_t WorldTick() const noexcept { return m_worldTick; }
 
 private:
-    // ─── Internal tick phases ──────────────────────────────────────────────────
+    // ─── Internal tick stages ───────────────────────────────────────────────────
 
     void DrainInput() noexcept;
     void StepSimulation() noexcept;

@@ -26,7 +26,7 @@ struct StarterArenaPickup
 struct StarterArenaGameplayMutation
 {
     std::uint32_t tick = 0;
-    std::string phase;
+    std::string lifecycleEvent;
     std::string operation;
     std::string target;
     std::string beforeValue;
@@ -51,7 +51,7 @@ struct StarterArenaGameplayState
     std::optional<std::uint32_t> mutationTick;
     std::optional<StarterArenaVec2> firstReachablePosition;
     std::optional<StarterArenaVec2> mutationPosition;
-    std::string phase = "NotStarted";
+    std::string lifecycleEvent = "NotStarted";
     std::vector<std::string> callbacksObserved;
     std::vector<StarterArenaGameplayMutation> mutations;
 };
@@ -61,7 +61,7 @@ class StarterArenaGameplayFacade final : public SagaEngine::Scripting::ISagaScri
 public:
     explicit StarterArenaGameplayFacade(StarterArenaGameplayState& state);
 
-    void SetPhase(std::string phase);
+    void SetLifecycleEvent(std::string lifecycleEvent);
     void SetRuntimeSnapshot(std::uint32_t tick, StarterArenaVec2 playerPosition);
     [[nodiscard]] bool PickupReachable() const noexcept;
 

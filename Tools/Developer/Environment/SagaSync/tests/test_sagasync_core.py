@@ -11,8 +11,8 @@ import unittest
 
 import sys
 
-ROOT = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(ROOT / "Tools" / "SagaSync"))
+ROOT = Path(__file__).resolve().parents[5]
+sys.path.insert(0, str(ROOT / "Tools" / "Developer" / "Environment" / "SagaSync"))
 
 from core.commit_queue import build_commit_queue
 from core.commit_plan import (
@@ -49,11 +49,11 @@ class SagaSyncCoreTests(unittest.TestCase):
     def test_load_export_manifest_and_states(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
-            manifest_dir = root / "core" / "export"
+            manifest_dir = root / "Tools" / "Developer" / "RepoAudit"
             state_dir = root / ".core" / "export" / "state"
             manifest_dir.mkdir(parents=True)
             state_dir.mkdir(parents=True)
-            (manifest_dir / "manifest.json").write_text(
+            (manifest_dir / "export-manifest.json").write_text(
                 json.dumps(
                     {
                         "target_branch": "main",
@@ -92,11 +92,11 @@ class SagaSyncCoreTests(unittest.TestCase):
     def test_export_health_ready_when_state_matches_head(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
-            manifest_dir = root / "core" / "export"
+            manifest_dir = root / "Tools" / "Developer" / "RepoAudit"
             state_dir = root / ".core" / "export" / "state"
             manifest_dir.mkdir(parents=True)
             state_dir.mkdir(parents=True)
-            (manifest_dir / "manifest.json").write_text(
+            (manifest_dir / "export-manifest.json").write_text(
                 json.dumps(
                     {
                         "target_branch": "main",
@@ -133,11 +133,11 @@ class SagaSyncCoreTests(unittest.TestCase):
     def test_export_health_blocks_dirty_tool_path(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
-            manifest_dir = root / "core" / "export"
+            manifest_dir = root / "Tools" / "Developer" / "RepoAudit"
             state_dir = root / ".core" / "export" / "state"
             manifest_dir.mkdir(parents=True)
             state_dir.mkdir(parents=True)
-            (manifest_dir / "manifest.json").write_text(
+            (manifest_dir / "export-manifest.json").write_text(
                 json.dumps(
                     {
                         "target_branch": "main",
@@ -174,11 +174,11 @@ class SagaSyncCoreTests(unittest.TestCase):
     def test_export_health_marks_stale_source(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
-            manifest_dir = root / "core" / "export"
+            manifest_dir = root / "Tools" / "Developer" / "RepoAudit"
             state_dir = root / ".core" / "export" / "state"
             manifest_dir.mkdir(parents=True)
             state_dir.mkdir(parents=True)
-            (manifest_dir / "manifest.json").write_text(
+            (manifest_dir / "export-manifest.json").write_text(
                 json.dumps(
                     {
                         "target_branch": "main",
@@ -220,15 +220,15 @@ class SagaSyncCoreTests(unittest.TestCase):
             upstream="origin/main",
             ahead=0,
             behind=0,
-            status_lines=(" M Tools/Forge/src/main.cpp", " M docs/dev/ITERATION_NOTES.md"),
+            status_lines=(" M Tools/Forge/src/main.cpp", " M SagaWiki/dev/ITERATION_NOTES.md"),
         )
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
-            manifest_dir = root / "core" / "export"
+            manifest_dir = root / "Tools" / "Developer" / "RepoAudit"
             state_dir = root / ".core" / "export" / "state"
             manifest_dir.mkdir(parents=True)
             state_dir.mkdir(parents=True)
-            (manifest_dir / "manifest.json").write_text(
+            (manifest_dir / "export-manifest.json").write_text(
                 json.dumps(
                     {
                         "target_branch": "main",
@@ -257,15 +257,15 @@ class SagaSyncCoreTests(unittest.TestCase):
             status_lines=(
                 " M src/runtime.cpp",
                 " M Tools/Forge/src/main.cpp",
-                "?? Tools/SagaSync/core/commit_plan.py",
-                " M docs/dev/ITERATION_NOTES.md",
+                "?? Tools/Developer/Environment/SagaSync/core/commit_plan.py",
+                " M SagaWiki/dev/ITERATION_NOTES.md",
             ),
         )
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
-            manifest_dir = root / "core" / "export"
+            manifest_dir = root / "Tools" / "Developer" / "RepoAudit"
             manifest_dir.mkdir(parents=True)
-            (manifest_dir / "manifest.json").write_text(
+            (manifest_dir / "export-manifest.json").write_text(
                 json.dumps(
                     {
                         "target_branch": "main",
@@ -305,7 +305,7 @@ class SagaSyncCoreTests(unittest.TestCase):
     def test_safe_actions_are_dry_run_or_read_only(self) -> None:
         actions = default_toolbar_actions() + verification_actions()
         commands = [" ".join(action.command) for action in actions]
-        self.assertIn("./export.sh forge --dry-run", commands)
+        self.assertIn("scripts/export forge --dry-run", commands)
         self.assertIn("git diff --check", commands)
         forbidden = (" commit", " push", " checkout", " switch", " branch")
         for command in commands:
@@ -347,11 +347,11 @@ class SagaSyncCoreTests(unittest.TestCase):
     def test_health_display_tracks_unverified_and_failed_verification(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
-            manifest_dir = root / "core" / "export"
+            manifest_dir = root / "Tools" / "Developer" / "RepoAudit"
             state_dir = root / ".core" / "export" / "state"
             manifest_dir.mkdir(parents=True)
             state_dir.mkdir(parents=True)
-            (manifest_dir / "manifest.json").write_text(
+            (manifest_dir / "export-manifest.json").write_text(
                 json.dumps(
                     {
                         "target_branch": "main",
@@ -389,7 +389,7 @@ class SagaSyncCoreTests(unittest.TestCase):
             started_at=datetime(2026, 5, 19, 12, 0, 0, tzinfo=timezone.utc),
             duration_ms=1,
             exit_code=1,
-            command_summary="./export.sh plan",
+            command_summary="scripts/export plan",
         )
         self.assertEqual(health_display_status(health, failed), DISPLAY_BLOCKED_BY_VERIFICATION)
         self.assertIn("verification profile failed", health_display_reason(health, failed))
@@ -397,11 +397,11 @@ class SagaSyncCoreTests(unittest.TestCase):
     def test_smoke_payload_uses_core_models(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
-            manifest_dir = root / "core" / "export"
+            manifest_dir = root / "Tools" / "Developer" / "RepoAudit"
             state_dir = root / ".core" / "export" / "state"
             manifest_dir.mkdir(parents=True)
             state_dir.mkdir(parents=True)
-            (manifest_dir / "manifest.json").write_text(
+            (manifest_dir / "export-manifest.json").write_text(
                 json.dumps(
                     {
                         "target_branch": "main",

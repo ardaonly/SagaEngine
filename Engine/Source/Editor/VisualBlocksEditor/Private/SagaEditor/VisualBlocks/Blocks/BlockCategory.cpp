@@ -1,9 +1,9 @@
 /// @file BlockCategory.cpp
 /// @brief Implementation of the block library categories.
 
-#include "SagaEditor/VisualScripting/Blocks/BlockCategory.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockCategory.h"
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 // ─── Equality ─────────────────────────────────────────────────────────────────
@@ -83,4 +83,4 @@ std::vector<BlockCategory> MakeBuiltinCategories()
     };
 }
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

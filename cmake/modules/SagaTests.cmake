@@ -3,10 +3,12 @@
 # Wires every test sub-tree under /Tests into a dedicated CTest target.  The
 # layout on disk is:
 #
-#     Tests/Unit/         -> SagaUnitTests          (fast, deterministic)
-#     Tests/Integration/  -> SagaIntegrationTests   (ECS + subsystem wiring)
-#     Tests/Replication/  -> SagaReplicationTests   (round-trip + fuzz + soak)
-#     Tests/Stress/       -> SagaStressTests        (concurrency + network load)
+#     Tests/Unit/          -> SagaUnitTests          (fast, deterministic)
+#     Tests/Architecture/  -> SagaArchitectureTests  (repository boundaries)
+#     Tests/Integration/   -> SagaIntegrationTests   (subsystem workflows)
+#     Tests/GPU/           -> GPU-backed integration suites
+#     Tests/Contract/      -> consumer and generated-artifact contracts
+#     Tests/Support/       -> test-only infrastructure
 #
 # All four targets share the same include paths and link against the same
 # stack (SagaEngine + SagaRuntimeLib + SagaServerLib + SagaBackend + GTest +
@@ -31,19 +33,19 @@ function(saga_setup_tests)
     )
 
     set(SAGA_STRESS_ARENA_TEST_SOURCE
-        "${SAGA_ROOT}/Tests/Unit/Tools/SagaStressArenaTests.cpp"
+        "${SAGA_ROOT}/Tests/Support/Stress/SagaStressArena/Tests.cpp"
     )
     set(SAGA_CHAOS_LAB_TEST_SOURCE
-        "${SAGA_ROOT}/Tests/Unit/Tools/SagaChaosLabTests.cpp"
+        "${SAGA_ROOT}/Tools/Developer/DistributionCheck/ChaosLab/Tests.cpp"
     )
     set(SAGA_STATE_CHECK_TEST_SOURCE
-        "${SAGA_ROOT}/Tests/Unit/Tools/SagaStateCheckTests.cpp"
+        "${SAGA_ROOT}/Tools/Developer/DistributionCheck/StateCheck/Tests.cpp"
     )
     set(EDITOR_AUTHORING_SPINE_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/Editor/EditorAuthoringSpineTests.cpp"
     )
     set(COLLABORATION_MODEL_TEST_SOURCE
-        "${SAGA_ROOT}/Tests/Unit/Collaboration/CollaborationModelTests.cpp"
+        "${SAGA_ROOT}/Tests/Architecture/Collaboration/CollaborationModelTests.cpp"
     )
     set(MULTIPLAYER_SANDBOX_HEADLESS_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/Samples/MultiplayerSandboxHeadlessTests.cpp"
@@ -52,6 +54,10 @@ function(saga_setup_tests)
     file(GLOB_RECURSE SAGA_PRODUCT_TEST_SOURCES CONFIGURE_DEPENDS
         "${SAGA_ROOT}/Tests/Unit/Saga/*.cpp"
     )
+    file(GLOB_RECURSE SAGA_EVIDENCE_TEST_SOURCES CONFIGURE_DEPENDS
+        "${SAGA_ROOT}/Tests/Evidence/FirstPlayable/Tests/*.cpp"
+    )
+    list(APPEND SAGA_PRODUCT_TEST_SOURCES ${SAGA_EVIDENCE_TEST_SOURCES})
 
     set(SAGA_PUBLISH_READINESS_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/Saga/SagaPublishReadinessTests.cpp"
@@ -81,13 +87,13 @@ function(saga_setup_tests)
         "${SAGA_ROOT}/Tests/Unit/Diagnostics/DiagnosticFoundationTests.cpp"
     )
     set(SAGA_GRAPHICS_PUBLIC_CONSUMER_LINK_TEST_SOURCE
-        "${SAGA_ROOT}/Tests/Link/SagaGraphicsPublicConsumerLinkTest.cpp"
+        "${SAGA_ROOT}/Tests/Contract/InstalledConsumer/SagaGraphicsPublicConsumerLinkTest.cpp"
     )
     set(SAGA_GRAPHICS_INSTALLED_CONSUMER_TEST_SCRIPT
-        "${SAGA_ROOT}/Tests/Link/SagaGraphicsInstalledConsumerTest.cmake"
+        "${SAGA_ROOT}/Tests/Contract/InstalledConsumer/SagaGraphicsInstalledConsumerTest.cmake"
     )
     set(SAGA_GRAPHICS_INSTALLED_CONSUMER_SOURCE_DIR
-        "${SAGA_ROOT}/Tests/Link/SagaGraphicsInstalledConsumerProject"
+        "${SAGA_ROOT}/Tests/Contract/InstalledConsumer/SagaGraphicsInstalledConsumerProject"
     )
     set(SAGA_DIAGNOSTIC_REPORT_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/Diagnostics/DiagnosticReportTests.cpp"
@@ -244,25 +250,27 @@ function(saga_setup_tests)
     )
 
     file(GLOB_RECURSE EDITORLAB_SOURCES CONFIGURE_DEPENDS
-        "${SAGA_ROOT}/Apps/EditorLab/src/*.cpp"
+        "${SAGA_ROOT}/Engine/Source/Programs/SagaEditorLab/Private/*.cpp"
     )
 
     file(GLOB_RECURSE INTEGRATION_SOURCES CONFIGURE_DEPENDS
         "${SAGA_ROOT}/Tests/Integration/*.cpp"
+        "${SAGA_ROOT}/Tests/GPU/*.cpp"
     )
+    list(REMOVE_ITEM INTEGRATION_SOURCES
+        "${SAGA_ROOT}/Tests/Integration/EditorWorkflow/SagaLauncherUiTests.cpp")
 
     file(GLOB_RECURSE REPLICATION_SOURCES CONFIGURE_DEPENDS
-        "${SAGA_ROOT}/Tests/Replication/*.cpp"
+        "${SAGA_ROOT}/Tests/Integration/ClientServer/*.cpp"
     )
+    list(REMOVE_ITEM INTEGRATION_SOURCES ${REPLICATION_SOURCES})
 
     file(GLOB_RECURSE STRESS_SOURCES CONFIGURE_DEPENDS
-        "${SAGA_ROOT}/Tests/Stress/*.cpp"
+        "${SAGA_ROOT}/Tests/Support/Stress/Infrastructure/*.cpp"
     )
 
     file(GLOB_RECURSE ARCHITECTURE_TEST_SOURCES CONFIGURE_DEPENDS
-        "${SAGA_ROOT}/Tests/Unit/Architecture/*.cpp"
-        "${SAGA_ROOT}/Tests/Unit/Collaboration/*.cpp"
-        "${SAGA_ROOT}/Tests/Unit/Shared/*.cpp"
+        "${SAGA_ROOT}/Tests/Architecture/*.cpp"
     )
 
     if(ARCHITECTURE_TEST_SOURCES)
@@ -276,17 +284,16 @@ function(saga_setup_tests)
     # call below.  Keeping the list local to the function avoids leaking
     # into the parent scope.
     set(SAGA_TEST_INCLUDE_DIRS
-        ${SAGA_ROOT}/Engine/Public
-        ${SAGA_ROOT}/Runtime/include
-        ${SAGA_ROOT}/Server/include
-        ${SAGA_ROOT}/Shared/include
-        ${SAGA_ROOT}/Collaboration/include
+        ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+        ${SAGA_MODULE_PRIVATE_INCLUDE_DIRS}
         ${SAGA_ROOT}/Tools/AssetPipeline/include
-        ${SAGA_ROOT}/Backends/include
-        ${SAGA_ROOT}/Editor/include
-        ${SAGA_ROOT}/Apps/EditorLab/include
-        ${SAGA_ROOT}/Apps/Sandbox/include
-        ${SAGA_ROOT}/Apps/Saga
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaEditorLab/Private
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaSandbox/Private
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaSandbox/Private/include
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaLauncher/Private
+        ${SAGA_ROOT}/Tests/Evidence/FirstPlayable/Source
+        ${SAGA_ROOT}/Tools/SagaPackager
+        ${SAGA_ROOT}/Tools/SagaScript
         $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
     )
 
@@ -332,7 +339,7 @@ function(saga_setup_tests)
 
     add_executable(SagaUnitTests ${UNIT_TEST_SOURCES})
     target_sources(SagaUnitTests PRIVATE
-        ${SAGA_ROOT}/Apps/Runtime/RuntimeHost.cpp
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private/RuntimeHost.cpp
     )
     saga_link_thirdparty(SagaUnitTests)
     target_link_libraries(SagaUnitTests PRIVATE
@@ -358,8 +365,9 @@ function(saga_setup_tests)
     target_link_libraries(SagaUnitTests PRIVATE SagaProductLib)
     target_include_directories(SagaUnitTests PRIVATE ${SAGA_TEST_INCLUDE_DIRS})
     target_include_directories(SagaUnitTests PRIVATE
-        ${SAGA_ROOT}/Engine/Private
-        ${SAGA_ROOT}/Apps/Runtime
+        ${SAGA_MODULE_PRIVATE_INCLUDE_DIRS}
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private
+        ${SAGA_ROOT}/Samples/StarterArena/Source
     )
     target_compile_definitions(SagaUnitTests PRIVATE
         SAGA_SOURCE_ROOT="${SAGA_ROOT}"
@@ -380,7 +388,7 @@ function(saga_setup_tests)
             SagaGraphics
         )
         set_target_properties(SagaGraphicsPublicConsumerLinkTest PROPERTIES
-            FOLDER "Tests/Link"
+            FOLDER "Tests/Contract"
         )
         add_test(
             NAME SagaGraphicsPublicConsumerLinkTest
@@ -415,7 +423,7 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(DiagnosticFoundationTests PRIVATE
-            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         )
         add_test(NAME DiagnosticFoundationTests COMMAND DiagnosticFoundationTests)
         set_tests_properties(DiagnosticFoundationTests PROPERTIES
@@ -435,7 +443,7 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(DiagnosticReportTests PRIVATE
-            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         )
         add_test(NAME DiagnosticReportTests COMMAND DiagnosticReportTests)
         set_tests_properties(DiagnosticReportTests PROPERTIES
@@ -455,7 +463,7 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(DiagnosticReliabilityTests PRIVATE
-            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         )
         add_test(NAME DiagnosticReliabilityTests
             COMMAND DiagnosticReliabilityTests)
@@ -476,7 +484,7 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(DiagnosticMemoryResourceTests PRIVATE
-            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         )
         add_test(NAME DiagnosticMemoryResourceTests
             COMMAND DiagnosticMemoryResourceTests)
@@ -497,7 +505,7 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(FaultBoundaryTests PRIVATE
-            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         )
         add_test(NAME FaultBoundaryTests COMMAND FaultBoundaryTests)
         set_tests_properties(FaultBoundaryTests PROPERTIES
@@ -516,8 +524,8 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(ActorOwnershipRegistryTests PRIVATE
-            ${SAGA_ROOT}/Server/include
-            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
             $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
         )
         add_test(NAME ActorOwnershipRegistryTests
@@ -539,7 +547,7 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(AuthoritativeMovementCoreTests PRIVATE
-            ${SAGA_ROOT}/Server/include
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
             $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
         )
         add_test(NAME AuthoritativeMovementCoreTests
@@ -561,8 +569,8 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(AuthoritativeMovementInputAdapterTests PRIVATE
-            ${SAGA_ROOT}/Server/include
-            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
             $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
         )
         add_test(NAME AuthoritativeMovementInputAdapterTests
@@ -584,8 +592,8 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(AuthoritativeMovementCommandIntakeTests PRIVATE
-            ${SAGA_ROOT}/Server/include
-            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
             $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
         )
         add_test(NAME AuthoritativeMovementCommandIntakeTests
@@ -607,8 +615,8 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(ServerPacketNormalizationTests PRIVATE
-            ${SAGA_ROOT}/Server/include
-            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
             $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
         )
         add_test(NAME ServerPacketNormalizationTests
@@ -632,8 +640,8 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(NetworkChaosLayerTests PRIVATE
-            ${SAGA_ROOT}/Server/include
-            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
             $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
         )
         add_test(NAME NetworkChaosLayerTests
@@ -656,8 +664,8 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(ZoneServerPacketDrainTests PRIVATE
-            ${SAGA_ROOT}/Server/include
-            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
             $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
         )
         add_test(NAME ZoneServerPacketDrainTests
@@ -680,8 +688,8 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(ZoneServerMovementAuthorityTests PRIVATE
-            ${SAGA_ROOT}/Server/include
-            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
             $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
         )
         add_test(NAME ZoneServerMovementAuthorityTests
@@ -705,8 +713,8 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(ZoneServerDiagnosticsTests PRIVATE
-            ${SAGA_ROOT}/Server/include
-            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
             $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
         )
         add_test(NAME ZoneServerDiagnosticsTests
@@ -731,8 +739,8 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(ServerLifecycleDiagnosticsTests PRIVATE
-            ${SAGA_ROOT}/Server/include
-            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
             $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
         )
         add_test(NAME ServerLifecycleDiagnosticsTests
@@ -755,8 +763,8 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(MovementDirtyReplicationBridgeTests PRIVATE
-            ${SAGA_ROOT}/Server/include
-            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
             $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
         )
         add_test(NAME MovementDirtyReplicationBridgeTests
@@ -782,9 +790,9 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(SagaStressArenaTests PRIVATE
-            ${SAGA_ROOT}/Tools/SagaStressArena/include
-            ${SAGA_ROOT}/Server/include
-            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_ROOT}/Tests/Support/Stress/SagaStressArena/include
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
             $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
         )
         set_target_properties(SagaStressArenaTests PROPERTIES
@@ -819,10 +827,10 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(SagaChaosLabTests PRIVATE
-            ${SAGA_ROOT}/Tools/SagaChaosLab/include
-            ${SAGA_ROOT}/Tools/SagaStressArena/include
-            ${SAGA_ROOT}/Server/include
-            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_ROOT}/Tools/Developer/DistributionCheck/ChaosLab/include
+            ${SAGA_ROOT}/Tests/Support/Stress/SagaStressArena/include
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
             $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
         )
         set_target_properties(SagaChaosLabTests PROPERTIES
@@ -853,7 +861,7 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(SagaStateCheckTests PRIVATE
-            ${SAGA_ROOT}/Tools/SagaStateCheck/include
+            ${SAGA_ROOT}/Tools/Developer/DistributionCheck/StateCheck/include
             $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
         )
         set_target_properties(SagaStateCheckTests PROPERTIES
@@ -879,8 +887,8 @@ function(saga_setup_tests)
         )
         target_include_directories(MultiplayerSandboxHeadlessTests PRIVATE
             ${SAGA_ROOT}/Tools/MultiplayerSandboxHeadless/include
-            ${SAGA_ROOT}/Server/include
-            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
             $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
         )
         target_compile_definitions(MultiplayerSandboxHeadlessTests PRIVATE
@@ -903,24 +911,26 @@ function(saga_setup_tests)
     if(EXISTS "${SAGA_PACKAGE_STAGING_TEST_SOURCE}")
         add_executable(SagaPackageStagingTests
             ${SAGA_PACKAGE_STAGING_TEST_SOURCE}
-            ${SAGA_ROOT}/Apps/Saga/Packaging/SagaPackageStaging.cpp
-            ${SAGA_ROOT}/Apps/Saga/Projects/SagaProjectSystem.cpp
-            ${SAGA_ROOT}/Apps/Saga/Packaging/SagaPublishReadiness.cpp
-            ${SAGA_ROOT}/Apps/Saga/Projects/SagaSessionModel.cpp
+            ${SAGA_ROOT}/Tools/SagaPackager/ProductIntegration/SagaPackageStaging.cpp
+            ${SAGA_ROOT}/Engine/Source/Programs/SagaLauncher/Private/Projects/SagaProjectSystem.cpp
+            ${SAGA_ROOT}/Tools/SagaPackager/ProductIntegration/SagaPublishReadiness.cpp
+            ${SAGA_ROOT}/Engine/Source/Programs/SagaLauncher/Private/Projects/SagaSessionModel.cpp
         )
         target_link_libraries(SagaPackageStagingTests PRIVATE
             SagaAssetPipelineLib
             SagaEngine
+            SagaRuntimeLib
             GTest::gtest
             GTest::gmock
             GTest::gtest_main
             nlohmann_json::nlohmann_json
         )
         target_include_directories(SagaPackageStagingTests PRIVATE
-            ${SAGA_ROOT}/Apps/Saga
+            ${SAGA_ROOT}/Engine/Source/Programs/SagaLauncher/Private
             ${SAGA_ROOT}/Tools/AssetPipeline/include
-            ${SAGA_ROOT}/Engine/Public
-            ${SAGA_ROOT}/Shared/include
+            ${SAGA_ROOT}/Tools/SagaPackager
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         )
         target_compile_definitions(SagaPackageStagingTests PRIVATE
             SAGA_SOURCE_ROOT="${SAGA_ROOT}"
@@ -933,8 +943,8 @@ function(saga_setup_tests)
     if(EXISTS "${SAGA_PUBLISH_READINESS_TEST_SOURCE}")
         add_executable(SagaPublishReadinessTests
             ${SAGA_PUBLISH_READINESS_TEST_SOURCE}
-            ${SAGA_ROOT}/Apps/Saga/Projects/SagaProjectSystem.cpp
-            ${SAGA_ROOT}/Apps/Saga/Packaging/SagaPublishReadiness.cpp
+            ${SAGA_ROOT}/Engine/Source/Programs/SagaLauncher/Private/Projects/SagaProjectSystem.cpp
+            ${SAGA_ROOT}/Tools/SagaPackager/ProductIntegration/SagaPublishReadiness.cpp
         )
         target_link_libraries(SagaPublishReadinessTests PRIVATE
             SagaEngine
@@ -945,9 +955,10 @@ function(saga_setup_tests)
             nlohmann_json::nlohmann_json
         )
         target_include_directories(SagaPublishReadinessTests PRIVATE
-            ${SAGA_ROOT}/Apps/Saga
-            ${SAGA_ROOT}/Engine/Public
-            ${SAGA_ROOT}/Shared/include
+            ${SAGA_ROOT}/Engine/Source/Programs/SagaLauncher/Private
+            ${SAGA_ROOT}/Tools/SagaPackager
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         )
         target_compile_definitions(SagaPublishReadinessTests PRIVATE
             SAGA_SOURCE_ROOT="${SAGA_ROOT}"
@@ -972,8 +983,8 @@ function(saga_setup_tests)
         )
         target_include_directories(AssetIdentityRuntimeContractTests PRIVATE
             ${SAGA_ROOT}/Tools/AssetPipeline/include
-            ${SAGA_ROOT}/Engine/Public
-            ${SAGA_ROOT}/Shared/include
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         )
         target_compile_definitions(AssetIdentityRuntimeContractTests PRIVATE
             SAGA_SOURCE_ROOT="${SAGA_ROOT}"
@@ -999,8 +1010,8 @@ function(saga_setup_tests)
         )
         target_include_directories(AssetIdentityManifestWriterTests PRIVATE
             ${SAGA_ROOT}/Tools/AssetPipeline/include
-            ${SAGA_ROOT}/Engine/Public
-            ${SAGA_ROOT}/Shared/include
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         )
         add_test(NAME AssetIdentityManifestWriterTests
             COMMAND AssetIdentityManifestWriterTests)
@@ -1023,8 +1034,8 @@ function(saga_setup_tests)
         )
         target_include_directories(AssetManifestWriterTests PRIVATE
             ${SAGA_ROOT}/Tools/AssetPipeline/include
-            ${SAGA_ROOT}/Engine/Public
-            ${SAGA_ROOT}/Shared/include
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         )
         add_test(NAME AssetManifestWriterTests
             COMMAND AssetManifestWriterTests)
@@ -1040,6 +1051,7 @@ function(saga_setup_tests)
         target_link_libraries(PackageManifestWriterTests PRIVATE
             SagaAssetPipelineLib
             SagaEngine
+            SagaRuntimeLib
             GTest::gtest
             GTest::gmock
             GTest::gtest_main
@@ -1047,8 +1059,8 @@ function(saga_setup_tests)
         )
         target_include_directories(PackageManifestWriterTests PRIVATE
             ${SAGA_ROOT}/Tools/AssetPipeline/include
-            ${SAGA_ROOT}/Engine/Public
-            ${SAGA_ROOT}/Shared/include
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         )
         target_compile_definitions(PackageManifestWriterTests PRIVATE
             SAGA_SOURCE_ROOT="${SAGA_ROOT}"
@@ -1067,14 +1079,15 @@ function(saga_setup_tests)
         target_link_libraries(GeneratedRuntimeSmokeManifestTests PRIVATE
             SagaAssetPipelineLib
             SagaEngine
+            SagaRuntimeLib
             GTest::gtest
             GTest::gmock
             GTest::gtest_main
         )
         target_include_directories(GeneratedRuntimeSmokeManifestTests PRIVATE
             ${SAGA_ROOT}/Tools/AssetPipeline/include
-            ${SAGA_ROOT}/Engine/Public
-            ${SAGA_ROOT}/Shared/include
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         )
         target_compile_definitions(GeneratedRuntimeSmokeManifestTests PRIVATE
             SAGA_SOURCE_ROOT="${SAGA_ROOT}"
@@ -1093,14 +1106,15 @@ function(saga_setup_tests)
         target_link_libraries(GeneratedRuntimeSmokePackageTests PRIVATE
             SagaAssetPipelineLib
             SagaEngine
+            SagaRuntimeLib
             GTest::gtest
             GTest::gmock
             GTest::gtest_main
         )
         target_include_directories(GeneratedRuntimeSmokePackageTests PRIVATE
             ${SAGA_ROOT}/Tools/AssetPipeline/include
-            ${SAGA_ROOT}/Engine/Public
-            ${SAGA_ROOT}/Shared/include
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         )
         target_compile_definitions(GeneratedRuntimeSmokePackageTests PRIVATE
             SAGA_SOURCE_ROOT="${SAGA_ROOT}"
@@ -1118,8 +1132,8 @@ function(saga_setup_tests)
     if(EXISTS "${SAGA_SCRIPT_LIFECYCLE_TEST_SOURCE}")
         add_executable(SagaScriptLifecycleTests
             ${SAGA_SCRIPT_LIFECYCLE_TEST_SOURCE}
-            ${SAGA_ROOT}/Engine/Private/SagaEngine/Scripting/ScriptLifecycleService.cpp
-            ${SAGA_ROOT}/Engine/Private/SagaEngine/Scripting/ScriptPackageValidator.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/ScriptLifecycleService.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/ScriptPackageValidator.cpp
         )
         target_link_libraries(SagaScriptLifecycleTests PRIVATE
             SagaShared
@@ -1130,8 +1144,8 @@ function(saga_setup_tests)
             OpenSSL::Crypto
         )
         target_include_directories(SagaScriptLifecycleTests PRIVATE
-            ${SAGA_ROOT}/Engine/Public
-            ${SAGA_ROOT}/Shared/include
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
             ${SAGA_OPENSSL_INCLUDE_DIRS}
         )
         target_compile_definitions(SagaScriptLifecycleTests PRIVATE
@@ -1153,7 +1167,7 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(RuntimeStartupPreflightTests PRIVATE
-            ${SAGA_ROOT}/Runtime/include
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         )
         add_test(NAME RuntimeStartupPreflightTests COMMAND RuntimeStartupPreflightTests)
         set_tests_properties(RuntimeStartupPreflightTests PROPERTIES LABELS "unit;runtime")
@@ -1171,7 +1185,7 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(RuntimeStartupSessionTests PRIVATE
-            ${SAGA_ROOT}/Runtime/include
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         )
         add_test(NAME RuntimeStartupSessionTests COMMAND RuntimeStartupSessionTests)
         set_tests_properties(RuntimeStartupSessionTests PROPERTIES LABELS "unit;runtime")
@@ -1189,7 +1203,7 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(RuntimeStartupDiagnosticsTests PRIVATE
-            ${SAGA_ROOT}/Runtime/include
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         )
         add_test(NAME RuntimeStartupDiagnosticsTests COMMAND RuntimeStartupDiagnosticsTests)
         set_tests_properties(RuntimeStartupDiagnosticsTests PROPERTIES LABELS "unit;runtime")
@@ -1207,9 +1221,9 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(RuntimeAssetCatalogTests PRIVATE
-            ${SAGA_ROOT}/Runtime/include
-            ${SAGA_ROOT}/Engine/Public
-            ${SAGA_ROOT}/Shared/include
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         )
         target_compile_definitions(RuntimeAssetCatalogTests PRIVATE
             SAGA_SOURCE_ROOT="${SAGA_ROOT}"
@@ -1231,9 +1245,9 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(RuntimeAssetBootstrapTests PRIVATE
-            ${SAGA_ROOT}/Runtime/include
-            ${SAGA_ROOT}/Engine/Public
-            ${SAGA_ROOT}/Shared/include
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         )
         target_compile_definitions(RuntimeAssetBootstrapTests PRIVATE
             SAGA_SOURCE_ROOT="${SAGA_ROOT}"
@@ -1243,11 +1257,11 @@ function(saga_setup_tests)
             LABELS "unit;runtime;asset;package")
     endif()
 
-    # --- Apps/Runtime asset bootstrap helper seam tests ---------------------
+    # --- SagaRuntime asset bootstrap helper seam tests ----------------------
     if(EXISTS "${SAGA_RUNTIME_ASSET_STARTUP_BOOTSTRAP_TEST_SOURCE}")
         add_executable(RuntimeAssetStartupBootstrapTests
             ${SAGA_RUNTIME_ASSET_STARTUP_BOOTSTRAP_TEST_SOURCE}
-            ${SAGA_ROOT}/Apps/Runtime/RuntimeAssetStartupBootstrap.cpp
+            ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private/RuntimeAssetStartupBootstrap.cpp
         )
         target_link_libraries(RuntimeAssetStartupBootstrapTests PRIVATE
             SagaRuntimeLib
@@ -1256,10 +1270,10 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(RuntimeAssetStartupBootstrapTests PRIVATE
-            ${SAGA_ROOT}/Apps/Runtime
-            ${SAGA_ROOT}/Runtime/include
-            ${SAGA_ROOT}/Engine/Public
-            ${SAGA_ROOT}/Shared/include
+            ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         )
         target_compile_definitions(RuntimeAssetStartupBootstrapTests PRIVATE
             SAGA_SOURCE_ROOT="${SAGA_ROOT}"
@@ -1282,9 +1296,9 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(RuntimeAssetBootstrapDiagnosticsTests PRIVATE
-            ${SAGA_ROOT}/Runtime/include
-            ${SAGA_ROOT}/Engine/Public
-            ${SAGA_ROOT}/Shared/include
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         )
         add_test(NAME RuntimeAssetBootstrapDiagnosticsTests
             COMMAND RuntimeAssetBootstrapDiagnosticsTests)
@@ -1299,13 +1313,14 @@ function(saga_setup_tests)
         )
         target_link_libraries(RuntimePackageSmokeTests PRIVATE
             SagaEngine
+            SagaRuntimeLib
             GTest::gtest
             GTest::gmock
             GTest::gtest_main
         )
         target_include_directories(RuntimePackageSmokeTests PRIVATE
-            ${SAGA_ROOT}/Engine/Public
-            ${SAGA_ROOT}/Shared/include
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         )
         target_compile_definitions(RuntimePackageSmokeTests PRIVATE
             SAGA_SOURCE_ROOT="${SAGA_ROOT}"
@@ -1327,7 +1342,7 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(RuntimeServiceLifecycleTests PRIVATE
-            ${SAGA_ROOT}/Runtime/include
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         )
         add_test(NAME RuntimeServiceLifecycleTests COMMAND RuntimeServiceLifecycleTests)
         set_tests_properties(RuntimeServiceLifecycleTests PROPERTIES LABELS "unit;runtime")
@@ -1345,7 +1360,7 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(RuntimeServiceRegistryTests PRIVATE
-            ${SAGA_ROOT}/Runtime/include
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         )
         add_test(NAME RuntimeServiceRegistryTests COMMAND RuntimeServiceRegistryTests)
         set_tests_properties(RuntimeServiceRegistryTests PROPERTIES LABELS "unit;runtime")
@@ -1363,7 +1378,7 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(RuntimeServiceRegistryDiagnosticsTests PRIVATE
-            ${SAGA_ROOT}/Runtime/include
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         )
         target_compile_definitions(RuntimeServiceRegistryDiagnosticsTests PRIVATE
             SAGA_SOURCE_ROOT="${SAGA_ROOT}"
@@ -1378,10 +1393,10 @@ function(saga_setup_tests)
     if(EXISTS "${SAGA_SCRIPT_BINDING_RUNTIME_TEST_SOURCE}")
         add_executable(ScriptBindingRuntimeTests
             ${SAGA_SCRIPT_BINDING_RUNTIME_TEST_SOURCE}
-            ${SAGA_ROOT}/Engine/Private/SagaEngine/Scripting/ScriptBindingManifestLoader.cpp
-            ${SAGA_ROOT}/Engine/Private/SagaEngine/Scripting/ScriptBindingRuntime.cpp
-            ${SAGA_ROOT}/Engine/Private/SagaEngine/Scripting/ScriptLifecycleService.cpp
-            ${SAGA_ROOT}/Engine/Private/SagaEngine/Scripting/ScriptPackageValidator.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/ScriptBindingManifestLoader.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/ScriptBindingRuntime.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/ScriptLifecycleService.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/ScriptPackageValidator.cpp
         )
         target_link_libraries(ScriptBindingRuntimeTests PRIVATE
             SagaShared
@@ -1392,12 +1407,13 @@ function(saga_setup_tests)
             OpenSSL::Crypto
         )
         target_include_directories(ScriptBindingRuntimeTests PRIVATE
-            ${SAGA_ROOT}/Engine/Public
-            ${SAGA_ROOT}/Shared/include
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
             ${SAGA_OPENSSL_INCLUDE_DIRS}
         )
         target_compile_definitions(ScriptBindingRuntimeTests PRIVATE
             SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+            SAGA_NUGET_PACKAGES="${CMAKE_BINARY_DIR}/.dotnet/home/.nuget/packages"
         )
         add_test(NAME ScriptBindingRuntimeTests COMMAND ScriptBindingRuntimeTests)
         set_tests_properties(ScriptBindingRuntimeTests PROPERTIES LABELS "unit;runtime;scripting")
@@ -1442,9 +1458,9 @@ function(saga_setup_tests)
 
         add_executable(CSharpScriptHostTests
             ${SAGA_CSHARP_SCRIPT_HOST_TEST_SOURCE}
-            ${SAGA_ROOT}/Engine/Private/SagaEngine/Scripting/CSharpScriptHost.cpp
-            ${SAGA_ROOT}/Engine/Private/SagaEngine/Scripting/ScriptLifecycleService.cpp
-            ${SAGA_ROOT}/Engine/Private/SagaEngine/Scripting/ScriptPackageValidator.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHost.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/ScriptLifecycleService.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/ScriptPackageValidator.cpp
         )
         add_dependencies(CSharpScriptHostTests
             SagaScriptRuntimeBridge
@@ -1461,8 +1477,8 @@ function(saga_setup_tests)
             ${CMAKE_DL_LIBS}
         )
         target_include_directories(CSharpScriptHostTests PRIVATE
-            ${SAGA_ROOT}/Engine/Public
-            ${SAGA_ROOT}/Shared/include
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
             ${SAGA_OPENSSL_INCLUDE_DIRS}
             ${SAGA_DOTNET_HOST_INCLUDE_DIR}
         )
@@ -1481,13 +1497,13 @@ function(saga_setup_tests)
        TARGET SagaScriptRuntimeBridge)
         add_executable(CSharpGameplayProofTests
             ${SAGA_CSHARP_GAMEPLAY_PROOF_TEST_SOURCE}
-            ${SAGA_ROOT}/Engine/Private/SagaEngine/ECS/ComponentRegistration.cpp
-            ${SAGA_ROOT}/Engine/Private/SagaEngine/ECS/ComponentRegistry.cpp
-            ${SAGA_ROOT}/Engine/Private/SagaEngine/Simulation/WorldState.cpp
-            ${SAGA_ROOT}/Engine/Private/SagaEngine/Scripting/CSharpScriptHost.cpp
-            ${SAGA_ROOT}/Engine/Private/SagaEngine/Scripting/ScriptLifecycleService.cpp
-            ${SAGA_ROOT}/Engine/Private/SagaEngine/Scripting/ScriptPackageValidator.cpp
-            ${SAGA_ROOT}/Engine/Private/SagaEngine/Scripting/WorldStateScriptWorld.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/ECS/Private/SagaEngine/ECS/ComponentRegistration.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/ECS/Private/SagaEngine/ECS/ComponentRegistry.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Simulation/Private/SagaEngine/Simulation/WorldState.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHost.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/ScriptLifecycleService.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/ScriptPackageValidator.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/WorldStateScriptWorld.cpp
         )
         add_dependencies(CSharpGameplayProofTests
             SagaScriptRuntimeBridge
@@ -1504,13 +1520,14 @@ function(saga_setup_tests)
             ${CMAKE_DL_LIBS}
         )
         target_include_directories(CSharpGameplayProofTests PRIVATE
-            ${SAGA_ROOT}/Engine/Public
-            ${SAGA_ROOT}/Shared/include
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
             ${SAGA_OPENSSL_INCLUDE_DIRS}
             ${SAGA_DOTNET_HOST_INCLUDE_DIR}
         )
         target_compile_definitions(CSharpGameplayProofTests PRIVATE
             SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+            SAGA_NUGET_PACKAGES="${CMAKE_BINARY_DIR}/.dotnet/home/.nuget/packages"
             SAGA_SCRIPT_RUNTIME_BRIDGE_ASSEMBLY="${SAGA_SCRIPT_RUNTIME_BRIDGE_ASSEMBLY}"
             SAGA_DOTNET_EXECUTABLE="${SAGA_DOTNET_EXECUTABLE}"
             SAGA_DOTNET_ROOT="${SAGA_DOTNET_ROOT}"
@@ -1538,6 +1555,7 @@ function(saga_setup_tests)
         )
         target_compile_definitions(StarterArenaRuntimeSmokeTests PRIVATE
             SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+            SAGA_NUGET_PACKAGES="${CMAKE_BINARY_DIR}/.dotnet/home/.nuget/packages"
             SAGA_RUNTIME_EXECUTABLE="$<TARGET_FILE:SagaRuntime>"
             SAGA_SCRIPT_RUNTIME_BRIDGE_ASSEMBLY="${SAGA_SCRIPT_RUNTIME_BRIDGE_ASSEMBLY}"
             SAGA_DOTNET_EXECUTABLE="${SAGA_DOTNET_EXECUTABLE}"
@@ -1553,10 +1571,10 @@ function(saga_setup_tests)
     if(EXISTS "${STARTER_ARENA_PLAYABLE_TEST_SOURCE}")
         add_executable(StarterArenaPlayableTests
             ${STARTER_ARENA_PLAYABLE_TEST_SOURCE}
-            ${SAGA_ROOT}/Apps/Runtime/StarterArenaInput.cpp
-            ${SAGA_ROOT}/Apps/Runtime/StarterArenaSimulation.cpp
-            ${SAGA_ROOT}/Apps/Runtime/StarterArenaGameplayState.cpp
-            ${SAGA_ROOT}/Apps/Runtime/StarterArenaPlayableScene.cpp
+            ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaInput.cpp
+            ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSimulation.cpp
+            ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaGameplayState.cpp
+            ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaPlayableScene.cpp
         )
         target_link_libraries(StarterArenaPlayableTests PRIVATE
             SagaEngine
@@ -1566,8 +1584,9 @@ function(saga_setup_tests)
             GTest::gtest_main
         )
         target_include_directories(StarterArenaPlayableTests PRIVATE
-            ${SAGA_ROOT}/Apps/Runtime
-            ${SAGA_ROOT}/Engine/Public
+            ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private
+            ${SAGA_ROOT}/Samples/StarterArena/Source
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         )
         target_compile_definitions(StarterArenaPlayableTests PRIVATE
             SAGA_SOURCE_ROOT="${SAGA_ROOT}"
@@ -1580,9 +1599,9 @@ function(saga_setup_tests)
 
     # --- Script binding runtime thin runner --------------------------------
     if(TARGET SagaScriptRuntimeBridge AND
-       EXISTS "${SAGA_ROOT}/Tests/Tools/ScriptBindingRuntimeRunner.cpp")
+       EXISTS "${SAGA_ROOT}/Tests/Contract/GeneratedArtifacts/ScriptBindingRuntimeRunner.cpp")
         add_executable(ScriptBindingRuntimeRunner
-            ${SAGA_ROOT}/Tests/Tools/ScriptBindingRuntimeRunner.cpp
+            ${SAGA_ROOT}/Tests/Contract/GeneratedArtifacts/ScriptBindingRuntimeRunner.cpp
         )
         add_dependencies(ScriptBindingRuntimeRunner SagaScriptRuntimeBridge)
         target_link_libraries(ScriptBindingRuntimeRunner PRIVATE
@@ -1594,8 +1613,8 @@ function(saga_setup_tests)
             ${CMAKE_DL_LIBS}
         )
         target_include_directories(ScriptBindingRuntimeRunner PRIVATE
-            ${SAGA_ROOT}/Engine/Public
-            ${SAGA_ROOT}/Shared/include
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
             ${SAGA_OPENSSL_INCLUDE_DIRS}
             ${SAGA_DOTNET_HOST_INCLUDE_DIR}
         )
@@ -1640,7 +1659,7 @@ function(saga_setup_tests)
 
     # --- Product Launcher Qt Widgets tests --------------------------------
     set(SAGA_LAUNCHER_UI_TEST_SOURCE
-        "${SAGA_ROOT}/Tests/LauncherUi/SagaLauncherUiTests.cpp")
+        "${SAGA_ROOT}/Tests/Integration/EditorWorkflow/SagaLauncherUiTests.cpp")
     if(EXISTS "${SAGA_LAUNCHER_UI_TEST_SOURCE}")
         add_executable(SagaLauncherUiTests ${SAGA_LAUNCHER_UI_TEST_SOURCE})
         saga_link_thirdparty(SagaLauncherUiTests)
@@ -1709,10 +1728,10 @@ function(saga_setup_tests)
     # editor unit-test link graph.
     find_program(_saga_python3 NAMES python3)
     if(_saga_python3 AND
-       EXISTS "${SAGA_ROOT}/Tests/Tools/test_linux_distribution_whitelist.py")
+       EXISTS "${SAGA_ROOT}/Tools/Developer/DistributionCheck/tests/test_linux_distribution_whitelist.py")
         add_test(NAME SagaLinuxDistributionWhitelistTests
             COMMAND "${_saga_python3}"
-                "${SAGA_ROOT}/Tests/Tools/test_linux_distribution_whitelist.py")
+                "${SAGA_ROOT}/Tools/Developer/DistributionCheck/tests/test_linux_distribution_whitelist.py")
         set_tests_properties(SagaLinuxDistributionWhitelistTests PROPERTIES
             LABELS "package;architecture")
     endif()
@@ -1745,10 +1764,10 @@ function(saga_setup_tests)
 
     add_executable(SagaIntegrationTests ${INTEGRATION_SOURCES})
     target_sources(SagaIntegrationTests PRIVATE
-        ${SAGA_ROOT}/Apps/Runtime/StarterArenaInput.cpp
-        ${SAGA_ROOT}/Apps/Runtime/StarterArenaSimulation.cpp
-        ${SAGA_ROOT}/Apps/Runtime/StarterArenaGameplayState.cpp
-        ${SAGA_ROOT}/Apps/Runtime/StarterArenaPlayableScene.cpp
+        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaInput.cpp
+        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSimulation.cpp
+        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaGameplayState.cpp
+        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaPlayableScene.cpp
     )
     saga_link_thirdparty(SagaIntegrationTests)
     target_link_libraries(SagaIntegrationTests PRIVATE
@@ -1769,8 +1788,9 @@ function(saga_setup_tests)
     target_include_directories(SagaIntegrationTests PRIVATE
         ${SAGA_TEST_INCLUDE_DIRS}
         ${SAGA_ROOT}/Tests/Support
-        ${SAGA_ROOT}/Engine/Private
-        ${SAGA_ROOT}/Apps/Runtime
+        ${SAGA_MODULE_PRIVATE_INCLUDE_DIRS}
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private
+        ${SAGA_ROOT}/Samples/StarterArena/Source
     )
     target_compile_definitions(SagaIntegrationTests PRIVATE
         SAGA_SOURCE_ROOT="${SAGA_ROOT}"

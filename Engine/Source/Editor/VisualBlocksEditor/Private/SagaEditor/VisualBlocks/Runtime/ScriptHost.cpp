@@ -1,9 +1,9 @@
 /// @file ScriptHost.cpp
 /// @brief Pimpl scaffolding — auto-generated stub bodies.
 
-#include "SagaEditor/VisualScripting/Runtime/ScriptHost.h"
+#include "SagaEditor/VisualBlocks/Runtime/ScriptHost.h"
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 // ─── Pimpl Definition ────────────────────────────────────────────────────────
@@ -33,4 +33,4 @@ bool ScriptHost::IsReady() const noexcept
     return false;
 }
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

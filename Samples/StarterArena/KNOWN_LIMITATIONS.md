@@ -8,8 +8,8 @@
 - `Scenes/arena.scene.json` is a minimal smoke resource, not a broad runtime
   scene format.
 - No launch profile is declared for StarterArena.
-- `SagaLaunchLab` currently exposes server/headless launch commands, not a
-  runtime/client sample launch command.
+- The current launch support is bounded to the documented runtime modes and is
+  not a general sample-launch product.
 - The `--starter-arena-smoke` path is Runtime-owned and does not initialize
   renderer setup or UDP/client networking.
 - The `--starter-arena-playable` path is also Runtime-owned and socket-free,
@@ -43,7 +43,7 @@
   environment where `hostfxr` is discoverable.
 - Generated StarterArena script artifacts, smoke reports, and visible reports
   are expected to live under temporary output roots, not under
-  `samples/StarterArena`.
+  `Samples/StarterArena`.
 - The Product Shell first-playable workflow is a CLI diagnostics and JSON
   summary surface, not an editor panel or project-creation workflow. Its
   visible profiles require an available window and graphics backend.

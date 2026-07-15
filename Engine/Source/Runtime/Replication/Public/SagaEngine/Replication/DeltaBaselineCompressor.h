@@ -1,7 +1,7 @@
 /// @file DeltaBaselineCompressor.h
 /// @brief XOR-baseline delta compressor for snapshot payloads.
 ///
-/// Layer  : SagaServer / Networking / Replication
+/// Layer  : SagaEngine / Replication
 /// Purpose: Plain RLE collapses the runs of zero bytes inside a
 ///          snapshot well, but it cannot exploit the single largest
 ///          source of redundancy in a delta-snapshot stream: the
@@ -53,7 +53,7 @@
 
 #pragma once
 
-#include "SagaServer/Networking/Replication/ISnapshotCompressor.h"
+#include "SagaEngine/Replication/ISnapshotCompressor.h"
 
 #include <cstddef>
 #include <cstdint>

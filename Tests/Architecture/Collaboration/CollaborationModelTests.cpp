@@ -41,9 +41,9 @@ SagaCollaboration::SemanticTransaction MakeTransaction(std::uint64_t sequence,
     transaction.operationId = operationId;
     transaction.actorId = actorId;
     transaction.targetArtifactKind =
-        SagaCollaboration::CollaborationArtifactKind::PatchPreviewReview;
+        SagaCollaboration::CollaborationArtifactKind::PatchEvaluationReview;
     transaction.targetPath = "Build/SagaScript/Patches/Quest.patch.json";
-    transaction.operationKind = SagaCollaboration::CollaborationOperationKind::ReviewPatchPreview;
+    transaction.operationKind = SagaCollaboration::CollaborationOperationKind::ReviewPatchEvaluation;
     transaction.payload = "{\"review\":\"approved\"}";
     transaction.baseSourceHash = "hash-a";
     return transaction;
@@ -72,7 +72,7 @@ void RegisterDefaultActorAndArtifact(SagaCollaboration::LocalCollaborationMetada
     ASSERT_TRUE(store.RegisterActor(MakeActor("actor-a")));
 
     SagaCollaboration::CollaborationArtifactRecord artifact;
-    artifact.kind = SagaCollaboration::CollaborationArtifactKind::PatchPreviewReview;
+    artifact.kind = SagaCollaboration::CollaborationArtifactKind::PatchEvaluationReview;
     artifact.path = "Build/SagaScript/Patches/Quest.patch.json";
     artifact.sourceHash = "hash-a";
     artifact.reviewStatus = "Pending";
@@ -215,7 +215,7 @@ TEST(CollaborationModelTests, ArtifactLocksRejectSecondOwnerAndReleaseDeterminis
 {
     SagaCollaboration::LocalCollaborationMetadataStore store;
     const std::string resourceId = SagaCollaboration::MakeArtifactResourceId(
-        SagaCollaboration::CollaborationArtifactKind::PatchPreviewReview,
+        SagaCollaboration::CollaborationArtifactKind::PatchEvaluationReview,
         "Build/SagaScript/Patches/Quest.patch.json");
 
     SagaShared::Collaboration::ResourceLock first;
@@ -319,7 +319,7 @@ TEST(CollaborationModelTests, SupportedReviewOperationsAreMetadataOnly)
     ASSERT_TRUE(SagaCollaboration::WriteTransactionLog(log, store.Transactions()));
 
     EXPECT_EQ(ReadFile(source), "public sealed class Quest {}");
-    EXPECT_NE(ReadFile(log).find("\"operationKind\":\"ReviewPatchPreview\""),
+    EXPECT_NE(ReadFile(log).find("\"operationKind\":\"ReviewPatchEvaluation\""),
               std::string::npos);
 }
 
@@ -440,7 +440,7 @@ TEST(CollaborationModelTests, RejectsUnknownActorLockedStaleMissingUnsupportedAn
     SagaShared::Collaboration::ResourceLock lock;
     lock.lockId = "lock-b";
     lock.resourceId = SagaCollaboration::MakeArtifactResourceId(
-        SagaCollaboration::CollaborationArtifactKind::PatchPreviewReview,
+        SagaCollaboration::CollaborationArtifactKind::PatchEvaluationReview,
         "Build/SagaScript/Patches/Quest.patch.json");
     lock.participant.value = "actor-b";
     ASSERT_TRUE(store.TryAcquireLock(lock));
@@ -502,7 +502,7 @@ TEST(CollaborationModelTests, DangerousOperationChecksAreLocalMetadataDiagnostic
         "actor-designer",
         roles,
         SagaCollaboration::DangerousOperationKind::ChangePackageProfile,
-        "package:technical-preview-server-headless");
+        "package:project-readiness-server-headless");
     const auto qa = SagaCollaboration::CheckDangerousOperation(
         "role-check-003",
         "actor-qa",
@@ -603,7 +603,7 @@ TEST(CollaborationModelTests, TeamRoomDashboardSummarizesLocalStateWithoutQt)
     EXPECT_EQ(json.find("cloud"), std::string::npos);
 }
 
-TEST(CollaborationModelTests, SamePatchPreviewReviewByDifferentActorsIsRejected)
+TEST(CollaborationModelTests, SamePatchEvaluationReviewByDifferentActorsIsRejected)
 {
     SagaCollaboration::LocalCollaborationMetadataStore store;
     RegisterDefaultActorAndArtifact(store);
@@ -618,6 +618,6 @@ TEST(CollaborationModelTests, SamePatchPreviewReviewByDifferentActorsIsRejected)
     ASSERT_TRUE(result.conflict.has_value());
     EXPECT_EQ(result.conflict->category,
               SagaCollaboration::CollaborationConflictCategory::
-                  SamePatchPreviewReviewedByMultipleActors);
+                  SamePatchEvaluationReviewedByMultipleActors);
     ASSERT_EQ(store.Transactions().size(), 1U);
 }

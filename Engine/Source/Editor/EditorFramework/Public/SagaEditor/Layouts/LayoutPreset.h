@@ -28,7 +28,7 @@ struct LayoutPreset
 {
     std::string                  name;         ///< Display name shown in the layout picker.
     std::string                  description;  ///< One-sentence description.
-    std::string                  thumbnailPath; ///< Optional preview image path.
+    std::string                  thumbnailPath; ///< Optional evaluation image path.
     std::vector<LayoutTabEntry>  tabs;         ///< All tab placements for this preset.
     bool                         builtin = false; ///< True for engine-shipped presets.
 };

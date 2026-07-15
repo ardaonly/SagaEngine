@@ -1,1 +1,59 @@
-# Source ownership is registered through SagaModule.cmake.
+saga_add_runtime_module(Core
+    MODULE_DIR Engine/Source/Runtime/Core
+    TARGET SagaEngine
+    SOURCES
+        Private/SagaEngine/Core/Application/Application.cpp
+        Private/SagaEngine/Core/Memory/ArenaAllocator.cpp
+        Private/SagaEngine/Core/Memory/MemoryTracker.cpp
+        Private/SagaEngine/Core/Modules/ModuleManager.cpp
+        Private/SagaEngine/Core/Modules/ModuleRegistry.cpp
+        Private/SagaEngine/Core/Profiling/Profiler.cpp
+        Private/SagaEngine/Core/Subsystem/SubsystemManager.cpp
+        Private/SagaEngine/Core/Threading/JobSystem.cpp
+        Private/SagaEngine/Core/Threading/TaskGraph.cpp
+        Private/SagaEngine/Core/Time/Time.cpp
+        Public/SagaEngine/Core/Application/Application.h
+        Public/SagaEngine/Core/Encoding/VarInt.h
+        Public/SagaEngine/Core/Events/EventBus.h
+        Public/SagaEngine/Core/Memory/ArenaAllocator.h
+        Public/SagaEngine/Core/Memory/MemoryTracker.h
+        Public/SagaEngine/Core/Memory/PoolAllocator.h
+        Public/SagaEngine/Core/Modules/IModule.h
+        Public/SagaEngine/Core/Modules/ModuleManager.h
+        Public/SagaEngine/Core/Modules/ModuleRegistry.h
+        Public/SagaEngine/Core/Profiling/Profiler.h
+        Public/SagaEngine/Core/Profiling/ProfilerMacros.h
+        Public/SagaEngine/Core/Subsystem/ISubsystem.h
+        Public/SagaEngine/Core/Subsystem/SubsystemManager.h
+        Public/SagaEngine/Core/Threading/AtomicCounter.h
+        Public/SagaEngine/Core/Threading/CacheLine.h
+        Public/SagaEngine/Core/Threading/JobSystem.h
+        Public/SagaEngine/Core/Threading/SpinLock.h
+        Public/SagaEngine/Core/Threading/TaskGraph.h
+        Public/SagaEngine/Core/Time/Time.h
+)
+
+saga_add_runtime_module(Core
+    MODULE_DIR Engine/Source/Runtime/Core
+    TARGET SagaCoreLog
+    SOURCES
+        Private/SagaEngine/Core/Log/AsyncLogQueue.cpp
+        Private/SagaEngine/Core/Log/ConsoleLogSink.cpp
+        Private/SagaEngine/Core/Log/CrashHandler.cpp
+        Private/SagaEngine/Core/Log/FileLogSink.cpp
+        Private/SagaEngine/Core/Log/Log.cpp
+        Private/SagaEngine/Core/Log/LogFormatter.cpp
+        Private/SagaEngine/Core/Log/LogFormatter.hpp
+        Private/SagaEngine/Core/Log/LogRotation.cpp
+        Private/SagaEngine/Core/Log/Logger.cpp
+        Public/SagaEngine/Core/Log/AsyncLogQueue.h
+        Public/SagaEngine/Core/Log/ConsoleLogSink.hpp
+        Public/SagaEngine/Core/Log/CrashHandler.h
+        Public/SagaEngine/Core/Log/FileLogSink.hpp
+        Public/SagaEngine/Core/Log/Log.h
+        Public/SagaEngine/Core/Log/LogCategories.h
+        Public/SagaEngine/Core/Log/LogEvent.hpp
+        Public/SagaEngine/Core/Log/LogRotation.h
+        Public/SagaEngine/Core/Log/LogSink.hpp
+        Public/SagaEngine/Core/Log/Logger.hpp
+)

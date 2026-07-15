@@ -16,7 +16,7 @@
 ///   - InputActionId is strong-typed but project-defined via a config file
 ///     or enum. The mapping layer treats it as an opaque integer so it
 ///     doesn't need to know all possible actions at compile time.
-///   - InputActionEvent carries both the action ID and its current phase
+///   - InputActionEvent carries both the action ID and its current state
 ///     (Pressed, Released, Held, Analog). Gameplay reads only this event;
 ///     it never sees a KeyCode.
 ///   - Chord matching supports modifier flags so Shift+Space differs from Space.
@@ -35,9 +35,9 @@ namespace SagaEngine::Input
 using InputActionId = uint32_t;
 inline constexpr InputActionId kInvalidActionId = 0;
 
-// Action Phase
+// Action State
 
-enum class ActionPhase : uint8_t
+enum class ActionState : uint8_t
 {
     Pressed  = 0,   ///< Edge: first frame the binding is active
     Held     = 1,   ///< Continuous: binding remains active
@@ -91,7 +91,7 @@ using InputChord = std::variant<
 struct InputActionEvent
 {
     InputActionId id      = kInvalidActionId;
-    ActionPhase   phase   = ActionPhase::Pressed;
+    ActionState   state   = ActionState::Pressed;
     float         value   = 0.f;   ///< [0,1] for digital, analog for axis
     uint32_t      tick    = 0;     ///< Simulation tick this event belongs to
 };

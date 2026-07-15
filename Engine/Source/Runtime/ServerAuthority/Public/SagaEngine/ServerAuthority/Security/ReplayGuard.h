@@ -2,7 +2,7 @@
 /// @brief Per-connection replay-attack prevention via sliding sequence window
 ///        and monotonic timestamp validation.
 ///
-/// Layer  : SagaServer / Networking / Security
+/// Layer  : SagaEngine / ServerAuthority
 /// Purpose: An attacker that captures a valid authenticated packet can
 ///          replay it later to trigger duplicate gameplay actions — a
 ///          classic exploit category for authoritative MMOs.  The defence

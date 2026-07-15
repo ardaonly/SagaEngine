@@ -160,7 +160,7 @@ std::string SagaUsageText()
         "  --slice-target <path>             Local project slice target artifact\n"
         "  --slice-report-out <path>         Local project slice report output path\n"
         "  --gate-target <path>              Local approval gate target artifact\n"
-        "  --approval-state <state>          Local approval preview state\n"
+        "  --approval-state <state>          Local approval evaluation state\n"
         "  --approval-gate-report-out <path> Local approval gate report output path\n"
         "  --forge <path>                    Forge executable for SagaScript validation\n"
         "  --sagascript-tool <path>          SagaScript executable for SagaScript validation\n"

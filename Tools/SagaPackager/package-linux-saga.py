@@ -465,7 +465,7 @@ def dotnet_publish_toolchain() -> dict[str, object]:
                 "mode": "direct",
                 "command": str(candidate),
                 "path": str(candidate),
-                "sdkListPreview": direct.stdout[:1200],
+                "sdkListEvaluation": direct.stdout[:1200],
             }
 
     nix_shell_path = shutil.which("nix-shell")
@@ -483,7 +483,7 @@ def dotnet_publish_toolchain() -> dict[str, object]:
                 "mode": "nix-shell",
                 "command": "dotnet",
                 "path": nix_shell_path,
-                "sdkListPreview": nix.stdout[:1200],
+                "sdkListEvaluation": nix.stdout[:1200],
             }
 
     return {
@@ -628,8 +628,8 @@ def stage_packaged_dotnet_tools(
                 "status": "available" if published_ready else "blocked",
                 "artifact": path_text(dll_path),
                 "dotnetCommand": str(toolchain.get("command", "dotnet")),
-                "stdoutPreview": result.stdout[:1200],
-                "stderrPreview": result.stderr[:1200],
+                "stdoutEvaluation": result.stdout[:1200],
+                "stderrEvaluation": result.stderr[:1200],
             }
         )
         if not published_ready:
@@ -746,15 +746,17 @@ test -x bin/sagapack
 test -x bin/sagascript
 test -d samples/StarterArena
 test -f README.md
-test -f docs/README.md
-test -f docs/GETTING_STARTED.md
-test -f docs/CURRENT_CAPABILITIES.md
-test -f docs/KNOWN_LIMITATIONS.md
-test -f docs/BUILDING_FROM_SOURCE.md
-test -f docs/SCRIPTING.md
-test -f docs/VISUAL_BLOCKS.md
-test -f docs/PACKAGING.md
-test -f docs/CUSTOMIZATION.md
+test -f SagaWiki/index.html
+test -f SagaWiki/pages/getting-started.html
+test -f SagaWiki/pages/product.html
+test -f SagaWiki/pages/not-implemented.html
+test -f SagaWiki/pages/editor.html
+test -f SagaWiki/pages/scripting.html
+test -f SagaWiki/pages/runtime.html
+test -f SagaWiki/pages/server-authority.html
+test -f SagaWiki/pages/testing.html
+test -f SagaWiki/pages/toolchain.html
+test -f SagaWiki/assets/style.css
 test -d licenses
 test -f licenses/LICENSE-SAGA.md
 test -f licenses/THIRD_PARTY_NOTICES.md
@@ -770,66 +772,6 @@ tar -tf Saga.tar.zst
 The archive/checksum checks only prove that `Saga.tar.zst` exists, that
 `Saga.sha256` covers that archive, and that the archive can be listed.
 """
-
-
-def generated_distribution_doc(name: str) -> str:
-    docs: dict[str, str] = {
-        "BUILDING_FROM_SOURCE.md": """# Building From Source
-
-The source-tree build path is the supported way to regenerate this Linux
-candidate evidence.
-
-```bash
-Tools/Forge/bin/forge nix build --build build/RelWithDebInfo-<VERSION>
-scripts/package-linux-saga --config Release
-scripts/smoke-linux-saga-dist
-scripts/verify-linux-saga-candidate
-scripts/verify-linux-distribution-contract
-```
-
-This document does not claim production readiness, enterprise readiness, a
-verified final release, full gameplay readiness, full editor workflow, or full
-Visual Blocks UI.
-""",
-        "SCRIPTING.md": """# SagaScript Current Distribution Notes
-
-This distribution includes packaged SagaScript tooling and StarterArena script
-inputs used for limited evidence. The evidence proves analysis and selected
-compile/smoke paths where reports say they passed.
-
-It does not prove arbitrary C# support, full gameplay readiness, production
-readiness, enterprise readiness, or a verified final release.
-""",
-        "VISUAL_BLOCKS.md": """# Visual Blocks Current Distribution Notes
-
-Visual Blocks evidence is limited to compatible C# projection and opaque-node
-behavior described by the current reports. The packaged distribution does not
-claim a full Visual Blocks UI or arbitrary C# to blocks.
-
-This document does not claim production readiness, enterprise readiness, full
-editor workflow, full gameplay readiness, or a verified final release.
-""",
-        "PACKAGING.md": """# Packaging Current Distribution Notes
-
-`scripts/package-linux-saga` stages the Linux candidate layout from real
-existing binaries, tools, docs, licenses, and sample inputs, then generates the
-archive and checksum.
-
-Passing package evidence does not prove production readiness, enterprise
-readiness, full distribution certification, full gameplay readiness, or a
-verified final release.
-""",
-        "CUSTOMIZATION.md": """# Customization Current Distribution Notes
-
-SagaEngine currently carries profile/customization direction evidence, but the
-Linux candidate package does not claim a complete editor customization product
-workflow.
-
-This document does not claim full editor workflow, full Visual Blocks UI,
-production readiness, enterprise readiness, or a verified final release.
-""",
-    }
-    return docs[name]
 
 
 def known_limitations_text() -> str:
@@ -852,7 +794,7 @@ This staged layout is not a final distribution.
 - The Python archive does not stage native shared-library dependency closure and is not a clean-machine portability claim.
 - No dedicated-server executable is included.
 - Runtime, editor, and tool workflows are proven only where the current smoke report records a passing command.
-- No phase is marked Verified by this staged layout.
+- No delivery stage is marked verified by this staged layout.
 """
 
 
@@ -890,15 +832,8 @@ def stage_layout(
     )
 
     copy_tree(resolved_input(available_inputs, "StarterArena sample"), output / "samples" / "StarterArena", staged_inputs, "StarterArena sample")
-    copy_file(resolved_input(available_inputs, "root README"), output / "docs" / "README.md", staged_inputs, "root README")
     copy_file(resolved_input(available_inputs, "root README"), output / "README.md", staged_inputs, "root README top-level")
-    copy_file(resolved_input(available_inputs, "getting started doc"), output / "docs" / "product" / "GETTING_STARTED.md", staged_inputs, "getting started doc")
-    copy_file(resolved_input(available_inputs, "getting started doc"), output / "docs" / "GETTING_STARTED.md", staged_inputs, "getting started doc top-level")
-    copy_file(resolved_input(available_inputs, "current capabilities doc"), output / "docs" / "product" / "CURRENT_CAPABILITIES.md", staged_inputs, "current capabilities doc")
-    copy_file(resolved_input(available_inputs, "current capabilities doc"), output / "docs" / "CURRENT_CAPABILITIES.md", staged_inputs, "current capabilities doc top-level")
-    copy_file(resolved_input(available_inputs, "not implemented doc"), output / "docs" / "product" / "WHAT_IS_NOT_IMPLEMENTED.md", staged_inputs, "not implemented doc")
-    copy_file(resolved_input(available_inputs, "not implemented doc"), output / "docs" / "KNOWN_LIMITATIONS.md", staged_inputs, "known limitations doc top-level")
-    copy_file(resolved_input(available_inputs, "distribution status doc"), output / "docs" / "product" / "CURRENT_DISTRIBUTION_STATUS.md", staged_inputs, "distribution status doc")
+    copy_tree(resolved_input(available_inputs, "SagaWiki"), output / "SagaWiki", staged_inputs, "SagaWiki")
     copy_tree(resolved_input(available_inputs, "licenses"), output / "licenses", staged_inputs, "licenses")
     copy_file(
         resolved_input(available_inputs, "Saga license"),
@@ -912,24 +847,6 @@ def stage_layout(
         staged_inputs,
         "third-party notices",
     )
-
-    for generated_name in [
-        "BUILDING_FROM_SOURCE.md",
-        "SCRIPTING.md",
-        "VISUAL_BLOCKS.md",
-        "PACKAGING.md",
-        "CUSTOMIZATION.md",
-    ]:
-        generated_path = output / "docs" / generated_name
-        generated_path.write_text(generated_distribution_doc(generated_name), encoding="utf-8")
-        staged_inputs.append(
-            {
-                "label": f"generated distribution doc {generated_name}",
-                "kind": "generated-documentation",
-                "source": "scripts/package-linux-saga",
-                "destination": path_text(generated_path),
-            }
-        )
 
     version_source = resolved_input(available_inputs, "root VERSION")
     copy_file(version_source, output / "VERSION", staged_inputs, "root VERSION")
@@ -975,7 +892,7 @@ def stage_layout(
         "schemaVersion": PACKAGE_SCHEMA_VERSION,
         "packageName": PACKAGE_NAME,
         "product": "SagaEngine",
-        "channel": "technical-preview-candidate",
+        "channel": "project-readiness-candidate",
         "platform": "linux",
         "version": read_version(),
         "commit": source_commit,
@@ -1034,7 +951,7 @@ def stage_layout(
             "This layout does not claim full editor workflow.",
             "This layout does not claim full Visual Blocks UI.",
             "This layout does not claim full packaged tool workflow validation.",
-            "This layout does not mark any phase Verified.",
+            "This layout does not mark any delivery stage verified.",
         ],
     }
     if source_commit is not None:
@@ -1087,19 +1004,21 @@ def staged_layout_missing(output: Path) -> list[str]:
         "tools/sagascript",
         "licenses/LICENSE-SAGA.md",
         "licenses/THIRD_PARTY_NOTICES.md",
-        "docs/README.md",
-        "docs/GETTING_STARTED.md",
-        "docs/CURRENT_CAPABILITIES.md",
-        "docs/KNOWN_LIMITATIONS.md",
-        "docs/BUILDING_FROM_SOURCE.md",
-        "docs/SCRIPTING.md",
-        "docs/VISUAL_BLOCKS.md",
-        "docs/PACKAGING.md",
-        "docs/CUSTOMIZATION.md",
+        "SagaWiki/index.html",
+        "SagaWiki/pages/getting-started.html",
+        "SagaWiki/pages/product.html",
+        "SagaWiki/pages/not-implemented.html",
+        "SagaWiki/pages/editor.html",
+        "SagaWiki/pages/scripting.html",
+        "SagaWiki/pages/runtime.html",
+        "SagaWiki/pages/server-authority.html",
+        "SagaWiki/pages/testing.html",
+        "SagaWiki/pages/toolchain.html",
+        "SagaWiki/assets/style.css",
     ]
     required_dirs = [
         "samples/StarterArena",
-        "docs/product",
+        "SagaWiki/pages",
         "licenses",
     ]
 
@@ -1440,18 +1359,15 @@ def main() -> int:
     check_binary("sagaproject CLI", [Path("Tools/SagaProjectKit/sagaproject")], missing, required_inputs, available_inputs, missing_inputs, category="tool")
     check_binary("sagapack CLI", [Path("Tools/SagaPackager/sagapack")], missing, required_inputs, available_inputs, missing_inputs, category="tool")
     check_binary("sagascript CLI", [Path("Tools/SagaScript/sagascript")], missing, required_inputs, available_inputs, missing_inputs, category="tool")
-    check_dir("StarterArena sample", Path("samples/StarterArena"), missing, required_inputs, available_inputs, missing_inputs, category="sample")
+    check_dir("StarterArena sample", Path("Samples/StarterArena"), missing, required_inputs, available_inputs, missing_inputs, category="sample")
+    check_dir("SagaWiki", Path("SagaWiki"), missing, required_inputs, available_inputs, missing_inputs, category="documentation")
     check_file("root VERSION", Path("VERSION"), missing, required_inputs, available_inputs, missing_inputs, category="metadata")
     check_file("root README", Path("README.md"), missing, required_inputs, available_inputs, missing_inputs, category="documentation")
-    check_file("getting started doc", Path("docs/product/GETTING_STARTED.md"), missing, required_inputs, available_inputs, missing_inputs, category="documentation")
-    check_file("current capabilities doc", Path("docs/product/CURRENT_CAPABILITIES.md"), missing, required_inputs, available_inputs, missing_inputs, category="documentation")
-    check_file("not implemented doc", Path("docs/product/WHAT_IS_NOT_IMPLEMENTED.md"), missing, required_inputs, available_inputs, missing_inputs, category="documentation")
-    check_file("distribution status doc", Path("docs/product/CURRENT_DISTRIBUTION_STATUS.md"), missing, required_inputs, available_inputs, missing_inputs, category="documentation")
     check_dir("licenses", Path("LICENSES"), missing, required_inputs, available_inputs, missing_inputs, category="documentation")
-    check_file("Saga license", Path("LICENSE.md"), missing, required_inputs, available_inputs, missing_inputs, category="compliance")
+    check_file("Saga license", Path("LICENSE"), missing, required_inputs, available_inputs, missing_inputs, category="compliance")
     check_file(
         "third-party notices",
-        Path("docs/licensing/THIRD_PARTY_NOTICES.md"),
+        Path("LICENSES/THIRD_PARTY_NOTICES.md"),
         missing,
         required_inputs,
         available_inputs,
@@ -1551,18 +1467,21 @@ def main() -> int:
             category="distribution-layout",
         )
     for doc_name in [
-        "GETTING_STARTED.md",
-        "CURRENT_CAPABILITIES.md",
-        "KNOWN_LIMITATIONS.md",
-        "BUILDING_FROM_SOURCE.md",
-        "SCRIPTING.md",
-        "VISUAL_BLOCKS.md",
-        "PACKAGING.md",
-        "CUSTOMIZATION.md",
+        "index.html",
+        "pages/editor.html",
+        "pages/getting-started.html",
+        "pages/not-implemented.html",
+        "pages/product.html",
+        "pages/runtime.html",
+        "pages/scripting.html",
+        "pages/server-authority.html",
+        "pages/testing.html",
+        "pages/toolchain.html",
+        "assets/style.css",
     ]:
         check_file(
             f"expected distribution doc {doc_name}",
-            output / "docs" / doc_name,
+            output / "SagaWiki" / doc_name,
             missing,
             required_inputs,
             available_inputs,
@@ -1671,7 +1590,7 @@ def main() -> int:
             "This report does not claim cloud collaboration readiness.",
             "This report does not prove runtime, editor, or tool workflows beyond recorded checks.",
             "This report does not include or validate a dedicated-server executable.",
-            "This report does not mark any phase Verified.",
+            "This report does not mark any delivery stage verified.",
         ],
     }
     write_report(report_path, report)

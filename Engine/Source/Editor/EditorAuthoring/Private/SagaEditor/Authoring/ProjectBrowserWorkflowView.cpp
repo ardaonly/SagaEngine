@@ -49,9 +49,9 @@ ProjectBrowserSectionView MakeSection(const std::string& name,
 
 void AddReferenceLinks(ProjectBrowserSectionView& section,
                        const std::string& kind,
-                       const std::vector<TechnicalPreviewPathReference>& refs)
+                       const std::vector<ProjectReadinessPathReference>& refs)
 {
-    for (const TechnicalPreviewPathReference& ref : refs)
+    for (const ProjectReadinessPathReference& ref : refs)
     {
         section.artifactLinks.push_back(Link(ref.id, kind, ref.path));
     }
@@ -62,8 +62,8 @@ void AddReferenceLinks(ProjectBrowserSectionView& section,
 ProjectBrowserWorkflowView LoadProjectBrowserWorkflowView(
     const std::filesystem::path& manifestPath)
 {
-    const TechnicalPreviewProjectView project =
-        LoadTechnicalPreviewProjectView(manifestPath);
+    const ProjectReadinessView project =
+        LoadProjectReadinessView(manifestPath);
 
     ProjectBrowserWorkflowView view;
     view.ok = project.ok;
@@ -110,7 +110,7 @@ ProjectBrowserWorkflowView LoadProjectBrowserWorkflowView(
             "project manifest does not list script folders",
             project.manifestPath);
     }
-    for (const TechnicalPreviewPathReference& folder : project.scriptFolders)
+    for (const ProjectReadinessPathReference& folder : project.scriptFolders)
     {
         if (!Exists(folder.path))
         {
@@ -152,7 +152,7 @@ ProjectBrowserWorkflowView LoadProjectBrowserWorkflowView(
             "project manifest does not list package profiles",
             project.manifestPath);
     }
-    for (const TechnicalPreviewPathReference& profile : project.packageProfiles)
+    for (const ProjectReadinessPathReference& profile : project.packageProfiles)
     {
         if (!Exists(profile.path))
         {
@@ -177,7 +177,7 @@ ProjectBrowserWorkflowView LoadProjectBrowserWorkflowView(
     reports.artifactLinks.push_back(
         Link("generatedReports", "reportsRoot", reports.path));
     AddReferenceLinks(reports, "launchProfile", project.launchProfiles);
-    for (const TechnicalPreviewPathReference& profile : project.launchProfiles)
+    for (const ProjectReadinessPathReference& profile : project.launchProfiles)
     {
         if (!Exists(profile.path))
         {

@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <string>
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 // ─── Block Kind ───────────────────────────────────────────────────────────────
@@ -82,4 +82,4 @@ enum class BlockKind : std::uint8_t
     return 0;
 }
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

@@ -1,16 +1,19 @@
 /// @file VisualBlocksDescriptor.cpp
 /// @brief Read-only Product Shell generation from C# and generated evidence.
 
-#include "VisualBlocks/VisualBlocksDescriptor.h"
+#include "ProductIntegration/VisualBlocksDescriptor.h"
 
-#include <QCryptographicHash>
+#include <openssl/evp.h>
 
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <array>
 #include <fstream>
+#include <iomanip>
+#include <memory>
 #include <set>
+#include <sstream>
 #include <utility>
 
 namespace SagaProduct
@@ -112,15 +115,33 @@ void AddIncomplete(VisualBlocksDescriptorGenerationResult& result,
 {
     std::ifstream input(path, std::ios::binary);
     if (!input) return {};
-    QCryptographicHash hash(QCryptographicHash::Sha256);
+
+    using EvpContext = std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)>;
+    EvpContext context(EVP_MD_CTX_new(), EVP_MD_CTX_free);
+    if (!context || EVP_DigestInit_ex(context.get(), EVP_sha256(), nullptr) != 1)
+        return {};
+
     std::array<char, 16384> buffer{};
-    while (input)
+    while (input.good())
     {
         input.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
-        hash.addData(QByteArrayView(
-            buffer.data(), static_cast<qsizetype>(input.gcount())));
+        const auto count = input.gcount();
+        if (count > 0 && EVP_DigestUpdate(
+                context.get(), buffer.data(), static_cast<std::size_t>(count)) != 1)
+            return {};
     }
-    return hash.result().toHex().toStdString();
+    if (input.bad()) return {};
+
+    std::array<unsigned char, EVP_MAX_MD_SIZE> digest{};
+    unsigned int digestLength = 0;
+    if (EVP_DigestFinal_ex(context.get(), digest.data(), &digestLength) != 1)
+        return {};
+
+    std::ostringstream output;
+    output << std::hex << std::setfill('0');
+    for (unsigned int i = 0; i < digestLength; ++i)
+        output << std::setw(2) << static_cast<int>(digest[i]);
+    return output.str();
 }
 
 [[nodiscard]] std::optional<Json> LoadJson(

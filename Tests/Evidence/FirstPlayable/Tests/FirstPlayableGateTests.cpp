@@ -299,15 +299,15 @@ TEST(FirstPlayableEvidenceBundleTest, ManifestListsSixProfilesWithRelativePaths)
 
 TEST(FirstPlayableBoundaryTest, GateSourcesExcludeForbiddenDependencies)
 {
-    const auto sourceRoot = fs::path(SAGA_SOURCE_ROOT) / "Apps" / "Saga";
+    const auto sourceRoot = fs::path(SAGA_SOURCE_ROOT) / "Tests/Evidence/FirstPlayable/Source";
     for (const char* file : {"FirstPlayableGate.cpp", "FirstPlayableWorkspacePolicy.cpp",
         "FirstPlayableManualEvidence.cpp", "FirstPlayablePublicClaimAudit.cpp",
         "FirstPlayableEvidenceBundle.cpp"})
     {
         std::ifstream input(sourceRoot / file);
         const std::string source((std::istreambuf_iterator<char>(input)), {});
-        for (const char* forbidden : {"Apps/Runtime", "VisualScripting", "SDE::",
-            ".sde", "Prism", "ClientHost", "Apps/Server", "Apps/Sandbox",
+        for (const char* forbidden : {"SDE::", ".sde", "Prism", "ClientHost",
+            "SagaEngine/ServerAuthority", "SagaEngine/Replication",
             "InputCommand", "Replication", "Prediction", "QProcess"})
             EXPECT_EQ(source.find(forbidden), std::string::npos) << file << ": " << forbidden;
     }

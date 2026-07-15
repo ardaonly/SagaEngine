@@ -1,7 +1,7 @@
 /// @file BandwidthThrottle.h
 /// @brief Per-connection outbound bandwidth shaper (token bucket in bytes).
 ///
-/// Layer  : SagaServer / Networking / Core
+/// Layer  : SagaEngine / Networking
 /// Purpose: `RateLimiter` counts *packets* — that is enough to stop a peer
 ///          from flooding the accept loop but it does nothing about the
 ///          case a well-behaved client legitimately has a lot to send

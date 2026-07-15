@@ -5,7 +5,7 @@
 
 #include "SagaStressArena/StressTier.hpp"
 
-#include "SagaServer/Networking/Core/NetworkChaosLayer.h"
+#include "SagaEngine/Networking/NetworkChaosLayer.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -29,7 +29,7 @@ struct StressScenarioConfig
     std::optional<std::uint32_t> actors;                        ///< Actor override.
     std::optional<std::uint32_t> ticks;                         ///< Tick override.
     std::optional<std::uint32_t> maxDurationSec;                ///< Wall-time cap override.
-    std::optional<SagaServer::Networking::NetworkChaosConfig>
+    std::optional<SagaEngine::Networking::NetworkChaosConfig>
         chaosConfig;                                             ///< Optional packet chaos policy.
     std::filesystem::path reportDirectory =
         "diagnostics/reports/saga_stress_arena";                ///< Report directory.
@@ -45,7 +45,7 @@ struct ResolvedStressScenarioConfig
     std::uint32_t actors = 0;                   ///< Effective actor count.
     std::uint32_t ticks = 0;                    ///< Effective tick count.
     std::uint32_t maxDurationSec = 0;           ///< Effective wall-time cap.
-    std::optional<SagaServer::Networking::NetworkChaosConfig>
+    std::optional<SagaEngine::Networking::NetworkChaosConfig>
         chaosConfig;                            ///< Effective packet chaos policy override.
     std::filesystem::path reportDirectory;      ///< Effective report directory.
     bool failFast = false;                      ///< Stop on first write failure.

@@ -1,7 +1,7 @@
 /// @file RPC.h
 /// @brief Server-side RPC (Remote Procedure Call) system with codec and dispatch table.
 ///
-/// Layer  : SagaServer / Networking / Replication
+/// Layer  : SagaEngine / Replication
 /// Purpose: The RPC system allows clients to request server-side actions
 ///          (e.g., "cast spell", "open trade", "send chat message").  Each
 ///          RPC is a named function with typed parameters that are serialized
@@ -46,7 +46,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace SagaServer {
+namespace SagaEngine::Replication {
 
 // ─── RPC constants ──────────────────────────────────────────────────────
 
@@ -334,7 +334,7 @@ private:
 /// Usage: SAGA_RPC_CALL(transport, clientId, rpcId, "CastSpell", arg1, arg2);
 #define SAGA_RPC_CALL(transport, clientId, rpcId, name, ...) \
     do { \
-        ::SagaServer::RPCRequest req; \
+        ::SagaEngine::Replication::RPCRequest req; \
         req.rpcName = name; \
         req.clientId = clientId; \
         req.rpcId = rpcId; \

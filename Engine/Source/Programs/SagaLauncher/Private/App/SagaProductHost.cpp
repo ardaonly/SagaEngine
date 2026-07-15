@@ -18,7 +18,7 @@ namespace
 {
     SagaProductDiagnostic diagnostic;
     diagnostic.target = SagaProductTargetKind::Server;
-    diagnostic.phase = SagaProductDiagnosticPhase::TargetPreparation;
+    diagnostic.stage = SagaProductDiagnosticStage::TargetPreparation;
     diagnostic.diagnosticId =
         SagaProductDiagnostics::ServerExecutionUnsupported;
     diagnostic.message =
@@ -38,7 +38,7 @@ namespace
 {
     SagaProductDiagnostic diagnostic;
     diagnostic.target = target;
-    diagnostic.phase = SagaProductDiagnosticPhase::TargetPreparation;
+    diagnostic.stage = SagaProductDiagnosticStage::TargetPreparation;
     diagnostic.diagnosticId = SagaProductDiagnostics::PackageManifestMissing;
     diagnostic.message = MissingPackageManifestMessage(target);
     return diagnostic;

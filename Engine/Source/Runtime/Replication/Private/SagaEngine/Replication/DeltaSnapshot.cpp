@@ -1,13 +1,13 @@
 /// @file DeltaSnapshot.cpp
 /// @brief DeltaSnapshotBuilder and DeltaSnapshotDecoder implementations.
 
-#include "SagaServer/Networking/Replication/DeltaSnapshot.h"
+#include "SagaEngine/Replication/DeltaSnapshot.h"
 #include "SagaEngine/Core/Log/Log.h"
 
 #include <cassert>
 #include <cstring>
 
-namespace SagaEngine::Networking::Replication
+namespace SagaEngine::Replication
 {
 
 static constexpr const char* kTag = "DeltaSnapshot";
@@ -279,4 +279,4 @@ void DeltaSnapshotDecoder::Clear()
     m_deltas.clear();
 }
 
-} // namespace SagaEngine::Networking::Replication
+} // namespace SagaEngine::Replication

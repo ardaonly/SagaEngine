@@ -1,14 +1,14 @@
 /// @file BlockScript.cpp
 /// @brief Owning container for instances + stacks of a single block program.
 
-#include "SagaEditor/VisualScripting/Blocks/BlockScript.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockScript.h"
 
-#include "SagaEditor/VisualScripting/Blocks/BlockLibrary.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockLibrary.h"
 
 #include <algorithm>
 #include <utility>
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 // ─── Internal Storage ─────────────────────────────────────────────────────────
@@ -270,4 +270,4 @@ BlockScript::Validate(const BlockLibrary& library) const
     return issues;
 }
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

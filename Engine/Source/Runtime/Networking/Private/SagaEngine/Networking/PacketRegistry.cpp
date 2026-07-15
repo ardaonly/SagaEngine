@@ -1,7 +1,7 @@
 /// @file PacketRegistry.cpp
 /// @brief PacketRegistry implementation — thread-safe dispatch and statistics.
 
-#include "SagaServer/Networking/Core/PacketRegistry.h"
+#include "SagaEngine/Networking/PacketRegistry.h"
 #include "SagaEngine/Core/Log/Log.h"
 
 #include <chrono>

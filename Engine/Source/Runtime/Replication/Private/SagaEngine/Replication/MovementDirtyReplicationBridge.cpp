@@ -1,13 +1,13 @@
 /// @file MovementDirtyReplicationBridge.cpp
 /// @brief MovementDirtyReplicationBridge implementation.
 
-#include "SagaServer/Networking/Replication/MovementDirtyReplicationBridge.h"
+#include "SagaEngine/Replication/MovementDirtyReplicationBridge.h"
 
-namespace SagaEngine::Networking::Replication
+namespace SagaEngine::Replication
 {
 
 void MovementDirtyReplicationBridge::RecordMovementTick(
-    const SagaEngine::Server::Simulation::AuthoritativeMovementTickReport& report,
+    const SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementTickReport& report,
     std::uint64_t serverTick)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -53,4 +53,4 @@ void MovementDirtyReplicationBridge::Clear()
     m_pendingIndexByEntity.clear();
 }
 
-} // namespace SagaEngine::Networking::Replication
+} // namespace SagaEngine::Replication

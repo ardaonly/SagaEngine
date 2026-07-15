@@ -1,7 +1,7 @@
 #pragma once
 #include <memory>
 #include <string>
-namespace SagaEditor::VisualScripting {
+namespace SagaEditor::VisualBlocks {
 class ScriptHost {
 public:
     ScriptHost();
@@ -12,4 +12,4 @@ public:
 private:
     struct Impl; std::unique_ptr<Impl> m_impl;
 };
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

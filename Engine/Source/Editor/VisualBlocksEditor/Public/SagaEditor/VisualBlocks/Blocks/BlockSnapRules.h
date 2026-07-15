@@ -8,15 +8,15 @@
 
 #pragma once
 
-#include "SagaEditor/VisualScripting/Blocks/BlockDefinition.h"
-#include "SagaEditor/VisualScripting/Blocks/BlockInstance.h"
-#include "SagaEditor/VisualScripting/Blocks/BlockKind.h"
-#include "SagaEditor/VisualScripting/Blocks/BlockSlot.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockDefinition.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockInstance.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockKind.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockSlot.h"
 
 #include <cstdint>
 #include <string>
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 class BlockLibrary;
@@ -163,4 +163,4 @@ struct SnapVerdict
     return CanSnap(draggedOpcode, target, script, library).accepted;
 }
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

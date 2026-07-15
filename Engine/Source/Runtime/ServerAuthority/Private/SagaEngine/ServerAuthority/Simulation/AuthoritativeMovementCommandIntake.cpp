@@ -1,13 +1,13 @@
 /// @file AuthoritativeMovementCommandIntake.cpp
 /// @brief AuthoritativeMovementCommandIntake implementation.
 
-#include "SagaServer/Simulation/AuthoritativeMovementCommandIntake.h"
+#include "SagaEngine/ServerAuthority/Simulation/AuthoritativeMovementCommandIntake.h"
 
 #include "SagaEngine/Input/Commands/InputCommandSerializer.h"
 
 #include <span>
 
-namespace SagaEngine::Server::Simulation
+namespace SagaEngine::ServerAuthority::Simulation
 {
 
 AuthoritativeMovementCommandIntake::AuthoritativeMovementCommandIntake(
@@ -87,4 +87,4 @@ std::vector<EntityId> AuthoritativeMovementCommandIntake::ConsumeDirtyEntities()
     return m_InputAdapter.ConsumeDirtyEntities();
 }
 
-} // namespace SagaEngine::Server::Simulation
+} // namespace SagaEngine::ServerAuthority::Simulation

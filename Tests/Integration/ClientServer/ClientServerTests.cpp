@@ -16,7 +16,7 @@
 #include "SagaEngine/Input/Networking/ServerInputProcessor.h"
 #include "SagaEngine/Input/Networking/InputCommandInbox.h"
 #include "SagaEngine/Input/Networking/ClientPrediction.h"
-#include "SagaServer/Networking/Core/NetworkTypes.h"
+#include "SagaEngine/Networking/NetworkTypes.h"
 
 #include <gtest/gtest.h>
 #include <thread>

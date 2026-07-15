@@ -1,7 +1,7 @@
 /// @file ShardMesh.h
 /// @brief Abstract shard-to-shard communication fabric.
 ///
-/// Layer  : SagaServer / Networking / Server
+/// Layer  : SagaEngine / ServerAuthority
 /// Purpose: Every piece of cross-zone machinery we have — handoffs,
 ///          apron visibility, global chat, guild state — needs a way to
 ///          send a structured message from one zone process to another
@@ -35,7 +35,7 @@
 
 #pragma once
 
-#include "SagaServer/Networking/Server/ConnectionMigration.h" // ZoneId
+#include "SagaEngine/ServerAuthority/ConnectionMigration.h" // ZoneId
 
 #include <cstdint>
 #include <functional>

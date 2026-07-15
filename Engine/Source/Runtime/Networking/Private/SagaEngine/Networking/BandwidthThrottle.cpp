@@ -1,7 +1,7 @@
 /// @file BandwidthThrottle.cpp
 /// @brief Implementation of the per-connection byte token bucket.
 
-#include "SagaServer/Networking/Core/BandwidthThrottle.h"
+#include "SagaEngine/Networking/BandwidthThrottle.h"
 
 #include <algorithm>
 

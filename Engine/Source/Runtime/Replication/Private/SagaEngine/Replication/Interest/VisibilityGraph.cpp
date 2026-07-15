@@ -1,7 +1,7 @@
 /// @file VisibilityGraph.cpp
 /// @brief VisibilityGraph implementation — uniform grid spatial partitioning.
 
-#include "SagaServer/Networking/Interest/VisibilityGraph.h"
+#include "SagaEngine/Replication/Interest/VisibilityGraph.h"
 #include "SagaEngine/Core/Log/Log.h"
 
 #include <algorithm>
@@ -10,7 +10,7 @@
 #include <mutex>
 #include <utility>
 
-namespace SagaEngine::Networking::Interest
+namespace SagaEngine::Replication::Interest
 {
 
 static constexpr const char* kTag = "VisibilityGraph";
@@ -406,4 +406,4 @@ VisibilityGraphStats VisibilityGraph::GetStatistics() const
     return stats;
 }
 
-} // namespace SagaEngine::Networking::Interest
+} // namespace SagaEngine::Replication::Interest

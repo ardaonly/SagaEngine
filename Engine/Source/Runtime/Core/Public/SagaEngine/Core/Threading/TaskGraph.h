@@ -24,7 +24,7 @@
 ///     pipeline rarely exceeds a few hundred.
 ///
 /// Why not "just use TBB flow graph":
-///   oneTBB is a later-milestone dependency; we need dependency scheduling
+///   oneTBB is a possible later dependency; we need dependency scheduling
 ///   *now* for the frame pipeline.  This implementation is ~200 lines and
 ///   uses only the stdlib plus the existing JobSystem, so it ports to
 ///   every target and stays debuggable under a stack walker.

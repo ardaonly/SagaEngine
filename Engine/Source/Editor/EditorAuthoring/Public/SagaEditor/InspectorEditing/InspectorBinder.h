@@ -33,7 +33,7 @@ inline constexpr PropertyChangeSubscription kInvalidSubscription = 0;
 
 /// Holds the currently bound entity id and forwards property-change
 /// edits from the inspector widgets to one or more subscribers
-/// (typically the undo system, the live preview, and the collaboration
+/// (typically the undo system, the live evaluation, and the collaboration
 /// sync layer). The binder itself is intentionally Qt-free so the
 /// inspector backend can swap its widget toolkit without rewriting the
 /// edit pipeline.

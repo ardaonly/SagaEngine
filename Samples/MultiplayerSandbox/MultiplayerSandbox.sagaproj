@@ -4,8 +4,8 @@
   "displayName": "MultiplayerSandbox",
   "engineCompatibility": {
     "minimumVersion": "0.0.9",
-    "targetVersion": "0.1-technical-preview",
-    "channel": "technical-preview"
+    "targetVersion": "0.1-project-readiness",
+    "channel": "project-readiness"
   },
   "paths": {
     "diagnostics": "Diagnostics",
@@ -39,7 +39,7 @@
   ],
   "packageProfiles": [
     {
-      "id": "technical-preview-server-headless",
+      "id": "project-readiness-server-headless",
       "path": "package_profiles.json"
     }
   ]

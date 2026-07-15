@@ -26,7 +26,7 @@ function(saga_setup_sample_executable_evidence)
     add_custom_target(SagaSampleExecutableEvidence ALL
         COMMAND ${CMAKE_COMMAND} -E make_directory
             "${CMAKE_BINARY_DIR}/reports"
-        COMMAND "${SAGA_ROOT}/scripts/verify-sample-executable-evidence"
+        COMMAND "${SAGA_ROOT}/Tools/Developer/ClaimCheck/verify-sample-executable-evidence"
             --source-root "${SAGA_ROOT}"
             --build-dir "${CMAKE_BINARY_DIR}"
             --bin-dir "${SAGA_EXECUTABLE_OUTPUT_DIR}"

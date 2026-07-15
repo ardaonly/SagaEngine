@@ -3,11 +3,11 @@
 
 #pragma once
 
-#include "SagaEditor/VisualScripting/Blocks/BlockInstance.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockInstance.h"
 
 #include <vector>
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 // ─── Block Stack ──────────────────────────────────────────────────────────────
@@ -51,4 +51,4 @@ struct BlockStack
     [[nodiscard]] std::size_t   Size()    const noexcept { return instances.size();  }
 };
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

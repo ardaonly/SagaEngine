@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SagaEditor/Authoring/TechnicalPreviewProjectView.h"
+#include "SagaEditor/Authoring/ProjectReadinessView.h"
 
 #include <filesystem>
 #include <string>
@@ -38,9 +38,9 @@ struct ProjectBrowserWorkflowView
     std::filesystem::path manifestPath;
     std::filesystem::path diagnosticsPath;
     std::filesystem::path generatedReportsPath;
-    std::vector<TechnicalPreviewPathReference> scriptFolders;
-    std::vector<TechnicalPreviewPathReference> launchProfiles;
-    std::vector<TechnicalPreviewPathReference> packageProfiles;
+    std::vector<ProjectReadinessPathReference> scriptFolders;
+    std::vector<ProjectReadinessPathReference> launchProfiles;
+    std::vector<ProjectReadinessPathReference> packageProfiles;
     std::vector<ProjectBrowserSectionView> sections;
     std::vector<AuthoringDiagnostic> diagnostics;
 };

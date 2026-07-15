@@ -1,9 +1,9 @@
-#include "SagaServer/Networking/Interest/InterestArea.h"
+#include "SagaEngine/Replication/Interest/InterestArea.h"
 #include "SagaEngine/Core/Log/Log.h"
 #include <algorithm>
 #include <limits>
 
-namespace SagaEngine::Networking::Interest {
+namespace SagaEngine::Replication::Interest {
 
 InterestArea::InterestArea(AreaId id, const Vector3& center, float radius)
     : _id(id)
@@ -284,4 +284,4 @@ void InterestManager::Update(float dt) {
               _areas.size(), _entityPositions.size(), _clientSubscriptions.size());
 }
 
-} // namespace SagaEngine::Networking::Interest
+} // namespace SagaEngine::Replication::Interest

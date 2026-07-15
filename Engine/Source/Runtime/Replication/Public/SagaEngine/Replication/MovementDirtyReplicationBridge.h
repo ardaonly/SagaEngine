@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "SagaServer/Simulation/AuthoritativeMovementCore.h"
+#include "SagaEngine/ServerAuthority/Simulation/AuthoritativeMovementCore.h"
 
 #include <cstdint>
 #include <cstddef>
@@ -11,12 +11,12 @@
 #include <unordered_map>
 #include <vector>
 
-namespace SagaEngine::Networking::Replication
+namespace SagaEngine::Replication
 {
 
 struct MovementDirtyReplicationIntent
 {
-    SagaEngine::Server::Simulation::EntityId entityId{0};
+    SagaEngine::ServerAuthority::Simulation::EntityId entityId{0};
     std::uint64_t                            serverTick{0};
 };
 
@@ -30,7 +30,7 @@ public:
     MovementDirtyReplicationBridge& operator=(const MovementDirtyReplicationBridge&) = delete;
 
     void RecordMovementTick(
-        const SagaEngine::Server::Simulation::AuthoritativeMovementTickReport& report,
+        const SagaEngine::ServerAuthority::Simulation::AuthoritativeMovementTickReport& report,
         std::uint64_t serverTick);
 
     [[nodiscard]] std::vector<MovementDirtyReplicationIntent>
@@ -42,8 +42,8 @@ public:
 private:
     mutable std::mutex m_mutex;
     std::vector<MovementDirtyReplicationIntent> m_pending;
-    std::unordered_map<SagaEngine::Server::Simulation::EntityId, std::size_t>
+    std::unordered_map<SagaEngine::ServerAuthority::Simulation::EntityId, std::size_t>
         m_pendingIndexByEntity;
 };
 
-} // namespace SagaEngine::Networking::Replication
+} // namespace SagaEngine::Replication

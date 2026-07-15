@@ -1,7 +1,7 @@
 /// @file SagaLocalCollaborationMetadataReports.cpp
 /// @brief Report-only local collaboration metadata boundary proofs.
 
-#include "LocalWorkspace/SagaLocalCollaborationMetadataReports.h"
+#include "ProductIntegration/SagaLocalCollaborationMetadataReports.h"
 
 #include <nlohmann/json.hpp>
 
@@ -240,27 +240,27 @@ struct ProjectMetadata
 
 [[nodiscard]] std::string ApprovalStateForInput(const std::string& state)
 {
-    if (state == "requested-local-preview" ||
-        state == "RequestedLocalPreview")
+    if (state == "requested-local-evaluation" ||
+        state == "RequestedLocalEvaluation")
     {
-        return "RequestedLocalPreview";
+        return "RequestedLocalEvaluation";
     }
-    if (state == "rejected-local-preview" ||
-        state == "RejectedLocalPreview")
+    if (state == "rejected-local-evaluation" ||
+        state == "RejectedLocalEvaluation")
     {
-        return "RejectedLocalPreview";
+        return "RejectedLocalEvaluation";
     }
-    return "ApprovedLocalPreview";
+    return "ApprovedLocalEvaluation";
 }
 
-[[nodiscard]] std::string BodyPreview(const std::string& body)
+[[nodiscard]] std::string BodyEvaluation(const std::string& body)
 {
-    constexpr std::size_t kMaxPreviewLength = 120;
-    if (body.size() <= kMaxPreviewLength)
+    constexpr std::size_t kMaxEvaluationLength = 120;
+    if (body.size() <= kMaxEvaluationLength)
     {
         return body;
     }
-    return body.substr(0, kMaxPreviewLength);
+    return body.substr(0, kMaxEvaluationLength);
 }
 
 [[nodiscard]] std::vector<nlohmann::json> SharedNonClaims()
@@ -304,7 +304,7 @@ struct ProjectMetadata
         "The report does not mutate project files, scenes, or scripts.",
         "The report does not write durable collaboration metadata.",
         "Enterprise policy, cloud sync, CRDT/OT, and collaboration server work are deferred.",
-        "No phase is marked Verified by this report.",
+        "No delivery stage is marked verified by this report.",
     };
 }
 
@@ -317,7 +317,7 @@ struct ProjectMetadata
         "The report does not mutate project files, scenes, or scripts.",
         "The report does not write durable project slice metadata.",
         "Enterprise policy, cloud sync, CRDT/OT, and collaboration server work are deferred.",
-        "No phase is marked Verified by this report.",
+        "No delivery stage is marked verified by this report.",
     };
 }
 
@@ -326,14 +326,14 @@ struct ProjectMetadata
     return {
         "Local approval gate smoke is a no-UI report-only boundary proof.",
         "Approval metadata is local to the report and is not a real approval workflow.",
-        "Publish gate metadata is a preview and is not an actual publish blocker.",
+        "Publish gate metadata is a evaluation and is not an actual publish blocker.",
         "Package preflight is represented as blocked and does not claim package readiness.",
         "Distribution readiness is always false for this report.",
         "The report does not enforce permissions or enterprise policy.",
         "The report does not mutate project files, scenes, scripts, package profiles, diagnostics folders, report folders, workspace files, or package outputs.",
         "The report does not write durable approval, policy, audit, or collaboration metadata.",
         "Cloud sync, CRDT/OT, real-time team editing, and collaboration server work are deferred.",
-        "No phase is marked Verified by this report.",
+        "No delivery stage is marked verified by this report.",
     };
 }
 
@@ -347,7 +347,7 @@ struct ProjectMetadata
         "The report does not mutate project files, scenes, or scripts.",
         "The report does not write durable collaboration metadata.",
         "Enterprise policy, cloud sync, CRDT/OT, and collaboration server work are deferred.",
-        "No phase is marked Verified by this report.",
+        "No delivery stage is marked verified by this report.",
     };
 }
 
@@ -361,7 +361,7 @@ struct ProjectMetadata
         "The report does not mutate project files, scenes, or scripts.",
         "The report does not write durable collaboration metadata.",
         "Enterprise policy, cloud sync, CRDT/OT, and collaboration server work are deferred.",
-        "No phase is marked Verified by this report.",
+        "No delivery stage is marked verified by this report.",
     };
 }
 
@@ -458,7 +458,7 @@ SagaLocalCollaborationMetadataReportResult WriteLocalPresenceLockReport(
     report["lock"] = {
         { "lockId", MakeLockId(workspaceId, projectId, actorId, lockTarget) },
         { "targetArtifact", lockTarget.string() },
-        { "lockMode", "ReadOnlyPreview" },
+        { "lockMode", "ReadOnlyEvaluation" },
         { "status", result.status },
         { "conflictStatus", "NotChecked" },
         { "durable", false },
@@ -518,7 +518,7 @@ SagaLocalCollaborationMetadataReportResult WriteLocalReviewAuditReport(
     };
     report["comment"] = {
         { "commentId", MakeCommentId(workspaceId, projectId, actorId, reviewTarget) },
-        { "bodyPreview", BodyPreview(comment) },
+        { "bodyEvaluation", BodyEvaluation(comment) },
         { "targetArtifact", reviewTarget.string() },
         { "source", "report-only" },
         { "durable", false },
@@ -754,7 +754,7 @@ SagaLocalCollaborationMetadataReportResult WriteLocalApprovalGateReport(
         { "canPublish", false },
         { "reason", "Package and distribution readiness are not implemented by this report." },
         { "blockingLimitations", std::vector<nlohmann::json>{
-            "Package preflight is blocked in this metadata-only preview.",
+            "Package preflight is blocked in this metadata-only evaluation.",
             "Distribution readiness is not implemented.",
             "Approval intent is report-only and is not enforced.",
         } },

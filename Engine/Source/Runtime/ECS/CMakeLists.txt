@@ -1,1 +1,29 @@
-# Source ownership is registered through SagaModule.cmake.
+saga_add_runtime_module(ECS
+    MODULE_DIR Engine/Source/Runtime/ECS
+    TARGET SagaEngine
+    SOURCES
+        Private/SagaEngine/ECS/Archetype.cpp
+        Private/SagaEngine/ECS/ArchetypeMigration.cpp
+        Private/SagaEngine/ECS/Component.cpp
+        Private/SagaEngine/ECS/ComponentObserver.cpp
+        Private/SagaEngine/ECS/ComponentRegistration.cpp
+        Private/SagaEngine/ECS/ComponentRegistry.cpp
+        Private/SagaEngine/ECS/ComponentSerializerRegistry.cpp
+        Private/SagaEngine/ECS/Entity.cpp
+        Private/SagaEngine/ECS/ParallelSystemExecutor.cpp
+        Private/SagaEngine/ECS/Query.cpp
+        Private/SagaEngine/ECS/System.cpp
+        Public/SagaEngine/ECS/Archetype.h
+        Public/SagaEngine/ECS/ArchetypeMigration.h
+        Public/SagaEngine/ECS/Component.h
+        Public/SagaEngine/ECS/ComponentObserver.h
+        Public/SagaEngine/ECS/ComponentRegistry.h
+        Public/SagaEngine/ECS/ComponentSerializerRegistry.h
+        Public/SagaEngine/ECS/Components/TransformComponent.h
+        Public/SagaEngine/ECS/EcsSubsystemAdapter.h
+        Public/SagaEngine/ECS/Entity.h
+        Public/SagaEngine/ECS/ParallelSystemExecutor.h
+        Public/SagaEngine/ECS/PartialComponentDirty.h
+        Public/SagaEngine/ECS/Query.h
+        Public/SagaEngine/ECS/System.h
+)

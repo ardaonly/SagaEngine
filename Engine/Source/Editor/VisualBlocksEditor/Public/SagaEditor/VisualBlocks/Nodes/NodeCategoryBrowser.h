@@ -2,7 +2,7 @@
 #include <functional>
 #include <string>
 #include <vector>
-namespace SagaEditor::VisualScripting {
+namespace SagaEditor::VisualBlocks {
 struct NodeCategoryEntry { std::string category; std::string nodeType; std::string label; };
 class NodeCategoryBrowser {
 public:
@@ -14,4 +14,4 @@ public:
 private:
     std::vector<NodeCategoryEntry> m_entries;
 };
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

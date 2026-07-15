@@ -18,25 +18,25 @@ jobs:
         run: |
           python3 -m py_compile \
             Tools/common/platform_detect.py \
-            Tools/scripts/check_public_private_boundary.py \
-            Tools/scripts/check_qt_boundary.py \
-            Tools/scripts/check_engine_server_boundary.py \
-            Tools/scripts/export_tool_mirrors.py \
-            Tools/scripts/report_boundary_status.py \
+            Tools/Developer/BoundaryCheck/check_public_private_boundary.py \
+            Tools/Developer/BoundaryCheck/check_qt_boundary.py \
+            Tools/Developer/BoundaryCheck/check_engine_server_boundary.py \
+            Tools/Developer/RepoAudit/export_tool_mirrors.py \
+            Tools/Developer/BoundaryCheck/report_boundary_status.py \
             Tools/Forge/build.py \
             Tools/SagaTools/setup.py
 
       - name: Run boundary report
-        run: python3 Tools/scripts/report_boundary_status.py --repo-root .
+        run: python3 Tools/Developer/BoundaryCheck/report_boundary_status.py --repo-root .
 
       - name: Enforce Qt boundary
-        run: python3 Tools/scripts/check_qt_boundary.py .
+        run: python3 Tools/Developer/BoundaryCheck/check_qt_boundary.py .
 
       - name: Guard Engine server boundary debt
-        run: python3 Tools/scripts/check_engine_server_boundary.py --repo-root .
+        run: python3 Tools/Developer/BoundaryCheck/check_engine_server_boundary.py --repo-root .
 
       - name: Guard Public Private boundary
-        run: python3 Tools/scripts/check_public_private_boundary.py --repo-root .
+        run: python3 Tools/Developer/BoundaryCheck/check_public_private_boundary.py --repo-root .
 
   build:
     runs-on: windows-latest

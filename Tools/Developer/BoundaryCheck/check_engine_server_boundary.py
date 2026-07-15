@@ -1,77 +1,60 @@
 #!/usr/bin/env python3
-"""Guard the temporary Engine public-header dependency on SagaServer.
-
-This check does not make the current architecture debt acceptable forever. It
-keeps the known Phase 1 compatibility exception from spreading while the packet
-contracts are moved to SagaShared or engine-owned networking primitives.
-"""
+"""Validate that server-authority implementation stays out of Networking."""
 
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
 import re
-import sys
 
 
-ALLOWED_PUBLIC_HEADER_LEAKS: set[Path] = set()
-
-LEAK_PATTERNS = (
-    re.compile(r'#\s*include\s*[<"]SagaServer/'),
-    re.compile(r"\bSagaServer::"),
+AUTHORITY_TOKENS = (
+    "ActorOwnershipRegistry",
+    "AuthoritativeMovement",
+    "ShardManager",
+    "ZoneServer",
 )
 
 
-def _is_header(path: Path) -> bool:
-    return path.suffix in {".h", ".hpp", ".hh", ".hxx"}
+def find_violations(repo_root: Path) -> list[Path]:
+    runtime_root = repo_root / "Engine" / "Source" / "Runtime"
+    networking_root = runtime_root / "Networking"
+    authority_root = runtime_root / "ServerAuthority"
+    if not networking_root.is_dir() or not authority_root.is_dir():
+        raise FileNotFoundError("Networking and ServerAuthority modules must exist")
 
-
-def _relative(path: Path, root: Path) -> Path:
-    return path.resolve().relative_to(root.resolve())
-
-
-def find_unapproved_leaks(repo_root: Path) -> list[tuple[Path, int, str]]:
-    engine_public = repo_root / "Engine" / "Public"
-    if not engine_public.exists():
-        raise FileNotFoundError(f"missing Engine public root: {engine_public}")
-
-    leaks: list[tuple[Path, int, str]] = []
-    for path in sorted(p for p in engine_public.rglob("*") if p.is_file() and _is_header(p)):
-        rel = _relative(path, repo_root)
-        if rel in ALLOWED_PUBLIC_HEADER_LEAKS:
+    violations: list[Path] = []
+    for path in sorted(networking_root.rglob("*")):
+        if not path.is_file():
             continue
-
-        for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
-            if any(pattern.search(line) for pattern in LEAK_PATTERNS):
-                leaks.append((rel, line_no, line.strip()))
-
-    return leaks
+        text = path.read_text(encoding="utf-8", errors="replace")
+        owns_authority_type = any(
+            token in path.name or re.search(rf"\b(class|struct)\s+{token}\b", text)
+            for token in AUTHORITY_TOKENS
+        )
+        if owns_authority_type:
+            violations.append(path.relative_to(repo_root))
+    return violations
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--repo-root",
-        default=".",
-        help="Repository root to scan. Defaults to the current directory.",
-    )
+    parser.add_argument("--repo-root", default=".")
     args = parser.parse_args()
-
     repo_root = Path(args.repo_root).resolve()
-    leaks = find_unapproved_leaks(repo_root)
-    if leaks:
-        print("[engine_server_boundary] ERROR - unapproved SagaServer public-header leaks:")
-        for path, line_no, line in leaks:
-            print(f"  {path}:{line_no}: {line}")
-        print()
-        print("[engine_server_boundary] Allowed temporary exceptions:")
-        for path in sorted(ALLOWED_PUBLIC_HEADER_LEAKS):
+    try:
+        violations = find_violations(repo_root)
+    except FileNotFoundError as error:
+        print(f"[engine_server_boundary] ERROR - {error}")
+        return 1
+    if violations:
+        print("[engine_server_boundary] ERROR - authority ownership found in Networking")
+        for path in violations:
             print(f"  {path}")
         return 1
-
-    print("[engine_server_boundary] OK - zero Engine public-header SagaServer leaks")
+    print("[engine_server_boundary] OK")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

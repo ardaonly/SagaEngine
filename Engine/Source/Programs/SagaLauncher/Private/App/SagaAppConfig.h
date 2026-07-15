@@ -61,7 +61,7 @@ struct SagaAppConfig
     std::string           targetPlatform = "linux-x64";
     std::string           runtimeCompatibilityVersion = "0.0.8";
     std::string           publishProfile = "shipping-full";
-    std::string           workflowProfile = "technical_preview";
+    std::string           workflowProfile = "project_readiness";
     std::string           localWorkspaceActorId = "local.actor";
     std::string           localWorkspaceOperationKind = "InspectProject";
     std::string           localWorkspaceReviewComment =
@@ -70,7 +70,7 @@ struct SagaAppConfig
     std::string           localWorkspacePermissionName;
     std::string           localWorkspaceSliceName;
     std::string           localWorkspaceApprovalState =
-        "approved-local-preview";
+        "approved-local-evaluation";
     std::vector<std::string> publishDiagnostics;
     SagaProductTargetKind target = SagaProductTargetKind::Editor;
     bool                  validateSagaScript = false;

@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "SagaServer/Simulation/AuthoritativeMovementCore.h"
+#include "SagaEngine/ServerAuthority/Simulation/AuthoritativeMovementCore.h"
 #include "SagaEngine/Input/Commands/InputCommand.h"
 
 #include <cstdint>
@@ -12,7 +12,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace SagaEngine::Server::Simulation
+namespace SagaEngine::ServerAuthority::Simulation
 {
 
 /// Configuration for the Engine-input to server-core adapter.
@@ -71,4 +71,4 @@ private:
     std::unordered_map<ClientId, EntityId>  m_ClientActors;
 };
 
-} // namespace SagaEngine::Server::Simulation
+} // namespace SagaEngine::ServerAuthority::Simulation

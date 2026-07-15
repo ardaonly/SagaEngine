@@ -11,7 +11,7 @@
 /// Design rules:
 ///   - Deterministic ordering: patches sorted by (entityId, generation,
 ///     componentTypeId) so apply order is identical across all clients.
-///   - Two-phase apply: Validate (pure, no side effects) → Commit
+///   - Two-step apply: Validate (pure, no side effects) → Commit
 ///     (deterministic, applies to WorldState).
 ///   - Memory bounded: max 4096 patches per journal, max 64 KiB byte
 ///     budget, pre-allocated storage (no heap during commit).
@@ -182,13 +182,13 @@ public:
     /// Must be called before Validate and Commit.
     void Sort() noexcept;
 
-    // ─── Two-phase apply ─────────────────────────────────────────────────
+    // ─── Two-step apply ──────────────────────────────────────────────────
 
-    /// Phase 1: Validate every patch (pure, no side effects).
+    /// Step 1: Validate every patch (pure, no side effects).
     /// Returns Ok if all patches are valid, or the first failure reason.
     [[nodiscard]] ValidateResult Validate(Simulation::WorldState& world) const noexcept;
 
-    /// Phase 2: Commit every patch to the WorldState (deterministic order).
+    /// Step 2: Commit every patch to the WorldState (deterministic order).
     /// Returns Ok if all commits succeed.  Must be called after Validate.
     [[nodiscard]] ValidateResult Commit(Simulation::WorldState& world) const noexcept;
 

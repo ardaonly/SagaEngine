@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 @file report_boundary_status.py
-@brief Emit a non-blocking Phase 1 report for SagaEngine path boundaries.
+@brief Emit a non-blocking report for SagaEngine path boundaries.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Iterable, Sequence
 
 
-DEFAULT_MANIFEST = Path("core/manifest/path_rules.json")
+DEFAULT_MANIFEST = Path("Tools/Developer/BoundaryCheck/Policies/path_rules.json")
 APACHE = "Apache-2.0"
 EDITOR_LICENSE = "SAGA-EDITOR-READONLY-NOAI"
 
@@ -34,17 +34,16 @@ SOURCE_EXTENSIONS = {
 }
 
 SCAN_ROOTS = (
-    "Engine",
-    "Runtime",
-    "Server",
-    "Backends",
+    "Engine/Source/Runtime",
+    "Engine/Source/Editor",
+    "Engine/Source/Programs",
     "Tools",
 )
 
 EDITOR_PATH_TOKENS = (
-    "Editor/",
-    "Apps/Editor/",
-    "Apps/EditorLab/",
+    "Engine/Source/Editor/",
+    "Engine/Source/Programs/SagaEditor/",
+    "Engine/Source/Programs/SagaEditorLab/",
     "SagaEditor",
     "SagaEditorLab",
 )
@@ -179,7 +178,7 @@ def print_section(title: str, items: Sequence[str], clean_message: str) -> None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Report SagaEngine boundary drift without failing Phase 1 CI."
+        description="Report SagaEngine boundary drift without failing CI."
     )
     parser.add_argument(
         "--repo-root",
@@ -198,7 +197,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     repo_root = resolve_repo_root(args.repo_root)
     manifest_path = args.manifest if args.manifest.is_absolute() else repo_root / args.manifest
 
-    print("[boundary] SagaEngine Phase 1 boundary report")
+    print("[boundary] SagaEngine boundary report")
     print(f"[boundary] repo     : {repo_root}")
     print(f"[boundary] manifest : {manifest_path}")
     print("[boundary] mode     : observation-only")
@@ -216,7 +215,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     total_warnings = len(unmatched) + len(editor_includes) + len(metadata)
     print(f"\n[boundary] warnings : {total_warnings}")
-    print("[boundary] result   : report-only; warnings do not fail Phase 1 CI")
+    print("[boundary] result   : report-only; warnings do not fail CI")
     return 0
 
 

@@ -97,7 +97,7 @@ struct BlockVisualStyle
     float          connectorTension  = 0.5f;   ///< Bezier tension in [0, 1].
 
     // Palette / bin layout.
-    float          paletteSwatchSize = 28.0f;  ///< Drag-handle preview swatch in node palette.
+    float          paletteSwatchSize = 28.0f;  ///< Drag-handle evaluation swatch in node palette.
 
     // ─── Equality ─────────────────────────────────────────────────────────────
 

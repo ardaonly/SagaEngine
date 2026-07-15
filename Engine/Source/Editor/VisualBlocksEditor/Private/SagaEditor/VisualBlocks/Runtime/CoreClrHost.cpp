@@ -1,9 +1,9 @@
 /// @file CoreClrHost.cpp
 /// @brief Pimpl scaffolding — auto-generated stub bodies.
 
-#include "SagaEditor/VisualScripting/Runtime/CoreClrHost.h"
+#include "SagaEditor/VisualBlocks/Runtime/CoreClrHost.h"
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 // ─── Pimpl Definition ────────────────────────────────────────────────────────
@@ -33,4 +33,4 @@ bool CoreClrHost::IsLoaded() const noexcept
     return false;
 }
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

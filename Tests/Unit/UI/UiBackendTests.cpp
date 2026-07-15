@@ -3,7 +3,7 @@
 
 #include <gtest/gtest.h>
 
-#include "SagaBackends/UI/RmlUiUiBackend.h"
+#include "SagaEngine/UI/Backends/RmlUiUiBackend.h"
 #include "SagaEngine/UI/IUiBackend.h"
 
 #include <filesystem>
@@ -14,7 +14,7 @@ namespace
 {
 
 namespace SagaUI = ::SagaEngine::UI;
-namespace SagaBackendsUI = ::SagaEngine::Backends::UI;
+namespace SagaBackendsUI = ::SagaEngine::UI::Backends;
 
 [[nodiscard]] SagaUI::UiBackendConfig MakeConfig(const char* contextName)
 {

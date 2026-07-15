@@ -1,8 +1,8 @@
 #pragma once
-#include "SagaEditor/VisualScripting/Graphs/GraphDocument.h"
+#include "SagaEditor/VisualBlocks/Graphs/GraphDocument.h"
 #include <cstdint>
 #include <unordered_set>
-namespace SagaEditor::VisualScripting {
+namespace SagaEditor::VisualBlocks {
 class BreakpointController {
 public:
     void Toggle(NodeId node);
@@ -13,4 +13,4 @@ public:
 private:
     std::unordered_set<uint64_t> m_breakpoints;
 };
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

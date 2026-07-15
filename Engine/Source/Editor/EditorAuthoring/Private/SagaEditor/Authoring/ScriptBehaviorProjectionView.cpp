@@ -18,7 +18,7 @@ namespace
 using Json = nlohmann::json;
 namespace fs = std::filesystem;
 
-[[nodiscard]] fs::path ArtifactRoot(const TechnicalPreviewProjectView& project)
+[[nodiscard]] fs::path ArtifactRoot(const ProjectReadinessView& project)
 {
     return (project.projectRoot / "Build" / "SagaScript").lexically_normal();
 }
@@ -95,7 +95,7 @@ namespace fs = std::filesystem;
     }
 }
 
-[[nodiscard]] fs::path ResolveSourcePath(const TechnicalPreviewProjectView& project,
+[[nodiscard]] fs::path ResolveSourcePath(const ProjectReadinessView& project,
                                          const std::string& value)
 {
     fs::path path(value);
@@ -171,7 +171,7 @@ namespace fs = std::filesystem;
 }
 
 [[nodiscard]] ScriptSourceLinkView BuildSourceLink(
-    const TechnicalPreviewProjectView& project,
+    const ProjectReadinessView& project,
     const std::string& behaviorId,
     const std::string& nodeId,
     const std::string& sourceFile,
@@ -192,7 +192,7 @@ namespace fs = std::filesystem;
 }
 
 [[nodiscard]] std::vector<ScriptSourceLinkView> LoadLinksFromSourceMap(
-    const TechnicalPreviewProjectView& project,
+    const ProjectReadinessView& project,
     const Json& sourceMap)
 {
     std::vector<ScriptSourceLinkView> links;
@@ -247,7 +247,7 @@ namespace fs = std::filesystem;
 } // namespace
 
 ScriptBehaviorProjectionLoadResult LoadScriptSourceLinkViews(
-    const TechnicalPreviewProjectView& project)
+    const ProjectReadinessView& project)
 {
     ScriptBehaviorProjectionLoadResult result;
     if (!project.ok)
@@ -270,7 +270,7 @@ ScriptBehaviorProjectionLoadResult LoadScriptSourceLinkViews(
 }
 
 ScriptBehaviorProjectionLoadResult LoadScriptBehaviorProjectionViews(
-    const TechnicalPreviewProjectView& project)
+    const ProjectReadinessView& project)
 {
     ScriptBehaviorProjectionLoadResult result = LoadScriptSourceLinkViews(project);
     if (!project.ok)

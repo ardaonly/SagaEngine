@@ -7,7 +7,7 @@
 ///          as a docked ImGui layout. Scenarios add their own panels on top.
 ///
 /// UI boundary rule:
-///   DebugHud lives ONLY in Apps/Sandbox/. It must never be included by
+///   DebugHud lives only in the SagaSandbox program. It must never be included by
 ///   Engine/, Server/, or Editor/ code. It uses Dear ImGui headers directly
 ///   (via the sandbox's private include path).
 ///

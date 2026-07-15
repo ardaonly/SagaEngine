@@ -56,22 +56,22 @@ struct GameplayInputFrame
     [[nodiscard]] bool WasPressed(InputActionId id) const noexcept
     {
         for (const auto& e : actions)
-            if (e.id == id && e.phase == ActionPhase::Pressed) return true;
+            if (e.id == id && e.state == ActionState::Pressed) return true;
         return false;
     }
 
     [[nodiscard]] bool IsHeld(InputActionId id) const noexcept
     {
         for (const auto& e : actions)
-            if (e.id == id && (e.phase == ActionPhase::Pressed
-                            || e.phase == ActionPhase::Held)) return true;
+            if (e.id == id && (e.state == ActionState::Pressed
+                            || e.state == ActionState::Held)) return true;
         return false;
     }
 
     [[nodiscard]] bool WasReleased(InputActionId id) const noexcept
     {
         for (const auto& e : actions)
-            if (e.id == id && e.phase == ActionPhase::Released) return true;
+            if (e.id == id && e.state == ActionState::Released) return true;
         return false;
     }
 

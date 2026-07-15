@@ -15,17 +15,17 @@ review_record_paths = [
   ".github/workflows/licensing.yml",
   "LICENSE_POLICY.toml",
   "SHA256SUMS",
-  "Tests/Link/SagaGraphicsInstalledConsumerTest.cmake",
+  "Tests/Contract/InstalledConsumer/SagaGraphicsInstalledConsumerTest.cmake",
   "Tools/Licensing/validate_license_policy.py",
   "cmake/modules/SagaInstallGraphics.cmake",
-  "docs/licensing/THIRD_PARTY_NOTICES.md",
+  "LICENSES/THIRD_PARTY_NOTICES.md",
   "CONTRIBUTING.md",
-  "LICENSE.md",
-  "core/manifest/path_rules.json",
-  "docs/LICENSING.md",
-  "docs/licensing/LICENSE_STABILITY.md",
-  "docs/licensing/TRANSITION_CHECKLIST.md",
-  "docs/licensing/decisions/LIC-DEC-0001.md",
+  "LICENSE",
+  "Tools/Developer/BoundaryCheck/Policies/path_rules.json",
+  "SagaWiki/pages/licensing.html",
+  "SagaWiki/pages/licensing.html",
+  "SagaWiki/pages/licensing.html",
+  "SagaWiki/pages/licensing.html",
 ]
 decision_record = "LIC-DEC-0001"
 effective_from_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
@@ -65,7 +65,7 @@ precedence = [
 conflict_action = "deny"
 
 [legacy]
-path_rules_path = "core/manifest/path_rules.json"
+path_rules_path = "Tools/Developer/BoundaryCheck/Policies/path_rules.json"
 path_rules_status = "deprecated-generated-compatibility"
 path_rules_source_of_truth = "LICENSE_POLICY.toml"
 duplicate_license_paths = ["LICENSES/LICENSE", "LICENSES/LICENSE-EDITOR"]
@@ -76,17 +76,17 @@ files_are_normative_until_cleanup = false
 
 [governance]
 required_documents = [
-  "LICENSE.md",
-  "docs/LICENSING.md",
-  "docs/licensing/LICENSE_STABILITY.md",
-  "docs/licensing/GENERATED_OUTPUTS.md",
-  "docs/licensing/PLUGIN_LICENSING.md",
-  "docs/licensing/THIRD_PARTY_NOTICES.md",
-  "docs/licensing/decisions/LIC-DEC-0001.md",
-  "docs/licensing/TRANSITION_CHECKLIST.md",
+  "LICENSE",
+  "SagaWiki/pages/licensing.html",
+  "SagaWiki/pages/licensing.html",
+  "SagaWiki/pages/licensing.html",
+  "SagaWiki/pages/licensing.html",
+  "LICENSES/THIRD_PARTY_NOTICES.md",
+  "SagaWiki/pages/licensing.html",
+  "SagaWiki/pages/licensing.html",
 ]
 contributing_document = "CONTRIBUTING.md"
-contributing_section_source = "docs/licensing/CONTRIBUTING_DCO_SECTION.md"
+contributing_section_source = "SagaWiki/pages/licensing.html"
 contributing_marker_begin = "<!-- SAGA-LICENSING-DCO:BEGIN -->"
 contributing_marker_end = "<!-- SAGA-LICENSING-DCO:END -->"
 contributing_update_status = "required-before-foundation-commit"
@@ -134,8 +134,8 @@ effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
 id = "saga-runtime"
-priority = 100
-paths = ["Runtime/**"]
+priority = 200
+paths = ["Engine/Source/Runtime/**"]
 required = true
 domain_owner = "SagaEngine"
 rights_holder_refs = ["RH-ARDA-KOYUNCU"]
@@ -151,8 +151,8 @@ effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
 id = "saga-server"
-priority = 100
-paths = ["Server/**"]
+priority = 300
+paths = ["Engine/Source/Runtime/ServerAuthority/**"]
 required = true
 domain_owner = "SagaEngine"
 rights_holder_refs = ["RH-ARDA-KOYUNCU"]
@@ -168,8 +168,8 @@ effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
 id = "saga-shared"
-priority = 100
-paths = ["Shared/**"]
+priority = 300
+paths = ["Engine/Source/Editor/EditorCollaboration/**/SagaShared/**"]
 required = true
 domain_owner = "SagaEngine"
 rights_holder_refs = ["RH-ARDA-KOYUNCU"]
@@ -185,8 +185,8 @@ effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
 id = "saga-collaboration"
-priority = 100
-paths = ["Collaboration/**"]
+priority = 250
+paths = ["Engine/Source/Editor/EditorCollaboration/**"]
 required = true
 domain_owner = "SagaEngine"
 rights_holder_refs = ["RH-ARDA-KOYUNCU"]
@@ -202,8 +202,8 @@ effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
 id = "saga-backends"
-priority = 100
-paths = ["Backends/**"]
+priority = 300
+paths = ["Engine/Source/Runtime/Persistence/**", "Engine/Source/Runtime/UI/**/Backends/**"]
 required = true
 domain_owner = "SagaEngine"
 rights_holder_refs = ["RH-ARDA-KOYUNCU"]
@@ -219,8 +219,8 @@ effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
 id = "saga-apps"
-priority = 100
-paths = ["Apps/**"]
+priority = 200
+paths = ["Engine/Source/Programs/**"]
 required = true
 domain_owner = "SagaEngine"
 rights_holder_refs = ["RH-ARDA-KOYUNCU"]
@@ -235,13 +235,13 @@ migration_status = "effective"
 effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
-id = "saga-editor-current-restricted"
+id = "saga-editor"
 priority = 400
 paths = [
-  "Editor/**",
-  "Apps/SagaDev/**",
-  "Apps/Editor/**",
-  "Apps/EditorLab/**",
+  "Engine/Source/Editor/**",
+  "Engine/Source/Programs/SagaLauncher/**",
+  "Engine/Source/Programs/SagaEditor/**",
+  "Engine/Source/Programs/SagaEditorLab/**",
 ]
 required = true
 domain_owner = "SagaEditor"
@@ -255,7 +255,7 @@ provenance_review = "cleared"
 licensing_authority_review = "cleared"
 migration_status = "effective"
 effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
-notes = "Editor target is MPL-2.0; current restricted treatment remains until the Editor migration batch is effective."
+notes = "Saga-owned Editor and editor-program source is currently licensed under MPL-2.0."
 
 [[domains]]
 id = "saga-tests"
@@ -327,8 +327,8 @@ effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
 id = "saga-core-metadata"
-priority = 100
-paths = ["core/**"]
+priority = 300
+paths = ["Tools/Developer/BoundaryCheck/Policies/**"]
 required = true
 domain_owner = "SagaEngine"
 rights_holder_refs = ["RH-ARDA-KOYUNCU"]
@@ -413,7 +413,7 @@ effective_commit = ""
 [[domains]]
 id = "saga-documentation"
 priority = 100
-paths = ["docs/**", "README.md", "CONTRIBUTING.md"]
+paths = ["SagaWiki/**", "README.md", "CONTRIBUTING.md"]
 required = true
 domain_owner = "SagaEngine"
 rights_holder_refs = ["RH-ARDA-KOYUNCU"]
@@ -433,9 +433,9 @@ notes = "Copyable snippets require separate 0BSD files or explicit snippet regis
 id = "saga-sample-documentation"
 priority = 1200
 paths = [
-  "samples/**/README.md",
-  "samples/**/ACCEPTANCE.md",
-  "samples/**/KNOWN_LIMITATIONS.md",
+  "Samples/**/README.md",
+  "Samples/**/ACCEPTANCE.md",
+  "Samples/**/KNOWN_LIMITATIONS.md",
 ]
 required = true
 domain_owner = "SagaEngine"
@@ -455,9 +455,9 @@ notes = "Sample documentation prose; target CC-BY-4.0 after migration."
 id = "saga-sample-project-files"
 priority = 1200
 paths = [
-  "samples/**/*.cs",
-  "samples/**/*.json",
-  "samples/**/*.sagaproj",
+  "Samples/**/*.cs",
+  "Samples/**/*.json",
+  "Samples/**/*.sagaproj",
 ]
 required = true
 domain_owner = "SagaEngine"
@@ -476,7 +476,7 @@ notes = "Copyable sample code and project metadata; target 0BSD after migration.
 [[domains]]
 id = "saga-samples"
 priority = 100
-paths = ["samples/**"]
+paths = ["Samples/**"]
 required = false
 domain_owner = "SagaEngine"
 rights_holder_refs = ["RH-ARDA-KOYUNCU"]
@@ -494,7 +494,7 @@ notes = "Code, fixtures and assets require artifact-specific classification."
 [[domains]]
 id = "saga-content"
 priority = 100
-paths = ["Content/**"]
+paths = ["Samples/**/Content/**"]
 required = true
 domain_owner = "SagaEngine"
 rights_holder_refs = ["RH-ARDA-KOYUNCU"]
@@ -564,7 +564,7 @@ effective_commit = ""
 [[domains]]
 id = "root-license-index"
 priority = 1000
-paths = ["LICENSE.md"]
+paths = ["LICENSE"]
 required = true
 domain_owner = "SagaEngine"
 rights_holder_refs = ["RH-ARDA-KOYUNCU"]
@@ -682,15 +682,15 @@ effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 id = "licensing-governance-docs"
 priority = 900
 paths = [
-  "docs/LICENSING.md",
-  "docs/licensing/LICENSE_STABILITY.md",
-  "docs/licensing/GENERATED_OUTPUTS.md",
-  "docs/licensing/PLUGIN_LICENSING.md",
-  "docs/licensing/THIRD_PARTY_NOTICES.md",
-  "docs/licensing/decisions/**",
-  "docs/licensing/LICENSE_FOUNDATION.md",
-  "docs/licensing/README.md",
-  "docs/licensing/TRANSITION_CHECKLIST.md",
+  "SagaWiki/pages/licensing.html",
+  "SagaWiki/pages/licensing.html",
+  "SagaWiki/pages/licensing.html",
+  "SagaWiki/pages/licensing.html",
+  "LICENSES/THIRD_PARTY_NOTICES.md",
+  "SagaWiki/pages/licensing.html",
+  "SagaWiki/pages/licensing.html",
+  "SagaWiki/pages/licensing.html",
+  "SagaWiki/pages/licensing.html",
 ]
 required = true
 domain_owner = "SagaEngine"
@@ -708,7 +708,7 @@ effective_commit = ""
 [[domains]]
 id = "contributing-dco-fragment"
 priority = 1000
-paths = ["docs/licensing/CONTRIBUTING_DCO_SECTION.md"]
+paths = ["SagaWiki/pages/licensing.html"]
 required = true
 domain_owner = "SagaEngine"
 rights_holder_refs = ["RH-ARDA-KOYUNCU"]
@@ -725,7 +725,7 @@ effective_commit = ""
 [[domains]]
 id = "legacy-path-rules-compatibility"
 priority = 1000
-paths = ["core/manifest/path_rules.json", "core/manifest/path_rules.json.license"]
+paths = ["Tools/Developer/BoundaryCheck/Policies/path_rules.json", "Tools/Developer/BoundaryCheck/Policies/path_rules.json.license"]
 required = true
 domain_owner = "SagaEngine"
 rights_holder_refs = ["RH-ARDA-KOYUNCU"]
@@ -1118,7 +1118,7 @@ export_validation = "manual-pending"
 
 [[targets]]
 name = "SagaEditorLib"
-source_domains = ["saga-editor-current-restricted"]
+source_domains = ["saga-editor"]
 public_dependencies = []
 private_dependencies = ["SagaEngine", "SagaRuntimeLib", "SagaServerLib", "SagaShared"]
 runtime_dependencies = []
@@ -1137,7 +1137,7 @@ expected_exported_target = false
 export_validation = "manual-pending"
 [[targets]]
 name = "SagaEditorLabLib"
-source_domains = ["saga-editor-current-restricted"]
+source_domains = ["saga-editor"]
 public_dependencies = []
 private_dependencies = ["SagaEditorLib"]
 runtime_dependencies = []
@@ -1164,7 +1164,7 @@ source_domains = [
   "saga-shared",
   "saga-collaboration",
   "saga-backends",
-  "saga-editor-current-restricted",
+  "saga-editor",
 ]
 public_dependencies = []
 private_dependencies = ["SagaEngine", "SagaRuntimeLib", "SagaServerLib", "SagaEditorLib"]
@@ -1185,7 +1185,7 @@ export_validation = "manual-pending"
 
 [[targets]]
 name = "SagaEditorLabBridge"
-source_domains = ["saga-editor-current-restricted"]
+source_domains = ["saga-editor"]
 public_dependencies = []
 private_dependencies = ["SagaEditorLabLib"]
 runtime_dependencies = []

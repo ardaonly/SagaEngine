@@ -1,9 +1,9 @@
 /// @file ManagedToNativeBridge.cpp
 /// @brief Pimpl scaffolding — auto-generated stub bodies.
 
-#include "SagaEditor/VisualScripting/Runtime/ManagedToNativeBridge.h"
+#include "SagaEditor/VisualBlocks/Runtime/ManagedToNativeBridge.h"
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 // ─── Pimpl Definition ────────────────────────────────────────────────────────
@@ -22,4 +22,4 @@ std::string ManagedToNativeBridge::Invoke(const std::string& /*name*/, const std
     return {};
 }
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

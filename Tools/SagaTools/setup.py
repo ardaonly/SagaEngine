@@ -168,8 +168,10 @@ def stage_registry(out_path: Path) -> None:
         return os.path.abspath(str(HERE.parent.joinpath(*parts)))
     
     forge_exe       = _abs("Forge", "bin", "forge.exe" if is_win else "forge")
-    host_exe        = _abs("Host", "host.sh")
-    sagasync_exe    = _abs("SagaSync", "sagasync.cmd" if is_win else "sagasync")
+    host_exe        = _abs("Developer", "Environment", "Host", "host.sh")
+    sagasync_exe    = _abs(
+        "Developer", "Environment", "SagaSync",
+        "sagasync.cmd" if is_win else "sagasync")
     forge_installer = _abs("Forge", "build.py")
     
     payload = {

@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "SagaServer/Simulation/InputCommandQueue.h"
-#include "SagaServer/Simulation/MovementValidator.h"
+#include "SagaEngine/ServerAuthority/Simulation/InputCommandQueue.h"
+#include "SagaEngine/ServerAuthority/Simulation/MovementValidator.h"
 
 #include <cstdint>
 #include <mutex>
@@ -13,7 +13,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace SagaEngine::Server::Simulation
+namespace SagaEngine::ServerAuthority::Simulation
 {
 
 /// Configuration for the authoritative movement proof core.
@@ -120,4 +120,4 @@ private:
     std::unordered_set<EntityId>    m_DirtyEntitySet;
 };
 
-} // namespace SagaEngine::Server::Simulation
+} // namespace SagaEngine::ServerAuthority::Simulation

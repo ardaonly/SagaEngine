@@ -3,7 +3,7 @@
 Count repository lines by top-level directory and file kind.
 
 Intended location:
-    Tools/scripts/line_report.py
+    Tools/Developer/RepoAudit/line_report.py
 """
 
 from __future__ import annotations

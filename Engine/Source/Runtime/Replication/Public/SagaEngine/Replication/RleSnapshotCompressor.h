@@ -28,7 +28,7 @@
 
 #pragma once
 
-#include "SagaServer/Networking/Replication/ISnapshotCompressor.h"
+#include "SagaEngine/Replication/ISnapshotCompressor.h"
 
 namespace SagaEngine::Networking {
 

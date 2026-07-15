@@ -1,7 +1,7 @@
 /// @file DeltaSnapshot.h
 /// @brief Component-level delta diff computation and wire encoding.
 ///
-/// Layer  : SagaServer / Networking / Replication
+/// Layer  : SagaEngine / Replication
 /// Purpose: DeltaSnapshot computes the minimum set of component bytes that
 ///          must be transmitted to bring a specific client's understanding of
 ///          the world from its ACKed baseline to the current server state.
@@ -22,14 +22,14 @@
 
 #include "SagaEngine/ECS/Entity.h"
 #include "SagaEngine/ECS/Component.h"
-#include "SagaServer/Networking/Replication/ReplicationState.h"
+#include "SagaEngine/Replication/ReplicationState.h"
 
 #include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <vector>
 
-namespace SagaEngine::Networking::Replication
+namespace SagaEngine::Replication
 {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -150,4 +150,4 @@ private:
     std::vector<EntityDelta> m_deltas;
 };
 
-} // namespace SagaEngine::Networking::Replication
+} // namespace SagaEngine::Replication

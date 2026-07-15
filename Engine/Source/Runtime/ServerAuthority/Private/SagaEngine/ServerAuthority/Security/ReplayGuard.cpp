@@ -1,7 +1,7 @@
 /// @file ReplayGuard.cpp
 /// @brief Sliding-window replay guard implementation.
 
-#include "SagaServer/Networking/Security/ReplayGuard.h"
+#include "SagaEngine/ServerAuthority/Security/ReplayGuard.h"
 
 namespace SagaEngine::Networking::Security
 {

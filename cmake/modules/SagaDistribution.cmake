@@ -194,16 +194,16 @@ function(saga_setup_distribution)
         )
     endif()
 
-    if(EXISTS "${SAGA_ROOT}/LICENSE.md")
-        install(FILES "${SAGA_ROOT}/LICENSE.md"
+    if(EXISTS "${SAGA_ROOT}/LICENSE")
+        install(FILES "${SAGA_ROOT}/LICENSE"
             DESTINATION LICENSES
             RENAME LICENSE-SAGA.md
             COMPONENT SagaDistribution
         )
     endif()
 
-    if(EXISTS "${SAGA_ROOT}/docs/licensing/THIRD_PARTY_NOTICES.md")
-        install(FILES "${SAGA_ROOT}/docs/licensing/THIRD_PARTY_NOTICES.md"
+    if(EXISTS "${SAGA_ROOT}/LICENSES/THIRD_PARTY_NOTICES.md")
+        install(FILES "${SAGA_ROOT}/LICENSES/THIRD_PARTY_NOTICES.md"
             DESTINATION LICENSES
             COMPONENT SagaDistribution
         )

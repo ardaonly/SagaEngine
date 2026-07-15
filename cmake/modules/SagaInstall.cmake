@@ -3,11 +3,11 @@ function(saga_setup_install)
 
     # Install the canonical mixed-license index and all repository license
     # texts with the development SDK. Their presence does not make the
-    # planned MPL-2.0 migration effective; LICENSE.md remains authoritative
+    # planned MPL-2.0 migration effective; LICENSE remains authoritative
     # for resolving the current mixed-license state.
     install(FILES
-        "${SAGA_ROOT}/LICENSE.md"
-        "${SAGA_ROOT}/docs/licensing/THIRD_PARTY_NOTICES.md"
+        "${SAGA_ROOT}/LICENSE"
+        "${SAGA_ROOT}/LICENSES/THIRD_PARTY_NOTICES.md"
         DESTINATION "Licenses/Saga"
         COMPONENT SagaDevelopment
     )
@@ -31,11 +31,11 @@ function(saga_setup_install)
         COMPONENT SagaDevelopment
     )
 
-    install(DIRECTORY "${SAGA_ROOT}/Engine/Public/SagaEngine"
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-        COMPONENT SagaDevelopment
-        PATTERN "Graphics" EXCLUDE
-    )
+    foreach(_saga_public_include IN LISTS SAGA_MODULE_PUBLIC_INCLUDE_DIRS)
+        install(DIRECTORY "${_saga_public_include}/"
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+            COMPONENT SagaDevelopment)
+    endforeach()
 
     saga_setup_graphics_install()
 endfunction()

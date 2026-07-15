@@ -1,16 +1,16 @@
 /// @file WorldSnapshotWire.cpp
 /// @brief Server-side snapshot builder implementation.
 ///
-/// Layer  : SagaServer / Networking / Replication
+/// Layer  : SagaEngine / Replication
 /// Purpose: Production-level SnapshotBuilder with zero-allocation serialization,
 ///          CRC32 checksums, and cache-friendly contiguous memory layout.
 
-#include "SagaServer/Networking/Replication/WorldSnapshotWire.h"
+#include "SagaEngine/Replication/WorldSnapshotWire.h"
 
 #include <cstring>
 #include <algorithm>
 
-namespace SagaServer {
+namespace SagaEngine::Replication {
 
 // ─── Little-endian helpers ──────────────────────────────────────────────────
 

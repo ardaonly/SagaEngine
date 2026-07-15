@@ -1,8 +1,8 @@
 #pragma once
-#include "SagaEditor/VisualScripting/Graphs/GraphDocument.h"
+#include "SagaEditor/VisualBlocks/Graphs/GraphDocument.h"
 #include <string>
 #include <vector>
-namespace SagaEditor::VisualScripting {
+namespace SagaEditor::VisualBlocks {
 struct CompileError { NodeId nodeId; std::string message; };
 class ErrorSurfaceAdapter {
 public:
@@ -12,4 +12,4 @@ public:
 private:
     std::vector<CompileError> m_errors;
 };
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

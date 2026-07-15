@@ -222,7 +222,7 @@ bool TryReexecInsideNixShell(int argc, char* argv[], bool vulkanLoaderAvailable)
     if (chdir(repoRootPath.c_str()) != 0)
     {
         LOG_WARN("SandboxMain",
-                 "Failed to switch to repo root before nix-shell re-entry; run from repo root with: nix-shell --run \"build/RelWithDebInfo-0.0.9/bin/SagaSandbox\"");
+                 "Failed to switch to repo root before nix-shell re-entry; run from repo root with: nix-shell --run \"build/RelWithDebInfo-0.0.11/bin/SagaSandbox\"");
         return false;
     }
 
@@ -235,7 +235,7 @@ bool TryReexecInsideNixShell(int argc, char* argv[], bool vulkanLoaderAvailable)
 
     execvp("nix-shell", execArgs.data());
     LOG_WARN("SandboxMain",
-             "Failed to re-enter nix-shell automatically; run from repo root with: nix-shell --run \"build/RelWithDebInfo-0.0.9/bin/SagaSandbox\"");
+             "Failed to re-enter nix-shell automatically; run from repo root with: nix-shell --run \"build/RelWithDebInfo-0.0.11/bin/SagaSandbox\"");
     return false;
 }
 #else

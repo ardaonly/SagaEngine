@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SagaEditor/Authoring/TechnicalPreviewProjectView.h"
+#include "SagaEditor/Authoring/ProjectReadinessView.h"
 
 #include <filesystem>
 #include <string>
@@ -48,6 +48,6 @@ struct ScriptArtifactIndex
 [[nodiscard]] const char* ToString(ScriptArtifactStatus status) noexcept;
 
 [[nodiscard]] ScriptArtifactIndex BuildScriptArtifactIndex(
-    const TechnicalPreviewProjectView& project);
+    const ProjectReadinessView& project);
 
 } // namespace SagaEditor::Authoring

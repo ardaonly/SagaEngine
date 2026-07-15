@@ -222,11 +222,11 @@ TEST(FirstPlayableHumanCaptureTest, ImportModeNeverUsesCaptureProcessRunner)
 
 TEST(FirstPlayableHumanCaptureBoundaryTest, SourceExcludesForbiddenDependencies)
 {
-    std::ifstream input(fs::path(SAGA_SOURCE_ROOT) / "Apps" / "Saga" /
-        "FirstPlayableHumanCapture.cpp");
+    std::ifstream input(fs::path(SAGA_SOURCE_ROOT) /
+        "Tests/Evidence/FirstPlayable/Source/FirstPlayableHumanCapture.cpp");
     const std::string source((std::istreambuf_iterator<char>(input)), {});
-    for (const char* forbidden : {"Apps/Runtime", "VisualScripting", "SDE::",
-        ".sde", "Prism", "ClientHost", "Apps/Server", "Apps/Sandbox",
+    for (const char* forbidden : {"SDE::", ".sde", "Prism", "ClientHost",
+        "SagaEngine/ServerAuthority", "SagaEngine/Replication",
         "InputCommand", "Replication", "Prediction", "Network"})
         EXPECT_EQ(source.find(forbidden), std::string::npos) << forbidden;
 }

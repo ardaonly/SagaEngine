@@ -30,13 +30,12 @@ endif()
 # Verify that the installed development SDK carries its canonical licensing
 # material together with the exported graphics package.
 set(_required_installed_files
-    "Licenses/Saga/LICENSE.md"
+    "Licenses/Saga/LICENSE"
     "Licenses/Saga/THIRD_PARTY_NOTICES.md"
     "Licenses/Saga/LICENSES/0BSD.txt"
     "Licenses/Saga/LICENSES/Apache-2.0.txt"
     "Licenses/Saga/LICENSES/CC-BY-4.0.txt"
     "Licenses/Saga/LICENSES/CC0-1.0.txt"
-    "Licenses/Saga/LICENSES/LicenseRef-Saga-Editor-Restricted.txt"
     "Licenses/Saga/LICENSES/MPL-2.0.txt"
 
     "Licenses/ThirdParty/Vendor/Diligent/DXC-License.txt"

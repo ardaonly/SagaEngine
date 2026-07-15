@@ -229,7 +229,7 @@ std::unique_ptr<StarterArenaGameplaySession> CreateStarterArenaGameplaySession(
         return nullptr;
     }
     impl->instance = instance.instance;
-    impl->facade.SetPhase("OnStart");
+    impl->facade.SetLifecycleEvent("OnStart");
     const auto start = impl->service->StartInstance(instance.instance);
     if (!start.Succeeded())
     {
@@ -248,7 +248,7 @@ bool StarterArenaGameplaySession::Update(std::uint32_t tick,
 {
     if (!impl_ || !impl_->started || impl_->stopped) return false;
     impl_->facade.SetRuntimeSnapshot(tick, playerPosition);
-    impl_->facade.SetPhase("OnUpdate");
+    impl_->facade.SetLifecycleEvent("OnUpdate");
     const auto result = impl_->service->UpdateInstance(impl_->instance, fixedDtSeconds);
     if (!result.Succeeded())
     {
@@ -265,7 +265,7 @@ bool StarterArenaGameplaySession::Update(std::uint32_t tick,
 bool StarterArenaGameplaySession::Shutdown(std::vector<StarterArenaDiagnostic>& diagnostics)
 {
     if (!impl_ || !impl_->started || impl_->stopped) return true;
-    impl_->facade.SetPhase("OnDestroy");
+    impl_->facade.SetLifecycleEvent("OnDestroy");
     const auto result = impl_->service->DestroyInstance(impl_->instance);
     impl_->stopped = true;
     if (!result.Succeeded())

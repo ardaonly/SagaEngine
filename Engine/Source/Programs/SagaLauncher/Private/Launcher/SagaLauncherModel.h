@@ -211,8 +211,8 @@ struct SagaLauncherActionResult
     std::chrono::milliseconds duration{0};
     std::vector<SagaLauncherReportReference> reportReferences;
     std::vector<SagaLauncherDiagnostic> diagnostics;
-    std::string standardOutputPreview;
-    std::string standardErrorPreview;
+    std::string standardOutputEvaluation;
+    std::string standardErrorEvaluation;
 };
 
 struct SagaLauncherState

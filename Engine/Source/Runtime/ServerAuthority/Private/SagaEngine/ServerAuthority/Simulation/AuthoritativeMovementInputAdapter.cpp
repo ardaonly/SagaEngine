@@ -1,9 +1,9 @@
 /// @file AuthoritativeMovementInputAdapter.cpp
 /// @brief AuthoritativeMovementInputAdapter implementation.
 
-#include "SagaServer/Simulation/AuthoritativeMovementInputAdapter.h"
+#include "SagaEngine/ServerAuthority/Simulation/AuthoritativeMovementInputAdapter.h"
 
-namespace SagaEngine::Server::Simulation
+namespace SagaEngine::ServerAuthority::Simulation
 {
 
 AuthoritativeMovementInputAdapter::AuthoritativeMovementInputAdapter(
@@ -129,4 +129,4 @@ AuthoritativeMovementInputAdapter::MakeRejectedInputResult(
     return result;
 }
 
-} // namespace SagaEngine::Server::Simulation
+} // namespace SagaEngine::ServerAuthority::Simulation

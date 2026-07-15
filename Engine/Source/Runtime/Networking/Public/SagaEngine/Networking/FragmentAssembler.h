@@ -1,7 +1,7 @@
 /// @file FragmentAssembler.h
 /// @brief MTU-safe packet fragmentation and reassembly for oversize payloads.
 ///
-/// Layer  : SagaServer / Networking / Core
+/// Layer  : SagaEngine / Networking
 /// Purpose: The wire-level `Packet` class caps a single datagram at
 ///          `MAX_PACKET_SIZE` (1400 B) so we stay under typical Ethernet MTU
 ///          minus IPv4/IPv6 + UDP overhead.  Most game traffic fits — small

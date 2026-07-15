@@ -1,9 +1,9 @@
 /// @file GraphEditor.cpp
 /// @brief Pimpl scaffolding — auto-generated stub bodies.
 
-#include "SagaEditor/VisualScripting/Editor/GraphEditor.h"
+#include "SagaEditor/VisualBlocks/Editor/GraphEditor.h"
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 // ─── Pimpl Definition ────────────────────────────────────────────────────────
@@ -33,4 +33,4 @@ bool GraphEditor::IsOpen() const noexcept
     return false;
 }
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

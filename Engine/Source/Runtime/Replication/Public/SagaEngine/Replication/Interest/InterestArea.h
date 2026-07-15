@@ -1,5 +1,5 @@
 #pragma once
-#include "SagaServer/Networking/Core/NetworkTypes.h"
+#include "SagaEngine/Networking/NetworkTypes.h"
 #include "SagaEngine/ECS/Entity.h"
 #include <unordered_map>
 #include <unordered_set>
@@ -8,7 +8,7 @@
 #include <memory>
 #include <cmath>
 
-namespace SagaEngine::Networking::Interest {
+namespace SagaEngine::Replication::Interest {
 
 using EntityId = ECS::EntityId;
 using ClientId = ::SagaEngine::Networking::ClientId;
@@ -123,4 +123,4 @@ private:
     void UpdateEntityArea(EntityId entity);
 };
 
-} // namespace SagaEngine::Networking::Interest
+} // namespace SagaEngine::Replication::Interest

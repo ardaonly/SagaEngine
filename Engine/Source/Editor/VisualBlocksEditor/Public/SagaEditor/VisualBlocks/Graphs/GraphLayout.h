@@ -1,9 +1,9 @@
 #pragma once
-namespace SagaEditor::VisualScripting {
+namespace SagaEditor::VisualBlocks {
 class GraphDocument;
 class GraphLayout {
 public:
     static void AutoLayout(GraphDocument& doc);
     static void Compact(GraphDocument& doc);
 };
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

@@ -3,13 +3,13 @@
 
 #pragma once
 
-#include "SagaEditor/VisualScripting/Blocks/BlockIR.h"
+#include "SagaEditor/VisualBlocks/Blocks/BlockIR.h"
 
 #include <cstdint>
 #include <string>
 #include <vector>
 
-namespace SagaEditor::VisualScripting
+namespace SagaEditor::VisualBlocks
 {
 
 class BlockLibrary;
@@ -52,4 +52,4 @@ struct LowerResult
 [[nodiscard]] LowerResult LowerBlockScript(const BlockScript&  script,
                                             const BlockLibrary& library);
 
-} // namespace SagaEditor::VisualScripting
+} // namespace SagaEditor::VisualBlocks

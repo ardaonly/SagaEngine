@@ -1,7 +1,7 @@
 /// @file DeltaBaselineCompressor.cpp
 /// @brief XOR-baseline delta compressor implementation.
 
-#include "SagaServer/Networking/Replication/DeltaBaselineCompressor.h"
+#include "SagaEngine/Replication/DeltaBaselineCompressor.h"
 
 #include <algorithm>
 #include <cstring>

@@ -34,8 +34,8 @@ SAGA_SANDBOX_REGISTER_SCENARIO(NetworkReplicationScenario);
 
 using namespace SagaEngine;
 using namespace SagaEngine::Networking;
-using namespace SagaEngine::Networking::Replication;
-using namespace SagaEngine::Networking::Interest;
+using namespace SagaEngine::Replication;
+using namespace SagaEngine::Replication::Interest;
 using SagaEngine::Input::ServerInputProcessor;
 using SagaEngine::Input::InputValidationConfig;
 

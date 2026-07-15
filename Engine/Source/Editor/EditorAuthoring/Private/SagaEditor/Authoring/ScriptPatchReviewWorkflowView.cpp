@@ -13,7 +13,7 @@ namespace
 using Json = nlohmann::json;
 namespace fs = std::filesystem;
 
-[[nodiscard]] fs::path ArtifactRoot(const TechnicalPreviewProjectView& project)
+[[nodiscard]] fs::path ArtifactRoot(const ProjectReadinessView& project)
 {
     return (project.projectRoot / "Build" / "SagaScript").lexically_normal();
 }
@@ -204,19 +204,19 @@ void MergePatchFields(const Json& json,
     {
         view.span = ParseSpan(*spanIt);
     }
-    const auto previewIt = json.find("preview");
-    if (previewIt != json.end() && previewIt->is_object())
+    const auto evaluationIt = json.find("evaluation");
+    if (evaluationIt != json.end() && evaluationIt->is_object())
     {
         if (view.oldText.empty())
         {
-            view.oldText = StringField(*previewIt, "oldText");
+            view.oldText = StringField(*evaluationIt, "oldText");
         }
         if (view.newText.empty())
         {
-            view.newText = StringField(*previewIt, "newText");
+            view.newText = StringField(*evaluationIt, "newText");
         }
-        view.span.startByte = IntField(*previewIt, "startByte");
-        view.span.endByte = IntField(*previewIt, "endByte");
+        view.span.startByte = IntField(*evaluationIt, "startByte");
+        view.span.endByte = IntField(*evaluationIt, "endByte");
     }
     const auto byteDiffIt = json.find("byteDiff");
     if (byteDiffIt != json.end() && byteDiffIt->is_object())
@@ -263,7 +263,7 @@ void AddDisabledActions(ScriptPatchReviewWorkflowView& view)
 } // namespace
 
 ScriptPatchReviewWorkflowView LoadScriptPatchReviewWorkflowView(
-    const TechnicalPreviewProjectView& project)
+    const ProjectReadinessView& project)
 {
     ScriptPatchReviewWorkflowView view;
     AddDisabledActions(view);
@@ -276,7 +276,7 @@ ScriptPatchReviewWorkflowView LoadScriptPatchReviewWorkflowView(
 
     const fs::path root = ArtifactRoot(project);
     const std::pair<const char*, const char*> reports[] = {
-        {"preview", "patch_preview.json"},
+        {"evaluation", "patch_evaluation.json"},
         {"apply", "patch_apply_report.json"},
         {"diff", "patch_diff_report.json"},
         {"review", "patch_review_report.json"},

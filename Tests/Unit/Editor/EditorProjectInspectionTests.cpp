@@ -45,7 +45,7 @@ TEST(EditorProjectInspectionTests, WritesCleanSchemaTwoTypedActions)
     fs::remove(reportPath, error);
 
     SagaEditor::EditorProjectInspectionRequest request;
-    request.projectPath = fs::path(SAGA_SOURCE_ROOT) / "samples" /
+    request.projectPath = fs::path(SAGA_SOURCE_ROOT) / "Samples" /
         "StarterArena" / "StarterArena.sagaproj";
     request.reportPath = reportPath;
 
