@@ -40,4 +40,12 @@ High-level scripting contracts are the default authoring surface. Low-level life
 
 Some VisualBlocksEditor headers currently expose host, bridge, evaluation, debugger, and UI types. Their present visibility does not change the source-of-truth rule or prove that all of them are stable public API.
 
+| Current public area | Contract reading |
+| --- | --- |
+| Descriptor, graph, IR, source-map, import, projection, and diagnostics values | Candidate editor-authoring contracts where used across module boundaries. |
+| CoreCLR host, script host, assembly context, native/managed bridges, and hot reload | Runtime-host implementation detail exposed too broadly until a focused API cutover proves otherwise. |
+| Canvas, debugger, runner, and evaluation surfaces | Editor workflow or implementation surfaces; visibility is not a shipped graph-runtime claim. |
+
 See [C# and Visual Blocks contracts](../reference/csharp-and-visual-blocks-contracts.md) for compatibility categories, projection/graph/IR boundaries, node levels, exact hash/span patching, staleness, compile, and runtime rules.
+
+The separate native/managed execution boundary is documented in [Runtime scripting host and lifecycle](../reference/runtime-scripting-host-and-lifecycle.md).

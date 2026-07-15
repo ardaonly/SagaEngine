@@ -13,6 +13,8 @@ Persistence, Assets, Resources, and packaging tools solve different parts of the
 
 Public persistence contracts should describe operations, configuration, results, and ownership without requiring pqxx, hiredis, or Redis implementation types. Concrete database adapters are implementation details unless a deliberate public API decision says otherwise.
 
+At the current revision, `PostgreSQLImpl.h` and `RedisImpl.h` still reside in the Persistence `Public` tree, although their implementation sources are private and architecture checks prevent vendor-type leakage. This is transitional visibility debt, not a stable installed-API promise.
+
 Likewise, package consumers should rely on manifest and package contracts rather than the layout of an individual staging directory. A generated package is derived output and must be traceable to its source inputs.
 
 ## Asset source and runtime streaming
@@ -32,3 +34,5 @@ Optional governance reports accepted by packaging are externally produced inputs
 Storage adapters and serialization foundations do not establish a shipped persistent-world service, migration system, backup policy, operational database topology, or compatibility guarantee for future schemas. Those claims require their own implementation and evidence.
 
 Detailed asset/package startup rules are in [Runtime lifecycle, assets, and packages](../reference/runtime-lifecycle-assets-and-packages.md). Byte streaming and residency are in [Resource streaming and residency](../reference/resource-streaming-and-residency.md).
+
+Current storage interfaces, backpressure, migration, cache/presence/pub-sub, event-log evidence, and backend debt are in [Persistence contracts](../reference/persistence-contracts.md). Producer-side identity and manifest rules are in [Asset pipeline and manifest generation](../reference/asset-pipeline-and-manifest-generation.md).

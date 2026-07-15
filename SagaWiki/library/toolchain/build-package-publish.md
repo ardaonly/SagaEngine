@@ -7,7 +7,15 @@ reviewed_against: 0.0.11-post-cutover
 
 # Build, package, and publish toolchain
 
-Tool ownership is intentionally split. Forge prepares dependencies and profiles, CMake declares build targets, focused developer checks enforce repository contracts, SagaProjectKit validates project manifests, SagaScript owns script workflows, and SagaPackager stages package outputs.
+Tool ownership is intentionally split. SagaTools dispatches registered tools without absorbing their behavior, Forge prepares dependencies and profiles, CMake declares build targets, focused developer checks enforce repository contracts, AssetPipeline produces deterministic Runtime-compatible manifests, SagaProjectKit validates project manifests, SagaScript owns script workflows, and SagaPackager stages package outputs.
+
+## Dispatcher boundary
+
+`Tools/SagaTools` provides the `tools` dispatcher and a flat registry. It can list, locate, install through a registered bootstrap, or launch an owning tool while forwarding arguments. It is not an orchestrator or build system. Removing the dispatcher must not make the underlying tools impossible to invoke directly. Its detailed setup and registry discovery rules remain in `Tools/SagaTools/README.md`.
+
+## AssetPipeline boundary
+
+`SagaAssetPipelineLib` allocates stable asset identifiers and writes identity, asset, and package manifests accepted by current Runtime loaders. It does not perform arbitrary source import/cooking or package staging. See [Asset pipeline and manifest generation](../reference/asset-pipeline-and-manifest-generation.md).
 
 ## Build ownership
 
