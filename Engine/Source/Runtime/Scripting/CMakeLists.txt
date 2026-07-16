@@ -44,3 +44,11 @@ saga_add_runtime_module(Scripting
         Public/SagaShared/Scripting/ScriptId.hpp
         Public/SagaShared/Scripting/ScriptManifest.hpp
 )
+
+saga_register_module_tests(Scripting
+    MODULE_DIR Engine/Source/Runtime/Scripting
+    LINK_TARGET SagaEngine
+    LABELS "unit;runtime;scripting"
+    SOURCES
+        Tests/ScriptLifecycleServiceTests.cpp
+)

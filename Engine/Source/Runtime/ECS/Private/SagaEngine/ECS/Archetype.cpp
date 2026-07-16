@@ -12,6 +12,9 @@ Archetype::Archetype(std::vector<ComponentTypeId> componentTypes)
     : m_ComponentTypes(std::move(componentTypes))
 {
     std::sort(m_ComponentTypes.begin(), m_ComponentTypes.end());
+    m_ComponentTypes.erase(
+        std::unique(m_ComponentTypes.begin(), m_ComponentTypes.end()),
+        m_ComponentTypes.end());
 }
 
 bool Archetype::HasComponent(ComponentTypeId type) const

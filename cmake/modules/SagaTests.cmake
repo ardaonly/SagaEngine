@@ -122,7 +122,7 @@ function(saga_setup_tests)
         "${SAGA_ROOT}/Tests/Unit/Runtime/ScriptLifecycleServiceTests.cpp"
     )
     set(SAGA_SCRIPT_BINDING_RUNTIME_TEST_SOURCE
-        "${SAGA_ROOT}/Tests/Unit/Runtime/ScriptBindingRuntimeTests.cpp"
+        "${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Tests/ScriptBindingRuntimeTests.cpp"
     )
     set(SAGA_RUNTIME_STARTUP_PREFLIGHT_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/Runtime/RuntimeStartupPreflightTests.cpp"
@@ -140,7 +140,7 @@ function(saga_setup_tests)
         "${SAGA_ROOT}/Tests/Unit/Runtime/RuntimeAssetBootstrapTests.cpp"
     )
     set(SAGA_RUNTIME_ASSET_STARTUP_BOOTSTRAP_TEST_SOURCE
-        "${SAGA_ROOT}/Tests/Unit/Runtime/RuntimeAssetStartupBootstrapTests.cpp"
+        "${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Tests/RuntimeAssetStartupBootstrapTests.cpp"
     )
     set(SAGA_RUNTIME_ASSET_BOOTSTRAP_DIAGNOSTICS_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/Runtime/RuntimeAssetBootstrapDiagnosticsTests.cpp"
@@ -158,10 +158,10 @@ function(saga_setup_tests)
         "${SAGA_ROOT}/Tests/Unit/Runtime/RuntimeServiceRegistryDiagnosticsTests.cpp"
     )
     set(SAGA_CSHARP_SCRIPT_HOST_TEST_SOURCE
-        "${SAGA_ROOT}/Tests/Unit/Runtime/CSharpScriptHostTests.cpp"
+        "${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Tests/CSharpScriptHostTests.cpp"
     )
     set(SAGA_CSHARP_GAMEPLAY_PROOF_TEST_SOURCE
-        "${SAGA_ROOT}/Tests/Unit/Runtime/CSharpGameplayProofTests.cpp"
+        "${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Tests/CSharpGameplayProofTests.cpp"
     )
     set(STARTER_ARENA_RUNTIME_SMOKE_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/Runtime/StarterArenaRuntimeSmokeTests.cpp"

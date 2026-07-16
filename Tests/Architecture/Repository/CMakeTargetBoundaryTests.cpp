@@ -392,3 +392,42 @@ TEST(CMakeTargetBoundaryTests, EmptyOwnershipPlaceholdersStayAbsent)
         EXPECT_FALSE(std::filesystem::exists(placeholder)) << placeholder;
     }
 }
+
+TEST(CMakeTargetBoundaryTests, ModuleTestDirectoriesContainRealOwnedTests)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const std::array moduleGroups = {
+        root / "Engine/Source/Runtime",
+        root / "Engine/Source/Editor",
+    };
+
+    std::vector<std::filesystem::path> missingTests;
+    std::vector<std::filesystem::path> placeholders;
+    for (const auto& group : moduleGroups)
+    {
+        for (const auto& module : std::filesystem::directory_iterator(group))
+        {
+            if (!module.is_directory()) continue;
+            const auto tests = module.path() / "Tests";
+            if (!std::filesystem::is_directory(tests)) continue;
+
+            bool hasSource = false;
+            for (const auto& entry : std::filesystem::recursive_directory_iterator(tests))
+            {
+                if (!entry.is_regular_file()) continue;
+                if (entry.path().filename() == ".gitkeep")
+                    placeholders.push_back(entry.path());
+                if (entry.path().extension() == ".cpp")
+                    hasSource = true;
+            }
+            if (!hasSource) missingTests.push_back(tests);
+        }
+    }
+
+    EXPECT_TRUE(missingTests.empty())
+        << "Every declared module Tests directory needs an executable test source";
+    EXPECT_TRUE(placeholders.empty())
+        << "Populated module Tests directories must not retain .gitkeep files";
+    EXPECT_FALSE(std::filesystem::exists(root / "Tools/SagaScript/Tests/.gitkeep"));
+    EXPECT_FALSE(std::filesystem::exists(root / "Tools/SagaPackager/Tests/.gitkeep"));
+}

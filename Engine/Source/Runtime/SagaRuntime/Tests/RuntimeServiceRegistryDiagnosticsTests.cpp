@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
 #include <filesystem>
 #include <fstream>
@@ -54,7 +55,12 @@ using SagaRuntime::RuntimeServiceState;
 
 [[nodiscard]] bool IsRuntimeSourceFile(const std::filesystem::path& path)
 {
-    return path.extension() == ".hpp" || path.extension() == ".cpp";
+    if (path.extension() != ".hpp" && path.extension() != ".cpp")
+    {
+        return false;
+    }
+
+    return std::find(path.begin(), path.end(), "Tests") == path.end();
 }
 
 [[nodiscard]] std::string ReadTextFile(const std::filesystem::path& path)

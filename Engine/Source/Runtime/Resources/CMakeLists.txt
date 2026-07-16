@@ -38,3 +38,18 @@ saga_add_runtime_module(Resources
         Public/SagaEngine/Resources/VirtualFileAssetSource.h
         Public/SagaEngine/Resources/VirtualFileSystem.h
 )
+
+saga_register_module_tests(Resources
+    MODULE_DIR Engine/Source/Runtime/Resources
+    LINK_TARGET SagaEngine
+    LABELS "unit;runtime;resources"
+    SOURCES
+        Tests/AssetIdResolverTests.cpp
+        Tests/AssetIdentityManifestLoaderTests.cpp
+        Tests/AssetManifestRegistryAdapterTests.cpp
+        Tests/AssetRegistryTests.cpp
+        Tests/FileAssetSourceTests.cpp
+        Tests/RuntimeAssetRegistryBootstrapperTests.cpp
+        Tests/VirtualFileAssetSourceTests.cpp
+        Tests/VirtualFileSystemTests.cpp
+)

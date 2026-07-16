@@ -164,7 +164,7 @@ function(saga_create_registered_module_tests out_var)
                 "Module tests ${_module} link target does not exist: ${_link_target}")
         endif()
 
-        set(_target "Saga${_module}Tests")
+        set(_target "Saga${_module}ModuleTests")
         add_executable(${_target} ${_sources})
         saga_apply_compiler_flags(${_target})
         target_link_libraries(${_target} PRIVATE
@@ -188,16 +188,17 @@ function(saga_create_registered_module_tests out_var)
             FOLDER "Tests/Modules"
         )
 
-        add_test(NAME "${_module}Tests" COMMAND ${_target})
+        set(_test_name "${_module}ModuleTests")
+        add_test(NAME "${_test_name}" COMMAND ${_target})
         if(_labels)
-            set_tests_properties("${_module}Tests" PROPERTIES
+            set_tests_properties("${_test_name}" PROPERTIES
                 LABELS "module-unit;${_labels}")
         else()
-            set_tests_properties("${_module}Tests" PROPERTIES
+            set_tests_properties("${_test_name}" PROPERTIES
                 LABELS "module-unit")
         endif()
         if(_environment)
-            set_tests_properties("${_module}Tests" PROPERTIES
+            set_tests_properties("${_test_name}" PROPERTIES
                 ENVIRONMENT "${_environment}")
         endif()
 
