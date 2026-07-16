@@ -369,10 +369,36 @@ TEST(CMakeTargetBoundaryTests, LegacyOwnershipRootsStayAbsent)
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
     for (const auto& legacy : std::initializer_list<std::string>{
              "Runtime", "Server", "Backends", "Collaboration", "Shared",
-             "Apps", "Content", "core", "samples", std::string("Tools") + "/scripts"})
+             "Editor", "Apps", "Content", "core", "docs", "samples",
+             std::string("Tools") + "/scripts"})
     {
         EXPECT_FALSE(std::filesystem::exists(root / legacy)) << legacy;
     }
+}
+
+TEST(CMakeTargetBoundaryTests, OwnershipMetadataNamesCurrentRepositoryOwners)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto targets = ReadText(root / "cmake/modules/SagaTargets.cmake");
+    EXPECT_EQ(targets.find("FOLDER      \"Apps\""), std::string::npos);
+    for (const auto* folder : {
+             "Programs/SagaLauncher",
+             "Programs/SagaRuntime",
+             "Programs/SagaEditor",
+             "Programs/SagaEditorLab",
+             "Programs/SagaSandbox",
+             "Developer/SagaDev"})
+    {
+        EXPECT_NE(targets.find(folder), std::string::npos) << folder;
+    }
+
+    const auto clangTidy = ReadText(root / ".clang-tidy");
+    EXPECT_NE(
+        clangTidy.find("Engine/Source|Samples|Tests|Tools"),
+        std::string::npos);
+    EXPECT_EQ(
+        clangTidy.find("Engine|Server|Apps|Backends|Editor|Tests"),
+        std::string::npos);
 }
 
 TEST(CMakeTargetBoundaryTests, EmptyOwnershipPlaceholdersStayAbsent)
@@ -387,7 +413,11 @@ TEST(CMakeTargetBoundaryTests, EmptyOwnershipPlaceholdersStayAbsent)
              root / "Tests/Unit/Editor/GraphDebuggerTests.cpp",
              root / "Tests/Unit/Editor/GraphCompilationTests.cpp",
              root / "Tests/Unit/Editor/PinConnectionTests.cpp",
-             root / "Tests/Unit/Runtime/RenderClientAppTests.cpp"})
+             root / "Tests/Unit/Runtime/RenderClientAppTests.cpp",
+             root / "Tools/SagaScript/Public",
+             root / "Tools/SagaScript/Private",
+             root / "Tools/SagaPackager/Public",
+             root / "Tools/SagaPackager/Private"})
     {
         EXPECT_FALSE(std::filesystem::exists(placeholder)) << placeholder;
     }
@@ -430,4 +460,8 @@ TEST(CMakeTargetBoundaryTests, ModuleTestDirectoriesContainRealOwnedTests)
         << "Populated module Tests directories must not retain .gitkeep files";
     EXPECT_FALSE(std::filesystem::exists(root / "Tools/SagaScript/Tests/.gitkeep"));
     EXPECT_FALSE(std::filesystem::exists(root / "Tools/SagaPackager/Tests/.gitkeep"));
+    EXPECT_FALSE(std::filesystem::exists(root / "Tools/SagaScript/Public/.gitkeep"));
+    EXPECT_FALSE(std::filesystem::exists(root / "Tools/SagaScript/Private/.gitkeep"));
+    EXPECT_FALSE(std::filesystem::exists(root / "Tools/SagaPackager/Public/.gitkeep"));
+    EXPECT_FALSE(std::filesystem::exists(root / "Tools/SagaPackager/Private/.gitkeep"));
 }

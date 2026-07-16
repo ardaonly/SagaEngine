@@ -172,7 +172,7 @@
     {
       "pattern": "Engine/Source/Programs/**",
       "license": "MPL-2.0",
-      "domain_id": "saga-apps",
+      "domain_id": "saga-programs",
       "priority": 200
     },
     {

@@ -1,7 +1,7 @@
 /// @file ScenarioStep.h
 /// @brief One step inside an EditorLab scenario — pure data, no editor dep.
 ///
-/// Layer  : Apps / EditorLab
+/// Layer  : Programs / SagaEditorLab
 /// Purpose: A scenario is a list of `ScenarioStep` values. Each step is a
 ///          tagged union: pick a kind, fill the matching payload, run.
 /// Isolation: this header includes nothing from SagaEditor or SagaEngine.

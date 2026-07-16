@@ -18,8 +18,8 @@
 #   - bugprone-easily-swappable-parameters
 #                          : too many false positives on math APIs.
 #
-# Header filter: only lint *our* headers, never third-party.  Matches any path
-# under Engine/, Server/, Apps/, Backends/, Editor/, Tests/.
+# Header filter: only lint repository-owned code, never third-party. Matches
+# the current Engine/Source, Samples, Tests, and Tools ownership roots.
 
 Checks: >
   -*,
@@ -62,8 +62,8 @@ Checks: >
 
 WarningsAsErrors: ''
 
-# Lint our code, not third-party.  Match anything under the engine's own dirs.
-HeaderFilterRegex: '.*(Engine|Server|Apps|Backends|Editor|Tests)/(include|src)/.*'
+# Lint current repository owners, not retired roots or third-party code.
+HeaderFilterRegex: '.*/(Engine/Source|Samples|Tests|Tools)/.*'
 
 FormatStyle: file
 

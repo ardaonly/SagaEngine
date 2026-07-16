@@ -29,7 +29,7 @@ EditorLab and Sandbox are development/evidence surfaces. Deterministic subsystem
 
 ## Server entry-point boundary
 
-There is no SagaServer program owner or dedicated-server entry point. `Runtime/ServerAuthority` and the `SagaServerLib` library target contain authority foundations, not a deployed network service. Current authority behavior is documented under [Networking, replication, and authority](../runtime/networking-and-authority.md); any future server entry point should remain a thin launcher over those owners.
+There is no SagaServer program owner or dedicated-server entry point. `Engine/Source/Runtime/ServerAuthority` and the `SagaServerLib` library target contain authority foundations, not a deployed network service. Current authority behavior is documented under [Networking, replication, and authority](../runtime/networking-and-authority.md); any future server entry point should remain a thin launcher over those owners.
 
 ## Workflow non-claims
 

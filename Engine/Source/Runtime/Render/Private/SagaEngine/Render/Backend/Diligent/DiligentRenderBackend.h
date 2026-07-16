@@ -27,7 +27,7 @@
 ///
 /// Not this class's problem:
 ///   - Descriptor heaps, resource streaming, command-list multi-threading
-///   - Window / input — window ownership lives in Apps, never in Engine.
+///   - Window / input — window ownership lives in program composition, not Render.
 
 #pragma once
 

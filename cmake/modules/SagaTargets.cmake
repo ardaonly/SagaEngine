@@ -542,7 +542,7 @@ function(saga_create_engine_targets)
     )
 
     set_target_properties(SagaEditorLabLib PROPERTIES
-        FOLDER "Programs/EditorLab"
+        FOLDER "Programs/SagaEditorLab"
     )
 
     # --- Saga Product Orchestration Library -----------------------------------
@@ -579,7 +579,7 @@ function(saga_create_engine_targets)
         SAGA_PRODUCT_PLATFORM="${CMAKE_SYSTEM_NAME}"
     )
     set_target_properties(SagaProductLib PROPERTIES
-        FOLDER "Programs/Saga"
+        FOLDER "Programs/SagaLauncher"
     )
 
     if(SAGA_WITH_EDITORLAB_DEV_PANEL)
@@ -596,7 +596,7 @@ function(saga_create_engine_targets)
             SagaEditorLabLib
         )
         set_target_properties(SagaEditorLabBridge PROPERTIES
-            FOLDER "Programs/SagaDev"
+            FOLDER "Developer/SagaDev"
         )
     endif()
 
@@ -621,7 +621,7 @@ function(saga_create_engine_targets)
 
     set_target_properties(Saga PROPERTIES
         OUTPUT_NAME "Saga"
-        FOLDER      "Apps"
+        FOLDER      "Programs/SagaLauncher"
     )
 
     saga_get_registered_sources(SagaRuntime SAGA_RUNTIME_PROGRAM_SOURCES)
@@ -660,7 +660,7 @@ function(saga_create_engine_targets)
 
     set_target_properties(SagaRuntime PROPERTIES
         OUTPUT_NAME "SagaRuntime"
-        FOLDER      "Apps"
+        FOLDER      "Programs/SagaRuntime"
     )
 
     # --- SagaEditor Executable ------------------------------------------------
@@ -752,7 +752,7 @@ function(saga_create_engine_targets)
 
     set_target_properties(SagaEditor PROPERTIES
         OUTPUT_NAME "SagaEditor"
-        FOLDER      "Apps"
+        FOLDER      "Programs/SagaEditor"
     )
 
     # --- EditorLab Executable ------------------------------------------------
@@ -783,7 +783,7 @@ function(saga_create_engine_targets)
 
     set_target_properties(EditorLab PROPERTIES
         OUTPUT_NAME "EditorLab"
-        FOLDER      "Apps"
+        FOLDER      "Programs/SagaEditorLab"
     )
 
     # --- Sandbox Executable ---------------------------------------------------
@@ -823,7 +823,7 @@ function(saga_create_engine_targets)
 
     set_target_properties(SagaSandbox PROPERTIES
         OUTPUT_NAME "SagaSandbox"
-        FOLDER      "Apps"
+        FOLDER      "Programs/SagaSandbox"
     )
 
     foreach(_saga_registered_target IN ITEMS

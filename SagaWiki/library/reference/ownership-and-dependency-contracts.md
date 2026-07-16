@@ -79,7 +79,7 @@ Runtime modules do not depend on editor modules or programs. A low-level runtime
 - EditorQt owns Qt-specific application, widgets, and adapters.
 - EditorAuthoring owns project inspection and semantic authoring workflows.
 - VisualBlocksEditor publicly owns only the evidenced `Blocks/**` authoring and lowering contracts; read-only product descriptor generation remains private.
-- Runtime/Scripting owns script lifecycle and hosting; EditorAuthoring and VisualBlocksEditor own current editor-facing script inspection, projection, and patch workflows.
+- `Engine/Source/Runtime/Scripting` owns script lifecycle and hosting; EditorAuthoring and VisualBlocksEditor own current editor-facing script inspection, projection, and patch workflows.
 - EditorCollaboration owns the modern `SagaCollaboration` and `SagaShared` value/interface contracts; the legacy `SagaEditor::Collaboration` path is retired.
 - EditorExperimental contains deliberately unstable editor work rather than promoting it as stable API.
 
