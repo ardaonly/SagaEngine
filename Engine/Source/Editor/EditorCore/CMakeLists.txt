@@ -42,3 +42,13 @@ saga_add_editor_module(EditorCore
         Public/SagaEditor/Validation/PrefabValidation.h
         Public/SagaEditor/Validation/ReferenceValidator.h
 )
+
+saga_register_module_tests(EditorCore
+    MODULE_DIR Engine/Source/Editor/EditorCore
+    LINK_TARGET SagaEditorLib
+    LABELS "unit;editor;core"
+    SOURCES
+        Tests/EditorDiagnosticsServiceTests.cpp
+        Tests/ProjectManagerTests.cpp
+        Tests/SelectionStateTests.cpp
+)

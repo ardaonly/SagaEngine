@@ -37,3 +37,12 @@ saga_add_program(VisualBlocksProductIntegration
         Private/ProductIntegration/VisualBlocksDescriptor.cpp
         Private/ProductIntegration/VisualBlocksDescriptor.h
 )
+
+saga_register_module_tests(VisualBlocksEditor
+    MODULE_DIR Engine/Source/Editor/VisualBlocksEditor
+    LINK_TARGET SagaEditorLib
+    LABELS "unit;editor;visual-blocks"
+    SOURCES
+        Tests/BlockAuthoringTests.cpp
+        Tests/BlockSnapAndIRTests.cpp
+)

@@ -125,3 +125,18 @@ saga_add_editor_module(EditorFramework
         Public/SagaEditor/UI/IUIMainWindow.h
         Public/SagaEditor/UI/IUIWidget.h
 )
+
+saga_register_module_tests(EditorFramework
+    MODULE_DIR Engine/Source/Editor/EditorFramework
+    LINK_TARGET SagaEditorLib
+    PRIVATE_DEPS nlohmann_json::nlohmann_json
+    LABELS "unit;editor;framework"
+    SOURCES
+        Tests/EditorCompositionTests.cpp
+        Tests/EditorModeTests.cpp
+        Tests/EditorNotificationTests.cpp
+        Tests/EditorProductionTests.cpp
+        Tests/EditorProfileTests.cpp
+        Tests/PersonaTests.cpp
+        Tests/WorkspaceCustomizationTests.cpp
+)

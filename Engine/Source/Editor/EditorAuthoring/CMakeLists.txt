@@ -75,3 +75,14 @@ saga_add_editor_module(EditorAuthoring
         Public/SagaEditor/WorldEditing/WorldEditor.h
         Public/SagaEditor/WorldEditing/WorldStreamingEditor.h
 )
+
+saga_register_module_tests(EditorAuthoring
+    MODULE_DIR Engine/Source/Editor/EditorAuthoring
+    LINK_TARGET SagaEditorLib
+    LABELS "unit;editor;authoring"
+    SOURCES
+        Tests/EditorAuthoringSpineTests.cpp
+        Tests/InspectorEditingTests.cpp
+        Tests/ViewportCameraTests.cpp
+        Tests/ViewportRayTests.cpp
+)
