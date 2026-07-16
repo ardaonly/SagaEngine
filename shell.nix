@@ -284,6 +284,7 @@ pkgs.mkShell {
     # referenced by name (e.g. --profile linux-gcc) without a path prefix.
     mkdir -p "$HOME/.conan2/profiles"
     for _profile in "$PWD/profiles/"*; do
+      [ -f "$_profile" ] || continue
       _name=$(basename "$_profile")
       _target="$HOME/.conan2/profiles/$_name"
       if [ ! -e "$_target" ] || [ -L "$_target" ]; then

@@ -26,12 +26,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
 
       - name: Set up .NET 10
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 10.0.x
 
@@ -103,7 +103,7 @@ jobs:
 
       - name: Upload repository contract evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: repository-contracts-${{ github.run_attempt }}
           path: |
@@ -130,7 +130,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           submodules: recursive
 
@@ -143,7 +143,7 @@ jobs:
           echo "SAGA_BUILD_DIR=build/RelWithDebInfo-$version" >> "$GITHUB_ENV"
 
       - name: Restore Conan cache
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.conan2/p
           key: conan-linux-${{ hashFiles('conanfile.py', 'profiles/**', 'VERSION') }}
@@ -190,7 +190,7 @@ jobs:
 
       - name: Upload Linux test evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: cpp-linux-all-safe-${{ github.run_attempt }}
           path: |
@@ -217,7 +217,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           submodules: recursive
 
@@ -230,34 +230,67 @@ jobs:
           "SAGA_BUILD_DIR=Build/windows-msvc-14.38" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Restore Conan cache
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.conan2/p
-          key: conan-windows-${{ hashFiles('conanfile.py', 'profiles/**', 'VERSION') }}
+          key: conan-windows-${{ env.CONAN_VERSION }}-${{ env.CMAKE_VERSION }}-${{ hashFiles('conanfile.py', 'profiles/**', 'VERSION') }}
           restore-keys: conan-windows-
 
       - name: Install pinned build tools
         shell: pwsh
         run: python -m pip install --disable-pip-version-check "conan==$env:CONAN_VERSION" "cmake==$env:CMAKE_VERSION"
 
-      - name: Resolve dependencies and configure
+      - name: Detect and compose Windows Conan profiles
         shell: pwsh
         run: |
-          conan profile detect --force
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          conan profile detect --force --name windows-runner
+          conan profile show `
+            -pr:h windows-runner `
+            -pr:h profiles/ci/windows-msvc `
+            -pr:b windows-runner `
+            -pr:b profiles/ci/windows-msvc
+
+      - name: Resolve Windows dependencies
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
           conan install . --output-folder "$env:SAGA_BUILD_DIR" --build=missing `
-            -s build_type=RelWithDebInfo `
-            -c tools.build:jobs=2
+            -pr:h windows-runner `
+            -pr:h profiles/ci/windows-msvc `
+            -pr:b windows-runner `
+            -pr:b profiles/ci/windows-msvc
+
+      - name: Configure Windows graph
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          $conanGenerators = Join-Path $env:SAGA_BUILD_DIR "build/RelWithDebInfo/generators"
+          . (Join-Path $conanGenerators "conanbuild.ps1")
           cmake --preset windows-msvc-14.38 `
             -DCMAKE_C_COMPILER_LAUNCHER= `
             -DCMAKE_CXX_COMPILER_LAUNCHER=
 
       - name: Build Windows graph
         shell: pwsh
-        run: cmake --build "$env:SAGA_BUILD_DIR" --parallel 2
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          $conanGenerators = Join-Path $env:SAGA_BUILD_DIR "build/RelWithDebInfo/generators"
+          . (Join-Path $conanGenerators "conanbuild.ps1")
+          cmake --build "$env:SAGA_BUILD_DIR" --parallel 2
 
       - name: Run Windows unit and architecture tests
         shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          $conanGenerators = Join-Path $env:SAGA_BUILD_DIR "build/RelWithDebInfo/generators"
+          $conanRun = Join-Path $conanGenerators "conanrun.ps1"
+          if (Test-Path $conanRun) { . $conanRun }
           New-Item -ItemType Directory -Force artifacts/windows | Out-Null
           ctest --test-dir "$env:SAGA_BUILD_DIR" `
             --output-on-failure `
@@ -268,7 +301,7 @@ jobs:
 
       - name: Upload Windows test evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: cpp-windows-core-${{ github.run_attempt }}
           path: |
@@ -281,8 +314,16 @@ jobs:
         if: always()
         shell: pwsh
         run: |
+          $testEvidence = "artifacts/windows/ctest-core.xml"
+          if (Test-Path $testEvidence) {
+            $status = "MSVC unit and architecture labels were evaluated."
+          } elseif (Test-Path (Join-Path $env:SAGA_BUILD_DIR "CMakeCache.txt")) {
+            $status = "The graph was configured, but Windows test evidence was not produced. Inspect the build and CTest steps."
+          } else {
+            $status = "Windows tests did not start because dependency resolution or graph configuration failed."
+          }
           @"
           ## C++ Windows core
 
-          MSVC unit and architecture labels were evaluated. Integration, timing-sensitive, slow, stress, GPU, and private white-box labels are excluded.
+          $status Integration, timing-sensitive, slow, stress, GPU, and private white-box labels are excluded.
           "@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append

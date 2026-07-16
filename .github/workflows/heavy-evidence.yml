@@ -37,7 +37,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           submodules: recursive
       - name: Read version and install build tools
@@ -50,7 +50,7 @@ jobs:
             "conan==$CONAN_VERSION" "cmake==$CMAKE_VERSION"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Restore Conan cache
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.conan2/p
           key: heavy-conan-linux-${{ hashFiles('conanfile.py', 'profiles/**', 'VERSION') }}
@@ -76,7 +76,7 @@ jobs:
             -R '^(IntegrationTests|ReplicationTests)$'
       - name: Upload integration evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: integration-replication-${{ github.run_attempt }}
           path: |
@@ -99,7 +99,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           submodules: recursive
       - name: Read version and install build tools
@@ -112,7 +112,7 @@ jobs:
             "conan==$CONAN_VERSION" "cmake==$CMAKE_VERSION"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Restore Conan cache
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.conan2/p
           key: stress-conan-linux-${{ hashFiles('conanfile.py', 'profiles/**', 'VERSION') }}
@@ -138,7 +138,7 @@ jobs:
             -R '^StressTests$'
       - name: Upload stress evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: stress-${{ github.run_attempt }}
           path: |
@@ -161,7 +161,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Record unavailable GPU execution environment
         shell: bash
         run: |
@@ -176,7 +176,7 @@ jobs:
           exit 1
       - name: Upload GPU preflight evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: gpu-preflight-${{ github.run_attempt }}
           path: artifacts/gpu/preflight.json

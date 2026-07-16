@@ -1175,7 +1175,84 @@ def validate_files(
             )
 
 
-def validate_commits(root: Path, policy: dict[str, Any], report: Report) -> None:
+def validate_reviewed_commit(
+    root: Path,
+    policy: dict[str, Any],
+    report: Report,
+) -> tuple[str, str] | None:
+    shallow = run(
+        ["git", "rev-parse", "--is-shallow-repository"],
+        root,
+        check=False,
+    )
+    shallow_state = shallow.stdout.strip().lower()
+    if shallow.returncode != 0 or shallow_state not in {"true", "false"}:
+        report.add(
+            "ERROR",
+            "SHALLOW_REPOSITORY_UNVERIFIED",
+            shallow.stderr.strip() or shallow.stdout.strip() or "git state unavailable",
+        )
+        return None
+    if shallow_state == "true":
+        report.add(
+            "ERROR",
+            "SHALLOW_REPOSITORY",
+            "reviewed_commit requires a complete Git history",
+        )
+        return None
+
+    reviewed = policy.get("reviewed_commit", "")
+    if not isinstance(reviewed, str) or not FULL_COMMIT_RE.fullmatch(reviewed):
+        report.add("ERROR", "COMMIT_FORMAT", f"reviewed_commit: {reviewed!r}")
+        return None
+
+    commit_type = run(
+        ["git", "cat-file", "-t", reviewed],
+        root,
+        check=False,
+    )
+    if commit_type.returncode != 0:
+        report.add("ERROR", "COMMIT_MISSING", f"reviewed_commit: {reviewed}")
+        return None
+    if commit_type.stdout.strip() != "commit":
+        report.add(
+            "ERROR",
+            "REVIEWED_OBJECT_NOT_COMMIT",
+            f"reviewed_commit={reviewed}, type={commit_type.stdout.strip() or 'unknown'}",
+        )
+        return None
+
+    head = run(["git", "rev-parse", "HEAD"], root, check=False)
+    current = head.stdout.strip()
+    if head.returncode != 0 or not FULL_COMMIT_RE.fullmatch(current):
+        report.add(
+            "ERROR",
+            "HEAD_COMMIT_UNVERIFIED",
+            head.stderr.strip() or current or "HEAD unavailable",
+        )
+        return None
+
+    ancestor = run(
+        ["git", "merge-base", "--is-ancestor", reviewed, current],
+        root,
+        check=False,
+    )
+    if ancestor.returncode != 0:
+        report.add(
+            "ERROR",
+            "EVIDENCE_BASELINE_NOT_ANCESTOR",
+            f"reviewed={reviewed}, current={current}",
+        )
+        return None
+
+    return reviewed, current
+
+
+def validate_commits(
+    root: Path,
+    policy: dict[str, Any],
+    report: Report,
+) -> str | None:
     for domain in policy.get("domains", []):
         commit = domain.get("effective_commit", "")
         if not commit:
@@ -1193,7 +1270,6 @@ def validate_commits(root: Path, policy: dict[str, Any], report: Report) -> None
             )
 
     for label, commit in (
-        ("reviewed_commit", policy.get("reviewed_commit", "")),
         ("effective_from_commit", policy.get("effective_from_commit", "")),
     ):
         if not commit:
@@ -1209,33 +1285,27 @@ def validate_commits(root: Path, policy: dict[str, Any], report: Report) -> None
         if result.returncode != 0:
             report.add("ERROR", "COMMIT_MISSING", f"{label}: {commit}")
 
-    reviewed = policy.get("reviewed_commit", "")
-    if isinstance(reviewed, str) and FULL_COMMIT_RE.fullmatch(reviewed):
+    validated_review = validate_reviewed_commit(root, policy, report)
+    if validated_review is not None:
         from fnmatch import fnmatchcase
 
-        current = run_git(root, "rev-parse", "HEAD").strip()
+        reviewed, current = validated_review
         if current != reviewed:
-            ancestor = run(
-                ["git", "merge-base", "--is-ancestor", reviewed, current],
+            changed = run(
+                ["git", "diff", "--name-only", f"{reviewed}..{current}"],
                 root,
                 check=False,
             )
-
-            if ancestor.returncode != 0:
+            if changed.returncode != 0:
                 report.add(
-                    "WARNING",
-                    "EVIDENCE_BASELINE_DIVERGED",
-                    f"reviewed={reviewed}, current={current}",
+                    "ERROR",
+                    "EVIDENCE_BASELINE_DIFF_FAILED",
+                    changed.stderr.strip() or f"{reviewed}..{current}",
                 )
             else:
                 changed_paths = [
                     line.strip()
-                    for line in run_git(
-                        root,
-                        "diff",
-                        "--name-only",
-                        f"{reviewed}..{current}",
-                    ).splitlines()
+                    for line in changed.stdout.splitlines()
                     if line.strip()
                 ]
 
@@ -1283,6 +1353,8 @@ def validate_commits(root: Path, policy: dict[str, Any], report: Report) -> None
             report.add("ERROR", "APPROVAL_MISSING", "active policy")
         if not policy.get("decision_record"):
             report.add("ERROR", "DECISION_RECORD_MISSING", "active policy")
+
+    return validated_review[0] if validated_review is not None else None
 
 
 def expected_legacy_payload(policy: dict[str, Any]) -> dict[str, Any]:
@@ -1553,7 +1625,7 @@ def validate_lfs(
 
 def validate_renames(
     root: Path,
-    base_ref: str | None,
+    reviewed_commit: str | None,
     domains: list[Domain],
     policy: dict[str, Any],
     report: Report,
@@ -1563,11 +1635,17 @@ def validate_renames(
         ("working-tree", ["git", "diff", "--name-status", "-M"]),
         ("index", ["git", "diff", "--cached", "--name-status", "-M"]),
     ]
-    if base_ref:
+    if reviewed_commit:
         comparisons.append(
             (
-                f"{base_ref}...HEAD",
-                ["git", "diff", "--name-status", "-M", f"{base_ref}...HEAD"],
+                f"{reviewed_commit}..HEAD",
+                [
+                    "git",
+                    "diff",
+                    "--name-status",
+                    "-M",
+                    f"{reviewed_commit}..HEAD",
+                ],
             )
         )
 
@@ -1577,8 +1655,8 @@ def validate_renames(
     for label, command in comparisons:
         result = run(command, root, check=False)
         if result.returncode != 0:
-            if base_ref and label == f"{base_ref}...HEAD":
-                report.add("ERROR", "BASE_REF_INVALID", base_ref)
+            if reviewed_commit and label == f"{reviewed_commit}..HEAD":
+                report.add("ERROR", "REVIEWED_DIFF_FAILED", reviewed_commit)
             else:
                 report.add("ERROR", "RENAME_DIFF_FAILED", label)
             continue
@@ -2118,13 +2196,13 @@ def validate_policy(
         policy,
         report,
     )
-    validate_commits(root, policy, report)
+    reviewed_commit = validate_commits(root, policy, report)
     validate_legacy(root, policy, report)
     validate_governance(root, policy, report)
     validate_submodules(root, submodule_map, policy, report)
     validate_symlinks(root, policy, report)
     validate_lfs(root, files, policy, report)
-    validate_renames(root, base_ref, domains, policy, report)
+    validate_renames(root, reviewed_commit, domains, policy, report)
     validate_cmake_targets(
         root,
         build_dir,

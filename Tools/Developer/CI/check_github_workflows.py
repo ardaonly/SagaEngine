@@ -15,6 +15,7 @@ import re
 ACTION_RE = re.compile(r"^\s*-?\s*uses:\s*([^\s#]+)", re.MULTILINE)
 PINNED_ACTION_RE = re.compile(r"^[^@]+@[0-9a-f]{40}$")
 JOB_RE = re.compile(r"^  ([A-Za-z0-9_-]+):\s*$", re.MULTILINE)
+JOB_NAME_RE = re.compile(r"^    name:\s*([^#\n]+?)\s*$", re.MULTILINE)
 CONTINUE_ON_ERROR_RE = re.compile(
     r"^\s*continue-on-error\s*:\s*(?:true|yes|on)\s*(?:#.*)?$",
     re.IGNORECASE | re.MULTILINE,
@@ -52,6 +53,70 @@ def workflow_jobs(text: str) -> dict[str, str]:
         ]
         for index, match in enumerate(matches)
     }
+
+
+def job_display_names(texts: dict[str, str]) -> dict[str, list[str]]:
+    names: dict[str, list[str]] = {}
+    for path, text in texts.items():
+        for job_id, body in workflow_jobs(text).items():
+            match = JOB_NAME_RE.search(body)
+            name = (
+                match.group(1).strip().strip('"\'')
+                if match
+                else job_id
+            )
+            names.setdefault(name, []).append(f"{path}:{job_id}")
+    return names
+
+
+def check_repository_job_contracts(texts: dict[str, str]) -> list[Finding]:
+    findings: list[Finding] = []
+    for name, owners in job_display_names(texts).items():
+        if len(owners) > 1:
+            findings.append(
+                Finding(
+                    ", ".join(owners),
+                    "check-name-unique",
+                    f"job display name is duplicated: {name}",
+                )
+            )
+
+    required_jobs = {
+        "build.yml": (
+            "repository-contracts",
+            "cpp-linux-all-safe",
+            "cpp-windows-core",
+        ),
+        "licensing.yml": ("licensing-gate",),
+    }
+    for workflow_name, job_ids in required_jobs.items():
+        jobs = workflow_jobs(texts.get(workflow_name, ""))
+        for job_id in job_ids:
+            body = jobs.get(job_id, "")
+            if not body:
+                continue
+            if "\n    strategy:" in body or "\n      matrix:" in body:
+                findings.append(
+                    Finding(
+                        f".github/workflows/{workflow_name}",
+                        "required-check-matrix",
+                        f"required job {job_id} may not use a matrix",
+                    )
+                )
+
+    licensing_jobs = workflow_jobs(texts.get("licensing.yml", ""))
+    for job_id in ("licensing-policy", "configured-graph"):
+        body = licensing_jobs.get(job_id, "")
+        if body and "fetch-depth: 0" not in body:
+            findings.append(
+                Finding(
+                    ".github/workflows/licensing.yml",
+                    "licensing-full-history",
+                    f"job {job_id} must checkout with fetch-depth: 0",
+                )
+            )
+
+    return findings
 
 
 def check_workflow(path: str, text: str) -> list[Finding]:
@@ -116,6 +181,8 @@ def validate_repository(root: Path) -> list[Finding]:
         text = path.read_text(encoding="utf-8")
         texts[path.name] = text
         findings.extend(check_workflow(str(path.relative_to(root)), text))
+
+    findings.extend(check_repository_job_contracts(texts))
 
     if "build.yml" in texts:
         findings.extend(
