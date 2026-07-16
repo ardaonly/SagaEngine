@@ -1,6 +1,14 @@
 saga_add_program(SagaLauncher
     MODULE_DIR Engine/Source/Programs/SagaLauncher
     TARGET SagaProductLib
+    PRIVATE_DEPS
+        Qt6::Core
+        Qt6::Widgets
+        nlohmann_json::nlohmann_json
+    PRIVATE_INCLUDES
+        ${SAGA_ROOT}/Tests/Evidence/FirstPlayable/Source
+        ${SAGA_ROOT}/Engine/Source/Editor/VisualBlocksEditor/Private
+        ${SAGA_ROOT}/Engine/Source/Editor/EditorCollaboration/Private
     SOURCES
         Private/App/SagaApp.cpp
         Private/App/SagaApp.h

@@ -28,6 +28,11 @@ saga_add_editor_module(VisualBlocksEditor
 saga_add_program(VisualBlocksProductIntegration
     MODULE_DIR Engine/Source/Editor/VisualBlocksEditor
     TARGET SagaProductLib
+    PRIVATE_DEPS
+        nlohmann_json::nlohmann_json
+        OpenSSL::Crypto
+    PRIVATE_INCLUDES
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaLauncher/Private
     SOURCES
         Private/ProductIntegration/VisualBlocksDescriptor.cpp
         Private/ProductIntegration/VisualBlocksDescriptor.h

@@ -1,6 +1,12 @@
 saga_add_program(FirstPlayableEvidence
     MODULE_DIR Tests/Evidence/FirstPlayable
     TARGET SagaProductLib
+    PRIVATE_DEPS
+        Qt6::Core
+        nlohmann_json::nlohmann_json
+    PRIVATE_INCLUDES
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaLauncher/Private
+        ${SAGA_ROOT}/Engine/Source/Editor/VisualBlocksEditor/Private
     SOURCES
         Source/FirstPlayable/FirstPlayableEvidenceBundle.cpp
         Source/FirstPlayable/FirstPlayableEvidenceBundle.h

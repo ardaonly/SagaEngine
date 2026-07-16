@@ -1,6 +1,7 @@
 saga_add_program(EditorCollaborationProductIntegration
     MODULE_DIR Engine/Source/Editor/EditorCollaboration
     TARGET SagaProductLib
+    PRIVATE_DEPS nlohmann_json::nlohmann_json
     SOURCES
         Private/ProductIntegration/SagaLocalCollaborationMetadataReports.cpp
         Private/ProductIntegration/SagaLocalCollaborationMetadataReports.h
