@@ -11,7 +11,7 @@
 ///
 ///          There is no clean way for the engine boot sequence to
 ///          register an ECS system as a first-class subsystem.  That
-///          leaves gameplay code duplicating boot glue in every Apps
+///          leaves gameplay code duplicating boot glue in every program
 ///          binary — not production-grade.
 ///
 ///          `EcsSubsystemAdapter` is a thin `ISubsystem` implementation

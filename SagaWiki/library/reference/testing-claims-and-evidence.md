@@ -71,7 +71,7 @@ White-box tests include private implementation headers through a deliberate test
 
 The name/label and target should make this status visible. A private test include never promotes the header to public API. Conversely, public code must not rely on a white-box target to compile.
 
-Private Diligent CPU tests are colocated in `Runtime/RHI/Tests` and `Runtime/Render/Tests`, built by `SagaDiligentWhiteboxTests`, and registered as `DiligentWhiteboxTests` with the `whitebox-private` label. They are not part of `SagaUnitTests` and must not be mixed into installed-consumer claims.
+Private Diligent CPU tests are colocated in `Engine/Source/Runtime/RHI/Tests` and `Engine/Source/Runtime/Render/Tests`, built by `SagaDiligentWhiteboxTests`, and registered as `DiligentWhiteboxTests` with the `whitebox-private` label. They are not part of `SagaUnitTests` and must not be mixed into installed-consumer claims.
 
 ### Integration tests
 

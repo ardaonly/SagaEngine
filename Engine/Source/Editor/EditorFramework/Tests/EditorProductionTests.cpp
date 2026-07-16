@@ -23,10 +23,6 @@
 #include <string>
 #include <vector>
 
-#ifndef SAGA_SOURCE_ROOT
-#define SAGA_SOURCE_ROOT "."
-#endif
-
 namespace
 {
 
@@ -433,8 +429,7 @@ TEST(EditorCustomizationCatalogTest, LeavesProjectProfilesEmpty)
 {
     EditorCustomizationCatalog catalog;
     const fs::path workspaceRoot =
-        fs::path(SAGA_SOURCE_ROOT) / "Apps" / "Saga" /
-        "Definitions" / "BasicWorkspace";
+        fs::path("synthetic-workspace") / "BasicWorkspace";
 
     ASSERT_TRUE(catalog.Init(workspaceRoot));
 
