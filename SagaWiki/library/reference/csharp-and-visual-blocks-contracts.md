@@ -29,7 +29,7 @@ There is no second graph VM in this contract. Runtime does not interpret the edi
 
 The scripting tool/runtime owner analyzes, compiles, and applies source patches. `VisualBlocksEditor` owns block descriptors, projection, graph/document/editor interaction, lowering/evaluation support, and diagnostics. `EditorAuthoring` displays inspection, projection, patch evaluation, and review workflow views. The editor requests changes; it does not directly overwrite C#.
 
-CoreCLR/script host, assembly context, managed/native bridges, hot reload, and other runtime-host details are implementation surfaces. Their current presence under `VisualBlocksEditor/Public/Runtime` is transitional public-surface debt, not evidence that Visual Blocks own a separate runtime. Durable public contracts are descriptors, source maps/spans, graph documents where intentionally shared, diagnostics, operations, and results.
+CoreCLR/script host, assembly context, managed/native bridges, hot reload, graph evaluation runners, and other runtime-host details are private implementation surfaces. Their location under `VisualBlocksEditor/Private` makes the owner explicit without implying that Visual Blocks own a separate runtime. Durable public contracts are descriptors, source maps/spans, graph documents where intentionally shared, diagnostics, operations, and results.
 
 ## Compatibility profile
 

@@ -22,7 +22,7 @@ Tests answer different questions. A green test is meaningful only when its categ
 
 ## Public and private graphics evidence
 
-Installed graphics consumers must include only public installed headers. Diligent white-box tests may include private RHI/Render helpers through explicit test configuration, but should be labeled as internal evidence. GPU integration is separate from both and may be unsuitable for a routine laptop acceptance run.
+Installed graphics consumers must include only public installed headers. `SagaDiligentWhiteboxTests` owns CPU/private RHI and Render evidence colocated under the owning modules and is registered as `DiligentWhiteboxTests` with the `whitebox-private` label. `SagaDiligentGpuIntegrationTests` is a separately buildable native GPU target; its CTest entries are registered only when `SAGA_ENABLE_GPU_TEST_EXECUTION=ON`. Building that target is not a GPU test pass, and GPU execution may be unsuitable for a routine laptop acceptance run.
 
 ## Safe local acceptance
 

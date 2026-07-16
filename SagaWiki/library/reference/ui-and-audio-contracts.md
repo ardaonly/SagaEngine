@@ -41,7 +41,7 @@ logical UI resource
 
 `IUiBackend` is the vendor-neutral document/render boundary. A null implementation supports focused tests and headless behavior. RmlUi is the current concrete integration.
 
-At this revision, `SagaEngine/UI/Backends/RmlUiUiBackend.h` remains in the UI `Public` tree while the implementation is private. Tests verify that ordinary backend failure reporting does not leak RmlUi types, and architecture checks protect public vendor-type usage. The header's current visibility is transitional debt; it should not be treated as a promise that RmlUi classes are stable public SagaEngine API.
+`RmlUiUiBackend.h` and its implementation live under UI `Private/Backends`. Public UI contracts expose engine-owned types and failure information without RmlUi types, and architecture checks protect that vendor boundary. A private adapter test does not make RmlUi classes part of the installed SagaEngine API.
 
 The UI backend may translate logical documents and input to the vendor. Render owns graphics submission and native graphics lifecycle. Input owns device collection. Scripting owns managed invocation. UI coordinates those ports without taking over their implementations.
 
@@ -64,4 +64,3 @@ Audio queues need bounded capacity and observable rejection/backpressure. Shutdo
 Current UI tests establish logical resource resolution, screen transitions, event ordering, capture behavior, action routing, named C# invocation, and null/RmlUi failure boundaries. They do not prove accessibility completeness, localization, arbitrary RmlUi document compatibility, a finished game UI, or a stable UI extension SDK.
 
 Current Audio code and Sandbox scenarios establish engine/event/backend foundations. They do not prove platform-wide device coverage, spatial-audio fidelity, streaming codecs, mixing quality, or production audio tooling. Manual audible output requires device/environment evidence distinct from a queue or backend unit result.
-

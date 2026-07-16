@@ -13,7 +13,7 @@ Persistence, Assets, Resources, and packaging tools solve different parts of the
 
 Public persistence contracts should describe operations, configuration, results, and ownership without requiring pqxx, hiredis, or Redis implementation types. Concrete database adapters are implementation details unless a deliberate public API decision says otherwise.
 
-At the current revision, `PostgreSQLImpl.h` and `RedisImpl.h` still reside in the Persistence `Public` tree, although their implementation sources are private and architecture checks prevent vendor-type leakage. This is transitional visibility debt, not a stable installed-API promise.
+`PostgreSQLImpl.h` and `RedisImpl.h`, together with their implementation sources, live under Persistence `Private/Backends`. Public Persistence contracts remain vendor-neutral, and architecture checks prevent pqxx, hiredis, and Redis implementation types from leaking into installed headers.
 
 Likewise, package consumers should rely on manifest and package contracts rather than the layout of an individual staging directory. A generated package is derived output and must be traceable to its source inputs.
 
