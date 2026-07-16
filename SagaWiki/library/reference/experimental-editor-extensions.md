@@ -7,14 +7,14 @@ reviewed_against: 0.0.11-post-cutover
 
 # Experimental editor extensions
 
-EditorExperimental currently contains an extension-shaped C++ surface: manifests, extension points, registry/loading, a host, lifecycle interfaces, command and panel interfaces, bridges, context, and serialization. This is useful implementation groundwork. Its location and current evidence deliberately classify it as experimental rather than a stable plugin contract.
+EditorExperimental currently contains an in-process extension experiment: extension points, a static instance registry, a host, lifecycle interfaces, command and panel interfaces, bridges, context, and serialization. This is useful implementation groundwork. Its location and current evidence deliberately classify it as experimental rather than a stable plugin contract.
 
 ## Current surface
 
 | Area | Checked-in types | Bounded meaning |
 | --- | --- | --- |
-| Description | `ExtensionManifest`, `ExtensionPoint` | In-process metadata and named integration locations. |
-| Registration/loading | `ExtensionRegistry`, `ExtensionLoader` | Discovery/registration mechanisms for the current host workflow. |
+| Description | `ExtensionPoint` | Named in-process integration locations. |
+| Registration | `ExtensionRegistry` | Explicit registration of already-created extension instances, with deterministic order and replacement tests. |
 | Lifecycle | `IEditorExtension`, `ExtensionHost`, `IExtensionContext` | Load/unload coordination against current editor services. |
 | Commands | `IExtensionCommand`, `ExtensionCommandBridge` | An extension-shaped command adapted to the editor command surface. |
 | Panels | `IExtensionPanel`, `ExtensionPanelBridge` | An extension-shaped panel adapted to the current shell. |
@@ -32,7 +32,7 @@ Qt types should remain in EditorQt or private Qt implementation. An experimental
 
 ## Compatibility status
 
-There is no declared stable plugin ABI or plugin package schema. The repository does not promise that an extension compiled for this revision will load in a later revision. Manifest fields, extension points, lifecycle order, serialization bytes, and available context operations may change while the surface remains under EditorExperimental.
+There is no declared stable plugin ABI, dynamic loader, discovery directory, or plugin package schema. The repository does not promise that an extension compiled for this revision will load in a later revision. Extension points, lifecycle order, serialization bytes, and available context operations may change while the surface remains under EditorExperimental.
 
 Because there is no stable public plugin domain or plugin contract, historical plugin licensing material is not current SagaWiki policy. It remains private/history reference for a future decision if a real contract is introduced. Current licensing authority remains `LICENSE_POLICY.toml` and its registered domains.
 
@@ -40,7 +40,7 @@ Because there is no stable public plugin domain or plugin contract, historical p
 
 Loading an in-process native extension is equivalent to loading code into the editor process unless a future isolation design proves otherwise. The current interfaces do not establish sandboxing, signature verification, permission isolation, dependency resolution, remote acquisition, automatic updates, or malicious-extension containment.
 
-An extension manifest is descriptive metadata, not a security boundary. A registry entry is not approval to execute untrusted code. Any future public loading workflow must define provenance, compatible versions, failure isolation, allowed capabilities, distribution, and licensing before it can make a plugin-product claim.
+A registry entry is not approval to execute untrusted code. The former declaration-only manifest/loader surface was removed because returning no extension was not a loading contract. Any future public loading workflow must define provenance, compatible versions, failure isolation, allowed capabilities, distribution, and licensing before it can make a plugin-product claim.
 
 ## Serialization and project truth
 
@@ -59,4 +59,3 @@ These are required review properties, not a statement that complete hostile-exte
 Promotion out of EditorExperimental would require a deliberate contract review covering at least lifecycle/versioning, manifest schema, stable extension points, error handling, packaging/discovery, compatibility policy, security/trust, licensing domain, installed-consumer evidence, and migration behavior. Until then, documentation should describe the concrete experimental surface and avoid the words “plugin SDK” as a current product capability.
 
 For the stable editor ownership boundary see [Editor shell and authoring contracts](editor-shell-and-authoring.md). For current non-claims see [Product and capability reference](product-and-capability-boundaries.md).
-

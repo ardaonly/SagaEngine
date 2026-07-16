@@ -149,7 +149,7 @@ Architecture tests inspect ownership and include rules. Installed-consumer tests
 
 A white-box include never promotes the included header to public API. Conversely, a public installed-consumer failure cannot be dismissed because an in-tree test happened to see extra include paths.
 
-Test support has its own owner. Cross-cutting deterministic helpers live under `Tests/Support`; module-specific helpers can remain in module Tests or a private test target. Production targets do not link GoogleTest or test fixtures. GPU native helpers can include private Diligent contracts only through clearly private/GPU targets and never through `SagaGraphics` install/export.
+Test support has its own owner. Cross-cutting deterministic helpers live under `Tests/Support`; module-specific tests live under the owning module’s `Tests/` directory and register through the owner-local module test helper. A `Tests/.gitkeep` is removed once real coverage exists, and uppercase empty tool test shadows are not retained beside canonical lowercase `tests/`. Production targets do not link GoogleTest or test fixtures. GPU native helpers can include private Diligent contracts only through clearly private/GPU targets and never through `SagaGraphics` install/export.
 
 Tests that scan repository paths receive the repository root explicitly and normalize separators. They do not depend on a developer working directory or historical root. Pattern checks distinguish code/include/type use from comments so documentation can name forbidden vendors without failing an API leak test.
 
