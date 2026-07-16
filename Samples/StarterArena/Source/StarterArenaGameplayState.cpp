@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 /// @file StarterArenaGameplayState.cpp
 /// @brief StarterArena gameplay state facade implementation.
 

@@ -116,60 +116,6 @@
       "priority": 1000
     },
     {
-      "pattern": "LICENSES/THIRD_PARTY_NOTICES.md",
-      "license": "CC-BY-4.0",
-      "domain_id": "licensing-governance-docs",
-      "priority": 900
-    },
-    {
-      "pattern": "SagaWiki/pages/licensing.html",
-      "license": "CC-BY-4.0",
-      "domain_id": "licensing-governance-docs",
-      "priority": 900
-    },
-    {
-      "pattern": "SagaWiki/pages/licensing.html",
-      "license": "CC-BY-4.0",
-      "domain_id": "licensing-governance-docs",
-      "priority": 900
-    },
-    {
-      "pattern": "SagaWiki/pages/licensing.html",
-      "license": "CC-BY-4.0",
-      "domain_id": "licensing-governance-docs",
-      "priority": 900
-    },
-    {
-      "pattern": "SagaWiki/pages/licensing.html",
-      "license": "CC-BY-4.0",
-      "domain_id": "licensing-governance-docs",
-      "priority": 900
-    },
-    {
-      "pattern": "SagaWiki/pages/licensing.html",
-      "license": "CC-BY-4.0",
-      "domain_id": "licensing-governance-docs",
-      "priority": 900
-    },
-    {
-      "pattern": "SagaWiki/pages/licensing.html",
-      "license": "CC-BY-4.0",
-      "domain_id": "licensing-governance-docs",
-      "priority": 900
-    },
-    {
-      "pattern": "SagaWiki/pages/licensing.html",
-      "license": "CC-BY-4.0",
-      "domain_id": "licensing-governance-docs",
-      "priority": 900
-    },
-    {
-      "pattern": "SagaWiki/pages/licensing.html",
-      "license": "CC-BY-4.0",
-      "domain_id": "licensing-governance-docs",
-      "priority": 900
-    },
-    {
       "pattern": "Tools/Licensing/**",
       "license": "MPL-2.0",
       "domain_id": "saga-licensing-tools",
@@ -206,12 +152,6 @@
       "priority": 400
     },
     {
-      "pattern": "Engine/Source/Editor/EditorCollaboration/**/SagaShared/**",
-      "license": "MPL-2.0",
-      "domain_id": "saga-shared",
-      "priority": 300
-    },
-    {
       "pattern": "Engine/Source/Runtime/Persistence/**",
       "license": "MPL-2.0",
       "domain_id": "saga-backends",
@@ -230,18 +170,6 @@
       "priority": 300
     },
     {
-      "pattern": "Tools/Developer/BoundaryCheck/Policies/**",
-      "license": "MPL-2.0",
-      "domain_id": "saga-core-metadata",
-      "priority": 300
-    },
-    {
-      "pattern": "Engine/Source/Editor/EditorCollaboration/**",
-      "license": "MPL-2.0",
-      "domain_id": "saga-collaboration",
-      "priority": 250
-    },
-    {
       "pattern": "Engine/Source/Programs/**",
       "license": "MPL-2.0",
       "domain_id": "saga-apps",
@@ -251,6 +179,12 @@
       "pattern": "Engine/Source/Runtime/**",
       "license": "MPL-2.0",
       "domain_id": "saga-runtime",
+      "priority": 200
+    },
+    {
+      "pattern": "Samples/**/Content/**",
+      "license": "Apache-2.0",
+      "domain_id": "saga-content",
       "priority": 200
     },
     {
@@ -329,12 +263,6 @@
       "pattern": "Samples/**",
       "license": "Apache-2.0",
       "domain_id": "saga-samples",
-      "priority": 100
-    },
-    {
-      "pattern": "Samples/**/Content/**",
-      "license": "Apache-2.0",
-      "domain_id": "saga-content",
       "priority": 100
     },
     {

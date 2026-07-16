@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 /// @file StarterArenaInput.h
 /// @brief App-local input providers for the visible StarterArena slice.
 

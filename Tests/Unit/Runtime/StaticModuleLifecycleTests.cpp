@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MPL-2.0
 
 #include <SagaEngine/Core/Modules/ModuleManager.h>
 #include <SagaEngine/Core/Modules/ModuleRegistry.h>

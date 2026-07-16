@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 /// @file StarterArenaGameplayState.h
 /// @brief App-local deterministic gameplay state and safe script facade.
 

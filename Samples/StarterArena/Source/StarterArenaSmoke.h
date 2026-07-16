@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 /// @file StarterArenaSmoke.h
 /// @brief StarterArena headless runtime smoke contract.
 

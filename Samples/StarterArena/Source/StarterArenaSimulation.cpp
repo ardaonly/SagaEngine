@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 /// @file StarterArenaSimulation.cpp
 /// @brief Deterministic app-local simulation kernel shared by StarterArena modes.
 

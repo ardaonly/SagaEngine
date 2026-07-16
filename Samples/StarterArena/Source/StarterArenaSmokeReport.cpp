@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 /// @file StarterArenaSmokeReport.cpp
 /// @brief StarterArena smoke JSON report helpers.
 

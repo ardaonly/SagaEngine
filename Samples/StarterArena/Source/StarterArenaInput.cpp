@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 /// @file StarterArenaInput.cpp
 /// @brief App-local StarterArena scene, synthetic, and keyboard input providers.
 
