@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 /// @file StarterArenaSmokeScript.cpp
 /// @brief StarterArena script metadata, invocation, and lifecycle smoke helpers.
 

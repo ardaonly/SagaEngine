@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 /// @file StarterArenaPlayableScene.h
 /// @brief Backend-agnostic visible scene owned by the StarterArena runtime app.
 

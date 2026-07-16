@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 /// @file HeadlessEvaluation.hpp
 /// @brief Bounded server-side MultiplayerSandbox headless evaluation proof.
 

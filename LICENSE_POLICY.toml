@@ -167,40 +167,6 @@ migration_status = "effective"
 effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
-id = "saga-shared"
-priority = 300
-paths = ["Engine/Source/Editor/EditorCollaboration/**/SagaShared/**"]
-required = true
-domain_owner = "SagaEngine"
-rights_holder_refs = ["RH-ARDA-KOYUNCU"]
-current_license_mode = "fixed-spdx"
-resolution_requirement = "metadata-or-policy-default"
-current_license_expression = "MPL-2.0"
-target_license_mode = "fixed-spdx"
-target_license_expression = "MPL-2.0"
-provenance_review = "cleared"
-licensing_authority_review = "cleared"
-migration_status = "effective"
-effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
-
-[[domains]]
-id = "saga-collaboration"
-priority = 250
-paths = ["Engine/Source/Editor/EditorCollaboration/**"]
-required = true
-domain_owner = "SagaEngine"
-rights_holder_refs = ["RH-ARDA-KOYUNCU"]
-current_license_mode = "fixed-spdx"
-resolution_requirement = "metadata-or-policy-default"
-current_license_expression = "MPL-2.0"
-target_license_mode = "fixed-spdx"
-target_license_expression = "MPL-2.0"
-provenance_review = "cleared"
-licensing_authority_review = "cleared"
-migration_status = "effective"
-effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
-
-[[domains]]
 id = "saga-backends"
 priority = 300
 paths = ["Engine/Source/Runtime/Persistence/**", "Engine/Source/Runtime/UI/**/Backends/**"]
@@ -312,23 +278,6 @@ effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 id = "saga-profiles"
 priority = 100
 paths = ["profiles/**"]
-required = true
-domain_owner = "SagaEngine"
-rights_holder_refs = ["RH-ARDA-KOYUNCU"]
-current_license_mode = "fixed-spdx"
-resolution_requirement = "metadata-or-policy-default"
-current_license_expression = "MPL-2.0"
-target_license_mode = "fixed-spdx"
-target_license_expression = "MPL-2.0"
-provenance_review = "cleared"
-licensing_authority_review = "cleared"
-migration_status = "effective"
-effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
-
-[[domains]]
-id = "saga-core-metadata"
-priority = 300
-paths = ["Tools/Developer/BoundaryCheck/Policies/**"]
 required = true
 domain_owner = "SagaEngine"
 rights_holder_refs = ["RH-ARDA-KOYUNCU"]
@@ -476,9 +425,9 @@ notes = "Code, fixtures and assets require artifact-specific classification."
 
 [[domains]]
 id = "saga-content"
-priority = 100
+priority = 200
 paths = ["Samples/**/Content/**"]
-required = true
+required = false
 domain_owner = "SagaEngine"
 rights_holder_refs = ["RH-ARDA-KOYUNCU"]
 current_license_mode = "fixed-spdx"
@@ -662,33 +611,6 @@ migration_status = "effective"
 effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 
 [[domains]]
-id = "licensing-governance-docs"
-priority = 900
-paths = [
-  "SagaWiki/pages/licensing.html",
-  "SagaWiki/pages/licensing.html",
-  "SagaWiki/pages/licensing.html",
-  "SagaWiki/pages/licensing.html",
-  "LICENSES/THIRD_PARTY_NOTICES.md",
-  "SagaWiki/pages/licensing.html",
-  "SagaWiki/pages/licensing.html",
-  "SagaWiki/pages/licensing.html",
-  "SagaWiki/pages/licensing.html",
-]
-required = true
-domain_owner = "SagaEngine"
-rights_holder_refs = ["RH-ARDA-KOYUNCU"]
-current_license_mode = "fixed-spdx"
-resolution_requirement = "metadata-or-policy-default"
-current_license_expression = "CC-BY-4.0"
-target_license_mode = "fixed-spdx"
-target_license_expression = "CC-BY-4.0"
-provenance_review = "pending"
-licensing_authority_review = "conditional"
-migration_status = "unchanged"
-effective_commit = ""
-
-[[domains]]
 id = "contributing-dco-fragment"
 priority = 1000
 paths = ["SagaWiki/pages/licensing.html"]
@@ -769,7 +691,7 @@ expected_exported_target = false
 export_validation = "manual-pending"
 [[targets]]
 name = "SagaShared"
-source_domains = ["saga-shared"]
+source_domains = ["saga-editor"]
 public_dependencies = []
 private_dependencies = ["SagaCoreLog"]
 runtime_dependencies = []
@@ -788,7 +710,7 @@ expected_exported_target = false
 export_validation = "manual-pending"
 [[targets]]
 name = "SagaCollaboration"
-source_domains = ["saga-collaboration"]
+source_domains = ["saga-editor"]
 public_dependencies = []
 private_dependencies = ["SagaShared"]
 runtime_dependencies = []
@@ -1144,8 +1066,6 @@ source_domains = [
   "saga-engine",
   "saga-runtime",
   "saga-server",
-  "saga-shared",
-  "saga-collaboration",
   "saga-backends",
   "saga-editor",
 ]
