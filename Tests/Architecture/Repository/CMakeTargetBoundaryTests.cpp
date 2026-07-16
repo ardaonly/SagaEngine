@@ -237,6 +237,31 @@ TEST(CMakeTargetBoundaryTests, EditorAggregateComposesOnlyModuleObjects)
     }
 }
 
+TEST(CMakeTargetBoundaryTests, ProductAggregateComposesOnlyProgramObjects)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto targets = ReadText(root / "cmake/modules/SagaTargets.cmake");
+
+    EXPECT_NE(
+        targets.find("saga_compose_registered_objects(SagaProductLib)"),
+        std::string::npos);
+    EXPECT_EQ(targets.find("${SAGA_PRODUCT_SOURCES}"), std::string::npos);
+
+    for (const auto& manifest : {
+             root / "Engine/Source/Programs/SagaLauncher/CMakeLists.txt",
+             root / "Engine/Source/Editor/VisualBlocksEditor/CMakeLists.txt",
+             root / "Engine/Source/Editor/EditorCollaboration/CMakeLists.txt",
+             root / "Tests/Evidence/FirstPlayable/CMakeLists.txt"})
+    {
+        EXPECT_NE(ReadText(manifest).find("PRIVATE_DEPS"), std::string::npos)
+            << manifest;
+    }
+
+    const auto install = ReadText(root / "cmake/modules/SagaInstall.cmake");
+    EXPECT_EQ(install.find("Module"), std::string::npos)
+        << "Module object targets must not be installed or exported";
+}
+
 TEST(CMakeTargetBoundaryTests, ServerTargetAvoidsClientAndVendorBackends)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);

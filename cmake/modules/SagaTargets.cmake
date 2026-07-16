@@ -34,7 +34,6 @@ function(saga_create_engine_targets)
     saga_get_registered_sources(SagaBackend BACKEND_SOURCES)
     saga_get_registered_sources(SagaSandboxLib SANDBOX_SOURCES)
     saga_get_registered_sources(SagaEditorLabLib EDITORLAB_SOURCES)
-    saga_get_registered_sources(SagaProductLib SAGA_PRODUCT_SOURCES)
     saga_get_registered_sources(SagaCoreLog CORE_LOG_SOURCES)
     saga_get_registered_sources(SagaDiagnostics DIAGNOSTICS_SOURCES)
     saga_get_graphics_core_sources(SAGA_GRAPHICS_CORE_SOURCES)
@@ -531,22 +530,18 @@ function(saga_create_engine_targets)
     )
 
     # --- Saga Product Orchestration Library -----------------------------------
+    saga_create_registered_object_modules(
+        SagaProductLib SAGA_PRODUCT_MODULE_TARGETS)
+    foreach(_module_target IN LISTS SAGA_PRODUCT_MODULE_TARGETS)
+        target_compile_definitions(${_module_target} PRIVATE
+            SAGA_PRODUCT_VERSION="${CMAKE_PROJECT_VERSION}"
+            SAGA_PRODUCT_GIT_COMMIT="${SAGA_GIT_COMMIT}"
+            SAGA_PRODUCT_PLATFORM="${CMAKE_SYSTEM_NAME}"
+        )
+    endforeach()
     add_library(SagaProductLib STATIC)
     saga_apply_compiler_flags(SagaProductLib)
-    saga_link_thirdparty(SagaProductLib)
-
-    target_sources(SagaProductLib PRIVATE
-        ${SAGA_PRODUCT_SOURCES}
-    )
-
-    target_include_directories(SagaProductLib PRIVATE
-        ${SAGA_ROOT}/Engine/Source/Programs/SagaLauncher/Private
-        ${SAGA_ROOT}/Tests/Evidence/FirstPlayable/Source
-        ${SAGA_ROOT}/Tools/SagaPackager
-        ${SAGA_ROOT}/Tools/SagaScript
-        ${SAGA_ROOT}/Engine/Source/Editor/VisualBlocksEditor/Private/ProductIntegration
-        ${SAGA_ROOT}/Engine/Source/Editor/EditorCollaboration/Private/ProductIntegration
-    )
+    saga_compose_registered_objects(SagaProductLib)
 
     target_link_libraries(SagaProductLib PUBLIC
         SagaEngine
@@ -559,6 +554,7 @@ function(saga_create_engine_targets)
     target_link_libraries(SagaProductLib PRIVATE
         SagaAssetPipelineLib
         SagaBackend
+        OpenSSL::Crypto
     )
 
     target_compile_definitions(SagaProductLib PUBLIC
