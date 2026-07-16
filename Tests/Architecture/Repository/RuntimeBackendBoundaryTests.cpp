@@ -150,7 +150,7 @@ std::string Relative(const std::filesystem::path& path)
 }
 } // namespace
 
-TEST(RuntimeBackendBoundaryTests, DiligentImplementationStaysInRhiOrRenderPrivate)
+TEST(RuntimeBackendBoundaryTests, DiligentSourcesStayInRhiOrRenderPrivateOrWhiteboxTests)
 {
     const auto runtimeRoot =
         std::filesystem::path(SAGA_SOURCE_ROOT) / "Engine/Source/Runtime";
@@ -179,7 +179,12 @@ TEST(RuntimeBackendBoundaryTests, DiligentImplementationStaysInRhiOrRenderPrivat
             relative.rfind("Engine/Source/Runtime/RHI/Private/", 0) == 0;
         const bool ownedByRenderPrivate =
             relative.rfind("Engine/Source/Runtime/Render/Private/", 0) == 0;
-        if (!ownedByRhiPrivate && !ownedByRenderPrivate)
+        const bool ownedByRhiWhitebox =
+            relative.rfind("Engine/Source/Runtime/RHI/Tests/", 0) == 0;
+        const bool ownedByRenderWhitebox =
+            relative.rfind("Engine/Source/Runtime/Render/Tests/", 0) == 0;
+        if (!ownedByRhiPrivate && !ownedByRenderPrivate &&
+            !ownedByRhiWhitebox && !ownedByRenderWhitebox)
         {
             offenders.push_back(relative);
         }
@@ -187,7 +192,7 @@ TEST(RuntimeBackendBoundaryTests, DiligentImplementationStaysInRhiOrRenderPrivat
 
     EXPECT_GT(diligentSourceCount, 0u);
     EXPECT_TRUE(offenders.empty())
-        << "Diligent implementation escaped RHI/Render Private ownership: "
+        << "Diligent source escaped RHI/Render Private or module Tests ownership: "
         << (offenders.empty() ? "" : offenders.front());
 }
 

@@ -262,16 +262,17 @@ bool IsDiligentAdapterSplitTestSource(const std::filesystem::path& path)
 
 std::filesystem::path DiligentAdapterTestHelperPath()
 {
-    return std::filesystem::path(SAGA_SOURCE_ROOT) / "Tests" / "Unit" /
-           "Render" / "GraphicsDiligentBackendTestHelpers.h";
+    return std::filesystem::path(SAGA_SOURCE_ROOT) / "Engine" / "Source" /
+           "Runtime" / "RHI" / "Tests" /
+           "GraphicsDiligentBackendTestHelpers.h";
 }
 
 } // namespace
 
 TEST(GraphicsDiligentAdapterIdentityTests, SplitSourcesKeepUniqueTestIdentities)
 {
-    const auto renderRoot = std::filesystem::path(SAGA_SOURCE_ROOT) / "Tests" /
-                            "Unit" / "Render";
+    const auto renderRoot = std::filesystem::path(SAGA_SOURCE_ROOT) / "Engine" /
+                            "Source" / "Runtime" / "RHI" / "Tests";
     const auto monolith =
         renderRoot / "GraphicsDiligentBackendAdapterTests.cpp";
     EXPECT_FALSE(std::filesystem::exists(monolith))
