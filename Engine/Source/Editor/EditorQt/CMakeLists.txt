@@ -1,6 +1,9 @@
 saga_add_editor_module(EditorQt
     MODULE_DIR Engine/Source/Editor/EditorQt
     TARGET SagaEditorLib
+    PUBLIC_DEPS
+        Qt6::Core
+        Qt6::Widgets
     SOURCES
         Private/SagaEditorQt/Commands/CommandPalette.cpp
         Private/SagaEditorQt/Host/EditorProjectInspection.cpp

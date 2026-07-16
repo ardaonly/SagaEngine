@@ -210,6 +210,33 @@ TEST(CMakeTargetBoundaryTests, RuntimeVendorDependenciesMatchHeaderVisibility)
     EXPECT_FALSE(ContainsCMakeToken(backendLinks, "imgui::imgui"));
 }
 
+TEST(CMakeTargetBoundaryTests, EditorAggregateComposesOnlyModuleObjects)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto targets = ReadText(root / "cmake/modules/SagaTargets.cmake");
+
+    EXPECT_NE(
+        targets.find("saga_compose_registered_objects(SagaEditorLib)"),
+        std::string::npos);
+    EXPECT_EQ(targets.find("${EDITOR_SOURCES}"), std::string::npos);
+
+    const auto editorQt =
+        ReadText(root / "Engine/Source/Editor/EditorQt/CMakeLists.txt");
+    const auto publicDeps = editorQt.find("PUBLIC_DEPS");
+    ASSERT_NE(publicDeps, std::string::npos);
+    EXPECT_NE(editorQt.find("Qt6::Core", publicDeps), std::string::npos);
+    EXPECT_NE(editorQt.find("Qt6::Widgets", publicDeps), std::string::npos);
+
+    for (const auto& module : {
+             "EditorCore", "EditorFramework", "EditorAuthoring"})
+    {
+        const auto manifest = ReadText(
+            root / "Engine/Source/Editor" / module / "CMakeLists.txt");
+        EXPECT_NE(manifest.find("PRIVATE_DEPS"), std::string::npos)
+            << module;
+    }
+}
+
 TEST(CMakeTargetBoundaryTests, ServerTargetAvoidsClientAndVendorBackends)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);

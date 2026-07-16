@@ -1,6 +1,7 @@
 saga_add_editor_module(EditorFramework
     MODULE_DIR Engine/Source/Editor/EditorFramework
     TARGET SagaEditorLib
+    PRIVATE_DEPS nlohmann_json::nlohmann_json
     SOURCES
         Private/SagaEditor/Composition/EditorCompositionArtifactLoader.cpp
         Private/SagaEditor/Composition/EditorCompositionDiagnostics.cpp
