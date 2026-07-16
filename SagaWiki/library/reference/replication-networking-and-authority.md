@@ -288,7 +288,7 @@ The durable invariants are:
 
 Unit tests can prove wire bounds, sequence windows, state transitions, baseline/delta application, atomic rollback, authority tables, rate/memory guards, deterministic chaos, interpolation buffers, prediction reconciliation, and telemetry. Integration tests can connect client/server runtime owners with deterministic transport fixtures. Stress and soak tests are separately labeled and are not assumed safe local acceptance.
 
-A passing loopback fixture does not prove production Internet networking, secure authentication, denial-of-service resistance, deployed shards, persistence, or a complete dedicated server. `SagaServer` currently has no implemented entry point, so server-library evidence must be described as such.
+A passing loopback fixture does not prove production Internet networking, secure authentication, denial-of-service resistance, deployed shards, persistence, or a complete dedicated server. There is no SagaServer program entry point, so `SagaServerLib` and ServerAuthority evidence must be described as library evidence.
 
 ## Change checklist
 

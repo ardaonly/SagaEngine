@@ -79,7 +79,7 @@ Runtime modules do not depend on editor modules or programs. A low-level runtime
 - EditorQt owns Qt-specific application, widgets, and adapters.
 - EditorAuthoring owns project inspection and semantic authoring workflows.
 - VisualBlocksEditor owns block descriptors, graphs, projection/editor views, lowering, and related evaluation surfaces.
-- EditorScripting is the editor scripting owner even where its current public surface is small.
+- Runtime/Scripting owns script lifecycle and hosting; EditorAuthoring and VisualBlocksEditor own current editor-facing script inspection, projection, and patch workflows.
 - EditorCollaboration owns collaboration value types and implementations, with product claims constrained by evidence.
 - EditorExperimental contains deliberately unstable editor work rather than promoting it as stable API.
 
@@ -139,7 +139,7 @@ Dependency visibility is reviewed both directions. A `PUBLIC` dependency can lea
 
 ## Program boundary
 
-`SagaRuntime`, `SagaEditor`, `SagaEditorLab`, `SagaLauncher`, and `SagaSandbox` assemble modules for different workflows. `SagaServer` currently reserves ownership without an implemented `main.cpp`. None of these programs is permission to place reusable runtime/editor behavior in a program-private directory simply because only one executable currently calls it.
+`SagaRuntime`, `SagaEditor`, `SagaEditorLab`, `SagaLauncher`, and `SagaSandbox` assemble modules for different workflows. There is no SagaServer program owner; `SagaServerLib` remains a ServerAuthority library target rather than an executable claim. None of these programs is permission to place reusable runtime/editor behavior in a program-private directory simply because only one executable currently calls it.
 
 SagaLauncher may route project validation, script analysis, packaging, and program launch, but the owning tools remain authoritative. EditorLab and Sandbox are development/evidence surfaces. Deterministic checks should live in tests when possible; interactive scenarios remain program-owned only when interaction is part of the evidence.
 

@@ -14,7 +14,7 @@
       "Tools"
     ],
     "state": {
-      "saga_server": "placeholder"
+      "saga_server": "absent"
     },
     "owners": [
       {
@@ -178,12 +178,6 @@
         ]
       },
       {
-        "path": "Engine/Source/Editor/EditorScripting",
-        "pages": [
-          "csharp-visual-blocks"
-        ]
-      },
-      {
         "path": "Engine/Source/Editor/VisualBlocksEditor",
         "pages": [
           "csharp-visual-blocks",
@@ -219,13 +213,6 @@
         "path": "Engine/Source/Programs/SagaSandbox",
         "pages": [
           "programs-workflows"
-        ]
-      },
-      {
-        "path": "Engine/Source/Programs/SagaServer",
-        "pages": [
-          "programs-workflows",
-          "reference-replication-authority"
         ]
       },
       {
@@ -357,7 +344,7 @@
       "source": "library/start/programs-and-workflows.md",
       "title": "Programs and local workflows",
       "section": "Start here",
-      "summary": "Bounded roles for runtime, editor, launcher, lab, sandbox, and the empty server program owner.",
+      "summary": "Bounded roles for runtime, editor, launcher, lab, sandbox, and the absent dedicated-server entry point.",
       "status": "bounded",
       "tags": [
         "programs",

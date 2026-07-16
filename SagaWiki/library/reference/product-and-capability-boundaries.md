@@ -22,8 +22,8 @@ Genre-specific historical language is not current public positioning. Server aut
 The repository contains implemented code and focused evidence in these areas:
 
 - runtime foundations: Core, Math, Diagnostics, ECS, Assets, Resources, Input, Audio, Render, RHI, UI, Scripting, Networking, Replication, Persistence, Simulation, World, ServerAuthority, and SagaRuntime;
-- editor foundations: EditorCore, EditorFramework, EditorQt, EditorAuthoring, VisualBlocksEditor, EditorScripting, EditorCollaboration, and EditorExperimental;
-- programs: runtime, editor, editor lab, launcher, sandbox, and a reserved server owner;
+- editor foundations: EditorCore, EditorFramework, EditorQt, EditorAuthoring, VisualBlocksEditor, EditorCollaboration, and EditorExperimental;
+- programs: runtime, editor, editor lab, launcher, and sandbox; no dedicated-server program is currently present;
 - project and packaging tools: project validation, script analysis/building, package inspection/staging, Forge dependency setup, licensing checks, and internal boundary checks;
 - tests and evidence: focused unit, architecture, installed-consumer, integration, GPU, sample, and stress-oriented areas.
 

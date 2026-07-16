@@ -319,7 +319,7 @@ def validate_registry(registry: dict[str, Any]) -> None:
         raise WikiError("wiki-library.json: repository_coverage.scan_roots must be a non-empty string array")
     if not isinstance(owners, list) or not owners:
         raise WikiError("wiki-library.json: repository_coverage.owners must be a non-empty array")
-    if not isinstance(state, dict) or state.get("saga_server") not in {"placeholder", "implemented"}:
+    if not isinstance(state, dict) or state.get("saga_server") not in {"absent", "implemented"}:
         raise WikiError("wiki-library.json: repository_coverage.state.saga_server is invalid")
 
     ids: set[str] = set()
@@ -406,7 +406,9 @@ def validate_repo_alignment(
         and path.suffix.lower() in {".c", ".cc", ".cpp", ".cxx"}
         and re.search(r"\bmain\s*\(", path.read_text(encoding="utf-8", errors="ignore"))
     ]
-    actual_server_state = "implemented" if server_entrypoints else "placeholder"
+    actual_server_state = (
+        "implemented" if server_entrypoints else "absent" if not server_root.exists() else "placeholder"
+    )
     expected_server_state = coverage["state"]["saga_server"]
     if actual_server_state != expected_server_state:
         errors.append(
@@ -414,13 +416,15 @@ def validate_repo_alignment(
             f"{expected_server_state}, repository is {actual_server_state}"
         )
     program_article = article_by_id.get("programs-workflows")
-    placeholder_statement = "no current executable implementation"
+    absent_statement = "no sagaserver program owner"
     if program_article:
-        has_placeholder_statement = placeholder_statement in program_article.body.lower()
-        if actual_server_state == "placeholder" and not has_placeholder_statement:
-            errors.append("programs-workflows must state that SagaServer has no current executable implementation")
-        if actual_server_state == "implemented" and has_placeholder_statement:
-            errors.append("programs-workflows still describes an implemented SagaServer as a placeholder")
+        has_absent_statement = absent_statement in program_article.body.lower()
+        if actual_server_state == "absent" and not has_absent_statement:
+            errors.append("programs-workflows must state that there is no SagaServer program owner")
+        if actual_server_state == "implemented" and has_absent_statement:
+            errors.append("programs-workflows still describes an implemented SagaServer as absent")
+        if actual_server_state == "placeholder":
+            errors.append("SagaServer program owner exists without an implemented entry point")
 
     return errors
 

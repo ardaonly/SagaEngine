@@ -108,7 +108,7 @@ An authority owner must fail closed for commands it cannot validate. If a zone i
 
 Cross-zone peer failure, persistence unavailability, replication backpressure, or tick overrun are distinct reasons. A generic “server error” is insufficient for operation and tests. Recovery must not double-apply commands or transfer authority to two owners.
 
-The current repository does not provide a completed `SagaServer` program; these are library correctness boundaries, not deployed service claims.
+The current repository has no `SagaServer` program entry point; these are library correctness boundaries, not deployed service claims.
 
 ## Tests
 

@@ -16,7 +16,6 @@ Programs assemble owned modules into local entry points. They can coordinate val
 | `SagaEditorLab` | Development scenarios for editor host/shell, panels, profiles, customization, and deterministic checks. |
 | `SagaLauncher` | Local project catalog/workspace and product-workflow router that surfaces tool/process results. |
 | `SagaSandbox` | Manual and development scenarios for runtime subsystems, probes, rendering, and diagnostics. |
-| `SagaServer` | Reserved program owner with no current executable implementation; ServerAuthority foundations live in runtime modules. |
 
 ## Product workflow routing
 
@@ -26,9 +25,9 @@ SagaLauncher may open or select a project, invoke the owning validator or tool, 
 
 EditorLab and Sandbox are development/evidence surfaces. Deterministic subsystem assertions should move into focused automated tests when practical; interactive scenarios remain useful where observation or device behavior matters. Neither program defines public engine API merely because it can reach several modules.
 
-## Placeholder honesty
+## Server entry-point boundary
 
-`Engine/Source/Programs/SagaServer` currently contains build ownership scaffolding but no `main.cpp`. This is not a dedicated-server product or a network-service claim. Current authority behavior is documented under [Networking, replication, and authority](../runtime/networking-and-authority.md); any future server entry point should remain a thin launcher over those owners.
+There is no SagaServer program owner or dedicated-server entry point. `Runtime/ServerAuthority` and the `SagaServerLib` library target contain authority foundations, not a deployed network service. Current authority behavior is documented under [Networking, replication, and authority](../runtime/networking-and-authority.md); any future server entry point should remain a thin launcher over those owners.
 
 ## Workflow non-claims
 

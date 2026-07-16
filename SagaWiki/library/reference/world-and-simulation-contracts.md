@@ -89,7 +89,7 @@ This evidence does not establish infinite worlds, production world persistence, 
 
 ## Non-claims
 
-The current World owner is not evidence of shipped persistent community worlds. `SagaServer` does not currently provide a completed dedicated-server executable. ServerAuthority types do not by themselves prove a deployed service. World partition types do not prove production-scale streaming or persistence.
+The current World owner is not evidence of shipped persistent community worlds. No SagaServer program or dedicated-server executable is currently provided. ServerAuthority types do not by themselves prove a deployed service. World partition types do not prove production-scale streaming or persistence.
 
 ## Change checklist
 
