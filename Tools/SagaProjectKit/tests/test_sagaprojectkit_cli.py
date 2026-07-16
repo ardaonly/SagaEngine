@@ -13,8 +13,28 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROJECT = REPO_ROOT / "Tools" / "SagaProjectKit" / "SagaProjectKit.csproj"
+CLI_ASSEMBLY = PROJECT.parent / "bin" / "Release" / "net10.0" / "sagaproject.dll"
 SAMPLE_PROJECT = REPO_ROOT / "Samples" / "MultiplayerSandbox" / "MultiplayerSandbox.sagaproj"
 SAMPLE_SLICE = REPO_ROOT / "Samples" / "MultiplayerSandbox" / ".saga" / "slices" / "designer-local.slice.json"
+_cli_built = False
+
+
+def ensure_cli_built(env: dict[str, str]) -> None:
+    global _cli_built
+    if _cli_built:
+        return
+    result = subprocess.run(
+        ["dotnet", "build", str(PROJECT), "--configuration", "Release", "--nologo", "--verbosity", "quiet"],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert CLI_ASSEMBLY.is_file(), f"missing SagaProjectKit assembly: {CLI_ASSEMBLY}"
+    _cli_built = True
 
 
 def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
@@ -22,8 +42,9 @@ def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
     env.setdefault("DOTNET_CLI_HOME", "/tmp/sagaprojectkit-dotnet-home")
     env.setdefault("NUGET_PACKAGES", "/tmp/sagaprojectkit-nuget")
     env.setdefault("DOTNET_CLI_TELEMETRY_OPTOUT", "1")
+    ensure_cli_built(env)
     return subprocess.run(
-        ["dotnet", "run", "--project", str(PROJECT), "--", *args],
+        ["dotnet", str(CLI_ASSEMBLY), *args],
         cwd=REPO_ROOT,
         env=env,
         text=True,

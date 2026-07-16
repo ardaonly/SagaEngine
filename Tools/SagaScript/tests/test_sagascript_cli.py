@@ -11,7 +11,8 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2].parent
-SAGASCRIPT = REPO_ROOT / "Tools" / "SagaScript" / "sagascript"
+PROJECT = REPO_ROOT / "Tools" / "SagaScript" / "SagaScript.csproj"
+CLI_ASSEMBLY = PROJECT.parent / "bin" / "Release" / "net10.0" / "sagascript.dll"
 SHARED_SCRIPTING_ROOT = REPO_ROOT / "Shared" / "include" / "SagaShared" / "Scripting"
 BUILTIN_GAMEPLAY_NODES = (
     REPO_ROOT
@@ -34,6 +35,25 @@ SHARED_BOUNDARY_FORBIDDEN = (
     "Forge",
     "Pr" + "ism",
 )
+_cli_built = False
+
+
+def ensure_cli_built(env: dict[str, str]) -> None:
+    global _cli_built
+    if _cli_built:
+        return
+    result = subprocess.run(
+        ["dotnet", "build", str(PROJECT), "--configuration", "Release", "--nologo", "--verbosity", "quiet"],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert CLI_ASSEMBLY.is_file(), f"missing SagaScript assembly: {CLI_ASSEMBLY}"
+    _cli_built = True
 
 
 def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
@@ -41,8 +61,9 @@ def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
     env.setdefault("DOTNET_CLI_HOME", "/tmp/sagascript-dotnet-home")
     env.setdefault("NUGET_PACKAGES", "/tmp/sagascript-nuget-blockf")
     env.setdefault("DOTNET_CLI_TELEMETRY_OPTOUT", "1")
+    ensure_cli_built(env)
     return subprocess.run(
-        [str(SAGASCRIPT), *args],
+        ["dotnet", str(CLI_ASSEMBLY), *args],
         cwd=REPO_ROOT,
         env=env,
         text=True,
