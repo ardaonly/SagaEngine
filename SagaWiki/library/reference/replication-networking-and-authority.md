@@ -288,7 +288,7 @@ The durable invariants are:
 
 Unit tests can prove wire bounds, sequence windows, state transitions, baseline/delta application, atomic rollback, authority tables, rate/memory guards, deterministic chaos, interpolation buffers, prediction reconciliation, and telemetry. Integration tests can connect client/server runtime owners with deterministic transport fixtures. Stress and soak tests are separately labeled and are not assumed safe local acceptance.
 
-A passing loopback fixture does not prove production Internet networking, secure authentication, denial-of-service resistance, deployed shards, persistence, or a complete dedicated server. There is no SagaServer program entry point, so `SagaServerLib` and ServerAuthority evidence must be described as library evidence.
+A passing loopback fixture does not prove production Internet networking, secure authentication, denial-of-service resistance, deployed shards, persistence, or a complete dedicated server. `ZoneServerConfig` defaults to loopback and rejects non-loopback bind addresses because no hosted-service/security contract exists. Networking exposes the implemented UDP factory directly rather than a boolean protocol selector with a null TCP branch. Unwired secure-channel declarations were removed instead of being presented as an active packet path. There is no SagaServer program entry point, so `SagaServerLib` and ServerAuthority evidence must be described as library evidence.
 
 ## Change checklist
 

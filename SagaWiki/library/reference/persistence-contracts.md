@@ -13,6 +13,8 @@ The Persistence module contains storage-facing interfaces and a bounded event-lo
 
 `IDatabase` and the values in `Types.h` form the general storage boundary used by current integration paths. More focused interfaces separate concerns that otherwise tend to collect inside a concrete database wrapper:
 
+`DatabaseStatus` classifies success, not-initialized, not-found, queue-full, backend, cancellation, and invalid-data outcomes. `ReadEntity` returns an optional `EntitySnapshot` with that status; a boolean “found” callback is not treated as a data read. Calls made before backend initialization fail closed and still complete their callback.
+
 | Contract | Responsibility |
 | --- | --- |
 | `IAsyncQueryExecutor` | Submit database work without turning a backend connection into shared caller state. |
@@ -31,7 +33,7 @@ An asynchronous result needs an explicit completion state, error representation,
 
 Connection pools bound scarce backend resources. A pool must not hand the same mutable connection to unrelated concurrent callers without a documented synchronization model. Exhaustion and shutdown are ordinary failure paths and should not degrade into an unbounded wait.
 
-The current EventLog tests cover initialization, single and multiple append, queue backpressure, flush, concurrent append, and statistics. They demonstrate the in-process queue/flush contract. They do not prove crash-consistent durability, exactly-once delivery, replication, backup, or recovery after process termination.
+The current EventLog tests cover initialization, append/commit, queue backpressure, flush, concurrent append, statistics, and the explicit absence of replay support. `ReplayFrom` returns false until the storage contract can actually enumerate durable records. These tests demonstrate the in-process queue/flush contract. They do not prove crash-consistent durability, exactly-once delivery, replication, backup, or recovery after process termination.
 
 ## Schema migration
 
@@ -60,5 +62,7 @@ The checked-in boundary is vendor-neutral public contracts with `PostgreSQLImpl`
 Persistence errors should retain the operation class and stable diagnostic context while avoiding credentials, raw secrets, or unrestricted query contents. Timeouts, pool exhaustion, malformed records, schema mismatch, duplicate identity, backend unavailability, and shutdown cancellation are distinct outcomes.
 
 PostgreSQL integration tests exercise initialization, entity write/read, statistics, and queue pressure in their configured environment. Passing them proves the named adapter path against that environment. It does not establish production topology, failover, encryption, access control, monitoring, retention, backup, or capacity.
+
+The PostgreSQL entity row stores and round-trips the complete snapshot identity, timestamp, bytes, and component-type list; the legacy component table is not populated with duplicated whole-snapshot bytes. Redis encodes the same snapshot fields for cache round trips and appends events with Redis Streams `XADD`, avoiding timestamp-key collisions. Both write workers drain accepted queue entries during orderly shutdown. Live service behavior remains integration evidence and can be skipped only when the service was not explicitly requested.
 
 For project/package persistence boundaries see [Persistence, assets, and packages](../runtime/persistence-and-packages.md). For online authority limits see [Replication, networking, and server authority](replication-networking-and-authority.md).

@@ -37,7 +37,7 @@ Documentation uses the preset and discovers the active configured build director
 
 Each runtime/editor module owns its `CMakeLists.txt`. Programs own thin executable targets. Top-level CMake composes modules and shared policy. A target's public include paths, public dependencies, install/export role, and sources must match its semantic owner.
 
-`PUBLIC` dependencies are justified by public headers; implementation-only vendors/backends are `PRIVATE`. Tests link their own helper/private targets. Aggregate targets retained through the cutover are transitional and do not authorize new cross-owner source lists.
+`PUBLIC` dependencies are justified by public headers; implementation-only vendors/backends are `PRIVATE`. Tests link their own helper/private targets. `SagaEngine`, `SagaRuntimeLib`, and `SagaServerLib` compose owner OBJECT modules without exporting those OBJECT targets. The installed development package preserves the aggregate imported targets (plus Core/Diagnostics/Shared/Collaboration/Backend) and resolves their declared external dependencies through `SagaEngineConfig.cmake`.
 
 Build success alone does not prove target purity. Architecture/installed-consumer checks catch source ownership, private include, vendor leakage, and export issues.
 

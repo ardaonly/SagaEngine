@@ -47,6 +47,8 @@ Negative tests matter. Rejecting stale hashes, unsafe paths, private includes, i
 
 Unit tests isolate a type/module behavior with deterministic inputs. They prove state transitions, parsers, validation, math, scheduling policy, serialization, failure classes, and ownership invariants that do not require a real external environment.
 
+Runtime and editor module tests live in each owner’s `Tests/` directory and are registered as `Saga<Module>ModuleTests` through the shared CMake helper. A populated test directory contains executable test sources, not `.gitkeep` or empty placeholder assertions. Cross-cutting suites remain under root `Tests/` when the behavior genuinely joins owners.
+
 Good unit tests inject clocks, sources, transports, allocators, or backends instead of sleeping or using global machine state. A unit test that initializes a real GPU/database/network service is misclassified and makes local acceptance less predictable.
 
 ### Architecture tests
@@ -61,7 +63,7 @@ Architecture checks should parse real include/type/CMake patterns rather than fl
 
 An installed consumer configures/builds against the produced install/export surface, not the source tree’s convenient include paths. It includes only installed public headers and links only exported targets. This exposes missing transitive public dependencies, private include leaks, uninstalled headers, and incorrect target exports.
 
-`SagaGraphicsInstalledConsumerTest` is evidence for the public graphics install contract. It does not authorize a private Diligent include and does not prove native GPU rendering.
+`SagaGraphicsInstalledConsumerTest` also configures against the exported Core, Diagnostics, Shared, Collaboration, Engine, Runtime, Server, and Backend aggregate targets. Module OBJECT targets remain private and unexported. This is public header/link-package evidence; it does not authorize a private Diligent include or prove native GPU rendering.
 
 ### White-box private tests
 

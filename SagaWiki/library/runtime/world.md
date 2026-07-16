@@ -23,6 +23,8 @@ Future public growth should stay in copied value records: explicit commands, rea
 
 Runtime `WorldState` and authoritative simulation state remain separate from scene authoring source. Serialized snapshots and replicated deltas are runtime representations. They do not replace project-owned scene/entity truth or grant a client authority.
 
+Private `EventStream` copies its configured event/snapshot paths, closes open files on destruction, and round-trips snapshot metadata and bytes in focused tests. `WorldNode` does not yet have a real ECS component serializer; it therefore suppresses full snapshots instead of emitting zero-filled placeholder component records or incrementing sent evidence.
+
 ## Evidence boundary
 
 Architecture checks can prove the public/private header split, while unit/integration tests prove the specific lifecycle, simulation, serialization, authority, or replication paths they execute. This evidence does not establish shipped persistent worlds.

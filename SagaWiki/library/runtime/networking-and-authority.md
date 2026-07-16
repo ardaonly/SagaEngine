@@ -31,4 +31,6 @@ These invariants are represented by current Replication types and focused integr
 
 Unit and integration tests cover pieces of ownership, command intake, zone-server behavior, dirty replication, interest, diagnostics, and client/server interaction. This is not a claim of a production networking service, internet-scale operation, shipped persistent community worlds, or a hardened dedicated-server product.
 
+The bounded server harness defaults to `127.0.0.1` and rejects public bind addresses. `TransportFactory::CreateUdp` names the only implemented transport directly. No dynamic secure-channel surface is presented as wired packet security; production authentication, encryption, key management, and hostile-network deployment remain explicit non-claims.
+
 See [Replication, networking, and server authority](../reference/replication-networking-and-authority.md) for the formal receive/apply pipeline, state machine, sequence, baseline/delta, prediction, interest, memory/rate, chaos, and authority rules.
