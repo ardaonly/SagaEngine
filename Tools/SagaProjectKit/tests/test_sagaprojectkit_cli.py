@@ -2430,7 +2430,36 @@ def test_asset_import_cook_workflow_missing_and_blocked_evidence_do_not_pass() -
         assert load_report(blocked_out)["readinessStatus"] == "Blocked"
 
 
+def prepare_tracked_sample_fixture(root: Path) -> tuple[Path, Path]:
+    """Copy the tracked sample and materialize its ignored generated evidence."""
+    fixture_root = root / "MultiplayerSandbox"
+    shutil.copytree(
+        SAMPLE_PROJECT.parent,
+        fixture_root,
+        ignore=shutil.ignore_patterns("Build", "Generated"),
+    )
+    (fixture_root / "Build" / "Reports").mkdir(parents=True)
+    write_json(
+        fixture_root / "Generated" / "SourceTruth" / "source_truth_foundation.generated.json",
+        {
+            "schemaVersion": 1,
+            "artifactId": "source-truth-foundation-projection",
+            "artifactKind": "GeneratedProjection",
+            "canonical": False,
+            "sourceSceneId": "source-truth-foundation",
+            "sourceHash": "scene-source-hash-v0",
+            "summary": "Generated projection fixture used only as non-canonical evidence.",
+        },
+    )
+    return (
+        fixture_root / "MultiplayerSandbox.sagaproj",
+        fixture_root / ".saga" / "slices" / "designer-local.slice.json",
+    )
+
+
 def run_all() -> None:
+    global SAMPLE_PROJECT, SAMPLE_SLICE
+
     tests = [
         test_valid_project_report_passed,
         test_missing_required_field_fails,
@@ -2499,8 +2528,16 @@ def run_all() -> None:
         test_focused_test_health_evaluation_focused_test_health_gate_preserves_unclaimed_rows,
         test_asset_import_cook_workflow_missing_and_blocked_evidence_do_not_pass,
     ]
-    for test in tests:
-        test()
+    source_project = SAMPLE_PROJECT
+    source_slice = SAMPLE_SLICE
+    with tempfile.TemporaryDirectory() as tmp:
+        SAMPLE_PROJECT, SAMPLE_SLICE = prepare_tracked_sample_fixture(Path(tmp))
+        try:
+            for test in tests:
+                test()
+        finally:
+            SAMPLE_PROJECT = source_project
+            SAMPLE_SLICE = source_slice
     print(f"{len(tests)} SagaProjectKit CLI tests passed")
 
 
