@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <future>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -87,24 +88,32 @@ TEST_F(PostgreSQLTest, WriteAndReadEntity) {
     std::promise<bool> writePromise;
     auto writeFuture = writePromise.get_future();
 
-    _db->WriteEntity(snapshot, [&](bool ok, const std::string& /*msg*/) {
-        writePromise.set_value(ok);
+    _db->WriteEntity(snapshot, [&](DatabaseStatus result) {
+        writePromise.set_value(result.IsSuccess());
     });
 
     auto status = writeFuture.wait_for(kMediumTimeout);
     ASSERT_EQ(status, std::future_status::ready) << "Timed out waiting for WriteEntity callback";
     EXPECT_TRUE(writeFuture.get()) << "WriteEntity reported failure";
 
-    std::promise<bool> readPromise;
+    std::promise<std::optional<EntitySnapshot>> readPromise;
     auto readFuture = readPromise.get_future();
 
-    _db->ReadEntity(snapshot.entityId, [&](bool ok, const std::string& /*msg*/) {
-        readPromise.set_value(ok);
+    _db->ReadEntity(snapshot.entityId,
+                    [&](DatabaseStatus result, std::optional<EntitySnapshot> value) {
+        EXPECT_TRUE(result.IsSuccess()) << result.message;
+        readPromise.set_value(std::move(value));
     });
 
     status = readFuture.wait_for(kMediumTimeout);
     ASSERT_EQ(status, std::future_status::ready) << "Timed out waiting for ReadEntity callback";
-    EXPECT_TRUE(readFuture.get()) << "ReadEntity reported failure";
+    const auto restored = readFuture.get();
+    ASSERT_TRUE(restored.has_value()) << "ReadEntity returned no snapshot";
+    EXPECT_EQ(restored->entityId, snapshot.entityId);
+    EXPECT_EQ(restored->version, snapshot.version);
+    EXPECT_EQ(restored->timestamp, snapshot.timestamp);
+    EXPECT_EQ(restored->data, snapshot.data);
+    EXPECT_EQ(restored->componentTypes, snapshot.componentTypes);
 }
 
 TEST_F(PostgreSQLTest, Statistics) {
@@ -128,9 +137,9 @@ TEST_F(PostgreSQLTest, QueuePressure) {
         snapshot.data = {static_cast<uint8_t>(i & 0xFF)};
         snapshot.componentTypes = {1};
 
-        _db->WriteEntity(snapshot, [&](bool ok, const std::string& /*msg*/) {
+        _db->WriteEntity(snapshot, [&](DatabaseStatus result) {
             writeCount.fetch_add(1, std::memory_order_relaxed);
-            if (!ok) errorCount.fetch_add(1, std::memory_order_relaxed);
+            if (!result.IsSuccess()) errorCount.fetch_add(1, std::memory_order_relaxed);
             if ((writeCount.load(std::memory_order_relaxed) % 16) == 0 || 
                 writeCount.load(std::memory_order_relaxed) == kWrites) {
                 std::lock_guard lk(m);

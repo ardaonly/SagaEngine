@@ -1,6 +1,5 @@
 #pragma once
 #include <SagaEngine/Persistence/IDatabase.h>
-#include <SagaEngine/Core/Threading/JobSystem.h>
 #include <memory>
 #include <atomic>
 
@@ -17,7 +16,7 @@ public:
     bool Initialize() override;
     void Shutdown() override;
     void WriteEntity(const EntitySnapshot& snapshot, DatabaseCallback cb) override;
-    void ReadEntity(EntityId entityId, DatabaseCallback cb) override;
+    void ReadEntity(EntityId entityId, EntityReadCallback cb) override;
     void DeleteEntity(EntityId entityId, DatabaseCallback cb) override;
     void AppendEvent(const std::string& type, const std::vector<uint8_t>& data, DatabaseCallback cb) override;
     DatabaseStats GetStatistics() const override;
