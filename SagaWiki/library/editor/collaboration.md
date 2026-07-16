@@ -7,7 +7,7 @@ reviewed_against: 0.0.11-post-cutover
 
 # Collaboration semantics
 
-EditorCollaboration models concepts useful for coordinated authoring: semantic operations, presence, locks, permissions, review state, and workspace identity. These concepts can improve local architecture even before a hosted collaborative product exists.
+EditorCollaboration exposes the modern `SagaCollaboration/**`, `SagaShared/Collaboration/**`, and `SagaShared/Workspace/**` contracts for bounded session, presence, claim, lock, permission, conflict, change-stream, and workspace state. The former `SagaEditor::Collaboration` public/private tree is removed. These concepts can improve local architecture even before a hosted collaborative product exists.
 
 ## Semantic transactions
 
@@ -29,12 +29,12 @@ Project changes and review comments may be shared domain state. Panel layout, lo
 
 ## Non-claim
 
-The existence of server, router, client, sync, CRDT, audit, or manager contracts does not establish a shipped real-time multi-user editor, hosted service, production security model, tenant isolation, encrypted transport, or operational collaboration backend. The concrete server/router/client, sync transport, CRDT/log, manager, workspace, session, and audit implementations are private; their presence still proves only the focused local behavior covered by tests.
+The current service/model contracts and local reports do not establish a shipped real-time multi-user editor, hosted service, production security model, tenant isolation, encrypted transport, persistence, or operational collaboration backend. No removed legacy namespace or implementation tree should be read back into the current contract.
 
 | Surface | Contract reading |
 | --- | --- |
-| Workspace, transaction, presence, lock, permission, role, review, and event values | Durable candidates when they remain transport- and UI-neutral. |
-| Interfaces and bounded policy inputs/results | Cross-module contract candidates with focused deterministic evidence. |
-| Concrete server/router/client, sync transport, CRDT/log, manager, workspace, session, and audit implementations | Private implementation; not a public product or hosted-service claim. |
+| `SagaShared` participant/session/workspace/presence/claim/lock/permission values | Transport- and UI-neutral shared records. |
+| `SagaCollaboration` service/model interfaces | Bounded in-process contracts with focused tests. |
+| Local workspace/review metadata reports | Private read-only product evidence; no mutation or hosted-service claim. |
 
 See [Collaboration transactions and local policy](../reference/collaboration-transactions-and-policy.md) for workspace/transaction records, presence, locks, reviews, roles, dangerous operations, conflicts, sessions, and the concrete/private boundary.

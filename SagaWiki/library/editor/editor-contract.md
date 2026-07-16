@@ -25,6 +25,8 @@ Durable customization is contract-based: registered commands, panels, inspectors
 
 EditorExperimental currently contains extension manifests, registry/loading, host lifecycle, context, command/panel bridges, and a serialization hook. Those public headers are an experimental in-process surface. They do not establish a stable plugin ABI, package schema, compatibility window, security sandbox, distribution channel, or plugin licensing domain.
 
+Runtime Core exposes only static module registration/lifecycle foundations. It does not expose plugin-directory scanning, dynamic library loading, plugin-path queries, or hot-reload promises. Any future dynamic plugin system needs a new reviewed public contract; it is not inferred from the unstable EditorExperimental types.
+
 ## Minimum shell workflow
 
 The current shell and authoring surfaces support bounded project inspection, panel/workspace configuration, selection, save/undo/redo routing, script evidence views, and scenario-driven checks. A report or scenario action proves only that routed workflow; it must not be described as a completed interactive dashboard. EditorLab remains a development/scenario program, not a second editor contract owner.

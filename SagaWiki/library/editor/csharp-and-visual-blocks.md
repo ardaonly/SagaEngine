@@ -11,14 +11,13 @@ C# source is the behavior source of truth. Visual Blocks are an editor projectio
 
 ## Many views, one behavior
 
-Block descriptors, graph layout, source maps, diagnostics, compiled assemblies, and binding manifests support editing or execution. Their authority is bounded:
+Block definitions, instances, stacks, slots, snap rules, and block IR support bounded authoring. Compiled assemblies and binding manifests belong to the scripting tool/runtime path. Their authority is bounded:
 
-- graph layout records presentation;
-- block/graph models express an editable projection;
+- block values express an authoring projection;
 - generated C# is derived when a visual operation produces source;
 - compiled assemblies execute validated source inputs;
 - binding descriptors connect script and native contracts;
-- source maps relate generated or projected spans back to authored source.
+- read-only product descriptors record evidence without becoming source.
 
 No artifact may silently override the C# source it was derived from.
 
@@ -30,7 +29,7 @@ The editor block library owns palette descriptors, categories, slots, instances,
 
 A source patch must identify the expected file, span, and prior content or hash. Application should reject stale or ambiguous input instead of mutating whatever text currently occupies the range. The review surface should show the proposed semantic change and diagnostics before commit to source.
 
-Editor tooling must not make unannounced source edits in the background. Hot reload and compile feedback can shorten the loop, but they do not weaken staleness checks or source ownership.
+Editor tooling must not make unannounced source edits in the background. Compile feedback can shorten the loop, but it does not weaken staleness checks or source ownership.
 
 ## API levels
 
@@ -38,13 +37,13 @@ High-level scripting contracts are the default authoring surface. Low-level life
 
 ## Current surface boundary
 
-VisualBlocksEditor keeps CoreCLR hosting, managed/native bridges, assembly contexts, hot reload, and graph evaluation runners under `Private`. Their implementation presence does not change the source-of-truth rule or establish a Visual Blocks runtime.
+The public `VisualBlocksEditor` surface is intentionally limited to `SagaEditor/VisualBlocks/Blocks/**`. Compiler, debugger, editor, graph, import, node, pin, type-system, evaluation, and runtime-host placeholder surfaces are not public contracts. Product integration emits read-only descriptor/evidence data from private implementation.
 
 | Surface | Contract reading |
 | --- | --- |
-| Descriptor, graph, IR, source-map, import, projection, and diagnostics values | Candidate editor-authoring contracts where used across module boundaries. |
-| CoreCLR host, script host, assembly context, native/managed bridges, hot reload, and evaluation runners | Private runtime-host/editor-evaluation implementation; not an editor consumer contract. |
-| Canvas and debugger surfaces | Remaining editor workflow surface; public visibility is not a shipped graph-runtime or stable editor-SDK claim. |
+| Block category, definition, kind, slot, instance, stack, script, snap rules, block IR, library, and lowering | The evidenced block-authoring contract. |
+| Read-only descriptor/evidence generation | Private product integration; derived evidence only. |
+| Compiler, debugger, graph editor/document, imports, nodes, pins, type system, evaluation, and runtime host | Absent from the Visual Blocks public contract. |
 
 See [C# and Visual Blocks contracts](../reference/csharp-and-visual-blocks-contracts.md) for compatibility categories, projection/graph/IR boundaries, node levels, exact hash/span patching, staleness, compile, and runtime rules.
 

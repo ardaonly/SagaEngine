@@ -7,7 +7,7 @@ reviewed_against: 0.0.11-post-cutover
 
 # Collaboration transactions and local policy
 
-EditorCollaboration contains durable value models and a large set of concrete implementation-shaped types. The defensible current contract is local semantic transaction, presence/lock/review metadata, and deterministic policy modeling. It is not a claim of a shipped hosted real-time collaborative editor.
+EditorCollaboration contains a deliberately narrow modern model: `SagaCollaboration` service interfaces and model, shared participant/session/workspace/presence/claim/lock/permission records, and private read-only local workspace/review reports. The legacy `SagaEditor::Collaboration` tree and its concrete server/router/client, CRDT, audit, policy-manager, and transport-shaped surfaces are removed. This is not a claim of a shipped hosted real-time collaborative editor.
 
 ## Architecture principle
 
@@ -17,9 +17,9 @@ This model is useful locally for auditability, stale detection, review, and futu
 
 ## Current public model
 
-Durable value candidates include participant/session/workspace identity, artifact target/kind, semantic operation/transaction, status, conflict category, presence snapshot, lock token/record, comment, review request, role assignment, permission decision, dangerous-operation check, diagnostics, and copied workspace state.
+Durable current values cover participant/session/workspace identity, presence snapshots, resource claims and locks, permission grants, collaboration diagnostics, and workspace sync state.
 
-Interfaces for presence, locks, permissions, sessions, workspaces, audit, conflict, and transport can be contracts when their lifecycle and semantics are deliberate. Concrete server, router, client, sync transport, CRDT, operation log, manager, election, audit logger, and backend implementations are not automatically stable because their headers are public. They require visibility review and may belong private or experimental.
+Current interfaces cover collaboration/session, presence, claims, locks, permissions, conflicts, change streams, and backend abstraction. Local review/workspace reporting remains private ProductIntegration code. Broader transaction, audit, policy, CRDT, concrete transport, and hosted-service designs below are boundary guidance, not checked-in public capability.
 
 ## Workspace identity
 
@@ -130,7 +130,7 @@ A session contract can define descriptor, room/session code, participant set, st
 
 Handshake validates version/workspace/project compatibility before accepting operations. Heartbeat freshness does not prove identity. Reconnect resets or reconciles session generation so late messages from an old connection cannot mutate current state.
 
-Concrete `CollaborationServer`, router, client, backend, sync transport, CRDT/log, manager, workspace, session, and audit implementations live under `EditorCollaboration/Private`. Their interface and value contracts can support focused local evidence, but neither layer is public product evidence for a hosted service.
+There is no current concrete server/router/client, sync transport, CRDT/log, manager, workspace host, or audit implementation contract. `SagaCollaboration` interfaces and models can support focused local evidence, but they are not product evidence for a hosted service.
 
 ## Shared and personal state
 
@@ -154,7 +154,7 @@ The current repository does not establish a shipped production collaborative edi
 
 ## Public-surface note
 
-Value types and intentional interfaces are the strongest public-contract candidates. Concrete managers, server/router/client, transport implementation, operation-log implementation, authority election, audit logger, and CRDT/OT implementations should be reviewed for private or experimental placement. Documentation does not freeze their current public paths.
+Only the modern `SagaCollaboration/**`, `SagaShared/Collaboration/**`, and `SagaShared/Workspace/**` paths are current public candidates. `SagaEditor::Collaboration` and concrete manager/server/router/client/transport/log/audit/CRDT paths are retired and must not return as compatibility surfaces.
 
 ## Change checklist
 

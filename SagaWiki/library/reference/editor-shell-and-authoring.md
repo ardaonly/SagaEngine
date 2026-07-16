@@ -17,9 +17,9 @@ The post-cutover editor is divided deliberately:
 - `EditorFramework` owns shell composition, panels, docking, layouts, workspaces, notifications, localization, profiles, personas, themes, customization, and host orchestration without owning Qt ABI.
 - `EditorQt` owns Qt-specific application/window/widget and adapter implementation.
 - `EditorAuthoring` owns project/scene/asset/script inspection and semantic authoring workflows, viewport controllers, gizmos, import/cook coordination, inspectors, prefabs, and world-editing contracts.
-- `VisualBlocksEditor` owns block descriptors, graph/projection/editor surfaces, diagnostics, and private evaluation/runtime-host implementation details.
+- `VisualBlocksEditor` publicly owns the evidenced `Blocks/**` authoring and lowering contracts; its read-only product descriptor remains private integration evidence.
 - `Runtime/Scripting` owns script lifecycle and hosting; `EditorAuthoring` and `VisualBlocksEditor` own current editor-facing script inspection, projection, and patch workflows.
-- `EditorCollaboration` owns collaboration model and implementation surfaces, bounded by explicit non-claims.
+- `EditorCollaboration` owns the modern `SagaCollaboration` services/model and `SagaShared` collaboration/workspace values; the legacy `SagaEditor::Collaboration` surface is retired.
 - `EditorExperimental` owns deliberately unstable ideas that should not be advertised as stable editor contract.
 
 The `SagaEditor` program composes these owners. It does not absorb their reusable behavior. `SagaEditorLab` is a development/evidence host and is not the production editor identity.
