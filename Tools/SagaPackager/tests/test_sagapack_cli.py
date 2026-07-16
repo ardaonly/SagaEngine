@@ -15,7 +15,12 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 PROJECT = REPO_ROOT / "Tools" / "SagaPackager" / "SagaPackager.csproj"
 CLI_ASSEMBLY = PROJECT.parent / "bin" / "Release" / "net10.0" / "sagapack.dll"
 SAMPLE_ROOT = REPO_ROOT / "Samples" / "MultiplayerSandbox"
-NATIVE_BIN_DIR = REPO_ROOT / "build" / "RelWithDebInfo-0.0.11" / "bin"
+NATIVE_BIN_DIR = Path(
+    os.environ.get(
+        "SAGA_NATIVE_BIN_DIR",
+        REPO_ROOT / "build" / "RelWithDebInfo-0.0.11" / "bin",
+    )
+)
 PROFILE = "project-readiness-server-headless"
 _cli_built = False
 
@@ -730,10 +735,13 @@ def run_all() -> None:
         test_source_truth_alignment_reads_profiles_and_supplied_gates_without_staging,
         test_publish_check_passes_and_blocks_on_evidence,
         test_publish_check_accepts_and_blocks_policy_evidence,
-        test_packaged_smoke_runs_headless_and_records_client_deferral,
         test_smoke_missing_package_or_executable_fails_clearly,
         test_missing_project_returns_missing_input,
     ]
+    if os.environ.get("SAGA_RUN_PACKAGED_NATIVE_SMOKE") == "1":
+        tests.append(test_packaged_smoke_runs_headless_and_records_client_deferral)
+    else:
+        print("SagaPackager native smoke skipped; set SAGA_RUN_PACKAGED_NATIVE_SMOKE=1 after building MultiplayerSandboxHeadless")
     for test in tests:
         test()
     print(f"{len(tests)} SagaPackager CLI tests passed")

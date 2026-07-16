@@ -243,7 +243,7 @@ jobs:
           source "$SAGA_BUILD_DIR/generators/conanbuild.sh"
           cmake --build "$SAGA_BUILD_DIR" --parallel 2 --target \
             SagaStressArenaTests SagaStressArena SagaChaosLabTests SagaChaosLab \
-            SagaStateCheckTests MultiplayerSandboxHeadlessTests \
+            SagaStateCheckTests MultiplayerSandboxHeadless MultiplayerSandboxHeadlessTests \
             AssetIdentityRuntimeContractTests AssetIdentityManifestWriterTests \
             AssetManifestWriterTests PackageManifestWriterTests \
             GeneratedRuntimeSmokeManifestTests GeneratedRuntimeSmokePackageTests \
@@ -258,6 +258,12 @@ jobs:
           source "$SAGA_BUILD_DIR/generators/conanbuild.sh"
           cmake --build "$SAGA_BUILD_DIR" --parallel 2 --target \
             SagaProductTests SagaLauncherUiTests
+
+      - name: Run SagaPackager native smoke contract
+        env:
+          SAGA_RUN_PACKAGED_NATIVE_SMOKE: "1"
+          SAGA_NATIVE_BIN_DIR: ${{ github.workspace }}/${{ env.SAGA_BUILD_DIR }}/bin
+        run: python3 Tools/SagaPackager/tests/test_sagapack_cli.py
 
       - name: Run PR-safe CTest suite
         shell: bash
