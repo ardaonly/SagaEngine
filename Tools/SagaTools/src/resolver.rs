@@ -1,6 +1,5 @@
 /// @file resolver.rs
-/// @brief Path resolution - mirrors C++ Resolver.cpp exactly.
-///        Uses Rust native PathBuf (fixes bugs #3/#4).
+/// @brief Native path and environment resolution for registered tools.
 
 use std::env;
 use std::path::{Path, PathBuf};

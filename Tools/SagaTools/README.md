@@ -25,8 +25,7 @@ That single command does, in order:
    to set, ever**.
 3. Runs `tools install forge` — builds the Forge binary into
    `Tools/Forge/bin/`.
-   launcher (and the C++ extractor too, if LLVM is available).
-5. Prints the one line you need to add `bin/` to your `PATH` for the
+4. Prints the one line you need to add `bin/` to your `PATH` for the
    current shell.
 
 After PATH is set, this is what daily use looks like:
@@ -196,19 +195,13 @@ links a SagaEngine library, or assumes the engine repository layout.
 
 ---
 
-## Rust Rewrite Notes
+## Implementation boundary
 
-This dispatcher has been rewritten from C++ to **Rust** (see roadmap section 8).
-The Rust version eliminates several classes of bugs:
+SagaTools is a Rust process dispatcher. `serde_json` owns registry decoding,
+`PathBuf`/`OsString` own native paths, and `std::process::Command` owns argument
+forwarding. Forge remains a separately invocable C++ build tool.
 
-1. **No mojibake** — `serde_json` handles `\uXXXX` correctly
-2. **No ANSI code page issues** — `PathBuf`/`OsString` are native UTF-8
-3. **No narrow/wide string confusion** — `std::process::Command` handles quoting
-4. **Memory safety** — Rust's ownership model prevents entire bug classes
-
-- Forge: CMake/Conan wrapper, hard reason to stay in C++
-
-The boundary stays exactly as before:
+The process boundary is:
 ```
 SagaTools (Rust)  →  std::process::Command::spawn(forge_exe, args)  →  forge (C++)
 ```

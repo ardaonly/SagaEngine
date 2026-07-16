@@ -12,11 +12,17 @@ reviewed_branch = "main"
 reviewed_commit = "fe717164ea373a7a61e4d4016f40d50b6600ad54"
 reviewed_project_version = "0.0.11"
 review_record_paths = [
+  ".github/dependabot.yml",
+  ".github/MAINTENANCE.md",
+  ".github/workflows/build.yml",
+  ".github/workflows/heavy-evidence.yml",
   ".github/workflows/licensing.yml",
   "LICENSE_POLICY.toml",
   "SHA256SUMS",
   "Tests/Contract/InstalledConsumer/SagaGraphicsInstalledConsumerTest.cmake",
   "Tools/Licensing/validate_license_policy.py",
+  "Tools/Licensing/check_dco.py",
+  "Tools/Developer/CI/check_github_workflows.py",
   "cmake/modules/SagaInstallGraphics.cmake",
   "LICENSES/THIRD_PARTY_NOTICES.md",
   "CONTRIBUTING.md",
@@ -32,20 +38,20 @@ approved_by = ["Arda Koyuncu"]
 path_format = "repository-relative-posix"
 case_sensitive = true
 include_untracked_nonignored = true
-unclassified_action = "report"
+unclassified_action = "deny"
 overlap_action = "deny"
 unknown_field_action = "deny"
 metadata_conflict_action = "deny"
-unresolved_license_action = "report"
+unresolved_license_action = "deny"
 cmake_graph_action = "report"
 legacy_policy_conflict_action = "deny"
-rename_domain_change_action = "report"
+rename_domain_change_action = "deny"
 lfs_pointer_action = "deny"
-orphan_required_rule_action = "report"
+orphan_required_rule_action = "deny"
 external_symlink_action = "deny"
 submodule_inherits_parent_policy = false
-submodule_missing_action = "report"
-target_drift_action = "report"
+submodule_missing_action = "deny"
+target_drift_action = "deny"
 governance_missing_action = "deny"
 untracked_exclude_patterns = [".saga-private/**", "Build/**", "build/**", ".agents/**", ".codex/**", ".core/**"]
 

@@ -1,23 +1,42 @@
+# SPDX-License-Identifier: MPL-2.0
 name: Licensing Policy
 
 on:
   push:
   pull_request:
+  schedule:
+    - cron: "15 2 * * *"
   workflow_dispatch:
+    inputs:
+      configured_graph:
+        description: Run the configured CMake licensing graph
+        required: true
+        default: true
+        type: boolean
 
 permissions:
   contents: read
 
+concurrency:
+  group: licensing-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CONAN_VERSION: "2.30.0"
+  CMAKE_VERSION: "3.28.1"
+
 jobs:
   licensing-policy:
     name: License foundation and policy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
     outputs:
       base_ref: ${{ steps.base.outputs.base_ref }}
+      graph_required: ${{ steps.scope.outputs.graph_required }}
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
+      - name: Checkout repository and history
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           fetch-depth: 0
           submodules: recursive
@@ -31,93 +50,108 @@ jobs:
           PUSH_BEFORE_SHA: ${{ github.event.before }}
         run: |
           set -euo pipefail
-
           zero_sha="0000000000000000000000000000000000000000"
-
           if [[ "$EVENT_NAME" == "pull_request" && -n "${PR_BASE_SHA:-}" ]]; then
             base_ref="$PR_BASE_SHA"
-          elif [[ "$EVENT_NAME" == "push" \
-               && -n "${PUSH_BEFORE_SHA:-}" \
-               && "$PUSH_BEFORE_SHA" != "$zero_sha" ]]; then
+          elif [[ "$EVENT_NAME" == "push" && -n "${PUSH_BEFORE_SHA:-}" && "$PUSH_BEFORE_SHA" != "$zero_sha" ]]; then
             base_ref="$PUSH_BEFORE_SHA"
           else
             base_ref="$(git rev-parse HEAD^ 2>/dev/null || git rev-parse HEAD)"
           fi
-
           git cat-file -e "${base_ref}^{commit}"
           echo "base_ref=$base_ref" >> "$GITHUB_OUTPUT"
-          echo "Comparison base: $base_ref"
 
-      - name: Check licensing tool syntax
-        run: python3 -m py_compile Tools/Licensing/*.py
-
-      - name: Verify DCO sign-offs
+      - name: Decide configured graph scope
+        id: scope
         shell: bash
         env:
+          EVENT_NAME: ${{ github.event_name }}
+          MANUAL_GRAPH: ${{ inputs.configured_graph }}
           BASE_REF: ${{ steps.base.outputs.base_ref }}
         run: |
           set -euo pipefail
-
-          failures=0
-          checked=0
-
-          while IFS= read -r commit; do
-            [[ -n "$commit" ]] || continue
-
-            parent_line="$(git rev-list --parents -n 1 "$commit")"
-            parent_count=$(( $(wc -w <<< "$parent_line") - 1 ))
-
-            # Pull-request checkout refs may contain a synthetic merge commit.
-            # The contribution commits themselves remain subject to DCO.
-            if (( parent_count > 1 )); then
-              echo "Skipping merge commit: $commit"
-              continue
-            fi
-
-            checked=$((checked + 1))
-
-            if ! git show -s --format=%B "$commit" |
-              grep -Eiq                 '^Signed-off-by:[[:space:]]+.+[[:space:]]+<[^<>[:space:]]+@[^<>[:space:]]+>[[:space:]]*$'
-            then
-              echo "::error title=DCO sign-off missing::Commit $commit does not contain a valid Signed-off-by trailer."
-              failures=$((failures + 1))
-            else
-              echo "DCO sign-off present: $commit"
-            fi
-          done < <(git rev-list --reverse "${BASE_REF}..HEAD")
-
-          if (( failures > 0 )); then
-            echo "$failures commit(s) failed DCO validation."
-            exit 1
+          graph_required=false
+          if [[ "$EVENT_NAME" == "schedule" || ( "$EVENT_NAME" == "workflow_dispatch" && "$MANUAL_GRAPH" == "true" ) ]]; then
+            graph_required=true
+          else
+            while IFS= read -r path; do
+              case "$path" in
+                CMakeLists.txt|CMakePresets.json|conanfile.py|LICENSE*|SHA256SUMS|.reuse/*|.github/workflows/licensing.yml|cmake/*|Engine/*|Samples/*|Tests/*|ThirdParty/*|Tools/*)
+                  graph_required=true
+                  break
+                  ;;
+              esac
+            done < <(git diff --name-only "$BASE_REF...HEAD")
           fi
+          echo "graph_required=$graph_required" >> "$GITHUB_OUTPUT"
+          echo "Configured graph required: $graph_required"
 
-          echo "DCO validation passed for $checked non-merge commit(s)."
-
-
-      - name: Verify canonical license foundation
+      - name: Run licensing unit tests
         run: |
-          python3 Tools/Licensing/verify_license_texts.py \
-            --strict-cleanup
+          python3 -m compileall -q Tools/Licensing
+          python3 -m unittest discover -s Tools/Licensing/tests -p 'test_*.py'
+
+      - name: Verify DCO sign-offs
+        run: python3 Tools/Licensing/check_dco.py --base-ref "${{ steps.base.outputs.base_ref }}"
+
+      - name: Verify generated licensing controls
+        run: |
+          python3 Tools/Licensing/verify_license_texts.py --strict-cleanup
+          python3 Tools/Licensing/generate_legacy_path_rules.py --check
+          python3 Tools/Licensing/regenerate_license_checksums.py --check
+          sha256sum -c SHA256SUMS
 
       - name: Validate repository license policy
         run: |
+          mkdir -p artifacts/licensing
           python3 Tools/Licensing/validate_license_policy.py \
-            --report \
-            --base-ref "${{ steps.base.outputs.base_ref }}"
+            --strict \
+            --base-ref "${{ steps.base.outputs.base_ref }}" \
+            --json-output artifacts/licensing/policy.json
 
-  # Temporary repository-level Conan/CMake path.
-  # Move this behind Forge only after Forge's provider, profile, lock/frozen,
-  # and CMake integration contracts are implemented and proven.
+      - name: Upload license policy evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: licensing-policy-${{ github.run_attempt }}
+          path: artifacts/licensing/policy.json
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Publish licensing summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Licensing policy"
+            echo
+            if [[ -f artifacts/licensing/policy.json ]]; then
+              python3 - <<'PY'
+          import json
+          data = json.load(open("artifacts/licensing/policy.json", encoding="utf-8"))
+          summary = data["summary"]
+          print(f"- Domain matched: {summary['domain_matched']}")
+          print(f"- License resolved: {summary['license_resolved']}")
+          print(f"- License unresolved: {summary['license_unresolved']}")
+          print(f"- Errors: {summary['errors']}")
+          print(f"- Warnings: {summary['warnings']}")
+          PY
+            else
+              echo "- Status: report unavailable; inspect failed steps."
+            fi
+            echo "- Configured graph required: ${{ steps.scope.outputs.graph_required }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   configured-graph:
     name: Configured CMake licensing graph
     needs: licensing-policy
-    if: github.event_name == 'workflow_dispatch'
+    if: needs.licensing-policy.outputs.graph_required == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 120
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
+      - name: Checkout repository and history
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           fetch-depth: 0
           submodules: recursive
@@ -125,116 +159,119 @@ jobs:
       - name: Read project version
         shell: bash
         run: |
-          set -euo pipefail
-
           version="$(tr -d '\r\n' < VERSION)"
           test -n "$version"
-
           echo "SAGA_ENGINE_VERSION=$version" >> "$GITHUB_ENV"
           echo "SAGA_BUILD_DIR=build/RelWithDebInfo-$version" >> "$GITHUB_ENV"
 
-          echo "Version: $version"
-          echo "Build directory: build/RelWithDebInfo-$version"
+      - name: Restore Conan cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.conan2/p
+          key: licensing-conan-linux-${{ hashFiles('conanfile.py', 'profiles/**', 'VERSION') }}
+          restore-keys: licensing-conan-linux-
 
       - name: Install pinned build tools
         shell: bash
         run: |
-          set -euo pipefail
-
-          python3 -m pip install --user \
-            --disable-pip-version-check \
-            "conan==2.30.0" \
-            "cmake==3.28.1"
-
+          python3 -m pip install --user --disable-pip-version-check \
+            "conan==$CONAN_VERSION" "cmake==$CMAKE_VERSION"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-          "$HOME/.local/bin/conan" --version
-          "$HOME/.local/bin/conan" remote list
-          "$HOME/.local/bin/cmake" --version
-
-      - name: Configure Conan profile
+      - name: Resolve dependencies and configure File API graph
         shell: bash
         run: |
-          set -euo pipefail
+          export PATH="$HOME/.local/bin:$PATH"
           conan profile detect --force
-
-      - name: Resolve build dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          conan install . \
-            --build=missing \
+          conan install . --build=missing \
             -s build_type=RelWithDebInfo \
             -c tools.build:jobs=2 \
             -c tools.system.package_manager:mode=install \
             -c tools.system.package_manager:sudo=True
-
-      - name: Prepare CMake File API query
-        shell: bash
-        run: |
-          set -euo pipefail
-
           mkdir -p "$SAGA_BUILD_DIR/.cmake/api/v1/query"
           touch "$SAGA_BUILD_DIR/.cmake/api/v1/query/codemodel-v2"
-
-      - name: Configure SagaEngine graph
-        shell: bash
-        run: |
-          set -euo pipefail
-
           source "$SAGA_BUILD_DIR/generators/conanbuild.sh"
-
           cmake --preset linux-gcc \
             -DCMAKE_C_COMPILER_LAUNCHER= \
             -DCMAKE_CXX_COMPILER_LAUNCHER=
-
           test -d "$SAGA_BUILD_DIR/.cmake/api/v1/reply"
 
       - name: Validate configured licensing graph
         shell: bash
-        env:
-          BASE_REF: ${{ needs.licensing-policy.outputs.base_ref }}
         run: |
-          set -euo pipefail
-
+          mkdir -p artifacts/licensing-graph
           python3 Tools/Licensing/validate_license_policy.py \
-            --report \
-            --base-ref "$BASE_REF" \
-            --cmake-build-dir "$SAGA_BUILD_DIR"
+            --strict \
+            --base-ref "${{ needs.licensing-policy.outputs.base_ref }}" \
+            --cmake-build-dir "$SAGA_BUILD_DIR" \
+            --json-output artifacts/licensing-graph/configured-graph.json
 
-      - name: Build installed SDK smoke-test prerequisites
+      - name: Build installed SDK smoke prerequisites
         shell: bash
         run: |
-          set -euo pipefail
-
+          export PATH="$HOME/.local/bin:$PATH"
           source "$SAGA_BUILD_DIR/generators/conanbuild.sh"
-
-          cmake --build "$SAGA_BUILD_DIR" \
-            --parallel 2 \
-            --target \
-              SagaCoreLog \
-              SagaDiagnostics \
-              SagaShared \
-              SagaCollaboration \
-              SagaEngine \
-              SagaRuntimeLib \
-              SagaServerLib \
-              SagaBackend \
-              SagaGraphicsCore
+          cmake --build "$SAGA_BUILD_DIR" --parallel 2 --target \
+            SagaCoreLog SagaDiagnostics SagaShared SagaCollaboration \
+            SagaEngine SagaRuntimeLib SagaServerLib SagaBackend SagaGraphicsCore
 
       - name: Verify installed SDK and licensing payload
         shell: bash
         run: |
-          set -euo pipefail
-
+          export PATH="$HOME/.local/bin:$PATH"
           source "$SAGA_BUILD_DIR/generators/conanbuild.sh"
-
           if [[ -f "$SAGA_BUILD_DIR/generators/conanrun.sh" ]]; then
             source "$SAGA_BUILD_DIR/generators/conanrun.sh"
           fi
-
-          ctest \
-            --test-dir "$SAGA_BUILD_DIR" \
-            --output-on-failure \
+          ctest --test-dir "$SAGA_BUILD_DIR" --output-on-failure \
+            --output-junit artifacts/licensing-graph/installed-consumer.xml \
             -R '^SagaGraphicsInstalledConsumerTest$'
+
+      - name: Upload configured graph evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: licensing-configured-graph-${{ github.run_attempt }}
+          path: |
+            artifacts/licensing-graph/
+            ${{ env.SAGA_BUILD_DIR }}/.cmake/api/v1/reply/
+            ${{ env.SAGA_BUILD_DIR }}/Testing/Temporary/
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Publish configured graph summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Configured licensing graph"
+            echo
+            echo "CMake File API ownership, target inventory, dependencies, install surface, and installed-consumer payload were evaluated."
+            echo "Machine-readable policy and JUnit reports are retained for 90 days."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  licensing-gate:
+    name: Licensing gate
+    needs: [licensing-policy, configured-graph]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Enforce licensing outcomes
+        shell: bash
+        env:
+          POLICY_RESULT: ${{ needs.licensing-policy.result }}
+          GRAPH_RESULT: ${{ needs.configured-graph.result }}
+        run: |
+          test "$POLICY_RESULT" = "success"
+          [[ "$GRAPH_RESULT" == "success" || "$GRAPH_RESULT" == "skipped" ]]
+      - name: Publish gate summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Licensing gate"
+            echo
+            echo "- Policy: ${{ needs.licensing-policy.result }}"
+            echo "- Configured graph: ${{ needs.configured-graph.result }}"
+          } >> "$GITHUB_STEP_SUMMARY"

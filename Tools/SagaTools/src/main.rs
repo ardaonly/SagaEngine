@@ -1,5 +1,5 @@
 /// @file main.rs
-/// @brief tools dispatcher entry - mirrors C++ main.cpp exactly.
+/// @brief Command-line entry for the thin SagaTools dispatcher.
 
 mod registry;
 mod resolver;

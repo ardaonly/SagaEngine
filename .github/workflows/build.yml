@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 name: SagaEngine CI
 
 on:
@@ -5,67 +6,283 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: saga-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ACTIONLINT_VERSION: "v1.7.12"
+  CONAN_VERSION: "2.30.0"
+  CMAKE_VERSION: "3.28.1"
+
 jobs:
-  boundary-observation:
-    name: Tooling and boundary checks
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Check Python tooling syntax
-        run: |
-          python3 -m py_compile \
-            Tools/common/platform_detect.py \
-            Tools/Developer/BoundaryCheck/check_public_private_boundary.py \
-            Tools/Developer/BoundaryCheck/check_qt_boundary.py \
-            Tools/Developer/BoundaryCheck/check_engine_server_boundary.py \
-            Tools/Developer/RepoAudit/saga_repo_xray.py \
-            Tools/Developer/RepoAudit/export_tool_mirrors.py \
-            Tools/Developer/BoundaryCheck/report_boundary_status.py \
-            Tools/Forge/build.py \
-            Tools/SagaTools/setup.py
-
-      - name: Run boundary report
-        run: python3 Tools/Developer/BoundaryCheck/report_boundary_status.py --repo-root .
-
-      - name: Enforce Qt boundary
-        run: python3 Tools/Developer/BoundaryCheck/check_qt_boundary.py .
-
-      - name: Guard Engine server boundary debt
-        run: python3 Tools/Developer/BoundaryCheck/check_engine_server_boundary.py --repo-root .
-
-      - name: Guard Public Private boundary
-        run: python3 Tools/Developer/BoundaryCheck/check_public_private_boundary.py --repo-root .
-
   repository-contracts:
-    name: Repository contract tests
-    runs-on: ubuntu-latest
+    name: Repository contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          fetch-depth: 0
 
       - name: Set up .NET 10
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           dotnet-version: 10.0.x
+
+      - name: Check maintained Python syntax
+        run: |
+          python3 -m compileall -q \
+            Tools/Licensing \
+            Tools/Developer/BoundaryCheck \
+            Tools/Developer/CI \
+            Tools/Developer/RepoAudit \
+            Tools/Developer/Environment/SagaSync \
+            Tools/SagaProjectKit \
+            Tools/SagaPackager \
+            Tools/SagaScript \
+            Tools/SagaTools
 
       - name: Run Python contract tests
         run: |
           python3 -m unittest discover -s Tools/Licensing/tests -p 'test_*.py'
+          python3 -m unittest discover -s Tools/Developer/CI/tests -p 'test_*.py'
           python3 -m unittest discover -s Tools/Developer/RepoAudit/tests -p 'test_*.py'
+          python3 Tools/Developer/Environment/SagaSync/tests/test_sagasync_core.py
           python3 Tools/SagaProjectKit/tests/test_sagaprojectkit_cli.py
           python3 Tools/SagaPackager/tests/test_sagapack_cli.py
           python3 Tools/SagaScript/tests/test_sagascript_cli.py
           python3 Tools/SagaScript/tests/test_sagascript_toolchain_check.py
+          bash Tools/SagaTools/tests/run_contract_tests.sh
 
-      - name: Verify generated wiki
-        run: scripts/wiki verify
+      - name: Enforce repository boundaries
+        run: |
+          python3 Tools/Developer/BoundaryCheck/report_boundary_status.py --repo-root .
+          python3 Tools/Developer/BoundaryCheck/check_qt_boundary.py .
+          python3 Tools/Developer/BoundaryCheck/check_engine_server_boundary.py --repo-root .
+          python3 Tools/Developer/BoundaryCheck/check_public_private_boundary.py --repo-root .
 
-      - name: Verify licensing texts
-        run: python3 Tools/Licensing/verify_license_texts.py --strict-cleanup
+      - name: Verify workflow contracts
+        run: |
+          python3 Tools/Developer/CI/check_github_workflows.py --repo-root .
+          go run "github.com/rhysd/actionlint/cmd/actionlint@$ACTIONLINT_VERSION" -color
 
-      - name: Reject whitespace errors
-        run: git diff --check
+      - name: Build and test standalone Forge
+        run: |
+          cmake -S Tools/Forge -B "$RUNNER_TEMP/forge-build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build "$RUNNER_TEMP/forge-build" --parallel 2
+          ctest --test-dir "$RUNNER_TEMP/forge-build" \
+            --output-on-failure \
+            --output-junit "$RUNNER_TEMP/forge-build/forge-tests.xml" \
+            -j2
+
+      - name: Verify generated wiki and repository hygiene
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          scripts/wiki verify
+          python3 Tools/Licensing/verify_license_texts.py --strict-cleanup
+          zero_sha="0000000000000000000000000000000000000000"
+          if [[ "$EVENT_NAME" == "pull_request" && -n "${PR_BASE_SHA:-}" ]]; then
+            base_ref="$PR_BASE_SHA"
+          elif [[ "$EVENT_NAME" == "push" && -n "${PUSH_BEFORE_SHA:-}" && "$PUSH_BEFORE_SHA" != "$zero_sha" ]]; then
+            base_ref="$PUSH_BEFORE_SHA"
+          else
+            base_ref="$(git rev-parse HEAD^ 2>/dev/null || git rev-parse HEAD)"
+          fi
+          git diff --check "$base_ref...HEAD"
+
+      - name: Upload repository contract evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: repository-contracts-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/forge-build/forge-tests.xml
+            ${{ runner.temp }}/forge-build/Testing/Temporary/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Publish contract summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Repository contracts"
+            echo
+            echo "Python tooling, SagaTools, Forge, repository boundaries, workflow policy, Wiki, and whitespace were evaluated."
+            echo "See the step log for exact pass/fail diagnostics; no failure is suppressed."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  cpp-linux-all-safe:
+    name: C++ Linux all-safe
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          submodules: recursive
+
+      - name: Read project version
+        shell: bash
+        run: |
+          version="$(tr -d '\r\n' < VERSION)"
+          test -n "$version"
+          echo "SAGA_ENGINE_VERSION=$version" >> "$GITHUB_ENV"
+          echo "SAGA_BUILD_DIR=build/RelWithDebInfo-$version" >> "$GITHUB_ENV"
+
+      - name: Restore Conan cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.conan2/p
+          key: conan-linux-${{ hashFiles('conanfile.py', 'profiles/**', 'VERSION') }}
+          restore-keys: conan-linux-
+
+      - name: Install pinned build tools
+        shell: bash
+        run: |
+          python3 -m pip install --user --disable-pip-version-check \
+            "conan==$CONAN_VERSION" "cmake==$CMAKE_VERSION"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Resolve dependencies and configure
+        shell: bash
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          conan profile detect --force
+          conan install . --build=missing \
+            -s build_type=RelWithDebInfo \
+            -c tools.build:jobs=2 \
+            -c tools.system.package_manager:mode=install \
+            -c tools.system.package_manager:sudo=True
+          source "$SAGA_BUILD_DIR/generators/conanbuild.sh"
+          cmake --preset linux-gcc \
+            -DCMAKE_C_COMPILER_LAUNCHER= \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=
+
+      - name: Build configured test graph
+        shell: bash
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          source "$SAGA_BUILD_DIR/generators/conanbuild.sh"
+          cmake --build "$SAGA_BUILD_DIR" --parallel 2
+
+      - name: Run PR-safe CTest suite
+        shell: bash
+        run: |
+          mkdir -p artifacts/linux
+          ctest --test-dir "$SAGA_BUILD_DIR" \
+            --output-on-failure \
+            --output-junit artifacts/linux/ctest-all-safe.xml \
+            --label-exclude 'stress|slow|load|timing-sensitive|long-running|gpu|display-required' \
+            -j2
+
+      - name: Upload Linux test evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: cpp-linux-all-safe-${{ github.run_attempt }}
+          path: |
+            artifacts/linux/ctest-all-safe.xml
+            ${{ env.SAGA_BUILD_DIR }}/Testing/Temporary/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Publish Linux summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## C++ Linux all-safe"
+            echo
+            echo "Excluded labels: stress, slow, load, timing-sensitive, long-running, gpu, display-required."
+            echo "JUnit and CTest failure logs are attached even when the test step fails."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  cpp-windows-core:
+    name: C++ Windows core
+    runs-on: windows-2022
+    timeout-minutes: 150
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          submodules: recursive
+
+      - name: Read project version
+        shell: pwsh
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          if (-not $version) { throw "VERSION is empty" }
+          "SAGA_ENGINE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "SAGA_BUILD_DIR=Build/windows-msvc-14.38" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Restore Conan cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.conan2/p
+          key: conan-windows-${{ hashFiles('conanfile.py', 'profiles/**', 'VERSION') }}
+          restore-keys: conan-windows-
+
+      - name: Install pinned build tools
+        shell: pwsh
+        run: python -m pip install --disable-pip-version-check "conan==$env:CONAN_VERSION" "cmake==$env:CMAKE_VERSION"
+
+      - name: Resolve dependencies and configure
+        shell: pwsh
+        run: |
+          conan profile detect --force
+          conan install . --output-folder "$env:SAGA_BUILD_DIR" --build=missing `
+            -s build_type=RelWithDebInfo `
+            -c tools.build:jobs=2
+          cmake --preset windows-msvc-14.38 `
+            -DCMAKE_C_COMPILER_LAUNCHER= `
+            -DCMAKE_CXX_COMPILER_LAUNCHER=
+
+      - name: Build Windows graph
+        shell: pwsh
+        run: cmake --build "$env:SAGA_BUILD_DIR" --parallel 2
+
+      - name: Run Windows unit and architecture tests
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/windows | Out-Null
+          ctest --test-dir "$env:SAGA_BUILD_DIR" `
+            --output-on-failure `
+            --output-junit artifacts/windows/ctest-core.xml `
+            --label-regex "unit|architecture" `
+            --label-exclude "integration|timing-sensitive|slow|stress|gpu|whitebox-private" `
+            -j2
+
+      - name: Upload Windows test evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: cpp-windows-core-${{ github.run_attempt }}
+          path: |
+            artifacts/windows/ctest-core.xml
+            ${{ env.SAGA_BUILD_DIR }}/Testing/Temporary/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Publish Windows summary
+        if: always()
+        shell: pwsh
+        run: |
+          @"
+          ## C++ Windows core
+
+          MSVC unit and architecture labels were evaluated. Integration, timing-sensitive, slow, stress, GPU, and private white-box labels are excluded.
+          "@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append

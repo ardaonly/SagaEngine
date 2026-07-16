@@ -1,9 +1,0 @@
-{
-  "tools": {
-    "forge": "/usr/local/bin/forge",
-    "host": "/opt/saga/Tools/Developer/Environment/Host/host.sh"
-  },
-  "installers": {
-    "forge": "/path/to/Forge/build.py"
-  }
-}

@@ -20,6 +20,21 @@
 namespace
 {
 
+[[nodiscard]] bool VisibleEvidenceRequested()
+{
+    const char* requested = std::getenv("SAGA_RUN_VISIBLE_TESTS");
+    if (requested == nullptr || std::string_view(requested) != "1")
+    {
+        return false;
+    }
+#if !defined(_WIN32)
+    return std::getenv("DISPLAY") != nullptr ||
+           std::getenv("WAYLAND_DISPLAY") != nullptr;
+#else
+    return true;
+#endif
+}
+
 void WriteFile(const std::filesystem::path& path, const std::string& contents)
 {
     std::filesystem::create_directories(path.parent_path());
@@ -759,13 +774,11 @@ TEST(StarterArenaRuntimeSmokeTests,
 
 TEST(StarterArenaRuntimeSmokeTests, BoundedVisibleModeWritesStableReport)
 {
-#if !defined(_WIN32)
-    if (std::getenv("DISPLAY") == nullptr &&
-        std::getenv("WAYLAND_DISPLAY") == nullptr)
+    if (!VisibleEvidenceRequested())
     {
-        GTEST_SKIP() << "No display is available for bounded visible evidence.";
+        GTEST_SKIP() << "Visible evidence requires SAGA_RUN_VISIBLE_TESTS=1 "
+                        "and a qualified native display environment.";
     }
-#endif
     const auto root = TempProjectRoot("saga_starter_arena_visible_bounded");
     CopyStarterArenaSample(root);
     const auto reportPath =
@@ -835,13 +848,11 @@ TEST(StarterArenaRuntimeSmokeTests, BoundedVisibleModeWritesStableReport)
 
 TEST(StarterArenaRuntimeSmokeTests, BoundedSyntheticVisibleModeWritesInputEvidence)
 {
-#if !defined(_WIN32)
-    if (std::getenv("DISPLAY") == nullptr &&
-        std::getenv("WAYLAND_DISPLAY") == nullptr)
+    if (!VisibleEvidenceRequested())
     {
-        GTEST_SKIP() << "No display is available for bounded visible evidence.";
+        GTEST_SKIP() << "Visible evidence requires SAGA_RUN_VISIBLE_TESTS=1 "
+                        "and a qualified native display environment.";
     }
-#endif
     const auto root = TempProjectRoot("saga_starter_arena_visible_synthetic");
     CopyStarterArenaSample(root);
     const auto reportPath = std::filesystem::temp_directory_path() /
@@ -881,10 +892,11 @@ TEST(StarterArenaRuntimeSmokeTests, BoundedSyntheticVisibleModeWritesInputEviden
 
 TEST(StarterArenaRuntimeSmokeTests, VisibleSyntheticGameplayReflectsManagedMutation)
 {
-#if !defined(_WIN32)
-    if (std::getenv("DISPLAY") == nullptr && std::getenv("WAYLAND_DISPLAY") == nullptr)
-        GTEST_SKIP() << "No display is available for visible gameplay evidence.";
-#endif
+    if (!VisibleEvidenceRequested())
+    {
+        GTEST_SKIP() << "Visible evidence requires SAGA_RUN_VISIBLE_TESTS=1 "
+                        "and a qualified native display environment.";
+    }
     const auto root = TempProjectRoot("saga_starter_arena_visible_gameplay");
     CopyStarterArenaSample(root);
     ASSERT_TRUE(CompileStarterArenaScripts(root));

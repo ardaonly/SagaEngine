@@ -1,5 +1,9 @@
 # SagaEngine
 
+[![SagaEngine CI](https://github.com/ardaonly/SagaEngine/actions/workflows/build.yml/badge.svg)](https://github.com/ardaonly/SagaEngine/actions/workflows/build.yml)
+[![Licensing Policy](https://github.com/ardaonly/SagaEngine/actions/workflows/licensing.yml/badge.svg)](https://github.com/ardaonly/SagaEngine/actions/workflows/licensing.yml)
+[![Heavy Test Evidence](https://github.com/ardaonly/SagaEngine/actions/workflows/heavy-evidence.yml/badge.svg)](https://github.com/ardaonly/SagaEngine/actions/workflows/heavy-evidence.yml)
+
 SagaEngine is an active open-source game-engine and authoring-toolchain codebase focused on explicit module ownership, authoritative simulation, project/package contracts, C# source authoring, rendering foundations, editor infrastructure, and evidence-bounded development.
 
 It is not a finished game-engine product, public SDK, production networking stack, or end-to-end editor workflow. See [SagaWiki](SagaWiki/index.html) for the canonical human-facing documentation and [capability boundaries](SagaWiki/index.html#non-claims) before interpreting repository foundations as product completion.
@@ -54,6 +58,8 @@ SagaTools remains the stable dispatcher. Developer checks below `Tools/Developer
 ## Licensing
 
 [LICENSE](LICENSE) is the primary repository license. [LICENSES/THIRD_PARTY_NOTICES.md](LICENSES/THIRD_PARTY_NOTICES.md) is the authoritative third-party notice. Additional SPDX texts live under `LICENSES/`; machine-checked policy lives in `LICENSE_POLICY.toml`, `LICENSE_TEXT_SOURCES.toml`, `.reuse/dep5`, and generated checksums.
+
+Pull requests run the strict policy and DCO gate. Relevant source/build/licensing changes also run the configured CMake ownership graph; its JSON report and installed-consumer evidence remain visible as workflow artifacts. See [.github/MAINTENANCE.md](.github/MAINTENANCE.md) for required checks and retention.
 
 ## Documentation
 
