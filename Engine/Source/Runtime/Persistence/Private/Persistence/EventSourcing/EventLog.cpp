@@ -1,5 +1,6 @@
 #include <SagaEngine/Persistence/EventSourcing/EventLog.h>
 #include <SagaEngine/Core/Log/Log.h>
+#include <SagaEngine/Core/Profiling/Profiler.h>
 #include <chrono>
 #include <thread>
 #include <condition_variable>
@@ -28,9 +29,9 @@ struct EventLog::Impl {
 };
 
 EventLog::EventLog(std::shared_ptr<IDatabase> database, const EventLogConfig& config)
-    : _database(std::move(database))
+    : _pimpl(std::make_unique<Impl>())
+    , _database(std::move(database))
     , _config(config)
-    , _pimpl(std::make_unique<Impl>())
 {
     if (!_database || !_database->IsHealthy()) {
         LOG_ERROR("EventLog", "Invalid database instance");
@@ -103,14 +104,19 @@ void EventLog::Flush() {
 }
 
 bool EventLog::ReplayFrom(uint64_t sequenceId, EventReplayCallback callback) {
-    LOG_INFO("EventLog", "Replay requested from sequence %llu", sequenceId);
-    return true;
+    (void)callback;
+    LOG_WARN("EventLog", "Replay from sequence %llu is unsupported by the database contract",
+             sequenceId);
+    return false;
 }
 
 EventLog::Stats EventLog::GetStatistics() const {
     Stats stats;
     stats.totalEvents = _pimpl->totalEvents.load(std::memory_order_acquire);
-    stats.pendingEvents = _pimpl->queue.size();
+    {
+        std::lock_guard lock(_pimpl->queueMutex);
+        stats.pendingEvents = _pimpl->queue.size();
+    }
     stats.failedCommits = _pimpl->failedCommits.load(std::memory_order_acquire);
     stats.avgCommitLatencyMs = _pimpl->avgCommitLatencyMs.load(std::memory_order_acquire);
     return stats;
@@ -200,8 +206,8 @@ bool EventLog::CommitBatch(std::vector<EventRecord>& batch) {
     std::atomic<bool> done{false};
     std::atomic<bool> success{false};
     
-    _database->AppendEvent("BATCH_COMMIT", buffer, [&](bool ok, const std::string&) {
-        success.store(ok, std::memory_order_release);
+    _database->AppendEvent("BATCH_COMMIT", buffer, [&](DatabaseStatus status) {
+        success.store(status.IsSuccess(), std::memory_order_release);
         done.store(true, std::memory_order_release);
     });
 

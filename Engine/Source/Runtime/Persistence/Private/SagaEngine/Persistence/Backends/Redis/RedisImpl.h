@@ -13,6 +13,7 @@ struct RedisConfig {
     std::string password;
     uint32_t maxConnectionPool{10};
     uint32_t ttlSeconds{3600};
+    uint32_t writeQueueSize{4096};
 };
 
 class RedisDatabase : public IDatabase {
@@ -26,14 +27,14 @@ public:
     bool Initialize() override;
     void Shutdown() override;
     void WriteEntity(const EntitySnapshot& snapshot, DatabaseCallback cb) override;
-    void ReadEntity(EntityId entityId, DatabaseCallback cb) override;
+    void ReadEntity(EntityId entityId, EntityReadCallback cb) override;
     void DeleteEntity(EntityId entityId, DatabaseCallback cb) override;
     void AppendEvent(const std::string& type, const std::vector<uint8_t>& data, DatabaseCallback cb) override;
     DatabaseStats GetStatistics() const override;
     bool IsHealthy() const override { return _isHealthy.load(std::memory_order_acquire); }
 
     void SetCache(const std::string& key, const std::vector<uint8_t>& value, DatabaseCallback cb);
-    void GetCache(const std::string& key, DatabaseCallback cb);
+    void GetCache(const std::string& key, DataReadCallback cb);
     void DeleteCache(const std::string& key, DatabaseCallback cb);
 
 private:

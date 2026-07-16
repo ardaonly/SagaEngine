@@ -17,3 +17,11 @@ saga_add_runtime_module(Persistence
         Public/SagaEngine/Persistence/IDatabase.h
         Public/SagaEngine/Persistence/Types.h
 )
+
+saga_register_module_tests(Persistence
+    MODULE_DIR Engine/Source/Runtime/Persistence
+    LINK_TARGET SagaBackend
+    SOURCES
+        Tests/PersistenceContractTests.cpp
+    LABELS unit runtime persistence
+)

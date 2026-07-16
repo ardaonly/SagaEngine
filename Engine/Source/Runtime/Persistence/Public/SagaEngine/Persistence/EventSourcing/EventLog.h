@@ -1,7 +1,6 @@
 #pragma once
 #include <SagaEngine/Persistence/IDatabase.h>
 #include <SagaEngine/Persistence/Types.h>
-#include <SagaEngine/Core/Profiling/Profiler.h>
 #include <vector>
 #include <deque>
 #include <mutex>
@@ -39,6 +38,8 @@ public:
     uint64_t Append(const std::string& type, const std::vector<uint8_t>& data, EntityId entityId = INVALID_ENTITY_ID);
     
     using EventReplayCallback = std::function<void(const EventRecord&)>;
+    /// Replay storage is not implemented by the current IDatabase contract.
+    /// Returns false without invoking the callback rather than claiming success.
     bool ReplayFrom(uint64_t sequenceId, EventReplayCallback callback);
 
     uint64_t GetCurrentSequence() const { return _nextSequence.load(std::memory_order_acquire); }
