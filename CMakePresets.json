@@ -16,7 +16,7 @@
             "name": "windows-msvc-14.38",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/Build/windows-msvc-14.38",
-            "toolchainFile": "${sourceDir}/Build/windows-msvc-14.38/build/RelWithDebInfo/generators/conan_toolchain.cmake",
+            "toolchainFile": "${sourceDir}/Build/windows-msvc-14.38/build/RelWithDebInfo-$env{SAGA_ENGINE_VERSION}/generators/conan_toolchain.cmake",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo",
                 "CMAKE_POLICY_DEFAULT_CMP0091": "NEW",

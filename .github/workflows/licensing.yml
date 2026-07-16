@@ -165,11 +165,12 @@ jobs:
           echo "SAGA_BUILD_DIR=build/RelWithDebInfo-$version" >> "$GITHUB_ENV"
 
       - name: Restore Conan cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: licensing-conan-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.conan2/p
-          key: licensing-conan-linux-${{ hashFiles('conanfile.py', 'profiles/**', 'VERSION') }}
-          restore-keys: licensing-conan-linux-
+          key: conan-linux-${{ hashFiles('conanfile.py', 'profiles/**', 'VERSION') }}
+          restore-keys: conan-linux-
 
       - name: Install pinned build tools
         shell: bash
@@ -196,6 +197,13 @@ jobs:
             -DCMAKE_CXX_COMPILER_LAUNCHER=
           test -d "$SAGA_BUILD_DIR/.cmake/api/v1/reply"
 
+      - name: Save resolved licensing Conan cache
+        if: steps.licensing-conan-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.conan2/p
+          key: conan-linux-${{ hashFiles('conanfile.py', 'profiles/**', 'VERSION') }}
+
       - name: Validate configured licensing graph
         shell: bash
         run: |
@@ -212,7 +220,7 @@ jobs:
           export PATH="$HOME/.local/bin:$PATH"
           source "$SAGA_BUILD_DIR/generators/conanbuild.sh"
           cmake --build "$SAGA_BUILD_DIR" --parallel 2 --target \
-            SagaCoreLog SagaDiagnostics SagaShared SagaCollaboration \
+            SagaCoreLog SagaDiagnostics SagaCollaboration \
             SagaEngine SagaRuntimeLib SagaServerLib SagaBackend SagaGraphicsCore
 
       - name: Verify installed SDK and licensing payload

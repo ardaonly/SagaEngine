@@ -48,16 +48,32 @@ jobs:
             Tools/SagaScript \
             Tools/SagaTools
 
-      - name: Run Python contract tests
+      - name: Run licensing policy tests
+        run: python3 -m unittest discover -s Tools/Licensing/tests -p 'test_*.py'
+
+      - name: Run workflow policy tests
+        run: python3 -m unittest discover -s Tools/Developer/CI/tests -p 'test_*.py'
+
+      - name: Run repository audit tests
+        run: python3 -m unittest discover -s Tools/Developer/RepoAudit/tests -p 'test_*.py'
+
+      - name: Run SagaSync tests
+        run: python3 Tools/Developer/Environment/SagaSync/tests/test_sagasync_core.py
+
+      - name: Run SagaProjectKit CLI tests
+        run: python3 Tools/SagaProjectKit/tests/test_sagaprojectkit_cli.py
+
+      - name: Run SagaPackager CLI tests
+        run: python3 Tools/SagaPackager/tests/test_sagapack_cli.py
+
+      - name: Run SagaScript CLI tests
+        run: python3 Tools/SagaScript/tests/test_sagascript_cli.py
+
+      - name: Run SagaScript toolchain tests
+        run: python3 Tools/SagaScript/tests/test_sagascript_toolchain_check.py
+
+      - name: Run SagaTools dispatcher contracts
         run: |
-          python3 -m unittest discover -s Tools/Licensing/tests -p 'test_*.py'
-          python3 -m unittest discover -s Tools/Developer/CI/tests -p 'test_*.py'
-          python3 -m unittest discover -s Tools/Developer/RepoAudit/tests -p 'test_*.py'
-          python3 Tools/Developer/Environment/SagaSync/tests/test_sagasync_core.py
-          python3 Tools/SagaProjectKit/tests/test_sagaprojectkit_cli.py
-          python3 Tools/SagaPackager/tests/test_sagapack_cli.py
-          python3 Tools/SagaScript/tests/test_sagascript_cli.py
-          python3 Tools/SagaScript/tests/test_sagascript_toolchain_check.py
           bash Tools/SagaTools/tests/run_contract_tests.sh
 
       - name: Enforce repository boundaries
@@ -142,8 +158,14 @@ jobs:
           echo "SAGA_ENGINE_VERSION=$version" >> "$GITHUB_ENV"
           echo "SAGA_BUILD_DIR=build/RelWithDebInfo-$version" >> "$GITHUB_ENV"
 
+      - name: Set up .NET 10 for managed runtime tests
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+
       - name: Restore Conan cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: linux-conan-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.conan2/p
           key: conan-linux-${{ hashFiles('conanfile.py', 'profiles/**', 'VERSION') }}
@@ -171,12 +193,69 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER= \
             -DCMAKE_CXX_COMPILER_LAUNCHER=
 
-      - name: Build configured test graph
+      - name: Save resolved Linux Conan cache
+        if: steps.linux-conan-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.conan2/p
+          key: conan-linux-${{ hashFiles('conanfile.py', 'profiles/**', 'VERSION') }}
+
+      - name: Build Linux runtime module tests
         shell: bash
         run: |
           export PATH="$HOME/.local/bin:$PATH"
           source "$SAGA_BUILD_DIR/generators/conanbuild.sh"
-          cmake --build "$SAGA_BUILD_DIR" --parallel 2
+          cmake --build "$SAGA_BUILD_DIR" --parallel 2 --target \
+            SagaCoreModuleTests SagaMathModuleTests SagaDiagnosticsModuleTests \
+            SagaECSModuleTests SagaAssetsModuleTests SagaResourcesModuleTests \
+            SagaInputModuleTests SagaAudioModuleTests SagaUIModuleTests \
+            SagaScriptingModuleTests SagaNetworkingModuleTests \
+            SagaReplicationModuleTests SagaPersistenceModuleTests \
+            SagaSimulationModuleTests SagaWorldModuleTests \
+            SagaServerAuthorityModuleTests SagaSagaRuntimeModuleTests
+
+      - name: Build Linux editor module tests
+        shell: bash
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          source "$SAGA_BUILD_DIR/generators/conanbuild.sh"
+          cmake --build "$SAGA_BUILD_DIR" --parallel 2 --target \
+            SagaEditorCoreModuleTests SagaEditorFrameworkModuleTests \
+            SagaEditorQtModuleTests SagaEditorAuthoringModuleTests \
+            SagaVisualBlocksEditorModuleTests SagaEditorCollaborationModuleTests \
+            SagaEditorExperimentalModuleTests SagaSagaEditorLabModuleTests
+
+      - name: Build Linux core and architecture tests
+        shell: bash
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          source "$SAGA_BUILD_DIR/generators/conanbuild.sh"
+          cmake --build "$SAGA_BUILD_DIR" --parallel 2 --target \
+            SagaUnitTests SagaDiligentWhiteboxTests \
+            SagaGraphicsPublicConsumerLinkTest SagaArchitectureTests
+
+      - name: Build Linux focused runtime tests
+        shell: bash
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          source "$SAGA_BUILD_DIR/generators/conanbuild.sh"
+          cmake --build "$SAGA_BUILD_DIR" --parallel 2 --target \
+            SagaStressArenaTests SagaStressArena SagaChaosLabTests SagaChaosLab \
+            SagaStateCheckTests MultiplayerSandboxHeadlessTests \
+            AssetIdentityRuntimeContractTests AssetIdentityManifestWriterTests \
+            AssetManifestWriterTests PackageManifestWriterTests \
+            GeneratedRuntimeSmokeManifestTests GeneratedRuntimeSmokePackageTests \
+            RuntimeAssetStartupBootstrapTests ScriptBindingRuntimeTests \
+            CSharpScriptHostTests CSharpGameplayProofTests \
+            StarterArenaRuntimeSmokeTests StarterArenaPlayableTests
+
+      - name: Build Linux product tests
+        shell: bash
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          source "$SAGA_BUILD_DIR/generators/conanbuild.sh"
+          cmake --build "$SAGA_BUILD_DIR" --parallel 2 --target \
+            SagaProductTests SagaLauncherUiTests
 
       - name: Run PR-safe CTest suite
         shell: bash
@@ -185,7 +264,7 @@ jobs:
           ctest --test-dir "$SAGA_BUILD_DIR" \
             --output-on-failure \
             --output-junit artifacts/linux/ctest-all-safe.xml \
-            --label-exclude 'stress|slow|load|timing-sensitive|long-running|gpu|display-required' \
+            --label-exclude 'stress|slow|load|timing-sensitive|long-running|gpu|display-required|install' \
             -j2
 
       - name: Upload Linux test evidence
@@ -206,7 +285,8 @@ jobs:
           {
             echo "## C++ Linux all-safe"
             echo
-            echo "Excluded labels: stress, slow, load, timing-sensitive, long-running, gpu, display-required."
+            echo "Excluded labels: stress, slow, load, timing-sensitive, long-running, gpu, display-required, install."
+            echo "The installed SDK contract is owned by the configured licensing graph job."
             echo "JUnit and CTest failure logs are attached even when the test step fails."
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -229,8 +309,14 @@ jobs:
           "SAGA_ENGINE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
           "SAGA_BUILD_DIR=Build/windows-msvc-14.38" | Out-File -FilePath $env:GITHUB_ENV -Append
 
+      - name: Set up .NET 10 for managed runtime tests
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+
       - name: Restore Conan cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: windows-conan-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.conan2/p
           key: conan-windows-${{ env.CONAN_VERSION }}-${{ env.CMAKE_VERSION }}-${{ hashFiles('conanfile.py', 'profiles/**', 'VERSION') }}
@@ -263,32 +349,95 @@ jobs:
             -pr:b windows-runner `
             -pr:b profiles/ci/windows-msvc
 
+      - name: Save resolved Windows Conan cache
+        if: steps.windows-conan-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.conan2/p
+          key: conan-windows-${{ env.CONAN_VERSION }}-${{ env.CMAKE_VERSION }}-${{ hashFiles('conanfile.py', 'profiles/**', 'VERSION') }}
+
       - name: Configure Windows graph
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $true
-          $conanGenerators = Join-Path $env:SAGA_BUILD_DIR "build/RelWithDebInfo/generators"
+          $conanGenerators = Join-Path $env:SAGA_BUILD_DIR "build/RelWithDebInfo-$env:SAGA_ENGINE_VERSION/generators"
           . (Join-Path $conanGenerators "conanbuild.ps1")
           cmake --preset windows-msvc-14.38 `
             -DCMAKE_C_COMPILER_LAUNCHER= `
             -DCMAKE_CXX_COMPILER_LAUNCHER=
 
-      - name: Build Windows graph
+      - name: Build Windows runtime module tests
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $true
-          $conanGenerators = Join-Path $env:SAGA_BUILD_DIR "build/RelWithDebInfo/generators"
+          $conanGenerators = Join-Path $env:SAGA_BUILD_DIR "build/RelWithDebInfo-$env:SAGA_ENGINE_VERSION/generators"
           . (Join-Path $conanGenerators "conanbuild.ps1")
-          cmake --build "$env:SAGA_BUILD_DIR" --parallel 2
+          cmake --build "$env:SAGA_BUILD_DIR" --parallel 2 --target `
+            SagaCoreModuleTests SagaMathModuleTests SagaDiagnosticsModuleTests `
+            SagaECSModuleTests SagaAssetsModuleTests SagaResourcesModuleTests `
+            SagaInputModuleTests SagaAudioModuleTests SagaUIModuleTests `
+            SagaScriptingModuleTests SagaNetworkingModuleTests `
+            SagaReplicationModuleTests SagaPersistenceModuleTests `
+            SagaSimulationModuleTests SagaWorldModuleTests `
+            SagaServerAuthorityModuleTests SagaSagaRuntimeModuleTests
+
+      - name: Build Windows editor module tests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          $conanGenerators = Join-Path $env:SAGA_BUILD_DIR "build/RelWithDebInfo-$env:SAGA_ENGINE_VERSION/generators"
+          . (Join-Path $conanGenerators "conanbuild.ps1")
+          cmake --build "$env:SAGA_BUILD_DIR" --parallel 2 --target `
+            SagaEditorCoreModuleTests SagaEditorFrameworkModuleTests `
+            SagaEditorQtModuleTests SagaEditorAuthoringModuleTests `
+            SagaVisualBlocksEditorModuleTests SagaEditorCollaborationModuleTests `
+            SagaEditorExperimentalModuleTests SagaSagaEditorLabModuleTests
+
+      - name: Build Windows core and architecture tests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          $conanGenerators = Join-Path $env:SAGA_BUILD_DIR "build/RelWithDebInfo-$env:SAGA_ENGINE_VERSION/generators"
+          . (Join-Path $conanGenerators "conanbuild.ps1")
+          cmake --build "$env:SAGA_BUILD_DIR" --parallel 2 --target `
+            SagaUnitTests SagaArchitectureTests
+
+      - name: Build Windows focused runtime tests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          $conanGenerators = Join-Path $env:SAGA_BUILD_DIR "build/RelWithDebInfo-$env:SAGA_ENGINE_VERSION/generators"
+          . (Join-Path $conanGenerators "conanbuild.ps1")
+          cmake --build "$env:SAGA_BUILD_DIR" --parallel 2 --target `
+            SagaStressArenaTests SagaStressArena SagaChaosLabTests SagaChaosLab `
+            SagaStateCheckTests MultiplayerSandboxHeadlessTests `
+            AssetIdentityRuntimeContractTests AssetIdentityManifestWriterTests `
+            AssetManifestWriterTests PackageManifestWriterTests `
+            GeneratedRuntimeSmokeManifestTests GeneratedRuntimeSmokePackageTests `
+            RuntimeAssetStartupBootstrapTests ScriptBindingRuntimeTests `
+            CSharpScriptHostTests CSharpGameplayProofTests `
+            StarterArenaRuntimeSmokeTests StarterArenaPlayableTests
+
+      - name: Build Windows product tests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          $conanGenerators = Join-Path $env:SAGA_BUILD_DIR "build/RelWithDebInfo-$env:SAGA_ENGINE_VERSION/generators"
+          . (Join-Path $conanGenerators "conanbuild.ps1")
+          cmake --build "$env:SAGA_BUILD_DIR" --parallel 2 --target SagaProductTests
 
       - name: Run Windows unit and architecture tests
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $true
-          $conanGenerators = Join-Path $env:SAGA_BUILD_DIR "build/RelWithDebInfo/generators"
+          $conanGenerators = Join-Path $env:SAGA_BUILD_DIR "build/RelWithDebInfo-$env:SAGA_ENGINE_VERSION/generators"
           $conanRun = Join-Path $conanGenerators "conanrun.ps1"
           if (Test-Path $conanRun) { . $conanRun }
           New-Item -ItemType Directory -Force artifacts/windows | Out-Null
