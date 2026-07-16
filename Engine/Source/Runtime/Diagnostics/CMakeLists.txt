@@ -52,3 +52,16 @@ saga_add_runtime_module(Diagnostics
         Public/SagaShared/Diagnostics/DiagnosticSource.hpp
         Public/SagaShared/Diagnostics/DiagnosticSummary.hpp
 )
+
+saga_register_module_tests(Diagnostics
+    MODULE_DIR Engine/Source/Runtime/Diagnostics
+    LINK_TARGET SagaDiagnostics
+    PRIVATE_DEPS nlohmann_json::nlohmann_json
+    LABELS "unit;runtime;diagnostics"
+    SOURCES
+        Tests/DiagnosticFoundationTests.cpp
+        Tests/DiagnosticMemoryResourceTests.cpp
+        Tests/DiagnosticReliabilityTests.cpp
+        Tests/DiagnosticReportTests.cpp
+        Tests/FaultBoundaryTests.cpp
+)

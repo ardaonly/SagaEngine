@@ -24,3 +24,11 @@ saga_add_runtime_module(Simulation
         Public/SagaEngine/Simulation/WorldPartitionSystem.h
         Public/SagaEngine/Simulation/WorldState.h
 )
+
+saga_register_module_tests(Simulation
+    MODULE_DIR Engine/Source/Runtime/Simulation
+    LINK_TARGET SagaEngine
+    LABELS "unit;runtime;simulation"
+    SOURCES
+        Tests/SimulationTests.cpp
+)

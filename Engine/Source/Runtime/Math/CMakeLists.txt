@@ -21,3 +21,11 @@ saga_add_runtime_module(Math
         Public/SagaEngine/Math/Transform.h
         Public/SagaEngine/Math/Vec3.h
 )
+
+saga_register_module_tests(Math
+    MODULE_DIR Engine/Source/Runtime/Math
+    LINK_TARGET SagaEngine
+    SOURCES
+        Tests/DeterministicMathTests.cpp
+    LABELS unit runtime math
+)

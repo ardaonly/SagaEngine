@@ -12,6 +12,16 @@ saga_add_runtime_module(Input
         Private/SagaEngine/Platform/SDL/SDLWindow.h
 )
 
+saga_register_module_tests(Input
+    MODULE_DIR Engine/Source/Runtime/Input
+    LINK_TARGET SagaEngine
+    LABELS "unit;runtime;input"
+    SOURCES
+        Tests/InputBufferTests.cpp
+        Tests/InputSubsystemTests.cpp
+        Tests/NetworkInputLayerTests.cpp
+)
+
 saga_add_runtime_module(Input
     MODULE_DIR Engine/Source/Runtime/Input
     TARGET SagaEngine

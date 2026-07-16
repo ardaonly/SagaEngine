@@ -33,6 +33,16 @@ saga_add_runtime_module(Core
         Public/SagaEngine/Core/Time/Time.h
 )
 
+saga_register_module_tests(Core
+    MODULE_DIR Engine/Source/Runtime/Core
+    LINK_TARGET SagaEngine
+    PRIVATE_DEPS SagaCoreLog
+    LABELS "unit;runtime;core"
+    SOURCES
+        Tests/ProfilerTests.cpp
+        Tests/StaticModuleLifecycleTests.cpp
+)
+
 saga_add_runtime_module(Core
     MODULE_DIR Engine/Source/Runtime/Core
     TARGET SagaCoreLog

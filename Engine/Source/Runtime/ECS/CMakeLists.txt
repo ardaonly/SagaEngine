@@ -27,3 +27,11 @@ saga_add_runtime_module(ECS
         Public/SagaEngine/ECS/Query.h
         Public/SagaEngine/ECS/System.h
 )
+
+saga_register_module_tests(ECS
+    MODULE_DIR Engine/Source/Runtime/ECS
+    LINK_TARGET SagaEngine
+    SOURCES
+        Tests/ArchetypeMigrationTests.cpp
+    LABELS unit runtime ecs
+)

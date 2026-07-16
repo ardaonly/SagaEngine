@@ -50,3 +50,15 @@ saga_add_runtime_module(Assets
         Public/SagaShared/Publish/PublishReport.hpp
         Public/SagaShared/Publish/PublishStatus.hpp
 )
+
+saga_register_module_tests(Assets
+    MODULE_DIR Engine/Source/Runtime/Assets
+    LINK_TARGET SagaEngine
+    PRIVATE_DEPS nlohmann_json::nlohmann_json
+    LABELS "unit;runtime;assets"
+    SOURCES
+        Tests/ArtifactManifestLoaderTests.cpp
+        Tests/ArtifactStartupValidatorTests.cpp
+        Tests/AssetManifestLoaderTests.cpp
+        Tests/PackageManifestLoaderTests.cpp
+)

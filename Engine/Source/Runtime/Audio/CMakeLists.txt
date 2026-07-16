@@ -14,3 +14,11 @@ saga_add_runtime_module(Audio
         Public/SagaEngine/Audio/AudioTypes.h
         Public/SagaEngine/Audio/IAudioBackend.h
 )
+
+saga_register_module_tests(Audio
+    MODULE_DIR Engine/Source/Runtime/Audio
+    LINK_TARGET SagaEngine
+    SOURCES
+        Tests/AudioPipelineTests.cpp
+    LABELS unit runtime audio
+)

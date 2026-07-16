@@ -6,6 +6,23 @@ saga_add_runtime_module(UI
         Private/Backends/RmlUi/RmlUiUiBackend.h
 )
 
+saga_register_module_tests(UI
+    MODULE_DIR Engine/Source/Runtime/UI
+    LINK_TARGET SagaEngine
+    PRIVATE_DEPS SagaBackend
+    LABELS "unit;runtime;ui"
+    SOURCES
+        Tests/RuntimeUiBootstrapperTests.cpp
+        Tests/UiActionBindingTests.cpp
+        Tests/UiBackendTests.cpp
+        Tests/UiEventBridgeTests.cpp
+        Tests/UiInputRouterTests.cpp
+        Tests/UiInteractionPipelineTests.cpp
+        Tests/UiNamedActionHandlerTests.cpp
+        Tests/UiResourceProviderTests.cpp
+        Tests/UiScreenManagerTests.cpp
+)
+
 saga_add_runtime_module(UI
     MODULE_DIR Engine/Source/Runtime/UI
     TARGET SagaEngine
