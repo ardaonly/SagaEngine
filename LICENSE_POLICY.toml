@@ -9,8 +9,8 @@ policy_revision = "1.0"
 policy_status = "active"
 repository_state = "transitional"
 reviewed_branch = "main"
-reviewed_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
-reviewed_project_version = "0.0.10"
+reviewed_commit = "8d6d921d4abcb1d6a9f53ad16487f5bda2dfc36f"
+reviewed_project_version = "0.0.11"
 review_record_paths = [
   ".github/workflows/licensing.yml",
   "LICENSE_POLICY.toml",
@@ -653,7 +653,7 @@ effective_commit = ""
 
 [[targets]]
 name = "SagaCoreLog"
-source_domains = ["saga-engine"]
+source_domains = ["saga-runtime"]
 public_dependencies = []
 private_dependencies = []
 runtime_dependencies = []
@@ -672,7 +672,7 @@ expected_exported_target = false
 export_validation = "manual-pending"
 [[targets]]
 name = "SagaDiagnostics"
-source_domains = ["saga-engine"]
+source_domains = ["saga-runtime"]
 public_dependencies = []
 private_dependencies = ["SagaCoreLog"]
 runtime_dependencies = []
@@ -699,7 +699,7 @@ target_license_expression = "MPL-2.0"
 distribution = "installed-not-exported"
 review = "install-export-review-required"
 blockers = ["install-export-boundary-review"]
-graph_required = true
+graph_required = false
 current_license_mode = "fixed-spdx"
 current_license_expressions = ["MPL-2.0"]
 target_license_mode = "fixed-spdx"
@@ -748,7 +748,7 @@ expected_exported_target = false
 export_validation = "manual-pending"
 [[targets]]
 name = "SagaGraphicsCore"
-source_domains = ["saga-engine"]
+source_domains = ["saga-runtime"]
 public_dependencies = []
 private_dependencies = []
 runtime_dependencies = []
@@ -787,7 +787,7 @@ expected_exported_target = true
 export_validation = "manual-complete"
 [[targets]]
 name = "SagaGraphicsPrivate"
-source_domains = ["saga-engine"]
+source_domains = ["saga-runtime"]
 public_dependencies = []
 private_dependencies = ["SagaGraphicsCore"]
 runtime_dependencies = []
@@ -807,7 +807,7 @@ export_validation = "manual-pending"
 
 [[targets]]
 name = "SagaEngine"
-source_domains = ["saga-engine"]
+source_domains = ["saga-runtime"]
 public_dependencies = ["SagaShared"]
 private_dependencies = ["SagaCoreLog", "SagaDiagnostics"]
 runtime_dependencies = []
@@ -827,7 +827,7 @@ export_validation = "manual-pending"
 
 [[targets]]
 name = "SagaPlatformSDL"
-source_domains = ["saga-engine"]
+source_domains = ["saga-runtime"]
 public_dependencies = []
 private_dependencies = ["SagaEngine"]
 runtime_dependencies = ["SDL"]
@@ -847,7 +847,7 @@ export_validation = "manual-pending"
 
 [[targets]]
 name = "SagaDiligentBackend"
-source_domains = ["saga-engine"]
+source_domains = ["saga-runtime"]
 public_dependencies = []
 private_dependencies = ["VendorDiligent", "SagaGraphicsPrivate"]
 runtime_dependencies = ["Vendor/Diligent"]
@@ -886,6 +886,26 @@ expected_exported_target = false
 export_validation = "manual-pending"
 
 [[targets]]
+name = "SagaDiligentRuntime"
+source_domains = ["saga-runtime"]
+public_dependencies = []
+private_dependencies = ["SagaGraphicsCore", "SagaGraphicsPrivate"]
+runtime_dependencies = ["Vendor/Diligent"]
+target_license_expression = "MPL-2.0"
+distribution = "internal"
+review = "configured-graph-reviewed"
+blockers = []
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["MPL-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = false
+expected_exported_target = false
+export_validation = "manual-pending"
+
+[[targets]]
 name = "SagaServerLib"
 source_domains = ["saga-server"]
 public_dependencies = ["SagaEngine"]
@@ -907,7 +927,7 @@ export_validation = "manual-pending"
 
 [[targets]]
 name = "SagaStressArenaLib"
-source_domains = ["saga-tools"]
+source_domains = ["saga-tests"]
 public_dependencies = []
 private_dependencies = ["SagaRuntimeLib", "SagaServerLib"]
 runtime_dependencies = []
@@ -964,7 +984,7 @@ expected_exported_target = false
 export_validation = "manual-pending"
 [[targets]]
 name = "MultiplayerSandboxHeadlessLib"
-source_domains = ["saga-tools"]
+source_domains = ["saga-samples"]
 public_dependencies = []
 private_dependencies = ["SagaRuntimeLib", "SagaServerLib"]
 runtime_dependencies = []
@@ -1062,13 +1082,7 @@ export_validation = "manual-pending"
 
 [[targets]]
 name = "SagaProductLib"
-source_domains = [
-  "saga-engine",
-  "saga-runtime",
-  "saga-server",
-  "saga-backends",
-  "saga-editor",
-]
+source_domains = ["saga-editor", "saga-tests"]
 public_dependencies = []
 private_dependencies = ["SagaEngine", "SagaRuntimeLib", "SagaServerLib", "SagaEditorLib"]
 runtime_dependencies = []
@@ -1103,6 +1117,66 @@ target_license_mode = "fixed-spdx"
 generated_source_patterns = []
 generated_source_action = "report"
 expected_installed_artifact = false
+expected_exported_target = false
+export_validation = "manual-pending"
+
+[[targets]]
+name = "Saga"
+source_domains = ["saga-editor"]
+public_dependencies = []
+private_dependencies = ["SagaProductLib"]
+runtime_dependencies = ["Qt"]
+target_license_expression = "MPL-2.0"
+distribution = "installed-program"
+review = "configured-graph-reviewed"
+blockers = []
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["MPL-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = true
+expected_exported_target = false
+export_validation = "manual-pending"
+
+[[targets]]
+name = "SagaEditor"
+source_domains = ["saga-editor"]
+public_dependencies = []
+private_dependencies = ["SagaEditorLib"]
+runtime_dependencies = ["Qt"]
+target_license_expression = "MPL-2.0"
+distribution = "installed-program"
+review = "configured-graph-reviewed"
+blockers = []
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["MPL-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = true
+expected_exported_target = false
+export_validation = "manual-pending"
+
+[[targets]]
+name = "SagaRuntime"
+source_domains = ["saga-apps", "saga-samples"]
+public_dependencies = []
+private_dependencies = ["SagaRuntimeLib", "SagaEngine"]
+runtime_dependencies = ["SDL", "Vendor/Diligent"]
+target_license_expression = "Apache-2.0 AND MPL-2.0"
+distribution = "installed-program"
+review = "configured-graph-reviewed"
+blockers = []
+graph_required = true
+current_license_mode = "mixed-source-composition"
+current_license_expressions = ["Apache-2.0", "MPL-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = true
 expected_exported_target = false
 export_validation = "manual-pending"
 

@@ -1705,6 +1705,28 @@ def normalize_cmake_source(
     return None, source
 
 
+def composed_object_source(root: Path, generated_source: str) -> str | None:
+    """Recover the owned source encoded by a CMake OBJECT library artifact."""
+    normalized = PurePosixPath(generated_source).as_posix()
+    marker = ".dir/"
+    if marker not in normalized:
+        return None
+
+    candidate = normalized.split(marker, 1)[1]
+    if candidate.startswith("./"):
+        candidate = candidate[2:]
+    for suffix in (".o", ".obj"):
+        if candidate.endswith(suffix):
+            candidate = candidate[: -len(suffix)]
+            break
+    else:
+        return None
+
+    if safe_relative_path(candidate) and (root / candidate).is_file():
+        return candidate
+    return None
+
+
 def parse_targets(
     root: Path,
     policy: dict[str, Any],
@@ -1858,8 +1880,10 @@ def validate_cmake_targets(
                     item["path"],
                 )
                 if item["generated"]:
-                    generated_paths.append(normalized)
-                    continue
+                    relative = composed_object_source(root, normalized)
+                    if relative is None:
+                        generated_paths.append(normalized)
+                        continue
                 if relative is None:
                     continue
                 domain, winners = classify(
@@ -1975,7 +1999,6 @@ def validate_cmake_targets(
             "STATIC_LIBRARY",
             "SHARED_LIBRARY",
             "MODULE_LIBRARY",
-            "OBJECT_LIBRARY",
             "INTERFACE_LIBRARY",
         }
 
