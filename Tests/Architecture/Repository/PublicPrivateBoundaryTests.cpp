@@ -382,23 +382,44 @@ TEST(PublicPrivateBoundaryTests, RuntimeAndEditorPublicHeadersDoNotIncludePrivat
         << (offenders.empty() ? "" : offenders.front().generic_string());
 }
 
-TEST(PublicPrivateBoundaryTests, VisualBlocksRuntimeHostsStayPrivate)
+TEST(PublicPrivateBoundaryTests, VisualBlocksPublicSurfaceContainsOnlyBlocksContracts)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT) /
         "Engine/Source/Editor/VisualBlocksEditor";
     const auto publicVisualBlocks = root / "Public/SagaEditor/VisualBlocks";
     const auto privateVisualBlocks = root / "Private/SagaEditor/VisualBlocks";
 
-    EXPECT_FALSE(std::filesystem::exists(publicVisualBlocks / "Runtime"));
-    EXPECT_FALSE(std::filesystem::exists(publicVisualBlocks / "Evaluation"));
+    ASSERT_TRUE(std::filesystem::is_directory(publicVisualBlocks / "Blocks"));
+    for (const auto& entry :
+         std::filesystem::recursive_directory_iterator(publicVisualBlocks))
+    {
+        if (!entry.is_regular_file())
+        {
+            continue;
+        }
+        const auto relative =
+            std::filesystem::relative(entry.path(), publicVisualBlocks);
+        ASSERT_FALSE(relative.empty());
+        EXPECT_EQ((*relative.begin()).string(), "Blocks") << entry.path();
+    }
+
+    for (const auto& entry :
+         std::filesystem::recursive_directory_iterator(privateVisualBlocks))
+    {
+        if (!entry.is_regular_file())
+        {
+            continue;
+        }
+        const auto relative =
+            std::filesystem::relative(entry.path(), privateVisualBlocks);
+        ASSERT_FALSE(relative.empty());
+        EXPECT_EQ((*relative.begin()).string(), "Blocks") << entry.path();
+    }
+
     EXPECT_TRUE(std::filesystem::is_regular_file(
-        privateVisualBlocks / "Runtime/ScriptHost.h"));
+        publicVisualBlocks / "Blocks/BlockDefinition.h"));
     EXPECT_TRUE(std::filesystem::is_regular_file(
-        privateVisualBlocks / "Evaluation/GraphEvaluationRunner.h"));
-    EXPECT_TRUE(std::filesystem::is_regular_file(
-        publicVisualBlocks / "Graphs/GraphDocument.h"));
-    EXPECT_TRUE(std::filesystem::is_regular_file(
-        publicVisualBlocks / "Imports/SourceMapImport.h"));
+        publicVisualBlocks / "Blocks/BlockToIRLowerer.h"));
 }
 
 TEST(PublicPrivateBoundaryTests, CollaborationConcreteImplementationsStayPrivate)
