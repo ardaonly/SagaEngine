@@ -309,7 +309,7 @@ add_test(NAME forge_test_suite_all_safe_explain
 set_tests_properties(forge_test_suite_all_safe_explain
     PROPERTIES
         LABELS "tools;unit;forge"
-        PASS_REGULAR_EXPRESSION "--label-exclude stress\\|slow\\|load\\|timing-sensitive\\|long-running -j 1"
+        PASS_REGULAR_EXPRESSION "--label-exclude stress\\|slow\\|load\\|timing-sensitive\\|long-running\\|gpu\\|display-required -j 1"
 )
 
 add_test(NAME forge_test_suite_rejects_label_conflict

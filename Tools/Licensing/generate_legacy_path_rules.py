@@ -66,6 +66,11 @@ def main() -> int:
         "--output",
         default="Tools/Developer/BoundaryCheck/Policies/path_rules.json",
     )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="fail without writing when the generated compatibility rules drift",
+    )
     args = parser.parse_args()
 
     root = repository_root(args.root)
@@ -73,12 +78,17 @@ def main() -> int:
         (root / "LICENSE_POLICY.toml").read_text(encoding="utf-8")
     )
     output = root / args.output
+    expected = json.dumps(build_payload(policy), indent=2) + "\n"
+    if args.check:
+        current = output.read_text(encoding="utf-8") if output.is_file() else ""
+        if current != expected:
+            print(f"{output.relative_to(root)} is stale.")
+            return 1
+        print(f"{output.relative_to(root)} is current.")
+        return 0
+
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(
-        json.dumps(build_payload(policy), indent=2) + "\n",
-        encoding="utf-8",
-        newline="\n",
-    )
+    output.write_text(expected, encoding="utf-8", newline="\n")
     print(output.relative_to(root))
     return 0
 

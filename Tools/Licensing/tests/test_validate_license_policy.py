@@ -9,6 +9,7 @@ import sys
 import tempfile
 import tomllib
 import unittest
+import json
 
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "validate_license_policy.py"
@@ -113,6 +114,148 @@ class ComposedObjectSourceTests(unittest.TestCase):
                     root, "CMakeFiles/Owner.dir/Engine/Source.cpp"
                 )
             )
+
+
+class PolicyFailureModeTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.policy = tomllib.loads(POLICY_PATH.read_text(encoding="utf-8"))
+
+    def test_unknown_policy_field_is_denied(self) -> None:
+        policy = copy.deepcopy(self.policy)
+        policy["unexpected_contract"] = True
+        report = validator.Report()
+        validator.validate_schema(policy, report)
+        self.assertIn("UNKNOWN_POLICY_FIELD", {item.code for item in report.errors})
+
+    def test_invalid_action_and_unsafe_exclude_are_denied(self) -> None:
+        validation = copy.deepcopy(self.policy["validation"])
+        validation["unclassified_action"] = "allow"
+        validation["untracked_exclude_patterns"].append("../outside/**")
+        report = validator.Report()
+        validator.validate_action_table(report, validation)
+        self.assertEqual(
+            {item.code for item in report.errors},
+            {"INVALID_VALIDATION_ACTION", "UNTRACKED_EXCLUDE_UNSAFE"},
+        )
+
+    def test_classification_rejects_equal_priority_overlap(self) -> None:
+        domains = [
+            validator.Domain({}, "one", 100, ["Engine/**"], True),
+            validator.Domain({}, "two", 100, ["Engine/Source/**"], True),
+        ]
+        selected, winners = validator.classify(
+            "Engine/Source/File.cpp", domains, case_sensitive=True
+        )
+        self.assertIsNone(selected)
+        self.assertEqual({item.id for item in winners}, {"one", "two"})
+
+    def test_classification_uses_highest_priority_owner(self) -> None:
+        domains = [
+            validator.Domain({}, "broad", 100, ["Tools/**"], True),
+            validator.Domain({}, "specific", 500, ["Tools/Licensing/**"], True),
+        ]
+        selected, winners = validator.classify(
+            "Tools/Licensing/check_dco.py", domains, case_sensitive=True
+        )
+        self.assertEqual(selected.id, "specific")
+        self.assertEqual(winners, [selected])
+
+    def test_json_report_has_machine_visible_counts_and_resolutions(self) -> None:
+        report = validator.Report()
+        report.add("ERROR", "BROKEN", "broken fixture")
+        report.add("WARNING", "REVIEW", "review fixture")
+        report.classified["Engine/File.cpp"] = "saga-engine"
+        report.resolutions["Engine/File.cpp"] = validator.Resolution(
+            domain_id="saga-engine",
+            matched=True,
+            resolved=True,
+            expression="MPL-2.0",
+            source="policy",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "report.json"
+            validator.write_json_report(output, report)
+            payload = json.loads(output.read_text(encoding="utf-8"))
+        self.assertEqual(payload["summary"]["errors"], 1)
+        self.assertEqual(payload["summary"]["warnings"], 1)
+        self.assertEqual(payload["summary"]["license_resolved"], 1)
+        self.assertEqual(
+            payload["resolutions"]["Engine/File.cpp"]["expression"], "MPL-2.0"
+        )
+
+
+class CMakeFileApiTests(unittest.TestCase):
+    def write_json(self, path: Path, payload: object) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload), encoding="utf-8")
+
+    def test_loads_sources_dependencies_and_install_surface(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            build = Path(directory)
+            reply = build / ".cmake/api/v1/reply"
+            self.write_json(
+                reply / "index-fixture.json",
+                {
+                    "reply": {
+                        "codemodel-v2": {
+                            "kind": "codemodel",
+                            "version": {"major": 2, "minor": 7},
+                            "jsonFile": "codemodel-v2-fixture.json",
+                        }
+                    }
+                },
+            )
+            self.write_json(
+                reply / "codemodel-v2-fixture.json",
+                {
+                    "configurations": [
+                        {
+                            "name": "RelWithDebInfo",
+                            "targets": [
+                                {"id": "dep::@1", "name": "Dependency", "jsonFile": "dep.json"},
+                                {"id": "owner::@1", "name": "Owner", "jsonFile": "owner.json"},
+                            ],
+                        }
+                    ]
+                },
+            )
+            self.write_json(
+                reply / "dep.json",
+                {"name": "Dependency", "type": "STATIC_LIBRARY", "paths": {}},
+            )
+            self.write_json(
+                reply / "owner.json",
+                {
+                    "name": "Owner",
+                    "type": "STATIC_LIBRARY",
+                    "paths": {"source": ".", "build": "."},
+                    "sources": [
+                        {"path": "Engine/Owner.cpp", "isGenerated": False},
+                        {"path": "generated.cpp", "isGenerated": True},
+                    ],
+                    "dependencies": [{"id": "dep::@1"}],
+                    "install": {"destinations": [{"path": "lib"}]},
+                },
+            )
+
+            graph = validator.load_cmake_graph(build, "RelWithDebInfo")
+
+        owner = graph["RelWithDebInfo"]["Owner"]
+        self.assertEqual(owner["dependencies"], {"Dependency"})
+        self.assertEqual(owner["installs"], ["lib"])
+        self.assertEqual(owner["sources"][1], {"path": "generated.cpp", "generated": True})
+
+    def test_rejects_unavailable_selected_configuration(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            build = Path(directory)
+            reply = build / ".cmake/api/v1/reply"
+            self.write_json(
+                reply / "codemodel-v2-fixture.json",
+                {"configurations": [{"name": "Debug", "targets": []}]},
+            )
+            with self.assertRaisesRegex(ValueError, "configuration not found"):
+                validator.load_cmake_graph(build, "Release")
 
 
 if __name__ == "__main__":

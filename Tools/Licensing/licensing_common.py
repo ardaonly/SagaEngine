@@ -34,6 +34,9 @@ def sha256(path: Path) -> str:
 def safe_relative_path(value: str) -> bool:
     if not value or "\\" in value:
         return False
+    raw_parts = value.split("/")
+    if any(part in {"", ".", ".."} for part in raw_parts):
+        return False
     path = PurePosixPath(value)
     return (
         not path.is_absolute()

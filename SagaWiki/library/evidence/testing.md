@@ -38,6 +38,18 @@ git diff --check
 
 Source and build changes normally add configure/build, boundary checks, and focused CTest commands appropriate to the owner.
 
+## GitHub evidence tiers
+
+Every pull request runs repository contracts, strict licensing, Linux `all-safe` CTest, and the Windows unit/architecture layer. The Linux safe suite explicitly excludes `stress`, `slow`, `load`, `timing-sensitive`, `long-running`, `gpu`, and `display-required` labels. That exclusion is part of the workflow contract and cannot be silently widened or narrowed. Standalone Forge and SagaTools contract suites run in the repository-contract job rather than being inferred from the engine build.
+
+Configured CMake licensing evidence runs when source, build, test, or licensing inputs change and once every night. It records File API target ownership, install-surface comparison, the installed SDK consumer, and a machine-readable licensing report. Integration and replication run nightly; StressTests run serially each week.
+
+Failures are not hidden with `continue-on-error`. JUnit, JSON reports, and CTest logs upload with `if: always()` and each job writes a summary containing its exercised and excluded boundaries. Pull-request artifacts remain for 14 days, nightly results for 30 days, and licensing/weekly evidence for 90 days.
+
+Visible runtime evidence is also opt-in: `SAGA_RUN_VISIBLE_TESTS=1` must accompany a qualified native display. Otherwise the visible StarterArena cases report an explicit skip while the headless cases in the same executable continue to run.
+
+GPU execution remains a manual, hardware-qualified boundary. With no trusted self-hosted `saga-gpu` runner, the preflight produces an explicit blocked report and intentionally does not claim success or execute GPU binaries. A hosted runner or a successful GPU-target build is not GPU evidence.
+
 ## Bounded chaos evidence
 
 SagaChaosLab is an internal developer tool under DistributionCheck. It loads a deterministic, bounded chaos profile and routes it through the stress arena. Invalid probabilities, unsupported fields, unbounded queues, and oversized profiles fail validation. Heavy or manual-only profiles require explicit opt-in. Its smoke result is fault-injection evidence, not a production load or long-soak claim.

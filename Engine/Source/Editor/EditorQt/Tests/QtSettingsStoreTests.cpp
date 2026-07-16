@@ -15,7 +15,13 @@ TEST(QtSettingsStoreTests, FlushPersistsValuesAndRemoveRestoresFallback)
     QTemporaryDir settingsDirectory;
     ASSERT_TRUE(settingsDirectory.isValid());
     QSettings::setDefaultFormat(QSettings::IniFormat);
+    // The production store uses Qt's organization/application constructor.
+    // Isolate both formats because Qt resolves that constructor through the
+    // platform default before applying the test-selected default on some
+    // supported Qt builds.
     QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
+                       settingsDirectory.path());
+    QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope,
                        settingsDirectory.path());
 
     constexpr const char* key = "tests/qt-settings-store/round-trip";

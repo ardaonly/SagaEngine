@@ -1,5 +1,5 @@
 /// @file runner.rs
-/// @brief Process spawning - mirrors C++ ProcessRunner.cpp exactly.
+/// @brief Process spawning for resolved tools and installers.
 ///        Uses std::process::Command (eliminates 80-line QuoteArg).
 
 use std::process::{Command, Stdio};

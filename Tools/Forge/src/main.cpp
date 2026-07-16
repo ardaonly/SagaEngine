@@ -124,7 +124,8 @@ bool ResolveTestSuite(const std::string& suite, std::string& outLabel, std::stri
 
     if (suite == "all-safe")
     {
-        outExclude = "stress|slow|load|timing-sensitive|long-running";
+        outExclude =
+            "stress|slow|load|timing-sensitive|long-running|gpu|display-required";
         return true;
     }
 

@@ -1539,10 +1539,19 @@ function(saga_setup_tests)
             SAGA_DOTNET_EXECUTABLE="${SAGA_DOTNET_EXECUTABLE}"
             SAGA_DOTNET_ROOT="${SAGA_DOTNET_ROOT}"
         )
+        set(_starter_arena_visible_filter
+            "StarterArenaRuntimeSmokeTests.BoundedVisibleModeWritesStableReport:StarterArenaRuntimeSmokeTests.BoundedSyntheticVisibleModeWritesInputEvidence:StarterArenaRuntimeSmokeTests.VisibleSyntheticGameplayReflectsManagedMutation")
         add_test(NAME StarterArenaRuntimeSmokeTests
-            COMMAND StarterArenaRuntimeSmokeTests)
+            COMMAND StarterArenaRuntimeSmokeTests
+                "--gtest_filter=-${_starter_arena_visible_filter}")
         set_tests_properties(StarterArenaRuntimeSmokeTests PROPERTIES
             LABELS "unit;runtime;scripting;csharp;sample")
+        add_test(NAME StarterArenaVisibleRuntimeSmokeTests
+            COMMAND StarterArenaRuntimeSmokeTests
+                "--gtest_filter=${_starter_arena_visible_filter}")
+        set_tests_properties(StarterArenaVisibleRuntimeSmokeTests PROPERTIES
+            LABELS "runtime;scripting;csharp;sample;ui;display-required;timing-sensitive"
+            SKIP_REGULAR_EXPRESSION "\\[  SKIPPED \\]")
     endif()
 
     # --- StarterArena visible frame contract tests -------------------------

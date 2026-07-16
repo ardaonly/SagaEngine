@@ -1,6 +1,5 @@
 /// @file registry.rs
-/// @brief Two-section registry parser - mirrors C++ Registry.cpp exactly.
-///        Uses serde_json for proper \uXXXX handling (fixes bug #1).
+/// @brief Parser for the two-section SagaTools registry contract.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -19,7 +18,6 @@ pub struct Registry {
 
 impl Registry {
     /// Load registry from file.
-    /// Mirrors Registry::LoadFromFile() from C++ Registry.cpp.
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, String> {
         let path = path.as_ref();
         let raw = fs::read_to_string(path)
@@ -42,7 +40,6 @@ impl Registry {
     }
     
     /// Locate registry file using discovery order.
-    /// Mirrors Registry::LocateFile() from C++ Registry.cpp.
     pub fn locate_file(explicit_path: &str, executable_dir: &Path) -> Option<PathBuf> {
         if !explicit_path.is_empty() && Path::new(explicit_path).exists() {
             return Some(PathBuf::from(explicit_path));
