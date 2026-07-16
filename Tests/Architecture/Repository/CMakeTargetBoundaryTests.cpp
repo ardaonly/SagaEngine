@@ -226,7 +226,14 @@ TEST(CMakeTargetBoundaryTests, EmptyOwnershipPlaceholdersStayAbsent)
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
     for (const auto& placeholder : {
              root / "Engine/Source/Editor/EditorScripting",
-             root / "Engine/Source/Programs/SagaServer"})
+             root / "Engine/Source/Programs/SagaServer",
+             root / "Tests/Unit/Editor/UnsupportedSyntaxTests.cpp",
+             root / "Tests/Unit/Editor/NodeValidationTests.cpp",
+             root / "Tests/Unit/Editor/RoundTripTests.cpp",
+             root / "Tests/Unit/Editor/GraphDebuggerTests.cpp",
+             root / "Tests/Unit/Editor/GraphCompilationTests.cpp",
+             root / "Tests/Unit/Editor/PinConnectionTests.cpp",
+             root / "Tests/Unit/Runtime/RenderClientAppTests.cpp"})
     {
         EXPECT_FALSE(std::filesystem::exists(placeholder)) << placeholder;
     }

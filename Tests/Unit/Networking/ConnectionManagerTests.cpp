@@ -1,7 +1,7 @@
 /// @file ConnectionManagerTests.cpp
 /// @brief Unit tests for ConnectionManager lifecycle and query API.
 ///
-/// Layer  : SagaServer / Networking / Client
+/// Layer  : SagaEngine / ServerAuthority / Networking
 /// Purpose: Tests the ConnectionManager's lifecycle (init/shutdown), initial
 ///          state, query API (HasClient, IsConnected, GetConnectedCount),
 ///          and that the manager is safe to read concurrently.
