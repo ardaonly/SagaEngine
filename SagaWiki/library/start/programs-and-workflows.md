@@ -21,6 +21,8 @@ Programs assemble owned modules into local entry points. They can coordinate val
 
 SagaLauncher may open or select a project, invoke the owning validator or tool, launch a program, and surface exit status, diagnostics, and report paths. It must not replace SagaProjectKit, SagaScript, SagaPackager, the editor, or the runtime with a second implementation. A workflow step is successful only when its owning operation produced valid evidence.
 
+The selected project contract is exclusively a `.sagaproj` manifest with `schemaVersion: 0`; legacy manifest filenames and unknown schema versions are rejected. Launcher has no duplicate package staging or publish-check implementation. Canonical package commands are `sagapack stage` and `sagapack publish-check`, whose results Launcher may only route or display.
+
 ## Development programs
 
 EditorLab and Sandbox are development/evidence surfaces. Deterministic subsystem assertions should move into focused automated tests when practical; interactive scenarios remain useful where observation or device behavior matters. Neither program defines public engine API merely because it can reach several modules.

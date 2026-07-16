@@ -33,6 +33,8 @@ Generated build directories are disposable output. They must not become inputs t
 
 SagaPackager consumes validated project/package inputs and can accept optional externally produced governance evidence. It does not create that governance report, and no bundled policy kit should be inferred. Package staging must preserve source identity and fail clearly on invalid or missing required evidence.
 
+The only project manifest input is `.sagaproj` schema version `0`; legacy manifest filenames are rejected rather than discovered as fallbacks. `sagapack stage` and `sagapack publish-check` are the canonical staging and readiness commands. Launcher does not own alternate `--stage-packages` or `--publish-check` workflows.
+
 ## Publish boundary
 
 Publishing is a gated operation over a known package and evidence set. Historical publish documents provide durable lessons about explicit inputs, dry runs, and immutable results, but they are not proof of a currently shipped distribution service. Current commands and profiles in the repository take precedence over old examples.

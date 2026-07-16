@@ -78,9 +78,9 @@ Runtime modules do not depend on editor modules or programs. A low-level runtime
 - EditorFramework owns shell, host, panels, layouts, docking, customization, and orchestration without owning Qt ABI.
 - EditorQt owns Qt-specific application, widgets, and adapters.
 - EditorAuthoring owns project inspection and semantic authoring workflows.
-- VisualBlocksEditor owns block descriptors, graphs, projection/editor views, lowering, and related evaluation surfaces.
+- VisualBlocksEditor publicly owns only the evidenced `Blocks/**` authoring and lowering contracts; read-only product descriptor generation remains private.
 - Runtime/Scripting owns script lifecycle and hosting; EditorAuthoring and VisualBlocksEditor own current editor-facing script inspection, projection, and patch workflows.
-- EditorCollaboration owns collaboration value types and implementations, with product claims constrained by evidence.
+- EditorCollaboration owns the modern `SagaCollaboration` and `SagaShared` value/interface contracts; the legacy `SagaEditor::Collaboration` path is retired.
 - EditorExperimental contains deliberately unstable editor work rather than promoting it as stable API.
 
 ## Public dependency visibility
@@ -109,7 +109,7 @@ This rule protects more than include cleanliness. Two native lifecycle owners ca
 
 ## Aggregate and module targets
 
-The cutover can preserve aggregate targets temporarily to avoid changing runtime behavior while paths move. Such targets are transitional composition, not proof of pure ownership. A pure module target has:
+Each registered Runtime, Editor, and Product module compiles through an owner-named `Saga<Module>Module` OBJECT target. The compatibility targets `SagaEngine`, `SagaRuntimeLib`, `SagaServerLib`, `SagaEditorLib`, and `SagaProductLib` remain composition targets: they collect module objects and do not compile cross-owner raw source lists. A pure module target has:
 
 - sources only from its owner directory;
 - public includes rooted in that owner's `Public` area;
@@ -118,7 +118,7 @@ The cutover can preserve aggregate targets temporarily to avoid changing runtime
 - deliberate install/export status;
 - focused test dependencies separated from production consumers.
 
-Targets that compile unrelated owners, expose private backend include paths, or install concrete implementation headers require follow-up even if the build succeeds.
+Module OBJECT targets are build-internal and are not installed or exported. Existing aggregate install/export names remain the consumer boundary. Specialized Diligent, SDL, Persistence/UI backend, and Collaboration targets keep their real owner sources rather than being forced into an unrelated aggregate.
 
 ### Target purity inventory
 
@@ -133,7 +133,7 @@ For each target, a useful review records:
 - which public headers the install contains;
 - whether it is a module, program, backend, aggregate, interface shell, or test helper.
 
-A target is pure when source ownership and dependency visibility match this inventory. A transitional aggregate is acceptable only when named as transition and prevented from accumulating new unrelated behavior. A wrong-owner source should move/split through a focused build change rather than be normalized as permanent convenience.
+A target is pure when source ownership and dependency visibility match this inventory. An aggregate remains pure only while it composes registered objects and is prevented from accumulating raw cross-owner sources. A wrong-owner source should move/split through a focused build change rather than be normalized as permanent convenience.
 
 Dependency visibility is reviewed both directions. A `PUBLIC` dependency can leak implementation; a mistakenly `PRIVATE` dependency can make installed consumers fail because a public header names its types. Passing in-tree builds do not settle the question because they can see extra include paths and linked objects.
 
@@ -170,4 +170,4 @@ Before accepting an ownership change:
 - confirm install/export consequences;
 - update focused architecture and installed-consumer evidence;
 - avoid compatibility aliases unless a supported public consumer requires them;
-- record transitional aggregate debt explicitly rather than presenting it as final purity.
+- keep aggregate targets as object composition and keep module OBJECT targets out of install/export.

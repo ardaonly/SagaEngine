@@ -27,9 +27,9 @@ There is no second graph VM in this contract. Runtime does not interpret the edi
 
 ## Ownership
 
-The scripting tool/runtime owner analyzes, compiles, and applies source patches. `VisualBlocksEditor` owns block descriptors, projection, graph/document/editor interaction, lowering/evaluation support, and diagnostics. `EditorAuthoring` displays inspection, projection, patch evaluation, and review workflow views. The editor requests changes; it does not directly overwrite C#.
+The scripting tool/runtime owner analyzes, compiles, and applies source patches. `VisualBlocksEditor` publicly owns only the evidenced `Blocks/**` authoring values and lowering contract. `EditorAuthoring` can display scripting-tool reports and request reviewed changes; it does not directly overwrite C#.
 
-CoreCLR/script host, assembly context, managed/native bridges, hot reload, graph evaluation runners, and other runtime-host details are private implementation surfaces. Their location under `VisualBlocksEditor/Private` makes the owner explicit without implying that Visual Blocks own a separate runtime. Durable public contracts are descriptors, source maps/spans, graph documents where intentionally shared, diagnostics, operations, and results.
+Compiler, debugger, editor, graph/document, import, node, pin, type-system, evaluation, and runtime-host placeholder APIs are not part of the Visual Blocks public surface. The private product integration can derive a read-only descriptor for evidence, but that descriptor is not behavior authority or a stable editor SDK.
 
 ## Compatibility profile
 
@@ -69,13 +69,13 @@ Possible kinds include script/class, callable method, parameter, return, attribu
 
 Projection does not normalize formatting, reorder members/usings, or emit replacement C#. It reads source and reports a view. Source bytes remain unchanged, including comments and opaque regions.
 
-## Graph and IR
+## Blocks and IR
 
-Graph documents and block IR can represent nodes, ports, links, procedures, expressions/statements, variables, and source mappings for editor analysis. They are intermediate/editor values. If they are serialized, the file is still derived unless a future project schema deliberately establishes a canonical graph-authoring format.
+Block stacks and block IR represent bounded authoring structure for editor analysis and lowering. They are intermediate/editor values. If they are serialized, the file is still derived unless a future project schema deliberately establishes a canonical visual-authoring format.
 
-Lowering validates node kind, port type/direction, required inputs, control/data flow, supported operation, source mapping, and deterministic ordering. Invalid cycles, missing inputs, type mismatch, disconnected required flow, or unsupported nodes produce diagnostics.
+Lowering validates block kind, slot compatibility, required inputs, supported operation, and deterministic ordering. Missing inputs, type mismatch, invalid snapping, or unsupported blocks produce diagnostics.
 
-An IR evaluation helper can support editor previews/tests, but it must be named and documented as evaluation evidence. It does not become the shipped scripting runtime. Runtime behavior comes from compiled C#.
+There is no public graph evaluator or Visual Blocks runtime host. Runtime behavior comes from compiled C#.
 
 ## Gameplay node library
 
@@ -143,7 +143,7 @@ Encoding and byte offsets must agree. If the artifact defines UTF-8 byte spans, 
 
 After patching, analysis and compile evidence confirm the resulting C# is accepted by the current toolchain. A compile failure makes the workflow failed and preserves the candidate/report for inspection according to policy; it does not silently publish broken artifacts.
 
-Compiled assemblies/manifests carry source and tool fingerprints. Runtime validates package/artifact freshness before loading. Hot reload loads a new validated assembly context and swaps under the scripting lifecycle; it does not execute the editor graph.
+Compiled assemblies/manifests carry source and tool fingerprints. Runtime validates package/artifact freshness before loading. Any future reload path remains a scripting-runtime concern and cannot execute a Visual Blocks graph.
 
 Managed/native bridges expose registered, typed, bounded calls. Script code cannot use the block projection to bypass binding, authority, thread, or permission rules. Bridge implementation is not a public Visual Blocks contract.
 
@@ -188,6 +188,6 @@ The current contract does not establish a finished Visual Blocks editor, arbitra
 - Require source root, hash, exact span, and supported lexical replacement.
 - Preserve all bytes outside the approved span.
 - Keep editor UI from writing C# directly.
-- Call evaluation helpers editor/test evaluation, not runtime execution.
+- Keep graph evaluation and runtime-host placeholders out of the public Visual Blocks surface.
 - Add fixture evidence for every newly accepted construct or operation.
 - Repeat the no-graph-VM statement wherever a new visual surface could imply otherwise.
