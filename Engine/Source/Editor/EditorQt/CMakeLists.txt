@@ -19,7 +19,6 @@ saga_add_editor_module(EditorQt
         Private/SagaEditorQt/QtUIFactory.cpp
         Private/SagaEditorQt/QtUIMainWindow.cpp
         Private/SagaEditorQt/Themes/ThemeRegistry.cpp
-        Private/SagaEditorQt/VisualScripting/Editor/GraphCanvas.h
         Public/SagaEditorQt/QtPanel.h
         Public/SagaEditorQt/QtSettingsStore.h
         Public/SagaEditorQt/QtUIApplication.h

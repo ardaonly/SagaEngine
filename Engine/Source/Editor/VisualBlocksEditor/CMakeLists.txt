@@ -12,27 +12,6 @@ saga_add_editor_module(VisualBlocksEditor
         Private/SagaEditor/VisualBlocks/Blocks/BlockSlot.cpp
         Private/SagaEditor/VisualBlocks/Blocks/BlockSnapRules.cpp
         Private/SagaEditor/VisualBlocks/Blocks/BlockToIRLowerer.cpp
-        Private/SagaEditor/VisualBlocks/Editor/GraphEditor.cpp
-        Private/SagaEditor/VisualBlocks/Editor/NodeGraphToolbar.cpp
-        Private/SagaEditor/VisualBlocks/Graphs/GraphDocument.cpp
-        Private/SagaEditor/VisualBlocks/Evaluation/GraphEvaluationRunner.cpp
-        Private/SagaEditor/VisualBlocks/Evaluation/GraphEvaluationRunner.h
-        Private/SagaEditor/VisualBlocks/Evaluation/EvaluationSession.cpp
-        Private/SagaEditor/VisualBlocks/Evaluation/EvaluationSession.h
-        Private/SagaEditor/VisualBlocks/Evaluation/EvaluationWorld.cpp
-        Private/SagaEditor/VisualBlocks/Evaluation/EvaluationWorld.h
-        Private/SagaEditor/VisualBlocks/Runtime/CoreClrHost.cpp
-        Private/SagaEditor/VisualBlocks/Runtime/CoreClrHost.h
-        Private/SagaEditor/VisualBlocks/Runtime/ManagedToNativeBridge.cpp
-        Private/SagaEditor/VisualBlocks/Runtime/ManagedToNativeBridge.h
-        Private/SagaEditor/VisualBlocks/Runtime/NativeToManagedBridge.h
-        Private/SagaEditor/VisualBlocks/Runtime/ScriptAssemblyContext.cpp
-        Private/SagaEditor/VisualBlocks/Runtime/ScriptAssemblyContext.h
-        Private/SagaEditor/VisualBlocks/Runtime/ScriptBridge.h
-        Private/SagaEditor/VisualBlocks/Runtime/ScriptHost.cpp
-        Private/SagaEditor/VisualBlocks/Runtime/ScriptHost.h
-        Private/SagaEditor/VisualBlocks/Runtime/ScriptHotReloadManager.cpp
-        Private/SagaEditor/VisualBlocks/Runtime/ScriptHotReloadManager.h
         Public/SagaEditor/VisualBlocks/Blocks/BlockCategory.h
         Public/SagaEditor/VisualBlocks/Blocks/BlockDefinition.h
         Public/SagaEditor/VisualBlocks/Blocks/BlockIR.h
@@ -44,27 +23,6 @@ saga_add_editor_module(VisualBlocksEditor
         Public/SagaEditor/VisualBlocks/Blocks/BlockSnapRules.h
         Public/SagaEditor/VisualBlocks/Blocks/BlockStack.h
         Public/SagaEditor/VisualBlocks/Blocks/BlockToIRLowerer.h
-        Public/SagaEditor/VisualBlocks/Compiler/CompileEvaluationAdapter.h
-        Public/SagaEditor/VisualBlocks/Compiler/ErrorSurfaceAdapter.h
-        Public/SagaEditor/VisualBlocks/Debugger/BreakpointController.h
-        Public/SagaEditor/VisualBlocks/Debugger/WatchController.h
-        Public/SagaEditor/VisualBlocks/Editor/ExecutionOverlay.h
-        Public/SagaEditor/VisualBlocks/Editor/GraphEditor.h
-        Public/SagaEditor/VisualBlocks/Editor/NodeGraphToolbar.h
-        Public/SagaEditor/VisualBlocks/Editor/NodeWidgets.h
-        Public/SagaEditor/VisualBlocks/Graphs/GraphDocument.h
-        Public/SagaEditor/VisualBlocks/Graphs/GraphLayout.h
-        Public/SagaEditor/VisualBlocks/Graphs/GraphMetadata.h
-        Public/SagaEditor/VisualBlocks/Imports/BlockGraphImporter.h
-        Public/SagaEditor/VisualBlocks/Imports/NodeLibraryImport.h
-        Public/SagaEditor/VisualBlocks/Imports/SourceMapImport.h
-        Public/SagaEditor/VisualBlocks/Imports/TextScriptImporter.h
-        Public/SagaEditor/VisualBlocks/Imports/VisualScriptingGraphImporter.h
-        Public/SagaEditor/VisualBlocks/Nodes/NodeCategoryBrowser.h
-        Public/SagaEditor/VisualBlocks/Pins/PinRenderer.h
-        Public/SagaEditor/VisualBlocks/Pins/PinTypeStyle.h
-        Public/SagaEditor/VisualBlocks/TypeSystem/TypeBrowser.h
-        Public/SagaEditor/VisualBlocks/TypeSystem/TypeInspector.h
 )
 
 saga_add_program(VisualBlocksProductIntegration
