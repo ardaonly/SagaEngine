@@ -50,12 +50,13 @@ jobs:
             "conan==$CONAN_VERSION" "cmake==$CMAKE_VERSION"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Restore Conan cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: integration-conan-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.conan2/p
-          key: heavy-conan-linux-${{ hashFiles('conanfile.py', 'profiles/**', 'VERSION') }}
-          restore-keys: heavy-conan-linux-
-      - name: Configure and build integration targets
+          key: conan-linux-${{ hashFiles('conanfile.py', 'profiles/**', 'VERSION') }}
+          restore-keys: conan-linux-
+      - name: Resolve dependencies and configure integration graph
         shell: bash
         run: |
           export PATH="$HOME/.local/bin:$PATH"
@@ -66,6 +67,19 @@ jobs:
             -c tools.system.package_manager:sudo=True
           source "$SAGA_BUILD_DIR/generators/conanbuild.sh"
           cmake --preset linux-gcc -DCMAKE_C_COMPILER_LAUNCHER= -DCMAKE_CXX_COMPILER_LAUNCHER=
+
+      - name: Save resolved integration Conan cache
+        if: steps.integration-conan-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.conan2/p
+          key: conan-linux-${{ hashFiles('conanfile.py', 'profiles/**', 'VERSION') }}
+
+      - name: Build integration targets
+        shell: bash
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          source "$SAGA_BUILD_DIR/generators/conanbuild.sh"
           cmake --build "$SAGA_BUILD_DIR" --parallel 2 --target SagaIntegrationTests SagaReplicationTests
       - name: Run IntegrationTests and ReplicationTests
         shell: bash
@@ -112,12 +126,13 @@ jobs:
             "conan==$CONAN_VERSION" "cmake==$CMAKE_VERSION"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Restore Conan cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: stress-conan-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.conan2/p
-          key: stress-conan-linux-${{ hashFiles('conanfile.py', 'profiles/**', 'VERSION') }}
-          restore-keys: stress-conan-linux-
-      - name: Configure and build stress target
+          key: conan-linux-${{ hashFiles('conanfile.py', 'profiles/**', 'VERSION') }}
+          restore-keys: conan-linux-
+      - name: Resolve dependencies and configure stress graph
         shell: bash
         run: |
           export PATH="$HOME/.local/bin:$PATH"
@@ -128,6 +143,19 @@ jobs:
             -c tools.system.package_manager:sudo=True
           source "$SAGA_BUILD_DIR/generators/conanbuild.sh"
           cmake --preset linux-gcc -DCMAKE_C_COMPILER_LAUNCHER= -DCMAKE_CXX_COMPILER_LAUNCHER=
+
+      - name: Save resolved stress Conan cache
+        if: steps.stress-conan-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.conan2/p
+          key: conan-linux-${{ hashFiles('conanfile.py', 'profiles/**', 'VERSION') }}
+
+      - name: Build stress target
+        shell: bash
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          source "$SAGA_BUILD_DIR/generators/conanbuild.sh"
           cmake --build "$SAGA_BUILD_DIR" --parallel 2 --target SagaStressTests
       - name: Run StressTests serially
         shell: bash
