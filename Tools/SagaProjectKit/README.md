@@ -14,8 +14,8 @@ Tools/SagaProjectKit/sagaproject restricted-resolve --project Samples/Multiplaye
 ```
 
 The tool is intentionally project-truth focused. It does not launch runtime or
-server processes, stage packages, open the editor, or replace existing
-`saga.project.json` product-shell behavior.
+server processes, stage packages, or open the editor. `.sagaproj` schemaVersion
+0 is the only project manifest contract.
 
 Slice commands are local report-only resolution modes. They classify visible,
 restricted, excluded, and missing resources for a project slice without changing

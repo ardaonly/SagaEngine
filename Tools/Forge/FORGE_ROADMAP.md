@@ -446,7 +446,7 @@ Forge silently ignores stale generated/cooked artifacts.
   Done means Forge can locate and consume:
 
   ```txt
-  saga.project.json
+  .sagaproj
   forge.toml
   package/build profile manifests
   script roots
@@ -1519,7 +1519,7 @@ The first Forge production pipeline slice should use a minimal Saga project.
 Required project contents:
 
 ```txt
-saga.project.json
+.sagaproj
 forge.toml
 Scripts/QuestXp.cs
 Assets/terrain_albedo.png

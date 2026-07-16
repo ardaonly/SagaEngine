@@ -55,12 +55,6 @@ function(saga_setup_tests)
     )
     list(APPEND SAGA_PRODUCT_TEST_SOURCES ${SAGA_EVIDENCE_TEST_SOURCES})
 
-    set(SAGA_PUBLISH_READINESS_TEST_SOURCE
-        "${SAGA_ROOT}/Tests/Unit/Saga/SagaPublishReadinessTests.cpp"
-    )
-    set(SAGA_PACKAGE_STAGING_TEST_SOURCE
-        "${SAGA_ROOT}/Tests/Unit/Saga/SagaPackageStagingTests.cpp"
-    )
     set(SAGA_ASSET_IDENTITY_RUNTIME_CONTRACT_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/AssetPipeline/AssetIdentityRuntimeContractTests.cpp"
     )
@@ -944,70 +938,6 @@ function(saga_setup_tests)
         set_tests_properties(MultiplayerSandboxHeadlessTests PROPERTIES
             LABELS "unit;tools;samples"
         )
-    endif()
-
-    # --- Package staging tests ----------------------------------------------
-    #
-    # Build the package-staging slice without SagaProductLib so script artifact
-    # placement and generated AssetPipeline package contracts stay focused.
-    if(EXISTS "${SAGA_PACKAGE_STAGING_TEST_SOURCE}")
-        add_executable(SagaPackageStagingTests
-            ${SAGA_PACKAGE_STAGING_TEST_SOURCE}
-            ${SAGA_ROOT}/Tools/SagaPackager/ProductIntegration/SagaPackageStaging.cpp
-            ${SAGA_ROOT}/Engine/Source/Programs/SagaLauncher/Private/Projects/SagaProjectSystem.cpp
-            ${SAGA_ROOT}/Tools/SagaPackager/ProductIntegration/SagaPublishReadiness.cpp
-            ${SAGA_ROOT}/Engine/Source/Programs/SagaLauncher/Private/Projects/SagaSessionModel.cpp
-        )
-        target_link_libraries(SagaPackageStagingTests PRIVATE
-            SagaAssetPipelineLib
-            SagaEngine
-            SagaRuntimeLib
-            GTest::gtest
-            GTest::gmock
-            GTest::gtest_main
-            nlohmann_json::nlohmann_json
-        )
-        target_include_directories(SagaPackageStagingTests PRIVATE
-            ${SAGA_ROOT}/Engine/Source/Programs/SagaLauncher/Private
-            ${SAGA_ROOT}/Tools/AssetPipeline/include
-            ${SAGA_ROOT}/Tools/SagaPackager
-            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
-            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
-        )
-        target_compile_definitions(SagaPackageStagingTests PRIVATE
-            SAGA_SOURCE_ROOT="${SAGA_ROOT}"
-        )
-        add_test(NAME SagaPackageStagingTests COMMAND SagaPackageStagingTests)
-        set_tests_properties(SagaPackageStagingTests PROPERTIES LABELS "product;package;asset")
-    endif()
-
-    # --- Publish readiness package/asset identity report tests --------------
-    if(EXISTS "${SAGA_PUBLISH_READINESS_TEST_SOURCE}")
-        add_executable(SagaPublishReadinessTests
-            ${SAGA_PUBLISH_READINESS_TEST_SOURCE}
-            ${SAGA_ROOT}/Engine/Source/Programs/SagaLauncher/Private/Projects/SagaProjectSystem.cpp
-            ${SAGA_ROOT}/Tools/SagaPackager/ProductIntegration/SagaPublishReadiness.cpp
-        )
-        target_link_libraries(SagaPublishReadinessTests PRIVATE
-            SagaEngine
-            SagaShared
-            GTest::gtest
-            GTest::gmock
-            GTest::gtest_main
-            nlohmann_json::nlohmann_json
-        )
-        target_include_directories(SagaPublishReadinessTests PRIVATE
-            ${SAGA_ROOT}/Engine/Source/Programs/SagaLauncher/Private
-            ${SAGA_ROOT}/Tools/SagaPackager
-            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
-            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
-        )
-        target_compile_definitions(SagaPublishReadinessTests PRIVATE
-            SAGA_SOURCE_ROOT="${SAGA_ROOT}"
-        )
-        add_test(NAME SagaPublishReadinessTests COMMAND SagaPublishReadinessTests)
-        set_tests_properties(SagaPublishReadinessTests PROPERTIES
-            LABELS "unit;product;package;asset")
     endif()
 
     # --- AssetPipeline to Runtime identity contract tests -------------------

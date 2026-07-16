@@ -38,11 +38,12 @@ void WriteFile(const fs::path& path, const std::string& text)
 TEST(ProjectManagerTests, OpensProjectDirectoryAndReadsManifestMetadata)
 {
     const fs::path root = MakeTempRoot("manifest");
-    WriteFile(root / "saga.project.json",
+    WriteFile(root / "Project.sagaproj",
               R"({
+                "schemaVersion": 0,
                 "projectId": "saga.test",
                 "displayName": "Test Saga Project",
-                "engineVersion": "0.0.9"
+                "engineCompatibility": { "targetVersion": "0.0.11" }
               })");
 
     SagaEditor::ProjectManager manager;
@@ -54,7 +55,7 @@ TEST(ProjectManagerTests, OpensProjectDirectoryAndReadsManifestMetadata)
     EXPECT_TRUE(manager.IsProjectOpen());
     EXPECT_EQ(manager.GetCurrentProject().name, "Test Saga Project");
     EXPECT_EQ(fs::path(manager.GetCurrentProject().rootPath), fs::absolute(root));
-    EXPECT_EQ(manager.GetCurrentProject().engineVersion, "0.0.9");
+    EXPECT_EQ(manager.GetCurrentProject().engineVersion, "0.0.11");
     EXPECT_EQ(changed, 1);
 
     manager.CloseProject();
@@ -68,18 +69,14 @@ TEST(ProjectManagerTests, OpensProjectDirectoryAndReadsManifestMetadata)
     fs::remove_all(root);
 }
 
-TEST(ProjectManagerTests, OpensDirectoryWithoutManifestUsingDirectoryName)
+TEST(ProjectManagerTests, RejectsDirectoryWithoutCanonicalManifest)
 {
     const fs::path root = MakeTempRoot("plain_workspace");
 
     SagaEditor::ProjectManager manager;
 
-    ASSERT_TRUE(manager.OpenProject(root.string()));
-
-    EXPECT_TRUE(manager.IsProjectOpen());
-    EXPECT_EQ(manager.GetCurrentProject().name, root.filename().string());
-    EXPECT_EQ(fs::path(manager.GetCurrentProject().rootPath), fs::absolute(root));
-    EXPECT_TRUE(manager.GetCurrentProject().engineVersion.empty());
+    EXPECT_FALSE(manager.OpenProject(root.string()));
+    EXPECT_FALSE(manager.IsProjectOpen());
 
     fs::remove_all(root);
 }
@@ -88,6 +85,8 @@ TEST(ProjectManagerTests, RejectsMissingPathWithoutReplacingOpenProject)
 {
     const fs::path root = MakeTempRoot("valid");
     const fs::path missing = root.parent_path() / (root.filename().string() + "_missing");
+    WriteFile(root / "Valid.sagaproj",
+              R"({"schemaVersion":0,"projectId":"valid","displayName":"Valid"})");
 
     SagaEditor::ProjectManager manager;
     int changed = 0;
@@ -97,7 +96,7 @@ TEST(ProjectManagerTests, RejectsMissingPathWithoutReplacingOpenProject)
     EXPECT_FALSE(manager.OpenProject(missing.string()));
 
     EXPECT_TRUE(manager.IsProjectOpen());
-    EXPECT_EQ(manager.GetCurrentProject().name, root.filename().string());
+    EXPECT_EQ(manager.GetCurrentProject().name, "Valid");
     EXPECT_EQ(changed, 1);
 
     fs::remove_all(root);
@@ -106,7 +105,7 @@ TEST(ProjectManagerTests, RejectsMissingPathWithoutReplacingOpenProject)
 TEST(ProjectManagerTests, RejectsInvalidManifestWithoutOpeningProject)
 {
     const fs::path root = MakeTempRoot("invalid_manifest");
-    WriteFile(root / "saga.project.json", "{ invalid json");
+    WriteFile(root / "Invalid.sagaproj", "{ invalid json");
 
     SagaEditor::ProjectManager manager;
     int changed = 0;

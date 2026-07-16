@@ -5,15 +5,16 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <vector>
 
 namespace SagaProduct
 {
 namespace
 {
 
-constexpr const char* kProjectManifestFile = "saga.project.json";
 constexpr const char* kDefaultWorkspaceId = "builtin.basic";
 constexpr const char* kDefaultDisplayName = "Basic Workspace";
 constexpr const char* kDefaultEditorProfile = "saga.profile.basic";
@@ -41,28 +42,57 @@ constexpr const char* kDefaultRuntimeRole = "SagaRuntime";
     return selector;
 }
 
-[[nodiscard]] std::filesystem::path ResolveProjectRoot(
-    const std::filesystem::path& selected)
+[[nodiscard]] std::filesystem::path ResolveProjectManifest(
+    const std::filesystem::path& selected,
+    std::string& error)
 {
-    if (selected.filename() == kProjectManifestFile)
+    std::error_code filesystemError;
+    if (std::filesystem::is_regular_file(selected, filesystemError))
     {
-        return selected.parent_path();
+        if (selected.extension() != ".sagaproj")
+        {
+            error = "Explicit Saga project input must be a .sagaproj file.";
+            return {};
+        }
+        return std::filesystem::weakly_canonical(selected, filesystemError);
     }
-    return selected;
+
+    if (!std::filesystem::is_directory(selected, filesystemError))
+    {
+        error = "Saga project input is not a file or directory: " +
+            selected.string();
+        return {};
+    }
+
+    std::vector<std::filesystem::path> candidates;
+    for (const auto& entry :
+         std::filesystem::directory_iterator(selected, filesystemError))
+    {
+        if (entry.is_regular_file() && entry.path().extension() == ".sagaproj")
+            candidates.push_back(entry.path());
+    }
+    if (filesystemError)
+    {
+        error = "Cannot enumerate Saga project directory: " +
+            filesystemError.message();
+        return {};
+    }
+    std::sort(candidates.begin(), candidates.end());
+    if (candidates.size() != 1)
+    {
+        error = candidates.empty()
+            ? "Saga project directory contains no .sagaproj manifest."
+            : "Saga project directory contains more than one .sagaproj manifest.";
+        return {};
+    }
+    return std::filesystem::weakly_canonical(candidates.front(), filesystemError);
 }
 
 [[nodiscard]] bool LoadProjectManifest(
-    const std::filesystem::path& root,
+    const std::filesystem::path& manifestPath,
     SagaWorkspaceDefinition& workspace,
     std::string& error)
 {
-    const std::filesystem::path manifestPath = root / kProjectManifestFile;
-    if (!std::filesystem::exists(manifestPath))
-    {
-        error = "Saga project manifest is missing: " + manifestPath.string();
-        return false;
-    }
-
     std::ifstream input(manifestPath);
     if (!input.is_open())
     {
@@ -82,8 +112,17 @@ constexpr const char* kDefaultRuntimeRole = "SagaRuntime";
         return false;
     }
 
+    if (!manifest.contains("schemaVersion") ||
+        !manifest["schemaVersion"].is_number_integer() ||
+        manifest["schemaVersion"].get<int>() != 0)
+    {
+        error = ".sagaproj requires schemaVersion 0.";
+        return false;
+    }
     if (!manifest.contains("projectId") || !manifest["projectId"].is_string() ||
-        !manifest.contains("displayName") || !manifest["displayName"].is_string())
+        manifest["projectId"].get<std::string>().empty() ||
+        !manifest.contains("displayName") || !manifest["displayName"].is_string() ||
+        manifest["displayName"].get<std::string>().empty())
     {
         error =
             "Saga project manifest must contain string projectId and displayName.";
@@ -92,7 +131,7 @@ constexpr const char* kDefaultRuntimeRole = "SagaRuntime";
 
     workspace.id = manifest["projectId"].get<std::string>();
     workspace.displayName = manifest["displayName"].get<std::string>();
-    workspace.root = std::filesystem::absolute(root);
+    workspace.root = std::filesystem::absolute(manifestPath.parent_path());
     workspace.editorProfile =
         manifest.value("editorProfile", std::string{kDefaultEditorProfile});
     workspace.runtimeRole =
@@ -128,21 +167,23 @@ SagaWorkspaceResolveResult SagaWorkspaceResolver::Resolve(
         return result;
     }
 
-    const std::filesystem::path root = ResolveProjectRoot(selectedRoot);
-    if (root.empty() || !std::filesystem::exists(root))
+    if (selectedRoot.empty() || !std::filesystem::exists(selectedRoot))
     {
-        result.error = "Saga workspace root is missing: " + root.string();
+        result.error = "Saga workspace root is missing: " + selectedRoot.string();
         return result;
     }
 
     if (selectedBuiltin)
     {
-        result.workspace = MakeBuiltinWorkspace(root);
+        result.workspace = MakeBuiltinWorkspace(selectedRoot);
         result.ok = true;
         return result;
     }
 
-    if (!LoadProjectManifest(root, result.workspace, result.error))
+    const std::filesystem::path manifestPath =
+        ResolveProjectManifest(selectedRoot, result.error);
+    if (manifestPath.empty() ||
+        !LoadProjectManifest(manifestPath, result.workspace, result.error))
     {
         return result;
     }

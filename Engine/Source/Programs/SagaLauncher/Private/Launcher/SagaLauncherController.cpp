@@ -347,9 +347,7 @@ SagaLauncherCommandResult SagaLauncherController::OpenProject(const std::filesys
             m_state.workspace.workspaceId = project.projectId;
             m_state.workspace.displayName = project.displayName;
             m_state.workspace.root = project.canonicalRoot;
-            m_state.workspace.sourceKind = project.legacyCompatibility
-                                               ? SagaLauncherWorkspaceSourceKind::LegacyWorkspace
-                                               : SagaLauncherWorkspaceSourceKind::ProjectOverlay;
+            m_state.workspace.sourceKind = SagaLauncherWorkspaceSourceKind::ProjectOverlay;
             m_state.workspace.status = SagaLauncherActionStatus::Passed;
         }
         ResolveTargetsLocked();

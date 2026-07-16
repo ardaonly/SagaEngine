@@ -16,7 +16,6 @@ namespace
 {
 
 constexpr std::size_t kMaximumRecentProjects = 12;
-constexpr const char* kLegacyManifest = "saga.project.json";
 
 [[nodiscard]] SagaLauncherDiagnostic Diagnostic(const char* id,
                                                 SagaLauncherDiagnosticSeverity severity,
@@ -122,7 +121,6 @@ SagaLauncherProjectSummary SagaProjectCatalog::OpenProject(
     }
 
     std::filesystem::path manifest;
-    bool legacy = false;
     if (std::filesystem::is_regular_file(input))
     {
         if (input.extension() == ".sagaproj")
@@ -159,11 +157,6 @@ SagaLauncherProjectSummary SagaProjectCatalog::OpenProject(
         }
         if (candidates.size() == 1)
             manifest = candidates.front();
-        else if (std::filesystem::is_regular_file(input / kLegacyManifest))
-        {
-            manifest = WeakCanonical(input / kLegacyManifest);
-            legacy = true;
-        }
         else
         {
             return InvalidProject(SagaLauncherProjectDiagnostics::ManifestMissing,
@@ -187,13 +180,11 @@ SagaLauncherProjectSummary SagaProjectCatalog::OpenProject(
                               manifest);
     }
 
-    const int expectedSchema = legacy ? 1 : 0;
     if (!json.contains("schemaVersion") || !json["schemaVersion"].is_number_integer() ||
-        json["schemaVersion"].get<int>() != expectedSchema)
+        json["schemaVersion"].get<int>() != 0)
     {
         return InvalidProject(SagaLauncherProjectDiagnostics::SchemaUnsupported,
-                              legacy ? "Legacy workspace requires schemaVersion 1."
-                                     : ".sagaproj requires schemaVersion 0.",
+                              ".sagaproj requires schemaVersion 0.",
                               manifest);
     }
     if (!json.contains("projectId") || !json["projectId"].is_string() ||
@@ -210,17 +201,8 @@ SagaLauncherProjectSummary SagaProjectCatalog::OpenProject(
     result.displayName = json["displayName"].get<std::string>();
     result.canonicalManifestPath = manifest;
     result.canonicalRoot = WeakCanonical(manifest.parent_path());
-    result.schemaVersion = expectedSchema;
+    result.schemaVersion = 0;
     result.valid = true;
-    result.legacyCompatibility = legacy;
-    if (legacy)
-    {
-        result.diagnostics.push_back(Diagnostic(
-            "Saga.Launcher.Project.LegacyWorkspaceCompatibility",
-            SagaLauncherDiagnosticSeverity::Warning,
-            "Opened legacy saga.project.json compatibility input; .sagaproj is canonical.",
-            manifest));
-    }
     return result;
 }
 
@@ -240,7 +222,9 @@ std::vector<SagaLauncherRecentProject> SagaRecentProjectsStore::Load() const
         !json["recentProjects"].is_array())
         return result;
 
-    const bool versioned = json.value("schemaVersion", 0) == 1;
+    if (json.value("schemaVersion", 0) != 1)
+        return result;
+
     for (const auto& value : json["recentProjects"])
     {
         if (!value.is_object())
@@ -249,17 +233,9 @@ std::vector<SagaLauncherRecentProject> SagaRecentProjectsStore::Load() const
         recent.displayName = value.value("displayName", std::string{});
         recent.projectId = value.value("projectId", std::string{});
         recent.lastOpenedUtc = value.value("lastOpenedUtc", std::string{});
-        if (versioned)
-        {
-            recent.canonicalManifestPath = WeakCanonical(
-                value.value("manifestPath", std::string{}));
-            recent.canonicalRoot = WeakCanonical(value.value("root", std::string{}));
-        }
-        else
-        {
-            recent.canonicalRoot = WeakCanonical(value.value("root", std::string{}));
-            recent.canonicalManifestPath = recent.canonicalRoot / kLegacyManifest;
-        }
+        recent.canonicalManifestPath = WeakCanonical(
+            value.value("manifestPath", std::string{}));
+        recent.canonicalRoot = WeakCanonical(value.value("root", std::string{}));
         recent.exists = std::filesystem::is_regular_file(recent.canonicalManifestPath);
         if (!recent.exists)
         {

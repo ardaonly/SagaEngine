@@ -285,11 +285,9 @@ private:
                                                  recent.displayName + "\n" +
                                                  recent.canonicalManifestPath.string()),
                                              m_recent);
-            const auto selectionPath = recent.canonicalManifestPath.filename() ==
-                                               "saga.project.json"
-                                           ? recent.canonicalRoot
-                                           : recent.canonicalManifestPath;
-            item->setData(Qt::UserRole, QString::fromStdString(selectionPath.string()));
+            item->setData(Qt::UserRole,
+                          QString::fromStdString(
+                              recent.canonicalManifestPath.string()));
             item->setData(Qt::UserRole + 1, recent.exists);
             if (!recent.exists)
                 item->setFlags(item->flags() & ~Qt::ItemIsEnabled);

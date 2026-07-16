@@ -26,7 +26,7 @@ struct SagaScriptGatePaths
 /// Product request for validating SagaScript source through Forge's generic gate.
 struct SagaScriptGateRequest
 {
-    std::filesystem::path projectRoot;
+    std::filesystem::path projectManifest;
     std::filesystem::path forgeExecutable = "forge";
     std::filesystem::path sagaScriptExecutable = "sagascript";
 };
@@ -90,8 +90,8 @@ public:
         std::ostream& out,
         std::ostream& err);
 
-    [[nodiscard]] static SagaScriptGatePaths PathsForProject(
-        const std::filesystem::path& projectRoot);
+    [[nodiscard]] static SagaScriptGatePaths PathsForManifest(
+        const std::filesystem::path& projectManifest);
 
     [[nodiscard]] static SagaToolProcessRequest BuildProcessRequest(
         const SagaScriptGateRequest& request);
