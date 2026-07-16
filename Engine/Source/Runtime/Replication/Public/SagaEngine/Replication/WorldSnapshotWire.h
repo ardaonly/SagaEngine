@@ -135,4 +135,4 @@ private:
 
 [[nodiscard]] uint32_t ComputeCRC32(const uint8_t* data, std::size_t size) noexcept;
 
-} // namespace SagaServer
+} // namespace SagaEngine::Replication

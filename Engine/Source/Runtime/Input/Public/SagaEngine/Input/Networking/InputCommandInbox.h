@@ -3,7 +3,7 @@
 /// @file InputCommandInbox.h
 /// @brief Server-side per-client input command queue with tick-based ordering.
 ///
-/// Layer  : SagaServer / Input
+/// Layer  : SagaEngine / Input / Networking
 /// Purpose: Receives deserialized InputCommands from the network layer and
 ///          presents them to the simulation tick by tick. Handles:
 ///            - Out-of-order arrival (sorted by sequence ascending)

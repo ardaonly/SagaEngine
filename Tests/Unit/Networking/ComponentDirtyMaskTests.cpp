@@ -1,7 +1,7 @@
 /// @file ComponentDirtyMaskTests.cpp
 /// @brief Unit tests for ComponentMask bit operations and dirty tracking.
 ///
-/// Layer  : SagaServer / Networking / Replication
+/// Layer  : SagaEngine / Replication
 /// Purpose: Tests the ComponentMask bit manipulation logic used in the
 ///          replication pipeline to track which components have changed
 ///          since the last snapshot sent to a client.  These tests verify:

@@ -406,4 +406,4 @@ std::vector<std::string> RPCDispatch::GetNames() const noexcept
     return names;
 }
 
-} // namespace SagaServer
+} // namespace SagaEngine::Replication

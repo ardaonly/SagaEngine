@@ -2,7 +2,7 @@
 /// @brief Unit tests for the server-side gameplay command dispatcher and the
 ///        client-side typed stub, verifying the RPC → typed-handler pipeline.
 ///
-/// Layer  : SagaServer / Gameplay   +   SagaEngine / Client / Gameplay
+/// Layer  : SagaEngine / ServerAuthority / Gameplay + SagaEngine / Client / Gameplay
 /// Purpose: Covers:
 ///            - Registration + typed dispatch by OpCode,
 ///            - Auth gate when CommandTraits::requiresAuth is true,

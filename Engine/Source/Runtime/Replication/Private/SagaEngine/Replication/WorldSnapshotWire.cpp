@@ -234,4 +234,4 @@ void SnapshotBuilder::reset()
     mTimestamp = 0;
 }
 
-} // namespace SagaServer
+} // namespace SagaEngine::Replication

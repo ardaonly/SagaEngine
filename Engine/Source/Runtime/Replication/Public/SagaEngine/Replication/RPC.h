@@ -342,4 +342,4 @@ private:
         /* this macro is kept for backwards compatibility only. */ \
     } while(0)
 
-} // namespace SagaServer
+} // namespace SagaEngine::Replication
