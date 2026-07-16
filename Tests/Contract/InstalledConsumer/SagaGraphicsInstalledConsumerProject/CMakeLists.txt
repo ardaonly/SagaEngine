@@ -23,6 +23,32 @@ if(NOT TARGET SagaEngine::SagaGraphicsCore)
     message(FATAL_ERROR "Installed package must export SagaEngine::SagaGraphicsCore")
 endif()
 
+foreach(_required_target IN ITEMS
+    SagaCoreLog
+    SagaDiagnostics
+    SagaShared
+    SagaCollaboration
+    SagaEngine
+    SagaRuntimeLib
+    SagaServerLib
+    SagaBackend)
+    if(NOT TARGET SagaEngine::${_required_target})
+        message(FATAL_ERROR
+            "Installed package must export SagaEngine::${_required_target}")
+    endif()
+endforeach()
+
+foreach(_private_target IN ITEMS
+    SagaCoreModule
+    SagaMathModule
+    SagaSagaRuntimeModule
+    SagaServerAuthorityModule)
+    if(TARGET SagaEngine::${_private_target})
+        message(FATAL_ERROR
+            "Installed package must not export private object target ${_private_target}")
+    endif()
+endforeach()
+
 get_target_property(_links SagaEngine::SagaGraphics INTERFACE_LINK_LIBRARIES)
 if(NOT _links MATCHES "SagaEngine::SagaGraphicsCore")
     message(FATAL_ERROR "SagaEngine::SagaGraphics must link SagaGraphicsCore transitively")
@@ -44,4 +70,10 @@ endforeach()
 
 add_executable(SagaGraphicsInstalledConsumer main.cpp)
 target_compile_features(SagaGraphicsInstalledConsumer PRIVATE cxx_std_20)
-target_link_libraries(SagaGraphicsInstalledConsumer PRIVATE SagaEngine::SagaGraphics)
+target_link_libraries(SagaGraphicsInstalledConsumer PRIVATE
+    SagaEngine::SagaGraphics
+    SagaEngine::SagaEngine
+    SagaEngine::SagaRuntimeLib
+    SagaEngine::SagaServerLib
+    SagaEngine::SagaBackend
+)

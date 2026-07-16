@@ -21,14 +21,18 @@ function(saga_setup_install)
         SagaDiagnostics
         SagaShared
         SagaCollaboration
+        SagaDotnetHost
         SagaEngine
         SagaRuntimeLib
         SagaServerLib
         SagaBackend
+        EXPORT SagaEngineTargets
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            COMPONENT SagaDevelopment
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            COMPONENT SagaDevelopment
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-        COMPONENT SagaDevelopment
+            COMPONENT SagaDevelopment
     )
 
     foreach(_saga_public_include IN LISTS SAGA_MODULE_PUBLIC_INCLUDE_DIRS)

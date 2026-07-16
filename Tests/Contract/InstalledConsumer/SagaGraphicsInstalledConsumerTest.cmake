@@ -123,13 +123,22 @@ if(NOT EXISTS "${_config}")
     message(FATAL_ERROR "Installed SagaEngineConfig.cmake was not found")
 endif()
 
+set(_downstream_configure_args
+    -S "${SAGA_DOWNSTREAM_SOURCE_DIR}"
+    -B "${SAGA_DOWNSTREAM_BINARY_DIR}"
+    "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
+    "-DCMAKE_PREFIX_PATH=${SAGA_INSTALL_PREFIX}"
+    "-DSAGA_PUBLIC_SOURCE_INCLUDE_FORBIDDEN=${SAGA_SOURCE_ROOT}/Engine/Public"
+    "-DSAGA_PRIVATE_SOURCE_INCLUDE_FORBIDDEN=${SAGA_SOURCE_ROOT}/Engine/Private"
+)
+set(_conan_toolchain "${SAGA_BUILD_DIR}/generators/conan_toolchain.cmake")
+if(EXISTS "${_conan_toolchain}")
+    list(APPEND _downstream_configure_args
+        "-DCMAKE_TOOLCHAIN_FILE=${_conan_toolchain}")
+endif()
+
 execute_process(
-    COMMAND "${CMAKE_COMMAND}"
-            -S "${SAGA_DOWNSTREAM_SOURCE_DIR}"
-            -B "${SAGA_DOWNSTREAM_BINARY_DIR}"
-            "-DCMAKE_PREFIX_PATH=${SAGA_INSTALL_PREFIX}"
-            "-DSAGA_PUBLIC_SOURCE_INCLUDE_FORBIDDEN=${SAGA_SOURCE_ROOT}/Engine/Public"
-            "-DSAGA_PRIVATE_SOURCE_INCLUDE_FORBIDDEN=${SAGA_SOURCE_ROOT}/Engine/Private"
+    COMMAND "${CMAKE_COMMAND}" ${_downstream_configure_args}
     RESULT_VARIABLE _configure_result
 )
 if(NOT _configure_result EQUAL 0)
