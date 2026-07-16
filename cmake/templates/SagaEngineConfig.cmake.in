@@ -1,5 +1,39 @@
 @PACKAGE_INIT@
 
+include(CMakeFindDependencyMacro)
+find_dependency(OpenSSL REQUIRED COMPONENTS Crypto)
+find_dependency(glm CONFIG REQUIRED)
+find_dependency(asio CONFIG REQUIRED)
+find_dependency(nlohmann_json CONFIG REQUIRED)
+find_dependency(libpqxx CONFIG REQUIRED)
+find_dependency(hiredis CONFIG REQUIRED)
+find_dependency(redis++ CONFIG REQUIRED)
+find_dependency(rmlui CONFIG REQUIRED)
+
+find_program(_saga_dotnet_executable dotnet REQUIRED)
+get_filename_component(_saga_dotnet_executable_real
+    "${_saga_dotnet_executable}" REALPATH)
+get_filename_component(_saga_dotnet_root
+    "${_saga_dotnet_executable_real}" DIRECTORY)
+file(GLOB _saga_dotnet_native_candidates
+    "${_saga_dotnet_root}/packs/Microsoft.NETCore.App.Host.*/*/runtimes/*/native")
+list(SORT _saga_dotnet_native_candidates)
+list(REVERSE _saga_dotnet_native_candidates)
+if(NOT _saga_dotnet_native_candidates)
+    set(SagaEngine_FOUND FALSE)
+    set(SagaEngine_NOT_FOUND_MESSAGE "The .NET native host pack was not found")
+    return()
+endif()
+list(GET _saga_dotnet_native_candidates 0 _saga_dotnet_native_dir)
+find_library(_saga_dotnet_nethost
+    NAMES nethost
+    HINTS "${_saga_dotnet_native_dir}"
+    NO_DEFAULT_PATH
+    REQUIRED)
+
 include("${CMAKE_CURRENT_LIST_DIR}/SagaEngineTargets.cmake")
+
+set_property(TARGET SagaEngine::SagaDotnetHost PROPERTY
+    INTERFACE_LINK_LIBRARIES "${_saga_dotnet_nethost}")
 
 check_required_components(SagaEngine)

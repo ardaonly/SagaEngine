@@ -21,6 +21,17 @@ macro(saga_configure_executable_output_directory)
     endforeach()
 endmacro()
 
+function(saga_add_installable_public_module_includes target_name)
+    set(_build_includes)
+    foreach(_include IN LISTS SAGA_MODULE_PUBLIC_INCLUDE_DIRS)
+        list(APPEND _build_includes "$<BUILD_INTERFACE:${_include}>")
+    endforeach()
+    target_include_directories(${target_name} PUBLIC
+        ${_build_includes}
+        $<INSTALL_INTERFACE:include>
+    )
+endfunction()
+
 function(saga_create_engine_targets)
     saga_get_registered_sources(SagaShared SHARED_SOURCES)
     saga_get_registered_sources(SagaCollaboration COLLABORATION_SOURCES)
@@ -47,9 +58,8 @@ function(saga_create_engine_targets)
         ${CORE_LOG_SOURCES}
     )
 
+    saga_add_installable_public_module_includes(SagaCoreLog)
     target_include_directories(SagaCoreLog
-        PUBLIC
-            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         PRIVATE
             ${SAGA_MODULE_PRIVATE_INCLUDE_DIRS}
     )
@@ -70,9 +80,8 @@ function(saga_create_engine_targets)
         ${DIAGNOSTICS_SOURCES}
     )
 
+    saga_add_installable_public_module_includes(SagaDiagnostics)
     target_include_directories(SagaDiagnostics
-        PUBLIC
-            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
         PRIVATE
             ${SAGA_MODULE_PRIVATE_INCLUDE_DIRS}
     )
@@ -90,6 +99,7 @@ function(saga_create_engine_targets)
 
     # --- Shared Contract Library ---------------------------------------------
     add_library(SagaShared INTERFACE)
+    saga_add_installable_public_module_includes(SagaShared)
 
     set_target_properties(SagaShared PROPERTIES
         FOLDER "Shared"
@@ -103,9 +113,7 @@ function(saga_create_engine_targets)
         ${COLLABORATION_SOURCES}
     )
 
-    target_include_directories(SagaCollaboration PUBLIC
-        ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
-    )
+    saga_add_installable_public_module_includes(SagaCollaboration)
 
     target_link_libraries(SagaCollaboration PUBLIC
         SagaShared
@@ -144,9 +152,11 @@ function(saga_create_engine_targets)
     saga_apply_compiler_flags(SagaEngine)
     saga_compose_registered_objects(SagaEngine)
 
-    target_include_directories(SagaEngine PUBLIC
-        ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
-    )
+    saga_add_installable_public_module_includes(SagaEngine)
+
+    add_library(SagaDotnetHost INTERFACE)
+    target_link_libraries(SagaDotnetHost INTERFACE
+        "$<BUILD_INTERFACE:${SAGA_DOTNET_NETHOST_LIBRARY}>")
 
     target_link_libraries(SagaEngine PUBLIC
         SagaCoreLog
@@ -156,7 +166,8 @@ function(saga_create_engine_targets)
     )
     target_link_libraries(SagaEngine PRIVATE
         OpenSSL::Crypto
-        ${SAGA_DOTNET_NETHOST_LIBRARY}
+        SagaDiagnostics
+        SagaDotnetHost
         ${CMAKE_DL_LIBS}
     )
 
@@ -240,9 +251,7 @@ function(saga_create_engine_targets)
     saga_apply_compiler_flags(SagaRuntimeLib)
     saga_compose_registered_objects(SagaRuntimeLib)
 
-    target_include_directories(SagaRuntimeLib PUBLIC
-        ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
-    )
+    saga_add_installable_public_module_includes(SagaRuntimeLib)
 
     target_link_libraries(SagaRuntimeLib PUBLIC
         SagaEngine
@@ -264,9 +273,7 @@ function(saga_create_engine_targets)
     saga_apply_compiler_flags(SagaServerLib)
     saga_compose_registered_objects(SagaServerLib)
 
-    target_include_directories(SagaServerLib PUBLIC
-        ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
-    )
+    saga_add_installable_public_module_includes(SagaServerLib)
 
     target_link_libraries(SagaServerLib PUBLIC
         SagaEngine
@@ -432,8 +439,9 @@ function(saga_create_engine_targets)
     )
 
     target_include_directories(SagaBackend PUBLIC
-        ${SAGA_ROOT}/Engine/Source/Runtime/Persistence/Public
-        ${SAGA_ROOT}/Engine/Source/Runtime/UI/Public
+        $<BUILD_INTERFACE:${SAGA_ROOT}/Engine/Source/Runtime/Persistence/Public>
+        $<BUILD_INTERFACE:${SAGA_ROOT}/Engine/Source/Runtime/UI/Public>
+        $<INSTALL_INTERFACE:include>
     )
 
     # --- Sandbox Library ------------------------------------------------------
@@ -486,10 +494,10 @@ function(saga_create_engine_targets)
     target_link_libraries(SagaEditorLib PUBLIC
         Qt6::Core
         Qt6::Widgets
+        SagaEngine
     )
 
     target_link_libraries(SagaEditorLib PRIVATE
-        SagaEngine
         SagaShared
         SagaCollaboration
         SagaBackend

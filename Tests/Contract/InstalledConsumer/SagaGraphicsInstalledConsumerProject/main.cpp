@@ -1,4 +1,7 @@
 #include <SagaEngine/Graphics/Graphics.h>
+#include <SagaEngine/Persistence/IDatabase.h>
+#include <SagaEngine/ServerAuthority/ZoneServer.h>
+#include <SagaEngine/World/WorldFacade.h>
 
 #include <cstdint>
 
@@ -12,6 +15,25 @@ Graphics::GraphicsHandle ToGraphicsHandle(
 
 int main()
 {
+    const auto databaseStatus =
+        SagaEngine::Persistence::DatabaseStatus::Success();
+    if (!databaseStatus.IsSuccess())
+    {
+        return 9;
+    }
+
+    SagaEngine::World::WorldFacade world;
+    if (!world.Initialize() || !world.Tick({.deltaSeconds = 1.0 / 60.0}).accepted)
+    {
+        return 10;
+    }
+
+    const SagaEngine::ServerAuthority::ZoneServerConfig serverConfig;
+    if (serverConfig.bindAddress != "127.0.0.1")
+    {
+        return 11;
+    }
+
     Graphics::NullGraphicsBackend backend;
 
     Graphics::RenderBackendDesc backendDesc{};
