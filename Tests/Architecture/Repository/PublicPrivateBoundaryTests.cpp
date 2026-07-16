@@ -459,6 +459,48 @@ TEST(PublicPrivateBoundaryTests, LegacyCollaborationSurfaceStaysAbsent)
         root / "Public/SagaCollaboration/CollaborationModel.cpp"));
 }
 
+TEST(PublicPrivateBoundaryTests, PublicCoreModulesClaimOnlyStaticLifecycle)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT) /
+        "Engine/Source/Runtime/Core";
+    const std::array publicHeaders = {
+        root / "Public/SagaEngine/Core/Modules/IModule.h",
+        root / "Public/SagaEngine/Core/Modules/ModuleManager.h",
+        root / "Public/SagaEngine/Core/Modules/ModuleRegistry.h",
+    };
+
+    std::string publicSurface;
+    for (const auto& header : publicHeaders)
+    {
+        publicSurface += ReadText(header);
+    }
+
+    constexpr std::array<std::string_view, 10> unsupportedClaims = {
+        "pluginsDirectory",
+        "autoLoadPlugins",
+        "ScanPluginsDirectory",
+        "LoadPluginLibrary",
+        "GetPluginPaths",
+        "HotReloadModule",
+        "hotReloadable",
+        "SAGA_MODULE_EXPORT",
+        "dlopen",
+        "LoadLibrary",
+    };
+    for (const auto claim : unsupportedClaims)
+    {
+        EXPECT_EQ(publicSurface.find(claim), std::string::npos) << claim;
+    }
+
+    const auto privateImplementation =
+        ReadText(root / "Private/SagaEngine/Core/Modules/ModuleRegistry.cpp") +
+        ReadText(root / "Private/SagaEngine/Core/Modules/ModuleManager.cpp");
+    EXPECT_EQ(privateImplementation.find("ScanPluginsDirectory"),
+              std::string::npos);
+    EXPECT_EQ(privateImplementation.find("dlopen"), std::string::npos);
+    EXPECT_EQ(privateImplementation.find("LoadLibrary"), std::string::npos);
+}
+
 TEST(PublicPrivateBoundaryTests, UnregisteredPlaceholderPanelsStayAbsent)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);

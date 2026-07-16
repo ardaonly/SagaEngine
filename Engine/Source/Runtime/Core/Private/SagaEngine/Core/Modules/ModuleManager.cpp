@@ -3,7 +3,7 @@
 ///
 /// Layer  : SagaEngine / Core / Modules
 /// Purpose: Production implementation of the ModuleManager with dependency
-///          resolution, hot-reload support, and health monitoring.
+///          resolution and health monitoring for statically registered modules.
 
 #include "SagaEngine/Core/Modules/ModuleManager.h"
 #include "SagaEngine/Core/Log/Log.h"
@@ -11,7 +11,6 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cstring>
 
 namespace SagaEngine::Core::Modules {
 
@@ -33,12 +32,6 @@ bool ModuleManager::Init(const ModuleManagerConfig& config) noexcept
     std::lock_guard<std::mutex> lock(m_mutex);
 
     m_config = config;
-
-    // Auto-discover plugins if configured.
-    if (m_config.autoLoadPlugins && m_config.pluginsDirectory)
-    {
-        ModuleRegistry::Instance().ScanPluginsDirectory(m_config.pluginsDirectory);
-    }
 
     const uint32_t registeredCount = ModuleRegistry::Instance().Count();
     LOG_INFO(kTag, "ModuleManager initialized. %u module(s) registered. "
@@ -280,120 +273,6 @@ bool ModuleManager::UnloadModule(const char* name) noexcept
     if (m_eventCallback)
     {
         m_eventCallback(name, oldState, ModuleState::Unloaded, "Module unloaded");
-    }
-
-    return true;
-}
-
-// ─── Hot-reload ─────────────────────────────────────────────────────────
-
-bool ModuleManager::HotReloadModule(const char* name, const char* newLibraryPath) noexcept
-{
-    if (!name)
-        return false;
-
-    std::lock_guard<std::mutex> lock(m_mutex);
-
-    auto it = m_modules.find(name);
-    if (it == m_modules.end())
-    {
-        LOG_WARN(kTag, "Module '%s' is not loaded; cannot hot-reload", name);
-        return false;
-    }
-
-    IModule* oldModule = it->second.instance.get();
-    if (!oldModule)
-        return false;
-
-    // Check if the module supports hot-reload.
-    const auto* factoryEntry = ModuleRegistry::Instance().GetFactory(name);
-    if (!factoryEntry || !factoryEntry->descriptor.hotReloadable)
-    {
-        LOG_WARN(kTag, "Module '%s' does not support hot-reload", name);
-        return false;
-    }
-
-    LOG_INFO(kTag, "Hot-reloading module '%s'...", name);
-
-    // Step 1: Suspend the old module (serialize state).
-    std::vector<uint8_t> stateBuffer(65536);  // 64 KiB state buffer.
-    uint32_t stateSize = 0;
-
-    if (!oldModule->Suspend(stateBuffer.data(),
-                            static_cast<uint32_t>(stateBuffer.size()),
-                            stateSize))
-    {
-        LOG_ERROR(kTag, "Failed to suspend module '%s' for hot-reload", name);
-        it->second.state = ModuleState::Failed;
-        return false;
-    }
-
-    it->second.state = ModuleState::Suspended;
-
-    LOG_DEBUG(kTag, "Module '%s' suspended. State size: %u bytes", name, stateSize);
-
-    // Step 2: Shutdown the old module.
-    oldModule->Shutdown();
-    it->second.state = ModuleState::Unloaded;
-
-    // Step 3: If a new library path is provided, reload it.
-    if (newLibraryPath)
-    {
-        // In production: unload old library, load new one, update factory.
-        // For now: we assume the factory still points to the updated library.
-        LOG_INFO(kTag, "Hot-reload: new library path specified: %s", newLibraryPath);
-    }
-
-    // Step 4: Create a new instance from the factory.
-    IModule* newModule = factoryEntry->factory();
-    if (!newModule)
-    {
-        LOG_ERROR(kTag, "Failed to create new instance of '%s' for hot-reload", name);
-        return false;
-    }
-
-    auto newModulePtr = std::shared_ptr<IModule>(newModule);
-
-    // Step 5: Resolve dependencies again.
-    std::vector<std::string> deps = newModule->GetDependencies();
-    std::vector<IModule*> depPointers;
-    depPointers.reserve(deps.size());
-
-    for (const auto& depName : deps)
-    {
-        auto depIt = m_modules.find(depName);
-        if (depIt != m_modules.end() && depIt->second.instance)
-            depPointers.push_back(depIt->second.instance.get());
-    }
-
-    newModule->ResolveDependencies(depPointers);
-
-    // Step 6: Initialize the new module with the old state.
-    if (!newModule->Init(stateBuffer.data(), stateSize))
-    {
-        LOG_ERROR(kTag, "Failed to initialize new instance of '%s' after hot-reload", name);
-        return false;
-    }
-
-    // Step 7: Resume the new module.
-    if (!newModule->Resume(stateBuffer.data(), stateSize))
-    {
-        LOG_ERROR(kTag, "Failed to resume module '%s' after hot-reload", name);
-        newModule->Shutdown();
-        return false;
-    }
-
-    // Replace the old instance.
-    it->second.instance = std::move(newModulePtr);
-    it->second.state = ModuleState::Active;
-
-    LOG_INFO(kTag, "Hot-reload complete for module '%s'. State restored: %u bytes",
-             name, stateSize);
-
-    if (m_eventCallback)
-    {
-        m_eventCallback(name, ModuleState::Suspended, ModuleState::Active,
-                        "Module hot-reloaded successfully");
     }
 
     return true;

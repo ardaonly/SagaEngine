@@ -1,9 +1,9 @@
 /// @file ModuleManager.h
-/// @brief Lifecycle manager for hot-pluggable engine modules.
+/// @brief Lifecycle manager for statically registered engine modules.
 ///
 /// Layer  : SagaEngine / Core / Modules
 /// Purpose: The ModuleManager orchestrates the loading, initialization,
-///          ticking, hot-reloading, and unloading of IModule instances.
+///          ticking, and unloading of IModule instances.
 ///          It resolves dependencies, enforces load ordering, and provides
 ///          runtime health monitoring.
 ///
@@ -11,7 +11,6 @@
 ///   - Manager is owned by the Engine singleton (not the WorldNode)
 ///   - Modules are loaded in dependency order (topological sort)
 ///   - Circular dependencies are detected and reported at load time
-///   - Hot-reload suspends the old module, loads the new one, transfers state
 ///   - Failed modules are gracefully unloaded; engine continues if not required
 ///   - All module operations are synchronous (no background loading threads)
 
@@ -34,8 +33,6 @@ namespace SagaEngine::Core::Modules {
 
 struct ModuleManagerConfig
 {
-    const char* pluginsDirectory = "plugins";  ///< Directory for dynamic modules.
-    bool        autoLoadPlugins  = true;        ///< Auto-discover and load plugins at Init.
     uint32_t    maxModules       = 64;          ///< Hard cap on loaded modules.
     bool        strictDeps       = true;        ///< Fail load if any dependency is missing.
 };
@@ -70,8 +67,7 @@ using ModuleEventCallback = std::function<void(
 ///   2. manager.Init(config);
 ///   3. manager.LoadModule("Networking");  // Dependencies auto-resolved
 ///   4. manager.Tick(deltaTime);           // Ticks all active modules
-///   5. manager.HotReloadModule("Physics"); // Suspend → reload → resume
-///   6. manager.Shutdown();                // Unload all modules
+///   5. manager.Shutdown();                // Unload all modules
 ///
 /// Thread model:
 ///   All methods are called from the main engine thread.
@@ -89,7 +85,7 @@ public:
 
     /// Initialize the module manager.
     /// @param config  Manager configuration.
-    /// @return true on success; false if registry scan failed.
+    /// @return true on success.
     bool Init(const ModuleManagerConfig& config) noexcept;
 
     /// Shutdown the manager and unload all modules.
@@ -111,22 +107,6 @@ public:
     /// @param name  Module name.
     /// @return true if the module was unloaded successfully.
     bool UnloadModule(const char* name) noexcept;
-
-    // ─── Hot-reload ───────────────────────────────────────────────────
-
-    /// Hot-reload a module without stopping the engine.
-    ///
-    /// Sequence:
-    ///   1. Suspend the old module (serialize state)
-    ///   2. Unload the old module's shared library
-    ///   3. Load the new module's shared library
-    ///   4. Initialize the new module with the old state
-    ///   5. Resume the new module (restore state)
-    ///
-    /// @param name          Module name.
-    /// @param newLibraryPath Path to the new shared library (or empty to rescan).
-    /// @return true if hot-reload completed successfully.
-    bool HotReloadModule(const char* name, const char* newLibraryPath = nullptr) noexcept;
 
     // ─── Tick ─────────────────────────────────────────────────────────
 
@@ -156,7 +136,7 @@ public:
     // ─── Events ───────────────────────────────────────────────────────
 
     /// Register a callback for module lifecycle events.
-    /// @param callback  Called on state transitions (load, unload, hot-reload, fail).
+    /// @param callback  Called on load, unload, and failure transitions.
     void SetEventCallback(ModuleEventCallback callback) noexcept;
 
     // ─── Diagnostics ──────────────────────────────────────────────────

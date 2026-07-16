@@ -1,17 +1,14 @@
 /// @file ModuleRegistry.h
-/// @brief Registry for module factories and descriptors (static + dynamic).
+/// @brief Registry for statically linked module factories and descriptors.
 ///
 /// Layer  : SagaEngine / Core / Modules
-/// Purpose: The ModuleRegistry maintains a catalog of known modules — both
-///          statically linked and dynamically loaded shared libraries.
+/// Purpose: The ModuleRegistry maintains a catalog of statically linked modules.
 ///          It provides the ModuleManager with a lookup table to instantiate
-///          modules by name, query their descriptors, and discover available
-///          modules at runtime.
+///          modules by name and query their descriptors.
 ///
 /// Design rules:
 ///   - Registry is a singleton accessible globally (read-only after boot)
 ///   - Modules can be registered statically at compile time
-///   - Dynamic modules are discovered by scanning a plugins directory
 ///   - Each module has a unique name (case-sensitive string)
 ///   - The registry is immutable after engine boot (thread-safe reads)
 
@@ -24,19 +21,18 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace SagaEngine::Core::Modules {
 
 // ─── Module factory wrapper ─────────────────────────────────────────────
 
-/// Wraps a module factory function with metadata about its source.
+/// Wraps a statically linked module factory and its descriptor.
 struct ModuleFactoryEntry
 {
-    CreateModuleFn  factory         = nullptr;   ///< Factory function (static or from dlsym).
-    void*           libraryHandle   = nullptr;   ///< Opaque library handle (nullptr for static).
-    std::string     libraryPath;                  ///< Path to .dll/.so (empty for static).
-    ModuleDescriptor descriptor;                   ///< Static descriptor from the factory.
+    CreateModuleFn  factory = nullptr;
+    ModuleDescriptor descriptor;
 };
 
 // ─── Module registry ────────────────────────────────────────────────────
@@ -45,11 +41,10 @@ struct ModuleFactoryEntry
 ///
 /// Usage:
 ///   1. At engine boot: ModuleRegistry::Instance().RegisterStatic<MyModule>()
-///   2. Optionally: ModuleRegistry::Instance().ScanPluginsDirectory(path)
-///   3. ModuleManager queries the registry to load modules by name
+///   2. ModuleManager queries the registry to load modules by name
 ///
 /// Thread model:
-///   Registration is mutex-protected; lookups are lock-free after boot.
+///   Registration and lookups are mutex-protected.
 class ModuleRegistry
 {
 public:
@@ -69,15 +64,6 @@ public:
     void RegisterStatic(const char* name, CreateModuleFn factory,
                         ModuleDescriptor descriptor) noexcept;
 
-    // ─── Dynamic discovery ────────────────────────────────────────────
-
-    /// Scan a directory for plugin shared libraries (.dll on Windows,
-    /// .so on Linux, .dylib on macOS).  Each library must export
-    /// CreateModule() and a ModuleDescriptor symbol.
-    /// @param path  Directory path to scan.
-    /// @return Number of successfully discovered modules.
-    uint32_t ScanPluginsDirectory(const char* path) noexcept;
-
     // ─── Queries ──────────────────────────────────────────────────────
 
     /// Get a factory entry by module name.
@@ -96,18 +82,12 @@ public:
 
     // ─── Diagnostics ──────────────────────────────────────────────────
 
-    /// Total number of registered modules (static + dynamic).
+    /// Total number of statically registered modules.
     [[nodiscard]] uint32_t Count() const noexcept;
-
-    /// List of all plugin library paths (empty for static modules).
-    [[nodiscard]] std::vector<std::string> GetPluginPaths() const noexcept;
 
 private:
     ModuleRegistry() noexcept = default;
     ~ModuleRegistry() noexcept = default;
-
-    // Internal helper for dynamic library loading.
-    bool LoadPluginLibrary(const char* libraryPath) noexcept;
 
     mutable std::mutex m_mutex;
     std::unordered_map<std::string, ModuleFactoryEntry> m_factories;
@@ -126,7 +106,6 @@ private:
                 ::SagaEngine::Core::Modules::ModuleDescriptor desc = {}; \
                 desc.name = #ModuleClass; \
                 desc.version = "0.0.1"; \
-                desc.hotReloadable = false; \
                 desc.required = true; \
                 ::SagaEngine::Core::Modules::ModuleRegistry::Instance().RegisterStatic( \
                     #ModuleClass, \

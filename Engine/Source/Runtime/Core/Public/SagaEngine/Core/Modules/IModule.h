@@ -1,20 +1,16 @@
 /// @file IModule.h
-/// @brief Abstract interface for hot-pluggable engine modules.
+/// @brief Abstract interface for statically registered engine modules.
 ///
 /// Layer  : SagaEngine / Core / Modules
 /// Purpose: Defines the lifecycle and dependency contract for modules that
-///          can be loaded, unloaded, and reloaded at runtime without
-///          restarting the engine.  Modules are the unit of hot-pluggability
-///          for subsystems like networking, physics, audio, and rendering.
+///          are registered by the executable and managed through a bounded
+///          initialization, tick, and shutdown lifecycle.
 ///
 /// Design rules:
 ///   - Modules are reference-counted (shared_ptr ownership by ModuleManager)
-///   - Lifecycle: Unloaded → Loading → Initialized → Active → Suspended → Unloaded
+///   - Lifecycle: Unloaded → Loading → Initialized → Active → Unloaded
 ///   - Dependencies are declared statically; circular deps are detected at load time
-///   - Module code lives in shared libraries (.dll/.so) or static linkage
 ///   - A module must be fully initialized before any dependent module starts
-///   - Hot-reload suspends the module, unloads the library, loads the new
-///     version, reinitializes with the previous state, and resumes
 
 #pragma once
 
@@ -30,10 +26,9 @@ namespace SagaEngine::Core::Modules {
 enum class ModuleState : uint8_t
 {
     Unloaded,       ///< Module code not loaded; no resources held.
-    Loading,        ///< Shared library being loaded; dependencies being resolved.
+    Loading,        ///< Instance being created; dependencies being resolved.
     Initialized,    ///< Init() called; resources allocated; not yet ticking.
     Active,         ///< Module is running; Tick() is being called.
-    Suspended,      ///< Module paused for hot-reload; state preserved.
     Failed,         ///< Initialization or runtime error; requires unload.
 };
 
@@ -46,7 +41,6 @@ enum class ModuleState : uint8_t
         case ModuleState::Loading:      return "Loading";
         case ModuleState::Initialized:  return "Initialized";
         case ModuleState::Active:       return "Active";
-        case ModuleState::Suspended:    return "Suspended";
         case ModuleState::Failed:       return "Failed";
     }
     return "Unknown";
@@ -61,23 +55,21 @@ struct ModuleDescriptor
     const char*     version         = "0.0.1";    ///< Semantic version string.
     const char*     author          = nullptr;    ///< Author / team.
     uint32_t        apiVersion      = 1;          ///< Module ABI version.
-    bool            hotReloadable  = false;       ///< Supports suspend/reload/resume.
     bool            required        = true;       ///< If false, engine continues without it.
 };
 
 // ─── Module interface ─────────────────────────────────────────────────────
 
-/// Base class for all engine modules.  Implement this interface in your
-/// module's shared library and export a CreateModule() factory function.
+/// Base class for all engine modules. Implement this interface in a statically
+/// linked owner and register its factory before ModuleManager initialization.
 ///
 /// Lifecycle:
 ///   1. ModuleManager creates the module via factory
 ///   2. ResolveDependencies() is called with pointers to dependency modules
 ///   3. Init() is called once
 ///   4. Tick() is called every frame while state is Active
-///   5. On hot-reload: Suspend() → Unload() → Load() → Init() → Resume()
-///   6. Shutdown() is called before destruction
-///   7. Destructor runs last
+///   5. Shutdown() is called before destruction
+///   6. Destructor runs last
 ///
 /// Thread model:
 ///   All methods are called from the main engine thread unless the
@@ -116,22 +108,6 @@ public:
     /// @param deltaTime  Time since last tick in seconds.
     virtual void Tick(float deltaTime) noexcept = 0;
 
-    /// Suspend the module for hot-reload.  Pause all background threads,
-    /// flush pending work, and serialize internal state to the provided
-    /// buffer so the new module version can restore it.
-    /// @param outStateBuffer  Output: serialized state bytes.
-    /// @param outStateSize    Output: number of bytes written.
-    /// @return true if state was successfully serialized.
-    virtual bool Suspend(void* outStateBuffer, uint32_t outStateBufferSize,
-                         uint32_t& outStateSize) noexcept = 0;
-
-    /// Resume the module after hot-reload.  Restore the serialized state
-    /// from the old module version and resume normal operation.
-    /// @param stateBuffer  Serialized state from the previous module version.
-    /// @param stateSize    Number of bytes in the state buffer.
-    /// @return true if state was successfully restored.
-    virtual bool Resume(const void* stateBuffer, uint32_t stateSize) noexcept = 0;
-
     /// One-time cleanup.  Called before the module is unloaded.
     virtual void Shutdown() noexcept = 0;
 
@@ -149,26 +125,7 @@ public:
 
 // ─── Factory function signature ─────────────────────────────────────────
 
-/// Shared libraries must export this function to create a module instance.
-///
-/// extern "C" SAGA_MODULE_EXPORT IModule* CreateModule()
-/// {
-///     return new MyModule();
-/// }
+/// Factory signature used by the static registry.
 using CreateModuleFn = IModule* (*)();
 
 } // namespace SagaEngine::Core::Modules
-
-/// Platform-specific export macro for module factories.
-/// Usage: SAGA_MODULE_EXPORT_IMPL(MyModule) in the module's .cpp file.
-#if defined(_WIN32) || defined(_WIN64)
-    #define SAGA_MODULE_EXPORT __declspec(dllexport)
-#else
-    #define SAGA_MODULE_EXPORT __attribute__((visibility("default")))
-#endif
-
-#define SAGA_MODULE_EXPORT_IMPL(ModuleClass) \
-    extern "C" SAGA_MODULE_EXPORT ::SagaEngine::Core::Modules::IModule* CreateModule() \
-    { \
-        return new ModuleClass(); \
-    }
