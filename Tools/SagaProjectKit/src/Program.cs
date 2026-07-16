@@ -944,9 +944,9 @@ internal static class Program
             GateStatus = gateStatus,
             Docs =
             [
-                "SagaWiki/pages/source-of-truth.html",
-                "SagaWiki/pages/editor.html",
-                "SagaWiki/pages/scripting.html",
+                "SagaWiki/library/architecture/source-of-truth.md",
+                "SagaWiki/library/editor/editor-contract.md",
+                "SagaWiki/library/editor/csharp-and-visual-blocks.md",
             ],
             Reports = [inventoryPath, gatePath],
             ResidualDebt = residualDebt,
