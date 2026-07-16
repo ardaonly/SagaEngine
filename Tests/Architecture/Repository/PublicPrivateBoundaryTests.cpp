@@ -18,6 +18,23 @@ bool IsHeader(const std::filesystem::path& path)
            extension == ".hpp" || extension == ".hxx";
 }
 
+bool ContainsRegularFile(const std::filesystem::path& root)
+{
+    if (!std::filesystem::is_directory(root))
+    {
+        return false;
+    }
+    for (const auto& entry :
+         std::filesystem::recursive_directory_iterator(root))
+    {
+        if (entry.is_regular_file())
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 std::string ReadText(const std::filesystem::path& path)
 {
     std::ifstream input(path);
@@ -422,44 +439,24 @@ TEST(PublicPrivateBoundaryTests, VisualBlocksPublicSurfaceContainsOnlyBlocksCont
         publicVisualBlocks / "Blocks/BlockToIRLowerer.h"));
 }
 
-TEST(PublicPrivateBoundaryTests, CollaborationConcreteImplementationsStayPrivate)
+TEST(PublicPrivateBoundaryTests, LegacyCollaborationSurfaceStaysAbsent)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT) /
         "Engine/Source/Editor/EditorCollaboration";
-    const auto publicCollaboration = root / "Public/SagaEditor/Collaboration";
-    const auto privateCollaboration = root / "Private/SagaEditor/Collaboration";
-    constexpr std::array<std::string_view, 15> concreteHeaders = {
-        "Audit/AuditLogger.h",
-        "Authority/AuthorityManager.h",
-        "Client/CollaborationClient.h",
-        "Client/PeerRegistry.h",
-        "Locks/LockManager.h",
-        "Permissions/PermissionManager.h",
-        "Presence/PresenceManager.h",
-        "Replay/OperationLog.h",
-        "Server/CollaborationServer.h",
-        "Server/CollaborationServerRouter.h",
-        "Session/CollaborationSession.h",
-        "Sync/CrdtSceneDocument.h",
-        "Sync/EditOperationQueue.h",
-        "Sync/SyncTransportImpl.h",
-        "Workspace/CollaborativeWorkspace.h",
-    };
-
-    for (const auto relative : concreteHeaders)
-    {
-        EXPECT_FALSE(std::filesystem::exists(publicCollaboration / relative))
-            << relative;
-        EXPECT_TRUE(std::filesystem::is_regular_file(privateCollaboration / relative))
-            << relative;
-    }
-
+    EXPECT_FALSE(ContainsRegularFile(
+        root / "Public/SagaEditor/Collaboration"));
+    EXPECT_FALSE(ContainsRegularFile(
+        root / "Private/SagaEditor/Collaboration"));
     EXPECT_TRUE(std::filesystem::is_regular_file(
-        publicCollaboration / "Client/ICollaborationClient.h"));
+        root / "Public/SagaCollaboration/CollaborationModel.hpp"));
     EXPECT_TRUE(std::filesystem::is_regular_file(
-        publicCollaboration / "Sync/EditOperation.h"));
+        root / "Public/SagaShared/Collaboration/SessionDescriptor.hpp"));
     EXPECT_TRUE(std::filesystem::is_regular_file(
-        publicCollaboration / "Workspace/WorkspaceSnapshot.h"));
+        root / "Public/SagaShared/Workspace/WorkspaceDescriptor.hpp"));
+    EXPECT_TRUE(std::filesystem::is_regular_file(
+        root / "Private/SagaCollaboration/CollaborationModel.cpp"));
+    EXPECT_FALSE(std::filesystem::exists(
+        root / "Public/SagaCollaboration/CollaborationModel.cpp"));
 }
 
 TEST(PublicPrivateBoundaryTests, UnregisteredPlaceholderPanelsStayAbsent)
