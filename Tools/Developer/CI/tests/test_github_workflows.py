@@ -130,7 +130,7 @@ jobs:
 
     def test_required_checks_may_not_use_a_matrix(self) -> None:
         texts = {
-            "build.yml": """name: Build
+            "repository-contracts.yml": """name: Repository Contracts
 
 jobs:
   repository-contracts:

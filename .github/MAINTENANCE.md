@@ -15,14 +15,17 @@ The expected stable job display names are:
 
 Do not copy these labels into a ruleset before the corrected workflows have completed successfully on GitHub. Required status checks must use the exact, globally unique `check_run.name` values reported for a successful commit; matrix expansion or an external status with the same name can change or make that context ambiguous. Renaming one of these jobs requires a coordinated ruleset update.
 
-After the four check runs have succeeded, protect `main` with an active branch ruleset that requires a pull request with zero approvals, requires those exact checks in strict/up-to-date mode, blocks deletion and force-push, and grants repository administrators bypass access for pull requests only. Direct pushes remain blocked; a solo maintainer works through `feature branch -> pull request -> checks -> self-merge`.
+`Repository contracts` and `Licensing gate` run automatically for pull requests. The C++ checks are intentionally not started by every PR synchronization: run the `C++ Evidence` workflow manually against the final candidate branch before merge. This produces `C++ Linux all-safe` and `C++ Windows core` on the exact head commit without replacing them with skipped placeholder jobs. A relevant merge to `main` runs the same C++ evidence once more.
+
+After the four check runs have succeeded on the same candidate commit, protect `main` with an active branch ruleset that requires a pull request with zero approvals, requires those exact checks in strict/up-to-date mode, blocks deletion and force-push, and grants repository administrators bypass access for pull requests only. Direct pushes remain blocked; a solo maintainer works through `feature branch -> pull request -> automatic contracts -> manual C++ evidence -> self-merge`.
 
 ## Evidence tiers
 
 | Tier | Trigger | Evidence |
 | --- | --- | --- |
-| PR contracts | Every push and pull request | Python/tool contracts, boundaries, Wiki, workflow policy, Linux all-safe CTest, Windows unit/architecture, strict license policy. |
-| Configured license graph | Relevant PR changes, nightly, or manual | CMake File API ownership and target inventory, installed SDK consumer, machine-readable license report. |
+| PR contracts | Every pull request update | Python/tool contracts, boundaries, Wiki, workflow policy, and strict repository license policy. |
+| C++ evidence | Manual candidate-branch run and relevant `main` push | Linux all-safe CTest and Windows unit/architecture CTest. |
+| Configured license graph | Relevant `main` changes, nightly, or manual | CMake File API ownership and target inventory, installed SDK consumer, machine-readable license report. |
 | Nightly | Daily | Integration and replication tests, serial execution. |
 | Weekly | Sunday | StressTests, serial execution with a four-hour job limit. |
 | GPU | Manual preflight | Explicitly blocked until a trusted self-hosted runner carrying the `saga-gpu` label exists. |

@@ -75,7 +75,7 @@ jobs:
           graph_required=false
           if [[ "$EVENT_NAME" == "schedule" || ( "$EVENT_NAME" == "workflow_dispatch" && "$MANUAL_GRAPH" == "true" ) ]]; then
             graph_required=true
-          else
+          elif [[ "$EVENT_NAME" == "push" ]]; then
             while IFS= read -r path; do
               case "$path" in
                 CMakeLists.txt|CMakePresets.json|conanfile.py|LICENSE*|SHA256SUMS|.reuse/*|.github/workflows/licensing.yml|cmake/*|Engine/*|Samples/*|Tests/*|ThirdParty/*|Tools/*)
