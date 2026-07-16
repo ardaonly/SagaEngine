@@ -28,3 +28,11 @@ saga_add_editor_module(EditorQt
         Public/SagaEditorQt/QtUIFactory.h
         Public/SagaEditorQt/QtUIMainWindow.h
 )
+
+saga_register_module_tests(EditorQt
+    MODULE_DIR Engine/Source/Editor/EditorQt
+    LINK_TARGET SagaEditorLib
+    SOURCES
+        Tests/QtSettingsStoreTests.cpp
+    LABELS unit editor qt
+)

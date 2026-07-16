@@ -19,6 +19,16 @@ saga_add_program(SagaEditorLab
         Private/main.cpp
 )
 
+saga_register_module_tests(SagaEditorLab
+    MODULE_DIR Engine/Source/Programs/SagaEditorLab
+    LINK_TARGET SagaEditorLabLib
+    PRIVATE_INCLUDES
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaEditorLab/Private/include
+    LABELS "unit;editor;program"
+    SOURCES
+        Tests/EditorLabBuiltinScenarioTests.cpp
+)
+
 saga_add_program(SagaEditorLab
     MODULE_DIR Engine/Source/Programs/SagaEditorLab
     TARGET SagaEditorLabLib

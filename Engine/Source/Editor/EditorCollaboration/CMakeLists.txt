@@ -38,3 +38,12 @@ saga_add_editor_module(EditorCollaboration
         Public/SagaShared/Workspace/WorkspaceDescriptor.hpp
         Public/SagaShared/Workspace/WorkspaceSyncState.hpp
 )
+
+saga_register_module_tests(EditorCollaboration
+    MODULE_DIR Engine/Source/Editor/EditorCollaboration
+    LINK_TARGET SagaCollaboration
+    LABELS "unit;editor;collaboration"
+    SOURCES
+        Tests/CollaborationModelTests.cpp
+        Tests/CollaborationServiceTests.cpp
+)
