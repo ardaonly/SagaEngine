@@ -6,14 +6,16 @@ GitHub Actions is an evidence router for the current repository; it does not cre
 
 ## Required pull-request checks
 
-Configure branch protection for these stable check names:
+The expected stable job display names are:
 
 - `Repository contracts`
 - `C++ Linux all-safe`
 - `C++ Windows core`
 - `Licensing gate`
 
-Branch protection is a GitHub repository setting and cannot be enforced by the files in this directory. Renaming one of these checks requires a coordinated branch-protection update.
+Do not copy these labels into a ruleset before the corrected workflows have completed successfully on GitHub. Required status checks must use the exact, globally unique `check_run.name` values reported for a successful commit; matrix expansion or an external status with the same name can change or make that context ambiguous. Renaming one of these jobs requires a coordinated ruleset update.
+
+After the four check runs have succeeded, protect `main` with an active branch ruleset that requires a pull request with zero approvals, requires those exact checks in strict/up-to-date mode, blocks deletion and force-push, and grants repository administrators bypass access for pull requests only. Direct pushes remain blocked; a solo maintainer works through `feature branch -> pull request -> checks -> self-merge`.
 
 ## Evidence tiers
 

@@ -83,6 +83,70 @@ class WorkflowContractTests(unittest.TestCase):
             ["job second has no timeout"],
         )
 
+    def test_rejects_duplicate_job_display_names_across_workflows(self) -> None:
+        shared = workflow().replace(
+            "  fixture:\n",
+            "  fixture:\n    name: Shared check\n",
+        )
+        texts = {
+            "one.yml": shared,
+            "two.yml": shared.replace("name: Fixture", "name: Other Workflow", 1),
+        }
+        findings = checker.check_repository_job_contracts(texts)
+        self.assertEqual(
+            [finding.rule for finding in findings],
+            ["check-name-unique"],
+        )
+
+    def test_requires_full_history_for_both_licensing_jobs(self) -> None:
+        texts = {
+            "licensing.yml": """name: Licensing
+
+jobs:
+  licensing-policy:
+    name: Policy
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fixture
+        with:
+          fetch-depth: 0
+  configured-graph:
+    name: Graph
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fixture
+  licensing-gate:
+    name: Gate
+    timeout-minutes: 5
+    steps:
+      - run: true
+""",
+        }
+        findings = checker.check_repository_job_contracts(texts)
+        self.assertEqual(
+            [finding.message for finding in findings],
+            ["job configured-graph must checkout with fetch-depth: 0"],
+        )
+
+    def test_required_checks_may_not_use_a_matrix(self) -> None:
+        texts = {
+            "build.yml": """name: Build
+
+jobs:
+  repository-contracts:
+    name: Repository contracts
+    strategy:
+      matrix:
+        mode: [debug, release]
+    timeout-minutes: 10
+""",
+        }
+        findings = checker.check_repository_job_contracts(texts)
+        self.assertEqual(
+            [finding.rule for finding in findings],
+            ["required-check-matrix"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
