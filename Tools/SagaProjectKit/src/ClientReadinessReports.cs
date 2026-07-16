@@ -306,7 +306,7 @@ internal static class ClientReadinessReports
     {
         var diagnostics = new List<ProjectDiagnostic>(load.Diagnostics);
         var evidence = BuildMatrix(load, evidenceRoot, diagnostics);
-        const string limitationsDoc = "SagaWiki/pages/source-of-truth.html";
+        const string limitationsDoc = "SagaWiki/library/architecture/source-of-truth.md";
         var limitationsDocPresent = FindRepoFile(limitationsDoc) is not null;
         if (!limitationsDocPresent)
         {
