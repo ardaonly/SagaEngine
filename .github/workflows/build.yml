@@ -21,6 +21,7 @@ jobs:
             Tools/Developer/BoundaryCheck/check_public_private_boundary.py \
             Tools/Developer/BoundaryCheck/check_qt_boundary.py \
             Tools/Developer/BoundaryCheck/check_engine_server_boundary.py \
+            Tools/Developer/RepoAudit/saga_repo_xray.py \
             Tools/Developer/RepoAudit/export_tool_mirrors.py \
             Tools/Developer/BoundaryCheck/report_boundary_status.py \
             Tools/Forge/build.py \
@@ -54,6 +55,7 @@ jobs:
       - name: Run Python contract tests
         run: |
           python3 -m unittest discover -s Tools/Licensing/tests -p 'test_*.py'
+          python3 -m unittest discover -s Tools/Developer/RepoAudit/tests -p 'test_*.py'
           python3 Tools/SagaProjectKit/tests/test_sagaprojectkit_cli.py
           python3 Tools/SagaPackager/tests/test_sagapack_cli.py
           python3 Tools/SagaScript/tests/test_sagascript_cli.py

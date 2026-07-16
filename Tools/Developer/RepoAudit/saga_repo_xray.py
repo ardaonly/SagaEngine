@@ -21,6 +21,10 @@ from typing import Any, Iterable
 
 IGNORE_DIR_NAMES = {
     ".git",
+    ".agents",
+    ".codex",
+    ".core",
+    ".saga-private",
     ".idea",
     ".vscode",
     ".cache",
@@ -35,6 +39,7 @@ IGNORE_DIR_NAMES = {
     "out",
     "dist",
     ".vs",
+    "Vendor",
 }
 
 DEFAULT_IGNORE_PREFIXES = {
@@ -44,6 +49,7 @@ DEFAULT_IGNORE_PREFIXES = {
     "coverage/",
     "third_party/",
     "external/",
+    "Vendor/",
 }
 
 TEXT_EXTENSIONS = {
@@ -72,18 +78,18 @@ CPP_SOURCE_EXTENSIONS = {".c", ".cc", ".cpp", ".cxx"}
 DOC_EXTENSIONS = {".md", ".txt"}
 JSON_EXTENSIONS = {".json", ".jsonl"}
 
-TOP_LEVEL_EXPECTED = {
+RETIRED_OWNERSHIP_ROOTS = {
     "Apps",
-    "Engine",
+    "Backends",
+    "Collaboration",
+    "Content",
+    "Editor",
     "Runtime",
     "Server",
-    "Editor",
-    "Collaboration",
-    "Tools",
-    "Tests",
+    "Shared",
+    "core",
     "docs",
     "samples",
-    "cmake",
 }
 
 SUSPICIOUS_MARKERS = [
@@ -145,45 +151,39 @@ NEGATION_WINDOW_WORDS = {
 }
 
 PUBLIC_HEADER_FORBIDDEN_PATTERNS = [
-    ("Qt type in public/header file", r"\bQWidget\b|\bQObject\b|\bQ_OBJECT\b|#\s*include\s*[<\"]Q"),
-    ("App/ClientHost leak in public/header file", r"\bClientHost\b|\bClientConfig\b|\bApps" + "/"),
+    ("App/ClientHost include leak in public/header file", r"#\s*include\s*[<\"](?:.*ClientHost|.*ClientConfig|Apps/)"),
     ("Direct SDL leak in public/header file", r"#\s*include\s*[<\"].*SDL"),
-    ("Direct Diligent leak in public/header file", r"\bDiligent\b|#\s*include\s*[<\"].*Diligent"),
-    ("Direct RmlUi leak in public/header file", r"\bRml\b|#\s*include\s*[<\"].*Rml"),
+    ("Direct Diligent leak in public/header file", r"#\s*include\s*[<\"].*Diligent"),
+    ("Direct RmlUi leak in public/header file", r"#\s*include\s*[<\"].*Rml"),
 ]
 
+QT_PUBLIC_HEADER_PATTERN = r"#\s*include\s*[<\"](?:Qt[^>/\"]+/)?Q[A-Z][^>\"]*"
+
 LAYER_FORBIDDEN_HINTS = {
-    "Runtime": [
-        r"\bClientHost\b",
-        r"\bClientConfig\b",
-        r"\bApps" + "/",
-        r"\bSagaEditor\b",
-        r"\bQt\b",
-        r"\bQWidget\b",
-    ],
-    "Server": [
-        r"\bClientHost\b",
-        r"\bSagaEditor\b",
-        r"\bQWidget\b",
-        r"\bQt\b",
-    ],
-    "Engine": [
-        r"\bSagaEditor\b",
-        r"\bApps" + "/",
-        r"\bQWidget\b",
-    ],
+    "Engine/Source/Runtime/": ("Runtime", [
+        r"#\s*include\s*[<\"].*ClientHost",
+        r"#\s*include\s*[<\"].*ClientConfig",
+        r"#\s*include\s*[<\"]Apps/",
+        r"#\s*include\s*[<\"]SagaEditor",
+        r"#\s*include\s*[<\"]Q",
+    ]),
+    "Engine/Source/Runtime/ServerAuthority/": ("ServerAuthority", [
+        r"#\s*include\s*[<\"].*ClientHost",
+        r"#\s*include\s*[<\"]SagaEditor",
+        r"#\s*include\s*[<\"]Q",
+    ]),
 }
 
 DOC_AREA_ORDER = [
     "architecture",
-    "roadmaps",
-    "dev",
-    "testing",
-    "product",
-    "design",
-    "api",
-    "tools",
-    "archive",
+    "editor",
+    "evidence",
+    "governance",
+    "reference",
+    "runtime",
+    "start",
+    "toolchain",
+    "policy",
 ]
 
 
@@ -368,24 +368,53 @@ def extract_cli_commands(text: str) -> list[str]:
 
 
 def classify_top_level(path: str) -> str:
-    first = path.split("/", 1)[0]
-    mapping = {
-        "Apps": "apps",
-        "Engine": "engine",
-        "Runtime": "runtime",
-        "Server": "server",
-        "Editor": "editor",
-        "Collaboration": "collaboration",
-        "Tools": "tools",
-        "Tests": "tests",
-        "docs": "docs",
-        "samples": "samples",
-        "cmake": "build-system",
-        "CMakeLists.txt": "build-system",
-        "flake.nix": "build-system",
-        "shell.nix": "build-system",
-    }
-    return mapping.get(first, "other")
+    normalized = normalize_rel(path)
+    first = normalized.split("/", 1)[0]
+
+    if first in RETIRED_OWNERSHIP_ROOTS or normalized.startswith("Tools/scripts/"):
+        return f"retired:{first}"
+
+    prefixes = (
+        ("Engine/Source/Runtime/", "runtime"),
+        ("Engine/Source/Editor/", "editor"),
+        ("Engine/Source/Programs/", "programs"),
+        ("Engine/Source/Developer/", "developer"),
+        ("Engine/Managed/", "managed"),
+        ("Engine/Content/", "engine-content"),
+        ("SagaWiki/", "docs"),
+        ("Samples/", "samples"),
+        ("Tools/", "tools"),
+        ("Tests/", "tests"),
+        ("cmake/", "build-system"),
+    )
+    for prefix, category in prefixes:
+        if normalized.startswith(prefix):
+            return category
+
+    if normalized in {"CMakeLists.txt", "CMakePresets.json", "flake.nix", "shell.nix"}:
+        return "build-system"
+    if first == "Engine":
+        return "engine"
+    return "other"
+
+
+def is_public_header(path: str) -> bool:
+    normalized = normalize_rel(path)
+    lower_path = normalized.lower()
+    if Path(normalized).suffix.lower() not in CPP_HEADER_EXTENSIONS:
+        return False
+    if normalized.startswith("Engine/Source/"):
+        return "/Public/" in normalized
+    return normalized.startswith("Tools/") and "/include/" in lower_path
+
+
+def wiki_area(path: str) -> str:
+    parts = normalize_rel(path).split("/")
+    if len(parts) >= 4 and parts[:2] == ["SagaWiki", "library"]:
+        return parts[2]
+    if len(parts) >= 3 and parts[0] == "SagaWiki":
+        return parts[1]
+    return "<wiki-root>"
 
 
 def context_around(text: str, start: int, size: int = 70) -> str:
@@ -395,7 +424,22 @@ def context_around(text: str, start: int, size: int = 70) -> str:
 
 
 def is_negated_claim(text: str, match_start: int, match_end: int) -> bool:
-    window = text[max(0, match_start - 80):min(len(text), match_end + 80)].lower()
+    sentence_start = max(
+        text.rfind("\n\n", 0, match_start),
+        text.rfind(".", 0, match_start),
+        text.rfind("!", 0, match_start),
+        text.rfind("?", 0, match_start),
+    )
+    sentence_ends = [
+        pos for pos in (
+            text.find("\n\n", match_end),
+            text.find(".", match_end),
+            text.find("!", match_end),
+            text.find("?", match_end),
+        ) if pos >= 0
+    ]
+    sentence_end = min(sentence_ends) if sentence_ends else len(text)
+    window = text[sentence_start + 1:sentence_end].lower()
     return any(w in window for w in NEGATION_WINDOW_WORDS)
 
 
@@ -464,6 +508,7 @@ class RepoXray:
         self.git_tracked: set[str] = set()
         self.git_untracked: set[str] = set()
         self.git_dirty: set[str] = set()
+        self.git_inventory_available = False
 
         self.docs: list[dict[str, Any]] = []
         self.work_item_mentions: dict[int, set[str]] = defaultdict(set)
@@ -488,6 +533,7 @@ class RepoXray:
     def load_git_state(self) -> None:
         code, stdout, _ = run_cmd(["git", "ls-files"], self.root)
         if code == 0:
+            self.git_inventory_available = True
             self.git_tracked = {normalize_rel(x.strip()) for x in stdout.splitlines() if x.strip()}
 
         code, stdout, _ = run_cmd(["git", "ls-files", "--others", "--exclude-standard"], self.root)
@@ -508,6 +554,14 @@ class RepoXray:
                     self.git_dirty.add(path)
 
     def iter_files(self) -> list[Path]:
+        if self.git_inventory_available:
+            paths = self.git_tracked | self.git_untracked
+            return sorted(
+                self.root / path
+                for path in paths
+                if not should_ignore_rel(path) and (self.root / path).is_file()
+            )
+
         files: list[Path] = []
         for dirpath, dirnames, filenames in os.walk(self.root):
             current = Path(dirpath)
@@ -645,7 +699,7 @@ class RepoXray:
             self.detect_claims(r, text)
             self.detect_boundary_text(r, text)
 
-            if r.startswith("SagaWiki/") or ext in DOC_EXTENSIONS:
+            if r.startswith("SagaWiki/") and ext in DOC_EXTENSIONS:
                 headings = extract_headings(text)
                 record.headings = headings
                 self.docs.append({
@@ -694,6 +748,8 @@ class RepoXray:
         self.file_records.append(record)
 
     def detect_claims(self, path: str, text: str) -> None:
+        if Path(path).suffix.lower() not in DOC_EXTENSIONS | JSON_EXTENSIONS:
+            return
         lower = text.lower()
         for pattern in POSITIVE_CLAIM_PATTERNS:
             for m in re.finditer(pattern, lower):
@@ -708,28 +764,27 @@ class RepoXray:
                 )
 
     def detect_boundary_text(self, path: str, text: str) -> None:
-        lower_path = path.lower()
-
-        is_headerish = (
-            path.endswith((".h", ".hpp", ".hh", ".hxx"))
-            or "/include/" in lower_path
-            or "/public/" in lower_path
-            or lower_path.startswith("engine/public/")
-        )
-
-        if is_headerish:
+        if is_public_header(path):
+            if not path.startswith("Engine/Source/Editor/EditorQt/") and re.search(
+                QT_PUBLIC_HEADER_PATTERN, text
+            ):
+                self.add_finding(
+                    "high",
+                    "public-boundary-leak",
+                    path,
+                    "Qt include outside the EditorQt public owner",
+                )
             for label, pattern in PUBLIC_HEADER_FORBIDDEN_PATTERNS:
                 if re.search(pattern, text):
-                    sev = "high" if "Qt" in label else "medium"
                     self.add_finding(
-                        sev,
+                        "medium",
                         "public-boundary-leak",
                         path,
                         label,
                     )
 
-        for layer, patterns in LAYER_FORBIDDEN_HINTS.items():
-            if path.startswith(layer + "/"):
+        for prefix, (layer, patterns) in LAYER_FORBIDDEN_HINTS.items():
+            if path.startswith(prefix) and "/Tests/" not in path:
                 for pattern in patterns:
                     if re.search(pattern, text):
                         self.add_finding(
@@ -794,6 +849,16 @@ class RepoXray:
                 )
 
     def analyze_layout(self) -> None:
+        retired_paths = sorted(RETIRED_OWNERSHIP_ROOTS) + ["Tools/scripts"]
+        for retired_path in retired_paths:
+            if (self.root / retired_path).exists():
+                self.add_finding(
+                    "high",
+                    "retired-ownership-root",
+                    retired_path,
+                    "Retired ownership root exists; move behavior to a current owner instead of restoring the old layout.",
+                )
+
         for directory, counts in sorted(self.direct_source_counts_by_dir.items()):
             total = sum(counts.values())
             if total >= 30:
@@ -838,14 +903,16 @@ class RepoXray:
 
         for d in self.docs:
             path = d["path"]
+            if not path.startswith("SagaWiki/"):
+                continue
             parts = path.split("/")
-            area = parts[1] if len(parts) > 1 else "<docs-root>"
+            area = wiki_area(path)
             docs_by_area[area].append(path)
 
             if path == "SagaWiki/index.html":
                 continue
 
-            if path.startswith("SagaWiki/") and len(parts) == 2:
+            if len(parts) == 2:
                 self.add_finding(
                     "low",
                     "docs-root-clutter",
@@ -870,12 +937,12 @@ class RepoXray:
                 )
 
         for area, paths in docs_by_area.items():
-            if area not in DOC_AREA_ORDER and area != "<docs-root>":
+            if area not in DOC_AREA_ORDER and area != "<wiki-root>":
                 self.add_finding(
                     "low",
                     "unusual-doc-area",
                     f"SagaWiki/{area}",
-                    f"Docs area `{area}` is not in expected areas.",
+                    f"Wiki area `{area}` is not in the current library areas.",
                 )
 
         if self.work_item_mentions:
@@ -946,13 +1013,13 @@ class RepoXray:
                 )
 
     def analyze_samples(self) -> None:
-        samples = self.root / "samples"
+        samples = self.root / "Samples"
         if not samples.exists():
             self.add_finding(
                 "medium",
                 "samples-missing",
-                "samples",
-                "No samples directory found.",
+                "Samples",
+                "No canonical Samples directory found.",
             )
             return
 
@@ -1083,7 +1150,14 @@ class RepoXray:
                     )
 
         for p in sorted(self.git_untracked):
-            if p.startswith("Tools/") or p.startswith("Runtime/") or p.startswith("Server/") or p.startswith("Editor/"):
+            if p.startswith((
+                "Engine/Source/",
+                "Samples/",
+                "SagaWiki/",
+                "Tools/",
+                "Tests/",
+                "cmake/",
+            )):
                 self.add_finding(
                     "medium",
                     "important-untracked-file",
@@ -1205,8 +1279,7 @@ def write_docs_audit_md(data: dict[str, Any], out: Path) -> None:
 
     by_area = defaultdict(list)
     for d in docs:
-        parts = d["path"].split("/")
-        area = parts[1] if len(parts) > 1 else "<root>"
+        area = wiki_area(d["path"])
         by_area[area].append(d)
 
     lines.append("## Docs by Area")
@@ -1279,6 +1352,7 @@ def write_boundary_audit_md(data: dict[str, Any], out: Path) -> None:
         if f["category"] in {
             "public-boundary-leak",
             "layer-boundary-risk",
+            "retired-ownership-root",
             "flat-source-directory",
             "important-untracked-file",
             "many-untracked-files",
@@ -1427,7 +1501,7 @@ def write_ai_context_pack_md(data: dict[str, Any], out: Path) -> None:
         lines.append("No untracked files detected.")
     else:
         for p in untracked[:300]:
-            if p.startswith(("Tools/", "Runtime/", "Server/", "Editor/", "Engine/", "Apps" + "/", "SagaWiki/", "Samples/")):
+            if p.startswith(("Engine/Source/", "Samples/", "SagaWiki/", "Tools/", "Tests/", "cmake/")):
                 lines.append(f"- `{p}`")
 
     lines.append("")
