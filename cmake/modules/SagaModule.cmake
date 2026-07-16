@@ -82,6 +82,138 @@ function(saga_add_program program_name)
     _saga_register_module(program "${program_name}" ${ARGN})
 endfunction()
 
+function(saga_register_module_tests module_name)
+    set(one_value_args MODULE_DIR LINK_TARGET)
+    set(multi_value_args
+        SOURCES
+        PRIVATE_DEPS
+        PRIVATE_INCLUDES
+        COMPILE_DEFINITIONS
+        LABELS
+        ENVIRONMENT
+    )
+    cmake_parse_arguments(ARG "" "${one_value_args}" "${multi_value_args}" ${ARGN})
+
+    if(NOT ARG_MODULE_DIR OR NOT ARG_LINK_TARGET OR NOT ARG_SOURCES)
+        message(FATAL_ERROR
+            "Module tests ${module_name} require MODULE_DIR, LINK_TARGET, and SOURCES")
+    endif()
+
+    get_property(_existing_dir GLOBAL
+        PROPERTY "SAGA_TEST_MODULE_${module_name}_DIR")
+    if(_existing_dir)
+        message(FATAL_ERROR "Module tests ${module_name} are already registered")
+    endif()
+
+    set(_test_sources)
+    foreach(_source IN LISTS ARG_SOURCES)
+        if(IS_ABSOLUTE "${_source}" OR
+           _source MATCHES "(^|/)\\.\\.(/|$)" OR
+           NOT _source MATCHES "^Tests/")
+            message(FATAL_ERROR
+                "Module test ${module_name} source must stay below "
+                "${ARG_MODULE_DIR}/Tests: ${_source}")
+        endif()
+
+        set(_absolute_source "${SAGA_ROOT}/${ARG_MODULE_DIR}/${_source}")
+        if(NOT EXISTS "${_absolute_source}")
+            message(FATAL_ERROR
+                "Module test ${module_name} source does not exist: ${_absolute_source}")
+        endif()
+        list(APPEND _test_sources "${_absolute_source}")
+    endforeach()
+
+    set_property(GLOBAL APPEND PROPERTY SAGA_REGISTERED_TEST_MODULES "${module_name}")
+    set_property(GLOBAL PROPERTY "SAGA_TEST_MODULE_${module_name}_DIR"
+        "${SAGA_ROOT}/${ARG_MODULE_DIR}")
+    set_property(GLOBAL PROPERTY "SAGA_TEST_MODULE_${module_name}_LINK_TARGET"
+        "${ARG_LINK_TARGET}")
+    set_property(GLOBAL PROPERTY "SAGA_TEST_MODULE_${module_name}_SOURCES"
+        ${_test_sources})
+    set_property(GLOBAL PROPERTY "SAGA_TEST_MODULE_${module_name}_PRIVATE_DEPS"
+        ${ARG_PRIVATE_DEPS})
+    set_property(GLOBAL PROPERTY "SAGA_TEST_MODULE_${module_name}_PRIVATE_INCLUDES"
+        ${ARG_PRIVATE_INCLUDES})
+    set_property(GLOBAL PROPERTY "SAGA_TEST_MODULE_${module_name}_COMPILE_DEFINITIONS"
+        ${ARG_COMPILE_DEFINITIONS})
+    set_property(GLOBAL PROPERTY "SAGA_TEST_MODULE_${module_name}_LABELS"
+        ${ARG_LABELS})
+    set_property(GLOBAL PROPERTY "SAGA_TEST_MODULE_${module_name}_ENVIRONMENT"
+        ${ARG_ENVIRONMENT})
+endfunction()
+
+function(saga_create_registered_module_tests out_var)
+    get_property(_modules GLOBAL PROPERTY SAGA_REGISTERED_TEST_MODULES)
+    if(_modules)
+        list(REMOVE_DUPLICATES _modules)
+    endif()
+
+    set(_targets)
+    foreach(_module IN LISTS _modules)
+        get_property(_module_dir GLOBAL PROPERTY "SAGA_TEST_MODULE_${_module}_DIR")
+        get_property(_link_target GLOBAL PROPERTY "SAGA_TEST_MODULE_${_module}_LINK_TARGET")
+        get_property(_sources GLOBAL PROPERTY "SAGA_TEST_MODULE_${_module}_SOURCES")
+        get_property(_private_deps GLOBAL PROPERTY "SAGA_TEST_MODULE_${_module}_PRIVATE_DEPS")
+        get_property(_private_includes GLOBAL PROPERTY "SAGA_TEST_MODULE_${_module}_PRIVATE_INCLUDES")
+        get_property(_compile_definitions GLOBAL PROPERTY "SAGA_TEST_MODULE_${_module}_COMPILE_DEFINITIONS")
+        get_property(_labels GLOBAL PROPERTY "SAGA_TEST_MODULE_${_module}_LABELS")
+        get_property(_environment GLOBAL PROPERTY "SAGA_TEST_MODULE_${_module}_ENVIRONMENT")
+
+        if(NOT TARGET "${_link_target}")
+            message(FATAL_ERROR
+                "Module tests ${_module} link target does not exist: ${_link_target}")
+        endif()
+
+        set(_target "Saga${_module}Tests")
+        add_executable(${_target} ${_sources})
+        saga_apply_compiler_flags(${_target})
+        target_link_libraries(${_target} PRIVATE
+            ${_link_target}
+            ${_private_deps}
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(${_target} PRIVATE
+            "${_module_dir}/Public"
+            "${_module_dir}/Private"
+            ${_private_includes}
+        )
+        target_compile_definitions(${_target} PRIVATE
+            SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+            SAGA_BUILD_ROOT="${CMAKE_BINARY_DIR}"
+            ${_compile_definitions}
+        )
+        set_target_properties(${_target} PROPERTIES
+            FOLDER "Tests/Modules"
+        )
+
+        add_test(NAME "${_module}Tests" COMMAND ${_target})
+        if(_labels)
+            set_tests_properties("${_module}Tests" PROPERTIES
+                LABELS "module-unit;${_labels}")
+        else()
+            set_tests_properties("${_module}Tests" PROPERTIES
+                LABELS "module-unit")
+        endif()
+        if(_environment)
+            set_tests_properties("${_module}Tests" PROPERTIES
+                ENVIRONMENT "${_environment}")
+        endif()
+
+        list(APPEND _targets ${_target})
+    endforeach()
+
+    if(NOT TARGET SagaModuleTests)
+        add_custom_target(SagaModuleTests)
+        set_target_properties(SagaModuleTests PROPERTIES FOLDER "Tests")
+    endif()
+    if(_targets)
+        add_dependencies(SagaModuleTests ${_targets})
+    endif()
+    set(${out_var} ${_targets} PARENT_SCOPE)
+endfunction()
+
 function(saga_get_registered_sources target_name out_var)
     get_property(_sources GLOBAL PROPERTY "SAGA_MODULE_${target_name}_SOURCES")
     set(${out_var} ${_sources} PARENT_SCOPE)

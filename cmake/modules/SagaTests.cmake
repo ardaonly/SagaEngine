@@ -22,6 +22,12 @@ function(saga_setup_tests)
 
     enable_testing()
 
+    # Module-owned suites are registered by each module CMake file and created
+    # only after all production targets exist.  This keeps private test access
+    # scoped to the owning module instead of granting one global test target
+    # every module's implementation include directory.
+    saga_create_registered_module_tests(SAGA_MODULE_TEST_TARGETS)
+
     # --- Source discovery ---------------------------------------------------
 
     file(GLOB_RECURSE UNIT_TEST_SOURCES CONFIGURE_DEPENDS
