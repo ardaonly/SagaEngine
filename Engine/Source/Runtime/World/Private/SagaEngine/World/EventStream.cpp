@@ -23,12 +23,25 @@ static constexpr const char* kTag = "EventStream";
 // ─── Binary format constants ──────────────────────────────────────────────────
 //
 // Event file format (append-only):
-//   [Header: 40 bytes]
+//   [Header: 42 bytes]
 //     sequence(8) | worldTick(8) | timestampUs(8) | type(2) |
 //     cellX(2) | cellZ(2) | entityId(4) | data(4) | payloadLen(4)
 //   [Payload: payloadLen bytes]
 
-static constexpr size_t kEventHeaderSize = 40;
+static constexpr size_t kEventHeaderSize = 42;
+
+EventStream::EventStream(const EventStreamConfig& config)
+    : m_logPath(config.logPath ? config.logPath : "events.log")
+    , m_snapshotPath(config.snapshotPath ? config.snapshotPath : "snapshot.bin")
+    , m_flushThreshold(std::max<size_t>(1, config.flushBytes))
+    , m_fsyncOnFlush(config.fsyncOnFlush)
+{
+}
+
+EventStream::~EventStream()
+{
+    Close();
+}
 
 // ─── In-memory event ops ──────────────────────────────────────────────────────
 
@@ -44,7 +57,7 @@ void EventStream::Append(WorldEvent evt) noexcept
         m_writeBuffer.insert(m_writeBuffer.end(),
                               serialized.begin(), serialized.end());
 
-        if (m_writeBuffer.size() >= kFlushThreshold)
+        if (m_writeBuffer.size() >= m_flushThreshold)
             FlushPending();
     }
 
@@ -71,7 +84,7 @@ void EventStream::AppendBatch(const std::vector<WorldEvent>& events) noexcept
         m_events.push_back(std::move(e));
     }
 
-    if (m_writeBuffer.size() >= kFlushThreshold)
+    if (m_writeBuffer.size() >= m_flushThreshold)
         FlushPending();
 }
 
@@ -159,15 +172,17 @@ std::vector<WorldEvent> EventStream::GetEventsAfter(uint64_t lastSeenSeq) const 
 
 bool EventStream::Open(const char* path) noexcept
 {
-    if (!path || path[0] == '\0')
+    const char* effectivePath = path ? path : m_logPath.c_str();
+    if (effectivePath[0] == '\0')
         return false;
 
-    std::strncpy(m_filePath, path, sizeof(m_filePath) - 1);
+    Close();
+    std::strncpy(m_filePath, effectivePath, sizeof(m_filePath) - 1);
     m_filePath[sizeof(m_filePath) - 1] = '\0';
 
 #if defined(_WIN32)
     HANDLE h = CreateFileA(
-        path,
+        effectivePath,
         FILE_APPEND_DATA,
         FILE_SHARE_READ,
         nullptr,
@@ -177,21 +192,21 @@ bool EventStream::Open(const char* path) noexcept
 
     if (h == INVALID_HANDLE_VALUE)
     {
-        LOG_ERROR(kTag, "Failed to open event log: %s", path);
+        LOG_ERROR(kTag, "Failed to open event log: %s", effectivePath);
         return false;
     }
     m_fileHandle = h;
 #else
-    FILE* f = std::fopen(path, "ab");
+    FILE* f = std::fopen(effectivePath, "ab");
     if (!f)
     {
-        LOG_ERROR(kTag, "Failed to open event log: %s", path);
+        LOG_ERROR(kTag, "Failed to open event log: %s", effectivePath);
         return false;
     }
     m_fileHandle = f;
 #endif
 
-    LOG_INFO(kTag, "Event log opened: %s", path);
+    LOG_INFO(kTag, "Event log opened: %s", effectivePath);
     return true;
 }
 
@@ -232,8 +247,7 @@ void EventStream::FlushPending() noexcept
         return;
     }
 
-    // fsync equivalent on Windows.
-    FlushFileBuffers(h);
+    if (m_fsyncOnFlush) FlushFileBuffers(h);
 #else
     FILE* f = static_cast<FILE*>(m_fileHandle);
     size_t written = std::fwrite(m_writeBuffer.data(), 1,
@@ -246,7 +260,7 @@ void EventStream::FlushPending() noexcept
 
     std::fflush(f);
 #if defined(_POSIX_VERSION)
-    fsync(fileno(f));
+    if (m_fsyncOnFlush) fsync(fileno(f));
 #endif
 #endif
 
@@ -316,6 +330,11 @@ bool EventStream::LoadFromFile() noexcept
         return false;
 #endif
 
+    // Replace the in-memory view with the persisted log. Repeated loads must
+    // not duplicate events that were already present in memory.
+    m_events.clear();
+    m_lastSequence = 0;
+
     // Parse events from buffer.
     size_t offset = 0;
     while (offset + kEventHeaderSize <= buffer.size())
@@ -332,8 +351,10 @@ bool EventStream::LoadFromFile() noexcept
             m_lastSequence = m_events.back().sequence;
 
         // Advance past header + payload.
-        const uint32_t payloadLen = *reinterpret_cast<const uint32_t*>(
-            buffer.data() + offset + kEventHeaderSize - 4);
+        uint32_t payloadLen = 0;
+        std::memcpy(&payloadLen,
+                    buffer.data() + offset + kEventHeaderSize - sizeof(payloadLen),
+                    sizeof(payloadLen));
         offset += kEventHeaderSize + payloadLen;
     }
 
@@ -344,7 +365,7 @@ bool EventStream::LoadFromFile() noexcept
 
 bool EventStream::SaveSnapshot(const WorldSnapshot& snap) noexcept
 {
-    if (snap.stateData.empty())
+    if (snap.stateData.empty() || snap.stateData.size() > UINT32_MAX)
         return false;
 
     // Snapshot format: [baseSequence(8) | worldTick(8) | timestampUs(8) |
@@ -360,7 +381,7 @@ bool EventStream::SaveSnapshot(const WorldSnapshot& snap) noexcept
     std::memcpy(buffer.data() + off, &dataLen, 4);           off += 4;
     std::memcpy(buffer.data() + off, snap.stateData.data(), snap.stateData.size());
 
-    const char* snapPath = "snapshot.bin"; // TODO: use config.
+    const char* snapPath = m_snapshotPath.c_str();
 
 #if defined(_WIN32)
     HANDLE h = CreateFileA(snapPath, GENERIC_WRITE, 0, nullptr,
@@ -369,7 +390,7 @@ bool EventStream::SaveSnapshot(const WorldSnapshot& snap) noexcept
         return false;
     DWORD written = 0;
     BOOL ok = WriteFile(h, buffer.data(), static_cast<DWORD>(buffer.size()), &written, nullptr);
-    FlushFileBuffers(h);
+    if (m_fsyncOnFlush) FlushFileBuffers(h);
     CloseHandle(h);
     return ok && written == buffer.size();
 #else
@@ -377,6 +398,10 @@ bool EventStream::SaveSnapshot(const WorldSnapshot& snap) noexcept
     if (!f)
         return false;
     size_t written = std::fwrite(buffer.data(), 1, buffer.size(), f);
+    std::fflush(f);
+#if defined(_POSIX_VERSION)
+    if (m_fsyncOnFlush) fsync(fileno(f));
+#endif
     std::fclose(f);
     return written == buffer.size();
 #endif
@@ -384,7 +409,7 @@ bool EventStream::SaveSnapshot(const WorldSnapshot& snap) noexcept
 
 std::optional<WorldSnapshot> EventStream::LoadLatestSnapshot() const noexcept
 {
-    const char* snapPath = "snapshot.bin";
+    const char* snapPath = m_snapshotPath.c_str();
 
 #if defined(_WIN32)
     HANDLE h = CreateFileA(snapPath, GENERIC_READ, FILE_SHARE_READ, nullptr,

@@ -133,6 +133,15 @@ struct WorldSnapshot
 /// Called for each event during replay or live streaming.
 using EventHandlerFn = std::function<void(const WorldEvent&)>;
 
+/// Configuration for EventStream disk I/O. Paths are copied at construction.
+struct EventStreamConfig
+{
+    const char* logPath      = "events.log";    ///< Append-only event log file.
+    const char* snapshotPath = "snapshot.bin"; ///< Latest snapshot file.
+    bool        fsyncOnFlush = true;             ///< Durability vs performance trade-off.
+    size_t      flushBytes   = 64 * 1024;        ///< Flush when buffer exceeds this.
+};
+
 // ─── Event stream ───────────────────────────────────────────────────────────────
 
 /// Append-only event log with snapshot support.
@@ -147,8 +156,8 @@ using EventHandlerFn = std::function<void(const WorldEvent&)>;
 class EventStream
 {
 public:
-    EventStream() = default;
-    ~EventStream() = default;
+    explicit EventStream(const EventStreamConfig& config = {});
+    ~EventStream();
 
     EventStream(const EventStream&)            = delete;
     EventStream& operator=(const EventStream&) = delete;
@@ -203,7 +212,7 @@ public:
     ///   [Event header: 32 bytes] [payload: variable]
     ///   header = sequence(8) | worldTick(8) | timestampUs(8) | type(2) |
     ///            cellX(2) | cellZ(2) | entityId(4) | data(4) | payloadLen(4)
-    bool Open(const char* path) noexcept;
+    bool Open(const char* path = nullptr) noexcept;
 
     /// Close the file and flush any pending writes.
     void Close() noexcept;
@@ -241,17 +250,11 @@ private:
     // Disk persistence.
     void*                     m_fileHandle = nullptr; ///< Opaque FILE* (platform-specific).
     std::vector<uint8_t>      m_writeBuffer;          ///< Buffered events before flush.
-    static constexpr size_t   kFlushThreshold = 64 * 1024; ///< 64 KiB flush trigger.
     char                      m_filePath[512] = {};    ///< Copy of the open path.
-};
-
-/// Configuration for EventStream disk I/O.
-struct EventStreamConfig
-{
-    const char* logPath      = "events.log";   ///< Append-only event log file.
-    const char* snapshotPath = "snapshot.bin";  ///< Latest snapshot file.
-    bool        fsyncOnFlush = true;            ///< Durability vs performance trade-off.
-    size_t      flushBytes   = 64 * 1024;       ///< Flush when buffer exceeds this.
+    std::string               m_logPath;
+    std::string               m_snapshotPath;
+    size_t                    m_flushThreshold = 64 * 1024;
+    bool                      m_fsyncOnFlush = true;
 };
 
 } // namespace SagaEngine::World

@@ -2,9 +2,9 @@
 /// @brief World Kernel node implementation — server process with full replication.
 ///
 /// Layer  : SagaEngine / World
-/// Purpose: Production implementation of the WorldNode as the central server
+/// Purpose: Local simulation implementation of WorldNode used to exercise
 ///          process.  Owns SimCells, DomainScheduler, EventStream, RelevanceGraph,
-///          client sessions, and the complete replication pipeline:
+///          client sessions, and the currently evidenced replication boundaries:
 ///            - Full snapshot generation for client connect / stale baseline
 ///            - Incremental delta generation for dirty entities
 ///            - Distance-based interest management
@@ -539,6 +539,7 @@ bool WorldNode::SendFullSnapshot(ClientSession* session,
     // Serialize each relevant entity.
     std::vector<uint8_t> componentBuffer(4096);  // Reused buffer per entity.
 
+    uint32_t serializedEntities = 0;
     for (uint32_t i = 0; i < maxEntities; ++i)
     {
         const uint32_t entityId = entityIds[i];
@@ -563,7 +564,16 @@ bool WorldNode::SendFullSnapshot(ClientSession* session,
             m_snapshotBuilder->builder.addEntity(entityId & 0x00FFFFFF, generation,
                                         dirtyState.activeComponents,
                                         componentBuffer.data(), dataSize);
+            ++serializedEntities;
         }
+    }
+
+    if (serializedEntities == 0)
+    {
+        LOG_WARN(kTag,
+                 "Session %llu: snapshot suppressed because no component serializer is available",
+                 static_cast<unsigned long long>(session->sessionId));
+        return false;
     }
 
     // Finalize snapshot (caller would normally send this over the network).
@@ -581,8 +591,8 @@ bool WorldNode::SendFullSnapshot(ClientSession* session,
     session->lastSeenEventSeq = m_eventStream.LastSequence();
     m_stats.snapshotsSent++;
 
-    // In production: networkTransport->Send(session->sessionId, snapshotData, snapshotSize);
-    // For now: the snapshot is built and ready in memory; the caller manages transmission.
+    // This local harness only builds the snapshot. Network delivery is outside
+    // the evidenced WorldNode contract.
 
     LOG_DEBUG(kTag, "Session %llu: full snapshot sent (tick %llu, %u entities)",
               static_cast<unsigned long long>(session->sessionId),
@@ -818,60 +828,10 @@ void WorldNode::SerializeEntityComponents(uint32_t entityId, ComponentMask activ
     if (!outBuf || capacity == 0 || activeMask == 0)
         return;
 
-    uint8_t* writePtr = outBuf;
-    std::size_t remaining = capacity;
-
-    // Iterate over each bit in the component mask.
-    // ComponentSerializeFn is provided by the caller via dirty tracking setup.
-    // For the vertical slice, we serialize known component types directly.
-    //
-    // Production: this iterates over ECS component blocks and copies raw bytes.
-    // For now, we write a minimal placeholder that demonstrates the structure.
-
-    for (int bit = 0; bit < 64; ++bit)
-    {
-        if ((activeMask & (1ULL << bit)) == 0)
-            continue;  // Component not active.
-
-        // Component bit will be written to the serialization stream.
-
-        // Component header: typeId(2) + size(2) = 4 bytes.
-        if (remaining < 4)
-        {
-            LOG_WARN(kTag, "Entity %u: component buffer overflow at bit %d", entityId, bit);
-            break;
-        }
-
-        // Write component type ID (bit position as proxy for typeId).
-        writePtr[0] = static_cast<uint8_t>(bit & 0xFF);
-        writePtr[1] = static_cast<uint8_t>((bit >> 8) & 0xFF);
-        writePtr += 2;
-        remaining -= 2;
-
-        // In production: read component data from WorldState block.
-        //   const auto* block = m_world.GetBlock(bit);
-        //   const auto* data = GetComponentForEntity(block, entityId);
-        //   std::memcpy(writePtr, data, componentSize);
-        //
-        // For now: write a placeholder payload (4 bytes of zeros).
-        constexpr uint16_t kPlaceholderSize = 4;
-        writePtr[0] = static_cast<uint8_t>(kPlaceholderSize & 0xFF);
-        writePtr[1] = static_cast<uint8_t>((kPlaceholderSize >> 8) & 0xFF);
-        writePtr += 2;
-        remaining -= 2;
-
-        if (remaining < kPlaceholderSize)
-        {
-            LOG_WARN(kTag, "Entity %u: component data overflow at bit %d", entityId, bit);
-            break;
-        }
-
-        std::memset(writePtr, 0, kPlaceholderSize);
-        writePtr += kPlaceholderSize;
-        remaining -= kPlaceholderSize;
-
-        outDataSize += 4 + kPlaceholderSize;  // header + payload
-    }
+    // No serializer is wired to WorldNode yet. Emitting zero-filled component
+    // payloads would create apparently valid but corrupt snapshots, so this
+    // boundary deliberately produces no data until a real serializer is supplied.
+    (void)entityId;
 }
 
 // ─── Dirty entity tracking ──────────────────────────────────────────────────

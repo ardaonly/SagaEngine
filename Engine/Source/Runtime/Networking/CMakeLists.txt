@@ -1,7 +1,7 @@
 saga_add_runtime_module(Networking
     MODULE_DIR Engine/Source/Runtime/Networking
     TARGET SagaEngine
-    PRIVATE_DEPS asio::asio
+    PRIVATE_DEPS asio::asio SagaDiagnostics
     SOURCES
         Private/SagaEngine/Networking/BackpressureSignal.cpp
         Private/SagaEngine/Networking/BandwidthThrottle.cpp
@@ -26,4 +26,16 @@ saga_add_runtime_module(Networking
         Public/SagaEngine/Networking/RateLimiter.h
         Public/SagaEngine/Networking/ReliableChannel.h
         Public/SagaEngine/Networking/ServerPacketNormalizer.h
+)
+
+saga_register_module_tests(Networking
+    MODULE_DIR Engine/Source/Runtime/Networking
+    LINK_TARGET SagaEngine
+    PRIVATE_DEPS SagaDiagnostics
+    LABELS "unit;runtime;networking"
+    SOURCES
+        Tests/NetworkChaosLayerTests.cpp
+        Tests/ReliableChannelTests.cpp
+        Tests/ServerPacketNormalizationTests.cpp
+        Tests/TransportFactoryTests.cpp
 )

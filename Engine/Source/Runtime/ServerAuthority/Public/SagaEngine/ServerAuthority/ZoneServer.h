@@ -1,5 +1,5 @@
 /// @file ZoneServer.h
-/// @brief Production-grade headless zone server — the authoritative simulation host.
+/// @brief Local-only headless zone server harness for authoritative simulation evidence.
 ///
 /// Layer  : Server / Networking / Server
 /// Purpose: ZoneServer owns the authoritative tick loop, coordinates all server
@@ -65,7 +65,7 @@ struct ZoneServerConfig
 {
     // ── Network ───────────────────────────────────────────────────────────────
 
-    std::string bindAddress{"0.0.0.0"};       ///< Listen interface
+    std::string bindAddress{"127.0.0.1"};     ///< Loopback only; public binds fail closed
     uint16_t    port{7777};                    ///< UDP/TCP listen port
     uint32_t    maxClients{1000};              ///< Hard client cap enforced at accept
     uint32_t    ioThreadCount{0};              ///< 0 = hardware_concurrency()

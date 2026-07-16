@@ -2,7 +2,7 @@
 /// @brief Async UDP transport layer built on Boost.Asio with send queue, keepalive, and handshake.
 ///
 /// Layer  : SagaEngine / Networking
-/// Purpose: Provides the INetworkTransport interface and a production UdpTransport
+/// Purpose: Provides the INetworkTransport interface and an asynchronous UDP transport
 ///          implementation. UdpTransport manages a dedicated IO thread, an async
 ///          send queue with back-pressure, automatic keepalive probing, and a
 ///          connect-timeout state machine.
@@ -110,11 +110,11 @@ private:
 
 // ─── TransportFactory ─────────────────────────────────────────────────────────
 
-/// Create transport instances by protocol type.
+/// Create the transport protocol implemented by this build.
 class TransportFactory final
 {
 public:
-    [[nodiscard]] static std::unique_ptr<INetworkTransport> Create(bool useUdp = true);
+    [[nodiscard]] static std::unique_ptr<INetworkTransport> CreateUdp();
 };
 
 } // namespace SagaEngine::Networking
