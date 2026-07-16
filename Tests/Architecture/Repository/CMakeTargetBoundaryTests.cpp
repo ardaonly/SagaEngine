@@ -8,6 +8,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace
@@ -143,6 +144,70 @@ TEST(CMakeTargetBoundaryTests, ModuleRegistrationKeepsAggregateTargets)
     {
         EXPECT_NE(targets.find(target), std::string::npos) << target;
     }
+}
+
+TEST(CMakeTargetBoundaryTests, RuntimeAggregatesComposeOnlyOwnedModuleObjects)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto moduleSupport = ReadText(root / "cmake/modules/SagaModule.cmake");
+    const auto targets = ReadText(root / "cmake/modules/SagaTargets.cmake");
+
+    EXPECT_NE(
+        moduleSupport.find("source must stay below"),
+        std::string::npos);
+    EXPECT_NE(
+        moduleSupport.find("$<TARGET_OBJECTS:${_object_target}>"),
+        std::string::npos);
+
+    for (const auto* target : {
+             "SagaEngine", "SagaRuntimeLib", "SagaServerLib"})
+    {
+        const auto composition =
+            "saga_compose_registered_objects(" + std::string(target) + ")";
+        EXPECT_NE(targets.find(composition), std::string::npos) << target;
+    }
+
+    for (const auto* legacySourceList : {
+             "${ENGINE_SOURCES}",
+             "${RUNTIME_SOURCES}",
+             "${SERVER_SOURCES}"})
+    {
+        EXPECT_EQ(targets.find(legacySourceList), std::string::npos)
+            << legacySourceList;
+    }
+}
+
+TEST(CMakeTargetBoundaryTests, RuntimeVendorDependenciesMatchHeaderVisibility)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto math =
+        ReadText(root / "Engine/Source/Runtime/Math/CMakeLists.txt");
+    EXPECT_NE(math.find("PUBLIC_DEPS glm::glm"), std::string::npos);
+
+    for (const auto& [module, dependency] :
+         std::array<std::pair<std::string_view, std::string_view>, 5>{
+             std::pair{"Assets", "nlohmann_json::nlohmann_json"},
+             std::pair{"Resources", "nlohmann_json::nlohmann_json"},
+             std::pair{"Scripting", "nlohmann_json::nlohmann_json"},
+             std::pair{"Networking", "asio::asio"},
+             std::pair{"ServerAuthority", "asio::asio"}})
+    {
+        const auto manifest = ReadText(
+            root / "Engine/Source/Runtime" / module / "CMakeLists.txt");
+        const auto privateDeps = manifest.find("PRIVATE_DEPS");
+        ASSERT_NE(privateDeps, std::string::npos) << module;
+        EXPECT_NE(manifest.find(dependency, privateDeps), std::string::npos)
+            << module << " needs " << dependency;
+    }
+
+    const auto targets = ReadText(root / "cmake/modules/SagaTargets.cmake");
+    const auto backendLinks =
+        ExtractTargetCalls(targets, "target_link_libraries", "SagaBackend");
+    EXPECT_TRUE(ContainsCMakeToken(backendLinks, "libpqxx::pqxx"));
+    EXPECT_TRUE(
+        ContainsCMakeToken(backendLinks, "redis++::redis++_static"));
+    EXPECT_FALSE(ContainsCMakeToken(backendLinks, "SDL2::SDL2"));
+    EXPECT_FALSE(ContainsCMakeToken(backendLinks, "imgui::imgui"));
 }
 
 TEST(CMakeTargetBoundaryTests, ServerTargetAvoidsClientAndVendorBackends)

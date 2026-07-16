@@ -1,6 +1,7 @@
 saga_add_runtime_module(Assets
     MODULE_DIR Engine/Source/Runtime/Assets
     TARGET SagaEngine
+    PRIVATE_DEPS nlohmann_json::nlohmann_json
     SOURCES
         Private/SagaEngine/Artifacts/ArtifactManifestLoader.cpp
         Private/SagaEngine/Artifacts/ArtifactStartupValidator.cpp

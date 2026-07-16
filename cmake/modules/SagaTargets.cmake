@@ -29,12 +29,9 @@ function(saga_create_engine_targets)
     saga_collect_sources(SAGA_CHAOS_LAB_SOURCES Tools/Developer/DistributionCheck/ChaosLab/src)
     saga_collect_sources(SAGA_STATE_CHECK_SOURCES Tools/Developer/DistributionCheck/StateCheck/src)
     saga_collect_sources(MULTIPLAYER_SANDBOX_HEADLESS_SOURCES Samples/MultiplayerSandbox/Source/Headless)
-    saga_get_registered_sources(SagaEngine ENGINE_SOURCES)
     saga_get_registered_sources(SagaDiligentRuntime SAGA_DILIGENT_RUNTIME_SOURCES)
     saga_get_registered_sources(SagaPlatformSDL SAGA_PLATFORM_SDL_SOURCES)
     saga_get_registered_sources(SagaBackend BACKEND_SOURCES)
-    saga_get_registered_sources(SagaRuntimeLib RUNTIME_SOURCES)
-    saga_get_registered_sources(SagaServerLib SERVER_SOURCES)
     saga_get_registered_sources(SagaSandboxLib SANDBOX_SOURCES)
     saga_get_registered_sources(SagaEditorLib EDITOR_SOURCES)
     saga_get_registered_sources(SagaEditorLabLib EDITORLAB_SOURCES)
@@ -43,26 +40,6 @@ function(saga_create_engine_targets)
     saga_get_registered_sources(SagaDiagnostics DIAGNOSTICS_SOURCES)
     saga_get_graphics_core_sources(SAGA_GRAPHICS_CORE_SOURCES)
     set(SAGA_DILIGENT_GRAPHICS_BACKEND_IMPL_SOURCES ${SAGA_DILIGENT_RUNTIME_SOURCES})
-
-    # Exclude launcher files from library sources.
-    list(REMOVE_ITEM ENGINE_SOURCES ${SAGA_GRAPHICS_CORE_SOURCES})
-    list(REMOVE_ITEM ENGINE_SOURCES ${SAGA_PLATFORM_SDL_SOURCES})
-    foreach(_saga_graphics_core_source IN LISTS SAGA_GRAPHICS_CORE_SOURCES)
-        list(FIND ENGINE_SOURCES "${_saga_graphics_core_source}" _saga_engine_source_index)
-        if(NOT _saga_engine_source_index EQUAL -1)
-            message(FATAL_ERROR
-                "Graphics core source must be owned by SagaGraphicsCore, "
-                "not SagaEngine: ${_saga_graphics_core_source}")
-        endif()
-    endforeach()
-    foreach(_saga_diligent_graphics_source IN LISTS SAGA_DILIGENT_GRAPHICS_BACKEND_IMPL_SOURCES)
-        list(FIND ENGINE_SOURCES "${_saga_diligent_graphics_source}" _saga_engine_source_index)
-        if(NOT _saga_engine_source_index EQUAL -1)
-            message(FATAL_ERROR
-                "Diligent graphics backend source must be owned by SagaDiligentRuntime, "
-                "not SagaEngine: ${_saga_diligent_graphics_source}")
-        endif()
-    endforeach()
 
     # --- Core Log Module ---------------------------------------------------
     add_library(SagaCoreLog STATIC)
@@ -164,31 +141,13 @@ function(saga_create_engine_targets)
     )
 
     # --- Engine Library ------------------------------------------------------
+    saga_create_registered_object_modules(SagaEngine SAGA_ENGINE_MODULE_TARGETS)
     add_library(SagaEngine STATIC)
     saga_apply_compiler_flags(SagaEngine)
-
-    target_sources(SagaEngine PRIVATE
-        ${ENGINE_SOURCES}
-    )
-    get_target_property(_saga_engine_target_sources SagaEngine SOURCES)
-    foreach(_saga_diligent_graphics_source IN LISTS SAGA_DILIGENT_GRAPHICS_BACKEND_IMPL_SOURCES)
-        list(FIND _saga_engine_target_sources "${_saga_diligent_graphics_source}" _saga_engine_target_source_index)
-        if(NOT _saga_engine_target_source_index EQUAL -1)
-            message(FATAL_ERROR
-                "Diligent graphics backend source must not be compiled by SagaEngine: "
-                "${_saga_diligent_graphics_source}")
-        endif()
-    endforeach()
+    saga_compose_registered_objects(SagaEngine)
 
     target_include_directories(SagaEngine PUBLIC
         ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
-        ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
-    )
-
-    target_include_directories(SagaEngine PRIVATE
-        ${SAGA_MODULE_PRIVATE_INCLUDE_DIRS}
-        ${SAGA_OPENSSL_INCLUDE_DIRS}
-        ${SAGA_DOTNET_HOST_INCLUDE_DIR}
     )
 
     target_link_libraries(SagaEngine PUBLIC
@@ -198,7 +157,7 @@ function(saga_create_engine_targets)
         glm::glm
     )
     target_link_libraries(SagaEngine PRIVATE
-        nlohmann_json::nlohmann_json
+        OpenSSL::Crypto
         ${SAGA_DOTNET_NETHOST_LIBRARY}
         ${CMAKE_DL_LIBS}
     )
@@ -277,13 +236,11 @@ function(saga_create_engine_targets)
     )
 
     # --- Runtime Role Library ------------------------------------------------
+    saga_create_registered_object_modules(
+        SagaRuntimeLib SAGA_RUNTIME_MODULE_TARGETS)
     add_library(SagaRuntimeLib STATIC)
     saga_apply_compiler_flags(SagaRuntimeLib)
-    saga_link_thirdparty(SagaRuntimeLib)
-
-    target_sources(SagaRuntimeLib PRIVATE
-        ${RUNTIME_SOURCES}
-    )
+    saga_compose_registered_objects(SagaRuntimeLib)
 
     target_include_directories(SagaRuntimeLib PUBLIC
         ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
@@ -303,12 +260,11 @@ function(saga_create_engine_targets)
     )
 
     # --- Server Authority Library --------------------------------------------
+    saga_create_registered_object_modules(
+        SagaServerLib SAGA_SERVER_MODULE_TARGETS)
     add_library(SagaServerLib STATIC)
     saga_apply_compiler_flags(SagaServerLib)
-
-    target_sources(SagaServerLib PRIVATE
-        ${SERVER_SOURCES}
-    )
+    saga_compose_registered_objects(SagaServerLib)
 
     target_include_directories(SagaServerLib PUBLIC
         ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
@@ -317,12 +273,12 @@ function(saga_create_engine_targets)
     target_link_libraries(SagaServerLib PUBLIC
         SagaEngine
         SagaShared
-        asio::asio
     )
 
     target_link_libraries(SagaServerLib PRIVATE
         SagaDiagnostics
         SagaCollaboration
+        asio::asio
     )
 
     set_target_properties(SagaServerLib PROPERTIES
@@ -465,10 +421,13 @@ function(saga_create_engine_targets)
     # --- Backend Library -----------------------------------------------------
     add_library(SagaBackend STATIC)
     saga_apply_compiler_flags(SagaBackend)
-    saga_link_thirdparty(SagaBackend)
     saga_link_rmlui(SagaBackend)
 
-    target_link_libraries(SagaBackend PRIVATE SagaEngine)
+    target_link_libraries(SagaBackend PRIVATE
+        SagaEngine
+        libpqxx::pqxx
+        redis++::redis++_static
+    )
 
     target_sources(SagaBackend PRIVATE
         ${BACKEND_SOURCES}

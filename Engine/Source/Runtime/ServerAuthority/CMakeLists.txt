@@ -1,6 +1,7 @@
 saga_add_runtime_module(ServerAuthority
     MODULE_DIR Engine/Source/Runtime/ServerAuthority
     TARGET SagaServerLib
+    PRIVATE_DEPS asio::asio
     SOURCES
         Private/SagaEngine/ServerAuthority/ConnectionManager.cpp
         Private/SagaEngine/ServerAuthority/ConnectionManager.h
