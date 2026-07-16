@@ -94,3 +94,14 @@ saga_add_runtime_module(Replication
         Public/SagaEngine/Replication/WorldSnapshotWire.h
         Public/SagaShared/Replication/SnapshotContracts.hpp
 )
+
+saga_register_module_tests(Replication
+    MODULE_DIR Engine/Source/Runtime/Replication
+    LINK_TARGET SagaEngine
+    LABELS "unit;runtime;replication"
+    SOURCES
+        Tests/CommandCodecTests.cpp
+        Tests/ComponentDirtyMaskTests.cpp
+        Tests/InterestTests.cpp
+        Tests/ReplicationTests.cpp
+)

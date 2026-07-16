@@ -484,14 +484,9 @@ NetworkStatistics UdpTransport::GetStatistics() const
 
 // ─── TransportFactory ─────────────────────────────────────────────────────────
 
-std::unique_ptr<INetworkTransport> TransportFactory::Create(bool useUdp)
+std::unique_ptr<INetworkTransport> TransportFactory::CreateUdp()
 {
-    if (useUdp)
-        return std::make_unique<UdpTransport>();
-
-    // TCP transport can be added here.
-    LOG_ERROR("TransportFactory", "TCP transport not implemented — returning null");
-    return nullptr;
+    return std::make_unique<UdpTransport>();
 }
 
 } // namespace SagaEngine::Networking

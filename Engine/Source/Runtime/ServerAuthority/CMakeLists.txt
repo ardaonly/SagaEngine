@@ -6,7 +6,6 @@ saga_add_runtime_module(ServerAuthority
         Private/SagaEngine/ServerAuthority/ConnectionManager.cpp
         Private/SagaEngine/ServerAuthority/ConnectionManager.h
         Private/SagaEngine/ServerAuthority/Gameplay/GameplayCommandDispatcher.cpp
-        Private/SagaEngine/ServerAuthority/Security/ChaCha20Poly1305SecureChannel.cpp
         Private/SagaEngine/ServerAuthority/Security/ReplayGuard.cpp
         Private/SagaEngine/ServerAuthority/ServerConnection.cpp
         Private/SagaEngine/ServerAuthority/ServerConnection.h
@@ -23,8 +22,6 @@ saga_add_runtime_module(ServerAuthority
         Public/SagaEngine/ServerAuthority/DynamicZoneSpawner.h
         Public/SagaEngine/ServerAuthority/Gameplay/GameplayCommandDispatcher.h
         Public/SagaEngine/ServerAuthority/Security/AuthToken.h
-        Public/SagaEngine/ServerAuthority/Security/ChaCha20Poly1305SecureChannel.h
-        Public/SagaEngine/ServerAuthority/Security/ISecureChannel.h
         Public/SagaEngine/ServerAuthority/Security/ReplayGuard.h
         Public/SagaEngine/ServerAuthority/ShardManager.h
         Public/SagaEngine/ServerAuthority/ShardMesh.h
@@ -36,4 +33,24 @@ saga_add_runtime_module(ServerAuthority
         Public/SagaEngine/ServerAuthority/Simulation/MovementValidator.h
         Public/SagaEngine/ServerAuthority/ZoneServer.h
         Public/SagaEngine/ServerAuthority/ZoneTransferProtocol.h
+)
+
+saga_register_module_tests(ServerAuthority
+    MODULE_DIR Engine/Source/Runtime/ServerAuthority
+    LINK_TARGET SagaServerLib
+    PRIVATE_DEPS SagaDiagnostics asio::asio nlohmann_json::nlohmann_json
+    LABELS "unit;runtime;server"
+    SOURCES
+        Tests/ActorOwnershipRegistryTests.cpp
+        Tests/AuthoritativeMovementCommandIntakeTests.cpp
+        Tests/AuthoritativeMovementCoreTests.cpp
+        Tests/AuthoritativeMovementInputAdapterTests.cpp
+        Tests/ConnectionManagerTests.cpp
+        Tests/GameplayCommandDispatcherTests.cpp
+        Tests/MovementDirtyReplicationBridgeTests.cpp
+        Tests/ServerLifecycleDiagnosticsTests.cpp
+        Tests/ZoneServerSecurityBoundaryTests.cpp
+        Tests/ZoneServerDiagnosticsTests.cpp
+        Tests/ZoneServerMovementAuthorityTests.cpp
+        Tests/ZoneServerPacketDrainTests.cpp
 )

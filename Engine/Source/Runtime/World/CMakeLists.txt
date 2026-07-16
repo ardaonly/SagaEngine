@@ -25,3 +25,11 @@ saga_add_runtime_module(World
         Private/SagaEngine/World/WorldNode.h
         Public/SagaEngine/World/WorldFacade.h
 )
+
+saga_register_module_tests(World
+    MODULE_DIR Engine/Source/Runtime/World
+    LINK_TARGET SagaEngine
+    SOURCES
+        Tests/EventStreamAndReplicationBoundaryTests.cpp
+    LABELS unit runtime world
+)

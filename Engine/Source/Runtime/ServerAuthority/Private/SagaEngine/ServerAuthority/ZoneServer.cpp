@@ -1,5 +1,5 @@
 /// @file ZoneServer.cpp
-/// @brief ZoneServer — production-grade authoritative headless zone server.
+/// @brief ZoneServer — local-only authoritative simulation harness.
 
 #include "SagaEngine/ServerAuthority/ZoneServer.h"
 #include "SagaEngine/ServerAuthority/ConnectionManager.h"
@@ -69,6 +69,16 @@ ZoneServer::~ZoneServer()
 bool ZoneServer::Initialize()
 {
     assert(!m_running.load(std::memory_order_relaxed) && "Initialize called on a running server");
+
+    asio::error_code addressError;
+    const auto bindAddress = asio::ip::make_address(m_config.bindAddress, addressError);
+    if (addressError || !bindAddress.is_loopback())
+    {
+        LOG_ERROR(kTag,
+                  "Refusing non-loopback bind address '%s'; hosted networking is not supported",
+                  m_config.bindAddress.c_str());
+        return false;
+    }
 
     LOG_INFO(kTag, "Initializing zone %u (%s) on %s:%u — tick %u Hz, replication %u Hz",
              m_config.zoneId,
