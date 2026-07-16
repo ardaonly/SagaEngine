@@ -26,10 +26,18 @@ function(saga_add_installable_public_module_includes target_name)
     foreach(_include IN LISTS SAGA_MODULE_PUBLIC_INCLUDE_DIRS)
         list(APPEND _build_includes "$<BUILD_INTERFACE:${_include}>")
     endforeach()
-    target_include_directories(${target_name} PUBLIC
-        ${_build_includes}
-        $<INSTALL_INTERFACE:include>
-    )
+    get_target_property(_target_type ${target_name} TYPE)
+    if(_target_type STREQUAL "INTERFACE_LIBRARY")
+        target_include_directories(${target_name} INTERFACE
+            ${_build_includes}
+            $<INSTALL_INTERFACE:include>
+        )
+    else()
+        target_include_directories(${target_name} PUBLIC
+            ${_build_includes}
+            $<INSTALL_INTERFACE:include>
+        )
+    endif()
 endfunction()
 
 function(saga_create_engine_targets)
