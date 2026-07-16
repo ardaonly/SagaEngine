@@ -1,0 +1,140 @@
+# SPDX-License-Identifier: MPL-2.0
+name: Repository Contracts
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Also supersedes in-flight runs from the former combined "SagaEngine CI" workflow.
+  group: saga-ci-SagaEngine CI-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ACTIONLINT_VERSION: "v1.7.12"
+
+jobs:
+  repository-contracts:
+    name: Repository contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Check maintained Python syntax
+        run: |
+          python3 -m compileall -q \
+            Tools/Licensing \
+            Tools/Developer/BoundaryCheck \
+            Tools/Developer/CI \
+            Tools/Developer/RepoAudit \
+            Tools/Developer/Environment/SagaSync \
+            Tools/SagaProjectKit \
+            Tools/SagaPackager \
+            Tools/SagaScript \
+            Tools/SagaTools
+
+      - name: Run licensing policy tests
+        run: python3 -m unittest discover -s Tools/Licensing/tests -p 'test_*.py'
+
+      - name: Run workflow policy tests
+        run: python3 -m unittest discover -s Tools/Developer/CI/tests -p 'test_*.py'
+
+      - name: Run repository audit tests
+        run: python3 -m unittest discover -s Tools/Developer/RepoAudit/tests -p 'test_*.py'
+
+      - name: Run SagaSync tests
+        run: python3 Tools/Developer/Environment/SagaSync/tests/test_sagasync_core.py
+
+      - name: Run SagaProjectKit CLI tests
+        run: python3 Tools/SagaProjectKit/tests/test_sagaprojectkit_cli.py
+
+      - name: Run SagaPackager CLI tests
+        run: python3 Tools/SagaPackager/tests/test_sagapack_cli.py
+
+      - name: Run SagaScript CLI tests
+        run: python3 Tools/SagaScript/tests/test_sagascript_cli.py
+
+      - name: Run SagaScript toolchain tests
+        run: python3 Tools/SagaScript/tests/test_sagascript_toolchain_check.py
+
+      - name: Run SagaTools dispatcher contracts
+        run: bash Tools/SagaTools/tests/run_contract_tests.sh
+
+      - name: Enforce repository boundaries
+        run: |
+          python3 Tools/Developer/BoundaryCheck/report_boundary_status.py --repo-root .
+          python3 Tools/Developer/BoundaryCheck/check_qt_boundary.py .
+          python3 Tools/Developer/BoundaryCheck/check_engine_server_boundary.py --repo-root .
+          python3 Tools/Developer/BoundaryCheck/check_public_private_boundary.py --repo-root .
+
+      - name: Verify workflow contracts
+        run: |
+          python3 Tools/Developer/CI/check_github_workflows.py --repo-root .
+          go run "github.com/rhysd/actionlint/cmd/actionlint@$ACTIONLINT_VERSION" -color
+
+      - name: Build and test standalone Forge
+        run: |
+          cmake -S Tools/Forge -B "$RUNNER_TEMP/forge-build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build "$RUNNER_TEMP/forge-build" --parallel 2
+          ctest --test-dir "$RUNNER_TEMP/forge-build" \
+            --output-on-failure \
+            --output-junit "$RUNNER_TEMP/forge-build/forge-tests.xml" \
+            -j2
+
+      - name: Verify generated wiki and repository hygiene
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          scripts/wiki verify
+          python3 Tools/Licensing/verify_license_texts.py --strict-cleanup
+          zero_sha="0000000000000000000000000000000000000000"
+          if [[ "$EVENT_NAME" == "pull_request" && -n "${PR_BASE_SHA:-}" ]]; then
+            base_ref="$PR_BASE_SHA"
+          elif [[ "$EVENT_NAME" == "push" && -n "${PUSH_BEFORE_SHA:-}" && "$PUSH_BEFORE_SHA" != "$zero_sha" ]]; then
+            base_ref="$PUSH_BEFORE_SHA"
+          else
+            base_ref="$(git rev-parse HEAD^ 2>/dev/null || git rev-parse HEAD)"
+          fi
+          git diff --check "$base_ref...HEAD"
+
+      - name: Upload repository contract evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: repository-contracts-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/forge-build/forge-tests.xml
+            ${{ runner.temp }}/forge-build/Testing/Temporary/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Publish contract summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Repository contracts"
+            echo
+            echo "Python tooling, SagaTools, Forge, repository boundaries, workflow policy, Wiki, and whitespace were evaluated."
+            echo "See the step log for exact pass/fail diagnostics; no failure is suppressed."
+          } >> "$GITHUB_STEP_SUMMARY"

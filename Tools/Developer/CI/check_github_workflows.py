@@ -82,11 +82,8 @@ def check_repository_job_contracts(texts: dict[str, str]) -> list[Finding]:
             )
 
     required_jobs = {
-        "build.yml": (
-            "repository-contracts",
-            "cpp-linux-all-safe",
-            "cpp-windows-core",
-        ),
+        "repository-contracts.yml": ("repository-contracts",),
+        "build.yml": ("cpp-linux-all-safe", "cpp-windows-core"),
         "licensing.yml": ("licensing-gate",),
     }
     for workflow_name, job_ids in required_jobs.items():
@@ -161,7 +158,13 @@ def require_tokens(path: str, text: str, tokens: tuple[str, ...]) -> list[Findin
 
 def validate_repository(root: Path) -> list[Finding]:
     workflow_root = root / ".github" / "workflows"
-    required = ("build.yml", "licensing.yml", "heavy-evidence.yml", "export-tools.yml")
+    required = (
+        "repository-contracts.yml",
+        "build.yml",
+        "licensing.yml",
+        "heavy-evidence.yml",
+        "export-tools.yml",
+    )
     findings: list[Finding] = []
     texts: dict[str, str] = {}
     workflow_paths = sorted(
@@ -192,9 +195,21 @@ def validate_repository(root: Path) -> list[Finding]:
                 (
                     "cpp-linux-all-safe",
                     "cpp-windows-core",
-                    "github.com/rhysd/actionlint/cmd/actionlint@",
                     "stress|slow|load|timing-sensitive|long-running|gpu|display-required",
                     "--output-junit",
+                    "if: always()",
+                    "$GITHUB_STEP_SUMMARY",
+                ),
+            )
+        )
+    if "repository-contracts.yml" in texts:
+        findings.extend(
+            require_tokens(
+                ".github/workflows/repository-contracts.yml",
+                texts["repository-contracts.yml"],
+                (
+                    "repository-contracts",
+                    "github.com/rhysd/actionlint/cmd/actionlint@",
                     "if: always()",
                     "$GITHUB_STEP_SUMMARY",
                 ),
