@@ -329,6 +329,31 @@ def validate_string_array(
     return value
 
 
+def validate_unique_string_array(
+    report: Report,
+    context: str,
+    value: Any,
+    *,
+    allow_empty: bool = True,
+) -> list[str]:
+    items = validate_string_array(
+        report,
+        context,
+        value,
+        allow_empty=allow_empty,
+    )
+    duplicates = sorted(
+        item for item in set(items) if items.count(item) > 1
+    )
+    if duplicates:
+        report.add(
+            "ERROR",
+            "DUPLICATE_STRING_ARRAY_ENTRY",
+            f"{context}: {duplicates!r}",
+        )
+    return items
+
+
 def validate_action_table(report: Report, validation: dict[str, Any]) -> None:
     for key, value in validation.items():
         if key.endswith("_action") and value not in ACTION_TO_SEVERITY:
@@ -421,6 +446,16 @@ def validate_policy_tables(policy: dict[str, Any], report: Report) -> None:
 
     validate_string_array(report, "approved_by", policy.get("approved_by"))
 
+    review_record_paths = validate_unique_string_array(
+        report,
+        "policy.review_record_paths",
+        policy.get("review_record_paths"),
+        allow_empty=False,
+    )
+    for path in review_record_paths:
+        if not safe_relative_path(path):
+            report.add("ERROR", "REVIEW_RECORD_PATH_UNSAFE", path)
+
     precedence = validate_string_array(
         report,
         "metadata.precedence",
@@ -487,7 +522,7 @@ def validate_policy_tables(policy: dict[str, Any], report: Report) -> None:
     if not isinstance(legacy.get("files_are_normative_until_cleanup"), bool):
         report.add("ERROR", "LEGACY_NORMATIVE_FLAG", "boolean required")
 
-    documents = validate_string_array(
+    documents = validate_unique_string_array(
         report,
         "governance.required_documents",
         governance.get("required_documents"),

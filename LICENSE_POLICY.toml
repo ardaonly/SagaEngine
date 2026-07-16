@@ -23,9 +23,6 @@ review_record_paths = [
   "LICENSE",
   "Tools/Developer/BoundaryCheck/Policies/path_rules.json",
   "SagaWiki/pages/licensing.html",
-  "SagaWiki/pages/licensing.html",
-  "SagaWiki/pages/licensing.html",
-  "SagaWiki/pages/licensing.html",
 ]
 decision_record = "LIC-DEC-0001"
 effective_from_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
@@ -78,12 +75,7 @@ files_are_normative_until_cleanup = false
 required_documents = [
   "LICENSE",
   "SagaWiki/pages/licensing.html",
-  "SagaWiki/pages/licensing.html",
-  "SagaWiki/pages/licensing.html",
-  "SagaWiki/pages/licensing.html",
   "LICENSES/THIRD_PARTY_NOTICES.md",
-  "SagaWiki/pages/licensing.html",
-  "SagaWiki/pages/licensing.html",
 ]
 contributing_document = "CONTRIBUTING.md"
 contributing_section_source = "SagaWiki/pages/licensing.html"
