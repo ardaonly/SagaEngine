@@ -9,7 +9,7 @@ policy_revision = "1.0"
 policy_status = "active"
 repository_state = "transitional"
 reviewed_branch = "main"
-reviewed_commit = "13e8bdcc7284b81625e3b0e95defd2ebd64cae36"
+reviewed_commit = "f805fc54ca480f1a3cc896051d634cd2bdeef8a3"
 reviewed_project_version = "0.0.11"
 review_record_paths = [
   ".github/workflows/licensing.yml",
