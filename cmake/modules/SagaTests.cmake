@@ -92,18 +92,18 @@ function(saga_setup_tests)
         "${SAGA_ROOT}/Tests/Contract/InstalledConsumer/SagaGraphicsInstalledConsumerProject"
     )
     set(SAGA_DILIGENT_WHITEBOX_TEST_SOURCES
-        "${SAGA_ROOT}/Tests/Unit/Render/DiligentFrameSlotTrackerTests.cpp"
-        "${SAGA_ROOT}/Tests/Unit/Render/DiligentGpuTimelineTests.cpp"
-        "${SAGA_ROOT}/Tests/Unit/Render/DiligentOverlayRendererTests.cpp"
-        "${SAGA_ROOT}/Tests/Unit/Render/DiligentRenderBackendTests.cpp"
-        "${SAGA_ROOT}/Tests/Unit/Render/GraphicsDiligentBackendBindingTests.cpp"
-        "${SAGA_ROOT}/Tests/Unit/Render/GraphicsDiligentBackendLifecycleTests.cpp"
-        "${SAGA_ROOT}/Tests/Unit/Render/GraphicsDiligentBackendNativeBufferTests.cpp"
-        "${SAGA_ROOT}/Tests/Unit/Render/GraphicsDiligentBackendNativeSamplerTests.cpp"
-        "${SAGA_ROOT}/Tests/Unit/Render/GraphicsDiligentBackendNativeShaderPipelineTests.cpp"
-        "${SAGA_ROOT}/Tests/Unit/Render/GraphicsDiligentBackendNativeTextureTests.cpp"
-        "${SAGA_ROOT}/Tests/Unit/Render/GraphicsDiligentBackendResourceRegistryTests.cpp"
-        "${SAGA_ROOT}/Tests/Unit/Render/SagaDiligentRuntimeTests.cpp"
+        "${SAGA_ROOT}/Engine/Source/Runtime/Render/Tests/DiligentFrameSlotTrackerTests.cpp"
+        "${SAGA_ROOT}/Engine/Source/Runtime/Render/Tests/DiligentGpuTimelineTests.cpp"
+        "${SAGA_ROOT}/Engine/Source/Runtime/Render/Tests/DiligentOverlayRendererTests.cpp"
+        "${SAGA_ROOT}/Engine/Source/Runtime/Render/Tests/DiligentRenderBackendTests.cpp"
+        "${SAGA_ROOT}/Engine/Source/Runtime/RHI/Tests/GraphicsDiligentBackendBindingTests.cpp"
+        "${SAGA_ROOT}/Engine/Source/Runtime/RHI/Tests/GraphicsDiligentBackendLifecycleTests.cpp"
+        "${SAGA_ROOT}/Engine/Source/Runtime/RHI/Tests/GraphicsDiligentBackendNativeBufferTests.cpp"
+        "${SAGA_ROOT}/Engine/Source/Runtime/RHI/Tests/GraphicsDiligentBackendNativeSamplerTests.cpp"
+        "${SAGA_ROOT}/Engine/Source/Runtime/RHI/Tests/GraphicsDiligentBackendNativeShaderPipelineTests.cpp"
+        "${SAGA_ROOT}/Engine/Source/Runtime/RHI/Tests/GraphicsDiligentBackendNativeTextureTests.cpp"
+        "${SAGA_ROOT}/Engine/Source/Runtime/RHI/Tests/GraphicsDiligentBackendResourceRegistryTests.cpp"
+        "${SAGA_ROOT}/Engine/Source/Runtime/RHI/Tests/SagaDiligentRuntimeTests.cpp"
     )
     set(SAGA_DIAGNOSTIC_REPORT_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/Diagnostics/DiagnosticReportTests.cpp"
@@ -408,7 +408,7 @@ function(saga_setup_tests)
             ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
             ${SAGA_ROOT}/Engine/Source/Runtime/RHI/Private
             ${SAGA_ROOT}/Engine/Source/Runtime/Render/Private
-            ${SAGA_ROOT}/Tests/Unit/Render
+            ${SAGA_ROOT}/Engine/Source/Runtime/RHI/Tests
         )
         saga_link_diligent_backend(SagaDiligentWhiteboxTests)
         set_target_properties(SagaDiligentWhiteboxTests PROPERTIES

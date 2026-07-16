@@ -223,6 +223,15 @@ TEST(CMakeTargetBoundaryTests, DiligentPrivateTestsHaveDedicatedTargets)
         std::string::npos);
     EXPECT_NE(tests.find("whitebox-private"), std::string::npos);
     EXPECT_NE(tests.find("SAGA_ENABLE_GPU_TEST_EXECUTION"), std::string::npos);
+    EXPECT_NE(
+        tests.find("Engine/Source/Runtime/RHI/Tests/GraphicsDiligentBackend"),
+        std::string::npos);
+    EXPECT_NE(
+        tests.find("Engine/Source/Runtime/Render/Tests/DiligentFrameSlotTrackerTests.cpp"),
+        std::string::npos);
+    EXPECT_EQ(
+        tests.find("Tests/Unit/Render/GraphicsDiligentBackend"),
+        std::string::npos);
 
     const auto unitLinks =
         ExtractTargetCalls(tests, "target_link_libraries", "SagaUnitTests");
