@@ -13,6 +13,20 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2].parent
 PROJECT = REPO_ROOT / "Tools" / "SagaScript" / "SagaScript.csproj"
 CLI_ASSEMBLY = PROJECT.parent / "bin" / "Release" / "net10.0" / "sagascript.dll"
+RUNTIME_BRIDGE_PROJECT = (
+    REPO_ROOT
+    / "Engine"
+    / "Managed"
+    / "SagaScript.RuntimeBridge"
+    / "SagaScript.RuntimeBridge.csproj"
+)
+RUNTIME_BRIDGE_ASSEMBLY = (
+    RUNTIME_BRIDGE_PROJECT.parent
+    / "bin"
+    / "Release"
+    / "net10.0"
+    / "SagaScript.RuntimeBridge.dll"
+)
 SHARED_SCRIPTING_ROOT = REPO_ROOT / "Shared" / "include" / "SagaShared" / "Scripting"
 BUILTIN_GAMEPLAY_NODES = (
     REPO_ROOT
@@ -53,6 +67,30 @@ def ensure_cli_built(env: dict[str, str]) -> None:
     )
     assert result.returncode == 0, result.stderr + result.stdout
     assert CLI_ASSEMBLY.is_file(), f"missing SagaScript assembly: {CLI_ASSEMBLY}"
+
+    bridge_result = subprocess.run(
+        [
+            "dotnet",
+            "build",
+            str(RUNTIME_BRIDGE_PROJECT),
+            "--configuration",
+            "Release",
+            "--nologo",
+            "--verbosity",
+            "quiet",
+        ],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert bridge_result.returncode == 0, bridge_result.stderr + bridge_result.stdout
+    assert RUNTIME_BRIDGE_ASSEMBLY.is_file(), (
+        f"missing SagaScript runtime bridge assembly: {RUNTIME_BRIDGE_ASSEMBLY}"
+    )
+    env["SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY"] = str(RUNTIME_BRIDGE_ASSEMBLY)
     _cli_built = True
 
 
@@ -62,6 +100,7 @@ def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
     env.setdefault("NUGET_PACKAGES", "/tmp/sagascript-nuget-blockf")
     env.setdefault("DOTNET_CLI_TELEMETRY_OPTOUT", "1")
     ensure_cli_built(env)
+    env["SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY"] = str(RUNTIME_BRIDGE_ASSEMBLY)
     return subprocess.run(
         ["dotnet", str(CLI_ASSEMBLY), *args],
         cwd=REPO_ROOT,
