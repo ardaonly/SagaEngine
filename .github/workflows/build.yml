@@ -38,13 +38,32 @@ jobs:
       - name: Guard Public Private boundary
         run: python3 Tools/Developer/BoundaryCheck/check_public_private_boundary.py --repo-root .
 
-  build:
-    runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: sagaforge
-        shell: pwsh
+  repository-contracts:
+    name: Repository contract tests
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Run Python contract tests
+        run: |
+          python3 -m unittest discover -s Tools/Licensing/tests -p 'test_*.py'
+          python3 Tools/SagaProjectKit/tests/test_sagaprojectkit_cli.py
+          python3 Tools/SagaPackager/tests/test_sagapack_cli.py
+          python3 Tools/SagaScript/tests/test_sagascript_cli.py
+          python3 Tools/SagaScript/tests/test_sagascript_toolchain_check.py
+
+      - name: Verify generated wiki
+        run: scripts/wiki verify
+
+      - name: Verify licensing texts
+        run: python3 Tools/Licensing/verify_license_texts.py --strict-cleanup
+
+      - name: Reject whitespace errors
+        run: git diff --check
