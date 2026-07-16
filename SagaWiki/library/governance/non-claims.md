@@ -29,7 +29,7 @@ SagaEngine contains substantial foundations, but foundations must not be describ
 - no production networking stack or internet-scale service claim;
 - no shipped persistent community-world service;
 - no complete database migration, backup, or operational topology;
-- the SagaServer program name does not by itself prove a dedicated-server product.
+- no SagaServer program or dedicated-server product is currently provided; the `SagaServerLib` target is library evidence only.
 
 ## Rendering and platforms
 

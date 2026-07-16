@@ -26,11 +26,11 @@ The runtime currently includes Core, Math, Diagnostics, ECS, Assets, Resources, 
 
 ## Editor modules
 
-The editor currently includes EditorCore, EditorFramework, EditorQt, EditorAuthoring, VisualBlocksEditor, EditorScripting, EditorCollaboration, and EditorExperimental.
+The editor currently includes EditorCore, EditorFramework, EditorQt, EditorAuthoring, VisualBlocksEditor, EditorCollaboration, and EditorExperimental. Runtime script lifecycle belongs to Runtime/Scripting; editor-facing script inspection and patch workflows belong to EditorAuthoring and VisualBlocksEditor.
 
 ## Programs
 
-Programs are not architecture owners. SagaEditor, SagaEditorLab, SagaLauncher, SagaRuntime, SagaSandbox, and SagaServer may assemble modules, but reusable behavior belongs in the owning runtime or editor module. The existence of a program directory does not prove a complete application workflow. See [Programs and local workflows](programs-and-workflows.md) for their bounded roles.
+Programs are not architecture owners. SagaEditor, SagaEditorLab, SagaLauncher, SagaRuntime, and SagaSandbox assemble modules, but reusable behavior belongs in the owning runtime or editor module. There is no SagaServer program owner; authoritative foundations remain in Runtime/ServerAuthority and the `SagaServerLib` library target. The existence of a program directory or library target does not prove a complete application workflow. See [Programs and local workflows](programs-and-workflows.md) for their bounded roles.
 
 ## Retired roots
 
