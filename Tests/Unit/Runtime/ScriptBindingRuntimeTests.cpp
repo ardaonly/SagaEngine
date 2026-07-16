@@ -523,6 +523,8 @@ public sealed class RunnerProofScript : SagaScript
 
 [[nodiscard]] bool CompileRunnerProject(const std::filesystem::path& root)
 {
+    WriteFile(root / "RunnerProof.sagaproj",
+              R"({"schemaVersion":0,"projectId":"runner-proof","displayName":"Runner Proof"})");
     WriteFile(root / "Scripts" / "RunnerProof.cs", RunnerProofSource());
     ConfigureDotnetEnvironment();
 

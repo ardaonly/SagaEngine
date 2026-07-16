@@ -69,6 +69,8 @@ void WriteFile(const std::filesystem::path& path, const std::string& contents)
     const auto root = std::filesystem::temp_directory_path() / name;
     std::filesystem::remove_all(root);
     std::filesystem::create_directories(root / "Scripts");
+    WriteFile(root / "GameplayProof.sagaproj",
+              R"({"schemaVersion":0,"projectId":"gameplay-proof","displayName":"Gameplay Proof"})");
     return root;
 }
 

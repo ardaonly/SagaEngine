@@ -415,9 +415,8 @@ internal static class Program
         var artifactDirectory = string.IsNullOrWhiteSpace(options.ArtifactOutputDirectory)
             ? Path.Combine(Directory.GetCurrentDirectory(), "Build", "Artifacts", "Scripts")
             : options.ArtifactOutputDirectory;
-        var projectRoot = string.IsNullOrWhiteSpace(options.ProjectRoot)
-            ? Directory.GetCurrentDirectory()
-            : options.ProjectRoot;
+        var projectRoot = ProjectManifestValidator.ResolveProjectRoot(
+            options.ProjectRoot);
 
         var compileResult = SagaScriptCompiler.Compile(new SagaScriptCompileRequest
         {

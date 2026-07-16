@@ -282,6 +282,28 @@ def test_profile_validation_failures_are_deterministic() -> None:
         assert "Package.Path.ParentTraversalNotAllowed" in codes
 
 
+def test_non_sagaproj_manifest_is_rejected() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        project_root = copy_sample(root)
+        legacy = project_root / ("saga.project" + ".json")
+        manifest_path(project_root).rename(legacy)
+        out = root / "package_report.json"
+
+        result = run_cli(
+            "validate",
+            "--project",
+            str(legacy),
+            "--profile",
+            PROFILE,
+            "--out",
+            str(out),
+        )
+
+        assert result.returncode == 1
+        assert load(out)["diagnostics"][0]["code"] == "Package.Project.UnsupportedFileType"
+
+
 def test_missing_profile_and_missing_launch_profile_fail() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -679,6 +701,7 @@ def run_all() -> None:
         test_asset_validate_fails_when_supplied_package_asset_manifest_is_missing,
         test_asset_validate_duplicate_id_and_missing_root_fail_deterministically,
         test_profile_validation_failures_are_deterministic,
+        test_non_sagaproj_manifest_is_rejected,
         test_missing_profile_and_missing_launch_profile_fail,
         test_stage_creates_deterministic_package_and_preserves_sources,
         test_stage_rejects_output_outside_build_packages,

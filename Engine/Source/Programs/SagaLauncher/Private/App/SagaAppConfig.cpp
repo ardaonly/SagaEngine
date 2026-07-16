@@ -115,16 +115,8 @@ std::string SagaUsageText()
         "  --workspace <path|builtin:basic>  Product workspace root\n"
         "  --target <editor|runtime|server>  Product role to prepare (server execution unsupported)\n"
         "  --package-manifest <path>         Startup package manifest for runtime targets\n"
-        "  --validate-sagascript <project>   Run SagaScript project validation through Forge gate\n"
-        "  --stage-packages <project>        Generate client/server package manifests\n"
-        "  --package-profile <name>          Package staging profile\n"
-        "  --target-platform <name>          Package target platform token\n"
-        "  --runtime-compatibility <version> Package runtime compatibility token\n"
-        "  --package-report <path>           Package staging report output path\n"
-        "  --publish-check <project>         Run product publish readiness check\n"
-        "  --publish-profile <name>          Publish readiness profile\n"
-        "  --publish-report <path>           Publish readiness report output path\n"
-        "  --publish-diagnostics <key=path>  Include opaque diagnostics report in publish readiness\n"
+        "  --validate-sagascript <.sagaproj> Run SagaScript validation through Forge gate\n"
+        "  Package workflows: use 'sagapack stage' and 'sagapack publish-check'\n"
         "  --workflow-smoke                  Emit Product Shell workflow smoke report\n"
         "  --project <path>                  Project manifest for workflow smoke\n"
         "  --profile <id>                    Workflow smoke profile/view preset id\n"
@@ -256,107 +248,12 @@ SagaConfigResult ParseSagaAppConfig(int argc, char* argv[])
             if (!HasValue(i, argc))
             {
                 result.ok = false;
-                result.error = "Saga: --validate-sagascript requires a project root";
+                result.error = "Saga: --validate-sagascript requires a .sagaproj manifest";
                 return result;
             }
             result.config.validateSagaScript = true;
-            result.config.sagaScriptProjectRoot =
+            result.config.sagaScriptProjectManifest =
                 std::filesystem::path(argv[++i]);
-        }
-        else if (arg == "--stage-packages")
-        {
-            if (!HasValue(i, argc))
-            {
-                result.ok = false;
-                result.error = "Saga: --stage-packages requires a project root";
-                return result;
-            }
-            result.config.stagePackages = true;
-            result.config.packageStageProjectRoot =
-                std::filesystem::path(argv[++i]);
-        }
-        else if (arg == "--package-profile")
-        {
-            if (!HasValue(i, argc))
-            {
-                result.ok = false;
-                result.error = "Saga: --package-profile requires a name";
-                return result;
-            }
-            result.config.packageProfile = argv[++i];
-        }
-        else if (arg == "--target-platform")
-        {
-            if (!HasValue(i, argc))
-            {
-                result.ok = false;
-                result.error = "Saga: --target-platform requires a name";
-                return result;
-            }
-            result.config.targetPlatform = argv[++i];
-        }
-        else if (arg == "--runtime-compatibility")
-        {
-            if (!HasValue(i, argc))
-            {
-                result.ok = false;
-                result.error =
-                    "Saga: --runtime-compatibility requires a version";
-                return result;
-            }
-            result.config.runtimeCompatibilityVersion = argv[++i];
-        }
-        else if (arg == "--package-report")
-        {
-            if (!HasValue(i, argc))
-            {
-                result.ok = false;
-                result.error = "Saga: --package-report requires a path";
-                return result;
-            }
-            result.config.packageStageReportPath =
-                std::filesystem::path(argv[++i]);
-        }
-        else if (arg == "--publish-check")
-        {
-            if (!HasValue(i, argc))
-            {
-                result.ok = false;
-                result.error = "Saga: --publish-check requires a project root";
-                return result;
-            }
-            result.config.publishCheck = true;
-            result.config.publishProjectRoot = std::filesystem::path(argv[++i]);
-        }
-        else if (arg == "--publish-profile")
-        {
-            if (!HasValue(i, argc))
-            {
-                result.ok = false;
-                result.error = "Saga: --publish-profile requires a name";
-                return result;
-            }
-            result.config.publishProfile = argv[++i];
-        }
-        else if (arg == "--publish-report")
-        {
-            if (!HasValue(i, argc))
-            {
-                result.ok = false;
-                result.error = "Saga: --publish-report requires a path";
-                return result;
-            }
-            result.config.publishReportPath = std::filesystem::path(argv[++i]);
-        }
-        else if (arg == "--publish-diagnostics")
-        {
-            if (!HasValue(i, argc))
-            {
-                result.ok = false;
-                result.error = "Saga: --publish-diagnostics requires key=path";
-                return result;
-            }
-            result.config.publishDiagnostics.push_back(argv[++i]);
         }
         else if (arg == "--workflow-smoke")
         {
@@ -754,6 +651,17 @@ SagaConfigResult ParseSagaAppConfig(int argc, char* argv[])
         {
             continue;
         }
+        else if (arg == "--stage-packages" || arg == "--package-profile" ||
+                 arg == "--target-platform" || arg == "--runtime-compatibility" ||
+                 arg == "--package-report" || arg == "--publish-check" ||
+                 arg == "--publish-profile" || arg == "--publish-report" ||
+                 arg == "--publish-diagnostics")
+        {
+            result.ok = false;
+            result.error = "Saga: package workflows moved to 'sagapack stage' and "
+                "'sagapack publish-check'";
+            return result;
+        }
         else
         {
             result.ok = false;
@@ -764,8 +672,7 @@ SagaConfigResult ParseSagaAppConfig(int argc, char* argv[])
 
     if (result.config.firstPlayableHumanCapture &&
         (result.config.firstPlayableCheck || result.config.workflowSmoke ||
-         result.config.validateSagaScript || result.config.stagePackages ||
-         result.config.publishCheck || result.config.prepareOnly ||
+         result.config.validateSagaScript || result.config.prepareOnly ||
          result.config.localWorkspaceTransactionSmoke ||
          result.config.localWorkspacePresenceLockSmoke ||
          result.config.localWorkspaceReviewSmoke ||

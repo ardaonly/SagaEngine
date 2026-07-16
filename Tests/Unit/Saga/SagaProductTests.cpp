@@ -5,16 +5,11 @@
 #include "App/SagaApp.h"
 #include "ProductIntegration/SagaLocalCollaborationMetadataReports.h"
 #include "ProductIntegration/SagaLocalWorkspaceTransactionReport.h"
-#include "ProductIntegration/SagaPackageStaging.h"
-#include "Projects/SagaProjectSystem.h"
 #include "Processes/SagaProcessService.h"
 #include "App/SagaProductHost.h"
 #include "Reports/SagaProductWorkflowSmokeReport.h"
-#include "ProductIntegration/SagaPublishReadiness.h"
-#include "ProductIntegration/SagaScriptGate.h"
 #include "Projects/SagaWorkspaceResolver.h"
-
-#include <SagaEngine/Packages/PackageManifestLoader.hpp>
+#include "Workflows/SagaScriptGate.h"
 
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
@@ -71,42 +66,20 @@ void WriteFile(const fs::path& path, const std::string& text)
                        std::istreambuf_iterator<char>());
 }
 
-void WriteValidPackageManifest(const fs::path& projectRoot,
-                               const std::string& filename,
-                               const std::string& packageId,
-                               const std::string& packageKind)
+[[nodiscard]] fs::path WriteProject(const fs::path& root,
+                                    const std::string& projectId,
+                                    const std::string& displayName,
+                                    bool createScripts = false)
 {
-    WriteFile(projectRoot / "Build" / "Manifests" / filename, R"({
-  "schemaVersion": 1,
-  "packageId": ")" + packageId + R"(",
-  "packageKind": ")" + packageKind + R"(",
-  "buildProfile": "shipping-full",
-  "targetPlatform": "linux",
-  "runtimeCompatibilityVersion": "0.0.8",
-  "assetManifests": [
-    { "id": "assets.main", "path": "Build/Manifests/assets.json" }
-  ],
-  "artifactManifests": [
-    { "id": "artifacts.main", "path": "Build/Manifests/artifacts.json" }
-  ],
-  "packageHash": "sha256-test"
-})");
-}
-
-void WriteValidPublishPackageInputs(const fs::path& projectRoot)
-{
-    WriteFile(projectRoot / "Build" / "Manifests" / "assets.json", "{}");
-    WriteFile(projectRoot / "Build" / "Manifests" / "artifacts.json", "{}");
-    WriteValidPackageManifest(
-        projectRoot,
-        "package_manifest.client.json",
-        "starter.client",
-        "client");
-    WriteValidPackageManifest(
-        projectRoot,
-        "package_manifest.server.json",
-        "starter.server",
-        "server");
+    const fs::path manifest = root / (displayName + ".sagaproj");
+    WriteFile(manifest,
+              nlohmann::json({{"schemaVersion", 0},
+                              {"projectId", projectId},
+                              {"displayName", displayName}})
+                  .dump(2));
+    if (createScripts)
+        fs::create_directories(root / "Scripts");
+    return manifest;
 }
 
 class FakeProcessLauncher final : public ISagaProcessLauncher
@@ -318,7 +291,7 @@ TEST(SagaAppConfigTest, SagaScriptValidationArgumentsAreParsed)
     const char* argvRaw[] = {
         "Saga",
         "--validate-sagascript",
-        "/tmp/project",
+        "/tmp/project/Project.sagaproj",
         "--forge",
         "/tools/forge",
         "--sagascript-tool",
@@ -330,66 +303,26 @@ TEST(SagaAppConfigTest, SagaScriptValidationArgumentsAreParsed)
 
     ASSERT_TRUE(result.ok) << result.error;
     EXPECT_TRUE(result.config.validateSagaScript);
-    EXPECT_EQ(result.config.sagaScriptProjectRoot, fs::path("/tmp/project"));
+    EXPECT_EQ(result.config.sagaScriptProjectManifest,
+              fs::path("/tmp/project/Project.sagaproj"));
     EXPECT_EQ(result.config.forgeExecutable, fs::path("/tools/forge"));
     EXPECT_EQ(result.config.sagaScriptExecutable, fs::path("/tools/sagascript"));
 }
 
-TEST(SagaAppConfigTest, PublishReadinessArgumentsAreParsed)
+TEST(SagaAppConfigTest, PackageCommandsRedirectToSagapack)
 {
     const char* argvRaw[] = {
         "Saga",
         "--publish-check",
-        "/tmp/project",
-        "--publish-profile",
-        "shipping-full",
-        "--publish-report",
-        "/tmp/project/Build/Reports/publish_report.json",
-        "--publish-diagnostics",
-        "qa=/tmp/project/Build/Reports/qa.json",
+        "/tmp/project/Project.sagaproj",
     };
     auto* argv = const_cast<char**>(argvRaw);
 
-    const SagaConfigResult result = ParseSagaAppConfig(9, argv);
+    const SagaConfigResult result = ParseSagaAppConfig(3, argv);
 
-    ASSERT_TRUE(result.ok) << result.error;
-    EXPECT_TRUE(result.config.publishCheck);
-    EXPECT_EQ(result.config.publishProjectRoot, fs::path("/tmp/project"));
-    EXPECT_EQ(result.config.publishProfile, "shipping-full");
-    EXPECT_EQ(result.config.publishReportPath,
-              fs::path("/tmp/project/Build/Reports/publish_report.json"));
-    ASSERT_EQ(result.config.publishDiagnostics.size(), 1u);
-    EXPECT_EQ(result.config.publishDiagnostics[0],
-              "qa=/tmp/project/Build/Reports/qa.json");
-}
-
-TEST(SagaAppConfigTest, PackageStagingArgumentsAreParsed)
-{
-    const char* argvRaw[] = {
-        "Saga",
-        "--stage-packages",
-        "/tmp/project",
-        "--package-profile",
-        "shipping-full",
-        "--target-platform",
-        "linux-x64",
-        "--runtime-compatibility",
-        "0.0.8",
-        "--package-report",
-        "/tmp/project/Build/Reports/package_stage_report.json",
-    };
-    auto* argv = const_cast<char**>(argvRaw);
-
-    const SagaConfigResult result = ParseSagaAppConfig(11, argv);
-
-    ASSERT_TRUE(result.ok) << result.error;
-    EXPECT_TRUE(result.config.stagePackages);
-    EXPECT_EQ(result.config.packageStageProjectRoot, fs::path("/tmp/project"));
-    EXPECT_EQ(result.config.packageProfile, "shipping-full");
-    EXPECT_EQ(result.config.targetPlatform, "linux-x64");
-    EXPECT_EQ(result.config.runtimeCompatibilityVersion, "0.0.8");
-    EXPECT_EQ(result.config.packageStageReportPath,
-              fs::path("/tmp/project/Build/Reports/package_stage_report.json"));
+    EXPECT_FALSE(result.ok);
+    EXPECT_NE(result.error.find("sagapack stage"), std::string::npos);
+    EXPECT_NE(result.error.find("sagapack publish-check"), std::string::npos);
 }
 
 TEST(SagaAppConfigTest, WorkflowSmokeArgumentsAreParsed)
@@ -702,8 +635,8 @@ TEST(SagaWorkspaceResolverTest, MissingProjectRootFailsDeterministically)
 TEST(SagaWorkspaceResolverTest, ProjectManifestResolvesWorkspaceDefaults)
 {
     const fs::path root = MakeTempDir("saga_project_manifest_workspace_test");
-    WriteFile(root / "Project" / "saga.project.json", R"({
-        "schemaVersion": 1,
+    WriteFile(root / "Project" / "Project.sagaproj", R"({
+        "schemaVersion": 0,
         "projectId": "manifest-project",
         "displayName": "Manifest Project"
     })");
@@ -727,8 +660,8 @@ TEST(SagaWorkspaceResolverTest, ProjectManifestResolvesWorkspaceDefaults)
 TEST(SagaWorkspaceResolverTest, ExplicitFutureServerMetadataRemainsDeclarative)
 {
     const fs::path root = MakeTempDir("saga_server_metadata_workspace_test");
-    WriteFile(root / "saga.project.json", R"({
-        "schemaVersion": 1,
+    WriteFile(root / "Server.sagaproj", R"({
+        "schemaVersion": 0,
         "projectId": "server-metadata-project",
         "displayName": "Server Metadata Project",
         "serverRole": "future.dedicated.metadata"
@@ -952,8 +885,8 @@ TEST(SagaProductHostTest, ServerTargetNeverCreatesProcessLaunchRequest)
 TEST(SagaProductHostTest, FutureServerMetadataDoesNotBecomeLaunchInstruction)
 {
     const fs::path root = MakeTempDir("saga_future_server_metadata_test");
-    WriteFile(root / "saga.project.json", R"({
-        "schemaVersion": 1,
+    WriteFile(root / "Server.sagaproj", R"({
+        "schemaVersion": 0,
         "projectId": "future-server-metadata",
         "displayName": "Future Server Metadata",
         "serverRole": "future.dedicated.metadata"
@@ -1089,48 +1022,18 @@ TEST(SagaProductHostTest, EditorTargetUsesExternalProcessLauncher)
     EXPECT_TRUE(err.str().empty());
 }
 
-TEST(SagaProjectSystemTest, CreateOpenAndRememberProjectAreReal)
-{
-    const fs::path root = MakeTempDir("saga_project_system_test");
-    SagaProjectSystem projects(root / "recent_projects.json");
-
-    const SagaProjectResult created =
-        projects.CreateProject(root, "FirstProject");
-
-    ASSERT_TRUE(created.ok) << created.error;
-    EXPECT_TRUE(fs::exists(created.manifest.root / "saga.project.json"));
-    EXPECT_FALSE(fs::exists(created.manifest.root / (std::string{".s"} + "de")));
-    EXPECT_TRUE(fs::exists(created.manifest.root / "Assets"));
-    EXPECT_TRUE(fs::exists(created.manifest.root / "Scripts"));
-    EXPECT_TRUE(fs::exists(created.manifest.root / "Generated"));
-    EXPECT_TRUE(fs::exists(created.manifest.root / "Build"));
-    EXPECT_TRUE(fs::exists(created.manifest.root / "Packages"));
-
-    const SagaProjectResult opened = projects.OpenProject(created.manifest.root);
-    ASSERT_TRUE(opened.ok) << opened.error;
-    EXPECT_EQ(opened.manifest.displayName, "FirstProject");
-
-    const std::vector<SagaRecentProject> recent = projects.LoadRecentProjects();
-    ASSERT_FALSE(recent.empty());
-    EXPECT_EQ(recent.front().displayName, "FirstProject");
-    EXPECT_TRUE(recent.front().exists);
-}
-
 TEST(SagaScriptGateTest, MissingScriptsDirectoryProducesProductDiagnostic)
 {
     const fs::path root = MakeTempDir("saga_sagascript_missing_scripts_test");
-    WriteFile(root / "Project" / "saga.project.json", R"({
-        "schemaVersion": 1,
-        "projectId": "missing-scripts",
-        "displayName": "Missing Scripts"
-    })");
+    const fs::path manifest =
+        WriteProject(root / "Project", "missing-scripts", "Missing Scripts");
 
     auto runner = std::make_unique<FakeToolProcessRunner>();
     FakeToolProcessRunner* runnerPtr = runner.get();
     SagaScriptGate gate(std::move(runner));
 
     SagaScriptGateRequest request;
-    request.projectRoot = root / "Project";
+    request.projectManifest = manifest;
 
     std::ostringstream out;
     std::ostringstream err;
@@ -1154,16 +1057,13 @@ TEST(SagaScriptGateTest, MissingScriptsDirectoryProducesProductDiagnostic)
 TEST(SagaScriptGateTest, AppEntrypointReportsMissingScriptsDirectory)
 {
     const fs::path root = MakeTempDir("saga_sagascript_app_entrypoint_test");
-    WriteFile(root / "Project" / "saga.project.json", R"({
-        "schemaVersion": 1,
-        "projectId": "missing-scripts",
-        "displayName": "Missing Scripts"
-    })");
+    const fs::path manifest =
+        WriteProject(root / "Project", "missing-scripts", "Missing Scripts");
 
     SagaProduct::SagaApp app;
     SagaAppConfig config;
     config.validateSagaScript = true;
-    config.sagaScriptProjectRoot = root / "Project";
+    config.sagaScriptProjectManifest = manifest;
 
     std::ostringstream out;
     std::ostringstream err;
@@ -1181,10 +1081,9 @@ TEST(SagaScriptGateTest, AppEntrypointReportsMissingScriptsDirectory)
 TEST(SagaScriptGateTest, BuildsForgeGateRunCommandForProjectPaths)
 {
     const fs::path root = MakeTempDir("saga_sagascript_gate_command_test");
-    SagaProjectSystem projects(root / "recent_projects.json");
-    const SagaProjectResult created =
-        projects.CreateProject(root, "ScriptProject");
-    ASSERT_TRUE(created.ok) << created.error;
+    const fs::path projectRoot = root / "ScriptProject";
+    const fs::path manifest =
+        WriteProject(projectRoot, "script-project", "ScriptProject", true);
 
     auto runner = std::make_unique<FakeToolProcessRunner>();
     FakeToolProcessRunner* runnerPtr = runner.get();
@@ -1194,7 +1093,7 @@ TEST(SagaScriptGateTest, BuildsForgeGateRunCommandForProjectPaths)
     SagaScriptGate gate(std::move(runner));
 
     SagaScriptGateRequest request;
-    request.projectRoot = created.manifest.root;
+    request.projectManifest = manifest;
     request.forgeExecutable = fs::path("/tools/forge");
     request.sagaScriptExecutable = fs::path("/tools/sagascript");
 
@@ -1207,7 +1106,7 @@ TEST(SagaScriptGateTest, BuildsForgeGateRunCommandForProjectPaths)
     ASSERT_EQ(runnerPtr->requests.size(), 1u);
     const SagaToolProcessRequest& process = runnerPtr->requests[0];
     EXPECT_EQ(process.executablePath, fs::path("/tools/forge"));
-    EXPECT_EQ(process.workingDirectory, created.manifest.root);
+    EXPECT_EQ(process.workingDirectory, fs::weakly_canonical(projectRoot));
     const std::vector<std::string> expected = {
         "gate",
         "run",
@@ -1226,7 +1125,7 @@ TEST(SagaScriptGateTest, BuildsForgeGateRunCommandForProjectPaths)
         "--artifacts-out",
         result.paths.artifactOutputDirectory.string(),
         "--project-root",
-        created.manifest.root.string(),
+        fs::weakly_canonical(projectRoot).string(),
         "--diagnostics",
         result.paths.diagnosticsOutputPath.string(),
     };
@@ -1239,10 +1138,10 @@ TEST(SagaScriptGateTest, BuildsForgeGateRunCommandForProjectPaths)
 TEST(SagaScriptGateTest, NonZeroForgeGateExitFailsValidation)
 {
     const fs::path root = MakeTempDir("saga_sagascript_gate_failure_test");
-    SagaProjectSystem projects(root / "recent_projects.json");
-    const SagaProjectResult created =
-        projects.CreateProject(root, "FailingScriptProject");
-    ASSERT_TRUE(created.ok) << created.error;
+    const fs::path manifest = WriteProject(root / "FailingScriptProject",
+                                           "failing-script-project",
+                                           "FailingScriptProject",
+                                           true);
 
     auto runner = std::make_unique<FakeToolProcessRunner>();
     FakeToolProcessRunner* runnerPtr = runner.get();
@@ -1252,7 +1151,7 @@ TEST(SagaScriptGateTest, NonZeroForgeGateExitFailsValidation)
     SagaScriptGate gate(std::move(runner));
 
     SagaScriptGateRequest request;
-    request.projectRoot = created.manifest.root;
+    request.projectManifest = manifest;
 
     std::ostringstream out;
     std::ostringstream err;
@@ -1266,190 +1165,6 @@ TEST(SagaScriptGateTest, NonZeroForgeGateExitFailsValidation)
     EXPECT_EQ(result.diagnostics[0].diagnosticId,
               SagaProductDiagnostics::SagaScriptGateFailed);
     EXPECT_NE(err.str().find("blocking diagnostics"), std::string::npos);
-}
-
-TEST(SagaPackageStagingTest, StagesPackageManifestsForPublishReadiness)
-{
-    const fs::path root = MakeTempDir("saga_package_stage_test");
-    SagaProjectSystem projects(root / "recent_projects.json");
-    const SagaProjectResult created =
-        projects.CreateProject(root, "PackageStageProject");
-    ASSERT_TRUE(created.ok) << created.error;
-    WriteFile(
-        created.manifest.root / "Build" / "Manifests" / "assets.json",
-        "{}");
-    WriteFile(
-        created.manifest.root / "Build" / "Manifests" /
-            "artifact_manifest.json",
-        "{}");
-
-    SagaPackageStagingRequest request;
-    request.projectRoot = created.manifest.root;
-    request.profile = "shipping-full";
-    request.targetPlatform = "linux-x64";
-    request.runtimeCompatibilityVersion = "0.0.8";
-
-    SagaPackageStagingService service;
-    const SagaPackageStagingResult result = service.Stage(request);
-
-    EXPECT_TRUE(result.ok);
-    EXPECT_TRUE(result.diagnostics.empty());
-    EXPECT_TRUE(fs::exists(result.paths.clientPackageManifest));
-    EXPECT_TRUE(fs::exists(result.paths.serverPackageManifest));
-    EXPECT_TRUE(fs::exists(result.paths.reportPath));
-
-    SagaEngine::Packages::PackageManifestLoadOptions options;
-    options.validateReferencedManifestFiles = true;
-    options.packageBaseDirectory = created.manifest.root;
-    const auto client =
-        SagaEngine::Packages::PackageManifestLoader::LoadFromFile(
-            result.paths.clientPackageManifest,
-            options);
-    const auto server =
-        SagaEngine::Packages::PackageManifestLoader::LoadFromFile(
-            result.paths.serverPackageManifest,
-            options);
-
-    ASSERT_TRUE(client.Succeeded());
-    ASSERT_TRUE(server.Succeeded());
-    EXPECT_EQ(client.manifest.packageId,
-              created.manifest.projectId + ".client.shipping-full");
-    EXPECT_EQ(server.manifest.packageId,
-              created.manifest.projectId + ".server.shipping-full");
-    ASSERT_EQ(client.manifest.assetManifests.size(), 1u);
-    EXPECT_EQ(client.manifest.assetManifests[0].path,
-              "Build/Manifests/assets.json");
-    ASSERT_EQ(client.manifest.artifactManifests.size(), 1u);
-    EXPECT_EQ(client.manifest.artifactManifests[0].path,
-              "Build/Manifests/artifact_manifest.json");
-
-    SagaPublishReadinessRequest publishRequest;
-    publishRequest.projectRoot = created.manifest.root;
-    SagaPublishReadinessService publishService;
-    const SagaPublishReadinessResult publish =
-        publishService.Check(publishRequest);
-    EXPECT_TRUE(publish.ok);
-    EXPECT_EQ(publish.report.readiness.status,
-              SagaShared::Publish::PublishStatus::Ready);
-}
-
-TEST(SagaPackageStagingTest, MissingManifestInputsBlockStaging)
-{
-    const fs::path root = MakeTempDir("saga_package_stage_missing_inputs_test");
-    SagaProjectSystem projects(root / "recent_projects.json");
-    const SagaProjectResult created =
-        projects.CreateProject(root, "PackageStageMissingInputsProject");
-    ASSERT_TRUE(created.ok) << created.error;
-
-    SagaPackageStagingRequest request;
-    request.projectRoot = created.manifest.root;
-
-    SagaPackageStagingService service;
-    const SagaPackageStagingResult result = service.Stage(request);
-
-    EXPECT_FALSE(result.ok);
-    ASSERT_EQ(result.diagnostics.size(), 1u);
-    EXPECT_EQ(result.diagnostics[0].diagnosticId,
-              SagaProductDiagnostics::PackageStageInputsMissing);
-    EXPECT_TRUE(fs::exists(result.paths.reportPath));
-    EXPECT_FALSE(fs::exists(result.paths.clientPackageManifest));
-    EXPECT_FALSE(fs::exists(result.paths.serverPackageManifest));
-}
-
-TEST(SagaPackageStagingTest, ServerOnlyScriptArtifactIsServerPackageOnly)
-{
-    const fs::path root = MakeTempDir("saga_package_stage_script_artifact_test");
-    SagaProjectSystem projects(root / "recent_projects.json");
-    const SagaProjectResult created =
-        projects.CreateProject(root, "PackageStageScriptProject");
-    ASSERT_TRUE(created.ok) << created.error;
-
-    WriteFile(
-        created.manifest.root / "Build" / "Artifacts" / "Scripts" /
-            "SagaProjectScripts.scripts.dll",
-        "compiled-script-placeholder");
-    WriteFile(
-        created.manifest.root / "Build" / "Manifests" / "script_artifacts.json",
-        R"({
-  "schemaVersion": 1,
-  "targetFramework": "net10.0",
-  "artifacts": [
-    {
-      "artifactId": "artifact://scripts/gameplay/inventory",
-      "scriptId": "script://gameplay/inventory",
-      "assemblyPath": "Build/Artifacts/Scripts/SagaProjectScripts.scripts.dll",
-      "runtimeConfigPath": "Build/Artifacts/Scripts/SagaProjectScripts.scripts.runtimeconfig.json",
-      "hash": "sha256-test",
-      "authority": "ServerOnly",
-      "packageDestinationIntent": "server",
-      "requestedCapabilities": ["Gameplay.Inventory.Write"],
-      "grantedCapabilities": [],
-      "bindingIds": ["script://gameplay/inventory#Game.Inventory.GiveItem"],
-      "sourceFiles": ["Scripts/Inventory.cs"]
-    }
-  ]
-})");
-
-    SagaPackageStagingRequest request;
-    request.projectRoot = created.manifest.root;
-
-    SagaPackageStagingService service;
-    const SagaPackageStagingResult result = service.Stage(request);
-
-    ASSERT_TRUE(result.ok);
-    SagaEngine::Packages::PackageManifestLoadOptions options;
-    options.validateReferencedManifestFiles = true;
-    options.packageBaseDirectory = created.manifest.root;
-    const auto client =
-        SagaEngine::Packages::PackageManifestLoader::LoadFromFile(
-            result.paths.clientPackageManifest,
-            options);
-    const auto server =
-        SagaEngine::Packages::PackageManifestLoader::LoadFromFile(
-            result.paths.serverPackageManifest,
-            options);
-
-    ASSERT_TRUE(client.Succeeded());
-    ASSERT_TRUE(server.Succeeded());
-    EXPECT_TRUE(client.manifest.artifactManifests.empty());
-    ASSERT_EQ(server.manifest.artifactManifests.size(), 1u);
-    EXPECT_EQ(server.manifest.artifactManifests[0].id, "scripts.server");
-    EXPECT_EQ(server.manifest.artifactManifests[0].path,
-              "Build/Manifests/artifact_manifest.scripts.server.json");
-
-    std::ifstream input(created.manifest.root /
-        "Build" / "Manifests" / "artifact_manifest.scripts.server.json");
-    const nlohmann::json scriptManifest = nlohmann::json::parse(input);
-    ASSERT_EQ(scriptManifest["artifacts"].size(), 1u);
-    EXPECT_EQ(scriptManifest["artifacts"][0]["kind"], "script");
-    EXPECT_EQ(scriptManifest["artifacts"][0]["path"],
-              "Build/Artifacts/Scripts/SagaProjectScripts.scripts.dll");
-}
-
-TEST(SagaPackageStagingTest, AppEntrypointStagesPackages)
-{
-    const fs::path root = MakeTempDir("saga_package_stage_app_test");
-    SagaProjectSystem projects(root / "recent_projects.json");
-    const SagaProjectResult created =
-        projects.CreateProject(root, "PackageStageAppProject");
-    ASSERT_TRUE(created.ok) << created.error;
-    WriteFile(
-        created.manifest.root / "Build" / "Manifests" / "assets.json",
-        "{}");
-
-    SagaProduct::SagaApp app;
-    SagaAppConfig config;
-    config.stagePackages = true;
-    config.packageStageProjectRoot = created.manifest.root;
-
-    std::ostringstream out;
-    std::ostringstream err;
-    const int exitCode = app.Run(config, out, err);
-
-    EXPECT_EQ(exitCode, 0);
-    EXPECT_NE(out.str().find("package.status=staged"), std::string::npos);
-    EXPECT_NE(out.str().find("package.clientManifest="), std::string::npos);
-    EXPECT_TRUE(err.str().empty());
 }
 
 TEST(SagaProductWorkflowSmokeTest,
@@ -2025,161 +1740,4 @@ TEST(SagaLocalApprovalGateSmokeTest,
                                         "secure access control"));
 }
 
-TEST(SagaPublishReadinessTest, ValidProjectAndPackagesAreReady)
-{
-    const fs::path root = MakeTempDir("saga_publish_ready_test");
-    SagaProjectSystem projects(root / "recent_projects.json");
-    const SagaProjectResult created =
-        projects.CreateProject(root, "PublishReadyProject");
-    ASSERT_TRUE(created.ok) << created.error;
-    WriteValidPublishPackageInputs(created.manifest.root);
-
-    SagaPublishReadinessRequest request;
-    request.projectRoot = created.manifest.root;
-    request.profile = "shipping-full";
-
-    SagaPublishReadinessService service;
-    const SagaPublishReadinessResult result = service.Check(request);
-
-    EXPECT_TRUE(result.ok);
-    EXPECT_EQ(result.report.readiness.status,
-              SagaShared::Publish::PublishStatus::Ready);
-    EXPECT_TRUE(result.report.readiness.blockers.empty());
-    ASSERT_TRUE(fs::exists(result.reportPath));
-
-    std::ifstream input(result.reportPath);
-    const nlohmann::json report = nlohmann::json::parse(input);
-    EXPECT_EQ(report["status"], "ready");
-    EXPECT_EQ(report["blockers"].size(), 0u);
-}
-
-TEST(SagaPublishReadinessTest, MissingPackageManifestBlocksPublish)
-{
-    const fs::path root = MakeTempDir("saga_publish_missing_package_test");
-    SagaProjectSystem projects(root / "recent_projects.json");
-    const SagaProjectResult created =
-        projects.CreateProject(root, "PublishMissingPackageProject");
-    ASSERT_TRUE(created.ok) << created.error;
-
-    SagaPublishReadinessRequest request;
-    request.projectRoot = created.manifest.root;
-
-    SagaPublishReadinessService service;
-    const SagaPublishReadinessResult result = service.Check(request);
-
-    EXPECT_FALSE(result.ok);
-    EXPECT_EQ(result.report.readiness.status,
-              SagaShared::Publish::PublishStatus::Blocked);
-    ASSERT_FALSE(result.report.readiness.blockers.empty());
-    EXPECT_TRUE(std::any_of(result.report.readiness.blockers.begin(),
-                            result.report.readiness.blockers.end(),
-                            [](const SagaShared::Publish::PublishBlocker& blocker)
-                            {
-                                return blocker.kind ==
-                                    SagaShared::Publish::PublishBlockerKind::
-                                        PackageManifestInvalid;
-                            }));
-}
-
-TEST(SagaPublishReadinessTest, BlockingDiagnosticsBlockPublish)
-{
-    const fs::path root = MakeTempDir("saga_publish_blocking_diagnostics_test");
-    SagaProjectSystem projects(root / "recent_projects.json");
-    const SagaProjectResult created =
-        projects.CreateProject(root, "PublishBlockingDiagnosticsProject");
-    ASSERT_TRUE(created.ok) << created.error;
-    WriteValidPublishPackageInputs(created.manifest.root);
-    const fs::path diagnostics =
-        created.manifest.root / "Build" / "Reports" / "qa.json";
-    WriteFile(diagnostics, R"({
-  "summary": {
-    "hasBlockingDiagnostics": true,
-    "errorCount": 1
-  }
-})");
-
-    SagaPublishReadinessRequest request;
-    request.projectRoot = created.manifest.root;
-    request.diagnosticsInputs.push_back({"qa", diagnostics});
-
-    SagaPublishReadinessService service;
-    const SagaPublishReadinessResult result = service.Check(request);
-
-    EXPECT_FALSE(result.ok);
-    ASSERT_EQ(result.report.readiness.blockers.size(), 1u);
-    EXPECT_EQ(result.report.readiness.blockers[0].kind,
-              SagaShared::Publish::PublishBlockerKind::DiagnosticsFatal);
-}
-
-TEST(SagaPublishReadinessTest, WarningOnlyDiagnosticsProduceReadyWithWarnings)
-{
-    const fs::path root = MakeTempDir("saga_publish_warning_diagnostics_test");
-    SagaProjectSystem projects(root / "recent_projects.json");
-    const SagaProjectResult created =
-        projects.CreateProject(root, "PublishWarningDiagnosticsProject");
-    ASSERT_TRUE(created.ok) << created.error;
-    WriteValidPublishPackageInputs(created.manifest.root);
-    const fs::path diagnostics =
-        created.manifest.root / "Build" / "Reports" / "qa.json";
-    WriteFile(diagnostics, R"({
-  "summary": {
-    "hasBlockingDiagnostics": false,
-    "warningCount": 2
-  }
-})");
-
-    SagaPublishReadinessRequest request;
-    request.projectRoot = created.manifest.root;
-    request.diagnosticsInputs.push_back({"qa", diagnostics});
-
-    SagaPublishReadinessService service;
-    const SagaPublishReadinessResult result = service.Check(request);
-
-    EXPECT_TRUE(result.ok);
-    EXPECT_EQ(result.report.readiness.status,
-              SagaShared::Publish::PublishStatus::ReadyWithWarnings);
-    EXPECT_TRUE(result.report.readiness.blockers.empty());
-    EXPECT_EQ(result.report.diagnosticSummary.warningCount, 1u);
-}
-
-TEST(SagaPublishReadinessTest, AppEntrypointWritesPublishReport)
-{
-    const fs::path root = MakeTempDir("saga_publish_app_entrypoint_test");
-    SagaProjectSystem projects(root / "recent_projects.json");
-    const SagaProjectResult created =
-        projects.CreateProject(root, "PublishAppEntrypointProject");
-    ASSERT_TRUE(created.ok) << created.error;
-    WriteValidPublishPackageInputs(created.manifest.root);
-
-    SagaProduct::SagaApp app;
-    SagaAppConfig config;
-    config.publishCheck = true;
-    config.publishProjectRoot = created.manifest.root;
-
-    std::ostringstream out;
-    std::ostringstream err;
-    const int exitCode = app.Run(config, out, err);
-
-    EXPECT_EQ(exitCode, 0);
-    EXPECT_NE(out.str().find("publish.status=ready"), std::string::npos);
-    EXPECT_NE(out.str().find("publish.blockers=0"), std::string::npos);
-    EXPECT_TRUE(err.str().empty());
-}
-
-TEST(SagaProjectSystemTest, OpenRejectsInvalidProductManifest)
-{
-    const fs::path root = MakeTempDir("saga_invalid_product_manifest_test");
-    SagaProjectSystem projects(root / "recent_projects.json");
-    WriteFile(root / "Project" / "saga.project.json", R"({
-        "schemaVersion": 1,
-        "projectId": 42,
-        "displayName": "Invalid"
-    })");
-
-    const SagaProjectResult opened = projects.OpenProject(root / "Project");
-
-    EXPECT_FALSE(opened.ok);
-    EXPECT_NE(opened.error.find("projectId"), std::string::npos);
-}
-
-} // namespace
+ } // namespace

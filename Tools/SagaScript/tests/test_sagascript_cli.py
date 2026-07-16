@@ -59,6 +59,22 @@ def write_source(root: Path, name: str, body: str) -> Path:
     return path
 
 
+def write_project_manifest(root: Path, schema_version: int = 0) -> Path:
+    root.mkdir(parents=True, exist_ok=True)
+    path = root / "Project.sagaproj"
+    path.write_text(
+        json.dumps(
+            {
+                "schemaVersion": schema_version,
+                "projectId": "sagascript-test",
+                "displayName": "SagaScript Test",
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
 def valid_server_source() -> str:
     return """
 namespace Game;
@@ -195,6 +211,7 @@ def run_apply_block_edit(evaluation: Path, source_root: Path, out_dir: Path) -> 
 
 
 def run_compile(source: Path, manifest_dir: Path, artifact_dir: Path, project_root: Path) -> subprocess.CompletedProcess[str]:
+    write_project_manifest(project_root)
     return run_cli(
         "compile",
         "--source",
@@ -339,6 +356,7 @@ def test_valid_server_binding_compiles_script_artifacts() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         source = write_source(root / "Scripts", "Inventory.cs", valid_server_source())
+        write_project_manifest(root)
         manifest_dir = root / "Build" / "Manifests"
         artifact_dir = root / "Build" / "Artifacts" / "Scripts"
         diagnostics_path = root / "Build" / "Reports" / "sagascript_diagnostics.json"
@@ -372,6 +390,25 @@ def test_valid_server_binding_compiles_script_artifacts() -> None:
         assert artifacts["artifacts"][0]["assemblyPath"] == "Build/Artifacts/Scripts/SagaProjectScripts.scripts.dll"
         assert generic["artifacts"][0]["kind"] == "script"
         assert diagnostics["summary"]["hasBlockingDiagnostics"] is False
+
+
+def test_compile_rejects_unknown_project_schema() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        source = write_source(root / "Scripts", "Inventory.cs", valid_server_source())
+        write_project_manifest(root, schema_version=1)
+
+        result = run_cli(
+            "compile",
+            "--source",
+            str(source),
+            "--project-root",
+            str(root),
+            "--json",
+        )
+
+        assert result.returncode == 2
+        assert ".sagaproj requires schemaVersion 0" in result.stderr
 
 
 def test_missing_authority_fails_validation() -> None:

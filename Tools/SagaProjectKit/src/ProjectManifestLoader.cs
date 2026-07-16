@@ -163,6 +163,16 @@ internal sealed class ProjectManifestLoader
         var fullInput = Path.GetFullPath(projectInput);
         if (File.Exists(fullInput))
         {
+            if (!string.Equals(Path.GetExtension(fullInput), ".sagaproj",
+                               StringComparison.OrdinalIgnoreCase))
+            {
+                diagnostics.Add(Error(
+                    "Project.Input.UnsupportedFileType",
+                    "Input",
+                    fullInput,
+                    "Explicit project input must be a .sagaproj file."));
+                return "";
+            }
             return fullInput;
         }
 

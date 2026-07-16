@@ -3,19 +3,19 @@
 
 #include "SagaEditor/Project/ProjectManager.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <utility>
+#include <vector>
 
 namespace SagaEditor
 {
 namespace
 {
 
-constexpr const char* kProjectManifestFile = "saga.project.json";
-
-[[nodiscard]] std::filesystem::path ResolveProjectRoot(
+[[nodiscard]] std::filesystem::path ResolveProjectManifest(
     const std::filesystem::path& input)
 {
     if (input.empty())
@@ -26,28 +26,29 @@ constexpr const char* kProjectManifestFile = "saga.project.json";
     std::error_code ec;
     if (std::filesystem::is_regular_file(input, ec))
     {
-        return std::filesystem::absolute(input.parent_path(), ec);
+        if (input.extension() != ".sagaproj")
+            return {};
+        return std::filesystem::weakly_canonical(input, ec);
     }
 
-    return std::filesystem::absolute(input, ec);
-}
+    if (!std::filesystem::is_directory(input, ec))
+        return {};
 
-[[nodiscard]] std::string DirectoryDisplayName(
-    const std::filesystem::path& root)
-{
-    const std::string filename = root.filename().string();
-    return filename.empty() ? root.string() : filename;
+    std::vector<std::filesystem::path> candidates;
+    for (const auto& entry : std::filesystem::directory_iterator(input, ec))
+    {
+        if (entry.is_regular_file() && entry.path().extension() == ".sagaproj")
+            candidates.push_back(entry.path());
+    }
+    if (ec || candidates.size() != 1)
+        return {};
+    return std::filesystem::weakly_canonical(candidates.front(), ec);
 }
 
 [[nodiscard]] bool ReadManifest(
     const std::filesystem::path& manifestPath,
     ProjectInfo& project)
 {
-    if (!std::filesystem::exists(manifestPath))
-    {
-        return true;
-    }
-
     std::ifstream input(manifestPath);
     if (!input.is_open())
     {
@@ -64,23 +65,22 @@ constexpr const char* kProjectManifestFile = "saga.project.json";
         return false;
     }
 
-    if (json.contains("displayName") && json["displayName"].is_string())
-    {
-        project.name = json["displayName"].get<std::string>();
-    }
-    else if (json.contains("name") && json["name"].is_string())
-    {
-        project.name = json["name"].get<std::string>();
-    }
+    if (!json.is_object() || !json.contains("schemaVersion") ||
+        !json["schemaVersion"].is_number_integer() ||
+        json["schemaVersion"].get<int>() != 0 ||
+        !json.contains("projectId") || !json["projectId"].is_string() ||
+        json["projectId"].get<std::string>().empty() ||
+        !json.contains("displayName") || !json["displayName"].is_string() ||
+        json["displayName"].get<std::string>().empty())
+        return false;
 
-    if (json.contains("engineVersion") && json["engineVersion"].is_string())
-    {
-        project.engineVersion = json["engineVersion"].get<std::string>();
-    }
-    else if (json.contains("engine") && json["engine"].is_string())
-    {
-        project.engineVersion = json["engine"].get<std::string>();
-    }
+    project.name = json["displayName"].get<std::string>();
+    if (json.contains("engineCompatibility") &&
+        json["engineCompatibility"].is_object() &&
+        json["engineCompatibility"].contains("targetVersion") &&
+        json["engineCompatibility"]["targetVersion"].is_string())
+        project.engineVersion =
+            json["engineCompatibility"]["targetVersion"].get<std::string>();
 
     return true;
 }
@@ -114,13 +114,14 @@ ProjectManager::~ProjectManager() = default;
 
 bool ProjectManager::OpenProject(const std::string& path)
 {
-    const std::filesystem::path root = ResolveProjectRoot(path);
-    if (root.empty())
+    const std::filesystem::path manifest = ResolveProjectManifest(path);
+    if (manifest.empty())
     {
         return false;
     }
 
     std::error_code ec;
+    const std::filesystem::path root = manifest.parent_path();
     if (!std::filesystem::exists(root, ec) ||
         !std::filesystem::is_directory(root, ec))
     {
@@ -129,16 +130,10 @@ bool ProjectManager::OpenProject(const std::string& path)
 
     ProjectInfo next;
     next.rootPath = root.string();
-    next.name = DirectoryDisplayName(root);
 
-    if (!ReadManifest(root / kProjectManifestFile, next))
+    if (!ReadManifest(manifest, next))
     {
         return false;
-    }
-
-    if (next.name.empty())
-    {
-        next.name = DirectoryDisplayName(root);
     }
 
     m_impl->current = std::move(next);

@@ -68,7 +68,7 @@ conanfile.py / conanfile.txt where applicable
 Saga project:
 
 ```txt
-saga.project.json
+.sagaproj
 forge.toml
 Scripts/
 Assets/
@@ -504,7 +504,7 @@ Example:
 
 ```toml
 [saga]
-projectManifest = "saga.project.json"
+projectManifest = ".sagaproj"
 workspaceRoot = "."
 defaultProfile = "editor-evaluation"
 ```
@@ -513,14 +513,14 @@ Fields:
 
 | Field                |   Type | Required | Status   | Meaning                       |
 | -------------------- | -----: | -------: | -------- | ----------------------------- |
-| `projectManifest`    | string |       no | Proposed | Path to `saga.project.json`   |
+| `projectManifest`    | string |       no | Proposed | Path to `.sagaproj`   |
 | `workspaceRoot`      | string |       no | Proposed | Workspace root override       |
 | `defaultProfile`     | string |       no | Proposed | Default build profile         |
 | `requireSagaProject` |   bool |       no | Proposed | Fail if Saga manifest missing |
 
 Rules:
 
-* `saga.project.json` remains product/project manifest truth.
+* `.sagaproj` remains product/project manifest truth.
 * `forge.toml` may reference it but should not duplicate all project metadata.
 * Standalone C++ projects should omit `[saga]`.
 
@@ -528,14 +528,14 @@ Bad:
 
 ```toml
 [saga]
-# giant duplicate of entire saga.project.json
+# giant duplicate of entire .sagaproj
 ```
 
 Good:
 
 ```toml
 [saga]
-projectManifest = "saga.project.json"
+projectManifest = ".sagaproj"
 defaultProfile = "editor-evaluation"
 ```
 
@@ -955,7 +955,7 @@ generator = "Ninja"
 mode = "conan"
 
 [saga]
-projectManifest = "saga.project.json"
+projectManifest = ".sagaproj"
 defaultProfile = "editor-evaluation"
 
 mode = "compile"
@@ -1030,7 +1030,7 @@ mode = "conan"
 lockfile = "forge.lock"
 
 [saga]
-projectManifest = "saga.project.json"
+projectManifest = ".sagaproj"
 defaultProfile = "editor-evaluation"
 
 mode = "compile"
@@ -1303,7 +1303,7 @@ Saga-specific sections are optional.
 Reserved sections must be honestly marked until implementation exists.
 Unknown fields fail under --strict.
 Reports and manifests are first-class outputs.
-forge.toml must not duplicate saga.project.json entirely.
+forge.toml must not duplicate .sagaproj entirely.
 ```
 
 The schema should grow slowly.

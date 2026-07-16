@@ -209,19 +209,17 @@ TEST(SagaProjectCatalogTest, OpensExplicitCanonicalSchemaZeroProject)
     EXPECT_EQ(project.projectId, "starter-arena");
     EXPECT_EQ(project.schemaVersion, 0);
     EXPECT_EQ(project.canonicalManifestPath, fs::weakly_canonical(manifest));
-    EXPECT_FALSE(project.legacyCompatibility);
     EXPECT_EQ(fs::file_size(manifest), before);
 }
 
 TEST(SagaProjectCatalogTest, DirectoryPrefersSagaprojAndRejectsAmbiguity)
 {
     const auto root = Temp("saga_launcher_catalog_directory");
-    Write(root / "saga.project.json",
-          R"({"schemaVersion":1,"projectId":"legacy","displayName":"Legacy"})");
+    Write(root / "project.json",
+          R"({"schemaVersion":0,"projectId":"ignored","displayName":"Ignored"})");
     (void)WriteProject(root);
     const auto preferred = SagaProjectCatalog{}.OpenProject(root);
     ASSERT_TRUE(preferred.valid);
-    EXPECT_FALSE(preferred.legacyCompatibility);
 
     (void)WriteProject(root, "second", "Second");
     const auto ambiguous = SagaProjectCatalog{}.OpenProject(root);
@@ -231,20 +229,20 @@ TEST(SagaProjectCatalogTest, DirectoryPrefersSagaprojAndRejectsAmbiguity)
               SagaLauncherProjectDiagnostics::ManifestAmbiguous);
 }
 
-TEST(SagaProjectCatalogTest, LegacyFallbackIsExplicitlyCompatibilityOnly)
+TEST(SagaProjectCatalogTest, NonSagaprojManifestIsRejected)
 {
-    const auto root = Temp("saga_launcher_catalog_legacy");
-    Write(root / "saga.project.json",
-          R"({"schemaVersion":1,"projectId":"legacy","displayName":"Legacy"})");
+    const auto root = Temp("saga_launcher_catalog_non_sagaproj");
+    Write(root / "project.json",
+          R"({"schemaVersion":0,"projectId":"ignored","displayName":"Ignored"})");
     const auto project = SagaProjectCatalog{}.OpenProject(root);
-    ASSERT_TRUE(project.valid);
-    EXPECT_TRUE(project.legacyCompatibility);
+    ASSERT_FALSE(project.valid);
     ASSERT_FALSE(project.diagnostics.empty());
-    EXPECT_EQ(project.diagnostics.front().severity, SagaLauncherDiagnosticSeverity::Warning);
+    EXPECT_EQ(project.diagnostics.front().diagnosticId,
+              SagaLauncherProjectDiagnostics::ManifestMissing);
 
-    const auto explicitLegacy = SagaProjectCatalog{}.OpenProject(root / "saga.project.json");
-    ASSERT_FALSE(explicitLegacy.valid);
-    EXPECT_EQ(explicitLegacy.diagnostics.front().diagnosticId,
+    const auto explicitJson = SagaProjectCatalog{}.OpenProject(root / "project.json");
+    ASSERT_FALSE(explicitJson.valid);
+    EXPECT_EQ(explicitJson.diagnostics.front().diagnosticId,
               SagaLauncherProjectDiagnostics::ManifestMissing);
 }
 
@@ -275,21 +273,18 @@ TEST(SagaProjectCatalogTest, InvalidSchemaAndPrivatePathsAreRejected)
             .has_value());
 }
 
-TEST(SagaRecentProjectsStoreTest, MigratesOnlyAfterSuccessfulRememberAndDeduplicates)
+TEST(SagaRecentProjectsStoreTest, RejectsUnversionedStorageAndDeduplicatesCanonicalEntries)
 {
     const auto root = Temp("saga_launcher_recent_migration");
-    const auto legacyRoot = root / "Legacy";
-    Write(legacyRoot / "saga.project.json",
-          R"({"schemaVersion":1,"projectId":"legacy","displayName":"Legacy"})");
     const auto storage = root / "config" / "recent_projects.json";
     Write(storage,
           nlohmann::json({{"recentProjects",
                            nlohmann::json::array(
-                               {{{"displayName", "Legacy"}, {"root", legacyRoot.string()}}})}})
+                               {{{"displayName", "Unversioned"}, {"root", root.string()}}})}})
               .dump(2));
     const auto original = fs::file_size(storage);
     SagaRecentProjectsStore store(storage);
-    ASSERT_EQ(store.Load().size(), 1u);
+    EXPECT_TRUE(store.Load().empty());
     EXPECT_EQ(fs::file_size(storage), original);
 
     const auto manifest = WriteProject(root / "StarterArena");
@@ -298,7 +293,7 @@ TEST(SagaRecentProjectsStoreTest, MigratesOnlyAfterSuccessfulRememberAndDeduplic
     ASSERT_TRUE(store.Remember(project, error)) << error;
     ASSERT_TRUE(store.Remember(project, error)) << error;
     const auto recent = store.Load();
-    ASSERT_EQ(recent.size(), 2u);
+    ASSERT_EQ(recent.size(), 1u);
     EXPECT_EQ(recent.front().projectId, "starter-arena");
     nlohmann::json persisted;
     std::ifstream(storage) >> persisted;

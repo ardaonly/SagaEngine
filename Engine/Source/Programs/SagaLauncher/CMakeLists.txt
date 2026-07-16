@@ -20,8 +20,6 @@ saga_add_program(SagaLauncher
         Private/Processes/SagaProcessService.h
         Private/Projects/SagaProjectCatalog.cpp
         Private/Projects/SagaProjectCatalog.h
-        Private/Projects/SagaProjectSystem.cpp
-        Private/Projects/SagaProjectSystem.h
         Private/Projects/SagaSessionModel.cpp
         Private/Projects/SagaSessionModel.h
         Private/Projects/SagaWorkspaceResolver.cpp
@@ -34,6 +32,8 @@ saga_add_program(SagaLauncher
         Private/Reports/SagaProductWorkflowSmokeReport.h
         Private/Targets/SagaLauncherTargets.cpp
         Private/Targets/SagaLauncherTargets.h
+        Private/Workflows/SagaScriptGate.cpp
+        Private/Workflows/SagaScriptGate.h
 )
 
 saga_add_program(SagaLauncher

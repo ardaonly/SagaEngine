@@ -318,6 +318,19 @@ def test_unknown_schema_version_fails() -> None:
         )
 
 
+def test_non_sagaproj_manifest_is_rejected() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp) / "Project"
+        manifest = root / ("saga.project" + ".json")
+        write_json(manifest, valid_manifest())
+        out = Path(tmp) / "report.json"
+
+        result = run_cli("validate", "--project", str(manifest), "--out", str(out))
+
+        assert result.returncode == 1
+        assert load_report(out)["diagnostics"][0]["code"] == "Project.Input.UnsupportedFileType"
+
+
 def test_project_relative_path_rules_are_enforced() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         manifest_payload = valid_manifest()
@@ -2401,6 +2414,7 @@ def run_all() -> None:
         test_valid_project_report_passed,
         test_missing_required_field_fails,
         test_unknown_schema_version_fails,
+        test_non_sagaproj_manifest_is_rejected,
         test_project_relative_path_rules_are_enforced,
         test_missing_referenced_profile_fails,
         test_missing_input_uses_deterministic_exit_code,

@@ -8,11 +8,8 @@
 #include "ProductIntegration/SagaLocalCollaborationMetadataReports.h"
 #include "ProductIntegration/SagaLocalWorkspaceTransactionReport.h"
 #include "Launcher/SagaLauncherWindow.h"
-#include "ProductIntegration/SagaPackageStaging.h"
-#include "Projects/SagaProjectSystem.h"
 #include "Reports/SagaProductWorkflowSmokeReport.h"
-#include "ProductIntegration/SagaPublishReadiness.h"
-#include "ProductIntegration/SagaScriptGate.h"
+#include "Workflows/SagaScriptGate.h"
 
 #include <QApplication>
 #include <QByteArray>
@@ -68,8 +65,7 @@ constexpr int kExitConfigurationFailure = 2;
 [[nodiscard]] bool ShouldUsePreparationFlow(
     const SagaAppConfig& config) noexcept
 {
-    return config.publishCheck ||
-        config.firstPlayableHumanCapture ||
+    return config.firstPlayableHumanCapture ||
         config.firstPlayableCheck ||
         config.localWorkspaceApprovalGateSmoke ||
         config.localWorkspaceSliceSmoke ||
@@ -78,7 +74,6 @@ constexpr int kExitConfigurationFailure = 2;
         config.localWorkspacePresenceLockSmoke ||
         config.localWorkspaceTransactionSmoke ||
         config.workflowSmoke ||
-        config.stagePackages ||
         config.validateSagaScript ||
         config.prepareOnly ||
         config.target == SagaProductTargetKind::Runtime ||
@@ -240,7 +235,7 @@ int SagaApp::Run(const SagaAppConfig& config,
     if (config.validateSagaScript)
     {
         SagaScriptGateRequest request;
-        request.projectRoot = config.sagaScriptProjectRoot;
+        request.projectManifest = config.sagaScriptProjectManifest;
         request.forgeExecutable = config.forgeExecutable;
         request.sagaScriptExecutable = config.sagaScriptExecutable;
 
@@ -562,68 +557,6 @@ int SagaApp::Run(const SagaAppConfig& config,
         out << "approval_gate.report=" << result.reportPath.string() << '\n';
         out << "approval_gate.status=" << result.status << '\n';
         return kExitOk;
-    }
-
-    if (config.stagePackages)
-    {
-        SagaPackageStagingRequest request;
-        request.projectRoot = config.packageStageProjectRoot;
-        request.profile = config.packageProfile;
-        request.targetPlatform = config.targetPlatform;
-        request.runtimeCompatibilityVersion =
-            config.runtimeCompatibilityVersion;
-        request.reportPath = config.packageStageReportPath;
-
-        SagaPackageStagingService service;
-        const SagaPackageStagingResult result = service.Stage(request);
-
-        out << "package.report=" << result.paths.reportPath.string() << '\n';
-        out << "package.clientManifest="
-            << result.paths.clientPackageManifest.string() << '\n';
-        out << "package.serverManifest="
-            << result.paths.serverPackageManifest.string() << '\n';
-        out << "package.status=" << (result.ok ? "staged" : "blocked")
-            << '\n';
-        for (const SagaProductDiagnostic& diagnostic : result.diagnostics)
-        {
-            WriteProductDiagnostic(err, diagnostic);
-        }
-
-        return result.ok ? kExitOk : kExitStartupFailure;
-    }
-
-    if (config.publishCheck)
-    {
-        std::string diagnosticsError;
-        SagaPublishReadinessRequest request;
-        request.projectRoot = config.publishProjectRoot;
-        request.profile = config.publishProfile;
-        request.reportPath = config.publishReportPath;
-        request.diagnosticsInputs =
-            SagaPublishReadinessService::ParseDiagnosticsInputs(
-                config.publishDiagnostics,
-                diagnosticsError);
-        if (!diagnosticsError.empty())
-        {
-            err << diagnosticsError << '\n';
-            return kExitStartupFailure;
-        }
-
-        SagaPublishReadinessService service;
-        const SagaPublishReadinessResult result = service.Check(request);
-
-        out << "publish.report=" << result.reportPath.string() << '\n';
-        out << "publish.status="
-            << ToString(result.report.readiness.status) << '\n';
-        out << "publish.blockers="
-            << result.report.readiness.blockers.size() << '\n';
-        for (const auto& blocker : result.report.readiness.blockers)
-        {
-            err << "publish.blocker.kind=" << ToString(blocker.kind) << '\n';
-            err << "publish.blocker.message=" << blocker.message << '\n';
-        }
-
-        return result.ok ? kExitOk : kExitStartupFailure;
     }
 
     std::string productInfoError;

@@ -69,7 +69,6 @@ enum class SagaLauncherWorkspaceSourceKind
 {
     Builtin,
     ProjectOverlay,
-    LegacyWorkspace,
 };
 
 enum class SagaLauncherTargetKind
@@ -121,7 +120,6 @@ struct SagaLauncherProjectSummary
     std::filesystem::path canonicalManifestPath;
     int schemaVersion = -1;
     bool valid = false;
-    bool legacyCompatibility = false;
     std::vector<SagaLauncherDiagnostic> diagnostics;
 };
 

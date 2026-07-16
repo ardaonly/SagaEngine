@@ -1,8 +1,9 @@
 /// @file SagaScriptGate.cpp
 /// @brief Product-owned SagaScript validation gate orchestration.
 
-#include "ProductIntegration/SagaScriptGate.h"
+#include "Workflows/SagaScriptGate.h"
 #include "Processes/SagaProcessService.h"
+#include "Projects/SagaProjectCatalog.h"
 
 #include <ostream>
 #include <utility>
@@ -11,8 +12,6 @@ namespace SagaProduct
 {
 namespace
 {
-
-constexpr const char* kProjectManifestFile = "saga.project.json";
 
 [[nodiscard]] SagaProductDiagnostic MakeSagaScriptDiagnostic(
     const char* diagnosticId,
@@ -30,14 +29,16 @@ constexpr const char* kProjectManifestFile = "saga.project.json";
     return diagnostic;
 }
 
-[[nodiscard]] std::filesystem::path AbsoluteProjectRoot(
-    const std::filesystem::path& projectRoot)
+[[nodiscard]] std::filesystem::path CanonicalProjectRoot(
+    const std::filesystem::path& projectManifest)
 {
-    if (projectRoot.empty())
+    if (projectManifest.empty() || projectManifest.extension() != ".sagaproj")
     {
         return {};
     }
-    return std::filesystem::absolute(projectRoot);
+    std::error_code error;
+    const auto manifest = std::filesystem::weakly_canonical(projectManifest, error);
+    return error ? std::filesystem::path{} : manifest.parent_path();
 }
 
 } // namespace
@@ -72,10 +73,10 @@ SagaScriptGate::SagaScriptGate(std::unique_ptr<ISagaToolProcessRunner> runner)
                       : std::make_unique<SagaToolProcessRunner>())
 {}
 
-SagaScriptGatePaths SagaScriptGate::PathsForProject(
-    const std::filesystem::path& projectRoot)
+SagaScriptGatePaths SagaScriptGate::PathsForManifest(
+    const std::filesystem::path& projectManifest)
 {
-    const std::filesystem::path root = AbsoluteProjectRoot(projectRoot);
+    const std::filesystem::path root = CanonicalProjectRoot(projectManifest);
     SagaScriptGatePaths paths;
     paths.sourceRoot = root / "Scripts";
     paths.manifestOutputDirectory = root / "Build" / "Manifests";
@@ -88,8 +89,8 @@ SagaScriptGatePaths SagaScriptGate::PathsForProject(
 SagaToolProcessRequest SagaScriptGate::BuildProcessRequest(
     const SagaScriptGateRequest& request)
 {
-    const std::filesystem::path root = AbsoluteProjectRoot(request.projectRoot);
-    const SagaScriptGatePaths paths = PathsForProject(root);
+    const std::filesystem::path root = CanonicalProjectRoot(request.projectManifest);
+    const SagaScriptGatePaths paths = PathsForManifest(request.projectManifest);
 
     SagaToolProcessRequest process;
     process.executablePath = request.forgeExecutable;
@@ -125,24 +126,30 @@ SagaScriptGateResult SagaScriptGate::ValidateProject(
     std::ostream& err)
 {
     SagaScriptGateResult result;
-    const std::filesystem::path root = AbsoluteProjectRoot(request.projectRoot);
-    result.paths = PathsForProject(root);
+    const std::filesystem::path manifestPath = request.projectManifest;
+    const SagaLauncherProjectSummary project =
+        SagaProjectCatalog{}.OpenProject(manifestPath);
+    const std::filesystem::path root = project.canonicalRoot;
+    result.paths = PathsForManifest(project.canonicalManifestPath);
 
-    if (root.empty())
+    if (manifestPath.empty() || manifestPath.extension() != ".sagaproj" ||
+        !std::filesystem::is_regular_file(manifestPath))
     {
         result.diagnostics.push_back(MakeSagaScriptDiagnostic(
             SagaProductDiagnostics::SagaScriptProjectMissing,
-            "SagaScript validation requires a project root."));
+            "SagaScript validation requires a .sagaproj manifest.",
+            manifestPath));
         return result;
     }
 
-    const std::filesystem::path manifestPath = root / kProjectManifestFile;
-    if (!std::filesystem::exists(manifestPath))
+    if (!project.valid)
     {
+        const std::string message = project.diagnostics.empty()
+            ? "SagaScript validation rejected the .sagaproj manifest."
+            : project.diagnostics.front().message;
         result.diagnostics.push_back(MakeSagaScriptDiagnostic(
             SagaProductDiagnostics::SagaScriptManifestMissing,
-            "SagaScript validation requires saga.project.json: " +
-                manifestPath.string(),
+            message,
             manifestPath));
         return result;
     }
@@ -181,7 +188,7 @@ SagaScriptGateResult SagaScriptGate::ValidateProject(
     }
 
     SagaScriptGateRequest normalizedRequest = request;
-    normalizedRequest.projectRoot = root;
+    normalizedRequest.projectManifest = project.canonicalManifestPath;
     result.processRequest = BuildProcessRequest(normalizedRequest);
 
     const SagaToolProcessResult processResult =

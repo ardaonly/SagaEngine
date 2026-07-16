@@ -393,6 +393,16 @@ internal sealed class ProjectResolver
         var fullInput = Path.GetFullPath(projectInput);
         if (File.Exists(fullInput))
         {
+            if (!string.Equals(Path.GetExtension(fullInput), ".sagaproj",
+                               StringComparison.OrdinalIgnoreCase))
+            {
+                diagnostics.Add(Error(
+                    "Package.Project.UnsupportedFileType",
+                    "Project",
+                    fullInput,
+                    "Explicit project input must be a .sagaproj file."));
+                return "";
+            }
             return fullInput;
         }
         if (!Directory.Exists(fullInput))

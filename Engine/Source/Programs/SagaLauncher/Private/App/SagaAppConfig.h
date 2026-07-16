@@ -31,11 +31,7 @@ struct SagaAppConfig
     std::filesystem::path versionInfoPath;
     std::filesystem::path launcherDistributionReportPath;
     std::filesystem::path builtInWorkspaceRoot;
-    std::filesystem::path sagaScriptProjectRoot;
-    std::filesystem::path packageStageProjectRoot;
-    std::filesystem::path packageStageReportPath;
-    std::filesystem::path publishProjectRoot;
-    std::filesystem::path publishReportPath;
+    std::filesystem::path sagaScriptProjectManifest;
     std::filesystem::path workflowProjectPath;
     std::filesystem::path workflowReportPath;
     std::filesystem::path firstPlayableOutputDirectory;
@@ -57,10 +53,6 @@ struct SagaAppConfig
     std::filesystem::path sagaScriptExecutable = "sagascript";
     std::optional<std::filesystem::path> packageManifestPath;
     std::string           workspaceSelector = "builtin:basic";
-    std::string           packageProfile = "shipping-full";
-    std::string           targetPlatform = "linux-x64";
-    std::string           runtimeCompatibilityVersion = "0.0.8";
-    std::string           publishProfile = "shipping-full";
     std::string           workflowProfile = "project_readiness";
     std::string           localWorkspaceActorId = "local.actor";
     std::string           localWorkspaceOperationKind = "InspectProject";
@@ -71,11 +63,8 @@ struct SagaAppConfig
     std::string           localWorkspaceSliceName;
     std::string           localWorkspaceApprovalState =
         "approved-local-evaluation";
-    std::vector<std::string> publishDiagnostics;
     SagaProductTargetKind target = SagaProductTargetKind::Editor;
     bool                  validateSagaScript = false;
-    bool                  stagePackages = false;
-    bool                  publishCheck = false;
     bool                  workflowSmoke = false;
     bool                  firstPlayableCheck = false;
     bool                  firstPlayableHumanCapture = false;
