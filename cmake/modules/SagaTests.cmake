@@ -1706,6 +1706,16 @@ function(saga_setup_tests)
     # editor unit-test link graph.
     find_program(_saga_python3 NAMES python3)
     if(_saga_python3 AND
+       EXISTS "${SAGA_ROOT}/Tools/Developer/RepoAudit/tests/test_saga_repo_xray.py")
+        add_test(NAME RepoAuditTests
+            COMMAND "${_saga_python3}" -m unittest discover
+                -s "${SAGA_ROOT}/Tools/Developer/RepoAudit/tests"
+                -p "test_*.py")
+        set_tests_properties(RepoAuditTests PROPERTIES
+            LABELS "repository;architecture;python")
+    endif()
+
+    if(_saga_python3 AND
        EXISTS "${SAGA_ROOT}/Tools/Developer/DistributionCheck/tests/test_linux_distribution_whitelist.py")
         add_test(NAME SagaLinuxDistributionWhitelistTests
             COMMAND "${_saga_python3}"
