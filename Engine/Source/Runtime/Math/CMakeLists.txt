@@ -1,6 +1,7 @@
 saga_add_runtime_module(Math
     MODULE_DIR Engine/Source/Runtime/Math
     TARGET SagaEngine
+    PUBLIC_DEPS glm::glm
     SOURCES
         Private/SagaEngine/Math/DeterministicMath.cpp
         Private/SagaEngine/Math/Mat4.cpp

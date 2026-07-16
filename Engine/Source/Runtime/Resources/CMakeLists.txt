@@ -1,6 +1,7 @@
 saga_add_runtime_module(Resources
     MODULE_DIR Engine/Source/Runtime/Resources
     TARGET SagaEngine
+    PRIVATE_DEPS nlohmann_json::nlohmann_json
     SOURCES
         Private/SagaEngine/Resources/AssetIdResolver.cpp
         Private/SagaEngine/Resources/AssetIdentityManifestLoader.cpp

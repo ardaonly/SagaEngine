@@ -1,6 +1,13 @@
 saga_add_runtime_module(Scripting
     MODULE_DIR Engine/Source/Runtime/Scripting
     TARGET SagaEngine
+    PRIVATE_DEPS
+        nlohmann_json::nlohmann_json
+        OpenSSL::Crypto
+        ${SAGA_DOTNET_NETHOST_LIBRARY}
+        ${CMAKE_DL_LIBS}
+    PRIVATE_INCLUDES
+        ${SAGA_DOTNET_HOST_INCLUDE_DIR}
     SOURCES
         Private/SagaEngine/Scripting/CSharpScriptHost.cpp
         Private/SagaEngine/Scripting/ScriptBindingManifestLoader.cpp
