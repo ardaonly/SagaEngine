@@ -1,6 +1,9 @@
 saga_add_editor_module(EditorAuthoring
     MODULE_DIR Engine/Source/Editor/EditorAuthoring
     TARGET SagaEditorLib
+    PRIVATE_DEPS
+        nlohmann_json::nlohmann_json
+        OpenSSL::Crypto
     SOURCES
         Private/SagaEditor/Authoring/DiagnosticsPanelView.cpp
         Private/SagaEditor/Authoring/EditorShellCustomizationReport.cpp

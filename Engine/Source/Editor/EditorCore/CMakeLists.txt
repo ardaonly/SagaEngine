@@ -1,6 +1,7 @@
 saga_add_editor_module(EditorCore
     MODULE_DIR Engine/Source/Editor/EditorCore
     TARGET SagaEditorLib
+    PRIVATE_DEPS nlohmann_json::nlohmann_json
     SOURCES
         Private/SagaEditor/Commands/CommandDispatcher.cpp
         Private/SagaEditor/Commands/CommandRegistry.cpp

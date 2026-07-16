@@ -33,7 +33,6 @@ function(saga_create_engine_targets)
     saga_get_registered_sources(SagaPlatformSDL SAGA_PLATFORM_SDL_SOURCES)
     saga_get_registered_sources(SagaBackend BACKEND_SOURCES)
     saga_get_registered_sources(SagaSandboxLib SANDBOX_SOURCES)
-    saga_get_registered_sources(SagaEditorLib EDITOR_SOURCES)
     saga_get_registered_sources(SagaEditorLabLib EDITORLAB_SOURCES)
     saga_get_registered_sources(SagaProductLib SAGA_PRODUCT_SOURCES)
     saga_get_registered_sources(SagaCoreLog CORE_LOG_SOURCES)
@@ -470,12 +469,11 @@ function(saga_create_engine_targets)
     # --- Editor Library -------------------------------------------------------
     # All editor logic lives in editor modules; the SagaEditor program is a thin launcher.
     # Qt handles the WinMain shim on Windows via qt_add_executable(WIN32).
+    saga_create_registered_object_modules(
+        SagaEditorLib SAGA_EDITOR_MODULE_TARGETS)
     add_library(SagaEditorLib STATIC)
     saga_apply_compiler_flags(SagaEditorLib)
-
-    target_sources(SagaEditorLib PRIVATE
-        ${EDITOR_SOURCES}
-    )
+    saga_compose_registered_objects(SagaEditorLib)
 
     target_include_directories(SagaEditorLib PUBLIC
         ${SAGA_ROOT}/Engine/Source/Editor/EditorCore/Public
@@ -485,12 +483,7 @@ function(saga_create_engine_targets)
         ${SAGA_ROOT}/Engine/Source/Editor/VisualBlocksEditor/Public
         ${SAGA_ROOT}/Engine/Source/Editor/EditorCollaboration/Public
     )
-    target_include_directories(SagaEditorLib PRIVATE
-        ${SAGA_OPENSSL_INCLUDE_DIRS}
-    )
-
-    # Qt is already pulled in via saga_link_thirdparty, but SagaEditorLib needs
-    # qt_standard_project_setup() to have run (done in the root CMakeLists).
+    # Qt remains public because SagaEditorQt public headers expose Qt widgets.
     target_link_libraries(SagaEditorLib PUBLIC
         Qt6::Core
         Qt6::Widgets
@@ -501,7 +494,6 @@ function(saga_create_engine_targets)
         SagaShared
         SagaCollaboration
         SagaBackend
-        nlohmann_json::nlohmann_json
         OpenSSL::Crypto
     )
 
