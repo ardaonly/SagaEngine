@@ -10,14 +10,10 @@
 #     Tests/Contract/      -> consumer and generated-artifact contracts
 #     Tests/Support/       -> test-only infrastructure
 #
-# All four targets share the same include paths and link against the same
-# stack (SagaEngine + SagaRuntimeLib + SagaServerLib + SagaBackend + GTest +
-# rapidcheck) so you can move a
-# test file between directories without touching any CMake.
-#
-# Each target is registered with `add_test` so a single `ctest` invocation
-# at the top level runs the lot; the per-target names let CI carve them up
-# when Replication or Stress are too slow to run on every commit.
+# Public-consumer, private white-box, GPU, integration and stress tests use
+# separate targets.  That ownership is deliberate: a private backend test must
+# not turn its include paths into installed API evidence, and GPU execution is
+# opt-in on developer machines.
 
 function(saga_setup_tests)
     if(NOT BUILD_TESTING)
@@ -94,6 +90,20 @@ function(saga_setup_tests)
     )
     set(SAGA_GRAPHICS_INSTALLED_CONSUMER_SOURCE_DIR
         "${SAGA_ROOT}/Tests/Contract/InstalledConsumer/SagaGraphicsInstalledConsumerProject"
+    )
+    set(SAGA_DILIGENT_WHITEBOX_TEST_SOURCES
+        "${SAGA_ROOT}/Tests/Unit/Render/DiligentFrameSlotTrackerTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/DiligentGpuTimelineTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/DiligentOverlayRendererTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/DiligentRenderBackendTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/GraphicsDiligentBackendBindingTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/GraphicsDiligentBackendLifecycleTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/GraphicsDiligentBackendNativeBufferTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/GraphicsDiligentBackendNativeSamplerTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/GraphicsDiligentBackendNativeShaderPipelineTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/GraphicsDiligentBackendNativeTextureTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/GraphicsDiligentBackendResourceRegistryTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/SagaDiligentRuntimeTests.cpp"
     )
     set(SAGA_DIAGNOSTIC_REPORT_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/Diagnostics/DiagnosticReportTests.cpp"
@@ -247,6 +257,7 @@ function(saga_setup_tests)
         ${SAGA_ZONE_SERVER_DIAGNOSTICS_TEST_SOURCE}
         ${SAGA_SERVER_LIFECYCLE_DIAGNOSTICS_TEST_SOURCE}
         ${SAGA_MOVEMENT_DIRTY_REPLICATION_BRIDGE_TEST_SOURCE}
+        ${SAGA_DILIGENT_WHITEBOX_TEST_SOURCES}
     )
 
     file(GLOB_RECURSE EDITORLAB_SOURCES CONFIGURE_DEPENDS
@@ -255,7 +266,9 @@ function(saga_setup_tests)
 
     file(GLOB_RECURSE INTEGRATION_SOURCES CONFIGURE_DEPENDS
         "${SAGA_ROOT}/Tests/Integration/*.cpp"
-        "${SAGA_ROOT}/Tests/GPU/*.cpp"
+    )
+    file(GLOB_RECURSE DILIGENT_GPU_INTEGRATION_SOURCES CONFIGURE_DEPENDS
+        "${SAGA_ROOT}/Tests/GPU/Diligent/*.cpp"
     )
     list(REMOVE_ITEM INTEGRATION_SOURCES
         "${SAGA_ROOT}/Tests/Integration/EditorWorkflow/SagaLauncherUiTests.cpp")
@@ -344,8 +357,6 @@ function(saga_setup_tests)
     saga_link_thirdparty(SagaUnitTests)
     target_link_libraries(SagaUnitTests PRIVATE
         SagaEngine
-        SagaDiligentBackend
-        SagaGraphicsPrivate
         SagaDiagnostics
         SagaRuntimeLib
         SagaServerLib
@@ -377,6 +388,37 @@ function(saga_setup_tests)
     set_tests_properties(UnitTests PROPERTIES
         LABELS "unit;runtime;server;networking;replication;asset;editor"
     )
+
+    # --- Diligent private white-box tests ----------------------------------
+    if(SAGA_DILIGENT_WHITEBOX_TEST_SOURCES)
+        add_executable(SagaDiligentWhiteboxTests
+            ${SAGA_DILIGENT_WHITEBOX_TEST_SOURCES}
+        )
+        saga_apply_compiler_flags(SagaDiligentWhiteboxTests)
+        target_link_libraries(SagaDiligentWhiteboxTests PRIVATE
+            SagaDiligentBackend
+            SagaDiligentRuntime
+            SagaGraphicsPrivate
+            SagaEngine
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+        )
+        target_include_directories(SagaDiligentWhiteboxTests PRIVATE
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_ROOT}/Engine/Source/Runtime/RHI/Private
+            ${SAGA_ROOT}/Engine/Source/Runtime/Render/Private
+            ${SAGA_ROOT}/Tests/Unit/Render
+        )
+        saga_link_diligent_backend(SagaDiligentWhiteboxTests)
+        set_target_properties(SagaDiligentWhiteboxTests PROPERTIES
+            FOLDER "Tests/Whitebox"
+        )
+        add_test(NAME DiligentWhiteboxTests COMMAND SagaDiligentWhiteboxTests)
+        set_tests_properties(DiligentWhiteboxTests PROPERTIES
+            LABELS "unit;render;graphics;whitebox-private"
+        )
+    endif()
 
     # --- Public graphics consumer link test --------------------------------
     if(EXISTS "${SAGA_GRAPHICS_PUBLIC_CONSUMER_LINK_TEST_SOURCE}")
@@ -1763,18 +1805,10 @@ function(saga_setup_tests)
     # --- Integration tests --------------------------------------------------
 
     add_executable(SagaIntegrationTests ${INTEGRATION_SOURCES})
-    target_sources(SagaIntegrationTests PRIVATE
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaInput.cpp
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSimulation.cpp
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaGameplayState.cpp
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaPlayableScene.cpp
-    )
     saga_link_thirdparty(SagaIntegrationTests)
     target_link_libraries(SagaIntegrationTests PRIVATE
         SagaBackend
         SagaEngine
-        SagaGraphicsPrivate
-        SagaDiligentBackend
         SagaRuntimeLib
         SagaServerLib
         SagaShared
@@ -1783,7 +1817,6 @@ function(saga_setup_tests)
         GTest::gmock
         GTest::gtest_main
         rapidcheck::rapidcheck
-        SDL2::SDL2          # DiligentBackend integration tests need a hidden window
     )
     target_include_directories(SagaIntegrationTests PRIVATE
         ${SAGA_TEST_INCLUDE_DIRS}
@@ -1795,16 +1828,71 @@ function(saga_setup_tests)
     target_compile_definitions(SagaIntegrationTests PRIVATE
         SAGA_SOURCE_ROOT="${SAGA_ROOT}"
     )
-    saga_link_diligent_backend(SagaIntegrationTests)
     add_test(NAME IntegrationTests COMMAND SagaIntegrationTests)
     set_tests_properties(IntegrationTests PROPERTIES
         LABELS "integration;runtime;server;networking;replication;timing-sensitive"
     )
-    add_test(NAME StarterArenaPlayableGpuTests
-        COMMAND SagaIntegrationTests
-            --gtest_filter=DiligentGPU.StarterArenaFrameProducesArenaPlayerAndBoundaryPixels)
-    set_tests_properties(StarterArenaPlayableGpuTests PROPERTIES
-        LABELS "integration;runtime;render;gpu;sample")
+
+    # --- Diligent GPU integration tests ------------------------------------
+    # The target is always buildable.  CTest registration is opt-in so an
+    # ordinary local acceptance run never creates a graphics device by
+    # surprise on a headless or resource-constrained machine.
+    option(SAGA_ENABLE_GPU_TEST_EXECUTION
+        "Register Diligent GPU integration tests with CTest" OFF)
+    if(DILIGENT_GPU_INTEGRATION_SOURCES)
+        add_executable(SagaDiligentGpuIntegrationTests
+            ${DILIGENT_GPU_INTEGRATION_SOURCES}
+            ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaInput.cpp
+            ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSimulation.cpp
+            ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaGameplayState.cpp
+            ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaPlayableScene.cpp
+        )
+        saga_apply_compiler_flags(SagaDiligentGpuIntegrationTests)
+        target_link_libraries(SagaDiligentGpuIntegrationTests PRIVATE
+            SagaBackend
+            SagaEngine
+            SagaGraphicsPrivate
+            SagaDiligentBackend
+            SagaDiligentRuntime
+            SagaRuntimeLib
+            SagaServerLib
+            SagaShared
+            SagaCollaboration
+            GTest::gtest
+            GTest::gmock
+            GTest::gtest_main
+            SDL2::SDL2
+            nlohmann_json::nlohmann_json
+        )
+        target_include_directories(SagaDiligentGpuIntegrationTests PRIVATE
+            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+            ${SAGA_ROOT}/Engine/Source/Runtime/RHI/Private
+            ${SAGA_ROOT}/Engine/Source/Runtime/Render/Private
+            ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private
+            ${SAGA_ROOT}/Tests/GPU/Diligent
+            ${SAGA_ROOT}/Tests/Support
+            ${SAGA_ROOT}/Samples/StarterArena/Source
+        )
+        target_compile_definitions(SagaDiligentGpuIntegrationTests PRIVATE
+            SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+        )
+        saga_link_diligent_backend(SagaDiligentGpuIntegrationTests)
+        set_target_properties(SagaDiligentGpuIntegrationTests PROPERTIES
+            FOLDER "Tests/GPU"
+        )
+
+        if(SAGA_ENABLE_GPU_TEST_EXECUTION)
+            add_test(NAME DiligentGpuIntegrationTests
+                COMMAND SagaDiligentGpuIntegrationTests)
+            set_tests_properties(DiligentGpuIntegrationTests PROPERTIES
+                LABELS "integration;runtime;render;gpu;whitebox-private")
+            add_test(NAME StarterArenaPlayableGpuTests
+                COMMAND SagaDiligentGpuIntegrationTests
+                    --gtest_filter=DiligentGPU.StarterArenaFrameProducesArenaPlayerAndBoundaryPixels)
+            set_tests_properties(StarterArenaPlayableGpuTests PROPERTIES
+                LABELS "integration;runtime;render;gpu;sample;whitebox-private")
+        endif()
+    endif()
 
     # --- Replication tests --------------------------------------------------
     #

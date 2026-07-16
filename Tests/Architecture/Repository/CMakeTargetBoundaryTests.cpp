@@ -210,6 +210,34 @@ TEST(CMakeTargetBoundaryTests, GraphicsAggregateKeepsNativeLifecyclePrivate)
     EXPECT_TRUE(ContainsCMakeToken(privateLinks, "SagaDiligentRuntime"));
 }
 
+TEST(CMakeTargetBoundaryTests, DiligentPrivateTestsHaveDedicatedTargets)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto tests = ReadText(root / "cmake/modules/SagaTests.cmake");
+
+    EXPECT_NE(
+        tests.find("add_executable(SagaDiligentWhiteboxTests"),
+        std::string::npos);
+    EXPECT_NE(
+        tests.find("add_executable(SagaDiligentGpuIntegrationTests"),
+        std::string::npos);
+    EXPECT_NE(tests.find("whitebox-private"), std::string::npos);
+    EXPECT_NE(tests.find("SAGA_ENABLE_GPU_TEST_EXECUTION"), std::string::npos);
+
+    const auto unitLinks =
+        ExtractTargetCalls(tests, "target_link_libraries", "SagaUnitTests");
+    EXPECT_FALSE(ContainsCMakeToken(unitLinks, "SagaDiligentBackend"));
+    EXPECT_FALSE(ContainsCMakeToken(unitLinks, "SagaDiligentRuntime"));
+    EXPECT_FALSE(ContainsCMakeToken(unitLinks, "SagaGraphicsPrivate"));
+
+    const auto integrationLinks = ExtractTargetCalls(
+        tests, "target_link_libraries", "SagaIntegrationTests");
+    EXPECT_FALSE(ContainsCMakeToken(integrationLinks, "SagaDiligentBackend"));
+    EXPECT_FALSE(ContainsCMakeToken(integrationLinks, "SagaDiligentRuntime"));
+    EXPECT_FALSE(ContainsCMakeToken(integrationLinks, "SagaGraphicsPrivate"));
+    EXPECT_FALSE(ContainsCMakeToken(integrationLinks, "SDL2::SDL2"));
+}
+
 TEST(CMakeTargetBoundaryTests, LegacyOwnershipRootsStayAbsent)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
