@@ -53,9 +53,7 @@ Event sourcing is therefore an available foundation, not a blanket architecture 
 
 ## Concrete backend visibility
 
-The desired boundary is vendor-neutral public contracts with concrete adapters under private backend ownership. At the current checked-in revision, `PostgreSQLImpl.h` and `RedisImpl.h` still live under the Persistence `Public` tree while their implementations live under `Private`. This is transitional contract debt, not an assertion that these concrete classes are stable installed API.
-
-Public Persistence headers should not leak pqxx, hiredis, redis++, or other vendor implementation types. Architecture checks currently protect that type/include boundary. Future privatization should first prove that no installed consumer depends on the concrete headers, then move tests that intentionally exercise internals to an explicitly white-box target.
+The checked-in boundary is vendor-neutral public contracts with `PostgreSQLImpl` and `RedisImpl` adapters wholly under `Private/Backends`. Public Persistence headers do not expose pqxx, hiredis, redis++, or other vendor implementation types. Architecture checks protect that type/include boundary; tests that intentionally exercise concrete adapters use private test configuration and do not turn those headers into installed API.
 
 ## Failure and evidence boundary
 
@@ -64,4 +62,3 @@ Persistence errors should retain the operation class and stable diagnostic conte
 PostgreSQL integration tests exercise initialization, entity write/read, statistics, and queue pressure in their configured environment. Passing them proves the named adapter path against that environment. It does not establish production topology, failover, encryption, access control, monitoring, retention, backup, or capacity.
 
 For project/package persistence boundaries see [Persistence, assets, and packages](../runtime/persistence-and-packages.md). For online authority limits see [Replication, networking, and server authority](replication-networking-and-authority.md).
-

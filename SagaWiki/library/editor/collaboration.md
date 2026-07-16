@@ -29,12 +29,12 @@ Project changes and review comments may be shared domain state. Panel layout, lo
 
 ## Non-claim
 
-The existence of server, router, client, sync, CRDT, audit, or manager types does not establish a shipped real-time multi-user editor, hosted service, production security model, tenant isolation, encrypted transport, or operational collaboration backend. Concrete implementations may be transitional or experimental even when their value types are durable.
+The existence of server, router, client, sync, CRDT, audit, or manager contracts does not establish a shipped real-time multi-user editor, hosted service, production security model, tenant isolation, encrypted transport, or operational collaboration backend. The concrete server/router/client, sync transport, CRDT/log, manager, workspace, session, and audit implementations are private; their presence still proves only the focused local behavior covered by tests.
 
-| Current public area | Contract reading |
+| Surface | Contract reading |
 | --- | --- |
 | Workspace, transaction, presence, lock, permission, role, review, and event values | Durable candidates when they remain transport- and UI-neutral. |
 | Interfaces and bounded policy inputs/results | Cross-module contract candidates with focused deterministic evidence. |
-| Concrete server/router/client, sync transport, CRDT/log, manager, and audit implementations | Public surface requiring future privatization or experimental classification; not product evidence. |
+| Concrete server/router/client, sync transport, CRDT/log, manager, workspace, session, and audit implementations | Private implementation; not a public product or hosted-service claim. |
 
-See [Collaboration transactions and local policy](../reference/collaboration-transactions-and-policy.md) for workspace/transaction records, presence, locks, reviews, roles, dangerous operations, conflicts, sessions, and the concrete-public-surface warning.
+See [Collaboration transactions and local policy](../reference/collaboration-transactions-and-policy.md) for workspace/transaction records, presence, locks, reviews, roles, dangerous operations, conflicts, sessions, and the concrete/private boundary.

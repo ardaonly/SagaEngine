@@ -36,15 +36,15 @@ Editor tooling must not make unannounced source edits in the background. Hot rel
 
 High-level scripting contracts are the default authoring surface. Low-level lifecycle, handle, and host interfaces exist for controlled integration. Unsafe or native interop capability should be explicit, narrow, and validated rather than implied by ordinary script access.
 
-## Current surface warning
+## Current surface boundary
 
-Some VisualBlocksEditor headers currently expose host, bridge, evaluation, debugger, and UI types. Their present visibility does not change the source-of-truth rule or prove that all of them are stable public API.
+VisualBlocksEditor keeps CoreCLR hosting, managed/native bridges, assembly contexts, hot reload, and graph evaluation runners under `Private`. Their implementation presence does not change the source-of-truth rule or establish a Visual Blocks runtime.
 
-| Current public area | Contract reading |
+| Surface | Contract reading |
 | --- | --- |
 | Descriptor, graph, IR, source-map, import, projection, and diagnostics values | Candidate editor-authoring contracts where used across module boundaries. |
-| CoreCLR host, script host, assembly context, native/managed bridges, and hot reload | Runtime-host implementation detail exposed too broadly until a focused API cutover proves otherwise. |
-| Canvas, debugger, runner, and evaluation surfaces | Editor workflow or implementation surfaces; visibility is not a shipped graph-runtime claim. |
+| CoreCLR host, script host, assembly context, native/managed bridges, hot reload, and evaluation runners | Private runtime-host/editor-evaluation implementation; not an editor consumer contract. |
+| Canvas and debugger surfaces | Remaining editor workflow surface; public visibility is not a shipped graph-runtime or stable editor-SDK claim. |
 
 See [C# and Visual Blocks contracts](../reference/csharp-and-visual-blocks-contracts.md) for compatibility categories, projection/graph/IR boundaries, node levels, exact hash/span patching, staleness, compile, and runtime rules.
 

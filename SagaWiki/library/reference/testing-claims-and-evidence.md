@@ -69,7 +69,7 @@ White-box tests include private implementation headers through a deliberate test
 
 The name/label and target should make this status visible. A private test include never promotes the header to public API. Conversely, public code must not rely on a white-box target to compile.
 
-Private Diligent tests belong to RHI/Render implementation evidence. They should not be mixed into installed-consumer claims.
+Private Diligent CPU tests are colocated in `Runtime/RHI/Tests` and `Runtime/Render/Tests`, built by `SagaDiligentWhiteboxTests`, and registered as `DiligentWhiteboxTests` with the `whitebox-private` label. They are not part of `SagaUnitTests` and must not be mixed into installed-consumer claims.
 
 ### Integration tests
 
@@ -83,7 +83,7 @@ GPU integration tests initialize a native window/device/backend and assert creat
 
 Record backend, adapter/GPU, driver, platform/display environment, validation-layer state, and test selection when these affect interpretation. Pixel assertions prefer robust regions/relationships over exact full-frame equality unless exactness is contractual.
 
-GPU tests may be heavy or unstable on a local machine. They are run deliberately and separately from ordinary CPU acceptance. Do not infer that a full GPU suite ran because a graphics unit target built.
+GPU tests may be heavy or unstable on a local machine. `SagaDiligentGpuIntegrationTests` is buildable for compile/link evidence, while its CTest entries are opt-in through `SAGA_ENABLE_GPU_TEST_EXECUTION=ON`. It is separate from the general `SagaIntegrationTests` target. Do not infer that a GPU test ran because its executable built.
 
 ### Sample evidence
 

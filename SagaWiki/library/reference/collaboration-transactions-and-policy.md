@@ -130,7 +130,7 @@ A session contract can define descriptor, room/session code, participant set, st
 
 Handshake validates version/workspace/project compatibility before accepting operations. Heartbeat freshness does not prove identity. Reconnect resets or reconciles session generation so late messages from an old connection cannot mutate current state.
 
-Concrete `CollaborationServer`, router, client, backend, and sync transport types should not be used as public product evidence. Their current visibility is part of the public-surface hardening debt.
+Concrete `CollaborationServer`, router, client, backend, sync transport, CRDT/log, manager, workspace, session, and audit implementations live under `EditorCollaboration/Private`. Their interface and value contracts can support focused local evidence, but neither layer is public product evidence for a hosted service.
 
 ## Shared and personal state
 
