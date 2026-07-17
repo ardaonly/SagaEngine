@@ -237,7 +237,17 @@ jobs:
             throw "Expected exactly one Conan toolchain under $env:SAGA_BUILD_DIR; found $($toolchains.Count): $found"
           }
           $conanGenerators = $toolchains[0].Directory.FullName
+          $conanBuildEnvironment = Join-Path $conanGenerators "conanbuild.bat"
+          $conanRunEnvironment = Join-Path $conanGenerators "conanrun.bat"
+          if (-not (Test-Path $conanBuildEnvironment)) {
+            throw "Missing Conan build environment: $conanBuildEnvironment"
+          }
+          if (-not (Test-Path $conanRunEnvironment)) {
+            throw "Missing Conan run environment: $conanRunEnvironment"
+          }
           "SAGA_CONAN_GENERATORS=$conanGenerators" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "SAGA_CONAN_BUILD_ENV=$conanBuildEnvironment" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "SAGA_CONAN_RUN_ENV=$conanRunEnvironment" | Out-File -FilePath $env:GITHUB_ENV -Append
           Write-Host "Resolved Conan generators: $conanGenerators"
 
       - name: Save resolved Windows Conan cache
@@ -252,11 +262,10 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $true
-          $conanBuild = Join-Path $env:SAGA_CONAN_GENERATORS "conanbuild.ps1"
           $conanToolchain = Join-Path $env:SAGA_CONAN_GENERATORS "conan_toolchain.cmake"
-          if (-not (Test-Path $conanBuild)) { throw "Missing Conan build environment: $conanBuild" }
           if (-not (Test-Path $conanToolchain)) { throw "Missing Conan toolchain: $conanToolchain" }
-          . $conanBuild
+          . .github/scripts/Import-ConanEnvironment.ps1
+          Import-ConanEnvironment -ScriptPath $env:SAGA_CONAN_BUILD_ENV
           cmake -S . -B "$env:SAGA_BUILD_DIR" -G Ninja `
             -DCMAKE_BUILD_TYPE=RelWithDebInfo `
             -DCMAKE_POLICY_DEFAULT_CMP0091=NEW `
@@ -269,7 +278,8 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $true
-          . (Join-Path $env:SAGA_CONAN_GENERATORS "conanbuild.ps1")
+          . .github/scripts/Import-ConanEnvironment.ps1
+          Import-ConanEnvironment -ScriptPath $env:SAGA_CONAN_BUILD_ENV
           cmake --build "$env:SAGA_BUILD_DIR" --parallel 2 --target `
             SagaCoreModuleTests SagaMathModuleTests SagaDiagnosticsModuleTests `
             SagaECSModuleTests SagaAssetsModuleTests SagaResourcesModuleTests `
@@ -284,7 +294,8 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $true
-          . (Join-Path $env:SAGA_CONAN_GENERATORS "conanbuild.ps1")
+          . .github/scripts/Import-ConanEnvironment.ps1
+          Import-ConanEnvironment -ScriptPath $env:SAGA_CONAN_BUILD_ENV
           cmake --build "$env:SAGA_BUILD_DIR" --parallel 2 --target `
             SagaEditorCoreModuleTests SagaEditorFrameworkModuleTests `
             SagaEditorQtModuleTests SagaEditorAuthoringModuleTests `
@@ -296,7 +307,8 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $true
-          . (Join-Path $env:SAGA_CONAN_GENERATORS "conanbuild.ps1")
+          . .github/scripts/Import-ConanEnvironment.ps1
+          Import-ConanEnvironment -ScriptPath $env:SAGA_CONAN_BUILD_ENV
           cmake --build "$env:SAGA_BUILD_DIR" --parallel 2 --target `
             SagaUnitTests SagaArchitectureTests
 
@@ -305,7 +317,8 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $true
-          . (Join-Path $env:SAGA_CONAN_GENERATORS "conanbuild.ps1")
+          . .github/scripts/Import-ConanEnvironment.ps1
+          Import-ConanEnvironment -ScriptPath $env:SAGA_CONAN_BUILD_ENV
           cmake --build "$env:SAGA_BUILD_DIR" --parallel 2 --target `
             SagaStressArenaTests SagaStressArena SagaChaosLabTests SagaChaosLab `
             SagaStateCheckTests MultiplayerSandboxHeadlessTests `
@@ -321,7 +334,8 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $true
-          . (Join-Path $env:SAGA_CONAN_GENERATORS "conanbuild.ps1")
+          . .github/scripts/Import-ConanEnvironment.ps1
+          Import-ConanEnvironment -ScriptPath $env:SAGA_CONAN_BUILD_ENV
           cmake --build "$env:SAGA_BUILD_DIR" --parallel 2 --target SagaProductTests
 
       - name: Run Windows unit and architecture tests
@@ -329,8 +343,9 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $true
-          $conanRun = Join-Path $env:SAGA_CONAN_GENERATORS "conanrun.ps1"
-          if (Test-Path $conanRun) { . $conanRun }
+          . .github/scripts/Import-ConanEnvironment.ps1
+          Import-ConanEnvironment -ScriptPath $env:SAGA_CONAN_BUILD_ENV
+          Import-ConanEnvironment -ScriptPath $env:SAGA_CONAN_RUN_ENV
           New-Item -ItemType Directory -Force artifacts/windows | Out-Null
           ctest --test-dir "$env:SAGA_BUILD_DIR" `
             --output-on-failure `
