@@ -5,7 +5,6 @@
 #include "Projects/SagaSessionModel.h"
 
 #include <algorithm>
-#include <chrono>
 
 namespace SagaProduct
 {
@@ -73,24 +72,6 @@ constexpr TargetDefinition kDefinitions[] = {
      "Open the selected project in the external Editor host.",
      "SagaEditor",
      SagaProcessTargetId::Editor},
-    {SagaLauncherTargetKind::RuntimeStarterArenaSmokeTarget,
-     SagaLauncherActionId::RuntimeStarterArenaSmoke,
-     "StarterArena Runtime smoke",
-     "Run the bounded 30-frame headless Runtime smoke.",
-     "SagaRuntime",
-     SagaProcessTargetId::Runtime},
-    {SagaLauncherTargetKind::RuntimeStarterArenaPlayableTarget,
-     SagaLauncherActionId::RuntimeStarterArenaPlayable,
-     "StarterArena visible playable",
-     "Run the bounded 30-frame synthetic-input visible path.",
-     "SagaRuntime",
-     SagaProcessTargetId::Runtime},
-    {SagaLauncherTargetKind::FirstPlayableCheckTarget,
-     SagaLauncherActionId::FirstPlayableCheck,
-     "First-playable check",
-     "Run the existing bounded first-playable evidence workflow.",
-     "Saga",
-     std::nullopt},
     {SagaLauncherTargetKind::SagascriptEvidenceTarget,
      SagaLauncherActionId::ViewSagaScriptEvidence,
      "SagaScript evidence",
@@ -233,26 +214,15 @@ std::optional<std::filesystem::path> SagaLauncherPathPolicy::ActionReportDirecto
     if (!project.valid || project.projectId.empty() || reportsRoot.empty() ||
         project.projectId == "." || project.projectId == ".." ||
         project.projectId == ".saga-private" || ContainsPrivateComponent(reportsRoot) ||
-        ContainsPrivateComponent(evidenceRoot) ||
         project.projectId.find('/') != std::string::npos ||
         project.projectId.find('\\') != std::string::npos)
     {
         error = "Invalid project id or launcher report root.";
         return std::nullopt;
     }
-    std::filesystem::path root = reportsRoot;
-    std::filesystem::path candidate;
-    if (action == SagaLauncherActionId::FirstPlayableCheck && !evidenceRoot.empty())
-    {
-        root = evidenceRoot;
-        const auto stamp = std::chrono::duration_cast<std::chrono::milliseconds>(
-                               std::chrono::system_clock::now().time_since_epoch())
-                               .count();
-        candidate = root / project.projectId / ("run-" + std::to_string(stamp));
-    }
-    else
-        candidate = root / project.projectId / ToString(action);
-    if (!IsContainedPath(root, candidate))
+    const std::filesystem::path candidate =
+        reportsRoot / project.projectId / ToString(action);
+    if (!IsContainedPath(reportsRoot, candidate))
     {
         error = "Launcher report path escapes the approved root.";
         return std::nullopt;
@@ -260,9 +230,8 @@ std::optional<std::filesystem::path> SagaLauncherPathPolicy::ActionReportDirecto
     return candidate;
 }
 
-SagaTargetResolver::SagaTargetResolver(SagaExecutableCatalog catalog,
-                                       std::filesystem::path runtimeBridgeAssembly)
-    : m_catalog(std::move(catalog)), m_runtimeBridgeAssembly(std::move(runtimeBridgeAssembly))
+SagaTargetResolver::SagaTargetResolver(SagaExecutableCatalog catalog)
+    : m_catalog(std::move(catalog))
 {}
 
 std::vector<SagaLauncherTargetSummary> SagaTargetResolver::ResolveTargets(
@@ -270,7 +239,6 @@ std::vector<SagaLauncherTargetSummary> SagaTargetResolver::ResolveTargets(
 {
     std::vector<SagaLauncherTargetSummary> result;
     const bool hasProject = project.has_value() && project->valid;
-    const bool starterArena = hasProject && project->projectId == "starter-arena";
     for (const auto& definition : kDefinitions)
     {
         SagaLauncherTargetSummary target;
@@ -297,19 +265,6 @@ std::vector<SagaLauncherTargetSummary> SagaTargetResolver::ResolveTargets(
         else
         {
             bool available = hasProject;
-            if (definition.kind == SagaLauncherTargetKind::RuntimeStarterArenaSmokeTarget ||
-                definition.kind == SagaLauncherTargetKind::RuntimeStarterArenaPlayableTarget ||
-                definition.kind == SagaLauncherTargetKind::FirstPlayableCheckTarget)
-                available = starterArena;
-            if (definition.kind == SagaLauncherTargetKind::RuntimeStarterArenaPlayableTarget)
-                available = available &&
-                            std::filesystem::is_regular_file(project->canonicalRoot / "Input" /
-                                                             "playable.synthetic-input.json");
-            if (definition.kind == SagaLauncherTargetKind::FirstPlayableCheckTarget)
-                available = available &&
-                            m_catalog.Resolve(SagaProcessTargetId::Runtime).has_value() &&
-                            m_catalog.Resolve(SagaProcessTargetId::SagaScript).has_value() &&
-                            std::filesystem::is_regular_file(m_runtimeBridgeAssembly);
             if (definition.process.has_value())
                 available = available && m_catalog.Resolve(*definition.process).has_value();
             target.availability = available ? SagaLauncherActionAvailability::Available
@@ -321,7 +276,7 @@ std::vector<SagaLauncherTargetSummary> SagaTargetResolver::ResolveTargets(
                 target.diagnostics.push_back(Diagnostic(
                     SagaLauncherTargetDiagnostics::ExecutableMissing,
                     SagaLauncherDiagnosticSeverity::Info,
-                    hasProject ? "Required executable or StarterArena input is unavailable."
+                    hasProject ? "Required executable is unavailable."
                                : "Select a valid project first.",
                     definition.action));
             }
@@ -377,8 +332,7 @@ std::vector<SagaLauncherAction> SagaTargetResolver::ResolveActions(
         action.diagnostics = target.diagnostics;
         action.nonClaims = target.nonClaims;
         action.canRun = target.availability == SagaLauncherActionAvailability::Available &&
-                        (definition.process.has_value() ||
-                         definition.action == SagaLauncherActionId::FirstPlayableCheck);
+                        definition.process.has_value();
         result.push_back(std::move(action));
     }
 

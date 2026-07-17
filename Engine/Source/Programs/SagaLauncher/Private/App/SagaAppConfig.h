@@ -34,11 +34,6 @@ struct SagaAppConfig
     std::filesystem::path sagaScriptProjectManifest;
     std::filesystem::path workflowProjectPath;
     std::filesystem::path workflowReportPath;
-    std::filesystem::path firstPlayableOutputDirectory;
-    std::filesystem::path firstPlayableSummaryPath;
-    std::filesystem::path firstPlayableKeyboardReportPath;
-    std::filesystem::path runtimeExecutable;
-    std::filesystem::path runtimeBridgeAssembly;
     std::filesystem::path localWorkspaceTransactionReportPath;
     std::filesystem::path localWorkspacePresenceLockReportPath;
     std::filesystem::path localWorkspaceLockTargetPath;
@@ -66,11 +61,6 @@ struct SagaAppConfig
     SagaProductTargetKind target = SagaProductTargetKind::Editor;
     bool                  validateSagaScript = false;
     bool                  workflowSmoke = false;
-    bool                  firstPlayableCheck = false;
-    bool                  firstPlayableHumanCapture = false;
-    int                   firstPlayableTimeoutMs = 30000;
-    int                   firstPlayableHumanTimeoutMs = 30000;
-    int                   firstPlayableHumanFrames = 600;
     bool                  localWorkspaceTransactionSmoke = false;
     bool                  localWorkspacePresenceLockSmoke = false;
     bool                  localWorkspaceReviewSmoke = false;

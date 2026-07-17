@@ -21,8 +21,6 @@ TEST(RuntimeHostTests, GenericProjectModeFailsWithStableDiagnostic)
     EXPECT_EQ(result.message.find("SagaClient"), std::string::npos);
     EXPECT_NE(result.message.find("Generic project execution is unsupported"),
               std::string::npos);
-    EXPECT_NE(result.message.find("Generic project execution is unsupported"),
-              std::string::npos);
 }
 
 } // namespace

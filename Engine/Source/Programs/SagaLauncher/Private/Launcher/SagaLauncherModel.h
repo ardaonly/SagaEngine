@@ -20,9 +20,6 @@ enum class SagaLauncherActionId
     OpenProject,
     ValidateProject,
     OpenEditor,
-    RuntimeStarterArenaSmoke,
-    RuntimeStarterArenaPlayable,
-    FirstPlayableCheck,
     RefreshReports,
     ViewSagaScriptEvidence,
     ViewVisualBlocksEvidence,
@@ -74,9 +71,6 @@ enum class SagaLauncherWorkspaceSourceKind
 enum class SagaLauncherTargetKind
 {
     EditorTarget,
-    RuntimeStarterArenaSmokeTarget,
-    RuntimeStarterArenaPlayableTarget,
-    FirstPlayableCheckTarget,
     SagascriptEvidenceTarget,
     VisualBlocksEvidenceTarget,
     PackageStatusTarget,

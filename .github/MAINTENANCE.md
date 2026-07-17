@@ -30,7 +30,9 @@ Saga currently uses a single-branch direct-push model: `main` is the only persis
 | Weekly | Sunday | StressTests, serial execution with a four-hour job limit. |
 | GPU | Manual preflight | Explicitly blocked until a trusted self-hosted runner carrying the `saga-gpu` label exists. |
 
-Visible StarterArena runtime cases require `SAGA_RUN_VISIBLE_TESTS=1` and a qualified native display. Ordinary automated runs leave that opt-in unset; those cases publish explicit GTest skip reasons while headless cases continue.
+Visible runtime cases require explicit opt-in and a qualified native display.
+StarterArena currently has no registered visible-runtime case; its source/tooling
+checks must not be reported as interaction or pixel evidence.
 
 Contract artifacts are retained for 14 days, nightly artifacts for 30 days, and licensing/weekly/GPU evidence for 90 days. Artifact upload and job summaries use `if: always()` so a failing test still publishes diagnostics. Test commands themselves never use `continue-on-error`.
 

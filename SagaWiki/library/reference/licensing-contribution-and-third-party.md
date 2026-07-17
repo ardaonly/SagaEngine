@@ -70,6 +70,12 @@ Do not import material with unknown origin, incompatible license, non-commercial
 
 Generated output follows the license of its template/input/tool contract only where that policy is actually established. Minimal scaffolding may use an approved default, but there is no automatic exception for every file emitted by a tool.
 
+Saga-owned files under `Samples/**`, including sample documentation, project
+metadata, scripts, fixtures, and content, are licensed under MIT. A package
+lock or asset descriptor can still record the actual license of a referenced
+engine dependency or source asset; that provenance field does not relicense
+the containing sample file.
+
 ## Third-party boundary
 
 Third-party software remains under upstream terms. SagaEngine's repository license does not relicense SDL, RmlUi, GLM, nlohmann/json, Diligent and its third-party graph, Qt, OpenSSL, Asio, libpqxx/libpq, hiredis, redis-plus-plus, Dear ImGui, GoogleTest, RapidCheck, CMake, Ninja, or other dependencies.

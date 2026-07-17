@@ -11,7 +11,7 @@ Programs assemble owned modules into local entry points. They can coordinate val
 
 | Program | Current bounded role |
 | --- | --- |
-| `SagaRuntime` | Thin runtime application entry, command-line configuration, runtime host, and asset startup bootstrap. |
+| `SagaRuntime` | Thin runtime application entry, runtime host, and validated asset/package startup consumption. It has no project-source or sample-specific launch mode. |
 | `SagaEditor` | Qt-backed editor shell entry over editor modules. |
 | `SagaEditorLab` | Development scenarios for editor host/shell, panels, profiles, customization, and deterministic checks. |
 | `SagaLauncher` | Local project catalog/workspace and product-workflow router that surfaces tool/process results. |
@@ -20,6 +20,10 @@ Programs assemble owned modules into local entry points. They can coordinate val
 ## Product workflow routing
 
 SagaLauncher may open or select a project, invoke the owning validator or tool, launch a program, and surface exit status, diagnostics, and report paths. It must not replace SagaProjectKit, SagaScript, SagaPackager, the editor, or the runtime with a second implementation. A workflow step is successful only when its owning operation produced valid evidence.
+
+The launcher does not orchestrate a sample-specific first-playable workflow.
+Runtime launch remains unavailable until a generic artifact launch contract is
+implemented and verified.
 
 The selected project contract is exclusively a `.sagaproj` manifest with `schemaVersion: 0`; legacy manifest filenames and unknown schema versions are rejected. Launcher has no duplicate package staging or publish-check implementation. Canonical package commands are `sagapack stage` and `sagapack publish-check`, whose results Launcher may only route or display.
 

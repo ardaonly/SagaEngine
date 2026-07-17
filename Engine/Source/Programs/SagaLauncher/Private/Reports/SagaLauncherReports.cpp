@@ -30,16 +30,6 @@ constexpr ReportSpec kLauncherReports[] = {
      SagaLauncherActionId::ValidateProject,
      "project-validation.json",
      1},
-    {"runtime-smoke",
-     "SagaRuntime",
-     SagaLauncherActionId::RuntimeStarterArenaSmoke,
-     "runtime-smoke.json",
-     1},
-    {"runtime-playable",
-     "SagaRuntime",
-     SagaLauncherActionId::RuntimeStarterArenaPlayable,
-     "runtime-playable.json",
-     1},
 };
 
 struct ProjectReportSpec
@@ -59,23 +49,6 @@ constexpr ProjectReportSpec kProjectReports[] = {
     {"local-collaboration-metadata", "local_collaboration_metadata_report.json", 1},
     {"visual-blocks-descriptor", "visual_blocks_descriptor.json", 1},
 };
-
-[[nodiscard]] std::filesystem::path LatestEvidenceRun(const std::filesystem::path& root)
-{
-    if (!std::filesystem::is_directory(root))
-        return {};
-    std::vector<std::filesystem::path> runs;
-    std::error_code error;
-    for (const auto& entry : std::filesystem::directory_iterator(root, error))
-    {
-        if (!entry.is_symlink() && entry.is_directory() &&
-            entry.path().filename().string().rfind("run-", 0) == 0)
-            runs.push_back(entry.path());
-    }
-    if (error || runs.empty())
-        return {};
-    return *std::max_element(runs.begin(), runs.end());
-}
 
 [[nodiscard]] SagaLauncherDiagnostic Diagnostic(const char* id,
                                                 SagaLauncherDiagnosticSeverity severity,
@@ -220,9 +193,8 @@ void ReadStringArray(const Json& json, const char* field, std::vector<std::strin
 
 } // namespace
 
-SagaReportCatalog::SagaReportCatalog(std::filesystem::path launcherReportsRoot,
-                                     std::filesystem::path evidenceRoot)
-    : m_launcherReportsRoot(std::move(launcherReportsRoot)), m_evidenceRoot(std::move(evidenceRoot))
+SagaReportCatalog::SagaReportCatalog(std::filesystem::path launcherReportsRoot)
+    : m_launcherReportsRoot(std::move(launcherReportsRoot))
 {}
 
 std::vector<SagaLauncherReportReference> SagaReportCatalog::Read(
@@ -243,15 +215,6 @@ std::vector<SagaLauncherReportReference> SagaReportCatalog::Read(
     for (const auto& spec : kProjectReports)
         result.push_back(
             ReadReport(spec.type, "Saga", projectReportRoot / spec.filename, spec.schemaVersion));
-    auto evidenceRun = LatestEvidenceRun(m_evidenceRoot / project->projectId);
-    if (evidenceRun.empty())
-        evidenceRun = m_evidenceRoot / project->projectId / "latest-not-configured";
-    result.push_back(ReadReport(
-        "first-playable-summary", "Saga", evidenceRun / "first_playable_summary.json", 1));
-    result.push_back(
-        ReadReport("first-playable-gate", "Saga", evidenceRun / "first_playable_gate.json", 1));
-    result.push_back(ReadReport(
-        "human-capture", "Saga", evidenceRun / "manual" / "human_capture_report.json", 1));
     return result;
 }
 

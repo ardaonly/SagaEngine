@@ -249,9 +249,7 @@ TEST(CMakeTargetBoundaryTests, ProductAggregateComposesOnlyProgramObjects)
 
     for (const auto& manifest : {
              root / "Engine/Source/Programs/SagaLauncher/CMakeLists.txt",
-             root / "Engine/Source/Editor/VisualBlocksEditor/CMakeLists.txt",
-             root / "Engine/Source/Editor/EditorCollaboration/CMakeLists.txt",
-             root / "Tests/Evidence/FirstPlayable/CMakeLists.txt"})
+             root / "Engine/Source/Editor/EditorCollaboration/CMakeLists.txt"})
     {
         EXPECT_NE(ReadText(manifest).find("PRIVATE_DEPS"), std::string::npos)
             << manifest;
@@ -284,6 +282,46 @@ TEST(CMakeTargetBoundaryTests, ServerTargetAvoidsClientAndVendorBackends)
             << "SagaServerLib directly links forbidden target family "
             << forbiddenFamily;
     }
+}
+
+TEST(CMakeTargetBoundaryTests, RuntimeAndHeadlessTargetsExcludeAuthoringToolchains)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto targets = ReadText(root / "cmake/modules/SagaTargets.cmake");
+
+    std::string targetContracts;
+    for (const auto& [command, target] :
+         std::array<std::pair<std::string_view, std::string_view>, 8>{
+             std::pair{"add_executable", "SagaRuntime"},
+             std::pair{"target_include_directories", "SagaRuntime"},
+             std::pair{"target_link_libraries", "SagaRuntime"},
+             std::pair{"add_library", "MultiplayerSandboxHeadlessLib"},
+             std::pair{"target_sources", "MultiplayerSandboxHeadlessLib"},
+             std::pair{"target_include_directories", "MultiplayerSandboxHeadlessLib"},
+             std::pair{"target_link_libraries", "MultiplayerSandboxHeadlessLib"},
+             std::pair{"target_link_libraries", "MultiplayerSandboxHeadless"}})
+    {
+        targetContracts += ExtractTargetCalls(targets, command, target);
+    }
+
+    for (const auto* forbidden : {
+             "Qt6::", "qt::", "SagaEditor", "SagaProductLib",
+             "SagaProjectKit", "SagaPackager", "SagaScript",
+             "VisualBlocks", "ProjectManifestLoader", "PackageResolver",
+             "SourceCompiler", "BlockDescriptor", "ProjectLoader",
+             "PackageResolutionService", "ContentCompiler", "ProjectWorker",
+             "BlockProjection"})
+    {
+        EXPECT_EQ(targetContracts.find(forbidden), std::string::npos)
+            << "Runtime and headless targets must not include or link "
+            << forbidden;
+    }
+
+    EXPECT_EQ(targetContracts.find("Samples/StarterArena"), std::string::npos);
+    const auto runtimeProgram = ReadText(
+        root / "Engine/Source/Programs/SagaRuntime/Private/RuntimeApplication.cpp");
+    EXPECT_EQ(runtimeProgram.find("StarterArena"), std::string::npos);
+    EXPECT_EQ(runtimeProgram.find(".sagaproj"), std::string::npos);
 }
 
 TEST(CMakeTargetBoundaryTests, GraphicsAggregateKeepsNativeLifecyclePrivate)

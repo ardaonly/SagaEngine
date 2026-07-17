@@ -37,6 +37,22 @@ bytes = 11358
 sha256 = "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
 
 [[files]]
+path = "LICENSES/MIT.txt"
+identifier = "MIT"
+title = "MIT License"
+publisher = "SPDX License List"
+document_type = "license-text"
+content_integrity = "verbatim"
+source_kind = "immutable-versioned-url"
+source_url = "https://raw.githubusercontent.com/spdx/license-list-data/v3.28.0/text/MIT.txt"
+reference_url = "https://github.com/spdx/license-list-data/releases/tag/v3.28.0"
+source_revision = "v3.28.0"
+retrieval_method = "direct-download"
+content_type = "text/plain"
+bytes = 1078
+sha256 = "24f09d6d1dc1534b8efcaca939ddec1969cac255471aae25d299ab8e81ada29f"
+
+[[files]]
 path = "LICENSES/0BSD.txt"
 identifier = "0BSD"
 title = "BSD Zero Clause License"

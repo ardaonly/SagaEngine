@@ -15,7 +15,6 @@ function(saga_setup_sample_executable_evidence)
         "${SAGA_ROOT}/build/reports/sample_executable_evidence_report.json")
 
     set(_saga_sample_evidence_dependencies
-        SagaRuntime
         MultiplayerSandboxHeadless
     )
 

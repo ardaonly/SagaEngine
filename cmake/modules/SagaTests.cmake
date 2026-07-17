@@ -56,11 +56,6 @@ function(saga_setup_tests)
     file(GLOB_RECURSE SAGA_PRODUCT_TEST_SOURCES CONFIGURE_DEPENDS
         "${SAGA_ROOT}/Tests/Unit/Saga/*.cpp"
     )
-    file(GLOB_RECURSE SAGA_EVIDENCE_TEST_SOURCES CONFIGURE_DEPENDS
-        "${SAGA_ROOT}/Tests/Evidence/FirstPlayable/Tests/*.cpp"
-    )
-    list(APPEND SAGA_PRODUCT_TEST_SOURCES ${SAGA_EVIDENCE_TEST_SOURCES})
-
     set(SAGA_ASSET_IDENTITY_RUNTIME_CONTRACT_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/AssetPipeline/AssetIdentityRuntimeContractTests.cpp"
     )
@@ -162,12 +157,6 @@ function(saga_setup_tests)
     )
     set(SAGA_CSHARP_GAMEPLAY_PROOF_TEST_SOURCE
         "${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Tests/CSharpGameplayProofTests.cpp"
-    )
-    set(STARTER_ARENA_RUNTIME_SMOKE_TEST_SOURCE
-        "${SAGA_ROOT}/Tests/Unit/Runtime/StarterArenaRuntimeSmokeTests.cpp"
-    )
-    set(STARTER_ARENA_PLAYABLE_TEST_SOURCE
-        "${SAGA_ROOT}/Tests/Unit/Runtime/StarterArenaPlayableTests.cpp"
     )
     set(SAGA_ACTOR_OWNERSHIP_REGISTRY_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/Server/ActorOwnershipRegistryTests.cpp"
@@ -304,7 +293,6 @@ function(saga_setup_tests)
         ${SAGA_ROOT}/Engine/Source/Programs/SagaSandbox/Private
         ${SAGA_ROOT}/Engine/Source/Programs/SagaSandbox/Private/include
         ${SAGA_ROOT}/Engine/Source/Programs/SagaLauncher/Private
-        ${SAGA_ROOT}/Tests/Evidence/FirstPlayable/Source
         ${SAGA_ROOT}/Tools/SagaPackager
         ${SAGA_ROOT}/Tools/SagaScript
         $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
@@ -378,7 +366,6 @@ function(saga_setup_tests)
     target_include_directories(SagaUnitTests PRIVATE
         ${SAGA_MODULE_PRIVATE_INCLUDE_DIRS}
         ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private
-        ${SAGA_ROOT}/Samples/StarterArena/Source
     )
     target_compile_definitions(SagaUnitTests PRIVATE
         SAGA_SOURCE_ROOT="${SAGA_ROOT}"
@@ -1514,76 +1501,6 @@ function(saga_setup_tests)
         set_tests_properties(CSharpGameplayProofTests PROPERTIES LABELS "unit;runtime;scripting;csharp")
     endif()
 
-    # --- StarterArena runtime smoke tests ----------------------------------
-    if(EXISTS "${STARTER_ARENA_RUNTIME_SMOKE_TEST_SOURCE}" AND
-       TARGET SagaRuntime AND
-       TARGET SagaScriptRuntimeBridge)
-        add_executable(StarterArenaRuntimeSmokeTests
-            ${STARTER_ARENA_RUNTIME_SMOKE_TEST_SOURCE}
-        )
-        add_dependencies(StarterArenaRuntimeSmokeTests
-            SagaRuntime
-            SagaScriptRuntimeBridge
-        )
-        target_link_libraries(StarterArenaRuntimeSmokeTests PRIVATE
-            GTest::gtest
-            GTest::gmock
-            GTest::gtest_main
-            nlohmann_json::nlohmann_json
-        )
-        target_compile_definitions(StarterArenaRuntimeSmokeTests PRIVATE
-            SAGA_SOURCE_ROOT="${SAGA_ROOT}"
-            SAGA_NUGET_PACKAGES="${CMAKE_BINARY_DIR}/.dotnet/home/.nuget/packages"
-            SAGA_RUNTIME_EXECUTABLE="$<TARGET_FILE:SagaRuntime>"
-            SAGA_SCRIPT_RUNTIME_BRIDGE_ASSEMBLY="${SAGA_SCRIPT_RUNTIME_BRIDGE_ASSEMBLY}"
-            SAGA_DOTNET_EXECUTABLE="${SAGA_DOTNET_EXECUTABLE}"
-            SAGA_DOTNET_ROOT="${SAGA_DOTNET_ROOT}"
-        )
-        set(_starter_arena_visible_filter
-            "StarterArenaRuntimeSmokeTests.BoundedVisibleModeWritesStableReport:StarterArenaRuntimeSmokeTests.BoundedSyntheticVisibleModeWritesInputEvidence:StarterArenaRuntimeSmokeTests.VisibleSyntheticGameplayReflectsManagedMutation")
-        add_test(NAME StarterArenaRuntimeSmokeTests
-            COMMAND StarterArenaRuntimeSmokeTests
-                "--gtest_filter=-${_starter_arena_visible_filter}")
-        set_tests_properties(StarterArenaRuntimeSmokeTests PROPERTIES
-            LABELS "unit;runtime;scripting;csharp;sample")
-        add_test(NAME StarterArenaVisibleRuntimeSmokeTests
-            COMMAND StarterArenaRuntimeSmokeTests
-                "--gtest_filter=${_starter_arena_visible_filter}")
-        set_tests_properties(StarterArenaVisibleRuntimeSmokeTests PROPERTIES
-            LABELS "runtime;scripting;csharp;sample;ui;display-required;timing-sensitive"
-            SKIP_REGULAR_EXPRESSION "\\[  SKIPPED \\]")
-    endif()
-
-    # --- StarterArena visible frame contract tests -------------------------
-    if(EXISTS "${STARTER_ARENA_PLAYABLE_TEST_SOURCE}")
-        add_executable(StarterArenaPlayableTests
-            ${STARTER_ARENA_PLAYABLE_TEST_SOURCE}
-            ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaInput.cpp
-            ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSimulation.cpp
-            ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaGameplayState.cpp
-            ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaPlayableScene.cpp
-        )
-        target_link_libraries(StarterArenaPlayableTests PRIVATE
-            SagaEngine
-            nlohmann_json::nlohmann_json
-            GTest::gtest
-            GTest::gmock
-            GTest::gtest_main
-        )
-        target_include_directories(StarterArenaPlayableTests PRIVATE
-            ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private
-            ${SAGA_ROOT}/Samples/StarterArena/Source
-            ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
-        )
-        target_compile_definitions(StarterArenaPlayableTests PRIVATE
-            SAGA_SOURCE_ROOT="${SAGA_ROOT}"
-        )
-        add_test(NAME StarterArenaPlayableTests
-            COMMAND StarterArenaPlayableTests)
-        set_tests_properties(StarterArenaPlayableTests PROPERTIES
-            LABELS "unit;runtime;render;sample")
-    endif()
-
     # --- Script binding runtime thin runner --------------------------------
     if(TARGET SagaScriptRuntimeBridge AND
        EXISTS "${SAGA_ROOT}/Tests/Contract/GeneratedArtifacts/ScriptBindingRuntimeRunner.cpp")
@@ -1778,7 +1695,6 @@ function(saga_setup_tests)
         ${SAGA_ROOT}/Tests/Support
         ${SAGA_MODULE_PRIVATE_INCLUDE_DIRS}
         ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private
-        ${SAGA_ROOT}/Samples/StarterArena/Source
     )
     target_compile_definitions(SagaIntegrationTests PRIVATE
         SAGA_SOURCE_ROOT="${SAGA_ROOT}"
@@ -1797,10 +1713,6 @@ function(saga_setup_tests)
     if(DILIGENT_GPU_INTEGRATION_SOURCES)
         add_executable(SagaDiligentGpuIntegrationTests
             ${DILIGENT_GPU_INTEGRATION_SOURCES}
-            ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaInput.cpp
-            ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSimulation.cpp
-            ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaGameplayState.cpp
-            ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaPlayableScene.cpp
         )
         saga_apply_compiler_flags(SagaDiligentGpuIntegrationTests)
         target_link_libraries(SagaDiligentGpuIntegrationTests PRIVATE
@@ -1826,7 +1738,6 @@ function(saga_setup_tests)
             ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private
             ${SAGA_ROOT}/Tests/GPU/Diligent
             ${SAGA_ROOT}/Tests/Support
-            ${SAGA_ROOT}/Samples/StarterArena/Source
         )
         target_compile_definitions(SagaDiligentGpuIntegrationTests PRIVATE
             SAGA_SOURCE_ROOT="${SAGA_ROOT}"
@@ -1841,11 +1752,6 @@ function(saga_setup_tests)
                 COMMAND SagaDiligentGpuIntegrationTests)
             set_tests_properties(DiligentGpuIntegrationTests PROPERTIES
                 LABELS "integration;runtime;render;gpu;whitebox-private")
-            add_test(NAME StarterArenaPlayableGpuTests
-                COMMAND SagaDiligentGpuIntegrationTests
-                    --gtest_filter=DiligentGPU.StarterArenaFrameProducesArenaPlayerAndBoundaryPixels)
-            set_tests_properties(StarterArenaPlayableGpuTests PROPERTIES
-                LABELS "integration;runtime;render;gpu;sample;whitebox-private")
         endif()
     endif()
 

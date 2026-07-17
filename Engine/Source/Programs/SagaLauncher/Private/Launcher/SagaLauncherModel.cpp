@@ -15,12 +15,6 @@ const char* ToString(SagaLauncherActionId id) noexcept
         return "validate-project";
     case SagaLauncherActionId::OpenEditor:
         return "open-editor";
-    case SagaLauncherActionId::RuntimeStarterArenaSmoke:
-        return "runtime-starter-arena-smoke";
-    case SagaLauncherActionId::RuntimeStarterArenaPlayable:
-        return "runtime-starter-arena-playable";
-    case SagaLauncherActionId::FirstPlayableCheck:
-        return "first-playable-check";
     case SagaLauncherActionId::RefreshReports:
         return "refresh-reports";
     case SagaLauncherActionId::ViewSagaScriptEvidence:
@@ -111,12 +105,6 @@ const char* ToString(SagaLauncherTargetKind value) noexcept
     {
     case SagaLauncherTargetKind::EditorTarget:
         return "editor";
-    case SagaLauncherTargetKind::RuntimeStarterArenaSmokeTarget:
-        return "runtime-starter-arena-smoke";
-    case SagaLauncherTargetKind::RuntimeStarterArenaPlayableTarget:
-        return "runtime-starter-arena-playable";
-    case SagaLauncherTargetKind::FirstPlayableCheckTarget:
-        return "first-playable-check";
     case SagaLauncherTargetKind::SagascriptEvidenceTarget:
         return "sagascript-evidence";
     case SagaLauncherTargetKind::VisualBlocksEvidenceTarget:
@@ -140,9 +128,6 @@ std::optional<SagaLauncherActionId> ParseLauncherActionId(const std::string& tok
     for (const auto id : {SagaLauncherActionId::OpenProject,
                           SagaLauncherActionId::ValidateProject,
                           SagaLauncherActionId::OpenEditor,
-                          SagaLauncherActionId::RuntimeStarterArenaSmoke,
-                          SagaLauncherActionId::RuntimeStarterArenaPlayable,
-                          SagaLauncherActionId::FirstPlayableCheck,
                           SagaLauncherActionId::RefreshReports,
                           SagaLauncherActionId::ViewSagaScriptEvidence,
                           SagaLauncherActionId::ViewVisualBlocksEvidence,
