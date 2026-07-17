@@ -36,6 +36,10 @@ internal static class Program
                 "stage" => RunStage(options),
                 "publish-check" => RunPublishCheck(options),
                 "smoke" => await RunSmoke(options),
+                "compile-assets" => RunContentCompile(options, "assets"),
+                "compile-scenes" => RunContentCompile(options, "scenes"),
+                "compile-inputs" => RunContentCompile(options, "inputs"),
+                "compile-content" => RunContentCompile(options, "all"),
                 _ => InvalidUsage,
             };
         }
@@ -60,6 +64,18 @@ internal static class Program
         ReportWriter.Write(options.OutPath, report);
         PrintReport(report);
         return report.Status == "Passed" ? Passed : Failed;
+    }
+
+    private static int RunContentCompile(CommandOptions options, string domain)
+    {
+        if (!RequireProjectOut(options))
+        {
+            return InvalidUsage;
+        }
+        var result = ContentCompiler.Compile(options.ProjectPath, options.OutPath, domain);
+        SagaProjectKit.Core.CanonicalJson.Write(Path.Combine(options.OutPath, "compile-result.json"), result);
+        Console.WriteLine($"sagapack compile-{domain}: {result.Status}");
+        return result.Status == "Passed" ? Passed : Failed;
     }
 
     private static int RunAssetValidate(CommandOptions options)
@@ -231,6 +247,10 @@ internal static class Program
         Console.Error.WriteLine("  sagapack stage --project <path> --profile <id> --out <report>");
         Console.Error.WriteLine("  sagapack publish-check --project <path> --profile <id> --package-report <report> --diagnostics-summary <summary> [--script-validation <report>] [--policy-report <report>] --out <report>");
         Console.Error.WriteLine("  sagapack smoke --project <path> --profile <id> --package-report <report> --out <report> --timeout-sec <n> --bin-dir <dir>");
+        Console.Error.WriteLine("  sagapack compile-assets --project <path> --out <artifact-root>");
+        Console.Error.WriteLine("  sagapack compile-scenes --project <path> --out <artifact-root>");
+        Console.Error.WriteLine("  sagapack compile-inputs --project <path> --out <artifact-root>");
+        Console.Error.WriteLine("  sagapack compile-content --project <path> --out <artifact-root>");
     }
 
     private sealed record CommandOptions(

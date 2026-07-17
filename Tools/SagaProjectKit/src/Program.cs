@@ -39,7 +39,8 @@ internal static class Program
                 "package-launch-evaluation-alignment-plan" or "editorless-evaluation-workflow-plan" or
                 "evaluation-evidence-gate" or "evaluation-asset-import-cook-prerequisite" or
                 "runtime-asset-consumption-prerequisite" or "runtime-projection-freshness-gate" or
-                "client-evaluation-regression-fixture-plan" or "evaluation-focused-test-health-gate"))
+                "client-evaluation-regression-fixture-plan" or "evaluation-focused-test-health-gate" or
+                "template-plan" or "template-create"))
             {
                 Console.Error.WriteLine($"Unknown command: {command}");
                 PrintUsage();
@@ -51,6 +52,28 @@ internal static class Program
             {
                 Console.Error.WriteLine(options.Error);
                 return InvalidUsage;
+            }
+            if (command == "template-plan")
+            {
+                if (string.IsNullOrWhiteSpace(options.DestinationPath) || string.IsNullOrWhiteSpace(options.OutputPath))
+                {
+                    Console.Error.WriteLine("template-plan requires --destination and --out.");
+                    return InvalidUsage;
+                }
+                var plan = ProjectTemplateService.Plan(options.DestinationPath, options.DisplayName, options.TemplatePath);
+                SagaProjectKit.Core.CanonicalJson.Write(options.OutputPath, plan);
+                return Passed;
+            }
+            if (command == "template-create")
+            {
+                if (string.IsNullOrWhiteSpace(options.PlanPath) || string.IsNullOrWhiteSpace(options.OutputPath))
+                {
+                    Console.Error.WriteLine("template-create requires --plan and --out.");
+                    return InvalidUsage;
+                }
+                var report = ProjectTemplateService.Create(options.PlanPath);
+                SagaProjectKit.Core.CanonicalJson.Write(options.OutputPath, report);
+                return report.Status == "Passed" ? Passed : ValidationFailed;
             }
             if (string.IsNullOrWhiteSpace(options.ProjectPath))
             {
@@ -1517,6 +1540,34 @@ internal static class Program
                     }
                     options.EvaluationRootPath = args[++i];
                     break;
+                case "--destination":
+                    if (i + 1 >= args.Length)
+                    {
+                        return CommandOptions.Fail("--destination requires a value.");
+                    }
+                    options.DestinationPath = args[++i];
+                    break;
+                case "--display-name":
+                    if (i + 1 >= args.Length)
+                    {
+                        return CommandOptions.Fail("--display-name requires a value.");
+                    }
+                    options.DisplayName = args[++i];
+                    break;
+                case "--template":
+                    if (i + 1 >= args.Length)
+                    {
+                        return CommandOptions.Fail("--template requires a value.");
+                    }
+                    options.TemplatePath = args[++i];
+                    break;
+                case "--plan":
+                    if (i + 1 >= args.Length)
+                    {
+                        return CommandOptions.Fail("--plan requires a value.");
+                    }
+                    options.PlanPath = args[++i];
+                    break;
                 default:
                     return CommandOptions.Fail($"Unknown argument: {args[i]}");
             }
@@ -1530,6 +1581,8 @@ internal static class Program
         Console.Error.WriteLine("SagaProjectKit CLI");
         Console.Error.WriteLine("Usage:");
         Console.Error.WriteLine("  sagaproject validate --project <path> --out <report>");
+        Console.Error.WriteLine("  sagaproject template-plan --destination <path> [--display-name <name>] [--template <seed>] --out <plan>");
+        Console.Error.WriteLine("  sagaproject template-create --plan <plan> --out <report>");
         Console.Error.WriteLine("  sagaproject resolve --project <path> --out <report>");
         Console.Error.WriteLine("  sagaproject doctor --project <path> --out <report>");
         Console.Error.WriteLine("  sagaproject resolve-slice --project <path> --slice <project_slice.json> --out <report>");
@@ -1592,6 +1645,10 @@ internal static class Program
         public string EvidenceRootPath { get; set; } = "";
         public string SourceTruthRootPath { get; set; } = "";
         public string EvaluationRootPath { get; set; } = "";
+        public string DestinationPath { get; set; } = "";
+        public string DisplayName { get; set; } = "";
+        public string TemplatePath { get; set; } = "";
+        public string PlanPath { get; set; } = "";
         public string OutputPath { get; set; } = "";
 
         public static CommandOptions Fail(string error)

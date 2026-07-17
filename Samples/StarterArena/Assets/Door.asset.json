@@ -1,0 +1,27 @@
+{
+  "assetId": "starter-arena.door",
+  "geometry": {
+    "dimensions": [
+      1.5,
+      2,
+      0.25
+    ],
+    "shape": "box"
+  },
+  "kind": "primitive",
+  "material": {
+    "baseColor": [
+      0.22,
+      0.48,
+      0.82,
+      1
+    ],
+    "shaderDependency": "renderer.solid"
+  },
+  "provenance": {
+    "author": "SagaEngine contributors",
+    "license": "MIT",
+    "origin": "SagaEngine StarterArena template"
+  },
+  "schemaVersion": 1
+}

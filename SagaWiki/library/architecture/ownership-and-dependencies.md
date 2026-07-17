@@ -30,6 +30,12 @@ source compilation, and SagaScript owns C# analysis/compilation and projections.
 Runtime and headless executable targets consume validated runtime artifacts;
 they do not link these authoring tools or interpret project source as a fallback.
 
+`SagaProjectKit.Core` is the shared schema-0 loader used by all three tools.
+Optional input maps, dependency intent, and state-policy entries remain owned by
+that library. SagaPackager's schema-1 source compilers publish logical,
+content-addressed artifacts; Render owns vendor-neutral conversion of cooked
+mesh/material payloads into its existing runtime data contracts.
+
 ## Review questions
 
 When adding or moving a type, ask:

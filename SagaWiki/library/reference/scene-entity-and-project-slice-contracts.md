@@ -13,6 +13,23 @@ Scene/entity source and project-slice views solve different problems. Scene/enti
 
 The `.sagaproj` manifest identifies the project and its declared roots/entry references. Scene source identifies scene identity and entity composition. Entity source or embedded entity records identify entity/component data. Asset manifests connect canonical asset keys to validated runtime/cooked paths.
 
+Schema-0 `.sagaproj` may additionally declare input maps, exact dependency
+intent, and path policies for SourceTruth, GeneratedState, PersonalState, and
+SharedWorkspaceState. Existing schema-0 projects without these optional fields
+remain valid. The StarterArena seed declares `SagaPackage.lock` as its sole
+tracked GeneratedState exception.
+
+StarterArena's Campaign 1 scene source uses strict schema version 1, stable
+parent hierarchy, Transform, Camera, DirectionalLight, MeshRenderer,
+ScriptBehavior, and entity-level ScriptActionBinding components. Unknown root
+fields, entities, components, or component fields are rejected. Its cooked
+scene records stable entities/components, resolved asset content hashes,
+logical script behavior and named-action bindings, capabilities, source hash,
+and tool version. Behavior/action identity comes only from hash-verified
+SagaScript semantic manifests; authoring source paths are removed from runtime
+artifacts. The scene binds `Interact` to `DoorController.OnInteract`; it does
+not record a keyboard key.
+
 Runtime ECS, render snapshots, project-browser inventories, project slices, and generated scene artifacts are derived representations. They do not write back silently.
 
 ## Scene schema

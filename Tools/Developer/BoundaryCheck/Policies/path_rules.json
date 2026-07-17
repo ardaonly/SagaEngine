@@ -9,37 +9,37 @@
   "rules": [
     {
       "pattern": "Samples/**/*.cs",
-      "license": "Apache-2.0",
+      "license": "MIT",
       "domain_id": "saga-sample-project-files",
       "priority": 1200
     },
     {
       "pattern": "Samples/**/*.json",
-      "license": "Apache-2.0",
+      "license": "MIT",
       "domain_id": "saga-sample-project-files",
       "priority": 1200
     },
     {
       "pattern": "Samples/**/*.sagaproj",
-      "license": "Apache-2.0",
+      "license": "MIT",
       "domain_id": "saga-sample-project-files",
       "priority": 1200
     },
     {
       "pattern": "Samples/**/ACCEPTANCE.md",
-      "license": "Apache-2.0",
+      "license": "MIT",
       "domain_id": "saga-sample-documentation",
       "priority": 1200
     },
     {
       "pattern": "Samples/**/KNOWN_LIMITATIONS.md",
-      "license": "Apache-2.0",
+      "license": "MIT",
       "domain_id": "saga-sample-documentation",
       "priority": 1200
     },
     {
       "pattern": "Samples/**/README.md",
-      "license": "Apache-2.0",
+      "license": "MIT",
       "domain_id": "saga-sample-documentation",
       "priority": 1200
     },
@@ -183,7 +183,7 @@
     },
     {
       "pattern": "Samples/**/Content/**",
-      "license": "Apache-2.0",
+      "license": "MIT",
       "domain_id": "saga-content",
       "priority": 200
     },
@@ -261,7 +261,7 @@
     },
     {
       "pattern": "Samples/**",
-      "license": "Apache-2.0",
+      "license": "MIT",
       "domain_id": "saga-samples",
       "priority": 100
     },

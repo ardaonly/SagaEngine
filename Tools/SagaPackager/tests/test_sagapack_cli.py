@@ -15,6 +15,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 PROJECT = REPO_ROOT / "Tools" / "SagaPackager" / "SagaPackager.csproj"
 CLI_ASSEMBLY = PROJECT.parent / "bin" / "Release" / "net10.0" / "sagapack.dll"
 SAMPLE_ROOT = REPO_ROOT / "Samples" / "MultiplayerSandbox"
+STARTER_ROOT = REPO_ROOT / "Samples" / "StarterArena"
 NATIVE_BIN_DIR = Path(
     os.environ.get(
         "SAGA_NATIVE_BIN_DIR",
@@ -719,8 +720,86 @@ def test_missing_project_returns_missing_input() -> None:
         assert result.returncode == 3
 
 
+def compile_starter(project_root: Path, output_root: Path) -> subprocess.CompletedProcess[str]:
+    return run_cli(
+        "compile-content",
+        "--project",
+        str(project_root / "StarterArena.sagaproj"),
+        "--out",
+        str(output_root),
+    )
+
+
+def artifact_hashes(output_root: Path) -> dict[str, str]:
+    manifest = load(output_root / "manifests" / "current.json")
+    return {item["artifactId"]: item["contentHash"] for item in manifest["artifacts"]}
+
+
+def test_starter_content_is_deterministic_across_clean_roots() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        first_project = root / "first" / "StarterArena"
+        second_project = root / "second" / "StarterArena"
+        shutil.copytree(STARTER_ROOT, first_project)
+        shutil.copytree(STARTER_ROOT, second_project)
+        first_output = root / "first-output"
+        second_output = root / "second-output"
+        first = compile_starter(first_project, first_output)
+        second = compile_starter(second_project, second_output)
+        assert first.returncode == 0, first.stderr
+        assert second.returncode == 0, second.stderr
+        assert (first_output / "manifests" / "current.json").read_bytes() == (
+            second_output / "manifests" / "current.json"
+        ).read_bytes()
+        assert artifact_hashes(first_output) == artifact_hashes(second_output)
+
+
+def test_input_rebind_changes_only_input_artifact() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        project = root / "StarterArena"
+        shutil.copytree(STARTER_ROOT, project)
+        before = root / "before"
+        after = root / "after"
+        assert compile_starter(project, before).returncode == 0
+        input_path = project / "Input" / "Input.saga.json"
+        input_source = load(input_path)
+        binding = input_source["actions"][0]["bindings"][0]
+        binding["control"] = "F"
+        binding["displayName"] = "Keyboard F"
+        write_json(input_path, input_source)
+        assert compile_starter(project, after).returncode == 0
+        before_hashes = artifact_hashes(before)
+        after_hashes = artifact_hashes(after)
+        changed = sorted(key for key in before_hashes if before_hashes[key] != after_hashes[key])
+        assert changed == ["starter-arena.input"]
+
+
+def test_invalid_scene_does_not_replace_current_manifest() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        project = root / "StarterArena"
+        output = root / "output"
+        shutil.copytree(STARTER_ROOT, project)
+        assert compile_starter(project, output).returncode == 0
+        current = output / "manifests" / "current.json"
+        original = current.read_bytes()
+        scene_path = project / "Scenes" / "StarterArena.sagascene"
+        scene = load(scene_path)
+        scene["unknownField"] = True
+        write_json(scene_path, scene)
+        failed = compile_starter(project, output)
+        assert failed.returncode == 1
+        assert current.read_bytes() == original
+        result = load(output / "compile-result.json")
+        assert "Content.Schema.UnknownField" in [item["code"] for item in result["diagnostics"]]
+
+
 def run_all() -> None:
     tests = [
+        test_starter_content_is_deterministic_across_clean_roots,
+        test_input_rebind_changes_only_input_artifact,
+        test_invalid_scene_does_not_replace_current_manifest,
         test_validate_multiplayer_sandbox_passes,
         test_asset_validate_reports_missing_source_truth_for_placeholder_assets,
         test_asset_validate_accepts_explicit_asset_source_manifest_and_package_evidence,

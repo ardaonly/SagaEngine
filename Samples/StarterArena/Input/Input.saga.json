@@ -1,0 +1,18 @@
+{
+  "actions": [
+    {
+      "actionId": "Interact",
+      "bindings": [
+        {
+          "control": "E",
+          "device": "Keyboard",
+          "displayName": "Keyboard E"
+        }
+      ],
+      "displayName": "Interact",
+      "runtimeRole": "Gameplay"
+    }
+  ],
+  "inputMapId": "starter-arena.input",
+  "schemaVersion": 1
+}
