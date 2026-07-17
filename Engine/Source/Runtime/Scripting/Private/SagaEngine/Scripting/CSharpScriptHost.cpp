@@ -1781,17 +1781,18 @@ struct CSharpScriptHost::Impl
 
     template <typename Function>
     [[nodiscard]] bool LoadBridgeFunction(
-        const char_t* methodName,
+        std::string_view methodName,
         Function& function,
         std::vector<ScriptDiagnostic>& diagnostics)
     {
         void* pointer = nullptr;
         const auto bridgePath = ToHostString(options.runtimeBridgeAssembly);
         const auto bridgeType = ToHostString(kBridgeTypeName);
+        const auto bridgeMethod = ToHostString(methodName);
         const auto result = loadAssemblyAndGetFunctionPointer(
             bridgePath.c_str(),
             bridgeType.c_str(),
-            methodName,
+            bridgeMethod.c_str(),
             UNMANAGEDCALLERSONLY_METHOD,
             nullptr,
             &pointer);
