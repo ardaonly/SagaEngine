@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Emit;
 using Microsoft.CodeAnalysis.Text;
 
 namespace SagaScript;
@@ -18,6 +19,7 @@ internal sealed record SagaScriptCompileRequest
     public required string ArtifactOutputDirectory { get; init; }
     public required string ProjectRoot { get; init; }
     public string AssemblyName { get; init; } = "SagaProjectScripts";
+    public string RuntimeBridgeAssemblyPath { get; init; } = "";
 }
 
 internal sealed record SagaScriptCompileResult
@@ -86,7 +88,7 @@ internal static class SagaScriptCompiler
 
     private static void EmitAssembly(SagaScriptCompileRequest request, List<SagaDiagnostic> diagnostics)
     {
-        var runtimeBridgeAssembly = ResolveRuntimeBridgeAssembly();
+        var runtimeBridgeAssembly = ResolveRuntimeBridgeAssembly(request.RuntimeBridgeAssemblyPath);
         if (runtimeBridgeAssembly is null)
         {
             diagnostics.Add(new SagaDiagnostic
@@ -99,9 +101,11 @@ internal static class SagaScriptCompiler
         }
 
         var syntaxTrees = request.SourceFiles
+            .Order(StringComparer.Ordinal)
             .Select(file => CSharpSyntaxTree.ParseText(
                 SourceText.From(File.ReadAllText(file), Encoding.UTF8),
-                path: file))
+                new CSharpParseOptions(LanguageVersion.Latest),
+                path: SyntaxPath(request.ProjectRoot, file)))
             .Append(CSharpSyntaxTree.ParseText(
                 SourceText.From(BuildAttributeShim(), Encoding.UTF8),
                 path: AttributeShimPath))
@@ -119,11 +123,15 @@ internal static class SagaScriptCompiler
                 OutputKind.DynamicallyLinkedLibrary,
                 optimizationLevel: OptimizationLevel.Release,
                 deterministic: true,
+                concurrentBuild: false,
                 nullableContextOptions: NullableContextOptions.Enable));
 
         using var assemblyStream = File.Create(assemblyPath);
         using var symbolsStream = File.Create(symbolsPath);
-        var emit = compilation.Emit(assemblyStream, pdbStream: symbolsStream);
+        var emit = compilation.Emit(
+            assemblyStream,
+            pdbStream: symbolsStream,
+            options: new EmitOptions(debugInformationFormat: DebugInformationFormat.PortablePdb));
         if (!emit.Success)
         {
             assemblyStream.Close();
@@ -163,6 +171,8 @@ internal static class SagaScriptCompiler
                 .Split(Path.PathSeparator)
                 .Where(path => path.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
                 .Append(runtimeBridgeAssembly)
+                .Distinct(StringComparer.Ordinal)
+                .Order(StringComparer.Ordinal)
                 .Select(path => MetadataReference.CreateFromFile(path))
                 .ToArray();
         }
@@ -177,8 +187,13 @@ internal static class SagaScriptCompiler
         };
     }
 
-    private static string? ResolveRuntimeBridgeAssembly()
+    private static string? ResolveRuntimeBridgeAssembly(string preferredPath)
     {
+        if (!string.IsNullOrWhiteSpace(preferredPath))
+        {
+            var trusted = Path.GetFullPath(preferredPath);
+            return File.Exists(trusted) ? trusted : null;
+        }
         var candidates = new List<string>();
         var environmentPath = Environment.GetEnvironmentVariable("SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY");
         if (!string.IsNullOrWhiteSpace(environmentPath))
@@ -207,6 +222,17 @@ internal static class SagaScriptCompiler
         return candidates
             .Select(Path.GetFullPath)
             .FirstOrDefault(File.Exists);
+    }
+
+    private static string SyntaxPath(string projectRoot, string sourceFile)
+    {
+        if (string.IsNullOrWhiteSpace(projectRoot))
+        {
+            return Path.GetFileName(sourceFile);
+        }
+        var relative = Path.GetRelativePath(Path.GetFullPath(projectRoot), Path.GetFullPath(sourceFile))
+            .Replace(Path.DirectorySeparatorChar, '/');
+        return relative.StartsWith("../", StringComparison.Ordinal) ? Path.GetFileName(sourceFile) : relative;
     }
 
     private static SagaDiagnostic ToSagaDiagnostic(Diagnostic diagnostic)
@@ -256,7 +282,7 @@ internal static class SagaScriptCompiler
     private static string BuildAttributeShim()
     {
         return """
-using System;
+global using System;
 
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false)]
 internal sealed class SagaScriptIdAttribute : Attribute

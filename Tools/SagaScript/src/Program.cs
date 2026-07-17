@@ -35,20 +35,40 @@ internal static class Program
         }
 
         var command = args[0];
+        if (command == "worker")
+        {
+            var worker = WorkerCliOptions.Parse(args.Skip(1).ToArray());
+            return ProjectWorker.Run(worker.RequestPath, worker.ResultPath, worker.ProgressPath);
+        }
         var options = CliOptions.Parse(args.Skip(1).ToArray());
         if (command == "compile" && !DotNetSdkProbe.HasRequiredSdk())
         {
             return ReportMissingDotNetSdk(options);
         }
 
-        if (RequiresSource(command) && options.Sources.Count == 0)
+        if (RequiresSource(command) && options.Sources.Count == 0 &&
+            string.IsNullOrWhiteSpace(options.ProjectPath))
         {
             throw new InvalidOperationException("At least one --source path is required.");
         }
 
-        var sourceFiles = options.Sources.Count == 0
-            ? Array.Empty<string>()
-            : SourceDiscovery.Discover(options.Sources);
+        IReadOnlyList<string> sourceFiles;
+        if (!string.IsNullOrWhiteSpace(options.ProjectPath))
+        {
+            if (command is not ("analyze" or "compile" or "project-blocks"))
+            {
+                throw new InvalidOperationException("--project is supported by analyze, compile, and project-blocks.");
+            }
+            var selection = ProjectSourceSelection.Load(options.ProjectPath);
+            sourceFiles = selection.SourceFiles;
+            options.SetResolvedProjectRoot(selection.ProjectRoot);
+        }
+        else
+        {
+            sourceFiles = options.Sources.Count == 0
+                ? Array.Empty<string>()
+                : SourceDiscovery.Discover(options.Sources);
+        }
         if (command is "analyze" or "emit-bindings" or "source-map" or "project-blocks" or "plan-block-edit" or "apply-block-edit" or "patch-evaluation" or "patch-apply" or "patch-diff" or "patch-review" or "patch-rollback" or "extract-nodes" or "compatibility-profile" or "validate-artifacts")
         {
             return RunSagaWeaverCommand(command, sourceFiles, options);
@@ -553,10 +573,14 @@ internal static class Program
         Console.WriteLine("  inspect-bindings --source <file-or-dir> [--out <file>]");
         Console.WriteLine("  emit-manifests --source <file-or-dir> --out <dir> [--json]");
         Console.WriteLine("  compile --source <file-or-dir> --out <manifest-dir> [--artifacts-out <dir>] [--json]");
+        Console.WriteLine("  compile --project <project.sagaproj> --out <manifest-dir> [--artifacts-out <dir>] [--json]");
         Console.WriteLine("  analyze --source <file-or-dir> --out <dir> [--json]");
+        Console.WriteLine("  analyze --project <project.sagaproj> --out <dir> [--json]");
         Console.WriteLine("  emit-bindings --source <file-or-dir> --out <dir> [--json]");
         Console.WriteLine("  source-map --source <file-or-dir> --out <dir> [--json]");
         Console.WriteLine("  project-blocks --source <file-or-dir> --out <dir> [--json]");
+        Console.WriteLine("  project-blocks --project <project.sagaproj> --out <dir> [--json]");
+        Console.WriteLine("  worker --request <worker-request-v1.json> --result <worker-result-v1.json> --progress <progress.ndjson>");
         Console.WriteLine("  plan-block-edit --projection <visual_blocks_projection_v1.json> --operation <operation.json> --out <file> [--json]");
         Console.WriteLine("  apply-block-edit --evaluation <block_patch_evaluation_v1.json> --source-root <path> --out <dir> [--json]");
         Console.WriteLine("  extract-nodes --source <file-or-dir> --out <dir> [--json]");
@@ -623,6 +647,7 @@ internal sealed class CliOptions
     public string ArtifactRoot { get; private set; } = "";
     public string Decision { get; private set; } = "";
     public string Reviewer { get; private set; } = "";
+    public string ProjectPath { get; private set; } = "";
     public bool Strict { get; private set; }
     public bool Json { get; private set; }
 
@@ -635,6 +660,9 @@ internal sealed class CliOptions
             {
                 case "--source":
                     options.Sources.Add(RequireValue(args, ref i, "--source"));
+                    break;
+                case "--project":
+                    options.ProjectPath = RequireValue(args, ref i, "--project");
                     break;
                 case "--out":
                     var output = RequireValue(args, ref i, "--out");
@@ -706,6 +734,11 @@ internal sealed class CliOptions
         return options;
     }
 
+    public void SetResolvedProjectRoot(string projectRoot)
+    {
+        ProjectRoot = projectRoot;
+    }
+
     private static string RequireValue(IReadOnlyList<string> args, ref int index, string option)
     {
         if (index + 1 >= args.Count)
@@ -715,5 +748,36 @@ internal sealed class CliOptions
 
         index++;
         return args[index];
+    }
+}
+
+internal sealed record WorkerCliOptions(string RequestPath, string ResultPath, string ProgressPath)
+{
+    public static WorkerCliOptions Parse(IReadOnlyList<string> args)
+    {
+        var request = "";
+        var result = "";
+        var progress = "";
+        for (var index = 0; index < args.Count; ++index)
+        {
+            if (index + 1 >= args.Count)
+            {
+                throw new InvalidOperationException($"{args[index]} requires a value.");
+            }
+            var value = args[++index];
+            switch (args[index - 1])
+            {
+                case "--request": request = value; break;
+                case "--result": result = value; break;
+                case "--progress": progress = value; break;
+                default: throw new InvalidOperationException($"Unknown worker option '{args[index - 1]}'.");
+            }
+        }
+        if (string.IsNullOrWhiteSpace(request) || string.IsNullOrWhiteSpace(result) ||
+            string.IsNullOrWhiteSpace(progress))
+        {
+            throw new InvalidOperationException("worker requires --request, --result, and --progress.");
+        }
+        return new WorkerCliOptions(request, result, progress);
     }
 }
