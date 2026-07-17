@@ -69,21 +69,11 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           MANUAL_GRAPH: ${{ inputs.configured_graph }}
-          BASE_REF: ${{ steps.base.outputs.base_ref }}
         run: |
           set -euo pipefail
           graph_required=false
           if [[ "$EVENT_NAME" == "schedule" || ( "$EVENT_NAME" == "workflow_dispatch" && "$MANUAL_GRAPH" == "true" ) ]]; then
             graph_required=true
-          elif [[ "$EVENT_NAME" == "push" ]]; then
-            while IFS= read -r path; do
-              case "$path" in
-                CMakeLists.txt|CMakePresets.json|conanfile.py|LICENSE*|SHA256SUMS|.reuse/*|.github/workflows/licensing.yml|cmake/*|Engine/*|Samples/*|Tests/*|ThirdParty/*|Tools/*)
-                  graph_required=true
-                  break
-                  ;;
-              esac
-            done < <(git diff --name-only "$BASE_REF...HEAD")
           fi
           echo "graph_required=$graph_required" >> "$GITHUB_OUTPUT"
           echo "Configured graph required: $graph_required"
