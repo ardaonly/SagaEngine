@@ -1,0 +1,17 @@
+{
+  "apiNamespace": "SagaEngine.Scripting",
+  "assemblyName": "SagaScript.RuntimeBridge",
+  "compileReference": "Engine/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.csproj",
+  "module": "gameplay.highlevel",
+  "runtimeCompatibility": "0.0.11",
+  "schemaVersion": 1,
+  "targetFramework": "net10.0",
+  "types": [
+    "SagaActionAttribute",
+    "SagaBehavior",
+    "ScriptContext",
+    "SelfFacade",
+    "TransformFacade",
+    "Vector3Value"
+  ]
+}

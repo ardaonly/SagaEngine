@@ -6,8 +6,8 @@ From the repository root, validate the project and create a fresh template with:
 Tools/SagaProjectKit/sagaproject validate --project Samples/StarterArena/StarterArena.sagaproj --out /tmp/starter-project.json
 Tools/SagaProjectKit/sagaproject template-plan --destination /tmp/StarterArenaCopy --display-name StarterArenaCopy --out /tmp/starter-plan.json
 Tools/SagaProjectKit/sagaproject template-create --plan /tmp/starter-plan.json --sagapack Tools/SagaPackager/sagapack --engine-root . --runtime-bridge build/RelWithDebInfo-0.0.11/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.dll --out /tmp/starter-create.json
-Tools/SagaPackager/sagapack lock-verify --project Samples/StarterArena/StarterArena.sagaproj --engine-root . --lock Samples/StarterArena/SagaPackage.lock --runtime-bridge build/RelWithDebInfo-0.0.11/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.dll --out /tmp/starter-lock.json
 Tools/SagaPackager/sagapack resolve --project Samples/StarterArena/StarterArena.sagaproj --engine-root . --lock /tmp/SagaPackage.lock --generated-out /tmp/starter-packages --runtime-bridge build/RelWithDebInfo-0.0.11/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.dll --out /tmp/starter-resolve.json
+Tools/SagaPackager/sagapack lock-verify --project Samples/StarterArena/StarterArena.sagaproj --engine-root . --lock Samples/StarterArena/SagaPackage.lock --generated-out /tmp/starter-packages --runtime-bridge build/RelWithDebInfo-0.0.11/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.dll --out /tmp/starter-lock.json
 Tools/SagaPackager/sagapack compile-assets --project Samples/StarterArena/StarterArena.sagaproj --out /tmp/starter-content
 Tools/SagaPackager/sagapack compile-inputs --project Samples/StarterArena/StarterArena.sagaproj --out /tmp/starter-content
 Tools/SagaScript/sagascript analyze --project Samples/StarterArena/StarterArena.sagaproj --out /tmp/starter-analysis
@@ -23,6 +23,9 @@ and `gameplay.highlevel`. Template creation regenerates and verifies that lock
 inside its staging transaction, so the new project passes offline lock verification
 immediately. Later commands in this campaign cook
 asset/scene/input artifacts and compile scripts through the one-shot worker.
+Selected-generation verification requires the tracked and immutable-generation
+lock to be canonically identical and validates every generation file, reference
+manifest, and copied RuntimeBridge hash before accepting current state.
 All generated output roots must be clean or disposable, and repeating the
 sequence in two roots must yield identical canonical artifacts after declared
 project substitutions are normalized.

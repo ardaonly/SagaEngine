@@ -17,7 +17,7 @@ SagaEngine uses multiple representations of the same project information. This r
 | C# behavior | authored C# source | compiled assembly, node metadata, Visual Blocks projection, source map |
 | Scene and entity authoring | project-owned scene source | validation report, runtime representation, generated evidence |
 | Asset identity and ownership | project asset source manifest | inventory, runtime manifest, package artifact |
-| Package graph | validated package manifests and project inputs | staged package, startup validation, distribution layout |
+| Package graph | `.sagaproj` dependency intent plus trusted distribution manifests | `SagaPackage.lock`, reference/API-surface metadata, staged package |
 | Build graph | CMake sources, targets, presets | generated build directory and target graph |
 | License policy | `LICENSE_POLICY.toml` and authoritative license texts | generated path rules, checksums, validation reports |
 | Wiki knowledge | `SagaWiki/library` plus `wiki-library.json` | generated offline `index.html` |
@@ -40,6 +40,8 @@ Validation must reject:
 - ambiguous duplicate identifiers where uniqueness is part of the contract.
 
 Resolution normalizes paths under the project root and reports diagnostics. A validator must not silently rewrite source to make an invalid manifest pass.
+
+Schema version `0` also permits optional input-map declarations, exact dependency intent, and state-policy entries. Omitting those fields preserves compatibility with existing projects. The state policy distinguishes `SourceTruth`, `GeneratedState`, `PersonalState`, and `SharedWorkspaceState`; it documents ownership and tracking policy but does not override repository ignore or security boundaries.
 
 ### Validation phases
 
@@ -113,6 +115,14 @@ Race-safe consumption rechecks the relevant identity at the handoff. A validator
 Authored C# is behavior truth. Compiled assemblies, bindings, descriptors, node metadata, source maps, and Visual Blocks projections are derived views. A visual edit becomes authoritative only when it produces and applies a reviewed C# source change under the source-patch contract.
 
 Generated C# must remain traceable to its origin. A descriptor may name a script, capability, binding, or generated span, but cannot silently create behavior absent from source. Runtime packages validate the assemblies and binding manifests they consume; they do not reconstruct authority from an editor graph.
+
+## Offline package resolution
+
+SagaPackager owns exact-version, built-in-only dependency resolution for the current project toolchain. Dependency intent comes from `.sagaproj`; package/module/artifact identities, trust, license, and origin come from a schema-version-1 manifest under the engine distribution. Resolution performs no network access and does not search project-local package copies.
+
+`SagaPackage.lock` schema version `1` records the engine and project identity, intent and graph hashes, package/module/source identity, artifact hashes, trust classification, license/origin provenance, and logical distribution-relative paths. Absolute host paths are transport data and are excluded from the lock and its canonical graph hash. Generated C# reference and API/Visual Blocks surface metadata are projections of that same graph, not independent package truth. Their immutable generation also pins the resolved RuntimeBridge assembly bytes; `manifests/current.json` is the sole generation selector. A selected generation is valid only when its manifest/file hashes, reference metadata and copied bridge match and its lock is canonically identical to the tracked lock.
+
+Executable managed references and analyzers are accepted only from `TrustedEngineDistribution`. Lock verification re-resolves the graph and rejects stale intent, missing artifacts, corrupt hashes, unsupported modules, version mismatches, unsafe paths, untrusted executable inputs, and provenance gaps with stable sorted diagnostics. This is a local trust boundary for tool selection; it is not code signing, remote package authenticity, arbitrary registry support, or a general dependency solver.
 
 ## Scene and entity source truth
 

@@ -1,0 +1,31 @@
+{
+  "apis": [
+    {
+      "apiId": "SagaBehavior.OnStart",
+      "blockProjection": "Supported",
+      "capability": "Gameplay.State.ReadWrite",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "SagaBehavior.OnUpdate",
+      "blockProjection": "Supported",
+      "capability": "World.Transform.ReadWrite",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "ScriptContext.Self.Transform",
+      "blockProjection": "Supported",
+      "capability": "World.Transform.ReadWrite",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "NativeBridge",
+      "blockProjection": "Filtered",
+      "capability": "Internal",
+      "visibility": "Internal"
+    }
+  ],
+  "module": "gameplay.highlevel",
+  "schemaVersion": 1,
+  "surfaceId": "com.saga.gameplay.foundation/gameplay.highlevel"
+}

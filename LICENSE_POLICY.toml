@@ -1081,14 +1081,14 @@ export_validation = "manual-pending"
 
 [[targets]]
 name = "SagaProductLib"
-source_domains = ["saga-editor", "saga-tests"]
+source_domains = ["saga-editor"]
 public_dependencies = []
 private_dependencies = ["SagaEngine", "SagaRuntimeLib", "SagaServerLib", "SagaEditorLib"]
 runtime_dependencies = []
 target_license_expression = "MPL-2.0"
 distribution = "disabled-in-reviewed-build"
-review = "classification-required"
-blockers = ["configured-source-domain-confirmation"]
+review = "configured-graph-reviewed"
+blockers = []
 graph_required = false
 current_license_mode = "fixed-spdx"
 current_license_expressions = ["MPL-2.0"]
@@ -1161,17 +1161,17 @@ export_validation = "manual-pending"
 
 [[targets]]
 name = "SagaRuntime"
-source_domains = ["saga-programs", "saga-samples"]
+source_domains = ["saga-programs"]
 public_dependencies = []
 private_dependencies = ["SagaRuntimeLib", "SagaEngine"]
 runtime_dependencies = ["SDL", "Vendor/Diligent"]
-target_license_expression = "Apache-2.0 AND MPL-2.0"
+target_license_expression = "MPL-2.0"
 distribution = "installed-program"
 review = "configured-graph-reviewed"
 blockers = []
 graph_required = true
-current_license_mode = "mixed-source-composition"
-current_license_expressions = ["Apache-2.0", "MPL-2.0"]
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["MPL-2.0"]
 target_license_mode = "fixed-spdx"
 generated_source_patterns = []
 generated_source_action = "report"

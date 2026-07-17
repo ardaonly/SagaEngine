@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    {
+      "artifactId": "com.saga.gameplay.foundation.analyzer-policy",
+      "kind": "analyzer",
+      "path": "Packages/com.saga.gameplay.foundation/0.0.11/analyzers/gameplay.highlevel.rules.json"
+    },
+    {
+      "artifactId": "com.saga.gameplay.foundation.api-surface",
+      "kind": "apiSurface",
+      "path": "Packages/com.saga.gameplay.foundation/0.0.11/api/gameplay.highlevel.surface.json"
+    },
+    {
+      "artifactId": "com.saga.gameplay.foundation.managed-reference",
+      "kind": "managedReference",
+      "path": "Packages/com.saga.gameplay.foundation/0.0.11/managed/gameplay.highlevel.reference.json"
+    }
+  ],
+  "license": "MPL-2.0",
+  "modules": [
+    "gameplay.highlevel"
+  ],
+  "origin": "SagaEngine 0.0.11 built-in distribution",
+  "packageId": "com.saga.gameplay.foundation",
+  "schemaVersion": 1,
+  "trust": "TrustedEngineDistribution",
+  "version": "0.0.11"
+}

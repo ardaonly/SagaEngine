@@ -1,0 +1,21 @@
+{
+  "allowedCapabilities": [
+    "Gameplay.State.ReadWrite",
+    "World.Transform.ReadWrite"
+  ],
+  "analyzerId": "Saga.Gameplay.HighLevel",
+  "module": "gameplay.highlevel",
+  "rules": [
+    {
+      "diagnosticId": "SAGA-HIGHLEVEL-001",
+      "disposition": "Allow",
+      "symbol": "SagaEngine.Scripting.SagaBehavior"
+    },
+    {
+      "diagnosticId": "SAGA-HIGHLEVEL-002",
+      "disposition": "Allow",
+      "symbol": "SagaEngine.Scripting.ScriptContext.Self"
+    }
+  ],
+  "schemaVersion": 1
+}
