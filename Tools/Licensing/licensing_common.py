@@ -236,6 +236,7 @@ def ensure_license_ref_texts(
 CANONICAL_DOCUMENT_PATHS = {
     "LICENSES/MPL-2.0.txt",
     "LICENSES/Apache-2.0.txt",
+    "LICENSES/MIT.txt",
     "LICENSES/0BSD.txt",
     "LICENSES/CC-BY-4.0.txt",
     "LICENSES/CC0-1.0.txt",

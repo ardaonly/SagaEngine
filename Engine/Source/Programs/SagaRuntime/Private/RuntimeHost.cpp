@@ -13,8 +13,8 @@ RuntimeHostResult RuntimeHost::Run() const
     result.diagnosticId =
         RuntimeHostDiagnostics::GenericProjectModeUnsupported;
     result.message =
-        "Generic project execution is unsupported. Select a bounded "
-        "SagaRuntime mode such as StarterArena smoke or playable evidence.";
+        "Generic project execution is unsupported until a validated runtime "
+        "artifact launch contract is available.";
     return result;
 }
 

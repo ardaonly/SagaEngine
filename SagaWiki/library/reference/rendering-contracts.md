@@ -207,7 +207,7 @@ Pixel tests should compare robust properties: non-clear coverage, relative lumin
 
 ### Current GPU evidence map
 
-The current Diligent tests contain focused evidence for lifecycle/reinitialize/resize, native buffers/textures/samplers/shaders/pipelines, constant/texture/sampler bindings and cache invalidation, stale/destroyed handle rejection, coordinate/depth/winding/UV behavior, overlay draw/scissor/alpha/order/lifetime/thread rejection, directional lighting, shadow behavior, and a named StarterArena pixel frame.
+The current Diligent tests contain focused evidence for lifecycle/reinitialize/resize, native buffers/textures/samplers/shaders/pipelines, constant/texture/sampler bindings and cache invalidation, stale/destroyed handle rejection, coordinate/depth/winding/UV behavior, overlay draw/scissor/alpha/order/lifetime/thread rejection, directional lighting, and shadow behavior. No current StarterArena pixel claim is registered.
 
 Each test proves its asserted fixture on the executing GPU environment. A skipped no-display/no-device test remains unavailable evidence. A multi-frame stress-named GPU test remains GPU integration behavior and should not be conflated with the repository's separate StressTests acceptance.
 

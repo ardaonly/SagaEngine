@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
 
 /// @file main.cpp
 /// @brief CLI entrypoint for bounded MultiplayerSandbox headless evaluation.
@@ -38,11 +38,7 @@ struct ParseResult
             result.help = true;
             return result;
         }
-        if (arg == "--starter-arena-server-smoke")
-        {
-            result.options.starterArenaServerSmoke = true;
-        }
-        else if (arg == "--project" && HasValue(i, argc))
+        if (arg == "--project" && HasValue(i, argc))
         {
             result.options.projectPath = argv[++i];
         }
@@ -94,7 +90,6 @@ void PrintUsage()
     std::cout
         << "Usage: MultiplayerSandboxHeadless --project <path> "
            "--report-out <path> --diagnostics-out <dir> "
-           "[--starter-arena-server-smoke] "
            "[--ticks <n>] [--fixed-dt <seconds>]\n";
 }
 

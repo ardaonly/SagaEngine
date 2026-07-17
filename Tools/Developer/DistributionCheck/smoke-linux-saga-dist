@@ -182,7 +182,6 @@ def run_starter_arena_workflow(
     validate_report = work_dir / "starter_arena_validate.json"
     sagascript_out = work_dir / "starter_arena_sagascript_analyze"
     product_report = work_dir / "starter_arena_product_shell_workflow_report.json"
-    runtime_report = work_dir / "starter_arena_runtime_smoke.json"
 
     starter_diagnostics: list[str] = []
     required_results: list[bool] = []
@@ -245,36 +244,6 @@ def run_starter_arena_workflow(
     )
     required_results.append(add_artifact(artifacts, label="StarterArena product shell workflow report", path=product_report, required=True, kind="json-report"))
 
-    runtime_ok = run_command(
-        commands,
-        [
-            str(unpack_root / "bin" / "SagaRuntime"),
-            "--headless",
-            "--project",
-            str(project),
-            "--starter-arena-smoke",
-            "--smoke-report-out",
-            str(runtime_report),
-            "--smoke-frames",
-            "30",
-            "--fixed-dt",
-            "0.016",
-        ],
-        required=False,
-        label="StarterArena SagaRuntime packaged smoke",
-        timeout=30,
-        limitation=(
-            "Packaged SagaRuntime StarterArena smoke did not satisfy its bounded optional command contract; "
-            "see the recorded exit code and output for the current result."
-        ),
-        optional_failure_status="blocked",
-    )
-    add_artifact(artifacts, label="StarterArena runtime smoke report", path=runtime_report, required=False, kind="json-report")
-    if not runtime_ok:
-        message = "StarterArena SagaRuntime packaged smoke is blocked; no runtime smoke report was produced."
-        starter_diagnostics.append(message)
-        diagnostics.append(message)
-
     editor_message = (
         "SagaEditor is presence-checked only; headless archive smoke does not launch the GUI "
         "until a stable supported headless command exists."
@@ -299,7 +268,7 @@ def run_starter_arena_workflow(
             "StarterArena sagascript analyze",
             "StarterArena Saga workflow-smoke",
         ],
-        "blockedCommands": [] if runtime_ok else ["StarterArena SagaRuntime packaged smoke"],
+        "blockedCommands": [],
         "diagnostics": starter_diagnostics,
         "nonClaims": [
             "StarterArena workflow smoke does not claim full gameplay readiness.",

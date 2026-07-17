@@ -52,17 +52,13 @@ namespace
                                        std::filesystem::temp_directory_path() / "Saga" / "data");
     SagaLauncherPathPolicy policy;
     policy.reportsRoot = dataRoot / "reports";
-    policy.evidenceRoot = dataRoot / "evidence";
-    const auto bridge = productExecutable.parent_path().parent_path() / "Managed" /
-                        "SagaScript.RuntimeBridge" / "SagaScript.RuntimeBridge.dll";
-
     return std::make_unique<SagaLauncherController>(
         std::make_unique<SagaProjectCatalog>(),
         std::make_unique<SagaRecentProjectsStore>(configRoot / "recent_projects.json"),
-        std::make_unique<SagaTargetResolver>(SagaExecutableCatalog(productExecutable), bridge),
+        std::make_unique<SagaTargetResolver>(SagaExecutableCatalog(productExecutable)),
         std::make_unique<SagaLauncherActionExecutor>(
-            SagaExecutableCatalog(productExecutable), policy, bridge),
-        std::make_unique<SagaReportCatalog>(policy.reportsRoot, policy.evidenceRoot),
+            SagaExecutableCatalog(productExecutable), policy),
+        std::make_unique<SagaReportCatalog>(policy.reportsRoot),
         std::make_unique<SagaDistributionStatusReader>(productExecutable, distributionReport),
         std::make_unique<SagaLauncherTaskRunner>());
 }
@@ -181,22 +177,7 @@ private:
                                 "SagaLauncherOpenEditorButton",
                                 SagaLauncherActionId::OpenEditor,
                                 group);
-        m_smoke = ActionButton("Runtime smoke",
-                               "SagaLauncherRuntimeSmokeButton",
-                               SagaLauncherActionId::RuntimeStarterArenaSmoke,
-                               group);
-        m_playable = ActionButton("Runtime playable",
-                                  "SagaLauncherRuntimePlayableButton",
-                                  SagaLauncherActionId::RuntimeStarterArenaPlayable,
-                                  group);
-        m_firstPlayable = ActionButton("First-playable check",
-                                       "SagaLauncherFirstPlayableButton",
-                                       SagaLauncherActionId::FirstPlayableCheck,
-                                       group);
         row->addWidget(m_editor);
-        row->addWidget(m_smoke);
-        row->addWidget(m_playable);
-        row->addWidget(m_firstPlayable);
         layout->addLayout(row);
         m_targets = new QTreeWidget(group);
         m_targets->setObjectName("SagaLauncherTargets");
@@ -356,9 +337,6 @@ private:
         m_cancel->setEnabled(state.canCancelRunningAction);
         SetActionEnabled(state, SagaLauncherActionId::ValidateProject, m_validate);
         SetActionEnabled(state, SagaLauncherActionId::OpenEditor, m_editor);
-        SetActionEnabled(state, SagaLauncherActionId::RuntimeStarterArenaSmoke, m_smoke);
-        SetActionEnabled(state, SagaLauncherActionId::RuntimeStarterArenaPlayable, m_playable);
-        SetActionEnabled(state, SagaLauncherActionId::FirstPlayableCheck, m_firstPlayable);
         m_window.statusBar()->showMessage(
             running ? "Launcher action running…"
                     : QString("Launcher state revision %1").arg(state.revision));
@@ -393,9 +371,6 @@ private:
     QListWidget* m_recent = nullptr;
     QPushButton* m_validate = nullptr;
     QPushButton* m_editor = nullptr;
-    QPushButton* m_smoke = nullptr;
-    QPushButton* m_playable = nullptr;
-    QPushButton* m_firstPlayable = nullptr;
     QTreeWidget* m_targets = nullptr;
     QTreeWidget* m_reports = nullptr;
     QPlainTextEdit* m_distribution = nullptr;

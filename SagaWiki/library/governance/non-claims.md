@@ -40,6 +40,8 @@ SagaEngine contains substantial foundations, but foundations must not be describ
 ## Content and samples
 
 - samples demonstrate named workflows, not production content volume or polish;
+- StarterArena currently has source/tooling evidence only; no current runtime,
+  playable, input, HUD, or Editor workflow is claimed;
 - generated files and evidence reports are not independent source authorities;
 - historical plans, inventories, audits, and migration closures are not current capability descriptions.
 

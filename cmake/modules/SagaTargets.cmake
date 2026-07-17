@@ -625,37 +625,13 @@ function(saga_create_engine_targets)
     )
 
     saga_get_registered_sources(SagaRuntime SAGA_RUNTIME_PROGRAM_SOURCES)
-    add_executable(SagaRuntime
-        ${SAGA_RUNTIME_PROGRAM_SOURCES}
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSmoke.h
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSmoke.cpp
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSmokeReport.h
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSmokeReport.cpp
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSmokeScript.h
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSmokeScript.cpp
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSimulation.h
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSimulation.cpp
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaGameplayState.h
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaGameplayState.cpp
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaInput.h
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaInput.cpp
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaPlayable.h
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaPlayable.cpp
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaPlayableScene.h
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaPlayableScene.cpp
-    )
-    target_include_directories(SagaRuntime PRIVATE ${SAGA_ROOT}/Samples/StarterArena/Source)
-
-    target_compile_definitions(SagaRuntime PRIVATE SDL_MAIN_HANDLED)
+    add_executable(SagaRuntime ${SAGA_RUNTIME_PROGRAM_SOURCES})
 
     saga_apply_compiler_flags(SagaRuntime)
     saga_link_thirdparty(SagaRuntime)
     target_link_libraries(SagaRuntime PRIVATE
         SagaRuntimeLib
         SagaEngine
-        SagaDiligentBackend
-        SagaPlatformSDL
-        SagaBackend
     )
 
     set_target_properties(SagaRuntime PROPERTIES

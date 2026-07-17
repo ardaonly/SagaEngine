@@ -51,7 +51,7 @@ constexpr std::string_view kCapabilityTransformRead =
 constexpr std::string_view kCapabilityTransformWrite =
     "Gameplay.Transform.Write";
 constexpr std::string_view kCapabilityStatePort =
-    "Sample.StarterArena.GameplayState";
+    "Gameplay.State.ReadWrite";
 
 enum class BridgeStatus : int
 {

@@ -25,6 +25,11 @@ Aggregate targets can remain as transitional composition surfaces after the cuto
 
 Project manifests and authored sources flow through validators and builders into generated or packaged artifacts. Generated artifacts may be checked for freshness and consumed by runtime code, but do not replace their declared source. Evidence reports describe a run; they do not redefine the product contract.
 
+SagaProjectKit owns project shape and path policy, SagaPackager owns package and
+source compilation, and SagaScript owns C# analysis/compilation and projections.
+Runtime and headless executable targets consume validated runtime artifacts;
+they do not link these authoring tools or interpret project source as a fallback.
+
 ## Review questions
 
 When adding or moving a type, ask:

@@ -386,7 +386,6 @@ function(saga_register_source_modules)
         Engine/Source/Programs/SagaEditorLab/CMakeLists.txt
         Tools/SagaPackager/CMakeLists.txt
         Tools/SagaScript/CMakeLists.txt
-        Tests/Evidence/FirstPlayable/CMakeLists.txt
     )
     foreach(_module_file IN LISTS _module_files)
         include("${SAGA_ROOT}/${_module_file}")

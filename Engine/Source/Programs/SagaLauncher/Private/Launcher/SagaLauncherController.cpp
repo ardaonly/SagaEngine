@@ -2,11 +2,9 @@
 
 #include "Launcher/SagaLauncherController.h"
 
-#include "FirstPlayable/FirstPlayableWorkflow.h"
 #include "Processes/SagaProcessService.h"
 
 #include <algorithm>
-#include <sstream>
 #include <utility>
 
 namespace SagaProduct
@@ -52,19 +50,11 @@ namespace
     return SagaLauncherActionStatus::Unknown;
 }
 
-[[nodiscard]] std::filesystem::path FirstPlayableBridgeFrom(const std::filesystem::path& configured)
-{
-    std::error_code error;
-    return std::filesystem::weakly_canonical(configured, error);
-}
-
 } // namespace
 
 SagaLauncherActionExecutor::SagaLauncherActionExecutor(SagaExecutableCatalog catalog,
-                                                       SagaLauncherPathPolicy pathPolicy,
-                                                       std::filesystem::path runtimeBridgeAssembly)
-    : m_catalog(std::move(catalog)), m_pathPolicy(std::move(pathPolicy)),
-      m_runtimeBridgeAssembly(std::move(runtimeBridgeAssembly))
+                                                       SagaLauncherPathPolicy pathPolicy)
+    : m_catalog(std::move(catalog)), m_pathPolicy(std::move(pathPolicy))
 {}
 
 SagaLauncherActionResult SagaLauncherActionExecutor::Execute(
@@ -100,160 +90,64 @@ SagaLauncherActionResult SagaLauncherActionExecutor::Execute(
         return result;
     }
 
-    if (action == SagaLauncherActionId::FirstPlayableCheck)
+    SagaProductProcessRequest request;
+    request.stopToken = stopToken;
+    request.timeout = std::chrono::seconds(30);
+    request.workingDirectory = project.canonicalRoot;
+    if (action == SagaLauncherActionId::OpenEditor)
     {
-        const auto runtime = m_catalog.Resolve(SagaProcessTargetId::Runtime);
-        const auto sagaScript = m_catalog.Resolve(SagaProcessTargetId::SagaScript);
-        const auto bridge = FirstPlayableBridgeFrom(m_runtimeBridgeAssembly);
-        if (!runtime.has_value() || !sagaScript.has_value() ||
-            !std::filesystem::is_regular_file(bridge))
-        {
-            result.status = SagaLauncherActionStatus::MissingInput;
-            result.diagnostics.push_back(Diagnostic(
-                SagaLauncherTargetDiagnostics::ExecutableMissing,
-                SagaLauncherDiagnosticSeverity::Error,
-                "First-playable requires SagaRuntime, sagascript, and the Runtime Bridge assembly.",
-                action));
-            return result;
-        }
-        FirstPlayableWorkflowRequest request;
-        request.runtime.projectManifest = project.canonicalManifestPath;
-        request.runtime.outputDirectory = *outputDirectory;
-        request.runtime.runtimeExecutable = *runtime;
-        request.runtime.sagaScriptExecutable = *sagaScript;
-        request.runtime.runtimeBridgeAssembly = bridge;
-        request.runtime.timeout = std::chrono::seconds(30);
-        request.runtime.stopToken = stopToken;
-        request.summaryPath = *outputDirectory / "first_playable_summary.json";
-        std::ostringstream out;
-        std::ostringstream err;
-        const auto workflow = RunFirstPlayableWorkflow(request, out, err);
-        result.started = workflow.runtime.prepared;
-        result.cancelled = stopToken.stop_requested();
-        result.status = result.cancelled ? SagaLauncherActionStatus::Cancelled
-                        : workflow.gate.status == FirstPlayableGateStatus::Accepted
-                            ? SagaLauncherActionStatus::Passed
-                        : workflow.gate.status ==
-                                FirstPlayableGateStatus::AcceptedWithManualEvidencePending
-                            ? SagaLauncherActionStatus::PassedWithLimitations
-                        : workflow.gate.status == FirstPlayableGateStatus::Incomplete
-                            ? SagaLauncherActionStatus::MissingInput
-                            : SagaLauncherActionStatus::Failed;
-        result.processExitClassification =
-            result.cancelled ? SagaProcessExitClassification::Cancelled
-            : result.status == SagaLauncherActionStatus::Passed ||
-                    result.status == SagaLauncherActionStatus::PassedWithLimitations
-                ? SagaProcessExitClassification::Succeeded
-                : SagaProcessExitClassification::Failed;
-        result.standardOutputEvaluation = out.str();
-        result.standardErrorEvaluation = err.str();
-        for (const auto& [type, path] : {std::pair{"first-playable-summary", workflow.summaryPath},
-                                         std::pair{"first-playable-gate", workflow.gatePath}})
-        {
-            SagaLauncherReportReference report;
-            report.reportType = type;
-            report.owner = "Saga";
-            report.path = path;
-            report.exists = std::filesystem::is_regular_file(path);
-            report.schemaVersion = 1;
-            report.rawStatus = ToString(workflow.gate.status);
-            report.mappedStatus = result.status;
-            result.reportReferences.push_back(std::move(report));
-        }
+        request.target = SagaProcessTargetId::Editor;
+        request.mode = SagaProcessExecutionMode::Detached;
+        request.arguments = {"--workspace", project.canonicalRoot.string()};
+    }
+    else if (action == SagaLauncherActionId::ValidateProject)
+    {
+        request.target = SagaProcessTargetId::SagaProject;
+        request.arguments = {"validate",
+                             "--project",
+                             project.canonicalManifestPath.string(),
+                             "--out",
+                             (*outputDirectory / "project-validation.json").string()};
     }
     else
     {
-        SagaProductProcessRequest request;
-        request.stopToken = stopToken;
-        request.timeout = std::chrono::seconds(30);
-        request.workingDirectory = project.canonicalRoot;
-        if (action == SagaLauncherActionId::OpenEditor)
-        {
-            request.target = SagaProcessTargetId::Editor;
-            request.mode = SagaProcessExecutionMode::Detached;
-            request.arguments = {"--workspace", project.canonicalRoot.string()};
-        }
-        else if (action == SagaLauncherActionId::ValidateProject)
-        {
-            request.target = SagaProcessTargetId::SagaProject;
-            request.arguments = {"validate",
-                                 "--project",
-                                 project.canonicalManifestPath.string(),
-                                 "--out",
-                                 (*outputDirectory / "project-validation.json").string()};
-        }
-        else if (action == SagaLauncherActionId::RuntimeStarterArenaSmoke)
-        {
-            request.target = SagaProcessTargetId::Runtime;
-            request.arguments = {"--headless",
-                                 "--project",
-                                 project.canonicalManifestPath.string(),
-                                 "--starter-arena-smoke",
-                                 "--smoke-frames",
-                                 "30",
-                                 "--fixed-dt",
-                                 "0.016",
-                                 "--smoke-report-out",
-                                 (*outputDirectory / "runtime-smoke.json").string()};
-        }
-        else if (action == SagaLauncherActionId::RuntimeStarterArenaPlayable)
-        {
-            request.target = SagaProcessTargetId::Runtime;
-            request.arguments = {
-                "--project",
-                project.canonicalManifestPath.string(),
-                "--starter-arena-playable",
-                "--playable-frames",
-                "30",
-                "--playable-input-source",
-                "synthetic",
-                "--playable-input-script",
-                (project.canonicalRoot / "Input" / "playable.synthetic-input.json").string(),
-                "--fixed-dt",
-                "0.016",
-                "--playable-report-out",
-                (*outputDirectory / "runtime-playable.json").string()};
-        }
-        else
-        {
-            result.status = SagaLauncherActionStatus::Unsupported;
-            result.diagnostics.push_back(
-                Diagnostic(SagaLauncherActionDiagnostics::NotRunnable,
-                           SagaLauncherDiagnosticSeverity::Error,
-                           "The typed launcher action has no executable contract.",
-                           action));
-            return result;
-        }
-
-        const auto executable = m_catalog.Resolve(request.target);
-        if (!executable.has_value())
-        {
-            result.status = SagaLauncherActionStatus::MissingInput;
-            result.diagnostics.push_back(
-                Diagnostic(SagaLauncherTargetDiagnostics::ExecutableMissing,
-                           SagaLauncherDiagnosticSeverity::Error,
-                           "Required allowlisted executable is missing.",
-                           action));
-            return result;
-        }
-        request.executable = *executable;
-        SagaProcessService processService;
-        const auto process = processService.Run(request);
-        result.started = process.started;
-        result.cancelled = process.cancelled;
-        if (process.started || process.classification == SagaProcessExitClassification::Detached)
-            result.exitCode = process.exitCode;
-        result.processExitClassification = process.classification;
-        result.status = MapProcessStatus(process.classification);
-        result.standardOutputEvaluation = process.standardOutput;
-        result.standardErrorEvaluation = process.standardError;
-        if (!process.error.empty())
-            result.diagnostics.push_back(Diagnostic("Saga.Launcher.Action.ProcessFailed",
-                                                    SagaLauncherDiagnosticSeverity::Error,
-                                                    process.error,
-                                                    action,
-                                                    *executable));
+        result.status = SagaLauncherActionStatus::Unsupported;
+        result.diagnostics.push_back(
+            Diagnostic(SagaLauncherActionDiagnostics::NotRunnable,
+                       SagaLauncherDiagnosticSeverity::Error,
+                       "The typed launcher action has no executable contract.",
+                       action));
+        return result;
     }
+
+    const auto executable = m_catalog.Resolve(request.target);
+    if (!executable.has_value())
+    {
+        result.status = SagaLauncherActionStatus::MissingInput;
+        result.diagnostics.push_back(
+            Diagnostic(SagaLauncherTargetDiagnostics::ExecutableMissing,
+                       SagaLauncherDiagnosticSeverity::Error,
+                       "Required allowlisted executable is missing.",
+                       action));
+        return result;
+    }
+    request.executable = *executable;
+    SagaProcessService processService;
+    const auto process = processService.Run(request);
+    result.started = process.started;
+    result.cancelled = process.cancelled;
+    if (process.started || process.classification == SagaProcessExitClassification::Detached)
+        result.exitCode = process.exitCode;
+    result.processExitClassification = process.classification;
+    result.status = MapProcessStatus(process.classification);
+    result.standardOutputEvaluation = process.standardOutput;
+    result.standardErrorEvaluation = process.standardError;
+    if (!process.error.empty())
+        result.diagnostics.push_back(Diagnostic("Saga.Launcher.Action.ProcessFailed",
+                                                SagaLauncherDiagnosticSeverity::Error,
+                                                process.error,
+                                                action,
+                                                *executable));
     result.duration = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - startedAt);
     return result;

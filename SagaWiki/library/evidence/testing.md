@@ -46,7 +46,9 @@ Configured CMake licensing evidence runs when source, build, test, or licensing 
 
 Failures are not hidden with `continue-on-error`. JUnit, JSON reports, and CTest logs upload with `if: always()` and each job writes a summary containing its exercised and excluded boundaries. Pull-request artifacts remain for 14 days, nightly results for 30 days, and licensing/weekly evidence for 90 days.
 
-Visible runtime evidence is also opt-in: `SAGA_RUN_VISIBLE_TESTS=1` must accompany a qualified native display. Otherwise the visible StarterArena cases report an explicit skip while the headless cases in the same executable continue to run.
+Visible runtime evidence is opt-in and requires a qualified native display.
+There is currently no registered StarterArena visible-runtime case; source and
+tooling checks must not be reported as pixel or interaction evidence.
 
 GPU execution remains a manual, hardware-qualified boundary. With no trusted self-hosted `saga-gpu` runner, the preflight produces an explicit blocked report and intentionally does not claim success or execute GPU binaries. A hosted runner or a successful GPU-target build is not GPU evidence.
 
