@@ -66,6 +66,11 @@ void WriteFile(const fs::path& path, const std::string& text)
                        std::istreambuf_iterator<char>());
 }
 
+[[nodiscard]] std::string ProjectIdFromManifest(const fs::path& path)
+{
+    return nlohmann::json::parse(ReadFile(path)).at("projectId").get<std::string>();
+}
+
 [[nodiscard]] fs::path WriteProject(const fs::path& root,
                                     const std::string& projectId,
                                     const std::string& displayName,
@@ -1177,8 +1182,10 @@ TEST(SagaProductWorkflowSmokeTest,
     SagaProduct::SagaApp app;
     SagaAppConfig config;
     config.workflowSmoke = true;
-    config.workflowProjectPath = SourceRoot() / "Samples" / "StarterArena" /
+    const fs::path manifest = SourceRoot() / "Samples" / "StarterArena" /
         "StarterArena.sagaproj";
+    const std::string projectId = ProjectIdFromManifest(manifest);
+    config.workflowProjectPath = manifest;
     config.workflowProfile = "project_readiness";
     config.workflowReportPath = reportPath;
 
@@ -1200,7 +1207,7 @@ TEST(SagaProductWorkflowSmokeTest,
     EXPECT_EQ(report["action"], "workflow-smoke");
     EXPECT_EQ(report["verified"], false);
     EXPECT_EQ(report["status"], "PassedWithLimitations");
-    EXPECT_EQ(report["project"]["projectId"], "starter-arena");
+    EXPECT_EQ(report["project"]["projectId"], projectId);
     EXPECT_EQ(report["profile"]["requestedProfileId"], "project_readiness");
 
     const std::vector<std::string> expectedActionIds = {
@@ -1280,6 +1287,7 @@ TEST(SagaLocalWorkspaceTransactionSmokeTest,
         root / "starter_arena_local_workspace_transaction_report.json";
     const fs::path manifest = SourceRoot() / "Samples" / "StarterArena" /
         "StarterArena.sagaproj";
+    const std::string projectId = ProjectIdFromManifest(manifest);
     const std::string manifestBefore = ReadFile(manifest);
     const auto manifestWriteTimeBefore = fs::last_write_time(manifest);
 
@@ -1313,15 +1321,15 @@ TEST(SagaLocalWorkspaceTransactionSmokeTest,
     EXPECT_EQ(report["status"], "Ready");
     EXPECT_EQ(report["workspace"]["workspaceId"], "builtin.basic");
     EXPECT_EQ(report["workspace"]["selector"], "builtin:basic");
-    EXPECT_EQ(report["project"]["projectId"], "starter-arena");
+    EXPECT_EQ(report["project"]["projectId"], projectId);
     EXPECT_EQ(report["transaction"]["workspaceId"], "builtin.basic");
-    EXPECT_EQ(report["transaction"]["projectId"], "starter-arena");
+    EXPECT_EQ(report["transaction"]["projectId"], projectId);
     EXPECT_EQ(report["transaction"]["actorId"], "local.actor");
     EXPECT_EQ(report["transaction"]["operationKind"], "InspectProject");
     EXPECT_TRUE(report["transaction"]["readOnlyEvaluation"].get<bool>());
     EXPECT_EQ(report["transaction"]["status"], "ready");
     EXPECT_NE(report["transaction"]["transactionId"].get<std::string>().find(
-                  "local-transaction:builtin.basic:starter-arena:local.actor:InspectProject"),
+                  "local-transaction:builtin.basic:" + projectId + ":local.actor:InspectProject"),
               std::string::npos);
     EXPECT_TRUE(JsonArrayContainsString(report["operationExamples"],
                                         "PlanScriptBlockEdit"));
@@ -1346,6 +1354,7 @@ TEST(SagaLocalPresenceLockSmokeTest,
         root / "starter_arena_presence_lock_report.json";
     const fs::path manifest = SourceRoot() / "Samples" / "StarterArena" /
         "StarterArena.sagaproj";
+    const std::string projectId = ProjectIdFromManifest(manifest);
     const std::string manifestBefore = ReadFile(manifest);
     const auto manifestWriteTimeBefore = fs::last_write_time(manifest);
 
@@ -1379,7 +1388,7 @@ TEST(SagaLocalPresenceLockSmokeTest,
     EXPECT_EQ(report["status"], "Ready");
     EXPECT_EQ(report["workspace"]["workspaceId"], "builtin.basic");
     EXPECT_EQ(report["workspace"]["selector"], "builtin:basic");
-    EXPECT_EQ(report["project"]["projectId"], "starter-arena");
+    EXPECT_EQ(report["project"]["projectId"], projectId);
     EXPECT_EQ(report["actor"]["actorId"], "local.actor");
     EXPECT_EQ(report["presence"]["actorId"], "local.actor");
     EXPECT_EQ(report["presence"]["status"], "PresentLocal");
@@ -1393,7 +1402,7 @@ TEST(SagaLocalPresenceLockSmokeTest,
     EXPECT_FALSE(report["lock"]["durable"].get<bool>());
     EXPECT_FALSE(report["lock"]["mutatesProject"].get<bool>());
     EXPECT_NE(report["lock"]["lockId"].get<std::string>().find(
-                  "local-lock:builtin.basic:starter-arena:local.actor:"),
+                  "local-lock:builtin.basic:" + projectId + ":local.actor:"),
               std::string::npos);
     EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
                                         "networked presence"));
@@ -1416,6 +1425,7 @@ TEST(SagaLocalReviewAuditSmokeTest,
         root / "starter_arena_review_audit_report.json";
     const fs::path manifest = SourceRoot() / "Samples" / "StarterArena" /
         "StarterArena.sagaproj";
+    const std::string projectId = ProjectIdFromManifest(manifest);
     const std::string manifestBefore = ReadFile(manifest);
     const auto manifestWriteTimeBefore = fs::last_write_time(manifest);
 
@@ -1450,7 +1460,7 @@ TEST(SagaLocalReviewAuditSmokeTest,
     EXPECT_EQ(report["status"], "Ready");
     EXPECT_EQ(report["workspace"]["workspaceId"], "builtin.basic");
     EXPECT_EQ(report["workspace"]["selector"], "builtin:basic");
-    EXPECT_EQ(report["project"]["projectId"], "starter-arena");
+    EXPECT_EQ(report["project"]["projectId"], projectId);
     EXPECT_EQ(report["actor"]["actorId"], "local.actor");
     EXPECT_EQ(report["review"]["targetArtifact"],
               fs::absolute(manifest).string());
@@ -1470,13 +1480,13 @@ TEST(SagaLocalReviewAuditSmokeTest,
     EXPECT_FALSE(report["auditEvent"]["durable"].get<bool>());
     EXPECT_FALSE(report["auditEvent"]["tamperResistant"].get<bool>());
     EXPECT_NE(report["review"]["reviewId"].get<std::string>().find(
-                  "local-review:builtin.basic:starter-arena:local.actor:"),
+                  "local-review:builtin.basic:" + projectId + ":local.actor:"),
               std::string::npos);
     EXPECT_NE(report["comment"]["commentId"].get<std::string>().find(
-                  "local-comment:builtin.basic:starter-arena:local.actor:"),
+                  "local-comment:builtin.basic:" + projectId + ":local.actor:"),
               std::string::npos);
     EXPECT_NE(report["auditEvent"]["eventId"].get<std::string>().find(
-                  "local-audit:builtin.basic:starter-arena:local.actor:"),
+                  "local-audit:builtin.basic:" + projectId + ":local.actor:"),
               std::string::npos);
     EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
                                         "approval workflow"));
@@ -1499,6 +1509,7 @@ TEST(SagaLocalRolePermissionSmokeTest,
         root / "starter_arena_role_permission_report.json";
     const fs::path manifest = SourceRoot() / "Samples" / "StarterArena" /
         "StarterArena.sagaproj";
+    const std::string projectId = ProjectIdFromManifest(manifest);
     const std::string manifestBefore = ReadFile(manifest);
     const auto manifestWriteTimeBefore = fs::last_write_time(manifest);
 
@@ -1532,7 +1543,7 @@ TEST(SagaLocalRolePermissionSmokeTest,
     EXPECT_EQ(report["status"], "Ready");
     EXPECT_EQ(report["workspace"]["workspaceId"], "builtin.basic");
     EXPECT_EQ(report["workspace"]["selector"], "builtin:basic");
-    EXPECT_EQ(report["project"]["projectId"], "starter-arena");
+    EXPECT_EQ(report["project"]["projectId"], projectId);
     EXPECT_EQ(report["actor"]["actorId"], "local.actor");
     EXPECT_EQ(report["role"]["actorId"], "local.actor");
     EXPECT_EQ(report["role"]["roleName"], "local.reviewer");
@@ -1548,10 +1559,10 @@ TEST(SagaLocalRolePermissionSmokeTest,
     EXPECT_FALSE(report["permission"]["policyBacked"].get<bool>());
     EXPECT_FALSE(report["permission"]["mutatesProject"].get<bool>());
     EXPECT_NE(report["role"]["roleId"].get<std::string>().find(
-                  "local-role:builtin.basic:starter-arena:local.actor:local.reviewer"),
+                  "local-role:builtin.basic:" + projectId + ":local.actor:local.reviewer"),
               std::string::npos);
     EXPECT_NE(report["permission"]["permissionId"].get<std::string>().find(
-                  "local-permission:builtin.basic:starter-arena:local.actor:inspect_project:"),
+                  "local-permission:builtin.basic:" + projectId + ":local.actor:inspect_project:"),
               std::string::npos);
     EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
                                         "enterprise permissions"));
@@ -1578,6 +1589,7 @@ TEST(SagaLocalProjectSliceSmokeTest,
         root / "starter_arena_project_slice_report.json";
     const fs::path manifest = SourceRoot() / "Samples" / "StarterArena" /
         "StarterArena.sagaproj";
+    const std::string projectId = ProjectIdFromManifest(manifest);
     const std::string manifestBefore = ReadFile(manifest);
     const auto manifestWriteTimeBefore = fs::last_write_time(manifest);
 
@@ -1611,7 +1623,7 @@ TEST(SagaLocalProjectSliceSmokeTest,
     EXPECT_EQ(report["status"], "Ready");
     EXPECT_EQ(report["workspace"]["workspaceId"], "builtin.basic");
     EXPECT_EQ(report["workspace"]["selector"], "builtin:basic");
-    EXPECT_EQ(report["project"]["projectId"], "starter-arena");
+    EXPECT_EQ(report["project"]["projectId"], projectId);
     EXPECT_EQ(report["actor"]["actorId"], "local.actor");
     EXPECT_EQ(report["slice"]["displayName"],
               "starterarena.project_overview");
@@ -1627,7 +1639,7 @@ TEST(SagaLocalProjectSliceSmokeTest,
     EXPECT_FALSE(report["visibility"]["policyBacked"].get<bool>());
     EXPECT_FALSE(report["visibility"]["networked"].get<bool>());
     EXPECT_NE(report["slice"]["sliceId"].get<std::string>().find(
-                  "local-slice:builtin.basic:starter-arena:local.actor:starterarena.project_overview:"),
+                  "local-slice:builtin.basic:" + projectId + ":local.actor:starterarena.project_overview:"),
               std::string::npos);
     EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
                                         "enterprise permissions"));
@@ -1650,6 +1662,7 @@ TEST(SagaLocalApprovalGateSmokeTest,
         root / "starter_arena_approval_gate_report.json";
     const fs::path manifest = SourceRoot() / "Samples" / "StarterArena" /
         "StarterArena.sagaproj";
+    const std::string projectId = ProjectIdFromManifest(manifest);
     const std::string manifestBefore = ReadFile(manifest);
     const auto manifestWriteTimeBefore = fs::last_write_time(manifest);
 
@@ -1685,7 +1698,7 @@ TEST(SagaLocalApprovalGateSmokeTest,
     EXPECT_EQ(report["status"], "Ready");
     EXPECT_EQ(report["workspace"]["workspaceId"], "builtin.basic");
     EXPECT_EQ(report["workspace"]["selector"], "builtin:basic");
-    EXPECT_EQ(report["project"]["projectId"], "starter-arena");
+    EXPECT_EQ(report["project"]["projectId"], projectId);
     EXPECT_EQ(report["actor"]["actorId"], "local.actor");
     EXPECT_EQ(report["approval"]["actorId"], "local.actor");
     EXPECT_EQ(report["approval"]["roleName"], "local.reviewer");
@@ -1721,10 +1734,10 @@ TEST(SagaLocalApprovalGateSmokeTest,
         report["readiness"]["referencedReports"],
         "workflow-smoke package_preflight reference"));
     EXPECT_NE(report["approval"]["approvalId"].get<std::string>().find(
-                  "local-approval:builtin.basic:starter-arena:local.actor:local.reviewer:ApprovedLocalEvaluation:"),
+                  "local-approval:builtin.basic:" + projectId + ":local.actor:local.reviewer:ApprovedLocalEvaluation:"),
               std::string::npos);
     EXPECT_NE(report["publishGate"]["gateId"].get<std::string>().find(
-                  "local-approval-gate:builtin.basic:starter-arena:local.actor:"),
+                  "local-approval-gate:builtin.basic:" + projectId + ":local.actor:"),
               std::string::npos);
     EXPECT_TRUE(JsonArrayContainsString(report["nonClaims"],
                                         "real approval workflow"));

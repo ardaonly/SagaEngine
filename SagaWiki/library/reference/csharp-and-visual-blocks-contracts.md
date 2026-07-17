@@ -147,6 +147,14 @@ Compiled assemblies/manifests carry source and tool fingerprints. Runtime valida
 
 Managed/native bridges expose registered, typed, bounded calls. Script code cannot use the block projection to bypass binding, authority, thread, or permission rules. Bridge implementation is not a public Visual Blocks contract.
 
+## Project worker publication
+
+SagaScript's schema-version-1 one-shot worker is the canonical project conformance path. Its request binds an operation/revision to the SagaProjectKit-validated project identity and hash, a sorted project-relative source set and hashes, verified package-lock/reference/API-surface hashes, the exact operation set, a local output root, and an operation-matched cancellation marker. File paths used to reach local inputs are transport data and do not enter canonical artifact hashes.
+
+Progress is NDJSON keyed by operation and revision. Cancellation is checked between real validation, graph, analysis, compile, projection, freshness, and publication stages; a marker for another operation is ignored. Cancellation or compile/validation failure cannot replace the current artifact manifest. Immediately before publication, SagaScript recomputes the project, source, lock, reference, and surface hashes. Any mismatch returns `StaleResult` and preserves the previous current manifest.
+
+Compilation uses deterministic Roslyn settings, stable assembly naming, sorted references, and project-relative syntax-tree paths. Published schema-version-1 artifacts include behavior, named-action, capability, assembly, source-map, and read-only block-projection records plus content/file hashes. Objects are content addressed and the current manifest is atomically replaced last. The projection exposes supported source spans, preserves unsupported C# as opaque, filters Raw/Internal API surface entries, and never rewrites authored source.
+
 ## Two-way authoring evidence
 
 The bounded loop is:

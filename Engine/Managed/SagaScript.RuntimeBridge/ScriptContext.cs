@@ -25,13 +25,13 @@ public sealed class ScriptContext
         Host = host;
         World = new ScriptWorld(host);
         State = new ScriptStatePort(host);
-        Self = new ScriptEntity(host, selfEntityHandle);
+        Self = new SelfFacade(new ScriptEntity(host, selfEntityHandle));
         Log = new ScriptLogger(host);
     }
 
     public ScriptWorld World { get; }
     public ScriptStatePort State { get; }
-    public ScriptEntity Self { get; }
+    public SelfFacade Self { get; }
     public ScriptLogger Log { get; }
 
     internal NativeScriptHost? Host { get; }
@@ -126,6 +126,51 @@ public sealed class ScriptEntity
 
     private NativeScriptHost? Host { get; }
     private long Handle { get; }
+}
+
+/// <summary>Project-facing facade for the behavior's current entity.</summary>
+public sealed class SelfFacade
+{
+    internal SelfFacade(ScriptEntity entity)
+    {
+        Entity = entity;
+        Transform = new TransformFacade(entity);
+    }
+
+    public bool IsValid => Entity.IsValid;
+    public TransformFacade Transform { get; }
+    public bool TrySetPosition(float x, float y, float z) => Entity.TrySetPosition(x, y, z);
+    public bool TryGetPosition(out ScriptVector3 position) => Entity.TryGetPosition(out position);
+
+    private ScriptEntity Entity { get; }
+}
+
+/// <summary>Value used by the high-level transform facade.</summary>
+public readonly record struct Vector3Value(float X, float Y, float Z);
+
+/// <summary>Reads and writes the current entity position through the existing host callbacks.</summary>
+public sealed class TransformFacade
+{
+    internal TransformFacade(ScriptEntity entity)
+    {
+        Entity = entity;
+    }
+
+    public Vector3Value Position
+    {
+        get
+        {
+            return Entity.TryGetPosition(out var value)
+                ? new Vector3Value(value.X, value.Y, value.Z)
+                : default;
+        }
+        set
+        {
+            Entity.TrySetPosition(value.X, value.Y, value.Z);
+        }
+    }
+
+    private ScriptEntity Entity { get; }
 }
 
 public sealed class ScriptLogger

@@ -4,9 +4,12 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
+import shutil
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 
 
@@ -27,6 +30,9 @@ RUNTIME_BRIDGE_ASSEMBLY = (
     / "net10.0"
     / "SagaScript.RuntimeBridge.dll"
 )
+PACKAGER_PROJECT = REPO_ROOT / "Tools" / "SagaPackager" / "SagaPackager.csproj"
+PACKAGER_ASSEMBLY = PACKAGER_PROJECT.parent / "bin" / "Release" / "net10.0" / "sagapack.dll"
+STARTER_ROOT = REPO_ROOT / "Samples" / "StarterArena"
 SHARED_SCRIPTING_ROOT = REPO_ROOT / "Shared" / "include" / "SagaShared" / "Scripting"
 BUILTIN_GAMEPLAY_NODES = (
     REPO_ROOT
@@ -50,6 +56,7 @@ SHARED_BOUNDARY_FORBIDDEN = (
     "Pr" + "ism",
 )
 _cli_built = False
+_packager_built = False
 
 
 def ensure_cli_built(env: dict[str, str]) -> None:
@@ -2283,6 +2290,422 @@ def test_patch_rollback_reports_stale_artifacts_without_regenerating() -> None:
         assert {path: path.stat().st_mtime_ns for path in artifacts} == mtimes
 
 
+def sha256_file(path: Path) -> str:
+    return "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def ensure_packager_built(env: dict[str, str]) -> None:
+    global _packager_built
+    if _packager_built:
+        return
+    result = subprocess.run(
+        ["dotnet", "build", str(PACKAGER_PROJECT), "--configuration", "Release", "--nologo", "--verbosity", "quiet"],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    _packager_built = True
+
+
+def prepare_worker_request(
+    root: Path,
+    project_root: Path,
+    output_root: Path,
+    operation_id: str,
+    revision: str = "revision-1",
+) -> tuple[Path, Path, Path, Path]:
+    env = os.environ.copy()
+    env.setdefault("DOTNET_CLI_HOME", "/tmp/sagascript-dotnet-home")
+    env.setdefault("NUGET_PACKAGES", "/tmp/sagascript-nuget-blockf")
+    ensure_packager_built(env)
+    package_root = root / f"packages-{operation_id}"
+    lock_path = package_root / "SagaPackage.lock"
+    generated = package_root / "generated"
+    resolve_report = package_root / "resolve.json"
+    package_result = subprocess.run(
+        [
+            "dotnet",
+            str(PACKAGER_ASSEMBLY),
+            "resolve",
+            "--project",
+            str(project_root / "StarterArena.sagaproj"),
+            "--engine-root",
+            str(REPO_ROOT),
+            "--lock",
+            str(lock_path),
+            "--generated-out",
+            str(generated),
+            "--runtime-bridge",
+            str(RUNTIME_BRIDGE_ASSEMBLY),
+            "--out",
+            str(resolve_report),
+        ],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert package_result.returncode == 0, package_result.stderr + package_result.stdout
+    package_current = json.loads((generated / "manifests" / "current.json").read_text(encoding="utf-8"))
+    generation = generated / "generations" / package_current["generationId"]
+    references_path = generation / "csharp_references_v1.json"
+    api_surfaces_path = generation / "api_surfaces_v1.json"
+    references = json.loads(references_path.read_text(encoding="utf-8"))
+    bridge_reference = references["references"][0]
+    bridge_assembly = generation / bridge_reference["resolvedAssemblyLogicalPath"]
+    descriptor = REPO_ROOT / "Engine" / "Distribution" / bridge_reference["distributionPath"]
+    project_path = project_root / "StarterArena.sagaproj"
+    source_path = project_root / "Scripts" / "DoorController.cs"
+    cancellation = root / f"cancel-{operation_id}.json"
+    request_path = root / f"request-{operation_id}.json"
+    result_path = root / f"result-{operation_id}.json"
+    progress_path = root / f"progress-{operation_id}.ndjson"
+    request = {
+        "schemaVersion": 1,
+        "operationId": operation_id,
+        "project": {
+            "projectId": json.loads(project_path.read_text(encoding="utf-8"))["projectId"],
+            "path": str(project_path),
+            "hash": sha256_file(project_path),
+        },
+        "sourceRevision": revision,
+        "sources": [
+            {
+                "path": "Scripts/DoorController.cs",
+                "hash": sha256_file(source_path),
+            }
+        ],
+        "packageLock": {"path": str(lock_path), "hash": sha256_file(lock_path)},
+        "referenceManifest": {
+            "path": str(references_path),
+            "hash": sha256_file(references_path),
+        },
+        "apiSurfaceManifest": {
+            "path": str(api_surfaces_path),
+            "hash": sha256_file(api_surfaces_path),
+        },
+        "runtimeBridge": {
+            "logicalReferenceId": bridge_reference["artifactId"],
+            "descriptorPath": str(descriptor),
+            "descriptorHash": bridge_reference["artifactHash"],
+            "assemblyPath": str(bridge_assembly),
+            "assemblyHash": bridge_reference["resolvedAssemblyHash"],
+            "targetFramework": bridge_reference["targetFramework"],
+            "runtimeCompatibility": bridge_reference["runtimeCompatibility"],
+            "trust": bridge_reference["trust"],
+        },
+        "operations": ["analyze", "compile", "project-blocks"],
+        "outputRoot": str(output_root),
+        "cancellation": {"operationId": operation_id, "path": str(cancellation)},
+    }
+    request_path.write_text(json.dumps(request, indent=2) + "\n", encoding="utf-8")
+    return request_path, result_path, progress_path, cancellation
+
+
+def worker_process(
+    request: Path, result: Path, progress: Path, stage_delay_ms: int = 0,
+    publication_barrier: Path | None = None,
+) -> subprocess.Popen[str]:
+    env = os.environ.copy()
+    env.setdefault("DOTNET_CLI_HOME", "/tmp/sagascript-dotnet-home")
+    env.setdefault("NUGET_PACKAGES", "/tmp/sagascript-nuget-blockf")
+    env.setdefault("DOTNET_CLI_TELEMETRY_OPTOUT", "1")
+    ensure_cli_built(env)
+    env["SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY"] = str(RUNTIME_BRIDGE_ASSEMBLY)
+    if stage_delay_ms:
+        env["SAGASCRIPT_WORKER_STAGE_DELAY_MS"] = str(stage_delay_ms)
+    if publication_barrier is not None:
+        env["SAGASCRIPT_PUBLICATION_BARRIER"] = str(publication_barrier)
+    return subprocess.Popen(
+        [
+            "dotnet",
+            str(CLI_ASSEMBLY),
+            "worker",
+            "--request",
+            str(request),
+            "--result",
+            str(result),
+            "--progress",
+            str(progress),
+        ],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+
+def wait_for_stage(progress: Path, stage: str) -> None:
+    deadline = time.monotonic() + 10.0
+    while time.monotonic() < deadline:
+        if progress.exists() and f'"stage":"{stage}"' in progress.read_text(encoding="utf-8"):
+            return
+        time.sleep(0.01)
+    raise AssertionError(f"worker did not reach {stage}: {progress.read_text(encoding='utf-8') if progress.exists() else ''}")
+
+
+def read_current_artifacts(output_root: Path) -> tuple[dict[str, object], dict[str, bytes]]:
+    manifest = json.loads((output_root / "manifests" / "current.json").read_text(encoding="utf-8"))
+    artifacts = {
+        item["artifactId"]: (output_root / item["objectPath"]).read_bytes()
+        for item in manifest["artifacts"]
+    }
+    return manifest, artifacts
+
+
+def test_project_forms_analyze_compile_and_project_blocks() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        project = root / "StarterArena"
+        shutil.copytree(STARTER_ROOT, project)
+        analyze = root / "analyze"
+        compile_manifests = root / "compile-manifests"
+        compile_artifacts = root / "compile-artifacts"
+        blocks = root / "blocks"
+
+        assert run_cli("analyze", "--project", str(project / "StarterArena.sagaproj"), "--out", str(analyze)).returncode == 0
+        compile_result = run_cli(
+            "compile",
+            "--project",
+            str(project / "StarterArena.sagaproj"),
+            "--out",
+            str(compile_manifests),
+            "--artifacts-out",
+            str(compile_artifacts),
+        )
+        assert compile_result.returncode == 0, compile_result.stderr + compile_result.stdout
+        assert list(compile_artifacts.glob("*.scripts.dll"))
+        assert run_cli("project-blocks", "--project", str(project / "StarterArena.sagaproj"), "--out", str(blocks)).returncode == 0
+        assert (analyze / "analysis_report.json").exists()
+        assert (blocks / "visual_blocks_projection_v1.json").exists()
+        analysis = json.loads((analyze / "analysis_report.json").read_text(encoding="utf-8"))
+        assert analysis["behaviors"][0]["behaviorId"] == "StarterArena.DoorController"
+        projection = json.loads((blocks / "visual_blocks_projection_v1.json").read_text(encoding="utf-8"))
+        assert any(item["blockKind"] == "ScriptClassBlock" for item in projection["blocks"])
+
+
+def test_project_worker_is_deterministic_across_clean_roots() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        first_project = root / "first" / "StarterArena"
+        second_project = root / "second" / "StarterArena"
+        shutil.copytree(STARTER_ROOT, first_project)
+        shutil.copytree(STARTER_ROOT, second_project)
+        first_output = root / "first-output"
+        second_output = root / "second-output"
+        first = prepare_worker_request(root / "first-work", first_project, first_output, "deterministic-worker")
+        second = prepare_worker_request(root / "second-work", second_project, second_output, "deterministic-worker")
+
+        first_result = run_cli("worker", "--request", str(first[0]), "--result", str(first[1]), "--progress", str(first[2]))
+        second_result = run_cli("worker", "--request", str(second[0]), "--result", str(second[1]), "--progress", str(second[2]))
+
+        assert first_result.returncode == 0, first_result.stderr + first_result.stdout
+        assert second_result.returncode == 0, second_result.stderr + second_result.stdout
+        first_manifest, first_artifacts = read_current_artifacts(first_output)
+        second_manifest, second_artifacts = read_current_artifacts(second_output)
+        assert (first_output / "manifests" / "current.json").read_bytes() == (
+            second_output / "manifests" / "current.json"
+        ).read_bytes()
+        assert first_artifacts == second_artifacts
+        assert set(first_artifacts) == {
+            "scripts.assembly",
+            "scripts.assembly-manifest",
+            "scripts.behaviors",
+            "scripts.block-projection",
+            "scripts.capabilities",
+            "scripts.named-actions",
+            "scripts.runtime-config",
+            "scripts.source-map",
+        }
+        assert first_manifest["sourceRevision"] == "revision-1"
+        behavior = json.loads(first_artifacts["scripts.behaviors"])
+        assert behavior["behaviors"][0]["behaviorId"] == "StarterArena.DoorController"
+        assert [item["name"] for item in behavior["behaviors"][0]["lifecycleMethods"]] == ["OnStart", "OnUpdate"]
+        actions = json.loads(first_artifacts["scripts.named-actions"])
+        assert actions["actions"][0]["actionId"] == "Interact"
+        projection = json.loads(first_artifacts["scripts.block-projection"])
+        assert projection["filteredApiPolicy"] == "ExcludeRawAndInternal"
+        assert "NativeBridge" not in json.dumps(projection)
+        assert projection["opaqueRegions"][0]["classification"] == "OpaqueCSharp"
+
+
+def test_worker_mid_operation_cancellation_preserves_current_manifest() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        project = root / "StarterArena"
+        shutil.copytree(STARTER_ROOT, project)
+        output = root / "output"
+        initial = prepare_worker_request(root / "initial", project, output, "initial-worker")
+        assert run_cli("worker", "--request", str(initial[0]), "--result", str(initial[1]), "--progress", str(initial[2])).returncode == 0
+        current = output / "manifests" / "current.json"
+        before = current.read_bytes()
+        request, result, progress, cancellation = prepare_worker_request(root / "cancel", project, output, "cancel-worker", "revision-2")
+        process = worker_process(request, result, progress, stage_delay_ms=150)
+        wait_for_stage(progress, "Analyzing")
+        cancellation.write_text(json.dumps({"schemaVersion": 1, "operationId": "cancel-worker"}) + "\n", encoding="utf-8")
+        stdout, stderr = process.communicate(timeout=15)
+
+        assert process.returncode == 1, stderr + stdout
+        report = json.loads(result.read_text(encoding="utf-8"))
+        assert report["status"] == "Cancelled"
+        assert report["failureClass"] == "Cancellation"
+        assert report["cancelled"] is True
+        assert report["artifacts"] == []
+        assert current.read_bytes() == before
+
+
+def test_worker_stale_result_preserves_current_manifest() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        project = root / "StarterArena"
+        shutil.copytree(STARTER_ROOT, project)
+        output = root / "output"
+        initial = prepare_worker_request(root / "initial", project, output, "initial-worker")
+        assert run_cli("worker", "--request", str(initial[0]), "--result", str(initial[1]), "--progress", str(initial[2])).returncode == 0
+        current = output / "manifests" / "current.json"
+        before = current.read_bytes()
+        request, result, progress, _ = prepare_worker_request(root / "stale", project, output, "stale-worker", "revision-2")
+        process = worker_process(request, result, progress, stage_delay_ms=150)
+        wait_for_stage(progress, "Compiling")
+        source = project / "Scripts" / "DoorController.cs"
+        source.write_text(source.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+        stdout, stderr = process.communicate(timeout=15)
+
+        assert process.returncode == 1, stderr + stdout
+        report = json.loads(result.read_text(encoding="utf-8"))
+        assert report["status"] == "StaleResult"
+        assert report["failureClass"] == "StaleResult"
+        assert report["stale"] is True
+        assert current.read_bytes() == before
+
+
+def test_worker_final_publication_barrier_preserves_current_manifest() -> None:
+    for mutation in ["cancel", "source", "lock", "reference", "api", "bridge"]:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            project = root / "StarterArena"
+            shutil.copytree(STARTER_ROOT, project)
+            output = root / "output"
+            initial = prepare_worker_request(root / "initial", project, output, "initial-worker")
+            assert run_cli("worker", "--request", str(initial[0]), "--result", str(initial[1]),
+                           "--progress", str(initial[2])).returncode == 0
+            current = output / "manifests/current.json"
+            before = current.read_bytes()
+            request, result, progress, cancellation = prepare_worker_request(
+                root / "barrier-work", project, output, "barrier-worker", "revision-2")
+            barrier = root / "publication-barrier"
+            process = worker_process(request, result, progress, publication_barrier=barrier)
+            deadline = time.monotonic() + 20
+            while not (barrier.with_suffix(".reached")).exists():
+                if process.poll() is not None or time.monotonic() >= deadline:
+                    raise AssertionError(f"worker did not reach publication barrier for {mutation}")
+                time.sleep(0.01)
+            payload = json.loads(request.read_text(encoding="utf-8"))
+            if mutation == "cancel":
+                cancellation.write_text(json.dumps({"schemaVersion": 1, "operationId": "barrier-worker"}) + "\n", encoding="utf-8")
+            elif mutation == "source":
+                source = project / "Scripts/DoorController.cs"
+                source.write_text(source.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+            else:
+                key = {"lock": "packageLock", "reference": "referenceManifest", "api": "apiSurfaceManifest"}.get(mutation)
+                target = Path(payload[key]["path"]) if key else Path(payload["runtimeBridge"]["assemblyPath"])
+                target.write_bytes(target.read_bytes() + b" ")
+            barrier.with_suffix(".release").write_text("release\n", encoding="utf-8")
+            stdout, stderr = process.communicate(timeout=20)
+            assert process.returncode == 1, stderr + stdout
+            report = json.loads(result.read_text(encoding="utf-8"))
+            assert report["status"] == ("Cancelled" if mutation == "cancel" else "StaleResult")
+            assert current.read_bytes() == before
+
+
+def test_worker_rejects_non_public_and_duplicate_named_actions() -> None:
+    for name, transform, code in [
+        ("private", lambda text: text.replace("public void OnInteract()", "private void OnInteract()"),
+         "Script.Worker.ActionNotInvocable"),
+        ("duplicate", lambda text: text.replace("public override void OnUpdate", "[SagaAction(\"Interact\")]\n    public void OnInteractAgain() {}\n\n    public override void OnUpdate"),
+         "Script.Worker.ActionDuplicate"),
+        ("duplicate-behavior", lambda text: text + "\npublic sealed class DoorController : SagaBehavior {}\n",
+         "Script.Worker.BehaviorDuplicate"),
+    ]:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            project = root / "StarterArena"
+            shutil.copytree(STARTER_ROOT, project)
+            source = project / "Scripts/DoorController.cs"
+            source.write_text(transform(source.read_text(encoding="utf-8")), encoding="utf-8")
+            request, result, progress, _ = prepare_worker_request(root / "work", project, root / "output", name)
+            worker = run_cli("worker", "--request", str(request), "--result", str(result), "--progress", str(progress))
+            assert worker.returncode == 1
+            codes = [item["code"] for item in json.loads(result.read_text(encoding="utf-8"))["diagnostics"]]
+            assert code in codes
+
+
+def test_worker_rejects_missing_scene_action_and_corrupt_reference_metadata() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        project = root / "StarterArena"
+        shutil.copytree(STARTER_ROOT, project)
+        source = project / "Scripts" / "DoorController.cs"
+        source.write_text(
+            source.read_text(encoding="utf-8").replace('[SagaAction("Interact")]', '[SagaAction("Use")]'),
+            encoding="utf-8",
+        )
+        request, result, progress, _ = prepare_worker_request(root / "action", project, root / "action-output", "missing-action")
+        action_result = run_cli("worker", "--request", str(request), "--result", str(result), "--progress", str(progress))
+        assert action_result.returncode == 1
+        action_report = json.loads(result.read_text(encoding="utf-8"))
+        assert action_report["failureClass"] == "Analysis"
+        assert "Script.Worker.SceneActionMissing" in [item["code"] for item in action_report["diagnostics"]]
+
+        clean_project = root / "CleanStarterArena"
+        shutil.copytree(STARTER_ROOT, clean_project)
+        request, result, progress, _ = prepare_worker_request(root / "reference", clean_project, root / "reference-output", "corrupt-reference")
+        payload = json.loads(request.read_text(encoding="utf-8"))
+        references = Path(payload["referenceManifest"]["path"])
+        references.write_text(references.read_text(encoding="utf-8") + " ", encoding="utf-8")
+        reference_result = run_cli("worker", "--request", str(request), "--result", str(result), "--progress", str(progress))
+        assert reference_result.returncode == 1
+        reference_report = json.loads(result.read_text(encoding="utf-8"))
+        assert reference_report["failureClass"] == "DependencyValidation"
+        assert "Script.Worker.VerifiedInputHashMismatch" in [item["code"] for item in reference_report["diagnostics"]]
+
+
+def test_worker_publish_failure_is_structured_and_does_not_create_current() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        project = root / "StarterArena"
+        shutil.copytree(STARTER_ROOT, project)
+        output = root / "not-a-directory"
+        request, result, progress, _ = prepare_worker_request(root / "publish", project, output, "publish-failure")
+        request_payload = json.loads(request.read_text(encoding="utf-8"))
+        request_payload["unknownField"] = True
+        request.write_text(json.dumps(request_payload, indent=2) + "\n", encoding="utf-8")
+        invalid = run_cli("worker", "--request", str(request), "--result", str(result), "--progress", str(progress))
+        assert invalid.returncode == 1
+        invalid_report = json.loads(result.read_text(encoding="utf-8"))
+        assert invalid_report["failureClass"] == "InvalidRequest"
+        assert "Script.Worker.UnknownField" in [item["code"] for item in invalid_report["diagnostics"]]
+
+        request_payload.pop("unknownField")
+        request.write_text(json.dumps(request_payload, indent=2) + "\n", encoding="utf-8")
+        output.write_text("occupied\n", encoding="utf-8")
+
+        worker = run_cli("worker", "--request", str(request), "--result", str(result), "--progress", str(progress))
+
+        assert worker.returncode == 1
+        report = json.loads(result.read_text(encoding="utf-8"))
+        assert report["failureClass"] == "Publication"
+        assert "Script.Worker.PublishFailed" in [item["code"] for item in report["diagnostics"]]
+        assert output.is_file()
+
+
 def test_shared_boundary_scan_remains_clean() -> None:
     matches: list[str] = []
     for path in sorted(SHARED_SCRIPTING_ROOT.rglob("*")):
@@ -2300,8 +2723,29 @@ def test_shared_boundary_scan_remains_clean() -> None:
     assert not matches, "Forbidden shared-boundary references found:\n" + "\n".join(matches)
 
 
+def test_runtime_bridge_binary_identity_excludes_source_revision() -> None:
+    project = RUNTIME_BRIDGE_PROJECT.read_text(encoding="utf-8")
+    assert "<Deterministic>true</Deterministic>" in project
+    assert "<ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>" in project
+    assert "<DebugType>none</DebugType>" in project
+    assert "<DebugSymbols>false</DebugSymbols>" in project
+    assert (
+        "<IncludeSourceRevisionInInformationalVersion>false"
+        "</IncludeSourceRevisionInInformationalVersion>"
+    ) in project
+
+
 if __name__ == "__main__":
     tests = [
+        test_project_forms_analyze_compile_and_project_blocks,
+        test_project_worker_is_deterministic_across_clean_roots,
+        test_worker_mid_operation_cancellation_preserves_current_manifest,
+        test_worker_stale_result_preserves_current_manifest,
+        test_worker_final_publication_barrier_preserves_current_manifest,
+        test_worker_rejects_non_public_and_duplicate_named_actions,
+        test_worker_rejects_missing_scene_action_and_corrupt_reference_metadata,
+        test_worker_publish_failure_is_structured_and_does_not_create_current,
+        test_runtime_bridge_binary_identity_excludes_source_revision,
         test_valid_server_binding_emits_manifests,
         test_valid_server_binding_compiles_script_artifacts,
         test_missing_authority_fails_validation,

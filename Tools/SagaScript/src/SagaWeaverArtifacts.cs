@@ -143,6 +143,10 @@ internal static class SagaWeaverArtifacts
             foreach (var typeDeclaration in root.DescendantNodes().OfType<TypeDeclarationSyntax>())
             {
                 var typeMetadata = ReadMetadata(AttributeMap.From(typeDeclaration.AttributeLists), "SagaBehavior");
+                if (typeMetadata is null && DerivesFromHighLevelSagaBehavior(typeDeclaration))
+                {
+                    typeMetadata = new SagaMetadata("High", "Gameplay", GetDeclaringType(typeDeclaration));
+                }
                 var methodBehaviors = typeDeclaration.Members
                     .OfType<MethodDeclarationSyntax>()
                     .Where(method => ReadMetadata(AttributeMap.From(method.AttributeLists), "SagaBehavior") is not null)
@@ -195,7 +199,7 @@ internal static class SagaWeaverArtifacts
             {
                 Severity = strict ? SagaDiagnosticSeverity.Error.ToString() : SagaDiagnosticSeverity.Warning.ToString(),
                 Code = "Script.Metadata.MissingBehavior",
-                Message = "No [SagaBehavior] metadata was found in the supplied C# sources."
+                Message = "No [SagaBehavior] metadata or SagaBehavior-derived class was found in the supplied C# sources."
             });
         }
 
@@ -2553,6 +2557,14 @@ internal static class SagaWeaverArtifacts
             .Order(StringComparer.Ordinal)
             .ToArray();
     }
+
+    private static bool DerivesFromHighLevelSagaBehavior(TypeDeclarationSyntax typeDeclaration) =>
+        typeDeclaration.BaseList?.Types.Any(item =>
+        {
+            var name = item.Type.ToString();
+            return name is "SagaBehavior" or "SagaEngine.Scripting.SagaBehavior" ||
+                name.EndsWith(".SagaBehavior", StringComparison.Ordinal);
+        }) == true;
 
     private static SagaMetadata? ReadMetadata(AttributeMap attributes, string attributeName)
     {

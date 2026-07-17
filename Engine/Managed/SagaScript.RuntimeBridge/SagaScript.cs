@@ -21,6 +21,23 @@ public abstract class SagaScript
     }
 }
 
+/// <summary>High-level project behavior base; runtime loading remains owned by SagaScript.</summary>
+public abstract class SagaBehavior : SagaScript
+{
+}
+
+/// <summary>Declares a logical project action handled by a behavior method.</summary>
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+public sealed class SagaActionAttribute : Attribute
+{
+    public SagaActionAttribute(string actionId)
+    {
+        ActionId = actionId;
+    }
+
+    public string ActionId { get; }
+}
+
 public enum UiNamedActionEventType
 {
     Click = 0,

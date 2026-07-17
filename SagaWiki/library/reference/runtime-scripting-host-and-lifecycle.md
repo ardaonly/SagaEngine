@@ -43,6 +43,13 @@ The current lifecycle vocabulary includes creation, start, update, and destructi
 
 `CSharpScriptHost` provides the current managed hosting implementation. Tests demonstrate a minimal managed script lifecycle, script context access, bounded logging, world entity creation and position mutation, self-entity access, UI named-action invocation, missing class/config/assembly failures, invalid signatures, false-return handling, and managed exceptions. Each is focused evidence for that path; it is not a general compatibility promise for arbitrary assemblies or every .NET feature.
 
+The managed bridge also exposes the high-level `SagaBehavior` lifecycle,
+`SagaAction` logical-action marker, and `Context.Self.Transform` facade used by
+StarterArena source compilation. The facade reuses the existing self-entity
+position callbacks; it is not a second runtime or sample-specific native path.
+Campaign 1 proves compilation and deterministic artifacts only, not interactive
+door execution.
+
 ## Capabilities and authority
 
 Capabilities make native access opt-in. A script package declares requested capabilities, the hosting workflow supplies grants, and validation rejects missing, unexpected, duplicate, malformed, authority-incompatible, or destination-incompatible entries. Empty grants remain distinct from a missing or malformed capability manifest.
@@ -77,4 +84,3 @@ C# source
 The current host and tests do not establish a security sandbox, stable binary compatibility for third-party scripts, arbitrary NuGet/package support, production hot reload, remote code distribution, or a second graph runtime. A test fixture loading a managed assembly is evidence for that fixture and host environment only.
 
 For authoring and source patch rules, see [C# and Visual Blocks contracts](csharp-and-visual-blocks-contracts.md). For project and artifact authority, see [Source, artifact, and project contracts](source-artifact-and-project-contracts.md).
-
