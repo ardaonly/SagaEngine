@@ -66,12 +66,15 @@ internal static class Program
             }
             if (command == "template-create")
             {
-                if (string.IsNullOrWhiteSpace(options.PlanPath) || string.IsNullOrWhiteSpace(options.OutputPath))
+                if (string.IsNullOrWhiteSpace(options.PlanPath) || string.IsNullOrWhiteSpace(options.OutputPath) ||
+                    string.IsNullOrWhiteSpace(options.SagaPackPath) || string.IsNullOrWhiteSpace(options.EngineRoot) ||
+                    string.IsNullOrWhiteSpace(options.RuntimeBridgePath))
                 {
-                    Console.Error.WriteLine("template-create requires --plan and --out.");
+                    Console.Error.WriteLine("template-create requires --plan, --sagapack, --engine-root, --runtime-bridge, and --out.");
                     return InvalidUsage;
                 }
-                var report = ProjectTemplateService.Create(options.PlanPath);
+                var report = ProjectTemplateService.Create(options.PlanPath, options.SagaPackPath,
+                    options.EngineRoot, options.RuntimeBridgePath);
                 SagaProjectKit.Core.CanonicalJson.Write(options.OutputPath, report);
                 return report.Status == "Passed" ? Passed : ValidationFailed;
             }
@@ -1568,6 +1571,18 @@ internal static class Program
                     }
                     options.PlanPath = args[++i];
                     break;
+                case "--sagapack":
+                    if (i + 1 >= args.Length) return CommandOptions.Fail("--sagapack requires a value.");
+                    options.SagaPackPath = args[++i];
+                    break;
+                case "--engine-root":
+                    if (i + 1 >= args.Length) return CommandOptions.Fail("--engine-root requires a value.");
+                    options.EngineRoot = args[++i];
+                    break;
+                case "--runtime-bridge":
+                    if (i + 1 >= args.Length) return CommandOptions.Fail("--runtime-bridge requires a value.");
+                    options.RuntimeBridgePath = args[++i];
+                    break;
                 default:
                     return CommandOptions.Fail($"Unknown argument: {args[i]}");
             }
@@ -1582,7 +1597,7 @@ internal static class Program
         Console.Error.WriteLine("Usage:");
         Console.Error.WriteLine("  sagaproject validate --project <path> --out <report>");
         Console.Error.WriteLine("  sagaproject template-plan --destination <path> [--display-name <name>] [--template <seed>] --out <plan>");
-        Console.Error.WriteLine("  sagaproject template-create --plan <plan> --out <report>");
+        Console.Error.WriteLine("  sagaproject template-create --plan <plan> --sagapack <tool> --engine-root <root> --runtime-bridge <dll> --out <report>");
         Console.Error.WriteLine("  sagaproject resolve --project <path> --out <report>");
         Console.Error.WriteLine("  sagaproject doctor --project <path> --out <report>");
         Console.Error.WriteLine("  sagaproject resolve-slice --project <path> --slice <project_slice.json> --out <report>");
@@ -1649,6 +1664,9 @@ internal static class Program
         public string DisplayName { get; set; } = "";
         public string TemplatePath { get; set; } = "";
         public string PlanPath { get; set; } = "";
+        public string SagaPackPath { get; set; } = "";
+        public string EngineRoot { get; set; } = "";
+        public string RuntimeBridgePath { get; set; } = "";
         public string OutputPath { get; set; } = "";
 
         public static CommandOptions Fail(string error)
