@@ -58,13 +58,51 @@ function(saga_setup_thirdparty)
         "${SAGA_DOTNET_EXECUTABLE}" REALPATH)
     get_filename_component(SAGA_DOTNET_ROOT
         "${SAGA_DOTNET_EXECUTABLE_REAL}" DIRECTORY)
+
+    if(WIN32)
+        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+            set(SAGA_DOTNET_HOST_RID "win-x64")
+        else()
+            set(SAGA_DOTNET_HOST_RID "win-x86")
+        endif()
+    elseif(APPLE)
+        if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64|ARM64)$")
+            set(SAGA_DOTNET_HOST_RID "osx-arm64")
+        elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64)$")
+            set(SAGA_DOTNET_HOST_RID "osx-x64")
+        else()
+            message(FATAL_ERROR
+                "Unsupported macOS architecture for .NET hosting: ${CMAKE_SYSTEM_PROCESSOR}")
+        endif()
+    elseif(UNIX)
+        if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64|ARM64)$")
+            set(SAGA_DOTNET_HOST_RID "linux-arm64")
+        elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64)$")
+            set(SAGA_DOTNET_HOST_RID "linux-x64")
+        else()
+            message(FATAL_ERROR
+                "Unsupported Linux architecture for .NET hosting: ${CMAKE_SYSTEM_PROCESSOR}")
+        endif()
+    else()
+        message(FATAL_ERROR
+            "Unsupported platform for .NET hosting: ${CMAKE_SYSTEM_NAME}")
+    endif()
+
     file(GLOB SAGA_DOTNET_HOST_NATIVE_DIR_CANDIDATES
-        "${SAGA_DOTNET_ROOT}/packs/Microsoft.NETCore.App.Host.*/*/runtimes/*/native"
+        LIST_DIRECTORIES true
+        "${SAGA_DOTNET_ROOT}/packs/Microsoft.NETCore.App.Host.${SAGA_DOTNET_HOST_RID}/*/runtimes/${SAGA_DOTNET_HOST_RID}/native"
     )
-    list(SORT SAGA_DOTNET_HOST_NATIVE_DIR_CANDIDATES)
-    list(REVERSE SAGA_DOTNET_HOST_NATIVE_DIR_CANDIDATES)
+    if(NOT SAGA_DOTNET_HOST_NATIVE_DIR_CANDIDATES)
+        message(FATAL_ERROR
+            "No .NET native host pack found for ${SAGA_DOTNET_HOST_RID} under ${SAGA_DOTNET_ROOT}/packs")
+    endif()
+    list(SORT SAGA_DOTNET_HOST_NATIVE_DIR_CANDIDATES
+        COMPARE NATURAL
+        ORDER DESCENDING)
     list(GET SAGA_DOTNET_HOST_NATIVE_DIR_CANDIDATES 0
         SAGA_DOTNET_HOST_NATIVE_DIR)
+    message(STATUS
+        "Saga .NET native host: ${SAGA_DOTNET_HOST_RID} -> ${SAGA_DOTNET_HOST_NATIVE_DIR}")
 
     find_path(SAGA_DOTNET_HOST_INCLUDE_DIR
         NAMES nethost.h hostfxr.h coreclr_delegates.h
@@ -82,6 +120,8 @@ function(saga_setup_thirdparty)
         "dotnet executable for managed SagaScript bridge builds")
     set(SAGA_DOTNET_ROOT "${SAGA_DOTNET_ROOT}" CACHE INTERNAL
         "dotnet root for native hostfxr/nethost lookup")
+    set(SAGA_DOTNET_HOST_RID "${SAGA_DOTNET_HOST_RID}" CACHE INTERNAL
+        "dotnet native host runtime identifier")
     set(SAGA_DOTNET_HOST_INCLUDE_DIR "${SAGA_DOTNET_HOST_INCLUDE_DIR}" CACHE INTERNAL
         "dotnet host native include directory")
     set(SAGA_DOTNET_NETHOST_LIBRARY "${SAGA_DOTNET_NETHOST_LIBRARY}" CACHE INTERNAL
