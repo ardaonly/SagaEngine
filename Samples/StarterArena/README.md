@@ -1,25 +1,11 @@
-# StarterArena Source Fixture
+# StarterArena
 
-`StarterArena` currently provides project, scene, and C# source inputs for the
-authoritative project and scripting tools. It is not a Runtime launch contract
-or a finished playable sample.
+StarterArena is licensed under the MIT License; see `../LICENSE`.
 
-The earlier sample-specific `SagaRuntime` modes and Product Launcher evidence
-workflow were retired. Runtime consumes validated generated artifacts; it does
-not parse these project sources or compile `GameRules.cs`.
+StarterArena is the canonical seed and reference project for Campaign 1 source and tooling contracts. It is intentionally editorless and does not claim a playable Runtime path.
 
-Current source-level checks can be run without an editor:
+Source truth consists of `StarterArena.sagaproj`, `Scenes/StarterArena.sagascene`, `Input/Input.saga.json`, `Scripts/DoorController.cs`, and the two primitive asset sources under `Assets/`. `SagaPackage.lock` is the only tracked GeneratedState exception. Cooked assets and all other build products belong under ignored `Build/`.
 
-```sh
-Tools/SagaProjectKit/sagaproject validate \
-  --project Samples/StarterArena/StarterArena.sagaproj \
-  --out /tmp/starter-arena-project-validation.json
+The scene connects logical action `Interact` to `DoorController.OnInteract`. Only the input map records the physical `Keyboard E` binding. The controller uses the existing SagaScript lifecycle and `Context.Self.Transform` facade.
 
-Tools/SagaScript/sagascript analyze \
-  --source Samples/StarterArena/Scripts \
-  --out /tmp/starter-arena-analysis \
-  --json
-```
-
-Generated reports, manifests, assemblies, and caches belong outside this
-directory. They are evidence or build output, never project source truth.
+See `ACCEPTANCE.md` for the editorless command sequence and `KNOWN_LIMITATIONS.md` for current non-claims.

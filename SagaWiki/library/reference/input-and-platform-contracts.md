@@ -64,6 +64,6 @@ When adding a platform feature:
 
 ## Evidence limits
 
-Automated evidence does not claim a physical key press unless a manual report observes a real device and a resulting state change. Headless tests can prove mapping, serialization, buffering, and command behavior without proving native window focus or device hot-plug behavior. StarterArena currently has no runtime input workflow claim.
+Automated evidence does not claim a physical key press unless a manual report observes a real device and a resulting state change. Headless tests can prove mapping, serialization, buffering, and command behavior without proving native window focus or device hot-plug behavior. StarterArena's strict source and compiled artifact separate logical `Interact` from physical `Keyboard E`; this is tooling evidence, not a runtime input workflow claim.
 
 The current Wiki therefore treats input as implemented foundations with bounded sample paths, not as a finished cross-platform input product or production network-input security layer.

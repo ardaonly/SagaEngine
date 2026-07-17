@@ -1,4 +1,5 @@
 using System.Text.Json;
+using SagaProjectKit.Core;
 
 namespace SagaPackager;
 
@@ -12,30 +13,15 @@ internal sealed class ProjectResolver
     public ProjectResolution Resolve(string projectInput, string profileId)
     {
         var diagnostics = new List<PackageDiagnostic>();
-        var manifestPath = ResolveManifestPath(projectInput, diagnostics);
-        if (manifestPath.Length == 0)
+        var shared = new ProjectLoader().Load(projectInput, checkReferences: false);
+        diagnostics.AddRange(shared.Diagnostics.Select(MapDiagnostic));
+        if (shared.Manifest is null)
         {
             return new ProjectResolution { Diagnostics = Sort(diagnostics) };
         }
-
-        var projectRoot = Path.GetFullPath(Path.GetDirectoryName(manifestPath) ?? ".");
-        var project = ReadJson<SagaProjectManifest>(
-            manifestPath,
-            "Package.Project.ManifestParseFailed",
-            diagnostics);
-        if (project is null)
-        {
-            return Result(projectRoot, manifestPath, null, null, "", diagnostics);
-        }
-
-        if (project.SchemaVersion != 0)
-        {
-            diagnostics.Add(Error(
-                "Package.Project.UnsupportedSchemaVersion",
-                "Project",
-                "schemaVersion",
-                "Only .sagaproj schemaVersion 0 is supported."));
-        }
+        var projectRoot = shared.ProjectRoot;
+        var manifestPath = shared.ManifestPath;
+        var project = MapProject(shared.Manifest);
 
         var profileReference = project.PackageProfiles
             .OrderBy(p => p.Id, StringComparer.Ordinal)
@@ -97,33 +83,55 @@ internal sealed class ProjectResolver
     public ProjectResolution ResolveProject(string projectInput)
     {
         var diagnostics = new List<PackageDiagnostic>();
-        var manifestPath = ResolveManifestPath(projectInput, diagnostics);
-        if (manifestPath.Length == 0)
+        var shared = new ProjectLoader().Load(projectInput, checkReferences: false);
+        diagnostics.AddRange(shared.Diagnostics.Select(MapDiagnostic));
+        if (shared.Manifest is null)
         {
             return new ProjectResolution { Diagnostics = Sort(diagnostics) };
         }
-
-        var projectRoot = Path.GetFullPath(Path.GetDirectoryName(manifestPath) ?? ".");
-        var project = ReadJson<SagaProjectManifest>(
-            manifestPath,
-            "Package.Project.ManifestParseFailed",
-            diagnostics);
-        if (project is null)
-        {
-            return Result(projectRoot, manifestPath, null, null, "", diagnostics);
-        }
-
-        if (project.SchemaVersion != 0)
-        {
-            diagnostics.Add(Error(
-                "Package.Project.UnsupportedSchemaVersion",
-                "Project",
-                "schemaVersion",
-                "Only .sagaproj schemaVersion 0 is supported."));
-        }
-
-        return Result(projectRoot, manifestPath, project, null, "", diagnostics);
+        return Result(shared.ProjectRoot, shared.ManifestPath, MapProject(shared.Manifest), null, "", diagnostics);
     }
+
+    private static SagaProjectManifest MapProject(ProjectManifest manifest) => new()
+    {
+        SchemaVersion = manifest.SchemaVersion,
+        ProjectId = manifest.ProjectId,
+        DisplayName = manifest.DisplayName,
+        Paths = new ProjectPaths
+        {
+            Diagnostics = manifest.Paths.Diagnostics,
+            GeneratedReports = manifest.Paths.GeneratedReports,
+        },
+        Assets = manifest.Assets.Select(item => new ProjectAssetReference
+        {
+            Id = item.Id,
+            Path = item.Path,
+            Kind = item.Kind,
+        }).ToList(),
+        LaunchProfiles = manifest.LaunchProfiles.Select(MapReference).ToList(),
+        PackageProfiles = manifest.PackageProfiles.Select(MapReference).ToList(),
+    };
+
+    private static ProjectPathReference MapReference(SagaProjectKit.Core.ProjectReference item) => new()
+    {
+        Id = item.Id,
+        Path = item.Path,
+    };
+
+    private static PackageDiagnostic MapDiagnostic(SagaProjectKit.Core.ProjectDiagnostic item) => new()
+    {
+        Severity = item.Severity,
+        Code = item.Code switch
+        {
+            "Project.Input.UnsupportedFileType" => "Package.Project.UnsupportedFileType",
+            "Project.Manifest.SchemaVersionUnsupported" => "Package.Project.UnsupportedSchemaVersion",
+            "Project.Manifest.ParseFailed" => "Package.Project.ManifestParseFailed",
+            _ => item.Code,
+        },
+        Category = "Project",
+        Path = item.Path,
+        Message = item.Message,
+    };
 
     public PackageProfilesDocument? ReadPackageProfiles(
         ProjectResolution resolution,
@@ -374,63 +382,6 @@ internal sealed class ProjectResolver
                 path,
                 $"Required field is missing or empty: {field}."));
         }
-    }
-
-    private static string ResolveManifestPath(
-        string projectInput,
-        List<PackageDiagnostic> diagnostics)
-    {
-        if (string.IsNullOrWhiteSpace(projectInput))
-        {
-            diagnostics.Add(Error(
-                "Package.Project.MissingInput",
-                "Project",
-                "",
-                "Project path is required."));
-            return "";
-        }
-
-        var fullInput = Path.GetFullPath(projectInput);
-        if (File.Exists(fullInput))
-        {
-            if (!string.Equals(Path.GetExtension(fullInput), ".sagaproj",
-                               StringComparison.OrdinalIgnoreCase))
-            {
-                diagnostics.Add(Error(
-                    "Package.Project.UnsupportedFileType",
-                    "Project",
-                    fullInput,
-                    "Explicit project input must be a .sagaproj file."));
-                return "";
-            }
-            return fullInput;
-        }
-        if (!Directory.Exists(fullInput))
-        {
-            diagnostics.Add(Error(
-                "Package.Project.MissingInput",
-                "Project",
-                projectInput,
-                "Project path does not exist."));
-            return "";
-        }
-
-        var manifests = Directory.GetFiles(fullInput, "*.sagaproj", SearchOption.TopDirectoryOnly)
-            .OrderBy(Normalize, StringComparer.Ordinal)
-            .ToList();
-        if (manifests.Count == 1)
-        {
-            return manifests[0];
-        }
-
-        diagnostics.Add(Error(
-            manifests.Count == 0 ? "Package.Project.ManifestMissing" : "Package.Project.ManifestAmbiguous",
-            "Project",
-            fullInput,
-            manifests.Count == 0
-                ? "Project directory does not contain a .sagaproj manifest."
-                : "Project directory contains more than one .sagaproj manifest."));
-        return "";
     }
 
     private static T? ReadJson<T>(

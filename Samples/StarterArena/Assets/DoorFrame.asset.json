@@ -1,0 +1,27 @@
+{
+  "assetId": "starter-arena.door-frame",
+  "geometry": {
+    "dimensions": [
+      2.2,
+      2.5,
+      0.35
+    ],
+    "shape": "box"
+  },
+  "kind": "primitive",
+  "material": {
+    "baseColor": [
+      0.28,
+      0.3,
+      0.34,
+      1
+    ],
+    "shaderDependency": "renderer.solid"
+  },
+  "provenance": {
+    "author": "SagaEngine contributors",
+    "license": "MIT",
+    "origin": "SagaEngine StarterArena template"
+  },
+  "schemaVersion": 1
+}

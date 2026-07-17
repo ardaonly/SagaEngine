@@ -209,6 +209,13 @@ Pixel tests should compare robust properties: non-clear coverage, relative lumin
 
 The current Diligent tests contain focused evidence for lifecycle/reinitialize/resize, native buffers/textures/samplers/shaders/pipelines, constant/texture/sampler bindings and cache invalidation, stale/destroyed handle rejection, coordinate/depth/winding/UV behavior, overlay draw/scissor/alpha/order/lifetime/thread rejection, directional lighting, and shadow behavior. No current StarterArena pixel claim is registered.
 
+Render also owns vendor-neutral schema-version-1 cooked mesh and material
+loaders. They populate the existing `MeshAsset` and `MaterialRuntime` values,
+validate schema/type/identity/hash syntax, recompute the canonical payload
+content hash, reject non-finite geometry/material values and invalid indices,
+and require the existing `renderer.solid` shader dependency. They do not
+contain a StarterArena branch or backend API.
+
 Each test proves its asserted fixture on the executing GPU environment. A skipped no-display/no-device test remains unavailable evidence. A multi-frame stress-named GPU test remains GPU integration behavior and should not be conflated with the repository's separate StressTests acceptance.
 
 ## Current non-claims

@@ -7,4 +7,8 @@
     <AssemblyName>sagapack</AssemblyName>
     <RootNamespace>SagaPackager</RootNamespace>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../SagaProjectKit/SagaProjectKit.Core.csproj" />
+  </ItemGroup>
 </Project>
