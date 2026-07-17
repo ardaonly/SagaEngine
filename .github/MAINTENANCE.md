@@ -4,7 +4,7 @@ SPDX-License-Identifier: MPL-2.0
 
 GitHub Actions is an evidence router for the current repository; it does not create a second test architecture. Executable tests remain with their owners under `Engine/**/Tests`, `Tests`, or `Tools/**/tests`.
 
-## Required pull-request checks
+## Main branch checks
 
 The expected stable job display names are:
 
@@ -13,26 +13,26 @@ The expected stable job display names are:
 - `C++ Windows core`
 - `Licensing gate`
 
-Do not copy these labels into a ruleset before the corrected workflows have completed successfully on GitHub. Required status checks must use the exact, globally unique `check_run.name` values reported for a successful commit; matrix expansion or an external status with the same name can change or make that context ambiguous. Renaming one of these jobs requires a coordinated ruleset update.
+These names must remain globally unique. Matrix expansion or an external status with the same name can make the evidence ambiguous; renaming a job requires a coordinated maintenance update.
 
-`Repository contracts` and `Licensing gate` run automatically for pull requests. The C++ checks are intentionally not started by every PR synchronization: run the `C++ Evidence` workflow manually against the final candidate branch before merge. This produces `C++ Linux all-safe` and `C++ Windows core` on the exact head commit without replacing them with skipped placeholder jobs. A relevant merge to `main` runs the same C++ evidence once more.
+`Repository contracts` and `Licensing gate` run automatically on repository updates. The C++ checks are intentionally not started by every push: run the `C++ Evidence` workflow manually against the commit that needs native evidence. This produces `C++ Linux all-safe` and `C++ Windows core` without replacing them with skipped placeholder jobs.
 
-After the four check runs have succeeded on the same candidate commit, protect `main` with an active branch ruleset that requires a pull request with zero approvals, requires those exact checks in strict/up-to-date mode, blocks deletion and force-push, and grants repository administrators bypass access for pull requests only. Direct pushes remain blocked; a solo maintainer works through `feature branch -> pull request -> automatic contracts -> manual C++ evidence -> self-merge`.
+Saga currently uses a single-branch direct-push model: `main` is the only persistent development branch and pull requests are not required. Protect `main` from deletion and force-push, but do not configure pre-merge required checks while this model is active because there is no pull-request merge boundary. Automatic checks report each pushed commit after it lands; run the two C++ checks manually when native evidence is required. If required pre-merge checks are introduced later, first restore a short-lived branch and pull-request workflow.
 
 ## Evidence tiers
 
 | Tier | Trigger | Evidence |
 | --- | --- | --- |
-| PR contracts | Every pull request update | Python/tool contracts, boundaries, Wiki, workflow policy, and strict repository license policy. |
-| C++ evidence | Manual candidate-branch run and relevant `main` push | Linux all-safe CTest and Windows unit/architecture CTest. |
-| Configured license graph | Relevant `main` changes, nightly, or manual | CMake File API ownership and target inventory, installed SDK consumer, machine-readable license report. |
+| Main contracts | Every `main` push | Python/tool contracts, boundaries, Wiki, workflow policy, and strict repository license policy. |
+| C++ evidence | Manual | Linux all-safe CTest and Windows unit/architecture CTest. |
+| Configured license graph | Nightly or manual | CMake File API ownership and target inventory, installed SDK consumer, machine-readable license report. |
 | Nightly | Daily | Integration and replication tests, serial execution. |
 | Weekly | Sunday | StressTests, serial execution with a four-hour job limit. |
 | GPU | Manual preflight | Explicitly blocked until a trusted self-hosted runner carrying the `saga-gpu` label exists. |
 
-Visible StarterArena runtime cases require `SAGA_RUN_VISIBLE_TESTS=1` and a qualified native display. Ordinary PR runs leave that opt-in unset; those cases publish explicit GTest skip reasons while headless cases continue.
+Visible StarterArena runtime cases require `SAGA_RUN_VISIBLE_TESTS=1` and a qualified native display. Ordinary automated runs leave that opt-in unset; those cases publish explicit GTest skip reasons while headless cases continue.
 
-PR artifacts are retained for 14 days, nightly artifacts for 30 days, and licensing/weekly/GPU evidence for 90 days. Artifact upload and job summaries use `if: always()` so a failing test still publishes diagnostics. Test commands themselves never use `continue-on-error`.
+Contract artifacts are retained for 14 days, nightly artifacts for 30 days, and licensing/weekly/GPU evidence for 90 days. Artifact upload and job summaries use `if: always()` so a failing test still publishes diagnostics. Test commands themselves never use `continue-on-error`.
 
 ## Dependency and security policy
 
