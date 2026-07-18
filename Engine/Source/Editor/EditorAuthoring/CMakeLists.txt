@@ -16,22 +16,20 @@ saga_add_editor_module(EditorAuthoring
         Private/SagaEditor/Authoring/ScriptPatchReviewWorkflowView.cpp
         Private/SagaEditor/Authoring/ProjectReadinessView.cpp
         Private/SagaEditor/Authoring/ViewNavigationWorkflowState.cpp
-        Private/SagaEditor/Importers/AssetImportManager.cpp
         Private/SagaEditor/InspectorEditing/ComponentEditorRegistry.cpp
         Private/SagaEditor/InspectorEditing/InspectorBinder.cpp
         Private/SagaEditor/InspectorEditing/PropertyEditorFactory.cpp
-        Private/SagaEditor/Pipeline/AssetCooking.cpp
-        Private/SagaEditor/Pipeline/ContentPipeline.cpp
-        Private/SagaEditor/Pipeline/DerivedDataCache.cpp
-        Private/SagaEditor/PrefabEditing/PrefabEditor.cpp
-        Private/SagaEditor/PrefabEditing/PrefabInstanceTracker.cpp
+        Private/SagaEditor/Play/PlaySourceSnapshot.cpp
         Private/SagaEditor/SceneEditing/SceneEditor.cpp
+        Private/SagaEditor/SceneEditing/SceneDocument.cpp
+        Private/SagaEditor/SceneEditing/SceneDocumentTransaction.cpp
+        Private/SagaEditor/SceneEditing/SceneSelectionIdentity.cpp
+        Private/SagaEditor/Scripting/ScriptAnalysisCoordinator.cpp
+        Private/SagaEditor/Workspace/EditorDocumentWorkspace.cpp
         Private/SagaEditor/Viewport/CameraController.cpp
         Private/SagaEditor/Viewport/GizmoHandle.cpp
         Private/SagaEditor/Viewport/ViewportCamera.cpp
         Private/SagaEditor/Viewport/ViewportRay.cpp
-        Private/SagaEditor/WorldEditing/WorldEditor.cpp
-        Private/SagaEditor/WorldEditing/WorldStreamingEditor.cpp
         Public/SagaEditor/Authoring/DiagnosticsPanelView.h
         Public/SagaEditor/Authoring/EditorShellCustomizationReport.h
         Public/SagaEditor/Authoring/ProjectBrowserWorkflowView.h
@@ -47,7 +45,6 @@ saga_add_editor_module(EditorAuthoring
         Public/SagaEditor/Gizmos/CameraGizmo.h
         Public/SagaEditor/Gizmos/SplineGizmo.h
         Public/SagaEditor/Gizmos/TransformGizmo.h
-        Public/SagaEditor/Importers/AssetImportManager.h
         Public/SagaEditor/Importers/AssetEvaluationImporter.h
         Public/SagaEditor/Importers/BlockGraphImporter.h
         Public/SagaEditor/Importers/GraphImportAdapter.h
@@ -57,13 +54,13 @@ saga_add_editor_module(EditorAuthoring
         Public/SagaEditor/InspectorEditing/IPropertyEditorBackend.h
         Public/SagaEditor/InspectorEditing/InspectorBinder.h
         Public/SagaEditor/InspectorEditing/PropertyEditorFactory.h
-        Public/SagaEditor/Pipeline/AssetCooking.h
-        Public/SagaEditor/Pipeline/ContentPipeline.h
-        Public/SagaEditor/Pipeline/DerivedDataCache.h
-        Public/SagaEditor/PrefabEditing/PrefabEditor.h
-        Public/SagaEditor/PrefabEditing/PrefabInstanceTracker.h
+        Public/SagaEditor/Play/PlaySourceSnapshot.h
         Public/SagaEditor/PrefabEditing/PrefabOverrideResolver.h
         Public/SagaEditor/SceneEditing/SceneEditor.h
+        Public/SagaEditor/SceneEditing/SceneDocument.h
+        Public/SagaEditor/SceneEditing/SceneDocumentTransaction.h
+        Public/SagaEditor/SceneEditing/SceneSelectionIdentity.h
+        Public/SagaEditor/Scripting/ScriptAnalysisCoordinator.h
         Public/SagaEditor/SceneEditing/SceneHierarchyAdapter.h
         Public/SagaEditor/SceneEditing/SceneViewportController.h
         Public/SagaEditor/Viewport/CameraController.h
@@ -72,8 +69,7 @@ saga_add_editor_module(EditorAuthoring
         Public/SagaEditor/Viewport/ViewportInput.h
         Public/SagaEditor/Viewport/ViewportRay.h
         Public/SagaEditor/WorldEditing/WorldCellEditor.h
-        Public/SagaEditor/WorldEditing/WorldEditor.h
-        Public/SagaEditor/WorldEditing/WorldStreamingEditor.h
+        Public/SagaEditor/Workspace/EditorDocumentWorkspace.h
 )
 
 saga_register_module_tests(EditorAuthoring
@@ -83,6 +79,11 @@ saga_register_module_tests(EditorAuthoring
     SOURCES
         Tests/EditorAuthoringSpineTests.cpp
         Tests/InspectorEditingTests.cpp
+        Tests/SceneDocumentTests.cpp
+        Tests/EditorDocumentWorkspaceTests.cpp
+        Tests/SceneDocumentTransactionTests.cpp
+        Tests/SceneSelectionIdentityTests.cpp
+        Tests/ScriptAnalysisCoordinatorTests.cpp
         Tests/ViewportCameraTests.cpp
         Tests/ViewportRayTests.cpp
 )

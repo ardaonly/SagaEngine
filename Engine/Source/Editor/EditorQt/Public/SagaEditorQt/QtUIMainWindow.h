@@ -38,6 +38,10 @@ public:
 
     void ApplyShellLayout(const ShellLayout& layout)  override;
     void SetStatusMessage(const std::string& message) override;
+    [[nodiscard]] std::optional<std::string> ChooseProjectToOpen() override;
+    [[nodiscard]] std::optional<NewProjectPrompt> ChooseNewProject() override;
+    [[nodiscard]] UnsavedDocumentsDecision ConfirmUnsavedDocuments(
+        const std::vector<std::string>& documentIds) override;
 
     void DockPanel(void*              nativeWidget,
                    const std::string& panelId,

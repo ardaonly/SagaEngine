@@ -103,13 +103,18 @@ const std::vector<SelectableId>& SelectionManager::GetAll() const noexcept
 
 // ─── Observer Registration ────────────────────────────────────────────────────
 
-void SelectionManager::Subscribe(SelectionCallback callback)
+SelectionSubscription SelectionManager::Subscribe(SelectionCallback callback)
 {
-    if (!callback)
-    {
-        return; // Empty callbacks are silently ignored.
-    }
-    m_callbacks.push_back(std::move(callback));
+    if (!callback) return kInvalidSelectionSubscription;
+    const auto subscription = m_nextSubscription++;
+    m_callbacks.emplace_back(subscription, std::move(callback));
+    return subscription;
+}
+
+void SelectionManager::Unsubscribe(SelectionSubscription subscription)
+{
+    std::erase_if(m_callbacks, [subscription](const auto& item)
+    { return item.first == subscription; });
 }
 
 void SelectionManager::NotifyObservers()
@@ -118,8 +123,9 @@ void SelectionManager::NotifyObservers()
     // invalidate the iterator we are walking. A throwing callback must
     // not break the rest of the dispatch.
     const auto snapshot = m_callbacks;
-    for (const auto& cb : snapshot)
+    for (const auto& [subscription, cb] : snapshot)
     {
+        (void)subscription;
         if (!cb) continue;
         try
         {

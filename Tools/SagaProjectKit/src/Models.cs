@@ -92,6 +92,7 @@ internal sealed class ProjectSummary
     public string DisplayName { get; init; } = "";
     public string ProjectRoot { get; init; } = "";
     public string ManifestPath { get; init; } = "";
+    public string EngineTargetVersion { get; init; } = "";
     public int SchemaVersion { get; init; }
 }
 

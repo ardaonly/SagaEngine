@@ -33,6 +33,7 @@ struct EditorAppConfig
     bool        smoke         = false;
     int         smokeTimeoutMs = 1000;
     std::string workspacePath = "";           ///< Project workspace root; empty = cwd.
+    std::string projectPath = "";             ///< Canonical .sagaproj or containing directory.
     std::string layoutPreset  = "Default";    ///< Layout preset applied on first launch.
     std::string initialProfileId = "";        ///< Optional workflow profile override.
     std::optional<EditorWorkspaceDefinition> preparedWorkspace;

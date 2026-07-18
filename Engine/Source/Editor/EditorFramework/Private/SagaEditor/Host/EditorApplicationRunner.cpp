@@ -78,6 +78,12 @@ struct ParsedEditorCommand
             if (value == nullptr) return false;
             parsed.app.workspacePath = value;
         }
+        else if (argument == "--project")
+        {
+            const char* value = requireValue("--project");
+            if (value == nullptr) return false;
+            parsed.app.projectPath = value;
+        }
         else if (argument == "--profile")
         {
             const char* value = requireValue("--profile");
@@ -170,6 +176,7 @@ const char* EditorApplicationUsage() noexcept
     return
         "Usage: SagaEditor [options]\n"
         "  --workspace <path>             Open an Editor workspace\n"
+        "  --project <path>               Open a canonical Saga project\n"
         "  --profile <id>                 Select a bounded Editor profile\n"
         "  --inspect-project <path>       Inspect a project read model\n"
         "  --editor-shell-report <path>   Write schema-2 inspection JSON\n"

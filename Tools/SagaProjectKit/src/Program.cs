@@ -1008,6 +1008,7 @@ internal static class Program
             DisplayName = load.Descriptor?.DisplayName ?? "",
             ProjectRoot = load.ProjectRoot,
             ManifestPath = load.ManifestPath,
+            EngineTargetVersion = load.Descriptor?.EngineCompatibility.TargetVersion ?? "",
             SchemaVersion = load.Descriptor?.SchemaVersion ?? 0,
         };
     }

@@ -3,7 +3,9 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <string_view>
 namespace SagaEditor {
+class SceneDocument;
 class SceneEditor {
 public:
     SceneEditor();
@@ -12,8 +14,9 @@ public:
     void        CloseScene();
     bool        SaveScene();
     bool        IsModified()  const noexcept;
-    uint64_t    CreateEntity(const std::string& name = "Entity");
-    void        DestroyEntity(uint64_t entityId);
+    [[nodiscard]] SceneDocument* GetDocument() noexcept;
+    [[nodiscard]] const SceneDocument* GetDocument() const noexcept;
+    bool        RenameEntity(std::string_view entityId, std::string name);
     void        SetOnSceneChanged(std::function<void()> cb);
 private:
     struct Impl; std::unique_ptr<Impl> m_impl;

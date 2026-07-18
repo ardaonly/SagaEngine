@@ -4,6 +4,8 @@ saga_add_editor_module(EditorQt
     PUBLIC_DEPS
         Qt6::Core
         Qt6::Widgets
+    PRIVATE_DEPS
+        Qt6::Concurrent
     SOURCES
         Private/SagaEditorQt/Commands/CommandPalette.cpp
         Private/SagaEditorQt/Host/EditorProjectInspection.cpp
@@ -15,6 +17,7 @@ saga_add_editor_module(EditorQt
         Private/SagaEditorQt/Panels/ProblemsPanel.cpp
         Private/SagaEditorQt/Panels/ProductionDashboardPanel.cpp
         Private/SagaEditorQt/Panels/ShortcutPreferencesPanel.cpp
+        Private/SagaEditorQt/Panels/ScriptingPanel.cpp
         Private/SagaEditorQt/Panels/WorldViewportPanel.cpp
         Private/SagaEditorQt/QtPanel.cpp
         Private/SagaEditorQt/QtSettingsStore.cpp
@@ -33,6 +36,7 @@ saga_register_module_tests(EditorQt
     MODULE_DIR Engine/Source/Editor/EditorQt
     LINK_TARGET SagaEditorLib
     SOURCES
+        Tests/QtAuthoringPanelsTests.cpp
         Tests/QtSettingsStoreTests.cpp
     LABELS unit editor qt
 )

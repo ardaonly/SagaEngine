@@ -1,5 +1,5 @@
-/// @file ProjectManagerTests.cpp
-/// @brief Focused tests for editor-local project session state.
+// SPDX-FileCopyrightText: 2026 Arda Koyuncu
+// SPDX-License-Identifier: MPL-2.0
 
 #include "SagaEditor/Project/ProjectManager.h"
 
@@ -8,114 +8,138 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <memory>
 #include <string>
 
 namespace
 {
-
 namespace fs = std::filesystem;
 
-[[nodiscard]] fs::path MakeTempRoot(const std::string& name)
+class FakeProjectToolClient final : public SagaEditor::IProjectToolClient
 {
-    const auto stamp =
-        std::chrono::steady_clock::now().time_since_epoch().count();
-    fs::path root = fs::temp_directory_path() /
+public:
+    mutable int validationCount = 0;
+    mutable int creationCount = 0;
+    SagaEditor::ProjectToolResult validation;
+    SagaEditor::ProjectToolResult creation;
+
+    SagaEditor::ProjectToolResult Validate(const fs::path&) const override
+    {
+        ++validationCount;
+        return validation;
+    }
+
+    SagaEditor::ProjectToolResult CreateStarterArena(
+        const SagaEditor::ProjectTemplateRequest&) const override
+    {
+        ++creationCount;
+        return creation;
+    }
+};
+
+fs::path MakeTempRoot(const std::string& name)
+{
+    const auto stamp = std::chrono::steady_clock::now().time_since_epoch().count();
+    const auto root = fs::temp_directory_path() /
         ("saga_project_manager_" + name + "_" + std::to_string(stamp));
-    fs::remove_all(root);
     fs::create_directories(root);
     return root;
 }
 
-void WriteFile(const fs::path& path, const std::string& text)
+void WriteManifest(const fs::path& path)
 {
-    fs::create_directories(path.parent_path());
-    std::ofstream output(path, std::ios::trunc);
-    output << text;
+    std::ofstream output(path, std::ios::binary | std::ios::trunc);
+    output << "{}\n";
 }
 
-} // namespace
-
-TEST(ProjectManagerTests, OpensProjectDirectoryAndReadsManifestMetadata)
+SagaEditor::ProjectToolResult PassedProject(const fs::path& root,
+                                             std::string name = "Test Saga Project")
 {
-    const fs::path root = MakeTempRoot("manifest");
-    WriteFile(root / "Project.sagaproj",
-              R"({
-                "schemaVersion": 0,
-                "projectId": "saga.test",
-                "displayName": "Test Saga Project",
-                "engineCompatibility": { "targetVersion": "0.0.11" }
-              })");
+    SagaEditor::ProjectToolResult result;
+    result.passed = true;
+    result.project.projectId = "808c32f2-c240-4613-b86b-f77af8c4a900";
+    result.project.displayName = std::move(name);
+    result.project.projectRoot = fs::absolute(root);
+    result.project.manifestPath = fs::absolute(root / "Project.sagaproj");
+    result.project.engineTargetVersion = "0.0.11";
+    result.project.schemaVersion = 0;
+    return result;
+}
+}
 
-    SagaEditor::ProjectManager manager;
+TEST(ProjectManagerTests, OpensOnlyAfterSagaProjectKitValidation)
+{
+    const auto root = MakeTempRoot("validated");
+    WriteManifest(root / "Project.sagaproj");
+    auto client = std::make_shared<FakeProjectToolClient>();
+    client->validation = PassedProject(root);
+    SagaEditor::ProjectManager manager(client);
     int changed = 0;
-    manager.SetOnProjectChanged([&changed]() { ++changed; });
+    manager.SetOnProjectChanged([&changed] { ++changed; });
 
     ASSERT_TRUE(manager.OpenProject(root.string()));
-
-    EXPECT_TRUE(manager.IsProjectOpen());
+    EXPECT_EQ(client->validationCount, 1);
     EXPECT_EQ(manager.GetCurrentProject().name, "Test Saga Project");
-    EXPECT_EQ(fs::path(manager.GetCurrentProject().rootPath), fs::absolute(root));
     EXPECT_EQ(manager.GetCurrentProject().engineVersion, "0.0.11");
+    EXPECT_EQ(manager.GetCurrentProject().manifestPath,
+              fs::absolute(root / "Project.sagaproj").string());
     EXPECT_EQ(changed, 1);
 
     manager.CloseProject();
-
     EXPECT_FALSE(manager.IsProjectOpen());
-    EXPECT_TRUE(manager.GetCurrentProject().name.empty());
-    EXPECT_TRUE(manager.GetCurrentProject().rootPath.empty());
-    EXPECT_TRUE(manager.GetCurrentProject().engineVersion.empty());
     EXPECT_EQ(changed, 2);
-
     fs::remove_all(root);
 }
 
-TEST(ProjectManagerTests, RejectsDirectoryWithoutCanonicalManifest)
+TEST(ProjectManagerTests, RejectedValidationDoesNotReplaceOpenProject)
 {
-    const fs::path root = MakeTempRoot("plain_workspace");
+    const auto first = MakeTempRoot("first");
+    const auto second = MakeTempRoot("second");
+    WriteManifest(first / "Project.sagaproj");
+    WriteManifest(second / "Project.sagaproj");
+    auto client = std::make_shared<FakeProjectToolClient>();
+    client->validation = PassedProject(first, "First");
+    SagaEditor::ProjectManager manager(client);
+    ASSERT_TRUE(manager.OpenProject(first.string()));
 
-    SagaEditor::ProjectManager manager;
-
-    EXPECT_FALSE(manager.OpenProject(root.string()));
-    EXPECT_FALSE(manager.IsProjectOpen());
-
-    fs::remove_all(root);
-}
-
-TEST(ProjectManagerTests, RejectsMissingPathWithoutReplacingOpenProject)
-{
-    const fs::path root = MakeTempRoot("valid");
-    const fs::path missing = root.parent_path() / (root.filename().string() + "_missing");
-    WriteFile(root / "Valid.sagaproj",
-              R"({"schemaVersion":0,"projectId":"valid","displayName":"Valid"})");
-
-    SagaEditor::ProjectManager manager;
-    int changed = 0;
-    manager.SetOnProjectChanged([&changed]() { ++changed; });
-    ASSERT_TRUE(manager.OpenProject(root.string()));
-
-    EXPECT_FALSE(manager.OpenProject(missing.string()));
-
+    client->validation = {};
+    EXPECT_FALSE(manager.OpenProject(second.string()));
     EXPECT_TRUE(manager.IsProjectOpen());
-    EXPECT_EQ(manager.GetCurrentProject().name, "Valid");
-    EXPECT_EQ(changed, 1);
+    EXPECT_EQ(manager.GetCurrentProject().name, "First");
+    fs::remove_all(first);
+    fs::remove_all(second);
+}
 
+TEST(ProjectManagerTests, RequiresExactlyOneCanonicalManifest)
+{
+    const auto root = MakeTempRoot("ambiguous");
+    WriteManifest(root / "First.sagaproj");
+    WriteManifest(root / "Second.sagaproj");
+    auto client = std::make_shared<FakeProjectToolClient>();
+    client->validation = PassedProject(root);
+    SagaEditor::ProjectManager manager(client);
+
+    EXPECT_FALSE(manager.OpenProject(root.string()));
+    EXPECT_EQ(client->validationCount, 0);
     fs::remove_all(root);
 }
 
-TEST(ProjectManagerTests, RejectsInvalidManifestWithoutOpeningProject)
+TEST(ProjectManagerTests, CreatesThenOpensMaterializedStarterArena)
 {
-    const fs::path root = MakeTempRoot("invalid_manifest");
-    WriteFile(root / "Invalid.sagaproj", "{ invalid json");
+    const auto parent = MakeTempRoot("create");
+    const auto destination = parent / "Created";
+    fs::create_directories(destination);
+    WriteManifest(destination / "Project.sagaproj");
+    auto client = std::make_shared<FakeProjectToolClient>();
+    client->creation.passed = true;
+    client->validation = PassedProject(destination, "Created");
+    SagaEditor::ProjectManager manager(client);
+    SagaEditor::ProjectTemplateRequest request;
+    request.destination = destination;
 
-    SagaEditor::ProjectManager manager;
-    int changed = 0;
-    manager.SetOnProjectChanged([&changed]() { ++changed; });
-
-    EXPECT_FALSE(manager.OpenProject(root.string()));
-
-    EXPECT_FALSE(manager.IsProjectOpen());
-    EXPECT_TRUE(manager.GetCurrentProject().name.empty());
-    EXPECT_EQ(changed, 0);
-
-    fs::remove_all(root);
+    ASSERT_TRUE(manager.CreateStarterArena(request));
+    EXPECT_EQ(client->creationCount, 1);
+    EXPECT_EQ(client->validationCount, 1);
+    EXPECT_EQ(manager.GetCurrentProject().name, "Created");
+    fs::remove_all(parent);
 }

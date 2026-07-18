@@ -8,6 +8,7 @@
 #include "SagaEditor/Settings/IEditorSettingsStore.h"
 #include "SagaEditor/UI/IUIApplication.h"
 #include "SagaEditor/UI/IUIFactory.h"
+#include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
 
 namespace SagaEditor
 {
@@ -60,6 +61,11 @@ bool EditorApp::Init(const EditorAppConfig& cfg, IUIFactory& factory)
     }
     if (!resolvedProfileId.empty() &&
         !m_host->GetEditorProfileRegistry().SetActive(resolvedProfileId))
+    {
+        return false;
+    }
+    if (!cfg.projectPath.empty() &&
+        !m_host->GetDocumentWorkspace().OpenProject(cfg.projectPath))
     {
         return false;
     }

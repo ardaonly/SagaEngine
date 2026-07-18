@@ -34,8 +34,7 @@ public:
     void Close() override
     {
         closed = true;
-        if (onClose)
-            onClose();
+        if (onClose && !onClose()) closed = false;
     }
 
     void SetTitle(const std::string& value) override { title = value; }

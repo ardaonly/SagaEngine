@@ -1,0 +1,136 @@
+// SPDX-FileCopyrightText: 2026 Arda Koyuncu
+// SPDX-License-Identifier: MPL-2.0
+
+#include "SagaEditor/Commands/CommandDispatcher.h"
+#include "SagaEditor/Commands/CommandRegistry.h"
+#include "SagaEditor/Commands/UndoRedoStack.h"
+#include "SagaEditor/Panels/HierarchyPanel.h"
+#include "SagaEditor/Panels/InspectorPanel.h"
+#include "SagaEditor/Panels/ScriptingPanel.h"
+#include "SagaEditor/SceneEditing/SceneSelectionIdentity.h"
+#include "SagaEditor/Selection/SelectionManager.h"
+#include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
+
+#include <gtest/gtest.h>
+
+#include <QApplication>
+#include <QLineEdit>
+#include <QPlainTextEdit>
+#include <QTreeWidget>
+
+#include <chrono>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <memory>
+
+namespace
+{
+namespace fs = std::filesystem;
+
+QApplication& Application()
+{
+    static int argc = 1;
+    static char name[] = "SagaEditorQtTests";
+    static char* argv[] = {name, nullptr};
+    static const bool configured = [] { qputenv("QT_QPA_PLATFORM", "offscreen"); return true; }();
+    (void)configured;
+    static QApplication application(argc, argv);
+    return application;
+}
+
+class FakeClient final : public SagaEditor::IProjectToolClient
+{
+public:
+    SagaEditor::ProjectToolResult result;
+    SagaEditor::ProjectToolResult Validate(const fs::path&) const override { return result; }
+    SagaEditor::ProjectToolResult CreateStarterArena(
+        const SagaEditor::ProjectTemplateRequest&) const override { return result; }
+};
+
+void Write(const fs::path& path, std::string_view bytes)
+{
+    fs::create_directories(path.parent_path());
+    std::ofstream(path, std::ios::binary) << bytes;
+}
+
+struct Fixture
+{
+    fs::path root;
+    std::shared_ptr<FakeClient> client = std::make_shared<FakeClient>();
+    SagaEditor::EditorDocumentWorkspace workspace{client};
+
+    Fixture()
+    {
+        root = fs::temp_directory_path() / ("saga-qt-authoring-" + std::to_string(
+            std::chrono::steady_clock::now().time_since_epoch().count()));
+        Write(root / "Project.sagaproj", "{}\n");
+        Write(root / "Scene.sagascene",
+            R"({"schemaVersion":1,"sceneId":"main","entities":[{"entityId":"root","name":"Root","components":[{"type":"Transform","position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]}]},{"entityId":"door","parentEntityId":"root","name":"Door","components":[{"type":"Transform","position":[0,0,0],"rotation":[0,0,0,1],"scale":[1,1,1]}]}]})");
+        Write(root / "Scripts/Door.cs", "public class Door {}\n");
+        client->result.passed = true;
+        client->result.project.projectId = "f2ea2b57-ed20-4daa-87ee-acaf79681b5b";
+        client->result.project.displayName = "Qt Fixture";
+        client->result.project.projectRoot = root;
+        client->result.project.manifestPath = root / "Project.sagaproj";
+        client->result.project.sources = {
+            {"scene", "main", "scene", "Scene.sagascene", root / "Scene.sagascene"},
+            {"scriptFolder", "scripts", "csharp", "Scripts", root / "Scripts"}};
+        EXPECT_TRUE(workspace.OpenProject(root));
+    }
+    ~Fixture() { fs::remove_all(root); }
+};
+}
+
+TEST(QtAuthoringPanelsTests, HierarchySelectionDrivesCanonicalInspector)
+{
+    (void)Application();
+    Fixture fixture;
+    SagaEditor::SelectionManager selection;
+    SagaEditor::UndoRedoStack journal;
+    SagaEditor::HierarchyPanel hierarchy;
+    hierarchy.SetDocumentWorkspace(&fixture.workspace);
+    hierarchy.SetSelectionManager(&selection);
+    hierarchy.OnInit();
+    SagaEditor::InspectorPanel inspector;
+    inspector.SetDocumentWorkspace(&fixture.workspace);
+    inspector.SetSelectionManager(&selection);
+    inspector.SetUndoRedoStack(&journal);
+    inspector.OnInit();
+
+    auto* tree = static_cast<QWidget*>(hierarchy.GetNativeWidget())->findChild<QTreeWidget*>();
+    ASSERT_NE(tree, nullptr);
+    const auto doorItems = tree->findItems("Door", Qt::MatchExactly | Qt::MatchRecursive);
+    ASSERT_EQ(doorItems.size(), 1);
+    doorItems.front()->setSelected(true);
+    QApplication::processEvents();
+    EXPECT_EQ(selection.GetPrimary(), SagaEditor::SceneSelectionId("main", "door"));
+    auto* inspectorWidget = static_cast<QWidget*>(inspector.GetNativeWidget());
+    EXPECT_FALSE(inspectorWidget->findChildren<QLineEdit*>().empty());
+    hierarchy.OnShutdown(); inspector.OnShutdown();
+}
+
+TEST(QtAuthoringPanelsTests, CodeBoxMutationUsesTransactionAndDoesNotWriteDisk)
+{
+    (void)Application();
+    Fixture fixture;
+    SagaEditor::UndoRedoStack journal;
+    SagaEditor::CommandRegistry registry;
+    SagaEditor::CommandDispatcher dispatcher(registry);
+    SagaEditor::ScriptingPanel panel;
+    panel.SetDocumentWorkspace(&fixture.workspace);
+    panel.SetUndoRedoStack(&journal);
+    panel.SetCommandDispatcher(&dispatcher);
+    panel.OnInit();
+
+    auto* editor = static_cast<QWidget*>(panel.GetNativeWidget())->findChild<QPlainTextEdit*>();
+    ASSERT_NE(editor, nullptr);
+    editor->setPlainText("public class Door { public void Open() {} }\n");
+    QApplication::processEvents();
+    EXPECT_TRUE(fixture.workspace.Scripts().front()->Snapshot().dirty);
+    EXPECT_TRUE(journal.CanUndo());
+    std::ifstream disk(fixture.root / "Scripts/Door.cs", std::ios::binary);
+    EXPECT_EQ(std::string(std::istreambuf_iterator<char>(disk),
+                          std::istreambuf_iterator<char>()), "public class Door {}\n");
+    panel.OnShutdown();
+}

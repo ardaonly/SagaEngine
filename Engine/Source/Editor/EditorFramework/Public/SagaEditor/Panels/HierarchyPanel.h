@@ -13,6 +13,7 @@ namespace SagaEditor
 {
 
 class SelectionManager;
+class EditorDocumentWorkspace;
 
 // ─── Hierarchy Panel ──────────────────────────────────────────────────────────
 
@@ -34,6 +35,7 @@ public:
 
     // ─── Bindings ─────────────────────────────────────────────────────────────
     void SetSelectionManager(SelectionManager* mgr);
+    void SetDocumentWorkspace(EditorDocumentWorkspace* workspace);
 
 private:
     struct Impl;                    ///< Qt widgets live here — header stays clean.
