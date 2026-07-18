@@ -21,6 +21,8 @@ namespace SagaEditor
 class ComponentEditorRegistry;
 class InspectorBinder;
 class SelectionManager;
+class EditorDocumentWorkspace;
+class UndoRedoStack;
 
 // ─── Inspector Panel ──────────────────────────────────────────────────────────
 
@@ -58,6 +60,8 @@ public:
     /// Edit forwarder. May be nullptr; without a binder, edits made
     /// inside child editors do not propagate beyond the panel.
     void SetInspectorBinder(InspectorBinder* binder) noexcept;
+    void SetDocumentWorkspace(EditorDocumentWorkspace* workspace) noexcept;
+    void SetUndoRedoStack(UndoRedoStack* journal) noexcept;
 
     // ─── Rebuild ──────────────────────────────────────────────────────────────
 

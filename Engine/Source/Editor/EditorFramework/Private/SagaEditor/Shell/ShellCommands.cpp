@@ -35,6 +35,7 @@ void RegisterStub(CommandRegistry& registry,
 void RegisterShellCommands(CommandRegistry& registry, UndoRedoStack& undoStack)
 {
     // File
+    RegisterStub(registry, "saga.command.file.new_project",  "New Project",  "File");
     RegisterStub(registry, "saga.command.file.new_scene",    "New Scene",    "File");
     RegisterStub(registry, "saga.command.file.open_project", "Open Project", "File");
     RegisterStub(registry, "saga.command.file.save",         "Save Scene",   "File");

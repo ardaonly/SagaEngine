@@ -11,6 +11,7 @@
 
 namespace SagaEditor
 {
+class EditorDocumentWorkspace;
 
 // ─── Asset Browser Panel ──────────────────────────────────────────────────────
 
@@ -33,6 +34,7 @@ public:
     // ─── Configuration ────────────────────────────────────────────────────────
     /// Point the browser at the project workspace root.
     void SetWorkspaceRoot(const std::string& path);
+    void SetDocumentWorkspace(EditorDocumentWorkspace* workspace);
 
 private:
     struct Impl;

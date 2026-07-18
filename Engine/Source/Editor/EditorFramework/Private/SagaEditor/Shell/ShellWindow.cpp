@@ -64,6 +64,7 @@ bool ShellWindow::Init(IUIFactory& factory, const ShellWindowConfig& cfg)
     // ShellWindow::SetOnClose surface keeps working.
     window->SetOnClose([this]() {
         if (m_state->onClose) m_state->onClose();
+        return true;
     });
 
     m_state->width     = cfg.width;

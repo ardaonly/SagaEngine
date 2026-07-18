@@ -628,7 +628,7 @@ TEST(EditorAuthoringSpineTests, StarterArenaLoadsMinimumEditorShellWorkflowReadO
         LoadProjectBrowserWorkflowView(manifest);
 
     ASSERT_TRUE(project.ok);
-    EXPECT_EQ(project.projectId, "starter-arena");
+    EXPECT_EQ(project.projectId, "7c291959-9f45-4ec1-bf94-dc75e30bb1a8");
     EXPECT_EQ(project.displayName, "StarterArena");
     EXPECT_EQ(project.manifestPath.filename(), "StarterArena.sagaproj");
     EXPECT_EQ(project.diagnosticsPath.filename(), "Diagnostics");
@@ -667,14 +667,15 @@ TEST(EditorAuthoringSpineTests, StarterArenaLoadsMinimumEditorShellWorkflowReadO
                                    "Editor.ProjectBrowser.PackageProfilesMissing";
                            }),
               browser.diagnostics.end());
-    EXPECT_NE(std::find_if(browser.diagnostics.begin(),
-                           browser.diagnostics.end(),
-                           [](const AuthoringDiagnostic& diagnostic)
+    EXPECT_NE(std::find_if(browser.sections.begin(),
+                           browser.sections.end(),
+                           [](const ProjectBrowserSectionView& section)
                            {
-                               return diagnostic.code ==
-                                   "Editor.ProjectBrowser.AssetRootMissing";
+                               return section.name == "Assets" &&
+                                   section.exists &&
+                                   section.status == "Ready";
                            }),
-              browser.diagnostics.end());
+              browser.sections.end());
 }
 
 TEST(EditorAuthoringSpineTests, StarterArenaCustomizationReportUsesProjectReadinessDefault)

@@ -15,11 +15,16 @@
 #include <QString>
 #include <QCloseEvent>
 #include <QEvent>
+#include <QFileDialog>
+#include <QInputDialog>
+#include <QLineEdit>
+#include <QMessageBox>
 #include <QObject>
 #include <QStackedWidget>
 #include <utility>
 #include <unordered_map>
 #include <string>
+#include <filesystem>
 
 namespace SagaEditor
 {
@@ -37,14 +42,13 @@ public:
         setAnimated(false);
     }
 
-    std::function<void()> onClose; ///< Forwarded from IUIMainWindow::SetOnClose.
+    IUIMainWindow::CloseCallback onClose; ///< Forwarded from IUIMainWindow::SetOnClose.
 
 protected:
     void closeEvent(QCloseEvent* event) override
     {
-        if (onClose)
-            onClose();
-        event->accept();
+        if (!onClose || onClose()) event->accept();
+        else event->ignore();
     }
 };
 
@@ -56,15 +60,13 @@ public:
         : QObject(parent)
     {}
 
-    std::function<void()> onClose; ///< Forwarded from IUIMainWindow::SetOnClose.
+    IUIMainWindow::CloseCallback onClose; ///< Forwarded from IUIMainWindow::SetOnClose.
 
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override
     {
-        if (event->type() == QEvent::Close && onClose)
-        {
-            onClose();
-        }
+        if (event->type() == QEvent::Close && onClose && !onClose())
+        { event->ignore(); return true; }
         return QObject::eventFilter(watched, event);
     }
 };
@@ -306,6 +308,48 @@ void QtUIMainWindow::ApplyShellLayout(const ShellLayout& layout)
 void QtUIMainWindow::SetStatusMessage(const std::string& message)
 {
     m_impl->window->statusBar()->showMessage(QString::fromStdString(message));
+}
+
+std::optional<std::string> QtUIMainWindow::ChooseProjectToOpen()
+{
+    const auto path = QFileDialog::getOpenFileName(m_impl->window,
+        QStringLiteral("Open Saga Project"), {}, QStringLiteral("Saga Projects (*.sagaproj)"));
+    if (path.isEmpty()) return std::nullopt;
+    return path.toStdString();
+}
+
+std::optional<NewProjectPrompt> QtUIMainWindow::ChooseNewProject()
+{
+    bool accepted = false;
+    const auto name = QInputDialog::getText(m_impl->window,
+        QStringLiteral("New Starter Arena Project"), QStringLiteral("Project name"),
+        QLineEdit::Normal, QStringLiteral("StarterArena"), &accepted).trimmed();
+    if (!accepted || name.isEmpty()) return std::nullopt;
+    const auto parent = QFileDialog::getExistingDirectory(m_impl->window,
+        QStringLiteral("Choose Project Parent Directory"));
+    if (parent.isEmpty()) return std::nullopt;
+    NewProjectPrompt prompt;
+    prompt.displayName = name.toStdString();
+    prompt.destination = (std::filesystem::path(parent.toStdString()) /
+        name.toStdString()).string();
+    return prompt;
+}
+
+UnsavedDocumentsDecision QtUIMainWindow::ConfirmUnsavedDocuments(
+    const std::vector<std::string>& documentIds)
+{
+    QString detail;
+    for (const auto& id : documentIds)
+        detail += QString::fromStdString(id) + QLatin1Char('\n');
+    QMessageBox box(QMessageBox::Warning, QStringLiteral("Unsaved source documents"),
+        QStringLiteral("Save canonical source changes before continuing?"),
+        QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, m_impl->window);
+    box.setDetailedText(detail.trimmed());
+    box.setDefaultButton(QMessageBox::Save);
+    const auto decision = box.exec();
+    if (decision == QMessageBox::Save) return UnsavedDocumentsDecision::SaveAll;
+    if (decision == QMessageBox::Discard) return UnsavedDocumentsDecision::Discard;
+    return UnsavedDocumentsDecision::Cancel;
 }
 
 // ─── Panel Docking ────────────────────────────────────────────────────────────

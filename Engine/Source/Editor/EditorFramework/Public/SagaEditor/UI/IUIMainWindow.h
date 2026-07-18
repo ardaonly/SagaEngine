@@ -6,11 +6,24 @@
 #include "SagaEditor/Shell/ShellLayout.h"
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 
 namespace SagaEditor
 {
+struct NewProjectPrompt
+{
+    std::string displayName;
+    std::string destination;
+};
+
+enum class UnsavedDocumentsDecision : uint8_t
+{
+    SaveAll,
+    Discard,
+    Cancel,
+};
 
 // ─── Dock Area Hint ───────────────────────────────────────────────────────────
 
@@ -33,7 +46,7 @@ enum class UIDockArea : uint8_t
 class IUIMainWindow
 {
 public:
-    using CloseCallback = std::function<void()>;
+    using CloseCallback = std::function<bool()>;
     using CommandCallback = std::function<void(const std::string& commandId)>;
 
     virtual ~IUIMainWindow() = default;
@@ -59,6 +72,13 @@ public:
 
     /// Write a message to the status bar.
     virtual void SetStatusMessage(const std::string& message) = 0;
+    [[nodiscard]] virtual std::optional<std::string> ChooseProjectToOpen()
+    { return std::nullopt; }
+    [[nodiscard]] virtual std::optional<NewProjectPrompt> ChooseNewProject()
+    { return std::nullopt; }
+    [[nodiscard]] virtual UnsavedDocumentsDecision ConfirmUnsavedDocuments(
+        const std::vector<std::string>&)
+    { return UnsavedDocumentsDecision::Cancel; }
 
     // ─── Panel Docking ────────────────────────────────────────────────────────
 

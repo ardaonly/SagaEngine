@@ -1,15 +1,23 @@
 saga_add_editor_module(EditorCore
     MODULE_DIR Engine/Source/Editor/EditorCore
     TARGET SagaEditorLib
-    PRIVATE_DEPS nlohmann_json::nlohmann_json
+    PRIVATE_DEPS
+        nlohmann_json::nlohmann_json
+        OpenSSL::Crypto
     SOURCES
         Private/SagaEditor/Commands/CommandDispatcher.cpp
         Private/SagaEditor/Commands/CommandRegistry.cpp
         Private/SagaEditor/Commands/ShortcutManager.cpp
         Private/SagaEditor/Commands/UndoRedoStack.cpp
         Private/SagaEditor/Diagnostics/EditorDiagnosticsService.cpp
-        Private/SagaEditor/Project/ProjectIndexer.cpp
+        Private/SagaEditor/Documents/Document.cpp
+        Private/SagaEditor/Documents/SourceDocuments.cpp
+        Private/SagaEditor/Documents/SourceDocumentTransaction.cpp
+        Private/SagaEditor/Documents/TextDocument.cpp
         Private/SagaEditor/Project/ProjectManager.cpp
+        Private/SagaEditor/Project/SagaProjectKitClient.cpp
+        Private/SagaEditor/Processes/ToolProcessRunner.cpp
+        Private/SagaEditor/Scripting/SagaScriptWorkerClient.cpp
         Private/SagaEditor/Runtime/IEditorEngineBridge.cpp
         Private/SagaEditor/Runtime/LocalEditorEngineBridge.cpp
         Private/SagaEditor/Selection/SelectionFilter.cpp
@@ -24,9 +32,15 @@ saga_add_editor_module(EditorCore
         Public/SagaEditor/Diagnostics/EditorDiagnostic.h
         Public/SagaEditor/Diagnostics/EditorDiagnosticsService.h
         Public/SagaEditor/Diagnostics/IEditorDiagnosticsService.h
-        Public/SagaEditor/Project/ProjectIndexer.h
+        Public/SagaEditor/Documents/Document.h
+        Public/SagaEditor/Documents/SourceDocuments.h
+        Public/SagaEditor/Documents/SourceDocumentTransaction.h
+        Public/SagaEditor/Documents/TextDocument.h
         Public/SagaEditor/Project/ProjectManager.h
         Public/SagaEditor/Project/RecentProjects.h
+        Public/SagaEditor/Project/SagaProjectKitClient.h
+        Public/SagaEditor/Processes/ToolProcessRunner.h
+        Public/SagaEditor/Scripting/SagaScriptWorkerClient.h
         Public/SagaEditor/Runtime/IEditorEngineBridge.h
         Public/SagaEditor/Runtime/LocalEditorEngineBridge.h
         Public/SagaEditor/Selection/SelectionFilter.h
@@ -49,6 +63,10 @@ saga_register_module_tests(EditorCore
     LABELS "unit;editor;core"
     SOURCES
         Tests/EditorDiagnosticsServiceTests.cpp
+        Tests/DocumentTests.cpp
+        Tests/SourceDocumentTests.cpp
         Tests/ProjectManagerTests.cpp
+        Tests/ToolProcessRunnerTests.cpp
+        Tests/SagaScriptWorkerClientTests.cpp
         Tests/SelectionStateTests.cpp
 )

@@ -38,6 +38,8 @@ class IEditorEngineBridge;
 class IEditorDiagnosticsService;
 class EditorCompositionSession;
 class EditorNotificationCenter;
+class EditorDocumentWorkspace;
+class ScriptAnalysisCoordinator;
 
 // ─── Host ─────────────────────────────────────────────────────────────────────
 
@@ -84,6 +86,8 @@ public:
 
     /// Tracks what objects are currently selected in the editor.
     [[nodiscard]] SelectionManager&   GetSelectionManager()   noexcept;
+    [[nodiscard]] EditorDocumentWorkspace& GetDocumentWorkspace() noexcept;
+    [[nodiscard]] ScriptAnalysisCoordinator& GetScriptAnalysisCoordinator() noexcept;
 
     // ─── Customisation Services ───────────────────────────────────────────────
 
@@ -158,6 +162,8 @@ private:
     std::unique_ptr<ShortcutManager>   m_shortcutManager;
     std::unique_ptr<UndoRedoStack>     m_undoRedoStack;
     std::unique_ptr<SelectionManager>  m_selectionManager;
+    std::unique_ptr<EditorDocumentWorkspace> m_documentWorkspace;
+    std::unique_ptr<ScriptAnalysisCoordinator> m_scriptAnalysisCoordinator;
     std::unique_ptr<ThemeRegistry>     m_themeRegistry;
     std::unique_ptr<PersonaRegistry>   m_personaRegistry;
     std::unique_ptr<PersonaActivator>  m_personaActivator;

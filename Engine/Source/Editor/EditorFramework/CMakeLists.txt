@@ -98,6 +98,7 @@ saga_add_editor_module(EditorFramework
         Public/SagaEditor/Panels/ProblemsPanel.h
         Public/SagaEditor/Panels/ProductionDashboardPanel.h
         Public/SagaEditor/Panels/ShortcutPreferencesPanel.h
+        Public/SagaEditor/Panels/ScriptingPanel.h
         Public/SagaEditor/Panels/WorldViewportPanel.h
         Public/SagaEditor/Persona/BlockVisualStyle.h
         Public/SagaEditor/Persona/DensityProfile.h
