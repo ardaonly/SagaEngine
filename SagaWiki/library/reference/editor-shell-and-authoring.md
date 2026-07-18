@@ -16,7 +16,12 @@ The post-cutover editor is divided deliberately:
 - `EditorCore` owns editor-neutral commands, identifiers, base state, and low-level editor contracts.
 - `EditorFramework` owns shell composition, panels, docking, layouts, workspaces, notifications, localization, profiles, personas, themes, customization, and host orchestration without owning Qt ABI.
 - `EditorQt` owns Qt-specific application/window/widget and adapter implementation.
-- `EditorAuthoring` owns project/scene/asset/script inspection and semantic authoring workflows, viewport controllers, gizmos, import/cook coordination, inspectors, prefabs, and world-editing contracts.
+- `Engine/Source/Editor/EditorQtRender` owns the single Qt native-surface/renderer lifecycle bridge;
+  renderer device, context, swapchain, and GPU resources remain renderer-owned.
+- `EditorAuthoring` owns the implemented project/scene/script/input document spine,
+  semantic transactions, Play preparation, viewport controllers, gizmos, and
+  inspector integration. Unused import/cook, prefab, world-editing, derived-cache,
+  and project-indexer scaffolds are not retained as capability claims.
 - `VisualBlocksEditor` publicly owns the evidenced `Blocks/**` authoring and lowering contracts; its read-only product descriptor remains private integration evidence.
 - `Engine/Source/Runtime/Scripting` owns script lifecycle and hosting; `EditorAuthoring` and `VisualBlocksEditor` own current editor-facing script inspection, projection, and patch workflows.
 - `EditorCollaboration` owns the modern `SagaCollaboration` services/model and `SagaShared` collaboration/workspace values; the legacy `SagaEditor::Collaboration` surface is retired.
@@ -169,13 +174,60 @@ Long operations expose pending/progress/cancelled/failed/completed state. Cancel
 
 Closing a project stops new authoring operations, asks active tools/services to quiesce, releases preview/runtime resources, and then clears view state. Unsaved supported transactions are surfaced. The editor does not write every open model automatically during shutdown.
 
+## Play verification and process result
+
+Play is a saved-source consumer. The UI thread captures an immutable source
+snapshot containing the project, tracked lock, scenes, scripts, input maps,
+asset sources, document identities, and workspace generation. The background
+worker owns that value; it never retains an `EditorDocumentWorkspace` reference.
+Project close, replacement, Save All, document edits, or disk-byte changes make
+the snapshot stale before launch publication.
+
+Play validates the project with SagaProjectKit and invokes SagaPackager
+`lock-verify --generated-out`. It does not run package resolution and does not
+rewrite `SagaPackage.lock`. The selected immutable package generation,
+RuntimeBridge, reference/API metadata, SagaScript generation, and content
+artifacts are byte-hash pinned and rechecked at publication handoffs.
+
+The separate SagaRuntime result is accepted only through the strict
+`RuntimeResultV1` contract. Process exit zero or mere result-file presence is
+insufficient: schema, play-session identity, canonical launch hash, status,
+classifications, diagnostics, counters, and observed-state evidence must agree.
+Stale result files are removed before launch. Stop first uses the session marker,
+then independent bounded termination deadlines and process-tree ownership.
+
+After process creation the controller remains in `Starting`. SagaRuntime
+atomically publishes a schema-version-1 startup-ready record only after the
+envelope, canonical manifest, package/artifact graph, RuntimeBridge, verified
+SagaScript generation, scene/input instances, and applicable renderer/input
+services are ready. The record is bound to both play session and canonical
+launch hash. Missing, malformed, stale, or mismatched readiness fails startup.
+Startup, normal runtime, graceful Stop, SIGTERM, and SIGKILL use independent
+deadlines.
+
+Terminal classification combines process mechanics with user intent. A
+validated graceful result after explicit Stop is `GracefulStop`; explicit Stop
+that reaches SIGTERM/SIGKILL fallback is `ForcedStop`. The same forced process
+classification without user Stop is never success: an exceeded runtime deadline
+is `RuntimeTimeout`, an exit before readiness is `StartupFailure`, and an
+uncontrolled post-readiness signal/exit is `Crash`.
+
 ## Evidence boundary
 
 Model/unit tests prove resolver, overlay, command, view, transaction, stale, and diagnostic behavior. Qt tests prove adapter/widget ABI and interaction in that host. Tool integration tests prove report routing. Runtime or package tests prove their own workflows. A screenshot or the existence of panel classes does not prove a finished editor.
 
+Current StarterArena evidence crosses those boundaries deliberately: Qt-free
+documents and Play preparation are tested independently; the Qt viewport test
+attaches the real Diligent renderer and verifies non-clear output across resize;
+and the process-controller/runtime tests launch a separate SagaRuntime that
+consumes only verified scene, input, script, package, and bridge artifacts. The
+runtime smoke observes the generic action binding drive the managed door behavior
+closed to open and back to closed. These checks establish the narrow first-
+playable core only.
+
 ## Non-claims
 
-The current surface does not establish a finished editor, stable public editor SDK, arbitrary plugin ecosystem, complete scene/prefab/world authoring, safe undo for every operation, hosted collaboration, maximum customization, or production packaging. Public manager/widget/host types can be transitional and require later visibility audit.
+The current surface does not establish a finished editor, stable public editor SDK, arbitrary plugin ecosystem, complete scene/prefab/world authoring, safe undo for every operation, hosted collaboration, maximum customization, runtime HUD, editable Visual Blocks, full recovery/parity closure, or production packaging. Public manager/widget/host types can be transitional and require later visibility audit.
 
 ## Change checklist
 

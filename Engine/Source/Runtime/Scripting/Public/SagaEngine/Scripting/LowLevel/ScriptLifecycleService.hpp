@@ -19,6 +19,8 @@ public:
 
     [[nodiscard]] ScriptPackageLoadResult LoadPackage(
         const ScriptPackageLoadRequest& request) const;
+    [[nodiscard]] ScriptPackageLoadResult LoadVerifiedGeneration(
+        const VerifiedScriptGenerationLoadRequest& request) const;
 
     [[nodiscard]] ScriptInstanceCreateResult CreateInstance(
         ScriptPackageHandle package,

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail when Qt includes appear outside the EditorQt owner module."""
+"""Fail when Qt includes appear outside the two reviewed Qt owner modules."""
 
 from __future__ import annotations
 
@@ -17,13 +17,22 @@ QT_INCLUDE_RE = re.compile(
 
 def find_violations(repo_root: Path) -> list[tuple[Path, list[str]]]:
     editor_root = repo_root / "Engine" / "Source" / "Editor"
-    permitted = editor_root / "EditorQt"
-    if not editor_root.is_dir() or not permitted.is_dir():
-        raise FileNotFoundError("Editor and EditorQt module roots must exist")
+    permitted = {
+        editor_root / "EditorQt",
+        editor_root / "EditorQtRender",
+    }
+    if not editor_root.is_dir() or not all(path.is_dir() for path in permitted):
+        raise FileNotFoundError(
+            "Editor, EditorQt, and EditorQtRender module roots must exist"
+        )
 
     violations: list[tuple[Path, list[str]]] = []
     for path in sorted(editor_root.rglob("*")):
-        if not path.is_file() or path.suffix not in EXTENSIONS or permitted in path.parents:
+        if (
+            not path.is_file()
+            or path.suffix not in EXTENSIONS
+            or any(owner in path.parents for owner in permitted)
+        ):
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
         hits = [match.group("include") for match in QT_INCLUDE_RE.finditer(text)]
@@ -40,7 +49,10 @@ def main(argv: list[str]) -> int:
         print(f"[check_qt_boundary] ERROR - {error}")
         return 1
     if violations:
-        print("[check_qt_boundary] ERROR - Qt includes outside EditorQt")
+        print(
+            "[check_qt_boundary] ERROR - Qt includes outside "
+            "EditorQt/EditorQtRender"
+        )
         for path, includes in violations:
             print(f"  {path}: {', '.join(includes)}")
         return 1

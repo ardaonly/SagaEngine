@@ -20,6 +20,8 @@ SagaEngine contains substantial foundations, but foundations must not be describ
 
 - no finished end-to-end editor product;
 - no complete asset/scene workflow across all intended formats;
+- no full crash-recovery or final Editor/Headless parity closure;
+- no runtime HUD or editable Visual Blocks UI;
 - no shipped production collaborative editing service;
 - no hosted collaboration security, tenancy, or operations claim;
 - Visual Blocks are not a second runtime or graph VM.
@@ -40,8 +42,12 @@ SagaEngine contains substantial foundations, but foundations must not be describ
 ## Content and samples
 
 - samples demonstrate named workflows, not production content volume or polish;
-- StarterArena currently has source/tooling evidence only; no current runtime,
-  playable, input, HUD, or Editor workflow is claimed;
+- StarterArena demonstrates the bounded document/viewport and separate-runtime
+  first-playable core: saved canonical source is prepared into verified artifacts,
+  the configured logical interaction opens and closes the scripted door, and a
+  structured runtime result is returned. It does not demonstrate a runtime HUD,
+  Visual Blocks UI, full recovery/parity closure, production packaging, or
+  general compatibility with arbitrary projects;
 - generated files and evidence reports are not independent source authorities;
 - historical plans, inventories, audits, and migration closures are not current capability descriptions.
 

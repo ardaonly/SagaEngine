@@ -5,12 +5,16 @@
 
 #include <SagaRuntime/RuntimeStartupSession.hpp>
 
+#include <filesystem>
+
 namespace SagaRuntimeApp
 {
 
 struct RuntimeCommandLine
 {
     SagaRuntime::RuntimeLaunchOptions launchOptions;
+    std::filesystem::path playEnvelope;
+    bool smokeInteractions = false;
     bool showHelp = false;
 };
 

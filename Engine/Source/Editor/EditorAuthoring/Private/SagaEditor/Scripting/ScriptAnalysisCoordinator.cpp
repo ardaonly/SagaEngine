@@ -289,7 +289,7 @@ ScriptAnalysisResult ScriptAnalysisCoordinator::Analyze(
     workerRequest.runtimeBridge.runtimeCompatibility =
         bridge.value("runtimeCompatibility", std::string{});
     workerRequest.runtimeBridge.trust = bridge.value("trust", std::string{});
-    workerRequest.operations = {"analyze", "compile"};
+    workerRequest.operations = {"analyze", "compile", "project-blocks"};
     workerRequest.outputRoot = buildRoot / "Artifacts";
     workerRequest.transportRoot = transport;
     workerRequest.cancellationRequested = request.cancellationRequested;

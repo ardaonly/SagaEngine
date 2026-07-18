@@ -511,6 +511,7 @@ function(saga_create_engine_targets)
         SagaCollaboration
         SagaBackend
         SagaDiligentRuntime
+        SagaRuntimeLib
         OpenSSL::Crypto
     )
 
@@ -634,6 +635,8 @@ function(saga_create_engine_targets)
     target_link_libraries(SagaRuntime PRIVATE
         SagaRuntimeLib
         SagaEngine
+        SagaDiligentRuntime
+        SagaPlatformSDL
     )
 
     set_target_properties(SagaRuntime PROPERTIES

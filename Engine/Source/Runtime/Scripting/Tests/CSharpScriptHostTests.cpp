@@ -6,6 +6,7 @@
 #include <SagaEngine/UI/CSharpUiNamedActionHandler.h>
 
 #include <gtest/gtest.h>
+#include <nlohmann/json.hpp>
 #include <openssl/evp.h>
 
 #include <array>
@@ -56,6 +57,8 @@ using SagaEngine::Scripting::ScriptUiNamedActionContext;
 using SagaEngine::Scripting::ScriptUiNamedActionEventType;
 using SagaEngine::Scripting::ScriptUiNamedActionInvocation;
 using SagaEngine::Scripting::ScriptVector3;
+using SagaEngine::Scripting::VerifiedScriptFile;
+using SagaEngine::Scripting::VerifiedScriptGenerationLoadRequest;
 using SagaEngine::UI::CSharpUiNamedActionHandler;
 using SagaEngine::UI::CSharpUiNamedActionHandlerOptions;
 using SagaEngine::UI::UiActionId;
@@ -121,6 +124,104 @@ void WriteFile(const std::filesystem::path& path, const std::string& contents)
         hex.push_back(kHex[byte & 0x0F]);
     }
     return hex;
+}
+
+[[nodiscard]] std::filesystem::path FixturePath(const char* fileName);
+[[nodiscard]] std::filesystem::path RuntimeBridgeAssembly();
+
+[[nodiscard]] VerifiedScriptFile VerifiedFile(const std::filesystem::path& path)
+{
+    return {path, "sha256:" + Sha256Hex(path)};
+}
+
+struct VerifiedGenerationFixture
+{
+    std::filesystem::path root;
+    VerifiedScriptGenerationLoadRequest request;
+};
+
+[[nodiscard]] VerifiedGenerationFixture CreateVerifiedGeneration(const char* name)
+{
+    VerifiedGenerationFixture fixture;
+    fixture.root = TempPackageRoot(name);
+    const auto assembly = fixture.root / "fixture.scripts.dll";
+    const auto runtimeConfig = fixture.root / "fixture.scripts.runtimeconfig.json";
+    std::filesystem::copy_file(FixturePath("CSharpScriptHostFixture.scripts.dll"),
+        assembly, std::filesystem::copy_options::overwrite_existing);
+    std::filesystem::copy_file(
+        FixturePath("CSharpScriptHostFixture.scripts.runtimeconfig.json"),
+        runtimeConfig, std::filesystem::copy_options::overwrite_existing);
+
+    auto& request = fixture.request;
+    request.projectId = "project-fixture";
+    request.projectHash = "sha256:project";
+    request.sourceRevision = "sha256:revision";
+    request.sourceSetHash = "sha256:sources";
+    request.referenceManifestHash = "sha256:references";
+    request.packageGraphHash = "sha256:packages";
+    request.runtimeBridgeLogicalReferenceId = "runtime-bridge";
+    request.runtimeBridgeHash = "sha256:" + Sha256Hex(RuntimeBridgeAssembly());
+    request.runtimeBridgeAbi = "NativeCallbackTable.v2+NamedAction.v1";
+    request.targetFramework = "net10.0";
+    request.runtimeCompatibility = "0.0.11";
+    request.trust = "TrustedEngineDistribution";
+    request.assembly = VerifiedFile(assembly);
+    request.runtimeConfig = VerifiedFile(runtimeConfig);
+
+    const auto identity = [&]
+    {
+        return nlohmann::json{{"schemaVersion", 1}, {"projectId", request.projectId},
+            {"projectHash", request.projectHash},
+            {"sourceRevision", request.sourceRevision},
+            {"sourceSetHash", request.sourceSetHash}};
+    };
+    auto assemblyManifest = identity();
+    assemblyManifest.update({{"assemblyHash", request.assembly.byteHash},
+        {"runtimeConfigHash", request.runtimeConfig.byteHash},
+        {"referenceManifestHash", request.referenceManifestHash},
+        {"runtimeBridgeLogicalReferenceId", request.runtimeBridgeLogicalReferenceId},
+        {"runtimeBridgeHash", request.runtimeBridgeHash},
+        {"targetFramework", request.targetFramework},
+        {"runtimeCompatibility", request.runtimeCompatibility}, {"trust", request.trust}});
+    auto behaviorManifest = identity();
+    behaviorManifest["behaviors"] = nlohmann::json::array({
+        {{"behaviorId", "Game.PlayerScript"}, {"capabilities", nlohmann::json::array({
+            kTransformReadCapability})}, {"actions", nlohmann::json::array({
+                {{"actionId", "Interact"}, {"attributeTypeId",
+                    "SagaEngine.Scripting.SagaActionAttribute"}, {"method", "OnStart"},
+                    {"publiclyInvocable", true}}})}}});
+    auto actionManifest = identity();
+    actionManifest["actions"] = nlohmann::json::array({
+        {{"behaviorId", "Game.PlayerScript"}, {"actionId", "Interact"},
+            {"attributeTypeId", "SagaEngine.Scripting.SagaActionAttribute"},
+            {"method", "OnStart"}, {"publiclyInvocable", true}}});
+    auto capabilityManifest = identity();
+    capabilityManifest["packageGraphHash"] = request.packageGraphHash;
+    capabilityManifest["capabilities"] = nlohmann::json::array({kTransformReadCapability});
+
+    const auto writeManifest = [&](const char* fileName, const nlohmann::json& value)
+    {
+        const auto path = fixture.root / fileName;
+        WriteFile(path, value.dump(2) + "\n");
+        return VerifiedFile(path);
+    };
+    request.assemblyManifest = writeManifest("assembly_manifest_v1.json", assemblyManifest);
+    request.behaviorManifest = writeManifest("behavior_manifest_v1.json", behaviorManifest);
+    request.namedActionManifest = writeManifest("named_actions_v1.json", actionManifest);
+    request.capabilityManifest = writeManifest("capabilities_v1.json", capabilityManifest);
+    return fixture;
+}
+
+void RewriteVerifiedJson(VerifiedScriptFile& file, const nlohmann::json& value)
+{
+    WriteFile(file.path, value.dump(2) + "\n");
+    file.byteHash = "sha256:" + Sha256Hex(file.path);
+}
+
+[[nodiscard]] nlohmann::json ReadJson(const VerifiedScriptFile& file)
+{
+    std::ifstream input(file.path);
+    return nlohmann::json::parse(input);
 }
 
 [[nodiscard]] ScriptPackageLoadRequest MakePackageRequest(
@@ -932,4 +1033,140 @@ TEST(CSharpScriptHostTests, HostReportsMissingAssemblyDefensively)
     ASSERT_FALSE(result.Succeeded());
     ASSERT_EQ(result.diagnostics.size(), 1u);
     EXPECT_EQ(result.diagnostics[0].diagnostic.code.value, AssemblyLoadFailed);
+}
+
+TEST(CSharpScriptHostTests, VerifiedGenerationLoadsExactManifestSet)
+{
+    auto fixture = CreateVerifiedGeneration("saga_verified_generation_valid");
+    CSharpScriptHost host(HostOptions());
+
+    const auto result = host.LoadVerifiedGeneration(fixture.request);
+
+    ASSERT_TRUE(result.Succeeded()) << DescribeDiagnostics(result.diagnostics);
+}
+
+TEST(CSharpScriptHostTests, VerifiedGenerationRejectsTamperedAssemblyManifest)
+{
+    auto fixture = CreateVerifiedGeneration("saga_verified_generation_tampered");
+    WriteFile(fixture.request.assemblyManifest.path, "{}\n");
+    CSharpScriptHost host(HostOptions());
+
+    const auto result = host.LoadVerifiedGeneration(fixture.request);
+
+    ASSERT_FALSE(result.Succeeded());
+    ASSERT_FALSE(result.diagnostics.empty());
+    EXPECT_EQ(result.diagnostics.front().diagnostic.code.value,
+        SagaEngine::Scripting::ScriptHostDiagnostics::ArtifactHashMismatch);
+}
+
+TEST(CSharpScriptHostTests, VerifiedGenerationRejectsManifestIdentityMismatch)
+{
+    auto fixture = CreateVerifiedGeneration("saga_verified_generation_identity");
+    auto manifest = ReadJson(fixture.request.behaviorManifest);
+    manifest["sourceSetHash"] = "sha256:another-source-set";
+    RewriteVerifiedJson(fixture.request.behaviorManifest, manifest);
+    CSharpScriptHost host(HostOptions());
+
+    const auto result = host.LoadVerifiedGeneration(fixture.request);
+
+    ASSERT_FALSE(result.Succeeded());
+    EXPECT_EQ(result.diagnostics.front().diagnostic.code.value,
+        SagaEngine::Scripting::ScriptHostDiagnostics::BehaviorManifestMismatch);
+}
+
+TEST(CSharpScriptHostTests, VerifiedGenerationRejectsUngrantableBehaviorCapability)
+{
+    auto fixture = CreateVerifiedGeneration("saga_verified_generation_capability");
+    auto manifest = ReadJson(fixture.request.behaviorManifest);
+    manifest["behaviors"][0]["capabilities"].push_back("Gameplay.Unverified");
+    RewriteVerifiedJson(fixture.request.behaviorManifest, manifest);
+    CSharpScriptHost host(HostOptions());
+
+    const auto result = host.LoadVerifiedGeneration(fixture.request);
+
+    ASSERT_FALSE(result.Succeeded());
+    EXPECT_EQ(result.diagnostics.front().diagnostic.code.value,
+        SagaEngine::Scripting::ScriptHostDiagnostics::CapabilityGrantUnexpected);
+}
+
+TEST(CSharpScriptHostTests, VerifiedGenerationRejectsDuplicateBehaviorAndActionIdentities)
+{
+    auto behaviorFixture = CreateVerifiedGeneration("saga_verified_generation_duplicate_behavior");
+    auto behaviors = ReadJson(behaviorFixture.request.behaviorManifest);
+    behaviors["behaviors"].push_back(behaviors["behaviors"][0]);
+    RewriteVerifiedJson(behaviorFixture.request.behaviorManifest, behaviors);
+    CSharpScriptHost behaviorHost(HostOptions());
+    const auto behaviorResult = behaviorHost.LoadVerifiedGeneration(behaviorFixture.request);
+    ASSERT_FALSE(behaviorResult.Succeeded());
+    EXPECT_EQ(behaviorResult.diagnostics.front().diagnostic.code.value,
+        SagaEngine::Scripting::ScriptHostDiagnostics::ManifestInvalid);
+
+    auto actionFixture = CreateVerifiedGeneration("saga_verified_generation_duplicate_action");
+    auto actions = ReadJson(actionFixture.request.namedActionManifest);
+    actions["actions"].push_back(actions["actions"][0]);
+    RewriteVerifiedJson(actionFixture.request.namedActionManifest, actions);
+    CSharpScriptHost actionHost(HostOptions());
+    const auto actionResult = actionHost.LoadVerifiedGeneration(actionFixture.request);
+    ASSERT_FALSE(actionResult.Succeeded());
+    EXPECT_EQ(actionResult.diagnostics.front().diagnostic.code.value,
+        SagaEngine::Scripting::ScriptHostDiagnostics::ManifestInvalid);
+}
+
+TEST(CSharpScriptHostTests, VerifiedGenerationRejectsRuntimeBridgeMismatch)
+{
+    auto fixture = CreateVerifiedGeneration("saga_verified_generation_bridge");
+    fixture.request.runtimeBridgeHash = "sha256:wrong-runtime-bridge";
+    auto assembly = ReadJson(fixture.request.assemblyManifest);
+    assembly["runtimeBridgeHash"] = fixture.request.runtimeBridgeHash;
+    RewriteVerifiedJson(fixture.request.assemblyManifest, assembly);
+    CSharpScriptHost host(HostOptions());
+
+    const auto result = host.LoadVerifiedGeneration(fixture.request);
+
+    ASSERT_FALSE(result.Succeeded());
+    EXPECT_EQ(result.diagnostics.front().diagnostic.code.value,
+        SagaEngine::Scripting::ScriptHostDiagnostics::ArtifactHashMismatch);
+}
+
+TEST(CSharpScriptHostTests, VerifiedGenerationRejectsMalformedManifestFieldTypes)
+{
+    auto fixture = CreateVerifiedGeneration("saga_verified_generation_field_types");
+    auto behaviors = ReadJson(fixture.request.behaviorManifest);
+    behaviors["behaviors"][0] = 7;
+    RewriteVerifiedJson(fixture.request.behaviorManifest, behaviors);
+    CSharpScriptHost host(HostOptions());
+
+    const auto result = host.LoadVerifiedGeneration(fixture.request);
+
+    ASSERT_FALSE(result.Succeeded());
+    EXPECT_EQ(result.diagnostics.front().diagnostic.code.value,
+        SagaEngine::Scripting::ScriptHostDiagnostics::ManifestInvalid);
+}
+
+TEST(CSharpScriptHostTests, VerifiedGenerationRejectsMissingNamedActionAttributeMapping)
+{
+    auto fixture = CreateVerifiedGeneration("saga_verified_generation_action_mapping");
+    auto actions = ReadJson(fixture.request.namedActionManifest);
+    actions["actions"][0].erase("attributeTypeId");
+    RewriteVerifiedJson(fixture.request.namedActionManifest, actions);
+    CSharpScriptHost host(HostOptions());
+
+    const auto result = host.LoadVerifiedGeneration(fixture.request);
+
+    ASSERT_FALSE(result.Succeeded());
+    EXPECT_EQ(result.diagnostics.front().diagnostic.code.value,
+        SagaEngine::Scripting::ScriptHostDiagnostics::ManifestInvalid);
+}
+
+TEST(CSharpScriptHostTests, VerifiedGenerationRejectsWrongReferenceIdentity)
+{
+    auto fixture = CreateVerifiedGeneration("saga_verified_generation_reference_identity");
+    fixture.request.referenceManifestHash = "sha256:other-references";
+    CSharpScriptHost host(HostOptions());
+
+    const auto result = host.LoadVerifiedGeneration(fixture.request);
+
+    ASSERT_FALSE(result.Succeeded());
+    EXPECT_EQ(result.diagnostics.front().diagnostic.code.value,
+        SagaEngine::Scripting::ScriptHostDiagnostics::ReferenceIdentityMismatch);
 }

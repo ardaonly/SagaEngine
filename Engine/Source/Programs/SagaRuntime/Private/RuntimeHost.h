@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <filesystem>
 #include <string>
 
 namespace SagaRuntimeApp
@@ -11,6 +12,8 @@ namespace SagaRuntimeApp
 namespace RuntimeHostDiagnostics
 {
 
+inline constexpr const char* PlayEnvelopeRequired =
+    "Runtime.Host.PlayEnvelopeRequired";
 inline constexpr const char* GenericProjectModeUnsupported =
     "Runtime.Host.GenericProjectModeUnsupported";
 
@@ -29,8 +32,16 @@ struct RuntimeHostResult
 class RuntimeHost
 {
 public:
-    /// Reject generic project execution until a supported player loop exists.
+    RuntimeHost() = default;
+    RuntimeHost(std::filesystem::path playEnvelope, bool headless,
+                bool smokeInteractions);
     [[nodiscard]] RuntimeHostResult Run() const;
+
+private:
+    std::filesystem::path playEnvelope_;
+    bool headless_ = false;
+    bool smokeInteractions_ = false;
+    bool legacyGenericMode_ = true;
 };
 
 } // namespace SagaRuntimeApp

@@ -11,6 +11,7 @@
 #include <hostfxr.h>
 #include <nethost.h>
 #include <nlohmann/json.hpp>
+#include <openssl/evp.h>
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -23,9 +24,12 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <set>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -50,6 +54,8 @@ constexpr std::string_view kCapabilityTransformRead =
     "Gameplay.Transform.Read";
 constexpr std::string_view kCapabilityTransformWrite =
     "Gameplay.Transform.Write";
+constexpr std::string_view kCapabilityTransformReadWrite =
+    "World.Transform.ReadWrite";
 constexpr std::string_view kCapabilityStatePort =
     "Gameplay.State.ReadWrite";
 
@@ -69,6 +75,8 @@ enum class BridgeStatus : int
     UiNamedActionReturnedFalse = 11,
     Int32BinaryMethodMissing = 12,
     Int32BinaryInvalidSignature = 13,
+    NamedActionMethodMissing = 14,
+    NamedActionInvalidContract = 15,
 };
 
 enum class NativeCallbackStatus : int
@@ -134,6 +142,8 @@ using BridgeInvokeUiNamedActionFn =
         const char*,
         char*,
         int);
+using BridgeInvokeNamedActionFn =
+    int (*)(std::int64_t, const char*, const char*, char*, int);
 using BridgeInvokeInt32BinaryMethodFn =
     int (*)(
         std::int64_t,
@@ -261,6 +271,34 @@ using BridgeReleasePackageFn = int (*)(std::int64_t);
     return std::filesystem::path(value);
 }
 
+[[nodiscard]] std::string Sha256File(const std::filesystem::path& path)
+{
+    std::ifstream input(path, std::ios::binary);
+    if (!input) return {};
+    EVP_MD_CTX* context = EVP_MD_CTX_new();
+    if (!context || EVP_DigestInit_ex(context, EVP_sha256(), nullptr) != 1)
+    { if (context) EVP_MD_CTX_free(context); return {}; }
+    std::array<char, 16384> buffer{};
+    while (input)
+    {
+        input.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+        const auto count = input.gcount();
+        if (count > 0 && EVP_DigestUpdate(context, buffer.data(),
+                static_cast<std::size_t>(count)) != 1)
+        { EVP_MD_CTX_free(context); return {}; }
+    }
+    std::array<unsigned char, EVP_MAX_MD_SIZE> digest{};
+    unsigned int length = 0;
+    if (EVP_DigestFinal_ex(context, digest.data(), &length) != 1)
+    { EVP_MD_CTX_free(context); return {}; }
+    EVP_MD_CTX_free(context);
+    std::ostringstream output;
+    output << "sha256:" << std::hex << std::setfill('0');
+    for (unsigned int index = 0; index < length; ++index)
+        output << std::setw(2) << static_cast<unsigned int>(digest[index]);
+    return output.str();
+}
+
 [[nodiscard]] std::string BridgeError(
     const std::array<char, kBridgeErrorBufferSize>& buffer)
 {
@@ -291,6 +329,10 @@ using BridgeReleasePackageFn = int (*)(std::int64_t);
         return ScriptHostDiagnostics::UiNamedActionInvalidSignature;
     case BridgeStatus::UiNamedActionReturnedFalse:
         return ScriptHostDiagnostics::UiNamedActionReturnedFalse;
+    case BridgeStatus::NamedActionMethodMissing:
+        return ScriptHostDiagnostics::NamedActionMethodMissing;
+    case BridgeStatus::NamedActionInvalidContract:
+        return ScriptHostDiagnostics::NamedActionInvalidContract;
     case BridgeStatus::Int32BinaryMethodMissing:
         return ScriptHostDiagnostics::Int32BinaryMethodMissing;
     case BridgeStatus::Int32BinaryInvalidSignature:
@@ -300,7 +342,7 @@ using BridgeReleasePackageFn = int (*)(std::int64_t);
     case BridgeStatus::InvalidArgument:
         return operation == "create"
             ? ScriptHostDiagnostics::InvalidPackageHandle
-            : (operation == "uiNamedAction" || operation == "int32Binary"
+            : (operation == "uiNamedAction" || operation == "namedAction" || operation == "int32Binary"
                    ? ScriptHostDiagnostics::InvalidInstanceHandle
                    : ScriptHostDiagnostics::LifecycleFailed);
     case BridgeStatus::Ok:
@@ -355,6 +397,14 @@ using BridgeReleasePackageFn = int (*)(std::int64_t);
     if (code == ScriptHostDiagnostics::UiNamedActionReturnedFalse)
     {
         return "UI named action rejected";
+    }
+    if (code == ScriptHostDiagnostics::NamedActionMethodMissing)
+    {
+        return "Named action method not found";
+    }
+    if (code == ScriptHostDiagnostics::NamedActionInvalidContract)
+    {
+        return "Invalid named action contract";
     }
     if (code == ScriptHostDiagnostics::Int32BinaryMethodMissing)
     {
@@ -504,6 +554,218 @@ struct CSharpScriptHost::Impl
                 }
             }
         }
+    }
+
+    [[nodiscard]] ScriptPackageLoadResult LoadVerifiedGeneration(
+        const VerifiedScriptGenerationLoadRequest& request)
+    {
+        ScriptPackageLoadResult result;
+        auto fail = [&](std::string code, std::string message,
+                        const std::filesystem::path& path = std::filesystem::path{})
+        {
+            auto diagnostic = MakeDiagnostic(std::move(code),
+                "Verified SagaScript generation rejected", std::move(message));
+            if (!path.empty()) diagnostic.metadata["path"] = path.generic_string();
+            result.diagnostics.push_back(std::move(diagnostic));
+        };
+        const std::array<const VerifiedScriptFile*, 6> files{{&request.assembly,
+            &request.runtimeConfig, &request.assemblyManifest, &request.behaviorManifest,
+            &request.namedActionManifest, &request.capabilityManifest}};
+        for (const auto* file : files)
+        {
+            if (file->path.empty() || file->byteHash.empty() ||
+                Sha256File(file->path) != file->byteHash)
+            {
+                fail(ScriptHostDiagnostics::ArtifactHashMismatch,
+                    "A selected SagaScript artifact does not match its canonical byte hash.",
+                    file->path);
+                return result;
+            }
+        }
+        if (options.runtimeBridgeAssembly.empty() ||
+            Sha256File(options.runtimeBridgeAssembly) != request.runtimeBridgeHash)
+        {
+            fail(ScriptHostDiagnostics::ArtifactHashMismatch,
+                "The loaded RuntimeBridge binary does not match the verified generation.",
+                options.runtimeBridgeAssembly);
+            return result;
+        }
+        auto readJson = [&](const VerifiedScriptFile& file,
+                            nlohmann::json& value) -> bool
+        {
+            std::ifstream input(file.path, std::ios::binary);
+            try
+            {
+                if (input) input >> value;
+                return value.is_object() && value.value("schemaVersion", -1) == 1;
+            }
+            catch (const nlohmann::json::exception&) { return false; }
+        };
+        nlohmann::json assembly, behaviors, actions, capabilities;
+        if (!readJson(request.assemblyManifest, assembly) ||
+            !readJson(request.behaviorManifest, behaviors) ||
+            !readJson(request.namedActionManifest, actions) ||
+            !readJson(request.capabilityManifest, capabilities))
+        {
+            fail(ScriptHostDiagnostics::ManifestInvalid,
+                "Assembly, behavior, named-action, and capability manifests must use schema version 1.");
+            return result;
+        }
+        PackageState packageState;
+        try
+        {
+        auto identityMatches = [&](const nlohmann::json& manifest)
+        {
+            return manifest.value("projectId", std::string{}) == request.projectId &&
+                manifest.value("projectHash", std::string{}) == request.projectHash &&
+                manifest.value("sourceRevision", std::string{}) == request.sourceRevision &&
+                manifest.value("sourceSetHash", std::string{}) == request.sourceSetHash;
+        };
+        if (!identityMatches(behaviors))
+        {
+            fail(ScriptHostDiagnostics::BehaviorManifestMismatch,
+                "Behavior manifest identity differs from the selected SagaScript generation.");
+            return result;
+        }
+        if (!identityMatches(actions))
+        {
+            fail(ScriptHostDiagnostics::NamedActionManifestMismatch,
+                "Named-action manifest identity differs from the selected SagaScript generation.");
+            return result;
+        }
+        if (!identityMatches(capabilities))
+        {
+            fail(ScriptHostDiagnostics::CapabilityManifestMismatch,
+                "Capability manifest identity differs from the selected SagaScript generation.");
+            return result;
+        }
+        if (!identityMatches(assembly) ||
+            assembly.value("assemblyHash", std::string{}) != request.assembly.byteHash ||
+            assembly.value("runtimeConfigHash", std::string{}) != request.runtimeConfig.byteHash ||
+            assembly.value("referenceManifestHash", std::string{}) != request.referenceManifestHash ||
+            capabilities.value("packageGraphHash", std::string{}) != request.packageGraphHash)
+        {
+            fail(ScriptHostDiagnostics::ReferenceIdentityMismatch,
+                "Assembly, source, reference, or package graph identity is inconsistent.");
+            return result;
+        }
+        if (
+            assembly.value("runtimeBridgeLogicalReferenceId", std::string{}) !=
+                request.runtimeBridgeLogicalReferenceId ||
+            assembly.value("runtimeBridgeHash", std::string{}) != request.runtimeBridgeHash ||
+            assembly.value("targetFramework", std::string{}) != request.targetFramework ||
+            assembly.value("runtimeCompatibility", std::string{}) != request.runtimeCompatibility ||
+            assembly.value("trust", std::string{}) != request.trust ||
+            request.runtimeBridgeAbi != "NativeCallbackTable.v2+NamedAction.v1")
+        {
+            fail(ScriptHostDiagnostics::RuntimeBridgeMismatch,
+                "RuntimeBridge identity, ABI, framework, runtime, or trust is inconsistent.");
+            return result;
+        }
+        if (!behaviors.contains("behaviors") || !behaviors["behaviors"].is_array() ||
+            !actions.contains("actions") || !actions["actions"].is_array() ||
+            !capabilities.contains("capabilities") || !capabilities["capabilities"].is_array())
+        {
+            fail(ScriptHostDiagnostics::ManifestInvalid,
+                "Verified SagaScript behavior/action/capability arrays are required.");
+            return result;
+        }
+        CapabilitySet globalCapabilities;
+        for (const auto& capability : capabilities["capabilities"])
+            if (!capability.is_string() || capability.get_ref<const std::string&>().empty() ||
+                !globalCapabilities.insert(capability.get<std::string>()).second)
+            {
+                fail(ScriptHostDiagnostics::InvalidCapabilityMetadata,
+                    "Capability identities must be non-empty and unique.");
+                return result;
+        }
+        std::set<std::string> behaviorIds;
+        std::map<std::pair<std::string, std::string>, std::string> behaviorActions;
+        for (const auto& behavior : behaviors["behaviors"])
+        {
+            const auto behaviorId = behavior.value("behaviorId", std::string{});
+            if (behaviorId.empty() || !behaviorIds.insert(behaviorId).second ||
+                !behavior.contains("capabilities") || !behavior["capabilities"].is_array() ||
+                !behavior.contains("actions") || !behavior["actions"].is_array())
+            {
+                fail(ScriptHostDiagnostics::ManifestInvalid,
+                    "Behavior identities must be non-empty and unique.");
+                return result;
+            }
+            auto& granted = packageState.grantedCapabilitiesByScriptId[behaviorId];
+            for (const auto& capability : behavior["capabilities"])
+            {
+                if (!capability.is_string() || !globalCapabilities.contains(
+                        capability.get<std::string>()) ||
+                    !granted.insert(capability.get<std::string>()).second)
+                {
+                    fail(ScriptHostDiagnostics::CapabilityGrantUnexpected,
+                        "Behavior capabilities must be unique members of the verified grant set.");
+                    return result;
+                }
+            }
+            for (const auto& action : behavior["actions"])
+            {
+                const auto actionId = action.value("actionId", std::string{});
+                const auto method = action.value("method", std::string{});
+                if (actionId.empty() || method.empty() ||
+                    !action.value("publiclyInvocable", false) ||
+                    action.value("attributeTypeId", std::string{}) !=
+                        "SagaEngine.Scripting.SagaActionAttribute" ||
+                    !behaviorActions.emplace(
+                        std::make_pair(behaviorId, actionId), method).second)
+                {
+                    fail(ScriptHostDiagnostics::ManifestInvalid,
+                        "Behavior actions must be unique, attributed, and publicly invocable.");
+                    return result;
+                }
+            }
+        }
+        std::set<std::pair<std::string, std::string>> actionIds;
+        for (const auto& action : actions["actions"])
+        {
+            const auto behaviorId = action.value("behaviorId", std::string{});
+            const auto actionId = action.value("actionId", std::string{});
+            const auto method = action.value("method", std::string{});
+            const auto behaviorAction = behaviorActions.find({behaviorId, actionId});
+            if (!behaviorIds.contains(behaviorId) || actionId.empty() ||
+                !action.value("publiclyInvocable", false) ||
+                method.empty() || action.value("attributeTypeId", std::string{}) !=
+                    "SagaEngine.Scripting.SagaActionAttribute" ||
+                behaviorAction == behaviorActions.end() || behaviorAction->second != method ||
+                !actionIds.emplace(behaviorId, actionId).second)
+            {
+                fail(ScriptHostDiagnostics::ManifestInvalid,
+                    "Named actions must be unique, public, and mapped to a verified behavior.");
+                return result;
+            }
+        }
+        }
+        catch (const nlohmann::json::exception&)
+        {
+            fail(ScriptHostDiagnostics::ManifestInvalid,
+                "Verified SagaScript manifest fields have invalid JSON types.");
+            return result;
+        }
+        if (!ValidateRuntimeConfig(request.runtimeConfig.path, result.diagnostics) ||
+            !EnsureRuntime(request.runtimeConfig.path, result.diagnostics)) return result;
+        std::array<char, kBridgeErrorBufferSize> error{};
+        std::int64_t bridgePackageHandle = 0;
+        const auto status = static_cast<BridgeStatus>(loadAssembly(
+            request.assembly.path.string().c_str(), error.data(),
+            static_cast<int>(error.size()), &bridgePackageHandle));
+        if (status != BridgeStatus::Ok)
+        {
+            fail(ScriptHostDiagnostics::AssemblyLoadFailed,
+                "Verified SagaScript assembly failed managed loading.", request.assembly.path);
+            return result;
+        }
+        packageState.managedPackages.push_back({bridgePackageHandle, request.assembly.path});
+        const auto packageHandle = nextPackageHandle++;
+        packages.emplace(packageHandle, std::move(packageState));
+        result.succeeded = true;
+        result.package.value = packageHandle;
+        return result;
     }
 
     [[nodiscard]] ScriptPackageLoadResult LoadPackage(
@@ -829,6 +1091,51 @@ struct CSharpScriptHost::Impl
         return result;
     }
 
+    [[nodiscard]] ScriptHostOperationResult InvokeNamedAction(
+        const ScriptNamedActionInvocation& invocation)
+    {
+        ScriptHostOperationResult result;
+        const auto instanceIterator = instances.find(invocation.instance.value);
+        if (instanceIterator == instances.end())
+        {
+            result.diagnostics.push_back(MakeDiagnostic(
+                ScriptHostDiagnostics::InvalidInstanceHandle,
+                "Invalid script instance handle",
+                "C# script host cannot invoke a named action on an unknown instance."));
+            return result;
+        }
+
+        instanceIterator->second.pendingDiagnostics.clear();
+        std::array<char, kBridgeErrorBufferSize> error{};
+        const auto status = static_cast<BridgeStatus>(invokeNamedAction(
+            instanceIterator->second.bridgeInstanceHandle,
+            invocation.methodName.c_str(),
+            invocation.actionId.c_str(),
+            error.data(),
+            static_cast<int>(error.size())));
+        if (status == BridgeStatus::Ok)
+        {
+            result.diagnostics = std::move(instanceIterator->second.pendingDiagnostics);
+            result.succeeded = result.diagnostics.empty();
+            return result;
+        }
+
+        const auto code = CodeForBridgeStatus(status, "namedAction");
+        auto diagnostic = MakeDiagnostic(code, TitleForDiagnostic(code),
+            "C# script host failed while invoking a verified named action.");
+        diagnostic.scriptId = instanceIterator->second.scriptId;
+        diagnostic.metadata["classId"] = instanceIterator->second.classId;
+        diagnostic.metadata["scriptId"] = instanceIterator->second.scriptId;
+        diagnostic.metadata["methodName"] = invocation.methodName;
+        diagnostic.metadata["actionId"] = invocation.actionId;
+        diagnostic.metadata["bridgeError"] = BridgeError(error);
+        result.diagnostics.push_back(std::move(diagnostic));
+        for (auto& pending : instanceIterator->second.pendingDiagnostics)
+            result.diagnostics.push_back(std::move(pending));
+        instanceIterator->second.pendingDiagnostics.clear();
+        return result;
+    }
+
     [[nodiscard]] CSharpInt32BinaryMethodInvocationResult InvokeInt32BinaryMethod(
         const CSharpInt32BinaryMethodInvocation& invocation)
     {
@@ -951,6 +1258,13 @@ struct CSharpScriptHost::Impl
         }
         if (state.grantedCapabilities.find(std::string(capability)) !=
             state.grantedCapabilities.end())
+        {
+            return true;
+        }
+        if ((capability == kCapabilityTransformRead ||
+             capability == kCapabilityTransformWrite) &&
+            state.grantedCapabilities.contains(
+                std::string(kCapabilityTransformReadWrite)))
         {
             return true;
         }
@@ -1585,6 +1899,7 @@ struct CSharpScriptHost::Impl
         static BridgeCreateInstanceFn sharedCreateInstance = nullptr;
         static BridgeInvokeLifecycleFn sharedInvokeLifecycle = nullptr;
         static BridgeInvokeUiNamedActionFn sharedInvokeUiNamedAction = nullptr;
+        static BridgeInvokeNamedActionFn sharedInvokeNamedAction = nullptr;
         static BridgeInvokeInt32BinaryMethodFn sharedInvokeInt32BinaryMethod =
             nullptr;
         static BridgeReleasePackageFn sharedReleasePackage = nullptr;
@@ -1593,6 +1908,7 @@ struct CSharpScriptHost::Impl
             sharedCreateInstance != nullptr &&
             sharedInvokeLifecycle != nullptr &&
             sharedInvokeUiNamedAction != nullptr &&
+            sharedInvokeNamedAction != nullptr &&
             sharedInvokeInt32BinaryMethod != nullptr &&
             sharedReleasePackage != nullptr)
         {
@@ -1602,6 +1918,7 @@ struct CSharpScriptHost::Impl
             createInstance = sharedCreateInstance;
             invokeLifecycle = sharedInvokeLifecycle;
             invokeUiNamedAction = sharedInvokeUiNamedAction;
+            invokeNamedAction = sharedInvokeNamedAction;
             invokeInt32BinaryMethod = sharedInvokeInt32BinaryMethod;
             releasePackage = sharedReleasePackage;
             return true;
@@ -1690,6 +2007,7 @@ struct CSharpScriptHost::Impl
         sharedCreateInstance = createInstance;
         sharedInvokeLifecycle = invokeLifecycle;
         sharedInvokeUiNamedAction = invokeUiNamedAction;
+        sharedInvokeNamedAction = invokeNamedAction;
         sharedInvokeInt32BinaryMethod = invokeInt32BinaryMethod;
         sharedReleasePackage = releasePackage;
         return true;
@@ -1773,6 +2091,10 @@ struct CSharpScriptHost::Impl
                    invokeUiNamedAction,
                    diagnostics) &&
                LoadBridgeFunction(
+                   "InvokeNamedAction",
+                   invokeNamedAction,
+                   diagnostics) &&
+               LoadBridgeFunction(
                    "InvokeInt32BinaryMethod",
                    invokeInt32BinaryMethod,
                    diagnostics) &&
@@ -1822,6 +2144,7 @@ struct CSharpScriptHost::Impl
     BridgeCreateInstanceFn createInstance = nullptr;
     BridgeInvokeLifecycleFn invokeLifecycle = nullptr;
     BridgeInvokeUiNamedActionFn invokeUiNamedAction = nullptr;
+    BridgeInvokeNamedActionFn invokeNamedAction = nullptr;
     BridgeInvokeInt32BinaryMethodFn invokeInt32BinaryMethod = nullptr;
     BridgeReleasePackageFn releasePackage = nullptr;
     std::uint64_t nextPackageHandle = 1;
@@ -1842,6 +2165,12 @@ ScriptPackageLoadResult CSharpScriptHost::LoadPackage(
     const ScriptPackageLoadRequest& request)
 {
     return impl_->LoadPackage(request);
+}
+
+ScriptPackageLoadResult CSharpScriptHost::LoadVerifiedGeneration(
+    const VerifiedScriptGenerationLoadRequest& request)
+{
+    return impl_->LoadVerifiedGeneration(request);
 }
 
 ScriptInstanceCreateResult CSharpScriptHost::CreateInstance(
@@ -1867,6 +2196,12 @@ ScriptHostOperationResult CSharpScriptHost::InvokeUiNamedAction(
     const ScriptUiNamedActionInvocation& invocation)
 {
     return impl_->InvokeUiNamedAction(invocation);
+}
+
+ScriptHostOperationResult CSharpScriptHost::InvokeNamedAction(
+    const ScriptNamedActionInvocation& invocation)
+{
+    return impl_->InvokeNamedAction(invocation);
 }
 
 CSharpInt32BinaryMethodInvocationResult CSharpScriptHost::InvokeInt32BinaryMethod(

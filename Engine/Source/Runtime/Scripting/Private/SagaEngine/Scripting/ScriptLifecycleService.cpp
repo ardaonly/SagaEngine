@@ -77,6 +77,14 @@ ScriptPackageLoadResult ScriptLifecycleService::LoadPackage(
     return result;
 }
 
+ScriptPackageLoadResult ScriptLifecycleService::LoadVerifiedGeneration(
+    const VerifiedScriptGenerationLoadRequest& request) const
+{
+    auto result = host_.LoadVerifiedGeneration(request);
+    EmitDiagnostics(result);
+    return result;
+}
+
 ScriptInstanceCreateResult ScriptLifecycleService::CreateInstance(
     const ScriptPackageHandle package,
     const ScriptClassId& classId) const

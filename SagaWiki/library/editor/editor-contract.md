@@ -29,7 +29,14 @@ Runtime Core exposes only static module registration/lifecycle foundations. It d
 
 ## Minimum shell workflow
 
-The current shell and authoring surfaces support bounded project inspection, panel/workspace configuration, selection, save/undo/redo routing, script evidence views, and scenario-driven checks. A report or scenario action proves only that routed workflow; it must not be described as a completed interactive dashboard. EditorLab remains a development/scenario program, not a second editor contract owner.
+The current shell and authoring surfaces support canonical project creation/open,
+project/scene/C# input documents, transaction-routed save/undo/redo, hierarchy and
+Inspector selection, SagaScript analysis, and personal layout persistence. The
+World Viewport uses one Qt native-surface bridge to the real Saga renderer, and
+Play prepares saved source before launching a separate SagaRuntime process. This
+is bounded StarterArena evidence and does not establish dashboard breadth or
+general-purpose product readiness. EditorLab remains a development/scenario
+program, not a second editor contract owner.
 
 ## Product limit
 

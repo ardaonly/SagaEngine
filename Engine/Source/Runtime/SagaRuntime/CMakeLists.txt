@@ -1,6 +1,7 @@
 saga_add_runtime_module(SagaRuntime
     MODULE_DIR Engine/Source/Runtime/SagaRuntime
     TARGET SagaRuntimeLib
+    PRIVATE_DEPS nlohmann_json::nlohmann_json OpenSSL::Crypto
     SOURCES
         Private/SagaEngine/Startup/RuntimeStartupGate.cpp
         Private/SagaRuntime/RuntimeAssetBootstrap.cpp
@@ -13,6 +14,7 @@ saga_add_runtime_module(SagaRuntime
         Private/SagaRuntime/RuntimeStartupDiagnostics.cpp
         Private/SagaRuntime/RuntimeStartupPreflight.cpp
         Private/SagaRuntime/RuntimeStartupSession.cpp
+        Private/SagaRuntime/Play/RuntimePlayContracts.cpp
         Public/SagaEngine/Startup/RuntimeStartupGate.hpp
         Public/SagaRuntime/RuntimeAssetBootstrap.hpp
         Public/SagaRuntime/RuntimeAssetBootstrapDiagnostics.hpp
@@ -24,6 +26,7 @@ saga_add_runtime_module(SagaRuntime
         Public/SagaRuntime/RuntimeStartupDiagnostics.hpp
         Public/SagaRuntime/RuntimeStartupPreflight.hpp
         Public/SagaRuntime/RuntimeStartupSession.hpp
+        Public/SagaRuntime/Play/RuntimePlayContracts.hpp
 )
 
 saga_register_module_tests(SagaRuntime
@@ -43,4 +46,5 @@ saga_register_module_tests(SagaRuntime
         Tests/RuntimeStartupGateTests.cpp
         Tests/RuntimeStartupPreflightTests.cpp
         Tests/RuntimeStartupSessionTests.cpp
+        Tests/RuntimePlayContractsTests.cpp
 )
