@@ -224,7 +224,9 @@ ToolProcessResult ToolProcessRunner::Run(const ToolProcessRequest& request) cons
             if (!cancellationForwarded)
             {
                 cancellationForwarded = true;
-                cancellationDeadline = now + request.cancellationGrace;
+                const auto grace = request.cancellationGraceOverride ?
+                    request.cancellationGraceOverride() : request.cancellationGrace;
+                cancellationDeadline = now + std::max(grace, std::chrono::milliseconds::zero());
                 if (request.requestCancellation) request.requestCancellation();
             }
             if ((!request.requestCancellation || now >= cancellationDeadline) && !terminated)
@@ -332,7 +334,9 @@ ToolProcessResult ToolProcessRunner::Run(const ToolProcessRequest& request) cons
         {
             result.classification = ToolProcessExitClassification::Cancelled;
             stopStage = StopStage::Graceful;
-            stageDeadline = now + request.cancellationGrace;
+            const auto grace = request.cancellationGraceOverride ?
+                request.cancellationGraceOverride() : request.cancellationGrace;
+            stageDeadline = now + std::max(grace, std::chrono::milliseconds::zero());
             if (request.requestCancellation) request.requestCancellation();
         }
         else if (childRunning && now >= deadline && stopStage == StopStage::None)

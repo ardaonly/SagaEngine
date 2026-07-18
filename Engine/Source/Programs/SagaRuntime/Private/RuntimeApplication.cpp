@@ -156,6 +156,14 @@ SagaRuntimeApp::RuntimeCommandLine ParseArgs(int argc, char* argv[])
             commandLine.launchOptions.packageBaseDirectory =
                 std::filesystem::path(argv[++i]);
         }
+        else if (arg == "--play-envelope" && i + 1 < argc)
+        {
+            commandLine.playEnvelope = std::filesystem::path(argv[++i]);
+        }
+        else if (arg == "--smoke-interactions")
+        {
+            commandLine.smokeInteractions = true;
+        }
         else if (arg == "--help" || arg == "--?")
         {
             std::printf("Usage: SagaRuntime [options]\n"
@@ -164,6 +172,9 @@ SagaRuntimeApp::RuntimeCommandLine ParseArgs(int argc, char* argv[])
                         "                         Validate startup package manifest before initialization\n"
                         "  --package-base-directory <path>\n"
                         "                         Resolve package-relative manifest and asset paths from this directory\n"
+                        "  --play-envelope <path>\n"
+                        "                         Run a verified Campaign 2 local launch envelope\n"
+                        "  --smoke-interactions  Inject the configured logical action twice for headless proof\n"
                         "  --help, --?           Show this help\n");
             commandLine.showHelp = true;
         }
@@ -175,12 +186,14 @@ SagaRuntimeApp::RuntimeCommandLine ParseArgs(int argc, char* argv[])
 [[nodiscard]] bool IsValueOption(const std::string& argument) noexcept
 {
     return argument == "--package-manifest" ||
-           argument == "--package-base-directory";
+           argument == "--package-base-directory" ||
+           argument == "--play-envelope";
 }
 
 [[nodiscard]] bool IsFlagOption(const std::string& argument) noexcept
 {
     return argument == "--headless" || argument == "-h" ||
+           argument == "--smoke-interactions" ||
            argument == "--help" || argument == "--?";
 }
 
@@ -265,7 +278,9 @@ int RunRuntimeApplication(int argc, char* argv[])
     }
 
     const SagaRuntimeApp::RuntimeHostResult hostResult =
-        SagaRuntimeApp::RuntimeHost{}.Run();
+        SagaRuntimeApp::RuntimeHost(commandLine.playEnvelope,
+            commandLine.launchOptions.headless,
+            commandLine.smokeInteractions).Run();
     if (!hostResult.ok)
     {
         LOG_ERROR(kLogTag,

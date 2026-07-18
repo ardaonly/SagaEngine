@@ -10,6 +10,7 @@
 #include "SagaEditor/Shell/ShellLayout.h"
 #include "SagaEditor/UI/IUIMainWindow.h"
 #include <memory>
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <vector>
@@ -23,6 +24,7 @@ class EditorProfile;
 class IPanel;
 class IUIFactory;
 class ProductionDashboardPanel;
+class RuntimeProcessController;
 
 // ─── Shell Configuration ──────────────────────────────────────────────────────
 
@@ -37,6 +39,7 @@ struct EditorShellConfig
     bool        registerDefaultPanels = true;
     bool        applyActivePersona = true;
     bool        showOnInit = true;
+    std::filesystem::path runtimeExecutable;
 };
 
 // ─── Editor Shell ─────────────────────────────────────────────────────────────
@@ -141,6 +144,7 @@ private:
         kInvalidEditorProfileSubscription;
     EditorNotificationSubscription       m_notificationSubscription =
         kInvalidEditorNotificationSubscription;
+    std::unique_ptr<RuntimeProcessController> m_runtimeProcessController;
 };
 
 } // namespace SagaEditor

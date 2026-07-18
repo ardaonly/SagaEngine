@@ -53,6 +53,9 @@ public:
     [[nodiscard]] ScriptPackageLoadResult LoadPackage(
         const ScriptPackageLoadRequest& request) override;
 
+    [[nodiscard]] ScriptPackageLoadResult LoadVerifiedGeneration(
+        const VerifiedScriptGenerationLoadRequest& request) override;
+
     [[nodiscard]] ScriptInstanceCreateResult CreateInstance(
         ScriptPackageHandle package,
         const ScriptClassId& classId) override;
@@ -65,6 +68,9 @@ public:
 
     [[nodiscard]] ScriptHostOperationResult InvokeUiNamedAction(
         const ScriptUiNamedActionInvocation& invocation) override;
+
+    [[nodiscard]] ScriptHostOperationResult InvokeNamedAction(
+        const ScriptNamedActionInvocation& invocation) override;
 
     [[nodiscard]] CSharpInt32BinaryMethodInvocationResult InvokeInt32BinaryMethod(
         const CSharpInt32BinaryMethodInvocation& invocation);

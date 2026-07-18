@@ -19,7 +19,9 @@ saga_add_editor_module(EditorAuthoring
         Private/SagaEditor/InspectorEditing/ComponentEditorRegistry.cpp
         Private/SagaEditor/InspectorEditing/InspectorBinder.cpp
         Private/SagaEditor/InspectorEditing/PropertyEditorFactory.cpp
+        Private/SagaEditor/Play/PlayPreparationPipeline.cpp
         Private/SagaEditor/Play/PlaySourceSnapshot.cpp
+        Private/SagaEditor/Play/RuntimeProcessController.cpp
         Private/SagaEditor/SceneEditing/SceneEditor.cpp
         Private/SagaEditor/SceneEditing/SceneDocument.cpp
         Private/SagaEditor/SceneEditing/SceneDocumentTransaction.cpp
@@ -55,7 +57,9 @@ saga_add_editor_module(EditorAuthoring
         Public/SagaEditor/InspectorEditing/IPropertyEditorBackend.h
         Public/SagaEditor/InspectorEditing/InspectorBinder.h
         Public/SagaEditor/InspectorEditing/PropertyEditorFactory.h
+        Public/SagaEditor/Play/PlayPreparationPipeline.h
         Public/SagaEditor/Play/PlaySourceSnapshot.h
+        Public/SagaEditor/Play/RuntimeProcessController.h
         Public/SagaEditor/PrefabEditing/PrefabOverrideResolver.h
         Public/SagaEditor/SceneEditing/SceneEditor.h
         Public/SagaEditor/SceneEditing/SceneDocument.h
@@ -77,10 +81,13 @@ saga_add_editor_module(EditorAuthoring
 saga_register_module_tests(EditorAuthoring
     MODULE_DIR Engine/Source/Editor/EditorAuthoring
     LINK_TARGET SagaEditorLib
+    PRIVATE_DEPS nlohmann_json::nlohmann_json
     LABELS "unit;editor;authoring"
     SOURCES
         Tests/EditorAuthoringSpineTests.cpp
         Tests/InspectorEditingTests.cpp
+        Tests/PlayPreparationPipelineTests.cpp
+        Tests/RuntimeProcessControllerTests.cpp
         Tests/SceneDocumentTests.cpp
         Tests/EditorDocumentWorkspaceTests.cpp
         Tests/SceneDocumentTransactionTests.cpp

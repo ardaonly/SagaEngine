@@ -43,6 +43,7 @@ struct ToolProcessRequest
     std::function<bool()> cancellationRequested;
     std::function<void()> requestCancellation;
     std::function<void()> onPoll;
+    std::function<std::chrono::milliseconds()> cancellationGraceOverride;
     std::chrono::milliseconds cancellationGrace{2000};
     std::chrono::milliseconds terminationGrace{1000};
     std::chrono::milliseconds forceKillGrace{1000};

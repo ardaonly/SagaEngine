@@ -294,6 +294,72 @@ public static unsafe class NativeBridge
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int InvokeNamedAction(
+        long instanceHandle,
+        byte* methodName,
+        byte* actionId,
+        byte* errorBuffer,
+        int errorBufferLength)
+    {
+        SagaScript instance;
+        lock (Sync)
+        {
+            if (!Instances.TryGetValue(instanceHandle, out instance!))
+            {
+                WriteError(errorBuffer, errorBufferLength, "Script instance handle is invalid.");
+                return BridgeStatus.InvalidArgument;
+            }
+        }
+
+        var managedMethodName = ReadUtf8(methodName);
+        var managedActionId = ReadUtf8(actionId);
+        if (string.IsNullOrWhiteSpace(managedMethodName) || string.IsNullOrWhiteSpace(managedActionId))
+        {
+            WriteError(errorBuffer, errorBufferLength, "Named action method and logical action id are required.");
+            return BridgeStatus.InvalidArgument;
+        }
+
+        try
+        {
+            var methods = instance.GetType()
+                .GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                .Where(method => string.Equals(method.Name, managedMethodName, StringComparison.Ordinal))
+                .ToArray();
+            if (methods.Length == 0)
+            {
+                WriteError(errorBuffer, errorBufferLength, "Named action method was not found.");
+                return BridgeStatus.NamedActionMethodMissing;
+            }
+
+            var valid = methods.Where(method =>
+                method.ReturnType == typeof(void) &&
+                method.GetParameters().Length == 0 &&
+                method.GetCustomAttribute<SagaActionAttribute>() is { } attribute &&
+                string.Equals(attribute.ActionId, managedActionId, StringComparison.Ordinal)).ToArray();
+            if (valid.Length != 1)
+            {
+                WriteError(errorBuffer, errorBufferLength,
+                    "Named action must be one public instance void method with a matching SagaAction attribute.");
+                return BridgeStatus.NamedActionInvalidContract;
+            }
+
+            valid[0].Invoke(instance, null);
+            return BridgeStatus.Ok;
+        }
+        catch (TargetInvocationException ex)
+        {
+            var inner = ex.InnerException ?? ex;
+            WriteError(errorBuffer, errorBufferLength, inner.GetType().Name + ": " + inner.Message);
+            return BridgeStatus.ManagedException;
+        }
+        catch (Exception ex)
+        {
+            WriteError(errorBuffer, errorBufferLength, ex.GetType().Name + ": " + ex.Message);
+            return BridgeStatus.ManagedException;
+        }
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int InvokeInt32BinaryMethod(
         long instanceHandle,
         byte* methodName,
@@ -489,4 +555,6 @@ internal static class BridgeStatus
     public const int UiNamedActionReturnedFalse = 11;
     public const int Int32BinaryMethodMissing = 12;
     public const int Int32BinaryInvalidSignature = 13;
+    public const int NamedActionMethodMissing = 14;
+    public const int NamedActionInvalidContract = 15;
 }

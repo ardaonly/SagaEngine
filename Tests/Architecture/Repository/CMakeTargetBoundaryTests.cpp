@@ -455,10 +455,46 @@ TEST(CMakeTargetBoundaryTests, EmptyOwnershipPlaceholdersStayAbsent)
              root / "Tools/SagaScript/Public",
              root / "Tools/SagaScript/Private",
              root / "Tools/SagaPackager/Public",
-             root / "Tools/SagaPackager/Private"})
+             root / "Tools/SagaPackager/Private",
+             root / "Engine/Source/Editor/EditorCore/Private/SagaEditor/Project/ProjectIndexer.cpp",
+             root / "Engine/Source/Editor/EditorAuthoring/Private/SagaEditor/Importers/AssetImportManager.cpp",
+             root / "Engine/Source/Editor/EditorAuthoring/Private/SagaEditor/Pipeline/AssetCooking.cpp",
+             root / "Engine/Source/Editor/EditorAuthoring/Private/SagaEditor/Pipeline/ContentPipeline.cpp",
+             root / "Engine/Source/Editor/EditorAuthoring/Private/SagaEditor/Pipeline/DerivedDataCache.cpp",
+             root / "Engine/Source/Editor/EditorAuthoring/Private/SagaEditor/PrefabEditing/PrefabEditor.cpp",
+             root / "Engine/Source/Editor/EditorAuthoring/Private/SagaEditor/PrefabEditing/PrefabInstanceTracker.cpp",
+             root / "Engine/Source/Editor/EditorAuthoring/Private/SagaEditor/WorldEditing/WorldEditor.cpp",
+             root / "Engine/Source/Editor/EditorAuthoring/Private/SagaEditor/WorldEditing/WorldStreamingEditor.cpp"})
     {
         EXPECT_FALSE(std::filesystem::exists(placeholder)) << placeholder;
     }
+}
+
+TEST(CMakeTargetBoundaryTests, PlayIsVerifyOnlyLifetimeSafeAndRuntimeUsesWorkerManifests)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto coordinator = ReadText(root /
+        "Engine/Source/Editor/EditorAuthoring/Private/SagaEditor/Scripting/ScriptAnalysisCoordinator.cpp");
+    const auto controller = ReadText(root /
+        "Engine/Source/Editor/EditorAuthoring/Private/SagaEditor/Play/RuntimeProcessController.cpp");
+    const auto runtimeHost = ReadText(root /
+        "Engine/Source/Programs/SagaRuntime/Private/RuntimeHost.cpp");
+    EXPECT_NE(coordinator.find("\"lock-verify\""), std::string::npos);
+    EXPECT_EQ(coordinator.find("{\"resolve\""), std::string::npos);
+    EXPECT_EQ(controller.find("&workspace"), std::string::npos);
+    EXPECT_NE(controller.find("Play.Runtime.ResultMissing"), std::string::npos);
+    EXPECT_NE(controller.find("ParseRuntimeResultV1"), std::string::npos);
+    EXPECT_NE(controller.find("ParseRuntimeStartupReadyV1"), std::string::npos);
+    EXPECT_NE(controller.find("RuntimePlayState::Starting"), std::string::npos);
+    EXPECT_NE(controller.find("userStopRequested"), std::string::npos);
+    EXPECT_NE(controller.find("Play.Runtime.RuntimeTimeout"), std::string::npos);
+    EXPECT_NE(controller.find("Play.Runtime.ReportedFailure"), std::string::npos);
+    EXPECT_NE(controller.find("removeStale(prepared.resultPath)"), std::string::npos);
+    EXPECT_EQ(runtimeHost.find("script_artifacts.json"), std::string::npos);
+    EXPECT_EQ(runtimeHost.find("script_capabilities.json"), std::string::npos);
+    EXPECT_NE(runtimeHost.find("LoadVerifiedGeneration"), std::string::npos);
+    EXPECT_NE(runtimeHost.find("startupReadyPath"), std::string::npos);
+    EXPECT_NE(runtimeHost.find("publishReady"), std::string::npos);
 }
 
 TEST(CMakeTargetBoundaryTests, ModuleTestDirectoriesContainRealOwnedTests)

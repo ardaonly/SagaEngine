@@ -78,6 +78,19 @@ bool EditorApp::Init(const EditorAppConfig& cfg, IUIFactory& factory)
     shellCfg.workspacePath = resolvedWorkspacePath;
     shellCfg.layoutPreset  = resolvedLayoutPreset;
     shellCfg.showOnInit    = cfg.showOnInit && !cfg.smoke;
+    if (cfg.argc > 0 && cfg.argv && cfg.argv[0])
+    {
+        std::error_code executableError;
+        const auto editorExecutable = std::filesystem::weakly_canonical(
+            std::filesystem::absolute(cfg.argv[0]), executableError);
+        if (!executableError)
+            shellCfg.runtimeExecutable = editorExecutable.parent_path() /
+#ifdef _WIN32
+                "SagaRuntime.exe";
+#else
+                "SagaRuntime";
+#endif
+    }
 
     if (!m_shell->Init(*m_host, factory, shellCfg))
         return false;

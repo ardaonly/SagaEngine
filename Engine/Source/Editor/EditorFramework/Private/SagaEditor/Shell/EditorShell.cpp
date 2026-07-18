@@ -13,6 +13,7 @@
 #include "SagaEditor/Settings/IEditorSettingsStore.h"
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
 #include "SagaEditor/Project/SagaProjectKitClient.h"
+#include "SagaEditor/Play/RuntimeProcessController.h"
 #include "SagaEditor/Persona/PersonaActivator.h"
 #include "SagaEditor/Persona/PersonaRegistry.h"
 #include "SagaEditor/Persona/UIPersona.h"
@@ -43,6 +44,7 @@
 
 #include <algorithm>
 #include <charconv>
+#include <chrono>
 
 namespace SagaEditor
 {
@@ -184,6 +186,31 @@ bool EditorShell::Init(EditorHost&                    host,
     // off the host directly.
     RegisterShellCommands(host.GetCommandRegistry(),
                           host.GetUndoRedoStack());
+    m_runtimeProcessController = std::make_unique<RuntimeProcessController>();
+    host.GetCommandRegistry().Register({"saga.command.world.play", "Play", "World",
+        [this, &host, runtimeExecutable = cfg.runtimeExecutable]
+        {
+            if (runtimeExecutable.empty() || !std::filesystem::exists(runtimeExecutable))
+            {
+                m_window->SetStatusMessage("SagaRuntime executable is unavailable for Play.");
+                return;
+            }
+            const auto ticks = std::chrono::steady_clock::now().time_since_epoch().count();
+            RuntimeProcessLaunchRequest request;
+            request.playSessionId = "editor-play-" + std::to_string(ticks);
+            request.runtimeExecutable = runtimeExecutable;
+            const bool started = m_runtimeProcessController->Start(
+                host.GetDocumentWorkspace(), std::move(request));
+            m_window->SetStatusMessage(started ?
+                "Preparing saved project source for separate SagaRuntime Play..." :
+                "Play is already active or the request is invalid.");
+        }});
+    host.GetCommandRegistry().Register({"saga.command.world.stop", "Stop", "World",
+        [this]
+        {
+            m_runtimeProcessController->Stop();
+            m_window->SetStatusMessage("Stop requested for the active SagaRuntime session.");
+        }});
     host.GetCommandRegistry().Register({"saga.command.file.save", "Save All", "File",
         [this, &host]
         {
@@ -270,6 +297,11 @@ bool EditorShell::Init(EditorHost&                    host,
 
 void EditorShell::Shutdown()
 {
+    if (m_runtimeProcessController)
+    {
+        m_runtimeProcessController->Shutdown();
+        m_runtimeProcessController.reset();
+    }
     if (m_host && m_window)
     {
         m_host->GetSettingsStore().SetString(kWindowStateSetting,
