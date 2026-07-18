@@ -494,6 +494,7 @@ function(saga_create_engine_targets)
         ${SAGA_ROOT}/Engine/Source/Editor/EditorCore/Public
         ${SAGA_ROOT}/Engine/Source/Editor/EditorFramework/Public
         ${SAGA_ROOT}/Engine/Source/Editor/EditorQt/Public
+        ${SAGA_ROOT}/Engine/Source/Editor/EditorQtRender/Public
         ${SAGA_ROOT}/Engine/Source/Editor/EditorAuthoring/Public
         ${SAGA_ROOT}/Engine/Source/Editor/VisualBlocksEditor/Public
         ${SAGA_ROOT}/Engine/Source/Editor/EditorCollaboration/Public
@@ -509,6 +510,7 @@ function(saga_create_engine_targets)
         SagaShared
         SagaCollaboration
         SagaBackend
+        SagaDiligentRuntime
         OpenSSL::Crypto
     )
 
@@ -649,6 +651,7 @@ function(saga_create_engine_targets)
         ${SAGA_ROOT}/Engine/Source/Editor/EditorCore/Public
         ${SAGA_ROOT}/Engine/Source/Editor/EditorFramework/Public
         ${SAGA_ROOT}/Engine/Source/Editor/EditorQt/Public
+        ${SAGA_ROOT}/Engine/Source/Editor/EditorQtRender/Public
         ${SAGA_ROOT}/Engine/Source/Editor/EditorAuthoring/Public
         ${SAGA_ROOT}/Engine/Source/Editor/VisualBlocksEditor/Public
         ${SAGA_ROOT}/Engine/Source/Editor/EditorCollaboration/Public

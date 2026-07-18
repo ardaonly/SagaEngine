@@ -375,6 +375,7 @@ function(saga_register_source_modules)
         Engine/Source/Editor/EditorCore/CMakeLists.txt
         Engine/Source/Editor/EditorFramework/CMakeLists.txt
         Engine/Source/Editor/EditorQt/CMakeLists.txt
+        Engine/Source/Editor/EditorQtRender/CMakeLists.txt
         Engine/Source/Editor/EditorAuthoring/CMakeLists.txt
         Engine/Source/Editor/VisualBlocksEditor/CMakeLists.txt
         Engine/Source/Editor/EditorCollaboration/CMakeLists.txt

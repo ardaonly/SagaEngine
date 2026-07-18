@@ -10,7 +10,6 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cstdlib>
 #include <fstream>
 
 namespace SagaEditor
@@ -18,12 +17,6 @@ namespace SagaEditor
 namespace
 {
 using Json = nlohmann::json;
-
-std::filesystem::path EnvironmentPath(const char* name)
-{
-    const auto* value = std::getenv(name);
-    return value && *value ? std::filesystem::path(value) : std::filesystem::path{};
-}
 
 std::string HashFile(const std::filesystem::path& path, std::error_code& error)
 {
@@ -97,21 +90,13 @@ DocumentDiagnostic Diagnostic(std::string code, std::string message,
 
 ScriptAnalysisToolchain DiscoverScriptAnalysisToolchain()
 {
-    const auto discovered = MakeStarterArenaTemplateRequest({}, {});
+    const auto discovered = ResolveEditorToolchain();
     ScriptAnalysisToolchain toolchain;
     toolchain.engineRoot = discovered.engineRoot;
     toolchain.sagaProjectKit = discovered.sagaProjectKitExecutable;
     toolchain.sagaPackager = discovered.sagaPackagerExecutable;
     toolchain.runtimeBridge = discovered.runtimeBridge;
-    toolchain.sagaScript = EnvironmentPath("SAGA_SCRIPT_TOOL");
-    if (toolchain.sagaScript.empty())
-    {
-        toolchain.sagaScript = toolchain.engineRoot /
-            "Tools/SagaScript/bin/Release/net10.0/sagascript";
-#ifdef _WIN32
-        toolchain.sagaScript += ".exe";
-#endif
-    }
+    toolchain.sagaScript = discovered.sagaScriptExecutable;
     return toolchain;
 }
 

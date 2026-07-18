@@ -14,6 +14,8 @@
 
 namespace SagaEditor
 {
+class EditorDocumentWorkspace;
+class SelectionManager;
 
 // ─── Viewport Mode ────────────────────────────────────────────────────────────
 
@@ -40,6 +42,8 @@ public:
     // ─── Camera ───────────────────────────────────────────────────────────────
     void                        SetViewportMode(ViewportMode mode);
     [[nodiscard]] ViewportMode  GetViewportMode() const noexcept;
+    void SetDocumentWorkspace(EditorDocumentWorkspace* workspace) noexcept;
+    void SetSelectionManager(SelectionManager* selection) noexcept;
 
 private:
     struct Impl;

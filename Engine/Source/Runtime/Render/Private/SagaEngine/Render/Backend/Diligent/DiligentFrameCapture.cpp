@@ -164,7 +164,6 @@ RenderCaptureResult DiligentFrameCapture::Capture(
     outCapture.width = scDesc.Width;
     outCapture.height = scDesc.Height;
     outCapture.rowPitch = scDesc.Width * 4u;
-    outCapture.format = RenderPixelFormat::RGBA8_UNORM;
     CopyMappedTextureToRGBA8(
         mapped,
         scDesc.ColorBufferFormat,

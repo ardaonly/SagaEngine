@@ -466,7 +466,10 @@ void EditorShell::RegisterDefaultPanels()
     hierarchy->SetDocumentWorkspace(&m_host->GetDocumentWorkspace());
     hierarchy->SetSelectionManager(&m_host->GetSelectionManager());
     RegisterPanel(std::move(hierarchy), UIDockArea::Left);
-    RegisterPanel(std::make_unique<WorldViewportPanel>(), UIDockArea::Center);
+    auto viewport = std::make_unique<WorldViewportPanel>();
+    viewport->SetDocumentWorkspace(&m_host->GetDocumentWorkspace());
+    viewport->SetSelectionManager(&m_host->GetSelectionManager());
+    RegisterPanel(std::move(viewport), UIDockArea::Center);
     auto inspector = std::make_unique<InspectorPanel>();
     inspector->SetDocumentWorkspace(&m_host->GetDocumentWorkspace());
     inspector->SetSelectionManager(&m_host->GetSelectionManager());

@@ -53,6 +53,19 @@ struct ProjectTemplateRequest
     std::filesystem::path runtimeBridge;
 };
 
+struct EditorToolchainPaths
+{
+    std::filesystem::path engineRoot;
+    std::filesystem::path sagaProjectKitExecutable;
+    std::filesystem::path sagaPackagerExecutable;
+    std::filesystem::path sagaScriptExecutable;
+    std::filesystem::path runtimeBridge;
+};
+
+/// Locates the installed/repository toolchain without introducing project or
+/// sample identity into callers. Environment overrides are local transport.
+[[nodiscard]] EditorToolchainPaths ResolveEditorToolchain();
+
 /// Resolves the repository-owned Starter Arena seed and Campaign 1 tools.
 /// Environment overrides are transport-only and never enter project truth.
 [[nodiscard]] ProjectTemplateRequest MakeStarterArenaTemplateRequest(
