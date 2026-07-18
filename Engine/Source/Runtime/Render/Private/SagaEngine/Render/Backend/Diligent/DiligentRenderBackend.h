@@ -73,20 +73,6 @@ struct RenderFrameDiagnostics
     std::uint64_t gpuTimelineSignalCount = 0;
 };
 
-enum class RenderPixelFormat : std::uint8_t
-{
-    RGBA8_UNORM,
-};
-
-struct RenderFrameCapture
-{
-    std::uint32_t width    = 0;
-    std::uint32_t height   = 0;
-    std::uint32_t rowPitch = 0;
-    RenderPixelFormat format = RenderPixelFormat::RGBA8_UNORM;
-    std::vector<std::uint8_t> pixels;
-};
-
 enum class RenderCaptureResult : std::uint8_t
 {
     kSuccess,
@@ -162,8 +148,8 @@ public:
     [[nodiscard]]
     ::SagaEngine::Graphics::Backends::Diligent::Runtime::DiligentGraphicsRuntime&
     RuntimeForIntegrationTesting() noexcept;
-    [[nodiscard]] RenderCaptureResult CaptureCurrentColorFrame(
-        RenderFrameCapture& outCapture);
+    [[nodiscard]] bool CaptureCurrentColorFrame(
+        RenderFrameCapture& outCapture) override;
 
 private:
     struct Impl;

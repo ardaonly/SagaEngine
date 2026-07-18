@@ -27,6 +27,7 @@ saga_add_editor_module(EditorAuthoring
         Private/SagaEditor/Scripting/ScriptAnalysisCoordinator.cpp
         Private/SagaEditor/Workspace/EditorDocumentWorkspace.cpp
         Private/SagaEditor/Viewport/CameraController.cpp
+        Private/SagaEditor/Viewport/EditorRenderSceneSnapshot.cpp
         Private/SagaEditor/Viewport/GizmoHandle.cpp
         Private/SagaEditor/Viewport/ViewportCamera.cpp
         Private/SagaEditor/Viewport/ViewportRay.cpp
@@ -64,6 +65,7 @@ saga_add_editor_module(EditorAuthoring
         Public/SagaEditor/SceneEditing/SceneHierarchyAdapter.h
         Public/SagaEditor/SceneEditing/SceneViewportController.h
         Public/SagaEditor/Viewport/CameraController.h
+        Public/SagaEditor/Viewport/EditorRenderSceneSnapshot.h
         Public/SagaEditor/Viewport/GizmoHandle.h
         Public/SagaEditor/Viewport/ViewportCamera.h
         Public/SagaEditor/Viewport/ViewportInput.h
@@ -85,5 +87,6 @@ saga_register_module_tests(EditorAuthoring
         Tests/SceneSelectionIdentityTests.cpp
         Tests/ScriptAnalysisCoordinatorTests.cpp
         Tests/ViewportCameraTests.cpp
+        Tests/EditorRenderSceneSnapshotTests.cpp
         Tests/ViewportRayTests.cpp
 )

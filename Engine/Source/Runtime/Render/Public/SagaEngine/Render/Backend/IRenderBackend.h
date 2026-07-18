@@ -27,6 +27,7 @@
 #include "SagaEngine/Render/World/RenderEntity.h"
 
 #include <cstdint>
+#include <vector>
 
 // Forward declare to avoid pulling MeshAsset / Material into every TU that
 // only wants the abstract interface.
@@ -55,6 +56,16 @@ struct SwapchainDesc
     std::uint32_t height       = 0;
     bool          vsync        = true;
     bool          hdr          = false;
+};
+
+/// Renderer-owned RGBA8 frame readback used by integration evidence and
+/// tooling. Backends that cannot read the current color target return false.
+struct RenderFrameCapture
+{
+    std::uint32_t width = 0;
+    std::uint32_t height = 0;
+    std::uint32_t rowPitch = 0;
+    std::vector<std::uint8_t> pixels;
 };
 
 // ─── Interface ────────────────────────────────────────────────────────
@@ -108,6 +119,13 @@ public:
 
     /// Present any swapchain targets and finish the frame.
     virtual void EndFrame() = 0;
+
+    /// Optional renderer-owned frame readback. This keeps concrete backend
+    /// types out of Editor and product integration code.
+    [[nodiscard]] virtual bool CaptureCurrentColorFrame(RenderFrameCapture&)
+    {
+        return false;
+    }
 };
 
 // ─── Null backend ─────────────────────────────────────────────────────

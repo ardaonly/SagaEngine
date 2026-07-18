@@ -45,9 +45,6 @@ saga_add_editor_module(EditorFramework
         Private/SagaEditor/Shell/ShellCommands.cpp
         Private/SagaEditor/Shell/ShellWindow.cpp
         Private/SagaEditor/Themes/ColorPalette.cpp
-        Private/SagaEditor/Toolbars/GraphToolbar.cpp
-        Private/SagaEditor/Toolbars/MainToolbar.cpp
-        Private/SagaEditor/Toolbars/ViewportToolbar.cpp
         Public/SagaEditor/Composition/EditorCompositionArtifact.h
         Public/SagaEditor/Composition/EditorCompositionArtifactLoader.h
         Public/SagaEditor/Composition/EditorCompositionDiagnostics.h
@@ -118,9 +115,6 @@ saga_add_editor_module(EditorFramework
         Public/SagaEditor/Themes/ColorPalette.h
         Public/SagaEditor/Themes/EditorTheme.h
         Public/SagaEditor/Themes/ThemeRegistry.h
-        Public/SagaEditor/Toolbars/GraphToolbar.h
-        Public/SagaEditor/Toolbars/MainToolbar.h
-        Public/SagaEditor/Toolbars/ViewportToolbar.h
         Public/SagaEditor/UI/IUIApplication.h
         Public/SagaEditor/UI/IUIFactory.h
         Public/SagaEditor/UI/IUIMainWindow.h

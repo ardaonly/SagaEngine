@@ -209,18 +209,32 @@ ProjectToolResult ProcessFailure(ToolProcessResult process,
 ProjectTemplateRequest MakeStarterArenaTemplateRequest(
     std::filesystem::path destination, std::string displayName)
 {
+    const auto toolchain = ResolveEditorToolchain();
     ProjectTemplateRequest request;
     request.destination = std::move(destination);
     request.displayName = std::move(displayName);
-    request.engineRoot = DiscoverEngineRoot();
+    request.engineRoot = toolchain.engineRoot;
     request.seed = request.engineRoot / "Samples/StarterArena";
-    request.sagaPackagerExecutable = ToolPath(request.engineRoot,
-        "Tools/SagaPackager/bin/Release/net10.0/sagapack", "SAGA_PACKAGE_TOOL");
-    request.runtimeBridge = EnvironmentPath("SAGA_RUNTIME_BRIDGE");
-    if (request.runtimeBridge.empty())
-        request.runtimeBridge = request.engineRoot /
-            "Engine/Managed/SagaScript.RuntimeBridge/bin/Release/net10.0/SagaScript.RuntimeBridge.dll";
+    request.sagaPackagerExecutable = toolchain.sagaPackagerExecutable;
+    request.runtimeBridge = toolchain.runtimeBridge;
     return request;
+}
+
+EditorToolchainPaths ResolveEditorToolchain()
+{
+    EditorToolchainPaths result;
+    result.engineRoot = DiscoverEngineRoot();
+    result.sagaProjectKitExecutable = ToolPath(result.engineRoot,
+        "Tools/SagaProjectKit/bin/Release/net10.0/sagaproject", "SAGA_PROJECT_TOOL");
+    result.sagaPackagerExecutable = ToolPath(result.engineRoot,
+        "Tools/SagaPackager/bin/Release/net10.0/sagapack", "SAGA_PACKAGE_TOOL");
+    result.sagaScriptExecutable = ToolPath(result.engineRoot,
+        "Tools/SagaScript/bin/Release/net10.0/sagascript", "SAGA_SCRIPT_TOOL");
+    result.runtimeBridge = EnvironmentPath("SAGA_RUNTIME_BRIDGE");
+    if (result.runtimeBridge.empty())
+        result.runtimeBridge = result.engineRoot /
+            "Engine/Managed/SagaScript.RuntimeBridge/bin/Release/net10.0/SagaScript.RuntimeBridge.dll";
+    return result;
 }
 
 SagaProjectKitClient::SagaProjectKitClient(std::filesystem::path executable,

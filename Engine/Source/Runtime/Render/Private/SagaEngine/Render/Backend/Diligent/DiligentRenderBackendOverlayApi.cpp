@@ -50,16 +50,17 @@ void DiligentRenderBackend::ShutdownOverlayRendering()
     m_Impl->overlayRenderer.Shutdown();
 }
 
-RenderCaptureResult DiligentRenderBackend::CaptureCurrentColorFrame(
+bool DiligentRenderBackend::CaptureCurrentColorFrame(
     RenderFrameCapture& outCapture)
 {
     if (!m_Impl || !m_Impl->runtime->IsInitialized())
     {
         outCapture = {};
-        return RenderCaptureResult::kNotInitialized;
+        return false;
     }
 
-    return m_Impl->frameCapture.Capture(*m_Impl->runtime, outCapture);
+    return m_Impl->frameCapture.Capture(*m_Impl->runtime, outCapture) ==
+        RenderCaptureResult::kSuccess;
 }
 
 // ─── Diagnostics ─────────────────────────────────────────────────────
