@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # SPDX-License-Identifier: MPL-2.0
 """Shared process, path, and source fixtures for SagaScript CLI tests."""
 
