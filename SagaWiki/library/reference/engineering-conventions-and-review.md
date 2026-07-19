@@ -103,6 +103,14 @@ Before accepting a change:
 
 A mechanical move preserves behavior first, then a later focused change narrows contracts. Do not keep an old layout alive with compatibility aliases solely to avoid updating internal paths. Do not mix a broad target split, API redesign, runtime behavior change, documentation migration, and license policy change in one unreviewable commit.
 
+## Maintainability size review
+
+`Tools/Developer/RepoAudit/maintainability_audit.py` inventories tracked, hand-written first-party files. More than 750 physical lines triggers review, more than 1000 is high-maintenance, and more than 1500 is a critical monolith. These are review signals, not formatting targets: ownership and cohesion decide whether a file is split.
+
+The checked-in baseline records every existing file above 1000 lines with its current ceiling, owner, reason, and disposition. A new oversized file, growth above a reviewed ceiling, an incomplete entry, or stale debt left in the baseline fails the check. CI does not regenerate the baseline. Generated files and third-party trees are outside this policy.
+
+Critical exceptions are narrow. A cohesive declarative reference may remain whole; an authoritative parser/validator may remain whole when splitting would create a second policy owner; and a private implementation may remain whole when a mechanical split would expose or duplicate lifetime state. Each exception still has a fixed ceiling and must be reconsidered when edited.
+
 ## Documentation rule
 
 SagaWiki records current durable contracts. Markdown is the maintainable source and `scripts/wiki build` produces the offline reader. Detailed reference pages retain design knowledge; concise topic pages provide entry points. Historical source paths can appear in the migration/selection map but must not become current instructions.

@@ -1,0 +1,164 @@
+{
+  "schemaVersion": 1,
+  "reviewThresholds": {
+    "criticalMonolith": 1500,
+    "highMaintenance": 1000,
+    "review": 750
+  },
+  "entries": [
+    {
+      "path": "Engine/Source/Editor/EditorAuthoring/Tests/EditorAuthoringSpineTests.cpp",
+      "maximumPhysicalLines": 1076,
+      "reason": "Campaign 2 authoring-spine integration scenarios remain cohesive but should split by document family when next edited.",
+      "owner": "EditorAuthoring",
+      "disposition": "follow-up-debt"
+    },
+    {
+      "path": "Engine/Source/Editor/EditorCollaboration/Private/SagaCollaboration/CollaborationModel.cpp",
+      "maximumPhysicalLines": 1179,
+      "reason": "Serialization and validation remain together after local metadata store ownership was extracted.",
+      "owner": "EditorCollaboration",
+      "disposition": "reduced-follow-up-debt"
+    },
+    {
+      "path": "Engine/Source/Editor/EditorFramework/Private/SagaEditor/Shell/EditorShell.cpp",
+      "maximumPhysicalLines": 1110,
+      "reason": "Active Editor shell composition requires a command-registration extraction on its next feature change.",
+      "owner": "EditorFramework",
+      "disposition": "follow-up-debt"
+    },
+    {
+      "path": "Engine/Source/Editor/EditorFramework/Tests/EditorProfileTests.cpp",
+      "maximumPhysicalLines": 1047,
+      "reason": "Profile fixture scenarios are cohesive but can be grouped into persistence and selection modules.",
+      "owner": "EditorFramework",
+      "disposition": "follow-up-debt"
+    },
+    {
+      "path": "Engine/Source/Editor/EditorFramework/Tests/WorkspaceCustomizationTests.cpp",
+      "maximumPhysicalLines": 1098,
+      "reason": "Workspace customization scenarios share one fixture; split by layout and command behavior when modified.",
+      "owner": "EditorFramework",
+      "disposition": "follow-up-debt"
+    },
+    {
+      "path": "Engine/Source/Runtime/RHI/Private/SagaEngine/Graphics/Backend/NullGraphicsBackend.cpp",
+      "maximumPhysicalLines": 1464,
+      "reason": "Null backend implements one complete backend contract; future work should separate resource families without duplicating backend state.",
+      "owner": "RHI",
+      "disposition": "follow-up-debt"
+    },
+    {
+      "path": "Engine/Source/Runtime/RHI/Private/SagaEngine/Graphics/Backends/Diligent/Runtime/DiligentGraphicsRuntime.cpp",
+      "maximumPhysicalLines": 1031,
+      "reason": "Diligent runtime lifecycle is cohesive and just over the threshold; growth requires an ownership review.",
+      "owner": "RHI",
+      "disposition": "reviewed-exception"
+    },
+    {
+      "path": "Engine/Source/Runtime/Render/Private/SagaEngine/Render/Backend/Diligent/DiligentNativeResourceOwner.cpp",
+      "maximumPhysicalLines": 1414,
+      "reason": "Native resource lifetime is centralized intentionally; split resource families only with explicit shared lifetime contracts.",
+      "owner": "Render",
+      "disposition": "follow-up-debt"
+    },
+    {
+      "path": "Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHost.cpp",
+      "maximumPhysicalLines": 2214,
+      "reason": "The private host Impl couples CoreCLR lifetime, unmanaged callbacks and instance state; a mechanical split would expose or duplicate that state.",
+      "owner": "RuntimeScripting",
+      "disposition": "cohesive-exception-requires-private-impl-design"
+    },
+    {
+      "path": "Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/ScriptPackageValidator.cpp",
+      "maximumPhysicalLines": 1071,
+      "reason": "One fail-closed verified-script-package validation pipeline; growth requires manifest-family extraction.",
+      "owner": "RuntimeScripting",
+      "disposition": "reviewed-exception"
+    },
+    {
+      "path": "Engine/Source/Runtime/Scripting/Tests/CSharpScriptHostTests.cpp",
+      "maximumPhysicalLines": 1173,
+      "reason": "Host lifecycle and failure scenarios share an expensive runtime fixture; split only with fixture ownership preserved.",
+      "owner": "RuntimeScripting",
+      "disposition": "follow-up-debt"
+    },
+    {
+      "path": "Engine/Source/Runtime/Scripting/Tests/ScriptLifecycleServiceTests.cpp",
+      "maximumPhysicalLines": 1154,
+      "reason": "Lifecycle state-machine cases share deterministic fixtures; scenario-family split remains follow-up debt.",
+      "owner": "RuntimeScripting",
+      "disposition": "follow-up-debt"
+    },
+    {
+      "path": "Engine/Source/Runtime/ServerAuthority/Private/SagaEngine/ServerAuthority/ZoneServer.cpp",
+      "maximumPhysicalLines": 1302,
+      "reason": "Zone authority implementation mixes command and transfer paths that should be separated on the next server-authority change.",
+      "owner": "ServerAuthority",
+      "disposition": "follow-up-debt"
+    },
+    {
+      "path": "Engine/Source/Runtime/UI/Private/Backends/RmlUi/RmlUiUiBackend.cpp",
+      "maximumPhysicalLines": 1057,
+      "reason": "Single private RmlUi backend adapter; future growth must separate document and render integration.",
+      "owner": "RuntimeUI",
+      "disposition": "reviewed-exception"
+    },
+    {
+      "path": "Tools/Developer/RepoAudit/saga_repo_xray.py",
+      "maximumPhysicalLines": 1287,
+      "reason": "Scanning and finding classification remain together after deterministic report writers were extracted.",
+      "owner": "RepoAudit",
+      "disposition": "reduced-follow-up-debt"
+    },
+    {
+      "path": "Tools/Forge/FORGE_ROADMAP.md",
+      "maximumPhysicalLines": 1758,
+      "reason": "Declarative chronological roadmap; splitting would reduce navigation and does not reduce executable maintenance risk.",
+      "owner": "Forge",
+      "disposition": "declarative-data-exception"
+    },
+    {
+      "path": "Tools/Forge/SCHEMA.md",
+      "maximumPhysicalLines": 1313,
+      "reason": "Single declarative schema reference kept whole for cross-section links and review.",
+      "owner": "Forge",
+      "disposition": "declarative-data-exception"
+    },
+    {
+      "path": "Tools/Forge/src/main.cpp",
+      "maximumPhysicalLines": 1225,
+      "reason": "Standalone Forge CLI command composition; command-family extraction is recorded for future Forge work.",
+      "owner": "Forge",
+      "disposition": "follow-up-debt"
+    },
+    {
+      "path": "Tools/Licensing/validate_license_policy.py",
+      "maximumPhysicalLines": 2325,
+      "reason": "Authoritative fail-closed policy parser and validator shares schema/report types; premature splitting risks a second license-classification policy.",
+      "owner": "Licensing",
+      "disposition": "cohesive-validator-exception"
+    },
+    {
+      "path": "Tools/SagaPackager/tests/test_sagapack_cli.py",
+      "maximumPhysicalLines": 1144,
+      "reason": "Black-box package CLI scenarios remain cohesive but should adopt the SagaScript test-package pattern when next expanded.",
+      "owner": "SagaPackager",
+      "disposition": "follow-up-debt"
+    },
+    {
+      "path": "Tools/SagaProjectKit/src/AssetSourceManifestReports.cs",
+      "maximumPhysicalLines": 1055,
+      "reason": "Asset source reporting is one serializer/validator owner and may not grow without review.",
+      "owner": "SagaProjectKit",
+      "disposition": "reviewed-exception"
+    },
+    {
+      "path": "Tools/SagaScript/src/ProjectWorker.cs",
+      "maximumPhysicalLines": 1097,
+      "reason": "One worker protocol coordinator; stage extraction is follow-up debt if the protocol expands.",
+      "owner": "SagaScript",
+      "disposition": "reviewed-exception"
+    }
+  ]
+}

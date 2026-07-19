@@ -28,6 +28,8 @@ Installed graphics consumers must include only public installed headers. `SagaDi
 
 Start with the smallest focused target and test regex that covers the change. Use low parallelism where resource pressure is a concern. Do not run StressTests or a broad GPU suite by default. A full CTest result must never be implied when only focused tests ran.
 
+`TD-CI-001 — Complete Registered CTest Evidence in GitHub Actions` remains open. The required future CI job must dynamically enumerate the complete registered CTest inventory, run it with bounded parallelism, publish JUnit and failure artifacts, expose disabled and skipped tests, and fail normally without `continue-on-error`. Until that evidence exists, focused local suites are reported as focused evidence and Gate C is not closed by inference.
+
 Documentation-only Wiki changes use:
 
 ```sh
