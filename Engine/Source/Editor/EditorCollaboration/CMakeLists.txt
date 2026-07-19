@@ -15,6 +15,7 @@ saga_add_editor_module(EditorCollaboration
     TARGET SagaCollaboration
     SOURCES
         Private/SagaCollaboration/CollaborationModel.cpp
+        Private/SagaCollaboration/LocalCollaborationMetadataStore.cpp
         Private/SagaCollaboration/CollaborationServices.cpp
         Private/SagaShared/CollaborationContracts.cpp
         Public/SagaCollaboration/ChangeStreamService.hpp
