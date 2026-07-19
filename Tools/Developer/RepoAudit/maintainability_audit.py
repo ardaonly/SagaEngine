@@ -39,6 +39,10 @@ LANGUAGES = {
     ".json": "JSON", ".toml": "TOML", ".yml": "YAML", ".yaml": "YAML",
     ".sh": "Shell", ".bash": "Shell", ".ps1": "PowerShell", ".xml": "XML",
 }
+CODE_LANGUAGES = {
+    "C", "C++", "C/C++ header", "C++ header", "C#", "Python", "CMake",
+    "Shell", "PowerShell",
+}
 
 
 @dataclass(frozen=True)
@@ -192,6 +196,16 @@ def evaluate_baseline(records: Iterable[FileRecord], baseline: dict) -> list[Dia
         limit = int(entry.get("maximumPhysicalLines", 0))
         if record.physicalLines > limit:
             diagnostics.append(Diagnostic("Maintainability.BaselineGrowth", path, f"{record.physicalLines} lines exceeds reviewed baseline {limit}"))
+        if (
+            record.physicalLines > 1500
+            and entry.get("disposition") == "declarative-data-exception"
+            and record.language in CODE_LANGUAGES
+        ):
+            diagnostics.append(Diagnostic(
+                "Maintainability.InvalidCriticalException",
+                path,
+                "critical executable code cannot use a declarative-data exception",
+            ))
         for field in ("reason", "owner", "disposition"):
             if not str(entry.get(field, "")).strip():
                 diagnostics.append(Diagnostic("Maintainability.BaselineIncomplete", path, f"missing {field}"))

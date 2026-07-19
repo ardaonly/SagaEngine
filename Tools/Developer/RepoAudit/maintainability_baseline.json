@@ -63,13 +63,6 @@
       "disposition": "follow-up-debt"
     },
     {
-      "path": "Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHost.cpp",
-      "maximumPhysicalLines": 2214,
-      "reason": "The private host Impl couples CoreCLR lifetime, unmanaged callbacks and instance state; a mechanical split would expose or duplicate that state.",
-      "owner": "RuntimeScripting",
-      "disposition": "cohesive-exception-requires-private-impl-design"
-    },
-    {
       "path": "Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/ScriptPackageValidator.cpp",
       "maximumPhysicalLines": 1071,
       "reason": "One fail-closed verified-script-package validation pipeline; growth requires manifest-family extraction.",
@@ -131,13 +124,6 @@
       "reason": "Standalone Forge CLI command composition; command-family extraction is recorded for future Forge work.",
       "owner": "Forge",
       "disposition": "follow-up-debt"
-    },
-    {
-      "path": "Tools/Licensing/validate_license_policy.py",
-      "maximumPhysicalLines": 2325,
-      "reason": "Authoritative fail-closed policy parser and validator shares schema/report types; premature splitting risks a second license-classification policy.",
-      "owner": "Licensing",
-      "disposition": "cohesive-validator-exception"
     },
     {
       "path": "Tools/SagaPackager/tests/test_sagapack_cli.py",

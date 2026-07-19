@@ -133,7 +133,9 @@ A repository-wide dependency list must not be copied blindly into every package.
 
 ## Generated policy controls
 
-`Tools/Licensing/validate_license_policy.py` validates schema, paths, overlaps, metadata, governance, texts, and other policy checks. The generated legacy `path_rules.json` is compatibility output sourced from `LICENSE_POLICY.toml`. Checksum regeneration records current controlled file hashes.
+`Tools/Licensing/validate_license_policy.py` is the compatible command-line entry point for schema, repository, governance, and CMake composition checks. The authoritative model, schema parser, deterministic Git inventory, validators, reports, and orchestration live in the shared `Tools/Licensing/licensing_policy/` package. `normalize_spdx.py` and the maintainability audit load that same policy context and resolver rather than maintaining independent ownership or license maps.
+
+File policy resolution has one ordered chain: embedded SPDX metadata, then an authoritative sidecar, then DEP5, then the matched policy-domain default. A separate internal file decision carries matched-domain evidence, diagnostics, generated or third-party classification, and modification permission without changing the public JSON `Resolution` shape. The generated legacy `path_rules.json` remains compatibility output sourced from `LICENSE_POLICY.toml`; checksum regeneration records current controlled file hashes.
 
 Validation reports are evidence. A zero-error report means configured checks passed at that tree state; it does not resolve unknown upstream legal facts or approve a release automatically.
 

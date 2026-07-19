@@ -332,6 +332,7 @@
 
         add_executable(CSharpScriptHostTests
             ${SAGA_CSHARP_SCRIPT_HOST_TEST_SOURCE}
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Tests/CSharpScriptHostIdentityTests.hpp
             ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHost.cpp
             ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHostCallbacks.cpp
             ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHostCoreClr.cpp

@@ -16,9 +16,9 @@ sys.modules[SPEC.name] = AUDIT
 SPEC.loader.exec_module(AUDIT)
 
 
-def record(path: str, lines: int):
+def record(path: str, lines: int, language: str = "Python"):
     return AUDIT.FileRecord(
-        path=path, language="Python", physicalLines=lines, nonEmptyLines=lines,
+        path=path, language=language, physicalLines=lines, nonEmptyLines=lines,
         largestFunction=None, largestFunctionLines=None, majorResponsibilities=1,
         generated=False, role="production", embeddedSpdx="MPL-2.0",
         resolvedLicense="MPL-2.0", sizeClass="high-maintenance",
@@ -53,6 +53,29 @@ class MaintainabilityBaselineTests(unittest.TestCase):
             "reason": "single parser", "owner": "Tools", "disposition": "reviewed-exception",
         }]}
         self.assertEqual(AUDIT.evaluate_baseline([record("Tools/Cohesive.py", 1150)], baseline), [])
+
+    def test_critical_code_cannot_claim_declarative_exception(self) -> None:
+        baseline = {"entries": [{
+            "path": "Tools/Policy.py", "maximumPhysicalLines": 1700,
+            "reason": "single reference", "owner": "Tools",
+            "disposition": "declarative-data-exception",
+        }]}
+        diagnostics = AUDIT.evaluate_baseline([record("Tools/Policy.py", 1600)], baseline)
+        self.assertEqual(
+            [item.code for item in diagnostics],
+            ["Maintainability.InvalidCriticalException"],
+        )
+
+    def test_critical_markdown_may_retain_reviewed_declarative_exception(self) -> None:
+        baseline = {"entries": [{
+            "path": "Tools/Roadmap.md", "maximumPhysicalLines": 1700,
+            "reason": "chronological reference", "owner": "Tools",
+            "disposition": "declarative-data-exception",
+        }]}
+        self.assertEqual(
+            AUDIT.evaluate_baseline([record("Tools/Roadmap.md", 1600, "Markdown")], baseline),
+            [],
+        )
 
 
 if __name__ == "__main__":
