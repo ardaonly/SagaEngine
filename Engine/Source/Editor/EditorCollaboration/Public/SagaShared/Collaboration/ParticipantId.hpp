@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ParticipantId.hpp
 /// @brief Stable participant identifier for collaboration contracts.
 

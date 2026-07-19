@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file QtUIApplication.h
 /// @brief Qt backend implementation of IUIApplication — wraps QApplication.
 

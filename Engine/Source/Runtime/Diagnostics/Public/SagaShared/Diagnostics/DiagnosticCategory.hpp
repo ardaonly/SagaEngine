@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiagnosticCategory.hpp
 /// @brief Shared top-level diagnostic category families.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaLocalCollaborationMetadataReports.h
 /// @brief Report-only local collaboration metadata boundary proofs.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IEditorSettingsStore.h
 /// @brief Framework-free key/value store for private editor preferences.
 

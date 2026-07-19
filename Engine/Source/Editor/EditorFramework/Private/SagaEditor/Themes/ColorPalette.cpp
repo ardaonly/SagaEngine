@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ColorPalette.cpp
 /// @brief Factory implementations for the five built-in color palettes.
 

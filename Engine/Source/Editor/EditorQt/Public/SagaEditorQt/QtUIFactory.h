@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file QtUIFactory.h
 /// @brief Qt backend implementation of IUIFactory.
 

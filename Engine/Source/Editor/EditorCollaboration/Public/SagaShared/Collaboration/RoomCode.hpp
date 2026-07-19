@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RoomCode.hpp
 /// @brief Room-code contract for quick collaboration join flows.
 

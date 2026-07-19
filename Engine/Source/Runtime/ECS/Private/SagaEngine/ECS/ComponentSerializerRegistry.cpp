@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "SagaEngine/ECS/ComponentSerializerRegistry.h"
 #include <cstring>
 #include <mutex>

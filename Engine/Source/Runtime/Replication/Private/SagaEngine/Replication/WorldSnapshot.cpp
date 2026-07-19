@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorldSnapshot.cpp
 /// @brief WorldSnapshotCapture and WorldSnapshotDecoder implementations.
 

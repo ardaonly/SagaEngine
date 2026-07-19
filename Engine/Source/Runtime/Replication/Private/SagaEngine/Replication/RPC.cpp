@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RPC.cpp
 /// @brief RPC codec and dispatch table implementation.
 ///

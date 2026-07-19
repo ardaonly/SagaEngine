@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file MemoryStatsPanel.cpp
 /// @brief Sandbox HUD memory panel — reads MemoryTracker each frame.
 

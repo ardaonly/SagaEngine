@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RelevanceGraph.cpp
 /// @brief Context-based interest graph implementation.
 

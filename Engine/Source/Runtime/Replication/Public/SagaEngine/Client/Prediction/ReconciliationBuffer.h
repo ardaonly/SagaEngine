@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ReconciliationBuffer.h
 /// @brief Client-side prediction history with server-authoritative reconciliation.
 ///

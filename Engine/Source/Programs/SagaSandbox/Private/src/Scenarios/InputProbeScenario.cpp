@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file InputProbeScenario.cpp
 /// @brief Input pipeline probe scenario implementation.
 

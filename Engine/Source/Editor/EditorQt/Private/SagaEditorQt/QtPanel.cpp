@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file QtPanel.cpp
 /// @brief Qt implementation of the QtPanel base class.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IUiInputRouter.h
 /// @brief Backend-neutral UI input capture and routing contract.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Zone.h
 /// @brief Collection of cells that make up one streamable zone.
 ///

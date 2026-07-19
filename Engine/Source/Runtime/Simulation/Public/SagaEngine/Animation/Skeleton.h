@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Skeleton.h
 /// @brief Joint hierarchy and rest-pose data for skeletal animation.
 ///

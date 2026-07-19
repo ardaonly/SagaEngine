@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PerformanceBudgetTest.h
 /// @brief Performance budget enforcement tests for the replication pipeline.
 ///

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MPL-2.0
 """Validate module Public/Private ownership and runtime ABI neutrality."""
 
 from __future__ import annotations

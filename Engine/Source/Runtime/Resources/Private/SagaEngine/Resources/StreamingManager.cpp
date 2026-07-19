@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file StreamingManager.cpp
 /// @brief Worker pool, priority queue, and lifecycle for the streaming manager.
 

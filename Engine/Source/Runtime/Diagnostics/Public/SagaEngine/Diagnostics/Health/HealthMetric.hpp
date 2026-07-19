@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file HealthMetric.hpp
 /// @brief Defines runtime health metric records used by diagnostics snapshots.
 

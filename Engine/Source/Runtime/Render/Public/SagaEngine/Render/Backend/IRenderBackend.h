@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IRenderBackend.h
 /// @brief Abstract seam between the API-agnostic render world and a concrete
 ///        graphics backend.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ReplicationState.h
 /// @brief Per-entity component dirty tracking, baseline versioning, and ACK management.
 ///

@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# SPDX-FileCopyrightText: 2026 Arda Koyuncu
 # SPDX-License-Identifier: MPL-2.0
 """Editorless StarterArena source/tooling conformance across two clean roots."""
 

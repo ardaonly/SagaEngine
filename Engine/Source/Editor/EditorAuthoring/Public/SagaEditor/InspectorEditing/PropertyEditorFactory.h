@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PropertyEditorFactory.h
 /// @brief Builds primitive-typed property editors for the inspector panel.
 

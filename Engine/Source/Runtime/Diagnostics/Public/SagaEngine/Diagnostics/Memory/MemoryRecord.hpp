@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file MemoryRecord.hpp
 /// @brief Defines explicit per-system memory counters for diagnostics reports.
 

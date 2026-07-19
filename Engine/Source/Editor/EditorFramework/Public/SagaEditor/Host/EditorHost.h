@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorHost.h
 /// @brief Central service registry for all editor subsystems.
 

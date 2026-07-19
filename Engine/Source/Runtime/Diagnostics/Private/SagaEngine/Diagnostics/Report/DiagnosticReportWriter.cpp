@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiagnosticReportWriter.cpp
 /// @brief Implements deterministic diagnostics report JSON writing.
 

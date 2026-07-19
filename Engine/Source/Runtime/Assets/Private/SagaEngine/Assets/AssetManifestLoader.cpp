@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AssetManifestLoader.cpp
 /// @brief Implements runtime asset manifest JSON loading and validation.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorldViewportPanel.h
 /// @brief World viewport panel — 3D scene view with camera controls.
 ///

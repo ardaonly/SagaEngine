@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file MemoryTracker.hpp
 /// @brief Tracks explicit per-system memory counters for diagnostics.
 

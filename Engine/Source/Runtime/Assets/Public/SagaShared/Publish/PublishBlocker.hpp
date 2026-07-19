@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PublishBlocker.hpp
 /// @brief Shared publish blocker contract.
 

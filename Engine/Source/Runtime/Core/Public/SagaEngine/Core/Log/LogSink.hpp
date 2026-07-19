@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file LogSink.hpp
 /// @brief Declares the sink interface used by diagnostics logging.
 

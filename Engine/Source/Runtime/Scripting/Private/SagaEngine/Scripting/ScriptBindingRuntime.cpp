@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScriptBindingRuntime.cpp
 /// @brief Implements runtime-owned SagaScript binding lifecycle orchestration.
 

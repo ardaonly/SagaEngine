@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeStartupDiagnostics.hpp
 /// @brief Runtime-owned startup report diagnostic classification.
 

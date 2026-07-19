@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file NetworkStatsPanel.h
 /// @brief HUD panel for runtime network diagnostics.
 ///

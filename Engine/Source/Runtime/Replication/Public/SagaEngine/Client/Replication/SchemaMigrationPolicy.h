@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SchemaMigrationPolicy.h
 /// @file Schema version negotiation and backward compatibility policy.
 ///

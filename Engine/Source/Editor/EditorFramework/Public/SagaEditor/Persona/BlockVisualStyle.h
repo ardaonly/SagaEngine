@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file BlockVisualStyle.h
 /// @brief Visual scripting block / node rendering parameters per persona.
 

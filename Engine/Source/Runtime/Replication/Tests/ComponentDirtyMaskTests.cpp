@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ComponentDirtyMaskTests.cpp
 /// @brief Unit tests for ComponentMask bit operations and dirty tracking.
 ///

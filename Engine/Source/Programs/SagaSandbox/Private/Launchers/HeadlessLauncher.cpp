@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file HeadlessLauncher.cpp
 /// @brief Headless sandbox launcher — no window, no ImGui.
 ///        Runs server-side scenarios (NetworkReplication, PredictionStress)

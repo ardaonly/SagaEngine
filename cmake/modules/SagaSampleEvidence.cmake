@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 # --- SagaSampleEvidence.cmake -----------------------------------------------
 
 function(saga_setup_sample_executable_evidence)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Material.h
 /// @brief Data-only material description shared by renderer and asset pipeline.
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file MathScalar.h
 /// @brief Scalar math helpers shared by all engine subsystems.
 ///

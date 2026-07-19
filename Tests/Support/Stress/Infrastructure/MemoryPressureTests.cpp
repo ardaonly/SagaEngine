@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file MemoryPressureTests.cpp
 /// @brief Stress tests for memory pressure, arena allocator limits, and leak detection.
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file GraphicsFrameResourceAllocatorTests.cpp
 /// @brief Private CPU-side graphics frame resource allocator tests.
 

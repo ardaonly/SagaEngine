@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ServerConnection.cpp
 /// @brief ServerConnection — per-client TCP connection with full state machine.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DeltaSnapshot.cpp
 /// @brief DeltaSnapshotBuilder and DeltaSnapshotDecoder implementations.
 

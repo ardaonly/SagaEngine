@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DeltaBaselineCompressor.h
 /// @brief XOR-baseline delta compressor for snapshot payloads.
 ///

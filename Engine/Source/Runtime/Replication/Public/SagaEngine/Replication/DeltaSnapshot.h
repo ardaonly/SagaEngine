@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DeltaSnapshot.h
 /// @brief Component-level delta diff computation and wire encoding.
 ///

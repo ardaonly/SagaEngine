@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file Manifest.cpp
 /// @brief Line-based forge.toml parser and serializer.
 

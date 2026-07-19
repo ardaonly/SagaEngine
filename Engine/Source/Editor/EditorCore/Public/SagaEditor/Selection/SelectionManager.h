@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SelectionManager.h
 /// @brief Tracks the current editor selection and notifies observers on change.
 

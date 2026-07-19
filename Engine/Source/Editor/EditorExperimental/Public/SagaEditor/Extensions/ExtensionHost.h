@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ExtensionHost.h
 /// @brief Drives extension lifecycle — load, initialise, and unload.
 

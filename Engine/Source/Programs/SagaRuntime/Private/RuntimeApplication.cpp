@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeApplication.cpp
 /// @brief Dispatches standalone runtime modes through Runtime-owned boundaries.
 

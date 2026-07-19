@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file UiInteractionPipelineTests.cpp
 /// @brief End-to-end smoke tests for UI event to action dispatch.
 

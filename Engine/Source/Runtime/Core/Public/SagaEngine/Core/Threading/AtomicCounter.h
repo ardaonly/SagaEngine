@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AtomicCounter.h
 /// @brief Lock-free stats counter built on std::atomic with relaxed ordering.
 ///

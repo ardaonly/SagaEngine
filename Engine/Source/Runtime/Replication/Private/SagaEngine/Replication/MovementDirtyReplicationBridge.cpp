@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file MovementDirtyReplicationBridge.cpp
 /// @brief MovementDirtyReplicationBridge implementation.
 

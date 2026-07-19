@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file InspectorEditingTests.cpp
 /// @brief GoogleTest coverage for the InspectorEditing primitives.
 ///

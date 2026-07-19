@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ShardManager.h
 /// @brief Shard-level zone routing, load balancing, and capacity management.
 ///

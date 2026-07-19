@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ArtifactManifestLoaderTests.cpp
 /// @brief Unit tests for runtime artifact manifest loading and validation.
 

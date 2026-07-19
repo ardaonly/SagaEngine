@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 saga_add_runtime_module(Resources
     MODULE_DIR Engine/Source/Runtime/Resources
     TARGET SagaEngine

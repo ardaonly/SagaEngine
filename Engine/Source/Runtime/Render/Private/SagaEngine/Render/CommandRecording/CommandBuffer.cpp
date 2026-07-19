@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CommandBuffer.cpp
 /// @brief CommandBuffer implementation — currently header-only, this file
 ///        exists as the anchor for future non-inline methods (e.g. validation,

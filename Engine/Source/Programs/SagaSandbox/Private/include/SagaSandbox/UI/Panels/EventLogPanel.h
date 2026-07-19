@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EventLogPanel.h
 /// @brief HUD panel that mirrors the engine log in real time.
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file TextureImporter.cpp
 /// @brief DDS/KTX2 texture importer producing RHI-ready mip chains.
 

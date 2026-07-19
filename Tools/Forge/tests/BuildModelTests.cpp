@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file BuildModelTests.cpp
 /// @brief Coverage for Forge manifest lowering into BuildModel.
 

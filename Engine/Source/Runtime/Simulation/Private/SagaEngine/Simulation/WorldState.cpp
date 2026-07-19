@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorldState.cpp
 /// @brief WorldState method implementations.
 

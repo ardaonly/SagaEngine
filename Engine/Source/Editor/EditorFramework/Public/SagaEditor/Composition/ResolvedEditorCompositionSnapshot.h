@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ResolvedEditorCompositionSnapshot.h
 /// @brief Immutable editor composition snapshot consumed by SagaEditor.
 

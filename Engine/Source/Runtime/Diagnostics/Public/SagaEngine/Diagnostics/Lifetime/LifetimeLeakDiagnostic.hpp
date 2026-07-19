@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file LifetimeLeakDiagnostic.hpp
 /// @brief Defines classified lifetime leak candidates and summaries.
 

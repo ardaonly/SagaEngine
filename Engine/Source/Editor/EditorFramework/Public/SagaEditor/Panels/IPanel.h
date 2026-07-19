@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IPanel.h
 /// @brief Base interface for every dockable editor panel — framework-free.
 

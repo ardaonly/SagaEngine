@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """Export health decisions for SagaSync."""
 
 from __future__ import annotations

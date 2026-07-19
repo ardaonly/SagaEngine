@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeHost.h
 /// @brief Declares the app-private host boundary for standalone runtime modes.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaProcessService.cpp
 /// @brief Implements bounded Product Shell process execution without a command shell.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ClaimService.hpp
 /// @brief Soft resource claim service boundary for collaboration workflows.
 

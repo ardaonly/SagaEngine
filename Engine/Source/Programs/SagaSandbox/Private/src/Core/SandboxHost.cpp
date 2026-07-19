@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SandboxHost.cpp
 /// @brief Main host application implementation.
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DeviceRegistry.cpp
 /// @brief Implements device registry ownership, dispatch, and hotplug routing.
 

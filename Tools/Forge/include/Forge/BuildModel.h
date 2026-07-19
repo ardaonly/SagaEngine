@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file BuildModel.h
 /// @brief Backend-agnostic intermediate representation of a build request.
 ///

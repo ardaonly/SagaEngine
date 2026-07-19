@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PersonaRegistry.cpp
 /// @brief Implementation of the persona catalogue + change notification.
 

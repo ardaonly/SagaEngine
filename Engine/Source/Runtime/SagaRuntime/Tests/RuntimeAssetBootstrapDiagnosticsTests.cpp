@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeAssetBootstrapDiagnosticsTests.cpp
 /// @brief Focused tests for Runtime asset bootstrap diagnostic classification.
 

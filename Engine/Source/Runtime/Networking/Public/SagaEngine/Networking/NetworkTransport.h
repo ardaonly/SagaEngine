@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file NetworkTransport.h
 /// @brief Async UDP transport layer built on Boost.Asio with send queue, keepalive, and handshake.
 ///

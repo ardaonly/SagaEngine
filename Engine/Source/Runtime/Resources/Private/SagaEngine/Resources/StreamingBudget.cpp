@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file StreamingBudget.cpp
 /// @brief Per-platform memory budget configuration for asset streaming.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RenderGraphFrameExecutor.cpp
 /// @brief Private frame lifecycle wrapper for RenderGraph execution.
 

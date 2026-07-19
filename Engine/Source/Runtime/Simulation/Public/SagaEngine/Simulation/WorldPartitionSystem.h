@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorldPartitionSystem.h
 /// @brief Zone-partitioned world system with zone callbacks and spatial indexing.
 ///

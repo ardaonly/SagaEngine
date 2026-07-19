@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file UiInputRouter.cpp
 /// @brief Default backend-neutral UI input router implementation.
 

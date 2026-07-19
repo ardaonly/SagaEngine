@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorProfileSettingsBinding.cpp
 /// @brief Persists the active editor workflow profile id.
 

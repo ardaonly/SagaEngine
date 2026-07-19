@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentPipelineCache.cpp
 /// @brief Private Diligent graphics PSO cache helpers.
 

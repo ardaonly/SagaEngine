@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Boundary.cpp
 /// @brief Ring classification for the cell apron around a focal cell.
 

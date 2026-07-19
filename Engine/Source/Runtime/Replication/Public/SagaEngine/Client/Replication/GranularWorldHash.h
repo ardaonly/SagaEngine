@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file GranularWorldHash.h
 /// @brief Subsystem-level and component-level hash for desync debugging.
 ///

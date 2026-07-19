@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file UiScreenManager.cpp
 /// @brief Backend-neutral runtime UI screen manager implementation.
 

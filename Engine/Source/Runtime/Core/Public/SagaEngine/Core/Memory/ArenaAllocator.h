@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ArenaAllocator.h
 /// @brief Chained-block arena (linear) allocator with marker / rewind.
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorMode.h
 /// @brief Mountable editor mode facade for Saga-owned product windows.
 

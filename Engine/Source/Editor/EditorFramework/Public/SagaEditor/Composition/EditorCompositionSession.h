@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorCompositionSession.h
 /// @brief Startup session state for compiled editor composition consumption.
 

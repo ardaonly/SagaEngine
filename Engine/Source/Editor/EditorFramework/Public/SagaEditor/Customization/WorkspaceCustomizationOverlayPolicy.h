@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorkspaceCustomizationOverlayPolicy.h
 /// @brief Resolves safe workspace customization overlay storage paths.
 

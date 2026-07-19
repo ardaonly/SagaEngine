@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RGPass.h
 /// @brief A single pass node inside the render graph.
 

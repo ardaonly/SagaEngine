@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IEditorEngineBridge.cpp
 /// @brief Editor engine bridge helpers.
 

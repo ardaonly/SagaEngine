@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PlayableRenderSliceTests.cpp
 /// @brief Verifies the smallest sandbox render scene reaches backend submit.
 

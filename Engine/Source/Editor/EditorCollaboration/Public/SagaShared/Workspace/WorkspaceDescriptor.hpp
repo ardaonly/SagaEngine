@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorkspaceDescriptor.hpp
 /// @brief Neutral workspace descriptor used by editor, runtime, and collaboration layers.
 

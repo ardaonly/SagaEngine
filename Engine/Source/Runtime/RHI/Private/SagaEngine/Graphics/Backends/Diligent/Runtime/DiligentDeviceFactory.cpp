@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentDeviceFactory.cpp
 /// @brief Runtime-owned Diligent device and swapchain factory helpers.
 

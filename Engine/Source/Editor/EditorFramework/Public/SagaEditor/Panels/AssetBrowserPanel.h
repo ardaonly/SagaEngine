@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AssetBrowserPanel.h
 /// @brief Asset browser panel — directory tree + asset grid.
 ///

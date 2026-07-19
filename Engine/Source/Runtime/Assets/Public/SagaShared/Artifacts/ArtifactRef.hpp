@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ArtifactRef.hpp
 /// @brief Shared artifact reference contract.
 

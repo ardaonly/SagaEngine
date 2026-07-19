@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """Verification profile definitions for SagaSync."""
 
 from __future__ import annotations

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AssetRegistryTests.cpp
 /// @brief Unit tests for runtime asset registry identity metadata.
 

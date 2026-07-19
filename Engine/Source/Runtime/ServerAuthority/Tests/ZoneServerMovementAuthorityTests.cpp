@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ZoneServerMovementAuthorityTests.cpp
 /// @brief Socket-free tests for ZoneServer authoritative movement intake wiring.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorProfileRegistry.cpp
 /// @brief Editor workflow profile catalogue implementation.
 

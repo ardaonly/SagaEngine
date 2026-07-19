@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DefaultUiResourceProvider.cpp
 /// @brief Filesystem-backed logical UI resource provider.
 

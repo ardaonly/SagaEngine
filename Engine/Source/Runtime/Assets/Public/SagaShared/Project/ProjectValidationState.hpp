@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ProjectValidationState.hpp
 /// @brief Validation state vocabulary for shared project descriptors.
 

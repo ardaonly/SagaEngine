@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorCompositionDiagnostics.cpp
 /// @brief Helpers for querying editor composition diagnostic collections.
 

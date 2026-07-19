@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorProjectInspection.h
 /// @brief Defines the Editor-owned project inspection report service.
 

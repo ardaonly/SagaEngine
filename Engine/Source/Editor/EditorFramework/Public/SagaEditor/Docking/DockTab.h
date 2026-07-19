@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DockTab.h
 /// @brief Descriptor for a single docked or floating panel tab.
 

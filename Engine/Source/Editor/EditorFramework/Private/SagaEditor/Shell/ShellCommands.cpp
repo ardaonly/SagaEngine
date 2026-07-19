@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ShellCommands.cpp
 /// @brief Registration of built-in shell commands (File, Edit, View, World).
 

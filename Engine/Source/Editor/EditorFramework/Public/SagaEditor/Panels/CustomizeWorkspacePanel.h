@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CustomizeWorkspacePanel.h
 /// @brief Safe Customize Workspace panel backed by editor customization session.
 

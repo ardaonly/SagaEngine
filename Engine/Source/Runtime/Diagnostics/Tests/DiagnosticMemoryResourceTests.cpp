@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiagnosticMemoryResourceTests.cpp
 /// @brief Verifies diagnostics memory and resource snapshot foundations.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AudioFilter.cpp
 /// @brief Audio event filtering — distance cull, voice limit, dedup, cooldown.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file FaultBoundary.hpp
 /// @brief Minimal runtime fault policy classification helpers.
 

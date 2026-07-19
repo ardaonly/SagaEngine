@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DomainScheduler.h
 /// @brief Multi-rate tick scheduler for simulation domains.
 ///

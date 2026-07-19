@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ResourceSnapshot.cpp
 /// @brief Implements deterministic diagnostics resource snapshots.
 

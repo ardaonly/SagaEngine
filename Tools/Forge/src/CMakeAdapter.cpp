@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file CMakeAdapter.cpp
 /// @brief CMake and CTest backend adapter — the only file in Forge that invokes cmake/ctest.
 

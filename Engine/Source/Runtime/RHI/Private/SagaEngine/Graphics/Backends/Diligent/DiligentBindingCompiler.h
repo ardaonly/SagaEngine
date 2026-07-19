@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentBindingCompiler.h
 /// @brief Private compiler from Saga binding vocabulary to Diligent metadata.
 

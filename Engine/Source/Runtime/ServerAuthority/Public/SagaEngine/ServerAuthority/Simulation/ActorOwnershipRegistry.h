@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ActorOwnershipRegistry.h
 /// @brief Server-side client-to-controlled-actor ownership contract.
 

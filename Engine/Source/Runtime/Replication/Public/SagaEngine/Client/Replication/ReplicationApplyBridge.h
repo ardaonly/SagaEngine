@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ReplicationApplyBridge.h
 /// @brief Glue between `SnapshotApplyPipeline`, `ReconciliationBuffer`, and
 ///        `InterpolationManager`.

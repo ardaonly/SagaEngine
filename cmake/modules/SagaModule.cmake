@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 include(CMakeParseArguments)
 
 function(_saga_register_module kind module_name)

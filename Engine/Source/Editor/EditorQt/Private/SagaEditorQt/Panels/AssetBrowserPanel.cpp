@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AssetBrowserPanel.cpp
 /// @brief Qt backend implementation. The public header lives outside
 ///        UI/Qt/ (Panels/AssetBrowserPanel.h);

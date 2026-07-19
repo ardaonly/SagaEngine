@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IUIWidget.h
 /// @brief Abstract UI widget — the atom of the UI abstraction layer.
 

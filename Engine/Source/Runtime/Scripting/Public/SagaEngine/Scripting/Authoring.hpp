@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Authoring.hpp
 /// @brief Aggregate include for public SagaScript authoring helpers.
 

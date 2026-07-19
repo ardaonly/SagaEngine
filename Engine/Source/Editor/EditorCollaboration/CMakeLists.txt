@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 saga_add_program(EditorCollaborationProductIntegration
     MODULE_DIR Engine/Source/Editor/EditorCollaboration
     TARGET SagaProductLib

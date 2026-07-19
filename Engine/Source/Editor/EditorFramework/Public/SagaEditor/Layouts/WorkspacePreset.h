@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorkspacePreset.h
 /// @brief Named workspace combining a dock layout, theme, and toolbar configuration.
 

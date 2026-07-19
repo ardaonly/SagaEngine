@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file MovementValidator.h
 /// @brief Server-side movement anti-cheat — speed, teleport, and trajectory gating.
 ///

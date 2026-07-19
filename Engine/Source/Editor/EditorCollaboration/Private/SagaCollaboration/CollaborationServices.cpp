@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CollaborationServices.cpp
 /// @brief In-memory collaboration service boundary implementations.
 

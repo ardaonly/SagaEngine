@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PackageManifestLoaderTests.cpp
 /// @brief Unit tests for runtime package manifest loading and startup validation.
 

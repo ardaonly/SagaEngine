@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RenderPlaygroundScenario.h
 /// @brief Multi-object scene with frustum culling and WASD fly-camera.
 ///

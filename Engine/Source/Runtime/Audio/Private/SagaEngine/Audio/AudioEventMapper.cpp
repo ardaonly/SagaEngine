@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AudioEventMapper.cpp
 /// @brief Gameplay intent → AudioEvent mapping with context enrichment.
 

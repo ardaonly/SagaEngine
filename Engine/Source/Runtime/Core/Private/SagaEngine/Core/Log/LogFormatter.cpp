@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file LogFormatter.cpp
 /// @brief Implements private text formatting for diagnostics log sinks.
 

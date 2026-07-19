@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IPubSubBus.h
 /// @brief Publish / subscribe event bus for cross-process notifications.
 ///

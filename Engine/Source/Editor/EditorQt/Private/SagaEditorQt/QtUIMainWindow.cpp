@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file QtUIMainWindow.cpp
 /// @brief Qt implementation of IUIMainWindow.
 

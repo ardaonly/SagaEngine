@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DeterminismGuardTest.h
 /// @brief Cross-platform determinism verification tests.
 ///

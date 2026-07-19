@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorDiagnosticsService.h
 /// @brief In-memory implementation of the editor diagnostics service.
 

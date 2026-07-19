@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ReplicationScheduler.h
 /// @brief Deterministic execution scheduler for the replication apply pipeline.
 ///

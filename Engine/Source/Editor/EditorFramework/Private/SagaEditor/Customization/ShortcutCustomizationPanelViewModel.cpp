@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ShortcutCustomizationPanelViewModel.cpp
 /// @brief Safe Shortcut Preferences view model implementation.
 

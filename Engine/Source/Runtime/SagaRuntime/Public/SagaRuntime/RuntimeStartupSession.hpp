@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeStartupSession.hpp
 /// @brief Runtime-owned startup session preparation facade.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IUIApplication.h
 /// @brief Abstract UI application — owns the event loop lifecycle.
 

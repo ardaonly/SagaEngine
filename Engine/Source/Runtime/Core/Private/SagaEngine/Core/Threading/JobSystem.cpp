@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "SagaEngine/Core/Threading/JobSystem.h"
 
 namespace SagaEngine::Core {

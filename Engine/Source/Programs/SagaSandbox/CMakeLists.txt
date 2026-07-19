@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 set(SAGA_SANDBOX_AUXILIARY_SOURCES
     ${SAGA_ROOT}/Engine/Source/Programs/SagaSandbox/Private/Launchers/HeadlessLauncher.cpp
     ${SAGA_ROOT}/Engine/Source/Programs/SagaSandbox/Private/Launchers/InputProbeLauncher.cpp

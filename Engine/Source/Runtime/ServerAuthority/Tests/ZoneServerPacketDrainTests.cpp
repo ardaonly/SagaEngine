@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ZoneServerPacketDrainTests.cpp
 /// @brief Tests for ZoneServer raw inbound frame normalization.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ArtifactRef.hpp
 /// @brief Defines one artifact reference from a runtime artifact manifest.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScenarioRegistry.cpp
 /// @brief Global self-registration list and bulk-register helper.
 

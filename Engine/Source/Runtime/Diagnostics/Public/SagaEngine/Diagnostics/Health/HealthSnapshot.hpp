@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file HealthSnapshot.hpp
 /// @brief Captures an immutable view of diagnostic health metrics.
 

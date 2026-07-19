@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Application.h
 /// @brief Core engine application — owns the main loop, window, and subsystem lifecycle.
 

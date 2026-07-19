@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file BlockIR.h
 /// @brief Canonical IR shared by block authoring and the future C# parser.
 ///

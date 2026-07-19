@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeAssetStartupBootstrap.cpp
 /// @brief App-local Runtime asset bootstrap helper implementation.
 

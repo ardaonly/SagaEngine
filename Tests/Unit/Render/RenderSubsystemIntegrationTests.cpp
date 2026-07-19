@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RenderSubsystemIntegrationTests.cpp
 /// @brief Multi-frame, scale, and fault-behaviour tests for the render driver.
 ///

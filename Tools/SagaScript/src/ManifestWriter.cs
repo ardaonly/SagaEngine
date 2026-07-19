@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 // ManifestWriter.cs
 // Writes SagaScript diagnostics and manifest JSON outputs.
 

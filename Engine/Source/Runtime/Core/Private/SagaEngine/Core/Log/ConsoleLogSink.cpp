@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ConsoleLogSink.cpp
 /// @brief Implements stderr output for diagnostics log events.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeHostTests.cpp
 /// @brief Verifies the app-private standalone runtime host boundary.
 

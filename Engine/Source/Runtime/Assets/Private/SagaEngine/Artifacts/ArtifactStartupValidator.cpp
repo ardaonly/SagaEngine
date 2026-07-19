@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ArtifactStartupValidator.cpp
 /// @brief Implements runtime startup acceptance policy for artifact manifests.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorProfileActivator.cpp
 /// @brief Editor profile activation fan-out implementation.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScenarioRegistry.h
 /// @brief Self-registration mechanism for sandbox scenarios.
 ///

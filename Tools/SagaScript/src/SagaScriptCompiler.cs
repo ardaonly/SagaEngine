@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 // SagaScriptCompiler.cs
 // Emits validated SagaScript assemblies and script artifact manifests.
 

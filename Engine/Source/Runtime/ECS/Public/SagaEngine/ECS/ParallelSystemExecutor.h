@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ParallelSystemExecutor.h
 /// @brief Runs ECS systems in parallel under the TaskGraph scheduler.
 ///

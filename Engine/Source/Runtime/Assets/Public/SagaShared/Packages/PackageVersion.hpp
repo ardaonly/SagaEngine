@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PackageVersion.hpp
 /// @brief Shared package version value.
 

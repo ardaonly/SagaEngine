@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeAssetStartupBootstrapTests.cpp
 /// @brief Focused tests for the SagaRuntime asset bootstrap helper seam.
 

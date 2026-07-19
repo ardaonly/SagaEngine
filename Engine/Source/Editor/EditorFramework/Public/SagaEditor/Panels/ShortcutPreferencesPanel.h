@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ShortcutPreferencesPanel.h
 /// @brief Safe Shortcut Preferences panel backed by editor customization session.
 

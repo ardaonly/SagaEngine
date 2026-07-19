@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file InspectorBinder.h
 /// @brief Bridges the active selection to the inspector's edit pipeline.
 

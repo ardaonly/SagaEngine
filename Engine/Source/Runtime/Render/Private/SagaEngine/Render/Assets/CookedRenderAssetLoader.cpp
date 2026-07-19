@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "SagaEngine/Render/Assets/CookedRenderAssetLoader.h"
 
 #include <nlohmann/json.hpp>

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CullingPipelineTests.cpp
 /// @brief Integration tests for the four-stage culling pipeline.
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AudioTestScenario.cpp
 /// @brief Audio pipeline test scenario — exercises the full intent→dispatch chain.
 

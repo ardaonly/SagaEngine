@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CrossZoneVisibility.h
 /// @brief Shared visibility of boundary entities between adjacent zones.
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SnapshotApplyPipeline.cpp
 /// @brief Client-side pipeline that folds server snapshots into the local ECS.
 

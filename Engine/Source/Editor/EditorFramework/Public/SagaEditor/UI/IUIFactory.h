@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IUIFactory.h
 /// @brief Abstract factory that creates the concrete IUIApplication and IUIMainWindow.
 

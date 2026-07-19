@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ClientServerTests.cpp
 /// @brief Integration tests for full client-server loopback scenarios.
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PackageId.hpp
 /// @brief Shared stable package identifier.
 

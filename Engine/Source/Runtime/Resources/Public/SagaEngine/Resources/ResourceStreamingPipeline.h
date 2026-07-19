@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ResourceStreamingPipeline.h
 /// @brief Async resource streaming pipeline with priority queue, memory budget, and LOD smoothing.
 ///

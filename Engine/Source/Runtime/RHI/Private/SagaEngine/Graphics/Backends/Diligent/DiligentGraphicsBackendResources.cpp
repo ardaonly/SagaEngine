@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentGraphicsBackendResources.cpp
 /// @brief Resource create/destroy implementation for the Diligent graphics adapter.
 

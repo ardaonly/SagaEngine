@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorQtPublicAbiBoundaryTests.cpp
 /// @brief Guards public Editor headers against new Qt ABI exposure.
 

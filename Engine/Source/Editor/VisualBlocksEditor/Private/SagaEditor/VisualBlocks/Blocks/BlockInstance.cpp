@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file BlockInstance.cpp
 /// @brief Implementation of placed-block-instance equality.
 

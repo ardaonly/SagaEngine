@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AssetManifestWriterTests.cpp
 /// @brief Tests for Runtime-compatible AssetPipeline asset manifest writing.
 

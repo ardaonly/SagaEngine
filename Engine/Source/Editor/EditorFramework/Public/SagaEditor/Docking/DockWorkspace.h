@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DockWorkspace.h
 /// @brief Panel docking facade — thin wrapper around IUIMainWindow's dock API.
 

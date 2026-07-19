@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorCompositionSession.cpp
 /// @brief EditorCompositionSession implementation.
 

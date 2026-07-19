@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ComponentRegistration.cpp
 /// @brief Central registration for all standard ECS components.
 ///

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 saga_add_editor_module(EditorExperimental
     MODULE_DIR Engine/Source/Editor/EditorExperimental
     TARGET SagaEditorLib

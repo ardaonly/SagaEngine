@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ReplicationManager.cpp
 /// @brief Server-side replication manager implementation.
 

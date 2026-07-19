@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file TelemetryAlertSystem.cpp
 /// @file TelemetryAlertSystem.cpp
 /// @brief Threshold-based alerting for replication telemetry.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CustomizationScenario.h
 /// @brief EditorLab scenarios for project/user editor customisation precedence.
 

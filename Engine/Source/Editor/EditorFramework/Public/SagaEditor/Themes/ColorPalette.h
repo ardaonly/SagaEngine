@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ColorPalette.h
 /// @brief Named color tokens used by EditorTheme — the single source of color truth.
 

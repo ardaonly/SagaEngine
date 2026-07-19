@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file NetEntityBindingTests.cpp
 /// @brief Lifecycle tests for the network-id → RenderEntity bridge.
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file StressReportPaths.hpp
 /// @brief Defines deterministic SagaStressArena report artifact paths.
 

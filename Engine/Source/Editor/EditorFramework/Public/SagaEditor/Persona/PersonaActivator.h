@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PersonaActivator.h
 /// @brief Fans a persona change out to theme, layout, density, and graph systems.
 

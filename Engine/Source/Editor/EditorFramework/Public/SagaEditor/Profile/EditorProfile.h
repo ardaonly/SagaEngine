@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorProfile.h
 /// @brief Workflow profile descriptor for editor shell composition.
 

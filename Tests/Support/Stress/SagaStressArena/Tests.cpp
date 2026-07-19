@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaStressArenaTests.cpp
 /// @brief Verifies bounded SagaStressArena diagnostics artifact scenarios.
 

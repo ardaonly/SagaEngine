@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SnapshotBuilder.cpp
 /// @brief Engine-owned snapshot wire payload builder implementation.
 

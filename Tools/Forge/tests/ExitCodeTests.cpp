@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file ExitCodeTests.cpp
 /// @brief Stable coverage for Forge CLI exit code categories.
 

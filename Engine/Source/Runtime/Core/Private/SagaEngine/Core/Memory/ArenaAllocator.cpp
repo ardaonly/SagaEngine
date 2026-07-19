@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ArenaAllocator.cpp
 /// @brief Chained-block arena implementation with marker / rewind.
 

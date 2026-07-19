@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PersonaRegistry.h
 /// @brief Owns the catalog of available UI personas — built-in + user-authored.
 

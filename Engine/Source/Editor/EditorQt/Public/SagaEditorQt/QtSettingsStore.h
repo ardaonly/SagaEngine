@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file QtSettingsStore.h
 /// @brief QSettings-backed implementation of IEditorSettingsStore.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorProfile.cpp
 /// @brief Built-in editor workflow profile descriptors.
 

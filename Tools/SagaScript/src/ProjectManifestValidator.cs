@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 // ProjectManifestValidator.cs
 // Resolves projects through the SagaProjectKit-owned shared contract.
 

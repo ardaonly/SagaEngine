@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Component.cpp
 /// @brief ECS component registry utilities.
 

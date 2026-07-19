@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MPL-2.0
 """
 @file export_tool_mirrors.py
 @brief Export monorepo tool subtrees to mirror repositories.

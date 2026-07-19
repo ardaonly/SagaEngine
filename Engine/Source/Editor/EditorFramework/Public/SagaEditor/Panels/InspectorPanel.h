@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file InspectorPanel.h
 /// @brief Component inspector panel — edits properties of selected entities.
 ///

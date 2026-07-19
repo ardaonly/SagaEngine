@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PackageKind.hpp
 /// @brief Shared package kind vocabulary.
 

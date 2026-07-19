@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file FrameResourceAllocator.h
 /// @brief Private CPU-side frame resource range allocator.
 

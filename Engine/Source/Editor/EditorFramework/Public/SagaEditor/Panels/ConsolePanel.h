@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ConsolePanel.h
 /// @brief Console/log panel — colour-coded severity output with auto-scroll.
 ///

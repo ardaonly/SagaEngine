@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file LocalEditorEngineBridge.cpp
 /// @brief In-process editor bridge implementation.
 

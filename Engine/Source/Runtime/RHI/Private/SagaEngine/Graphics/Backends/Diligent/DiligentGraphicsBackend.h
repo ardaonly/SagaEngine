@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentGraphicsBackend.h
 /// @brief Private SagaGraphics lifecycle adapter over the render backend.
 

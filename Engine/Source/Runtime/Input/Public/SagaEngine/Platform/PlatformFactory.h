@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PlatformFactory.h
 /// @brief Abstract factory for all platform-specific object creation.
 

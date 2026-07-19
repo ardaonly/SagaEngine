@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IAsyncQueryExecutor.h
 /// @brief Non-blocking SQL query execution fronted by a pool.
 ///

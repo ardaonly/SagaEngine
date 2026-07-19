@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorkspaceCustomizationFeedback.cpp
 /// @brief Qt-free notification formatting for Safe Customize Workspace operations.
 

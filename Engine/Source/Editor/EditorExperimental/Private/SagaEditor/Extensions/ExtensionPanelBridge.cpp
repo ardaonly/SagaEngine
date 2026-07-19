@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ExtensionPanelBridge.cpp
 /// @brief Pimpl scaffolding — auto-generated stub bodies.
 

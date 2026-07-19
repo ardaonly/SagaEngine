@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ModuleManager.h
 /// @brief Lifecycle manager for statically registered engine modules.
 ///

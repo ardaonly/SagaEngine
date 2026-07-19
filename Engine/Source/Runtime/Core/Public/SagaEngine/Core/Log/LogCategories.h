@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file LogCategories.h
 /// @brief Canonical log tag strings for every major engine subsystem.
 ///

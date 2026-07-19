@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file LayoutSerializer.cpp
 /// @brief Save and load dock layouts and workspace presets to/from JSON.
 

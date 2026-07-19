@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RenderCommand.cpp
 /// @brief CommandRecorder implementation — currently header-only, this file
 ///        anchors future non-inline helpers (batch recording, command stats).

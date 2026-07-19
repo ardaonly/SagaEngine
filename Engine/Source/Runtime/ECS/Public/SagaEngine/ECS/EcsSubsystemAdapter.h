@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EcsSubsystemAdapter.h
 /// @brief Bridges `ECS::ISystem` instances into the engine-wide SubsystemManager.
 ///

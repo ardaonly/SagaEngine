@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentRenderBackendFrame.cpp
 /// @brief Per-frame begin/end bookkeeping for DiligentRenderBackend.
 

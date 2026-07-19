@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CommandCodec.h
 /// @brief Field-by-field little-endian reader/writer for gameplay command payloads.
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RGCompilation.h
 /// @brief Compiles a set of RGPass nodes into an execution schedule.
 

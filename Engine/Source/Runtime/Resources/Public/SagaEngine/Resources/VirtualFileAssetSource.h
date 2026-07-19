@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file VirtualFileAssetSource.h
 /// @brief VFS-backed asset source implementation.
 

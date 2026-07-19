@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScriptBindingRuntimeRunner.cpp
 /// @brief BUILD_TESTING-only editorless SagaScript binding runtime runner.
 

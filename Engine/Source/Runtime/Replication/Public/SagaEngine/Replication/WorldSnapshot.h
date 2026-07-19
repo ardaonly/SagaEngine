@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorldSnapshot.h
 /// @brief Full world state capture for checkpoint, reconnect, and replay.
 ///

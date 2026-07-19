@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file BlockKind.cpp
 /// @brief Implementation of the block-based shape vocabulary.
 

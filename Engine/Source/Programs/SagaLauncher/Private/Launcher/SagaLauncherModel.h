@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaLauncherModel.h
 /// @brief Qt-independent Product Launcher state and action vocabulary.
 

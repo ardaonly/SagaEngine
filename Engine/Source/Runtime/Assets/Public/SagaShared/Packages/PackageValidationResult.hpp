@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PackageValidationResult.hpp
 /// @brief Shared package validation result contract.
 

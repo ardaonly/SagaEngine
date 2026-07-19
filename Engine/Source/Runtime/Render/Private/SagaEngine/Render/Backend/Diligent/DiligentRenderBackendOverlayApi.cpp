@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentRenderBackendOverlayApi.cpp
 /// @brief Overlay and frame capture wrappers for DiligentRenderBackend.
 

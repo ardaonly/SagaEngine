@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeCommandLine.h
 /// @brief App-local command line state shared by SagaRuntime command handlers.
 

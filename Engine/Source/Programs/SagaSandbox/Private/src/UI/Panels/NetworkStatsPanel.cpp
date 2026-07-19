@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file NetworkStatsPanel.cpp
 
 #include "SagaSandbox/UI/Panels/NetworkStatsPanel.h"

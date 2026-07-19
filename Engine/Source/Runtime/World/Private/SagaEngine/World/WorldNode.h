@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorldNode.h
 /// @brief World Kernel node — the server process that owns cells, domains, and replication.
 ///

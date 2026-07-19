@@ -1,4 +1,3 @@
-// SPDX-FileCopyrightText: 2026 Arda Koyuncu
 // SPDX-License-Identifier: MPL-2.0
 
 #include "SagaEditor/SceneEditing/SceneDocumentTransaction.h"

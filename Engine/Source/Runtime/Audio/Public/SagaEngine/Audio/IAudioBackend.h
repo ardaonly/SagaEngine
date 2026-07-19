@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IAudioBackend.h
 /// @brief Abstract audio backend interface — Wwise (or FMOD / custom) sits behind this.
 ///

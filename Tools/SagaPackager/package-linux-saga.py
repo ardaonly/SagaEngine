@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MPL-2.0
 """Linux Saga distribution layout staging and preflight.
 
 This script stages the first Linux layout from real existing inputs, then

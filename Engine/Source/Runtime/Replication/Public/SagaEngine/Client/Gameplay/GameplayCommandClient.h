@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file GameplayCommandClient.h
 /// @brief Type-safe client-side stubs for every gameplay command.
 ///

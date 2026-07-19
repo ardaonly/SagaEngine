@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeApplication.h
 /// @brief Declares the standalone SagaRuntime application runner.
 

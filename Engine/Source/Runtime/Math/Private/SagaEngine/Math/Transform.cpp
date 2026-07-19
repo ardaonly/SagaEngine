@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Transform.cpp
 /// @brief Transform non-inline method implementations.
 

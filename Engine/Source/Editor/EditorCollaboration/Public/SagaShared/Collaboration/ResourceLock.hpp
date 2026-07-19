@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ResourceLock.hpp
 /// @brief Hard resource lock contract for collaboration coordination.
 

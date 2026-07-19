@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ShadowMap.h
 /// @brief Shadow map allocation, cascade split, and pass descriptor.
 ///

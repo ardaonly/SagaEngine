@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PhysicsEngine.h
 /// @brief High-level physics engine that wraps PhysicsWorld for easy integration.
 

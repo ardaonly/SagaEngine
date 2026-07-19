@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file GameplayCommandDispatcher.h
 /// @brief Fan-out from a single RPC entry ("gcmd") to typed gameplay handlers.
 ///

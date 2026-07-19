@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AssetIdentityManifestLoaderTests.cpp
 /// @brief Unit tests for runtime asset identity manifest loading.
 

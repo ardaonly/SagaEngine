@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file BackpressureSignal.h
 /// @brief Backpressure signaling interface between network transport and replication.
 ///

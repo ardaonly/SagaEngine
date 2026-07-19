@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DockLayoutManager.cpp
 /// @brief Saves, loads, and switches dock layouts and workspace presets.
 

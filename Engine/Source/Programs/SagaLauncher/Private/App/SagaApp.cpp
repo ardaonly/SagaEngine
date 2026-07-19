@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaApp.cpp
 /// @brief Saga product orchestration lifecycle implementation.
 

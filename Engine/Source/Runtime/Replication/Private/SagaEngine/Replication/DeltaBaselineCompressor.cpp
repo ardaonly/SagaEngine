@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DeltaBaselineCompressor.cpp
 /// @brief XOR-baseline delta compressor implementation.
 

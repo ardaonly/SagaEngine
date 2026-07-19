@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Skeleton.cpp
 /// @brief Skeleton rest-pose computation.
 

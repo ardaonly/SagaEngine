@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaProcessLauncher.h
 /// @brief Product-local process launch boundary for Saga role targets.
 

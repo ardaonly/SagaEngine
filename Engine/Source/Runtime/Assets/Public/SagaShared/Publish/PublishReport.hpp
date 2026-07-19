@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PublishReport.hpp
 /// @brief Shared publish report contract.
 

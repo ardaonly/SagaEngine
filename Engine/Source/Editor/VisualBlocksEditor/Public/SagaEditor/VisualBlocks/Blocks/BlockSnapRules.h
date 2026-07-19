@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file BlockSnapRules.h
 /// @brief Kind-driven adjacency rules — what can connect to what.
 ///

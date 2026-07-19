@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Interact.h
 /// @brief Client intent to interact with a world entity (NPC, loot, door, object).
 ///

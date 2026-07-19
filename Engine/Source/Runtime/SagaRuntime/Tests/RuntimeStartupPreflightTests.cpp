@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeStartupPreflightTests.cpp
 /// @brief Focused tests for the Runtime-owned startup preflight facade.
 

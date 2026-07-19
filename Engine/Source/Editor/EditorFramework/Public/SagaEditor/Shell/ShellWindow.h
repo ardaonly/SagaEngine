@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ShellWindow.h
 /// @brief Thin facade over `IUIMainWindow` — keeps the editor UI-toolkit-agnostic.
 ///

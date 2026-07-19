@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file FakeGateTool.cpp
 /// @brief Test-only external diagnostics tool used by Forge gate tests.
 

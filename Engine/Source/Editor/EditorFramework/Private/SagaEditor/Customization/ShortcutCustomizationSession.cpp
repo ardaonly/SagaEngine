@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ShortcutCustomizationSession.cpp
 /// @brief Host-owned shortcut customization session implementation.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ExtensionRegistry.cpp
 /// @brief Catalogue of all installed editor extensions.
 

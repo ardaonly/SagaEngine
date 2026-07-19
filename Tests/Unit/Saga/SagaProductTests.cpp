@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaProductTests.cpp
 /// @brief Tests for Saga product orchestration startup boundaries.
 

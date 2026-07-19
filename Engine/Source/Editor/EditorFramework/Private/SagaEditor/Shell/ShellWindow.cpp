@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ShellWindow.cpp
 /// @brief Thin facade over `IUIMainWindow` — no UI toolkit appears here.
 ///

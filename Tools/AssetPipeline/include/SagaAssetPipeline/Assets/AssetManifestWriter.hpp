@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AssetManifestWriter.hpp
 /// @brief Writes AssetPipeline asset entries to the Runtime asset manifest schema.
 

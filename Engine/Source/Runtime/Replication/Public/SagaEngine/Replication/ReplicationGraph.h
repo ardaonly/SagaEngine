@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ReplicationGraph.h
 /// @brief Per-client entity relevancy graph with priority queues and bandwidth budgeting.
 ///

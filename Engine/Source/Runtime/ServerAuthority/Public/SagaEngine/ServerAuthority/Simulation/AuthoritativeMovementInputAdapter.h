@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AuthoritativeMovementInputAdapter.h
 /// @brief Converts production-shaped Engine input into the server movement core.
 

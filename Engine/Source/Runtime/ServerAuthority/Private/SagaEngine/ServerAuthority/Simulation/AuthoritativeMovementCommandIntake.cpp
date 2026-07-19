@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AuthoritativeMovementCommandIntake.cpp
 /// @brief AuthoritativeMovementCommandIntake implementation.
 

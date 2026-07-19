@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file BuildReport.hpp
 /// @brief Forge-local build report foundation contracts.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorCompositionResolver.h
 /// @brief Resolves compiled editor composition artifacts with safe user overlays.
 

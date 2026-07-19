@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """Read-only commit plan evaluation for SagaSync."""
 
 from __future__ import annotations

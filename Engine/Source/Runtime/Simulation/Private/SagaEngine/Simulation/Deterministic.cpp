@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Deterministic.cpp
 /// @brief Deterministic method implementations.
 

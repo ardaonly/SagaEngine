@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DeviceRegistry.h
 /// @brief Owns logical input devices and routes hotplug and per-frame input to them.
 ///

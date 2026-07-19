@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DensityProfile.h
 /// @brief Spacing, font, and hit-box scale that drives every persona's feel.
 

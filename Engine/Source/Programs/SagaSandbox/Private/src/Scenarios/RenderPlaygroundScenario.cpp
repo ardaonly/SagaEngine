@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RenderPlaygroundScenario.cpp
 /// @brief Multi-object scene with frustum culling exercising the render pipeline.
 

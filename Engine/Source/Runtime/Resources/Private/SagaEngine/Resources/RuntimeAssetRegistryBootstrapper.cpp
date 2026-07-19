@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeAssetRegistryBootstrapper.cpp
 /// @brief Package asset registry bootstrap implementation.
 

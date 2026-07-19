@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AssetIdentityManifestLoader.cpp
 /// @brief Implements package AssetKey to runtime AssetId manifest loading.
 

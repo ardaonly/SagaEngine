@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #pragma once
 #include "SagaEngine/ECS/Entity.h"
 #include <cstddef>

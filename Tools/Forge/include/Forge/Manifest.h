@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file Manifest.h
 /// @brief Minimal forge.toml loader / mutator / serializer.
 

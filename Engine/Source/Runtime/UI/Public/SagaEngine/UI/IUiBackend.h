@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IUiBackend.h
 /// @brief Minimal backend-neutral runtime UI backend contract.
 

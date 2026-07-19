@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ProblemsPanel.cpp
 /// @brief Qt backend implementation for the editor Problems panel.
 

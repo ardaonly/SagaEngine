@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DebugHud.h
 /// @brief Composite debug HUD rendered with Dear ImGui each frame.
 ///

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 # ─── SagaFindATL.cmake ────────────────────────────────────────────────────────
 #
 # Thorough search for Microsoft ATL (atls.lib) required by Diligent's static

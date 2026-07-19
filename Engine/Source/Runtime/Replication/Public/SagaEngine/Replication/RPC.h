@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RPC.h
 /// @brief Server-side RPC (Remote Procedure Call) system with codec and dispatch table.
 ///

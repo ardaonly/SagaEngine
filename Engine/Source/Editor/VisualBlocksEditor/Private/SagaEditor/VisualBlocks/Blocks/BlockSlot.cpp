@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file BlockSlot.cpp
 /// @brief Implementation of slot identity, definition, and fill types.
 

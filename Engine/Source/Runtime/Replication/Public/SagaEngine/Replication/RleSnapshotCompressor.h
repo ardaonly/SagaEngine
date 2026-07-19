@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RleSnapshotCompressor.h
 /// @brief Dependency-free byte-oriented run-length encoder for snapshots.
 ///
