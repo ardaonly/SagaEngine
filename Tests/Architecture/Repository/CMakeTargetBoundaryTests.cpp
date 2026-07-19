@@ -369,7 +369,13 @@ TEST(CMakeTargetBoundaryTests, GraphicsAggregateKeepsNativeLifecyclePrivate)
 TEST(CMakeTargetBoundaryTests, DiligentPrivateTestsHaveDedicatedTargets)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
-    const auto tests = ReadText(root / "cmake/modules/SagaTests.cmake");
+    const auto tests =
+        ReadText(root / "cmake/modules/SagaTests.cmake") +
+        ReadText(root / "cmake/modules/tests/SagaTestSources.cmake") +
+        ReadText(root / "cmake/modules/tests/SagaCoreTestTargets.cmake") +
+        ReadText(root / "cmake/modules/tests/SagaRuntimeTestTargets.cmake") +
+        ReadText(root / "cmake/modules/tests/SagaProductEditorTestTargets.cmake") +
+        ReadText(root / "cmake/modules/tests/SagaEvidenceTestTargets.cmake");
 
     EXPECT_NE(
         tests.find("add_executable(SagaDiligentWhiteboxTests"),
