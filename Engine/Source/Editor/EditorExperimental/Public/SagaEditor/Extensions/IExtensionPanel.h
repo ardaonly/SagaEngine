@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #pragma once
 #include "SagaEditor/Panels/IPanel.h"
 #include "SagaEditor/Extensions/ExtensionPoint.h"

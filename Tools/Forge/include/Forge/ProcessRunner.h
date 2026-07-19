@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file ProcessRunner.h
 /// @brief Internal cross-platform child-process spawn used by Forge subcommands.
 

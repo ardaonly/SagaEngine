@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file LODSelector.h
 /// @brief Distance-based LOD level selection with quality presets and bias.
 ///

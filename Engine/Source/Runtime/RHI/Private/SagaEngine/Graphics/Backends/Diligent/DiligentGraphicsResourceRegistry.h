@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentGraphicsResourceRegistry.h
 /// @brief Private handle registry used by the Diligent graphics adapter.
 

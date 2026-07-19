@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file TickDriftCorrector.cpp
 /// @brief Client clock drift correction and long-term tick alignment.
 

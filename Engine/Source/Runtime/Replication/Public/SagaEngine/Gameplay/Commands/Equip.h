@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Equip.h
 /// @brief Equip / unequip / swap an item into a paper-doll slot.
 ///

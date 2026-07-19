@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file main.cpp
 /// @brief CLI entry point for bounded SagaChaosLab chaos profile runs.
 

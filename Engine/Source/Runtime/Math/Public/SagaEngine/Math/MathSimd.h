@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file MathSimd.h
 /// @brief Vector-width abstraction layer for SIMD-accelerated math paths.
 ///

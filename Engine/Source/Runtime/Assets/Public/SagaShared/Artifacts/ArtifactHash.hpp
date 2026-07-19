@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ArtifactHash.hpp
 /// @brief Shared artifact content hash value.
 

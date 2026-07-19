@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file LightingContractTests.cpp
 /// @brief Unit tests for the forward lighting data contract.
 

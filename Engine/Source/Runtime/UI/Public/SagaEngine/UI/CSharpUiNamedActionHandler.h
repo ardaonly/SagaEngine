@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CSharpUiNamedActionHandler.h
 /// @brief UI named action handler backed by an existing C# SagaScript instance.
 

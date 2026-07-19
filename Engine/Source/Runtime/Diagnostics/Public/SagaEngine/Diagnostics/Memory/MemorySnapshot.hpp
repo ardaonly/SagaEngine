@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file MemorySnapshot.hpp
 /// @brief Captures deterministic diagnostics memory records.
 

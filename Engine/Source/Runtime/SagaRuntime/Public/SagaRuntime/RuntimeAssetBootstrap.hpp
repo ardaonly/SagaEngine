@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeAssetBootstrap.hpp
 /// @brief Runtime-owned package asset registry bootstrap facade.
 

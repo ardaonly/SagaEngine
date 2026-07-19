@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ArtifactManifestLoader.hpp
 /// @brief Loads and validates runtime artifact manifest files.
 

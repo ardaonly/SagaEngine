@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorProfileActivator.h
 /// @brief Fans active editor profiles out to shell-level workflow sinks.
 

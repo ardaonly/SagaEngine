@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file LifetimeTracker.cpp
 /// @brief Implements logical lifetime and ownership tracking.
 

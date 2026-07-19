@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ResourceStreamingPipeline.cpp
 /// @brief Async resource streaming pipeline implementation.
 

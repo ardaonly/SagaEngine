@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SandboxImGuiOverlayAdapter.cpp
 /// @brief Dear ImGui to Saga generic overlay draw-list conversion.
 

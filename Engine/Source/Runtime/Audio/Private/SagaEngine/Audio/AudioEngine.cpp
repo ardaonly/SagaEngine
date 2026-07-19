@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AudioEngine.cpp
 /// @brief Top-level audio engine — full pipeline: intent → map → filter → dispatch.
 

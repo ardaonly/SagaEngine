@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeAssetBootstrapDiagnostics.hpp
 /// @brief Runtime-owned package asset bootstrap diagnostic classification.
 

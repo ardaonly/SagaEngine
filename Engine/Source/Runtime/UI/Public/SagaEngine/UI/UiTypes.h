@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file UiTypes.h
 /// @brief Backend-neutral runtime UI value types and diagnostics.
 

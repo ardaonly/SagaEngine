@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScenarioRuntimeAdapter.h
 /// @brief Narrow runtime adapter surface used by EditorLab scenario execution.
 

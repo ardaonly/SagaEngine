@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file FrameGraphExecutor.h
 /// @brief Walks a compiled frame graph and executes each pass in order.
 

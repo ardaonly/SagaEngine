@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 // Tests/Unit/Profiling/ProfilerTests.cpp
 #include "SagaEngine/Core/Profiling/Profiler.h"
 #include <gtest/gtest.h>

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorCompositionTests.cpp
 /// @brief Unit tests for editor composition artifact consumption.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ModuleRegistry.h
 /// @brief Registry for statically linked module factories and descriptors.
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file LockService.hpp
 /// @brief Hard resource lock service boundary for collaboration workflows.
 

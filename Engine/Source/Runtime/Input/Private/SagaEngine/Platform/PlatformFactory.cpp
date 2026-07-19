@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PlatformFactory.cpp
 /// @brief Singleton registry implementation for PlatformFactory.
 

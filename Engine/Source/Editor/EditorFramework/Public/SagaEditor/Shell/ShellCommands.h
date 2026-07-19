@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ShellCommands.h
 /// @brief Free function that registers all built-in shell commands.
 

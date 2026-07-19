@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentGraphicsRuntime.h
 /// @brief Private Diligent runtime frame, upload, and command vocabulary.
 

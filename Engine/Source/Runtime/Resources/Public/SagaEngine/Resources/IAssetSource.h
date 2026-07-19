@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IAssetSource.h
 /// @brief Pluggable backend contract that fulfils streaming requests.
 ///

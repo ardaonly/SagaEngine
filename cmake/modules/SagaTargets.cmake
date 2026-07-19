@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 # --- Tools/SagaForge/cmake/modules/SagaTargets.cmake -------------------------
 
 macro(saga_collect_sources out_var dir)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file main.cpp
 /// @brief Forge CLI entry — Cargo-flavoured orchestration frontend for CMake and Conan.
 

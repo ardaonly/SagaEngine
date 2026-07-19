@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorkspaceSyncState.hpp
 /// @brief Shared workspace synchronization state vocabulary.
 

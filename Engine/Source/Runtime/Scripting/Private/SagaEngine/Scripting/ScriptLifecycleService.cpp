@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScriptLifecycleService.cpp
 /// @brief Implements SagaScript lifecycle orchestration over ISagaScriptHost.
 

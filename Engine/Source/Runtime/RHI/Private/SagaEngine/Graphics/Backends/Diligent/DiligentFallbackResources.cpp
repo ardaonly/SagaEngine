@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentFallbackResources.cpp
 /// @brief Private native binding fallback resource ownership for Diligent.
 

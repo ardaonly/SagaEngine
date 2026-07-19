@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file FaultBoundary.cpp
 /// @brief Implements minimal fault classification diagnostics.
 

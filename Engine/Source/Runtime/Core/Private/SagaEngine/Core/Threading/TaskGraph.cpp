@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file TaskGraph.cpp
 /// @brief Implementation of the dependency-aware TaskGraph scheduler.
 

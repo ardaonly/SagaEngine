@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ProfileSwitchScenario.h
 /// @brief EditorLab scenario for validating visible workflow profile changes.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiagnosticFoundationTests.cpp
 /// @brief Verifies the initial SagaDiagnostics logging, health, and lifetime foundation.
 

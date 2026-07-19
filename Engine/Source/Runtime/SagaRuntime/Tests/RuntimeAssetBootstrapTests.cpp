@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeAssetBootstrapTests.cpp
 /// @brief Focused tests for the Runtime package asset bootstrap facade.
 

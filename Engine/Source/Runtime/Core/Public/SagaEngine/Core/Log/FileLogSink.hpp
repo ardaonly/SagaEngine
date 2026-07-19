@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file FileLogSink.hpp
 /// @brief Declares append-only file output for diagnostics log events.
 

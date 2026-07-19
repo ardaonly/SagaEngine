@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file HierarchyPanel.h
 /// @brief Scene entity hierarchy panel — tree view of all world entities.
 ///

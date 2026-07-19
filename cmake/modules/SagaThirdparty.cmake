@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 function(saga_setup_thirdparty)
     find_package(asio CONFIG REQUIRED)
     find_package(Qt6 CONFIG REQUIRED COMPONENTS Core Gui Widgets)

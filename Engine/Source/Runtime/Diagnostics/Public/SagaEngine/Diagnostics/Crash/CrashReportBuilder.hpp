@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CrashReportBuilder.hpp
 /// @brief Builds crash and reliability reports from diagnostics snapshots.
 

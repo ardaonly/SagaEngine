@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AuthoritativeMovementCommandIntake.h
 /// @brief Normalized packet/session intake for authoritative movement commands.
 

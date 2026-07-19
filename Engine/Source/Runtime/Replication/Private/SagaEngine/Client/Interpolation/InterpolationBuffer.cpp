@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file InterpolationBuffer.cpp
 /// @brief Client-side snapshot interpolation buffer implementation.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SandboxImGuiOverlayAdapter.h
 /// @brief Converts Dear ImGui draw data into Saga's generic overlay API.
 

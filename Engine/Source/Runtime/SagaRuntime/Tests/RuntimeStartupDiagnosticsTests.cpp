@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeStartupDiagnosticsTests.cpp
 /// @brief Focused tests for Runtime startup diagnostic classification.
 

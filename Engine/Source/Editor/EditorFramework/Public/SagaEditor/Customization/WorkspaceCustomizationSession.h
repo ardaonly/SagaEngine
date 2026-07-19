@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorkspaceCustomizationSession.h
 /// @brief Host-owned session for safe workspace customization.
 

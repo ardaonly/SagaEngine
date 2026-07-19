@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeServiceRegistry.cpp
 /// @brief Runtime service registry implementation.
 

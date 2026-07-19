@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ShaderTypes.h
 /// @brief Shader stage descriptors for the RHI abstraction layer.
 

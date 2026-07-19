@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AssetIdResolver.cpp
 /// @brief Explicit AssetKey to AssetId resolution implementation.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaLauncherReports.cpp
 
 #include "Reports/SagaLauncherReports.h"

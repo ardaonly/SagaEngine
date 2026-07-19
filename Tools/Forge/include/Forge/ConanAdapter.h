@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file ConanAdapter.h
 /// @brief Conan backend adapter — lowers BuildModel dependency info into conan invocations.
 ///

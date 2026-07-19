@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RenderGraph.h
 /// @brief Front-end API for building and executing a render graph each frame.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RleSnapshotCompressor.cpp
 /// @brief Implementation of the byte-oriented RLE snapshot codec.
 

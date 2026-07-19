@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file LifetimeHandle.hpp
 /// @brief Defines opaque handles for tracked logical object lifetimes.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScenarioResult.cpp
 /// @brief Verdict helpers and diagnostic aggregation for EditorLab scenarios.
 

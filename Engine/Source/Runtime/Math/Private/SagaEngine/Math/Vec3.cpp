@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Vec3.cpp
 /// @brief Vec3 non-inline method implementations.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PackageStartupValidator.hpp
 /// @brief Applies runtime startup acceptance policy to package manifests.
 

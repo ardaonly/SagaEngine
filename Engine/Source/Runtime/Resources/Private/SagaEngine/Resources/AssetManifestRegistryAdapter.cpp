@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AssetManifestRegistryAdapter.cpp
 /// @brief Asset manifest to registry adapter implementation.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScenarioRunner.cpp
 /// @brief Implements bounded direct ZoneServer diagnostics scenarios.
 

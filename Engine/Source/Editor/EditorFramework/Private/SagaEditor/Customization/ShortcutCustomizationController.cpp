@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ShortcutCustomizationController.cpp
 /// @brief Safe shortcut customization controller implementation.
 

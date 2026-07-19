@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ReplicationFuzzTest.h
 /// @brief Fuzz and chaos test infrastructure for the replication pipeline.
 ///

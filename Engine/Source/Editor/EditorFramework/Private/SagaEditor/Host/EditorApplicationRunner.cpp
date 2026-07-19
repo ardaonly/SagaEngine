@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorApplicationRunner.cpp
 /// @brief Implements Editor-owned command parsing and application delegation.
 

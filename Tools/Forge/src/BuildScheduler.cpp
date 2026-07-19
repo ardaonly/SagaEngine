@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file BuildScheduler.cpp
 /// @brief Implementation of resource-aware job scaling.
 

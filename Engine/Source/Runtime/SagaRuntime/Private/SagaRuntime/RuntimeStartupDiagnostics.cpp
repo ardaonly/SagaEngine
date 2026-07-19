@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeStartupDiagnostics.cpp
 /// @brief Runtime startup report diagnostic classification implementation.
 

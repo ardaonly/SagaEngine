@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaPhysicsEngine.cpp
 /// @brief PhysicsEngine implementation — fixed-timestep wrapper around PhysicsWorld.
 

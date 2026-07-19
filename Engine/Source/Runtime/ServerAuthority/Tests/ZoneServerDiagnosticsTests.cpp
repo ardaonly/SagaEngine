@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ZoneServerDiagnosticsTests.cpp
 /// @brief Verifies optional ZoneServer diagnostics integration.
 

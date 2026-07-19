@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorProfileRegistry.h
 /// @brief Catalogue and active-state tracking for editor workflow profiles.
 

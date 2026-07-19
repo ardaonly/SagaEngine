@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentGraphicsRuntimeTests.cpp
 /// @brief Private Diligent runtime frame, upload, and command tests.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file GraphicsBindingValidation.h
 /// @brief CPU-side vendor-neutral binding contract validation helpers.
 

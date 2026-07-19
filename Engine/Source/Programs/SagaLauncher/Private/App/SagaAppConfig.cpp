@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaAppConfig.cpp
 /// @brief Product startup configuration and distribution metadata loading.
 

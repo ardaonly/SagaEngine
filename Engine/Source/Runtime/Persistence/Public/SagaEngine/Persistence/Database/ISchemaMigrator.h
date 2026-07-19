@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ISchemaMigrator.h
 /// @brief Versioned schema migration runner for SQL backends.
 ///

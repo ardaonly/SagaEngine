@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorCustomizationDiagnostics.cpp
 /// @brief Editor customization diagnostic helpers.
 

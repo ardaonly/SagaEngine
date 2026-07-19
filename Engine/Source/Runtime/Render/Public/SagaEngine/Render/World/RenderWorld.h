@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RenderWorld.h
 /// @brief Client-side container of every drawable the renderer can see.
 ///

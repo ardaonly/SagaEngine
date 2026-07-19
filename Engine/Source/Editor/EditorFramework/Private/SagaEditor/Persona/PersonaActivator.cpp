@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PersonaActivator.cpp
 /// @brief Implementation of the persona-to-subsystems fan-out.
 

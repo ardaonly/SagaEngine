@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ISnapshotCompressor.h
 /// @brief Pluggable compression interface for WorldSnapshots and DeltaSnapshots.
 ///

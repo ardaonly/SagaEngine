@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 // SagaScriptAnalyzer.cs
 // Roslyn-backed source metadata extraction and validation for SagaScript.
 

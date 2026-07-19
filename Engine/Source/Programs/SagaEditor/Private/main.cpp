@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file main.cpp
 /// @brief Provides the thin SagaEditor platform entry point.
 

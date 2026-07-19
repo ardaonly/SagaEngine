@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ReplicationTests.cpp
 /// @brief Integration tests for the replication pipeline: delta snapshots,
 ///        baseline management, and jitter buffer behavior.

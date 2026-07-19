@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorApp.cpp
 /// @brief Top-level editor application entry point — owns the UI backend, host, and shell.
 

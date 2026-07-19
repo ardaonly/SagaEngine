@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SandboxHost.h
 /// @brief The central host application for all sandbox scenarios.
 ///

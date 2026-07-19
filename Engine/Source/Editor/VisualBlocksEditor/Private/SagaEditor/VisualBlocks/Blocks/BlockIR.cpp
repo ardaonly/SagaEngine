@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file BlockIR.cpp
 /// @brief Implementation of the canonical IR types + value/statement builders.
 

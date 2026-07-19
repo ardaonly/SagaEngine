@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorProjectInspectionTests.cpp
 /// @brief Verifies the Editor-owned schema-2 project inspection contract.
 

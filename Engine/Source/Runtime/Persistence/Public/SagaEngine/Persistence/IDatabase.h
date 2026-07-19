@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #pragma once
 #include "SagaEngine/Persistence/Types.h"
 #include <functional>

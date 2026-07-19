@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AssetRegistry.cpp
 /// @brief Content manifest — JSON parsing and lookup implementation.
 

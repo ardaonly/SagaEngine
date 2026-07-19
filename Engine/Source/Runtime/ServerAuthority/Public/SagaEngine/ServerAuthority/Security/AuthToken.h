@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AuthToken.h
 /// @brief Opaque authentication token type + validator interface.
 ///

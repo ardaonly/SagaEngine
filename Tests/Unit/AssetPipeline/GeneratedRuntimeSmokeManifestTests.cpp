@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file GeneratedRuntimeSmokeManifestTests.cpp
 /// @brief Proves production AssetPipeline writers can replace RuntimeSmoke manifests.
 

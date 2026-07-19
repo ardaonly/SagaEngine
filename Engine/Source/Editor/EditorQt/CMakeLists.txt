@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 saga_add_editor_module(EditorQt
     MODULE_DIR Engine/Source/Editor/EditorQt
     TARGET SagaEditorLib

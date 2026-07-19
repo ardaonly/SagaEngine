@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "SagaEditor/Authoring/ScriptBehaviorInspectorView.h"
 
 #include <nlohmann/json.hpp>

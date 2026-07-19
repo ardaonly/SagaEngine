@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorDiagnostic.h
 /// @brief Diagnostic records emitted by editor subsystems and displayed by panels.
 

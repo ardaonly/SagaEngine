@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ResourceTracker.cpp
 /// @brief Implements explicit diagnostics resource tracking.
 

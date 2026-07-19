@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorkspaceCustomizationSession.cpp
 /// @brief Host-owned workspace customization session implementation.
 

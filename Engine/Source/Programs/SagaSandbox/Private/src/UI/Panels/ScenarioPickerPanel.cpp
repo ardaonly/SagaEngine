@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScenarioPickerPanel.cpp
 
 #include "SagaSandbox/UI/Panels/ScenarioPickerPanel.h"

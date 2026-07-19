@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file registry.rs
 /// @brief Parser for the two-section SagaTools registry contract.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RenderCore.h
 /// @brief Central render configuration and shared constants.
 

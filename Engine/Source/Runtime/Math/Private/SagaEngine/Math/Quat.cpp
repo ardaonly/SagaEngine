@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Quat.cpp
 /// @brief Quaternion non-inline method implementations.
 ///

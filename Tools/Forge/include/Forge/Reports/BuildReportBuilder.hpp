@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file BuildReportBuilder.hpp
 /// @brief Creates Forge build reports from planned pipeline metadata.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ReplicationTestRunner.cpp
 /// @brief GTest wrapper for all replication test functions.
 ///

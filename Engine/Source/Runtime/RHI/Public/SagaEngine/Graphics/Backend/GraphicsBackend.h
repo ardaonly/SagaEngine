@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file GraphicsBackend.h
 /// @brief Minimal vendor-neutral graphics backend shell.
 

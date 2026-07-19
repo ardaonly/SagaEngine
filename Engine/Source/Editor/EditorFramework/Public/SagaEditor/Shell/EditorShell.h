@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorShell.h
 /// @brief Main editor shell — owns the main window, docking, menus, and panels.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file LogFormatter.hpp
 /// @brief Declares private formatting helpers for diagnostics log sinks.
 

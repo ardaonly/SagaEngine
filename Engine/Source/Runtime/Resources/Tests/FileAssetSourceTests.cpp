@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file FileAssetSourceTests.cpp
 /// @brief Unit tests for filesystem-backed runtime asset source loading.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaLauncherController.cpp
 
 #include "Launcher/SagaLauncherController.h"

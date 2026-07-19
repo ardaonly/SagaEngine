@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CacheLine.h
 /// @brief Cache-line size constant + alignment helpers to avoid false sharing.
 ///

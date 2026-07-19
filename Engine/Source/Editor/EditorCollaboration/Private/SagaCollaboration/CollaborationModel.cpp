@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CollaborationModel.cpp
 /// @brief Local/offline collaboration metadata model implementation.
 

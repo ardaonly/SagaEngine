@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CollaborationService.hpp
 /// @brief Aggregate collaboration service facade consumed by Saga modules.
 

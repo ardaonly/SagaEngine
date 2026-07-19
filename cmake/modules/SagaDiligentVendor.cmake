@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 option(SAGA_USE_VENDOR_DILIGENT "Use vendored DiligentCore source" ON)
 option(SAGA_ENABLE_VULKAN "Enable Diligent Vulkan backend" ON)
 option(SAGA_ENABLE_OPENGL "Enable Diligent OpenGL backend" ON)

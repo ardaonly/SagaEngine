@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ActorOwnershipRegistryTests.cpp
 /// @brief Unit tests for server actor ownership mapping.
 

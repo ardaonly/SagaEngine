@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IModule.h
 /// @brief Abstract interface for statically registered engine modules.
 ///

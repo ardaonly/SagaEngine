@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SandboxDiagnosticMigrationTests.cpp
 /// @brief Regression coverage migrated from durable sandbox diagnostic behavior.
 

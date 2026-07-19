@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaSessionModel.h
 /// @brief Product-level workspace session and launch target data.
 

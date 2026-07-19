@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ShaderPipelineContract.h
 /// @brief Saga-owned shader source, variant, cache, and diagnostic contracts.
 

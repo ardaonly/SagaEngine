@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "SagaEngine/Persistence/Backends/PostgreSQL/PostgreSQLImpl.h"
 #include <SagaEngine/Core/Log/Log.h>
 #include <SagaEngine/Core/Profiling/Profiler.h>

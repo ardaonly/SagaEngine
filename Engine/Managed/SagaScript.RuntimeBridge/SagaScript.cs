@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 namespace SagaEngine.Scripting;
 
 public abstract class SagaScript

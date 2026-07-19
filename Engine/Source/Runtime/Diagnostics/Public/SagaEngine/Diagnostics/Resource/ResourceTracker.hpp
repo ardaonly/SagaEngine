@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ResourceTracker.hpp
 /// @brief Tracks explicit non-memory resources for diagnostics.
 

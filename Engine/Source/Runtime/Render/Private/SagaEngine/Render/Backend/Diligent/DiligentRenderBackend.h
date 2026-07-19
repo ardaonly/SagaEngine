@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentRenderBackend.h
 /// @brief Diligent implementation of the IRenderBackend seam.
 ///

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 if(NOT DEFINED SAGA_BUILD_DIR)
     message(FATAL_ERROR "SAGA_BUILD_DIR is required")
 endif()

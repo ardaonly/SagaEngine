@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ArtifactPackageBuildContractsTests.cpp
 /// @brief Verifies shared artifact, package, build, and publish contracts.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IPropertyEditorBackend.h
 /// @brief Pluggable factory backend that produces concrete property editors.
 

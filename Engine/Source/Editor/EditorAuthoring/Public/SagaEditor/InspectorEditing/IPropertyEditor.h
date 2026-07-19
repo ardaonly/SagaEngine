@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IPropertyEditor.h
 /// @brief Framework-free contract every primitive property editor implements.
 

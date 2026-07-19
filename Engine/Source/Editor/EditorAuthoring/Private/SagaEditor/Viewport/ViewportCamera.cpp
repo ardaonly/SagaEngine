@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ViewportCamera.cpp
 /// @brief Implementation of the editor viewport camera value type.
 

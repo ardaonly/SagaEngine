@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DirectionalLightShadowSliceScenario.h
 /// @brief Playable directional-light and shadow-map render slice.
 

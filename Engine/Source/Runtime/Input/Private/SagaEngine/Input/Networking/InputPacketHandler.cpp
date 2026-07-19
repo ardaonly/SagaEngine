@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file InputPacketHandler.cpp
 /// @brief Bridges Packet parsing and InputCommandInbox routing.
 

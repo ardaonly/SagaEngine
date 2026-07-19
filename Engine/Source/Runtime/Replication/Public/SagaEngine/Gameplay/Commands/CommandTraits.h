@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CommandTraits.h
 /// @brief Compile-time metadata (reliability, auth, rate-limit) for each OpCode.
 ///

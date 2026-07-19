@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file InputCommandBuffer.cpp
 /// @brief Thread-safe client-side command buffer: pending send queue + unacked window.
 ///

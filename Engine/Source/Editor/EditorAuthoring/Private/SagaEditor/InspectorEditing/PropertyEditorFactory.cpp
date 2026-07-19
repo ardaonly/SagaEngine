@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PropertyEditorFactory.cpp
 /// @brief Stateless factory that produces inspector primitive editors.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Logger.hpp
 /// @brief Provides structured runtime logging with bounded recent-event storage.
 

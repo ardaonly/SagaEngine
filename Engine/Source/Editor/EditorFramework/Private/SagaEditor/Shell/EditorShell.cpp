@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorShell.cpp
 /// @brief Main editor shell implementation.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorNotificationTests.cpp
 /// @brief Unit tests for transient editor notification feedback.
 

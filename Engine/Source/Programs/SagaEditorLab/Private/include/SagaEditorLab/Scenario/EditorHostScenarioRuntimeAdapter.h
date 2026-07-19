@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorHostScenarioRuntimeAdapter.h
 /// @brief EditorHost-backed scenario adapter for EditorLab service-level checks.
 

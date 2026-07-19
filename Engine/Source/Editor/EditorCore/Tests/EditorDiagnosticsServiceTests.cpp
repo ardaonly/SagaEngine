@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorDiagnosticsServiceTests.cpp
 /// @brief Unit tests for SagaEditor diagnostics collection and subscriptions.
 

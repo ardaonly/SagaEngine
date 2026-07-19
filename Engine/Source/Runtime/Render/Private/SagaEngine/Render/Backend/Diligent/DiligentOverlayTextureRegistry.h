@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentOverlayTextureRegistry.h
 /// @brief Private overlay texture translation registry.
 

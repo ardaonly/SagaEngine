@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IUIMainWindow.h
 /// @brief Abstract main window — title, visibility, menus, status, and docking host.
 

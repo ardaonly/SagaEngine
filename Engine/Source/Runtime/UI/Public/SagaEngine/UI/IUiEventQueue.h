@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IUiEventQueue.h
 /// @brief Backend-neutral UI event queue and sink contract.
 

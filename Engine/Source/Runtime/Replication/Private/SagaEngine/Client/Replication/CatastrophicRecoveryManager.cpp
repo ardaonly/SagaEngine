@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CatastrophicRecoveryManager.cpp
 /// @file Catastrophic recovery protocol for the replication pipeline.
 

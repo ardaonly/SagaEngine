@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaLocalWorkspaceTransactionReport.h
 /// @brief Report-only local workspace transaction boundary proof.
 

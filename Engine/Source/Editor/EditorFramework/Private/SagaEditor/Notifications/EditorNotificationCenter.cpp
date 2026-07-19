@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorNotificationCenter.cpp
 /// @brief Qt-free transient editor notification center implementation.
 

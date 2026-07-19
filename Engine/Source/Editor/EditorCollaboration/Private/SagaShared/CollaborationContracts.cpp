@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CollaborationContracts.cpp
 /// @brief Small validation helpers for neutral collaboration identifiers.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file BuildPlanTests.cpp
 /// @brief Deterministic coverage for Forge build plan foundation.
 

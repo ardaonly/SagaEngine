@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentRenderBackendTests.cpp
 /// @brief Unit tests for the Step 1 Diligent IRenderBackend implementation.
 ///

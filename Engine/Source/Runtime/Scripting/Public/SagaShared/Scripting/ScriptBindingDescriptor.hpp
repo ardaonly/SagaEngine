@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScriptBindingDescriptor.hpp
 /// @brief Shared SagaScript block binding descriptor contract.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AudioQueue.h
 /// @brief Thread-safe queue that bridges the gameplay thread and the audio thread.
 ///

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+# SPDX-License-Identifier: MPL-2.0
 """Focused synthetic tests for the default Linux distribution whitelist."""
 
 from __future__ import annotations

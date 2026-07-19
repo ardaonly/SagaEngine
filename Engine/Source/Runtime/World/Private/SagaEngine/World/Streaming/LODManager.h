@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file LODManager.h
 /// @brief World-level level-of-detail selector driven by distance and budget pressure.
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ZoneTransferProtocol.h
 /// @brief Shard-mesh wire format for cross-zone entity handoff.
 ///

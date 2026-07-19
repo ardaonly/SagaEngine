@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RenderAssetManifest.h
 /// @brief Render asset cooking metadata and deterministic manifest contract.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EventStream.cpp
 /// @brief Append-only event log implementation with disk persistence.
 

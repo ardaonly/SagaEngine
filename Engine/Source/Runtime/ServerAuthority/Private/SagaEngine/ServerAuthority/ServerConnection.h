@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ServerConnection.h
 /// @brief Per-client connection state machine with auth, heartbeat, and send queue.
 ///

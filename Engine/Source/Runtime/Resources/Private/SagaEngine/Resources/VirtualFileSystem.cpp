@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file VirtualFileSystem.cpp
 /// @brief Runtime virtual content path boundary and basic backends.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SessionService.hpp
 /// @brief In-memory session lifecycle service boundary for Saga collaboration.
 

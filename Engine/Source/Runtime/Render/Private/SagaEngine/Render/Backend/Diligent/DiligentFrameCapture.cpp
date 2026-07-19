@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentFrameCapture.cpp
 /// @brief Diligent current-back-buffer capture implementation.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file LifetimeTracker.hpp
 /// @brief Tracks logical object lifetime and ownership for runtime diagnostics.
 

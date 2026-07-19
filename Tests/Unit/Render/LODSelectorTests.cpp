@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file LODSelectorTests.cpp
 /// @brief Boundary and quality-preset behaviour of the LOD selector.
 ///

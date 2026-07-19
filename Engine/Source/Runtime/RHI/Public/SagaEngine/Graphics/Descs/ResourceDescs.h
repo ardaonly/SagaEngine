@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ResourceDescs.h
 /// @brief Scalar public descriptors for Saga graphics resources.
 

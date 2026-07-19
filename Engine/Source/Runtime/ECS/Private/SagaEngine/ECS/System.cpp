@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "SagaEngine/ECS/System.h"
 #include "SagaEngine/Simulation/WorldState.h"
 #include "SagaEngine/Core/Log/Log.h"

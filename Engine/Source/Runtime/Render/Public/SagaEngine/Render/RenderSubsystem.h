@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RenderSubsystem.h
 /// @brief Client-side render frame driver: camera list → cull → submit.
 ///

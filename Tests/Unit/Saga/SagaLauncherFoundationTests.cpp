@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaLauncherFoundationTests.cpp
 /// @brief Focused Product Launcher foundation contracts.
 

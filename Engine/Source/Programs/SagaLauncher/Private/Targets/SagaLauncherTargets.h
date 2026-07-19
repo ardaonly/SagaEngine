@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaLauncherTargets.h
 /// @brief Explicit launcher target resolution and executable catalog policy.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ViewportRay.h
 /// @brief Screen-pixel-to-world-ray construction and primitive intersection.
 

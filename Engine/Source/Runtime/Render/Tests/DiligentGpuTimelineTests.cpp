@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentGpuTimelineTests.cpp
 /// @brief CPU-side coverage for private Diligent GPU timeline bookkeeping.
 

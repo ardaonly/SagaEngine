@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeServiceLifecycle.cpp
 /// @brief Runtime service lifecycle value type implementation.
 

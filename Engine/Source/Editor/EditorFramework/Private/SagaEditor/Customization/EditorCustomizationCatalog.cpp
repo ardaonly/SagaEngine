@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorCustomizationCatalog.cpp
 /// @brief Editor customisation catalog implementation.
 

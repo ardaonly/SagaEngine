@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file NetworkLoadTests.cpp
 /// @brief Stress tests for network latency simulation and replication under load.
 ///

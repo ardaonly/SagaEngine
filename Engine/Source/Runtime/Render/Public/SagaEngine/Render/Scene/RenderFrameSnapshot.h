@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RenderFrameSnapshot.h
 /// @brief CPU-side scene extraction snapshot and view-family contract.
 ///

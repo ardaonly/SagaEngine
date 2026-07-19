@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 function(saga_setup_install)
     include(GNUInstallDirs)
 

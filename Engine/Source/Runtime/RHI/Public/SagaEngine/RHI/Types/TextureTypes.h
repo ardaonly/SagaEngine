@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file TextureTypes.h
 /// @brief GPU texture descriptors for the RHI abstraction layer.
 

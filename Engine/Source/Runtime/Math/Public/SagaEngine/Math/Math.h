@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Math.h
 /// @brief Umbrella include for all SagaEngine math types and helpers.
 ///

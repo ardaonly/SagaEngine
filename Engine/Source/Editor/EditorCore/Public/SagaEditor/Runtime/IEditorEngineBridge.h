@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IEditorEngineBridge.h
 /// @brief Editor-owned boundary for talking to engine/runtime services.
 

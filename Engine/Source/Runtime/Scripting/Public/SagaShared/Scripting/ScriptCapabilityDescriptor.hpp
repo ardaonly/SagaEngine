@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScriptCapabilityDescriptor.hpp
 /// @brief Shared SagaScript capability request and grant contract.
 

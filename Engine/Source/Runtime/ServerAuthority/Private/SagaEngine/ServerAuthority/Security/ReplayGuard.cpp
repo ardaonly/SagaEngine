@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ReplayGuard.cpp
 /// @brief Sliding-window replay guard implementation.
 

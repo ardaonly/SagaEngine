@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ProductionDashboardPanel.h
 /// @brief First production readiness dashboard for SagaEditor.
 

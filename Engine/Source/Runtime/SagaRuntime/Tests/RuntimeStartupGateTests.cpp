@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeStartupGateTests.cpp
 /// @brief Unit tests for thin runtime startup package validation orchestration.
 

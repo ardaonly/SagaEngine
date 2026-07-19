@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file QtPanel.h
 /// @brief Qt-backed base class for all editor panels — bridges IPanel and QWidget.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeStartupGate.hpp
 /// @brief Thin startup validation orchestrator for runtime package manifests.
 

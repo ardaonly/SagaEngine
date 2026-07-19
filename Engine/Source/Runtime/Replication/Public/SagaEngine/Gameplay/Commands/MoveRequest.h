@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file MoveRequest.h
 /// @brief High-level movement intent (teleport / follow / path) — not tick input.
 ///

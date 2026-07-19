@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 // SagaWeaverArtifacts.cs
 // Source-preserving SagaBehavior analysis, projection, and patch-evaluation artifacts.
 

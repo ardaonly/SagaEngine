@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file NetworkProbeLauncher.cpp
 /// @brief Focused launcher for network/replication scenarios.
 

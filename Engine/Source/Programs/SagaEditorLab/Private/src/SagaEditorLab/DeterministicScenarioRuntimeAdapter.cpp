@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DeterministicScenarioRuntimeAdapter.cpp
 /// @brief Local deterministic scenario adapter used by the EditorLab UI.
 

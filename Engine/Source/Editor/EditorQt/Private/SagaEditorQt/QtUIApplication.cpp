@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file QtUIApplication.cpp
 /// @brief Qt implementation of IUIApplication.
 

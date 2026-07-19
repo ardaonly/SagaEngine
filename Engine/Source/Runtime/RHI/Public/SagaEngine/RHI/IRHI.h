@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IRHI.h
 /// @brief Abstract Rendering Hardware Interface — one level below the renderer.
 ///

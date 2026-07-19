@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ISessionCache.h
 /// @brief Hot-state session cache backed by Redis (or equivalent).
 ///

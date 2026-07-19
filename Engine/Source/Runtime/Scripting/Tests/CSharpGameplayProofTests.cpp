@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CSharpGameplayProofTests.cpp
 /// @brief Editorless proof tests for CLI-compiled C# gameplay scripts.
 

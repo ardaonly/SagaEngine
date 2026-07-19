@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SelectionStateTests.cpp
 /// @brief Unit tests for editor selection filtering and history helpers.
 

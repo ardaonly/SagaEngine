@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file LogEvent.hpp
 /// @brief Defines structured log events and lightweight context fields.
 

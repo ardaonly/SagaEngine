@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ProblemsPanel.h
 /// @brief Problems panel that displays editor diagnostics from a shared service.
 ///

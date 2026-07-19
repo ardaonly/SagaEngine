@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentGraphicsBackendBindings.cpp
 /// @brief Logical binding layout/set CRUD for the Diligent graphics adapter.
 

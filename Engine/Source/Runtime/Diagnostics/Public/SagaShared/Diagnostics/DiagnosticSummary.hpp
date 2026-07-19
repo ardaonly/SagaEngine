@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiagnosticSummary.hpp
 /// @brief Shared diagnostic count and severity summary.
 

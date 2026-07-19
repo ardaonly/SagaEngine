@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentBindingCompiler.cpp
 /// @brief Private binding metadata compiler for the Diligent adapter.
 

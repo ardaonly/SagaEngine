@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AudioEngine.h
 /// @brief Top-level audio engine — orchestrates the full pipeline each frame.
 ///

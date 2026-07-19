@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AssetIdResolver.h
 /// @brief Explicit AssetKey to AssetId resolution boundary for runtime assets.
 

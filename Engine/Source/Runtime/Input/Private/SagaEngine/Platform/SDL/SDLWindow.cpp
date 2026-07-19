@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SDLWindow.cpp
 /// @brief SDL2 implementation of IWindow; manages window lifecycle and event dispatch.
 ///

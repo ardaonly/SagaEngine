@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PhysicsWorld.h
 /// @brief The simulation container — owns bodies, steps the sim, resolves collisions.
 ///

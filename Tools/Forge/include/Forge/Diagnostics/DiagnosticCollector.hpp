@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file DiagnosticCollector.hpp
 /// @brief Collects Forge diagnostics before report emission.
 

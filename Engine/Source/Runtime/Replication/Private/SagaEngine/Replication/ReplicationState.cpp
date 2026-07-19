@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ReplicationState.cpp
 /// @brief GlobalEntityVersionTable and ReplicationStateManager implementations.
 

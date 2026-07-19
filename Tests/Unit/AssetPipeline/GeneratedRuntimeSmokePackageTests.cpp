@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file GeneratedRuntimeSmokePackageTests.cpp
 /// @brief Proves AssetPipeline writers can generate a RuntimeSmoke package.
 

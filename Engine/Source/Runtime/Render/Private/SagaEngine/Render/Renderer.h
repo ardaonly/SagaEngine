@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Renderer.h
 /// @brief High-level renderer that owns the frame graph, passes, and RHI.
 

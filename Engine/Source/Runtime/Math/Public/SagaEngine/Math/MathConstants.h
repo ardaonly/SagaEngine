@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file MathConstants.h
 /// @brief Centralised compile-time math constants for the SagaEngine math module.
 ///

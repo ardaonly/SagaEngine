@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DebugHud.cpp
 /// @brief Composite ImGui HUD — initialises builtin panels and drives render.
 

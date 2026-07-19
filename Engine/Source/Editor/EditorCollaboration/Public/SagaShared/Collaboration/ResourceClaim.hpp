@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ResourceClaim.hpp
 /// @brief Soft resource claim contract for collaboration coordination.
 

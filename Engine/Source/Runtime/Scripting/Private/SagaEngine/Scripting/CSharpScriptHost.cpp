@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CSharpScriptHost.cpp
 /// @brief Implements the hostfxr-backed C# SagaScript host.
 

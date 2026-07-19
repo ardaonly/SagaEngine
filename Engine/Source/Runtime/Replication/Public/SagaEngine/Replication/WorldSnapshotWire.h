@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorldSnapshotWire.h
 /// @brief Server-side snapshot builder for full-world and delta replication.
 ///

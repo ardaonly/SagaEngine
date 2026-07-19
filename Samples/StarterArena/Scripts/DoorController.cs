@@ -1,4 +1,3 @@
-// SPDX-FileCopyrightText: 2026 Arda Koyuncu
 // SPDX-License-Identifier: MIT
 
 using SagaEngine.Scripting;

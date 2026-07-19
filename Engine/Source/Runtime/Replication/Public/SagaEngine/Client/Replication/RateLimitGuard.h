@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RateLimitGuard.h
 /// @brief Adversarial load protection for the replication pipeline.
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file ExitCode.cpp
 /// @brief Stable Forge CLI exit code category names.
 

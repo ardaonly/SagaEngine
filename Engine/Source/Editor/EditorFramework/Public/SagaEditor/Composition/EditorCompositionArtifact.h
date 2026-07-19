@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorCompositionArtifact.h
 /// @brief Data model for compiled editor composition artifacts.
 

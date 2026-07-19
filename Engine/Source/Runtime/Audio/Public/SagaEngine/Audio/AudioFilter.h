@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AudioFilter.h
 /// @brief Filters, prioritises, and deduplicates audio events before dispatch.
 ///

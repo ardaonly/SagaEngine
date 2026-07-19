@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScenarioRuntimeAdapter.cpp
 /// @brief Common adapter result builders for EditorLab scenario execution.
 

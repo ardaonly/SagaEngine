@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file MathGLMBridge.cpp
 /// @brief Out-of-line helpers for the MathGLMBridge header.
 ///

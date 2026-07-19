@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file First3DVerticalSliceScenario.cpp
 /// @brief Playable 3D vertical slice for Diligent/Vulkan runtime smoke.
 

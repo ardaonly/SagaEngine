@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file NetworkReplicationScenario.cpp
 /// @brief In-process server+client replication scenario over loopback.
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CullingPipeline.cpp
 /// @brief Walks RenderWorld, applies hidden/mask/distance/frustum gates,
 ///        selects LOD, and appends draw items to the RenderView.

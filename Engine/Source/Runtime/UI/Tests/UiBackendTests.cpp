@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file UiBackendTests.cpp
 /// @brief Focused tests for the minimal runtime UI backend contract.
 

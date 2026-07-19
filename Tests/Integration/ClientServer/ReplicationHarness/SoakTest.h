@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SoakTest.h
 /// @brief Extended-duration soak tests for the replication pipeline.
 ///

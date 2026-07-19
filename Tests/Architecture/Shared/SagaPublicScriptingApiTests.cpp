@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaPublicScriptingApiTests.cpp
 /// @brief Compile and boundary tests for the public Saga scripting API.
 

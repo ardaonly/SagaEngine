@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ResourceStream.h
 /// @brief World-level streaming orchestrator that drives the cell loader.
 ///

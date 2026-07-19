@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeModule.hpp
 /// @brief Runtime role module descriptor for Saga product orchestration.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file DiagnosticCollectorTests.cpp
 /// @brief Coverage for Forge diagnostic collector foundation.
 

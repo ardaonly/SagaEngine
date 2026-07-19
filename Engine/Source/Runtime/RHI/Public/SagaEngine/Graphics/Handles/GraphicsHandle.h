@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file GraphicsHandle.h
 /// @brief Opaque public handles for Saga graphics resources.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file GraphicsDiligentBackendBindingTests.cpp
 /// @brief Focused Diligent graphics adapter tests.
 

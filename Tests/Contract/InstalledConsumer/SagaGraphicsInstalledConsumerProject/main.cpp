@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include <SagaEngine/Graphics/Graphics.h>
 #include <SagaEngine/Persistence/IDatabase.h>
 #include <SagaEngine/ServerAuthority/ZoneServer.h>

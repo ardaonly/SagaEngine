@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentOverlayRenderer.cpp
 /// @brief Diligent implementation of generic overlay draw-list rendering.
 

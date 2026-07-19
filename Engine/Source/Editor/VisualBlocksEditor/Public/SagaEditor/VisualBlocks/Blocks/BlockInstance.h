@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file BlockInstance.h
 /// @brief Placed block instance — the runtime tree node of a `BlockScript`.
 

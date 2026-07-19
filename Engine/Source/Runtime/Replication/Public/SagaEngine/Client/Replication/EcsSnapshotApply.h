@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EcsSnapshotApply.h
 /// @brief Authority-aware ECS apply functions for replication pipeline.
 ///

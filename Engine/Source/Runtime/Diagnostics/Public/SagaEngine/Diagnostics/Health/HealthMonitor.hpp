@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file HealthMonitor.hpp
 /// @brief Tracks runtime health counters, gauges, and timings.
 

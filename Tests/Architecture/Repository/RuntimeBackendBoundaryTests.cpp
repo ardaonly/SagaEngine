@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeBackendBoundaryTests.cpp
 /// @brief Guards private ownership of native render and persistence backends.
 

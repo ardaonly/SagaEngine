@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file NetworkInputLayerTests.cpp
 /// @brief Unit tests for the input networking layer:
 ///        InputCommand, InputCommandSerializer, InputCommandInbox,

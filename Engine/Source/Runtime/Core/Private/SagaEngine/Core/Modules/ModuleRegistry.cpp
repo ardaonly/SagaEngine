@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ModuleRegistry.cpp
 /// @brief Static module registry implementation.
 

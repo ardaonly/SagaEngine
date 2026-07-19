@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaLauncherUiTests.cpp
 /// @brief Offscreen durable minimum Product Launcher UI contracts.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaLauncherReports.h
 /// @brief Read-only known report catalog and distribution status adapter.
 

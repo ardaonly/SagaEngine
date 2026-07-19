@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AudioEventMapper.h
 /// @brief Maps gameplay events (server intents) into AudioEvents.
 ///

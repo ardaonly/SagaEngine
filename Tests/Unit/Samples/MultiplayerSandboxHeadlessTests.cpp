@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file MultiplayerSandboxHeadlessTests.cpp
 /// @brief Focused tests for the server-only MultiplayerSandbox headless proof.
 

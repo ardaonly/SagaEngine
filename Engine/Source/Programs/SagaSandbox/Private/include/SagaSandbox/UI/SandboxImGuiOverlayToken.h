@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SandboxImGuiOverlayToken.h
 /// @brief Internal helpers for opaque ImGui overlay texture tokens.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ComponentObserver.cpp
 /// @brief Component observer registry implementation.
 

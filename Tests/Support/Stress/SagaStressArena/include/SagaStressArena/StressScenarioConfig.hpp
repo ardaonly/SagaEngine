@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file StressScenarioConfig.hpp
 /// @brief Defines SagaStressArena scenario configuration and validation.
 

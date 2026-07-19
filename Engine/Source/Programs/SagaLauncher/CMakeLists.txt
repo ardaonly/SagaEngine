@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 saga_add_program(SagaLauncher
     MODULE_DIR Engine/Source/Programs/SagaLauncher
     TARGET SagaProductLib

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file GizmoHandle.h
 /// @brief Identity, hit-testing, and dispatch for transform gizmo handles.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AuthoritativeMovementCoreTests.cpp
 /// @brief Unit tests for the server-owned authoritative movement core.
 

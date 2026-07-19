@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RateLimiter.cpp
 /// @brief RateLimiter implementation — token bucket with quarantine cooldown.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CollaborationServiceTests.cpp
 /// @brief Unit coverage for SagaCollaboration service boundary skeletons.
 

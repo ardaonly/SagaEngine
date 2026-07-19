@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CastSpell.h
 /// @brief Client intent to cast a spell or ability on a target or location.
 ///

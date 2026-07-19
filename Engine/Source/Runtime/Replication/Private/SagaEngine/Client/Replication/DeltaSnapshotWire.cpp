@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DeltaSnapshotWire.cpp
 /// @brief Engine-side decoder for server-produced delta snapshot wire format.
 

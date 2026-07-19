@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RenderWorld.cpp
 /// @brief Pool + free-list implementation for client-side drawable entities.
 

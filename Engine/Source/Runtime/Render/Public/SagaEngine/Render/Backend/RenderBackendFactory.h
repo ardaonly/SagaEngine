@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RenderBackendFactory.h
 /// @brief Public factory surface for concrete render backend creation.
 

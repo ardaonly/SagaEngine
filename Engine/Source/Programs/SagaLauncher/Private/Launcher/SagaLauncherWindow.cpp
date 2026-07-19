@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaLauncherWindow.cpp
 /// @brief Renders launcher state and dispatches typed controller actions.
 

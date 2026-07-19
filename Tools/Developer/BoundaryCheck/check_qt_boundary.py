@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+# SPDX-License-Identifier: MPL-2.0
 """Fail when Qt includes appear outside the two reviewed Qt owner modules."""
 
 from __future__ import annotations

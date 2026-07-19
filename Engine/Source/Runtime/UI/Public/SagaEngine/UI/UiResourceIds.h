@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file UiResourceIds.h
 /// @brief Logical UI resource ids and validation helpers.
 

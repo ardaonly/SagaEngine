@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeUiBootstrapperTests.cpp
 /// @brief Focused tests for runtime UI bootstrap.
 

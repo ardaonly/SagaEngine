@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RenderStreamingResidency.h
 /// @brief CPU-side render residency policy and diagnostics.
 ///

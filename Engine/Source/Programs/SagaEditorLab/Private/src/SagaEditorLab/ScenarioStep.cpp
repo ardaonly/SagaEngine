@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScenarioStep.cpp
 /// @brief Identity strings + builders for ScenarioStep.
 

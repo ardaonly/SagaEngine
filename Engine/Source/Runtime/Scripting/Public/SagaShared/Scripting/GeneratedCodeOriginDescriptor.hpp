@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file GeneratedCodeOriginDescriptor.hpp
 /// @brief Shared generated script source origin contract.
 

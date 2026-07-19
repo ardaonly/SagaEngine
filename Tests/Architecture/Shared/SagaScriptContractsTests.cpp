@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaScriptContractsTests.cpp
 /// @brief Verifies shared SagaScript contract descriptors.
 

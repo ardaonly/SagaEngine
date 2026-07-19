@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScriptLifecycleService.hpp
 /// @brief Low-level SagaScript lifecycle orchestration contract.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorldState.h
 /// @brief Authoritative, serializable entity-component state for one simulation tick.
 ///

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 # --- SagaTests.cmake ---------------------------------------------------------
 #
 # Wires every test sub-tree under /Tests into a dedicated CTest target.  The

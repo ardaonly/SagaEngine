@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CrashHandler.cpp
 /// @brief Async-signal-safe crash dump writer.
 ///

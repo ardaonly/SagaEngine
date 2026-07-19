@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ReplayGuard.h
 /// @brief Per-connection replay-attack prevention via sliding sequence window
 ///        and monotonic timestamp validation.

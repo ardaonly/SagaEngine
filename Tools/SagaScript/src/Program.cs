@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 // Program.cs
 // Command-line entrypoint for the standalone SagaScript toolchain.
 

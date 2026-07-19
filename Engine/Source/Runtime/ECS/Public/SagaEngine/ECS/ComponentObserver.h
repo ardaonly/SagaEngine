@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ComponentObserver.h
 /// @brief Event-driven component lifecycle observers for the ECS.
 ///

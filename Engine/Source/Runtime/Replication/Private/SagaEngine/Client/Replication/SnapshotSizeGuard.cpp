@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SnapshotSizeGuard.cpp
 /// @brief Snapshot size enforcement for the replication pipeline.
 

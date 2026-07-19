@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DescriptorCache.h
 /// @brief Caches descriptor sets / root signatures to avoid per-draw creation.
 

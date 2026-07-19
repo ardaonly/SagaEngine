@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file LogRotation.cpp
 /// @brief Implementation of the size-triggered log rotation sink.
 

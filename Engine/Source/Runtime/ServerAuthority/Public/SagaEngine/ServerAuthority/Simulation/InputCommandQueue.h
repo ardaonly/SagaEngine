@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file InputCommandQueue.h
 /// @brief Per-player server-side input command buffer with sequencing and lag compensation.
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file BlockVisualStyle.cpp
 /// @brief Implementation of the visual scripting block style descriptor.
 

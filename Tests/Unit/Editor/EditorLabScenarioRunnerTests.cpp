@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorLabScenarioRunnerTests.cpp
 /// @brief Unit coverage for the headless EditorLab scenario runner.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RGTypes.h
 /// @brief Core types for the render-graph system.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SchemaMigrationTest.cpp
 /// @brief Schema migration and backward compatibility tests.
 

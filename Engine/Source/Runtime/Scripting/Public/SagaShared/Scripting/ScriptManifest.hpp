@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScriptManifest.hpp
 /// @brief Shared SagaScript manifest contracts.
 

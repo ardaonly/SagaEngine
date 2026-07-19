@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file GameplayCommandDispatcherTests.cpp
 /// @brief Unit tests for the server-side gameplay command dispatcher and the
 ///        client-side typed stub, verifying the RPC → typed-handler pipeline.

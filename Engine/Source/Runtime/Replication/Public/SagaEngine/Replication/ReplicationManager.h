@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ReplicationManager.h
 /// @brief Replication manager for server-side entity/component delta delivery.
 

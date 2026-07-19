@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentNativeResourceOwner.h
 /// @brief Private Saga-owned Diligent resource factory and quarantine owner.
 

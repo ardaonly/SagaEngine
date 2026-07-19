@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# SPDX-FileCopyrightText: 2026 Arda Koyuncu
 # SPDX-License-Identifier: MPL-2.0
 
 """Validate DCO trailers for every non-merge commit in a revision range."""

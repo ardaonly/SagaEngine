@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorApplicationRunner.h
 /// @brief Declares the Editor-owned command-line and application runner.
 

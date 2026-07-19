@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AdversarialModelTest.cpp
 /// @brief Adversarial load model tests for the replication pipeline.
 

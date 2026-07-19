@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file TextureStreamer.h
 /// @brief Typed streaming wrapper for texture assets.
 ///

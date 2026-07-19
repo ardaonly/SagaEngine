@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorModeTests.cpp
 /// @brief Unit tests for the mountable SagaEditor mode facade.
 

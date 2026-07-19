@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaProductWorkflowSmokeReport.h
 /// @brief Typed schema-2 Product Shell workflow status/report model.
 

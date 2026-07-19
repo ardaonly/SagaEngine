@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file UiActionBindingTests.cpp
 /// @brief Focused tests for backend-neutral UI action binding.
 

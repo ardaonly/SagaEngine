@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file BuildPlanner.cpp
 /// @brief BuildPlan lowering and validation.
 

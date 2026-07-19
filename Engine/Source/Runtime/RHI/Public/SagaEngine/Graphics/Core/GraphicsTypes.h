@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file GraphicsTypes.h
 /// @brief Saga-owned graphics vocabulary shared by public graphics headers.
 

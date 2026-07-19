@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file MemoryStatsPanel.h
 /// @brief HUD panel feeding MemoryTracker data into the sandbox HUD.
 ///

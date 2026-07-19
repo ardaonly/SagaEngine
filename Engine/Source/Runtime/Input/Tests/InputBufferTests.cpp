@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file InputBufferTests.cpp
 /// @brief Unit tests for InputCommandBuffer.
 

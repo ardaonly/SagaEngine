@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScriptBindingRuntime.hpp
 /// @brief SagaScript binding runtime authoring workflow helpers.
 

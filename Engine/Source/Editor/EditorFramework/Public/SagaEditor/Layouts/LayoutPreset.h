@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file LayoutPreset.h
 /// @brief A named snapshot of the dock tree used as a switchable layout preset.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file BlockDefinition.cpp
 /// @brief Implementation of the block-definition palette template.
 

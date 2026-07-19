@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorldStateScriptWorld.cpp
 /// @brief Implements the SagaScript facade over Simulation::WorldState.
 

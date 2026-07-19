@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file main.rs
 /// @brief Command-line entry for the thin SagaTools dispatcher.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CookedRenderAssetLoader.h
 /// @brief Vendor-neutral loaders for schema-version-1 cooked mesh and material artifacts.
 

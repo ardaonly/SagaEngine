@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file FrameResources.h
 /// @brief Vendor-neutral frame resource vocabulary.
 

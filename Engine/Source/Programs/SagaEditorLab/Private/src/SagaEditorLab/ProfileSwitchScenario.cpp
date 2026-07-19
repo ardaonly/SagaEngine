@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ProfileSwitchScenario.cpp
 /// @brief Built-in EditorLab profile switch validation scenario.
 

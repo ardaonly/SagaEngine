@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+# SPDX-License-Identifier: MPL-2.0
 """Validate that server-authority implementation stays out of Networking."""
 
 from __future__ import annotations

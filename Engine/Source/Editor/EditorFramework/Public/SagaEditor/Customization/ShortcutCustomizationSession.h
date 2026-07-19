@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ShortcutCustomizationSession.h
 /// @brief Host-owned session for safe shortcut customization.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file GltfMeshImporter.h
 /// @brief glTF/GLB mesh importer producing `MeshAsset`.
 ///

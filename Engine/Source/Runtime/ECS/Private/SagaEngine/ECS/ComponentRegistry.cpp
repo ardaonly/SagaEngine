@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ComponentRegistry.cpp
 /// @brief Non-template method implementations for ComponentRegistry.
 

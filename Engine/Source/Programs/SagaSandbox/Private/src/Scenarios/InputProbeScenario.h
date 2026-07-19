@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file InputProbeScenario.h
 /// @brief Scenario that probes and visualises the full input pipeline.
 ///

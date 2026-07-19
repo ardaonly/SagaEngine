@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorLabQtStaticPlugins.cpp
 /// @brief Static Qt platform plugin imports for the standalone EditorLab executable.
 

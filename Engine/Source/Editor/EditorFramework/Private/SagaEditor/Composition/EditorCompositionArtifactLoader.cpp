@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorCompositionArtifactLoader.cpp
 /// @brief JSON loader for editor composition artifacts and manifests.
 
