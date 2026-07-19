@@ -333,6 +333,12 @@
         add_executable(CSharpScriptHostTests
             ${SAGA_CSHARP_SCRIPT_HOST_TEST_SOURCE}
             ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHost.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHostCallbacks.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHostCoreClr.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHostInstances.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHostInvocation.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHostSupport.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHostVerifiedGeneration.cpp
             ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/ScriptLifecycleService.cpp
             ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/ScriptPackageValidator.cpp
         )
@@ -375,6 +381,12 @@
             ${SAGA_ROOT}/Engine/Source/Runtime/ECS/Private/SagaEngine/ECS/ComponentRegistry.cpp
             ${SAGA_ROOT}/Engine/Source/Runtime/Simulation/Private/SagaEngine/Simulation/WorldState.cpp
             ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHost.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHostCallbacks.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHostCoreClr.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHostInstances.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHostInvocation.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHostSupport.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHostVerifiedGeneration.cpp
             ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/ScriptLifecycleService.cpp
             ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/ScriptPackageValidator.cpp
             ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/WorldStateScriptWorld.cpp

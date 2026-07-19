@@ -409,6 +409,29 @@ TEST(CMakeTargetBoundaryTests, DiligentPrivateTestsHaveDedicatedTargets)
     EXPECT_FALSE(ContainsCMakeToken(integrationLinks, "SDL2::SDL2"));
 }
 
+TEST(CMakeTargetBoundaryTests, CSharpHostOwnersStayCompleteAcrossFocusedTargets)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto module = ReadText(root / "Engine/Source/Runtime/Scripting/CMakeLists.txt");
+    const auto tests = ReadText(root / "cmake/modules/tests/SagaRuntimeTestTargets.cmake");
+
+    for (const auto* source : {
+             "CSharpScriptHost.cpp",
+             "CSharpScriptHostCallbacks.cpp",
+             "CSharpScriptHostCoreClr.cpp",
+             "CSharpScriptHostInstances.cpp",
+             "CSharpScriptHostInvocation.cpp",
+             "CSharpScriptHostSupport.cpp",
+             "CSharpScriptHostVerifiedGeneration.cpp",
+         })
+    {
+        EXPECT_NE(module.find(source), std::string::npos) << source;
+        const auto first = tests.find(source);
+        ASSERT_NE(first, std::string::npos) << source;
+        EXPECT_NE(tests.find(source, first + 1), std::string::npos) << source;
+    }
+}
+
 TEST(CMakeTargetBoundaryTests, LegacyOwnershipRootsStayAbsent)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
