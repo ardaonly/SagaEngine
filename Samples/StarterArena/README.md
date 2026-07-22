@@ -2,7 +2,7 @@
 
 StarterArena is licensed under the MIT License; see `../LICENSE`.
 
-StarterArena is the canonical seed and reference project for Campaign 1 source and tooling contracts. It is intentionally editorless and does not claim a playable Runtime path.
+StarterArena is the canonical seed and reference project for source, tooling, runtime, and authoring contracts.
 
 Source truth consists of `StarterArena.sagaproj`, `Scenes/StarterArena.sagascene`, `Input/Input.saga.json`, `Scripts/DoorController.cs`, and the two primitive asset sources under `Assets/`. `SagaPackage.lock` is the only tracked GeneratedState exception. Cooked assets and all other build products belong under ignored `Build/`.
 

@@ -91,13 +91,15 @@ CSharpSourceDocument::~CSharpSourceDocument() = default;
 const DocumentSnapshot& CSharpSourceDocument::Snapshot() const noexcept { return text_->Snapshot(); }
 const std::vector<DocumentDiagnostic>& CSharpSourceDocument::Diagnostics() const noexcept { return text_->Diagnostics(); }
 const std::string& CSharpSourceDocument::Text() const noexcept { return text_->Text(); }
+const DocumentRecoverySnapshot& CSharpSourceDocument::Recovery() const noexcept { return text_->Recovery(); }
 bool CSharpSourceDocument::ReplaceText(std::string text)
 {
     if (!text_->ReplaceText(std::move(text))) return false;
     NotifyChanged(); return true;
 }
 bool CSharpSourceDocument::Load() { const auto result = text_->Load(); if (result) NotifyChanged(); return result; }
-DocumentSaveStatus CSharpSourceDocument::Save() { return text_->Save(); }
+DocumentSaveStatus CSharpSourceDocument::Save()
+{ const auto result = text_->Save(); if (result == DocumentSaveStatus::Saved) NotifyChanged(); return result; }
 bool CSharpSourceDocument::Reload() { const auto result = text_->Reload(); if (result) NotifyChanged(); return result; }
 DocumentExternalChangeState CSharpSourceDocument::CheckExternalChange() { return text_->CheckExternalChange(); }
 DocumentCloseStatus CSharpSourceDocument::RequestClose() const noexcept { return text_->RequestClose(); }
@@ -105,6 +107,10 @@ bool CSharpSourceDocument::CanUndo() const noexcept { return text_->CanUndo(); }
 bool CSharpSourceDocument::CanRedo() const noexcept { return text_->CanRedo(); }
 bool CSharpSourceDocument::Undo() { const auto result = text_->Undo(); if (result) NotifyChanged(); return result; }
 bool CSharpSourceDocument::Redo() { const auto result = text_->Redo(); if (result) NotifyChanged(); return result; }
+bool CSharpSourceDocument::RecoverAsDirtyBuffer()
+{ const auto result = text_->RecoverAsDirtyBuffer(); if (result) NotifyChanged(); return result; }
+bool CSharpSourceDocument::DiscardRecovery()
+{ const auto result = text_->DiscardRecovery(); if (result) NotifyChanged(); return result; }
 CSharpSourceDocument::ChangeSubscription CSharpSourceDocument::SubscribeChanges(ChangeCallback callback)
 {
     if (!callback) return InvalidChangeSubscription;

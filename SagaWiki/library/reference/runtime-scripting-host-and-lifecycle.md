@@ -51,7 +51,7 @@ The managed bridge also exposes the high-level `SagaBehavior` lifecycle,
 `SagaAction` logical-action marker, and `Context.Self.Transform` facade used by
 StarterArena source compilation. The facade reuses the existing self-entity
 position callbacks; it is not a second runtime or sample-specific native path.
-Campaign 1 proves compilation and deterministic artifacts only, not interactive
+Compilation and deterministic artifact evidence alone does not prove interactive
 door execution.
 
 ## Capabilities and authority
@@ -67,6 +67,12 @@ The world interface is deliberately narrower than direct access to internal stat
 Named UI actions can route through `CSharpUiNamedActionHandler` to a managed method while preserving the script context. UI owns event collection and action dispatch; Scripting owns host invocation. Neither module should parse the other's implementation details.
 
 The same rule applies to future audio, networking, persistence, or editor integrations. A public script API is a capability contract, not a direct include bridge to the native implementation. Low-level and unsafe access must remain explicit and reviewable.
+
+## Contextual state publication
+
+Managed behavior receives a contextual state port bound by the host to the active entity, behavior identity, and instance token. `TrySetBool` publishes a named boolean only while that exact instance is active. The native callback table and RuntimeBridge ABI remain unchanged; the host-side adapter supplies context before forwarding to the existing callback.
+
+State records carry a monotonically increasing revision and active instance token. A failed instance creation cannot publish. Successful `OnDestroy` removes the record, so a later instance cannot inherit or overwrite state through a stale token. StarterArena's door behavior publishes `door.target-open` during `OnStart` and `Interact`; runtime UI consumes only a verified snapshot and never reflects over the managed object.
 
 ## Relationship to authoring
 

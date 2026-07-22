@@ -37,6 +37,10 @@ logical UI resource
 
 `RuntimeUiBootstrapper` coordinates the bounded startup of a configured screen. Its tests prove disabled startup, missing documents, missing backend, and one connect-screen path. They do not establish a complete menu or HUD product.
 
+StarterArena declares one `uiDocuments` screen in its project manifest. SagaPackager validates the RML, RCSS, descriptor, and project-owned font; publishes their content-addressed bytes; and replaces the UI selector only after the complete immutable generation validates. The schema-version-1 `runtime.ui-set` records resource hashes, screen/document identity, prompt binding, tool identity, and an aggregate manifest hash. Runtime launch schema version 2 pins that UI artifact beside scene and input. Headless startup validates the same bytes and hashes without creating an RmlUi context.
+
+The interaction prompt is data-bound rather than sample text embedded in engine core. `RuntimeUiPromptController` combines the input artifact's normalized `displayLabel` with a verified script-state snapshot, producing text such as `[E] Open Door` or `[F] Close Door`. Missing actions, labels, bindings, stale instance tokens, or destroyed state fail closed. The prompt requests no input capture, so an allowed `Interact` event continues to gameplay; focus loss resets capture state.
+
 ## UI backend boundary
 
 `IUiBackend` is the vendor-neutral document/render boundary. A null implementation supports focused tests and headless behavior. RmlUi is the current concrete integration.
@@ -44,6 +48,8 @@ logical UI resource
 `RmlUiUiBackend.h` and its implementation live under UI `Private/Backends`. Public UI contracts expose engine-owned types and failure information without RmlUi types, and architecture checks protect that vendor boundary. A private adapter test does not make RmlUi classes part of the installed SagaEngine API.
 
 The UI backend may translate logical documents and input to the vendor. Render owns graphics submission and native graphics lifecycle. Input owns device collection. Scripting owns managed invocation. UI coordinates those ports without taking over their implementations.
+
+The private RmlUi filesystem, system, and render adapters translate vendor geometry, textures, scissor rectangles, and compiled handles into Render-owned overlay submissions. Font-atlas textures and compiled geometry use generation-safe handles. Resize, minimized frames, partial initialization failure, document failure, and repeated shutdown are bounded and diagnosable. The overlay is submitted after world rendering and before presentation.
 
 ## Audio event path
 

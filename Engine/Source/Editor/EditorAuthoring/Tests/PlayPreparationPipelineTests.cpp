@@ -3,6 +3,7 @@
 #include "SagaEditor/Play/PlayPreparationPipeline.h"
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
 #include "SagaRuntime/Play/RuntimePlayContracts.hpp"
+#include "TestSourceRoot.h"
 
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
@@ -18,7 +19,7 @@ namespace
 {
 std::filesystem::path StarterArenaProject()
 {
-    return std::filesystem::path(SAGA_SOURCE_ROOT) /
+    return TestSourceRoot() /
         "Samples/StarterArena/StarterArena.sagaproj";
 }
 
@@ -31,6 +32,53 @@ std::string ReadFile(const std::filesystem::path& path)
 {
     std::ifstream input(path, std::ios::binary);
     return {std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
+}
+
+nlohmann::json ReadJson(const std::filesystem::path& path)
+{
+    std::ifstream input(path, std::ios::binary);
+    return nlohmann::json::parse(input);
+}
+
+std::map<std::string, std::string> ArtifactHashes(
+    const std::filesystem::path& currentManifest)
+{
+    std::map<std::string, std::string> hashes;
+    for (const auto& artifact : ReadJson(currentManifest).at("artifacts"))
+    {
+        const auto id = artifact.at("artifactId").get<std::string>();
+        for (const auto* field : {"artifactHash", "fileHash", "contentHash"})
+            if (artifact.contains(field))
+            {
+                hashes[id] = artifact.at(field).get<std::string>();
+                break;
+            }
+    }
+    return hashes;
+}
+
+std::filesystem::path ArtifactPath(const std::filesystem::path& currentManifest,
+                                   std::string_view artifactId)
+{
+    const auto manifest = ReadJson(currentManifest);
+    for (const auto& artifact : manifest.at("artifacts"))
+        if (artifact.at("artifactId").get<std::string>() == artifactId)
+            return currentManifest.parent_path().parent_path() /
+                artifact.at("path").get<std::string>();
+    return {};
+}
+
+std::filesystem::path CleanStarterCopy(const std::filesystem::path& parent,
+                                       std::string_view name)
+{
+    const auto root = parent / name;
+    std::filesystem::create_directories(parent);
+    std::filesystem::copy(StarterArenaProject().parent_path(), root,
+        std::filesystem::copy_options::recursive);
+    std::error_code ignored;
+    std::filesystem::remove_all(root / "Build/Editor", ignored);
+    std::filesystem::remove_all(root / ".saga", ignored);
+    return root;
 }
 
 class SnapshotProjectClient final : public SagaEditor::IProjectToolClient
@@ -229,4 +277,92 @@ TEST(PlaySourceSnapshotTests, MutationAndSaveAllInvalidateCapturedWorkspaceGener
     ASSERT_FALSE(stale.empty());
     EXPECT_EQ(stale.front().code, "Play.Prepare.StaleSource");
     std::filesystem::remove_all(root);
+}
+
+TEST(PlayPreparationPipelineTests, WorkspaceAndSavedSnapshotPublishIdenticalCanonicalArtifacts)
+{
+    const auto parent = std::filesystem::temp_directory_path() / ("saga-play-parity-" +
+        std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    const auto editorRoot = CleanStarterCopy(parent, "editor");
+    const auto snapshotRoot = CleanStarterCopy(parent, "snapshot");
+    SagaEditor::EditorDocumentWorkspace editorWorkspace;
+    SagaEditor::EditorDocumentWorkspace snapshotWorkspace;
+    ASSERT_TRUE(editorWorkspace.OpenProject(editorRoot / "StarterArena.sagaproj"));
+    ASSERT_TRUE(snapshotWorkspace.OpenProject(snapshotRoot / "StarterArena.sagaproj"));
+    constexpr std::string_view session = "fixed-source-parity";
+    const auto captured = SagaEditor::CapturePlaySourceSnapshot(snapshotWorkspace,
+        std::string(session));
+    ASSERT_TRUE(captured.Succeeded());
+
+    const SagaEditor::PlayPreparationPipeline pipeline;
+    const SagaEditor::PlayPreparationRequest request{std::string(session),
+        RuntimeExecutable(), {}, {}, {}};
+    const auto editor = pipeline.Prepare(editorWorkspace, request);
+    const auto snapshot = pipeline.Prepare(*captured.snapshot, request);
+    ASSERT_TRUE(editor.passed) << (editor.diagnostics.empty() ? "" :
+        editor.diagnostics.front().code + ": " + editor.diagnostics.front().message + " " +
+        editor.diagnostics.front().path.string());
+    ASSERT_TRUE(snapshot.passed) << (snapshot.diagnostics.empty() ? "" :
+        snapshot.diagnostics.front().code + ": " + snapshot.diagnostics.front().message);
+
+    EXPECT_EQ(editor.canonicalManifestHash, snapshot.canonicalManifestHash);
+    EXPECT_EQ(editor.canonicalHashes, snapshot.canonicalHashes);
+    EXPECT_EQ(ReadFile(editor.canonicalManifestPath), ReadFile(snapshot.canonicalManifestPath));
+    EXPECT_EQ(ReadFile(editorRoot / "SagaPackage.lock"),
+              ReadFile(snapshotRoot / "SagaPackage.lock"));
+    EXPECT_EQ(ArtifactHashes(editorRoot / "Build/Editor/Scripting/Artifacts/manifests/current.json"),
+              ArtifactHashes(snapshotRoot / "Build/Editor/Scripting/Artifacts/manifests/current.json"));
+    EXPECT_EQ(ArtifactHashes(editor.buildRoot / "Content/manifests/current.json"),
+              ArtifactHashes(snapshot.buildRoot / "Content/manifests/current.json"));
+    std::filesystem::remove_all(parent);
+}
+
+TEST(PlayPreparationPipelineTests, InputDisplayLabelChangeLeavesUnrelatedArtifactsStable)
+{
+    const auto parent = std::filesystem::temp_directory_path() / ("saga-play-input-variant-" +
+        std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    const auto eRoot = CleanStarterCopy(parent, "e");
+    const auto fRoot = CleanStarterCopy(parent, "f");
+    const auto fInputPath = fRoot / "Input/Input.saga.json";
+    auto fInput = ReadJson(fInputPath);
+    auto& binding = fInput.at("actions").at(0).at("bindings").at(0);
+    binding["control"] = "F";
+    binding["displayName"] = "Keyboard F";
+    std::ofstream(fInputPath, std::ios::binary | std::ios::trunc) << fInput.dump(2) << '\n';
+
+    SagaEditor::EditorDocumentWorkspace eWorkspace;
+    SagaEditor::EditorDocumentWorkspace fWorkspace;
+    ASSERT_TRUE(eWorkspace.OpenProject(eRoot / "StarterArena.sagaproj"));
+    ASSERT_TRUE(fWorkspace.OpenProject(fRoot / "StarterArena.sagaproj"));
+    constexpr std::string_view session = "fixed-input-variant";
+    const SagaEditor::PlayPreparationRequest request{std::string(session),
+        RuntimeExecutable(), {}, {}, {}};
+    const SagaEditor::PlayPreparationPipeline pipeline;
+    const auto eResult = pipeline.Prepare(eWorkspace, request);
+    const auto fResult = pipeline.Prepare(fWorkspace, request);
+    ASSERT_TRUE(eResult.passed) << (eResult.diagnostics.empty() ? "" :
+        eResult.diagnostics.front().code + ": " + eResult.diagnostics.front().message + " " +
+        eResult.diagnostics.front().path.string());
+    ASSERT_TRUE(fResult.passed) << (fResult.diagnostics.empty() ? "" :
+        fResult.diagnostics.front().code + ": " + fResult.diagnostics.front().message);
+
+    std::vector<std::string> changed;
+    for (const auto& [name, hash] : eResult.canonicalHashes)
+        if (fResult.canonicalHashes.at(name) != hash) changed.push_back(name);
+    EXPECT_EQ(changed, (std::vector<std::string>{"input", "launchManifest"}));
+    EXPECT_EQ(eResult.canonicalHashes.at("uiSet"), fResult.canonicalHashes.at("uiSet"));
+    EXPECT_EQ(ArtifactHashes(eRoot / "Build/Editor/Scripting/Artifacts/manifests/current.json"),
+              ArtifactHashes(fRoot / "Build/Editor/Scripting/Artifacts/manifests/current.json"));
+    for (const auto& [name, hash] : eResult.canonicalHashes)
+        RecordProperty("e_" + name, hash);
+    for (const auto& [name, hash] : fResult.canonicalHashes)
+        RecordProperty("f_" + name, hash);
+
+    const auto eInput = ReadJson(ArtifactPath(
+        eResult.buildRoot / "Content/manifests/current.json", "starter-arena.input"));
+    const auto fInputArtifact = ReadJson(ArtifactPath(
+        fResult.buildRoot / "Content/manifests/current.json", "starter-arena.input"));
+    EXPECT_EQ(eInput.at("payload").at("actions").at(0).at("bindings").at(0).at("displayLabel"), "E");
+    EXPECT_EQ(fInputArtifact.at("payload").at("actions").at(0).at("bindings").at(0).at("displayLabel"), "F");
+    std::filesystem::remove_all(parent);
 }

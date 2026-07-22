@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MPL-2.0
-    # --- Campaign 3 verified state/prompt seam tests -----------------------
+    # --- Verified state/prompt seam tests ----------------------------------
     add_executable(SagaRuntimeVisibleSliceTests
         ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Tests/RuntimeVisibleSliceTests.cpp
         ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private/RuntimeStateStore.cpp
@@ -18,7 +18,7 @@
     )
     add_test(NAME SagaRuntimeVisibleSliceTests COMMAND SagaRuntimeVisibleSliceTests)
     set_tests_properties(SagaRuntimeVisibleSliceTests PROPERTIES
-        LABELS "unit;runtime;runtime-ui;visible-slice;starter-arena;campaign3")
+        LABELS "unit;runtime;runtime-ui;visible-slice;starter-arena")
 
     # --- Script lifecycle tests ---------------------------------------------
     #

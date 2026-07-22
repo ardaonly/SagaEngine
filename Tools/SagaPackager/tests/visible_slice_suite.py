@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
 # SPDX-License-Identifier: MPL-2.0
-"""Campaign 3 runtime UI/input artifact tests kept out of the legacy CLI suite."""
+"""Runtime UI/input artifact tests kept out of the legacy CLI suite."""
 
 from __future__ import annotations
 

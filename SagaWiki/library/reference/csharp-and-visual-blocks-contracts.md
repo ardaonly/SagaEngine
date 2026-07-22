@@ -172,11 +172,15 @@ This proves source-preserving tool orchestration for the fixture/operation. It d
 
 ## Editor integration
 
-Editor views consume artifacts and reports. A projection view shows projectable and opaque regions. A patch evaluation view shows exact target, old/new representation, freshness, diagnostics, and non-claims. A review workflow lets the user accept an explicit apply request.
+Editor views consume artifacts and reports. The scripting panel has separate `Scripting` and `Blocks` tabs. The Blocks widget renders immutable presentation-neutral cards and nesting, including package origin, source spans, busy/stale/failure state, and opaque C# regions. Selecting a card navigates the existing source buffer; it does not recreate or mutate that buffer.
+
+`ScriptProjectionSession` is Qt-free and accepts only saved-source analysis. Its snapshot states distinguish no document, dirty-needs-save, analyzing, current, stale, failed, cancelled, project closed, and package-generation change. Publication succeeds only while workspace generation, disk hash, document revision, project/package generation, operation identity, and artifact hash still match. Late, cancelled, closed, or replaced results cannot overwrite the current projection.
+
+For StarterArena the semantic tree contains `WHEN Interact` with child `toggle door target state`. Unrepresented lifecycle regions remain source-linked `Opaque C# region` cards. These cards are preservation evidence, not executable fallback nodes.
 
 The editor retains personal graph layout/selection separately from C# source. Moving a block for readability does not alter behavior unless an explicit supported source operation is generated and approved.
 
-If source changes externally, views become stale and refresh. They never keep presenting old projection as current without a visible stale state.
+If source changes externally, views become stale and refresh. They never keep presenting old projection as current without a visible stale state. Play and Runtime do not depend on projection artifacts.
 
 ## Diagnostics
 

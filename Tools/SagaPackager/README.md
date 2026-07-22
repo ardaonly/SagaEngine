@@ -27,7 +27,7 @@ truth is reported as `MissingSourceOfTruth`. The tool does not build shipping
 distribution artifacts, upload anything, migrate ClientHost, or change
 runtime/server/editor gameplay code.
 
-The Campaign 1 compiler accepts strict schema-version-1 primitive asset, scene,
+The content compiler accepts strict schema-version-1 primitive asset, scene,
 and input sources. It emits canonical UTF-8/LF JSON with lowercase SHA-256
 identities, validates the complete operation before publication, stages
 content-addressed objects, and atomically replaces `manifests/current.json`.

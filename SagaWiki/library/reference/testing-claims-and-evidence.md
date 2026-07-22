@@ -147,6 +147,8 @@ A machine-readable report should include:
 
 Evidence is derived output. It is regenerated and normally untracked unless a deliberate fixture/golden contract stores it. Local audit folders, crash reports, package staging trees, and repomix output are not source files.
 
+The serial visible-slice evidence runner aggregates focused runtime UI, RmlUi, read-only projection, saved-source preparation, and recovery results below `.saga-private/evidence/visible-slice`. It records command output hashes and can attach runtime session/result, prompt-state sequence, capture paths, backend/GPU identity, and pixel statistics. It complements the individually registered CTest entries; it never substitutes for the normal test graph or turns an unexecuted graphical step into a pass.
+
 ## Manual evidence
 
 Manual evidence records exact setup, steps, expected observation, actual observation, environment, and date/actor when relevant. A checklist with unchecked steps is incomplete. A screenshot supports only what is visible and can be stale; pair it with source/build identity.

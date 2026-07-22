@@ -174,7 +174,7 @@ SagaRuntimeApp::RuntimeCommandLine ParseArgs(int argc, char* argv[])
                         "  --package-base-directory <path>\n"
                         "                         Resolve package-relative manifest and asset paths from this directory\n"
                         "  --play-envelope <path>\n"
-                        "                         Run a verified Campaign 2 local launch envelope\n"
+                        "                         Run a verified local launch envelope\n"
                         "  --smoke-interactions  Inject the configured logical action twice for headless proof\n"
                         "  --help, --?           Show this help\n");
             commandLine.showHelp = true;

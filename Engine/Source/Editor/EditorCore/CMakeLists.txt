@@ -12,6 +12,7 @@ saga_add_editor_module(EditorCore
         Private/SagaEditor/Commands/UndoRedoStack.cpp
         Private/SagaEditor/Diagnostics/EditorDiagnosticsService.cpp
         Private/SagaEditor/Documents/Document.cpp
+        Private/SagaEditor/Documents/DocumentPersistence.cpp
         Private/SagaEditor/Documents/SourceDocuments.cpp
         Private/SagaEditor/Documents/SourceDocumentTransaction.cpp
         Private/SagaEditor/Documents/TextDocument.cpp
@@ -34,6 +35,7 @@ saga_add_editor_module(EditorCore
         Public/SagaEditor/Diagnostics/EditorDiagnosticsService.h
         Public/SagaEditor/Diagnostics/IEditorDiagnosticsService.h
         Public/SagaEditor/Documents/Document.h
+        Public/SagaEditor/Documents/DocumentPersistence.h
         Public/SagaEditor/Documents/SourceDocuments.h
         Public/SagaEditor/Documents/SourceDocumentTransaction.h
         Public/SagaEditor/Documents/TextDocument.h
@@ -65,6 +67,7 @@ saga_register_module_tests(EditorCore
     SOURCES
         Tests/EditorDiagnosticsServiceTests.cpp
         Tests/DocumentTests.cpp
+        Tests/DocumentRecoveryTests.cpp
         Tests/SourceDocumentTests.cpp
         Tests/ProjectManagerTests.cpp
         Tests/ToolProcessRunnerTests.cpp

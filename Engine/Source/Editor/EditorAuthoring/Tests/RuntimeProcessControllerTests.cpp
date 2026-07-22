@@ -2,6 +2,7 @@
 
 #include "SagaEditor/Play/RuntimeProcessController.h"
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
+#include "TestSourceRoot.h"
 
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
@@ -16,7 +17,7 @@ namespace
 {
 std::filesystem::path StarterArenaProject()
 {
-    return std::filesystem::path(SAGA_SOURCE_ROOT) /
+    return TestSourceRoot() /
         "Samples/StarterArena/StarterArena.sagaproj";
 }
 

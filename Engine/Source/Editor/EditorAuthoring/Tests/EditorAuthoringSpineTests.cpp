@@ -10,6 +10,7 @@
 #include "SagaEditor/Authoring/ScriptPatchReviewWorkflowView.h"
 #include "SagaEditor/Authoring/ProjectReadinessView.h"
 #include "SagaEditor/Authoring/ViewNavigationWorkflowState.h"
+#include "TestSourceRoot.h"
 
 #include <gtest/gtest.h>
 
@@ -19,7 +20,6 @@
 #include <fstream>
 #include <iterator>
 #include <string>
-
 namespace
 {
 
@@ -620,7 +620,7 @@ TEST(EditorAuthoringSpineTests, ProjectBrowserListsWorkflowSectionsReadOnly)
 
 TEST(EditorAuthoringSpineTests, StarterArenaLoadsMinimumEditorShellWorkflowReadOnly)
 {
-    const fs::path manifest = fs::path(SAGA_SOURCE_ROOT) /
+    const fs::path manifest = TestSourceRoot() /
         "Samples" / "StarterArena" / "StarterArena.sagaproj";
 
     ProjectReadinessView project =
@@ -681,7 +681,7 @@ TEST(EditorAuthoringSpineTests, StarterArenaLoadsMinimumEditorShellWorkflowReadO
 
 TEST(EditorAuthoringSpineTests, StarterArenaCustomizationReportUsesProjectReadinessDefault)
 {
-    const fs::path manifest = fs::path(SAGA_SOURCE_ROOT) /
+    const fs::path manifest = TestSourceRoot() /
         "Samples" / "StarterArena" / "StarterArena.sagaproj";
     const auto beforeWriteTime = fs::last_write_time(manifest);
 
@@ -717,7 +717,7 @@ TEST(EditorAuthoringSpineTests, StarterArenaCustomizationReportUsesProjectReadin
 
 TEST(EditorAuthoringSpineTests, StarterArenaCustomizationReportUsesScriptAuthoringAlias)
 {
-    const fs::path manifest = fs::path(SAGA_SOURCE_ROOT) /
+    const fs::path manifest = TestSourceRoot() /
         "Samples" / "StarterArena" / "StarterArena.sagaproj";
     const auto beforeWriteTime = fs::last_write_time(manifest);
 

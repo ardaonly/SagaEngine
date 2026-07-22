@@ -116,6 +116,12 @@ An invalid phase transition is diagnosed: submit before begin, a second begin, e
 
 Frame data is snapshot-like. Simulation and replication do not expose mutable ECS storage to an asynchronous renderer. A snapshot carries the view family, visible/draw data, stable resource handles, and diagnostics/counters needed for that frame. This establishes a possible render-thread boundary without claiming a dedicated render thread is currently complete.
 
+### Overlay submission
+
+Render exposes engine-owned overlay vertices, indices, texture handles, scissor state, draw commands, and typed submission results. The private Diligent path owns transient vertex/index upload, texture creation and destruction, scissor conversion, draw ordering, and native error translation. RmlUi types do not enter Render public contracts, and Diligent types do not enter UI.
+
+An overlay frame is accepted only during the active frame after world submission and before end/present. Invalid texture generations, ranges, scissors, phases, uploads, or device state return a typed failure instead of reusing stale GPU state. A minimized frame can be skipped without corrupting the next frame; shutdown releases UI-owned GPU resources before renderer teardown and remains safe when repeated.
+
 ## Render world and interest
 
 `RenderWorld` is the rendering representation of scene-facing entities. It does not own gameplay authority. Extraction maps relevant simulation/client state into render entities and frame packets. Removing a render entity does not delete the authoritative entity; an authoritative entity can exist while it is not rendered.
@@ -207,7 +213,7 @@ Pixel tests should compare robust properties: non-clear coverage, relative lumin
 
 ### Current GPU evidence map
 
-The current Diligent tests contain focused evidence for lifecycle/reinitialize/resize, native buffers/textures/samplers/shaders/pipelines, constant/texture/sampler bindings and cache invalidation, stale/destroyed handle rejection, coordinate/depth/winding/UV behavior, overlay draw/scissor/alpha/order/lifetime/thread rejection, directional lighting, and shadow behavior. No current StarterArena pixel claim is registered.
+The current Diligent tests contain focused evidence for lifecycle/reinitialize/resize, native buffers/textures/samplers/shaders/pipelines, constant/texture/sampler bindings and cache invalidation, stale/destroyed handle rejection, coordinate/depth/winding/UV behavior, overlay draw/scissor/alpha/order/lifetime/thread rejection, directional lighting, and shadow behavior. StarterArena graphical evidence is environment-bound and must record the backend, GPU, display, capture hashes, and pixel statistics; an unexecuted graphical record is not a pixel pass.
 
 Render also owns vendor-neutral schema-version-1 cooked mesh and material
 loaders. They populate the existing `MeshAsset` and `MaterialRuntime` values,

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #include "SagaEditor/SceneEditing/SceneDocument.h"
+#include "TestSourceRoot.h"
 
 #include <gtest/gtest.h>
 
@@ -13,7 +14,7 @@
 
 TEST(SceneDocumentTests, OpensStarterArenaWithStableHierarchyAndComponents)
 {
-    const auto path = std::filesystem::path(SAGA_SOURCE_ROOT) /
+    const auto path = TestSourceRoot() /
         "Samples/StarterArena/Scenes/StarterArena.sagascene";
     SagaEditor::SceneDocument document(path);
     ASSERT_TRUE(document.Load());
@@ -28,7 +29,7 @@ TEST(SceneDocumentTests, OpensStarterArenaWithStableHierarchyAndComponents)
 
 TEST(SceneDocumentTests, InvalidTransformMutationDoesNotChangeDocument)
 {
-    const auto source = std::filesystem::path(SAGA_SOURCE_ROOT) /
+    const auto source = TestSourceRoot() /
         "Samples/StarterArena/Scenes/StarterArena.sagascene";
     const auto temp = std::filesystem::temp_directory_path() / "saga_scene_document_invalid.sagascene";
     std::filesystem::copy_file(source, temp, std::filesystem::copy_options::overwrite_existing);
@@ -44,7 +45,7 @@ TEST(SceneDocumentTests, InvalidTransformMutationDoesNotChangeDocument)
 
 TEST(SceneDocumentTests, RenameAndTransformParticipateInUndo)
 {
-    const auto source = std::filesystem::path(SAGA_SOURCE_ROOT) /
+    const auto source = TestSourceRoot() /
         "Samples/StarterArena/Scenes/StarterArena.sagascene";
     const auto temp = std::filesystem::temp_directory_path() / "saga_scene_document_undo.sagascene";
     std::filesystem::copy_file(source, temp, std::filesystem::copy_options::overwrite_existing);
