@@ -527,6 +527,37 @@ TEST(CMakeTargetBoundaryTests, PlayIsVerifyOnlyLifetimeSafeAndRuntimeUsesWorkerM
     EXPECT_NE(runtimeHost.find("publishReady"), std::string::npos);
 }
 
+TEST(CMakeTargetBoundaryTests, ReadOnlyProjectionStaysOutsideRuntimeLaunchAndExecution)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto targets = ReadText(root / "cmake/modules/SagaTargets.cmake");
+    const auto play = ReadText(root /
+        "Engine/Source/Editor/EditorAuthoring/Private/SagaEditor/Play/PlayPreparationPipeline.cpp");
+    const auto launch = ReadText(root /
+        "Engine/Source/Runtime/SagaRuntime/Public/SagaRuntime/Play/RuntimePlayContracts.hpp");
+    const auto qtPanel = ReadText(root /
+        "Engine/Source/Editor/EditorQt/Private/SagaEditorQt/Panels/ScriptingPanel.cpp");
+    const auto projectionHeader = ReadText(root /
+        "Engine/Source/Editor/VisualBlocksEditor/Public/SagaEditor/VisualBlocks/ReadOnlyScriptProjection.h");
+    const auto projectionSource = ReadText(root /
+        "Engine/Source/Editor/VisualBlocksEditor/Private/SagaEditor/VisualBlocks/ReadOnlyScriptProjection.cpp");
+
+    const auto runtimeLinks = ExtractTargetCalls(targets, "target_link_libraries", "SagaRuntime");
+    EXPECT_EQ(runtimeLinks.find("VisualBlocks"), std::string::npos);
+    EXPECT_EQ(launch.find("projection"), std::string::npos);
+    EXPECT_EQ(launch.find("Projection"), std::string::npos);
+    EXPECT_EQ(play.find("block-projection"), std::string::npos);
+    EXPECT_EQ(play.find("ReadOnlyScriptProjection"), std::string::npos);
+    EXPECT_EQ(qtPanel.find("Microsoft.CodeAnalysis"), std::string::npos);
+    EXPECT_EQ(qtPanel.find("CSharpSyntaxTree"), std::string::npos);
+    for (const auto& text : {projectionHeader, projectionSource})
+    {
+        EXPECT_EQ(text.find("VirtualMachine"), std::string::npos);
+        EXPECT_EQ(text.find("ExecutionLoop"), std::string::npos);
+        EXPECT_EQ(text.find("<fstream>"), std::string::npos);
+    }
+}
+
 TEST(CMakeTargetBoundaryTests, ModuleTestDirectoriesContainRealOwnedTests)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);

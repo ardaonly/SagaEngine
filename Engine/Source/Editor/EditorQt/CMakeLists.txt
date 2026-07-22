@@ -16,6 +16,8 @@ saga_add_editor_module(EditorQt
         Private/SagaEditorQt/Panels/HierarchyPanel.cpp
         Private/SagaEditorQt/Panels/InspectorPanel.cpp
         Private/SagaEditorQt/Panels/ProblemsPanel.cpp
+        Private/SagaEditorQt/Panels/ReadOnlyBlocksWidget.cpp
+        Private/SagaEditorQt/Panels/ReadOnlyBlocksWidget.h
         Private/SagaEditorQt/Panels/ProductionDashboardPanel.cpp
         Private/SagaEditorQt/Panels/ShortcutPreferencesPanel.cpp
         Private/SagaEditorQt/Panels/ScriptingPanel.cpp

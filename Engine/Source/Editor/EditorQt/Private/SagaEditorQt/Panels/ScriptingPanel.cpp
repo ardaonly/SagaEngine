@@ -7,6 +7,7 @@
 #include "SagaEditor/Documents/SourceDocumentTransaction.h"
 #include "SagaEditor/Scripting/ScriptAnalysisCoordinator.h"
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
+#include "SagaEditorQt/Panels/ReadOnlyBlocksWidget.h"
 
 #include <QtConcurrent/QtConcurrentRun>
 #include <QFutureWatcher>
@@ -19,6 +20,7 @@
 #include <QRegularExpression>
 #include <QSyntaxHighlighter>
 #include <QTextCharFormat>
+#include <QTabWidget>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -74,6 +76,9 @@ struct ScriptingPanel::Impl
     QListWidget* diagnostics = nullptr;
     QPushButton* save = nullptr;
     QPushButton* analyze = nullptr;
+    QTabWidget* tabs = nullptr;
+    QWidget* scriptingTab = nullptr;
+    ReadOnlyBlocksWidget* blocks = nullptr;
     EditorDocumentWorkspace* workspace = nullptr;
     UndoRedoStack* journal = nullptr;
     CommandDispatcher* dispatcher = nullptr;
@@ -99,14 +104,39 @@ struct ScriptingPanel::Impl
         toolbar->addWidget(identity, 1); toolbar->addWidget(state);
         toolbar->addWidget(save); toolbar->addWidget(analyze);
         layout->addLayout(toolbar);
-        editor = new QPlainTextEdit(widget);
+        tabs = new QTabWidget(widget);
+        tabs->setAccessibleName(QStringLiteral("Scripting and Blocks"));
+        scriptingTab = new QWidget(tabs);
+        auto* scriptingLayout = new QVBoxLayout(scriptingTab);
+        scriptingLayout->setContentsMargins(0, 0, 0, 0);
+        editor = new QPlainTextEdit(scriptingTab);
         editor->setUndoRedoEnabled(false);
         editor->setLineWrapMode(QPlainTextEdit::NoWrap);
         new CSharpHighlighter(editor->document());
-        layout->addWidget(editor, 3);
-        diagnostics = new QListWidget(widget);
+        scriptingLayout->addWidget(editor, 3);
+        diagnostics = new QListWidget(scriptingTab);
         diagnostics->setAccessibleName("SagaScript diagnostics");
-        layout->addWidget(diagnostics, 1);
+        scriptingLayout->addWidget(diagnostics, 1);
+        blocks = new ReadOnlyBlocksWidget(tabs);
+        tabs->addTab(scriptingTab, QStringLiteral("Scripting"));
+        tabs->addTab(blocks, QStringLiteral("Blocks"));
+        layout->addWidget(tabs, 1);
+        blocks->SetSourceActivated([this](const VisualBlocks::ProjectionSourceSpan& source)
+        {
+            if (!document || source.sourcePath.empty()) return;
+            const auto current = document->Snapshot().canonicalSourcePath.generic_string();
+            if (!current.ends_with(source.sourcePath)) return;
+            const auto text = document->Text();
+            const auto startByte = std::min<std::size_t>(source.startByte, text.size());
+            const auto endByte = std::min<std::size_t>(source.endByte, text.size());
+            QTextCursor cursor(editor->document());
+            cursor.setPosition(QString::fromUtf8(text.data(), static_cast<qsizetype>(startByte)).size());
+            cursor.setPosition(QString::fromUtf8(text.data(), static_cast<qsizetype>(endByte)).size(),
+                QTextCursor::KeepAnchor);
+            editor->setTextCursor(cursor);
+            tabs->setCurrentWidget(scriptingTab);
+            editor->setFocus();
+        });
         QObject::connect(editor, &QPlainTextEdit::textChanged, [this]
         {
             if (synchronizing || !document || !journal) return;
@@ -135,6 +165,11 @@ struct ScriptingPanel::Impl
                 result.cancelled ? QStringLiteral("Analysis cancelled") :
                 result.stale ? QStringLiteral("Stale result rejected") :
                 QStringLiteral("Analysis failed"));
+            blocks->Present(result.passed ? result.projection : nullptr);
+            if (!result.passed)
+                blocks->SetStatus(result.cancelled ? QStringLiteral("Analysis cancelled") :
+                    result.stale ? QStringLiteral("Stale projection rejected") :
+                    QStringLiteral("Projection failed"));
             analyze->setEnabled(document != nullptr);
             cancellation.reset();
         });
@@ -154,11 +189,17 @@ struct ScriptingPanel::Impl
         if (!document)
         {
             identity->setText("No C# source open"); state->clear(); editor->clear(); editor->setEnabled(false);
+            blocks->Present(nullptr);
         }
         else
         {
             identity->setText(QString::fromStdString(document->Snapshot().canonicalSourcePath.filename().string()));
             state->setText(document->Snapshot().dirty ? "Modified" : "Saved");
+            if (document->Snapshot().dirty)
+            {
+                blocks->Present(nullptr);
+                blocks->SetStatus(QStringLiteral("Save changes before analysis"));
+            }
             const auto cursor = editor->textCursor();
             editor->setPlainText(QString::fromStdString(document->Text()));
             editor->setTextCursor(cursor);
@@ -192,6 +233,7 @@ struct ScriptingPanel::Impl
         if (!coordinator || !workspace || analysisWatcher->isRunning()) return;
         diagnostics->clear();
         state->setText(QStringLiteral("Preparing analysis…"));
+        blocks->SetStatus(QStringLiteral("Analyzing…"));
         analyze->setEnabled(false);
         cancellation = std::make_shared<std::atomic_bool>(false);
         auto cancelled = cancellation;

@@ -72,6 +72,10 @@ ScriptWorkerResult SagaScriptWorkerClient::Run(const ScriptWorkerRequest& reques
         {"operations", request.operations},
         {"outputRoot", request.outputRoot.string()},
         {"packageLock", InputJson(request.packageLock)},
+        {"packageGenerationId", request.packageGenerationId},
+        {"packageGenerationHash", request.packageGenerationHash},
+        {"packageGenerationManifestHash", request.packageGenerationManifestHash},
+        {"packageGraphHash", request.packageGraphHash},
         {"project", {{"hash", request.project.hash}, {"path", request.project.path.string()},
                      {"projectId", request.projectId}}},
         {"referenceManifest", InputJson(request.referenceManifest)},
@@ -139,12 +143,20 @@ ScriptWorkerResult SagaScriptWorkerClient::Run(const ScriptWorkerRequest& reques
         result.cancelled = report.value("cancelled", false);
         result.stale = report.value("stale", false);
         result.currentManifestHash = report.value("currentManifestHash", std::string{});
+        result.packageGenerationId = report.value("packageGenerationId", std::string{});
+        result.packageGenerationHash = report.value("packageGenerationHash", std::string{});
+        result.packageGenerationManifestHash = report.value("packageGenerationManifestHash", std::string{});
+        result.packageGraphHash = report.value("packageGraphHash", std::string{});
         for (const auto& diagnostic : report.value("diagnostics", Json::array()))
             result.diagnostics.push_back({diagnostic.value("code", std::string{}),
                 diagnostic.value("message", std::string{}),
                 diagnostic.value("path", std::string{})});
         if (result.operationId != request.operationId ||
-            result.sourceRevision != request.sourceRevision)
+            result.sourceRevision != request.sourceRevision ||
+            result.packageGenerationId != request.packageGenerationId ||
+            result.packageGenerationHash != request.packageGenerationHash ||
+            result.packageGenerationManifestHash != request.packageGenerationManifestHash ||
+            result.packageGraphHash != request.packageGraphHash)
         {
             result.stale = true;
             result.status = "StaleResult";

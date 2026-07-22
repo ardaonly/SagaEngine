@@ -95,6 +95,10 @@ def prepare_worker_request(
             }
         ],
         "packageLock": {"path": str(lock_path), "hash": sha256_file(lock_path)},
+        "packageGenerationId": package_current["generationId"],
+        "packageGenerationHash": package_current["generationHash"],
+        "packageGenerationManifestHash": package_current["generationManifestHash"],
+        "packageGraphHash": json.loads(lock_path.read_text(encoding="utf-8"))["graphHash"],
         "referenceManifest": {
             "path": str(references_path),
             "hash": sha256_file(references_path),

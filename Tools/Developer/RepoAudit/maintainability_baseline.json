@@ -131,13 +131,6 @@
       "reason": "Asset source reporting is one serializer/validator owner and may not grow without review.",
       "owner": "SagaProjectKit",
       "disposition": "reviewed-exception"
-    },
-    {
-      "path": "Tools/SagaScript/src/ProjectWorker.cs",
-      "maximumPhysicalLines": 1097,
-      "reason": "One worker protocol coordinator; stage extraction is follow-up debt if the protocol expands.",
-      "owner": "SagaScript",
-      "disposition": "reviewed-exception"
     }
   ]
 }

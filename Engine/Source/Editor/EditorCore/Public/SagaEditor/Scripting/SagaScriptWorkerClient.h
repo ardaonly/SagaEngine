@@ -37,6 +37,10 @@ struct ScriptWorkerRequest
     std::string sourceRevision;
     std::vector<ScriptWorkerSource> sources;
     ScriptWorkerInput packageLock;
+    std::string packageGenerationId;
+    std::string packageGenerationHash;
+    std::string packageGenerationManifestHash;
+    std::string packageGraphHash;
     ScriptWorkerInput referenceManifest;
     ScriptWorkerInput apiSurfaceManifest;
     ScriptWorkerRuntimeBridge runtimeBridge;
@@ -57,6 +61,10 @@ struct ScriptWorkerResult
     std::string operationId;
     std::string sourceRevision;
     std::string currentManifestHash;
+    std::string packageGenerationId;
+    std::string packageGenerationHash;
+    std::string packageGenerationManifestHash;
+    std::string packageGraphHash;
     std::vector<DocumentDiagnostic> diagnostics;
     std::vector<std::string> progressStages;
     ToolProcessResult process;

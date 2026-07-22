@@ -5,6 +5,7 @@
 #include "SagaEditor/Documents/Document.h"
 #include "SagaEditor/Play/PlaySourceSnapshot.h"
 #include "SagaEditor/Scripting/SagaScriptWorkerClient.h"
+#include "SagaEditor/VisualBlocks/ReadOnlyScriptProjection.h"
 
 #include <chrono>
 #include <filesystem>
@@ -39,6 +40,8 @@ struct ScriptAnalysisResult
     std::vector<DocumentDiagnostic> diagnostics;
     ToolProcessResult packageProcess;
     ScriptWorkerResult worker;
+    std::string projectionArtifactHash;
+    std::shared_ptr<const VisualBlocks::ReadOnlyScriptProjection> projection;
 };
 
 /// Qt-free orchestration of Campaign 1 package-generation verification and the

@@ -1,6 +1,6 @@
 {
   "engineVersion": "0.0.11",
-  "graphHash": "sha256:4a7d1c9724e88a573b26050b9082b78e0c8bab9ccd06daa39bd91b96ad550d48",
+  "graphHash": "sha256:0a9ea5c249fdfe5a03f6e67b1570dd36acd34cfb68e46ddfcdc07ec1fda39381",
   "intentHash": "sha256:8c9b6eb1a2667aa0f7512cd7f149d1dcf2a97b44c8fbfa1da3a9910deca3b706",
   "packages": [
     {
@@ -17,7 +17,7 @@
           "trust": "TrustedEngineDistribution"
         },
         {
-          "artifactHash": "sha256:db050ee7fe94bb3ec587d76bfdbb12c72391e3f17c065d1a0c736f98bf2a37d0",
+          "artifactHash": "sha256:3ccd7390838da52e5bf1dc6c3455d60bf98005716a10341f028fbd1e4cc643cb",
           "artifactId": "com.saga.gameplay.foundation.api-surface",
           "distributionPath": "Packages/com.saga.gameplay.foundation/0.0.11/api/gameplay.highlevel.surface.json",
           "kind": "apiSurface",
@@ -51,7 +51,7 @@
       "version": "0.0.11"
     }
   ],
-  "projectHash": "sha256:6ad57a302d341d2a60065d368d013b6c01521e77dc8834d558239749bbb78a3d",
+  "projectHash": "sha256:9ab877ef01cac9715b1cca99d2284f4f8c55fac5e4d606e37594dd77457458dd",
   "projectId": "7c291959-9f45-4ec1-bf94-dc75e30bb1a8",
   "schemaVersion": 1
 }

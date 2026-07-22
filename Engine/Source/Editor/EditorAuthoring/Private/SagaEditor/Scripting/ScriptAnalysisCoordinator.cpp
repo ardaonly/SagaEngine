@@ -85,6 +85,95 @@ DocumentDiagnostic Diagnostic(std::string code, std::string message,
     result.path = std::move(path);
     return result;
 }
+
+VisualBlocks::ProjectionSourceSpan ProjectionSpan(const Json& card)
+{
+    const auto span = card.value("sourceSpan", Json::object());
+    return {card.value("sourceFile", std::string{}), card.value("sourceHash", std::string{}),
+        span.value("startByte", 0ull), span.value("endByte", 0ull),
+        span.value("startLine", 0u), span.value("startColumn", 0u),
+        span.value("endLine", 0u), span.value("endColumn", 0u)};
+}
+
+VisualBlocks::ProjectionCard ProjectionCard(const Json& card, bool opaque = false)
+{
+    std::vector<VisualBlocks::ProjectionCard> children;
+    for (const auto& child : card.value("children", Json::array()))
+        children.push_back(ProjectionCard(child));
+    return {card.value(opaque ? "regionId" : "cardId", std::string{}),
+        card.value("kind", opaque ? std::string("OpaqueCSharp") : std::string{}),
+        card.value("displayName", std::string{}),
+        card.value("packageOrigin", std::string{}), ProjectionSpan(card), std::move(children)};
+}
+
+std::shared_ptr<const VisualBlocks::ReadOnlyScriptProjection> LoadProjection(
+    const std::filesystem::path& outputRoot, const ScriptWorkerResult& worker,
+    const ScriptWorkerRequest& request, std::string& artifactHash,
+    DocumentDiagnostic& diagnostic)
+{
+    const auto currentPath = outputRoot / "manifests/current.json";
+    std::error_code error;
+    Json current;
+    if (HashFile(currentPath, error) != worker.currentManifestHash || error ||
+        !ReadJson(currentPath, current) ||
+        current.value("sourceRevision", std::string{}) != request.sourceRevision ||
+        current.value("packageGenerationId", std::string{}) != request.packageGenerationId ||
+        current.value("packageGenerationHash", std::string{}) != request.packageGenerationHash ||
+        current.value("packageGraphHash", std::string{}) != request.packageGraphHash)
+    {
+        diagnostic = Diagnostic("Script.Projection.CurrentIdentityMismatch",
+            "Projection selector no longer matches the verified analysis request.", currentPath);
+        return {};
+    }
+    const auto artifacts = current.value("artifacts", Json::array());
+    const auto found = std::find_if(artifacts.begin(), artifacts.end(), [](const Json& item)
+    { return item.value("artifactId", std::string{}) == "scripts.block-projection"; });
+    if (found == artifacts.end())
+    {
+        diagnostic = Diagnostic("Script.Projection.ArtifactMissing",
+            "Worker selector does not contain a block projection.", currentPath);
+        return {};
+    }
+    const auto artifactPath = outputRoot / found->value("objectPath", std::string{});
+    artifactHash = found->value("artifactHash", std::string{});
+    Json projection;
+    if (!IsContained(outputRoot, artifactPath) || !IsSha256(artifactHash) ||
+        HashFile(artifactPath, error) != artifactHash || error || !ReadJson(artifactPath, projection))
+    {
+        diagnostic = Diagnostic("Script.Projection.ArtifactHashMismatch",
+            "Block projection failed content-addressed object verification.", artifactPath);
+        return {};
+    }
+    const auto contentHash = projection.value("contentHash", std::string{});
+    auto content = projection;
+    content.erase("contentHash");
+    if (!IsSha256(contentHash) || HashDocumentBytes(content.dump(2) + "\n") != contentHash ||
+        contentHash != found->value("contentHash", std::string{}) ||
+        projection.value("projectId", std::string{}) != request.projectId ||
+        projection.value("projectHash", std::string{}) != request.project.hash ||
+        projection.value("sourceRevision", std::string{}) != request.sourceRevision ||
+        projection.value("packageGenerationId", std::string{}) != request.packageGenerationId ||
+        projection.value("packageGenerationHash", std::string{}) != request.packageGenerationHash ||
+        projection.value("packageGraphHash", std::string{}) != request.packageGraphHash ||
+        projection.value("apiSurfaceManifestHash", std::string{}) != request.apiSurfaceManifest.hash ||
+        !projection.value("readOnly", false) ||
+        projection.value("sourcePreservation", std::string{}) != "SourceNotMutated")
+    {
+        diagnostic = Diagnostic("Script.Projection.PayloadIdentityMismatch",
+            "Block projection payload identity or content hash is invalid.", artifactPath);
+        return {};
+    }
+    std::vector<VisualBlocks::ProjectionCard> roots;
+    for (const auto& card : projection.value("roots", Json::array()))
+        roots.push_back(ProjectionCard(card));
+    std::vector<VisualBlocks::ProjectionCard> opaque;
+    for (const auto& card : projection.value("opaqueRegions", Json::array()))
+        opaque.push_back(ProjectionCard(card, true));
+    return std::make_shared<const VisualBlocks::ReadOnlyScriptProjection>(
+        request.projectId, request.project.hash, request.sourceRevision,
+        request.packageGenerationId, request.packageGenerationHash, artifactHash,
+        std::move(roots), std::move(opaque));
+}
 }
 
 ScriptAnalysisToolchain DiscoverScriptAnalysisToolchain()
@@ -277,6 +366,17 @@ ScriptAnalysisResult ScriptAnalysisCoordinator::Analyze(
     workerRequest.sourceRevision = HashDocumentBytes(revisionMaterial);
     workerRequest.packageLock = {generation / "SagaPackage.lock",
         HashFile(generation / "SagaPackage.lock", error)};
+    workerRequest.packageGenerationId = generationId;
+    workerRequest.packageGenerationHash = current.value("generationHash", std::string{});
+    workerRequest.packageGenerationManifestHash = expectedManifestHash;
+    Json generatedLock;
+    if (!ReadJson(workerRequest.packageLock.path, generatedLock))
+    {
+        result.diagnostics.push_back(Diagnostic("Script.Analysis.GeneratedLockMalformed",
+            "Selected package generation lock is invalid.", workerRequest.packageLock.path));
+        return result;
+    }
+    workerRequest.packageGraphHash = generatedLock.value("graphHash", std::string{});
     workerRequest.referenceManifest = {referencePath, HashFile(referencePath, error)};
     workerRequest.apiSurfaceManifest = {surfacePath, HashFile(surfacePath, error)};
     workerRequest.runtimeBridge.logicalReferenceId = bridge.value("artifactId", std::string{});
@@ -312,6 +412,18 @@ ScriptAnalysisResult ScriptAnalysisCoordinator::Analyze(
         result.passed = false;
         result.stale = true;
         result.diagnostics = freshness;
+    }
+    if (result.passed)
+    {
+        DocumentDiagnostic projectionDiagnostic;
+        result.projection = LoadProjection(workerRequest.outputRoot, result.worker,
+            workerRequest, result.projectionArtifactHash, projectionDiagnostic);
+        if (!result.projection)
+        {
+            result.passed = false;
+            result.stale = true;
+            result.diagnostics.push_back(std::move(projectionDiagnostic));
+        }
     }
     return result;
 }
