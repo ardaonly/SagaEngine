@@ -1,0 +1,10 @@
+{
+  "archiveSha256": "7576310b219e04159d35ff61dd4a4ec4cdba4f35c00e002a136f00e96a908b0a",
+  "artifact": "DejaVuSans.ttf",
+  "artifactSha256": "7da195a74c55bef988d0d48f9508bd5d849425c1770dba5d7bfc6ce9ed848954",
+  "license": "Bitstream-Vera-AND-AreV-Fonts",
+  "licenseFileSha256": "f88d5294af5a772f9114eb385009e3478d62b21f3e5bbc34d159d328047c8867",
+  "source": "https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_2_37/dejavu-fonts-ttf-2.37.zip",
+  "upstream": "DejaVu Fonts",
+  "version": "2.37"
+}

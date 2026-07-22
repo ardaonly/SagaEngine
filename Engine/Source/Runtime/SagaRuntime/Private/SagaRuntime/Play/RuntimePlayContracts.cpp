@@ -193,6 +193,8 @@ std::string SerializeCanonical(const CanonicalRuntimeLaunchManifest& manifest)
     std::sort(capabilities.begin(), capabilities.end());
     capabilities.erase(std::unique(capabilities.begin(), capabilities.end()), capabilities.end());
     root["requiredRuntimeCapabilities"] = capabilities;
+    if (manifest.schemaVersion == 2)
+        root["artifacts"]["uiSet"] = ArtifactJson(manifest.uiSet);
     return Canonical(root);
 }
 
@@ -211,9 +213,11 @@ CanonicalManifestResult ParseCanonicalManifest(std::string_view bytes,
         result.diagnostics.push_back(Error("Runtime.Launch.ManifestJsonInvalid", error.what()));
         return result;
     }
+    const auto schemaVersion = root.value("schemaVersion", -1);
     if (!ExactFields(root, {"artifacts", "packageGraphHash", "playSessionId", "projectHash", "projectId",
                             "requiredRuntimeCapabilities", "runtimeBridge", "runtimeProfile",
-                            "schemaVersion", "scriptSourceRevision", "scriptSourceSetHash", "toolVersions"}) || root.value("schemaVersion", -1) != 1 ||
+                            "schemaVersion", "scriptSourceRevision", "scriptSourceSetHash", "toolVersions"}) ||
+        (schemaVersion != 1 && schemaVersion != 2) ||
         !NonEmptyString(root, "projectId") || !NonEmptyString(root, "playSessionId") ||
         !IsSha256(root.value("projectHash", std::string{})) ||
         !IsSha256(root.value("packageGraphHash", std::string{})) ||
@@ -226,10 +230,11 @@ CanonicalManifestResult ParseCanonicalManifest(std::string_view bytes,
         !root.contains("toolVersions") || !root["toolVersions"].is_object())
     {
         result.diagnostics.push_back(Error("Runtime.Launch.ManifestSchemaInvalid",
-            "Canonical runtime launch manifest schema version 1 is required."));
+            "Canonical runtime launch manifest schema version 1 or 2 is required."));
         return result;
     }
     CanonicalRuntimeLaunchManifest manifest;
+    manifest.schemaVersion = static_cast<std::uint32_t>(schemaVersion);
     manifest.projectId = root["projectId"].get<std::string>();
     manifest.projectHash = root["projectHash"].get<std::string>();
     manifest.packageGraphHash = root["packageGraphHash"].get<std::string>();
@@ -238,15 +243,23 @@ CanonicalManifestResult ParseCanonicalManifest(std::string_view bytes,
     manifest.playSessionId = root["playSessionId"].get<std::string>();
     manifest.runtimeProfile = root["runtimeProfile"].get<std::string>();
     const auto& artifacts = root["artifacts"];
-    if (!ExactFields(artifacts, {"behaviors", "capabilities", "input", "namedActions",
+    const bool artifactFieldsValid = schemaVersion == 1
+        ? ExactFields(artifacts, {"behaviors", "capabilities", "input", "namedActions",
                                  "packageGeneration", "scene", "scriptAssembly",
                                  "scriptAssemblyManifest", "scriptReferenceManifest",
-                                 "scriptRuntimeConfig"}))
+                                 "scriptRuntimeConfig"})
+        : ExactFields(artifacts, {"behaviors", "capabilities", "input", "namedActions",
+                                 "packageGeneration", "scene", "scriptAssembly",
+                                 "scriptAssemblyManifest", "scriptReferenceManifest",
+                                 "scriptRuntimeConfig", "uiSet"});
+    if (!artifactFieldsValid)
         result.diagnostics.push_back(Error("Runtime.Launch.ArtifactSetInvalid",
             "The canonical artifact set is incomplete or contains unknown fields."));
     manifest.behaviors = ParseArtifact(artifacts, "behaviors", result.diagnostics);
     manifest.capabilities = ParseArtifact(artifacts, "capabilities", result.diagnostics);
     manifest.input = ParseArtifact(artifacts, "input", result.diagnostics);
+    if (schemaVersion == 2)
+        manifest.uiSet = ParseArtifact(artifacts, "uiSet", result.diagnostics);
     manifest.namedActions = ParseArtifact(artifacts, "namedActions", result.diagnostics);
     manifest.packageGeneration = ParseArtifact(artifacts, "packageGeneration", result.diagnostics);
     manifest.scene = ParseArtifact(artifacts, "scene", result.diagnostics);
@@ -683,14 +696,17 @@ ArtifactLoadResult<RuntimeInputMapArtifact> LoadRuntimeInputMapArtifact(
             "Runtime.Input.ActionDuplicate", "Runtime input action ids must be unique.", action.actionId));
         for (const auto& binding : source["bindings"])
         {
-            if (!ExactFields(binding, {"control", "device", "displayName"}) ||
+            if (!ExactFields(binding, {"control", "device", "displayLabel", "displayName"}) ||
                 !NonEmptyString(binding, "device") || !NonEmptyString(binding, "control") ||
+                !NonEmptyString(binding, "displayLabel") ||
                 !NonEmptyString(binding, "displayName"))
             { result.diagnostics.push_back(Error("Runtime.Input.BindingInvalid", "Runtime physical binding is invalid.", action.actionId)); continue; }
             RuntimePhysicalBinding value{binding["device"].get<std::string>(),
-                binding["control"].get<std::string>(), binding["displayName"].get<std::string>()};
+                binding["control"].get<std::string>(), binding["displayLabel"].get<std::string>(),
+                binding["displayName"].get<std::string>()};
             if (value.device != "Keyboard" || value.control.size() != 1 ||
                 value.control[0] < 'A' || value.control[0] > 'Z' ||
+                value.displayLabel != value.control ||
                 value.displayName != value.device + " " + value.control)
                 result.diagnostics.push_back(Error("Runtime.Input.BindingUnsupported", "Physical device/control/display contract is unsupported.", action.actionId));
             if (!physical.insert(value.device + "\x1f" + value.control).second)
@@ -700,6 +716,112 @@ ArtifactLoadResult<RuntimeInputMapArtifact> LoadRuntimeInputMapArtifact(
         map.actions.push_back(std::move(action));
     }
     if (result.diagnostics.empty()) result.value = std::move(map);
+    return result;
+}
+
+ArtifactLoadResult<RuntimeUiSetArtifact> LoadRuntimeUiSetArtifact(
+    const std::filesystem::path& path)
+{
+    std::error_code error;
+    const auto bytes = ReadFile(path, error);
+    if (error) return ArtifactFailure<RuntimeUiSetArtifact>(
+        "Runtime.UI.ReadFailed", error.message(), path);
+    Json root;
+    try { root = Json::parse(bytes); }
+    catch (const Json::exception& exception)
+    { return ArtifactFailure<RuntimeUiSetArtifact>("Runtime.UI.JsonInvalid", exception.what(), path); }
+    ArtifactLoadResult<RuntimeUiSetArtifact> result;
+    if (!ValidateWrapper(root, "runtime.ui-set", result.diagnostics)) return result;
+    const auto& payload = root["payload"];
+    if (!ExactFields(payload, {"aggregateManifestHash", "documents", "fonts", "prompts",
+                               "screenId", "stylesheets", "tool"}) ||
+        !IsSha256(payload.value("aggregateManifestHash", std::string{})) ||
+        !NonEmptyString(payload, "screenId") || !payload.contains("documents") ||
+        !payload["documents"].is_array() || payload["documents"].empty() ||
+        !payload.contains("stylesheets") || !payload["stylesheets"].is_array() ||
+        payload["stylesheets"].empty() || !payload.contains("fonts") ||
+        !payload["fonts"].is_array() || payload["fonts"].empty() ||
+        !payload.contains("prompts") || !payload["prompts"].is_array() ||
+        payload["prompts"].empty() || !payload.contains("tool") ||
+        !ExactFields(payload["tool"], {"name", "version"}) ||
+        payload["tool"].value("name", std::string{}) != "sagapack" ||
+        payload["tool"].value("version", std::string{}) != "0.0.11")
+    {
+        result.diagnostics.push_back(Error("Runtime.UI.PayloadInvalid",
+            "runtime.ui-set payload is incomplete or malformed."));
+        return result;
+    }
+    RuntimeUiSetArtifact ui;
+    ui.artifactId = root["artifactId"].get<std::string>();
+    ui.contentHash = root["contentHash"].get<std::string>();
+    ui.sourceHash = root["sourceHash"].get<std::string>();
+    ui.aggregateManifestHash = payload["aggregateManifestHash"].get<std::string>();
+    ui.screenId = payload["screenId"].get<std::string>();
+    const auto contentRoot = path.parent_path().parent_path();
+    auto loadResources = [&](std::string_view field, bool document, bool font,
+                             std::vector<RuntimeUiResource>& output)
+    {
+        for (const auto& item : payload[std::string(field)])
+        {
+            const bool fieldsValid = document
+                ? ExactFields(item, {"documentId", "hash", "path", "sourceId"})
+                : font ? ExactFields(item, {"family", "hash", "path", "sourceId"})
+                       : ExactFields(item, {"hash", "path", "sourceId"});
+            if (!fieldsValid || !NonEmptyString(item, "sourceId") ||
+                !NonEmptyString(item, "path") || !IsSha256(item.value("hash", std::string{})) ||
+                (document && !NonEmptyString(item, "documentId")) ||
+                (font && !NonEmptyString(item, "family")))
+            {
+                result.diagnostics.push_back(Error("Runtime.UI.ResourceInvalid",
+                    "UI resource identity, path, or hash is invalid.", std::string(field)));
+                continue;
+            }
+            const auto resolved = contentRoot / item["path"].get<std::string>();
+            const auto resourceBytes = ReadFile(resolved, error);
+            if (!Contained(contentRoot, resolved) || error ||
+                Sha256Bytes(resourceBytes) != item["hash"].get<std::string>())
+            {
+                result.diagnostics.push_back(Error("Runtime.UI.ResourceHashMismatch",
+                    "UI resource escaped the content root or failed hash verification.",
+                    resolved.generic_string()));
+                error.clear();
+                continue;
+            }
+            output.push_back({item["sourceId"].get<std::string>(), resolved,
+                item["hash"].get<std::string>(),
+                document ? item["documentId"].get<std::string>() : std::string{},
+                font ? item["family"].get<std::string>() : std::string{}});
+        }
+    };
+    loadResources("documents", true, false, ui.documents);
+    loadResources("stylesheets", false, false, ui.stylesheets);
+    loadResources("fonts", false, true, ui.fonts);
+    std::set<std::string> promptIdentities;
+    for (const auto& item : payload["prompts"])
+    {
+        if (!ExactFields(item, {"actionId", "behaviorId", "elementId", "entityId",
+                                "falseLabel", "stateKey", "trueLabel", "visibility"}) ||
+            !NonEmptyString(item, "actionId") || !NonEmptyString(item, "behaviorId") ||
+            !NonEmptyString(item, "elementId") || !NonEmptyString(item, "entityId") ||
+            !NonEmptyString(item, "falseLabel") || !NonEmptyString(item, "stateKey") ||
+            !NonEmptyString(item, "trueLabel") || item.value("visibility", std::string{}) != "Always")
+        {
+            result.diagnostics.push_back(Error("Runtime.UI.PromptInvalid",
+                "UI prompt binding is incomplete or unsupported."));
+            continue;
+        }
+        const auto identity = item["actionId"].get<std::string>() + "\x1f" +
+            item["entityId"].get<std::string>() + "\x1f" + item["behaviorId"].get<std::string>();
+        if (!promptIdentities.insert(identity).second)
+            result.diagnostics.push_back(Error("Runtime.UI.PromptDuplicate",
+                "UI prompt binding identity is duplicated.", identity));
+        ui.prompts.push_back({item["actionId"].get<std::string>(),
+            item["behaviorId"].get<std::string>(), item["elementId"].get<std::string>(),
+            item["entityId"].get<std::string>(), item["falseLabel"].get<std::string>(),
+            item["stateKey"].get<std::string>(), item["trueLabel"].get<std::string>(),
+            item["visibility"].get<std::string>()});
+    }
+    if (result.diagnostics.empty()) result.value = std::move(ui);
     return result;
 }
 

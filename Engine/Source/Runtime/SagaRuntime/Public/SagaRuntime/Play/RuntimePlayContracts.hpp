@@ -45,6 +45,7 @@ struct CanonicalRuntimeLaunchManifest
     std::string runtimeProfile = "Client";
     ArtifactIdentity scene;
     ArtifactIdentity input;
+    ArtifactIdentity uiSet;
     ArtifactIdentity scriptAssembly;
     ArtifactIdentity scriptRuntimeConfig;
     ArtifactIdentity scriptAssemblyManifest;
@@ -212,6 +213,7 @@ struct RuntimePhysicalBinding
 {
     std::string device;
     std::string control;
+    std::string displayLabel;
     std::string displayName;
 };
 
@@ -231,6 +233,40 @@ struct RuntimeInputMapArtifact
     std::vector<RuntimeInputAction> actions;
 };
 
+struct RuntimeUiResource
+{
+    std::string sourceId;
+    std::filesystem::path path;
+    std::string hash;
+    std::string documentId;
+    std::string family;
+};
+
+struct RuntimeUiPromptBinding
+{
+    std::string actionId;
+    std::string behaviorId;
+    std::string elementId;
+    std::string entityId;
+    std::string falseLabel;
+    std::string stateKey;
+    std::string trueLabel;
+    std::string visibility;
+};
+
+struct RuntimeUiSetArtifact
+{
+    std::string artifactId;
+    std::string contentHash;
+    std::string sourceHash;
+    std::string aggregateManifestHash;
+    std::string screenId;
+    std::vector<RuntimeUiResource> documents;
+    std::vector<RuntimeUiResource> stylesheets;
+    std::vector<RuntimeUiResource> fonts;
+    std::vector<RuntimeUiPromptBinding> prompts;
+};
+
 template <typename T>
 struct ArtifactLoadResult
 {
@@ -243,6 +279,8 @@ struct ArtifactLoadResult
 [[nodiscard]] ArtifactLoadResult<RuntimeSceneArtifact> LoadRuntimeSceneArtifact(
     const std::filesystem::path& path);
 [[nodiscard]] ArtifactLoadResult<RuntimeInputMapArtifact> LoadRuntimeInputMapArtifact(
+    const std::filesystem::path& path);
+[[nodiscard]] ArtifactLoadResult<RuntimeUiSetArtifact> LoadRuntimeUiSetArtifact(
     const std::filesystem::path& path);
 
 class INamedActionTarget

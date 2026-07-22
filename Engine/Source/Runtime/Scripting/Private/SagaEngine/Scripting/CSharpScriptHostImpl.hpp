@@ -178,11 +178,13 @@ struct CSharpScriptHost::Impl
 
     struct InstanceState
     {
+        ScriptInstanceHandle instance;
         std::int64_t bridgeInstanceHandle = 0;
         std::int64_t contextHandle = 0;
         std::string classId;
         std::string scriptId;
         ScriptEntityHandle selfEntity;
+        std::uint64_t activeInstanceToken = 0;
         CapabilitySet grantedCapabilities;
         std::vector<ScriptDiagnostic> pendingDiagnostics;
     };
@@ -219,6 +221,7 @@ struct CSharpScriptHost::Impl
     [[nodiscard]] CapabilitySet ResolveGrantedCapabilities(const PackageState& package,
                                                            const std::string& scriptId) const;
     [[nodiscard]] InstanceState* FindInstanceByContext(std::int64_t contextHandle);
+    [[nodiscard]] static ScriptStateContext StateContext(const InstanceState& state);
 
     void RecordDiagnostic(InstanceState& state, ScriptDiagnostic diagnostic);
     [[nodiscard]] bool RequireCapability(InstanceState& state,
@@ -312,6 +315,7 @@ struct CSharpScriptHost::Impl
     BridgeReleasePackageFn releasePackage = nullptr;
     std::uint64_t nextPackageHandle = 1;
     std::uint64_t nextInstanceHandle = 1;
+    std::uint64_t nextActiveInstanceToken = 1;
     std::unordered_map<std::uint64_t, PackageState> packages;
     std::unordered_map<std::uint64_t, InstanceState> instances;
     std::unordered_map<std::int64_t, std::uint64_t> contextToInstance;

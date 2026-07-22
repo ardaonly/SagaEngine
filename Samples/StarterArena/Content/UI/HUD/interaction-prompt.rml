@@ -1,0 +1,26 @@
+<!--
+SPDX-License-Identifier: MIT
+-->
+<rml>
+<head>
+  <title>Starter Arena HUD</title>
+  <style>
+    body { font-family: DejaVu Sans; pointer-events: none; }
+    .interaction-prompt {
+      position: absolute;
+      left: 50%;
+      bottom: 8%;
+      transform: translateX(-50%);
+      padding: 12px 18px;
+      color: #ffffff;
+      background-color: rgba(12, 18, 28, 210);
+      border: 1px #78b8ff;
+      border-radius: 5px;
+      font-size: 24px;
+    }
+  </style>
+</head>
+<body>
+  <div id="interaction-prompt" class="interaction-prompt">[E] Open Door</div>
+</body>
+</rml>

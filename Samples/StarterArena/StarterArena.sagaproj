@@ -91,5 +91,27 @@
       "path": ".saga/shared",
       "tracked": false
     }
+  ],
+  "uiDocuments": [
+    {
+      "id": "starter-arena.hud",
+      "kind": "ui-config",
+      "path": "Content/UI/HUD/interaction-prompt.ui.json"
+    },
+    {
+      "id": "starter-arena.hud.document",
+      "kind": "rml",
+      "path": "Content/UI/HUD/interaction-prompt.rml"
+    },
+    {
+      "id": "starter-arena.hud.styles",
+      "kind": "rcss",
+      "path": "Content/UI/HUD/interaction-prompt.rcss"
+    },
+    {
+      "id": "starter-arena.hud.font",
+      "kind": "font",
+      "path": "Content/UI/ThirdParty/DejaVu/DejaVuSans.ttf"
+    }
   ]
 }

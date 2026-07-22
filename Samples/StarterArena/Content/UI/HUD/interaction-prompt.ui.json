@@ -1,0 +1,33 @@
+{
+  "documents": [
+    {
+      "documentId": "starter-arena.hud.document",
+      "path": "interaction-prompt.rml"
+    }
+  ],
+  "fonts": [
+    {
+      "family": "DejaVu Sans",
+      "path": "../ThirdParty/DejaVu/DejaVuSans.ttf"
+    }
+  ],
+  "prompts": [
+    {
+      "actionId": "Interact",
+      "behaviorId": "StarterArena.DoorController",
+      "elementId": "interaction-prompt",
+      "entityId": "door-root",
+      "falseLabel": "Open Door",
+      "stateKey": "door.target-open",
+      "trueLabel": "Close Door",
+      "visibility": "Always"
+    }
+  ],
+  "schemaVersion": 1,
+  "screenId": "starter-arena.hud",
+  "stylesheets": [
+    {
+      "path": "interaction-prompt.rcss"
+    }
+  ]
+}

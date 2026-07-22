@@ -40,6 +40,7 @@ internal static class Program
                 "compile-assets" => RunContentCompile(options, "assets"),
                 "compile-scenes" => RunContentCompile(options, "scenes"),
                 "compile-inputs" => RunContentCompile(options, "inputs"),
+                "compile-ui" => RunContentCompile(options, "ui"),
                 "compile-content" => RunContentCompile(options, "all"),
                 "resolve" => RunResolvePackages(options),
                 "lock-verify" => RunVerifyLock(options),
@@ -290,6 +291,7 @@ internal static class Program
         Console.Error.WriteLine("  sagapack compile-assets --project <path> --out <artifact-root>");
         Console.Error.WriteLine("  sagapack compile-scenes --project <path> --script-manifest <SagaScript current.json> --out <artifact-root>");
         Console.Error.WriteLine("  sagapack compile-inputs --project <path> --out <artifact-root>");
+        Console.Error.WriteLine("  sagapack compile-ui --project <path> --out <artifact-root>");
         Console.Error.WriteLine("  sagapack compile-content --project <path> --script-manifest <SagaScript current.json> --out <artifact-root>");
         Console.Error.WriteLine("  sagapack resolve --project <path> [--engine-root <root>] --lock <SagaPackage.lock> --generated-out <dir> --runtime-bridge <dll> --out <report>");
         Console.Error.WriteLine("  sagapack lock-verify --project <path> [--engine-root <root>] --lock <SagaPackage.lock> [--generated-out <dir>] --runtime-bridge <dll> --out <report>");

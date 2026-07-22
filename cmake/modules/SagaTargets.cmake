@@ -636,6 +636,7 @@ function(saga_create_engine_targets)
     target_link_libraries(SagaRuntime PRIVATE
         SagaRuntimeLib
         SagaEngine
+        SagaBackend
         SagaDiligentRuntime
         SagaPlatformSDL
     )

@@ -258,7 +258,7 @@ void CSharpScriptHost::Impl::RecordWorldDiagnostics(InstanceState& state,
         return NativeCallbackStatus::CapabilityDenied;
     if (!RequireStatePort(*state, "State.GetBool"))
         return NativeCallbackStatus::WorldUnavailable;
-    auto result = options.statePort->GetBool(key);
+    auto result = options.statePort->GetBool(StateContext(*state), key);
     if (!result.Succeeded())
     {
         RecordWorldDiagnostics(*state, std::move(result.diagnostics));
@@ -280,7 +280,7 @@ void CSharpScriptHost::Impl::RecordWorldDiagnostics(InstanceState& state,
         return NativeCallbackStatus::CapabilityDenied;
     if (!RequireStatePort(*state, "State.AddInt32"))
         return NativeCallbackStatus::WorldUnavailable;
-    auto result = options.statePort->AddInt32(key, delta);
+    auto result = options.statePort->AddInt32(StateContext(*state), key, delta);
     if (!result.Succeeded())
     {
         RecordWorldDiagnostics(*state, std::move(result.diagnostics));
@@ -302,7 +302,7 @@ void CSharpScriptHost::Impl::RecordWorldDiagnostics(InstanceState& state,
         return NativeCallbackStatus::CapabilityDenied;
     if (!RequireStatePort(*state, "State.SetBool"))
         return NativeCallbackStatus::WorldUnavailable;
-    auto result = options.statePort->SetBool(key, value != 0);
+    auto result = options.statePort->SetBool(StateContext(*state), key, value != 0);
     if (!result.Succeeded())
     {
         RecordWorldDiagnostics(*state, std::move(result.diagnostics));
@@ -323,7 +323,7 @@ void CSharpScriptHost::Impl::RecordWorldDiagnostics(InstanceState& state,
         return NativeCallbackStatus::CapabilityDenied;
     if (!RequireStatePort(*state, "State.SetString"))
         return NativeCallbackStatus::WorldUnavailable;
-    auto result = options.statePort->SetString(key, value);
+    auto result = options.statePort->SetString(StateContext(*state), key, value);
     if (!result.Succeeded())
     {
         RecordWorldDiagnostics(*state, std::move(result.diagnostics));

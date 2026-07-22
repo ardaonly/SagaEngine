@@ -10,5 +10,11 @@ saga_add_program(SagaRuntime
         Private/RuntimeCommandLine.h
         Private/RuntimeHost.cpp
         Private/RuntimeHost.h
+        Private/RuntimeStateStore.cpp
+        Private/RuntimeStateStore.h
+        Private/RuntimeUiPromptController.cpp
+        Private/RuntimeUiPromptController.h
+        Private/RuntimeUiSession.cpp
+        Private/RuntimeUiSession.h
         Private/main.cpp
 )

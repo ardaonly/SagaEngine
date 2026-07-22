@@ -77,6 +77,7 @@ internal sealed class ProjectManifestLoader
         Scenes = Map(manifest.Scenes),
         Assets = Map(manifest.Assets),
         ScriptFolders = Map(manifest.ScriptFolders),
+        UiDocuments = Map(manifest.UiDocuments),
         LaunchProfiles = Map(manifest.LaunchProfiles),
         PackageProfiles = Map(manifest.PackageProfiles),
     };

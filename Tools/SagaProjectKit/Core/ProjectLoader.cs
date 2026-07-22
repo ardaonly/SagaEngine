@@ -178,6 +178,7 @@ public sealed class ProjectLoader
         yield return ("asset", manifest.Assets);
         yield return ("scriptFolder", manifest.ScriptFolders);
         yield return ("inputMap", manifest.InputMaps);
+        yield return ("uiDocument", manifest.UiDocuments);
         yield return ("launchProfile", manifest.LaunchProfiles);
         yield return ("packageProfile", manifest.PackageProfiles);
     }

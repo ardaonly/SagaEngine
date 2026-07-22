@@ -38,6 +38,8 @@ namespace SagaEngine::Scripting
                 instanceIterator->second.selfEntity.value,
                 instanceIterator->second.scriptId,
             };
+            if (options.statePort != nullptr)
+                options.statePort->OnInstanceDeactivated(StateContext(instanceIterator->second));
             ReleaseContextHandle(instanceIterator->second.contextHandle);
             contextToInstance.erase(instanceIterator->second.contextHandle);
             activeIdentities.erase(identity);

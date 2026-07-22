@@ -13,6 +13,7 @@ public sealed record ProjectManifest
     public IReadOnlyList<ProjectReference> Assets { get; init; } = [];
     public IReadOnlyList<ProjectReference> ScriptFolders { get; init; } = [];
     public IReadOnlyList<ProjectReference> InputMaps { get; init; } = [];
+    public IReadOnlyList<ProjectReference> UiDocuments { get; init; } = [];
     public IReadOnlyList<ProjectReference> LaunchProfiles { get; init; } = [];
     public IReadOnlyList<ProjectReference> PackageProfiles { get; init; } = [];
     public IReadOnlyList<ProjectDependency> Dependencies { get; init; } = [];

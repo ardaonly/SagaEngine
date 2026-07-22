@@ -13,6 +13,12 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
+
+namespace SagaEngine::Render::Backend
+{
+class IRenderOverlaySubmission;
+}
 
 namespace SagaEngine::UI
 {
@@ -72,6 +78,8 @@ struct UiBackendConfig
     std::shared_ptr<const IUiResourceProvider>
         resourceProvider; ///< Logical UI resource resolver.
     std::shared_ptr<IUiEventSink> eventSink; ///< Optional backend-neutral UI event sink.
+    Render::Backend::IRenderOverlaySubmission* overlaySubmission = nullptr;
+    std::vector<std::filesystem::path> fontPaths; ///< Verified font files loaded before documents.
     std::string contextName = "SagaRuntimeUi"; ///< Backend context name for diagnostics.
 };
 
@@ -134,6 +142,8 @@ enum class UiDiagnosticCode : std::uint8_t
     InputRejected,
     UnsupportedInput,
     RenderFailed,
+    FontLoadFailed,
+    ElementUpdateFailed,
     BackendMessage,
 };
 

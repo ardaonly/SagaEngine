@@ -12,6 +12,8 @@ import tempfile
 import time
 from pathlib import Path
 
+from visible_slice_suite import TESTS as VISIBLE_SLICE_TESTS
+
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROJECT = REPO_ROOT / "Tools" / "SagaPackager" / "SagaPackager.csproj"
@@ -1060,27 +1062,6 @@ def test_starter_content_is_deterministic_across_clean_roots() -> None:
         assert artifact_hashes(first_output) == artifact_hashes(second_output)
 
 
-def test_input_rebind_changes_only_input_artifact() -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        root = Path(tmp)
-        project = root / "StarterArena"
-        shutil.copytree(STARTER_ROOT, project)
-        before = root / "before"
-        after = root / "after"
-        assert compile_starter(project, before, "compile-inputs").returncode == 0
-        input_path = project / "Input" / "Input.saga.json"
-        input_source = load(input_path)
-        binding = input_source["actions"][0]["bindings"][0]
-        binding["control"] = "F"
-        binding["displayName"] = "Keyboard F"
-        write_json(input_path, input_source)
-        assert compile_starter(project, after, "compile-inputs").returncode == 0
-        before_hashes = artifact_hashes(before)
-        after_hashes = artifact_hashes(after)
-        changed = sorted(key for key in before_hashes if before_hashes[key] != after_hashes[key])
-        assert changed == ["starter-arena.input"]
-
-
 def test_invalid_scene_does_not_replace_current_manifest() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -1112,7 +1093,7 @@ def run_all() -> None:
         test_resolution_failure_injection_preserves_complete_generation,
         test_duplicate_package_artifact_identity_is_rejected,
         test_starter_content_is_deterministic_across_clean_roots,
-        test_input_rebind_changes_only_input_artifact,
+        *VISIBLE_SLICE_TESTS,
         test_invalid_scene_does_not_replace_current_manifest,
         test_validate_multiplayer_sandbox_passes,
         test_asset_validate_reports_missing_source_truth_for_placeholder_assets,

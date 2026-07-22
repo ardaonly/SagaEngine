@@ -1,4 +1,25 @@
 # SPDX-License-Identifier: MPL-2.0
+    # --- Campaign 3 verified state/prompt seam tests -----------------------
+    add_executable(SagaRuntimeVisibleSliceTests
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Tests/RuntimeVisibleSliceTests.cpp
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private/RuntimeStateStore.cpp
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private/RuntimeUiPromptController.cpp
+    )
+    target_link_libraries(SagaRuntimeVisibleSliceTests PRIVATE
+        SagaEngine
+        SagaRuntimeLib
+        GTest::gtest
+        GTest::gmock
+        GTest::gtest_main
+    )
+    target_include_directories(SagaRuntimeVisibleSliceTests PRIVATE
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private
+        ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
+    )
+    add_test(NAME SagaRuntimeVisibleSliceTests COMMAND SagaRuntimeVisibleSliceTests)
+    set_tests_properties(SagaRuntimeVisibleSliceTests PROPERTIES
+        LABELS "unit;runtime;runtime-ui;visible-slice;starter-arena;campaign3")
+
     # --- Script lifecycle tests ---------------------------------------------
     #
     # Build the initial script-host lifecycle seam without the broad runtime,

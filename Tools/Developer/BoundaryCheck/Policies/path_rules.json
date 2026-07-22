@@ -44,6 +44,18 @@
       "priority": 1200
     },
     {
+      "pattern": "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/DejaVuSans.ttf",
+      "license": "Bitstream-Vera",
+      "domain_id": "starter-arena-dejavu-font",
+      "priority": 1200
+    },
+    {
+      "pattern": "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/LICENSE",
+      "license": "Bitstream-Vera",
+      "domain_id": "starter-arena-dejavu-font",
+      "priority": 1200
+    },
+    {
       "pattern": "Vendor/Diligent.Saga/**",
       "license": "MPL-2.0",
       "domain_id": "saga-diligent-integration-metadata",

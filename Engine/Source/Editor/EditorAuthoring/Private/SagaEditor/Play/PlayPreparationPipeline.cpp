@@ -177,18 +177,19 @@ PlayPreparationResult PlayPreparationPipeline::Prepare(
 
     const auto sceneRecord = OneArtifact(contentCurrent, "artifactType", "runtime.scene");
     const auto inputRecord = OneArtifact(contentCurrent, "artifactType", "runtime.input-map");
+    const auto uiRecord = OneArtifact(contentCurrent, "artifactType", "runtime.ui-set");
     const auto assemblyRecord = OneArtifact(scriptCurrent, "artifactId", "scripts.assembly");
     const auto runtimeConfigRecord = OneArtifact(scriptCurrent, "artifactId", "scripts.runtime-config");
     const auto behaviorRecord = OneArtifact(scriptCurrent, "artifactId", "scripts.behaviors");
     const auto actionRecord = OneArtifact(scriptCurrent, "artifactId", "scripts.named-actions");
     const auto capabilityRecord = OneArtifact(scriptCurrent, "artifactId", "scripts.capabilities");
     const auto assemblyManifestRecord = OneArtifact(scriptCurrent, "artifactId", "scripts.assembly-manifest");
-    if (!sceneRecord || !inputRecord || !assemblyRecord || !runtimeConfigRecord ||
+    if (!sceneRecord || !inputRecord || !uiRecord || !assemblyRecord || !runtimeConfigRecord ||
         !behaviorRecord || !actionRecord ||
         !capabilityRecord || !assemblyManifestRecord)
     {
         result.diagnostics.push_back(Diagnostic("Play.Prepare.ArtifactSetIncomplete",
-            "Exactly one runtime scene/input and verified script artifact set are required."));
+            "Exactly one runtime scene/input/UI set and verified script artifact set are required."));
         return result;
     }
     auto contentPath = [&](const Json& record)
@@ -197,12 +198,15 @@ PlayPreparationResult PlayPreparationPipeline::Prepare(
     { return scriptRoot / record.value("objectPath", std::string{}); };
     const auto scenePath = contentPath(*sceneRecord);
     const auto inputPath = contentPath(*inputRecord);
+    const auto uiPath = contentPath(*uiRecord);
     if (!IsContained(contentRoot, scenePath) || !IsContained(contentRoot, inputPath) ||
+        !IsContained(contentRoot, uiPath) ||
         !RuntimePlay::LoadRuntimeSceneArtifact(scenePath).Succeeded() ||
-        !RuntimePlay::LoadRuntimeInputMapArtifact(inputPath).Succeeded())
+        !RuntimePlay::LoadRuntimeInputMapArtifact(inputPath).Succeeded() ||
+        !RuntimePlay::LoadRuntimeUiSetArtifact(uiPath).Succeeded())
     {
         result.diagnostics.push_back(Diagnostic("Play.Prepare.RuntimeArtifactInvalid",
-            "Runtime scene or input artifact failed containment/schema/hash validation."));
+            "Runtime scene, input, or UI artifact failed containment/schema/hash validation."));
         return result;
     }
     std::map<std::string, std::filesystem::path> scriptPaths;
@@ -323,6 +327,7 @@ PlayPreparationResult PlayPreparationPipeline::Prepare(
     };
 
     RuntimePlay::CanonicalRuntimeLaunchManifest launch;
+    launch.schemaVersion = 2;
     launch.projectId = projectId;
     launch.projectHash = snapshot.projectHash;
     launch.playSessionId = request.playSessionId;
@@ -330,6 +335,8 @@ PlayPreparationResult PlayPreparationPipeline::Prepare(
         sceneRecord->value("fileHash", std::string{})};
     launch.input = {inputRecord->value("artifactId", std::string{}),
         inputRecord->value("fileHash", std::string{})};
+    launch.uiSet = {uiRecord->value("artifactId", std::string{}),
+        uiRecord->value("fileHash", std::string{})};
     launch.scriptAssembly = {"scripts.assembly", assemblyRecord->value("artifactHash", std::string{})};
     launch.scriptRuntimeConfig = {"scripts.runtime-config",
         runtimeConfigRecord->value("artifactHash", std::string{})};
@@ -363,7 +370,7 @@ PlayPreparationResult PlayPreparationPipeline::Prepare(
         return result;
     }
     result.canonicalManifestHash = canonicalValidation.hash;
-    result.canonicalManifestPath = result.buildRoot / "launch/runtime-launch-v1.json";
+    result.canonicalManifestPath = result.buildRoot / "launch/runtime-launch-v2.json";
     std::filesystem::create_directories(result.canonicalManifestPath.parent_path(), error);
     if (error)
     {
@@ -407,6 +414,7 @@ PlayPreparationResult PlayPreparationPipeline::Prepare(
     envelope.environment = {{"SAGA_PLAY_SESSION_ID", request.playSessionId},
                             {"SAGA_RUNTIME_PROFILE", "Client"}};
     envelope.artifacts = {{launch.scene.logicalId, scenePath}, {launch.input.logicalId, inputPath},
+        {launch.uiSet.logicalId, uiPath},
         {"scripts.assembly", scriptPaths["scripts.assembly"]},
         {"scripts.runtime-config", scriptPaths["scripts.runtime-config"]},
         {"scripts.assembly-manifest", scriptPaths["scripts.assembly-manifest"]},
@@ -490,6 +498,7 @@ PlayPreparationResult PlayPreparationPipeline::Prepare(
     result.resultPath = envelope.resultPath;
     result.stopPath = envelope.stopPath;
     result.canonicalHashes = {{"scene", launch.scene.hash}, {"input", launch.input.hash},
+        {"uiSet", launch.uiSet.hash},
         {"scriptAssembly", launch.scriptAssembly.hash},
         {"scriptRuntimeConfig", launch.scriptRuntimeConfig.hash},
         {"scriptAssemblyManifest", launch.scriptAssemblyManifest.hash},
