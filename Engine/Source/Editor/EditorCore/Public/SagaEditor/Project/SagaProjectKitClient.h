@@ -65,7 +65,7 @@ struct EditorToolchainPaths
 /// sample identity into callers. Environment overrides are local transport.
 [[nodiscard]] EditorToolchainPaths ResolveEditorToolchain();
 
-/// Resolves the repository-owned Starter Arena seed and Campaign 1 tools.
+/// Resolves the repository-owned Starter Arena seed and project tools.
 /// Environment overrides are transport-only and never enter project truth.
 [[nodiscard]] ProjectTemplateRequest MakeStarterArenaTemplateRequest(
     std::filesystem::path destination, std::string displayName);

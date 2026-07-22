@@ -45,7 +45,7 @@ struct PlayPreparationResult
     ToolProcessResult contentProcess;
 };
 
-/// Coordinates Campaign 1 owners into a saved-source Play generation. It does
+/// Coordinates source owners into a saved-source Play generation. It does
 /// not parse project, compile content, resolve packages, or compile C# itself.
 class PlayPreparationPipeline
 {

@@ -23,6 +23,16 @@
             LABELS "package;architecture")
     endif()
 
+    if(_saga_python3 AND
+       EXISTS "${SAGA_ROOT}/Tools/Developer/VisibleSliceEvidence/tests/test_visible_slice_evidence.py")
+        add_test(NAME VisibleSliceEvidenceRunnerTests
+            COMMAND "${_saga_python3}" -m unittest discover
+                -s "${SAGA_ROOT}/Tools/Developer/VisibleSliceEvidence/tests"
+                -p "test_*.py")
+        set_tests_properties(VisibleSliceEvidenceRunnerTests PROPERTIES
+            LABELS "visible-slice;runtime-ui;rmlui;visual-blocks;projection;parity;recovery;failure-injection;starter-arena")
+    endif()
+
     if(ARCHITECTURE_TEST_SOURCES)
         add_executable(SagaArchitectureTests ${ARCHITECTURE_TEST_SOURCES})
         target_link_libraries(SagaArchitectureTests PRIVATE

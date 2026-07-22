@@ -174,6 +174,14 @@ Long operations expose pending/progress/cancelled/failed/completed state. Cancel
 
 Closing a project stops new authoring operations, asks active tools/services to quiesce, releases preview/runtime resources, and then clears view state. Unsaved supported transactions are surfaced. The editor does not write every open model automatically during shutdown.
 
+## Document durability and recovery
+
+`TextDocument` owns save conflicts and recovery. Production publication writes a project-local temporary file, completes the write, flushes and synchronizes file bytes, atomically renames over the canonical path, then synchronizes the parent directory. Failures before rename leave canonical bytes unchanged. A failure after successful rename is reported as a durability warning and does not invalidate the new canonical file.
+
+Dirty recoverable text is journaled below `.saga/user/recovery` with project/document identity, canonical path, base disk hash, candidate hash, in-memory revision, and text. Reload never applies it automatically. An exact base match can be recovered as a dirty buffer or discarded by an explicit user gesture. A newer external edit yields stale-base status; malformed, mismatched, already-saved, and I/O-failed records have distinct diagnostics. Successful save removes obsolete recovery when possible, while cleanup failure remains deferred maintenance.
+
+`IDocumentPersistence` is the Qt-free fault-injection seam. EditorQt displays status and forwards Recover/Discard gestures but does not parse or publish journals. Tests cover restart, external conflict, temporary open/write/flush, file sync, rename, directory sync, and cleanup faults.
+
 ## Play verification and process result
 
 Play is a saved-source consumer. The UI thread captures an immutable source
@@ -227,7 +235,7 @@ playable core only.
 
 ## Non-claims
 
-The current surface does not establish a finished editor, stable public editor SDK, arbitrary plugin ecosystem, complete scene/prefab/world authoring, safe undo for every operation, hosted collaboration, maximum customization, runtime HUD, editable Visual Blocks, full recovery/parity closure, or production packaging. Public manager/widget/host types can be transitional and require later visibility audit.
+The current surface does not establish a finished editor, stable public editor SDK, arbitrary plugin ecosystem, complete scene/prefab/world authoring, safe undo for every operation, hosted collaboration, maximum customization, editable Visual Blocks, generalized recovery for every document kind, arbitrary-project preparation equivalence, or production packaging. Public manager/widget/host types can be transitional and require later visibility audit.
 
 ## Change checklist
 

@@ -191,7 +191,7 @@ internal static class UiContentCompiler
             foreach (var field in fields) RequiredString(prompt, field, path + "#prompts", diagnostics);
             if (prompt.TryGetProperty("visibility", out var visibility) && visibility.GetString() != "Always")
                 diagnostics.Add(Error("UI.Source.VisibilityUnsupported", path,
-                    "Campaign 3 prompt visibility must be Always."));
+                    "Interaction prompt visibility must be Always."));
             result.Add(JsonNode.Parse(prompt.GetRawText())!);
         }
         return result;

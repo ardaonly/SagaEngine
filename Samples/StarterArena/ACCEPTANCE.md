@@ -21,7 +21,7 @@ sha256sum /tmp/SagaPackage.lock /tmp/starter-content/manifests/current.json /tmp
 The checked lock is the exact offline graph for `com.saga.gameplay.foundation`
 and `gameplay.highlevel`. Template creation regenerates and verifies that lock
 inside its staging transaction, so the new project passes offline lock verification
-immediately. Later commands in this campaign cook
+immediately. Later commands in this workflow cook
 asset/scene/input artifacts and compile scripts through the one-shot worker.
 Selected-generation verification requires the tracked and immutable-generation
 lock to be canonically identical and validates every generation file, reference

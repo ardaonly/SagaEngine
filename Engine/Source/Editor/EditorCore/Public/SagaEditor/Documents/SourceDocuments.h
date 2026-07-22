@@ -47,6 +47,7 @@ public:
     [[nodiscard]] const DocumentSnapshot& Snapshot() const noexcept override;
     [[nodiscard]] const std::vector<DocumentDiagnostic>& Diagnostics() const noexcept override;
     [[nodiscard]] const std::string& Text() const noexcept;
+    [[nodiscard]] const DocumentRecoverySnapshot& Recovery() const noexcept;
     [[nodiscard]] bool ReplaceText(std::string text);
     [[nodiscard]] bool Load() override;
     [[nodiscard]] DocumentSaveStatus Save() override;
@@ -57,6 +58,8 @@ public:
     [[nodiscard]] bool CanRedo() const noexcept override;
     [[nodiscard]] bool Undo() override;
     [[nodiscard]] bool Redo() override;
+    [[nodiscard]] bool RecoverAsDirtyBuffer();
+    [[nodiscard]] bool DiscardRecovery();
     [[nodiscard]] ChangeSubscription SubscribeChanges(ChangeCallback callback);
     void UnsubscribeChanges(ChangeSubscription subscription);
 

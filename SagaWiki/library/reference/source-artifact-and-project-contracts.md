@@ -41,7 +41,7 @@ Validation must reject:
 
 Resolution normalizes paths under the project root and reports diagnostics. A validator must not silently rewrite source to make an invalid manifest pass.
 
-Schema version `0` also permits optional input-map declarations, exact dependency intent, and state-policy entries. Omitting those fields preserves compatibility with existing projects. The state policy distinguishes `SourceTruth`, `GeneratedState`, `PersonalState`, and `SharedWorkspaceState`; it documents ownership and tracking policy but does not override repository ignore or security boundaries.
+Schema version `0` also permits optional input-map and UI-document declarations, exact dependency intent, and state-policy entries. Omitting those fields preserves compatibility with existing projects. UI declarations resolve descriptor, RML, RCSS, and font paths within the project boundary; their derived `runtime.ui-set` remains generated state. The state policy distinguishes `SourceTruth`, `GeneratedState`, `PersonalState`, and `SharedWorkspaceState`; it documents ownership and tracking policy but does not override repository ignore or security boundaries.
 
 ### Validation phases
 
@@ -115,6 +115,10 @@ Race-safe consumption rechecks the relevant identity at the handoff. A validator
 Authored C# is behavior truth. Compiled assemblies, bindings, descriptors, node metadata, source maps, and Visual Blocks projections are derived views. A visual edit becomes authoritative only when it produces and applies a reviewed C# source change under the source-patch contract.
 
 Generated C# must remain traceable to its origin. A descriptor may name a script, capability, binding, or generated span, but cannot silently create behavior absent from source. Runtime packages validate the assemblies and binding manifests they consume; they do not reconstruct authority from an editor graph.
+
+Generated behavior artifacts preserve source path/hash, source revision, package generation/graph/API identity, analyzer/tool/schema versions, artifact hash, diagnostics, and source spans as required by their contract. Their `current.json` selector changes last, after every content-addressed object and cross-reference validates.
+
+Runtime launch schema version 2 binds scene, input map, UI set, verified script artifacts, package generation/graph, and RuntimeBridge by logical identity and hash. Its canonical bytes exclude local absolute paths. A separate local envelope resolves those identities to paths for one machine and session. The parser retains schema version 1 only for explicit legacy/headless compatibility; current Play preparation publishes version 2.
 
 ## Offline package resolution
 

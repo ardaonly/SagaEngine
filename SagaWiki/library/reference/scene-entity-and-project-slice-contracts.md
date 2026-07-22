@@ -19,7 +19,7 @@ SharedWorkspaceState. Existing schema-0 projects without these optional fields
 remain valid. The StarterArena seed declares `SagaPackage.lock` as its sole
 tracked GeneratedState exception.
 
-StarterArena's Campaign 1 scene source uses strict schema version 1, stable
+StarterArena's scene source uses strict schema version 1, stable
 parent hierarchy, Transform, Camera, DirectionalLight, MeshRenderer,
 ScriptBehavior, and entity-level ScriptActionBinding components. Unknown root
 fields, entities, components, or component fields are rejected. Its cooked

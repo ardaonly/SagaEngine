@@ -15,6 +15,7 @@
 #include <QApplication>
 #include <QLineEdit>
 #include <QPlainTextEdit>
+#include <QPushButton>
 #include <QTabWidget>
 #include <QTreeWidget>
 
@@ -142,4 +143,58 @@ TEST(QtAuthoringPanelsTests, CodeBoxMutationUsesTransactionAndDoesNotWriteDisk)
     EXPECT_EQ(std::string(std::istreambuf_iterator<char>(disk),
                           std::istreambuf_iterator<char>()), "public class Door {}\n");
     panel.OnShutdown();
+}
+
+TEST(QtAuthoringPanelsTests, RecoveryButtonsForwardExplicitDocumentGestures)
+{
+    (void)Application();
+    Fixture fixture;
+    ASSERT_TRUE(fixture.workspace.Scripts().front()->ReplaceText(
+        "public class RecoveredDoor {}\n"));
+    const auto journal = fixture.workspace.Scripts().front()->Snapshot().recoveryReference;
+    ASSERT_TRUE(fs::is_regular_file(journal));
+    fixture.workspace.Close();
+    ASSERT_TRUE(fixture.workspace.OpenProject(fixture.root / "Project.sagaproj"));
+    ASSERT_EQ(fixture.workspace.Scripts().front()->Recovery().status,
+        SagaEditor::DocumentRecoveryStatus::Recoverable);
+
+    auto findButton = [](QWidget* widget, const QString& label)
+    {
+        for (auto* button : widget->findChildren<QPushButton*>())
+            if (button->text() == label) return button;
+        return static_cast<QPushButton*>(nullptr);
+    };
+    {
+        SagaEditor::ScriptingPanel panel;
+        panel.SetDocumentWorkspace(&fixture.workspace);
+        panel.OnInit();
+        auto* widget = static_cast<QWidget*>(panel.GetNativeWidget());
+        auto* recover = findButton(widget, QStringLiteral("Recover"));
+        ASSERT_NE(recover, nullptr);
+        EXPECT_FALSE(recover->isHidden());
+        recover->click();
+        QApplication::processEvents();
+        EXPECT_TRUE(fixture.workspace.Scripts().front()->Snapshot().dirty);
+        EXPECT_EQ(fixture.workspace.Scripts().front()->Text(),
+            "public class RecoveredDoor {}\n");
+        panel.OnShutdown();
+    }
+
+    fixture.workspace.Close();
+    ASSERT_TRUE(fixture.workspace.OpenProject(fixture.root / "Project.sagaproj"));
+    {
+        SagaEditor::ScriptingPanel panel;
+        panel.SetDocumentWorkspace(&fixture.workspace);
+        panel.OnInit();
+        auto* widget = static_cast<QWidget*>(panel.GetNativeWidget());
+        auto* discard = findButton(widget, QStringLiteral("Discard recovery"));
+        ASSERT_NE(discard, nullptr);
+        EXPECT_FALSE(discard->isHidden());
+        discard->click();
+        QApplication::processEvents();
+        EXPECT_FALSE(fs::exists(journal));
+        EXPECT_EQ(fixture.workspace.Scripts().front()->Recovery().status,
+            SagaEditor::DocumentRecoveryStatus::None);
+        panel.OnShutdown();
+    }
 }

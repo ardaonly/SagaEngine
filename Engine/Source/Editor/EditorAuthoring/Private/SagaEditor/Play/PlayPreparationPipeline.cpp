@@ -443,7 +443,7 @@ PlayPreparationResult PlayPreparationPipeline::Prepare(
         envelope.artifacts.emplace(id, path);
     }
     const auto envelopeDiagnostics = RuntimePlay::ValidateLocalEnvelope(
-        envelope, {projectRoot / "Build", toolchain_.engineRoot});
+        envelope, {projectRoot, toolchain_.engineRoot});
     if (!envelopeDiagnostics.empty())
     {
         for (const auto& diagnostic : envelopeDiagnostics)

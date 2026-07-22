@@ -44,7 +44,7 @@ struct ScriptAnalysisResult
     std::shared_ptr<const VisualBlocks::ReadOnlyScriptProjection> projection;
 };
 
-/// Qt-free orchestration of Campaign 1 package-generation verification and the
+/// Qt-free orchestration of package-generation verification and the
 /// SagaScript worker. It consumes saved canonical documents; it neither
 /// resolves packages nor acts as a compiler.
 class ScriptAnalysisCoordinator

@@ -203,6 +203,32 @@ function(saga_create_registered_module_tests out_var)
                 ENVIRONMENT "${_environment}")
         endif()
 
+        if(_module STREQUAL "UI")
+            add_test(NAME RmlUiOverlayContractTests COMMAND ${_target}
+                --gtest_filter=RmlUiRenderInterfaceTests.*)
+            set_tests_properties(RmlUiOverlayContractTests PROPERTIES
+                LABELS "unit;runtime-ui;rmlui;visible-slice")
+        elseif(_module STREQUAL "EditorCore")
+            add_test(NAME DocumentRecoveryContractTests COMMAND ${_target}
+                --gtest_filter=DocumentRecoveryTests.*)
+            set_tests_properties(DocumentRecoveryContractTests PROPERTIES
+                LABELS "unit;editor;recovery;failure-injection")
+        elseif(_module STREQUAL "EditorAuthoring")
+            add_test(NAME ScriptProjectionContractTests COMMAND ${_target}
+                --gtest_filter=ScriptProjectionSessionTests.*:ScriptAnalysisCoordinatorTests.*)
+            set_tests_properties(ScriptProjectionContractTests PROPERTIES
+                LABELS "unit;editor;visual-blocks;projection")
+            add_test(NAME SavedSourcePreparationTests COMMAND ${_target}
+                --gtest_filter=PlayPreparationPipelineTests.*)
+            set_tests_properties(SavedSourcePreparationTests PROPERTIES
+                LABELS "integration;editor;parity;starter-arena;visible-slice")
+        elseif(_module STREQUAL "VisualBlocksEditor")
+            add_test(NAME ReadOnlyBlockProjectionTests COMMAND ${_target}
+                --gtest_filter=ReadOnlyScriptProjectionTests.*)
+            set_tests_properties(ReadOnlyBlockProjectionTests PROPERTIES
+                LABELS "unit;editor;visual-blocks;projection")
+        endif()
+
         list(APPEND _targets ${_target})
     endforeach()
 

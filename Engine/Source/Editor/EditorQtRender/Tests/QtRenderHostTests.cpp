@@ -22,6 +22,26 @@
 
 namespace
 {
+std::filesystem::path TestSourceRoot()
+{
+    const auto configured = std::filesystem::path(SAGA_SOURCE_ROOT);
+    if (std::filesystem::is_regular_file(
+            configured / "Samples/StarterArena/StarterArena.sagaproj"))
+        return configured;
+    auto cursor = std::filesystem::current_path();
+    for (;;)
+    {
+        if (std::filesystem::is_regular_file(
+                cursor / "Samples/StarterArena/StarterArena.sagaproj"))
+            return cursor;
+        const auto parent = cursor.parent_path();
+        if (parent == cursor)
+            break;
+        cursor = parent;
+    }
+    return configured;
+}
+
 class RecordingBackend final : public SagaEngine::Render::Backend::IRenderBackend
 {
 public:
@@ -111,7 +131,7 @@ TEST(QtRenderHostTests, ConsumesSagaPackagerCookedStarterArenaArtifacts)
     const auto unique = std::chrono::steady_clock::now().time_since_epoch().count();
     const auto contentRoot = fs::temp_directory_path() /
         ("saga-editor-viewport-contract-" + std::to_string(unique));
-    const auto sourceRoot = fs::path(SAGA_SOURCE_ROOT);
+    const auto sourceRoot = TestSourceRoot();
     const auto project = sourceRoot / "Samples/StarterArena/StarterArena.sagaproj";
     const auto toolchain = SagaEditor::ResolveEditorToolchain();
 
@@ -190,7 +210,7 @@ TEST(StarterArenaViewportRenderIntegrationTests, RealBackendProducesNonClearPixe
 #endif
 
     namespace fs = std::filesystem;
-    const auto sourceRoot = fs::path(SAGA_SOURCE_ROOT);
+    const auto sourceRoot = TestSourceRoot();
     const auto contentRoot = fs::temp_directory_path() /
         ("saga-real-viewport-content-" + std::to_string(
             std::chrono::steady_clock::now().time_since_epoch().count()));

@@ -13,7 +13,7 @@ This reference describes how a SagaEngine runtime process is assembled, which pr
 
 `SagaRuntime` is the runtime composition owner. Domain behavior remains in the individual modules below `Engine/Source/Runtime`; the composition layer selects implementations, orders startup, wires dependencies, owns the process-level lifetime, and reports failure. It must not become a second implementation home for rendering, persistence, networking, scripting, or world behavior.
 
-Programs are thinner still. `Engine/Source/Programs/SagaRuntime` provides an executable entry point. The Campaign 2 Play path parses a local transport envelope, validates its canonical launch manifest and verified runtime artifacts, invokes composition, and translates a terminal result into a process exit code. It does not parse `.sagaproj`, `.sagascene`, input source, or C# source and does not resolve packages or compile scripts. Reusable startup policy belongs in the owning runtime module rather than in `main.cpp`.
+Programs are thinner still. `Engine/Source/Programs/SagaRuntime` provides an executable entry point. The Play path parses a local transport envelope, validates its canonical launch manifest and verified runtime artifacts, invokes composition, and translates a terminal result into a process exit code. It does not parse `.sagaproj`, `.sagascene`, input source, or C# source and does not resolve packages or compile scripts. Reusable startup policy belongs in the owning runtime module rather than in `main.cpp`.
 
 The same distinction applies to `SagaEditor`, `SagaSandbox`, and other programs that host a runtime view. A program can choose a bounded workflow, but it does not acquire ownership of the runtime modules it hosts.
 

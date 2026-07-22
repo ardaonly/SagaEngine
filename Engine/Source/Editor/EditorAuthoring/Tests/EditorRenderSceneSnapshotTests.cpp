@@ -2,12 +2,13 @@
 
 #include "SagaEditor/SceneEditing/SceneDocument.h"
 #include "SagaEditor/Viewport/EditorRenderSceneSnapshot.h"
+#include "TestSourceRoot.h"
 
 #include <gtest/gtest.h>
 
 TEST(EditorRenderSceneSnapshotTests, BuildsStableHierarchyAndLogicalRenderIdentities)
 {
-    SagaEditor::SceneDocument scene(std::filesystem::path(SAGA_SOURCE_ROOT) /
+    SagaEditor::SceneDocument scene(TestSourceRoot() /
         "Samples/StarterArena/Scenes/StarterArena.sagascene");
     ASSERT_TRUE(scene.Load());
     const auto result = SagaEditor::BuildEditorRenderSceneSnapshot(scene);

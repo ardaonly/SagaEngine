@@ -9,7 +9,7 @@
     {
       "path": "Engine/Source/Editor/EditorAuthoring/Tests/EditorAuthoringSpineTests.cpp",
       "maximumPhysicalLines": 1076,
-      "reason": "Campaign 2 authoring-spine integration scenarios remain cohesive but should split by document family when next edited.",
+      "reason": "Authoring-spine integration scenarios remain cohesive but should split by document family when next edited.",
       "owner": "EditorAuthoring",
       "disposition": "follow-up-debt"
     },

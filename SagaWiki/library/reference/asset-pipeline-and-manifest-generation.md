@@ -7,7 +7,7 @@ reviewed_against: 0.0.11-post-cutover
 
 # Asset pipeline and manifest generation
 
-`Tools/AssetPipeline` is the current C++ owner for deterministic asset identity allocation and for writing Runtime-compatible identity, asset, and package manifests. It builds as `SagaAssetPipelineLib` and is exercised by focused unit and contract tests. SagaPackager separately owns the Campaign 1 strict box/plane and solid-material cooker used by StarterArena; this does not make AssetPipeline a complete importer or editor UX.
+`Tools/AssetPipeline` is the current C++ owner for deterministic asset identity allocation and for writing Runtime-compatible identity, asset, and package manifests. It builds as `SagaAssetPipelineLib` and is exercised by focused unit and contract tests. SagaPackager separately owns the strict box/plane and solid-material cooker used by StarterArena; this does not make AssetPipeline a complete importer or editor UX.
 
 ## Boundary with Runtime
 
@@ -66,7 +66,7 @@ This evidence is stronger than a documentation-only schema claim because produce
 
 SagaProjectKit validates the canonical `.sagaproj` contract and project boundaries. SagaScript produces script-specific artifacts and manifests. SagaPackager stages validated package inputs, compiles strict schema-1 asset/scene/input sources, and accepts optional external governance evidence. Forge and CMake own dependency/build orchestration. AssetPipeline must not duplicate those responsibilities.
 
-Campaign 1 content compilation validates every source before publication. JSON
+Content compilation validates every source before publication. JSON
 properties are canonicalized lexicographically, domain arrays use stable ids,
 and source/content/file/manifest hashes use lowercase `sha256:<hex>`. Objects
 are staged by content address before an atomic current-manifest replacement, so

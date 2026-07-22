@@ -76,6 +76,8 @@ struct ScriptingPanel::Impl
     QListWidget* diagnostics = nullptr;
     QPushButton* save = nullptr;
     QPushButton* analyze = nullptr;
+    QPushButton* recover = nullptr;
+    QPushButton* discardRecovery = nullptr;
     QTabWidget* tabs = nullptr;
     QWidget* scriptingTab = nullptr;
     ReadOnlyBlocksWidget* blocks = nullptr;
@@ -101,7 +103,12 @@ struct ScriptingPanel::Impl
         state = new QLabel(widget);
         save = new QPushButton("Save", widget);
         analyze = new QPushButton("Analyze", widget);
+        recover = new QPushButton("Recover", widget);
+        discardRecovery = new QPushButton("Discard recovery", widget);
+        recover->setVisible(false);
+        discardRecovery->setVisible(false);
         toolbar->addWidget(identity, 1); toolbar->addWidget(state);
+        toolbar->addWidget(recover); toolbar->addWidget(discardRecovery);
         toolbar->addWidget(save); toolbar->addWidget(analyze);
         layout->addLayout(toolbar);
         tabs = new QTabWidget(widget);
@@ -147,6 +154,10 @@ struct ScriptingPanel::Impl
         { if (dispatcher) (void)dispatcher->Dispatch("saga.command.file.save"); });
         QObject::connect(analyze, &QPushButton::clicked, [this]
         { if (dispatcher) (void)dispatcher->Dispatch("saga.command.script.analyze"); });
+        QObject::connect(recover, &QPushButton::clicked, [this]
+        { if (document) (void)document->RecoverAsDirtyBuffer(); });
+        QObject::connect(discardRecovery, &QPushButton::clicked, [this]
+        { if (document) (void)document->DiscardRecovery(); });
         analysisWatcher = new QFutureWatcher<ScriptAnalysisResult>(widget);
         QObject::connect(analysisWatcher, &QFutureWatcher<ScriptAnalysisResult>::finished,
             widget, [this]
@@ -189,12 +200,23 @@ struct ScriptingPanel::Impl
         if (!document)
         {
             identity->setText("No C# source open"); state->clear(); editor->clear(); editor->setEnabled(false);
+            recover->setVisible(false); discardRecovery->setVisible(false);
             blocks->Present(nullptr);
         }
         else
         {
             identity->setText(QString::fromStdString(document->Snapshot().canonicalSourcePath.filename().string()));
             state->setText(document->Snapshot().dirty ? "Modified" : "Saved");
+            const auto recovery = document->Recovery().status;
+            const auto canRecover = recovery == DocumentRecoveryStatus::Recoverable &&
+                !document->Snapshot().dirty;
+            recover->setVisible(canRecover);
+            discardRecovery->setVisible(recovery != DocumentRecoveryStatus::None &&
+                !document->Snapshot().dirty);
+            if (recovery == DocumentRecoveryStatus::StaleBase)
+                state->setText(QStringLiteral("Stale recovery requires discard"));
+            else if (recovery == DocumentRecoveryStatus::Invalid)
+                state->setText(QStringLiteral("Invalid recovery requires discard"));
             if (document->Snapshot().dirty)
             {
                 blocks->Present(nullptr);
