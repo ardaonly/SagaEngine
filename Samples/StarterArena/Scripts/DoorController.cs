@@ -9,11 +9,13 @@ public sealed class DoorController : SagaBehavior
     private const float ClosedHeight = 1.0f;
     private const float OpenHeight = 3.0f;
     private const float Speed = 2.5f;
+    private const string TargetOpenState = "door.target-open";
     private float _targetHeight;
 
     public override void OnStart()
     {
         _targetHeight = ClosedHeight;
+        Context.State.TrySetBool(TargetOpenState, false);
         var transform = Context.Self.Transform;
         transform.Position = transform.Position with { Y = ClosedHeight };
     }
@@ -22,6 +24,7 @@ public sealed class DoorController : SagaBehavior
     public void OnInteract()
     {
         _targetHeight = _targetHeight == ClosedHeight ? OpenHeight : ClosedHeight;
+        Context.State.TrySetBool(TargetOpenState, _targetHeight == OpenHeight);
     }
 
     public override void OnUpdate(float deltaTime)

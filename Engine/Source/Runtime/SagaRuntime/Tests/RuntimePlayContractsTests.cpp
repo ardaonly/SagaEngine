@@ -319,10 +319,12 @@ TEST(RuntimeInputMapArtifactLoaderTests, RejectsDuplicatePhysicalBindings)
 {
     Json payload = {{"actions", Json::array({
         {{"actionId", "Interact"}, {"bindings", Json::array({
-            {{"control", "E"}, {"device", "Keyboard"}, {"displayName", "Keyboard E"}}})},
+            {{"control", "E"}, {"device", "Keyboard"}, {"displayLabel", "E"},
+             {"displayName", "Keyboard E"}}})},
          {"displayName", "Interact"}, {"runtimeRole", "Gameplay"}},
         {{"actionId", "Use"}, {"bindings", Json::array({
-            {{"control", "E"}, {"device", "Keyboard"}, {"displayName", "Keyboard E"}}})},
+            {{"control", "E"}, {"device", "Keyboard"}, {"displayLabel", "E"},
+             {"displayName", "Keyboard E"}}})},
          {"displayName", "Use"}, {"runtimeRole", "Gameplay"}},
     })}, {"inputMapId", "game.input"}};
     const auto root = Temporary("input");

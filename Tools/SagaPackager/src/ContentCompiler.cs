@@ -69,6 +69,14 @@ internal static class ContentCompiler
                     CompileInput(load.ProjectRoot, reference, artifacts, diagnostics);
                 }
             }
+            if (domain is "ui" or "all")
+            {
+                var uiArtifact = UiContentCompiler.Compile(load, outputRoot, diagnostics);
+                if (uiArtifact is not null)
+                {
+                    AddArtifact(uiArtifact, artifacts, null);
+                }
+            }
         }
         catch (Exception exception)
         {
@@ -80,7 +88,7 @@ internal static class ContentCompiler
             return Failure(domain, load, diagnostics);
         }
 
-        return Publish(load, outputRoot, domain, artifacts, diagnostics);
+        return ContentPublication.Publish(load, outputRoot, domain, artifacts, diagnostics);
     }
 
     private static void CompileAsset(string root, SagaProjectKit.Core.ProjectReference reference,
@@ -542,6 +550,7 @@ internal static class ContentCompiler
                 {
                     ["control"] = control,
                     ["device"] = device,
+                    ["displayLabel"] = control,
                     ["displayName"] = physicalName,
                 });
             }
@@ -565,73 +574,6 @@ internal static class ContentCompiler
             ["inputMapId"] = mapId,
         };
         AddArtifact(Artifact(mapId, "runtime.input-map", CanonicalJson.HashFile(path), payload, null, []), artifacts, null);
-    }
-
-    private static ContentCompileResult Publish(ProjectLoadResult load, string outputRoot, string domain,
-        IReadOnlyList<(JsonObject Document, ContentCompileArtifact Entry)> artifacts,
-        IReadOnlyList<SagaProjectKit.Core.ProjectDiagnostic> diagnostics)
-    {
-        var root = Path.GetFullPath(outputRoot);
-        var staging = Path.Combine(root, ".staging", Guid.NewGuid().ToString("N"));
-        try
-        {
-            Directory.CreateDirectory(staging);
-            var published = new List<ContentCompileArtifact>();
-            foreach (var artifact in artifacts.OrderBy(item => item.Entry.ArtifactId, StringComparer.Ordinal))
-            {
-                var bytes = CanonicalJson.Serialize(artifact.Document);
-                var fileHash = CanonicalJson.Hash(bytes);
-                var name = fileHash[7..] + ".json";
-                var staged = Path.Combine(staging, name);
-                File.WriteAllBytes(staged, bytes);
-                var relative = "objects/" + name;
-                var destination = Path.Combine(root, "objects", name);
-                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-                if (!File.Exists(destination))
-                {
-                    File.Move(staged, destination);
-                }
-                published.Add(artifact.Entry with { FileHash = fileHash, Path = relative });
-            }
-            var manifest = new JsonObject
-            {
-                ["artifacts"] = JsonSerializer.SerializeToNode(published, CanonicalJson.SerializerOptions),
-                ["domain"] = domain,
-                ["projectHash"] = load.ProjectHash,
-                ["projectId"] = load.Manifest!.ProjectId,
-                ["schemaVersion"] = 1,
-                ["tool"] = "sagapack",
-                ["toolVersion"] = ToolVersion,
-            };
-            var manifestBytes = CanonicalJson.Serialize(manifest);
-            var manifestHash = CanonicalJson.Hash(manifestBytes);
-            Directory.CreateDirectory(Path.Combine(root, "manifests"));
-            var temporary = Path.Combine(root, "manifests", $"current.{Guid.NewGuid():N}.tmp");
-            File.WriteAllBytes(temporary, manifestBytes);
-            File.Move(temporary, Path.Combine(root, "manifests", "current.json"), overwrite: true);
-            return new ContentCompileResult
-            {
-                Command = "compile-" + domain,
-                Status = "Passed",
-                ProjectId = load.Manifest.ProjectId,
-                ProjectHash = load.ProjectHash,
-                ManifestHash = manifestHash,
-                Artifacts = published,
-                Diagnostics = diagnostics,
-            };
-        }
-        catch (Exception exception)
-        {
-            return Failure(domain, load, Sort(diagnostics.Append(Error(
-                "Content.Publish.Failed", outputRoot, exception.Message))));
-        }
-        finally
-        {
-            if (Directory.Exists(staging))
-            {
-                Directory.Delete(staging, recursive: true);
-            }
-        }
     }
 
     private static JsonObject Artifact(string id, string type, string sourceHash, JsonObject payload,

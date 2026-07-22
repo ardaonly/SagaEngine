@@ -230,6 +230,18 @@ struct ScriptStateInt32Result : ScriptHostOperationResult
     std::int32_t value = 0;
 };
 
+/// Host-verified identity attached to one managed state-port access.
+/// The managed callback table remains unchanged; the native host supplies this
+/// context from its active instance registry.
+struct ScriptStateContext
+{
+    ScriptInstanceHandle instance;
+    ScriptEntityHandle entity;
+    std::string behaviorId;
+    std::string scriptId;
+    std::uint64_t activeInstanceToken = 0;
+};
+
 struct ScriptLogEvent
 {
     ScriptInstanceHandle instance;
@@ -274,6 +286,30 @@ public:
     [[nodiscard]] virtual ScriptHostOperationResult SetString(
         const std::string& key,
         const std::string& value) = 0;
+
+    [[nodiscard]] virtual ScriptStateBoolResult GetBool(
+        const ScriptStateContext&, const std::string& key) const
+    {
+        return GetBool(key);
+    }
+    [[nodiscard]] virtual ScriptStateInt32Result AddInt32(
+        const ScriptStateContext&, const std::string& key, std::int32_t delta)
+    {
+        return AddInt32(key, delta);
+    }
+    [[nodiscard]] virtual ScriptHostOperationResult SetBool(
+        const ScriptStateContext&, const std::string& key, bool value)
+    {
+        return SetBool(key, value);
+    }
+    [[nodiscard]] virtual ScriptHostOperationResult SetString(
+        const ScriptStateContext&, const std::string& key, const std::string& value)
+    {
+        return SetString(key, value);
+    }
+
+    virtual void OnInstanceActivated(const ScriptStateContext&) {}
+    virtual void OnInstanceDeactivated(const ScriptStateContext&) {}
 };
 
 class ISagaScriptHost

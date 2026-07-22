@@ -13,6 +13,7 @@ internal sealed class SagaProjectDescriptor
     public List<ProjectPathReference> Scenes { get; init; } = [];
     public List<ProjectPathReference> Assets { get; init; } = [];
     public List<ProjectPathReference> ScriptFolders { get; init; } = [];
+    public List<ProjectPathReference> UiDocuments { get; init; } = [];
     public List<ProjectPathReference> LaunchProfiles { get; init; } = [];
     public List<ProjectPathReference> PackageProfiles { get; init; } = [];
 }

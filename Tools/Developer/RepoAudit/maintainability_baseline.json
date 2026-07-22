@@ -91,13 +91,6 @@
       "disposition": "follow-up-debt"
     },
     {
-      "path": "Engine/Source/Runtime/UI/Private/Backends/RmlUi/RmlUiUiBackend.cpp",
-      "maximumPhysicalLines": 1057,
-      "reason": "Single private RmlUi backend adapter; future growth must separate document and render integration.",
-      "owner": "RuntimeUI",
-      "disposition": "reviewed-exception"
-    },
-    {
       "path": "Tools/Developer/RepoAudit/saga_repo_xray.py",
       "maximumPhysicalLines": 1287,
       "reason": "Scanning and finding classification remain together after deterministic report writers were extracted.",

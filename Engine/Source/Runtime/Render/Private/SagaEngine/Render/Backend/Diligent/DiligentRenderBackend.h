@@ -88,7 +88,7 @@ class DiligentNativeResourceOwner;
 // ─── DiligentRenderBackend ────────────────────────────────────────────
 
 /// Concrete IRenderBackend implementation. Non-copyable, non-movable.
-class DiligentRenderBackend final : public IRenderBackend
+class DiligentRenderBackend final : public IRenderBackend, public IRenderOverlaySubmission
 {
 public:
     DiligentRenderBackend();
@@ -132,6 +132,13 @@ public:
     void DestroyOverlayTexture(RenderOverlayTextureHandle texture);
     void RenderOverlayFrame(const RenderOverlayFrame& frame);
     void ShutdownOverlayRendering();
+    [[nodiscard]] RenderOverlaySubmissionResult InitializeOverlay() override;
+    [[nodiscard]] RenderOverlayTextureHandle CreateOverlayTextureResource(
+        const RenderOverlayTextureDesc& desc, const std::uint8_t* rgbaPixels) override;
+    void DestroyOverlayTextureResource(RenderOverlayTextureHandle texture) override;
+    [[nodiscard]] RenderOverlaySubmissionResult SubmitOverlayFrame(
+        const ::SagaEngine::Render::Backend::RenderOverlayFrame& frame) override;
+    void ShutdownOverlay() override;
 
     // ── Diagnostics ─────────────────────────────────────────────
 

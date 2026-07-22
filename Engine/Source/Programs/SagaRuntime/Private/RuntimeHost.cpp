@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #include "RuntimeHost.h"
+#include "RuntimeStateStore.h"
+#include "RuntimeUiPromptController.h"
+#include "RuntimeUiSession.h"
 
 #include <SagaEngine/Scripting/CSharpScriptHost.hpp>
 #include <SagaEngine/Scripting/ScriptLifecycleService.hpp>
@@ -317,7 +320,15 @@ public:
         return actions;
     }
 
-    bool RenderFrame()
+    SagaEngine::Render::Backend::IRenderOverlaySubmission* OverlaySubmission() noexcept
+    {
+        return dynamic_cast<SagaEngine::Render::Backend::IRenderOverlaySubmission*>(backend_.get());
+    }
+
+    std::uint32_t Width() const noexcept { return window_ ? window_->GetWidth() : 0; }
+    std::uint32_t Height() const noexcept { return window_ ? window_->GetHeight() : 0; }
+
+    bool RenderFrame(RuntimeUiSession* ui)
     {
         const auto transforms = WorldTransforms();
         SagaEngine::Render::Scene::RenderView view;
@@ -369,6 +380,8 @@ public:
         }
         backend_->BeginFrame();
         backend_->Submit(camera, view);
+        if (ui != nullptr && !ui->Render(window_->GetWidth(), window_->GetHeight(), 1.0 / 60.0))
+            return Fail("Runtime.UI.RenderFailed");
         if (!capturedMeaningfulPixels_)
         {
             SagaEngine::Render::Backend::RenderFrameCapture capture;
@@ -601,6 +614,7 @@ RuntimeHostResult RuntimeHost::Run() const
             launch.runtimeBridge.logicalReferenceId});
     }
     for (const auto* identity : {&launch.scene, &launch.input, &launch.scriptAssembly,
+            &launch.uiSet,
             &launch.scriptRuntimeConfig, &launch.scriptAssemblyManifest,
             &launch.scriptReferenceManifest, &launch.behaviors,
             &launch.namedActions, &launch.capabilities})
@@ -655,11 +669,15 @@ RuntimeHostResult RuntimeHost::Run() const
         envelope.artifacts.at(launch.scene.logicalId));
     const auto inputResult = Play::LoadRuntimeInputMapArtifact(
         envelope.artifacts.at(launch.input.logicalId));
-    if (!sceneResult.Succeeded() || !inputResult.Succeeded())
+    const auto uiResult = launch.schemaVersion == 2
+        ? Play::LoadRuntimeUiSetArtifact(envelope.artifacts.at(launch.uiSet.logicalId))
+        : Play::ArtifactLoadResult<Play::RuntimeUiSetArtifact>{};
+    if (!sceneResult.Succeeded() || !inputResult.Succeeded() ||
+        (launch.schemaVersion == 2 && !uiResult.Succeeded()))
     {
         writeResult("Failed", "ArtifactFailure", 0, 0, Json::object());
         return Failure("Runtime.Play.ArtifactLoadFailed",
-            "Runtime scene or input artifact failed strict loading.");
+            "Runtime scene, input, or UI artifact failed strict loading.");
     }
     Json namedActions, behaviorManifest, capabilityManifest;
     try
@@ -674,8 +692,9 @@ RuntimeHostResult RuntimeHost::Run() const
             "Named-action manifest is malformed.", "ScriptLoadFailure");
     }
     RuntimeScriptWorld world(*sceneResult.value);
+    RuntimeStateStore stateStore;
     Scripting::CSharpScriptHost host({envelope.artifacts.at(
-        launch.runtimeBridge.logicalReferenceId), {}, &world, nullptr, false, {}});
+        launch.runtimeBridge.logicalReferenceId), {}, &world, &stateStore, true, {}});
     Scripting::ScriptLifecycleService lifecycle(host);
     Scripting::VerifiedScriptGenerationLoadRequest loadRequest;
     loadRequest.assembly = {envelope.artifacts.at(launch.scriptAssembly.logicalId),
@@ -771,6 +790,25 @@ RuntimeHostResult RuntimeHost::Run() const
         return structuredFailure(bindingDiagnostics.front().code,
             bindingDiagnostics.front().message, "ActionBindingFailure");
 
+    const Play::RuntimeUiPromptBinding* runtimePrompt = nullptr;
+    Scripting::ScriptEntityHandle promptEntity;
+    std::string promptText;
+    if (launch.schemaVersion == 2)
+    {
+        if (uiResult.value->prompts.size() != 1)
+            return structuredFailure("Runtime.UI.PromptBindingInvalid",
+                "Exactly one verified runtime prompt is required.", "UiBootstrapFailure");
+        runtimePrompt = &uiResult.value->prompts.front();
+        promptEntity = world.Handle(runtimePrompt->entityId);
+        const auto text = RuntimeUiPromptController::Compose(
+            *runtimePrompt, *inputResult.value, stateStore, promptEntity);
+        if (!text)
+            return structuredFailure("Runtime.UI.PromptStateUnavailable",
+                "The prompt could not join verified input and active script state.",
+                "UiBootstrapFailure");
+        promptText = *text;
+    }
+
     const auto publishReady = [&]
     {
         return WriteJson(envelope.startupReadyPath,
@@ -781,6 +819,7 @@ RuntimeHostResult RuntimeHost::Run() const
 
     std::uint64_t frames = 0;
     std::vector<double> observedHeights;
+    std::vector<std::string> observedPrompts;
     const auto observedEntity = std::find_if(world.Scene().entities.begin(), world.Scene().entities.end(),
         [](const auto& entity) { return !entity.actionBindings.empty(); });
     if (observedEntity == world.Scene().entities.end())
@@ -790,6 +829,12 @@ RuntimeHostResult RuntimeHost::Run() const
     {
         const auto position = world.GetPosition(world.Handle(observedEntity->entityId));
         if (position.Succeeded()) observedHeights.push_back(position.position.y);
+        if (runtimePrompt != nullptr)
+        {
+            const auto text = RuntimeUiPromptController::Compose(
+                *runtimePrompt, *inputResult.value, stateStore, promptEntity);
+            if (text) { promptText = *text; observedPrompts.push_back(*text); }
+        }
     };
     const auto updateInstances = [&]()
     {
@@ -851,6 +896,17 @@ RuntimeHostResult RuntimeHost::Run() const
             return Failure(envelopeResult.diagnostics.back().code,
                 envelopeResult.diagnostics.back().message);
         }
+        RuntimeUiSession ui;
+        auto* overlay = render.OverlaySubmission();
+        if (launch.schemaVersion == 2 && (overlay == nullptr ||
+            !ui.Initialize(*uiResult.value, *inputResult.value, stateStore,
+                promptEntity, *overlay, render.Width(), render.Height())))
+        {
+            render.Shutdown();
+            return structuredFailure("Runtime.UI.BootstrapFailed",
+                "Verified runtime UI context, font, document, or prompt failed to initialize.",
+                "UiBootstrapFailure");
+        }
         if (!publishReady())
         {
             render.Shutdown();
@@ -882,8 +938,9 @@ RuntimeHostResult RuntimeHost::Run() const
                 return structuredFailure("Runtime.Script.UpdateFailed",
                     "Script OnUpdate failed.", "ScriptLifecycleFailure");
             }
-            if (!render.RenderFrame())
+            if (!render.RenderFrame(launch.schemaVersion == 2 ? &ui : nullptr))
             {
+                ui.Shutdown();
                 render.Shutdown();
                 return structuredFailure("Runtime.Render.FrameFailed",
                     "Runtime renderer failed a frame.", "RendererFailure");
@@ -897,6 +954,7 @@ RuntimeHostResult RuntimeHost::Run() const
         if (renderEvidence)
             envelopeResult.diagnostics.push_back({"Runtime.Render.FrameCaptureEvidence",
                 "Renderer produced a non-clear frame capture.", render.CapturePath().string()});
+        ui.Shutdown();
         render.Shutdown();
     }
     for (auto iterator = instances.rbegin(); iterator != instances.rend(); ++iterator)
@@ -908,6 +966,7 @@ RuntimeHostResult RuntimeHost::Run() const
         std::abs(observedHeights[0] - observedHeights[2]) < 0.01;
     const Json observed = {{"drawCount", drawCount}, {"entityId", observedEntity->entityId},
         {"meaningfulRendererPixels", renderEvidence}, {"positionY", observedHeights},
+        {"promptText", observedPrompts},
         {"transition", transitioned ? "ClosedOpenClosed" : "Incomplete"}};
     if ((smokeInteractions_ && !transitioned) || (!headless_ && !renderEvidence))
     {

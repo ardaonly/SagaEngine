@@ -422,6 +422,27 @@ effective_commit = "8f30814e95951633fb1e6a4bba0d0a471051221f"
 notes = "Saga-owned files under Samples use MIT; embedded dependency and source-asset provenance remains factual."
 
 [[domains]]
+id = "starter-arena-dejavu-font"
+priority = 1200
+paths = [
+  "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/DejaVuSans.ttf",
+  "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/LICENSE",
+]
+required = true
+domain_owner = "upstream"
+rights_holder_refs = []
+current_license_mode = "fixed-spdx"
+resolution_requirement = "upstream-evidence-required"
+current_license_expression = "Bitstream-Vera"
+target_license_mode = "fixed-spdx"
+target_license_expression = "Bitstream-Vera"
+provenance_review = "cleared"
+licensing_authority_review = "upstream-controlled"
+migration_status = "unchanged"
+effective_commit = ""
+notes = "Upstream DejaVu Fonts 2.37 payload retained with its exact license and checksummed provenance."
+
+[[domains]]
 id = "saga-content"
 priority = 200
 paths = ["Samples/**/Content/**"]

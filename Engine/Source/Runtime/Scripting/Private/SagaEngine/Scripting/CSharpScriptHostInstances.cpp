@@ -22,6 +22,8 @@ CSharpScriptHost::Impl::~Impl()
 {
     for (const auto& [_, instance] : instances)
     {
+        if (options.statePort != nullptr)
+            options.statePort->OnInstanceDeactivated(StateContext(instance));
         ReleaseContextHandle(instance.contextHandle);
     }
 
@@ -117,15 +119,19 @@ std::size_t CSharpScriptHost::Impl::InstanceIdentityHash::operator()(
         {
             const auto instanceHandle = nextInstanceHandle++;
             InstanceState state;
+            state.instance.value = instanceHandle;
             state.bridgeInstanceHandle = bridgeInstanceHandle;
             state.contextHandle = contextHandle;
             state.classId = request.classId.value;
             state.scriptId = scriptId;
             state.selfEntity = request.selfEntity;
+            state.activeInstanceToken = nextActiveInstanceToken++;
             state.grantedCapabilities = grantedCapabilities;
-            instances.emplace(instanceHandle, std::move(state));
+            auto [inserted, _] = instances.emplace(instanceHandle, std::move(state));
             contextToInstance.emplace(contextHandle, instanceHandle);
             activeIdentities.emplace(identity);
+            if (options.statePort != nullptr)
+                options.statePort->OnInstanceActivated(StateContext(inserted->second));
             result.succeeded = true;
             result.instance.value = instanceHandle;
             return result;
@@ -158,6 +164,12 @@ std::size_t CSharpScriptHost::Impl::InstanceIdentityHash::operator()(
     }
     ReleaseContextHandle(contextHandle);
     return result;
+}
+
+ScriptStateContext CSharpScriptHost::Impl::StateContext(const InstanceState& state)
+{
+    return {state.instance, state.selfEntity, state.classId, state.scriptId,
+            state.activeInstanceToken};
 }
 
 [[nodiscard]] std::string CSharpScriptHost::Impl::ResolveScriptId(
