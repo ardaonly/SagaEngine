@@ -2,118 +2,12 @@
 
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SagaProjectKit.Core;
 
 namespace SagaScript;
-
-internal sealed record WorkerProjectInput
-{
-    public string ProjectId { get; init; } = "";
-    public string Path { get; init; } = "";
-    public string Hash { get; init; } = "";
-}
-
-internal sealed record WorkerSourceInput
-{
-    public string Path { get; init; } = "";
-    public string Hash { get; init; } = "";
-}
-
-internal sealed record WorkerVerifiedInput
-{
-    public string Path { get; init; } = "";
-    public string Hash { get; init; } = "";
-}
-
-internal sealed record WorkerCancellationInput
-{
-    public string OperationId { get; init; } = "";
-    public string Path { get; init; } = "";
-}
-
-internal sealed record WorkerRuntimeBridgeInput
-{
-    public string LogicalReferenceId { get; init; } = "";
-    public string DescriptorPath { get; init; } = "";
-    public string DescriptorHash { get; init; } = "";
-    public string AssemblyPath { get; init; } = "";
-    public string AssemblyHash { get; init; } = "";
-    public string TargetFramework { get; init; } = "";
-    public string RuntimeCompatibility { get; init; } = "";
-    public string Trust { get; init; } = "";
-}
-
-internal sealed record ProjectWorkerRequest
-{
-    public int SchemaVersion { get; init; }
-    public string OperationId { get; init; } = "";
-    public WorkerProjectInput Project { get; init; } = new();
-    public string SourceRevision { get; init; } = "";
-    public IReadOnlyList<WorkerSourceInput> Sources { get; init; } = [];
-    public WorkerVerifiedInput PackageLock { get; init; } = new();
-    public WorkerVerifiedInput ReferenceManifest { get; init; } = new();
-    public WorkerVerifiedInput ApiSurfaceManifest { get; init; } = new();
-    public WorkerRuntimeBridgeInput RuntimeBridge { get; init; } = new();
-    public IReadOnlyList<string> Operations { get; init; } = [];
-    public string OutputRoot { get; init; } = "";
-    public WorkerCancellationInput Cancellation { get; init; } = new();
-}
-
-internal sealed record WorkerDiagnostic
-{
-    public string Severity { get; init; } = "Error";
-    public string Code { get; init; } = "";
-    public string Path { get; init; } = "";
-    public string Message { get; init; } = "";
-}
-
-internal sealed record ProjectWorkerResult
-{
-    public int SchemaVersion { get; init; } = 1;
-    public string Tool { get; init; } = ToolInfo.Name;
-    public string ToolVersion { get; init; } = ToolInfo.Version;
-    public string CompilerVersion { get; init; } = typeof(CSharpCompilation).Assembly.GetName().Version?.ToString() ?? "unknown";
-    public string OperationId { get; init; } = "";
-    public string SourceRevision { get; init; } = "";
-    public string Status { get; init; } = "Failed";
-    public string FailureClass { get; init; } = "";
-    public bool Cancelled { get; init; }
-    public bool Stale { get; init; }
-    public string ProjectId { get; init; } = "";
-    public string ProjectHash { get; init; } = "";
-    public string SourceSetHash { get; init; } = "";
-    public string PackageLockHash { get; init; } = "";
-    public string ReferenceManifestHash { get; init; } = "";
-    public string ApiSurfaceManifestHash { get; init; } = "";
-    public string RuntimeBridgeAssemblyHash { get; init; } = "";
-    public string CurrentManifestPath { get; init; } = "";
-    public string CurrentManifestHash { get; init; } = "";
-    public IReadOnlyList<PublishedWorkerArtifact> Artifacts { get; init; } = [];
-    public IReadOnlyList<WorkerDiagnostic> Diagnostics { get; init; } = [];
-}
-
-internal sealed record PublishedWorkerArtifact
-{
-    public string ArtifactId { get; init; } = "";
-    public string Kind { get; init; } = "";
-    public string ObjectPath { get; init; } = "";
-    public string ContentHash { get; init; } = "";
-    public string ArtifactHash { get; init; } = "";
-}
-
-internal sealed record StagedWorkerArtifact(string ArtifactId, string Kind, string FileName,
-    string ContentHash, string ArtifactHash, byte[] Bytes);
-
-internal sealed record WorkerMethod(string Name, SourceSpan Span);
-internal sealed record WorkerAction(string ActionId, string Method, string AttributeTypeId,
-    bool PubliclyInvocable, SourceSpan Span);
-internal sealed record WorkerBehavior(string BehaviorId, string DeclaringType, string SourceFile,
-    string SourceHash, SourceSpan Span, IReadOnlyList<WorkerMethod> LifecycleMethods,
-    IReadOnlyList<WorkerAction> Actions, IReadOnlyList<string> Capabilities);
 
 internal static class ProjectWorker
 {
@@ -212,7 +106,7 @@ internal static class ProjectWorker
                 return Finish(resultPath, Failure(request, "Cancellation", [], sourceSetHash, cancelled: true));
             }
 
-            var artifacts = BuildArtifacts(request, canonicalSources, sourceSetHash,
+            var artifacts = ProjectWorkerArtifactBuilder.Build(request, canonicalSources, sourceSetHash,
                 behaviors, allowedApis, staging, runtimeBridgeAssembly, diagnostics);
             Progress(progressPath, request, "Projecting");
             if (diagnostics.Count > 0)
@@ -266,6 +160,10 @@ internal static class ProjectWorker
                 ProjectHash = request.Project.Hash,
                 SourceSetHash = sourceSetHash,
                 PackageLockHash = request.PackageLock.Hash,
+                PackageGenerationId = request.PackageGenerationId,
+                PackageGenerationHash = request.PackageGenerationHash,
+                PackageGenerationManifestHash = request.PackageGenerationManifestHash,
+                PackageGraphHash = request.PackageGraphHash,
                 ReferenceManifestHash = request.ReferenceManifest.Hash,
                 ApiSurfaceManifestHash = request.ApiSurfaceManifest.Hash,
                 RuntimeBridgeAssemblyHash = request.RuntimeBridge.AssemblyHash,
@@ -300,6 +198,7 @@ internal static class ProjectWorker
             using var document = JsonDocument.Parse(File.ReadAllBytes(path));
             ValidateObject(document.RootElement, "request",
                 ["schemaVersion", "operationId", "project", "sourceRevision", "sources", "packageLock",
+                    "packageGenerationId", "packageGenerationHash", "packageGenerationManifestHash", "packageGraphHash",
                     "referenceManifest", "apiSurfaceManifest", "runtimeBridge", "operations", "outputRoot", "cancellation"], diagnostics);
             if (document.RootElement.ValueKind == JsonValueKind.Object)
             {
@@ -327,6 +226,10 @@ internal static class ProjectWorker
             Require(request.Project.Path, "project.path", diagnostics);
             RequireHash(request.Project.Hash, "project.hash", diagnostics);
             RequireInput(request.PackageLock, "packageLock", diagnostics);
+            Require(request.PackageGenerationId, "packageGenerationId", diagnostics);
+            RequireHash(request.PackageGenerationHash, "packageGenerationHash", diagnostics);
+            RequireHash(request.PackageGenerationManifestHash, "packageGenerationManifestHash", diagnostics);
+            RequireHash(request.PackageGraphHash, "packageGraphHash", diagnostics);
             RequireInput(request.ReferenceManifest, "referenceManifest", diagnostics);
             RequireInput(request.ApiSurfaceManifest, "apiSurfaceManifest", diagnostics);
             Require(request.RuntimeBridge.LogicalReferenceId, "runtimeBridge.logicalReferenceId", diagnostics);
@@ -426,6 +329,9 @@ internal static class ProjectWorker
                     "Verified package lock does not match the selected project."));
             }
             var graphHash = root.GetProperty("graphHash").GetString();
+            if (graphHash != request.PackageGraphHash)
+                diagnostics.Add(Error("Script.Worker.PackageGraphMismatch", "packageGraphHash",
+                    "Request package graph identity does not match the verified lock."));
             var distributionRoot = ResolveDistributionRoot();
             foreach (var package in root.GetProperty("packages").EnumerateArray())
             {
@@ -614,8 +520,21 @@ internal static class ProjectWorker
                             "[SagaAction] requires a non-empty string action id."));
                         continue;
                     }
+                    var steps = method.DescendantNodes().OfType<InvocationExpressionSyntax>()
+                        .Where(invocation => invocation.Expression is MemberAccessExpressionSyntax member &&
+                            member.Name.Identifier.ValueText == "TrySetBool")
+                        .Select((invocation, index) =>
+                        {
+                            var arguments = invocation.ArgumentList.Arguments;
+                            var key = arguments.Count > 0 && model.GetConstantValue(arguments[0].Expression) is { HasValue: true, Value: string value }
+                                ? value : "";
+                            var displayName = key == "door.target-open" ? "toggle door target state" : "set boolean state";
+                            return new WorkerProjectionStep(
+                                $"state://{declaringType}/{actionId}/{index}", "StateMutation", displayName,
+                                key, Span(text, tree, invocation));
+                        }).Where(step => step.StateKey.Length > 0).ToArray();
                     actions.Add(new WorkerAction(actionId, method.Identifier.ValueText,
-                        "SagaEngine.Scripting.SagaActionAttribute", true, Span(text, tree, method)));
+                        "SagaEngine.Scripting.SagaActionAttribute", true, Span(text, tree, method), steps));
                 }
                 var capabilities = new SortedSet<string>(StringComparer.Ordinal) { "Gameplay.State.ReadWrite" };
                 if (text.Contains("Context.Self.Transform", StringComparison.Ordinal))
@@ -699,114 +618,6 @@ internal static class ProjectWorker
         });
     }
 
-    private static IReadOnlyList<StagedWorkerArtifact> BuildArtifacts(ProjectWorkerRequest request,
-        IReadOnlyList<WorkerSourceInput> sources, string sourceSetHash,
-        IReadOnlyList<WorkerBehavior> behaviors, IReadOnlyList<object> allowedApis, string staging,
-        string runtimeBridgeAssembly, List<WorkerDiagnostic> diagnostics)
-    {
-        var common = new
-        {
-            schemaVersion = 1,
-            projectId = request.Project.ProjectId,
-            projectHash = request.Project.Hash,
-            sourceRevision = request.SourceRevision,
-            sourceSetHash,
-            toolVersion = ToolInfo.Version,
-            compilerVersion = typeof(CSharpCompilation).Assembly.GetName().Version?.ToString() ?? "unknown",
-        };
-        var artifacts = new List<StagedWorkerArtifact>();
-        artifacts.Add(JsonArtifact("scripts.behaviors", "behaviorManifest", "behavior_manifest_v1.json", new
-        {
-            common.schemaVersion, common.projectId, common.projectHash, common.sourceRevision,
-            common.sourceSetHash, common.toolVersion, common.compilerVersion, behaviors,
-        }));
-        var actions = behaviors.SelectMany(behavior => behavior.Actions.Select(action => new
-        {
-            action.ActionId,
-            behaviorId = behavior.BehaviorId,
-            action.Method,
-            action.AttributeTypeId,
-            action.PubliclyInvocable,
-            sourceFile = behavior.SourceFile,
-            action.Span,
-        })).OrderBy(item => item.ActionId, StringComparer.Ordinal).ToArray();
-        artifacts.Add(JsonArtifact("scripts.named-actions", "namedActionManifest", "named_actions_v1.json", new
-        {
-            common.schemaVersion, common.projectId, common.projectHash, common.sourceRevision,
-            common.sourceSetHash, common.toolVersion, actions,
-        }));
-        var capabilities = behaviors.SelectMany(item => item.Capabilities).Distinct(StringComparer.Ordinal)
-            .Order(StringComparer.Ordinal).ToArray();
-        artifacts.Add(JsonArtifact("scripts.capabilities", "capabilityManifest", "capabilities_v1.json", new
-        {
-            common.schemaVersion, common.projectId, common.projectHash, common.sourceRevision,
-            common.sourceSetHash, common.toolVersion, capabilities,
-            packageGraphHash = ReadString(request.PackageLock.Path, "graphHash"),
-        }));
-        artifacts.Add(JsonArtifact("scripts.source-map", "sourceMap", "source_map_v1.json", new
-        {
-            common.schemaVersion, common.projectId, common.projectHash, common.sourceRevision,
-            common.sourceSetHash, common.toolVersion, sources,
-            behaviors = behaviors.Select(item => new { item.BehaviorId, item.SourceFile, item.SourceHash, item.Span,
-                item.LifecycleMethods, item.Actions }).ToArray(),
-        }));
-        var blocks = behaviors.SelectMany(behavior => behavior.LifecycleMethods
-            .Select(method => new { blockId = $"behavior://{behavior.BehaviorId}/{method.Name}", blockKind = "LifecycleMethod",
-                displayName = method.Name, classification = "ReadOnlySupported", editable = false,
-                sourceFile = behavior.SourceFile, sourceHash = behavior.SourceHash, sourceSpan = method.Span })
-            .Concat(behavior.Actions.Select(action => new { blockId = $"action://{behavior.BehaviorId}/{action.ActionId}",
-                blockKind = "NamedAction", displayName = action.ActionId, classification = "ReadOnlySupported", editable = false,
-                sourceFile = behavior.SourceFile, sourceHash = behavior.SourceHash, sourceSpan = action.Span })))
-            .OrderBy(item => item.sourceFile, StringComparer.Ordinal).ThenBy(item => item.sourceSpan.StartByte).ToArray();
-        var opaque = behaviors.Select(item => new
-        {
-            regionId = $"opaque://{item.BehaviorId}/implementation",
-            classification = "OpaqueCSharp",
-            editable = false,
-            item.SourceFile,
-            item.SourceHash,
-            sourceSpan = item.Span,
-            reason = "Unsupported C# remains source-linked and opaque; projection never rewrites authored C#.",
-        }).ToArray();
-        artifacts.Add(JsonArtifact("scripts.block-projection", "blockProjection", "block_projection_v1.json", new
-        {
-            common.schemaVersion, common.projectId, common.projectHash, common.sourceRevision,
-            common.sourceSetHash, common.toolVersion, sourcePreservation = "SourceNotMutated",
-            readOnly = true, blocks, opaqueRegions = opaque, allowedApis,
-            filteredApiPolicy = "ExcludeRawAndInternal",
-        }));
-
-        var compiledRoot = Path.Combine(staging, "compiled");
-        var assemblyPath = Directory.GetFiles(compiledRoot, "*.scripts.dll", SearchOption.TopDirectoryOnly).SingleOrDefault();
-        var runtimeConfigPath = Directory.GetFiles(compiledRoot, "*.scripts.runtimeconfig.json", SearchOption.TopDirectoryOnly).SingleOrDefault();
-        if (assemblyPath is null || runtimeConfigPath is null)
-        {
-            diagnostics.Add(Error("Script.Worker.AssemblyMissing", "compile", "Deterministic compilation did not produce assembly outputs."));
-            return artifacts;
-        }
-        var assembly = BinaryArtifact("scripts.assembly", "assembly", Path.GetFileName(assemblyPath), File.ReadAllBytes(assemblyPath));
-        var runtimeConfig = BinaryArtifact("scripts.runtime-config", "runtimeConfig", Path.GetFileName(runtimeConfigPath), File.ReadAllBytes(runtimeConfigPath));
-        artifacts.Add(assembly);
-        artifacts.Add(runtimeConfig);
-        artifacts.Add(JsonArtifact("scripts.assembly-manifest", "assemblyManifest", "assembly_manifest_v1.json", new
-        {
-            common.schemaVersion, common.projectId, common.projectHash, common.sourceRevision,
-            common.sourceSetHash, common.toolVersion, common.compilerVersion,
-            assemblyId = assembly.ArtifactId, assemblyHash = assembly.ArtifactHash,
-            runtimeConfigId = runtimeConfig.ArtifactId, runtimeConfigHash = runtimeConfig.ArtifactHash,
-            targetFramework = ToolInfo.TargetFramework,
-            referenceManifestHash = request.ReferenceManifest.Hash,
-            runtimeBridgeLogicalReferenceId = request.RuntimeBridge.LogicalReferenceId,
-            runtimeBridgeDescriptorHash = request.RuntimeBridge.DescriptorHash,
-            runtimeBridgeAssemblyLogicalPath = ReadBridgeLogicalPath(request.ReferenceManifest.Path,
-                request.RuntimeBridge.LogicalReferenceId),
-            runtimeBridgeHash = request.RuntimeBridge.AssemblyHash,
-            runtimeCompatibility = request.RuntimeBridge.RuntimeCompatibility,
-            trust = request.RuntimeBridge.Trust,
-        }));
-        return artifacts.OrderBy(item => item.ArtifactId, StringComparer.Ordinal).ToArray();
-    }
-
     private sealed class StaleWorkerResultException(string message) : Exception(message);
 
     private static (string ManifestHash, IReadOnlyList<PublishedWorkerArtifact> Artifacts) Publish(
@@ -849,6 +660,10 @@ internal static class ProjectWorker
             sourceRevision = request.SourceRevision,
             sourceSetHash,
             packageLockHash = request.PackageLock.Hash,
+            packageGenerationId = request.PackageGenerationId,
+            packageGenerationHash = request.PackageGenerationHash,
+            packageGenerationManifestHash = request.PackageGenerationManifestHash,
+            packageGraphHash = request.PackageGraphHash,
             referenceManifestHash = request.ReferenceManifest.Hash,
             apiSurfaceManifestHash = request.ApiSurfaceManifest.Hash,
             runtimeBridgeLogicalReferenceId = request.RuntimeBridge.LogicalReferenceId,
@@ -890,21 +705,6 @@ internal static class ProjectWorker
         }
     }
 
-    private static StagedWorkerArtifact JsonArtifact(string id, string kind, string name, object payload)
-    {
-        var node = JsonSerializer.SerializeToNode(payload, CanonicalJson.SerializerOptions)!.AsObject();
-        var contentHash = CanonicalJson.Hash(CanonicalJson.Serialize(node));
-        node["contentHash"] = contentHash;
-        var bytes = CanonicalJson.Serialize(node);
-        return new StagedWorkerArtifact(id, kind, name, contentHash, CanonicalJson.Hash(bytes), bytes);
-    }
-
-    private static StagedWorkerArtifact BinaryArtifact(string id, string kind, string name, byte[] bytes)
-    {
-        var hash = CanonicalJson.Hash(bytes);
-        return new StagedWorkerArtifact(id, kind, name, hash, hash, bytes);
-    }
-
     private static ProjectWorkerResult Failure(ProjectWorkerRequest request, string failureClass,
         IEnumerable<WorkerDiagnostic> diagnostics, string sourceSetHash = "", bool cancelled = false,
         bool stale = false) => new()
@@ -919,6 +719,10 @@ internal static class ProjectWorker
         ProjectHash = request.Project.Hash,
         SourceSetHash = sourceSetHash,
         PackageLockHash = request.PackageLock.Hash,
+        PackageGenerationId = request.PackageGenerationId,
+        PackageGenerationHash = request.PackageGenerationHash,
+        PackageGenerationManifestHash = request.PackageGenerationManifestHash,
+        PackageGraphHash = request.PackageGraphHash,
         ReferenceManifestHash = request.ReferenceManifest.Hash,
         ApiSurfaceManifestHash = request.ApiSurfaceManifest.Hash,
         RuntimeBridgeAssemblyHash = request.RuntimeBridge.AssemblyHash,
@@ -1010,20 +814,6 @@ internal static class ProjectWorker
         var relative = Path.GetRelativePath(Path.GetFullPath(root), Path.GetFullPath(path))
             .Replace(Path.DirectorySeparatorChar, '/');
         return relative.StartsWith("../", StringComparison.Ordinal) ? Path.GetFileName(path) : relative;
-    }
-
-    private static string ReadString(string path, string property)
-    {
-        using var document = JsonDocument.Parse(File.ReadAllBytes(path));
-        return document.RootElement.GetProperty(property).GetString() ?? "";
-    }
-
-    private static string ReadBridgeLogicalPath(string referenceManifestPath, string logicalReferenceId)
-    {
-        using var document = JsonDocument.Parse(File.ReadAllBytes(referenceManifestPath));
-        return document.RootElement.GetProperty("references").EnumerateArray()
-            .Single(item => item.GetProperty("artifactId").GetString() == logicalReferenceId)
-            .GetProperty("resolvedAssemblyLogicalPath").GetString() ?? "";
     }
 
     private static void RequireInput(WorkerVerifiedInput input, string name,

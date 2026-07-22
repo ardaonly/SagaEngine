@@ -400,7 +400,7 @@ TEST(PublicPrivateBoundaryTests, RuntimeAndEditorPublicHeadersDoNotIncludePrivat
         << (offenders.empty() ? "" : offenders.front().generic_string());
 }
 
-TEST(PublicPrivateBoundaryTests, VisualBlocksPublicSurfaceContainsOnlyBlocksContracts)
+TEST(PublicPrivateBoundaryTests, VisualBlocksPublicSurfaceContainsOnlyAuthoringAndReadOnlyProjectionContracts)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT) /
         "Engine/Source/Editor/VisualBlocksEditor";
@@ -418,7 +418,8 @@ TEST(PublicPrivateBoundaryTests, VisualBlocksPublicSurfaceContainsOnlyBlocksCont
         const auto relative =
             std::filesystem::relative(entry.path(), publicVisualBlocks);
         ASSERT_FALSE(relative.empty());
-        EXPECT_EQ((*relative.begin()).string(), "Blocks") << entry.path();
+        EXPECT_TRUE((*relative.begin()).string() == "Blocks" ||
+            relative == "ReadOnlyScriptProjection.h") << entry.path();
     }
 
     for (const auto& entry :
@@ -431,13 +432,16 @@ TEST(PublicPrivateBoundaryTests, VisualBlocksPublicSurfaceContainsOnlyBlocksCont
         const auto relative =
             std::filesystem::relative(entry.path(), privateVisualBlocks);
         ASSERT_FALSE(relative.empty());
-        EXPECT_EQ((*relative.begin()).string(), "Blocks") << entry.path();
+        EXPECT_TRUE((*relative.begin()).string() == "Blocks" ||
+            relative == "ReadOnlyScriptProjection.cpp") << entry.path();
     }
 
     EXPECT_TRUE(std::filesystem::is_regular_file(
         publicVisualBlocks / "Blocks/BlockDefinition.h"));
     EXPECT_TRUE(std::filesystem::is_regular_file(
         publicVisualBlocks / "Blocks/BlockToIRLowerer.h"));
+    EXPECT_TRUE(std::filesystem::is_regular_file(
+        publicVisualBlocks / "ReadOnlyScriptProjection.h"));
 }
 
 TEST(PublicPrivateBoundaryTests, LegacyCollaborationSurfaceStaysAbsent)

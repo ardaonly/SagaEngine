@@ -15,6 +15,7 @@
 #include <QApplication>
 #include <QLineEdit>
 #include <QPlainTextEdit>
+#include <QTabWidget>
 #include <QTreeWidget>
 
 #include <chrono>
@@ -121,6 +122,15 @@ TEST(QtAuthoringPanelsTests, CodeBoxMutationUsesTransactionAndDoesNotWriteDisk)
     panel.SetUndoRedoStack(&journal);
     panel.SetCommandDispatcher(&dispatcher);
     panel.OnInit();
+
+    auto* tabs = static_cast<QWidget*>(panel.GetNativeWidget())->findChild<QTabWidget*>();
+    ASSERT_NE(tabs, nullptr);
+    ASSERT_EQ(tabs->count(), 2);
+    EXPECT_EQ(tabs->tabText(0), "Scripting");
+    EXPECT_EQ(tabs->tabText(1), "Blocks");
+    auto* blocks = static_cast<QWidget*>(panel.GetNativeWidget())->findChild<QTreeWidget*>();
+    ASSERT_NE(blocks, nullptr);
+    EXPECT_EQ(blocks->accessibleName(), "Read-only script blocks");
 
     auto* editor = static_cast<QWidget*>(panel.GetNativeWidget())->findChild<QPlainTextEdit*>();
     ASSERT_NE(editor, nullptr);

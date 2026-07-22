@@ -78,6 +78,11 @@ def test_project_worker_is_deterministic_across_clean_roots() -> None:
         assert projection["filteredApiPolicy"] == "ExcludeRawAndInternal"
         assert "NativeBridge" not in json.dumps(projection)
         assert projection["opaqueRegions"][0]["classification"] == "OpaqueCSharp"
+        assert projection["roots"][0]["displayName"] == "WHEN Interact"
+        assert projection["roots"][0]["children"][0]["displayName"] == "toggle door target state"
+        assert projection["roots"][0]["children"][0]["stateKey"] == "door.target-open"
+        assert projection["packageGenerationId"] == first_manifest["packageGenerationId"]
+        assert projection["diagnostics"] == []
 
 def test_worker_mid_operation_cancellation_preserves_current_manifest() -> None:
     with tempfile.TemporaryDirectory() as tmp:

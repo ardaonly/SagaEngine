@@ -37,7 +37,7 @@ fs::path Worker(const fs::path& root, std::string_view operationId,
               "printf '%s\\n' '{\"schemaVersion\":1,\"stage\":\"Analyzing\"}' > \"$progress\"\n"
               "printf '%s\\n' '{\"schemaVersion\":1,\"tool\":\"sagascript\",\"status\":\"Passed\",\"failureClass\":\"\",\"cancelled\":false,\"stale\":false,\"operationId\":\""
            << operationId << "\",\"sourceRevision\":\"" << revision
-           << "\",\"currentManifestHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"diagnostics\":[]}' > \"$result\"\n";
+           << "\",\"packageGenerationId\":\"generation-1\",\"packageGenerationHash\":\"sha256:generation\",\"packageGenerationManifestHash\":\"sha256:manifest\",\"packageGraphHash\":\"sha256:graph\",\"currentManifestHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"diagnostics\":[]}' > \"$result\"\n";
     output.close();
     fs::permissions(script, fs::perms::owner_exec | fs::perms::owner_read |
         fs::perms::owner_write, fs::perm_options::replace);
@@ -51,6 +51,10 @@ SagaEditor::ScriptWorkerRequest Request(const fs::path& root)
     request.projectId = "project-1";
     request.project = {root / "Project.sagaproj", "sha256:project"};
     request.sourceRevision = "revision-1";
+    request.packageGenerationId = "generation-1";
+    request.packageGenerationHash = "sha256:generation";
+    request.packageGenerationManifestHash = "sha256:manifest";
+    request.packageGraphHash = "sha256:graph";
     request.outputRoot = root / "output";
     request.transportRoot = root / "transport";
     return request;
