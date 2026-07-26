@@ -13,7 +13,6 @@
 #include "SagaEditor/Notifications/EditorNotificationCenter.h"
 #include "SagaEditor/Settings/IEditorSettingsStore.h"
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
-#include "SagaEditor/Project/SagaProjectKitClient.h"
 #include "SagaEditor/Play/RuntimeProcessController.h"
 #include "SagaEditor/Persona/PersonaActivator.h"
 #include "SagaEditor/Persona/PersonaRegistry.h"
@@ -159,22 +158,13 @@ bool EditorShell::Init(EditorHost&                    host,
     m_window->SetTitle(cfg.windowTitle);
     m_window->SetSize(cfg.windowWidth, cfg.windowHeight);
 
-    // Closing is a document transaction decision; dirty buffers are never
-    // discarded merely because the native window received a close event.
-    m_window->SetOnClose([this, &host]
+    m_projectWorkflowController =
+        std::make_unique<EditorProjectWorkflowController>(
+            host.GetDocumentWorkspace(), cfg.projectWorkflowPrompts);
+    m_window->SetOnClose([this]
     {
-        const auto dirty = host.GetDocumentWorkspace().DirtyDocumentIds();
-        if (dirty.empty()) return true;
-        switch (m_window->ConfirmUnsavedDocuments(dirty))
-        {
-        case UnsavedDocumentsDecision::SaveAll:
-            return host.GetDocumentWorkspace().SaveAll();
-        case UnsavedDocumentsDecision::Discard:
-            return true;
-        case UnsavedDocumentsDecision::Cancel:
-            return false;
-        }
-        return false;
+        return m_projectWorkflowController->CanClose() ==
+            ProjectWorkflowOutcome::Completed;
     });
     m_window->SetOnCommand(
         [&host](const std::string& commandId)
@@ -219,40 +209,28 @@ bool EditorShell::Init(EditorHost&                    host,
             m_window->SetStatusMessage(saved ? "Saved canonical source documents." :
                 "Save failed; inspect document diagnostics.");
         }});
-    const auto mayReplaceWorkspace = [this, &host]
-    {
-        const auto dirty = host.GetDocumentWorkspace().DirtyDocumentIds();
-        if (dirty.empty()) return true;
-        switch (m_window->ConfirmUnsavedDocuments(dirty))
-        {
-        case UnsavedDocumentsDecision::SaveAll:
-            return host.GetDocumentWorkspace().SaveAll();
-        case UnsavedDocumentsDecision::Discard:
-            return true;
-        case UnsavedDocumentsDecision::Cancel:
-            return false;
-        }
-        return false;
-    };
     host.GetCommandRegistry().Register({"saga.command.file.open_project", "Open Project", "File",
-        [this, &host, mayReplaceWorkspace]
+        [this]
         {
-            const auto selected = m_window->ChooseProjectToOpen();
-            if (!selected || !mayReplaceWorkspace()) return;
-            const bool opened = host.GetDocumentWorkspace().OpenProject(*selected);
-            m_window->SetStatusMessage(opened ? "Opened canonical Saga project." :
-                "Project open failed validation; the previous workspace is unchanged.");
+            const auto outcome =
+                m_projectWorkflowController->OpenProjectPrompted();
+            if (outcome == ProjectWorkflowOutcome::Completed)
+                m_window->SetStatusMessage("Opened canonical Saga project.");
+            else if (outcome == ProjectWorkflowOutcome::Failed)
+                m_window->SetStatusMessage(
+                    "Project open failed validation; the previous workspace is unchanged.");
         }});
     host.GetCommandRegistry().Register({"saga.command.file.new_project", "New Project", "File",
-        [this, &host, mayReplaceWorkspace]
+        [this]
         {
-            const auto prompt = m_window->ChooseNewProject();
-            if (!prompt || !mayReplaceWorkspace()) return;
-            const auto request = MakeStarterArenaTemplateRequest(
-                prompt->destination, prompt->displayName);
-            const bool created = host.GetDocumentWorkspace().CreateStarterArena(request);
-            m_window->SetStatusMessage(created ? "Created and opened Starter Arena project." :
-                "Project creation failed transactionally; destination was not opened.");
+            const auto outcome =
+                m_projectWorkflowController->CreateStarterArenaPrompted();
+            if (outcome == ProjectWorkflowOutcome::Completed)
+                m_window->SetStatusMessage(
+                    "Created and opened Starter Arena project.");
+            else if (outcome == ProjectWorkflowOutcome::Failed)
+                m_window->SetStatusMessage(
+                    "Project creation failed transactionally; destination was not opened.");
         }});
     host.GetCommandRegistry().Register({"saga.command.file.exit", "Exit", "File",
         [this] { m_window->Close(); }});
@@ -298,6 +276,7 @@ bool EditorShell::Init(EditorHost&                    host,
 
 void EditorShell::Shutdown()
 {
+    m_projectWorkflowController.reset();
     if (m_runtimeProcessController)
     {
         m_runtimeProcessController->Shutdown();

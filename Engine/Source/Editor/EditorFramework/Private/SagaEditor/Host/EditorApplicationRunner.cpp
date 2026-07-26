@@ -194,6 +194,7 @@ int RunEditorApplication(int argc,
                          IUIFactory& factory,
                          std::ostream& out,
                          std::ostream& err,
+                         ProjectWorkflowPrompts prompts,
                          EditorShellExtension extension)
 {
     ParsedEditorCommand parsed;
@@ -225,6 +226,7 @@ int RunEditorApplication(int argc,
         return result.ok ? 0 : kExitInspectionFailure;
     }
 
+    parsed.app.projectWorkflowPrompts = std::move(prompts);
     EditorApp app;
     if (!app.Init(parsed.app, factory))
     {

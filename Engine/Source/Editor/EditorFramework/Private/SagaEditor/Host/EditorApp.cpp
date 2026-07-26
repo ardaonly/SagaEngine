@@ -79,6 +79,7 @@ bool EditorApp::Init(const EditorAppConfig& cfg, IUIFactory& factory)
     shellCfg.workspacePath = resolvedWorkspacePath;
     shellCfg.layoutPreset  = resolvedLayoutPreset;
     shellCfg.showOnInit    = cfg.showOnInit && !cfg.smoke;
+    shellCfg.projectWorkflowPrompts = cfg.projectWorkflowPrompts;
     if (cfg.argc > 0 && cfg.argv && cfg.argv[0])
     {
         std::error_code executableError;
