@@ -1,40 +1,88 @@
 # SPDX-License-Identifier: MPL-2.0
-    # --- Unit tests ---------------------------------------------------------
+    # --- Focused owner unit tests -------------------------------------------
 
-    add_executable(SagaUnitTests ${UNIT_TEST_SOURCES})
-    saga_link_thirdparty(SagaUnitTests)
-    target_link_libraries(SagaUnitTests PRIVATE
+    add_executable(SagaRenderUnitTests ${SAGA_RENDER_UNIT_TEST_SOURCES})
+    saga_apply_compiler_flags(SagaRenderUnitTests)
+    target_link_libraries(SagaRenderUnitTests PRIVATE
         SagaEngine
-        SagaDiagnostics
-        SagaRuntimeAppLib
-        SagaRuntimeLib
-        SagaServerLib
-        SagaShared
-        SagaCollaboration
-        SagaAssetPipelineLib
-        SagaSandboxLib
-        SagaEditorLib    # needed by Tests/Unit/Editor/* (block authoring,
-                         # InspectorEditing, persona, viewport, etc.)
-        SagaEditorLabLib # needed by dev-only EditorLab owner tests
+        nlohmann_json::nlohmann_json
+        OpenSSL::Crypto
         GTest::gtest
         GTest::gmock
         GTest::gtest_main
-        rapidcheck::rapidcheck
     )
-    target_link_libraries(SagaUnitTests PRIVATE SagaProductLib)
-    target_include_directories(SagaUnitTests PRIVATE ${SAGA_TEST_INCLUDE_DIRS})
-    target_include_directories(SagaUnitTests PRIVATE
-        ${SAGA_MODULE_PRIVATE_INCLUDE_DIRS}
+    target_include_directories(SagaRenderUnitTests PRIVATE
+        ${SAGA_TEST_INCLUDE_DIRS}
+        ${SAGA_ROOT}/Engine/Source/Runtime/Render/Private
+        ${SAGA_ROOT}/Engine/Source/Runtime/RHI/Private
+    )
+    target_compile_definitions(SagaRenderUnitTests PRIVATE
+        SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+    )
+    add_test(NAME SagaRenderUnitTests COMMAND SagaRenderUnitTests)
+    set_tests_properties(SagaRenderUnitTests PROPERTIES
+        LABELS "unit;runtime;render")
+
+    add_executable(SagaSandboxUnitTests ${SAGA_SANDBOX_UNIT_TEST_SOURCES})
+    saga_apply_compiler_flags(SagaSandboxUnitTests)
+    target_link_libraries(SagaSandboxUnitTests PRIVATE
+        SagaSandboxLib
+        SagaEngine
+        GTest::gtest
+        GTest::gmock
+        GTest::gtest_main
+    )
+    target_include_directories(SagaSandboxUnitTests PRIVATE
+        ${SAGA_TEST_INCLUDE_DIRS}
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaSandbox/Private/include
+    )
+    add_test(NAME SagaSandboxUnitTests COMMAND SagaSandboxUnitTests)
+    set_tests_properties(SagaSandboxUnitTests PROPERTIES
+        LABELS "unit;sandbox;render")
+
+    add_executable(SagaRuntimeHostUnitTests
+        ${SAGA_RUNTIME_HOST_UNIT_TEST_SOURCE})
+    saga_apply_compiler_flags(SagaRuntimeHostUnitTests)
+    target_link_libraries(SagaRuntimeHostUnitTests PRIVATE
+        SagaRuntimeAppLib
+        SagaRuntimeLib
+        GTest::gtest
+        GTest::gmock
+        GTest::gtest_main
+    )
+    target_include_directories(SagaRuntimeHostUnitTests PRIVATE
+        ${SAGA_TEST_INCLUDE_DIRS}
         ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private
     )
-    target_compile_definitions(SagaUnitTests PRIVATE
-        SAGA_SOURCE_ROOT="${SAGA_ROOT}"
-        SAGA_BUILD_ROOT="${CMAKE_BINARY_DIR}"
+    add_test(NAME SagaRuntimeHostUnitTests COMMAND SagaRuntimeHostUnitTests)
+    set_tests_properties(SagaRuntimeHostUnitTests PROPERTIES
+        LABELS "unit;runtime;host")
+
+    add_executable(SagaAssetIdentityGeneratorTests
+        ${SAGA_ASSET_IDENTITY_GENERATOR_TEST_SOURCE})
+    saga_apply_compiler_flags(SagaAssetIdentityGeneratorTests)
+    target_link_libraries(SagaAssetIdentityGeneratorTests PRIVATE
+        SagaAssetPipelineLib
+        GTest::gtest
+        GTest::gmock
+        GTest::gtest_main
     )
-    add_test(NAME UnitTests COMMAND SagaUnitTests)
-    set_tests_properties(UnitTests PROPERTIES
-        LABELS "unit;runtime;server;networking;replication;asset;editor"
+    target_include_directories(SagaAssetIdentityGeneratorTests PRIVATE
+        ${SAGA_TEST_INCLUDE_DIRS}
     )
+    add_test(NAME SagaAssetIdentityGeneratorTests
+        COMMAND SagaAssetIdentityGeneratorTests)
+    set_tests_properties(SagaAssetIdentityGeneratorTests PROPERTIES
+        LABELS "unit;asset;tool")
+
+    add_custom_target(SagaUnitTests DEPENDS
+        SagaRenderUnitTests
+        SagaSandboxUnitTests
+        SagaRuntimeHostUnitTests
+        SagaAssetIdentityGeneratorTests
+        ${SAGA_MODULE_TEST_TARGETS}
+    )
+    set_target_properties(SagaUnitTests PROPERTIES FOLDER "Tests")
 
     # --- Diligent private white-box tests ----------------------------------
     if(SAGA_DILIGENT_WHITEBOX_TEST_SOURCES)

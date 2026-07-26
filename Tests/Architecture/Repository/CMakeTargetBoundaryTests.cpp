@@ -592,6 +592,114 @@ TEST(CMakeTargetBoundaryTests, DiligentPrivateTestsHaveDedicatedTargets)
     EXPECT_FALSE(ContainsCMakeToken(integrationLinks, "SDL2::SDL2"));
 }
 
+TEST(CMakeTargetBoundaryTests, FocusedUnitTargetsExposeOnlyTheirOwners)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto buildRoot = std::filesystem::path(SAGA_BUILD_ROOT);
+    const auto sources =
+        ReadText(root / "cmake/modules/tests/SagaTestSources.cmake");
+    const auto core =
+        ReadText(root / "cmake/modules/tests/SagaCoreTestTargets.cmake");
+    const auto evidence =
+        ReadText(root / "cmake/modules/tests/SagaEvidenceTestTargets.cmake");
+    const auto editorQt =
+        ReadText(root / "Engine/Source/Editor/EditorQt/CMakeLists.txt");
+    const auto editorLab = ReadText(
+        root / "Engine/Source/Programs/SagaEditorLab/CMakeLists.txt");
+
+    EXPECT_EQ(sources.find("file(GLOB_RECURSE UNIT_TEST_SOURCES"),
+              std::string::npos);
+    EXPECT_EQ(core.find("add_executable(SagaUnitTests"),
+              std::string::npos);
+    EXPECT_EQ(core.find("add_test(NAME UnitTests"), std::string::npos);
+    EXPECT_NE(core.find("add_custom_target(SagaUnitTests"),
+              std::string::npos);
+    EXPECT_EQ(sources.find("${SAGA_MODULE_PRIVATE_INCLUDE_DIRS}"),
+              std::string::npos);
+    EXPECT_EQ(core.find("${SAGA_MODULE_PRIVATE_INCLUDE_DIRS}"),
+              std::string::npos);
+    EXPECT_EQ(evidence.find("${SAGA_MODULE_PRIVATE_INCLUDE_DIRS}"),
+              std::string::npos);
+
+    for (const auto& [target, owner] :
+         std::array<std::pair<std::string_view, std::string_view>, 4>{
+             std::pair{"SagaRenderUnitTests", "SagaEngine"},
+             std::pair{"SagaSandboxUnitTests", "SagaSandboxLib"},
+             std::pair{"SagaRuntimeHostUnitTests", "SagaRuntimeAppLib"},
+             std::pair{"SagaAssetIdentityGeneratorTests",
+                       "SagaAssetPipelineLib"}})
+    {
+        EXPECT_NE(core.find("add_executable(" + std::string(target)),
+                  std::string::npos)
+            << target;
+        const auto links =
+            ExtractTargetCalls(core, "target_link_libraries", target);
+        EXPECT_TRUE(ContainsCMakeToken(links, owner))
+            << target << " must directly name " << owner;
+        EXPECT_FALSE(ContainsCMakeToken(links, "SagaEditorLib")) << target;
+        EXPECT_FALSE(ContainsCMakeToken(links, "SagaPersistenceBackend"))
+            << target;
+    }
+
+    EXPECT_NE(editorQt.find("Tests/EditorProjectInspectionTests.cpp"),
+              std::string::npos);
+    EXPECT_NE(editorLab.find("Tests/EditorLabScenarioRunnerTests.cpp"),
+              std::string::npos);
+    EXPECT_FALSE(std::filesystem::exists(
+        root / "Tests/Unit/Editor/EditorProjectInspectionTests.cpp"));
+    EXPECT_FALSE(std::filesystem::exists(
+        root / "Tests/Unit/Editor/EditorLabScenarioRunnerTests.cpp"));
+
+    const auto configured = ReadText(
+        buildRoot /
+        "generated/SagaFocusedTestOwnership-RelWithDebInfo.txt");
+    ASSERT_FALSE(configured.empty());
+    const auto configuredLineFor = [&](std::string_view property)
+    {
+        const std::string marker = std::string(property) + "=";
+        const auto begin = configured.find(marker);
+        if (begin == std::string::npos)
+            return std::string{};
+        const auto end = configured.find('\n', begin);
+        return configured.substr(
+            begin, end == std::string::npos ? end : end - begin);
+    };
+    for (const auto* target : {
+             "SagaRenderUnitTests",
+             "SagaSandboxUnitTests",
+             "SagaRuntimeHostUnitTests",
+             "SagaAssetIdentityGeneratorTests"})
+    {
+        for (const auto* property : {"LINK_LIBRARIES", "INCLUDE_DIRECTORIES"})
+        {
+            const auto line = configuredLineFor(
+                std::string(target) + "." + property);
+            ASSERT_FALSE(line.empty()) << target << "." << property;
+            EXPECT_EQ(line.find("SAGA_MODULE_PRIVATE_INCLUDE_DIRS"),
+                      std::string::npos);
+            EXPECT_EQ(line.find("SagaPersistenceBackend"),
+                      std::string::npos);
+            EXPECT_EQ(line.find("SagaEditorLib"), std::string::npos);
+        }
+    }
+    EXPECT_NE(configured.find(
+                  "SagaRenderUnitTests.LINK_LIBRARIES=SagaEngine"),
+              std::string::npos);
+    EXPECT_NE(configured.find(
+                  "SagaSandboxUnitTests.LINK_LIBRARIES=SagaSandboxLib"),
+              std::string::npos);
+    EXPECT_NE(configured.find(
+                  "SagaRuntimeHostUnitTests.LINK_LIBRARIES=SagaRuntimeAppLib"),
+              std::string::npos);
+    EXPECT_NE(configured.find(
+                  "SagaAssetIdentityGeneratorTests.LINK_LIBRARIES=SagaAssetPipelineLib"),
+              std::string::npos);
+    EXPECT_NE(configured.find("EditorProjectInspectionTests.cpp"),
+              std::string::npos);
+    EXPECT_NE(configured.find("EditorLabScenarioRunnerTests.cpp"),
+              std::string::npos);
+}
+
 TEST(CMakeTargetBoundaryTests, CSharpHostOwnersStayCompleteAcrossFocusedTargets)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);

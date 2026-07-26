@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: MPL-2.0
     # --- Source discovery ---------------------------------------------------
 
-    file(GLOB_RECURSE UNIT_TEST_SOURCES CONFIGURE_DEPENDS
-        "${SAGA_ROOT}/Tests/Unit/*.cpp"
-    )
+    # Unit ownership is explicit below. Do not restore a recursive catch-all:
+    # it hides missing owner dependencies behind one giant executable.
+    set(UNIT_TEST_SOURCES)
 
     set(SAGA_STRESS_ARENA_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Support/Stress/SagaStressArena/Tests.cpp"
@@ -29,6 +29,9 @@
     )
     set(SAGA_ASSET_IDENTITY_RUNTIME_CONTRACT_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/AssetPipeline/AssetIdentityRuntimeContractTests.cpp"
+    )
+    set(SAGA_ASSET_IDENTITY_GENERATOR_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/AssetPipeline/AssetIdentityGeneratorTests.cpp"
     )
     set(SAGA_ASSET_IDENTITY_MANIFEST_WRITER_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Unit/AssetPipeline/AssetIdentityManifestWriterTests.cpp"
@@ -163,6 +166,36 @@
         "${SAGA_ROOT}/Tests/Unit/Server/MovementDirtyReplicationBridgeTests.cpp"
     )
 
+    set(SAGA_RENDER_UNIT_TEST_SOURCES
+        "${SAGA_ROOT}/Tests/Unit/Render/CookedRenderAssetLoaderTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/CullingPipelineTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/FrustumTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/GraphicsBindingValidationTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/GraphicsCoordinateConventionTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/GraphicsFrameResourceAllocatorTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/GraphicsNullBackendResourceTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/GraphicsRenderBackendMappingTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/LODSelectorTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/LightingContractTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/NetEntityBindingTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/RenderGraphValidationTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/RenderInterestWorldStreamingTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/RenderSceneExtractionTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/RenderStreamingResidencyTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/RenderSubsystemIntegrationTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/RenderSubsystemTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/RenderWorldTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/ShaderMaterialContractTests.cpp"
+    )
+    set(SAGA_SANDBOX_UNIT_TEST_SOURCES
+        "${SAGA_ROOT}/Tests/Unit/Sandbox/SandboxDiagnosticMigrationTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Sandbox/SandboxImGuiOverlayTokenTests.cpp"
+        "${SAGA_ROOT}/Tests/Unit/Render/PlayableRenderSliceTests.cpp"
+    )
+    set(SAGA_RUNTIME_HOST_UNIT_TEST_SOURCE
+        "${SAGA_ROOT}/Tests/Unit/Runtime/RuntimeHostTests.cpp"
+    )
+
     if(SAGA_PRODUCT_TEST_SOURCES)
         list(REMOVE_ITEM UNIT_TEST_SOURCES
             ${SAGA_PRODUCT_TEST_SOURCES}
@@ -175,6 +208,7 @@
 
     list(REMOVE_ITEM UNIT_TEST_SOURCES
         ${SAGA_ASSET_IDENTITY_RUNTIME_CONTRACT_TEST_SOURCE}
+        ${SAGA_ASSET_IDENTITY_GENERATOR_TEST_SOURCE}
         ${SAGA_ASSET_IDENTITY_MANIFEST_WRITER_TEST_SOURCE}
         ${SAGA_ASSET_MANIFEST_WRITER_TEST_SOURCE}
         ${SAGA_PACKAGE_MANIFEST_WRITER_TEST_SOURCE}
@@ -218,6 +252,9 @@
         ${SAGA_SERVER_LIFECYCLE_DIAGNOSTICS_TEST_SOURCE}
         ${SAGA_MOVEMENT_DIRTY_REPLICATION_BRIDGE_TEST_SOURCE}
         ${SAGA_DILIGENT_WHITEBOX_TEST_SOURCES}
+        ${SAGA_RENDER_UNIT_TEST_SOURCES}
+        ${SAGA_SANDBOX_UNIT_TEST_SOURCES}
+        ${SAGA_RUNTIME_HOST_UNIT_TEST_SOURCE}
     )
 
     file(GLOB_RECURSE EDITORLAB_SOURCES CONFIGURE_DEPENDS
@@ -252,20 +289,17 @@
 
     # --- Common include directories -----------------------------------------
     #
-    # Every test target wants exactly the same include paths, so we stage
-    # them in a list and spread it into each `target_include_directories`
-    # call below.  Keeping the list local to the function avoids leaking
-    # into the parent scope.
+    if(UNIT_TEST_SOURCES)
+        message(FATAL_ERROR
+            "Unowned Tests/Unit sources remain after focused assignment: "
+            "${UNIT_TEST_SOURCES}")
+    endif()
+
+    # Shared test visibility is public-only. White-box implementation paths
+    # are granted explicitly by the focused owner target that needs them.
     set(SAGA_TEST_INCLUDE_DIRS
         ${SAGA_MODULE_PUBLIC_INCLUDE_DIRS}
-        ${SAGA_MODULE_PRIVATE_INCLUDE_DIRS}
         ${SAGA_ROOT}/Tools/AssetPipeline/include
-        ${SAGA_ROOT}/Engine/Source/Programs/SagaEditorLab/Private
-        ${SAGA_ROOT}/Engine/Source/Programs/SagaSandbox/Private
-        ${SAGA_ROOT}/Engine/Source/Programs/SagaSandbox/Private/include
-        ${SAGA_ROOT}/Engine/Source/Programs/SagaLauncher/Private
-        ${SAGA_ROOT}/Tools/SagaPackager
-        ${SAGA_ROOT}/Tools/SagaScript
         $<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>
     )
 
