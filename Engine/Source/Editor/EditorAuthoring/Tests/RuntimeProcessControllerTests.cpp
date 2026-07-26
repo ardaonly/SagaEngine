@@ -280,6 +280,25 @@ TEST(StarterArenaGraphicalRuntimeIntegrationTests,
             std::ofstream output(inputPath, std::ios::binary | std::ios::trunc);
             output << source.dump(2) << '\n';
         }
+        if (label == "Style")
+        {
+            const auto stylePath =
+                projectRoot / "Content/UI/HUD/interaction-prompt.rcss";
+            std::ifstream input(stylePath, std::ios::binary);
+            std::string source{std::istreambuf_iterator<char>(input),
+                               std::istreambuf_iterator<char>()};
+            const auto original = std::string{"rgba(12, 18, 28, 210)"};
+            const auto replacement = std::string{"rgba(220, 20, 20, 255)"};
+            const auto position = source.find(original);
+            if (position == std::string::npos)
+            {
+                ADD_FAILURE() << "StarterArena stylesheet authority token is missing.";
+                return {};
+            }
+            source.replace(position, original.size(), replacement);
+            std::ofstream output(stylePath, std::ios::binary | std::ios::trunc);
+            output << source;
+        }
         SagaEditor::EditorDocumentWorkspace workspace;
         if (!workspace.OpenProject(projectRoot / "StarterArena.sagaproj"))
         {
@@ -328,10 +347,13 @@ TEST(StarterArenaGraphicalRuntimeIntegrationTests,
 
     const auto eResult = run("E");
     const auto fResult = run("F");
+    const auto styleResult = run("Style");
     ASSERT_FALSE(eResult.empty());
     ASSERT_FALSE(fResult.empty());
+    ASSERT_FALSE(styleResult.empty());
     EXPECT_EQ(eResult.value("status", std::string{}), "Succeeded");
     EXPECT_EQ(fResult.value("status", std::string{}), "Succeeded");
+    EXPECT_EQ(styleResult.value("status", std::string{}), "Succeeded");
     EXPECT_EQ(eResult["observedState"].value("transition", std::string{}),
               "ClosedOpenClosed");
     EXPECT_EQ(fResult["observedState"].value("transition", std::string{}),
@@ -373,6 +395,7 @@ TEST(StarterArenaGraphicalRuntimeIntegrationTests,
     };
     const auto eCaptures = captures(eResult);
     const auto fCaptures = captures(fResult);
+    const auto styleCaptures = captures(styleResult);
     for (const auto* name : {"world-baseline", "e-open", "e-close",
                              "e-reopened", "e-resized"})
         EXPECT_TRUE(eCaptures.contains(name)) << name;
@@ -407,6 +430,8 @@ TEST(StarterArenaGraphicalRuntimeIntegrationTests,
 
     const auto& eOpen = eCaptures.at("e-open");
     const auto& fOpen = fCaptures.at("f-open");
+    ASSERT_TRUE(styleCaptures.contains("e-open"));
+    const auto& styleOpen = styleCaptures.at("e-open");
     EXPECT_NE(eOpen.value("canonicalLaunchHash", std::string{}),
               fOpen.value("canonicalLaunchHash", std::string{}));
     EXPECT_NE(eOpen.value("inputArtifactHash", std::string{}),
@@ -417,8 +442,18 @@ TEST(StarterArenaGraphicalRuntimeIntegrationTests,
             << field;
     EXPECT_EQ(fOpen.value("promptSemanticLabel", std::string{}).find("[E]"),
               std::string::npos);
+    for (const auto* field : {"inputArtifactHash", "sceneHash",
+                              "scriptAssemblyHash", "packageGenerationHash",
+                              "uiDocumentHash", "preOverlaySha256"})
+        EXPECT_EQ(eOpen.value(field, std::string{}),
+                  styleOpen.value(field, std::string{})) << field;
+    for (const auto* field : {"canonicalLaunchHash", "uiArtifactHash", "sha256"})
+        EXPECT_NE(eOpen.value(field, std::string{}),
+                  styleOpen.value(field, std::string{})) << field;
+    EXPECT_NE(eOpen["uiStylesheetHashes"], styleOpen["uiStylesheetHashes"]);
     EXPECT_TRUE(eResult["observedState"].value("meaningfulRendererPixels", false));
     EXPECT_TRUE(fResult["observedState"].value("meaningfulRendererPixels", false));
+    EXPECT_TRUE(styleResult["observedState"].value("meaningfulRendererPixels", false));
     EXPECT_GT(eResult["observedState"].value("drawCount", 0U), 0U);
     EXPECT_GT(fResult["observedState"].value("drawCount", 0U), 0U);
 

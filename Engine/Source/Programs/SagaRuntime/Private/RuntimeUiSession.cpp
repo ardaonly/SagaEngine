@@ -5,6 +5,7 @@
 
 #include <SagaEngine/UI/UiBackendFactory.h>
 
+#include <algorithm>
 #include <cmath>
 
 namespace SagaRuntimeApp
@@ -21,13 +22,28 @@ bool RuntimeUiSession::Initialize(
 {
     Shutdown();
     if (ui.documents.size() != 1 || ui.prompts.size() != 1 ||
-        ui.fonts.empty() || !promptEntity.IsValid()) return false;
+        ui.stylesheets.empty() || ui.fonts.empty() || !promptEntity.IsValid())
+        return false;
     backend_ = UI::Backends::CreateRmlUiUiBackend();
     UI::UiBackendConfig config;
     config.viewport = {width, height, 1.0F};
     config.assetRoot = ui.documents.front().path.parent_path();
     config.overlaySubmission = &submission;
-    for (const auto& font : ui.fonts) config.fontPaths.push_back(font.path);
+    for (const auto& document : ui.documents)
+        config.verifiedResourcePaths.push_back(document.path);
+    for (const auto& stylesheet : ui.stylesheets)
+        config.verifiedResourcePaths.push_back(stylesheet.path);
+    for (const auto& font : ui.fonts)
+    {
+        config.fontPaths.push_back(font.path);
+        config.verifiedResourcePaths.push_back(font.path);
+    }
+    std::sort(config.verifiedResourcePaths.begin(),
+              config.verifiedResourcePaths.end());
+    if (std::adjacent_find(config.verifiedResourcePaths.begin(),
+                           config.verifiedResourcePaths.end()) !=
+        config.verifiedResourcePaths.end())
+        return false;
     if (!backend_ || !backend_->Initialize(config)) { Shutdown(); return false; }
     UI::UiDocumentRequest request = UI::UiDocumentRequest::FromDebugPath(
         ui.documents.front().path, true, UI::UiScreenId::FromString(ui.screenId));

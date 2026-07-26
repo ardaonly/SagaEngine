@@ -100,11 +100,46 @@ def test_runtime_ui_set_is_deterministic_and_strict() -> None:
         for collection in ("documents", "stylesheets", "fonts"):
             for resource in payload[collection]:
                 assert resource["path"].startswith("ui/generations/")
+                assert "/resources/Content/UI/" in resource["path"]
                 assert (first / resource["path"]).read_bytes() == (second / resource["path"]).read_bytes()
                 assert resource["hash"] == "sha256:" + hashlib.sha256(
                     (first / resource["path"]).read_bytes()).hexdigest()
         font = payload["fonts"][0]
         assert font["hash"] == "sha256:7da195a74c55bef988d0d48f9508bd5d849425c1770dba5d7bfc6ce9ed848954"
+
+def test_runtime_ui_stylesheet_is_external_authority() -> None:
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        project = copy_starter(root)
+        before, after = root / "before", root / "after"
+        assert compile_starter(project, before, "compile-ui").returncode == 0
+        style = project / "Content/UI/HUD/interaction-prompt.rcss"
+        style.write_text(style.read_text(encoding="utf-8").replace(
+            "rgba(12, 18, 28, 210)", "rgba(220, 20, 20, 255)"), encoding="utf-8")
+        assert compile_starter(project, after, "compile-ui").returncode == 0
+        before_ui = artifact(before, "starter-arena.hud")
+        after_ui = artifact(after, "starter-arena.hud")
+        assert before_ui["payload"]["documents"][0]["hash"] == \
+            after_ui["payload"]["documents"][0]["hash"]
+        assert before_ui["payload"]["stylesheets"][0]["hash"] != \
+            after_ui["payload"]["stylesheets"][0]["hash"]
+        assert before_ui["contentHash"] != after_ui["contentHash"]
+
+        inline = project / "Content/UI/HUD/interaction-prompt.rml"
+        inline.write_text(inline.read_text(encoding="utf-8").replace(
+            "</head>", "<style>body { color: red; }</style></head>"), encoding="utf-8")
+        rejected = compile_starter(project, root / "inline", "compile-ui")
+        assert rejected.returncode == 1
+        assert "UI.Source.InlineStyleForbidden" in [
+            item["code"] for item in load(root / "inline/compile-result.json")["diagnostics"]]
+
+        inline.write_text("""<rml><head><title>HUD</title></head><body/></rml>\n""",
+                          encoding="utf-8")
+        unreferenced = compile_starter(project, root / "unreferenced", "compile-ui")
+        assert unreferenced.returncode == 1
+        assert "UI.Source.StylesheetUnreferenced" in [
+            item["code"] for item in
+            load(root / "unreferenced/compile-result.json")["diagnostics"]]
 
 
 def test_runtime_ui_failure_preserves_valid_selectors() -> None:
@@ -123,4 +158,5 @@ def test_runtime_ui_failure_preserves_valid_selectors() -> None:
 
 TESTS = (test_input_rebind_changes_only_input_artifact,
          test_runtime_ui_set_is_deterministic_and_strict,
+         test_runtime_ui_stylesheet_is_external_authority,
          test_runtime_ui_failure_preserves_valid_selectors)

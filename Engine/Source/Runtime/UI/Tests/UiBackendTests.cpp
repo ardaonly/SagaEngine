@@ -159,6 +159,10 @@ TEST(UiBackendTests, RmlUiBackendProducesStarterPromptGeometry)
     auto config = MakeConfig("RmlUiStarterPromptGeometryTest");
     config.assetRoot = root / "HUD";
     config.fontPaths = {root / "ThirdParty/DejaVu/DejaVuSans.ttf"};
+    config.verifiedResourcePaths = {
+        root / "HUD/interaction-prompt.rml",
+        root / "HUD/interaction-prompt.rcss",
+        root / "ThirdParty/DejaVu/DejaVuSans.ttf"};
     config.overlaySubmission = &submission;
     const std::unique_ptr<SagaUI::IUiBackend> backend =
         SagaBackendsUI::CreateRmlUiUiBackend();

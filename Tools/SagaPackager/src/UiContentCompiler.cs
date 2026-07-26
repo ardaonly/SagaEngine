@@ -2,6 +2,7 @@
 
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Xml.Linq;
 using SagaProjectKit.Core;
 
 namespace SagaPackager;
@@ -65,6 +66,7 @@ internal static class UiContentCompiler
             if (documents.Count == 0 || styles.Count == 0 || fonts.Count == 0 || prompts.Count == 0)
                 diagnostics.Add(Error("UI.Source.RequiredCollectionEmpty", configs[0].Path,
                     "runtime.ui-set requires at least one document, stylesheet, font, and prompt."));
+            ValidateStylesheetAuthority(documents, styles, diagnostics);
             if (diagnostics.Any(item => item.Severity == "Error" &&
                     (item.Code.StartsWith("UI.", StringComparison.Ordinal) ||
                      item.Code == "Project.Reference.Missing"))) return null;
@@ -126,7 +128,8 @@ internal static class UiContentCompiler
         }
     }
 
-    private sealed record Resource(JsonObject Record, string SourcePath, string Extension, string Hash);
+    private sealed record Resource(JsonObject Record, string SourcePath,
+        string ProjectRelativePath, string Extension, string Hash);
 
     private static List<Resource> Resources(JsonElement root, string property,
         IReadOnlyList<string> allowed, string configPath, string projectRoot,
@@ -168,7 +171,7 @@ internal static class UiContentCompiler
             };
             foreach (var name in allowed.Where(name => name != "path"))
                 record[name] = RequiredString(item, name, configPath + "#" + property, diagnostics);
-            result.Add(new Resource(record, sourcePath,
+            result.Add(new Resource(record, sourcePath, projectRelative,
                 Path.GetExtension(sourcePath).ToLowerInvariant(), hash));
         }
         return result;
@@ -200,7 +203,8 @@ internal static class UiContentCompiler
     private static void AddPublishedPaths(IEnumerable<Resource> resources, string generationId)
     {
         foreach (var resource in resources)
-            resource.Record["path"] = $"ui/generations/{generationId}/objects/{resource.Hash[7..]}{resource.Extension}";
+            resource.Record["path"] =
+                $"ui/generations/{generationId}/resources/{resource.ProjectRelativePath}";
     }
 
     private static bool PublishGeneration(string outputRoot, string generationId,
@@ -215,16 +219,20 @@ internal static class UiContentCompiler
             {
                 foreach (var resource in resources)
                 {
-                    var existing = Path.Combine(destination, "objects", resource.Hash[7..] + resource.Extension);
+                    var existing = Path.Combine(destination, "resources",
+                        resource.ProjectRelativePath);
                     if (!File.Exists(existing) || CanonicalJson.HashFile(existing) != resource.Hash)
                         throw new InvalidDataException("Existing immutable UI generation does not match its resource hashes.");
                 }
                 return true;
             }
-            Directory.CreateDirectory(Path.Combine(staging, "objects"));
             foreach (var resource in resources)
-                File.Copy(resource.SourcePath,
-                    Path.Combine(staging, "objects", resource.Hash[7..] + resource.Extension));
+            {
+                var published = Path.Combine(staging, "resources",
+                    resource.ProjectRelativePath);
+                Directory.CreateDirectory(Path.GetDirectoryName(published)!);
+                File.Copy(resource.SourcePath, published);
+            }
             Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
             Directory.Move(staging, destination);
             return true;
@@ -238,6 +246,53 @@ internal static class UiContentCompiler
         {
             if (Directory.Exists(staging)) Directory.Delete(staging, recursive: true);
         }
+    }
+
+    private static void ValidateStylesheetAuthority(IReadOnlyList<Resource> documents,
+        IReadOnlyList<Resource> styles, List<ProjectDiagnostic> diagnostics)
+    {
+        var declared = styles.ToDictionary(
+            item => Path.GetFullPath(item.SourcePath), item => item, StringComparer.Ordinal);
+        var referenced = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var document in documents.OrderBy(item => item.ProjectRelativePath,
+                     StringComparer.Ordinal))
+        {
+            try
+            {
+                var rml = XDocument.Load(document.SourcePath, LoadOptions.None);
+                if (rml.Descendants().Any(item => item.Name.LocalName == "style"))
+                    diagnostics.Add(Error("UI.Source.InlineStyleForbidden",
+                        document.ProjectRelativePath,
+                        "Runtime RML must use verified external RCSS resources."));
+                foreach (var link in rml.Descendants()
+                             .Where(item => item.Name.LocalName == "link" &&
+                                 (string?)item.Attribute("type") == "text/rcss"))
+                {
+                    var href = (string?)link.Attribute("href") ?? "";
+                    var resolved = Path.GetFullPath(Path.Combine(
+                        Path.GetDirectoryName(document.SourcePath)!, href));
+                    if (string.IsNullOrWhiteSpace(href) || !declared.ContainsKey(resolved))
+                    {
+                        diagnostics.Add(Error("UI.Source.StylesheetUndeclared",
+                            document.ProjectRelativePath,
+                            "Every RML stylesheet link must resolve to a declared RCSS resource."));
+                        continue;
+                    }
+                    referenced.Add(resolved);
+                }
+            }
+            catch (Exception exception) when (exception is IOException or
+                                               System.Xml.XmlException)
+            {
+                diagnostics.Add(Error("UI.Source.DocumentInvalid",
+                    document.ProjectRelativePath, exception.Message));
+            }
+        }
+        foreach (var style in declared)
+            if (!referenced.Contains(style.Key))
+                diagnostics.Add(Error("UI.Source.StylesheetUnreferenced",
+                    style.Value.ProjectRelativePath,
+                    "Every declared RCSS resource must be referenced by runtime RML."));
     }
 
     private static void PublishSelector(string outputRoot, string generationId,

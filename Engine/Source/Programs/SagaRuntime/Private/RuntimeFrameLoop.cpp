@@ -558,6 +558,10 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
         record();
         renderEvidence = render.HasMeaningfulPixels();
         drawCount = render.LastDrawCount();
+        Json stylesheetHashes = Json::array();
+        for (const auto& stylesheet : uiResult.value->stylesheets)
+            stylesheetHashes.push_back(stylesheet.hash);
+        std::sort(stylesheetHashes.begin(), stylesheetHashes.end());
         for (const auto& capture : render.EvidenceRecords())
         {
             evidenceCaptures.push_back({
@@ -590,7 +594,10 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
                 {"scriptAssemblyHash", launch.scriptAssembly.hash},
                 {"sessionId", envelope.playSessionId},
                 {"sha256", Play::Sha256Bytes(RuntimeLaunchSession::ReadFile(capture.path))},
-                {"uiArtifactHash", launch.uiSet.hash}, {"width", capture.width}});
+                {"uiArtifactHash", launch.uiSet.hash},
+                {"uiDocumentHash", uiResult.value->documents.front().hash},
+                {"uiStylesheetHashes", stylesheetHashes},
+                {"width", capture.width}});
             evidenceCaptures.back()["uiDrawCallCount"] = capture.uiDrawCallCount;
             envelopeResult.diagnostics.push_back({"Runtime.Render.NamedFrameCapture",
                 capture.name, capture.path.string()});

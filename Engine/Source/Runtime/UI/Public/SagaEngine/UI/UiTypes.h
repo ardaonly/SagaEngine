@@ -89,6 +89,8 @@ struct UiBackendConfig
     std::shared_ptr<IUiEventSink> eventSink; ///< Optional backend-neutral UI event sink.
     Render::Backend::IRenderOverlaySubmission* overlaySubmission = nullptr;
     std::vector<std::filesystem::path> fontPaths; ///< Verified font files loaded before documents.
+    std::vector<std::filesystem::path>
+        verifiedResourcePaths; ///< Optional exact file allowlist for backend resource reads.
     std::string contextName = "SagaRuntimeUi"; ///< Backend context name for diagnostics.
 };
 
