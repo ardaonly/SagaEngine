@@ -357,8 +357,13 @@ def graphical_evidence(runtimes: list[dict[str, Any]], repo_root: pathlib.Path,
     errors: list[str] = []
     runs = [(runtime, validate_runtime_captures(runtime, repo_root, errors))
             for runtime in runtimes]
-    e_run = next(((runtime, records) for runtime, records in runs if "e-open" in records), None)
+    e_run = next(((runtime, records) for runtime, records in runs
+                  if "e-open" in records and
+                  "style" not in str(runtime.get("playSessionId", "")).lower()), None)
     f_run = next(((runtime, records) for runtime, records in runs if "f-open" in records), None)
+    style_run = next(((runtime, records) for runtime, records in runs
+                      if "e-open" in records and
+                      "style" in str(runtime.get("playSessionId", "")).lower()), None)
     selected: dict[str, dict[str, Any]] = {}
     if e_run:
         selected.update({name: e_run[1][name] for name in
@@ -367,6 +372,8 @@ def graphical_evidence(runtimes: list[dict[str, Any]], repo_root: pathlib.Path,
     if f_run:
         selected.update({name: f_run[1][name] for name in ("f-open", "f-close")
                          if name in f_run[1]})
+    if style_run and "e-open" in style_run[1]:
+        selected["style-e-open"] = dict(style_run[1]["e-open"], name="style-e-open")
     missing = [name for name in REQUIRED_CAPTURE_NAMES if name not in selected]
     if missing:
         errors.append("missing required named captures: " + ", ".join(missing))
@@ -430,6 +437,18 @@ def graphical_evidence(runtimes: list[dict[str, Any]], repo_root: pathlib.Path,
                 errors.append(f"E/F variant did not change: {field}")
         if "[E]" in str(f_open.get("promptSemanticLabel", "")):
             errors.append("f-open contains stale E semantic evidence")
+    if not style_run:
+        errors.append("missing required RCSS style-authority runtime")
+    if e_run and style_run:
+        e_open, style_open = e_run[1]["e-open"], style_run[1]["e-open"]
+        for field in ("inputArtifactHash", "sceneHash", "scriptAssemblyHash",
+                      "packageGenerationHash", "uiDocumentHash", "preOverlaySha256"):
+            if e_open.get(field) != style_open.get(field):
+                errors.append(f"RCSS invariant changed unexpectedly: {field}")
+        for field in ("canonicalLaunchHash", "uiArtifactHash", "uiStylesheetHashes",
+                      "sha256"):
+            if e_open.get(field) == style_open.get(field):
+                errors.append(f"RCSS authority variant did not change: {field}")
 
     supplied_but_incomplete = bool(missing) and not any(
         error for error in errors if "mismatch" in error or "stale" in error or "duplicate" in error)

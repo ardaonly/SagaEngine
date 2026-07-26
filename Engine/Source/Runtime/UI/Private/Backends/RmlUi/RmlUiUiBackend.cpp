@@ -25,6 +25,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <memory>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -238,14 +239,20 @@ private:
 class RmlUiFileInterface final : public Rml::FileInterface
 {
 public:
-    explicit RmlUiFileInterface(std::filesystem::path root)
+    explicit RmlUiFileInterface(std::filesystem::path root,
+                                const std::vector<std::filesystem::path>& verified)
         : root_(std::move(root))
     {
+        for (const auto& path : verified)
+            verified_.insert(std::filesystem::weakly_canonical(path));
     }
 
     [[nodiscard]] Rml::FileHandle Open(const Rml::String& path) override
     {
         const std::filesystem::path resolved = ResolvePath(root_, path);
+        if (!verified_.empty() &&
+            !verified_.contains(std::filesystem::weakly_canonical(resolved)))
+            return Rml::FileHandle{};
         std::FILE* file = std::fopen(resolved.string().c_str(), "rb");
         return reinterpret_cast<Rml::FileHandle>(file);
     }
@@ -297,6 +304,7 @@ public:
 
 private:
     std::filesystem::path root_;
+    std::set<std::filesystem::path> verified_;
 };
 
 /// RmlUi-backed implementation hidden behind the Saga UI backend contract.
@@ -331,7 +339,8 @@ public:
         config_ = config;
         renderInterface_.Configure(config_.overlaySubmission, config_.viewport);
         fileInterface_ =
-            std::make_unique<RmlUiFileInterface>(config_.assetRoot);
+            std::make_unique<RmlUiFileInterface>(
+                config_.assetRoot, config_.verifiedResourcePaths);
         systemInterface_ =
             std::make_unique<RmlUiSystemInterface>(diagnostics_);
 

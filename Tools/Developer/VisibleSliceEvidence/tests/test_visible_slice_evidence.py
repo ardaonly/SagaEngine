@@ -47,14 +47,25 @@ class GraphicalFixture:
         self.f_input = "sha256:" + "d" * 64
         self.shared = {
             "uiArtifactHash": "sha256:" + "e" * 64,
+            "uiDocumentHash": "sha256:" + "4" * 64,
+            "uiStylesheetHashes": ["sha256:" + "5" * 64],
             "sceneHash": "sha256:" + "1" * 64,
             "scriptAssemblyHash": "sha256:" + "2" * 64,
             "packageGenerationHash": "sha256:" + "3" * 64,
         }
         self.e_records = self._records("e", self.e_session, self.e_launch, self.e_input)
         self.f_records = self._records("f", self.f_session, self.f_launch, self.f_input)
+        self.style_records = self._records(
+            "e", "style-session", "sha256:" + "6" * 64, self.e_input,
+            file_prefix="style", style=True)
+        for record in self.style_records:
+            record["uiArtifactHash"] = "sha256:" + "7" * 64
+            record["uiStylesheetHashes"] = ["sha256:" + "8" * 64]
         self.e_path = self._runtime("e-result.json", self.e_session, self.e_launch, self.e_records)
         self.f_path = self._runtime("f-result.json", self.f_session, self.f_launch, self.f_records)
+        self.style_path = self._runtime(
+            "style-result.json", "style-session", "sha256:" + "6" * 64,
+            self.style_records)
 
     def _capture(self, name: str, prefix: str, index: int, label: str, prompt: str,
                  state: bool, value: tuple[int, int, bytes],
@@ -85,13 +96,15 @@ class GraphicalFixture:
                 "priorSemanticDifferencePixelCount": semantic_difference[0],
                 "priorSemanticRgbAbsoluteDifference": semantic_difference[1]}
 
-    def _records(self, prefix: str, session: str, launch: str, input_hash: str) -> list[dict]:
+    def _records(self, prefix: str, session: str, launch: str, input_hash: str,
+                 file_prefix: str | None = None, style: bool = False) -> list[dict]:
         bounds = {"x": 3.0, "y": 12.0, "width": 14.0, "height": 6.0}
         pre_overlay = frame(20, 20, 0, bounds)
-        opened = frame(20, 20, 1, bounds)
-        closed = frame(20, 20, 2, bounds)
+        opened = frame(20, 20, 2 if style else 1, bounds)
+        closed = frame(20, 20, 1 if style else 2, bounds)
         upper = prefix.upper()
-        opened_record = self._capture(f"{prefix}-open", prefix, 1, upper,
+        artifact_prefix = file_prefix or prefix
+        opened_record = self._capture(f"{prefix}-open", artifact_prefix, 1, upper,
             f"[{upper}] Open Door", False, opened, pre_overlay, None,
             session, launch, input_hash, bounds)
         baseline_record = dict(opened_record, name="world-baseline",
@@ -103,16 +116,16 @@ class GraphicalFixture:
             nonBackgroundPixelCount=EVIDENCE.non_background_count(
                 pre_overlay, opened_record["hudRegion"]))
         records = [baseline_record, opened_record]
-        records.append(self._capture(f"{prefix}-close", prefix, 31, upper,
+        records.append(self._capture(f"{prefix}-close", artifact_prefix, 31, upper,
             f"[{upper}] Close Door", True, closed, pre_overlay, opened,
             session, launch, input_hash, bounds))
         if prefix == "e":
-            records.append(self._capture("e-reopened", prefix, 191, "E", "[E] Open Door",
+            records.append(self._capture("e-reopened", artifact_prefix, 191, "E", "[E] Open Door",
                 False, opened, pre_overlay, closed, session, launch, input_hash, bounds))
             resized_bounds = {"x": 4.5, "y": 14.4, "width": 21.0, "height": 7.2}
             resized_pre = frame(30, 24, 0, resized_bounds)
             resized = frame(30, 24, 1, resized_bounds)
-            records.append(self._capture("e-resized", prefix, 246, "E", "[E] Open Door",
+            records.append(self._capture("e-resized", artifact_prefix, 246, "E", "[E] Open Door",
                 False, resized, resized_pre, None, session, launch, input_hash,
                 resized_bounds))
         return records
@@ -170,13 +183,15 @@ class VisibleSliceEvidenceTests(unittest.TestCase):
             root = pathlib.Path(temporary)
             fixture = GraphicalFixture(root)
             evidence = root / "evidence"
-            result = self.run_runner(evidence, fixture.e_path, fixture.f_path, graphical=True)
+            result = self.run_runner(
+                evidence, fixture.e_path, fixture.f_path, fixture.style_path,
+                graphical=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             report = json.loads((evidence / "visible-slice-evidence.json").read_text())
             self.assertEqual(report["graphical"]["status"], "passed")
             self.assertEqual({item["name"] for item in report["graphical"]["captures"]},
                 {"world-baseline", "e-open", "e-close", "e-reopened", "e-resized",
-                 "f-open", "f-close"})
+                 "f-open", "f-close", "style-e-open"})
 
     def test_incomplete_or_inconsistent_graphical_records_cannot_pass(self) -> None:
         mutations = {
@@ -226,7 +241,9 @@ class VisibleSliceEvidenceTests(unittest.TestCase):
                 mutate(fixture)
                 fixture.save()
                 evidence = root / "evidence"
-                result = self.run_runner(evidence, fixture.e_path, fixture.f_path, graphical=True)
+                result = self.run_runner(
+                    evidence, fixture.e_path, fixture.f_path, fixture.style_path,
+                    graphical=True)
                 self.assertNotEqual(result.returncode, 0)
                 report = json.loads((evidence / "visible-slice-evidence.json").read_text())
                 self.assertIn(report["graphical"]["status"], {"incomplete", "failed"})
