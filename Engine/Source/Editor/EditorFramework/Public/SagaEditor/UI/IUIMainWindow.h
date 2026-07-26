@@ -17,8 +17,7 @@ namespace SagaEditor
 {
 // ─── Dock Area Hint ───────────────────────────────────────────────────────────
 
-/// Framework-agnostic dock placement hint — maps to Qt::DockWidgetArea on the
-/// Qt backend and to whatever the next backend uses.
+/// Typed editor-shell dock placement hint interpreted by the Qt composition.
 enum class UIDockArea : uint8_t
 {
     Left,
@@ -31,8 +30,8 @@ enum class UIDockArea : uint8_t
 
 // ─── Main Window Interface ────────────────────────────────────────────────────
 
-/// Wraps the framework's top-level window (e.g. QMainWindow).
-/// The editor shell talks to this interface; Qt stays behind the backend.
+/// Editor-shell window ownership and test seam for chrome, docking, and events.
+/// QtUIMainWindow is the production implementation composed by EditorQt.
 class IUIMainWindow
 {
 public:

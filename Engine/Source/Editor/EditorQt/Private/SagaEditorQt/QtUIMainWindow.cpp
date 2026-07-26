@@ -15,9 +15,7 @@
 #include <QWidget>
 #include <QString>
 #include <QCloseEvent>
-#include <QEvent>
 #include <QObject>
-#include <QStackedWidget>
 #include <utility>
 #include <unordered_map>
 #include <string>
@@ -48,36 +46,13 @@ protected:
     }
 };
 
-/// Event filter for product-owned windows that cannot use QtMainWindowWidget.
-class QtMainWindowCloseFilter final : public QObject
-{
-public:
-    explicit QtMainWindowCloseFilter(QObject* parent = nullptr)
-        : QObject(parent)
-    {}
-
-    IUIMainWindow::CloseCallback onClose; ///< Forwarded from IUIMainWindow::SetOnClose.
-
-protected:
-    bool eventFilter(QObject* watched, QEvent* event) override
-    {
-        if (event->type() == QEvent::Close && onClose && !onClose())
-        { event->ignore(); return true; }
-        return QObject::eventFilter(watched, event);
-    }
-};
-
 // ─── Pimpl ────────────────────────────────────────────────────────────────────
 
 struct QtUIMainWindow::Impl
 {
-    QMainWindow* window = nullptr; ///< May be owned by this wrapper or by Saga.
-    bool ownsWindow = true;
-    QStackedWidget* centralStack = nullptr; ///< Non-owning mounted central host.
-    QWidget* centralWidget = nullptr;       ///< Panel widget mounted in the stack.
-    int centralIndex = -1;
+    QtMainWindowWidget* window = nullptr;
+    QWidget* centralWidget = nullptr;
     std::string centralPanelId;
-    QtMainWindowCloseFilter* closeFilter = nullptr;
 
     /// panelId → QDockWidget* (non-owning; Qt parent is the main window).
     std::unordered_map<std::string, QDockWidget*> dockMap;
@@ -93,71 +68,9 @@ struct QtUIMainWindow::Impl
         window->statusBar()->showMessage("Ready");
     }
 
-    Impl(QMainWindow* nativeWindow, QStackedWidget* nativeCentralStack)
-        : window(nativeWindow)
-        , ownsWindow(false)
-        , centralStack(nativeCentralStack)
-    {
-        if (window != nullptr)
-        {
-            window->setDockNestingEnabled(true);
-            window->setAnimated(false);
-            window->statusBar()->showMessage("Ready");
-            closeFilter = new QtMainWindowCloseFilter(window);
-            window->installEventFilter(closeFilter);
-        }
-    }
-
     ~Impl()
     {
-        if (mainToolbar != nullptr && window != nullptr)
-        {
-            window->removeToolBar(mainToolbar);
-            delete mainToolbar;
-            mainToolbar = nullptr;
-        }
-
-        for (auto& [panelId, dock] : dockMap)
-        {
-            (void)panelId;
-            if (window != nullptr)
-            {
-                window->removeDockWidget(dock);
-            }
-            delete dock;
-        }
-        dockMap.clear();
-
-        if (centralStack != nullptr && centralIndex >= 0)
-        {
-            QWidget* widget = centralStack->widget(centralIndex);
-            centralStack->removeWidget(widget);
-            delete widget;
-        }
-        else if (ownsWindow)
-        {
-            // QMainWindow deletes its central widget when the owned window dies.
-            centralWidget = nullptr;
-        }
-
-        if (window != nullptr && closeFilter != nullptr)
-        {
-            window->removeEventFilter(closeFilter);
-            closeFilter = nullptr;
-        }
-
-        if (!ownsWindow && window != nullptr)
-        {
-            // Return basic chrome visibility to the product shell. Saga rebuilds
-            // its own menus immediately after editor mode shuts down.
-            window->menuBar()->setVisible(true);
-            window->statusBar()->setVisible(true);
-        }
-
-        if (ownsWindow)
-        {
-            delete window;
-        }
+        delete window;
     }
 
     // ── Helper: translate UIDockArea → Qt::DockWidgetArea ─────────────────────
@@ -308,17 +221,6 @@ void QtUIMainWindow::DockPanel(QWidget*           widget,
 {
     if (area == UIDockArea::Center)
     {
-        if (m_impl->centralStack != nullptr)
-        {
-            m_impl->centralIndex = m_impl->centralStack->addWidget(widget);
-            m_impl->centralStack->setCurrentIndex(m_impl->centralIndex);
-            m_impl->centralWidget = widget;
-            m_impl->centralPanelId = panelId;
-            m_impl->widgetMap[panelId] = widget;
-            return;
-        }
-
-        // Standalone editor launcher owns the QMainWindow central widget.
         m_impl->window->setCentralWidget(widget);
         m_impl->centralWidget = widget;
         m_impl->centralPanelId = panelId;
@@ -351,13 +253,7 @@ void QtUIMainWindow::UndockPanel(const std::string& panelId)
     {
         if (panelId == m_impl->centralPanelId)
         {
-            if (m_impl->centralStack != nullptr && m_impl->centralIndex >= 0)
-            {
-                QWidget* widget = m_impl->centralStack->widget(m_impl->centralIndex);
-                m_impl->centralStack->removeWidget(widget);
-                delete widget;
-                m_impl->centralIndex = -1;
-            }
+            delete m_impl->window->takeCentralWidget();
             m_impl->centralWidget = nullptr;
             m_impl->centralPanelId.clear();
             m_impl->widgetMap.erase(panelId);
@@ -424,16 +320,7 @@ bool QtUIMainWindow::RestoreState(const std::vector<uint8_t>& state)
 
 void QtUIMainWindow::SetOnClose(CloseCallback cb)
 {
-    if (auto* ownedWindow = dynamic_cast<QtMainWindowWidget*>(m_impl->window))
-    {
-        ownedWindow->onClose = std::move(cb);
-        return;
-    }
-
-    if (m_impl->closeFilter != nullptr)
-    {
-        m_impl->closeFilter->onClose = std::move(cb);
-    }
+    m_impl->window->onClose = std::move(cb);
 }
 
 void QtUIMainWindow::SetOnCommand(CommandCallback cb)

@@ -377,6 +377,14 @@ TEST(CMakeTargetBoundaryTests, MainWindowContractOwnsChromeNotProjectDialogs)
     EXPECT_NE(panelContract.find("QWidget*"), std::string::npos);
     EXPECT_EQ(interfaceText.find("void*"), std::string::npos);
     EXPECT_EQ(panelContract.find("void*"), std::string::npos);
+    for (const auto* retiredOwnership : {
+             "QtMainWindowCloseFilter", "ownsWindow", "centralStack",
+             "centralIndex", "product-owned windows"})
+        EXPECT_EQ(qtSource.find(retiredOwnership), std::string::npos)
+            << retiredOwnership;
+    EXPECT_EQ(interfaceText.find("next backend"), std::string::npos);
+    EXPECT_NE(interfaceText.find("QtUIMainWindow is the production implementation"),
+              std::string::npos);
 }
 
 TEST(CMakeTargetBoundaryTests, RuntimeStatePolicyComesFromVersionedScriptEvidence)
