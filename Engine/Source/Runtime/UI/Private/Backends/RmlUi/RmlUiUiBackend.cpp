@@ -240,18 +240,18 @@ class RmlUiFileInterface final : public Rml::FileInterface
 {
 public:
     explicit RmlUiFileInterface(std::filesystem::path root,
-                                const std::vector<std::filesystem::path>& verified)
+        const std::vector<std::filesystem::path>& verified)
         : root_(std::move(root))
     {
-        for (const auto& path : verified)
-            verified_.insert(std::filesystem::weakly_canonical(path));
+        for (const auto& path : verified) verified_.insert(
+            std::filesystem::weakly_canonical(path));
     }
 
     [[nodiscard]] Rml::FileHandle Open(const Rml::String& path) override
     {
         const std::filesystem::path resolved = ResolvePath(root_, path);
-        if (!verified_.empty() &&
-            !verified_.contains(std::filesystem::weakly_canonical(resolved)))
+        if (!verified_.empty() && !verified_.contains(
+                std::filesystem::weakly_canonical(resolved)))
             return Rml::FileHandle{};
         std::FILE* file = std::fopen(resolved.string().c_str(), "rb");
         return reinterpret_cast<Rml::FileHandle>(file);
@@ -259,10 +259,7 @@ public:
 
     void Close(Rml::FileHandle file) override
     {
-        if (file)
-        {
-            std::fclose(reinterpret_cast<std::FILE*>(file));
-        }
+        if (file) std::fclose(reinterpret_cast<std::FILE*>(file));
     }
 
     [[nodiscard]] std::size_t Read(
@@ -270,10 +267,7 @@ public:
         std::size_t size,
         Rml::FileHandle file) override
     {
-        if (!file)
-        {
-            return 0;
-        }
+        if (!file) return 0;
 
         return std::fread(buffer, 1, size, reinterpret_cast<std::FILE*>(file));
     }
@@ -809,8 +803,7 @@ private:
             return;
         }
 
-        SagaUI::UiEvent uiEvent;
-        uiEvent.screenId = document->screenId;
+        SagaUI::UiEvent uiEvent; uiEvent.screenId = document->screenId;
         uiEvent.documentId = document->documentId;
         uiEvent.document = document->handle;
         uiEvent.elementId =
