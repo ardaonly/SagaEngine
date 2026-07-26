@@ -2,15 +2,28 @@
     # --- Verified state/prompt seam tests ----------------------------------
     add_executable(SagaRuntimeVisibleSliceTests
         ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Tests/RuntimeVisibleSliceTests.cpp
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Tests/RuntimeSessionOwnershipTests.cpp
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private/RuntimeLaunchSession.cpp
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private/RuntimeArtifactSession.cpp
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private/RuntimeEvidenceSession.cpp
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private/RuntimeRenderSession.cpp
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private/RuntimeScriptSession.cpp
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private/RuntimeUiSession.cpp
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private/RuntimeFrameLoop.cpp
         ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private/RuntimeStateStore.cpp
         ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private/RuntimeUiPromptController.cpp
     )
     target_link_libraries(SagaRuntimeVisibleSliceTests PRIVATE
         SagaEngine
         SagaRuntimeLib
+        SagaBackend
+        SagaDiligentRuntime
+        SagaPlatformSDL
         GTest::gtest
         GTest::gmock
         GTest::gtest_main
+        nlohmann_json::nlohmann_json
+        SDL2::SDL2
     )
     target_include_directories(SagaRuntimeVisibleSliceTests PRIVATE
         ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private

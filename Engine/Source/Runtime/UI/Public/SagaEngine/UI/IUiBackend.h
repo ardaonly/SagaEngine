@@ -8,6 +8,7 @@
 #include "SagaEngine/UI/UiTypes.h"
 
 #include <filesystem>
+#include <optional>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -52,6 +53,18 @@ public:
         (void)elementId;
         (void)text;
         return false;
+    }
+
+    /// Return a visible element's border box in physical framebuffer pixels.
+    /// Missing, hidden, invalid, empty, non-finite, or out-of-viewport geometry
+    /// returns no value.
+    [[nodiscard]] virtual std::optional<UiElementBounds>
+        GetDocumentElementBounds(UiDocumentHandle handle,
+                                 std::string_view elementId) const
+    {
+        (void)handle;
+        (void)elementId;
+        return std::nullopt;
     }
 
     /// Advance UI animations, layout, and backend state.

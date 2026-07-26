@@ -509,6 +509,8 @@ TEST(CMakeTargetBoundaryTests, PlayIsVerifyOnlyLifetimeSafeAndRuntimeUsesWorkerM
         "Engine/Source/Editor/EditorAuthoring/Private/SagaEditor/Play/RuntimeProcessController.cpp");
     const auto runtimeHost = ReadText(root /
         "Engine/Source/Programs/SagaRuntime/Private/RuntimeHost.cpp");
+    const auto frameLoop = ReadText(root /
+        "Engine/Source/Programs/SagaRuntime/Private/RuntimeFrameLoop.cpp");
     EXPECT_NE(coordinator.find("\"lock-verify\""), std::string::npos);
     EXPECT_EQ(coordinator.find("{\"resolve\""), std::string::npos);
     EXPECT_EQ(controller.find("&workspace"), std::string::npos);
@@ -522,9 +524,62 @@ TEST(CMakeTargetBoundaryTests, PlayIsVerifyOnlyLifetimeSafeAndRuntimeUsesWorkerM
     EXPECT_NE(controller.find("removeStale(prepared.resultPath)"), std::string::npos);
     EXPECT_EQ(runtimeHost.find("script_artifacts.json"), std::string::npos);
     EXPECT_EQ(runtimeHost.find("script_capabilities.json"), std::string::npos);
-    EXPECT_NE(runtimeHost.find("LoadVerifiedGeneration"), std::string::npos);
-    EXPECT_NE(runtimeHost.find("startupReadyPath"), std::string::npos);
-    EXPECT_NE(runtimeHost.find("publishReady"), std::string::npos);
+    EXPECT_NE(frameLoop.find("LoadVerifiedGeneration"), std::string::npos);
+    EXPECT_NE(frameLoop.find("startupReadyPath"), std::string::npos);
+    EXPECT_NE(frameLoop.find("publishReady"), std::string::npos);
+}
+
+TEST(CMakeTargetBoundaryTests, RuntimeHostComposesCohesivePrivateSessions)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto manifest = ReadText(root /
+        "Engine/Source/Programs/SagaRuntime/CMakeLists.txt");
+    const auto host = ReadText(root /
+        "Engine/Source/Programs/SagaRuntime/Private/RuntimeHost.cpp");
+    const auto launch = ReadText(root /
+        "Engine/Source/Programs/SagaRuntime/Private/RuntimeLaunchSession.cpp");
+    const auto artifacts = ReadText(root /
+        "Engine/Source/Programs/SagaRuntime/Private/RuntimeArtifactSession.cpp");
+    const auto render = ReadText(root /
+        "Engine/Source/Programs/SagaRuntime/Private/RuntimeRenderSession.cpp");
+    const auto script = ReadText(root /
+        "Engine/Source/Programs/SagaRuntime/Private/RuntimeScriptSession.cpp");
+    const auto ui = ReadText(root /
+        "Engine/Source/Programs/SagaRuntime/Private/RuntimeUiSession.cpp");
+    const auto evidence = ReadText(root /
+        "Engine/Source/Programs/SagaRuntime/Private/RuntimeEvidenceSession.cpp");
+    const auto frameLoop = ReadText(root /
+        "Engine/Source/Programs/SagaRuntime/Private/RuntimeFrameLoop.cpp");
+
+    for (const auto* source : {
+             "RuntimeLaunchSession.cpp", "RuntimeArtifactSession.cpp",
+             "RuntimeRenderSession.cpp", "RuntimeScriptSession.cpp",
+             "RuntimeUiSession.cpp", "RuntimeEvidenceSession.cpp",
+             "RuntimeFrameLoop.cpp"})
+    {
+        EXPECT_TRUE(ContainsCMakeToken(manifest, source)) << source;
+    }
+
+    EXPECT_NE(host.find("RunRuntimeFrameLoop"), std::string::npos);
+    for (const auto* implementationDetail : {
+             "Json::parse", "CaptureCurrentColorFrame", "LoadDocument",
+             "CreateRmlUiUiBackend", "CSharpScriptHost", "ofstream"})
+    {
+        EXPECT_EQ(host.find(implementationDetail), std::string::npos)
+            << implementationDetail;
+    }
+
+    EXPECT_NE(launch.find("Runtime.Envelope.SchemaInvalid"), std::string::npos);
+    EXPECT_EQ(frameLoop.find("Runtime.Envelope.SchemaInvalid"), std::string::npos);
+    EXPECT_NE(artifacts.find("RuntimeLaunchSession::VerifyFile"), std::string::npos);
+    EXPECT_EQ(frameLoop.find("RuntimeLaunchSession::VerifyFile"), std::string::npos);
+    EXPECT_NE(render.find("backend->Submit"), std::string::npos);
+    EXPECT_EQ(ui.find("RenderView"), std::string::npos);
+    EXPECT_NE(script.find("InvokeNamedAction"), std::string::npos);
+    EXPECT_NE(evidence.find("CaptureCurrentColorFrame"), std::string::npos);
+    EXPECT_EQ(evidence.find("SetBool"), std::string::npos);
+    EXPECT_EQ(evidence.find("InvokeNamedAction"), std::string::npos);
+    EXPECT_EQ(frameLoop.find("P6\\n"), std::string::npos);
 }
 
 TEST(CMakeTargetBoundaryTests, ReadOnlyProjectionStaysOutsideRuntimeLaunchAndExecution)

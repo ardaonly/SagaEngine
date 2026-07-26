@@ -46,6 +46,15 @@ struct UiViewport
     float pixelRatio = 1.0f;     ///< Native display scale used by the backend.
 };
 
+/// Border-box bounds in physical framebuffer pixel coordinates.
+struct UiElementBounds
+{
+    float x = 0.0f;
+    float y = 0.0f;
+    float width = 0.0f;
+    float height = 0.0f;
+};
+
 /// Stable runtime UI screen id.
 struct UiScreenId
 {

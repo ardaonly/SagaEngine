@@ -5,6 +5,8 @@
 
 #include <SagaEngine/UI/UiBackendFactory.h>
 
+#include <cmath>
+
 namespace SagaRuntimeApp
 {
 namespace UI = SagaEngine::UI;
@@ -47,15 +49,40 @@ bool RuntimeUiSession::Initialize(
 bool RuntimeUiSession::Render(const std::uint32_t width, const std::uint32_t height,
                               const double deltaSeconds)
 {
-    if (!initialized_ || width == 0 || height == 0) return width == 0 || height == 0;
-    backend_->SetViewport({width, height, 1.0F});
+    return PrepareLayout(width, height, 1.0F, deltaSeconds) && SubmitOverlay();
+}
+
+bool RuntimeUiSession::PrepareLayout(
+    const std::uint32_t width, const std::uint32_t height,
+    const float pixelRatio, const double deltaSeconds)
+{
+    layoutPrepared_ = false;
+    if (!initialized_ || width == 0 || height == 0 ||
+        !std::isfinite(pixelRatio) || pixelRatio <= 0.0F)
+        return width == 0 || height == 0;
+    pixelRatio_ = pixelRatio;
+    backend_->SetViewport({width, height, pixelRatio_});
     const auto text = RuntimeUiPromptController::Compose(
         *prompt_, *input_, *state_, promptEntity_);
     if (!text || (*text != promptText_ && !backend_->SetDocumentElementText(
             document_, prompt_->elementId, *text))) return false;
     promptText_ = *text;
     backend_->Update(deltaSeconds);
+    layoutPrepared_ = PromptBounds().has_value();
+    return layoutPrepared_;
+}
+
+bool RuntimeUiSession::SubmitOverlay()
+{
+    if (!layoutPrepared_) return false;
+    layoutPrepared_ = false;
     return backend_->Render();
+}
+
+std::optional<UI::UiElementBounds> RuntimeUiSession::PromptBounds() const
+{
+    if (!initialized_ || !backend_ || !prompt_) return std::nullopt;
+    return backend_->GetDocumentElementBounds(document_, prompt_->elementId);
 }
 
 void RuntimeUiSession::Shutdown() noexcept
@@ -72,6 +99,8 @@ void RuntimeUiSession::Shutdown() noexcept
     state_ = nullptr;
     promptEntity_ = {};
     promptText_.clear();
+    pixelRatio_ = 1.0F;
+    layoutPrepared_ = false;
     initialized_ = false;
 }
 
