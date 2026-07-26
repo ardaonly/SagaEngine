@@ -223,8 +223,12 @@ notes = "Saga-owned Editor and editor-program source is currently licensed under
 
 [[domains]]
 id = "saga-tests"
-priority = 100
-paths = ["Tests/**"]
+priority = 500
+paths = [
+  "Tests/**",
+  "Engine/Source/Editor/EditorQt/Tests/EditorProjectInspectionTests.cpp",
+  "Engine/Source/Programs/SagaEditorLab/Tests/EditorLabScenarioRunnerTests.cpp",
+]
 required = true
 domain_owner = "SagaEngine"
 rights_holder_refs = ["RH-ARDA-KOYUNCU"]

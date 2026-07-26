@@ -146,6 +146,24 @@
       "priority": 1000
     },
     {
+      "pattern": "Engine/Source/Editor/EditorQt/Tests/EditorProjectInspectionTests.cpp",
+      "license": "MPL-2.0",
+      "domain_id": "saga-tests",
+      "priority": 500
+    },
+    {
+      "pattern": "Engine/Source/Programs/SagaEditorLab/Tests/EditorLabScenarioRunnerTests.cpp",
+      "license": "MPL-2.0",
+      "domain_id": "saga-tests",
+      "priority": 500
+    },
+    {
+      "pattern": "Tests/**",
+      "license": "MPL-2.0",
+      "domain_id": "saga-tests",
+      "priority": 500
+    },
+    {
       "pattern": "Tools/Licensing/**",
       "license": "MPL-2.0",
       "domain_id": "saga-licensing-tools",
@@ -293,12 +311,6 @@
       "pattern": "Samples/**",
       "license": "MIT",
       "domain_id": "saga-samples",
-      "priority": 100
-    },
-    {
-      "pattern": "Tests/**",
-      "license": "MPL-2.0",
-      "domain_id": "saga-tests",
       "priority": 100
     },
     {
