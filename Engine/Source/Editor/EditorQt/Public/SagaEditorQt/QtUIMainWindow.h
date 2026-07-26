@@ -21,7 +21,6 @@ class QtUIMainWindow final : public IUIMainWindow
 {
 public:
     QtUIMainWindow(const std::string& title, int width, int height);
-    QtUIMainWindow(void* nativeMainWindow, void* nativeCentralStack);
     ~QtUIMainWindow() override;
 
     // ─── IUIMainWindow ────────────────────────────────────────────────────────

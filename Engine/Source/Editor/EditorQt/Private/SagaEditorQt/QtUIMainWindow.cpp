@@ -185,12 +185,6 @@ QtUIMainWindow::QtUIMainWindow(const std::string& title, int width, int height)
     : m_impl(std::make_unique<Impl>(title, width, height))
 {}
 
-QtUIMainWindow::QtUIMainWindow(void* nativeMainWindow, void* nativeCentralStack)
-    : m_impl(std::make_unique<Impl>(
-          static_cast<QMainWindow*>(nativeMainWindow),
-          static_cast<QStackedWidget*>(nativeCentralStack)))
-{}
-
 QtUIMainWindow::~QtUIMainWindow() = default;
 
 // ─── Visibility & Sizing ──────────────────────────────────────────────────────
