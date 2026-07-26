@@ -53,7 +53,7 @@ std::string ScenarioRunnerDockPanel::GetTitle() const
     return kScenarioRunnerPanelTitle;
 }
 
-void* ScenarioRunnerDockPanel::GetNativeWidget() const noexcept
+QWidget* ScenarioRunnerDockPanel::Widget() const noexcept
 {
     m_impl->EnsurePanel();
     return m_impl->panel->Widget();

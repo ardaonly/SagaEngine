@@ -204,9 +204,8 @@ void QtUIMainWindow::SetSize(int width, int height)
     m_impl->window->resize(width, height);
 }
 
-int   QtUIMainWindow::GetWidth()        const noexcept { return m_impl->window->width(); }
-int   QtUIMainWindow::GetHeight()       const noexcept { return m_impl->window->height(); }
-void* QtUIMainWindow::GetNativeHandle() const noexcept { return m_impl->window; }
+int QtUIMainWindow::GetWidth()  const noexcept { return m_impl->window->width(); }
+int QtUIMainWindow::GetHeight() const noexcept { return m_impl->window->height(); }
 
 // ─── Chrome ───────────────────────────────────────────────────────────────────
 
@@ -349,13 +348,11 @@ UnsavedDocumentsDecision QtUIMainWindow::ConfirmUnsavedDocuments(
 
 // ─── Panel Docking ────────────────────────────────────────────────────────────
 
-void QtUIMainWindow::DockPanel(void*              nativeWidget,
+void QtUIMainWindow::DockPanel(QWidget*           widget,
                                 const std::string& panelId,
                                 const std::string& title,
                                 UIDockArea         area)
 {
-    auto* widget = static_cast<QWidget*>(nativeWidget);
-
     if (area == UIDockArea::Center)
     {
         if (m_impl->centralStack != nullptr)

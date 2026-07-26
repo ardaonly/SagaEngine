@@ -46,7 +46,7 @@ public:
 
     [[nodiscard]] PanelId     GetPanelId()      const override { return "saga.test.stub"; }
     [[nodiscard]] std::string GetTitle()        const override { return m_title; }
-    [[nodiscard]] void*       GetNativeWidget() const noexcept override { return nullptr; }
+    [[nodiscard]] QWidget*    Widget() const noexcept override { return nullptr; }
 
 private:
     std::string m_title;
@@ -368,7 +368,7 @@ public:
     {
         return m_descriptor.label;
     }
-    [[nodiscard]] void*       GetNativeWidget() const noexcept override
+    [[nodiscard]] QWidget*    Widget() const noexcept override
     {
         return nullptr;
     }

@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 /// @file IPanel.h
-/// @brief Base interface for every dockable editor panel — framework-free.
+/// @brief Shared identity and lifecycle contract for dockable editor panels.
 
 #pragma once
 
 #include <string>
+
+class QWidget;
 
 namespace SagaEditor
 {
@@ -17,10 +19,10 @@ using PanelId = std::string;
 
 // ─── Panel Interface ──────────────────────────────────────────────────────────
 
-/// Abstract base for every dockable panel. Pure C++ — no Qt dependency.
-/// The concrete Qt backend provides QtPanel : public QWidget, public IPanel.
-/// Derived types must be registerable by PanelId so the layout serializer can
-/// reconstruct the workspace from a saved JSON file.
+/// Abstract base for every dockable Qt editor panel.
+/// Concrete panels expose their widget while preserving stable identity.
+/// Derived types remain registerable by PanelId for workspace composition and
+/// dock restoration.
 class IPanel
 {
 public:
@@ -28,15 +30,14 @@ public:
 
     // ─── Identity ─────────────────────────────────────────────────────────────
 
-    /// Return the stable type identifier used by the layout serializer.
+    /// Return the stable type identifier used by workspace composition and dock restoration.
     [[nodiscard]] virtual PanelId     GetPanelId() const = 0;
 
     /// Return the human-readable title shown in the dock tab.
     [[nodiscard]] virtual std::string GetTitle()   const = 0;
 
-    /// Return the underlying native widget pointer (e.g. QWidget* on Qt).
-    /// Only the UI backend should cast this; all other code stays framework-free.
-    [[nodiscard]] virtual void* GetNativeWidget() const noexcept = 0;
+    /// Return the underlying Qt widget.
+    [[nodiscard]] virtual QWidget* Widget() const noexcept = 0;
 
     // ─── Lifecycle ────────────────────────────────────────────────────────────
 

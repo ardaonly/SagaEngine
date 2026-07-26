@@ -34,7 +34,6 @@ public:
 
     [[nodiscard]] int   GetWidth()           const noexcept override;
     [[nodiscard]] int   GetHeight()          const noexcept override;
-    [[nodiscard]] void* GetNativeHandle()    const noexcept override;
 
     void ApplyShellLayout(const ShellLayout& layout)  override;
     void SetStatusMessage(const std::string& message) override;
@@ -43,7 +42,7 @@ public:
     [[nodiscard]] UnsavedDocumentsDecision ConfirmUnsavedDocuments(
         const std::vector<std::string>& documentIds) override;
 
-    void DockPanel(void*              nativeWidget,
+    void DockPanel(QWidget*           widget,
                    const std::string& panelId,
                    const std::string& title,
                    UIDockArea         area)            override;

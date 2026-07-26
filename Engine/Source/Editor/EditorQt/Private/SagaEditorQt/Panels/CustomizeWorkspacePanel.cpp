@@ -320,7 +320,7 @@ std::string CustomizeWorkspacePanel::GetTitle() const
     return "Customize Workspace";
 }
 
-void* CustomizeWorkspacePanel::GetNativeWidget() const noexcept
+QWidget* CustomizeWorkspacePanel::Widget() const noexcept
 {
     return m_impl->widget;
 }

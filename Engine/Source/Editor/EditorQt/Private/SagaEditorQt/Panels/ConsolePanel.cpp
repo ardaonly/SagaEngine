@@ -81,7 +81,7 @@ ConsolePanel::~ConsolePanel() = default;
 
 PanelId     ConsolePanel::GetPanelId()      const { return "saga.panel.console"; }
 std::string ConsolePanel::GetTitle()        const { return "Console"; }
-void*       ConsolePanel::GetNativeWidget() const noexcept { return m_impl->widget; }
+QWidget*    ConsolePanel::Widget() const noexcept { return m_impl->widget; }
 
 void ConsolePanel::OnInit()     {}
 void ConsolePanel::OnShutdown() {}

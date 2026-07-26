@@ -47,12 +47,11 @@ public:
 
     [[nodiscard]] int GetWidth() const noexcept override { return width; }
     [[nodiscard]] int GetHeight() const noexcept override { return height; }
-    [[nodiscard]] void* GetNativeHandle() const noexcept override { return nullptr; }
 
     void ApplyShellLayout(const ShellLayout&) override { ++layoutApplyCount; }
     void SetStatusMessage(const std::string& value) override { status = value; }
 
-    void DockPanel(void*,
+    void DockPanel(QWidget*,
                    const std::string& panelId,
                    const std::string&,
                    UIDockArea) override

@@ -117,7 +117,7 @@ AssetBrowserPanel::~AssetBrowserPanel() { m_impl->Detach(); }
 
 PanelId     AssetBrowserPanel::GetPanelId()      const { return "saga.panel.assetbrowser"; }
 std::string AssetBrowserPanel::GetTitle()        const { return "Project Sources"; }
-void*       AssetBrowserPanel::GetNativeWidget() const noexcept { return m_impl->widget; }
+QWidget*    AssetBrowserPanel::Widget() const noexcept { return m_impl->widget; }
 
 void AssetBrowserPanel::OnInit()     { m_impl->PopulateDirectoryTree(); }
 void AssetBrowserPanel::OnShutdown() { m_impl->Detach(); }

@@ -83,7 +83,6 @@ public:
 
     [[nodiscard]] int GetWidth() const noexcept override { return width; }
     [[nodiscard]] int GetHeight() const noexcept override { return height; }
-    [[nodiscard]] void* GetNativeHandle() const noexcept override { return nullptr; }
 
     void ApplyShellLayout(const SagaEditor::ShellLayout& value) override
     {
@@ -92,7 +91,7 @@ public:
 
     void SetStatusMessage(const std::string& value) override { status = value; }
 
-    void DockPanel(void*,
+    void DockPanel(QWidget*,
                    const std::string& panelId,
                    const std::string&,
                    SagaEditor::UIDockArea) override
@@ -145,7 +144,7 @@ public:
 
     [[nodiscard]] SagaEditor::PanelId GetPanelId() const override { return id; }
     [[nodiscard]] std::string GetTitle() const override { return title; }
-    [[nodiscard]] void* GetNativeWidget() const noexcept override { return nullptr; }
+    [[nodiscard]] QWidget* Widget() const noexcept override { return nullptr; }
 
 private:
     std::string id;

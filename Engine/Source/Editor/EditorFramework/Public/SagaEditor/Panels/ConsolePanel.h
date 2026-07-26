@@ -31,7 +31,7 @@ public:
     // ─── IPanel ───────────────────────────────────────────────────────────────
     [[nodiscard]] PanelId     GetPanelId()      const override;
     [[nodiscard]] std::string GetTitle()        const override;
-    [[nodiscard]] void*       GetNativeWidget() const noexcept override;
+    [[nodiscard]] QWidget*    Widget() const noexcept override;
 
     void OnInit()     override;
     void OnShutdown() override;

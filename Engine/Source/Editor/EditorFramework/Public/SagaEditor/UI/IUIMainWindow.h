@@ -11,6 +11,8 @@
 #include <string>
 #include <vector>
 
+class QWidget;
+
 namespace SagaEditor
 {
 struct NewProjectPrompt
@@ -64,7 +66,6 @@ public:
 
     [[nodiscard]] virtual int  GetWidth()        const noexcept = 0;
     [[nodiscard]] virtual int  GetHeight()       const noexcept = 0;
-    [[nodiscard]] virtual void* GetNativeHandle() const noexcept = 0;
 
     // ─── Chrome ───────────────────────────────────────────────────────────────
 
@@ -83,9 +84,9 @@ public:
 
     // ─── Panel Docking ────────────────────────────────────────────────────────
 
-    /// Dock a panel's native widget (void* → cast to QWidget* on Qt backend)
-    /// into the given area. The window takes display ownership of the widget.
-    virtual void DockPanel(void*              nativeWidget,
+    /// Dock a panel widget into the given area. The window takes display
+    /// ownership of the widget.
+    virtual void DockPanel(QWidget*           widget,
                            const std::string& panelId,
                            const std::string& title,
                            UIDockArea         area)         = 0;

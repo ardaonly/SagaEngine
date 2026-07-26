@@ -216,7 +216,7 @@ std::string ProblemsPanel::GetTitle() const
     return "Problems";
 }
 
-void* ProblemsPanel::GetNativeWidget() const noexcept
+QWidget* ProblemsPanel::Widget() const noexcept
 {
     return m_impl->widget;
 }

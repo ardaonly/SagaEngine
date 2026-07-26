@@ -160,7 +160,7 @@ HierarchyPanel::~HierarchyPanel() { m_impl->DetachSelection(); m_impl->DetachWor
 
 PanelId     HierarchyPanel::GetPanelId()      const { return "saga.panel.hierarchy"; }
 std::string HierarchyPanel::GetTitle()        const { return "Hierarchy"; }
-void*       HierarchyPanel::GetNativeWidget() const noexcept { return m_impl->widget; }
+QWidget*    HierarchyPanel::Widget() const noexcept { return m_impl->widget; }
 
 void HierarchyPanel::OnInit()     { m_impl->Populate(); }
 void HierarchyPanel::OnShutdown() { m_impl->DetachSelection(); m_impl->DetachWorkspace(); }
