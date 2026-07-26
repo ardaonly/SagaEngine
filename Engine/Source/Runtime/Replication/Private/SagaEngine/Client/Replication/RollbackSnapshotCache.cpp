@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RollbackSnapshotCache.cpp
 /// @brief Baseline snapshot cache for rollback and time-travel debug.
 

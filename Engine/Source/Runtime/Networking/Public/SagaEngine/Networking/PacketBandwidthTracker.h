@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PacketBandwidthTracker.h
 /// @brief Per-packet-type bandwidth accounting for diagnostics and tuning.
 ///

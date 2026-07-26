@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScriptLifecycleService.hpp
 /// @brief Low-level SagaScript lifecycle orchestration contract.
 
@@ -19,6 +20,8 @@ public:
 
     [[nodiscard]] ScriptPackageLoadResult LoadPackage(
         const ScriptPackageLoadRequest& request) const;
+    [[nodiscard]] ScriptPackageLoadResult LoadVerifiedGeneration(
+        const VerifiedScriptGenerationLoadRequest& request) const;
 
     [[nodiscard]] ScriptInstanceCreateResult CreateInstance(
         ScriptPackageHandle package,

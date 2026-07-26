@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorldSnapshotWire.cpp
 /// @brief Server-side snapshot builder implementation.
 ///

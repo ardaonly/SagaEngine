@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AsyncLogQueue.h
 /// @brief Lock-free ring buffer that hands log lines to a dedicated writer thread.
 ///

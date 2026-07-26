@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file EnvProbe.h
 /// @brief Detect and report the versions of tools that Forge depends on.
 ///

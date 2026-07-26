@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file InterpolationBuffer.h
 /// @brief Per-entity snapshot interpolation buffer for smooth client-side rendering.
 ///

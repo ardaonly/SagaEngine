@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiagnosticSystem.hpp
 /// @brief Owns the initial logging, health, and lifetime diagnostics services.
 

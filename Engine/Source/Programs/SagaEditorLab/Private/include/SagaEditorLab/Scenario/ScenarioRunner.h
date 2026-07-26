@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScenarioRunner.h
 /// @brief Deterministic headless runner for EditorLab scenarios.
 

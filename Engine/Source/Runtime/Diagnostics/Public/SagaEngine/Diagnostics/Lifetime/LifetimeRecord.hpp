@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file LifetimeRecord.hpp
 /// @brief Defines logical lifetime state for diagnostics tracking.
 

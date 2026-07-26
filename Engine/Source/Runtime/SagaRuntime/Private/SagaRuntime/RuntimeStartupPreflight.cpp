@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeStartupPreflight.cpp
 /// @brief Runtime startup preflight facade implementation.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScriptBindingManifestLoader.cpp
 /// @brief Implements SagaScript binding manifest loading.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ShortcutManager.h
 /// @brief Manages keyboard shortcut bindings — fully remappable at runtime.
 

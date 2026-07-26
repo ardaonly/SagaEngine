@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RmlUiUiBackend.h
 /// @brief Backend factory for the RmlUi runtime UI adapter.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file InputActionMap.cpp
 /// @brief Resolves physical input chords into gameplay action events.
 

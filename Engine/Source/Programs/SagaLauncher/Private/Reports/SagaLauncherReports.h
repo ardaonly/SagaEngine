@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaLauncherReports.h
 /// @brief Read-only known report catalog and distribution status adapter.
 
@@ -22,14 +23,12 @@ public:
 class SagaReportCatalog final : public ISagaReportCatalog
 {
 public:
-    explicit SagaReportCatalog(std::filesystem::path launcherReportsRoot,
-                               std::filesystem::path evidenceRoot = {});
+    explicit SagaReportCatalog(std::filesystem::path launcherReportsRoot);
     [[nodiscard]] std::vector<SagaLauncherReportReference> Read(
         const std::optional<SagaLauncherProjectSummary>& project) const override;
 
 private:
     std::filesystem::path m_launcherReportsRoot;
-    std::filesystem::path m_evidenceRoot;
 };
 
 class ISagaDistributionStatusReader

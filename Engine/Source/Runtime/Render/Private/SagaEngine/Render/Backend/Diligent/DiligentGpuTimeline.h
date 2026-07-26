@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentGpuTimeline.h
 /// @brief Private CPU-wait fence timeline for Diligent frame ownership.
 

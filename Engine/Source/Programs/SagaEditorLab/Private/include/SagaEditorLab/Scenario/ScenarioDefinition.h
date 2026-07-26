@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScenarioDefinition.h
 /// @brief Serializable identity and step list for an EditorLab scenario.
 

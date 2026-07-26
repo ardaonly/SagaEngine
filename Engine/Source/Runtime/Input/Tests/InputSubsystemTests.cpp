@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file InputSubsystemTests.cpp
 /// @brief Unit tests for the full client-side input pipeline:
 ///        InputDevice → InputState → InputActionMap → GameplayInputFrame

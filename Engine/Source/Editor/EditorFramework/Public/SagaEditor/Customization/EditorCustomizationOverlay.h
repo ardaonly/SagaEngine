@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorCustomizationOverlay.h
 /// @brief Safe user customization overlay applied to compiled editor composition artifacts.
 

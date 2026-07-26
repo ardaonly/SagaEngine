@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ViewportRay.cpp
 /// @brief Implementation of viewport ray construction and intersection helpers.
 

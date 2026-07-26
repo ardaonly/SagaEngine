@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentFrameCapture.h
 /// @brief Private current-back-buffer capture helper for the Diligent backend.
 

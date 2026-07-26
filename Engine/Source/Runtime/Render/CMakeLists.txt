@@ -1,7 +1,10 @@
+# SPDX-License-Identifier: MPL-2.0
 saga_add_runtime_module(Render
     MODULE_DIR Engine/Source/Runtime/Render
     TARGET SagaEngine
+    PRIVATE_DEPS nlohmann_json::nlohmann_json OpenSSL::Crypto
     SOURCES
+        Private/SagaEngine/Render/Assets/CookedRenderAssetLoader.cpp
         Private/SagaEngine/Render/Assets/RenderAssetManifest.cpp
         Private/SagaEngine/Render/Bridge/NetEntityBinding.cpp
         Private/SagaEngine/Render/CommandRecording/CommandBuffer.cpp
@@ -28,6 +31,7 @@ saga_add_runtime_module(Render
         Private/SagaEngine/Render/World/RenderInterestWorldStreaming.cpp
         Private/SagaEngine/Render/World/RenderWorld.cpp
         Public/SagaEngine/Render/Assets/RenderAssetManifest.h
+        Public/SagaEngine/Render/Assets/CookedRenderAssetLoader.h
         Public/SagaEngine/Render/Backend/IRenderBackend.h
         Public/SagaEngine/Render/Backend/RenderBackendFactory.h
         Public/SagaEngine/Render/Bridge/NetEntityBinding.h

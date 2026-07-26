@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaQtStaticPlugins.cpp
 /// @brief Static Qt platform plugin imports for the primary Saga executable.
 

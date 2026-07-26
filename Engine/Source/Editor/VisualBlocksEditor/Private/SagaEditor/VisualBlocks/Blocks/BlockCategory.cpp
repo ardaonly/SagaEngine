@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file BlockCategory.cpp
 /// @brief Implementation of the block library categories.
 

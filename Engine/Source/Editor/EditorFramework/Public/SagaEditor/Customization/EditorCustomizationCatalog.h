@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorCustomizationCatalog.h
 /// @brief Loads editor customisation contracts without changing editor semantics.
 

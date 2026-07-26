@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file HierarchyPanel.h
 /// @brief Scene entity hierarchy panel — tree view of all world entities.
 ///
@@ -13,6 +14,7 @@ namespace SagaEditor
 {
 
 class SelectionManager;
+class EditorDocumentWorkspace;
 
 // ─── Hierarchy Panel ──────────────────────────────────────────────────────────
 
@@ -27,13 +29,14 @@ public:
     // ─── IPanel ───────────────────────────────────────────────────────────────
     [[nodiscard]] PanelId     GetPanelId()       const override;
     [[nodiscard]] std::string GetTitle()         const override;
-    [[nodiscard]] void*       GetNativeWidget()  const noexcept override;
+    [[nodiscard]] QWidget*    Widget()           const noexcept override;
 
     void OnInit()     override;
     void OnShutdown() override;
 
     // ─── Bindings ─────────────────────────────────────────────────────────────
     void SetSelectionManager(SelectionManager* mgr);
+    void SetDocumentWorkspace(EditorDocumentWorkspace* workspace);
 
 private:
     struct Impl;                    ///< Qt widgets live here — header stays clean.

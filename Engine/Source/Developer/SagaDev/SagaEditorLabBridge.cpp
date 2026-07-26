@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaEditorLabBridge.cpp
 /// @brief Dev-only bridge that mounts EditorLab panels into SagaEditor.
 

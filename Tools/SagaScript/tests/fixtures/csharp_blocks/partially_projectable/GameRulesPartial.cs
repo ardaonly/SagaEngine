@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 namespace Game;
 
 using System.Linq;

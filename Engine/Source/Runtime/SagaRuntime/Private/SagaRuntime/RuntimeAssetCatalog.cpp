@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeAssetCatalog.cpp
 /// @brief Runtime asset catalog facade implementation.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include <SagaEngine/Render/Shaders/ShaderPipelineContract.h>
 
 #include <algorithm>

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 saga_add_program(EditorCollaborationProductIntegration
     MODULE_DIR Engine/Source/Editor/EditorCollaboration
     TARGET SagaProductLib
@@ -14,6 +15,7 @@ saga_add_editor_module(EditorCollaboration
     TARGET SagaCollaboration
     SOURCES
         Private/SagaCollaboration/CollaborationModel.cpp
+        Private/SagaCollaboration/LocalCollaborationMetadataStore.cpp
         Private/SagaCollaboration/CollaborationServices.cpp
         Private/SagaShared/CollaborationContracts.cpp
         Public/SagaCollaboration/ChangeStreamService.hpp

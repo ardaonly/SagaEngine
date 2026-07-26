@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file TransformComponent.h
 /// @brief ECS component wrapping Math::Transform for spatial queries and cell splitting.
 ///

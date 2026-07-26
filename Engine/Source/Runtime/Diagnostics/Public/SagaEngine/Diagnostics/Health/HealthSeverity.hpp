@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file HealthSeverity.hpp
 /// @brief Defines severity levels for diagnostics health rule results.
 

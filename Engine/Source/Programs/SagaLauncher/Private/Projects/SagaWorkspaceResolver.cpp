@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaWorkspaceResolver.cpp
 /// @brief Product manifest backed Saga workspace resolution implementation.
 

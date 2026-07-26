@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file BuiltinScenarioDefinitions.h
 /// @brief Built-in EditorLab scenarios exposed to the Scenario Runner panel.
 

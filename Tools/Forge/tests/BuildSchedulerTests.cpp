@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file BuildSchedulerTests.cpp
 /// @brief Deterministic coverage for Forge job planning guardrails.
 

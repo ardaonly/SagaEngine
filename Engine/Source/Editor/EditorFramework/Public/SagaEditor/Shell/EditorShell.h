@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorShell.h
 /// @brief Main editor shell — owns the main window, docking, menus, and panels.
 
@@ -7,9 +8,11 @@
 #include "SagaEditor/Notifications/EditorNotificationCenter.h"
 #include "SagaEditor/Persona/PersonaRegistry.h"
 #include "SagaEditor/Profile/EditorProfileRegistry.h"
+#include "SagaEditor/Project/EditorProjectWorkflowController.h"
 #include "SagaEditor/Shell/ShellLayout.h"
 #include "SagaEditor/UI/IUIMainWindow.h"
 #include <memory>
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <vector>
@@ -21,8 +24,8 @@ struct ResolvedEditorCompositionSnapshot;
 class EditorHost;
 class EditorProfile;
 class IPanel;
-class IUIFactory;
 class ProductionDashboardPanel;
+class RuntimeProcessController;
 
 // ─── Shell Configuration ──────────────────────────────────────────────────────
 
@@ -37,24 +40,21 @@ struct EditorShellConfig
     bool        registerDefaultPanels = true;
     bool        applyActivePersona = true;
     bool        showOnInit = true;
+    std::filesystem::path runtimeExecutable;
+    ProjectWorkflowPrompts projectWorkflowPrompts;
 };
 
 // ─── Editor Shell ─────────────────────────────────────────────────────────────
 
 /// Owns the IUIMainWindow and all docked panels. Framework-free header — the
-/// concrete window is created via IUIFactory and spoken to through IUIMainWindow.
+/// concrete window is supplied by the composition root and spoken to through
+/// IUIMainWindow.
 /// Extensions contribute panels and menu entries before the window is shown.
 class EditorShell
 {
 public:
     EditorShell();
     ~EditorShell();
-
-    /// Build the main window (via factory), default panels, and chrome.
-    /// Returns false if any step fails.
-    [[nodiscard]] bool Init(EditorHost&              host,
-                            IUIFactory&              factory,
-                            const EditorShellConfig& cfg);
 
     /// Build the shell around a pre-existing backend window owned by a product
     /// host. Used when Saga mounts editor mode inside its own process/window.
@@ -70,6 +70,9 @@ public:
     /// Register a panel and dock it into the main window. Shell takes ownership.
     void RegisterPanel(std::unique_ptr<IPanel> panel,
                        UIDockArea              area = UIDockArea::Right);
+
+    /// Undock and destroy a registered panel after running its shutdown hook.
+    [[nodiscard]] bool UnregisterPanel(const std::string& panelId);
 
     /// Find a registered panel by its stable PanelId.
     [[nodiscard]] IPanel* FindPanel(const std::string& panelId) const;
@@ -141,6 +144,8 @@ private:
         kInvalidEditorProfileSubscription;
     EditorNotificationSubscription       m_notificationSubscription =
         kInvalidEditorNotificationSubscription;
+    std::unique_ptr<RuntimeProcessController> m_runtimeProcessController;
+    std::unique_ptr<EditorProjectWorkflowController> m_projectWorkflowController;
 };
 
 } // namespace SagaEditor

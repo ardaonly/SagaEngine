@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MPL-2.0
 """Focused CLI tests for SagaPackager."""
 
 from __future__ import annotations
@@ -8,13 +9,21 @@ import os
 import shutil
 import subprocess
 import tempfile
+import time
 from pathlib import Path
+
+from visible_slice_suite import TESTS as VISIBLE_SLICE_TESTS
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROJECT = REPO_ROOT / "Tools" / "SagaPackager" / "SagaPackager.csproj"
 CLI_ASSEMBLY = PROJECT.parent / "bin" / "Release" / "net10.0" / "sagapack.dll"
 SAMPLE_ROOT = REPO_ROOT / "Samples" / "MultiplayerSandbox"
+STARTER_ROOT = REPO_ROOT / "Samples" / "StarterArena"
+RUNTIME_BRIDGE_ASSEMBLY = (
+    REPO_ROOT / "build" / "RelWithDebInfo-0.0.11" / "Managed" /
+    "SagaScript.RuntimeBridge" / "SagaScript.RuntimeBridge.dll"
+)
 NATIVE_BIN_DIR = Path(
     os.environ.get(
         "SAGA_NATIVE_BIN_DIR",
@@ -58,6 +67,17 @@ def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
         stderr=subprocess.PIPE,
         check=False,
     )
+
+
+def run_cli_env(overrides: dict[str, str], *args: str) -> subprocess.CompletedProcess[str]:
+    env = os.environ.copy()
+    env.update(overrides)
+    env.setdefault("DOTNET_CLI_HOME", "/tmp/sagapack-dotnet-home")
+    env.setdefault("NUGET_PACKAGES", "/tmp/sagapack-nuget")
+    env.setdefault("DOTNET_CLI_TELEMETRY_OPTOUT", "1")
+    ensure_cli_built(env)
+    return subprocess.run(["dotnet", str(CLI_ASSEMBLY), *args], cwd=REPO_ROOT, env=env,
+                          text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
 
 
 def load(path: Path) -> dict[str, object]:
@@ -719,8 +739,362 @@ def test_missing_project_returns_missing_input() -> None:
         assert result.returncode == 3
 
 
+def compile_starter(project_root: Path, output_root: Path, command: str = "compile-assets") -> subprocess.CompletedProcess[str]:
+    return run_cli(
+        command,
+        "--project",
+        str(project_root / "StarterArena.sagaproj"),
+        "--out",
+        str(output_root),
+    )
+
+
+def artifact_hashes(output_root: Path) -> dict[str, str]:
+    manifest = load(output_root / "manifests" / "current.json")
+    return {item["artifactId"]: item["contentHash"] for item in manifest["artifacts"]}
+
+
+def copy_starter(root: Path, name: str = "StarterArena") -> Path:
+    project_root = root / name
+    shutil.copytree(STARTER_ROOT, project_root)
+    return project_root
+
+
+def run_resolve(project_root: Path, engine_root: Path, output_root: Path,
+                runtime_bridge: Path = RUNTIME_BRIDGE_ASSEMBLY) -> subprocess.CompletedProcess[str]:
+    return run_cli(
+        "resolve",
+        "--project",
+        str(project_root / "StarterArena.sagaproj"),
+        "--engine-root",
+        str(engine_root),
+        "--lock",
+        str(output_root / "SagaPackage.lock"),
+        "--generated-out",
+        str(output_root / "generated"),
+        "--runtime-bridge",
+        str(runtime_bridge),
+        "--out",
+        str(output_root / "resolve-report.json"),
+    )
+
+
+def run_lock_verify(
+    project_root: Path, engine_root: Path, lock_path: Path, report_path: Path,
+    generated_out: Path | None = None, runtime_bridge: Path = RUNTIME_BRIDGE_ASSEMBLY,
+) -> subprocess.CompletedProcess[str]:
+    arguments = [
+        "lock-verify",
+        "--project",
+        str(project_root / "StarterArena.sagaproj"),
+        "--engine-root",
+        str(engine_root),
+        "--lock",
+        str(lock_path),
+        "--runtime-bridge",
+        str(runtime_bridge),
+        "--out",
+        str(report_path),
+    ]
+    if generated_out is not None:
+        arguments.extend(["--generated-out", str(generated_out)])
+    return run_cli(*arguments)
+
+
+def copy_distribution(engine_root: Path) -> Path:
+    distribution = engine_root / "Engine" / "Distribution"
+    shutil.copytree(REPO_ROOT / "Engine" / "Distribution", distribution)
+    return distribution
+
+
+def package_manifest(distribution: Path) -> Path:
+    return (
+        distribution
+        / "Packages"
+        / "com.saga.gameplay.foundation"
+        / "0.0.11"
+        / "package.json"
+    )
+
+
+def test_package_resolution_is_offline_and_deterministic_across_roots() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        first_project = copy_starter(root / "first")
+        second_project = copy_starter(root / "second")
+        first_output = root / "first-output"
+        second_output = root / "second-output"
+
+        first = run_resolve(first_project, REPO_ROOT, first_output)
+        second = run_resolve(second_project, REPO_ROOT, second_output)
+
+        assert first.returncode == 0, first.stderr + first.stdout
+        assert second.returncode == 0, second.stderr + second.stdout
+        assert (first_output / "SagaPackage.lock").read_bytes() == (
+            second_output / "SagaPackage.lock"
+        ).read_bytes()
+        first_generated = first_output / "generated"
+        second_generated = second_output / "generated"
+        first_current = load(first_generated / "manifests" / "current.json")
+        second_current = load(second_generated / "manifests" / "current.json")
+        assert first_current == second_current
+        first_generation = first_generated / "generations" / first_current["generationId"]
+        second_generation = second_generated / "generations" / second_current["generationId"]
+        for name in ["SagaPackage.lock", "csharp_references_v1.json", "api_surfaces_v1.json", "visual_blocks_surfaces_v1.json", "generation.json"]:
+            assert (first_generation / name).read_bytes() == (second_generation / name).read_bytes()
+        verified = run_lock_verify(
+            first_project,
+            REPO_ROOT,
+            first_output / "SagaPackage.lock",
+            root / "verify-report.json",
+            first_generated,
+        )
+        assert verified.returncode == 0, verified.stderr + verified.stdout
+        assert load(root / "verify-report.json")["status"] == "Passed"
+
+
+def test_lock_verify_rejects_stale_intent_and_corrupt_artifact_hash() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        project = copy_starter(root)
+        output = root / "resolved"
+        assert run_resolve(project, REPO_ROOT, output).returncode == 0
+        lock_path = output / "SagaPackage.lock"
+        lock = load(lock_path)
+        lock["packages"][0]["artifacts"][0]["artifactHash"] = "sha256:" + "0" * 64
+        write_json(lock_path, lock)
+        corrupt = run_lock_verify(project, REPO_ROOT, lock_path, root / "corrupt.json")
+        assert corrupt.returncode == 1
+        codes = [item["code"] for item in load(root / "corrupt.json")["diagnostics"]]
+        assert "Package.Lock.ArtifactHashMismatch" in codes
+
+        manifest = load(project / "StarterArena.sagaproj")
+        manifest["dependencies"][0]["version"] = "0.0.10"
+        write_json(project / "StarterArena.sagaproj", manifest)
+        stale = run_lock_verify(project, REPO_ROOT, lock_path, root / "stale.json")
+        assert stale.returncode == 1
+        stale_codes = [item["code"] for item in load(root / "stale.json")["diagnostics"]]
+        assert "Package.Lock.StaleIntent" in stale_codes
+        assert "Package.Resolve.VersionMismatch" in stale_codes
+
+
+def test_lock_verify_rejects_mismatched_selected_generation() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        project = copy_starter(root / "project")
+        first_bridge = root / "bridge-first.dll"
+        second_bridge = root / "bridge-second.dll"
+        first_bridge.write_bytes(RUNTIME_BRIDGE_ASSEMBLY.read_bytes())
+        second_bridge.write_bytes(RUNTIME_BRIDGE_ASSEMBLY.read_bytes() + b"alternate-generation")
+        first = root / "first"
+        second = root / "second"
+        assert run_resolve(project, REPO_ROOT, first, first_bridge).returncode == 0
+        assert run_resolve(project, REPO_ROOT, second, second_bridge).returncode == 0
+
+        mismatch_report = root / "mismatch.json"
+        mismatch = run_lock_verify(project, REPO_ROOT, first / "SagaPackage.lock", mismatch_report,
+                                   second / "generated", first_bridge)
+        assert mismatch.returncode == 1
+        codes = [item["code"] for item in load(mismatch_report)["diagnostics"]]
+        assert "Package.Generation.TrackedLockMismatch" in codes
+        assert "Package.Generation.RuntimeBridgeMismatch" in codes
+
+        current_path = first / "generated/manifests/current.json"
+        current = load(current_path)
+        current["generationManifestHash"] = "sha256:" + "0" * 64
+        write_json(current_path, current)
+        tampered_report = root / "tampered.json"
+        tampered = run_lock_verify(project, REPO_ROOT, first / "SagaPackage.lock", tampered_report,
+                                   first / "generated", first_bridge)
+        assert tampered.returncode == 1
+        tampered_codes = [item["code"] for item in load(tampered_report)["diagnostics"]]
+        assert "Package.Generation.ManifestHashMismatch" in tampered_codes
+
+
+def test_runtime_bridge_mutation_before_generation_publish_preserves_current() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        project = copy_starter(root / "project")
+        bridge = root / "runtime-bridge.dll"
+        bridge.write_bytes(RUNTIME_BRIDGE_ASSEMBLY.read_bytes())
+        output = root / "resolved"
+        assert run_resolve(project, REPO_ROOT, output, bridge).returncode == 0
+        lock_path = output / "SagaPackage.lock"
+        current_path = output / "generated/manifests/current.json"
+        original_lock = lock_path.read_bytes()
+        original_current = current_path.read_bytes()
+        barrier = root / "bridge-publication"
+        report = root / "barrier-report.json"
+        arguments = ["resolve", "--project", str(project / "StarterArena.sagaproj"),
+                     "--engine-root", str(REPO_ROOT), "--lock", str(lock_path),
+                     "--generated-out", str(output / "generated"), "--runtime-bridge", str(bridge),
+                     "--out", str(report)]
+        env = os.environ.copy()
+        env["SAGAPACK_RUNTIME_BRIDGE_BARRIER"] = str(barrier)
+        env.setdefault("DOTNET_CLI_HOME", "/tmp/sagapack-dotnet-home")
+        env.setdefault("NUGET_PACKAGES", "/tmp/sagapack-nuget")
+        ensure_cli_built(env)
+        process = subprocess.Popen(["dotnet", str(CLI_ASSEMBLY), *arguments], cwd=REPO_ROOT, env=env,
+                                   text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        deadline = time.monotonic() + 20
+        while not barrier.with_suffix(".reached").exists():
+            if process.poll() is not None or time.monotonic() >= deadline:
+                raise AssertionError("sagapack did not reach RuntimeBridge publication barrier")
+            time.sleep(0.01)
+        bridge.write_bytes(bridge.read_bytes() + b"mutated-after-graph")
+        barrier.with_suffix(".release").write_text("release\n", encoding="utf-8")
+        stdout, stderr = process.communicate(timeout=20)
+        assert process.returncode == 1, stderr + stdout
+        codes = [item["code"] for item in load(report)["diagnostics"]]
+        assert "Package.Resolve.RuntimeBridgeStale" in codes
+        assert lock_path.read_bytes() == original_lock
+        assert current_path.read_bytes() == original_current
+
+
+def test_resolution_rejects_missing_artifacts_modules_and_provenance_gaps() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        project = copy_starter(root / "project")
+        engine_root = root / "engine"
+        distribution = copy_distribution(engine_root)
+        manifest_path = package_manifest(distribution)
+        package = load(manifest_path)
+        package["license"] = ""
+        package["modules"] = []
+        missing_artifact = distribution / package["artifacts"][0]["path"]
+        missing_artifact.unlink()
+        write_json(manifest_path, package)
+
+        result = run_resolve(project, engine_root, root / "output")
+
+        assert result.returncode == 1
+        diagnostics = load(root / "output" / "resolve-report.json")["diagnostics"]
+        codes = [item["code"] for item in diagnostics]
+        assert codes == sorted(codes)
+        assert "Package.Resolve.ArtifactMissing" in codes
+        assert "Package.Resolve.ModuleUnsupported" in codes
+        assert "Package.Resolve.ProvenanceGap" in codes
+        assert not (root / "output" / "SagaPackage.lock").exists()
+
+
+def test_project_local_package_cannot_supply_executable_artifacts() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        project = copy_starter(root / "project")
+        copied_package = project / "Packages" / "com.saga.gameplay.foundation" / "0.0.11"
+        shutil.copytree(
+            REPO_ROOT
+            / "Engine"
+            / "Distribution"
+            / "Packages"
+            / "com.saga.gameplay.foundation"
+            / "0.0.11",
+            copied_package,
+        )
+        engine_root = root / "empty-engine"
+        (engine_root / "Engine" / "Distribution" / "Packages").mkdir(parents=True)
+
+        result = run_resolve(project, engine_root, root / "output")
+
+        assert result.returncode == 1
+        codes = [
+            item["code"]
+            for item in load(root / "output" / "resolve-report.json")["diagnostics"]
+        ]
+        assert "Package.Resolve.BuiltinNotFound" in codes
+        assert not (root / "output" / "SagaPackage.lock").exists()
+
+
+def test_resolution_failure_injection_preserves_complete_generation() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        project = copy_starter(root / "project")
+        output = root / "resolved"
+        assert run_resolve(project, REPO_ROOT, output).returncode == 0
+        lock_path = output / "SagaPackage.lock"
+        current_path = output / "generated/manifests/current.json"
+        original_lock = lock_path.read_bytes()
+        original_current = current_path.read_bytes()
+        arguments = ["resolve", "--project", str(project / "StarterArena.sagaproj"),
+                     "--engine-root", str(REPO_ROOT), "--lock", str(lock_path),
+                     "--generated-out", str(output / "generated"), "--runtime-bridge",
+                     str(RUNTIME_BRIDGE_ASSEMBLY), "--out", str(output / "injected.json")]
+        for stage in [*(f"after-write-{index}" for index in range(1, 7)),
+                      "before-generation-publish", "before-current-publish"]:
+            failed = run_cli_env({"SAGAPACK_FAIL_STAGE": stage}, *arguments)
+            assert failed.returncode == 1, stage
+            assert lock_path.read_bytes() == original_lock
+            assert current_path.read_bytes() == original_current
+
+
+def test_duplicate_package_artifact_identity_is_rejected() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        project = copy_starter(root / "project")
+        engine_root = root / "engine"
+        distribution = copy_distribution(engine_root)
+        manifest_path = package_manifest(distribution)
+        package = load(manifest_path)
+        package["artifacts"][1]["artifactId"] = package["artifacts"][0]["artifactId"]
+        write_json(manifest_path, package)
+        result = run_resolve(project, engine_root, root / "output")
+        assert result.returncode == 1
+        codes = [item["code"] for item in load(root / "output/resolve-report.json")["diagnostics"]]
+        assert "Package.Resolve.ArtifactIdentityInvalid" in codes
+
+
+def test_starter_content_is_deterministic_across_clean_roots() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        first_project = root / "first" / "StarterArena"
+        second_project = root / "second" / "StarterArena"
+        shutil.copytree(STARTER_ROOT, first_project)
+        shutil.copytree(STARTER_ROOT, second_project)
+        first_output = root / "first-output"
+        second_output = root / "second-output"
+        first = compile_starter(first_project, first_output)
+        second = compile_starter(second_project, second_output)
+        assert first.returncode == 0, first.stderr
+        assert second.returncode == 0, second.stderr
+        assert (first_output / "manifests" / "current.json").read_bytes() == (
+            second_output / "manifests" / "current.json"
+        ).read_bytes()
+        assert artifact_hashes(first_output) == artifact_hashes(second_output)
+
+
+def test_invalid_scene_does_not_replace_current_manifest() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        project = root / "StarterArena"
+        output = root / "output"
+        shutil.copytree(STARTER_ROOT, project)
+        assert compile_starter(project, output).returncode == 0
+        current = output / "manifests" / "current.json"
+        original = current.read_bytes()
+        scene_path = project / "Scenes" / "StarterArena.sagascene"
+        scene = load(scene_path)
+        scene["unknownField"] = True
+        write_json(scene_path, scene)
+        failed = compile_starter(project, output, "compile-scenes")
+        assert failed.returncode == 1
+        assert current.read_bytes() == original
+        result = load(output / "compile-result.json")
+        assert "Content.Schema.UnknownField" in [item["code"] for item in result["diagnostics"]]
+
+
 def run_all() -> None:
     tests = [
+        test_package_resolution_is_offline_and_deterministic_across_roots,
+        test_lock_verify_rejects_stale_intent_and_corrupt_artifact_hash,
+        test_lock_verify_rejects_mismatched_selected_generation,
+        test_runtime_bridge_mutation_before_generation_publish_preserves_current,
+        test_resolution_rejects_missing_artifacts_modules_and_provenance_gaps,
+        test_project_local_package_cannot_supply_executable_artifacts,
+        test_resolution_failure_injection_preserves_complete_generation,
+        test_duplicate_package_artifact_identity_is_rejected,
+        test_starter_content_is_deterministic_across_clean_roots,
+        *VISIBLE_SLICE_TESTS,
+        test_invalid_scene_does_not_replace_current_manifest,
         test_validate_multiplayer_sandbox_passes,
         test_asset_validate_reports_missing_source_truth_for_placeholder_assets,
         test_asset_validate_accepts_explicit_asset_source_manifest_and_package_evidence,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file UiInputRouterTests.cpp
 /// @brief Focused tests for backend-neutral UI input routing.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorCustomizationOverlayLoader.cpp
 /// @brief JSON loader for safe editor customization overlays.
 

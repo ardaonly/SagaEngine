@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CommandRecorder.h
 /// @brief Utility that builds a CommandBuffer from high-level draw requests.
 

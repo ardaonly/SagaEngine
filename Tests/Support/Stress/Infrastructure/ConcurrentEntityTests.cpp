@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ConcurrentEntityTests.cpp
 /// @brief Stress tests for concurrent entity creation, deletion, and mixed operations.
 ///

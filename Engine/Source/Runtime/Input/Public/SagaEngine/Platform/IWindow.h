@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IWindow.h
 /// @brief Platform-agnostic window interface for the SagaEngine windowing layer.
 

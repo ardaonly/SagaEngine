@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file NetEntityBinding.h
 /// @brief Maps replicated network entities to RenderWorld entities.
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CommandCodecTests.cpp
 /// @brief Unit tests for the gameplay command codec and every command round-trip.
 ///

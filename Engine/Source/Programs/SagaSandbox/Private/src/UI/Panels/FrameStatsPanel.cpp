@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file FrameStatsPanel.cpp
 /// @brief Frame time sparkline + tick/entity counters.
 

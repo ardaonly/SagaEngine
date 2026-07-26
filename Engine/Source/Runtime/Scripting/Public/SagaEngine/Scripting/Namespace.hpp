@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Namespace.hpp
 /// @brief Provides the public Saga scripting namespace bridge.
 

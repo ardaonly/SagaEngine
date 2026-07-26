@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ReplicationStateMachine.cpp
 /// @brief State machine governing client-side replication lifecycle.
 

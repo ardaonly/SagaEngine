@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentRenderBackendOverlayApi.cpp
 /// @brief Overlay and frame capture wrappers for DiligentRenderBackend.
 
@@ -50,16 +51,64 @@ void DiligentRenderBackend::ShutdownOverlayRendering()
     m_Impl->overlayRenderer.Shutdown();
 }
 
-RenderCaptureResult DiligentRenderBackend::CaptureCurrentColorFrame(
+RenderOverlaySubmissionResult DiligentRenderBackend::InitializeOverlay()
+{
+    return InitOverlayRendering()
+        ? RenderOverlaySubmissionResult{RenderOverlaySubmissionStatus::Success, {}}
+        : RenderOverlaySubmissionResult{RenderOverlaySubmissionStatus::NotReady,
+            "Diligent overlay initialization failed."};
+}
+
+RenderOverlayTextureHandle DiligentRenderBackend::CreateOverlayTextureResource(
+    const RenderOverlayTextureDesc& desc, const std::uint8_t* rgbaPixels)
+{
+    return CreateOverlayTexture(desc, rgbaPixels);
+}
+
+void DiligentRenderBackend::DestroyOverlayTextureResource(RenderOverlayTextureHandle texture)
+{
+    DestroyOverlayTexture(texture);
+}
+
+RenderOverlaySubmissionResult DiligentRenderBackend::SubmitOverlayFrame(
+    const ::SagaEngine::Render::Backend::RenderOverlayFrame& frame)
+{
+    if (!m_Impl || !m_Impl->runtime->IsInitialized())
+        return {RenderOverlaySubmissionStatus::NotReady, "Diligent runtime is not initialized."};
+    if (frame.displaySize[0] <= 0.0f || frame.displaySize[1] <= 0.0f)
+        return {RenderOverlaySubmissionStatus::Minimized, "Overlay viewport is minimized."};
+    if (!ValidateOverlayFrameForTests(frame))
+        return {RenderOverlaySubmissionStatus::InvalidFrame, "Overlay draw list validation failed."};
+    if (!m_Impl->overlayRenderer.IsReady() && !InitOverlayRendering())
+        return {RenderOverlaySubmissionStatus::NotReady, "Diligent overlay is not ready."};
+    this->RenderOverlayFrame(frame);
+    if (m_Impl->overlayRenderer.LastDrawCommandCount() == 0u)
+    {
+        const auto diagnostic = m_Impl->overlayRenderer.LastSubmissionDiagnostic();
+        LOG_CAT_ERROR(Render, "%.*s", static_cast<int>(diagnostic.size()),
+                      diagnostic.data());
+        return {RenderOverlaySubmissionStatus::SubmissionFailure,
+            diagnostic};
+    }
+    return {RenderOverlaySubmissionStatus::Success, {}};
+}
+
+void DiligentRenderBackend::ShutdownOverlay()
+{
+    ShutdownOverlayRendering();
+}
+
+bool DiligentRenderBackend::CaptureCurrentColorFrame(
     RenderFrameCapture& outCapture)
 {
     if (!m_Impl || !m_Impl->runtime->IsInitialized())
     {
         outCapture = {};
-        return RenderCaptureResult::kNotInitialized;
+        return false;
     }
 
-    return m_Impl->frameCapture.Capture(*m_Impl->runtime, outCapture);
+    return m_Impl->frameCapture.Capture(*m_Impl->runtime, outCapture) ==
+        RenderCaptureResult::kSuccess;
 }
 
 // ─── Diagnostics ─────────────────────────────────────────────────────

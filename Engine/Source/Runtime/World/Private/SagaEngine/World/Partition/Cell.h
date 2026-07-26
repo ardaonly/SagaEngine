@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Cell.h
 /// @brief Fixed-size spatial cell — the smallest unit of world partitioning.
 ///

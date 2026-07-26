@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ConsolePanel.h
 /// @brief Console/log panel — colour-coded severity output with auto-scroll.
 ///
@@ -30,7 +31,7 @@ public:
     // ─── IPanel ───────────────────────────────────────────────────────────────
     [[nodiscard]] PanelId     GetPanelId()      const override;
     [[nodiscard]] std::string GetTitle()        const override;
-    [[nodiscard]] void*       GetNativeWidget() const noexcept override;
+    [[nodiscard]] QWidget*    Widget() const noexcept override;
 
     void OnInit()     override;
     void OnShutdown() override;

@@ -147,6 +147,14 @@ Compiled assemblies/manifests carry source and tool fingerprints. Runtime valida
 
 Managed/native bridges expose registered, typed, bounded calls. Script code cannot use the block projection to bypass binding, authority, thread, or permission rules. Bridge implementation is not a public Visual Blocks contract.
 
+## Project worker publication
+
+SagaScript's schema-version-1 one-shot worker is the canonical project conformance path. Its request binds an operation/revision to the SagaProjectKit-validated project identity and hash, a sorted project-relative source set and hashes, verified package-lock/reference/API-surface hashes, the exact operation set, a local output root, and an operation-matched cancellation marker. File paths used to reach local inputs are transport data and do not enter canonical artifact hashes.
+
+Progress is NDJSON keyed by operation and revision. Cancellation is checked between real validation, graph, analysis, compile, projection, freshness, and publication stages; a marker for another operation is ignored. Cancellation or compile/validation failure cannot replace the current artifact manifest. Immediately before publication, SagaScript recomputes the project, source, lock, reference, and surface hashes. Any mismatch returns `StaleResult` and preserves the previous current manifest.
+
+Compilation uses deterministic Roslyn settings, stable assembly naming, sorted references, and project-relative syntax-tree paths. Published schema-version-1 artifacts include behavior, named-action, capability, assembly, source-map, and read-only block-projection records plus content/file hashes. Objects are content addressed and the current manifest is atomically replaced last. The projection exposes supported source spans, preserves unsupported C# as opaque, filters Raw/Internal API surface entries, and never rewrites authored source.
+
 ## Two-way authoring evidence
 
 The bounded loop is:
@@ -164,11 +172,15 @@ This proves source-preserving tool orchestration for the fixture/operation. It d
 
 ## Editor integration
 
-Editor views consume artifacts and reports. A projection view shows projectable and opaque regions. A patch evaluation view shows exact target, old/new representation, freshness, diagnostics, and non-claims. A review workflow lets the user accept an explicit apply request.
+Editor views consume artifacts and reports. The scripting panel has separate `Scripting` and `Blocks` tabs. The Blocks widget renders immutable presentation-neutral cards and nesting, including package origin, source spans, busy/stale/failure state, and opaque C# regions. Selecting a card navigates the existing source buffer; it does not recreate or mutate that buffer.
+
+`ScriptProjectionSession` is Qt-free and accepts only saved-source analysis. Its snapshot states distinguish no document, dirty-needs-save, analyzing, current, stale, failed, cancelled, project closed, and package-generation change. Publication succeeds only while workspace generation, disk hash, document revision, project/package generation, operation identity, and artifact hash still match. Late, cancelled, closed, or replaced results cannot overwrite the current projection.
+
+For StarterArena the semantic tree contains `WHEN Interact` with child `toggle door target state`. Unrepresented lifecycle regions remain source-linked `Opaque C# region` cards. These cards are preservation evidence, not executable fallback nodes.
 
 The editor retains personal graph layout/selection separately from C# source. Moving a block for readability does not alter behavior unless an explicit supported source operation is generated and approved.
 
-If source changes externally, views become stale and refresh. They never keep presenting old projection as current without a visible stale state.
+If source changes externally, views become stale and refresh. They never keep presenting old projection as current without a visible stale state. Play and Runtime do not depend on projection artifacts.
 
 ## Diagnostics
 

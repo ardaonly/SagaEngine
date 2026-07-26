@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file BlockToIRLowerer.h
 /// @brief Walks a `BlockScript` and emits a canonical `IRProgram`.
 

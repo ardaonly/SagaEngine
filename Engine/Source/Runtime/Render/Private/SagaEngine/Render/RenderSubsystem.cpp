@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RenderSubsystem.cpp
 /// @brief Multi-camera frame driver. Owns only the per-camera RenderViews
 ///        and the aggregate FrameStats.

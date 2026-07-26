@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DeterministicMath.h
 /// @brief Platform-stable math primitives used by deterministic simulation.
 ///

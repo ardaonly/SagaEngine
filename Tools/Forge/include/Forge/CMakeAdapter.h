@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file CMakeAdapter.h
 /// @brief CMake and CTest backend adapter — lowers a BuildModel into cmake/ctest invocations.
 ///

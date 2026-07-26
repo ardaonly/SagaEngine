@@ -7,7 +7,7 @@ reviewed_against: 0.0.11-post-cutover
 
 # Asset pipeline and manifest generation
 
-`Tools/AssetPipeline` is the current C++ owner for deterministic asset identity allocation and for writing Runtime-compatible identity, asset, and package manifests. It builds as `SagaAssetPipelineLib` and is exercised by focused unit and contract tests. It is a library surface, not yet a complete importer, cooker, editor UX, or command-line product.
+`Tools/AssetPipeline` is the current C++ owner for deterministic asset identity allocation and for writing Runtime-compatible identity, asset, and package manifests. It builds as `SagaAssetPipelineLib` and is exercised by focused unit and contract tests. SagaPackager separately owns the strict box/plane and solid-material cooker used by StarterArena; this does not make AssetPipeline a complete importer or editor UX.
 
 ## Boundary with Runtime
 
@@ -64,7 +64,13 @@ This evidence is stronger than a documentation-only schema claim because produce
 
 ## Relationship to other tools
 
-SagaProjectKit validates the canonical `.sagaproj` contract and project boundaries. SagaScript produces script-specific artifacts and manifests. SagaPackager stages validated package inputs and optional external governance evidence. Forge and CMake own dependency/build orchestration. AssetPipeline must not duplicate those responsibilities.
+SagaProjectKit validates the canonical `.sagaproj` contract and project boundaries. SagaScript produces script-specific artifacts and manifests. SagaPackager stages validated package inputs, compiles strict schema-1 asset/scene/input sources, and accepts optional external governance evidence. Forge and CMake own dependency/build orchestration. AssetPipeline must not duplicate those responsibilities.
+
+Content compilation validates every source before publication. JSON
+properties are canonicalized lexicographically, domain arrays use stable ids,
+and source/content/file/manifest hashes use lowercase `sha256:<hex>`. Objects
+are staged by content address before an atomic current-manifest replacement, so
+a failed operation does not displace the preceding current artifact set.
 
 A future command-line frontend may call `SagaAssetPipelineLib`, but the library should remain the contract owner for deterministic allocation and serialization. A wrapper should report its inputs, outputs, and diagnostics rather than silently discovering source trees or choosing identities.
 
@@ -75,4 +81,3 @@ Asset source and authoring metadata remain project-owned source. Identity, asset
 Do not write generated manifests into sample source directories merely to make a local smoke pass. Tests should use temporary output roots, validate the result, and leave the source tree unchanged.
 
 For Runtime consumption see [Runtime lifecycle, assets, and packages](runtime-lifecycle-assets-and-packages.md). For registry and residency behavior see [Resource streaming and residency](resource-streaming-and-residency.md).
-

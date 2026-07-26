@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ArchetypeMigration.cpp
 /// @brief Runtime archetype migration implementation.
 

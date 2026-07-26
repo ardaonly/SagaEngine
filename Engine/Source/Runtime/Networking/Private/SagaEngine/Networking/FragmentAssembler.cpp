@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file FragmentAssembler.cpp
 /// @brief Implementation of MTU-safe packet fragmentation and reassembly.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AssetBrowserPanel.h
 /// @brief Asset browser panel — directory tree + asset grid.
 ///
@@ -11,6 +12,7 @@
 
 namespace SagaEditor
 {
+class EditorDocumentWorkspace;
 
 // ─── Asset Browser Panel ──────────────────────────────────────────────────────
 
@@ -25,7 +27,7 @@ public:
     // ─── IPanel ───────────────────────────────────────────────────────────────
     [[nodiscard]] PanelId     GetPanelId()      const override;
     [[nodiscard]] std::string GetTitle()        const override;
-    [[nodiscard]] void*       GetNativeWidget() const noexcept override;
+    [[nodiscard]] QWidget*    Widget() const noexcept override;
 
     void OnInit()     override;
     void OnShutdown() override;
@@ -33,6 +35,7 @@ public:
     // ─── Configuration ────────────────────────────────────────────────────────
     /// Point the browser at the project workspace root.
     void SetWorkspaceRoot(const std::string& path);
+    void SetDocumentWorkspace(EditorDocumentWorkspace* workspace);
 
 private:
     struct Impl;

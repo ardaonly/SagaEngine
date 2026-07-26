@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Frustum.h
 /// @brief Six-plane view frustum with sphere / AABB intersection tests.
 ///

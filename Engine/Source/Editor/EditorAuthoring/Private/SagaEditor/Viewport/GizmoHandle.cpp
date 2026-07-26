@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file GizmoHandle.cpp
 /// @brief Implementation of gizmo handle identity and hit-testing.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentRenderBackendSubmit.cpp
 /// @brief Scene submit and shadow pass execution for DiligentRenderBackend.
 

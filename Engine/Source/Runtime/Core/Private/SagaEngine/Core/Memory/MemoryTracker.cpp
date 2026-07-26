@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "SagaEngine/Core/Memory/MemoryTracker.h"
 #include "SagaEngine/Core/Log/Log.h"
 #include <iostream>

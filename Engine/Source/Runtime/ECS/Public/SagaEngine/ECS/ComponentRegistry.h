@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ComponentRegistry.h
 /// @brief Deterministic component type ID registry for cross-binary ECS serialization.
 ///

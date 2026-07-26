@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SDLWindow.h
 /// @brief SDL2 implementation of IWindow; manages a single SDL_Window and its event pump.
 

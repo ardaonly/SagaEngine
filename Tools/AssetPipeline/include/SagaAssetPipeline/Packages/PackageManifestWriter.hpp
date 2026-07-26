@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PackageManifestWriter.hpp
 /// @brief Writes AssetPipeline package metadata to the Runtime package schema.
 

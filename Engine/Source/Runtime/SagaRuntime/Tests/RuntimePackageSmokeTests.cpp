@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimePackageSmokeTests.cpp
 /// @brief Focused smoke tests for checked-in runtime package fixtures.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Deterministic.h
 /// @brief Tick-by-tick hash tracking for server/client divergence detection.
 ///

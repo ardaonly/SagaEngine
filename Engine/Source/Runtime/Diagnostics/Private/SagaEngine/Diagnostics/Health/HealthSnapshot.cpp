@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file HealthSnapshot.cpp
 /// @brief Implements immutable runtime health metric snapshots.
 

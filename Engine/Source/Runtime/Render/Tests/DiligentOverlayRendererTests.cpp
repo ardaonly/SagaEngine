@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentOverlayRendererTests.cpp
 /// @brief CPU-only tests for private overlay translation and affinity rules.
 

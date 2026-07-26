@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RenderGraph.cpp
 /// @brief Per-frame render graph — add resources & passes, compile, execute.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DeterministicVectors.h
 /// @brief Q16.16 fixed-point Vec3 / Quat for deterministic simulation.
 ///

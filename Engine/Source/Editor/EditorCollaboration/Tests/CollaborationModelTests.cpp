@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CollaborationModelTests.cpp
 /// @brief Unit coverage for the local/offline Block H collaboration model.
 

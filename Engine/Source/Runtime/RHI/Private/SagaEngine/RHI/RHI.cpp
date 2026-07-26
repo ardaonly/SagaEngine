@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RHI.cpp
 /// @brief RHI resource RAII wrappers — destructor and move-assignment bodies.
 

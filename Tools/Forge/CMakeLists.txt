@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 # ─── Forge — Standalone Build Orchestration Frontend ─────────────────────────
 #
 # Forge is a Cargo-flavoured build frontend for C++. It is intentionally

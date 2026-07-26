@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 using SagaEngine.Scripting;
 
 namespace Game;
@@ -79,6 +80,30 @@ public sealed class ContextLogScript : SagaScript
     public override void OnStart()
     {
         Context.Log.Info("ContextLog:OnStart");
+    }
+}
+
+public sealed class RetainedContextScript : SagaScript
+{
+    private static ScriptContext? retained;
+
+    public override void OnCreate()
+    {
+        retained = Context;
+    }
+
+    public static void LogThroughRetainedContext()
+    {
+        retained?.Log.Info("RetainedContext:UnexpectedLog");
+    }
+}
+
+public sealed class RetainedContextProbeScript : SagaScript
+{
+    public override void OnStart()
+    {
+        Context.Log.Info("RetainedContext:ProbeStarted");
+        RetainedContextScript.LogThroughRetainedContext();
     }
 }
 

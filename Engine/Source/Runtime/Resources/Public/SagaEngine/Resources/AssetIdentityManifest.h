@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AssetIdentityManifest.h
 /// @brief Defines package AssetKey to runtime AssetId mapping manifest contracts.
 

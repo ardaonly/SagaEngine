@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CameraController.cpp
 /// @brief Implementation of the viewport camera controller.
 

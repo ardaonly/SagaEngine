@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IPresenceTracker.h
 /// @brief Cluster-wide online / offline / zone-resident presence tracking.
 ///

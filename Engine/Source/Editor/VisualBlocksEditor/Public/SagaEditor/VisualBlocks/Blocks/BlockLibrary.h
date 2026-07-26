@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file BlockLibrary.h
 /// @brief Registry of `BlockDefinition`s — the editor's block palette source.
 

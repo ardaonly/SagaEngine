@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PackageManifestLoader.cpp
 /// @brief Implements runtime package manifest JSON loading and validation.
 

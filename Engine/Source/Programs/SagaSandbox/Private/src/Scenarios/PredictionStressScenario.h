@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PredictionStressScenario.h
 /// @brief Client-side prediction stress test with configurable divergence injection.
 ///

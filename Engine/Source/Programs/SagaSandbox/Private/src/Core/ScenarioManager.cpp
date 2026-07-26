@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScenarioManager.cpp
 /// @brief Scenario lifecycle management: registration, activation, hot-swap.
 

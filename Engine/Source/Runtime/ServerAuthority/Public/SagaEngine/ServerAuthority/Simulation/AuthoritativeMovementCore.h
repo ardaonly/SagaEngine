@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AuthoritativeMovementCore.h
 /// @brief Narrow server-owned movement authority core for fixed-tick validation.
 

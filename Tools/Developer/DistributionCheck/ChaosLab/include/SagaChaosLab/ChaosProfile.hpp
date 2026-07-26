@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ChaosProfile.hpp
 /// @brief Defines SagaChaosLab deterministic chaos profile loading.
 

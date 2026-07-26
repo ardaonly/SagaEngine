@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Mat4.h
 /// @brief Column-major 4x4 single-precision matrix for GPU upload and
 ///        affine transform composition.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ShaderVariantBudget.h
 /// @brief Deterministic shader variant budget and material feature contracts.
 

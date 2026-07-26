@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """Subprocess helpers used by SagaSync."""
 
 from __future__ import annotations

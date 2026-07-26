@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorNotificationTests.cpp
 /// @brief Unit tests for transient editor notification feedback.
 
@@ -33,12 +34,11 @@ public:
 
     [[nodiscard]] int GetWidth() const noexcept override { return width; }
     [[nodiscard]] int GetHeight() const noexcept override { return height; }
-    [[nodiscard]] void* GetNativeHandle() const noexcept override { return nullptr; }
 
     void ApplyShellLayout(const ShellLayout&) override {}
     void SetStatusMessage(const std::string& value) override { status = value; }
 
-    void DockPanel(void*,
+    void DockPanel(QWidget*,
                    const std::string&,
                    const std::string&,
                    UIDockArea) override

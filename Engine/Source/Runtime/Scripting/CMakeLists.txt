@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 saga_add_runtime_module(Scripting
     MODULE_DIR Engine/Source/Runtime/Scripting
     TARGET SagaEngine
@@ -10,6 +11,12 @@ saga_add_runtime_module(Scripting
         ${SAGA_DOTNET_HOST_INCLUDE_DIR}
     SOURCES
         Private/SagaEngine/Scripting/CSharpScriptHost.cpp
+        Private/SagaEngine/Scripting/CSharpScriptHostCallbacks.cpp
+        Private/SagaEngine/Scripting/CSharpScriptHostCoreClr.cpp
+        Private/SagaEngine/Scripting/CSharpScriptHostInstances.cpp
+        Private/SagaEngine/Scripting/CSharpScriptHostInvocation.cpp
+        Private/SagaEngine/Scripting/CSharpScriptHostSupport.cpp
+        Private/SagaEngine/Scripting/CSharpScriptHostVerifiedGeneration.cpp
         Private/SagaEngine/Scripting/ScriptBindingManifestLoader.cpp
         Private/SagaEngine/Scripting/ScriptBindingRuntime.cpp
         Private/SagaEngine/Scripting/ScriptLifecycleService.cpp
@@ -19,6 +26,7 @@ saga_add_runtime_module(Scripting
         Public/SagaEngine/Scripting/Authoring.hpp
         Public/SagaEngine/Scripting/Authoring/ScriptBindingManifestLoader.hpp
         Public/SagaEngine/Scripting/Authoring/ScriptBindingRuntime.hpp
+        Private/SagaEngine/Scripting/CSharpScriptHostImpl.hpp
         Public/SagaEngine/Scripting/CSharpScriptHost.hpp
         Public/SagaEngine/Scripting/ISagaScriptHost.hpp
         Public/SagaEngine/Scripting/LowLevel.hpp

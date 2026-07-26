@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AnimationClip.cpp
 /// @brief Keyframe sampling (lerp for Vec3, slerp for Quat).
 

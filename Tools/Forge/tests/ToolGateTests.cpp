@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file ToolGateTests.cpp
 /// @brief Coverage for Forge generic external gate command behavior.
 

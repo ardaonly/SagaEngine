@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DensityProfile.cpp
 /// @brief Implementation of the persona density spectrum.
 

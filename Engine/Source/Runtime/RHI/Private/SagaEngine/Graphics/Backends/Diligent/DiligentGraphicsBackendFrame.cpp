@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentGraphicsBackendFrame.cpp
 /// @brief Frame status forwarding for the Diligent graphics adapter.
 

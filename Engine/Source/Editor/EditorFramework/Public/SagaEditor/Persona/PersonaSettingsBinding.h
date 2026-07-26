@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PersonaSettingsBinding.h
 /// @brief Persists the active persona id into a private editor settings store.
 

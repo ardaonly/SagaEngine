@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaGraphicsPublicConsumerLinkTest.cpp
 /// @brief Standalone public SagaGraphics link consumer.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentFrameCapture.cpp
 /// @brief Diligent current-back-buffer capture implementation.
 
@@ -164,7 +165,6 @@ RenderCaptureResult DiligentFrameCapture::Capture(
     outCapture.width = scDesc.Width;
     outCapture.height = scDesc.Height;
     outCapture.rowPitch = scDesc.Width * 4u;
-    outCapture.format = RenderPixelFormat::RGBA8_UNORM;
     CopyMappedTextureToRGBA8(
         mapped,
         scDesc.ColorBufferFormat,

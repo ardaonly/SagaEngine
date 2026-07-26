@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RenderEntity.h
 /// @brief Handle + data for a single drawable the client-side render world owns.
 ///

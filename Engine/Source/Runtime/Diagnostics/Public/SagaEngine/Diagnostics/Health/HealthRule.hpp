@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file HealthRule.hpp
 /// @brief Defines threshold rules evaluated against health snapshots.
 

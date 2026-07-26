@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ArtifactManifest.hpp
 /// @brief Shared artifact manifest contract.
 

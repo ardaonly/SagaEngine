@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ViewportInput.h
 /// @brief Framework-free input descriptors fed into the camera controller.
 

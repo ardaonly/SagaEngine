@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SelectionFilter.h
 /// @brief Predicate-based filtering for editor selectable handles.
 

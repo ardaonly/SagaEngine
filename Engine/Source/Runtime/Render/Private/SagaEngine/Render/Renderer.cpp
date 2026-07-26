@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Renderer.cpp
 /// @brief High-level Renderer — owns frame graph compilation and execution.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ConnectionMigration.h
 /// @brief Zone-transfer handoff protocol for seamless player migration.
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ZoneServer.h
 /// @brief Local-only headless zone server harness for authoritative simulation evidence.
 ///

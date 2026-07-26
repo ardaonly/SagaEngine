@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file InputCommandSerializer.cpp
 /// @brief Deterministic little-endian binary serialization for InputCommand.
 

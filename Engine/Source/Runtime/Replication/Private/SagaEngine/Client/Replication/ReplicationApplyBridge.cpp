@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ReplicationApplyBridge.cpp
 /// @brief Bridge implementation — routes decoded snapshots to
 ///        prediction (local player) and interpolation (remote entities).

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ChangeStreamService.hpp
 /// @brief Ordered change-stream service boundary for collaboration events.
 

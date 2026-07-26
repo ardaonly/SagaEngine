@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 saga_add_editor_module(VisualBlocksEditor
     MODULE_DIR Engine/Source/Editor/VisualBlocksEditor
     TARGET SagaEditorLib
@@ -12,6 +13,7 @@ saga_add_editor_module(VisualBlocksEditor
         Private/SagaEditor/VisualBlocks/Blocks/BlockSlot.cpp
         Private/SagaEditor/VisualBlocks/Blocks/BlockSnapRules.cpp
         Private/SagaEditor/VisualBlocks/Blocks/BlockToIRLowerer.cpp
+        Private/SagaEditor/VisualBlocks/ReadOnlyScriptProjection.cpp
         Public/SagaEditor/VisualBlocks/Blocks/BlockCategory.h
         Public/SagaEditor/VisualBlocks/Blocks/BlockDefinition.h
         Public/SagaEditor/VisualBlocks/Blocks/BlockIR.h
@@ -23,19 +25,7 @@ saga_add_editor_module(VisualBlocksEditor
         Public/SagaEditor/VisualBlocks/Blocks/BlockSnapRules.h
         Public/SagaEditor/VisualBlocks/Blocks/BlockStack.h
         Public/SagaEditor/VisualBlocks/Blocks/BlockToIRLowerer.h
-)
-
-saga_add_program(VisualBlocksProductIntegration
-    MODULE_DIR Engine/Source/Editor/VisualBlocksEditor
-    TARGET SagaProductLib
-    PRIVATE_DEPS
-        nlohmann_json::nlohmann_json
-        OpenSSL::Crypto
-    PRIVATE_INCLUDES
-        ${SAGA_ROOT}/Engine/Source/Programs/SagaLauncher/Private
-    SOURCES
-        Private/ProductIntegration/VisualBlocksDescriptor.cpp
-        Private/ProductIntegration/VisualBlocksDescriptor.h
+        Public/SagaEditor/VisualBlocks/ReadOnlyScriptProjection.h
 )
 
 saga_register_module_tests(VisualBlocksEditor
@@ -45,4 +35,5 @@ saga_register_module_tests(VisualBlocksEditor
     SOURCES
         Tests/BlockAuthoringTests.cpp
         Tests/BlockSnapAndIRTests.cpp
+        Tests/ReadOnlyScriptProjectionTests.cpp
 )

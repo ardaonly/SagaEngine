@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DynamicZoneSpawner.h
 /// @brief On-demand zone process creation and teardown protocol.
 ///

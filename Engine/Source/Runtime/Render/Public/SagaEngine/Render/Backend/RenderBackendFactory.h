@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RenderBackendFactory.h
 /// @brief Public factory surface for concrete render backend creation.
 
@@ -109,6 +110,38 @@ struct RenderOverlayFrame
     float displaySize[2] = {0.0f, 0.0f};
     float framebufferScale[2] = {1.0f, 1.0f};
     std::vector<RenderOverlayDrawList> drawLists;
+};
+
+enum class RenderOverlaySubmissionStatus : std::uint8_t
+{
+    Success = 0,
+    NotReady,
+    Minimized,
+    InvalidFrame,
+    TextureFailure,
+    SubmissionFailure,
+};
+
+struct RenderOverlaySubmissionResult
+{
+    RenderOverlaySubmissionStatus status = RenderOverlaySubmissionStatus::NotReady;
+    std::string_view diagnostic;
+    [[nodiscard]] bool Succeeded() const noexcept
+    { return status == RenderOverlaySubmissionStatus::Success; }
+};
+
+/// Vendor-neutral overlay submission seam consumed by UI adapters.
+class IRenderOverlaySubmission
+{
+public:
+    virtual ~IRenderOverlaySubmission() = default;
+    [[nodiscard]] virtual RenderOverlaySubmissionResult InitializeOverlay() = 0;
+    [[nodiscard]] virtual RenderOverlayTextureHandle CreateOverlayTextureResource(
+        const RenderOverlayTextureDesc& desc, const std::uint8_t* rgbaPixels) = 0;
+    virtual void DestroyOverlayTextureResource(RenderOverlayTextureHandle texture) = 0;
+    [[nodiscard]] virtual RenderOverlaySubmissionResult SubmitOverlayFrame(
+        const RenderOverlayFrame& frame) = 0;
+    virtual void ShutdownOverlay() = 0;
 };
 
 [[nodiscard]] std::unique_ptr<IRenderBackend> CreateRenderBackend();

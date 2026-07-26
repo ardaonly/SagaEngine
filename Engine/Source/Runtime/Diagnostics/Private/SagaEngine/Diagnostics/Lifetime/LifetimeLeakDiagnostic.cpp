@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file LifetimeLeakDiagnostic.cpp
 /// @brief Implements classified lifetime leak diagnostics.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "SagaEngine/Render/Streaming/RenderStreamingResidency.h"
 
 #include <gtest/gtest.h>

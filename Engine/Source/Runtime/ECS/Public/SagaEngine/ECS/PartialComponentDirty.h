@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PartialComponentDirty.h
 /// @brief Field-level dirty tracking for selective component replication.
 ///

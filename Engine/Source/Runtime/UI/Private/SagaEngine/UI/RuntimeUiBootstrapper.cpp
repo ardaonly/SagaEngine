@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeUiBootstrapper.cpp
 /// @brief Backend-neutral runtime UI bootstrap implementation.
 

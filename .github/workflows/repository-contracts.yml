@@ -58,6 +58,9 @@ jobs:
       - name: Run repository audit tests
         run: python3 -m unittest discover -s Tools/Developer/RepoAudit/tests -p 'test_*.py'
 
+      - name: Enforce maintainability size baseline
+        run: python3 Tools/Developer/RepoAudit/maintainability_audit.py --check
+
       - name: Run SagaSync tests
         run: python3 Tools/Developer/Environment/SagaSync/tests/test_sagasync_core.py
 

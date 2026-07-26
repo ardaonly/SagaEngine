@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 using System.Text.Json;
 
 namespace SagaProjectKit;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiagnosticSystem.cpp
 /// @brief Implements startup and shutdown for the diagnostics foundation.
 

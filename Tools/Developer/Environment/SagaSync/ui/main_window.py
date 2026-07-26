@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """Main SagaSync dashboard window."""
 
 from __future__ import annotations

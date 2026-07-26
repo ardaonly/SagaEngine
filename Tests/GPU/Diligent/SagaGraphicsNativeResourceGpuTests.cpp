@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "SagaGraphicsGpuTestFixture.h"
 
 #include "SagaEngine/Render/Backend/Diligent/DiligentNativeResourceOwner.h"

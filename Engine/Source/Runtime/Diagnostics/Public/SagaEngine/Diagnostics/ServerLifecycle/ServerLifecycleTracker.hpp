@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ServerLifecycleTracker.hpp
 /// @brief Bounded server lifecycle diagnostics contracts and tracker.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PatchJournal.cpp
 /// @brief Transactional patch journal for atomic ECS apply.
 

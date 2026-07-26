@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file GraphicsDiligentBackendTestHelpers.h
 /// @brief Shared helpers for Diligent graphics adapter tests.
 

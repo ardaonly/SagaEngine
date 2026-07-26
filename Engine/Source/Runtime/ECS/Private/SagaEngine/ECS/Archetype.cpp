@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "SagaEngine/ECS/Archetype.h"
 #include "SagaEngine/Core/Log/Log.h"
 #include <algorithm>

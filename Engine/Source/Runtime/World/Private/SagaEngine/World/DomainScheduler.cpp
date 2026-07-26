@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DomainScheduler.cpp
 /// @brief Multi-rate tick scheduler implementation.
 

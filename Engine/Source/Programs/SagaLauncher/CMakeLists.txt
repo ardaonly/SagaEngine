@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 saga_add_program(SagaLauncher
     MODULE_DIR Engine/Source/Programs/SagaLauncher
     TARGET SagaProductLib
@@ -6,8 +7,6 @@ saga_add_program(SagaLauncher
         Qt6::Widgets
         nlohmann_json::nlohmann_json
     PRIVATE_INCLUDES
-        ${SAGA_ROOT}/Tests/Evidence/FirstPlayable/Source
-        ${SAGA_ROOT}/Engine/Source/Editor/VisualBlocksEditor/Private
         ${SAGA_ROOT}/Engine/Source/Editor/EditorCollaboration/Private
     SOURCES
         Private/App/SagaApp.cpp
@@ -32,8 +31,6 @@ saga_add_program(SagaLauncher
         Private/Projects/SagaSessionModel.h
         Private/Projects/SagaWorkspaceResolver.cpp
         Private/Projects/SagaWorkspaceResolver.h
-        Private/Reports/RuntimeEvidenceReport.cpp
-        Private/Reports/RuntimeEvidenceReport.h
         Private/Reports/SagaLauncherReports.cpp
         Private/Reports/SagaLauncherReports.h
         Private/Reports/SagaProductWorkflowSmokeReport.cpp

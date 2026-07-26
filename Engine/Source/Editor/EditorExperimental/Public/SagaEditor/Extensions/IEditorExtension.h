@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IEditorExtension.h
 /// @brief Base interface for every editor extension (package-provided panel, tool, or command set).
 

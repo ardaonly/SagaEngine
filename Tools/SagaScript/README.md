@@ -10,6 +10,10 @@ Current scope:
 - Inspect block-callable bindings.
 - Emit JSON-compatible binding, capability, artifact, and diagnostics reports.
 - Compile validated script source into .NET 10 script assemblies.
+- Load canonical project sources through SagaProjectKit with `--project` forms.
+- Execute a schema-version-1 one-shot project worker with deterministic
+  assembly/manifests, NDJSON progress, cancellation, freshness recheck, and
+  atomic current-manifest publication.
 - Analyze `[SagaBehavior]` metadata for the Block F source-preserving
   SagaWeaver MVP.
 - Extract `[SagaLibrary]` and `[SagaNode]` metadata into a deterministic node
@@ -47,9 +51,13 @@ Tools/SagaScript/sagascript validate --source Scripts --json
 Tools/SagaScript/sagascript inspect-bindings --source Scripts --out Build/Manifests/script_bindings.inspect.json
 Tools/SagaScript/sagascript emit-manifests --source Scripts --out Build/Manifests
 Tools/SagaScript/sagascript compile --source Scripts --out Build/Manifests --artifacts-out Build/Artifacts/Scripts --project-root .
+Tools/SagaScript/sagascript compile --project Samples/StarterArena/StarterArena.sagaproj --out /tmp/starter-manifests --artifacts-out /tmp/starter-artifacts
 Tools/SagaScript/sagascript analyze --source Scripts --out Build/SagaScript
+Tools/SagaScript/sagascript analyze --project Samples/StarterArena/StarterArena.sagaproj --out /tmp/starter-analysis
 Tools/SagaScript/sagascript emit-bindings --source Scripts --out Build/SagaScript
 Tools/SagaScript/sagascript project-blocks --source Scripts --out Build/SagaScript
+Tools/SagaScript/sagascript project-blocks --project Samples/StarterArena/StarterArena.sagaproj --out /tmp/starter-projection
+Tools/SagaScript/sagascript worker --request /tmp/worker-request-v1.json --result /tmp/worker-result-v1.json --progress /tmp/worker-progress.ndjson
 Tools/SagaScript/sagascript extract-nodes --source Scripts --out Build/SagaScript
 Tools/SagaScript/sagascript patch-evaluation --source Scripts --source-map Build/SagaScript/source_map.json --request patch_request.json --out Build/SagaScript/patch_evaluation.json
 Tools/SagaScript/sagascript patch-apply --source Scripts --source-map Build/SagaScript/source_map.json --request patch_request.json --out Build/SagaScript/patch_apply_report.json
@@ -73,6 +81,40 @@ Compile outputs:
 - `Build/Manifests/script_artifacts.json`
 - `Build/Manifests/artifact_manifest.scripts.json`
 - `Build/Manifests/sagascript_diagnostics.json`
+
+## Project worker protocol
+
+The one-shot `worker` request uses schema version `1`. It identifies the
+operation and source revision; selected project id/path/hash; the canonical,
+project-relative source set and hashes; verified package-lock, C# reference,
+and API-surface paths/hashes; the resolved RuntimeBridge descriptor and exact
+generation assembly identity/path/hash/framework/trust; the exact `analyze`, `compile`, and
+`project-blocks` operation set; a local output root; and an operation-matched
+cancellation marker. Absolute paths are transport-only and are excluded from
+published artifacts and canonical hashes.
+
+Progress is line-delimited JSON keyed by operation id and revision. The worker
+checks cancellation between validation, graph verification, analysis,
+compilation, projection, freshness, and publication stages. A marker is honored
+only when its JSON `operationId` matches the active operation. Cancellation or
+failure publishes no current set. Immediately before publication, the worker
+rehashes the project, source set, lock, reference, surface, descriptor, and
+RuntimeBridge inputs after object writes and again immediately before the
+current-manifest replacement; a change
+returns `StaleResult` and preserves any prior current manifest.
+
+Successful publication writes content-addressed objects and atomically replaces
+`manifests/current.json`. The set includes deterministic assembly/runtime-config,
+behavior, named-action, capability, assembly, source-map, and read-only block
+projection artifacts. Source paths are project-relative. Projection keeps
+unsupported C# opaque, filters Raw/Internal APIs using the verified package
+surface, and never rewrites C#.
+
+`test_starter_arena_conformance.py` runs project validation, lock verification,
+content compilation, package metadata generation, and the worker twice in clean
+roots and compares canonical bytes. Focused CLI tests additionally prove
+mid-operation cancellation, stale-result suppression, corrupt inputs, missing
+scene actions, invalid schemas, and publish failures.
 
 SagaWeaver MVP outputs:
 

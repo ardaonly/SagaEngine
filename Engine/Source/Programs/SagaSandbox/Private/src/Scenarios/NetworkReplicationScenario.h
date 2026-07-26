@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file NetworkReplicationScenario.h
 /// @brief In-process server+client replication stress scenario.
 ///

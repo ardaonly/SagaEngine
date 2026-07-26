@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DeterministicScenarioRuntimeAdapter.h
 /// @brief Local deterministic adapter for running EditorLab scenarios without EditorHost.
 

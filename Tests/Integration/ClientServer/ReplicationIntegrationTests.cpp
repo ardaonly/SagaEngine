@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ReplicationIntegrationTests.cpp
 /// @brief Integration tests for end-to-end client-server replication and multi-client sync.
 ///

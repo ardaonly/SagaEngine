@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 # --- Tools/SagaForge/cmake/modules/SagaTargets.cmake -------------------------
 
 macro(saga_collect_sources out_var dir)
@@ -50,7 +51,8 @@ function(saga_create_engine_targets)
     saga_collect_sources(MULTIPLAYER_SANDBOX_HEADLESS_SOURCES Samples/MultiplayerSandbox/Source/Headless)
     saga_get_registered_sources(SagaDiligentRuntime SAGA_DILIGENT_RUNTIME_SOURCES)
     saga_get_registered_sources(SagaPlatformSDL SAGA_PLATFORM_SDL_SOURCES)
-    saga_get_registered_sources(SagaBackend BACKEND_SOURCES)
+    saga_get_registered_sources(SagaUiBackend UI_BACKEND_SOURCES)
+    saga_get_registered_sources(SagaPersistenceBackend PERSISTENCE_BACKEND_SOURCES)
     saga_get_registered_sources(SagaSandboxLib SANDBOX_SOURCES)
     saga_get_registered_sources(SagaEditorLabLib EDITORLAB_SOURCES)
     saga_get_registered_sources(SagaCoreLog CORE_LOG_SOURCES)
@@ -431,24 +433,34 @@ function(saga_create_engine_targets)
         FOLDER "Tools/MultiplayerSandboxHeadless"
     )
 
-    # --- Backend Library -----------------------------------------------------
-    add_library(SagaBackend STATIC)
-    saga_apply_compiler_flags(SagaBackend)
-    saga_link_rmlui(SagaBackend)
+    # --- UI Backend Library --------------------------------------------------
+    add_library(SagaUiBackend STATIC)
+    saga_apply_compiler_flags(SagaUiBackend)
+    saga_link_rmlui(SagaUiBackend)
+    target_link_libraries(SagaUiBackend PRIVATE
+        SagaEngine
+    )
+    target_sources(SagaUiBackend PRIVATE
+        ${UI_BACKEND_SOURCES}
+    )
+    target_include_directories(SagaUiBackend PUBLIC
+        $<BUILD_INTERFACE:${SAGA_ROOT}/Engine/Source/Runtime/UI/Public>
+        $<INSTALL_INTERFACE:include>
+    )
 
-    target_link_libraries(SagaBackend PRIVATE
+    # --- Persistence Backend Library -----------------------------------------
+    add_library(SagaPersistenceBackend STATIC)
+    saga_apply_compiler_flags(SagaPersistenceBackend)
+    target_link_libraries(SagaPersistenceBackend PRIVATE
         SagaEngine
         libpqxx::pqxx
         redis++::redis++_static
     )
-
-    target_sources(SagaBackend PRIVATE
-        ${BACKEND_SOURCES}
+    target_sources(SagaPersistenceBackend PRIVATE
+        ${PERSISTENCE_BACKEND_SOURCES}
     )
-
-    target_include_directories(SagaBackend PUBLIC
+    target_include_directories(SagaPersistenceBackend PUBLIC
         $<BUILD_INTERFACE:${SAGA_ROOT}/Engine/Source/Runtime/Persistence/Public>
-        $<BUILD_INTERFACE:${SAGA_ROOT}/Engine/Source/Runtime/UI/Public>
         $<INSTALL_INTERFACE:include>
     )
 
@@ -462,7 +474,6 @@ function(saga_create_engine_targets)
         SagaDiligentBackend
         SagaRuntimeLib
         SagaServerLib
-        SagaBackend
     )
 
     target_link_libraries(SagaSandboxLib PRIVATE
@@ -494,6 +505,7 @@ function(saga_create_engine_targets)
         ${SAGA_ROOT}/Engine/Source/Editor/EditorCore/Public
         ${SAGA_ROOT}/Engine/Source/Editor/EditorFramework/Public
         ${SAGA_ROOT}/Engine/Source/Editor/EditorQt/Public
+        ${SAGA_ROOT}/Engine/Source/Editor/EditorQtRender/Public
         ${SAGA_ROOT}/Engine/Source/Editor/EditorAuthoring/Public
         ${SAGA_ROOT}/Engine/Source/Editor/VisualBlocksEditor/Public
         ${SAGA_ROOT}/Engine/Source/Editor/EditorCollaboration/Public
@@ -508,7 +520,8 @@ function(saga_create_engine_targets)
     target_link_libraries(SagaEditorLib PRIVATE
         SagaShared
         SagaCollaboration
-        SagaBackend
+        SagaDiligentRuntime
+        SagaRuntimeLib
         OpenSSL::Crypto
     )
 
@@ -569,7 +582,6 @@ function(saga_create_engine_targets)
 
     target_link_libraries(SagaProductLib PRIVATE
         SagaAssetPipelineLib
-        SagaBackend
         OpenSSL::Crypto
     )
 
@@ -625,37 +637,57 @@ function(saga_create_engine_targets)
     )
 
     saga_get_registered_sources(SagaRuntime SAGA_RUNTIME_PROGRAM_SOURCES)
-    add_executable(SagaRuntime
-        ${SAGA_RUNTIME_PROGRAM_SOURCES}
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSmoke.h
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSmoke.cpp
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSmokeReport.h
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSmokeReport.cpp
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSmokeScript.h
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSmokeScript.cpp
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSimulation.h
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaSimulation.cpp
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaGameplayState.h
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaGameplayState.cpp
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaInput.h
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaInput.cpp
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaPlayable.h
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaPlayable.cpp
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaPlayableScene.h
-        ${SAGA_ROOT}/Samples/StarterArena/Source/StarterArenaPlayableScene.cpp
-    )
-    target_include_directories(SagaRuntime PRIVATE ${SAGA_ROOT}/Samples/StarterArena/Source)
 
-    target_compile_definitions(SagaRuntime PRIVATE SDL_MAIN_HANDLED)
+    # Runtime orchestration is app-private, but it is shared by the runtime
+    # executable and behavior/unit tests. Compile it once under a single owner
+    # instead of re-listing implementation .cpp files in each consumer.
+    set(SAGA_RUNTIME_APP_PRIVATE_SOURCES)
+    set(SAGA_RUNTIME_EXECUTABLE_SOURCES)
+    foreach(SAGA_RUNTIME_PROGRAM_SOURCE IN LISTS SAGA_RUNTIME_PROGRAM_SOURCES)
+        if(SAGA_RUNTIME_PROGRAM_SOURCE MATCHES
+           "/Runtime(Host|LaunchSession|ArtifactSession|RenderSession|ScriptSession|EvidenceSession|FrameLoop|StateStore|UiPromptController|UiSession)\\.(cpp|h)$")
+            list(APPEND SAGA_RUNTIME_APP_PRIVATE_SOURCES
+                "${SAGA_RUNTIME_PROGRAM_SOURCE}")
+        else()
+            list(APPEND SAGA_RUNTIME_EXECUTABLE_SOURCES
+                "${SAGA_RUNTIME_PROGRAM_SOURCE}")
+        endif()
+    endforeach()
+
+    list(LENGTH SAGA_RUNTIME_APP_PRIVATE_SOURCES
+         SAGA_RUNTIME_APP_PRIVATE_SOURCE_COUNT)
+    if(NOT SAGA_RUNTIME_APP_PRIVATE_SOURCE_COUNT EQUAL 20)
+        message(FATAL_ERROR
+            "SagaRuntimeAppLib expected 20 app-private orchestration sources, "
+            "but found ${SAGA_RUNTIME_APP_PRIVATE_SOURCE_COUNT}. "
+            "Update the ownership filter when Runtime orchestration changes.")
+    endif()
+
+    add_library(SagaRuntimeAppLib STATIC
+        ${SAGA_RUNTIME_APP_PRIVATE_SOURCES}
+    )
+    saga_apply_compiler_flags(SagaRuntimeAppLib)
+    saga_link_thirdparty(SagaRuntimeAppLib)
+    target_include_directories(SagaRuntimeAppLib PUBLIC
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private
+    )
+    target_link_libraries(SagaRuntimeAppLib PUBLIC
+        SagaRuntimeLib
+        SagaEngine
+        SagaUiBackend
+        SagaDiligentRuntime
+        SagaPlatformSDL
+    )
+    set_target_properties(SagaRuntimeAppLib PROPERTIES
+        FOLDER "Programs/SagaRuntime"
+    )
+
+    add_executable(SagaRuntime ${SAGA_RUNTIME_EXECUTABLE_SOURCES})
 
     saga_apply_compiler_flags(SagaRuntime)
     saga_link_thirdparty(SagaRuntime)
     target_link_libraries(SagaRuntime PRIVATE
-        SagaRuntimeLib
-        SagaEngine
-        SagaDiligentBackend
-        SagaPlatformSDL
-        SagaBackend
+        SagaRuntimeAppLib
     )
 
     set_target_properties(SagaRuntime PROPERTIES
@@ -673,6 +705,7 @@ function(saga_create_engine_targets)
         ${SAGA_ROOT}/Engine/Source/Editor/EditorCore/Public
         ${SAGA_ROOT}/Engine/Source/Editor/EditorFramework/Public
         ${SAGA_ROOT}/Engine/Source/Editor/EditorQt/Public
+        ${SAGA_ROOT}/Engine/Source/Editor/EditorQtRender/Public
         ${SAGA_ROOT}/Engine/Source/Editor/EditorAuthoring/Public
         ${SAGA_ROOT}/Engine/Source/Editor/VisualBlocksEditor/Public
         ${SAGA_ROOT}/Engine/Source/Editor/EditorCollaboration/Public
@@ -829,11 +862,24 @@ function(saga_create_engine_targets)
     foreach(_saga_registered_target IN ITEMS
         SagaCoreLog SagaDiagnostics SagaCollaboration SagaEngine
         SagaPlatformSDL SagaDiligentRuntime SagaDiligentBackend SagaRuntimeLib
-        SagaServerLib SagaBackend SagaSandboxLib SagaEditorLib SagaEditorLabLib
+        SagaServerLib SagaUiBackend SagaPersistenceBackend SagaSandboxLib
+        SagaEditorLib SagaEditorLabLib
         SagaProductLib Saga SagaRuntime SagaEditor EditorLab SagaSandbox)
         if(TARGET ${_saga_registered_target})
             saga_apply_registered_usage(${_saga_registered_target})
         endif()
     endforeach()
+
+    file(GENERATE
+        OUTPUT "${CMAKE_BINARY_DIR}/generated/SagaBackendOwnership-$<CONFIG>.txt"
+        CONTENT
+"SagaUiBackend=$<TARGET_PROPERTY:SagaUiBackend,LINK_LIBRARIES>
+SagaPersistenceBackend=$<TARGET_PROPERTY:SagaPersistenceBackend,LINK_LIBRARIES>
+SagaRuntimeAppLib=$<TARGET_PROPERTY:SagaRuntimeAppLib,LINK_LIBRARIES>
+SagaRuntime=$<TARGET_PROPERTY:SagaRuntime,LINK_LIBRARIES>
+SagaSandboxLib=$<TARGET_PROPERTY:SagaSandboxLib,LINK_LIBRARIES>
+SagaEditorLib=$<TARGET_PROPERTY:SagaEditorLib,LINK_LIBRARIES>
+SagaProductLib=$<TARGET_PROPERTY:SagaProductLib,LINK_LIBRARIES>
+")
 
 endfunction()

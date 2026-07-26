@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file VisibilityGraph.h
 /// @brief Uniform-grid spatial visibility graph for wide-area interest management.
 ///

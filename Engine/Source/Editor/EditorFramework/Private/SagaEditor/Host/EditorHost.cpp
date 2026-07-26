@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorHost.cpp
 /// @brief Central service registry for all editor subsystems.
 
@@ -16,6 +17,8 @@
 #include "SagaEditor/Diagnostics/EditorDiagnosticsService.h"
 #include "SagaEditor/Notifications/EditorNotificationCenter.h"
 #include "SagaEditor/Selection/SelectionManager.h"
+#include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
+#include "SagaEditor/Scripting/ScriptAnalysisCoordinator.h"
 #include "SagaEditor/Themes/ThemeRegistry.h"
 #include "SagaEditor/Persona/PersonaActivator.h"
 #include "SagaEditor/Persona/PersonaRegistry.h"
@@ -140,6 +143,8 @@ bool EditorHost::Init(std::unique_ptr<IEditorSettingsStore> settingsStore,
     m_shortcutManager   = std::make_unique<ShortcutManager>(*m_commandDispatcher);
     m_undoRedoStack     = std::make_unique<UndoRedoStack>();
     m_selectionManager  = std::make_unique<SelectionManager>();
+    m_documentWorkspace = std::make_unique<EditorDocumentWorkspace>();
+    m_scriptAnalysisCoordinator = std::make_unique<ScriptAnalysisCoordinator>();
     m_themeRegistry     = std::make_unique<ThemeRegistry>();
     m_personaRegistry   = std::make_unique<PersonaRegistry>();
     m_personaActivator  = std::make_unique<PersonaActivator>();
@@ -273,6 +278,8 @@ void EditorHost::Shutdown()
     m_personaRegistry.reset();
     m_themeRegistry.reset();
     m_selectionManager.reset();
+    m_documentWorkspace.reset();
+    m_scriptAnalysisCoordinator.reset();
     m_undoRedoStack.reset();
     m_shortcutManager.reset();
     m_commandPalette.reset();
@@ -288,6 +295,9 @@ CommandPalette&    EditorHost::GetCommandPalette()    noexcept { return *m_comma
 ShortcutManager&   EditorHost::GetShortcutManager()   noexcept { return *m_shortcutManager;   }
 UndoRedoStack&     EditorHost::GetUndoRedoStack()     noexcept { return *m_undoRedoStack;     }
 SelectionManager&  EditorHost::GetSelectionManager()  noexcept { return *m_selectionManager;  }
+EditorDocumentWorkspace& EditorHost::GetDocumentWorkspace() noexcept { return *m_documentWorkspace; }
+ScriptAnalysisCoordinator& EditorHost::GetScriptAnalysisCoordinator() noexcept
+{ return *m_scriptAnalysisCoordinator; }
 ThemeRegistry&     EditorHost::GetThemeRegistry()     noexcept { return *m_themeRegistry;     }
 PersonaRegistry&   EditorHost::GetPersonaRegistry()   noexcept { return *m_personaRegistry;   }
 PersonaActivator&  EditorHost::GetPersonaActivator()  noexcept { return *m_personaActivator;  }

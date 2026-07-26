@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ResourceType.hpp
 /// @brief Defines explicitly tracked diagnostics resource kinds.
 

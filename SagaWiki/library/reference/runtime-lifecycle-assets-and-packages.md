@@ -13,7 +13,7 @@ This reference describes how a SagaEngine runtime process is assembled, which pr
 
 `SagaRuntime` is the runtime composition owner. Domain behavior remains in the individual modules below `Engine/Source/Runtime`; the composition layer selects implementations, orders startup, wires dependencies, owns the process-level lifetime, and reports failure. It must not become a second implementation home for rendering, persistence, networking, scripting, or world behavior.
 
-Programs are thinner still. `Engine/Source/Programs/SagaRuntime` provides an executable entry point. It may parse arguments, resolve the selected project, construct runtime configuration, invoke composition, and translate a terminal result into a process exit code. Reusable startup policy belongs in the owning runtime module rather than in `main.cpp`.
+Programs are thinner still. `Engine/Source/Programs/SagaRuntime` provides an executable entry point. The Play path parses a local transport envelope, validates its canonical launch manifest and verified runtime artifacts, invokes composition, and translates a terminal result into a process exit code. It does not parse `.sagaproj`, `.sagascene`, input source, or C# source and does not resolve packages or compile scripts. Reusable startup policy belongs in the owning runtime module rather than in `main.cpp`.
 
 The same distinction applies to `SagaEditor`, `SagaSandbox`, and other programs that host a runtime view. A program can choose a bounded workflow, but it does not acquire ownership of the runtime modules it hosts.
 
@@ -32,6 +32,17 @@ Runtime startup should receive resolved, validated project data rather than sear
 
 A path present in JSON is not automatically trusted. Path normalization and project-boundary checks occur before the runtime treats it as a file. Absolute paths, traversal outside the project root, ambiguous aliases, and missing required inputs must produce deterministic validation failure rather than a fallback search.
 
+For current Editor Play, SagaRuntime receives no project source. A deterministic,
+machine-independent canonical launch manifest names logical artifact identities,
+hashes, package generation, RuntimeBridge ABI/hash, SagaScript source/reference
+identity, and required capabilities. Absolute paths exist only in the validated
+local launch envelope. Runtime loads the verified assembly, runtime config,
+assembly/behavior/named-action/capability manifests, scene, input, and cooked
+render artifacts. Capability grants come from the verified SagaScript manifest;
+scene requirements must be a subset. Script instances are identified by entity
+plus behavior type, and action dispatch resolves entity, behavior, and named
+action to that exact instance.
+
 ## Ordered startup
 
 The exact implementation can evolve, but the dependency order is stable:
@@ -44,6 +55,13 @@ The exact implementation can evolve, but the dependency order is stable:
 6. Initialize higher-level rendering, UI, scripting, simulation, networking, replication, persistence, world, or authority owners that the workflow enables.
 7. Load the declared startup artifacts through their owning loaders.
 8. Enter the runtime loop only after required owners report ready.
+
+Editor Play exposes readiness as an atomic schema-version-1 transport record.
+SagaRuntime publishes it after step 7 and after graphical input/renderer
+initialization when those services apply. The record carries the play session
+and canonical launch-manifest hash; it is transport state, not project truth.
+Process creation alone, a zero exit code, or a file from an older session is not
+startup success.
 
 Optional modules are not silently treated as successful merely because they were not built or configured. Configuration distinguishes not requested, available, and requested-but-unavailable states where that distinction matters. A headless or test workflow may intentionally omit graphics; a graphical workflow must not reinterpret a graphics startup failure as a headless request.
 

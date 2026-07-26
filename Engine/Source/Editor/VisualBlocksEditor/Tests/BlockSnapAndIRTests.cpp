@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file BlockSnapAndIRTests.cpp
 /// @brief GoogleTest coverage for snap rules, IR primitives, and the lowerer.
 

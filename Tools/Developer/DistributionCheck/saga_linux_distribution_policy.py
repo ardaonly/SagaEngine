@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+# SPDX-License-Identifier: MPL-2.0
 """Canonical whitelist policy for the default Linux Saga candidate package."""
 
 from __future__ import annotations

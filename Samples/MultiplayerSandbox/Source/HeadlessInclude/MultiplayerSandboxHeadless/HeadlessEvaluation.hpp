@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
 
 /// @file HeadlessEvaluation.hpp
 /// @brief Bounded server-side MultiplayerSandbox headless evaluation proof.
@@ -24,7 +24,6 @@ struct HeadlessEvaluationOptions
     std::filesystem::path projectPath;
     std::filesystem::path reportOut;
     std::filesystem::path diagnosticsOut;
-    bool starterArenaServerSmoke{false};
     int ticks{1};
     float fixedDtSeconds{1.0f};
 };

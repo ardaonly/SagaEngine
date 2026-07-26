@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file Hardware.h
 /// @brief Hardware resource detection (CPU, RAM) for build scheduling.
 

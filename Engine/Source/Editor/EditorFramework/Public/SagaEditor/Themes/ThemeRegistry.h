@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ThemeRegistry.h
 /// @brief Registry and runtime applicator for editor themes.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file BlockSnapRules.cpp
 /// @brief Implementation of the block-canvas snap-rule predicate.
 

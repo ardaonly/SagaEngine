@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file StreamingRequest.h
 /// @brief Asynchronous asset streaming request and result contract.
 ///

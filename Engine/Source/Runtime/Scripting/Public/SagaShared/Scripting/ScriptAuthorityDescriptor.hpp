@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScriptAuthorityDescriptor.hpp
 /// @brief Shared SagaScript authority and side-effect contract.
 

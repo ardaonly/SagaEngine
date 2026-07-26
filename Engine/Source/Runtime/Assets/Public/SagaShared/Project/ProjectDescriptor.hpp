@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ProjectDescriptor.hpp
 /// @brief Neutral project descriptor shared by product, editor, runtime, and tools.
 

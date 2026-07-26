@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentBindingCache.cpp
 /// @brief Private native Diligent SRB cache for Saga binding sets.
 

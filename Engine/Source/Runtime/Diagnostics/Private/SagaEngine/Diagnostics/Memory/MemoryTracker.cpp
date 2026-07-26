@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file MemoryTracker.cpp
 /// @brief Implements explicit diagnostics memory tracking.
 

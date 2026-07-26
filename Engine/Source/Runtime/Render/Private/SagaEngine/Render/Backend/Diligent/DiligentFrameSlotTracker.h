@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentFrameSlotTracker.h
 /// @brief Private frame-slot ownership contract for Diligent renderer resources.
 

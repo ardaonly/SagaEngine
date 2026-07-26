@@ -1,5 +1,7 @@
+// SPDX-License-Identifier: MPL-2.0
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <filesystem>
@@ -399,7 +401,7 @@ TEST(PublicPrivateBoundaryTests, RuntimeAndEditorPublicHeadersDoNotIncludePrivat
         << (offenders.empty() ? "" : offenders.front().generic_string());
 }
 
-TEST(PublicPrivateBoundaryTests, VisualBlocksPublicSurfaceContainsOnlyBlocksContracts)
+TEST(PublicPrivateBoundaryTests, VisualBlocksPublicSurfaceContainsOnlyAuthoringAndReadOnlyProjectionContracts)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT) /
         "Engine/Source/Editor/VisualBlocksEditor";
@@ -417,7 +419,8 @@ TEST(PublicPrivateBoundaryTests, VisualBlocksPublicSurfaceContainsOnlyBlocksCont
         const auto relative =
             std::filesystem::relative(entry.path(), publicVisualBlocks);
         ASSERT_FALSE(relative.empty());
-        EXPECT_EQ((*relative.begin()).string(), "Blocks") << entry.path();
+        EXPECT_TRUE((*relative.begin()).string() == "Blocks" ||
+            relative == "ReadOnlyScriptProjection.h") << entry.path();
     }
 
     for (const auto& entry :
@@ -430,13 +433,16 @@ TEST(PublicPrivateBoundaryTests, VisualBlocksPublicSurfaceContainsOnlyBlocksCont
         const auto relative =
             std::filesystem::relative(entry.path(), privateVisualBlocks);
         ASSERT_FALSE(relative.empty());
-        EXPECT_EQ((*relative.begin()).string(), "Blocks") << entry.path();
+        EXPECT_TRUE((*relative.begin()).string() == "Blocks" ||
+            relative == "ReadOnlyScriptProjection.cpp") << entry.path();
     }
 
     EXPECT_TRUE(std::filesystem::is_regular_file(
         publicVisualBlocks / "Blocks/BlockDefinition.h"));
     EXPECT_TRUE(std::filesystem::is_regular_file(
         publicVisualBlocks / "Blocks/BlockToIRLowerer.h"));
+    EXPECT_TRUE(std::filesystem::is_regular_file(
+        publicVisualBlocks / "ReadOnlyScriptProjection.h"));
 }
 
 TEST(PublicPrivateBoundaryTests, LegacyCollaborationSurfaceStaysAbsent)
@@ -555,14 +561,25 @@ TEST(PublicPrivateBoundaryTests, UnregisteredPlaceholderPanelsStayAbsent)
 
 TEST(PublicPrivateBoundaryTests, PublicHeadersDoNotExposeImplementationVendorTypes)
 {
+    const std::array typedWidgetContracts = {
+        "/Editor/EditorFramework/Public/SagaEditor/Panels/",
+        "/Editor/EditorFramework/Public/SagaEditor/UI/IUIMainWindow.h",
+    };
     std::vector<std::string> offenders;
     for (const auto& header : PublicHeaders())
     {
         const auto path = header.generic_string();
         const bool editorQtOwner =
             path.find("/Editor/EditorQt/Public/") != std::string::npos;
+        const bool typedWidgetContract = std::any_of(
+            typedWidgetContracts.begin(), typedWidgetContracts.end(),
+            [&](const auto* owner)
+            {
+                return path.find(owner) != std::string::npos;
+            });
         const auto commentsRemoved = StripComments(ReadText(header));
-        const auto token = FindVendorExposure(commentsRemoved, editorQtOwner);
+        const auto token = FindVendorExposure(
+            commentsRemoved, editorQtOwner || typedWidgetContract);
         if (!token.empty())
         {
             offenders.push_back(path + ": " + token);

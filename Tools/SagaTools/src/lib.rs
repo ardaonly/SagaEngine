@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file lib.rs
 /// @brief SagaTools Rust Library - thin dispatcher library
 pub mod registry;

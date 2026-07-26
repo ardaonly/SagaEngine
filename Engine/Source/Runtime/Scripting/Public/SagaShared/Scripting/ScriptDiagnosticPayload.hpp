@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScriptDiagnosticPayload.hpp
 /// @brief Shared SagaScript diagnostic payload contract.
 

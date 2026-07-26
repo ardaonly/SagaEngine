@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file UseItem.h
 /// @brief Use a consumable, scroll, or otherwise "activate" an inventory item.
 ///

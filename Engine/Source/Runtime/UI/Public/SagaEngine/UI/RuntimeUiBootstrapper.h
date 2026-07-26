@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeUiBootstrapper.h
 /// @brief Backend-neutral runtime UI bootstrap and frame pump.
 

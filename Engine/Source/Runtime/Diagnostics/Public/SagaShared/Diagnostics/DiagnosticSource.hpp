@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiagnosticSource.hpp
 /// @brief Shared diagnostic producer vocabulary.
 

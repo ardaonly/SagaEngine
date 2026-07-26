@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SimCell_SpatialLogic.cpp
 /// @brief SimCell spatial partitioning logic: ShouldSplit/ShouldMerge implementations.
 ///

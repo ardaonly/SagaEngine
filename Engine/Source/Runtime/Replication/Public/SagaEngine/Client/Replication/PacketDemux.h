@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PacketDemux.h
 /// @brief Network-to-pipeline bridge: demuxes replication packets.
 ///

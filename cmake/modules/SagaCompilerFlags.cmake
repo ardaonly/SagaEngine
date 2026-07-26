@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 function(saga_apply_compiler_flags target_name)
     target_compile_features(${target_name} PUBLIC cxx_std_20)
     

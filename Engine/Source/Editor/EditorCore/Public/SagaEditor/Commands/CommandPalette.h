@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CommandPalette.h
 /// @brief Searchable command palette — Ctrl+Shift+P to open.
 

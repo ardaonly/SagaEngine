@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file LODManager.cpp
 /// @brief Distance- and pressure-driven LOD selection logic.
 

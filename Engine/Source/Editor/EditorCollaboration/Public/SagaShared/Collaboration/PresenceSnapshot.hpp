@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PresenceSnapshot.hpp
 /// @brief Presence snapshot contract for collaborative authoring.
 

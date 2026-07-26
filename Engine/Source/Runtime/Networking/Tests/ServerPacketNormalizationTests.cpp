@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ServerPacketNormalizationTests.cpp
 /// @brief Tests for ServerConnection frame normalization.
 

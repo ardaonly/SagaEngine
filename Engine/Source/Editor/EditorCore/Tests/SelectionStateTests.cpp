@@ -1,8 +1,10 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SelectionStateTests.cpp
 /// @brief Unit tests for editor selection filtering and history helpers.
 
 #include "SagaEditor/Selection/SelectionFilter.h"
 #include "SagaEditor/Selection/SelectionHistory.h"
+#include "SagaEditor/Selection/SelectionManager.h"
 
 #include <gtest/gtest.h>
 
@@ -93,6 +95,18 @@ TEST(EditorSelectionHistoryTest, DuplicateCurrentSelectionDoesNotCreateEntry)
     EXPECT_FALSE(history.CanGoBack());
     EXPECT_FALSE(history.CanGoForward());
     EXPECT_EQ(history.GoBack(), (std::vector<SelectableId>{1, 2}));
+}
+
+TEST(EditorSelectionManagerTest, SubscriptionCanBeDetachedBeforePanelDestruction)
+{
+    SagaEditor::SelectionManager manager;
+    int calls = 0;
+    const auto subscription = manager.Subscribe(
+        [&calls](const auto&) { ++calls; });
+    manager.SetSelection(42);
+    manager.Unsubscribe(subscription);
+    manager.SetSelection(43);
+    EXPECT_EQ(calls, 1);
 }
 
 } // namespace

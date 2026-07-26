@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file MaterialGraphContract.h
 /// @brief Renderer-facing material graph output schema.
 

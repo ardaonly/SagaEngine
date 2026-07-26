@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "SagaEditor/Authoring/DiagnosticsPanelView.h"
 #include "SagaEditor/Authoring/EditorShellCustomizationReport.h"
 #include "SagaEditor/Authoring/ProjectBrowserWorkflowView.h"
@@ -9,6 +10,7 @@
 #include "SagaEditor/Authoring/ScriptPatchReviewWorkflowView.h"
 #include "SagaEditor/Authoring/ProjectReadinessView.h"
 #include "SagaEditor/Authoring/ViewNavigationWorkflowState.h"
+#include "TestSourceRoot.h"
 
 #include <gtest/gtest.h>
 
@@ -18,7 +20,6 @@
 #include <fstream>
 #include <iterator>
 #include <string>
-
 namespace
 {
 
@@ -619,7 +620,7 @@ TEST(EditorAuthoringSpineTests, ProjectBrowserListsWorkflowSectionsReadOnly)
 
 TEST(EditorAuthoringSpineTests, StarterArenaLoadsMinimumEditorShellWorkflowReadOnly)
 {
-    const fs::path manifest = fs::path(SAGA_SOURCE_ROOT) /
+    const fs::path manifest = TestSourceRoot() /
         "Samples" / "StarterArena" / "StarterArena.sagaproj";
 
     ProjectReadinessView project =
@@ -628,7 +629,7 @@ TEST(EditorAuthoringSpineTests, StarterArenaLoadsMinimumEditorShellWorkflowReadO
         LoadProjectBrowserWorkflowView(manifest);
 
     ASSERT_TRUE(project.ok);
-    EXPECT_EQ(project.projectId, "starter-arena");
+    EXPECT_EQ(project.projectId, "7c291959-9f45-4ec1-bf94-dc75e30bb1a8");
     EXPECT_EQ(project.displayName, "StarterArena");
     EXPECT_EQ(project.manifestPath.filename(), "StarterArena.sagaproj");
     EXPECT_EQ(project.diagnosticsPath.filename(), "Diagnostics");
@@ -667,19 +668,20 @@ TEST(EditorAuthoringSpineTests, StarterArenaLoadsMinimumEditorShellWorkflowReadO
                                    "Editor.ProjectBrowser.PackageProfilesMissing";
                            }),
               browser.diagnostics.end());
-    EXPECT_NE(std::find_if(browser.diagnostics.begin(),
-                           browser.diagnostics.end(),
-                           [](const AuthoringDiagnostic& diagnostic)
+    EXPECT_NE(std::find_if(browser.sections.begin(),
+                           browser.sections.end(),
+                           [](const ProjectBrowserSectionView& section)
                            {
-                               return diagnostic.code ==
-                                   "Editor.ProjectBrowser.AssetRootMissing";
+                               return section.name == "Assets" &&
+                                   section.exists &&
+                                   section.status == "Ready";
                            }),
-              browser.diagnostics.end());
+              browser.sections.end());
 }
 
 TEST(EditorAuthoringSpineTests, StarterArenaCustomizationReportUsesProjectReadinessDefault)
 {
-    const fs::path manifest = fs::path(SAGA_SOURCE_ROOT) /
+    const fs::path manifest = TestSourceRoot() /
         "Samples" / "StarterArena" / "StarterArena.sagaproj";
     const auto beforeWriteTime = fs::last_write_time(manifest);
 
@@ -715,7 +717,7 @@ TEST(EditorAuthoringSpineTests, StarterArenaCustomizationReportUsesProjectReadin
 
 TEST(EditorAuthoringSpineTests, StarterArenaCustomizationReportUsesScriptAuthoringAlias)
 {
-    const fs::path manifest = fs::path(SAGA_SOURCE_ROOT) /
+    const fs::path manifest = TestSourceRoot() /
         "Samples" / "StarterArena" / "StarterArena.sagaproj";
     const auto beforeWriteTime = fs::last_write_time(manifest);
 

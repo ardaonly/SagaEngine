@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file resolver.rs
 /// @brief Native path and environment resolution for registered tools.
 

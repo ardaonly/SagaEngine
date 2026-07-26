@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 using System.Text.Json.Serialization;
 
 namespace SagaProjectKit;
@@ -12,6 +13,7 @@ internal sealed class SagaProjectDescriptor
     public List<ProjectPathReference> Scenes { get; init; } = [];
     public List<ProjectPathReference> Assets { get; init; } = [];
     public List<ProjectPathReference> ScriptFolders { get; init; } = [];
+    public List<ProjectPathReference> UiDocuments { get; init; } = [];
     public List<ProjectPathReference> LaunchProfiles { get; init; } = [];
     public List<ProjectPathReference> PackageProfiles { get; init; } = [];
 }
@@ -92,6 +94,7 @@ internal sealed class ProjectSummary
     public string DisplayName { get; init; } = "";
     public string ProjectRoot { get; init; } = "";
     public string ManifestPath { get; init; } = "";
+    public string EngineTargetVersion { get; init; } = "";
     public int SchemaVersion { get; init; }
 }
 

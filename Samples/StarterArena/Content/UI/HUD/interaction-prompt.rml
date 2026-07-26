@@ -1,0 +1,14 @@
+<!--
+SPDX-License-Identifier: MIT
+-->
+<rml>
+<head>
+  <title>Starter Arena HUD</title>
+  <link type="text/rcss" href="interaction-prompt.rcss"/>
+</head>
+<body>
+  <div class="prompt-anchor">
+    <div id="interaction-prompt" class="interaction-prompt">[E] Open Door</div>
+  </div>
+</body>
+</rml>

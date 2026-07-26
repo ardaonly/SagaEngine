@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file BlockScript.cpp
 /// @brief Owning container for instances + stacks of a single block program.
 

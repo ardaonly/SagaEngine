@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScriptLifecycleServiceTests.cpp
 /// @brief Unit tests for editor-independent SagaScript lifecycle hosting.
 

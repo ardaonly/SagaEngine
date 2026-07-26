@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Prediction.cpp
 /// @brief Server-side client prediction bookkeeping implementation.
 ///

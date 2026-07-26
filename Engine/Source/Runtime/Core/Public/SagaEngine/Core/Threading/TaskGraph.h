@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file TaskGraph.h
 /// @brief Dependency-aware task scheduler built on top of the JobSystem.
 ///

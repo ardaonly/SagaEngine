@@ -1,0 +1,26 @@
+{
+  "assetId": "starter-arena.ground",
+  "geometry": {
+    "dimensions": [
+      12,
+      12
+    ],
+    "shape": "plane"
+  },
+  "kind": "primitive",
+  "material": {
+    "baseColor": [
+      0.18,
+      0.2,
+      0.22,
+      1
+    ],
+    "shaderDependency": "renderer.solid"
+  },
+  "provenance": {
+    "author": "SagaEngine contributors",
+    "license": "MIT",
+    "origin": "SagaEngine StarterArena template"
+  },
+  "schemaVersion": 1
+}

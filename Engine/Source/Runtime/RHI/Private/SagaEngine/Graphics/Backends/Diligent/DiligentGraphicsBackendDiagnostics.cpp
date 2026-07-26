@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentGraphicsBackendDiagnostics.cpp
 /// @brief Diagnostics, queries, and testing native resolves for the Diligent graphics adapter.
 

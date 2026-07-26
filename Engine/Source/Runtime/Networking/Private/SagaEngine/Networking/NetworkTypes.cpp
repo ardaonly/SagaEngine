@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file NetworkTypes.cpp
 /// @brief Formatting helpers for neutral networking contracts.
 

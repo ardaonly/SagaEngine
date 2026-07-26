@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file HealthRule.cpp
 /// @brief Implements stable health rule string conversions.
 

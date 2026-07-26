@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Boundary.h
 /// @brief Apron descriptor — the interior / exterior ring of a cell.
 ///

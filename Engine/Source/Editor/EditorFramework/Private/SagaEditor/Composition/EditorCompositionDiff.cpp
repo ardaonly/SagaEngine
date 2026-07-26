@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorCompositionDiff.cpp
 /// @brief Structural diff implementation for compiled editor composition artifacts.
 

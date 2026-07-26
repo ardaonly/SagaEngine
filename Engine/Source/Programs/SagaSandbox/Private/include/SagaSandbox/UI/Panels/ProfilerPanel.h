@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ProfilerPanel.h
 /// @brief HUD panel displaying Profiler sample table.
 ///

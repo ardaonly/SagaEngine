@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SchemaVersion.h
 /// @brief Versioning metadata for snapshot / RPC wire schemas.
 ///

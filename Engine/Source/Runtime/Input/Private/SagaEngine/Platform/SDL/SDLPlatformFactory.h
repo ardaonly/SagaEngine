@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SDLPlatformFactory.h
 /// @brief SDL2-backed concrete implementation of PlatformFactory.
 

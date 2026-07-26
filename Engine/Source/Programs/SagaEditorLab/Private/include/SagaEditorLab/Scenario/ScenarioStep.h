@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScenarioStep.h
 /// @brief One step inside an EditorLab scenario — pure data, no editor dep.
 ///

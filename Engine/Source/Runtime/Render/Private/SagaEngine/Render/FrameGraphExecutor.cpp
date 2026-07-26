@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file FrameGraphExecutor.cpp
 /// @brief Walks the compiled pass list and invokes each execute callback.
 

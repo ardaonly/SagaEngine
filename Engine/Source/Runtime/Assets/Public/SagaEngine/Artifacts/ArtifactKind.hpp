@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ArtifactKind.hpp
 /// @brief Defines runtime-consumable artifact manifest kind tags.
 

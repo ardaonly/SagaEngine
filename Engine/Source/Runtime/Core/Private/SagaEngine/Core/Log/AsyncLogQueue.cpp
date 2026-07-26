@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AsyncLogQueue.cpp
 /// @brief SPSC ring implementation for the async logging pipeline.
 

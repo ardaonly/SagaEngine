@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file UiActionDispatcher.cpp
 /// @brief Default backend-neutral UI action binding implementation.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file VirtualFileSystemTests.cpp
 /// @brief Unit tests for runtime virtual content path access.
 

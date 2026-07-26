@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file main.cpp
 /// @brief Standalone EditorLab entry point for scenario runner experiments.
 

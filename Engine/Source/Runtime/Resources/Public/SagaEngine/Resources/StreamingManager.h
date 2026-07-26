@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file StreamingManager.h
 /// @brief Priority-ordered asset streaming orchestrator with worker pool.
 ///

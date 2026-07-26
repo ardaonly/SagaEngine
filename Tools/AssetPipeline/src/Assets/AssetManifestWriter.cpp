@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AssetManifestWriter.cpp
 /// @brief Implements Runtime-compatible asset manifest writing.
 

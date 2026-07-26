@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file InputProbeLauncher.cpp
 /// @brief Focused launcher: opens the sandbox with InputProbeScenario pre-selected.
 ///

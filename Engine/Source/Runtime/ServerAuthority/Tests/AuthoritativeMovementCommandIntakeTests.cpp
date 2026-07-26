@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AuthoritativeMovementCommandIntakeTests.cpp
 /// @brief Unit tests for normalized authoritative movement command intake.
 

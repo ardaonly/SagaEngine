@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CollaborationBackend.hpp
 /// @brief Backend adapter boundary for collaboration persistence and transport.
 

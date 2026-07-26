@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 saga_add_editor_module(EditorFramework
     MODULE_DIR Engine/Source/Editor/EditorFramework
     TARGET SagaEditorLib
@@ -23,12 +24,8 @@ saga_add_editor_module(EditorFramework
         Private/SagaEditor/Customization/WorkspaceCustomizationOverlayStore.cpp
         Private/SagaEditor/Customization/WorkspaceCustomizationPanelViewModel.cpp
         Private/SagaEditor/Customization/WorkspaceCustomizationSession.cpp
-        Private/SagaEditor/Docking/DockLayoutManager.cpp
-        Private/SagaEditor/Docking/DockWorkspace.cpp
         Private/SagaEditor/Host/EditorApp.cpp
-        Private/SagaEditor/Host/EditorApplicationRunner.cpp
         Private/SagaEditor/Host/EditorHost.cpp
-        Private/SagaEditor/Layouts/LayoutSerializer.cpp
         Private/SagaEditor/Notifications/EditorNotificationCenter.cpp
         Private/SagaEditor/Persona/BlockVisualStyle.cpp
         Private/SagaEditor/Persona/DensityProfile.cpp
@@ -40,14 +37,12 @@ saga_add_editor_module(EditorFramework
         Private/SagaEditor/Profile/EditorProfileActivator.cpp
         Private/SagaEditor/Profile/EditorProfileRegistry.cpp
         Private/SagaEditor/Profile/EditorProfileSettingsBinding.cpp
+        Private/SagaEditor/Project/EditorProjectWorkflowController.cpp
         Private/SagaEditor/Shell/EditorMode.cpp
         Private/SagaEditor/Shell/EditorShell.cpp
+        Private/SagaEditor/Shell/EditorShellPanelLifecycle.cpp
         Private/SagaEditor/Shell/ShellCommands.cpp
-        Private/SagaEditor/Shell/ShellWindow.cpp
         Private/SagaEditor/Themes/ColorPalette.cpp
-        Private/SagaEditor/Toolbars/GraphToolbar.cpp
-        Private/SagaEditor/Toolbars/MainToolbar.cpp
-        Private/SagaEditor/Toolbars/ViewportToolbar.cpp
         Public/SagaEditor/Composition/EditorCompositionArtifact.h
         Public/SagaEditor/Composition/EditorCompositionArtifactLoader.h
         Public/SagaEditor/Composition/EditorCompositionDiagnostics.h
@@ -74,17 +69,10 @@ saga_add_editor_module(EditorFramework
         Public/SagaEditor/Customization/WorkspaceCustomizationOverlayStore.h
         Public/SagaEditor/Customization/WorkspaceCustomizationPanelViewModel.h
         Public/SagaEditor/Customization/WorkspaceCustomizationSession.h
-        Public/SagaEditor/Docking/DockLayoutManager.h
-        Public/SagaEditor/Docking/DockTab.h
-        Public/SagaEditor/Docking/DockWorkspace.h
         Public/SagaEditor/Host/EditorApp.h
-        Public/SagaEditor/Host/EditorApplicationRunner.h
         Public/SagaEditor/Host/EditorHost.h
         Public/SagaEditor/Host/EditorProjectInspection.h
         Public/SagaEditor/Host/EditorWorkspaceDefinition.h
-        Public/SagaEditor/Layouts/LayoutPreset.h
-        Public/SagaEditor/Layouts/LayoutSerializer.h
-        Public/SagaEditor/Layouts/WorkspacePreset.h
         Public/SagaEditor/Localization/EditorLocale.h
         Public/SagaEditor/Localization/LocalizedStringTable.h
         Public/SagaEditor/Localization/TranslationCatalog.h
@@ -98,6 +86,7 @@ saga_add_editor_module(EditorFramework
         Public/SagaEditor/Panels/ProblemsPanel.h
         Public/SagaEditor/Panels/ProductionDashboardPanel.h
         Public/SagaEditor/Panels/ShortcutPreferencesPanel.h
+        Public/SagaEditor/Panels/ScriptingPanel.h
         Public/SagaEditor/Panels/WorldViewportPanel.h
         Public/SagaEditor/Persona/BlockVisualStyle.h
         Public/SagaEditor/Persona/DensityProfile.h
@@ -109,21 +98,15 @@ saga_add_editor_module(EditorFramework
         Public/SagaEditor/Profile/EditorProfileActivator.h
         Public/SagaEditor/Profile/EditorProfileRegistry.h
         Public/SagaEditor/Profile/EditorProfileSettingsBinding.h
+        Public/SagaEditor/Project/EditorProjectWorkflowController.h
         Public/SagaEditor/Shell/EditorMode.h
         Public/SagaEditor/Shell/EditorShell.h
         Public/SagaEditor/Shell/ShellCommands.h
         Public/SagaEditor/Shell/ShellLayout.h
-        Public/SagaEditor/Shell/ShellWindow.h
         Public/SagaEditor/Themes/ColorPalette.h
         Public/SagaEditor/Themes/EditorTheme.h
         Public/SagaEditor/Themes/ThemeRegistry.h
-        Public/SagaEditor/Toolbars/GraphToolbar.h
-        Public/SagaEditor/Toolbars/MainToolbar.h
-        Public/SagaEditor/Toolbars/ViewportToolbar.h
-        Public/SagaEditor/UI/IUIApplication.h
-        Public/SagaEditor/UI/IUIFactory.h
         Public/SagaEditor/UI/IUIMainWindow.h
-        Public/SagaEditor/UI/IUIWidget.h
 )
 
 saga_register_module_tests(EditorFramework
@@ -136,6 +119,7 @@ saga_register_module_tests(EditorFramework
         Tests/EditorModeTests.cpp
         Tests/EditorNotificationTests.cpp
         Tests/EditorProductionTests.cpp
+        Tests/EditorProjectWorkflowControllerTests.cpp
         Tests/EditorProfileTests.cpp
         Tests/PersonaTests.cpp
         Tests/WorkspaceCustomizationTests.cpp

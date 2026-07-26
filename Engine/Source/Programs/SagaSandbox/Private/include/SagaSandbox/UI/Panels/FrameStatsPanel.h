@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file FrameStatsPanel.h
 /// @brief HUD panel displaying frame time, tick rate, and simulation stats.
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ArtifactStartupValidatorTests.cpp
 /// @brief Unit tests for runtime artifact startup acceptance policy.
 

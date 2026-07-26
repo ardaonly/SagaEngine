@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ProfilerPanel.cpp
 /// @brief Sandbox HUD profiler panel — sortable sample table.
 

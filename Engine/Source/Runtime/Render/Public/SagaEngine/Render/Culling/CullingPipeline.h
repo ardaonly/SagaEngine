@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CullingPipeline.h
 /// @brief Walks RenderWorld for one camera; emits a RenderView draw list.
 ///

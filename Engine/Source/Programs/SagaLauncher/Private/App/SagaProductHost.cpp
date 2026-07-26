@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaProductHost.cpp
 /// @brief Product host boundary implementation for Saga role targets.
 

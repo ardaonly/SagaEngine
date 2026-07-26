@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IEditorDiagnosticsService.h
 /// @brief Service contract for collecting and observing editor diagnostics.
 

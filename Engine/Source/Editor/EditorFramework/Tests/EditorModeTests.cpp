@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorModeTests.cpp
 /// @brief Unit tests for the mountable SagaEditor mode facade.
 
@@ -34,8 +35,7 @@ public:
     void Close() override
     {
         closed = true;
-        if (onClose)
-            onClose();
+        if (onClose && !onClose()) closed = false;
     }
 
     void SetTitle(const std::string& value) override { title = value; }
@@ -47,12 +47,11 @@ public:
 
     [[nodiscard]] int GetWidth() const noexcept override { return width; }
     [[nodiscard]] int GetHeight() const noexcept override { return height; }
-    [[nodiscard]] void* GetNativeHandle() const noexcept override { return nullptr; }
 
     void ApplyShellLayout(const ShellLayout&) override { ++layoutApplyCount; }
     void SetStatusMessage(const std::string& value) override { status = value; }
 
-    void DockPanel(void*,
+    void DockPanel(QWidget*,
                    const std::string& panelId,
                    const std::string&,
                    UIDockArea) override

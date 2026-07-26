@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaProcessService.h
 /// @brief Defines the typed Product Shell process execution contract.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ConnectionManagerTests.cpp
 /// @brief Unit tests for ConnectionManager lifecycle and query API.
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SDLInputBackend.cpp
 /// @brief SDL2/SDL3 implementation of IPlatformInputBackend.
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PackageManifestLoader.hpp
 /// @brief Loads and validates runtime package manifest files.
 

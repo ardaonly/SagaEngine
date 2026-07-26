@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file MemoryEditorSettingsStore.cpp
 /// @brief In-memory settings store used by tests and headless construction.
 

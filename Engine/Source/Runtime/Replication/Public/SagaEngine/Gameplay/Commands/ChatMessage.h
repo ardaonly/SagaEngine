@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ChatMessage.h
 /// @brief Player-originated chat message on a specific channel.
 ///

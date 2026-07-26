@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaLauncherFoundationTests.cpp
 /// @brief Focused Product Launcher foundation contracts.
 
@@ -175,9 +176,6 @@ TEST(SagaLauncherModelTest, ExactActionTokensRoundTrip)
     const std::vector<std::string> tokens = {"open-project",
                                              "validate-project",
                                              "open-editor",
-                                             "runtime-starter-arena-smoke",
-                                             "runtime-starter-arena-playable",
-                                             "first-playable-check",
                                              "refresh-reports",
                                              "view-sagascript-evidence",
                                              "view-visual-blocks-evidence",
@@ -312,13 +310,13 @@ TEST(SagaTargetResolverTest, ExposesExactBoundedAndUnsupportedTargets)
     SagaTargetResolver resolver{SagaExecutableCatalog(product)};
 
     const auto targets = resolver.ResolveTargets(project);
-    ASSERT_EQ(targets.size(), 11u);
+    ASSERT_EQ(targets.size(), 8u);
     EXPECT_EQ(targets[0].targetKind, SagaLauncherTargetKind::EditorTarget);
     EXPECT_EQ(targets[1].availability, SagaLauncherActionAvailability::Available);
-    EXPECT_EQ(targets[7].status, SagaLauncherActionStatus::Unsupported);
-    EXPECT_EQ(targets[8].diagnostics.front().diagnosticId,
+    EXPECT_EQ(targets[4].status, SagaLauncherActionStatus::Unsupported);
+    EXPECT_EQ(targets[5].diagnostics.front().diagnosticId,
               SagaProductDiagnostics::ServerExecutionUnsupported);
-    EXPECT_TRUE(std::all_of(targets.begin() + 7, targets.end(), [](const auto& target) {
+    EXPECT_TRUE(std::all_of(targets.begin() + 4, targets.end(), [](const auto& target) {
         return target.availability == SagaLauncherActionAvailability::Disabled;
     }));
 
@@ -346,7 +344,7 @@ TEST(SagaLauncherControllerTest, OpenSelectsWithoutLaunchingAndOneActionRuns)
     EXPECT_TRUE(started.accepted);
     EXPECT_EQ(started.status, SagaLauncherActionStatus::Running);
     const auto second = fixture.controller->RunAction(
-        SagaLauncherActionId::RuntimeStarterArenaSmoke);
+        SagaLauncherActionId::ValidateProject);
     EXPECT_FALSE(second.accepted);
     ASSERT_FALSE(second.diagnostics.empty());
     EXPECT_EQ(second.diagnostics.front().diagnosticId,
@@ -362,14 +360,14 @@ TEST(SagaLauncherControllerTest, CancellationAndUnsupportedActionsStayTyped)
     ControllerFixture fixture(root);
     ASSERT_TRUE(fixture.controller->OpenProject(WriteProject(root / "project")).accepted);
     ASSERT_TRUE(
-        fixture.controller->RunAction(SagaLauncherActionId::RuntimeStarterArenaSmoke).accepted);
+        fixture.controller->RunAction(SagaLauncherActionId::ValidateProject).accepted);
     EXPECT_TRUE(
-        fixture.controller->CancelAction(SagaLauncherActionId::RuntimeStarterArenaSmoke).accepted);
+        fixture.controller->CancelAction(SagaLauncherActionId::ValidateProject).accepted);
     fixture.taskPtr->Finish();
     const auto state = fixture.controller->GetState();
     const auto action = std::find_if(
         state.actions.begin(), state.actions.end(), [](const auto& value) {
-            return value.id == SagaLauncherActionId::RuntimeStarterArenaSmoke;
+            return value.id == SagaLauncherActionId::ValidateProject;
         });
     ASSERT_NE(action, state.actions.end());
     EXPECT_EQ(action->status, SagaLauncherActionStatus::Cancelled);
@@ -385,44 +383,33 @@ TEST(SagaReportCatalogTest, PreservesRawLimitationsVerificationAndMissingReports
     const auto root = Temp("saga_launcher_reports");
     const auto project = SagaProjectCatalog{}.OpenProject(WriteProject(root / "project"));
     const auto reportsRoot = root / "launcher-reports";
-    Write(
-        reportsRoot / "starter-arena" / "runtime-starter-arena-smoke" / "runtime-smoke.json",
-        R"({"schemaVersion":1,"status":"PassedWithLimitations","verified":false,"limitations":["bounded"]})");
-    const auto evidenceRoot = root / "evidence";
-    Write(evidenceRoot / "starter-arena" / "run-100" / "first_playable_gate.json",
-          R"({"schemaVersion":1,"gateStatus":"AcceptedWithManualEvidencePending"})");
-    const auto reports = SagaReportCatalog(reportsRoot, evidenceRoot).Read(project);
+    Write(reportsRoot / "starter-arena" / "validate-project" /
+              "project-validation.json",
+          R"({"schemaVersion":1,"status":"PassedWithLimitations","verified":false,"limitations":["bounded"]})");
+    const auto reports = SagaReportCatalog(reportsRoot).Read(project);
     ASSERT_FALSE(reports.empty());
-    const auto smoke = std::find_if(reports.begin(), reports.end(), [](const auto& report) {
-        return report.reportType == "runtime-smoke";
+    const auto validation = std::find_if(reports.begin(), reports.end(), [](const auto& report) {
+        return report.reportType == "project-validation";
     });
-    ASSERT_NE(smoke, reports.end());
-    EXPECT_EQ(smoke->rawStatus, "PassedWithLimitations");
-    EXPECT_EQ(smoke->mappedStatus, SagaLauncherActionStatus::PassedWithLimitations);
-    ASSERT_TRUE(smoke->verified.has_value());
-    EXPECT_FALSE(*smoke->verified);
-    EXPECT_EQ(smoke->limitations, std::vector<std::string>({"bounded"}));
-    EXPECT_FALSE(reports.front().exists);
-    EXPECT_EQ(reports.front().mappedStatus, SagaLauncherActionStatus::NotConfigured);
-    const auto gate = std::find_if(reports.begin(), reports.end(), [](const auto& report) {
-        return report.reportType == "first-playable-gate";
-    });
-    ASSERT_NE(gate, reports.end());
-    EXPECT_TRUE(gate->exists);
-    EXPECT_EQ(gate->mappedStatus, SagaLauncherActionStatus::PassedWithLimitations);
+    ASSERT_NE(validation, reports.end());
+    EXPECT_EQ(validation->rawStatus, "PassedWithLimitations");
+    EXPECT_EQ(validation->mappedStatus, SagaLauncherActionStatus::PassedWithLimitations);
+    ASSERT_TRUE(validation->verified.has_value());
+    EXPECT_FALSE(*validation->verified);
+    EXPECT_EQ(validation->limitations, std::vector<std::string>({"bounded"}));
 
-    Write(reportsRoot / "starter-arena" / "runtime-starter-arena-smoke" / "runtime-smoke.json",
+    Write(reportsRoot / "starter-arena" / "validate-project" /
+              "project-validation.json",
           R"({"schemaVersion":"one","status":"Passed"})");
-    const auto malformed = SagaReportCatalog(reportsRoot, evidenceRoot).Read(project);
-    const auto malformedSmoke = std::find_if(malformed.begin(),
-                                             malformed.end(),
-                                             [](const auto& report) {
-                                                 return report.reportType == "runtime-smoke";
-                                             });
-    ASSERT_NE(malformedSmoke, malformed.end());
-    EXPECT_EQ(malformedSmoke->mappedStatus, SagaLauncherActionStatus::Failed);
-    EXPECT_EQ(malformedSmoke->rawStatus, "InvalidSchema");
-    EXPECT_EQ(malformedSmoke->diagnosticCount, 1u);
+    const auto malformed = SagaReportCatalog(reportsRoot).Read(project);
+    const auto malformedValidation = std::find_if(
+        malformed.begin(), malformed.end(), [](const auto& report) {
+            return report.reportType == "project-validation";
+        });
+    ASSERT_NE(malformedValidation, malformed.end());
+    EXPECT_EQ(malformedValidation->mappedStatus, SagaLauncherActionStatus::Failed);
+    EXPECT_EQ(malformedValidation->rawStatus, "InvalidSchema");
+    EXPECT_EQ(malformedValidation->diagnosticCount, 1u);
 }
 
 TEST(SagaDistributionStatusReaderTest, EnforcesExactPackageIdentityReadOnly)

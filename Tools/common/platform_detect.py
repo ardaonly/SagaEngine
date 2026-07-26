@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+# SPDX-License-Identifier: MPL-2.0
 """
 platform_detect.py — shared platform-detection helpers for SagaEngine build tooling.
 

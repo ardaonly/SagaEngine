@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScriptPackageValidator.hpp
 /// @brief Compatibility include for low-level SagaScript package validation.
 

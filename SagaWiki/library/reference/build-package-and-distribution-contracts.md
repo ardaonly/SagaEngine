@@ -15,7 +15,7 @@ Build, package, distribution validation, and publish are separate stages with se
 - CMake owns target declaration, dependency visibility, build, install, and export composition.
 - SagaProjectKit validates `.sagaproj` and project reports.
 - SagaScript owns script analysis/compile/projection/patch artifacts.
-- SagaPackager validates package inputs, stages the Linux candidate, creates archive/checksum, and emits preflight/report data.
+- SagaPackager resolves exact built-in project dependencies offline, compiles content, validates package inputs, stages the Linux candidate, creates archive/checksum, and emits preflight/report data.
 - `Tools/Developer/DistributionCheck` owns whitelist, unpacked smoke, candidate, contract, state, and chaos checks.
 - repository scripts are stable routing wrappers, not alternate implementations.
 
@@ -54,6 +54,8 @@ SagaPackager receives an explicit project/profile and resolved build/tool/sample
 Optional governance/policy reports are externally produced precomputed inputs. SagaPackager can accept and validate them for a publish decision; it does not generate them and there is no bundled SagaPolicyKit workflow.
 
 Package policy validates project/source/artifact alignment, package profiles, required binaries, executable bits, documentation/license material, sample/tool inputs, and output destinations. Missing input blocks package success rather than producing a plausible incomplete archive.
+
+The source/tooling dependency path is intentionally narrower than distribution staging. SagaPackager resolves exact `0.0.11` built-in package intents under `Engine/Distribution`, accepts executable analyzer/reference descriptors only from that trusted root, and publishes `SagaPackage.lock`, reference/surface metadata, and a hash-pinned RuntimeBridge copy as one immutable generation selected by a current manifest. Selected-generation verification checks current and generation manifests, containment, every file hash, reference/bridge identity, and canonical equality with the tracked lock. RuntimeBridge publication snapshots verified bytes and revalidates the source before publishing that exact snapshot, closing the binary copy race. It is offline, deterministic across project locations, and rejects a copied project package as an executable source. This contract does not claim a public registry, semantic-version solver, third-party package execution, or cryptographic distribution trust.
 
 ## Staged Linux layout
 

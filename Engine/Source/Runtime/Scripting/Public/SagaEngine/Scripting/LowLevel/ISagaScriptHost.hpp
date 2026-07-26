@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ISagaScriptHost.hpp
 /// @brief Low-level SagaScript host and world contracts.
 
@@ -57,6 +58,36 @@ struct ScriptPackageLoadRequest
     std::filesystem::path packageRoot;
     std::filesystem::path scriptArtifactManifest;
     std::string packageId;
+};
+
+struct VerifiedScriptFile
+{
+    std::filesystem::path path;
+    std::string byteHash;
+};
+
+/// Exact SagaScript worker generation selected by a canonical runtime launch.
+/// Paths are local transport; every identity/hash is canonical authority.
+struct VerifiedScriptGenerationLoadRequest
+{
+    VerifiedScriptFile assembly;
+    VerifiedScriptFile runtimeConfig;
+    VerifiedScriptFile assemblyManifest;
+    VerifiedScriptFile behaviorManifest;
+    VerifiedScriptFile namedActionManifest;
+    VerifiedScriptFile capabilityManifest;
+    std::string projectId;
+    std::string projectHash;
+    std::string sourceRevision;
+    std::string sourceSetHash;
+    std::string referenceManifestHash;
+    std::string packageGraphHash;
+    std::string runtimeBridgeLogicalReferenceId;
+    std::string runtimeBridgeHash;
+    std::string runtimeBridgeAbi;
+    std::string targetFramework;
+    std::string runtimeCompatibility;
+    std::string trust;
 };
 
 struct ScriptInstanceCreateRequest
@@ -149,6 +180,15 @@ struct ScriptUiNamedActionInvocation
     ScriptUiNamedActionContext context;
 };
 
+/// Verified gameplay action invocation. The method name comes from the
+/// SagaScript named-action manifest; actionId is the logical input identity.
+struct ScriptNamedActionInvocation
+{
+    ScriptInstanceHandle instance;
+    std::string methodName;
+    std::string actionId;
+};
+
 using ScriptDiagnostic = SagaShared::Scripting::ScriptDiagnosticPayload;
 using ScriptDiagnosticSink = std::function<void(const ScriptDiagnostic&)>;
 
@@ -188,6 +228,18 @@ struct ScriptStateBoolResult : ScriptHostOperationResult
 struct ScriptStateInt32Result : ScriptHostOperationResult
 {
     std::int32_t value = 0;
+};
+
+/// Host-verified identity attached to one managed state-port access.
+/// The managed callback table remains unchanged; the native host supplies this
+/// context from its active instance registry.
+struct ScriptStateContext
+{
+    ScriptInstanceHandle instance;
+    ScriptEntityHandle entity;
+    std::string behaviorId;
+    std::string scriptId;
+    std::uint64_t activeInstanceToken = 0;
 };
 
 struct ScriptLogEvent
@@ -234,6 +286,30 @@ public:
     [[nodiscard]] virtual ScriptHostOperationResult SetString(
         const std::string& key,
         const std::string& value) = 0;
+
+    [[nodiscard]] virtual ScriptStateBoolResult GetBool(
+        const ScriptStateContext&, const std::string& key) const
+    {
+        return GetBool(key);
+    }
+    [[nodiscard]] virtual ScriptStateInt32Result AddInt32(
+        const ScriptStateContext&, const std::string& key, std::int32_t delta)
+    {
+        return AddInt32(key, delta);
+    }
+    [[nodiscard]] virtual ScriptHostOperationResult SetBool(
+        const ScriptStateContext&, const std::string& key, bool value)
+    {
+        return SetBool(key, value);
+    }
+    [[nodiscard]] virtual ScriptHostOperationResult SetString(
+        const ScriptStateContext&, const std::string& key, const std::string& value)
+    {
+        return SetString(key, value);
+    }
+
+    virtual void OnInstanceActivated(const ScriptStateContext&) {}
+    virtual void OnInstanceDeactivated(const ScriptStateContext&) {}
 };
 
 class ISagaScriptHost
@@ -243,6 +319,9 @@ public:
 
     [[nodiscard]] virtual ScriptPackageLoadResult LoadPackage(
         const ScriptPackageLoadRequest& request) = 0;
+
+    [[nodiscard]] virtual ScriptPackageLoadResult LoadVerifiedGeneration(
+        const VerifiedScriptGenerationLoadRequest& request);
 
     [[nodiscard]] virtual ScriptInstanceCreateResult CreateInstance(
         ScriptPackageHandle package,
@@ -259,6 +338,9 @@ public:
 
     [[nodiscard]] virtual ScriptHostOperationResult InvokeUiNamedAction(
         const ScriptUiNamedActionInvocation& invocation);
+
+    [[nodiscard]] virtual ScriptHostOperationResult InvokeNamedAction(
+        const ScriptNamedActionInvocation& invocation);
 };
 
 namespace ScriptHostDiagnostics
@@ -300,6 +382,14 @@ inline constexpr const char* CapabilityManifestInvalid =
     "Script.Host.CapabilityManifestInvalid";
 inline constexpr const char* CapabilityManifestMismatch =
     "Script.Host.CapabilityManifestMismatch";
+inline constexpr const char* BehaviorManifestMismatch =
+    "Script.Host.BehaviorManifestMismatch";
+inline constexpr const char* NamedActionManifestMismatch =
+    "Script.Host.NamedActionManifestMismatch";
+inline constexpr const char* ReferenceIdentityMismatch =
+    "Script.Host.ReferenceIdentityMismatch";
+inline constexpr const char* RuntimeBridgeMismatch =
+    "Script.Host.RuntimeBridgeMismatch";
 inline constexpr const char* CapabilityGrantMissing =
     "Script.Host.CapabilityGrantMissing";
 inline constexpr const char* CapabilityGrantUnexpected =
@@ -326,6 +416,12 @@ inline constexpr const char* UiNamedActionInvalidSignature =
     "Script.Host.UiNamedActionInvalidSignature";
 inline constexpr const char* UiNamedActionReturnedFalse =
     "Script.Host.UiNamedActionReturnedFalse";
+inline constexpr const char* NamedActionUnsupported =
+    "Script.Host.NamedActionUnsupported";
+inline constexpr const char* NamedActionMethodMissing =
+    "Script.Host.NamedActionMethodMissing";
+inline constexpr const char* NamedActionInvalidContract =
+    "Script.Host.NamedActionInvalidContract";
 inline constexpr const char* Int32BinaryMethodMissing =
     "Script.Host.Int32BinaryMethodMissing";
 inline constexpr const char* Int32BinaryMethodInvalidSignature =
@@ -353,6 +449,39 @@ inline ScriptHostOperationResult ISagaScriptHost::InvokeUiNamedAction(
         std::to_string(invocation.instance.value);
     diagnostic.metadata["methodName"] = invocation.methodName;
     diagnostic.metadata["actionId"] = invocation.context.actionId;
+    result.diagnostics.push_back(std::move(diagnostic));
+    return result;
+}
+
+inline ScriptPackageLoadResult ISagaScriptHost::LoadVerifiedGeneration(
+    const VerifiedScriptGenerationLoadRequest&)
+{
+    ScriptPackageLoadResult result;
+    ScriptDiagnostic diagnostic;
+    diagnostic.diagnostic.severity = SagaShared::Diagnostics::DiagnosticSeverity::Error;
+    diagnostic.diagnostic.category = SagaShared::Diagnostics::DiagnosticCategory::Script;
+    diagnostic.diagnostic.source = SagaShared::Diagnostics::DiagnosticSource::Runtime;
+    diagnostic.diagnostic.code.value = ScriptHostDiagnostics::ManifestInvalid;
+    diagnostic.diagnostic.title = "Verified script generation unsupported";
+    diagnostic.diagnostic.message = "SagaScript host does not consume verified worker generations.";
+    result.diagnostics.push_back(std::move(diagnostic));
+    return result;
+}
+
+inline ScriptHostOperationResult ISagaScriptHost::InvokeNamedAction(
+    const ScriptNamedActionInvocation& invocation)
+{
+    ScriptHostOperationResult result;
+    ScriptDiagnostic diagnostic;
+    diagnostic.diagnostic.severity = SagaShared::Diagnostics::DiagnosticSeverity::Error;
+    diagnostic.diagnostic.category = SagaShared::Diagnostics::DiagnosticCategory::Script;
+    diagnostic.diagnostic.source = SagaShared::Diagnostics::DiagnosticSource::Runtime;
+    diagnostic.diagnostic.code.value = ScriptHostDiagnostics::NamedActionUnsupported;
+    diagnostic.diagnostic.title = "Named action unsupported";
+    diagnostic.diagnostic.message = "SagaScript host does not support gameplay named action invocation.";
+    diagnostic.metadata["instanceHandle"] = std::to_string(invocation.instance.value);
+    diagnostic.metadata["methodName"] = invocation.methodName;
+    diagnostic.metadata["actionId"] = invocation.actionId;
     result.diagnostics.push_back(std::move(diagnostic));
     return result;
 }

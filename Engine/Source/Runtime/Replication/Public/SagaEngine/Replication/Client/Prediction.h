@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Prediction.h
 /// @brief Server-side client prediction bookkeeping — authoritative input reconciliation.
 ///

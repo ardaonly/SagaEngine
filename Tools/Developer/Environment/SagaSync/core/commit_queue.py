@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """Commit queue suggestions for the SagaEngine multirepo workflow."""
 
 from __future__ import annotations

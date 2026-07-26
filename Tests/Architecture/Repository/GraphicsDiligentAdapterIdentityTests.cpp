@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file GraphicsDiligentAdapterIdentityTests.cpp
 /// @brief Guards split Diligent graphics adapter test identity metadata.
 

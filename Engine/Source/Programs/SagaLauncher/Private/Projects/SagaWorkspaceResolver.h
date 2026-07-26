@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaWorkspaceResolver.h
 /// @brief Resolves and validates product-backed Saga workspace definitions.
 

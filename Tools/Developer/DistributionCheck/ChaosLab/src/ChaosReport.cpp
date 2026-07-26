@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ChaosReport.cpp
 /// @brief Implements SagaChaosLab stable status strings.
 

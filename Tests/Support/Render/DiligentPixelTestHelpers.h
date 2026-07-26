@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentPixelTestHelpers.h
 /// @brief Test-only geometry and pixel helpers for Diligent GPU integration tests.
 

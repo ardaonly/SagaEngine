@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Authority.h
 /// @brief Server-side simulation orchestrator: owns WorldState, runs systems per tick.
 ///

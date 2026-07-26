@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file InputCommandInbox.cpp
 
 #include "SagaEngine/Input/Networking/InputCommandInbox.h"

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScenarioRunnerDockPanel.cpp
 /// @brief Editor dock panel wrapper for the EditorLab Scenario Runner.
 
@@ -52,7 +53,7 @@ std::string ScenarioRunnerDockPanel::GetTitle() const
     return kScenarioRunnerPanelTitle;
 }
 
-void* ScenarioRunnerDockPanel::GetNativeWidget() const noexcept
+QWidget* ScenarioRunnerDockPanel::Widget() const noexcept
 {
     m_impl->EnsurePanel();
     return m_impl->panel->Widget();

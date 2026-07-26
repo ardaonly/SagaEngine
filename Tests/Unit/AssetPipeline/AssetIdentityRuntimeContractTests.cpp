@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AssetIdentityRuntimeContractTests.cpp
 /// @brief Contract tests from AssetPipeline identity generation to Runtime loading.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ArtifactStartupValidator.hpp
 /// @brief Validates runtime artifact manifests against startup acceptance policy.
 

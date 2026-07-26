@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file BlockSlot.h
 /// @brief Slot definition + literal-fill values for block-based authoring.
 

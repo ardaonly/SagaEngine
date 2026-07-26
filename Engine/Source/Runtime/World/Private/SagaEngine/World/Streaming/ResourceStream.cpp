@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ResourceStream.cpp
 /// @brief World-level streaming orchestrator implementation.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScriptHandles.hpp
 /// @brief Low-level SagaScript opaque handles and value contracts.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CrashHandler.h
 /// @brief Crash signal interception and postmortem dump writer.
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorTheme.h
 /// @brief Full theme descriptor: color palette + font descriptor + stylesheet.
 

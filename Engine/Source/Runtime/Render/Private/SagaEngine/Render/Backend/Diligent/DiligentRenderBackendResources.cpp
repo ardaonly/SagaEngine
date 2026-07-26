@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentRenderBackendResources.cpp
 /// @brief Mesh, material, and texture resource upload for DiligentRenderBackend.
 

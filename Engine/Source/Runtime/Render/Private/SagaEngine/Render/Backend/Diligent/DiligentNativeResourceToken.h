@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentNativeResourceToken.h
 /// @brief Private typed identity for runtime-owned native Diligent resources.
 

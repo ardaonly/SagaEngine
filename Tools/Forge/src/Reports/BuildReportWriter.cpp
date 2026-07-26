@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file BuildReportWriter.cpp
 /// @brief Deterministic JSON writer for Forge build reports.
 

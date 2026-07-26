@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file HealthMonitor.cpp
 /// @brief Implements thread-safe runtime health metric storage.
 

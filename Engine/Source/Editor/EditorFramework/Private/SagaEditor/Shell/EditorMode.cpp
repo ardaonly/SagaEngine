@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorMode.cpp
 /// @brief EditorMode implementation.
 

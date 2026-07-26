@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ConnectionManager.h
 /// @brief Multi-client session table — accept, track, and dispatch all connections.
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CameraController.h
 /// @brief Maps viewport input state onto `ViewportCamera` mutations.
 

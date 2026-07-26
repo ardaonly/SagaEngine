@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SimCell.h
 /// @brief Dynamic simulation cell — the fundamental unit of world simulation.
 ///

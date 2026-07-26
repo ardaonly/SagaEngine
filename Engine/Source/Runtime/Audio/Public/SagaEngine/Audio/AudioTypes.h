@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AudioTypes.h
 /// @brief Core audio type definitions — handles, enums, spatial data.
 ///

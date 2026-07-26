@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiagnosticReport.hpp
 /// @brief Defines Engine-owned diagnostics report payloads.
 

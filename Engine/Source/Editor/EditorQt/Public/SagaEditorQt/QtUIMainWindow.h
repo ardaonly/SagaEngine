@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file QtUIMainWindow.h
 /// @brief Qt backend implementation of IUIMainWindow — wraps QMainWindow.
 
@@ -8,19 +9,19 @@
 #include <memory>
 #include <vector>
 
+class QMainWindow;
+
 namespace SagaEditor
 {
 
 // ─── Qt Main Window ───────────────────────────────────────────────────────────
 
-/// Concrete QMainWindow hidden behind IUIMainWindow.
-/// All Qt types (QMainWindow, QDockWidget, QAction, …) live in the .cpp;
-/// this header stays framework-free.
+/// Concrete QMainWindow hidden behind IUIMainWindow. The typed Window accessor
+/// exists only so the Qt composition root can parent native dialogs.
 class QtUIMainWindow final : public IUIMainWindow
 {
 public:
     QtUIMainWindow(const std::string& title, int width, int height);
-    QtUIMainWindow(void* nativeMainWindow, void* nativeCentralStack);
     ~QtUIMainWindow() override;
 
     // ─── IUIMainWindow ────────────────────────────────────────────────────────
@@ -34,12 +35,10 @@ public:
 
     [[nodiscard]] int   GetWidth()           const noexcept override;
     [[nodiscard]] int   GetHeight()          const noexcept override;
-    [[nodiscard]] void* GetNativeHandle()    const noexcept override;
 
     void ApplyShellLayout(const ShellLayout& layout)  override;
     void SetStatusMessage(const std::string& message) override;
-
-    void DockPanel(void*              nativeWidget,
+    void DockPanel(QWidget*           widget,
                    const std::string& panelId,
                    const std::string& title,
                    UIDockArea         area)            override;
@@ -53,6 +52,8 @@ public:
 
     void SetOnClose(CloseCallback cb) override;
     void SetOnCommand(CommandCallback cb) override;
+
+    [[nodiscard]] ::QMainWindow* Window() const noexcept;
 
 private:
     struct Impl;                   ///< Pimpl — hides QMainWindow and all Qt types.

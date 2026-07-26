@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ProblemsPanel.h
 /// @brief Problems panel that displays editor diagnostics from a shared service.
 ///
@@ -29,7 +30,7 @@ public:
 
     [[nodiscard]] PanelId GetPanelId() const override;
     [[nodiscard]] std::string GetTitle() const override;
-    [[nodiscard]] void* GetNativeWidget() const noexcept override;
+    [[nodiscard]] QWidget* Widget() const noexcept override;
 
     void OnInit() override;
     void OnShutdown() override;

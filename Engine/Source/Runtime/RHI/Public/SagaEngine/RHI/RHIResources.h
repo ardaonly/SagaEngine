@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RHIResources.h
 /// @brief Owning wrappers for RHI handles with RAII release.
 

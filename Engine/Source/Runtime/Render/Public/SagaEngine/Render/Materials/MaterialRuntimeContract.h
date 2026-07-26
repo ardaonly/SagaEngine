@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file MaterialRuntimeContract.h
 /// @brief CPU-side material runtime validation and binding plan contract.
 

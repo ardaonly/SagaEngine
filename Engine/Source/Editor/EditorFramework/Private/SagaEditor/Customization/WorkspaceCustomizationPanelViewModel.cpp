@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorkspaceCustomizationPanelViewModel.cpp
 /// @brief Safe Customize Workspace view model implementation.
 

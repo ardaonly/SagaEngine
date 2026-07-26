@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorkspaceCustomizationOverlayPolicy.cpp
 /// @brief Workspace customization overlay path policy implementation.
 

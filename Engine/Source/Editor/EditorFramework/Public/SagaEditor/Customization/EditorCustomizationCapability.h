@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorCustomizationCapability.h
 /// @brief Derives safe customization capabilities from resolved editor composition snapshots.
 
