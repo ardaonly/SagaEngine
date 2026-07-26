@@ -32,9 +32,14 @@ Play::RuntimeInputMapArtifact Input(std::string label = "E")
     return input;
 }
 
+RuntimeStateStore Store(std::string key = "door.target-open")
+{
+    return RuntimeStateStore({{"StarterArena.DoorController", {std::move(key)}}});
+}
+
 TEST(RuntimeStateStoreTests, PublishesMonotonicContextualSnapshots)
 {
-    RuntimeStateStore store;
+    auto store = Store();
     auto context = Context();
     store.OnInstanceActivated(context);
     ASSERT_TRUE(store.SetBool(context, "door.target-open", false).Succeeded());
@@ -51,24 +56,24 @@ TEST(RuntimeStateStoreTests, PublishesMonotonicContextualSnapshots)
 
 TEST(RuntimeStateStoreTests, RejectsStaleAndDestroyedInstances)
 {
-    RuntimeStateStore store;
+    auto store = Store("light.enabled");
     auto current = Context();
     store.OnInstanceActivated(current);
     auto stale = Context(8);
-    EXPECT_FALSE(store.SetBool(stale, "door.target-open", true).Succeeded());
+    EXPECT_FALSE(store.SetBool(stale, "light.enabled", true).Succeeded());
     EXPECT_FALSE(store.SetBool(current, "untrusted.key", true).Succeeded());
-    ASSERT_TRUE(store.SetBool(current, "door.target-open", true).Succeeded());
+    ASSERT_TRUE(store.SetBool(current, "light.enabled", true).Succeeded());
     store.OnInstanceDeactivated(stale);
     EXPECT_TRUE(store.Snapshot(current.entity, current.behaviorId,
-                              "door.target-open").has_value());
+                              "light.enabled").has_value());
     store.OnInstanceDeactivated(current);
     EXPECT_FALSE(store.Snapshot(current.entity, current.behaviorId,
-                               "door.target-open").has_value());
+                               "light.enabled").has_value());
 }
 
 TEST(RuntimeUiPromptControllerTests, JoinsVerifiedDisplayLabelAndState)
 {
-    RuntimeStateStore store;
+    auto store = Store();
     auto context = Context();
     store.OnInstanceActivated(context);
     ASSERT_TRUE(store.SetBool(context, "door.target-open", false).Succeeded());
@@ -81,7 +86,7 @@ TEST(RuntimeUiPromptControllerTests, JoinsVerifiedDisplayLabelAndState)
 
 TEST(RuntimeUiPromptControllerTests, FailsClosedForMissingActionOrState)
 {
-    RuntimeStateStore store;
+    auto store = Store();
     auto context = Context();
     store.OnInstanceActivated(context);
     auto input = Input();

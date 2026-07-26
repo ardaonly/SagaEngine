@@ -70,8 +70,11 @@ def test_project_worker_is_deterministic_across_clean_roots() -> None:
         }
         assert first_manifest["sourceRevision"] == "revision-1"
         behavior = json.loads(first_artifacts["scripts.behaviors"])
+        assert behavior["schemaVersion"] == 2
         assert behavior["behaviors"][0]["behaviorId"] == "StarterArena.DoorController"
         assert [item["name"] for item in behavior["behaviors"][0]["lifecycleMethods"]] == ["OnStart", "OnUpdate"]
+        assert behavior["behaviors"][0]["stateAccesses"] == [{
+            "operation": "SetBool", "valueType": "Bool", "key": "door.target-open"}]
         actions = json.loads(first_artifacts["scripts.named-actions"])
         assert actions["actions"][0]["actionId"] == "Interact"
         projection = json.loads(first_artifacts["scripts.block-projection"])
@@ -79,10 +82,87 @@ def test_project_worker_is_deterministic_across_clean_roots() -> None:
         assert "NativeBridge" not in json.dumps(projection)
         assert projection["opaqueRegions"][0]["classification"] == "OpaqueCSharp"
         assert projection["roots"][0]["displayName"] == "WHEN Interact"
-        assert projection["roots"][0]["children"][0]["displayName"] == "toggle door target state"
+        assert projection["roots"][0]["children"][0]["displayName"] == "set boolean state"
         assert projection["roots"][0]["children"][0]["stateKey"] == "door.target-open"
         assert projection["packageGenerationId"] == first_manifest["packageGenerationId"]
         assert projection["diagnostics"] == []
+
+def test_worker_state_contract_follows_only_reachable_behavior_helpers() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        project = root / "StarterArena"
+        shutil.copytree(STARTER_ROOT, project)
+        source = project / "Scripts" / "DoorController.cs"
+        source.write_text(
+            """// SPDX-License-Identifier: MIT
+using SagaEngine.Scripting;
+namespace StarterArena;
+public sealed class DoorController : SagaBehavior
+{
+    public override void OnStart() { Publish(); CycleA(); }
+    [SagaAction("Interact")]
+    public void OnInteract() { OpenDoor(); }
+    public override void OnUpdate(float deltaTime) { _ = Context.Self.Transform; }
+    private void OpenDoor() { Publish(); }
+    private void Publish() { Context.State.TrySetBool("door.target-open", true); }
+    private void CycleA() { CycleB(); }
+    private void CycleB()
+    {
+        Context.State.TrySetBool("cycle.flag", true);
+        CycleA();
+    }
+    private void NeverReached()
+    {
+        Context.State.TrySetBool("unreachable.permission", true);
+    }
+}
+""",
+            encoding="utf-8",
+        )
+        output = root / "output"
+        request = prepare_worker_request(root / "work", project, output, "state-call-graph")
+        result = run_cli("worker", "--request", str(request[0]), "--result", str(request[1]),
+                         "--progress", str(request[2]))
+        assert result.returncode == 0, result.stderr + result.stdout
+        _, artifacts = read_current_artifacts(output)
+        behavior = json.loads(artifacts["scripts.behaviors"])
+        assert behavior["schemaVersion"] == 2
+        assert behavior["behaviors"][0]["stateAccesses"] == [
+            {"operation": "SetBool", "valueType": "Bool", "key": "cycle.flag"},
+            {"operation": "SetBool", "valueType": "Bool", "key": "door.target-open"},
+        ]
+        assert "unreachable.permission" not in artifacts["scripts.behaviors"].decode()
+
+def test_worker_rejects_dynamic_state_key_inside_reachable_helper() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        project = root / "StarterArena"
+        shutil.copytree(STARTER_ROOT, project)
+        source = project / "Scripts" / "DoorController.cs"
+        source.write_text(
+            """// SPDX-License-Identifier: MIT
+using SagaEngine.Scripting;
+namespace StarterArena;
+public sealed class DoorController : SagaBehavior
+{
+    public override void OnStart() { Write("door.target-open"); }
+    [SagaAction("Interact")]
+    public void OnInteract() { Write("door.target-open"); }
+    public override void OnUpdate(float deltaTime) { _ = Context.Self.Transform; }
+    private void Write(string key) { Context.State.TrySetBool(key, true); }
+}
+""",
+            encoding="utf-8",
+        )
+        output = root / "output"
+        request = prepare_worker_request(root / "work", project, output, "dynamic-state-key")
+        result = run_cli("worker", "--request", str(request[0]), "--result", str(request[1]),
+                         "--progress", str(request[2]))
+        assert result.returncode != 0
+        report = json.loads(request[1].read_text(encoding="utf-8"))
+        assert any(item["code"] == "Script.Worker.StateKeyNotConstant"
+                   for item in report["diagnostics"])
+        assert not (output / "manifests" / "current.json").exists()
 
 def test_worker_mid_operation_cancellation_preserves_current_manifest() -> None:
     with tempfile.TemporaryDirectory() as tmp:

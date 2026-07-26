@@ -491,14 +491,23 @@ internal static class ProjectWorker
                 }
                 if (!derives) continue;
                 var declaringType = typeSymbol.ToDisplayString();
-                var lifecycle = type.Members.OfType<MethodDeclarationSyntax>()
-                    .Where(method => method.Identifier.ValueText is "OnCreate" or "OnStart" or "OnUpdate" or "OnDestroy")
+                var declaredMethods = type.Members.OfType<MethodDeclarationSyntax>()
+                    .Select(method => (Syntax: method, Symbol: model.GetDeclaredSymbol(method) as IMethodSymbol))
+                    .Where(item => item.Symbol is not null)
+                    .Select(item => (item.Syntax, Symbol: item.Symbol!))
+                    .ToArray();
+                var lifecycleMethods = declaredMethods
+                    .Where(item => item.Symbol.IsOverride &&
+                        item.Symbol.Name is "OnCreate" or "OnStart" or "OnUpdate" or "OnDestroy")
+                    .ToArray();
+                var lifecycle = lifecycleMethods
+                    .Select(item => item.Syntax)
                     .Select(method => new WorkerMethod(method.Identifier.ValueText, Span(text, tree, method)))
                     .OrderBy(method => method.Name, StringComparer.Ordinal).ToArray();
                 var actions = new List<WorkerAction>();
-                foreach (var method in type.Members.OfType<MethodDeclarationSyntax>())
+                var actionRoots = new List<IMethodSymbol>();
+                foreach (var (method, methodSymbol) in declaredMethods)
                 {
-                    if (model.GetDeclaredSymbol(method) is not IMethodSymbol methodSymbol) continue;
                     var actionData = methodSymbol.GetAttributes().FirstOrDefault(attribute =>
                         attribute.AttributeClass?.ToDisplayString() == "SagaEngine.Scripting.SagaActionAttribute");
                     if (actionData is null) continue;
@@ -521,27 +530,88 @@ internal static class ProjectWorker
                         continue;
                     }
                     var steps = method.DescendantNodes().OfType<InvocationExpressionSyntax>()
-                        .Where(invocation => invocation.Expression is MemberAccessExpressionSyntax member &&
-                            member.Name.Identifier.ValueText == "TrySetBool")
+                        .Where(invocation => model.GetSymbolInfo(invocation).Symbol is IMethodSymbol target &&
+                            target.ContainingType.ToDisplayString() ==
+                                "SagaEngine.Scripting.ScriptStatePort" &&
+                            target.Name == "TrySetBool")
                         .Select((invocation, index) =>
                         {
                             var arguments = invocation.ArgumentList.Arguments;
                             var key = arguments.Count > 0 && model.GetConstantValue(arguments[0].Expression) is { HasValue: true, Value: string value }
                                 ? value : "";
-                            var displayName = key == "door.target-open" ? "toggle door target state" : "set boolean state";
                             return new WorkerProjectionStep(
-                                $"state://{declaringType}/{actionId}/{index}", "StateMutation", displayName,
+                                $"state://{declaringType}/{actionId}/{index}", "StateMutation", "set boolean state",
                                 key, Span(text, tree, invocation));
                         }).Where(step => step.StateKey.Length > 0).ToArray();
                     actions.Add(new WorkerAction(actionId, method.Identifier.ValueText,
                         "SagaEngine.Scripting.SagaActionAttribute", true, Span(text, tree, method), steps));
+                    actionRoots.Add(methodSymbol);
                 }
+                var methodNodes = new Dictionary<IMethodSymbol, MethodDeclarationSyntax>(
+                    SymbolEqualityComparer.Default);
+                foreach (var item in declaredMethods)
+                    methodNodes[item.Symbol.OriginalDefinition] = item.Syntax;
+                var roots = lifecycleMethods.Select(item => item.Symbol).Concat(actionRoots)
+                    .OrderBy(item => item.Locations.FirstOrDefault()?.SourceSpan.Start ?? int.MaxValue)
+                    .ThenBy(item => item.ToDisplayString(), StringComparer.Ordinal)
+                    .ToArray();
+                var visited = new HashSet<IMethodSymbol>(SymbolEqualityComparer.Default);
+                var stateAccesses = new SortedSet<(string Operation, string ValueType, string Key)>();
+                void Visit(IMethodSymbol methodSymbol)
+                {
+                    methodSymbol = methodSymbol.OriginalDefinition;
+                    if (!visited.Add(methodSymbol) || !methodNodes.TryGetValue(methodSymbol, out var method))
+                        return;
+                    var invocations = method.DescendantNodes(node =>
+                            node == method || node is not LocalFunctionStatementSyntax &&
+                            node is not AnonymousFunctionExpressionSyntax)
+                        .OfType<InvocationExpressionSyntax>()
+                        .OrderBy(invocation => invocation.SpanStart)
+                        .ToArray();
+                    foreach (var invocation in invocations)
+                    {
+                        if (model.GetSymbolInfo(invocation).Symbol is not IMethodSymbol target)
+                            continue;
+                        target = target.OriginalDefinition;
+                        if (target.ContainingType.ToDisplayString() ==
+                            "SagaEngine.Scripting.ScriptStatePort")
+                        {
+                            var access = target.Name switch
+                            {
+                                "TryGetBool" => ("GetBool", "Bool"),
+                                "TryAddInt32" => ("AddInt32", "Int32"),
+                                "TrySetBool" => ("SetBool", "Bool"),
+                                "TrySetString" => ("SetString", "String"),
+                                _ => default,
+                            };
+                            if (access == default) continue;
+                            var arguments = invocation.ArgumentList.Arguments;
+                            var constant = arguments.Count > 0
+                                ? model.GetConstantValue(arguments[0].Expression) : default;
+                            if (!constant.HasValue || constant.Value is not string key ||
+                                string.IsNullOrWhiteSpace(key))
+                            {
+                                diagnostics.Add(Error("Script.Worker.StateKeyNotConstant", relative,
+                                    "Reachable state-port keys must be non-empty compile-time strings."));
+                                continue;
+                            }
+                            stateAccesses.Add((access.Item1, access.Item2, key));
+                            continue;
+                        }
+                        if (SymbolEqualityComparer.Default.Equals(target.ContainingType, typeSymbol) &&
+                            methodNodes.ContainsKey(target))
+                            Visit(target);
+                    }
+                }
+                foreach (var rootMethod in roots) Visit(rootMethod);
                 var capabilities = new SortedSet<string>(StringComparer.Ordinal) { "Gameplay.State.ReadWrite" };
                 if (text.Contains("Context.Self.Transform", StringComparison.Ordinal))
                     capabilities.Add("World.Transform.ReadWrite");
                 behaviors.Add(new WorkerBehavior(declaringType, declaringType, relative,
                     sourceHashes[relative], Span(text, tree, type), lifecycle,
-                    actions.OrderBy(item => item.ActionId, StringComparer.Ordinal).ToArray(), capabilities.ToArray()));
+                    actions.OrderBy(item => item.ActionId, StringComparer.Ordinal).ToArray(),
+                    capabilities.ToArray(), stateAccesses.Select(item =>
+                        new WorkerStateAccess(item.Operation, item.ValueType, item.Key)).ToArray()));
             }
         }
         if (behaviors.Count == 0)

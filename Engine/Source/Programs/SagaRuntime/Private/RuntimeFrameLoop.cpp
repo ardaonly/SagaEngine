@@ -196,8 +196,45 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
         return structuredFailure("Runtime.Script.NamedActionsInvalid",
             "Named-action manifest is malformed.", "ScriptLoadFailure");
     }
+    if (behaviorManifest.value("schemaVersion", -1) != 2 ||
+        !behaviorManifest.contains("behaviors") ||
+        !behaviorManifest["behaviors"].is_array())
+        return structuredFailure("Runtime.Script.StateContractMissing",
+            "Verified Play requires behavior manifest schema version 2.",
+            "ScriptLoadFailure");
+    RuntimeStateStore::BoolWritePolicy boolWrites;
+    try
+    {
+        for (const auto& behavior : behaviorManifest["behaviors"])
+        {
+            const auto behaviorId = behavior.value("behaviorId", std::string{});
+            if (behaviorId.empty() || !behavior.contains("stateAccesses") ||
+                !behavior["stateAccesses"].is_array())
+                return structuredFailure("Runtime.Script.StateContractInvalid",
+                    "Behavior state-access policy is missing or malformed.",
+                    "ScriptLoadFailure");
+            auto& keys = boolWrites[behaviorId];
+            for (const auto& access : behavior["stateAccesses"])
+            {
+                if (!access.is_object() || access.size() != 3 ||
+                    access.value("operation", std::string{}) != "SetBool" ||
+                    access.value("valueType", std::string{}) != "Bool" ||
+                    access.value("key", std::string{}).empty() ||
+                    !keys.insert(access.value("key", std::string{})).second)
+                    return structuredFailure("Runtime.Script.StateContractInvalid",
+                        "Behavior state-access policy contains an unsupported or duplicate entry.",
+                        "ScriptLoadFailure");
+            }
+        }
+    }
+    catch (const Json::exception&)
+    {
+        return structuredFailure("Runtime.Script.StateContractInvalid",
+            "Behavior state-access policy contains invalid field types.",
+            "ScriptLoadFailure");
+    }
     RuntimeScriptWorld world(*sceneResult.value);
-    RuntimeStateStore stateStore;
+    RuntimeStateStore stateStore(boolWrites);
     Scripting::CSharpScriptHost host({envelope.artifacts.at(
         launch.runtimeBridge.logicalReferenceId), {}, &world, &stateStore, true, {}});
     Scripting::ScriptLifecycleService lifecycle(host);
@@ -266,6 +303,15 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
     if (behaviorCount == 0)
         return structuredFailure("Runtime.Script.BehaviorMissing",
             "Runtime scene has no script behavior.", "ScriptLoadFailure");
+    if (launch.schemaVersion == 2)
+    {
+        const auto& prompt = uiResult.value->prompts.front();
+        const auto allowed = boolWrites.find(prompt.behaviorId);
+        if (allowed == boolWrites.end() || !allowed->second.contains(prompt.stateKey))
+            return structuredFailure("Runtime.UI.StateContractMismatch",
+                "Verified UI prompt state is absent from the behavior state-access contract.",
+                "UiBootstrapFailure");
+    }
 
     std::map<std::pair<std::string, std::string>, Scripting::ScriptInstanceHandle> instances;
     for (const auto& entity : world.Scene().entities)

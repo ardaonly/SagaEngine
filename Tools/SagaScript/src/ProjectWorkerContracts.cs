@@ -116,6 +116,8 @@ internal sealed record WorkerProjectionStep(string StepId, string Kind, string D
     string StateKey, SourceSpan Span);
 internal sealed record WorkerAction(string ActionId, string Method, string AttributeTypeId,
     bool PubliclyInvocable, SourceSpan Span, IReadOnlyList<WorkerProjectionStep> Steps);
+internal sealed record WorkerStateAccess(string Operation, string ValueType, string Key);
 internal sealed record WorkerBehavior(string BehaviorId, string DeclaringType, string SourceFile,
     string SourceHash, SourceSpan Span, IReadOnlyList<WorkerMethod> LifecycleMethods,
-    IReadOnlyList<WorkerAction> Actions, IReadOnlyList<string> Capabilities);
+    IReadOnlyList<WorkerAction> Actions, IReadOnlyList<string> Capabilities,
+    IReadOnlyList<WorkerStateAccess> StateAccesses);

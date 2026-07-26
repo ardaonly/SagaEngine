@@ -379,6 +379,32 @@ TEST(CMakeTargetBoundaryTests, MainWindowContractOwnsChromeNotProjectDialogs)
     EXPECT_EQ(panelContract.find("void*"), std::string::npos);
 }
 
+TEST(CMakeTargetBoundaryTests, RuntimeStatePolicyComesFromVersionedScriptEvidence)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto stateStore = ReadText(root /
+        "Engine/Source/Programs/SagaRuntime/Private/RuntimeStateStore.cpp");
+    const auto frameLoop = ReadText(root /
+        "Engine/Source/Programs/SagaRuntime/Private/RuntimeFrameLoop.cpp");
+    const auto worker = ReadText(root / "Tools/SagaScript/src/ProjectWorker.cs");
+    const auto artifacts = ReadText(root /
+        "Tools/SagaScript/src/ProjectWorkerArtifactBuilder.cs");
+    const auto verifiedHost = ReadText(root /
+        "Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/"
+        "CSharpScriptHostVerifiedGeneration.cpp");
+
+    for (const auto* production : {&stateStore, &frameLoop, &worker})
+        EXPECT_EQ(production->find("door.target-open"), std::string::npos);
+    EXPECT_NE(stateStore.find("boolWrites_"), std::string::npos);
+    EXPECT_NE(worker.find("SymbolEqualityComparer.Default"), std::string::npos);
+    EXPECT_NE(worker.find("StateKeyNotConstant"), std::string::npos);
+    EXPECT_NE(artifacts.find("behavior_manifest_v2.json"), std::string::npos);
+    EXPECT_NE(artifacts.find("schemaVersion = 2"), std::string::npos);
+    EXPECT_NE(verifiedHost.find("readJson(request.behaviorManifest, behaviors, 2)"),
+              std::string::npos);
+    EXPECT_NE(verifiedHost.find("stateAccesses"), std::string::npos);
+}
+
 TEST(CMakeTargetBoundaryTests, QtCompositionRootStaysConcrete)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);

@@ -34,9 +34,9 @@ internal static class ProjectWorkerArtifactBuilder
             compilerVersion = typeof(CSharpCompilation).Assembly.GetName().Version?.ToString() ?? "unknown",
         };
         var artifacts = new List<StagedWorkerArtifact>();
-        artifacts.Add(JsonArtifact("scripts.behaviors", "behaviorManifest", "behavior_manifest_v1.json", new
+        artifacts.Add(JsonArtifact("scripts.behaviors", "behaviorManifest", "behavior_manifest_v2.json", new
         {
-            common.schemaVersion, common.projectId, common.projectHash, common.sourceRevision,
+            schemaVersion = 2, common.projectId, common.projectHash, common.sourceRevision,
             common.sourceSetHash, common.packageGenerationId, common.packageGenerationHash,
             common.packageGenerationManifestHash, common.packageGraphHash, common.apiSurfaceManifestHash,
             common.tool, common.toolVersion, common.analyzerVersion, common.compilerVersion, behaviors,

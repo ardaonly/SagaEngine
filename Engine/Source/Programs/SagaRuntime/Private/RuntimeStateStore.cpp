@@ -68,7 +68,9 @@ Scripting::ScriptHostOperationResult RuntimeStateStore::SetBool(
     const Context& context, const std::string& key, const bool value)
 {
     Scripting::ScriptHostOperationResult result;
-    if (!IsActive(context) || key != "door.target-open") return result;
+    const auto behavior = boolWrites_.find(context.behaviorId);
+    if (!IsActive(context) || behavior == boolWrites_.end() ||
+        !behavior->second.contains(key)) return result;
     bools_[{{context.entity.value, context.behaviorId}, key}] =
         {value, nextRevision_++, context.activeInstanceToken};
     result.succeeded = true;

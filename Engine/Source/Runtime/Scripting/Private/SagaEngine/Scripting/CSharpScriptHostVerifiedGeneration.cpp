@@ -6,6 +6,7 @@
 #include <map>
 #include <nlohmann/json.hpp>
 #include <set>
+#include <tuple>
 
 #include "CSharpScriptHostImpl.hpp"
 
@@ -51,13 +52,15 @@ namespace SagaEngine::Scripting
              options.runtimeBridgeAssembly);
         return result;
     }
-    auto readJson = [&](const VerifiedScriptFile& file, nlohmann::json& value) -> bool {
+    auto readJson = [&](const VerifiedScriptFile& file, nlohmann::json& value,
+                        const int schemaVersion) -> bool {
         std::ifstream input(file.path, std::ios::binary);
         try
         {
             if (input)
                 input >> value;
-            return value.is_object() && value.value("schemaVersion", -1) == 1;
+            return value.is_object() &&
+                value.value("schemaVersion", -1) == schemaVersion;
         }
         catch (const nlohmann::json::exception&)
         {
@@ -65,14 +68,14 @@ namespace SagaEngine::Scripting
         }
     };
     nlohmann::json assembly, behaviors, actions, capabilities;
-    if (!readJson(request.assemblyManifest, assembly) ||
-        !readJson(request.behaviorManifest, behaviors) ||
-        !readJson(request.namedActionManifest, actions) ||
-        !readJson(request.capabilityManifest, capabilities))
+    if (!readJson(request.assemblyManifest, assembly, 1) ||
+        !readJson(request.behaviorManifest, behaviors, 2) ||
+        !readJson(request.namedActionManifest, actions, 1) ||
+        !readJson(request.capabilityManifest, capabilities, 1))
     {
         fail(ScriptHostDiagnostics::ManifestInvalid,
-             "Assembly, behavior, named-action, and capability manifests must use schema version "
-             "1.");
+             "Verified generation requires behavior manifest schema version 2 and schema "
+             "version 1 assembly, named-action, and capability manifests.");
         return result;
     }
     PackageState packageState;
@@ -149,7 +152,8 @@ namespace SagaEngine::Scripting
             const auto behaviorId = behavior.value("behaviorId", std::string{});
             if (behaviorId.empty() || !behaviorIds.insert(behaviorId).second ||
                 !behavior.contains("capabilities") || !behavior["capabilities"].is_array() ||
-                !behavior.contains("actions") || !behavior["actions"].is_array())
+                !behavior.contains("actions") || !behavior["actions"].is_array() ||
+                !behavior.contains("stateAccesses") || !behavior["stateAccesses"].is_array())
             {
                 fail(ScriptHostDiagnostics::ManifestInvalid,
                      "Behavior identities must be non-empty and unique.");
@@ -164,6 +168,23 @@ namespace SagaEngine::Scripting
                 {
                     fail(ScriptHostDiagnostics::CapabilityGrantUnexpected,
                          "Behavior capabilities must be unique members of the verified grant set.");
+                    return result;
+                }
+            }
+            std::set<std::tuple<std::string, std::string, std::string>> stateAccesses;
+            for (const auto& access : behavior["stateAccesses"])
+            {
+                const auto operation = access.value("operation", std::string{});
+                const auto valueType = access.value("valueType", std::string{});
+                const auto key = access.value("key", std::string{});
+                if (!access.is_object() || access.size() != 3 ||
+                    operation != "SetBool" || valueType != "Bool" || key.empty() ||
+                    !stateAccesses.emplace(operation, valueType, key).second ||
+                    !granted.contains("Gameplay.State.ReadWrite"))
+                {
+                    fail(ScriptHostDiagnostics::ManifestInvalid,
+                         "Behavior state accesses must be unique supported operations backed "
+                         "by the verified state capability.");
                     return result;
                 }
             }
