@@ -241,7 +241,7 @@ struct InspectorPanel::Impl
                 continue;
             }
 
-            auto* native = static_cast<QWidget*>(editor->GetNativeWidget());
+            auto* native = editor->Widget();
             if (native)
             {
                 editorLayout->addWidget(native);
@@ -267,7 +267,7 @@ InspectorPanel::~InspectorPanel() { m_impl->DetachSelection(); m_impl->DetachWor
 
 PanelId     InspectorPanel::GetPanelId()      const { return "saga.panel.inspector"; }
 std::string InspectorPanel::GetTitle()        const { return "Inspector"; }
-void*       InspectorPanel::GetNativeWidget() const noexcept { return m_impl->widget; }
+QWidget*    InspectorPanel::Widget() const noexcept { return m_impl->widget; }
 
 void InspectorPanel::OnInit()     {}
 void InspectorPanel::OnShutdown()

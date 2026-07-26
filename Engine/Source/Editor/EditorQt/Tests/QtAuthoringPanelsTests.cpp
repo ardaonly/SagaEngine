@@ -101,14 +101,14 @@ TEST(QtAuthoringPanelsTests, HierarchySelectionDrivesCanonicalInspector)
     inspector.SetUndoRedoStack(&journal);
     inspector.OnInit();
 
-    auto* tree = static_cast<QWidget*>(hierarchy.GetNativeWidget())->findChild<QTreeWidget*>();
+    auto* tree = hierarchy.Widget()->findChild<QTreeWidget*>();
     ASSERT_NE(tree, nullptr);
     const auto doorItems = tree->findItems("Door", Qt::MatchExactly | Qt::MatchRecursive);
     ASSERT_EQ(doorItems.size(), 1);
     doorItems.front()->setSelected(true);
     QApplication::processEvents();
     EXPECT_EQ(selection.GetPrimary(), SagaEditor::SceneSelectionId("main", "door"));
-    auto* inspectorWidget = static_cast<QWidget*>(inspector.GetNativeWidget());
+    auto* inspectorWidget = inspector.Widget();
     EXPECT_FALSE(inspectorWidget->findChildren<QLineEdit*>().empty());
     hierarchy.OnShutdown(); inspector.OnShutdown();
 }
@@ -126,16 +126,16 @@ TEST(QtAuthoringPanelsTests, CodeBoxMutationUsesTransactionAndDoesNotWriteDisk)
     panel.SetCommandDispatcher(&dispatcher);
     panel.OnInit();
 
-    auto* tabs = static_cast<QWidget*>(panel.GetNativeWidget())->findChild<QTabWidget*>();
+    auto* tabs = panel.Widget()->findChild<QTabWidget*>();
     ASSERT_NE(tabs, nullptr);
     ASSERT_EQ(tabs->count(), 2);
     EXPECT_EQ(tabs->tabText(0), "Scripting");
     EXPECT_EQ(tabs->tabText(1), "Blocks");
-    auto* blocks = static_cast<QWidget*>(panel.GetNativeWidget())->findChild<QTreeWidget*>();
+    auto* blocks = panel.Widget()->findChild<QTreeWidget*>();
     ASSERT_NE(blocks, nullptr);
     EXPECT_EQ(blocks->accessibleName(), "Read-only script blocks");
 
-    auto* editor = static_cast<QWidget*>(panel.GetNativeWidget())->findChild<QPlainTextEdit*>();
+    auto* editor = panel.Widget()->findChild<QPlainTextEdit*>();
     ASSERT_NE(editor, nullptr);
     editor->setPlainText("public class Door { public void Open() {} }\n");
     QApplication::processEvents();
@@ -170,7 +170,7 @@ TEST(QtAuthoringPanelsTests, RecoveryButtonsForwardExplicitDocumentGestures)
         SagaEditor::ScriptingPanel panel;
         panel.SetDocumentWorkspace(&fixture.workspace);
         panel.OnInit();
-        auto* widget = static_cast<QWidget*>(panel.GetNativeWidget());
+        auto* widget = panel.Widget();
         auto* recover = findButton(widget, QStringLiteral("Recover"));
         ASSERT_NE(recover, nullptr);
         EXPECT_FALSE(recover->isHidden());
@@ -188,7 +188,7 @@ TEST(QtAuthoringPanelsTests, RecoveryButtonsForwardExplicitDocumentGestures)
         SagaEditor::ScriptingPanel panel;
         panel.SetDocumentWorkspace(&fixture.workspace);
         panel.OnInit();
-        auto* widget = static_cast<QWidget*>(panel.GetNativeWidget());
+        auto* widget = panel.Widget();
         auto* discard = findButton(widget, QStringLiteral("Discard recovery"));
         ASSERT_NE(discard, nullptr);
         EXPECT_FALSE(discard->isHidden());

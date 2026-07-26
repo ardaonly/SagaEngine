@@ -317,7 +317,7 @@ ScriptingPanel::ScriptingPanel() : impl_(std::make_unique<Impl>()) {}
 ScriptingPanel::~ScriptingPanel() { impl_->StopAndWait(); impl_->DetachWorkspace(); }
 PanelId ScriptingPanel::GetPanelId() const { return "saga.panel.scripting"; }
 std::string ScriptingPanel::GetTitle() const { return "Scripting"; }
-void* ScriptingPanel::GetNativeWidget() const noexcept { return impl_->widget; }
+QWidget* ScriptingPanel::Widget() const noexcept { return impl_->widget; }
 void ScriptingPanel::OnInit() { impl_->RefreshWorkspace(); }
 void ScriptingPanel::OnShutdown() { impl_->StopAndWait(); impl_->DetachWorkspace(); }
 void ScriptingPanel::SetDocumentWorkspace(EditorDocumentWorkspace* workspace)

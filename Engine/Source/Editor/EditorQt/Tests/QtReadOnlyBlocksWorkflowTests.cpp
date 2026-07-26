@@ -227,7 +227,7 @@ TEST(QtReadOnlyBlocksWorkflowTests, PanelNavigationDoesNotMutateOrDirtySource)
     panel.SetUndoRedoStack(&journal);
     panel.SetScriptSourceMutationPort(&mutationSpy);
     panel.OnInit();
-    auto* root = static_cast<QWidget*>(panel.GetNativeWidget());
+    auto* root = panel.Widget();
     SagaEditor::ReadOnlyBlocksWidget* blocks = nullptr;
     for (auto* child : root->findChildren<QWidget*>())
         if ((blocks = dynamic_cast<SagaEditor::ReadOnlyBlocksWidget*>(child))) break;

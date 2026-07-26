@@ -462,7 +462,7 @@ WorldViewportPanel::WorldViewportPanel() : m_impl(std::make_unique<Impl>()) {}
 WorldViewportPanel::~WorldViewportPanel() = default;
 PanelId WorldViewportPanel::GetPanelId() const { return "saga.panel.viewport"; }
 std::string WorldViewportPanel::GetTitle() const { return "World Viewport"; }
-void* WorldViewportPanel::GetNativeWidget() const noexcept { return m_impl->surface; }
+QWidget* WorldViewportPanel::Widget() const noexcept { return m_impl->surface; }
 void WorldViewportPanel::OnInit() {}
 void WorldViewportPanel::OnShutdown() { m_impl->surface->Shutdown(); }
 void WorldViewportPanel::SetViewportMode(ViewportMode mode)

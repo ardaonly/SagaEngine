@@ -385,7 +385,7 @@ std::string ShortcutPreferencesPanel::GetTitle() const
     return "Shortcut Preferences";
 }
 
-void* ShortcutPreferencesPanel::GetNativeWidget() const noexcept
+QWidget* ShortcutPreferencesPanel::Widget() const noexcept
 {
     return m_impl->widget;
 }

@@ -140,7 +140,7 @@ std::string ProductionDashboardPanel::GetTitle() const
     return "Production";
 }
 
-void* ProductionDashboardPanel::GetNativeWidget() const noexcept
+QWidget* ProductionDashboardPanel::Widget() const noexcept
 {
     return m_impl->widget;
 }

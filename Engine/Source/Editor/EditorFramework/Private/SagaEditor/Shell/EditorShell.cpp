@@ -347,7 +347,7 @@ void EditorShell::RegisterPanel(std::unique_ptr<IPanel> panel, UIDockArea area)
 {
     panel->OnInit();
     const std::string panelId = panel->GetPanelId();
-    m_window->DockPanel(panel->GetNativeWidget(),
+    m_window->DockPanel(panel->Widget(),
                         panelId,
                         panel->GetTitle(),
                         ResolveCompositionDockArea(panelId, area));
