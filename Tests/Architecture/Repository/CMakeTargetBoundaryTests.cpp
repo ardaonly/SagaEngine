@@ -310,6 +310,47 @@ TEST(CMakeTargetBoundaryTests, MainWindowContractOwnsChromeNotProjectDialogs)
     }
 }
 
+TEST(CMakeTargetBoundaryTests, QtCompositionRootStaysConcrete)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto frameworkRoot =
+        root / "Engine/Source/Editor/EditorFramework";
+    const auto qtRoot = root / "Engine/Source/Editor/EditorQt";
+    const auto frameworkManifest =
+        ReadText(frameworkRoot / "CMakeLists.txt");
+    const auto qtManifest = ReadText(qtRoot / "CMakeLists.txt");
+    const auto appHeader = ReadText(frameworkRoot /
+        "Public/SagaEditor/Host/EditorApp.h");
+    const auto shellHeader = ReadText(frameworkRoot /
+        "Public/SagaEditor/Shell/EditorShell.h");
+    const auto runner = ReadText(qtRoot /
+        "Private/SagaEditorQt/Host/EditorApplicationRunner.cpp");
+
+    for (const auto* retired : {
+             "IUIFactory", "QtUIFactory",
+             "IUIApplication", "QtUIApplication"})
+    {
+        EXPECT_EQ(frameworkManifest.find(retired), std::string::npos)
+            << retired;
+        EXPECT_EQ(qtManifest.find(retired), std::string::npos) << retired;
+        EXPECT_EQ(appHeader.find(retired), std::string::npos) << retired;
+        EXPECT_EQ(shellHeader.find(retired), std::string::npos) << retired;
+    }
+    EXPECT_EQ(appHeader.find("RunSmoke"), std::string::npos);
+    EXPECT_EQ(appHeader.find("int Run("), std::string::npos);
+    for (const auto* concreteOwner : {
+             "QApplication", "QTimer::singleShot",
+             "QtSettingsStore", "QtUIMainWindow"})
+    {
+        EXPECT_NE(runner.find(concreteOwner), std::string::npos)
+            << concreteOwner;
+    }
+    EXPECT_NE(qtManifest.find("EditorApplicationRunner.cpp"),
+              std::string::npos);
+    EXPECT_EQ(frameworkManifest.find("EditorApplicationRunner.cpp"),
+              std::string::npos);
+}
+
 TEST(CMakeTargetBoundaryTests, ProductAggregateComposesOnlyProgramObjects)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);

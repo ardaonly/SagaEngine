@@ -9,6 +9,7 @@ saga_add_editor_module(EditorQt
         Qt6::Concurrent
     SOURCES
         Private/SagaEditorQt/Commands/CommandPalette.cpp
+        Private/SagaEditorQt/Host/EditorApplicationRunner.cpp
         Private/SagaEditorQt/Host/EditorProjectInspection.cpp
         Private/SagaEditorQt/Panels/AssetBrowserPanel.cpp
         Private/SagaEditorQt/Panels/ConsolePanel.cpp
@@ -23,15 +24,10 @@ saga_add_editor_module(EditorQt
         Private/SagaEditorQt/Panels/ScriptingPanel.cpp
         Private/SagaEditorQt/Panels/WorldViewportPanel.cpp
         Private/SagaEditorQt/QtSettingsStore.cpp
-        Private/SagaEditorQt/QtProjectWorkflowPrompts.cpp
-        Private/SagaEditorQt/QtUIApplication.cpp
-        Private/SagaEditorQt/QtUIFactory.cpp
         Private/SagaEditorQt/QtUIMainWindow.cpp
         Private/SagaEditorQt/Themes/ThemeRegistry.cpp
         Public/SagaEditorQt/QtSettingsStore.h
-        Public/SagaEditorQt/QtProjectWorkflowPrompts.h
-        Public/SagaEditorQt/QtUIApplication.h
-        Public/SagaEditorQt/QtUIFactory.h
+        Public/SagaEditorQt/EditorApplicationRunner.h
         Public/SagaEditorQt/QtUIMainWindow.h
 )
 
@@ -39,6 +35,7 @@ saga_register_module_tests(EditorQt
     MODULE_DIR Engine/Source/Editor/EditorQt
     LINK_TARGET SagaEditorLib
     SOURCES
+        Tests/EditorAppCompositionTests.cpp
         Tests/QtAuthoringPanelsTests.cpp
         Tests/QtReadOnlyBlocksWorkflowTests.cpp
         Tests/QtSettingsStoreTests.cpp

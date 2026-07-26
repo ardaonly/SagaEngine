@@ -21,7 +21,6 @@
 #include "SagaEditor/Profile/EditorProfileActivator.h"
 #include "SagaEditor/Profile/EditorProfileRegistry.h"
 #include "SagaEditor/Themes/ThemeRegistry.h"
-#include "SagaEditor/UI/IUIFactory.h"
 #include "SagaEditor/UI/IUIMainWindow.h"
 #include "SagaEditor/Shell/ShellCommands.h"
 #include "SagaEditor/Panels/IPanel.h"
@@ -132,17 +131,6 @@ EditorShell::EditorShell()  = default;
 EditorShell::~EditorShell() = default;
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
-
-bool EditorShell::Init(EditorHost&              host,
-                       IUIFactory&              factory,
-                       const EditorShellConfig& cfg)
-{
-    return Init(host,
-                factory.CreateMainWindow(cfg.windowTitle,
-                                         cfg.windowWidth,
-                                         cfg.windowHeight),
-                cfg);
-}
 
 bool EditorShell::Init(EditorHost&                    host,
                        std::unique_ptr<IUIMainWindow> window,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 /// @file EditorApp.h
-/// @brief Top-level editor application entry point — owns the UI backend, host, and shell.
+/// @brief Owns editor host and shell state beneath the platform composition root.
 
 #pragma once
 
@@ -8,6 +8,7 @@
 #include "SagaEditor/Host/EditorWorkspaceDefinition.h"
 #include "SagaEditor/Project/EditorProjectWorkflowController.h"
 
+#include <filesystem>
 #include <memory>
 #include <optional>
 #include <string>
@@ -17,27 +18,26 @@ namespace SagaEditor
 
 class EditorHost;
 class EditorShell;
-class IUIApplication;
-class IUIFactory;
+class IEditorSettingsStore;
+class IUIMainWindow;
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
 /// Startup parameters forwarded from the platform entry point (main / WinMain).
 struct EditorAppConfig
 {
-    int         argc          = 0;
-    char**      argv          = nullptr;
     std::string windowTitle   = "SagaEditor";
     int         windowWidth   = 1600;
     int         windowHeight  = 900;
     bool        maximized     = false;
     bool        showOnInit    = true;
-    bool        smoke         = false;
-    int         smokeTimeoutMs = 1000;
+    bool        registerDefaultPanels = true;
+    bool        applyActivePersona = true;
     std::string workspacePath = "";           ///< Project workspace root; empty = cwd.
     std::string projectPath = "";             ///< Canonical .sagaproj or containing directory.
     std::string layoutPreset  = "Default";    ///< Layout preset applied on first launch.
     std::string initialProfileId = "";        ///< Optional workflow profile override.
+    std::filesystem::path runtimeExecutable;  ///< Sibling runtime resolved by composition.
     std::optional<EditorWorkspaceDefinition> preparedWorkspace;
     EditorCompositionStartupConfig composition; ///< Compiled composition startup input.
     ProjectWorkflowPrompts projectWorkflowPrompts;
@@ -45,26 +45,19 @@ struct EditorAppConfig
 
 // ─── Application ─────────────────────────────────────────────────────────────
 
-/// Bootstraps the UI backend (via IUIFactory), creates EditorHost and
-/// EditorShell, then runs the event loop. No UI framework type appears here;
-/// the concrete factory is injected in Init().
+/// Owns editor services and shell state after the platform composition root has
+/// created the application, settings store, and typed window.
 class EditorApp
 {
 public:
     EditorApp();
     ~EditorApp();
 
-    /// Initialise the UI backend, host services, and the main window.
-    /// Pass a concrete IUIFactory to select the backend (e.g. QtUIFactory).
-    /// Returns false if any critical subsystem fails.
-    [[nodiscard]] bool Init(const EditorAppConfig& cfg, IUIFactory& factory);
-
-    /// Enter the framework event loop. Blocks until the main window is closed.
-    /// Returns the backend exit code.
-    int Run();
-
-    /// Run a bounded event loop for startup smoke validation.
-    int RunSmoke(int timeoutMs);
+    /// Initialise host services around platform-owned concrete dependencies.
+    [[nodiscard]] bool Init(
+        const EditorAppConfig& cfg,
+        std::unique_ptr<IEditorSettingsStore> settingsStore,
+        std::unique_ptr<IUIMainWindow> mainWindow);
 
     /// Shut down all subsystems in reverse-init order.
     void Shutdown();
@@ -75,14 +68,6 @@ public:
     [[nodiscard]] EditorShell& GetShell() noexcept;
 
 private:
-    /// Mutable storage for the argc/argv the UI factory consumes.
-    /// `IUIFactory::CreateApplication` takes `int& argc` so the underlying
-    /// toolkit (Qt today) can trim consumed arguments; `cfg.argc` from the
-    /// `EditorAppConfig` is `const`, so we mirror it into these members.
-    int                             m_argc  = 0;
-    char**                          m_argv  = nullptr;
-
-    std::unique_ptr<IUIApplication> m_uiApp;  ///< Owns the event loop.
     std::unique_ptr<EditorHost>     m_host;
     std::unique_ptr<EditorShell>    m_shell;
 };

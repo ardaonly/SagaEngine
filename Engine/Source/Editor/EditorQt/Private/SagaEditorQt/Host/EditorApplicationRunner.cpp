@@ -2,11 +2,21 @@
 /// @file EditorApplicationRunner.cpp
 /// @brief Implements Editor-owned command parsing and application delegation.
 
-#include "SagaEditor/Host/EditorApplicationRunner.h"
+#include "SagaEditorQt/EditorApplicationRunner.h"
 
 #include "SagaEditor/Host/EditorApp.h"
 #include "SagaEditor/Host/EditorProjectInspection.h"
+#include "SagaEditor/Project/EditorProjectWorkflowController.h"
+#include "SagaEditorQt/QtSettingsStore.h"
+#include "SagaEditorQt/QtUIMainWindow.h"
 
+#include <QApplication>
+#include <QFileDialog>
+#include <QInputDialog>
+#include <QLineEdit>
+#include <QMainWindow>
+#include <QMessageBox>
+#include <QTimer>
 #include <cstdlib>
 #include <filesystem>
 #include <ostream>
@@ -27,6 +37,8 @@ struct ParsedEditorCommand
     std::filesystem::path inspectionProject;
     std::filesystem::path inspectionReport;
     bool showHelp = false;
+    bool smoke = false;
+    int smokeTimeoutMs = 1000;
 };
 
 [[nodiscard]] bool HasValue(int index, int argc) noexcept
@@ -51,8 +63,6 @@ struct ParsedEditorCommand
                                       ParsedEditorCommand& parsed,
                                       std::ostream& err)
 {
-    parsed.app.argc = argc;
-    parsed.app.argv = argv;
     parsed.app.windowTitle = "SagaEditor";
     parsed.app.maximized = true;
 
@@ -109,14 +119,14 @@ struct ParsedEditorCommand
         }
         else if (argument == "--smoke")
         {
-            parsed.app.smoke = true;
+            parsed.smoke = true;
             parsed.app.showOnInit = false;
         }
         else if (argument == "--smoke-timeout-ms")
         {
             const char* value = requireValue("--smoke-timeout-ms");
             if (value == nullptr ||
-                !ParsePositiveInt(value, parsed.app.smokeTimeoutMs))
+                !ParsePositiveInt(value, parsed.smokeTimeoutMs))
             {
                 err << "SagaEditor: --smoke-timeout-ms requires a positive integer\n";
                 return false;
@@ -170,6 +180,79 @@ struct ParsedEditorCommand
     return true;
 }
 
+[[nodiscard]] ProjectWorkflowPrompts MakeProjectWorkflowPrompts(
+    QMainWindow* parent)
+{
+    ProjectWorkflowPrompts prompts;
+    prompts.chooseExistingProject = [parent]()
+        -> std::optional<std::filesystem::path>
+    {
+        const auto path = QFileDialog::getOpenFileName(
+            parent, QStringLiteral("Open Saga Project"), {},
+            QStringLiteral("Saga Projects (*.sagaproj)"));
+        if (path.isEmpty()) return std::nullopt;
+        return std::filesystem::path(path.toStdString());
+    };
+    prompts.requestNewProject = [parent]()
+        -> std::optional<ProjectCreationPrompt>
+    {
+        bool accepted = false;
+        const auto name = QInputDialog::getText(
+            parent, QStringLiteral("New Starter Arena Project"),
+            QStringLiteral("Project name"), QLineEdit::Normal,
+            QStringLiteral("StarterArena"), &accepted).trimmed();
+        if (!accepted || name.isEmpty()) return std::nullopt;
+        const auto directory = QFileDialog::getExistingDirectory(
+            parent, QStringLiteral("Choose Project Parent Directory"));
+        if (directory.isEmpty()) return std::nullopt;
+        return ProjectCreationPrompt{
+            name.toStdString(),
+            std::filesystem::path(directory.toStdString()) /
+                name.toStdString()};
+    };
+    prompts.confirmDirtyDocuments =
+        [parent](const std::vector<std::string>& documentIds)
+    {
+        QString detail;
+        for (const auto& id : documentIds)
+            detail += QString::fromStdString(id) + QLatin1Char('\n');
+        QMessageBox box(
+            QMessageBox::Warning,
+            QStringLiteral("Unsaved source documents"),
+            QStringLiteral(
+                "Save canonical source changes before continuing?"),
+            QMessageBox::Save | QMessageBox::Discard |
+                QMessageBox::Cancel,
+            parent);
+        box.setDetailedText(detail.trimmed());
+        box.setDefaultButton(QMessageBox::Save);
+        const auto decision = box.exec();
+        if (decision == QMessageBox::Save)
+            return DirtyDocumentDecision::SaveAll;
+        if (decision == QMessageBox::Discard)
+            return DirtyDocumentDecision::Discard;
+        return DirtyDocumentDecision::Cancel;
+    };
+    return prompts;
+}
+
+[[nodiscard]] std::filesystem::path ResolveSiblingRuntime(
+    const char* executableArgument)
+{
+    if (executableArgument == nullptr || *executableArgument == '\0')
+        return {};
+    std::error_code error;
+    const auto editorExecutable = std::filesystem::weakly_canonical(
+        std::filesystem::absolute(executableArgument), error);
+    if (error) return {};
+    return editorExecutable.parent_path() /
+#ifdef _WIN32
+        "SagaRuntime.exe";
+#else
+        "SagaRuntime";
+#endif
+}
+
 } // namespace
 
 const char* EditorApplicationUsage() noexcept
@@ -191,10 +274,8 @@ const char* EditorApplicationUsage() noexcept
 
 int RunEditorApplication(int argc,
                          char* argv[],
-                         IUIFactory& factory,
                          std::ostream& out,
                          std::ostream& err,
-                         ProjectWorkflowPrompts prompts,
                          EditorShellExtension extension)
 {
     ParsedEditorCommand parsed;
@@ -226,9 +307,23 @@ int RunEditorApplication(int argc,
         return result.ok ? 0 : kExitInspectionFailure;
     }
 
-    parsed.app.projectWorkflowPrompts = std::move(prompts);
+    QApplication qtApplication(argc, argv);
+    QApplication::setApplicationName("SagaEditor");
+    QApplication::setOrganizationName("Bytegeist");
+
+    auto mainWindow = std::make_unique<QtUIMainWindow>(
+        parsed.app.windowTitle,
+        parsed.app.windowWidth,
+        parsed.app.windowHeight);
+    parsed.app.projectWorkflowPrompts =
+        MakeProjectWorkflowPrompts(mainWindow->Window());
+    parsed.app.runtimeExecutable = ResolveSiblingRuntime(
+        argc > 0 && argv ? argv[0] : nullptr);
+
     EditorApp app;
-    if (!app.Init(parsed.app, factory))
+    if (!app.Init(parsed.app,
+                  std::make_unique<QtSettingsStore>(),
+                  std::move(mainWindow)))
     {
         err << "SagaEditor: startup failed\n";
         return kExitStartupFailure;
@@ -237,8 +332,12 @@ int RunEditorApplication(int argc,
     {
         extension(app.GetShell());
     }
-    const int exitCode = parsed.app.smoke ?
-        app.RunSmoke(parsed.app.smokeTimeoutMs) : app.Run();
+    if (parsed.smoke)
+    {
+        QTimer::singleShot(
+            parsed.smokeTimeoutMs, &qtApplication, &QApplication::quit);
+    }
+    const int exitCode = QApplication::exec();
     app.Shutdown();
     return exitCode;
 }
