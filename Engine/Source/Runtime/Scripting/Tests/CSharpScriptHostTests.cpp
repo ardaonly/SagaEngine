@@ -185,12 +185,14 @@ struct VerifiedGenerationFixture
         {"targetFramework", request.targetFramework},
         {"runtimeCompatibility", request.runtimeCompatibility}, {"trust", request.trust}});
     auto behaviorManifest = identity();
+    behaviorManifest["schemaVersion"] = 2;
     behaviorManifest["behaviors"] = nlohmann::json::array({
         {{"behaviorId", "Game.PlayerScript"}, {"capabilities", nlohmann::json::array({
             kTransformReadCapability})}, {"actions", nlohmann::json::array({
                 {{"actionId", "Interact"}, {"attributeTypeId",
                     "SagaEngine.Scripting.SagaActionAttribute"}, {"method", "OnStart"},
-                    {"publiclyInvocable", true}}})}}});
+                    {"publiclyInvocable", true}}})},
+            {"stateAccesses", nlohmann::json::array()}}});
     auto actionManifest = identity();
     actionManifest["actions"] = nlohmann::json::array({
         {{"behaviorId", "Game.PlayerScript"}, {"actionId", "Interact"},
@@ -207,7 +209,7 @@ struct VerifiedGenerationFixture
         return VerifiedFile(path);
     };
     request.assemblyManifest = writeManifest("assembly_manifest_v1.json", assemblyManifest);
-    request.behaviorManifest = writeManifest("behavior_manifest_v1.json", behaviorManifest);
+    request.behaviorManifest = writeManifest("behavior_manifest_v2.json", behaviorManifest);
     request.namedActionManifest = writeManifest("named_actions_v1.json", actionManifest);
     request.capabilityManifest = writeManifest("capabilities_v1.json", capabilityManifest);
     return fixture;
@@ -1044,6 +1046,55 @@ TEST(CSharpScriptHostTests, VerifiedGenerationLoadsExactManifestSet)
     const auto result = host.LoadVerifiedGeneration(fixture.request);
 
     ASSERT_TRUE(result.Succeeded()) << DescribeDiagnostics(result.diagnostics);
+}
+
+TEST(CSharpScriptHostTests, VerifiedGenerationRejectsBehaviorManifestV1)
+{
+    auto fixture = CreateVerifiedGeneration("saga_verified_generation_behavior_v1");
+    auto manifest = ReadJson(fixture.request.behaviorManifest);
+    manifest["schemaVersion"] = 1;
+    manifest["behaviors"][0].erase("stateAccesses");
+    RewriteVerifiedJson(fixture.request.behaviorManifest, manifest);
+    CSharpScriptHost host(HostOptions());
+
+    const auto result = host.LoadVerifiedGeneration(fixture.request);
+
+    ASSERT_FALSE(result.Succeeded());
+    EXPECT_EQ(result.diagnostics.front().diagnostic.code.value,
+        SagaEngine::Scripting::ScriptHostDiagnostics::ManifestInvalid);
+}
+
+TEST(CSharpScriptHostTests, VerifiedGenerationRejectsMalformedOrDuplicateStateAccess)
+{
+    auto missingFixture = CreateVerifiedGeneration(
+        "saga_verified_generation_state_access_missing");
+    auto missing = ReadJson(missingFixture.request.behaviorManifest);
+    missing["behaviors"][0].erase("stateAccesses");
+    RewriteVerifiedJson(missingFixture.request.behaviorManifest, missing);
+    CSharpScriptHost missingHost(HostOptions());
+    const auto missingResult =
+        missingHost.LoadVerifiedGeneration(missingFixture.request);
+    ASSERT_FALSE(missingResult.Succeeded());
+    EXPECT_EQ(missingResult.diagnostics.front().diagnostic.code.value,
+        SagaEngine::Scripting::ScriptHostDiagnostics::ManifestInvalid);
+
+    auto duplicateFixture = CreateVerifiedGeneration(
+        "saga_verified_generation_state_access_duplicate");
+    auto behaviors = ReadJson(duplicateFixture.request.behaviorManifest);
+    auto capabilities = ReadJson(duplicateFixture.request.capabilityManifest);
+    capabilities["capabilities"].push_back("Gameplay.State.ReadWrite");
+    behaviors["behaviors"][0]["capabilities"].push_back("Gameplay.State.ReadWrite");
+    const nlohmann::json access{{"operation", "SetBool"}, {"valueType", "Bool"},
+                                {"key", "light.enabled"}};
+    behaviors["behaviors"][0]["stateAccesses"] = nlohmann::json::array({access, access});
+    RewriteVerifiedJson(duplicateFixture.request.behaviorManifest, behaviors);
+    RewriteVerifiedJson(duplicateFixture.request.capabilityManifest, capabilities);
+    CSharpScriptHost duplicateHost(HostOptions());
+    const auto duplicateResult =
+        duplicateHost.LoadVerifiedGeneration(duplicateFixture.request);
+    ASSERT_FALSE(duplicateResult.Succeeded());
+    EXPECT_EQ(duplicateResult.diagnostics.front().diagnostic.code.value,
+        SagaEngine::Scripting::ScriptHostDiagnostics::ManifestInvalid);
 }
 
 TEST(CSharpScriptHostTests, VerifiedGenerationRejectsTamperedAssemblyManifest)

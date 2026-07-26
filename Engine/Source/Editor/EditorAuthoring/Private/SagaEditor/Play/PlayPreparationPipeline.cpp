@@ -225,13 +225,22 @@ PlayPreparationResult PlayPreparationPipeline::Prepare(
         }
         scriptPaths[record->value("artifactId", std::string{})] = path;
     }
-    Json assemblyManifest, capabilities;
+    Json assemblyManifest, behaviors, capabilities;
     if (!ReadJson(scriptPaths["scripts.assembly-manifest"], assemblyManifest) ||
+        !ReadJson(scriptPaths["scripts.behaviors"], behaviors) ||
         !ReadJson(scriptPaths["scripts.capabilities"], capabilities) ||
+        behaviors.value("schemaVersion", -1) != 2 ||
+        !behaviors.contains("behaviors") || !behaviors["behaviors"].is_array() ||
+        std::any_of(behaviors["behaviors"].begin(), behaviors["behaviors"].end(),
+            [](const Json& behavior)
+            {
+                return !behavior.contains("stateAccesses") ||
+                    !behavior["stateAccesses"].is_array();
+            }) ||
         !capabilities.contains("capabilities") || !capabilities["capabilities"].is_array())
     {
         result.diagnostics.push_back(Diagnostic("Play.Prepare.ScriptMetadataInvalid",
-            "Assembly and capability manifests are required."));
+            "Assembly, behavior schema v2 state policy, and capability manifests are required."));
         return result;
     }
     const auto generationId = packageCurrent.value("generationId", std::string{});

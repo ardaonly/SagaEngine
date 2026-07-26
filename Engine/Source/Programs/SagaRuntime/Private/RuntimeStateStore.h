@@ -8,6 +8,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <utility>
 
 namespace SagaRuntimeApp
 {
@@ -24,6 +25,11 @@ class RuntimeStateStore final : public SagaEngine::Scripting::ISagaScriptStatePo
 {
 public:
     using Context = SagaEngine::Scripting::ScriptStateContext;
+    using BoolWritePolicy = std::map<std::string, std::set<std::string>>;
+
+    explicit RuntimeStateStore(BoolWritePolicy boolWrites = {})
+        : boolWrites_(std::move(boolWrites))
+    {}
 
     [[nodiscard]] std::optional<RuntimeBoolStateSnapshot> Snapshot(
         SagaEngine::Scripting::ScriptEntityHandle entity,
@@ -66,6 +72,7 @@ private:
 
     std::map<InstanceIdentity, std::uint64_t> active_;
     std::map<StateIdentity, RuntimeBoolStateSnapshot> bools_;
+    BoolWritePolicy boolWrites_;
     std::uint64_t nextRevision_ = 1;
 };
 
