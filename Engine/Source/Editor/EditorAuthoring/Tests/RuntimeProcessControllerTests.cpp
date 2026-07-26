@@ -9,6 +9,7 @@
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <cctype>
 #include <cstdlib>
@@ -305,8 +306,13 @@ TEST(StarterArenaGraphicalRuntimeIntegrationTests,
             ADD_FAILURE() << "Could not open graphical variant " << label;
             return {};
         }
-        const auto session = "named-graphical-" + std::string(
-            1, static_cast<char>(std::tolower(static_cast<unsigned char>(label.front()))));
+        auto sessionLabel = label;
+        std::transform(sessionLabel.begin(), sessionLabel.end(), sessionLabel.begin(),
+            [](const unsigned char character)
+            {
+                return static_cast<char>(std::tolower(character));
+            });
+        const auto session = "named-graphical-" + sessionLabel;
         const auto prepared = SagaEditor::PlayPreparationPipeline{}.Prepare(workspace,
             {session, RuntimeExecutable(), {}, {}, {}});
         if (!prepared.passed)
