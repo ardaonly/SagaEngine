@@ -32,7 +32,8 @@ foreach(_required_target IN ITEMS
     SagaEngine
     SagaRuntimeLib
     SagaServerLib
-    SagaBackend)
+    SagaUiBackend
+    SagaPersistenceBackend)
     if(NOT TARGET SagaEngine::${_required_target})
         message(FATAL_ERROR
             "Installed package must export SagaEngine::${_required_target}")
@@ -76,5 +77,5 @@ target_link_libraries(SagaGraphicsInstalledConsumer PRIVATE
     SagaEngine::SagaEngine
     SagaEngine::SagaRuntimeLib
     SagaEngine::SagaServerLib
-    SagaEngine::SagaBackend
+    SagaEngine::SagaPersistenceBackend
 )

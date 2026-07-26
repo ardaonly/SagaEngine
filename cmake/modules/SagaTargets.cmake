@@ -51,7 +51,8 @@ function(saga_create_engine_targets)
     saga_collect_sources(MULTIPLAYER_SANDBOX_HEADLESS_SOURCES Samples/MultiplayerSandbox/Source/Headless)
     saga_get_registered_sources(SagaDiligentRuntime SAGA_DILIGENT_RUNTIME_SOURCES)
     saga_get_registered_sources(SagaPlatformSDL SAGA_PLATFORM_SDL_SOURCES)
-    saga_get_registered_sources(SagaBackend BACKEND_SOURCES)
+    saga_get_registered_sources(SagaUiBackend UI_BACKEND_SOURCES)
+    saga_get_registered_sources(SagaPersistenceBackend PERSISTENCE_BACKEND_SOURCES)
     saga_get_registered_sources(SagaSandboxLib SANDBOX_SOURCES)
     saga_get_registered_sources(SagaEditorLabLib EDITORLAB_SOURCES)
     saga_get_registered_sources(SagaCoreLog CORE_LOG_SOURCES)
@@ -432,24 +433,34 @@ function(saga_create_engine_targets)
         FOLDER "Tools/MultiplayerSandboxHeadless"
     )
 
-    # --- Backend Library -----------------------------------------------------
-    add_library(SagaBackend STATIC)
-    saga_apply_compiler_flags(SagaBackend)
-    saga_link_rmlui(SagaBackend)
+    # --- UI Backend Library --------------------------------------------------
+    add_library(SagaUiBackend STATIC)
+    saga_apply_compiler_flags(SagaUiBackend)
+    saga_link_rmlui(SagaUiBackend)
+    target_link_libraries(SagaUiBackend PRIVATE
+        SagaEngine
+    )
+    target_sources(SagaUiBackend PRIVATE
+        ${UI_BACKEND_SOURCES}
+    )
+    target_include_directories(SagaUiBackend PUBLIC
+        $<BUILD_INTERFACE:${SAGA_ROOT}/Engine/Source/Runtime/UI/Public>
+        $<INSTALL_INTERFACE:include>
+    )
 
-    target_link_libraries(SagaBackend PRIVATE
+    # --- Persistence Backend Library -----------------------------------------
+    add_library(SagaPersistenceBackend STATIC)
+    saga_apply_compiler_flags(SagaPersistenceBackend)
+    target_link_libraries(SagaPersistenceBackend PRIVATE
         SagaEngine
         libpqxx::pqxx
         redis++::redis++_static
     )
-
-    target_sources(SagaBackend PRIVATE
-        ${BACKEND_SOURCES}
+    target_sources(SagaPersistenceBackend PRIVATE
+        ${PERSISTENCE_BACKEND_SOURCES}
     )
-
-    target_include_directories(SagaBackend PUBLIC
+    target_include_directories(SagaPersistenceBackend PUBLIC
         $<BUILD_INTERFACE:${SAGA_ROOT}/Engine/Source/Runtime/Persistence/Public>
-        $<BUILD_INTERFACE:${SAGA_ROOT}/Engine/Source/Runtime/UI/Public>
         $<INSTALL_INTERFACE:include>
     )
 
@@ -463,7 +474,6 @@ function(saga_create_engine_targets)
         SagaDiligentBackend
         SagaRuntimeLib
         SagaServerLib
-        SagaBackend
     )
 
     target_link_libraries(SagaSandboxLib PRIVATE
@@ -510,7 +520,6 @@ function(saga_create_engine_targets)
     target_link_libraries(SagaEditorLib PRIVATE
         SagaShared
         SagaCollaboration
-        SagaBackend
         SagaDiligentRuntime
         SagaRuntimeLib
         OpenSSL::Crypto
@@ -573,7 +582,6 @@ function(saga_create_engine_targets)
 
     target_link_libraries(SagaProductLib PRIVATE
         SagaAssetPipelineLib
-        SagaBackend
         OpenSSL::Crypto
     )
 
@@ -666,7 +674,7 @@ function(saga_create_engine_targets)
     target_link_libraries(SagaRuntimeAppLib PUBLIC
         SagaRuntimeLib
         SagaEngine
-        SagaBackend
+        SagaUiBackend
         SagaDiligentRuntime
         SagaPlatformSDL
     )
@@ -680,11 +688,6 @@ function(saga_create_engine_targets)
     saga_link_thirdparty(SagaRuntime)
     target_link_libraries(SagaRuntime PRIVATE
         SagaRuntimeAppLib
-        SagaRuntimeLib
-        SagaEngine
-        SagaBackend
-        SagaDiligentRuntime
-        SagaPlatformSDL
     )
 
     set_target_properties(SagaRuntime PROPERTIES
@@ -859,11 +862,24 @@ function(saga_create_engine_targets)
     foreach(_saga_registered_target IN ITEMS
         SagaCoreLog SagaDiagnostics SagaCollaboration SagaEngine
         SagaPlatformSDL SagaDiligentRuntime SagaDiligentBackend SagaRuntimeLib
-        SagaServerLib SagaBackend SagaSandboxLib SagaEditorLib SagaEditorLabLib
+        SagaServerLib SagaUiBackend SagaPersistenceBackend SagaSandboxLib
+        SagaEditorLib SagaEditorLabLib
         SagaProductLib Saga SagaRuntime SagaEditor EditorLab SagaSandbox)
         if(TARGET ${_saga_registered_target})
             saga_apply_registered_usage(${_saga_registered_target})
         endif()
     endforeach()
+
+    file(GENERATE
+        OUTPUT "${CMAKE_BINARY_DIR}/generated/SagaBackendOwnership-$<CONFIG>.txt"
+        CONTENT
+"SagaUiBackend=$<TARGET_PROPERTY:SagaUiBackend,LINK_LIBRARIES>
+SagaPersistenceBackend=$<TARGET_PROPERTY:SagaPersistenceBackend,LINK_LIBRARIES>
+SagaRuntimeAppLib=$<TARGET_PROPERTY:SagaRuntimeAppLib,LINK_LIBRARIES>
+SagaRuntime=$<TARGET_PROPERTY:SagaRuntime,LINK_LIBRARIES>
+SagaSandboxLib=$<TARGET_PROPERTY:SagaSandboxLib,LINK_LIBRARIES>
+SagaEditorLib=$<TARGET_PROPERTY:SagaEditorLib,LINK_LIBRARIES>
+SagaProductLib=$<TARGET_PROPERTY:SagaProductLib,LINK_LIBRARIES>
+")
 
 endfunction()

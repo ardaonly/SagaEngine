@@ -432,7 +432,8 @@ function(saga_register_source_modules)
     set(_private_includes)
     foreach(_target IN ITEMS
         SagaCoreLog SagaDiagnostics SagaEngine SagaGraphicsCore SagaGraphicsPrivate
-        SagaDiligentRuntime SagaDiligentBackend SagaPlatformSDL SagaBackend
+        SagaDiligentRuntime SagaDiligentBackend SagaPlatformSDL SagaUiBackend
+        SagaPersistenceBackend
         SagaRuntimeLib SagaServerLib SagaShared SagaCollaboration SagaEditorLib
         SagaEditorLabLib SagaSandboxLib SagaProductLib Saga SagaEditor SagaRuntime
         SagaSandbox EditorLab)

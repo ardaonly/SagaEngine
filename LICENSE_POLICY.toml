@@ -914,7 +914,7 @@ source_domains = ["saga-programs"]
 public_dependencies = [
   "SagaRuntimeLib",
   "SagaEngine",
-  "SagaBackend",
+  "SagaUiBackend",
   "SagaDiligentRuntime",
   "SagaPlatformSDL",
 ]
@@ -1051,15 +1051,35 @@ expected_installed_artifact = false
 expected_exported_target = false
 export_validation = "manual-pending"
 [[targets]]
-name = "SagaBackend"
+name = "SagaUiBackend"
 source_domains = ["saga-backends"]
-public_dependencies = ["SagaEngine"]
-private_dependencies = []
-runtime_dependencies = []
+public_dependencies = []
+private_dependencies = ["SagaEngine"]
+runtime_dependencies = ["RmlUi"]
 target_license_expression = "MPL-2.0"
 distribution = "installed-not-exported"
-review = "public-purpose-required"
-blockers = ["public-purpose-review"]
+review = "configured-graph-reviewed"
+blockers = []
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["MPL-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = true
+expected_exported_target = false
+export_validation = "manual-pending"
+
+[[targets]]
+name = "SagaPersistenceBackend"
+source_domains = ["saga-backends"]
+public_dependencies = []
+private_dependencies = ["SagaEngine"]
+runtime_dependencies = ["PostgreSQL", "Redis"]
+target_license_expression = "MPL-2.0"
+distribution = "installed-not-exported"
+review = "configured-graph-reviewed"
+blockers = []
 graph_required = true
 current_license_mode = "fixed-spdx"
 current_license_expressions = ["MPL-2.0"]
@@ -1074,7 +1094,7 @@ export_validation = "manual-pending"
 name = "SagaSandboxLib"
 source_domains = ["saga-programs"]
 public_dependencies = []
-private_dependencies = ["SagaRuntimeLib", "SagaBackend"]
+private_dependencies = ["SagaRuntimeLib"]
 runtime_dependencies = []
 target_license_expression = "MPL-2.0"
 distribution = "internal-diagnostics"

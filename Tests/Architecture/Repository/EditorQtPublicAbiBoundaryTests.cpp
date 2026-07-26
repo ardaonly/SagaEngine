@@ -277,7 +277,35 @@ using Allowlist = std::map<std::string, TokenSet>;
 
 const Allowlist& QtExposureAllowlist()
 {
-    static const Allowlist allowlist;
+    // Editor shell docking deliberately uses one typed QWidget pointer across
+    // the neutral host boundary. Keep every permitted header explicit so no
+    // other Qt type or new panel exposure can arrive unnoticed.
+    static const Allowlist allowlist = {
+        {"Engine/Source/Editor/EditorFramework/Public/SagaEditor/Panels/"
+         "AssetBrowserPanel.h", {"QWidget"}},
+        {"Engine/Source/Editor/EditorFramework/Public/SagaEditor/Panels/"
+         "ConsolePanel.h", {"QWidget"}},
+        {"Engine/Source/Editor/EditorFramework/Public/SagaEditor/Panels/"
+         "CustomizeWorkspacePanel.h", {"QWidget"}},
+        {"Engine/Source/Editor/EditorFramework/Public/SagaEditor/Panels/"
+         "HierarchyPanel.h", {"QWidget"}},
+        {"Engine/Source/Editor/EditorFramework/Public/SagaEditor/Panels/"
+         "InspectorPanel.h", {"QWidget"}},
+        {"Engine/Source/Editor/EditorFramework/Public/SagaEditor/Panels/"
+         "IPanel.h", {"QWidget"}},
+        {"Engine/Source/Editor/EditorFramework/Public/SagaEditor/Panels/"
+         "ProblemsPanel.h", {"QWidget"}},
+        {"Engine/Source/Editor/EditorFramework/Public/SagaEditor/Panels/"
+         "ProductionDashboardPanel.h", {"QWidget"}},
+        {"Engine/Source/Editor/EditorFramework/Public/SagaEditor/Panels/"
+         "ScriptingPanel.h", {"QWidget"}},
+        {"Engine/Source/Editor/EditorFramework/Public/SagaEditor/Panels/"
+         "ShortcutPreferencesPanel.h", {"QWidget"}},
+        {"Engine/Source/Editor/EditorFramework/Public/SagaEditor/Panels/"
+         "WorldViewportPanel.h", {"QWidget"}},
+        {"Engine/Source/Editor/EditorFramework/Public/SagaEditor/UI/"
+         "IUIMainWindow.h", {"QWidget"}},
+    };
     return allowlist;
 }
 
