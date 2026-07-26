@@ -390,17 +390,13 @@ TEST(CMakeTargetBoundaryTests, MainWindowContractOwnsChromeNotProjectDialogs)
 TEST(CMakeTargetBoundaryTests, RuntimeStatePolicyComesFromVersionedScriptEvidence)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
-    const auto stateStore = ReadText(root /
-        "Engine/Source/Programs/SagaRuntime/Private/RuntimeStateStore.cpp");
-    const auto frameLoop = ReadText(root /
+    const auto stateStore = ReadText(root / "Engine/Source/Programs/SagaRuntime/Private/RuntimeStateStore.cpp"),
+        frameLoop = ReadText(root /
         "Engine/Source/Programs/SagaRuntime/Private/RuntimeFrameLoop.cpp");
-    const auto worker = ReadText(root / "Tools/SagaScript/src/ProjectWorker.cs");
-    const auto artifacts = ReadText(root /
-        "Tools/SagaScript/src/ProjectWorkerArtifactBuilder.cs");
-    const auto verifiedHost = ReadText(root /
-        "Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/"
-        "CSharpScriptHostVerifiedGeneration.cpp");
-
+    const auto worker = ReadText(root / "Tools/SagaScript/src/ProjectWorker.cs"),
+        artifacts = ReadText(root / "Tools/SagaScript/src/ProjectWorkerArtifactBuilder.cs");
+    const auto verifiedHost = ReadText(root / "Engine/Source/Runtime/Scripting/Private/"
+        "SagaEngine/Scripting/CSharpScriptHostVerifiedGeneration.cpp");
     for (const auto* production : {&stateStore, &frameLoop, &worker})
         EXPECT_EQ(production->find("door.target-open"), std::string::npos);
     EXPECT_NE(stateStore.find("boolWrites_"), std::string::npos);
@@ -408,31 +404,23 @@ TEST(CMakeTargetBoundaryTests, RuntimeStatePolicyComesFromVersionedScriptEvidenc
     EXPECT_NE(worker.find("StateKeyNotConstant"), std::string::npos);
     EXPECT_NE(artifacts.find("behavior_manifest_v2.json"), std::string::npos);
     EXPECT_NE(artifacts.find("schemaVersion = 2"), std::string::npos);
-    EXPECT_NE(verifiedHost.find("readJson(request.behaviorManifest, behaviors, 2)"),
-              std::string::npos);
+    EXPECT_NE(verifiedHost.find("readJson(request.behaviorManifest, behaviors, 2)"), std::string::npos);
     EXPECT_NE(verifiedHost.find("stateAccesses"), std::string::npos);
 }
-
 TEST(CMakeTargetBoundaryTests, VerifiedStylesheetIsRuntimeRenderAuthority)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
-    const auto rml = ReadText(root /
-        "Samples/StarterArena/Content/UI/HUD/interaction-prompt.rml");
-    const auto packager = ReadText(root /
-        "Tools/SagaPackager/src/UiContentCompiler.cs");
-    const auto session = ReadText(root /
-        "Engine/Source/Programs/SagaRuntime/Private/RuntimeUiSession.cpp");
-    const auto backend = ReadText(root /
-        "Engine/Source/Runtime/UI/Private/Backends/RmlUi/RmlUiUiBackend.cpp");
-
+    const auto rml = ReadText(root / "Samples/StarterArena/Content/UI/HUD/interaction-prompt.rml"),
+        packager = ReadText(root / "Tools/SagaPackager/src/UiContentCompiler.cs");
+    const auto session = ReadText(root / "Engine/Source/Programs/SagaRuntime/"
+        "Private/RuntimeUiSession.cpp"), backend = ReadText(root / "Engine/Source/Runtime/UI/"
+        "Private/Backends/RmlUi/RmlUiUiBackend.cpp");
     EXPECT_NE(rml.find("<link type=\"text/rcss\" "
-                       "href=\"interaction-prompt.rcss\"/>"),
-              std::string::npos);
+        "href=\"interaction-prompt.rcss\"/>"), std::string::npos);
     EXPECT_EQ(rml.find("<style>"), std::string::npos);
     EXPECT_NE(packager.find("InlineStyleForbidden"), std::string::npos);
     EXPECT_NE(packager.find("StylesheetUnreferenced"), std::string::npos);
-    EXPECT_NE(packager.find("/resources/{resource.ProjectRelativePath}"),
-              std::string::npos);
+    EXPECT_NE(packager.find("/resources/{resource.ProjectRelativePath}"), std::string::npos);
     EXPECT_NE(session.find("ui.stylesheets"), std::string::npos);
     EXPECT_NE(session.find("verifiedResourcePaths"), std::string::npos);
     EXPECT_NE(backend.find("verified_.contains"), std::string::npos);
