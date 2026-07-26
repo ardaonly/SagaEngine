@@ -5,6 +5,7 @@
 #include "SagaEditor/Panels/IPanel.h"
 
 #include <memory>
+#include <string>
 
 namespace SagaEditor
 {
@@ -12,6 +13,16 @@ class CommandDispatcher;
 class EditorDocumentWorkspace;
 class UndoRedoStack;
 class ScriptAnalysisCoordinator;
+class CSharpSourceDocument;
+
+/// Editor-owned seam for intentional source-buffer replacement.
+class IScriptSourceMutationPort
+{
+public:
+    virtual ~IScriptSourceMutationPort() = default;
+    [[nodiscard]] virtual bool ReplaceText(CSharpSourceDocument& document,
+        UndoRedoStack& journal, std::string text) = 0;
+};
 
 class ScriptingPanel final : public IPanel
 {
@@ -28,6 +39,7 @@ public:
     void SetUndoRedoStack(UndoRedoStack* journal) noexcept;
     void SetCommandDispatcher(CommandDispatcher* dispatcher) noexcept;
     void SetAnalysisCoordinator(ScriptAnalysisCoordinator* coordinator) noexcept;
+    void SetScriptSourceMutationPort(IScriptSourceMutationPort* port) noexcept;
     void Analyze();
     void CancelAnalysis();
 

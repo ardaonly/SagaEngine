@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "SagaEditor/Scripting/ScriptProjectionSession.h"
 #include "SagaEditor/VisualBlocks/ReadOnlyScriptProjection.h"
 
 #include <QWidget>
@@ -20,6 +21,7 @@ class ReadOnlyBlocksWidget final : public QWidget
 public:
     explicit ReadOnlyBlocksWidget(QWidget* parent = nullptr);
     void Present(std::shared_ptr<const VisualBlocks::ReadOnlyScriptProjection> projection);
+    void PresentSnapshot(const ScriptProjectionSnapshot& snapshot);
     void SetStatus(const QString& status);
     void SetSourceActivated(std::function<void(const VisualBlocks::ProjectionSourceSpan&)> callback);
 

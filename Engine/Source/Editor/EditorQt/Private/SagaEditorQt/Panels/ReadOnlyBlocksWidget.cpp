@@ -55,6 +55,50 @@ void ReadOnlyBlocksWidget::Present(
         .arg(QString::fromStdString(projection_->PackageGenerationId())));
 }
 
+void ReadOnlyBlocksWidget::PresentSnapshot(const ScriptProjectionSnapshot& snapshot)
+{
+    if (snapshot.state == ScriptProjectionState::Current && snapshot.projection)
+    {
+        Present(snapshot.projection);
+        return;
+    }
+
+    Present(nullptr);
+    switch (snapshot.state)
+    {
+    case ScriptProjectionState::NoDocument:
+        SetStatus(QStringLiteral("No document"));
+        break;
+    case ScriptProjectionState::DirtyNeedsSave:
+        SetStatus(QStringLiteral("Save changes before analysis"));
+        break;
+    case ScriptProjectionState::Analyzing:
+        SetStatus(QStringLiteral("Analyzing…"));
+        break;
+    case ScriptProjectionState::Stale:
+        SetStatus(QStringLiteral("Stale projection rejected"));
+        break;
+    case ScriptProjectionState::Failed:
+        SetStatus(snapshot.diagnostic.empty()
+            ? QStringLiteral("Projection failed")
+            : QStringLiteral("Projection failed: %1")
+                .arg(QString::fromStdString(snapshot.diagnostic)));
+        break;
+    case ScriptProjectionState::Cancelled:
+        SetStatus(QStringLiteral("Analysis cancelled"));
+        break;
+    case ScriptProjectionState::ProjectClosed:
+        SetStatus(QStringLiteral("Project closed"));
+        break;
+    case ScriptProjectionState::PackageGenerationChanged:
+        SetStatus(QStringLiteral("Package generation changed"));
+        break;
+    case ScriptProjectionState::Current:
+        SetStatus(QStringLiteral("Current projection unavailable"));
+        break;
+    }
+}
+
 void ReadOnlyBlocksWidget::AddCard(const VisualBlocks::ProjectionCard& card, void* parentItem)
 {
     auto* item = parentItem

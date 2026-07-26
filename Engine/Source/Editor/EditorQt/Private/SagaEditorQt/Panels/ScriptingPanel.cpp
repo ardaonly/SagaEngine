@@ -65,6 +65,17 @@ private:
     QTextCharFormat comment_;
     QTextCharFormat string_;
 };
+
+class ScriptSourceMutationPort final : public IScriptSourceMutationPort
+{
+public:
+    [[nodiscard]] bool ReplaceText(CSharpSourceDocument& document,
+        UndoRedoStack& journal, std::string text) override
+    {
+        CSharpDocumentTransaction transaction(document, journal);
+        return transaction.ReplaceText(std::move(text));
+    }
+};
 }
 
 struct ScriptingPanel::Impl
@@ -93,6 +104,8 @@ struct ScriptingPanel::Impl
     CSharpSourceDocument::ChangeSubscription documentSubscription =
         CSharpSourceDocument::InvalidChangeSubscription;
     bool synchronizing = false;
+    ScriptSourceMutationPort defaultMutationPort;
+    IScriptSourceMutationPort* mutationPort = &defaultMutationPort;
 
     Impl()
     {
@@ -146,9 +159,9 @@ struct ScriptingPanel::Impl
         });
         QObject::connect(editor, &QPlainTextEdit::textChanged, [this]
         {
-            if (synchronizing || !document || !journal) return;
-            CSharpDocumentTransaction transaction(*document, *journal);
-            (void)transaction.ReplaceText(editor->toPlainText().toStdString());
+            if (synchronizing || !document || !journal || !mutationPort) return;
+            (void)mutationPort->ReplaceText(
+                *document, *journal, editor->toPlainText().toStdString());
         });
         QObject::connect(save, &QPushButton::clicked, [this]
         { if (dispatcher) (void)dispatcher->Dispatch("saga.command.file.save"); });
@@ -176,11 +189,15 @@ struct ScriptingPanel::Impl
                 result.cancelled ? QStringLiteral("Analysis cancelled") :
                 result.stale ? QStringLiteral("Stale result rejected") :
                 QStringLiteral("Analysis failed"));
-            blocks->Present(result.passed ? result.projection : nullptr);
-            if (!result.passed)
-                blocks->SetStatus(result.cancelled ? QStringLiteral("Analysis cancelled") :
-                    result.stale ? QStringLiteral("Stale projection rejected") :
-                    QStringLiteral("Projection failed"));
+            ScriptProjectionSnapshot snapshot;
+            snapshot.state = result.passed ? ScriptProjectionState::Current :
+                result.cancelled ? ScriptProjectionState::Cancelled :
+                result.stale ? ScriptProjectionState::Stale : ScriptProjectionState::Failed;
+            snapshot.projection = result.projection;
+            if (!result.diagnostics.empty())
+                snapshot.diagnostic = result.diagnostics.front().code + ": " +
+                    result.diagnostics.front().message;
+            blocks->PresentSnapshot(snapshot);
             analyze->setEnabled(document != nullptr);
             cancellation.reset();
         });
@@ -201,7 +218,9 @@ struct ScriptingPanel::Impl
         {
             identity->setText("No C# source open"); state->clear(); editor->clear(); editor->setEnabled(false);
             recover->setVisible(false); discardRecovery->setVisible(false);
-            blocks->Present(nullptr);
+            ScriptProjectionSnapshot snapshot;
+            snapshot.state = ScriptProjectionState::NoDocument;
+            blocks->PresentSnapshot(snapshot);
         }
         else
         {
@@ -219,8 +238,9 @@ struct ScriptingPanel::Impl
                 state->setText(QStringLiteral("Invalid recovery requires discard"));
             if (document->Snapshot().dirty)
             {
-                blocks->Present(nullptr);
-                blocks->SetStatus(QStringLiteral("Save changes before analysis"));
+                ScriptProjectionSnapshot snapshot;
+                snapshot.state = ScriptProjectionState::DirtyNeedsSave;
+                blocks->PresentSnapshot(snapshot);
             }
             const auto cursor = editor->textCursor();
             editor->setPlainText(QString::fromStdString(document->Text()));
@@ -255,7 +275,9 @@ struct ScriptingPanel::Impl
         if (!coordinator || !workspace || analysisWatcher->isRunning()) return;
         diagnostics->clear();
         state->setText(QStringLiteral("Preparing analysis…"));
-        blocks->SetStatus(QStringLiteral("Analyzing…"));
+        ScriptProjectionSnapshot snapshot;
+        snapshot.state = ScriptProjectionState::Analyzing;
+        blocks->PresentSnapshot(snapshot);
         analyze->setEnabled(false);
         cancellation = std::make_shared<std::atomic_bool>(false);
         auto cancelled = cancellation;
@@ -310,6 +332,8 @@ void ScriptingPanel::SetUndoRedoStack(UndoRedoStack* journal) noexcept { impl_->
 void ScriptingPanel::SetCommandDispatcher(CommandDispatcher* dispatcher) noexcept { impl_->dispatcher = dispatcher; }
 void ScriptingPanel::SetAnalysisCoordinator(ScriptAnalysisCoordinator* coordinator) noexcept
 { impl_->coordinator = coordinator; }
+void ScriptingPanel::SetScriptSourceMutationPort(IScriptSourceMutationPort* port) noexcept
+{ impl_->mutationPort = port ? port : &impl_->defaultMutationPort; }
 void ScriptingPanel::Analyze() { impl_->StartAnalysis(); }
 void ScriptingPanel::CancelAnalysis() { impl_->Cancel(); }
 
