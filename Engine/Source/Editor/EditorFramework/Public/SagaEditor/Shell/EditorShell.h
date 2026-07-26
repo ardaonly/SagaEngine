@@ -8,6 +8,7 @@
 #include "SagaEditor/Notifications/EditorNotificationCenter.h"
 #include "SagaEditor/Persona/PersonaRegistry.h"
 #include "SagaEditor/Profile/EditorProfileRegistry.h"
+#include "SagaEditor/Project/EditorProjectWorkflowController.h"
 #include "SagaEditor/Shell/ShellLayout.h"
 #include "SagaEditor/UI/IUIMainWindow.h"
 #include <memory>
@@ -41,6 +42,7 @@ struct EditorShellConfig
     bool        applyActivePersona = true;
     bool        showOnInit = true;
     std::filesystem::path runtimeExecutable;
+    ProjectWorkflowPrompts projectWorkflowPrompts;
 };
 
 // ─── Editor Shell ─────────────────────────────────────────────────────────────
@@ -149,6 +151,7 @@ private:
     EditorNotificationSubscription       m_notificationSubscription =
         kInvalidEditorNotificationSubscription;
     std::unique_ptr<RuntimeProcessController> m_runtimeProcessController;
+    std::unique_ptr<EditorProjectWorkflowController> m_projectWorkflowController;
 };
 
 } // namespace SagaEditor

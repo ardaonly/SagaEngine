@@ -38,6 +38,7 @@ saga_add_editor_module(EditorFramework
         Private/SagaEditor/Profile/EditorProfileActivator.cpp
         Private/SagaEditor/Profile/EditorProfileRegistry.cpp
         Private/SagaEditor/Profile/EditorProfileSettingsBinding.cpp
+        Private/SagaEditor/Project/EditorProjectWorkflowController.cpp
         Private/SagaEditor/Shell/EditorMode.cpp
         Private/SagaEditor/Shell/EditorShell.cpp
         Private/SagaEditor/Shell/EditorShellPanelLifecycle.cpp
@@ -99,6 +100,7 @@ saga_add_editor_module(EditorFramework
         Public/SagaEditor/Profile/EditorProfileActivator.h
         Public/SagaEditor/Profile/EditorProfileRegistry.h
         Public/SagaEditor/Profile/EditorProfileSettingsBinding.h
+        Public/SagaEditor/Project/EditorProjectWorkflowController.h
         Public/SagaEditor/Shell/EditorMode.h
         Public/SagaEditor/Shell/EditorShell.h
         Public/SagaEditor/Shell/ShellCommands.h
@@ -121,6 +123,7 @@ saga_register_module_tests(EditorFramework
         Tests/EditorModeTests.cpp
         Tests/EditorNotificationTests.cpp
         Tests/EditorProductionTests.cpp
+        Tests/EditorProjectWorkflowControllerTests.cpp
         Tests/EditorProfileTests.cpp
         Tests/PersonaTests.cpp
         Tests/WorkspaceCustomizationTests.cpp

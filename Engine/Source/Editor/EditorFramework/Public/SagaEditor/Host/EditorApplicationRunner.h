@@ -7,6 +7,8 @@
 #include <functional>
 #include <iosfwd>
 
+#include "SagaEditor/Project/EditorProjectWorkflowController.h"
+
 namespace SagaEditor
 {
 
@@ -22,6 +24,7 @@ using EditorShellExtension = std::function<void(EditorShell&)>;
                                        IUIFactory& factory,
                                        std::ostream& out,
                                        std::ostream& err,
+                                       ProjectWorkflowPrompts prompts,
                                        EditorShellExtension extension = {});
 
 /// Current bounded command-line help text for the SagaEditor host.

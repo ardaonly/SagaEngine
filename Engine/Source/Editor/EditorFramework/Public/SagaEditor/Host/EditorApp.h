@@ -6,6 +6,7 @@
 
 #include "SagaEditor/Composition/EditorCompositionSession.h"
 #include "SagaEditor/Host/EditorWorkspaceDefinition.h"
+#include "SagaEditor/Project/EditorProjectWorkflowController.h"
 
 #include <memory>
 #include <optional>
@@ -39,6 +40,7 @@ struct EditorAppConfig
     std::string initialProfileId = "";        ///< Optional workflow profile override.
     std::optional<EditorWorkspaceDefinition> preparedWorkspace;
     EditorCompositionStartupConfig composition; ///< Compiled composition startup input.
+    ProjectWorkflowPrompts projectWorkflowPrompts;
 };
 
 // ─── Application ─────────────────────────────────────────────────────────────

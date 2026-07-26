@@ -9,6 +9,8 @@
 #include <memory>
 #include <vector>
 
+class QMainWindow;
+
 namespace SagaEditor
 {
 
@@ -37,11 +39,6 @@ public:
 
     void ApplyShellLayout(const ShellLayout& layout)  override;
     void SetStatusMessage(const std::string& message) override;
-    [[nodiscard]] std::optional<std::string> ChooseProjectToOpen() override;
-    [[nodiscard]] std::optional<NewProjectPrompt> ChooseNewProject() override;
-    [[nodiscard]] UnsavedDocumentsDecision ConfirmUnsavedDocuments(
-        const std::vector<std::string>& documentIds) override;
-
     void DockPanel(QWidget*           widget,
                    const std::string& panelId,
                    const std::string& title,
@@ -56,6 +53,8 @@ public:
 
     void SetOnClose(CloseCallback cb) override;
     void SetOnCommand(CommandCallback cb) override;
+
+    [[nodiscard]] ::QMainWindow* Window() const noexcept;
 
 private:
     struct Impl;                   ///< Pimpl — hides QMainWindow and all Qt types.

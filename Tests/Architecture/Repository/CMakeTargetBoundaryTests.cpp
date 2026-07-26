@@ -274,6 +274,42 @@ TEST(CMakeTargetBoundaryTests, RetiredPropertyEditorBackendSeamStaysAbsent)
     }
 }
 
+TEST(CMakeTargetBoundaryTests, MainWindowContractOwnsChromeNotProjectDialogs)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto interfaceText = ReadText(root /
+        "Engine/Source/Editor/EditorFramework/Public/SagaEditor/UI/IUIMainWindow.h");
+    const auto qtHeader = ReadText(root /
+        "Engine/Source/Editor/EditorQt/Public/SagaEditorQt/QtUIMainWindow.h");
+    const auto qtSource = ReadText(root /
+        "Engine/Source/Editor/EditorQt/Private/SagaEditorQt/QtUIMainWindow.cpp");
+
+    for (const auto* retiredDialogMember : {
+             "NewProjectPrompt",
+             "UnsavedDocumentsDecision",
+             "ChooseProjectToOpen",
+             "ChooseNewProject",
+             "ConfirmUnsavedDocuments"})
+    {
+        EXPECT_EQ(interfaceText.find(retiredDialogMember), std::string::npos)
+            << retiredDialogMember;
+        EXPECT_EQ(qtHeader.find(retiredDialogMember), std::string::npos)
+            << retiredDialogMember;
+        EXPECT_EQ(qtSource.find(retiredDialogMember), std::string::npos)
+            << retiredDialogMember;
+    }
+    for (const auto* retainedWindowRole : {
+             "ApplyShellLayout",
+             "SetStatusMessage",
+             "DockPanel",
+             "SaveState",
+             "SetOnClose"})
+    {
+        EXPECT_NE(interfaceText.find(retainedWindowRole), std::string::npos)
+            << retainedWindowRole;
+    }
+}
+
 TEST(CMakeTargetBoundaryTests, ProductAggregateComposesOnlyProgramObjects)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
