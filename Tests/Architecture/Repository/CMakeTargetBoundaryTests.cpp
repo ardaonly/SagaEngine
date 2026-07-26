@@ -238,6 +238,42 @@ TEST(CMakeTargetBoundaryTests, EditorAggregateComposesOnlyModuleObjects)
     }
 }
 
+TEST(CMakeTargetBoundaryTests, RetiredPropertyEditorBackendSeamStaysAbsent)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto inspectorRoot =
+        root / "Engine/Source/Editor/EditorAuthoring";
+    const auto manifest = ReadText(inspectorRoot / "CMakeLists.txt");
+
+    for (const auto* retired : {
+             "IPropertyEditor.h",
+             "IPropertyEditorBackend.h",
+             "PropertyEditorFactory.h",
+             "PropertyEditorFactory.cpp"})
+    {
+        EXPECT_FALSE(std::filesystem::exists(
+            inspectorRoot / "Public/SagaEditor/InspectorEditing" / retired));
+        EXPECT_FALSE(std::filesystem::exists(
+            inspectorRoot / "Private/SagaEditor/InspectorEditing" / retired));
+        EXPECT_EQ(manifest.find(retired), std::string::npos) << retired;
+    }
+
+    const auto inspectorTests =
+        ReadText(inspectorRoot / "Tests/InspectorEditingTests.cpp");
+    for (const auto* retiredSymbol : {
+             "IPropertyEditor",
+             "IPropertyEditorBackend",
+             "PropertyEditorFactory",
+             "SetBackend(",
+             "g_backend"})
+    {
+        EXPECT_EQ(inspectorTests.find(retiredSymbol), std::string::npos)
+            << retiredSymbol;
+        EXPECT_EQ(manifest.find(retiredSymbol), std::string::npos)
+            << retiredSymbol;
+    }
+}
+
 TEST(CMakeTargetBoundaryTests, ProductAggregateComposesOnlyProgramObjects)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);

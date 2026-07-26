@@ -19,7 +19,6 @@ saga_add_editor_module(EditorAuthoring
         Private/SagaEditor/Authoring/ViewNavigationWorkflowState.cpp
         Private/SagaEditor/InspectorEditing/ComponentEditorRegistry.cpp
         Private/SagaEditor/InspectorEditing/InspectorBinder.cpp
-        Private/SagaEditor/InspectorEditing/PropertyEditorFactory.cpp
         Private/SagaEditor/Play/PlayPreparationPipeline.cpp
         Private/SagaEditor/Play/PlaySourceSnapshot.cpp
         Private/SagaEditor/Play/RuntimeProcessController.cpp
@@ -56,10 +55,7 @@ saga_add_editor_module(EditorAuthoring
         Public/SagaEditor/Importers/GraphImportAdapter.h
         Public/SagaEditor/Importers/TextScriptImporter.h
         Public/SagaEditor/InspectorEditing/ComponentEditorRegistry.h
-        Public/SagaEditor/InspectorEditing/IPropertyEditor.h
-        Public/SagaEditor/InspectorEditing/IPropertyEditorBackend.h
         Public/SagaEditor/InspectorEditing/InspectorBinder.h
-        Public/SagaEditor/InspectorEditing/PropertyEditorFactory.h
         Public/SagaEditor/Play/PlayPreparationPipeline.h
         Public/SagaEditor/Play/PlaySourceSnapshot.h
         Public/SagaEditor/Play/RuntimeProcessController.h
