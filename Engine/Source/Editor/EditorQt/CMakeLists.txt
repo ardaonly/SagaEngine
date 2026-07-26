@@ -34,8 +34,11 @@ saga_add_editor_module(EditorQt
 saga_register_module_tests(EditorQt
     MODULE_DIR Engine/Source/Editor/EditorQt
     LINK_TARGET SagaEditorLib
+    PRIVATE_DEPS
+        nlohmann_json::nlohmann_json
     SOURCES
         Tests/EditorAppCompositionTests.cpp
+        Tests/EditorProjectInspectionTests.cpp
         Tests/QtAuthoringPanelsTests.cpp
         Tests/QtReadOnlyBlocksWorkflowTests.cpp
         Tests/QtSettingsStoreTests.cpp

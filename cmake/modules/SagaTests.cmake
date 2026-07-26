@@ -39,4 +39,25 @@ function(saga_setup_tests)
 
     include("${CMAKE_CURRENT_FUNCTION_LIST_DIR}/tests/SagaEvidenceTestTargets.cmake")
 
+    file(GENERATE
+        OUTPUT "${CMAKE_BINARY_DIR}/generated/SagaFocusedTestOwnership-$<CONFIG>.txt"
+        CONTENT
+"SagaRenderUnitTests.SOURCES=$<TARGET_PROPERTY:SagaRenderUnitTests,SOURCES>
+SagaRenderUnitTests.LINK_LIBRARIES=$<TARGET_PROPERTY:SagaRenderUnitTests,LINK_LIBRARIES>
+SagaRenderUnitTests.INCLUDE_DIRECTORIES=$<TARGET_PROPERTY:SagaRenderUnitTests,INCLUDE_DIRECTORIES>
+SagaSandboxUnitTests.SOURCES=$<TARGET_PROPERTY:SagaSandboxUnitTests,SOURCES>
+SagaSandboxUnitTests.LINK_LIBRARIES=$<TARGET_PROPERTY:SagaSandboxUnitTests,LINK_LIBRARIES>
+SagaSandboxUnitTests.INCLUDE_DIRECTORIES=$<TARGET_PROPERTY:SagaSandboxUnitTests,INCLUDE_DIRECTORIES>
+SagaRuntimeHostUnitTests.SOURCES=$<TARGET_PROPERTY:SagaRuntimeHostUnitTests,SOURCES>
+SagaRuntimeHostUnitTests.LINK_LIBRARIES=$<TARGET_PROPERTY:SagaRuntimeHostUnitTests,LINK_LIBRARIES>
+SagaRuntimeHostUnitTests.INCLUDE_DIRECTORIES=$<TARGET_PROPERTY:SagaRuntimeHostUnitTests,INCLUDE_DIRECTORIES>
+SagaAssetIdentityGeneratorTests.SOURCES=$<TARGET_PROPERTY:SagaAssetIdentityGeneratorTests,SOURCES>
+SagaAssetIdentityGeneratorTests.LINK_LIBRARIES=$<TARGET_PROPERTY:SagaAssetIdentityGeneratorTests,LINK_LIBRARIES>
+SagaAssetIdentityGeneratorTests.INCLUDE_DIRECTORIES=$<TARGET_PROPERTY:SagaAssetIdentityGeneratorTests,INCLUDE_DIRECTORIES>
+SagaEditorQtModuleTests.SOURCES=$<TARGET_PROPERTY:SagaEditorQtModuleTests,SOURCES>
+SagaEditorQtModuleTests.LINK_LIBRARIES=$<TARGET_PROPERTY:SagaEditorQtModuleTests,LINK_LIBRARIES>
+SagaSagaEditorLabModuleTests.SOURCES=$<TARGET_PROPERTY:SagaSagaEditorLabModuleTests,SOURCES>
+SagaSagaEditorLabModuleTests.LINK_LIBRARIES=$<TARGET_PROPERTY:SagaSagaEditorLabModuleTests,LINK_LIBRARIES>
+")
+
 endfunction()

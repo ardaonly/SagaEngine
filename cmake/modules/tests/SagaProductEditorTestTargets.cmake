@@ -12,7 +12,11 @@
             GTest::gmock
             GTest::gtest_main
         )
-        target_include_directories(SagaProductTests PRIVATE ${SAGA_TEST_INCLUDE_DIRS})
+        target_include_directories(SagaProductTests PRIVATE
+            ${SAGA_TEST_INCLUDE_DIRS}
+            ${SAGA_ROOT}/Engine/Source/Programs/SagaLauncher/Private
+            ${SAGA_ROOT}/Engine/Source/Editor/EditorCollaboration/Private
+        )
         target_compile_definitions(SagaProductTests PRIVATE
             SAGA_SOURCE_ROOT="${SAGA_ROOT}"
         )
@@ -31,7 +35,9 @@
             GTest::gtest
         )
         target_include_directories(SagaLauncherUiTests PRIVATE
-            ${SAGA_TEST_INCLUDE_DIRS})
+            ${SAGA_TEST_INCLUDE_DIRS}
+            ${SAGA_ROOT}/Engine/Source/Programs/SagaLauncher/Private
+        )
         add_test(NAME SagaLauncherUiTests COMMAND SagaLauncherUiTests)
         set_tests_properties(SagaLauncherUiTests PROPERTIES
             LABELS "product;ui"

@@ -76,8 +76,7 @@
     target_include_directories(SagaIntegrationTests PRIVATE
         ${SAGA_TEST_INCLUDE_DIRS}
         ${SAGA_ROOT}/Tests/Support
-        ${SAGA_MODULE_PRIVATE_INCLUDE_DIRS}
-        ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private
+        ${SAGA_ROOT}/Engine/Source/Runtime/Persistence/Private
     )
     target_compile_definitions(SagaIntegrationTests PRIVATE
         SAGA_SOURCE_ROOT="${SAGA_ROOT}"
