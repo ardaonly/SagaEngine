@@ -10,9 +10,12 @@
 #include <nlohmann/json.hpp>
 
 #include <chrono>
+#include <cctype>
 #include <cstdlib>
 #include <fstream>
 #include <iterator>
+#include <map>
+#include <set>
 #include <thread>
 
 namespace
@@ -246,42 +249,166 @@ TEST(StarterArenaPlayStopIntegrationTests,
 }
 
 TEST(StarterArenaGraphicalRuntimeIntegrationTests,
-     SeparateRuntimeRendersAndReturnsClosedOpenClosedPixels)
+     NamedFramesBindHudSemanticsAcrossCanonicalInputVariants)
 {
     if (!std::getenv("SAGA_REQUIRE_REAL_RUNTIME_RENDER"))
         GTEST_SKIP() << "Set SAGA_REQUIRE_REAL_RUNTIME_RENDER=1 on a graphics-capable desktop.";
+    const auto* retainedRoot = std::getenv("SAGA_GRAPHICAL_EVIDENCE_ROOT");
+    const bool retainEvidence = retainedRoot && *retainedRoot;
+    const auto root = retainEvidence
+        ? std::filesystem::path(retainedRoot)
+        : std::filesystem::temp_directory_path() /
+            ("saga-named-graphical-proof-" + std::to_string(
+                std::chrono::steady_clock::now().time_since_epoch().count()));
     std::error_code cleanupError;
-    const auto sessionRoot = StarterArenaProject().parent_path() /
-        "Build/Editor/Play/controller-graphical-smoke";
-    std::filesystem::remove_all(sessionRoot, cleanupError);
-    SagaEditor::EditorDocumentWorkspace workspace;
-    ASSERT_TRUE(workspace.OpenProject(StarterArenaProject()));
-    SagaEditor::RuntimeProcessController controller;
-    SagaEditor::RuntimeProcessLaunchRequest request;
-    request.playSessionId = "controller-graphical-smoke";
-    request.runtimeExecutable = RuntimeExecutable();
-    request.headless = false;
-    request.smokeInteractions = true;
-    request.startupTimeout = std::chrono::seconds(30);
-    request.runtimeTimeout = std::chrono::seconds(60);
-    ASSERT_TRUE(controller.Start(workspace, request));
+    std::filesystem::remove_all(root, cleanupError);
+    std::filesystem::create_directories(root);
+    const auto run = [&](const std::string& label) -> nlohmann::json
+    {
+        const auto projectRoot = root / ("variant-" + label);
+        std::filesystem::copy(StarterArenaProject().parent_path(), projectRoot,
+            std::filesystem::copy_options::recursive);
+        std::filesystem::remove_all(projectRoot / "Build/Editor", cleanupError);
+        std::filesystem::remove_all(projectRoot / ".saga", cleanupError);
+        if (label == "F")
+        {
+            const auto inputPath = projectRoot / "Input/Input.saga.json";
+            std::ifstream input(inputPath, std::ios::binary);
+            auto source = nlohmann::json::parse(input);
+            source["actions"][0]["bindings"][0]["control"] = "F";
+            source["actions"][0]["bindings"][0]["displayName"] = "Keyboard F";
+            std::ofstream output(inputPath, std::ios::binary | std::ios::trunc);
+            output << source.dump(2) << '\n';
+        }
+        SagaEditor::EditorDocumentWorkspace workspace;
+        if (!workspace.OpenProject(projectRoot / "StarterArena.sagaproj"))
+        {
+            ADD_FAILURE() << "Could not open graphical variant " << label;
+            return {};
+        }
+        const auto session = "named-graphical-" + std::string(
+            1, static_cast<char>(std::tolower(static_cast<unsigned char>(label.front()))));
+        const auto prepared = SagaEditor::PlayPreparationPipeline{}.Prepare(workspace,
+            {session, RuntimeExecutable(), {}, {}, {}});
+        if (!prepared.passed)
+        {
+            ADD_FAILURE() << "Could not prepare graphical variant " << label << " at " <<
+                projectRoot << ": " <<
+                (prepared.diagnostics.empty() ? std::string{} :
+                    prepared.diagnostics.front().code + ": " +
+                    prepared.diagnostics.front().message) << "\n" <<
+                prepared.scriptAnalysis.packageProcess.diagnosticCode << ": " <<
+                prepared.scriptAnalysis.packageProcess.diagnosticMessage << "\n" <<
+                prepared.scriptAnalysis.packageProcess.standardOutput << "\n" <<
+                prepared.scriptAnalysis.packageProcess.standardError;
+            return {};
+        }
+        SagaEditor::ToolProcessRequest processRequest;
+        processRequest.executable = RuntimeExecutable();
+        processRequest.arguments = {"--play-envelope", prepared.localEnvelopePath.string(),
+                                    "--smoke-interactions"};
+        processRequest.workingDirectory = projectRoot;
+        processRequest.timeout = std::chrono::seconds(60);
+        const auto process = SagaEditor::ToolProcessRunner{}.Run(processRequest);
+        if (!process.Succeeded())
+        {
+            std::string resultBytes;
+            std::ifstream resultInput(prepared.resultPath, std::ios::binary);
+            if (resultInput)
+                resultBytes.assign(std::istreambuf_iterator<char>(resultInput),
+                                   std::istreambuf_iterator<char>());
+            ADD_FAILURE() << projectRoot << " exit=" << process.exitCode << " " <<
+                process.diagnosticCode << ": " << process.diagnosticMessage << "\n" <<
+                process.standardOutput << "\n" << process.standardError << "\n" << resultBytes;
+            return {};
+        }
+        std::ifstream resultInput(prepared.resultPath, std::ios::binary);
+        return nlohmann::json::parse(resultInput);
+    };
 
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(60);
-    while (!Terminal(controller.Snapshot().state) &&
-           std::chrono::steady_clock::now() < deadline)
-        std::this_thread::sleep_for(std::chrono::milliseconds(25));
-    const auto snapshot = controller.Snapshot();
-    controller.Shutdown();
-    ASSERT_EQ(snapshot.state, SagaEditor::RuntimePlayState::Completed)
-        << snapshot.diagnosticCode << ": " << snapshot.message;
-    ASSERT_TRUE(snapshot.runtimeResult.has_value());
-    ASSERT_TRUE(snapshot.runtimeResult->Successful());
-    const auto observed = nlohmann::json::parse(
-        snapshot.runtimeResult->observedStateCanonicalJson);
-    EXPECT_EQ(observed.value("transition", std::string{}), "ClosedOpenClosed");
-    EXPECT_TRUE(observed.value("meaningfulRendererPixels", false));
-    EXPECT_GT(observed.value("drawCount", 0U), 0U);
-    EXPECT_TRUE(std::filesystem::is_regular_file(sessionRoot / "runtime-frame.ppm"));
+    const auto eResult = run("E");
+    const auto fResult = run("F");
+    ASSERT_FALSE(eResult.empty());
+    ASSERT_FALSE(fResult.empty());
+    EXPECT_EQ(eResult.value("status", std::string{}), "Succeeded");
+    EXPECT_EQ(fResult.value("status", std::string{}), "Succeeded");
+    EXPECT_EQ(eResult["observedState"].value("transition", std::string{}),
+              "ClosedOpenClosed");
+    EXPECT_EQ(fResult["observedState"].value("transition", std::string{}),
+              "ClosedOpenClosed");
+
+    const auto captures = [&](const nlohmann::json& result)
+    {
+        std::map<std::string, nlohmann::json> byName;
+        std::set<std::uint64_t> frames;
+        for (const auto& capture : result["observedState"]["evidenceCaptures"])
+        {
+            const auto name = capture.value("name", std::string{});
+            EXPECT_FALSE(name.empty());
+            EXPECT_TRUE(byName.emplace(name, capture).second) << name;
+            EXPECT_TRUE(frames.insert(capture.value("frameIndex", 0ULL)).second) << name;
+            EXPECT_EQ(capture.value("sessionId", std::string{}),
+                      result.value("playSessionId", std::string{}));
+            EXPECT_EQ(capture.value("canonicalLaunchHash", std::string{}),
+                      result.value("canonicalLaunchManifestHash", std::string{}));
+            EXPECT_FALSE(capture.value("sha256", std::string{}).empty());
+            EXPECT_TRUE(std::filesystem::is_regular_file(
+                capture.value("filePath", std::string{})));
+            const auto& region = capture["hudRegion"];
+            EXPECT_LE(region.value("x", 0U) + region.value("width", 0U),
+                      capture.value("width", 0U));
+            EXPECT_LE(region.value("y", 0U) + region.value("height", 0U),
+                      capture.value("height", 0U));
+        }
+        return byName;
+    };
+    const auto eCaptures = captures(eResult);
+    const auto fCaptures = captures(fResult);
+    for (const auto* name : {"world-baseline", "e-open", "e-close",
+                             "e-reopened", "e-resized"})
+        EXPECT_TRUE(eCaptures.contains(name)) << name;
+    for (const auto* name : {"world-baseline", "f-open", "f-close"})
+        EXPECT_TRUE(fCaptures.contains(name)) << name;
+
+    const auto assertSemantic = [](const nlohmann::json& capture,
+        const char* binding, const char* prompt, const bool state)
+    {
+        EXPECT_EQ(capture.value("promptBindingLabel", std::string{}), binding);
+        EXPECT_EQ(capture.value("promptSemanticLabel", std::string{}), prompt);
+        EXPECT_EQ(capture.value("doorState", !state), state);
+        EXPECT_GE(capture.value("nonBackgroundPixelCount", 0ULL), 16U);
+        EXPECT_GE(capture.value("baselineDifferencePixelCount", 0ULL), 8U);
+    };
+    ASSERT_TRUE(eCaptures.contains("e-open") && eCaptures.contains("e-close") &&
+                eCaptures.contains("e-resized") && fCaptures.contains("f-open"));
+    assertSemantic(eCaptures.at("e-open"), "E", "[E] Open Door", false);
+    assertSemantic(eCaptures.at("e-close"), "E", "[E] Close Door", true);
+    assertSemantic(eCaptures.at("e-resized"), "E", "[E] Open Door", false);
+    assertSemantic(fCaptures.at("f-open"), "F", "[F] Open Door", false);
+    EXPECT_GE(eCaptures.at("e-close").value(
+        "priorSemanticDifferencePixelCount", 0ULL), 8U);
+    EXPECT_NE(eCaptures.at("e-resized").value("width", 0U),
+              eCaptures.at("world-baseline").value("width", 0U));
+
+    const auto& eOpen = eCaptures.at("e-open");
+    const auto& fOpen = fCaptures.at("f-open");
+    EXPECT_NE(eOpen.value("canonicalLaunchHash", std::string{}),
+              fOpen.value("canonicalLaunchHash", std::string{}));
+    EXPECT_NE(eOpen.value("inputArtifactHash", std::string{}),
+              fOpen.value("inputArtifactHash", std::string{}));
+    for (const auto* field : {"uiArtifactHash", "sceneHash", "scriptAssemblyHash",
+                              "packageGenerationHash"})
+        EXPECT_EQ(eOpen.value(field, std::string{}), fOpen.value(field, std::string{}))
+            << field;
+    EXPECT_EQ(fOpen.value("promptSemanticLabel", std::string{}).find("[E]"),
+              std::string::npos);
+    EXPECT_TRUE(eResult["observedState"].value("meaningfulRendererPixels", false));
+    EXPECT_TRUE(fResult["observedState"].value("meaningfulRendererPixels", false));
+    EXPECT_GT(eResult["observedState"].value("drawCount", 0U), 0U);
+    EXPECT_GT(fResult["observedState"].value("drawCount", 0U), 0U);
+
+    if (!retainEvidence)
+        std::filesystem::remove_all(root, cleanupError);
 }
 
 TEST(RuntimeProcessControllerTests, RejectsSecondConcurrentPlaySession)

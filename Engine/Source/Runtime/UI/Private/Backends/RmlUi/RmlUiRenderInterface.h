@@ -56,6 +56,7 @@ private:
     Render::Backend::RenderOverlayFrame frame_;
     std::unordered_map<Rml::CompiledGeometryHandle, Geometry> geometry_;
     std::unordered_map<Rml::TextureHandle, Render::Backend::RenderOverlayTextureHandle> textures_;
+    Render::Backend::RenderOverlayTextureHandle fallbackTexture_;
     UiViewport viewport_;
     Rml::CompiledGeometryHandle nextGeometryHandle_ = 1;
     Rml::TextureHandle nextTextureHandle_ = 1;

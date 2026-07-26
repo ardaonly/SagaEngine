@@ -54,6 +54,10 @@ public:
     [[nodiscard]] bool ReconfigureFrameSlots(std::uint32_t frameSlotCount);
 
     [[nodiscard]] bool IsReady() const noexcept { return m_ready; }
+    [[nodiscard]] std::size_t LastDrawCommandCount() const noexcept
+    { return m_lastDrawCommandCount; }
+    [[nodiscard]] std::string_view LastSubmissionDiagnostic() const noexcept
+    { return m_lastSubmissionDiagnostic; }
     [[nodiscard]] bool IsRenderThread() const noexcept;
     [[nodiscard]] std::size_t FrameSlotCountForTests() const noexcept
     {
@@ -91,6 +95,8 @@ private:
     std::vector<FrameBuffers> m_frameBuffers;
     DiligentOverlayTextureRegistry m_textureRegistry;
     std::thread::id m_ownerThread{};
+    std::size_t m_lastDrawCommandCount = 0;
+    std::string_view m_lastSubmissionDiagnostic;
     bool m_ready = false;
 };
 

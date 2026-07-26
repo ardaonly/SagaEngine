@@ -18,7 +18,7 @@ public:
         const Render::RenderOverlayTextureDesc& desc, const std::uint8_t* pixels) override
     {
         lastTexture = desc;
-        return pixels && textureSucceeds ? Render::RenderOverlayTextureHandle{7, 3} :
+        return pixels && textureSucceeds ? Render::RenderOverlayTextureHandle{nextTexture++, 3} :
             Render::RenderOverlayTextureHandle{};
     }
     void DestroyOverlayTextureResource(Render::RenderOverlayTextureHandle texture) override
@@ -39,6 +39,7 @@ public:
     Render::RenderOverlayTextureDesc lastTexture;
     Render::RenderOverlayFrame lastFrame;
     std::vector<Render::RenderOverlayTextureHandle> destroyed;
+    std::uint32_t nextTexture = 7;
 };
 
 TEST(RmlUiRenderInterfaceTests, ConvertsGeometryTextureTranslationAndScissor)
@@ -73,7 +74,7 @@ TEST(RmlUiRenderInterfaceTests, ConvertsGeometryTextureTranslationAndScissor)
     EXPECT_FLOAT_EQ(list.vertices[0].pos[1], 9.0F);
     EXPECT_EQ(list.vertices[0].colorRgba8, 0x04030201u);
     EXPECT_EQ(list.indices, (std::vector<std::uint32_t>{0, 1, 2}));
-    EXPECT_EQ(list.commands.front().texture, (Render::RenderOverlayTextureHandle{7, 3}));
+    EXPECT_EQ(list.commands.front().texture, (Render::RenderOverlayTextureHandle{8, 3}));
     EXPECT_FLOAT_EQ(list.commands.front().clipRect.left, 10.0F);
     EXPECT_FLOAT_EQ(list.commands.front().clipRect.bottom, 60.0F);
     EXPECT_FLOAT_EQ(overlay.lastFrame.framebufferScale[0], 2.0F);
@@ -82,7 +83,7 @@ TEST(RmlUiRenderInterfaceTests, ConvertsGeometryTextureTranslationAndScissor)
 
     adapter.Shutdown();
     adapter.Shutdown();
-    EXPECT_EQ(overlay.destroyed.size(), 1u);
+    EXPECT_EQ(overlay.destroyed.size(), 2u);
     EXPECT_EQ(overlay.shutdownCalls, 1);
 }
 
@@ -105,6 +106,9 @@ TEST(RmlUiRenderInterfaceTests, HandlesCompiledGeometryMinimizeAndInjectedFailur
     overlay.submitStatus = Render::RenderOverlaySubmissionStatus::SubmissionFailure;
     SagaEngine::UI::UiRenderStats stats;
     EXPECT_FALSE(adapter.EndFrame(stats));
+    ASSERT_EQ(overlay.lastFrame.drawLists.size(), 1U);
+    EXPECT_EQ(overlay.lastFrame.drawLists.front().commands.front().texture,
+              (Render::RenderOverlayTextureHandle{7, 3}));
     adapter.SetViewport({0, 0, 1.0F});
     adapter.BeginFrame();
     adapter.RenderCompiledGeometry(geometry, {});

@@ -566,9 +566,10 @@ public:
             !std::isfinite(config_.viewport.pixelRatio) ||
             config_.viewport.pixelRatio <= 0.0F)
             return std::nullopt;
+        if (!found->second.document->IsVisible()) return std::nullopt;
         Rml::Element* element = found->second.document->GetElementById(
             Rml::String(elementId));
-        if (!element || !element->IsVisible()) return std::nullopt;
+        if (!element) return std::nullopt;
         const auto offset = element->GetAbsoluteOffset(Rml::Box::BORDER);
         const auto size = element->GetBox().GetSize(Rml::Box::BORDER);
         SagaUI::UiElementBounds bounds{

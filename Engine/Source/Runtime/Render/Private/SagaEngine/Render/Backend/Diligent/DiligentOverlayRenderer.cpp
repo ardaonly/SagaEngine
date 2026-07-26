@@ -480,7 +480,7 @@ bool DiligentOverlayRenderer::Initialize(
     {
         BufferDesc cbDesc;
         cbDesc.Name = "OverlayCB";
-        cbDesc.Size = sizeof(float) * 16;
+        cbDesc.Size = sizeof(float) * 4;
         cbDesc.Usage = USAGE_DYNAMIC;
         cbDesc.BindFlags = BIND_UNIFORM_BUFFER;
         cbDesc.CPUAccessFlags = CPU_ACCESS_WRITE;
@@ -640,24 +640,30 @@ void DiligentOverlayRenderer::Render(
     std::uint64_t activeFrameSerial,
     std::uint32_t activeFrameSlot)
 {
+    m_lastDrawCommandCount = 0;
+    m_lastSubmissionDiagnostic = "Overlay submission did not reach a draw command.";
     if (!CheckRenderThread("Render"))
     {
+        m_lastSubmissionDiagnostic = "Overlay submission used the wrong thread.";
         return;
     }
     const auto services = m_runtime ? m_runtime->Services()
                                     : DiligentDeviceServices{};
     if (!m_ready || !services.IsBound() || m_frameBuffers.empty())
     {
+        m_lastSubmissionDiagnostic = "Overlay renderer resources are not ready.";
         return;
     }
     if (!ValidateOverlayFrameForTests(frame))
     {
+        m_lastSubmissionDiagnostic = "Overlay frame failed validation.";
         return;
     }
     auto binding = m_runtime ? m_runtime->ResolveOverlayBinding(m_binding)
                              : DiligentRuntime::NativeOverlayBindingView{};
     if (!binding.IsValid())
     {
+        m_lastSubmissionDiagnostic = "Overlay shader binding is unavailable.";
         return;
     }
 
@@ -670,6 +676,7 @@ void DiligentOverlayRenderer::Render(
     }
     if (totalVertexCount == 0 || totalIndexCount == 0)
     {
+        m_lastSubmissionDiagnostic = "Overlay frame has no geometry.";
         return;
     }
 
@@ -680,11 +687,42 @@ void DiligentOverlayRenderer::Render(
 
     auto* ctx = services.ImmediateContext();
     auto* dev = services.Device();
+    auto* swapChain = services.SwapChain();
+    if (!ctx || !dev || !swapChain)
+    {
+        m_lastSubmissionDiagnostic = "Overlay device services are incomplete.";
+        return;
+    }
+
+    // Overlay submission is an independent render pass. Do not depend on the
+    // world renderer leaving its final target bound: a shadow or capture pass
+    // may legally change that state before the UI is submitted.
+    auto* rtv = swapChain->GetCurrentBackBufferRTV();
+    auto* dsv = swapChain->GetDepthBufferDSV();
+    if (!rtv)
+    {
+        m_lastSubmissionDiagnostic = "Overlay back-buffer target is unavailable.";
+        return;
+    }
+    ctx->SetRenderTargets(
+        1u, &rtv, dsv, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    const Viewport viewport{
+        0.0f,
+        0.0f,
+        frame.displaySize[0] * frame.framebufferScale[0],
+        frame.displaySize[1] * frame.framebufferScale[1],
+        0.0f,
+        1.0f};
+    ctx->SetViewports(
+        1u, &viewport,
+        static_cast<Uint32>(viewport.Width),
+        static_cast<Uint32>(viewport.Height));
 
     const auto vbNeeded = ByteSizeOrZero(
         totalVertexCount, sizeof(RenderOverlayVertex));
     if (vbNeeded == 0)
     {
+        m_lastSubmissionDiagnostic = "Overlay vertex upload size is invalid.";
         return;
     }
     if (vbNeeded > frameBuffers.vbSize)
@@ -705,6 +743,7 @@ void DiligentOverlayRenderer::Render(
         totalIndexCount, sizeof(std::uint32_t));
     if (ibNeeded == 0)
     {
+        m_lastSubmissionDiagnostic = "Overlay index upload size is invalid.";
         return;
     }
     if (ibNeeded > frameBuffers.ibSize)
@@ -723,6 +762,7 @@ void DiligentOverlayRenderer::Render(
 
     if (!frameBuffers.vb || !frameBuffers.ib)
     {
+        m_lastSubmissionDiagnostic = "Overlay transient buffer allocation failed.";
         return;
     }
 
@@ -759,16 +799,16 @@ void DiligentOverlayRenderer::Render(
         const float T = frame.displayPos[1];
         const float B = T + frame.displaySize[1];
 
-        const float mvp[16] =
+        const float transform[4] =
         {
-            2.0f / (R - L),      0.0f,                0.0f, 0.0f,
-            0.0f,                2.0f / (T - B),      0.0f, 0.0f,
-            0.0f,                0.0f,                0.5f, 0.0f,
-            (R + L) / (L - R),   (T + B) / (B - T),   0.5f, 1.0f,
+            2.0f / (R - L),
+            2.0f / (T - B),
+            (R + L) / (L - R),
+            (T + B) / (B - T),
         };
 
         MapHelper<float> cb(ctx, m_cb, MAP_WRITE, MAP_FLAG_DISCARD);
-        std::memcpy(cb, mvp, sizeof(mvp));
+        std::memcpy(cb, transform, sizeof(transform));
     }
 
     ctx->SetPipelineState(m_pso);
@@ -815,6 +855,8 @@ void DiligentOverlayRenderer::Render(
             const auto texture = ResolveTexture(cmd.texture);
             if (!texture.srv)
             {
+                m_lastSubmissionDiagnostic =
+                    "Overlay command referenced an unavailable texture.";
                 continue;
             }
             if (m_nativeResources && activeFrameSerial != 0u)
@@ -846,10 +888,15 @@ void DiligentOverlayRenderer::Render(
             if (scissor.right <= scissor.left ||
                 scissor.bottom <= scissor.top)
             {
+                m_lastSubmissionDiagnostic =
+                    "Overlay command produced an empty framebuffer scissor.";
                 continue;
             }
 
-            ctx->SetScissorRects(1, &scissor, 0, 0);
+            ctx->SetScissorRects(
+                1, &scissor,
+                static_cast<Uint32>(framebufferWidth),
+                static_cast<Uint32>(framebufferHeight));
 
             binding.textureVariable->Set(texture.srv);
             ctx->CommitShaderResources(
@@ -864,6 +911,8 @@ void DiligentOverlayRenderer::Render(
                 globalVertexOffset + cmd.vertexOffset);
             drawAttribs.Flags = DRAW_FLAG_NONE;
             ctx->DrawIndexed(drawAttribs);
+            ++m_lastDrawCommandCount;
+            m_lastSubmissionDiagnostic = {};
         }
 
         if (AddWillOverflow(

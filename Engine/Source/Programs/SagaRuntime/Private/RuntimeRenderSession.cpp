@@ -54,6 +54,8 @@ struct RuntimeRenderSession::Impl
     std::map<std::string, SagaEngine::Render::World::MaterialId> materials;
     RuntimeEvidenceSession evidence;
     std::size_t lastDrawCount = 0;
+    std::uint32_t viewportWidth = 0;
+    std::uint32_t viewportHeight = 0;
 
     Impl(RuntimeScriptWorld& sourceWorld,
          const std::map<std::string, std::filesystem::path>& sourceArtifacts,
@@ -165,16 +167,24 @@ bool RuntimeRenderSession::Initialize()
     swapchain.vsync = true;
     if (!impl_->backend || !impl_->backend->Initialize(swapchain))
         return impl_->Fail("Runtime.Render.BackendInitFailed");
+    impl_->viewportWidth = swapchain.width;
+    impl_->viewportHeight = swapchain.height;
     impl_->window->SetRHIOwnsPresent(true);
-    auto* backend = impl_->backend.get();
-    impl_->window->SetOnResize([backend](std::uint32_t width, std::uint32_t height)
-    { if (width && height) backend->OnResize(width, height); });
+    auto* session = impl_.get();
+    impl_->window->SetOnResize([session](std::uint32_t width, std::uint32_t height)
+    {
+        if (!width || !height) return;
+        session->viewportWidth = width;
+        session->viewportHeight = height;
+        session->backend->OnResize(width, height);
+    });
     return impl_->UploadResources();
 }
 
 void RuntimeRenderSession::Shutdown()
 {
     if (!impl_) return;
+    if (impl_->window) impl_->window->SetOnResize({});
     if (impl_->backend)
     {
         for (const auto& [_, mesh] : impl_->meshes) impl_->backend->DestroyMesh(mesh);
@@ -232,11 +242,27 @@ RuntimeRenderSession::OverlaySubmission() noexcept
 }
 
 std::uint32_t RuntimeRenderSession::Width() const noexcept
-{ return impl_->window ? impl_->window->GetWidth() : 0; }
+{ return impl_->window ? impl_->viewportWidth : 0; }
 std::uint32_t RuntimeRenderSession::Height() const noexcept
-{ return impl_->window ? impl_->window->GetHeight() : 0; }
+{ return impl_->window ? impl_->viewportHeight : 0; }
 
-bool RuntimeRenderSession::RenderFrame(RuntimeUiSession* ui)
+bool RuntimeRenderSession::RequestResize(const std::uint32_t width, const std::uint32_t height)
+{
+    if (!impl_->window || width == 0 || height == 0) return false;
+    SDL_SetWindowSize(static_cast<SDL_Window*>(impl_->window->GetNativeHandle()),
+                      static_cast<int>(width), static_cast<int>(height));
+    impl_->window->PollEvents();
+    if (impl_->viewportWidth != width || impl_->viewportHeight != height)
+    {
+        impl_->viewportWidth = width;
+        impl_->viewportHeight = height;
+        impl_->backend->OnResize(width, height);
+    }
+    return true;
+}
+
+bool RuntimeRenderSession::RenderFrame(
+    RuntimeUiSession* ui, const RuntimeEvidenceCaptureRequest* evidence)
 {
     const auto transforms = impl_->WorldTransforms();
     SagaEngine::Render::Scene::RenderView view;
@@ -282,9 +308,21 @@ bool RuntimeRenderSession::RenderFrame(RuntimeUiSession* ui)
     }
     impl_->backend->BeginFrame();
     impl_->backend->Submit(camera, view);
-    if (ui && !ui->Render(Width(), Height(), 1.0 / 60.0))
+    if (ui && !ui->PrepareLayout(Width(), Height(), 1.0F, 1.0 / 60.0))
         return impl_->Fail("Runtime.UI.RenderFailed");
-    (void)impl_->evidence.CaptureMeaningfulFrame(*impl_->backend);
+    if (evidence)
+    {
+        if (!ui) return impl_->Fail("Runtime.Render.EvidenceUiMissing");
+        auto frameEvidence = *evidence;
+        const auto bounds = ui->PromptBounds();
+        if (!bounds || !impl_->evidence.BeginNamedFrame(
+                *impl_->backend, frameEvidence, *bounds, ui->PixelRatio()))
+            return impl_->Fail("Runtime.Render.PreOverlayEvidenceCaptureFailed");
+    }
+    if (ui && !ui->SubmitOverlay()) return impl_->Fail("Runtime.UI.RenderFailed");
+    if (evidence && !impl_->evidence.EndNamedFrame(
+            *impl_->backend, ui->LastDrawCallCount()))
+        return impl_->Fail("Runtime.Render.PostOverlayEvidenceCaptureFailed");
     impl_->backend->EndFrame();
     impl_->lastDrawCount = view.DrawCount();
     return true;
@@ -293,7 +331,7 @@ bool RuntimeRenderSession::RenderFrame(RuntimeUiSession* ui)
 bool RuntimeRenderSession::HasMeaningfulPixels() const noexcept
 { return impl_->evidence.HasMeaningfulPixels(); }
 std::size_t RuntimeRenderSession::LastDrawCount() const noexcept { return impl_->lastDrawCount; }
-const std::filesystem::path& RuntimeRenderSession::CapturePath() const noexcept
-{ return impl_->evidence.CapturePath(); }
+const std::vector<RuntimeEvidenceCaptureRecord>&
+RuntimeRenderSession::EvidenceRecords() const noexcept { return impl_->evidence.Records(); }
 
 } // namespace SagaRuntimeApp

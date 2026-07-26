@@ -17,6 +17,8 @@ namespace SagaRuntimeApp
 {
 class RuntimeScriptWorld;
 class RuntimeUiSession;
+struct RuntimeEvidenceCaptureRequest;
+struct RuntimeEvidenceCaptureRecord;
 
 class RuntimeRenderSession final
 {
@@ -36,10 +38,12 @@ public:
         OverlaySubmission() noexcept;
     [[nodiscard]] std::uint32_t Width() const noexcept;
     [[nodiscard]] std::uint32_t Height() const noexcept;
-    [[nodiscard]] bool RenderFrame(RuntimeUiSession* ui);
+    [[nodiscard]] bool RequestResize(std::uint32_t width, std::uint32_t height);
+    [[nodiscard]] bool RenderFrame(RuntimeUiSession* ui,
+        const RuntimeEvidenceCaptureRequest* evidence = nullptr);
     [[nodiscard]] bool HasMeaningfulPixels() const noexcept;
     [[nodiscard]] std::size_t LastDrawCount() const noexcept;
-    [[nodiscard]] const std::filesystem::path& CapturePath() const noexcept;
+    [[nodiscard]] const std::vector<RuntimeEvidenceCaptureRecord>& EvidenceRecords() const noexcept;
 
 private:
     struct Impl;

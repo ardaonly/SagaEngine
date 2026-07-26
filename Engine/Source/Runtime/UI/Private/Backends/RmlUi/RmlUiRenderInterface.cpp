@@ -24,6 +24,17 @@ bool RmlUiRenderInterface::Initialize()
     {
         const auto result = submission_->InitializeOverlay();
         if (!result.Succeeded()) return false;
+        const std::uint8_t white[] = {255U, 255U, 255U, 255U};
+        SagaRender::RenderOverlayTextureDesc desc;
+        desc.width = 1;
+        desc.height = 1;
+        desc.rowPitchBytes = 4;
+        fallbackTexture_ = submission_->CreateOverlayTextureResource(desc, white);
+        if (!fallbackTexture_)
+        {
+            submission_->ShutdownOverlay();
+            return false;
+        }
     }
     initialized_ = true;
     return true;
@@ -36,11 +47,13 @@ void RmlUiRenderInterface::Shutdown() noexcept
     {
         for (const auto& [_, texture] : textures_)
             submission_->DestroyOverlayTextureResource(texture);
+        if (fallbackTexture_) submission_->DestroyOverlayTextureResource(fallbackTexture_);
         submission_->ShutdownOverlay();
     }
     textures_.clear();
     geometry_.clear();
     frame_ = {};
+    fallbackTexture_ = {};
     initialized_ = false;
     nextGeometryHandle_ = 1;
     nextTextureHandle_ = 1;
@@ -188,6 +201,7 @@ void RmlUiRenderInterface::Append(const Rml::Vertex* vertices, int numVertices,
 SagaRender::RenderOverlayTextureHandle RmlUiRenderInterface::ResolveTexture(
     Rml::TextureHandle texture) const noexcept
 {
+    if (texture == 0) return fallbackTexture_;
     const auto found = textures_.find(texture);
     return found == textures_.end() ? SagaRender::RenderOverlayTextureHandle{} : found->second;
 }

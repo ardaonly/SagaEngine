@@ -30,7 +30,7 @@
                 -s "${SAGA_ROOT}/Tools/Developer/VisibleSliceEvidence/tests"
                 -p "test_*.py")
         set_tests_properties(VisibleSliceEvidenceRunnerTests PROPERTIES
-            LABELS "visible-slice;runtime-ui;rmlui;visual-blocks;projection;parity;recovery;failure-injection;starter-arena")
+            LABELS "visible-slice;runtime-ui;rmlui;visual-blocks;projection;parity;recovery;failure-injection;starter-arena;invariant-closure;graphical-evidence;input-variant")
     endif()
 
     if(ARCHITECTURE_TEST_SOURCES)
