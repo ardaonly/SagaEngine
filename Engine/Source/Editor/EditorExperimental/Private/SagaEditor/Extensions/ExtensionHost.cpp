@@ -5,6 +5,8 @@
 #include "SagaEditor/Extensions/ExtensionHost.h"
 
 #include "SagaEditor/Commands/CommandRegistry.h"
+#include "SagaEditor/Diagnostics/EditorDiagnostic.h"
+#include "SagaEditor/Diagnostics/IEditorDiagnosticsService.h"
 #include "SagaEditor/Extensions/ExtensionRegistry.h"
 #include "SagaEditor/Extensions/IEditorExtension.h"
 #include "SagaEditor/Extensions/IExtensionContext.h"
@@ -16,6 +18,9 @@
 #include "SagaEditor/UI/IUIMainWindow.h"
 
 #include <algorithm>
+#include <optional>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace SagaEditor
@@ -49,63 +54,154 @@ namespace
 /// Concrete IExtensionContext forwarded to every extension on load/unload.
 struct ExtensionHost::ContextImpl : public IExtensionContext
 {
+    struct OwnedRegistrations
+    {
+        std::vector<std::string> panels;
+        std::vector<std::string> commands;
+    };
+
     EditorHost&              host;
     EditorShell*             shell = nullptr;
-    std::vector<std::string> registeredPanels;
-    std::vector<std::string> registeredCommands; ///< Tracked for automatic unregister.
+    std::optional<std::string> activeExtensionId;
+    std::unordered_map<std::string, OwnedRegistrations> registrations;
 
     explicit ContextImpl(EditorHost& h) : host(h) {}
+
+    void BeginLifecycle(const std::string& extensionId)
+    {
+        activeExtensionId = extensionId;
+    }
+
+    void EndLifecycle() noexcept
+    {
+        activeExtensionId.reset();
+    }
+
+    void ReportRejectedMutation(const std::string& code,
+                                const std::string& message)
+    {
+        const std::string source = "editor.extension.host";
+        EditorDiagnostic diagnostic;
+        diagnostic.severity = EditorDiagnosticSeverity::Warning;
+        diagnostic.source = source;
+        diagnostic.code = code;
+        diagnostic.message = message;
+        host.GetEditorDiagnosticsService().ReplaceSource(
+            source, {std::move(diagnostic)});
+    }
+
+    [[nodiscard]] bool HasActiveExtension(const char* operation)
+    {
+        if (activeExtensionId)
+            return true;
+        ReportRejectedMutation(
+            "Editor.Extension.RegistrationOutsideLifecycle",
+            std::string("Rejected extension context operation outside "
+                        "OnLoad/OnUnload: ") + operation);
+        return false;
+    }
+
+    [[nodiscard]] OwnedRegistrations& ActiveRegistrations()
+    {
+        return registrations[*activeExtensionId];
+    }
+
+    static bool EraseOwned(std::vector<std::string>& ids,
+                           const std::string& id)
+    {
+        const auto it = std::find(ids.begin(), ids.end(), id);
+        if (it == ids.end())
+            return false;
+        ids.erase(it);
+        return true;
+    }
 
     // ─── Panel Registration ───────────────────────────────────────────────────
 
     void RegisterPanel(std::unique_ptr<IPanel> panel,
                        DockArea area = DockArea::Right) override
     {
-        if (shell)
+        if (!HasActiveExtension("RegisterPanel"))
+            return;
+        if (!panel)
         {
-            registeredPanels.push_back(panel->GetPanelId());
-            shell->RegisterPanel(std::move(panel), TranslateDockArea(area));
+            ReportRejectedMutation(
+                "Editor.Extension.InvalidPanel",
+                "Rejected extension registration of a null panel.");
+            return;
         }
+        if (!shell)
+        {
+            ReportRejectedMutation(
+                "Editor.Extension.ShellUnavailable",
+                "Rejected extension panel registration because the editor "
+                "shell is unavailable.");
+            return;
+        }
+
+        auto& owned = ActiveRegistrations().panels;
+        owned.push_back(panel->GetPanelId());
+        shell->RegisterPanel(std::move(panel), TranslateDockArea(area));
     }
 
     void UnregisterPanel(const std::string& panelId) override
     {
-        if (!shell)
+        if (!HasActiveExtension("UnregisterPanel"))
             return;
-        (void)shell->UnregisterPanel(panelId);
-        registeredPanels.erase(
-            std::remove(registeredPanels.begin(), registeredPanels.end(), panelId),
-            registeredPanels.end());
+        auto& owned = ActiveRegistrations().panels;
+        if (!EraseOwned(owned, panelId))
+            return;
+        if (shell)
+            (void)shell->UnregisterPanel(panelId);
     }
 
     // ─── Command Registration ─────────────────────────────────────────────────
 
     void RegisterCommand(const CommandDescriptor& descriptor) override
     {
-        registeredCommands.push_back(descriptor.id);
+        if (!HasActiveExtension("RegisterCommand"))
+            return;
+        ActiveRegistrations().commands.push_back(descriptor.id);
         host.GetCommandRegistry().Register(descriptor);
     }
 
     void UnregisterCommand(const std::string& commandId) override
     {
+        if (!HasActiveExtension("UnregisterCommand"))
+            return;
+        auto& owned = ActiveRegistrations().commands;
+        if (!EraseOwned(owned, commandId))
+            return;
         host.GetCommandRegistry().Unregister(commandId);
-        registeredCommands.erase(
-            std::remove(registeredCommands.begin(),
-                        registeredCommands.end(),
-                        commandId),
-            registeredCommands.end());
     }
 
     // ─── Theme Registration ───────────────────────────────────────────────────
 
     void RegisterTheme(const EditorTheme& theme) override
     {
+        if (!HasActiveExtension("RegisterTheme"))
+            return;
         host.GetThemeRegistry().Register(theme);
     }
 
     // ─── Host Access ──────────────────────────────────────────────────────────
 
     EditorHost& GetHost() override { return host; }
+
+    void Cleanup(const std::string& extensionId)
+    {
+        const auto found = registrations.find(extensionId);
+        if (found == registrations.end())
+            return;
+
+        auto& owned = found->second;
+        for (auto it = owned.commands.rbegin(); it != owned.commands.rend(); ++it)
+            host.GetCommandRegistry().Unregister(*it);
+        if (shell)
+            for (auto it = owned.panels.rbegin(); it != owned.panels.rend(); ++it)
+                (void)shell->UnregisterPanel(*it);
+        registrations.erase(found);
+    }
 };
 
 // ─── Construction ─────────────────────────────────────────────────────────────
@@ -120,7 +216,6 @@ ExtensionHost::~ExtensionHost() = default;
 
 void ExtensionHost::SetShell(EditorShell& shell)
 {
-    m_shell          = &shell;
     m_context->shell = &shell;
 }
 
@@ -130,32 +225,69 @@ void ExtensionHost::LoadAll()
 {
     for (auto* ext : m_registry.GetAll())
     {
-        ext->OnLoad(*m_context);
+        Load(ext->GetExtensionId());
     }
 }
 
 void ExtensionHost::Load(const std::string& extensionId)
 {
+    if (std::find(m_loadedExtensionIds.begin(),
+                  m_loadedExtensionIds.end(),
+                  extensionId) != m_loadedExtensionIds.end())
+        return;
+
     if (auto* ext = m_registry.Find(extensionId))
     {
-        ext->OnLoad(*m_context);
+        m_context->BeginLifecycle(extensionId);
+        try
+        {
+            ext->OnLoad(*m_context);
+            m_context->EndLifecycle();
+            m_loadedExtensionIds.push_back(extensionId);
+        }
+        catch (...)
+        {
+            m_context->EndLifecycle();
+            m_context->Cleanup(extensionId);
+            throw;
+        }
     }
 }
 
 void ExtensionHost::Unload(const std::string& extensionId)
 {
-    if (auto* ext = m_registry.Find(extensionId))
+    const auto loaded = std::find(
+        m_loadedExtensionIds.begin(),
+        m_loadedExtensionIds.end(),
+        extensionId);
+    if (loaded == m_loadedExtensionIds.end())
+        return;
+
+    try
     {
-        ext->OnUnload(*m_context);
+        if (auto* ext = m_registry.Find(extensionId))
+        {
+            m_context->BeginLifecycle(extensionId);
+            ext->OnUnload(*m_context);
+            m_context->EndLifecycle();
+        }
     }
+    catch (...)
+    {
+        m_context->EndLifecycle();
+        m_context->Cleanup(extensionId);
+        m_loadedExtensionIds.erase(loaded);
+        throw;
+    }
+    m_context->Cleanup(extensionId);
+    m_loadedExtensionIds.erase(loaded);
 }
 
 void ExtensionHost::ShutdownAll()
 {
-    auto all = m_registry.GetAll();
-    for (auto it = all.rbegin(); it != all.rend(); ++it)
+    while (!m_loadedExtensionIds.empty())
     {
-        (*it)->OnUnload(*m_context);
+        Unload(m_loadedExtensionIds.back());
     }
 }
 
