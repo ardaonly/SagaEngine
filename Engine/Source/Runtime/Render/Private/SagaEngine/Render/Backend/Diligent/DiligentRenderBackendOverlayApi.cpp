@@ -82,6 +82,14 @@ RenderOverlaySubmissionResult DiligentRenderBackend::SubmitOverlayFrame(
     if (!m_Impl->overlayRenderer.IsReady() && !InitOverlayRendering())
         return {RenderOverlaySubmissionStatus::NotReady, "Diligent overlay is not ready."};
     this->RenderOverlayFrame(frame);
+    if (m_Impl->overlayRenderer.LastDrawCommandCount() == 0u)
+    {
+        const auto diagnostic = m_Impl->overlayRenderer.LastSubmissionDiagnostic();
+        LOG_CAT_ERROR(Render, "%.*s", static_cast<int>(diagnostic.size()),
+                      diagnostic.data());
+        return {RenderOverlaySubmissionStatus::SubmissionFailure,
+            diagnostic};
+    }
     return {RenderOverlaySubmissionStatus::Success, {}};
 }
 

@@ -222,6 +222,10 @@ function(saga_create_registered_module_tests out_var)
                 --gtest_filter=PlayPreparationPipelineTests.*)
             set_tests_properties(SavedSourcePreparationTests PROPERTIES
                 LABELS "integration;editor;parity;starter-arena;visible-slice")
+            add_test(NAME StarterArenaNamedGraphicalEvidenceTests COMMAND ${_target}
+                --gtest_filter=StarterArenaGraphicalRuntimeIntegrationTests.*)
+            set_tests_properties(StarterArenaNamedGraphicalEvidenceTests PROPERTIES
+                LABELS "integration;editor;invariant-closure;graphical-evidence;runtime-ui;visible-slice;starter-arena;input-variant")
         elseif(_module STREQUAL "VisualBlocksEditor")
             add_test(NAME ReadOnlyBlockProjectionTests COMMAND ${_target}
                 --gtest_filter=ReadOnlyScriptProjectionTests.*)

@@ -2,6 +2,7 @@
 
 #include "RuntimeFrameLoop.h"
 #include "RuntimeArtifactSession.h"
+#include "RuntimeEvidenceSession.h"
 #include "RuntimeLaunchSession.h"
 #include "RuntimeRenderSession.h"
 #include "RuntimeScriptSession.h"
@@ -15,8 +16,12 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
+#include <cctype>
 #include <chrono>
+#include <iterator>
 #include <map>
+#include <optional>
 #include <thread>
 
 namespace SagaRuntimeApp
@@ -349,6 +354,7 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
     bool renderEvidence = false;
     bool gracefulStop = false;
     std::size_t drawCount = 0;
+    Json evidenceCaptures = Json::array();
     if (headless)
     {
         if (!publishReady())
@@ -389,13 +395,14 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
     else
     {
         RuntimeRenderSession render(world, envelope.artifacts, envelopeResult.diagnostics,
-            envelope.workingDirectory / "runtime-frame.ppm");
+            envelope.workingDirectory / "captures");
         if (!render.Initialize())
         {
             writeResult("Failed", "RendererFailure", frames, dispatcher.DispatchCount(), Json::object());
             return Failure(envelopeResult.diagnostics.back().code,
                 envelopeResult.diagnostics.back().message);
         }
+        std::uint64_t renderedFrameIndex = 0;
         RuntimeUiSession ui;
         auto* overlay = render.OverlaySubmission();
         if (launch.schemaVersion == 2 && (overlay == nullptr ||
@@ -415,9 +422,36 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
                 "LaunchValidationFailure");
         }
         bool recordedOpen = false;
+        std::string bindingLabel;
+        for (const auto& action : inputResult.value->actions)
+            if (action.actionId == "Interact" && !action.bindings.empty())
+            {
+                bindingLabel = action.bindings.front().displayLabel;
+                break;
+            }
+        std::string capturePrefix;
+        std::transform(bindingLabel.begin(), bindingLabel.end(),
+            std::back_inserter(capturePrefix), [](const unsigned char value)
+            { return static_cast<char>(std::tolower(value)); });
+        if (capturePrefix.empty())
+        {
+            ui.Shutdown();
+            render.Shutdown();
+            return structuredFailure("Runtime.Render.EvidenceBindingMissing",
+                "Named graphical evidence requires a verified display label.",
+                "RendererFailure");
+        }
         while (!render.ShouldClose())
         {
             if (std::filesystem::exists(envelope.stopPath)) { gracefulStop = true; break; }
+            if (smokeInteractions && frames == 240 && !render.RequestResize(1024, 640))
+            {
+                ui.Shutdown();
+                render.Shutdown();
+                return structuredFailure("Runtime.Render.EvidenceResizeFailed",
+                    "The named resize evidence frame could not resize the viewport.",
+                    "RendererFailure");
+            }
             const bool inject = smokeInteractions && (frames == 30 || frames == 190);
             const auto actions = render.PollLogicalActions(*inputResult.value, inject);
             for (const auto& action : actions)
@@ -438,22 +472,129 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
                 return structuredFailure("Runtime.Script.UpdateFailed",
                     "Script OnUpdate failed.", "ScriptLifecycleFailure");
             }
-            if (!render.RenderFrame(launch.schemaVersion == 2 ? &ui : nullptr))
+            std::optional<RuntimeEvidenceCaptureRequest> captureRequest;
+            if (smokeInteractions && launch.schemaVersion == 2 &&
+                (frames == 0 || frames == 30 || frames == 190 || frames == 245))
+            {
+                const auto snapshot = stateStore.Snapshot(
+                    promptEntity, runtimePrompt->behaviorId, runtimePrompt->stateKey);
+                const auto text = RuntimeUiPromptController::Compose(
+                    *runtimePrompt, *inputResult.value, stateStore, promptEntity);
+                if (!snapshot || !text)
+                {
+                    ui.Shutdown();
+                    render.Shutdown();
+                    return structuredFailure("Runtime.Render.EvidenceSemanticStateMissing",
+                        "Named capture semantic state was unavailable for its frame.",
+                        "RendererFailure");
+                }
+                const auto suffix = frames == 0 ? "open" : frames == 30 ? "close" :
+                    frames == 190 ? "reopened" : "resized";
+                const auto prior = frames == 30 ? capturePrefix + "-open" :
+                    frames == 190 ? capturePrefix + "-close" :
+                    frames == 245 ? capturePrefix + "-reopened" : std::string{};
+                captureRequest = RuntimeEvidenceCaptureRequest{
+                    capturePrefix + "-" + suffix, renderedFrameIndex,
+                    bindingLabel, *text, snapshot->value, 0U, prior};
+            }
+            if (!render.RenderFrame(launch.schemaVersion == 2 ? &ui : nullptr,
+                                    captureRequest ? &*captureRequest : nullptr))
             {
                 ui.Shutdown();
                 render.Shutdown();
                 return structuredFailure("Runtime.Render.FrameFailed",
                     "Runtime renderer failed a frame.", "RendererFailure");
             }
+            ++renderedFrameIndex;
             ++frames;
             if (smokeInteractions && frames >= 350) break;
         }
         record();
         renderEvidence = render.HasMeaningfulPixels();
         drawCount = render.LastDrawCount();
-        if (renderEvidence)
-            envelopeResult.diagnostics.push_back({"Runtime.Render.FrameCaptureEvidence",
-                "Renderer produced a non-clear frame capture.", render.CapturePath().string()});
+        for (const auto& capture : render.EvidenceRecords())
+        {
+            evidenceCaptures.push_back({
+                {"baselineDifferencePixelCount", capture.baselineDifferencePixelCount},
+                {"baselineRgbAbsoluteDifference", capture.baselineRgbAbsoluteDifference},
+                {"canonicalLaunchHash", envelope.canonicalManifestHash},
+                {"doorState", capture.doorState}, {"filePath", capture.path.string()},
+                {"frameIndex", capture.frameIndex},
+                {"height", capture.height},
+                {"hudRegion", {{"height", capture.hudHeight}, {"width", capture.hudWidth},
+                    {"x", capture.hudX}, {"y", capture.hudY}}},
+                {"layoutBounds", {{"height", capture.layoutBounds.height},
+                    {"width", capture.layoutBounds.width},
+                    {"x", capture.layoutBounds.x}, {"y", capture.layoutBounds.y}}},
+                {"inputArtifactHash", launch.input.hash}, {"name", capture.name},
+                {"nonBackgroundPixelCount", capture.nonBackgroundPixelCount},
+                {"packageGenerationHash", launch.packageGeneration.hash},
+                {"pixelRatio", capture.pixelRatio},
+                {"preOverlayFrameIndex", capture.preOverlayFrameIndex},
+                {"preOverlayPath", capture.preOverlayPath.string()},
+                {"preOverlaySha256", Play::Sha256Bytes(
+                    RuntimeLaunchSession::ReadFile(capture.preOverlayPath))},
+                {"priorSemanticDifferencePixelCount",
+                    capture.priorSemanticDifferencePixelCount},
+                {"priorSemanticRgbAbsoluteDifference",
+                    capture.priorSemanticRgbAbsoluteDifference},
+                {"promptBindingLabel", capture.promptBindingLabel},
+                {"promptSemanticLabel", capture.promptSemanticLabel},
+                {"sceneHash", launch.scene.hash},
+                {"scriptAssemblyHash", launch.scriptAssembly.hash},
+                {"sessionId", envelope.playSessionId},
+                {"sha256", Play::Sha256Bytes(RuntimeLaunchSession::ReadFile(capture.path))},
+                {"uiArtifactHash", launch.uiSet.hash}, {"width", capture.width}});
+            evidenceCaptures.back()["uiDrawCallCount"] = capture.uiDrawCallCount;
+            envelopeResult.diagnostics.push_back({"Runtime.Render.NamedFrameCapture",
+                capture.name, capture.path.string()});
+        }
+        const auto& records = render.EvidenceRecords();
+        const auto findCapture = [&](std::string_view suffix)
+        {
+            return std::find_if(records.begin(), records.end(),
+                [&](const auto& value) { return value.name == capturePrefix + std::string(suffix); });
+        };
+        const auto open = findCapture("-open");
+        const auto close = findCapture("-close");
+        const auto reopened = findCapture("-reopened");
+        const auto resized = findCapture("-resized");
+        const auto hasBaselineDifference = [](const auto& capture)
+        {
+            return capture.baselineDifferencePixelCount >= 32U &&
+                capture.baselineRgbAbsoluteDifference >= 2048U;
+        };
+        const auto hasSemanticDifference = [](const auto& capture)
+        {
+            return capture.priorSemanticDifferencePixelCount >= 16U &&
+                capture.priorSemanticRgbAbsoluteDifference >= 1024U;
+        };
+        const auto centered = [](const auto& capture)
+        {
+            const double center = capture.layoutBounds.x +
+                capture.layoutBounds.width * 0.5;
+            return std::abs(center - static_cast<double>(capture.width) * 0.5) <= 2.0;
+        };
+        bool resizeAnchored = false;
+        if (open != records.end() && resized != records.end() &&
+            (open->width != resized->width || open->height != resized->height))
+        {
+            const double baselineGap = static_cast<double>(open->height) -
+                (open->layoutBounds.y + open->layoutBounds.height);
+            const double resizedGap = static_cast<double>(resized->height) -
+                (resized->layoutBounds.y + resized->layoutBounds.height);
+            const double expectedGap = baselineGap *
+                static_cast<double>(resized->height) / open->height;
+            resizeAnchored = std::abs(resizedGap - expectedGap) <= 2.0;
+        }
+        renderEvidence = renderEvidence && records.size() == 5U &&
+            open != records.end() && close != records.end() &&
+            reopened != records.end() && resized != records.end() &&
+            hasBaselineDifference(*open) && hasBaselineDifference(*close) &&
+            hasBaselineDifference(*reopened) && hasBaselineDifference(*resized) &&
+            hasSemanticDifference(*close) && hasSemanticDifference(*reopened) &&
+            centered(*open) && centered(*close) && centered(*reopened) &&
+            centered(*resized) && resizeAnchored;
         ui.Shutdown();
         render.Shutdown();
     }
@@ -465,6 +606,7 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
         observedHeights[0] < observedHeights[1] &&
         std::abs(observedHeights[0] - observedHeights[2]) < 0.01;
     const Json observed = {{"drawCount", drawCount}, {"entityId", observedEntity->entityId},
+        {"evidenceCaptures", evidenceCaptures},
         {"meaningfulRendererPixels", renderEvidence}, {"positionY", observedHeights},
         {"promptText", observedPrompts},
         {"transition", transitioned ? "ClosedOpenClosed" : "Incomplete"}};

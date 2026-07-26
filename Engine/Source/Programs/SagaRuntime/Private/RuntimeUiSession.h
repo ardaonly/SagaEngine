@@ -36,6 +36,8 @@ public:
     [[nodiscard]] float PixelRatio() const noexcept { return pixelRatio_; }
     void Shutdown() noexcept;
     [[nodiscard]] const std::string& PromptText() const noexcept { return promptText_; }
+    [[nodiscard]] std::size_t LastDrawCallCount() const noexcept
+    { return backend_ ? backend_->LastRenderStats().drawCallCount : 0U; }
 
 private:
     std::unique_ptr<SagaEngine::UI::IUiBackend> backend_;
