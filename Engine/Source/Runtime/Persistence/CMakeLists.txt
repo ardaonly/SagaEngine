@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MPL-2.0
 saga_add_runtime_module(Persistence
     MODULE_DIR Engine/Source/Runtime/Persistence
-    TARGET SagaBackend
+    TARGET SagaPersistenceBackend
     SOURCES
         Private/SagaEngine/Persistence/Backends/PostgreSQL/PostgreSQLImpl.cpp
         Private/SagaEngine/Persistence/Backends/PostgreSQL/PostgreSQLImpl.h
@@ -21,7 +21,7 @@ saga_add_runtime_module(Persistence
 
 saga_register_module_tests(Persistence
     MODULE_DIR Engine/Source/Runtime/Persistence
-    LINK_TARGET SagaBackend
+    LINK_TARGET SagaPersistenceBackend
     SOURCES
         Tests/PersistenceContractTests.cpp
     LABELS unit runtime persistence

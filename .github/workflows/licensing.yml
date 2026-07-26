@@ -213,7 +213,8 @@ jobs:
           source "$SAGA_BUILD_DIR/generators/conanbuild.sh"
           cmake --build "$SAGA_BUILD_DIR" --parallel 2 --target \
             SagaCoreLog SagaDiagnostics SagaCollaboration \
-            SagaEngine SagaRuntimeLib SagaServerLib SagaBackend SagaGraphicsCore
+            SagaEngine SagaRuntimeLib SagaServerLib SagaUiBackend \
+            SagaPersistenceBackend SagaGraphicsCore
 
       - name: Verify installed SDK and licensing payload
         shell: bash

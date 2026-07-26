@@ -110,9 +110,6 @@ endfunction()
 function(saga_link_thirdparty target_name)
     target_link_libraries(${target_name} PRIVATE
         asio::asio
-        libpqxx::pqxx
-        hiredis::hiredis
-        redis++::redis++_static
         SDL2::SDL2
         imgui::imgui
         glm::glm

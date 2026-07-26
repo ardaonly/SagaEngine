@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MPL-2.0
 saga_add_runtime_module(UI
     MODULE_DIR Engine/Source/Runtime/UI
-    TARGET SagaBackend
+    TARGET SagaUiBackend
     SOURCES
         Private/Backends/RmlUi/RmlUiUiBackend.cpp
         Private/Backends/RmlUi/RmlUiUiBackend.h
@@ -12,7 +12,7 @@ saga_add_runtime_module(UI
 saga_register_module_tests(UI
     MODULE_DIR Engine/Source/Runtime/UI
     LINK_TARGET SagaEngine
-    PRIVATE_DEPS SagaBackend rmlui::rmlui
+    PRIVATE_DEPS SagaUiBackend rmlui::rmlui
     LABELS "unit;runtime;ui"
     SOURCES
         Tests/RuntimeUiBootstrapperTests.cpp

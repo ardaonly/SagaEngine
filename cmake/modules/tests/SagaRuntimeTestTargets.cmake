@@ -8,7 +8,7 @@
         SagaEngine
         SagaRuntimeAppLib
         SagaRuntimeLib
-        SagaBackend
+        SagaUiBackend
         SagaDiligentRuntime
         SagaPlatformSDL
         GTest::gtest

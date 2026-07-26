@@ -62,7 +62,7 @@
     add_executable(SagaIntegrationTests ${INTEGRATION_SOURCES})
     saga_link_thirdparty(SagaIntegrationTests)
     target_link_libraries(SagaIntegrationTests PRIVATE
-        SagaBackend
+        SagaPersistenceBackend
         SagaEngine
         SagaRuntimeLib
         SagaServerLib
@@ -99,7 +99,6 @@
         )
         saga_apply_compiler_flags(SagaDiligentGpuIntegrationTests)
         target_link_libraries(SagaDiligentGpuIntegrationTests PRIVATE
-            SagaBackend
             SagaEngine
             SagaGraphicsPrivate
             SagaDiligentBackend
@@ -154,7 +153,6 @@
             SagaServerLib
             SagaShared
             SagaCollaboration
-            SagaBackend
             GTest::gtest
             GTest::gmock
             GTest::gtest_main
@@ -182,7 +180,6 @@
             SagaServerLib
             SagaShared
             SagaCollaboration
-            SagaBackend
             GTest::gtest
             GTest::gmock
             GTest::gtest_main

@@ -202,13 +202,76 @@ TEST(CMakeTargetBoundaryTests, RuntimeVendorDependenciesMatchHeaderVisibility)
     }
 
     const auto targets = ReadText(root / "cmake/modules/SagaTargets.cmake");
-    const auto backendLinks =
-        ExtractTargetCalls(targets, "target_link_libraries", "SagaBackend");
-    EXPECT_TRUE(ContainsCMakeToken(backendLinks, "libpqxx::pqxx"));
+    const auto uiBackendLinks =
+        ExtractTargetCalls(targets, "target_link_libraries", "SagaUiBackend");
+    const auto persistenceBackendLinks = ExtractTargetCalls(
+        targets, "target_link_libraries", "SagaPersistenceBackend");
+    EXPECT_TRUE(ContainsCMakeToken(uiBackendLinks, "SagaEngine"));
+    EXPECT_FALSE(ContainsCMakeToken(uiBackendLinks, "libpqxx::pqxx"));
+    EXPECT_FALSE(
+        ContainsCMakeToken(uiBackendLinks, "redis++::redis++_static"));
     EXPECT_TRUE(
-        ContainsCMakeToken(backendLinks, "redis++::redis++_static"));
-    EXPECT_FALSE(ContainsCMakeToken(backendLinks, "SDL2::SDL2"));
-    EXPECT_FALSE(ContainsCMakeToken(backendLinks, "imgui::imgui"));
+        ContainsCMakeToken(persistenceBackendLinks, "libpqxx::pqxx"));
+    EXPECT_TRUE(
+        ContainsCMakeToken(
+            persistenceBackendLinks, "redis++::redis++_static"));
+    EXPECT_FALSE(
+        ContainsCMakeToken(persistenceBackendLinks, "rmlui::rmlui"));
+    EXPECT_NE(targets.find("saga_link_rmlui(SagaUiBackend)"),
+              std::string::npos);
+    EXPECT_EQ(targets.find("add_library(SagaBackend "), std::string::npos);
+}
+
+TEST(CMakeTargetBoundaryTests, ConfiguredBackendOwnershipStaysSeparated)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto buildRoot = std::filesystem::path(SAGA_BUILD_ROOT);
+    const auto contract =
+        ReadText(buildRoot / "generated/SagaBackendOwnership-RelWithDebInfo.txt");
+    ASSERT_FALSE(contract.empty());
+
+    const auto lineFor = [&](std::string_view target)
+    {
+        const std::string marker = std::string(target) + "=";
+        const auto begin = contract.find(marker);
+        if (begin == std::string::npos)
+            return std::string{};
+        const auto end = contract.find('\n', begin);
+        return contract.substr(
+            begin, end == std::string::npos ? end : end - begin);
+    };
+
+    const auto ui = lineFor("SagaUiBackend");
+    const auto persistence = lineFor("SagaPersistenceBackend");
+    ASSERT_FALSE(ui.empty());
+    ASSERT_FALSE(persistence.empty());
+    EXPECT_NE(ui.find("rmlui"), std::string::npos);
+    EXPECT_EQ(ui.find("pqxx"), std::string::npos);
+    EXPECT_EQ(ui.find("redis"), std::string::npos);
+    EXPECT_NE(persistence.find("pqxx"), std::string::npos);
+    EXPECT_NE(persistence.find("redis"), std::string::npos);
+    EXPECT_EQ(persistence.find("rmlui"), std::string::npos);
+
+    for (const auto* target : {
+             "SagaRuntimeAppLib", "SagaRuntime", "SagaSandboxLib",
+             "SagaEditorLib", "SagaProductLib"})
+    {
+        const auto links = lineFor(target);
+        ASSERT_FALSE(links.empty()) << target;
+        EXPECT_EQ(links.find("SagaPersistenceBackend"), std::string::npos)
+            << target;
+        EXPECT_EQ(links.find("pqxx"), std::string::npos) << target;
+        EXPECT_EQ(links.find("redis"), std::string::npos) << target;
+    }
+    EXPECT_NE(lineFor("SagaRuntimeAppLib").find("SagaUiBackend"),
+              std::string::npos);
+    EXPECT_EQ(lineFor("SagaRuntime").find("SagaUiBackend"),
+              std::string::npos);
+    EXPECT_EQ(lineFor("SagaSandboxLib").find("SagaUiBackend"),
+              std::string::npos);
+
+    const auto targets = ReadText(root / "cmake/modules/SagaTargets.cmake");
+    EXPECT_EQ(targets.find("add_library(SagaBackend "), std::string::npos);
 }
 
 TEST(CMakeTargetBoundaryTests, EditorAggregateComposesOnlyModuleObjects)
@@ -283,6 +346,8 @@ TEST(CMakeTargetBoundaryTests, MainWindowContractOwnsChromeNotProjectDialogs)
         "Engine/Source/Editor/EditorQt/Public/SagaEditorQt/QtUIMainWindow.h");
     const auto qtSource = ReadText(root /
         "Engine/Source/Editor/EditorQt/Private/SagaEditorQt/QtUIMainWindow.cpp");
+    const auto panelContract = ReadText(root /
+        "Engine/Source/Editor/EditorFramework/Public/SagaEditor/Panels/IPanel.h");
 
     for (const auto* retiredDialogMember : {
              "NewProjectPrompt",
@@ -308,6 +373,10 @@ TEST(CMakeTargetBoundaryTests, MainWindowContractOwnsChromeNotProjectDialogs)
         EXPECT_NE(interfaceText.find(retainedWindowRole), std::string::npos)
             << retainedWindowRole;
     }
+    EXPECT_NE(interfaceText.find("QWidget*"), std::string::npos);
+    EXPECT_NE(panelContract.find("QWidget*"), std::string::npos);
+    EXPECT_EQ(interfaceText.find("void*"), std::string::npos);
+    EXPECT_EQ(panelContract.find("void*"), std::string::npos);
 }
 
 TEST(CMakeTargetBoundaryTests, QtCompositionRootStaysConcrete)
@@ -382,7 +451,8 @@ TEST(CMakeTargetBoundaryTests, ServerTargetAvoidsClientAndVendorBackends)
         ExtractTargetCalls(targets, "target_link_libraries", "SagaServerLib");
     ASSERT_FALSE(serverLinks.empty());
 
-    for (const auto* forbidden : {"SagaPlatformSDL", "SagaBackend"})
+    for (const auto* forbidden : {
+             "SagaPlatformSDL", "SagaUiBackend", "SagaPersistenceBackend"})
     {
         EXPECT_FALSE(ContainsCMakeToken(serverLinks, forbidden))
             << "SagaServerLib directly links forbidden client/vendor target "

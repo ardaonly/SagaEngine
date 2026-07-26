@@ -26,7 +26,8 @@ function(saga_setup_install)
         SagaEngine
         SagaRuntimeLib
         SagaServerLib
-        SagaBackend
+        SagaUiBackend
+        SagaPersistenceBackend
         EXPORT SagaEngineTargets
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
             COMPONENT SagaDevelopment
