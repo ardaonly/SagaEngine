@@ -40,6 +40,7 @@ saga_add_editor_module(EditorFramework
         Private/SagaEditor/Profile/EditorProfileSettingsBinding.cpp
         Private/SagaEditor/Shell/EditorMode.cpp
         Private/SagaEditor/Shell/EditorShell.cpp
+        Private/SagaEditor/Shell/EditorShellPanelLifecycle.cpp
         Private/SagaEditor/Shell/ShellCommands.cpp
         Private/SagaEditor/Themes/ColorPalette.cpp
         Public/SagaEditor/Composition/EditorCompositionArtifact.h
