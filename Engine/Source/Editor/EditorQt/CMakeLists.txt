@@ -22,13 +22,11 @@ saga_add_editor_module(EditorQt
         Private/SagaEditorQt/Panels/ShortcutPreferencesPanel.cpp
         Private/SagaEditorQt/Panels/ScriptingPanel.cpp
         Private/SagaEditorQt/Panels/WorldViewportPanel.cpp
-        Private/SagaEditorQt/QtPanel.cpp
         Private/SagaEditorQt/QtSettingsStore.cpp
         Private/SagaEditorQt/QtUIApplication.cpp
         Private/SagaEditorQt/QtUIFactory.cpp
         Private/SagaEditorQt/QtUIMainWindow.cpp
         Private/SagaEditorQt/Themes/ThemeRegistry.cpp
-        Public/SagaEditorQt/QtPanel.h
         Public/SagaEditorQt/QtSettingsStore.h
         Public/SagaEditorQt/QtUIApplication.h
         Public/SagaEditorQt/QtUIFactory.h
