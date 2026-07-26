@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IUiNamedActionHandler.h
 /// @brief Backend-neutral UI named action handler contract.
 

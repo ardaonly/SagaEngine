@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file NetEntityBinding.cpp
 /// @brief Network-id → RenderEntityId mapping with thin forwarding to RenderWorld.
 

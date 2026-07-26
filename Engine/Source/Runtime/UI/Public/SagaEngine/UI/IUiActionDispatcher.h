@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IUiActionDispatcher.h
 /// @brief Backend-neutral UI event to action binding contract.
 

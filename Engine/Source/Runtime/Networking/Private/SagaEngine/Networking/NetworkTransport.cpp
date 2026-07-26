@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file NetworkTransport.cpp
 /// @brief UdpTransport full implementation — Boost.Asio async UDP with send queue and keepalive.
 

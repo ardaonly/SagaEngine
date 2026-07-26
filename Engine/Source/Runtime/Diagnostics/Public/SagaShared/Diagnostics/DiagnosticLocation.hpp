@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiagnosticLocation.hpp
 /// @brief Shared diagnostic location references without subsystem dependencies.
 

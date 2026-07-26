@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file MeshStreamer.h
 /// @brief Typed streaming wrapper for mesh assets.
 ///

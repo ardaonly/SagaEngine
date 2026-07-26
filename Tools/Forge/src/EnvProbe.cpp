@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file EnvProbe.cpp
 /// @brief Tool version detection and strict-mode enforcement.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorCompositionManifest.h
 /// @brief Manifest model for locating compiled editor composition outputs.
 

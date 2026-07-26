@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaLauncherModel.h
 /// @brief Qt-independent Product Launcher state and action vocabulary.
 
@@ -20,9 +21,6 @@ enum class SagaLauncherActionId
     OpenProject,
     ValidateProject,
     OpenEditor,
-    RuntimeStarterArenaSmoke,
-    RuntimeStarterArenaPlayable,
-    FirstPlayableCheck,
     RefreshReports,
     ViewSagaScriptEvidence,
     ViewVisualBlocksEvidence,
@@ -74,9 +72,6 @@ enum class SagaLauncherWorkspaceSourceKind
 enum class SagaLauncherTargetKind
 {
     EditorTarget,
-    RuntimeStarterArenaSmokeTarget,
-    RuntimeStarterArenaPlayableTarget,
-    FirstPlayableCheckTarget,
     SagascriptEvidenceTarget,
     VisualBlocksEvidenceTarget,
     PackageStatusTarget,

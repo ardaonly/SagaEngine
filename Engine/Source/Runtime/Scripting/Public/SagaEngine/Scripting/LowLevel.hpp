@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file LowLevel.hpp
 /// @brief Aggregate include for low-level public SagaScript contracts.
 

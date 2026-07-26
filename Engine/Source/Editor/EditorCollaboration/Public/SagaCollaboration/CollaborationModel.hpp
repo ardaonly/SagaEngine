@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CollaborationModel.hpp
 /// @brief Local/offline collaboration metadata model for Technical Evaluation.
 

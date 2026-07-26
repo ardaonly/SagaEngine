@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file MovementValidator.cpp
 /// @brief MovementValidator implementation — server-authoritative movement gate.
 

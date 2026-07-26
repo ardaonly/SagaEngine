@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DeterminismVerifier.h
 /// @brief Cross-platform determinism enforcement for replication apply.
 ///

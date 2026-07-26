@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiagnosticCode.hpp
 /// @brief Shared stable diagnostic code value.
 

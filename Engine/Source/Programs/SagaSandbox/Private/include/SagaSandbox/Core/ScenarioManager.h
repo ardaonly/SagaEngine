@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScenarioManager.h
 /// @brief Manages the active scenario lifecycle and hot-swap between scenarios.
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SimulationTests.cpp
 /// @brief Unit tests for WorldState, SimulationTick, Deterministic, and Authority.
 

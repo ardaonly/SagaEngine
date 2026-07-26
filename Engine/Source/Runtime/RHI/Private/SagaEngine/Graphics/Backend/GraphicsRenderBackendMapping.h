@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file GraphicsRenderBackendMapping.h
 /// @brief Private mapping between SagaGraphics shell DTOs and Render backend DTOs.
 

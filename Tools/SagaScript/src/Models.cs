@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 // Models.cs
 // Data contracts used by the standalone SagaScript CLI.
 

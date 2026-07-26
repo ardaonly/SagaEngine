@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ReplicationMemoryTracker.cpp
 /// @brief Memory pressure monitoring for the replication pipeline.
 

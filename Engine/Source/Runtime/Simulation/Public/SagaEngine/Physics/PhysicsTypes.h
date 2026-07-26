@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PhysicsTypes.h
 /// @brief Core data types for the physics simulation.
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SandboxConfig.h
 /// @brief Runtime configuration passed to SandboxHost at construction time.
 ///

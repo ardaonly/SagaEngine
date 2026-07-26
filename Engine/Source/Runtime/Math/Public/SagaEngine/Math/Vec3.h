@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Vec3.h
 /// @brief Engine math wrapper for a 3-component float vector (GLM backend).
 ///

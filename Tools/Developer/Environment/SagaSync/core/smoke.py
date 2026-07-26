@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """Non-GUI SagaSync smoke model."""
 
 from __future__ import annotations

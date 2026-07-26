@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeServiceRegistryDiagnostics.cpp
 /// @brief Runtime service registry report diagnostic classification implementation.
 

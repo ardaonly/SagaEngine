@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RenderInterestWorldStreaming.h
 /// @brief CPU-side contract between world interest, render visibility, and preload hints.
 

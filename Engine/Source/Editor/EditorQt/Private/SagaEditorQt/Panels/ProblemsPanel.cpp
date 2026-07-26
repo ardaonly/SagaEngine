@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ProblemsPanel.cpp
 /// @brief Qt backend implementation for the editor Problems panel.
 
@@ -215,7 +216,7 @@ std::string ProblemsPanel::GetTitle() const
     return "Problems";
 }
 
-void* ProblemsPanel::GetNativeWidget() const noexcept
+QWidget* ProblemsPanel::Widget() const noexcept
 {
     return m_impl->widget;
 }

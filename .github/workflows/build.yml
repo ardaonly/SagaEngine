@@ -134,8 +134,7 @@ jobs:
             AssetManifestWriterTests PackageManifestWriterTests \
             GeneratedRuntimeSmokeManifestTests GeneratedRuntimeSmokePackageTests \
             RuntimeAssetStartupBootstrapTests ScriptBindingRuntimeTests \
-            CSharpScriptHostTests CSharpGameplayProofTests \
-            StarterArenaRuntimeSmokeTests StarterArenaPlayableTests
+            CSharpScriptHostTests CSharpGameplayProofTests
 
       - name: Build Linux product tests
         shell: bash
@@ -338,8 +337,7 @@ jobs:
             AssetManifestWriterTests PackageManifestWriterTests `
             GeneratedRuntimeSmokeManifestTests GeneratedRuntimeSmokePackageTests `
             RuntimeAssetStartupBootstrapTests ScriptBindingRuntimeTests `
-            CSharpScriptHostTests CSharpGameplayProofTests `
-            StarterArenaRuntimeSmokeTests StarterArenaPlayableTests
+            CSharpScriptHostTests CSharpGameplayProofTests
 
       - name: Build Windows product tests
         shell: pwsh

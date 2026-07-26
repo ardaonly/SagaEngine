@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeStartupGate.cpp
 /// @brief Implements thin startup validation orchestration.
 

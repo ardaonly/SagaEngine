@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ServerPacketNormalizer.cpp
 /// @brief Server packet frame normalization implementation.
 

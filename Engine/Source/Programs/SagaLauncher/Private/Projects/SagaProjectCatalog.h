@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaProjectCatalog.h
 /// @brief Canonical .sagaproj discovery and launcher recent-project storage.
 

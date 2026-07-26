@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ArchetypeMigration.h
 /// @brief Runtime archetype migration — add / remove components on live entities.
 ///

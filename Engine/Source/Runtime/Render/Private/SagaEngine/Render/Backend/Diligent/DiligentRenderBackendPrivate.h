@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentRenderBackendPrivate.h
 /// @brief Private shared state for the Diligent render backend split.
 

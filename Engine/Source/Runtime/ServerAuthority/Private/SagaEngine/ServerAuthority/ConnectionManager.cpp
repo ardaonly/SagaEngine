@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ConnectionManager.cpp
 /// @brief ConnectionManager — multi-client session table implementation.
 

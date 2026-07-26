@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorldPartitionSystem.cpp
 /// @brief World partition system implementation with zone callbacks and spatial indexing.
 

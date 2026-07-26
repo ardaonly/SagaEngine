@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file StateSnapshot.hpp
 /// @brief Deterministic state snapshot comparison contracts.
 

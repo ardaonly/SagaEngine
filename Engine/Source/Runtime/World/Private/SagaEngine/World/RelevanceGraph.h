@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RelevanceGraph.h
 /// @brief Context-based interest graph — relevance ≠ distance.
 ///

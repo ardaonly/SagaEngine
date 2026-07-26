@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file FaultBoundaryTests.cpp
 /// @brief Verifies minimal fault boundary diagnostics contracts.
 

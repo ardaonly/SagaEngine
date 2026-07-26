@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorkspaceCustomizationController.h
 /// @brief Controller for safe workspace customization overlay deltas.
 

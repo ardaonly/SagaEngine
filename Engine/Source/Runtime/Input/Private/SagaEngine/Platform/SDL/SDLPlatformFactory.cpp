@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SDLPlatformFactory.cpp
 /// @brief SDL-backed platform factory creation functions.
 

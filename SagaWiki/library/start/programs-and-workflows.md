@@ -11,8 +11,8 @@ Programs assemble owned modules into local entry points. They can coordinate val
 
 | Program | Current bounded role |
 | --- | --- |
-| `SagaRuntime` | Thin runtime application entry, command-line configuration, runtime host, and asset startup bootstrap. |
-| `SagaEditor` | Qt-backed editor shell entry over editor modules. |
+| `SagaRuntime` | Thin runtime application entry and artifact-only Play host. It validates a canonical launch manifest/local envelope and consumes cooked scene, input, script, package, bridge, and render artifacts without parsing project source. |
+| `SagaEditor` | Qt-backed editor shell with canonical document authoring, one real-renderer viewport bridge, and separate-process Play orchestration. |
 | `SagaEditorLab` | Development scenarios for editor host/shell, panels, profiles, customization, and deterministic checks. |
 | `SagaLauncher` | Local project catalog/workspace and product-workflow router that surfaces tool/process results. |
 | `SagaSandbox` | Manual and development scenarios for runtime subsystems, probes, rendering, and diagnostics. |
@@ -20,6 +20,13 @@ Programs assemble owned modules into local entry points. They can coordinate val
 ## Product workflow routing
 
 SagaLauncher may open or select a project, invoke the owning validator or tool, launch a program, and surface exit status, diagnostics, and report paths. It must not replace SagaProjectKit, SagaScript, SagaPackager, the editor, or the runtime with a second implementation. A workflow step is successful only when its owning operation produced valid evidence.
+
+The launcher does not orchestrate a sample-specific first-playable workflow. The
+Editor Play path uses a generic deterministic runtime launch manifest and a
+machine-local contained envelope; SagaRuntime rejects source files and unverified
+or incompatible artifacts before its frame loop. Current interactive evidence is
+bounded to StarterArena and is not a production launcher or arbitrary-project
+compatibility claim.
 
 The selected project contract is exclusively a `.sagaproj` manifest with `schemaVersion: 0`; legacy manifest filenames and unknown schema versions are rejected. Launcher has no duplicate package staging or publish-check implementation. Canonical package commands are `sagapack stage` and `sagapack publish-check`, whose results Launcher may only route or display.
 

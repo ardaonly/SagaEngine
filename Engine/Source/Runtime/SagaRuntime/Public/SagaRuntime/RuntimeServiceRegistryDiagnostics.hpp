@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeServiceRegistryDiagnostics.hpp
 /// @brief Runtime-owned service registry report diagnostic classification.
 

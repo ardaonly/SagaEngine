@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaChaosLabTests.cpp
 /// @brief Verifies bounded SagaChaosLab chaos profile execution.
 

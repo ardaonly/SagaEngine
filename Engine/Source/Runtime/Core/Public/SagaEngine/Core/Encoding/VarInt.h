@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file VarInt.h
 /// @brief Variable-length integer encoding (LEB128 + zigzag for signed).
 ///

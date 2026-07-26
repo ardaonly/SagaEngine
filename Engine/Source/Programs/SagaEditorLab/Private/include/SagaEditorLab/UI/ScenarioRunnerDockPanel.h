@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScenarioRunnerDockPanel.h
 /// @brief Editor dock panel wrapper for the EditorLab Scenario Runner.
 
@@ -25,7 +26,7 @@ public:
 
     [[nodiscard]] SagaEditor::PanelId GetPanelId() const override;
     [[nodiscard]] std::string GetTitle() const override;
-    [[nodiscard]] void* GetNativeWidget() const noexcept override;
+    [[nodiscard]] QWidget* Widget() const noexcept override;
 
 private:
     struct Impl;

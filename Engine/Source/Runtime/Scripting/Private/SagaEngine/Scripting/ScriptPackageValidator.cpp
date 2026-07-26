@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScriptPackageValidator.cpp
 /// @brief Implements packaged SagaScript artifact validation.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ArtifactStatus.hpp
 /// @brief Shared artifact lifecycle status vocabulary.
 

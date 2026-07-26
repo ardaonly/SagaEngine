@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaApp.h
 /// @brief Lifecycle owner for the Saga product orchestration entry point.
 

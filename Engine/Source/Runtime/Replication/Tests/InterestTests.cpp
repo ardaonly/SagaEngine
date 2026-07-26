@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "SagaEngine/Replication/Interest/InterestArea.h"
 #include "SagaEngine/Replication/ReplicationManager.h"
 #include <gtest/gtest.h>

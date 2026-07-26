@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 include(CMakeParseArguments)
 
 function(_saga_register_module kind module_name)
@@ -202,6 +203,41 @@ function(saga_create_registered_module_tests out_var)
                 ENVIRONMENT "${_environment}")
         endif()
 
+        if(_module STREQUAL "UI")
+            add_test(NAME RmlUiOverlayContractTests COMMAND ${_target}
+                --gtest_filter=RmlUiRenderInterfaceTests.*)
+            set_tests_properties(RmlUiOverlayContractTests PROPERTIES
+                LABELS "unit;runtime-ui;rmlui;visible-slice")
+        elseif(_module STREQUAL "EditorCore")
+            add_test(NAME DocumentRecoveryContractTests COMMAND ${_target}
+                --gtest_filter=DocumentRecoveryTests.*)
+            set_tests_properties(DocumentRecoveryContractTests PROPERTIES
+                LABELS "unit;editor;recovery;failure-injection")
+        elseif(_module STREQUAL "EditorAuthoring")
+            add_test(NAME ScriptProjectionContractTests COMMAND ${_target}
+                --gtest_filter=ScriptProjectionSessionTests.*:ScriptAnalysisCoordinatorTests.*)
+            set_tests_properties(ScriptProjectionContractTests PROPERTIES
+                LABELS "unit;editor;visual-blocks;projection")
+            add_test(NAME SavedSourcePreparationTests COMMAND ${_target}
+                --gtest_filter=PlayPreparationPipelineTests.*)
+            set_tests_properties(SavedSourcePreparationTests PROPERTIES
+                LABELS "integration;editor;parity;starter-arena;visible-slice")
+            add_test(NAME StarterArenaNamedGraphicalEvidenceTests COMMAND ${_target}
+                --gtest_filter=StarterArenaGraphicalRuntimeIntegrationTests.*)
+            set_tests_properties(StarterArenaNamedGraphicalEvidenceTests PROPERTIES
+                LABELS "integration;editor;invariant-closure;graphical-evidence;runtime-ui;visible-slice;starter-arena;input-variant")
+        elseif(_module STREQUAL "VisualBlocksEditor")
+            add_test(NAME ReadOnlyBlockProjectionTests COMMAND ${_target}
+                --gtest_filter=ReadOnlyScriptProjectionTests.*)
+            set_tests_properties(ReadOnlyBlockProjectionTests PROPERTIES
+                LABELS "unit;editor;visual-blocks;projection")
+        elseif(_module STREQUAL "EditorQt")
+            add_test(NAME ReadOnlyQtProjectionWorkflowTests COMMAND ${_target}
+                --gtest_filter=QtReadOnlyBlocksWorkflowTests.*)
+            set_tests_properties(ReadOnlyQtProjectionWorkflowTests PROPERTIES
+                LABELS "unit;editor;qt;visual-blocks;projection")
+        endif()
+
         list(APPEND _targets ${_target})
     endforeach()
 
@@ -375,6 +411,7 @@ function(saga_register_source_modules)
         Engine/Source/Editor/EditorCore/CMakeLists.txt
         Engine/Source/Editor/EditorFramework/CMakeLists.txt
         Engine/Source/Editor/EditorQt/CMakeLists.txt
+        Engine/Source/Editor/EditorQtRender/CMakeLists.txt
         Engine/Source/Editor/EditorAuthoring/CMakeLists.txt
         Engine/Source/Editor/VisualBlocksEditor/CMakeLists.txt
         Engine/Source/Editor/EditorCollaboration/CMakeLists.txt
@@ -386,7 +423,6 @@ function(saga_register_source_modules)
         Engine/Source/Programs/SagaEditorLab/CMakeLists.txt
         Tools/SagaPackager/CMakeLists.txt
         Tools/SagaScript/CMakeLists.txt
-        Tests/Evidence/FirstPlayable/CMakeLists.txt
     )
     foreach(_module_file IN LISTS _module_files)
         include("${SAGA_ROOT}/${_module_file}")
@@ -396,7 +432,8 @@ function(saga_register_source_modules)
     set(_private_includes)
     foreach(_target IN ITEMS
         SagaCoreLog SagaDiagnostics SagaEngine SagaGraphicsCore SagaGraphicsPrivate
-        SagaDiligentRuntime SagaDiligentBackend SagaPlatformSDL SagaBackend
+        SagaDiligentRuntime SagaDiligentBackend SagaPlatformSDL SagaUiBackend
+        SagaPersistenceBackend
         SagaRuntimeLib SagaServerLib SagaShared SagaCollaboration SagaEditorLib
         SagaEditorLabLib SagaSandboxLib SagaProductLib Saga SagaEditor SagaRuntime
         SagaSandbox EditorLab)

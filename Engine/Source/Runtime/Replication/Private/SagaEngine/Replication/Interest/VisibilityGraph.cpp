@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file VisibilityGraph.cpp
 /// @brief VisibilityGraph implementation — uniform grid spatial partitioning.
 

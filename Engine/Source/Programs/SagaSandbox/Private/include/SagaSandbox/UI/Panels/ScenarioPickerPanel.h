@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScenarioPickerPanel.h
 /// @brief HUD panel listing all registered scenarios with one-click switch.
 ///

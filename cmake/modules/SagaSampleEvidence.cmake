@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 # --- SagaSampleEvidence.cmake -----------------------------------------------
 
 function(saga_setup_sample_executable_evidence)
@@ -15,7 +16,6 @@ function(saga_setup_sample_executable_evidence)
         "${SAGA_ROOT}/build/reports/sample_executable_evidence_report.json")
 
     set(_saga_sample_evidence_dependencies
-        SagaRuntime
         MultiplayerSandboxHeadless
     )
 

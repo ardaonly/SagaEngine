@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PipelineTypes.h
 /// @brief Pipeline state descriptors for the RHI abstraction layer.
 

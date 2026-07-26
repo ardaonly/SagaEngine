@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 # ─── SAGA product candidate distribution staging ──────────────────────────────
 
 function(_saga_distribution_platform out_var)

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 [package]
 name = "sagatools"
 version = "0.2.0"

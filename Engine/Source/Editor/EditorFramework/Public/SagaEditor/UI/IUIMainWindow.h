@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IUIMainWindow.h
 /// @brief Abstract main window — title, visibility, menus, status, and docking host.
 
@@ -6,16 +7,17 @@
 #include "SagaEditor/Shell/ShellLayout.h"
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 
+class QWidget;
+
 namespace SagaEditor
 {
-
 // ─── Dock Area Hint ───────────────────────────────────────────────────────────
 
-/// Framework-agnostic dock placement hint — maps to Qt::DockWidgetArea on the
-/// Qt backend and to whatever the next backend uses.
+/// Typed editor-shell dock placement hint interpreted by the Qt composition.
 enum class UIDockArea : uint8_t
 {
     Left,
@@ -28,12 +30,12 @@ enum class UIDockArea : uint8_t
 
 // ─── Main Window Interface ────────────────────────────────────────────────────
 
-/// Wraps the framework's top-level window (e.g. QMainWindow).
-/// The editor shell talks to this interface; Qt stays behind the backend.
+/// Editor-shell window ownership and test seam for chrome, docking, and events.
+/// QtUIMainWindow is the production implementation composed by EditorQt.
 class IUIMainWindow
 {
 public:
-    using CloseCallback = std::function<void()>;
+    using CloseCallback = std::function<bool()>;
     using CommandCallback = std::function<void(const std::string& commandId)>;
 
     virtual ~IUIMainWindow() = default;
@@ -50,7 +52,6 @@ public:
 
     [[nodiscard]] virtual int  GetWidth()        const noexcept = 0;
     [[nodiscard]] virtual int  GetHeight()       const noexcept = 0;
-    [[nodiscard]] virtual void* GetNativeHandle() const noexcept = 0;
 
     // ─── Chrome ───────────────────────────────────────────────────────────────
 
@@ -62,9 +63,9 @@ public:
 
     // ─── Panel Docking ────────────────────────────────────────────────────────
 
-    /// Dock a panel's native widget (void* → cast to QWidget* on Qt backend)
-    /// into the given area. The window takes display ownership of the widget.
-    virtual void DockPanel(void*              nativeWidget,
+    /// Dock a panel widget into the given area. The window takes display
+    /// ownership of the widget.
+    virtual void DockPanel(QWidget*           widget,
                            const std::string& panelId,
                            const std::string& title,
                            UIDockArea         area)         = 0;

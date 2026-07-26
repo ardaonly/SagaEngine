@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorProfile.cpp
 /// @brief Built-in editor workflow profile descriptors.
 
@@ -28,7 +29,7 @@ constexpr uint32_t kShift = 2u;
 [[nodiscard]] std::vector<EditorShortcutBinding> StandardShortcuts()
 {
     return {
-        Shortcut(kCtrl, 'N', "saga.command.file.new_scene", "Ctrl+N"),
+        Shortcut(kCtrl, 'N', "saga.command.file.new_project", "Ctrl+N"),
         Shortcut(kCtrl, 'O', "saga.command.file.open_project", "Ctrl+O"),
         Shortcut(kCtrl, 'S', "saga.command.file.save", "Ctrl+S"),
         Shortcut(kCtrl, 'Z', "saga.command.edit.undo", "Ctrl+Z"),

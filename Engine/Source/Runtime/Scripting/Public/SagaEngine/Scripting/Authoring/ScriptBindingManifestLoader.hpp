@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScriptBindingManifestLoader.hpp
 /// @brief SagaScript binding manifest authoring workflow helpers.
 

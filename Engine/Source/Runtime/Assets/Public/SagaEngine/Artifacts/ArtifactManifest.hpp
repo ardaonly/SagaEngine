@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ArtifactManifest.hpp
 /// @brief Defines the parsed runtime artifact manifest representation.
 

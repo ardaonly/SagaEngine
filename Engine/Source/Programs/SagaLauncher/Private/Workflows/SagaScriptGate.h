@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaScriptGate.h
 /// @brief Product-owned SagaScript validation gate orchestration.
 

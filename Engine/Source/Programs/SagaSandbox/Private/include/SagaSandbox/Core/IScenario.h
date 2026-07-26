@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IScenario.h
 /// @brief Base interface for all sandbox test scenarios.
 ///

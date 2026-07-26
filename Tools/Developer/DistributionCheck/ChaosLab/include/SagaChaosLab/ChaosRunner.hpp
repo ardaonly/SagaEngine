@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ChaosRunner.hpp
 /// @brief Runs bounded SagaChaosLab profiles through SagaStressArena.
 

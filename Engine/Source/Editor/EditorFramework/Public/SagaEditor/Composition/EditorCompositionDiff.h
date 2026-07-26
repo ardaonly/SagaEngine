@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorCompositionDiff.h
 /// @brief Computes structural diffs between compiled editor composition artifacts.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SimulationTick.h
 /// @brief Fixed-rate simulation tick accumulator with drift-free scheduling.
 ///

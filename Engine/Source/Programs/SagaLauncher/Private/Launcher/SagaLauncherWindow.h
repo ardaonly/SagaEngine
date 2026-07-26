@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaLauncherWindow.h
 /// @brief Thin Qt Widgets renderer for the Product Launcher state.
 

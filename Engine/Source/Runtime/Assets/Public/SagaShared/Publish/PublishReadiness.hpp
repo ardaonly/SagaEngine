@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PublishReadiness.hpp
 /// @brief Shared publish readiness contract.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file ToolEnv.cpp
 /// @brief ToolEnv implementation — loads .forge overrides and manages the active instance.
 

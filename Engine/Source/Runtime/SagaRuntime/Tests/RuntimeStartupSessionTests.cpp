@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeStartupSessionTests.cpp
 /// @brief Focused tests for Runtime startup session preparation.
 

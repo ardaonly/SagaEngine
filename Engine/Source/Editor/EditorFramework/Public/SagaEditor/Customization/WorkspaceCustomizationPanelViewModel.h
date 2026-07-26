@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorkspaceCustomizationPanelViewModel.h
 /// @brief Qt-free view model for the Safe Customize Workspace panel.
 

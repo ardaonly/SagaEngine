@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ResourceManager.cpp
 /// @brief Refcounted residency, LRU eviction, and streaming integration.
 

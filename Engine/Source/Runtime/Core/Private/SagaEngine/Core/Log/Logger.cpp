@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Logger.cpp
 /// @brief Implements structured diagnostics logging and recent-event buffering.
 

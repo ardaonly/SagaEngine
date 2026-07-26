@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RateLimiter.h
 /// @brief Per-connection token-bucket rate limiter for packet count and bandwidth.
 ///

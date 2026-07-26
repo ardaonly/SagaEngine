@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScriptArtifactRef.hpp
 /// @brief Shared script artifact reference contract.
 

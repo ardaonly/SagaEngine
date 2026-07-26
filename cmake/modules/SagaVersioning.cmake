@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 function(saga_init_versioning)
     set(SAGA_ENGINE_VERSION "${CMAKE_PROJECT_VERSION}" PARENT_SCOPE)
 

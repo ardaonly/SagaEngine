@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ShortcutCustomizationPanelViewModel.h
 /// @brief Qt-free view model for the Safe Shortcut Preferences panel.
 

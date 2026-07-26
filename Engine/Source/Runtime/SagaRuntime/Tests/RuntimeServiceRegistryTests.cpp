@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeServiceRegistryTests.cpp
 /// @brief Focused tests for Runtime service lifecycle registry behavior.
 

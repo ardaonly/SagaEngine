@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file MathGLMBridge.h
 /// @brief Opt-in conversion helpers between SagaEngine::Math types and GLM.
 ///

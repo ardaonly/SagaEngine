@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Log.cpp
 /// @brief Engine log implementation with optional external sink.
 

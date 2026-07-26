@@ -1,5 +1,7 @@
 # MultiplayerSandbox
 
+MultiplayerSandbox is licensed under the MIT License; see `../LICENSE`.
+
 MultiplayerSandbox is a deterministic project, scripting, package, validation,
 and headless-integration fixture. It is not a finished or playable multiplayer
 sample.

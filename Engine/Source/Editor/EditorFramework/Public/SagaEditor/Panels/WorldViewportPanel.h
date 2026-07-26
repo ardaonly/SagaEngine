@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorldViewportPanel.h
 /// @brief World viewport panel — 3D scene view with camera controls.
 ///
@@ -14,6 +15,8 @@
 
 namespace SagaEditor
 {
+class EditorDocumentWorkspace;
+class SelectionManager;
 
 // ─── Viewport Mode ────────────────────────────────────────────────────────────
 
@@ -32,7 +35,7 @@ public:
     // ─── IPanel ───────────────────────────────────────────────────────────────
     [[nodiscard]] PanelId     GetPanelId()      const override;
     [[nodiscard]] std::string GetTitle()        const override;
-    [[nodiscard]] void*       GetNativeWidget() const noexcept override;
+    [[nodiscard]] QWidget*    Widget() const noexcept override;
 
     void OnInit()     override;
     void OnShutdown() override;
@@ -40,6 +43,8 @@ public:
     // ─── Camera ───────────────────────────────────────────────────────────────
     void                        SetViewportMode(ViewportMode mode);
     [[nodiscard]] ViewportMode  GetViewportMode() const noexcept;
+    void SetDocumentWorkspace(EditorDocumentWorkspace* workspace) noexcept;
+    void SetSelectionManager(SelectionManager* selection) noexcept;
 
 private:
     struct Impl;

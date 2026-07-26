@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PackageManifestWriter.cpp
 /// @brief Implements Runtime-compatible package manifest writing.
 

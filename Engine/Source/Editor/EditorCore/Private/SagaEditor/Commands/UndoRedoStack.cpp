@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file UndoRedoStack.cpp
 /// @brief Transactional undo/redo stack for all reversible editor actions.
 

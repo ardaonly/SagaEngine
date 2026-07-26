@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Trade.h
 /// @brief Player-to-player trade state-machine verbs.
 ///

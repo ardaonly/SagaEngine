@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "BindingGpuTestFixture.h"
 
 using namespace SagaEngine::Render::Backend;

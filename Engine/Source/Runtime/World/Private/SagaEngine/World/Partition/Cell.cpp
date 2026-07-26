@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Cell.cpp
 /// @brief Coordinate helpers for the world partition cell grid.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RenderWorldTests.cpp
 /// @brief Pool / handle / free-list tests for the client-side RenderWorld.
 ///

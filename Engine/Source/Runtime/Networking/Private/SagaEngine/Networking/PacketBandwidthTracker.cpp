@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PacketBandwidthTracker.cpp
 /// @brief PacketBandwidthTracker implementation — simple lock-free adders.
 

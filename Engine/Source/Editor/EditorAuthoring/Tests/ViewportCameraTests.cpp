@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ViewportCameraTests.cpp
 /// @brief GoogleTest coverage for `ViewportCamera` and `CameraController`.
 

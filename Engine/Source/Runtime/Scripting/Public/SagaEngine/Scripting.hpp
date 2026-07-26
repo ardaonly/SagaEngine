@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Scripting.hpp
 /// @brief Unified public Saga scripting API surface.
 

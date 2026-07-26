@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CommandRegistry.h
 /// @brief Registry of all named editor commands — the single source of truth for actions.
 

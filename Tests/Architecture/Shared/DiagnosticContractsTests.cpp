@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiagnosticContractsTests.cpp
 /// @brief Verifies shared diagnostic payload contracts.
 

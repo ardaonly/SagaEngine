@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ReliableChannel.h
 /// @brief Selective-repeat ARQ protocol with SACK, fast retransmit, and congestion-aware RTT estimation.
 ///

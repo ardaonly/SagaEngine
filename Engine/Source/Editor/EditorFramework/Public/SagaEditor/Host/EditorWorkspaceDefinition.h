@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorWorkspaceDefinition.h
 /// @brief Prepared workspace input consumed by the editor host.
 

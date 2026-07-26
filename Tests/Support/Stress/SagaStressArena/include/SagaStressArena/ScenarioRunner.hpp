@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScenarioRunner.hpp
 /// @brief Runs bounded SagaStressArena diagnostics scenarios.
 

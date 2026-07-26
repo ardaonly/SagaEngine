@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CommandBuffer.h
 /// @brief Recorded GPU command buffer — a list of draw / dispatch / barrier ops.
 

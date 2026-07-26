@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiagnosticReportTests.cpp
 /// @brief Verifies Engine diagnostics report generation and JSON writing.
 

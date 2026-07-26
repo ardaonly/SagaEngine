@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file GraphicsNullBackendResourceTests.cpp
 /// @brief R4A resource validation and accounting tests for NullGraphicsBackend.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file InspectorBinder.cpp
 /// @brief Implementation of the inspector selection-and-edit forwarder.
 

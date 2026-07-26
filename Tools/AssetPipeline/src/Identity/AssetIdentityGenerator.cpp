@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AssetIdentityGenerator.cpp
 /// @brief Implements deterministic AssetKey to AssetId allocation.
 

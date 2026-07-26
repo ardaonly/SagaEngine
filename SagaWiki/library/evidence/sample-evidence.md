@@ -17,7 +17,7 @@ The current sample-owned operational instructions remain beside their source:
 
 | Sample | Current role | Command authority |
 | --- | --- | --- |
-| `Samples/StarterArena` | Project validation, headless/visible bounded runtime, synthetic or explicit keyboard input, focused C# lifecycle/gameplay, and graphics evidence. It is not a complete game. | `Samples/StarterArena/README.md` |
+| `Samples/StarterArena` | Project/scene/C# source fixture with SagaProjectKit validation and developer-compatible SagaScript evidence. No runtime or playable workflow is currently claimed. | `Samples/StarterArena/README.md` |
 | `Samples/MultiplayerSandbox` | Deterministic project, scripting, package, validation, and headless-integration fixture. It is not a finished playable multiplayer sample. | `Samples/MultiplayerSandbox/README.md` |
 
 SagaWiki explains what those results can mean; the sample README owns volatile command lines and fixture-specific limitations. Duplicating every current switch here would create two operational sources of truth.

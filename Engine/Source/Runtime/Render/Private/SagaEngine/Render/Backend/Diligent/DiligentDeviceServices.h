@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentDeviceServices.h
 /// @brief Private borrowed Diligent device/context/swapchain service view.
 

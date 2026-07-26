@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorCompositionArtifactLoader.h
 /// @brief Loads compiled editor composition manifests and artifacts.
 

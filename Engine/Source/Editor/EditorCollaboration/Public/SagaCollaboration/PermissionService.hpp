@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PermissionService.hpp
 /// @brief Permission grant service boundary for collaboration workflows.
 

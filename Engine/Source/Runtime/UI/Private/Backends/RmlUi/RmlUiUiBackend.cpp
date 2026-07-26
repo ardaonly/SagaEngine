@@ -1,7 +1,9 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RmlUiUiBackend.cpp
 /// @brief RmlUi implementation of the minimal Saga runtime UI backend.
 
 #include "RmlUiUiBackend.h"
+#include "RmlUiRenderInterface.h"
 
 #include "SagaEngine/UI/IUiEventQueue.h"
 #include "SagaEngine/UI/IUiResourceProvider.h"
@@ -18,10 +20,12 @@
 #include <RmlUi/Core/SystemInterface.h>
 
 #include <algorithm>
+#include <cmath>
 #include <chrono>
 #include <cstdio>
 #include <filesystem>
 #include <memory>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -235,24 +239,27 @@ private:
 class RmlUiFileInterface final : public Rml::FileInterface
 {
 public:
-    explicit RmlUiFileInterface(std::filesystem::path root)
+    explicit RmlUiFileInterface(std::filesystem::path root,
+        const std::vector<std::filesystem::path>& verified)
         : root_(std::move(root))
     {
+        for (const auto& path : verified) verified_.insert(
+            std::filesystem::weakly_canonical(path));
     }
 
     [[nodiscard]] Rml::FileHandle Open(const Rml::String& path) override
     {
         const std::filesystem::path resolved = ResolvePath(root_, path);
+        if (!verified_.empty() && !verified_.contains(
+                std::filesystem::weakly_canonical(resolved)))
+            return Rml::FileHandle{};
         std::FILE* file = std::fopen(resolved.string().c_str(), "rb");
         return reinterpret_cast<Rml::FileHandle>(file);
     }
 
     void Close(Rml::FileHandle file) override
     {
-        if (file)
-        {
-            std::fclose(reinterpret_cast<std::FILE*>(file));
-        }
+        if (file) std::fclose(reinterpret_cast<std::FILE*>(file));
     }
 
     [[nodiscard]] std::size_t Read(
@@ -260,10 +267,7 @@ public:
         std::size_t size,
         Rml::FileHandle file) override
     {
-        if (!file)
-        {
-            return 0;
-        }
+        if (!file) return 0;
 
         return std::fread(buffer, 1, size, reinterpret_cast<std::FILE*>(file));
     }
@@ -294,148 +298,7 @@ public:
 
 private:
     std::filesystem::path root_;
-};
-
-/// Counting render interface used until Saga UI is wired to a GPU backend.
-class RmlUiCountingRenderInterface final : public Rml::RenderInterface
-{
-public:
-    void BeginFrame()
-    {
-        frameStats_.drawCallCount = 0;
-        frameStats_.compiledGeometryCount = geometry_.size();
-        frameStats_.textureCount = textures_.size();
-    }
-
-    [[nodiscard]] SagaUI::UiRenderStats EndFrame()
-    {
-        frameStats_.compiledGeometryCount = geometry_.size();
-        frameStats_.textureCount = textures_.size();
-        return frameStats_;
-    }
-
-    void RenderGeometry(
-        Rml::Vertex* vertices,
-        int numVertices,
-        int* indices,
-        int numIndices,
-        Rml::TextureHandle texture,
-        const Rml::Vector2f& translation) override
-    {
-        (void)vertices;
-        (void)numVertices;
-        (void)indices;
-        (void)numIndices;
-        (void)translation;
-        (void)texture;
-        ++frameStats_.drawCallCount;
-    }
-
-    [[nodiscard]] Rml::CompiledGeometryHandle CompileGeometry(
-        Rml::Vertex* vertices,
-        int numVertices,
-        int* indices,
-        int numIndices,
-        Rml::TextureHandle texture) override
-    {
-        (void)vertices;
-        (void)indices;
-        (void)texture;
-
-        const Rml::CompiledGeometryHandle handle = nextGeometryHandle_++;
-        geometry_.emplace(
-            handle,
-            GeometryStats{
-                static_cast<std::size_t>(std::max(numVertices, 0)),
-                static_cast<std::size_t>(std::max(numIndices, 0)),
-            });
-        return handle;
-    }
-
-    void RenderCompiledGeometry(
-        Rml::CompiledGeometryHandle geometry,
-        const Rml::Vector2f& translation) override
-    {
-        (void)geometry;
-        (void)translation;
-        ++frameStats_.drawCallCount;
-    }
-
-    void ReleaseCompiledGeometry(Rml::CompiledGeometryHandle geometry) override
-    {
-        geometry_.erase(geometry);
-    }
-
-    [[nodiscard]] bool LoadTexture(
-        Rml::TextureHandle& textureHandle,
-        Rml::Vector2i& textureDimensions,
-        const Rml::String& source) override
-    {
-        textureHandle = 0;
-        (void)source;
-        textureDimensions = Rml::Vector2i(0, 0);
-        return false;
-    }
-
-    [[nodiscard]] bool GenerateTexture(
-        Rml::TextureHandle& textureHandle,
-        const Rml::byte* source,
-        const Rml::Vector2i& sourceDimensions) override
-    {
-        (void)source;
-        textureHandle = nextTextureHandle_++;
-        textures_.emplace(
-            textureHandle,
-            TextureStats{
-                static_cast<std::uint32_t>(std::max(sourceDimensions.x, 0)),
-                static_cast<std::uint32_t>(std::max(sourceDimensions.y, 0)),
-            });
-        return true;
-    }
-
-    void ReleaseTexture(Rml::TextureHandle texture) override
-    {
-        textures_.erase(texture);
-    }
-
-    void EnableScissorRegion(bool enable) override
-    {
-        scissorEnabled_ = enable;
-    }
-
-    void SetScissorRegion(int x, int y, int width, int height) override
-    {
-        scissorX_ = x;
-        scissorY_ = y;
-        scissorWidth_ = width;
-        scissorHeight_ = height;
-    }
-
-private:
-    /// Count of immutable geometry supplied by RmlUi.
-    struct GeometryStats
-    {
-        std::size_t vertexCount = 0; ///< Vertex span size.
-        std::size_t indexCount = 0; ///< Index span size.
-    };
-
-    /// Dimensions of a generated texture handle.
-    struct TextureStats
-    {
-        std::uint32_t width = 0; ///< Texture width.
-        std::uint32_t height = 0; ///< Texture height.
-    };
-
-    std::unordered_map<Rml::CompiledGeometryHandle, GeometryStats> geometry_;
-    std::unordered_map<Rml::TextureHandle, TextureStats> textures_;
-    SagaUI::UiRenderStats frameStats_;
-    Rml::CompiledGeometryHandle nextGeometryHandle_ = 1;
-    Rml::TextureHandle nextTextureHandle_ = 1;
-    int scissorX_ = 0;
-    int scissorY_ = 0;
-    int scissorWidth_ = 0;
-    int scissorHeight_ = 0;
-    bool scissorEnabled_ = false;
+    std::set<std::filesystem::path> verified_;
 };
 
 /// RmlUi-backed implementation hidden behind the Saga UI backend contract.
@@ -468,8 +331,10 @@ public:
         }
 
         config_ = config;
+        renderInterface_.Configure(config_.overlaySubmission, config_.viewport);
         fileInterface_ =
-            std::make_unique<RmlUiFileInterface>(config_.assetRoot);
+            std::make_unique<RmlUiFileInterface>(
+                config_.assetRoot, config_.verifiedResourcePaths);
         systemInterface_ =
             std::make_unique<RmlUiSystemInterface>(diagnostics_);
 
@@ -493,6 +358,26 @@ public:
 
         g_rmlUiOwned = true;
 
+        if (!renderInterface_.Initialize())
+        {
+            diagnostics_.Add(SagaUI::UiDiagnosticCode::BackendInitializeFailed,
+                SagaUI::UiDiagnosticSeverity::Error,
+                "Saga overlay submission failed to initialize.");
+            Shutdown();
+            return false;
+        }
+        for (const auto& fontPath : config_.fontPaths)
+        {
+            if (!Rml::LoadFontFace(fontPath.generic_string()))
+            {
+                diagnostics_.Add(SagaUI::UiDiagnosticCode::FontLoadFailed,
+                    SagaUI::UiDiagnosticSeverity::Error,
+                    "RmlUi failed to load a verified font.", fontPath);
+                Shutdown();
+                return false;
+            }
+        }
+
         const Rml::Vector2i dimensions(
             static_cast<int>(config_.viewport.width),
             static_cast<int>(config_.viewport.height));
@@ -506,6 +391,7 @@ public:
             Shutdown();
             return false;
         }
+        context_->SetDensityIndependentPixelRatio(config_.viewport.pixelRatio);
 
         AttachEventListeners();
         initialized_ = true;
@@ -531,6 +417,7 @@ public:
         }
         documents_.clear();
         context_ = nullptr;
+        renderInterface_.Shutdown();
 
         if (g_rmlUiOwned)
         {
@@ -551,11 +438,13 @@ public:
     void SetViewport(SagaUI::UiViewport viewport) override
     {
         config_.viewport = viewport;
+        renderInterface_.SetViewport(viewport);
         if (context_)
         {
             context_->SetDimensions(Rml::Vector2i(
                 static_cast<int>(viewport.width),
                 static_cast<int>(viewport.height)));
+            context_->SetDensityIndependentPixelRatio(viewport.pixelRatio);
         }
     }
 
@@ -651,6 +540,56 @@ public:
         return true;
     }
 
+    [[nodiscard]] bool SetDocumentElementText(SagaUI::UiDocumentHandle handle,
+        std::string_view elementId, std::string_view text) override
+    {
+        DocumentState* document = FindDocument(handle);
+        if (!document || elementId.empty()) return false;
+        Rml::Element* element = document->document->GetElementById(
+            Rml::String(elementId));
+        if (!element)
+        {
+            diagnostics_.Add(SagaUI::UiDiagnosticCode::ElementUpdateFailed,
+                SagaUI::UiDiagnosticSeverity::Error,
+                "UI document element was not found.", document->path, handle);
+            return false;
+        }
+        element->SetInnerRML(Rml::String(text));
+        return true;
+    }
+
+    [[nodiscard]] std::optional<SagaUI::UiElementBounds>
+        GetDocumentElementBounds(SagaUI::UiDocumentHandle handle,
+                                 std::string_view elementId) const override
+    {
+        const auto found = documents_.find(handle);
+        if (!initialized_ || found == documents_.end() || !found->second.document ||
+            elementId.empty() || config_.viewport.width == 0 ||
+            config_.viewport.height == 0 ||
+            !std::isfinite(config_.viewport.pixelRatio) ||
+            config_.viewport.pixelRatio <= 0.0F)
+            return std::nullopt;
+        if (!found->second.document->IsVisible()) return std::nullopt;
+        Rml::Element* element = found->second.document->GetElementById(
+            Rml::String(elementId));
+        if (!element) return std::nullopt;
+        const auto offset = element->GetAbsoluteOffset(Rml::Box::BORDER);
+        const auto size = element->GetBox().GetSize(Rml::Box::BORDER);
+        SagaUI::UiElementBounds bounds{
+            offset.x, offset.y, size.x, size.y};
+        const float right = bounds.x + bounds.width;
+        const float bottom = bounds.y + bounds.height;
+        if (!std::isfinite(bounds.x) || !std::isfinite(bounds.y) ||
+            !std::isfinite(bounds.width) || !std::isfinite(bounds.height) ||
+            !std::isfinite(right) || !std::isfinite(bottom) ||
+            bounds.width <= 0.0F || bounds.height <= 0.0F ||
+            bounds.x < 0.0F || bounds.y < 0.0F ||
+            right > static_cast<float>(config_.viewport.width) ||
+            bottom > static_cast<float>(config_.viewport.height))
+            return std::nullopt;
+        return bounds;
+    }
+
     void Update(double deltaSeconds) override
     {
         (void)deltaSeconds;
@@ -669,7 +608,13 @@ public:
 
         renderInterface_.BeginFrame();
         context_->Render();
-        lastRenderStats_ = renderInterface_.EndFrame();
+        if (!renderInterface_.EndFrame(lastRenderStats_))
+        {
+            diagnostics_.Add(SagaUI::UiDiagnosticCode::RenderFailed,
+                SagaUI::UiDiagnosticSeverity::Error,
+                "Saga overlay submission rejected the RmlUi frame.");
+            return false;
+        }
         ++lastRenderStats_.frameIndex;
         return true;
     }
@@ -858,8 +803,7 @@ private:
             return;
         }
 
-        SagaUI::UiEvent uiEvent;
-        uiEvent.screenId = document->screenId;
+        SagaUI::UiEvent uiEvent; uiEvent.screenId = document->screenId;
         uiEvent.documentId = document->documentId;
         uiEvent.document = document->handle;
         uiEvent.elementId =
@@ -1038,7 +982,7 @@ private:
     std::unique_ptr<EventBridgeListener> textChangedListener_;
     std::unique_ptr<EventBridgeListener> focusGainedListener_;
     std::unique_ptr<EventBridgeListener> focusLostListener_;
-    RmlUiCountingRenderInterface renderInterface_;
+    RmlUiRenderInterface renderInterface_;
     Rml::Context* context_ = nullptr;
     std::unordered_map<SagaUI::UiDocumentHandle, DocumentState> documents_;
     SagaUI::UiRenderStats lastRenderStats_;

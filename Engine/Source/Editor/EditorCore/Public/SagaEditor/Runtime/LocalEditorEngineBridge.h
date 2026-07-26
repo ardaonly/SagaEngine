@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file LocalEditorEngineBridge.h
 /// @brief In-process editor bridge used by the first production editor slice.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file BandwidthThrottle.h
 /// @brief Per-connection outbound bandwidth shaper (token bucket in bytes).
 ///

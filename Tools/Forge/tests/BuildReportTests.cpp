@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file BuildReportTests.cpp
 /// @brief Coverage for Forge build report foundation.
 

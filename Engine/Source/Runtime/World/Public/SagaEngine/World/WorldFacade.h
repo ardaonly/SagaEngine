@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorldFacade.h
 /// @brief Transitional public shell for high-level world lifecycle access.
 

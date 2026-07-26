@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ResourceManager.h
 /// @brief Reference-counted residency cache on top of `StreamingManager`.
 ///

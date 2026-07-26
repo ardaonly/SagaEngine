@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorShell.cpp
 /// @brief Main editor shell implementation.
 
@@ -9,7 +10,11 @@
 #include "SagaEditor/Commands/CommandRegistry.h"
 #include "SagaEditor/Commands/ShortcutManager.h"
 #include "SagaEditor/Diagnostics/IEditorDiagnosticsService.h"
+#include "SagaEditor/Extensions/ExtensionHost.h"
 #include "SagaEditor/Notifications/EditorNotificationCenter.h"
+#include "SagaEditor/Settings/IEditorSettingsStore.h"
+#include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
+#include "SagaEditor/Play/RuntimeProcessController.h"
 #include "SagaEditor/Persona/PersonaActivator.h"
 #include "SagaEditor/Persona/PersonaRegistry.h"
 #include "SagaEditor/Persona/UIPersona.h"
@@ -17,7 +22,6 @@
 #include "SagaEditor/Profile/EditorProfileActivator.h"
 #include "SagaEditor/Profile/EditorProfileRegistry.h"
 #include "SagaEditor/Themes/ThemeRegistry.h"
-#include "SagaEditor/UI/IUIFactory.h"
 #include "SagaEditor/UI/IUIMainWindow.h"
 #include "SagaEditor/Shell/ShellCommands.h"
 #include "SagaEditor/Panels/IPanel.h"
@@ -35,9 +39,12 @@
 #include "SagaEditor/Panels/ConsolePanel.h"
 #include "SagaEditor/Panels/AssetBrowserPanel.h"
 #include "SagaEditor/Panels/ProblemsPanel.h"
+#include "SagaEditor/Panels/ScriptingPanel.h"
 #include "SagaEditor/Panels/WorldViewportPanel.h"
 
 #include <algorithm>
+#include <charconv>
+#include <chrono>
 
 namespace SagaEditor
 {
@@ -47,6 +54,36 @@ namespace
 
 constexpr const char* kCompositionShellDiagnosticSource =
     "editor.composition.shell";
+constexpr const char* kWindowStateSetting = "layout/main-window-state-v1";
+
+std::string EncodeHex(const std::vector<std::uint8_t>& bytes)
+{
+    static constexpr char digits[] = "0123456789abcdef";
+    std::string result(bytes.size() * 2, '0');
+    for (std::size_t index = 0; index < bytes.size(); ++index)
+    {
+        result[index * 2] = digits[bytes[index] >> 4U];
+        result[index * 2 + 1] = digits[bytes[index] & 0x0fU];
+    }
+    return result;
+}
+
+std::optional<std::vector<std::uint8_t>> DecodeHex(const std::string& text)
+{
+    if (text.size() % 2 != 0) return std::nullopt;
+    std::vector<std::uint8_t> result;
+    result.reserve(text.size() / 2);
+    for (std::size_t index = 0; index < text.size(); index += 2)
+    {
+        unsigned int value = 0;
+        const auto parsed = std::from_chars(text.data() + index, text.data() + index + 2,
+                                            value, 16);
+        if (parsed.ec != std::errc{} || parsed.ptr != text.data() + index + 2)
+            return std::nullopt;
+        result.push_back(static_cast<std::uint8_t>(value));
+    }
+    return result;
+}
 
 [[nodiscard]] std::string ProfileCommandId(const std::string& profileId)
 {
@@ -96,17 +133,6 @@ EditorShell::~EditorShell() = default;
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
 
-bool EditorShell::Init(EditorHost&              host,
-                       IUIFactory&              factory,
-                       const EditorShellConfig& cfg)
-{
-    return Init(host,
-                factory.CreateMainWindow(cfg.windowTitle,
-                                         cfg.windowWidth,
-                                         cfg.windowHeight),
-                cfg);
-}
-
 bool EditorShell::Init(EditorHost&                    host,
                        std::unique_ptr<IUIMainWindow> window,
                        const EditorShellConfig&       cfg)
@@ -121,8 +147,14 @@ bool EditorShell::Init(EditorHost&                    host,
     m_window->SetTitle(cfg.windowTitle);
     m_window->SetSize(cfg.windowWidth, cfg.windowHeight);
 
-    // Wire close → quit the event loop.
-    m_window->SetOnClose([]{});
+    m_projectWorkflowController =
+        std::make_unique<EditorProjectWorkflowController>(
+            host.GetDocumentWorkspace(), cfg.projectWorkflowPrompts);
+    m_window->SetOnClose([this]
+    {
+        return m_projectWorkflowController->CanClose() ==
+            ProjectWorkflowOutcome::Completed;
+    });
     m_window->SetOnCommand(
         [&host](const std::string& commandId)
         {
@@ -134,6 +166,63 @@ bool EditorShell::Init(EditorHost&                    host,
     // off the host directly.
     RegisterShellCommands(host.GetCommandRegistry(),
                           host.GetUndoRedoStack());
+    m_runtimeProcessController = std::make_unique<RuntimeProcessController>();
+    host.GetCommandRegistry().Register({"saga.command.world.play", "Play", "World",
+        [this, &host, runtimeExecutable = cfg.runtimeExecutable]
+        {
+            if (runtimeExecutable.empty() || !std::filesystem::exists(runtimeExecutable))
+            {
+                m_window->SetStatusMessage("SagaRuntime executable is unavailable for Play.");
+                return;
+            }
+            const auto ticks = std::chrono::steady_clock::now().time_since_epoch().count();
+            RuntimeProcessLaunchRequest request;
+            request.playSessionId = "editor-play-" + std::to_string(ticks);
+            request.runtimeExecutable = runtimeExecutable;
+            const bool started = m_runtimeProcessController->Start(
+                host.GetDocumentWorkspace(), std::move(request));
+            m_window->SetStatusMessage(started ?
+                "Preparing saved project source for separate SagaRuntime Play..." :
+                "Play is already active or the request is invalid.");
+        }});
+    host.GetCommandRegistry().Register({"saga.command.world.stop", "Stop", "World",
+        [this]
+        {
+            m_runtimeProcessController->Stop();
+            m_window->SetStatusMessage("Stop requested for the active SagaRuntime session.");
+        }});
+    host.GetCommandRegistry().Register({"saga.command.file.save", "Save All", "File",
+        [this, &host]
+        {
+            const bool saved = host.GetDocumentWorkspace().SaveAll();
+            m_window->SetStatusMessage(saved ? "Saved canonical source documents." :
+                "Save failed; inspect document diagnostics.");
+        }});
+    host.GetCommandRegistry().Register({"saga.command.file.open_project", "Open Project", "File",
+        [this]
+        {
+            const auto outcome =
+                m_projectWorkflowController->OpenProjectPrompted();
+            if (outcome == ProjectWorkflowOutcome::Completed)
+                m_window->SetStatusMessage("Opened canonical Saga project.");
+            else if (outcome == ProjectWorkflowOutcome::Failed)
+                m_window->SetStatusMessage(
+                    "Project open failed validation; the previous workspace is unchanged.");
+        }});
+    host.GetCommandRegistry().Register({"saga.command.file.new_project", "New Project", "File",
+        [this]
+        {
+            const auto outcome =
+                m_projectWorkflowController->CreateStarterArenaPrompted();
+            if (outcome == ProjectWorkflowOutcome::Completed)
+                m_window->SetStatusMessage(
+                    "Created and opened Starter Arena project.");
+            else if (outcome == ProjectWorkflowOutcome::Failed)
+                m_window->SetStatusMessage(
+                    "Project creation failed transactionally; destination was not opened.");
+        }});
+    host.GetCommandRegistry().Register({"saga.command.file.exit", "Exit", "File",
+        [this] { m_window->Close(); }});
     WireNotificationSink();
     RegisterPersonaCommands();
     RegisterProfileCommands();
@@ -155,6 +244,13 @@ bool EditorShell::Init(EditorHost&                    host,
     }
     ApplyActiveProfile();
     (void)ApplyCompositionPanelVisibility();
+    const auto savedState = host.GetSettingsStore().GetString(kWindowStateSetting, {});
+    if (!savedState.empty())
+    {
+        const auto decoded = DecodeHex(savedState);
+        if (!decoded || !m_window->RestoreState(*decoded))
+            host.GetSettingsStore().Remove(kWindowStateSetting);
+    }
 
     if (cfg.showOnInit)
     {
@@ -164,11 +260,27 @@ bool EditorShell::Init(EditorHost&                    host,
             m_window->Show();
     }
 
+    host.GetExtensionHost().SetShell(*this);
     return true;
 }
 
 void EditorShell::Shutdown()
 {
+    if (m_host && m_window)
+        m_host->GetExtensionHost().ShutdownAll();
+
+    m_projectWorkflowController.reset();
+    if (m_runtimeProcessController)
+    {
+        m_runtimeProcessController->Shutdown();
+        m_runtimeProcessController.reset();
+    }
+    if (m_host && m_window)
+    {
+        m_host->GetSettingsStore().SetString(kWindowStateSetting,
+            EncodeHex(m_window->SaveState()));
+        m_host->GetSettingsStore().Flush();
+    }
     if (m_host && m_personaSubscription != kInvalidPersonaSubscription)
     {
         m_host->GetPersonaRegistry().RemovePersonaChangedCallback(m_personaSubscription);
@@ -207,7 +319,7 @@ void EditorShell::RegisterPanel(std::unique_ptr<IPanel> panel, UIDockArea area)
 {
     panel->OnInit();
     const std::string panelId = panel->GetPanelId();
-    m_window->DockPanel(panel->GetNativeWidget(),
+    m_window->DockPanel(panel->Widget(),
                         panelId,
                         panel->GetTitle(),
                         ResolveCompositionDockArea(panelId, area));
@@ -355,11 +467,34 @@ void EditorShell::RegisterDefaultPanels()
     auto dashboard = std::make_unique<ProductionDashboardPanel>(*m_host);
     m_productionDashboard = dashboard.get();
     RegisterPanel(std::move(dashboard), UIDockArea::Left);
-    RegisterPanel(std::make_unique<HierarchyPanel>(),    UIDockArea::Left);
-    RegisterPanel(std::make_unique<WorldViewportPanel>(), UIDockArea::Center);
-    RegisterPanel(std::make_unique<InspectorPanel>(),    UIDockArea::Right);
-    RegisterPanel(std::make_unique<AssetBrowserPanel>(), UIDockArea::Bottom);
+    auto hierarchy = std::make_unique<HierarchyPanel>();
+    hierarchy->SetDocumentWorkspace(&m_host->GetDocumentWorkspace());
+    hierarchy->SetSelectionManager(&m_host->GetSelectionManager());
+    RegisterPanel(std::move(hierarchy), UIDockArea::Left);
+    auto viewport = std::make_unique<WorldViewportPanel>();
+    viewport->SetDocumentWorkspace(&m_host->GetDocumentWorkspace());
+    viewport->SetSelectionManager(&m_host->GetSelectionManager());
+    RegisterPanel(std::move(viewport), UIDockArea::Center);
+    auto inspector = std::make_unique<InspectorPanel>();
+    inspector->SetDocumentWorkspace(&m_host->GetDocumentWorkspace());
+    inspector->SetSelectionManager(&m_host->GetSelectionManager());
+    inspector->SetUndoRedoStack(&m_host->GetUndoRedoStack());
+    RegisterPanel(std::move(inspector), UIDockArea::Right);
+    auto sources = std::make_unique<AssetBrowserPanel>();
+    sources->SetDocumentWorkspace(&m_host->GetDocumentWorkspace());
+    RegisterPanel(std::move(sources), UIDockArea::Bottom);
     RegisterPanel(std::make_unique<ConsolePanel>(),      UIDockArea::Bottom);
+    auto scripting = std::make_unique<ScriptingPanel>();
+    scripting->SetDocumentWorkspace(&m_host->GetDocumentWorkspace());
+    scripting->SetUndoRedoStack(&m_host->GetUndoRedoStack());
+    scripting->SetCommandDispatcher(&m_host->GetCommandDispatcher());
+    scripting->SetAnalysisCoordinator(&m_host->GetScriptAnalysisCoordinator());
+    auto* scriptingPanel = scripting.get();
+    m_host->GetCommandRegistry().Register({"saga.command.script.analyze", "Analyze C#", "Script",
+        [scriptingPanel] { scriptingPanel->Analyze(); }});
+    m_host->GetCommandRegistry().Register({"saga.command.script.cancel", "Cancel Analysis", "Script",
+        [scriptingPanel] { scriptingPanel->CancelAnalysis(); }});
+    RegisterPanel(std::move(scripting), UIDockArea::Bottom);
 
     RegisterPanel(std::make_unique<CustomizeWorkspacePanel>(*m_host),
                   UIDockArea::Right);
@@ -889,9 +1024,9 @@ void EditorShell::BuildDefaultLayout()
     MenuDescriptor file;
     file.title = "File";
     file.items = {
-        { "New Scene",       "saga.command.file.new_scene",     "Ctrl+N",       false },
+        { "New Project…",    "saga.command.file.new_project",   "Ctrl+N",       false },
         { "Open Project…",   "saga.command.file.open_project",  "Ctrl+O",       false },
-        { "Save Scene",      "saga.command.file.save",          "Ctrl+S",       false },
+        { "Save All",        "saga.command.file.save",          "Ctrl+S",       false },
         { "",                "",                                "",             true  },
         { "Exit",            "saga.command.file.exit",          "",             false },
     };

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 namespace SagaPackager;
 
 internal static class Program
@@ -36,6 +37,13 @@ internal static class Program
                 "stage" => RunStage(options),
                 "publish-check" => RunPublishCheck(options),
                 "smoke" => await RunSmoke(options),
+                "compile-assets" => RunContentCompile(options, "assets"),
+                "compile-scenes" => RunContentCompile(options, "scenes"),
+                "compile-inputs" => RunContentCompile(options, "inputs"),
+                "compile-ui" => RunContentCompile(options, "ui"),
+                "compile-content" => RunContentCompile(options, "all"),
+                "resolve" => RunResolvePackages(options),
+                "lock-verify" => RunVerifyLock(options),
                 _ => InvalidUsage,
             };
         }
@@ -59,6 +67,55 @@ internal static class Program
         var report = PackageValidator.Validate(options.ProjectPath, options.Profile);
         ReportWriter.Write(options.OutPath, report);
         PrintReport(report);
+        return report.Status == "Passed" ? Passed : Failed;
+    }
+
+    private static int RunContentCompile(CommandOptions options, string domain)
+    {
+        if (!RequireProjectOut(options))
+        {
+            return InvalidUsage;
+        }
+        var result = ContentCompiler.Compile(options.ProjectPath, options.OutPath, domain,
+            options.ScriptManifestPath);
+        SagaProjectKit.Core.CanonicalJson.Write(Path.Combine(options.OutPath, "compile-result.json"), result);
+        Console.WriteLine($"sagapack compile-{domain}: {result.Status}");
+        return result.Status == "Passed" ? Passed : Failed;
+    }
+
+    private static int RunResolvePackages(CommandOptions options)
+    {
+        if (string.IsNullOrWhiteSpace(options.ProjectPath) ||
+            string.IsNullOrWhiteSpace(options.LockPath) ||
+            string.IsNullOrWhiteSpace(options.GeneratedOut) ||
+            string.IsNullOrWhiteSpace(options.RuntimeBridgePath) ||
+            string.IsNullOrWhiteSpace(options.OutPath))
+        {
+            Console.Error.WriteLine("resolve requires --project, --lock, --generated-out, --runtime-bridge, and --out.");
+            return InvalidUsage;
+        }
+        var report = PackageResolutionService.Resolve(
+            options.ProjectPath, options.EngineRoot, options.LockPath, options.GeneratedOut,
+            options.RuntimeBridgePath);
+        SagaProjectKit.Core.CanonicalJson.Write(options.OutPath, report);
+        Console.WriteLine($"sagapack resolve: {report.Status}");
+        return report.Status == "Passed" ? Passed : Failed;
+    }
+
+    private static int RunVerifyLock(CommandOptions options)
+    {
+        if (string.IsNullOrWhiteSpace(options.ProjectPath) ||
+            string.IsNullOrWhiteSpace(options.LockPath) ||
+            string.IsNullOrWhiteSpace(options.RuntimeBridgePath) ||
+            string.IsNullOrWhiteSpace(options.OutPath))
+        {
+            Console.Error.WriteLine("lock-verify requires --project, --lock, --runtime-bridge, and --out.");
+            return InvalidUsage;
+        }
+        var report = PackageResolutionService.Verify(options.ProjectPath, options.EngineRoot, options.LockPath,
+            options.RuntimeBridgePath, options.GeneratedOut);
+        SagaProjectKit.Core.CanonicalJson.Write(options.OutPath, report);
+        Console.WriteLine($"sagapack lock-verify: {report.Status}");
         return report.Status == "Passed" ? Passed : Failed;
     }
 
@@ -231,6 +288,13 @@ internal static class Program
         Console.Error.WriteLine("  sagapack stage --project <path> --profile <id> --out <report>");
         Console.Error.WriteLine("  sagapack publish-check --project <path> --profile <id> --package-report <report> --diagnostics-summary <summary> [--script-validation <report>] [--policy-report <report>] --out <report>");
         Console.Error.WriteLine("  sagapack smoke --project <path> --profile <id> --package-report <report> --out <report> --timeout-sec <n> --bin-dir <dir>");
+        Console.Error.WriteLine("  sagapack compile-assets --project <path> --out <artifact-root>");
+        Console.Error.WriteLine("  sagapack compile-scenes --project <path> --script-manifest <SagaScript current.json> --out <artifact-root>");
+        Console.Error.WriteLine("  sagapack compile-inputs --project <path> --out <artifact-root>");
+        Console.Error.WriteLine("  sagapack compile-ui --project <path> --out <artifact-root>");
+        Console.Error.WriteLine("  sagapack compile-content --project <path> --script-manifest <SagaScript current.json> --out <artifact-root>");
+        Console.Error.WriteLine("  sagapack resolve --project <path> [--engine-root <root>] --lock <SagaPackage.lock> --generated-out <dir> --runtime-bridge <dll> --out <report>");
+        Console.Error.WriteLine("  sagapack lock-verify --project <path> [--engine-root <root>] --lock <SagaPackage.lock> [--generated-out <dir>] --runtime-bridge <dll> --out <report>");
     }
 
     private sealed record CommandOptions(
@@ -246,7 +310,12 @@ internal static class Program
         string SourceTruthGatePath,
         string AssetReferenceGatePath,
         string BinDir,
-        int TimeoutSeconds)
+        int TimeoutSeconds,
+        string EngineRoot,
+        string LockPath,
+        string GeneratedOut,
+        string RuntimeBridgePath,
+        string ScriptManifestPath)
     {
         public static CommandOptions Parse(string[] args)
         {
@@ -260,6 +329,11 @@ internal static class Program
             string sourceTruthGate = "";
             string assetReferenceGate = "";
             string binDir = "";
+            string engineRoot = "";
+            string lockPath = "";
+            string generatedOut = "";
+            string runtimeBridge = "";
+            string scriptManifest = "";
             var timeout = 5;
 
             for (var i = 0; i < args.Length; ++i)
@@ -302,17 +376,32 @@ internal static class Program
                             return Fail("--timeout-sec must be a positive integer.");
                         }
                         break;
+                    case "--engine-root" when i + 1 < args.Length:
+                        engineRoot = args[++i];
+                        break;
+                    case "--lock" when i + 1 < args.Length:
+                        lockPath = args[++i];
+                        break;
+                    case "--generated-out" when i + 1 < args.Length:
+                        generatedOut = args[++i];
+                        break;
+                    case "--runtime-bridge" when i + 1 < args.Length:
+                        runtimeBridge = args[++i];
+                        break;
+                    case "--script-manifest" when i + 1 < args.Length:
+                        scriptManifest = args[++i];
+                        break;
                     default:
                         return Fail($"Unknown or incomplete argument: {args[i]}");
                 }
             }
 
-            return new CommandOptions(true, "", project, profile, output, packageReport, diagnosticsSummary, scriptValidation, policyReport, sourceTruthGate, assetReferenceGate, binDir, timeout);
+            return new CommandOptions(true, "", project, profile, output, packageReport, diagnosticsSummary, scriptValidation, policyReport, sourceTruthGate, assetReferenceGate, binDir, timeout, engineRoot, lockPath, generatedOut, runtimeBridge, scriptManifest);
         }
 
         private static CommandOptions Fail(string error)
         {
-            return new CommandOptions(false, error, "", "", "", "", "", "", "", "", "", "", 5);
+            return new CommandOptions(false, error, "", "", "", "", "", "", "", "", "", "", 5, "", "", "", "", "");
         }
     }
 }

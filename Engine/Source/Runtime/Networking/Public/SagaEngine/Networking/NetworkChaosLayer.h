@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file NetworkChaosLayer.h
 /// @brief Defines deterministic direct-frame network chaos policy contracts.
 

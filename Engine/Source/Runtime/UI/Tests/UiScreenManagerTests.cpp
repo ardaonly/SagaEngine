@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file UiScreenManagerTests.cpp
 /// @brief Focused tests for backend-neutral runtime UI screen management.
 

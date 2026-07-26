@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file HealthRuleResult.hpp
 /// @brief Defines deterministic health rule evaluation results.
 

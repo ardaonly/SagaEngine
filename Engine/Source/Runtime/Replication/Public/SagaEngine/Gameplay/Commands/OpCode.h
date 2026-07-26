@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file OpCode.h
 /// @brief Numeric opcode enum and common header for gameplay commands.
 ///

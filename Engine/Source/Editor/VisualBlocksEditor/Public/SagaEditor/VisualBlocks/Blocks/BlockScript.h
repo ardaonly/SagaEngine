@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file BlockScript.h
 /// @brief Top-level container for a single block-based program.
 

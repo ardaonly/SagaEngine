@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AssetRegistry.h
 /// @brief Content manifest — stable AssetId ↔ source-path lookup.
 ///

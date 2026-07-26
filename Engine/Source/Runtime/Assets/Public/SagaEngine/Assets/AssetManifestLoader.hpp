@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AssetManifestLoader.hpp
 /// @brief Loads and validates runtime-ready asset manifest files.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentRenderBackend.h
 /// @brief Diligent implementation of the IRenderBackend seam.
 ///
@@ -73,20 +74,6 @@ struct RenderFrameDiagnostics
     std::uint64_t gpuTimelineSignalCount = 0;
 };
 
-enum class RenderPixelFormat : std::uint8_t
-{
-    RGBA8_UNORM,
-};
-
-struct RenderFrameCapture
-{
-    std::uint32_t width    = 0;
-    std::uint32_t height   = 0;
-    std::uint32_t rowPitch = 0;
-    RenderPixelFormat format = RenderPixelFormat::RGBA8_UNORM;
-    std::vector<std::uint8_t> pixels;
-};
-
 enum class RenderCaptureResult : std::uint8_t
 {
     kSuccess,
@@ -101,7 +88,7 @@ class DiligentNativeResourceOwner;
 // ─── DiligentRenderBackend ────────────────────────────────────────────
 
 /// Concrete IRenderBackend implementation. Non-copyable, non-movable.
-class DiligentRenderBackend final : public IRenderBackend
+class DiligentRenderBackend final : public IRenderBackend, public IRenderOverlaySubmission
 {
 public:
     DiligentRenderBackend();
@@ -145,6 +132,13 @@ public:
     void DestroyOverlayTexture(RenderOverlayTextureHandle texture);
     void RenderOverlayFrame(const RenderOverlayFrame& frame);
     void ShutdownOverlayRendering();
+    [[nodiscard]] RenderOverlaySubmissionResult InitializeOverlay() override;
+    [[nodiscard]] RenderOverlayTextureHandle CreateOverlayTextureResource(
+        const RenderOverlayTextureDesc& desc, const std::uint8_t* rgbaPixels) override;
+    void DestroyOverlayTextureResource(RenderOverlayTextureHandle texture) override;
+    [[nodiscard]] RenderOverlaySubmissionResult SubmitOverlayFrame(
+        const ::SagaEngine::Render::Backend::RenderOverlayFrame& frame) override;
+    void ShutdownOverlay() override;
 
     // ── Diagnostics ─────────────────────────────────────────────
 
@@ -162,8 +156,8 @@ public:
     [[nodiscard]]
     ::SagaEngine::Graphics::Backends::Diligent::Runtime::DiligentGraphicsRuntime&
     RuntimeForIntegrationTesting() noexcept;
-    [[nodiscard]] RenderCaptureResult CaptureCurrentColorFrame(
-        RenderFrameCapture& outCapture);
+    [[nodiscard]] bool CaptureCurrentColorFrame(
+        RenderFrameCapture& outCapture) override;
 
 private:
     struct Impl;

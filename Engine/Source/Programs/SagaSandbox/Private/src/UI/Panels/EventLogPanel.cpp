@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EventLogPanel.cpp
 /// @brief Engine log mirror panel implementation.
 ///

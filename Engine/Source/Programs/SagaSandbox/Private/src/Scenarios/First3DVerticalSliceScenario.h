@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file First3DVerticalSliceScenario.h
 /// @brief Small playable 3D render slice for the canonical Diligent path.
 

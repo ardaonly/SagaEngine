@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file StateCheckReport.hpp
 /// @brief Deterministic SagaStateCheck JSON report writing.
 

@@ -223,8 +223,12 @@ notes = "Saga-owned Editor and editor-program source is currently licensed under
 
 [[domains]]
 id = "saga-tests"
-priority = 100
-paths = ["Tests/**"]
+priority = 500
+paths = [
+  "Tests/**",
+  "Engine/Source/Editor/EditorQt/Tests/EditorProjectInspectionTests.cpp",
+  "Engine/Source/Programs/SagaEditorLab/Tests/EditorLabScenarioRunnerTests.cpp",
+]
 required = true
 domain_owner = "SagaEngine"
 rights_holder_refs = ["RH-ARDA-KOYUNCU"]
@@ -372,14 +376,14 @@ domain_owner = "SagaEngine"
 rights_holder_refs = ["RH-ARDA-KOYUNCU"]
 current_license_mode = "fixed-spdx"
 resolution_requirement = "metadata-or-policy-default"
-current_license_expression = "Apache-2.0"
+current_license_expression = "MIT"
 target_license_mode = "fixed-spdx"
-target_license_expression = "CC-BY-4.0"
-provenance_review = "pending"
-licensing_authority_review = "conditional"
-migration_status = "approved-not-effective"
-effective_commit = ""
-notes = "Sample documentation prose; target CC-BY-4.0 after migration."
+target_license_expression = "MIT"
+provenance_review = "cleared"
+licensing_authority_review = "cleared"
+migration_status = "effective"
+effective_commit = "8f30814e95951633fb1e6a4bba0d0a471051221f"
+notes = "Saga-owned sample documentation is covered by the Samples-wide MIT grant."
 
 [[domains]]
 id = "saga-sample-project-files"
@@ -394,14 +398,14 @@ domain_owner = "SagaEngine"
 rights_holder_refs = ["RH-ARDA-KOYUNCU"]
 current_license_mode = "fixed-spdx"
 resolution_requirement = "metadata-or-policy-default"
-current_license_expression = "Apache-2.0"
+current_license_expression = "MIT"
 target_license_mode = "fixed-spdx"
-target_license_expression = "0BSD"
-provenance_review = "pending"
-licensing_authority_review = "conditional"
-migration_status = "approved-not-effective"
-effective_commit = ""
-notes = "Copyable sample code and project metadata; target 0BSD after migration."
+target_license_expression = "MIT"
+provenance_review = "cleared"
+licensing_authority_review = "cleared"
+migration_status = "effective"
+effective_commit = "8f30814e95951633fb1e6a4bba0d0a471051221f"
+notes = "Saga-owned sample code and project metadata are covered by MIT."
 
 [[domains]]
 id = "saga-samples"
@@ -411,15 +415,39 @@ required = false
 domain_owner = "SagaEngine"
 rights_holder_refs = ["RH-ARDA-KOYUNCU"]
 current_license_mode = "fixed-spdx"
-resolution_requirement = "metadata-required"
-current_license_expression = "Apache-2.0"
-target_license_mode = "file-specific"
-target_license_expression = ""
-provenance_review = "conditional"
-licensing_authority_review = "conditional"
-migration_status = "approved-not-effective"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "MIT"
+target_license_mode = "fixed-spdx"
+target_license_expression = "MIT"
+provenance_review = "cleared"
+licensing_authority_review = "cleared"
+migration_status = "effective"
+effective_commit = "8f30814e95951633fb1e6a4bba0d0a471051221f"
+notes = "Saga-owned files under Samples use MIT; embedded dependency and source-asset provenance remains factual."
+
+[[domains]]
+id = "starter-arena-dejavu-font"
+priority = 1300
+paths = [
+  "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/DejaVuSans.ttf",
+  "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/LICENSE",
+  "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/PROVENANCE.json",
+  "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/PROVENANCE.md",
+  "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/SHA256SUMS",
+]
+required = true
+domain_owner = "upstream"
+rights_holder_refs = []
+current_license_mode = "fixed-spdx"
+resolution_requirement = "upstream-evidence-required"
+current_license_expression = "Bitstream-Vera"
+target_license_mode = "fixed-spdx"
+target_license_expression = "Bitstream-Vera"
+provenance_review = "cleared"
+licensing_authority_review = "upstream-controlled"
+migration_status = "unchanged"
 effective_commit = ""
-notes = "Code, fixtures and assets require artifact-specific classification."
+notes = "Upstream DejaVu Fonts 2.37 payload retained with its exact license and checksummed provenance."
 
 [[domains]]
 id = "saga-content"
@@ -430,13 +458,14 @@ domain_owner = "SagaEngine"
 rights_holder_refs = ["RH-ARDA-KOYUNCU"]
 current_license_mode = "fixed-spdx"
 resolution_requirement = "metadata-or-policy-default"
-current_license_expression = "Apache-2.0"
-target_license_mode = "file-specific"
-target_license_expression = ""
-provenance_review = "conditional"
-licensing_authority_review = "conditional"
-migration_status = "approved-not-effective"
-effective_commit = ""
+current_license_expression = "MIT"
+target_license_mode = "fixed-spdx"
+target_license_expression = "MIT"
+provenance_review = "cleared"
+licensing_authority_review = "cleared"
+migration_status = "effective"
+effective_commit = "8f30814e95951633fb1e6a4bba0d0a471051221f"
+notes = "Saga-owned sample content uses MIT; referenced source-material license metadata remains factual."
 
 
 [[domains]]
@@ -884,6 +913,32 @@ expected_exported_target = false
 export_validation = "manual-pending"
 
 [[targets]]
+name = "SagaRuntimeAppLib"
+source_domains = ["saga-programs"]
+public_dependencies = [
+  "SagaRuntimeLib",
+  "SagaEngine",
+  "SagaUiBackend",
+  "SagaDiligentRuntime",
+  "SagaPlatformSDL",
+]
+private_dependencies = []
+runtime_dependencies = ["SDL", "Vendor/Diligent"]
+target_license_expression = "MPL-2.0"
+distribution = "internal"
+review = "configured-graph-reviewed"
+blockers = []
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["MPL-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = false
+expected_exported_target = false
+export_validation = "manual-pending"
+
+[[targets]]
 name = "SagaDiligentRuntime"
 source_domains = ["saga-runtime"]
 public_dependencies = []
@@ -1000,15 +1055,35 @@ expected_installed_artifact = false
 expected_exported_target = false
 export_validation = "manual-pending"
 [[targets]]
-name = "SagaBackend"
+name = "SagaUiBackend"
 source_domains = ["saga-backends"]
-public_dependencies = ["SagaEngine"]
-private_dependencies = []
-runtime_dependencies = []
+public_dependencies = []
+private_dependencies = ["SagaEngine"]
+runtime_dependencies = ["RmlUi"]
 target_license_expression = "MPL-2.0"
 distribution = "installed-not-exported"
-review = "public-purpose-required"
-blockers = ["public-purpose-review"]
+review = "configured-graph-reviewed"
+blockers = []
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["MPL-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = true
+expected_exported_target = false
+export_validation = "manual-pending"
+
+[[targets]]
+name = "SagaPersistenceBackend"
+source_domains = ["saga-backends"]
+public_dependencies = []
+private_dependencies = ["SagaEngine"]
+runtime_dependencies = ["PostgreSQL", "Redis"]
+target_license_expression = "MPL-2.0"
+distribution = "installed-not-exported"
+review = "configured-graph-reviewed"
+blockers = []
 graph_required = true
 current_license_mode = "fixed-spdx"
 current_license_expressions = ["MPL-2.0"]
@@ -1023,7 +1098,7 @@ export_validation = "manual-pending"
 name = "SagaSandboxLib"
 source_domains = ["saga-programs"]
 public_dependencies = []
-private_dependencies = ["SagaRuntimeLib", "SagaBackend"]
+private_dependencies = ["SagaRuntimeLib"]
 runtime_dependencies = []
 target_license_expression = "MPL-2.0"
 distribution = "internal-diagnostics"
@@ -1080,14 +1155,14 @@ export_validation = "manual-pending"
 
 [[targets]]
 name = "SagaProductLib"
-source_domains = ["saga-editor", "saga-tests"]
+source_domains = ["saga-editor"]
 public_dependencies = []
 private_dependencies = ["SagaEngine", "SagaRuntimeLib", "SagaServerLib", "SagaEditorLib"]
 runtime_dependencies = []
 target_license_expression = "MPL-2.0"
 distribution = "disabled-in-reviewed-build"
-review = "classification-required"
-blockers = ["configured-source-domain-confirmation"]
+review = "configured-graph-reviewed"
+blockers = []
 graph_required = false
 current_license_mode = "fixed-spdx"
 current_license_expressions = ["MPL-2.0"]
@@ -1160,17 +1235,17 @@ export_validation = "manual-pending"
 
 [[targets]]
 name = "SagaRuntime"
-source_domains = ["saga-programs", "saga-samples"]
+source_domains = ["saga-programs"]
 public_dependencies = []
 private_dependencies = ["SagaRuntimeLib", "SagaEngine"]
 runtime_dependencies = ["SDL", "Vendor/Diligent"]
-target_license_expression = "Apache-2.0 AND MPL-2.0"
+target_license_expression = "MPL-2.0"
 distribution = "installed-program"
 review = "configured-graph-reviewed"
 blockers = []
 graph_required = true
-current_license_mode = "mixed-source-composition"
-current_license_expressions = ["Apache-2.0", "MPL-2.0"]
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["MPL-2.0"]
 target_license_mode = "fixed-spdx"
 generated_source_patterns = []
 generated_source_action = "report"

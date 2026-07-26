@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 // SourceDiscovery.cs
 // Discovers C# source inputs for the standalone SagaScript CLI.
 

@@ -39,6 +39,7 @@ components actually shipped with that artifact.
 |---|---:|---|---|
 | SDL | 2.30.2 | Zlib | Engine platform and window backend |
 | RmlUi | 4.4 | MIT | Runtime UI backend |
+| DejaVu Sans | 2.37 | Bitstream Vera font license | StarterArena runtime HUD font payload |
 | GLM | 0.9.9.8 | MIT | Header-only graphics mathematics dependency |
 | nlohmann/json | 3.11.3 | MIT | Serialization and configuration dependency |
 

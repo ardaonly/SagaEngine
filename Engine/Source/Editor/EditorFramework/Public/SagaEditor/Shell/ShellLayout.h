@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ShellLayout.h
 /// @brief Descriptor for the top-level shell chrome: menu bar, toolbars, status bar.
 

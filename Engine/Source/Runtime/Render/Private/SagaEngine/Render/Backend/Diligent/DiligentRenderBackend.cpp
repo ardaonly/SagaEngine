@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentRenderBackend.cpp
 /// @brief Diligent render backend lifecycle and factory entry points.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SelectionHistory.h
 /// @brief Linear undo-style history for editor selection snapshots.
 

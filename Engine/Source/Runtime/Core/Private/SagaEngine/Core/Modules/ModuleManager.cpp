@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ModuleManager.cpp
 /// @brief Module lifecycle manager implementation.
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorkspaceCustomizationModel.h
 /// @brief UI-ready Qt-free model for safe workspace customization state.
 

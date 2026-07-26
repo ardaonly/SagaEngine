@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file UiTypes.h
 /// @brief Backend-neutral runtime UI value types and diagnostics.
 
@@ -12,6 +13,12 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
+
+namespace SagaEngine::Render::Backend
+{
+class IRenderOverlaySubmission;
+}
 
 namespace SagaEngine::UI
 {
@@ -37,6 +44,15 @@ struct UiViewport
     std::uint32_t width = 0;     ///< Viewport width in pixels.
     std::uint32_t height = 0;    ///< Viewport height in pixels.
     float pixelRatio = 1.0f;     ///< Native display scale used by the backend.
+};
+
+/// Border-box bounds in physical framebuffer pixel coordinates.
+struct UiElementBounds
+{
+    float x = 0.0f;
+    float y = 0.0f;
+    float width = 0.0f;
+    float height = 0.0f;
 };
 
 /// Stable runtime UI screen id.
@@ -71,6 +87,10 @@ struct UiBackendConfig
     std::shared_ptr<const IUiResourceProvider>
         resourceProvider; ///< Logical UI resource resolver.
     std::shared_ptr<IUiEventSink> eventSink; ///< Optional backend-neutral UI event sink.
+    Render::Backend::IRenderOverlaySubmission* overlaySubmission = nullptr;
+    std::vector<std::filesystem::path> fontPaths; ///< Verified font files loaded before documents.
+    std::vector<std::filesystem::path>
+        verifiedResourcePaths; ///< Optional exact file allowlist for backend resource reads.
     std::string contextName = "SagaRuntimeUi"; ///< Backend context name for diagnostics.
 };
 
@@ -133,6 +153,8 @@ enum class UiDiagnosticCode : std::uint8_t
     InputRejected,
     UnsupportedInput,
     RenderFailed,
+    FontLoadFailed,
+    ElementUpdateFailed,
     BackendMessage,
 };
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ServerInputProcessor.cpp
 /// @brief Validates and dispatches input commands within a server simulation tick.
 

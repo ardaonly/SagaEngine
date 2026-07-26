@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file VirtualFileAssetSourceTests.cpp
 /// @brief Unit tests for the VFS-backed runtime asset source adapter.
 

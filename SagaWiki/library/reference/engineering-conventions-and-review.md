@@ -103,6 +103,16 @@ Before accepting a change:
 
 A mechanical move preserves behavior first, then a later focused change narrows contracts. Do not keep an old layout alive with compatibility aliases solely to avoid updating internal paths. Do not mix a broad target split, API redesign, runtime behavior change, documentation migration, and license policy change in one unreviewable commit.
 
+## Maintainability size review
+
+`Tools/Developer/RepoAudit/maintainability_audit.py` inventories tracked, hand-written first-party files. More than 750 physical lines triggers review, more than 1000 is high-maintenance, and more than 1500 is a critical monolith. These are review signals, not formatting targets: ownership and cohesion decide whether a file is split.
+
+The checked-in baseline records every existing file above 1000 lines with its current ceiling, owner, reason, and disposition. A new oversized file, growth above a reviewed ceiling, an incomplete entry, or stale debt left in the baseline fails the check. CI does not regenerate the baseline. Generated files and third-party trees are outside this policy.
+
+Critical exceptions are narrow. A 1500-plus-line executable code file cannot be accepted as a declarative-data exception. The reviewed Forge chronological Markdown roadmap may remain whole as declarative reference material, with its fixed ceiling. After the runtime-host and licensing-policy decompositions it is the sole remaining critical monolith; private implementation and validator ownership are expressed through smaller cohesive modules instead of critical-file exceptions.
+
+This closure pass provides focused evidence only. `TD-CI-001`, Gate C, and the complete registered CTest evidence requirement remain open.
+
 ## Documentation rule
 
 SagaWiki records current durable contracts. Markdown is the maintainable source and `scripts/wiki build` produces the offline reader. Detailed reference pages retain design knowledge; concise topic pages provide entry points. Historical source paths can appear in the migration/selection map but must not become current instructions.

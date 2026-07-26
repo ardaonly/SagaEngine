@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file Hardware.cpp
 /// @brief Cross-platform hardware resource detection.
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 saga_add_program(SagaEditorLab
     MODULE_DIR Engine/Source/Programs/SagaEditorLab
     TARGET EditorLab
@@ -27,6 +28,7 @@ saga_register_module_tests(SagaEditorLab
     LABELS "unit;editor;program"
     SOURCES
         Tests/EditorLabBuiltinScenarioTests.cpp
+        Tests/EditorLabScenarioRunnerTests.cpp
 )
 
 saga_add_program(SagaEditorLab

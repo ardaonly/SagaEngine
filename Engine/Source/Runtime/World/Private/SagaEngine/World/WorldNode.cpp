@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorldNode.cpp
 /// @brief World Kernel node implementation — server process with full replication.
 ///

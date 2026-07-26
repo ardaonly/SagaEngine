@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ISagaScriptHost.hpp
 /// @brief Compatibility include for low-level SagaScript host contracts.
 

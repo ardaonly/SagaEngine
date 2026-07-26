@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IDebugRenderer2D.h
 /// @brief Platform-agnostic 2D debug renderer for diagnostic overlays.
 ///

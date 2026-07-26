@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file BlockDefinition.h
 /// @brief Palette template — what a block *is* before it is placed.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AssetManifestRegistryAdapter.h
 /// @brief Registers validated asset manifests into the runtime asset registry.
 

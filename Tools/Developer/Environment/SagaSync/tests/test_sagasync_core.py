@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+# SPDX-License-Identifier: MPL-2.0
 """Focused tests for SagaSync core models."""
 
 from __future__ import annotations

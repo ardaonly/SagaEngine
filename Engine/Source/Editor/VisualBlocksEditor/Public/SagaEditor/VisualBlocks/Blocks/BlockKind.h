@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file BlockKind.h
 /// @brief Shape vocabulary for block-based authoring.
 

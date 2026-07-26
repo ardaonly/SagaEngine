@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScenarioResult.h
 /// @brief Verdict + diagnostics emitted after a scenario runs.
 

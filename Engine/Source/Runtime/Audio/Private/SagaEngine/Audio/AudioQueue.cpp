@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AudioQueue.cpp
 /// @brief Thread-safe audio event queue — gameplay thread → audio thread.
 

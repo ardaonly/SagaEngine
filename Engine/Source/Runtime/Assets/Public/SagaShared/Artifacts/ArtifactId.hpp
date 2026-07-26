@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ArtifactId.hpp
 /// @brief Shared stable artifact identifier.
 

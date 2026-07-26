@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorCompositionShellAdapter.h
 /// @brief Projects resolved editor composition snapshots into shell state.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file MovementDirtyReplicationBridge.h
 /// @brief Narrow bridge from accepted authoritative movement dirtiness to replication intent.
 

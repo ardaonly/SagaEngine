@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file GraphicsCoordinateConventionTests.cpp
 /// @brief CPU tests for SagaEngine's graphics coordinate convention.
 

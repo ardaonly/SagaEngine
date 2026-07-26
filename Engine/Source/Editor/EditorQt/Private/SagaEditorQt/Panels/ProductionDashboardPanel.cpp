@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ProductionDashboardPanel.cpp
 /// @brief Qt backend implementation for the production dashboard.
 
@@ -139,7 +140,7 @@ std::string ProductionDashboardPanel::GetTitle() const
     return "Production";
 }
 
-void* ProductionDashboardPanel::GetNativeWidget() const noexcept
+QWidget* ProductionDashboardPanel::Widget() const noexcept
 {
     return m_impl->widget;
 }

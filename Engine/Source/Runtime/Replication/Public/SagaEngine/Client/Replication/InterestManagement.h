@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file InterestManagement.h
 /// @brief Zone-partitioned relevancy system for MMO-scale replication.
 ///

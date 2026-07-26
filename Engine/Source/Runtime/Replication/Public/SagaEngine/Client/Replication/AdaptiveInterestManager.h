@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AdaptiveInterestManager.h
 /// @brief Dynamic, bandwidth-aware interest management for MMO-scale replication.
 ///

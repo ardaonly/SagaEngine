@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeAssetCatalogTests.cpp
 /// @brief Focused tests for the Runtime read-only asset catalog facade.
 

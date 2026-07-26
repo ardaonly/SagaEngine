@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AudioEvent.h
 /// @brief Audio event descriptors — the output of the AudioEventMapper.
 ///

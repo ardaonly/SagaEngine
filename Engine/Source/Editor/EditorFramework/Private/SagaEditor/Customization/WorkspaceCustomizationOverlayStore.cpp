@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file WorkspaceCustomizationOverlayStore.cpp
 /// @brief Workspace customization overlay store implementation.
 

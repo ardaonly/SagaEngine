@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file ConanAdapter.cpp
 /// @brief Conan backend adapter — the only file in Forge that invokes conan.
 

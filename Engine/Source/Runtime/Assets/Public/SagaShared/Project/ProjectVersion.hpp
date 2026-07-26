@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ProjectVersion.hpp
 /// @brief Serializable project version tuple shared across Saga modules.
 

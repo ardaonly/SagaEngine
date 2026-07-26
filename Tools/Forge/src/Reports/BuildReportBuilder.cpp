@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file BuildReportBuilder.cpp
 /// @brief Build report creation from BuildPlan validation.
 

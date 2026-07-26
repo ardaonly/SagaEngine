@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PersistenceTests.cpp
 /// @brief Integration tests for the persistence pipeline: event sourcing,
 ///        snapshot storage, and state replay without requiring a live database.

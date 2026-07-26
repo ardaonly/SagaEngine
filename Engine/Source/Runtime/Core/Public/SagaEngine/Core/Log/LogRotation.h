@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file LogRotation.h
 /// @brief Size-triggered, time-stamped log file rotation sink.
 ///

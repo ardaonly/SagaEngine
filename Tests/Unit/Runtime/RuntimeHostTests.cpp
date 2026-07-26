@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeHostTests.cpp
 /// @brief Verifies the app-private standalone runtime host boundary.
 
@@ -19,8 +20,6 @@ TEST(RuntimeHostTests, GenericProjectModeFailsWithStableDiagnostic)
         result.diagnosticId,
         SagaRuntimeApp::RuntimeHostDiagnostics::GenericProjectModeUnsupported);
     EXPECT_EQ(result.message.find("SagaClient"), std::string::npos);
-    EXPECT_NE(result.message.find("Generic project execution is unsupported"),
-              std::string::npos);
     EXPECT_NE(result.message.find("Generic project execution is unsupported"),
               std::string::npos);
 }

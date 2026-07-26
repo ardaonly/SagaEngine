@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file ExternalGateAdapter.hpp
 /// @brief Generic external-tool gate adapter for Forge workflows.
 

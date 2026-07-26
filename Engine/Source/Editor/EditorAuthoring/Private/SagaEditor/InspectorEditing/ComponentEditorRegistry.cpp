@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ComponentEditorRegistry.cpp
 /// @brief Implementation of the component-typed inspector editor registry.
 

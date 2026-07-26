@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file FrameContext.h
 /// @brief Per-frame invariants every render camera sees during one ExecuteFrame.
 ///

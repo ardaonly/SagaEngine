@@ -54,8 +54,8 @@ class EvidenceRunner:
                 "verified": False,
                 "evidence": [],
                 "limitations": [
-                    "Bounded headless smoke evidence only.",
-                    "Not a finished playable game.",
+                    "Source validation and developer script-tool evidence only.",
+                    "No StarterArena runtime workflow is claimed.",
                 ],
                 "nonClaims": [
                     "not proof that StarterArena is a finished playable game",
@@ -216,14 +216,12 @@ class EvidenceRunner:
         bridge_out = self.build_dir / "Managed" / "SagaScript.RuntimeBridge"
         starter_manifest_out = starter_scripts / "Manifests"
         starter_artifact_out = starter_scripts / "Artifacts" / "Scripts"
-        starter_runtime_report = reports_dir / "starter_arena_runtime_script_invocation_smoke.json"
         multiplayer_headless_report = reports_dir / "multiplayer_sandbox_headless_smoke.json"
         multiplayer_diagnostics = self.work_dir / "MultiplayerSandbox" / "Diagnostics"
 
         sagaproject = str(self.source_root / "Tools" / "SagaProjectKit" / "sagaproject")
         sagascript = str(self.source_root / "Tools" / "SagaScript" / "sagascript")
         dotnet = shutil.which("dotnet") or "dotnet"
-        runtime = str(self.bin_dir / "SagaRuntime")
         multiplayer_headless = str(self.bin_dir / "MultiplayerSandboxHeadless")
 
         for label, path, kind, sample in [
@@ -261,12 +259,6 @@ class EvidenceRunner:
                 "sagascript CLI",
                 Path(sagascript),
                 "cli-tool",
-                None,
-            ),
-            (
-                "SagaRuntime native executable",
-                Path(runtime),
-                "native-executable",
                 None,
             ),
             (
@@ -462,35 +454,6 @@ class EvidenceRunner:
         )
 
         self.run(
-            "StarterArena SagaRuntime script invocation smoke",
-            [
-                runtime,
-                "--headless",
-                "--project",
-                "Samples/StarterArena/StarterArena.sagaproj",
-                "--starter-arena-smoke",
-                "--script-manifest",
-                str(starter_manifest_out / "script_bindings.json"),
-                "--script-artifacts",
-                str(starter_manifest_out / "script_artifacts.json"),
-                "--invoke-starter-arena-script",
-                "--smoke-report-out",
-                str(starter_runtime_report),
-                "--smoke-frames",
-                "30",
-                "--fixed-dt",
-                "0.016",
-            ],
-        )
-        self.add_artifact(
-            "StarterArena SagaRuntime script invocation smoke report",
-            starter_runtime_report,
-            required=True,
-            kind="json-report",
-            sample="StarterArena",
-        )
-
-        self.run(
             "MultiplayerSandbox headless smoke",
             [
                 multiplayer_headless,
@@ -514,10 +477,10 @@ class EvidenceRunner:
             sample="MultiplayerSandbox",
         )
 
-        self.fill_sample_evidence(starter_runtime_report)
+        self.fill_sample_evidence()
         return self.build_report()
 
-    def fill_sample_evidence(self, starter_runtime_report: Path) -> None:
+    def fill_sample_evidence(self) -> None:
         self.add_evidence(
             "StarterArena",
             "project validation passed",
@@ -544,26 +507,6 @@ class EvidenceRunner:
             "compiled script artifact exists",
             status=self.artifact_status("StarterArena compiled script assembly"),
             artifact_label="StarterArena compiled script assembly",
-        )
-
-        invocation_detail = "GameRules.AddPickupScore evidence not read"
-        if starter_runtime_report.exists():
-            try:
-                runtime_data = json.loads(starter_runtime_report.read_text(encoding="utf-8"))
-                invocation_detail = json.dumps(
-                    runtime_data.get("scriptInvocation", runtime_data.get("scriptBinding", {})),
-                    sort_keys=True,
-                )
-            except json.JSONDecodeError:
-                invocation_detail = "StarterArena runtime smoke report was not valid JSON."
-        self.add_evidence(
-            "StarterArena",
-            "SagaRuntime --starter-arena-smoke --invoke-starter-arena-script passed",
-            status=self.command_status("StarterArena SagaRuntime script invocation smoke"),
-            command_label="StarterArena SagaRuntime script invocation smoke",
-            artifact_label="StarterArena SagaRuntime script invocation smoke report",
-            detail="Invoked GameRules.AddPickupScore(10, 5); expected result 15. "
-            + invocation_detail,
         )
 
         self.add_evidence(
@@ -633,7 +576,7 @@ class EvidenceRunner:
             "artifacts": self.artifacts,
             "diagnostics": self.diagnostics,
             "knownLimitations": [
-                "StarterArena evidence is bounded to project validation, SagaScript compile/analyze, and one controlled headless runtime script invocation.",
+                "StarterArena evidence is bounded to project validation and developer-compatible SagaScript compile/analyze commands; no runtime workflow is claimed.",
                 "MultiplayerSandbox evidence is fixture/projection/headless evidence; its current C# inputs are not compiled as gameplay.",
                 "The report is executable evidence within current limitations and does not claim overall completion.",
             ],

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """Read-only and dry-run actions exposed by SagaSync."""
 
 from __future__ import annotations

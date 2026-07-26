@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file FragmentAssembler.h
 /// @brief MTU-safe packet fragmentation and reassembly for oversize payloads.
 ///

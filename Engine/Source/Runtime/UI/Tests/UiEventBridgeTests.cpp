@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file UiEventBridgeTests.cpp
 /// @brief Focused tests for backend-neutral UI event bridge contracts.
 

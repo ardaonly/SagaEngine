@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RenderPipelineConfig.h
 /// @brief Transitional public render pipeline configuration DTOs.
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 function(saga_get_graphics_core_sources out_var)
     saga_get_registered_sources(SagaGraphicsCore _sources)
     set(${out_var} ${_sources} PARENT_SCOPE)

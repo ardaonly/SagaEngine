@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file GamepadDevice.cpp
 
 #include "SagaEngine/Input/Devices/GamepadDevice.h"

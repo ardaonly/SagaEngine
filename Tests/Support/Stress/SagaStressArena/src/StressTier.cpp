@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file StressTier.cpp
 /// @brief Implements bounded SagaStressArena stress tier metadata.
 

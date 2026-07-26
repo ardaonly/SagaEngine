@@ -42,7 +42,7 @@ The serialized command is an input request, not proof that the requested action 
 
 `ClientPrediction` can apply local intent before an authoritative result arrives. Prediction is derived client state. It needs sequence/tick identity, retained commands, reconciliation, and a bounded correction policy. Prediction must not mutate server truth or suppress a detected mismatch.
 
-Focused replication and StarterArena evidence can show that one command path is deterministic or reconciles in a fixture. It does not prove production latency handling, anti-cheat protection, packet security, or behavior under every loss/reorder condition.
+Focused replication or sample evidence can show that one command path is deterministic or reconciles in a fixture. It does not prove production latency handling, anti-cheat protection, packet security, or behavior under every loss/reorder condition.
 
 ## Platform abstraction
 
@@ -64,7 +64,6 @@ When adding a platform feature:
 
 ## Evidence limits
 
-StarterArena includes deterministic synthetic-input and explicit keyboard workflows. Automated evidence does not claim a physical key press unless a manual report observes a real device and a resulting state change. Headless tests can prove mapping, serialization, buffering, and command behavior without proving native window focus or device hot-plug behavior.
+Automated evidence does not claim a physical key press unless a manual report observes a real device and a resulting state change. Headless tests can prove mapping, serialization, buffering, and command behavior without proving native window focus or device hot-plug behavior. StarterArena's strict source and compiled artifact separate logical `Interact` from physical `Keyboard E`; this is tooling evidence, not a runtime input workflow claim.
 
 The current Wiki therefore treats input as implemented foundations with bounded sample paths, not as a finished cross-platform input product or production network-input security layer.
-

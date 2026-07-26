@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IDebugPanel.h
 /// @brief Interface for a single ImGui debug panel in the sandbox HUD.
 ///

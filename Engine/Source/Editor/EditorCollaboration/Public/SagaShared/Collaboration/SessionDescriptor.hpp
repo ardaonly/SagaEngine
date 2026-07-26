@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SessionDescriptor.hpp
 /// @brief Shared collaboration session descriptor.
 

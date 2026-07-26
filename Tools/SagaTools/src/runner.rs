@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file runner.rs
 /// @brief Process spawning for resolved tools and installers.
 ///        Uses std::process::Command (eliminates 80-line QuoteArg).

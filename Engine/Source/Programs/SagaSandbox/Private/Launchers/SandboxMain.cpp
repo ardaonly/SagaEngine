@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SandboxMain.cpp
 /// @brief Main entry point for the windowed Sandbox application.
 

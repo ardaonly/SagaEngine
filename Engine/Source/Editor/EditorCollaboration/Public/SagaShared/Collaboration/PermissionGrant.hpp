@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PermissionGrant.hpp
 /// @brief Permission grant contract for collaboration access checks.
 

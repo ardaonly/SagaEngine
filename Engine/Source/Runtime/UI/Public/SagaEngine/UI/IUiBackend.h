@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IUiBackend.h
 /// @brief Minimal backend-neutral runtime UI backend contract.
 
@@ -7,9 +8,11 @@
 #include "SagaEngine/UI/UiTypes.h"
 
 #include <filesystem>
+#include <optional>
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <string_view>
 
 namespace SagaEngine::UI
 {
@@ -41,6 +44,28 @@ public:
 
     /// Hide a loaded document.
     [[nodiscard]] virtual bool HideDocument(UiDocumentHandle handle) = 0;
+
+    /// Replace the text content of one element in a loaded document.
+    [[nodiscard]] virtual bool SetDocumentElementText(UiDocumentHandle handle,
+        std::string_view elementId, std::string_view text)
+    {
+        (void)handle;
+        (void)elementId;
+        (void)text;
+        return false;
+    }
+
+    /// Return a visible element's border box in physical framebuffer pixels.
+    /// Missing, hidden, invalid, empty, non-finite, or out-of-viewport geometry
+    /// returns no value.
+    [[nodiscard]] virtual std::optional<UiElementBounds>
+        GetDocumentElementBounds(UiDocumentHandle handle,
+                                 std::string_view elementId) const
+    {
+        (void)handle;
+        (void)elementId;
+        return std::nullopt;
+    }
 
     /// Advance UI animations, layout, and backend state.
     virtual void Update(double deltaSeconds) = 0;
@@ -185,6 +210,14 @@ public:
 
         document->visible = false;
         return true;
+    }
+
+    [[nodiscard]] bool SetDocumentElementText(UiDocumentHandle handle,
+        std::string_view elementId, std::string_view text) override
+    {
+        (void)elementId;
+        (void)text;
+        return FindDocument(handle) != nullptr;
     }
 
     void Update(double deltaSeconds) override

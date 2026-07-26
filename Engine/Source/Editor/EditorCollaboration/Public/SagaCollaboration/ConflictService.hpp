@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ConflictService.hpp
 /// @brief Conflict record service boundary for collaboration workflows.
 

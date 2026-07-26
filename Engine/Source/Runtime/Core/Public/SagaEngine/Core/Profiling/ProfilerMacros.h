@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ProfilerMacros.h
 /// @brief Zero-overhead scoped profiling macros for hot-path instrumentation.
 ///

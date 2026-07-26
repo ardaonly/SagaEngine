@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiagnosticReliabilityTests.cpp
 /// @brief Verifies crash context reports, health rules, and leak summaries.
 

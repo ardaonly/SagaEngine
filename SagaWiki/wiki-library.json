@@ -178,6 +178,14 @@
         ]
       },
       {
+        "path": "Engine/Source/Editor/EditorQtRender",
+        "pages": [
+          "editor-contract",
+          "reference-editor-shell",
+          "reference-rendering"
+        ]
+      },
+      {
         "path": "Engine/Source/Editor/VisualBlocksEditor",
         "pages": [
           "csharp-visual-blocks",

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScenarioRunnerPanelViewModel.cpp
 /// @brief View-model logic for the EditorLab Scenario Runner panel.
 

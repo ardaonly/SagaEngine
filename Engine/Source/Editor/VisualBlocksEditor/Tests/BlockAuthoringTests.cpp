@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file BlockAuthoringTests.cpp
 /// @brief GoogleTest coverage for the block-based authoring model.
 

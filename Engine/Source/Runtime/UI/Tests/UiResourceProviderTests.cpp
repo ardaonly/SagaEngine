@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file UiResourceProviderTests.cpp
 /// @brief Focused tests for logical UI resource mounting and resolution.
 

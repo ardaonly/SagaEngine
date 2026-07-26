@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ServerLifecycleDiagnosticsTests.cpp
 /// @brief Verifies bounded direct/local ZoneServer lifecycle diagnostics.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IExtensionContext.h
 /// @brief Context passed to extensions on load — grants access to editor services.
 

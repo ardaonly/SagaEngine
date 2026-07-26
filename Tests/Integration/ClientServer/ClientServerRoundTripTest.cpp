@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ClientServerRoundTripTest.cpp
 /// @brief End-to-end roundtrip test: client input → server apply → snapshot → client reconcile.
 ///

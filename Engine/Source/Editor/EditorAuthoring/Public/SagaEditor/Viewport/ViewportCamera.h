@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ViewportCamera.h
 /// @brief Pure camera state for the editor viewport — no RHI dependency.
 

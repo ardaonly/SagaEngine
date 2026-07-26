@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file MeshAsset.h
 /// @brief Data-only mesh description shared across renderer, physics, and streaming.
 ///

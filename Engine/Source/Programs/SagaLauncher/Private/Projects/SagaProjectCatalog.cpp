@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaProjectCatalog.cpp
 
 #include "Projects/SagaProjectCatalog.h"

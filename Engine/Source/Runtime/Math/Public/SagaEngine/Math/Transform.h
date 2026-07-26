@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Transform.h
 /// @brief Composite position / rotation / scale value type for scene objects.
 ///

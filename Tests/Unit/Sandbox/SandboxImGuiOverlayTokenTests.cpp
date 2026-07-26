@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SandboxImGuiOverlayTokenTests.cpp
 /// @brief Regression coverage for opaque ImGui overlay texture token packing.
 

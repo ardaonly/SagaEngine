@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PersonaTests.cpp
 /// @brief GoogleTest coverage for the UI persona framework.
 

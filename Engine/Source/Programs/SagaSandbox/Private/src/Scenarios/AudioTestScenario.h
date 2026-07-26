@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AudioTestScenario.h
 /// @brief Sandbox scenario that exercises the full audio pipeline end-to-end.
 ///

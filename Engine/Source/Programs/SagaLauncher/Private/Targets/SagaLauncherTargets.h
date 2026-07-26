@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaLauncherTargets.h
 /// @brief Explicit launcher target resolution and executable catalog policy.
 
@@ -24,8 +25,6 @@ private:
 struct SagaLauncherPathPolicy
 {
     std::filesystem::path reportsRoot;
-    std::filesystem::path evidenceRoot;
-
     [[nodiscard]] std::optional<std::filesystem::path> ActionReportDirectory(
         const SagaLauncherProjectSummary& project,
         SagaLauncherActionId action,
@@ -47,8 +46,7 @@ public:
 class SagaTargetResolver final : public ISagaTargetResolver
 {
 public:
-    explicit SagaTargetResolver(SagaExecutableCatalog catalog,
-                                std::filesystem::path runtimeBridgeAssembly = {});
+    explicit SagaTargetResolver(SagaExecutableCatalog catalog);
 
     [[nodiscard]] std::vector<SagaLauncherTargetSummary> ResolveTargets(
         const std::optional<SagaLauncherProjectSummary>& project) const override;
@@ -57,7 +55,6 @@ public:
 
 private:
     SagaExecutableCatalog m_catalog;
-    std::filesystem::path m_runtimeBridgeAssembly;
 };
 
 namespace SagaLauncherTargetDiagnostics

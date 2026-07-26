@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorProductionTests.cpp
 /// @brief Production foundation tests for SagaEditor startup boundaries.
 

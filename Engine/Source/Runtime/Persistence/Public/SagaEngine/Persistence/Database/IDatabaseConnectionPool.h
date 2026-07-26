@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IDatabaseConnectionPool.h
 /// @brief Abstract connection pool for SQL backends.
 ///

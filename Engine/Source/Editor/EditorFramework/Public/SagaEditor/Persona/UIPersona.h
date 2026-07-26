@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file UIPersona.h
 /// @brief Top-level persona descriptor — composes theme, density, and block style.
 

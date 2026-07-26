@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file MemoryScope.hpp
 /// @brief Provides RAII recording for explicit diagnostics memory scopes.
 

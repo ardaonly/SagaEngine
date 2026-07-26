@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /// @file ToolEnv.h
 /// @brief Executable resolution table — overrides default tool names from the .forge file.
 ///

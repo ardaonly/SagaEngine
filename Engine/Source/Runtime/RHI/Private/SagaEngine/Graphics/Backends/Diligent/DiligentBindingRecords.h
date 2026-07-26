@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentBindingRecords.h
 /// @brief Private native binding metadata records for the Diligent adapter.
 

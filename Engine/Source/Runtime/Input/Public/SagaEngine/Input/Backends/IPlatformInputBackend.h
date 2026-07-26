@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file IPlatformInputBackend.h
 /// @brief Pure interface for platform input backends (SDL, Win32, XInput...).
 ///

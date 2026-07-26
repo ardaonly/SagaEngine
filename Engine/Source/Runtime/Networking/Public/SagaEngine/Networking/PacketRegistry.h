@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PacketRegistry.h
 /// @brief Thread-safe dispatch table mapping PacketType values to server-side handlers.
 ///

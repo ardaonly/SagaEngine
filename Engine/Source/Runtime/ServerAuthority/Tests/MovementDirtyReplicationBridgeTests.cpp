@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file MovementDirtyReplicationBridgeTests.cpp
 /// @brief Deterministic tests for authoritative movement dirty replication intent.
 

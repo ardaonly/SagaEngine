@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SelectionManager.h
 /// @brief Tracks the current editor selection and notifies observers on change.
 
@@ -5,6 +6,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <utility>
 #include <vector>
 
 namespace SagaEditor
@@ -15,9 +17,11 @@ namespace SagaEditor
 /// Opaque handle identifying a selectable object in the editor.
 /// ECS EntityId, asset path hash, or any stable 64-bit id maps here.
 using SelectableId = uint64_t;
+using SelectionSubscription = uint64_t;
 
 /// Sentinel value for "nothing selected".
 inline constexpr SelectableId kInvalidSelectableId = 0;
+inline constexpr SelectionSubscription kInvalidSelectionSubscription = 0;
 
 // ─── Selection Manager ────────────────────────────────────────────────────────
 
@@ -68,11 +72,13 @@ public:
     // ─── Observer Registration ────────────────────────────────────────────────
 
     /// Register a callback to be invoked on selection change.
-    void Subscribe(SelectionCallback callback);
+    [[nodiscard]] SelectionSubscription Subscribe(SelectionCallback callback);
+    void Unsubscribe(SelectionSubscription subscription);
 
 private:
     std::vector<SelectableId> m_selection;      ///< Ordered selection list; front = primary.
-    std::vector<SelectionCallback> m_callbacks; ///< All registered observers.
+    std::vector<std::pair<SelectionSubscription, SelectionCallback>> m_callbacks;
+    SelectionSubscription m_nextSubscription = 1;
 
     /// Notify all subscribers of a change.
     void NotifyObservers();

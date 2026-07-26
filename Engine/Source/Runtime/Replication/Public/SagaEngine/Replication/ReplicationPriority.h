@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ReplicationPriority.h
 /// @brief Replication priority classes and per-entity priority assignment.
 ///

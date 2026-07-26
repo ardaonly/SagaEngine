@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ShortcutCustomizationFeedback.cpp
 /// @brief Qt-free notification formatting for Safe Shortcut Preferences operations.
 

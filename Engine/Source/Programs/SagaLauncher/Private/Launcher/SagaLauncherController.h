@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaLauncherController.h
 /// @brief Non-widget controller and cancellable launcher action execution.
 
@@ -32,8 +33,7 @@ class SagaLauncherActionExecutor final : public ISagaLauncherActionExecutor
 {
 public:
     SagaLauncherActionExecutor(SagaExecutableCatalog catalog,
-                               SagaLauncherPathPolicy pathPolicy,
-                               std::filesystem::path runtimeBridgeAssembly);
+                               SagaLauncherPathPolicy pathPolicy);
     [[nodiscard]] SagaLauncherActionResult Execute(SagaLauncherActionId action,
                                                    const SagaLauncherProjectSummary& project,
                                                    std::stop_token stopToken) override;
@@ -41,7 +41,6 @@ public:
 private:
     SagaExecutableCatalog m_catalog;
     SagaLauncherPathPolicy m_pathPolicy;
-    std::filesystem::path m_runtimeBridgeAssembly;
 };
 
 class ISagaLauncherTaskRunner

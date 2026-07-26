@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RGCompilation.cpp
 /// @brief Topological sort of render-graph passes by resource dependencies.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ServerPacketNormalizer.h
 /// @brief Normalizes ServerConnection receive frames into typed packet views.
 

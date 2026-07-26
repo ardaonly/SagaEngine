@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ShortcutCustomizationController.h
 /// @brief Controller for safe shortcut customization overlay deltas.
 

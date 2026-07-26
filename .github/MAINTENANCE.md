@@ -30,7 +30,20 @@ Saga currently uses a single-branch direct-push model: `main` is the only persis
 | Weekly | Sunday | StressTests, serial execution with a four-hour job limit. |
 | GPU | Manual preflight | Explicitly blocked until a trusted self-hosted runner carrying the `saga-gpu` label exists. |
 
-Visible StarterArena runtime cases require `SAGA_RUN_VISIBLE_TESTS=1` and a qualified native display. Ordinary automated runs leave that opt-in unset; those cases publish explicit GTest skip reasons while headless cases continue.
+StarterArena visible-runtime cases are registered as focused,
+environment-qualified evidence. They require explicit opt-in and a qualified
+native display/GPU, and their graphical result passes only when the required
+named semantic captures carry same-frame world/pre-overlay and UI/post-overlay
+PPM identities, RmlUi border bounds, independently recomputed changed-pixel and
+RGB aggregates, and resize anchoring within two physical pixels. Missing or
+cross-frame evidence fails closed. Registration, focused execution, and a
+graphical pass do not replace complete registered CTest evidence under
+`TD-CI-001` and do not close a public gate by inference.
+
+Critical architecture boundaries use behavior and build evidence appropriate to
+the claim: target graph inspection, compile/link tests, executable behavior, and
+invalid-input rejection. Source-text scanning remains useful as a secondary
+guardrail but is not sufficient on its own.
 
 Contract artifacts are retained for 14 days, nightly artifacts for 30 days, and licensing/weekly/GPU evidence for 90 days. Artifact upload and job summaries use `if: always()` so a failing test still publishes diagnostics. Test commands themselves never use `continue-on-error`.
 

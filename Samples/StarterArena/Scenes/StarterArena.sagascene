@@ -1,0 +1,76 @@
+{
+  "entities": [
+    {
+      "components": [
+        { "position": [0, 0, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" }
+      ],
+      "entityId": "starter-arena",
+      "name": "StarterArena"
+    },
+    {
+      "components": [
+        { "position": [0, 0, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" },
+        { "materialAssetId": "starter-arena.ground.material", "meshAssetId": "starter-arena.ground.mesh", "type": "MeshRenderer" }
+      ],
+      "entityId": "ground",
+      "name": "Ground",
+      "parentEntityId": "starter-arena"
+    },
+    {
+      "components": [
+        { "position": [0, 1.25, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" },
+        { "materialAssetId": "starter-arena.door-frame.material", "meshAssetId": "starter-arena.door-frame.mesh", "type": "MeshRenderer" }
+      ],
+      "entityId": "door-frame",
+      "name": "DoorFrame",
+      "parentEntityId": "starter-arena"
+    },
+    {
+      "components": [
+        { "position": [0, 0, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" },
+        { "authoringSource": "Scripts/DoorController.cs", "behaviorTypeId": "StarterArena.DoorController", "instanceConfiguration": {}, "requiredCapabilities": ["Gameplay.State.ReadWrite", "World.Transform.ReadWrite"], "type": "ScriptBehavior" },
+        { "behaviorTypeId": "StarterArena.DoorController", "inputActionId": "Interact", "namedActionId": "Interact", "type": "ScriptActionBinding" }
+      ],
+      "entityId": "door-root",
+      "name": "DoorRoot",
+      "parentEntityId": "starter-arena"
+    },
+    {
+      "components": [
+        { "position": [0, 1, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" },
+        { "materialAssetId": "starter-arena.door.material", "meshAssetId": "starter-arena.door.mesh", "type": "MeshRenderer" }
+      ],
+      "entityId": "door-mesh",
+      "name": "DoorMesh",
+      "parentEntityId": "door-root"
+    },
+    {
+      "components": [
+        { "position": [0, 1, 4], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" }
+      ],
+      "entityId": "player-start",
+      "name": "PlayerStart",
+      "parentEntityId": "starter-arena"
+    },
+    {
+      "components": [
+        { "position": [0, 4, 8], "rotation": [-0.173648, 0, 0, 0.984808], "scale": [1, 1, 1], "type": "Transform" },
+        { "farClip": 200, "nearClip": 0.1, "primary": true, "projection": "Perspective", "type": "Camera", "verticalFovDegrees": 60 }
+      ],
+      "entityId": "main-camera",
+      "name": "MainCamera",
+      "parentEntityId": "starter-arena"
+    },
+    {
+      "components": [
+        { "position": [0, 5, 0], "rotation": [-0.382683, 0.353553, 0.146447, 0.840896], "scale": [1, 1, 1], "type": "Transform" },
+        { "castsShadows": true, "color": [1, 0.96, 0.88], "intensity": 3, "type": "DirectionalLight" }
+      ],
+      "entityId": "directional-light",
+      "name": "DirectionalLight",
+      "parentEntityId": "starter-arena"
+    }
+  ],
+  "sceneId": "starter-arena.scene",
+  "schemaVersion": 1
+}

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ProductionDashboardPanel.h
 /// @brief First production readiness dashboard for SagaEditor.
 
@@ -20,7 +21,7 @@ public:
 
     [[nodiscard]] PanelId GetPanelId() const override;
     [[nodiscard]] std::string GetTitle() const override;
-    [[nodiscard]] void* GetNativeWidget() const noexcept override;
+    [[nodiscard]] QWidget* Widget() const noexcept override;
 
     void OnInit() override;
     void OnShutdown() override;

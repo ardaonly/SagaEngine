@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Zone.cpp
 /// @brief Zone grid layout and cell lookup implementation.
 

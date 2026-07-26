@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """Core services for the SagaSync developer dashboard."""
 
 from .actions import SafeAction, default_toolbar_actions, export_plan_action, export_tool_dry_run_action

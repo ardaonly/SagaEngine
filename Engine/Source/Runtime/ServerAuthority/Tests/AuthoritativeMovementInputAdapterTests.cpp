@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file AuthoritativeMovementInputAdapterTests.cpp
 /// @brief Unit tests for the Engine-input to server movement-core adapter.
 

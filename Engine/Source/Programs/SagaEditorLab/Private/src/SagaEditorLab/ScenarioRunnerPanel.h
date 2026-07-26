@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ScenarioRunnerPanel.h
 /// @brief Qt widget wrapper for the EditorLab Scenario Runner panel.
 

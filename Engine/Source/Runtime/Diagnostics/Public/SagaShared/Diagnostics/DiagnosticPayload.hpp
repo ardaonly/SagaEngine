@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiagnosticPayload.hpp
 /// @brief Shared structured diagnostic payload.
 

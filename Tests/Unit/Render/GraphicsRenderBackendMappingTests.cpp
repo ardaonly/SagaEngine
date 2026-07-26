@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file GraphicsRenderBackendMappingTests.cpp
 /// @brief Tests private SagaGraphics to Render backend DTO mapping.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ReplicationTelemetry.cpp
 /// @brief Operational visibility for the client-side replication pipeline.
 

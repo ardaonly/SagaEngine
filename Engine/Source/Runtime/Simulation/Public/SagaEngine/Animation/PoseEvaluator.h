@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PoseEvaluator.h
 /// @brief Samples an animation clip and computes the final bone matrices.
 ///

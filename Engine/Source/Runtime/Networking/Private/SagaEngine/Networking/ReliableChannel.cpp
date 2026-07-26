@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ReliableChannel.cpp
 /// @brief Selective-repeat ARQ implementation with SACK, fast retransmit, and Karn's Algorithm.
 

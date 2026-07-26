@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeApplication.cpp
 /// @brief Dispatches standalone runtime modes through Runtime-owned boundaries.
 
@@ -5,23 +6,16 @@
 #include "RuntimeAssetStartupBootstrap.hpp"
 #include "RuntimeCommandLine.h"
 #include "RuntimeHost.h"
-#include "StarterArenaPlayable.h"
-#include "StarterArenaSmoke.h"
 
 #include <SagaEngine/Core/Log/Log.h>
-#include <SagaEngine/Platform/PlatformFactory.h>
 #include <SagaEngine/Resources/AssetRegistry.h>
 
 #include <SagaRuntime/RuntimeStartupDiagnostics.hpp>
 #include <SagaRuntime/RuntimeStartupSession.hpp>
 
-#include <cstdint>
 #include <cstdio>
-#include <algorithm>
-#include <array>
+#include <exception>
 #include <filesystem>
-#include <limits>
-#include <stdexcept>
 #include <string>
 
 namespace
@@ -163,68 +157,13 @@ SagaRuntimeApp::RuntimeCommandLine ParseArgs(int argc, char* argv[])
             commandLine.launchOptions.packageBaseDirectory =
                 std::filesystem::path(argv[++i]);
         }
-        else if (arg == "--project" && i + 1 < argc)
+        else if (arg == "--play-envelope" && i + 1 < argc)
         {
-            commandLine.projectPath = std::filesystem::path(argv[++i]);
+            commandLine.playEnvelope = std::filesystem::path(argv[++i]);
         }
-        else if (arg == "--starter-arena-smoke")
+        else if (arg == "--smoke-interactions")
         {
-            commandLine.starterArenaSmoke = true;
-        }
-        else if (arg == "--starter-arena-playable")
-        {
-            commandLine.starterArenaPlayable = true;
-        }
-        else if (arg == "--script-manifest" && i + 1 < argc)
-        {
-            commandLine.scriptManifestPath = std::filesystem::path(argv[++i]);
-        }
-        else if (arg == "--script-artifacts" && i + 1 < argc)
-        {
-            commandLine.scriptArtifactsPath = std::filesystem::path(argv[++i]);
-        }
-        else if (arg == "--invoke-starter-arena-script")
-        {
-            commandLine.invokeStarterArenaScript = true;
-        }
-        else if (arg == "--run-starter-arena-script-lifecycle")
-        {
-            commandLine.runStarterArenaScriptLifecycle = true;
-        }
-        else if (arg == "--run-starter-arena-gameplay")
-        {
-            commandLine.runStarterArenaGameplay = true;
-        }
-        else if (arg == "--smoke-report-out" && i + 1 < argc)
-        {
-            commandLine.smokeReportOut = std::filesystem::path(argv[++i]);
-        }
-        else if (arg == "--smoke-frames" && i + 1 < argc)
-        {
-            commandLine.smokeFrames =
-                static_cast<std::uint32_t>(std::stoul(argv[++i]));
-        }
-        else if (arg == "--playable-frames" && i + 1 < argc)
-        {
-            commandLine.playableFramesProvided = true;
-            commandLine.playableFrames =
-                static_cast<std::uint32_t>(std::stoul(argv[++i]));
-        }
-        else if (arg == "--playable-report-out" && i + 1 < argc)
-        {
-            commandLine.playableReportOut = std::filesystem::path(argv[++i]);
-        }
-        else if (arg == "--playable-input-source" && i + 1 < argc)
-        {
-            commandLine.playableInputSource = argv[++i];
-        }
-        else if (arg == "--playable-input-script" && i + 1 < argc)
-        {
-            commandLine.playableInputScript = std::filesystem::path(argv[++i]);
-        }
-        else if (arg == "--fixed-dt" && i + 1 < argc)
-        {
-            commandLine.fixedDtSeconds = std::stod(argv[++i]);
+            commandLine.smokeInteractions = true;
         }
         else if (arg == "--help" || arg == "--?")
         {
@@ -234,31 +173,9 @@ SagaRuntimeApp::RuntimeCommandLine ParseArgs(int argc, char* argv[])
                         "                         Validate startup package manifest before initialization\n"
                         "  --package-base-directory <path>\n"
                         "                         Resolve package-relative manifest and asset paths from this directory\n"
-                        "  --project <path>      .sagaproj path for bounded sample smoke modes\n"
-                        "  --starter-arena-smoke Run bounded local StarterArena smoke and exit\n"
-                        "  --starter-arena-playable\n"
-                        "                         Run the visible StarterArena frame (not headless)\n"
-                        "  --script-manifest <path>\n"
-                        "                         Optional StarterArena script_bindings.json smoke input\n"
-                        "  --script-artifacts <path>\n"
-                        "                         Optional StarterArena script_artifacts.json smoke input\n"
-                        "  --invoke-starter-arena-script\n"
-                        "                         Invoke controlled StarterArena AddPickupScore smoke\n"
-                        "  --run-starter-arena-script-lifecycle\n"
-                        "                         Invoke focused StarterArena GameRules lifecycle smoke\n"
-                        "  --run-starter-arena-gameplay\n"
-                        "                         Run opt-in StarterArena C# gameplay state proof\n"
-                        "  --smoke-report-out <path>\n"
-                        "                         Write StarterArena smoke report JSON\n"
-                        "  --smoke-frames <n>    StarterArena smoke frame count (default: 30)\n"
-                        "  --playable-frames <n> Bound visible StarterArena run to n presented frames\n"
-                        "  --playable-report-out <path>\n"
-                        "                         Write visible StarterArena report JSON\n"
-                        "  --playable-input-source <scene|synthetic|keyboard>\n"
-                        "                         Select visible StarterArena input (default: scene)\n"
-                        "  --playable-input-script <path>\n"
-                        "                         Synthetic input JSON (required for synthetic source)\n"
-                        "  --fixed-dt <seconds>  StarterArena fixed timestep (default: 0.0166667)\n"
+                        "  --play-envelope <path>\n"
+                        "                         Run a verified local launch envelope\n"
+                        "  --smoke-interactions  Inject the configured logical action twice for headless proof\n"
                         "  --help, --?           Show this help\n");
             commandLine.showHelp = true;
         }
@@ -269,59 +186,16 @@ SagaRuntimeApp::RuntimeCommandLine ParseArgs(int argc, char* argv[])
 
 [[nodiscard]] bool IsValueOption(const std::string& argument) noexcept
 {
-    static constexpr std::array<const char*, 12> kOptions = {
-        "--package-manifest",
-        "--package-base-directory", "--project", "--script-manifest",
-        "--script-artifacts", "--smoke-report-out", "--smoke-frames",
-        "--playable-frames", "--playable-report-out",
-        "--playable-input-source", "--playable-input-script", "--fixed-dt",
-    };
-    return std::find(kOptions.begin(), kOptions.end(), argument) != kOptions.end();
+    return argument == "--package-manifest" ||
+           argument == "--package-base-directory" ||
+           argument == "--play-envelope";
 }
 
 [[nodiscard]] bool IsFlagOption(const std::string& argument) noexcept
 {
-    static constexpr std::array<const char*, 9> kOptions = {
-        "--headless", "-h", "--starter-arena-smoke",
-        "--starter-arena-playable", "--invoke-starter-arena-script",
-        "--run-starter-arena-script-lifecycle",
-        "--run-starter-arena-gameplay", "--help", "--?",
-    };
-    return std::find(kOptions.begin(), kOptions.end(), argument) != kOptions.end();
-}
-
-[[nodiscard]] bool ValidateNumericValue(const std::string& option,
-                                        const std::string& text,
-                                        std::string& error)
-{
-    try
-    {
-        std::size_t consumed = 0;
-        if (option == "--fixed-dt")
-        {
-            const double value = std::stod(text, &consumed);
-            if (consumed != text.size() || value <= 0.0)
-            {
-                throw std::invalid_argument("range");
-            }
-            return true;
-        }
-        const unsigned long long value = std::stoull(text, &consumed);
-        if (consumed != text.size() || value == 0)
-        {
-            throw std::invalid_argument("range");
-        }
-        if (value > std::numeric_limits<std::uint32_t>::max())
-        {
-            throw std::out_of_range("numeric option");
-        }
-        return true;
-    }
-    catch (const std::exception&)
-    {
-        error = option + " requires a positive in-range numeric value";
-        return false;
-    }
+    return argument == "--headless" || argument == "-h" ||
+           argument == "--smoke-interactions" ||
+           argument == "--help" || argument == "--?";
 }
 
 [[nodiscard]] bool ValidateArguments(int argc,
@@ -350,14 +224,6 @@ SagaRuntimeApp::RuntimeCommandLine ParseArgs(int argc, char* argv[])
         {
             error = argument + " requires a non-empty value";
             return false;
-        }
-        if (argument == "--smoke-frames" ||
-            argument == "--playable-frames" || argument == "--fixed-dt")
-        {
-            if (!ValidateNumericValue(argument, value, error))
-            {
-                return false;
-            }
         }
     }
     return true;
@@ -396,49 +262,6 @@ int RunRuntimeApplication(int argc, char* argv[])
         SagaEngine::Core::Log::Shutdown();
         return 0;
     }
-    if (commandLine.runStarterArenaGameplay &&
-        !commandLine.runStarterArenaScriptLifecycle)
-    {
-        LOG_ERROR(kLogTag,
-                  "--run-starter-arena-gameplay requires "
-                  "--run-starter-arena-script-lifecycle.");
-        SagaEngine::Core::Log::Shutdown();
-        return 2;
-    }
-    if (!commandLine.starterArenaPlayable &&
-        (commandLine.playableInputSource != "scene" ||
-         !commandLine.playableInputScript.empty()))
-    {
-        LOG_ERROR(kLogTag,
-                  "--playable-input-source and --playable-input-script require "
-                  "--starter-arena-playable.");
-        SagaEngine::Core::Log::Shutdown();
-        return 2;
-    }
-    if (commandLine.starterArenaSmoke && commandLine.starterArenaPlayable)
-    {
-        LOG_ERROR(
-            kLogTag,
-            "--starter-arena-smoke and --starter-arena-playable are mutually exclusive.");
-        SagaEngine::Core::Log::Shutdown();
-        return 2;
-    }
-    if (commandLine.starterArenaSmoke)
-    {
-        const int result = SagaRuntimeApp::RunStarterArenaSmoke(commandLine);
-        SagaEngine::Core::Log::Shutdown();
-        return result;
-    }
-
-    if (commandLine.starterArenaPlayable)
-    {
-        auto platformFactory = Saga::CreateSDLPlatformFactory();
-        Saga::PlatformFactory::Set(platformFactory.get());
-        const int result = SagaRuntimeApp::RunStarterArenaPlayable(commandLine);
-        SagaEngine::Core::Log::Shutdown();
-        return result;
-    }
-
     auto startupReport = PrepareRuntimeStartup(commandLine.launchOptions);
     if (!startupReport.Succeeded())
     {
@@ -456,7 +279,9 @@ int RunRuntimeApplication(int argc, char* argv[])
     }
 
     const SagaRuntimeApp::RuntimeHostResult hostResult =
-        SagaRuntimeApp::RuntimeHost{}.Run();
+        SagaRuntimeApp::RuntimeHost(commandLine.playEnvelope,
+            commandLine.launchOptions.headless,
+            commandLine.smokeInteractions).Run();
     if (!hostResult.ok)
     {
         LOG_ERROR(kLogTag,

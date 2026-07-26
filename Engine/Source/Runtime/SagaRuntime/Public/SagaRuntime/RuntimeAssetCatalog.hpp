@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeAssetCatalog.hpp
 /// @brief Runtime-owned read-only asset registry access facade.
 

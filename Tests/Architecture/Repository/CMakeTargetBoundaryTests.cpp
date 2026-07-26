@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include <gtest/gtest.h>
 
 #include <array>
@@ -201,13 +202,76 @@ TEST(CMakeTargetBoundaryTests, RuntimeVendorDependenciesMatchHeaderVisibility)
     }
 
     const auto targets = ReadText(root / "cmake/modules/SagaTargets.cmake");
-    const auto backendLinks =
-        ExtractTargetCalls(targets, "target_link_libraries", "SagaBackend");
-    EXPECT_TRUE(ContainsCMakeToken(backendLinks, "libpqxx::pqxx"));
+    const auto uiBackendLinks =
+        ExtractTargetCalls(targets, "target_link_libraries", "SagaUiBackend");
+    const auto persistenceBackendLinks = ExtractTargetCalls(
+        targets, "target_link_libraries", "SagaPersistenceBackend");
+    EXPECT_TRUE(ContainsCMakeToken(uiBackendLinks, "SagaEngine"));
+    EXPECT_FALSE(ContainsCMakeToken(uiBackendLinks, "libpqxx::pqxx"));
+    EXPECT_FALSE(
+        ContainsCMakeToken(uiBackendLinks, "redis++::redis++_static"));
     EXPECT_TRUE(
-        ContainsCMakeToken(backendLinks, "redis++::redis++_static"));
-    EXPECT_FALSE(ContainsCMakeToken(backendLinks, "SDL2::SDL2"));
-    EXPECT_FALSE(ContainsCMakeToken(backendLinks, "imgui::imgui"));
+        ContainsCMakeToken(persistenceBackendLinks, "libpqxx::pqxx"));
+    EXPECT_TRUE(
+        ContainsCMakeToken(
+            persistenceBackendLinks, "redis++::redis++_static"));
+    EXPECT_FALSE(
+        ContainsCMakeToken(persistenceBackendLinks, "rmlui::rmlui"));
+    EXPECT_NE(targets.find("saga_link_rmlui(SagaUiBackend)"),
+              std::string::npos);
+    EXPECT_EQ(targets.find("add_library(SagaBackend "), std::string::npos);
+}
+
+TEST(CMakeTargetBoundaryTests, ConfiguredBackendOwnershipStaysSeparated)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto buildRoot = std::filesystem::path(SAGA_BUILD_ROOT);
+    const auto contract =
+        ReadText(buildRoot / "generated/SagaBackendOwnership-RelWithDebInfo.txt");
+    ASSERT_FALSE(contract.empty());
+
+    const auto lineFor = [&](std::string_view target)
+    {
+        const std::string marker = std::string(target) + "=";
+        const auto begin = contract.find(marker);
+        if (begin == std::string::npos)
+            return std::string{};
+        const auto end = contract.find('\n', begin);
+        return contract.substr(
+            begin, end == std::string::npos ? end : end - begin);
+    };
+
+    const auto ui = lineFor("SagaUiBackend");
+    const auto persistence = lineFor("SagaPersistenceBackend");
+    ASSERT_FALSE(ui.empty());
+    ASSERT_FALSE(persistence.empty());
+    EXPECT_NE(ui.find("rmlui"), std::string::npos);
+    EXPECT_EQ(ui.find("pqxx"), std::string::npos);
+    EXPECT_EQ(ui.find("redis"), std::string::npos);
+    EXPECT_NE(persistence.find("pqxx"), std::string::npos);
+    EXPECT_NE(persistence.find("redis"), std::string::npos);
+    EXPECT_EQ(persistence.find("rmlui"), std::string::npos);
+
+    for (const auto* target : {
+             "SagaRuntimeAppLib", "SagaRuntime", "SagaSandboxLib",
+             "SagaEditorLib", "SagaProductLib"})
+    {
+        const auto links = lineFor(target);
+        ASSERT_FALSE(links.empty()) << target;
+        EXPECT_EQ(links.find("SagaPersistenceBackend"), std::string::npos)
+            << target;
+        EXPECT_EQ(links.find("pqxx"), std::string::npos) << target;
+        EXPECT_EQ(links.find("redis"), std::string::npos) << target;
+    }
+    EXPECT_NE(lineFor("SagaRuntimeAppLib").find("SagaUiBackend"),
+              std::string::npos);
+    EXPECT_EQ(lineFor("SagaRuntime").find("SagaUiBackend"),
+              std::string::npos);
+    EXPECT_EQ(lineFor("SagaSandboxLib").find("SagaUiBackend"),
+              std::string::npos);
+
+    const auto targets = ReadText(root / "cmake/modules/SagaTargets.cmake");
+    EXPECT_EQ(targets.find("add_library(SagaBackend "), std::string::npos);
 }
 
 TEST(CMakeTargetBoundaryTests, EditorAggregateComposesOnlyModuleObjects)
@@ -237,6 +301,172 @@ TEST(CMakeTargetBoundaryTests, EditorAggregateComposesOnlyModuleObjects)
     }
 }
 
+TEST(CMakeTargetBoundaryTests, RetiredPropertyEditorBackendSeamStaysAbsent)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto inspectorRoot =
+        root / "Engine/Source/Editor/EditorAuthoring";
+    const auto manifest = ReadText(inspectorRoot / "CMakeLists.txt");
+
+    for (const auto* retired : {
+             "IPropertyEditor.h",
+             "IPropertyEditorBackend.h",
+             "PropertyEditorFactory.h",
+             "PropertyEditorFactory.cpp"})
+    {
+        EXPECT_FALSE(std::filesystem::exists(
+            inspectorRoot / "Public/SagaEditor/InspectorEditing" / retired));
+        EXPECT_FALSE(std::filesystem::exists(
+            inspectorRoot / "Private/SagaEditor/InspectorEditing" / retired));
+        EXPECT_EQ(manifest.find(retired), std::string::npos) << retired;
+    }
+
+    const auto inspectorTests =
+        ReadText(inspectorRoot / "Tests/InspectorEditingTests.cpp");
+    for (const auto* retiredSymbol : {
+             "IPropertyEditor",
+             "IPropertyEditorBackend",
+             "PropertyEditorFactory",
+             "SetBackend(",
+             "g_backend"})
+    {
+        EXPECT_EQ(inspectorTests.find(retiredSymbol), std::string::npos)
+            << retiredSymbol;
+        EXPECT_EQ(manifest.find(retiredSymbol), std::string::npos)
+            << retiredSymbol;
+    }
+}
+
+TEST(CMakeTargetBoundaryTests, MainWindowContractOwnsChromeNotProjectDialogs)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto interfaceText = ReadText(root /
+        "Engine/Source/Editor/EditorFramework/Public/SagaEditor/UI/IUIMainWindow.h");
+    const auto qtHeader = ReadText(root /
+        "Engine/Source/Editor/EditorQt/Public/SagaEditorQt/QtUIMainWindow.h");
+    const auto qtSource = ReadText(root /
+        "Engine/Source/Editor/EditorQt/Private/SagaEditorQt/QtUIMainWindow.cpp");
+    const auto panelContract = ReadText(root /
+        "Engine/Source/Editor/EditorFramework/Public/SagaEditor/Panels/IPanel.h");
+
+    for (const auto* retiredDialogMember : {
+             "NewProjectPrompt",
+             "UnsavedDocumentsDecision",
+             "ChooseProjectToOpen",
+             "ChooseNewProject",
+             "ConfirmUnsavedDocuments"})
+    {
+        EXPECT_EQ(interfaceText.find(retiredDialogMember), std::string::npos)
+            << retiredDialogMember;
+        EXPECT_EQ(qtHeader.find(retiredDialogMember), std::string::npos)
+            << retiredDialogMember;
+        EXPECT_EQ(qtSource.find(retiredDialogMember), std::string::npos)
+            << retiredDialogMember;
+    }
+    for (const auto* retainedWindowRole : {
+             "ApplyShellLayout",
+             "SetStatusMessage",
+             "DockPanel",
+             "SaveState",
+             "SetOnClose"})
+    {
+        EXPECT_NE(interfaceText.find(retainedWindowRole), std::string::npos)
+            << retainedWindowRole;
+    }
+    EXPECT_NE(interfaceText.find("QWidget*"), std::string::npos);
+    EXPECT_NE(panelContract.find("QWidget*"), std::string::npos);
+    EXPECT_EQ(interfaceText.find("void*"), std::string::npos);
+    EXPECT_EQ(panelContract.find("void*"), std::string::npos);
+    for (const auto* retiredOwnership : {
+             "QtMainWindowCloseFilter", "ownsWindow", "centralStack",
+             "centralIndex", "product-owned windows"})
+        EXPECT_EQ(qtSource.find(retiredOwnership), std::string::npos)
+            << retiredOwnership;
+    EXPECT_EQ(interfaceText.find("next backend"), std::string::npos);
+    EXPECT_NE(interfaceText.find("QtUIMainWindow is the production implementation"),
+              std::string::npos);
+}
+
+TEST(CMakeTargetBoundaryTests, RuntimeStatePolicyComesFromVersionedScriptEvidence)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto stateStore = ReadText(root / "Engine/Source/Programs/SagaRuntime/Private/RuntimeStateStore.cpp"),
+        frameLoop = ReadText(root /
+        "Engine/Source/Programs/SagaRuntime/Private/RuntimeFrameLoop.cpp");
+    const auto worker = ReadText(root / "Tools/SagaScript/src/ProjectWorker.cs"),
+        artifacts = ReadText(root / "Tools/SagaScript/src/ProjectWorkerArtifactBuilder.cs");
+    const auto verifiedHost = ReadText(root / "Engine/Source/Runtime/Scripting/Private/"
+        "SagaEngine/Scripting/CSharpScriptHostVerifiedGeneration.cpp");
+    for (const auto* production : {&stateStore, &frameLoop, &worker})
+        EXPECT_EQ(production->find("door.target-open"), std::string::npos);
+    EXPECT_NE(stateStore.find("boolWrites_"), std::string::npos);
+    EXPECT_NE(worker.find("SymbolEqualityComparer.Default"), std::string::npos);
+    EXPECT_NE(worker.find("StateKeyNotConstant"), std::string::npos);
+    EXPECT_NE(artifacts.find("behavior_manifest_v2.json"), std::string::npos);
+    EXPECT_NE(artifacts.find("schemaVersion = 2"), std::string::npos);
+    EXPECT_NE(verifiedHost.find("readJson(request.behaviorManifest, behaviors, 2)"), std::string::npos);
+    EXPECT_NE(verifiedHost.find("stateAccesses"), std::string::npos);
+}
+TEST(CMakeTargetBoundaryTests, VerifiedStylesheetIsRuntimeRenderAuthority)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto rml = ReadText(root / "Samples/StarterArena/Content/UI/HUD/interaction-prompt.rml"),
+        packager = ReadText(root / "Tools/SagaPackager/src/UiContentCompiler.cs");
+    const auto session = ReadText(root / "Engine/Source/Programs/SagaRuntime/"
+        "Private/RuntimeUiSession.cpp"), backend = ReadText(root / "Engine/Source/Runtime/UI/"
+        "Private/Backends/RmlUi/RmlUiUiBackend.cpp");
+    EXPECT_NE(rml.find("<link type=\"text/rcss\" "
+        "href=\"interaction-prompt.rcss\"/>"), std::string::npos);
+    EXPECT_EQ(rml.find("<style>"), std::string::npos);
+    EXPECT_NE(packager.find("InlineStyleForbidden"), std::string::npos);
+    EXPECT_NE(packager.find("StylesheetUnreferenced"), std::string::npos);
+    EXPECT_NE(packager.find("/resources/{resource.ProjectRelativePath}"), std::string::npos);
+    EXPECT_NE(session.find("ui.stylesheets"), std::string::npos);
+    EXPECT_NE(session.find("verifiedResourcePaths"), std::string::npos);
+    EXPECT_NE(backend.find("verified_.contains"), std::string::npos);
+}
+
+TEST(CMakeTargetBoundaryTests, QtCompositionRootStaysConcrete)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto frameworkRoot =
+        root / "Engine/Source/Editor/EditorFramework";
+    const auto qtRoot = root / "Engine/Source/Editor/EditorQt";
+    const auto frameworkManifest =
+        ReadText(frameworkRoot / "CMakeLists.txt");
+    const auto qtManifest = ReadText(qtRoot / "CMakeLists.txt");
+    const auto appHeader = ReadText(frameworkRoot /
+        "Public/SagaEditor/Host/EditorApp.h");
+    const auto shellHeader = ReadText(frameworkRoot /
+        "Public/SagaEditor/Shell/EditorShell.h");
+    const auto runner = ReadText(qtRoot /
+        "Private/SagaEditorQt/Host/EditorApplicationRunner.cpp");
+
+    for (const auto* retired : {
+             "IUIFactory", "QtUIFactory",
+             "IUIApplication", "QtUIApplication"})
+    {
+        EXPECT_EQ(frameworkManifest.find(retired), std::string::npos)
+            << retired;
+        EXPECT_EQ(qtManifest.find(retired), std::string::npos) << retired;
+        EXPECT_EQ(appHeader.find(retired), std::string::npos) << retired;
+        EXPECT_EQ(shellHeader.find(retired), std::string::npos) << retired;
+    }
+    EXPECT_EQ(appHeader.find("RunSmoke"), std::string::npos);
+    EXPECT_EQ(appHeader.find("int Run("), std::string::npos);
+    for (const auto* concreteOwner : {
+             "QApplication", "QTimer::singleShot",
+             "QtSettingsStore", "QtUIMainWindow"})
+    {
+        EXPECT_NE(runner.find(concreteOwner), std::string::npos)
+            << concreteOwner;
+    }
+    EXPECT_NE(qtManifest.find("EditorApplicationRunner.cpp"),
+              std::string::npos);
+    EXPECT_EQ(frameworkManifest.find("EditorApplicationRunner.cpp"),
+              std::string::npos);
+}
+
 TEST(CMakeTargetBoundaryTests, ProductAggregateComposesOnlyProgramObjects)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
@@ -249,9 +479,7 @@ TEST(CMakeTargetBoundaryTests, ProductAggregateComposesOnlyProgramObjects)
 
     for (const auto& manifest : {
              root / "Engine/Source/Programs/SagaLauncher/CMakeLists.txt",
-             root / "Engine/Source/Editor/VisualBlocksEditor/CMakeLists.txt",
-             root / "Engine/Source/Editor/EditorCollaboration/CMakeLists.txt",
-             root / "Tests/Evidence/FirstPlayable/CMakeLists.txt"})
+             root / "Engine/Source/Editor/EditorCollaboration/CMakeLists.txt"})
     {
         EXPECT_NE(ReadText(manifest).find("PRIVATE_DEPS"), std::string::npos)
             << manifest;
@@ -270,7 +498,8 @@ TEST(CMakeTargetBoundaryTests, ServerTargetAvoidsClientAndVendorBackends)
         ExtractTargetCalls(targets, "target_link_libraries", "SagaServerLib");
     ASSERT_FALSE(serverLinks.empty());
 
-    for (const auto* forbidden : {"SagaPlatformSDL", "SagaBackend"})
+    for (const auto* forbidden : {
+             "SagaPlatformSDL", "SagaUiBackend", "SagaPersistenceBackend"})
     {
         EXPECT_FALSE(ContainsCMakeToken(serverLinks, forbidden))
             << "SagaServerLib directly links forbidden client/vendor target "
@@ -284,6 +513,46 @@ TEST(CMakeTargetBoundaryTests, ServerTargetAvoidsClientAndVendorBackends)
             << "SagaServerLib directly links forbidden target family "
             << forbiddenFamily;
     }
+}
+
+TEST(CMakeTargetBoundaryTests, RuntimeAndHeadlessTargetsExcludeAuthoringToolchains)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto targets = ReadText(root / "cmake/modules/SagaTargets.cmake");
+
+    std::string targetContracts;
+    for (const auto& [command, target] :
+         std::array<std::pair<std::string_view, std::string_view>, 8>{
+             std::pair{"add_executable", "SagaRuntime"},
+             std::pair{"target_include_directories", "SagaRuntime"},
+             std::pair{"target_link_libraries", "SagaRuntime"},
+             std::pair{"add_library", "MultiplayerSandboxHeadlessLib"},
+             std::pair{"target_sources", "MultiplayerSandboxHeadlessLib"},
+             std::pair{"target_include_directories", "MultiplayerSandboxHeadlessLib"},
+             std::pair{"target_link_libraries", "MultiplayerSandboxHeadlessLib"},
+             std::pair{"target_link_libraries", "MultiplayerSandboxHeadless"}})
+    {
+        targetContracts += ExtractTargetCalls(targets, command, target);
+    }
+
+    for (const auto* forbidden : {
+             "Qt6::", "qt::", "SagaEditor", "SagaProductLib",
+             "SagaProjectKit", "SagaPackager", "SagaScript",
+             "VisualBlocks", "ProjectManifestLoader", "PackageResolver",
+             "SourceCompiler", "BlockDescriptor", "ProjectLoader",
+             "PackageResolutionService", "ContentCompiler", "ProjectWorker",
+             "BlockProjection"})
+    {
+        EXPECT_EQ(targetContracts.find(forbidden), std::string::npos)
+            << "Runtime and headless targets must not include or link "
+            << forbidden;
+    }
+
+    EXPECT_EQ(targetContracts.find("Samples/StarterArena"), std::string::npos);
+    const auto runtimeProgram = ReadText(
+        root / "Engine/Source/Programs/SagaRuntime/Private/RuntimeApplication.cpp");
+    EXPECT_EQ(runtimeProgram.find("StarterArena"), std::string::npos);
+    EXPECT_EQ(runtimeProgram.find(".sagaproj"), std::string::npos);
 }
 
 TEST(CMakeTargetBoundaryTests, GraphicsAggregateKeepsNativeLifecyclePrivate)
@@ -330,7 +599,13 @@ TEST(CMakeTargetBoundaryTests, GraphicsAggregateKeepsNativeLifecyclePrivate)
 TEST(CMakeTargetBoundaryTests, DiligentPrivateTestsHaveDedicatedTargets)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
-    const auto tests = ReadText(root / "cmake/modules/SagaTests.cmake");
+    const auto tests =
+        ReadText(root / "cmake/modules/SagaTests.cmake") +
+        ReadText(root / "cmake/modules/tests/SagaTestSources.cmake") +
+        ReadText(root / "cmake/modules/tests/SagaCoreTestTargets.cmake") +
+        ReadText(root / "cmake/modules/tests/SagaRuntimeTestTargets.cmake") +
+        ReadText(root / "cmake/modules/tests/SagaProductEditorTestTargets.cmake") +
+        ReadText(root / "cmake/modules/tests/SagaEvidenceTestTargets.cmake");
 
     EXPECT_NE(
         tests.find("add_executable(SagaDiligentWhiteboxTests"),
@@ -362,6 +637,137 @@ TEST(CMakeTargetBoundaryTests, DiligentPrivateTestsHaveDedicatedTargets)
     EXPECT_FALSE(ContainsCMakeToken(integrationLinks, "SagaDiligentRuntime"));
     EXPECT_FALSE(ContainsCMakeToken(integrationLinks, "SagaGraphicsPrivate"));
     EXPECT_FALSE(ContainsCMakeToken(integrationLinks, "SDL2::SDL2"));
+}
+
+TEST(CMakeTargetBoundaryTests, FocusedUnitTargetsExposeOnlyTheirOwners)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto buildRoot = std::filesystem::path(SAGA_BUILD_ROOT);
+    const auto sources =
+        ReadText(root / "cmake/modules/tests/SagaTestSources.cmake");
+    const auto core =
+        ReadText(root / "cmake/modules/tests/SagaCoreTestTargets.cmake");
+    const auto evidence =
+        ReadText(root / "cmake/modules/tests/SagaEvidenceTestTargets.cmake");
+    const auto editorQt =
+        ReadText(root / "Engine/Source/Editor/EditorQt/CMakeLists.txt");
+    const auto editorLab = ReadText(
+        root / "Engine/Source/Programs/SagaEditorLab/CMakeLists.txt");
+
+    EXPECT_EQ(sources.find("file(GLOB_RECURSE UNIT_TEST_SOURCES"),
+              std::string::npos);
+    EXPECT_EQ(core.find("add_executable(SagaUnitTests"),
+              std::string::npos);
+    EXPECT_EQ(core.find("add_test(NAME UnitTests"), std::string::npos);
+    EXPECT_NE(core.find("add_custom_target(SagaUnitTests"),
+              std::string::npos);
+    EXPECT_EQ(sources.find("${SAGA_MODULE_PRIVATE_INCLUDE_DIRS}"),
+              std::string::npos);
+    EXPECT_EQ(core.find("${SAGA_MODULE_PRIVATE_INCLUDE_DIRS}"),
+              std::string::npos);
+    EXPECT_EQ(evidence.find("${SAGA_MODULE_PRIVATE_INCLUDE_DIRS}"),
+              std::string::npos);
+
+    for (const auto& [target, owner] :
+         std::array<std::pair<std::string_view, std::string_view>, 4>{
+             std::pair{"SagaRenderUnitTests", "SagaEngine"},
+             std::pair{"SagaSandboxUnitTests", "SagaSandboxLib"},
+             std::pair{"SagaRuntimeHostUnitTests", "SagaRuntimeAppLib"},
+             std::pair{"SagaAssetIdentityGeneratorTests",
+                       "SagaAssetPipelineLib"}})
+    {
+        EXPECT_NE(core.find("add_executable(" + std::string(target)),
+                  std::string::npos)
+            << target;
+        const auto links =
+            ExtractTargetCalls(core, "target_link_libraries", target);
+        EXPECT_TRUE(ContainsCMakeToken(links, owner))
+            << target << " must directly name " << owner;
+        EXPECT_FALSE(ContainsCMakeToken(links, "SagaEditorLib")) << target;
+        EXPECT_FALSE(ContainsCMakeToken(links, "SagaPersistenceBackend"))
+            << target;
+    }
+
+    EXPECT_NE(editorQt.find("Tests/EditorProjectInspectionTests.cpp"),
+              std::string::npos);
+    EXPECT_NE(editorLab.find("Tests/EditorLabScenarioRunnerTests.cpp"),
+              std::string::npos);
+    EXPECT_FALSE(std::filesystem::exists(
+        root / "Tests/Unit/Editor/EditorProjectInspectionTests.cpp"));
+    EXPECT_FALSE(std::filesystem::exists(
+        root / "Tests/Unit/Editor/EditorLabScenarioRunnerTests.cpp"));
+
+    const auto configured = ReadText(
+        buildRoot /
+        "generated/SagaFocusedTestOwnership-RelWithDebInfo.txt");
+    ASSERT_FALSE(configured.empty());
+    const auto configuredLineFor = [&](std::string_view property)
+    {
+        const std::string marker = std::string(property) + "=";
+        const auto begin = configured.find(marker);
+        if (begin == std::string::npos)
+            return std::string{};
+        const auto end = configured.find('\n', begin);
+        return configured.substr(
+            begin, end == std::string::npos ? end : end - begin);
+    };
+    for (const auto* target : {
+             "SagaRenderUnitTests",
+             "SagaSandboxUnitTests",
+             "SagaRuntimeHostUnitTests",
+             "SagaAssetIdentityGeneratorTests"})
+    {
+        for (const auto* property : {"LINK_LIBRARIES", "INCLUDE_DIRECTORIES"})
+        {
+            const auto line = configuredLineFor(
+                std::string(target) + "." + property);
+            ASSERT_FALSE(line.empty()) << target << "." << property;
+            EXPECT_EQ(line.find("SAGA_MODULE_PRIVATE_INCLUDE_DIRS"),
+                      std::string::npos);
+            EXPECT_EQ(line.find("SagaPersistenceBackend"),
+                      std::string::npos);
+            EXPECT_EQ(line.find("SagaEditorLib"), std::string::npos);
+        }
+    }
+    EXPECT_NE(configured.find(
+                  "SagaRenderUnitTests.LINK_LIBRARIES=SagaEngine"),
+              std::string::npos);
+    EXPECT_NE(configured.find(
+                  "SagaSandboxUnitTests.LINK_LIBRARIES=SagaSandboxLib"),
+              std::string::npos);
+    EXPECT_NE(configured.find(
+                  "SagaRuntimeHostUnitTests.LINK_LIBRARIES=SagaRuntimeAppLib"),
+              std::string::npos);
+    EXPECT_NE(configured.find(
+                  "SagaAssetIdentityGeneratorTests.LINK_LIBRARIES=SagaAssetPipelineLib"),
+              std::string::npos);
+    EXPECT_NE(configured.find("EditorProjectInspectionTests.cpp"),
+              std::string::npos);
+    EXPECT_NE(configured.find("EditorLabScenarioRunnerTests.cpp"),
+              std::string::npos);
+}
+
+TEST(CMakeTargetBoundaryTests, CSharpHostOwnersStayCompleteAcrossFocusedTargets)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto module = ReadText(root / "Engine/Source/Runtime/Scripting/CMakeLists.txt");
+    const auto tests = ReadText(root / "cmake/modules/tests/SagaRuntimeTestTargets.cmake");
+
+    for (const auto* source : {
+             "CSharpScriptHost.cpp",
+             "CSharpScriptHostCallbacks.cpp",
+             "CSharpScriptHostCoreClr.cpp",
+             "CSharpScriptHostInstances.cpp",
+             "CSharpScriptHostInvocation.cpp",
+             "CSharpScriptHostSupport.cpp",
+             "CSharpScriptHostVerifiedGeneration.cpp",
+         })
+    {
+        EXPECT_NE(module.find(source), std::string::npos) << source;
+        const auto first = tests.find(source);
+        ASSERT_NE(first, std::string::npos) << source;
+        EXPECT_NE(tests.find(source, first + 1), std::string::npos) << source;
+    }
 }
 
 TEST(CMakeTargetBoundaryTests, LegacyOwnershipRootsStayAbsent)
@@ -417,9 +823,136 @@ TEST(CMakeTargetBoundaryTests, EmptyOwnershipPlaceholdersStayAbsent)
              root / "Tools/SagaScript/Public",
              root / "Tools/SagaScript/Private",
              root / "Tools/SagaPackager/Public",
-             root / "Tools/SagaPackager/Private"})
+             root / "Tools/SagaPackager/Private",
+             root / "Engine/Source/Editor/EditorCore/Private/SagaEditor/Project/ProjectIndexer.cpp",
+             root / "Engine/Source/Editor/EditorAuthoring/Private/SagaEditor/Importers/AssetImportManager.cpp",
+             root / "Engine/Source/Editor/EditorAuthoring/Private/SagaEditor/Pipeline/AssetCooking.cpp",
+             root / "Engine/Source/Editor/EditorAuthoring/Private/SagaEditor/Pipeline/ContentPipeline.cpp",
+             root / "Engine/Source/Editor/EditorAuthoring/Private/SagaEditor/Pipeline/DerivedDataCache.cpp",
+             root / "Engine/Source/Editor/EditorAuthoring/Private/SagaEditor/PrefabEditing/PrefabEditor.cpp",
+             root / "Engine/Source/Editor/EditorAuthoring/Private/SagaEditor/PrefabEditing/PrefabInstanceTracker.cpp",
+             root / "Engine/Source/Editor/EditorAuthoring/Private/SagaEditor/WorldEditing/WorldEditor.cpp",
+             root / "Engine/Source/Editor/EditorAuthoring/Private/SagaEditor/WorldEditing/WorldStreamingEditor.cpp"})
     {
         EXPECT_FALSE(std::filesystem::exists(placeholder)) << placeholder;
+    }
+}
+
+TEST(CMakeTargetBoundaryTests, PlayIsVerifyOnlyLifetimeSafeAndRuntimeUsesWorkerManifests)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto coordinator = ReadText(root /
+        "Engine/Source/Editor/EditorAuthoring/Private/SagaEditor/Scripting/ScriptAnalysisCoordinator.cpp");
+    const auto controller = ReadText(root /
+        "Engine/Source/Editor/EditorAuthoring/Private/SagaEditor/Play/RuntimeProcessController.cpp");
+    const auto runtimeHost = ReadText(root /
+        "Engine/Source/Programs/SagaRuntime/Private/RuntimeHost.cpp");
+    const auto frameLoop = ReadText(root /
+        "Engine/Source/Programs/SagaRuntime/Private/RuntimeFrameLoop.cpp");
+    EXPECT_NE(coordinator.find("\"lock-verify\""), std::string::npos);
+    EXPECT_EQ(coordinator.find("{\"resolve\""), std::string::npos);
+    EXPECT_EQ(controller.find("&workspace"), std::string::npos);
+    EXPECT_NE(controller.find("Play.Runtime.ResultMissing"), std::string::npos);
+    EXPECT_NE(controller.find("ParseRuntimeResultV1"), std::string::npos);
+    EXPECT_NE(controller.find("ParseRuntimeStartupReadyV1"), std::string::npos);
+    EXPECT_NE(controller.find("RuntimePlayState::Starting"), std::string::npos);
+    EXPECT_NE(controller.find("userStopRequested"), std::string::npos);
+    EXPECT_NE(controller.find("Play.Runtime.RuntimeTimeout"), std::string::npos);
+    EXPECT_NE(controller.find("Play.Runtime.ReportedFailure"), std::string::npos);
+    EXPECT_NE(controller.find("removeStale(prepared.resultPath)"), std::string::npos);
+    EXPECT_EQ(runtimeHost.find("script_artifacts.json"), std::string::npos);
+    EXPECT_EQ(runtimeHost.find("script_capabilities.json"), std::string::npos);
+    EXPECT_NE(frameLoop.find("LoadVerifiedGeneration"), std::string::npos);
+    EXPECT_NE(frameLoop.find("startupReadyPath"), std::string::npos);
+    EXPECT_NE(frameLoop.find("publishReady"), std::string::npos);
+}
+
+TEST(CMakeTargetBoundaryTests, RuntimeHostComposesCohesivePrivateSessions)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto manifest = ReadText(root /
+        "Engine/Source/Programs/SagaRuntime/CMakeLists.txt");
+    const auto host = ReadText(root /
+        "Engine/Source/Programs/SagaRuntime/Private/RuntimeHost.cpp");
+    const auto launch = ReadText(root /
+        "Engine/Source/Programs/SagaRuntime/Private/RuntimeLaunchSession.cpp");
+    const auto artifacts = ReadText(root /
+        "Engine/Source/Programs/SagaRuntime/Private/RuntimeArtifactSession.cpp");
+    const auto render = ReadText(root /
+        "Engine/Source/Programs/SagaRuntime/Private/RuntimeRenderSession.cpp");
+    const auto script = ReadText(root /
+        "Engine/Source/Programs/SagaRuntime/Private/RuntimeScriptSession.cpp");
+    const auto ui = ReadText(root /
+        "Engine/Source/Programs/SagaRuntime/Private/RuntimeUiSession.cpp");
+    const auto evidence = ReadText(root /
+        "Engine/Source/Programs/SagaRuntime/Private/RuntimeEvidenceSession.cpp");
+    const auto frameLoop = ReadText(root /
+        "Engine/Source/Programs/SagaRuntime/Private/RuntimeFrameLoop.cpp");
+
+    for (const auto* source : {
+             "RuntimeLaunchSession.cpp", "RuntimeArtifactSession.cpp",
+             "RuntimeRenderSession.cpp", "RuntimeScriptSession.cpp",
+             "RuntimeUiSession.cpp", "RuntimeEvidenceSession.cpp",
+             "RuntimeFrameLoop.cpp"})
+    {
+        EXPECT_TRUE(ContainsCMakeToken(manifest, source)) << source;
+    }
+
+    EXPECT_NE(host.find("RunRuntimeFrameLoop"), std::string::npos);
+    for (const auto* implementationDetail : {
+             "Json::parse", "CaptureCurrentColorFrame", "LoadDocument",
+             "CreateRmlUiUiBackend", "CSharpScriptHost", "ofstream"})
+    {
+        EXPECT_EQ(host.find(implementationDetail), std::string::npos)
+            << implementationDetail;
+    }
+
+    EXPECT_NE(launch.find("Runtime.Envelope.SchemaInvalid"), std::string::npos);
+    EXPECT_EQ(frameLoop.find("Runtime.Envelope.SchemaInvalid"), std::string::npos);
+    EXPECT_NE(artifacts.find("RuntimeLaunchSession::VerifyFile"), std::string::npos);
+    EXPECT_EQ(frameLoop.find("RuntimeLaunchSession::VerifyFile"), std::string::npos);
+    EXPECT_NE(render.find("backend->Submit"), std::string::npos);
+    EXPECT_EQ(ui.find("RenderView"), std::string::npos);
+    EXPECT_NE(script.find("InvokeNamedAction"), std::string::npos);
+    EXPECT_NE(evidence.find("CaptureCurrentColorFrame"), std::string::npos);
+    EXPECT_EQ(evidence.find("SetBool"), std::string::npos);
+    EXPECT_EQ(evidence.find("InvokeNamedAction"), std::string::npos);
+    EXPECT_EQ(frameLoop.find("P6\\n"), std::string::npos);
+}
+
+TEST(CMakeTargetBoundaryTests, ReadOnlyProjectionStaysOutsideRuntimeLaunchAndExecution)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto targets = ReadText(root / "cmake/modules/SagaTargets.cmake");
+    const auto play = ReadText(root /
+        "Engine/Source/Editor/EditorAuthoring/Private/SagaEditor/Play/PlayPreparationPipeline.cpp");
+    const auto launch = ReadText(root /
+        "Engine/Source/Runtime/SagaRuntime/Public/SagaRuntime/Play/RuntimePlayContracts.hpp");
+    const auto qtPanel = ReadText(root /
+        "Engine/Source/Editor/EditorQt/Private/SagaEditorQt/Panels/ScriptingPanel.cpp");
+    const auto qtBlocks = ReadText(root /
+        "Engine/Source/Editor/EditorQt/Private/SagaEditorQt/Panels/ReadOnlyBlocksWidget.cpp");
+    const auto projectionHeader = ReadText(root /
+        "Engine/Source/Editor/VisualBlocksEditor/Public/SagaEditor/VisualBlocks/ReadOnlyScriptProjection.h");
+    const auto projectionSource = ReadText(root /
+        "Engine/Source/Editor/VisualBlocksEditor/Private/SagaEditor/VisualBlocks/ReadOnlyScriptProjection.cpp");
+
+    const auto runtimeLinks = ExtractTargetCalls(targets, "target_link_libraries", "SagaRuntime");
+    EXPECT_EQ(runtimeLinks.find("VisualBlocks"), std::string::npos);
+    EXPECT_EQ(launch.find("projection"), std::string::npos);
+    EXPECT_EQ(launch.find("Projection"), std::string::npos);
+    EXPECT_EQ(play.find("block-projection"), std::string::npos);
+    EXPECT_EQ(play.find("ReadOnlyScriptProjection"), std::string::npos);
+    EXPECT_EQ(qtPanel.find("Microsoft.CodeAnalysis"), std::string::npos);
+    EXPECT_EQ(qtPanel.find("CSharpSyntaxTree"), std::string::npos);
+    for (const auto* mutation : {"ReplaceText", "SourceDocumentTransaction",
+                                 "ApplyPatch", "WriteFile"})
+        EXPECT_EQ(qtBlocks.find(mutation), std::string::npos) << mutation;
+    for (const auto& text : {projectionHeader, projectionSource})
+    {
+        EXPECT_EQ(text.find("VirtualMachine"), std::string::npos);
+        EXPECT_EQ(text.find("ExecutionLoop"), std::string::npos);
+        EXPECT_EQ(text.find("<fstream>"), std::string::npos);
     }
 }
 

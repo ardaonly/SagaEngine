@@ -1,13 +1,14 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorApp.cpp
-/// @brief Top-level editor application entry point — owns the UI backend, host, and shell.
+/// @brief Owns editor host and shell state beneath the platform composition root.
 
 #include "SagaEditor/Host/EditorApp.h"
 #include "SagaEditor/Host/EditorHost.h"
 #include "SagaEditor/Profile/EditorProfileRegistry.h"
 #include "SagaEditor/Shell/EditorShell.h"
 #include "SagaEditor/Settings/IEditorSettingsStore.h"
-#include "SagaEditor/UI/IUIApplication.h"
-#include "SagaEditor/UI/IUIFactory.h"
+#include "SagaEditor/UI/IUIMainWindow.h"
+#include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
 
 namespace SagaEditor
 {
@@ -19,16 +20,13 @@ EditorApp::~EditorApp() = default;
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
 
-bool EditorApp::Init(const EditorAppConfig& cfg, IUIFactory& factory)
+bool EditorApp::Init(
+    const EditorAppConfig& cfg,
+    std::unique_ptr<IEditorSettingsStore> settingsStore,
+    std::unique_ptr<IUIMainWindow> mainWindow)
 {
-    // UI application must be created before any window (mirrors QApplication rule).
-    // `IUIFactory::CreateApplication` takes `int& argc` because the underlying
-    // toolkit (Qt today) may consume processed arguments and trim the array.
-    // The `cfg.argc` member is `const int`, so we mirror it into a local
-    // mutable variable that the factory is allowed to scribble on.
-    m_argc  = cfg.argc;
-    m_argv  = cfg.argv;
-    m_uiApp = factory.CreateApplication(m_argc, m_argv);
+    if (!settingsStore || !mainWindow)
+        return false;
 
     m_host  = std::make_unique<EditorHost>();
     m_shell = std::make_unique<EditorShell>();
@@ -47,12 +45,12 @@ bool EditorApp::Init(const EditorAppConfig& cfg, IUIFactory& factory)
         {
             resolvedLayoutPreset = cfg.preparedWorkspace->layoutPreset;
         }
-        if (!m_host->Init(factory.CreateSettingsStore(),
+        if (!m_host->Init(std::move(settingsStore),
                           *cfg.preparedWorkspace,
                           cfg.composition))
             return false;
     }
-    else if (!m_host->Init(factory.CreateSettingsStore(),
+    else if (!m_host->Init(std::move(settingsStore),
                            resolvedWorkspacePath,
                            cfg.composition))
     {
@@ -60,6 +58,11 @@ bool EditorApp::Init(const EditorAppConfig& cfg, IUIFactory& factory)
     }
     if (!resolvedProfileId.empty() &&
         !m_host->GetEditorProfileRegistry().SetActive(resolvedProfileId))
+    {
+        return false;
+    }
+    if (!cfg.projectPath.empty() &&
+        !m_host->GetDocumentWorkspace().OpenProject(cfg.projectPath))
     {
         return false;
     }
@@ -71,22 +74,16 @@ bool EditorApp::Init(const EditorAppConfig& cfg, IUIFactory& factory)
     shellCfg.maximized     = cfg.maximized;
     shellCfg.workspacePath = resolvedWorkspacePath;
     shellCfg.layoutPreset  = resolvedLayoutPreset;
-    shellCfg.showOnInit    = cfg.showOnInit && !cfg.smoke;
+    shellCfg.showOnInit    = cfg.showOnInit;
+    shellCfg.registerDefaultPanels = cfg.registerDefaultPanels;
+    shellCfg.applyActivePersona = cfg.applyActivePersona;
+    shellCfg.projectWorkflowPrompts = cfg.projectWorkflowPrompts;
+    shellCfg.runtimeExecutable = cfg.runtimeExecutable;
 
-    if (!m_shell->Init(*m_host, factory, shellCfg))
+    if (!m_shell->Init(*m_host, std::move(mainWindow), shellCfg))
         return false;
 
     return true;
-}
-
-int EditorApp::Run()
-{
-    return m_uiApp->Run();
-}
-
-int EditorApp::RunSmoke(int timeoutMs)
-{
-    return m_uiApp->RunForSmoke(timeoutMs);
 }
 
 void EditorApp::Shutdown()

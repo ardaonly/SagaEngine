@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RenderView.h
 /// @brief Per-camera cull + LOD output consumed by the backend submission layer.
 ///

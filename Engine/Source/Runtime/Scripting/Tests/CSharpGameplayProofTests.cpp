@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CSharpGameplayProofTests.cpp
 /// @brief Editorless proof tests for CLI-compiled C# gameplay scripts.
 
@@ -55,7 +56,6 @@ void WriteFile(const std::filesystem::path& path, const std::string& contents)
     std::ofstream output(path);
     output << contents;
 }
-
 [[nodiscard]] std::string ReadFile(const std::filesystem::path& path)
 {
     std::ifstream input(path);
@@ -332,45 +332,6 @@ void ConfigureDotnetEnvironment()
     return CompileProjectSources(root, assemblyName);
 }
 
-[[nodiscard]] std::filesystem::path StarterArenaRoot()
-{
-    return std::filesystem::path(SAGA_SOURCE_ROOT) / "Samples" /
-        "StarterArena";
-}
-
-[[nodiscard]] std::filesystem::path StarterArenaProjectPath()
-{
-    return StarterArenaRoot() / "StarterArena.sagaproj";
-}
-
-[[nodiscard]] std::filesystem::path StarterArenaGameRulesPath()
-{
-    return StarterArenaRoot() / "Scripts" / "GameRules.cs";
-}
-
-[[nodiscard]] bool StarterArenaDeclaresScriptsFolder()
-{
-    const auto manifest = ReadJson(StarterArenaProjectPath());
-    const auto scripts = manifest.value("scriptFolders", nlohmann::json::array());
-    return std::any_of(
-        scripts.begin(),
-        scripts.end(),
-        [](const nlohmann::json& folder)
-        {
-            return folder.value("path", "") == "Scripts";
-        });
-}
-
-[[nodiscard]] bool CompileStarterArenaProject(
-    const std::filesystem::path& root)
-{
-    std::filesystem::create_directories(root / "Scripts");
-    std::filesystem::copy_file(
-        StarterArenaGameRulesPath(),
-        root / "Scripts" / "GameRules.cs",
-        std::filesystem::copy_options::overwrite_existing);
-    return CompileProjectSources(root, "StarterArenaScripts");
-}
 
 void EnsureTransformRegistered()
 {
@@ -551,50 +512,6 @@ TEST(CSharpGameplayProofTests, EditorlessCompiledScriptMutatesSelfPosition)
     EXPECT_TRUE(HasLog(logs, "SelfProof:Update:0.75"));
 }
 
-TEST(CSharpGameplayProofTests, StarterArenaGameRulesRunsCompiledLifecycleHeadlessly)
-{
-    ASSERT_TRUE(std::filesystem::exists(StarterArenaProjectPath()));
-    ASSERT_TRUE(std::filesystem::exists(StarterArenaGameRulesPath()));
-    ASSERT_TRUE(StarterArenaDeclaresScriptsFolder());
-
-    const auto source = ReadFile(StarterArenaGameRulesPath());
-    ASSERT_NE(
-        source.find("[SagaScriptId(\"script://starter-arena/game-rules\")]"),
-        std::string::npos);
-    ASSERT_NE(source.find("[SharedPure]"), std::string::npos);
-    ASSERT_NE(source.find("AddPickupScore"), std::string::npos);
-
-    EnsureTransformRegistered();
-    const auto root = TempProjectRoot("saga_starter_arena_lifecycle_proof");
-    ASSERT_TRUE(CompileStarterArenaProject(root));
-
-    WorldState worldState;
-    WorldStateScriptWorld scriptWorld(worldState);
-    std::vector<ScriptLogEvent> logs;
-
-    CSharpScriptHost host(HostOptions(scriptWorld, logs));
-    ScriptPackageValidationOptions validationOptions;
-    validationOptions.expectedPackageDestination = "server";
-    ScriptLifecycleService service(host, {}, validationOptions);
-
-    const auto load = service.LoadPackage(MakePackageRequest(root));
-    ASSERT_TRUE(load.Succeeded()) << DescribeDiagnostics(load.diagnostics);
-    const auto instance = service.CreateInstance(MakeInstanceRequest(
-        load.package,
-        "script://starter-arena/game-rules",
-        "StarterArena.Scripts.GameRules"));
-    ASSERT_TRUE(instance.Succeeded()) << DescribeDiagnostics(instance.diagnostics);
-
-    ASSERT_TRUE(service.StartInstance(instance.instance).Succeeded());
-    ASSERT_TRUE(service.UpdateInstance(instance.instance, 0.016).Succeeded());
-    ASSERT_TRUE(service.DestroyInstance(instance.instance).Succeeded());
-
-    EXPECT_TRUE(HasLog(logs, "StarterArena.GameRules.OnCreate"));
-    EXPECT_TRUE(HasLog(logs, "StarterArena.GameRules.OnStart"));
-    EXPECT_TRUE(HasLog(logs, "StarterArena.GameRules.OnUpdate"));
-    EXPECT_TRUE(HasLog(logs, "StarterArena.GameRules.OnDestroy"));
-    EXPECT_EQ(worldState.EntityCount(), 0u);
-}
 
 TEST(CSharpGameplayProofTests, EditorlessCompiledScriptCanCreateEntityWhenGranted)
 {

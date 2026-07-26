@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DeterministicMath.cpp
 /// @brief Implementation of the deterministic math primitives.
 ///

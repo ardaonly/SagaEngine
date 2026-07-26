@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file InputManager.cpp
 /// @brief Orchestrates the full client-side input pipeline each frame.
 ///

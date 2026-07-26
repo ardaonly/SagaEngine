@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CollaborationDiagnostic.hpp
 /// @brief Shared diagnostic payload for collaboration services and UI adapters.
 

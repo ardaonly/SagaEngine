@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file CrashContext.hpp
 /// @brief Defines caller-supplied context for crash and reliability reports.
 

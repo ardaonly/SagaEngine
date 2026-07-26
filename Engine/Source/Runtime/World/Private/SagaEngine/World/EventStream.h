@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EventStream.h
 /// @brief Append-only event log for world state — the backbone of event sourcing.
 ///

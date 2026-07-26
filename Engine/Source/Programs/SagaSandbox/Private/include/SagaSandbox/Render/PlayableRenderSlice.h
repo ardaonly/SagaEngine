@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PlayableRenderSlice.h
 /// @brief Deterministic single-object render scene used by sandbox and tests.
 

@@ -1,12 +1,14 @@
+// SPDX-License-Identifier: MPL-2.0
+
 /// @file ProjectManager.cpp
-/// @brief Editor-local project session state.
+/// @brief Editor project session backed by SagaProjectKit validation.
 
 #include "SagaEditor/Project/ProjectManager.h"
+#include "SagaEditor/Project/SagaProjectKitClient.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <filesystem>
-#include <fstream>
-#include <nlohmann/json.hpp>
 #include <utility>
 #include <vector>
 
@@ -14,159 +16,111 @@ namespace SagaEditor
 {
 namespace
 {
-
-[[nodiscard]] std::filesystem::path ResolveProjectManifest(
-    const std::filesystem::path& input)
+std::filesystem::path ResolveManifestPath(const std::filesystem::path& input)
 {
-    if (input.empty())
-    {
-        return {};
-    }
-
-    std::error_code ec;
-    if (std::filesystem::is_regular_file(input, ec))
-    {
-        if (input.extension() != ".sagaproj")
-            return {};
-        return std::filesystem::weakly_canonical(input, ec);
-    }
-
-    if (!std::filesystem::is_directory(input, ec))
-        return {};
-
+    std::error_code error;
+    if (std::filesystem::is_regular_file(input, error))
+        return input.extension() == ".sagaproj" ?
+            std::filesystem::absolute(input).lexically_normal() : std::filesystem::path{};
+    if (!std::filesystem::is_directory(input, error)) return {};
     std::vector<std::filesystem::path> candidates;
-    for (const auto& entry : std::filesystem::directory_iterator(input, ec))
-    {
+    for (const auto& entry : std::filesystem::directory_iterator(input, error))
         if (entry.is_regular_file() && entry.path().extension() == ".sagaproj")
             candidates.push_back(entry.path());
-    }
-    if (ec || candidates.size() != 1)
-        return {};
-    return std::filesystem::weakly_canonical(candidates.front(), ec);
+    if (error || candidates.size() != 1) return {};
+    return std::filesystem::absolute(candidates.front()).lexically_normal();
 }
 
-[[nodiscard]] bool ReadManifest(
-    const std::filesystem::path& manifestPath,
-    ProjectInfo& project)
+std::shared_ptr<IProjectToolClient> DefaultClient()
 {
-    std::ifstream input(manifestPath);
-    if (!input.is_open())
+    const char* configured = std::getenv("SAGA_PROJECT_TOOL");
+    if (configured && *configured)
+        return std::make_shared<SagaProjectKitClient>(configured);
+    const auto findFrom = [](std::filesystem::path cursor) -> std::filesystem::path
     {
-        return false;
-    }
-
-    nlohmann::json json;
-    try
-    {
-        input >> json;
-    }
-    catch (const nlohmann::json::exception&)
-    {
-        return false;
-    }
-
-    if (!json.is_object() || !json.contains("schemaVersion") ||
-        !json["schemaVersion"].is_number_integer() ||
-        json["schemaVersion"].get<int>() != 0 ||
-        !json.contains("projectId") || !json["projectId"].is_string() ||
-        json["projectId"].get<std::string>().empty() ||
-        !json.contains("displayName") || !json["displayName"].is_string() ||
-        json["displayName"].get<std::string>().empty())
-        return false;
-
-    project.name = json["displayName"].get<std::string>();
-    if (json.contains("engineCompatibility") &&
-        json["engineCompatibility"].is_object() &&
-        json["engineCompatibility"].contains("targetVersion") &&
-        json["engineCompatibility"]["targetVersion"].is_string())
-        project.engineVersion =
-            json["engineCompatibility"]["targetVersion"].get<std::string>();
-
-    return true;
+        std::error_code error;
+        cursor = std::filesystem::absolute(cursor, error);
+        if (error) return {};
+        while (!cursor.empty())
+        {
+            const auto candidate = cursor /
+                "Tools/SagaProjectKit/bin/Release/net10.0/sagaproject";
+            if (std::filesystem::is_regular_file(candidate)) return candidate;
+            const auto parent = cursor.parent_path();
+            if (parent == cursor) break;
+            cursor = parent;
+        }
+        return {};
+    };
+    if (const char* engineRoot = std::getenv("SAGA_ENGINE_ROOT"); engineRoot && *engineRoot)
+        if (const auto found = findFrom(engineRoot); !found.empty())
+            return std::make_shared<SagaProjectKitClient>(found);
+    if (const auto found = findFrom(std::filesystem::current_path()); !found.empty())
+        return std::make_shared<SagaProjectKitClient>(found);
+#ifndef _WIN32
+    std::error_code error;
+    const auto executable = std::filesystem::read_symlink("/proc/self/exe", error);
+    if (!error)
+        if (const auto found = findFrom(executable.parent_path()); !found.empty())
+            return std::make_shared<SagaProjectKitClient>(found);
+#endif
+    return std::make_shared<SagaProjectKitClient>("sagaproject");
 }
-
-} // namespace
-
-// ─── Pimpl Definition ────────────────────────────────────────────────────────
+}
 
 struct ProjectManager::Impl
 {
+    std::shared_ptr<IProjectToolClient> client;
     bool open = false;
     ProjectInfo current;
     std::function<void()> onProjectChanged;
-
-    void NotifyProjectChanged() const
-    {
-        if (onProjectChanged)
-        {
-            onProjectChanged();
-        }
-    }
 };
 
-// ─── Method Stubs ─────────────────────────────────────────────────────────────
-
-ProjectManager::ProjectManager()
+ProjectManager::ProjectManager(std::shared_ptr<IProjectToolClient> client)
     : m_impl(std::make_unique<Impl>())
-{}
+{
+    m_impl->client = client ? std::move(client) : DefaultClient();
+}
 
 ProjectManager::~ProjectManager() = default;
 
+bool ProjectManager::CreateStarterArena(const ProjectTemplateRequest& request)
+{
+    const auto creation = m_impl->client->CreateStarterArena(request);
+    if (!creation.passed) return false;
+    return OpenProject(request.destination.string());
+}
+
 bool ProjectManager::OpenProject(const std::string& path)
 {
-    const std::filesystem::path manifest = ResolveProjectManifest(path);
-    if (manifest.empty())
-    {
-        return false;
-    }
-
-    std::error_code ec;
-    const std::filesystem::path root = manifest.parent_path();
-    if (!std::filesystem::exists(root, ec) ||
-        !std::filesystem::is_directory(root, ec))
-    {
-        return false;
-    }
-
+    const auto manifest = ResolveManifestPath(path);
+    if (manifest.empty()) return false;
+    const auto validation = m_impl->client->Validate(manifest);
+    if (!validation.passed) return false;
     ProjectInfo next;
-    next.rootPath = root.string();
-
-    if (!ReadManifest(manifest, next))
-    {
-        return false;
-    }
-
+    next.projectId = validation.project.projectId;
+    next.name = validation.project.displayName;
+    next.rootPath = validation.project.projectRoot.string();
+    next.manifestPath = validation.project.manifestPath.string();
+    next.engineVersion = validation.project.engineTargetVersion;
+    next.schemaVersion = validation.project.schemaVersion;
+    next.sources = validation.project.sources;
     m_impl->current = std::move(next);
     m_impl->open = true;
-    m_impl->NotifyProjectChanged();
+    if (m_impl->onProjectChanged) m_impl->onProjectChanged();
     return true;
 }
 
 void ProjectManager::CloseProject()
 {
-    if (!m_impl->open)
-    {
-        return;
-    }
-
+    if (!m_impl->open) return;
     m_impl->current = {};
     m_impl->open = false;
-    m_impl->NotifyProjectChanged();
+    if (m_impl->onProjectChanged) m_impl->onProjectChanged();
 }
 
-bool ProjectManager::IsProjectOpen() const noexcept
-{
-    return m_impl->open;
-}
-
-const ProjectInfo& ProjectManager::GetCurrentProject() const
-{
-    return m_impl->current;
-}
-
-void ProjectManager::SetOnProjectChanged(std::function<void()> cb)
-{
-    m_impl->onProjectChanged = std::move(cb);
-}
+bool ProjectManager::IsProjectOpen() const noexcept { return m_impl->open; }
+const ProjectInfo& ProjectManager::GetCurrentProject() const { return m_impl->current; }
+void ProjectManager::SetOnProjectChanged(std::function<void()> cb) { m_impl->onProjectChanged = std::move(cb); }
 
 } // namespace SagaEditor

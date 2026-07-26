@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
 """In-memory verification run history for SagaSync."""
 
 from __future__ import annotations

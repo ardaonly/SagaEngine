@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentFallbackResources.h
 /// @brief Private native binding fallback resources for the Diligent adapter.
 

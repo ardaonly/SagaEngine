@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ReplicationRoundTripTest.h
 /// @brief Round-trip tests for the replication pipeline: encode -> decode -> verify.
 ///

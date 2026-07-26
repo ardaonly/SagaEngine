@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file UIPersona.cpp
 /// @brief Implementation of the top-level persona descriptor + factories.
 

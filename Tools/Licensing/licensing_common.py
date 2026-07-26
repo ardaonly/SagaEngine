@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# SPDX-FileCopyrightText: 2026 Arda Koyuncu
 # SPDX-License-Identifier: MPL-2.0
 
 from __future__ import annotations
@@ -236,6 +234,7 @@ def ensure_license_ref_texts(
 CANONICAL_DOCUMENT_PATHS = {
     "LICENSES/MPL-2.0.txt",
     "LICENSES/Apache-2.0.txt",
+    "LICENSES/MIT.txt",
     "LICENSES/0BSD.txt",
     "LICENSES/CC-BY-4.0.txt",
     "LICENSES/CC0-1.0.txt",
@@ -255,6 +254,16 @@ GOVERNANCE_CHECKSUM_PATHS = {
     "Tools/Licensing/collect_cmake_target_graph.py",
     "Tools/Licensing/generate_legacy_path_rules.py",
     "Tools/Licensing/licensing_common.py",
+    "Tools/Licensing/licensing_policy/__init__.py",
+    "Tools/Licensing/licensing_policy/cmake_validation.py",
+    "Tools/Licensing/licensing_policy/governance_validation.py",
+    "Tools/Licensing/licensing_policy/inventory.py",
+    "Tools/Licensing/licensing_policy/model.py",
+    "Tools/Licensing/licensing_policy/reports.py",
+    "Tools/Licensing/licensing_policy/repository_validation.py",
+    "Tools/Licensing/licensing_policy/resolver.py",
+    "Tools/Licensing/licensing_policy/schema.py",
+    "Tools/Licensing/licensing_policy/service.py",
     "Tools/Licensing/regenerate_license_checksums.py",
     "Tools/Licensing/validate_license_policy.py",
     "Tools/Licensing/verify_license_texts.py",

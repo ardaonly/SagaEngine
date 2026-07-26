@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaGraphicsHeaderSmokeTests.cpp
 /// @brief Compile-smoke for the SagaGraphics public umbrella header.
 

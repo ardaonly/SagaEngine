@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PackageManifest.hpp
 /// @brief Defines runtime package manifest value types.
 

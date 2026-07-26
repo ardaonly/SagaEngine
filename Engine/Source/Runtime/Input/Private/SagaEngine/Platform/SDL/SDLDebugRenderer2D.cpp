@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SDLDebugRenderer2D.cpp
 /// @brief SDL2 implementation of IDebugRenderer2D.
 

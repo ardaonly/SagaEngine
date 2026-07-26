@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ComponentEditorRegistry.h
 /// @brief Type-keyed factory map that produces inspector panels per component.
 

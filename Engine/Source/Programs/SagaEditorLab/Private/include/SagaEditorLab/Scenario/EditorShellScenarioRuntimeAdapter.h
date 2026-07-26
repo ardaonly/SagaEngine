@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorShellScenarioRuntimeAdapter.h
 /// @brief EditorShell-backed scenario adapter for EditorLab panel visibility checks.
 

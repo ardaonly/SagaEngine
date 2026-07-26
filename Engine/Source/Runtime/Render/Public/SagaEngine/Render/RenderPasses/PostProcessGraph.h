@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file PostProcessGraph.h
 /// @brief Declarative post-processing chain description consumed by the render graph.
 ///

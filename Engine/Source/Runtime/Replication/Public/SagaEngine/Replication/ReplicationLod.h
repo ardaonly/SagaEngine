@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ReplicationLod.h
 /// @brief Distance-based level-of-detail tiers for replication update rate.
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file SagaStateCheckTests.cpp
 /// @brief Verifies deterministic SagaStateCheck snapshot comparison.
 

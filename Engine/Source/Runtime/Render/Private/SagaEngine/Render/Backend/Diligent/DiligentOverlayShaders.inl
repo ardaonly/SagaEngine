@@ -4,7 +4,8 @@
 static constexpr const char* kOverlayVS = R"(
 cbuffer OverlayCB : register(b0)
 {
-    float4x4 ProjectionMatrix;
+    float2 Scale;
+    float2 Translate;
 };
 
 struct VS_INPUT
@@ -23,7 +24,7 @@ struct PS_INPUT
 
 void main(in VS_INPUT input, out PS_INPUT output)
 {
-    output.pos = mul(ProjectionMatrix, float4(input.pos.xy, 0.0, 1.0));
+    output.pos = float4(input.pos * Scale + Translate, 0.0, 1.0);
     output.col = input.col;
     output.uv  = input.uv;
 }

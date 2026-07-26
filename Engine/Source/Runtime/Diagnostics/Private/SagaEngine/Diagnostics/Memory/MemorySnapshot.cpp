@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file MemorySnapshot.cpp
 /// @brief Implements deterministic diagnostics memory snapshots.
 

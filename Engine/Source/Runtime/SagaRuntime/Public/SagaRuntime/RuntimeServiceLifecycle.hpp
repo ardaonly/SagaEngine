@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file RuntimeServiceLifecycle.hpp
 /// @brief Runtime-owned service lifecycle value types.
 

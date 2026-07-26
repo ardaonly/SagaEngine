@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file Camera.h
 /// @brief Render-time camera: position, view/projection, visibility filter.
 ///

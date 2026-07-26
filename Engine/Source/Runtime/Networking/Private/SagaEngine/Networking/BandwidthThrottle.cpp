@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file BandwidthThrottle.cpp
 /// @brief Implementation of the per-connection byte token bucket.
 

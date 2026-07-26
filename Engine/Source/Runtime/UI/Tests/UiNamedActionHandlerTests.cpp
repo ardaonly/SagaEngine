@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file UiNamedActionHandlerTests.cpp
 /// @brief Unit tests for backend-neutral UI named action handlers.
 

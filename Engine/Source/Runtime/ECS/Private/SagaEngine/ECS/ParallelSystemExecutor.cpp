@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file ParallelSystemExecutor.cpp
 /// @brief Implementation of the TaskGraph-backed parallel ECS executor.
 

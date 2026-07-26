@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file EditorCompositionDiagnostics.h
 /// @brief Structured diagnostics for editor composition artifact loading and resolution.
 

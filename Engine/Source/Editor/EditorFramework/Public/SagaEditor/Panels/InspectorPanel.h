@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file InspectorPanel.h
 /// @brief Component inspector panel — edits properties of selected entities.
 ///
@@ -21,6 +22,8 @@ namespace SagaEditor
 class ComponentEditorRegistry;
 class InspectorBinder;
 class SelectionManager;
+class EditorDocumentWorkspace;
+class UndoRedoStack;
 
 // ─── Inspector Panel ──────────────────────────────────────────────────────────
 
@@ -39,7 +42,7 @@ public:
     // ─── IPanel ───────────────────────────────────────────────────────────────
     [[nodiscard]] PanelId     GetPanelId()      const override;
     [[nodiscard]] std::string GetTitle()        const override;
-    [[nodiscard]] void*       GetNativeWidget() const noexcept override;
+    [[nodiscard]] QWidget*    Widget() const noexcept override;
 
     void OnInit()     override;
     void OnShutdown() override;
@@ -58,6 +61,8 @@ public:
     /// Edit forwarder. May be nullptr; without a binder, edits made
     /// inside child editors do not propagate beyond the panel.
     void SetInspectorBinder(InspectorBinder* binder) noexcept;
+    void SetDocumentWorkspace(EditorDocumentWorkspace* workspace) noexcept;
+    void SetUndoRedoStack(UndoRedoStack* journal) noexcept;
 
     // ─── Rebuild ──────────────────────────────────────────────────────────────
 

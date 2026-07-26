@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file UiNamedActionHandlerRegistry.cpp
 /// @brief Default backend-neutral UI named action handler registry.
 

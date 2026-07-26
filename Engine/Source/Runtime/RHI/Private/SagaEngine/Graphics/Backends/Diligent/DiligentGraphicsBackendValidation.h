@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 /// @file DiligentGraphicsBackendValidation.h
 /// @brief Private validation and byte-estimation helpers for DiligentGraphicsBackend.
 

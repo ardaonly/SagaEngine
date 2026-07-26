@@ -1,30 +1,117 @@
 {
-  "schemaVersion": 0,
-  "projectId": "starter-arena",
-  "displayName": "StarterArena",
-  "engineCompatibility": {
-    "minimumVersion": "0.0.9",
-    "targetVersion": "0.1-project-readiness",
-    "channel": "project-readiness"
-  },
-  "paths": {
-    "diagnostics": "Diagnostics",
-    "generatedReports": "Build/Reports"
-  },
-  "scenes": [
+  "assets": [
     {
-      "id": "starter-arena-local-loop",
-      "path": "Scenes/arena.scene.json",
-      "kind": "scene"
+      "id": "starter-arena.door",
+      "kind": "primitive",
+      "path": "Assets/Door.asset.json"
+    },
+    {
+      "id": "starter-arena.door-frame",
+      "kind": "primitive",
+      "path": "Assets/DoorFrame.asset.json"
+    },
+    {
+      "id": "starter-arena.ground",
+      "kind": "primitive",
+      "path": "Assets/Ground.asset.json"
     }
   ],
-  "assets": [],
-  "scriptFolders": [
+  "dependencies": [
     {
-      "id": "starter-arena.scripts",
-      "path": "Scripts"
+      "modules": [
+        "gameplay.highlevel"
+      ],
+      "packageId": "com.saga.gameplay.foundation",
+      "version": "0.0.11"
+    }
+  ],
+  "displayName": "StarterArena",
+  "engineCompatibility": {
+    "channel": "stable",
+    "minimumVersion": "0.0.11",
+    "targetVersion": "0.0.11"
+  },
+  "inputMaps": [
+    {
+      "id": "starter-arena.input",
+      "kind": "input-map",
+      "path": "Input/Input.saga.json"
     }
   ],
   "launchProfiles": [],
-  "packageProfiles": []
+  "packageProfiles": [],
+  "paths": {
+    "diagnostics": "Build/Diagnostics",
+    "generatedReports": "Build/Reports",
+    "generatedState": "Build",
+    "personalState": ".saga/user",
+    "sharedWorkspaceState": ".saga/shared",
+    "sourceTruth": "."
+  },
+  "projectId": "7c291959-9f45-4ec1-bf94-dc75e30bb1a8",
+  "scenes": [
+    {
+      "id": "starter-arena.scene",
+      "kind": "scene",
+      "path": "Scenes/StarterArena.sagascene"
+    }
+  ],
+  "schemaVersion": 0,
+  "scriptFolders": [
+    {
+      "id": "starter-arena.scripts",
+      "kind": "csharp",
+      "path": "Scripts"
+    }
+  ],
+  "statePolicies": [
+    {
+      "classification": "SourceTruth",
+      "path": ".",
+      "tracked": true
+    },
+    {
+      "classification": "GeneratedState",
+      "path": "Build",
+      "tracked": false
+    },
+    {
+      "classification": "GeneratedState",
+      "exception": "Sole tracked generated-build exception; verifies the exact offline package graph.",
+      "path": "SagaPackage.lock",
+      "tracked": true
+    },
+    {
+      "classification": "PersonalState",
+      "path": ".saga/user",
+      "tracked": false
+    },
+    {
+      "classification": "SharedWorkspaceState",
+      "path": ".saga/shared",
+      "tracked": false
+    }
+  ],
+  "uiDocuments": [
+    {
+      "id": "starter-arena.hud",
+      "kind": "ui-config",
+      "path": "Content/UI/HUD/interaction-prompt.ui.json"
+    },
+    {
+      "id": "starter-arena.hud.document",
+      "kind": "rml",
+      "path": "Content/UI/HUD/interaction-prompt.rml"
+    },
+    {
+      "id": "starter-arena.hud.styles",
+      "kind": "rcss",
+      "path": "Content/UI/HUD/interaction-prompt.rcss"
+    },
+    {
+      "id": "starter-arena.hud.font",
+      "kind": "font",
+      "path": "Content/UI/ThirdParty/DejaVu/DejaVuSans.ttf"
+    }
+  ]
 }
