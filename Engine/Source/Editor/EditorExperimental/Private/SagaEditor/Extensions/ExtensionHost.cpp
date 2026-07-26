@@ -51,6 +51,7 @@ struct ExtensionHost::ContextImpl : public IExtensionContext
 {
     EditorHost&              host;
     EditorShell*             shell = nullptr;
+    std::vector<std::string> registeredPanels;
     std::vector<std::string> registeredCommands; ///< Tracked for automatic unregister.
 
     explicit ContextImpl(EditorHost& h) : host(h) {}
@@ -62,13 +63,19 @@ struct ExtensionHost::ContextImpl : public IExtensionContext
     {
         if (shell)
         {
+            registeredPanels.push_back(panel->GetPanelId());
             shell->RegisterPanel(std::move(panel), TranslateDockArea(area));
         }
     }
 
-    void UnregisterPanel(const std::string& /*panelId*/) override
+    void UnregisterPanel(const std::string& panelId) override
     {
-        // Deregistration path wired when panel removal is added to EditorShell.
+        if (!shell)
+            return;
+        (void)shell->UnregisterPanel(panelId);
+        registeredPanels.erase(
+            std::remove(registeredPanels.begin(), registeredPanels.end(), panelId),
+            registeredPanels.end());
     }
 
     // ─── Command Registration ─────────────────────────────────────────────────

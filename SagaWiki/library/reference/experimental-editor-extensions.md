@@ -7,18 +7,18 @@ reviewed_against: 0.0.11-post-cutover
 
 # Experimental editor extensions
 
-EditorExperimental currently contains an in-process extension experiment: extension points, a static instance registry, a host, lifecycle interfaces, command and panel interfaces, bridges, context, and serialization. This is useful implementation groundwork. Its location and current evidence deliberately classify it as experimental rather than a stable plugin contract.
+EditorExperimental contains a narrow in-process extension experiment: a static
+instance registry, host, lifecycle interface, and context backed by the real
+editor command and panel owners. Its location and current evidence deliberately
+classify it as experimental rather than a stable plugin contract.
 
 ## Current surface
 
 | Area | Checked-in types | Bounded meaning |
 | --- | --- | --- |
-| Description | `ExtensionPoint` | Named in-process integration locations. |
 | Registration | `ExtensionRegistry` | Explicit registration of already-created extension instances, with deterministic order and replacement tests. |
 | Lifecycle | `IEditorExtension`, `ExtensionHost`, `IExtensionContext` | Load/unload coordination against current editor services. |
-| Commands | `IExtensionCommand`, `ExtensionCommandBridge` | An extension-shaped command adapted to the editor command surface. |
-| Panels | `IExtensionPanel`, `ExtensionPanelBridge` | An extension-shaped panel adapted to the current shell. |
-| State | `IExtensionSerializer` | An in-process serialization hook, not a long-term compatibility format. |
+| Commands and panels | `IExtensionContext` | Direct registration through the existing editor owners, including real panel removal. |
 
 The host currently coordinates extension lifecycle and can expose editor shell/framework capabilities through a context. An interface being under `Public` means another current target can include it; it does not by itself guarantee third-party binary compatibility, distribution support, or permanent naming.
 
@@ -41,12 +41,6 @@ Because there is no stable public plugin domain or plugin contract, historical p
 Loading an in-process native extension is equivalent to loading code into the editor process unless a future isolation design proves otherwise. The current interfaces do not establish sandboxing, signature verification, permission isolation, dependency resolution, remote acquisition, automatic updates, or malicious-extension containment.
 
 A registry entry is not approval to execute untrusted code. The former declaration-only manifest/loader surface was removed because returning no extension was not a loading contract. Any future public loading workflow must define provenance, compatible versions, failure isolation, allowed capabilities, distribution, and licensing before it can make a plugin-product claim.
-
-## Serialization and project truth
-
-`IExtensionSerializer` is a hook for current extension state. Its byte vector has no implied durable schema unless the owning extension declares and validates one. Personal panel/view state should remain personal. Project-owned authored state must use the project source contracts and semantic transactions rather than an opaque extension blob.
-
-Unknown or stale extension data must not silently override C#, scenes, project manifests, or asset source. If an extension produces derived artifacts, it records provenance and freshness like other generators.
 
 ## Failure behavior
 

@@ -75,6 +75,9 @@ public:
     void RegisterPanel(std::unique_ptr<IPanel> panel,
                        UIDockArea              area = UIDockArea::Right);
 
+    /// Undock and destroy a registered panel after running its shutdown hook.
+    [[nodiscard]] bool UnregisterPanel(const std::string& panelId);
+
     /// Find a registered panel by its stable PanelId.
     [[nodiscard]] IPanel* FindPanel(const std::string& panelId) const;
 
