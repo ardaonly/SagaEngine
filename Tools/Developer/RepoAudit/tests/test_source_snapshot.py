@@ -30,6 +30,8 @@ class SourceSnapshotTests(unittest.TestCase):
             "SagaWiki/library/evidence/testing.md",
             "SagaWiki/index.html",
             ".github/MAINTENANCE.md",
+            ".github/workflows/build.yml",
+            ".github/workflows/repository-contracts.yml",
             "scripts/wiki",
             "Vendor/library.cpp",
             "build/generated.cpp",
@@ -39,6 +41,8 @@ class SourceSnapshotTests(unittest.TestCase):
         self.assertIn("Samples/StarterArena/Content/UI/ThirdParty/DejaVu/PROVENANCE.md", selected)
         self.assertIn("Samples/StarterArena/Content/UI/ThirdParty/DejaVu/SHA256SUMS", selected)
         self.assertIn(".github/MAINTENANCE.md", selected)
+        self.assertIn(".github/workflows/build.yml", selected)
+        self.assertIn(".github/workflows/repository-contracts.yml", selected)
         self.assertNotIn("Samples/StarterArena/Content/UI/ThirdParty/DejaVu/DejaVuSans.ttf", selected)
         self.assertNotIn("SagaWiki/index.html", selected)
         self.assertFalse(any(path.startswith(("Vendor/", "build/", ".saga-private/"))
