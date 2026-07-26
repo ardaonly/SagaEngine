@@ -48,9 +48,49 @@ Configured CMake licensing evidence runs when source, build, test, or licensing 
 
 Failures are not hidden with `continue-on-error`. JUnit, JSON reports, and CTest logs upload with `if: always()` and each job writes a summary containing its exercised and excluded boundaries. Pull-request artifacts remain for 14 days, nightly results for 30 days, and licensing/weekly evidence for 90 days.
 
-Visible runtime evidence is opt-in and requires a qualified native display.
-There is currently no registered StarterArena visible-runtime case; source and
-tooling checks must not be reported as pixel or interaction evidence.
+StarterArena visible-runtime cases are registered as focused,
+environment-qualified evidence. They require explicit opt-in and a qualified
+native display/GPU. Their named frames bind session, canonical launch, input and
+UI artifact hashes, prompt semantics, door state, and HUD-region pixels to the
+same frame. The region is the floor/ceil physical-pixel conversion of RmlUi's
+border bounds, never a fixed-percentage estimate. Each semantic record carries
+its own pre-overlay capture and post-overlay capture, frame identity, pixel
+ratio, changed-pixel count, RGB absolute aggregate, and anchor measurements.
+Missing pairs, cross-frame baselines, invalid DPI conversion, or anchoring beyond
+two physical pixels fail closed. They do not replace the complete registered
+CTest inventory required by `TD-CI-001`.
+
+## Registration, execution, and gate status
+
+A **registered test** is discoverable in the CTest graph. A **focused
+execution** records only the selected tests actually run. **Graphical proof** is
+focused execution on a qualified display/backend/GPU with required named
+captures and a `passed` result; `executed`, a skipped test, or one arbitrary
+screenshot is not equivalent. **Full CTest evidence** dynamically enumerates
+and runs the complete registered inventory with skip/disabled accounting. A
+**public gate closure** additionally requires the gate's documented
+prerequisites; it is never inferred from a focused local pass.
+
+Current implementation and gate record:
+
+| Item | Status |
+| --- | --- |
+| Accepted foundation | closed |
+| Editor/runtime implementation | implemented; bounded viewport lifetime and source non-mutation have focused evidence |
+| Repository hygiene | closed |
+| Current graphical acceptance | passed in the 2026-07-26 focused local E/F Vulkan run; same-frame RmlUi ROI/RGB/anchoring runner status `passed` |
+| Gate C | open under `TD-CI-001` |
+| Gate C-UI | open pending prerequisite full evidence |
+| Gate D | open |
+| Gate E | open |
+
+The earlier graphical execution record remains historical execution only and
+does not satisfy the current acceptance contract. The current focused result is
+the separately retained E/F run and independently recomputed runner report
+under `.saga-private/evidence/closure-acceptance-20260726`. This focused local
+pass does not claim full CTest completion, a trusted hardware-GPU run, or public
+gate closure; the complete vertical slice is therefore not claimed as publicly
+proven.
 
 GPU execution remains a manual, hardware-qualified boundary. With no trusted self-hosted `saga-gpu` runner, the preflight produces an explicit blocked report and intentionally does not claim success or execute GPU binaries. A hosted runner or a successful GPU-target build is not GPU evidence.
 
@@ -61,5 +101,12 @@ SagaChaosLab is an internal developer tool under DistributionCheck. It loads a d
 ## Evidence integrity
 
 Evidence should record producer, command or scenario, input identity, environment where relevant, status, and outputs. Missing manual input is `incomplete`, not success. Screenshots and reports support a stated observation; they do not generalize beyond it.
+
+Source-text scanning is a secondary guardrail, not sufficient behavior evidence
+for a critical architecture boundary. Select the appropriate combination of
+target-link graph inspection, compile/link tests, executable behavior,
+invalid-input rejection, and source scanning. The stronger evidence should fail
+when the prohibited dependency or behavior is actually introduced, not merely
+when a comment or spelling changes.
 
 See [Testing, claims, and evidence](../reference/testing-claims-and-evidence.md) for detailed category, determinism, GPU/private, sample, chaos, artifact, and reporting rules.

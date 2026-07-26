@@ -423,10 +423,13 @@ notes = "Saga-owned files under Samples use MIT; embedded dependency and source-
 
 [[domains]]
 id = "starter-arena-dejavu-font"
-priority = 1200
+priority = 1300
 paths = [
   "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/DejaVuSans.ttf",
   "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/LICENSE",
+  "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/PROVENANCE.json",
+  "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/PROVENANCE.md",
+  "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/SHA256SUMS",
 ]
 required = true
 domain_owner = "upstream"
@@ -902,6 +905,32 @@ target_license_mode = "fixed-spdx"
 generated_source_patterns = []
 generated_source_action = "report"
 expected_installed_artifact = true
+expected_exported_target = false
+export_validation = "manual-pending"
+
+[[targets]]
+name = "SagaRuntimeAppLib"
+source_domains = ["saga-programs"]
+public_dependencies = [
+  "SagaRuntimeLib",
+  "SagaEngine",
+  "SagaBackend",
+  "SagaDiligentRuntime",
+  "SagaPlatformSDL",
+]
+private_dependencies = []
+runtime_dependencies = ["SDL", "Vendor/Diligent"]
+target_license_expression = "MPL-2.0"
+distribution = "internal"
+review = "configured-graph-reviewed"
+blockers = []
+graph_required = true
+current_license_mode = "fixed-spdx"
+current_license_expressions = ["MPL-2.0"]
+target_license_mode = "fixed-spdx"
+generated_source_patterns = []
+generated_source_action = "report"
+expected_installed_artifact = false
 expected_exported_target = false
 export_validation = "manual-pending"
 

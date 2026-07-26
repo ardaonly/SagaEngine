@@ -346,7 +346,10 @@ TEST(StarterArenaGraphicalRuntimeIntegrationTests,
             const auto name = capture.value("name", std::string{});
             EXPECT_FALSE(name.empty());
             EXPECT_TRUE(byName.emplace(name, capture).second) << name;
-            EXPECT_TRUE(frames.insert(capture.value("frameIndex", 0ULL)).second) << name;
+            if (name != "world-baseline")
+            {
+                EXPECT_TRUE(frames.insert(capture.value("frameIndex", 0ULL)).second) << name;
+            }
             EXPECT_EQ(capture.value("sessionId", std::string{}),
                       result.value("playSessionId", std::string{}));
             EXPECT_EQ(capture.value("canonicalLaunchHash", std::string{}),
@@ -354,6 +357,12 @@ TEST(StarterArenaGraphicalRuntimeIntegrationTests,
             EXPECT_FALSE(capture.value("sha256", std::string{}).empty());
             EXPECT_TRUE(std::filesystem::is_regular_file(
                 capture.value("filePath", std::string{})));
+            EXPECT_EQ(capture.value("preOverlayFrameIndex", ~0ULL),
+                      capture.value("frameIndex", 0ULL));
+            EXPECT_TRUE(std::filesystem::is_regular_file(
+                capture.value("preOverlayPath", std::string{})));
+            EXPECT_FALSE(capture.value("preOverlaySha256", std::string{}).empty());
+            EXPECT_GT(capture.value("pixelRatio", 0.0), 0.0);
             const auto& region = capture["hudRegion"];
             EXPECT_LE(region.value("x", 0U) + region.value("width", 0U),
                       capture.value("width", 0U));
@@ -376,8 +385,8 @@ TEST(StarterArenaGraphicalRuntimeIntegrationTests,
         EXPECT_EQ(capture.value("promptBindingLabel", std::string{}), binding);
         EXPECT_EQ(capture.value("promptSemanticLabel", std::string{}), prompt);
         EXPECT_EQ(capture.value("doorState", !state), state);
-        EXPECT_GE(capture.value("nonBackgroundPixelCount", 0ULL), 16U);
-        EXPECT_GE(capture.value("baselineDifferencePixelCount", 0ULL), 8U);
+        EXPECT_GE(capture.value("baselineDifferencePixelCount", 0ULL), 32U);
+        EXPECT_GE(capture.value("baselineRgbAbsoluteDifference", 0ULL), 2048U);
     };
     ASSERT_TRUE(eCaptures.contains("e-open") && eCaptures.contains("e-close") &&
                 eCaptures.contains("e-resized") && fCaptures.contains("f-open"));
@@ -386,7 +395,13 @@ TEST(StarterArenaGraphicalRuntimeIntegrationTests,
     assertSemantic(eCaptures.at("e-resized"), "E", "[E] Open Door", false);
     assertSemantic(fCaptures.at("f-open"), "F", "[F] Open Door", false);
     EXPECT_GE(eCaptures.at("e-close").value(
-        "priorSemanticDifferencePixelCount", 0ULL), 8U);
+        "priorSemanticDifferencePixelCount", 0ULL), 16U);
+    EXPECT_GE(eCaptures.at("e-close").value(
+        "priorSemanticRgbAbsoluteDifference", 0ULL), 1024U);
+    EXPECT_EQ(eCaptures.at("world-baseline").value("filePath", std::string{}),
+              eCaptures.at("e-open").value("preOverlayPath", std::string{}));
+    EXPECT_EQ(eCaptures.at("world-baseline").value("frameIndex", ~0ULL),
+              eCaptures.at("e-open").value("frameIndex", 0ULL));
     EXPECT_NE(eCaptures.at("e-resized").value("width", 0U),
               eCaptures.at("world-baseline").value("width", 0U));
 

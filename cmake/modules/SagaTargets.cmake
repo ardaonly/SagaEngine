@@ -629,11 +629,57 @@ function(saga_create_engine_targets)
     )
 
     saga_get_registered_sources(SagaRuntime SAGA_RUNTIME_PROGRAM_SOURCES)
-    add_executable(SagaRuntime ${SAGA_RUNTIME_PROGRAM_SOURCES})
+
+    # Runtime orchestration is app-private, but it is shared by the runtime
+    # executable and behavior/unit tests. Compile it once under a single owner
+    # instead of re-listing implementation .cpp files in each consumer.
+    set(SAGA_RUNTIME_APP_PRIVATE_SOURCES)
+    set(SAGA_RUNTIME_EXECUTABLE_SOURCES)
+    foreach(SAGA_RUNTIME_PROGRAM_SOURCE IN LISTS SAGA_RUNTIME_PROGRAM_SOURCES)
+        if(SAGA_RUNTIME_PROGRAM_SOURCE MATCHES
+           "/Runtime(Host|LaunchSession|ArtifactSession|RenderSession|ScriptSession|EvidenceSession|FrameLoop|StateStore|UiPromptController|UiSession)\\.(cpp|h)$")
+            list(APPEND SAGA_RUNTIME_APP_PRIVATE_SOURCES
+                "${SAGA_RUNTIME_PROGRAM_SOURCE}")
+        else()
+            list(APPEND SAGA_RUNTIME_EXECUTABLE_SOURCES
+                "${SAGA_RUNTIME_PROGRAM_SOURCE}")
+        endif()
+    endforeach()
+
+    list(LENGTH SAGA_RUNTIME_APP_PRIVATE_SOURCES
+         SAGA_RUNTIME_APP_PRIVATE_SOURCE_COUNT)
+    if(NOT SAGA_RUNTIME_APP_PRIVATE_SOURCE_COUNT EQUAL 20)
+        message(FATAL_ERROR
+            "SagaRuntimeAppLib expected 20 app-private orchestration sources, "
+            "but found ${SAGA_RUNTIME_APP_PRIVATE_SOURCE_COUNT}. "
+            "Update the ownership filter when Runtime orchestration changes.")
+    endif()
+
+    add_library(SagaRuntimeAppLib STATIC
+        ${SAGA_RUNTIME_APP_PRIVATE_SOURCES}
+    )
+    saga_apply_compiler_flags(SagaRuntimeAppLib)
+    saga_link_thirdparty(SagaRuntimeAppLib)
+    target_include_directories(SagaRuntimeAppLib PUBLIC
+        ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private
+    )
+    target_link_libraries(SagaRuntimeAppLib PUBLIC
+        SagaRuntimeLib
+        SagaEngine
+        SagaBackend
+        SagaDiligentRuntime
+        SagaPlatformSDL
+    )
+    set_target_properties(SagaRuntimeAppLib PROPERTIES
+        FOLDER "Programs/SagaRuntime"
+    )
+
+    add_executable(SagaRuntime ${SAGA_RUNTIME_EXECUTABLE_SOURCES})
 
     saga_apply_compiler_flags(SagaRuntime)
     saga_link_thirdparty(SagaRuntime)
     target_link_libraries(SagaRuntime PRIVATE
+        SagaRuntimeAppLib
         SagaRuntimeLib
         SagaEngine
         SagaBackend
