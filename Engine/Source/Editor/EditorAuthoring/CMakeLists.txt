@@ -35,6 +35,7 @@ saga_add_editor_module(EditorAuthoring
         Private/SagaEditor/Viewport/GizmoHandle.cpp
         Private/SagaEditor/Viewport/ViewportCamera.cpp
         Private/SagaEditor/Viewport/ViewportRay.cpp
+        Private/SagaEditor/Viewport/ViewportContentBuildCoordinator.cpp
         Public/SagaEditor/Authoring/DiagnosticsPanelView.h
         Public/SagaEditor/Authoring/EditorShellCustomizationReport.h
         Public/SagaEditor/Authoring/ProjectBrowserWorkflowView.h
@@ -77,6 +78,7 @@ saga_add_editor_module(EditorAuthoring
         Public/SagaEditor/Viewport/ViewportCamera.h
         Public/SagaEditor/Viewport/ViewportInput.h
         Public/SagaEditor/Viewport/ViewportRay.h
+        Public/SagaEditor/Viewport/ViewportContentBuildCoordinator.h
         Public/SagaEditor/WorldEditing/WorldCellEditor.h
         Public/SagaEditor/Workspace/EditorDocumentWorkspace.h
 )
@@ -100,4 +102,5 @@ saga_register_module_tests(EditorAuthoring
         Tests/ViewportCameraTests.cpp
         Tests/EditorRenderSceneSnapshotTests.cpp
         Tests/ViewportRayTests.cpp
+        Tests/ViewportContentBuildCoordinatorTests.cpp
 )

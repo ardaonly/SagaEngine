@@ -8,12 +8,15 @@
 #include "SagaEditor/Selection/SelectionManager.h"
 #include "SagaEditor/Viewport/CameraController.h"
 #include "SagaEditor/Viewport/EditorRenderSceneSnapshot.h"
+#include "SagaEditor/Viewport/ViewportContentBuildCoordinator.h"
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
 #include "SagaEditorQtRender/QtRenderHost.h"
 
 #include <QtConcurrent/QtConcurrentRun>
 #include <QApplication>
 #include <QFutureWatcher>
+#include <QDeadlineTimer>
+#include <QEventLoop>
 #include <QGuiApplication>
 #include <QHideEvent>
 #include <QKeyEvent>
@@ -24,6 +27,7 @@
 #include <QResizeEvent>
 #include <QShowEvent>
 #include <QTimer>
+#include <QThread>
 #include <QWheelEvent>
 #include <QWidget>
 
@@ -43,30 +47,32 @@ namespace SagaEditor
 {
 namespace
 {
-struct ContentBuildResult
+ViewportContentBuildResult CompileViewportContent(
+    ViewportContentBuildRequest build,
+    const std::shared_ptr<std::atomic_bool>& cancellation)
 {
-    bool passed = false;
-    std::string projectId;
-    std::filesystem::path root;
-    std::string diagnostic;
-};
-
-ContentBuildResult CompileViewportContent(const ProjectInfo& project)
-{
-    ContentBuildResult result;
-    result.projectId = project.projectId;
-    result.root = std::filesystem::path(project.rootPath) / "Build/Editor/ViewportContent";
+    ViewportContentBuildResult result;
+    result.request = std::move(build);
+    result.contentRoot = result.request.projectRoot / "Build/Editor/ViewportContent/generations" /
+        result.request.operationId;
     const auto toolchain = ResolveEditorToolchain();
     ToolProcessRequest request;
     request.executable = toolchain.sagaPackagerExecutable;
-    request.arguments = {"compile-assets", "--project", project.manifestPath,
-        "--out", result.root.string()};
+    request.arguments = {"compile-assets", "--project", result.request.projectManifestPath.string(),
+        "--out", result.contentRoot.string()};
     request.timeout = std::chrono::minutes(2);
+    request.cancellationRequested = [cancellation]
+    { return cancellation->load(std::memory_order_acquire); };
     const auto process = ToolProcessRunner{}.Run(request);
     result.passed = process.Succeeded();
+    result.cancelled = process.classification == ToolProcessExitClassification::Cancelled;
     if (!result.passed)
-        result.diagnostic = process.standardError.empty() ?
-            "EditorRender.ContentCompileFailed" : process.standardError;
+    {
+        result.diagnosticCode = process.diagnosticCode.empty() ?
+            "EditorRender.ContentCompileFailed" : process.diagnosticCode;
+        result.diagnosticMessage = process.standardError.empty() ?
+            process.diagnosticMessage : process.standardError;
+    }
     return result;
 }
 
@@ -93,7 +99,7 @@ class ViewportSurface final : public QWidget
 {
 public:
     ViewportSurface()
-        : host(), controller(&camera), contentWatcher(new QFutureWatcher<ContentBuildResult>(this)),
+        : host(), controller(&camera), contentWatcher(new QFutureWatcher<ViewportContentBuildResult>(this)),
           diagnosticLabel(new QLabel(this))
     {
         setFocusPolicy(Qt::StrongFocus);
@@ -117,35 +123,40 @@ public:
             host.Resize(PhysicalWidth(), PhysicalHeight(), static_cast<float>(devicePixelRatioF()));
             RequestFrame();
         });
-        QObject::connect(contentWatcher, &QFutureWatcher<ContentBuildResult>::finished,
+        QObject::connect(contentWatcher, &QFutureWatcher<ViewportContentBuildResult>::finished,
             this, [this]
         {
             const auto result = contentWatcher->result();
-            if (!workspace || !workspace->Project() ||
-                workspace->Project()->projectId != result.projectId)
+            auto current = workspace
+                ? CaptureViewportContentBuildRequest(*workspace, result.request.operationId)
+                : std::nullopt;
+            auto completed = contentBuilds.Complete(result, current);
+            if (completed.publish)
             {
-                StartContentBuild();
-                return;
+                contentDiagnostic.clear();
+                diagnosticLabel->hide();
+                contentRoot = completed.contentRoot;
+                RebuildScene();
             }
-            if (!result.passed)
+            else if (!completed.diagnosticCode.empty())
             {
-                contentDiagnostic = result.diagnostic;
-                diagnosticLabel->setText(QString::fromStdString(contentDiagnostic));
-                diagnosticLabel->setGeometry(rect());
-                diagnosticLabel->show();
-                return;
+                contentDiagnostic = completed.diagnosticCode + ": " + completed.diagnosticMessage;
+                if (contentRoot.empty())
+                {
+                    diagnosticLabel->setText(QString::fromStdString(contentDiagnostic));
+                    diagnosticLabel->setGeometry(rect());
+                    diagnosticLabel->show();
+                }
             }
-            contentDiagnostic.clear();
-            diagnosticLabel->hide();
-            contentRoot = result.root;
-            RebuildScene();
+            if (completed.nextRequest) LaunchContentBuild(*completed.nextRequest);
+            else if (completed.stale && !shuttingDown) StartContentBuild();
         });
     }
 
     ~ViewportSurface() override
     {
         DetachWorkspace(); DetachSelection();
-        if (contentWatcher->isRunning()) contentWatcher->waitForFinished();
+        StopContentBuild();
         host.Destroy();
     }
 
@@ -198,7 +209,7 @@ public:
 
     void Shutdown()
     {
-        DetachWorkspace(); DetachSelection(); host.Detach();
+        DetachWorkspace(); DetachSelection(); StopContentBuild(); host.Detach();
     }
 
 protected:
@@ -339,10 +350,48 @@ private:
 
     void StartContentBuild()
     {
-        if (!workspace || !workspace->Project() || contentWatcher->isRunning()) return;
-        const auto project = *workspace->Project();
-        contentWatcher->setFuture(QtConcurrent::run([project]
-        { return CompileViewportContent(project); }));
+        if (shuttingDown || !workspace || !contentWatcher) return;
+        auto request = CaptureViewportContentBuildRequest(
+            *workspace, "viewport-" + std::to_string(++nextContentOperation));
+        if (!request) return;
+        if (auto start = contentBuilds.Request(std::move(*request))) LaunchContentBuild(*start);
+    }
+
+    void LaunchContentBuild(ViewportContentBuildRequest request)
+    {
+        if (shuttingDown || !contentWatcher) return;
+        contentCancellation = std::make_shared<std::atomic_bool>(false);
+        const auto cancellation = contentCancellation;
+        contentWatcher->setFuture(QtConcurrent::run(
+            [request = std::move(request), cancellation]() mutable
+            { return CompileViewportContent(std::move(request), cancellation); }));
+    }
+
+    void StopContentBuild()
+    {
+        // Shutdown is bounded and lifetime-safe: the watcher gets up to 4500 ms
+        // to observe cancellation. If it is still running, every callback into
+        // this panel is disconnected and the watcher owns its deferred deletion.
+        constexpr qint64 kShutdownDeadlineMilliseconds = 4500;
+        if (shuttingDown) return;
+        shuttingDown = true;
+        contentBuilds.Cancel();
+        if (contentCancellation) contentCancellation->store(true, std::memory_order_release);
+        if (!contentWatcher || !contentWatcher->isRunning()) return;
+
+        QDeadlineTimer deadline(kShutdownDeadlineMilliseconds);
+        while (contentWatcher->isRunning() && !deadline.hasExpired())
+        {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+            QThread::msleep(1);
+        }
+        if (!contentWatcher->isRunning()) return;
+
+        QObject::disconnect(contentWatcher, nullptr, this, nullptr);
+        contentWatcher->setParent(nullptr);
+        QObject::connect(contentWatcher, &QFutureWatcher<ViewportContentBuildResult>::finished,
+            contentWatcher, &QObject::deleteLater);
+        contentWatcher = nullptr;
     }
 
     void UpdateHighlight()
@@ -390,12 +439,16 @@ private:
     CameraController controller;
     ViewportInputState input;
     QTimer resizeTimer;
-    QFutureWatcher<ContentBuildResult>* contentWatcher;
+    QFutureWatcher<ViewportContentBuildResult>* contentWatcher;
+    ViewportContentBuildCoordinator contentBuilds;
+    std::shared_ptr<std::atomic_bool> contentCancellation;
     QLabel* diagnosticLabel;
     std::filesystem::path contentRoot;
     std::string contentDiagnostic;
     QPointF lastPosition, pressPosition;
     bool framePending = false;
+    bool shuttingDown = false;
+    std::uint64_t nextContentOperation = 0;
     EditorDocumentWorkspace::ChangeSubscription workspaceSubscription =
         EditorDocumentWorkspace::InvalidChangeSubscription;
     SceneDocument* observedScene = nullptr;
