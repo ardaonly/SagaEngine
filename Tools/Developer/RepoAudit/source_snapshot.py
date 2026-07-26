@@ -9,7 +9,10 @@ import pathlib
 import subprocess
 
 
-INCLUDED_ROOTS = {"Engine", "Tools", "Tests", "cmake", "Samples", "SagaWiki", "scripts"}
+INCLUDED_ROOTS = {
+    ".github", "Engine", "Tools", "Tests", "cmake", "Samples", "SagaWiki",
+    "scripts",
+}
 EXCLUDED_ROOTS = {".git", ".saga-private", ".agents", ".codex", "Vendor", "Build", "build"}
 EXCLUDED_SUFFIXES = {
     ".a", ".avi", ".bmp", ".cache", ".dll", ".dylib", ".exe", ".gif", ".ico",
@@ -25,7 +28,7 @@ def selected_source_paths(paths: list[str]) -> list[str]:
         path = pathlib.PurePosixPath(value)
         if not path.parts or path.parts[0] in EXCLUDED_ROOTS:
             continue
-        if path.parts[0] not in INCLUDED_ROOTS and value != ".github/MAINTENANCE.md":
+        if path.parts[0] not in INCLUDED_ROOTS:
             continue
         if value in EXCLUDED_GENERATED or "__pycache__" in path.parts:
             continue
