@@ -5,7 +5,9 @@
 #pragma once
 
 #include "SagaEditor/Extensions/IExtensionContext.h"
+#include <memory>
 #include <string>
+#include <vector>
 
 namespace SagaEditor
 {
@@ -17,8 +19,8 @@ class EditorShell;
 // ─── Extension Host ───────────────────────────────────────────────────────────
 
 /// Owns the IExtensionContext implementation and drives OnLoad / OnUnload for
-/// every registered extension. Extensions loaded before the shell is visible
-/// may register panels; those loaded after the shell is open go live immediately.
+/// every registered extension. Panel registration is available after the editor
+/// shell binds itself during initialisation.
 class ExtensionHost
 {
 public:
@@ -26,7 +28,7 @@ public:
     ~ExtensionHost();
 
     /// Bind the shell pointer so extensions can register panels.
-    /// Must be called after EditorShell::Init and before LoadAll.
+    /// EditorShell::Init performs this binding; exposed for explicit hosts.
     void SetShell(EditorShell& shell);
 
     /// Call OnLoad on every registered extension in registration order.
@@ -44,7 +46,7 @@ public:
 private:
     ExtensionRegistry& m_registry;
     EditorHost&        m_host;
-    EditorShell*       m_shell = nullptr; ///< Non-owning; set via SetShell.
+    std::vector<std::string> m_loadedExtensionIds;
 
     /// Context implementation forwarded to extensions; declared in .cpp.
     struct ContextImpl;

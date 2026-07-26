@@ -10,6 +10,7 @@
 #include "SagaEditor/Commands/CommandRegistry.h"
 #include "SagaEditor/Commands/ShortcutManager.h"
 #include "SagaEditor/Diagnostics/IEditorDiagnosticsService.h"
+#include "SagaEditor/Extensions/ExtensionHost.h"
 #include "SagaEditor/Notifications/EditorNotificationCenter.h"
 #include "SagaEditor/Settings/IEditorSettingsStore.h"
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
@@ -259,11 +260,15 @@ bool EditorShell::Init(EditorHost&                    host,
             m_window->Show();
     }
 
+    host.GetExtensionHost().SetShell(*this);
     return true;
 }
 
 void EditorShell::Shutdown()
 {
+    if (m_host && m_window)
+        m_host->GetExtensionHost().ShutdownAll();
+
     m_projectWorkflowController.reset();
     if (m_runtimeProcessController)
     {
