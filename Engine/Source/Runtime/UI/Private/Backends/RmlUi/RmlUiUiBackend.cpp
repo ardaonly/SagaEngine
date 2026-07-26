@@ -20,6 +20,7 @@
 #include <RmlUi/Core/SystemInterface.h>
 
 #include <algorithm>
+#include <cmath>
 #include <chrono>
 #include <cstdio>
 #include <filesystem>
@@ -387,6 +388,7 @@ public:
             Shutdown();
             return false;
         }
+        context_->SetDensityIndependentPixelRatio(config_.viewport.pixelRatio);
 
         AttachEventListeners();
         initialized_ = true;
@@ -439,6 +441,7 @@ public:
             context_->SetDimensions(Rml::Vector2i(
                 static_cast<int>(viewport.width),
                 static_cast<int>(viewport.height)));
+            context_->SetDensityIndependentPixelRatio(viewport.pixelRatio);
         }
     }
 
@@ -550,6 +553,37 @@ public:
         }
         element->SetInnerRML(Rml::String(text));
         return true;
+    }
+
+    [[nodiscard]] std::optional<SagaUI::UiElementBounds>
+        GetDocumentElementBounds(SagaUI::UiDocumentHandle handle,
+                                 std::string_view elementId) const override
+    {
+        const auto found = documents_.find(handle);
+        if (!initialized_ || found == documents_.end() || !found->second.document ||
+            elementId.empty() || config_.viewport.width == 0 ||
+            config_.viewport.height == 0 ||
+            !std::isfinite(config_.viewport.pixelRatio) ||
+            config_.viewport.pixelRatio <= 0.0F)
+            return std::nullopt;
+        Rml::Element* element = found->second.document->GetElementById(
+            Rml::String(elementId));
+        if (!element || !element->IsVisible()) return std::nullopt;
+        const auto offset = element->GetAbsoluteOffset(Rml::Box::BORDER);
+        const auto size = element->GetBox().GetSize(Rml::Box::BORDER);
+        SagaUI::UiElementBounds bounds{
+            offset.x, offset.y, size.x, size.y};
+        const float right = bounds.x + bounds.width;
+        const float bottom = bounds.y + bounds.height;
+        if (!std::isfinite(bounds.x) || !std::isfinite(bounds.y) ||
+            !std::isfinite(bounds.width) || !std::isfinite(bounds.height) ||
+            !std::isfinite(right) || !std::isfinite(bottom) ||
+            bounds.width <= 0.0F || bounds.height <= 0.0F ||
+            bounds.x < 0.0F || bounds.y < 0.0F ||
+            right > static_cast<float>(config_.viewport.width) ||
+            bottom > static_cast<float>(config_.viewport.height))
+            return std::nullopt;
+        return bounds;
     }
 
     void Update(double deltaSeconds) override

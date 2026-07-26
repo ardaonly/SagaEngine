@@ -8,6 +8,7 @@
 #include <SagaRuntime/Play/RuntimePlayContracts.hpp>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -27,6 +28,12 @@ public:
         std::uint32_t width, std::uint32_t height);
     [[nodiscard]] bool Render(std::uint32_t width, std::uint32_t height,
                               double deltaSeconds);
+    [[nodiscard]] bool PrepareLayout(std::uint32_t width, std::uint32_t height,
+                                     float pixelRatio, double deltaSeconds);
+    [[nodiscard]] bool SubmitOverlay();
+    [[nodiscard]] std::optional<SagaEngine::UI::UiElementBounds>
+        PromptBounds() const;
+    [[nodiscard]] float PixelRatio() const noexcept { return pixelRatio_; }
     void Shutdown() noexcept;
     [[nodiscard]] const std::string& PromptText() const noexcept { return promptText_; }
 
@@ -39,6 +46,8 @@ private:
     RuntimeStateStore* state_ = nullptr;
     SagaEngine::Scripting::ScriptEntityHandle promptEntity_;
     std::string promptText_;
+    float pixelRatio_ = 1.0F;
+    bool layoutPrepared_ = false;
     bool initialized_ = false;
 };
 
