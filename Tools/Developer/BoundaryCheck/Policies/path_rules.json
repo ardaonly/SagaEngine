@@ -8,6 +8,36 @@
   "description": "Compatibility projection only. LICENSE_POLICY.toml is authoritative.",
   "rules": [
     {
+      "pattern": "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/DejaVuSans.ttf",
+      "license": "Bitstream-Vera",
+      "domain_id": "starter-arena-dejavu-font",
+      "priority": 1300
+    },
+    {
+      "pattern": "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/LICENSE",
+      "license": "Bitstream-Vera",
+      "domain_id": "starter-arena-dejavu-font",
+      "priority": 1300
+    },
+    {
+      "pattern": "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/PROVENANCE.json",
+      "license": "Bitstream-Vera",
+      "domain_id": "starter-arena-dejavu-font",
+      "priority": 1300
+    },
+    {
+      "pattern": "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/PROVENANCE.md",
+      "license": "Bitstream-Vera",
+      "domain_id": "starter-arena-dejavu-font",
+      "priority": 1300
+    },
+    {
+      "pattern": "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/SHA256SUMS",
+      "license": "Bitstream-Vera",
+      "domain_id": "starter-arena-dejavu-font",
+      "priority": 1300
+    },
+    {
       "pattern": "Samples/**/*.cs",
       "license": "MIT",
       "domain_id": "saga-sample-project-files",
@@ -41,18 +71,6 @@
       "pattern": "Samples/**/README.md",
       "license": "MIT",
       "domain_id": "saga-sample-documentation",
-      "priority": 1200
-    },
-    {
-      "pattern": "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/DejaVuSans.ttf",
-      "license": "Bitstream-Vera",
-      "domain_id": "starter-arena-dejavu-font",
-      "priority": 1200
-    },
-    {
-      "pattern": "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/LICENSE",
-      "license": "Bitstream-Vera",
-      "domain_id": "starter-arena-dejavu-font",
       "priority": 1200
     },
     {

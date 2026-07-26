@@ -182,6 +182,12 @@ Dirty recoverable text is journaled below `.saga/user/recovery` with project/doc
 
 `IDocumentPersistence` is the Qt-free fault-injection seam. EditorQt displays status and forwards Recover/Discard gestures but does not parse or publish journals. Tests cover restart, external conflict, temporary open/write/flush, file sync, rename, directory sync, and cleanup faults.
 
+The atomic-save and parent-directory synchronization evidence is Linux evidence.
+The Windows implementation remains available at its current implementation
+status, but this test set does not establish Windows crash durability. No
+cross-platform crash-durability claim is made without separate platform-qualified
+fault and restart evidence.
+
 ## Play verification and process result
 
 Play is a saved-source consumer. The UI thread captures an immutable source

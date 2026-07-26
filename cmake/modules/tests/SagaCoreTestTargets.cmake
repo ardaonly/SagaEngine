@@ -2,13 +2,11 @@
     # --- Unit tests ---------------------------------------------------------
 
     add_executable(SagaUnitTests ${UNIT_TEST_SOURCES})
-    target_sources(SagaUnitTests PRIVATE
-        ${SAGA_ROOT}/Engine/Source/Programs/SagaRuntime/Private/RuntimeHost.cpp
-    )
     saga_link_thirdparty(SagaUnitTests)
     target_link_libraries(SagaUnitTests PRIVATE
         SagaEngine
         SagaDiagnostics
+        SagaRuntimeAppLib
         SagaRuntimeLib
         SagaServerLib
         SagaShared

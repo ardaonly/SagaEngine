@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -100,6 +101,10 @@ def test_runtime_ui_set_is_deterministic_and_strict() -> None:
             for resource in payload[collection]:
                 assert resource["path"].startswith("ui/generations/")
                 assert (first / resource["path"]).read_bytes() == (second / resource["path"]).read_bytes()
+                assert resource["hash"] == "sha256:" + hashlib.sha256(
+                    (first / resource["path"]).read_bytes()).hexdigest()
+        font = payload["fonts"][0]
+        assert font["hash"] == "sha256:7da195a74c55bef988d0d48f9508bd5d849425c1770dba5d7bfc6ce9ed848954"
 
 
 def test_runtime_ui_failure_preserves_valid_selectors() -> None:

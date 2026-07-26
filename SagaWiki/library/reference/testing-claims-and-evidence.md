@@ -147,7 +147,25 @@ A machine-readable report should include:
 
 Evidence is derived output. It is regenerated and normally untracked unless a deliberate fixture/golden contract stores it. Local audit folders, crash reports, package staging trees, and repomix output are not source files.
 
-The serial visible-slice evidence runner aggregates focused runtime UI, RmlUi, read-only projection, saved-source preparation, and recovery results below `.saga-private/evidence/visible-slice`. It records command output hashes and can attach runtime session/result, prompt-state sequence, capture paths, backend/GPU identity, and pixel statistics. It complements the individually registered CTest entries; it never substitutes for the normal test graph or turns an unexecuted graphical step into a pass.
+The serial visible-slice evidence runner aggregates focused runtime UI, RmlUi,
+read-only projection, saved-source preparation, and recovery results below
+`.saga-private/evidence/visible-slice`. It records command output hashes and can
+attach runtime session/result, prompt-state sequence, named pre/post capture
+paths, backend/GPU identity, RmlUi border bounds, pixel ratio, and independently
+recomputed ROI changed-pixel and RGB-absolute aggregates. The runner derives the
+physical ROI by flooring the float border minimum and ceiling the maximum, checks
+same-frame identity, compares semantic states over the union of their real
+bounds, and checks center/bottom resize anchoring within two physical pixels.
+Graphical status is `unexecuted`, `incomplete`, `failed`, or `passed`; execution,
+a single screenshot, fixed-percentage ROI, or runtime-reported metrics alone are
+never a pass. It complements the individually registered CTest entries and never
+substitutes for the normal test graph.
+
+The 2026-07-26 focused local E/F Vulkan execution and its independently
+recomputed report are retained under
+`.saga-private/evidence/closure-acceptance-20260726` with graphical status
+`passed`. That result is evidence for this graphical contract only; it is not a
+full CTest result, trusted hardware-GPU qualification, or public gate closure.
 
 ## Manual evidence
 
