@@ -16,8 +16,6 @@
 #include "SagaEditor/Selection/SelectionManager.h"
 #include "SagaEditor/Settings/MemoryEditorSettingsStore.h"
 #include "SagaEditor/Shell/EditorShell.h"
-#include "SagaEditor/UI/IUIApplication.h"
-#include "SagaEditor/UI/IUIFactory.h"
 #include "SagaEditor/UI/IUIMainWindow.h"
 #include <gtest/gtest.h>
 
@@ -114,28 +112,6 @@ public:
     std::vector<std::string> focusedPanels;
     CloseCallback onClose;
     CommandCallback onCommand;
-};
-
-class FakeUIFactory final : public IUIFactory
-{
-public:
-    [[nodiscard]] std::unique_ptr<IUIApplication>
-    CreateApplication(int&, char**) override
-    {
-        return nullptr;
-    }
-
-    [[nodiscard]] std::unique_ptr<IUIMainWindow>
-    CreateMainWindow(const std::string&, int, int) override
-    {
-        return std::make_unique<FakeMainWindow>();
-    }
-
-    [[nodiscard]] std::unique_ptr<IEditorSettingsStore>
-    CreateSettingsStore() override
-    {
-        return std::make_unique<MemoryEditorSettingsStore>();
-    }
 };
 
 class FakePanel final : public IPanel
@@ -678,13 +654,12 @@ TEST(EditorCompositionShellTest, SnapshotBuildsMenusToolbarsAndShortcuts)
                           fs::path{},
                           composition));
 
-    FakeUIFactory factory;
     EditorShell shell;
     EditorShellConfig cfg;
     cfg.registerDefaultPanels = false;
     cfg.applyActivePersona = false;
     cfg.showOnInit = false;
-    ASSERT_TRUE(shell.Init(host, factory, cfg));
+    ASSERT_TRUE(shell.Init(host, std::make_unique<FakeMainWindow>(), cfg));
 
     auto& window = dynamic_cast<FakeMainWindow&>(shell.GetMainWindow());
     ASSERT_EQ(window.layout.menus.size(), 1u);
@@ -718,13 +693,12 @@ TEST(EditorCompositionShellTest, SnapshotControlsPanelVisibilityAndPlacement)
                           fs::path{},
                           composition));
 
-    FakeUIFactory factory;
     EditorShell shell;
     EditorShellConfig cfg;
     cfg.registerDefaultPanels = false;
     cfg.applyActivePersona = false;
     cfg.showOnInit = false;
-    ASSERT_TRUE(shell.Init(host, factory, cfg));
+    ASSERT_TRUE(shell.Init(host, std::make_unique<FakeMainWindow>(), cfg));
 
     shell.RegisterPanel(std::make_unique<FakePanel>("saga.panel.hierarchy",
                                                     "Hierarchy"),
@@ -756,13 +730,12 @@ TEST(EditorCompositionShellTest, RefreshesWorkspaceCustomizationAvailability)
                           fs::path{},
                           composition));
 
-    FakeUIFactory factory;
     EditorShell shell;
     EditorShellConfig cfg;
     cfg.registerDefaultPanels = false;
     cfg.applyActivePersona = false;
     cfg.showOnInit = false;
-    ASSERT_TRUE(shell.Init(host, factory, cfg));
+    ASSERT_TRUE(shell.Init(host, std::make_unique<FakeMainWindow>(), cfg));
 
     shell.RegisterPanel(std::make_unique<FakePanel>("saga.panel.hierarchy",
                                                     "Hierarchy"),
@@ -805,13 +778,12 @@ TEST(EditorCompositionShellTest, DefaultLayoutExposesCustomizeWorkspaceCommand)
     EditorHost host;
     ASSERT_TRUE(host.Init(std::make_unique<MemoryEditorSettingsStore>()));
 
-    FakeUIFactory factory;
     EditorShell shell;
     EditorShellConfig cfg;
     cfg.registerDefaultPanels = false;
     cfg.applyActivePersona = false;
     cfg.showOnInit = false;
-    ASSERT_TRUE(shell.Init(host, factory, cfg));
+    ASSERT_TRUE(shell.Init(host, std::make_unique<FakeMainWindow>(), cfg));
 
     bool foundCommand = false;
     for (const MenuDescriptor& menu : shell.GetShellLayout().menus)
@@ -839,13 +811,12 @@ TEST(EditorCompositionShellTest, CustomizeWorkspaceCommandFocusesRegisteredPanel
     EditorHost host;
     ASSERT_TRUE(host.Init(std::make_unique<MemoryEditorSettingsStore>()));
 
-    FakeUIFactory factory;
     EditorShell shell;
     EditorShellConfig cfg;
     cfg.registerDefaultPanels = false;
     cfg.applyActivePersona = false;
     cfg.showOnInit = false;
-    ASSERT_TRUE(shell.Init(host, factory, cfg));
+    ASSERT_TRUE(shell.Init(host, std::make_unique<FakeMainWindow>(), cfg));
 
     shell.RegisterPanel(
         std::make_unique<FakePanel>("saga.panel.customize_workspace",
@@ -872,13 +843,12 @@ TEST(EditorCompositionShellTest, ShortcutPreferencesCommandFocusesRegisteredPane
     EditorHost host;
     ASSERT_TRUE(host.Init(std::make_unique<MemoryEditorSettingsStore>()));
 
-    FakeUIFactory factory;
     EditorShell shell;
     EditorShellConfig cfg;
     cfg.registerDefaultPanels = false;
     cfg.applyActivePersona = false;
     cfg.showOnInit = false;
-    ASSERT_TRUE(shell.Init(host, factory, cfg));
+    ASSERT_TRUE(shell.Init(host, std::make_unique<FakeMainWindow>(), cfg));
 
     shell.RegisterPanel(
         std::make_unique<FakePanel>("saga.panel.shortcut_preferences",
@@ -914,13 +884,12 @@ TEST(EditorCompositionShellTest, MissingCommandAndPanelEmitDiagnostics)
                           fs::path{},
                           composition));
 
-    FakeUIFactory factory;
     EditorShell shell;
     EditorShellConfig cfg;
     cfg.registerDefaultPanels = false;
     cfg.applyActivePersona = false;
     cfg.showOnInit = false;
-    ASSERT_TRUE(shell.Init(host, factory, cfg));
+    ASSERT_TRUE(shell.Init(host, std::make_unique<FakeMainWindow>(), cfg));
 
     shell.RegisterPanel(std::make_unique<FakePanel>("saga.panel.hierarchy",
                                                     "Hierarchy"),
@@ -948,12 +917,11 @@ TEST(EditorProfileShellTest, RuntimeProfileSwitchChangesShellOnly)
     auto* selectionBefore = &host.GetSelectionManager();
     auto* commandRegistryBefore = &host.GetCommandRegistry();
 
-    FakeUIFactory factory;
     EditorShell shell;
     EditorShellConfig cfg;
     cfg.registerDefaultPanels = false;
     cfg.applyActivePersona = false;
-    ASSERT_TRUE(shell.Init(host, factory, cfg));
+    ASSERT_TRUE(shell.Init(host, std::make_unique<FakeMainWindow>(), cfg));
 
     shell.RegisterPanel(std::make_unique<FakePanel>("saga.panel.hierarchy", "Hierarchy"),
                         UIDockArea::Left);

@@ -25,7 +25,6 @@ saga_add_editor_module(EditorFramework
         Private/SagaEditor/Customization/WorkspaceCustomizationPanelViewModel.cpp
         Private/SagaEditor/Customization/WorkspaceCustomizationSession.cpp
         Private/SagaEditor/Host/EditorApp.cpp
-        Private/SagaEditor/Host/EditorApplicationRunner.cpp
         Private/SagaEditor/Host/EditorHost.cpp
         Private/SagaEditor/Notifications/EditorNotificationCenter.cpp
         Private/SagaEditor/Persona/BlockVisualStyle.cpp
@@ -71,7 +70,6 @@ saga_add_editor_module(EditorFramework
         Public/SagaEditor/Customization/WorkspaceCustomizationPanelViewModel.h
         Public/SagaEditor/Customization/WorkspaceCustomizationSession.h
         Public/SagaEditor/Host/EditorApp.h
-        Public/SagaEditor/Host/EditorApplicationRunner.h
         Public/SagaEditor/Host/EditorHost.h
         Public/SagaEditor/Host/EditorProjectInspection.h
         Public/SagaEditor/Host/EditorWorkspaceDefinition.h
@@ -108,8 +106,6 @@ saga_add_editor_module(EditorFramework
         Public/SagaEditor/Themes/ColorPalette.h
         Public/SagaEditor/Themes/EditorTheme.h
         Public/SagaEditor/Themes/ThemeRegistry.h
-        Public/SagaEditor/UI/IUIApplication.h
-        Public/SagaEditor/UI/IUIFactory.h
         Public/SagaEditor/UI/IUIMainWindow.h
 )
 

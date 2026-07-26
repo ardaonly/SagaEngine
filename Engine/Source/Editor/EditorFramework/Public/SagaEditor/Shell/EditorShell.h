@@ -24,7 +24,6 @@ struct ResolvedEditorCompositionSnapshot;
 class EditorHost;
 class EditorProfile;
 class IPanel;
-class IUIFactory;
 class ProductionDashboardPanel;
 class RuntimeProcessController;
 
@@ -48,19 +47,14 @@ struct EditorShellConfig
 // ─── Editor Shell ─────────────────────────────────────────────────────────────
 
 /// Owns the IUIMainWindow and all docked panels. Framework-free header — the
-/// concrete window is created via IUIFactory and spoken to through IUIMainWindow.
+/// concrete window is supplied by the composition root and spoken to through
+/// IUIMainWindow.
 /// Extensions contribute panels and menu entries before the window is shown.
 class EditorShell
 {
 public:
     EditorShell();
     ~EditorShell();
-
-    /// Build the main window (via factory), default panels, and chrome.
-    /// Returns false if any step fails.
-    [[nodiscard]] bool Init(EditorHost&              host,
-                            IUIFactory&              factory,
-                            const EditorShellConfig& cfg);
 
     /// Build the shell around a pre-existing backend window owned by a product
     /// host. Used when Saga mounts editor mode inside its own process/window.

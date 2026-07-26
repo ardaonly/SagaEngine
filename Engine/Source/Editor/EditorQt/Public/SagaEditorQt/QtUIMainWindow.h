@@ -16,9 +16,8 @@ namespace SagaEditor
 
 // ─── Qt Main Window ───────────────────────────────────────────────────────────
 
-/// Concrete QMainWindow hidden behind IUIMainWindow.
-/// All Qt types (QMainWindow, QDockWidget, QAction, …) live in the .cpp;
-/// this header stays framework-free.
+/// Concrete QMainWindow hidden behind IUIMainWindow. The typed Window accessor
+/// exists only so the Qt composition root can parent native dialogs.
 class QtUIMainWindow final : public IUIMainWindow
 {
 public:
