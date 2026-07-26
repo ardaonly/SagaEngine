@@ -10,6 +10,9 @@
 
 #include <QApplication>
 #include <QCoreApplication>
+#include <QMainWindow>
+#include <QPointer>
+#include <QWidget>
 
 #include <memory>
 #include <sstream>
@@ -54,6 +57,37 @@ TEST(EditorAppCompositionTests, OwnsTypedSettingsWindowHostAndShell)
     EXPECT_EQ(app.GetShell().GetMainWindow().GetWidth(), 720);
     EXPECT_EQ(app.GetShell().GetMainWindow().GetHeight(), 480);
     app.Shutdown();
+}
+
+TEST(QtUIMainWindowTests, OwnsCentralPanelAndAppliesCloseVeto)
+{
+    auto& application = Application();
+    QtUIMainWindow window("Owned Editor", 640, 360);
+    ASSERT_NE(window.Window(), nullptr);
+
+    QPointer<QWidget> panel = new QWidget();
+    window.DockPanel(panel, "center", "Center", UIDockArea::Center);
+    EXPECT_EQ(window.Window()->centralWidget(), panel);
+
+    int closeCalls = 0;
+    window.SetOnClose([&closeCalls]
+    {
+        ++closeCalls;
+        return false;
+    });
+    window.Show();
+    application.processEvents();
+    window.Close();
+    application.processEvents();
+    EXPECT_EQ(closeCalls, 1);
+    EXPECT_TRUE(window.Window()->isVisible());
+
+    window.UndockPanel("center");
+    EXPECT_TRUE(panel.isNull());
+    window.SetOnClose([] { return true; });
+    window.Close();
+    application.processEvents();
+    EXPECT_FALSE(window.Window()->isVisible());
 }
 
 TEST(EditorApplicationRunnerTests, HelpAndInvalidArgumentsDoNotRequireQtStartup)
