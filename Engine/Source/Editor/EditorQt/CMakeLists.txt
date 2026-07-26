@@ -40,6 +40,7 @@ saga_register_module_tests(EditorQt
     LINK_TARGET SagaEditorLib
     SOURCES
         Tests/QtAuthoringPanelsTests.cpp
+        Tests/QtReadOnlyBlocksWorkflowTests.cpp
         Tests/QtSettingsStoreTests.cpp
     LABELS unit editor qt
 )

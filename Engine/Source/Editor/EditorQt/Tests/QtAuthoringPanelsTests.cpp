@@ -31,11 +31,13 @@ namespace fs = std::filesystem;
 
 QApplication& Application()
 {
+    static const bool configured = [] { qputenv("QT_QPA_PLATFORM", "offscreen"); return true; }();
+    (void)configured;
+    if (auto* existing = qobject_cast<QApplication*>(QCoreApplication::instance()))
+        return *existing;
     static int argc = 1;
     static char name[] = "SagaEditorQtTests";
     static char* argv[] = {name, nullptr};
-    static const bool configured = [] { qputenv("QT_QPA_PLATFORM", "offscreen"); return true; }();
-    (void)configured;
     static QApplication application(argc, argv);
     return application;
 }

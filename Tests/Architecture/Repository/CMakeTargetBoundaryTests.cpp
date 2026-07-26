@@ -592,6 +592,8 @@ TEST(CMakeTargetBoundaryTests, ReadOnlyProjectionStaysOutsideRuntimeLaunchAndExe
         "Engine/Source/Runtime/SagaRuntime/Public/SagaRuntime/Play/RuntimePlayContracts.hpp");
     const auto qtPanel = ReadText(root /
         "Engine/Source/Editor/EditorQt/Private/SagaEditorQt/Panels/ScriptingPanel.cpp");
+    const auto qtBlocks = ReadText(root /
+        "Engine/Source/Editor/EditorQt/Private/SagaEditorQt/Panels/ReadOnlyBlocksWidget.cpp");
     const auto projectionHeader = ReadText(root /
         "Engine/Source/Editor/VisualBlocksEditor/Public/SagaEditor/VisualBlocks/ReadOnlyScriptProjection.h");
     const auto projectionSource = ReadText(root /
@@ -605,6 +607,9 @@ TEST(CMakeTargetBoundaryTests, ReadOnlyProjectionStaysOutsideRuntimeLaunchAndExe
     EXPECT_EQ(play.find("ReadOnlyScriptProjection"), std::string::npos);
     EXPECT_EQ(qtPanel.find("Microsoft.CodeAnalysis"), std::string::npos);
     EXPECT_EQ(qtPanel.find("CSharpSyntaxTree"), std::string::npos);
+    for (const auto* mutation : {"ReplaceText", "SourceDocumentTransaction",
+                                 "ApplyPatch", "WriteFile"})
+        EXPECT_EQ(qtBlocks.find(mutation), std::string::npos) << mutation;
     for (const auto& text : {projectionHeader, projectionSource})
     {
         EXPECT_EQ(text.find("VirtualMachine"), std::string::npos);

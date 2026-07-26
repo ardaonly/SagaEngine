@@ -227,6 +227,11 @@ function(saga_create_registered_module_tests out_var)
                 --gtest_filter=ReadOnlyScriptProjectionTests.*)
             set_tests_properties(ReadOnlyBlockProjectionTests PROPERTIES
                 LABELS "unit;editor;visual-blocks;projection")
+        elseif(_module STREQUAL "EditorQt")
+            add_test(NAME ReadOnlyQtProjectionWorkflowTests COMMAND ${_target}
+                --gtest_filter=QtReadOnlyBlocksWorkflowTests.*)
+            set_tests_properties(ReadOnlyQtProjectionWorkflowTests PROPERTIES
+                LABELS "unit;editor;qt;visual-blocks;projection")
         endif()
 
         list(APPEND _targets ${_target})

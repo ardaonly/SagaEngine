@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #include "SagaEditor/Play/RuntimeProcessController.h"
+#include "SagaEditor/Play/PlayPreparationPipeline.h"
+#include "SagaEditor/Processes/ToolProcessRunner.h"
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
 #include "TestSourceRoot.h"
 
@@ -196,6 +198,51 @@ TEST(StarterArenaPlayStopIntegrationTests,
         "RuntimeScriptPackage/Manifests/script_artifacts.json"));
     EXPECT_FALSE(std::filesystem::exists(snapshot.resultPath.parent_path() /
         "RuntimeScriptPackage/Manifests/script_capabilities.json"));
+}
+
+TEST(StarterArenaPlayStopIntegrationTests,
+     SeparateRuntimeDoesNotRequireProjectionArtifacts)
+{
+    const auto root = std::filesystem::temp_directory_path() /
+        ("saga-projection-independent-play-" + std::to_string(
+            std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::filesystem::copy(StarterArenaProject().parent_path(), root,
+        std::filesystem::copy_options::recursive);
+    std::error_code cleanupError;
+    std::filesystem::remove_all(root / "Build/Editor", cleanupError);
+    std::filesystem::remove_all(root / ".saga", cleanupError);
+    SagaEditor::EditorDocumentWorkspace workspace;
+    ASSERT_TRUE(workspace.OpenProject(root / "StarterArena.sagaproj"));
+    const auto prepared = SagaEditor::PlayPreparationPipeline{}.Prepare(workspace,
+        {"projection-independent-play", RuntimeExecutable(), {}, {}, {}});
+    ASSERT_TRUE(prepared.passed) << (prepared.diagnostics.empty() ? "" :
+        prepared.diagnostics.front().code + ": " + prepared.diagnostics.front().message);
+
+    std::size_t removed = 0;
+    const auto artifacts = root / "Build/Editor/Scripting/Artifacts";
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(artifacts))
+        if (entry.is_regular_file() && entry.path().filename() == "block_projection_v1.json")
+        {
+            std::filesystem::remove(entry.path());
+            ++removed;
+        }
+    ASSERT_GT(removed, 0U);
+
+    SagaEditor::ToolProcessRequest request;
+    request.executable = RuntimeExecutable();
+    request.arguments = {"--play-envelope", prepared.localEnvelopePath.string(),
+        "--headless", "--smoke-interactions"};
+    request.workingDirectory = root;
+    request.timeout = std::chrono::seconds(60);
+    const auto process = SagaEditor::ToolProcessRunner{}.Run(request);
+    EXPECT_TRUE(process.Succeeded()) << process.diagnosticCode << ": "
+        << process.diagnosticMessage << "\n" << process.standardError;
+    ASSERT_TRUE(std::filesystem::is_regular_file(prepared.resultPath));
+    std::ifstream resultInput(prepared.resultPath, std::ios::binary);
+    const auto result = nlohmann::json::parse(resultInput);
+    EXPECT_EQ(result.value("status", std::string{}), "Succeeded");
+    EXPECT_EQ(result.value("interactionActionCount", 0), 2);
+    std::filesystem::remove_all(root, cleanupError);
 }
 
 TEST(StarterArenaGraphicalRuntimeIntegrationTests,
