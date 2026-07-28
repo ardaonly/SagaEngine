@@ -104,6 +104,50 @@ function(saga_setup_distribution)
         BUNDLE  DESTINATION .   COMPONENT SagaDistribution
     )
 
+    if(UNIX AND NOT APPLE AND TARGET Qt6::QXcbIntegrationPlugin)
+        set(_saga_qt_xcb_plugin)
+        foreach(_config IN ITEMS RELWITHDEBINFO RELEASE DEBUG MINSIZEREL)
+            set(_plugin_dirs_var
+                "qt_Qt6_QXcbIntegrationPlugin_LIB_DIRS_${_config}")
+            foreach(_plugin_dir IN LISTS ${_plugin_dirs_var})
+                if(EXISTS "${_plugin_dir}/libqxcb.so")
+                    set(_saga_qt_xcb_plugin "${_plugin_dir}/libqxcb.so")
+                    break()
+                endif()
+            endforeach()
+            if(_saga_qt_xcb_plugin)
+                break()
+            endif()
+        endforeach()
+        if(NOT _saga_qt_xcb_plugin)
+            get_target_property(_plugin_link_dirs
+                Qt6::QXcbIntegrationPlugin INTERFACE_LINK_DIRECTORIES)
+            foreach(_plugin_link_dir IN LISTS _plugin_link_dirs)
+                string(REGEX MATCH "([^:<>]+/plugins/platforms)"
+                    _plugin_dir_match "${_plugin_link_dir}")
+                if(_plugin_dir_match AND
+                   EXISTS "${_plugin_dir_match}/libqxcb.so")
+                    set(_saga_qt_xcb_plugin
+                        "${_plugin_dir_match}/libqxcb.so")
+                    break()
+                endif()
+            endforeach()
+        endif()
+        if(NOT _saga_qt_xcb_plugin)
+            message(FATAL_ERROR
+                "Saga Linux distribution requires the Qt xcb platform plugin")
+        endif()
+        install(FILES "${_saga_qt_xcb_plugin}"
+            DESTINATION plugins/platforms
+            COMPONENT SagaDistribution
+        )
+        install(FILES "${SAGA_ROOT}/cmake/templates/saga_qt.conf"
+            DESTINATION bin
+            RENAME qt.conf
+            COMPONENT SagaDistribution
+        )
+    endif()
+
     install(RUNTIME_DEPENDENCY_SET SagaDistributionRuntimeDeps
         PRE_EXCLUDE_REGEXES
             "api-ms-.*"
