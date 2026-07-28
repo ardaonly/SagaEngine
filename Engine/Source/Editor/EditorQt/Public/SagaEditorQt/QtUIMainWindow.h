@@ -23,6 +23,9 @@ class QtUIMainWindow final : public IUIMainWindow
 {
 public:
     QtUIMainWindow(const std::string& title, int width, int height);
+    /// Attach Editor chrome to a foreign product window without taking its
+    /// lifetime or top-level close policy. The product owner must consult
+    /// EditorWorkspaceSession::CanCloseWorkspace() from its closeEvent.
     QtUIMainWindow(QMainWindow& window, QStackedWidget& centralStack);
     ~QtUIMainWindow() override;
 
