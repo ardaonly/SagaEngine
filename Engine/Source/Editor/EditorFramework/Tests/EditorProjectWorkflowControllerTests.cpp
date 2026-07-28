@@ -197,7 +197,7 @@ TEST_F(WorkflowFixture, CreateIsTransactionalAcrossSuccessAndFailure)
     EXPECT_EQ(controller.CreateStarterArenaPrompted(),
               ProjectWorkflowOutcome::Completed);
     ASSERT_NE(workspace->Project(), nullptr);
-    EXPECT_EQ(workspace->Project()->name, "Created");
+    EXPECT_EQ(workspace->Project()->name, "Created Project");
 
     client->failCreation = true;
     const auto failed = root / "Failed";
@@ -209,7 +209,7 @@ TEST_F(WorkflowFixture, CreateIsTransactionalAcrossSuccessAndFailure)
     EXPECT_EQ(failing.CreateStarterArenaPrompted(),
               ProjectWorkflowOutcome::Failed);
     ASSERT_NE(workspace->Project(), nullptr);
-    EXPECT_EQ(workspace->Project()->name, "Created");
+    EXPECT_EQ(workspace->Project()->name, "Created Project");
 }
 
 TEST_F(WorkflowFixture, DirtyCancellationVetoesPromptedOpen)

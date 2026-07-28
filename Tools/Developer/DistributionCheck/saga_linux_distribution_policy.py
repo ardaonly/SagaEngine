@@ -40,7 +40,7 @@ ALLOWED_ROOT_FILES = frozenset(
     {"BUILD_INFO.json", "KNOWN_LIMITATIONS.md", "README.md", "VERIFY.txt", "VERSION"}
 )
 ALLOWED_TOP_LEVEL_DIRECTORIES = frozenset(
-    {"bin", "SagaWiki", "licenses", "samples", "tools"}
+    {"bin", "Engine", "SagaWiki", "licenses", "samples", "tools"}
 )
 APPROVED_DOCUMENTS = frozenset(
     {
@@ -63,9 +63,12 @@ ALLOWED_EXECUTABLE_PATHS = frozenset(
 )
 ALLOWED_TREE_PREFIXES = tuple(
     sorted(
-        ["licenses/", "samples/StarterArena/"]
+        ["Engine/Distribution/", "licenses/", "samples/StarterArena/"]
         + [f"{item['payloadRoot']}/" for item in PUBLIC_TOOLS]
     )
+)
+REQUIRED_PRODUCT_RESOURCE_PATHS = frozenset(
+    {"Engine/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.dll"}
 )
 
 FORBIDDEN_EXECUTABLE_NAMES = frozenset(
@@ -142,7 +145,11 @@ def _normal_rel(path: str) -> str:
 
 def is_allowed_file_path(path: str) -> bool:
     rel = _normal_rel(path)
-    if rel in ALLOWED_ROOT_FILES or rel in APPROVED_DOCUMENTS or rel in ALLOWED_EXECUTABLE_PATHS:
+    if (
+        rel in ALLOWED_ROOT_FILES or rel in APPROVED_DOCUMENTS or
+        rel in REQUIRED_PRODUCT_RESOURCE_PATHS or
+        rel in ALLOWED_EXECUTABLE_PATHS
+    ):
         return True
     return any(rel.startswith(prefix) and rel != prefix.rstrip("/") for prefix in ALLOWED_TREE_PREFIXES)
 
@@ -151,7 +158,10 @@ def is_allowed_directory_path(path: str) -> bool:
     rel = _normal_rel(path).rstrip("/")
     if rel in ALLOWED_TOP_LEVEL_DIRECTORIES:
         return True
-    exact_files = ALLOWED_ROOT_FILES | APPROVED_DOCUMENTS | REQUIRED_LICENSE_PATHS | ALLOWED_EXECUTABLE_PATHS
+    exact_files = (
+        ALLOWED_ROOT_FILES | APPROVED_DOCUMENTS | REQUIRED_LICENSE_PATHS |
+        REQUIRED_PRODUCT_RESOURCE_PATHS | ALLOWED_EXECUTABLE_PATHS
+    )
     if any(file_path.startswith(f"{rel}/") for file_path in exact_files):
         return True
     for prefix in ALLOWED_TREE_PREFIXES:
@@ -179,7 +189,10 @@ def validate_layout(root: Path) -> list[str]:
     if not root.is_dir():
         return [f"missing distribution layout: {root}"]
 
-    for required in sorted(ALLOWED_ROOT_FILES | APPROVED_DOCUMENTS | REQUIRED_LICENSE_PATHS | ALLOWED_EXECUTABLE_PATHS):
+    for required in sorted(
+        ALLOWED_ROOT_FILES | APPROVED_DOCUMENTS | REQUIRED_LICENSE_PATHS |
+        REQUIRED_PRODUCT_RESOURCE_PATHS | ALLOWED_EXECUTABLE_PATHS
+    ):
         path = root / required
         if required in ALLOWED_EXECUTABLE_PATHS:
             if not path.is_file() or path.stat().st_size == 0 or not bool(path.stat().st_mode & 0o111):
@@ -190,6 +203,8 @@ def validate_layout(root: Path) -> list[str]:
     sample_root = root / "samples" / "StarterArena"
     if not sample_root.is_dir():
         errors.append("missing required directory: samples/StarterArena")
+    if not (root / "Engine" / "Distribution").is_dir():
+        errors.append("missing required directory: Engine/Distribution")
 
     for path in sorted(root.rglob("*"), key=lambda item: item.relative_to(root).as_posix()):
         rel = path.relative_to(root).as_posix()

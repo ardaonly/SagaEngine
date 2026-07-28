@@ -22,7 +22,8 @@ class ProjectManager {
 public:
     explicit ProjectManager(std::shared_ptr<IProjectToolClient> client = {});
     ~ProjectManager();
-    bool          CreateStarterArena(const ProjectTemplateRequest& request);
+    [[nodiscard]] ProjectToolResult CreateStarterArena(
+        const ProjectTemplateRequest& request);
     bool          OpenProject(const std::string& path);
     void          CloseProject();
     bool          IsProjectOpen() const noexcept;

@@ -168,6 +168,61 @@ function(saga_setup_distribution)
         COMPONENT SagaDistribution
     )
 
+    install(DIRECTORY "${SAGA_ROOT}/Samples/StarterArena/"
+        DESTINATION samples/StarterArena
+        COMPONENT SagaDistribution
+    )
+    install(DIRECTORY "${SAGA_ROOT}/Engine/Distribution/"
+        DESTINATION Engine/Distribution
+        COMPONENT SagaDistribution
+    )
+
+    if(SAGA_DOTNET_EXECUTABLE)
+        add_custom_target(SagaProjectCreationTools
+            COMMAND "${SAGA_DOTNET_EXECUTABLE}" build
+                "${SAGA_ROOT}/Tools/SagaProjectKit/SagaProjectKit.csproj"
+                --configuration Release --verbosity minimal
+            COMMAND "${SAGA_DOTNET_EXECUTABLE}" build
+                "${SAGA_ROOT}/Tools/SagaPackager/SagaPackager.csproj"
+                --configuration Release --verbosity minimal
+            COMMAND "${SAGA_DOTNET_EXECUTABLE}" build
+                "${SAGA_ROOT}/Tools/SagaScript/SagaScript.csproj"
+                --configuration Release --verbosity minimal
+            VERBATIM
+        )
+        foreach(_saga_tool IN ITEMS sagaproject sagapack sagascript)
+            if(_saga_tool STREQUAL "sagaproject")
+                set(_saga_tool_source "SagaProjectKit")
+            elseif(_saga_tool STREQUAL "sagapack")
+                set(_saga_tool_source "SagaPackager")
+            else()
+                set(_saga_tool_source "SagaScript")
+            endif()
+            install(DIRECTORY
+                "${SAGA_ROOT}/Tools/${_saga_tool_source}/bin/Release/net10.0/"
+                DESTINATION "tools/.saga-tools/${_saga_tool}"
+                COMPONENT SagaDistribution
+            )
+            if(UNIX)
+                set(SAGA_DISTRIBUTION_TOOL_NAME "${_saga_tool}")
+                configure_file(
+                    "${SAGA_ROOT}/cmake/templates/saga_dotnet_tool_wrapper.sh.in"
+                    "${CMAKE_BINARY_DIR}/dist/${_saga_tool}"
+                    @ONLY
+                )
+                install(PROGRAMS "${CMAKE_BINARY_DIR}/dist/${_saga_tool}"
+                    DESTINATION bin
+                    COMPONENT SagaDistribution
+                )
+            endif()
+        endforeach()
+        install(FILES
+            "${CMAKE_BINARY_DIR}/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.dll"
+            DESTINATION Engine/Managed/SagaScript.RuntimeBridge
+            COMPONENT SagaDistribution
+        )
+    endif()
+
     set(_saga_fontconfig_res)
     file(GLOB _saga_fontconfig_data_files CONFIGURE_DEPENDS
         "${CMAKE_BINARY_DIR}/generators/Fontconfig-*-data.cmake"
@@ -260,6 +315,8 @@ function(saga_setup_distribution)
                 --prefix "${SAGA_DISTRIBUTION_DIR}"
                 --component SagaDistribution
         DEPENDS ${_saga_product_distribution_targets}
+            $<$<TARGET_EXISTS:SagaProjectCreationTools>:SagaProjectCreationTools>
+            $<$<TARGET_EXISTS:SagaScriptRuntimeBridge>:SagaScriptRuntimeBridge>
         COMMENT "Staging ${SAGA_DISTRIBUTION_NAME}"
         VERBATIM
     )

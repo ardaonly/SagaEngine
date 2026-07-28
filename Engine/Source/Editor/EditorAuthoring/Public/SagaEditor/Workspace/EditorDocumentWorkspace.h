@@ -42,7 +42,8 @@ public:
     ~EditorDocumentWorkspace();
 
     [[nodiscard]] bool OpenProject(const std::filesystem::path& path);
-    [[nodiscard]] bool CreateStarterArena(const ProjectTemplateRequest& request);
+    [[nodiscard]] ProjectToolResult CreateStarterArena(
+        const ProjectTemplateRequest& request);
     void Close();
 
     [[nodiscard]] bool IsOpen() const noexcept;

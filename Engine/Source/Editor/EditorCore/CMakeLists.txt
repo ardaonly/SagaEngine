@@ -71,6 +71,7 @@ saga_register_module_tests(EditorCore
         Tests/DocumentRecoveryTests.cpp
         Tests/SourceDocumentTests.cpp
         Tests/ProjectManagerTests.cpp
+        Tests/SagaProjectKitClientTests.cpp
         Tests/ToolProcessRunnerTests.cpp
         Tests/SagaScriptWorkerClientTests.cpp
         Tests/SelectionStateTests.cpp

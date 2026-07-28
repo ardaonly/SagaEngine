@@ -30,6 +30,38 @@ namespace SagaProduct
 {
 namespace
 {
+QString Bounded(QString text, qsizetype limit)
+{
+    if (text.size() <= limit) return text;
+    text.truncate(limit);
+    return text + "\n…";
+}
+
+void ShowProjectCreationFailure(
+    QWidget* parent, const SagaEditor::ProjectToolResult& result)
+{
+    QMessageBox message(QMessageBox::Warning, "New Project",
+        "Project creation failed.", QMessageBox::Ok, parent);
+    if (!result.diagnostics.empty())
+    {
+        const auto& diagnostic = result.diagnostics.front();
+        message.setInformativeText(Bounded(
+            QString::fromStdString(diagnostic.message), 512));
+        QString details = QString::fromStdString(
+            diagnostic.code + "\nPath: " + diagnostic.path.string());
+        if (result.process.exitCode >= 0)
+            details += "\nExit code: " + QString::number(result.process.exitCode);
+        if (!result.process.diagnosticMessage.empty())
+            details += "\n" + QString::fromStdString(
+                result.process.diagnosticMessage);
+        if (!result.process.standardError.empty())
+            details += "\n\n" + QString::fromStdString(
+                result.process.standardError);
+        message.setDetailedText(Bounded(details, 4096));
+    }
+    message.exec();
+}
+
 std::filesystem::path RecentPath()
 {
     const QString root = QStandardPaths::writableLocation(
@@ -173,19 +205,8 @@ void SagaMainWindow::BuildHome()
             return;
         const auto root = std::filesystem::path(destination.toStdString()) /
             displayName.toStdString();
-        SagaEditor::EditorDocumentWorkspace workspace;
-        if (!workspace.CreateStarterArena(
-                SagaEditor::MakeStarterArenaTemplateRequest(
-                    root, displayName.toStdString())) ||
-            !workspace.Project())
-        {
-            QMessageBox::warning(this, "New Project",
-                "Project creation failed; no workspace was opened.");
-            return;
-        }
-        const auto manifest = workspace.Project()->manifestPath;
-        workspace.Close();
-        (void)OpenProject(manifest);
+        const auto result = CreateProject(root, displayName.toStdString());
+        if (!result.passed) ShowProjectCreationFailure(this, result);
     });
     QObject::connect(recents_, &QListWidget::itemActivated, this,
         [this](QListWidgetItem* item)
@@ -196,6 +217,31 @@ void SagaMainWindow::BuildHome()
     stack_->addWidget(home_);
     stack_->setCurrentWidget(home_);
     RefreshRecents();
+}
+
+SagaEditor::ProjectToolResult SagaMainWindow::CreateProject(
+    const std::filesystem::path& destination,
+    const std::string& displayName)
+{
+    const auto toolchain = SagaEditor::ResolveEditorToolchain(executable_);
+    auto client = std::make_shared<SagaEditor::SagaProjectKitClient>(
+        toolchain.sagaProjectKitExecutable);
+    SagaEditor::EditorDocumentWorkspace workspace(std::move(client));
+    auto result = workspace.CreateStarterArena(
+        SagaEditor::MakeStarterArenaTemplateRequest(
+            destination, displayName, executable_));
+    if (!result.passed) return result;
+    const auto manifest = result.project.manifestPath;
+    workspace.Close();
+    if (!OpenProject(manifest))
+    {
+        result.passed = false;
+        result.diagnostics.push_back({
+            "Project.Home.EditorTransitionFailed",
+            "The project was created, but Saga could not open its Editor workspace.",
+            manifest});
+    }
+    return result;
 }
 
 void SagaMainWindow::RefreshRecents()

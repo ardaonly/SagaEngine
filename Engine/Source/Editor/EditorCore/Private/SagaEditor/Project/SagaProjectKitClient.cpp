@@ -37,32 +37,64 @@ std::filesystem::path FindEngineRoot(std::filesystem::path cursor)
     return {};
 }
 
-std::filesystem::path DiscoverEngineRoot()
+std::filesystem::path CurrentExecutable()
 {
-    if (const auto configured = EnvironmentPath("SAGA_ENGINE_ROOT"); !configured.empty())
-        if (const auto found = FindEngineRoot(configured); !found.empty()) return found;
-    if (const auto found = FindEngineRoot(std::filesystem::current_path()); !found.empty())
-        return found;
 #ifndef _WIN32
     std::error_code error;
     const auto executable = std::filesystem::read_symlink("/proc/self/exe", error);
-    if (!error)
-        if (const auto found = FindEngineRoot(executable); !found.empty()) return found;
+    if (!error) return executable;
 #endif
     return {};
 }
 
-std::filesystem::path ToolPath(const std::filesystem::path& root,
-                               std::string_view relative,
-                               const char* overrideName)
+std::filesystem::path ExecutablePath(std::filesystem::path candidate)
 {
-    if (const auto configured = EnvironmentPath(overrideName); !configured.empty())
-        return configured;
-    auto candidate = root / relative;
 #ifdef _WIN32
     candidate += ".exe";
 #endif
     return candidate;
+}
+
+std::filesystem::path ToolPath(const std::filesystem::path& developerRoot,
+                               const std::filesystem::path& productRoot,
+                               std::string_view repositoryRelative,
+                               std::string_view installedName,
+                               const char* overrideName)
+{
+    if (const auto configured = EnvironmentPath(overrideName); !configured.empty())
+        return configured;
+    if (!developerRoot.empty())
+        return ExecutablePath(developerRoot / repositoryRelative);
+    if (!productRoot.empty())
+        return ExecutablePath(productRoot / "bin" / installedName);
+    return ExecutablePath(std::filesystem::path(installedName));
+}
+
+bool IsInstalledProductRoot(const std::filesystem::path& root)
+{
+    std::error_code error;
+    return std::filesystem::is_directory(root / "samples/StarterArena", error) &&
+        (std::filesystem::is_regular_file(
+             ExecutablePath(root / "bin/sagaproject"), error) ||
+         std::filesystem::is_regular_file(
+             ExecutablePath(root / "tools/sagaproject"), error));
+}
+
+std::filesystem::path FindInstalledProductRoot(std::filesystem::path executable)
+{
+    std::error_code error;
+    executable = std::filesystem::absolute(executable, error);
+    if (error) return {};
+    auto cursor = std::filesystem::is_regular_file(executable, error) ?
+        executable.parent_path() : executable;
+    while (!cursor.empty())
+    {
+        if (IsInstalledProductRoot(cursor)) return cursor;
+        const auto parent = cursor.parent_path();
+        if (parent == cursor) break;
+        cursor = parent;
+    }
+    return {};
 }
 
 std::filesystem::path TemporaryReport(std::string_view name)
@@ -203,36 +235,91 @@ ProjectToolResult ProcessFailure(ToolProcessResult process,
         path});
     return result;
 }
+
+ProjectToolResult MissingResource(std::string code,
+                                  std::string message,
+                                  const std::filesystem::path& path)
+{
+    ProjectToolResult result;
+    result.diagnostics.push_back(
+        {std::move(code), std::move(message), path});
+    return result;
+}
 }
 
 ProjectTemplateRequest MakeStarterArenaTemplateRequest(
-    std::filesystem::path destination, std::string displayName)
+    std::filesystem::path destination, std::string displayName,
+    const std::filesystem::path& productExecutable)
 {
-    const auto toolchain = ResolveEditorToolchain();
+    const auto toolchain = ResolveEditorToolchain(productExecutable);
     ProjectTemplateRequest request;
     request.destination = std::move(destination);
     request.displayName = std::move(displayName);
     request.engineRoot = toolchain.engineRoot;
-    request.seed = request.engineRoot / "Samples/StarterArena";
+    request.seed = toolchain.starterArenaSeed;
     request.sagaPackagerExecutable = toolchain.sagaPackagerExecutable;
     request.runtimeBridge = toolchain.runtimeBridge;
     return request;
 }
 
-EditorToolchainPaths ResolveEditorToolchain()
+EditorToolchainPaths ResolveEditorToolchain(
+    const std::filesystem::path& productExecutable)
 {
     EditorToolchainPaths result;
-    result.engineRoot = DiscoverEngineRoot();
-    result.sagaProjectKitExecutable = ToolPath(result.engineRoot,
-        "Tools/SagaProjectKit/bin/Release/net10.0/sagaproject", "SAGA_PROJECT_TOOL");
-    result.sagaPackagerExecutable = ToolPath(result.engineRoot,
-        "Tools/SagaPackager/bin/Release/net10.0/sagapack", "SAGA_PACKAGE_TOOL");
-    result.sagaScriptExecutable = ToolPath(result.engineRoot,
-        "Tools/SagaScript/bin/Release/net10.0/sagascript", "SAGA_SCRIPT_TOOL");
+    const auto anchor = productExecutable.empty() ?
+        CurrentExecutable() : productExecutable;
+    auto developerRoot = FindEngineRoot(anchor);
+    if (const auto configured = EnvironmentPath("SAGA_ENGINE_ROOT");
+        !configured.empty())
+    {
+        result.engineRoot = std::filesystem::absolute(configured);
+        developerRoot = FindEngineRoot(configured);
+    }
+    result.productRoot = FindInstalledProductRoot(anchor);
+    if (const auto configured = EnvironmentPath("SAGA_PRODUCT_ROOT");
+        !configured.empty())
+    {
+        result.productRoot = std::filesystem::absolute(configured);
+        developerRoot.clear();
+        result.engineRoot.clear();
+    }
+    if (result.engineRoot.empty())
+        result.engineRoot = developerRoot.empty() ?
+            result.productRoot : developerRoot;
+
+    result.starterArenaSeed = !developerRoot.empty() ?
+        developerRoot / "Samples/StarterArena" :
+        result.productRoot / "samples/StarterArena";
+    result.sagaProjectKitExecutable = ToolPath(developerRoot, result.productRoot,
+        "Tools/SagaProjectKit/bin/Release/net10.0/sagaproject",
+        "sagaproject", "SAGA_PROJECT_TOOL");
+    result.sagaPackagerExecutable = ToolPath(developerRoot, result.productRoot,
+        "Tools/SagaPackager/bin/Release/net10.0/sagapack",
+        "sagapack", "SAGA_PACKAGE_TOOL");
+    result.sagaScriptExecutable = ToolPath(developerRoot, result.productRoot,
+        "Tools/SagaScript/bin/Release/net10.0/sagascript",
+        "sagascript", "SAGA_SCRIPT_TOOL");
     result.runtimeBridge = EnvironmentPath("SAGA_RUNTIME_BRIDGE");
     if (result.runtimeBridge.empty())
-        result.runtimeBridge = result.engineRoot /
-            "Engine/Managed/SagaScript.RuntimeBridge/bin/Release/net10.0/SagaScript.RuntimeBridge.dll";
+    {
+        if (!developerRoot.empty())
+        {
+            const auto buildBridge = anchor.parent_path().parent_path() /
+                "Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.dll";
+            std::error_code error;
+            result.runtimeBridge = std::filesystem::is_regular_file(
+                buildBridge, error) ? buildBridge :
+                developerRoot /
+                    "Engine/Managed/SagaScript.RuntimeBridge/bin/Release/net10.0/"
+                    "SagaScript.RuntimeBridge.dll";
+        }
+        else
+        {
+            result.runtimeBridge = result.productRoot /
+                "Engine/Managed/SagaScript.RuntimeBridge/"
+                "SagaScript.RuntimeBridge.dll";
+        }
+    }
     return result;
 }
 
@@ -266,6 +353,30 @@ ProjectToolResult SagaProjectKitClient::Validate(
 ProjectToolResult SagaProjectKitClient::CreateStarterArena(
     const ProjectTemplateRequest& request) const
 {
+    std::error_code error;
+    if (executable_.has_parent_path() &&
+        !std::filesystem::is_regular_file(executable_, error))
+        return MissingResource("Project.Toolchain.ProjectToolMissing",
+            "The SagaProjectKit executable required for project creation is missing.",
+            executable_);
+    if (!std::filesystem::is_directory(request.seed, error))
+        return MissingResource("Project.Template.SeedMissing",
+            "The installed StarterArena project template is missing.",
+            request.seed);
+    if (!std::filesystem::is_regular_file(request.sagaPackagerExecutable, error))
+        return MissingResource("Project.Toolchain.PackagerMissing",
+            "The SagaPackager executable required for project creation is missing.",
+            request.sagaPackagerExecutable);
+    if (!std::filesystem::is_directory(
+            request.engineRoot / "Engine/Distribution", error))
+        return MissingResource("Project.Toolchain.EngineDistributionMissing",
+            "The installed engine package distribution is missing.",
+            request.engineRoot / "Engine/Distribution");
+    if (!std::filesystem::is_regular_file(request.runtimeBridge, error))
+        return MissingResource("Project.Toolchain.RuntimeBridgeMissing",
+            "The SagaScript runtime bridge required for project creation is missing.",
+            request.runtimeBridge);
+
     const auto plan = TemporaryReport("template-plan");
     ToolProcessRequest planRequest;
     planRequest.executable = executable_;

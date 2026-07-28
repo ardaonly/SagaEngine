@@ -27,6 +27,7 @@ from saga_linux_distribution_policy import (  # noqa: E402
     EXCLUDED_SOURCE_SURFACES,
     FORBIDDEN_EXECUTABLE_NAMES,
     REQUIRED_LICENSE_PATHS,
+    REQUIRED_PRODUCT_RESOURCE_PATHS,
     included_applications,
     included_public_tools,
     staged_file_inventory,
@@ -57,12 +58,16 @@ def write_file(root: Path, rel: str, *, executable: bool = False) -> None:
 
 
 def exact_layout(root: Path) -> None:
-    for rel in sorted(ALLOWED_ROOT_FILES | APPROVED_DOCUMENTS | REQUIRED_LICENSE_PATHS):
+    for rel in sorted(
+        ALLOWED_ROOT_FILES | APPROVED_DOCUMENTS | REQUIRED_LICENSE_PATHS |
+        REQUIRED_PRODUCT_RESOURCE_PATHS
+    ):
         write_file(root, rel)
     for rel in sorted(ALLOWED_EXECUTABLE_PATHS):
         write_file(root, rel, executable=True)
     write_file(root, "licenses/Apache-2.0.txt")
     write_file(root, "samples/StarterArena/StarterArena.sagaproj")
+    write_file(root, "Engine/Distribution/Packages/example/0.0.11/package.json")
 
 
 def exact_metadata() -> dict[str, object]:
