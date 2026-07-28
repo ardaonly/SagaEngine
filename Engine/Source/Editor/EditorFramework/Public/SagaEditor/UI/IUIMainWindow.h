@@ -98,6 +98,9 @@ public:
 
     // ─── Events ───────────────────────────────────────────────────────────────
 
+    /// Install close policy when this adapter owns the top-level window.
+    /// A composition attaching to a foreign desktop window leaves close
+    /// authority with that owner, which must query the workspace session.
     virtual void SetOnClose(CloseCallback cb) = 0;
 
     /// Called when a menu or toolbar action carrying a command id is triggered.

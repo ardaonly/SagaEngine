@@ -9,20 +9,39 @@
 
 #include <QApplication>
 #include <QComboBox>
+#include <QCloseEvent>
 #include <QDockWidget>
 #include <QListWidget>
 #include <QMainWindow>
+#include <QMetaObject>
 #include <QPointer>
 #include <QPushButton>
 #include <QSettings>
 #include <QStackedWidget>
 #include <QTemporaryDir>
+#include <QTimer>
 
 #include <filesystem>
 #include <memory>
 
 namespace
 {
+
+constexpr const char* kWorkflowStateTimerObjectName =
+    "SagaEditorWorkflowStateTimer";
+
+class CloseOwningMainWindow final : public QMainWindow
+{
+public:
+    int closeEventCount = 0;
+
+protected:
+    void closeEvent(QCloseEvent* event) override
+    {
+        ++closeEventCount;
+        event->ignore();
+    }
+};
 
 std::filesystem::path TestSourceRoot()
 {
@@ -122,6 +141,56 @@ TEST(SagaHomeUiTest, AttachedEditorWindowNeverOwnsProductWindow)
     EXPECT_FALSE(observed.isNull());
     EXPECT_EQ(stack->count(), 0);
     EXPECT_TRUE(owner->findChildren<QDockWidget*>().empty());
+}
+
+TEST(SagaHomeUiTest, AttachedWorkflowTimerDoesNotOutliveEditorAdapter)
+{
+    QMainWindow owner;
+    auto* stack = new QStackedWidget(&owner);
+    owner.setCentralWidget(stack);
+    const auto timerCount = [&owner]
+    {
+        return owner.findChildren<QTimer*>(kWorkflowStateTimerObjectName).size();
+    };
+    const qsizetype baseline = timerCount();
+
+    for (int cycle = 0; cycle < 3; ++cycle)
+    {
+        int callbackCount = 0;
+        {
+            SagaEditor::QtUIMainWindow editorWindow(owner, *stack);
+            editorWindow.SetOnWorkflowStatePoll(
+                [&callbackCount] { ++callbackCount; });
+            const auto timers =
+                owner.findChildren<QTimer*>(kWorkflowStateTimerObjectName);
+            ASSERT_EQ(timers.size(), baseline + 1);
+            ASSERT_TRUE(QMetaObject::invokeMethod(
+                timers.back(), "timeout", Qt::QueuedConnection));
+        }
+
+        QApplication::processEvents();
+        EXPECT_EQ(callbackCount, 0);
+        EXPECT_EQ(timerCount(), baseline);
+    }
+}
+
+TEST(SagaHomeUiTest, AttachedEditorLeavesClosePolicyWithProductWindow)
+{
+    CloseOwningMainWindow owner;
+    auto* stack = new QStackedWidget(&owner);
+    owner.setCentralWidget(stack);
+    int editorCloseCallbackCount = 0;
+    SagaEditor::QtUIMainWindow editorWindow(owner, *stack);
+    editorWindow.SetOnClose([&editorCloseCallbackCount]
+    {
+        ++editorCloseCallbackCount;
+        return true;
+    });
+
+    owner.close();
+
+    EXPECT_EQ(owner.closeEventCount, 1);
+    EXPECT_EQ(editorCloseCallbackCount, 0);
 }
 
 } // namespace

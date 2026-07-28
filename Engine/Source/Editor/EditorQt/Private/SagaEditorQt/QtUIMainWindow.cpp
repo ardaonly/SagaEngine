@@ -52,6 +52,9 @@ protected:
 
 struct QtUIMainWindow::Impl
 {
+    static constexpr const char* kWorkflowStateTimerObjectName =
+        "SagaEditorWorkflowStateTimer";
+
     QMainWindow* window = nullptr;
     QStackedWidget* centralStack = nullptr;
     bool ownsWindow = true;
@@ -67,20 +70,27 @@ struct QtUIMainWindow::Impl
     QTimer*                                       workflowStateTimer = nullptr;
     std::unordered_map<std::string, std::vector<QAction*>> commandActions;
 
+    void StartWorkflowStateTimer()
+    {
+        workflowStateTimer = new QTimer(window);
+        workflowStateTimer->setObjectName(kWorkflowStateTimerObjectName);
+        workflowStateTimer->setInterval(100);
+        QObject::connect(workflowStateTimer, &QTimer::timeout,
+                         workflowStateTimer, [this]
+        {
+            if (onWorkflowStatePoll)
+                onWorkflowStatePoll();
+        });
+        workflowStateTimer->start();
+    }
+
     explicit Impl(const std::string& title, int w, int h)
     {
         window = new QtMainWindowWidget();
         window->setWindowTitle(QString::fromStdString(title));
         window->resize(w, h);
         window->statusBar()->showMessage("Ready");
-        workflowStateTimer = new QTimer(window);
-        workflowStateTimer->setInterval(100);
-        QObject::connect(workflowStateTimer, &QTimer::timeout, window, [this]
-        {
-            if (onWorkflowStatePoll)
-                onWorkflowStatePoll();
-        });
-        workflowStateTimer->start();
+        StartWorkflowStateTimer();
     }
 
     Impl(QMainWindow& attachedWindow, QStackedWidget& stack)
@@ -88,20 +98,18 @@ struct QtUIMainWindow::Impl
     {
         window->setDockNestingEnabled(true);
         window->setAnimated(false);
-        workflowStateTimer = new QTimer(window);
-        workflowStateTimer->setInterval(100);
-        QObject::connect(workflowStateTimer, &QTimer::timeout, window, [this]
-        {
-            if (onWorkflowStatePoll)
-                onWorkflowStatePoll();
-        });
-        workflowStateTimer->start();
+        StartWorkflowStateTimer();
     }
 
     ~Impl()
     {
         if (workflowStateTimer)
+        {
             workflowStateTimer->stop();
+            workflowStateTimer->disconnect();
+            delete workflowStateTimer;
+            workflowStateTimer = nullptr;
+        }
         if (mainToolbar)
         {
             window->removeToolBar(mainToolbar);
