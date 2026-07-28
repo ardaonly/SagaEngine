@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: MPL-2.0
 
 from .common import *  # noqa: F403
+from .layout import staged_layout_missing, stale_package_outputs
 
 def tar_supports_zstd() -> bool:
     if shutil.which("tar") is None or shutil.which("zstd") is None:
@@ -188,4 +189,3 @@ def generate_archive_and_checksum(
             "Archive/checksum generation does not claim full distribution validation.",
         ],
     }
-

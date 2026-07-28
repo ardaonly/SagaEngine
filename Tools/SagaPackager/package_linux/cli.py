@@ -232,16 +232,9 @@ def main() -> int:
         )
     for doc_name in [
         "index.html",
-        "pages/editor.html",
-        "pages/getting-started.html",
-        "pages/not-implemented.html",
-        "pages/product.html",
-        "pages/runtime.html",
-        "pages/scripting.html",
-        "pages/server-authority.html",
-        "pages/testing.html",
-        "pages/toolchain.html",
         "assets/style.css",
+        "assets/wiki.js",
+        "pages/licensing.html",
     ]:
         check_file(
             f"expected distribution doc {doc_name}",
@@ -374,4 +367,3 @@ def main() -> int:
 
     print("package-linux-saga: preflight passed; archive/checksum generated without readiness claims")
     return 0
-

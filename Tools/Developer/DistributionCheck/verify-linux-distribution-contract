@@ -68,20 +68,13 @@ CURRENT_REQUIRED_FILES = [
     "licenses/LICENSE-SAGA.md",
     "licenses/THIRD_PARTY_NOTICES.md",
     "SagaWiki/index.html",
-    "SagaWiki/pages/getting-started.html",
-    "SagaWiki/pages/product.html",
-    "SagaWiki/pages/not-implemented.html",
-    "SagaWiki/pages/editor.html",
-    "SagaWiki/pages/scripting.html",
-    "SagaWiki/pages/runtime.html",
-    "SagaWiki/pages/server-authority.html",
-    "SagaWiki/pages/testing.html",
-    "SagaWiki/pages/toolchain.html",
     "SagaWiki/assets/style.css",
+    "SagaWiki/assets/wiki.js",
+    "SagaWiki/pages/licensing.html",
 ]
 
 CURRENT_REQUIRED_DIRS = [
-    "Samples/StarterArena",
+    "samples/StarterArena",
     "SagaWiki",
     "licenses",
 ]
