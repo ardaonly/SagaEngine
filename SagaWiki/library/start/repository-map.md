@@ -30,7 +30,7 @@ The editor currently includes EditorCore, EditorFramework, EditorQt, EditorAutho
 
 ## Programs
 
-Programs are not architecture owners. SagaEditor, SagaEditorLab, SagaLauncher, SagaRuntime, and SagaSandbox assemble modules, but reusable behavior belongs in the owning runtime or editor module. There is no SagaServer program owner; authoritative foundations remain in `Engine/Source/Runtime/ServerAuthority` and the `SagaServerLib` library target. The existence of a program directory or library target does not prove a complete application workflow. See [Programs and local workflows](programs-and-workflows.md) for their bounded roles.
+Programs are not architecture owners. Saga, SagaEditorLab, SagaRuntime, and SagaSandbox assemble modules, but reusable behavior belongs in the owning runtime or editor module. The product source remains under the historical `Programs/SagaLauncher` directory while its built desktop identity is `Saga`; there is no separate `SagaEditor` product executable. There is no SagaServer program owner; authoritative foundations remain in `Engine/Source/Runtime/ServerAuthority` and the `SagaServerLib` library target. The existence of a program directory or library target does not prove a complete application workflow. See [Programs and local workflows](programs-and-workflows.md) for their bounded roles.
 
 ## Retired roots
 

@@ -193,12 +193,6 @@
         ]
       },
       {
-        "path": "Engine/Source/Programs/SagaEditor",
-        "pages": [
-          "programs-workflows"
-        ]
-      },
-      {
         "path": "Engine/Source/Programs/SagaEditorLab",
         "pages": [
           "programs-workflows"

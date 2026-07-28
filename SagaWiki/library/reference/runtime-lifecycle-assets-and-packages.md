@@ -15,7 +15,7 @@ This reference describes how a SagaEngine runtime process is assembled, which pr
 
 Programs are thinner still. `Engine/Source/Programs/SagaRuntime` provides an executable entry point. The Play path parses a local transport envelope, validates its canonical launch manifest and verified runtime artifacts, invokes composition, and translates a terminal result into a process exit code. It does not parse `.sagaproj`, `.sagascene`, input source, or C# source and does not resolve packages or compile scripts. Reusable startup policy belongs in the owning runtime module rather than in `main.cpp`.
 
-The same distinction applies to `SagaEditor`, `SagaSandbox`, and other programs that host a runtime view. A program can choose a bounded workflow, but it does not acquire ownership of the runtime modules it hosts.
+The same distinction applies to the in-process Editor Workspace hosted by `Saga`, to `SagaSandbox`, and to other programs that host a runtime view. A program can choose a bounded workflow, but it does not acquire ownership of the runtime modules it hosts.
 
 ## Project input
 
