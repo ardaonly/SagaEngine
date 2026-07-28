@@ -22,12 +22,15 @@ fs::path Root(std::string_view name)
     return root;
 }
 
-fs::path Worker(const fs::path& root, std::string_view operationId,
-                std::string_view revision)
+fs::path WorkerStage(const fs::path& root, std::string_view operationId,
+                     std::string_view revision)
 {
-    const auto script = root / "worker.sh";
+    const auto stage = root / "stage";
+    const auto script = stage / "runtime/dotnet/dotnet";
+    fs::create_directories(script.parent_path());
     std::ofstream output(script, std::ios::binary);
     output << "#!/bin/sh\n"
+              "shift\n"
               "result=\nprogress=\n"
               "while [ $# -gt 0 ]; do\n"
               "  if [ \"$1\" = \"--result\" ]; then result=$2; shift 2; continue; fi\n"
@@ -41,7 +44,29 @@ fs::path Worker(const fs::path& root, std::string_view operationId,
     output.close();
     fs::permissions(script, fs::perms::owner_exec | fs::perms::owner_read |
         fs::perms::owner_write, fs::perm_options::replace);
-    return script;
+    fs::create_directories(stage /
+        "runtime/dotnet/shared/Microsoft.NETCore.App/10.0.10");
+    fs::create_directories(stage / "runtime/dotnet/host/fxr/10.0.10");
+    std::ofstream(stage / "managed-tool-runtime.json") << R"({
+      "schemaVersion":1,
+      "framework":"Microsoft.NETCore.App",
+      "targetFramework":"net10.0",
+      "minimumRuntimeVersion":"10.0.0",
+      "runtimeVersion":"10.0.10",
+      "rid":"linux-x64",
+      "tools":[
+        {"id":"ProjectKit","directory":"SagaProjectKit","assembly":"sagaproject"},
+        {"id":"Script","directory":"SagaScript","assembly":"sagascript"},
+        {"id":"Packager","directory":"SagaPackager","assembly":"sagapack"}
+      ]
+    })";
+    const auto tool = stage / "tools/SagaScript/sagascript";
+    fs::create_directories(tool.parent_path());
+    std::ofstream(tool.string() + ".dll") << "fixture\n";
+    std::ofstream(tool.string() + ".deps.json") << "{}\n";
+    std::ofstream(tool.string() + ".runtimeconfig.json")
+        << R"({"runtimeOptions":{"tfm":"net10.0","framework":{"name":"Microsoft.NETCore.App","version":"10.0.0"}}})";
+    return stage;
 }
 
 SagaEditor::ScriptWorkerRequest Request(const fs::path& root)
@@ -68,7 +93,8 @@ TEST(SagaScriptWorkerClientTests, ParsesIdentityAndProgressFromWorkerProtocol)
     std::vector<std::string> progress;
     request.progress = [&progress](std::string_view stage) { progress.emplace_back(stage); };
     const auto result = SagaEditor::SagaScriptWorkerClient(
-        Worker(root, request.operationId, request.sourceRevision)).Run(request);
+        {{}, WorkerStage(root, request.operationId, request.sourceRevision), {}})
+        .Run(request);
     EXPECT_TRUE(result.passed);
     EXPECT_EQ(result.progressStages, (std::vector<std::string>{"Analyzing"}));
     EXPECT_EQ(progress, (std::vector<std::string>{"Analyzing"}));
@@ -80,7 +106,8 @@ TEST(SagaScriptWorkerClientTests, RejectsStaleOperationIdentity)
     const auto root = Root("stale");
     const auto request = Request(root);
     const auto result = SagaEditor::SagaScriptWorkerClient(
-        Worker(root, "old-operation", request.sourceRevision)).Run(request);
+        {{}, WorkerStage(root, "old-operation", request.sourceRevision), {}})
+        .Run(request);
     EXPECT_FALSE(result.passed);
     EXPECT_TRUE(result.stale);
     ASSERT_FALSE(result.diagnostics.empty());

@@ -57,13 +57,15 @@ ViewportContentBuildResult CompileViewportContent(
         result.request.operationId;
     const auto toolchain = ResolveEditorToolchain();
     ToolProcessRequest request;
-    request.executable = toolchain.sagaPackagerExecutable;
-    request.arguments = {"compile-assets", "--project", result.request.projectManifestPath.string(),
-        "--out", result.contentRoot.string()};
     request.timeout = std::chrono::minutes(2);
     request.cancellationRequested = [cancellation]
     { return cancellation->load(std::memory_order_acquire); };
-    const auto process = ToolProcessRunner{}.Run(request);
+    const auto process = ManagedToolRuntime(toolchain.managedRuntime).Run(
+        ManagedToolId::Packager,
+        {"compile-assets", "--project",
+         result.request.projectManifestPath.string(),
+         "--out", result.contentRoot.string()},
+        std::move(request)).process;
     result.passed = process.Succeeded();
     result.cancelled = process.classification == ToolProcessExitClassification::Cancelled;
     if (!result.passed)

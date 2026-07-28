@@ -3,6 +3,7 @@
 #pragma once
 
 #include "SagaEditor/Documents/Document.h"
+#include "SagaEditor/Processes/ManagedToolRuntime.h"
 #include "SagaEditor/Processes/ToolProcessRunner.h"
 
 #include <chrono>
@@ -47,9 +48,9 @@ struct ProjectTemplateRequest
     std::filesystem::path destination;
     std::string displayName;
     std::filesystem::path seed;
-    std::filesystem::path sagaPackagerExecutable;
     std::filesystem::path engineRoot;
     std::filesystem::path runtimeBridge;
+    ManagedToolRuntimeOptions managedRuntime;
 };
 
 struct EditorToolchainPaths
@@ -57,10 +58,8 @@ struct EditorToolchainPaths
     std::filesystem::path productRoot;
     std::filesystem::path engineRoot;
     std::filesystem::path starterArenaSeed;
-    std::filesystem::path sagaProjectKitExecutable;
-    std::filesystem::path sagaPackagerExecutable;
-    std::filesystem::path sagaScriptExecutable;
     std::filesystem::path runtimeBridge;
+    ManagedToolRuntimeOptions managedRuntime;
 };
 
 /// Locates the installed/repository toolchain without introducing project or
@@ -89,7 +88,7 @@ public:
 class SagaProjectKitClient final : public IProjectToolClient
 {
 public:
-    SagaProjectKitClient(std::filesystem::path executable = "sagaproject",
+    SagaProjectKitClient(ManagedToolRuntimeOptions runtime = {},
                          std::chrono::milliseconds timeout = std::chrono::seconds(30));
 
     [[nodiscard]] ProjectToolResult Validate(
@@ -102,7 +101,7 @@ private:
         std::vector<std::string> arguments,
         const std::filesystem::path& reportPath) const;
 
-    std::filesystem::path executable_;
+    ManagedToolRuntime runtime_;
     std::chrono::milliseconds timeout_;
 };
 

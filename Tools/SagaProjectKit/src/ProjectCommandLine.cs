@@ -171,6 +171,14 @@ internal static partial class Program
                     if (i + 1 >= args.Length) return CommandOptions.Fail("--sagapack requires a value.");
                     options.SagaPackPath = args[++i];
                     break;
+                case "--dotnet-host":
+                    if (i + 1 >= args.Length) return CommandOptions.Fail("--dotnet-host requires a value.");
+                    options.DotnetHostPath = args[++i];
+                    break;
+                case "--sagapack-dll":
+                    if (i + 1 >= args.Length) return CommandOptions.Fail("--sagapack-dll requires a value.");
+                    options.SagaPackDllPath = args[++i];
+                    break;
                 case "--engine-root":
                     if (i + 1 >= args.Length) return CommandOptions.Fail("--engine-root requires a value.");
                     options.EngineRoot = args[++i];
@@ -193,7 +201,7 @@ internal static partial class Program
         Console.Error.WriteLine("Usage:");
         Console.Error.WriteLine("  sagaproject validate --project <path> --out <report>");
         Console.Error.WriteLine("  sagaproject template-plan --destination <path> [--display-name <name>] [--template <seed>] --out <plan>");
-        Console.Error.WriteLine("  sagaproject template-create --plan <plan> --sagapack <tool> --engine-root <root> --runtime-bridge <dll> --out <report>");
+        Console.Error.WriteLine("  sagaproject template-create --plan <plan> --dotnet-host <private-dotnet> --sagapack-dll <sagapack.dll> --engine-root <root> --runtime-bridge <dll> --out <report>");
         Console.Error.WriteLine("  sagaproject resolve --project <path> --out <report>");
         Console.Error.WriteLine("  sagaproject doctor --project <path> --out <report>");
         Console.Error.WriteLine("  sagaproject resolve-slice --project <path> --slice <project_slice.json> --out <report>");
@@ -261,6 +269,8 @@ internal static partial class Program
         public string TemplatePath { get; set; } = "";
         public string PlanPath { get; set; } = "";
         public string SagaPackPath { get; set; } = "";
+        public string DotnetHostPath { get; set; } = "";
+        public string SagaPackDllPath { get; set; } = "";
         public string EngineRoot { get; set; } = "";
         public string RuntimeBridgePath { get; set; } = "";
         public string OutputPath { get; set; } = "";

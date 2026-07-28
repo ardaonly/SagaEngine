@@ -9,6 +9,8 @@
 #include "Launcher/SagaMainWindow.h"
 #include "Reports/SagaProductWorkflowSmokeReport.h"
 #include "Workflows/SagaScriptGate.h"
+#include "SagaEditor/Project/SagaProjectKitClient.h"
+#include "SagaEditor/Processes/ManagedToolRuntime.h"
 
 #include <QApplication>
 #include <QByteArray>
@@ -153,7 +155,9 @@ int SagaApp::Run(const SagaAppConfig& config,
         SagaScriptGateRequest request;
         request.projectManifest = config.sagaScriptProjectManifest;
         request.forgeExecutable = config.forgeExecutable;
-        request.sagaScriptExecutable = config.sagaScriptExecutable;
+        request.managedRuntime.productExecutable = config.executablePath;
+        request.runtimeBridge =
+            SagaEditor::ResolveEditorToolchain(config.executablePath).runtimeBridge;
 
         SagaScriptGate gate;
         const SagaScriptGateResult result =

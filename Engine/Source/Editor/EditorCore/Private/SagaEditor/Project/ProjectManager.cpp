@@ -33,7 +33,7 @@ std::filesystem::path ResolveManifestPath(const std::filesystem::path& input)
 std::shared_ptr<IProjectToolClient> DefaultClient()
 {
     return std::make_shared<SagaProjectKitClient>(
-        ResolveEditorToolchain().sagaProjectKitExecutable);
+        ResolveEditorToolchain().managedRuntime);
 }
 
 ProjectInfo ProjectInfoFrom(const ValidatedProjectDescriptor& project)

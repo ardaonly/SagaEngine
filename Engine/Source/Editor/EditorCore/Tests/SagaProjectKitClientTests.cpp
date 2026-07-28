@@ -35,9 +35,7 @@ TEST(SagaProjectKitClientTests, ResolvesInstalledProductFromExecutableNotCwd)
 {
     const auto root = TempRoot("installed");
     Touch(root / "bin/Saga");
-    Touch(root / "bin/sagaproject");
-    Touch(root / "bin/sagapack");
-    Touch(root / "bin/sagascript");
+    Touch(root / "managed-tool-runtime.json");
     Touch(root / "samples/StarterArena/StarterArena.sagaproj");
     fs::create_directories(root / "Engine/Distribution");
     Touch(root / "Engine/Managed/SagaScript.RuntimeBridge/"
@@ -48,8 +46,7 @@ TEST(SagaProjectKitClientTests, ResolvesInstalledProductFromExecutableNotCwd)
     EXPECT_EQ(paths.productRoot, root);
     EXPECT_EQ(paths.engineRoot, root);
     EXPECT_EQ(paths.starterArenaSeed, root / "samples/StarterArena");
-    EXPECT_EQ(paths.sagaProjectKitExecutable, root / "bin/sagaproject");
-    EXPECT_EQ(paths.sagaPackagerExecutable, root / "bin/sagapack");
+    EXPECT_EQ(paths.managedRuntime.productExecutable, root / "bin/Saga");
     EXPECT_EQ(paths.runtimeBridge,
               root / "Engine/Managed/SagaScript.RuntimeBridge/"
                      "SagaScript.RuntimeBridge.dll");
@@ -63,12 +60,12 @@ TEST(SagaProjectKitClientTests, MissingTemplateFailsBeforeProcessWithDiagnostic)
     request.destination = root / "Created";
     request.displayName = "Created";
     request.seed = root / "missing-seed";
-    request.sagaPackagerExecutable = root / "missing-packager";
     request.engineRoot = root;
     request.runtimeBridge = root / "missing-bridge";
 
     const auto result =
-        SagaEditor::SagaProjectKitClient("unused").CreateStarterArena(request);
+        SagaEditor::SagaProjectKitClient({{}, root / "missing-stage", {}})
+            .CreateStarterArena(request);
 
     ASSERT_FALSE(result.passed);
     ASSERT_EQ(result.diagnostics.size(), 1U);
@@ -78,25 +75,25 @@ TEST(SagaProjectKitClientTests, MissingTemplateFailsBeforeProcessWithDiagnostic)
     fs::remove_all(root);
 }
 
-TEST(SagaProjectKitClientTests, MissingProjectToolHasPreciseDiagnostic)
+TEST(SagaProjectKitClientTests, MissingRuntimeHasPreciseDiagnostic)
 {
     const auto root = TempRoot("missing-tool");
     SagaEditor::ProjectTemplateRequest request;
     request.destination = root / "Created";
     request.displayName = "Created";
     request.seed = root / "seed";
-    request.sagaPackagerExecutable = root / "sagapack";
     request.engineRoot = root;
+    fs::create_directories(request.seed);
+    fs::create_directories(root / "Engine/Distribution");
     request.runtimeBridge = root / "bridge.dll";
-
-    const auto missingTool = root / "bin/sagaproject";
+    Touch(request.runtimeBridge);
     const auto result =
-        SagaEditor::SagaProjectKitClient(missingTool).CreateStarterArena(request);
+        SagaEditor::SagaProjectKitClient({{}, root / "missing-stage", {}})
+            .CreateStarterArena(request);
 
     ASSERT_FALSE(result.passed);
-    ASSERT_EQ(result.diagnostics.size(), 1U);
+    ASSERT_FALSE(result.diagnostics.empty());
     EXPECT_EQ(result.diagnostics.front().code,
-              "Project.Toolchain.ProjectToolMissing");
-    EXPECT_EQ(result.diagnostics.front().path, missingTool);
+              "Product.Toolchain.RuntimeMissing");
     fs::remove_all(root);
 }

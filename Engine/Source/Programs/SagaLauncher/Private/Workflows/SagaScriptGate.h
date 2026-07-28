@@ -5,9 +5,11 @@
 #pragma once
 
 #include "Projects/SagaSessionModel.h"
+#include "SagaEditor/Processes/ManagedToolRuntime.h"
 
 #include <filesystem>
 #include <iosfwd>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -29,7 +31,8 @@ struct SagaScriptGateRequest
 {
     std::filesystem::path projectManifest;
     std::filesystem::path forgeExecutable = "forge";
-    std::filesystem::path sagaScriptExecutable = "sagascript";
+    std::filesystem::path runtimeBridge;
+    SagaEditor::ManagedToolRuntimeOptions managedRuntime;
 };
 
 /// Generic process request used by product-owned tool orchestration.
@@ -38,6 +41,7 @@ struct SagaToolProcessRequest
     std::filesystem::path executablePath;
     std::vector<std::string> arguments;
     std::filesystem::path workingDirectory;
+    std::map<std::string, std::string> environment;
 };
 
 /// Generic process result used by product-owned tool orchestration.

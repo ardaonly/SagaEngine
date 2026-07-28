@@ -105,7 +105,7 @@ PlayPreparationResult PlayPreparationPipeline::Prepare(
     }
     if (request.progress) request.progress("ValidateProject");
     result.projectValidation = SagaProjectKitClient(
-        toolchain_.sagaProjectKit, toolchain_.timeout).Validate(snapshot.projectPath);
+        toolchain_.managedRuntime, toolchain_.timeout).Validate(snapshot.projectPath);
     if (!result.projectValidation.passed ||
         result.projectValidation.project.projectId != snapshot.projectId)
     {
@@ -136,12 +136,14 @@ PlayPreparationResult PlayPreparationPipeline::Prepare(
     const auto contentReport = result.buildRoot / "Transport/content-result.json";
     if (request.progress) request.progress("CompileContent");
     ToolProcessRequest compile;
-    compile.executable = toolchain_.sagaPackager;
-    compile.arguments = {"compile-content", "--project", snapshot.projectPath.string(),
-        "--script-manifest", scriptCurrentPath.string(), "--out", contentRoot.string()};
     compile.timeout = toolchain_.timeout;
     compile.cancellationRequested = request.cancellationRequested;
-    result.contentProcess = ToolProcessRunner{}.Run(compile);
+    result.contentProcess = ManagedToolRuntime(toolchain_.managedRuntime).Run(
+        ManagedToolId::Packager,
+        {"compile-content", "--project", snapshot.projectPath.string(),
+         "--script-manifest", scriptCurrentPath.string(),
+         "--out", contentRoot.string()},
+        std::move(compile)).process;
     if (!result.contentProcess.Succeeded())
     {
         result.cancelled = result.contentProcess.classification ==

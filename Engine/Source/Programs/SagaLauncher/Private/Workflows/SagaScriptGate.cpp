@@ -15,13 +15,13 @@ namespace
 {
 
 [[nodiscard]] SagaProductDiagnostic MakeSagaScriptDiagnostic(
-    const char* diagnosticId,
+    std::string diagnosticId,
     std::string message,
     std::filesystem::path path = {})
 {
     SagaProductDiagnostic diagnostic;
     diagnostic.stage = SagaProductDiagnosticStage::ProjectValidation;
-    diagnostic.diagnosticId = diagnosticId;
+    diagnostic.diagnosticId = std::move(diagnosticId);
     diagnostic.message = std::move(message);
     if (!path.empty())
     {
@@ -54,6 +54,7 @@ SagaToolProcessResult SagaToolProcessRunner::Run(
     processRequest.executable = request.executablePath;
     processRequest.arguments = request.arguments;
     processRequest.workingDirectory = request.workingDirectory;
+    processRequest.environment = request.environment;
 
     SagaProcessService service;
     const SagaProductProcessResult process = service.Run(processRequest);
@@ -96,16 +97,36 @@ SagaToolProcessRequest SagaScriptGate::BuildProcessRequest(
     SagaToolProcessRequest process;
     process.executablePath = request.forgeExecutable;
     process.workingDirectory = root;
+    SagaEditor::ToolProcessRequest managedOptions;
+    const auto invocation = SagaEditor::ManagedToolRuntime(request.managedRuntime)
+        .PrepareInvocation(SagaEditor::ManagedToolId::Script, {});
+    const auto descriptor = invocation.descriptor;
+    if (invocation.process)
+        process.environment = invocation.process->environment;
+    else
+    {
+        process.environment = {
+            {"DOTNET_ROOT", descriptor.runtimeRoot.string()},
+            {"DOTNET_ROOT_X64", descriptor.runtimeRoot.string()},
+            {"DOTNET_HOST_PATH", descriptor.host.string()},
+            {"DOTNET_MULTILEVEL_LOOKUP", "0"},
+            {"DOTNET_SYSTEM_GLOBALIZATION_INVARIANT", "1"},
+        };
+    }
+    if (!request.runtimeBridge.empty())
+        process.environment["SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY"] =
+            request.runtimeBridge.string();
     process.arguments = {
         "gate",
         "run",
         "--name",
         "sagascript",
         "--tool",
-        request.sagaScriptExecutable.string(),
+        descriptor.host.string(),
         "--diagnostics",
         paths.diagnosticsOutputPath.string(),
         "--",
+        descriptor.dll.string(),
         "compile",
         "--source",
         paths.sourceRoot.string(),
@@ -163,6 +184,17 @@ SagaScriptGateResult SagaScriptGate::ValidateProject(
             "SagaScript source root is missing: " +
                 result.paths.sourceRoot.string(),
             result.paths.sourceRoot));
+        return result;
+    }
+
+    const auto managedInvocation =
+        SagaEditor::ManagedToolRuntime(request.managedRuntime)
+            .PrepareInvocation(SagaEditor::ManagedToolId::Script, {});
+    if (!managedInvocation.Ready())
+    {
+        const auto& diagnostic = managedInvocation.diagnostics.front();
+        result.diagnostics.push_back(MakeSagaScriptDiagnostic(
+            diagnostic.code, diagnostic.message, diagnostic.path));
         return result;
     }
 

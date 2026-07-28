@@ -67,14 +67,22 @@ internal static partial class Program
             }
             if (command == "template-create")
             {
+                var privateInvocation =
+                    !string.IsNullOrWhiteSpace(options.DotnetHostPath) &&
+                    !string.IsNullOrWhiteSpace(options.SagaPackDllPath);
+                var legacyInvocation = !string.IsNullOrWhiteSpace(options.SagaPackPath);
                 if (string.IsNullOrWhiteSpace(options.PlanPath) || string.IsNullOrWhiteSpace(options.OutputPath) ||
-                    string.IsNullOrWhiteSpace(options.SagaPackPath) || string.IsNullOrWhiteSpace(options.EngineRoot) ||
+                    (!privateInvocation && !legacyInvocation) ||
+                    privateInvocation == legacyInvocation ||
+                    string.IsNullOrWhiteSpace(options.EngineRoot) ||
                     string.IsNullOrWhiteSpace(options.RuntimeBridgePath))
                 {
-                    Console.Error.WriteLine("template-create requires --plan, --sagapack, --engine-root, --runtime-bridge, and --out.");
+                    Console.Error.WriteLine("template-create requires --plan, exactly one of private --dotnet-host plus --sagapack-dll or legacy --sagapack, --engine-root, --runtime-bridge, and --out.");
                     return InvalidUsage;
                 }
-                var report = ProjectTemplateService.Create(options.PlanPath, options.SagaPackPath,
+                var report = ProjectTemplateService.Create(options.PlanPath,
+                    privateInvocation ? options.DotnetHostPath : options.SagaPackPath,
+                    privateInvocation ? options.SagaPackDllPath : "",
                     options.EngineRoot, options.RuntimeBridgePath);
                 SagaProjectKit.Core.CanonicalJson.Write(options.OutputPath, report);
                 return report.Status == "Passed" ? Passed : ValidationFailed;

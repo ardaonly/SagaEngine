@@ -77,7 +77,8 @@ internal static class ProjectTemplateService
         return plan with { PlanHash = ComputePlanHash(plan) };
     }
 
-    public static TemplateCreateReport Create(string planPath, string sagaPackPath,
+    public static TemplateCreateReport Create(string planPath, string sagaPackHost,
+        string sagaPackDll,
         string engineRoot, string runtimeBridgePath)
     {
         ProjectTemplatePlan? plan = null;
@@ -133,14 +134,14 @@ internal static class ProjectTemplateService
             var lockPath = Path.Combine(staging, "SagaPackage.lock");
             var packageRoot = Path.Combine(staging, "Build", "Packages");
             var resolveReport = Path.Combine(staging, "Build", "Reports", "package-resolve.json");
-            RunSagaPack(sagaPackPath,
+            RunSagaPack(sagaPackHost, sagaPackDll,
                 ["resolve", "--project", manifestPath, "--engine-root", engineRoot,
                  "--lock", lockPath, "--generated-out", packageRoot,
                  "--runtime-bridge", runtimeBridgePath, "--out", resolveReport]);
             if (!File.Exists(lockPath) || !File.Exists(lockPath + ".license"))
                 throw new InvalidOperationException("Template package resolution did not materialize lock and license sidecar.");
             var verifyReport = Path.Combine(staging, "Build", "Reports", "package-lock-verify.json");
-            RunSagaPack(sagaPackPath,
+            RunSagaPack(sagaPackHost, sagaPackDll,
                 ["lock-verify", "--project", manifestPath, "--engine-root", engineRoot,
                  "--lock", lockPath, "--generated-out", packageRoot,
                  "--runtime-bridge", runtimeBridgePath, "--out", verifyReport]);
@@ -166,7 +167,8 @@ internal static class ProjectTemplateService
             return Failure(plan, [new SagaProjectKit.Core.ProjectDiagnostic
             {
                 Code = exception.Code,
-                Path = Normalize(sagaPackPath),
+                Path = Normalize(string.IsNullOrWhiteSpace(sagaPackDll)
+                    ? sagaPackHost : sagaPackDll),
                 Message = exception.Message,
             }]);
         }
@@ -236,7 +238,8 @@ internal static class ProjectTemplateService
         path.Contains("/obj/", StringComparison.Ordinal) ||
         path.Contains("/bin/", StringComparison.Ordinal);
 
-    private static void RunSagaPack(string executable, IReadOnlyList<string> arguments)
+    private static void RunSagaPack(string host, string assembly,
+        IReadOnlyList<string> arguments)
     {
         var timeoutMilliseconds = 120_000;
         if (int.TryParse(Environment.GetEnvironmentVariable("SAGAPROJECT_TEMPLATE_PACKAGER_TIMEOUT_MS"),
@@ -244,11 +247,13 @@ internal static class ProjectTemplateService
             timeoutMilliseconds = configuredTimeout;
         var start = new ProcessStartInfo
         {
-            FileName = Path.GetFullPath(executable),
+            FileName = Path.GetFullPath(host),
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
         };
+        if (!string.IsNullOrWhiteSpace(assembly))
+            start.ArgumentList.Add(Path.GetFullPath(assembly));
         foreach (var argument in arguments) start.ArgumentList.Add(argument);
         using var process = Process.Start(start)
             ?? throw new InvalidOperationException("SagaPackager process could not be started.");

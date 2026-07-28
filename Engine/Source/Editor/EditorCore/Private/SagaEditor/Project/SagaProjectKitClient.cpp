@@ -47,37 +47,12 @@ std::filesystem::path CurrentExecutable()
     return {};
 }
 
-std::filesystem::path ExecutablePath(std::filesystem::path candidate)
-{
-#ifdef _WIN32
-    candidate += ".exe";
-#endif
-    return candidate;
-}
-
-std::filesystem::path ToolPath(const std::filesystem::path& developerRoot,
-                               const std::filesystem::path& productRoot,
-                               std::string_view repositoryRelative,
-                               std::string_view installedName,
-                               const char* overrideName)
-{
-    if (const auto configured = EnvironmentPath(overrideName); !configured.empty())
-        return configured;
-    if (!developerRoot.empty())
-        return ExecutablePath(developerRoot / repositoryRelative);
-    if (!productRoot.empty())
-        return ExecutablePath(productRoot / "bin" / installedName);
-    return ExecutablePath(std::filesystem::path(installedName));
-}
-
 bool IsInstalledProductRoot(const std::filesystem::path& root)
 {
     std::error_code error;
     return std::filesystem::is_directory(root / "samples/StarterArena", error) &&
-        (std::filesystem::is_regular_file(
-             ExecutablePath(root / "bin/sagaproject"), error) ||
-         std::filesystem::is_regular_file(
-             ExecutablePath(root / "tools/sagaproject"), error));
+        std::filesystem::is_regular_file(
+            root / "managed-tool-runtime.json", error);
 }
 
 std::filesystem::path FindInstalledProductRoot(std::filesystem::path executable)
@@ -257,8 +232,8 @@ ProjectTemplateRequest MakeStarterArenaTemplateRequest(
     request.displayName = std::move(displayName);
     request.engineRoot = toolchain.engineRoot;
     request.seed = toolchain.starterArenaSeed;
-    request.sagaPackagerExecutable = toolchain.sagaPackagerExecutable;
     request.runtimeBridge = toolchain.runtimeBridge;
+    request.managedRuntime = toolchain.managedRuntime;
     return request;
 }
 
@@ -290,15 +265,7 @@ EditorToolchainPaths ResolveEditorToolchain(
     result.starterArenaSeed = !developerRoot.empty() ?
         developerRoot / "Samples/StarterArena" :
         result.productRoot / "samples/StarterArena";
-    result.sagaProjectKitExecutable = ToolPath(developerRoot, result.productRoot,
-        "Tools/SagaProjectKit/bin/Release/net10.0/sagaproject",
-        "sagaproject", "SAGA_PROJECT_TOOL");
-    result.sagaPackagerExecutable = ToolPath(developerRoot, result.productRoot,
-        "Tools/SagaPackager/bin/Release/net10.0/sagapack",
-        "sagapack", "SAGA_PACKAGE_TOOL");
-    result.sagaScriptExecutable = ToolPath(developerRoot, result.productRoot,
-        "Tools/SagaScript/bin/Release/net10.0/sagascript",
-        "sagascript", "SAGA_SCRIPT_TOOL");
+    result.managedRuntime.productExecutable = anchor;
     result.runtimeBridge = EnvironmentPath("SAGA_RUNTIME_BRIDGE");
     if (result.runtimeBridge.empty())
     {
@@ -323,20 +290,22 @@ EditorToolchainPaths ResolveEditorToolchain(
     return result;
 }
 
-SagaProjectKitClient::SagaProjectKitClient(std::filesystem::path executable,
+SagaProjectKitClient::SagaProjectKitClient(ManagedToolRuntimeOptions runtime,
                                            std::chrono::milliseconds timeout)
-    : executable_(std::move(executable)), timeout_(timeout) {}
+    : runtime_(std::move(runtime)), timeout_(timeout) {}
 
 ProjectToolResult SagaProjectKitClient::RunReportCommand(
     std::vector<std::string> arguments,
     const std::filesystem::path& reportPath) const
 {
-    ToolProcessRequest request;
-    request.executable = executable_;
-    request.arguments = std::move(arguments);
-    request.timeout = timeout_;
-    const auto process = ToolProcessRunner{}.Run(request);
-    auto result = ParseReport(reportPath, process);
+    ToolProcessRequest options;
+    options.timeout = timeout_;
+    const auto managed = runtime_.Run(
+        ManagedToolId::ProjectKit, std::move(arguments), std::move(options));
+    auto result = ParseReport(reportPath, managed.process);
+    for (const auto& diagnostic : managed.preflightDiagnostics)
+        result.diagnostics.push_back(
+            {diagnostic.code, diagnostic.message, diagnostic.path});
     std::error_code ignored;
     std::filesystem::remove(reportPath, ignored);
     return result;
@@ -354,19 +323,10 @@ ProjectToolResult SagaProjectKitClient::CreateStarterArena(
     const ProjectTemplateRequest& request) const
 {
     std::error_code error;
-    if (executable_.has_parent_path() &&
-        !std::filesystem::is_regular_file(executable_, error))
-        return MissingResource("Project.Toolchain.ProjectToolMissing",
-            "The SagaProjectKit executable required for project creation is missing.",
-            executable_);
     if (!std::filesystem::is_directory(request.seed, error))
         return MissingResource("Project.Template.SeedMissing",
             "The installed StarterArena project template is missing.",
             request.seed);
-    if (!std::filesystem::is_regular_file(request.sagaPackagerExecutable, error))
-        return MissingResource("Project.Toolchain.PackagerMissing",
-            "The SagaPackager executable required for project creation is missing.",
-            request.sagaPackagerExecutable);
     if (!std::filesystem::is_directory(
             request.engineRoot / "Engine/Distribution", error))
         return MissingResource("Project.Toolchain.EngineDistributionMissing",
@@ -378,31 +338,48 @@ ProjectToolResult SagaProjectKitClient::CreateStarterArena(
             request.runtimeBridge);
 
     const auto plan = TemporaryReport("template-plan");
-    ToolProcessRequest planRequest;
-    planRequest.executable = executable_;
-    planRequest.arguments = {"template-plan", "--destination", request.destination.string(),
+    ToolProcessRequest planOptions;
+    planOptions.timeout = timeout_;
+    auto planProcess = runtime_.Run(ManagedToolId::ProjectKit,
+        {"template-plan", "--destination", request.destination.string(),
         "--display-name", request.displayName, "--template", request.seed.string(),
-        "--out", plan.string()};
-    planRequest.timeout = timeout_;
-    auto planProcess = ToolProcessRunner{}.Run(planRequest);
+        "--out", plan.string()}, std::move(planOptions));
     if (!planProcess.Succeeded() || !std::filesystem::is_regular_file(plan))
     {
         std::error_code ignored;
         std::filesystem::remove(plan, ignored);
-        return ProcessFailure(std::move(planProcess), "Project.Template.PlanFailed", plan);
+        return ProcessFailure(std::move(planProcess.process),
+            planProcess.preflightDiagnostics.empty() ?
+                "Project.Template.PlanFailed" :
+                planProcess.preflightDiagnostics.front().code, plan);
     }
 
     const auto createReport = TemporaryReport("template-create");
-    ToolProcessRequest createRequest;
-    createRequest.executable = executable_;
-    createRequest.arguments = {"template-create", "--plan", plan.string(),
-        "--sagapack", request.sagaPackagerExecutable.string(),
+    const auto packagerInvocation =
+        runtime_.PrepareInvocation(ManagedToolId::Packager, {});
+    if (!packagerInvocation.Ready())
+    {
+        std::error_code ignored;
+        std::filesystem::remove(plan, ignored);
+        const auto& diagnostic = packagerInvocation.diagnostics.front();
+        return MissingResource(diagnostic.code, diagnostic.message,
+            diagnostic.path);
+    }
+    const auto& packager = packagerInvocation.descriptor;
+    ToolProcessRequest createOptions;
+    createOptions.timeout = timeout_;
+    auto createProcess = runtime_.Run(ManagedToolId::ProjectKit,
+        {"template-create", "--plan", plan.string(),
+        "--dotnet-host", packager.host.string(),
+        "--sagapack-dll", packager.dll.string(),
         "--engine-root", request.engineRoot.string(),
         "--runtime-bridge", request.runtimeBridge.string(),
-        "--out", createReport.string()};
-    createRequest.timeout = timeout_;
+        "--out", createReport.string()}, std::move(createOptions));
     auto result = ParseTemplateCreateReport(createReport,
-        ToolProcessRunner{}.Run(createRequest));
+        std::move(createProcess.process));
+    for (const auto& diagnostic : createProcess.preflightDiagnostics)
+        result.diagnostics.push_back(
+            {diagnostic.code, diagnostic.message, diagnostic.path});
     std::error_code ignored;
     std::filesystem::remove(plan, ignored);
     std::filesystem::remove(createReport, ignored);

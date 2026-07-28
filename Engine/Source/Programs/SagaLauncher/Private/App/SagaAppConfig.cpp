@@ -148,7 +148,6 @@ std::string SagaUsageText()
         "  --approval-state <state>          Local approval evaluation state\n"
         "  --approval-gate-report-out <path> Local approval gate report output path\n"
         "  --forge <path>                    Forge executable for SagaScript validation\n"
-        "  --sagascript-tool <path>          SagaScript executable for SagaScript validation\n"
         "  --version-info <path>             Distribution version.json path\n"
         "  --launcher-distribution-report <path> Read-only launcher distribution report override\n"
         "  --prepare-only                    Dev diagnostic: validate and print target prep\n"
@@ -538,17 +537,6 @@ SagaConfigResult ParseSagaAppConfig(int argc, char* argv[])
                 return result;
             }
             result.config.forgeExecutable = std::filesystem::path(argv[++i]);
-        }
-        else if (arg == "--sagascript-tool")
-        {
-            if (!HasValue(i, argc))
-            {
-                result.ok = false;
-                result.error = "Saga: --sagascript-tool requires a path";
-                return result;
-            }
-            result.config.sagaScriptExecutable =
-                std::filesystem::path(argv[++i]);
         }
         else if (arg == "--prepare-only")
         {

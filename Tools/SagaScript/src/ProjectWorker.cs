@@ -72,13 +72,6 @@ internal static class ProjectWorker
             {
                 return Finish(resultPath, Failure(request, "Cancellation", [], sourceSetHash, cancelled: true));
             }
-            if (!DotNetSdkProbe.HasRequiredSdk())
-            {
-                diagnostics.Add(Error("Script.Worker.DotNetSdkMissing", "",
-                    "SagaScript worker compilation requires the .NET 10 SDK."));
-                return Finish(resultPath, Failure(request, "Compilation", diagnostics, sourceSetHash));
-            }
-
             staging = BuildStagingPath(request.OutputRoot, request.OperationId);
             if (Directory.Exists(staging))
             {
