@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "framework": "Microsoft.NETCore.App",
+  "targetFramework": "net10.0",
+  "minimumRuntimeVersion": "10.0.0",
+  "runtimeVersion": "10.0.10",
+  "rid": "linux-x64",
+  "asset": {
+    "url": "https://builds.dotnet.microsoft.com/dotnet/Runtime/10.0.10/dotnet-runtime-10.0.10-linux-x64.tar.gz",
+    "sha512": "74b2b41ee177fe72da02741d5ba30e8a3c5ead44151d7a72a04ed81a0a933e827f5f8cfcc048ba4e8de5aeb7651953761b7586277d0bcce2e01323ca29ccb813"
+  },
+  "tools": [
+    {
+      "id": "ProjectKit",
+      "directory": "SagaProjectKit",
+      "assembly": "sagaproject"
+    },
+    {
+      "id": "Script",
+      "directory": "SagaScript",
+      "assembly": "sagascript"
+    },
+    {
+      "id": "Packager",
+      "directory": "SagaPackager",
+      "assembly": "sagapack"
+    }
+  ]
+}
