@@ -139,9 +139,9 @@ Dependency visibility is reviewed both directions. A `PUBLIC` dependency can lea
 
 ## Program boundary
 
-`SagaRuntime`, `SagaEditor`, `SagaEditorLab`, `SagaLauncher`, and `SagaSandbox` assemble modules for different workflows. There is no SagaServer program owner; `SagaServerLib` remains a ServerAuthority library target rather than an executable claim. None of these programs is permission to place reusable runtime/editor behavior in a program-private directory simply because only one executable currently calls it.
+`SagaRuntime`, `Saga`, `SagaEditorLab`, and `SagaSandbox` assemble modules for different workflows. The `Saga` source is still rooted in `Programs/SagaLauncher`, but the normal product no longer launches a separate `SagaEditor` process. There is no SagaServer program owner; `SagaServerLib` remains a ServerAuthority library target rather than an executable claim. None of these programs is permission to place reusable runtime/editor behavior in a program-private directory simply because only one executable currently calls it.
 
-SagaLauncher may route project validation, script analysis, packaging, and program launch, but the owning tools remain authoritative. EditorLab and Sandbox are development/evidence surfaces. Deterministic checks should live in tests when possible; interactive scenarios remain program-owned only when interaction is part of the evidence.
+Saga Home and its in-process Editor Workspace may route project validation, script analysis, packaging, and verified runtime launch, but the owning tools remain authoritative. EditorLab and Sandbox are development/evidence surfaces. Deterministic checks should live in tests when possible; interactive scenarios remain program-owned only when interaction is part of the evidence.
 
 ## Test boundary
 

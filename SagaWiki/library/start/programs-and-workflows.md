@@ -11,15 +11,14 @@ Programs assemble owned modules into local entry points. They can coordinate val
 
 | Program | Current bounded role |
 | --- | --- |
+| `Saga` | Permanent Qt desktop product: Home, personal Level 1/2/3 Authoring Mode selection, and the typed in-process Editor Workspace. It opens canonical projects and orchestrates verified Play without becoming a source/tool authority. |
 | `SagaRuntime` | Thin runtime application entry and artifact-only Play host. It validates a canonical launch manifest/local envelope and consumes cooked scene, input, script, package, bridge, and render artifacts without parsing project source. |
-| `SagaEditor` | Qt-backed editor shell with canonical document authoring, one real-renderer viewport bridge, and separate-process Play orchestration. |
-| `SagaEditorLab` | Development scenarios for editor host/shell, panels, profiles, customization, and deterministic checks. |
-| `SagaLauncher` | Local project catalog/workspace and product-workflow router that surfaces tool/process results. |
+| `SagaEditorLab` | Development scenarios for editor host/shell, panels, authoring modes, customization, and deterministic checks. |
 | `SagaSandbox` | Manual and development scenarios for runtime subsystems, probes, rendering, and diagnostics. |
 
 ## Product workflow routing
 
-SagaLauncher may open or select a project, invoke the owning validator or tool, launch a program, and surface exit status, diagnostics, and report paths. It must not replace SagaProjectKit, SagaScript, SagaPackager, the editor, or the runtime with a second implementation. A workflow step is successful only when its owning operation produced valid evidence.
+Saga Home may open or select a project, invoke the owning validator or tool, and surface diagnostics. The in-process Editor Workspace may launch verified Play in `SagaRuntime`. Neither surface replaces SagaProjectKit, SagaScript, SagaPackager, the editor domain owners, or the runtime with a second implementation. A workflow step is successful only when its owning operation produced valid evidence.
 
 The launcher does not orchestrate a sample-specific first-playable workflow. The
 Editor Play path uses a generic deterministic runtime launch manifest and a
@@ -40,7 +39,7 @@ There is no SagaServer program owner or dedicated-server entry point. `Engine/So
 
 ## Workflow non-claims
 
-Local shell, report, and smoke paths do not establish a finished launcher, finished editor, production server, distribution readiness, or hosted collaboration. They make current boundaries inspectable and failures visible.
+Local shell, report, and smoke paths do not establish a finished editor, production server, distribution readiness, or hosted collaboration. They make current boundaries inspectable and failures visible.
 
 ## Detailed references
 

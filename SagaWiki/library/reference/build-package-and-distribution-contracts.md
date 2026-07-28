@@ -106,7 +106,7 @@ A valid checksum proves integrity of the referenced archive bytes relative to th
 
 The smoke verifies checksum, archive root/whitelist, unpack, unpacked exact layout, executable bits, and bounded tool/sample workflows. It runs from a temporary unpack root and avoids source-tree dependencies.
 
-Headless smoke can invoke selected `--help`/report commands and a named sample workflow. SagaEditor can be presence-checked without launching GUI in a headless environment. A missing display is not converted into proof that the editor launches.
+Headless smoke can invoke selected `--help`/report commands and a named sample workflow. The `Saga` desktop binary can be presence-checked without launching GUI in a headless environment. A missing display is not converted into proof that Home or the in-process Editor Workspace launches.
 
 Every command records executable path, arguments, working directory, exit state, stdout/stderr or report path, and limitations. A skip due to a failed earlier checksum/unpack remains skipped/blocked, not passed.
 

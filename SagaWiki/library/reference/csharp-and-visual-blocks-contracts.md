@@ -172,7 +172,7 @@ This proves source-preserving tool orchestration for the fixture/operation. It d
 
 ## Editor integration
 
-Editor views consume artifacts and reports. The scripting panel has separate `Scripting` and `Blocks` tabs. The Blocks widget renders immutable presentation-neutral cards and nesting, including package origin, source spans, busy/stale/failure state, and opaque C# regions. Selecting a card navigates the existing source buffer; it does not recreate or mutate that buffer.
+Editor views consume artifacts and reports. The production `Code Box` panel has separate `C#` and `Blocks — Read-only projection` tabs. The Blocks widget renders immutable presentation-neutral cards and nesting, including package origin, source spans, busy/stale/failure state, and opaque C# regions. Selecting a card navigates the existing source buffer; it does not recreate or mutate that buffer.
 
 `ScriptProjectionSession` is Qt-free and accepts only saved-source analysis. Its snapshot states distinguish no document, dirty-needs-save, analyzing, current, stale, failed, cancelled, project closed, and package-generation change. Publication succeeds only while workspace generation, disk hash, document revision, project/package generation, operation identity, and artifact hash still match. Late, cancelled, closed, or replaced results cannot overwrite the current projection.
 

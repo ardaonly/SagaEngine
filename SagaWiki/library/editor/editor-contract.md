@@ -13,7 +13,12 @@ The editor is a composition of owned modules rather than one undifferentiated ap
 
 Editor operations should express semantic changes to project-owned source: create an entity, change a property, apply a script patch, or update an asset reference. UI widgets are views and command initiators. They should not become a hidden second store for project behavior.
 
-The personal editor view includes window layout, panel visibility, selection, filters, and other per-user presentation state. Shared project state includes authored entities, assets, scripts, and semantic transactions. Saving personal view state must not mutate the shared project model accidentally.
+The personal editor view includes exactly one `level1` / `level2` / `level3`
+Authoring Mode, a separate saved layout for each mode, panel visibility,
+selection, filters, and other per-user presentation state. Shared project state
+includes authored entities, assets, scripts, and semantic transactions.
+Authoring Mode is not stored in `.sagaproj`; switching it must not mutate shared
+project source.
 
 ## Qt boundary
 
@@ -29,7 +34,9 @@ Runtime Core exposes only static module registration/lifecycle foundations. It d
 
 ## Minimum shell workflow
 
-The current shell and authoring surfaces support canonical project creation/open,
+The `Saga` desktop product owns permanent Home and an in-process Editor Workspace
+under one `QApplication`; there is no normal handoff to a separate `SagaEditor`
+desktop process. The current shell and authoring surfaces support canonical project creation/open,
 project/scene/C# input documents, transaction-routed save/undo/redo, hierarchy and
 Inspector selection, SagaScript analysis, and personal layout persistence. The
 World Viewport uses one Qt native-surface bridge to the real Saga renderer, and

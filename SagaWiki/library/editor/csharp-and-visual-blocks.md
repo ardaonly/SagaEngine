@@ -37,6 +37,11 @@ High-level scripting contracts are the default authoring surface. Low-level life
 
 ## Current surface boundary
 
+The production `Code Box` presents canonical `C#` and
+`Blocks — Read-only projection` tabs. The read-only label is a product contract:
+the current Blocks view can navigate and explain analyzed source, but it cannot
+mutate C#.
+
 The public `VisualBlocksEditor` surface is intentionally limited to `SagaEditor/VisualBlocks/Blocks/**`. Compiler, debugger, editor, graph, import, node, pin, type-system, evaluation, and runtime-host placeholder surfaces are not public contracts. Product integration emits read-only descriptor/evidence data from private implementation.
 
 | Surface | Contract reading |

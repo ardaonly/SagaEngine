@@ -14,7 +14,7 @@ This reference defines the durable editor shell, project inspection, authoring t
 The post-cutover editor is divided deliberately:
 
 - `EditorCore` owns editor-neutral commands, identifiers, base state, and low-level editor contracts.
-- `EditorFramework` owns shell composition, panels, docking, layouts, workspaces, notifications, localization, profiles, personas, themes, customization, and host orchestration without owning Qt ABI.
+- `EditorFramework` owns shell composition, panels, docking, mode-scoped layouts, workspaces, notifications, localization, themes, customization, and host orchestration without owning Qt ABI.
 - `EditorQt` owns Qt-specific application/window/widget and adapter implementation.
 - `Engine/Source/Editor/EditorQtRender` owns the single Qt native-surface/renderer lifecycle bridge;
   renderer device, context, swapchain, and GPU resources remain renderer-owned.
@@ -27,7 +27,7 @@ The post-cutover editor is divided deliberately:
 - `EditorCollaboration` owns the modern `SagaCollaboration` services/model and `SagaShared` collaboration/workspace values; the legacy `SagaEditor::Collaboration` surface is retired.
 - `EditorExperimental` owns deliberately unstable ideas that should not be advertised as stable editor contract.
 
-The `SagaEditor` program composes these owners. It does not absorb their reusable behavior. `SagaEditorLab` is a development/evidence host and is not the production editor identity.
+The `Saga` desktop program composes these owners into permanent Home and an in-process Editor Workspace under one `QApplication`. It does not absorb their reusable behavior. `SagaEditor` is no longer a separate product executable. `SagaEditorLab` is a development/evidence host and is not the production editor identity.
 
 ## Shell role
 
@@ -56,7 +56,7 @@ Not every step currently has a complete visual UI. A model/view or CLI evidence 
 
 Project open begins with a path selected by the user or launcher. The shell normalizes it, invokes the current validator, and receives structured identity, schema, path, source, slice, and artifact diagnostics. It does not walk upward/downward looking for another project after the selected manifest fails.
 
-An open session records project root, manifest path, project identity, schema version, active profile/slice, and validation generation. A later report or transaction is checked against that identity/generation so output from one project cannot be displayed as another project's state.
+An open session records project root, manifest path, project identity, schema version, active slice, and validation generation. A later report or transaction is checked against that identity/generation so output from one project cannot be displayed as another project's state.
 
 The editor can support inspection of an invalid project, but that mode is explicit and read-only where source authority cannot be established. It does not describe the project as ready to run or publish.
 
@@ -86,7 +86,7 @@ Shared state is not automatically collaborative or remote. It can be local files
 
 ## Personal view state
 
-Personal state includes panel visibility, dock arrangement, window geometry, local selection, focus, recent navigation, density/theme, shortcuts, and personal workspace presets unless a policy explicitly promotes a field into project source.
+Personal state includes the selected `level1` / `level2` / `level3` Authoring Mode, per-mode panel visibility and dock arrangement, window geometry, local selection, focus, recent navigation, density/theme, shortcuts, and personal workspace presets unless a policy explicitly promotes a field into project source.
 
 Personal state must not alter build/runtime behavior. A hidden diagnostics panel does not suppress diagnostics. Hiding a project slice in a personal view does not remove it from the manifest. A local shortcut override does not change a shared semantic command id.
 
@@ -94,7 +94,7 @@ Personal overlays should be stored outside canonical project source or in a clea
 
 ## Editor composition
 
-Editor composition artifacts describe panels, actions, menus, toolbars, shortcuts, workspace layouts/profiles, and modes using editor-owned values. A resolver combines the base composition with supported overlays and yields a resolved immutable snapshot. A diff explains what an overlay changes.
+Editor composition artifacts describe panels, actions, menus, toolbars, shortcuts, workspace layouts, and modes using editor-owned values. A resolver combines the base composition with supported overlays and yields a resolved immutable snapshot. A diff explains what an overlay changes.
 
 Resolution is deterministic. Duplicate ids, missing action references, invalid menu/toolbar entries, shortcut conflicts, unknown panels, and unsupported capabilities produce diagnostics. The resolver does not instantiate Qt widgets or execute arbitrary code while merely reading composition metadata.
 
@@ -154,17 +154,17 @@ Visual Blocks are not executed as a second runtime graph. The editor must not si
 
 ## Customization model
 
-Customization can cover personal layout, panel visibility, shortcuts, toolbar visibility/order, theme/density/persona, and supported workspace profiles. Each capability is advertised explicitly by the current catalog. Unsupported customization remains unavailable rather than stored and ignored.
+Customization can cover personal layout, panel visibility, shortcuts, toolbar visibility/order, theme, and density. Exactly three built-in Authoring Modes (`level1`, `level2`, `level3`) provide the production authoring-depth axis, with separate personal layout state for each mode. Legacy Profile and Persona settings are one-time migration inputs, not parallel product systems. Each capability is advertised explicitly by the current catalog. Unsupported customization remains unavailable rather than stored and ignored.
 
-Resolution order is deliberate: stable base composition, selected editor/project profile where valid, then personal overlay. Shared project truth is not overridden by a personal UI preference. Team-shared layout would require its own schema and authority; it is not implied by the presence of workspace types.
+Resolution order is deliberate: stable base composition, selected personal Authoring Mode, then its personal layout overlay. Shared project truth is not overridden by a personal UI preference. Team-shared layout would require its own schema and authority; it is not implied by the presence of workspace types.
 
 Shortcut changes bind to semantic action ids. Conflicts, reserved shortcuts, unknown actions, and duplicate bindings produce feedback. The session can preview before storing the personal override.
 
 ## Product and launcher workflow
 
-`SagaLauncher` or an editor start surface can route users to validation, editor, runtime, scripting, and package tools. It preserves owner and report identity. The shell is not itself a compiler, package builder, runtime engine, or server.
+`Saga` Home routes successful project selection into the typed in-process Editor Workspace. The workspace can route validation, scripting, package preparation and verified Play while preserving owner and report identity. It is not itself a compiler, package builder, runtime engine, or server. Normal product use does not route to an external `SagaEditor` process.
 
-A workflow record includes project/profile, step id, invoked owner/command, start/end/exit state, report path or structured result, diagnostics, and non-claims. Reference-only steps are labeled not executed. A missing report is a failure/limitation, not success.
+A workflow record includes project and personal authoring mode, step id, invoked owner/command, start/end/exit state, report path or structured result, diagnostics, and non-claims. Reference-only steps are labeled not executed. A missing report is a failure/limitation, not success.
 
 Runtime play can be a bounded smoke or interactive host depending on the actual command. Script/blocks can be a CLI/test-level chain. Server evidence can be ServerAuthority library smoke. Package preflight can fail honestly when inputs are missing. UI wording preserves those distinctions.
 
