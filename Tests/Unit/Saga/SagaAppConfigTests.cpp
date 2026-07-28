@@ -144,19 +144,16 @@ TEST(SagaAppConfigTest, SagaScriptValidationArgumentsAreParsed)
         "/tmp/project/Project.sagaproj",
         "--forge",
         "/tools/forge",
-        "--sagascript-tool",
-        "/tools/sagascript",
     };
     auto* argv = const_cast<char**>(argvRaw);
 
-    const SagaConfigResult result = ParseSagaAppConfig(7, argv);
+    const SagaConfigResult result = ParseSagaAppConfig(5, argv);
 
     ASSERT_TRUE(result.ok) << result.error;
     EXPECT_TRUE(result.config.validateSagaScript);
     EXPECT_EQ(result.config.sagaScriptProjectManifest,
               fs::path("/tmp/project/Project.sagaproj"));
     EXPECT_EQ(result.config.forgeExecutable, fs::path("/tools/forge"));
-    EXPECT_EQ(result.config.sagaScriptExecutable, fs::path("/tools/sagascript"));
 }
 
 TEST(SagaAppConfigTest, PackageCommandsRedirectToSagapack)

@@ -122,7 +122,12 @@ bool SagaProcessService::IsExecutableAllowed(
 bool SagaProcessService::IsEnvironmentKeyAllowed(
     const std::string& key) noexcept
 {
-    static constexpr std::array<const char*, 3> kAllowedKeys = {
+    static constexpr std::array<const char*, 8> kAllowedKeys = {
+        "DOTNET_HOST_PATH",
+        "DOTNET_MULTILEVEL_LOOKUP",
+        "DOTNET_ROOT",
+        "DOTNET_ROOT_X64",
+        "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT",
         "FONTCONFIG_PATH",
         "QT_QPA_PLATFORM",
         "SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY",

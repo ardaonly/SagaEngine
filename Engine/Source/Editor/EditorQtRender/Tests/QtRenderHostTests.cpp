@@ -136,11 +136,11 @@ TEST(QtRenderHostTests, ConsumesSagaPackagerCookedStarterArenaArtifacts)
     const auto toolchain = SagaEditor::ResolveEditorToolchain();
 
     SagaEditor::ToolProcessRequest request;
-    request.executable = toolchain.sagaPackagerExecutable;
-    request.arguments = {"compile-assets", "--project", project.string(),
-                         "--out", contentRoot.string()};
     request.timeout = std::chrono::seconds(30);
-    const auto process = SagaEditor::ToolProcessRunner{}.Run(request);
+    const auto process = SagaEditor::ManagedToolRuntime(toolchain.managedRuntime).Run(
+        SagaEditor::ManagedToolId::Packager,
+        {"compile-assets", "--project", project.string(),
+         "--out", contentRoot.string()}, std::move(request)).process;
     ASSERT_TRUE(process.Succeeded()) << process.standardError;
 
     SagaEditor::SceneDocument scene(sourceRoot /
@@ -214,13 +214,14 @@ TEST(StarterArenaViewportRenderIntegrationTests, RealBackendProducesNonClearPixe
     const auto contentRoot = fs::temp_directory_path() /
         ("saga-real-viewport-content-" + std::to_string(
             std::chrono::steady_clock::now().time_since_epoch().count()));
+    const auto toolchain = SagaEditor::ResolveEditorToolchain();
     SagaEditor::ToolProcessRequest request;
-    request.executable = SagaEditor::ResolveEditorToolchain().sagaPackagerExecutable;
-    request.arguments = {"compile-assets", "--project",
-        (sourceRoot / "Samples/StarterArena/StarterArena.sagaproj").string(),
-        "--out", contentRoot.string()};
     request.timeout = std::chrono::seconds(30);
-    const auto process = SagaEditor::ToolProcessRunner{}.Run(request);
+    const auto process = SagaEditor::ManagedToolRuntime(toolchain.managedRuntime).Run(
+        SagaEditor::ManagedToolId::Packager,
+        {"compile-assets", "--project",
+         (sourceRoot / "Samples/StarterArena/StarterArena.sagaproj").string(),
+         "--out", contentRoot.string()}, std::move(request)).process;
     ASSERT_TRUE(process.Succeeded()) << process.standardError;
     SagaEditor::SceneDocument scene(sourceRoot /
         "Samples/StarterArena/Scenes/StarterArena.sagascene");

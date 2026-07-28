@@ -3,6 +3,7 @@
 #pragma once
 
 #include "SagaEditor/Documents/Document.h"
+#include "SagaEditor/Processes/ManagedToolRuntime.h"
 #include "SagaEditor/Processes/ToolProcessRunner.h"
 
 namespace SagaEditor
@@ -73,11 +74,11 @@ struct ScriptWorkerResult
 class SagaScriptWorkerClient
 {
 public:
-    SagaScriptWorkerClient(std::filesystem::path executable,
+    SagaScriptWorkerClient(ManagedToolRuntimeOptions runtime = {},
         std::chrono::milliseconds timeout = std::chrono::minutes(2));
     [[nodiscard]] ScriptWorkerResult Run(const ScriptWorkerRequest& request) const;
 private:
-    std::filesystem::path executable_;
+    ManagedToolRuntime runtime_;
     std::chrono::milliseconds timeout_;
 };
 }

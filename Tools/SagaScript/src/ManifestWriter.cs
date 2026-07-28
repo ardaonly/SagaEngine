@@ -37,27 +37,6 @@ internal static class ManifestWriter
         };
     }
 
-    public static DiagnosticReport BuildMissingDotNetSdkReport()
-    {
-        return new DiagnosticReport
-        {
-            Summary = new DiagnosticSummary
-            {
-                ErrorCount = 1,
-                HasBlockingDiagnostics = true
-            },
-            Diagnostics = new[]
-            {
-                new SagaDiagnostic
-                {
-                    Severity = SagaDiagnosticSeverity.Error.ToString(),
-                    Code = "Script.Toolchain.DotNetSdkMissing",
-                    Message = "SagaScript compile requires a .NET 10 SDK for target framework net10.0. Install a .NET 10 SDK and rerun; SagaScript will not downgrade target frameworks automatically."
-                }
-            }
-        };
-    }
-
     public static ScriptBindingManifest BuildBindingManifest(AnalysisResult result)
     {
         return new ScriptBindingManifest

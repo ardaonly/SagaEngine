@@ -17,9 +17,7 @@ class EditorDocumentWorkspace;
 
 struct ScriptAnalysisToolchain
 {
-    std::filesystem::path sagaProjectKit;
-    std::filesystem::path sagaPackager;
-    std::filesystem::path sagaScript;
+    ManagedToolRuntimeOptions managedRuntime;
     std::filesystem::path engineRoot;
     std::filesystem::path runtimeBridge;
     std::chrono::milliseconds timeout{std::chrono::minutes(2)};

@@ -225,7 +225,7 @@ SagaEditor::ProjectToolResult SagaMainWindow::CreateProject(
 {
     const auto toolchain = SagaEditor::ResolveEditorToolchain(executable_);
     auto client = std::make_shared<SagaEditor::SagaProjectKitClient>(
-        toolchain.sagaProjectKitExecutable);
+        toolchain.managedRuntime);
     SagaEditor::EditorDocumentWorkspace workspace(std::move(client));
     auto result = workspace.CreateStarterArena(
         SagaEditor::MakeStarterArenaTemplateRequest(

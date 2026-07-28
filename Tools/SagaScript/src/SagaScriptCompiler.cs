@@ -203,22 +203,6 @@ internal static class SagaScriptCompiler
         }
 
         candidates.Add(Path.Combine(AppContext.BaseDirectory, RuntimeBridgeAssemblyName));
-        candidates.Add(Path.Combine(
-            Directory.GetCurrentDirectory(),
-            "build",
-            "RelWithDebInfo",
-            "Managed",
-            "SagaScript.RuntimeBridge",
-            RuntimeBridgeAssemblyName));
-        candidates.Add(Path.Combine(
-            Directory.GetCurrentDirectory(),
-            "Engine",
-            "Managed",
-            "SagaScript.RuntimeBridge",
-            "bin",
-            "Release",
-            "net10.0",
-            RuntimeBridgeAssemblyName));
 
         return candidates
             .Select(Path.GetFullPath)

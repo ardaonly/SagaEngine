@@ -181,10 +181,8 @@ ScriptAnalysisToolchain DiscoverScriptAnalysisToolchain()
     const auto discovered = ResolveEditorToolchain();
     ScriptAnalysisToolchain toolchain;
     toolchain.engineRoot = discovered.engineRoot;
-    toolchain.sagaProjectKit = discovered.sagaProjectKitExecutable;
-    toolchain.sagaPackager = discovered.sagaPackagerExecutable;
     toolchain.runtimeBridge = discovered.runtimeBridge;
-    toolchain.sagaScript = discovered.sagaScriptExecutable;
+    toolchain.managedRuntime = discovered.managedRuntime;
     return toolchain;
 }
 
@@ -245,15 +243,21 @@ ScriptAnalysisResult ScriptAnalysisCoordinator::Analyze(
     }
 
     ToolProcessRequest packageRequest;
-    packageRequest.executable = toolchain_.sagaPackager;
-    packageRequest.arguments = {"lock-verify", "--project", projectPath.string(),
-        "--engine-root", toolchain_.engineRoot.string(), "--lock",
-        snapshot.trackedLockPath.string(), "--generated-out", packages.string(),
-        "--runtime-bridge", toolchain_.runtimeBridge.string(), "--out", packageReport.string()};
     packageRequest.timeout = toolchain_.timeout;
     packageRequest.cancellationRequested = request.cancellationRequested;
     if (request.progress) request.progress("VerifyingPackages");
-    result.packageProcess = ToolProcessRunner{}.Run(packageRequest);
+    const auto packageManaged = ManagedToolRuntime(toolchain_.managedRuntime).Run(
+        ManagedToolId::Packager,
+        {"lock-verify", "--project", projectPath.string(),
+         "--engine-root", toolchain_.engineRoot.string(), "--lock",
+         snapshot.trackedLockPath.string(), "--generated-out", packages.string(),
+         "--runtime-bridge", toolchain_.runtimeBridge.string(),
+         "--out", packageReport.string()},
+        std::move(packageRequest));
+    result.packageProcess = packageManaged.process;
+    for (const auto& diagnostic : packageManaged.preflightDiagnostics)
+        result.diagnostics.push_back(
+            Diagnostic(diagnostic.code, diagnostic.message, diagnostic.path));
     if (!result.packageProcess.Succeeded())
     {
         result.cancelled = result.packageProcess.classification ==
@@ -400,7 +404,7 @@ ScriptAnalysisResult ScriptAnalysisCoordinator::Analyze(
         return result;
     }
     if (request.progress) request.progress("RunningSagaScript");
-    result.worker = SagaScriptWorkerClient(toolchain_.sagaScript, toolchain_.timeout)
+    result.worker = SagaScriptWorkerClient(toolchain_.managedRuntime, toolchain_.timeout)
         .Run(workerRequest);
     result.cancelled = result.worker.cancelled;
     result.stale = result.worker.stale;

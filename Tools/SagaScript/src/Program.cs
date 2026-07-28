@@ -2,8 +2,6 @@
 // Program.cs
 // Command-line entrypoint for the standalone SagaScript toolchain.
 
-using System.Diagnostics;
-
 namespace SagaScript;
 
 internal static class Program
@@ -42,11 +40,6 @@ internal static class Program
             return ProjectWorker.Run(worker.RequestPath, worker.ResultPath, worker.ProgressPath);
         }
         var options = CliOptions.Parse(args.Skip(1).ToArray());
-        if (command == "compile" && !DotNetSdkProbe.HasRequiredSdk())
-        {
-            return ReportMissingDotNetSdk(options);
-        }
-
         if (RequiresSource(command) && options.Sources.Count == 0 &&
             string.IsNullOrWhiteSpace(options.ProjectPath))
         {
@@ -472,22 +465,6 @@ internal static class Program
         return compileResult.DiagnosticReport.Summary.HasBlockingDiagnostics ? 1 : 0;
     }
 
-    private static int ReportMissingDotNetSdk(CliOptions options)
-    {
-        var report = ManifestWriter.BuildMissingDotNetSdkReport();
-        WriteDiagnosticsIfRequested(report, options);
-        if (options.Json)
-        {
-            ManifestWriter.PrintJson(report);
-        }
-        else
-        {
-            PrintDiagnostics(report);
-        }
-
-        return 1;
-    }
-
     private static int RunInspectBindings(AnalysisResult result, CliOptions options)
     {
         var report = new InspectionReport
@@ -592,39 +569,6 @@ internal static class Program
         Console.WriteLine("  patch-diff --source <file-or-dir> --source-map <file> --request <file> --out <file> [--json]");
         Console.WriteLine("  patch-review --diff <file> --decision <Approved|Rejected> --reviewer <id> --out <file> [--json]");
         Console.WriteLine("  patch-rollback --apply-report <file> --out <file> [--json]");
-    }
-}
-
-internal static class DotNetSdkProbe
-{
-    public static bool HasRequiredSdk()
-    {
-        try
-        {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "dotnet",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false
-            };
-            startInfo.ArgumentList.Add("--list-sdks");
-
-            using var process = Process.Start(startInfo);
-            if (process is null)
-            {
-                return false;
-            }
-
-            var output = process.StandardOutput.ReadToEnd();
-            process.WaitForExit();
-            return process.ExitCode == 0 &&
-                output.Split('\n').Any(line => line.StartsWith("10.", StringComparison.Ordinal));
-        }
-        catch (Exception)
-        {
-            return false;
-        }
     }
 }
 

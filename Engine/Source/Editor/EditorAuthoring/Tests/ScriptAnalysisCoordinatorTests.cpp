@@ -50,8 +50,7 @@ TEST(ScriptAnalysisCoordinatorTests, RejectsDirtyBuffersWithoutStartingTools)
 
     SagaEditor::ScriptAnalysisToolchain missingTools;
     missingTools.engineRoot = root;
-    missingTools.sagaPackager = root / "must-not-run-packager";
-    missingTools.sagaScript = root / "must-not-run-script";
+    missingTools.managedRuntime.testStage = root / "must-not-run-stage";
     const auto result = SagaEditor::ScriptAnalysisCoordinator(missingTools).Analyze(workspace);
     EXPECT_FALSE(result.passed);
     ASSERT_EQ(result.diagnostics.size(), 1U);

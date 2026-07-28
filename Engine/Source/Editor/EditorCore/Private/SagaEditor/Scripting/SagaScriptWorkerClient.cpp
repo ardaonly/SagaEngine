@@ -43,9 +43,9 @@ std::vector<std::string> ReadProgress(const std::filesystem::path& path)
 }
 }
 
-SagaScriptWorkerClient::SagaScriptWorkerClient(std::filesystem::path executable,
+SagaScriptWorkerClient::SagaScriptWorkerClient(ManagedToolRuntimeOptions runtime,
                                                std::chrono::milliseconds timeout)
-    : executable_(std::move(executable)), timeout_(timeout) {}
+    : runtime_(std::move(runtime)), timeout_(timeout) {}
 
 ScriptWorkerResult SagaScriptWorkerClient::Run(const ScriptWorkerRequest& request) const
 {
@@ -101,9 +101,6 @@ ScriptWorkerResult SagaScriptWorkerClient::Run(const ScriptWorkerRequest& reques
 
     std::set<std::string> reportedStages;
     ToolProcessRequest processRequest;
-    processRequest.executable = executable_;
-    processRequest.arguments = {"worker", "--request", requestPath.string(),
-        "--result", resultPath.string(), "--progress", progressPath.string()};
     processRequest.timeout = timeout_;
     processRequest.cancellationRequested = request.cancellationRequested;
     processRequest.requestCancellation = [cancellationPath, operationId = request.operationId]
@@ -117,7 +114,14 @@ ScriptWorkerResult SagaScriptWorkerClient::Run(const ScriptWorkerRequest& reques
         for (const auto& stage : ReadProgress(progressPath))
             if (reportedStages.insert(stage).second && request.progress) request.progress(stage);
     };
-    result.process = ToolProcessRunner{}.Run(processRequest);
+    const auto managed = runtime_.Run(ManagedToolId::Script,
+        {"worker", "--request", requestPath.string(),
+         "--result", resultPath.string(), "--progress", progressPath.string()},
+        std::move(processRequest));
+    result.process = managed.process;
+    for (const auto& diagnostic : managed.preflightDiagnostics)
+        result.diagnostics.push_back(
+            {diagnostic.code, diagnostic.message, diagnostic.path});
     result.progressStages = ReadProgress(progressPath);
     std::ifstream input(resultPath, std::ios::binary);
     if (!input)
