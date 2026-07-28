@@ -13,6 +13,37 @@ message(STATUS "Engine root: ${SAGA_ROOT}")
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules")
 
+file(READ "${SAGA_ROOT}/Config/managed-tool-runtime.json"
+    SAGA_MANAGED_TOOL_RUNTIME_MANIFEST_JSON)
+string(JSON SAGA_MANAGED_FRAMEWORK GET
+    "${SAGA_MANAGED_TOOL_RUNTIME_MANIFEST_JSON}" framework)
+string(JSON SAGA_MANAGED_TARGET_FRAMEWORK GET
+    "${SAGA_MANAGED_TOOL_RUNTIME_MANIFEST_JSON}" targetFramework)
+string(JSON SAGA_MANAGED_MINIMUM_RUNTIME_VERSION GET
+    "${SAGA_MANAGED_TOOL_RUNTIME_MANIFEST_JSON}" minimumRuntimeVersion)
+string(JSON SAGA_MANAGED_RUNTIME_VERSION GET
+    "${SAGA_MANAGED_TOOL_RUNTIME_MANIFEST_JSON}" runtimeVersion)
+string(JSON SAGA_MANAGED_RUNTIME_RID GET
+    "${SAGA_MANAGED_TOOL_RUNTIME_MANIFEST_JSON}" rid)
+string(JSON SAGA_MANAGED_PROJECTKIT_DIRECTORY GET
+    "${SAGA_MANAGED_TOOL_RUNTIME_MANIFEST_JSON}" tools 0 directory)
+string(JSON SAGA_MANAGED_PROJECTKIT_ASSEMBLY GET
+    "${SAGA_MANAGED_TOOL_RUNTIME_MANIFEST_JSON}" tools 0 assembly)
+string(JSON SAGA_MANAGED_SCRIPT_DIRECTORY GET
+    "${SAGA_MANAGED_TOOL_RUNTIME_MANIFEST_JSON}" tools 1 directory)
+string(JSON SAGA_MANAGED_SCRIPT_ASSEMBLY GET
+    "${SAGA_MANAGED_TOOL_RUNTIME_MANIFEST_JSON}" tools 1 assembly)
+string(JSON SAGA_MANAGED_PACKAGER_DIRECTORY GET
+    "${SAGA_MANAGED_TOOL_RUNTIME_MANIFEST_JSON}" tools 2 directory)
+string(JSON SAGA_MANAGED_PACKAGER_ASSEMBLY GET
+    "${SAGA_MANAGED_TOOL_RUNTIME_MANIFEST_JSON}" tools 2 assembly)
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/generated")
+configure_file(
+    "${SAGA_ROOT}/cmake/templates/SagaManagedToolRuntimeConfig.h.in"
+    "${CMAKE_BINARY_DIR}/generated/SagaManagedToolRuntimeConfig.h"
+    @ONLY)
+include_directories("${CMAKE_BINARY_DIR}/generated")
+
 option(SAGA_WITH_EDITORLAB_DEV_PANEL "Mount the dev-only EditorLab panel in Saga" OFF)
 
 include(SagaVersioning)
@@ -29,6 +60,7 @@ include(SagaInstallGraphics)
 include(SagaInstall)
 include(SagaAssets)
 include(SagaDistribution)
+include(SagaManagedToolRuntime)
 include(SagaSampleEvidence)
 
 saga_configure_executable_output_directory()
@@ -39,6 +71,7 @@ saga_register_source_modules()
 
 saga_create_graphics_targets()
 saga_create_engine_targets()
+saga_setup_managed_tool_runtime()
 saga_setup_tests()
 saga_setup_assets()
 saga_setup_install()
