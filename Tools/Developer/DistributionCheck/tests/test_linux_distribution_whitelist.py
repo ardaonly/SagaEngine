@@ -30,6 +30,7 @@ from saga_linux_distribution_policy import (  # noqa: E402
     REQUIRED_PRODUCT_RESOURCE_PATHS,
     included_applications,
     included_public_tools,
+    managed_runtime_metadata,
     staged_file_inventory,
     validate_archive_entries,
     validate_layout,
@@ -76,6 +77,7 @@ def exact_metadata() -> dict[str, object]:
         "publicTools": ["sagapack", "sagaproject", "sagascript"],
         "includedApplications": included_applications(),
         "includedPublicTools": included_public_tools(),
+        "managedToolRuntime": managed_runtime_metadata(),
         "excludedDevTools": list(EXCLUDED_DEV_TOOLS),
         "excludedRetiredTools": list(EXCLUDED_RETIRED_TOOLS),
         "excludedSourceSurfaces": list(EXCLUDED_SOURCE_SURFACES),
@@ -125,7 +127,7 @@ class LinuxDistributionWhitelistTests(unittest.TestCase):
             exact_layout(root)
             write_file(root, "samples/StarterArena/UnitTests", executable=True)
             (root / "samples" / "StarterArena" / "Tests").mkdir()
-            write_file(root, "tools/.saga-tools/sagapack/helper", executable=True)
+            write_file(root, "tools/SagaPackager/helper", executable=True)
             errors = validate_layout(root)
             self.assertTrue(any("test executable" in error for error in errors))
             self.assertTrue(any("test payload directory" in error for error in errors))
@@ -135,8 +137,20 @@ class LinuxDistributionWhitelistTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / "Saga"
             exact_layout(root)
-            write_file(root, "tools/.saga-tools/unknown/helper.dll")
+            write_file(root, "tools/Unknown/helper.dll")
             self.assertTrue(any("unapproved package file" in error for error in validate_layout(root)))
+
+    def test_managed_payload_rejects_sdk_source_and_apphosts(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "Saga"
+            exact_layout(root)
+            write_file(root, "runtime/dotnet/sdk/10.0.202/dotnet.dll")
+            write_file(root, "tools/SagaScript/Program.cs")
+            write_file(root, "tools/SagaScript/sagascript", executable=True)
+            errors = validate_layout(root)
+            self.assertTrue(any("SDK or unrelated" in error for error in errors))
+            self.assertTrue(any("managed tool source" in error for error in errors))
+            self.assertTrue(any("managed tool apphost" in error for error in errors))
 
     def test_metadata_sets_are_exact(self) -> None:
         metadata = exact_metadata()
