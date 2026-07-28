@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
-/// @file EditorMode.cpp
-/// @brief EditorMode implementation.
+/// @file EditorWorkspaceSession.cpp
+/// @brief EditorWorkspaceSession implementation.
 
-#include "SagaEditor/Shell/EditorMode.h"
+#include "SagaEditor/Shell/EditorWorkspaceSession.h"
 #include "SagaEditor/Host/EditorHost.h"
-#include "SagaEditor/Profile/EditorProfileRegistry.h"
+#include "SagaEditor/Authoring/AuthoringMode.h"
+#include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
 #include "SagaEditor/Settings/IEditorSettingsStore.h"
 #include "SagaEditor/Shell/EditorShell.h"
 #include "SagaEditor/UI/IUIMainWindow.h"
@@ -14,16 +15,16 @@
 namespace SagaEditor
 {
 
-EditorMode::EditorMode() = default;
+EditorWorkspaceSession::EditorWorkspaceSession() = default;
 
-EditorMode::~EditorMode()
+EditorWorkspaceSession::~EditorWorkspaceSession()
 {
     Unmount();
 }
 
-EditorMode::EditorMode(EditorMode&&) noexcept = default;
+EditorWorkspaceSession::EditorWorkspaceSession(EditorWorkspaceSession&&) noexcept = default;
 
-EditorMode& EditorMode::operator=(EditorMode&& other) noexcept
+EditorWorkspaceSession& EditorWorkspaceSession::operator=(EditorWorkspaceSession&& other) noexcept
 {
     if (this != &other)
     {
@@ -35,9 +36,9 @@ EditorMode& EditorMode::operator=(EditorMode&& other) noexcept
     return *this;
 }
 
-bool EditorMode::Mount(std::unique_ptr<IUIMainWindow> window,
+bool EditorWorkspaceSession::Mount(std::unique_ptr<IUIMainWindow> window,
                        std::unique_ptr<IEditorSettingsStore> settingsStore,
-                       const EditorModeConfig& config)
+                       const EditorWorkspaceSessionConfig& config)
 {
     if (IsMounted() || !window || !settingsStore)
         return false;
@@ -46,8 +47,10 @@ bool EditorMode::Mount(std::unique_ptr<IUIMainWindow> window,
     if (!host->Init(std::move(settingsStore), config.workspacePath))
         return false;
 
-    if (!config.initialProfileId.empty() &&
-        !host->GetEditorProfileRegistry().SetActive(config.initialProfileId))
+    if ((!config.authoringModeId.empty() &&
+         !host->GetAuthoringModeService().SetActive(config.authoringModeId)) ||
+        (!config.projectPath.empty() &&
+         !host->GetDocumentWorkspace().OpenProject(config.projectPath)))
     {
         host->Shutdown();
         return false;
@@ -61,8 +64,11 @@ bool EditorMode::Mount(std::unique_ptr<IUIMainWindow> window,
     shellConfig.workspacePath = config.workspacePath;
     shellConfig.layoutPreset = config.layoutPreset;
     shellConfig.registerDefaultPanels = config.registerDefaultPanels;
-    shellConfig.applyActivePersona = config.applyActivePersona;
     shellConfig.showOnInit = config.showOnMount;
+    shellConfig.runtimeExecutable = config.runtimeExecutable;
+    shellConfig.returnHome = config.returnHome;
+    shellConfig.workspaceChanged = config.workspaceChanged;
+    shellConfig.projectWorkflowPrompts = config.projectWorkflowPrompts;
 
     auto shell = std::make_unique<EditorShell>();
     if (!shell->Init(*host, std::move(window), shellConfig))
@@ -76,7 +82,7 @@ bool EditorMode::Mount(std::unique_ptr<IUIMainWindow> window,
     return true;
 }
 
-void EditorMode::Unmount()
+void EditorWorkspaceSession::Unmount()
 {
     if (m_shell)
         m_shell->Shutdown();
@@ -87,29 +93,34 @@ void EditorMode::Unmount()
     m_host.reset();
 }
 
-bool EditorMode::IsMounted() const noexcept
+bool EditorWorkspaceSession::IsMounted() const noexcept
 {
     return m_host != nullptr && m_shell != nullptr;
 }
 
-EditorHost* EditorMode::GetHost() noexcept
+EditorHost* EditorWorkspaceSession::GetHost() noexcept
 {
     return m_host.get();
 }
 
-const EditorHost* EditorMode::GetHost() const noexcept
+const EditorHost* EditorWorkspaceSession::GetHost() const noexcept
 {
     return m_host.get();
 }
 
-EditorShell* EditorMode::GetShell() noexcept
+EditorShell* EditorWorkspaceSession::GetShell() noexcept
 {
     return m_shell.get();
 }
 
-const EditorShell* EditorMode::GetShell() const noexcept
+const EditorShell* EditorWorkspaceSession::GetShell() const noexcept
 {
     return m_shell.get();
+}
+
+bool EditorWorkspaceSession::CanCloseWorkspace()
+{
+    return !m_shell || m_shell->CanCloseWorkspace();
 }
 
 } // namespace SagaEditor

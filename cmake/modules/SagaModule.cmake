@@ -417,7 +417,6 @@ function(saga_register_source_modules)
         Engine/Source/Editor/EditorCollaboration/CMakeLists.txt
         Engine/Source/Editor/EditorExperimental/CMakeLists.txt
         Engine/Source/Programs/SagaLauncher/CMakeLists.txt
-        Engine/Source/Programs/SagaEditor/CMakeLists.txt
         Engine/Source/Programs/SagaRuntime/CMakeLists.txt
         Engine/Source/Programs/SagaSandbox/CMakeLists.txt
         Engine/Source/Programs/SagaEditorLab/CMakeLists.txt
@@ -435,7 +434,7 @@ function(saga_register_source_modules)
         SagaDiligentRuntime SagaDiligentBackend SagaPlatformSDL SagaUiBackend
         SagaPersistenceBackend
         SagaRuntimeLib SagaServerLib SagaShared SagaCollaboration SagaEditorLib
-        SagaEditorLabLib SagaSandboxLib SagaProductLib Saga SagaEditor SagaRuntime
+        SagaEditorLabLib SagaSandboxLib SagaProductLib Saga SagaRuntime
         SagaSandbox EditorLab)
         get_property(_target_public GLOBAL PROPERTY "SAGA_MODULE_${_target}_PUBLIC_INCLUDES")
         get_property(_target_private GLOBAL PROPERTY "SAGA_MODULE_${_target}_PRIVATE_INCLUDES")

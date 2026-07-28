@@ -67,7 +67,7 @@ class SagaEngineConan(ConanFile):
         "gtest/*:build_gmock": True,
         "qt/*:shared": True,
         "qt/*:qtbase": True,
-        # SagaEditor links Qt Core/Gui/Widgets only. ConanCenter's Qt recipe
+        # Saga links Qt Core/Gui/Widgets only. ConanCenter's Qt recipe
         # enables all "essential" modules by default, including qttools and
         # lupdate/clang support. Keep the graph to qtbase so the editor does
         # not build unused Qt modules or require LLVM development headers.

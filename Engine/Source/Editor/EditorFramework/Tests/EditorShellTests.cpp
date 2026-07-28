@@ -1,18 +1,16 @@
 // SPDX-License-Identifier: MPL-2.0
-/// @file EditorProfileTests.cpp
-/// @brief GoogleTest coverage for editor workflow profiles and shell switching.
+/// @file EditorShellTests.cpp
+/// @brief GoogleTest coverage for composition and authoring-mode shell behavior.
 
 #include "SagaEditor/Commands/CommandDispatcher.h"
+#include "SagaEditor/Authoring/AuthoringMode.h"
 #include "SagaEditor/Commands/CommandRegistry.h"
 #include "SagaEditor/Commands/ShortcutManager.h"
+#include "SagaEditor/Commands/UndoRedoStack.h"
 #include "SagaEditor/Customization/WorkspaceCustomizationSession.h"
 #include "SagaEditor/Diagnostics/IEditorDiagnosticsService.h"
 #include "SagaEditor/Host/EditorHost.h"
 #include "SagaEditor/Panels/IPanel.h"
-#include "SagaEditor/Profile/EditorProfile.h"
-#include "SagaEditor/Profile/EditorProfileActivator.h"
-#include "SagaEditor/Profile/EditorProfileRegistry.h"
-#include "SagaEditor/Profile/EditorProfileSettingsBinding.h"
 #include "SagaEditor/Selection/SelectionManager.h"
 #include "SagaEditor/Settings/MemoryEditorSettingsStore.h"
 #include "SagaEditor/Shell/EditorShell.h"
@@ -67,6 +65,15 @@ public:
     }
 
     void SetStatusMessage(const std::string& value) override { status = value; }
+    void SetCommandEnabled(const std::string& commandId, bool enabled) override
+    {
+        commandEnabled[commandId] = enabled;
+    }
+    void SetCommandChecked(const std::string& commandId, bool checked) override
+    {
+        commandChecked[commandId] = checked;
+    }
+    void ResetWorkspaceLayout() override { ++resetLayoutCount; }
 
     void DockPanel(QWidget*,
                    const std::string& panelId,
@@ -92,11 +99,20 @@ public:
         visiblePanels[panelId] = visible;
     }
 
-    [[nodiscard]] std::vector<uint8_t> SaveState() const override { return {}; }
-    [[nodiscard]] bool RestoreState(const std::vector<uint8_t>&) override { return true; }
+    [[nodiscard]] std::vector<uint8_t> SaveState() const override { return savedState; }
+    [[nodiscard]] bool RestoreState(const std::vector<uint8_t>& state) override
+    {
+        restoredState = state;
+        ++restoreStateCount;
+        return restoreStateResult;
+    }
 
     void SetOnClose(CloseCallback cb) override { onClose = std::move(cb); }
     void SetOnCommand(CommandCallback cb) override { onCommand = std::move(cb); }
+    void SetOnWorkflowStatePoll(WorkflowStateCallback cb) override
+    {
+        onWorkflowStatePoll = std::move(cb);
+    }
 
     int width = 1600;
     int height = 900;
@@ -107,11 +123,19 @@ public:
     std::string status;
     ShellLayout layout;
     int layoutApplyCount = 0;
+    int resetLayoutCount = 0;
+    int restoreStateCount = 0;
+    bool restoreStateResult = true;
+    std::vector<uint8_t> savedState;
+    std::vector<uint8_t> restoredState;
     std::unordered_map<std::string, bool> visiblePanels;
     std::unordered_map<std::string, UIDockArea> dockAreas;
+    std::unordered_map<std::string, bool> commandEnabled;
+    std::unordered_map<std::string, bool> commandChecked;
     std::vector<std::string> focusedPanels;
     CloseCallback onClose;
     CommandCallback onCommand;
+    WorkflowStateCallback onWorkflowStatePoll;
 };
 
 class FakePanel final : public IPanel
@@ -129,11 +153,15 @@ public:
     std::string title;
 };
 
-[[nodiscard]] bool Contains(const std::vector<std::string>& values,
-                            const std::string& value)
+class RecordingAction final : public IEditorAction
 {
-    return std::find(values.begin(), values.end(), value) != values.end();
-}
+public:
+    void Execute() override { value = true; }
+    void Undo() override { value = false; }
+    [[nodiscard]] std::string GetLabel() const override { return "Recording action"; }
+
+    bool value = false;
+};
 
 void HashAppend(uint64_t& hash, const std::string& bytes)
 {
@@ -415,231 +443,7 @@ void WriteFile(const fs::path& path, const std::string& text)
     return nullptr;
 }
 
-// ─── EditorProfile ───────────────────────────────────────────────────────────
-
-TEST(EditorProfileTest, BuiltinProfilesHaveStableDistinctIds)
-{
-    const EditorProfile profiles[] = {
-        MakeBasicProfile(),
-        MakeNodeEditorProfile(),
-        MakeStandardPipelineProfile(),
-        MakeAdvancedPipelineProfile(),
-        MakeCustomProfile(),
-    };
-
-    const std::string expectedIds[] = {
-        "saga.profile.basic",
-        "saga.profile.node_editor",
-        "saga.profile.standard_pipeline",
-        "saga.profile.advanced_pipeline",
-        "saga.profile.custom",
-    };
-
-    for (std::size_t i = 0; i < std::size(profiles); ++i)
-    {
-        EXPECT_EQ(profiles[i].id, expectedIds[i]);
-        EXPECT_FALSE(profiles[i].displayName.empty());
-
-        for (std::size_t j = 0; j < i; ++j)
-        {
-            EXPECT_NE(profiles[i].id, profiles[j].id);
-        }
-    }
-}
-
-TEST(EditorProfileTest, FiveProfilesRepresentDifferentWorkflowShapes)
-{
-    const auto basic = MakeBasicProfile();
-    const auto node = MakeNodeEditorProfile();
-    const auto standard = MakeStandardPipelineProfile();
-    const auto advanced = MakeAdvancedPipelineProfile();
-    const auto custom = MakeCustomProfile();
-
-    EXPECT_FALSE(basic.exposesAssetBrowser);
-    EXPECT_FALSE(basic.exposesProfiler);
-    EXPECT_TRUE(node.exposesGraphEditor);
-    EXPECT_FALSE(node.exposesAssetBrowser);
-    EXPECT_TRUE(standard.exposesConsole);
-    EXPECT_TRUE(advanced.exposesProfiler);
-    EXPECT_EQ(custom.layoutPresetId, "custom");
-
-    EXPECT_NE(basic.layoutPresetId, node.layoutPresetId);
-    EXPECT_NE(node.layoutPresetId, standard.layoutPresetId);
-    EXPECT_NE(standard.layoutPresetId, advanced.layoutPresetId);
-}
-
-// ─── EditorProfileRegistry ───────────────────────────────────────────────────
-
-TEST(EditorProfileRegistryTest, BuiltinRegistrationProducesFiveProfiles)
-{
-    EditorProfileRegistry registry;
-    registry.RegisterBuiltinProfiles();
-
-    EXPECT_EQ(registry.Size(), 5u);
-    EXPECT_TRUE(registry.Has("saga.profile.basic"));
-    EXPECT_TRUE(registry.Has("saga.profile.node_editor"));
-    EXPECT_TRUE(registry.Has("saga.profile.standard_pipeline"));
-    EXPECT_TRUE(registry.Has("saga.profile.advanced_pipeline"));
-    EXPECT_TRUE(registry.Has("saga.profile.custom"));
-}
-
-TEST(EditorProfileRegistryTest, SetActiveFiresChangeCallback)
-{
-    EditorProfileRegistry registry;
-    registry.RegisterBuiltinProfiles();
-
-    std::atomic<int> calls{0};
-    std::string seenId;
-    const auto sub = registry.OnProfileChanged(
-        [&](const EditorProfile& profile)
-        {
-            ++calls;
-            seenId = profile.id;
-        });
-
-    EXPECT_NE(sub, kInvalidEditorProfileSubscription);
-    EXPECT_TRUE(registry.SetActive("saga.profile.advanced_pipeline"));
-    EXPECT_EQ(calls.load(), 1);
-    EXPECT_EQ(seenId, "saga.profile.advanced_pipeline");
-
-    EXPECT_TRUE(registry.SetActive("saga.profile.advanced_pipeline"));
-    EXPECT_EQ(calls.load(), 1);
-    EXPECT_FALSE(registry.SetActive("saga.profile.missing"));
-    EXPECT_EQ(calls.load(), 1);
-}
-
-TEST(EditorProfileRegistryTest, LegacyIdsResolveToCanonicalProfiles)
-{
-    EditorProfileRegistry registry;
-    registry.RegisterBuiltinProfiles();
-
-    EXPECT_TRUE(registry.SetActive("saga.profile.creator"));
-    EXPECT_EQ(registry.GetActiveId(), "saga.profile.basic");
-
-    EXPECT_TRUE(registry.SetActive("saga.profile.studio"));
-    EXPECT_EQ(registry.GetActiveId(), "saga.profile.advanced_pipeline");
-}
-
-// ─── EditorProfileSettingsBinding ────────────────────────────────────────────
-
-TEST(EditorProfileSettingsBindingTest, RestoresValidStoredProfile)
-{
-    EditorProfileRegistry registry;
-    registry.RegisterBuiltinProfiles();
-
-    MemoryEditorSettingsStore settings;
-    settings.SetString("profile.activeId", "saga.profile.node_editor");
-
-    EditorProfileSettingsBinding binding;
-    ASSERT_TRUE(binding.Init(registry, settings));
-
-    EXPECT_EQ(registry.GetActiveId(), "saga.profile.node_editor");
-}
-
-TEST(EditorProfileSettingsBindingTest, FallsBackWhenStoredProfileIsInvalid)
-{
-    EditorProfileRegistry registry;
-    registry.RegisterBuiltinProfiles();
-
-    MemoryEditorSettingsStore settings;
-    settings.SetString("profile.activeId", "saga.profile.missing");
-
-    EditorProfileSettingsBinding binding;
-    ASSERT_TRUE(binding.Init(registry, settings));
-
-    EXPECT_EQ(registry.GetActiveId(), DefaultEditorProfileId());
-    EXPECT_EQ(settings.GetString("profile.activeId", ""), DefaultEditorProfileId());
-}
-
-TEST(EditorProfileSettingsBindingTest, MigratesLegacyStoredProfile)
-{
-    EditorProfileRegistry registry;
-    registry.RegisterBuiltinProfiles();
-
-    MemoryEditorSettingsStore settings;
-    settings.SetString("profile.activeId", "saga.profile.builder");
-
-    EditorProfileSettingsBinding binding;
-    ASSERT_TRUE(binding.Init(registry, settings));
-
-    EXPECT_EQ(registry.GetActiveId(), "saga.profile.standard_pipeline");
-    EXPECT_EQ(settings.GetString("profile.activeId", ""),
-              "saga.profile.standard_pipeline");
-}
-
-TEST(EditorProfileSettingsBindingTest, PersistsProfileChanges)
-{
-    EditorProfileRegistry registry;
-    registry.RegisterBuiltinProfiles();
-
-    MemoryEditorSettingsStore settings;
-
-    EditorProfileSettingsBinding binding;
-    ASSERT_TRUE(binding.Init(registry, settings));
-
-    EXPECT_TRUE(registry.SetActive("saga.profile.advanced_pipeline"));
-    EXPECT_EQ(settings.GetString("profile.activeId", ""),
-              "saga.profile.advanced_pipeline");
-}
-
-// ─── EditorProfileActivator ──────────────────────────────────────────────────
-
-TEST(EditorProfileActivatorTest, ApplyFansOutToEverySink)
-{
-    EditorProfileActivator activator;
-    const auto profile = MakeAdvancedPipelineProfile();
-
-    std::string seenLayout;
-    EditorProfile seenShortcutProfile;
-    std::vector<std::string> seenToolbar;
-    std::vector<std::string> seenPanels;
-    EditorProfile seenChromeProfile;
-    std::vector<std::string> seenTools;
-
-    activator.SetLayoutSink(
-        [&](const std::string& id) { seenLayout = id; return true; });
-    activator.SetShortcutMapSink(
-        [&](const EditorProfile& p) { seenShortcutProfile = p; return true; });
-    activator.SetToolbarSink(
-        [&](const std::vector<std::string>& ids) { seenToolbar = ids; return true; });
-    activator.SetPanelVisibilitySink(
-        [&](const std::vector<std::string>& ids) { seenPanels = ids; return true; });
-    activator.SetShellChromeSink(
-        [&](const EditorProfile& p) { seenChromeProfile = p; return true; });
-    activator.SetToolVisibilitySink(
-        [&](const std::vector<std::string>& ids) { seenTools = ids; return true; });
-
-    const auto result = activator.Apply(profile);
-    EXPECT_TRUE(result.AllApplied());
-    EXPECT_EQ(seenLayout, profile.layoutPresetId);
-    EXPECT_EQ(seenShortcutProfile, profile);
-    EXPECT_EQ(seenToolbar, profile.defaultToolbarCommands);
-    EXPECT_EQ(seenPanels, profile.defaultPanels);
-    EXPECT_EQ(seenChromeProfile, profile);
-    EXPECT_EQ(seenTools, profile.visibleToolCommands);
-}
-
-TEST(EditorProfileActivatorTest, FailingSinkDoesNotAbortLaterSinks)
-{
-    EditorProfileActivator activator;
-    std::atomic<int> calls{0};
-
-    activator.SetLayoutSink(
-        [&](const std::string&) { ++calls; return false; });
-    activator.SetShortcutMapSink(
-        [&](const EditorProfile&) { ++calls; return true; });
-    activator.SetToolbarSink(
-        [&](const std::vector<std::string>&) { ++calls; return true; });
-
-    const auto result = activator.Apply(MakeStandardPipelineProfile());
-    EXPECT_EQ(calls.load(), 3);
-    EXPECT_FALSE(result.layoutApplied);
-    EXPECT_TRUE(result.shortcutMapApplied);
-    EXPECT_TRUE(result.toolbarApplied);
-    EXPECT_FALSE(result.lastError.empty());
-}
-
-// ─── Composition Shell Projection ────────────────────────────────────────────
+// ─── Composition Shell Projection ───────────────────────────────────────────────────────────────────────────────────────
 
 TEST(EditorCompositionShellTest, SnapshotBuildsMenusToolbarsAndShortcuts)
 {
@@ -657,7 +461,6 @@ TEST(EditorCompositionShellTest, SnapshotBuildsMenusToolbarsAndShortcuts)
     EditorShell shell;
     EditorShellConfig cfg;
     cfg.registerDefaultPanels = false;
-    cfg.applyActivePersona = false;
     cfg.showOnInit = false;
     ASSERT_TRUE(shell.Init(host, std::make_unique<FakeMainWindow>(), cfg));
 
@@ -696,7 +499,6 @@ TEST(EditorCompositionShellTest, SnapshotControlsPanelVisibilityAndPlacement)
     EditorShell shell;
     EditorShellConfig cfg;
     cfg.registerDefaultPanels = false;
-    cfg.applyActivePersona = false;
     cfg.showOnInit = false;
     ASSERT_TRUE(shell.Init(host, std::make_unique<FakeMainWindow>(), cfg));
 
@@ -733,7 +535,6 @@ TEST(EditorCompositionShellTest, RefreshesWorkspaceCustomizationAvailability)
     EditorShell shell;
     EditorShellConfig cfg;
     cfg.registerDefaultPanels = false;
-    cfg.applyActivePersona = false;
     cfg.showOnInit = false;
     ASSERT_TRUE(shell.Init(host, std::make_unique<FakeMainWindow>(), cfg));
 
@@ -773,7 +574,7 @@ TEST(EditorCompositionShellTest, RefreshesWorkspaceCustomizationAvailability)
     host.Shutdown();
 }
 
-TEST(EditorCompositionShellTest, DefaultLayoutExposesCustomizeWorkspaceCommand)
+TEST(EditorCompositionShellTest, DefaultLayoutHidesIncompleteCustomizationCommands)
 {
     EditorHost host;
     ASSERT_TRUE(host.Init(std::make_unique<MemoryEditorSettingsStore>()));
@@ -781,7 +582,6 @@ TEST(EditorCompositionShellTest, DefaultLayoutExposesCustomizeWorkspaceCommand)
     EditorShell shell;
     EditorShellConfig cfg;
     cfg.registerDefaultPanels = false;
-    cfg.applyActivePersona = false;
     cfg.showOnInit = false;
     ASSERT_TRUE(shell.Init(host, std::make_unique<FakeMainWindow>(), cfg));
 
@@ -797,8 +597,8 @@ TEST(EditorCompositionShellTest, DefaultLayoutExposesCustomizeWorkspaceCommand)
         }
     }
 
-    EXPECT_TRUE(foundCommand);
-    EXPECT_NE(host.GetCommandRegistry().Find(
+    EXPECT_FALSE(foundCommand);
+    EXPECT_EQ(host.GetCommandRegistry().Find(
                   "saga.command.view.customize_workspace"),
               nullptr);
 
@@ -806,7 +606,7 @@ TEST(EditorCompositionShellTest, DefaultLayoutExposesCustomizeWorkspaceCommand)
     host.Shutdown();
 }
 
-TEST(EditorCompositionShellTest, CustomizeWorkspaceCommandFocusesRegisteredPanel)
+TEST(EditorCompositionShellTest, CustomizeWorkspacePanelHasNoProductCommand)
 {
     EditorHost host;
     ASSERT_TRUE(host.Init(std::make_unique<MemoryEditorSettingsStore>()));
@@ -814,7 +614,6 @@ TEST(EditorCompositionShellTest, CustomizeWorkspaceCommandFocusesRegisteredPanel
     EditorShell shell;
     EditorShellConfig cfg;
     cfg.registerDefaultPanels = false;
-    cfg.applyActivePersona = false;
     cfg.showOnInit = false;
     ASSERT_TRUE(shell.Init(host, std::make_unique<FakeMainWindow>(), cfg));
 
@@ -826,19 +625,16 @@ TEST(EditorCompositionShellTest, CustomizeWorkspaceCommandFocusesRegisteredPanel
     auto& window = dynamic_cast<FakeMainWindow&>(shell.GetMainWindow());
     window.visiblePanels["saga.panel.customize_workspace"] = false;
 
-    ASSERT_TRUE(host.GetCommandDispatcher().Dispatch(
+    EXPECT_FALSE(host.GetCommandDispatcher().Dispatch(
         "saga.command.view.customize_workspace"));
-
-    EXPECT_TRUE(window.visiblePanels["saga.panel.customize_workspace"]);
-    ASSERT_FALSE(window.focusedPanels.empty());
-    EXPECT_EQ(window.focusedPanels.back(),
-              "saga.panel.customize_workspace");
+    EXPECT_FALSE(window.visiblePanels["saga.panel.customize_workspace"]);
+    EXPECT_TRUE(window.focusedPanels.empty());
 
     shell.Shutdown();
     host.Shutdown();
 }
 
-TEST(EditorCompositionShellTest, ShortcutPreferencesCommandFocusesRegisteredPanel)
+TEST(EditorCompositionShellTest, ShortcutPreferencesPanelHasNoProductCommand)
 {
     EditorHost host;
     ASSERT_TRUE(host.Init(std::make_unique<MemoryEditorSettingsStore>()));
@@ -846,7 +642,6 @@ TEST(EditorCompositionShellTest, ShortcutPreferencesCommandFocusesRegisteredPane
     EditorShell shell;
     EditorShellConfig cfg;
     cfg.registerDefaultPanels = false;
-    cfg.applyActivePersona = false;
     cfg.showOnInit = false;
     ASSERT_TRUE(shell.Init(host, std::make_unique<FakeMainWindow>(), cfg));
 
@@ -858,13 +653,10 @@ TEST(EditorCompositionShellTest, ShortcutPreferencesCommandFocusesRegisteredPane
     auto& window = dynamic_cast<FakeMainWindow&>(shell.GetMainWindow());
     window.visiblePanels["saga.panel.shortcut_preferences"] = false;
 
-    ASSERT_TRUE(host.GetCommandDispatcher().Dispatch(
+    EXPECT_FALSE(host.GetCommandDispatcher().Dispatch(
         "saga.command.edit.shortcut_preferences"));
-
-    EXPECT_TRUE(window.visiblePanels["saga.panel.shortcut_preferences"]);
-    ASSERT_FALSE(window.focusedPanels.empty());
-    EXPECT_EQ(window.focusedPanels.back(),
-              "saga.panel.shortcut_preferences");
+    EXPECT_FALSE(window.visiblePanels["saga.panel.shortcut_preferences"]);
+    EXPECT_TRUE(window.focusedPanels.empty());
 
     shell.Shutdown();
     host.Shutdown();
@@ -887,7 +679,6 @@ TEST(EditorCompositionShellTest, MissingCommandAndPanelEmitDiagnostics)
     EditorShell shell;
     EditorShellConfig cfg;
     cfg.registerDefaultPanels = false;
-    cfg.applyActivePersona = false;
     cfg.showOnInit = false;
     ASSERT_TRUE(shell.Init(host, std::make_unique<FakeMainWindow>(), cfg));
 
@@ -909,7 +700,7 @@ TEST(EditorCompositionShellTest, MissingCommandAndPanelEmitDiagnostics)
 
 // ─── EditorHost / EditorShell Runtime Switch ─────────────────────────────────
 
-TEST(EditorProfileShellTest, RuntimeProfileSwitchChangesShellOnly)
+TEST(EditorAuthoringModeShellTest, RuntimeModeSwitchChangesPresentationOnly)
 {
     EditorHost host;
     ASSERT_TRUE(host.Init(std::make_unique<MemoryEditorSettingsStore>()));
@@ -920,7 +711,6 @@ TEST(EditorProfileShellTest, RuntimeProfileSwitchChangesShellOnly)
     EditorShell shell;
     EditorShellConfig cfg;
     cfg.registerDefaultPanels = false;
-    cfg.applyActivePersona = false;
     ASSERT_TRUE(shell.Init(host, std::make_unique<FakeMainWindow>(), cfg));
 
     shell.RegisterPanel(std::make_unique<FakePanel>("saga.panel.hierarchy", "Hierarchy"),
@@ -933,44 +723,42 @@ TEST(EditorProfileShellTest, RuntimeProfileSwitchChangesShellOnly)
                         UIDockArea::Bottom);
     shell.RegisterPanel(std::make_unique<FakePanel>("saga.panel.assetbrowser", "Assets"),
                         UIDockArea::Bottom);
+    shell.RegisterPanel(std::make_unique<FakePanel>("saga.panel.code_box", "Code Box"),
+                        UIDockArea::Bottom);
+    shell.RegisterPanel(std::make_unique<FakePanel>("saga.panel.problems", "Problems"),
+                        UIDockArea::Bottom);
 
-    ASSERT_TRUE(host.GetCommandDispatcher().Dispatch("saga.command.profile.basic"));
+    ASSERT_TRUE(host.GetCommandDispatcher().Dispatch("saga.command.authoring.level1"));
     auto& window = dynamic_cast<FakeMainWindow&>(shell.GetMainWindow());
 
-    EXPECT_EQ(host.GetEditorProfileRegistry().GetActiveId(), "saga.profile.basic");
-    EXPECT_EQ(shell.GetActiveLayoutPresetId(), "basic");
-    EXPECT_TRUE(window.title.find("Basic") != std::string::npos);
-    EXPECT_TRUE(window.status.find("Basic") != std::string::npos);
+    EXPECT_EQ(host.GetAuthoringModeService().Active().id, "level1");
+    EXPECT_EQ(window.title, "Saga");
+    EXPECT_TRUE(window.status.find("Level 1") != std::string::npos);
     EXPECT_FALSE(window.visiblePanels["saga.panel.assetbrowser"]);
-    EXPECT_TRUE(window.visiblePanels["saga.panel.console"]);
-    EXPECT_EQ(host.GetShortcutManager().GetBoundCommand(KeyChord{1u, 'S'}),
-              "saga.command.file.save");
+    EXPECT_FALSE(window.visiblePanels["saga.panel.code_box"]);
+    EXPECT_FALSE(window.visiblePanels["saga.panel.console"]);
     EXPECT_EQ(selectionBefore, &host.GetSelectionManager());
     EXPECT_EQ(commandRegistryBefore, &host.GetCommandRegistry());
 
-    ASSERT_TRUE(host.GetCommandDispatcher().Dispatch("saga.command.profile.advanced_pipeline"));
-    EXPECT_EQ(host.GetEditorProfileRegistry().GetActiveId(), "saga.profile.advanced_pipeline");
-    EXPECT_EQ(shell.GetActiveLayoutPresetId(), "advanced_pipeline");
-    EXPECT_TRUE(window.title.find("Advanced Pipeline") != std::string::npos);
+    ASSERT_TRUE(host.GetCommandDispatcher().Dispatch("saga.command.authoring.level3"));
+    EXPECT_EQ(host.GetAuthoringModeService().Active().id, "level3");
     EXPECT_TRUE(window.visiblePanels["saga.panel.assetbrowser"]);
-    EXPECT_FALSE(shell.GetShellLayout().mainToolbarItems.empty());
-    EXPECT_TRUE(Contains(shell.GetActiveToolbarCommands(), "saga.command.build"));
-    EXPECT_TRUE(Contains(shell.GetActiveToolCommands(), "saga.command.build"));
-    EXPECT_EQ(host.GetShortcutManager().GetBoundCommand(KeyChord{1u | 2u, 'B'}),
-              "saga.command.build");
+    EXPECT_TRUE(window.visiblePanels["saga.panel.code_box"]);
+    EXPECT_TRUE(window.visiblePanels["saga.panel.problems"]);
+    EXPECT_FALSE(window.visiblePanels["saga.panel.console"]);
     EXPECT_EQ(selectionBefore, &host.GetSelectionManager());
     EXPECT_EQ(commandRegistryBefore, &host.GetCommandRegistry());
 
-    ASSERT_TRUE(host.GetCommandDispatcher().Dispatch("saga.command.profile.standard_pipeline"));
-    EXPECT_EQ(host.GetEditorProfileRegistry().GetActiveId(), "saga.profile.standard_pipeline");
-    EXPECT_EQ(shell.GetActiveLayoutPresetId(), "standard_pipeline");
-    EXPECT_FALSE(Contains(shell.GetActiveToolCommands(), "saga.command.build"));
+    ASSERT_TRUE(host.GetCommandDispatcher().Dispatch("saga.command.authoring.level2"));
+    EXPECT_EQ(host.GetAuthoringModeService().Active().id, "level2");
+    EXPECT_TRUE(window.visiblePanels["saga.panel.code_box"]);
+    EXPECT_FALSE(window.visiblePanels["saga.panel.assetbrowser"]);
 
     shell.Shutdown();
     host.Shutdown();
 }
 
-TEST(EditorProfileShellTest, MountedWindowInitUsesInjectedWindowWithoutShowing)
+TEST(EditorAuthoringModeShellTest, MountedWindowInitUsesInjectedWindowWithoutShowing)
 {
     EditorHost host;
     ASSERT_TRUE(host.Init(std::make_unique<MemoryEditorSettingsStore>()));
@@ -984,12 +772,11 @@ TEST(EditorProfileShellTest, MountedWindowInitUsesInjectedWindowWithoutShowing)
     cfg.windowWidth = 1280;
     cfg.windowHeight = 720;
     cfg.registerDefaultPanels = false;
-    cfg.applyActivePersona = false;
     cfg.showOnInit = false;
 
     ASSERT_TRUE(shell.Init(host, std::move(window), cfg));
 
-    EXPECT_EQ(windowRaw->title, "Saga - Mounted Project - Basic");
+    EXPECT_EQ(windowRaw->title, "Saga - Mounted Project");
     EXPECT_EQ(windowRaw->width, 1280);
     EXPECT_EQ(windowRaw->height, 720);
     EXPECT_FALSE(windowRaw->shown);
@@ -1006,6 +793,84 @@ TEST(EditorProfileShellTest, MountedWindowInitUsesInjectedWindowWithoutShowing)
     EXPECT_EQ(titles[1], "Viewport");
     EXPECT_TRUE(windowRaw->visiblePanels["saga.panel.hierarchy"]);
     EXPECT_TRUE(windowRaw->visiblePanels["saga.panel.viewport"]);
+
+    shell.Shutdown();
+    host.Shutdown();
+}
+
+TEST(EditorCommandStateShellTest, NoProjectAndUndoRedoPresentationStayTruthful)
+{
+    EditorHost host;
+    ASSERT_TRUE(host.Init(std::make_unique<MemoryEditorSettingsStore>()));
+
+    auto window = std::make_unique<FakeMainWindow>();
+    FakeMainWindow* windowRaw = window.get();
+    EditorShell shell;
+    EditorShellConfig cfg;
+    cfg.registerDefaultPanels = false;
+    cfg.showOnInit = false;
+    ASSERT_TRUE(shell.Init(host, std::move(window), cfg));
+
+    EXPECT_FALSE(windowRaw->commandEnabled["saga.command.file.save"]);
+    EXPECT_FALSE(windowRaw->commandEnabled["saga.command.world.play"]);
+    EXPECT_FALSE(windowRaw->commandEnabled["saga.command.world.stop"]);
+    EXPECT_FALSE(windowRaw->commandEnabled["saga.command.edit.undo"]);
+    EXPECT_FALSE(windowRaw->commandEnabled["saga.command.edit.redo"]);
+
+    auto action = std::make_unique<RecordingAction>();
+    RecordingAction* actionRaw = action.get();
+    host.GetUndoRedoStack().Push(std::move(action));
+    ASSERT_TRUE(actionRaw->value);
+    ASSERT_TRUE(windowRaw->onWorkflowStatePoll);
+    windowRaw->onWorkflowStatePoll();
+    EXPECT_TRUE(windowRaw->commandEnabled["saga.command.edit.undo"]);
+    EXPECT_FALSE(windowRaw->commandEnabled["saga.command.edit.redo"]);
+
+    ASSERT_TRUE(host.GetCommandDispatcher().Dispatch("saga.command.edit.undo"));
+    EXPECT_FALSE(actionRaw->value);
+    windowRaw->onWorkflowStatePoll();
+    EXPECT_FALSE(windowRaw->commandEnabled["saga.command.edit.undo"]);
+    EXPECT_TRUE(windowRaw->commandEnabled["saga.command.edit.redo"]);
+
+    ASSERT_TRUE(host.GetCommandDispatcher().Dispatch("saga.command.edit.redo"));
+    EXPECT_TRUE(actionRaw->value);
+
+    shell.Shutdown();
+    host.Shutdown();
+}
+
+TEST(EditorAuthoringModeShellTest, LayoutStateIsPersonalPerModeAndResetIsScoped)
+{
+    auto settings = std::make_unique<MemoryEditorSettingsStore>();
+    MemoryEditorSettingsStore* settingsRaw = settings.get();
+    EditorHost host;
+    ASSERT_TRUE(host.Init(std::move(settings)));
+
+    auto window = std::make_unique<FakeMainWindow>();
+    FakeMainWindow* windowRaw = window.get();
+    EditorShell shell;
+    EditorShellConfig cfg;
+    cfg.registerDefaultPanels = false;
+    cfg.showOnInit = false;
+    ASSERT_TRUE(shell.Init(host, std::move(window), cfg));
+
+    windowRaw->savedState = {0x12, 0xab};
+    ASSERT_TRUE(host.GetCommandDispatcher().Dispatch("saga.command.authoring.level2"));
+    EXPECT_EQ(settingsRaw->GetString("Editor/Layout/v2/level1", {}), "12ab");
+
+    windowRaw->savedState = {0x34};
+    ASSERT_TRUE(host.GetCommandDispatcher().Dispatch("saga.command.authoring.level1"));
+    EXPECT_EQ(settingsRaw->GetString("Editor/Layout/v2/level2", {}), "34");
+    EXPECT_EQ(windowRaw->restoredState, (std::vector<uint8_t>{0x12, 0xab}));
+
+    const int resetsBefore = windowRaw->resetLayoutCount;
+    ASSERT_TRUE(host.GetCommandDispatcher().Dispatch(
+        "saga.command.authoring.reset_layout"));
+    EXPECT_EQ(settingsRaw->GetString("Editor/Layout/v2/level1", "missing"),
+              "missing");
+    EXPECT_EQ(settingsRaw->GetString("Editor/Layout/v2/level2", {}), "34");
+    EXPECT_GT(windowRaw->resetLayoutCount, resetsBefore);
+    EXPECT_EQ(host.GetAuthoringModeService().Active().id, "level1");
 
     shell.Shutdown();
     host.Shutdown();

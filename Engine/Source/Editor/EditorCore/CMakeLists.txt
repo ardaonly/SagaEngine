@@ -65,6 +65,7 @@ saga_register_module_tests(EditorCore
     LINK_TARGET SagaEditorLib
     LABELS "unit;editor;core"
     SOURCES
+        Tests/CommandDispatcherTests.cpp
         Tests/EditorDiagnosticsServiceTests.cpp
         Tests/DocumentTests.cpp
         Tests/DocumentRecoveryTests.cpp

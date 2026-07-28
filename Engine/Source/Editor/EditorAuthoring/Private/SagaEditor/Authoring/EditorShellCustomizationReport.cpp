@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "SagaEditor/Authoring/EditorShellCustomizationReport.h"
 
-#include "SagaEditor/Profile/EditorProfile.h"
-
 #include <algorithm>
 #include <array>
 
@@ -18,6 +16,23 @@ struct ProfileSelection
     std::string viewPresetId;
     bool known = true;
 };
+
+struct ReportPreset
+{
+    std::string displayName;
+    std::string layoutPresetId;
+    std::string shortcutMapId;
+    std::vector<std::string> panels;
+};
+
+[[nodiscard]] std::string ResolveHistoricalReportId(const std::string& id)
+{
+    if (id == "saga.profile.creator") return "saga.profile.basic";
+    if (id == "saga.profile.explorer") return "saga.profile.node_editor";
+    if (id == "saga.profile.builder") return "saga.profile.standard_pipeline";
+    if (id == "saga.profile.studio") return "saga.profile.advanced_pipeline";
+    return id;
+}
 
 struct WorkflowRule
 {
@@ -49,7 +64,7 @@ struct WorkflowRule
         return { requested, "saga.profile.advanced_pipeline", "server_authority", true };
     }
 
-    const std::string resolved = ResolveEditorProfileId(requested);
+    const std::string resolved = ResolveHistoricalReportId(requested);
     if (resolved == "saga.profile.basic")
     {
         return { requested, resolved, "project_readiness", true };
@@ -71,26 +86,43 @@ struct WorkflowRule
     return { requested, "saga.profile.basic", "project_readiness", false };
 }
 
-[[nodiscard]] SagaEditor::EditorProfile MakeResolvedProfile(
+[[nodiscard]] ReportPreset MakeResolvedPreset(
     const std::string& resolvedProfileId)
 {
     if (resolvedProfileId == "saga.profile.node_editor")
     {
-        return MakeNodeEditorProfile();
+        return {"Node Editor", "node_editor", "saga.shortcuts.node_editor",
+            {"saga.panel.production_dashboard", "saga.panel.viewport",
+             "saga.panel.graph", "saga.panel.console", "saga.panel.inspector"}};
     }
     if (resolvedProfileId == "saga.profile.standard_pipeline")
     {
-        return MakeStandardPipelineProfile();
+        return {"Standard Pipeline", "standard_pipeline",
+            "saga.shortcuts.standard_pipeline",
+            {"saga.panel.production_dashboard", "saga.panel.hierarchy",
+             "saga.panel.viewport", "saga.panel.inspector",
+             "saga.panel.console", "saga.panel.assetbrowser"}};
     }
     if (resolvedProfileId == "saga.profile.advanced_pipeline")
     {
-        return MakeAdvancedPipelineProfile();
+        return {"Advanced Pipeline", "advanced_pipeline",
+            "saga.shortcuts.advanced_pipeline",
+            {"saga.panel.production_dashboard", "saga.panel.hierarchy",
+             "saga.panel.viewport", "saga.panel.inspector",
+             "saga.panel.console", "saga.panel.assetbrowser",
+             "saga.panel.profiler", "saga.panel.collaboration",
+             "saga.panel.problems"}};
     }
     if (resolvedProfileId == "saga.profile.custom")
     {
-        return MakeCustomProfile();
+        return {"Custom", "custom", "saga.shortcuts.custom",
+            {"saga.panel.production_dashboard", "saga.panel.hierarchy",
+             "saga.panel.viewport", "saga.panel.inspector",
+             "saga.panel.console", "saga.panel.assetbrowser"}};
     }
-    return MakeBasicProfile();
+    return {"Basic", "basic", "saga.shortcuts.basic",
+        {"saga.panel.production_dashboard", "saga.panel.hierarchy",
+         "saga.panel.viewport", "saga.panel.console"}};
 }
 
 [[nodiscard]] std::vector<EditorShellWorkflowVisibility> WorkflowVisibilityFor(
@@ -166,20 +198,20 @@ EditorShellCustomizationReport BuildEditorShellCustomizationReport(
     const std::string& requestedProfileId)
 {
     const ProfileSelection selection = ResolveReportProfile(requestedProfileId);
-    const SagaEditor::EditorProfile profile =
-        MakeResolvedProfile(selection.resolvedProfileId);
+    const ReportPreset preset =
+        MakeResolvedPreset(selection.resolvedProfileId);
 
     EditorShellCustomizationReport report;
     report.status = selection.known ? "Ready" : "UnknownProfile";
     report.requestedProfileId = selection.requestedProfileId;
     report.resolvedProfileId = selection.resolvedProfileId;
     report.viewPresetId = selection.viewPresetId;
-    report.displayName = profile.displayName;
-    report.layoutPresetId = profile.layoutPresetId;
-    report.shortcutMapId = profile.shortcutMapId;
+    report.displayName = preset.displayName;
+    report.layoutPresetId = preset.layoutPresetId;
+    report.shortcutMapId = preset.shortcutMapId;
 
-    report.visiblePanels.reserve(profile.defaultPanels.size());
-    for (const std::string& panelId : profile.defaultPanels)
+    report.visiblePanels.reserve(preset.panels.size());
+    for (const std::string& panelId : preset.panels)
     {
         report.visiblePanels.push_back(EditorShellPanelVisibility{ panelId, true });
     }

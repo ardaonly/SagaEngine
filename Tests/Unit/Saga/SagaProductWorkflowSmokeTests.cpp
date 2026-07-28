@@ -70,7 +70,7 @@ TEST(SagaProductWorkflowSmokeTest,
         FindWorkflowAction(report, "editor_inspection");
     ASSERT_NE(editorInspection, nullptr);
     EXPECT_EQ((*editorInspection)["actionKind"], "editor-inspection");
-    EXPECT_EQ((*editorInspection)["owner"], "SagaEditor");
+    EXPECT_EQ((*editorInspection)["owner"], "Saga Editor Workspace");
     EXPECT_EQ((*editorInspection)["availability"], "available");
 
     const nlohmann::json* packagePreflight =

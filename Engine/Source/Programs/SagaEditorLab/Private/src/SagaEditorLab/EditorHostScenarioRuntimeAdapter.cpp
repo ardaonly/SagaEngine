@@ -4,18 +4,17 @@
 
 #include "SagaEditorLab/Scenario/EditorHostScenarioRuntimeAdapter.h"
 
+#include "SagaEditor/Authoring/AuthoringMode.h"
 #include "SagaEditor/Commands/CommandDispatcher.h"
 #include "SagaEditor/Commands/UndoRedoStack.h"
 #include "SagaEditor/Customization/EditorCustomizationCatalog.h"
 #include "SagaEditor/Diagnostics/EditorDiagnostic.h"
 #include "SagaEditor/Diagnostics/IEditorDiagnosticsService.h"
 #include "SagaEditor/Host/EditorHost.h"
-#include "SagaEditor/Persona/PersonaRegistry.h"
-#include "SagaEditor/Profile/EditorProfile.h"
-#include "SagaEditor/Profile/EditorProfileRegistry.h"
 #include "SagaEditor/Runtime/IEditorEngineBridge.h"
 #include "SagaEditor/Selection/SelectionManager.h"
 
+#include <algorithm>
 #include <charconv>
 #include <chrono>
 #include <cstddef>
@@ -128,28 +127,10 @@ namespace
     return result;
 }
 
-[[nodiscard]] std::string ProfileIdFromToken(std::string token)
-{
-    constexpr const char* prefix = "saga.profile.";
-    if (token.rfind(prefix, 0) == 0)
-    {
-        return token;
-    }
-    if (token == "advanced")
-    {
-        return "saga.profile.advanced_pipeline";
-    }
-    if (token == "standard")
-    {
-        return "saga.profile.standard_pipeline";
-    }
-    return std::string(prefix) + token;
-}
-
-[[nodiscard]] bool SplitProfileDiffPath(const std::string& statePath,
-                                        const std::string& prefix,
-                                        std::string& fromProfileId,
-                                        std::string& toProfileId)
+[[nodiscard]] bool SplitModeDiffPath(const std::string& statePath,
+                                     const std::string& prefix,
+                                     std::string& fromModeId,
+                                     std::string& toModeId)
 {
     if (statePath.rfind(prefix, 0) != 0)
     {
@@ -163,55 +144,39 @@ namespace
         return false;
     }
 
-    fromProfileId = ProfileIdFromToken(suffix.substr(0, separator));
-    toProfileId = ProfileIdFromToken(suffix.substr(separator + 4));
+    fromModeId = suffix.substr(0, separator);
+    toModeId = suffix.substr(separator + 4);
     return true;
 }
 
-[[nodiscard]] ScenarioStateReadResult ReadProfileDiff(
-    const SagaEditor::EditorProfileRegistry& profiles,
+[[nodiscard]] ScenarioStateReadResult ReadModePanelDiff(
+    const SagaEditor::AuthoringModeService& modes,
     const std::string& statePath,
-    const std::string& prefix,
-    const char* label)
+    const std::string& prefix)
 {
-    std::string fromProfileId;
-    std::string toProfileId;
-    if (!SplitProfileDiffPath(statePath, prefix, fromProfileId, toProfileId))
+    std::string fromModeId;
+    std::string toModeId;
+    if (!SplitModeDiffPath(statePath, prefix, fromModeId, toModeId))
     {
-        return ScenarioStateReadResult::Missing("profile diff path is malformed");
+        return ScenarioStateReadResult::Missing("authoring-mode diff path is malformed");
     }
-
-    const SagaEditor::EditorProfile* fromProfile = profiles.Find(fromProfileId);
-    const SagaEditor::EditorProfile* toProfile = profiles.Find(toProfileId);
-    if (!fromProfile || !toProfile)
+    const auto find = [&modes](const std::string& id)
+        -> const SagaEditor::AuthoringMode*
     {
+        const auto it = std::find_if(
+            modes.Modes().begin(), modes.Modes().end(),
+            [&id](const SagaEditor::AuthoringMode& mode) {
+                return mode.id == id;
+            });
+        return it == modes.Modes().end() ? nullptr : &*it;
+    };
+    const auto* from = find(fromModeId);
+    const auto* to = find(toModeId);
+    if (!from || !to)
         return ScenarioStateReadResult::Missing(
-            std::string("profile diff references an unknown profile for ") + label);
-    }
-
-    const std::string labelText = label;
-    bool differs = false;
-    if (labelText == "layout")
-    {
-        differs = fromProfile->layoutPresetId != toProfile->layoutPresetId ||
-                  fromProfile->defaultPanels != toProfile->defaultPanels;
-    }
-    else if (labelText == "shortcuts")
-    {
-        differs = fromProfile->shortcutMapId != toProfile->shortcutMapId ||
-                  fromProfile->shortcutBindings != toProfile->shortcutBindings;
-    }
-    else if (labelText == "panels")
-    {
-        differs = fromProfile->defaultPanels != toProfile->defaultPanels;
-    }
-    else if (labelText == "tools")
-    {
-        differs = fromProfile->visibleToolCommands != toProfile->visibleToolCommands ||
-                  fromProfile->defaultToolbarCommands != toProfile->defaultToolbarCommands;
-    }
-
-    return ScenarioStateReadResult::Value(BoolText(differs));
+            "authoring-mode diff references an unknown mode");
+    return ScenarioStateReadResult::Value(
+        BoolText(from->defaultVisiblePanels != to->defaultVisiblePanels));
 }
 
 [[nodiscard]] std::size_t CountSeverity(
@@ -379,11 +344,10 @@ ScenarioStateReadResult EditorHostScenarioRuntimeAdapter::ReadState(
     {
         return ScenarioStateReadResult::Value("editor_only");
     }
-    if (statePath == "editor.customization.builtin.available")
+    if (statePath == "editor.authoring.modes.available")
     {
         return ScenarioStateReadResult::Value(BoolText(
-            m_host.GetEditorProfileRegistry().Size() > 0 &&
-            m_host.GetPersonaRegistry().Size() > 0));
+            m_host.GetAuthoringModeService().Modes().size() == 3));
     }
     if (statePath == "editor.customization.project.source")
     {
@@ -397,11 +361,6 @@ ScenarioStateReadResult EditorHostScenarioRuntimeAdapter::ReadState(
         return ScenarioStateReadResult::Value(
             m_host.GetCustomizationCatalog().Status().userConfigRoot.string());
     }
-    if (statePath == "editor.customization.project.profiles.loaded")
-    {
-        return ScenarioStateReadResult::Value(BoolText(
-            !m_host.GetCustomizationCatalog().Snapshot().projectProfiles.empty()));
-    }
     if (statePath == "editor.customization.project.source.unchanged")
     {
         const auto& first = m_host.GetCustomizationCatalog().Status().sourceRoot;
@@ -413,38 +372,15 @@ ScenarioStateReadResult EditorHostScenarioRuntimeAdapter::ReadState(
         return ScenarioStateReadResult::Missing(
             "user override state is not exposed by EditorHost public services");
     }
-    if (statePath == "profile.active")
+    if (statePath == "authoring.mode.active")
     {
         return ScenarioStateReadResult::Value(
-            m_host.GetEditorProfileRegistry().GetActiveId());
+            m_host.GetAuthoringModeService().Active().id);
     }
-    if (statePath.rfind("profile.layout.diff.", 0) == 0)
+    if (statePath.rfind("authoring.panels.diff.", 0) == 0)
     {
-        return ReadProfileDiff(m_host.GetEditorProfileRegistry(),
-                               statePath,
-                               "profile.layout.diff.",
-                               "layout");
-    }
-    if (statePath.rfind("profile.shortcuts.diff.", 0) == 0)
-    {
-        return ReadProfileDiff(m_host.GetEditorProfileRegistry(),
-                               statePath,
-                               "profile.shortcuts.diff.",
-                               "shortcuts");
-    }
-    if (statePath.rfind("profile.panels.diff.", 0) == 0)
-    {
-        return ReadProfileDiff(m_host.GetEditorProfileRegistry(),
-                               statePath,
-                               "profile.panels.diff.",
-                               "panels");
-    }
-    if (statePath.rfind("profile.tools.diff.", 0) == 0)
-    {
-        return ReadProfileDiff(m_host.GetEditorProfileRegistry(),
-                               statePath,
-                               "profile.tools.diff.",
-                               "tools");
+        return ReadModePanelDiff(m_host.GetAuthoringModeService(), statePath,
+                                 "authoring.panels.diff.");
     }
     if (statePath == "editor.selection.count")
     {

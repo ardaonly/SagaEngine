@@ -95,13 +95,7 @@ SagaLauncherActionResult SagaLauncherActionExecutor::Execute(
     request.stopToken = stopToken;
     request.timeout = std::chrono::seconds(30);
     request.workingDirectory = project.canonicalRoot;
-    if (action == SagaLauncherActionId::OpenEditor)
-    {
-        request.target = SagaProcessTargetId::Editor;
-        request.mode = SagaProcessExecutionMode::Detached;
-        request.arguments = {"--workspace", project.canonicalRoot.string()};
-    }
-    else if (action == SagaLauncherActionId::ValidateProject)
+    if (action == SagaLauncherActionId::ValidateProject)
     {
         request.target = SagaProcessTargetId::SagaProject;
         request.arguments = {"validate",
@@ -332,7 +326,7 @@ SagaLauncherCommandResult SagaLauncherController::RunAction(SagaLauncherActionId
             }
             project = m_state.selectedProject;
             m_state.runningActionId = actionId;
-            m_state.canCancelRunningAction = actionId != SagaLauncherActionId::OpenEditor;
+            m_state.canCancelRunningAction = true;
             action->status = SagaLauncherActionStatus::Running;
             action->canCancel = m_state.canCancelRunningAction;
             ++m_state.revision;

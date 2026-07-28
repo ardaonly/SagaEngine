@@ -72,7 +72,6 @@ const char* ToString(SagaProcessTargetId target) noexcept
 {
     switch (target)
     {
-        case SagaProcessTargetId::Editor: return "editor";
         case SagaProcessTargetId::Runtime: return "runtime";
         case SagaProcessTargetId::SagaProject: return "sagaproject";
         case SagaProcessTargetId::Forge: return "forge";
@@ -108,8 +107,6 @@ bool SagaProcessService::IsExecutableAllowed(
     const std::string basename = ExecutableBasename(executable);
     switch (target)
     {
-        case SagaProcessTargetId::Editor:
-            return basename == "SagaEditor";
         case SagaProcessTargetId::Runtime:
             return basename == "SagaRuntime";
         case SagaProcessTargetId::SagaProject:

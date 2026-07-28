@@ -37,6 +37,7 @@ class IUIMainWindow
 public:
     using CloseCallback = std::function<bool()>;
     using CommandCallback = std::function<void(const std::string& commandId)>;
+    using WorkflowStateCallback = std::function<void()>;
 
     virtual ~IUIMainWindow() = default;
 
@@ -60,6 +61,13 @@ public:
 
     /// Write a message to the status bar.
     virtual void SetStatusMessage(const std::string& message) = 0;
+
+    /// Synchronise every native action representing a command.
+    virtual void SetCommandEnabled(const std::string&, bool) {}
+    virtual void SetCommandChecked(const std::string&, bool) {}
+
+    /// Restore the backend's canonical dock placement.
+    virtual void ResetWorkspaceLayout() {}
 
     // ─── Panel Docking ────────────────────────────────────────────────────────
 
@@ -94,6 +102,9 @@ public:
 
     /// Called when a menu or toolbar action carrying a command id is triggered.
     virtual void SetOnCommand(CommandCallback cb) = 0;
+
+    /// Lightweight callback driven by the native UI event loop.
+    virtual void SetOnWorkflowStatePoll(WorkflowStateCallback) {}
 };
 
 } // namespace SagaEditor

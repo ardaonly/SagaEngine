@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 
-#include "SagaEditor/Panels/ScriptingPanel.h"
+#include "SagaEditor/Panels/CodeBoxPanel.h"
 
 #include "SagaEditor/Commands/CommandDispatcher.h"
 #include "SagaEditor/Commands/UndoRedoStack.h"
@@ -78,7 +78,7 @@ public:
 };
 }
 
-struct ScriptingPanel::Impl
+struct CodeBoxPanel::Impl
 {
     QWidget* widget = nullptr;
     QLabel* identity = nullptr;
@@ -125,7 +125,7 @@ struct ScriptingPanel::Impl
         toolbar->addWidget(save); toolbar->addWidget(analyze);
         layout->addLayout(toolbar);
         tabs = new QTabWidget(widget);
-        tabs->setAccessibleName(QStringLiteral("Scripting and Blocks"));
+        tabs->setAccessibleName(QStringLiteral("Code Box"));
         scriptingTab = new QWidget(tabs);
         auto* scriptingLayout = new QVBoxLayout(scriptingTab);
         scriptingLayout->setContentsMargins(0, 0, 0, 0);
@@ -138,8 +138,8 @@ struct ScriptingPanel::Impl
         diagnostics->setAccessibleName("SagaScript diagnostics");
         scriptingLayout->addWidget(diagnostics, 1);
         blocks = new ReadOnlyBlocksWidget(tabs);
-        tabs->addTab(scriptingTab, QStringLiteral("Scripting"));
-        tabs->addTab(blocks, QStringLiteral("Blocks"));
+        tabs->addTab(scriptingTab, QStringLiteral("C#"));
+        tabs->addTab(blocks, QStringLiteral("Blocks — Read-only projection"));
         layout->addWidget(tabs, 1);
         blocks->SetSourceActivated([this](const VisualBlocks::ProjectionSourceSpan& source)
         {
@@ -313,14 +313,14 @@ struct ScriptingPanel::Impl
     }
 };
 
-ScriptingPanel::ScriptingPanel() : impl_(std::make_unique<Impl>()) {}
-ScriptingPanel::~ScriptingPanel() { impl_->StopAndWait(); impl_->DetachWorkspace(); }
-PanelId ScriptingPanel::GetPanelId() const { return "saga.panel.scripting"; }
-std::string ScriptingPanel::GetTitle() const { return "Scripting"; }
-QWidget* ScriptingPanel::Widget() const noexcept { return impl_->widget; }
-void ScriptingPanel::OnInit() { impl_->RefreshWorkspace(); }
-void ScriptingPanel::OnShutdown() { impl_->StopAndWait(); impl_->DetachWorkspace(); }
-void ScriptingPanel::SetDocumentWorkspace(EditorDocumentWorkspace* workspace)
+CodeBoxPanel::CodeBoxPanel() : impl_(std::make_unique<Impl>()) {}
+CodeBoxPanel::~CodeBoxPanel() { impl_->StopAndWait(); impl_->DetachWorkspace(); }
+PanelId CodeBoxPanel::GetPanelId() const { return "saga.panel.code_box"; }
+std::string CodeBoxPanel::GetTitle() const { return "Code Box"; }
+QWidget* CodeBoxPanel::Widget() const noexcept { return impl_->widget; }
+void CodeBoxPanel::OnInit() { impl_->RefreshWorkspace(); }
+void CodeBoxPanel::OnShutdown() { impl_->StopAndWait(); impl_->DetachWorkspace(); }
+void CodeBoxPanel::SetDocumentWorkspace(EditorDocumentWorkspace* workspace)
 {
     impl_->DetachWorkspace(); impl_->workspace = workspace;
     if (workspace)
@@ -328,13 +328,13 @@ void ScriptingPanel::SetDocumentWorkspace(EditorDocumentWorkspace* workspace)
             [impl = impl_.get()] { impl->RefreshWorkspace(); });
     impl_->RefreshWorkspace();
 }
-void ScriptingPanel::SetUndoRedoStack(UndoRedoStack* journal) noexcept { impl_->journal = journal; }
-void ScriptingPanel::SetCommandDispatcher(CommandDispatcher* dispatcher) noexcept { impl_->dispatcher = dispatcher; }
-void ScriptingPanel::SetAnalysisCoordinator(ScriptAnalysisCoordinator* coordinator) noexcept
+void CodeBoxPanel::SetUndoRedoStack(UndoRedoStack* journal) noexcept { impl_->journal = journal; }
+void CodeBoxPanel::SetCommandDispatcher(CommandDispatcher* dispatcher) noexcept { impl_->dispatcher = dispatcher; }
+void CodeBoxPanel::SetAnalysisCoordinator(ScriptAnalysisCoordinator* coordinator) noexcept
 { impl_->coordinator = coordinator; }
-void ScriptingPanel::SetScriptSourceMutationPort(IScriptSourceMutationPort* port) noexcept
+void CodeBoxPanel::SetScriptSourceMutationPort(IScriptSourceMutationPort* port) noexcept
 { impl_->mutationPort = port ? port : &impl_->defaultMutationPort; }
-void ScriptingPanel::Analyze() { impl_->StartAnalysis(); }
-void ScriptingPanel::CancelAnalysis() { impl_->Cancel(); }
+void CodeBoxPanel::Analyze() { impl_->StartAnalysis(); }
+void CodeBoxPanel::CancelAnalysis() { impl_->Cancel(); }
 
 } // namespace SagaEditor

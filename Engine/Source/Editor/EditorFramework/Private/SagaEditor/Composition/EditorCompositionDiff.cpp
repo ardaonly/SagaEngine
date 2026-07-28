@@ -69,7 +69,7 @@ template <typename T>
     return output.str();
 }
 
-[[nodiscard]] std::string FingerprintDefinition(const EditorModeDefinition& definition)
+[[nodiscard]] std::string FingerprintDefinition(const EditorWorkspaceSessionDefinition& definition)
 {
     std::ostringstream output;
     output << definition.id << '\n' << definition.displayName << '\n' << definition.workspaceId;

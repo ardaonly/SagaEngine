@@ -6,8 +6,6 @@
 
 #include "SagaEditor/Diagnostics/EditorDiagnostic.h"
 #include "SagaEditor/Notifications/EditorNotificationCenter.h"
-#include "SagaEditor/Persona/PersonaRegistry.h"
-#include "SagaEditor/Profile/EditorProfileRegistry.h"
 #include "SagaEditor/Project/EditorProjectWorkflowController.h"
 #include "SagaEditor/Shell/ShellLayout.h"
 #include "SagaEditor/UI/IUIMainWindow.h"
@@ -22,25 +20,26 @@ namespace SagaEditor
 
 struct ResolvedEditorCompositionSnapshot;
 class EditorHost;
-class EditorProfile;
 class IPanel;
 class ProductionDashboardPanel;
 class RuntimeProcessController;
+struct AuthoringMode;
 
 // ─── Shell Configuration ──────────────────────────────────────────────────────
 
 struct EditorShellConfig
 {
-    std::string windowTitle   = "SagaEditor";
+    std::string windowTitle   = "Saga";
     int         windowWidth   = 1600;
     int         windowHeight  = 900;
     bool        maximized     = false;
     std::string workspacePath = "";
     std::string layoutPreset  = "Default";
     bool        registerDefaultPanels = true;
-    bool        applyActivePersona = true;
     bool        showOnInit = true;
     std::filesystem::path runtimeExecutable;
+    std::function<void()> returnHome;
+    std::function<void()> workspaceChanged;
     ProjectWorkflowPrompts projectWorkflowPrompts;
 };
 
@@ -95,6 +94,7 @@ public:
 
     [[nodiscard]] IUIMainWindow& GetMainWindow() noexcept;
     [[nodiscard]] EditorHost&    GetHost()       noexcept;
+    [[nodiscard]] bool CanCloseWorkspace();
 
 private:
     // ─── Internals ────────────────────────────────────────────────────────────
@@ -112,40 +112,27 @@ private:
     [[nodiscard]] UIDockArea ResolveCompositionDockArea(
         const std::string& panelId,
         UIDockArea fallback) const;
-    void RegisterPersonaCommands();
-    void RegisterProfileCommands();
-    void WirePersonaSinks();
-    void WireProfileSinks();
     void WireNotificationSink();
-    void ApplyActivePersona();
-    void ApplyActiveProfile();
-    void RefreshProductionDashboard();
-    bool ApplyPersonaPanelVisibility(const std::vector<std::string>& panelIds);
-    bool ApplyProfileLayout(const std::string& layoutPresetId);
-    bool ApplyProfileShortcutMap(const EditorProfile& profile);
-    bool ApplyProfileToolbar(const std::vector<std::string>& commandIds);
-    bool ApplyProfilePanelVisibility(const std::vector<std::string>& panelIds);
-    bool ApplyProfileShellChrome(const EditorProfile& profile);
-    bool ApplyProfileToolVisibility(const std::vector<std::string>& commandIds);
+    void SyncWorkflowCommandState();
+    void RegisterAuthoringModeCommands();
+    void ApplyAuthoringMode(const AuthoringMode& mode, bool restoreLayout);
+    void SaveAuthoringModeLayout();
 
     EditorHost*                          m_host = nullptr; ///< Non-owning.
     std::unique_ptr<IUIMainWindow>       m_window;
     std::vector<std::unique_ptr<IPanel>> m_panels;         ///< All panels, owned.
-    ProductionDashboardPanel*            m_productionDashboard = nullptr;
     ShellLayout                          m_layout;
     std::string                          m_activeLayoutPresetId = "Default";
     std::vector<std::string>             m_activeToolbarCommands;
     std::vector<std::string>             m_activeToolCommands;
     std::vector<EditorDiagnostic>        m_compositionShellDiagnostics;
-    std::string                          m_baseWindowTitle = "SagaEditor";
-    PersonaChangeSubscription            m_personaSubscription =
-        kInvalidPersonaSubscription;
-    EditorProfileChangeSubscription      m_profileSubscription =
-        kInvalidEditorProfileSubscription;
     EditorNotificationSubscription       m_notificationSubscription =
         kInvalidEditorNotificationSubscription;
     std::unique_ptr<RuntimeProcessController> m_runtimeProcessController;
     std::unique_ptr<EditorProjectWorkflowController> m_projectWorkflowController;
+    std::string m_activeAuthoringModeId;
+    bool m_canReturnHome = false;
+    std::function<void()> m_workspaceChanged;
 };
 
 } // namespace SagaEditor

@@ -27,6 +27,17 @@ namespace
     return diagnostic;
 }
 
+[[nodiscard]] SagaProductDiagnostic MakeEditorHostedInProcessDiagnostic()
+{
+    SagaProductDiagnostic diagnostic;
+    diagnostic.target = SagaProductTargetKind::Editor;
+    diagnostic.stage = SagaProductDiagnosticStage::TargetPreparation;
+    diagnostic.diagnosticId = SagaProductDiagnostics::EditorHostedInProcess;
+    diagnostic.message =
+        "Editor workspaces are mounted directly in the Saga desktop process.";
+    return diagnostic;
+}
+
 [[nodiscard]] std::string MissingPackageManifestMessage(
     SagaProductTargetKind target)
 {
@@ -57,17 +68,7 @@ SagaPreparedTarget SagaProductHost::PrepareTarget(
     switch (session.target)
     {
         case SagaProductTargetKind::Editor:
-            prepared.executableName = "SagaEditor";
-            prepared.availability = SagaLaunchTargetAvailability::Available;
-            prepared.arguments = {
-                "--workspace",
-                session.workspace.root.string(),
-            };
-            if (!session.workspace.editorProfile.empty())
-            {
-                prepared.arguments.push_back("--profile");
-                prepared.arguments.push_back(session.workspace.editorProfile);
-            }
+            prepared.availability = SagaLaunchTargetAvailability::Unsupported;
             break;
         case SagaProductTargetKind::Runtime:
             prepared.executableName = "SagaRuntime";
@@ -92,6 +93,12 @@ SagaTargetPreparationResult SagaProductHost::PrepareTargetWithDiagnostics(
     SagaTargetPreparationResult result;
     result.target.kind = session.target;
     result.target.workspace = session.workspace;
+
+    if (session.target == SagaProductTargetKind::Editor)
+    {
+        result.diagnostics.push_back(MakeEditorHostedInProcessDiagnostic());
+        return result;
+    }
 
     if (session.target == SagaProductTargetKind::Server)
     {

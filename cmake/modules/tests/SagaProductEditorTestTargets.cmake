@@ -38,6 +38,9 @@
             ${SAGA_TEST_INCLUDE_DIRS}
             ${SAGA_ROOT}/Engine/Source/Programs/SagaLauncher/Private
         )
+        target_compile_definitions(SagaLauncherUiTests PRIVATE
+            SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+        )
         add_test(NAME SagaLauncherUiTests COMMAND SagaLauncherUiTests)
         set_tests_properties(SagaLauncherUiTests PROPERTIES
             LABELS "product;ui"

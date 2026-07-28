@@ -134,7 +134,6 @@ TEST(EditorNotificationShellTests, ShellForwardsNotificationsToStatusBar)
 
     EditorShellConfig config;
     config.registerDefaultPanels = false;
-    config.applyActivePersona = false;
     config.showOnInit = false;
 
     EditorShell shell;

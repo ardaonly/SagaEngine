@@ -9,7 +9,7 @@ saga_add_program(SagaEditorLab
         Private/include/SagaEditorLab/Scenario/DeterministicScenarioRuntimeAdapter.h
         Private/include/SagaEditorLab/Scenario/EditorHostScenarioRuntimeAdapter.h
         Private/include/SagaEditorLab/Scenario/EditorShellScenarioRuntimeAdapter.h
-        Private/include/SagaEditorLab/Scenario/ProfileSwitchScenario.h
+        Private/include/SagaEditorLab/Scenario/AuthoringModeScenario.h
         Private/include/SagaEditorLab/Scenario/ScenarioDefinition.h
         Private/include/SagaEditorLab/Scenario/ScenarioResult.h
         Private/include/SagaEditorLab/Scenario/ScenarioRunner.h
@@ -40,7 +40,7 @@ saga_add_program(SagaEditorLab
         Private/src/SagaEditorLab/DeterministicScenarioRuntimeAdapter.cpp
         Private/src/SagaEditorLab/EditorHostScenarioRuntimeAdapter.cpp
         Private/src/SagaEditorLab/EditorShellScenarioRuntimeAdapter.cpp
-        Private/src/SagaEditorLab/ProfileSwitchScenario.cpp
+        Private/src/SagaEditorLab/AuthoringModeScenario.cpp
         Private/src/SagaEditorLab/ScenarioResult.cpp
         Private/src/SagaEditorLab/ScenarioRunner.cpp
         Private/src/SagaEditorLab/ScenarioRunnerDockPanel.cpp

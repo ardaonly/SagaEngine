@@ -92,7 +92,7 @@ struct WorkspaceProfileDefinition
 };
 
 /// Compiled editor mode declaration.
-struct EditorModeDefinition
+struct EditorWorkspaceSessionDefinition
 {
     std::string id;
     std::string displayName;
@@ -117,7 +117,7 @@ struct EditorCompositionArtifact
     std::vector<ShortcutBindingDefinition> shortcuts;
     std::vector<WorkspaceLayoutDefinition> workspaceLayouts;
     std::vector<WorkspaceProfileDefinition> workspaces;
-    std::vector<EditorModeDefinition> editorModes;
+    std::vector<EditorWorkspaceSessionDefinition> editorModes;
 };
 
 } // namespace SagaEditor

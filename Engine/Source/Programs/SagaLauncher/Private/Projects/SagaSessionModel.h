@@ -26,7 +26,6 @@ struct SagaWorkspaceDefinition
     std::string           id;             ///< Stable workspace id from product data.
     std::string           displayName;    ///< Human-readable workspace label.
     std::filesystem::path root;           ///< Root directory of the validated product workspace.
-    std::string           editorProfile;  ///< Editor profile id requested by the workspace.
     std::string           runtimeRole;    ///< Runtime role name declared by the workspace.
     std::string           serverRole;     ///< Server role name declared by the workspace.
     std::string           artifactHash;   ///< Workspace artifact hash for deterministic identity.
@@ -92,6 +91,8 @@ namespace SagaProductDiagnostics
 
 inline constexpr const char* PackageManifestMissing =
     "Saga.Target.PackageManifestMissing";
+inline constexpr const char* EditorHostedInProcess =
+    "Saga.Target.EditorHostedInProcess";
 inline constexpr const char* ServerExecutionUnsupported =
     "Saga.Target.ServerExecutionUnsupported";
 inline constexpr const char* ProcessStartFailed =

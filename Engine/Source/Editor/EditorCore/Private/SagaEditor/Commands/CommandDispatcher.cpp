@@ -19,7 +19,7 @@ CommandDispatcher::CommandDispatcher(CommandRegistry& registry)
 bool CommandDispatcher::Dispatch(const std::string& commandId)
 {
     const CommandDescriptor* desc = m_registry.Find(commandId);
-    if (!desc || !desc->enabled)
+    if (!desc || !desc->enabled || !desc->handler)
     {
         for (auto& post : m_postHooks)
             post(commandId, false);
@@ -37,9 +37,9 @@ bool CommandDispatcher::Dispatch(const std::string& commandId)
         }
     }
 
-    // Execute
-    if (desc->handler)
-        desc->handler();
+    // Execute. A registered command without a handler is not an available
+    // workflow and must never be reported as successfully dispatched.
+    desc->handler();
 
     for (auto& post : m_postHooks)
         post(commandId, true);

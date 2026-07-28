@@ -10,6 +10,7 @@
 #include <vector>
 
 class QMainWindow;
+class QStackedWidget;
 
 namespace SagaEditor
 {
@@ -22,6 +23,7 @@ class QtUIMainWindow final : public IUIMainWindow
 {
 public:
     QtUIMainWindow(const std::string& title, int width, int height);
+    QtUIMainWindow(QMainWindow& window, QStackedWidget& centralStack);
     ~QtUIMainWindow() override;
 
     // ─── IUIMainWindow ────────────────────────────────────────────────────────
@@ -38,6 +40,9 @@ public:
 
     void ApplyShellLayout(const ShellLayout& layout)  override;
     void SetStatusMessage(const std::string& message) override;
+    void SetCommandEnabled(const std::string& commandId, bool enabled) override;
+    void SetCommandChecked(const std::string& commandId, bool checked) override;
+    void ResetWorkspaceLayout() override;
     void DockPanel(QWidget*           widget,
                    const std::string& panelId,
                    const std::string& title,
@@ -52,6 +57,7 @@ public:
 
     void SetOnClose(CloseCallback cb) override;
     void SetOnCommand(CommandCallback cb) override;
+    void SetOnWorkflowStatePoll(WorkflowStateCallback cb) override;
 
     [[nodiscard]] ::QMainWindow* Window() const noexcept;
 

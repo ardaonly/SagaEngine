@@ -493,8 +493,7 @@ function(saga_create_engine_targets)
     )
 
     # --- Editor Library -------------------------------------------------------
-    # All editor logic lives in editor modules; the SagaEditor program is a thin launcher.
-    # Qt handles the WinMain shim on Windows via qt_add_executable(WIN32).
+    # All editor logic lives in editor modules and is composed by Saga.
     saga_create_registered_object_modules(
         SagaEditorLib SAGA_EDITOR_MODULE_TARGETS)
     add_library(SagaEditorLib STATIC)
@@ -582,6 +581,7 @@ function(saga_create_engine_targets)
 
     target_link_libraries(SagaProductLib PRIVATE
         SagaAssetPipelineLib
+        SagaEditorLib
         OpenSSL::Crypto
     )
 
@@ -621,7 +621,7 @@ function(saga_create_engine_targets)
     target_include_directories(Saga PRIVATE
         ${SAGA_ROOT}/Engine/Source/Programs/SagaLauncher/Private
     )
-    target_link_libraries(Saga PRIVATE SagaProductLib)
+    target_link_libraries(Saga PRIVATE SagaProductLib SagaEditorLib)
     if(TARGET qt::qt)
         target_link_libraries(Saga PRIVATE qt::qt)
     elseif(TARGET Qt6::QXcbIntegrationPlugin)
@@ -693,99 +693,6 @@ function(saga_create_engine_targets)
     set_target_properties(SagaRuntime PROPERTIES
         OUTPUT_NAME "SagaRuntime"
         FOLDER      "Programs/SagaRuntime"
-    )
-
-    # --- SagaEditor Executable ------------------------------------------------
-    # qt_add_executable with WIN32 generates the WinMain shim on Windows so
-    # The SagaEditor launcher can use a standard int main() on all platforms.
-    saga_get_registered_sources(SagaEditor SAGA_EDITOR_PROGRAM_SOURCES)
-    qt_add_executable(SagaEditor WIN32 ${SAGA_EDITOR_PROGRAM_SOURCES})
-
-    target_include_directories(SagaEditor PRIVATE
-        ${SAGA_ROOT}/Engine/Source/Editor/EditorCore/Public
-        ${SAGA_ROOT}/Engine/Source/Editor/EditorFramework/Public
-        ${SAGA_ROOT}/Engine/Source/Editor/EditorQt/Public
-        ${SAGA_ROOT}/Engine/Source/Editor/EditorQtRender/Public
-        ${SAGA_ROOT}/Engine/Source/Editor/EditorAuthoring/Public
-        ${SAGA_ROOT}/Engine/Source/Editor/VisualBlocksEditor/Public
-        ${SAGA_ROOT}/Engine/Source/Editor/EditorCollaboration/Public
-    )
-
-    saga_apply_compiler_flags(SagaEditor)
-
-    target_link_libraries(SagaEditor PRIVATE
-        SagaEditorLib   # all editor logic + transitive Qt6::Widgets
-    )
-
-    if(SAGA_WITH_EDITORLAB_DEV_PANEL)
-        target_link_libraries(SagaEditor PRIVATE SagaEditorLabBridge)
-        target_include_directories(SagaEditor PRIVATE
-            ${SAGA_ROOT}/Engine/Source/Developer/SagaDev
-        )
-        target_compile_definitions(SagaEditor PRIVATE
-            SAGA_WITH_EDITORLAB_DEV_PANEL=1
-        )
-    else()
-        target_compile_definitions(SagaEditor PRIVATE
-            SAGA_WITH_EDITORLAB_DEV_PANEL=0
-        )
-    endif()
-
-    if(TARGET Qt6::QXcbIntegrationPlugin)
-        if(TARGET qt::qt)
-            target_link_libraries(SagaEditor PRIVATE qt::qt)
-        else()
-            target_link_libraries(SagaEditor PRIVATE
-                Qt6::QXcbIntegrationPlugin
-            )
-        endif()
-        target_compile_definitions(SagaEditor PRIVATE
-            SAGA_EDITOR_IMPORT_QT_XCB_PLUGIN
-        )
-
-        set(_saga_editor_qt_platform_plugin_dirs)
-        if(DEFINED qt_Qt6_QXcbIntegrationPlugin_LIB_DIRS_RELWITHDEBINFO)
-            list(APPEND _saga_editor_qt_platform_plugin_dirs
-                ${qt_Qt6_QXcbIntegrationPlugin_LIB_DIRS_RELWITHDEBINFO}
-            )
-        endif()
-        get_target_property(_saga_editor_qt_xcb_plugin_dirs
-            Qt6::QXcbIntegrationPlugin
-            INTERFACE_LINK_DIRECTORIES
-        )
-        if(_saga_editor_qt_xcb_plugin_dirs)
-            foreach(_saga_editor_qt_plugin_dir
-                    IN LISTS _saga_editor_qt_xcb_plugin_dirs)
-                string(REGEX REPLACE
-                    "^\\$<\\$<CONFIG:[^>]+>:(.*)>$"
-                    "\\1"
-                    _saga_editor_qt_plugin_dir
-                    "${_saga_editor_qt_plugin_dir}"
-                )
-                list(APPEND _saga_editor_qt_platform_plugin_dirs
-                    "${_saga_editor_qt_plugin_dir}"
-                )
-            endforeach()
-        endif()
-
-        find_library(SAGA_QT_OFFSCREEN_PLATFORM_PLUGIN
-            NAMES qoffscreen
-            PATHS ${_saga_editor_qt_platform_plugin_dirs}
-            NO_DEFAULT_PATH
-        )
-        if(SAGA_QT_OFFSCREEN_PLATFORM_PLUGIN)
-            target_link_libraries(SagaEditor PRIVATE
-                ${SAGA_QT_OFFSCREEN_PLATFORM_PLUGIN}
-            )
-            target_compile_definitions(SagaEditor PRIVATE
-                SAGA_EDITOR_IMPORT_QT_OFFSCREEN_PLUGIN
-            )
-        endif()
-    endif()
-
-    set_target_properties(SagaEditor PROPERTIES
-        OUTPUT_NAME "SagaEditor"
-        FOLDER      "Programs/SagaEditor"
     )
 
     # --- EditorLab Executable ------------------------------------------------
@@ -864,7 +771,7 @@ function(saga_create_engine_targets)
         SagaPlatformSDL SagaDiligentRuntime SagaDiligentBackend SagaRuntimeLib
         SagaServerLib SagaUiBackend SagaPersistenceBackend SagaSandboxLib
         SagaEditorLib SagaEditorLabLib
-        SagaProductLib Saga SagaRuntime SagaEditor EditorLab SagaSandbox)
+        SagaProductLib Saga SagaRuntime EditorLab SagaSandbox)
         if(TARGET ${_saga_registered_target})
             saga_apply_registered_usage(${_saga_registered_target})
         endif()

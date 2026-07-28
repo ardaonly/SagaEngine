@@ -7,8 +7,7 @@
 #include "SagaEditor/Customization/WorkspaceCustomizationSession.h"
 #include "SagaEditor/Diagnostics/IEditorDiagnosticsService.h"
 #include "SagaEditor/Host/EditorHost.h"
-#include "SagaEditor/Profile/EditorProfile.h"
-#include "SagaEditor/Profile/EditorProfileRegistry.h"
+#include "SagaEditor/Authoring/AuthoringMode.h"
 #include "SagaEditor/Runtime/IEditorEngineBridge.h"
 #include "SagaEditor/Selection/SelectionManager.h"
 #include "SagaEditor/Settings/MemoryEditorSettingsStore.h"
@@ -375,7 +374,7 @@ TEST(EditorProductionHostTest, RequireCompositionFailsWithoutManifest)
     host.Shutdown();
 }
 
-TEST(EditorProductionHostTest, ProfileSwitchDoesNotReplaceCoreOrEngineBridge)
+TEST(EditorProductionHostTest, AuthoringModeSwitchDoesNotReplaceCoreOrEngineBridge)
 {
     EditorHost host;
     ASSERT_TRUE(host.Init(std::make_unique<MemoryEditorSettingsStore>()));
@@ -384,10 +383,8 @@ TEST(EditorProductionHostTest, ProfileSwitchDoesNotReplaceCoreOrEngineBridge)
     const std::string bridgeIdentityBefore =
         host.GetEngineBridge().StableIdentity();
 
-    ASSERT_TRUE(host.GetEditorProfileRegistry().SetActive(
-        "saga.profile.advanced_pipeline"));
-    ASSERT_TRUE(host.GetEditorProfileRegistry().SetActive(
-        "saga.profile.standard_pipeline"));
+    ASSERT_TRUE(host.GetAuthoringModeService().SetActive("level3"));
+    ASSERT_TRUE(host.GetAuthoringModeService().SetActive("level2"));
 
     EXPECT_EQ(selectionBefore, &host.GetSelectionManager());
     EXPECT_EQ(bridgeIdentityBefore, host.GetEngineBridge().StableIdentity());
@@ -397,21 +394,16 @@ TEST(EditorProductionHostTest, ProfileSwitchDoesNotReplaceCoreOrEngineBridge)
     host.Shutdown();
 }
 
-TEST(EditorProductionHostTest, BuiltinProfilesExposeProductionDashboard)
+TEST(EditorProductionHostTest, BuiltinModesExcludeProductionDashboard)
 {
-    const EditorProfile profiles[] = {
-        MakeBasicProfile(),
-        MakeNodeEditorProfile(),
-        MakeStandardPipelineProfile(),
-        MakeAdvancedPipelineProfile(),
-        MakeCustomProfile(),
-    };
-
-    for (const EditorProfile& profile : profiles)
+    MemoryEditorSettingsStore settings;
+    AuthoringModeService modes;
+    ASSERT_TRUE(modes.Init(settings));
+    for (const AuthoringMode& mode : modes.Modes())
     {
-        EXPECT_TRUE(Contains(profile.defaultPanels,
-                             "saga.panel.production_dashboard"))
-            << profile.id;
+        EXPECT_FALSE(Contains(mode.defaultVisiblePanels,
+                              "saga.panel.production_dashboard"))
+            << mode.id;
     }
 }
 
@@ -422,11 +414,11 @@ TEST(EditorCustomizationCatalogTest, DefaultsToBuiltins)
 
     const EditorCustomizationStatus& status = catalog.Status();
     EXPECT_FALSE(status.loaded);
-    EXPECT_NE(status.message.find("built-in"), std::string::npos);
+    EXPECT_NE(status.message.find("unavailable"), std::string::npos);
     EXPECT_FALSE(status.sourceRoot.empty());
 }
 
-TEST(EditorCustomizationCatalogTest, LeavesProjectProfilesEmpty)
+TEST(EditorCustomizationCatalogTest, LegacyProfileDataIsNotAnActiveCatalog)
 {
     EditorCustomizationCatalog catalog;
     const fs::path workspaceRoot =
@@ -437,7 +429,7 @@ TEST(EditorCustomizationCatalogTest, LeavesProjectProfilesEmpty)
     const EditorCustomizationStatus& status = catalog.Status();
     EXPECT_EQ(status.sourceRoot.filename(), "EditorCustomization");
     EXPECT_FALSE(status.userConfigRoot.empty());
-    EXPECT_TRUE(catalog.Snapshot().projectProfiles.empty());
+    EXPECT_TRUE(catalog.Snapshot().legacyProfileDataIgnored);
 }
 
 } // namespace

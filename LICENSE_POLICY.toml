@@ -204,7 +204,6 @@ priority = 400
 paths = [
   "Engine/Source/Editor/**",
   "Engine/Source/Programs/SagaLauncher/**",
-  "Engine/Source/Programs/SagaEditor/**",
   "Engine/Source/Programs/SagaEditorLab/**",
 ]
 required = true
@@ -1198,26 +1197,6 @@ name = "Saga"
 source_domains = ["saga-editor"]
 public_dependencies = []
 private_dependencies = ["SagaProductLib"]
-runtime_dependencies = ["Qt"]
-target_license_expression = "MPL-2.0"
-distribution = "installed-program"
-review = "configured-graph-reviewed"
-blockers = []
-graph_required = true
-current_license_mode = "fixed-spdx"
-current_license_expressions = ["MPL-2.0"]
-target_license_mode = "fixed-spdx"
-generated_source_patterns = []
-generated_source_action = "report"
-expected_installed_artifact = true
-expected_exported_target = false
-export_validation = "manual-pending"
-
-[[targets]]
-name = "SagaEditor"
-source_domains = ["saga-editor"]
-public_dependencies = []
-private_dependencies = ["SagaEditorLib"]
 runtime_dependencies = ["Qt"]
 target_license_expression = "MPL-2.0"
 distribution = "installed-program"

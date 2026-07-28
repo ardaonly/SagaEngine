@@ -17,7 +17,6 @@ namespace SagaProduct
 /// Allowlisted executable identity accepted by Product Shell orchestration.
 enum class SagaProcessTargetId
 {
-    Editor,
     Runtime,
     SagaProject,
     Forge,

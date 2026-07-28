@@ -4,7 +4,7 @@
 
 #include "SagaEditorLab/Scenario/BuiltinScenarioDefinitions.h"
 #include "SagaEditorLab/Scenario/CustomizationScenario.h"
-#include "SagaEditorLab/Scenario/ProfileSwitchScenario.h"
+#include "SagaEditorLab/Scenario/AuthoringModeScenario.h"
 
 namespace SagaEditorLab
 {
@@ -13,9 +13,9 @@ std::vector<ScenarioDefinition> MakeBuiltinScenarioDefinitions()
 {
     return {
         {
-            "saga.lab.profile_switch",
-            "Profile Switch Validation",
-            MakeProfileSwitchValidationScenario(),
+            "saga.lab.authoring_mode",
+            "Authoring Mode Validation",
+            MakeAuthoringModeValidationScenario(),
         },
         {
             "saga.lab.customization_precedence",

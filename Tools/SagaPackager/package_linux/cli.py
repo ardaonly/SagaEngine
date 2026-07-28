@@ -72,8 +72,8 @@ def main() -> int:
         missing_inputs=missing_inputs,
         message=linux_message,
     )
-    repo_root_ready = Path("scripts/package-linux-saga").is_file() and Path("VERSION").is_file()
-    repo_root_message = None if repo_root_ready else "package-linux-saga must run from the repository root"
+    repo_root_ready = Path("scripts/package").is_file() and Path("VERSION").is_file()
+    repo_root_message = None if repo_root_ready else "scripts/package must run from the repository root"
     if repo_root_message:
         missing.append(repo_root_message)
     record_check(
@@ -119,7 +119,6 @@ def main() -> int:
 
     bin_dir = build_dir / "bin"
     check_binary("Saga product shell", [bin_dir / "Saga"], missing, required_inputs, available_inputs, missing_inputs, category="binary")
-    check_binary("SagaEditor shell", [bin_dir / "SagaEditor"], missing, required_inputs, available_inputs, missing_inputs, category="binary")
     check_binary("SagaRuntime executable", [bin_dir / "SagaRuntime"], missing, required_inputs, available_inputs, missing_inputs, category="binary")
     check_binary("sagaproject CLI", [Path("Tools/SagaProjectKit/sagaproject")], missing, required_inputs, available_inputs, missing_inputs, category="tool")
     check_binary("sagapack CLI", [Path("Tools/SagaPackager/sagapack")], missing, required_inputs, available_inputs, missing_inputs, category="tool")
@@ -375,6 +374,4 @@ def main() -> int:
 
     print("package-linux-saga: preflight passed; archive/checksum generated without readiness claims")
     return 0
-
-
 

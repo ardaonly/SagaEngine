@@ -10,17 +10,16 @@ namespace SagaEditorLab
 std::vector<ScenarioStep> MakeCustomizationPrecedenceScenario()
 {
     return {
-        ScenarioStep::MakeAssertion("editor.customization.builtin.available", "true"),
+        ScenarioStep::MakeAssertion("editor.authoring.modes.available", "true"),
         ScenarioStep::MakeAssertion("editor.customization.project.source", "builtin"),
         ScenarioStep::MakeAssertion("editor.customization.user.source", "~/.config/Saga"),
         ScenarioStep::MakeSnapshot("customization.builtin"),
-        ScenarioStep::MakeAssertion("editor.customization.project.profiles.loaded", "true"),
-        ScenarioStep::MakeAction("saga.command.profile.basic"),
-        ScenarioStep::MakeSnapshot("customization.project.basic"),
-        ScenarioStep::MakeAction("saga.command.profile.advanced_pipeline"),
-        ScenarioStep::MakeSnapshot("customization.project.advanced"),
-        ScenarioStep::MakeAssertion("profile.layout.diff.basic_to_advanced", "true"),
-        ScenarioStep::MakeAssertion("profile.shortcuts.diff.basic_to_advanced", "true"),
+        ScenarioStep::MakeAction("saga.command.authoring.level1"),
+        ScenarioStep::MakeSnapshot("customization.authoring.level1"),
+        ScenarioStep::MakeAction("saga.command.authoring.level3"),
+        ScenarioStep::MakeSnapshot("customization.authoring.level3"),
+        ScenarioStep::MakeAssertion(
+            "authoring.panels.diff.level1_to_level3", "true"),
         ScenarioStep::MakeAssertion("editor.customization.user.override.applied", "true"),
         ScenarioStep::MakeAssertion("editor.customization.project.source.unchanged", "true"),
         ScenarioStep::MakeAssertion("editor.core.identity.stable", "true"),

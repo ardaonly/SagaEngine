@@ -34,7 +34,7 @@ namespace
     switch (target)
     {
         case SagaProductTargetKind::Editor:
-            return SagaProcessTargetId::Editor;
+            return std::nullopt;
         case SagaProductTargetKind::Runtime:
             return SagaProcessTargetId::Runtime;
         case SagaProductTargetKind::Server:
@@ -58,8 +58,12 @@ SagaProcessLaunchResult SagaProcessLauncher::Launch(
         result.classification = SagaProcessExitClassification::InvalidRequest;
         result.diagnostics.push_back(MakeLaunchDiagnostic(
             request.target,
-            SagaProductDiagnostics::ServerExecutionUnsupported,
-            "Product dedicated-server execution is not implemented.",
+            request.target == SagaProductTargetKind::Editor
+                ? SagaProductDiagnostics::EditorHostedInProcess
+                : SagaProductDiagnostics::ServerExecutionUnsupported,
+            request.target == SagaProductTargetKind::Editor
+                ? "Editor workspaces are hosted in the Saga process."
+                : "Product dedicated-server execution is not implemented.",
             request.executablePath));
         return result;
     }

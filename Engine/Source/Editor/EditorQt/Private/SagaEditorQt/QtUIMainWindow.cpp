@@ -12,6 +12,8 @@
 #include <QAction>
 #include <QStatusBar>
 #include <QToolBar>
+#include <QTimer>
+#include <QStackedWidget>
 #include <QWidget>
 #include <QString>
 #include <QCloseEvent>
@@ -50,7 +52,9 @@ protected:
 
 struct QtUIMainWindow::Impl
 {
-    QtMainWindowWidget* window = nullptr;
+    QMainWindow* window = nullptr;
+    QStackedWidget* centralStack = nullptr;
+    bool ownsWindow = true;
     QWidget* centralWidget = nullptr;
     std::string centralPanelId;
 
@@ -58,7 +62,10 @@ struct QtUIMainWindow::Impl
     std::unordered_map<std::string, QDockWidget*> dockMap;
     std::unordered_map<std::string, QWidget*>     widgetMap;
     CommandCallback                               onCommand;
+    WorkflowStateCallback                         onWorkflowStatePoll;
     QToolBar*                                     mainToolbar = nullptr;
+    QTimer*                                       workflowStateTimer = nullptr;
+    std::unordered_map<std::string, std::vector<QAction*>> commandActions;
 
     explicit Impl(const std::string& title, int w, int h)
     {
@@ -66,11 +73,54 @@ struct QtUIMainWindow::Impl
         window->setWindowTitle(QString::fromStdString(title));
         window->resize(w, h);
         window->statusBar()->showMessage("Ready");
+        workflowStateTimer = new QTimer(window);
+        workflowStateTimer->setInterval(100);
+        QObject::connect(workflowStateTimer, &QTimer::timeout, window, [this]
+        {
+            if (onWorkflowStatePoll)
+                onWorkflowStatePoll();
+        });
+        workflowStateTimer->start();
+    }
+
+    Impl(QMainWindow& attachedWindow, QStackedWidget& stack)
+        : window(&attachedWindow), centralStack(&stack), ownsWindow(false)
+    {
+        window->setDockNestingEnabled(true);
+        window->setAnimated(false);
+        workflowStateTimer = new QTimer(window);
+        workflowStateTimer->setInterval(100);
+        QObject::connect(workflowStateTimer, &QTimer::timeout, window, [this]
+        {
+            if (onWorkflowStatePoll)
+                onWorkflowStatePoll();
+        });
+        workflowStateTimer->start();
     }
 
     ~Impl()
     {
-        delete window;
+        if (workflowStateTimer)
+            workflowStateTimer->stop();
+        if (mainToolbar)
+        {
+            window->removeToolBar(mainToolbar);
+            delete mainToolbar;
+            mainToolbar = nullptr;
+        }
+        for (const auto& [id, dock] : dockMap)
+        {
+            window->removeDockWidget(dock);
+            delete dock;
+        }
+        dockMap.clear();
+        if (centralStack && centralWidget)
+        {
+            centralStack->removeWidget(centralWidget);
+            delete centralWidget;
+        }
+        if (ownsWindow)
+            delete window;
     }
 
     // ── Helper: translate UIDockArea → Qt::DockWidgetArea ─────────────────────
@@ -91,6 +141,10 @@ struct QtUIMainWindow::Impl
 
 QtUIMainWindow::QtUIMainWindow(const std::string& title, int width, int height)
     : m_impl(std::make_unique<Impl>(title, width, height))
+{}
+
+QtUIMainWindow::QtUIMainWindow(QMainWindow& window, QStackedWidget& centralStack)
+    : m_impl(std::make_unique<Impl>(window, centralStack))
 {}
 
 QtUIMainWindow::~QtUIMainWindow() = default;
@@ -119,6 +173,7 @@ int QtUIMainWindow::GetHeight() const noexcept { return m_impl->window->height()
 
 void QtUIMainWindow::ApplyShellLayout(const ShellLayout& layout)
 {
+    m_impl->commandActions.clear();
     QMenuBar* bar = m_impl->window->menuBar();
     bar->setVisible(layout.showMenuBar);
     bar->clear();
@@ -155,6 +210,7 @@ void QtUIMainWindow::ApplyShellLayout(const ShellLayout& layout)
             // command-dispatch service.
             if (!item.commandId.empty())
             {
+                m_impl->commandActions[item.commandId].push_back(action);
                 action->setData(QString::fromStdString(item.commandId));
                 QObject::connect(action, &QAction::triggered,
                     [this, action]()
@@ -177,6 +233,7 @@ void QtUIMainWindow::ApplyShellLayout(const ShellLayout& layout)
     if (!layout.mainToolbarItems.empty())
     {
         m_impl->mainToolbar = new QToolBar(QStringLiteral("Workspace"), m_impl->window);
+        m_impl->mainToolbar->setObjectName(QStringLiteral("SagaEditorWorkspaceToolbar"));
         m_impl->mainToolbar->setMovable(false);
         m_impl->mainToolbar->setVisible(layout.showMainToolbar);
 
@@ -192,6 +249,7 @@ void QtUIMainWindow::ApplyShellLayout(const ShellLayout& layout)
                 m_impl->mainToolbar->addAction(QString::fromStdString(item.label));
             if (!item.commandId.empty())
             {
+                m_impl->commandActions[item.commandId].push_back(action);
                 action->setData(QString::fromStdString(item.commandId));
                 QObject::connect(action, &QAction::triggered,
                     [this, action]()
@@ -212,6 +270,51 @@ void QtUIMainWindow::SetStatusMessage(const std::string& message)
     m_impl->window->statusBar()->showMessage(QString::fromStdString(message));
 }
 
+void QtUIMainWindow::SetCommandEnabled(const std::string& commandId, bool enabled)
+{
+    const auto it = m_impl->commandActions.find(commandId);
+    if (it == m_impl->commandActions.end())
+        return;
+    for (QAction* action : it->second)
+        action->setEnabled(enabled);
+}
+
+void QtUIMainWindow::SetCommandChecked(const std::string& commandId, bool checked)
+{
+    const auto it = m_impl->commandActions.find(commandId);
+    if (it == m_impl->commandActions.end())
+        return;
+    for (QAction* action : it->second)
+    {
+        action->setCheckable(true);
+        action->setChecked(checked);
+    }
+}
+
+void QtUIMainWindow::ResetWorkspaceLayout()
+{
+    const auto place = [this](const char* id, Qt::DockWidgetArea area)
+    {
+        const auto it = m_impl->dockMap.find(id);
+        if (it == m_impl->dockMap.end())
+            return;
+        it->second->setFloating(false);
+        m_impl->window->addDockWidget(area, it->second);
+    };
+    place("saga.panel.hierarchy", Qt::LeftDockWidgetArea);
+    place("saga.panel.inspector", Qt::RightDockWidgetArea);
+    place("saga.panel.assetbrowser", Qt::BottomDockWidgetArea);
+    place("saga.panel.code_box", Qt::BottomDockWidgetArea);
+    place("saga.panel.problems", Qt::BottomDockWidgetArea);
+    const auto sources = m_impl->dockMap.find("saga.panel.assetbrowser");
+    const auto codeBox = m_impl->dockMap.find("saga.panel.code_box");
+    const auto problems = m_impl->dockMap.find("saga.panel.problems");
+    if (sources != m_impl->dockMap.end() && codeBox != m_impl->dockMap.end())
+        m_impl->window->tabifyDockWidget(codeBox->second, sources->second);
+    if (codeBox != m_impl->dockMap.end() && problems != m_impl->dockMap.end())
+        m_impl->window->tabifyDockWidget(codeBox->second, problems->second);
+}
+
 // ─── Panel Docking ────────────────────────────────────────────────────────────
 
 void QtUIMainWindow::DockPanel(QWidget*           widget,
@@ -221,7 +324,13 @@ void QtUIMainWindow::DockPanel(QWidget*           widget,
 {
     if (area == UIDockArea::Center)
     {
-        m_impl->window->setCentralWidget(widget);
+        if (m_impl->centralStack)
+        {
+            m_impl->centralStack->addWidget(widget);
+            m_impl->centralStack->setCurrentWidget(widget);
+        }
+        else
+            m_impl->window->setCentralWidget(widget);
         m_impl->centralWidget = widget;
         m_impl->centralPanelId = panelId;
         m_impl->widgetMap[panelId] = widget;
@@ -253,7 +362,13 @@ void QtUIMainWindow::UndockPanel(const std::string& panelId)
     {
         if (panelId == m_impl->centralPanelId)
         {
-            delete m_impl->window->takeCentralWidget();
+            if (m_impl->centralStack)
+            {
+                m_impl->centralStack->removeWidget(m_impl->centralWidget);
+                delete m_impl->centralWidget;
+            }
+            else
+                delete m_impl->window->takeCentralWidget();
             m_impl->centralWidget = nullptr;
             m_impl->centralPanelId.clear();
             m_impl->widgetMap.erase(panelId);
@@ -320,12 +435,18 @@ bool QtUIMainWindow::RestoreState(const std::vector<uint8_t>& state)
 
 void QtUIMainWindow::SetOnClose(CloseCallback cb)
 {
-    m_impl->window->onClose = std::move(cb);
+    if (auto* owned = dynamic_cast<QtMainWindowWidget*>(m_impl->window))
+        owned->onClose = std::move(cb);
 }
 
 void QtUIMainWindow::SetOnCommand(CommandCallback cb)
 {
     m_impl->onCommand = std::move(cb);
+}
+
+void QtUIMainWindow::SetOnWorkflowStatePoll(WorkflowStateCallback cb)
+{
+    m_impl->onWorkflowStatePoll = std::move(cb);
 }
 
 QMainWindow* QtUIMainWindow::Window() const noexcept

@@ -15,7 +15,6 @@ PACKAGE_SCHEMA_VERSION = 2
 
 PRODUCT_APPLICATIONS = (
     {"name": "Saga", "path": "bin/Saga", "role": "product-shell"},
-    {"name": "SagaEditor", "path": "bin/SagaEditor", "role": "editor"},
     {"name": "SagaRuntime", "path": "bin/SagaRuntime", "role": "runtime"},
 )
 
@@ -122,7 +121,7 @@ LIMITATIONS = (
     "The Python archive does not stage native shared-library dependency closure or claim clean-machine portability.",
     "Packaged public tools are framework-dependent and require a compatible .NET runtime; publishing requires a .NET 10 SDK.",
     "Nix-store and nix-shell tool discovery are environment-specific fallbacks.",
-    "SagaEditor is presence-checked but no GUI is launched by headless archive smoke.",
+    "Saga is presence-checked but no GUI is launched by headless archive smoke.",
     "SagaRuntime and editor workflow evidence remains bounded by the current smoke report.",
     "The package is not signed and does not include an installer or updater.",
     "No SBOM or machine-readable third-party manifest is included.",

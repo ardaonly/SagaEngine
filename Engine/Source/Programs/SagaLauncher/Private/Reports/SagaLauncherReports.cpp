@@ -325,14 +325,14 @@ SagaLauncherDistributionSummary SagaDistributionStatusReader::Read() const
     std::sort(tools.begin(), tools.end());
     const bool hasIdentity = !applications.empty() || !tools.empty();
     if (hasIdentity &&
-        (applications != std::vector<std::string>({"Saga", "SagaEditor", "SagaRuntime"}) ||
+        (applications != std::vector<std::string>({"Saga", "SagaRuntime"}) ||
          tools != std::vector<std::string>({"sagapack", "sagaproject", "sagascript"})))
     {
         result.mappedStatus = SagaLauncherActionStatus::Failed;
         result.diagnostics.push_back(
             Diagnostic(SagaLauncherReportDiagnostics::IdentityMismatch,
                        SagaLauncherDiagnosticSeverity::Error,
-                       "Distribution identity must contain exactly Saga, SagaEditor, SagaRuntime "
+                       "Distribution identity must contain exactly Saga, SagaRuntime "
                        "and sagapack, sagaproject, sagascript.",
                        result.sourcePath));
     }

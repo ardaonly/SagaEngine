@@ -11,7 +11,6 @@ TEST(SagaProductHostTest, PreparesRoleTargetsAtBoundaryLevel)
     SagaWorkspaceDefinition workspace;
     workspace.id = "builtin.basic";
     workspace.root = BuiltInProductWorkspaceRoot();
-    workspace.editorProfile = "saga.profile.basic";
     workspace.runtimeRole = "SagaRuntime";
     workspace.serverRole.clear();
 
@@ -21,13 +20,9 @@ TEST(SagaProductHostTest, PreparesRoleTargetsAtBoundaryLevel)
 
     session.target = SagaProductTargetKind::Editor;
     SagaPreparedTarget editor = host.PrepareTarget(session);
-    EXPECT_EQ(editor.executableName, "SagaEditor");
-    EXPECT_EQ(editor.availability, SagaLaunchTargetAvailability::Available);
-    ASSERT_EQ(editor.arguments.size(), 4u);
-    EXPECT_EQ(editor.arguments[0], "--workspace");
-    EXPECT_EQ(editor.arguments[1], workspace.root.string());
-    EXPECT_EQ(editor.arguments[2], "--profile");
-    EXPECT_EQ(editor.arguments[3], "saga.profile.basic");
+    EXPECT_TRUE(editor.executableName.empty());
+    EXPECT_EQ(editor.availability, SagaLaunchTargetAvailability::Unsupported);
+    EXPECT_TRUE(editor.arguments.empty());
 
     session.target = SagaProductTargetKind::Runtime;
     session.packageManifestPath = fs::path("Packages/dev-client/package.json");
@@ -46,7 +41,7 @@ TEST(SagaProductHostTest, PreparesRoleTargetsAtBoundaryLevel)
     EXPECT_EQ(server.availability, SagaLaunchTargetAvailability::Unsupported);
 }
 
-TEST(SagaProductHostTest, EditorTargetDoesNotRequirePackageManifest)
+TEST(SagaProductHostTest, EditorTargetCannotBePreparedAsAnExternalProcess)
 {
     SagaProduct::SagaApp app;
     SagaAppConfig config;
@@ -59,9 +54,10 @@ TEST(SagaProductHostTest, EditorTargetDoesNotRequirePackageManifest)
     std::ostringstream err;
     const int exitCode = app.Run(config, out, err);
 
-    EXPECT_EQ(exitCode, 0);
-    EXPECT_NE(out.str().find("target=editor"), std::string::npos);
-    EXPECT_TRUE(err.str().empty());
+    EXPECT_EQ(exitCode, 1);
+    EXPECT_TRUE(out.str().empty());
+    EXPECT_NE(err.str().find(SagaProductDiagnostics::EditorHostedInProcess),
+              std::string::npos);
 }
 
 TEST(SagaProductHostTest, MissingPackageManifestProducesProductDiagnostic)
@@ -69,7 +65,6 @@ TEST(SagaProductHostTest, MissingPackageManifestProducesProductDiagnostic)
     SagaWorkspaceDefinition workspace;
     workspace.id = "builtin.basic";
     workspace.root = BuiltInProductWorkspaceRoot();
-    workspace.editorProfile = "saga.profile.basic";
     workspace.runtimeRole = "SagaRuntime";
     workspace.serverRole.clear();
 
@@ -326,7 +321,7 @@ TEST(SagaProductHostTest, NonZeroLaunchExitCodeIsReportedAndReturned)
               std::string::npos);
 }
 
-TEST(SagaProductHostTest, EditorTargetUsesExternalProcessLauncher)
+TEST(SagaProductHostTest, EditorTargetNeverUsesExternalProcessLauncher)
 {
     auto launcher = std::make_unique<FakeProcessLauncher>();
     FakeProcessLauncher* launcherPtr = launcher.get();
@@ -341,14 +336,11 @@ TEST(SagaProductHostTest, EditorTargetUsesExternalProcessLauncher)
     std::ostringstream err;
     const int exitCode = app.Run(config, out, err);
 
-    EXPECT_EQ(exitCode, 0);
-    ASSERT_EQ(launcherPtr->requests.size(), 1u);
-    EXPECT_EQ(launcherPtr->requests[0].target, SagaProductTargetKind::Editor);
-    EXPECT_EQ(launcherPtr->requests[0].executablePath,
-              config.executablePath.parent_path() / "SagaEditor");
-    EXPECT_NE(out.str().find("target=editor"), std::string::npos);
-    EXPECT_NE(out.str().find("launch.exitCode="), std::string::npos);
-    EXPECT_TRUE(err.str().empty());
+    EXPECT_EQ(exitCode, 1);
+    EXPECT_TRUE(launcherPtr->requests.empty());
+    EXPECT_TRUE(out.str().empty());
+    EXPECT_NE(err.str().find(SagaProductDiagnostics::EditorHostedInProcess),
+              std::string::npos);
 }
 
 } // namespace

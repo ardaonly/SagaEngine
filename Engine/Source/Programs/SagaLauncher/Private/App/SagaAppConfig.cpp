@@ -112,9 +112,11 @@ namespace
 std::string SagaUsageText()
 {
     return
-        "Usage: Saga [options]\n"
+        "Usage: Saga [<project.sagaproj>] [options]\n"
+        "  --project <path>                  Open a project in the Saga workspace\n"
+        "  --authoring-mode <level1|level2|level3> Authoring depth\n"
         "  --workspace <path|builtin:basic>  Product workspace root\n"
-        "  --target <editor|runtime|server>  Product role to prepare (server execution unsupported)\n"
+        "  --target <runtime|server>         Developer target preparation (server unsupported)\n"
         "  --package-manifest <path>         Startup package manifest for runtime targets\n"
         "  --validate-sagascript <.sagaproj> Run SagaScript validation through Forge gate\n"
         "  Package workflows: use 'sagapack stage' and 'sagapack publish-check'\n"
@@ -157,6 +159,7 @@ SagaConfigResult ParseSagaAppConfig(int argc, char* argv[])
 {
     SagaConfigResult result;
     result.ok = true;
+    bool explicitAuthoringMode = false;
 
     if (argc > 0 && argv != nullptr && argv[0] != nullptr)
     {
@@ -260,6 +263,26 @@ SagaConfigResult ParseSagaAppConfig(int argc, char* argv[])
             }
             result.config.workflowProjectPath = std::filesystem::path(argv[++i]);
         }
+        else if (arg == "--authoring-mode")
+        {
+            if (!HasValue(i, argc))
+            {
+                result.ok = false;
+                result.error = "Saga: --authoring-mode requires level1, level2, or level3";
+                return result;
+            }
+            result.config.authoringMode = argv[++i];
+            explicitAuthoringMode = true;
+            if (result.config.authoringMode != "level1" &&
+                result.config.authoringMode != "level2" &&
+                result.config.authoringMode != "level3")
+            {
+                result.ok = false;
+                result.error = "Saga: unknown authoring mode '" +
+                    result.config.authoringMode + "'";
+                return result;
+            }
+        }
         else if (arg == "--profile")
         {
             if (!HasValue(i, argc))
@@ -269,6 +292,22 @@ SagaConfigResult ParseSagaAppConfig(int argc, char* argv[])
                 return result;
             }
             result.config.workflowProfile = argv[++i];
+            if (!explicitAuthoringMode)
+            {
+                const std::string& legacy = result.config.workflowProfile;
+                if (legacy == "advanced" || legacy == "studio" ||
+                    legacy == "pro" || legacy == "technical" ||
+                    legacy.find("advanced") != std::string::npos ||
+                    legacy.find("studio") != std::string::npos)
+                    result.config.authoringMode = "level3";
+                else if (legacy == "basic" || legacy == "creator" ||
+                         legacy == "beginner" ||
+                         legacy.find("basic") != std::string::npos ||
+                         legacy.find("beginner") != std::string::npos)
+                    result.config.authoringMode = "level1";
+                else
+                    result.config.authoringMode = "level2";
+            }
         }
         else if (arg == "--workflow-report-out")
         {
@@ -539,6 +578,12 @@ SagaConfigResult ParseSagaAppConfig(int argc, char* argv[])
             result.error = "Saga: package workflows moved to 'sagapack stage' and "
                 "'sagapack publish-check'";
             return result;
+        }
+        else if (!arg.empty() && arg[0] != '-' &&
+                 std::filesystem::path(arg).extension() == ".sagaproj" &&
+                 result.config.workflowProjectPath.empty())
+        {
+            result.config.workflowProjectPath = arg;
         }
         else
         {

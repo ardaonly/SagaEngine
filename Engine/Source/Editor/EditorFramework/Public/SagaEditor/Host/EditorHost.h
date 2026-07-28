@@ -26,12 +26,6 @@ class ShortcutManager;
 class UndoRedoStack;
 class SelectionManager;
 class ThemeRegistry;
-class PersonaRegistry;
-class PersonaActivator;
-class PersonaSettingsBinding;
-class EditorProfileRegistry;
-class EditorProfileActivator;
-class EditorProfileSettingsBinding;
 class IEditorSettingsStore;
 class ExtensionRegistry;
 class ExtensionHost;
@@ -41,6 +35,7 @@ class EditorCompositionSession;
 class EditorNotificationCenter;
 class EditorDocumentWorkspace;
 class ScriptAnalysisCoordinator;
+class AuthoringModeService;
 
 // ─── Host ─────────────────────────────────────────────────────────────────────
 
@@ -82,6 +77,7 @@ public:
 
     /// Transactional undo/redo stack shared across all editor actions.
     [[nodiscard]] UndoRedoStack&      GetUndoRedoStack()      noexcept;
+    [[nodiscard]] AuthoringModeService& GetAuthoringModeService() noexcept;
 
     // ─── Scene Services ───────────────────────────────────────────────────────
 
@@ -94,18 +90,6 @@ public:
 
     /// Registry of available editor themes — swap at runtime without restart.
     [[nodiscard]] ThemeRegistry&      GetThemeRegistry()      noexcept;
-
-    /// Registry of available editor personas — built-in plus user-authored.
-    [[nodiscard]] PersonaRegistry&    GetPersonaRegistry()    noexcept;
-
-    /// Applies the active persona to wired editor subsystems.
-    [[nodiscard]] PersonaActivator&   GetPersonaActivator()   noexcept;
-
-    /// Registry of available workflow profiles — shell-level editor modes.
-    [[nodiscard]] EditorProfileRegistry& GetEditorProfileRegistry() noexcept;
-
-    /// Applies the active workflow profile to shell-level sinks.
-    [[nodiscard]] EditorProfileActivator& GetEditorProfileActivator() noexcept;
 
     /// Private user settings backing editor preferences.
     [[nodiscard]] IEditorSettingsStore& GetSettingsStore()    noexcept;
@@ -162,16 +146,11 @@ private:
     std::unique_ptr<CommandPalette>    m_commandPalette;
     std::unique_ptr<ShortcutManager>   m_shortcutManager;
     std::unique_ptr<UndoRedoStack>     m_undoRedoStack;
+    std::unique_ptr<AuthoringModeService> m_authoringModeService;
     std::unique_ptr<SelectionManager>  m_selectionManager;
     std::unique_ptr<EditorDocumentWorkspace> m_documentWorkspace;
     std::unique_ptr<ScriptAnalysisCoordinator> m_scriptAnalysisCoordinator;
     std::unique_ptr<ThemeRegistry>     m_themeRegistry;
-    std::unique_ptr<PersonaRegistry>   m_personaRegistry;
-    std::unique_ptr<PersonaActivator>  m_personaActivator;
-    std::unique_ptr<PersonaSettingsBinding> m_personaSettingsBinding;
-    std::unique_ptr<EditorProfileRegistry> m_editorProfileRegistry;
-    std::unique_ptr<EditorProfileActivator> m_editorProfileActivator;
-    std::unique_ptr<EditorProfileSettingsBinding> m_editorProfileSettingsBinding;
     std::unique_ptr<IEditorSettingsStore> m_settingsStore;
     std::unique_ptr<IEditorEngineBridge> m_engineBridge;
     std::unique_ptr<IEditorDiagnosticsService> m_editorDiagnosticsService;

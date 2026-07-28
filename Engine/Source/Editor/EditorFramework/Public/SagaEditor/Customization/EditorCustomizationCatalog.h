@@ -4,9 +4,6 @@
 
 #pragma once
 
-#include "SagaEditor/Persona/UIPersona.h"
-#include "SagaEditor/Profile/EditorProfile.h"
-
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -28,8 +25,7 @@ struct EditorCustomizationStatus
 /// settings store and platform user config directory.
 struct EditorCustomizationSnapshot
 {
-    std::vector<EditorProfile> projectProfiles;
-    std::vector<UIPersona>     projectPersonas;
+    bool legacyProfileDataIgnored = true;
 };
 
 /// Editor-only customisation loader. Customisation remains limited to

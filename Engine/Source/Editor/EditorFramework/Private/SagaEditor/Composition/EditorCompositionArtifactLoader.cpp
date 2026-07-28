@@ -540,14 +540,14 @@ EditorCompositionArtifactLoadResult EditorCompositionArtifactLoader::LoadArtifac
             return workspace;
         });
 
-    artifact.editorModes = ParseDefinitionArray<EditorModeDefinition>(
+    artifact.editorModes = ParseDefinitionArray<EditorWorkspaceSessionDefinition>(
         *root,
         "editorModes",
         documentPath,
         result.diagnostics,
         [&](const Json& item, const std::string& pointer)
         {
-            EditorModeDefinition mode;
+            EditorWorkspaceSessionDefinition mode;
             mode.id = GetString(item, "id", documentPath, pointer, result.diagnostics);
             mode.displayName = GetString(item, "displayName", documentPath, pointer, result.diagnostics);
             mode.workspaceId = GetString(item, "workspaceId", documentPath, pointer, result.diagnostics);

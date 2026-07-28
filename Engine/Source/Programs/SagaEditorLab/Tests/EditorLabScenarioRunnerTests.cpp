@@ -7,7 +7,7 @@
 #include "SagaEditorLab/Scenario/DeterministicScenarioRuntimeAdapter.h"
 #include "SagaEditorLab/Scenario/EditorHostScenarioRuntimeAdapter.h"
 #include "SagaEditorLab/Scenario/EditorShellScenarioRuntimeAdapter.h"
-#include "SagaEditorLab/Scenario/ProfileSwitchScenario.h"
+#include "SagaEditorLab/Scenario/AuthoringModeScenario.h"
 #include "SagaEditorLab/Scenario/ScenarioDefinition.h"
 #include "SagaEditorLab/Scenario/ScenarioRunner.h"
 #include "SagaEditorLab/UI/ScenarioRunnerDockPanel.h"
@@ -275,17 +275,13 @@ void PopulateBuiltinScenarioState(FakeScenarioRuntimeAdapter& adapter)
 {
     adapter.state["editor.engine_bridge.state"] = "Ready";
     adapter.state["editor.customization.boundary"] = "editor_only";
-    adapter.state["profile.layout.diff.basic_to_advanced"] = "true";
-    adapter.state["profile.shortcuts.diff.basic_to_advanced"] = "true";
-    adapter.state["profile.panels.diff.basic_to_advanced"] = "true";
-    adapter.state["profile.layout.diff.advanced_to_standard"] = "true";
-    adapter.state["profile.tools.diff.advanced_to_standard"] = "true";
+    adapter.state["authoring.panels.diff.level1_to_level3"] = "true";
+    adapter.state["authoring.panels.diff.level3_to_level2"] = "true";
     adapter.state["editor.core.identity.stable"] = "true";
     adapter.state["editor.engine_bridge.identity.stable"] = "true";
-    adapter.state["editor.customization.builtin.available"] = "true";
+    adapter.state["editor.authoring.modes.available"] = "true";
     adapter.state["editor.customization.project.source"] = "builtin";
     adapter.state["editor.customization.user.source"] = "~/.config/Saga";
-    adapter.state["editor.customization.project.profiles.loaded"] = "true";
     adapter.state["editor.customization.user.override.applied"] = "true";
     adapter.state["editor.customization.project.source.unchanged"] = "true";
 }
@@ -298,7 +294,7 @@ TEST(EditorLabScenarioRunnerTests, ValidScenarioExecutesActionsAssertionsAndSnap
     adapter.state["editor.ready"] = "true";
 
     const ScenarioDefinition scenario = MakeScenario({
-        ScenarioStep::MakeAction("saga.command.profile.basic", "fast"),
+        ScenarioStep::MakeAction("saga.command.authoring.level1", "fast"),
         ScenarioStep::MakeAssertion("editor.ready", "true"),
         ScenarioStep::MakeSnapshot("after-basic"),
     });
@@ -313,7 +309,7 @@ TEST(EditorLabScenarioRunnerTests, ValidScenarioExecutesActionsAssertionsAndSnap
     EXPECT_EQ(result.snapshots[0].label, "after-basic");
     EXPECT_EQ(result.snapshots[0].sha256, "sha-after-basic");
     EXPECT_EQ(result.snapshots[0].stepIndex, 2);
-    EXPECT_EQ(adapter.operations[0], "action:saga.command.profile.basic:fast");
+    EXPECT_EQ(adapter.operations[0], "action:saga.command.authoring.level1:fast");
     EXPECT_EQ(adapter.operations[1], "read:editor.ready");
     EXPECT_EQ(adapter.operations[2], "snapshot:after-basic");
 }
@@ -452,15 +448,15 @@ TEST(EditorLabScenarioRunnerTests, ScenarioResultCountsWarningsAndErrors)
                  "pass_with_warnings");
 }
 
-TEST(EditorLabScenarioRunnerTests, BuiltinProfileScenarioRunsThroughFakeAdapter)
+TEST(EditorLabScenarioRunnerTests, BuiltinAuthoringModeScenarioRunsThroughFakeAdapter)
 {
     FakeScenarioRuntimeAdapter adapter;
     PopulateBuiltinScenarioState(adapter);
 
     ScenarioDefinition scenario;
-    scenario.id = "saga.lab.profile_switch";
-    scenario.name = "Profile switch validation";
-    scenario.steps = MakeProfileSwitchValidationScenario();
+    scenario.id = "saga.lab.authoring_mode";
+    scenario.name = "Authoring mode validation";
+    scenario.steps = MakeAuthoringModeValidationScenario();
 
     const ScenarioResult result = ScenarioRunner{}.Run(scenario, adapter);
 
@@ -493,8 +489,8 @@ TEST(EditorLabScenarioRunnerTests, BuiltinScenarioDefinitionsPopulatePanelList)
     const auto items = viewModel.GetScenarioItems();
 
     ASSERT_EQ(items.size(), 2u);
-    EXPECT_EQ(items[0].id, "saga.lab.profile_switch");
-    EXPECT_EQ(items[0].name, "Profile Switch Validation");
+    EXPECT_EQ(items[0].id, "saga.lab.authoring_mode");
+    EXPECT_EQ(items[0].name, "Authoring Mode Validation");
     EXPECT_GT(items[0].stepCount, 0u);
     EXPECT_EQ(items[1].id, "saga.lab.customization_precedence");
     EXPECT_EQ(items[1].name, "Customization Precedence");
@@ -518,7 +514,7 @@ TEST(EditorLabScenarioRunnerTests, RunningBuiltinScenarioThroughViewModelSucceed
 {
     ScenarioRunnerPanelViewModel viewModel;
 
-    ASSERT_TRUE(viewModel.SelectScenario("saga.lab.profile_switch"));
+    ASSERT_TRUE(viewModel.SelectScenario("saga.lab.authoring_mode"));
     ASSERT_TRUE(viewModel.RunSelectedScenario());
     const ScenarioRunnerResultSummary summary = viewModel.GetResultSummary();
 
@@ -645,8 +641,8 @@ TEST(EditorLabScenarioRunnerTests, ViewModelSnapshotSummaryPreservesLabels)
 
     ASSERT_EQ(snapshots.size(), 3u);
     EXPECT_EQ(snapshots[0].label, "customization.builtin");
-    EXPECT_EQ(snapshots[1].label, "customization.project.basic");
-    EXPECT_EQ(snapshots[2].label, "customization.project.advanced");
+    EXPECT_EQ(snapshots[1].label, "customization.authoring.level1");
+    EXPECT_EQ(snapshots[2].label, "customization.authoring.level3");
     EXPECT_GE(snapshots[0].stepIndex, 0);
     EXPECT_TRUE(snapshots[0].sha256.empty());
 }
@@ -656,9 +652,9 @@ TEST(EditorLabScenarioRunnerTests, DeterministicAdapterRunsBuiltinsWithoutEditor
     DeterministicScenarioRuntimeAdapter adapter;
 
     ScenarioDefinition scenario;
-    scenario.id = "saga.lab.profile_switch";
-    scenario.name = "Profile Switch Validation";
-    scenario.steps = MakeProfileSwitchValidationScenario();
+    scenario.id = "saga.lab.authoring_mode";
+    scenario.name = "Authoring Mode Validation";
+    scenario.steps = MakeAuthoringModeValidationScenario();
 
     const ScenarioResult result = ScenarioRunner{}.Run(scenario, adapter);
 
@@ -711,11 +707,10 @@ TEST(EditorLabScenarioRunnerTests, EditorHostAdapterReadsPublicEditorState)
     EXPECT_EQ(adapter.ReadState("editor.engine_bridge.state").value, "Ready");
     EXPECT_EQ(adapter.ReadState("editor.customization.boundary").value,
               "editor_only");
-    EXPECT_EQ(adapter.ReadState("editor.customization.builtin.available").value,
+    EXPECT_EQ(adapter.ReadState("editor.authoring.modes.available").value,
               "true");
-    EXPECT_EQ(adapter.ReadState("profile.layout.diff.basic_to_advanced").value,
-              "true");
-    EXPECT_EQ(adapter.ReadState("profile.shortcuts.diff.basic_to_advanced").value,
+    EXPECT_EQ(adapter.ReadState(
+                  "authoring.panels.diff.level1_to_level3").value,
               "true");
     EXPECT_EQ(adapter.ReadState("editor.selection.count").value, "2");
     EXPECT_EQ(adapter.ReadState("editor.selection.primary").value, "1001");
@@ -758,7 +753,6 @@ TEST(EditorLabScenarioRunnerTests, EditorShellAdapterOpensRegisteredPanel)
     SagaEditor::EditorShellConfig config;
     config.registerDefaultPanels = false;
     config.showOnInit = false;
-    config.applyActivePersona = false;
     ASSERT_TRUE(shell.Init(host, std::move(window), config));
     shell.RegisterPanel(
         std::make_unique<FakePanel>("saga.panel.editorlab.test", "EditorLab Test"),
@@ -789,7 +783,6 @@ TEST(EditorLabScenarioRunnerTests, EditorShellAdapterClosesRegisteredPanel)
     SagaEditor::EditorShellConfig config;
     config.registerDefaultPanels = false;
     config.showOnInit = false;
-    config.applyActivePersona = false;
     ASSERT_TRUE(shell.Init(host, std::move(window), config));
     shell.RegisterPanel(
         std::make_unique<FakePanel>("saga.panel.editorlab.test", "EditorLab Test"),
@@ -818,7 +811,6 @@ TEST(EditorLabScenarioRunnerTests, EditorShellAdapterRejectsUnknownPanel)
     SagaEditor::EditorShellConfig config;
     config.registerDefaultPanels = false;
     config.showOnInit = false;
-    config.applyActivePersona = false;
     ASSERT_TRUE(shell.Init(host, std::make_unique<FakeMainWindow>(), config));
 
     EditorShellScenarioRuntimeAdapter adapter(shell);
@@ -843,7 +835,6 @@ TEST(EditorLabScenarioRunnerTests, EditorShellAdapterDelegatesHostStateReads)
     SagaEditor::EditorShellConfig config;
     config.registerDefaultPanels = false;
     config.showOnInit = false;
-    config.applyActivePersona = false;
     ASSERT_TRUE(shell.Init(host, std::make_unique<FakeMainWindow>(), config));
 
     EditorShellScenarioRuntimeAdapter adapter(shell);
@@ -864,7 +855,6 @@ TEST(EditorLabScenarioRunnerTests, ScenarioRunnerDockPanelHasStableIdentity)
     SagaEditor::EditorShellConfig config;
     config.registerDefaultPanels = false;
     config.showOnInit = false;
-    config.applyActivePersona = false;
     ASSERT_TRUE(shell.Init(host, std::make_unique<FakeMainWindow>(), config));
 
     ScenarioRunnerDockPanel panel(shell);

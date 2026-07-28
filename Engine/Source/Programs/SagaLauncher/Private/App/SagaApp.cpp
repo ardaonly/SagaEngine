@@ -6,7 +6,7 @@
 
 #include "ProductIntegration/SagaLocalCollaborationMetadataReports.h"
 #include "ProductIntegration/SagaLocalWorkspaceTransactionReport.h"
-#include "Launcher/SagaLauncherWindow.h"
+#include "Launcher/SagaMainWindow.h"
 #include "Reports/SagaProductWorkflowSmokeReport.h"
 #include "Workflows/SagaScriptGate.h"
 
@@ -138,8 +138,8 @@ int SagaApp::Run(int argc,
     ConfigureBundledRuntimeEnvironment(config);
 
     QApplication qtApp(argc, argv);
-    SagaLauncherWindow window(
-        config.executablePath, config.launcherDistributionReportPath);
+    SagaMainWindow window(config.executablePath, config.workflowProjectPath,
+                          config.authoringMode);
     window.show();
     return qtApp.exec();
 }
