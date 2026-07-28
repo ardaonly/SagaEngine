@@ -159,6 +159,10 @@ bool EditorHost::Init(std::unique_ptr<IEditorSettingsStore> settingsStore,
     m_extensionHost     = std::make_unique<ExtensionHost>(*m_extensionRegistry, *this);
 
     m_themeRegistry->RegisterBuiltinThemes();
+    const std::string preferredTheme = m_settingsStore->GetString(
+        AuthoringModeService::ThemeSettingKey, {});
+    if (!preferredTheme.empty())
+        (void)m_themeRegistry->Apply(preferredTheme);
     m_workspaceDefinition = std::move(workspace);
     (void)m_customizationCatalog->Init(m_workspaceDefinition->root);
     if (!m_engineBridge->Init())
