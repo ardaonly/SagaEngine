@@ -44,24 +44,10 @@ ALLOWED_TOP_LEVEL_DIRECTORIES = frozenset(
 )
 APPROVED_DOCUMENTS = frozenset(
     {
-        "SagaWiki/assets/sandbox-render-01.png",
-        "SagaWiki/assets/sandbox-render-02.png",
         "SagaWiki/assets/style.css",
+        "SagaWiki/assets/wiki.js",
         "SagaWiki/index.html",
-        "SagaWiki/pages/architecture.html",
-        "SagaWiki/pages/editor.html",
-        "SagaWiki/pages/getting-started.html",
         "SagaWiki/pages/licensing.html",
-        "SagaWiki/pages/module-boundaries.html",
-        "SagaWiki/pages/not-implemented.html",
-        "SagaWiki/pages/product.html",
-        "SagaWiki/pages/repository-layout.html",
-        "SagaWiki/pages/runtime.html",
-        "SagaWiki/pages/scripting.html",
-        "SagaWiki/pages/server-authority.html",
-        "SagaWiki/pages/source-of-truth.html",
-        "SagaWiki/pages/testing.html",
-        "SagaWiki/pages/toolchain.html",
     }
 )
 REQUIRED_LICENSE_PATHS = frozenset(

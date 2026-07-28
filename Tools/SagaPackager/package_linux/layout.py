@@ -28,16 +28,9 @@ test -x bin/sagascript
 test -d samples/StarterArena
 test -f README.md
 test -f SagaWiki/index.html
-test -f SagaWiki/pages/getting-started.html
-test -f SagaWiki/pages/product.html
-test -f SagaWiki/pages/not-implemented.html
-test -f SagaWiki/pages/editor.html
-test -f SagaWiki/pages/scripting.html
-test -f SagaWiki/pages/runtime.html
-test -f SagaWiki/pages/server-authority.html
-test -f SagaWiki/pages/testing.html
-test -f SagaWiki/pages/toolchain.html
 test -f SagaWiki/assets/style.css
+test -f SagaWiki/assets/wiki.js
+test -f SagaWiki/pages/licensing.html
 test -d licenses
 test -f licenses/LICENSE-SAGA.md
 test -f licenses/THIRD_PARTY_NOTICES.md
@@ -113,7 +106,19 @@ def stage_layout(
 
     copy_tree(resolved_input(available_inputs, "StarterArena sample"), output / "samples" / "StarterArena", staged_inputs, "StarterArena sample")
     copy_file(resolved_input(available_inputs, "root README"), output / "README.md", staged_inputs, "root README top-level")
-    copy_tree(resolved_input(available_inputs, "SagaWiki"), output / "SagaWiki", staged_inputs, "SagaWiki")
+    wiki = resolved_input(available_inputs, "SagaWiki")
+    for relative in [
+        Path("index.html"),
+        Path("assets/style.css"),
+        Path("assets/wiki.js"),
+        Path("pages/licensing.html"),
+    ]:
+        copy_file(
+            wiki / relative,
+            output / "SagaWiki" / relative,
+            staged_inputs,
+            f"SagaWiki {relative.as_posix()}",
+        )
     copy_tree(resolved_input(available_inputs, "licenses"), output / "licenses", staged_inputs, "licenses")
     copy_file(
         resolved_input(available_inputs, "Saga license"),
@@ -284,19 +289,13 @@ def staged_layout_missing(output: Path) -> list[str]:
         "licenses/LICENSE-SAGA.md",
         "licenses/THIRD_PARTY_NOTICES.md",
         "SagaWiki/index.html",
-        "SagaWiki/pages/getting-started.html",
-        "SagaWiki/pages/product.html",
-        "SagaWiki/pages/not-implemented.html",
-        "SagaWiki/pages/editor.html",
-        "SagaWiki/pages/scripting.html",
-        "SagaWiki/pages/runtime.html",
-        "SagaWiki/pages/server-authority.html",
-        "SagaWiki/pages/testing.html",
-        "SagaWiki/pages/toolchain.html",
         "SagaWiki/assets/style.css",
+        "SagaWiki/assets/wiki.js",
+        "SagaWiki/pages/licensing.html",
     ]
     required_dirs = [
         "samples/StarterArena",
+        "SagaWiki/assets",
         "SagaWiki/pages",
         "licenses",
     ]
