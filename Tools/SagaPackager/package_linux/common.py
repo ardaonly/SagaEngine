@@ -34,6 +34,7 @@ from saga_linux_distribution_policy import (
     application_names,
     included_applications,
     included_public_tools,
+    managed_runtime_metadata,
     public_tool_names,
     staged_file_inventory,
     validate_layout,

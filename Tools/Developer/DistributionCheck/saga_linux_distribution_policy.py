@@ -21,26 +21,27 @@ PRODUCT_APPLICATIONS = (
 PUBLIC_TOOLS = (
     {
         "name": "sagapack",
-        "wrapperPaths": ["bin/sagapack", "tools/sagapack"],
-        "payloadRoot": "tools/.saga-tools/sagapack",
+        "wrapperPaths": ["bin/sagapack"],
+        "payloadRoot": "tools/SagaPackager",
     },
     {
         "name": "sagaproject",
-        "wrapperPaths": ["bin/sagaproject", "tools/sagaproject"],
-        "payloadRoot": "tools/.saga-tools/sagaproject",
+        "wrapperPaths": ["bin/sagaproject"],
+        "payloadRoot": "tools/SagaProjectKit",
     },
     {
         "name": "sagascript",
-        "wrapperPaths": ["bin/sagascript", "tools/sagascript"],
-        "payloadRoot": "tools/.saga-tools/sagascript",
+        "wrapperPaths": ["bin/sagascript"],
+        "payloadRoot": "tools/SagaScript",
     },
 )
 
 ALLOWED_ROOT_FILES = frozenset(
-    {"BUILD_INFO.json", "KNOWN_LIMITATIONS.md", "README.md", "VERIFY.txt", "VERSION"}
+    {"BUILD_INFO.json", "KNOWN_LIMITATIONS.md", "README.md", "VERIFY.txt",
+     "VERSION", "managed-tool-runtime.json"}
 )
 ALLOWED_TOP_LEVEL_DIRECTORIES = frozenset(
-    {"bin", "Engine", "SagaWiki", "licenses", "samples", "tools"}
+    {"bin", "Engine", "SagaWiki", "licenses", "runtime", "samples", "tools"}
 )
 APPROVED_DOCUMENTS = frozenset(
     {
@@ -59,16 +60,34 @@ REQUIRED_LICENSE_PATHS = frozenset(
 ALLOWED_EXECUTABLE_PATHS = frozenset(
     {item["path"] for item in PRODUCT_APPLICATIONS}
     | {path for item in PUBLIC_TOOLS for path in item["wrapperPaths"]}
-    | {f"{item['payloadRoot']}/{item['name']}" for item in PUBLIC_TOOLS}
+    | {"runtime/dotnet/dotnet"}
 )
 ALLOWED_TREE_PREFIXES = tuple(
     sorted(
-        ["Engine/Distribution/", "licenses/", "samples/StarterArena/"]
+        ["Engine/Distribution/", "licenses/", "runtime/dotnet/",
+         "samples/StarterArena/"]
         + [f"{item['payloadRoot']}/" for item in PUBLIC_TOOLS]
     )
 )
 REQUIRED_PRODUCT_RESOURCE_PATHS = frozenset(
-    {"Engine/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.dll"}
+    {
+        "Engine/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.dll",
+        "managed-tool-runtime.json",
+        "runtime/dotnet/dotnet",
+        "runtime/dotnet/LICENSE.txt",
+        "runtime/dotnet/ThirdPartyNotices.txt",
+        "runtime/dotnet/host/fxr/10.0.10/libhostfxr.so",
+        "runtime/dotnet/shared/Microsoft.NETCore.App/10.0.10/libcoreclr.so",
+        "tools/SagaProjectKit/sagaproject.dll",
+        "tools/SagaProjectKit/sagaproject.runtimeconfig.json",
+        "tools/SagaProjectKit/sagaproject.deps.json",
+        "tools/SagaScript/sagascript.dll",
+        "tools/SagaScript/sagascript.runtimeconfig.json",
+        "tools/SagaScript/sagascript.deps.json",
+        "tools/SagaPackager/sagapack.dll",
+        "tools/SagaPackager/sagapack.runtimeconfig.json",
+        "tools/SagaPackager/sagapack.deps.json",
+    }
 )
 
 FORBIDDEN_EXECUTABLE_NAMES = frozenset(
@@ -103,13 +122,18 @@ EXCLUDED_RETIRED_TOOLS = (
     {"name": "SagaServer", "reason": "retired server executable; SagaServerLib remains legal"},
 )
 EXCLUDED_SOURCE_SURFACES = ()
+FORBIDDEN_MANAGED_DIRECTORY_PARTS = frozenset(
+    {"sdk", "sdk-manifests", "packs", "templates", "metadata", "Microsoft.AspNetCore.App"}
+)
+FORBIDDEN_MANAGED_SOURCE_SUFFIXES = frozenset(
+    {".cs", ".csproj", ".fs", ".fsproj", ".vb", ".vbproj"}
+)
 
 LIMITATIONS = (
     "The packager is Linux-only and must be run from the Saga repository root.",
     "Archive generation requires tar with Zstandard support and zstd; checksum generation uses SHA-256.",
     "The Python archive does not stage native shared-library dependency closure or claim clean-machine portability.",
-    "Packaged public tools are framework-dependent and require a compatible .NET runtime; publishing requires a .NET 10 SDK.",
-    "Nix-store and nix-shell tool discovery are environment-specific fallbacks.",
+    "Managed tools run through Saga's pinned private Microsoft.NETCore.App 10.0.10 runtime.",
     "Saga is presence-checked but no GUI is launched by headless archive smoke.",
     "SagaRuntime and editor workflow evidence remains bounded by the current smoke report.",
     "The package is not signed and does not include an installer or updater.",
@@ -133,6 +157,23 @@ def included_applications() -> list[dict[str, str]]:
 
 def included_public_tools() -> list[dict[str, Any]]:
     return sorted((dict(item) for item in PUBLIC_TOOLS), key=lambda item: item["name"])
+
+
+def managed_runtime_metadata() -> dict[str, Any]:
+    return {
+        "framework": "Microsoft.NETCore.App",
+        "targetFramework": "net10.0",
+        "minimumRuntimeVersion": "10.0.0",
+        "runtimeVersion": "10.0.10",
+        "rid": "linux-x64",
+        "manifest": "managed-tool-runtime.json",
+        "host": "runtime/dotnet/dotnet",
+        "tools": [
+            {"id": "ProjectKit", "artifact": "tools/SagaProjectKit/sagaproject.dll"},
+            {"id": "Script", "artifact": "tools/SagaScript/sagascript.dll"},
+            {"id": "Packager", "artifact": "tools/SagaPackager/sagapack.dll"},
+        ],
+    }
 
 
 def _normal_rel(path: str) -> str:
@@ -216,6 +257,11 @@ def validate_layout(root: Path) -> list[str]:
                 errors.append(f"unapproved package directory: {rel}")
             if _looks_like_test_executable(rel):
                 errors.append(f"test payload directory is forbidden in package: {rel}")
+            if rel.startswith("runtime/dotnet/") and any(
+                part in FORBIDDEN_MANAGED_DIRECTORY_PARTS
+                for part in PurePosixPath(rel).parts
+            ):
+                errors.append(f"SDK or unrelated managed runtime directory is forbidden: {rel}")
             for surface in EXCLUDED_SOURCE_SURFACES:
                 if rel == surface["path"] or rel.startswith(f"{surface['path']}/"):
                     errors.append(f"excluded source surface in package: {rel}")
@@ -230,6 +276,14 @@ def validate_layout(root: Path) -> list[str]:
             errors.append(f"test executable is forbidden in package: {rel}")
         if executable and rel not in ALLOWED_EXECUTABLE_PATHS:
             errors.append(f"unrecognized executable-bit file: {rel}")
+        if rel.startswith("tools/") and path.suffix.casefold() in FORBIDDEN_MANAGED_SOURCE_SUFFIXES:
+            errors.append(f"managed tool source is forbidden in package: {rel}")
+        if rel in {
+            "tools/SagaProjectKit/sagaproject",
+            "tools/SagaScript/sagascript",
+            "tools/SagaPackager/sagapack",
+        }:
+            errors.append(f"managed tool apphost is forbidden in package: {rel}")
         for surface in EXCLUDED_SOURCE_SURFACES:
             surface_parts = tuple(PurePosixPath(str(surface["path"])).parts)
             rel_parts = tuple(PurePosixPath(rel).parts)
@@ -264,12 +318,24 @@ def validate_archive_entries(entries: Iterable[str], root_name: str = PACKAGE_NA
                 errors.append(f"unapproved archive directory: {rel}")
             if _looks_like_test_executable(rel):
                 errors.append(f"test payload directory is forbidden in archive: {rel}")
+            if rel.startswith("runtime/dotnet/") and any(
+                part in FORBIDDEN_MANAGED_DIRECTORY_PARTS for part in pure.parts
+            ):
+                errors.append(f"SDK or unrelated managed runtime directory is forbidden: {rel}")
             continue
         seen_file = True
         if not is_allowed_file_path(rel):
             errors.append(f"unapproved archive file: {rel}")
         if _is_forbidden_name(pure.name):
             errors.append(f"forbidden executable basename in archive: {rel}")
+        if rel.startswith("tools/") and pure.suffix.casefold() in FORBIDDEN_MANAGED_SOURCE_SUFFIXES:
+            errors.append(f"managed tool source is forbidden in archive: {rel}")
+        if rel in {
+            "tools/SagaProjectKit/sagaproject",
+            "tools/SagaScript/sagascript",
+            "tools/SagaPackager/sagapack",
+        }:
+            errors.append(f"managed tool apphost is forbidden in archive: {rel}")
         for surface in EXCLUDED_SOURCE_SURFACES:
             surface_parts = tuple(PurePosixPath(str(surface["path"])).parts)
             rel_parts = tuple(pure.parts)
@@ -302,6 +368,8 @@ def validate_metadata_sets(data: dict[str, Any]) -> list[str]:
         errors.append("excludedRetiredTools must equal the canonical exclusion policy")
     if data.get("excludedSourceSurfaces") != list(EXCLUDED_SOURCE_SURFACES):
         errors.append("excludedSourceSurfaces must equal the canonical exclusion policy")
+    if data.get("managedToolRuntime") != managed_runtime_metadata():
+        errors.append("managedToolRuntime must equal the canonical private-runtime policy")
     return errors
 
 

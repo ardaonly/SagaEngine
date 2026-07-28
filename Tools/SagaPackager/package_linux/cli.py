@@ -300,6 +300,7 @@ def main() -> int:
         "stagedFiles": staged_files,
         "includedApplications": included_applications(),
         "includedPublicTools": included_public_tools(),
+        "managedToolRuntime": managed_runtime_metadata(),
         "includedTargets": application_names(),
         "publicTools": public_tool_names(),
         "excludedDevTools": list(EXCLUDED_DEV_TOOLS),

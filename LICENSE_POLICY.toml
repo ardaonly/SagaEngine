@@ -615,6 +615,7 @@ paths = [
   ".gitmodules",
   "CMakeLists.txt",
   "CMakePresets.json",
+  "Config/**",
   "VERSION",
   "conanfile.py",
   "export.sh",
@@ -1197,7 +1198,12 @@ name = "Saga"
 source_domains = ["saga-editor"]
 public_dependencies = []
 private_dependencies = ["SagaProductLib"]
-runtime_dependencies = ["Qt"]
+runtime_dependencies = [
+  "Qt",
+  "Microsoft .NET Runtime 10.0.10",
+  "Microsoft.CodeAnalysis.Common 4.11.0",
+  "Microsoft.CodeAnalysis.CSharp 4.11.0",
+]
 target_license_expression = "MPL-2.0"
 distribution = "installed-program"
 review = "configured-graph-reviewed"
