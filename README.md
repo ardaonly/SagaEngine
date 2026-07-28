@@ -55,6 +55,11 @@ The intentionally small public CLI surface is:
 
 SagaTools remains the stable dispatcher. Developer checks below `Tools/Developer` are internal unless SagaWiki explicitly promotes them.
 
+Built and packaged Saga runs all three managed tools through one pinned private
+`Microsoft.NETCore.App` runtime. Installed Saga does not require a global
+`dotnet` or .NET SDK; the wrappers resolve the private host and tool DLLs
+relative to the Saga layout.
+
 ## Licensing
 
 [LICENSE](LICENSE) is the primary repository license. [LICENSES/THIRD_PARTY_NOTICES.md](LICENSES/THIRD_PARTY_NOTICES.md) is the authoritative third-party notice. Additional SPDX texts live under `LICENSES/`; machine-checked policy lives in `LICENSE_POLICY.toml`, `LICENSE_TEXT_SOURCES.toml`, `.reuse/dep5`, and generated checksums.

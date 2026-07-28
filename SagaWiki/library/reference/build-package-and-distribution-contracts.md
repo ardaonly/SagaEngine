@@ -62,7 +62,8 @@ The source/tooling dependency path is intentionally narrower than distribution s
 The staged candidate has one controlled `Saga/` root and an exact whitelist. Current policy can stage items such as:
 
 - `bin/` program/tool launchers and selected binaries;
-- published application files needed by `sagaproject`, `sagascript`, and `sagapack`;
+- one private `Microsoft.NETCore.App` 10.0.10 `linux-x64` runtime and the
+  DLL/runtime metadata needed by `sagaproject`, `sagascript`, and `sagapack`;
 - selected sample/project material required by the declared workflow;
 - current documentation/readme/verification/known-limitation files;
 - `VERSION` and package metadata;
@@ -74,9 +75,12 @@ Tests, source trees, build caches, local audit folders, private state, and arbit
 
 ## Packaged tools
 
-Distribution launchers for `sagaproject`, `sagascript`, and `sagapack` target their staged published application files. They are different from repository development wrappers. Tests invoke the candidate launchers from the unpacked tree and do not accidentally fall back to the source checkout.
-
-The current tools are framework-dependent .NET applications. A compatible runtime remains an external requirement unless a future package changes the publication model. Staging the application files does not claim a self-contained runtime.
+Distribution launchers for `sagaproject`, `sagascript`, and `sagapack` resolve
+the host at `runtime/dotnet/dotnet` and their DLLs below `tools/`, relative to
+the unpacked Saga root. They never call back into the source checkout or fall
+back to a global host. All three framework-dependent applications share the
+same packaged runtime, so installed Saga has no external .NET runtime or SDK
+requirement.
 
 Wrapper generation fixes relative-path resolution against the package root, quotes arguments, preserves exit codes, and fails clearly when the staged application/runtime is missing. It must not call back into the source repository.
 

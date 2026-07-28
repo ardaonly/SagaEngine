@@ -43,7 +43,20 @@ Publishing is a gated operation over a known package and evidence set. Historica
 
 The current Linux path separates four results: a staged distribution layout, package preflight, archive/checksum generation, and smoke verification from an unpacked archive. Preflight records required, available, and missing inputs; it is not the package itself. The smoke verifies checksum, archive root/layout, required executable bits, limited help commands, and named sample/tool workflows. Each stage records limitations, and a successful checksum proves integrity of those bytes—not runtime, editor, server, or release readiness.
 
-The staged tool surface contains launchers for `sagaproject`, `sagascript`, and `sagapack` plus their published application files. These tools are framework-dependent .NET applications, so a compatible runtime remains an external requirement unless packaging policy changes. Developer-tree wrappers and staged distribution launchers are different artifacts and should not be tested as if they were interchangeable.
+The staged tool surface contains launchers for `sagaproject`, `sagascript`, and
+`sagapack`, their published DLL/runtime metadata, and one Saga-owned
+`Microsoft.NETCore.App` 10.0.10 runtime under `runtime/dotnet`. CMake acquires
+the pinned `linux-x64` runtime archive only while preparing the build/package
+stage and verifies its SHA-512 before traversal-safe extraction. Product
+execution performs no download and requires no machine-global .NET installation.
+Python packaging copies this CMake-owned stage instead of publishing or
+discovering tools independently.
+
+Developer-tree and distribution wrappers both launch the private host plus the
+tool DLL with multilevel lookup disabled. Installed execution ignores PATH,
+`SAGA_DOTNET`, and conflicting `DOTNET_ROOT` values. SDK, ASP.NET, source,
+managed apphosts, and unrelated executable payloads are forbidden from the
+distribution.
 
 ## Coding and repository hygiene
 
