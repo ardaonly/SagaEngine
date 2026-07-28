@@ -18,7 +18,6 @@ test -f VERSION
 test -f KNOWN_LIMITATIONS.md
 python3 -m json.tool BUILD_INFO.json
 test -x bin/Saga
-test -x bin/SagaEditor
 test -x bin/SagaRuntime
 test -x tools/sagaproject
 test -x tools/sagapack
@@ -72,7 +71,7 @@ This staged layout is not a final distribution.
 - No Visual Blocks editor UI is claimed.
 - No enterprise collaboration is claimed.
 - No cloud workspace is claimed.
-- Passing `scripts/package-linux-saga` still does not establish package or release readiness.
+- Passing `scripts/package` still does not establish package or release readiness.
 - The Python archive does not stage native shared-library dependency closure and is not a clean-machine portability claim.
 - No dedicated-server executable is included.
 - Runtime, editor, and tool workflows are proven only where the current smoke report records a passing command.
@@ -98,7 +97,6 @@ def stage_layout(
 
     binaries = [
         ("Saga product shell", "Saga"),
-        ("SagaEditor shell", "SagaEditor"),
         ("SagaRuntime executable", "SagaRuntime"),
     ]
     for label, name in binaries:
@@ -138,7 +136,7 @@ def stage_layout(
         {
             "label": "staged VERIFY.txt",
             "kind": "generated-metadata",
-            "source": "scripts/package-linux-saga",
+            "source": "scripts/package",
             "destination": path_text(output / "VERIFY.txt"),
         }
     )
@@ -147,7 +145,7 @@ def stage_layout(
         {
             "label": "staged known limitations",
             "kind": "generated-metadata",
-            "source": "scripts/package-linux-saga",
+            "source": "scripts/package",
             "destination": path_text(output / "KNOWN_LIMITATIONS.md"),
         }
     )
@@ -156,7 +154,7 @@ def stage_layout(
         {
             "label": "staged BUILD_INFO.json",
             "kind": "generated-metadata",
-            "source": "scripts/package-linux-saga",
+            "source": "scripts/package",
             "destination": path_text(output / "BUILD_INFO.json"),
         }
     )
@@ -201,7 +199,7 @@ def stage_layout(
             "candidateReport": "build/reports/linux_distributable_candidate_report.json",
             "contractReport": "build/reports/linux_distribution_contract_report.json",
         },
-        "tool": "package-linux-saga",
+        "tool": "scripts/package",
         "status": "layout-staged-for-archive",
         "verified": False,
         "archiveTarget": path_text(archive_path_for(output)),
@@ -276,7 +274,6 @@ def staged_layout_missing(output: Path) -> list[str]:
         "BUILD_INFO.json",
         "README.md",
         "bin/Saga",
-        "bin/SagaEditor",
         "bin/SagaRuntime",
         "bin/sagaproject",
         "bin/sagapack",
@@ -311,7 +308,6 @@ def staged_layout_missing(output: Path) -> list[str]:
 
     executable_rels = {
         "bin/Saga",
-        "bin/SagaEditor",
         "bin/SagaRuntime",
         "bin/sagaproject",
         "bin/sagapack",
@@ -332,4 +328,3 @@ def staged_layout_missing(output: Path) -> list[str]:
         if not path.is_dir():
             missing_entries.append(path_text(path))
     return missing_entries
-

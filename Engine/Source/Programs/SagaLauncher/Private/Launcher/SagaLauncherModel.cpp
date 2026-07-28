@@ -14,8 +14,6 @@ const char* ToString(SagaLauncherActionId id) noexcept
         return "open-project";
     case SagaLauncherActionId::ValidateProject:
         return "validate-project";
-    case SagaLauncherActionId::OpenEditor:
-        return "open-editor";
     case SagaLauncherActionId::RefreshReports:
         return "refresh-reports";
     case SagaLauncherActionId::ViewSagaScriptEvidence:
@@ -104,8 +102,6 @@ const char* ToString(SagaLauncherTargetKind value) noexcept
 {
     switch (value)
     {
-    case SagaLauncherTargetKind::EditorTarget:
-        return "editor";
     case SagaLauncherTargetKind::SagascriptEvidenceTarget:
         return "sagascript-evidence";
     case SagaLauncherTargetKind::VisualBlocksEvidenceTarget:
@@ -128,7 +124,6 @@ std::optional<SagaLauncherActionId> ParseLauncherActionId(const std::string& tok
 {
     for (const auto id : {SagaLauncherActionId::OpenProject,
                           SagaLauncherActionId::ValidateProject,
-                          SagaLauncherActionId::OpenEditor,
                           SagaLauncherActionId::RefreshReports,
                           SagaLauncherActionId::ViewSagaScriptEvidence,
                           SagaLauncherActionId::ViewVisualBlocksEvidence,

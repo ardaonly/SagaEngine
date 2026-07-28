@@ -40,7 +40,7 @@ struct ResolvedEditorCompositionSnapshot
     std::vector<ResolvedToolbarDefinition> toolbars;
     std::vector<ShortcutBindingDefinition> shortcuts;
     std::vector<WorkspaceProfileDefinition> workspaces;
-    std::vector<EditorModeDefinition> editorModes;
+    std::vector<EditorWorkspaceSessionDefinition> editorModes;
     std::vector<EditorCompositionDiagnostic> diagnostics;
     bool isUsable = false;
 };

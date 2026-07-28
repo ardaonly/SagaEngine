@@ -189,7 +189,7 @@ void ValidateArtifactReferences(
         }
     }
 
-    for (const EditorModeDefinition& mode : artifact.editorModes)
+    for (const EditorWorkspaceSessionDefinition& mode : artifact.editorModes)
     {
         if (!HasDefinition(workspaces, mode.workspaceId))
         {

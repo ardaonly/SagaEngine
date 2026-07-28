@@ -24,11 +24,11 @@ public:
         UndoRedoStack& journal, std::string text) = 0;
 };
 
-class ScriptingPanel final : public IPanel
+class CodeBoxPanel final : public IPanel
 {
 public:
-    ScriptingPanel();
-    ~ScriptingPanel() override;
+    CodeBoxPanel();
+    ~CodeBoxPanel() override;
     [[nodiscard]] PanelId GetPanelId() const override;
     [[nodiscard]] std::string GetTitle() const override;
     [[nodiscard]] QWidget* Widget() const noexcept override;

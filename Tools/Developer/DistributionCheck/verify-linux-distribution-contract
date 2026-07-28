@@ -61,7 +61,6 @@ CURRENT_REQUIRED_FILES = [
     "KNOWN_LIMITATIONS.md",
     "BUILD_INFO.json",
     "bin/Saga",
-    "bin/SagaEditor",
     "bin/SagaRuntime",
     "bin/sagaproject",
     "bin/sagapack",
@@ -89,7 +88,6 @@ CURRENT_REQUIRED_DIRS = [
 
 EXECUTABLE_FILES = {
     "bin/Saga",
-    "bin/SagaEditor",
     "bin/SagaRuntime",
     "bin/sagaproject",
     "bin/sagapack",

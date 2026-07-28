@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #include "SagaEditor/Commands/UndoRedoStack.h"
-#include "SagaEditor/Panels/ScriptingPanel.h"
+#include "SagaEditor/Panels/CodeBoxPanel.h"
 #include "SagaEditor/Scripting/ScriptProjectionSession.h"
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
 #include "SagaEditorQt/Panels/ReadOnlyBlocksWidget.h"
@@ -222,7 +222,7 @@ TEST(QtReadOnlyBlocksWorkflowTests, PanelNavigationDoesNotMutateOrDirtySource)
     WorkspaceFixture fixture;
     SagaEditor::UndoRedoStack journal;
     FailOnCallMutationPort mutationSpy;
-    SagaEditor::ScriptingPanel panel;
+    SagaEditor::CodeBoxPanel panel;
     panel.SetDocumentWorkspace(&fixture.workspace);
     panel.SetUndoRedoStack(&journal);
     panel.SetScriptSourceMutationPort(&mutationSpy);
@@ -246,7 +246,7 @@ TEST(QtReadOnlyBlocksWorkflowTests, PanelNavigationDoesNotMutateOrDirtySource)
     auto* editor = root->findChild<QPlainTextEdit*>();
     ASSERT_NE(tabs, nullptr);
     ASSERT_NE(editor, nullptr);
-    EXPECT_EQ(tabs->tabText(tabs->currentIndex()), QStringLiteral("Scripting"));
+    EXPECT_EQ(tabs->tabText(tabs->currentIndex()), QStringLiteral("C#"));
     EXPECT_EQ(editor->textCursor().selectedText(), QStringLiteral("Interact"));
     Q_EMIT tree->itemActivated(tree->topLevelItem(1), 0);
     QApplication::processEvents();

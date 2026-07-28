@@ -378,10 +378,13 @@ TEST(CMakeTargetBoundaryTests, MainWindowContractOwnsChromeNotProjectDialogs)
     EXPECT_EQ(interfaceText.find("void*"), std::string::npos);
     EXPECT_EQ(panelContract.find("void*"), std::string::npos);
     for (const auto* retiredOwnership : {
-             "QtMainWindowCloseFilter", "ownsWindow", "centralStack",
-             "centralIndex", "product-owned windows"})
+             "QtMainWindowCloseFilter", "centralIndex", "product-owned windows",
+             "QtUIMainWindow(void*", "QMainWindow* nativeWindow",
+             "QStackedWidget* nativeCentralStack"})
         EXPECT_EQ(qtSource.find(retiredOwnership), std::string::npos)
             << retiredOwnership;
+    EXPECT_NE(qtHeader.find("QtUIMainWindow(QMainWindow&"), std::string::npos);
+    EXPECT_NE(qtHeader.find("QStackedWidget&"), std::string::npos);
     EXPECT_EQ(interfaceText.find("next backend"), std::string::npos);
     EXPECT_NE(interfaceText.find("QtUIMainWindow is the production implementation"),
               std::string::npos);
@@ -426,7 +429,7 @@ TEST(CMakeTargetBoundaryTests, VerifiedStylesheetIsRuntimeRenderAuthority)
     EXPECT_NE(backend.find("verified_.contains"), std::string::npos);
 }
 
-TEST(CMakeTargetBoundaryTests, QtCompositionRootStaysConcrete)
+TEST(CMakeTargetBoundaryTests, SagaDesktopCompositionRootStaysConcrete)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
     const auto frameworkRoot =
@@ -435,12 +438,12 @@ TEST(CMakeTargetBoundaryTests, QtCompositionRootStaysConcrete)
     const auto frameworkManifest =
         ReadText(frameworkRoot / "CMakeLists.txt");
     const auto qtManifest = ReadText(qtRoot / "CMakeLists.txt");
-    const auto appHeader = ReadText(frameworkRoot /
-        "Public/SagaEditor/Host/EditorApp.h");
     const auto shellHeader = ReadText(frameworkRoot /
         "Public/SagaEditor/Shell/EditorShell.h");
-    const auto runner = ReadText(qtRoot /
-        "Private/SagaEditorQt/Host/EditorApplicationRunner.cpp");
+    const auto productApp = ReadText(root /
+        "Engine/Source/Programs/SagaLauncher/Private/App/SagaApp.cpp");
+    const auto productWindow = ReadText(root /
+        "Engine/Source/Programs/SagaLauncher/Private/Launcher/SagaMainWindow.cpp");
 
     for (const auto* retired : {
              "IUIFactory", "QtUIFactory",
@@ -449,19 +452,13 @@ TEST(CMakeTargetBoundaryTests, QtCompositionRootStaysConcrete)
         EXPECT_EQ(frameworkManifest.find(retired), std::string::npos)
             << retired;
         EXPECT_EQ(qtManifest.find(retired), std::string::npos) << retired;
-        EXPECT_EQ(appHeader.find(retired), std::string::npos) << retired;
         EXPECT_EQ(shellHeader.find(retired), std::string::npos) << retired;
     }
-    EXPECT_EQ(appHeader.find("RunSmoke"), std::string::npos);
-    EXPECT_EQ(appHeader.find("int Run("), std::string::npos);
-    for (const auto* concreteOwner : {
-             "QApplication", "QTimer::singleShot",
-             "QtSettingsStore", "QtUIMainWindow"})
-    {
-        EXPECT_NE(runner.find(concreteOwner), std::string::npos)
-            << concreteOwner;
-    }
-    EXPECT_NE(qtManifest.find("EditorApplicationRunner.cpp"),
+    EXPECT_NE(productApp.find("QApplication"), std::string::npos);
+    EXPECT_NE(productWindow.find("QtSettingsStore"), std::string::npos);
+    EXPECT_NE(productWindow.find("QtUIMainWindow"), std::string::npos);
+    EXPECT_NE(productWindow.find("EditorWorkspaceSession"), std::string::npos);
+    EXPECT_EQ(qtManifest.find("EditorApplicationRunner.cpp"),
               std::string::npos);
     EXPECT_EQ(frameworkManifest.find("EditorApplicationRunner.cpp"),
               std::string::npos);
@@ -790,13 +787,14 @@ TEST(CMakeTargetBoundaryTests, OwnershipMetadataNamesCurrentRepositoryOwners)
     for (const auto* folder : {
              "Programs/SagaLauncher",
              "Programs/SagaRuntime",
-             "Programs/SagaEditor",
              "Programs/SagaEditorLab",
              "Programs/SagaSandbox",
              "Developer/SagaDev"})
     {
         EXPECT_NE(targets.find(folder), std::string::npos) << folder;
     }
+    EXPECT_EQ(targets.find("FOLDER      \"Programs/SagaEditor\""),
+              std::string::npos);
 
     const auto clangTidy = ReadText(root / ".clang-tidy");
     EXPECT_NE(
@@ -929,7 +927,7 @@ TEST(CMakeTargetBoundaryTests, ReadOnlyProjectionStaysOutsideRuntimeLaunchAndExe
     const auto launch = ReadText(root /
         "Engine/Source/Runtime/SagaRuntime/Public/SagaRuntime/Play/RuntimePlayContracts.hpp");
     const auto qtPanel = ReadText(root /
-        "Engine/Source/Editor/EditorQt/Private/SagaEditorQt/Panels/ScriptingPanel.cpp");
+        "Engine/Source/Editor/EditorQt/Private/SagaEditorQt/Panels/CodeBoxPanel.cpp");
     const auto qtBlocks = ReadText(root /
         "Engine/Source/Editor/EditorQt/Private/SagaEditorQt/Panels/ReadOnlyBlocksWidget.cpp");
     const auto projectionHeader = ReadText(root /

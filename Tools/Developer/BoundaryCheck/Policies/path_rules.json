@@ -176,12 +176,6 @@
       "priority": 400
     },
     {
-      "pattern": "Engine/Source/Programs/SagaEditor/**",
-      "license": "MPL-2.0",
-      "domain_id": "saga-editor",
-      "priority": 400
-    },
-    {
       "pattern": "Engine/Source/Programs/SagaEditorLab/**",
       "license": "MPL-2.0",
       "domain_id": "saga-editor",

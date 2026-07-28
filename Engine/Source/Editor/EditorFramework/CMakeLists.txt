@@ -4,6 +4,7 @@ saga_add_editor_module(EditorFramework
     TARGET SagaEditorLib
     PRIVATE_DEPS nlohmann_json::nlohmann_json
     SOURCES
+        Private/SagaEditor/Authoring/AuthoringMode.cpp
         Private/SagaEditor/Composition/EditorCompositionArtifactLoader.cpp
         Private/SagaEditor/Composition/EditorCompositionDiagnostics.cpp
         Private/SagaEditor/Composition/EditorCompositionDiff.cpp
@@ -24,25 +25,15 @@ saga_add_editor_module(EditorFramework
         Private/SagaEditor/Customization/WorkspaceCustomizationOverlayStore.cpp
         Private/SagaEditor/Customization/WorkspaceCustomizationPanelViewModel.cpp
         Private/SagaEditor/Customization/WorkspaceCustomizationSession.cpp
-        Private/SagaEditor/Host/EditorApp.cpp
         Private/SagaEditor/Host/EditorHost.cpp
         Private/SagaEditor/Notifications/EditorNotificationCenter.cpp
-        Private/SagaEditor/Persona/BlockVisualStyle.cpp
-        Private/SagaEditor/Persona/DensityProfile.cpp
-        Private/SagaEditor/Persona/PersonaActivator.cpp
-        Private/SagaEditor/Persona/PersonaRegistry.cpp
-        Private/SagaEditor/Persona/PersonaSettingsBinding.cpp
-        Private/SagaEditor/Persona/UIPersona.cpp
-        Private/SagaEditor/Profile/EditorProfile.cpp
-        Private/SagaEditor/Profile/EditorProfileActivator.cpp
-        Private/SagaEditor/Profile/EditorProfileRegistry.cpp
-        Private/SagaEditor/Profile/EditorProfileSettingsBinding.cpp
         Private/SagaEditor/Project/EditorProjectWorkflowController.cpp
-        Private/SagaEditor/Shell/EditorMode.cpp
+        Private/SagaEditor/Shell/EditorWorkspaceSession.cpp
         Private/SagaEditor/Shell/EditorShell.cpp
         Private/SagaEditor/Shell/EditorShellPanelLifecycle.cpp
         Private/SagaEditor/Shell/ShellCommands.cpp
         Private/SagaEditor/Themes/ColorPalette.cpp
+        Public/SagaEditor/Authoring/AuthoringMode.h
         Public/SagaEditor/Composition/EditorCompositionArtifact.h
         Public/SagaEditor/Composition/EditorCompositionArtifactLoader.h
         Public/SagaEditor/Composition/EditorCompositionDiagnostics.h
@@ -69,7 +60,6 @@ saga_add_editor_module(EditorFramework
         Public/SagaEditor/Customization/WorkspaceCustomizationOverlayStore.h
         Public/SagaEditor/Customization/WorkspaceCustomizationPanelViewModel.h
         Public/SagaEditor/Customization/WorkspaceCustomizationSession.h
-        Public/SagaEditor/Host/EditorApp.h
         Public/SagaEditor/Host/EditorHost.h
         Public/SagaEditor/Host/EditorProjectInspection.h
         Public/SagaEditor/Host/EditorWorkspaceDefinition.h
@@ -86,20 +76,10 @@ saga_add_editor_module(EditorFramework
         Public/SagaEditor/Panels/ProblemsPanel.h
         Public/SagaEditor/Panels/ProductionDashboardPanel.h
         Public/SagaEditor/Panels/ShortcutPreferencesPanel.h
-        Public/SagaEditor/Panels/ScriptingPanel.h
+        Public/SagaEditor/Panels/CodeBoxPanel.h
         Public/SagaEditor/Panels/WorldViewportPanel.h
-        Public/SagaEditor/Persona/BlockVisualStyle.h
-        Public/SagaEditor/Persona/DensityProfile.h
-        Public/SagaEditor/Persona/PersonaActivator.h
-        Public/SagaEditor/Persona/PersonaRegistry.h
-        Public/SagaEditor/Persona/PersonaSettingsBinding.h
-        Public/SagaEditor/Persona/UIPersona.h
-        Public/SagaEditor/Profile/EditorProfile.h
-        Public/SagaEditor/Profile/EditorProfileActivator.h
-        Public/SagaEditor/Profile/EditorProfileRegistry.h
-        Public/SagaEditor/Profile/EditorProfileSettingsBinding.h
         Public/SagaEditor/Project/EditorProjectWorkflowController.h
-        Public/SagaEditor/Shell/EditorMode.h
+        Public/SagaEditor/Shell/EditorWorkspaceSession.h
         Public/SagaEditor/Shell/EditorShell.h
         Public/SagaEditor/Shell/ShellCommands.h
         Public/SagaEditor/Shell/ShellLayout.h
@@ -115,12 +95,12 @@ saga_register_module_tests(EditorFramework
     PRIVATE_DEPS nlohmann_json::nlohmann_json
     LABELS "unit;editor;framework"
     SOURCES
+        Tests/AuthoringModeTests.cpp
         Tests/EditorCompositionTests.cpp
-        Tests/EditorModeTests.cpp
+        Tests/EditorWorkspaceSessionTests.cpp
         Tests/EditorNotificationTests.cpp
         Tests/EditorProductionTests.cpp
         Tests/EditorProjectWorkflowControllerTests.cpp
-        Tests/EditorProfileTests.cpp
-        Tests/PersonaTests.cpp
+        Tests/EditorShellTests.cpp
         Tests/WorkspaceCustomizationTests.cpp
 )

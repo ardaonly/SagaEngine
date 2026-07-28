@@ -18,7 +18,6 @@ namespace
 
 constexpr const char* kDefaultWorkspaceId = "builtin.basic";
 constexpr const char* kDefaultDisplayName = "Basic Workspace";
-constexpr const char* kDefaultEditorProfile = "saga.profile.basic";
 constexpr const char* kDefaultRuntimeRole = "SagaRuntime";
 
 [[nodiscard]] std::filesystem::path ResolveSelector(
@@ -133,8 +132,6 @@ constexpr const char* kDefaultRuntimeRole = "SagaRuntime";
     workspace.id = manifest["projectId"].get<std::string>();
     workspace.displayName = manifest["displayName"].get<std::string>();
     workspace.root = std::filesystem::absolute(manifestPath.parent_path());
-    workspace.editorProfile =
-        manifest.value("editorProfile", std::string{kDefaultEditorProfile});
     workspace.runtimeRole =
         manifest.value("runtimeRole", std::string{kDefaultRuntimeRole});
     workspace.serverRole =
@@ -149,7 +146,6 @@ constexpr const char* kDefaultRuntimeRole = "SagaRuntime";
     workspace.id = kDefaultWorkspaceId;
     workspace.displayName = kDefaultDisplayName;
     workspace.root = std::filesystem::absolute(root);
-    workspace.editorProfile = kDefaultEditorProfile;
     workspace.runtimeRole = kDefaultRuntimeRole;
     return workspace;
 }

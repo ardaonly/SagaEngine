@@ -428,11 +428,10 @@ def stage_packaged_dotnet_tools(
                     {
                         "label": f"{label} distribution wrapper",
                         "kind": "generated-wrapper",
-                        "source": "scripts/package-linux-saga",
+                        "source": "scripts/package",
                         "destination": path_text(wrapper_path),
                     }
                 )
         statuses.append(status)
 
     return statuses
-

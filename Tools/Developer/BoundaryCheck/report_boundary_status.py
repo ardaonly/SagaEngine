@@ -41,7 +41,6 @@ SCAN_ROOTS = (
 
 EDITOR_PATH_TOKENS = (
     "Engine/Source/Editor/",
-    "Engine/Source/Programs/SagaEditor/",
     "Engine/Source/Programs/SagaEditorLab/",
     "SagaEditor",
     "SagaEditorLab",

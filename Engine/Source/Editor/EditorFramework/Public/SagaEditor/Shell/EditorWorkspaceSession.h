@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: MPL-2.0
-/// @file EditorMode.h
+/// @file EditorWorkspaceSession.h
 /// @brief Mountable editor mode facade for Saga-owned product windows.
 
 #pragma once
 
+#include "SagaEditor/Project/EditorProjectWorkflowController.h"
+
 #include <memory>
+#include <filesystem>
+#include <functional>
 #include <string>
 
 namespace SagaEditor
@@ -18,17 +22,21 @@ class IUIMainWindow;
 // ─── Editor Mode Configuration ───────────────────────────────────────────────
 
 /// Startup settings for embedding the editor shell into an existing product UI.
-struct EditorModeConfig
+struct EditorWorkspaceSessionConfig
 {
-    std::string windowTitle = "SagaEditor";
+    std::string windowTitle = "Saga";
     int windowWidth = 1600;
     int windowHeight = 900;
     bool maximized = false;
     std::string workspacePath;
+    std::string projectPath;
+    std::string authoringModeId;
+    std::filesystem::path runtimeExecutable;
+    std::function<void()> returnHome;
+    std::function<void()> workspaceChanged;
+    ProjectWorkflowPrompts projectWorkflowPrompts;
     std::string layoutPreset = "Default";
-    std::string initialProfileId;
     bool registerDefaultPanels = true;
-    bool applyActivePersona = true;
     bool showOnMount = true;
 };
 
@@ -37,21 +45,21 @@ struct EditorModeConfig
 /// Owns editor services while the product has editor mode mounted.
 /// The product supplies the window wrapper and settings store; this class does
 /// not create an application object or own the process event loop.
-class EditorMode
+class EditorWorkspaceSession
 {
 public:
-    EditorMode();
-    ~EditorMode();
+    EditorWorkspaceSession();
+    ~EditorWorkspaceSession();
 
-    EditorMode(const EditorMode&) = delete;
-    EditorMode& operator=(const EditorMode&) = delete;
-    EditorMode(EditorMode&&) noexcept;
-    EditorMode& operator=(EditorMode&&) noexcept;
+    EditorWorkspaceSession(const EditorWorkspaceSession&) = delete;
+    EditorWorkspaceSession& operator=(const EditorWorkspaceSession&) = delete;
+    EditorWorkspaceSession(EditorWorkspaceSession&&) noexcept;
+    EditorWorkspaceSession& operator=(EditorWorkspaceSession&&) noexcept;
 
     /// Initialise editor services and attach the shell to the supplied window.
     [[nodiscard]] bool Mount(std::unique_ptr<IUIMainWindow> window,
                              std::unique_ptr<IEditorSettingsStore> settingsStore,
-                             const EditorModeConfig& config);
+                             const EditorWorkspaceSessionConfig& config);
 
     /// Tear down the shell and editor services in reverse startup order.
     void Unmount();
@@ -63,6 +71,7 @@ public:
 
     [[nodiscard]] EditorShell* GetShell() noexcept;
     [[nodiscard]] const EditorShell* GetShell() const noexcept;
+    [[nodiscard]] bool CanCloseWorkspace();
 
 private:
     std::unique_ptr<EditorHost> m_host;   ///< Editor service registry for this mount.

@@ -3,12 +3,9 @@
 /// @brief Qt backend implementation for the production dashboard.
 
 #include "SagaEditor/Panels/ProductionDashboardPanel.h"
+#include "SagaEditor/Authoring/AuthoringMode.h"
 #include "SagaEditor/Customization/EditorCustomizationCatalog.h"
 #include "SagaEditor/Host/EditorHost.h"
-#include "SagaEditor/Persona/PersonaRegistry.h"
-#include "SagaEditor/Persona/UIPersona.h"
-#include "SagaEditor/Profile/EditorProfile.h"
-#include "SagaEditor/Profile/EditorProfileRegistry.h"
 #include "SagaEditor/Runtime/IEditorEngineBridge.h"
 
 #include <QFormLayout>
@@ -61,8 +58,7 @@ struct ProductionDashboardPanel::Impl
         engineRole = AddRow(form, "Runtime Role");
         engineVersion = AddRow(form, "Engine Version");
         engineCommit = AddRow(form, "Commit");
-        profile = AddRow(form, "Workspace Profile");
-        persona = AddRow(form, "Persona");
+        authoringMode = AddRow(form, "Authoring Mode");
         customization = AddRow(form, "Project Customization");
         customizationSource = AddRow(form, "Customization Source");
 
@@ -89,19 +85,9 @@ struct ProductionDashboardPanel::Impl
         engineVersion->setText(ValueText(bridge.engineVersion));
         engineCommit->setText(ValueText(bridge.gitCommit));
 
-        const EditorProfile* activeProfile = host.GetEditorProfileRegistry().GetActive();
-        profile->setText(activeProfile == nullptr
-            ? QStringLiteral("-")
-            : QStringLiteral("%1 (%2)")
-                .arg(ValueText(activeProfile->displayName),
-                     ValueText(activeProfile->id)));
-
-        const UIPersona* activePersona = host.GetPersonaRegistry().GetActive();
-        persona->setText(activePersona == nullptr
-            ? QStringLiteral("-")
-            : QStringLiteral("%1 (%2)")
-                .arg(ValueText(activePersona->displayName),
-                     ValueText(activePersona->id)));
+        const AuthoringMode& active = host.GetAuthoringModeService().Active();
+        authoringMode->setText(QStringLiteral("%1 (%2)")
+            .arg(ValueText(active.displayName), ValueText(active.id)));
 
         const EditorCustomizationStatus& status =
             host.GetCustomizationCatalog().Status();
@@ -118,8 +104,7 @@ struct ProductionDashboardPanel::Impl
     QLabel* engineRole = nullptr;
     QLabel* engineVersion = nullptr;
     QLabel* engineCommit = nullptr;
-    QLabel* profile = nullptr;
-    QLabel* persona = nullptr;
+    QLabel* authoringMode = nullptr;
     QLabel* customization = nullptr;
     QLabel* customizationSource = nullptr;
 };

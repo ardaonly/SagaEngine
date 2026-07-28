@@ -7,7 +7,6 @@
 #include "SagaEditor/Commands/CommandRegistry.h"
 #include "SagaEditor/Host/EditorHost.h"
 #include "SagaEditor/Panels/IPanel.h"
-#include "SagaEditor/Panels/ProductionDashboardPanel.h"
 #include "SagaEditor/UI/IUIMainWindow.h"
 
 #include <algorithm>
@@ -25,14 +24,12 @@ bool EditorShell::UnregisterPanel(const std::string& panelId)
 
     m_window->UndockPanel(panelId);
     (*it)->OnShutdown();
-    if (it->get() == m_productionDashboard)
-        m_productionDashboard = nullptr;
-
     const std::pair<const char*, const char*> panelCommands[] = {
-        {"saga.panel.production_dashboard", "saga.command.view.production_dashboard"},
-        {"saga.panel.problems", "saga.command.view.diagnostics"},
-        {"saga.panel.customize_workspace", "saga.command.view.customize_workspace"},
-        {"saga.panel.shortcut_preferences", "saga.command.edit.shortcut_preferences"},
+        {"saga.panel.hierarchy", "saga.command.view.hierarchy"},
+        {"saga.panel.inspector", "saga.command.view.inspector"},
+        {"saga.panel.assetbrowser", "saga.command.view.project_sources"},
+        {"saga.panel.code_box", "saga.command.view.code_box"},
+        {"saga.panel.problems", "saga.command.view.problems"},
     };
     for (const auto& [ownedPanel, command] : panelCommands)
         if (panelId == ownedPanel)

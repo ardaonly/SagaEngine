@@ -146,7 +146,6 @@ struct ControllerFixture
     {
         const auto product = root / "bin" / "Saga";
         MakeExecutable(product);
-        MakeExecutable(root / "bin" / "SagaEditor");
         MakeExecutable(root / "bin" / "SagaRuntime");
         MakeExecutable(root / "bin" / "sagaproject");
         MakeExecutable(root / "bin" / "sagascript");
@@ -175,7 +174,6 @@ TEST(SagaLauncherModelTest, ExactActionTokensRoundTrip)
 {
     const std::vector<std::string> tokens = {"open-project",
                                              "validate-project",
-                                             "open-editor",
                                              "refresh-reports",
                                              "view-sagascript-evidence",
                                              "view-visual-blocks-evidence",
@@ -303,20 +301,18 @@ TEST(SagaTargetResolverTest, ExposesExactBoundedAndUnsupportedTargets)
     const auto root = Temp("saga_launcher_targets");
     const auto product = root / "bin" / "Saga";
     MakeExecutable(product);
-    MakeExecutable(root / "bin" / "SagaEditor");
     MakeExecutable(root / "bin" / "SagaRuntime");
     MakeExecutable(root / "bin" / "sagaproject");
     const auto project = SagaProjectCatalog{}.OpenProject(WriteProject(root / "project"));
     SagaTargetResolver resolver{SagaExecutableCatalog(product)};
 
     const auto targets = resolver.ResolveTargets(project);
-    ASSERT_EQ(targets.size(), 8u);
-    EXPECT_EQ(targets[0].targetKind, SagaLauncherTargetKind::EditorTarget);
-    EXPECT_EQ(targets[1].availability, SagaLauncherActionAvailability::Available);
-    EXPECT_EQ(targets[4].status, SagaLauncherActionStatus::Unsupported);
-    EXPECT_EQ(targets[5].diagnostics.front().diagnosticId,
+    ASSERT_EQ(targets.size(), 7u);
+    EXPECT_EQ(targets[0].availability, SagaLauncherActionAvailability::Available);
+    EXPECT_EQ(targets[3].status, SagaLauncherActionStatus::Unsupported);
+    EXPECT_EQ(targets[4].diagnostics.front().diagnosticId,
               SagaProductDiagnostics::ServerExecutionUnsupported);
-    EXPECT_TRUE(std::all_of(targets.begin() + 4, targets.end(), [](const auto& target) {
+    EXPECT_TRUE(std::all_of(targets.begin() + 3, targets.end(), [](const auto& target) {
         return target.availability == SagaLauncherActionAvailability::Disabled;
     }));
 
@@ -340,11 +336,12 @@ TEST(SagaLauncherControllerTest, OpenSelectsWithoutLaunchingAndOneActionRuns)
     EXPECT_EQ(fixture.executorPtr->calls, 0);
     ASSERT_TRUE(fixture.controller->GetState().selectedProject.has_value());
 
-    const auto started = fixture.controller->RunAction(SagaLauncherActionId::OpenEditor);
+    const auto started = fixture.controller->RunAction(
+        SagaLauncherActionId::ValidateProject);
     EXPECT_TRUE(started.accepted);
     EXPECT_EQ(started.status, SagaLauncherActionStatus::Running);
     const auto second = fixture.controller->RunAction(
-        SagaLauncherActionId::ValidateProject);
+        SagaLauncherActionId::UnsupportedServer);
     EXPECT_FALSE(second.accepted);
     ASSERT_FALSE(second.diagnostics.empty());
     EXPECT_EQ(second.diagnostics.front().diagnosticId,
@@ -430,7 +427,7 @@ TEST(SagaDistributionStatusReaderTest, EnforcesExactPackageIdentityReadOnly)
              {"verified", false},
              {"includedApplications",
               nlohmann::json::array(
-                  {{{"name", "Saga"}}, {{"name", "SagaEditor"}}, {{"name", "SagaRuntime"}}})},
+                  {{{"name", "Saga"}}, {{"name", "SagaRuntime"}}})},
              {"includedPublicTools",
               nlohmann::json::array(
                   {{{"name", "sagapack"}}, {{"name", "sagaproject"}}, {{"name", "sagascript"}}})}})

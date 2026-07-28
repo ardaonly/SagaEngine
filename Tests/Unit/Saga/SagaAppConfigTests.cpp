@@ -16,7 +16,49 @@ TEST(SagaAppConfigTest, DefaultConfigCanBeCreated)
     ASSERT_TRUE(result.ok) << result.error;
     EXPECT_EQ(result.config.workspaceSelector, "builtin:basic");
     EXPECT_EQ(result.config.target, SagaProductTargetKind::Editor);
+    EXPECT_TRUE(result.config.authoringMode.empty());
     EXPECT_FALSE(result.config.prepareOnly);
+}
+
+TEST(SagaAppConfigTest, ParsesCanonicalDesktopProjectAndAuthoringMode)
+{
+    const char* argvRaw[] = {
+        "Saga", "Game.sagaproj", "--authoring-mode", "level3"};
+    auto* argv = const_cast<char**>(argvRaw);
+
+    const SagaConfigResult result = ParseSagaAppConfig(4, argv);
+
+    ASSERT_TRUE(result.ok) << result.error;
+    EXPECT_EQ(result.config.workflowProjectPath, fs::path("Game.sagaproj"));
+    EXPECT_EQ(result.config.authoringMode, "level3");
+}
+
+TEST(SagaAppConfigTest, RejectsUnknownAuthoringMode)
+{
+    const char* argvRaw[] = {"Saga", "--authoring-mode", "expert"};
+    auto* argv = const_cast<char**>(argvRaw);
+
+    const SagaConfigResult result = ParseSagaAppConfig(3, argv);
+
+    EXPECT_FALSE(result.ok);
+    EXPECT_NE(result.error.find("unknown authoring mode"), std::string::npos);
+}
+
+TEST(SagaAppConfigTest, LegacyProfileMapsOnlyWhenNoExplicitAuthoringMode)
+{
+    const char* legacyRaw[] = {"Saga", "--profile", "advanced_pipeline"};
+    auto* legacy = const_cast<char**>(legacyRaw);
+    const SagaConfigResult migrated = ParseSagaAppConfig(3, legacy);
+    ASSERT_TRUE(migrated.ok) << migrated.error;
+    EXPECT_EQ(migrated.config.authoringMode, "level3");
+
+    const char* explicitRaw[] = {
+        "Saga", "--authoring-mode", "level1", "--profile", "advanced_pipeline"};
+    auto* explicitArgs = const_cast<char**>(explicitRaw);
+    const SagaConfigResult explicitResult =
+        ParseSagaAppConfig(5, explicitArgs);
+    ASSERT_TRUE(explicitResult.ok) << explicitResult.error;
+    EXPECT_EQ(explicitResult.config.authoringMode, "level1");
 }
 
 TEST(SagaAppConfigTest, LauncherDistributionReportOverrideIsReadOnlyInput)
@@ -36,8 +78,6 @@ TEST(SagaAppConfigTest, LauncherDistributionReportOverrideIsReadOnlyInput)
 TEST(SagaProcessServiceTest, AllowsOnlyTypedExecutableIdentities)
 {
     EXPECT_TRUE(SagaProcessService::IsExecutableAllowed(
-        SagaProcessTargetId::Editor, "/opt/saga/bin/SagaEditor"));
-    EXPECT_TRUE(SagaProcessService::IsExecutableAllowed(
         SagaProcessTargetId::Runtime, "/opt/saga/bin/SagaRuntime"));
     EXPECT_TRUE(SagaProcessService::IsExecutableAllowed(
         SagaProcessTargetId::Forge, "forge"));
@@ -46,7 +86,7 @@ TEST(SagaProcessServiceTest, AllowsOnlyTypedExecutableIdentities)
     EXPECT_FALSE(SagaProcessService::IsExecutableAllowed(
         SagaProcessTargetId::Runtime, "/bin/sh"));
     EXPECT_FALSE(SagaProcessService::IsExecutableAllowed(
-        SagaProcessTargetId::Editor, "/opt/saga/bin/EditorLab"));
+        SagaProcessTargetId::Runtime, "/opt/saga/bin/SagaEditor"));
 }
 
 TEST(SagaProcessServiceTest, EnvironmentOverridesUseExactAllowlist)

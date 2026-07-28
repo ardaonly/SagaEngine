@@ -57,7 +57,7 @@ bool EditorCustomizationCatalog::Init(const std::filesystem::path& workspaceRoot
     m_status.userConfigRoot = UserConfigRoot();
     m_status.loaded = false;
     m_status.message =
-        "Project customization unavailable in this build; using built-in profiles";
+        "Project customization is unavailable in this build.";
     return true;
 }
 

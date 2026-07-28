@@ -104,19 +104,13 @@ live-apply contract is added.
 Future live apply can be added for narrow cases such as panel visibility once
 the shell exposes a tested safe application path.
 
-## Smoke Validation
+## Focused Validation
 
-The SagaEditor launcher supports a bounded smoke mode for automated startup QA:
-
-```txt
-SagaEditor --smoke --no-show --windowed --smoke-timeout-ms 1000
-```
-
-Smoke mode initializes the normal editor app, host, shell, and registered
-product panels, including Customize Workspace, then runs a bounded UI event loop
-tools at runtime.
+The editor workspace is mounted by the `Saga` desktop application. Focused Qt
+and product tests validate shell construction and customization without a
+second editor executable.
 
 ## Boundaries
 
 - Customization model, controller, diagnostics, and store code are Qt-free.
-- SagaEditor consumes compiled manifests and artifacts only.
+- The Saga Editor workspace consumes compiled manifests and artifacts only.

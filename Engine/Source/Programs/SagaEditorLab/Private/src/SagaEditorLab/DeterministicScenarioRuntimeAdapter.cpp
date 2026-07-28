@@ -15,17 +15,13 @@ void PopulateDefaultState(std::unordered_map<std::string, std::string>& state)
 {
     state["editor.engine_bridge.state"] = "Ready";
     state["editor.customization.boundary"] = "editor_only";
-    state["profile.layout.diff.basic_to_advanced"] = "true";
-    state["profile.shortcuts.diff.basic_to_advanced"] = "true";
-    state["profile.panels.diff.basic_to_advanced"] = "true";
-    state["profile.layout.diff.advanced_to_standard"] = "true";
-    state["profile.tools.diff.advanced_to_standard"] = "true";
+    state["authoring.panels.diff.level1_to_level3"] = "true";
+    state["authoring.panels.diff.level3_to_level2"] = "true";
     state["editor.core.identity.stable"] = "true";
     state["editor.engine_bridge.identity.stable"] = "true";
-    state["editor.customization.builtin.available"] = "true";
+    state["editor.authoring.modes.available"] = "true";
     state["editor.customization.project.source"] = "builtin";
     state["editor.customization.user.source"] = "~/.config/Saga";
-    state["editor.customization.project.profiles.loaded"] = "true";
     state["editor.customization.user.override.applied"] = "true";
     state["editor.customization.project.source.unchanged"] = "true";
 }

@@ -19,8 +19,8 @@ saga_add_program(SagaLauncher
         Private/Launcher/SagaLauncherController.h
         Private/Launcher/SagaLauncherModel.cpp
         Private/Launcher/SagaLauncherModel.h
-        Private/Launcher/SagaLauncherWindow.cpp
-        Private/Launcher/SagaLauncherWindow.h
+        Private/Launcher/SagaMainWindow.cpp
+        Private/Launcher/SagaMainWindow.h
         Private/Processes/SagaProcessLauncher.cpp
         Private/Processes/SagaProcessLauncher.h
         Private/Processes/SagaProcessService.cpp

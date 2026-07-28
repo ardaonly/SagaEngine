@@ -21,20 +21,6 @@
       "disposition": "reduced-follow-up-debt"
     },
     {
-      "path": "Engine/Source/Editor/EditorFramework/Private/SagaEditor/Shell/EditorShell.cpp",
-      "maximumPhysicalLines": 1110,
-      "reason": "Active Editor shell composition requires a command-registration extraction on its next feature change.",
-      "owner": "EditorFramework",
-      "disposition": "follow-up-debt"
-    },
-    {
-      "path": "Engine/Source/Editor/EditorFramework/Tests/EditorProfileTests.cpp",
-      "maximumPhysicalLines": 1047,
-      "reason": "Profile fixture scenarios are cohesive but can be grouped into persistence and selection modules.",
-      "owner": "EditorFramework",
-      "disposition": "follow-up-debt"
-    },
-    {
       "path": "Engine/Source/Editor/EditorFramework/Tests/WorkspaceCustomizationTests.cpp",
       "maximumPhysicalLines": 1098,
       "reason": "Workspace customization scenarios share one fixture; split by layout and command behavior when modified.",

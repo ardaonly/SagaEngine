@@ -20,7 +20,6 @@ enum class SagaLauncherActionId
 {
     OpenProject,
     ValidateProject,
-    OpenEditor,
     RefreshReports,
     ViewSagaScriptEvidence,
     ViewVisualBlocksEvidence,
@@ -71,7 +70,6 @@ enum class SagaLauncherWorkspaceSourceKind
 
 enum class SagaLauncherTargetKind
 {
-    EditorTarget,
     SagascriptEvidenceTarget,
     VisualBlocksEvidenceTarget,
     PackageStatusTarget,
@@ -135,7 +133,6 @@ struct SagaLauncherWorkspaceSummary
     std::string displayName;
     std::filesystem::path root;
     SagaLauncherWorkspaceSourceKind sourceKind = SagaLauncherWorkspaceSourceKind::Builtin;
-    std::string editorProfile;
     std::string runtimeRole;
     std::string serverRole;
     SagaLauncherActionStatus status = SagaLauncherActionStatus::NotConfigured;
@@ -144,7 +141,8 @@ struct SagaLauncherWorkspaceSummary
 
 struct SagaLauncherTargetSummary
 {
-    SagaLauncherTargetKind targetKind = SagaLauncherTargetKind::EditorTarget;
+    SagaLauncherTargetKind targetKind =
+        SagaLauncherTargetKind::SagascriptEvidenceTarget;
     std::string displayName;
     SagaLauncherActionAvailability availability = SagaLauncherActionAvailability::Disabled;
     SagaLauncherActionStatus status = SagaLauncherActionStatus::Disabled;

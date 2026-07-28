@@ -9,7 +9,6 @@ saga_add_editor_module(EditorQt
         Qt6::Concurrent
     SOURCES
         Private/SagaEditorQt/Commands/CommandPalette.cpp
-        Private/SagaEditorQt/Host/EditorApplicationRunner.cpp
         Private/SagaEditorQt/Host/EditorProjectInspection.cpp
         Private/SagaEditorQt/Panels/AssetBrowserPanel.cpp
         Private/SagaEditorQt/Panels/ConsolePanel.cpp
@@ -21,13 +20,12 @@ saga_add_editor_module(EditorQt
         Private/SagaEditorQt/Panels/ReadOnlyBlocksWidget.h
         Private/SagaEditorQt/Panels/ProductionDashboardPanel.cpp
         Private/SagaEditorQt/Panels/ShortcutPreferencesPanel.cpp
-        Private/SagaEditorQt/Panels/ScriptingPanel.cpp
+        Private/SagaEditorQt/Panels/CodeBoxPanel.cpp
         Private/SagaEditorQt/Panels/WorldViewportPanel.cpp
         Private/SagaEditorQt/QtSettingsStore.cpp
         Private/SagaEditorQt/QtUIMainWindow.cpp
         Private/SagaEditorQt/Themes/ThemeRegistry.cpp
         Public/SagaEditorQt/QtSettingsStore.h
-        Public/SagaEditorQt/EditorApplicationRunner.h
         Public/SagaEditorQt/QtUIMainWindow.h
 )
 
@@ -37,7 +35,6 @@ saga_register_module_tests(EditorQt
     PRIVATE_DEPS
         nlohmann_json::nlohmann_json
     SOURCES
-        Tests/EditorAppCompositionTests.cpp
         Tests/EditorProjectInspectionTests.cpp
         Tests/QtAuthoringPanelsTests.cpp
         Tests/QtReadOnlyBlocksWorkflowTests.cpp

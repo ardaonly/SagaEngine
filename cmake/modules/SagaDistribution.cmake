@@ -76,7 +76,7 @@ function(saga_setup_distribution)
         "${CMAKE_BINARY_DIR}/dist/${SAGA_DISTRIBUTION_NAME}"
         CACHE PATH "SAGA staged candidate distribution directory")
 
-    set(_saga_product_distribution_targets Saga SagaEditor SagaRuntime)
+    set(_saga_product_distribution_targets Saga SagaRuntime)
     foreach(_target IN LISTS _saga_product_distribution_targets)
         if(NOT TARGET ${_target})
             message(FATAL_ERROR "SAGA distribution requires target '${_target}'")

@@ -50,6 +50,7 @@ struct SagaAppConfig
     std::optional<std::filesystem::path> packageManifestPath;
     std::string           workspaceSelector = "builtin:basic";
     std::string           workflowProfile = "project_readiness";
+    std::string           authoringMode;
     std::string           localWorkspaceActorId = "local.actor";
     std::string           localWorkspaceOperationKind = "InspectProject";
     std::string           localWorkspaceReviewComment =

@@ -8,6 +8,7 @@
 #include "SagaEditor/Commands/CommandPalette.h"
 #include "SagaEditor/Commands/ShortcutManager.h"
 #include "SagaEditor/Commands/UndoRedoStack.h"
+#include "SagaEditor/Authoring/AuthoringMode.h"
 #include "SagaEditor/Composition/EditorCompositionSession.h"
 #include "SagaEditor/Customization/EditorCustomizationCatalog.h"
 #include "SagaEditor/Customization/WorkspaceCustomizationOverlayPolicy.h"
@@ -20,12 +21,6 @@
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
 #include "SagaEditor/Scripting/ScriptAnalysisCoordinator.h"
 #include "SagaEditor/Themes/ThemeRegistry.h"
-#include "SagaEditor/Persona/PersonaActivator.h"
-#include "SagaEditor/Persona/PersonaRegistry.h"
-#include "SagaEditor/Persona/PersonaSettingsBinding.h"
-#include "SagaEditor/Profile/EditorProfileActivator.h"
-#include "SagaEditor/Profile/EditorProfileRegistry.h"
-#include "SagaEditor/Profile/EditorProfileSettingsBinding.h"
 #include "SagaEditor/Settings/IEditorSettingsStore.h"
 #include "SagaEditor/Settings/MemoryEditorSettingsStore.h"
 #include "SagaEditor/Runtime/IEditorEngineBridge.h"
@@ -142,19 +137,15 @@ bool EditorHost::Init(std::unique_ptr<IEditorSettingsStore> settingsStore,
                                                             *m_commandDispatcher);
     m_shortcutManager   = std::make_unique<ShortcutManager>(*m_commandDispatcher);
     m_undoRedoStack     = std::make_unique<UndoRedoStack>();
+    m_authoringModeService = std::make_unique<AuthoringModeService>();
     m_selectionManager  = std::make_unique<SelectionManager>();
     m_documentWorkspace = std::make_unique<EditorDocumentWorkspace>();
     m_scriptAnalysisCoordinator = std::make_unique<ScriptAnalysisCoordinator>();
     m_themeRegistry     = std::make_unique<ThemeRegistry>();
-    m_personaRegistry   = std::make_unique<PersonaRegistry>();
-    m_personaActivator  = std::make_unique<PersonaActivator>();
-    m_personaSettingsBinding = std::make_unique<PersonaSettingsBinding>();
-    m_editorProfileRegistry = std::make_unique<EditorProfileRegistry>();
-    m_editorProfileActivator = std::make_unique<EditorProfileActivator>();
-    m_editorProfileSettingsBinding =
-        std::make_unique<EditorProfileSettingsBinding>();
     m_settingsStore     = settingsStore ? std::move(settingsStore)
                                         : std::make_unique<MemoryEditorSettingsStore>();
+    if (!m_authoringModeService->Init(*m_settingsStore))
+        return false;
     m_engineBridge      = std::make_unique<LocalEditorEngineBridge>();
     m_editorDiagnosticsService = std::make_unique<EditorDiagnosticsService>();
     m_editorNotificationCenter = std::make_unique<EditorNotificationCenter>();
@@ -168,24 +159,8 @@ bool EditorHost::Init(std::unique_ptr<IEditorSettingsStore> settingsStore,
     m_extensionHost     = std::make_unique<ExtensionHost>(*m_extensionRegistry, *this);
 
     m_themeRegistry->RegisterBuiltinThemes();
-    m_personaRegistry->RegisterBuiltinPersonas();
-    m_editorProfileRegistry->RegisterBuiltinProfiles();
     m_workspaceDefinition = std::move(workspace);
     (void)m_customizationCatalog->Init(m_workspaceDefinition->root);
-    for (const EditorProfile& profile :
-         m_customizationCatalog->Snapshot().projectProfiles)
-    {
-        m_editorProfileRegistry->Register(profile);
-    }
-    for (const UIPersona& persona :
-         m_customizationCatalog->Snapshot().projectPersonas)
-    {
-        m_personaRegistry->Register(persona);
-    }
-    if (!m_personaSettingsBinding->Init(*m_personaRegistry, *m_settingsStore))
-        return false;
-    if (!m_editorProfileSettingsBinding->Init(*m_editorProfileRegistry, *m_settingsStore))
-        return false;
     if (!m_engineBridge->Init())
         return false;
 
@@ -230,14 +205,6 @@ void EditorHost::Shutdown()
         m_extensionHost->ShutdownAll();
     }
 
-    if (m_personaSettingsBinding)
-    {
-        m_personaSettingsBinding->Shutdown();
-    }
-    if (m_editorProfileSettingsBinding)
-    {
-        m_editorProfileSettingsBinding->Shutdown();
-    }
     if (m_customizationCatalog)
     {
         m_customizationCatalog->Shutdown();
@@ -269,18 +236,13 @@ void EditorHost::Shutdown()
     m_editorNotificationCenter.reset();
     m_editorDiagnosticsService.reset();
     m_engineBridge.reset();
-    m_editorProfileSettingsBinding.reset();
-    m_editorProfileActivator.reset();
-    m_editorProfileRegistry.reset();
-    m_personaSettingsBinding.reset();
     m_settingsStore.reset();
-    m_personaActivator.reset();
-    m_personaRegistry.reset();
     m_themeRegistry.reset();
     m_selectionManager.reset();
     m_documentWorkspace.reset();
     m_scriptAnalysisCoordinator.reset();
     m_undoRedoStack.reset();
+    m_authoringModeService.reset();
     m_shortcutManager.reset();
     m_commandPalette.reset();
     m_commandDispatcher.reset();
@@ -294,21 +256,15 @@ CommandDispatcher& EditorHost::GetCommandDispatcher() noexcept { return *m_comma
 CommandPalette&    EditorHost::GetCommandPalette()    noexcept { return *m_commandPalette;    }
 ShortcutManager&   EditorHost::GetShortcutManager()   noexcept { return *m_shortcutManager;   }
 UndoRedoStack&     EditorHost::GetUndoRedoStack()     noexcept { return *m_undoRedoStack;     }
+AuthoringModeService& EditorHost::GetAuthoringModeService() noexcept
+{
+    return *m_authoringModeService;
+}
 SelectionManager&  EditorHost::GetSelectionManager()  noexcept { return *m_selectionManager;  }
 EditorDocumentWorkspace& EditorHost::GetDocumentWorkspace() noexcept { return *m_documentWorkspace; }
 ScriptAnalysisCoordinator& EditorHost::GetScriptAnalysisCoordinator() noexcept
 { return *m_scriptAnalysisCoordinator; }
 ThemeRegistry&     EditorHost::GetThemeRegistry()     noexcept { return *m_themeRegistry;     }
-PersonaRegistry&   EditorHost::GetPersonaRegistry()   noexcept { return *m_personaRegistry;   }
-PersonaActivator&  EditorHost::GetPersonaActivator()  noexcept { return *m_personaActivator;  }
-EditorProfileRegistry& EditorHost::GetEditorProfileRegistry() noexcept
-{
-    return *m_editorProfileRegistry;
-}
-EditorProfileActivator& EditorHost::GetEditorProfileActivator() noexcept
-{
-    return *m_editorProfileActivator;
-}
 IEditorSettingsStore& EditorHost::GetSettingsStore()  noexcept { return *m_settingsStore;     }
 IEditorEngineBridge& EditorHost::GetEngineBridge() noexcept { return *m_engineBridge; }
 IEditorDiagnosticsService& EditorHost::GetEditorDiagnosticsService() noexcept

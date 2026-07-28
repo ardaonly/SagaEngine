@@ -5,7 +5,7 @@
 #include "SagaEditor/Commands/UndoRedoStack.h"
 #include "SagaEditor/Panels/HierarchyPanel.h"
 #include "SagaEditor/Panels/InspectorPanel.h"
-#include "SagaEditor/Panels/ScriptingPanel.h"
+#include "SagaEditor/Panels/CodeBoxPanel.h"
 #include "SagaEditor/SceneEditing/SceneSelectionIdentity.h"
 #include "SagaEditor/Selection/SelectionManager.h"
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
@@ -120,7 +120,7 @@ TEST(QtAuthoringPanelsTests, CodeBoxMutationUsesTransactionAndDoesNotWriteDisk)
     SagaEditor::UndoRedoStack journal;
     SagaEditor::CommandRegistry registry;
     SagaEditor::CommandDispatcher dispatcher(registry);
-    SagaEditor::ScriptingPanel panel;
+    SagaEditor::CodeBoxPanel panel;
     panel.SetDocumentWorkspace(&fixture.workspace);
     panel.SetUndoRedoStack(&journal);
     panel.SetCommandDispatcher(&dispatcher);
@@ -129,8 +129,8 @@ TEST(QtAuthoringPanelsTests, CodeBoxMutationUsesTransactionAndDoesNotWriteDisk)
     auto* tabs = panel.Widget()->findChild<QTabWidget*>();
     ASSERT_NE(tabs, nullptr);
     ASSERT_EQ(tabs->count(), 2);
-    EXPECT_EQ(tabs->tabText(0), "Scripting");
-    EXPECT_EQ(tabs->tabText(1), "Blocks");
+    EXPECT_EQ(tabs->tabText(0), "C#");
+    EXPECT_EQ(tabs->tabText(1), QStringLiteral("Blocks — Read-only projection"));
     auto* blocks = panel.Widget()->findChild<QTreeWidget*>();
     ASSERT_NE(blocks, nullptr);
     EXPECT_EQ(blocks->accessibleName(), "Read-only script blocks");
@@ -167,7 +167,7 @@ TEST(QtAuthoringPanelsTests, RecoveryButtonsForwardExplicitDocumentGestures)
         return static_cast<QPushButton*>(nullptr);
     };
     {
-        SagaEditor::ScriptingPanel panel;
+        SagaEditor::CodeBoxPanel panel;
         panel.SetDocumentWorkspace(&fixture.workspace);
         panel.OnInit();
         auto* widget = panel.Widget();
@@ -185,7 +185,7 @@ TEST(QtAuthoringPanelsTests, RecoveryButtonsForwardExplicitDocumentGestures)
     fixture.workspace.Close();
     ASSERT_TRUE(fixture.workspace.OpenProject(fixture.root / "Project.sagaproj"));
     {
-        SagaEditor::ScriptingPanel panel;
+        SagaEditor::CodeBoxPanel panel;
         panel.SetDocumentWorkspace(&fixture.workspace);
         panel.OnInit();
         auto* widget = panel.Widget();

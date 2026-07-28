@@ -9,25 +9,17 @@
 #include "SagaEditor/Commands/CommandDispatcher.h"
 #include "SagaEditor/Commands/CommandRegistry.h"
 #include "SagaEditor/Commands/ShortcutManager.h"
+#include "SagaEditor/Commands/UndoRedoStack.h"
+#include "SagaEditor/Authoring/AuthoringMode.h"
 #include "SagaEditor/Diagnostics/IEditorDiagnosticsService.h"
 #include "SagaEditor/Extensions/ExtensionHost.h"
 #include "SagaEditor/Notifications/EditorNotificationCenter.h"
 #include "SagaEditor/Settings/IEditorSettingsStore.h"
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
 #include "SagaEditor/Play/RuntimeProcessController.h"
-#include "SagaEditor/Persona/PersonaActivator.h"
-#include "SagaEditor/Persona/PersonaRegistry.h"
-#include "SagaEditor/Persona/UIPersona.h"
-#include "SagaEditor/Profile/EditorProfile.h"
-#include "SagaEditor/Profile/EditorProfileActivator.h"
-#include "SagaEditor/Profile/EditorProfileRegistry.h"
-#include "SagaEditor/Themes/ThemeRegistry.h"
 #include "SagaEditor/UI/IUIMainWindow.h"
 #include "SagaEditor/Shell/ShellCommands.h"
 #include "SagaEditor/Panels/IPanel.h"
-#include "SagaEditor/Panels/CustomizeWorkspacePanel.h"
-#include "SagaEditor/Panels/ProductionDashboardPanel.h"
-#include "SagaEditor/Panels/ShortcutPreferencesPanel.h"
 
 #include <unordered_set>
 #include <utility>
@@ -36,10 +28,9 @@
 // Default Qt panels (concrete types live in the Qt backend)
 #include "SagaEditor/Panels/HierarchyPanel.h"
 #include "SagaEditor/Panels/InspectorPanel.h"
-#include "SagaEditor/Panels/ConsolePanel.h"
 #include "SagaEditor/Panels/AssetBrowserPanel.h"
 #include "SagaEditor/Panels/ProblemsPanel.h"
-#include "SagaEditor/Panels/ScriptingPanel.h"
+#include "SagaEditor/Panels/CodeBoxPanel.h"
 #include "SagaEditor/Panels/WorldViewportPanel.h"
 
 #include <algorithm>
@@ -54,7 +45,7 @@ namespace
 
 constexpr const char* kCompositionShellDiagnosticSource =
     "editor.composition.shell";
-constexpr const char* kWindowStateSetting = "layout/main-window-state-v1";
+constexpr const char* kModeLayoutPrefix = "Editor/Layout/v2/";
 
 std::string EncodeHex(const std::vector<std::uint8_t>& bytes)
 {
@@ -85,34 +76,6 @@ std::optional<std::vector<std::uint8_t>> DecodeHex(const std::string& text)
     return result;
 }
 
-[[nodiscard]] std::string ProfileCommandId(const std::string& profileId)
-{
-    constexpr const char* prefix = "saga.profile.";
-    if (profileId.rfind(prefix, 0) == 0)
-    {
-        return "saga.command.profile." + profileId.substr(std::char_traits<char>::length(prefix));
-    }
-    return "saga.command.profile." + profileId;
-}
-
-[[nodiscard]] std::string ProfileTitleSuffix(const EditorProfile& profile)
-{
-    return " - " + profile.displayName;
-}
-
-[[nodiscard]] std::unordered_set<std::string> ProfileToolCommandUniverse()
-{
-    return {
-        "saga.command.edit.mode.translate",
-        "saga.command.edit.mode.rotate",
-        "saga.command.edit.mode.scale",
-        "saga.command.build",
-        "saga.command.world.step",
-        "saga.command.view.graph",
-        "saga.command.view.diagnostics",
-    };
-}
-
 [[nodiscard]] bool SameDiagnosticIdentity(const EditorDiagnostic& lhs,
                                           const EditorDiagnostic& rhs)
 {
@@ -138,8 +101,8 @@ bool EditorShell::Init(EditorHost&                    host,
                        const EditorShellConfig&       cfg)
 {
     m_host = &host;
-    m_baseWindowTitle = cfg.windowTitle;
-
+    m_canReturnHome = static_cast<bool>(cfg.returnHome);
+    m_workspaceChanged = cfg.workspaceChanged;
     m_window = std::move(window);
     if (!m_window)
         return false;
@@ -160,6 +123,10 @@ bool EditorShell::Init(EditorHost&                    host,
         {
             (void)host.GetCommandDispatcher().Dispatch(commandId);
         });
+    m_window->SetOnWorkflowStatePoll([this]
+    {
+        SyncWorkflowCommandState();
+    });
 
     // RegisterShellCommands takes (registry, undoStack); the older one-arg
     // overload that took the whole host doesn't exist. Pull both services
@@ -204,7 +171,11 @@ bool EditorShell::Init(EditorHost&                    host,
             const auto outcome =
                 m_projectWorkflowController->OpenProjectPrompted();
             if (outcome == ProjectWorkflowOutcome::Completed)
+            {
                 m_window->SetStatusMessage("Opened canonical Saga project.");
+                if (m_workspaceChanged)
+                    m_workspaceChanged();
+            }
             else if (outcome == ProjectWorkflowOutcome::Failed)
                 m_window->SetStatusMessage(
                     "Project open failed validation; the previous workspace is unchanged.");
@@ -215,43 +186,52 @@ bool EditorShell::Init(EditorHost&                    host,
             const auto outcome =
                 m_projectWorkflowController->CreateStarterArenaPrompted();
             if (outcome == ProjectWorkflowOutcome::Completed)
+            {
                 m_window->SetStatusMessage(
                     "Created and opened Starter Arena project.");
+                if (m_workspaceChanged)
+                    m_workspaceChanged();
+            }
             else if (outcome == ProjectWorkflowOutcome::Failed)
                 m_window->SetStatusMessage(
                     "Project creation failed transactionally; destination was not opened.");
         }});
     host.GetCommandRegistry().Register({"saga.command.file.exit", "Exit", "File",
         [this] { m_window->Close(); }});
+    if (cfg.returnHome)
+    {
+        host.GetCommandRegistry().Register({"saga.command.file.close_project",
+            "Close Project", "File", [this, returnHome = cfg.returnHome]
+            {
+                if (m_projectWorkflowController->CanClose() !=
+                    ProjectWorkflowOutcome::Completed)
+                    return;
+                if (m_runtimeProcessController)
+                    m_runtimeProcessController->Shutdown();
+                returnHome();
+            }});
+    }
     WireNotificationSink();
-    RegisterPersonaCommands();
-    RegisterProfileCommands();
+    RegisterAuthoringModeCommands();
 
     BuildDefaultLayout();
     (void)BuildCompositionLayout();
     m_window->ApplyShellLayout(m_layout);
     (void)ApplyCompositionShortcuts();
 
-    WirePersonaSinks();
-    WireProfileSinks();
     if (cfg.registerDefaultPanels)
     {
         RegisterDefaultPanels();
     }
-    if (cfg.applyActivePersona)
-    {
-        ApplyActivePersona();
-    }
-    ApplyActiveProfile();
+    SyncWorkflowCommandState();
     (void)ApplyCompositionPanelVisibility();
-    const auto savedState = host.GetSettingsStore().GetString(kWindowStateSetting, {});
-    if (!savedState.empty())
+    auto& authoringModes = host.GetAuthoringModeService();
+    authoringModes.SetOnChanged([this](const AuthoringMode& mode)
     {
-        const auto decoded = DecodeHex(savedState);
-        if (!decoded || !m_window->RestoreState(*decoded))
-            host.GetSettingsStore().Remove(kWindowStateSetting);
-    }
-
+        SaveAuthoringModeLayout();
+        ApplyAuthoringMode(mode, true);
+    });
+    ApplyAuthoringMode(authoringModes.Active(), true);
     if (cfg.showOnInit)
     {
         if (cfg.maximized)
@@ -268,6 +248,8 @@ void EditorShell::Shutdown()
 {
     if (m_host && m_window)
         m_host->GetExtensionHost().ShutdownAll();
+    if (m_window)
+        m_window->SetOnWorkflowStatePoll({});
 
     m_projectWorkflowController.reset();
     if (m_runtimeProcessController)
@@ -277,19 +259,8 @@ void EditorShell::Shutdown()
     }
     if (m_host && m_window)
     {
-        m_host->GetSettingsStore().SetString(kWindowStateSetting,
-            EncodeHex(m_window->SaveState()));
+        SaveAuthoringModeLayout();
         m_host->GetSettingsStore().Flush();
-    }
-    if (m_host && m_personaSubscription != kInvalidPersonaSubscription)
-    {
-        m_host->GetPersonaRegistry().RemovePersonaChangedCallback(m_personaSubscription);
-        m_personaSubscription = kInvalidPersonaSubscription;
-    }
-    if (m_host && m_profileSubscription != kInvalidEditorProfileSubscription)
-    {
-        m_host->GetEditorProfileRegistry().RemoveProfileChangedCallback(m_profileSubscription);
-        m_profileSubscription = kInvalidEditorProfileSubscription;
     }
     if (m_host && m_notificationSubscription !=
                       kInvalidEditorNotificationSubscription)
@@ -299,17 +270,10 @@ void EditorShell::Shutdown()
         m_notificationSubscription = kInvalidEditorNotificationSubscription;
     }
 
-    if (m_host)
-    {
-        m_host->GetPersonaActivator().ClearSinks();
-        m_host->GetEditorProfileActivator().ClearSinks();
-    }
-
     for (auto& panel : m_panels)
         panel->OnShutdown();
 
     m_panels.clear();
-    m_productionDashboard = nullptr;
     m_window.reset();
 }
 
@@ -319,61 +283,29 @@ void EditorShell::RegisterPanel(std::unique_ptr<IPanel> panel, UIDockArea area)
 {
     panel->OnInit();
     const std::string panelId = panel->GetPanelId();
+    const std::string panelTitle = panel->GetTitle();
     m_window->DockPanel(panel->Widget(),
                         panelId,
-                        panel->GetTitle(),
+                        panelTitle,
                         ResolveCompositionDockArea(panelId, area));
     m_panels.push_back(std::move(panel));
 
-    if (panelId == "saga.panel.production_dashboard")
+    const auto viewCommandForPanel = [](const std::string& id) -> std::string
+    {
+        if (id == "saga.panel.hierarchy") return "saga.command.view.hierarchy";
+        if (id == "saga.panel.inspector") return "saga.command.view.inspector";
+        if (id == "saga.panel.assetbrowser") return "saga.command.view.project_sources";
+        if (id == "saga.panel.code_box") return "saga.command.view.code_box";
+        if (id == "saga.panel.problems") return "saga.command.view.problems";
+        return {};
+    };
+    const std::string viewCommand = viewCommandForPanel(panelId);
+    if (!viewCommand.empty())
     {
         m_host->GetCommandRegistry().Register({
-            "saga.command.view.production_dashboard",
-            "Production Dashboard",
+            viewCommand,
+            panelTitle,
             "View",
-            [this, panelId]()
-            {
-                m_window->SetPanelVisible(panelId, true);
-                m_window->FocusPanel(panelId);
-                RefreshProductionDashboard();
-            },
-            true
-        });
-    }
-    else if (panelId == "saga.panel.problems")
-    {
-        m_host->GetCommandRegistry().Register({
-            "saga.command.view.diagnostics",
-            "Diagnostics",
-            "View",
-            [this, panelId]()
-            {
-                m_window->SetPanelVisible(panelId, true);
-                m_window->FocusPanel(panelId);
-            },
-            true
-        });
-    }
-    else if (panelId == "saga.panel.customize_workspace")
-    {
-        m_host->GetCommandRegistry().Register({
-            "saga.command.view.customize_workspace",
-            "Customize Workspace",
-            "View",
-            [this, panelId]()
-            {
-                m_window->SetPanelVisible(panelId, true);
-                m_window->FocusPanel(panelId);
-            },
-            true
-        });
-    }
-    else if (panelId == "saga.panel.shortcut_preferences")
-    {
-        m_host->GetCommandRegistry().Register({
-            "saga.command.edit.shortcut_preferences",
-            "Shortcut Preferences",
-            "Edit",
             [this, panelId]()
             {
                 m_window->SetPanelVisible(panelId, true);
@@ -388,20 +320,6 @@ void EditorShell::RegisterPanel(std::unique_ptr<IPanel> panel, UIDockArea area)
     {
         m_window->SetPanelVisible(panelId, *compositionVisible);
     }
-    else if (const EditorProfile* activeProfile =
-                 m_host->GetEditorProfileRegistry().GetActive())
-    {
-        const bool shouldShow =
-            std::find(activeProfile->defaultPanels.begin(),
-                      activeProfile->defaultPanels.end(),
-                      panelId) != activeProfile->defaultPanels.end();
-        m_window->SetPanelVisible(panelId, shouldShow);
-        if (shouldShow)
-        {
-            m_window->FocusPanel(panelId);
-        }
-    }
-
     (void)ApplyCompositionPanelVisibility();
     m_host->RefreshWorkspaceCustomizationAvailability(GetRegisteredPanelIds());
 }
@@ -460,13 +378,16 @@ const std::vector<std::string>& EditorShell::GetActiveToolCommands() const noexc
 IUIMainWindow& EditorShell::GetMainWindow() noexcept { return *m_window; }
 EditorHost&    EditorShell::GetHost()       noexcept { return *m_host; }
 
+bool EditorShell::CanCloseWorkspace()
+{
+    return !m_projectWorkflowController ||
+        m_projectWorkflowController->CanClose() == ProjectWorkflowOutcome::Completed;
+}
+
 // ─── Internals ────────────────────────────────────────────────────────────────
 
 void EditorShell::RegisterDefaultPanels()
 {
-    auto dashboard = std::make_unique<ProductionDashboardPanel>(*m_host);
-    m_productionDashboard = dashboard.get();
-    RegisterPanel(std::move(dashboard), UIDockArea::Left);
     auto hierarchy = std::make_unique<HierarchyPanel>();
     hierarchy->SetDocumentWorkspace(&m_host->GetDocumentWorkspace());
     hierarchy->SetSelectionManager(&m_host->GetSelectionManager());
@@ -483,169 +404,21 @@ void EditorShell::RegisterDefaultPanels()
     auto sources = std::make_unique<AssetBrowserPanel>();
     sources->SetDocumentWorkspace(&m_host->GetDocumentWorkspace());
     RegisterPanel(std::move(sources), UIDockArea::Bottom);
-    RegisterPanel(std::make_unique<ConsolePanel>(),      UIDockArea::Bottom);
-    auto scripting = std::make_unique<ScriptingPanel>();
-    scripting->SetDocumentWorkspace(&m_host->GetDocumentWorkspace());
-    scripting->SetUndoRedoStack(&m_host->GetUndoRedoStack());
-    scripting->SetCommandDispatcher(&m_host->GetCommandDispatcher());
-    scripting->SetAnalysisCoordinator(&m_host->GetScriptAnalysisCoordinator());
-    auto* scriptingPanel = scripting.get();
+    auto codeBox = std::make_unique<CodeBoxPanel>();
+    codeBox->SetDocumentWorkspace(&m_host->GetDocumentWorkspace());
+    codeBox->SetUndoRedoStack(&m_host->GetUndoRedoStack());
+    codeBox->SetCommandDispatcher(&m_host->GetCommandDispatcher());
+    codeBox->SetAnalysisCoordinator(&m_host->GetScriptAnalysisCoordinator());
+    auto* codeBoxPanel = codeBox.get();
     m_host->GetCommandRegistry().Register({"saga.command.script.analyze", "Analyze C#", "Script",
-        [scriptingPanel] { scriptingPanel->Analyze(); }});
+        [codeBoxPanel] { codeBoxPanel->Analyze(); }});
     m_host->GetCommandRegistry().Register({"saga.command.script.cancel", "Cancel Analysis", "Script",
-        [scriptingPanel] { scriptingPanel->CancelAnalysis(); }});
-    RegisterPanel(std::move(scripting), UIDockArea::Bottom);
-
-    RegisterPanel(std::make_unique<CustomizeWorkspacePanel>(*m_host),
-                  UIDockArea::Right);
-    RegisterPanel(std::make_unique<ShortcutPreferencesPanel>(*m_host),
-                  UIDockArea::Right);
+        [codeBoxPanel] { codeBoxPanel->CancelAnalysis(); }});
+    RegisterPanel(std::move(codeBox), UIDockArea::Bottom);
 
     auto problems = std::make_unique<ProblemsPanel>();
     problems->SetDiagnosticsService(&m_host->GetEditorDiagnosticsService());
     RegisterPanel(std::move(problems), UIDockArea::Bottom);
-}
-
-void EditorShell::RegisterPersonaCommands()
-{
-    auto& registry = m_host->GetCommandRegistry();
-    auto& personas = m_host->GetPersonaRegistry();
-
-    const auto registerPersona = [&registry, &personas](std::string commandId,
-                                                        std::string label,
-                                                        std::string personaId)
-    {
-        registry.Register({
-            std::move(commandId),
-            std::move(label),
-            "Persona",
-            [&personas, personaId = std::move(personaId)]()
-            {
-                (void)personas.SetActive(personaId);
-            },
-            true
-        });
-    };
-
-    registerPersona("saga.command.persona.beginner",
-                    "Blocky Beginner",
-                    "saga.persona.beginner");
-    registerPersona("saga.command.persona.indie",
-                    "Indie Balanced",
-                    "saga.persona.indie");
-    registerPersona("saga.command.persona.pro",
-                    "Pro Dense",
-                    "saga.persona.pro");
-    registerPersona("saga.command.persona.technical",
-                    "Technical",
-                    "saga.persona.technical");
-}
-
-void EditorShell::RegisterProfileCommands()
-{
-    auto& registry = m_host->GetCommandRegistry();
-    auto& profiles = m_host->GetEditorProfileRegistry();
-
-    for (const EditorProfile& profile : profiles.GetAll())
-    {
-        registry.Register({
-            ProfileCommandId(profile.id),
-            profile.displayName,
-            "Workspace Profile",
-            [&profiles, profileId = profile.id]()
-            {
-                (void)profiles.SetActive(profileId);
-            },
-            true
-        });
-    }
-}
-
-void EditorShell::WirePersonaSinks()
-{
-    auto& activator = m_host->GetPersonaActivator();
-
-    activator.SetThemeSink(
-        [this](const std::string& themeId)
-        {
-            return m_host->GetThemeRegistry().Apply(themeId);
-        });
-
-    activator.SetPanelVisibilitySink(
-        [this](const std::vector<std::string>& panelIds)
-        {
-            return ApplyPersonaPanelVisibility(panelIds);
-        });
-
-    m_personaSubscription = m_host->GetPersonaRegistry().OnPersonaChanged(
-        [this](const UIPersona& persona)
-        {
-            const PersonaApplyResult result =
-                m_host->GetPersonaActivator().Apply(persona);
-
-            std::string message = "Persona: " + persona.displayName;
-            if (!result.lastError.empty())
-            {
-                message += " (" + result.lastError + ")";
-            }
-            m_window->SetStatusMessage(message);
-            RefreshProductionDashboard();
-        });
-}
-
-void EditorShell::WireProfileSinks()
-{
-    auto& activator = m_host->GetEditorProfileActivator();
-
-    activator.SetLayoutSink(
-        [this](const std::string& layoutPresetId)
-        {
-            return ApplyProfileLayout(layoutPresetId);
-        });
-
-    activator.SetShortcutMapSink(
-        [this](const EditorProfile& profile)
-        {
-            return ApplyProfileShortcutMap(profile);
-        });
-
-    activator.SetToolbarSink(
-        [this](const std::vector<std::string>& commandIds)
-        {
-            return ApplyProfileToolbar(commandIds);
-        });
-
-    activator.SetPanelVisibilitySink(
-        [this](const std::vector<std::string>& panelIds)
-        {
-            return ApplyProfilePanelVisibility(panelIds);
-        });
-
-    activator.SetShellChromeSink(
-        [this](const EditorProfile& profile)
-        {
-            return ApplyProfileShellChrome(profile);
-        });
-
-    activator.SetToolVisibilitySink(
-        [this](const std::vector<std::string>& commandIds)
-        {
-            return ApplyProfileToolVisibility(commandIds);
-        });
-
-    m_profileSubscription = m_host->GetEditorProfileRegistry().OnProfileChanged(
-        [this](const EditorProfile& profile)
-        {
-            const EditorProfileApplyResult result =
-                m_host->GetEditorProfileActivator().Apply(profile);
-
-            std::string message = "Workspace Profile: " + profile.displayName;
-            if (!result.lastError.empty())
-            {
-                message += " (" + result.lastError + ")";
-            }
-            m_window->SetStatusMessage(message);
-        });
 }
 
 void EditorShell::WireNotificationSink()
@@ -661,49 +434,116 @@ void EditorShell::WireNotificationSink()
             });
 }
 
-void EditorShell::ApplyActivePersona()
+void EditorShell::SyncWorkflowCommandState()
 {
-    const PersonaApplyResult result =
-        m_host->GetPersonaActivator().ApplyActive(m_host->GetPersonaRegistry());
+    if (!m_host || !m_window)
+        return;
 
-    const UIPersona* active = m_host->GetPersonaRegistry().GetActive();
-    if (active != nullptr)
+    auto& workspace = m_host->GetDocumentWorkspace();
+    const bool projectOpen = workspace.IsOpen();
+    const bool dirty = projectOpen && !workspace.DirtyDocumentIds().empty();
+    const RuntimePlayState runtimeState = m_runtimeProcessController
+        ? m_runtimeProcessController->Snapshot().state
+        : RuntimePlayState::Idle;
+    const bool playTransition =
+        runtimeState == RuntimePlayState::Preparing ||
+        runtimeState == RuntimePlayState::Starting ||
+        runtimeState == RuntimePlayState::Stopping;
+    const bool playActive =
+        runtimeState == RuntimePlayState::Preparing ||
+        runtimeState == RuntimePlayState::Starting ||
+        runtimeState == RuntimePlayState::Running ||
+        runtimeState == RuntimePlayState::Stopping;
+
+    const auto setEnabled = [this](const std::string& id, bool enabled)
     {
-        std::string message = "Persona: " + active->displayName;
-        if (!result.lastError.empty())
-        {
-            message += " (" + result.lastError + ")";
-        }
-        m_window->SetStatusMessage(message);
-        RefreshProductionDashboard();
-    }
+        m_host->GetCommandRegistry().SetEnabled(id, enabled);
+        m_window->SetCommandEnabled(id, enabled);
+    };
+    setEnabled("saga.command.file.save", dirty);
+    setEnabled("saga.command.edit.undo", m_host->GetUndoRedoStack().CanUndo());
+    setEnabled("saga.command.edit.redo", m_host->GetUndoRedoStack().CanRedo());
+    setEnabled("saga.command.world.play", projectOpen && !dirty && !playActive);
+    setEnabled("saga.command.world.stop",
+        runtimeState == RuntimePlayState::Preparing ||
+        runtimeState == RuntimePlayState::Starting ||
+        runtimeState == RuntimePlayState::Running);
+    for (const AuthoringMode& mode : m_host->GetAuthoringModeService().Modes())
+        setEnabled("saga.command.authoring." + mode.id, !playTransition);
+    setEnabled("saga.command.authoring.reset_layout", !playTransition);
 }
 
-void EditorShell::ApplyActiveProfile()
+void EditorShell::RegisterAuthoringModeCommands()
 {
-    const EditorProfileApplyResult result =
-        m_host->GetEditorProfileActivator().ApplyActive(
-            m_host->GetEditorProfileRegistry());
-
-    const EditorProfile* active = m_host->GetEditorProfileRegistry().GetActive();
-    if (active != nullptr)
+    auto& modes = m_host->GetAuthoringModeService();
+    for (const AuthoringMode& mode : modes.Modes())
     {
-        std::string message = "Workspace Profile: " + active->displayName;
-        if (!result.lastError.empty())
-        {
-            message += " (" + result.lastError + ")";
-        }
-        m_window->SetStatusMessage(message);
-        RefreshProductionDashboard();
+        m_host->GetCommandRegistry().Register({
+            "saga.command.authoring." + mode.id, mode.displayName, "Authoring",
+            [this, id = mode.id]
+            {
+                const RuntimePlayState state = m_runtimeProcessController
+                    ? m_runtimeProcessController->Snapshot().state
+                    : RuntimePlayState::Idle;
+                if (state == RuntimePlayState::Preparing ||
+                    state == RuntimePlayState::Starting ||
+                    state == RuntimePlayState::Stopping)
+                    return;
+                (void)m_host->GetAuthoringModeService().SetActive(id);
+            }});
     }
+    m_host->GetCommandRegistry().Register({
+        "saga.command.authoring.reset_layout", "Reset Workspace Layout", "Authoring",
+        [this]
+        {
+            m_host->GetSettingsStore().Remove(
+                std::string(kModeLayoutPrefix) + m_activeAuthoringModeId);
+            m_window->ResetWorkspaceLayout();
+            ApplyAuthoringMode(m_host->GetAuthoringModeService().Active(), false);
+        }});
 }
 
-void EditorShell::RefreshProductionDashboard()
+void EditorShell::SaveAuthoringModeLayout()
 {
-    if (m_productionDashboard != nullptr)
+    if (!m_host || !m_window || m_activeAuthoringModeId.empty())
+        return;
+    m_host->GetSettingsStore().SetString(
+        std::string(kModeLayoutPrefix) + m_activeAuthoringModeId,
+        EncodeHex(m_window->SaveState()));
+    m_host->GetSettingsStore().Flush();
+}
+
+void EditorShell::ApplyAuthoringMode(const AuthoringMode& mode, bool restoreLayout)
+{
+    m_activeAuthoringModeId = mode.id;
+    const std::unordered_set<std::string> defaultVisible(
+        mode.defaultVisiblePanels.begin(), mode.defaultVisiblePanels.end());
+    bool restoredSavedLayout = false;
+    if (restoreLayout)
     {
-        m_productionDashboard->Refresh();
+        const std::string saved = m_host->GetSettingsStore().GetString(
+            std::string(kModeLayoutPrefix) + mode.id, {});
+        const auto decoded = DecodeHex(saved);
+        if (!saved.empty() && decoded)
+            restoredSavedLayout = m_window->RestoreState(*decoded);
+        if (!saved.empty() && !restoredSavedLayout)
+        {
+            m_host->GetSettingsStore().Remove(
+                std::string(kModeLayoutPrefix) + mode.id);
+        }
+        if (!restoredSavedLayout)
+            m_window->ResetWorkspaceLayout();
     }
+    if (!restoredSavedLayout)
+    {
+        for (const auto& panel : m_panels)
+            m_window->SetPanelVisible(panel->GetPanelId(),
+                defaultVisible.contains(panel->GetPanelId()));
+    }
+    for (const AuthoringMode& candidate : m_host->GetAuthoringModeService().Modes())
+        m_window->SetCommandChecked("saga.command.authoring." + candidate.id,
+                                    candidate.id == mode.id);
+    m_window->SetStatusMessage("Authoring Mode: " + mode.displayName);
 }
 
 bool EditorShell::BuildCompositionLayout()
@@ -893,125 +733,6 @@ UIDockArea EditorShell::ResolveCompositionDockArea(const std::string& panelId,
     return fallback;
 }
 
-bool EditorShell::ApplyPersonaPanelVisibility(const std::vector<std::string>& panelIds)
-{
-    if (GetUsableCompositionSnapshot() != nullptr)
-    {
-        return ApplyCompositionPanelVisibility();
-    }
-
-    std::unordered_set<std::string> visible(panelIds.begin(), panelIds.end());
-
-    for (const auto& panel : m_panels)
-    {
-        const std::string id = panel->GetPanelId();
-        const bool shouldShow = visible.find(id) != visible.end();
-        m_window->SetPanelVisible(id, shouldShow);
-        if (shouldShow)
-        {
-            m_window->FocusPanel(id);
-        }
-    }
-
-    return true;
-}
-
-bool EditorShell::ApplyProfileLayout(const std::string& layoutPresetId)
-{
-    m_activeLayoutPresetId = layoutPresetId;
-    BuildDefaultLayout();
-    (void)BuildCompositionLayout();
-    m_window->ApplyShellLayout(m_layout);
-    return true;
-}
-
-bool EditorShell::ApplyProfileShortcutMap(const EditorProfile& profile)
-{
-    if (GetUsableCompositionSnapshot() != nullptr)
-    {
-        return ApplyCompositionShortcuts();
-    }
-
-    auto& shortcuts = m_host->GetShortcutManager();
-    shortcuts.Clear();
-    for (const EditorShortcutBinding& binding : profile.shortcutBindings)
-    {
-        shortcuts.Bind(binding.chord, binding.commandId);
-    }
-    return true;
-}
-
-bool EditorShell::ApplyProfileToolbar(const std::vector<std::string>& commandIds)
-{
-    if (GetUsableCompositionSnapshot() != nullptr)
-    {
-        (void)BuildCompositionLayout();
-        m_window->ApplyShellLayout(m_layout);
-        return true;
-    }
-
-    m_activeToolbarCommands = commandIds;
-    m_layout.mainToolbarItems.clear();
-
-    for (const std::string& commandId : commandIds)
-    {
-        const CommandDescriptor* command =
-            m_host->GetCommandRegistry().Find(commandId);
-        const std::string label = command ? command->label : commandId;
-        m_layout.mainToolbarItems.push_back({ label, commandId, "", false });
-    }
-
-    m_window->ApplyShellLayout(m_layout);
-    return true;
-}
-
-bool EditorShell::ApplyProfilePanelVisibility(const std::vector<std::string>& panelIds)
-{
-    if (GetUsableCompositionSnapshot() != nullptr)
-    {
-        return ApplyCompositionPanelVisibility();
-    }
-
-    std::unordered_set<std::string> visible(panelIds.begin(), panelIds.end());
-
-    for (const auto& panel : m_panels)
-    {
-        const std::string id = panel->GetPanelId();
-        const bool shouldShow = visible.find(id) != visible.end();
-        m_window->SetPanelVisible(id, shouldShow);
-        if (shouldShow)
-        {
-            m_window->FocusPanel(id);
-        }
-    }
-
-    return true;
-}
-
-bool EditorShell::ApplyProfileShellChrome(const EditorProfile& profile)
-{
-    m_layout.showMenuBar = profile.showMenuBar;
-    m_layout.showStatusBar = profile.showStatusBar;
-    m_layout.showMainToolbar = profile.showMainToolbar;
-    m_window->SetTitle(m_baseWindowTitle + ProfileTitleSuffix(profile));
-    m_window->ApplyShellLayout(m_layout);
-    return true;
-}
-
-bool EditorShell::ApplyProfileToolVisibility(const std::vector<std::string>& commandIds)
-{
-    m_activeToolCommands = commandIds;
-
-    auto& registry = m_host->GetCommandRegistry();
-    const std::unordered_set<std::string> visible(commandIds.begin(), commandIds.end());
-    for (const std::string& commandId : ProfileToolCommandUniverse())
-    {
-        registry.SetEnabled(commandId, visible.find(commandId) != visible.end());
-    }
-
-    return true;
-}
-
 void EditorShell::BuildDefaultLayout()
 {
     // `MenuDescriptor`/`MenuItemDescriptor` both come from `Shell/ShellLayout.h`.
@@ -1027,9 +748,13 @@ void EditorShell::BuildDefaultLayout()
         { "New Project…",    "saga.command.file.new_project",   "Ctrl+N",       false },
         { "Open Project…",   "saga.command.file.open_project",  "Ctrl+O",       false },
         { "Save All",        "saga.command.file.save",          "Ctrl+S",       false },
-        { "",                "",                                "",             true  },
-        { "Exit",            "saga.command.file.exit",          "",             false },
     };
+    if (m_canReturnHome)
+        file.items.push_back(
+            { "Close Project", "saga.command.file.close_project", "", false });
+    file.items.push_back({ "", "", "", true });
+    file.items.push_back(
+        { "Exit", "saga.command.file.exit", "", false });
 
     // ── Edit menu ─────────────────────────────────────────────────────────────
     MenuDescriptor edit;
@@ -1037,9 +762,6 @@ void EditorShell::BuildDefaultLayout()
     edit.items = {
         { "Undo",            "saga.command.edit.undo",          "Ctrl+Z",       false },
         { "Redo",            "saga.command.edit.redo",          "Ctrl+Shift+Z", false },
-        { "",                "",                                "",             true  },
-        { "Preferences…",    "saga.command.edit.preferences",   "",             false },
-        { "Shortcut Preferences", "saga.command.edit.shortcut_preferences", "",  false },
     };
 
     // ── View menu ─────────────────────────────────────────────────────────────
@@ -1048,35 +770,24 @@ void EditorShell::BuildDefaultLayout()
     view.items = {
         { "Hierarchy",       "saga.command.view.hierarchy",     "",             false },
         { "Inspector",       "saga.command.view.inspector",     "",             false },
-        { "Console",         "saga.command.view.console",       "",             false },
-        { "Asset Browser",   "saga.command.view.asset_browser", "",             false },
-        { "Production",      "saga.command.view.production_dashboard", "",      false },
-        { "Customize Workspace", "saga.command.view.customize_workspace", "",   false },
-        { "",                "",                                "",             true  },
-        { "Theme…",          "saga.command.view.theme",         "",             false },
-        { "",                "",                                "",             true  },
-        { "Basic",           "saga.command.profile.basic",              "",     false },
-        { "Node Editor",     "saga.command.profile.node_editor",        "",     false },
-        { "Standard Pipeline","saga.command.profile.standard_pipeline", "",     false },
-        { "Advanced Pipeline","saga.command.profile.advanced_pipeline", "",     false },
-        { "Custom",          "saga.command.profile.custom",             "",     false },
-        { "",                "",                                "",             true  },
-        { "Blocky Beginner", "saga.command.persona.beginner",   "",             false },
-        { "Indie Balanced",  "saga.command.persona.indie",      "",             false },
-        { "Pro Dense",       "saga.command.persona.pro",        "",             false },
-        { "Technical",       "saga.command.persona.technical",  "",             false },
+        { "Project Sources", "saga.command.view.project_sources","",            false },
+        { "Code Box",        "saga.command.view.code_box",      "",             false },
+        { "Problems",        "saga.command.view.problems",      "",             false },
     };
-
-    // ── World menu ────────────────────────────────────────────────────────────
-    MenuDescriptor world;
-    world.title = "World";
-    world.items = {
-        { "Add Entity",      "saga.command.world.add_entity",   "",             false },
-        { "Bake Lighting",   "saga.command.world.bake_lighting","",             false },
-        { "World Settings…", "saga.command.world.settings",     "",             false },
+    MenuDescriptor authoring;
+    authoring.title = "Authoring";
+    authoring.items = {
+        { "Level 1", "saga.command.authoring.level1", "", false },
+        { "Level 2", "saga.command.authoring.level2", "", false },
+        { "Level 3", "saga.command.authoring.level3", "", false },
+        { "", "", "", true },
+        { "Reset Workspace Layout", "saga.command.authoring.reset_layout", "", false },
     };
-
-    m_layout.menus = { file, edit, view, world };
+    m_layout.menus = { file, edit, view, authoring };
+    m_layout.mainToolbarItems = {
+        { "Play", "saga.command.world.play", "", false },
+        { "Stop", "saga.command.world.stop", "", false },
+    };
 }
 
 } // namespace SagaEditor

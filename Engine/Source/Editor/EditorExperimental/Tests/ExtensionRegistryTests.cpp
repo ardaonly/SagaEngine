@@ -163,7 +163,6 @@ protected:
         window = ownedWindow.get();
         EditorShellConfig config;
         config.registerDefaultPanels = false;
-        config.applyActivePersona = false;
         config.showOnInit = false;
         ASSERT_TRUE(shell.Init(host, std::move(ownedWindow), config));
     }

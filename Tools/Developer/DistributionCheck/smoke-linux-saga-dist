@@ -245,7 +245,7 @@ def run_starter_arena_workflow(
     required_results.append(add_artifact(artifacts, label="StarterArena product shell workflow report", path=product_report, required=True, kind="json-report"))
 
     editor_message = (
-        "SagaEditor is presence-checked only; headless archive smoke does not launch the GUI "
+        "Saga is presence-checked only; headless archive smoke does not launch the GUI "
         "until a stable supported headless command exists."
     )
     starter_diagnostics.append(editor_message)
@@ -310,7 +310,7 @@ def main() -> int:
         "This smoke does not claim full gameplay readiness.",
         "This smoke does not claim cloud collaboration.",
         "sagaproject, sagascript, and sagapack checks are limited to packaged help output from the unpacked distribution.",
-        "SagaEditor is executable-presence checked but is not launched in headless archive smoke.",
+        "Saga is executable-presence checked but is not launched in headless archive smoke.",
     ]
     non_claims = [
         "This report does not claim production readiness; the distribution is not production-ready.",
@@ -401,7 +401,6 @@ def main() -> int:
         "VERIFY.txt",
         "KNOWN_LIMITATIONS.md",
         "bin/Saga",
-        "bin/SagaEditor",
         "bin/SagaRuntime",
         "bin/sagaproject",
         "bin/sagascript",
@@ -417,7 +416,6 @@ def main() -> int:
     ]
     executables = {
         "bin/Saga",
-        "bin/SagaEditor",
         "bin/SagaRuntime",
         "bin/sagaproject",
         "bin/sagascript",

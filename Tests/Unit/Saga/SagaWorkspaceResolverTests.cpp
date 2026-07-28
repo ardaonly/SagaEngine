@@ -45,7 +45,6 @@ TEST(SagaWorkspaceResolverTest, BuiltInProductWorkspaceResolvesFromProductDefaul
 
     ASSERT_TRUE(result.ok) << result.error;
     EXPECT_EQ(result.workspace.id, "builtin.basic");
-    EXPECT_EQ(result.workspace.editorProfile, "saga.profile.basic");
     EXPECT_EQ(result.workspace.runtimeRole, "SagaRuntime");
     EXPECT_TRUE(result.workspace.serverRole.empty());
     EXPECT_TRUE(result.workspace.artifactHash.empty());
@@ -84,7 +83,6 @@ TEST(SagaWorkspaceResolverTest, ProjectManifestResolvesWorkspaceDefaults)
     ASSERT_TRUE(result.ok) << result.error;
     EXPECT_EQ(result.workspace.id, "manifest-project");
     EXPECT_EQ(result.workspace.displayName, "Manifest Project");
-    EXPECT_EQ(result.workspace.editorProfile, "saga.profile.basic");
     EXPECT_EQ(result.workspace.runtimeRole, "SagaRuntime");
     EXPECT_TRUE(result.workspace.serverRole.empty());
     EXPECT_TRUE(result.workspace.artifactHash.empty());

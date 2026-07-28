@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: MPL-2.0
-/// @file EditorModeTests.cpp
+/// @file EditorWorkspaceSessionTests.cpp
 /// @brief Unit tests for the mountable SagaEditor mode facade.
 
 #include "SagaEditor/Host/EditorHost.h"
-#include "SagaEditor/Profile/EditorProfile.h"
-#include "SagaEditor/Profile/EditorProfileRegistry.h"
+#include "SagaEditor/Authoring/AuthoringMode.h"
 #include "SagaEditor/Settings/MemoryEditorSettingsStore.h"
-#include "SagaEditor/Shell/EditorMode.h"
+#include "SagaEditor/Shell/EditorWorkspaceSession.h"
 #include "SagaEditor/Shell/EditorShell.h"
 #include "SagaEditor/UI/IUIMainWindow.h"
 
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <string>
 #include <utility>
 #include <vector>
@@ -94,13 +96,41 @@ public:
     return std::make_unique<MemoryEditorSettingsStore>();
 }
 
-TEST(EditorModeTest, MountsEditorShellWithoutCreatingApplication)
+[[nodiscard]] std::string ReadFile(const std::filesystem::path& path)
 {
-    EditorMode mode;
+    std::ifstream input(path, std::ios::binary);
+    return {std::istreambuf_iterator<char>(input),
+            std::istreambuf_iterator<char>()};
+}
+
+[[nodiscard]] std::filesystem::path TestSourceRoot()
+{
+    const auto configured = std::filesystem::path(SAGA_SOURCE_ROOT);
+    if (std::filesystem::is_regular_file(
+            configured / "Samples/StarterArena/StarterArena.sagaproj"))
+        return configured;
+
+    auto cursor = std::filesystem::current_path();
+    for (;;)
+    {
+        if (std::filesystem::is_regular_file(
+                cursor / "Samples/StarterArena/StarterArena.sagaproj"))
+            return cursor;
+        const auto parent = cursor.parent_path();
+        if (parent == cursor)
+            break;
+        cursor = parent;
+    }
+    return configured;
+}
+
+TEST(EditorWorkspaceSessionTest, MountsEditorShellWithoutCreatingApplication)
+{
+    EditorWorkspaceSession mode;
     auto window = std::make_unique<FakeMainWindow>();
     FakeMainWindow* windowRaw = window.get();
 
-    EditorModeConfig config;
+    EditorWorkspaceSessionConfig config;
     config.windowTitle = "Saga Embedded Editor";
     config.windowWidth = 1280;
     config.windowHeight = 720;
@@ -112,7 +142,7 @@ TEST(EditorModeTest, MountsEditorShellWithoutCreatingApplication)
     EXPECT_TRUE(mode.IsMounted());
     ASSERT_NE(mode.GetHost(), nullptr);
     ASSERT_NE(mode.GetShell(), nullptr);
-    EXPECT_EQ(windowRaw->title, "Saga Embedded Editor - Basic");
+    EXPECT_EQ(windowRaw->title, "Saga Embedded Editor");
     EXPECT_EQ(windowRaw->width, 1280);
     EXPECT_EQ(windowRaw->height, 720);
     EXPECT_FALSE(windowRaw->shown);
@@ -123,28 +153,10 @@ TEST(EditorModeTest, MountsEditorShellWithoutCreatingApplication)
     EXPECT_FALSE(mode.IsMounted());
 }
 
-TEST(EditorModeTest, AppliesInitialProfileBeforeShellMount)
+TEST(EditorWorkspaceSessionTest, RejectsInvalidInputsAndDoubleMount)
 {
-    EditorMode mode;
-    auto window = std::make_unique<FakeMainWindow>();
-
-    EditorModeConfig config;
-    config.initialProfileId = "saga.profile.standard_pipeline";
-    config.registerDefaultPanels = false;
-    config.showOnMount = false;
-
-    ASSERT_TRUE(mode.Mount(std::move(window), MakeSettingsStore(), config));
-
-    const EditorProfile* activeProfile =
-        mode.GetHost()->GetEditorProfileRegistry().GetActive();
-    ASSERT_NE(activeProfile, nullptr);
-    EXPECT_EQ(activeProfile->id, "saga.profile.standard_pipeline");
-}
-
-TEST(EditorModeTest, RejectsInvalidInputsAndDoubleMount)
-{
-    EditorMode mode;
-    EditorModeConfig config;
+    EditorWorkspaceSession mode;
+    EditorWorkspaceSessionConfig config;
     config.registerDefaultPanels = false;
     config.showOnMount = false;
 
@@ -157,6 +169,37 @@ TEST(EditorModeTest, RejectsInvalidInputsAndDoubleMount)
     EXPECT_FALSE(mode.Mount(std::make_unique<FakeMainWindow>(),
                             MakeSettingsStore(),
                             config));
+}
+
+TEST(EditorWorkspaceSessionTest, AuthoringModeSwitchPreservesCanonicalProjectSource)
+{
+    const std::filesystem::path root = TestSourceRoot() / "Samples/StarterArena";
+    const std::vector<std::filesystem::path> canonical = {
+        root / "StarterArena.sagaproj",
+        root / "Scenes/StarterArena.sagascene",
+        root / "Input/Input.saga.json",
+        root / "Scripts/DoorController.cs",
+        root / "SagaPackage.lock",
+    };
+    std::vector<std::string> before;
+    for (const auto& path : canonical)
+        before.push_back(ReadFile(path));
+
+    EditorWorkspaceSession session;
+    EditorWorkspaceSessionConfig config;
+    config.projectPath = (root / "StarterArena.sagaproj").string();
+    config.workspacePath = root.string();
+    config.registerDefaultPanels = false;
+    config.showOnMount = false;
+    ASSERT_TRUE(session.Mount(std::make_unique<FakeMainWindow>(),
+                              MakeSettingsStore(), config));
+    ASSERT_TRUE(session.GetHost()->GetAuthoringModeService().SetActive("level2"));
+    ASSERT_TRUE(session.GetHost()->GetAuthoringModeService().SetActive("level3"));
+    ASSERT_TRUE(session.GetHost()->GetAuthoringModeService().SetActive("level1"));
+    session.Unmount();
+
+    for (std::size_t index = 0; index < canonical.size(); ++index)
+        EXPECT_EQ(ReadFile(canonical[index]), before[index]) << canonical[index];
 }
 
 } // namespace

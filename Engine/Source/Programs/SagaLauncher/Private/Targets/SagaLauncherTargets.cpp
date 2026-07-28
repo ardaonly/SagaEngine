@@ -67,12 +67,6 @@ struct TargetDefinition
 };
 
 constexpr TargetDefinition kDefinitions[] = {
-    {SagaLauncherTargetKind::EditorTarget,
-     SagaLauncherActionId::OpenEditor,
-     "Open SagaEditor",
-     "Open the selected project in the external Editor host.",
-     "SagaEditor",
-     SagaProcessTargetId::Editor},
     {SagaLauncherTargetKind::SagascriptEvidenceTarget,
      SagaLauncherActionId::ViewSagaScriptEvidence,
      "SagaScript evidence",
@@ -154,9 +148,6 @@ std::optional<std::filesystem::path> SagaExecutableCatalog::Resolve(SagaProcessT
     std::filesystem::path candidate;
     switch (id)
     {
-    case SagaProcessTargetId::Editor:
-        candidate = bin / "SagaEditor";
-        break;
     case SagaProcessTargetId::Runtime:
         candidate = bin / "SagaRuntime";
         break;

@@ -67,7 +67,7 @@ def exact_layout(root: Path) -> None:
 
 def exact_metadata() -> dict[str, object]:
     return {
-        "includedTargets": ["Saga", "SagaEditor", "SagaRuntime"],
+        "includedTargets": ["Saga", "SagaRuntime"],
         "publicTools": ["sagapack", "sagaproject", "sagascript"],
         "includedApplications": included_applications(),
         "includedPublicTools": included_public_tools(),
@@ -92,8 +92,8 @@ class LinuxDistributionWhitelistTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / "Saga"
             exact_layout(root)
-            (root / "bin" / "SagaEditor").unlink()
-            self.assertTrue(any("bin/SagaEditor" in error for error in validate_layout(root)))
+            (root / "bin" / "Saga").unlink()
+            self.assertTrue(any("bin/Saga" in error for error in validate_layout(root)))
 
     def test_extra_application_and_unknown_executable_fail(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

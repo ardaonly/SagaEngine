@@ -138,7 +138,7 @@ struct ProjectMetadata
     return {
         "Product Shell workflow smoke is a report-only workflow router proof, not a full dashboard UI.",
         "Typed workflow actions are status/report references and are not executed by this smoke report.",
-        "SagaEditor owns inspection and future editing views.",
+        "Saga owns the in-process Editor workspace and its inspection views.",
         "Visual Blocks evidence remains CLI-only and is not Visual Blocks editor UI.",
         "Package preflight remains bounded evidence and is not package or distribution readiness.",
         "Repository-only server evidence is not a Product Shell workflow action.",
@@ -205,7 +205,7 @@ SagaProductWorkflowSmokeResult WriteProductWorkflowSmokeReport(
         "editor_inspection",
         ReferenceStatus(editorReport),
         "editor-inspection",
-        "SagaEditor",
+        "Saga Editor Workspace",
         editorReport,
         "available"));
     actions.push_back(WorkflowAction(
