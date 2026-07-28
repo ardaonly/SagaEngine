@@ -35,6 +35,31 @@ The shell is an interaction and orchestration layer. It can open a project, pres
 
 A tool failure remains a failed workflow step. The shell preserves the command or operation identity, exit/terminal state, report path or payload, and diagnostics. It must not show a green “done” state because a process launched while ignoring a nonzero exit or missing report.
 
+## Managed tool-process atlas
+
+`EditorCore::ManagedToolRuntime` is the single runtime and invocation authority
+for SagaProjectKit, SagaScript, and SagaPackager. It resolves a descriptor from
+the product executable's Saga layout, validates containment and the pinned
+framework/tool metadata, constructs absolute host-plus-DLL arguments, and
+overrides child `DOTNET_ROOT`, `DOTNET_HOST_PATH`, and multilevel lookup.
+`ToolProcessRunner` remains the process lifetime, cancellation, bounded-output,
+working-directory, and exit-result owner.
+
+Installed mode trusts only `runtime/dotnet` and `tools/` below the executable's
+own Saga root. It ignores PATH, machine-wide runtimes, and conflicting user
+`DOTNET_*` values. Development resolution is explicit and ordered: a test
+stage, `SAGA_MANAGED_TOOL_STAGE`, the executable-relative CMake stage, then
+`SAGA_DEVELOPER_DOTNET_HOST` with repository-published tool DLLs. Working
+directory never selects a runtime.
+
+Project creation routes ProjectKit through this authority; nested packaging
+receives the same private host and the SagaPackager DLL. Script analysis,
+worker compilation, Forge-gated compilation, viewport content compilation, and
+Play preparation similarly retain their semantic owners while sharing this
+one child-process runtime. Preflight and process failures retain stable
+`Product.Toolchain.*` codes, bounded output, exit metadata, and the resolved
+descriptor for Problems, Home, project, script, and Play reporting.
+
 ## Minimum workflow
 
 The durable editor/product flow is:

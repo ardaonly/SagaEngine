@@ -66,10 +66,9 @@ Tools/SagaScript/sagascript patch-review --diff Build/SagaScript/patch_diff_repo
 Tools/SagaScript/sagascript patch-rollback --apply-report Build/SagaScript/patch_apply_report.json --out Build/SagaScript/patch_rollback_report.json
 ```
 
-`compile` requires a .NET 10 SDK. When the SDK is missing, the launcher emits a
-structured `Script.Toolchain.DotNetSdkMissing` diagnostic instead of allowing the
-.NET SDK to print a raw target-framework error. SagaScript does not downgrade the
-target framework automatically.
+`compile` uses the Roslyn assemblies published with SagaScript. Product and staged
+wrapper execution use Saga's private `Microsoft.NETCore.App` runtime and do not
+probe for a machine-global SDK or `dotnet` host.
 
 Compile outputs:
 
