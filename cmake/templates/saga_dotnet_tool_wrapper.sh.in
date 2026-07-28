@@ -3,6 +3,24 @@
 set -euo pipefail
 
 wrapper_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec dotnet \
-    "${wrapper_dir}/../tools/.saga-tools/@SAGA_DISTRIBUTION_TOOL_NAME@/@SAGA_DISTRIBUTION_TOOL_NAME@.dll" \
+product_root="$(cd "${wrapper_dir}/.." && pwd)"
+dotnet="${product_root}/runtime/dotnet/dotnet"
+tool="${product_root}/tools/@SAGA_DISTRIBUTION_TOOL_DIRECTORY@/@SAGA_DISTRIBUTION_TOOL_ASSEMBLY@.dll"
+if [[ ! -x "${dotnet}" ]]; then
+    echo "@SAGA_DISTRIBUTION_TOOL_ASSEMBLY@: Saga private runtime is missing: ${dotnet}" >&2
+    exit 127
+fi
+if [[ ! -f "${tool}" ]]; then
+    echo "@SAGA_DISTRIBUTION_TOOL_ASSEMBLY@: packaged tool is missing: ${tool}" >&2
+    exit 127
+fi
+export DOTNET_ROOT="${product_root}/runtime/dotnet"
+export DOTNET_ROOT_X64="${DOTNET_ROOT}"
+export DOTNET_HOST_PATH="${dotnet}"
+export DOTNET_MULTILEVEL_LOOKUP=0
+export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+if [[ "@SAGA_DISTRIBUTION_TOOL_ASSEMBLY@" == "sagascript" ]]; then
+    export SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY="${product_root}/Engine/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.dll"
+fi
+exec "${dotnet}" "${tool}" \
     "$@"

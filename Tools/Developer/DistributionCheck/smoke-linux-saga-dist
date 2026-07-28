@@ -85,26 +85,6 @@ def run_command(
 ) -> bool:
     expected = expected_exit_codes or {0}
     environment = os.environ.copy()
-    if "SAGA_DOTNET" not in environment:
-        candidates: list[Path] = []
-        current_dotnet = shutil.which("dotnet")
-        if current_dotnet is not None:
-            candidates.append(Path(current_dotnet))
-        candidates.extend(sorted(Path("/nix/store").glob("*dotnet-sdk-10*/bin/dotnet")))
-        dotnet = None
-        for candidate in candidates:
-            runtime_check = subprocess.run(
-                [str(candidate), "--list-runtimes"],
-                check=False,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                text=True,
-            )
-            if runtime_check.returncode == 0 and "Microsoft.NETCore.App 10." in runtime_check.stdout:
-                dotnet = str(candidate)
-                break
-        if dotnet is not None:
-            environment["SAGA_DOTNET"] = dotnet
     try:
         result = subprocess.run(
             args,
@@ -405,9 +385,11 @@ def main() -> int:
         "bin/sagaproject",
         "bin/sagascript",
         "bin/sagapack",
-        "tools/sagaproject",
-        "tools/sagascript",
-        "tools/sagapack",
+        "managed-tool-runtime.json",
+        "runtime/dotnet/dotnet",
+        "tools/SagaProjectKit/sagaproject.dll",
+        "tools/SagaScript/sagascript.dll",
+        "tools/SagaPackager/sagapack.dll",
     ]
     required_dirs = [
         "samples/StarterArena",
@@ -420,9 +402,7 @@ def main() -> int:
         "bin/sagaproject",
         "bin/sagascript",
         "bin/sagapack",
-        "tools/sagaproject",
-        "tools/sagascript",
-        "tools/sagapack",
+        "runtime/dotnet/dotnet",
     }
     for rel in required_files:
         path = unpack_root / rel

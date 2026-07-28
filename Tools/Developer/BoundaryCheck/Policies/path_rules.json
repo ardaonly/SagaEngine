@@ -284,6 +284,12 @@
       "priority": 100
     },
     {
+      "pattern": "Config/**",
+      "license": "MPL-2.0",
+      "domain_id": "repository-root-build",
+      "priority": 100
+    },
+    {
       "pattern": "Engine/**",
       "license": "MPL-2.0",
       "domain_id": "saga-engine",

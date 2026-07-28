@@ -19,12 +19,14 @@ test -f KNOWN_LIMITATIONS.md
 python3 -m json.tool BUILD_INFO.json
 test -x bin/Saga
 test -x bin/SagaRuntime
-test -x tools/sagaproject
-test -x tools/sagapack
-test -x tools/sagascript
 test -x bin/sagaproject
 test -x bin/sagapack
 test -x bin/sagascript
+test -x runtime/dotnet/dotnet
+test -f managed-tool-runtime.json
+test -f tools/SagaProjectKit/sagaproject.dll
+test -f tools/SagaScript/sagascript.dll
+test -f tools/SagaPackager/sagapack.dll
 test -d samples/StarterArena
 test -d Engine/Distribution
 test -f Engine/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.dll
@@ -61,7 +63,7 @@ This staged layout is not a final distribution.
 - Not a verified final release.
 - Not full distribution validation.
 - Archive/checksum evidence is limited to `Saga.tar.zst` and `Saga.sha256`.
-- Packaged .NET tool wrappers dispatch to real framework-dependent published artifacts and require a compatible .NET runtime.
+- Managed tools dispatch through Saga's pinned private .NET runtime; no machine-global .NET installation is required.
 - No full editor UI is claimed.
 - No Visual Blocks editor UI is claimed.
 - No enterprise collaboration is claimed.
@@ -99,6 +101,7 @@ def stage_layout(
 
     tool_packaging_status = stage_packaged_dotnet_tools(
         output=output,
+        build_dir=build_dir,
         staged_inputs=staged_inputs,
         missing=missing,
         required_inputs=required_inputs,
@@ -202,6 +205,7 @@ def stage_layout(
         "publicTools": public_tools,
         "includedApplications": included_applications(),
         "includedPublicTools": included_public_tools(),
+        "managedToolRuntime": managed_runtime_metadata(),
         "excludedDevTools": list(EXCLUDED_DEV_TOOLS),
         "excludedRetiredTools": list(EXCLUDED_RETIRED_TOOLS),
         "excludedSourceSurfaces": list(EXCLUDED_SOURCE_SURFACES),
@@ -298,9 +302,17 @@ def staged_layout_missing(output: Path) -> list[str]:
         "bin/sagaproject",
         "bin/sagapack",
         "bin/sagascript",
-        "tools/sagaproject",
-        "tools/sagapack",
-        "tools/sagascript",
+        "managed-tool-runtime.json",
+        "runtime/dotnet/dotnet",
+        "tools/SagaProjectKit/sagaproject.dll",
+        "tools/SagaProjectKit/sagaproject.runtimeconfig.json",
+        "tools/SagaProjectKit/sagaproject.deps.json",
+        "tools/SagaScript/sagascript.dll",
+        "tools/SagaScript/sagascript.runtimeconfig.json",
+        "tools/SagaScript/sagascript.deps.json",
+        "tools/SagaPackager/sagapack.dll",
+        "tools/SagaPackager/sagapack.runtimeconfig.json",
+        "tools/SagaPackager/sagapack.deps.json",
         "licenses/LICENSE-SAGA.md",
         "licenses/THIRD_PARTY_NOTICES.md",
         "SagaWiki/index.html",
@@ -328,9 +340,7 @@ def staged_layout_missing(output: Path) -> list[str]:
         "bin/sagaproject",
         "bin/sagapack",
         "bin/sagascript",
-        "tools/sagaproject",
-        "tools/sagapack",
-        "tools/sagascript",
+        "runtime/dotnet/dotnet",
     }
     for rel in required_files:
         path = output / rel

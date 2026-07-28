@@ -177,43 +177,39 @@ function(saga_setup_distribution)
         COMPONENT SagaDistribution
     )
 
-    if(SAGA_DOTNET_EXECUTABLE)
-        add_custom_target(SagaProjectCreationTools
-            COMMAND "${SAGA_DOTNET_EXECUTABLE}" build
-                "${SAGA_ROOT}/Tools/SagaProjectKit/SagaProjectKit.csproj"
-                --configuration Release --verbosity minimal
-            COMMAND "${SAGA_DOTNET_EXECUTABLE}" build
-                "${SAGA_ROOT}/Tools/SagaPackager/SagaPackager.csproj"
-                --configuration Release --verbosity minimal
-            COMMAND "${SAGA_DOTNET_EXECUTABLE}" build
-                "${SAGA_ROOT}/Tools/SagaScript/SagaScript.csproj"
-                --configuration Release --verbosity minimal
-            VERBATIM
-        )
-        foreach(_saga_tool IN ITEMS sagaproject sagapack sagascript)
-            if(_saga_tool STREQUAL "sagaproject")
-                set(_saga_tool_source "SagaProjectKit")
-            elseif(_saga_tool STREQUAL "sagapack")
-                set(_saga_tool_source "SagaPackager")
-            else()
-                set(_saga_tool_source "SagaScript")
-            endif()
-            install(DIRECTORY
-                "${SAGA_ROOT}/Tools/${_saga_tool_source}/bin/Release/net10.0/"
-                DESTINATION "tools/.saga-tools/${_saga_tool}"
-                COMPONENT SagaDistribution
-            )
+    if(TARGET SagaManagedToolRuntimeStage)
+        install(DIRECTORY "${SAGA_MANAGED_TOOL_RUNTIME_STAGE}/runtime/"
+            DESTINATION runtime
+            USE_SOURCE_PERMISSIONS
+            COMPONENT SagaDistribution)
+        install(DIRECTORY "${SAGA_MANAGED_TOOL_RUNTIME_STAGE}/tools/"
+            DESTINATION tools
+            USE_SOURCE_PERMISSIONS
+            COMPONENT SagaDistribution)
+        install(FILES
+            "${SAGA_MANAGED_TOOL_RUNTIME_STAGE}/managed-tool-runtime.json"
+            DESTINATION .
+            COMPONENT SagaDistribution)
+        install(DIRECTORY
+            "${SAGA_MANAGED_TOOL_RUNTIME_STAGE}/licenses/ThirdParty/dotnet/"
+            DESTINATION licenses/ThirdParty/dotnet
+            USE_SOURCE_PERMISSIONS
+            COMPONENT SagaDistribution)
+        foreach(_saga_tool IN ITEMS
+                "SagaProjectKit;sagaproject"
+                "SagaScript;sagascript"
+                "SagaPackager;sagapack")
+            list(GET _saga_tool 0 SAGA_DISTRIBUTION_TOOL_DIRECTORY)
+            list(GET _saga_tool 1 SAGA_DISTRIBUTION_TOOL_ASSEMBLY)
             if(UNIX)
-                set(SAGA_DISTRIBUTION_TOOL_NAME "${_saga_tool}")
                 configure_file(
                     "${SAGA_ROOT}/cmake/templates/saga_dotnet_tool_wrapper.sh.in"
-                    "${CMAKE_BINARY_DIR}/dist/${_saga_tool}"
-                    @ONLY
-                )
-                install(PROGRAMS "${CMAKE_BINARY_DIR}/dist/${_saga_tool}"
+                    "${CMAKE_BINARY_DIR}/dist/${SAGA_DISTRIBUTION_TOOL_ASSEMBLY}"
+                    @ONLY)
+                install(PROGRAMS
+                    "${CMAKE_BINARY_DIR}/dist/${SAGA_DISTRIBUTION_TOOL_ASSEMBLY}"
                     DESTINATION bin
-                    COMPONENT SagaDistribution
-                )
+                    COMPONENT SagaDistribution)
             endif()
         endforeach()
         install(FILES
@@ -289,14 +285,14 @@ function(saga_setup_distribution)
 
     if(EXISTS "${SAGA_ROOT}/LICENSES")
         install(DIRECTORY "${SAGA_ROOT}/LICENSES/"
-            DESTINATION LICENSES
+            DESTINATION licenses
             COMPONENT SagaDistribution
         )
     endif()
 
     if(EXISTS "${SAGA_ROOT}/LICENSE")
         install(FILES "${SAGA_ROOT}/LICENSE"
-            DESTINATION LICENSES
+            DESTINATION licenses
             RENAME LICENSE-SAGA.md
             COMPONENT SagaDistribution
         )
@@ -304,7 +300,7 @@ function(saga_setup_distribution)
 
     if(EXISTS "${SAGA_ROOT}/LICENSES/THIRD_PARTY_NOTICES.md")
         install(FILES "${SAGA_ROOT}/LICENSES/THIRD_PARTY_NOTICES.md"
-            DESTINATION LICENSES
+            DESTINATION licenses
             COMPONENT SagaDistribution
         )
     endif()
@@ -315,7 +311,7 @@ function(saga_setup_distribution)
                 --prefix "${SAGA_DISTRIBUTION_DIR}"
                 --component SagaDistribution
         DEPENDS ${_saga_product_distribution_targets}
-            $<$<TARGET_EXISTS:SagaProjectCreationTools>:SagaProjectCreationTools>
+            $<$<TARGET_EXISTS:SagaManagedToolRuntimeStage>:SagaManagedToolRuntimeStage>
             $<$<TARGET_EXISTS:SagaScriptRuntimeBridge>:SagaScriptRuntimeBridge>
         COMMENT "Staging ${SAGA_DISTRIBUTION_NAME}"
         VERBATIM

@@ -19,7 +19,7 @@ artifact-specific release records.
 
 The current dependency review is based on:
 
-- SagaEngine version `0.0.10`;
+- SagaEngine version `0.0.11`;
 - the `linux-gcc` Conan profile;
 - the `RelWithDebInfo` build type;
 - Qt configured as a shared library;
@@ -42,9 +42,30 @@ components actually shipped with that artifact.
 | DejaVu Sans | 2.37 | Bitstream Vera font license | StarterArena runtime HUD font payload |
 | GLM | 0.9.9.8 | MIT | Header-only graphics mathematics dependency |
 | nlohmann/json | 3.11.3 | MIT | Serialization and configuration dependency |
+| Microsoft .NET Runtime | 10.0.10 (`linux-x64`) | MIT | Redistributed private host and `Microsoft.NETCore.App` for Saga managed child tools |
+| Microsoft.CodeAnalysis.Common | 4.11.0 | MIT | Roslyn compiler assemblies published with SagaScript |
+| Microsoft.CodeAnalysis.CSharp | 4.11.0 | MIT | Roslyn C# compiler assemblies published with SagaScript |
 
 Listing a component here does not imply that it is copied into every runtime
 distribution.
+
+The Saga Linux distribution pins the Microsoft runtime archive at
+`https://builds.dotnet.microsoft.com/dotnet/Runtime/10.0.10/dotnet-runtime-10.0.10-linux-x64.tar.gz`
+with SHA-512
+`74b2b41ee177fe72da02741d5ba30e8a3c5ead44151d7a72a04ed81a0a933e827f5f8cfcc048ba4e8de5aeb7651953761b7586277d0bcce2e01323ca29ccb813`.
+The archive-provided `LICENSE.txt` (SHA-256
+`cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310`)
+and `ThirdPartyNotices.txt` (SHA-256
+`2dc8f8c5a39401e928b5784ab564eb8b3ceb99ead3df8f260e0cab7e0bbecc7a`)
+are copied to `licenses/ThirdParty/dotnet`.
+
+SagaScript's lock-resolved Roslyn packages are
+`Microsoft.CodeAnalysis.Common` 4.11.0 (package SHA-256
+`717ff180cd15992f81b2eeb7299936a1f8c538ecb59b323e08254463a908f909`)
+and `Microsoft.CodeAnalysis.CSharp` 4.11.0 (package SHA-256
+`13d8c43a3a7d83f08579cb1ce7f41f44a38f5cc4694b0d137fbf57b1180bf8c9`).
+Their upstream package metadata declares MIT and supplies Roslyn third-party
+notices; the canonical MIT text is `LICENSES/MIT.txt`.
 
 ## Graphics vendor boundary
 
