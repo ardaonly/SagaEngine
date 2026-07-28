@@ -54,7 +54,9 @@ struct ProjectTemplateRequest
 
 struct EditorToolchainPaths
 {
+    std::filesystem::path productRoot;
     std::filesystem::path engineRoot;
+    std::filesystem::path starterArenaSeed;
     std::filesystem::path sagaProjectKitExecutable;
     std::filesystem::path sagaPackagerExecutable;
     std::filesystem::path sagaScriptExecutable;
@@ -63,12 +65,14 @@ struct EditorToolchainPaths
 
 /// Locates the installed/repository toolchain without introducing project or
 /// sample identity into callers. Environment overrides are local transport.
-[[nodiscard]] EditorToolchainPaths ResolveEditorToolchain();
+[[nodiscard]] EditorToolchainPaths ResolveEditorToolchain(
+    const std::filesystem::path& productExecutable = {});
 
 /// Resolves the repository-owned Starter Arena seed and project tools.
 /// Environment overrides are transport-only and never enter project truth.
 [[nodiscard]] ProjectTemplateRequest MakeStarterArenaTemplateRequest(
-    std::filesystem::path destination, std::string displayName);
+    std::filesystem::path destination, std::string displayName,
+    const std::filesystem::path& productExecutable = {});
 
 class IProjectToolClient
 {
@@ -76,6 +80,8 @@ public:
     virtual ~IProjectToolClient() = default;
     [[nodiscard]] virtual ProjectToolResult Validate(
         const std::filesystem::path& manifest) const = 0;
+    /// Creates transactionally and returns the final validated project
+    /// descriptor. A passing result is safe for the workspace to materialize.
     [[nodiscard]] virtual ProjectToolResult CreateStarterArena(
         const ProjectTemplateRequest& request) const = 0;
 };

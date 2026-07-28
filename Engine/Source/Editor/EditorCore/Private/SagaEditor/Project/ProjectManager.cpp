@@ -7,7 +7,6 @@
 #include "SagaEditor/Project/SagaProjectKitClient.h"
 
 #include <algorithm>
-#include <cstdlib>
 #include <filesystem>
 #include <utility>
 #include <vector>
@@ -33,38 +32,21 @@ std::filesystem::path ResolveManifestPath(const std::filesystem::path& input)
 
 std::shared_ptr<IProjectToolClient> DefaultClient()
 {
-    const char* configured = std::getenv("SAGA_PROJECT_TOOL");
-    if (configured && *configured)
-        return std::make_shared<SagaProjectKitClient>(configured);
-    const auto findFrom = [](std::filesystem::path cursor) -> std::filesystem::path
-    {
-        std::error_code error;
-        cursor = std::filesystem::absolute(cursor, error);
-        if (error) return {};
-        while (!cursor.empty())
-        {
-            const auto candidate = cursor /
-                "Tools/SagaProjectKit/bin/Release/net10.0/sagaproject";
-            if (std::filesystem::is_regular_file(candidate)) return candidate;
-            const auto parent = cursor.parent_path();
-            if (parent == cursor) break;
-            cursor = parent;
-        }
-        return {};
-    };
-    if (const char* engineRoot = std::getenv("SAGA_ENGINE_ROOT"); engineRoot && *engineRoot)
-        if (const auto found = findFrom(engineRoot); !found.empty())
-            return std::make_shared<SagaProjectKitClient>(found);
-    if (const auto found = findFrom(std::filesystem::current_path()); !found.empty())
-        return std::make_shared<SagaProjectKitClient>(found);
-#ifndef _WIN32
-    std::error_code error;
-    const auto executable = std::filesystem::read_symlink("/proc/self/exe", error);
-    if (!error)
-        if (const auto found = findFrom(executable.parent_path()); !found.empty())
-            return std::make_shared<SagaProjectKitClient>(found);
-#endif
-    return std::make_shared<SagaProjectKitClient>("sagaproject");
+    return std::make_shared<SagaProjectKitClient>(
+        ResolveEditorToolchain().sagaProjectKitExecutable);
+}
+
+ProjectInfo ProjectInfoFrom(const ValidatedProjectDescriptor& project)
+{
+    ProjectInfo next;
+    next.projectId = project.projectId;
+    next.name = project.displayName;
+    next.rootPath = project.projectRoot.string();
+    next.manifestPath = project.manifestPath.string();
+    next.engineVersion = project.engineTargetVersion;
+    next.schemaVersion = project.schemaVersion;
+    next.sources = project.sources;
+    return next;
 }
 }
 
@@ -84,11 +66,15 @@ ProjectManager::ProjectManager(std::shared_ptr<IProjectToolClient> client)
 
 ProjectManager::~ProjectManager() = default;
 
-bool ProjectManager::CreateStarterArena(const ProjectTemplateRequest& request)
+ProjectToolResult ProjectManager::CreateStarterArena(
+    const ProjectTemplateRequest& request)
 {
-    const auto creation = m_impl->client->CreateStarterArena(request);
-    if (!creation.passed) return false;
-    return OpenProject(request.destination.string());
+    auto creation = m_impl->client->CreateStarterArena(request);
+    if (!creation.passed) return creation;
+    m_impl->current = ProjectInfoFrom(creation.project);
+    m_impl->open = true;
+    if (m_impl->onProjectChanged) m_impl->onProjectChanged();
+    return creation;
 }
 
 bool ProjectManager::OpenProject(const std::string& path)
@@ -97,15 +83,7 @@ bool ProjectManager::OpenProject(const std::string& path)
     if (manifest.empty()) return false;
     const auto validation = m_impl->client->Validate(manifest);
     if (!validation.passed) return false;
-    ProjectInfo next;
-    next.projectId = validation.project.projectId;
-    next.name = validation.project.displayName;
-    next.rootPath = validation.project.projectRoot.string();
-    next.manifestPath = validation.project.manifestPath.string();
-    next.engineVersion = validation.project.engineTargetVersion;
-    next.schemaVersion = validation.project.schemaVersion;
-    next.sources = validation.project.sources;
-    m_impl->current = std::move(next);
+    m_impl->current = ProjectInfoFrom(validation.project);
     m_impl->open = true;
     if (m_impl->onProjectChanged) m_impl->onProjectChanged();
     return true;

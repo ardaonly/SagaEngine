@@ -22,6 +22,7 @@
 #include <QTimer>
 
 #include <filesystem>
+#include <fstream>
 #include <memory>
 
 namespace
@@ -121,6 +122,67 @@ TEST(SagaHomeUiTest, FailedOpenStaysHomeAndEditorCanUnmountAndRemount)
     EXPECT_EQ(window.State(), SagaProduct::SagaMainWindowState::Editor);
     window.ReturnHome();
     EXPECT_EQ(window.State(), SagaProduct::SagaMainWindowState::Home);
+}
+
+TEST(SagaHomeUiTest, NewProjectUsesCanonicalWorkflowAndOpensEditor)
+{
+    QTemporaryDir parent;
+    ASSERT_TRUE(parent.isValid());
+    const auto destination =
+        std::filesystem::path(parent.path().toStdString()) / "CreatedFromHome";
+    ASSERT_FALSE(std::filesystem::exists(destination));
+    SagaProduct::SagaMainWindow window(
+        QApplication::applicationFilePath().toStdString());
+
+    const auto result =
+        window.CreateProject(destination, "Created From Home");
+
+    ASSERT_TRUE(result.passed) <<
+        (result.diagnostics.empty() ? std::string{} :
+         result.diagnostics.front().code + ": " +
+         result.diagnostics.front().message);
+    EXPECT_EQ(window.State(), SagaProduct::SagaMainWindowState::Editor);
+    EXPECT_TRUE(std::filesystem::is_regular_file(
+        result.project.manifestPath));
+    EXPECT_EQ(result.project.manifestPath.parent_path(), destination);
+    EXPECT_NE(window.findChild<QDockWidget*>("saga.panel.hierarchy"), nullptr);
+    EXPECT_NE(window.findChild<QDockWidget*>("saga.panel.inspector"), nullptr);
+
+    window.ReturnHome();
+    QApplication::processEvents();
+    ASSERT_EQ(window.State(), SagaProduct::SagaMainWindowState::Home);
+    auto* recents = window.findChild<QListWidget*>("SagaHomeRecentProjects");
+    ASSERT_NE(recents, nullptr);
+    bool found = false;
+    for (int index = 0; index < recents->count(); ++index)
+        found = found || recents->item(index)->data(Qt::UserRole).toString() ==
+            QString::fromStdString(result.project.manifestPath.string());
+    EXPECT_TRUE(found);
+}
+
+TEST(SagaHomeUiTest, ExistingDestinationIsRejectedWithoutOverwrite)
+{
+    QTemporaryDir parent;
+    ASSERT_TRUE(parent.isValid());
+    const auto destination =
+        std::filesystem::path(parent.path().toStdString()) / "Existing";
+    std::filesystem::create_directories(destination);
+    const auto sentinel = destination / "keep.txt";
+    std::ofstream(sentinel) << "do not overwrite\n";
+    SagaProduct::SagaMainWindow window(
+        QApplication::applicationFilePath().toStdString());
+
+    const auto result = window.CreateProject(destination, "Existing");
+
+    ASSERT_FALSE(result.passed);
+    ASSERT_FALSE(result.diagnostics.empty());
+    EXPECT_EQ(result.diagnostics.front().code, "Project.Template.CreateFailed");
+    EXPECT_FALSE(result.diagnostics.front().message.empty());
+    EXPECT_EQ(window.State(), SagaProduct::SagaMainWindowState::Home);
+    std::ifstream input(sentinel);
+    std::string contents;
+    std::getline(input, contents);
+    EXPECT_EQ(contents, "do not overwrite");
 }
 
 TEST(SagaHomeUiTest, AttachedEditorWindowNeverOwnsProductWindow)

@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: MPL-2.0
+set -euo pipefail
+
+wrapper_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec dotnet \
+    "${wrapper_dir}/../tools/.saga-tools/@SAGA_DISTRIBUTION_TOOL_NAME@/@SAGA_DISTRIBUTION_TOOL_NAME@.dll" \
+    "$@"

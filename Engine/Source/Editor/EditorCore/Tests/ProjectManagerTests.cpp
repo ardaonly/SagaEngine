@@ -130,15 +130,15 @@ TEST(ProjectManagerTests, CreatesThenOpensMaterializedStarterArena)
     fs::create_directories(destination);
     WriteManifest(destination / "Project.sagaproj");
     auto client = std::make_shared<FakeProjectToolClient>();
-    client->creation.passed = true;
-    client->validation = PassedProject(destination, "Created");
+    client->creation = PassedProject(destination, "Created");
     SagaEditor::ProjectManager manager(client);
     SagaEditor::ProjectTemplateRequest request;
     request.destination = destination;
 
-    ASSERT_TRUE(manager.CreateStarterArena(request));
+    const auto result = manager.CreateStarterArena(request);
+    ASSERT_TRUE(result.passed);
     EXPECT_EQ(client->creationCount, 1);
-    EXPECT_EQ(client->validationCount, 1);
+    EXPECT_EQ(client->validationCount, 0);
     EXPECT_EQ(manager.GetCurrentProject().name, "Created");
     fs::remove_all(parent);
 }

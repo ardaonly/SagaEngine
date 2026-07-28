@@ -26,6 +26,8 @@ test -x bin/sagaproject
 test -x bin/sagapack
 test -x bin/sagascript
 test -d samples/StarterArena
+test -d Engine/Distribution
+test -f Engine/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.dll
 test -f README.md
 test -f SagaWiki/index.html
 test -f SagaWiki/assets/style.css
@@ -105,6 +107,19 @@ def stage_layout(
     )
 
     copy_tree(resolved_input(available_inputs, "StarterArena sample"), output / "samples" / "StarterArena", staged_inputs, "StarterArena sample")
+    copy_tree(
+        resolved_input(available_inputs, "engine package distribution"),
+        output / "Engine" / "Distribution",
+        staged_inputs,
+        "engine package distribution",
+    )
+    copy_file(
+        resolved_input(available_inputs, "SagaScript runtime bridge"),
+        output / "Engine" / "Managed" / "SagaScript.RuntimeBridge" /
+            "SagaScript.RuntimeBridge.dll",
+        staged_inputs,
+        "SagaScript runtime bridge",
+    )
     copy_file(resolved_input(available_inputs, "root README"), output / "README.md", staged_inputs, "root README top-level")
     wiki = resolved_input(available_inputs, "SagaWiki")
     for relative in [
@@ -292,9 +307,11 @@ def staged_layout_missing(output: Path) -> list[str]:
         "SagaWiki/assets/style.css",
         "SagaWiki/assets/wiki.js",
         "SagaWiki/pages/licensing.html",
+        "Engine/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.dll",
     ]
     required_dirs = [
         "samples/StarterArena",
+        "Engine/Distribution",
         "SagaWiki/assets",
         "SagaWiki/pages",
         "licenses",

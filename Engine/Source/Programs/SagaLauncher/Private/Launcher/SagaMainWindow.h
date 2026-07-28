@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 #pragma once
 
+#include "SagaEditor/Project/SagaProjectKitClient.h"
+
 #include <QMainWindow>
 #include <filesystem>
 #include <memory>
@@ -35,6 +37,9 @@ public:
 
     [[nodiscard]] SagaMainWindowState State() const noexcept;
     [[nodiscard]] bool OpenProject(const std::filesystem::path& project);
+    [[nodiscard]] SagaEditor::ProjectToolResult CreateProject(
+        const std::filesystem::path& destination,
+        const std::string& displayName);
     void ReturnHome();
 
 protected:

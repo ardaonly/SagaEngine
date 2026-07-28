@@ -20,11 +20,21 @@ bool EditorDocumentWorkspace::OpenProject(const std::filesystem::path& path)
     return OpenValidated(std::move(next));
 }
 
-bool EditorDocumentWorkspace::CreateStarterArena(const ProjectTemplateRequest& request)
+ProjectToolResult EditorDocumentWorkspace::CreateStarterArena(
+    const ProjectTemplateRequest& request)
 {
     auto next = std::make_unique<ProjectManager>(client_);
-    if (!next->CreateStarterArena(request)) return false;
-    return OpenValidated(std::move(next));
+    auto result = next->CreateStarterArena(request);
+    if (!result.passed) return result;
+    if (!OpenValidated(std::move(next)))
+    {
+        result.passed = false;
+        result.diagnostics.push_back({
+            "Project.Workspace.OpenFailed",
+            "The project was created, but its canonical documents could not be opened.",
+            result.project.manifestPath});
+    }
+    return result;
 }
 
 bool EditorDocumentWorkspace::OpenValidated(std::unique_ptr<ProjectManager> nextManager)

@@ -99,3 +99,17 @@ TEST(EditorDocumentWorkspaceTests, FailedOpenPreservesCurrentWorkspace)
     EXPECT_EQ(workspace.Project()->name, "Fixture");
     fs::remove_all(root);
 }
+
+TEST(EditorDocumentWorkspaceTests, CreationFailurePreservesStructuredDiagnostic)
+{
+    auto client = std::make_shared<FakeProjectClient>();
+    client->result.diagnostics.push_back({
+        "Project.Template.SeedMissing", "Template is missing.", "/missing"});
+    SagaEditor::EditorDocumentWorkspace workspace(client);
+
+    const auto result = workspace.CreateStarterArena({});
+
+    ASSERT_FALSE(result.passed);
+    ASSERT_EQ(result.diagnostics.size(), 1U);
+    EXPECT_EQ(result.diagnostics.front().code, "Project.Template.SeedMissing");
+}

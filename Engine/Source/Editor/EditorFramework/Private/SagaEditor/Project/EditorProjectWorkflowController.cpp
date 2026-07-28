@@ -89,7 +89,7 @@ EditorProjectWorkflowController::CreateStarterArenaPrompted()
     }
     const auto request = MakeStarterArenaTemplateRequest(
         prompt->destination, prompt->displayName);
-    return workspace_.CreateStarterArena(request) ?
+    return workspace_.CreateStarterArena(request).passed ?
         ProjectWorkflowOutcome::Completed :
         ProjectWorkflowOutcome::Failed;
 }
