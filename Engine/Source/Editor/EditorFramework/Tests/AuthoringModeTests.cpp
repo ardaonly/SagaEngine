@@ -37,7 +37,9 @@ TEST(AuthoringModeTests, MigratesProfileBeforePersonaIdempotently)
     MigrateLegacyEditorPreferences(settings);
     EXPECT_EQ(settings.GetString(AuthoringModeService::SettingKey, {}), "level1");
     EXPECT_EQ(settings.GetString(
-        AuthoringModeService::MigrationVersionKey, {}), "1");
+        AuthoringModeService::MigrationVersionKey, {}), "2");
+    EXPECT_EQ(settings.GetString(
+        AuthoringModeService::ThemeSettingKey, {}), "Midnight");
     settings.SetString("profile.activeId", "saga.profile.advanced_pipeline");
     MigrateLegacyEditorPreferences(settings);
     EXPECT_EQ(settings.GetString(AuthoringModeService::SettingKey, {}), "level1");
@@ -70,5 +72,60 @@ TEST(AuthoringModeTests, MissingAndPartialLegacySettingsCompleteMigrationOnce)
     settings.SetString("profile.activeId", "saga.profile.basic");
     MigrateLegacyEditorPreferences(settings);
     EXPECT_EQ(settings.GetString(AuthoringModeService::SettingKey, {}), "level3");
+}
+
+TEST(AuthoringModeTests, MigratesEveryLegacyBuiltinPersonaThemeFromVersion1)
+{
+    const std::pair<const char*, const char*> cases[] = {
+        {"saga.persona.beginner", "Light"},
+        {"saga.persona.indie", "Dark"},
+        {"saga.persona.custom", "Dark"},
+        {"saga.persona.pro", "Midnight"},
+        {"saga.persona.technical", "Midnight"},
+    };
+    for (const auto& [persona, expected] : cases)
+    {
+        MemoryEditorSettingsStore settings;
+        settings.SetString(AuthoringModeService::MigrationVersionKey, "1");
+        settings.SetString(AuthoringModeService::SettingKey, "level2");
+        settings.SetString("persona.activeId", persona);
+
+        MigrateLegacyEditorPreferences(settings);
+
+        EXPECT_EQ(settings.GetString(
+            AuthoringModeService::ThemeSettingKey, {}), expected) << persona;
+        EXPECT_EQ(settings.GetString(
+            AuthoringModeService::SettingKey, {}), "level2") << persona;
+        EXPECT_EQ(settings.GetString(
+            AuthoringModeService::MigrationVersionKey, {}), "2") << persona;
+    }
+}
+
+TEST(AuthoringModeTests, IndependentThemeWinsAndMigrationIsIdempotent)
+{
+    MemoryEditorSettingsStore settings;
+    settings.SetString(AuthoringModeService::ThemeSettingKey, "Nord");
+    settings.SetString("persona.activeId", "saga.persona.beginner");
+
+    MigrateLegacyEditorPreferences(settings);
+    EXPECT_EQ(settings.GetString(
+        AuthoringModeService::ThemeSettingKey, {}), "Nord");
+
+    settings.SetString("persona.activeId", "saga.persona.pro");
+    MigrateLegacyEditorPreferences(settings);
+    EXPECT_EQ(settings.GetString(
+        AuthoringModeService::ThemeSettingKey, {}), "Nord");
+}
+
+TEST(AuthoringModeTests, UnknownPersonaDoesNotCreateThemePreference)
+{
+    MemoryEditorSettingsStore settings;
+    settings.SetString("persona.activeId", "studio.persona.custom");
+
+    MigrateLegacyEditorPreferences(settings);
+
+    EXPECT_FALSE(settings.Has(AuthoringModeService::ThemeSettingKey));
+    EXPECT_EQ(settings.GetString(
+        AuthoringModeService::MigrationVersionKey, {}), "2");
 }
 } // namespace SagaEditor

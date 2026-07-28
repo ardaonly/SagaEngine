@@ -31,6 +31,7 @@ public:
     void SetOnChanged(Changed changed);
 
     static constexpr const char* SettingKey = "Editor/AuthoringMode/v1";
+    static constexpr const char* ThemeSettingKey = "Editor/Theme/v1";
     static constexpr const char* MigrationVersionKey =
         "Editor/PreferenceMigration/version";
 

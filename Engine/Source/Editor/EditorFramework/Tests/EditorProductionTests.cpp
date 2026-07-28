@@ -11,6 +11,7 @@
 #include "SagaEditor/Runtime/IEditorEngineBridge.h"
 #include "SagaEditor/Selection/SelectionManager.h"
 #include "SagaEditor/Settings/MemoryEditorSettingsStore.h"
+#include "SagaEditor/Themes/ThemeRegistry.h"
 
 #include <gtest/gtest.h>
 
@@ -405,6 +406,44 @@ TEST(EditorProductionHostTest, BuiltinModesExcludeProductionDashboard)
                               "saga.panel.production_dashboard"))
             << mode.id;
     }
+}
+
+TEST(EditorProductionHostTest, ReconstructsMigratedBuiltinPersonaThemes)
+{
+    const std::pair<const char*, const char*> cases[] = {
+        {"saga.persona.beginner", "Light"},
+        {"saga.persona.indie", "Dark"},
+        {"saga.persona.pro", "Midnight"},
+    };
+    for (const auto& [persona, expected] : cases)
+    {
+        auto settings = std::make_unique<MemoryEditorSettingsStore>();
+        settings->SetString(
+            AuthoringModeService::MigrationVersionKey, "1");
+        settings->SetString("persona.activeId", persona);
+
+        EditorHost host;
+        ASSERT_TRUE(host.Init(std::move(settings))) << persona;
+        EXPECT_EQ(host.GetThemeRegistry().GetActiveName(), expected) << persona;
+        host.Shutdown();
+    }
+}
+
+TEST(EditorProductionHostTest, InvalidIndependentThemeFallsBackWithoutOverwrite)
+{
+    auto settings = std::make_unique<MemoryEditorSettingsStore>();
+    settings->SetString(AuthoringModeService::ThemeSettingKey,
+                        "extension.theme.unavailable");
+    settings->SetString("persona.activeId", "saga.persona.beginner");
+
+    EditorHost host;
+    ASSERT_TRUE(host.Init(std::move(settings)));
+
+    EXPECT_EQ(host.GetThemeRegistry().GetActiveName(), "Dark");
+    EXPECT_EQ(host.GetSettingsStore().GetString(
+        AuthoringModeService::ThemeSettingKey, {}),
+        "extension.theme.unavailable");
+    host.Shutdown();
 }
 
 TEST(EditorCustomizationCatalogTest, DefaultsToBuiltins)

@@ -15,6 +15,18 @@ std::string Normalized(std::string value)
         [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return value;
 }
+
+std::string ThemeForLegacyPersona(const std::string& value)
+{
+    const std::string id = Normalized(value);
+    if (id == "saga.persona.beginner")
+        return "Light";
+    if (id == "saga.persona.indie" || id == "saga.persona.custom")
+        return "Dark";
+    if (id == "saga.persona.pro" || id == "saga.persona.technical")
+        return "Midnight";
+    return {};
+}
 }
 
 std::string AuthoringModeForLegacyPreference(const std::string& value)
@@ -41,7 +53,7 @@ std::string AuthoringModeForLegacyPreference(const std::string& value)
 
 void MigrateLegacyEditorPreferences(IEditorSettingsStore& settings)
 {
-    if (settings.GetString(AuthoringModeService::MigrationVersionKey, {}) == "1")
+    if (settings.GetString(AuthoringModeService::MigrationVersionKey, {}) == "2")
         return;
     if (settings.GetString(AuthoringModeService::SettingKey, {}).empty())
     {
@@ -54,7 +66,14 @@ void MigrateLegacyEditorPreferences(IEditorSettingsStore& settings)
         if (!mode.empty())
             settings.SetString(AuthoringModeService::SettingKey, mode);
     }
-    settings.SetString(AuthoringModeService::MigrationVersionKey, "1");
+    if (settings.GetString(AuthoringModeService::ThemeSettingKey, {}).empty())
+    {
+        const std::string theme = ThemeForLegacyPersona(
+            settings.GetString("persona.activeId", {}));
+        if (!theme.empty())
+            settings.SetString(AuthoringModeService::ThemeSettingKey, theme);
+    }
+    settings.SetString(AuthoringModeService::MigrationVersionKey, "2");
     settings.Flush();
 }
 
