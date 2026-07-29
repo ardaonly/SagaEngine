@@ -69,7 +69,13 @@ ProjectManager::~ProjectManager() = default;
 ProjectToolResult ProjectManager::CreateStarterArena(
     const ProjectTemplateRequest& request)
 {
-    auto creation = m_impl->client->CreateStarterArena(request);
+    return CreateProject(request);
+}
+
+ProjectToolResult ProjectManager::CreateProject(
+    const ProjectTemplateRequest& request)
+{
+    auto creation = m_impl->client->CreateProject(request);
     if (!creation.passed) return creation;
     m_impl->current = ProjectInfoFrom(creation.project);
     m_impl->open = true;

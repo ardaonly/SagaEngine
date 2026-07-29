@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 #pragma once
 
+#include "SagaEditor/Project/SagaProjectKitClient.h"
+
 #include <filesystem>
 #include <functional>
 #include <optional>
@@ -16,6 +18,7 @@ struct ProjectCreationPrompt
 {
     std::string displayName;
     std::filesystem::path destination;
+    ProjectTemplateId templateId{};
 };
 
 enum class DirtyDocumentDecision
@@ -50,6 +53,7 @@ public:
     [[nodiscard]] ProjectWorkflowOutcome CanClose();
     [[nodiscard]] ProjectWorkflowOutcome OpenProjectPrompted();
     [[nodiscard]] ProjectWorkflowOutcome CreateStarterArenaPrompted();
+    [[nodiscard]] ProjectWorkflowOutcome CreateProjectPrompted();
 
 private:
     [[nodiscard]] ProjectWorkflowOutcome PrepareWorkspaceReplacement();

@@ -1,0 +1,59 @@
+{
+  "documents": [
+    { "documentId": "arena-rush.hud.document", "path": "HUD/hud.rml" },
+    { "documentId": "arena-rush.main-menu.document", "path": "MainMenu/main-menu.rml" },
+    { "documentId": "arena-rush.results.document", "path": "Results/results.rml" }
+  ],
+  "fonts": [
+    { "family": "DejaVu Sans", "path": "ThirdParty/DejaVu/DejaVuSans.ttf" }
+  ],
+  "prompts": [
+    {
+      "actionId": "Exit",
+      "behaviorId": "ArenaRush.ArenaRushGameMode",
+      "elementId": "exit-foundation",
+      "entityId": "game-mode",
+      "falseLabel": "Q: Exit",
+      "stateKey": "foundation.exit",
+      "trueLabel": "Q: Exit",
+      "visibility": "Always"
+    },
+    {
+      "actionId": "Interact",
+      "behaviorId": "ArenaRush.EnergyCoreController",
+      "elementId": "interact-foundation",
+      "entityId": "core-presentation",
+      "falseLabel": "E: Collect Core",
+      "stateKey": "foundation.interact",
+      "trueLabel": "E: Collect Core",
+      "visibility": "Always"
+    },
+    {
+      "actionId": "Restart",
+      "behaviorId": "ArenaRush.ArenaRushGameMode",
+      "elementId": "restart-foundation",
+      "entityId": "game-mode",
+      "falseLabel": "R: Restart",
+      "stateKey": "foundation.restart",
+      "trueLabel": "R: Restart",
+      "visibility": "Always"
+    },
+    {
+      "actionId": "StartChallenge",
+      "behaviorId": "ArenaRush.ArenaRushGameMode",
+      "elementId": "start-foundation",
+      "entityId": "game-mode",
+      "falseLabel": "S: Start Challenge",
+      "stateKey": "foundation.start",
+      "trueLabel": "S: Start Challenge",
+      "visibility": "Always"
+    }
+  ],
+  "schemaVersion": 1,
+  "screenId": "arena-rush.ui",
+  "stylesheets": [
+    { "path": "HUD/hud.rcss" },
+    { "path": "MainMenu/main-menu.rcss" },
+    { "path": "Results/results.rcss" }
+  ]
+}

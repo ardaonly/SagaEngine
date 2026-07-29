@@ -1,0 +1,69 @@
+{
+  "assets": [
+    { "id": "arena-rush.core", "kind": "primitive", "path": "Assets/Core.asset.json" },
+    { "id": "arena-rush.door", "kind": "primitive", "path": "Assets/Door.asset.json" },
+    { "id": "arena-rush.ground", "kind": "primitive", "path": "Assets/Ground.asset.json" },
+    { "id": "arena-rush.wall", "kind": "primitive", "path": "Assets/Wall.asset.json" }
+  ],
+  "dependencies": [
+    {
+      "modules": ["gameplay.highlevel"],
+      "packageId": "com.saga.gameplay.foundation",
+      "version": "0.0.11"
+    },
+    {
+      "modules": ["challenge.core.highlevel", "collectibles.highlevel"],
+      "packageId": "com.saga.gameplay.challenge",
+      "version": "0.0.11"
+    }
+  ],
+  "displayName": "Arena Rush: Energy Core Challenge",
+  "engineCompatibility": {
+    "channel": "stable",
+    "minimumVersion": "0.0.11",
+    "targetVersion": "0.0.11"
+  },
+  "inputMaps": [
+    { "id": "arena-rush.input", "kind": "input-map", "path": "Input/Input.saga.json" }
+  ],
+  "launchProfiles": [],
+  "packageProfiles": [],
+  "paths": {
+    "diagnostics": "Build/Diagnostics",
+    "generatedReports": "Build/Reports",
+    "generatedState": "Build",
+    "personalState": ".saga/user",
+    "sharedWorkspaceState": ".saga/shared",
+    "sourceTruth": "."
+  },
+  "projectId": "80d7cf5e-69c2-4f89-a9b7-f27ea16da079",
+  "scenes": [
+    { "id": "arena-rush.scene", "kind": "scene", "path": "Scenes/ArenaRush.sagascene" }
+  ],
+  "schemaVersion": 0,
+  "scriptFolders": [
+    { "id": "arena-rush.scripts", "kind": "csharp", "path": "Scripts" }
+  ],
+  "statePolicies": [
+    { "classification": "SourceTruth", "path": ".", "tracked": true },
+    { "classification": "GeneratedState", "path": "Build", "tracked": false },
+    {
+      "classification": "GeneratedState",
+      "exception": "Sole tracked generated-build exception; verifies the exact offline package graph.",
+      "path": "SagaPackage.lock",
+      "tracked": true
+    },
+    { "classification": "PersonalState", "path": ".saga/user", "tracked": false },
+    { "classification": "SharedWorkspaceState", "path": ".saga/shared", "tracked": false }
+  ],
+  "uiDocuments": [
+    { "id": "arena-rush.ui", "kind": "ui-config", "path": "Content/UI/runtime.ui.json" },
+    { "id": "arena-rush.main-menu.document", "kind": "rml", "path": "Content/UI/MainMenu/main-menu.rml" },
+    { "id": "arena-rush.main-menu.styles", "kind": "rcss", "path": "Content/UI/MainMenu/main-menu.rcss" },
+    { "id": "arena-rush.hud.document", "kind": "rml", "path": "Content/UI/HUD/hud.rml" },
+    { "id": "arena-rush.hud.styles", "kind": "rcss", "path": "Content/UI/HUD/hud.rcss" },
+    { "id": "arena-rush.results.document", "kind": "rml", "path": "Content/UI/Results/results.rml" },
+    { "id": "arena-rush.results.styles", "kind": "rcss", "path": "Content/UI/Results/results.rcss" },
+    { "id": "arena-rush.ui.font", "kind": "font", "path": "Content/UI/ThirdParty/DejaVu/DejaVuSans.ttf" }
+  ]
+}

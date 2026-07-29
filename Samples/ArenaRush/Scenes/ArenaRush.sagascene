@@ -1,0 +1,188 @@
+{
+  "entities": [
+    {
+      "components": [
+        { "position": [0, 0, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" }
+      ],
+      "entityId": "arena-rush",
+      "name": "Arena Rush"
+    },
+    {
+      "components": [
+        { "position": [0, 0, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" },
+        {
+          "authoringSource": "Scripts/ArenaRushGameMode.cs",
+          "behaviorTypeId": "ArenaRush.ArenaRushGameMode",
+          "instanceConfiguration": {
+            "activeCollectibleCount": 5,
+            "challengeDurationSeconds": 60,
+            "coreValue": 10,
+            "respawnDelaySeconds": 2,
+            "targetProgress": 100
+          },
+          "requiredCapabilities": ["Gameplay.State.ReadWrite"],
+          "type": "ScriptBehavior"
+        }
+      ],
+      "entityId": "game-mode",
+      "name": "Arena Rush Game Mode",
+      "parentEntityId": "arena-rush"
+    },
+    {
+      "components": [
+        { "position": [0, 0, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" },
+        { "behaviorTypeId": "ArenaRush.ArenaRushGameMode", "inputActionId": "Exit", "namedActionId": "Exit", "type": "ScriptActionBinding" }
+      ],
+      "entityId": "game-mode-exit-binding",
+      "name": "Exit Action Binding",
+      "parentEntityId": "game-mode"
+    },
+    {
+      "components": [
+        { "position": [0, 0, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" },
+        { "behaviorTypeId": "ArenaRush.ArenaRushGameMode", "inputActionId": "Restart", "namedActionId": "Restart", "type": "ScriptActionBinding" }
+      ],
+      "entityId": "game-mode-restart-binding",
+      "name": "Restart Action Binding",
+      "parentEntityId": "game-mode"
+    },
+    {
+      "components": [
+        { "position": [0, 0, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" },
+        { "behaviorTypeId": "ArenaRush.ArenaRushGameMode", "inputActionId": "StartChallenge", "namedActionId": "StartChallenge", "type": "ScriptActionBinding" }
+      ],
+      "entityId": "game-mode-start-binding",
+      "name": "Start Challenge Action Binding",
+      "parentEntityId": "game-mode"
+    },
+    {
+      "components": [
+        { "position": [0, 0, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" },
+        { "materialAssetId": "arena-rush.ground.material", "meshAssetId": "arena-rush.ground.mesh", "type": "MeshRenderer" }
+      ],
+      "entityId": "ground",
+      "name": "Ground",
+      "parentEntityId": "arena-rush"
+    },
+    {
+      "components": [
+        { "position": [0, 1.25, -10], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" },
+        { "materialAssetId": "arena-rush.wall.material", "meshAssetId": "arena-rush.wall.mesh", "type": "MeshRenderer" }
+      ],
+      "entityId": "wall-north",
+      "name": "North Wall",
+      "parentEntityId": "arena-rush"
+    },
+    {
+      "components": [
+        { "position": [0, 1.25, 10], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" },
+        { "materialAssetId": "arena-rush.wall.material", "meshAssetId": "arena-rush.wall.mesh", "type": "MeshRenderer" }
+      ],
+      "entityId": "wall-south",
+      "name": "South Wall",
+      "parentEntityId": "arena-rush"
+    },
+    {
+      "components": [
+        { "position": [-10, 1.25, 0], "rotation": [0, 0.707107, 0, 0.707107], "scale": [1, 1, 1], "type": "Transform" },
+        { "materialAssetId": "arena-rush.wall.material", "meshAssetId": "arena-rush.wall.mesh", "type": "MeshRenderer" }
+      ],
+      "entityId": "wall-west",
+      "name": "West Wall",
+      "parentEntityId": "arena-rush"
+    },
+    {
+      "components": [
+        { "position": [10, 1.25, 0], "rotation": [0, 0.707107, 0, 0.707107], "scale": [1, 1, 1], "type": "Transform" },
+        { "materialAssetId": "arena-rush.wall.material", "meshAssetId": "arena-rush.wall.mesh", "type": "MeshRenderer" }
+      ],
+      "entityId": "wall-east",
+      "name": "East Wall",
+      "parentEntityId": "arena-rush"
+    },
+    {
+      "components": [
+        { "position": [0, 1.25, -9.7], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" },
+        { "materialAssetId": "arena-rush.door.material", "meshAssetId": "arena-rush.door.mesh", "type": "MeshRenderer" }
+      ],
+      "entityId": "arena-door",
+      "name": "Arena Door",
+      "parentEntityId": "arena-rush"
+    },
+    {
+      "components": [
+        { "position": [0, 0, -7.5], "rotation": [0, 0, 0, 1], "scale": [3, 1, 2], "type": "Transform" }
+      ],
+      "entityId": "challenge-start-marker",
+      "name": "Challenge Start Marker",
+      "parentEntityId": "arena-rush"
+    },
+    {
+      "components": [
+        { "position": [0, 0.7, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" },
+        { "materialAssetId": "arena-rush.core.material", "meshAssetId": "arena-rush.core.mesh", "type": "MeshRenderer" },
+        {
+          "authoringSource": "Scripts/EnergyCoreController.cs",
+          "behaviorTypeId": "ArenaRush.EnergyCoreController",
+          "instanceConfiguration": {},
+          "requiredCapabilities": ["Gameplay.State.ReadWrite"],
+          "type": "ScriptBehavior"
+        },
+        { "behaviorTypeId": "ArenaRush.EnergyCoreController", "inputActionId": "Interact", "namedActionId": "Interact", "type": "ScriptActionBinding" }
+      ],
+      "entityId": "core-presentation",
+      "name": "Energy Core Presentation",
+      "parentEntityId": "arena-rush"
+    },
+    {
+      "components": [{ "position": [-6, 0.4, -4], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" }],
+      "entityId": "spawn-01",
+      "name": "Spawn 01",
+      "parentEntityId": "arena-rush"
+    },
+    {
+      "components": [{ "position": [6, 0.4, -4], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" }],
+      "entityId": "spawn-02",
+      "name": "Spawn 02",
+      "parentEntityId": "arena-rush"
+    },
+    {
+      "components": [{ "position": [-6, 0.4, 4], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" }],
+      "entityId": "spawn-03",
+      "name": "Spawn 03",
+      "parentEntityId": "arena-rush"
+    },
+    {
+      "components": [{ "position": [6, 0.4, 4], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" }],
+      "entityId": "spawn-04",
+      "name": "Spawn 04",
+      "parentEntityId": "arena-rush"
+    },
+    {
+      "components": [{ "position": [0, 0.4, 6], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" }],
+      "entityId": "spawn-05",
+      "name": "Spawn 05",
+      "parentEntityId": "arena-rush"
+    },
+    {
+      "components": [
+        { "position": [0, 12, 16], "rotation": [-0.258819, 0, 0, 0.965926], "scale": [1, 1, 1], "type": "Transform" },
+        { "farClip": 250, "nearClip": 0.1, "primary": true, "projection": "Perspective", "type": "Camera", "verticalFovDegrees": 60 }
+      ],
+      "entityId": "main-camera",
+      "name": "Main Camera",
+      "parentEntityId": "arena-rush"
+    },
+    {
+      "components": [
+        { "position": [0, 8, 0], "rotation": [-0.382683, 0.353553, 0.146447, 0.840896], "scale": [1, 1, 1], "type": "Transform" },
+        { "castsShadows": true, "color": [0.82, 0.92, 1], "intensity": 3.5, "type": "DirectionalLight" }
+      ],
+      "entityId": "directional-light",
+      "name": "Directional Light",
+      "parentEntityId": "arena-rush"
+    }
+  ],
+  "sceneId": "arena-rush.scene",
+  "schemaVersion": 1
+}

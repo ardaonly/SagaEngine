@@ -124,6 +124,7 @@ def main() -> int:
     check_binary("sagapack CLI", [Path("Tools/SagaPackager/sagapack")], missing, required_inputs, available_inputs, missing_inputs, category="tool")
     check_binary("sagascript CLI", [Path("Tools/SagaScript/sagascript")], missing, required_inputs, available_inputs, missing_inputs, category="tool")
     check_dir("StarterArena sample", Path("Samples/StarterArena"), missing, required_inputs, available_inputs, missing_inputs, category="sample")
+    check_dir("ArenaRush sample", Path("Samples/ArenaRush"), missing, required_inputs, available_inputs, missing_inputs, category="sample")
     check_dir("engine package distribution", Path("Engine/Distribution"), missing, required_inputs, available_inputs, missing_inputs, category="product-resource")
     check_file(
         "SagaScript runtime bridge",

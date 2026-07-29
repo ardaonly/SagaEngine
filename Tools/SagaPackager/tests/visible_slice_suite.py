@@ -16,6 +16,11 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 PROJECT = REPO_ROOT / "Tools/SagaPackager/SagaPackager.csproj"
 CLI = PROJECT.parent / "bin/Release/net10.0/sagapack.dll"
 STARTER = REPO_ROOT / "Samples/StarterArena"
+ARENA_RUSH = REPO_ROOT / "Samples/ArenaRush"
+RUNTIME_BRIDGE = (
+    REPO_ROOT / "build/RelWithDebInfo-0.0.11/Managed/"
+    "SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.dll"
+)
 _built = False
 
 
@@ -155,8 +160,128 @@ def test_runtime_ui_failure_preserves_valid_selectors() -> None:
         assert "Project.Reference.Missing" in [item["code"] for item in
             load(output / "compile-result.json")["diagnostics"]]
 
+def test_arena_rush_assets_inputs_and_composite_ui_compile() -> None:
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        project = root / "ArenaRush"
+        shutil.copytree(ARENA_RUSH, project, ignore=shutil.ignore_patterns("Build"))
+        manifest = project / "ArenaRush.sagaproj"
+        for command in ("compile-assets", "compile-inputs", "compile-ui"):
+            first = root / f"{command}-first"
+            second = root / f"{command}-second"
+            assert run_cli(command, "--project", str(manifest), "--out", str(first)).returncode == 0
+            assert run_cli(command, "--project", str(manifest), "--out", str(second)).returncode == 0
+            assert (first / "manifests/current.json").read_bytes() == (
+                second / "manifests/current.json"
+            ).read_bytes()
+        ui = artifact(root / "compile-ui-first", "arena-rush.ui")
+        assert len(ui["payload"]["documents"]) == 3
+        assert len(ui["payload"]["stylesheets"]) == 3
+        assert len(ui["payload"]["fonts"]) == 1
+        input_artifact = artifact(root / "compile-inputs-first", "arena-rush.input")
+        assert [item["actionId"] for item in input_artifact["payload"]["actions"]] == [
+            "Exit", "Interact", "Restart", "StartChallenge",
+        ]
+
+def test_arena_rush_multi_surface_package_generation_is_exact() -> None:
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        project = root / "ArenaRush"
+        shutil.copytree(ARENA_RUSH, project, ignore=shutil.ignore_patterns("Build"))
+        output = root / "output"
+        result = run_cli(
+            "resolve",
+            "--project", str(project / "ArenaRush.sagaproj"),
+            "--engine-root", str(REPO_ROOT),
+            "--lock", str(output / "SagaPackage.lock"),
+            "--generated-out", str(output / "generated"),
+            "--runtime-bridge", str(RUNTIME_BRIDGE),
+            "--out", str(output / "resolve-report.json"),
+        )
+        assert result.returncode == 0, result.stderr + result.stdout
+        lock = load(output / "SagaPackage.lock")
+        assert [item["packageId"] for item in lock["packages"]] == [
+            "com.saga.gameplay.challenge",
+            "com.saga.gameplay.foundation",
+        ]
+        current = load(output / "generated/manifests/current.json")
+        generation = output / "generated/generations" / current["generationId"]
+        surfaces = load(generation / "api_surfaces_v1.json")["surfaces"]
+        assert [item["artifactId"] for item in surfaces] == [
+            "com.saga.gameplay.challenge.challenge-core-api-surface",
+            "com.saga.gameplay.challenge.collectibles-api-surface",
+            "com.saga.gameplay.foundation.api-surface",
+        ]
+        payload = json.dumps(lock, sort_keys=True)
+        for forbidden in (
+            "collectibles.lowlevel", "instrumentation", "ArenaRush", "EnergyCore",
+        ):
+            assert forbidden not in payload
+        descriptors = [
+            load(REPO_ROOT / "Engine/Distribution/Packages/"
+                 "com.saga.gameplay.challenge/0.0.11/api/"
+                 "challenge.core.highlevel.surface.json"),
+            load(REPO_ROOT / "Engine/Distribution/Packages/"
+                 "com.saga.gameplay.challenge/0.0.11/api/"
+                 "collectibles.highlevel.surface.json"),
+        ]
+        assert [
+            api["apiId"] for descriptor in descriptors for api in descriptor["apis"]
+        ] == [
+            "ChallengeHighLevel.AddProgress",
+            "ChallengeHighLevel.Arm",
+            "ChallengeHighLevel.Complete",
+            "ChallengeHighLevel.Create",
+            "ChallengeHighLevel.CreateResult",
+            "ChallengeHighLevel.Reset",
+            "ChallengeHighLevel.Restart",
+            "ChallengeHighLevel.Resume",
+            "ChallengeHighLevel.SetRemainingTime",
+            "ChallengeHighLevel.StartOnce",
+            "ChallengeHighLevel.Suspend",
+            "ChallengeHighLevel.Timeout",
+            "CollectiblesHighLevel.Collect",
+            "CollectiblesHighLevel.CompleteRespawn",
+            "CollectiblesHighLevel.Create",
+            "CollectiblesHighLevel.Deactivate",
+            "CollectiblesHighLevel.ScheduleRespawn",
+            "CollectiblesHighLevel.SelectSpawnIndex",
+            "CollectiblesHighLevel.SetRespawnRemaining",
+        ]
+        assert all(
+            descriptor["runtimeReadiness"] == "ContractOnly"
+            and all(api["blockProjection"] == "Supported" for api in descriptor["apis"])
+            for descriptor in descriptors
+        )
+
+        engine_root = root / "engine"
+        distribution = engine_root / "Engine/Distribution"
+        shutil.copytree(REPO_ROOT / "Engine/Distribution", distribution)
+        surface_path = (
+            distribution / "Packages/com.saga.gameplay.challenge/0.0.11/"
+            "api/challenge.core.highlevel.surface.json"
+        )
+        surface = load(surface_path)
+        surface["runtimeReadiness"] = "Imaginary"
+        write_json(surface_path, surface)
+        rejected = run_cli(
+            "resolve",
+            "--project", str(project / "ArenaRush.sagaproj"),
+            "--engine-root", str(engine_root),
+            "--lock", str(root / "bad/SagaPackage.lock"),
+            "--generated-out", str(root / "bad/generated"),
+            "--runtime-bridge", str(RUNTIME_BRIDGE),
+            "--out", str(root / "bad/report.json"),
+        )
+        assert rejected.returncode == 1
+        assert "Package.Resolve.ApiSurfaceInvalid" in [
+            item["code"] for item in load(root / "bad/report.json")["diagnostics"]
+        ]
+
 
 TESTS = (test_input_rebind_changes_only_input_artifact,
          test_runtime_ui_set_is_deterministic_and_strict,
          test_runtime_ui_stylesheet_is_external_authority,
-         test_runtime_ui_failure_preserves_valid_selectors)
+         test_runtime_ui_failure_preserves_valid_selectors,
+         test_arena_rush_assets_inputs_and_composite_ui_compile,
+         test_arena_rush_multi_surface_package_generation_is_exact)

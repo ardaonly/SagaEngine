@@ -17,6 +17,8 @@ def test_template_plan_is_non_mutating_and_create_is_atomic() -> None:
             str(destination),
             "--display-name",
             "Created Project",
+            "--template-id",
+            "starter-arena",
             "--template",
             str(REPO_ROOT / "Samples" / "StarterArena"),
             "--out",
@@ -70,6 +72,8 @@ def test_template_create_rejects_tampered_plan_without_destination() -> None:
             "template-plan",
             "--destination",
             str(destination),
+            "--template-id",
+            "starter-arena",
             "--template",
             str(REPO_ROOT / "Samples" / "StarterArena"),
             "--out",
@@ -88,6 +92,111 @@ def test_template_create_rejects_tampered_plan_without_destination() -> None:
         report = json.loads(report_path.read_text(encoding="utf-8"))
         assert report["diagnostics"][0]["code"] == "Project.Template.CreateFailed"
         assert not list(root.glob(".MustRemainAbsent.saga-staging-*"))
+
+def test_arena_rush_template_identity_and_substitution() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        destination = root / "EnergyChallenge"
+        plan_path = root / "arena-plan.json"
+        report_path = root / "arena-create.json"
+        planned = run_cli(
+            "template-plan",
+            "--template-id", "arena-rush",
+            "--template", str(REPO_ROOT / "Samples/ArenaRush"),
+            "--destination", str(destination),
+            "--display-name", "My Energy Challenge",
+            "--out", str(plan_path),
+        )
+        assert planned.returncode == 0, planned.stderr + planned.stdout
+        plan = json.loads(plan_path.read_text(encoding="utf-8"))
+        assert plan["templateId"] == "arena-rush"
+        assert plan["declaredSubstitutions"] == ["displayName", "projectId"]
+        created = run_cli(
+            "template-create", "--plan", str(plan_path),
+            "--sagapack", str(SAGAPACK),
+            "--engine-root", str(REPO_ROOT),
+            "--runtime-bridge", str(RUNTIME_BRIDGE),
+            "--out", str(report_path),
+        )
+        assert created.returncode == 0, created.stderr + created.stdout
+        manifest = json.loads(
+            (destination / "ArenaRush.sagaproj").read_text(encoding="utf-8")
+        )
+        assert manifest["projectId"] == plan["projectId"]
+        assert manifest["displayName"] == "My Energy Challenge"
+        assert (destination / "Scripts/ArenaRushGameMode.cs").is_file()
+        assert (destination / "Content/UI/ThirdParty/DejaVu/DejaVuSans.ttf").is_file()
+        assert json.loads(report_path.read_text(encoding="utf-8"))["status"] == "Passed"
+
+def test_arena_rush_source_truth_and_structural_failures() -> None:
+    arena = REPO_ROOT / "Samples/ArenaRush"
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        report = root / "checked-in.json"
+        validated = run_cli(
+            "validate", "--project", str(arena / "ArenaRush.sagaproj"),
+            "--out", str(report),
+        )
+        assert validated.returncode == 0, validated.stderr + validated.stdout
+        scene_path = arena / "Scenes/ArenaRush.sagascene"
+        scene_text = scene_path.read_text(encoding="utf-8")
+        for transient in (
+            "score", "remainingTime", "lifecycleState", "respawnTimers",
+            "occupancy", "velocity", "results",
+        ):
+            assert transient not in scene_text
+        scene = json.loads(scene_text)
+        entities = {item["entityId"]: item for item in scene["entities"]}
+        game_mode = next(
+            component
+            for component in entities["game-mode"]["components"]
+            if component["type"] == "ScriptBehavior"
+        )
+        assert game_mode["instanceConfiguration"] == {
+            "activeCollectibleCount": 5,
+            "challengeDurationSeconds": 60,
+            "coreValue": 10,
+            "respawnDelaySeconds": 2,
+            "targetProgress": 100,
+        }
+        for marker in (
+            "challenge-start-marker", "spawn-01", "spawn-02", "spawn-03",
+            "spawn-04", "spawn-05",
+        ):
+            assert [item["type"] for item in entities[marker]["components"]] == [
+                "Transform",
+            ]
+        for entity in scene["entities"]:
+            component_types = [item["type"] for item in entity["components"]]
+            assert len(component_types) == len(set(component_types))
+
+        project = root / "ArenaRush"
+        shutil.copytree(arena, project, ignore=shutil.ignore_patterns("Build"))
+        manifest_path = project / "ArenaRush.sagaproj"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["scenes"][0]["path"] = "../outside.sagascene"
+        write_json(manifest_path, manifest)
+        unsafe = run_cli(
+            "validate", "--project", str(manifest_path),
+            "--out", str(root / "unsafe.json"),
+        )
+        assert unsafe.returncode == 1
+
+        manifest["scenes"][0]["path"] = "Scenes/missing.sagascene"
+        write_json(manifest_path, manifest)
+        missing = run_cli(
+            "validate", "--project", str(manifest_path),
+            "--out", str(root / "missing.json"),
+        )
+        assert missing.returncode == 1
+
+        manifest["schemaVersion"] = 99
+        write_json(manifest_path, manifest)
+        unknown = run_cli(
+            "validate", "--project", str(manifest_path),
+            "--out", str(root / "schema.json"),
+        )
+        assert unknown.returncode == 1
 
 def test_duplicate_project_scene_identity_is_rejected() -> None:
     with tempfile.TemporaryDirectory() as tmp:
@@ -110,7 +219,8 @@ def test_template_packager_failure_leaves_no_destination_or_staging() -> None:
         destination = root / "PackageFailure"
         plan = root / "plan.json"
         report = root / "report.json"
-        assert run_cli("template-plan", "--destination", str(destination), "--template",
+        assert run_cli("template-plan", "--destination", str(destination),
+                       "--template-id", "starter-arena", "--template",
                        str(REPO_ROOT / "Samples/StarterArena"), "--out", str(plan)).returncode == 0
         result = run_cli("template-create", "--plan", str(plan), "--sagapack", str(root / "missing-sagapack"),
                          "--engine-root", str(REPO_ROOT), "--runtime-bridge", str(RUNTIME_BRIDGE),
@@ -182,6 +292,8 @@ exit 0
 TESTS = (
     test_template_plan_is_non_mutating_and_create_is_atomic,
     test_template_create_rejects_tampered_plan_without_destination,
+    test_arena_rush_template_identity_and_substitution,
+    test_arena_rush_source_truth_and_structural_failures,
     test_duplicate_project_scene_identity_is_rejected,
     test_template_packager_failure_leaves_no_destination_or_staging,
     test_template_packager_nonzero_is_structured_and_cleans_staging,

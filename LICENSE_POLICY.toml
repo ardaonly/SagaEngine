@@ -425,7 +425,7 @@ effective_commit = "8f30814e95951633fb1e6a4bba0d0a471051221f"
 notes = "Saga-owned files under Samples use MIT; embedded dependency and source-asset provenance remains factual."
 
 [[domains]]
-id = "starter-arena-dejavu-font"
+id = "sample-dejavu-font"
 priority = 1300
 paths = [
   "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/DejaVuSans.ttf",
@@ -433,6 +433,11 @@ paths = [
   "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/PROVENANCE.json",
   "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/PROVENANCE.md",
   "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/SHA256SUMS",
+  "Samples/ArenaRush/Content/UI/ThirdParty/DejaVu/DejaVuSans.ttf",
+  "Samples/ArenaRush/Content/UI/ThirdParty/DejaVu/LICENSE",
+  "Samples/ArenaRush/Content/UI/ThirdParty/DejaVu/PROVENANCE.json",
+  "Samples/ArenaRush/Content/UI/ThirdParty/DejaVu/PROVENANCE.md",
+  "Samples/ArenaRush/Content/UI/ThirdParty/DejaVu/SHA256SUMS",
 ]
 required = true
 domain_owner = "upstream"
@@ -446,7 +451,7 @@ provenance_review = "cleared"
 licensing_authority_review = "upstream-controlled"
 migration_status = "unchanged"
 effective_commit = ""
-notes = "Upstream DejaVu Fonts 2.37 payload retained with its exact license and checksummed provenance."
+notes = "Upstream DejaVu Fonts 2.37 payload retained in self-contained samples with its exact license and checksummed provenance."
 
 [[domains]]
 id = "saga-content"

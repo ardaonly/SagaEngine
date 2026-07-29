@@ -65,7 +65,7 @@ ALLOWED_EXECUTABLE_PATHS = frozenset(
 ALLOWED_TREE_PREFIXES = tuple(
     sorted(
         ["Engine/Distribution/", "licenses/", "runtime/dotnet/",
-         "samples/StarterArena/"]
+         "samples/ArenaRush/", "samples/StarterArena/"]
         + [f"{item['payloadRoot']}/" for item in PUBLIC_TOOLS]
     )
 )
@@ -244,6 +244,9 @@ def validate_layout(root: Path) -> list[str]:
     sample_root = root / "samples" / "StarterArena"
     if not sample_root.is_dir():
         errors.append("missing required directory: samples/StarterArena")
+    arena_rush_root = root / "samples" / "ArenaRush"
+    if not arena_rush_root.is_dir():
+        errors.append("missing required directory: samples/ArenaRush")
     if not (root / "Engine" / "Distribution").is_dir():
         errors.append("missing required directory: Engine/Distribution")
 

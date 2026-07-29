@@ -28,6 +28,7 @@ test -f tools/SagaProjectKit/sagaproject.dll
 test -f tools/SagaScript/sagascript.dll
 test -f tools/SagaPackager/sagapack.dll
 test -d samples/StarterArena
+test -d samples/ArenaRush
 test -d Engine/Distribution
 test -f Engine/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.dll
 test -f README.md
@@ -110,6 +111,7 @@ def stage_layout(
     )
 
     copy_tree(resolved_input(available_inputs, "StarterArena sample"), output / "samples" / "StarterArena", staged_inputs, "StarterArena sample")
+    copy_tree(resolved_input(available_inputs, "ArenaRush sample"), output / "samples" / "ArenaRush", staged_inputs, "ArenaRush sample")
     copy_tree(
         resolved_input(available_inputs, "engine package distribution"),
         output / "Engine" / "Distribution",
@@ -213,7 +215,7 @@ def stage_layout(
         "notices": "licenses/THIRD_PARTY_NOTICES.md",
         "thirdPartyManifests": [],
         "limitations": list(LIMITATIONS),
-        "samples": ["StarterArena"],
+        "samples": ["ArenaRush", "StarterArena"],
         "knownLimitationsFile": "KNOWN_LIMITATIONS.md",
         "verification": {
             "verified": False,
@@ -322,6 +324,7 @@ def staged_layout_missing(output: Path) -> list[str]:
         "Engine/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.dll",
     ]
     required_dirs = [
+        "samples/ArenaRush",
         "samples/StarterArena",
         "Engine/Distribution",
         "SagaWiki/assets",

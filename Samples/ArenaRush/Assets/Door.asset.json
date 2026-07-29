@@ -1,0 +1,12 @@
+{
+  "assetId": "arena-rush.door",
+  "geometry": { "dimensions": [2.4, 2.5, 0.3], "shape": "box" },
+  "kind": "primitive",
+  "material": { "baseColor": [0.18, 0.55, 0.82, 1], "shaderDependency": "renderer.solid" },
+  "provenance": {
+    "author": "SagaEngine contributors",
+    "license": "MIT",
+    "origin": "SagaEngine ArenaRush template"
+  },
+  "schemaVersion": 1
+}

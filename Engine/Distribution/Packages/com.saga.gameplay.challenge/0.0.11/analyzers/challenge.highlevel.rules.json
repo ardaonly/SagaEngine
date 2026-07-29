@@ -1,0 +1,24 @@
+{
+  "allowedCapabilities": [
+    "Gameplay.State.ReadWrite"
+  ],
+  "analyzerId": "Saga.Gameplay.Challenge.HighLevel",
+  "module": "challenge.core.highlevel",
+  "modules": [
+    "challenge.core.highlevel",
+    "collectibles.highlevel"
+  ],
+  "rules": [
+    {
+      "diagnosticId": "SAGA-CHALLENGE-001",
+      "disposition": "Allow",
+      "symbol": "SagaEngine.Scripting.Gameplay.ChallengeHighLevel"
+    },
+    {
+      "diagnosticId": "SAGA-COLLECTIBLES-001",
+      "disposition": "Allow",
+      "symbol": "SagaEngine.Scripting.Gameplay.CollectiblesHighLevel"
+    }
+  ],
+  "schemaVersion": 1
+}

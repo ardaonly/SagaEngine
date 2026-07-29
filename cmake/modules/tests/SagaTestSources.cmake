@@ -333,10 +333,98 @@
                 "${SAGA_ROOT}/Engine/Managed/SagaScript.RuntimeBridge/SagaScript.cs"
                 "${SAGA_ROOT}/Engine/Managed/SagaScript.RuntimeBridge/ScriptContext.cs"
                 "${SAGA_ROOT}/Engine/Managed/SagaScript.RuntimeBridge/NativeBridge.cs"
+                "${SAGA_ROOT}/Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs"
             COMMENT "Building managed SagaScript runtime bridge"
             VERBATIM
         )
         add_custom_target(SagaScriptRuntimeBridge
             DEPENDS "${SAGA_SCRIPT_RUNTIME_BRIDGE_ASSEMBLY}"
+        )
+
+        set(SAGA_GAMEPLAY_CONTRACT_FIXTURE_PROJECT
+            "${SAGA_ROOT}/Tests/Fixtures/GameplayContracts/GameplayContractsFixture.csproj"
+        )
+        set(SAGA_GAMEPLAY_CONTRACT_FIXTURE_OUTPUT
+            "${CMAKE_BINARY_DIR}/Managed/GameplayContractsFixture"
+        )
+        set(SAGA_GAMEPLAY_CONTRACT_FIXTURE_ASSEMBLY
+            "${SAGA_GAMEPLAY_CONTRACT_FIXTURE_OUTPUT}/GameplayContractsFixture.dll"
+        )
+        add_custom_command(
+            OUTPUT "${SAGA_GAMEPLAY_CONTRACT_FIXTURE_ASSEMBLY}"
+            COMMAND ${CMAKE_COMMAND} -E make_directory
+                "${SAGA_GAMEPLAY_CONTRACT_FIXTURE_OUTPUT}"
+            COMMAND ${CMAKE_COMMAND} -E env
+                DOTNET_CLI_HOME=/tmp/sagascript-dotnet-home
+                NUGET_PACKAGES=/tmp/sagascript-nuget
+                DOTNET_CLI_TELEMETRY_OPTOUT=1
+                "${SAGA_DOTNET_EXECUTABLE}" build
+                "${SAGA_GAMEPLAY_CONTRACT_FIXTURE_PROJECT}"
+                --configuration Release
+                --output "${SAGA_GAMEPLAY_CONTRACT_FIXTURE_OUTPUT}"
+                --nologo
+                --verbosity minimal
+            DEPENDS
+                SagaScriptRuntimeBridge
+                "${SAGA_GAMEPLAY_CONTRACT_FIXTURE_PROJECT}"
+                "${SAGA_ROOT}/Tests/Fixtures/GameplayContracts/ChallengeConsumer.cs"
+                "${SAGA_ROOT}/Tests/Fixtures/GameplayContracts/CollectibleConsumer.cs"
+                "${SAGA_ROOT}/Tests/Fixtures/GameplayContracts/Program.cs"
+            COMMENT "Building managed gameplay contract fixture"
+            VERBATIM
+        )
+        add_custom_target(SagaGameplayContractManagedTests
+            DEPENDS "${SAGA_GAMEPLAY_CONTRACT_FIXTURE_ASSEMBLY}"
+        )
+        add_test(
+            NAME GameplayContractManagedTests
+            COMMAND "${SAGA_DOTNET_EXECUTABLE}"
+                "${SAGA_GAMEPLAY_CONTRACT_FIXTURE_ASSEMBLY}"
+        )
+        set_tests_properties(GameplayContractManagedTests PROPERTIES
+            LABELS "managed;unit;gameplay-contract"
+        )
+
+        set(SAGA_ARENA_RUSH_COMPOSITION_FIXTURE_PROJECT
+            "${SAGA_ROOT}/Tests/Fixtures/ArenaRushComposition/ArenaRushCompositionFixture.csproj"
+        )
+        set(SAGA_ARENA_RUSH_COMPOSITION_FIXTURE_OUTPUT
+            "${CMAKE_BINARY_DIR}/Managed/ArenaRushCompositionFixture"
+        )
+        set(SAGA_ARENA_RUSH_COMPOSITION_FIXTURE_ASSEMBLY
+            "${SAGA_ARENA_RUSH_COMPOSITION_FIXTURE_OUTPUT}/ArenaRushCompositionFixture.dll"
+        )
+        add_custom_command(
+            OUTPUT "${SAGA_ARENA_RUSH_COMPOSITION_FIXTURE_ASSEMBLY}"
+            COMMAND ${CMAKE_COMMAND} -E make_directory
+                "${SAGA_ARENA_RUSH_COMPOSITION_FIXTURE_OUTPUT}"
+            COMMAND ${CMAKE_COMMAND} -E env
+                DOTNET_CLI_HOME=/tmp/sagascript-dotnet-home
+                NUGET_PACKAGES=/tmp/sagascript-nuget
+                DOTNET_CLI_TELEMETRY_OPTOUT=1
+                "${SAGA_DOTNET_EXECUTABLE}" build
+                "${SAGA_ARENA_RUSH_COMPOSITION_FIXTURE_PROJECT}"
+                --configuration Release
+                --output "${SAGA_ARENA_RUSH_COMPOSITION_FIXTURE_OUTPUT}"
+                --nologo
+                --verbosity minimal
+            DEPENDS
+                SagaScriptRuntimeBridge
+                "${SAGA_ARENA_RUSH_COMPOSITION_FIXTURE_PROJECT}"
+                "${SAGA_ROOT}/Tests/Fixtures/ArenaRushComposition/Program.cs"
+                "${SAGA_ROOT}/Samples/ArenaRush/Scripts/ArenaRushGameMode.cs"
+            COMMENT "Building Arena Rush composition fixture"
+            VERBATIM
+        )
+        add_custom_target(SagaArenaRushCompositionManagedTests
+            DEPENDS "${SAGA_ARENA_RUSH_COMPOSITION_FIXTURE_ASSEMBLY}"
+        )
+        add_test(
+            NAME ArenaRushCompositionManagedTests
+            COMMAND "${SAGA_DOTNET_EXECUTABLE}"
+                "${SAGA_ARENA_RUSH_COMPOSITION_FIXTURE_ASSEMBLY}"
+        )
+        set_tests_properties(ArenaRushCompositionManagedTests PROPERTIES
+            LABELS "managed;unit;gameplay-contract;sample"
         )
     endif()

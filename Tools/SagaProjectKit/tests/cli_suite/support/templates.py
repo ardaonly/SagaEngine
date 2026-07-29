@@ -37,7 +37,8 @@ def template_plan_for(root: Path, destination_name: str) -> tuple[Path, Path, Pa
     destination = root / destination_name
     plan = root / f"{destination_name}.plan.json"
     report = root / f"{destination_name}.report.json"
-    planned = run_cli("template-plan", "--destination", str(destination), "--template",
+    planned = run_cli("template-plan", "--destination", str(destination),
+                      "--template-id", "starter-arena", "--template",
                       str(REPO_ROOT / "Samples" / "StarterArena"), "--out", str(plan))
     assert planned.returncode == 0, planned.stderr + planned.stdout
     return destination, plan, report

@@ -1,0 +1,19 @@
+<!--
+SPDX-License-Identifier: MIT
+-->
+<rml>
+<head>
+  <title>Arena Rush Main Menu</title>
+  <link type="text/rcss" href="main-menu.rcss"/>
+</head>
+<body>
+  <div class="menu-card">
+    <h1>Arena Rush</h1>
+    <h2>Energy Core Challenge</h2>
+    <p>Collect energy cores before the challenge time expires.</p>
+    <div id="start-foundation" class="key-line">S: Start Challenge</div>
+    <div id="exit-foundation" class="key-line">Q: Exit</div>
+    <p class="foundation-note">Menu interaction arrives in the next implementation wave.</p>
+  </div>
+</body>
+</rml>

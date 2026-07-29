@@ -1,0 +1,19 @@
+<!--
+SPDX-License-Identifier: MIT
+-->
+<rml>
+<head>
+  <title>Arena Rush HUD</title>
+  <link type="text/rcss" href="hud.rcss"/>
+</head>
+<body>
+  <div class="hud-top">
+    <div class="stat"><span class="label">TIME</span><span>60</span></div>
+    <div class="stat"><span class="label">ENERGY</span><span>0 / 100</span></div>
+  </div>
+  <div class="hud-bottom">
+    <div id="interact-foundation">E: Collect Core</div>
+    <div id="restart-foundation">R: Restart</div>
+  </div>
+</body>
+</rml>

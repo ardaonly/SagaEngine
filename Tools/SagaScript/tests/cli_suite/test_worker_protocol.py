@@ -87,6 +87,43 @@ def test_project_worker_is_deterministic_across_clean_roots() -> None:
         assert projection["packageGenerationId"] == first_manifest["packageGenerationId"]
         assert projection["diagnostics"] == []
 
+def test_arena_rush_worker_aggregates_contract_only_surfaces() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        project = root / "ArenaRush"
+        shutil.copytree(ARENA_RUSH_ROOT, project, ignore=shutil.ignore_patterns("Build"))
+        output = root / "output"
+        request, result, progress, _ = prepare_worker_request(
+            root / "work", project, output, "arena-rush-worker"
+        )
+        worker = run_cli(
+            "worker", "--request", str(request), "--result", str(result),
+            "--progress", str(progress),
+        )
+        assert worker.returncode == 0, worker.stderr + worker.stdout
+        _, artifacts = read_current_artifacts(output)
+        projection = json.loads(artifacts["scripts.block-projection"])
+        allowed = projection["allowedApis"]
+        identities = [(item["surfaceId"], item["apiId"]) for item in allowed]
+        assert identities == sorted(identities)
+        assert any(
+            item["apiId"] == "ChallengeHighLevel.StartOnce"
+            and item["runtimeReadiness"] == "ContractOnly"
+            and item["packageId"] == "com.saga.gameplay.challenge"
+            and item["sourcePath"].endswith("GameplayContracts.cs")
+            for item in allowed
+        )
+        assert any(
+            item["apiId"] == "CollectiblesHighLevel.Collect"
+            and item["module"] == "collectibles.highlevel"
+            for item in allowed
+        )
+        serialized = json.dumps(projection, sort_keys=True)
+        assert "collectibles.lowlevel" not in serialized
+        assert "instrumentation" not in serialized
+        assert "NativeBridge" not in serialized
+        assert all(region["editable"] is False for region in projection["opaqueRegions"])
+
 def test_worker_state_contract_follows_only_reachable_behavior_helpers() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -358,6 +395,7 @@ def test_runtime_bridge_binary_identity_excludes_source_revision() -> None:
 TESTS = (
     test_project_forms_analyze_compile_and_project_blocks,
     test_project_worker_is_deterministic_across_clean_roots,
+    test_arena_rush_worker_aggregates_contract_only_surfaces,
     test_worker_mid_operation_cancellation_preserves_current_manifest,
     test_worker_stale_result_preserves_current_manifest,
     test_worker_final_publication_barrier_preserves_current_manifest,

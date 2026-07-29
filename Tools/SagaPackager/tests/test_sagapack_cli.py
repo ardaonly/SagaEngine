@@ -852,7 +852,6 @@ def test_package_resolution_is_offline_and_deterministic_across_roots() -> None:
         assert verified.returncode == 0, verified.stderr + verified.stdout
         assert load(root / "verify-report.json")["status"] == "Passed"
 
-
 def test_lock_verify_rejects_stale_intent_and_corrupt_artifact_hash() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)

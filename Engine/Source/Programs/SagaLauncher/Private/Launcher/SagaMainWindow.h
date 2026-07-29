@@ -39,7 +39,9 @@ public:
     [[nodiscard]] bool OpenProject(const std::filesystem::path& project);
     [[nodiscard]] SagaEditor::ProjectToolResult CreateProject(
         const std::filesystem::path& destination,
-        const std::string& displayName);
+        const std::string& displayName,
+        SagaEditor::ProjectTemplateId templateId =
+            SagaEditor::ProjectTemplateId::StarterArena);
     void ReturnHome();
 
 protected:
