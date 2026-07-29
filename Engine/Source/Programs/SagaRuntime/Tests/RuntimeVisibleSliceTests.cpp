@@ -42,11 +42,14 @@ TEST(RuntimeStateStoreTests, PublishesMonotonicContextualSnapshots)
     auto store = Store();
     auto context = Context();
     store.OnInstanceActivated(context);
+    EXPECT_EQ(store.KeyCount(), 0U);
     ASSERT_TRUE(store.SetBool(context, "door.target-open", false).Succeeded());
+    EXPECT_EQ(store.KeyCount(), 1U);
     const auto closed = store.Snapshot(context.entity, context.behaviorId, "door.target-open");
     ASSERT_TRUE(closed.has_value());
     EXPECT_FALSE(closed->value);
     ASSERT_TRUE(store.SetBool(context, "door.target-open", true).Succeeded());
+    EXPECT_EQ(store.KeyCount(), 1U);
     const auto opened = store.Snapshot(context.entity, context.behaviorId, "door.target-open");
     ASSERT_TRUE(opened.has_value());
     EXPECT_TRUE(opened->value);
@@ -67,6 +70,7 @@ TEST(RuntimeStateStoreTests, RejectsStaleAndDestroyedInstances)
     EXPECT_TRUE(store.Snapshot(current.entity, current.behaviorId,
                               "light.enabled").has_value());
     store.OnInstanceDeactivated(current);
+    EXPECT_EQ(store.KeyCount(), 0U);
     EXPECT_FALSE(store.Snapshot(current.entity, current.behaviorId,
                                "light.enabled").has_value());
 }

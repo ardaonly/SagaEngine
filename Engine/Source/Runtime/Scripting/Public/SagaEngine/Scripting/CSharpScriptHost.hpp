@@ -7,6 +7,7 @@
 #include "SagaEngine/Scripting/Namespace.hpp"
 #include "SagaEngine/Scripting/ISagaScriptHost.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <memory>
@@ -77,6 +78,8 @@ public:
 
     [[nodiscard]] CSharpInt32BinaryMethodInvocationResult InvokeInt32BinaryMethod(
         const CSharpInt32BinaryMethodInvocation& invocation);
+
+    [[nodiscard]] std::size_t InstanceCount() const noexcept;
 
 private:
     struct Impl;

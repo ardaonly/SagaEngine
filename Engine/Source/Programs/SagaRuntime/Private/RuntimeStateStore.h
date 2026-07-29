@@ -51,6 +51,8 @@ public:
     [[nodiscard]] std::optional<RuntimeTypedStateSnapshot> SnapshotValue(
         SagaEngine::Scripting::ScriptEntityHandle entity,
         const std::string& behaviorId, const std::string& key) const;
+    [[nodiscard]] std::size_t KeyCount() const noexcept
+    { return values_.size(); }
 
     [[nodiscard]] SagaEngine::Scripting::ScriptStateBoolResult GetBool(
         const std::string& key) const override;

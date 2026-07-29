@@ -3,9 +3,11 @@
 #include "RuntimeArtifactSession.h"
 #include "RuntimeEvidenceSession.h"
 #include "RuntimeFrameLoop.h"
+#include "RuntimeGameplaySession.h"
 #include "RuntimeLaunchSession.h"
 #include "RuntimeRenderSession.h"
 #include "RuntimeScriptSession.h"
+#include "RuntimeTriggerSession.h"
 
 #include <SagaEngine/Render/Backend/IRenderBackend.h>
 #include <SagaRuntime/Play/RuntimePlayContracts.hpp>
@@ -21,9 +23,21 @@ namespace Play = SagaRuntime::Play;
 using SagaRuntimeApp::RuntimeArtifactSession;
 using SagaRuntimeApp::RuntimeEvidenceCaptureRequest;
 using SagaRuntimeApp::RuntimeEvidenceSession;
+using SagaRuntimeApp::RuntimeGameplayOwnershipCounters;
+using SagaRuntimeApp::RuntimeGameplaySession;
 using SagaRuntimeApp::RuntimeLaunchSession;
 using SagaRuntimeApp::RuntimeRenderSession;
+using SagaRuntimeApp::RuntimeScriptInputPort;
 using SagaRuntimeApp::RuntimeScriptWorld;
+using SagaRuntimeApp::RuntimeTriggerSession;
+
+class AcceptingNamedActionTarget final : public Play::INamedActionTarget
+{
+public:
+    bool InvokeNamedAction(
+        std::string_view, std::string_view, std::string_view) override
+    { return true; }
+};
 
 class ScopedFiles final
 {
@@ -158,6 +172,32 @@ TEST(RuntimeScriptSessionTests, OwnsRuntimeEntityLookupAndTransforms)
     EXPECT_FLOAT_EQ(position.position.x, 1.0F);
     EXPECT_FLOAT_EQ(position.position.y, 2.0F);
     EXPECT_FLOAT_EQ(position.position.z, 3.0F);
+}
+
+TEST(RuntimeGameplaySessionTests, LiveOwnershipQueryIsNotAConstructorSnapshot)
+{
+    RuntimeScriptWorld world({});
+    RuntimeScriptInputPort input(RuntimeScriptInputPort::Policy{});
+    AcceptingNamedActionTarget target;
+    Play::ScriptEventBindingDispatcher dispatcher(target);
+    RuntimeTriggerSession triggers(world, dispatcher);
+    RuntimeGameplayOwnershipCounters ownerState{
+        .runtimeEntities = 1,
+        .scriptInstances = 2,
+        .triggerBindings = 3,
+        .stateKeys = 4,
+        .pendingCollectibleRespawns = 5};
+    RuntimeGameplaySession session(input, triggers,
+        [](double) { return true; },
+        [&] { return ownerState; });
+
+    EXPECT_EQ(session.LiveOwnershipCounters(), ownerState);
+    ownerState.runtimeEntities = 6;
+    ownerState.scriptInstances = 7;
+    ownerState.triggerBindings = 8;
+    ownerState.stateKeys = 9;
+    ownerState.pendingCollectibleRespawns = 10;
+    EXPECT_EQ(session.LiveOwnershipCounters(), ownerState);
 }
 
 TEST(RuntimeRenderSessionTests, UninitializedShutdownIsIdempotent)

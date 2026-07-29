@@ -551,10 +551,12 @@ TEST(CSharpScriptHostTests, MinimalManagedScriptLoadsAndRunsLifecycle)
         loadResult.package,
         ScriptClassId{"Game.PlayerScript"});
     ASSERT_TRUE(instance.Succeeded()) << DescribeDiagnostics(instance.diagnostics);
+    EXPECT_EQ(host.InstanceCount(), 1U);
 
     EXPECT_TRUE(service.StartInstance(instance.instance).Succeeded());
     EXPECT_TRUE(service.UpdateInstance(instance.instance, 0.25).Succeeded());
     EXPECT_TRUE(service.DestroyInstance(instance.instance).Succeeded());
+    EXPECT_EQ(host.InstanceCount(), 0U);
 
     const auto lines = ReadLines(logPath);
     ASSERT_EQ(lines.size(), 4u);

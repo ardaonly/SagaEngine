@@ -373,6 +373,7 @@ public:
         std::string_view eventType, std::string_view sourceEntityId);
     void Reset() noexcept { dispatchCount_ = 0; }
     [[nodiscard]] std::uint64_t DispatchCount() const noexcept { return dispatchCount_; }
+    [[nodiscard]] std::size_t BindingCount() const noexcept;
 
 private:
     struct BoundEvent

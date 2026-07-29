@@ -24,6 +24,7 @@
 #include <chrono>
 #include <cmath>
 #include <iterator>
+#include <limits>
 #include <map>
 #include <optional>
 #include <thread>
@@ -525,6 +526,7 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
     std::vector<std::string> observedPrompts;
     std::vector<std::string> observedPhases;
     std::size_t restartCycleCount = 0;
+    std::size_t restartCyclesWithScheduledRespawn = 0;
     bool restartCyclesPassed = true;
     const bool challengeMicrogame =
         authoredInputActions.contains("StartChallenge");
@@ -615,11 +617,12 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
             if (text) { promptText = *text; observedPrompts.push_back(*text); }
         }
     };
-    std::size_t triggerBindingCount = 0;
-    for (const auto& entity : world.Scene().entities)
-        triggerBindingCount += entity.eventBindings.size();
-    std::size_t stateKeyCount = 0;
-    for (const auto& [_, keys] : stateWrites) stateKeyCount += keys.size();
+    const auto staticInputActionCount = inputResult.value->actions.size();
+    const auto staticUiBindingCount = launch.schemaVersion == 2
+        ? uiResult.value->prompts.size() +
+              uiResult.value->textBindings.size() +
+              uiResult.value->inputLabelBindings.size()
+        : 0U;
     RuntimeGameplaySession gameplay(inputPort, triggers,
         [&](const double fixedDelta)
         {
@@ -631,14 +634,30 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
             }
             return true;
         },
-        {world.Scene().entities.size(), instances.size(), triggerBindingCount,
-         inputResult.value->actions.size(),
-         launch.schemaVersion == 2
-             ? uiResult.value->prompts.size() +
-                   uiResult.value->textBindings.size() +
-                   uiResult.value->inputLabelBindings.size()
-             : 0U,
-         stateKeyCount});
+        [&]
+        {
+            std::size_t pendingRespawns = 0;
+            if (challengeMicrogame)
+            {
+                const auto pending = stateStore.SnapshotValue(gameModeEntity,
+                    challengeBehaviorId, "challenge.pending-respawns");
+                pendingRespawns = pending &&
+                        std::holds_alternative<std::int32_t>(pending->value) &&
+                        std::get<std::int32_t>(pending->value) >= 0
+                    ? static_cast<std::size_t>(
+                        std::get<std::int32_t>(pending->value))
+                    : std::numeric_limits<std::size_t>::max();
+            }
+            return RuntimeGameplayOwnershipCounters{
+                world.EntityCount(),
+                host.InstanceCount(),
+                eventDispatcher.BindingCount(),
+                0,
+                stateStore.KeyCount(),
+                pendingRespawns};
+        });
+    auto liveOwnershipBaseline = gameplay.LiveOwnershipCounters();
+    auto liveOwnershipFinal = liveOwnershipBaseline;
     const auto updateInstances = [&](std::set<std::string> pressed =
                                          std::set<std::string>{},
                                      std::set<std::string> held =
@@ -833,28 +852,45 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
                             "ActionDispatchFailure");
                     recordArenaPhase();
                 }
-                const auto expectedCounters = gameplay.Counters();
-                for (int cycle = 0; cycle < 50; ++cycle)
+                liveOwnershipBaseline = gameplay.LiveOwnershipCounters();
+                const auto expectedCounters = liveOwnershipBaseline;
+                restartCyclesPassed =
+                    expectedCounters.activeTriggerOverlaps == 0 &&
+                    expectedCounters.pendingCollectibleRespawns == 0;
+                for (int cycle = 0;
+                     restartCyclesPassed && cycle < 50; ++cycle)
                 {
+                    const auto collectible = world.GetPosition(
+                        world.Handle(collectibleEntityIds.front()));
                     if (!dispatchAction("StartChallenge") || !tick(1) ||
+                        !collectible.Succeeded() ||
+                        !world.SetPosition(world.Handle(participantEntityId),
+                            collectible.position).Succeeded() ||
+                        !tick(1))
+                    {
+                        restartCyclesPassed = false;
+                        break;
+                    }
+                    const auto scheduled = gameplay.LiveOwnershipCounters();
+                    if (scheduled.pendingCollectibleRespawns == 0 ||
+                        scheduled.pendingCollectibleRespawns ==
+                            std::numeric_limits<std::size_t>::max() ||
                         !dispatchAction("Restart"))
                     {
                         restartCyclesPassed = false;
                         break;
                     }
-                    const auto pending = stateStore.SnapshotValue(gameModeEntity,
-                        challengeBehaviorId, "challenge.pending-respawns");
-                    const auto& counters = gameplay.Counters();
+                    ++restartCyclesWithScheduledRespawn;
+                    const auto counters = gameplay.LiveOwnershipCounters();
                     restartCyclesPassed =
-                        pending &&
-                        std::holds_alternative<std::int32_t>(pending->value) &&
-                        std::get<std::int32_t>(pending->value) == 0 &&
                         counters.runtimeEntities == expectedCounters.runtimeEntities &&
                         counters.scriptInstances == expectedCounters.scriptInstances &&
                         counters.triggerBindings == expectedCounters.triggerBindings &&
-                        counters.inputListeners == expectedCounters.inputListeners &&
-                        counters.uiBindings == expectedCounters.uiBindings &&
-                        counters.stateKeys == expectedCounters.stateKeys;
+                        counters.activeTriggerOverlaps ==
+                            expectedCounters.activeTriggerOverlaps &&
+                        counters.stateKeys == expectedCounters.stateKeys &&
+                        counters.pendingCollectibleRespawns == 0;
+                    liveOwnershipFinal = counters;
                     if (!restartCyclesPassed) break;
                     ++restartCycleCount;
                 }
@@ -1254,7 +1290,8 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
     const bool smokeAccepted = challengeMicrogame
         ? (headless
             ? challengeAccepted && restartCyclesPassed &&
-                restartCycleCount == 50
+                restartCycleCount == 50 &&
+                restartCyclesWithScheduledRespawn == 50
             : graphicalChallengeAccepted)
         : transitioned;
     const Json observed = {{"drawCount", drawCount}, {"entityId", observedEntity->entityId},
@@ -1267,14 +1304,36 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
         {"collectibleLifecycle", collectibleLifecycleEvidence},
         {"restartCycles", {
             {"completed", restartCycleCount},
-            {"passed", restartCyclesPassed}}},
-        {"ownershipCounters", {
-            {"inputListeners", gameplay.Counters().inputListeners},
-            {"runtimeEntities", gameplay.Counters().runtimeEntities},
-            {"scriptInstances", gameplay.Counters().scriptInstances},
-            {"stateKeys", gameplay.Counters().stateKeys},
-            {"triggerBindings", gameplay.Counters().triggerBindings},
-            {"uiBindings", gameplay.Counters().uiBindings}}},
+            {"passed", restartCyclesPassed},
+            {"scheduledRespawnCycles",
+                restartCyclesWithScheduledRespawn}}},
+        {"liveOwnershipCounters", {
+            {"baseline", {
+                {"activeTriggerOverlaps",
+                    liveOwnershipBaseline.activeTriggerOverlaps},
+                {"runtimeEntities",
+                    liveOwnershipBaseline.runtimeEntities},
+                {"scriptInstances",
+                    liveOwnershipBaseline.scriptInstances},
+                {"stateKeys", liveOwnershipBaseline.stateKeys},
+                {"triggerBindings",
+                    liveOwnershipBaseline.triggerBindings}}},
+            {"final", {
+                {"activeTriggerOverlaps",
+                    liveOwnershipFinal.activeTriggerOverlaps},
+                {"runtimeEntities", liveOwnershipFinal.runtimeEntities},
+                {"scriptInstances", liveOwnershipFinal.scriptInstances},
+                {"stateKeys", liveOwnershipFinal.stateKeys},
+                {"triggerBindings",
+                    liveOwnershipFinal.triggerBindings}}}}},
+        {"pendingTransientState", {
+            {"baselineCollectibleRespawns",
+                liveOwnershipBaseline.pendingCollectibleRespawns},
+            {"finalCollectibleRespawns",
+                liveOwnershipFinal.pendingCollectibleRespawns}}},
+        {"staticTopology", {
+            {"inputActions", staticInputActionCount},
+            {"uiArtifactBindings", staticUiBindingCount}}},
         {"simulationTicks", gameplay.TickCount()},
         {"transition", challengeMicrogame
             ? (headless

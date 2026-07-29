@@ -64,4 +64,9 @@ CSharpInt32BinaryMethodInvocationResult CSharpScriptHost::InvokeInt32BinaryMetho
     return impl_->InvokeInt32BinaryMethod(invocation);
 }
 
+std::size_t CSharpScriptHost::InstanceCount() const noexcept
+{
+    return impl_->InstanceCount();
+}
+
 } // namespace SagaEngine::Scripting
