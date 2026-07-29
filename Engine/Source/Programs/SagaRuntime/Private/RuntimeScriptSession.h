@@ -19,6 +19,8 @@ public:
     [[nodiscard]] SagaEngine::Scripting::ScriptEntityHandle Handle(std::string_view id) const;
     [[nodiscard]] const SagaRuntime::Play::RuntimeSceneArtifact& Scene() const noexcept
     { return scene_; }
+    [[nodiscard]] std::size_t EntityCount() const noexcept
+    { return scene_.entities.size(); }
 
     SagaEngine::Scripting::ScriptEntityCreateResult CreateEntity(const std::string& name) override;
     SagaEngine::Scripting::ScriptHostOperationResult SetPosition(

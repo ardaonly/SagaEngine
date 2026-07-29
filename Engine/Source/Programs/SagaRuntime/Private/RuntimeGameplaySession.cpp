@@ -31,4 +31,12 @@ void RuntimeGameplaySession::Reset() noexcept
     triggers_.Reset();
 }
 
+RuntimeGameplayOwnershipCounters
+RuntimeGameplaySession::LiveOwnershipCounters() const
+{
+    auto counters = liveOwnershipQuery_();
+    counters.activeTriggerOverlaps = triggers_.OverlapCount();
+    return counters;
+}
+
 } // namespace SagaRuntimeApp

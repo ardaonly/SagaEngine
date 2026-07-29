@@ -245,6 +245,8 @@ struct CSharpScriptHost::Impl
         const ScriptNamedActionInvocation& invocation);
     [[nodiscard]] CSharpInt32BinaryMethodInvocationResult InvokeInt32BinaryMethod(
         const CSharpInt32BinaryMethodInvocation& invocation);
+    [[nodiscard]] std::size_t InstanceCount() const noexcept
+    { return instances.size(); }
 
     [[nodiscard]] std::string ResolveScriptId(const PackageState& package,
                                               const ScriptInstanceCreateRequest& request) const;

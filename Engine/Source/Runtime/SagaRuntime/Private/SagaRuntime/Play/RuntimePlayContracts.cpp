@@ -1091,6 +1091,13 @@ std::vector<RuntimeDiagnostic> ScriptEventBindingDispatcher::Dispatch(
     return diagnostics;
 }
 
+std::size_t ScriptEventBindingDispatcher::BindingCount() const noexcept
+{
+    std::size_t count = 0;
+    for (const auto& [_, bindings] : bindings_) count += bindings.size();
+    return count;
+}
+
 std::vector<RuntimeDiagnostic> ScriptActionBindingDispatcher::Dispatch(
     std::string_view inputActionId)
 {
