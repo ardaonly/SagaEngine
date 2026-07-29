@@ -96,6 +96,8 @@ struct ScriptInstanceCreateRequest
     ScriptClassId classId;
     std::string scriptId;
     ScriptEntityHandle selfEntity;
+    /// Canonical JSON object copied from the verified runtime scene artifact.
+    std::string instanceConfigurationCanonicalJson = "{}";
 };
 
 enum class ScriptLifecycleMethod : std::uint8_t
@@ -230,6 +232,16 @@ struct ScriptStateInt32Result : ScriptHostOperationResult
     std::int32_t value = 0;
 };
 
+struct ScriptStateDoubleResult : ScriptHostOperationResult
+{
+    double value = 0.0;
+};
+
+struct ScriptStateStringResult : ScriptHostOperationResult
+{
+    std::string value;
+};
+
 /// Host-verified identity attached to one managed state-port access.
 /// The managed callback table remains unchanged; the native host supplies this
 /// context from its active instance registry.
@@ -266,6 +278,41 @@ public:
 
     [[nodiscard]] virtual ScriptEntityPositionResult GetPosition(
         ScriptEntityHandle entity) const = 0;
+
+    [[nodiscard]] virtual ScriptEntityCreateResult FindEntity(
+        const std::string&) const { return {}; }
+    [[nodiscard]] virtual ScriptHostOperationResult SetActive(
+        ScriptEntityHandle, bool) { return {}; }
+    [[nodiscard]] virtual ScriptStateBoolResult GetActive(
+        ScriptEntityHandle) const { return {}; }
+};
+
+enum class ScriptLogicalInputState : std::uint8_t
+{
+    Pressed = 0,
+    Held = 1,
+    Released = 2,
+};
+
+/// Runtime-owned logical input snapshot. Implementations whitelist action ids.
+class ISagaScriptInputPort
+{
+public:
+    virtual ~ISagaScriptInputPort() = default;
+    [[nodiscard]] virtual ScriptStateBoolResult Query(
+        const ScriptStateContext&, const std::string& actionId,
+        ScriptLogicalInputState state) const = 0;
+    [[nodiscard]] virtual ScriptStateDoubleResult GetValue(
+        const ScriptStateContext&, const std::string& actionId) const = 0;
+};
+
+/// Generic runtime control requests, intentionally free of game-specific policy.
+class ISagaScriptRuntimePort
+{
+public:
+    virtual ~ISagaScriptRuntimePort() = default;
+    [[nodiscard]] virtual ScriptHostOperationResult RequestExit(
+        const ScriptStateContext&) = 0;
 };
 
 /// Optional typed state port supplied by a host application. Implementations
@@ -287,6 +334,17 @@ public:
         const std::string& key,
         const std::string& value) = 0;
 
+    [[nodiscard]] virtual ScriptStateInt32Result GetInt32(
+        const std::string&) const { return {}; }
+    [[nodiscard]] virtual ScriptStateDoubleResult GetDouble(
+        const std::string&) const { return {}; }
+    [[nodiscard]] virtual ScriptStateStringResult GetString(
+        const std::string&) const { return {}; }
+    [[nodiscard]] virtual ScriptHostOperationResult SetInt32(
+        const std::string&, std::int32_t) { return {}; }
+    [[nodiscard]] virtual ScriptHostOperationResult SetDouble(
+        const std::string&, double) { return {}; }
+
     [[nodiscard]] virtual ScriptStateBoolResult GetBool(
         const ScriptStateContext&, const std::string& key) const
     {
@@ -306,6 +364,31 @@ public:
         const ScriptStateContext&, const std::string& key, const std::string& value)
     {
         return SetString(key, value);
+    }
+    [[nodiscard]] virtual ScriptStateInt32Result GetInt32(
+        const ScriptStateContext&, const std::string& key) const
+    {
+        return GetInt32(key);
+    }
+    [[nodiscard]] virtual ScriptStateDoubleResult GetDouble(
+        const ScriptStateContext&, const std::string& key) const
+    {
+        return GetDouble(key);
+    }
+    [[nodiscard]] virtual ScriptStateStringResult GetString(
+        const ScriptStateContext&, const std::string& key) const
+    {
+        return GetString(key);
+    }
+    [[nodiscard]] virtual ScriptHostOperationResult SetInt32(
+        const ScriptStateContext&, const std::string& key, std::int32_t value)
+    {
+        return SetInt32(key, value);
+    }
+    [[nodiscard]] virtual ScriptHostOperationResult SetDouble(
+        const ScriptStateContext&, const std::string& key, double value)
+    {
+        return SetDouble(key, value);
     }
 
     virtual void OnInstanceActivated(const ScriptStateContext&) {}

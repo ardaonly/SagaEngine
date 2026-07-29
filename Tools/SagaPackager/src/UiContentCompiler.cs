@@ -45,27 +45,41 @@ internal static class UiContentCompiler
         using (source)
         {
             var root = source.RootElement;
-            RejectUnknown(root, configPath,
-                ["schemaVersion", "screenId", "documents", "stylesheets", "fonts", "prompts"], diagnostics);
-            if (!root.TryGetProperty("schemaVersion", out var schema) ||
-                schema.ValueKind != JsonValueKind.Number || schema.GetInt32() != 1)
+            var sourceSchema = root.TryGetProperty("schemaVersion", out var schema) &&
+                schema.ValueKind == JsonValueKind.Number ? schema.GetInt32() : -1;
+            RejectUnknown(root, configPath, sourceSchema == 2
+                ? ["schemaVersion", "screenId", "documents", "stylesheets", "fonts",
+                   "textBindings", "inputLabelBindings"]
+                : ["schemaVersion", "screenId", "documents", "stylesheets", "fonts", "prompts"],
+                diagnostics);
+            if (sourceSchema is not (1 or 2))
                 diagnostics.Add(Error("UI.Source.SchemaVersionUnsupported", configs[0].Path,
-                    "UI source schemaVersion must be 1."));
+                    "UI source schemaVersion must be 1 or 2."));
             var screenId = RequiredString(root, "screenId", configs[0].Path, diagnostics);
             if (screenId != configs[0].Id)
                 diagnostics.Add(Error("UI.Source.ScreenIdMismatch", configs[0].Path,
                     "screenId must match the ui-config project reference id."));
 
             var documents = Resources(root, "documents", ["documentId", "path"],
-                configPath, load.ProjectRoot, manifest.UiDocuments, diagnostics);
+                configPath, load.ProjectRoot, manifest.UiDocuments, diagnostics,
+                allowVisibility: sourceSchema == 2);
             var styles = Resources(root, "stylesheets", ["path"],
                 configPath, load.ProjectRoot, manifest.UiDocuments, diagnostics);
             var fonts = Resources(root, "fonts", ["family", "path"],
                 configPath, load.ProjectRoot, manifest.UiDocuments, diagnostics);
-            var prompts = Prompts(root, configPath, diagnostics);
-            if (documents.Count == 0 || styles.Count == 0 || fonts.Count == 0 || prompts.Count == 0)
+            var prompts = sourceSchema == 1 ? Prompts(root, configPath, diagnostics) : [];
+            var textBindings = sourceSchema == 2
+                ? TypedBindings(root, "textBindings", configPath, diagnostics) : [];
+            var inputLabelBindings = sourceSchema == 2
+                ? InputLabelBindings(root, configPath, diagnostics) : [];
+            if (sourceSchema == 2)
+                DocumentVisibility(root, documents, configPath, diagnostics);
+            if (documents.Count == 0 || styles.Count == 0 || fonts.Count == 0 ||
+                (sourceSchema == 1 && prompts.Count == 0) ||
+                (sourceSchema == 2 && (textBindings.Count == 0 ||
+                                       inputLabelBindings.Count == 0)))
                 diagnostics.Add(Error("UI.Source.RequiredCollectionEmpty", configs[0].Path,
-                    "runtime.ui-set requires at least one document, stylesheet, font, and prompt."));
+                    "runtime.ui-set requires documents, stylesheets, fonts, and declared bindings."));
             ValidateStylesheetAuthority(documents, styles, diagnostics);
             if (diagnostics.Any(item => item.Severity == "Error" &&
                     (item.Code.StartsWith("UI.", StringComparison.Ordinal) ||
@@ -106,10 +120,21 @@ internal static class UiContentCompiler
                 ["documents"] = new JsonArray(documents.Select(item => (JsonNode)item.Record).ToArray()),
                 ["fonts"] = new JsonArray(fonts.Select(item => (JsonNode)item.Record).ToArray()),
                 ["prompts"] = new JsonArray(prompts.Select(item => item.DeepClone()).ToArray()),
+                ["schemaVersion"] = sourceSchema,
                 ["screenId"] = screenId,
                 ["stylesheets"] = new JsonArray(styles.Select(item => (JsonNode)item.Record).ToArray()),
+                ["textBindings"] = new JsonArray(
+                    textBindings.Select(item => item.DeepClone()).ToArray()),
+                ["inputLabelBindings"] = new JsonArray(
+                    inputLabelBindings.Select(item => item.DeepClone()).ToArray()),
                 ["tool"] = new JsonObject { ["name"] = "sagapack", ["version"] = ToolVersion },
             };
+            if (sourceSchema == 1)
+            {
+                payload.Remove("schemaVersion");
+                payload.Remove("textBindings");
+                payload.Remove("inputLabelBindings");
+            }
             var contentHash = CanonicalJson.Hash(CanonicalJson.Serialize(payload));
             var artifact = new JsonObject
             {
@@ -120,7 +145,7 @@ internal static class UiContentCompiler
                 ["dependencies"] = new JsonArray(),
                 ["payload"] = payload,
                 ["provenance"] = new JsonObject { ["configSourceHash"] = CanonicalJson.HashFile(configPath) },
-                ["schemaVersion"] = 1,
+                ["schemaVersion"] = sourceSchema,
                 ["sourceHash"] = aggregateHash,
             };
             PublishSelector(outputRoot, generationId, aggregateHash, contentHash, screenId);
@@ -133,7 +158,8 @@ internal static class UiContentCompiler
 
     private static List<Resource> Resources(JsonElement root, string property,
         IReadOnlyList<string> allowed, string configPath, string projectRoot,
-        IReadOnlyList<ProjectReference> references, List<ProjectDiagnostic> diagnostics)
+        IReadOnlyList<ProjectReference> references, List<ProjectDiagnostic> diagnostics,
+        bool allowVisibility = false)
     {
         var result = new List<Resource>();
         if (!root.TryGetProperty(property, out var array) || array.ValueKind != JsonValueKind.Array)
@@ -145,7 +171,9 @@ internal static class UiContentCompiler
         var configDirectory = Path.GetDirectoryName(configPath)!;
         foreach (var item in array.EnumerateArray())
         {
-            RejectUnknown(item, configPath + "#" + property, allowed, diagnostics);
+            var accepted = allowVisibility
+                ? allowed.Concat(["visibility"]).ToArray() : allowed;
+            RejectUnknown(item, configPath + "#" + property, accepted, diagnostics);
             var relative = RequiredString(item, "path", configPath + "#" + property, diagnostics);
             var sourcePath = Path.GetFullPath(Path.Combine(configDirectory, relative));
             if (!IsContained(projectRoot, sourcePath) || !File.Exists(sourcePath))
@@ -198,6 +226,80 @@ internal static class UiContentCompiler
             result.Add(JsonNode.Parse(prompt.GetRawText())!);
         }
         return result;
+    }
+
+    private static List<JsonNode> TypedBindings(JsonElement root, string property,
+        string path, List<ProjectDiagnostic> diagnostics)
+    {
+        var result = new List<JsonNode>();
+        var fields = new[] {"behaviorId", "documentId", "elementId", "entityId",
+            "format", "stateKey", "valueType"};
+        if (!root.TryGetProperty(property, out var bindings) ||
+            bindings.ValueKind != JsonValueKind.Array) return result;
+        foreach (var binding in bindings.EnumerateArray())
+        {
+            RejectUnknown(binding, path + "#" + property, fields, diagnostics);
+            foreach (var field in fields)
+                RequiredString(binding, field, path + "#" + property, diagnostics);
+            if (binding.TryGetProperty("valueType", out var valueType) &&
+                valueType.GetString() is not ("Bool" or "Int32" or "Double" or "String"))
+                diagnostics.Add(Error("UI.Source.ValueTypeUnsupported", path,
+                    "Typed UI binding valueType is unsupported."));
+            result.Add(JsonNode.Parse(binding.GetRawText())!);
+        }
+        return result;
+    }
+
+    private static List<JsonNode> InputLabelBindings(JsonElement root, string path,
+        List<ProjectDiagnostic> diagnostics)
+    {
+        var result = new List<JsonNode>();
+        var fields = new[] {"actionId", "documentId", "elementId", "format"};
+        if (!root.TryGetProperty("inputLabelBindings", out var bindings) ||
+            bindings.ValueKind != JsonValueKind.Array) return result;
+        foreach (var binding in bindings.EnumerateArray())
+        {
+            RejectUnknown(binding, path + "#inputLabelBindings", fields, diagnostics);
+            foreach (var field in fields)
+                RequiredString(binding, field, path + "#inputLabelBindings", diagnostics);
+            result.Add(JsonNode.Parse(binding.GetRawText())!);
+        }
+        return result;
+    }
+
+    private static void DocumentVisibility(JsonElement root,
+        IReadOnlyList<Resource> documents, string path,
+        List<ProjectDiagnostic> diagnostics)
+    {
+        var sourceDocuments = root.GetProperty("documents").EnumerateArray().ToArray();
+        for (var index = 0; index < Math.Min(sourceDocuments.Length, documents.Count); ++index)
+        {
+            var source = sourceDocuments[index];
+            RejectUnknown(source, path + "#documents",
+                ["documentId", "path", "visibility"], diagnostics);
+            if (!source.TryGetProperty("visibility", out var visibility) ||
+                visibility.ValueKind != JsonValueKind.Object)
+            {
+                diagnostics.Add(Error("UI.Source.VisibilityMissing", path,
+                    "Schema 2 documents require typed visibility."));
+                continue;
+            }
+            RejectUnknown(visibility, path + "#documents#visibility",
+                ["behaviorId", "entityId", "stateKey", "valueType", "equalsAny"],
+                diagnostics);
+            foreach (var field in new[] {"behaviorId", "entityId", "stateKey", "valueType"})
+                RequiredString(visibility, field, path + "#documents#visibility", diagnostics);
+            if (visibility.GetProperty("valueType").GetString() != "String" ||
+                !visibility.TryGetProperty("equalsAny", out var equalsAny) ||
+                equalsAny.ValueKind != JsonValueKind.Array || equalsAny.GetArrayLength() == 0 ||
+                equalsAny.EnumerateArray().Any(item =>
+                    item.ValueKind != JsonValueKind.String ||
+                    string.IsNullOrWhiteSpace(item.GetString())))
+                diagnostics.Add(Error("UI.Source.VisibilityInvalid", path,
+                    "Document visibility requires String equalsAny values."));
+            documents[index].Record["visibility"] =
+                JsonNode.Parse(visibility.GetRawText());
+        }
     }
 
     private static void AddPublishedPaths(IEnumerable<Resource> resources, string generationId)

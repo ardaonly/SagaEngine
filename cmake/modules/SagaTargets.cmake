@@ -645,7 +645,7 @@ function(saga_create_engine_targets)
     set(SAGA_RUNTIME_EXECUTABLE_SOURCES)
     foreach(SAGA_RUNTIME_PROGRAM_SOURCE IN LISTS SAGA_RUNTIME_PROGRAM_SOURCES)
         if(SAGA_RUNTIME_PROGRAM_SOURCE MATCHES
-           "/Runtime(Host|LaunchSession|ArtifactSession|RenderSession|ScriptSession|EvidenceSession|FrameLoop|StateStore|UiPromptController|UiSession)\\.(cpp|h)$")
+           "/Runtime(Host|LaunchSession|ArtifactSession|RenderSession|ScriptSession|EvidenceSession|FrameLoop|GameplaySession|StateStore|TriggerSession|UiPromptController|UiSession)\\.(cpp|h)$")
             list(APPEND SAGA_RUNTIME_APP_PRIVATE_SOURCES
                 "${SAGA_RUNTIME_PROGRAM_SOURCE}")
         else()
@@ -656,9 +656,9 @@ function(saga_create_engine_targets)
 
     list(LENGTH SAGA_RUNTIME_APP_PRIVATE_SOURCES
          SAGA_RUNTIME_APP_PRIVATE_SOURCE_COUNT)
-    if(NOT SAGA_RUNTIME_APP_PRIVATE_SOURCE_COUNT EQUAL 20)
+    if(NOT SAGA_RUNTIME_APP_PRIVATE_SOURCE_COUNT EQUAL 24)
         message(FATAL_ERROR
-            "SagaRuntimeAppLib expected 20 app-private orchestration sources, "
+            "SagaRuntimeAppLib expected 24 app-private orchestration sources, "
             "but found ${SAGA_RUNTIME_APP_PRIVATE_SOURCE_COUNT}. "
             "Update the ownership filter when Runtime orchestration changes.")
     endif()

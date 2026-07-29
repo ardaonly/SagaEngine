@@ -248,6 +248,7 @@ internal static class PackageResolutionService
                      .GroupBy(item => item.ArtifactId, StringComparer.Ordinal).Where(item => item.Count() > 1))
             diagnostics.Add(Error("Package.Resolve.DuplicateArtifact", duplicate.Key,
                 "Package artifact identities must be unique across the complete resolved graph."));
+        ValidateRuntimeBackedOwnership(orderedPackages, distributionRoot, diagnostics);
         var intentPayload = project.Manifest?.Dependencies
             .OrderBy(item => item.PackageId, StringComparer.Ordinal)
             .Select(item => new
@@ -634,6 +635,32 @@ internal static class PackageResolutionService
                         throw new InvalidOperationException(
                             "API surface runtimeReadiness must be RuntimeBacked or ContractOnly.");
                     }
+                    if (root.GetProperty("runtimeReadiness").GetString() == "RuntimeBacked")
+                    {
+                        var implementation = root.GetProperty("runtimeImplementation");
+                        RejectUnknown(implementation, fullPath,
+                            ["implementationType", "managedReferenceArtifactId"],
+                            diagnostics);
+                        var implementationType =
+                            implementation.GetProperty("implementationType").GetString() ?? "";
+                        var owner = implementation.GetProperty(
+                            "managedReferenceArtifactId").GetString() ?? "";
+                        var expectedType = module switch
+                        {
+                            "challenge.core.highlevel" =>
+                                "SagaEngine.Scripting.Gameplay.ChallengeHighLevel",
+                            "collectibles.highlevel" =>
+                                "SagaEngine.Scripting.Gameplay.CollectiblesHighLevel",
+                            "collectibles.instrumentation" =>
+                                "SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleInstrumentation",
+                            _ => "",
+                        };
+                        if (owner !=
+                                "com.saga.gameplay.foundation.managed-reference" ||
+                            implementationType != expectedType)
+                            throw new InvalidOperationException(
+                                "RuntimeBacked API surface owner or implementation type is not allowlisted.");
+                    }
                     var identities = new HashSet<string>(StringComparer.Ordinal);
                     foreach (var api in root.GetProperty("apis").EnumerateArray())
                     {
@@ -707,6 +734,39 @@ internal static class PackageResolutionService
             Modules = intent.Modules.OrderBy(item => item, StringComparer.Ordinal).ToArray(),
             Artifacts = artifacts.ToArray(),
         });
+    }
+
+    private static void ValidateRuntimeBackedOwnership(
+        IReadOnlyList<LockedPackage> packages, string distributionRoot,
+        List<ProjectDiagnostic> diagnostics)
+    {
+        var managedReferences = packages.SelectMany(item => item.Artifacts)
+            .Where(item => item.Kind == "managedReference")
+            .Select(item => item.ArtifactId).ToHashSet(StringComparer.Ordinal);
+        foreach (var surface in packages.SelectMany(item => item.Artifacts)
+                     .Where(item => item.Kind == "apiSurface"))
+        {
+            try
+            {
+                using var descriptor = JsonDocument.Parse(File.ReadAllBytes(
+                    Path.Combine(distributionRoot, surface.DistributionPath)));
+                var root = descriptor.RootElement;
+                if (root.GetProperty("runtimeReadiness").GetString() !=
+                    "RuntimeBacked") continue;
+                var owner = root.GetProperty("runtimeImplementation")
+                    .GetProperty("managedReferenceArtifactId").GetString() ?? "";
+                if (!managedReferences.Contains(owner))
+                    diagnostics.Add(Error("Package.Resolve.RuntimeOwnerMissing",
+                        surface.ArtifactId,
+                        "RuntimeBacked surface requires its locked managed-reference owner."));
+            }
+            catch (Exception exception) when (exception is IOException or
+                                               JsonException or KeyNotFoundException)
+            {
+                diagnostics.Add(Error("Package.Resolve.RuntimeOwnerInvalid",
+                    surface.ArtifactId, exception.Message));
+            }
+        }
     }
 
     private static void PublishGeneration(VerifiedPackageGraph graph, string lockPath, string outputRoot,

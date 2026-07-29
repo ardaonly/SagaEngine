@@ -22,8 +22,12 @@ saga_add_program(SagaRuntime
         Private/RuntimeEvidenceSession.h
         Private/RuntimeFrameLoop.cpp
         Private/RuntimeFrameLoop.h
+        Private/RuntimeGameplaySession.cpp
+        Private/RuntimeGameplaySession.h
         Private/RuntimeStateStore.cpp
         Private/RuntimeStateStore.h
+        Private/RuntimeTriggerSession.cpp
+        Private/RuntimeTriggerSession.h
         Private/RuntimeUiPromptController.cpp
         Private/RuntimeUiPromptController.h
         Private/RuntimeUiSession.cpp

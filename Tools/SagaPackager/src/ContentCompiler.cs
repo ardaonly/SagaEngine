@@ -208,7 +208,7 @@ internal static class ContentCompiler
         }
         var value = source.RootElement;
         RejectUnknown(value, path, ["schemaVersion", "sceneId", "entities"], diagnostics);
-        RequireSchemaOne(value, path, diagnostics);
+        var sceneSchema = RequireSchemaOneOrTwo(value, path, diagnostics);
         var sceneId = String(value, "sceneId", path, diagnostics);
         if (sceneId != reference.Id)
         {
@@ -217,6 +217,7 @@ internal static class ContentCompiler
         var entities = new List<JsonObject>();
         var entityIds = new HashSet<string>(StringComparer.Ordinal);
         var parents = new Dictionary<string, string>(StringComparer.Ordinal);
+        var eventReferences = new List<(string Source, string Target, string Subject)>();
         if (!value.TryGetProperty("entities", out var entityArray) || entityArray.ValueKind != JsonValueKind.Array)
         {
             diagnostics.Add(Error("Scene.Source.EntitiesMissing", path, "Scene entities must be an array."));
@@ -244,7 +245,8 @@ internal static class ContentCompiler
             foreach (var component in componentArray.EnumerateArray())
             {
                 var type = String(component, "type", entityId, diagnostics);
-                if (!componentTypes.Add(type))
+                var repeatable = type is "ScriptActionBinding" or "ScriptEventBinding";
+                if (!repeatable && !componentTypes.Add(type))
                 {
                     diagnostics.Add(Error("Scene.Component.DuplicateType", entityId + "#" + type,
                         "Singular scene component types may occur only once per entity."));
@@ -355,6 +357,48 @@ internal static class ContentCompiler
                             ["type"] = type,
                         });
                         break;
+                    case "TriggerParticipant" when sceneSchema == 2:
+                        RejectUnknown(component, entityId + "#TriggerParticipant",
+                            ["type", "bounds", "category"], diagnostics);
+                        var participantBounds = NumberArray(component, "bounds", entityId, diagnostics);
+                        var category = String(component, "category", entityId, diagnostics);
+                        if (participantBounds.Count != 3 || participantBounds.Any(number => number <= 0))
+                            diagnostics.Add(Error("Scene.Trigger.ParticipantBoundsInvalid", entityId,
+                                "TriggerParticipant requires finite positive box bounds[3]."));
+                        components.Add(JsonNode.Parse(component.GetRawText())!.AsObject());
+                        break;
+                    case "TriggerVolume" when sceneSchema == 2:
+                        RejectUnknown(component, entityId + "#TriggerVolume",
+                            ["type", "bounds", "enabled", "acceptedCategory"], diagnostics);
+                        var volumeBounds = NumberArray(component, "bounds", entityId, diagnostics);
+                        var acceptedCategory = String(component, "acceptedCategory", entityId, diagnostics);
+                        if (volumeBounds.Count != 3 || volumeBounds.Any(number => number <= 0) ||
+                            !component.TryGetProperty("enabled", out var enabled) ||
+                            enabled.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                            diagnostics.Add(Error("Scene.Trigger.VolumeInvalid", entityId,
+                                "TriggerVolume requires finite positive box bounds[3], enabled, and acceptedCategory."));
+                        components.Add(JsonNode.Parse(component.GetRawText())!.AsObject());
+                        break;
+                    case "ScriptEventBinding" when sceneSchema == 2:
+                        RejectUnknown(component, entityId + "#ScriptEventBinding",
+                            ["type", "eventType", "sourceEntityId", "targetEntityId",
+                             "behaviorTypeId", "namedActionId"], diagnostics);
+                        var eventType = String(component, "eventType", entityId, diagnostics);
+                        var sourceEntityId = String(component, "sourceEntityId", entityId, diagnostics);
+                        var targetEntityId = String(component, "targetEntityId", entityId, diagnostics);
+                        var eventBehaviorId = String(component, "behaviorTypeId", entityId, diagnostics);
+                        var eventActionId = String(component, "namedActionId", entityId, diagnostics);
+                        if (eventType is not ("TriggerEnter" or "TriggerExit" or "FocusLost"))
+                            diagnostics.Add(Error("Scene.Event.TypeUnsupported", entityId,
+                                "ScriptEventBinding eventType must be TriggerEnter, TriggerExit, or FocusLost."));
+                        if (!semantic.TryGetValue(eventBehaviorId, out var eventBehavior) ||
+                            !eventBehavior.Actions.Contains(eventActionId))
+                            diagnostics.Add(Error("Scene.Event.ActionUnresolved",
+                                eventBehaviorId + "." + eventActionId,
+                                "ScriptEventBinding action must be publicly invocable."));
+                        eventReferences.Add((sourceEntityId, targetEntityId, entityId));
+                        components.Add(JsonNode.Parse(component.GetRawText())!.AsObject());
+                        break;
                     default:
                         diagnostics.Add(Error("Scene.Component.Unknown", entityId, $"Unknown scene component: {type}."));
                         break;
@@ -371,6 +415,15 @@ internal static class ContentCompiler
         }
         foreach (var parent in parents.Where(item => !entityIds.Contains(item.Value)))
             diagnostics.Add(Error("Scene.Entity.ParentMissing", parent.Key, $"Parent entity '{parent.Value}' does not exist."));
+        foreach (var referenceValue in eventReferences)
+        {
+            if (!entityIds.Contains(referenceValue.Source))
+                diagnostics.Add(Error("Scene.Event.SourceMissing", referenceValue.Subject,
+                    $"Event source entity '{referenceValue.Source}' does not exist."));
+            if (!entityIds.Contains(referenceValue.Target))
+                diagnostics.Add(Error("Scene.Event.TargetMissing", referenceValue.Subject,
+                    $"Event target entity '{referenceValue.Target}' does not exist."));
+        }
         foreach (var entityId in entityIds)
         {
             var visited = new HashSet<string>(StringComparer.Ordinal);
@@ -393,6 +446,7 @@ internal static class ContentCompiler
             ["entities"] = new JsonArray(entities.OrderBy(item => item["entityId"]!.GetValue<string>(), StringComparer.Ordinal)
                 .Select(item => (JsonNode)item).ToArray()),
             ["sceneId"] = sceneId,
+            ["schemaVersion"] = sceneSchema,
         };
         AddArtifact(Artifact(sceneId, "runtime.scene", CanonicalJson.HashFile(path), payload, null, []), artifacts, null);
     }
@@ -537,7 +591,7 @@ internal static class ContentCompiler
                 {
                     diagnostics.Add(Error("Input.Binding.DeviceUnknown", actionId, $"Unknown input device: {device}."));
                 }
-                if (!Regex.IsMatch(control, "^[A-Z]$"))
+                if (!Regex.IsMatch(control, "^(?:[A-Z]|Enter|Space|Escape)$"))
                 {
                     diagnostics.Add(Error("Input.Binding.ControlUnknown", actionId, $"Unknown keyboard control: {control}."));
                 }
@@ -672,6 +726,19 @@ internal static class ContentCompiler
         {
             diagnostics.Add(Error("Content.Schema.VersionUnsupported", path, "schemaVersion must be 1."));
         }
+    }
+
+    private static int RequireSchemaOneOrTwo(JsonElement value, string path,
+        List<SagaProjectKit.Core.ProjectDiagnostic> diagnostics)
+    {
+        if (!value.TryGetProperty("schemaVersion", out var schema) ||
+            !schema.TryGetInt32(out var number) || number is not (1 or 2))
+        {
+            diagnostics.Add(Error("Content.Schema.VersionUnsupported", path,
+                "scene schemaVersion must be 1 or 2."));
+            return 0;
+        }
+        return number;
     }
 
     private static string String(JsonElement value, string name, string path,

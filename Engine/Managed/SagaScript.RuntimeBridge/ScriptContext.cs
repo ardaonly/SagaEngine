@@ -24,6 +24,9 @@ public sealed class ScriptContext
     internal ScriptContext(NativeScriptHost? host, long selfEntityHandle)
     {
         Host = host;
+        Configuration = new ScriptConfigurationPort(host);
+        Input = new ScriptInputPort(host);
+        Runtime = new ScriptRuntimePort(host);
         World = new ScriptWorld(host);
         State = new ScriptStatePort(host);
         Self = new SelfFacade(new ScriptEntity(host, selfEntityHandle));
@@ -32,6 +35,9 @@ public sealed class ScriptContext
 
     public ScriptWorld World { get; }
     public ScriptStatePort State { get; }
+    public ScriptConfigurationPort Configuration { get; }
+    public ScriptInputPort Input { get; }
+    public ScriptRuntimePort Runtime { get; }
     public SelfFacade Self { get; }
     public ScriptLogger Log { get; }
 
@@ -41,6 +47,68 @@ public sealed class ScriptContext
     {
         return new ScriptContext(null, 0);
     }
+}
+
+public enum LogicalInputState
+{
+    Pressed = 0,
+    Held = 1,
+    Released = 2,
+}
+
+/// <summary>Read-only, per-instance authored configuration.</summary>
+public sealed class ScriptConfigurationPort
+{
+    internal ScriptConfigurationPort(NativeScriptHost? host) { Host = host; }
+
+    public bool TryGetInt32(string key, out int value)
+    {
+        value = 0;
+        return Host is not null && Host.TryGetConfigurationInt32(key, out value);
+    }
+
+    public bool TryGetDouble(string key, out double value)
+    {
+        value = 0;
+        return Host is not null && Host.TryGetConfigurationDouble(key, out value);
+    }
+
+    public bool TryGetString(string key, out string value)
+    {
+        value = string.Empty;
+        return Host is not null && Host.TryGetConfigurationString(key, out value);
+    }
+
+    private NativeScriptHost? Host { get; }
+}
+
+/// <summary>Logical input snapshot selected by the verified input artifact.</summary>
+public sealed class ScriptInputPort
+{
+    internal ScriptInputPort(NativeScriptHost? host) { Host = host; }
+
+    public bool IsPressed(string actionId) => Query(actionId, LogicalInputState.Pressed);
+    public bool IsHeld(string actionId) => Query(actionId, LogicalInputState.Held);
+    public bool IsReleased(string actionId) => Query(actionId, LogicalInputState.Released);
+
+    public bool TryGetValue(string actionId, out double value)
+    {
+        value = 0;
+        return Host is not null && Host.TryGetInputValue(actionId, out value);
+    }
+
+    private bool Query(string actionId, LogicalInputState state) =>
+        Host is not null && Host.QueryInput(actionId, state);
+
+    private NativeScriptHost? Host { get; }
+}
+
+/// <summary>Generic process-level runtime requests; gameplay policy remains managed.</summary>
+public sealed class ScriptRuntimePort
+{
+    internal ScriptRuntimePort(NativeScriptHost? host) { Host = host; }
+    public bool RequestExit() => Host is not null && Host.RequestExit();
+    private NativeScriptHost? Host { get; }
 }
 
 public sealed class ScriptStatePort
@@ -55,6 +123,24 @@ public sealed class ScriptStatePort
         return Host is not null && Host.TryGetBool(key, out value);
     }
 
+    public bool TryGetInt32(string key, out int value)
+    {
+        value = 0;
+        return Host is not null && Host.TryGetInt32(key, out value);
+    }
+
+    public bool TryGetDouble(string key, out double value)
+    {
+        value = 0;
+        return Host is not null && Host.TryGetDouble(key, out value);
+    }
+
+    public bool TryGetString(string key, out string value)
+    {
+        value = string.Empty;
+        return Host is not null && Host.TryGetString(key, out value);
+    }
+
     public bool TryAddInt32(string key, int delta, out int value)
     {
         value = 0;
@@ -63,6 +149,12 @@ public sealed class ScriptStatePort
 
     public bool TrySetBool(string key, bool value) =>
         Host is not null && Host.TrySetBool(key, value);
+
+    public bool TrySetInt32(string key, int value) =>
+        Host is not null && Host.TrySetInt32(key, value);
+
+    public bool TrySetDouble(string key, double value) =>
+        Host is not null && Host.TrySetDouble(key, value);
 
     public bool TrySetString(string key, string value) =>
         Host is not null && Host.TrySetString(key, value);
@@ -94,6 +186,17 @@ public sealed class ScriptWorld
         return true;
     }
 
+    public bool TryFindEntity(string stableEntityId, out ScriptEntity entity)
+    {
+        entity = ScriptEntity.Invalid;
+        if (Host is null || !Host.TryFindEntity(stableEntityId, out var handle))
+        {
+            return false;
+        }
+        entity = new ScriptEntity(Host, handle);
+        return true;
+    }
+
     private NativeScriptHost? Host { get; }
 }
 
@@ -121,6 +224,15 @@ public sealed class ScriptEntity
         }
 
         return Host.TryGetPosition(Handle, out position);
+    }
+
+    public bool TrySetActive(bool active) =>
+        Host is not null && Host.TrySetEntityActive(Handle, active);
+
+    public bool TryGetActive(out bool active)
+    {
+        active = false;
+        return Host is not null && Host.TryGetEntityActive(Handle, out active);
     }
 
     internal static ScriptEntity Invalid => new(null, 0);
@@ -224,6 +336,20 @@ public unsafe struct NativeCallbackTable
     public delegate* unmanaged[Cdecl]<long, byte*, int, int> SetStateBool;
     public delegate* unmanaged[Cdecl]<long, byte*, byte*, int> SetStateString;
     public delegate* unmanaged[Cdecl]<long, int> StatePortAvailable;
+    public delegate* unmanaged[Cdecl]<long, byte*, int*, int> GetConfigurationInt32;
+    public delegate* unmanaged[Cdecl]<long, byte*, double*, int> GetConfigurationDouble;
+    public delegate* unmanaged[Cdecl]<long, byte*, byte*, int, int> GetConfigurationString;
+    public delegate* unmanaged[Cdecl]<long, byte*, int, int*, int> QueryInput;
+    public delegate* unmanaged[Cdecl]<long, byte*, double*, int> GetInputValue;
+    public delegate* unmanaged[Cdecl]<long, byte*, long*, int> FindEntity;
+    public delegate* unmanaged[Cdecl]<long, long, int, int> SetEntityActive;
+    public delegate* unmanaged[Cdecl]<long, long, int*, int> GetEntityActive;
+    public delegate* unmanaged[Cdecl]<long, byte*, int*, int> GetStateInt32;
+    public delegate* unmanaged[Cdecl]<long, byte*, double*, int> GetStateDouble;
+    public delegate* unmanaged[Cdecl]<long, byte*, byte*, int, int> GetStateString;
+    public delegate* unmanaged[Cdecl]<long, byte*, int, int> SetStateInt32;
+    public delegate* unmanaged[Cdecl]<long, byte*, double, int> SetStateDouble;
+    public delegate* unmanaged[Cdecl]<long, int> RequestExit;
 }
 
 internal unsafe sealed class NativeScriptHost
@@ -247,6 +373,20 @@ internal unsafe sealed class NativeScriptHost
         fixed (byte* namePointer = buffer)
         {
             var status = Callbacks.CreateEntity(ContextHandle, namePointer, &handle);
+            entityHandle = handle;
+            return status == NativeCallbackStatus.Ok && entityHandle != 0;
+        }
+    }
+
+    public bool TryFindEntity(string stableEntityId, out long entityHandle)
+    {
+        entityHandle = 0;
+        if (Callbacks.FindEntity == null) return false;
+        var buffer = ToNullTerminatedUtf8(stableEntityId);
+        var handle = 0L;
+        fixed (byte* pointer = buffer)
+        {
+            var status = Callbacks.FindEntity(ContextHandle, pointer, &handle);
             entityHandle = handle;
             return status == NativeCallbackStatus.Ok && entityHandle != 0;
         }
@@ -294,6 +434,15 @@ internal unsafe sealed class NativeScriptHost
         }
     }
 
+    public bool TryGetInt32(string key, out int value) =>
+        TryGetInt32(Callbacks.GetStateInt32, key, out value);
+
+    public bool TryGetDouble(string key, out double value) =>
+        TryGetDouble(Callbacks.GetStateDouble, key, out value);
+
+    public bool TryGetString(string key, out string value) =>
+        TryGetString(Callbacks.GetStateString, key, out value);
+
     public bool StatePortAvailable() =>
         Callbacks.StatePortAvailable != null && Callbacks.StatePortAvailable(ContextHandle) != 0;
 
@@ -322,6 +471,28 @@ internal unsafe sealed class NativeScriptHost
         }
     }
 
+    public bool TrySetInt32(string key, int value)
+    {
+        if (Callbacks.SetStateInt32 == null) return false;
+        var buffer = ToNullTerminatedUtf8(key);
+        fixed (byte* pointer = buffer)
+        {
+            return Callbacks.SetStateInt32(ContextHandle, pointer, value) ==
+                NativeCallbackStatus.Ok;
+        }
+    }
+
+    public bool TrySetDouble(string key, double value)
+    {
+        if (Callbacks.SetStateDouble == null) return false;
+        var buffer = ToNullTerminatedUtf8(key);
+        fixed (byte* pointer = buffer)
+        {
+            return Callbacks.SetStateDouble(ContextHandle, pointer, value) ==
+                NativeCallbackStatus.Ok;
+        }
+    }
+
     public bool TrySetString(string key, string value)
     {
         if (Callbacks.SetStateString == null) return false;
@@ -334,6 +505,50 @@ internal unsafe sealed class NativeScriptHost
                 NativeCallbackStatus.Ok;
         }
     }
+
+    public bool TryGetConfigurationInt32(string key, out int value) =>
+        TryGetInt32(Callbacks.GetConfigurationInt32, key, out value);
+
+    public bool TryGetConfigurationDouble(string key, out double value) =>
+        TryGetDouble(Callbacks.GetConfigurationDouble, key, out value);
+
+    public bool TryGetConfigurationString(string key, out string value) =>
+        TryGetString(Callbacks.GetConfigurationString, key, out value);
+
+    public bool QueryInput(string actionId, LogicalInputState state)
+    {
+        if (Callbacks.QueryInput == null) return false;
+        var buffer = ToNullTerminatedUtf8(actionId);
+        var result = 0;
+        fixed (byte* pointer = buffer)
+        {
+            return Callbacks.QueryInput(
+                ContextHandle, pointer, (int)state, &result) == NativeCallbackStatus.Ok &&
+                result != 0;
+        }
+    }
+
+    public bool TryGetInputValue(string actionId, out double value) =>
+        TryGetDouble(Callbacks.GetInputValue, actionId, out value);
+
+    public bool TrySetEntityActive(long entityHandle, bool active) =>
+        Callbacks.SetEntityActive != null &&
+        Callbacks.SetEntityActive(ContextHandle, entityHandle, active ? 1 : 0) ==
+            NativeCallbackStatus.Ok;
+
+    public bool TryGetEntityActive(long entityHandle, out bool active)
+    {
+        active = false;
+        if (Callbacks.GetEntityActive == null) return false;
+        var result = 0;
+        var status = Callbacks.GetEntityActive(ContextHandle, entityHandle, &result);
+        active = result != 0;
+        return status == NativeCallbackStatus.Ok;
+    }
+
+    public bool RequestExit() =>
+        Callbacks.RequestExit != null &&
+        Callbacks.RequestExit(ContextHandle) == NativeCallbackStatus.Ok;
 
     public void Log(ScriptLogLevel level, string message)
     {
@@ -355,6 +570,61 @@ internal unsafe sealed class NativeScriptHost
         var buffer = new byte[bytes.Length + 1];
         bytes.CopyTo(buffer, 0);
         return buffer;
+    }
+
+    private bool TryGetInt32(
+        delegate* unmanaged[Cdecl]<long, byte*, int*, int> callback,
+        string key,
+        out int value)
+    {
+        value = 0;
+        if (callback == null) return false;
+        var buffer = ToNullTerminatedUtf8(key);
+        var result = 0;
+        fixed (byte* pointer = buffer)
+        {
+            var status = callback(ContextHandle, pointer, &result);
+            value = result;
+            return status == NativeCallbackStatus.Ok;
+        }
+    }
+
+    private bool TryGetDouble(
+        delegate* unmanaged[Cdecl]<long, byte*, double*, int> callback,
+        string key,
+        out double value)
+    {
+        value = 0;
+        if (callback == null) return false;
+        var buffer = ToNullTerminatedUtf8(key);
+        var result = 0.0;
+        fixed (byte* pointer = buffer)
+        {
+            var status = callback(ContextHandle, pointer, &result);
+            value = result;
+            return status == NativeCallbackStatus.Ok;
+        }
+    }
+
+    private bool TryGetString(
+        delegate* unmanaged[Cdecl]<long, byte*, byte*, int, int> callback,
+        string key,
+        out string value)
+    {
+        value = string.Empty;
+        if (callback == null) return false;
+        var keyBuffer = ToNullTerminatedUtf8(key);
+        var valueBuffer = new byte[4096];
+        fixed (byte* keyPointer = keyBuffer)
+        fixed (byte* valuePointer = valueBuffer)
+        {
+            if (callback(ContextHandle, keyPointer, valuePointer, valueBuffer.Length) !=
+                NativeCallbackStatus.Ok) return false;
+        }
+        var length = Array.IndexOf(valueBuffer, (byte)0);
+        if (length < 0) return false;
+        value = Encoding.UTF8.GetString(valueBuffer, 0, length);
+        return true;
     }
 
     private long ContextHandle { get; }

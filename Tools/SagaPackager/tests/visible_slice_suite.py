@@ -178,9 +178,13 @@ def test_arena_rush_assets_inputs_and_composite_ui_compile() -> None:
         assert len(ui["payload"]["documents"]) == 3
         assert len(ui["payload"]["stylesheets"]) == 3
         assert len(ui["payload"]["fonts"]) == 1
+        assert ui["schemaVersion"] == 2
+        assert len(ui["payload"]["textBindings"]) == 9
+        assert len(ui["payload"]["inputLabelBindings"]) == 6
         input_artifact = artifact(root / "compile-inputs-first", "arena-rush.input")
         assert [item["actionId"] for item in input_artifact["payload"]["actions"]] == [
-            "Exit", "Interact", "Restart", "StartChallenge",
+            "Exit", "MoveBack", "MoveForward", "MoveLeft", "MoveRight",
+            "Restart", "Resume", "StartChallenge",
         ]
 
 def test_arena_rush_multi_surface_package_generation_is_exact() -> None:
@@ -229,6 +233,7 @@ def test_arena_rush_multi_surface_package_generation_is_exact() -> None:
             api["apiId"] for descriptor in descriptors for api in descriptor["apis"]
         ] == [
             "ChallengeHighLevel.AddProgress",
+            "ChallengeHighLevel.AdvanceTime",
             "ChallengeHighLevel.Arm",
             "ChallengeHighLevel.Complete",
             "ChallengeHighLevel.Create",
@@ -240,16 +245,18 @@ def test_arena_rush_multi_surface_package_generation_is_exact() -> None:
             "ChallengeHighLevel.StartOnce",
             "ChallengeHighLevel.Suspend",
             "ChallengeHighLevel.Timeout",
+            "CollectiblesHighLevel.AdvanceRespawnTime",
             "CollectiblesHighLevel.Collect",
             "CollectiblesHighLevel.CompleteRespawn",
             "CollectiblesHighLevel.Create",
             "CollectiblesHighLevel.Deactivate",
+            "CollectiblesHighLevel.Reset",
             "CollectiblesHighLevel.ScheduleRespawn",
             "CollectiblesHighLevel.SelectSpawnIndex",
             "CollectiblesHighLevel.SetRespawnRemaining",
         ]
         assert all(
-            descriptor["runtimeReadiness"] == "ContractOnly"
+            descriptor["runtimeReadiness"] == "RuntimeBacked"
             and all(api["blockProjection"] == "Supported" for api in descriptor["apis"])
             for descriptor in descriptors
         )

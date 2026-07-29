@@ -406,6 +406,33 @@ TEST_F(InputActionMapTest, MultipleBindingsSameAction)
     EXPECT_EQ(events[0].id, A(Action::Jump));
 }
 
+TEST(InputStateTest, AggregateFramePreservesPressedHeldAndReleasedEdges)
+{
+    InputState aggregate;
+    InputActionMap map{"aggregate"};
+    map.Bind(A(Action::MoveForward), KeyChord{KeyCode::W});
+
+    aggregate.BeginAggregateFrame();
+    aggregate.keyboard.SetDown(KeyCode::W, true);
+    std::vector<InputActionEvent> events;
+    map.Resolve(aggregate, 1, events);
+    ASSERT_EQ(events.size(), 1u);
+    EXPECT_EQ(events.front().state, ActionState::Pressed);
+
+    aggregate.BeginAggregateFrame();
+    aggregate.keyboard.SetDown(KeyCode::W, true);
+    events.clear();
+    map.Resolve(aggregate, 2, events);
+    ASSERT_EQ(events.size(), 1u);
+    EXPECT_EQ(events.front().state, ActionState::Held);
+
+    aggregate.BeginAggregateFrame();
+    events.clear();
+    map.Resolve(aggregate, 3, events);
+    ASSERT_EQ(events.size(), 1u);
+    EXPECT_EQ(events.front().state, ActionState::Released);
+}
+
 // ─── InputActionMapStack tests ────────────────────────────────────────────────
 
 TEST(InputActionMapStackTest, HigherPriorityMapResolvesFirst)

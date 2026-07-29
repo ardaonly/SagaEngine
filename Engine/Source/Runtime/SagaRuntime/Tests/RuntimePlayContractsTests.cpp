@@ -81,7 +81,7 @@ CanonicalRuntimeLaunchManifest Launch()
     manifest.scriptSourceRevision = hash;
     manifest.scriptSourceSetHash = hash;
     manifest.runtimeBridge = {"runtime.bridge", hash,
-                              "NativeCallbackTable.v2+NamedAction.v1",
+                              "NativeCallbackTable.v3+NamedAction.v1",
                               "net10.0", "0.0.11", "TrustedEngineDistribution"};
     manifest.requiredRuntimeCapabilities = {"World.Transform.ReadWrite"};
     manifest.toolVersions = {{"sagapack", "0.0.11"}, {"sagascript", "0.0.11"}};

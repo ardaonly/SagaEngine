@@ -405,9 +405,14 @@ TEST(CMakeTargetBoundaryTests, RuntimeStatePolicyComesFromVersionedScriptEvidenc
     EXPECT_NE(stateStore.find("boolWrites_"), std::string::npos);
     EXPECT_NE(worker.find("SymbolEqualityComparer.Default"), std::string::npos);
     EXPECT_NE(worker.find("StateKeyNotConstant"), std::string::npos);
-    EXPECT_NE(artifacts.find("behavior_manifest_v2.json"), std::string::npos);
-    EXPECT_NE(artifacts.find("schemaVersion = 2"), std::string::npos);
-    EXPECT_NE(verifiedHost.find("readJson(request.behaviorManifest, behaviors, 2)"), std::string::npos);
+    EXPECT_NE(artifacts.find("behavior_manifest_v3.json"), std::string::npos);
+    EXPECT_NE(artifacts.find("schemaVersion = 3"), std::string::npos);
+    EXPECT_NE(verifiedHost.find("readJson(request.behaviorManifest, behaviors, -1)"), std::string::npos);
+    EXPECT_NE(verifiedHost.find("behaviors.value(\"schemaVersion\", -1) != 3"),
+              std::string::npos);
+    EXPECT_NE(verifiedHost.find("configurationAccesses"), std::string::npos);
+    EXPECT_NE(verifiedHost.find("inputAccesses"), std::string::npos);
+    EXPECT_NE(verifiedHost.find("runtimeRequests"), std::string::npos);
     EXPECT_NE(verifiedHost.find("stateAccesses"), std::string::npos);
 }
 TEST(CMakeTargetBoundaryTests, VerifiedStylesheetIsRuntimeRenderAuthority)

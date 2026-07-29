@@ -162,7 +162,7 @@ struct VerifiedGenerationFixture
     request.packageGraphHash = "sha256:packages";
     request.runtimeBridgeLogicalReferenceId = "runtime-bridge";
     request.runtimeBridgeHash = "sha256:" + Sha256Hex(RuntimeBridgeAssembly());
-    request.runtimeBridgeAbi = "NativeCallbackTable.v2+NamedAction.v1";
+    request.runtimeBridgeAbi = "NativeCallbackTable.v3+NamedAction.v1";
     request.targetFramework = "net10.0";
     request.runtimeCompatibility = "0.0.11";
     request.trust = "TrustedEngineDistribution";

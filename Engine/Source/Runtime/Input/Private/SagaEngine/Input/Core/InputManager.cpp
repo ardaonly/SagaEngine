@@ -139,7 +139,9 @@ void InputManager::MergeDeviceStates()
     // For MMO this is always 1 keyboard + 1 mouse, so the merge is trivial.
     // The structure handles multi-device scenarios (accessibility, HOTAS) cleanly.
 
-    m_mergedState.Clear();
+    // Preserve the last *merged* snapshot. Clearing both current and previous
+    // here collapsed every digital transition into Pressed on every frame.
+    m_mergedState.BeginAggregateFrame();
 
     // ── Keyboard merge ────────────────────────────────────────────────────────
     auto keyboards = m_registry->GetDevicesOfType(DeviceType::Keyboard);
@@ -192,7 +194,9 @@ void InputManager::MergeDeviceStates()
     for (const InputDevice* dev : gamepads)
     {
         if (!dev->IsConnected()) continue;
+        const auto previous = m_mergedState.gamepad.buttonsPrevious;
         m_mergedState.gamepad = dev->GetState().gamepad;
+        m_mergedState.gamepad.buttonsPrevious = previous;
         break;
     }
 }

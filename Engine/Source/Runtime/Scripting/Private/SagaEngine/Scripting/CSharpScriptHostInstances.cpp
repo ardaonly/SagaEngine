@@ -100,6 +100,20 @@ std::size_t CSharpScriptHost::Impl::InstanceIdentityHash::operator()(
         &CSharpScriptHost::Impl::SetStateBoolCallback,
         &CSharpScriptHost::Impl::SetStateStringCallback,
         &CSharpScriptHost::Impl::StatePortAvailableCallback,
+        &CSharpScriptHost::Impl::GetConfigurationInt32Callback,
+        &CSharpScriptHost::Impl::GetConfigurationDoubleCallback,
+        &CSharpScriptHost::Impl::GetConfigurationStringCallback,
+        &CSharpScriptHost::Impl::QueryInputCallback,
+        &CSharpScriptHost::Impl::GetInputValueCallback,
+        &CSharpScriptHost::Impl::FindEntityCallback,
+        &CSharpScriptHost::Impl::SetEntityActiveCallback,
+        &CSharpScriptHost::Impl::GetEntityActiveCallback,
+        &CSharpScriptHost::Impl::GetStateInt32Callback,
+        &CSharpScriptHost::Impl::GetStateDoubleCallback,
+        &CSharpScriptHost::Impl::GetStateStringCallback,
+        &CSharpScriptHost::Impl::SetStateInt32Callback,
+        &CSharpScriptHost::Impl::SetStateDoubleCallback,
+        &CSharpScriptHost::Impl::RequestExitCallback,
     };
 
     for (const auto& managedPackage : packageIterator->second.managedPackages)
@@ -127,6 +141,8 @@ std::size_t CSharpScriptHost::Impl::InstanceIdentityHash::operator()(
             state.selfEntity = request.selfEntity;
             state.activeInstanceToken = nextActiveInstanceToken++;
             state.grantedCapabilities = grantedCapabilities;
+            state.instanceConfigurationCanonicalJson =
+                request.instanceConfigurationCanonicalJson;
             auto [inserted, _] = instances.emplace(instanceHandle, std::move(state));
             contextToInstance.emplace(contextHandle, instanceHandle);
             activeIdentities.emplace(identity);

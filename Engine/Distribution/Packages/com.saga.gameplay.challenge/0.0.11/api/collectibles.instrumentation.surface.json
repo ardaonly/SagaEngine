@@ -1,0 +1,47 @@
+{
+  "apis": [
+    {
+      "apiId": "CollectibleInstrumentation.Create",
+      "blockProjection": "Supported",
+      "capability": "DevelopmentDiagnostics",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectibleInstrumentation.RecordCollect",
+      "blockProjection": "Supported",
+      "capability": "DevelopmentDiagnostics",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectibleInstrumentation.RecordDeactivation",
+      "blockProjection": "Supported",
+      "capability": "DevelopmentDiagnostics",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectibleInstrumentation.RecordRespawnCompleted",
+      "blockProjection": "Supported",
+      "capability": "DevelopmentDiagnostics",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectibleInstrumentation.RecordRespawnScheduled",
+      "blockProjection": "Supported",
+      "capability": "DevelopmentDiagnostics",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
+      "visibility": "Public"
+    }
+  ],
+  "module": "collectibles.instrumentation",
+  "runtimeImplementation": {
+    "implementationType": "SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleInstrumentation",
+    "managedReferenceArtifactId": "com.saga.gameplay.foundation.managed-reference"
+  },
+  "runtimeReadiness": "RuntimeBacked",
+  "schemaVersion": 1,
+  "surfaceId": "com.saga.gameplay.challenge/collectibles.instrumentation"
+}

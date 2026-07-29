@@ -27,12 +27,17 @@ inline constexpr std::string_view kArtifactsManifestFileName = "script_artifacts
 inline constexpr std::string_view kBridgeTypeName =
     "SagaEngine.Scripting.RuntimeBridge.NativeBridge, SagaScript.RuntimeBridge";
 inline constexpr std::size_t kBridgeErrorBufferSize = 2048;
-inline constexpr std::int32_t kNativeCallbackTableVersion = 2;
+inline constexpr std::int32_t kNativeCallbackTableVersion = 3;
 inline constexpr std::string_view kCapabilityCreateEntity = "Gameplay.World.CreateEntity";
 inline constexpr std::string_view kCapabilityTransformRead = "Gameplay.Transform.Read";
 inline constexpr std::string_view kCapabilityTransformWrite = "Gameplay.Transform.Write";
 inline constexpr std::string_view kCapabilityTransformReadWrite = "World.Transform.ReadWrite";
 inline constexpr std::string_view kCapabilityStatePort = "Gameplay.State.ReadWrite";
+inline constexpr std::string_view kCapabilityConfiguration = "Gameplay.Configuration.Read";
+inline constexpr std::string_view kCapabilityInput = "Gameplay.Input.Read";
+inline constexpr std::string_view kCapabilityEntityLookup = "Gameplay.World.FindEntity";
+inline constexpr std::string_view kCapabilityEntityActive = "Gameplay.Entity.Active";
+inline constexpr std::string_view kCapabilityRuntimeExit = "Runtime.Exit";
 
 enum class BridgeStatus : int
 {
@@ -76,6 +81,16 @@ using NativeAddStateInt32CallbackFn = int (*)(std::int64_t,
 using NativeSetStateBoolCallbackFn = int (*)(std::int64_t, const char*, int);
 using NativeSetStateStringCallbackFn = int (*)(std::int64_t, const char*, const char*);
 using NativeStatePortAvailableCallbackFn = int (*)(std::int64_t);
+using NativeGetInt32CallbackFn = int (*)(std::int64_t, const char*, std::int32_t*);
+using NativeGetDoubleCallbackFn = int (*)(std::int64_t, const char*, double*);
+using NativeGetStringCallbackFn = int (*)(std::int64_t, const char*, char*, int);
+using NativeQueryInputCallbackFn = int (*)(std::int64_t, const char*, int, int*);
+using NativeFindEntityCallbackFn = int (*)(std::int64_t, const char*, std::int64_t*);
+using NativeSetEntityActiveCallbackFn = int (*)(std::int64_t, std::int64_t, int);
+using NativeGetEntityActiveCallbackFn = int (*)(std::int64_t, std::int64_t, int*);
+using NativeSetStateInt32CallbackFn = int (*)(std::int64_t, const char*, std::int32_t);
+using NativeSetStateDoubleCallbackFn = int (*)(std::int64_t, const char*, double);
+using NativeRequestExitCallbackFn = int (*)(std::int64_t);
 
 struct NativeCallbackTable
 {
@@ -89,6 +104,20 @@ struct NativeCallbackTable
     NativeSetStateBoolCallbackFn setStateBool = nullptr;
     NativeSetStateStringCallbackFn setStateString = nullptr;
     NativeStatePortAvailableCallbackFn statePortAvailable = nullptr;
+    NativeGetInt32CallbackFn getConfigurationInt32 = nullptr;
+    NativeGetDoubleCallbackFn getConfigurationDouble = nullptr;
+    NativeGetStringCallbackFn getConfigurationString = nullptr;
+    NativeQueryInputCallbackFn queryInput = nullptr;
+    NativeGetDoubleCallbackFn getInputValue = nullptr;
+    NativeFindEntityCallbackFn findEntity = nullptr;
+    NativeSetEntityActiveCallbackFn setEntityActive = nullptr;
+    NativeGetEntityActiveCallbackFn getEntityActive = nullptr;
+    NativeGetInt32CallbackFn getStateInt32 = nullptr;
+    NativeGetDoubleCallbackFn getStateDouble = nullptr;
+    NativeGetStringCallbackFn getStateString = nullptr;
+    NativeSetStateInt32CallbackFn setStateInt32 = nullptr;
+    NativeSetStateDoubleCallbackFn setStateDouble = nullptr;
+    NativeRequestExitCallbackFn requestExit = nullptr;
 };
 
 using BridgeLoadAssemblyFn = int (*)(const char*, char*, int, std::int64_t*);
@@ -186,6 +215,7 @@ struct CSharpScriptHost::Impl
         ScriptEntityHandle selfEntity;
         std::uint64_t activeInstanceToken = 0;
         CapabilitySet grantedCapabilities;
+        std::string instanceConfigurationCanonicalJson = "{}";
         std::vector<ScriptDiagnostic> pendingDiagnostics;
     };
 
@@ -256,6 +286,33 @@ struct CSharpScriptHost::Impl
     [[nodiscard]] NativeCallbackStatus SetStateStringFromManaged(std::int64_t contextHandle,
                                                                  const char* key,
                                                                  const char* value);
+    [[nodiscard]] NativeCallbackStatus GetConfigurationInt32FromManaged(
+        std::int64_t, const char*, std::int32_t*);
+    [[nodiscard]] NativeCallbackStatus GetConfigurationDoubleFromManaged(
+        std::int64_t, const char*, double*);
+    [[nodiscard]] NativeCallbackStatus GetConfigurationStringFromManaged(
+        std::int64_t, const char*, char*, int);
+    [[nodiscard]] NativeCallbackStatus QueryInputFromManaged(
+        std::int64_t, const char*, int, int*);
+    [[nodiscard]] NativeCallbackStatus GetInputValueFromManaged(
+        std::int64_t, const char*, double*);
+    [[nodiscard]] NativeCallbackStatus FindEntityFromManaged(
+        std::int64_t, const char*, std::int64_t*);
+    [[nodiscard]] NativeCallbackStatus SetEntityActiveFromManaged(
+        std::int64_t, std::int64_t, int);
+    [[nodiscard]] NativeCallbackStatus GetEntityActiveFromManaged(
+        std::int64_t, std::int64_t, int*);
+    [[nodiscard]] NativeCallbackStatus GetStateInt32FromManaged(
+        std::int64_t, const char*, std::int32_t*);
+    [[nodiscard]] NativeCallbackStatus GetStateDoubleFromManaged(
+        std::int64_t, const char*, double*);
+    [[nodiscard]] NativeCallbackStatus GetStateStringFromManaged(
+        std::int64_t, const char*, char*, int);
+    [[nodiscard]] NativeCallbackStatus SetStateInt32FromManaged(
+        std::int64_t, const char*, std::int32_t);
+    [[nodiscard]] NativeCallbackStatus SetStateDoubleFromManaged(
+        std::int64_t, const char*, double);
+    [[nodiscard]] NativeCallbackStatus RequestExitFromManaged(std::int64_t);
 
     [[nodiscard]] static std::int64_t AllocateContextHandle(Impl* impl);
     static void ReleaseContextHandle(std::int64_t contextHandle);
@@ -289,6 +346,26 @@ struct CSharpScriptHost::Impl
                                       const char* key,
                                       const char* value) noexcept;
     static int StatePortAvailableCallback(std::int64_t contextHandle) noexcept;
+    static int GetConfigurationInt32Callback(
+        std::int64_t, const char*, std::int32_t*) noexcept;
+    static int GetConfigurationDoubleCallback(
+        std::int64_t, const char*, double*) noexcept;
+    static int GetConfigurationStringCallback(
+        std::int64_t, const char*, char*, int) noexcept;
+    static int QueryInputCallback(std::int64_t, const char*, int, int*) noexcept;
+    static int GetInputValueCallback(std::int64_t, const char*, double*) noexcept;
+    static int FindEntityCallback(std::int64_t, const char*, std::int64_t*) noexcept;
+    static int SetEntityActiveCallback(std::int64_t, std::int64_t, int) noexcept;
+    static int GetEntityActiveCallback(std::int64_t, std::int64_t, int*) noexcept;
+    static int GetStateInt32Callback(
+        std::int64_t, const char*, std::int32_t*) noexcept;
+    static int GetStateDoubleCallback(std::int64_t, const char*, double*) noexcept;
+    static int GetStateStringCallback(
+        std::int64_t, const char*, char*, int) noexcept;
+    static int SetStateInt32Callback(
+        std::int64_t, const char*, std::int32_t) noexcept;
+    static int SetStateDoubleCallback(std::int64_t, const char*, double) noexcept;
+    static int RequestExitCallback(std::int64_t) noexcept;
 
     [[nodiscard]] std::optional<std::vector<ArtifactEntry>> LoadArtifactEntries(
         const std::filesystem::path& manifestPath, ScriptPackageLoadResult& result);

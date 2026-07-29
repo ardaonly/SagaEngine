@@ -517,6 +517,16 @@ bool SDLWindow::DispatchEvent(const SDL_Event& event) noexcept
                     SDL_UpdateWindowSurface(m_Window);
                 return true;
             }
+
+            if (event.window.event == SDL_WINDOWEVENT_FOCUS_GAINED ||
+                event.window.event == SDL_WINDOWEVENT_FOCUS_LOST)
+            {
+                const bool focused =
+                    event.window.event == SDL_WINDOWEVENT_FOCUS_GAINED;
+                if (m_OnFocusChanged)
+                    m_OnFocusChanged(focused);
+                return true;
+            }
             break;
 
         // Keyboard events are NOT processed here — they belong to the

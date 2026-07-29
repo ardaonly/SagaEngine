@@ -115,9 +115,17 @@ public:
     using ResizeCallback = std::function<void(uint32_t width, uint32_t height)>;
     virtual void SetOnResize(ResizeCallback callback) { m_OnResize = std::move(callback); }
 
+    /// Register a callback invoked when OS keyboard focus changes.
+    using FocusCallback = std::function<void(bool focused)>;
+    virtual void SetOnFocusChanged(FocusCallback callback)
+    {
+        m_OnFocusChanged = std::move(callback);
+    }
+
 protected:
     bool m_RHIOwnsPresent = false; ///< True when an RHI manages presentation.
     ResizeCallback m_OnResize;     ///< Resize callback (set by host).
+    FocusCallback m_OnFocusChanged; ///< Focus callback (set by host).
 };
 
 } // namespace Saga

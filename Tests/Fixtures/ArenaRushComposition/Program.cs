@@ -22,6 +22,7 @@ static ChallengeState State(ArenaRushGameMode mode)
 }
 
 var mode = new ArenaRushGameMode();
+mode.InitializeForTests(60, 100, 10, 5, 2);
 Require(State(mode).Phase == ChallengePhase.PreStart, "initial state is pre-start");
 
 mode.StartChallenge();
@@ -37,9 +38,26 @@ mode.EnterChallengeStartVolume();
 Require(State(mode) == running, "repeated start-volume entry is idempotent");
 
 var unarmedMode = new ArenaRushGameMode();
+unarmedMode.InitializeForTests(60, 100, 10, 5, 2);
 unarmedMode.EnterChallengeStartVolume();
 Require(
     State(unarmedMode).Phase == ChallengePhase.PreStart,
     "start-volume entry cannot bypass arming");
+
+var timed = new ArenaRushGameMode();
+timed.InitializeForTests(1, 100, 10, 5, 0.5);
+timed.StartChallenge();
+timed.EnterChallengeStartVolume();
+timed.OnUpdate(1);
+Require(State(timed).Phase == ChallengePhase.Timeout, "fixed delta reaches timeout");
+timed.Restart();
+Require(State(timed).Phase == ChallengePhase.PreStart, "restart resets terminal state");
+
+var winning = new ArenaRushGameMode();
+winning.InitializeForTests(60, 20, 20, 5, 0.5);
+winning.StartChallenge();
+winning.EnterChallengeStartVolume();
+winning.CollectCore01();
+Require(State(winning).Phase == ChallengePhase.Won, "authored core value reaches target");
 
 Console.WriteLine("Arena Rush composition managed tests passed");

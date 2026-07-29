@@ -9,6 +9,8 @@
   <ItemGroup>
     <Compile Include="../../../Samples/ArenaRush/Scripts/ArenaRushGameMode.cs"
              Link="ArenaRushGameMode.cs" />
+    <Compile Include="../../../Samples/ArenaRush/Scripts/EnergyCoreController.cs"
+             Link="EnergyCoreController.cs" />
     <ProjectReference Include="../../../Engine/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.csproj" />
   </ItemGroup>
 </Project>

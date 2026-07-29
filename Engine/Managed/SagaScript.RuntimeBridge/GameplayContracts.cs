@@ -117,6 +117,26 @@ public static class ChallengeHighLevel
             : state with { RemainingSeconds = remaining };
     }
 
+    /// <summary>Advances the deterministic challenge clock while it is running.</summary>
+    public static ChallengeState AdvanceTime(ChallengeState state, double deltaSeconds)
+    {
+        if (!double.IsFinite(deltaSeconds) || deltaSeconds < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(deltaSeconds),
+                "Delta time must be finite and non-negative.");
+        }
+        if (state.Phase != ChallengePhase.Running || deltaSeconds == 0)
+        {
+            return state;
+        }
+
+        var remaining = Math.Max(0, state.RemainingSeconds - deltaSeconds);
+        return remaining == 0
+            ? Timeout(state)
+            : state with { RemainingSeconds = remaining };
+    }
+
     public static ChallengeState Restart(ChallengeState state) => Reset(state);
 
     public static ChallengeResult CreateResult(ChallengeState state) =>
@@ -180,6 +200,9 @@ public static class CollectiblesHighLevel
             ? state with { Phase = CollectiblePhase.Collected }
             : state;
 
+    public static CollectibleState Reset(CollectibleState state) =>
+        Create(state.Definition);
+
     public static CollectibleState Deactivate(CollectibleState state) =>
         state.Phase == CollectiblePhase.Collected
             ? state with { Phase = CollectiblePhase.Inactive }
@@ -208,6 +231,29 @@ public static class CollectiblesHighLevel
                 remainingSeconds,
                 0,
                 state.Definition.RespawnDelaySeconds),
+        };
+    }
+
+    /// <summary>Advances a scheduled respawn without completing it implicitly.</summary>
+    public static CollectibleState AdvanceRespawnTime(
+        CollectibleState state,
+        double deltaSeconds)
+    {
+        if (!double.IsFinite(deltaSeconds) || deltaSeconds < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(deltaSeconds),
+                "Delta time must be finite and non-negative.");
+        }
+        if (state.Phase != CollectiblePhase.Respawning || deltaSeconds == 0)
+        {
+            return state;
+        }
+        return state with
+        {
+            RespawnRemainingSeconds = Math.Max(
+                0,
+                state.RespawnRemainingSeconds - deltaSeconds),
         };
     }
 

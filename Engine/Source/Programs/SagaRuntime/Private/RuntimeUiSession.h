@@ -8,6 +8,7 @@
 #include <SagaRuntime/Play/RuntimePlayContracts.hpp>
 
 #include <memory>
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -38,16 +39,19 @@ public:
     [[nodiscard]] const std::string& PromptText() const noexcept { return promptText_; }
     [[nodiscard]] std::size_t LastDrawCallCount() const noexcept
     { return backend_ ? backend_->LastRenderStats().drawCallCount : 0U; }
+    [[nodiscard]] const std::vector<std::string>& VisibleDocuments() const noexcept
+    { return visibleDocuments_; }
 
 private:
     std::unique_ptr<SagaEngine::UI::IUiBackend> backend_;
-    SagaEngine::UI::UiDocumentHandle document_ =
-        SagaEngine::UI::UiDocumentHandle::kInvalid;
+    std::map<std::string, SagaEngine::UI::UiDocumentHandle> documents_;
+    const SagaRuntime::Play::RuntimeUiSetArtifact* ui_ = nullptr;
     const SagaRuntime::Play::RuntimeUiPromptBinding* prompt_ = nullptr;
     const SagaRuntime::Play::RuntimeInputMapArtifact* input_ = nullptr;
     RuntimeStateStore* state_ = nullptr;
     SagaEngine::Scripting::ScriptEntityHandle promptEntity_;
     std::string promptText_;
+    std::vector<std::string> visibleDocuments_;
     float pixelRatio_ = 1.0F;
     bool layoutPrepared_ = false;
     bool initialized_ = false;

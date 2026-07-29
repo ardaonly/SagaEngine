@@ -2,14 +2,32 @@
   "actions": [
     {
       "actionId": "Exit",
-      "bindings": [{ "control": "Q", "device": "Keyboard", "displayName": "Keyboard Q" }],
+      "bindings": [{ "control": "Escape", "device": "Keyboard", "displayName": "Keyboard Escape" }],
       "displayName": "Exit",
       "runtimeRole": "Gameplay"
     },
     {
-      "actionId": "Interact",
-      "bindings": [{ "control": "E", "device": "Keyboard", "displayName": "Keyboard E" }],
-      "displayName": "Interact",
+      "actionId": "MoveBack",
+      "bindings": [{ "control": "S", "device": "Keyboard", "displayName": "Keyboard S" }],
+      "displayName": "Move Back",
+      "runtimeRole": "Gameplay"
+    },
+    {
+      "actionId": "MoveForward",
+      "bindings": [{ "control": "W", "device": "Keyboard", "displayName": "Keyboard W" }],
+      "displayName": "Move Forward",
+      "runtimeRole": "Gameplay"
+    },
+    {
+      "actionId": "MoveLeft",
+      "bindings": [{ "control": "A", "device": "Keyboard", "displayName": "Keyboard A" }],
+      "displayName": "Move Left",
+      "runtimeRole": "Gameplay"
+    },
+    {
+      "actionId": "MoveRight",
+      "bindings": [{ "control": "D", "device": "Keyboard", "displayName": "Keyboard D" }],
+      "displayName": "Move Right",
       "runtimeRole": "Gameplay"
     },
     {
@@ -19,8 +37,14 @@
       "runtimeRole": "Gameplay"
     },
     {
+      "actionId": "Resume",
+      "bindings": [{ "control": "Space", "device": "Keyboard", "displayName": "Keyboard Space" }],
+      "displayName": "Resume",
+      "runtimeRole": "Gameplay"
+    },
+    {
       "actionId": "StartChallenge",
-      "bindings": [{ "control": "S", "device": "Keyboard", "displayName": "Keyboard S" }],
+      "bindings": [{ "control": "Enter", "device": "Keyboard", "displayName": "Keyboard Enter" }],
       "displayName": "Start Challenge",
       "runtimeRole": "Gameplay"
     }

@@ -24,6 +24,14 @@ bool FiniteArray(const Json& value, std::size_t size)
     return true;
 }
 
+bool PositiveFiniteArray(const Json& value, std::size_t size)
+{
+    if (!FiniteArray(value, size)) return false;
+    for (const auto& item : value)
+        if (item.get<double>() <= 0) return false;
+    return true;
+}
+
 bool ContainsOnly(const Json& value, std::initializer_list<std::string_view> allowed)
 {
     for (const auto& [key, ignored] : value.items())
@@ -61,15 +69,19 @@ std::vector<DocumentDiagnostic> ValidateScene(const std::string& text)
     {
         return {{"Scene.JsonInvalid", error.what()}};
     }
+    const auto schemaVersion = root.is_object()
+        ? root.value("schemaVersion", -1)
+        : -1;
     if (!root.is_object() || !ContainsOnly(root, {"schemaVersion", "sceneId", "entities"}) ||
-        root.value("schemaVersion", -1) != 1 ||
+        (schemaVersion != 1 && schemaVersion != 2) ||
         !root.contains("sceneId") || !root["sceneId"].is_string() ||
         root["sceneId"].get<std::string>().empty() ||
         !root.contains("entities") || !root["entities"].is_array())
-        return {{"Scene.SchemaInvalid", "Scene source must use schema version 1 with sceneId and entities."}};
+        return {{"Scene.SchemaInvalid", "Scene source must use schema version 1 or 2 with sceneId and entities."}};
 
     std::set<std::string> ids;
     std::unordered_map<std::string, std::string> parents;
+    std::vector<std::pair<std::string, std::string>> eventReferences;
     for (const auto& entity : root["entities"])
     {
         if (!entity.is_object() ||
@@ -155,6 +167,49 @@ std::vector<DocumentDiagnostic> ValidateScene(const std::string& text)
                     !NonEmptyString(component, "namedActionId"))
                     return {{"Scene.ScriptActionBindingInvalid", "ScriptActionBinding identities are required."}};
             }
+            else if (type == "TriggerParticipant" && schemaVersion == 2)
+            {
+                if (!ContainsOnly(component, {"type", "bounds", "category"}) ||
+                    !PositiveFiniteArray(component.value("bounds", Json{}), 3) ||
+                    !NonEmptyString(component, "category"))
+                    return {{"Scene.TriggerParticipantInvalid",
+                        "TriggerParticipant requires positive finite box bounds and a category."}};
+            }
+            else if (type == "TriggerVolume" && schemaVersion == 2)
+            {
+                if (!ContainsOnly(component,
+                        {"type", "bounds", "enabled", "acceptedCategory"}) ||
+                    !PositiveFiniteArray(component.value("bounds", Json{}), 3) ||
+                    !component.contains("enabled") ||
+                    !component["enabled"].is_boolean() ||
+                    !NonEmptyString(component, "acceptedCategory"))
+                    return {{"Scene.TriggerVolumeInvalid",
+                        "TriggerVolume requires positive finite box bounds, enabled, and an accepted category."}};
+            }
+            else if (type == "ScriptEventBinding" && schemaVersion == 2)
+            {
+                if (!ContainsOnly(component, {"type", "eventType",
+                        "sourceEntityId", "targetEntityId", "behaviorTypeId",
+                        "namedActionId"}) ||
+                    !NonEmptyString(component, "eventType") ||
+                    !NonEmptyString(component, "sourceEntityId") ||
+                    !NonEmptyString(component, "targetEntityId") ||
+                    !NonEmptyString(component, "behaviorTypeId") ||
+                    !NonEmptyString(component, "namedActionId"))
+                    return {{"Scene.ScriptEventBindingInvalid",
+                        "ScriptEventBinding identities are required."}};
+                const auto eventType = component["eventType"].get<std::string>();
+                if (eventType != "TriggerEnter" &&
+                    eventType != "TriggerExit" && eventType != "FocusLost")
+                    return {{"Scene.ScriptEventBindingInvalid",
+                        "ScriptEventBinding eventType must be TriggerEnter, TriggerExit, or FocusLost."}};
+                const auto source = component["sourceEntityId"].get<std::string>();
+                if (source != id)
+                    return {{"Scene.ScriptEventBindingInvalid",
+                        "ScriptEventBinding sourceEntityId must identify its owning entity."}};
+                eventReferences.emplace_back(source,
+                    component["targetEntityId"].get<std::string>());
+            }
             else
                 return {{"Scene.ComponentUnknown", "Unknown scene component: " + type}};
         }
@@ -162,6 +217,10 @@ std::vector<DocumentDiagnostic> ValidateScene(const std::string& text)
     for (const auto& [id, parent] : parents)
         if (!ids.contains(parent))
             return {{"Scene.ParentMissing", "Every parentEntityId must identify an entity in the scene."}};
+    for (const auto& [source, target] : eventReferences)
+        if (!ids.contains(source) || !ids.contains(target))
+            return {{"Scene.ScriptEventBindingReferenceMissing",
+                "ScriptEventBinding source and target entities must exist in the scene."}};
     for (const auto& [id, parent] : parents)
     {
         std::set<std::string> visited{id};

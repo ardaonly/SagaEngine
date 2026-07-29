@@ -6,6 +6,7 @@
 #include <SagaRuntime/Play/RuntimePlayContracts.hpp>
 
 #include <map>
+#include <set>
 #include <string>
 
 namespace SagaRuntimeApp
@@ -25,10 +26,49 @@ public:
         SagaEngine::Scripting::ScriptVector3 position) override;
     SagaEngine::Scripting::ScriptEntityPositionResult GetPosition(
         SagaEngine::Scripting::ScriptEntityHandle entity) const override;
+    SagaEngine::Scripting::ScriptEntityCreateResult FindEntity(
+        const std::string& stableId) const override;
+    SagaEngine::Scripting::ScriptHostOperationResult SetActive(
+        SagaEngine::Scripting::ScriptEntityHandle entity, bool active) override;
+    SagaEngine::Scripting::ScriptStateBoolResult GetActive(
+        SagaEngine::Scripting::ScriptEntityHandle entity) const override;
 
 private:
     SagaRuntime::Play::RuntimeSceneArtifact scene_;
     std::map<std::string, std::size_t> byId_;
+};
+
+class RuntimeScriptInputPort final : public SagaEngine::Scripting::ISagaScriptInputPort
+{
+public:
+    using Policy = std::map<std::string, std::set<std::string>>;
+    explicit RuntimeScriptInputPort(Policy policy) : policy_(std::move(policy)) {}
+    void Advance(std::set<std::string> pressed, std::set<std::string> held);
+    void Clear();
+    SagaEngine::Scripting::ScriptStateBoolResult Query(
+        const SagaEngine::Scripting::ScriptStateContext&, const std::string&,
+        SagaEngine::Scripting::ScriptLogicalInputState) const override;
+    SagaEngine::Scripting::ScriptStateDoubleResult GetValue(
+        const SagaEngine::Scripting::ScriptStateContext&,
+        const std::string&) const override;
+private:
+    [[nodiscard]] bool Allowed(
+        const SagaEngine::Scripting::ScriptStateContext&, const std::string&) const;
+    Policy policy_;
+    std::set<std::string> pressed_;
+    std::set<std::string> held_;
+    std::set<std::string> released_;
+};
+
+class RuntimeExitPort final : public SagaEngine::Scripting::ISagaScriptRuntimePort
+{
+public:
+    SagaEngine::Scripting::ScriptHostOperationResult RequestExit(
+        const SagaEngine::Scripting::ScriptStateContext&) override;
+    [[nodiscard]] bool Requested() const noexcept { return requested_; }
+    void Reset() noexcept { requested_ = false; }
+private:
+    bool requested_ = false;
 };
 
 class RuntimeNamedActionTarget final : public SagaRuntime::Play::INamedActionTarget

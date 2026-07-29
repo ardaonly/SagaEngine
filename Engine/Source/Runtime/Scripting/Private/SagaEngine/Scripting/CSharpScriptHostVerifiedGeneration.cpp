@@ -60,7 +60,8 @@ namespace SagaEngine::Scripting
             if (input)
                 input >> value;
             return value.is_object() &&
-                value.value("schemaVersion", -1) == schemaVersion;
+                (schemaVersion < 0 ||
+                 value.value("schemaVersion", -1) == schemaVersion);
         }
         catch (const nlohmann::json::exception&)
         {
@@ -69,15 +70,18 @@ namespace SagaEngine::Scripting
     };
     nlohmann::json assembly, behaviors, actions, capabilities;
     if (!readJson(request.assemblyManifest, assembly, 1) ||
-        !readJson(request.behaviorManifest, behaviors, 2) ||
+        !readJson(request.behaviorManifest, behaviors, -1) ||
+        (behaviors.value("schemaVersion", -1) != 2 &&
+         behaviors.value("schemaVersion", -1) != 3) ||
         !readJson(request.namedActionManifest, actions, 1) ||
         !readJson(request.capabilityManifest, capabilities, 1))
     {
         fail(ScriptHostDiagnostics::ManifestInvalid,
-             "Verified generation requires behavior manifest schema version 2 and schema "
+             "Verified generation requires behavior manifest schema version 2 or 3 and schema "
              "version 1 assembly, named-action, and capability manifests.");
         return result;
     }
+    const bool behaviorSchemaV3 = behaviors.value("schemaVersion", -1) == 3;
     PackageState packageState;
     try
     {
@@ -122,7 +126,7 @@ namespace SagaEngine::Scripting
             assembly.value("targetFramework", std::string{}) != request.targetFramework ||
             assembly.value("runtimeCompatibility", std::string{}) != request.runtimeCompatibility ||
             assembly.value("trust", std::string{}) != request.trust ||
-            request.runtimeBridgeAbi != "NativeCallbackTable.v2+NamedAction.v1")
+            request.runtimeBridgeAbi != "NativeCallbackTable.v3+NamedAction.v1")
         {
             fail(ScriptHostDiagnostics::RuntimeBridgeMismatch,
                  "RuntimeBridge identity, ABI, framework, runtime, or trust is inconsistent.");
@@ -153,7 +157,16 @@ namespace SagaEngine::Scripting
             if (behaviorId.empty() || !behaviorIds.insert(behaviorId).second ||
                 !behavior.contains("capabilities") || !behavior["capabilities"].is_array() ||
                 !behavior.contains("actions") || !behavior["actions"].is_array() ||
-                !behavior.contains("stateAccesses") || !behavior["stateAccesses"].is_array())
+                !behavior.contains("stateAccesses") || !behavior["stateAccesses"].is_array() ||
+                (behaviorSchemaV3 &&
+                 (!behavior.contains("configurationAccesses") ||
+                  !behavior["configurationAccesses"].is_array() ||
+                  !behavior.contains("inputAccesses") ||
+                  !behavior["inputAccesses"].is_array() ||
+                  !behavior.contains("entityIds") ||
+                  !behavior["entityIds"].is_array() ||
+                  !behavior.contains("runtimeRequests") ||
+                  !behavior["runtimeRequests"].is_array())))
             {
                 fail(ScriptHostDiagnostics::ManifestInvalid,
                      "Behavior identities must be non-empty and unique.");
@@ -177,8 +190,15 @@ namespace SagaEngine::Scripting
                 const auto operation = access.value("operation", std::string{});
                 const auto valueType = access.value("valueType", std::string{});
                 const auto key = access.value("key", std::string{});
+                const bool supported =
+                    (operation == "SetBool" && valueType == "Bool") ||
+                    (behaviorSchemaV3 &&
+                     ((operation == "SetInt32" && valueType == "Int32") ||
+                      (operation == "AddInt32" && valueType == "Int32") ||
+                      (operation == "SetDouble" && valueType == "Double") ||
+                      (operation == "SetString" && valueType == "String")));
                 if (!access.is_object() || access.size() != 3 ||
-                    operation != "SetBool" || valueType != "Bool" || key.empty() ||
+                    !supported || key.empty() ||
                     !stateAccesses.emplace(operation, valueType, key).second ||
                     !granted.contains("Gameplay.State.ReadWrite"))
                 {
@@ -187,6 +207,82 @@ namespace SagaEngine::Scripting
                          "by the verified state capability.");
                     return result;
                 }
+            }
+            if (behaviorSchemaV3)
+            {
+                std::set<std::tuple<std::string, std::string, std::string>>
+                    configurationAccesses;
+                for (const auto& access : behavior["configurationAccesses"])
+                {
+                    const auto operation =
+                        access.value("operation", std::string{});
+                    const auto valueType =
+                        access.value("valueType", std::string{});
+                    const auto key = access.value("key", std::string{});
+                    const bool supported =
+                        (operation == "GetInt32" && valueType == "Int32") ||
+                        (operation == "GetDouble" && valueType == "Double") ||
+                        (operation == "GetString" && valueType == "String");
+                    if (!access.is_object() || access.size() != 3 ||
+                        !supported || key.empty() ||
+                        !configurationAccesses.emplace(
+                            operation, valueType, key).second ||
+                        !granted.contains("Gameplay.Configuration.Read"))
+                    {
+                        fail(ScriptHostDiagnostics::ManifestInvalid,
+                            "Behavior configuration accesses must be unique typed reads "
+                            "backed by the verified configuration capability.");
+                        return result;
+                    }
+                }
+                std::set<std::tuple<std::string, std::string, std::string>>
+                    inputAccesses;
+                for (const auto& access : behavior["inputAccesses"])
+                {
+                    const auto operation =
+                        access.value("operation", std::string{});
+                    const auto valueType =
+                        access.value("valueType", std::string{});
+                    const auto key = access.value("key", std::string{});
+                    const bool supported =
+                        ((operation == "Pressed" || operation == "Held" ||
+                          operation == "Released") && valueType == "Bool") ||
+                        (operation == "GetValue" && valueType == "Double");
+                    if (!access.is_object() || access.size() != 3 ||
+                        !supported || key.empty() ||
+                        !inputAccesses.emplace(operation, valueType, key).second ||
+                        !granted.contains("Gameplay.Input.Read"))
+                    {
+                        fail(ScriptHostDiagnostics::ManifestInvalid,
+                            "Behavior input accesses must be unique typed reads backed "
+                            "by the verified input capability.");
+                        return result;
+                    }
+                }
+                std::set<std::string> entityIds;
+                for (const auto& entityId : behavior["entityIds"])
+                    if (!entityId.is_string() ||
+                        entityId.get_ref<const std::string&>().empty() ||
+                        !entityIds.insert(entityId.get<std::string>()).second ||
+                        !granted.contains("Gameplay.World.FindEntity"))
+                    {
+                        fail(ScriptHostDiagnostics::ManifestInvalid,
+                            "Behavior entity ids must be unique and backed by the "
+                            "verified entity-lookup capability.");
+                        return result;
+                    }
+                std::set<std::string> runtimeRequests;
+                for (const auto& runtimeRequest : behavior["runtimeRequests"])
+                    if (!runtimeRequest.is_string() ||
+                        runtimeRequest.get<std::string>() != "Exit" ||
+                        !runtimeRequests.insert("Exit").second ||
+                        !granted.contains("Runtime.Exit"))
+                    {
+                        fail(ScriptHostDiagnostics::ManifestInvalid,
+                            "Behavior runtime requests must be unique allowlisted requests "
+                            "backed by the verified runtime capability.");
+                        return result;
+                    }
             }
             for (const auto& action : behavior["actions"])
             {
@@ -245,6 +341,7 @@ namespace SagaEngine::Scripting
         fail(ScriptHostDiagnostics::AssemblyLoadFailed,
              "Verified SagaScript assembly failed managed loading.",
              request.assembly.path);
+        result.diagnostics.back().metadata["bridgeError"] = BridgeError(error);
         return result;
     }
     packageState.managedPackages.push_back({bridgePackageHandle, request.assembly.path});
