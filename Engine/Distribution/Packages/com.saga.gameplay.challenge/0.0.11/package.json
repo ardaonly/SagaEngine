@@ -1,0 +1,31 @@
+{
+  "artifacts": [
+    {
+      "artifactId": "com.saga.gameplay.challenge.analyzer-policy",
+      "kind": "analyzer",
+      "path": "Packages/com.saga.gameplay.challenge/0.0.11/analyzers/challenge.highlevel.rules.json"
+    },
+    {
+      "artifactId": "com.saga.gameplay.challenge.challenge-core-api-surface",
+      "kind": "apiSurface",
+      "module": "challenge.core.highlevel",
+      "path": "Packages/com.saga.gameplay.challenge/0.0.11/api/challenge.core.highlevel.surface.json"
+    },
+    {
+      "artifactId": "com.saga.gameplay.challenge.collectibles-api-surface",
+      "kind": "apiSurface",
+      "module": "collectibles.highlevel",
+      "path": "Packages/com.saga.gameplay.challenge/0.0.11/api/collectibles.highlevel.surface.json"
+    }
+  ],
+  "license": "MPL-2.0",
+  "modules": [
+    "challenge.core.highlevel",
+    "collectibles.highlevel"
+  ],
+  "origin": "SagaEngine 0.0.11 built-in distribution",
+  "packageId": "com.saga.gameplay.challenge",
+  "schemaVersion": 1,
+  "trust": "TrustedEngineDistribution",
+  "version": "0.0.11"
+}

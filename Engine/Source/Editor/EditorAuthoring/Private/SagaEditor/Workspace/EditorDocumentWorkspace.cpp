@@ -23,8 +23,14 @@ bool EditorDocumentWorkspace::OpenProject(const std::filesystem::path& path)
 ProjectToolResult EditorDocumentWorkspace::CreateStarterArena(
     const ProjectTemplateRequest& request)
 {
+    return CreateProject(request);
+}
+
+ProjectToolResult EditorDocumentWorkspace::CreateProject(
+    const ProjectTemplateRequest& request)
+{
     auto next = std::make_unique<ProjectManager>(client_);
-    auto result = next->CreateStarterArena(request);
+    auto result = next->CreateProject(request);
     if (!result.passed) return result;
     if (!OpenValidated(std::move(next)))
     {

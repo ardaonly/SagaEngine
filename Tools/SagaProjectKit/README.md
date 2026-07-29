@@ -12,7 +12,7 @@ Tools/SagaProjectKit/sagaproject resolve --project Samples/MultiplayerSandbox/Mu
 Tools/SagaProjectKit/sagaproject doctor --project Samples/MultiplayerSandbox/MultiplayerSandbox.sagaproj --out project_doctor_report.json
 Tools/SagaProjectKit/sagaproject resolve-slice --project Samples/MultiplayerSandbox/MultiplayerSandbox.sagaproj --slice Samples/MultiplayerSandbox/.saga/slices/designer-local.slice.json --out project_slice_resolution_report.json
 Tools/SagaProjectKit/sagaproject restricted-resolve --project Samples/MultiplayerSandbox/MultiplayerSandbox.sagaproj --slice Samples/MultiplayerSandbox/.saga/slices/designer-local.slice.json --out restricted_project_resolution_report.json
-Tools/SagaProjectKit/sagaproject template-plan --destination /tmp/MyStarterArena --display-name MyStarterArena --out /tmp/template_plan.json
+Tools/SagaProjectKit/sagaproject template-plan --template-id starter-arena --template Samples/StarterArena --destination /tmp/MyStarterArena --display-name MyStarterArena --out /tmp/template_plan.json
 Tools/SagaProjectKit/sagaproject template-create --plan /tmp/template_plan.json --sagapack Tools/SagaPackager/sagapack --engine-root . --runtime-bridge build/RelWithDebInfo-0.0.11/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.dll --out /tmp/template_create_report.json
 ```
 

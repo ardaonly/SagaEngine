@@ -54,6 +54,7 @@ class WorkflowProjectClient final : public IProjectToolClient
 public:
     mutable bool failValidation = false;
     mutable bool failCreation = false;
+    mutable ProjectTemplateId lastTemplateId = ProjectTemplateId::StarterArena;
 
     ProjectToolResult Validate(const fs::path& manifest) const override
     {
@@ -65,6 +66,13 @@ public:
     ProjectToolResult CreateStarterArena(
         const ProjectTemplateRequest& request) const override
     {
+        return CreateProject(request);
+    }
+
+    ProjectToolResult CreateProject(
+        const ProjectTemplateRequest& request) const override
+    {
+        lastTemplateId = request.templateId;
         if (failCreation) return {};
         WriteProject(request.destination);
         return ProjectResult(request.destination, request.displayName);
@@ -210,6 +218,26 @@ TEST_F(WorkflowFixture, CreateIsTransactionalAcrossSuccessAndFailure)
               ProjectWorkflowOutcome::Failed);
     ASSERT_NE(workspace->Project(), nullptr);
     EXPECT_EQ(workspace->Project()->name, "Created Project");
+}
+
+TEST_F(WorkflowFixture, GenericCreationCarriesArenaRushTemplateIdentity)
+{
+    const auto created = root / "ArenaRush";
+    ProjectWorkflowPrompts prompts;
+    prompts.requestNewProject = [created] {
+        return std::optional<ProjectCreationPrompt>{
+            ProjectCreationPrompt{
+                "Arena Rush Project",
+                created,
+                ProjectTemplateId::ArenaRush}};
+    };
+    EditorProjectWorkflowController controller(*workspace, prompts);
+
+    EXPECT_EQ(controller.CreateProjectPrompted(),
+              ProjectWorkflowOutcome::Completed);
+    EXPECT_EQ(client->lastTemplateId, ProjectTemplateId::ArenaRush);
+    ASSERT_NE(workspace->Project(), nullptr);
+    EXPECT_EQ(workspace->Project()->name, "Arena Rush Project");
 }
 
 TEST_F(WorkflowFixture, DirtyCancellationVetoesPromptedOpen)

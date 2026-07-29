@@ -160,6 +160,13 @@ internal static partial class Program
                     }
                     options.TemplatePath = args[++i];
                     break;
+                case "--template-id":
+                    if (i + 1 >= args.Length)
+                    {
+                        return CommandOptions.Fail("--template-id requires a value.");
+                    }
+                    options.TemplateId = args[++i];
+                    break;
                 case "--plan":
                     if (i + 1 >= args.Length)
                     {
@@ -200,7 +207,7 @@ internal static partial class Program
         Console.Error.WriteLine("SagaProjectKit CLI");
         Console.Error.WriteLine("Usage:");
         Console.Error.WriteLine("  sagaproject validate --project <path> --out <report>");
-        Console.Error.WriteLine("  sagaproject template-plan --destination <path> [--display-name <name>] [--template <seed>] --out <plan>");
+        Console.Error.WriteLine("  sagaproject template-plan --template-id <starter-arena|arena-rush> --template <seed> --destination <path> [--display-name <name>] --out <plan>");
         Console.Error.WriteLine("  sagaproject template-create --plan <plan> --dotnet-host <private-dotnet> --sagapack-dll <sagapack.dll> --engine-root <root> --runtime-bridge <dll> --out <report>");
         Console.Error.WriteLine("  sagaproject resolve --project <path> --out <report>");
         Console.Error.WriteLine("  sagaproject doctor --project <path> --out <report>");
@@ -267,6 +274,7 @@ internal static partial class Program
         public string DestinationPath { get; set; } = "";
         public string DisplayName { get; set; } = "";
         public string TemplatePath { get; set; } = "";
+        public string TemplateId { get; set; } = "";
         public string PlanPath { get; set; } = "";
         public string SagaPackPath { get; set; } = "";
         public string DotnetHostPath { get; set; } = "";

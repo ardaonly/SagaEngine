@@ -50,12 +50,23 @@ internal sealed class SagaPackProcessException(string code, string message, int?
 
 internal static class ProjectTemplateService
 {
-    public static ProjectTemplatePlan Plan(string destination, string displayName, string seedInput)
+    private static readonly HashSet<string> SupportedTemplateIds =
+        ["starter-arena", "arena-rush"];
+
+    public static ProjectTemplatePlan Plan(
+        string destination,
+        string displayName,
+        string templateId,
+        string seedInput)
     {
+        if (!SupportedTemplateIds.Contains(templateId))
+        {
+            throw new InvalidOperationException($"Unsupported project template id: {templateId}");
+        }
         var seed = ResolveSeed(seedInput);
         if (!Directory.Exists(seed))
         {
-            throw new InvalidOperationException($"Starter Arena template seed is missing: {seed}");
+            throw new InvalidOperationException($"Project template seed is missing: {seed}");
         }
         var files = Directory.GetFiles(seed, "*", SearchOption.AllDirectories)
             .Select(path => new { Full = path, Relative = Normalize(Path.GetRelativePath(seed, path)) })
@@ -68,6 +79,7 @@ internal static class ProjectTemplateService
             }).ToArray();
         var plan = new ProjectTemplatePlan
         {
+            TemplateId = templateId,
             ProjectId = Guid.NewGuid().ToString("D").ToLowerInvariant(),
             DisplayName = string.IsNullOrWhiteSpace(displayName) ? Path.GetFileName(Path.GetFullPath(destination)) : displayName.Trim(),
             Destination = Normalize(Path.GetFullPath(destination)),
@@ -88,7 +100,7 @@ internal static class ProjectTemplateService
             plan = JsonSerializer.Deserialize<ProjectTemplatePlan>(
                 File.ReadAllBytes(planPath), CanonicalJson.SerializerOptions)
                 ?? throw new InvalidOperationException("Template plan must be a JSON object.");
-            if (plan.SchemaVersion != 1 || plan.TemplateId != "starter-arena")
+            if (plan.SchemaVersion != 1 || !SupportedTemplateIds.Contains(plan.TemplateId))
             {
                 throw new InvalidOperationException("Template plan schema or template id is unsupported.");
             }
@@ -214,21 +226,12 @@ internal static class ProjectTemplateService
 
     private static string ResolveSeed(string input)
     {
-        if (!string.IsNullOrWhiteSpace(input))
+        if (string.IsNullOrWhiteSpace(input))
         {
-            return Path.GetFullPath(input);
+            throw new InvalidOperationException(
+                "Project template planning requires an explicit seed path.");
         }
-        var cursor = new DirectoryInfo(Directory.GetCurrentDirectory());
-        while (cursor is not null)
-        {
-            var candidate = Path.Combine(cursor.FullName, "Samples", "StarterArena");
-            if (Directory.Exists(candidate))
-            {
-                return candidate;
-            }
-            cursor = cursor.Parent;
-        }
-        return Path.Combine(Directory.GetCurrentDirectory(), "Samples", "StarterArena");
+        return Path.GetFullPath(input);
     }
 
     private static bool IsExcluded(string path) =>

@@ -24,6 +24,8 @@ public:
     ~ProjectManager();
     [[nodiscard]] ProjectToolResult CreateStarterArena(
         const ProjectTemplateRequest& request);
+    [[nodiscard]] ProjectToolResult CreateProject(
+        const ProjectTemplateRequest& request);
     bool          OpenProject(const std::string& path);
     void          CloseProject();
     bool          IsProjectOpen() const noexcept;

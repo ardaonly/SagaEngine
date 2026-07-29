@@ -184,7 +184,7 @@ bool EditorShell::Init(EditorHost&                    host,
         [this]
         {
             const auto outcome =
-                m_projectWorkflowController->CreateStarterArenaPrompted();
+                m_projectWorkflowController->CreateProjectPrompted();
             if (outcome == ProjectWorkflowOutcome::Completed)
             {
                 m_window->SetStatusMessage(

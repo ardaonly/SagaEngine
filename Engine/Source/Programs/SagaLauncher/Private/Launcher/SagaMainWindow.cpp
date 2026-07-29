@@ -89,15 +89,24 @@ SagaEditor::ProjectWorkflowPrompts MakeProjectWorkflowPrompts(QMainWindow* paren
         if (destination.isEmpty())
             return std::nullopt;
         bool accepted = false;
+        const QString templateName = QInputDialog::getItem(
+            parent, "New Project", "Template:",
+            {"Starter Arena", "Arena Rush"}, 0, false, &accepted);
+        if (!accepted)
+            return std::nullopt;
         const QString displayName = QInputDialog::getText(
             parent, "New Project", "Project name:", QLineEdit::Normal,
-            "StarterArena", &accepted).trimmed();
+            templateName == "Arena Rush" ? "ArenaRush" : "StarterArena",
+            &accepted).trimmed();
         if (!accepted || displayName.isEmpty())
             return std::nullopt;
         return SagaEditor::ProjectCreationPrompt{
             displayName.toStdString(),
             std::filesystem::path(destination.toStdString()) /
-                displayName.toStdString()};
+                displayName.toStdString(),
+            templateName == "Arena Rush" ?
+                SagaEditor::ProjectTemplateId::ArenaRush :
+                SagaEditor::ProjectTemplateId::StarterArena};
     };
     prompts.confirmDirtyDocuments =
         [parent](const std::vector<std::string>& documentIds)
@@ -198,14 +207,24 @@ void SagaMainWindow::BuildHome()
         if (destination.isEmpty())
             return;
         bool accepted = false;
+        const QString templateName = QInputDialog::getItem(
+            this, "New Project", "Template:",
+            {"Starter Arena", "Arena Rush"}, 0, false, &accepted);
+        if (!accepted)
+            return;
         const QString displayName = QInputDialog::getText(
             this, "New Project", "Project name:", QLineEdit::Normal,
-            "StarterArena", &accepted).trimmed();
+            templateName == "Arena Rush" ? "ArenaRush" : "StarterArena",
+            &accepted).trimmed();
         if (!accepted || displayName.isEmpty())
             return;
         const auto root = std::filesystem::path(destination.toStdString()) /
             displayName.toStdString();
-        const auto result = CreateProject(root, displayName.toStdString());
+        const auto result = CreateProject(
+            root, displayName.toStdString(),
+            templateName == "Arena Rush" ?
+                SagaEditor::ProjectTemplateId::ArenaRush :
+                SagaEditor::ProjectTemplateId::StarterArena);
         if (!result.passed) ShowProjectCreationFailure(this, result);
     });
     QObject::connect(recents_, &QListWidget::itemActivated, this,
@@ -221,15 +240,16 @@ void SagaMainWindow::BuildHome()
 
 SagaEditor::ProjectToolResult SagaMainWindow::CreateProject(
     const std::filesystem::path& destination,
-    const std::string& displayName)
+    const std::string& displayName,
+    SagaEditor::ProjectTemplateId templateId)
 {
     const auto toolchain = SagaEditor::ResolveEditorToolchain(executable_);
     auto client = std::make_shared<SagaEditor::SagaProjectKitClient>(
         toolchain.managedRuntime);
     SagaEditor::EditorDocumentWorkspace workspace(std::move(client));
-    auto result = workspace.CreateStarterArena(
-        SagaEditor::MakeStarterArenaTemplateRequest(
-            destination, displayName, executable_));
+    auto result = workspace.CreateProject(
+        SagaEditor::MakeProjectTemplateRequest(
+            templateId, destination, displayName, executable_));
     if (!result.passed) return result;
     const auto manifest = result.project.manifestPath;
     workspace.Close();

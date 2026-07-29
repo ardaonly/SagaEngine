@@ -226,12 +226,22 @@ ProjectTemplateRequest MakeStarterArenaTemplateRequest(
     std::filesystem::path destination, std::string displayName,
     const std::filesystem::path& productExecutable)
 {
+    return MakeProjectTemplateRequest(ProjectTemplateId::StarterArena,
+        std::move(destination), std::move(displayName), productExecutable);
+}
+
+ProjectTemplateRequest MakeProjectTemplateRequest(
+    ProjectTemplateId templateId, std::filesystem::path destination,
+    std::string displayName, const std::filesystem::path& productExecutable)
+{
     const auto toolchain = ResolveEditorToolchain(productExecutable);
     ProjectTemplateRequest request;
+    request.templateId = templateId;
     request.destination = std::move(destination);
     request.displayName = std::move(displayName);
     request.engineRoot = toolchain.engineRoot;
-    request.seed = toolchain.starterArenaSeed;
+    request.seed = templateId == ProjectTemplateId::ArenaRush ?
+        toolchain.arenaRushSeed : toolchain.starterArenaSeed;
     request.runtimeBridge = toolchain.runtimeBridge;
     request.managedRuntime = toolchain.managedRuntime;
     return request;
@@ -265,6 +275,9 @@ EditorToolchainPaths ResolveEditorToolchain(
     result.starterArenaSeed = !developerRoot.empty() ?
         developerRoot / "Samples/StarterArena" :
         result.productRoot / "samples/StarterArena";
+    result.arenaRushSeed = !developerRoot.empty() ?
+        developerRoot / "Samples/ArenaRush" :
+        result.productRoot / "samples/ArenaRush";
     result.managedRuntime.productExecutable = anchor;
     result.runtimeBridge = EnvironmentPath("SAGA_RUNTIME_BRIDGE");
     if (result.runtimeBridge.empty())
@@ -322,10 +335,18 @@ ProjectToolResult SagaProjectKitClient::Validate(
 ProjectToolResult SagaProjectKitClient::CreateStarterArena(
     const ProjectTemplateRequest& request) const
 {
+    auto compatible = request;
+    compatible.templateId = ProjectTemplateId::StarterArena;
+    return CreateProject(compatible);
+}
+
+ProjectToolResult SagaProjectKitClient::CreateProject(
+    const ProjectTemplateRequest& request) const
+{
     std::error_code error;
     if (!std::filesystem::is_directory(request.seed, error))
         return MissingResource("Project.Template.SeedMissing",
-            "The installed StarterArena project template is missing.",
+            "The selected installed project template is missing.",
             request.seed);
     if (!std::filesystem::is_directory(
             request.engineRoot / "Engine/Distribution", error))
@@ -342,7 +363,10 @@ ProjectToolResult SagaProjectKitClient::CreateStarterArena(
     planOptions.timeout = timeout_;
     auto planProcess = runtime_.Run(ManagedToolId::ProjectKit,
         {"template-plan", "--destination", request.destination.string(),
-        "--display-name", request.displayName, "--template", request.seed.string(),
+        "--display-name", request.displayName, "--template-id",
+        request.templateId == ProjectTemplateId::ArenaRush ?
+            "arena-rush" : "starter-arena",
+        "--template", request.seed.string(),
         "--out", plan.string()}, std::move(planOptions));
     if (!planProcess.Succeeded() || !std::filesystem::is_regular_file(plan))
     {

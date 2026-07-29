@@ -1,0 +1,12 @@
+{
+  "assetId": "arena-rush.ground",
+  "geometry": { "dimensions": [20, 20], "shape": "plane" },
+  "kind": "primitive",
+  "material": { "baseColor": [0.05, 0.08, 0.12, 1], "shaderDependency": "renderer.solid" },
+  "provenance": {
+    "author": "SagaEngine contributors",
+    "license": "MIT",
+    "origin": "SagaEngine ArenaRush template"
+  },
+  "schemaVersion": 1
+}

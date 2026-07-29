@@ -44,6 +44,8 @@ public:
     [[nodiscard]] bool OpenProject(const std::filesystem::path& path);
     [[nodiscard]] ProjectToolResult CreateStarterArena(
         const ProjectTemplateRequest& request);
+    [[nodiscard]] ProjectToolResult CreateProject(
+        const ProjectTemplateRequest& request);
     void Close();
 
     [[nodiscard]] bool IsOpen() const noexcept;

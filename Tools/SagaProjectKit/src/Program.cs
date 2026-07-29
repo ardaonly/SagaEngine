@@ -61,7 +61,17 @@ internal static partial class Program
                     Console.Error.WriteLine("template-plan requires --destination and --out.");
                     return InvalidUsage;
                 }
-                var plan = ProjectTemplateService.Plan(options.DestinationPath, options.DisplayName, options.TemplatePath);
+                if (string.IsNullOrWhiteSpace(options.TemplateId) ||
+                    string.IsNullOrWhiteSpace(options.TemplatePath))
+                {
+                    Console.Error.WriteLine("template-plan requires --template-id and --template.");
+                    return InvalidUsage;
+                }
+                var plan = ProjectTemplateService.Plan(
+                    options.DestinationPath,
+                    options.DisplayName,
+                    options.TemplateId,
+                    options.TemplatePath);
                 SagaProjectKit.Core.CanonicalJson.Write(options.OutputPath, plan);
                 return Passed;
             }

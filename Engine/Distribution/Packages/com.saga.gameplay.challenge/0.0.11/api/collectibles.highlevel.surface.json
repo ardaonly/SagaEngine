@@ -1,0 +1,57 @@
+{
+  "apis": [
+    {
+      "apiId": "CollectiblesHighLevel.Collect",
+      "blockProjection": "Supported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectiblesHighLevel.CompleteRespawn",
+      "blockProjection": "Supported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectiblesHighLevel.Create",
+      "blockProjection": "Supported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectiblesHighLevel.Deactivate",
+      "blockProjection": "Supported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectiblesHighLevel.ScheduleRespawn",
+      "blockProjection": "Supported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectiblesHighLevel.SelectSpawnIndex",
+      "blockProjection": "Supported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectiblesHighLevel.SetRespawnRemaining",
+      "blockProjection": "Supported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
+      "visibility": "Public"
+    }
+  ],
+  "module": "collectibles.highlevel",
+  "runtimeReadiness": "ContractOnly",
+  "schemaVersion": 1,
+  "surfaceId": "com.saga.gameplay.challenge/collectibles.highlevel"
+}

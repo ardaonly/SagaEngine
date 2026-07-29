@@ -43,8 +43,15 @@ struct ProjectToolResult
     ToolProcessResult process;
 };
 
+enum class ProjectTemplateId
+{
+    StarterArena,
+    ArenaRush,
+};
+
 struct ProjectTemplateRequest
 {
+    ProjectTemplateId templateId = ProjectTemplateId::StarterArena;
     std::filesystem::path destination;
     std::string displayName;
     std::filesystem::path seed;
@@ -58,6 +65,7 @@ struct EditorToolchainPaths
     std::filesystem::path productRoot;
     std::filesystem::path engineRoot;
     std::filesystem::path starterArenaSeed;
+    std::filesystem::path arenaRushSeed;
     std::filesystem::path runtimeBridge;
     ManagedToolRuntimeOptions managedRuntime;
 };
@@ -73,6 +81,11 @@ struct EditorToolchainPaths
     std::filesystem::path destination, std::string displayName,
     const std::filesystem::path& productExecutable = {});
 
+[[nodiscard]] ProjectTemplateRequest MakeProjectTemplateRequest(
+    ProjectTemplateId templateId, std::filesystem::path destination,
+    std::string displayName,
+    const std::filesystem::path& productExecutable = {});
+
 class IProjectToolClient
 {
 public:
@@ -83,6 +96,11 @@ public:
     /// descriptor. A passing result is safe for the workspace to materialize.
     [[nodiscard]] virtual ProjectToolResult CreateStarterArena(
         const ProjectTemplateRequest& request) const = 0;
+    [[nodiscard]] virtual ProjectToolResult CreateProject(
+        const ProjectTemplateRequest& request) const
+    {
+        return CreateStarterArena(request);
+    }
 };
 
 class SagaProjectKitClient final : public IProjectToolClient
@@ -94,6 +112,8 @@ public:
     [[nodiscard]] ProjectToolResult Validate(
         const std::filesystem::path& manifest) const override;
     [[nodiscard]] ProjectToolResult CreateStarterArena(
+        const ProjectTemplateRequest& request) const override;
+    [[nodiscard]] ProjectToolResult CreateProject(
         const ProjectTemplateRequest& request) const override;
 
 private:

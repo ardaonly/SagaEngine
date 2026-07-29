@@ -374,47 +374,8 @@ internal static class ProjectWorker
     }
 
     private static IReadOnlyList<object> LoadAllowedApiSurface(ProjectWorkerRequest request,
-        List<WorkerDiagnostic> diagnostics)
-    {
-        var allowed = new List<object>();
-        try
-        {
-            using var lockDocument = JsonDocument.Parse(File.ReadAllBytes(request.PackageLock.Path));
-            var artifact = lockDocument.RootElement.GetProperty("packages").EnumerateArray()
-                .SelectMany(package => package.GetProperty("artifacts").EnumerateArray())
-                .Single(item => item.GetProperty("kind").GetString() == "apiSurface");
-            var distributionRoot = ResolveDistributionRoot();
-            var relative = artifact.GetProperty("distributionPath").GetString() ?? "";
-            var surfacePath = Path.GetFullPath(Path.Combine(distributionRoot, relative));
-            if (!surfacePath.StartsWith(distributionRoot.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar,
-                    StringComparison.Ordinal) || !File.Exists(surfacePath) ||
-                CanonicalJson.HashFile(surfacePath) != artifact.GetProperty("artifactHash").GetString())
-            {
-                diagnostics.Add(Error("Script.Worker.ApiSurfaceTrustFailed", relative,
-                    "API surface is missing or changed outside the verified engine distribution."));
-                return allowed;
-            }
-            using var surface = JsonDocument.Parse(File.ReadAllBytes(surfacePath));
-            foreach (var api in surface.RootElement.GetProperty("apis").EnumerateArray())
-            {
-                var visibility = api.GetProperty("visibility").GetString() ?? "";
-                var capability = api.GetProperty("capability").GetString() ?? "";
-                var projection = api.GetProperty("blockProjection").GetString() ?? "";
-                if (visibility != "Public" || capability is "Raw" or "Internal" || projection == "Filtered") continue;
-                allowed.Add(new
-                {
-                    apiId = api.GetProperty("apiId").GetString() ?? "",
-                    capability,
-                    blockProjection = projection,
-                });
-            }
-        }
-        catch (Exception exception) when (exception is JsonException or InvalidOperationException or KeyNotFoundException)
-        {
-            diagnostics.Add(Error("Script.Worker.ApiSurfaceInvalid", "apiSurface", exception.Message));
-        }
-        return allowed;
-    }
+        List<WorkerDiagnostic> diagnostics) =>
+        ApiSurfaceAggregation.Load(request, ResolveDistributionRoot(), diagnostics);
 
     private static string ResolveWorkerRuntimeBridgeAssembly(ProjectWorkerRequest request,
         List<WorkerDiagnostic> diagnostics)

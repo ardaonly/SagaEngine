@@ -35,6 +35,7 @@ def prepare_worker_request(
     env.setdefault("DOTNET_CLI_HOME", "/tmp/sagascript-dotnet-home")
     env.setdefault("NUGET_PACKAGES", "/tmp/sagascript-nuget-blockf")
     ensure_packager_built(env)
+    project_path = next(project_root.glob("*.sagaproj"))
     package_root = root / f"packages-{operation_id}"
     lock_path = package_root / "SagaPackage.lock"
     generated = package_root / "generated"
@@ -45,7 +46,7 @@ def prepare_worker_request(
             str(PACKAGER_ASSEMBLY),
             "resolve",
             "--project",
-            str(project_root / "StarterArena.sagaproj"),
+            str(project_path),
             "--engine-root",
             str(REPO_ROOT),
             "--lock",
@@ -73,8 +74,7 @@ def prepare_worker_request(
     bridge_reference = references["references"][0]
     bridge_assembly = generation / bridge_reference["resolvedAssemblyLogicalPath"]
     descriptor = REPO_ROOT / "Engine" / "Distribution" / bridge_reference["distributionPath"]
-    project_path = project_root / "StarterArena.sagaproj"
-    source_path = project_root / "Scripts" / "DoorController.cs"
+    source_paths = sorted((project_root / "Scripts").glob("*.cs"))
     cancellation = root / f"cancel-{operation_id}.json"
     request_path = root / f"request-{operation_id}.json"
     result_path = root / f"result-{operation_id}.json"
@@ -90,9 +90,10 @@ def prepare_worker_request(
         "sourceRevision": revision,
         "sources": [
             {
-                "path": "Scripts/DoorController.cs",
-                "hash": sha256_file(source_path),
+                "path": source.relative_to(project_root).as_posix(),
+                "hash": sha256_file(source),
             }
+            for source in source_paths
         ],
         "packageLock": {"path": str(lock_path), "hash": sha256_file(lock_path)},
         "packageGenerationId": package_current["generationId"],

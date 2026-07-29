@@ -1,0 +1,105 @@
+{
+  "engineVersion": "0.0.11",
+  "graphHash": "sha256:839732b0417874ddde4394b6a68da97696c45ff2ea7b4a58e1e6842350036ea6",
+  "intentHash": "sha256:164b47a120936857fb81817529da19ab9cf9494266e7575eed7093dff0d4caca",
+  "packages": [
+    {
+      "artifacts": [
+        {
+          "artifactHash": "sha256:89d638129ddc445da4ab09494cc1982d6936a6be3de577e4999bacc297c3e413",
+          "artifactId": "com.saga.gameplay.challenge.analyzer-policy",
+          "distributionPath": "Packages/com.saga.gameplay.challenge/0.0.11/analyzers/challenge.highlevel.rules.json",
+          "kind": "analyzer",
+          "resolvedAssemblyHash": "",
+          "resolvedAssemblyLogicalPath": "",
+          "runtimeCompatibility": "",
+          "targetFramework": "",
+          "trust": "TrustedEngineDistribution"
+        },
+        {
+          "artifactHash": "sha256:dee9a97767f46c18dbef05289d0b3373ae2668535873140262afbbca7823a1b2",
+          "artifactId": "com.saga.gameplay.challenge.challenge-core-api-surface",
+          "distributionPath": "Packages/com.saga.gameplay.challenge/0.0.11/api/challenge.core.highlevel.surface.json",
+          "kind": "apiSurface",
+          "resolvedAssemblyHash": "",
+          "resolvedAssemblyLogicalPath": "",
+          "runtimeCompatibility": "",
+          "targetFramework": "",
+          "trust": "TrustedEngineDistribution"
+        },
+        {
+          "artifactHash": "sha256:dc8b617c65646f510c0863fe493e4633bc0f9a0949b9786b464c4b2ce2e8d070",
+          "artifactId": "com.saga.gameplay.challenge.collectibles-api-surface",
+          "distributionPath": "Packages/com.saga.gameplay.challenge/0.0.11/api/collectibles.highlevel.surface.json",
+          "kind": "apiSurface",
+          "resolvedAssemblyHash": "",
+          "resolvedAssemblyLogicalPath": "",
+          "runtimeCompatibility": "",
+          "targetFramework": "",
+          "trust": "TrustedEngineDistribution"
+        }
+      ],
+      "license": "MPL-2.0",
+      "modules": [
+        "challenge.core.highlevel",
+        "collectibles.highlevel"
+      ],
+      "origin": "SagaEngine 0.0.11 built-in distribution",
+      "packageId": "com.saga.gameplay.challenge",
+      "sourceHash": "sha256:556286ca45e94c7a2bad5b65965fbfa39da5cda57967d245da91d1a0f5a546a9",
+      "sourceIdentity": "builtin://com.saga.gameplay.challenge@0.0.11",
+      "trust": "TrustedEngineDistribution",
+      "version": "0.0.11"
+    },
+    {
+      "artifacts": [
+        {
+          "artifactHash": "sha256:02b7457169c4a69779662cf17dd7e03d8c16e6650d5cb5a6f30380585ebed025",
+          "artifactId": "com.saga.gameplay.foundation.analyzer-policy",
+          "distributionPath": "Packages/com.saga.gameplay.foundation/0.0.11/analyzers/gameplay.highlevel.rules.json",
+          "kind": "analyzer",
+          "resolvedAssemblyHash": "",
+          "resolvedAssemblyLogicalPath": "",
+          "runtimeCompatibility": "",
+          "targetFramework": "",
+          "trust": "TrustedEngineDistribution"
+        },
+        {
+          "artifactHash": "sha256:3ccd7390838da52e5bf1dc6c3455d60bf98005716a10341f028fbd1e4cc643cb",
+          "artifactId": "com.saga.gameplay.foundation.api-surface",
+          "distributionPath": "Packages/com.saga.gameplay.foundation/0.0.11/api/gameplay.highlevel.surface.json",
+          "kind": "apiSurface",
+          "resolvedAssemblyHash": "",
+          "resolvedAssemblyLogicalPath": "",
+          "runtimeCompatibility": "",
+          "targetFramework": "",
+          "trust": "TrustedEngineDistribution"
+        },
+        {
+          "artifactHash": "sha256:ba3ec2370e78522701fa618f43d35590d4b822731d75f6742eef898ef08a796c",
+          "artifactId": "com.saga.gameplay.foundation.managed-reference",
+          "distributionPath": "Packages/com.saga.gameplay.foundation/0.0.11/managed/gameplay.highlevel.reference.json",
+          "kind": "managedReference",
+          "resolvedAssemblyHash": "sha256:755badbda42145b9174d11f4218b139f1c6515ac10fa5c3738ffce0e0d53bfc4",
+          "resolvedAssemblyLogicalPath": "references/com.saga.gameplay.foundation.managed-reference/SagaScript.RuntimeBridge.dll",
+          "runtimeCompatibility": "0.0.11",
+          "targetFramework": "net10.0",
+          "trust": "TrustedEngineDistribution"
+        }
+      ],
+      "license": "MPL-2.0",
+      "modules": [
+        "gameplay.highlevel"
+      ],
+      "origin": "SagaEngine 0.0.11 built-in distribution",
+      "packageId": "com.saga.gameplay.foundation",
+      "sourceHash": "sha256:455579f3db87e6babded40312b0d847e517c123dcf0d33293502355c545e1d2a",
+      "sourceIdentity": "builtin://com.saga.gameplay.foundation@0.0.11",
+      "trust": "TrustedEngineDistribution",
+      "version": "0.0.11"
+    }
+  ],
+  "projectHash": "sha256:62a6d36392977afc2069928cb21c1981c126063227543d970e3444035fa2e3b0",
+  "projectId": "80d7cf5e-69c2-4f89-a9b7-f27ea16da079",
+  "schemaVersion": 1
+}

@@ -23,6 +23,12 @@ std::filesystem::path StarterArenaProject()
         "Samples/StarterArena/StarterArena.sagaproj";
 }
 
+std::filesystem::path ArenaRushProject()
+{
+    return TestSourceRoot() /
+        "Samples/ArenaRush/ArenaRush.sagaproj";
+}
+
 std::filesystem::path RuntimeExecutable()
 {
     return std::filesystem::path(SAGA_BUILD_ROOT) / "bin/SagaRuntime";
@@ -178,6 +184,27 @@ TEST(PlayPreparationPipelineTests, PublishesVerifiedCanonicalLaunchFromSavedSour
         EXPECT_FALSE(name.empty());
         EXPECT_TRUE(SagaRuntime::Play::IsSha256(hash)) << name << "=" << hash;
     }
+}
+
+TEST(PlayPreparationPipelineTests, ArenaRushPublishesContractOnlyFoundation)
+{
+    SagaEditor::EditorDocumentWorkspace workspace;
+    ASSERT_TRUE(workspace.OpenProject(ArenaRushProject()));
+    const auto sessionRoot = ArenaRushProject().parent_path() /
+        "Build/Editor/Play/arena-rush-contract-foundation";
+    std::error_code ignored;
+    std::filesystem::remove_all(sessionRoot, ignored);
+
+    const auto result = SagaEditor::PlayPreparationPipeline{}.Prepare(
+        workspace,
+        {"arena-rush-contract-foundation", RuntimeExecutable(), {}, {}, {}});
+
+    ASSERT_TRUE(result.passed) << (result.diagnostics.empty() ? "" :
+        result.diagnostics.front().code + ": " + result.diagnostics.front().message);
+    EXPECT_TRUE(std::filesystem::is_regular_file(result.canonicalManifestPath));
+    EXPECT_TRUE(std::filesystem::is_regular_file(
+        ArenaRushProject().parent_path() /
+        "Build/Editor/Scripting/Artifacts/manifests/current.json"));
 }
 
 TEST(PlayPreparationPipelineTests, LockMutationAtPublicationBarrierCannotReplaceLaunch)

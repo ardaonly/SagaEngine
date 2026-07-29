@@ -8,33 +8,63 @@
   "description": "Compatibility projection only. LICENSE_POLICY.toml is authoritative.",
   "rules": [
     {
+      "pattern": "Samples/ArenaRush/Content/UI/ThirdParty/DejaVu/DejaVuSans.ttf",
+      "license": "Bitstream-Vera",
+      "domain_id": "sample-dejavu-font",
+      "priority": 1300
+    },
+    {
+      "pattern": "Samples/ArenaRush/Content/UI/ThirdParty/DejaVu/LICENSE",
+      "license": "Bitstream-Vera",
+      "domain_id": "sample-dejavu-font",
+      "priority": 1300
+    },
+    {
+      "pattern": "Samples/ArenaRush/Content/UI/ThirdParty/DejaVu/PROVENANCE.json",
+      "license": "Bitstream-Vera",
+      "domain_id": "sample-dejavu-font",
+      "priority": 1300
+    },
+    {
+      "pattern": "Samples/ArenaRush/Content/UI/ThirdParty/DejaVu/PROVENANCE.md",
+      "license": "Bitstream-Vera",
+      "domain_id": "sample-dejavu-font",
+      "priority": 1300
+    },
+    {
+      "pattern": "Samples/ArenaRush/Content/UI/ThirdParty/DejaVu/SHA256SUMS",
+      "license": "Bitstream-Vera",
+      "domain_id": "sample-dejavu-font",
+      "priority": 1300
+    },
+    {
       "pattern": "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/DejaVuSans.ttf",
       "license": "Bitstream-Vera",
-      "domain_id": "starter-arena-dejavu-font",
+      "domain_id": "sample-dejavu-font",
       "priority": 1300
     },
     {
       "pattern": "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/LICENSE",
       "license": "Bitstream-Vera",
-      "domain_id": "starter-arena-dejavu-font",
+      "domain_id": "sample-dejavu-font",
       "priority": 1300
     },
     {
       "pattern": "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/PROVENANCE.json",
       "license": "Bitstream-Vera",
-      "domain_id": "starter-arena-dejavu-font",
+      "domain_id": "sample-dejavu-font",
       "priority": 1300
     },
     {
       "pattern": "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/PROVENANCE.md",
       "license": "Bitstream-Vera",
-      "domain_id": "starter-arena-dejavu-font",
+      "domain_id": "sample-dejavu-font",
       "priority": 1300
     },
     {
       "pattern": "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/SHA256SUMS",
       "license": "Bitstream-Vera",
-      "domain_id": "starter-arena-dejavu-font",
+      "domain_id": "sample-dejavu-font",
       "priority": 1300
     },
     {

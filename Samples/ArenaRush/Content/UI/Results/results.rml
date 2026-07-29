@@ -1,0 +1,18 @@
+<!--
+SPDX-License-Identifier: MIT
+-->
+<rml>
+<head>
+  <title>Arena Rush Results</title>
+  <link type="text/rcss" href="results.rcss"/>
+</head>
+<body>
+  <div class="results-card">
+    <h1>Challenge Results</h1>
+    <p class="result-value">Energy collected: 0 / 100</p>
+    <p>Result presentation is ready for the next runtime wave.</p>
+    <div>R: Restart</div>
+    <div>Q: Exit</div>
+  </div>
+</body>
+</rml>

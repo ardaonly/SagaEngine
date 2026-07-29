@@ -73,6 +73,12 @@ ProjectWorkflowOutcome EditorProjectWorkflowController::OpenProjectPrompted()
 ProjectWorkflowOutcome
 EditorProjectWorkflowController::CreateStarterArenaPrompted()
 {
+    return CreateProjectPrompted();
+}
+
+ProjectWorkflowOutcome
+EditorProjectWorkflowController::CreateProjectPrompted()
+{
     if (!prompts_.requestNewProject)
     {
         return ProjectWorkflowOutcome::Cancelled;
@@ -87,9 +93,9 @@ EditorProjectWorkflowController::CreateStarterArenaPrompted()
     {
         return readiness;
     }
-    const auto request = MakeStarterArenaTemplateRequest(
-        prompt->destination, prompt->displayName);
-    return workspace_.CreateStarterArena(request).passed ?
+    const auto request = MakeProjectTemplateRequest(
+        prompt->templateId, prompt->destination, prompt->displayName);
+    return workspace_.CreateProject(request).passed ?
         ProjectWorkflowOutcome::Completed :
         ProjectWorkflowOutcome::Failed;
 }

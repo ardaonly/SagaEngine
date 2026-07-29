@@ -59,6 +59,7 @@ class PolicyLoadingTests(unittest.TestCase):
         resolver = PolicyResolver(load_policy_context(REPOSITORY_ROOT))
         expected = {
             "Samples/StarterArena/README.md": "MIT",
+            "Samples/ArenaRush/README.md": "MIT",
             "Engine/Source/Runtime/Scripting/CMakeLists.txt": "MPL-2.0",
             "Tools/Licensing/normalize_spdx.py": "MPL-2.0",
             "Tests/README.md": "MPL-2.0",

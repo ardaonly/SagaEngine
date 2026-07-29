@@ -172,6 +172,10 @@ function(saga_setup_distribution)
         DESTINATION samples/StarterArena
         COMPONENT SagaDistribution
     )
+    install(DIRECTORY "${SAGA_ROOT}/Samples/ArenaRush/"
+        DESTINATION samples/ArenaRush
+        COMPONENT SagaDistribution
+    )
     install(DIRECTORY "${SAGA_ROOT}/Engine/Distribution/"
         DESTINATION Engine/Distribution
         COMPONENT SagaDistribution

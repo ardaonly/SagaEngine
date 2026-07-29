@@ -33,6 +33,7 @@ RUNTIME_BRIDGE_ASSEMBLY = (
 PACKAGER_PROJECT = REPO_ROOT / "Tools" / "SagaPackager" / "SagaPackager.csproj"
 PACKAGER_ASSEMBLY = PACKAGER_PROJECT.parent / "bin" / "Release" / "net10.0" / "sagapack.dll"
 STARTER_ROOT = REPO_ROOT / "Samples" / "StarterArena"
+ARENA_RUSH_ROOT = REPO_ROOT / "Samples" / "ArenaRush"
 SHARED_SCRIPTING_ROOT = REPO_ROOT / "Shared" / "include" / "SagaShared" / "Scripting"
 BUILTIN_GAMEPLAY_NODES = (
     REPO_ROOT

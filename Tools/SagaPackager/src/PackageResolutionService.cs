@@ -23,6 +23,7 @@ internal sealed record BuiltinArtifact
 {
     public string ArtifactId { get; init; } = "";
     public string Kind { get; init; } = "";
+    public string Module { get; init; } = "";
     public string Path { get; init; } = "";
 }
 
@@ -572,6 +573,11 @@ internal static class PackageResolutionService
         var artifacts = new List<LockedArtifact>();
         foreach (var artifact in manifest.Artifacts.OrderBy(item => item.ArtifactId, StringComparer.Ordinal))
         {
+            if (!string.IsNullOrWhiteSpace(artifact.Module) &&
+                !intent.Modules.Contains(artifact.Module, StringComparer.Ordinal))
+            {
+                continue;
+            }
             if (string.IsNullOrWhiteSpace(artifact.ArtifactId) ||
                 artifacts.Any(item => item.ArtifactId == artifact.ArtifactId))
             {
@@ -605,6 +611,49 @@ internal static class PackageResolutionService
                 diagnostics.Add(Error("Package.Resolve.ArtifactMissing", artifact.ArtifactId,
                     "Built-in package artifact is missing."));
                 continue;
+            }
+            if (artifact.Kind == "apiSurface")
+            {
+                try
+                {
+                    using var descriptor = JsonDocument.Parse(File.ReadAllBytes(fullPath));
+                    var root = descriptor.RootElement;
+                    var module = root.GetProperty("module").GetString() ?? "";
+                    var surfaceId = root.GetProperty("surfaceId").GetString() ?? "";
+                    if (root.GetProperty("schemaVersion").GetInt32() != 1 ||
+                        string.IsNullOrWhiteSpace(surfaceId) ||
+                        !manifest.Modules.Contains(module, StringComparer.Ordinal) ||
+                        (!string.IsNullOrWhiteSpace(artifact.Module) && artifact.Module != module))
+                    {
+                        throw new InvalidOperationException(
+                            "API surface schema, identity, or module is invalid.");
+                    }
+                    if (root.TryGetProperty("runtimeReadiness", out var readiness) &&
+                        readiness.GetString() is not ("RuntimeBacked" or "ContractOnly"))
+                    {
+                        throw new InvalidOperationException(
+                            "API surface runtimeReadiness must be RuntimeBacked or ContractOnly.");
+                    }
+                    var identities = new HashSet<string>(StringComparer.Ordinal);
+                    foreach (var api in root.GetProperty("apis").EnumerateArray())
+                    {
+                        var apiId = api.GetProperty("apiId").GetString() ?? "";
+                        if (string.IsNullOrWhiteSpace(apiId) || !identities.Add(apiId))
+                        {
+                            throw new InvalidOperationException(
+                                "API surface API identities must be non-empty and unique.");
+                        }
+                    }
+                }
+                catch (Exception exception) when (
+                    exception is JsonException or InvalidOperationException or KeyNotFoundException)
+                {
+                    diagnostics.Add(Error(
+                        "Package.Resolve.ApiSurfaceInvalid",
+                        artifact.ArtifactId,
+                        exception.Message));
+                    continue;
+                }
             }
             var resolvedAssemblyPath = "";
             var resolvedAssemblyHash = "";

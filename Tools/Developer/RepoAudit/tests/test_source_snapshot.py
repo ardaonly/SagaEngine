@@ -27,6 +27,10 @@ class SourceSnapshotTests(unittest.TestCase):
             "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/LICENSE",
             "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/PROVENANCE.md",
             "Samples/StarterArena/Content/UI/ThirdParty/DejaVu/SHA256SUMS",
+            "Samples/ArenaRush/Content/UI/ThirdParty/DejaVu/DejaVuSans.ttf",
+            "Samples/ArenaRush/Content/UI/ThirdParty/DejaVu/LICENSE",
+            "Samples/ArenaRush/Content/UI/ThirdParty/DejaVu/PROVENANCE.md",
+            "Samples/ArenaRush/Content/UI/ThirdParty/DejaVu/SHA256SUMS",
             "SagaWiki/library/evidence/testing.md",
             "SagaWiki/index.html",
             ".github/MAINTENANCE.md",
@@ -40,10 +44,14 @@ class SourceSnapshotTests(unittest.TestCase):
         self.assertIn("Samples/StarterArena/Content/UI/ThirdParty/DejaVu/LICENSE", selected)
         self.assertIn("Samples/StarterArena/Content/UI/ThirdParty/DejaVu/PROVENANCE.md", selected)
         self.assertIn("Samples/StarterArena/Content/UI/ThirdParty/DejaVu/SHA256SUMS", selected)
+        self.assertIn("Samples/ArenaRush/Content/UI/ThirdParty/DejaVu/LICENSE", selected)
+        self.assertIn("Samples/ArenaRush/Content/UI/ThirdParty/DejaVu/PROVENANCE.md", selected)
+        self.assertIn("Samples/ArenaRush/Content/UI/ThirdParty/DejaVu/SHA256SUMS", selected)
         self.assertIn(".github/MAINTENANCE.md", selected)
         self.assertIn(".github/workflows/build.yml", selected)
         self.assertIn(".github/workflows/repository-contracts.yml", selected)
         self.assertNotIn("Samples/StarterArena/Content/UI/ThirdParty/DejaVu/DejaVuSans.ttf", selected)
+        self.assertNotIn("Samples/ArenaRush/Content/UI/ThirdParty/DejaVu/DejaVuSans.ttf", selected)
         self.assertNotIn("SagaWiki/index.html", selected)
         self.assertFalse(any(path.startswith(("Vendor/", "build/", ".saga-private/"))
                              for path in selected))

@@ -67,6 +67,7 @@ def exact_layout(root: Path) -> None:
     for rel in sorted(ALLOWED_EXECUTABLE_PATHS):
         write_file(root, rel, executable=True)
     write_file(root, "licenses/Apache-2.0.txt")
+    write_file(root, "samples/ArenaRush/ArenaRush.sagaproj")
     write_file(root, "samples/StarterArena/StarterArena.sagaproj")
     write_file(root, "Engine/Distribution/Packages/example/0.0.11/package.json")
 

@@ -1,0 +1,30 @@
+{
+  "actions": [
+    {
+      "actionId": "Exit",
+      "bindings": [{ "control": "Q", "device": "Keyboard", "displayName": "Keyboard Q" }],
+      "displayName": "Exit",
+      "runtimeRole": "Gameplay"
+    },
+    {
+      "actionId": "Interact",
+      "bindings": [{ "control": "E", "device": "Keyboard", "displayName": "Keyboard E" }],
+      "displayName": "Interact",
+      "runtimeRole": "Gameplay"
+    },
+    {
+      "actionId": "Restart",
+      "bindings": [{ "control": "R", "device": "Keyboard", "displayName": "Keyboard R" }],
+      "displayName": "Restart",
+      "runtimeRole": "Gameplay"
+    },
+    {
+      "actionId": "StartChallenge",
+      "bindings": [{ "control": "S", "device": "Keyboard", "displayName": "Keyboard S" }],
+      "displayName": "Start Challenge",
+      "runtimeRole": "Gameplay"
+    }
+  ],
+  "inputMapId": "arena-rush.input",
+  "schemaVersion": 1
+}

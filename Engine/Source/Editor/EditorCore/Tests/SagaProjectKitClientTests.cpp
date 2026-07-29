@@ -37,6 +37,7 @@ TEST(SagaProjectKitClientTests, ResolvesInstalledProductFromExecutableNotCwd)
     Touch(root / "bin/Saga");
     Touch(root / "managed-tool-runtime.json");
     Touch(root / "samples/StarterArena/StarterArena.sagaproj");
+    Touch(root / "samples/ArenaRush/ArenaRush.sagaproj");
     fs::create_directories(root / "Engine/Distribution");
     Touch(root / "Engine/Managed/SagaScript.RuntimeBridge/"
                  "SagaScript.RuntimeBridge.dll");
@@ -46,6 +47,7 @@ TEST(SagaProjectKitClientTests, ResolvesInstalledProductFromExecutableNotCwd)
     EXPECT_EQ(paths.productRoot, root);
     EXPECT_EQ(paths.engineRoot, root);
     EXPECT_EQ(paths.starterArenaSeed, root / "samples/StarterArena");
+    EXPECT_EQ(paths.arenaRushSeed, root / "samples/ArenaRush");
     EXPECT_EQ(paths.managedRuntime.productExecutable, root / "bin/Saga");
     EXPECT_EQ(paths.runtimeBridge,
               root / "Engine/Managed/SagaScript.RuntimeBridge/"
