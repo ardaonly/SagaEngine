@@ -8,7 +8,9 @@
 #include <filesystem>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace SagaEngine::Render::Backend { class IRenderOverlaySubmission; }
@@ -33,7 +35,11 @@ public:
     void Shutdown();
     [[nodiscard]] bool ShouldClose() const noexcept;
     [[nodiscard]] std::vector<std::string> PollLogicalActions(
-        const SagaRuntime::Play::RuntimeInputMapArtifact& inputMap, bool injectSmokeKey);
+        const SagaRuntime::Play::RuntimeInputMapArtifact& inputMap,
+        std::string_view injectedAction = {});
+    [[nodiscard]] const std::set<std::string>& HeldLogicalActions() const noexcept;
+    [[nodiscard]] bool ConsumeFocusLost() noexcept;
+    void ReleaseCursor() noexcept;
     [[nodiscard]] SagaEngine::Render::Backend::IRenderOverlaySubmission*
         OverlaySubmission() noexcept;
     [[nodiscard]] std::uint32_t Width() const noexcept;

@@ -1,59 +1,66 @@
 {
   "documents": [
-    { "documentId": "arena-rush.hud.document", "path": "HUD/hud.rml" },
-    { "documentId": "arena-rush.main-menu.document", "path": "MainMenu/main-menu.rml" },
-    { "documentId": "arena-rush.results.document", "path": "Results/results.rml" }
+    {
+      "documentId": "arena-rush.hud.document",
+      "path": "HUD/hud.rml",
+      "visibility": {
+        "behaviorId": "ArenaRush.ArenaRushGameMode",
+        "entityId": "game-mode",
+        "equalsAny": ["Armed", "Running", "Suspended"],
+        "stateKey": "challenge.phase",
+        "valueType": "String"
+      }
+    },
+    {
+      "documentId": "arena-rush.main-menu.document",
+      "path": "MainMenu/main-menu.rml",
+      "visibility": {
+        "behaviorId": "ArenaRush.ArenaRushGameMode",
+        "entityId": "game-mode",
+        "equalsAny": ["PreStart"],
+        "stateKey": "challenge.phase",
+        "valueType": "String"
+      }
+    },
+    {
+      "documentId": "arena-rush.results.document",
+      "path": "Results/results.rml",
+      "visibility": {
+        "behaviorId": "ArenaRush.ArenaRushGameMode",
+        "entityId": "game-mode",
+        "equalsAny": ["Won", "Timeout"],
+        "stateKey": "challenge.phase",
+        "valueType": "String"
+      }
+    }
   ],
   "fonts": [
     { "family": "DejaVu Sans", "path": "ThirdParty/DejaVu/DejaVuSans.ttf" }
   ],
-  "prompts": [
-    {
-      "actionId": "Exit",
-      "behaviorId": "ArenaRush.ArenaRushGameMode",
-      "elementId": "exit-foundation",
-      "entityId": "game-mode",
-      "falseLabel": "Q: Exit",
-      "stateKey": "foundation.exit",
-      "trueLabel": "Q: Exit",
-      "visibility": "Always"
-    },
-    {
-      "actionId": "Interact",
-      "behaviorId": "ArenaRush.EnergyCoreController",
-      "elementId": "interact-foundation",
-      "entityId": "core-presentation",
-      "falseLabel": "E: Collect Core",
-      "stateKey": "foundation.interact",
-      "trueLabel": "E: Collect Core",
-      "visibility": "Always"
-    },
-    {
-      "actionId": "Restart",
-      "behaviorId": "ArenaRush.ArenaRushGameMode",
-      "elementId": "restart-foundation",
-      "entityId": "game-mode",
-      "falseLabel": "R: Restart",
-      "stateKey": "foundation.restart",
-      "trueLabel": "R: Restart",
-      "visibility": "Always"
-    },
-    {
-      "actionId": "StartChallenge",
-      "behaviorId": "ArenaRush.ArenaRushGameMode",
-      "elementId": "start-foundation",
-      "entityId": "game-mode",
-      "falseLabel": "S: Start Challenge",
-      "stateKey": "foundation.start",
-      "trueLabel": "S: Start Challenge",
-      "visibility": "Always"
-    }
+  "inputLabelBindings": [
+    { "actionId": "StartChallenge", "documentId": "arena-rush.main-menu.document", "elementId": "start-key", "format": "{label}: Start Challenge" },
+    { "actionId": "Exit", "documentId": "arena-rush.main-menu.document", "elementId": "menu-exit-key", "format": "{label}: Exit" },
+    { "actionId": "Resume", "documentId": "arena-rush.hud.document", "elementId": "resume-key", "format": "{label}: Resume" },
+    { "actionId": "Restart", "documentId": "arena-rush.hud.document", "elementId": "hud-restart-key", "format": "{label}: Restart" },
+    { "actionId": "Restart", "documentId": "arena-rush.results.document", "elementId": "results-restart-key", "format": "{label}: Restart" },
+    { "actionId": "Exit", "documentId": "arena-rush.results.document", "elementId": "results-exit-key", "format": "{label}: Exit" }
   ],
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "screenId": "arena-rush.ui",
   "stylesheets": [
     { "path": "HUD/hud.rcss" },
     { "path": "MainMenu/main-menu.rcss" },
     { "path": "Results/results.rcss" }
+  ],
+  "textBindings": [
+    { "behaviorId": "ArenaRush.ArenaRushGameMode", "documentId": "arena-rush.hud.document", "elementId": "hud-phase", "entityId": "game-mode", "format": "{value}", "stateKey": "challenge.phase", "valueType": "String" },
+    { "behaviorId": "ArenaRush.ArenaRushGameMode", "documentId": "arena-rush.hud.document", "elementId": "hud-time", "entityId": "game-mode", "format": "{value}", "stateKey": "challenge.remaining-seconds", "valueType": "Double" },
+    { "behaviorId": "ArenaRush.ArenaRushGameMode", "documentId": "arena-rush.hud.document", "elementId": "hud-score", "entityId": "game-mode", "format": "{value}", "stateKey": "challenge.score", "valueType": "Int32" },
+    { "behaviorId": "ArenaRush.ArenaRushGameMode", "documentId": "arena-rush.hud.document", "elementId": "hud-target", "entityId": "game-mode", "format": "{value}", "stateKey": "challenge.target", "valueType": "Int32" },
+    { "behaviorId": "ArenaRush.ArenaRushGameMode", "documentId": "arena-rush.hud.document", "elementId": "hud-active", "entityId": "game-mode", "format": "Active cores: {value}", "stateKey": "challenge.active-cores", "valueType": "Int32" },
+    { "behaviorId": "ArenaRush.ArenaRushGameMode", "documentId": "arena-rush.hud.document", "elementId": "hud-pending", "entityId": "game-mode", "format": "Pending respawns: {value}", "stateKey": "challenge.pending-respawns", "valueType": "Int32" },
+    { "behaviorId": "ArenaRush.ArenaRushGameMode", "documentId": "arena-rush.results.document", "elementId": "result-title", "entityId": "game-mode", "format": "{value}", "stateKey": "challenge.result-title", "valueType": "String" },
+    { "behaviorId": "ArenaRush.ArenaRushGameMode", "documentId": "arena-rush.results.document", "elementId": "result-score", "entityId": "game-mode", "format": "{value}", "stateKey": "challenge.score", "valueType": "Int32" },
+    { "behaviorId": "ArenaRush.ArenaRushGameMode", "documentId": "arena-rush.results.document", "elementId": "result-target", "entityId": "game-mode", "format": "{value}", "stateKey": "challenge.target", "valueType": "Int32" }
   ]
 }

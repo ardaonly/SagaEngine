@@ -511,6 +511,12 @@ internal static class ProjectWorker
                     .ToArray();
                 var visited = new HashSet<IMethodSymbol>(SymbolEqualityComparer.Default);
                 var stateAccesses = new SortedSet<(string Operation, string ValueType, string Key)>();
+                var configurationAccesses =
+                    new SortedSet<(string Operation, string ValueType, string Key)>();
+                var inputAccesses =
+                    new SortedSet<(string Operation, string ValueType, string Key)>();
+                var entityIds = new SortedSet<string>(StringComparer.Ordinal);
+                var runtimeRequests = new SortedSet<string>(StringComparer.Ordinal);
                 void Visit(IMethodSymbol methodSymbol)
                 {
                     methodSymbol = methodSymbol.OriginalDefinition;
@@ -533,8 +539,13 @@ internal static class ProjectWorker
                             var access = target.Name switch
                             {
                                 "TryGetBool" => ("GetBool", "Bool"),
+                                "TryGetInt32" => ("GetInt32", "Int32"),
+                                "TryGetDouble" => ("GetDouble", "Double"),
+                                "TryGetString" => ("GetString", "String"),
                                 "TryAddInt32" => ("AddInt32", "Int32"),
                                 "TrySetBool" => ("SetBool", "Bool"),
+                                "TrySetInt32" => ("SetInt32", "Int32"),
+                                "TrySetDouble" => ("SetDouble", "Double"),
                                 "TrySetString" => ("SetString", "String"),
                                 _ => default,
                             };
@@ -552,6 +563,77 @@ internal static class ProjectWorker
                             stateAccesses.Add((access.Item1, access.Item2, key));
                             continue;
                         }
+                        if (target.ContainingType.ToDisplayString() ==
+                            "SagaEngine.Scripting.ScriptConfigurationPort")
+                        {
+                            var access = target.Name switch
+                            {
+                                "TryGetInt32" => ("GetInt32", "Int32"),
+                                "TryGetDouble" => ("GetDouble", "Double"),
+                                "TryGetString" => ("GetString", "String"),
+                                _ => default,
+                            };
+                            if (access == default) continue;
+                            var arguments = invocation.ArgumentList.Arguments;
+                            var constant = arguments.Count > 0
+                                ? model.GetConstantValue(arguments[0].Expression) : default;
+                            if (!constant.HasValue || constant.Value is not string key ||
+                                string.IsNullOrWhiteSpace(key))
+                            {
+                                diagnostics.Add(Error(
+                                    "Script.Worker.ConfigurationKeyNotConstant", relative,
+                                    "Reachable configuration keys must be non-empty compile-time strings."));
+                                continue;
+                            }
+                            configurationAccesses.Add((access.Item1, access.Item2, key));
+                            continue;
+                        }
+                        if (target.ContainingType.ToDisplayString() ==
+                            "SagaEngine.Scripting.ScriptInputPort")
+                        {
+                            var access = target.Name switch
+                            {
+                                "IsPressed" => ("Pressed", "Bool"),
+                                "IsHeld" => ("Held", "Bool"),
+                                "IsReleased" => ("Released", "Bool"),
+                                "TryGetValue" => ("GetValue", "Double"),
+                                _ => default,
+                            };
+                            if (access == default) continue;
+                            var arguments = invocation.ArgumentList.Arguments;
+                            var constant = arguments.Count > 0
+                                ? model.GetConstantValue(arguments[0].Expression) : default;
+                            if (!constant.HasValue || constant.Value is not string key ||
+                                string.IsNullOrWhiteSpace(key))
+                            {
+                                diagnostics.Add(Error("Script.Worker.InputActionNotConstant", relative,
+                                    "Reachable logical input ids must be non-empty compile-time strings."));
+                                continue;
+                            }
+                            inputAccesses.Add((access.Item1, access.Item2, key));
+                            continue;
+                        }
+                        if (target.ContainingType.ToDisplayString() ==
+                                "SagaEngine.Scripting.ScriptWorld" &&
+                            target.Name == "TryFindEntity")
+                        {
+                            var arguments = invocation.ArgumentList.Arguments;
+                            var constant = arguments.Count > 0
+                                ? model.GetConstantValue(arguments[0].Expression) : default;
+                            if (!constant.HasValue || constant.Value is not string key ||
+                                string.IsNullOrWhiteSpace(key))
+                                diagnostics.Add(Error("Script.Worker.EntityIdNotConstant", relative,
+                                    "Stable entity ids must be non-empty compile-time strings."));
+                            else entityIds.Add(key);
+                            continue;
+                        }
+                        if (target.ContainingType.ToDisplayString() ==
+                                "SagaEngine.Scripting.ScriptRuntimePort" &&
+                            target.Name == "RequestExit")
+                        {
+                            runtimeRequests.Add("Exit");
+                            continue;
+                        }
                         if (SymbolEqualityComparer.Default.Equals(target.ContainingType, typeSymbol) &&
                             methodNodes.ContainsKey(target))
                             Visit(target);
@@ -561,11 +643,30 @@ internal static class ProjectWorker
                 var capabilities = new SortedSet<string>(StringComparer.Ordinal) { "Gameplay.State.ReadWrite" };
                 if (text.Contains("Context.Self.Transform", StringComparison.Ordinal))
                     capabilities.Add("World.Transform.ReadWrite");
+                if (text.Contains("TryGetPosition", StringComparison.Ordinal) ||
+                    text.Contains("TrySetPosition", StringComparison.Ordinal))
+                    capabilities.Add("World.Transform.ReadWrite");
+                if (configurationAccesses.Count > 0)
+                    capabilities.Add("Gameplay.Configuration.Read");
+                if (inputAccesses.Count > 0)
+                    capabilities.Add("Gameplay.Input.Read");
+                if (entityIds.Count > 0)
+                    capabilities.Add("Gameplay.World.FindEntity");
+                if (text.Contains("TrySetActive", StringComparison.Ordinal) ||
+                    text.Contains("TryGetActive", StringComparison.Ordinal))
+                    capabilities.Add("Gameplay.Entity.Active");
+                if (runtimeRequests.Count > 0)
+                    capabilities.Add("Runtime.Exit");
                 behaviors.Add(new WorkerBehavior(declaringType, declaringType, relative,
                     sourceHashes[relative], Span(text, tree, type), lifecycle,
                     actions.OrderBy(item => item.ActionId, StringComparer.Ordinal).ToArray(),
                     capabilities.ToArray(), stateAccesses.Select(item =>
-                        new WorkerStateAccess(item.Operation, item.ValueType, item.Key)).ToArray()));
+                        new WorkerStateAccess(item.Operation, item.ValueType, item.Key)).ToArray(),
+                    configurationAccesses.Select(item =>
+                        new WorkerStateAccess(item.Operation, item.ValueType, item.Key)).ToArray(),
+                    inputAccesses.Select(item =>
+                        new WorkerStateAccess(item.Operation, item.ValueType, item.Key)).ToArray(),
+                    entityIds.ToArray(), runtimeRequests.ToArray()));
             }
         }
         if (behaviors.Count == 0)

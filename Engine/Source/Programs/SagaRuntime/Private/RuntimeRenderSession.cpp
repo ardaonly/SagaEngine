@@ -30,6 +30,21 @@ namespace
 using Json = nlohmann::json;
 namespace Play = SagaRuntime::Play;
 
+std::string LogicalControl(const SagaEngine::Input::KeyCode code)
+{
+    const auto value = static_cast<std::uint16_t>(code);
+    if (value >= static_cast<std::uint16_t>(SagaEngine::Input::KeyCode::A) &&
+        value <= static_cast<std::uint16_t>(SagaEngine::Input::KeyCode::Z))
+        return std::string(1, static_cast<char>('A' + value - 1));
+    switch (code)
+    {
+        case SagaEngine::Input::KeyCode::Enter: return "Enter";
+        case SagaEngine::Input::KeyCode::Space: return "Space";
+        case SagaEngine::Input::KeyCode::Escape: return "Escape";
+        default: return {};
+    }
+}
+
 SagaEngine::Math::Transform ToMathTransform(const Play::RuntimeTransform& source)
 {
     return {{static_cast<float>(source.position[0]), static_cast<float>(source.position[1]),
@@ -54,6 +69,8 @@ struct RuntimeRenderSession::Impl
     std::map<std::string, SagaEngine::Render::World::MaterialId> materials;
     RuntimeEvidenceSession evidence;
     std::size_t lastDrawCount = 0;
+    std::set<std::string> heldActions;
+    bool focusLost = false;
     std::uint32_t viewportWidth = 0;
     std::uint32_t viewportHeight = 0;
 
@@ -178,13 +195,28 @@ bool RuntimeRenderSession::Initialize()
         session->viewportHeight = height;
         session->backend->OnResize(width, height);
     });
+    impl_->window->SetOnFocusChanged([session](const bool focused)
+    {
+        if (focused) return;
+        session->focusLost = true;
+        session->heldActions.clear();
+        if (session->input)
+        {
+            session->input->SetCursorLocked(false);
+            session->input->SetCursorVisible(true);
+        }
+    });
     return impl_->UploadResources();
 }
 
 void RuntimeRenderSession::Shutdown()
 {
     if (!impl_) return;
-    if (impl_->window) impl_->window->SetOnResize({});
+    if (impl_->window)
+    {
+        impl_->window->SetOnResize({});
+        impl_->window->SetOnFocusChanged({});
+    }
     if (impl_->backend)
     {
         for (const auto& [_, mesh] : impl_->meshes) impl_->backend->DestroyMesh(mesh);
@@ -201,12 +233,17 @@ bool RuntimeRenderSession::ShouldClose() const noexcept
 { return !impl_->window || impl_->window->ShouldClose(); }
 
 std::vector<std::string> RuntimeRenderSession::PollLogicalActions(
-    const Play::RuntimeInputMapArtifact& inputMap, bool injectSmokeKey)
+    const Play::RuntimeInputMapArtifact& inputMap,
+    const std::string_view injectedAction)
 {
-    if (injectSmokeKey)
+    if (!injectedAction.empty())
     {
         const auto binding = std::find_if(inputMap.actions.begin(), inputMap.actions.end(),
-            [](const auto& action) { return !action.bindings.empty(); });
+            [&](const auto& action)
+            {
+                return action.actionId == injectedAction &&
+                    !action.bindings.empty();
+            });
         if (binding == inputMap.actions.end()) return {};
         const auto scancode = SDL_GetScancodeFromName(binding->bindings.front().control.c_str());
         if (scancode == SDL_SCANCODE_UNKNOWN) return {};
@@ -222,17 +259,38 @@ std::vector<std::string> RuntimeRenderSession::PollLogicalActions(
     impl_->input->PollRawEvents(raw);
     std::vector<std::string> actions;
     for (const auto& key : raw.keys)
-        if (key.pressed && !key.repeat)
-            for (const auto& action : inputMap.actions)
-                for (const auto& binding : action.bindings)
+        for (const auto& action : inputMap.actions)
+            for (const auto& binding : action.bindings)
+            {
+                if (binding.device != "Keyboard" ||
+                    LogicalControl(key.code) != binding.control) continue;
+                if (key.pressed)
                 {
-                    if (binding.device != "Keyboard" || binding.control.size() != 1) continue;
-                    const auto expected = static_cast<SagaEngine::Input::KeyCode>(
-                        static_cast<unsigned>(SagaEngine::Input::KeyCode::A) +
-                        static_cast<unsigned>(binding.control.front() - 'A'));
-                    if (key.code == expected) actions.push_back(action.actionId);
+                    impl_->heldActions.insert(action.actionId);
+                    if (!key.repeat) actions.push_back(action.actionId);
                 }
+                else impl_->heldActions.erase(action.actionId);
+            }
     return actions;
+}
+
+const std::set<std::string>& RuntimeRenderSession::HeldLogicalActions() const noexcept
+{
+    return impl_->heldActions;
+}
+
+bool RuntimeRenderSession::ConsumeFocusLost() noexcept
+{
+    const bool value = impl_->focusLost;
+    impl_->focusLost = false;
+    return value;
+}
+
+void RuntimeRenderSession::ReleaseCursor() noexcept
+{
+    if (!impl_->input) return;
+    impl_->input->SetCursorLocked(false);
+    impl_->input->SetCursorVisible(true);
 }
 
 SagaEngine::Render::Backend::IRenderOverlaySubmission*
@@ -273,7 +331,7 @@ bool RuntimeRenderSession::RenderFrame(
     {
         if (entity.primaryCamera) cameraEntity = &entity;
         if (entity.directionalLight) lightEntity = &entity;
-        if (!entity.meshRenderer) continue;
+        if (!entity.active || !entity.meshRenderer) continue;
         SagaEngine::Render::Scene::DrawItem item;
         item.entity = static_cast<SagaEngine::Render::World::RenderEntityId>(nextEntity++);
         item.mesh = impl_->meshes.at(entity.meshRenderer->mesh.logicalId);

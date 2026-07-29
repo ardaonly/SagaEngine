@@ -8,12 +8,15 @@ SPDX-License-Identifier: MIT
 </head>
 <body>
   <div class="hud-top">
-    <div class="stat"><span class="label">TIME</span><span>60</span></div>
-    <div class="stat"><span class="label">ENERGY</span><span>0 / 100</span></div>
+    <div class="stat"><span class="label">PHASE</span><span id="hud-phase"></span></div>
+    <div class="stat"><span class="label">TIME</span><span id="hud-time"></span></div>
+    <div class="stat"><span class="label">ENERGY</span><span id="hud-score"></span> / <span id="hud-target"></span></div>
+    <div id="hud-active"></div>
+    <div id="hud-pending"></div>
   </div>
   <div class="hud-bottom">
-    <div id="interact-foundation">E: Collect Core</div>
-    <div id="restart-foundation">R: Restart</div>
+    <div id="resume-key"></div>
+    <div id="hud-restart-key"></div>
   </div>
 </body>
 </rml>

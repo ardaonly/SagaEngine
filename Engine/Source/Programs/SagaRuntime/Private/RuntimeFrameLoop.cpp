@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #include "RuntimeFrameLoop.h"
+#include "RuntimeGameplaySession.h"
 #include "RuntimeArtifactSession.h"
 #include "RuntimeEvidenceSession.h"
 #include "RuntimeLaunchSession.h"
 #include "RuntimeRenderSession.h"
 #include "RuntimeScriptSession.h"
 #include "RuntimeStateStore.h"
+#include "RuntimeTriggerSession.h"
 #include "RuntimeUiPromptController.h"
 #include "RuntimeUiSession.h"
 
@@ -17,12 +19,15 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <chrono>
+#include <cmath>
 #include <iterator>
 #include <map>
 #include <optional>
 #include <thread>
+#include <variant>
 
 namespace SagaRuntimeApp
 {
@@ -107,7 +112,7 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
             "Canonical runtime launch manifest validation failed.");
     }
     const auto& launch = *manifestResult.manifest;
-    if (launch.runtimeBridge.abi != "NativeCallbackTable.v2+NamedAction.v1" ||
+    if (launch.runtimeBridge.abi != "NativeCallbackTable.v3+NamedAction.v1" ||
         launch.runtimeBridge.targetFramework != "net10.0")
     {
         envelopeResult.diagnostics.push_back({"Runtime.Bridge.AbiMismatch",
@@ -196,13 +201,14 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
         return structuredFailure("Runtime.Script.NamedActionsInvalid",
             "Named-action manifest is malformed.", "ScriptLoadFailure");
     }
-    if (behaviorManifest.value("schemaVersion", -1) != 2 ||
+    const auto behaviorSchema = behaviorManifest.value("schemaVersion", -1);
+    if ((behaviorSchema != 2 && behaviorSchema != 3) ||
         !behaviorManifest.contains("behaviors") ||
         !behaviorManifest["behaviors"].is_array())
         return structuredFailure("Runtime.Script.StateContractMissing",
-            "Verified Play requires behavior manifest schema version 2.",
+            "Verified Play requires behavior manifest schema version 2 or 3.",
             "ScriptLoadFailure");
-    RuntimeStateStore::BoolWritePolicy boolWrites;
+    RuntimeStateStore::TypedWritePolicy stateWrites;
     try
     {
         for (const auto& behavior : behaviorManifest["behaviors"])
@@ -213,17 +219,36 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
                 return structuredFailure("Runtime.Script.StateContractInvalid",
                     "Behavior state-access policy is missing or malformed.",
                     "ScriptLoadFailure");
-            auto& keys = boolWrites[behaviorId];
+            auto& keys = stateWrites[behaviorId];
             for (const auto& access : behavior["stateAccesses"])
             {
                 if (!access.is_object() || access.size() != 3 ||
-                    access.value("operation", std::string{}) != "SetBool" ||
-                    access.value("valueType", std::string{}) != "Bool" ||
-                    access.value("key", std::string{}).empty() ||
-                    !keys.insert(access.value("key", std::string{})).second)
+                    access.value("key", std::string{}).empty())
                     return structuredFailure("Runtime.Script.StateContractInvalid",
                         "Behavior state-access policy contains an unsupported or duplicate entry.",
                         "ScriptLoadFailure");
+                const auto operation = access.value("operation", std::string{});
+                const auto valueType = access.value("valueType", std::string{});
+                const bool knownType = valueType == "Bool" || valueType == "Int32" ||
+                    valueType == "Double" || valueType == "String";
+                const bool knownOperation = operation == "GetBool" ||
+                    operation == "GetInt32" || operation == "GetDouble" ||
+                    operation == "GetString" || operation == "AddInt32" ||
+                    operation == "SetBool" || operation == "SetInt32" ||
+                    operation == "SetDouble" || operation == "SetString";
+                if (!knownType || !knownOperation)
+                    return structuredFailure("Runtime.Script.StateContractInvalid",
+                        "Behavior state-access policy contains an unsupported operation.",
+                        "ScriptLoadFailure");
+                if (operation.starts_with("Set") || operation == "AddInt32")
+                {
+                    const auto [item, inserted] =
+                        keys.emplace(access.value("key", std::string{}), valueType);
+                    if (!inserted && item->second != valueType)
+                        return structuredFailure("Runtime.Script.StateContractInvalid",
+                            "One typed state key cannot have conflicting value types.",
+                            "ScriptLoadFailure");
+                }
             }
         }
     }
@@ -233,10 +258,59 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
             "Behavior state-access policy contains invalid field types.",
             "ScriptLoadFailure");
     }
+    RuntimeScriptInputPort::Policy inputReads;
+    std::set<std::string> authoredInputActions;
+    for (const auto& action : inputResult.value->actions)
+        authoredInputActions.insert(action.actionId);
+    if (behaviorSchema == 3)
+    {
+        try
+        {
+            for (const auto& behavior : behaviorManifest["behaviors"])
+            {
+                const auto behaviorId = behavior.value("behaviorId", std::string{});
+                if (!behavior.contains("inputAccesses") ||
+                    !behavior["inputAccesses"].is_array())
+                    return structuredFailure("Runtime.Script.InputContractInvalid",
+                        "Behavior logical-input policy is missing or malformed.",
+                        "ScriptLoadFailure");
+                auto& actions = inputReads[behaviorId];
+                for (const auto& access : behavior["inputAccesses"])
+                {
+                    const auto actionId = access.value("key", std::string{});
+                    const auto operation = access.value("operation", std::string{});
+                    if (!access.is_object() || access.size() != 3 ||
+                        actionId.empty() ||
+                        (operation != "Pressed" && operation != "Held" &&
+                         operation != "Released" && operation != "GetValue") ||
+                        !authoredInputActions.contains(actionId))
+                        return structuredFailure("Runtime.Script.InputContractInvalid",
+                            "Behavior input access is undeclared by the compiled input artifact.",
+                            "ScriptLoadFailure");
+                    actions.insert(actionId);
+                }
+            }
+        }
+        catch (const Json::exception&)
+        {
+            return structuredFailure("Runtime.Script.InputContractInvalid",
+                "Behavior logical-input policy contains invalid field types.",
+                "ScriptLoadFailure");
+        }
+    }
     RuntimeScriptWorld world(*sceneResult.value);
-    RuntimeStateStore stateStore(boolWrites);
-    Scripting::CSharpScriptHost host({envelope.artifacts.at(
-        launch.runtimeBridge.logicalReferenceId), {}, &world, &stateStore, true, {}});
+    RuntimeStateStore stateStore(stateWrites);
+    RuntimeScriptInputPort inputPort(std::move(inputReads));
+    RuntimeExitPort exitPort;
+    Scripting::CSharpScriptHostOptions hostOptions;
+    hostOptions.runtimeBridgeAssembly =
+        envelope.artifacts.at(launch.runtimeBridge.logicalReferenceId);
+    hostOptions.world = &world;
+    hostOptions.statePort = &stateStore;
+    hostOptions.grantStatePortAccess = true;
+    hostOptions.inputPort = &inputPort;
+    hostOptions.runtimePort = &exitPort;
+    Scripting::CSharpScriptHost host(std::move(hostOptions));
     Scripting::ScriptLifecycleService lifecycle(host);
     Scripting::VerifiedScriptGenerationLoadRequest loadRequest;
     loadRequest.assembly = {envelope.artifacts.at(launch.scriptAssembly.logicalId),
@@ -263,10 +337,27 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
     loadRequest.targetFramework = launch.runtimeBridge.targetFramework;
     loadRequest.runtimeCompatibility = launch.runtimeBridge.runtimeCompatibility;
     loadRequest.trust = launch.runtimeBridge.trust;
+    const auto describeHostFailure = [](std::string detail, const auto& result)
+    {
+        if (result.diagnostics.empty()) return detail;
+        const auto& diagnostic = result.diagnostics.front();
+        detail += " " + diagnostic.diagnostic.code.value + ": " +
+            diagnostic.diagnostic.message;
+        const auto bridgeError = diagnostic.metadata.find("bridgeError");
+        if (bridgeError != diagnostic.metadata.end() &&
+            !bridgeError->second.empty())
+            detail += " (" + bridgeError->second + ")";
+        for (const auto& [key, value] : diagnostic.metadata)
+            if (key != "bridgeError" && !value.empty())
+                detail += " [" + key + "=" + value + "]";
+        return detail;
+    };
     const auto package = lifecycle.LoadVerifiedGeneration(loadRequest);
     if (!package.Succeeded())
         return structuredFailure("Runtime.Script.PackageLoadFailed",
-            "Verified script assembly could not be loaded.", "ScriptLoadFailure");
+            describeHostFailure(
+                "Verified script assembly could not be loaded.", package),
+            "ScriptLoadFailure");
 
     std::map<std::pair<std::string, std::string>, std::string> methods;
     for (const auto& action : namedActions.value("actions", Json::array()))
@@ -305,12 +396,42 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
             "Runtime scene has no script behavior.", "ScriptLoadFailure");
     if (launch.schemaVersion == 2)
     {
-        const auto& prompt = uiResult.value->prompts.front();
-        const auto allowed = boolWrites.find(prompt.behaviorId);
-        if (allowed == boolWrites.end() || !allowed->second.contains(prompt.stateKey))
-            return structuredFailure("Runtime.UI.StateContractMismatch",
-                "Verified UI prompt state is absent from the behavior state-access contract.",
-                "UiBootstrapFailure");
+        if (uiResult.value->schemaVersion == 1)
+        {
+            const auto& prompt = uiResult.value->prompts.front();
+            const auto allowed = stateWrites.find(prompt.behaviorId);
+            if (allowed == stateWrites.end() ||
+                !allowed->second.contains(prompt.stateKey) ||
+                allowed->second.at(prompt.stateKey) != "Bool")
+                return structuredFailure("Runtime.UI.StateContractMismatch",
+                    "Verified UI prompt state is absent from the behavior state-access contract.",
+                    "UiBootstrapFailure");
+        }
+        else
+        {
+            for (const auto& binding : uiResult.value->textBindings)
+            {
+                const auto allowed = stateWrites.find(binding.behaviorId);
+                if (allowed == stateWrites.end() ||
+                    !allowed->second.contains(binding.stateKey) ||
+                    allowed->second.at(binding.stateKey) != binding.valueType)
+                    return structuredFailure("Runtime.UI.StateContractMismatch",
+                        "Typed UI text state is absent from the behavior contract.",
+                        "UiBootstrapFailure");
+            }
+            for (const auto& document : uiResult.value->documents)
+            {
+                const auto allowed =
+                    stateWrites.find(document.visibilityBehaviorId);
+                if (allowed == stateWrites.end() ||
+                    !allowed->second.contains(document.visibilityStateKey) ||
+                    allowed->second.at(document.visibilityStateKey) !=
+                        document.visibilityValueType)
+                    return structuredFailure("Runtime.UI.StateContractMismatch",
+                        "Typed UI visibility state is absent from the behavior contract.",
+                        "UiBootstrapFailure");
+            }
+        }
     }
 
     std::map<std::pair<std::string, std::string>, Scripting::ScriptInstanceHandle> instances;
@@ -327,10 +448,20 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
         create.classId.value = entity.scriptBehavior->behaviorTypeId;
         create.scriptId = entity.scriptBehavior->behaviorTypeId;
         create.selfEntity = world.Handle(entity.entityId);
+        create.instanceConfigurationCanonicalJson =
+            entity.scriptBehavior->instanceConfigurationCanonicalJson;
         const auto created = lifecycle.CreateInstance(create);
-        if (!created.Succeeded() || !lifecycle.StartInstance(created.instance).Succeeded())
+        if (!created.Succeeded())
+            return structuredFailure("Runtime.Script.InstanceCreateFailed",
+                describeHostFailure(
+                    "Script behavior instance could not be created.", created),
+                "ScriptLifecycleFailure");
+        const auto started = lifecycle.StartInstance(created.instance);
+        if (!started.Succeeded())
             return structuredFailure("Runtime.Script.InstanceStartFailed",
-                "Script behavior instance failed to start.", "ScriptLifecycleFailure");
+                describeHostFailure(
+                    "Script behavior instance failed to start.", started),
+                "ScriptLifecycleFailure");
         instances.emplace(key, created.instance);
     }
 
@@ -340,24 +471,45 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
     if (!bindingDiagnostics.empty())
         return structuredFailure(bindingDiagnostics.front().code,
             bindingDiagnostics.front().message, "ActionBindingFailure");
+    Play::ScriptEventBindingDispatcher eventDispatcher(target);
+    const auto eventBindingDiagnostics = eventDispatcher.Build(world.Scene());
+    if (!eventBindingDiagnostics.empty())
+        return structuredFailure(eventBindingDiagnostics.front().code,
+            eventBindingDiagnostics.front().message, "EventBindingFailure");
+    RuntimeTriggerSession triggers(world, eventDispatcher);
 
     const Play::RuntimeUiPromptBinding* runtimePrompt = nullptr;
     Scripting::ScriptEntityHandle promptEntity;
     std::string promptText;
     if (launch.schemaVersion == 2)
     {
-        if (uiResult.value->prompts.size() != 1)
-            return structuredFailure("Runtime.UI.PromptBindingInvalid",
-                "Exactly one verified runtime prompt is required.", "UiBootstrapFailure");
-        runtimePrompt = &uiResult.value->prompts.front();
-        promptEntity = world.Handle(runtimePrompt->entityId);
-        const auto text = RuntimeUiPromptController::Compose(
-            *runtimePrompt, *inputResult.value, stateStore, promptEntity);
-        if (!text)
-            return structuredFailure("Runtime.UI.PromptStateUnavailable",
-                "The prompt could not join verified input and active script state.",
-                "UiBootstrapFailure");
-        promptText = *text;
+        if (uiResult.value->schemaVersion == 1)
+        {
+            if (uiResult.value->prompts.size() != 1)
+                return structuredFailure("Runtime.UI.PromptBindingInvalid",
+                    "Exactly one verified runtime prompt is required.",
+                    "UiBootstrapFailure");
+            runtimePrompt = &uiResult.value->prompts.front();
+            promptEntity = world.Handle(runtimePrompt->entityId);
+            const auto text = RuntimeUiPromptController::Compose(
+                *runtimePrompt, *inputResult.value, stateStore, promptEntity);
+            if (!text)
+                return structuredFailure("Runtime.UI.PromptStateUnavailable",
+                    "The prompt could not join verified input and active script state.",
+                    "UiBootstrapFailure");
+            promptText = *text;
+        }
+        else
+        {
+            const auto entityId = !uiResult.value->textBindings.empty()
+                ? uiResult.value->textBindings.front().entityId
+                : uiResult.value->documents.front().visibilityEntityId;
+            promptEntity = world.Handle(entityId);
+            if (!promptEntity.IsValid())
+                return structuredFailure("Runtime.UI.EntityMissing",
+                    "Typed UI binding entity is absent from the runtime scene.",
+                    "UiBootstrapFailure");
+        }
     }
 
     const auto publishReady = [&]
@@ -371,6 +523,82 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
     std::uint64_t frames = 0;
     std::vector<double> observedHeights;
     std::vector<std::string> observedPrompts;
+    std::vector<std::string> observedPhases;
+    std::size_t restartCycleCount = 0;
+    bool restartCyclesPassed = true;
+    const bool challengeMicrogame =
+        authoredInputActions.contains("StartChallenge");
+    const auto challengeBehaviorId =
+        challengeMicrogame && uiResult.value->schemaVersion == 2 &&
+                !uiResult.value->documents.empty()
+            ? uiResult.value->documents.front().visibilityBehaviorId
+            : std::string{};
+    const auto challengePhaseKey =
+        challengeMicrogame && uiResult.value->schemaVersion == 2 &&
+                !uiResult.value->documents.empty()
+            ? uiResult.value->documents.front().visibilityStateKey
+            : std::string{};
+    std::vector<std::string> collectibleEntityIds;
+    std::string participantEntityId;
+    if (challengeMicrogame)
+    {
+        std::string participantCategory;
+        for (const auto& entity : world.Scene().entities)
+            for (const auto& binding : entity.eventBindings)
+                if (binding.behaviorTypeId == challengeBehaviorId &&
+                    binding.eventType == "TriggerEnter" &&
+                    binding.namedActionId.starts_with("Collect") &&
+                    entity.triggerVolume)
+                {
+                    collectibleEntityIds.push_back(entity.entityId);
+                    participantCategory =
+                        entity.triggerVolume->acceptedCategory;
+                }
+        std::sort(collectibleEntityIds.begin(),
+                  collectibleEntityIds.end());
+        for (const auto& entity : world.Scene().entities)
+            if (entity.triggerParticipant &&
+                entity.triggerParticipant->category == participantCategory)
+            {
+                participantEntityId = entity.entityId;
+                break;
+            }
+    }
+    Json authoredChallengeConfiguration = Json::object();
+    if (challengeMicrogame)
+        for (const auto& entity : world.Scene().entities)
+            if (entity.scriptBehavior &&
+                entity.scriptBehavior->behaviorTypeId == challengeBehaviorId)
+            {
+                try
+                {
+                    authoredChallengeConfiguration = Json::parse(
+                        entity.scriptBehavior
+                            ->instanceConfigurationCanonicalJson);
+                }
+                catch (const Json::exception&) {}
+                break;
+            }
+    const double authoredDuration =
+        authoredChallengeConfiguration.value(
+            "challengeDurationSeconds", 60.0);
+    const double authoredRespawnDelay =
+        authoredChallengeConfiguration.value("respawnDelaySeconds", 2.0);
+    const int authoredTarget =
+        authoredChallengeConfiguration.value("targetProgress", 100);
+    const int authoredCoreValue =
+        authoredChallengeConfiguration.value("coreValue", 10);
+    const bool timeoutConfigurationScenario =
+        challengeMicrogame && authoredDuration <= 1.0;
+    Json collectibleLifecycleEvidence = Json::object();
+    const auto gameModeEntity = promptEntity;
+    const auto recordArenaPhase = [&]
+    {
+        const auto snapshot = stateStore.SnapshotValue(gameModeEntity,
+            challengeBehaviorId, challengePhaseKey);
+        if (snapshot && std::holds_alternative<std::string>(snapshot->value))
+            observedPhases.push_back(std::get<std::string>(snapshot->value));
+    };
     const auto observedEntity = std::find_if(world.Scene().entities.begin(), world.Scene().entities.end(),
         [](const auto& entity) { return !entity.actionBindings.empty(); });
     if (observedEntity == world.Scene().entities.end())
@@ -387,20 +615,44 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
             if (text) { promptText = *text; observedPrompts.push_back(*text); }
         }
     };
-    const auto updateInstances = [&]()
-    {
-        for (const auto& [identity, instance] : instances)
+    std::size_t triggerBindingCount = 0;
+    for (const auto& entity : world.Scene().entities)
+        triggerBindingCount += entity.eventBindings.size();
+    std::size_t stateKeyCount = 0;
+    for (const auto& [_, keys] : stateWrites) stateKeyCount += keys.size();
+    RuntimeGameplaySession gameplay(inputPort, triggers,
+        [&](const double fixedDelta)
         {
-            (void)identity;
-            if (!lifecycle.UpdateInstance(instance, 1.0 / 60.0).Succeeded()) return false;
-        }
-        return true;
+            for (const auto& [identity, instance] : instances)
+            {
+                (void)identity;
+                if (!lifecycle.UpdateInstance(instance, fixedDelta).Succeeded())
+                    return false;
+            }
+            return true;
+        },
+        {world.Scene().entities.size(), instances.size(), triggerBindingCount,
+         inputResult.value->actions.size(),
+         launch.schemaVersion == 2
+             ? uiResult.value->prompts.size() +
+                   uiResult.value->textBindings.size() +
+                   uiResult.value->inputLabelBindings.size()
+             : 0U,
+         stateKeyCount});
+    const auto updateInstances = [&](std::set<std::string> pressed =
+                                         std::set<std::string>{},
+                                     std::set<std::string> held =
+                                         std::set<std::string>{})
+    {
+        return gameplay.Advance(1.0 / 60.0, std::move(pressed),
+                                std::move(held));
     };
     record();
     bool renderEvidence = false;
     bool gracefulStop = false;
     std::size_t drawCount = 0;
     Json evidenceCaptures = Json::array();
+    Json uiStateEvidence = Json::array();
     if (headless)
     {
         if (!publishReady())
@@ -409,20 +661,221 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
                 "LaunchValidationFailure");
         if (smokeInteractions)
         {
-            for (int cycle = 0; cycle < 2; ++cycle)
+            if (challengeMicrogame)
             {
-                const auto dispatch = dispatcher.Dispatch("Interact");
-                if (!dispatch.empty())
-                    return structuredFailure(dispatch.front().code,
-                        dispatch.front().message, "ActionDispatchFailure");
-                for (int frame = 0; frame < 120; ++frame)
+                if (collectibleEntityIds.empty() ||
+                    participantEntityId.empty() ||
+                    challengeBehaviorId.empty() ||
+                    challengePhaseKey.empty())
+                    return structuredFailure(
+                        "Runtime.Play.ChallengeEvidenceInvalid",
+                        "Challenge smoke evidence could not derive its verified "
+                        "behavior, participant, collectibles, or phase state.",
+                        "ObservedStateMismatch");
+                const auto dispatchAction = [&](std::string_view action)
                 {
-                    if (!updateInstances())
-                        return structuredFailure("Runtime.Script.UpdateFailed",
-                            "Script OnUpdate failed.", "ScriptLifecycleFailure");
-                    ++frames;
+                    const auto diagnostics = dispatcher.Dispatch(action);
+                    if (action == "Restart") gameplay.Reset();
+                    return diagnostics.empty();
+                };
+                const auto tick = [&](const int count)
+                {
+                    for (int index = 0; index < count; ++index)
+                    {
+                        if (!updateInstances()) return false;
+                        ++frames;
+                    }
+                    return true;
+                };
+                const auto collectRound = [&]
+                {
+                    for (const auto& collectibleId : collectibleEntityIds)
+                    {
+                        const auto collectible =
+                            world.GetPosition(world.Handle(collectibleId));
+                        if (!collectible.Succeeded() ||
+                            !world.SetPosition(world.Handle(
+                                participantEntityId),
+                                collectible.position).Succeeded() || !tick(1))
+                            return false;
+                    }
+                    return true;
+                };
+                recordArenaPhase();
+                if (!dispatchAction("StartChallenge") || !tick(1))
+                    return structuredFailure("Runtime.Play.ArenaStartFailed",
+                        "Challenge microgame could not arm and enter Running.",
+                        "ActionDispatchFailure");
+                recordArenaPhase();
+                if (timeoutConfigurationScenario)
+                {
+                    const auto timeoutTicks = static_cast<int>(
+                        std::ceil(authoredDuration * 60.0)) + 1;
+                    if (!tick(timeoutTicks))
+                        return structuredFailure("Runtime.Play.ArenaTimeoutFailed",
+                            "Challenge authored timeout lifecycle failed.",
+                            "ObservedStateMismatch");
+                    recordArenaPhase();
+                    if (!dispatchAction("Restart"))
+                        return structuredFailure(
+                            "Runtime.Play.ArenaRestartFailed",
+                            "Challenge timeout restart failed.",
+                            "ActionDispatchFailure");
+                    recordArenaPhase();
                 }
-                record();
+                else
+                {
+                    if (authoredTarget <= authoredCoreValue)
+                    {
+                        const auto collectible = world.GetPosition(
+                            world.Handle(collectibleEntityIds.front()));
+                        if (!collectible.Succeeded() ||
+                            !world.SetPosition(world.Handle(
+                                participantEntityId),
+                                collectible.position).Succeeded() || !tick(1))
+                            return structuredFailure(
+                                "Runtime.Play.ArenaCollectFailed",
+                                "Challenge single-collect win failed.",
+                                "ObservedStateMismatch");
+                        collectibleLifecycleEvidence = {
+                            {"mode", "SingleCollectWin"},
+                            {"score", authoredCoreValue},
+                            {"target", authoredTarget}};
+                    }
+                    else
+                    {
+                        const auto safePlayerPosition =
+                            world.GetPosition(world.Handle(
+                                participantEntityId));
+                        if (!safePlayerPosition.Succeeded() || !collectRound() ||
+                            !world.SetPosition(world.Handle(
+                                participantEntityId),
+                                safePlayerPosition.position).Succeeded())
+                            return structuredFailure(
+                                "Runtime.Play.ArenaCollectFailed",
+                                "Challenge first collectible round failed.",
+                                "ObservedStateMismatch");
+                        const auto pendingBefore = stateStore.SnapshotValue(
+                            gameModeEntity, challengeBehaviorId,
+                            "challenge.pending-respawns");
+                        const auto activeBefore = stateStore.SnapshotValue(
+                            gameModeEntity, challengeBehaviorId,
+                            "challenge.active-cores");
+                        const auto respawnTicks = static_cast<int>(
+                            std::ceil(authoredRespawnDelay * 60.0)) + 2;
+                        if (!tick(respawnTicks))
+                            return structuredFailure(
+                                "Runtime.Play.ArenaRespawnFailed",
+                                "Challenge authored respawn delay failed.",
+                                "ObservedStateMismatch");
+                        const auto pendingAfter = stateStore.SnapshotValue(
+                            gameModeEntity, challengeBehaviorId,
+                            "challenge.pending-respawns");
+                        const auto activeAfter = stateStore.SnapshotValue(
+                            gameModeEntity, challengeBehaviorId,
+                            "challenge.active-cores");
+                        const auto intValue = [](const auto& snapshot)
+                        {
+                            return snapshot &&
+                                std::holds_alternative<std::int32_t>(
+                                    snapshot->value)
+                                ? std::get<std::int32_t>(snapshot->value)
+                                : -1;
+                        };
+                        collectibleLifecycleEvidence = {
+                            {"activeAfterCollect", intValue(activeBefore)},
+                            {"activeAfterRespawn", intValue(activeAfter)},
+                            {"pendingAfterCollect", intValue(pendingBefore)},
+                            {"pendingAfterRespawn", intValue(pendingAfter)},
+                            {"respawnDelaySeconds", authoredRespawnDelay},
+                            {"respawnTicks", respawnTicks}};
+                        if (intValue(pendingBefore) == 0 ||
+                            intValue(activeBefore) != 0 ||
+                            intValue(pendingAfter) != 0 ||
+                            intValue(activeAfter) !=
+                                static_cast<int>(collectibleEntityIds.size()) ||
+                            !collectRound())
+                            return structuredFailure(
+                                "Runtime.Play.ArenaRespawnFailed",
+                                "Challenge collectible deactivate/respawn "
+                                "state did not match authored configuration "
+                                "(active " +
+                                    std::to_string(intValue(activeBefore)) +
+                                    "->" +
+                                    std::to_string(intValue(activeAfter)) +
+                                    ", pending " +
+                                    std::to_string(intValue(pendingBefore)) +
+                                    "->" +
+                                    std::to_string(intValue(pendingAfter)) +
+                                    ").",
+                                "ObservedStateMismatch");
+                    }
+                    recordArenaPhase();
+                    if (!dispatchAction("Restart"))
+                        return structuredFailure(
+                            "Runtime.Play.ArenaRestartFailed",
+                            "Challenge first restart failed.",
+                            "ActionDispatchFailure");
+                    recordArenaPhase();
+                    const auto timeoutTicks = static_cast<int>(
+                        std::ceil(authoredDuration * 60.0)) + 1;
+                    if (!dispatchAction("StartChallenge") || !tick(1) ||
+                        !tick(timeoutTicks))
+                        return structuredFailure(
+                            "Runtime.Play.ArenaTimeoutFailed",
+                            "Challenge timeout lifecycle failed.",
+                            "ObservedStateMismatch");
+                    recordArenaPhase();
+                    if (!dispatchAction("Restart"))
+                        return structuredFailure(
+                            "Runtime.Play.ArenaSecondRestartFailed",
+                            "Challenge second restart failed.",
+                            "ActionDispatchFailure");
+                    recordArenaPhase();
+                }
+                const auto expectedCounters = gameplay.Counters();
+                for (int cycle = 0; cycle < 50; ++cycle)
+                {
+                    if (!dispatchAction("StartChallenge") || !tick(1) ||
+                        !dispatchAction("Restart"))
+                    {
+                        restartCyclesPassed = false;
+                        break;
+                    }
+                    const auto pending = stateStore.SnapshotValue(gameModeEntity,
+                        challengeBehaviorId, "challenge.pending-respawns");
+                    const auto& counters = gameplay.Counters();
+                    restartCyclesPassed =
+                        pending &&
+                        std::holds_alternative<std::int32_t>(pending->value) &&
+                        std::get<std::int32_t>(pending->value) == 0 &&
+                        counters.runtimeEntities == expectedCounters.runtimeEntities &&
+                        counters.scriptInstances == expectedCounters.scriptInstances &&
+                        counters.triggerBindings == expectedCounters.triggerBindings &&
+                        counters.inputListeners == expectedCounters.inputListeners &&
+                        counters.uiBindings == expectedCounters.uiBindings &&
+                        counters.stateKeys == expectedCounters.stateKeys;
+                    if (!restartCyclesPassed) break;
+                    ++restartCycleCount;
+                }
+            }
+            else
+            {
+                for (int cycle = 0; cycle < 2; ++cycle)
+                {
+                    const auto dispatch = dispatcher.Dispatch("Interact");
+                    if (!dispatch.empty())
+                        return structuredFailure(dispatch.front().code,
+                            dispatch.front().message, "ActionDispatchFailure");
+                    for (int frame = 0; frame < 120; ++frame)
+                    {
+                        if (!updateInstances())
+                            return structuredFailure("Runtime.Script.UpdateFailed",
+                                "Script OnUpdate failed.", "ScriptLifecycleFailure");
+                        ++frames;
+                    }
+                    record();
+                }
             }
         }
         else
@@ -469,8 +922,10 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
         }
         bool recordedOpen = false;
         std::string bindingLabel;
+        const auto evidenceAction = uiResult.value->schemaVersion == 1
+            ? "Interact" : "StartChallenge";
         for (const auto& action : inputResult.value->actions)
-            if (action.actionId == "Interact" && !action.bindings.empty())
+            if (action.actionId == evidenceAction && !action.bindings.empty())
             {
                 bindingLabel = action.bindings.front().displayLabel;
                 break;
@@ -498,8 +953,37 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
                     "The named resize evidence frame could not resize the viewport.",
                     "RendererFailure");
             }
-            const bool inject = smokeInteractions && (frames == 30 || frames == 190);
-            const auto actions = render.PollLogicalActions(*inputResult.value, inject);
+            std::string_view injectedAction;
+            if (smokeInteractions)
+            {
+                if (challengeMicrogame && frames == 30)
+                    injectedAction = "StartChallenge";
+                else if (challengeMicrogame && frames == 190)
+                    injectedAction = "Restart";
+                else if (!challengeMicrogame &&
+                         (frames == 30 || frames == 190))
+                    injectedAction = "Interact";
+            }
+            auto actions =
+                render.PollLogicalActions(*inputResult.value, injectedAction);
+            if (!injectedAction.empty() &&
+                std::find(actions.begin(), actions.end(), injectedAction) ==
+                    actions.end())
+                actions.emplace_back(injectedAction);
+            if (render.ConsumeFocusLost())
+            {
+                inputPort.Clear();
+                render.ReleaseCursor();
+                const auto focusDiagnostics =
+                    eventDispatcher.Dispatch("FocusLost", "game-mode-focus-binding");
+                if (!focusDiagnostics.empty())
+                {
+                    ui.Shutdown();
+                    render.Shutdown();
+                    return structuredFailure(focusDiagnostics.front().code,
+                        focusDiagnostics.front().message, "EventDispatchFailure");
+                }
+            }
             for (const auto& action : actions)
             {
                 if (smokeInteractions && dispatcher.DispatchCount() == 1 && !recordedOpen)
@@ -511,8 +995,44 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
                     return structuredFailure(dispatch.front().code,
                         dispatch.front().message, "ActionDispatchFailure");
                 }
+                if (action == "Restart") gameplay.Reset();
             }
-            if (!updateInstances())
+            if (challengeMicrogame && smokeInteractions &&
+                ((frames >= 40 && frames <= 44) ||
+                 (frames >= 170 && frames <= 174)))
+            {
+                const auto index = frames >= 170
+                    ? static_cast<std::size_t>(frames - 170)
+                    : static_cast<std::size_t>(frames - 40);
+                if (index >= collectibleEntityIds.size())
+                {
+                    ui.Shutdown();
+                    render.Shutdown();
+                    return structuredFailure(
+                        "Runtime.Play.ChallengeEvidenceInvalid",
+                        "Graphical challenge evidence requires five verified "
+                        "collectible trigger sources.",
+                        "ObservedStateMismatch");
+                }
+                const auto core =
+                    world.GetPosition(world.Handle(
+                        collectibleEntityIds[index]));
+                if (!core.Succeeded() ||
+                    !world.SetPosition(
+                        world.Handle(participantEntityId),
+                        core.position).Succeeded())
+                {
+                    ui.Shutdown();
+                    render.Shutdown();
+                    return structuredFailure("Runtime.Play.ArenaCollectFailed",
+                        "Graphical challenge could not position the participant for "
+                        "deterministic trigger evidence.",
+                        "ObservedStateMismatch");
+                }
+            }
+            if (!updateInstances(
+                    std::set<std::string>(actions.begin(), actions.end()),
+                    render.HeldLogicalActions()))
             {
                 render.Shutdown();
                 return structuredFailure("Runtime.Script.UpdateFailed",
@@ -520,6 +1040,7 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
             }
             std::optional<RuntimeEvidenceCaptureRequest> captureRequest;
             if (smokeInteractions && launch.schemaVersion == 2 &&
+                runtimePrompt != nullptr &&
                 (frames == 0 || frames == 30 || frames == 190 || frames == 245))
             {
                 const auto snapshot = stateStore.Snapshot(
@@ -551,12 +1072,33 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
                 return structuredFailure("Runtime.Render.FrameFailed",
                     "Runtime renderer failed a frame.", "RendererFailure");
             }
+            if (challengeMicrogame &&
+                uiResult.value->schemaVersion == 2 &&
+                (frames == 0 || frames == 30 || frames == 174 ||
+                 frames == 190))
+            {
+                const auto phase = stateStore.SnapshotValue(gameModeEntity,
+                    challengeBehaviorId, challengePhaseKey);
+                Json visible = Json::array();
+                for (const auto& document : ui.VisibleDocuments())
+                    visible.push_back(document);
+                uiStateEvidence.push_back({
+                    {"drawCallCount", ui.LastDrawCallCount()},
+                    {"frame", frames},
+                    {"phase", phase &&
+                        std::holds_alternative<std::string>(phase->value)
+                            ? std::get<std::string>(phase->value)
+                            : std::string{}},
+                    {"visibleDocuments", std::move(visible)}});
+            }
             ++renderedFrameIndex;
             ++frames;
+            if (exitPort.Requested()) { gracefulStop = true; break; }
             if (smokeInteractions && frames >= 350) break;
         }
         record();
-        renderEvidence = render.HasMeaningfulPixels();
+        renderEvidence = uiResult.value->schemaVersion == 2
+            ? render.LastDrawCount() > 0 : render.HasMeaningfulPixels();
         drawCount = render.LastDrawCount();
         Json stylesheetHashes = Json::array();
         for (const auto& stylesheet : uiResult.value->stylesheets)
@@ -640,7 +1182,8 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
                 static_cast<double>(resized->height) / open->height;
             resizeAnchored = std::abs(resizedGap - expectedGap) <= 2.0;
         }
-        renderEvidence = renderEvidence && records.size() == 5U &&
+        if (uiResult.value->schemaVersion == 1)
+            renderEvidence = renderEvidence && records.size() == 5U &&
             open != records.end() && close != records.end() &&
             reopened != records.end() && resized != records.end() &&
             hasBaselineDifference(*open) && hasBaselineDifference(*close) &&
@@ -658,12 +1201,93 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
     const bool transitioned = observedHeights.size() == 3 &&
         observedHeights[0] < observedHeights[1] &&
         std::abs(observedHeights[0] - observedHeights[2]) < 0.01;
+    const bool challengeAccepted = timeoutConfigurationScenario
+        ? observedPhases.size() == 4 &&
+            observedPhases[0] == "PreStart" &&
+            observedPhases[1] == "Running" &&
+            observedPhases[2] == "Timeout" &&
+            observedPhases[3] == "PreStart"
+        : observedPhases.size() == 6 &&
+            observedPhases[0] == "PreStart" &&
+            observedPhases[1] == "Running" &&
+            observedPhases[2] == "Won" &&
+            observedPhases[3] == "PreStart" &&
+            observedPhases[4] == "Timeout" &&
+            observedPhases[5] == "PreStart";
+    const auto uiEvidenceMatches = [&](const std::size_t index,
+        std::string_view phase, std::string_view document)
+    {
+        if (index >= uiStateEvidence.size()) return false;
+        const auto& evidence = uiStateEvidence[index];
+        if (evidence.value("phase", std::string{}) != phase ||
+            evidence.value("drawCallCount", 0U) == 0U ||
+            !evidence.contains("visibleDocuments") ||
+            !evidence["visibleDocuments"].is_array() ||
+            evidence["visibleDocuments"].size() != 1)
+            return false;
+        return evidence["visibleDocuments"].front().get<std::string>() ==
+            document;
+    };
+    const auto visibilityDocumentFor = [&](std::string_view phase)
+    {
+        const auto found = std::find_if(
+            uiResult.value->documents.begin(),
+            uiResult.value->documents.end(),
+            [&](const auto& document)
+            {
+                return std::find(document.visibilityEqualsAny.begin(),
+                    document.visibilityEqualsAny.end(), phase) !=
+                    document.visibilityEqualsAny.end();
+            });
+        return found == uiResult.value->documents.end()
+            ? std::string{} : found->documentId;
+    };
+    const bool graphicalChallengeAccepted =
+        uiStateEvidence.size() == 4 &&
+        uiEvidenceMatches(0, "PreStart",
+            visibilityDocumentFor("PreStart")) &&
+        uiEvidenceMatches(1, "Running",
+            visibilityDocumentFor("Running")) &&
+        uiEvidenceMatches(2, "Won", visibilityDocumentFor("Won")) &&
+        uiEvidenceMatches(3, "PreStart",
+            visibilityDocumentFor("PreStart"));
+    const bool smokeAccepted = challengeMicrogame
+        ? (headless
+            ? challengeAccepted && restartCyclesPassed &&
+                restartCycleCount == 50
+            : graphicalChallengeAccepted)
+        : transitioned;
     const Json observed = {{"drawCount", drawCount}, {"entityId", observedEntity->entityId},
         {"evidenceCaptures", evidenceCaptures},
+        {"uiStateEvidence", uiStateEvidence},
         {"meaningfulRendererPixels", renderEvidence}, {"positionY", observedHeights},
         {"promptText", observedPrompts},
-        {"transition", transitioned ? "ClosedOpenClosed" : "Incomplete"}};
-    if ((smokeInteractions && !transitioned) || (!headless && !renderEvidence))
+        {"authoredConfiguration", authoredChallengeConfiguration},
+        {"challengePhases", observedPhases},
+        {"collectibleLifecycle", collectibleLifecycleEvidence},
+        {"restartCycles", {
+            {"completed", restartCycleCount},
+            {"passed", restartCyclesPassed}}},
+        {"ownershipCounters", {
+            {"inputListeners", gameplay.Counters().inputListeners},
+            {"runtimeEntities", gameplay.Counters().runtimeEntities},
+            {"scriptInstances", gameplay.Counters().scriptInstances},
+            {"stateKeys", gameplay.Counters().stateKeys},
+            {"triggerBindings", gameplay.Counters().triggerBindings},
+            {"uiBindings", gameplay.Counters().uiBindings}}},
+        {"simulationTicks", gameplay.TickCount()},
+        {"transition", challengeMicrogame
+            ? (headless
+                ? (challengeAccepted
+                    ? (timeoutConfigurationScenario
+                        ? "ChallengeTimeoutConfigurationAccepted"
+                        : "ChallengeAccepted")
+                    : "Incomplete")
+                : (graphicalChallengeAccepted
+                    ? "ChallengeUiAccepted" : "Incomplete"))
+            : (transitioned ? "ClosedOpenClosed" : "Incomplete")}};
+    if ((smokeInteractions && !smokeAccepted) ||
+        (!headless && !renderEvidence))
     {
         writeResult("Failed", "ObservedStateMismatch", frames,
             dispatcher.DispatchCount(), observed);

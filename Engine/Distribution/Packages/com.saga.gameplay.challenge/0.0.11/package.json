@@ -16,12 +16,19 @@
       "kind": "apiSurface",
       "module": "collectibles.highlevel",
       "path": "Packages/com.saga.gameplay.challenge/0.0.11/api/collectibles.highlevel.surface.json"
+    },
+    {
+      "artifactId": "com.saga.gameplay.challenge.collectibles-instrumentation-api-surface",
+      "kind": "apiSurface",
+      "module": "collectibles.instrumentation",
+      "path": "Packages/com.saga.gameplay.challenge/0.0.11/api/collectibles.instrumentation.surface.json"
     }
   ],
   "license": "MPL-2.0",
   "modules": [
     "challenge.core.highlevel",
-    "collectibles.highlevel"
+    "collectibles.highlevel",
+    "collectibles.instrumentation"
   ],
   "origin": "SagaEngine 0.0.11 built-in distribution",
   "packageId": "com.saga.gameplay.challenge",

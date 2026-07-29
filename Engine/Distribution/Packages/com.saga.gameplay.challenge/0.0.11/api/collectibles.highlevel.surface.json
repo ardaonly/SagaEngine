@@ -1,6 +1,13 @@
 {
   "apis": [
     {
+      "apiId": "CollectiblesHighLevel.AdvanceRespawnTime",
+      "blockProjection": "Supported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
+      "visibility": "Public"
+    },
+    {
       "apiId": "CollectiblesHighLevel.Collect",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
@@ -29,6 +36,13 @@
       "visibility": "Public"
     },
     {
+      "apiId": "CollectiblesHighLevel.Reset",
+      "blockProjection": "Supported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
+      "visibility": "Public"
+    },
+    {
       "apiId": "CollectiblesHighLevel.ScheduleRespawn",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
@@ -51,7 +65,11 @@
     }
   ],
   "module": "collectibles.highlevel",
-  "runtimeReadiness": "ContractOnly",
+  "runtimeImplementation": {
+    "implementationType": "SagaEngine.Scripting.Gameplay.CollectiblesHighLevel",
+    "managedReferenceArtifactId": "com.saga.gameplay.foundation.managed-reference"
+  },
+  "runtimeReadiness": "RuntimeBacked",
   "schemaVersion": 1,
   "surfaceId": "com.saga.gameplay.challenge/collectibles.highlevel"
 }

@@ -24,6 +24,8 @@ struct CSharpScriptHostOptions
     ISagaScriptStatePort* statePort = nullptr;   ///< Optional typed application state facade.
     bool grantStatePortAccess = false;           ///< Explicit host grant for the optional state port.
     ScriptLogSink logSink;                       ///< Optional managed script log sink.
+    ISagaScriptInputPort* inputPort = nullptr;   ///< Optional verified logical input snapshot.
+    ISagaScriptRuntimePort* runtimePort = nullptr; ///< Optional generic runtime requests.
 };
 
 /// Explicit native request for one public instance int Method(int, int) call.

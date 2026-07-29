@@ -107,7 +107,7 @@ public static unsafe class NativeBridge
 
         try
         {
-            if (callbacks is not null && callbacks->Version != 2)
+            if (callbacks is not null && callbacks->Version != 3)
             {
                 WriteError(errorBuffer, errorBufferLength, "Native callback table version mismatch.");
                 return BridgeStatus.InvalidArgument;

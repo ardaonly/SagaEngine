@@ -74,6 +74,9 @@ public:
         m_previous.reset();
     }
 
+    /// Clear only the aggregate being rebuilt while preserving edge history.
+    void ClearCurrent() noexcept { m_current.reset(); }
+
 private:
     std::bitset<kKeyCount> m_current;
     std::bitset<kKeyCount> m_previous;
@@ -136,6 +139,13 @@ struct MouseState
         absX = absY = relX = relY = 0;
         scrollX = scrollY = 0.f;
     }
+
+    void ClearCurrent() noexcept
+    {
+        buttonsCurrent.reset();
+        relX = relY = 0;
+        scrollX = scrollY = 0.f;
+    }
 };
 
 // Gamepad State
@@ -195,6 +205,14 @@ struct GamepadState
         buttonsPrevious.reset();
         axes.fill(0.f);
     }
+
+    void ClearCurrent() noexcept
+    {
+        connected = false;
+        deviceId = kInvalidDeviceId;
+        buttonsCurrent.reset();
+        axes.fill(0.f);
+    }
 };
 
 // Composite Device State
@@ -225,6 +243,15 @@ struct InputState
         keyboard.Clear();
         mouse.Clear();
         gamepad.Clear();
+    }
+
+    /// Starts an aggregate rebuild while retaining the previous merged snapshot.
+    void BeginAggregateFrame() noexcept
+    {
+        FlipFrame();
+        keyboard.ClearCurrent();
+        mouse.ClearCurrent();
+        gamepad.ClearCurrent();
     }
 };
 

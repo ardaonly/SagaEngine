@@ -20,6 +20,14 @@ internal static class ApiSurfaceAggregation
             var prefix = distributionRoot.TrimEnd(Path.DirectorySeparatorChar) +
                 Path.DirectorySeparatorChar;
             var identities = new Dictionary<string, string>(StringComparer.Ordinal);
+            var lockedManagedReferences = lockDocument.RootElement.GetProperty("packages")
+                .EnumerateArray().SelectMany(package =>
+                    package.GetProperty("artifacts").EnumerateArray())
+                .Where(artifact =>
+                    artifact.GetProperty("kind").GetString() == "managedReference")
+                .Select(artifact =>
+                    artifact.GetProperty("artifactId").GetString() ?? "")
+                .ToHashSet(StringComparer.Ordinal);
             var packages = lockDocument.RootElement.GetProperty("packages").EnumerateArray()
                 .OrderBy(item => item.GetProperty("packageId").GetString(), StringComparer.Ordinal)
                 .ThenBy(item => item.GetProperty("version").GetString(), StringComparer.Ordinal);
@@ -60,6 +68,31 @@ internal static class ApiSurfaceAggregation
                         readiness is not ("RuntimeBacked" or "ContractOnly"))
                         throw new InvalidOperationException(
                             "API surface identity or runtime readiness is invalid.");
+                    if (readiness == "RuntimeBacked")
+                    {
+                        var implementation =
+                            root.GetProperty("runtimeImplementation");
+                        var owner = implementation.GetProperty(
+                            "managedReferenceArtifactId").GetString() ?? "";
+                        var implementationType = implementation.GetProperty(
+                            "implementationType").GetString() ?? "";
+                        var expectedType = module switch
+                        {
+                            "challenge.core.highlevel" =>
+                                "SagaEngine.Scripting.Gameplay.ChallengeHighLevel",
+                            "collectibles.highlevel" =>
+                                "SagaEngine.Scripting.Gameplay.CollectiblesHighLevel",
+                            "collectibles.instrumentation" =>
+                                "SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleInstrumentation",
+                            _ => "",
+                        };
+                        if (!lockedManagedReferences.Contains(owner) ||
+                            owner !=
+                                "com.saga.gameplay.foundation.managed-reference" ||
+                            implementationType != expectedType)
+                            throw new InvalidOperationException(
+                                "RuntimeBacked API surface lacks its locked allowlisted implementation owner.");
+                    }
                     AppendApis(
                         root, packageId, packageVersion, artifactId, module,
                         surfaceId, readiness, identities, allowed, diagnostics);

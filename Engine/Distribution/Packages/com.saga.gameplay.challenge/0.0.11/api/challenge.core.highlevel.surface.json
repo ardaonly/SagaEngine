@@ -8,6 +8,13 @@
       "visibility": "Public"
     },
     {
+      "apiId": "ChallengeHighLevel.AdvanceTime",
+      "blockProjection": "Supported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
+      "visibility": "Public"
+    },
+    {
       "apiId": "ChallengeHighLevel.Arm",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
@@ -86,7 +93,11 @@
     }
   ],
   "module": "challenge.core.highlevel",
-  "runtimeReadiness": "ContractOnly",
+  "runtimeImplementation": {
+    "implementationType": "SagaEngine.Scripting.Gameplay.ChallengeHighLevel",
+    "managedReferenceArtifactId": "com.saga.gameplay.foundation.managed-reference"
+  },
+  "runtimeReadiness": "RuntimeBacked",
   "schemaVersion": 1,
   "surfaceId": "com.saga.gameplay.challenge/challenge.core.highlevel"
 }

@@ -231,7 +231,8 @@ PlayPreparationResult PlayPreparationPipeline::Prepare(
     if (!ReadJson(scriptPaths["scripts.assembly-manifest"], assemblyManifest) ||
         !ReadJson(scriptPaths["scripts.behaviors"], behaviors) ||
         !ReadJson(scriptPaths["scripts.capabilities"], capabilities) ||
-        behaviors.value("schemaVersion", -1) != 2 ||
+        (behaviors.value("schemaVersion", -1) != 2 &&
+         behaviors.value("schemaVersion", -1) != 3) ||
         !behaviors.contains("behaviors") || !behaviors["behaviors"].is_array() ||
         std::any_of(behaviors["behaviors"].begin(), behaviors["behaviors"].end(),
             [](const Json& behavior)
@@ -242,7 +243,7 @@ PlayPreparationResult PlayPreparationPipeline::Prepare(
         !capabilities.contains("capabilities") || !capabilities["capabilities"].is_array())
     {
         result.diagnostics.push_back(Diagnostic("Play.Prepare.ScriptMetadataInvalid",
-            "Assembly, behavior schema v2 state policy, and capability manifests are required."));
+            "Assembly, behavior schema v2/v3 access policy, and capability manifests are required."));
         return result;
     }
     const auto generationId = packageCurrent.value("generationId", std::string{});
@@ -363,7 +364,7 @@ PlayPreparationResult PlayPreparationPipeline::Prepare(
     launch.scriptSourceRevision = scriptCurrent.value("sourceRevision", std::string{});
     launch.scriptSourceSetHash = scriptCurrent.value("sourceSetHash", std::string{});
     launch.runtimeBridge = {bridgeReference.value("artifactId", std::string{}), bridgeHash,
-        "NativeCallbackTable.v2+NamedAction.v1",
+        "NativeCallbackTable.v3+NamedAction.v1",
         bridgeReference.value("targetFramework", std::string{}),
         bridgeReference.value("runtimeCompatibility", std::string{}),
         bridgeReference.value("trust", std::string{})};

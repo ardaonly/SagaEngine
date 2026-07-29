@@ -120,4 +120,8 @@ internal sealed record WorkerStateAccess(string Operation, string ValueType, str
 internal sealed record WorkerBehavior(string BehaviorId, string DeclaringType, string SourceFile,
     string SourceHash, SourceSpan Span, IReadOnlyList<WorkerMethod> LifecycleMethods,
     IReadOnlyList<WorkerAction> Actions, IReadOnlyList<string> Capabilities,
-    IReadOnlyList<WorkerStateAccess> StateAccesses);
+    IReadOnlyList<WorkerStateAccess> StateAccesses,
+    IReadOnlyList<WorkerStateAccess> ConfigurationAccesses,
+    IReadOnlyList<WorkerStateAccess> InputAccesses,
+    IReadOnlyList<string> EntityIds,
+    IReadOnlyList<string> RuntimeRequests);

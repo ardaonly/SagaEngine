@@ -489,10 +489,10 @@ internal static class AssetSourceManifestReports
         var sceneId = FirstString(root.Value, "sceneId", fallback: "");
         var schemaVersion = ReadIntString(root.Value, "schemaVersion");
         var sceneStatus = "Passed";
-        if (schemaVersion != "1")
+        if (schemaVersion is not ("1" or "2"))
         {
             sceneStatus = "Failed";
-            diagnostics.Add(Error("Project.SceneEntity.SchemaVersion", "SceneEntity", scene.RelativePath, "Scene schemaVersion must be 1."));
+            diagnostics.Add(Error("Project.SceneEntity.SchemaVersion", "SceneEntity", scene.RelativePath, "Scene schemaVersion must be 1 or 2."));
         }
         if (string.IsNullOrWhiteSpace(sceneId))
         {

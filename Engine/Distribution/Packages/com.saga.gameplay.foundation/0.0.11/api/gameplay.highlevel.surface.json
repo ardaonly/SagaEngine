@@ -25,6 +25,18 @@
       "visibility": "Public"
     },
     {
+      "apiId": "ScriptEntity.TryGetPosition",
+      "blockProjection": "Supported",
+      "capability": "World.Transform.ReadWrite",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "ScriptEntity.TrySetPosition",
+      "blockProjection": "Supported",
+      "capability": "World.Transform.ReadWrite",
+      "visibility": "Public"
+    },
+    {
       "apiId": "NativeBridge",
       "blockProjection": "Filtered",
       "capability": "Internal",
@@ -32,6 +44,7 @@
     }
   ],
   "module": "gameplay.highlevel",
+  "runtimeReadiness": "ContractOnly",
   "schemaVersion": 1,
   "surfaceId": "com.saga.gameplay.foundation/gameplay.highlevel"
 }

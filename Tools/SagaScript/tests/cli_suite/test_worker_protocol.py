@@ -70,7 +70,7 @@ def test_project_worker_is_deterministic_across_clean_roots() -> None:
         }
         assert first_manifest["sourceRevision"] == "revision-1"
         behavior = json.loads(first_artifacts["scripts.behaviors"])
-        assert behavior["schemaVersion"] == 2
+        assert behavior["schemaVersion"] == 3
         assert behavior["behaviors"][0]["behaviorId"] == "StarterArena.DoorController"
         assert [item["name"] for item in behavior["behaviors"][0]["lifecycleMethods"]] == ["OnStart", "OnUpdate"]
         assert behavior["behaviors"][0]["stateAccesses"] == [{
@@ -108,7 +108,7 @@ def test_arena_rush_worker_aggregates_contract_only_surfaces() -> None:
         assert identities == sorted(identities)
         assert any(
             item["apiId"] == "ChallengeHighLevel.StartOnce"
-            and item["runtimeReadiness"] == "ContractOnly"
+            and item["runtimeReadiness"] == "RuntimeBacked"
             and item["packageId"] == "com.saga.gameplay.challenge"
             and item["sourcePath"].endswith("GameplayContracts.cs")
             for item in allowed
@@ -163,7 +163,7 @@ public sealed class DoorController : SagaBehavior
         assert result.returncode == 0, result.stderr + result.stdout
         _, artifacts = read_current_artifacts(output)
         behavior = json.loads(artifacts["scripts.behaviors"])
-        assert behavior["schemaVersion"] == 2
+        assert behavior["schemaVersion"] == 3
         assert behavior["behaviors"][0]["stateAccesses"] == [
             {"operation": "SetBool", "valueType": "Bool", "key": "cycle.flag"},
             {"operation": "SetBool", "valueType": "Bool", "key": "door.target-open"},

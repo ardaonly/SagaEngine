@@ -182,6 +182,28 @@ struct RuntimeScriptActionBinding
     std::string namedActionId;
 };
 
+struct RuntimeTriggerParticipant
+{
+    std::array<double, 3> bounds{1.0, 1.0, 1.0};
+    std::string category;
+};
+
+struct RuntimeTriggerVolume
+{
+    std::array<double, 3> bounds{1.0, 1.0, 1.0};
+    bool enabled = true;
+    std::string acceptedCategory;
+};
+
+struct RuntimeScriptEventBinding
+{
+    std::string eventType;
+    std::string sourceEntityId;
+    std::string targetEntityId;
+    std::string behaviorTypeId;
+    std::string namedActionId;
+};
+
 struct RuntimeSceneEntity
 {
     std::string entityId;
@@ -191,6 +213,10 @@ struct RuntimeSceneEntity
     std::optional<RuntimeMeshRenderer> meshRenderer;
     std::optional<RuntimeScriptBehavior> scriptBehavior;
     std::vector<RuntimeScriptActionBinding> actionBindings;
+    std::optional<RuntimeTriggerParticipant> triggerParticipant;
+    std::optional<RuntimeTriggerVolume> triggerVolume;
+    std::vector<RuntimeScriptEventBinding> eventBindings;
+    bool active = true;
     bool primaryCamera = false;
     double verticalFovDegrees = 60.0;
     double nearClip = 0.1;
@@ -203,6 +229,7 @@ struct RuntimeSceneEntity
 
 struct RuntimeSceneArtifact
 {
+    std::uint32_t schemaVersion = 1;
     std::string artifactId;
     std::string contentHash;
     std::string sourceHash;
@@ -240,6 +267,11 @@ struct RuntimeUiResource
     std::string hash;
     std::string documentId;
     std::string family;
+    std::string visibilityBehaviorId;
+    std::string visibilityEntityId;
+    std::string visibilityStateKey;
+    std::string visibilityValueType;
+    std::vector<std::string> visibilityEqualsAny;
 };
 
 struct RuntimeUiPromptBinding
@@ -256,6 +288,7 @@ struct RuntimeUiPromptBinding
 
 struct RuntimeUiSetArtifact
 {
+    std::uint32_t schemaVersion = 1;
     std::string artifactId;
     std::string contentHash;
     std::string sourceHash;
@@ -265,6 +298,25 @@ struct RuntimeUiSetArtifact
     std::vector<RuntimeUiResource> stylesheets;
     std::vector<RuntimeUiResource> fonts;
     std::vector<RuntimeUiPromptBinding> prompts;
+    struct TypedTextBinding
+    {
+        std::string behaviorId;
+        std::string documentId;
+        std::string elementId;
+        std::string entityId;
+        std::string format;
+        std::string stateKey;
+        std::string valueType;
+    };
+    struct InputLabelBinding
+    {
+        std::string actionId;
+        std::string documentId;
+        std::string elementId;
+        std::string format;
+    };
+    std::vector<TypedTextBinding> textBindings;
+    std::vector<InputLabelBinding> inputLabelBindings;
 };
 
 template <typename T>
@@ -309,6 +361,28 @@ private:
     };
     INamedActionTarget& target_;
     std::map<std::string, std::vector<BoundAction>> bindings_;
+    std::uint64_t dispatchCount_ = 0;
+};
+
+class ScriptEventBindingDispatcher
+{
+public:
+    explicit ScriptEventBindingDispatcher(INamedActionTarget& target) : target_(target) {}
+    [[nodiscard]] std::vector<RuntimeDiagnostic> Build(const RuntimeSceneArtifact& scene);
+    [[nodiscard]] std::vector<RuntimeDiagnostic> Dispatch(
+        std::string_view eventType, std::string_view sourceEntityId);
+    void Reset() noexcept { dispatchCount_ = 0; }
+    [[nodiscard]] std::uint64_t DispatchCount() const noexcept { return dispatchCount_; }
+
+private:
+    struct BoundEvent
+    {
+        std::string targetEntityId;
+        std::string behaviorTypeId;
+        std::string namedActionId;
+    };
+    INamedActionTarget& target_;
+    std::map<std::pair<std::string, std::string>, std::vector<BoundEvent>> bindings_;
     std::uint64_t dispatchCount_ = 0;
 };
 } // namespace SagaRuntime::Play

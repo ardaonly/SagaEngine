@@ -159,9 +159,12 @@ def test_arena_rush_source_truth_and_structural_failures() -> None:
             "respawnDelaySeconds": 2,
             "targetProgress": 100,
         }
+        assert [item["type"] for item in
+                entities["challenge-start-marker"]["components"]] == [
+            "Transform", "TriggerVolume", "ScriptEventBinding",
+        ]
         for marker in (
-            "challenge-start-marker", "spawn-01", "spawn-02", "spawn-03",
-            "spawn-04", "spawn-05",
+            "spawn-01", "spawn-02", "spawn-03", "spawn-04", "spawn-05",
         ):
             assert [item["type"] for item in entities[marker]["components"]] == [
                 "Transform",

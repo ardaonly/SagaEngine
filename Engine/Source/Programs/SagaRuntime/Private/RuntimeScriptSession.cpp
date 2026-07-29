@@ -3,6 +3,8 @@
 #include "RuntimeScriptSession.h"
 
 #include <cmath>
+#include <algorithm>
+#include <iterator>
 
 namespace SagaRuntimeApp
 {
@@ -57,6 +59,94 @@ Scripting::ScriptEntityPositionResult RuntimeScriptWorld::GetPosition(
     const auto& position = scene_.entities[index].transform.position;
     result.position = {static_cast<float>(position[0]), static_cast<float>(position[1]),
                        static_cast<float>(position[2])};
+    result.succeeded = true;
+    return result;
+}
+
+Scripting::ScriptEntityCreateResult RuntimeScriptWorld::FindEntity(
+    const std::string& stableId) const
+{
+    Scripting::ScriptEntityCreateResult result;
+    result.entity = Handle(stableId);
+    result.succeeded = result.entity.IsValid();
+    return result;
+}
+
+Scripting::ScriptHostOperationResult RuntimeScriptWorld::SetActive(
+    const Scripting::ScriptEntityHandle entity, const bool active)
+{
+    Scripting::ScriptHostOperationResult result;
+    const auto index = entity.value == 0 ? scene_.entities.size() : entity.value - 1;
+    if (index >= scene_.entities.size()) return result;
+    scene_.entities[index].active = active;
+    result.succeeded = true;
+    return result;
+}
+
+Scripting::ScriptStateBoolResult RuntimeScriptWorld::GetActive(
+    const Scripting::ScriptEntityHandle entity) const
+{
+    Scripting::ScriptStateBoolResult result;
+    const auto index = entity.value == 0 ? scene_.entities.size() : entity.value - 1;
+    if (index >= scene_.entities.size()) return result;
+    result.value = scene_.entities[index].active;
+    result.succeeded = true;
+    return result;
+}
+
+void RuntimeScriptInputPort::Advance(
+    std::set<std::string> pressed, std::set<std::string> held)
+{
+    released_.clear();
+    std::set_difference(held_.begin(), held_.end(), held.begin(), held.end(),
+        std::inserter(released_, released_.end()));
+    pressed_ = std::move(pressed);
+    held_ = std::move(held);
+}
+
+void RuntimeScriptInputPort::Clear()
+{
+    pressed_.clear();
+    held_.clear();
+    released_.clear();
+}
+
+bool RuntimeScriptInputPort::Allowed(
+    const Scripting::ScriptStateContext& context, const std::string& action) const
+{
+    const auto behavior = policy_.find(context.behaviorId);
+    return behavior != policy_.end() && behavior->second.contains(action);
+}
+
+Scripting::ScriptStateBoolResult RuntimeScriptInputPort::Query(
+    const Scripting::ScriptStateContext& context, const std::string& action,
+    const Scripting::ScriptLogicalInputState state) const
+{
+    Scripting::ScriptStateBoolResult result;
+    if (!Allowed(context, action)) return result;
+    result.succeeded = true;
+    result.value = state == Scripting::ScriptLogicalInputState::Pressed
+        ? pressed_.contains(action)
+        : state == Scripting::ScriptLogicalInputState::Held
+            ? held_.contains(action) : released_.contains(action);
+    return result;
+}
+
+Scripting::ScriptStateDoubleResult RuntimeScriptInputPort::GetValue(
+    const Scripting::ScriptStateContext& context, const std::string& action) const
+{
+    Scripting::ScriptStateDoubleResult result;
+    if (!Allowed(context, action)) return result;
+    result.succeeded = true;
+    result.value = held_.contains(action) ? 1.0 : 0.0;
+    return result;
+}
+
+Scripting::ScriptHostOperationResult RuntimeExitPort::RequestExit(
+    const Scripting::ScriptStateContext&)
+{
+    requested_ = true;
+    Scripting::ScriptHostOperationResult result;
     result.succeeded = true;
     return result;
 }

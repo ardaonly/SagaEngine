@@ -115,7 +115,9 @@ bool ValidateWrapper(const Json& root, std::string_view type,
 {
     if (!ExactFields(root, {"artifactId", "artifactType", "contentHash", "cooker",
                             "dependencies", "payload", "provenance", "schemaVersion", "sourceHash"}) ||
-        root.value("schemaVersion", -1) != 1 || root.value("artifactType", std::string{}) != type ||
+        (root.value("schemaVersion", -1) != 1 &&
+         root.value("schemaVersion", -1) != 2) ||
+        root.value("artifactType", std::string{}) != type ||
         !NonEmptyString(root, "artifactId") || !root.contains("payload") || !root["payload"].is_object() ||
         !IsSha256(root.value("contentHash", std::string{})) ||
         !IsSha256(root.value("sourceHash", std::string{})))
@@ -275,7 +277,7 @@ CanonicalManifestResult ParseCanonicalManifest(std::string_view bytes,
                               "runtimeCompatibility", "targetFramework", "trust"}) ||
         !NonEmptyString(bridge, "abi") || !NonEmptyString(bridge, "logicalReferenceId") ||
         !NonEmptyString(bridge, "targetFramework") || !NonEmptyString(bridge, "runtimeCompatibility") ||
-        bridge.value("abi", std::string{}) != "NativeCallbackTable.v2+NamedAction.v1" ||
+        bridge.value("abi", std::string{}) != "NativeCallbackTable.v3+NamedAction.v1" ||
         bridge.value("targetFramework", std::string{}) != "net10.0" ||
         bridge.value("runtimeCompatibility", std::string{}) != "0.0.11" ||
         bridge.value("trust", std::string{}) != "TrustedEngineDistribution" ||
@@ -498,7 +500,13 @@ ArtifactLoadResult<RuntimeSceneArtifact> LoadRuntimeSceneArtifact(
     ArtifactLoadResult<RuntimeSceneArtifact> result;
     if (!ValidateWrapper(root, "runtime.scene", result.diagnostics)) return result;
     const auto& payload = root["payload"];
-    if (!ExactFields(payload, {"entities", "sceneId"}) || !NonEmptyString(payload, "sceneId") ||
+    const auto sceneSchema = payload.value("schemaVersion", 1);
+    const bool payloadFieldsValid = sceneSchema == 1
+        ? ExactFields(payload, {"entities", "sceneId"}) ||
+          ExactFields(payload, {"entities", "sceneId", "schemaVersion"})
+        : sceneSchema == 2 &&
+          ExactFields(payload, {"entities", "sceneId", "schemaVersion"});
+    if (!payloadFieldsValid || !NonEmptyString(payload, "sceneId") ||
         !payload.contains("entities") || !payload["entities"].is_array())
     {
         result.diagnostics.push_back(Error("Runtime.Scene.PayloadInvalid",
@@ -506,6 +514,7 @@ ArtifactLoadResult<RuntimeSceneArtifact> LoadRuntimeSceneArtifact(
         return result;
     }
     RuntimeSceneArtifact scene;
+    scene.schemaVersion = static_cast<std::uint32_t>(sceneSchema);
     scene.artifactId = root["artifactId"].get<std::string>();
     scene.contentHash = root["contentHash"].get<std::string>();
     scene.sourceHash = root["sourceHash"].get<std::string>();
@@ -544,7 +553,9 @@ ArtifactLoadResult<RuntimeSceneArtifact> LoadRuntimeSceneArtifact(
             if (!NonEmptyString(component, "type"))
             { result.diagnostics.push_back(Error("Runtime.Scene.ComponentInvalid", "Component type is required.", entity.entityId)); continue; }
             const auto type = component["type"].get<std::string>();
-            if (!componentTypes.insert(type).second)
+            const bool repeatable =
+                type == "ScriptActionBinding" || type == "ScriptEventBinding";
+            if (!repeatable && !componentTypes.insert(type).second)
             { result.diagnostics.push_back(Error("Runtime.Scene.ComponentDuplicate", "Singular component type is duplicated.", entity.entityId + "#" + type)); continue; }
             if (type == "Transform")
             {
@@ -595,6 +606,63 @@ ArtifactLoadResult<RuntimeSceneArtifact> LoadRuntimeSceneArtifact(
                 else entity.actionBindings.push_back({component["inputActionId"].get<std::string>(),
                     component["behaviorTypeId"].get<std::string>(), component["namedActionId"].get<std::string>()});
             }
+            else if (type == "TriggerParticipant" && sceneSchema == 2)
+            {
+                RuntimeTriggerParticipant participant;
+                if (!ExactFields(component, {"bounds", "category", "type"}) ||
+                    !NumberArray(component, "bounds", participant.bounds) ||
+                    std::any_of(participant.bounds.begin(), participant.bounds.end(),
+                        [](const double value) { return value <= 0.0; }) ||
+                    !NonEmptyString(component, "category"))
+                    result.diagnostics.push_back(Error("Runtime.Scene.TriggerParticipantInvalid",
+                        "TriggerParticipant requires positive bounds and category.", entity.entityId));
+                else
+                {
+                    participant.category = component["category"].get<std::string>();
+                    entity.triggerParticipant = std::move(participant);
+                }
+            }
+            else if (type == "TriggerVolume" && sceneSchema == 2)
+            {
+                RuntimeTriggerVolume volume;
+                if (!ExactFields(component, {"acceptedCategory", "bounds", "enabled", "type"}) ||
+                    !NumberArray(component, "bounds", volume.bounds) ||
+                    std::any_of(volume.bounds.begin(), volume.bounds.end(),
+                        [](const double value) { return value <= 0.0; }) ||
+                    !component.contains("enabled") || !component["enabled"].is_boolean() ||
+                    !NonEmptyString(component, "acceptedCategory"))
+                    result.diagnostics.push_back(Error("Runtime.Scene.TriggerVolumeInvalid",
+                        "TriggerVolume requires positive bounds, enabled, and acceptedCategory.",
+                        entity.entityId));
+                else
+                {
+                    volume.enabled = component["enabled"].get<bool>();
+                    volume.acceptedCategory =
+                        component["acceptedCategory"].get<std::string>();
+                    entity.triggerVolume = std::move(volume);
+                }
+            }
+            else if (type == "ScriptEventBinding" && sceneSchema == 2)
+            {
+                if (!ExactFields(component, {"behaviorTypeId", "eventType", "namedActionId",
+                                              "sourceEntityId", "targetEntityId", "type"}) ||
+                    !NonEmptyString(component, "behaviorTypeId") ||
+                    !NonEmptyString(component, "namedActionId") ||
+                    !NonEmptyString(component, "sourceEntityId") ||
+                    !NonEmptyString(component, "targetEntityId") ||
+                    (component.value("eventType", std::string{}) != "TriggerEnter" &&
+                     component.value("eventType", std::string{}) != "TriggerExit" &&
+                     component.value("eventType", std::string{}) != "FocusLost"))
+                    result.diagnostics.push_back(Error("Runtime.Scene.EventBindingInvalid",
+                        "ScriptEventBinding identities and event type are invalid.",
+                        entity.entityId));
+                else entity.eventBindings.push_back({
+                    component["eventType"].get<std::string>(),
+                    component["sourceEntityId"].get<std::string>(),
+                    component["targetEntityId"].get<std::string>(),
+                    component["behaviorTypeId"].get<std::string>(),
+                    component["namedActionId"].get<std::string>()});
+            }
             else if (type == "Camera")
             {
                 const auto fov = component.value("verticalFovDegrees", -1.0);
@@ -644,6 +712,16 @@ ArtifactLoadResult<RuntimeSceneArtifact> LoadRuntimeSceneArtifact(
     for (const auto& [child, parent] : parents)
         if (!entityIds.contains(parent)) result.diagnostics.push_back(Error(
             "Runtime.Scene.ParentMissing", "Runtime parent entity does not exist.", child));
+    for (const auto& entity : scene.entities)
+        for (const auto& binding : entity.eventBindings)
+        {
+            if (!entityIds.contains(binding.sourceEntityId))
+                result.diagnostics.push_back(Error("Runtime.Scene.EventSourceMissing",
+                    "Script event source entity does not exist.", binding.sourceEntityId));
+            if (!entityIds.contains(binding.targetEntityId))
+                result.diagnostics.push_back(Error("Runtime.Scene.EventTargetMissing",
+                    "Script event target entity does not exist.", binding.targetEntityId));
+        }
     for (const auto& id : entityIds)
     {
         std::set<std::string> visited;
@@ -671,6 +749,10 @@ ArtifactLoadResult<RuntimeInputMapArtifact> LoadRuntimeInputMapArtifact(
     { return ArtifactFailure<RuntimeInputMapArtifact>("Runtime.Input.JsonInvalid", exception.what(), path); }
     ArtifactLoadResult<RuntimeInputMapArtifact> result;
     if (!ValidateWrapper(root, "runtime.input-map", result.diagnostics)) return result;
+    if (root.value("schemaVersion", -1) != 1)
+        return ArtifactFailure<RuntimeInputMapArtifact>(
+            "Runtime.Input.SchemaUnsupported",
+            "Runtime input artifact schema must be 1.", path);
     const auto& payload = root["payload"];
     if (!ExactFields(payload, {"actions", "inputMapId"}) || !NonEmptyString(payload, "inputMapId") ||
         !payload.contains("actions") || !payload["actions"].is_array())
@@ -704,8 +786,12 @@ ArtifactLoadResult<RuntimeInputMapArtifact> LoadRuntimeInputMapArtifact(
             RuntimePhysicalBinding value{binding["device"].get<std::string>(),
                 binding["control"].get<std::string>(), binding["displayLabel"].get<std::string>(),
                 binding["displayName"].get<std::string>()};
-            if (value.device != "Keyboard" || value.control.size() != 1 ||
-                value.control[0] < 'A' || value.control[0] > 'Z' ||
+            const bool supportedControl =
+                (value.control.size() == 1 && value.control[0] >= 'A' &&
+                 value.control[0] <= 'Z') ||
+                value.control == "Enter" || value.control == "Space" ||
+                value.control == "Escape";
+            if (value.device != "Keyboard" || !supportedControl ||
                 value.displayLabel != value.control ||
                 value.displayName != value.device + " " + value.control)
                 result.diagnostics.push_back(Error("Runtime.Input.BindingUnsupported", "Physical device/control/display contract is unsupported.", action.actionId));
@@ -733,8 +819,15 @@ ArtifactLoadResult<RuntimeUiSetArtifact> LoadRuntimeUiSetArtifact(
     ArtifactLoadResult<RuntimeUiSetArtifact> result;
     if (!ValidateWrapper(root, "runtime.ui-set", result.diagnostics)) return result;
     const auto& payload = root["payload"];
-    if (!ExactFields(payload, {"aggregateManifestHash", "documents", "fonts", "prompts",
-                               "screenId", "stylesheets", "tool"}) ||
+    const auto uiSchema = root.value("schemaVersion", -1);
+    const bool fieldsValid = uiSchema == 1
+        ? ExactFields(payload, {"aggregateManifestHash", "documents", "fonts", "prompts",
+                                "screenId", "stylesheets", "tool"})
+        : uiSchema == 2 && ExactFields(payload, {"aggregateManifestHash", "documents",
+              "fonts", "inputLabelBindings", "prompts", "schemaVersion", "screenId",
+              "stylesheets", "textBindings", "tool"}) &&
+          payload.value("schemaVersion", -1) == 2;
+    if (!fieldsValid ||
         !IsSha256(payload.value("aggregateManifestHash", std::string{})) ||
         !NonEmptyString(payload, "screenId") || !payload.contains("documents") ||
         !payload["documents"].is_array() || payload["documents"].empty() ||
@@ -742,7 +835,13 @@ ArtifactLoadResult<RuntimeUiSetArtifact> LoadRuntimeUiSetArtifact(
         payload["stylesheets"].empty() || !payload.contains("fonts") ||
         !payload["fonts"].is_array() || payload["fonts"].empty() ||
         !payload.contains("prompts") || !payload["prompts"].is_array() ||
-        payload["prompts"].empty() || !payload.contains("tool") ||
+        (uiSchema == 1 && payload["prompts"].empty()) ||
+        (uiSchema == 2 && (!payload.contains("textBindings") ||
+            !payload["textBindings"].is_array() || payload["textBindings"].empty() ||
+            !payload.contains("inputLabelBindings") ||
+            !payload["inputLabelBindings"].is_array() ||
+            payload["inputLabelBindings"].empty())) ||
+        !payload.contains("tool") ||
         !ExactFields(payload["tool"], {"name", "version"}) ||
         payload["tool"].value("name", std::string{}) != "sagapack" ||
         payload["tool"].value("version", std::string{}) != "0.0.11")
@@ -752,6 +851,7 @@ ArtifactLoadResult<RuntimeUiSetArtifact> LoadRuntimeUiSetArtifact(
         return result;
     }
     RuntimeUiSetArtifact ui;
+    ui.schemaVersion = static_cast<std::uint32_t>(uiSchema);
     ui.artifactId = root["artifactId"].get<std::string>();
     ui.contentHash = root["contentHash"].get<std::string>();
     ui.sourceHash = root["sourceHash"].get<std::string>();
@@ -764,7 +864,10 @@ ArtifactLoadResult<RuntimeUiSetArtifact> LoadRuntimeUiSetArtifact(
         for (const auto& item : payload[std::string(field)])
         {
             const bool fieldsValid = document
-                ? ExactFields(item, {"documentId", "hash", "path", "sourceId"})
+                ? (uiSchema == 1
+                    ? ExactFields(item, {"documentId", "hash", "path", "sourceId"})
+                    : ExactFields(item, {"documentId", "hash", "path", "sourceId",
+                                        "visibility"}))
                 : font ? ExactFields(item, {"family", "hash", "path", "sourceId"})
                        : ExactFields(item, {"hash", "path", "sourceId"});
             if (!fieldsValid || !NonEmptyString(item, "sourceId") ||
@@ -787,10 +890,43 @@ ArtifactLoadResult<RuntimeUiSetArtifact> LoadRuntimeUiSetArtifact(
                 error.clear();
                 continue;
             }
-            output.push_back({item["sourceId"].get<std::string>(), resolved,
+            RuntimeUiResource resource{item["sourceId"].get<std::string>(), resolved,
                 item["hash"].get<std::string>(),
                 document ? item["documentId"].get<std::string>() : std::string{},
-                font ? item["family"].get<std::string>() : std::string{}});
+                font ? item["family"].get<std::string>() : std::string{}};
+            if (document && uiSchema == 2)
+            {
+                const auto& visibility = item["visibility"];
+                if (!ExactFields(visibility, {"behaviorId", "entityId", "equalsAny",
+                                               "stateKey", "valueType"}) ||
+                    !NonEmptyString(visibility, "behaviorId") ||
+                    !NonEmptyString(visibility, "entityId") ||
+                    !NonEmptyString(visibility, "stateKey") ||
+                    visibility.value("valueType", std::string{}) != "String" ||
+                    !visibility.contains("equalsAny") ||
+                    !visibility["equalsAny"].is_array() ||
+                    visibility["equalsAny"].empty())
+                {
+                    result.diagnostics.push_back(Error(
+                        "Runtime.UI.VisibilityInvalid",
+                        "Typed document visibility is malformed.",
+                        resource.documentId));
+                    continue;
+                }
+                resource.visibilityBehaviorId =
+                    visibility["behaviorId"].get<std::string>();
+                resource.visibilityEntityId =
+                    visibility["entityId"].get<std::string>();
+                resource.visibilityStateKey =
+                    visibility["stateKey"].get<std::string>();
+                resource.visibilityValueType =
+                    visibility["valueType"].get<std::string>();
+                for (const auto& value : visibility["equalsAny"])
+                    if (value.is_string() && !value.get<std::string>().empty())
+                        resource.visibilityEqualsAny.push_back(
+                            value.get<std::string>());
+            }
+            output.push_back(std::move(resource));
         }
     };
     loadResources("documents", true, false, ui.documents);
@@ -821,6 +957,53 @@ ArtifactLoadResult<RuntimeUiSetArtifact> LoadRuntimeUiSetArtifact(
             item["stateKey"].get<std::string>(), item["trueLabel"].get<std::string>(),
             item["visibility"].get<std::string>()});
     }
+    if (uiSchema == 2)
+    {
+        for (const auto& item : payload["textBindings"])
+        {
+            if (!ExactFields(item, {"behaviorId", "documentId", "elementId",
+                                    "entityId", "format", "stateKey", "valueType"}) ||
+                !NonEmptyString(item, "behaviorId") ||
+                !NonEmptyString(item, "documentId") ||
+                !NonEmptyString(item, "elementId") ||
+                !NonEmptyString(item, "entityId") ||
+                !NonEmptyString(item, "format") ||
+                !NonEmptyString(item, "stateKey") ||
+                (item.value("valueType", std::string{}) != "Bool" &&
+                 item.value("valueType", std::string{}) != "Int32" &&
+                 item.value("valueType", std::string{}) != "Double" &&
+                 item.value("valueType", std::string{}) != "String"))
+            {
+                result.diagnostics.push_back(Error("Runtime.UI.TextBindingInvalid",
+                    "Typed text binding is malformed."));
+                continue;
+            }
+            ui.textBindings.push_back({item["behaviorId"].get<std::string>(),
+                item["documentId"].get<std::string>(),
+                item["elementId"].get<std::string>(),
+                item["entityId"].get<std::string>(),
+                item["format"].get<std::string>(),
+                item["stateKey"].get<std::string>(),
+                item["valueType"].get<std::string>()});
+        }
+        for (const auto& item : payload["inputLabelBindings"])
+        {
+            if (!ExactFields(item, {"actionId", "documentId", "elementId", "format"}) ||
+                !NonEmptyString(item, "actionId") ||
+                !NonEmptyString(item, "documentId") ||
+                !NonEmptyString(item, "elementId") ||
+                !NonEmptyString(item, "format"))
+            {
+                result.diagnostics.push_back(Error("Runtime.UI.InputBindingInvalid",
+                    "Input display-label binding is malformed."));
+                continue;
+            }
+            ui.inputLabelBindings.push_back({item["actionId"].get<std::string>(),
+                item["documentId"].get<std::string>(),
+                item["elementId"].get<std::string>(),
+                item["format"].get<std::string>()});
+        }
+    }
     if (result.diagnostics.empty()) result.value = std::move(ui);
     return result;
 }
@@ -831,18 +1014,80 @@ std::vector<RuntimeDiagnostic> ScriptActionBindingDispatcher::Build(
     bindings_.clear();
     std::vector<RuntimeDiagnostic> diagnostics;
     std::set<std::string> identities;
+    std::map<std::string, const RuntimeSceneEntity*> byId;
+    for (const auto& entity : scene.entities) byId.emplace(entity.entityId, &entity);
     for (const auto& entity : scene.entities)
         for (const auto& binding : entity.actionBindings)
         {
-            if (!entity.scriptBehavior || entity.scriptBehavior->behaviorTypeId != binding.behaviorTypeId)
+            auto* targetEntity = &entity;
+            while ((!targetEntity->scriptBehavior ||
+                    targetEntity->scriptBehavior->behaviorTypeId != binding.behaviorTypeId) &&
+                   targetEntity->parentEntityId &&
+                   byId.contains(*targetEntity->parentEntityId))
+                targetEntity = byId.at(*targetEntity->parentEntityId);
+            if (!targetEntity->scriptBehavior ||
+                targetEntity->scriptBehavior->behaviorTypeId != binding.behaviorTypeId)
             { diagnostics.push_back(Error("Runtime.Binding.BehaviorMissing", "Binding behavior is not attached to the same entity.", entity.entityId)); continue; }
-            const auto identity = binding.inputActionId + "\x1f" + entity.entityId + "\x1f" +
+            const auto identity = binding.inputActionId + "\x1f" + targetEntity->entityId + "\x1f" +
                 binding.behaviorTypeId + "\x1f" + binding.namedActionId;
             if (!identities.insert(identity).second)
             { diagnostics.push_back(Error("Runtime.Binding.Duplicate", "Runtime action binding identity is duplicated.", identity)); continue; }
-            bindings_[binding.inputActionId].push_back({entity.entityId,
+            bindings_[binding.inputActionId].push_back({targetEntity->entityId,
                 binding.behaviorTypeId, binding.namedActionId});
         }
+    return diagnostics;
+}
+
+std::vector<RuntimeDiagnostic> ScriptEventBindingDispatcher::Build(
+    const RuntimeSceneArtifact& scene)
+{
+    bindings_.clear();
+    dispatchCount_ = 0;
+    std::vector<RuntimeDiagnostic> diagnostics;
+    std::map<std::string, const RuntimeSceneEntity*> byId;
+    for (const auto& entity : scene.entities) byId.emplace(entity.entityId, &entity);
+    std::set<std::string> identities;
+    for (const auto& owner : scene.entities)
+        for (const auto& binding : owner.eventBindings)
+        {
+            const auto target = byId.find(binding.targetEntityId);
+            if (target == byId.end() || !target->second->scriptBehavior ||
+                target->second->scriptBehavior->behaviorTypeId != binding.behaviorTypeId)
+            {
+                diagnostics.push_back(Error("Runtime.EventBinding.BehaviorMissing",
+                    "Event target does not own the declared behavior.",
+                    binding.targetEntityId));
+                continue;
+            }
+            const auto identity = binding.eventType + "\x1f" + binding.sourceEntityId +
+                "\x1f" + binding.targetEntityId + "\x1f" + binding.namedActionId;
+            if (!identities.insert(identity).second)
+            {
+                diagnostics.push_back(Error("Runtime.EventBinding.Duplicate",
+                    "Runtime event binding identity is duplicated.", identity));
+                continue;
+            }
+            bindings_[{binding.eventType, binding.sourceEntityId}].push_back(
+                {binding.targetEntityId, binding.behaviorTypeId, binding.namedActionId});
+        }
+    return diagnostics;
+}
+
+std::vector<RuntimeDiagnostic> ScriptEventBindingDispatcher::Dispatch(
+    const std::string_view eventType, const std::string_view sourceEntityId)
+{
+    std::vector<RuntimeDiagnostic> diagnostics;
+    const auto found =
+        bindings_.find({std::string(eventType), std::string(sourceEntityId)});
+    if (found == bindings_.end()) return diagnostics;
+    for (const auto& binding : found->second)
+        if (!target_.InvokeNamedAction(binding.behaviorTypeId,
+                                      binding.namedActionId,
+                                      binding.targetEntityId))
+            diagnostics.push_back(Error("Runtime.EventBinding.InvocationFailed",
+                "Validated script event invocation failed.",
+                binding.behaviorTypeId + "." + binding.namedActionId));
+        else ++dispatchCount_;
     return diagnostics;
 }
 

@@ -1,6 +1,6 @@
 {
   "engineVersion": "0.0.11",
-  "graphHash": "sha256:802f301ee5ce825e2f3c37e10e7fd7195e08a6d99b40d4ab6fe47004f1d823fc",
+  "graphHash": "sha256:287e5cb6850fcb1708eace9da390a55c34781dcf987afa01c82d1e03b03e6978",
   "intentHash": "sha256:8c9b6eb1a2667aa0f7512cd7f149d1dcf2a97b44c8fbfa1da3a9910deca3b706",
   "packages": [
     {
@@ -17,7 +17,7 @@
           "trust": "TrustedEngineDistribution"
         },
         {
-          "artifactHash": "sha256:3ccd7390838da52e5bf1dc6c3455d60bf98005716a10341f028fbd1e4cc643cb",
+          "artifactHash": "sha256:66797025649065f4be768aa6c863f3f72b28f54aab52c2f431a8b28fea435684",
           "artifactId": "com.saga.gameplay.foundation.api-surface",
           "distributionPath": "Packages/com.saga.gameplay.foundation/0.0.11/api/gameplay.highlevel.surface.json",
           "kind": "apiSurface",
@@ -28,11 +28,11 @@
           "trust": "TrustedEngineDistribution"
         },
         {
-          "artifactHash": "sha256:ba3ec2370e78522701fa618f43d35590d4b822731d75f6742eef898ef08a796c",
+          "artifactHash": "sha256:bdb59d35d951a5ea4a31f50b6621d9f3bcf4724c6b8b5db2bc0ad862cfdd3f22",
           "artifactId": "com.saga.gameplay.foundation.managed-reference",
           "distributionPath": "Packages/com.saga.gameplay.foundation/0.0.11/managed/gameplay.highlevel.reference.json",
           "kind": "managedReference",
-          "resolvedAssemblyHash": "sha256:755badbda42145b9174d11f4218b139f1c6515ac10fa5c3738ffce0e0d53bfc4",
+          "resolvedAssemblyHash": "sha256:fa6a467f2a91fda198dcc3f898fafbf33cc9180ee4cc52532be90049e87e9d13",
           "resolvedAssemblyLogicalPath": "references/com.saga.gameplay.foundation.managed-reference/SagaScript.RuntimeBridge.dll",
           "runtimeCompatibility": "0.0.11",
           "targetFramework": "net10.0",

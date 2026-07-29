@@ -27,6 +27,11 @@ std::filesystem::path StarterArenaProject()
         "Samples/StarterArena/StarterArena.sagaproj";
 }
 
+std::filesystem::path ArenaRushProject()
+{
+    return TestSourceRoot() / "Samples/ArenaRush/ArenaRush.sagaproj";
+}
+
 std::filesystem::path RuntimeExecutable()
 {
     return std::filesystem::path(SAGA_BUILD_ROOT) / "bin/SagaRuntime";
@@ -247,6 +252,101 @@ TEST(StarterArenaPlayStopIntegrationTests,
     EXPECT_EQ(result.value("status", std::string{}), "Succeeded");
     EXPECT_EQ(result.value("interactionActionCount", 0), 2);
     std::filesystem::remove_all(root, cleanupError);
+}
+
+TEST(RuntimeProcessControllerTests,
+     ArenaRushAuthoredConfigurationDrivesRealHeadlessGameplay)
+{
+    const auto parent = std::filesystem::temp_directory_path() /
+        ("saga-arena-rush-config-" + std::to_string(
+            std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::filesystem::create_directories(parent);
+    const auto run = [&](std::string_view label,
+                         const std::map<std::string, nlohmann::json>& values)
+    {
+        const auto root = parent / label;
+        std::filesystem::copy(ArenaRushProject().parent_path(), root,
+            std::filesystem::copy_options::recursive);
+        std::error_code ignored;
+        std::filesystem::remove_all(root / "Build/Editor", ignored);
+        const auto scenePath = root / "Scenes/ArenaRush.sagascene";
+        std::ifstream sceneInput(scenePath, std::ios::binary);
+        auto scene = nlohmann::json::parse(sceneInput);
+        bool configured = false;
+        for (auto& entity : scene["entities"])
+            for (auto& component : entity["components"])
+                if (component.value("type", std::string{}) ==
+                        "ScriptBehavior" &&
+                    component.value("behaviorTypeId", std::string{}) ==
+                        "ArenaRush.ArenaRushGameMode")
+                {
+                    for (const auto& [key, value] : values)
+                        component["instanceConfiguration"][key] = value;
+                    configured = true;
+                }
+        EXPECT_TRUE(configured);
+        std::ofstream(scenePath, std::ios::binary | std::ios::trunc)
+            << scene.dump(2) << '\n';
+
+        SagaEditor::EditorDocumentWorkspace workspace;
+        EXPECT_TRUE(workspace.OpenProject(root / "ArenaRush.sagaproj"));
+        const auto session = "authored-config-" + std::string(label);
+        const auto prepared = SagaEditor::PlayPreparationPipeline{}.Prepare(
+            workspace, {session, RuntimeExecutable(), {}, {}, {}});
+        EXPECT_TRUE(prepared.passed) <<
+            (prepared.diagnostics.empty() ? std::string{} :
+                prepared.diagnostics.front().code + ": " +
+                prepared.diagnostics.front().message);
+        if (!prepared.passed) return nlohmann::json{};
+
+        SagaEditor::ToolProcessRequest request;
+        request.executable = RuntimeExecutable();
+        request.arguments = {"--play-envelope",
+            prepared.localEnvelopePath.string(), "--headless",
+            "--smoke-interactions"};
+        request.workingDirectory = root;
+        request.timeout = std::chrono::seconds(60);
+        const auto process = SagaEditor::ToolProcessRunner{}.Run(request);
+        EXPECT_TRUE(process.Succeeded()) << process.diagnosticCode << ": "
+            << process.diagnosticMessage << '\n' << process.standardError;
+        if (!std::filesystem::is_regular_file(prepared.resultPath))
+            return nlohmann::json{};
+        std::ifstream resultInput(prepared.resultPath, std::ios::binary);
+        return nlohmann::json::parse(resultInput);
+    };
+
+    const auto singleCollect = run("single-collect",
+        {{"coreValue", 20}, {"targetProgress", 20}});
+    ASSERT_FALSE(singleCollect.empty());
+    ASSERT_EQ(singleCollect.value("status", std::string{}), "Succeeded")
+        << singleCollect.dump(2);
+    EXPECT_EQ(singleCollect["observedState"].value(
+        "transition", std::string{}), "ChallengeAccepted");
+    EXPECT_EQ(singleCollect["observedState"]["collectibleLifecycle"].value(
+        "mode", std::string{}), "SingleCollectWin");
+
+    const auto timeout = run("timeout", {{"challengeDurationSeconds", 1}});
+    ASSERT_FALSE(timeout.empty());
+    ASSERT_EQ(timeout.value("status", std::string{}), "Succeeded")
+        << timeout.dump(2);
+    EXPECT_EQ(timeout["observedState"].value(
+        "transition", std::string{}),
+        "ChallengeTimeoutConfigurationAccepted");
+    EXPECT_EQ(timeout["observedState"]["challengePhases"][2], "Timeout");
+
+    const auto respawn = run("respawn", {{"respawnDelaySeconds", 0.5}});
+    ASSERT_FALSE(respawn.empty());
+    ASSERT_EQ(respawn.value("status", std::string{}), "Succeeded")
+        << respawn.dump(2);
+    const auto& lifecycle =
+        respawn["observedState"]["collectibleLifecycle"];
+    EXPECT_DOUBLE_EQ(lifecycle.value("respawnDelaySeconds", -1.0), 0.5);
+    EXPECT_EQ(lifecycle.value("pendingAfterCollect", -1), 5);
+    EXPECT_EQ(lifecycle.value("pendingAfterRespawn", -1), 0);
+    EXPECT_EQ(lifecycle.value("activeAfterRespawn", -1), 5);
+
+    std::error_code ignored;
+    std::filesystem::remove_all(parent, ignored);
 }
 
 TEST(StarterArenaGraphicalRuntimeIntegrationTests,
@@ -545,6 +645,60 @@ TEST(RuntimeProcessControllerTests, RunningSessionReturnsValidatedGracefulStopRe
     EXPECT_TRUE(snapshot.runtimeResult->Successful());
     EXPECT_EQ(snapshot.runtimeResult->shutdownClassification, "GracefulStop");
     EXPECT_EQ(snapshot.diagnosticCode, "Play.Runtime.GracefulStop");
+}
+
+TEST(RuntimeProcessControllerTests,
+     ArenaRushCheckedInAndMaterializedProjectsSupportPlayStopPlayStop)
+{
+    const auto materializedRoot = std::filesystem::temp_directory_path() /
+        ("saga-arena-rush-play-stop-" + std::to_string(
+            std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::filesystem::copy(ArenaRushProject().parent_path(), materializedRoot,
+        std::filesystem::copy_options::recursive);
+    std::error_code cleanupError;
+    std::filesystem::remove_all(materializedRoot / "Build/Editor", cleanupError);
+
+    const auto verify = [&](const std::filesystem::path& project,
+                            std::string_view label)
+    {
+        SagaEditor::EditorDocumentWorkspace workspace;
+        ASSERT_TRUE(workspace.OpenProject(project));
+        for (int ordinal = 1; ordinal <= 2; ++ordinal)
+        {
+            SagaEditor::RuntimeProcessController controller;
+            SagaEditor::RuntimeProcessLaunchRequest request;
+            request.playSessionId = std::string(label) + "-play-stop-" +
+                std::to_string(ordinal);
+            request.runtimeExecutable = RuntimeExecutable();
+            request.headless = true;
+            request.startupTimeout = std::chrono::seconds(30);
+            request.runtimeTimeout = std::chrono::seconds(60);
+            ASSERT_TRUE(controller.Start(workspace, request));
+            const auto runningDeadline =
+                std::chrono::steady_clock::now() + std::chrono::seconds(30);
+            while ((controller.Snapshot().state ==
+                        SagaEditor::RuntimePlayState::Preparing ||
+                    controller.Snapshot().state ==
+                        SagaEditor::RuntimePlayState::Starting) &&
+                   std::chrono::steady_clock::now() < runningDeadline)
+                std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            ASSERT_EQ(controller.Snapshot().state,
+                      SagaEditor::RuntimePlayState::Running);
+            controller.Stop();
+            controller.Shutdown();
+            const auto snapshot = controller.Snapshot();
+            ASSERT_EQ(snapshot.state, SagaEditor::RuntimePlayState::Completed)
+                << snapshot.diagnosticCode << ": " << snapshot.message;
+            ASSERT_TRUE(snapshot.runtimeResult.has_value());
+            EXPECT_TRUE(snapshot.runtimeResult->Successful());
+            EXPECT_EQ(snapshot.runtimeResult->shutdownClassification,
+                      "GracefulStop");
+        }
+    };
+
+    verify(ArenaRushProject(), "checked-in");
+    verify(materializedRoot / "ArenaRush.sagaproj", "materialized");
+    std::filesystem::remove_all(materializedRoot, cleanupError);
 }
 
 #ifndef _WIN32
