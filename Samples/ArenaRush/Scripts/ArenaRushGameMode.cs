@@ -9,15 +9,16 @@ namespace ArenaRush;
 public sealed class ArenaRushGameMode : SagaBehavior
 {
     private const float PlayerSpeed = 6.0F;
+    private const int EnergyCoreScore = 10;
+    private const double EnergyCoreRespawnSeconds = 2.0;
     private static readonly string[] CoreIds =
         ["core-01", "core-02", "core-03", "core-04", "core-05"];
     private static readonly string[] SpawnIds =
         ["spawn-01", "spawn-02", "spawn-03", "spawn-04", "spawn-05"];
 
     private ChallengeState challenge;
-    private int coreValue;
+    private int coreScore;
     private int activeCollectibleCount;
-    private double respawnDelaySeconds;
     private EnergyCoreController.EnergyCoreState[] cores = [];
     private ScriptEntity player = null!;
     private ScriptEntity door = null!;
@@ -32,14 +33,12 @@ public sealed class ArenaRushGameMode : SagaBehavior
         if (!Context.Configuration.TryGetDouble(
                 "challengeDurationSeconds", out var duration) ||
             !Context.Configuration.TryGetInt32("targetProgress", out var target) ||
-            !Context.Configuration.TryGetInt32("coreValue", out var authoredCoreValue) ||
             !Context.Configuration.TryGetInt32(
-                "activeCollectibleCount", out var authoredActiveCount) ||
-            !Context.Configuration.TryGetDouble(
-                "respawnDelaySeconds", out var respawn))
+                "activeCollectibleCount", out var authoredActiveCount))
             throw new InvalidOperationException(
                 "Arena Rush authored instance configuration is incomplete.");
-        Initialize(duration, target, authoredCoreValue, authoredActiveCount, respawn);
+        Initialize(duration, target, EnergyCoreScore, authoredActiveCount,
+            EnergyCoreRespawnSeconds);
 
         player = RequiredEntity("player");
         door = RequiredEntity("arena-door");
@@ -151,9 +150,8 @@ public sealed class ArenaRushGameMode : SagaBehavior
         if (activeCount is < 1 or > 5)
             throw new ArgumentOutOfRangeException(nameof(activeCount));
         challenge = ChallengeHighLevel.Create(new ChallengeDefinition(duration, target));
-        coreValue = value;
+        coreScore = value;
         activeCollectibleCount = activeCount;
-        respawnDelaySeconds = respawn;
         cores = new EnergyCoreController.EnergyCoreState[CoreIds.Length];
         for (var index = 0; index < cores.Length; ++index)
             cores[index] =
@@ -168,7 +166,7 @@ public sealed class ArenaRushGameMode : SagaBehavior
             cores[index].Value.Phase != CollectiblePhase.Active) return;
         cores[index] = EnergyCoreController.Collect(cores[index]);
         if (index < coreEntities.Length) coreEntities[index].TrySetActive(false);
-        challenge = ChallengeHighLevel.AddProgress(challenge, coreValue);
+        challenge = ChallengeHighLevel.AddProgress(challenge, coreScore);
         Publish();
     }
 

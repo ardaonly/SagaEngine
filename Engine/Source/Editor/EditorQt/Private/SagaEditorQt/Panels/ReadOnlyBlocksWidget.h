@@ -12,10 +12,15 @@
 #include <vector>
 
 class QLabel;
+class QPushButton;
+class QSpinBox;
+class QDoubleSpinBox;
 class QTreeWidget;
 
 namespace SagaEditor
 {
+class ControlledBlockEditController;
+class CSharpSourceDocument;
 class ReadOnlyBlocksWidget final : public QWidget
 {
 public:
@@ -24,14 +29,24 @@ public:
     void PresentSnapshot(const ScriptProjectionSnapshot& snapshot);
     void SetStatus(const QString& status);
     void SetSourceActivated(std::function<void(const VisualBlocks::ProjectionSourceSpan&)> callback);
+    void SetControlledEditing(ControlledBlockEditController* controller,
+        CSharpSourceDocument* document);
 
 private:
     void AddCard(const VisualBlocks::ProjectionCard& card, void* parentItem);
+    void PreviewControlledField(const std::string& fieldId, const std::string& value);
+    void RefreshControlledState();
 
     QLabel* status_ = nullptr;
+    QSpinBox* score_ = nullptr;
+    QDoubleSpinBox* respawn_ = nullptr;
+    QPushButton* previewScore_ = nullptr;
+    QPushButton* previewRespawn_ = nullptr;
     QTreeWidget* tree_ = nullptr;
     std::shared_ptr<const VisualBlocks::ReadOnlyScriptProjection> projection_;
     std::vector<VisualBlocks::ProjectionSourceSpan> spans_;
     std::function<void(const VisualBlocks::ProjectionSourceSpan&)> sourceActivated_;
+    ControlledBlockEditController* controlledController_ = nullptr;
+    CSharpSourceDocument* controlledDocument_ = nullptr;
 };
 }

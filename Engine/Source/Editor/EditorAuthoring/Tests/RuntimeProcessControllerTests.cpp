@@ -16,6 +16,7 @@
 #include <fstream>
 #include <iterator>
 #include <map>
+#include <optional>
 #include <set>
 #include <thread>
 
@@ -230,7 +231,8 @@ TEST(StarterArenaPlayStopIntegrationTests,
     std::size_t removed = 0;
     const auto artifacts = root / "Build/Editor/Scripting/Artifacts";
     for (const auto& entry : std::filesystem::recursive_directory_iterator(artifacts))
-        if (entry.is_regular_file() && entry.path().filename() == "block_projection_v1.json")
+        if (entry.is_regular_file() &&
+            entry.path().filename().string().starts_with("block_projection_v"))
         {
             std::filesystem::remove(entry.path());
             ++removed;
@@ -262,7 +264,9 @@ TEST(RuntimeProcessControllerTests,
             std::chrono::steady_clock::now().time_since_epoch().count()));
     std::filesystem::create_directories(parent);
     const auto run = [&](std::string_view label,
-                         const std::map<std::string, nlohmann::json>& values)
+                         const std::map<std::string, nlohmann::json>& values,
+                         std::optional<int> coreScore = std::nullopt,
+                         std::optional<double> respawnSeconds = std::nullopt)
     {
         const auto root = parent / label;
         std::filesystem::copy(ArenaRushProject().parent_path(), root,
@@ -287,6 +291,27 @@ TEST(RuntimeProcessControllerTests,
         EXPECT_TRUE(configured);
         std::ofstream(scenePath, std::ios::binary | std::ios::trunc)
             << scene.dump(2) << '\n';
+
+        const auto scriptPath = root / "Scripts/ArenaRushGameMode.cs";
+        std::ifstream scriptInput(scriptPath, std::ios::binary);
+        std::string script((std::istreambuf_iterator<char>(scriptInput)), {});
+        const auto replaceInitializer = [&](std::string_view oldText,
+                                            std::string newText)
+        {
+            const auto offset = script.find(oldText);
+            EXPECT_NE(offset, std::string::npos);
+            if (offset != std::string::npos)
+                script.replace(offset, oldText.size(), std::move(newText));
+        };
+        if (coreScore)
+            replaceInitializer("EnergyCoreScore = 10",
+                "EnergyCoreScore = " + std::to_string(*coreScore));
+        if (respawnSeconds)
+            replaceInitializer("EnergyCoreRespawnSeconds = 2.0",
+                "EnergyCoreRespawnSeconds = " +
+                    std::to_string(*respawnSeconds));
+        std::ofstream(scriptPath, std::ios::binary | std::ios::trunc)
+            << script;
 
         SagaEditor::EditorDocumentWorkspace workspace;
         EXPECT_TRUE(workspace.OpenProject(root / "ArenaRush.sagaproj"));
@@ -316,7 +341,7 @@ TEST(RuntimeProcessControllerTests,
     };
 
     const auto singleCollect = run("single-collect",
-        {{"coreValue", 20}, {"targetProgress", 20}});
+        {{"targetProgress", 20}}, 20);
     ASSERT_FALSE(singleCollect.empty());
     ASSERT_EQ(singleCollect.value("status", std::string{}), "Succeeded")
         << singleCollect.dump(2);
@@ -324,6 +349,8 @@ TEST(RuntimeProcessControllerTests,
         "transition", std::string{}), "ChallengeAccepted");
     EXPECT_EQ(singleCollect["observedState"]["collectibleLifecycle"].value(
         "mode", std::string{}), "SingleCollectWin");
+    EXPECT_EQ(singleCollect["observedState"]["collectibleLifecycle"].value(
+        "score", -1), 20);
 
     const auto timeout = run("timeout", {{"challengeDurationSeconds", 1}});
     ASSERT_FALSE(timeout.empty());
@@ -334,13 +361,14 @@ TEST(RuntimeProcessControllerTests,
         "ChallengeTimeoutConfigurationAccepted");
     EXPECT_EQ(timeout["observedState"]["challengePhases"][2], "Timeout");
 
-    const auto respawn = run("respawn", {{"respawnDelaySeconds", 0.5}});
+    const auto respawn = run("respawn", {}, std::nullopt, 0.5);
     ASSERT_FALSE(respawn.empty());
     ASSERT_EQ(respawn.value("status", std::string{}), "Succeeded")
         << respawn.dump(2);
     const auto& lifecycle =
         respawn["observedState"]["collectibleLifecycle"];
-    EXPECT_DOUBLE_EQ(lifecycle.value("respawnDelaySeconds", -1.0), 0.5);
+    EXPECT_GE(lifecycle.value("respawnTicks", -1), 29);
+    EXPECT_LE(lifecycle.value("respawnTicks", -1), 31);
     EXPECT_EQ(lifecycle.value("pendingAfterCollect", -1), 5);
     EXPECT_EQ(lifecycle.value("pendingAfterRespawn", -1), 0);
     EXPECT_EQ(lifecycle.value("activeAfterRespawn", -1), 5);

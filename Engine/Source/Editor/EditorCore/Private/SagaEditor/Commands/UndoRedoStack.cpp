@@ -34,6 +34,19 @@ void UndoRedoStack::Push(std::unique_ptr<IEditorAction> action)
     ++m_cursor;
 }
 
+void UndoRedoStack::PushExecuted(std::unique_ptr<IEditorAction> action)
+{
+    m_history.erase(m_history.begin() + static_cast<std::ptrdiff_t>(m_cursor),
+                    m_history.end());
+    if (m_history.size() >= m_maxDepth)
+    {
+        m_history.erase(m_history.begin());
+        if (m_cursor > 0) --m_cursor;
+    }
+    m_history.push_back(std::move(action));
+    ++m_cursor;
+}
+
 // ─── Undo / Redo ──────────────────────────────────────────────────────────────
 
 void UndoRedoStack::Undo()

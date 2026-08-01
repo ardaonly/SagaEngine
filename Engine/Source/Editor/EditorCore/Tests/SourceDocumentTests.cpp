@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #include "SagaEditor/Documents/SourceDocuments.h"
+#include "SagaEditor/Documents/SourceDocumentTransaction.h"
+#include "SagaEditor/Commands/UndoRedoStack.h"
 
 #include <gtest/gtest.h>
 
@@ -56,5 +58,33 @@ TEST(SourceDocumentTests, ProjectDocumentParticipatesInExplicitSave)
     EXPECT_TRUE(document.Snapshot().dirty);
     EXPECT_EQ(document.Save(), SagaEditor::DocumentSaveStatus::Saved);
     EXPECT_FALSE(document.Snapshot().dirty);
+    std::filesystem::remove(path);
+}
+
+TEST(SourceDocumentTests, ProvisionalTransactionRollsBackOrRecordsOneUndoAction)
+{
+    const auto path = TemporaryFile("controlled.cs", "public class Rules { const int Value = 10; }\n");
+    SagaEditor::CSharpSourceDocument document(path);
+    SagaEditor::UndoRedoStack journal;
+    ASSERT_TRUE(document.Load());
+    const auto originalRevision = document.Snapshot().inMemoryRevision;
+    SagaEditor::CSharpDocumentTransaction transaction(document, journal);
+    EXPECT_FALSE(transaction.ReplaceTextProvisional(
+        "public class Rules { const int Value = 20; }\n",
+        [](const auto&) { return false; }, "Edit Controlled Field"));
+    EXPECT_EQ(document.Text(), "public class Rules { const int Value = 10; }\n");
+    EXPECT_EQ(document.Snapshot().inMemoryRevision, originalRevision);
+    EXPECT_FALSE(journal.CanUndo());
+    EXPECT_FALSE(document.CanUndo());
+
+    EXPECT_TRUE(transaction.ReplaceTextProvisional(
+        "public class Rules { const int Value = 20; }\n",
+        [](const auto& candidate) { return candidate.Text().find("20") != std::string::npos; },
+        "Edit Controlled Field"));
+    EXPECT_EQ(journal.GetUndoLabel(), "Edit Controlled Field");
+    journal.Undo();
+    EXPECT_EQ(document.Text(), "public class Rules { const int Value = 10; }\n");
+    journal.Redo();
+    EXPECT_EQ(document.Text(), "public class Rules { const int Value = 20; }\n");
     std::filesystem::remove(path);
 }

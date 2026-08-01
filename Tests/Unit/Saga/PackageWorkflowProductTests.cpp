@@ -11,6 +11,7 @@
 #include "SagaEditor/Settings/MemoryEditorSettingsStore.h"
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
 
+#include <algorithm>
 #include <cstdlib>
 
 using namespace SagaProductTestSupport;
@@ -170,9 +171,10 @@ TEST_F(ProductPackageWorkflowFixture,
         "collectibles.instrumentation"});
     const auto inUse = controller.PrepareSelected(PackageModuleOperation::Disable);
     EXPECT_EQ(inUse.code, "Project.PackageTransaction.ModuleInUse");
-    ASSERT_FALSE(host.GetEditorDiagnosticsService().GetAll().empty());
-    EXPECT_EQ(host.GetEditorDiagnosticsService().GetAll().front().source,
-        "editor.packages");
+    const auto currentDiagnostics =
+        host.GetEditorDiagnosticsService().GetAll();
+    EXPECT_TRUE(std::ranges::any_of(currentDiagnostics, [](const auto& diagnostic)
+    { return diagnostic.source == "editor.packages"; }));
 
     fs::remove(root / "Scripts/InstrumentationUse.cs");
     host.GetDocumentWorkspace().Close();

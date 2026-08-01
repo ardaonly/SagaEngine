@@ -557,6 +557,27 @@ TEST(CMakeTargetBoundaryTests, RuntimeAndHeadlessTargetsExcludeAuthoringToolchai
     EXPECT_EQ(runtimeProgram.find(".sagaproj"), std::string::npos);
 }
 
+TEST(CMakeTargetBoundaryTests, ControlledBlocksUseTheProjectLanguageServiceAuthority)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto controller = ReadText(root /
+        "Engine/Source/Editor/EditorAuthoring/Private/SagaEditor/VisualBlocks/"
+        "ControlledBlockEditController.cpp");
+    const auto codeBox = ReadText(root /
+        "Engine/Source/Editor/EditorQt/Private/SagaEditorQt/Panels/CodeBoxPanel.cpp");
+    const auto service = ReadText(root / "Tools/SagaScript/src/LanguageService.cs");
+
+    EXPECT_NE(controller.find("controlled-edit/plan"), std::string::npos);
+    EXPECT_NE(service.find("ControlledEditPlanAsync"), std::string::npos);
+    for (const auto* legacy : {
+             "plan-block-edit", "apply-block-edit", "patch-evaluation",
+             "patch-apply", "patch-rollback"})
+    {
+        EXPECT_EQ(controller.find(legacy), std::string::npos) << legacy;
+        EXPECT_EQ(codeBox.find(legacy), std::string::npos) << legacy;
+    }
+}
+
 TEST(CMakeTargetBoundaryTests, GraphicsAggregateKeepsNativeLifecyclePrivate)
 {
     const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);

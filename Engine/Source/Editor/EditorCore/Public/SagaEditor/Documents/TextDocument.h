@@ -54,6 +54,8 @@ public:
 
     [[nodiscard]] bool Load() override;
     [[nodiscard]] bool ReplaceText(std::string text);
+    [[nodiscard]] bool ReplaceTextProvisional(
+        std::string text, const std::function<bool()>& validateCandidate);
     [[nodiscard]] DocumentSaveStatus Save() override;
     [[nodiscard]] bool Reload() override;
     [[nodiscard]] DocumentExternalChangeState CheckExternalChange() override;

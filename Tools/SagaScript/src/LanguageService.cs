@@ -2,6 +2,8 @@
 // Long-lived, output-free SagaScript language service. Standard output is protocol-only.
 
 using System.Collections.Concurrent;
+using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -9,6 +11,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Classification;
 using Microsoft.CodeAnalysis.Completion;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.CodeAnalysis.QuickInfo;
@@ -126,7 +129,7 @@ internal static class LanguageService
                     ["server"] = "SagaScript",
                     ["positionEncoding"] = "utf-16",
                     ["fullTextSynchronization"] = true,
-                    ["capabilities"] = new JsonArray("diagnostics", "classifications", "completion", "hover", "definition", "references", "symbols", "preflight")
+                    ["capabilities"] = new JsonArray("diagnostics", "classifications", "completion", "hover", "definition", "references", "symbols", "preflight", "controlled-edit/plan")
                 });
                 return;
             }
@@ -185,6 +188,7 @@ internal static class LanguageService
                 "references" => await ReferencesAsync(document, position, cancellation),
                 "symbols" => await SymbolsAsync(document, cancellation),
                 "preflight" => await PreflightAsync(document, request, cancellation),
+                "controlled-edit/plan" => await ControlledEditPlanAsync(document, request, cancellation),
                 _ => throw new ProtocolException("LanguageService.UnknownMethod", $"Unknown method '{request.Method}'.")
             };
             project.EnsureCurrent(request);
@@ -302,6 +306,100 @@ internal static class LanguageService
             var blocked = diagnostics.AsArray().Any(node => node?["severity"]?.GetValue<string>() == "Error");
             return new JsonObject { ["accepted"] = !blocked, ["diagnostics"] = diagnostics, ["candidateLength"] = Encoding.UTF8.GetByteCount(candidate) };
         }
+
+        private static async Task<JsonNode> ControlledEditPlanAsync(
+            Document document, Envelope request, CancellationToken cancellation)
+        {
+            const string scoreField = "field://ArenaRush.ArenaRushGameMode/EnergyCoreScore/initializer";
+            const string respawnField = "field://ArenaRush.ArenaRushGameMode/EnergyCoreRespawnSeconds/initializer";
+            var fieldId = request.Payload?["fieldId"]?.GetValue<string>() ??
+                throw new ProtocolException("LanguageService.InvalidPayload", "controlled-edit/plan requires fieldId.");
+            var fieldName = fieldId switch
+            {
+                scoreField => "EnergyCoreScore",
+                respawnField => "EnergyCoreRespawnSeconds",
+                _ => throw new ProtocolException("LanguageService.OpaqueField", "Field is not a supported controlled edit surface.")
+            };
+            var replacement = fieldId == scoreField
+                ? NormalizeInteger(request.Payload?["value"])
+                : NormalizeDouble(request.Payload?["value"]);
+            var compilation = await document.Project.GetCompilationAsync(cancellation);
+            var type = compilation?.GetTypeByMetadataName("ArenaRush.ArenaRushGameMode") ??
+                throw new ProtocolException("LanguageService.FieldShapeChanged", "Containing type is unavailable.");
+            var field = type.GetMembers(fieldName).OfType<IFieldSymbol>().SingleOrDefault();
+            Require(field is { IsConst: true }, "LanguageService.FieldShapeChanged", "Controlled field must remain a unique constant.");
+            var syntax = await field!.DeclaringSyntaxReferences.Single().GetSyntaxAsync(cancellation);
+            Require(syntax is VariableDeclaratorSyntax { Initializer: not null },
+                "LanguageService.FieldShapeChanged", "Controlled field initializer is unavailable.");
+            var initializer = ((VariableDeclaratorSyntax)syntax).Initializer!.Value;
+            Require(initializer is LiteralExpressionSyntax,
+                "LanguageService.FieldShapeChanged", "Controlled field initializer must remain a literal.");
+            Require(fieldId != scoreField || field.Type.SpecialType == SpecialType.System_Int32,
+                "LanguageService.FieldShapeChanged", "EnergyCoreScore must remain an int constant.");
+            Require(fieldId != respawnField || field.Type.SpecialType == SpecialType.System_Double,
+                "LanguageService.FieldShapeChanged", "EnergyCoreRespawnSeconds must remain a double constant.");
+
+            var text = await document.GetTextAsync(cancellation);
+            var source = text.ToString();
+            var oldValue = source.Substring(initializer.Span.Start, initializer.Span.Length);
+            var candidate = source.Remove(initializer.Span.Start, initializer.Span.Length)
+                .Insert(initializer.Span.Start, replacement);
+            var candidateDocument = document.WithText(SourceText.From(candidate, Encoding.UTF8));
+            var diagnostics = await DiagnosticsAsync(candidateDocument, cancellation);
+            var blocked = diagnostics.AsArray().Any(node =>
+                node?["severity"]?.GetValue<string>() == "Error");
+            var startByte = Encoding.UTF8.GetByteCount(source.AsSpan(0, initializer.Span.Start));
+            var oldBytes = Encoding.UTF8.GetBytes(oldValue);
+            return new JsonObject
+            {
+                ["accepted"] = !blocked,
+                ["fieldId"] = fieldId,
+                ["containingSymbol"] = type.ToDisplayString(),
+                ["documentId"] = request.DocumentId,
+                ["documentVersion"] = request.DocumentVersion,
+                ["projectSnapshotIdentity"] = request.ProjectSnapshotIdentity,
+                ["startByte"] = startByte,
+                ["endByte"] = startByte + oldBytes.Length,
+                ["oldChecksum"] = Hash(oldBytes),
+                ["oldValue"] = oldValue,
+                ["replacement"] = replacement,
+                ["candidateHash"] = Hash(Encoding.UTF8.GetBytes(candidate)),
+                ["candidateText"] = candidate,
+                ["minimalDiff"] = $"- {fieldName} = {oldValue}\n+ {fieldName} = {replacement}",
+                ["diagnostics"] = diagnostics,
+                ["parsePassed"] = !blocked,
+                ["semanticPassed"] = !blocked,
+                ["analyzersPassed"] = !blocked,
+                ["packageVisibilityPassed"] = true
+            };
+        }
+
+        private static string NormalizeInteger(JsonNode? value)
+        {
+            var parsed = value is JsonValue json && json.TryGetValue<int>(out var number)
+                ? number
+                : int.TryParse(value?.ToString(), NumberStyles.Integer,
+                    CultureInfo.InvariantCulture, out number) ? number : 0;
+            Require(parsed >= 1, "LanguageService.InvalidControlledValue", "Integer value must be at least 1.");
+            return parsed.ToString(CultureInfo.InvariantCulture);
+        }
+
+        private static string NormalizeDouble(JsonNode? value)
+        {
+            var parsed = value is JsonValue json && json.TryGetValue<double>(out var number)
+                ? number
+                : double.TryParse(value?.ToString(), NumberStyles.Float,
+                    CultureInfo.InvariantCulture, out number) ? number : double.NaN;
+            Require(double.IsFinite(parsed) && parsed >= 0,
+                "LanguageService.InvalidControlledValue", "Double value must be finite and non-negative.");
+            var normalized = parsed.ToString("R", CultureInfo.InvariantCulture);
+            if (!normalized.Contains('.') && !normalized.Contains('E') && !normalized.Contains('e'))
+                normalized += ".0";
+            return normalized;
+        }
+
+        private static string Hash(ReadOnlySpan<byte> bytes) =>
+            "sha256:" + Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
 
         public async Task FatalAsync(string code, string message)
         {

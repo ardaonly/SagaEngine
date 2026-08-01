@@ -161,7 +161,7 @@ TEST(QtReadOnlyBlocksWorkflowTests, PresentsRealNestedProjectionAndOpaqueRegion)
     session.Begin(Identity());
     widget.PresentSnapshot(session.Snapshot());
     ASSERT_NE(Status(widget), nullptr);
-    EXPECT_EQ(Status(widget)->text(), QStringLiteral("Analyzing…"));
+    EXPECT_EQ(Status(widget)->text(), QStringLiteral("Analyzing..."));
     ASSERT_TRUE(session.Publish(Identity(), "sha256:projection", Projection()));
     widget.PresentSnapshot(session.Snapshot());
 

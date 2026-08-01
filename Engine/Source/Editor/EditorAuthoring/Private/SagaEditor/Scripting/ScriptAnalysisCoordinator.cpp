@@ -147,7 +147,13 @@ std::shared_ptr<const VisualBlocks::ReadOnlyScriptProjection> LoadProjection(
     const auto contentHash = projection.value("contentHash", std::string{});
     auto content = projection;
     content.erase("contentHash");
-    if (!IsSha256(contentHash) || HashDocumentBytes(content.dump(2) + "\n") != contentHash ||
+    const auto schemaVersion = projection.value("schemaVersion", -1);
+    const bool supportedProjection =
+        (schemaVersion == 1 && projection.value("readOnly", false)) ||
+        (schemaVersion == 2 && projection.value("controlledEdits", false) &&
+            projection.value("unsupportedRegionsReadOnly", false));
+    if (!supportedProjection || !IsSha256(contentHash) ||
+        HashDocumentBytes(content.dump(2) + "\n") != contentHash ||
         contentHash != found->value("contentHash", std::string{}) ||
         projection.value("projectId", std::string{}) != request.projectId ||
         projection.value("projectHash", std::string{}) != request.project.hash ||
@@ -157,7 +163,6 @@ std::shared_ptr<const VisualBlocks::ReadOnlyScriptProjection> LoadProjection(
         projection.value("packageGraphHash", std::string{}) != request.packageGraphHash ||
         projection.value("apiSurfaceManifestHash", std::string{}) != request.apiSurfaceManifest.hash ||
         projection.value("ownershipCatalogHash", std::string{}) != request.ownershipCatalog.hash ||
-        !projection.value("readOnly", false) ||
         projection.value("sourcePreservation", std::string{}) != "SourceNotMutated")
     {
         diagnostic = Diagnostic("Script.Projection.PayloadIdentityMismatch",
@@ -170,10 +175,36 @@ std::shared_ptr<const VisualBlocks::ReadOnlyScriptProjection> LoadProjection(
     std::vector<VisualBlocks::ProjectionCard> opaque;
     for (const auto& card : projection.value("opaqueRegions", Json::array()))
         opaque.push_back(ProjectionCard(card, true));
+    std::vector<VisualBlocks::EditableProjectionField> editableFields;
+    for (const auto& field : projection.value("editableFields", Json::array()))
+    {
+        const auto startByte = field.value("startByte", 0ull);
+        const auto endByte = field.value("endByte", 0ull);
+        const auto checksum = field.value("checksum", std::string{});
+        if (schemaVersion != 2 || field.value("fieldId", std::string{}).empty() ||
+            endByte <= startByte || !IsSha256(checksum))
+        {
+            diagnostic = Diagnostic("Script.Projection.EditableFieldInvalid",
+                "Controlled projection field metadata is incomplete.", artifactPath);
+            return {};
+        }
+        VisualBlocks::ProjectionSourceSpan source{
+            field.value("sourceFile", std::string{}),
+            field.value("sourceHash", std::string{}), startByte, endByte};
+        editableFields.push_back({field.value("fieldId", std::string{}),
+            field.value("valueType", std::string{}),
+            field.value("minimum", std::string{}),
+            field.value("containingSymbol", std::string{}),
+            field.value("initializerRole", std::string{}), std::move(source),
+            field.value("sourceRevision", std::string{}),
+            field.value("packageGenerationId", std::string{}),
+            field.value("packageGenerationHash", std::string{}), checksum,
+            field.value("value", std::string{})});
+    }
     return std::make_shared<const VisualBlocks::ReadOnlyScriptProjection>(
         request.projectId, request.project.hash, request.sourceRevision,
         request.packageGenerationId, request.packageGenerationHash, artifactHash,
-        std::move(roots), std::move(opaque));
+        std::move(roots), std::move(opaque), std::move(editableFields));
 }
 }
 

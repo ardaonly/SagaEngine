@@ -134,6 +134,43 @@ bool TextDocument::ReplaceText(std::string text)
     return true;
 }
 
+bool TextDocument::ReplaceTextProvisional(
+    std::string text, const std::function<bool()>& validateCandidate)
+{
+    const auto priorSnapshot = snapshot_;
+    const auto priorRecovery = recovery_;
+    const auto priorDiagnostics = diagnostics_;
+    const auto priorText = text_;
+    const auto priorHistory = history_;
+    const auto priorCursor = historyCursor_;
+    const auto restore = [&]
+    {
+        snapshot_ = priorSnapshot;
+        recovery_ = priorRecovery;
+        diagnostics_ = priorDiagnostics;
+        text_ = priorText;
+        history_ = priorHistory;
+        historyCursor_ = priorCursor;
+    };
+    if (!Validate(text)) { restore(); return false; }
+    Commit(std::move(text), false);
+    try
+    {
+        if (validateCandidate && !validateCandidate())
+        { restore(); return false; }
+    }
+    catch (...)
+    {
+        restore();
+        return false;
+    }
+    history_.resize(historyCursor_);
+    history_.push_back(text_);
+    historyCursor_ = history_.size();
+    PublishRecovery();
+    return true;
+}
+
 DocumentSaveStatus TextDocument::Save()
 {
     if (!snapshot_.canSave)
