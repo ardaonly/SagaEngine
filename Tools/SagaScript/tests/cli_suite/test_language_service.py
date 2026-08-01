@@ -167,7 +167,45 @@ def test_malformed_envelope_is_fatal() -> None:
     assert responses[0]["payload"]["code"] == "LanguageService.MalformedEnvelope"
 
 
+def test_controlled_edit_plans_exact_constant_initializer() -> None:
+    with tempfile.TemporaryDirectory(prefix="sagascript-language-") as temporary:
+        root = Path(temporary).resolve()
+        document = root / "ArenaRushGameMode.cs"
+        source = ("namespace ArenaRush; public sealed class ArenaRushGameMode { "
+                  "private const int EnergyCoreScore = 10; "
+                  "private const double EnergyCoreRespawnSeconds = 2.0; }")
+        identity = {"documentId": "arena-rules", "documentVersion": 1}
+        score_field = "field://ArenaRush.ArenaRushGameMode/EnergyCoreScore/initializer"
+        respawn_field = "field://ArenaRush.ArenaRushGameMode/EnergyCoreRespawnSeconds/initializer"
+        messages = [
+            _request(1, "initialize", root),
+            _request(2, "project/open", root),
+            _request(3, "document/open", root, **identity,
+                     payload={"path": str(document), "text": source}),
+            _request(4, "controlled-edit/plan", root, **identity,
+                     payload={"fieldId": score_field, "value": 20}),
+            _request(5, "controlled-edit/plan", root, **identity,
+                     payload={"fieldId": respawn_field, "value": 0.5}),
+            _request(6, "shutdown", root),
+        ]
+        responses, stderr, code = _run(messages)
+        assert code == 0, stderr
+        score = next(item for item in responses if item["requestId"] == 4)["payload"]
+        respawn = next(item for item in responses if item["requestId"] == 5)["payload"]
+        assert score["accepted"] is True
+        assert score["oldValue"] == "10" and score["replacement"] == "20"
+        assert respawn["oldValue"] == "2.0" and respawn["replacement"] == "0.5"
+        start = score["startByte"]
+        end = score["endByte"]
+        candidate = score["candidateText"].encode("utf-8")
+        original = source.encode("utf-8")
+        assert candidate[:start] == original[:start]
+        assert candidate[start:start + 2] == b"20"
+        assert candidate[start + 2:] == original[end:]
+
+
 TESTS = (test_reuses_workspace_and_rejects_stale_versions,
          test_utf16_positions_and_path_escape_fail_closed,
          test_all_interactive_features_and_preflight,
-         test_malformed_envelope_is_fatal)
+         test_malformed_envelope_is_fatal,
+         test_controlled_edit_plans_exact_constant_initializer)

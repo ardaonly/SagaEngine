@@ -129,6 +129,16 @@ bool CSharpSourceDocument::ReplaceText(std::string text)
     if (!text_->ReplaceText(std::move(text))) return false;
     NotifyChanged(); return true;
 }
+bool CSharpSourceDocument::ReplaceTextProvisional(
+    std::string text,
+    const std::function<bool(const CSharpSourceDocument&)>& validateCandidate)
+{
+    const auto result = text_->ReplaceTextProvisional(std::move(text),
+        [this, &validateCandidate]
+        { return !validateCandidate || validateCandidate(*this); });
+    if (result) NotifyChanged();
+    return result;
+}
 bool CSharpSourceDocument::Load() { const auto result = text_->Load(); if (result) NotifyChanged(); return result; }
 DocumentSaveStatus CSharpSourceDocument::Save()
 { const auto result = text_->Save(); if (result == DocumentSaveStatus::Saved) NotifyChanged(); return result; }

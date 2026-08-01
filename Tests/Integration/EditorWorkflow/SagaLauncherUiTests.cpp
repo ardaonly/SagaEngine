@@ -14,6 +14,7 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDockWidget>
+#include <QDoubleSpinBox>
 #include <QElapsedTimer>
 #include <QListWidget>
 #include <QMainWindow>
@@ -22,6 +23,7 @@
 #include <QPushButton>
 #include <QSettings>
 #include <QStackedWidget>
+#include <QSpinBox>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QTreeWidget>
@@ -315,6 +317,37 @@ TEST(SagaHomeUiTest, XcbPackagesWorkflowRendersProductionPanelReviewAndRecovery)
             (evidence / "packages-window.png").string())));
         ASSERT_TRUE(dock->grab().save(QString::fromStdString(
             (evidence / "packages-panel.png").string())));
+
+        auto* codeDock = window.findChild<QDockWidget*>("saga.panel.code_box");
+        ASSERT_NE(codeDock, nullptr);
+        codeDock->show();
+        auto* selector = codeDock->findChild<QComboBox*>();
+        ASSERT_NE(selector, nullptr);
+        const auto gameModeIndex = selector->findText(
+            QStringLiteral("ArenaRushGameMode.cs"));
+        ASSERT_GE(gameModeIndex, 0);
+        selector->setCurrentIndex(gameModeIndex);
+        auto* analyze = FindButton(codeDock, QStringLiteral("Analyze"));
+        ASSERT_NE(analyze, nullptr);
+        analyze->click();
+        QWidget* energyCore = nullptr;
+        ASSERT_TRUE(WaitUntil([codeDock, &energyCore]
+        {
+            for (auto* candidate : codeDock->findChildren<QWidget*>())
+                if (candidate->accessibleName() ==
+                    QStringLiteral("Energy Core controlled fields"))
+                {
+                    energyCore = candidate;
+                    break;
+                }
+            return energyCore &&
+                energyCore->findChild<QSpinBox*>()->isEnabled() &&
+                energyCore->findChild<QDoubleSpinBox*>()->isEnabled();
+        }));
+        EXPECT_EQ(energyCore->findChild<QSpinBox*>()->value(), 10);
+        EXPECT_DOUBLE_EQ(energyCore->findChild<QDoubleSpinBox*>()->value(), 2.0);
+        ASSERT_TRUE(codeDock->grab().save(QString::fromStdString(
+            (evidence / "blocks-controlled-fields.png").string())));
 
         QTreeWidgetItem* instrumentation = nullptr;
         for (int row = 0; row < tree->topLevelItemCount(); ++row)

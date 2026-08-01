@@ -23,6 +23,23 @@ struct ProjectionSourceSpan final
     bool operator==(const ProjectionSourceSpan&) const = default;
 };
 
+struct EditableProjectionField final
+{
+    std::string fieldId;
+    std::string valueType;
+    std::string minimum;
+    std::string containingSymbol;
+    std::string initializerRole;
+    ProjectionSourceSpan source;
+    std::string sourceRevision;
+    std::string packageGenerationId;
+    std::string packageGenerationHash;
+    std::string checksum;
+    std::string value;
+
+    bool operator==(const EditableProjectionField&) const = default;
+};
+
 class ProjectionCard final
 {
 public:
@@ -52,7 +69,8 @@ public:
     ReadOnlyScriptProjection(std::string projectId, std::string projectHash,
         std::string sourceRevision, std::string packageGenerationId,
         std::string packageGenerationHash, std::string artifactHash,
-        std::vector<ProjectionCard> roots, std::vector<ProjectionCard> opaqueRegions);
+        std::vector<ProjectionCard> roots, std::vector<ProjectionCard> opaqueRegions,
+        std::vector<EditableProjectionField> editableFields = {});
 
     [[nodiscard]] const std::string& ProjectId() const noexcept { return projectId_; }
     [[nodiscard]] const std::string& ProjectHash() const noexcept { return projectHash_; }
@@ -62,6 +80,8 @@ public:
     [[nodiscard]] const std::string& ArtifactHash() const noexcept { return artifactHash_; }
     [[nodiscard]] const std::vector<ProjectionCard>& Roots() const noexcept { return roots_; }
     [[nodiscard]] const std::vector<ProjectionCard>& OpaqueRegions() const noexcept { return opaqueRegions_; }
+    [[nodiscard]] const std::vector<EditableProjectionField>& EditableFields() const noexcept
+    { return editableFields_; }
 
 private:
     std::string projectId_;
@@ -72,5 +92,6 @@ private:
     std::string artifactHash_;
     std::vector<ProjectionCard> roots_;
     std::vector<ProjectionCard> opaqueRegions_;
+    std::vector<EditableProjectionField> editableFields_;
 };
 }

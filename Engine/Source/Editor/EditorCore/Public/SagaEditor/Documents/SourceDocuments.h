@@ -58,6 +58,8 @@ public:
     [[nodiscard]] const std::string& Text() const noexcept;
     [[nodiscard]] const DocumentRecoverySnapshot& Recovery() const noexcept;
     [[nodiscard]] bool ReplaceText(std::string text);
+    [[nodiscard]] bool ReplaceTextProvisional(
+        std::string text, const std::function<bool(const CSharpSourceDocument&)>& validateCandidate);
     [[nodiscard]] bool Load() override;
     [[nodiscard]] DocumentSaveStatus Save() override;
     [[nodiscard]] bool Reload() override;

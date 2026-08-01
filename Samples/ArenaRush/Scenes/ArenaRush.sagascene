@@ -16,8 +16,6 @@
           "instanceConfiguration": {
             "activeCollectibleCount": 5,
             "challengeDurationSeconds": 60,
-            "coreValue": 10,
-            "respawnDelaySeconds": 2,
             "targetProgress": 100
           },
           "requiredCapabilities": [

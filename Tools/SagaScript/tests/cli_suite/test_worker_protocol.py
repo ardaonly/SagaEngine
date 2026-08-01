@@ -103,6 +103,16 @@ def test_arena_rush_worker_aggregates_contract_only_surfaces() -> None:
         assert worker.returncode == 0, worker.stderr + worker.stdout
         _, artifacts = read_current_artifacts(output)
         projection = json.loads(artifacts["scripts.block-projection"])
+        assert projection["schemaVersion"] == 2
+        assert projection["controlledEdits"] is True
+        fields = {item["fieldId"]: item for item in projection["editableFields"]}
+        assert set(fields) == {
+            "field://ArenaRush.ArenaRushGameMode/EnergyCoreScore/initializer",
+            "field://ArenaRush.ArenaRushGameMode/EnergyCoreRespawnSeconds/initializer",
+        }
+        assert fields["field://ArenaRush.ArenaRushGameMode/EnergyCoreScore/initializer"]["value"] == "10"
+        assert fields["field://ArenaRush.ArenaRushGameMode/EnergyCoreRespawnSeconds/initializer"]["value"] == "2.0"
+        assert all(item["checksum"].startswith("sha256:") for item in fields.values())
         allowed = projection["allowedApis"]
         identities = [(item["surfaceId"], item["apiId"]) for item in allowed]
         assert identities == sorted(identities)

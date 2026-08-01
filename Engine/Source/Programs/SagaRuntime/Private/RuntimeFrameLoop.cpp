@@ -584,12 +584,8 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
     const double authoredDuration =
         authoredChallengeConfiguration.value(
             "challengeDurationSeconds", 60.0);
-    const double authoredRespawnDelay =
-        authoredChallengeConfiguration.value("respawnDelaySeconds", 2.0);
     const int authoredTarget =
         authoredChallengeConfiguration.value("targetProgress", 100);
-    const int authoredCoreValue =
-        authoredChallengeConfiguration.value("coreValue", 10);
     const bool timeoutConfigurationScenario =
         challengeMicrogame && authoredDuration <= 1.0;
     Json collectibleLifecycleEvidence = Json::object();
@@ -744,29 +740,38 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
                 }
                 else
                 {
-                    if (authoredTarget <= authoredCoreValue)
+                    const auto intValue = [](const auto& snapshot)
                     {
-                        const auto collectible = world.GetPosition(
-                            world.Handle(collectibleEntityIds.front()));
-                        if (!collectible.Succeeded() ||
-                            !world.SetPosition(world.Handle(
-                                participantEntityId),
-                                collectible.position).Succeeded() || !tick(1))
-                            return structuredFailure(
-                                "Runtime.Play.ArenaCollectFailed",
-                                "Challenge single-collect win failed.",
-                                "ObservedStateMismatch");
+                        return snapshot &&
+                            std::holds_alternative<std::int32_t>(
+                                snapshot->value)
+                            ? std::get<std::int32_t>(snapshot->value)
+                            : -1;
+                    };
+                    const auto safePlayerPosition = world.GetPosition(
+                        world.Handle(participantEntityId));
+                    const auto firstCollectible = world.GetPosition(
+                        world.Handle(collectibleEntityIds.front()));
+                    if (!safePlayerPosition.Succeeded() ||
+                        !firstCollectible.Succeeded() ||
+                        !world.SetPosition(world.Handle(participantEntityId),
+                            firstCollectible.position).Succeeded() || !tick(1))
+                        return structuredFailure(
+                            "Runtime.Play.ArenaCollectFailed",
+                            "Challenge first collectible failed.",
+                            "ObservedStateMismatch");
+                    const auto scoreAfterFirst = stateStore.SnapshotValue(
+                        gameModeEntity, challengeBehaviorId, "challenge.score");
+                    if (intValue(scoreAfterFirst) >= authoredTarget)
+                    {
                         collectibleLifecycleEvidence = {
                             {"mode", "SingleCollectWin"},
-                            {"score", authoredCoreValue},
+                            {"score", intValue(scoreAfterFirst)},
                             {"target", authoredTarget}};
                     }
                     else
                     {
-                        const auto safePlayerPosition =
-                            world.GetPosition(world.Handle(
-                                participantEntityId));
-                        if (!safePlayerPosition.Succeeded() || !collectRound() ||
+                        if (!collectRound() ||
                             !world.SetPosition(world.Handle(
                                 participantEntityId),
                                 safePlayerPosition.position).Succeeded())
@@ -780,33 +785,34 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
                         const auto activeBefore = stateStore.SnapshotValue(
                             gameModeEntity, challengeBehaviorId,
                             "challenge.active-cores");
-                        const auto respawnTicks = static_cast<int>(
-                            std::ceil(authoredRespawnDelay * 60.0)) + 2;
-                        if (!tick(respawnTicks))
-                            return structuredFailure(
-                                "Runtime.Play.ArenaRespawnFailed",
-                                "Challenge authored respawn delay failed.",
-                                "ObservedStateMismatch");
+                        int respawnTicks = 0;
+                        while (respawnTicks < 600)
+                        {
+                            const auto pending = stateStore.SnapshotValue(
+                                gameModeEntity, challengeBehaviorId,
+                                "challenge.pending-respawns");
+                            if (intValue(pending) == 0) break;
+                            if (!tick(1))
+                                return structuredFailure(
+                                    "Runtime.Play.ArenaRespawnFailed",
+                                    "Challenge respawn observation failed.",
+                                    "ObservedStateMismatch");
+                            ++respawnTicks;
+                        }
                         const auto pendingAfter = stateStore.SnapshotValue(
                             gameModeEntity, challengeBehaviorId,
                             "challenge.pending-respawns");
                         const auto activeAfter = stateStore.SnapshotValue(
                             gameModeEntity, challengeBehaviorId,
                             "challenge.active-cores");
-                        const auto intValue = [](const auto& snapshot)
-                        {
-                            return snapshot &&
-                                std::holds_alternative<std::int32_t>(
-                                    snapshot->value)
-                                ? std::get<std::int32_t>(snapshot->value)
-                                : -1;
-                        };
                         collectibleLifecycleEvidence = {
+                            {"scoreAfterFirst", intValue(scoreAfterFirst)},
                             {"activeAfterCollect", intValue(activeBefore)},
                             {"activeAfterRespawn", intValue(activeAfter)},
                             {"pendingAfterCollect", intValue(pendingBefore)},
                             {"pendingAfterRespawn", intValue(pendingAfter)},
-                            {"respawnDelaySeconds", authoredRespawnDelay},
+                            {"respawnDelaySeconds",
+                                static_cast<double>(respawnTicks) / 60.0},
                             {"respawnTicks", respawnTicks}};
                         if (intValue(pendingBefore) == 0 ||
                             intValue(activeBefore) != 0 ||

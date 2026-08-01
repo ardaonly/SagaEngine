@@ -2,7 +2,11 @@
 
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Security.Cryptography;
+using System.Text;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SagaProjectKit.Core;
 
 namespace SagaScript;
@@ -128,14 +132,17 @@ internal static class ProjectWorkerArtifactBuilder
             sourceSpan = method.Span,
             reason = "Unsupported C# remains source-linked and opaque; projection never rewrites authored C#.",
         })).ToArray();
-        artifacts.Add(JsonArtifact("scripts.block-projection", "blockProjection", "block_projection_v1.json", new
+        var editableFields = ControlledFields(request, sources, behaviors);
+        artifacts.Add(JsonArtifact("scripts.block-projection", "blockProjection", "block_projection_v2.json", new
         {
-            common.schemaVersion, common.projectId, common.projectHash, common.sourceRevision,
+            schemaVersion = 2, common.projectId, common.projectHash, common.sourceRevision,
             common.sourceSetHash, common.packageGenerationId, common.packageGenerationHash,
             common.packageGenerationManifestHash, common.packageGraphHash, common.apiSurfaceManifestHash,
             common.ownershipCatalogHash,
             common.tool, common.toolVersion, common.analyzerVersion,
-            sourcePreservation = "SourceNotMutated", readOnly = true, roots, blocks,
+            sourcePreservation = "SourceNotMutated", readOnly = false,
+            controlledEdits = true, unsupportedRegionsReadOnly = true,
+            editableFields, roots, blocks,
             opaqueRegions = opaque, allowedApis, filteredApiPolicy = "ExcludeRawAndInternal",
             diagnostics = Array.Empty<object>(),
         }));
@@ -172,6 +179,60 @@ internal static class ProjectWorkerArtifactBuilder
             trust = request.RuntimeBridge.Trust, diagnostics = Array.Empty<object>(),
         }));
         return artifacts.OrderBy(item => item.ArtifactId, StringComparer.Ordinal).ToArray();
+    }
+
+    private static object[] ControlledFields(ProjectWorkerRequest request,
+        IReadOnlyList<WorkerSourceInput> sources, IReadOnlyList<WorkerBehavior> behaviors)
+    {
+        const string behaviorId = "ArenaRush.ArenaRushGameMode";
+        var behavior = behaviors.SingleOrDefault(item => item.BehaviorId == behaviorId);
+        if (behavior is null) return [];
+        var source = sources.SingleOrDefault(item => item.Path == behavior.SourceFile);
+        if (source is null) return [];
+        var projectRoot = Path.GetDirectoryName(request.Project.Path) ?? "";
+        var sourcePath = Path.GetFullPath(Path.Combine(projectRoot, source.Path));
+        var text = File.ReadAllText(sourcePath, Encoding.UTF8);
+        var root = CSharpSyntaxTree.ParseText(text).GetCompilationUnitRoot();
+        var type = root.DescendantNodes().OfType<ClassDeclarationSyntax>()
+            .SingleOrDefault(item => item.Identifier.ValueText == "ArenaRushGameMode");
+        if (type is null) return [];
+        var definitions = new[]
+        {
+            (Name: "EnergyCoreScore", Id: "field://ArenaRush.ArenaRushGameMode/EnergyCoreScore/initializer",
+                ValueType: "Int32", Minimum: "1"),
+            (Name: "EnergyCoreRespawnSeconds", Id: "field://ArenaRush.ArenaRushGameMode/EnergyCoreRespawnSeconds/initializer",
+                ValueType: "Double", Minimum: "0.0"),
+        };
+        var fields = new List<object>();
+        foreach (var definition in definitions)
+        {
+            var variable = type.Members.OfType<FieldDeclarationSyntax>()
+                .Where(item => item.Modifiers.Any(token =>
+                    token.IsKind(SyntaxKind.ConstKeyword)))
+                .SelectMany(item => item.Declaration.Variables)
+                .SingleOrDefault(item => item.Identifier.ValueText == definition.Name);
+            if (variable?.Initializer?.Value is not LiteralExpressionSyntax literal) continue;
+            var startByte = Encoding.UTF8.GetByteCount(text.AsSpan(0, literal.SpanStart));
+            var valueBytes = Encoding.UTF8.GetBytes(literal.ToString());
+            fields.Add(new
+            {
+                fieldId = definition.Id,
+                valueType = definition.ValueType,
+                minimum = definition.Minimum,
+                containingSymbol = behaviorId,
+                initializerRole = "ConstantInitializerLiteral",
+                sourceFile = source.Path,
+                sourceHash = source.Hash,
+                sourceRevision = request.SourceRevision,
+                packageGenerationId = request.PackageGenerationId,
+                packageGenerationHash = request.PackageGenerationHash,
+                startByte,
+                endByte = startByte + valueBytes.Length,
+                checksum = "sha256:" + Convert.ToHexString(SHA256.HashData(valueBytes)).ToLowerInvariant(),
+                value = literal.ToString(),
+            });
+        }
+        return fields.ToArray();
     }
 
     private static StagedWorkerArtifact JsonArtifact(string id, string kind, string name, object payload)

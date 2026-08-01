@@ -12,9 +12,14 @@ TEST(ReadOnlyScriptProjectionTests, PreservesHierarchyAndSourceIdentity)
         "generation", source};
     ProjectionCard root{"action://Interact", "Event", "WHEN Interact", "generation",
         source, {child}};
+    EditableProjectionField field{
+        "field://ArenaRush.Game/Score/initializer", "Int32", "1",
+        "ArenaRush.Game", "ConstantInitializerLiteral", source,
+        "sha256:revision", "generation", "sha256:generation",
+        "sha256:checksum", "10"};
     const ReadOnlyScriptProjection projection{"starter-arena", "sha256:project",
         "sha256:revision", "generation", "sha256:generation", "sha256:artifact",
-        {root}, {}};
+        {root}, {}, {field}};
 
     ASSERT_EQ(projection.Roots().size(), 1u);
     ASSERT_EQ(projection.Roots()[0].Children().size(), 1u);
@@ -22,4 +27,6 @@ TEST(ReadOnlyScriptProjectionTests, PreservesHierarchyAndSourceIdentity)
     EXPECT_EQ(projection.Roots()[0].Children()[0].DisplayName(), "toggle door target state");
     EXPECT_EQ(projection.Roots()[0].Children()[0].Source(), source);
     EXPECT_EQ(projection.PackageGenerationId(), "generation");
+    ASSERT_EQ(projection.EditableFields().size(), 1u);
+    EXPECT_EQ(projection.EditableFields()[0], field);
 }

@@ -8,6 +8,7 @@
 #include "SagaEditor/Scripting/ScriptAnalysisCoordinator.h"
 #include "SagaEditor/Scripting/ScriptProjectionSession.h"
 #include "SagaEditor/Scripting/SagaScriptLanguageServiceSession.h"
+#include "SagaEditor/VisualBlocks/ControlledBlockEditController.h"
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
 #include "SagaEditorQt/Panels/ReadOnlyBlocksWidget.h"
 
@@ -150,6 +151,7 @@ struct CodeBoxPanel::Impl
     ScriptAnalysisCoordinator* coordinator = nullptr;
     ScriptProjectionSession* projectionSession = nullptr;
     SagaScriptLanguageServiceSession* languageSession = nullptr;
+    std::unique_ptr<ControlledBlockEditController> controlledController;
     SagaScriptLanguageServiceSession::PublicationSubscription languageSubscription =
         SagaScriptLanguageServiceSession::InvalidPublicationSubscription;
     ScriptProjectionSession::ChangeSubscription projectionSubscription =
@@ -303,6 +305,7 @@ struct CodeBoxPanel::Impl
             document->UnsubscribeChanges(documentSubscription);
         documentSubscription = CSharpSourceDocument::InvalidChangeSubscription;
         document = nullptr;
+        blocks->SetControlledEditing(controlledController.get(), nullptr);
     }
 
     void AttachDocument(CSharpSourceDocument* next)
@@ -310,6 +313,16 @@ struct CodeBoxPanel::Impl
         DetachDocument(); document = next;
         if (document)
             documentSubscription = document->SubscribeChanges([this] { RefreshText(); });
+        blocks->SetControlledEditing(controlledController.get(), document);
+    }
+
+    void RefreshControlledController()
+    {
+        controlledController.reset();
+        if (languageSession && journal)
+            controlledController = std::make_unique<ControlledBlockEditController>(
+                *languageSession, *journal);
+        blocks->SetControlledEditing(controlledController.get(), document);
     }
 
     void RefreshText()
@@ -444,6 +457,7 @@ struct CodeBoxPanel::Impl
                 QMetaObject::invokeMethod(target, [this, target, publication = std::move(publication)]() mutable
                 { if (target) PresentLanguagePublication(std::move(publication)); }, Qt::QueuedConnection);
             });
+        RefreshControlledController();
     }
 
     void DetachLanguageSession()
@@ -453,6 +467,7 @@ struct CodeBoxPanel::Impl
             languageSession->Unsubscribe(languageSubscription);
         languageSubscription = SagaScriptLanguageServiceSession::InvalidPublicationSubscription;
         languageSession = nullptr;
+        RefreshControlledController();
     }
 
     void DetachWorkspace()
@@ -552,7 +567,8 @@ void CodeBoxPanel::SetDocumentWorkspace(EditorDocumentWorkspace* workspace)
             [impl = impl_.get()] { impl->RefreshWorkspace(); });
     impl_->RefreshWorkspace();
 }
-void CodeBoxPanel::SetUndoRedoStack(UndoRedoStack* journal) noexcept { impl_->journal = journal; }
+void CodeBoxPanel::SetUndoRedoStack(UndoRedoStack* journal) noexcept
+{ impl_->journal = journal; impl_->RefreshControlledController(); }
 void CodeBoxPanel::SetCommandDispatcher(CommandDispatcher* dispatcher) noexcept { impl_->dispatcher = dispatcher; }
 void CodeBoxPanel::SetAnalysisCoordinator(ScriptAnalysisCoordinator* coordinator) noexcept
 { impl_->coordinator = coordinator; }

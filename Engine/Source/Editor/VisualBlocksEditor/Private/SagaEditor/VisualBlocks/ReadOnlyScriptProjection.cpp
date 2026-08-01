@@ -17,11 +17,13 @@ ReadOnlyScriptProjection::ReadOnlyScriptProjection(std::string projectId,
     std::string projectHash, std::string sourceRevision,
     std::string packageGenerationId, std::string packageGenerationHash,
     std::string artifactHash, std::vector<ProjectionCard> roots,
-    std::vector<ProjectionCard> opaqueRegions)
+    std::vector<ProjectionCard> opaqueRegions,
+    std::vector<EditableProjectionField> editableFields)
     : projectId_(std::move(projectId)), projectHash_(std::move(projectHash)),
       sourceRevision_(std::move(sourceRevision)),
       packageGenerationId_(std::move(packageGenerationId)),
       packageGenerationHash_(std::move(packageGenerationHash)),
       artifactHash_(std::move(artifactHash)), roots_(std::move(roots)),
-      opaqueRegions_(std::move(opaqueRegions)) {}
+      opaqueRegions_(std::move(opaqueRegions)),
+      editableFields_(std::move(editableFields)) {}
 }

@@ -43,6 +43,9 @@ public:
     /// Execute an action and push it onto the history. Truncates redo tail.
     void Push(std::unique_ptr<IEditorAction> action);
 
+    /// Record an action whose mutation has already completed successfully.
+    void PushExecuted(std::unique_ptr<IEditorAction> action);
+
     /// Undo the most recent action. No-op if the stack is empty.
     void Undo();
 
