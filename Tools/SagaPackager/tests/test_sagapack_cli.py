@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 
 from visible_slice_suite import TESTS as VISIBLE_SLICE_TESTS
+from package_transaction_suite import run_tests as run_package_transaction_tests
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -20,6 +21,7 @@ PROJECT = REPO_ROOT / "Tools" / "SagaPackager" / "SagaPackager.csproj"
 CLI_ASSEMBLY = PROJECT.parent / "bin" / "Release" / "net10.0" / "sagapack.dll"
 SAMPLE_ROOT = REPO_ROOT / "Samples" / "MultiplayerSandbox"
 STARTER_ROOT = REPO_ROOT / "Samples" / "StarterArena"
+ARENA_ROOT = REPO_ROOT / "Samples" / "ArenaRush"
 RUNTIME_BRIDGE_ASSEMBLY = (
     REPO_ROOT / "build" / "RelWithDebInfo-0.0.11" / "Managed" /
     "SagaScript.RuntimeBridge" / "SagaScript.RuntimeBridge.dll"
@@ -1083,6 +1085,8 @@ def test_invalid_scene_does_not_replace_current_manifest() -> None:
 
 def run_all() -> None:
     tests = [
+        lambda: run_package_transaction_tests(
+            run_cli, load, REPO_ROOT, ARENA_ROOT, RUNTIME_BRIDGE_ASSEMBLY),
         test_package_resolution_is_offline_and_deterministic_across_roots,
         test_lock_verify_rejects_stale_intent_and_corrupt_artifact_hash,
         test_lock_verify_rejects_mismatched_selected_generation,

@@ -147,7 +147,8 @@ internal static class PackageResolutionService
         }
         try
         {
-            PublishGeneration(graph, lockPath, generatedOutputRoot, runtimeBridgePath);
+            PackageGenerationPublisher.Publish(graph, lockPath, generatedOutputRoot,
+                runtimeBridgePath, publishLock: true);
             return Report("resolve", graph, lockPath, generatedOutputRoot, []);
         }
         catch (PackageResolutionException exception)
@@ -162,10 +163,73 @@ internal static class PackageResolutionService
         }
     }
 
-    public static PackageResolutionReport Verify(string projectInput, string engineRoot, string lockPath,
-        string runtimeBridgePath, string generatedOutputRoot = "")
+    public static PackageResolutionReport ResolveCandidate(string projectInput,
+        string projectRoot, string engineRoot, string lockPath,
+        string generatedOutputRoot, string runtimeBridgePath)
     {
+        var graph = BuildGraph(projectInput, engineRoot, runtimeBridgePath, projectRoot);
+        if (!graph.Passed)
+            return Report("resolve-candidate", graph, lockPath,
+                generatedOutputRoot, graph.Diagnostics);
+        try
+        {
+            PackageGenerationPublisher.Publish(graph, lockPath, generatedOutputRoot,
+                runtimeBridgePath, publishLock: true);
+            return Report("resolve-candidate", graph, lockPath,
+                generatedOutputRoot, []);
+        }
+        catch (PackageResolutionException exception)
+        {
+            return Report("resolve-candidate", graph, lockPath,
+                generatedOutputRoot,
+                [Error(exception.Code, exception.DiagnosticPath, exception.Message)]);
+        }
+        catch (Exception exception)
+        {
+            return Report("resolve-candidate", graph, lockPath,
+                generatedOutputRoot,
+                [Error("Package.ResolveCandidate.PublishFailed", lockPath,
+                    exception.Message)]);
+        }
+    }
+
+    public static PackageResolutionReport RefreshGeneration(string projectInput,
+        string engineRoot, string lockPath, string generatedOutputRoot,
+        string runtimeBridgePath)
+    {
+        var verified = Verify(projectInput, engineRoot, lockPath,
+            runtimeBridgePath);
+        if (verified.Status != "Passed")
+            return verified with { Command = "generation-refresh" };
         var graph = BuildGraph(projectInput, engineRoot, runtimeBridgePath);
+        try
+        {
+            PackageGenerationPublisher.Publish(graph, lockPath, generatedOutputRoot,
+                runtimeBridgePath, publishLock: false);
+            return Report("generation-refresh", graph, lockPath,
+                generatedOutputRoot, []);
+        }
+        catch (PackageResolutionException exception)
+        {
+            return Report("generation-refresh", graph, lockPath,
+                generatedOutputRoot,
+                [Error(exception.Code, exception.DiagnosticPath, exception.Message)]);
+        }
+        catch (Exception exception)
+        {
+            return Report("generation-refresh", graph, lockPath,
+                generatedOutputRoot,
+                [Error("Package.Generation.RefreshFailed", generatedOutputRoot,
+                    exception.Message)]);
+        }
+    }
+
+    public static PackageResolutionReport Verify(string projectInput, string engineRoot, string lockPath,
+        string runtimeBridgePath, string generatedOutputRoot = "",
+        string projectRoot = "")
+    {
+        var graph = BuildGraph(projectInput, engineRoot, runtimeBridgePath,
+            projectRoot);
         var diagnostics = graph.Diagnostics.ToList();
         SagaPackageLock? existing = null;
         if (!File.Exists(lockPath))
@@ -228,9 +292,10 @@ internal static class PackageResolutionService
     }
 
     public static VerifiedPackageGraph BuildGraph(string projectInput, string engineRoot,
-        string runtimeBridgePath = "")
+        string runtimeBridgePath = "", string projectRoot = "")
     {
-        var project = new ProjectLoader().Load(projectInput, checkReferences: true);
+        var project = new ProjectLoader().Load(projectInput, checkReferences: true,
+            referenceRoot: projectRoot);
         var diagnostics = project.Diagnostics.ToList();
         var runtimeBridge = ReadRuntimeBridge(runtimeBridgePath, diagnostics);
         var distributionRoot = Path.GetFullPath(Path.Combine(ResolveEngineRoot(engineRoot), "Engine", "Distribution"));
@@ -769,127 +834,66 @@ internal static class PackageResolutionService
         }
     }
 
-    private static void PublishGeneration(VerifiedPackageGraph graph, string lockPath, string outputRoot,
-        string runtimeBridgePath)
+    private static byte[] BuildApiOwnershipCatalog(VerifiedPackageGraph graph)
     {
-        if (string.IsNullOrWhiteSpace(outputRoot))
-            throw new InvalidOperationException("--generated-out is required for package resolution.");
-        var root = Path.GetFullPath(outputRoot);
-        Directory.CreateDirectory(root);
-        WaitForRuntimeBridgePublicationBarrier();
-        VerifyRuntimeBridgePublicationInput(graph, runtimeBridgePath);
-        var staging = Path.Combine(Path.GetDirectoryName(root)!, $".{Path.GetFileName(root)}.saga-staging-{Guid.NewGuid():N}");
-        var artifacts = graph.Lock.Packages.SelectMany(package => package.Artifacts).ToArray();
-        var common = new
+        var entries = new List<object>();
+        foreach (var package in graph.Lock.Packages
+                     .OrderBy(item => item.PackageId, StringComparer.Ordinal))
         {
-            schemaVersion = 1,
-            projectId = graph.Lock.ProjectId,
-            projectHash = graph.Lock.ProjectHash,
-            graphHash = graph.Lock.GraphHash,
-        };
-        var files = new Dictionary<string, byte[]>(StringComparer.Ordinal)
-        {
-            ["SagaPackage.lock"] = CanonicalJson.Serialize(graph.Lock),
-            ["csharp_references_v1.json"] = CanonicalJson.Serialize(new
-        {
-            common.schemaVersion,
-            common.projectId,
-            common.projectHash,
-            common.graphHash,
-            references = artifacts.Where(item => item.Kind == "managedReference")
-                .OrderBy(item => item.ArtifactId, StringComparer.Ordinal).ToArray(),
-        }),
-        };
-        var surfaces = artifacts.Where(item => item.Kind == "apiSurface")
-            .OrderBy(item => item.ArtifactId, StringComparer.Ordinal).ToArray();
-        files["api_surfaces_v1.json"] = CanonicalJson.Serialize(new
-        {
-            common.schemaVersion,
-            common.projectId,
-            common.projectHash,
-            common.graphHash,
-            surfaces,
-        });
-        files["visual_blocks_surfaces_v1.json"] = CanonicalJson.Serialize(new
-        {
-            common.schemaVersion,
-            common.projectId,
-            common.projectHash,
-            common.graphHash,
-            surfaces,
-            projectionPolicy = "FilterRawAndInternal",
-        });
-        var bridge = artifacts.Single(item => item.Kind == "managedReference");
-        files[bridge.ResolvedAssemblyLogicalPath] = graph.RuntimeBridge.Bytes;
-        var entries = files.OrderBy(item => item.Key, StringComparer.Ordinal).Select(item => new
-        {
-            path = item.Key,
-            hash = CanonicalJson.Hash(item.Value),
-        }).ToArray();
-        var generationHash = CanonicalJson.Hash(CanonicalJson.Serialize(new
-        {
-            graphHash = graph.Lock.GraphHash,
-            files = entries,
-        }));
-        var generationId = generationHash["sha256:".Length..];
-        var generationManifest = CanonicalJson.Serialize(new
-        {
-            schemaVersion = 1,
-            generationId,
-            generationHash,
-            graphHash = graph.Lock.GraphHash,
-            projectId = graph.Lock.ProjectId,
-            projectHash = graph.Lock.ProjectHash,
-            files = entries,
-        });
-        files["generation.json"] = generationManifest;
-        byte[]? priorLock = File.Exists(lockPath) ? File.ReadAllBytes(lockPath) : null;
-        var currentPath = Path.Combine(root, "manifests", "current.json");
-        byte[]? priorCurrent = File.Exists(currentPath) ? File.ReadAllBytes(currentPath) : null;
-        try
-        {
-            Directory.CreateDirectory(staging);
-            var writeIndex = 0;
-            foreach (var file in files.OrderBy(item => item.Key, StringComparer.Ordinal))
+            var packageManifestPath = Path.Combine(graph.DistributionRoot,
+                "Packages", package.PackageId, package.Version, "package.json");
+            var manifest = JsonSerializer.Deserialize<BuiltinPackageManifest>(
+                File.ReadAllBytes(packageManifestPath), Options)
+                ?? throw new PackageResolutionException(
+                    "Package.Ownership.ManifestInvalid", packageManifestPath,
+                    "Package manifest could not be loaded for API ownership.");
+            foreach (var artifact in manifest.Artifacts
+                         .Where(item => item.Kind == "apiSurface")
+                         .OrderBy(item => item.ArtifactId, StringComparer.Ordinal))
             {
-                var target = Path.Combine(staging, file.Key);
-                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-                File.WriteAllBytes(target, file.Value);
-                if (CanonicalJson.HashFile(target) != CanonicalJson.Hash(file.Value))
-                    throw new InvalidOperationException("Staged package generation hash verification failed.");
-                InjectFailure($"after-write-{++writeIndex}");
+                var descriptorPath = Path.Combine(
+                    graph.DistributionRoot, artifact.Path);
+                using var descriptor = JsonDocument.Parse(
+                    File.ReadAllBytes(descriptorPath));
+                var root = descriptor.RootElement;
+                var module = root.GetProperty("module").GetString() ?? "";
+                var surface = root.GetProperty("surfaceId").GetString() ?? "";
+                var enabled = package.Modules.Contains(module,
+                    StringComparer.Ordinal);
+                foreach (var api in root.GetProperty("apis").EnumerateArray())
+                {
+                    var documentationId = api.TryGetProperty(
+                        "documentationId", out var documentation)
+                        ? documentation.GetString() ?? "" : "";
+                    if (string.IsNullOrWhiteSpace(documentationId))
+                        throw new PackageResolutionException(
+                            "Package.Ownership.DocumentationIdMissing",
+                            descriptorPath,
+                            "Every package-owned API requires an explicit Roslyn documentation ID.");
+                    entries.Add(new
+                    {
+                        documentationId,
+                        apiId = api.GetProperty("apiId").GetString() ?? "",
+                        surface,
+                        module,
+                        packageId = package.PackageId,
+                        packageVersion = package.Version,
+                        capability = api.GetProperty("capability").GetString() ?? "",
+                        projection = api.GetProperty("blockProjection").GetString() ?? "",
+                        enabled,
+                    });
+                }
             }
-            VerifyRuntimeBridgePublicationInput(graph, runtimeBridgePath);
-            InjectFailure("before-generation-publish");
-            var finalGeneration = Path.Combine(root, "generations", generationId);
-            Directory.CreateDirectory(Path.GetDirectoryName(finalGeneration)!);
-            if (!Directory.Exists(finalGeneration)) Directory.Move(staging, finalGeneration);
-            else Directory.Delete(staging, recursive: true);
-            AtomicWrite(lockPath, files["SagaPackage.lock"]);
-            InjectFailure("before-current-publish");
-            var current = CanonicalJson.Serialize(new
-            {
-                schemaVersion = 1,
-                generationId,
-                generationHash,
-                graphHash = graph.Lock.GraphHash,
-                projectId = graph.Lock.ProjectId,
-                projectHash = graph.Lock.ProjectHash,
-                generationManifestPath = $"generations/{generationId}/generation.json",
-                generationManifestHash = CanonicalJson.Hash(generationManifest),
-            });
-            AtomicWrite(currentPath, current);
         }
-        catch
+        return CanonicalJson.Serialize(new
         {
-            Restore(lockPath, priorLock);
-            Restore(currentPath, priorCurrent);
-            throw;
-        }
-        finally
-        {
-            if (Directory.Exists(staging)) Directory.Delete(staging, recursive: true);
-        }
+            schemaVersion = 1,
+            projectId = graph.Lock.ProjectId,
+            projectHash = graph.Lock.ProjectHash,
+            graphHash = graph.Lock.GraphHash,
+            generationIdentity = graph.Lock.GraphHash,
+            symbols = entries,
+        });
     }
 
     private static void VerifyRuntimeBridgePublicationInput(VerifiedPackageGraph graph, string runtimeBridgePath)
@@ -930,18 +934,6 @@ internal static class PackageResolutionService
         }
     }
 
-    private static void InjectFailure(string stage)
-    {
-        if (Environment.GetEnvironmentVariable("SAGAPACK_FAIL_STAGE") == stage)
-            throw new InvalidOperationException($"Injected package publication failure at {stage}.");
-    }
-
-    private static void Restore(string path, byte[]? bytes)
-    {
-        if (bytes is not null) AtomicWrite(path, bytes);
-        else if (File.Exists(path)) File.Delete(path);
-    }
-
     private static PackageResolutionReport Report(string command, VerifiedPackageGraph graph,
         string lockPath, string generatedRoot, IEnumerable<SagaProjectKit.Core.ProjectDiagnostic> diagnostics)
     {
@@ -958,23 +950,6 @@ internal static class PackageResolutionService
             GeneratedOutputRoot = Normalize(generatedRoot),
             Diagnostics = sorted,
         };
-    }
-
-    private static void AtomicWrite(string path, byte[] bytes)
-    {
-        var full = Path.GetFullPath(path);
-        Directory.CreateDirectory(Path.GetDirectoryName(full)!);
-        var temporary = full + "." + Guid.NewGuid().ToString("N") + ".tmp";
-        try
-        {
-            File.WriteAllBytes(temporary, bytes);
-            File.Move(temporary, full, overwrite: true);
-        }
-        finally
-        {
-            if (File.Exists(temporary))
-                File.Delete(temporary);
-        }
     }
 
     private static string ResolveEngineRoot(string input)

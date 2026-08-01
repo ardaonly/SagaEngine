@@ -9,7 +9,8 @@ public sealed class ProjectLoader
     private static readonly string[] Classifications =
         ["SourceTruth", "GeneratedState", "PersonalState", "SharedWorkspaceState"];
 
-    public ProjectLoadResult Load(string input, bool checkReferences = true)
+    public ProjectLoadResult Load(string input, bool checkReferences = true,
+        string referenceRoot = "")
     {
         var diagnostics = new List<ProjectDiagnostic>();
         var manifestPath = ResolveManifest(input, diagnostics);
@@ -17,7 +18,15 @@ public sealed class ProjectLoader
         {
             return Result("", "", null, [], diagnostics);
         }
-        var root = Path.GetDirectoryName(manifestPath)!;
+        var root = string.IsNullOrWhiteSpace(referenceRoot)
+            ? Path.GetDirectoryName(manifestPath)!
+            : Path.GetFullPath(referenceRoot);
+        if (!Directory.Exists(root))
+        {
+            diagnostics.Add(Error("Project.ReferenceRoot.Missing", root,
+                "The explicit canonical project reference root does not exist."));
+            return Result(root, manifestPath, null, [], diagnostics);
+        }
         ProjectManifest? manifest;
         try
         {

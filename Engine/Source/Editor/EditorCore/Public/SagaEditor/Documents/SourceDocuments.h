@@ -15,12 +15,16 @@ namespace SagaEditor
 class ProjectDocument final : public IDocument
 {
 public:
+    using ChangeSubscription = std::uint64_t;
+    using ChangeCallback = std::function<void()>;
+    static constexpr ChangeSubscription InvalidChangeSubscription = 0;
     explicit ProjectDocument(std::filesystem::path sourcePath);
     ~ProjectDocument() override;
 
     [[nodiscard]] const DocumentSnapshot& Snapshot() const noexcept override;
     [[nodiscard]] const std::vector<DocumentDiagnostic>& Diagnostics() const noexcept override;
     [[nodiscard]] const std::string& Text() const noexcept;
+    [[nodiscard]] bool ReplaceText(std::string text);
     [[nodiscard]] bool Load() override;
     [[nodiscard]] DocumentSaveStatus Save() override;
     [[nodiscard]] bool Reload() override;
@@ -30,9 +34,14 @@ public:
     [[nodiscard]] bool CanRedo() const noexcept override;
     [[nodiscard]] bool Undo() override;
     [[nodiscard]] bool Redo() override;
+    [[nodiscard]] ChangeSubscription SubscribeChanges(ChangeCallback callback);
+    void UnsubscribeChanges(ChangeSubscription subscription);
 
 private:
+    void NotifyChanged();
     std::unique_ptr<TextDocument> text_;
+    std::map<ChangeSubscription, ChangeCallback> callbacks_;
+    ChangeSubscription nextSubscription_ = 1;
 };
 
 class CSharpSourceDocument final : public IDocument

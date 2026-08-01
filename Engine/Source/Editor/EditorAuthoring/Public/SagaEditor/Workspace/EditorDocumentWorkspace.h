@@ -4,6 +4,7 @@
 
 #include "SagaEditor/Documents/SourceDocuments.h"
 #include "SagaEditor/Project/ProjectManager.h"
+#include "SagaEditor/Project/ProjectMutation.h"
 #include "SagaEditor/SceneEditing/SceneDocument.h"
 
 #include <memory>
@@ -57,6 +58,9 @@ public:
     [[nodiscard]] const std::vector<std::unique_ptr<InputMapDocument>>& InputMaps() const noexcept;
     [[nodiscard]] const std::vector<ProjectSourceEntry>& SourceListing() const noexcept;
     [[nodiscard]] std::vector<std::string> DirtyDocumentIds() const;
+    [[nodiscard]] bool HasRecoveryRequired() const noexcept;
+    [[nodiscard]] const std::vector<ProjectMutationRecoveryResult>&
+        PackageRecovery() const noexcept;
     [[nodiscard]] bool SaveAll();
     [[nodiscard]] std::uint64_t Generation() const noexcept;
     [[nodiscard]] std::shared_ptr<const std::atomic_uint64_t> RevisionFence() const noexcept;
@@ -74,6 +78,7 @@ private:
     std::vector<std::unique_ptr<CSharpSourceDocument>> scripts_;
     std::vector<std::unique_ptr<InputMapDocument>> inputs_;
     std::vector<ProjectSourceEntry> listing_;
+    std::vector<ProjectMutationRecoveryResult> packageRecovery_;
     std::map<ChangeSubscription, ChangeCallback> callbacks_;
     ChangeSubscription nextSubscription_ = 1;
     std::shared_ptr<std::atomic_uint64_t> revisionFence_ =

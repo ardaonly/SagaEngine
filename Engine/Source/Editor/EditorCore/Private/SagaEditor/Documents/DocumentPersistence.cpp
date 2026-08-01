@@ -70,6 +70,23 @@ DocumentPublicationResult AtomicDocumentPersistence::Publish(
     }
     if (const auto injected = Fault(DocumentPersistenceFaultPoint::FileSync, temporary))
     { result.error = injected; (void)cleanup(); return result; }
+    const auto temporaryHandle = CreateFileW(temporary.c_str(), GENERIC_WRITE,
+        FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH, nullptr);
+    if (temporaryHandle == INVALID_HANDLE_VALUE)
+    {
+        result.error = std::error_code(
+            static_cast<int>(GetLastError()), std::system_category());
+        (void)cleanup();
+        return result;
+    }
+    if (!FlushFileBuffers(temporaryHandle))
+        result.error = std::error_code(
+            static_cast<int>(GetLastError()), std::system_category());
+    if (!CloseHandle(temporaryHandle) && !result.error)
+        result.error = std::error_code(
+            static_cast<int>(GetLastError()), std::system_category());
+    if (result.error) { (void)cleanup(); return result; }
     if (const auto injected = Fault(DocumentPersistenceFaultPoint::AtomicRename, path))
     { result.error = injected; (void)cleanup(); return result; }
     if (!MoveFileExW(temporary.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))

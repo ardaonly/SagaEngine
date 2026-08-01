@@ -30,6 +30,12 @@ void Write(const fs::path& path, std::string_view bytes)
     output << bytes;
 }
 
+std::string Read(const fs::path& path)
+{
+    std::ifstream input(path, std::ios::binary);
+    return {std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
+}
+
 fs::path FixtureRoot()
 {
     const auto root = fs::temp_directory_path() /
@@ -112,4 +118,40 @@ TEST(EditorDocumentWorkspaceTests, CreationFailurePreservesStructuredDiagnostic)
     ASSERT_FALSE(result.passed);
     ASSERT_EQ(result.diagnostics.size(), 1U);
     EXPECT_EQ(result.diagnostics.front().code, "Project.Template.SeedMissing");
+}
+
+TEST(EditorDocumentWorkspaceTests, ProjectManifestParticipatesInDirtyInventoryAndSaveAll)
+{
+    const auto root = FixtureRoot();
+    auto client = std::make_shared<FakeProjectClient>();
+    client->result = ProjectResult(root);
+    SagaEditor::EditorDocumentWorkspace workspace(client);
+    ASSERT_TRUE(workspace.OpenProject(root));
+
+    ASSERT_TRUE(workspace.ProjectSource()->ReplaceText("{\"changed\":true}\n"));
+    ASSERT_EQ(workspace.DirtyDocumentIds().size(), 1U);
+    EXPECT_EQ(workspace.DirtyDocumentIds().front(), "project:Project.sagaproj");
+    ASSERT_TRUE(workspace.SaveAll());
+    EXPECT_TRUE(workspace.DirtyDocumentIds().empty());
+    EXPECT_EQ(Read(root / "Project.sagaproj"), "{\"changed\":true}\n");
+    fs::remove_all(root);
+}
+
+TEST(EditorDocumentWorkspaceTests, UnknownPackageJournalAllowsInspectionButBlocksMutationReadiness)
+{
+    const auto root = FixtureRoot();
+    const auto journal = root /
+        ".saga/local/transactions/package/future/journal.v1.json";
+    Write(journal, "{\"schemaVersion\":2}\n");
+    auto client = std::make_shared<FakeProjectClient>();
+    client->result = ProjectResult(root);
+    SagaEditor::EditorDocumentWorkspace workspace(client);
+
+    ASSERT_TRUE(workspace.OpenProject(root));
+    EXPECT_TRUE(workspace.HasRecoveryRequired());
+    ASSERT_EQ(workspace.PackageRecovery().size(), 1U);
+    EXPECT_EQ(workspace.PackageRecovery().front().action,
+        SagaEditor::ProjectMutationRecoveryAction::UnsupportedJournal);
+    EXPECT_NE(workspace.ProjectSource(), nullptr);
+    fs::remove_all(root);
 }

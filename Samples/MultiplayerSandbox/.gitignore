@@ -1,0 +1,5 @@
+/Build/
+/.saga/user/
+/.saga/local/
+/.saga/shared/*.local.json
+*.cooked.json

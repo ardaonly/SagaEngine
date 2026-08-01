@@ -45,13 +45,16 @@ TEST(SourceDocumentTests, InputMapRejectsDuplicateActionsAndBindings)
     std::filesystem::remove(path);
 }
 
-TEST(SourceDocumentTests, ProjectDocumentIsValidatedReadOnlySourceView)
+TEST(SourceDocumentTests, ProjectDocumentParticipatesInExplicitSave)
 {
     const auto path = TemporaryFile("project.sagaproj", "{}\n");
     SagaEditor::ProjectDocument document(path);
     ASSERT_TRUE(document.Load());
     EXPECT_EQ(document.Snapshot().kind, SagaEditor::DocumentKind::Project);
-    EXPECT_FALSE(document.Snapshot().canSave);
-    EXPECT_EQ(document.Save(), SagaEditor::DocumentSaveStatus::WriteFailed);
+    EXPECT_TRUE(document.Snapshot().canSave);
+    ASSERT_TRUE(document.ReplaceText("{\"changed\":true}\n"));
+    EXPECT_TRUE(document.Snapshot().dirty);
+    EXPECT_EQ(document.Save(), SagaEditor::DocumentSaveStatus::Saved);
+    EXPECT_FALSE(document.Snapshot().dirty);
     std::filesystem::remove(path);
 }

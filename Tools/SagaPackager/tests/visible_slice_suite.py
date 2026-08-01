@@ -232,6 +232,10 @@ def test_arena_rush_multi_surface_package_generation_is_exact() -> None:
         assert [
             api["apiId"] for descriptor in descriptors for api in descriptor["apis"]
         ] == [
+            "ChallengeDefinition",
+            "ChallengePhase",
+            "ChallengeResult",
+            "ChallengeState",
             "ChallengeHighLevel.AddProgress",
             "ChallengeHighLevel.AdvanceTime",
             "ChallengeHighLevel.Arm",
@@ -245,6 +249,9 @@ def test_arena_rush_multi_surface_package_generation_is_exact() -> None:
             "ChallengeHighLevel.StartOnce",
             "ChallengeHighLevel.Suspend",
             "ChallengeHighLevel.Timeout",
+            "CollectibleDefinition",
+            "CollectiblePhase",
+            "CollectibleState",
             "CollectiblesHighLevel.AdvanceRespawnTime",
             "CollectiblesHighLevel.Collect",
             "CollectiblesHighLevel.CompleteRespawn",

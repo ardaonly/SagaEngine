@@ -17,6 +17,7 @@ saga_add_editor_module(EditorCore
         Private/SagaEditor/Documents/SourceDocumentTransaction.cpp
         Private/SagaEditor/Documents/TextDocument.cpp
         Private/SagaEditor/Project/ProjectManager.cpp
+        Private/SagaEditor/Project/ProjectMutation.cpp
         Private/SagaEditor/Project/SagaProjectKitClient.cpp
         Private/SagaEditor/Processes/ManagedToolRuntime.cpp
         Private/SagaEditor/Processes/ToolProcessRunner.cpp
@@ -41,6 +42,7 @@ saga_add_editor_module(EditorCore
         Public/SagaEditor/Documents/SourceDocumentTransaction.h
         Public/SagaEditor/Documents/TextDocument.h
         Public/SagaEditor/Project/ProjectManager.h
+        Public/SagaEditor/Project/ProjectMutation.h
         Public/SagaEditor/Project/RecentProjects.h
         Public/SagaEditor/Project/SagaProjectKitClient.h
         Public/SagaEditor/Processes/ManagedToolRuntime.h
@@ -73,6 +75,7 @@ saga_register_module_tests(EditorCore
         Tests/DocumentRecoveryTests.cpp
         Tests/SourceDocumentTests.cpp
         Tests/ProjectManagerTests.cpp
+        Tests/ProjectMutationTests.cpp
         Tests/SagaProjectKitClientTests.cpp
         Tests/ManagedToolRuntimeTests.cpp
         Tests/ToolProcessRunnerTests.cpp
