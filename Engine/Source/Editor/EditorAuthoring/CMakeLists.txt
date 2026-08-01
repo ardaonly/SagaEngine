@@ -31,6 +31,7 @@ saga_add_editor_module(EditorAuthoring
         Private/SagaEditor/SceneEditing/SceneSelectionIdentity.cpp
         Private/SagaEditor/Scripting/ScriptAnalysisCoordinator.cpp
         Private/SagaEditor/Scripting/ScriptProjectionSession.cpp
+        Private/SagaEditor/Scripting/SagaScriptLanguageServiceSession.cpp
         Private/SagaEditor/Workspace/EditorDocumentWorkspace.cpp
         Private/SagaEditor/Viewport/CameraController.cpp
         Private/SagaEditor/Viewport/EditorRenderSceneSnapshot.cpp
@@ -72,6 +73,7 @@ saga_add_editor_module(EditorAuthoring
         Public/SagaEditor/SceneEditing/SceneSelectionIdentity.h
         Public/SagaEditor/Scripting/ScriptAnalysisCoordinator.h
         Public/SagaEditor/Scripting/ScriptProjectionSession.h
+        Public/SagaEditor/Scripting/SagaScriptLanguageServiceSession.h
         Public/SagaEditor/SceneEditing/SceneHierarchyAdapter.h
         Public/SagaEditor/SceneEditing/SceneViewportController.h
         Public/SagaEditor/Viewport/CameraController.h

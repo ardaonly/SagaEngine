@@ -34,6 +34,7 @@
 #include "SagaEditor/Panels/ProblemsPanel.h"
 #include "SagaEditor/Panels/PackagesPanel.h"
 #include "SagaEditor/Panels/CodeBoxPanel.h"
+#include "SagaEditor/Scripting/SagaScriptLanguageServiceSession.h"
 #include "SagaEditor/Panels/WorldViewportPanel.h"
 
 #include <algorithm>
@@ -486,11 +487,20 @@ void EditorShell::RegisterDefaultPanels()
     codeBox->SetCommandDispatcher(&m_host->GetCommandDispatcher());
     codeBox->SetAnalysisCoordinator(&m_host->GetScriptAnalysisCoordinator());
     codeBox->SetProjectionSession(&m_host->GetScriptProjectionSession());
+    codeBox->SetLanguageServiceSession(&m_host->GetSagaScriptLanguageServiceSession());
     auto* codeBoxPanel = codeBox.get();
     m_host->GetCommandRegistry().Register({"saga.command.script.analyze", "Analyze C#", "Script",
         [codeBoxPanel] { codeBoxPanel->Analyze(); }});
     m_host->GetCommandRegistry().Register({"saga.command.script.cancel", "Cancel Analysis", "Script",
         [codeBoxPanel] { codeBoxPanel->CancelAnalysis(); }});
+    m_host->GetCommandRegistry().Register({"saga.command.script.definition", "Go to Definition", "Script",
+        [codeBoxPanel] { codeBoxPanel->RequestDefinition(); }});
+    m_host->GetCommandRegistry().Register({"saga.command.script.references", "Find References", "Script",
+        [codeBoxPanel] { codeBoxPanel->RequestReferences(); }});
+    m_host->GetCommandRegistry().Register({"saga.command.script.symbols", "Document Symbols", "Script",
+        [codeBoxPanel] { codeBoxPanel->RequestSymbols(); }});
+    m_host->GetCommandRegistry().Register({"saga.command.script.restart_language_service", "Restart Language Service", "Script",
+        [this] { m_host->GetSagaScriptLanguageServiceSession().Restart(); }});
     RegisterPanel(std::move(codeBox), UIDockArea::Bottom);
 
     auto problems = std::make_unique<ProblemsPanel>();

@@ -7,21 +7,26 @@
 #include "SagaEditor/Documents/SourceDocumentTransaction.h"
 #include "SagaEditor/Scripting/ScriptAnalysisCoordinator.h"
 #include "SagaEditor/Scripting/ScriptProjectionSession.h"
+#include "SagaEditor/Scripting/SagaScriptLanguageServiceSession.h"
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
 #include "SagaEditorQt/Panels/ReadOnlyBlocksWidget.h"
 
 #include <QtConcurrent/QtConcurrentRun>
 #include <QFutureWatcher>
+#include <QComboBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
 #include <QPlainTextEdit>
+#include <QKeyEvent>
 #include <QPointer>
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QSyntaxHighlighter>
 #include <QTextCharFormat>
+#include <QTextBlock>
 #include <QTabWidget>
+#include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -31,6 +36,22 @@ namespace SagaEditor
 {
 namespace
 {
+class LanguageCodeEditor final : public QPlainTextEdit
+{
+public:
+    using QPlainTextEdit::QPlainTextEdit;
+    std::function<void()> completionRequested;
+protected:
+    void keyPressEvent(QKeyEvent* event) override
+    {
+        const bool explicitRequest = event->key() == Qt::Key_Space &&
+            event->modifiers().testFlag(Qt::ControlModifier);
+        QPlainTextEdit::keyPressEvent(event);
+        if ((explicitRequest || event->text() == QStringLiteral(".")) && completionRequested)
+            completionRequested();
+    }
+};
+
 class CSharpHighlighter final : public QSyntaxHighlighter
 {
 public:
@@ -40,9 +61,34 @@ public:
         comment_.setForeground(QColor("#6a9955"));
         string_.setForeground(QColor("#ce9178"));
     }
+    void SetSemantic(std::vector<std::tuple<int, int, QString>> spans)
+    { semantic_ = std::move(spans); semanticCurrent_ = true; rehighlight(); }
+    void ClearSemantic() { semantic_.clear(); semanticCurrent_ = false; rehighlight(); }
 protected:
     void highlightBlock(const QString& text) override
     {
+        if (semanticCurrent_)
+        {
+            const auto blockStart = currentBlock().position();
+            const auto blockEnd = blockStart + text.size();
+            for (const auto& [start, length, kind] : semantic_)
+            {
+                const auto end = start + length;
+                if (end <= blockStart || start >= blockEnd) continue;
+                QTextCharFormat format;
+                if (kind.contains(QStringLiteral("comment"))) format.setForeground(QColor("#6a9955"));
+                else if (kind.contains(QStringLiteral("string"))) format.setForeground(QColor("#ce9178"));
+                else if (kind.contains(QStringLiteral("keyword"))) format.setForeground(QColor("#569cd6"));
+                else if (kind.contains(QStringLiteral("class")) || kind.contains(QStringLiteral("struct"))) format.setForeground(QColor("#4ec9b0"));
+                else if (kind.contains(QStringLiteral("method"))) format.setForeground(QColor("#dcdcaa"));
+                else format.setForeground(QColor("#9cdcfe"));
+                const auto clippedStart = std::max<qsizetype>(start, blockStart);
+                const auto clippedEnd = std::min<qsizetype>(end, blockEnd);
+                setFormat(static_cast<int>(clippedStart - blockStart),
+                    static_cast<int>(clippedEnd - clippedStart), format);
+            }
+            return;
+        }
         static const QRegularExpression keywords(
             QStringLiteral("\\b(class|namespace|public|private|protected|void|bool|float|double|int|string|return|if|else|new|using|sealed|override)\\b"));
         auto matches = keywords.globalMatch(text);
@@ -65,6 +111,8 @@ private:
     QTextCharFormat keyword_;
     QTextCharFormat comment_;
     QTextCharFormat string_;
+    std::vector<std::tuple<int, int, QString>> semantic_;
+    bool semanticCurrent_ = false;
 };
 
 class ScriptSourceMutationPort final : public IScriptSourceMutationPort
@@ -84,8 +132,11 @@ struct CodeBoxPanel::Impl
     QWidget* widget = nullptr;
     QLabel* identity = nullptr;
     QLabel* state = nullptr;
-    QPlainTextEdit* editor = nullptr;
+    QComboBox* documentSelector = nullptr;
+    LanguageCodeEditor* editor = nullptr;
+    CSharpHighlighter* highlighter = nullptr;
     QListWidget* diagnostics = nullptr;
+    QListWidget* languageResults = nullptr;
     QPushButton* save = nullptr;
     QPushButton* analyze = nullptr;
     QPushButton* recover = nullptr;
@@ -98,9 +149,14 @@ struct CodeBoxPanel::Impl
     CommandDispatcher* dispatcher = nullptr;
     ScriptAnalysisCoordinator* coordinator = nullptr;
     ScriptProjectionSession* projectionSession = nullptr;
+    SagaScriptLanguageServiceSession* languageSession = nullptr;
+    SagaScriptLanguageServiceSession::PublicationSubscription languageSubscription =
+        SagaScriptLanguageServiceSession::InvalidPublicationSubscription;
     ScriptProjectionSession::ChangeSubscription projectionSubscription =
         ScriptProjectionSession::InvalidChangeSubscription;
     QFutureWatcher<ScriptAnalysisResult>* analysisWatcher = nullptr;
+    QTimer* hoverTimer = nullptr;
+    QTimer* serviceStateTimer = nullptr;
     std::shared_ptr<std::atomic_bool> cancellation;
     EditorDocumentWorkspace::ChangeSubscription workspaceSubscription =
         EditorDocumentWorkspace::InvalidChangeSubscription;
@@ -117,6 +173,8 @@ struct CodeBoxPanel::Impl
         auto* layout = new QVBoxLayout(widget);
         auto* toolbar = new QHBoxLayout();
         identity = new QLabel("No C# source open", widget);
+        documentSelector = new QComboBox(widget);
+        documentSelector->setAccessibleName(QStringLiteral("C# source document"));
         state = new QLabel(widget);
         save = new QPushButton("Save", widget);
         analyze = new QPushButton("Analyze", widget);
@@ -124,7 +182,7 @@ struct CodeBoxPanel::Impl
         discardRecovery = new QPushButton("Discard recovery", widget);
         recover->setVisible(false);
         discardRecovery->setVisible(false);
-        toolbar->addWidget(identity, 1); toolbar->addWidget(state);
+        toolbar->addWidget(identity); toolbar->addWidget(documentSelector, 1); toolbar->addWidget(state);
         toolbar->addWidget(recover); toolbar->addWidget(discardRecovery);
         toolbar->addWidget(save); toolbar->addWidget(analyze);
         layout->addLayout(toolbar);
@@ -133,14 +191,17 @@ struct CodeBoxPanel::Impl
         scriptingTab = new QWidget(tabs);
         auto* scriptingLayout = new QVBoxLayout(scriptingTab);
         scriptingLayout->setContentsMargins(0, 0, 0, 0);
-        editor = new QPlainTextEdit(scriptingTab);
+        editor = new LanguageCodeEditor(scriptingTab);
         editor->setUndoRedoEnabled(false);
         editor->setLineWrapMode(QPlainTextEdit::NoWrap);
-        new CSharpHighlighter(editor->document());
+        highlighter = new CSharpHighlighter(editor->document());
         scriptingLayout->addWidget(editor, 3);
         diagnostics = new QListWidget(scriptingTab);
         diagnostics->setAccessibleName("SagaScript diagnostics");
         scriptingLayout->addWidget(diagnostics, 1);
+        languageResults = new QListWidget(scriptingTab);
+        languageResults->setAccessibleName(QStringLiteral("Code Box language results"));
+        scriptingLayout->addWidget(languageResults, 1);
         blocks = new ReadOnlyBlocksWidget(tabs);
         tabs->addTab(scriptingTab, QStringLiteral("C#"));
         tabs->addTab(blocks, QStringLiteral("Blocks — Read-only projection"));
@@ -166,6 +227,35 @@ struct CodeBoxPanel::Impl
             if (synchronizing || !document || !journal || !mutationPort) return;
             (void)mutationPort->ReplaceText(
                 *document, *journal, editor->toPlainText().toStdString());
+        });
+        editor->completionRequested = [this] { StartLanguageRequest("completion", true); };
+        hoverTimer = new QTimer(widget);
+        hoverTimer->setSingleShot(true);
+        hoverTimer->setInterval(500);
+        QObject::connect(editor, &QPlainTextEdit::cursorPositionChanged, [this]
+        { hoverTimer->start(); });
+        QObject::connect(hoverTimer, &QTimer::timeout, [this]
+        { StartLanguageRequest("hover", true); });
+        serviceStateTimer = new QTimer(widget);
+        serviceStateTimer->setInterval(250);
+        QObject::connect(serviceStateTimer, &QTimer::timeout, [this]
+        {
+            if (!languageSession) return;
+            switch (languageSession->State())
+            {
+            case LanguageServiceState::Starting: state->setText(QStringLiteral("Language service starting")); break;
+            case LanguageServiceState::Recovering: state->setText(QStringLiteral("Language service recovering")); break;
+            case LanguageServiceState::Unavailable: state->setText(QStringLiteral("Language service unavailable")); break;
+            default: break;
+            }
+        });
+        serviceStateTimer->start();
+        QObject::connect(documentSelector, &QComboBox::currentIndexChanged, [this](int index)
+        {
+            if (synchronizing || !workspace || index < 0 ||
+                static_cast<std::size_t>(index) >= workspace->Scripts().size()) return;
+            AttachDocument(workspace->Scripts()[static_cast<std::size_t>(index)].get());
+            RefreshText();
         });
         QObject::connect(save, &QPushButton::clicked, [this]
         { if (dispatcher) (void)dispatcher->Dispatch("saga.command.file.save"); });
@@ -215,12 +305,20 @@ struct CodeBoxPanel::Impl
         document = nullptr;
     }
 
+    void AttachDocument(CSharpSourceDocument* next)
+    {
+        DetachDocument(); document = next;
+        if (document)
+            documentSubscription = document->SubscribeChanges([this] { RefreshText(); });
+    }
+
     void RefreshText()
     {
         synchronizing = true;
         if (!document)
         {
             identity->setText("No C# source open"); state->clear(); editor->clear(); editor->setEnabled(false);
+            highlighter->ClearSemantic();
             recover->setVisible(false); discardRecovery->setVisible(false);
             ScriptProjectionSnapshot snapshot;
             snapshot.state = ScriptProjectionState::NoDocument;
@@ -248,6 +346,7 @@ struct CodeBoxPanel::Impl
                 blocks->PresentSnapshot(snapshot);
                 if (projectionSession) projectionSession->Dirty();
             }
+            highlighter->ClearSemantic();
             const auto cursor = editor->textCursor();
             editor->setPlainText(QString::fromStdString(document->Text()));
             editor->setTextCursor(cursor);
@@ -258,13 +357,102 @@ struct CodeBoxPanel::Impl
 
     void RefreshWorkspace()
     {
-        DetachDocument();
-        if (workspace && !workspace->Scripts().empty())
+        const auto prior = document ? document->Snapshot().documentId : std::string{};
+        DetachDocument(); synchronizing = true; documentSelector->clear();
+        int selected = 0;
+        if (workspace)
         {
-            document = workspace->Scripts().front().get();
-            documentSubscription = document->SubscribeChanges([this] { RefreshText(); });
+            for (std::size_t index = 0; index < workspace->Scripts().size(); ++index)
+            {
+                const auto& script = workspace->Scripts()[index];
+                documentSelector->addItem(QString::fromStdString(
+                    script->Snapshot().canonicalSourcePath.filename().string()));
+                if (script->Snapshot().documentId == prior) selected = static_cast<int>(index);
+            }
+            if (!workspace->Scripts().empty()) AttachDocument(workspace->Scripts()[selected].get());
         }
+        documentSelector->setCurrentIndex(selected); synchronizing = false;
         RefreshText();
+    }
+
+    void StartLanguageRequest(std::string method, bool needsPosition)
+    {
+        if (!languageSession || !document || languageSession->State() != LanguageServiceState::Ready) return;
+        std::optional<LanguageServicePosition> position;
+        if (needsPosition)
+        {
+            const auto cursor = editor->textCursor();
+            position = LanguageServicePosition{static_cast<std::uint32_t>(cursor.blockNumber()),
+                static_cast<std::uint32_t>(cursor.positionInBlock())};
+        }
+        const auto expectedId = document->Snapshot().documentId;
+        const auto expectedVersion = document->Snapshot().inMemoryRevision;
+        auto future = languageSession->Request(std::move(method), *document, position);
+        auto* watcher = new QFutureWatcher<LanguageServiceResponse>(widget);
+        QObject::connect(watcher, &QFutureWatcher<LanguageServiceResponse>::finished,
+            widget, [this, watcher, expectedId, expectedVersion]
+        {
+            const auto response = watcher->result(); watcher->deleteLater();
+            if (!document || document->Snapshot().documentId != expectedId ||
+                document->Snapshot().inMemoryRevision != expectedVersion ||
+                response.documentId != expectedId || response.documentVersion != expectedVersion) return;
+            languageResults->clear();
+            for (const auto& item : response.completions)
+                languageResults->addItem(QString::fromStdString(item.label));
+            for (const auto& location : response.locations)
+                languageResults->addItem(QString::fromStdString(location.path.generic_string()) +
+                    QStringLiteral(":%1:%2").arg(location.range.start.line + 1).arg(location.range.start.character + 1));
+            for (const auto& symbol : response.symbols)
+                languageResults->addItem(QString::fromStdString(symbol.kind + " " + symbol.name));
+            if (!response.hoverText.empty())
+                languageResults->addItem(QString::fromStdString(response.hoverText));
+        });
+        watcher->setFuture(QtConcurrent::run([future = std::move(future)]() mutable
+        { return future.get(); }));
+    }
+
+    void PresentLanguagePublication(LanguageServiceResponse publication)
+    {
+        if (!document || publication.documentId != document->Snapshot().documentId ||
+            publication.documentVersion != document->Snapshot().inMemoryRevision) return;
+        std::vector<std::tuple<int, int, QString>> spans;
+        for (const auto& item : publication.classifications)
+        {
+            const auto startBlock = editor->document()->findBlockByNumber(static_cast<int>(item.range.start.line));
+            const auto endBlock = editor->document()->findBlockByNumber(static_cast<int>(item.range.end.line));
+            if (!startBlock.isValid() || !endBlock.isValid()) continue;
+            const auto start = startBlock.position() + static_cast<int>(item.range.start.character);
+            const auto end = endBlock.position() + static_cast<int>(item.range.end.character);
+            if (end >= start) spans.emplace_back(start, end - start, QString::fromStdString(item.kind));
+        }
+        highlighter->SetSemantic(std::move(spans));
+        diagnostics->clear();
+        for (const auto& item : publication.diagnostics)
+            diagnostics->addItem(QString::fromStdString(item.id + ": " + item.message));
+        state->setText(QStringLiteral("Language service ready"));
+    }
+
+    void AttachLanguageSession(SagaScriptLanguageServiceSession* session)
+    {
+        DetachLanguageSession(); languageSession = session;
+        if (!languageSession) return;
+        QPointer<QWidget> target = widget;
+        languageSubscription = languageSession->Subscribe(
+            [this, target](LanguageServiceResponse publication)
+            {
+                if (!target) return;
+                QMetaObject::invokeMethod(target, [this, target, publication = std::move(publication)]() mutable
+                { if (target) PresentLanguagePublication(std::move(publication)); }, Qt::QueuedConnection);
+            });
+    }
+
+    void DetachLanguageSession()
+    {
+        if (languageSession && languageSubscription !=
+            SagaScriptLanguageServiceSession::InvalidPublicationSubscription)
+            languageSession->Unsubscribe(languageSubscription);
+        languageSubscription = SagaScriptLanguageServiceSession::InvalidPublicationSubscription;
+        languageSession = nullptr;
     }
 
     void DetachWorkspace()
@@ -349,13 +537,13 @@ struct CodeBoxPanel::Impl
 
 CodeBoxPanel::CodeBoxPanel() : impl_(std::make_unique<Impl>()) {}
 CodeBoxPanel::~CodeBoxPanel()
-{ impl_->StopAndWait(); impl_->DetachProjectionSession(); impl_->DetachWorkspace(); }
+{ impl_->StopAndWait(); impl_->DetachLanguageSession(); impl_->DetachProjectionSession(); impl_->DetachWorkspace(); }
 PanelId CodeBoxPanel::GetPanelId() const { return "saga.panel.code_box"; }
 std::string CodeBoxPanel::GetTitle() const { return "Code Box"; }
 QWidget* CodeBoxPanel::Widget() const noexcept { return impl_->widget; }
 void CodeBoxPanel::OnInit() { impl_->RefreshWorkspace(); }
 void CodeBoxPanel::OnShutdown()
-{ impl_->StopAndWait(); impl_->DetachProjectionSession(); impl_->DetachWorkspace(); }
+{ impl_->StopAndWait(); impl_->DetachLanguageSession(); impl_->DetachProjectionSession(); impl_->DetachWorkspace(); }
 void CodeBoxPanel::SetDocumentWorkspace(EditorDocumentWorkspace* workspace)
 {
     impl_->DetachWorkspace(); impl_->workspace = workspace;
@@ -370,9 +558,14 @@ void CodeBoxPanel::SetAnalysisCoordinator(ScriptAnalysisCoordinator* coordinator
 { impl_->coordinator = coordinator; }
 void CodeBoxPanel::SetProjectionSession(ScriptProjectionSession* session) noexcept
 { impl_->AttachProjectionSession(session); }
+void CodeBoxPanel::SetLanguageServiceSession(SagaScriptLanguageServiceSession* session) noexcept
+{ impl_->AttachLanguageSession(session); }
 void CodeBoxPanel::SetScriptSourceMutationPort(IScriptSourceMutationPort* port) noexcept
 { impl_->mutationPort = port ? port : &impl_->defaultMutationPort; }
 void CodeBoxPanel::Analyze() { impl_->StartAnalysis(); }
 void CodeBoxPanel::CancelAnalysis() { impl_->Cancel(); }
+void CodeBoxPanel::RequestDefinition() { impl_->StartLanguageRequest("definition", true); }
+void CodeBoxPanel::RequestReferences() { impl_->StartLanguageRequest("references", true); }
+void CodeBoxPanel::RequestSymbols() { impl_->StartLanguageRequest("symbols", false); }
 
 } // namespace SagaEditor

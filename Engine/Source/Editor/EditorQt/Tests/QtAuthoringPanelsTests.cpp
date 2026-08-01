@@ -15,6 +15,7 @@
 #include <gtest/gtest.h>
 
 #include <QApplication>
+#include <QComboBox>
 #include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -147,6 +148,31 @@ TEST(QtAuthoringPanelsTests, CodeBoxMutationUsesTransactionAndDoesNotWriteDisk)
     std::ifstream disk(fixture.root / "Scripts/Door.cs", std::ios::binary);
     EXPECT_EQ(std::string(std::istreambuf_iterator<char>(disk),
                           std::istreambuf_iterator<char>()), "public class Door {}\n");
+    panel.OnShutdown();
+}
+
+TEST(QtAuthoringPanelsTests, CodeBoxSelectsEachCanonicalSourceDocument)
+{
+    (void)Application();
+    Fixture fixture;
+    Write(fixture.root / "Scripts/Second.cs", "public class Second {}\n");
+    fixture.workspace.Close();
+    ASSERT_TRUE(fixture.workspace.OpenProject(fixture.root / "Project.sagaproj"));
+    ASSERT_EQ(fixture.workspace.Scripts().size(), 2u);
+
+    SagaEditor::UndoRedoStack journal;
+    SagaEditor::CodeBoxPanel panel;
+    panel.SetUndoRedoStack(&journal);
+    panel.SetDocumentWorkspace(&fixture.workspace);
+    panel.OnInit();
+    auto* selector = panel.Widget()->findChild<QComboBox*>();
+    auto* editor = panel.Widget()->findChild<QPlainTextEdit*>();
+    ASSERT_NE(selector, nullptr);
+    ASSERT_NE(editor, nullptr);
+    ASSERT_EQ(selector->count(), 2);
+    selector->setCurrentIndex(1);
+    QApplication::processEvents();
+    EXPECT_EQ(editor->toPlainText(), QStringLiteral("public class Second {}\n"));
     panel.OnShutdown();
 }
 
