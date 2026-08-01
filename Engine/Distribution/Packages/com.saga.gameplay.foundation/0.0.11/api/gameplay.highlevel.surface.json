@@ -1,43 +1,85 @@
 {
   "apis": [
     {
+      "apiId": "SagaBehavior",
+      "documentationId": "T:SagaEngine.Scripting.SagaBehavior",
+      "blockProjection": "Supported",
+      "capability": "Gameplay.State.ReadWrite",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "ScriptEntity",
+      "documentationId": "T:SagaEngine.Scripting.ScriptEntity",
+      "blockProjection": "Supported",
+      "capability": "World.Transform.ReadWrite",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "ScriptStatePort",
+      "documentationId": "T:SagaEngine.Scripting.ScriptStatePort",
+      "blockProjection": "Supported",
+      "capability": "Gameplay.State.ReadWrite",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "SelfFacade",
+      "documentationId": "T:SagaEngine.Scripting.SelfFacade",
+      "blockProjection": "Supported",
+      "capability": "World.Transform.ReadWrite",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "TransformFacade",
+      "documentationId": "T:SagaEngine.Scripting.TransformFacade",
+      "blockProjection": "Supported",
+      "capability": "World.Transform.ReadWrite",
+      "visibility": "Public"
+    },
+    {
       "apiId": "SagaBehavior.OnStart",
+      "documentationId": "M:SagaEngine.Scripting.SagaScript.OnStart",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
       "visibility": "Public"
     },
     {
       "apiId": "SagaBehavior.OnUpdate",
+      "documentationId": "M:SagaEngine.Scripting.SagaScript.OnUpdate(System.Single)",
       "blockProjection": "Supported",
       "capability": "World.Transform.ReadWrite",
       "visibility": "Public"
     },
     {
       "apiId": "ScriptStatePort.TrySetBool",
+      "documentationId": "M:SagaEngine.Scripting.ScriptStatePort.TrySetBool(System.String,System.Boolean)",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
       "visibility": "Public"
     },
     {
       "apiId": "ScriptContext.Self.Transform",
+      "documentationId": "P:SagaEngine.Scripting.SelfFacade.Transform",
       "blockProjection": "Supported",
       "capability": "World.Transform.ReadWrite",
       "visibility": "Public"
     },
     {
       "apiId": "ScriptEntity.TryGetPosition",
+      "documentationId": "M:SagaEngine.Scripting.ScriptEntity.TryGetPosition(SagaEngine.Scripting.ScriptVector3@)",
       "blockProjection": "Supported",
       "capability": "World.Transform.ReadWrite",
       "visibility": "Public"
     },
     {
       "apiId": "ScriptEntity.TrySetPosition",
+      "documentationId": "M:SagaEngine.Scripting.ScriptEntity.TrySetPosition(System.Single,System.Single,System.Single)",
       "blockProjection": "Supported",
       "capability": "World.Transform.ReadWrite",
       "visibility": "Public"
     },
     {
       "apiId": "NativeBridge",
+      "documentationId": "T:SagaEngine.Scripting.RuntimeBridge.NativeBridge",
       "blockProjection": "Filtered",
       "capability": "Internal",
       "visibility": "Internal"

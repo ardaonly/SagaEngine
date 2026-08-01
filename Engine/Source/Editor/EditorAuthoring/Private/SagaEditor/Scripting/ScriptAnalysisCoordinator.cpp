@@ -156,6 +156,7 @@ std::shared_ptr<const VisualBlocks::ReadOnlyScriptProjection> LoadProjection(
         projection.value("packageGenerationHash", std::string{}) != request.packageGenerationHash ||
         projection.value("packageGraphHash", std::string{}) != request.packageGraphHash ||
         projection.value("apiSurfaceManifestHash", std::string{}) != request.apiSurfaceManifest.hash ||
+        projection.value("ownershipCatalogHash", std::string{}) != request.ownershipCatalog.hash ||
         !projection.value("readOnly", false) ||
         projection.value("sourcePreservation", std::string{}) != "SourceNotMutated")
     {
@@ -331,6 +332,7 @@ ScriptAnalysisResult ScriptAnalysisCoordinator::Analyze(
     }
     const auto referencePath = generation / "csharp_references_v1.json";
     const auto surfacePath = generation / "api_surfaces_v1.json";
+    const auto ownershipPath = generation / "api_ownership_v1.json";
     Json references;
     if (!ReadJson(referencePath, references) || !references.contains("references") ||
         !references["references"].is_array() || references["references"].size() != 1)
@@ -383,6 +385,7 @@ ScriptAnalysisResult ScriptAnalysisCoordinator::Analyze(
     workerRequest.packageGraphHash = generatedLock.value("graphHash", std::string{});
     workerRequest.referenceManifest = {referencePath, HashFile(referencePath, error)};
     workerRequest.apiSurfaceManifest = {surfacePath, HashFile(surfacePath, error)};
+    workerRequest.ownershipCatalog = {ownershipPath, HashFile(ownershipPath, error)};
     workerRequest.runtimeBridge.logicalReferenceId = bridge.value("artifactId", std::string{});
     workerRequest.runtimeBridge.descriptor = {descriptor,
         bridge.value("artifactHash", std::string{})};

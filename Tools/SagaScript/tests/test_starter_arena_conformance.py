@@ -170,6 +170,7 @@ def run_conformance(root: Path) -> dict[str, object]:
         "resolvedLock": Path(package_request["packageLock"]["path"]).read_bytes(),
         "referenceManifest": Path(package_request["referenceManifest"]["path"]).read_bytes(),
         "apiSurfaceManifest": Path(package_request["apiSurfaceManifest"]["path"]).read_bytes(),
+        "ownershipCatalog": Path(package_request["ownershipCatalog"]["path"]).read_bytes(),
         "contentManifest": content_manifest.read_bytes(),
         "contentObjects": canonical_objects(content_root, content_manifest),
         "scriptManifest": script_manifest.read_bytes(),

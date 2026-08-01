@@ -1,7 +1,40 @@
 {
   "apis": [
     {
+      "apiId": "ChallengeDefinition",
+      "documentationId": "T:SagaEngine.Scripting.Gameplay.ChallengeDefinition",
+      "blockProjection": "Supported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "ChallengePhase",
+      "documentationId": "T:SagaEngine.Scripting.Gameplay.ChallengePhase",
+      "blockProjection": "Supported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "ChallengeResult",
+      "documentationId": "T:SagaEngine.Scripting.Gameplay.ChallengeResult",
+      "blockProjection": "Supported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "ChallengeState",
+      "documentationId": "T:SagaEngine.Scripting.Gameplay.ChallengeState",
+      "blockProjection": "Supported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
+      "visibility": "Public"
+    },
+    {
       "apiId": "ChallengeHighLevel.AddProgress",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.ChallengeHighLevel.AddProgress(SagaEngine.Scripting.Gameplay.ChallengeState,System.Int32)",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
@@ -9,6 +42,7 @@
     },
     {
       "apiId": "ChallengeHighLevel.AdvanceTime",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.ChallengeHighLevel.AdvanceTime(SagaEngine.Scripting.Gameplay.ChallengeState,System.Double)",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
@@ -16,6 +50,7 @@
     },
     {
       "apiId": "ChallengeHighLevel.Arm",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.ChallengeHighLevel.Arm(SagaEngine.Scripting.Gameplay.ChallengeState)",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
@@ -23,6 +58,7 @@
     },
     {
       "apiId": "ChallengeHighLevel.Complete",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.ChallengeHighLevel.Complete(SagaEngine.Scripting.Gameplay.ChallengeState)",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
@@ -30,6 +66,7 @@
     },
     {
       "apiId": "ChallengeHighLevel.Create",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.ChallengeHighLevel.Create(SagaEngine.Scripting.Gameplay.ChallengeDefinition)",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
@@ -37,6 +74,7 @@
     },
     {
       "apiId": "ChallengeHighLevel.CreateResult",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.ChallengeHighLevel.CreateResult(SagaEngine.Scripting.Gameplay.ChallengeState)",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
@@ -44,6 +82,7 @@
     },
     {
       "apiId": "ChallengeHighLevel.Reset",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.ChallengeHighLevel.Reset(SagaEngine.Scripting.Gameplay.ChallengeState)",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
@@ -51,6 +90,7 @@
     },
     {
       "apiId": "ChallengeHighLevel.Restart",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.ChallengeHighLevel.Restart(SagaEngine.Scripting.Gameplay.ChallengeState)",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
@@ -58,6 +98,7 @@
     },
     {
       "apiId": "ChallengeHighLevel.Resume",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.ChallengeHighLevel.Resume(SagaEngine.Scripting.Gameplay.ChallengeState)",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
@@ -65,6 +106,7 @@
     },
     {
       "apiId": "ChallengeHighLevel.SetRemainingTime",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.ChallengeHighLevel.SetRemainingTime(SagaEngine.Scripting.Gameplay.ChallengeState,System.Double)",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
@@ -72,6 +114,7 @@
     },
     {
       "apiId": "ChallengeHighLevel.StartOnce",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.ChallengeHighLevel.StartOnce(SagaEngine.Scripting.Gameplay.ChallengeState)",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
@@ -79,6 +122,7 @@
     },
     {
       "apiId": "ChallengeHighLevel.Suspend",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.ChallengeHighLevel.Suspend(SagaEngine.Scripting.Gameplay.ChallengeState)",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
@@ -86,6 +130,7 @@
     },
     {
       "apiId": "ChallengeHighLevel.Timeout",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.ChallengeHighLevel.Timeout(SagaEngine.Scripting.Gameplay.ChallengeState)",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",

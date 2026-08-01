@@ -1,7 +1,32 @@
 {
   "apis": [
     {
+      "apiId": "CollectibleDefinition",
+      "documentationId": "T:SagaEngine.Scripting.Gameplay.CollectibleDefinition",
+      "blockProjection": "Supported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectiblePhase",
+      "documentationId": "T:SagaEngine.Scripting.Gameplay.CollectiblePhase",
+      "blockProjection": "Supported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectibleState",
+      "documentationId": "T:SagaEngine.Scripting.Gameplay.CollectibleState",
+      "blockProjection": "Supported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
+      "visibility": "Public"
+    },
+    {
       "apiId": "CollectiblesHighLevel.AdvanceRespawnTime",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.CollectiblesHighLevel.AdvanceRespawnTime(SagaEngine.Scripting.Gameplay.CollectibleState,System.Double)",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
@@ -9,6 +34,7 @@
     },
     {
       "apiId": "CollectiblesHighLevel.Collect",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.CollectiblesHighLevel.Collect(SagaEngine.Scripting.Gameplay.CollectibleState)",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
@@ -16,6 +42,7 @@
     },
     {
       "apiId": "CollectiblesHighLevel.CompleteRespawn",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.CollectiblesHighLevel.CompleteRespawn(SagaEngine.Scripting.Gameplay.CollectibleState,System.Int32)",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
@@ -23,6 +50,7 @@
     },
     {
       "apiId": "CollectiblesHighLevel.Create",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.CollectiblesHighLevel.Create(SagaEngine.Scripting.Gameplay.CollectibleDefinition)",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
@@ -30,6 +58,7 @@
     },
     {
       "apiId": "CollectiblesHighLevel.Deactivate",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.CollectiblesHighLevel.Deactivate(SagaEngine.Scripting.Gameplay.CollectibleState)",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
@@ -37,6 +66,7 @@
     },
     {
       "apiId": "CollectiblesHighLevel.Reset",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.CollectiblesHighLevel.Reset(SagaEngine.Scripting.Gameplay.CollectibleState)",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
@@ -44,6 +74,7 @@
     },
     {
       "apiId": "CollectiblesHighLevel.ScheduleRespawn",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.CollectiblesHighLevel.ScheduleRespawn(SagaEngine.Scripting.Gameplay.CollectibleState)",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
@@ -51,6 +82,7 @@
     },
     {
       "apiId": "CollectiblesHighLevel.SelectSpawnIndex",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.CollectiblesHighLevel.SelectSpawnIndex(System.Int32,System.Int32)",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
@@ -58,6 +90,7 @@
     },
     {
       "apiId": "CollectiblesHighLevel.SetRespawnRemaining",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.CollectiblesHighLevel.SetRespawnRemaining(SagaEngine.Scripting.Gameplay.CollectibleState,System.Double)",
       "blockProjection": "Supported",
       "capability": "Gameplay.State.ReadWrite",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs",
