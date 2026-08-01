@@ -3,6 +3,7 @@
 /// @brief Offscreen Saga Home UI contracts.
 
 #include "Launcher/SagaMainWindow.h"
+#include "SagaEditor/Project/ProjectMutation.h"
 #include "SagaEditorQt/QtUIMainWindow.h"
 
 #include <gtest/gtest.h>
@@ -10,7 +11,10 @@
 #include <QApplication>
 #include <QComboBox>
 #include <QCloseEvent>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QDockWidget>
+#include <QElapsedTimer>
 #include <QListWidget>
 #include <QMainWindow>
 #include <QMetaObject>
@@ -20,10 +24,14 @@
 #include <QStackedWidget>
 #include <QTemporaryDir>
 #include <QTimer>
+#include <QTreeWidget>
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <memory>
+#include <thread>
 
 namespace
 {
@@ -61,6 +69,26 @@ std::filesystem::path TestSourceRoot()
             return configured;
         cursor = parent;
     }
+}
+
+bool WaitUntil(const std::function<bool()>& predicate, int timeoutMs = 30000)
+{
+    QElapsedTimer timer;
+    timer.start();
+    while (timer.elapsed() < timeoutMs)
+    {
+        QApplication::processEvents(QEventLoop::AllEvents, 20);
+        if (predicate()) return true;
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    return predicate();
+}
+
+QPushButton* FindButton(QWidget* root, const QString& text)
+{
+    for (auto* button : root->findChildren<QPushButton*>())
+        if (button->text() == text) return button;
+    return nullptr;
 }
 
 TEST(SagaHomeUiTest, PermanentHomeActionsAndModesExist)
@@ -255,11 +283,110 @@ TEST(SagaHomeUiTest, AttachedEditorLeavesClosePolicyWithProductWindow)
     EXPECT_EQ(editorCloseCallbackCount, 0);
 }
 
+TEST(SagaHomeUiTest, XcbPackagesWorkflowRendersProductionPanelReviewAndRecovery)
+{
+    if (QApplication::platformName() != QStringLiteral("xcb"))
+        GTEST_SKIP() << "This rendered product integration requires Qt xcb.";
+    const auto evidenceValue = qgetenv("SAGA_XCB_EVIDENCE_DIR");
+    ASSERT_FALSE(evidenceValue.isEmpty());
+    const auto evidence = std::filesystem::path(evidenceValue.toStdString());
+    std::filesystem::create_directories(evidence);
+
+    QTemporaryDir materialization;
+    ASSERT_TRUE(materialization.isValid());
+    const auto projectRoot = std::filesystem::path(
+        materialization.path().toStdString()) / "ArenaRush";
+    std::filesystem::copy(TestSourceRoot() / "Samples/ArenaRush", projectRoot,
+        std::filesystem::copy_options::recursive);
+    const auto project = projectRoot / "ArenaRush.sagaproj";
+
+    {
+        SagaProduct::SagaMainWindow window(
+            QApplication::applicationFilePath().toStdString());
+        ASSERT_TRUE(window.OpenProject(project));
+        window.show();
+        auto* dock = window.findChild<QDockWidget*>("saga.panel.packages");
+        ASSERT_NE(dock, nullptr);
+        dock->show();
+        auto* tree = dock->findChild<QTreeWidget*>();
+        ASSERT_NE(tree, nullptr);
+        ASSERT_TRUE(WaitUntil([tree] { return tree->topLevelItemCount() > 0; }));
+        ASSERT_TRUE(window.grab().save(QString::fromStdString(
+            (evidence / "packages-window.png").string())));
+        ASSERT_TRUE(dock->grab().save(QString::fromStdString(
+            (evidence / "packages-panel.png").string())));
+
+        QTreeWidgetItem* instrumentation = nullptr;
+        for (int row = 0; row < tree->topLevelItemCount(); ++row)
+            if (tree->topLevelItem(row)->text(2) == "collectibles.instrumentation")
+                instrumentation = tree->topLevelItem(row);
+        ASSERT_NE(instrumentation, nullptr);
+        tree->setCurrentItem(instrumentation);
+        instrumentation->setSelected(true);
+        QApplication::processEvents();
+        auto* enable = FindButton(dock, QStringLiteral("Enable module…"));
+        ASSERT_NE(enable, nullptr);
+        ASSERT_TRUE(WaitUntil([enable] { return enable->isEnabled(); }));
+        enable->click();
+        QDialog* review = nullptr;
+        ASSERT_TRUE(WaitUntil([&window, &review]
+        {
+            review = window.findChild<QDialog*>("PackageReviewDialog");
+            return review != nullptr;
+        }));
+        ASSERT_TRUE(review->grab().save(QString::fromStdString(
+            (evidence / "package-review.png").string())));
+        review->reject();
+        ASSERT_TRUE(WaitUntil([&window]
+        { return window.findChild<QDialog*>("PackageReviewDialog") == nullptr; }));
+        window.ReturnHome();
+    }
+
+    const auto lockPath = projectRoot / "SagaPackage.lock";
+    std::ifstream lockInput(lockPath, std::ios::binary);
+    const std::string lockBytes{std::istreambuf_iterator<char>(lockInput), {}};
+    {
+        auto [lease, acquired] = SagaEditor::ProjectMutationLease::Acquire(
+            projectRoot, "xcb-recovery-fixture");
+        ASSERT_TRUE(acquired.succeeded) << acquired.code << ": " << acquired.message;
+        SagaEditor::ProjectMutationTransaction transaction(
+            lease, "xcb-recovery-fixture", "package-workflow-v1");
+        ASSERT_TRUE(transaction.Stage({{"SagaPackage.lock",
+            lockBytes + "\n"}}).succeeded);
+        ASSERT_TRUE(transaction.MarkCommit().succeeded);
+    }
+    std::ofstream(lockPath, std::ios::binary | std::ios::app) << "divergence\n";
+
+    SagaProduct::SagaMainWindow recoveryWindow(
+        QApplication::applicationFilePath().toStdString());
+    ASSERT_TRUE(recoveryWindow.OpenProject(project));
+    recoveryWindow.show();
+    auto* dock = recoveryWindow.findChild<QDockWidget*>("saga.panel.packages");
+    ASSERT_NE(dock, nullptr);
+    dock->show();
+    auto* recover = FindButton(dock,
+        QStringLiteral("Recover Transaction…"));
+    ASSERT_NE(recover, nullptr);
+    ASSERT_TRUE(WaitUntil([recover] { return recover->isEnabled(); }));
+    recover->click();
+    QDialog* recovery = nullptr;
+    ASSERT_TRUE(WaitUntil([&recoveryWindow, &recovery]
+    {
+        recovery = recoveryWindow.findChild<QDialog*>("PackageRecoveryDialog");
+        return recovery != nullptr;
+    }));
+    ASSERT_TRUE(recovery->grab().save(QString::fromStdString(
+        (evidence / "package-recovery.png").string())));
+    recovery->reject();
+    recoveryWindow.ReturnHome();
+}
+
 } // namespace
 
 int main(int argc, char** argv)
 {
-    qputenv("QT_QPA_PLATFORM", "offscreen");
+    if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM"))
+        qputenv("QT_QPA_PLATFORM", "offscreen");
     QApplication application(argc, argv);
     QTemporaryDir settingsRoot;
     QSettings::setDefaultFormat(QSettings::IniFormat);

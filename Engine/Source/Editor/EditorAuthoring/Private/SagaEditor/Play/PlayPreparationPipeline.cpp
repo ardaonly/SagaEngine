@@ -69,6 +69,18 @@ PlayPreparationPipeline::PlayPreparationPipeline(ScriptAnalysisToolchain toolcha
 PlayPreparationResult PlayPreparationPipeline::Prepare(
     EditorDocumentWorkspace& workspace, const PlayPreparationRequest& request) const
 {
+    if (workspace.HasRecoveryRequired())
+    {
+        PlayPreparationResult result;
+        result.playSessionId = request.playSessionId;
+        result.diagnostics.push_back(Diagnostic(
+            "Play.Prepare.PackageRecoveryRequired",
+            "Resolve the durable package transaction before Play.",
+            workspace.Project()
+                ? std::filesystem::path(workspace.Project()->rootPath)
+                : std::filesystem::path{}));
+        return result;
+    }
     const auto captured = CapturePlaySourceSnapshot(workspace, request.playSessionId);
     if (!captured.Succeeded())
     {

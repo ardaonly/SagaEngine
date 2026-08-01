@@ -6,6 +6,8 @@
 #include "SagaEditor/Panels/HierarchyPanel.h"
 #include "SagaEditor/Panels/InspectorPanel.h"
 #include "SagaEditor/Panels/CodeBoxPanel.h"
+#include "SagaEditor/Panels/PackagesPanel.h"
+#include "SagaEditor/Packages/PackageAuthoring.h"
 #include "SagaEditor/SceneEditing/SceneSelectionIdentity.h"
 #include "SagaEditor/Selection/SelectionManager.h"
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
@@ -19,6 +21,7 @@
 #include <QTabWidget>
 #include <QTreeWidget>
 
+#include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -144,6 +147,53 @@ TEST(QtAuthoringPanelsTests, CodeBoxMutationUsesTransactionAndDoesNotWriteDisk)
     std::ifstream disk(fixture.root / "Scripts/Door.cs", std::ios::binary);
     EXPECT_EQ(std::string(std::istreambuf_iterator<char>(disk),
                           std::istreambuf_iterator<char>()), "public class Door {}\n");
+    panel.OnShutdown();
+}
+
+TEST(QtAuthoringPanelsTests, PackagesPanelRendersVerifiedPermanentCatalogState)
+{
+    (void)Application();
+    SagaEditor::PackageStateCatalog catalog;
+    std::string diagnostic;
+    ASSERT_TRUE(catalog.LoadInspection(R"({
+      "schemaVersion":1,"status":"Passed","offline":true,
+      "graphHash":"sha256:graph","generationId":"generation",
+      "modules":[
+        {"packageId":"challenge","version":"1","module":"core","enabled":true,
+         "runtimeReadiness":"Ready","artifactKinds":["apiSurface"],
+         "apiSurfaces":["challenge/core"],"blocksSurfaces":["challenge/core"],
+         "capabilities":["Gameplay"],"license":"MPL-2.0",
+         "trust":"TrustedEngineDistribution","origin":"built-in","offline":true},
+        {"packageId":"challenge","version":"1","module":"instrumentation","enabled":false,
+         "runtimeReadiness":"Ready","artifactKinds":["apiSurface"],
+         "apiSurfaces":["challenge/instrumentation"],"blocksSurfaces":[],
+         "capabilities":["DevelopmentDiagnostics"],"license":"MPL-2.0",
+         "trust":"TrustedEngineDistribution","origin":"built-in","offline":true}
+      ]})", diagnostic)) << diagnostic;
+    SagaEditor::ProjectReadinessSession readiness;
+    SagaEditor::PackageModuleWorkflow workflow(readiness, catalog);
+    SagaEditor::PackagesPanel panel;
+    panel.SetCatalog(&catalog);
+    panel.SetReadiness(&readiness);
+    panel.SetWorkflow(&workflow);
+    panel.OnInit();
+    EXPECT_EQ(panel.GetPanelId(), "saga.panel.packages");
+    auto* tree = panel.Widget()->findChild<QTreeWidget*>();
+    ASSERT_NE(tree, nullptr);
+    ASSERT_EQ(tree->topLevelItemCount(), 2);
+    EXPECT_EQ(tree->topLevelItem(0)->text(3), "Enabled");
+    EXPECT_EQ(tree->topLevelItem(1)->text(2), "instrumentation");
+    EXPECT_EQ(tree->topLevelItem(1)->text(3), "Available");
+    tree->topLevelItem(1)->setSelected(true);
+    QApplication::processEvents();
+    const auto buttons = panel.Widget()->findChildren<QPushButton*>();
+    const auto enable = std::find_if(buttons.begin(), buttons.end(),
+        [](auto* button) { return button->text() == "Enable module…"; });
+    ASSERT_NE(enable, buttons.end());
+    EXPECT_TRUE((*enable)->isEnabled());
+    readiness.SetMutating(true);
+    panel.Refresh();
+    EXPECT_FALSE((*enable)->isEnabled());
     panel.OnShutdown();
 }
 

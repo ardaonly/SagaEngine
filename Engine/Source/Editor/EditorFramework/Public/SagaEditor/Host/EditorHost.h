@@ -35,6 +35,11 @@ class EditorCompositionSession;
 class EditorNotificationCenter;
 class EditorDocumentWorkspace;
 class ScriptAnalysisCoordinator;
+class ScriptProjectionSession;
+class ProjectReadinessSession;
+class PackageStateCatalog;
+class PackageModuleWorkflow;
+class PackageWorkflowController;
 class AuthoringModeService;
 
 // ─── Host ─────────────────────────────────────────────────────────────────────
@@ -85,6 +90,11 @@ public:
     [[nodiscard]] SelectionManager&   GetSelectionManager()   noexcept;
     [[nodiscard]] EditorDocumentWorkspace& GetDocumentWorkspace() noexcept;
     [[nodiscard]] ScriptAnalysisCoordinator& GetScriptAnalysisCoordinator() noexcept;
+    [[nodiscard]] ScriptProjectionSession& GetScriptProjectionSession() noexcept;
+    [[nodiscard]] ProjectReadinessSession& GetProjectReadinessSession() noexcept;
+    [[nodiscard]] PackageStateCatalog& GetPackageStateCatalog() noexcept;
+    [[nodiscard]] PackageModuleWorkflow& GetPackageModuleWorkflow() noexcept;
+    [[nodiscard]] PackageWorkflowController& GetPackageWorkflowController() noexcept;
 
     // ─── Customisation Services ───────────────────────────────────────────────
 
@@ -150,6 +160,11 @@ private:
     std::unique_ptr<SelectionManager>  m_selectionManager;
     std::unique_ptr<EditorDocumentWorkspace> m_documentWorkspace;
     std::unique_ptr<ScriptAnalysisCoordinator> m_scriptAnalysisCoordinator;
+    std::unique_ptr<ScriptProjectionSession> m_scriptProjectionSession;
+    std::unique_ptr<ProjectReadinessSession> m_projectReadinessSession;
+    std::unique_ptr<PackageStateCatalog> m_packageStateCatalog;
+    std::unique_ptr<PackageModuleWorkflow> m_packageModuleWorkflow;
+    std::unique_ptr<PackageWorkflowController> m_packageWorkflowController;
     std::unique_ptr<ThemeRegistry>     m_themeRegistry;
     std::unique_ptr<IEditorSettingsStore> m_settingsStore;
     std::unique_ptr<IEditorEngineBridge> m_engineBridge;

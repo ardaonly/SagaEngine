@@ -14,6 +14,8 @@
 #include "SagaEditor/Diagnostics/IEditorDiagnosticsService.h"
 #include "SagaEditor/Extensions/ExtensionHost.h"
 #include "SagaEditor/Notifications/EditorNotificationCenter.h"
+#include "SagaEditor/Packages/PackageAuthoring.h"
+#include "SagaEditor/Packages/PackageWorkflowController.h"
 #include "SagaEditor/Settings/IEditorSettingsStore.h"
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
 #include "SagaEditor/Play/RuntimeProcessController.h"
@@ -30,6 +32,7 @@
 #include "SagaEditor/Panels/InspectorPanel.h"
 #include "SagaEditor/Panels/AssetBrowserPanel.h"
 #include "SagaEditor/Panels/ProblemsPanel.h"
+#include "SagaEditor/Panels/PackagesPanel.h"
 #include "SagaEditor/Panels/CodeBoxPanel.h"
 #include "SagaEditor/Panels/WorldViewportPanel.h"
 
@@ -137,6 +140,12 @@ bool EditorShell::Init(EditorHost&                    host,
     host.GetCommandRegistry().Register({"saga.command.world.play", "Play", "World",
         [this, &host, runtimeExecutable = cfg.runtimeExecutable]
         {
+            if (!host.GetProjectReadinessSession().CanPlayOrBuild())
+            {
+                m_window->SetStatusMessage(
+                    "Play is blocked by current project readiness.");
+                return;
+            }
             if (runtimeExecutable.empty() || !std::filesystem::exists(runtimeExecutable))
             {
                 m_window->SetStatusMessage("SagaRuntime executable is unavailable for Play.");
@@ -173,6 +182,9 @@ bool EditorShell::Init(EditorHost&                    host,
             if (outcome == ProjectWorkflowOutcome::Completed)
             {
                 m_window->SetStatusMessage("Opened canonical Saga project.");
+                if (auto* panel = dynamic_cast<PackagesPanel*>(
+                        FindPanel("saga.panel.packages")))
+                    panel->OpenOrRefresh();
                 if (m_workspaceChanged)
                     m_workspaceChanged();
             }
@@ -189,6 +201,9 @@ bool EditorShell::Init(EditorHost&                    host,
             {
                 m_window->SetStatusMessage(
                     "Created and opened Starter Arena project.");
+                if (auto* panel = dynamic_cast<PackagesPanel*>(
+                        FindPanel("saga.panel.packages")))
+                    panel->OpenOrRefresh();
                 if (m_workspaceChanged)
                     m_workspaceChanged();
             }
@@ -212,6 +227,62 @@ bool EditorShell::Init(EditorHost&                    host,
             }});
     }
     WireNotificationSink();
+    host.GetCommandRegistry().Register({
+        "saga.command.package.enable_module", "Enable Package Module…",
+        "Packages", [this]
+        {
+            (void)m_host->GetCommandDispatcher().Dispatch(
+                "saga.command.view.packages");
+            if (auto* panel = dynamic_cast<PackagesPanel*>(
+                    FindPanel("saga.panel.packages")))
+                panel->EnableSelected();
+        }});
+    host.GetCommandRegistry().Register({
+        "saga.command.package.disable_module", "Disable Package Module…",
+        "Packages", [this]
+        {
+            (void)m_host->GetCommandDispatcher().Dispatch(
+                "saga.command.view.packages");
+            if (auto* panel = dynamic_cast<PackagesPanel*>(
+                    FindPanel("saga.panel.packages")))
+                panel->DisableSelected();
+        }});
+    host.GetCommandRegistry().Register({
+        "saga.command.package.retry_refresh", "Retry Package Refresh",
+        "Packages", [this]
+        {
+            (void)m_host->GetCommandDispatcher().Dispatch(
+                "saga.command.view.packages");
+            if (auto* panel = dynamic_cast<PackagesPanel*>(
+                    FindPanel("saga.panel.packages")))
+                panel->RetryRefresh();
+        }});
+    host.GetCommandRegistry().Register({
+        "saga.command.package.recover_transaction", "Recover Package Transaction…",
+        "Packages", [this]
+        {
+            (void)m_host->GetCommandDispatcher().Dispatch(
+                "saga.command.view.packages");
+            if (auto* panel = dynamic_cast<PackagesPanel*>(
+                    FindPanel("saga.panel.packages")))
+                panel->InspectRecovery();
+        }});
+    host.GetCommandRegistry().Register({
+        "saga.command.package.undo", "Package Undo…", "Packages", [this]
+        {
+            (void)m_host->GetCommandDispatcher().Dispatch(
+                "saga.command.view.packages");
+            if (auto* panel = dynamic_cast<PackagesPanel*>(
+                    FindPanel("saga.panel.packages"))) panel->Undo();
+        }});
+    host.GetCommandRegistry().Register({
+        "saga.command.package.redo", "Package Redo…", "Packages", [this]
+        {
+            (void)m_host->GetCommandDispatcher().Dispatch(
+                "saga.command.view.packages");
+            if (auto* panel = dynamic_cast<PackagesPanel*>(
+                    FindPanel("saga.panel.packages"))) panel->Redo();
+        }});
     RegisterAuthoringModeCommands();
 
     BuildDefaultLayout();
@@ -222,6 +293,10 @@ bool EditorShell::Init(EditorHost&                    host,
     if (cfg.registerDefaultPanels)
     {
         RegisterDefaultPanels();
+        if (host.GetDocumentWorkspace().IsOpen())
+            if (auto* panel = dynamic_cast<PackagesPanel*>(
+                    FindPanel("saga.panel.packages")))
+                panel->OpenOrRefresh();
     }
     SyncWorkflowCommandState();
     (void)ApplyCompositionPanelVisibility();
@@ -297,6 +372,7 @@ void EditorShell::RegisterPanel(std::unique_ptr<IPanel> panel, UIDockArea area)
         if (id == "saga.panel.assetbrowser") return "saga.command.view.project_sources";
         if (id == "saga.panel.code_box") return "saga.command.view.code_box";
         if (id == "saga.panel.problems") return "saga.command.view.problems";
+        if (id == "saga.panel.packages") return "saga.command.view.packages";
         return {};
     };
     const std::string viewCommand = viewCommandForPanel(panelId);
@@ -409,6 +485,7 @@ void EditorShell::RegisterDefaultPanels()
     codeBox->SetUndoRedoStack(&m_host->GetUndoRedoStack());
     codeBox->SetCommandDispatcher(&m_host->GetCommandDispatcher());
     codeBox->SetAnalysisCoordinator(&m_host->GetScriptAnalysisCoordinator());
+    codeBox->SetProjectionSession(&m_host->GetScriptProjectionSession());
     auto* codeBoxPanel = codeBox.get();
     m_host->GetCommandRegistry().Register({"saga.command.script.analyze", "Analyze C#", "Script",
         [codeBoxPanel] { codeBoxPanel->Analyze(); }});
@@ -419,6 +496,13 @@ void EditorShell::RegisterDefaultPanels()
     auto problems = std::make_unique<ProblemsPanel>();
     problems->SetDiagnosticsService(&m_host->GetEditorDiagnosticsService());
     RegisterPanel(std::move(problems), UIDockArea::Bottom);
+    auto packages = std::make_unique<PackagesPanel>();
+    packages->SetCatalog(&m_host->GetPackageStateCatalog());
+    packages->SetReadiness(&m_host->GetProjectReadinessSession());
+    packages->SetWorkflow(&m_host->GetPackageModuleWorkflow());
+    packages->SetController(&m_host->GetPackageWorkflowController());
+    packages->SetCommandDispatcher(&m_host->GetCommandDispatcher());
+    RegisterPanel(std::move(packages), UIDockArea::Bottom);
 }
 
 void EditorShell::WireNotificationSink()
@@ -442,6 +526,7 @@ void EditorShell::SyncWorkflowCommandState()
     auto& workspace = m_host->GetDocumentWorkspace();
     const bool projectOpen = workspace.IsOpen();
     const bool dirty = projectOpen && !workspace.DirtyDocumentIds().empty();
+    m_host->GetProjectReadinessSession().SetDirty(dirty);
     const RuntimePlayState runtimeState = m_runtimeProcessController
         ? m_runtimeProcessController->Snapshot().state
         : RuntimePlayState::Idle;
@@ -463,7 +548,8 @@ void EditorShell::SyncWorkflowCommandState()
     setEnabled("saga.command.file.save", dirty);
     setEnabled("saga.command.edit.undo", m_host->GetUndoRedoStack().CanUndo());
     setEnabled("saga.command.edit.redo", m_host->GetUndoRedoStack().CanRedo());
-    setEnabled("saga.command.world.play", projectOpen && !dirty && !playActive);
+    setEnabled("saga.command.world.play", projectOpen &&
+        m_host->GetProjectReadinessSession().CanPlayOrBuild() && !playActive);
     setEnabled("saga.command.world.stop",
         runtimeState == RuntimePlayState::Preparing ||
         runtimeState == RuntimePlayState::Starting ||
@@ -471,6 +557,19 @@ void EditorShell::SyncWorkflowCommandState()
     for (const AuthoringMode& mode : m_host->GetAuthoringModeService().Modes())
         setEnabled("saga.command.authoring." + mode.id, !playTransition);
     setEnabled("saga.command.authoring.reset_layout", !playTransition);
+    const auto package = m_host->GetPackageWorkflowController().Snapshot();
+    const bool packageReady = projectOpen && !package.active &&
+        package.state == PackageWorkflowControllerState::Ready;
+    setEnabled("saga.command.package.enable_module", packageReady);
+    setEnabled("saga.command.package.disable_module", packageReady);
+    setEnabled("saga.command.package.retry_refresh", package.canRetry);
+    setEnabled("saga.command.package.recover_transaction",
+        package.state == PackageWorkflowControllerState::RecoveryRequired);
+    setEnabled("saga.command.package.undo", package.canUndo);
+    setEnabled("saga.command.package.redo", package.canRedo);
+    if (auto* packagePanel = dynamic_cast<PackagesPanel*>(
+            FindPanel("saga.panel.packages")))
+        packagePanel->Refresh();
 }
 
 void EditorShell::RegisterAuthoringModeCommands()
@@ -773,6 +872,7 @@ void EditorShell::BuildDefaultLayout()
         { "Project Sources", "saga.command.view.project_sources","",            false },
         { "Code Box",        "saga.command.view.code_box",      "",             false },
         { "Problems",        "saga.command.view.problems",      "",             false },
+        { "Packages",        "saga.command.view.packages",      "",             false },
     };
     MenuDescriptor authoring;
     authoring.title = "Authoring";

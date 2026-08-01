@@ -20,6 +20,9 @@
 #include "SagaEditor/Selection/SelectionManager.h"
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
 #include "SagaEditor/Scripting/ScriptAnalysisCoordinator.h"
+#include "SagaEditor/Scripting/ScriptProjectionSession.h"
+#include "SagaEditor/Packages/PackageAuthoring.h"
+#include "SagaEditor/Packages/PackageWorkflowController.h"
 #include "SagaEditor/Themes/ThemeRegistry.h"
 #include "SagaEditor/Settings/IEditorSettingsStore.h"
 #include "SagaEditor/Settings/MemoryEditorSettingsStore.h"
@@ -141,6 +144,11 @@ bool EditorHost::Init(std::unique_ptr<IEditorSettingsStore> settingsStore,
     m_selectionManager  = std::make_unique<SelectionManager>();
     m_documentWorkspace = std::make_unique<EditorDocumentWorkspace>();
     m_scriptAnalysisCoordinator = std::make_unique<ScriptAnalysisCoordinator>();
+    m_scriptProjectionSession = std::make_unique<ScriptProjectionSession>();
+    m_projectReadinessSession = std::make_unique<ProjectReadinessSession>();
+    m_packageStateCatalog = std::make_unique<PackageStateCatalog>();
+    m_packageModuleWorkflow = std::make_unique<PackageModuleWorkflow>(
+        *m_projectReadinessSession, *m_packageStateCatalog);
     m_themeRegistry     = std::make_unique<ThemeRegistry>();
     m_settingsStore     = settingsStore ? std::move(settingsStore)
                                         : std::make_unique<MemoryEditorSettingsStore>();
@@ -148,6 +156,10 @@ bool EditorHost::Init(std::unique_ptr<IEditorSettingsStore> settingsStore,
         return false;
     m_engineBridge      = std::make_unique<LocalEditorEngineBridge>();
     m_editorDiagnosticsService = std::make_unique<EditorDiagnosticsService>();
+    m_packageWorkflowController = std::make_unique<PackageWorkflowController>(
+        *m_documentWorkspace, *m_projectReadinessSession, *m_packageStateCatalog,
+        *m_packageModuleWorkflow, *m_scriptAnalysisCoordinator,
+        *m_scriptProjectionSession, *m_editorDiagnosticsService);
     m_editorNotificationCenter = std::make_unique<EditorNotificationCenter>();
     m_customizationCatalog = std::make_unique<EditorCustomizationCatalog>();
     m_shortcutCustomizationSession =
@@ -238,6 +250,7 @@ void EditorHost::Shutdown()
     m_compositionSession.reset();
     m_customizationCatalog.reset();
     m_editorNotificationCenter.reset();
+    m_packageWorkflowController.reset();
     m_editorDiagnosticsService.reset();
     m_engineBridge.reset();
     m_settingsStore.reset();
@@ -245,6 +258,10 @@ void EditorHost::Shutdown()
     m_selectionManager.reset();
     m_documentWorkspace.reset();
     m_scriptAnalysisCoordinator.reset();
+    m_scriptProjectionSession.reset();
+    m_packageModuleWorkflow.reset();
+    m_projectReadinessSession.reset();
+    m_packageStateCatalog.reset();
     m_undoRedoStack.reset();
     m_authoringModeService.reset();
     m_shortcutManager.reset();
@@ -268,6 +285,16 @@ SelectionManager&  EditorHost::GetSelectionManager()  noexcept { return *m_selec
 EditorDocumentWorkspace& EditorHost::GetDocumentWorkspace() noexcept { return *m_documentWorkspace; }
 ScriptAnalysisCoordinator& EditorHost::GetScriptAnalysisCoordinator() noexcept
 { return *m_scriptAnalysisCoordinator; }
+ScriptProjectionSession& EditorHost::GetScriptProjectionSession() noexcept
+{ return *m_scriptProjectionSession; }
+ProjectReadinessSession& EditorHost::GetProjectReadinessSession() noexcept
+{ return *m_projectReadinessSession; }
+PackageStateCatalog& EditorHost::GetPackageStateCatalog() noexcept
+{ return *m_packageStateCatalog; }
+PackageModuleWorkflow& EditorHost::GetPackageModuleWorkflow() noexcept
+{ return *m_packageModuleWorkflow; }
+PackageWorkflowController& EditorHost::GetPackageWorkflowController() noexcept
+{ return *m_packageWorkflowController; }
 ThemeRegistry&     EditorHost::GetThemeRegistry()     noexcept { return *m_themeRegistry;     }
 IEditorSettingsStore& EditorHost::GetSettingsStore()  noexcept { return *m_settingsStore;     }
 IEditorEngineBridge& EditorHost::GetEngineBridge() noexcept { return *m_engineBridge; }

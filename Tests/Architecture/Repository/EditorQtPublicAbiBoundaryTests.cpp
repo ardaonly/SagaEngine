@@ -296,6 +296,8 @@ const Allowlist& QtExposureAllowlist()
         {"Engine/Source/Editor/EditorFramework/Public/SagaEditor/Panels/"
          "ProblemsPanel.h", {"QWidget"}},
         {"Engine/Source/Editor/EditorFramework/Public/SagaEditor/Panels/"
+         "PackagesPanel.h", {"QWidget"}},
+        {"Engine/Source/Editor/EditorFramework/Public/SagaEditor/Panels/"
          "ProductionDashboardPanel.h", {"QWidget"}},
         {"Engine/Source/Editor/EditorFramework/Public/SagaEditor/Panels/"
          "CodeBoxPanel.h", {"QWidget"}},
