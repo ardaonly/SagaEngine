@@ -39,6 +39,13 @@ internal static class Program
             var worker = WorkerCliOptions.Parse(args.Skip(1).ToArray());
             return ProjectWorker.Run(worker.RequestPath, worker.ResultPath, worker.ProgressPath);
         }
+        if (command == "language-service")
+        {
+            if (args.Length != 2 || args[1] != "--stdio")
+                throw new InvalidOperationException("language-service requires --stdio.");
+            return LanguageService.RunAsync(Console.In, Console.Out, Console.Error)
+                .GetAwaiter().GetResult();
+        }
         var options = CliOptions.Parse(args.Skip(1).ToArray());
         if (command == "module-usage")
         {
@@ -96,7 +103,7 @@ internal static class Program
 
     private static bool RequiresSource(string command)
     {
-        return command is not ("module-usage" or "plan-block-edit" or "apply-block-edit" or "patch-review" or "patch-rollback" or "validate-artifacts");
+        return command is not ("module-usage" or "language-service" or "plan-block-edit" or "apply-block-edit" or "patch-review" or "patch-rollback" or "validate-artifacts");
     }
 
     private static int RunSagaWeaverCommand(
@@ -571,6 +578,7 @@ internal static class Program
         Console.WriteLine("  project-blocks --source <file-or-dir> --out <dir> [--json]");
         Console.WriteLine("  project-blocks --project <project.sagaproj> --out <dir> [--json]");
         Console.WriteLine("  worker --request <worker-request-v1.json> --result <worker-result-v1.json> --progress <progress.ndjson>");
+        Console.WriteLine("  language-service --stdio");
         Console.WriteLine("  module-usage --request <module-usage-request-v1.json> --out <report.json> [--json]");
         Console.WriteLine("  plan-block-edit --projection <visual_blocks_projection_v1.json> --operation <operation.json> --out <file> [--json]");
         Console.WriteLine("  apply-block-edit --evaluation <block_patch_evaluation_v1.json> --source-root <path> --out <dir> [--json]");

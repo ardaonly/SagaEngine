@@ -21,6 +21,7 @@
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
 #include "SagaEditor/Scripting/ScriptAnalysisCoordinator.h"
 #include "SagaEditor/Scripting/ScriptProjectionSession.h"
+#include "SagaEditor/Scripting/SagaScriptLanguageServiceSession.h"
 #include "SagaEditor/Packages/PackageAuthoring.h"
 #include "SagaEditor/Packages/PackageWorkflowController.h"
 #include "SagaEditor/Themes/ThemeRegistry.h"
@@ -156,6 +157,8 @@ bool EditorHost::Init(std::unique_ptr<IEditorSettingsStore> settingsStore,
         return false;
     m_engineBridge      = std::make_unique<LocalEditorEngineBridge>();
     m_editorDiagnosticsService = std::make_unique<EditorDiagnosticsService>();
+    m_languageServiceSession = std::make_unique<SagaScriptLanguageServiceSession>(
+        *m_documentWorkspace, *m_editorDiagnosticsService);
     m_packageWorkflowController = std::make_unique<PackageWorkflowController>(
         *m_documentWorkspace, *m_projectReadinessSession, *m_packageStateCatalog,
         *m_packageModuleWorkflow, *m_scriptAnalysisCoordinator,
@@ -251,6 +254,7 @@ void EditorHost::Shutdown()
     m_customizationCatalog.reset();
     m_editorNotificationCenter.reset();
     m_packageWorkflowController.reset();
+    m_languageServiceSession.reset();
     m_editorDiagnosticsService.reset();
     m_engineBridge.reset();
     m_settingsStore.reset();
@@ -287,6 +291,8 @@ ScriptAnalysisCoordinator& EditorHost::GetScriptAnalysisCoordinator() noexcept
 { return *m_scriptAnalysisCoordinator; }
 ScriptProjectionSession& EditorHost::GetScriptProjectionSession() noexcept
 { return *m_scriptProjectionSession; }
+SagaScriptLanguageServiceSession& EditorHost::GetSagaScriptLanguageServiceSession() noexcept
+{ return *m_languageServiceSession; }
 ProjectReadinessSession& EditorHost::GetProjectReadinessSession() noexcept
 { return *m_projectReadinessSession; }
 PackageStateCatalog& EditorHost::GetPackageStateCatalog() noexcept

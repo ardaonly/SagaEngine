@@ -14,6 +14,8 @@ Current scope:
 - Execute a schema-version-1 one-shot project worker with deterministic
   assembly/manifests, NDJSON progress, cancellation, freshness recheck, and
   atomic current-manifest publication.
+- Serve one isolated, long-lived Roslyn workspace per Editor project through
+  the versioned `language-service --stdio` protocol.
 - Analyze `[SagaBehavior]` metadata for the Block F source-preserving
   SagaWeaver MVP.
 - Extract `[SagaLibrary]` and `[SagaNode]` metadata into a deterministic node
@@ -43,6 +45,7 @@ Current non-goals:
 - No editor-side C# source writes.
 - No broad undo/redo stack or redo mutation.
 - No live code reload, debug tooling, or hardened script sandbox.
+- No source writes or project-code execution from the language service.
 
 Example:
 
@@ -58,6 +61,7 @@ Tools/SagaScript/sagascript emit-bindings --source Scripts --out Build/SagaScrip
 Tools/SagaScript/sagascript project-blocks --source Scripts --out Build/SagaScript
 Tools/SagaScript/sagascript project-blocks --project Samples/StarterArena/StarterArena.sagaproj --out /tmp/starter-projection
 Tools/SagaScript/sagascript worker --request /tmp/worker-request-v1.json --result /tmp/worker-result-v1.json --progress /tmp/worker-progress.ndjson
+Tools/SagaScript/sagascript language-service --stdio
 Tools/SagaScript/sagascript extract-nodes --source Scripts --out Build/SagaScript
 Tools/SagaScript/sagascript patch-evaluation --source Scripts --source-map Build/SagaScript/source_map.json --request patch_request.json --out Build/SagaScript/patch_evaluation.json
 Tools/SagaScript/sagascript patch-apply --source Scripts --source-map Build/SagaScript/source_map.json --request patch_request.json --out Build/SagaScript/patch_apply_report.json
@@ -114,6 +118,25 @@ content compilation, package metadata generation, and the worker twice in clean
 roots and compares canonical bytes. Focused CLI tests additionally prove
 mid-operation cancellation, stale-result suppression, corrupt inputs, missing
 scene actions, invalid schemas, and publish failures.
+
+## Language service protocol
+
+`language-service --stdio` uses line-delimited JSON schema/protocol version 1.
+Every envelope carries a monotonically increasing request id, project session
+and snapshot identities, and optional document identity and revision. Positions
+are zero-based UTF-16 line and character values. Document synchronization is a
+full-text replacement in version 1. Standard output contains protocol messages
+only; logs are written to standard error.
+
+The service rejects malformed or oversized messages, unsupported versions,
+stale requests and documents, closed sessions, and paths outside the canonical
+project root without changing workspace state. It exposes diagnostics,
+classifications, completion, hover, definition, references, document symbols,
+and exact-candidate preflight. It never writes output files or executes project
+code. Explicit portable memory-ceiling enforcement is not claimed: message and
+queue bounds, cancellation, and process ownership are
+the cross-platform controls until trustworthy portable process accounting is
+available.
 
 SagaWeaver MVP outputs:
 

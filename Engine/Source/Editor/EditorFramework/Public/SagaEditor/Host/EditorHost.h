@@ -36,6 +36,7 @@ class EditorNotificationCenter;
 class EditorDocumentWorkspace;
 class ScriptAnalysisCoordinator;
 class ScriptProjectionSession;
+class SagaScriptLanguageServiceSession;
 class ProjectReadinessSession;
 class PackageStateCatalog;
 class PackageModuleWorkflow;
@@ -91,6 +92,7 @@ public:
     [[nodiscard]] EditorDocumentWorkspace& GetDocumentWorkspace() noexcept;
     [[nodiscard]] ScriptAnalysisCoordinator& GetScriptAnalysisCoordinator() noexcept;
     [[nodiscard]] ScriptProjectionSession& GetScriptProjectionSession() noexcept;
+    [[nodiscard]] SagaScriptLanguageServiceSession& GetSagaScriptLanguageServiceSession() noexcept;
     [[nodiscard]] ProjectReadinessSession& GetProjectReadinessSession() noexcept;
     [[nodiscard]] PackageStateCatalog& GetPackageStateCatalog() noexcept;
     [[nodiscard]] PackageModuleWorkflow& GetPackageModuleWorkflow() noexcept;
@@ -161,6 +163,7 @@ private:
     std::unique_ptr<EditorDocumentWorkspace> m_documentWorkspace;
     std::unique_ptr<ScriptAnalysisCoordinator> m_scriptAnalysisCoordinator;
     std::unique_ptr<ScriptProjectionSession> m_scriptProjectionSession;
+    std::unique_ptr<SagaScriptLanguageServiceSession> m_languageServiceSession;
     std::unique_ptr<ProjectReadinessSession> m_projectReadinessSession;
     std::unique_ptr<PackageStateCatalog> m_packageStateCatalog;
     std::unique_ptr<PackageModuleWorkflow> m_packageModuleWorkflow;

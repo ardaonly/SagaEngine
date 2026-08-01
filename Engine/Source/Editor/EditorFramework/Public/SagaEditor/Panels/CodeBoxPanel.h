@@ -14,6 +14,7 @@ class EditorDocumentWorkspace;
 class UndoRedoStack;
 class ScriptAnalysisCoordinator;
 class ScriptProjectionSession;
+class SagaScriptLanguageServiceSession;
 class CSharpSourceDocument;
 
 /// Editor-owned seam for intentional source-buffer replacement.
@@ -41,9 +42,13 @@ public:
     void SetCommandDispatcher(CommandDispatcher* dispatcher) noexcept;
     void SetAnalysisCoordinator(ScriptAnalysisCoordinator* coordinator) noexcept;
     void SetProjectionSession(ScriptProjectionSession* session) noexcept;
+    void SetLanguageServiceSession(SagaScriptLanguageServiceSession* session) noexcept;
     void SetScriptSourceMutationPort(IScriptSourceMutationPort* port) noexcept;
     void Analyze();
     void CancelAnalysis();
+    void RequestDefinition();
+    void RequestReferences();
+    void RequestSymbols();
 
 private:
     struct Impl;
