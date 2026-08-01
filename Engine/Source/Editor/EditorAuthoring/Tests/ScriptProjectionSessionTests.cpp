@@ -9,13 +9,25 @@ namespace
 SagaEditor::ScriptProjectionRequestIdentity Identity(std::string operation = "operation")
 { return {7, "sha256:disk", 9, "sha256:project", "generation", "sha256:generation", std::move(operation)}; }
 
-std::shared_ptr<const SagaEditor::VisualBlocks::ReadOnlyScriptProjection> Projection()
+std::shared_ptr<const SagaEditor::VisualBlocks::ReadOnlyScriptProjection> Projection(
+    std::string sourceRevision = "sha256:source")
 {
     using SagaEditor::VisualBlocks::ReadOnlyScriptProjection;
     return std::make_shared<const ReadOnlyScriptProjection>("project", "sha256:project",
-        "sha256:source", "generation", "sha256:generation", "sha256:artifact",
+        std::move(sourceRevision), "generation", "sha256:generation", "sha256:artifact",
         std::vector<SagaEditor::VisualBlocks::ProjectionCard>{},
         std::vector<SagaEditor::VisualBlocks::ProjectionCard>{});
+}
+
+TEST(ScriptProjectionSessionTests, PublishesOnlyExactUnsavedRevision)
+{
+    SagaEditor::ScriptProjectionSession session;
+    session.Dirty(12, "sha256:source");
+    EXPECT_FALSE(session.PublishUnsaved(11, "sha256:source", Projection("11")));
+    EXPECT_FALSE(session.PublishUnsaved(12, "sha256:stale", Projection("12")));
+    EXPECT_TRUE(session.PublishUnsaved(12, "sha256:source", Projection("12")));
+    EXPECT_EQ(session.Snapshot().state, SagaEditor::ScriptProjectionState::Current);
+    EXPECT_EQ(session.Snapshot().projection->SourceRevision(), "12");
 }
 }
 

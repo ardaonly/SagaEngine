@@ -134,10 +134,10 @@ TEST(QtAuthoringPanelsTests, CodeBoxMutationUsesTransactionAndDoesNotWriteDisk)
     ASSERT_NE(tabs, nullptr);
     ASSERT_EQ(tabs->count(), 2);
     EXPECT_EQ(tabs->tabText(0), "C#");
-    EXPECT_EQ(tabs->tabText(1), QStringLiteral("Blocks — Read-only projection"));
+    EXPECT_EQ(tabs->tabText(1), QStringLiteral("Blocks - Controlled C# authoring"));
     auto* blocks = panel.Widget()->findChild<QTreeWidget*>();
     ASSERT_NE(blocks, nullptr);
-    EXPECT_EQ(blocks->accessibleName(), "Read-only script blocks");
+    EXPECT_EQ(blocks->accessibleName(), "Controlled script blocks");
 
     auto* editor = panel.Widget()->findChild<QPlainTextEdit*>();
     ASSERT_NE(editor, nullptr);

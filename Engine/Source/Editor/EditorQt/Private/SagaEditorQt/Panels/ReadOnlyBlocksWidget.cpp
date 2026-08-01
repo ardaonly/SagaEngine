@@ -4,10 +4,12 @@
 
 #include "SagaEditor/VisualBlocks/ControlledBlockEditController.h"
 
+#include <QtConcurrent/QtConcurrentRun>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
+#include <QFutureWatcher>
 #include <QHeaderView>
 #include <QLabel>
 #include <QPlainTextEdit>
@@ -27,18 +29,21 @@ ReadOnlyBlocksWidget::ReadOnlyBlocksWidget(QWidget* parent) : QWidget(parent)
     status_ = new QLabel(QStringLiteral("Save and analyze to view blocks"), this);
     status_->setAccessibleName(QStringLiteral("Blocks projection status"));
     tree_ = new QTreeWidget(this);
-    tree_->setAccessibleName(QStringLiteral("Read-only script blocks"));
+    tree_->setAccessibleName(QStringLiteral("Controlled script blocks"));
     tree_->setHeaderLabels({QStringLiteral("Projection"), QStringLiteral("Package origin")});
     tree_->header()->setStretchLastSection(false);
     tree_->header()->setSectionResizeMode(0, QHeaderView::Stretch);
     tree_->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
     auto* energyCore = new QWidget(this);
+    energyCore->setObjectName(QStringLiteral("EnergyCoreControlledFields"));
     energyCore->setAccessibleName(QStringLiteral("Energy Core controlled fields"));
     auto* form = new QFormLayout(energyCore);
     score_ = new QSpinBox(energyCore);
+    score_->setAccessibleName(QStringLiteral("Energy Core score"));
     score_->setRange(1, std::numeric_limits<int>::max());
     score_->setValue(10);
     respawn_ = new QDoubleSpinBox(energyCore);
+    respawn_->setAccessibleName(QStringLiteral("Energy Core respawn seconds"));
     respawn_->setRange(0.0, 86400.0);
     respawn_->setDecimals(6);
     respawn_->setValue(2.0);
@@ -72,6 +77,11 @@ ReadOnlyBlocksWidget::ReadOnlyBlocksWidget(QWidget* parent) : QWidget(parent)
     });
 }
 
+ReadOnlyBlocksWidget::~ReadOnlyBlocksWidget()
+{
+    if (planWatcher_ && planWatcher_->isRunning()) planWatcher_->waitForFinished();
+}
+
 void ReadOnlyBlocksWidget::SetStatus(const QString& status)
 { status_->setText(status); }
 
@@ -82,6 +92,7 @@ void ReadOnlyBlocksWidget::SetSourceActivated(
 void ReadOnlyBlocksWidget::SetControlledEditing(
     ControlledBlockEditController* controller, CSharpSourceDocument* document)
 {
+    if (planWatcher_ && planWatcher_->isRunning()) planWatcher_->waitForFinished();
     controlledController_ = controller;
     controlledDocument_ = document;
     RefreshControlledState();
@@ -113,30 +124,60 @@ void ReadOnlyBlocksWidget::RefreshControlledState()
 void ReadOnlyBlocksWidget::PreviewControlledField(
     const std::string& fieldId, const std::string& value)
 {
-    if (!controlledController_ || !controlledDocument_) return;
-    auto plan = controlledController_->Plan(*controlledDocument_, fieldId, value);
-    QDialog review(this);
-    review.setWindowTitle(QStringLiteral("Review controlled C# change"));
-    auto* layout = new QVBoxLayout(&review);
-    auto* diff = new QPlainTextEdit(&review);
-    diff->setReadOnly(true);
-    diff->setPlainText(QString::fromStdString(plan.minimalDiff));
-    layout->addWidget(diff);
-    auto* buttons = new QDialogButtonBox(
-        QDialogButtonBox::Apply | QDialogButtonBox::Cancel, &review);
-    buttons->button(QDialogButtonBox::Apply)->setEnabled(plan.accepted);
-    connect(buttons->button(QDialogButtonBox::Apply), &QPushButton::clicked,
-        &review, &QDialog::accept);
-    connect(buttons, &QDialogButtonBox::rejected, &review, &QDialog::reject);
-    layout->addWidget(buttons);
-    if (review.exec() != QDialog::Accepted)
+    if (!controlledController_ || !controlledDocument_ ||
+        (planWatcher_ && planWatcher_->isRunning())) return;
+    SetStatus(QStringLiteral("Planning controlled source edit..."));
+    previewScore_->setEnabled(false);
+    previewRespawn_->setEnabled(false);
+    auto* controller = controlledController_;
+    auto* document = controlledDocument_;
+    planWatcher_ = new QFutureWatcher<ControlledBlockEditPlan>(this);
+    connect(planWatcher_, &QFutureWatcher<ControlledBlockEditPlan>::finished,
+        this, [this, controller, document]
     {
-        controlledController_->Cancel();
-        return;
-    }
-    const bool applied = controlledController_->Apply(*controlledDocument_, plan);
-    SetStatus(applied ? QStringLiteral("Controlled source edit applied") :
-        QString::fromStdString(controlledController_->Diagnostic()));
+        const auto plan = planWatcher_->result();
+        planWatcher_->deleteLater();
+        planWatcher_ = nullptr;
+        if (controller != controlledController_ || document != controlledDocument_)
+        {
+            RefreshControlledState();
+            return;
+        }
+        auto* review = new QDialog(this);
+        review->setAttribute(Qt::WA_DeleteOnClose);
+        review->setObjectName(QStringLiteral("ControlledEditReviewDialog"));
+        review->setWindowTitle(QStringLiteral("Review controlled C# change"));
+        auto* layout = new QVBoxLayout(review);
+        auto* diff = new QPlainTextEdit(review);
+        diff->setAccessibleName(QStringLiteral("Controlled C# diff"));
+        diff->setReadOnly(true);
+        diff->setPlainText(QString::fromStdString(plan.minimalDiff));
+        layout->addWidget(diff);
+        auto* buttons = new QDialogButtonBox(
+            QDialogButtonBox::Apply | QDialogButtonBox::Cancel, review);
+        buttons->button(QDialogButtonBox::Apply)->setEnabled(plan.accepted);
+        connect(buttons->button(QDialogButtonBox::Apply), &QPushButton::clicked,
+            review, &QDialog::accept);
+        connect(buttons, &QDialogButtonBox::rejected, review, &QDialog::reject);
+        layout->addWidget(buttons);
+        connect(review, &QDialog::accepted, this,
+            [this, controller, document, plan]
+        {
+            const bool applied = controller->Apply(*document, plan);
+            SetStatus(applied ? QStringLiteral("Controlled source edit applied") :
+                QString::fromStdString(controller->Diagnostic()));
+            RefreshControlledState();
+        });
+        connect(review, &QDialog::rejected, this, [this, controller]
+        {
+            controller->Cancel();
+            RefreshControlledState();
+        });
+        review->open();
+    });
+    planWatcher_->setFuture(QtConcurrent::run(
+        [controller, document, fieldId, value]
+        { return controller->Plan(*document, fieldId, value); }));
 }
 
 void ReadOnlyBlocksWidget::Present(

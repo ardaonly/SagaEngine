@@ -16,14 +16,19 @@
 #include <QDockWidget>
 #include <QDoubleSpinBox>
 #include <QElapsedTimer>
+#include <QKeyEvent>
+#include <QLabel>
 #include <QListWidget>
 #include <QMainWindow>
 #include <QMetaObject>
 #include <QPointer>
 #include <QPushButton>
+#include <QPlainTextEdit>
+#include <QScreen>
 #include <QSettings>
 #include <QStackedWidget>
 #include <QSpinBox>
+#include <QTabWidget>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QTreeWidget>
@@ -91,6 +96,26 @@ QPushButton* FindButton(QWidget* root, const QString& text)
     for (auto* button : root->findChildren<QPushButton*>())
         if (button->text() == text) return button;
     return nullptr;
+}
+
+void SetCursorAfter(QPlainTextEdit* editor, const QString& text, int occurrence = 0)
+{
+    auto cursor = editor->document()->find(text);
+    while (occurrence-- > 0 && !cursor.isNull())
+        cursor = editor->document()->find(text, cursor);
+    ASSERT_FALSE(cursor.isNull());
+    cursor.clearSelection();
+    editor->setTextCursor(cursor);
+    editor->setFocus();
+}
+
+void SendKey(QWidget* target, int key, Qt::KeyboardModifiers modifiers = {})
+{
+    QKeyEvent press(QEvent::KeyPress, key, modifiers);
+    QApplication::sendEvent(target, &press);
+    QKeyEvent release(QEvent::KeyRelease, key, modifiers);
+    QApplication::sendEvent(target, &release);
+    QApplication::processEvents();
 }
 
 TEST(SagaHomeUiTest, PermanentHomeActionsAndModesExist)
@@ -346,8 +371,203 @@ TEST(SagaHomeUiTest, XcbPackagesWorkflowRendersProductionPanelReviewAndRecovery)
         }));
         EXPECT_EQ(energyCore->findChild<QSpinBox*>()->value(), 10);
         EXPECT_DOUBLE_EQ(energyCore->findChild<QDoubleSpinBox*>()->value(), 2.0);
+        auto* tabs = codeDock->findChild<QTabWidget*>();
+        ASSERT_NE(tabs, nullptr);
+        ASSERT_EQ(tabs->count(), 2);
+        EXPECT_EQ(tabs->tabText(1),
+            QStringLiteral("Blocks - Controlled C# authoring"));
+        tabs->setCurrentIndex(1);
+        QApplication::processEvents();
         ASSERT_TRUE(codeDock->grab().save(QString::fromStdString(
             (evidence / "blocks-controlled-fields.png").string())));
+        ASSERT_TRUE(codeDock->grab().save(QString::fromStdString(
+            (evidence / "editable-controls.png").string())));
+
+        auto* editor = codeDock->findChild<QPlainTextEdit*>(
+            QStringLiteral("CodeBoxCSharpEditor"));
+        QListWidget* languageResults = nullptr;
+        for (auto* candidate : codeDock->findChildren<QListWidget*>())
+            if (candidate->accessibleName() ==
+                QStringLiteral("Code Box language results"))
+                languageResults = candidate;
+        auto* resultTitle = [&]() -> QLabel*
+        {
+            for (auto* candidate : codeDock->findChildren<QLabel*>())
+                if (candidate->accessibleName() ==
+                    QStringLiteral("Code Box result type")) return candidate;
+            return nullptr;
+        }();
+        auto* diagnosticList = [&]() -> QListWidget*
+        {
+            for (auto* candidate : codeDock->findChildren<QListWidget*>())
+                if (candidate->accessibleName() ==
+                    QStringLiteral("SagaScript diagnostics")) return candidate;
+            return nullptr;
+        }();
+        ASSERT_NE(editor, nullptr);
+        ASSERT_NE(languageResults, nullptr);
+        ASSERT_NE(resultTitle, nullptr);
+        ASSERT_NE(diagnosticList, nullptr);
+        for (int index = 0; index < diagnosticList->count(); ++index)
+        {
+            EXPECT_FALSE(diagnosticList->item(index)->text().contains(
+                QStringLiteral("CS0246")));
+            EXPECT_FALSE(diagnosticList->item(index)->text().contains(
+                QStringLiteral("CS0103")));
+        }
+        const auto originalSource = editor->toPlainText();
+        tabs->setCurrentIndex(0);
+
+        SetCursorAfter(editor, QStringLiteral("EnergyCoreScore"), 1);
+        ASSERT_TRUE(WaitUntil([resultTitle, languageResults]
+        {
+            return resultTitle->text() == QStringLiteral("Hover information") &&
+                languageResults->count() > 0;
+        }));
+        ASSERT_TRUE(codeDock->grab().save(QString::fromStdString(
+            (evidence / "hover.png").string())));
+
+        FindButton(codeDock, QStringLiteral("Definition"))->click();
+        ASSERT_TRUE(WaitUntil([resultTitle, languageResults]
+        {
+            return resultTitle->text() == QStringLiteral("Definition results") &&
+                languageResults->count() > 0;
+        }));
+        ASSERT_TRUE(codeDock->grab().save(QString::fromStdString(
+            (evidence / "definition-results.png").string())));
+        FindButton(codeDock, QStringLiteral("References"))->click();
+        ASSERT_TRUE(WaitUntil([resultTitle, languageResults]
+        {
+            return resultTitle->text() == QStringLiteral("Reference results") &&
+                languageResults->count() > 0;
+        }));
+        ASSERT_TRUE(codeDock->grab().save(QString::fromStdString(
+            (evidence / "references-results.png").string())));
+        FindButton(codeDock, QStringLiteral("Symbols"))->click();
+        ASSERT_TRUE(WaitUntil([resultTitle, languageResults]
+        {
+            return resultTitle->text() == QStringLiteral("Symbol results") &&
+                languageResults->count() > 0;
+        }));
+        ASSERT_TRUE(codeDock->grab().save(QString::fromStdString(
+            (evidence / "symbols-results.png").string())));
+
+        SetCursorAfter(editor, QStringLiteral("cores."));
+        SendKey(editor, Qt::Key_Space, Qt::ControlModifier);
+        QWidget* completionPopup = nullptr;
+        ASSERT_TRUE(WaitUntil([&completionPopup]
+        {
+            for (auto* candidate : QApplication::topLevelWidgets())
+                if (candidate->accessibleName() ==
+                    QStringLiteral("Code Box completion popup") &&
+                    candidate->isVisible())
+                {
+                    completionPopup = candidate;
+                    return true;
+                }
+            return false;
+        }));
+        ASSERT_TRUE(window.screen()->grabWindow(0).save(QString::fromStdString(
+            (evidence / "completion-context.png").string())));
+        ASSERT_TRUE(completionPopup->grab().save(QString::fromStdString(
+            (evidence / "completion-popup.png").string())));
+        SendKey(editor, Qt::Key_Escape);
+
+        editor->setPlainText(originalSource +
+            QStringLiteral("\ninvalid diagnostic token\n"));
+        ASSERT_TRUE(WaitUntil([diagnosticList]
+        { return diagnosticList->count() > 0; }));
+        ASSERT_TRUE(codeDock->grab().save(QString::fromStdString(
+            (evidence / "diagnostic-marker.png").string())));
+        editor->setPlainText(originalSource);
+        ASSERT_TRUE(WaitUntil([energyCore, diagnosticList]
+        {
+            if (!energyCore->findChild<QSpinBox*>()->isEnabled() ||
+                !energyCore->findChild<QDoubleSpinBox*>()->isEnabled()) return false;
+            for (int index = 0; index < diagnosticList->count(); ++index)
+            {
+                const auto text = diagnosticList->item(index)->text();
+                if (text.contains(QStringLiteral("CS0246")) ||
+                    text.contains(QStringLiteral("CS1002")) ||
+                    text.contains(QStringLiteral("CS0116"))) return false;
+            }
+            return true;
+        }));
+
+        tabs->setCurrentIndex(1);
+        auto* score = energyCore->findChild<QSpinBox*>();
+        auto* respawn = energyCore->findChild<QDoubleSpinBox*>();
+        auto* previewScore = FindButton(energyCore,
+            QStringLiteral("Preview score change"));
+        auto* previewRespawn = FindButton(energyCore,
+            QStringLiteral("Preview respawn change"));
+        ASSERT_NE(previewScore, nullptr);
+        ASSERT_NE(previewRespawn, nullptr);
+        score->setValue(20);
+        previewScore->click();
+        QDialog* scoreReview = nullptr;
+        ASSERT_TRUE(WaitUntil([&window, &scoreReview]
+        {
+            scoreReview = window.findChild<QDialog*>(
+                QStringLiteral("ControlledEditReviewDialog"));
+            return scoreReview != nullptr;
+        }));
+        ASSERT_TRUE(scoreReview->grab().save(QString::fromStdString(
+            (evidence / "score-diff-review.png").string())));
+        scoreReview->findChild<QDialogButtonBox*>()->
+            button(QDialogButtonBox::Apply)->click();
+        ASSERT_TRUE(WaitUntil([editor]
+        { return editor->toPlainText().contains("EnergyCoreScore = 20"); }));
+        tabs->setCurrentIndex(0);
+        ASSERT_TRUE(codeDock->grab().save(QString::fromStdString(
+            (evidence / "code-box-after-apply.png").string())));
+        tabs->setCurrentIndex(1);
+        ASSERT_TRUE(WaitUntil([score]
+        { return score->isEnabled() && score->value() == 20; }));
+        ASSERT_TRUE(codeDock->grab().save(QString::fromStdString(
+            (evidence / "blocks-after-apply.png").string())));
+
+        respawn->setValue(0.5);
+        previewRespawn->click();
+        QDialog* respawnReview = nullptr;
+        ASSERT_TRUE(WaitUntil([&window, &respawnReview]
+        {
+            respawnReview = window.findChild<QDialog*>(
+                QStringLiteral("ControlledEditReviewDialog"));
+            return respawnReview != nullptr;
+        }));
+        ASSERT_TRUE(respawnReview->grab().save(QString::fromStdString(
+            (evidence / "respawn-diff-review.png").string())));
+        respawnReview->findChild<QDialogButtonBox*>()->
+            button(QDialogButtonBox::Apply)->click();
+        ASSERT_TRUE(WaitUntil([respawn]
+        { return respawn->isEnabled() && respawn->value() == 0.5; }));
+
+        score->setValue(30);
+        previewScore->click();
+        QDialog* conflictReview = nullptr;
+        ASSERT_TRUE(WaitUntil([&window, &conflictReview]
+        {
+            conflictReview = window.findChild<QDialog*>(
+                QStringLiteral("ControlledEditReviewDialog"));
+            return conflictReview != nullptr;
+        }));
+        editor->setPlainText(editor->toPlainText() +
+            QStringLiteral("\n// conflict\n"));
+        conflictReview->findChild<QDialogButtonBox*>()->
+            button(QDialogButtonBox::Apply)->click();
+        tabs->setCurrentIndex(1);
+        ASSERT_TRUE(codeDock->grab().save(QString::fromStdString(
+            (evidence / "stale-conflict.png").string())));
+
+        tabs->setCurrentIndex(0);
+        editor->setPlainText(originalSource);
+        auto* saveCode = FindButton(codeDock, QStringLiteral("Save"));
+        ASSERT_NE(saveCode, nullptr);
+        saveCode->click();
+        ASSERT_TRUE(WaitUntil([editor]
+        { return editor->toPlainText().contains("EnergyCoreScore = 10") &&
+            editor->toPlainText().contains("EnergyCoreRespawnSeconds = 2.0"); }));
 
         QTreeWidgetItem* instrumentation = nullptr;
         for (int row = 0; row < tree->topLevelItemCount(); ++row)

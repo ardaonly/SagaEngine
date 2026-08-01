@@ -16,15 +16,18 @@ class QPushButton;
 class QSpinBox;
 class QDoubleSpinBox;
 class QTreeWidget;
+template <typename T> class QFutureWatcher;
 
 namespace SagaEditor
 {
 class ControlledBlockEditController;
+struct ControlledBlockEditPlan;
 class CSharpSourceDocument;
 class ReadOnlyBlocksWidget final : public QWidget
 {
 public:
     explicit ReadOnlyBlocksWidget(QWidget* parent = nullptr);
+    ~ReadOnlyBlocksWidget() override;
     void Present(std::shared_ptr<const VisualBlocks::ReadOnlyScriptProjection> projection);
     void PresentSnapshot(const ScriptProjectionSnapshot& snapshot);
     void SetStatus(const QString& status);
@@ -48,5 +51,6 @@ private:
     std::function<void(const VisualBlocks::ProjectionSourceSpan&)> sourceActivated_;
     ControlledBlockEditController* controlledController_ = nullptr;
     CSharpSourceDocument* controlledDocument_ = nullptr;
+    QFutureWatcher<ControlledBlockEditPlan>* planWatcher_ = nullptr;
 };
 }

@@ -16,6 +16,55 @@ std::string ReadHash(const std::filesystem::path& path)
     const auto bytes = ReadDocumentBytes(path, error);
     return error ? std::string{} : HashDocumentBytes(bytes);
 }
+
+bool IsContained(const std::filesystem::path& root, const std::filesystem::path& path)
+{
+    const auto relative = path.lexically_relative(root);
+    return !relative.empty() && *relative.begin() != "..";
+}
+
+void LoadPackageSnapshot(const std::filesystem::path& root,
+    LanguageServiceProjectSnapshot& snapshot)
+{
+    const auto packages = root / "Build" / "Packages";
+    const auto currentPath = packages / "manifests" / "current.json";
+    std::ifstream currentInput(currentPath);
+    if (!currentInput) return;
+    const auto current = nlohmann::json::parse(currentInput, nullptr, false);
+    if (current.is_discarded()) return;
+    const auto generationId = current.value("generationId", std::string{});
+    if (generationId.empty() || generationId.find_first_not_of("0123456789abcdef") !=
+        std::string::npos) return;
+    const auto generation = std::filesystem::weakly_canonical(
+        packages / "generations" / generationId);
+    if (!IsContained(root, generation)) return;
+    const auto referencesPath = generation / "csharp_references_v1.json";
+    const auto ownershipPath = generation / "api_ownership_v1.json";
+    snapshot.packageGeneration = current.value("generationHash", generationId);
+    snapshot.referenceManifestHash = ReadHash(referencesPath);
+    snapshot.ownershipManifestHash = ReadHash(ownershipPath);
+    std::ifstream referencesInput(referencesPath);
+    if (!referencesInput || snapshot.referenceManifestHash.empty()) return;
+    const auto manifest = nlohmann::json::parse(referencesInput, nullptr, false);
+    if (manifest.is_discarded() || manifest.value("projectId", std::string{}) !=
+        snapshot.projectId) return;
+    for (const auto& value : manifest.value("references", nlohmann::json::array()))
+    {
+        if (value.value("trust", std::string{}) != "TrustedEngineDistribution") continue;
+        const auto relative = std::filesystem::path(
+            value.value("resolvedAssemblyLogicalPath", std::string{}));
+        const auto path = std::filesystem::weakly_canonical(generation / relative);
+        if (!IsContained(generation, path) || !std::filesystem::is_regular_file(path))
+            continue;
+        const auto hash = ReadHash(path);
+        if (hash.empty() || hash != value.value("resolvedAssemblyHash", std::string{}))
+            continue;
+        snapshot.metadataReferences.push_back({path, hash});
+        if (value.value("artifactId", std::string{}) ==
+            "com.saga.gameplay.foundation.managed-reference")
+            snapshot.runtimeBridgeIdentity = hash;
+    }
+}
 }
 
 SagaScriptLanguageServiceSession::SagaScriptLanguageServiceSession(
@@ -48,18 +97,22 @@ void SagaScriptLanguageServiceSession::Refresh()
     const auto manifestHash = workspace_.ProjectSource() ?
         HashDocumentBytes(workspace_.ProjectSource()->Text()) : std::string{};
     const auto lockHash = ReadHash(root / "SagaPackage.lock");
-    const auto identity = HashDocumentBytes(project.projectId + "\n" + manifestHash + "\n" + lockHash);
+    LanguageServiceProjectSnapshot nextSnapshot;
+    nextSnapshot.projectSessionId = project.projectId;
+    nextSnapshot.canonicalRoot = root;
+    nextSnapshot.projectId = project.projectId;
+    nextSnapshot.manifestHash = manifestHash;
+    nextSnapshot.lockHash = lockHash;
+    nextSnapshot.packageGeneration = lockHash;
+    LoadPackageSnapshot(root, nextSnapshot);
+    nextSnapshot.projectSnapshotIdentity = HashDocumentBytes(project.projectId + "\n" +
+        manifestHash + "\n" + lockHash + "\n" + nextSnapshot.packageGeneration + "\n" +
+        nextSnapshot.referenceManifestHash + "\n" + nextSnapshot.ownershipManifestHash);
+    const auto& identity = nextSnapshot.projectSnapshotIdentity;
     if (client_.State() != LanguageServiceState::Ready ||
         snapshot_.projectSessionId != project.projectId)
     {
-        snapshot_ = {};
-        snapshot_.projectSessionId = project.projectId;
-        snapshot_.projectSnapshotIdentity = identity;
-        snapshot_.canonicalRoot = root;
-        snapshot_.projectId = project.projectId;
-        snapshot_.manifestHash = manifestHash;
-        snapshot_.lockHash = lockHash;
-        snapshot_.packageGeneration = lockHash;
+        snapshot_ = std::move(nextSnapshot);
         synchronizedVersions_.clear();
         if (!client_.Start(snapshot_))
         {
@@ -75,10 +128,7 @@ void SagaScriptLanguageServiceSession::Refresh()
     }
     else if (snapshot_.projectSnapshotIdentity != identity)
     {
-        snapshot_.projectSnapshotIdentity = identity;
-        snapshot_.manifestHash = manifestHash;
-        snapshot_.lockHash = lockHash;
-        snapshot_.packageGeneration = lockHash;
+        snapshot_ = std::move(nextSnapshot);
         if (!client_.Reconfigure(snapshot_))
         { refreshing_ = false; return; }
         synchronizedVersions_.clear();

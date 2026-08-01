@@ -66,6 +66,9 @@ TEST(ControlledBlockEditControllerTests, PlansAppliesRejectsStaleAndSharesUndo)
     SagaEditor::UndoRedoStack journal;
     SagaEditor::ControlledBlockEditController controller(language, journal);
     auto& document = *workspace.Scripts().front();
+    const auto initialProjection = controller.AnalyzeProjection(document);
+    ASSERT_TRUE(initialProjection.Succeeded()) << initialProjection.diagnostic;
+    EXPECT_EQ(initialProjection.projection->EditableFields().size(), 2u);
     const auto invalid = controller.Plan(document,
         "field://ArenaRush.ArenaRushGameMode/EnergyCoreScore/initializer", "0");
     EXPECT_FALSE(invalid.accepted);
@@ -83,6 +86,11 @@ TEST(ControlledBlockEditControllerTests, PlansAppliesRejectsStaleAndSharesUndo)
     EXPECT_EQ(document.Text().find("EnergyCoreScore = 20"), source.find("EnergyCoreScore = 10"));
     EXPECT_NE(document.Text().find("EnergyCoreRespawnSeconds = 2.0"), std::string::npos);
     EXPECT_TRUE(document.Snapshot().dirty);
+    language.Refresh();
+    const auto editedProjection = controller.AnalyzeProjection(document);
+    ASSERT_TRUE(editedProjection.Succeeded()) << editedProjection.diagnostic;
+    ASSERT_EQ(editedProjection.projection->EditableFields().size(), 2u);
+    EXPECT_EQ(editedProjection.projection->EditableFields()[0].value, "20");
     journal.Undo();
     EXPECT_EQ(document.Text(), source);
     journal.Redo();

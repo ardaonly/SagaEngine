@@ -35,6 +35,12 @@ struct LanguageServiceDocumentIdentity
     std::uint64_t version = 0;
 };
 
+struct LanguageServiceMetadataReference
+{
+    std::filesystem::path canonicalPath;
+    std::string hash;
+};
+
 struct LanguageServiceProjectSnapshot
 {
     std::string projectSessionId;
@@ -47,6 +53,7 @@ struct LanguageServiceProjectSnapshot
     std::string referenceManifestHash;
     std::string ownershipManifestHash;
     std::string runtimeBridgeIdentity;
+    std::vector<LanguageServiceMetadataReference> metadataReferences;
     std::string compilerVersion = "4.11.0";
     std::string languageVersion = "latest-major";
 };

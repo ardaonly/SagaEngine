@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -24,7 +26,7 @@ def _request(request_id: int, method: str, root: Path, **extra: object) -> dict[
         "payload": {},
     }
     value.update(extra)
-    if method == "project/open":
+    if method == "project/open" and "payload" not in extra:
         value["payload"] = {"canonicalRoot": str(root)}
     return value
 
@@ -186,15 +188,20 @@ def test_controlled_edit_plans_exact_constant_initializer() -> None:
                      payload={"fieldId": score_field, "value": 20}),
             _request(5, "controlled-edit/plan", root, **identity,
                      payload={"fieldId": respawn_field, "value": 0.5}),
-            _request(6, "shutdown", root),
+            _request(6, "controlled-projection", root, **identity, payload={}),
+            _request(7, "shutdown", root),
         ]
         responses, stderr, code = _run(messages)
         assert code == 0, stderr
         score = next(item for item in responses if item["requestId"] == 4)["payload"]
         respawn = next(item for item in responses if item["requestId"] == 5)["payload"]
+        projection = next(item for item in responses if item["requestId"] == 6)["payload"]
         assert score["accepted"] is True
         assert score["oldValue"] == "10" and score["replacement"] == "20"
         assert respawn["oldValue"] == "2.0" and respawn["replacement"] == "0.5"
+        assert projection["opaque"] is False
+        assert len(projection["editableFields"]) == 2
+        assert {item["value"] for item in projection["editableFields"]} == {"10", "2.0"}
         start = score["startByte"]
         end = score["endByte"]
         candidate = score["candidateText"].encode("utf-8")
@@ -204,8 +211,62 @@ def test_controlled_edit_plans_exact_constant_initializer() -> None:
         assert candidate[start + 2:] == original[end:]
 
 
+def test_metadata_references_require_containment_and_matching_hash() -> None:
+    with tempfile.TemporaryDirectory(prefix="sagascript-language-") as temporary:
+        root = Path(temporary).resolve()
+        reference = root / "references" / "reference.dll"
+        reference.parent.mkdir()
+        shutil.copy2(CLI_ASSEMBLY, reference)
+        digest = "sha256:" + hashlib.sha256(reference.read_bytes()).hexdigest()
+        valid_payload = {
+            "canonicalRoot": str(root),
+            "metadataReferences": [{"path": str(reference), "hash": digest}],
+        }
+        valid, stderr, code = _run([
+            _request(1, "initialize", root),
+            _request(2, "project/open", root, payload=valid_payload),
+            _request(3, "shutdown", root),
+        ])
+        assert code == 0, stderr
+        assert next(item for item in valid if item["requestId"] == 2)[
+            "messageType"] == "response"
+
+        invalid_hash, stderr, code = _run([
+            _request(1, "initialize", root),
+            _request(2, "project/open", root, payload={
+                "canonicalRoot": str(root),
+                "metadataReferences": [{"path": str(reference),
+                                         "hash": "sha256:" + "0" * 64}],
+            }),
+            _request(3, "shutdown", root),
+        ])
+        assert code == 0, stderr
+        invalid_response = next(item for item in invalid_hash
+                                if item["requestId"] == 2)
+        assert invalid_response["messageType"] == "error"
+        assert invalid_response["payload"]["code"] == \
+            "LanguageService.InvalidReference"
+
+        escaped, stderr, code = _run([
+            _request(1, "initialize", root),
+            _request(2, "project/open", root, payload={
+                "canonicalRoot": str(root),
+                "metadataReferences": [{"path": str(CLI_ASSEMBLY),
+                                         "hash": digest}],
+            }),
+            _request(3, "shutdown", root),
+        ])
+        assert code == 0, stderr
+        escaped_response = next(item for item in escaped
+                                if item["requestId"] == 2)
+        assert escaped_response["messageType"] == "error"
+        assert escaped_response["payload"]["code"] == \
+            "LanguageService.PathEscape"
+
+
 TESTS = (test_reuses_workspace_and_rejects_stale_versions,
          test_utf16_positions_and_path_escape_fail_closed,
          test_all_interactive_features_and_preflight,
          test_malformed_envelope_is_fatal,
-         test_controlled_edit_plans_exact_constant_initializer)
+         test_controlled_edit_plans_exact_constant_initializer,
+         test_metadata_references_require_containment_and_matching_hash)

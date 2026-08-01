@@ -361,10 +361,16 @@ private:
 
     static Json SnapshotJson(const LanguageServiceProjectSnapshot& value)
     {
+        Json references = Json::array();
+        for (const auto& reference : value.metadataReferences)
+            references.push_back({{"path", reference.canonicalPath.string()},
+                {"hash", reference.hash}});
         return {{"canonicalRoot", value.canonicalRoot.string()}, {"projectId", value.projectId},
             {"manifestHash", value.manifestHash}, {"lockHash", value.lockHash}, {"packageGeneration", value.packageGeneration},
             {"referenceManifestHash", value.referenceManifestHash}, {"ownershipManifestHash", value.ownershipManifestHash},
-            {"runtimeBridgeIdentity", value.runtimeBridgeIdentity}, {"compilerVersion", value.compilerVersion}, {"languageVersion", value.languageVersion}};
+            {"runtimeBridgeIdentity", value.runtimeBridgeIdentity},
+            {"metadataReferences", std::move(references)},
+            {"compilerVersion", value.compilerVersion}, {"languageVersion", value.languageVersion}};
     }
     void SetState(LanguageServiceState value)
     {

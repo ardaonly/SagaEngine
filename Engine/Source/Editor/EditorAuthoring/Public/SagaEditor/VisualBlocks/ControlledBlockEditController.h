@@ -2,8 +2,10 @@
 #pragma once
 
 #include "SagaEditor/Documents/SourceDocuments.h"
+#include "SagaEditor/VisualBlocks/ReadOnlyScriptProjection.h"
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -55,6 +57,17 @@ struct ControlledBlockEditPlan final
     std::vector<std::string> diagnostics;
 };
 
+struct ControlledProjectionResult final
+{
+    std::string documentId;
+    std::uint64_t documentVersion = 0;
+    std::string sourceHash;
+    std::string artifactHash;
+    std::string diagnostic;
+    std::shared_ptr<const VisualBlocks::ReadOnlyScriptProjection> projection;
+    [[nodiscard]] bool Succeeded() const noexcept { return projection != nullptr; }
+};
+
 class ControlledBlockEditController final
 {
 public:
@@ -64,6 +77,8 @@ public:
         std::string fieldId, std::string value);
     [[nodiscard]] bool Apply(CSharpSourceDocument& document,
         const ControlledBlockEditPlan& plan);
+    [[nodiscard]] ControlledProjectionResult AnalyzeProjection(
+        const CSharpSourceDocument& document);
     void Cancel();
     [[nodiscard]] ControlledBlockEditState State() const noexcept { return state_; }
     [[nodiscard]] const std::string& Diagnostic() const noexcept { return diagnostic_; }
