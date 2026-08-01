@@ -1,6 +1,6 @@
 {
   "engineVersion": "0.0.11",
-  "graphHash": "sha256:1c7fdde75173e649de6992e54ed0e21d2f2a45304ec339a4730360500c6da45a",
+  "graphHash": "sha256:0f4995b3a1c6b4873d3f28cb4cf06dc87afc17b8d139c9007e68eb42846ff6cb",
   "intentHash": "sha256:164b47a120936857fb81817529da19ab9cf9494266e7575eed7093dff0d4caca",
   "packages": [
     {
@@ -17,7 +17,7 @@
           "trust": "TrustedEngineDistribution"
         },
         {
-          "artifactHash": "sha256:6f4dc3b7953576709922a803a06a522489ef27c7ba8a5a75284e469e9bbc186e",
+          "artifactHash": "sha256:36d8583afa1d97070c23b6b6c9b4adbe5c5d06403bdc57adbf3b9d0caea1df2d",
           "artifactId": "com.saga.gameplay.challenge.challenge-core-api-surface",
           "distributionPath": "Packages/com.saga.gameplay.challenge/0.0.11/api/challenge.core.highlevel.surface.json",
           "kind": "apiSurface",
@@ -28,7 +28,7 @@
           "trust": "TrustedEngineDistribution"
         },
         {
-          "artifactHash": "sha256:5f2718c3bb0f2efdb71757fdec79aee9d7c4d1e31c17135686f9ed640614a85a",
+          "artifactHash": "sha256:0403e8a6cfe7cd17c9c27531e045820b75a9cc0f9bf15dfb5d47a2d46720236a",
           "artifactId": "com.saga.gameplay.challenge.collectibles-api-surface",
           "distributionPath": "Packages/com.saga.gameplay.challenge/0.0.11/api/collectibles.highlevel.surface.json",
           "kind": "apiSurface",
@@ -65,7 +65,7 @@
           "trust": "TrustedEngineDistribution"
         },
         {
-          "artifactHash": "sha256:66797025649065f4be768aa6c863f3f72b28f54aab52c2f431a8b28fea435684",
+          "artifactHash": "sha256:199baaeb61b166f24d3879f3d15fc2d4fe336a32a1e41886e5d51d3a05a8b318",
           "artifactId": "com.saga.gameplay.foundation.api-surface",
           "distributionPath": "Packages/com.saga.gameplay.foundation/0.0.11/api/gameplay.highlevel.surface.json",
           "kind": "apiSurface",

@@ -43,6 +43,9 @@ internal static class Program
                 "compile-ui" => RunContentCompile(options, "ui"),
                 "compile-content" => RunContentCompile(options, "all"),
                 "resolve" => RunResolvePackages(options),
+                "resolve-candidate" => RunResolveCandidate(options),
+                "generation-refresh" => RunGenerationRefresh(options),
+                "inspect" => RunInspect(options),
                 "lock-verify" => RunVerifyLock(options),
                 _ => InvalidUsage,
             };
@@ -52,6 +55,64 @@ internal static class Program
             Console.Error.WriteLine($"Internal sagapack error: {e.Message}");
             return InternalError;
         }
+    }
+
+    private static int RunInspect(CommandOptions options)
+    {
+        if (string.IsNullOrWhiteSpace(options.ProjectPath) ||
+            string.IsNullOrWhiteSpace(options.LockPath) ||
+            string.IsNullOrWhiteSpace(options.GeneratedOut) ||
+            string.IsNullOrWhiteSpace(options.RuntimeBridgePath) ||
+            string.IsNullOrWhiteSpace(options.OutPath))
+        {
+            Console.Error.WriteLine("inspect requires --project, --lock, --generated-out, --runtime-bridge, and --out.");
+            return InvalidUsage;
+        }
+        var report = PackageInspectionService.Inspect(options.ProjectPath,
+            options.EngineRoot, options.LockPath, options.GeneratedOut,
+            options.RuntimeBridgePath, options.ProjectRoot);
+        SagaProjectKit.Core.CanonicalJson.Write(options.OutPath, report);
+        Console.WriteLine($"sagapack inspect: {report.Status}");
+        return report.Status == "Passed" ? Passed : Failed;
+    }
+
+    private static int RunResolveCandidate(CommandOptions options)
+    {
+        if (string.IsNullOrWhiteSpace(options.ProjectPath) ||
+            string.IsNullOrWhiteSpace(options.ProjectRoot) ||
+            string.IsNullOrWhiteSpace(options.LockPath) ||
+            string.IsNullOrWhiteSpace(options.GeneratedOut) ||
+            string.IsNullOrWhiteSpace(options.RuntimeBridgePath) ||
+            string.IsNullOrWhiteSpace(options.OutPath))
+        {
+            Console.Error.WriteLine("resolve-candidate requires --project, --project-root, --lock, --generated-out, --runtime-bridge, and --out.");
+            return InvalidUsage;
+        }
+        var report = PackageResolutionService.ResolveCandidate(
+            options.ProjectPath, options.ProjectRoot, options.EngineRoot,
+            options.LockPath, options.GeneratedOut, options.RuntimeBridgePath);
+        SagaProjectKit.Core.CanonicalJson.Write(options.OutPath, report);
+        Console.WriteLine($"sagapack resolve-candidate: {report.Status}");
+        return report.Status == "Passed" ? Passed : Failed;
+    }
+
+    private static int RunGenerationRefresh(CommandOptions options)
+    {
+        if (string.IsNullOrWhiteSpace(options.ProjectPath) ||
+            string.IsNullOrWhiteSpace(options.LockPath) ||
+            string.IsNullOrWhiteSpace(options.GeneratedOut) ||
+            string.IsNullOrWhiteSpace(options.RuntimeBridgePath) ||
+            string.IsNullOrWhiteSpace(options.OutPath))
+        {
+            Console.Error.WriteLine("generation-refresh requires --project, --lock, --generated-out, --runtime-bridge, and --out.");
+            return InvalidUsage;
+        }
+        var report = PackageResolutionService.RefreshGeneration(
+            options.ProjectPath, options.EngineRoot, options.LockPath,
+            options.GeneratedOut, options.RuntimeBridgePath);
+        SagaProjectKit.Core.CanonicalJson.Write(options.OutPath, report);
+        Console.WriteLine($"sagapack generation-refresh: {report.Status}");
+        return report.Status == "Passed" ? Passed : Failed;
     }
 
     private static int RunValidate(CommandOptions options)
@@ -294,6 +355,9 @@ internal static class Program
         Console.Error.WriteLine("  sagapack compile-ui --project <path> --out <artifact-root>");
         Console.Error.WriteLine("  sagapack compile-content --project <path> --script-manifest <SagaScript current.json> --out <artifact-root>");
         Console.Error.WriteLine("  sagapack resolve --project <path> [--engine-root <root>] --lock <SagaPackage.lock> --generated-out <dir> --runtime-bridge <dll> --out <report>");
+        Console.Error.WriteLine("  sagapack resolve-candidate --project <staged.sagaproj> --project-root <canonical-root> [--engine-root <root>] --lock <candidate.lock> --generated-out <candidate-dir> --runtime-bridge <dll> --out <report>");
+        Console.Error.WriteLine("  sagapack generation-refresh --project <path> [--engine-root <root>] --lock <SagaPackage.lock> --generated-out <dir> --runtime-bridge <dll> --out <report>");
+        Console.Error.WriteLine("  sagapack inspect --project <path> [--project-root <canonical-root>] [--engine-root <root>] --lock <SagaPackage.lock> --generated-out <dir> --runtime-bridge <dll> --out <report>");
         Console.Error.WriteLine("  sagapack lock-verify --project <path> [--engine-root <root>] --lock <SagaPackage.lock> [--generated-out <dir>] --runtime-bridge <dll> --out <report>");
     }
 
@@ -301,6 +365,7 @@ internal static class Program
         bool Ok,
         string Error,
         string ProjectPath,
+        string ProjectRoot,
         string Profile,
         string OutPath,
         string PackageReportPath,
@@ -320,6 +385,7 @@ internal static class Program
         public static CommandOptions Parse(string[] args)
         {
             string project = "";
+            string projectRoot = "";
             string profile = "";
             string output = "";
             string packageReport = "";
@@ -342,6 +408,9 @@ internal static class Program
                 {
                     case "--project" when i + 1 < args.Length:
                         project = args[++i];
+                        break;
+                    case "--project-root" when i + 1 < args.Length:
+                        projectRoot = args[++i];
                         break;
                     case "--profile" when i + 1 < args.Length:
                         profile = args[++i];
@@ -396,12 +465,12 @@ internal static class Program
                 }
             }
 
-            return new CommandOptions(true, "", project, profile, output, packageReport, diagnosticsSummary, scriptValidation, policyReport, sourceTruthGate, assetReferenceGate, binDir, timeout, engineRoot, lockPath, generatedOut, runtimeBridge, scriptManifest);
+            return new CommandOptions(true, "", project, projectRoot, profile, output, packageReport, diagnosticsSummary, scriptValidation, policyReport, sourceTruthGate, assetReferenceGate, binDir, timeout, engineRoot, lockPath, generatedOut, runtimeBridge, scriptManifest);
         }
 
         private static CommandOptions Fail(string error)
         {
-            return new CommandOptions(false, error, "", "", "", "", "", "", "", "", "", "", 5, "", "", "", "", "");
+            return new CommandOptions(false, error, "", "", "", "", "", "", "", "", "", "", "", 5, "", "", "", "", "");
         }
     }
 }

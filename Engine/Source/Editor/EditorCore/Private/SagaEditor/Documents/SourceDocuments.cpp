@@ -80,9 +80,41 @@ bool ClassName::Redo() { return text_->Redo(); }
 
 ProjectDocument::ProjectDocument(std::filesystem::path sourcePath)
     : text_(std::make_unique<TextDocument>("project:" + sourcePath.filename().string(),
-        DocumentKind::Project, std::move(sourcePath), 0, false)) {}
+        DocumentKind::Project, std::move(sourcePath), 0, true)) {}
 ProjectDocument::~ProjectDocument() = default;
-SAGA_FORWARD_DOCUMENT(ProjectDocument)
+const DocumentSnapshot& ProjectDocument::Snapshot() const noexcept { return text_->Snapshot(); }
+const std::vector<DocumentDiagnostic>& ProjectDocument::Diagnostics() const noexcept { return text_->Diagnostics(); }
+const std::string& ProjectDocument::Text() const noexcept { return text_->Text(); }
+bool ProjectDocument::ReplaceText(std::string text)
+{
+    if (!text_->ReplaceText(std::move(text))) return false;
+    NotifyChanged(); return true;
+}
+bool ProjectDocument::Load() { const auto result = text_->Load(); if (result) NotifyChanged(); return result; }
+DocumentSaveStatus ProjectDocument::Save()
+{ const auto result = text_->Save(); if (result == DocumentSaveStatus::Saved) NotifyChanged(); return result; }
+bool ProjectDocument::Reload() { const auto result = text_->Reload(); if (result) NotifyChanged(); return result; }
+DocumentExternalChangeState ProjectDocument::CheckExternalChange() { return text_->CheckExternalChange(); }
+DocumentCloseStatus ProjectDocument::RequestClose() const noexcept { return text_->RequestClose(); }
+bool ProjectDocument::CanUndo() const noexcept { return text_->CanUndo(); }
+bool ProjectDocument::CanRedo() const noexcept { return text_->CanRedo(); }
+bool ProjectDocument::Undo() { const auto result = text_->Undo(); if (result) NotifyChanged(); return result; }
+bool ProjectDocument::Redo() { const auto result = text_->Redo(); if (result) NotifyChanged(); return result; }
+ProjectDocument::ChangeSubscription ProjectDocument::SubscribeChanges(ChangeCallback callback)
+{
+    if (!callback) return InvalidChangeSubscription;
+    const auto subscription = nextSubscription_++;
+    callbacks_.emplace(subscription, std::move(callback));
+    return subscription;
+}
+void ProjectDocument::UnsubscribeChanges(ChangeSubscription subscription)
+{ callbacks_.erase(subscription); }
+void ProjectDocument::NotifyChanged()
+{
+    const auto callbacks = callbacks_;
+    for (const auto& [subscription, callback] : callbacks)
+    { (void)subscription; if (callback) callback(); }
+}
 
 CSharpSourceDocument::CSharpSourceDocument(std::filesystem::path sourcePath)
     : text_(std::make_unique<TextDocument>("script:" + sourcePath.filename().string(),

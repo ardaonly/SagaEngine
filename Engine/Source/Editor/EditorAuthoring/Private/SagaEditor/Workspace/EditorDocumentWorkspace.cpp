@@ -46,6 +46,7 @@ ProjectToolResult EditorDocumentWorkspace::CreateProject(
 bool EditorDocumentWorkspace::OpenValidated(std::unique_ptr<ProjectManager> nextManager)
 {
     const auto& project = nextManager->GetCurrentProject();
+    auto nextRecovery = ProjectMutationRecovery::Scan(project.rootPath);
     auto nextProject = std::make_unique<ProjectDocument>(project.manifestPath);
     if (!nextProject->Load()) return false;
     std::vector<std::unique_ptr<SceneDocument>> nextScenes;
@@ -103,6 +104,8 @@ bool EditorDocumentWorkspace::OpenValidated(std::unique_ptr<ProjectManager> next
     scripts_ = std::move(nextScripts);
     inputs_ = std::move(nextInputs);
     listing_ = std::move(nextListing);
+    packageRecovery_ = std::move(nextRecovery);
+    (void)projectSource_->SubscribeChanges([this] { MarkChanged(); });
     for (const auto& scene : scenes_)
         (void)scene->SubscribeChanges([this] { MarkChanged(); });
     for (const auto& script : scripts_)
@@ -119,6 +122,7 @@ void EditorDocumentWorkspace::Close()
     manager_.reset();
     projectSource_.reset();
     scenes_.clear(); scripts_.clear(); inputs_.clear(); listing_.clear();
+    packageRecovery_.clear();
     MarkChanged();
 }
 
@@ -144,6 +148,8 @@ const std::vector<ProjectSourceEntry>& EditorDocumentWorkspace::SourceListing() 
 std::vector<std::string> EditorDocumentWorkspace::DirtyDocumentIds() const
 {
     std::vector<std::string> ids;
+    if (projectSource_ && projectSource_->Snapshot().dirty)
+        ids.push_back(projectSource_->Snapshot().documentId);
     const auto append = [&ids](const auto& documents)
     {
         for (const auto& document : documents)
@@ -153,6 +159,20 @@ std::vector<std::string> EditorDocumentWorkspace::DirtyDocumentIds() const
     std::sort(ids.begin(), ids.end());
     return ids;
 }
+
+bool EditorDocumentWorkspace::HasRecoveryRequired() const noexcept
+{
+    return std::any_of(packageRecovery_.begin(), packageRecovery_.end(),
+        [](const auto& result)
+        {
+            return result.action == ProjectMutationRecoveryAction::RecoveryRequired ||
+                result.action == ProjectMutationRecoveryAction::UnsupportedJournal;
+        });
+}
+
+const std::vector<ProjectMutationRecoveryResult>&
+EditorDocumentWorkspace::PackageRecovery() const noexcept
+{ return packageRecovery_; }
 
 bool EditorDocumentWorkspace::SaveAll()
 {
@@ -165,6 +185,8 @@ bool EditorDocumentWorkspace::SaveAll()
         }
         return true;
     };
+    if (projectSource_ && projectSource_->Snapshot().dirty &&
+        projectSource_->Save() != DocumentSaveStatus::Saved) return false;
     return save(scenes_) && save(scripts_) && save(inputs_);
 }
 
