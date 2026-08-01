@@ -40,6 +40,18 @@ internal static class Program
             return ProjectWorker.Run(worker.RequestPath, worker.ResultPath, worker.ProgressPath);
         }
         var options = CliOptions.Parse(args.Skip(1).ToArray());
+        if (command == "module-usage")
+        {
+            if (string.IsNullOrWhiteSpace(options.PatchRequestPath) ||
+                string.IsNullOrWhiteSpace(options.OutputPath))
+                throw new InvalidOperationException(
+                    "module-usage requires --request <request.json> and --out <report.json>.");
+            var report = ModuleUsageAnalysis.Analyze(
+                options.PatchRequestPath);
+            ManifestWriter.WriteJson(options.OutputPath, report);
+            if (options.Json) ManifestWriter.PrintJson(report);
+            return report.Status == "Passed" ? 0 : 1;
+        }
         if (RequiresSource(command) && options.Sources.Count == 0 &&
             string.IsNullOrWhiteSpace(options.ProjectPath))
         {
@@ -84,7 +96,7 @@ internal static class Program
 
     private static bool RequiresSource(string command)
     {
-        return command is not ("plan-block-edit" or "apply-block-edit" or "patch-review" or "patch-rollback" or "validate-artifacts");
+        return command is not ("module-usage" or "plan-block-edit" or "apply-block-edit" or "patch-review" or "patch-rollback" or "validate-artifacts");
     }
 
     private static int RunSagaWeaverCommand(
@@ -559,6 +571,7 @@ internal static class Program
         Console.WriteLine("  project-blocks --source <file-or-dir> --out <dir> [--json]");
         Console.WriteLine("  project-blocks --project <project.sagaproj> --out <dir> [--json]");
         Console.WriteLine("  worker --request <worker-request-v1.json> --result <worker-result-v1.json> --progress <progress.ndjson>");
+        Console.WriteLine("  module-usage --request <module-usage-request-v1.json> --out <report.json> [--json]");
         Console.WriteLine("  plan-block-edit --projection <visual_blocks_projection_v1.json> --operation <operation.json> --out <file> [--json]");
         Console.WriteLine("  apply-block-edit --evaluation <block_patch_evaluation_v1.json> --source-root <path> --out <dir> [--json]");
         Console.WriteLine("  extract-nodes --source <file-or-dir> --out <dir> [--json]");

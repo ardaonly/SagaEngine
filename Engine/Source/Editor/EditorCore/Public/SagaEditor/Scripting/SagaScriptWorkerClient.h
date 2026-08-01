@@ -44,6 +44,7 @@ struct ScriptWorkerRequest
     std::string packageGraphHash;
     ScriptWorkerInput referenceManifest;
     ScriptWorkerInput apiSurfaceManifest;
+    ScriptWorkerInput ownershipCatalog;
     ScriptWorkerRuntimeBridge runtimeBridge;
     std::vector<std::string> operations{"analyze"};
     std::filesystem::path outputRoot;

@@ -67,6 +67,7 @@ ScriptWorkerResult SagaScriptWorkerClient::Run(const ScriptWorkerRequest& reques
         sources.push_back({{"hash", source.hash}, {"path", source.relativePath.generic_string()}});
     const Json document = {
         {"apiSurfaceManifest", InputJson(request.apiSurfaceManifest)},
+        {"ownershipCatalog", InputJson(request.ownershipCatalog)},
         {"cancellation", {{"operationId", request.operationId}, {"path", cancellationPath.string()}}},
         {"operationId", request.operationId},
         {"operations", request.operations},

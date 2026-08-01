@@ -1,7 +1,16 @@
 {
   "apis": [
     {
+      "apiId": "CollectibleInstrumentationState",
+      "documentationId": "T:SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleInstrumentationState",
+      "blockProjection": "Supported",
+      "capability": "DevelopmentDiagnostics",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
+      "visibility": "Public"
+    },
+    {
       "apiId": "CollectibleInstrumentation.Create",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleInstrumentation.Create(System.Int32)",
       "blockProjection": "Supported",
       "capability": "DevelopmentDiagnostics",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
@@ -9,6 +18,7 @@
     },
     {
       "apiId": "CollectibleInstrumentation.RecordCollect",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleInstrumentation.RecordCollect(SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleInstrumentationState,System.Boolean)",
       "blockProjection": "Supported",
       "capability": "DevelopmentDiagnostics",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
@@ -16,6 +26,7 @@
     },
     {
       "apiId": "CollectibleInstrumentation.RecordDeactivation",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleInstrumentation.RecordDeactivation(SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleInstrumentationState)",
       "blockProjection": "Supported",
       "capability": "DevelopmentDiagnostics",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
@@ -23,6 +34,7 @@
     },
     {
       "apiId": "CollectibleInstrumentation.RecordRespawnCompleted",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleInstrumentation.RecordRespawnCompleted(SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleInstrumentationState)",
       "blockProjection": "Supported",
       "capability": "DevelopmentDiagnostics",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
@@ -30,6 +42,7 @@
     },
     {
       "apiId": "CollectibleInstrumentation.RecordRespawnScheduled",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleInstrumentation.RecordRespawnScheduled(SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleInstrumentationState)",
       "blockProjection": "Supported",
       "capability": "DevelopmentDiagnostics",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",

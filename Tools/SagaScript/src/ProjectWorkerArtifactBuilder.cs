@@ -28,6 +28,7 @@ internal static class ProjectWorkerArtifactBuilder
             packageGenerationManifestHash = request.PackageGenerationManifestHash,
             packageGraphHash = request.PackageGraphHash,
             apiSurfaceManifestHash = request.ApiSurfaceManifest.Hash,
+            ownershipCatalogHash = request.OwnershipCatalog.Hash,
             tool = ToolInfo.Name,
             toolVersion = ToolInfo.Version,
             analyzerVersion = typeof(ProjectWorkerArtifactBuilder).Assembly.GetName().Version?.ToString() ?? "unknown",
@@ -39,6 +40,7 @@ internal static class ProjectWorkerArtifactBuilder
             schemaVersion = 3, common.projectId, common.projectHash, common.sourceRevision,
             common.sourceSetHash, common.packageGenerationId, common.packageGenerationHash,
             common.packageGenerationManifestHash, common.packageGraphHash, common.apiSurfaceManifestHash,
+            common.ownershipCatalogHash,
             common.tool, common.toolVersion, common.analyzerVersion, common.compilerVersion, behaviors,
             diagnostics = Array.Empty<object>(),
         }));
@@ -56,7 +58,8 @@ internal static class ProjectWorkerArtifactBuilder
         {
             common.schemaVersion, common.projectId, common.projectHash, common.sourceRevision,
             common.sourceSetHash, common.packageGenerationId, common.packageGenerationHash,
-            common.packageGraphHash, common.apiSurfaceManifestHash, common.tool, common.toolVersion,
+            common.packageGraphHash, common.apiSurfaceManifestHash, common.ownershipCatalogHash,
+            common.tool, common.toolVersion,
             common.analyzerVersion, actions, diagnostics = Array.Empty<object>(),
         }));
         var capabilities = behaviors.SelectMany(item => item.Capabilities).Distinct(StringComparer.Ordinal)
@@ -65,7 +68,8 @@ internal static class ProjectWorkerArtifactBuilder
         {
             common.schemaVersion, common.projectId, common.projectHash, common.sourceRevision,
             common.sourceSetHash, common.packageGenerationId, common.packageGenerationHash,
-            common.packageGraphHash, common.apiSurfaceManifestHash, common.tool, common.toolVersion,
+            common.packageGraphHash, common.apiSurfaceManifestHash, common.ownershipCatalogHash,
+            common.tool, common.toolVersion,
             common.analyzerVersion, capabilities, diagnostics = Array.Empty<object>(),
         }));
         artifacts.Add(JsonArtifact("scripts.source-map", "sourceMap", "source_map_v1.json", new
@@ -73,6 +77,7 @@ internal static class ProjectWorkerArtifactBuilder
             common.schemaVersion, common.projectId, common.projectHash, common.sourceRevision,
             common.sourceSetHash, common.packageGenerationId, common.packageGenerationHash,
             common.packageGenerationManifestHash, common.packageGraphHash, common.apiSurfaceManifestHash,
+            common.ownershipCatalogHash,
             common.tool, common.toolVersion, common.analyzerVersion, sources,
             behaviors = behaviors.Select(item => new { item.BehaviorId, item.SourceFile, item.SourceHash, item.Span,
                 item.LifecycleMethods, item.Actions }).ToArray(), diagnostics = Array.Empty<object>(),
@@ -128,6 +133,7 @@ internal static class ProjectWorkerArtifactBuilder
             common.schemaVersion, common.projectId, common.projectHash, common.sourceRevision,
             common.sourceSetHash, common.packageGenerationId, common.packageGenerationHash,
             common.packageGenerationManifestHash, common.packageGraphHash, common.apiSurfaceManifestHash,
+            common.ownershipCatalogHash,
             common.tool, common.toolVersion, common.analyzerVersion,
             sourcePreservation = "SourceNotMutated", readOnly = true, roots, blocks,
             opaqueRegions = opaque, allowedApis, filteredApiPolicy = "ExcludeRawAndInternal",
@@ -152,6 +158,7 @@ internal static class ProjectWorkerArtifactBuilder
             common.schemaVersion, common.projectId, common.projectHash, common.sourceRevision,
             common.sourceSetHash, common.packageGenerationId, common.packageGenerationHash,
             common.packageGenerationManifestHash, common.packageGraphHash, common.apiSurfaceManifestHash,
+            common.ownershipCatalogHash,
             common.tool, common.toolVersion, common.analyzerVersion, common.compilerVersion,
             assemblyId = assembly.ArtifactId, assemblyHash = assembly.ArtifactHash,
             runtimeConfigId = runtimeConfig.ArtifactId, runtimeConfigHash = runtimeConfig.ArtifactHash,

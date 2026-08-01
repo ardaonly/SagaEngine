@@ -62,6 +62,8 @@ internal static class ProjectWorker
             }
 
             var behaviors = AnalyzeBehaviors(selection, canonicalSources, runtimeBridgeAssembly, diagnostics);
+            PackageVisibilityValidator.Validate(selection, runtimeBridgeAssembly,
+                request.OwnershipCatalog, diagnostics);
             ValidateSceneBindings(selection, behaviors, diagnostics);
             Progress(progressPath, request, "Analyzing");
             if (diagnostics.Count > 0)
@@ -72,7 +74,7 @@ internal static class ProjectWorker
             {
                 return Finish(resultPath, Failure(request, "Cancellation", [], sourceSetHash, cancelled: true));
             }
-            staging = BuildStagingPath(request.OutputRoot, request.OperationId);
+            staging = WorkerFileSupport.BuildStagingPath(request.OutputRoot, request.OperationId);
             if (Directory.Exists(staging))
             {
                 Directory.Delete(staging, recursive: true);
@@ -159,6 +161,7 @@ internal static class ProjectWorker
                 PackageGraphHash = request.PackageGraphHash,
                 ReferenceManifestHash = request.ReferenceManifest.Hash,
                 ApiSurfaceManifestHash = request.ApiSurfaceManifest.Hash,
+                OwnershipCatalogHash = request.OwnershipCatalog.Hash,
                 RuntimeBridgeAssemblyHash = request.RuntimeBridge.AssemblyHash,
                 CurrentManifestPath = "manifests/current.json",
                 CurrentManifestHash = publication.ManifestHash,
@@ -192,14 +195,14 @@ internal static class ProjectWorker
             ValidateObject(document.RootElement, "request",
                 ["schemaVersion", "operationId", "project", "sourceRevision", "sources", "packageLock",
                     "packageGenerationId", "packageGenerationHash", "packageGenerationManifestHash", "packageGraphHash",
-                    "referenceManifest", "apiSurfaceManifest", "runtimeBridge", "operations", "outputRoot", "cancellation"], diagnostics);
+                    "referenceManifest", "apiSurfaceManifest", "ownershipCatalog", "runtimeBridge", "operations", "outputRoot", "cancellation"], diagnostics);
             if (document.RootElement.ValueKind == JsonValueKind.Object)
             {
                 if (document.RootElement.TryGetProperty("project", out var project))
                     ValidateObject(project, "project", ["projectId", "path", "hash"], diagnostics);
                 if (document.RootElement.TryGetProperty("sources", out var sources) && sources.ValueKind == JsonValueKind.Array)
                     foreach (var source in sources.EnumerateArray()) ValidateObject(source, "sources", ["path", "hash"], diagnostics);
-                foreach (var name in new[] { "packageLock", "referenceManifest", "apiSurfaceManifest" })
+                foreach (var name in new[] { "packageLock", "referenceManifest", "apiSurfaceManifest", "ownershipCatalog" })
                     if (document.RootElement.TryGetProperty(name, out var input))
                         ValidateObject(input, name, ["path", "hash"], diagnostics);
                 if (document.RootElement.TryGetProperty("runtimeBridge", out var runtimeBridge))
@@ -225,6 +228,7 @@ internal static class ProjectWorker
             RequireHash(request.PackageGraphHash, "packageGraphHash", diagnostics);
             RequireInput(request.ReferenceManifest, "referenceManifest", diagnostics);
             RequireInput(request.ApiSurfaceManifest, "apiSurfaceManifest", diagnostics);
+            RequireInput(request.OwnershipCatalog, "ownershipCatalog", diagnostics);
             Require(request.RuntimeBridge.LogicalReferenceId, "runtimeBridge.logicalReferenceId", diagnostics);
             Require(request.RuntimeBridge.DescriptorPath, "runtimeBridge.descriptorPath", diagnostics);
             RequireHash(request.RuntimeBridge.DescriptorHash, "runtimeBridge.descriptorHash", diagnostics);
@@ -298,6 +302,7 @@ internal static class ProjectWorker
             ("packageLock", request.PackageLock),
             ("referenceManifest", request.ReferenceManifest),
             ("apiSurfaceManifest", request.ApiSurfaceManifest),
+            ("ownershipCatalog", request.OwnershipCatalog),
         })
         {
             if (!File.Exists(input.Path))
@@ -325,7 +330,8 @@ internal static class ProjectWorker
             if (graphHash != request.PackageGraphHash)
                 diagnostics.Add(Error("Script.Worker.PackageGraphMismatch", "packageGraphHash",
                     "Request package graph identity does not match the verified lock."));
-            var distributionRoot = ResolveDistributionRoot();
+            var distributionRoot = ResolveDistributionRoot(
+                request.RuntimeBridge.DescriptorPath);
             foreach (var package in root.GetProperty("packages").EnumerateArray())
             {
                 var trust = package.GetProperty("trust").GetString() ?? "";
@@ -353,6 +359,7 @@ internal static class ProjectWorker
             {
                 ("referenceManifest", request.ReferenceManifest),
                 ("apiSurfaceManifest", request.ApiSurfaceManifest),
+                ("ownershipCatalog", request.OwnershipCatalog),
             })
             {
                 using var document = JsonDocument.Parse(File.ReadAllBytes(input.Path));
@@ -375,7 +382,8 @@ internal static class ProjectWorker
 
     private static IReadOnlyList<object> LoadAllowedApiSurface(ProjectWorkerRequest request,
         List<WorkerDiagnostic> diagnostics) =>
-        ApiSurfaceAggregation.Load(request, ResolveDistributionRoot(), diagnostics);
+        ApiSurfaceAggregation.Load(request,
+            ResolveDistributionRoot(request.RuntimeBridge.DescriptorPath), diagnostics);
 
     private static string ResolveWorkerRuntimeBridgeAssembly(ProjectWorkerRequest request,
         List<WorkerDiagnostic> diagnostics)
@@ -758,7 +766,7 @@ internal static class ProjectWorker
             var hashToken = artifact.ArtifactHash["sha256:".Length..];
             var relative = $"objects/{hashToken}/{artifact.FileName}";
             var target = Path.Combine(outputRoot, relative);
-            if (!File.Exists(target)) AtomicWrite(target, artifact.Bytes);
+            if (!File.Exists(target)) WorkerFileSupport.AtomicWrite(target, artifact.Bytes);
             else if (CanonicalJson.HashFile(target) != artifact.ArtifactHash)
                 throw new InvalidOperationException("Content-addressed object hash collision.");
             published.Add(new PublishedWorkerArtifact
@@ -791,6 +799,7 @@ internal static class ProjectWorker
             packageGraphHash = request.PackageGraphHash,
             referenceManifestHash = request.ReferenceManifest.Hash,
             apiSurfaceManifestHash = request.ApiSurfaceManifest.Hash,
+            ownershipCatalogHash = request.OwnershipCatalog.Hash,
             runtimeBridgeLogicalReferenceId = request.RuntimeBridge.LogicalReferenceId,
             runtimeBridgeDescriptorHash = request.RuntimeBridge.DescriptorHash,
             runtimeBridgeAssemblyHash = request.RuntimeBridge.AssemblyHash,
@@ -799,7 +808,7 @@ internal static class ProjectWorker
         if (Cancelled(request)) throw new OperationCanceledException();
         if (!IsFresh(request, selection, originalSources))
             throw new StaleWorkerResultException("Verified worker inputs changed immediately before current publication.");
-        AtomicWrite(Path.Combine(outputRoot, "manifests", "current.json"), manifestBytes);
+        WorkerFileSupport.AtomicWrite(Path.Combine(outputRoot, "manifests", "current.json"), manifestBytes);
         return (CanonicalJson.Hash(manifestBytes), published);
     }
 
@@ -808,7 +817,8 @@ internal static class ProjectWorker
     {
         if (CanonicalJson.HashFile(selection.Project.ManifestPath) != request.Project.Hash) return false;
         if (!CanonicalJson.Serialize(CanonicalSources(selection)).SequenceEqual(CanonicalJson.Serialize(originalSources))) return false;
-        return InputFresh(request.PackageLock) && InputFresh(request.ReferenceManifest) && InputFresh(request.ApiSurfaceManifest) &&
+        return InputFresh(request.PackageLock) && InputFresh(request.ReferenceManifest) &&
+            InputFresh(request.ApiSurfaceManifest) && InputFresh(request.OwnershipCatalog) &&
             File.Exists(request.RuntimeBridge.DescriptorPath) && File.Exists(request.RuntimeBridge.AssemblyPath) &&
             CanonicalJson.HashFile(request.RuntimeBridge.DescriptorPath) == request.RuntimeBridge.DescriptorHash &&
             CanonicalJson.HashFile(request.RuntimeBridge.AssemblyPath) == request.RuntimeBridge.AssemblyHash;
@@ -821,7 +831,7 @@ internal static class ProjectWorker
     {
         var barrier = Environment.GetEnvironmentVariable("SAGASCRIPT_PUBLICATION_BARRIER");
         if (string.IsNullOrWhiteSpace(barrier)) return;
-        AtomicWrite(barrier + ".reached", Encoding.UTF8.GetBytes("reached\n"));
+        WorkerFileSupport.AtomicWrite(barrier + ".reached", Encoding.UTF8.GetBytes("reached\n"));
         var deadline = DateTime.UtcNow.AddSeconds(30);
         while (!File.Exists(barrier + ".release"))
         {
@@ -850,13 +860,14 @@ internal static class ProjectWorker
         PackageGraphHash = request.PackageGraphHash,
         ReferenceManifestHash = request.ReferenceManifest.Hash,
         ApiSurfaceManifestHash = request.ApiSurfaceManifest.Hash,
+        OwnershipCatalogHash = request.OwnershipCatalog.Hash,
         RuntimeBridgeAssemblyHash = request.RuntimeBridge.AssemblyHash,
         Diagnostics = Sort(diagnostics),
     };
 
     private static int Finish(string path, ProjectWorkerResult result)
     {
-        try { AtomicWrite(path, CanonicalJson.Serialize(result)); }
+        try { WorkerFileSupport.AtomicWrite(path, CanonicalJson.Serialize(result)); }
         catch (Exception exception) { Console.Error.WriteLine("sagascript worker result: " + exception.Message); return 2; }
         return result.Status == "Passed" ? 0 : 1;
     }
@@ -893,25 +904,24 @@ internal static class ProjectWorker
         catch (Exception) { return false; }
     }
 
-    private static string BuildStagingPath(string outputRoot, string operationId)
+    private static string ResolveDistributionRoot(string verifiedDescriptorPath)
     {
-        var token = new string(operationId.Where(char.IsLetterOrDigit).Take(24).ToArray());
-        if (token.Length == 0) token = "operation";
-        var full = Path.GetFullPath(outputRoot);
-        var parent = Path.GetDirectoryName(full) ?? Directory.GetCurrentDirectory();
-        return Path.Combine(parent, "." + Path.GetFileName(full) + ".sagascript-staging-" + token);
-    }
-
-    private static string ResolveDistributionRoot()
-    {
-        var cursor = new DirectoryInfo(Directory.GetCurrentDirectory());
+        var descriptor = Path.GetFullPath(verifiedDescriptorPath);
+        var cursor = new FileInfo(descriptor).Directory;
         while (cursor is not null)
         {
-            var candidate = Path.Combine(cursor.FullName, "Engine", "Distribution");
-            if (Directory.Exists(candidate)) return Path.GetFullPath(candidate);
+            if (cursor.Name == "Distribution" && cursor.Parent?.Name == "Engine")
+            {
+                var candidate = Path.GetFullPath(cursor.FullName);
+                var prefix = candidate.TrimEnd(Path.DirectorySeparatorChar) +
+                    Path.DirectorySeparatorChar;
+                if (descriptor.StartsWith(prefix, StringComparison.Ordinal) &&
+                    File.Exists(descriptor)) return candidate;
+            }
             cursor = cursor.Parent;
         }
-        throw new InvalidOperationException("Trusted engine distribution root was not found.");
+        throw new InvalidOperationException(
+            "Trusted engine distribution root was not found from the verified RuntimeBridge descriptor.");
     }
 
     private static bool DerivesFromSagaBehavior(ClassDeclarationSyntax type) =>
@@ -994,19 +1004,4 @@ internal static class ProjectWorker
         .ThenBy(item => item.Path, StringComparer.Ordinal)
         .ThenBy(item => item.Message, StringComparer.Ordinal).ToArray();
 
-    private static void AtomicWrite(string path, byte[] bytes)
-    {
-        var full = Path.GetFullPath(path);
-        Directory.CreateDirectory(Path.GetDirectoryName(full)!);
-        var temporary = full + "." + Guid.NewGuid().ToString("N") + ".tmp";
-        try
-        {
-            File.WriteAllBytes(temporary, bytes);
-            File.Move(temporary, full, overwrite: true);
-        }
-        finally
-        {
-            if (File.Exists(temporary)) File.Delete(temporary);
-        }
-    }
 }

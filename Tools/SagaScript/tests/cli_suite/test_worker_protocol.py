@@ -124,6 +124,54 @@ def test_arena_rush_worker_aggregates_contract_only_surfaces() -> None:
         assert "NativeBridge" not in serialized
         assert all(region["editable"] is False for region in projection["opaqueRegions"])
 
+def test_worker_enforces_disabled_package_symbol_visibility() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        project = root / "ArenaRush"
+        shutil.copytree(ARENA_RUSH_ROOT, project, ignore=shutil.ignore_patterns("Build"))
+        (project / "Scripts" / "InstrumentationUsage.cs").write_text(
+            """// SPDX-License-Identifier: MIT
+namespace ArenaRush;
+public sealed class InstrumentationUsage
+{
+    public void Run()
+    {
+        _ = SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleInstrumentation.Create(1);
+    }
+}
+""", encoding="utf-8")
+        disabled = prepare_worker_request(
+            root / "disabled-work", project, root / "disabled-output",
+            "disabled-package-visibility")
+        disabled_run = run_cli(
+            "worker", "--request", str(disabled[0]), "--result", str(disabled[1]),
+            "--progress", str(disabled[2]))
+        assert disabled_run.returncode == 1, disabled_run.stderr + disabled_run.stdout
+        disabled_report = json.loads(disabled[1].read_text(encoding="utf-8"))
+        visibility = [item for item in disabled_report["diagnostics"]
+                      if item["code"] == "Script.PackageVisibility.DisabledModule"]
+        assert len(visibility) == 1
+        assert visibility[0]["path"] == "Scripts/InstrumentationUsage.cs"
+        assert "collectibles.instrumentation" in visibility[0]["message"]
+
+        manifest_path = project / "ArenaRush.sagaproj"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        challenge = next(item for item in manifest["dependencies"]
+                         if item["packageId"] == "com.saga.gameplay.challenge")
+        challenge["modules"].append("collectibles.instrumentation")
+        challenge["modules"].sort()
+        manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        enabled = prepare_worker_request(
+            root / "enabled-work", project, root / "enabled-output",
+            "enabled-package-visibility")
+        enabled_run = run_cli(
+            "worker", "--request", str(enabled[0]), "--result", str(enabled[1]),
+            "--progress", str(enabled[2]))
+        assert enabled_run.returncode == 0, enabled_run.stderr + enabled_run.stdout
+        enabled_report = json.loads(enabled[1].read_text(encoding="utf-8"))
+        assert not any(item["code"] == "Script.PackageVisibility.DisabledModule"
+                       for item in enabled_report["diagnostics"])
+
 def test_worker_state_contract_follows_only_reachable_behavior_helpers() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -250,7 +298,7 @@ def test_worker_stale_result_preserves_current_manifest() -> None:
         assert current.read_bytes() == before
 
 def test_worker_final_publication_barrier_preserves_current_manifest() -> None:
-    for mutation in ["cancel", "source", "lock", "reference", "api", "bridge"]:
+    for mutation in ["cancel", "source", "lock", "reference", "api", "ownership", "bridge"]:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             project = root / "StarterArena"
@@ -277,7 +325,9 @@ def test_worker_final_publication_barrier_preserves_current_manifest() -> None:
                 source = project / "Scripts/DoorController.cs"
                 source.write_text(source.read_text(encoding="utf-8") + "\n", encoding="utf-8")
             else:
-                key = {"lock": "packageLock", "reference": "referenceManifest", "api": "apiSurfaceManifest"}.get(mutation)
+                key = {"lock": "packageLock", "reference": "referenceManifest",
+                       "api": "apiSurfaceManifest",
+                       "ownership": "ownershipCatalog"}.get(mutation)
                 target = Path(payload[key]["path"]) if key else Path(payload["runtimeBridge"]["assemblyPath"])
                 target.write_bytes(target.read_bytes() + b" ")
             barrier.with_suffix(".release").write_text("release\n", encoding="utf-8")
@@ -396,6 +446,7 @@ TESTS = (
     test_project_forms_analyze_compile_and_project_blocks,
     test_project_worker_is_deterministic_across_clean_roots,
     test_arena_rush_worker_aggregates_contract_only_surfaces,
+    test_worker_enforces_disabled_package_symbol_visibility,
     test_worker_mid_operation_cancellation_preserves_current_manifest,
     test_worker_stale_result_preserves_current_manifest,
     test_worker_final_publication_barrier_preserves_current_manifest,

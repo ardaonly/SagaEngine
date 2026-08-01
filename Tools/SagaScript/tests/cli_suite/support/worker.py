@@ -70,6 +70,7 @@ def prepare_worker_request(
     generation = generated / "generations" / package_current["generationId"]
     references_path = generation / "csharp_references_v1.json"
     api_surfaces_path = generation / "api_surfaces_v1.json"
+    ownership_path = generation / "api_ownership_v1.json"
     references = json.loads(references_path.read_text(encoding="utf-8"))
     bridge_reference = references["references"][0]
     bridge_assembly = generation / bridge_reference["resolvedAssemblyLogicalPath"]
@@ -107,6 +108,10 @@ def prepare_worker_request(
         "apiSurfaceManifest": {
             "path": str(api_surfaces_path),
             "hash": sha256_file(api_surfaces_path),
+        },
+        "ownershipCatalog": {
+            "path": str(ownership_path),
+            "hash": sha256_file(ownership_path),
         },
         "runtimeBridge": {
             "logicalReferenceId": bridge_reference["artifactId"],

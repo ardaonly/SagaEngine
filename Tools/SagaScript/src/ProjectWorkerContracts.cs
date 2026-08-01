@@ -56,6 +56,7 @@ internal sealed record ProjectWorkerRequest
     public string PackageGraphHash { get; init; } = "";
     public WorkerVerifiedInput ReferenceManifest { get; init; } = new();
     public WorkerVerifiedInput ApiSurfaceManifest { get; init; } = new();
+    public WorkerVerifiedInput OwnershipCatalog { get; init; } = new();
     public WorkerRuntimeBridgeInput RuntimeBridge { get; init; } = new();
     public IReadOnlyList<string> Operations { get; init; } = [];
     public string OutputRoot { get; init; } = "";
@@ -92,6 +93,7 @@ internal sealed record ProjectWorkerResult
     public string PackageGraphHash { get; init; } = "";
     public string ReferenceManifestHash { get; init; } = "";
     public string ApiSurfaceManifestHash { get; init; } = "";
+    public string OwnershipCatalogHash { get; init; } = "";
     public string RuntimeBridgeAssemblyHash { get; init; } = "";
     public string CurrentManifestPath { get; init; } = "";
     public string CurrentManifestHash { get; init; } = "";
