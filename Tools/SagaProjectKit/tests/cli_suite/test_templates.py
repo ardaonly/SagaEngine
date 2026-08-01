@@ -155,8 +155,6 @@ def test_arena_rush_source_truth_and_structural_failures() -> None:
         assert game_mode["instanceConfiguration"] == {
             "activeCollectibleCount": 5,
             "challengeDurationSeconds": 60,
-            "coreValue": 10,
-            "respawnDelaySeconds": 2,
             "targetProgress": 100,
         }
         assert [item["type"] for item in

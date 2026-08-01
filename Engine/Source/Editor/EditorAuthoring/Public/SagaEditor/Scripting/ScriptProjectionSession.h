@@ -56,7 +56,10 @@ public:
     static constexpr ChangeSubscription InvalidChangeSubscription = 0;
     [[nodiscard]] const ScriptProjectionSnapshot& Snapshot() const noexcept { return snapshot_; }
     void NoDocument();
-    void Dirty();
+    void Dirty(std::uint64_t documentRevision = 0, std::string sourceHash = {});
+    [[nodiscard]] bool PublishUnsaved(std::uint64_t documentRevision,
+        const std::string& sourceHash,
+        std::shared_ptr<const VisualBlocks::ReadOnlyScriptProjection> projection);
     void Begin(ScriptProjectionRequestIdentity identity);
     [[nodiscard]] bool Publish(const ScriptProjectionRequestIdentity& identity,
         std::string artifactHash,

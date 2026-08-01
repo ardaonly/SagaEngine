@@ -129,7 +129,7 @@ internal static class LanguageService
                     ["server"] = "SagaScript",
                     ["positionEncoding"] = "utf-16",
                     ["fullTextSynchronization"] = true,
-                    ["capabilities"] = new JsonArray("diagnostics", "classifications", "completion", "hover", "definition", "references", "symbols", "preflight", "controlled-edit/plan")
+                    ["capabilities"] = new JsonArray("diagnostics", "classifications", "completion", "hover", "definition", "references", "symbols", "preflight", "controlled-edit/plan", "controlled-projection")
                 });
                 return;
             }
@@ -189,6 +189,7 @@ internal static class LanguageService
                 "symbols" => await SymbolsAsync(document, cancellation),
                 "preflight" => await PreflightAsync(document, request, cancellation),
                 "controlled-edit/plan" => await ControlledEditPlanAsync(document, request, cancellation),
+                "controlled-projection" => await ControlledProjectionAsync(document, request, cancellation),
                 _ => throw new ProtocolException("LanguageService.UnknownMethod", $"Unknown method '{request.Method}'.")
             };
             project.EnsureCurrent(request);
@@ -311,33 +312,14 @@ internal static class LanguageService
             Document document, Envelope request, CancellationToken cancellation)
         {
             const string scoreField = "field://ArenaRush.ArenaRushGameMode/EnergyCoreScore/initializer";
-            const string respawnField = "field://ArenaRush.ArenaRushGameMode/EnergyCoreRespawnSeconds/initializer";
             var fieldId = request.Payload?["fieldId"]?.GetValue<string>() ??
                 throw new ProtocolException("LanguageService.InvalidPayload", "controlled-edit/plan requires fieldId.");
-            var fieldName = fieldId switch
-            {
-                scoreField => "EnergyCoreScore",
-                respawnField => "EnergyCoreRespawnSeconds",
-                _ => throw new ProtocolException("LanguageService.OpaqueField", "Field is not a supported controlled edit surface.")
-            };
             var replacement = fieldId == scoreField
                 ? NormalizeInteger(request.Payload?["value"])
                 : NormalizeDouble(request.Payload?["value"]);
-            var compilation = await document.Project.GetCompilationAsync(cancellation);
-            var type = compilation?.GetTypeByMetadataName("ArenaRush.ArenaRushGameMode") ??
-                throw new ProtocolException("LanguageService.FieldShapeChanged", "Containing type is unavailable.");
-            var field = type.GetMembers(fieldName).OfType<IFieldSymbol>().SingleOrDefault();
-            Require(field is { IsConst: true }, "LanguageService.FieldShapeChanged", "Controlled field must remain a unique constant.");
-            var syntax = await field!.DeclaringSyntaxReferences.Single().GetSyntaxAsync(cancellation);
-            Require(syntax is VariableDeclaratorSyntax { Initializer: not null },
-                "LanguageService.FieldShapeChanged", "Controlled field initializer is unavailable.");
-            var initializer = ((VariableDeclaratorSyntax)syntax).Initializer!.Value;
-            Require(initializer is LiteralExpressionSyntax,
-                "LanguageService.FieldShapeChanged", "Controlled field initializer must remain a literal.");
-            Require(fieldId != scoreField || field.Type.SpecialType == SpecialType.System_Int32,
-                "LanguageService.FieldShapeChanged", "EnergyCoreScore must remain an int constant.");
-            Require(fieldId != respawnField || field.Type.SpecialType == SpecialType.System_Double,
-                "LanguageService.FieldShapeChanged", "EnergyCoreRespawnSeconds must remain a double constant.");
+            var resolved = await ResolveControlledFieldAsync(document, fieldId, cancellation);
+            var fieldName = resolved.Field.Name;
+            var initializer = resolved.Initializer;
 
             var text = await document.GetTextAsync(cancellation);
             var source = text.ToString();
@@ -345,16 +327,21 @@ internal static class LanguageService
             var candidate = source.Remove(initializer.Span.Start, initializer.Span.Length)
                 .Insert(initializer.Span.Start, replacement);
             var candidateDocument = document.WithText(SourceText.From(candidate, Encoding.UTF8));
+            var baselineDiagnostics = await DiagnosticsAsync(document, cancellation);
             var diagnostics = await DiagnosticsAsync(candidateDocument, cancellation);
+            var baselineErrors = baselineDiagnostics.AsArray()
+                .Where(node => node?["severity"]?.GetValue<string>() == "Error")
+                .Select(DiagnosticIdentity).ToHashSet(StringComparer.Ordinal);
             var blocked = diagnostics.AsArray().Any(node =>
-                node?["severity"]?.GetValue<string>() == "Error");
+                node?["severity"]?.GetValue<string>() == "Error" &&
+                !baselineErrors.Contains(DiagnosticIdentity(node)));
             var startByte = Encoding.UTF8.GetByteCount(source.AsSpan(0, initializer.Span.Start));
             var oldBytes = Encoding.UTF8.GetBytes(oldValue);
             return new JsonObject
             {
                 ["accepted"] = !blocked,
                 ["fieldId"] = fieldId,
-                ["containingSymbol"] = type.ToDisplayString(),
+                ["containingSymbol"] = resolved.ContainingType.ToDisplayString(),
                 ["documentId"] = request.DocumentId,
                 ["documentVersion"] = request.DocumentVersion,
                 ["projectSnapshotIdentity"] = request.ProjectSnapshotIdentity,
@@ -373,6 +360,95 @@ internal static class LanguageService
                 ["packageVisibilityPassed"] = true
             };
         }
+
+        private static string DiagnosticIdentity(JsonNode? node) =>
+            (node?["id"]?.GetValue<string>() ?? "") + "\n" +
+            (node?["message"]?.GetValue<string>() ?? "") + "\n" +
+            (node?["range"]?.ToJsonString() ?? "");
+
+        private static async Task<JsonNode> ControlledProjectionAsync(
+            Document document, Envelope request, CancellationToken cancellation)
+        {
+            const string scoreField = "field://ArenaRush.ArenaRushGameMode/EnergyCoreScore/initializer";
+            const string respawnField = "field://ArenaRush.ArenaRushGameMode/EnergyCoreRespawnSeconds/initializer";
+            var text = await document.GetTextAsync(cancellation);
+            var source = text.ToString();
+            var fields = new JsonArray();
+            foreach (var definition in new[]
+            {
+                (Id: scoreField, ValueType: "Int32", Minimum: "1"),
+                (Id: respawnField, ValueType: "Double", Minimum: "0.0")
+            })
+            {
+                try
+                {
+                    var resolved = await ResolveControlledFieldAsync(document, definition.Id, cancellation);
+                    var initializer = resolved.Initializer;
+                    var oldValue = source.Substring(initializer.Span.Start, initializer.Span.Length);
+                    var startByte = Encoding.UTF8.GetByteCount(source.AsSpan(0, initializer.Span.Start));
+                    var bytes = Encoding.UTF8.GetBytes(oldValue);
+                    fields.Add(new JsonObject
+                    {
+                        ["fieldId"] = definition.Id,
+                        ["valueType"] = definition.ValueType,
+                        ["minimum"] = definition.Minimum,
+                        ["containingSymbol"] = resolved.ContainingType.ToDisplayString(),
+                        ["initializerRole"] = "ConstantInitializerLiteral",
+                        ["startByte"] = startByte,
+                        ["endByte"] = startByte + bytes.Length,
+                        ["checksum"] = Hash(bytes),
+                        ["value"] = oldValue
+                    });
+                }
+                catch (ProtocolException)
+                {
+                    // A changed source shape is represented as an opaque projection.
+                }
+            }
+            return new JsonObject
+            {
+                ["documentId"] = request.DocumentId,
+                ["documentVersion"] = request.DocumentVersion,
+                ["projectSnapshotIdentity"] = request.ProjectSnapshotIdentity,
+                ["sourceHash"] = Hash(Encoding.UTF8.GetBytes(source)),
+                ["editableFields"] = fields,
+                ["opaque"] = fields.Count != 2,
+                ["opaqueReason"] = fields.Count == 2 ? "" :
+                    "Supported constant initializer shape is unavailable."
+            };
+        }
+
+        private static async Task<ControlledField> ResolveControlledFieldAsync(
+            Document document, string fieldId, CancellationToken cancellation)
+        {
+            const string scoreField = "field://ArenaRush.ArenaRushGameMode/EnergyCoreScore/initializer";
+            const string respawnField = "field://ArenaRush.ArenaRushGameMode/EnergyCoreRespawnSeconds/initializer";
+            var fieldName = fieldId switch
+            {
+                scoreField => "EnergyCoreScore",
+                respawnField => "EnergyCoreRespawnSeconds",
+                _ => throw new ProtocolException("LanguageService.OpaqueField", "Field is not a supported controlled edit surface.")
+            };
+            var compilation = await document.Project.GetCompilationAsync(cancellation);
+            var type = compilation?.GetTypeByMetadataName("ArenaRush.ArenaRushGameMode") ??
+                throw new ProtocolException("LanguageService.FieldShapeChanged", "Containing type is unavailable.");
+            var field = type.GetMembers(fieldName).OfType<IFieldSymbol>().SingleOrDefault();
+            Require(field is { IsConst: true }, "LanguageService.FieldShapeChanged", "Controlled field must remain a unique constant.");
+            var syntax = await field!.DeclaringSyntaxReferences.Single().GetSyntaxAsync(cancellation);
+            Require(syntax is VariableDeclaratorSyntax { Initializer: not null },
+                "LanguageService.FieldShapeChanged", "Controlled field initializer is unavailable.");
+            var initializer = ((VariableDeclaratorSyntax)syntax).Initializer!.Value;
+            Require(initializer is LiteralExpressionSyntax,
+                "LanguageService.FieldShapeChanged", "Controlled field initializer must remain a literal.");
+            Require(fieldId != scoreField || field.Type.SpecialType == SpecialType.System_Int32,
+                "LanguageService.FieldShapeChanged", "EnergyCoreScore must remain an int constant.");
+            Require(fieldId != respawnField || field.Type.SpecialType == SpecialType.System_Double,
+                "LanguageService.FieldShapeChanged", "EnergyCoreRespawnSeconds must remain a double constant.");
+            return new ControlledField(type, field, initializer);
+        }
+
+        private sealed record ControlledField(
+            INamedTypeSymbol ContainingType, IFieldSymbol Field, ExpressionSyntax Initializer);
 
         private static string NormalizeInteger(JsonNode? value)
         {
@@ -461,14 +537,31 @@ internal static class LanguageService
             var workspace = new AdhocWorkspace(MefHostServices.DefaultHost);
             var id = ProjectId.CreateNewId(request.ProjectSessionId);
             var parse = new CSharpParseOptions(LanguageVersion.LatestMajor);
-            var compilation = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, allowUnsafe: false);
-            var info = ProjectInfo.Create(id, VersionStamp.Create(), request.ProjectSessionId, request.ProjectSessionId, LanguageNames.CSharp, parseOptions: parse, compilationOptions: compilation, metadataReferences: TrustedPlatformReferences());
+            var compilation = new CSharpCompilationOptions(
+                OutputKind.DynamicallyLinkedLibrary, allowUnsafe: false);
+            var references = MetadataReferences(payload, root);
+            var info = ProjectInfo.Create(id, VersionStamp.Create(), request.ProjectSessionId, request.ProjectSessionId, LanguageNames.CSharp, parseOptions: parse, compilationOptions: compilation, metadataReferences: references);
             Require(workspace.AddProject(info) is not null, "LanguageService.WorkspaceFailure", "Unable to create project.");
+            const string implicitUsings =
+                "global using System;\n" +
+                "global using System.Collections.Generic;\n" +
+                "global using System.Linq;\n" +
+                "global using System.Threading;\n" +
+                "global using System.Threading.Tasks;\n";
+            Require(workspace.AddDocument(id, "SagaImplicitUsings.g.cs",
+                SourceText.From(implicitUsings, Encoding.UTF8)) is not null,
+                "LanguageService.WorkspaceFailure", "Unable to add implicit usings.");
             return new ProjectState(workspace, id, root, request.ProjectSnapshotIdentity);
         }
 
         public void Reconfigure(Envelope request)
         {
+            var payload = request.Payload ?? throw new ProtocolException(
+                "LanguageService.InvalidPayload", "project/reconfigure requires payload.");
+            var solution = workspace.CurrentSolution.WithProjectMetadataReferences(
+                projectId, MetadataReferences(payload, root));
+            Require(workspace.TryApplyChanges(solution), "LanguageService.WorkspaceFailure",
+                "Unable to reconfigure project references.");
             SnapshotIdentity = request.ProjectSnapshotIdentity;
             foreach (var document in documents.Values) document.SnapshotIdentity = SnapshotIdentity;
         }
@@ -564,5 +657,27 @@ internal static class LanguageService
     {
         var paths = (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries);
         return paths.Select(path => MetadataReference.CreateFromFile(path));
+    }
+
+    private static IEnumerable<MetadataReference> MetadataReferences(
+        JsonObject payload, string root)
+    {
+        var references = TrustedPlatformReferences().ToList();
+        foreach (var value in payload["metadataReferences"]?.AsArray() ?? [])
+        {
+            var path = Canonical(value?["path"]?.GetValue<string>() ?? "");
+            var expectedHash = value?["hash"]?.GetValue<string>() ?? "";
+            Require(IsContained(root, path), "LanguageService.PathEscape",
+                "Metadata reference escapes the canonical project root.");
+            Require(File.Exists(path), "LanguageService.InvalidReference",
+                "Metadata reference does not exist.");
+            var bytes = File.ReadAllBytes(path);
+            var actualHash = "sha256:" +
+                Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+            Require(actualHash == expectedHash, "LanguageService.InvalidReference",
+                "Metadata reference hash does not match.");
+            references.Add(MetadataReference.CreateFromImage(bytes, filePath: path));
+        }
+        return references;
     }
 }

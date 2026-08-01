@@ -9,12 +9,31 @@ namespace SagaEditor
 void ScriptProjectionSession::NoDocument()
 { snapshot_ = {}; Notify(); }
 
-void ScriptProjectionSession::Dirty()
+void ScriptProjectionSession::Dirty(std::uint64_t documentRevision, std::string sourceHash)
 {
     snapshot_.state = ScriptProjectionState::DirtyNeedsSave;
     snapshot_.projection.reset();
     snapshot_.artifactHash.clear();
+    snapshot_.identity.documentRevision = documentRevision;
+    snapshot_.identity.savedDiskHash = std::move(sourceHash);
     Notify();
+}
+
+bool ScriptProjectionSession::PublishUnsaved(std::uint64_t documentRevision,
+    const std::string& sourceHash,
+    std::shared_ptr<const VisualBlocks::ReadOnlyScriptProjection> projection)
+{
+    if (snapshot_.state != ScriptProjectionState::DirtyNeedsSave ||
+        snapshot_.identity.documentRevision != documentRevision ||
+        snapshot_.identity.savedDiskHash != sourceHash || !projection ||
+        projection->SourceRevision() != std::to_string(documentRevision) ||
+        projection->ArtifactHash().empty())
+        return false;
+    snapshot_.state = ScriptProjectionState::Current;
+    snapshot_.artifactHash = projection->ArtifactHash();
+    snapshot_.projection = std::move(projection);
+    Notify();
+    return true;
 }
 
 void ScriptProjectionSession::Begin(ScriptProjectionRequestIdentity identity)
