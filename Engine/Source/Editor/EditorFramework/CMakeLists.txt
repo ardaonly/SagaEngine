@@ -27,6 +27,7 @@ saga_add_editor_module(EditorFramework
         Private/SagaEditor/Customization/WorkspaceCustomizationSession.cpp
         Private/SagaEditor/Host/EditorHost.cpp
         Private/SagaEditor/Notifications/EditorNotificationCenter.cpp
+        Private/SagaEditor/Packages/PackagesPanelViewModel.cpp
         Private/SagaEditor/Project/EditorProjectWorkflowController.cpp
         Private/SagaEditor/Shell/EditorWorkspaceSession.cpp
         Private/SagaEditor/Shell/EditorShell.cpp
@@ -67,6 +68,7 @@ saga_add_editor_module(EditorFramework
         Public/SagaEditor/Localization/LocalizedStringTable.h
         Public/SagaEditor/Localization/TranslationCatalog.h
         Public/SagaEditor/Notifications/EditorNotificationCenter.h
+        Public/SagaEditor/Packages/PackagesPanelViewModel.h
         Public/SagaEditor/Panels/AssetBrowserPanel.h
         Public/SagaEditor/Panels/ConsolePanel.h
         Public/SagaEditor/Panels/CustomizeWorkspacePanel.h
@@ -74,6 +76,7 @@ saga_add_editor_module(EditorFramework
         Public/SagaEditor/Panels/IPanel.h
         Public/SagaEditor/Panels/InspectorPanel.h
         Public/SagaEditor/Panels/ProblemsPanel.h
+        Public/SagaEditor/Panels/PackagesPanel.h
         Public/SagaEditor/Panels/ProductionDashboardPanel.h
         Public/SagaEditor/Panels/ShortcutPreferencesPanel.h
         Public/SagaEditor/Panels/CodeBoxPanel.h
@@ -101,6 +104,7 @@ saga_register_module_tests(EditorFramework
         Tests/EditorNotificationTests.cpp
         Tests/EditorProductionTests.cpp
         Tests/EditorProjectWorkflowControllerTests.cpp
+        Tests/PackagesPanelViewModelTests.cpp
         Tests/EditorShellTests.cpp
         Tests/WorkspaceCustomizationTests.cpp
 )

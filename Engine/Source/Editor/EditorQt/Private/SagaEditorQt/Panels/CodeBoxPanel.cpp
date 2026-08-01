@@ -6,6 +6,7 @@
 #include "SagaEditor/Commands/UndoRedoStack.h"
 #include "SagaEditor/Documents/SourceDocumentTransaction.h"
 #include "SagaEditor/Scripting/ScriptAnalysisCoordinator.h"
+#include "SagaEditor/Scripting/ScriptProjectionSession.h"
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
 #include "SagaEditorQt/Panels/ReadOnlyBlocksWidget.h"
 
@@ -96,6 +97,9 @@ struct CodeBoxPanel::Impl
     UndoRedoStack* journal = nullptr;
     CommandDispatcher* dispatcher = nullptr;
     ScriptAnalysisCoordinator* coordinator = nullptr;
+    ScriptProjectionSession* projectionSession = nullptr;
+    ScriptProjectionSession::ChangeSubscription projectionSubscription =
+        ScriptProjectionSession::InvalidChangeSubscription;
     QFutureWatcher<ScriptAnalysisResult>* analysisWatcher = nullptr;
     std::shared_ptr<std::atomic_bool> cancellation;
     EditorDocumentWorkspace::ChangeSubscription workspaceSubscription =
@@ -221,6 +225,7 @@ struct CodeBoxPanel::Impl
             ScriptProjectionSnapshot snapshot;
             snapshot.state = ScriptProjectionState::NoDocument;
             blocks->PresentSnapshot(snapshot);
+            if (projectionSession) projectionSession->NoDocument();
         }
         else
         {
@@ -241,6 +246,7 @@ struct CodeBoxPanel::Impl
                 ScriptProjectionSnapshot snapshot;
                 snapshot.state = ScriptProjectionState::DirtyNeedsSave;
                 blocks->PresentSnapshot(snapshot);
+                if (projectionSession) projectionSession->Dirty();
             }
             const auto cursor = editor->textCursor();
             editor->setPlainText(QString::fromStdString(document->Text()));
@@ -268,6 +274,34 @@ struct CodeBoxPanel::Impl
             workspace->UnsubscribeChanges(workspaceSubscription);
         workspaceSubscription = EditorDocumentWorkspace::InvalidChangeSubscription;
         workspace = nullptr;
+    }
+
+    void AttachProjectionSession(ScriptProjectionSession* session)
+    {
+        if (projectionSession && projectionSubscription !=
+            ScriptProjectionSession::InvalidChangeSubscription)
+            projectionSession->Unsubscribe(projectionSubscription);
+        projectionSession = session;
+        projectionSubscription = ScriptProjectionSession::InvalidChangeSubscription;
+        if (!projectionSession) return;
+        QPointer<ReadOnlyBlocksWidget> target = blocks;
+        projectionSubscription = projectionSession->Subscribe(
+            [target](const ScriptProjectionSnapshot& snapshot)
+            {
+                if (!target) return;
+                QMetaObject::invokeMethod(target, [target, snapshot]
+                { if (target) target->PresentSnapshot(snapshot); },
+                    Qt::QueuedConnection);
+            });
+    }
+
+    void DetachProjectionSession()
+    {
+        if (projectionSession && projectionSubscription !=
+            ScriptProjectionSession::InvalidChangeSubscription)
+            projectionSession->Unsubscribe(projectionSubscription);
+        projectionSubscription = ScriptProjectionSession::InvalidChangeSubscription;
+        projectionSession = nullptr;
     }
 
     void StartAnalysis()
@@ -314,12 +348,14 @@ struct CodeBoxPanel::Impl
 };
 
 CodeBoxPanel::CodeBoxPanel() : impl_(std::make_unique<Impl>()) {}
-CodeBoxPanel::~CodeBoxPanel() { impl_->StopAndWait(); impl_->DetachWorkspace(); }
+CodeBoxPanel::~CodeBoxPanel()
+{ impl_->StopAndWait(); impl_->DetachProjectionSession(); impl_->DetachWorkspace(); }
 PanelId CodeBoxPanel::GetPanelId() const { return "saga.panel.code_box"; }
 std::string CodeBoxPanel::GetTitle() const { return "Code Box"; }
 QWidget* CodeBoxPanel::Widget() const noexcept { return impl_->widget; }
 void CodeBoxPanel::OnInit() { impl_->RefreshWorkspace(); }
-void CodeBoxPanel::OnShutdown() { impl_->StopAndWait(); impl_->DetachWorkspace(); }
+void CodeBoxPanel::OnShutdown()
+{ impl_->StopAndWait(); impl_->DetachProjectionSession(); impl_->DetachWorkspace(); }
 void CodeBoxPanel::SetDocumentWorkspace(EditorDocumentWorkspace* workspace)
 {
     impl_->DetachWorkspace(); impl_->workspace = workspace;
@@ -332,6 +368,8 @@ void CodeBoxPanel::SetUndoRedoStack(UndoRedoStack* journal) noexcept { impl_->jo
 void CodeBoxPanel::SetCommandDispatcher(CommandDispatcher* dispatcher) noexcept { impl_->dispatcher = dispatcher; }
 void CodeBoxPanel::SetAnalysisCoordinator(ScriptAnalysisCoordinator* coordinator) noexcept
 { impl_->coordinator = coordinator; }
+void CodeBoxPanel::SetProjectionSession(ScriptProjectionSession* session) noexcept
+{ impl_->AttachProjectionSession(session); }
 void CodeBoxPanel::SetScriptSourceMutationPort(IScriptSourceMutationPort* port) noexcept
 { impl_->mutationPort = port ? port : &impl_->defaultMutationPort; }
 void CodeBoxPanel::Analyze() { impl_->StartAnalysis(); }

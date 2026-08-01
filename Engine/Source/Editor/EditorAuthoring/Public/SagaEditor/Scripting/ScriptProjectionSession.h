@@ -5,6 +5,8 @@
 #include "SagaEditor/VisualBlocks/ReadOnlyScriptProjection.h"
 
 #include <cstdint>
+#include <functional>
+#include <map>
 #include <memory>
 #include <string>
 
@@ -49,6 +51,9 @@ struct ScriptProjectionSnapshot final
 class ScriptProjectionSession final
 {
 public:
+    using ChangeSubscription = std::uint64_t;
+    using ChangeCallback = std::function<void(const ScriptProjectionSnapshot&)>;
+    static constexpr ChangeSubscription InvalidChangeSubscription = 0;
     [[nodiscard]] const ScriptProjectionSnapshot& Snapshot() const noexcept { return snapshot_; }
     void NoDocument();
     void Dirty();
@@ -60,8 +65,13 @@ public:
     void Cancel();
     void ProjectClosed();
     void PackageGenerationChanged(std::string generationId, std::string generationHash);
+    [[nodiscard]] ChangeSubscription Subscribe(ChangeCallback callback);
+    bool Unsubscribe(ChangeSubscription subscription);
 
 private:
+    void Notify();
     ScriptProjectionSnapshot snapshot_;
+    std::map<ChangeSubscription, ChangeCallback> callbacks_;
+    ChangeSubscription nextSubscription_ = 1;
 };
 }

@@ -13,6 +13,7 @@ class CommandDispatcher;
 class EditorDocumentWorkspace;
 class UndoRedoStack;
 class ScriptAnalysisCoordinator;
+class ScriptProjectionSession;
 class CSharpSourceDocument;
 
 /// Editor-owned seam for intentional source-buffer replacement.
@@ -39,6 +40,7 @@ public:
     void SetUndoRedoStack(UndoRedoStack* journal) noexcept;
     void SetCommandDispatcher(CommandDispatcher* dispatcher) noexcept;
     void SetAnalysisCoordinator(ScriptAnalysisCoordinator* coordinator) noexcept;
+    void SetProjectionSession(ScriptProjectionSession* session) noexcept;
     void SetScriptSourceMutationPort(IScriptSourceMutationPort* port) noexcept;
     void Analyze();
     void CancelAnalysis();
