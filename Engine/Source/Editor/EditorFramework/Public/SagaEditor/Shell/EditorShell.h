@@ -23,7 +23,7 @@ class EditorHost;
 class IPanel;
 class ProductionDashboardPanel;
 class RuntimeProcessController;
-struct AuthoringMode;
+struct EditorWorkMode;
 
 // ─── Shell Configuration ──────────────────────────────────────────────────────
 
@@ -115,7 +115,8 @@ private:
     void WireNotificationSink();
     void SyncWorkflowCommandState();
     void RegisterAuthoringModeCommands();
-    void ApplyAuthoringMode(const AuthoringMode& mode, bool restoreLayout);
+    void ApplyAuthoringMode(const EditorWorkMode& mode, bool restoreLayout);
+    void ApplyUserWorkspace(bool restoreLayout);
     void SaveAuthoringModeLayout();
 
     EditorHost*                          m_host = nullptr; ///< Non-owning.

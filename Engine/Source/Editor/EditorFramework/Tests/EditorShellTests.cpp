@@ -15,6 +15,7 @@
 #include "SagaEditor/Settings/MemoryEditorSettingsStore.h"
 #include "SagaEditor/Shell/EditorShell.h"
 #include "SagaEditor/UI/IUIMainWindow.h"
+#include "SagaEditor/Workspaces/UserWorkspace.h"
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -606,7 +607,7 @@ TEST(EditorCompositionShellTest, DefaultLayoutHidesIncompleteCustomizationComman
     host.Shutdown();
 }
 
-TEST(EditorCompositionShellTest, CustomizeWorkspacePanelHasNoProductCommand)
+TEST(EditorCompositionShellTest, CustomizeWorkspacePanelHasProductViewCommand)
 {
     EditorHost host;
     ASSERT_TRUE(host.Init(std::make_unique<MemoryEditorSettingsStore>()));
@@ -625,10 +626,11 @@ TEST(EditorCompositionShellTest, CustomizeWorkspacePanelHasNoProductCommand)
     auto& window = dynamic_cast<FakeMainWindow&>(shell.GetMainWindow());
     window.visiblePanels["saga.panel.customize_workspace"] = false;
 
-    EXPECT_FALSE(host.GetCommandDispatcher().Dispatch(
+    EXPECT_TRUE(host.GetCommandDispatcher().Dispatch(
         "saga.command.view.customize_workspace"));
-    EXPECT_FALSE(window.visiblePanels["saga.panel.customize_workspace"]);
-    EXPECT_TRUE(window.focusedPanels.empty());
+    EXPECT_TRUE(window.visiblePanels["saga.panel.customize_workspace"]);
+    ASSERT_EQ(window.focusedPanels.size(), 1u);
+    EXPECT_EQ(window.focusedPanels.front(), "saga.panel.customize_workspace");
 
     shell.Shutdown();
     host.Shutdown();
@@ -728,20 +730,22 @@ TEST(EditorAuthoringModeShellTest, RuntimeModeSwitchChangesPresentationOnly)
     shell.RegisterPanel(std::make_unique<FakePanel>("saga.panel.problems", "Problems"),
                         UIDockArea::Bottom);
 
-    ASSERT_TRUE(host.GetCommandDispatcher().Dispatch("saga.command.authoring.level1"));
+    ASSERT_TRUE(host.GetCommandDispatcher().Dispatch(
+        "saga.command.authoring.quick-production"));
     auto& window = dynamic_cast<FakeMainWindow&>(shell.GetMainWindow());
 
-    EXPECT_EQ(host.GetAuthoringModeService().Active().id, "level1");
+    EXPECT_EQ(host.GetEditorWorkModeService().Active().id, "quick-production");
     EXPECT_EQ(window.title, "Saga");
-    EXPECT_TRUE(window.status.find("Level 1") != std::string::npos);
+    EXPECT_TRUE(window.status.find("Quick Production") != std::string::npos);
     EXPECT_FALSE(window.visiblePanels["saga.panel.assetbrowser"]);
     EXPECT_FALSE(window.visiblePanels["saga.panel.code_box"]);
     EXPECT_FALSE(window.visiblePanels["saga.panel.console"]);
     EXPECT_EQ(selectionBefore, &host.GetSelectionManager());
     EXPECT_EQ(commandRegistryBefore, &host.GetCommandRegistry());
 
-    ASSERT_TRUE(host.GetCommandDispatcher().Dispatch("saga.command.authoring.level3"));
-    EXPECT_EQ(host.GetAuthoringModeService().Active().id, "level3");
+    ASSERT_TRUE(host.GetCommandDispatcher().Dispatch(
+        "saga.command.authoring.full-control"));
+    EXPECT_EQ(host.GetEditorWorkModeService().Active().id, "full-control");
     EXPECT_TRUE(window.visiblePanels["saga.panel.assetbrowser"]);
     EXPECT_TRUE(window.visiblePanels["saga.panel.code_box"]);
     EXPECT_TRUE(window.visiblePanels["saga.panel.problems"]);
@@ -749,8 +753,9 @@ TEST(EditorAuthoringModeShellTest, RuntimeModeSwitchChangesPresentationOnly)
     EXPECT_EQ(selectionBefore, &host.GetSelectionManager());
     EXPECT_EQ(commandRegistryBefore, &host.GetCommandRegistry());
 
-    ASSERT_TRUE(host.GetCommandDispatcher().Dispatch("saga.command.authoring.level2"));
-    EXPECT_EQ(host.GetAuthoringModeService().Active().id, "level2");
+    ASSERT_TRUE(host.GetCommandDispatcher().Dispatch(
+        "saga.command.authoring.balanced"));
+    EXPECT_EQ(host.GetEditorWorkModeService().Active().id, "balanced");
     EXPECT_TRUE(window.visiblePanels["saga.panel.code_box"]);
     EXPECT_FALSE(window.visiblePanels["saga.panel.assetbrowser"]);
 
@@ -839,10 +844,9 @@ TEST(EditorCommandStateShellTest, NoProjectAndUndoRedoPresentationStayTruthful)
     host.Shutdown();
 }
 
-TEST(EditorAuthoringModeShellTest, LayoutStateIsPersonalPerModeAndResetIsScoped)
+TEST(EditorAuthoringModeShellTest, WorkspaceOverlayIsPersonalPerModeAndResetIsScoped)
 {
     auto settings = std::make_unique<MemoryEditorSettingsStore>();
-    MemoryEditorSettingsStore* settingsRaw = settings.get();
     EditorHost host;
     ASSERT_TRUE(host.Init(std::move(settings)));
 
@@ -855,22 +859,23 @@ TEST(EditorAuthoringModeShellTest, LayoutStateIsPersonalPerModeAndResetIsScoped)
     ASSERT_TRUE(shell.Init(host, std::move(window), cfg));
 
     windowRaw->savedState = {0x12, 0xab};
-    ASSERT_TRUE(host.GetCommandDispatcher().Dispatch("saga.command.authoring.level2"));
-    EXPECT_EQ(settingsRaw->GetString("Editor/Layout/v2/level1", {}), "12ab");
+    ASSERT_TRUE(host.GetCommandDispatcher().Dispatch(
+        "saga.command.authoring.balanced"));
 
     windowRaw->savedState = {0x34};
-    ASSERT_TRUE(host.GetCommandDispatcher().Dispatch("saga.command.authoring.level1"));
-    EXPECT_EQ(settingsRaw->GetString("Editor/Layout/v2/level2", {}), "34");
+    ASSERT_TRUE(host.GetCommandDispatcher().Dispatch(
+        "saga.command.authoring.quick-production"));
     EXPECT_EQ(windowRaw->restoredState, (std::vector<uint8_t>{0x12, 0xab}));
 
     const int resetsBefore = windowRaw->resetLayoutCount;
     ASSERT_TRUE(host.GetCommandDispatcher().Dispatch(
         "saga.command.authoring.reset_layout"));
-    EXPECT_EQ(settingsRaw->GetString("Editor/Layout/v2/level1", "missing"),
-              "missing");
-    EXPECT_EQ(settingsRaw->GetString("Editor/Layout/v2/level2", {}), "34");
     EXPECT_GT(windowRaw->resetLayoutCount, resetsBefore);
-    EXPECT_EQ(host.GetAuthoringModeService().Active().id, "level1");
+    EXPECT_EQ(host.GetEditorWorkModeService().Active().id, "quick-production");
+    EXPECT_TRUE(host.GetUserWorkspaceService().Effective().machinePlacementState.empty());
+    ASSERT_TRUE(host.GetCommandDispatcher().Dispatch(
+        "saga.command.authoring.balanced"));
+    EXPECT_EQ(windowRaw->restoredState, (std::vector<uint8_t>{0x34}));
 
     shell.Shutdown();
     host.Shutdown();

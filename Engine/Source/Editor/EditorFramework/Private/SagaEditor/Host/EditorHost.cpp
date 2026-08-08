@@ -11,7 +11,6 @@
 #include "SagaEditor/Authoring/AuthoringMode.h"
 #include "SagaEditor/Composition/EditorCompositionSession.h"
 #include "SagaEditor/Customization/EditorCustomizationCatalog.h"
-#include "SagaEditor/Customization/WorkspaceCustomizationOverlayPolicy.h"
 #include "SagaEditor/Customization/ShortcutCustomizationSession.h"
 #include "SagaEditor/Customization/WorkspaceCustomizationSession.h"
 #include "SagaEditor/Diagnostics/EditorDiagnostic.h"
@@ -19,6 +18,7 @@
 #include "SagaEditor/Notifications/EditorNotificationCenter.h"
 #include "SagaEditor/Selection/SelectionManager.h"
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
+#include "SagaEditor/Workspaces/UserWorkspace.h"
 #include "SagaEditor/Scripting/ScriptAnalysisCoordinator.h"
 #include "SagaEditor/Scripting/ScriptProjectionSession.h"
 #include "SagaEditor/Scripting/SagaScriptLanguageServiceSession.h"
@@ -32,7 +32,6 @@
 #include "SagaEditor/Extensions/ExtensionRegistry.h"
 #include "SagaEditor/Extensions/ExtensionHost.h"
 
-#include <algorithm>
 #include <utility>
 #include <vector>
 
@@ -42,32 +41,6 @@ namespace
 {
 
 constexpr const char* kCompositionDiagnosticSource = "editor.composition";
-
-void AppendDefaultWorkspaceCustomizationOverlay(
-    const std::filesystem::path& workspaceRoot,
-    EditorCompositionStartupConfig& composition)
-{
-    if (workspaceRoot.empty() || composition.manifestPath.empty())
-    {
-        return;
-    }
-
-    WorkspaceCustomizationOverlayPolicy policy;
-    const std::filesystem::path overlayPath =
-        policy.GetDefaultOverlayPath(workspaceRoot);
-    if (!std::filesystem::exists(overlayPath))
-    {
-        return;
-    }
-
-    const auto exists = std::find(composition.overlayPaths.begin(),
-                                  composition.overlayPaths.end(),
-                                  overlayPath);
-    if (exists == composition.overlayPaths.end())
-    {
-        composition.overlayPaths.push_back(overlayPath);
-    }
-}
 
 [[nodiscard]] EditorDiagnosticSeverity ToEditorSeverity(
     EditorCompositionDiagnosticSeverity severity) noexcept
@@ -141,7 +114,8 @@ bool EditorHost::Init(std::unique_ptr<IEditorSettingsStore> settingsStore,
                                                             *m_commandDispatcher);
     m_shortcutManager   = std::make_unique<ShortcutManager>(*m_commandDispatcher);
     m_undoRedoStack     = std::make_unique<UndoRedoStack>();
-    m_authoringModeService = std::make_unique<AuthoringModeService>();
+    m_editorWorkModeService = std::make_unique<EditorWorkModeService>();
+    m_userWorkspaceService = std::make_unique<UserWorkspaceService>();
     m_selectionManager  = std::make_unique<SelectionManager>();
     m_documentWorkspace = std::make_unique<EditorDocumentWorkspace>();
     m_scriptAnalysisCoordinator = std::make_unique<ScriptAnalysisCoordinator>();
@@ -153,7 +127,10 @@ bool EditorHost::Init(std::unique_ptr<IEditorSettingsStore> settingsStore,
     m_themeRegistry     = std::make_unique<ThemeRegistry>();
     m_settingsStore     = settingsStore ? std::move(settingsStore)
                                         : std::make_unique<MemoryEditorSettingsStore>();
-    if (!m_authoringModeService->Init(*m_settingsStore))
+    if (!m_editorWorkModeService->Init(*m_settingsStore) ||
+        !m_userWorkspaceService->Init(*m_settingsStore,
+            m_settingsStore->ConfigurationRoot(), m_editorWorkModeService->Modes()) ||
+        !m_userWorkspaceService->ActivateMode(m_editorWorkModeService->Active()))
         return false;
     m_engineBridge      = std::make_unique<LocalEditorEngineBridge>();
     m_editorDiagnosticsService = std::make_unique<EditorDiagnosticsService>();
@@ -183,8 +160,6 @@ bool EditorHost::Init(std::unique_ptr<IEditorSettingsStore> settingsStore,
     if (!m_engineBridge->Init())
         return false;
 
-    AppendDefaultWorkspaceCustomizationOverlay(m_workspaceDefinition->root,
-                                               composition);
     const bool compositionReady = m_compositionSession->Init(composition);
     m_editorDiagnosticsService->ReplaceSource(
         kCompositionDiagnosticSource,
@@ -267,7 +242,8 @@ void EditorHost::Shutdown()
     m_projectReadinessSession.reset();
     m_packageStateCatalog.reset();
     m_undoRedoStack.reset();
-    m_authoringModeService.reset();
+    m_userWorkspaceService.reset();
+    m_editorWorkModeService.reset();
     m_shortcutManager.reset();
     m_commandPalette.reset();
     m_commandDispatcher.reset();
@@ -281,10 +257,14 @@ CommandDispatcher& EditorHost::GetCommandDispatcher() noexcept { return *m_comma
 CommandPalette&    EditorHost::GetCommandPalette()    noexcept { return *m_commandPalette;    }
 ShortcutManager&   EditorHost::GetShortcutManager()   noexcept { return *m_shortcutManager;   }
 UndoRedoStack&     EditorHost::GetUndoRedoStack()     noexcept { return *m_undoRedoStack;     }
-AuthoringModeService& EditorHost::GetAuthoringModeService() noexcept
+EditorWorkModeService& EditorHost::GetEditorWorkModeService() noexcept
 {
-    return *m_authoringModeService;
+    return *m_editorWorkModeService;
 }
+EditorWorkModeService& EditorHost::GetAuthoringModeService() noexcept
+{ return GetEditorWorkModeService(); }
+UserWorkspaceService& EditorHost::GetUserWorkspaceService() noexcept
+{ return *m_userWorkspaceService; }
 SelectionManager&  EditorHost::GetSelectionManager()  noexcept { return *m_selectionManager;  }
 EditorDocumentWorkspace& EditorHost::GetDocumentWorkspace() noexcept { return *m_documentWorkspace; }
 ScriptAnalysisCoordinator& EditorHost::GetScriptAnalysisCoordinator() noexcept

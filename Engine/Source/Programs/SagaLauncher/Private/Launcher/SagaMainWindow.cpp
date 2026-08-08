@@ -4,9 +4,11 @@
 #include "Projects/SagaProjectCatalog.h"
 #include "SagaEditor/Authoring/AuthoringMode.h"
 #include "SagaEditor/Host/EditorHost.h"
+#include "SagaEditor/Panels/CustomizeWorkspacePanel.h"
 #include "SagaEditor/Project/ProjectManager.h"
 #include "SagaEditor/Project/SagaProjectKitClient.h"
 #include "SagaEditor/Shell/EditorWorkspaceSession.h"
+#include "SagaEditor/Shell/EditorShell.h"
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
 #include "SagaEditorQt/QtSettingsStore.h"
 #include "SagaEditorQt/QtUIMainWindow.h"
@@ -144,7 +146,7 @@ SagaMainWindow::SagaMainWindow(std::filesystem::path productExecutable,
     setWindowTitle("Saga");
     resize(1600, 900);
     settings_ = std::make_unique<SagaEditor::QtSettingsStore>();
-    authoringModes_ = std::make_unique<SagaEditor::AuthoringModeService>();
+    authoringModes_ = std::make_unique<SagaEditor::EditorWorkModeService>();
     if (!authoringModes_->Init(*settings_, authoringMode_))
         (void)authoringModes_->Init(*settings_);
     authoringMode_ = authoringModes_->Active().id;
@@ -173,9 +175,9 @@ void SagaMainWindow::BuildHome()
     layout->addWidget(title);
     mode_ = new QComboBox(home_);
     mode_->setObjectName("SagaHomeAuthoringMode");
-    mode_->addItem("Level 1", "level1");
-    mode_->addItem("Level 2", "level2");
-    mode_->addItem("Level 3", "level3");
+    mode_->addItem("Quick Production", "quick-production");
+    mode_->addItem("Balanced", "balanced");
+    mode_->addItem("Full Control", "full-control");
     const int selected = mode_->findData(QString::fromStdString(authoringMode_));
     mode_->setCurrentIndex(selected < 0 ? 0 : selected);
     QObject::connect(mode_, &QComboBox::currentIndexChanged, this, [this]
@@ -313,6 +315,11 @@ bool SagaMainWindow::OpenProject(const std::filesystem::path& project)
         statusBar()->showMessage("Project open failed validation; Home is unchanged.");
         return false;
     }
+
+    candidate->GetShell()->RegisterPanel(
+        std::make_unique<SagaEditor::CustomizeWorkspacePanel>(
+            *candidate->GetHost()),
+        SagaEditor::UIDockArea::Right);
 
     const auto* info = candidate->GetHost()->GetDocumentWorkspace().Project();
     if (!info)

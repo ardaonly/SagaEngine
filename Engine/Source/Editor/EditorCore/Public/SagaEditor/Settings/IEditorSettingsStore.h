@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <filesystem>
 #include <string>
 
 namespace SagaEditor
@@ -23,6 +24,8 @@ public:
     virtual void SetString(const std::string& key, const std::string& value) = 0;
     virtual void Remove(const std::string& key) = 0;
     virtual void Flush() = 0;
+    [[nodiscard]] virtual std::filesystem::path ConfigurationRoot() const
+    { return {}; }
 };
 
 } // namespace SagaEditor

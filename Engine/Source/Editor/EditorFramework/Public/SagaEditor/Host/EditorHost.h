@@ -41,7 +41,8 @@ class ProjectReadinessSession;
 class PackageStateCatalog;
 class PackageModuleWorkflow;
 class PackageWorkflowController;
-class AuthoringModeService;
+class EditorWorkModeService;
+class UserWorkspaceService;
 
 // ─── Host ─────────────────────────────────────────────────────────────────────
 
@@ -83,7 +84,9 @@ public:
 
     /// Transactional undo/redo stack shared across all editor actions.
     [[nodiscard]] UndoRedoStack&      GetUndoRedoStack()      noexcept;
-    [[nodiscard]] AuthoringModeService& GetAuthoringModeService() noexcept;
+    [[nodiscard]] EditorWorkModeService& GetEditorWorkModeService() noexcept;
+    [[nodiscard]] EditorWorkModeService& GetAuthoringModeService() noexcept;
+    [[nodiscard]] UserWorkspaceService& GetUserWorkspaceService() noexcept;
 
     // ─── Scene Services ───────────────────────────────────────────────────────
 
@@ -158,7 +161,8 @@ private:
     std::unique_ptr<CommandPalette>    m_commandPalette;
     std::unique_ptr<ShortcutManager>   m_shortcutManager;
     std::unique_ptr<UndoRedoStack>     m_undoRedoStack;
-    std::unique_ptr<AuthoringModeService> m_authoringModeService;
+    std::unique_ptr<EditorWorkModeService> m_editorWorkModeService;
+    std::unique_ptr<UserWorkspaceService> m_userWorkspaceService;
     std::unique_ptr<SelectionManager>  m_selectionManager;
     std::unique_ptr<EditorDocumentWorkspace> m_documentWorkspace;
     std::unique_ptr<ScriptAnalysisCoordinator> m_scriptAnalysisCoordinator;

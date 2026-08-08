@@ -277,9 +277,9 @@ TEST(SagaHomeUiTest, PermanentHomeActionsAndModesExist)
     auto* modes = window.findChild<QComboBox*>("SagaHomeAuthoringMode");
     ASSERT_NE(modes, nullptr);
     EXPECT_EQ(modes->count(), 3);
-    EXPECT_EQ(modes->itemData(0).toString(), "level1");
-    EXPECT_EQ(modes->itemData(1).toString(), "level2");
-    EXPECT_EQ(modes->itemData(2).toString(), "level3");
+    EXPECT_EQ(modes->itemData(0).toString(), "quick-production");
+    EXPECT_EQ(modes->itemData(1).toString(), "balanced");
+    EXPECT_EQ(modes->itemData(2).toString(), "full-control");
 }
 
 TEST(SagaHomeUiTest, RoleRouterAndReportControlsAreAbsent)

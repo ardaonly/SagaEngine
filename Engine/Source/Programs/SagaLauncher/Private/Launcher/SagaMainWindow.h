@@ -10,7 +10,7 @@
 
 namespace SagaEditor
 {
-class AuthoringModeService;
+class EditorWorkModeService;
 class EditorWorkspaceSession;
 class QtSettingsStore;
 }
@@ -61,7 +61,7 @@ private:
     QListWidget* recents_ = nullptr;
     QComboBox* mode_ = nullptr;
     std::unique_ptr<SagaEditor::QtSettingsStore> settings_;
-    std::unique_ptr<SagaEditor::AuthoringModeService> authoringModes_;
+    std::unique_ptr<SagaEditor::EditorWorkModeService> authoringModes_;
     std::unique_ptr<SagaEditor::EditorWorkspaceSession> editor_;
 };
 } // namespace SagaProduct

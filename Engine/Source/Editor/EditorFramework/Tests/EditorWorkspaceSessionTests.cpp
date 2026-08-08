@@ -193,9 +193,10 @@ TEST(EditorWorkspaceSessionTest, AuthoringModeSwitchPreservesCanonicalProjectSou
     config.showOnMount = false;
     ASSERT_TRUE(session.Mount(std::make_unique<FakeMainWindow>(),
                               MakeSettingsStore(), config));
-    ASSERT_TRUE(session.GetHost()->GetAuthoringModeService().SetActive("level2"));
-    ASSERT_TRUE(session.GetHost()->GetAuthoringModeService().SetActive("level3"));
-    ASSERT_TRUE(session.GetHost()->GetAuthoringModeService().SetActive("level1"));
+    ASSERT_TRUE(session.GetHost()->GetEditorWorkModeService().SetActive("balanced"));
+    ASSERT_TRUE(session.GetHost()->GetEditorWorkModeService().SetActive("full-control"));
+    ASSERT_TRUE(session.GetHost()->GetEditorWorkModeService().SetActive(
+        "quick-production"));
     session.Unmount();
 
     for (std::size_t index = 0; index < canonical.size(); ++index)

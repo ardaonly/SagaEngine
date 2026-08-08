@@ -18,6 +18,7 @@
 #include "SagaEditor/Packages/PackageWorkflowController.h"
 #include "SagaEditor/Settings/IEditorSettingsStore.h"
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
+#include "SagaEditor/Workspaces/UserWorkspace.h"
 #include "SagaEditor/Play/RuntimeProcessController.h"
 #include "SagaEditor/UI/IUIMainWindow.h"
 #include "SagaEditor/Shell/ShellCommands.h"
@@ -49,20 +50,6 @@ namespace
 
 constexpr const char* kCompositionShellDiagnosticSource =
     "editor.composition.shell";
-constexpr const char* kModeLayoutPrefix = "Editor/Layout/v2/";
-
-std::string EncodeHex(const std::vector<std::uint8_t>& bytes)
-{
-    static constexpr char digits[] = "0123456789abcdef";
-    std::string result(bytes.size() * 2, '0');
-    for (std::size_t index = 0; index < bytes.size(); ++index)
-    {
-        result[index * 2] = digits[bytes[index] >> 4U];
-        result[index * 2 + 1] = digits[bytes[index] & 0x0fU];
-    }
-    return result;
-}
-
 std::optional<std::vector<std::uint8_t>> DecodeHex(const std::string& text)
 {
     if (text.size() % 2 != 0) return std::nullopt;
@@ -302,7 +289,7 @@ bool EditorShell::Init(EditorHost&                    host,
     SyncWorkflowCommandState();
     (void)ApplyCompositionPanelVisibility();
     auto& authoringModes = host.GetAuthoringModeService();
-    authoringModes.SetOnChanged([this](const AuthoringMode& mode)
+    authoringModes.SetOnChanged([this](const EditorWorkMode& mode)
     {
         SaveAuthoringModeLayout();
         ApplyAuthoringMode(mode, true);
@@ -374,6 +361,8 @@ void EditorShell::RegisterPanel(std::unique_ptr<IPanel> panel, UIDockArea area)
         if (id == "saga.panel.code_box") return "saga.command.view.code_box";
         if (id == "saga.panel.problems") return "saga.command.view.problems";
         if (id == "saga.panel.packages") return "saga.command.view.packages";
+        if (id == "saga.panel.customize_workspace")
+            return "saga.command.view.customize_workspace";
         return {};
     };
     const std::string viewCommand = viewCommandForPanel(panelId);
@@ -564,7 +553,7 @@ void EditorShell::SyncWorkflowCommandState()
         runtimeState == RuntimePlayState::Preparing ||
         runtimeState == RuntimePlayState::Starting ||
         runtimeState == RuntimePlayState::Running);
-    for (const AuthoringMode& mode : m_host->GetAuthoringModeService().Modes())
+    for (const EditorWorkMode& mode : m_host->GetEditorWorkModeService().Modes())
         setEnabled("saga.command.authoring." + mode.id, !playTransition);
     setEnabled("saga.command.authoring.reset_layout", !playTransition);
     const auto package = m_host->GetPackageWorkflowController().Snapshot();
@@ -585,7 +574,7 @@ void EditorShell::SyncWorkflowCommandState()
 void EditorShell::RegisterAuthoringModeCommands()
 {
     auto& modes = m_host->GetAuthoringModeService();
-    for (const AuthoringMode& mode : modes.Modes())
+    for (const EditorWorkMode& mode : modes.Modes())
     {
         m_host->GetCommandRegistry().Register({
             "saga.command.authoring." + mode.id, mode.displayName, "Authoring",
@@ -601,14 +590,51 @@ void EditorShell::RegisterAuthoringModeCommands()
                 (void)m_host->GetAuthoringModeService().SetActive(id);
             }});
     }
+    const std::pair<const char*, const char*> aliases[] = {
+        {"level1", "quick-production"}, {"level2", "balanced"},
+        {"level3", "full-control"}};
+    for (const auto& [legacy, canonical] : aliases)
+        m_host->GetCommandRegistry().Register({
+            std::string("saga.command.authoring.") + legacy,
+            std::string("Compatibility: ") + legacy, "Compatibility",
+            [this, id = std::string(canonical)]
+            { (void)m_host->GetEditorWorkModeService().SetActive(id); }});
+    m_host->GetCommandRegistry().Register({
+        "saga.command.workspace.apply", "Apply Current Workspace", "Workspace",
+        [this] { ApplyUserWorkspace(true); }});
+    m_host->GetCommandRegistry().Register({
+        "saga.command.workspace.capture", "Capture Current Workspace", "Workspace",
+        [this]
+        { (void)m_host->GetUserWorkspaceService().CaptureUserOverlay(
+            m_window->SaveState()); }});
+    m_host->GetCommandRegistry().Register({
+        "saga.command.workspace.save", "Save Current Workspace", "Workspace",
+        [this]
+        {
+            (void)m_host->GetUserWorkspaceService().CaptureUserOverlay(
+                m_window->SaveState());
+            (void)m_host->GetUserWorkspaceService().SaveCurrent();
+        }});
+    m_host->GetCommandRegistry().Register({
+        "saga.command.workspace.reset_current", "Reset Current Workspace", "Workspace",
+        [this]
+        {
+            (void)m_host->GetUserWorkspaceService().ResetCurrentWorkspace();
+            ApplyUserWorkspace(false);
+        }});
+    m_host->GetCommandRegistry().Register({
+        "saga.command.workspace.reset_mode", "Reset Mode Defaults", "Workspace",
+        [this]
+        {
+            (void)m_host->GetUserWorkspaceService().ResetModeDefaults();
+            ApplyUserWorkspace(false);
+        }});
     m_host->GetCommandRegistry().Register({
         "saga.command.authoring.reset_layout", "Reset Workspace Layout", "Authoring",
         [this]
         {
-            m_host->GetSettingsStore().Remove(
-                std::string(kModeLayoutPrefix) + m_activeAuthoringModeId);
-            m_window->ResetWorkspaceLayout();
-            ApplyAuthoringMode(m_host->GetAuthoringModeService().Active(), false);
+            (void)m_host->GetUserWorkspaceService().ResetCurrentWorkspace();
+            ApplyUserWorkspace(false);
         }});
 }
 
@@ -616,43 +642,50 @@ void EditorShell::SaveAuthoringModeLayout()
 {
     if (!m_host || !m_window || m_activeAuthoringModeId.empty())
         return;
-    m_host->GetSettingsStore().SetString(
-        std::string(kModeLayoutPrefix) + m_activeAuthoringModeId,
-        EncodeHex(m_window->SaveState()));
-    m_host->GetSettingsStore().Flush();
+    (void)m_host->GetUserWorkspaceService().CaptureUserOverlay(
+        m_window->SaveState());
+    (void)m_host->GetUserWorkspaceService().SaveCurrent();
 }
 
-void EditorShell::ApplyAuthoringMode(const AuthoringMode& mode, bool restoreLayout)
+void EditorShell::ApplyAuthoringMode(const EditorWorkMode& mode, bool restoreLayout)
 {
     m_activeAuthoringModeId = mode.id;
-    const std::unordered_set<std::string> defaultVisible(
-        mode.defaultVisiblePanels.begin(), mode.defaultVisiblePanels.end());
+    (void)m_host->GetUserWorkspaceService().ActivateMode(mode);
+    ApplyUserWorkspace(restoreLayout);
+    for (const EditorWorkMode& candidate : m_host->GetEditorWorkModeService().Modes())
+        m_window->SetCommandChecked("saga.command.authoring." + candidate.id,
+                                    candidate.id == mode.id);
+    m_window->SetStatusMessage("Work Mode: " + mode.displayName +
+        " | Workspace: " + m_host->GetUserWorkspaceService().Effective().identity);
+}
+
+void EditorShell::ApplyUserWorkspace(bool restoreLayout)
+{
+    const auto presentation = m_host->GetUserWorkspaceService().Effective();
+    std::unordered_set<std::string> visible;
+    for (const auto& dock : presentation.docks)
+        if (dock.visible) visible.insert(dock.panelId);
     bool restoredSavedLayout = false;
-    if (restoreLayout)
+    if (!restoreLayout)
+        m_window->ResetWorkspaceLayout();
+    if (restoreLayout && !presentation.machinePlacementState.empty())
     {
-        const std::string saved = m_host->GetSettingsStore().GetString(
-            std::string(kModeLayoutPrefix) + mode.id, {});
-        const auto decoded = DecodeHex(saved);
-        if (!saved.empty() && decoded)
+        const auto decoded = DecodeHex(presentation.machinePlacementState);
+        if (decoded)
             restoredSavedLayout = m_window->RestoreState(*decoded);
-        if (!saved.empty() && !restoredSavedLayout)
-        {
-            m_host->GetSettingsStore().Remove(
-                std::string(kModeLayoutPrefix) + mode.id);
-        }
         if (!restoredSavedLayout)
+        {
             m_window->ResetWorkspaceLayout();
+            m_window->SetStatusMessage(
+                "Workspace placement was unsupported; logical docking was restored.");
+        }
     }
     if (!restoredSavedLayout)
     {
         for (const auto& panel : m_panels)
             m_window->SetPanelVisible(panel->GetPanelId(),
-                defaultVisible.contains(panel->GetPanelId()));
+                visible.contains(panel->GetPanelId()));
     }
-    for (const AuthoringMode& candidate : m_host->GetAuthoringModeService().Modes())
-        m_window->SetCommandChecked("saga.command.authoring." + candidate.id,
-                                    candidate.id == mode.id);
-    m_window->SetStatusMessage("Authoring Mode: " + mode.displayName);
 }
 
 bool EditorShell::BuildCompositionLayout()
@@ -887,11 +920,13 @@ void EditorShell::BuildDefaultLayout()
     MenuDescriptor authoring;
     authoring.title = "Authoring";
     authoring.items = {
-        { "Level 1", "saga.command.authoring.level1", "", false },
-        { "Level 2", "saga.command.authoring.level2", "", false },
-        { "Level 3", "saga.command.authoring.level3", "", false },
+        { "Quick Production", "saga.command.authoring.quick-production", "", false },
+        { "Balanced", "saga.command.authoring.balanced", "", false },
+        { "Full Control", "saga.command.authoring.full-control", "", false },
         { "", "", "", true },
-        { "Reset Workspace Layout", "saga.command.authoring.reset_layout", "", false },
+        { "Save Current Workspace", "saga.command.workspace.save", "", false },
+        { "Reset Current Workspace", "saga.command.workspace.reset_current", "", false },
+        { "Reset Mode Defaults", "saga.command.workspace.reset_mode", "", false },
     };
     m_layout.menus = { file, edit, view, authoring };
     m_layout.mainToolbarItems = {
