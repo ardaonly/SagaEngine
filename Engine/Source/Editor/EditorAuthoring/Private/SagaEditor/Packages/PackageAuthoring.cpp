@@ -262,9 +262,6 @@ bool PackageStateCatalog::LoadInspection(
             module.trust = row.at("trust").get<std::string>();
             module.origin = row.at("origin").get<std::string>();
             module.offline = row.at("offline").get<bool>();
-            if (module.module == "collectibles.lowlevel")
-                throw std::runtime_error(
-                    "collectibles.lowlevel is forbidden from the package catalog.");
             SortUnique(module.artifactKinds);
             SortUnique(module.apiSurfaces);
             SortUnique(module.blocksSurfaces);

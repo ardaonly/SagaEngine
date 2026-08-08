@@ -7,6 +7,7 @@
 #include "SagaEditor/Panels/InspectorPanel.h"
 #include "SagaEditor/Panels/CodeBoxPanel.h"
 #include "SagaEditor/Panels/PackagesPanel.h"
+#include "SagaEditor/Panels/PerformanceTransitionPanel.h"
 #include "SagaEditor/Packages/PackageAuthoring.h"
 #include "SagaEditor/SceneEditing/SceneSelectionIdentity.h"
 #include "SagaEditor/Selection/SelectionManager.h"
@@ -19,6 +20,7 @@
 #include <QComboBox>
 #include <QDockWidget>
 #include <QGuiApplication>
+#include <QLabel>
 #include <QLineEdit>
 #include <QMainWindow>
 #include <QPlainTextEdit>
@@ -250,6 +252,25 @@ TEST(QtAuthoringPanelsTests, PackagesPanelRendersVerifiedPermanentCatalogState)
     panel.Refresh();
     EXPECT_FALSE((*enable)->isEnabled());
     panel.OnShutdown();
+}
+
+TEST(QtAuthoringPanelsTests, PerformanceTransitionPanelExposesExplicitFullControlWorkflow)
+{
+    SagaEditor::PerformanceTransitionPanel panel;
+    EXPECT_EQ(panel.GetPanelId(), "saga.panel.performance_transition");
+    EXPECT_EQ(panel.GetTitle(), "Gameplay Performance");
+    auto* widget = panel.Widget();
+    ASSERT_NE(widget, nullptr);
+    auto* validate = widget->findChild<QPushButton*>("ValidateBuildProfilesButton");
+    auto* create = widget->findChild<QPushButton*>("CreateBenchmarkRunInputButton");
+    auto* conversion = widget->findChild<QPushButton*>("ReviewCollectibleConversionButton");
+    auto* status = widget->findChild<QLabel*>("PerformanceTransitionStatus");
+    ASSERT_NE(validate, nullptr);
+    ASSERT_NE(create, nullptr);
+    ASSERT_NE(conversion, nullptr);
+    ASSERT_NE(status, nullptr);
+    validate->click();
+    EXPECT_EQ(status->text(), QStringLiteral("No project is open."));
 }
 
 TEST(QtAuthoringPanelsTests, RecoveryButtonsForwardExplicitDocumentGestures)

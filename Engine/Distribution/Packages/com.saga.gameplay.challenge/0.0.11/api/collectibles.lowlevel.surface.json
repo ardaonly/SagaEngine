@@ -1,0 +1,108 @@
+{
+  "apis": [
+    {
+      "apiId": "CollectiblesLowLevelBatch",
+      "documentationId": "T:SagaEngine.Scripting.Gameplay.CollectiblesLowLevelBatch",
+      "blockProjection": "Unsupported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/CollectiblesLowLevel.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectiblesLowLevelBatch.Advance",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.CollectiblesLowLevelBatch.Advance(System.Double,System.Int32)",
+      "blockProjection": "Unsupported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/CollectiblesLowLevel.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectiblesLowLevelBatch.Constructor",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.CollectiblesLowLevelBatch.#ctor(System.Int32,System.Double,System.Int32)",
+      "blockProjection": "Unsupported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/CollectiblesLowLevel.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectiblesLowLevelBatch.ActiveCount",
+      "documentationId": "P:SagaEngine.Scripting.Gameplay.CollectiblesLowLevelBatch.ActiveCount",
+      "blockProjection": "Unsupported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/CollectiblesLowLevel.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectiblesLowLevelBatch.Capacity",
+      "documentationId": "P:SagaEngine.Scripting.Gameplay.CollectiblesLowLevelBatch.Capacity",
+      "blockProjection": "Unsupported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/CollectiblesLowLevel.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectiblesLowLevelBatch.Collect",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.CollectiblesLowLevelBatch.Collect(System.Int32)",
+      "blockProjection": "Unsupported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/CollectiblesLowLevel.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectiblesLowLevelBatch.Reset",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.CollectiblesLowLevelBatch.Reset",
+      "blockProjection": "Unsupported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/CollectiblesLowLevel.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectiblesLowLevelBatch.GetPhase",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.CollectiblesLowLevelBatch.GetPhase(System.Int32)",
+      "blockProjection": "Unsupported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/CollectiblesLowLevel.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectiblesLowLevelBatch.GetSpawnIndex",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.CollectiblesLowLevelBatch.GetSpawnIndex(System.Int32)",
+      "blockProjection": "Unsupported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/CollectiblesLowLevel.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectiblesLowLevelBatch.GetRespawnRemaining",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.CollectiblesLowLevelBatch.GetRespawnRemaining(System.Int32)",
+      "blockProjection": "Unsupported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/CollectiblesLowLevel.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectiblesLowLevelBatch.IsActive",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.CollectiblesLowLevelBatch.IsActive(System.Int32)",
+      "blockProjection": "Unsupported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/CollectiblesLowLevel.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectiblesLowLevelBatch.IsRespawning",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.CollectiblesLowLevelBatch.IsRespawning(System.Int32)",
+      "blockProjection": "Unsupported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/CollectiblesLowLevel.cs",
+      "visibility": "Public"
+    }
+  ],
+  "module": "collectibles.lowlevel",
+  "runtimeImplementation": {
+    "implementationType": "SagaEngine.Scripting.Gameplay.CollectiblesLowLevelBatch",
+    "managedReferenceArtifactId": "com.saga.gameplay.foundation.managed-reference"
+  },
+  "runtimeReadiness": "RuntimeBacked",
+  "schemaVersion": 1,
+  "surfaceId": "com.saga.gameplay.challenge/collectibles.lowlevel"
+}

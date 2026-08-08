@@ -31,6 +31,7 @@ bool EditorShell::UnregisterPanel(const std::string& panelId)
         {"saga.panel.code_box", "saga.command.view.code_box"},
         {"saga.panel.problems", "saga.command.view.problems"},
         {"saga.panel.packages", "saga.command.view.packages"},
+        {"saga.panel.performance_transition", "saga.command.view.performance_transition"},
     };
     for (const auto& [ownedPanel, command] : panelCommands)
         if (panelId == ownedPanel)

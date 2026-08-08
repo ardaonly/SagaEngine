@@ -19,7 +19,7 @@ public sealed class ArenaRushGameMode : SagaBehavior
     private ChallengeState challenge;
     private int coreScore;
     private int activeCollectibleCount;
-    private EnergyCoreController.EnergyCoreState[] cores = [];
+    private ArenaRushCollectibleStore cores = null!;
     private ScriptEntity player = null!;
     private ScriptEntity door = null!;
     private ScriptEntity[] coreEntities = [];
@@ -119,8 +119,7 @@ public sealed class ArenaRushGameMode : SagaBehavior
         if (!initialized) return;
         challenge = ChallengeHighLevel.Restart(challenge);
         spawnOrdinal = 0;
-        for (var index = 0; index < cores.Length; ++index)
-            cores[index] = EnergyCoreController.Reset(cores[index]);
+        cores.Reset();
         ResetWorld();
         Publish();
     }
@@ -152,19 +151,14 @@ public sealed class ArenaRushGameMode : SagaBehavior
         challenge = ChallengeHighLevel.Create(new ChallengeDefinition(duration, target));
         coreScore = value;
         activeCollectibleCount = activeCount;
-        cores = new EnergyCoreController.EnergyCoreState[CoreIds.Length];
-        for (var index = 0; index < cores.Length; ++index)
-            cores[index] =
-                EnergyCoreController.Create(respawn, SpawnIds.Length, index);
+        cores = new ArenaRushCollectibleStore(CoreIds.Length, respawn, SpawnIds.Length);
         initialized = true;
     }
 
     private void CollectCore(int index)
     {
         if (!initialized || challenge.Phase != ChallengePhase.Running ||
-            index < 0 || index >= cores.Length ||
-            cores[index].Value.Phase != CollectiblePhase.Active) return;
-        cores[index] = EnergyCoreController.Collect(cores[index]);
+            index < 0 || index >= cores.Count || !cores.TryCollect(index)) return;
         if (index < coreEntities.Length) coreEntities[index].TrySetActive(false);
         challenge = ChallengeHighLevel.AddProgress(challenge, coreScore);
         Publish();
@@ -172,15 +166,14 @@ public sealed class ArenaRushGameMode : SagaBehavior
 
     private void AdvanceRespawns(double deltaSeconds)
     {
-        for (var index = 0; index < cores.Length; ++index)
+        cores.AdvanceAll(deltaSeconds, spawnOrdinal);
+        for (var index = 0; index < cores.Count; ++index)
         {
-            var (state, completed) =
-                EnergyCoreController.Advance(cores[index], deltaSeconds, spawnOrdinal);
-            cores[index] = state;
-            if (!completed) continue;
+            if (!cores.CompletedRespawn(index)) continue;
             ++spawnOrdinal;
-            if (index < coreEntities.Length && state.Value.SpawnIndex < spawnEntities.Length &&
-                spawnEntities[state.Value.SpawnIndex].TryGetPosition(out var spawn))
+            var spawnIndex = cores.SpawnIndex(index);
+            if (index < coreEntities.Length && spawnIndex < spawnEntities.Length &&
+                spawnEntities[spawnIndex].TryGetPosition(out var spawn))
             {
                 coreEntities[index].TrySetPosition(spawn.X, spawn.Y, spawn.Z);
                 coreEntities[index].TrySetActive(true);
@@ -237,16 +230,9 @@ public sealed class ArenaRushGameMode : SagaBehavior
             challenge.Phase is ChallengePhase.Armed or ChallengePhase.Running);
         Context.State.TrySetBool(
             "challenge.door-open", challenge.Phase is ChallengePhase.Armed or ChallengePhase.Running);
-        var activeCores = 0;
-        var pendingRespawns = 0;
-        foreach (var core in cores)
-        {
-            if (core.Value.Phase == CollectiblePhase.Active) ++activeCores;
-            if (core.Value.Phase == CollectiblePhase.Respawning) ++pendingRespawns;
-        }
-        Context.State.TrySetInt32("challenge.active-cores", activeCores);
+        Context.State.TrySetInt32("challenge.active-cores", cores.ActiveCount);
         Context.State.TrySetInt32(
-            "challenge.pending-respawns", pendingRespawns);
+            "challenge.pending-respawns", cores.PendingRespawnCount);
         if (player is not null)
             player.TrySetActive(
                 challenge.Phase is ChallengePhase.Armed or ChallengePhase.Running);

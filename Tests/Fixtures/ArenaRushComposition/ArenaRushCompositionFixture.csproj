@@ -11,6 +11,8 @@
              Link="ArenaRushGameMode.cs" />
     <Compile Include="../../../Samples/ArenaRush/Scripts/EnergyCoreController.cs"
              Link="EnergyCoreController.cs" />
+    <Compile Include="../../../Samples/ArenaRush/Scripts/ArenaRushCollectibleStore.cs"
+             Link="ArenaRushCollectibleStore.cs" />
     <ProjectReference Include="../../../Engine/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.csproj" />
   </ItemGroup>
 </Project>

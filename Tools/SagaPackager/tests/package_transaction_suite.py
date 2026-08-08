@@ -46,11 +46,14 @@ def run_tests(run_cli: Callable[..., object], load: Callable[[Path], dict],
         ownership = load(ownership_paths[0])
         instrumentation = [symbol for symbol in ownership["symbols"]
                            if symbol["module"] == "collectibles.instrumentation"]
-        assert len(instrumentation) == 6
+        assert len(instrumentation) == 23
         assert all(symbol["documentationId"] and not symbol["enabled"]
                    for symbol in instrumentation)
-        assert not any(symbol["module"] == "collectibles.lowlevel"
-                       for symbol in ownership["symbols"])
+        lowlevel = [symbol for symbol in ownership["symbols"]
+                    if symbol["module"] == "collectibles.lowlevel"]
+        assert len(lowlevel) == 12
+        assert all(symbol["documentationId"] and not symbol["enabled"]
+                   for symbol in lowlevel)
         assert (canonical / "ArenaRush.sagaproj").read_bytes() == manifest_before
         assert (canonical / "SagaPackage.lock").read_bytes() == lock_before
         assert (canonical_current.read_bytes() if canonical_current.exists() else None) == current_before
@@ -87,4 +90,6 @@ def run_tests(run_cli: Callable[..., object], load: Callable[[Path], dict],
         assert rows["collectibles.instrumentation"]["license"] == "MPL-2.0"
         assert rows["collectibles.instrumentation"]["trust"] == "TrustedEngineDistribution"
         assert rows["collectibles.instrumentation"]["blocksSurfaces"] == []
-        assert "collectibles.lowlevel" not in rows
+        assert rows["collectibles.lowlevel"]["enabled"] is False
+        assert rows["collectibles.lowlevel"]["runtimeReadiness"] == "RuntimeBacked"
+        assert rows["collectibles.lowlevel"]["blocksSurfaces"] == []

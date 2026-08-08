@@ -47,6 +47,142 @@
       "capability": "DevelopmentDiagnostics",
       "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
       "visibility": "Public"
+    },
+    {
+      "apiId": "MeasurementCounterAvailability",
+      "documentationId": "T:SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.MeasurementCounterAvailability",
+      "blockProjection": "Unsupported",
+      "capability": "DevelopmentDiagnostics",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectibleMeasurementSnapshot",
+      "documentationId": "T:SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleMeasurementSnapshot",
+      "blockProjection": "Unsupported",
+      "capability": "DevelopmentDiagnostics",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectibleMeasurementRecorder",
+      "documentationId": "T:SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleMeasurementRecorder",
+      "blockProjection": "Unsupported",
+      "capability": "DevelopmentDiagnostics",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectibleMeasurementRecorder.RecordUpdate",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleMeasurementRecorder.RecordUpdate(System.Int64)",
+      "blockProjection": "Unsupported",
+      "capability": "DevelopmentDiagnostics",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectibleMeasurementRecorder.RecordLifecycleTransitions",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleMeasurementRecorder.RecordLifecycleTransitions(System.Int32)",
+      "blockProjection": "Unsupported",
+      "capability": "DevelopmentDiagnostics",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectibleMeasurementRecorder.Constructor",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleMeasurementRecorder.#ctor(System.Int32)",
+      "blockProjection": "Unsupported",
+      "capability": "DevelopmentDiagnostics",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectibleMeasurementRecorder.Capacity",
+      "documentationId": "P:SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleMeasurementRecorder.Capacity",
+      "blockProjection": "Unsupported",
+      "capability": "DevelopmentDiagnostics",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectibleMeasurementRecorder.SampleCount",
+      "documentationId": "P:SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleMeasurementRecorder.SampleCount",
+      "blockProjection": "Unsupported",
+      "capability": "DevelopmentDiagnostics",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectibleMeasurementRecorder.GetRawUpdateNanoseconds",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleMeasurementRecorder.GetRawUpdateNanoseconds(System.Int32)",
+      "blockProjection": "Unsupported",
+      "capability": "DevelopmentDiagnostics",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectibleMeasurementRecorder.Snapshot",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleMeasurementRecorder.Snapshot",
+      "blockProjection": "Unsupported",
+      "capability": "DevelopmentDiagnostics",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectibleMeasurementSnapshot.UpdateSamples",
+      "documentationId": "P:SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleMeasurementSnapshot.UpdateSamples",
+      "blockProjection": "Unsupported",
+      "capability": "DevelopmentDiagnostics",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectibleMeasurementSnapshot.LifecycleTransitions",
+      "documentationId": "P:SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleMeasurementSnapshot.LifecycleTransitions",
+      "blockProjection": "Unsupported",
+      "capability": "DevelopmentDiagnostics",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectibleMeasurementSnapshot.TotalUpdateNanoseconds",
+      "documentationId": "P:SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleMeasurementSnapshot.TotalUpdateNanoseconds",
+      "blockProjection": "Unsupported",
+      "capability": "DevelopmentDiagnostics",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectibleMeasurementSnapshot.AllocationCounter",
+      "documentationId": "P:SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleMeasurementSnapshot.AllocationCounter",
+      "blockProjection": "Unsupported",
+      "capability": "DevelopmentDiagnostics",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "CollectibleMeasurementSnapshot.MemoryCounter",
+      "documentationId": "P:SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.CollectibleMeasurementSnapshot.MemoryCounter",
+      "blockProjection": "Unsupported",
+      "capability": "DevelopmentDiagnostics",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "MeasurementCounterAvailability.Available",
+      "documentationId": "F:SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.MeasurementCounterAvailability.Available",
+      "blockProjection": "Unsupported",
+      "capability": "DevelopmentDiagnostics",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
+      "visibility": "Public"
+    },
+    {
+      "apiId": "MeasurementCounterAvailability.Unavailable",
+      "documentationId": "F:SagaEngine.Scripting.Gameplay.DevelopmentDiagnostics.MeasurementCounterAvailability.Unavailable",
+      "blockProjection": "Unsupported",
+      "capability": "DevelopmentDiagnostics",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs",
+      "visibility": "Public"
     }
   ],
   "module": "collectibles.instrumentation",

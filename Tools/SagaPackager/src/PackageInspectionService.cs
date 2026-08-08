@@ -77,9 +77,6 @@ internal static class PackageInspectionService
                     foreach (var module in manifest.Modules
                                  .OrderBy(item => item, StringComparer.Ordinal))
                     {
-                        if (module == "collectibles.lowlevel")
-                            throw new InvalidOperationException(
-                                "collectibles.lowlevel is not a distributable module.");
                         var enabled = graph.Lock.Packages.Any(package =>
                             package.PackageId == manifest.PackageId &&
                             package.Version == manifest.Version &&

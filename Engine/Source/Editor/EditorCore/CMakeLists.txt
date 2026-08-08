@@ -22,6 +22,7 @@ saga_add_editor_module(EditorCore
         Private/SagaEditor/Processes/ManagedToolRuntime.cpp
         Private/SagaEditor/Processes/ToolProcessRunner.cpp
         Private/SagaEditor/Processes/ToolProcessSession.cpp
+        Private/SagaEditor/Performance/BuildProfiles.cpp
         Private/SagaEditor/Scripting/SagaScriptWorkerClient.cpp
         Private/SagaEditor/Scripting/SagaScriptLanguageServiceClient.cpp
         Private/SagaEditor/Runtime/IEditorEngineBridge.cpp
@@ -50,6 +51,7 @@ saga_add_editor_module(EditorCore
         Public/SagaEditor/Processes/ManagedToolRuntime.h
         Public/SagaEditor/Processes/ToolProcessRunner.h
         Public/SagaEditor/Processes/ToolProcessSession.h
+        Public/SagaEditor/Performance/BuildProfiles.h
         Public/SagaEditor/Scripting/SagaScriptWorkerClient.h
         Public/SagaEditor/Scripting/SagaScriptLanguageServiceClient.h
         Public/SagaEditor/Runtime/IEditorEngineBridge.h
@@ -84,6 +86,7 @@ saga_register_module_tests(EditorCore
         Tests/ManagedToolRuntimeTests.cpp
         Tests/ToolProcessRunnerTests.cpp
         Tests/ToolProcessSessionTests.cpp
+        Tests/BuildProfilesTests.cpp
         Tests/SagaScriptLanguageServiceClientTests.cpp
         Tests/SagaScriptWorkerClientTests.cpp
         Tests/SelectionStateTests.cpp

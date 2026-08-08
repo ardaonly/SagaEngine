@@ -2,6 +2,7 @@
 #include "SagaEditor/Authoring/AuthoringMode.h"
 #include "SagaEditor/Settings/MemoryEditorSettingsStore.h"
 #include <gtest/gtest.h>
+#include <algorithm>
 
 namespace SagaEditor
 {
@@ -17,6 +18,21 @@ TEST(AuthoringModeTests, ExposesExactlyThreeStableOfficialWorkModes)
     EXPECT_EQ(service.Active().id, "quick-production");
     EXPECT_EQ(settings.GetString(AuthoringModeService::SettingKey, {}),
         "quick-production");
+}
+
+TEST(AuthoringModeTests, PerformanceTransitionIsAnExplicitFullControlSurface)
+{
+    MemoryEditorSettingsStore settings;
+    EditorWorkModeService service;
+    ASSERT_TRUE(service.Init(settings));
+    const auto hasPerformance = [](const EditorWorkMode& mode)
+    {
+        return std::find(mode.visiblePanels.begin(), mode.visiblePanels.end(),
+            "saga.panel.performance_transition") != mode.visiblePanels.end();
+    };
+    EXPECT_FALSE(hasPerformance(service.Modes()[0]));
+    EXPECT_FALSE(hasPerformance(service.Modes()[1]));
+    EXPECT_TRUE(hasPerformance(service.Modes()[2]));
 }
 
 TEST(AuthoringModeTests, ExplicitValidWinsAndExplicitUnknownFails)

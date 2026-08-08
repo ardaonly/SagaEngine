@@ -10,6 +10,7 @@
 #include <QComboBox>
 #include <QDockWidget>
 #include <QLineEdit>
+#include <QLabel>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QTemporaryDir>
@@ -116,6 +117,58 @@ TEST(SagaWorkModesUiTest,
     EXPECT_EQ(mode->currentData().toString(), QStringLiteral("full-control"));
     EXPECT_TRUE(editor->toPlainText().endsWith(unsavedMarker));
     EXPECT_EQ(editor->textCursor().position(), cursorBefore);
+
+    auto* performanceDock =
+        window.findChild<QDockWidget*>("saga.panel.performance_transition");
+    ASSERT_NE(performanceDock, nullptr);
+    performanceDock->show();
+    performanceDock->raise();
+    auto* validateProfiles = performanceDock->findChild<QPushButton*>(
+        "ValidateBuildProfilesButton");
+    auto* createRunInput = performanceDock->findChild<QPushButton*>(
+        "CreateBenchmarkRunInputButton");
+    auto* reviewConversion = performanceDock->findChild<QPushButton*>(
+        "ReviewCollectibleConversionButton");
+    auto* compareConversion = performanceDock->findChild<QPushButton*>(
+        "CompareCollectibleConversionButton");
+    auto* reverseConversion = performanceDock->findChild<QPushButton*>(
+        "ReverseCollectibleConversionButton");
+    auto* benchmarkProfile = performanceDock->findChild<QComboBox*>(
+        "BenchmarkProfileSelection");
+    auto* performanceStatus = performanceDock->findChild<QLabel*>(
+        "PerformanceTransitionStatus");
+    auto* performanceOutput = performanceDock->findChild<QPlainTextEdit*>(
+        "PerformanceRawResults");
+    ASSERT_NE(validateProfiles, nullptr);
+    ASSERT_NE(createRunInput, nullptr);
+    ASSERT_NE(reviewConversion, nullptr);
+    ASSERT_NE(compareConversion, nullptr);
+    ASSERT_NE(reverseConversion, nullptr);
+    ASSERT_NE(benchmarkProfile, nullptr);
+    ASSERT_NE(performanceStatus, nullptr);
+    ASSERT_NE(performanceOutput, nullptr);
+    validateProfiles->click();
+    QApplication::processEvents();
+    EXPECT_EQ(benchmarkProfile->currentText(),
+        QStringLiteral("arena-rush-collectibles"));
+    createRunInput->click();
+    QApplication::processEvents();
+    EXPECT_TRUE(performanceOutput->toPlainText().contains(
+        QStringLiteral("arena-rush.collectibles")));
+    reviewConversion->click();
+    QApplication::processEvents();
+    EXPECT_TRUE(performanceOutput->toPlainText().contains(
+        QStringLiteral("HighLevel")));
+    compareConversion->click();
+    QApplication::processEvents();
+    EXPECT_TRUE(performanceOutput->toPlainText().contains(
+        QStringLiteral("CollectiblesLowLevelBatch")));
+    reverseConversion->click();
+    QApplication::processEvents();
+    EXPECT_EQ(performanceStatus->text(),
+        QStringLiteral("No applied conversion is available to reverse."));
+    ASSERT_TRUE(performanceDock->grab().save(QString::fromStdString(
+        (evidence / "performance-transition-full-control.png").string())));
 
     workspaceDock->show();
     name->setText(QStringLiteral("Arena Authoring"));

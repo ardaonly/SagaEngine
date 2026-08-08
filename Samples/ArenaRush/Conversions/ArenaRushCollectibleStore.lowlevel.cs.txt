@@ -1,0 +1,47 @@
+// SPDX-License-Identifier: MIT
+
+using System;
+using System.Linq;
+using SagaEngine.Scripting.Gameplay;
+
+namespace ArenaRush;
+
+// SAGA-COLLECTIBLE-SURFACE-BEGIN
+/// <summary>Preallocated low-level collectible authority for reviewed conversion.</summary>
+public sealed class ArenaRushCollectibleStore
+{
+    private readonly CollectiblesLowLevelBatch batch;
+    private readonly bool[] completed;
+
+    public ArenaRushCollectibleStore(int capacity, double respawnDelaySeconds, int spawnCount)
+    {
+        batch = new CollectiblesLowLevelBatch(capacity, respawnDelaySeconds, spawnCount);
+        completed = new bool[capacity];
+    }
+
+    public int Count => batch.Capacity;
+    public int ActiveCount => batch.ActiveCount;
+    public int PendingRespawnCount => batch.Capacity - batch.ActiveCount;
+
+    public void Reset()
+    {
+        batch.Reset();
+        Array.Clear(completed);
+    }
+
+    public bool TryCollect(int index) => batch.Collect(index);
+
+    public int AdvanceAll(double deltaSeconds, int selectionOrdinalBase)
+    {
+        for (var index = 0; index < batch.Capacity; ++index)
+            completed[index] = batch.IsRespawning(index);
+        var completionCount = batch.Advance(deltaSeconds, selectionOrdinalBase);
+        for (var index = 0; index < batch.Capacity; ++index)
+            completed[index] = completed[index] && batch.IsActive(index);
+        return completionCount;
+    }
+
+    public bool CompletedRespawn(int index) => completed[index];
+    public int SpawnIndex(int index) => batch.GetSpawnIndex(index);
+}
+// SAGA-COLLECTIBLE-SURFACE-END

@@ -334,6 +334,8 @@
                 "${SAGA_ROOT}/Engine/Managed/SagaScript.RuntimeBridge/ScriptContext.cs"
                 "${SAGA_ROOT}/Engine/Managed/SagaScript.RuntimeBridge/NativeBridge.cs"
                 "${SAGA_ROOT}/Engine/Managed/SagaScript.RuntimeBridge/GameplayContracts.cs"
+                "${SAGA_ROOT}/Engine/Managed/SagaScript.RuntimeBridge/CollectiblesLowLevel.cs"
+                "${SAGA_ROOT}/Engine/Managed/SagaScript.RuntimeBridge/GameplayInstrumentation.cs"
             COMMENT "Building managed SagaScript runtime bridge"
             VERBATIM
         )
@@ -413,6 +415,7 @@
                 "${SAGA_ARENA_RUSH_COMPOSITION_FIXTURE_PROJECT}"
                 "${SAGA_ROOT}/Tests/Fixtures/ArenaRushComposition/Program.cs"
                 "${SAGA_ROOT}/Samples/ArenaRush/Scripts/ArenaRushGameMode.cs"
+                "${SAGA_ROOT}/Samples/ArenaRush/Scripts/ArenaRushCollectibleStore.cs"
             COMMENT "Building Arena Rush composition fixture"
             VERBATIM
         )
@@ -426,5 +429,93 @@
         )
         set_tests_properties(ArenaRushCompositionManagedTests PROPERTIES
             LABELS "managed;unit;gameplay-contract;sample"
+        )
+
+        set(SAGA_ARENA_RUSH_LOWLEVEL_FIXTURE_PROJECT
+            "${SAGA_ROOT}/Tests/Fixtures/ArenaRushLowLevelComposition/ArenaRushLowLevelCompositionFixture.csproj"
+        )
+        set(SAGA_ARENA_RUSH_LOWLEVEL_FIXTURE_OUTPUT
+            "${CMAKE_BINARY_DIR}/Managed/ArenaRushLowLevelCompositionFixture"
+        )
+        set(SAGA_ARENA_RUSH_LOWLEVEL_FIXTURE_ASSEMBLY
+            "${SAGA_ARENA_RUSH_LOWLEVEL_FIXTURE_OUTPUT}/ArenaRushLowLevelCompositionFixture.dll"
+        )
+        add_custom_command(
+            OUTPUT "${SAGA_ARENA_RUSH_LOWLEVEL_FIXTURE_ASSEMBLY}"
+            COMMAND ${CMAKE_COMMAND} -E make_directory
+                "${SAGA_ARENA_RUSH_LOWLEVEL_FIXTURE_OUTPUT}"
+            COMMAND ${CMAKE_COMMAND} -E env
+                DOTNET_CLI_HOME=/tmp/sagascript-dotnet-home
+                NUGET_PACKAGES=/tmp/sagascript-nuget
+                DOTNET_CLI_TELEMETRY_OPTOUT=1
+                "${SAGA_DOTNET_EXECUTABLE}" build
+                "${SAGA_ARENA_RUSH_LOWLEVEL_FIXTURE_PROJECT}"
+                --configuration Release
+                --output "${SAGA_ARENA_RUSH_LOWLEVEL_FIXTURE_OUTPUT}"
+                --nologo
+                --verbosity minimal
+            DEPENDS
+                SagaScriptRuntimeBridge
+                "${SAGA_ARENA_RUSH_LOWLEVEL_FIXTURE_PROJECT}"
+                "${SAGA_ROOT}/Tests/Fixtures/ArenaRushComposition/Program.cs"
+                "${SAGA_ROOT}/Samples/ArenaRush/Scripts/ArenaRushGameMode.cs"
+                "${SAGA_ROOT}/Samples/ArenaRush/Conversions/ArenaRushCollectibleStore.lowlevel.cs.txt"
+            COMMENT "Building converted Arena Rush composition fixture"
+            VERBATIM
+        )
+        add_custom_target(SagaArenaRushLowLevelCompositionManagedTests
+            DEPENDS "${SAGA_ARENA_RUSH_LOWLEVEL_FIXTURE_ASSEMBLY}"
+        )
+        add_test(
+            NAME ArenaRushLowLevelCompositionManagedTests
+            COMMAND "${SAGA_DOTNET_EXECUTABLE}"
+                "${SAGA_ARENA_RUSH_LOWLEVEL_FIXTURE_ASSEMBLY}"
+        )
+        set_tests_properties(ArenaRushLowLevelCompositionManagedTests PROPERTIES
+            LABELS "managed;unit;gameplay-contract;sample;conversion"
+        )
+
+        set(SAGA_COLLECTIBLE_BENCHMARK_PROJECT
+            "${SAGA_ROOT}/Tests/Fixtures/CollectibleBenchmark/CollectibleBenchmarkFixture.csproj"
+        )
+        set(SAGA_COLLECTIBLE_BENCHMARK_OUTPUT
+            "${CMAKE_BINARY_DIR}/Managed/CollectibleBenchmarkFixture"
+        )
+        set(SAGA_COLLECTIBLE_BENCHMARK_ASSEMBLY
+            "${SAGA_COLLECTIBLE_BENCHMARK_OUTPUT}/CollectibleBenchmarkFixture.dll"
+        )
+        add_custom_command(
+            OUTPUT "${SAGA_COLLECTIBLE_BENCHMARK_ASSEMBLY}"
+            COMMAND ${CMAKE_COMMAND} -E make_directory
+                "${SAGA_COLLECTIBLE_BENCHMARK_OUTPUT}"
+            COMMAND ${CMAKE_COMMAND} -E env
+                DOTNET_CLI_HOME=/tmp/sagascript-dotnet-home
+                NUGET_PACKAGES=/tmp/sagascript-nuget
+                DOTNET_CLI_TELEMETRY_OPTOUT=1
+                "${SAGA_DOTNET_EXECUTABLE}" build
+                "${SAGA_COLLECTIBLE_BENCHMARK_PROJECT}"
+                --configuration Release
+                --output "${SAGA_COLLECTIBLE_BENCHMARK_OUTPUT}"
+                --nologo
+                --verbosity minimal
+            DEPENDS
+                SagaScriptRuntimeBridge
+                "${SAGA_COLLECTIBLE_BENCHMARK_PROJECT}"
+                "${SAGA_ROOT}/Tests/Fixtures/CollectibleBenchmark/Program.cs"
+            COMMENT "Building collectible benchmark fixture"
+            VERBATIM
+        )
+        add_custom_target(SagaCollectibleBenchmarkManagedTests
+            DEPENDS "${SAGA_COLLECTIBLE_BENCHMARK_ASSEMBLY}"
+        )
+        add_test(
+            NAME CollectibleBenchmarkManagedTests
+            COMMAND "${SAGA_DOTNET_EXECUTABLE}"
+                "${SAGA_COLLECTIBLE_BENCHMARK_ASSEMBLY}"
+                "${SAGA_ROOT}/Tests/Fixtures/CollectibleBenchmark/verified-run-input.v1.json"
+                "${CMAKE_BINARY_DIR}/Testing/CollectibleBenchmark/results.json"
+        )
+        set_tests_properties(CollectibleBenchmarkManagedTests PROPERTIES
+            LABELS "managed;unit;benchmark;gameplay-contract;sample"
         )
     endif()
