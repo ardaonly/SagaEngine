@@ -79,6 +79,8 @@ public:
         const ControlledBlockEditPlan& plan);
     [[nodiscard]] ControlledProjectionResult AnalyzeProjection(
         const CSharpSourceDocument& document);
+    [[nodiscard]] ControlledProjectionResult AnalyzeProjection(
+        DocumentSnapshot source, std::string sourceText);
     void Cancel();
     [[nodiscard]] ControlledBlockEditState State() const noexcept { return state_; }
     [[nodiscard]] const std::string& Diagnostic() const noexcept { return diagnostic_; }

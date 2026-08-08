@@ -33,16 +33,38 @@ void LoadPackageSnapshot(const std::filesystem::path& root,
     const auto current = nlohmann::json::parse(currentInput, nullptr, false);
     if (current.is_discarded()) return;
     const auto generationId = current.value("generationId", std::string{});
-    if (generationId.empty() || generationId.find_first_not_of("0123456789abcdef") !=
-        std::string::npos) return;
+    const auto generationHash = current.value("generationHash", std::string{});
+    if (generationId.size() != 64 ||
+        generationId.find_first_not_of("0123456789abcdef") != std::string::npos ||
+        generationHash != "sha256:" + generationId ||
+        current.value("projectId", std::string{}) != snapshot.projectId) return;
     const auto generation = std::filesystem::weakly_canonical(
         packages / "generations" / generationId);
     if (!IsContained(root, generation)) return;
+    const auto generationManifestPath = generation / "generation.json";
     const auto referencesPath = generation / "csharp_references_v1.json";
     const auto ownershipPath = generation / "api_ownership_v1.json";
-    snapshot.packageGeneration = current.value("generationHash", generationId);
+    const auto generationManifestHash = ReadHash(generationManifestPath);
+    if (generationManifestHash.empty() || generationManifestHash !=
+        current.value("generationManifestHash", std::string{})) return;
+    snapshot.packageGenerationId = generationId;
+    snapshot.packageGeneration = generationHash;
+    snapshot.packageGraphHash = current.value("graphHash", std::string{});
+    snapshot.generationManifest = LanguageServiceVerifiedInput{
+        std::filesystem::weakly_canonical(generationManifestPath),
+        generationManifestHash};
     snapshot.referenceManifestHash = ReadHash(referencesPath);
     snapshot.ownershipManifestHash = ReadHash(ownershipPath);
+    if (!snapshot.referenceManifestHash.empty() &&
+        std::filesystem::is_regular_file(referencesPath))
+        snapshot.referenceManifest = LanguageServiceVerifiedInput{
+            std::filesystem::weakly_canonical(referencesPath),
+            snapshot.referenceManifestHash};
+    if (!snapshot.ownershipManifestHash.empty() &&
+        std::filesystem::is_regular_file(ownershipPath))
+        snapshot.ownershipManifest = LanguageServiceVerifiedInput{
+            std::filesystem::weakly_canonical(ownershipPath),
+            snapshot.ownershipManifestHash};
     std::ifstream referencesInput(referencesPath);
     if (!referencesInput || snapshot.referenceManifestHash.empty()) return;
     const auto manifest = nlohmann::json::parse(referencesInput, nullptr, false);
@@ -59,7 +81,10 @@ void LoadPackageSnapshot(const std::filesystem::path& root,
         const auto hash = ReadHash(path);
         if (hash.empty() || hash != value.value("resolvedAssemblyHash", std::string{}))
             continue;
-        snapshot.metadataReferences.push_back({path, hash});
+        if (value.value("kind", std::string{}) == "analyzer")
+            snapshot.analyzers.push_back({path, hash});
+        else
+            snapshot.metadataReferences.push_back({path, hash});
         if (value.value("artifactId", std::string{}) ==
             "com.saga.gameplay.foundation.managed-reference")
             snapshot.runtimeBridgeIdentity = hash;
@@ -103,11 +128,12 @@ void SagaScriptLanguageServiceSession::Refresh()
     nextSnapshot.projectId = project.projectId;
     nextSnapshot.manifestHash = manifestHash;
     nextSnapshot.lockHash = lockHash;
-    nextSnapshot.packageGeneration = lockHash;
     LoadPackageSnapshot(root, nextSnapshot);
     nextSnapshot.projectSnapshotIdentity = HashDocumentBytes(project.projectId + "\n" +
         manifestHash + "\n" + lockHash + "\n" + nextSnapshot.packageGeneration + "\n" +
-        nextSnapshot.referenceManifestHash + "\n" + nextSnapshot.ownershipManifestHash);
+        nextSnapshot.packageGraphHash + "\n" + nextSnapshot.referenceManifestHash + "\n" +
+        nextSnapshot.ownershipManifestHash + "\n" + nextSnapshot.compilerVersion + "\n" +
+        nextSnapshot.languageVersion);
     const auto& identity = nextSnapshot.projectSnapshotIdentity;
     if (client_.State() != LanguageServiceState::Ready ||
         snapshot_.projectSessionId != project.projectId)
@@ -128,9 +154,9 @@ void SagaScriptLanguageServiceSession::Refresh()
     }
     else if (snapshot_.projectSnapshotIdentity != identity)
     {
-        snapshot_ = std::move(nextSnapshot);
-        if (!client_.Reconfigure(snapshot_))
+        if (!client_.Reconfigure(nextSnapshot))
         { refreshing_ = false; return; }
+        snapshot_ = std::move(nextSnapshot);
         synchronizedVersions_.clear();
     }
     for (const auto& script : workspace_.Scripts())
@@ -166,11 +192,21 @@ LanguageServiceState SagaScriptLanguageServiceSession::State() const noexcept
 { return client_.State(); }
 std::string SagaScriptLanguageServiceSession::LastDiagnostic() const
 { return client_.LastDiagnostic(); }
+std::uint64_t SagaScriptLanguageServiceSession::ProcessId() const noexcept
+{ return client_.ProcessId(); }
 const LanguageServiceProjectSnapshot& SagaScriptLanguageServiceSession::Snapshot() const noexcept
 { return snapshot_; }
 
 std::future<LanguageServiceResponse> SagaScriptLanguageServiceSession::Request(
     std::string method, const CSharpSourceDocument& document,
+    std::optional<LanguageServicePosition> position, std::string payloadJson)
+{
+    return client_.Request(std::move(method), Identity(document), position,
+        std::move(payloadJson));
+}
+
+std::future<LanguageServiceResponse> SagaScriptLanguageServiceSession::Request(
+    std::string method, const DocumentSnapshot& document,
     std::optional<LanguageServicePosition> position, std::string payloadJson)
 {
     return client_.Request(std::move(method), Identity(document), position,
@@ -231,9 +267,14 @@ void SagaScriptLanguageServiceSession::Publish(LanguageServiceResponse publicati
 LanguageServiceDocumentIdentity SagaScriptLanguageServiceSession::Identity(
     const CSharpSourceDocument& document) const
 {
-    return {document.Snapshot().documentId,
-        document.Snapshot().canonicalSourcePath,
-        document.Snapshot().inMemoryRevision};
+    return Identity(document.Snapshot());
+}
+
+LanguageServiceDocumentIdentity SagaScriptLanguageServiceSession::Identity(
+    const DocumentSnapshot& document) const
+{
+    return {document.documentId, document.canonicalSourcePath,
+        document.inMemoryRevision};
 }
 
 } // namespace SagaEditor

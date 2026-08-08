@@ -147,8 +147,13 @@ bool ControlledBlockEditController::Apply(CSharpSourceDocument& document,
 ControlledProjectionResult ControlledBlockEditController::AnalyzeProjection(
     const CSharpSourceDocument& document)
 {
+    return AnalyzeProjection(document.Snapshot(), document.Text());
+}
+
+ControlledProjectionResult ControlledBlockEditController::AnalyzeProjection(
+    DocumentSnapshot source, std::string sourceText)
+{
     ControlledProjectionResult result;
-    const auto source = document.Snapshot();
     result.documentId = source.documentId;
     result.documentVersion = source.inMemoryRevision;
     if (languageService_.State() != LanguageServiceState::Ready)
@@ -156,8 +161,10 @@ ControlledProjectionResult ControlledBlockEditController::AnalyzeProjection(
         result.diagnostic = "Language service is not ready.";
         return result;
     }
+    const Json payload{{"sourceText", sourceText},
+        {"sourceHash", HashDocumentBytes(sourceText)}};
     const auto response = languageService_.Request(
-        "controlled-projection", document).get();
+        "controlled-projection", source, std::nullopt, payload.dump()).get();
     if (!response.Succeeded())
     {
         result.diagnostic = response.errorCode + ": " + response.errorMessage;
@@ -175,22 +182,22 @@ ControlledProjectionResult ControlledBlockEditController::AnalyzeProjection(
             return result;
         }
         result.sourceHash = payload.value("sourceHash", std::string{});
-        if (result.sourceHash != HashDocumentBytes(document.Text()))
+        if (result.sourceHash != HashDocumentBytes(sourceText))
         {
             result.diagnostic = "Controlled projection source identity changed.";
             return result;
         }
         const auto project = languageService_.Snapshot();
         std::vector<VisualBlocks::EditableProjectionField> fields;
-        std::uint64_t firstByte = document.Text().size();
+        std::uint64_t firstByte = sourceText.size();
         std::uint64_t lastByte = 0;
         for (const auto& field : payload.value("editableFields", Json::array()))
         {
             const auto startByte = field.value<std::uint64_t>("startByte", 0);
             const auto endByte = field.value<std::uint64_t>("endByte", 0);
             const auto checksum = field.value("checksum", std::string{});
-            if (endByte <= startByte || endByte > document.Text().size() ||
-                HashDocumentBytes(document.Text().substr(
+            if (endByte <= startByte || endByte > sourceText.size() ||
+                HashDocumentBytes(sourceText.substr(
                     static_cast<std::size_t>(startByte),
                     static_cast<std::size_t>(endByte - startByte))) != checksum)
             {
@@ -225,7 +232,7 @@ ControlledProjectionResult ControlledBlockEditController::AnalyzeProjection(
         {
             VisualBlocks::ProjectionSourceSpan span{
                 source.canonicalSourcePath.filename().generic_string(), result.sourceHash,
-                0, static_cast<std::uint64_t>(document.Text().size())};
+                0, static_cast<std::uint64_t>(sourceText.size())};
             opaque.emplace_back("opaque://ArenaRush/CustomSource", "OpaqueCSharp",
                 payload.value("opaqueReason", "Unsupported source shape"),
                 project.packageGeneration, std::move(span));

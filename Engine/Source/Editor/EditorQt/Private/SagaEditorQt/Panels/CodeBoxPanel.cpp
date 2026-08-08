@@ -210,6 +210,7 @@ struct CodeBoxPanel::Impl
     CSharpSourceDocument::ChangeSubscription documentSubscription =
         CSharpSourceDocument::InvalidChangeSubscription;
     bool synchronizing = false;
+    bool projectionRefreshPending = false;
     ScriptSourceMutationPort defaultMutationPort;
     IScriptSourceMutationPort* mutationPort = &defaultMutationPort;
 
@@ -323,7 +324,9 @@ struct CodeBoxPanel::Impl
             case LanguageServiceState::Starting: state->setText(QStringLiteral("Language service starting")); break;
             case LanguageServiceState::Recovering: state->setText(QStringLiteral("Language service recovering")); break;
             case LanguageServiceState::Unavailable: state->setText(QStringLiteral("Language service unavailable")); break;
-            default: break;
+            default:
+                if (projectionRefreshPending) StartControlledProjection();
+                break;
             }
         });
         serviceStateTimer->start();
@@ -375,7 +378,8 @@ struct CodeBoxPanel::Impl
             if (document && document->Snapshot().dirty &&
                 (result.documentId != document->Snapshot().documentId ||
                     result.documentVersion != document->Snapshot().inMemoryRevision))
-                projectionTimer->start();
+                projectionRefreshPending = true;
+            if (projectionRefreshPending) projectionTimer->start();
         });
         QObject::connect(analysisWatcher, &QFutureWatcher<ScriptAnalysisResult>::finished,
             widget, [this]
@@ -463,16 +467,24 @@ struct CodeBoxPanel::Impl
                 state->setText(QStringLiteral("Stale recovery requires discard"));
             else if (recovery == DocumentRecoveryStatus::Invalid)
                 state->setText(QStringLiteral("Invalid recovery requires discard"));
+            const auto revision = document->Snapshot().inMemoryRevision;
+            const auto sourceHash = HashDocumentBytes(document->Text());
             if (document->Snapshot().dirty)
             {
-                const auto revision = document->Snapshot().inMemoryRevision;
-                const auto sourceHash = HashDocumentBytes(document->Text());
                 ScriptProjectionSnapshot snapshot;
                 snapshot.state = ScriptProjectionState::DirtyNeedsSave;
                 blocks->PresentSnapshot(snapshot);
-                if (languageSession) languageSession->Refresh();
-                if (projectionSession) projectionSession->Dirty(revision, sourceHash);
-                if (controlledController) projectionTimer->start();
+            }
+            if (languageSession) languageSession->Refresh();
+            if (projectionSession) projectionSession->Dirty(revision, sourceHash);
+            if (controlledController)
+            {
+                projectionRefreshPending = true;
+                if (!projectionWatcher->isRunning() && languageSession &&
+                    languageSession->State() == LanguageServiceState::Ready)
+                    StartControlledProjection();
+                else
+                    projectionTimer->start();
             }
             highlighter->ClearSemantic();
             const auto cursor = editor->textCursor();
@@ -509,10 +521,15 @@ struct CodeBoxPanel::Impl
             projectionWatcher->isRunning() ||
             languageSession->State() != LanguageServiceState::Ready)
             return;
+        projectionRefreshPending = false;
         auto* controller = controlledController.get();
-        auto* source = document;
-        projectionWatcher->setFuture(QtConcurrent::run([controller, source]
-        { return controller->AnalyzeProjection(*source); }));
+        auto source = document->Snapshot();
+        auto sourceText = document->Text();
+        projectionWatcher->setFuture(QtConcurrent::run(
+            [controller, source = std::move(source),
+             sourceText = std::move(sourceText)]() mutable
+            { return controller->AnalyzeProjection(
+                std::move(source), std::move(sourceText)); }));
     }
 
     void StartLanguageRequest(std::string method, bool needsPosition)
@@ -653,11 +670,18 @@ struct CodeBoxPanel::Impl
         if (!projectionSession) return;
         QPointer<ReadOnlyBlocksWidget> target = blocks;
         projectionSubscription = projectionSession->Subscribe(
-            [target](const ScriptProjectionSnapshot& snapshot)
+            [this, target](const ScriptProjectionSnapshot& snapshot)
             {
                 if (!target) return;
-                QMetaObject::invokeMethod(target, [target, snapshot]
-                { if (target) target->PresentSnapshot(snapshot); },
+                QMetaObject::invokeMethod(target, [this, target, snapshot]
+                {
+                    if (!target) return;
+                    if (document && snapshot.identity.documentRevision != 0 &&
+                        snapshot.identity.documentRevision !=
+                            document->Snapshot().inMemoryRevision)
+                        return;
+                    target->PresentSnapshot(snapshot);
+                },
                     Qt::QueuedConnection);
             });
     }
