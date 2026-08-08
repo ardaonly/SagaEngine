@@ -25,6 +25,7 @@ saga_add_editor_module(EditorAuthoring
         Private/SagaEditor/Packages/PackageAuthoring.cpp
         Private/SagaEditor/Packages/PackageWorkflowController.cpp
         Private/SagaEditor/Packages/PackageWorkflowToolAdapter.cpp
+        Private/SagaEditor/Performance/CollectibleConversionController.cpp
         Private/SagaEditor/SceneEditing/SceneEditor.cpp
         Private/SagaEditor/SceneEditing/SceneDocument.cpp
         Private/SagaEditor/SceneEditing/SceneDocumentTransaction.cpp
@@ -67,6 +68,7 @@ saga_add_editor_module(EditorAuthoring
         Public/SagaEditor/Packages/PackageAuthoring.h
         Public/SagaEditor/Packages/PackageWorkflowController.h
         Public/SagaEditor/Packages/PackageWorkflowToolAdapter.h
+        Public/SagaEditor/Performance/CollectibleConversionController.h
         Public/SagaEditor/PrefabEditing/PrefabOverrideResolver.h
         Public/SagaEditor/SceneEditing/SceneEditor.h
         Public/SagaEditor/SceneEditing/SceneDocument.h
@@ -100,6 +102,7 @@ saga_register_module_tests(EditorAuthoring
         Tests/PlayPreparationPipelineTests.cpp
         Tests/PackageAuthoringTests.cpp
         Tests/PackageWorkflowControllerTests.cpp
+        Tests/CollectibleConversionControllerTests.cpp
         Tests/RuntimeProcessControllerTests.cpp
         Tests/SceneDocumentTests.cpp
         Tests/EditorDocumentWorkspaceTests.cpp

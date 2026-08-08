@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../ArenaRushComposition/Program.cs" Link="Program.cs" />
+    <Compile Include="../../../Samples/ArenaRush/Scripts/ArenaRushGameMode.cs"
+             Link="ArenaRushGameMode.cs" />
+    <Compile Include="../../../Samples/ArenaRush/Conversions/ArenaRushCollectibleStore.lowlevel.cs.txt"
+             Link="ArenaRushCollectibleStore.cs" />
+    <ProjectReference Include="../../../Engine/Managed/SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.csproj" />
+  </ItemGroup>
+</Project>

@@ -79,6 +79,7 @@ saga_add_editor_module(EditorFramework
         Public/SagaEditor/Panels/InspectorPanel.h
         Public/SagaEditor/Panels/ProblemsPanel.h
         Public/SagaEditor/Panels/PackagesPanel.h
+        Public/SagaEditor/Panels/PerformanceTransitionPanel.h
         Public/SagaEditor/Panels/ProductionDashboardPanel.h
         Public/SagaEditor/Panels/ShortcutPreferencesPanel.h
         Public/SagaEditor/Panels/CodeBoxPanel.h

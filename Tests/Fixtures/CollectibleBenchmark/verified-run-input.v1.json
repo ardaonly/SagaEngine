@@ -1,0 +1,20 @@
+{
+  "evidencePath": "Build/Reports/Benchmarks/arena-rush-collectibles.json",
+  "fixedStepSeconds": 0.016666666666666666,
+  "measuredIterations": 2000,
+  "profileHash": "sha256:81e6598a0fe4fe761d819119a8dfe9536c9efcc3c192eeda6d215f4b17f66589",
+  "profileId": "arena-rush-collectibles",
+  "requestedCounters": [
+    "allocations",
+    "lifecycle-transitions",
+    "memory",
+    "update-time"
+  ],
+  "runtimeMode": "ManagedRuntime",
+  "scenarioId": "arena-rush.collectibles",
+  "schemaVersion": 1,
+  "seed": 4271,
+  "trials": 9,
+  "warmup": 3,
+  "workload": 256
+}

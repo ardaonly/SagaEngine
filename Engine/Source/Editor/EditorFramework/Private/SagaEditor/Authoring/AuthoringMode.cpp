@@ -117,10 +117,11 @@ bool EditorWorkModeService::Init(IEditorSettingsStore& settings,
         {"full-control", "Full Control",
             {"saga.panel.hierarchy", "saga.panel.viewport",
             "saga.panel.inspector", "saga.panel.code_box", "saga.panel.assetbrowser",
-            "saga.panel.problems", "saga.panel.packages"},
+            "saga.panel.problems", "saga.panel.packages",
+            "saga.panel.performance_transition"},
             {"saga.command.world.play", "saga.command.file.save",
              "saga.command.view.code_box", "saga.command.view.problems",
-             "saga.command.view.packages"},
+             "saga.command.view.packages", "saga.command.view.performance_transition"},
             "compact", "verbose", "advanced"},
     };
     settings_ = &settings;

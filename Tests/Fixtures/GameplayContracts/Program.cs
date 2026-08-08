@@ -68,4 +68,40 @@ Require(active == CollectiblesHighLevel.CompleteRespawn(
                     CollectiblesHighLevel.Collect(collectible))), 1.5), 7),
     "instrumentation does not alter gameplay output");
 
+var batch = new CollectiblesLowLevelBatch(5, 0.5, 5);
+Require(batch.ActiveCount == 5, "low-level batch starts with every slot active");
+Require(batch.Collect(0), "low-level batch collects an active slot once");
+Require(!batch.Collect(0), "low-level batch has single lifecycle ownership");
+Require(batch.Advance(0.25, 0) == 0, "low-level batch waits for the respawn delay");
+Require(batch.Advance(0.25, 7) == 1, "low-level batch completes one respawn");
+Require(batch.GetPhase(0) == CollectiblePhase.Active && batch.GetSpawnIndex(0) == 2,
+    "low-level respawn preserves deterministic spawn selection");
+batch.Reset();
+Require(batch.ActiveCount == 5, "low-level reset restores all reusable slots");
+
+for (var iteration = 0; iteration < 100; ++iteration)
+{
+    batch.Collect(iteration % batch.Capacity);
+    batch.Advance(0.5, iteration);
+}
+var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+for (var iteration = 0; iteration < 1000; ++iteration)
+{
+    batch.Collect(iteration % batch.Capacity);
+    batch.Advance(0.5, iteration);
+}
+Require(GC.GetAllocatedBytesForCurrentThread() == allocatedBefore,
+    "low-level lifecycle update allocates no per-update objects");
+
+var measurements = new CollectibleMeasurementRecorder(2);
+measurements.RecordUpdate(100);
+measurements.RecordUpdate(200);
+measurements.RecordLifecycleTransitions(3);
+var measurement = measurements.Snapshot();
+Require(measurement.UpdateSamples == 2 && measurement.TotalUpdateNanoseconds == 300,
+    "measurement recorder retains raw steady-clock totals");
+Require(measurement.AllocationCounter == MeasurementCounterAvailability.Unavailable &&
+        measurement.MemoryCounter == MeasurementCounterAvailability.Unavailable,
+    "unsupported counters are reported unavailable rather than estimated");
+
 Console.WriteLine("Gameplay contract managed tests passed");

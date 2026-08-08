@@ -34,6 +34,7 @@
 #include "SagaEditor/Panels/AssetBrowserPanel.h"
 #include "SagaEditor/Panels/ProblemsPanel.h"
 #include "SagaEditor/Panels/PackagesPanel.h"
+#include "SagaEditor/Panels/PerformanceTransitionPanel.h"
 #include "SagaEditor/Panels/CodeBoxPanel.h"
 #include "SagaEditor/Scripting/SagaScriptLanguageServiceSession.h"
 #include "SagaEditor/Panels/WorldViewportPanel.h"
@@ -361,6 +362,8 @@ void EditorShell::RegisterPanel(std::unique_ptr<IPanel> panel, UIDockArea area)
         if (id == "saga.panel.code_box") return "saga.command.view.code_box";
         if (id == "saga.panel.problems") return "saga.command.view.problems";
         if (id == "saga.panel.packages") return "saga.command.view.packages";
+        if (id == "saga.panel.performance_transition")
+            return "saga.command.view.performance_transition";
         if (id == "saga.panel.customize_workspace")
             return "saga.command.view.customize_workspace";
         return {};
@@ -502,6 +505,9 @@ void EditorShell::RegisterDefaultPanels()
     packages->SetController(&m_host->GetPackageWorkflowController());
     packages->SetCommandDispatcher(&m_host->GetCommandDispatcher());
     RegisterPanel(std::move(packages), UIDockArea::Bottom);
+    auto performance = std::make_unique<PerformanceTransitionPanel>();
+    performance->SetWorkspace(&m_host->GetDocumentWorkspace());
+    RegisterPanel(std::move(performance), UIDockArea::Bottom);
 }
 
 void EditorShell::WireNotificationSink()
@@ -916,6 +922,7 @@ void EditorShell::BuildDefaultLayout()
         { "Code Box",        "saga.command.view.code_box",      "",             false },
         { "Problems",        "saga.command.view.problems",      "",             false },
         { "Packages",        "saga.command.view.packages",      "",             false },
+        { "Gameplay Performance", "saga.command.view.performance_transition", "", false },
     };
     MenuDescriptor authoring;
     authoring.title = "Authoring";

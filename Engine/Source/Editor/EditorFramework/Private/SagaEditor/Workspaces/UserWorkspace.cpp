@@ -122,7 +122,8 @@ const std::vector<std::string>& ProductPanelIds()
     static const std::vector<std::string> ids = {
         "saga.panel.hierarchy", "saga.panel.viewport", "saga.panel.inspector",
         "saga.panel.assetbrowser", "saga.panel.code_box", "saga.panel.problems",
-        "saga.panel.packages", "saga.panel.customize_workspace"};
+        "saga.panel.packages", "saga.panel.performance_transition",
+        "saga.panel.customize_workspace"};
     return ids;
 }
 } // namespace

@@ -1,0 +1,32 @@
+{
+  "profiles": [
+    {
+      "id": "arena-rush-diagnostics",
+      "kind": "Diagnostics",
+      "requestedCounters": [
+        "lifecycle-transitions",
+        "update-time"
+      ]
+    },
+    {
+      "evidencePath": "Build/Reports/Benchmarks/arena-rush-collectibles.json",
+      "fixedStepSeconds": 0.016666666666666666,
+      "id": "arena-rush-collectibles",
+      "kind": "Benchmark",
+      "measuredIterations": 2000,
+      "requestedCounters": [
+        "allocations",
+        "lifecycle-transitions",
+        "memory",
+        "update-time"
+      ],
+      "runtimeMode": "ManagedRuntime",
+      "scenarioId": "arena-rush.collectibles",
+      "seed": 4271,
+      "trials": 9,
+      "warmup": 3,
+      "workload": 256
+    }
+  ],
+  "schemaVersion": 1
+}
