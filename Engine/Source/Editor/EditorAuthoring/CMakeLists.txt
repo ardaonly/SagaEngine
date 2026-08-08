@@ -19,6 +19,7 @@ saga_add_editor_module(EditorAuthoring
         Private/SagaEditor/Authoring/ViewNavigationWorkflowState.cpp
         Private/SagaEditor/InspectorEditing/ComponentEditorRegistry.cpp
         Private/SagaEditor/InspectorEditing/InspectorBinder.cpp
+        Private/SagaEditor/Standalone/StandaloneBuildCoordinator.cpp
         Private/SagaEditor/Play/PlayPreparationPipeline.cpp
         Private/SagaEditor/Play/PlaySourceSnapshot.cpp
         Private/SagaEditor/Play/RuntimeProcessController.cpp
@@ -62,6 +63,7 @@ saga_add_editor_module(EditorAuthoring
         Public/SagaEditor/Importers/TextScriptImporter.h
         Public/SagaEditor/InspectorEditing/ComponentEditorRegistry.h
         Public/SagaEditor/InspectorEditing/InspectorBinder.h
+        Public/SagaEditor/Standalone/StandaloneBuildCoordinator.h
         Public/SagaEditor/Play/PlayPreparationPipeline.h
         Public/SagaEditor/Play/PlaySourceSnapshot.h
         Public/SagaEditor/Play/RuntimeProcessController.h
@@ -99,6 +101,7 @@ saga_register_module_tests(EditorAuthoring
     SOURCES
         Tests/EditorAuthoringSpineTests.cpp
         Tests/InspectorEditingTests.cpp
+        Tests/StandaloneBuildCoordinatorTests.cpp
         Tests/PlayPreparationPipelineTests.cpp
         Tests/PackageAuthoringTests.cpp
         Tests/PackageWorkflowControllerTests.cpp

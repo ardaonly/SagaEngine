@@ -19,6 +19,16 @@ Tool ownership is intentionally split. SagaTools dispatches registered tools wit
 
 ## Build ownership
 
+### Snapshot-only project builds
+
+The Qt-free `StandaloneBuildCoordinator` is the shared project-build boundary for the Editor and the `SagaStandaloneBuild` command-line entry. Capture requires saved source, validates the current package generation, inventories and hashes project inputs, binds the selected validated BuildProfiles entry and private tool/runtime identities, and checks the workspace and package identities again before accepting the snapshot.
+
+Compilation consumes one materialized snapshot through the existing SagaProjectKit, SagaScript, SagaPackager, and Play preparation owners. A unique owned staging directory, explicit publish journal, candidate directory, and recoverable previous-output rename protect the last valid output. Root, repository, project-source, collision, and symlink output paths are rejected before mutation. Cancellation or verification failure does not publish a candidate.
+
+`StandaloneManifest.saga.json` separates publication-time metadata from the stable content identity. Reproducibility is classified only after comparing two outputs from the same snapshot. A content-addressed semantic match is not reported as byte reproducibility when local envelopes, publication paths, or other artifacts differ.
+
+This capability builds a verified local standalone project artifact. It does not claim platform signing, installers, cross-machine reproducibility, console targets, or public distribution readiness.
+
 The live Linux preset is `linux-gcc`. Source lists and link visibility belong to the owning module `CMakeLists.txt`; top-level files should compose modules rather than absorb implementation ownership.
 
 ```sh

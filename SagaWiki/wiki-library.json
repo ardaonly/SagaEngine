@@ -212,6 +212,13 @@
         ]
       },
       {
+        "path": "Engine/Source/Programs/SagaStandaloneBuild",
+        "pages": [
+          "build-package-publish",
+          "reference-build-distribution"
+        ]
+      },
+      {
         "path": "Engine/Source/Programs/SagaSandbox",
         "pages": [
           "programs-workflows"

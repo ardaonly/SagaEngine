@@ -5,6 +5,7 @@
 #include "SagaEditor/Panels/IPanel.h"
 
 #include <memory>
+#include <filesystem>
 
 namespace SagaEditor
 {
@@ -20,10 +21,13 @@ public:
     [[nodiscard]] QWidget* Widget() const noexcept override;
     void OnInit() override;
     void SetWorkspace(EditorDocumentWorkspace* workspace) noexcept;
+    void SetRuntimeExecutable(std::filesystem::path runtimeExecutable);
     void RefreshProfiles();
     void CreateVerifiedRunInput();
     void LoadResults();
     void ReviewConversionState();
+    void BuildStandalone();
+    void CancelStandaloneBuild();
 
 private:
     struct Impl;

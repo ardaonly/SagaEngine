@@ -134,6 +134,7 @@ private:
     std::string m_activeAuthoringModeId;
     bool m_canReturnHome = false;
     std::function<void()> m_workspaceChanged;
+    std::filesystem::path m_runtimeExecutable;
 };
 
 } // namespace SagaEditor

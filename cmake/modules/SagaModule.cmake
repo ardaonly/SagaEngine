@@ -420,6 +420,7 @@ function(saga_register_source_modules)
         Engine/Source/Programs/SagaRuntime/CMakeLists.txt
         Engine/Source/Programs/SagaSandbox/CMakeLists.txt
         Engine/Source/Programs/SagaEditorLab/CMakeLists.txt
+        Engine/Source/Programs/SagaStandaloneBuild/CMakeLists.txt
         Tools/SagaPackager/CMakeLists.txt
         Tools/SagaScript/CMakeLists.txt
     )
