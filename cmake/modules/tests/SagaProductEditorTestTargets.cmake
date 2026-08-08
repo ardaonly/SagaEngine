@@ -40,7 +40,12 @@
         )
         target_compile_definitions(SagaLauncherUiTests PRIVATE
             SAGA_SOURCE_ROOT="${SAGA_ROOT}"
+            SAGA_BUILD_ROOT="${CMAKE_BINARY_DIR}"
         )
+        add_dependencies(SagaLauncherUiTests SagaRuntime)
+        if(TARGET SagaManagedToolRuntimeStage)
+            add_dependencies(SagaLauncherUiTests SagaManagedToolRuntimeStage)
+        endif()
         add_test(NAME SagaLauncherUiTests COMMAND SagaLauncherUiTests)
         set_tests_properties(SagaLauncherUiTests PROPERTIES
             LABELS "product;ui"

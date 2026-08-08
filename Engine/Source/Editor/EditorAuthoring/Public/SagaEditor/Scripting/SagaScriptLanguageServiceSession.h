@@ -31,9 +31,14 @@ public:
     void Shutdown();
     [[nodiscard]] LanguageServiceState State() const noexcept;
     [[nodiscard]] std::string LastDiagnostic() const;
+    [[nodiscard]] std::uint64_t ProcessId() const noexcept;
     [[nodiscard]] const LanguageServiceProjectSnapshot& Snapshot() const noexcept;
     [[nodiscard]] std::future<LanguageServiceResponse> Request(
         std::string method, const CSharpSourceDocument& document,
+        std::optional<LanguageServicePosition> position = std::nullopt,
+        std::string payloadJson = "{}");
+    [[nodiscard]] std::future<LanguageServiceResponse> Request(
+        std::string method, const DocumentSnapshot& document,
         std::optional<LanguageServicePosition> position = std::nullopt,
         std::string payloadJson = "{}");
     [[nodiscard]] std::future<LanguageServiceResponse> Preflight(
@@ -45,6 +50,8 @@ private:
     void Publish(LanguageServiceResponse publication);
     [[nodiscard]] LanguageServiceDocumentIdentity Identity(
         const CSharpSourceDocument& document) const;
+    [[nodiscard]] LanguageServiceDocumentIdentity Identity(
+        const DocumentSnapshot& document) const;
 
     EditorDocumentWorkspace& workspace_;
     IEditorDiagnosticsService& diagnostics_;

@@ -60,6 +60,51 @@ TEST(SagaScriptLanguageServiceClientTests, ReusesRealProcessForDocumentFeatures)
     std::filesystem::remove_all(root);
 }
 
+TEST(SagaScriptLanguageServiceClientTests,
+     CommitsCandidateSnapshotAndRetainsActiveSnapshotOnFailure)
+{
+    const auto root = ProjectRoot();
+    const auto path = root / "Scripts/Reconfigure.cs";
+    const std::string source =
+        "namespace Sample; public sealed class Reconfigure { public int Unsaved = 7; }\n";
+
+    SagaEditor::LanguageServiceProjectSnapshot snapshotA;
+    snapshotA.projectSessionId = "client-reconfigure";
+    snapshotA.projectSnapshotIdentity = "sha256:snapshot-a";
+    snapshotA.canonicalRoot = root;
+    snapshotA.projectId = "client-reconfigure";
+
+    SagaEditor::SagaScriptLanguageServiceClient client;
+    ASSERT_TRUE(client.Start(snapshotA)) << client.LastDiagnostic();
+    const SagaEditor::LanguageServiceDocumentIdentity document{
+        "document-reconfigure", path, 7};
+    ASSERT_TRUE(client.OpenDocument(document, source).get().Succeeded());
+
+    auto snapshotB = snapshotA;
+    snapshotB.projectSnapshotIdentity = "sha256:snapshot-b";
+    ASSERT_TRUE(client.Reconfigure(snapshotB)) << client.LastDiagnostic();
+    auto symbols = client.Request("symbols", document).get();
+    ASSERT_TRUE(symbols.Succeeded()) << symbols.errorMessage;
+    ASSERT_FALSE(symbols.symbols.empty());
+    EXPECT_EQ(symbols.projectSnapshotIdentity, "sha256:snapshot-b");
+    EXPECT_EQ(symbols.symbols.front().name, "Reconfigure");
+
+    auto invalidC = snapshotB;
+    invalidC.projectSnapshotIdentity = "sha256:snapshot-c";
+    invalidC.metadataReferences.push_back({
+        root.parent_path() / "escaped-reference.dll",
+        "sha256:0000000000000000000000000000000000000000000000000000000000000000"});
+    EXPECT_FALSE(client.Reconfigure(invalidC));
+    symbols = client.Request("symbols", document).get();
+    ASSERT_TRUE(symbols.Succeeded()) << symbols.errorMessage;
+    EXPECT_EQ(symbols.projectSnapshotIdentity, "sha256:snapshot-b");
+    ASSERT_FALSE(symbols.symbols.empty());
+    EXPECT_EQ(symbols.symbols.front().name, "Reconfigure");
+
+    client.Stop();
+    std::filesystem::remove_all(root);
+}
+
 #ifndef _WIN32
 TEST(SagaScriptLanguageServiceClientTests, RestartsAndReplaysUnsavedDocumentAfterCrash)
 {
@@ -95,6 +140,50 @@ TEST(SagaScriptLanguageServiceClientTests, RestartsAndReplaysUnsavedDocumentAfte
     ASSERT_TRUE(symbols.Succeeded()) << symbols.errorMessage;
     ASSERT_FALSE(symbols.symbols.empty());
     EXPECT_EQ(symbols.symbols.front().name, "Recovery");
+    client.Stop();
+    std::filesystem::remove_all(root);
+}
+
+TEST(SagaScriptLanguageServiceClientTests,
+     RestartsWithCommittedCandidateSnapshotAndReplaysDocument)
+{
+    const auto root = ProjectRoot();
+    const auto path = root / "Scripts/RecoveryB.cs";
+    const std::string source =
+        "namespace Sample; public sealed class RecoveryB { public int UnsavedValue; }\n";
+
+    SagaEditor::LanguageServiceProjectSnapshot snapshotA;
+    snapshotA.projectSessionId = "client-recovery-b";
+    snapshotA.projectSnapshotIdentity = "sha256:recovery-a";
+    snapshotA.canonicalRoot = root;
+    snapshotA.projectId = "client-recovery-b";
+
+    SagaEditor::SagaScriptLanguageServiceClient client;
+    ASSERT_TRUE(client.Start(snapshotA)) << client.LastDiagnostic();
+    const SagaEditor::LanguageServiceDocumentIdentity document{
+        "document-recovery-b", path, 9};
+    ASSERT_TRUE(client.OpenDocument(document, source).get().Succeeded());
+    auto snapshotB = snapshotA;
+    snapshotB.projectSnapshotIdentity = "sha256:recovery-b";
+    ASSERT_TRUE(client.Reconfigure(snapshotB)) << client.LastDiagnostic();
+
+    const auto originalProcess = client.ProcessId();
+    ASSERT_NE(originalProcess, 0u);
+    ASSERT_EQ(::kill(static_cast<pid_t>(originalProcess), SIGKILL), 0);
+    const auto deadline = std::chrono::steady_clock::now() +
+        std::chrono::seconds(10);
+    while (std::chrono::steady_clock::now() < deadline &&
+           (client.State() != SagaEditor::LanguageServiceState::Ready ||
+            client.ProcessId() == originalProcess))
+        std::this_thread::sleep_for(std::chrono::milliseconds(25));
+    ASSERT_EQ(client.State(), SagaEditor::LanguageServiceState::Ready)
+        << client.LastDiagnostic();
+    const auto symbols = client.Request("symbols", document).get();
+    ASSERT_TRUE(symbols.Succeeded()) << symbols.errorMessage;
+    EXPECT_EQ(symbols.projectSnapshotIdentity, "sha256:recovery-b");
+    ASSERT_FALSE(symbols.symbols.empty());
+    EXPECT_EQ(symbols.symbols.front().name, "RecoveryB");
+
     client.Stop();
     std::filesystem::remove_all(root);
 }

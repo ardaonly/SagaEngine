@@ -15,10 +15,10 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.CodeAnalysis.QuickInfo;
+using Microsoft.CodeAnalysis.Recommendations;
 using Microsoft.CodeAnalysis.Text;
 
 namespace SagaScript;
-
 internal static class LanguageService
 {
     internal const int SchemaVersion = 1;
@@ -37,18 +37,19 @@ internal static class LanguageService
                 await server.FatalAsync("LanguageService.MessageTooLarge", "Protocol message exceeds the 4 MiB limit.");
                 return 2;
             }
-            await server.DispatchAsync(line);
+            await server.AcceptAsync(line);
         }
+        await server.DrainAsync();
         await server.DisposeAsync();
         return server.Fatal ? 2 : 0;
     }
-
     private sealed class Server : IAsyncDisposable
     {
         private readonly TextWriter output;
         private readonly TextWriter log;
         private readonly SemaphoreSlim outputLock = new(1, 1);
         private readonly Dictionary<string, ProjectState> projects = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, ProjectScheduler> schedulers = new(StringComparer.Ordinal);
         private readonly ConcurrentDictionary<long, CancellationTokenSource> requests = new();
         private long lastRequestId;
         private bool initialized;
@@ -60,8 +61,7 @@ internal static class LanguageService
             this.output = output;
             this.log = log;
         }
-
-        public async Task DispatchAsync(string line)
+        public async Task AcceptAsync(string line)
         {
             Envelope? envelope;
             try
@@ -88,15 +88,40 @@ internal static class LanguageService
                 await RespondAsync(envelope, new JsonObject { ["cancelledRequestId"] = id });
                 return;
             }
-
-            using var cancellation = new CancellationTokenSource();
+            var cancellation = new CancellationTokenSource();
             if (!requests.TryAdd(envelope.RequestId, cancellation))
             {
+                cancellation.Dispose();
                 await ErrorAsync(envelope, "LanguageService.DuplicateRequest", "Request IDs must be monotonically unique.");
                 return;
             }
+            if (envelope.Method is "initialize" or "heartbeat" or "project/open")
+            {
+                await ExecuteRequestAsync(envelope, cancellation);
+                return;
+            }
+            if (envelope.Method == "shutdown")
+            {
+                await DrainAsync();
+                await ExecuteRequestAsync(envelope, cancellation);
+                return;
+            }
+            if (!schedulers.TryGetValue(envelope.ProjectSessionId, out var scheduler))
+            {
+                await ExecuteRequestAsync(envelope, cancellation);
+                return;
+            }
+            if (envelope.Method == "project/reconfigure")
+                scheduler.EnqueueReconfiguration(envelope, cancellation);
+            else
+                scheduler.Enqueue(envelope, cancellation);
+        }
+        private async Task ExecuteRequestAsync(Envelope envelope,
+            CancellationTokenSource cancellation)
+        {
             try
             {
+                cancellation.Token.ThrowIfCancellationRequested();
                 await HandleAsync(envelope, cancellation.Token);
             }
             catch (OperationCanceledException)
@@ -115,9 +140,9 @@ internal static class LanguageService
             finally
             {
                 requests.TryRemove(envelope.RequestId, out _);
+                cancellation.Dispose();
             }
         }
-
         private async Task HandleAsync(Envelope request, CancellationToken cancellation)
         {
             if (request.Method == "initialize")
@@ -143,21 +168,27 @@ internal static class LanguageService
             if (request.Method == "project/open")
             {
                 Require(!projects.ContainsKey(request.ProjectSessionId), "LanguageService.InvalidState", "Project session is already open.");
-                projects.Add(request.ProjectSessionId, ProjectState.Create(request));
+                var openedProject = ProjectState.Create(request);
+                projects.Add(request.ProjectSessionId, openedProject);
+                schedulers.Add(request.ProjectSessionId,
+                    new ProjectScheduler(this, openedProject));
                 await RespondAsync(request, new JsonObject { ["opened"] = true });
                 return;
             }
             var project = GetProject(request);
             if (request.Method == "project/reconfigure")
             {
-                project.Reconfigure(request);
-                await RespondAsync(request, new JsonObject { ["reconfigured"] = true });
+                var acceptedIdentity = project.Reconfigure(request);
+                await RespondAsync(request, new JsonObject
+                {
+                    ["reconfigured"] = true,
+                    ["acceptedProjectSnapshotIdentity"] = acceptedIdentity
+                });
                 return;
             }
             if (request.Method == "project/close")
             {
-                projects.Remove(request.ProjectSessionId);
-                project.Dispose();
+                project.Close();
                 await RespondAsync(request, new JsonObject { ["closed"] = true });
                 return;
             }
@@ -165,7 +196,7 @@ internal static class LanguageService
             {
                 project.PutDocument(request);
                 await RespondAsync(request, new JsonObject { ["acceptedVersion"] = request.DocumentVersion });
-                await PublishAnalysisAsync(request, project, cancellation);
+                schedulers[request.ProjectSessionId].ScheduleAnalysis(request);
                 return;
             }
             if (request.Method == "document/close")
@@ -180,42 +211,67 @@ internal static class LanguageService
                 ? PositionToOffset(document, positionNode) : 0;
             JsonNode payload = request.Method switch
             {
-                "diagnostics" => await DiagnosticsAsync(document, cancellation),
+                "diagnostics" => await DiagnosticsAsync(document, project.Visibility, cancellation),
                 "classifications" => await ClassificationsAsync(document, cancellation),
-                "completion" => await CompletionAsync(document, position, cancellation),
-                "hover" => await HoverAsync(document, position, cancellation),
+                "completion" => await CompletionAsync(document, position, project.Visibility, cancellation),
+                "hover" => await HoverAsync(document, position, project.Visibility, cancellation),
                 "definition" => await DefinitionAsync(document, position, cancellation),
                 "references" => await ReferencesAsync(document, position, cancellation),
                 "symbols" => await SymbolsAsync(document, cancellation),
-                "preflight" => await PreflightAsync(document, request, cancellation),
-                "controlled-edit/plan" => await ControlledEditPlanAsync(document, request, cancellation),
+                "preflight" => await PreflightAsync(document, request, project.Visibility, cancellation),
+                "controlled-edit/plan" => await ControlledEditPlanAsync(document, request, project.Visibility, cancellation),
                 "controlled-projection" => await ControlledProjectionAsync(document, request, cancellation),
                 _ => throw new ProtocolException("LanguageService.UnknownMethod", $"Unknown method '{request.Method}'.")
             };
             project.EnsureCurrent(request);
             await RespondAsync(request, payload);
         }
-
         private ProjectState GetProject(Envelope request)
         {
             Require(projects.TryGetValue(request.ProjectSessionId, out var project), "LanguageService.ProjectClosed", "Project session is not open.");
             project!.EnsureSnapshot(request);
             return project;
         }
-
+        public async Task DrainAsync()
+        {
+            foreach (var scheduler in schedulers.Values)
+                await scheduler.CompleteAsync();
+        }
+        private async Task PublishScheduledAnalysisAsync(Envelope request,
+            ProjectState project, CancellationToken cancellation)
+        {
+            try
+            {
+                await PublishAnalysisAsync(request, project, cancellation);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (ProtocolException exception) when (exception.Code is
+                "LanguageService.StaleDocument" or
+                "LanguageService.StaleProject" or
+                "LanguageService.DocumentClosed" or
+                "LanguageService.ProjectClosed")
+            {
+            }
+            catch (Exception exception)
+            {
+                await log.WriteLineAsync($"language-service background: {exception}");
+            }
+        }
         private async Task PublishAnalysisAsync(Envelope request, ProjectState project, CancellationToken cancellation)
         {
             var document = project.GetDocument(request);
             var payload = new JsonObject
             {
-                ["diagnostics"] = await DiagnosticsAsync(document, cancellation),
+                ["diagnostics"] = await DiagnosticsAsync(document, project.Visibility, cancellation),
                 ["classifications"] = await ClassificationsAsync(document, cancellation)
             };
             project.EnsureCurrent(request);
             await NotifyAsync(request, "analysis/publish", payload);
         }
-
-        private static async Task<JsonNode> DiagnosticsAsync(Document document, CancellationToken cancellation)
+        private static async Task<JsonNode> DiagnosticsAsync(Document document,
+            PackageVisibilityCatalog visibility, CancellationToken cancellation)
         {
             var model = await document.GetSemanticModelAsync(cancellation);
             Require(model is not null, "LanguageService.SemanticUnavailable", "Semantic model is unavailable.");
@@ -232,8 +288,21 @@ internal static class LanguageService
                     ["range"] = Range(span)
                 });
             }
+            foreach (var usage in await visibility.FindDisabledUsagesAsync(
+                         document, cancellation))
+            {
+                array.Add(PackageDiagnostic(usage));
+            }
             return array;
         }
+        private static JsonObject PackageDiagnostic(
+            PackageVisibilityCatalog.DisabledUsage usage) => new()
+        {
+            ["id"] = "Script.PackageVisibility.DisabledModule",
+            ["severity"] = "Error",
+            ["message"] = $"Package-owned API '{usage.Owner.ApiId}' requires disabled module '{usage.Owner.PackageId}/{usage.Owner.Module}'.",
+            ["range"] = Range(usage.Location.GetLineSpan().Span)
+        };
 
         private static async Task<JsonNode> ClassificationsAsync(Document document, CancellationToken cancellation)
         {
@@ -245,19 +314,43 @@ internal static class LanguageService
             return array;
         }
 
-        private static async Task<JsonNode> CompletionAsync(Document document, int position, CancellationToken cancellation)
+        private static async Task<JsonNode> CompletionAsync(Document document,
+            int position, PackageVisibilityCatalog visibility,
+            CancellationToken cancellation)
         {
             var service = CompletionService.GetService(document);
             var list = service is null ? null : await service.GetCompletionsAsync(document, position, cancellationToken: cancellation);
+            var recommended = (await Recommender.GetRecommendedSymbolsAtPositionAsync(
+                document, position, cancellationToken: cancellation)).ToArray();
             var array = new JsonArray();
             if (list is not null)
                 foreach (var item in list.ItemsList.Take(200))
+                {
+                    var matching = recommended.Where(symbol =>
+                        symbol.Name == item.DisplayText ||
+                        symbol.Name == item.FilterText).ToArray();
+                    if (matching.Length > 0 && matching.All(visibility.IsDisabled))
+                        continue;
                     array.Add(new JsonObject { ["label"] = item.DisplayText, ["filterText"] = item.FilterText, ["sortText"] = item.SortText, ["tags"] = new JsonArray(item.Tags.Select(tag => (JsonNode?)tag).ToArray()) });
+                }
             return array;
         }
 
-        private static async Task<JsonNode> HoverAsync(Document document, int position, CancellationToken cancellation)
+        private static async Task<JsonNode> HoverAsync(Document document,
+            int position, PackageVisibilityCatalog visibility,
+            CancellationToken cancellation)
         {
+            var symbol = await SymbolFinder.FindSymbolAtPositionAsync(
+                document, position, cancellationToken: cancellation);
+            if (visibility.TryDisabledOwner(symbol, out var owner))
+            {
+                var diagnostics = new JsonArray();
+                var root = await document.GetSyntaxRootAsync(cancellation);
+                if (root is not null)
+                    diagnostics.Add(PackageDiagnostic(new(
+                        root.FindToken(position).GetLocation(), owner)));
+                return new JsonObject { ["text"] = "", ["diagnostics"] = diagnostics };
+            }
             var service = QuickInfoService.GetService(document);
             if (service is null) return new JsonObject();
             var info = await service.GetQuickInfoAsync(document, position, cancellation);
@@ -299,17 +392,20 @@ internal static class LanguageService
             return array;
         }
 
-        private static async Task<JsonNode> PreflightAsync(Document document, Envelope request, CancellationToken cancellation)
+        private static async Task<JsonNode> PreflightAsync(Document document,
+            Envelope request, PackageVisibilityCatalog visibility,
+            CancellationToken cancellation)
         {
             var candidate = request.Payload?["candidateText"]?.GetValue<string>() ?? throw new ProtocolException("LanguageService.InvalidPayload", "preflight requires candidateText.");
             var candidateDocument = document.WithText(SourceText.From(candidate, Encoding.UTF8));
-            var diagnostics = await DiagnosticsAsync(candidateDocument, cancellation);
+            var diagnostics = await DiagnosticsAsync(candidateDocument, visibility, cancellation);
             var blocked = diagnostics.AsArray().Any(node => node?["severity"]?.GetValue<string>() == "Error");
             return new JsonObject { ["accepted"] = !blocked, ["diagnostics"] = diagnostics, ["candidateLength"] = Encoding.UTF8.GetByteCount(candidate) };
         }
 
         private static async Task<JsonNode> ControlledEditPlanAsync(
-            Document document, Envelope request, CancellationToken cancellation)
+            Document document, Envelope request,
+            PackageVisibilityCatalog visibility, CancellationToken cancellation)
         {
             const string scoreField = "field://ArenaRush.ArenaRushGameMode/EnergyCoreScore/initializer";
             var fieldId = request.Payload?["fieldId"]?.GetValue<string>() ??
@@ -327,14 +423,18 @@ internal static class LanguageService
             var candidate = source.Remove(initializer.Span.Start, initializer.Span.Length)
                 .Insert(initializer.Span.Start, replacement);
             var candidateDocument = document.WithText(SourceText.From(candidate, Encoding.UTF8));
-            var baselineDiagnostics = await DiagnosticsAsync(document, cancellation);
-            var diagnostics = await DiagnosticsAsync(candidateDocument, cancellation);
+            var baselineDiagnostics = await DiagnosticsAsync(document, visibility, cancellation);
+            var diagnostics = await DiagnosticsAsync(candidateDocument, visibility, cancellation);
             var baselineErrors = baselineDiagnostics.AsArray()
                 .Where(node => node?["severity"]?.GetValue<string>() == "Error")
                 .Select(DiagnosticIdentity).ToHashSet(StringComparer.Ordinal);
             var blocked = diagnostics.AsArray().Any(node =>
                 node?["severity"]?.GetValue<string>() == "Error" &&
                 !baselineErrors.Contains(DiagnosticIdentity(node)));
+            var packageVisibilityPassed = !diagnostics.AsArray().Any(node =>
+                node?["id"]?.GetValue<string>() ==
+                    "Script.PackageVisibility.DisabledModule");
+            blocked = blocked || !packageVisibilityPassed;
             var startByte = Encoding.UTF8.GetByteCount(source.AsSpan(0, initializer.Span.Start));
             var oldBytes = Encoding.UTF8.GetBytes(oldValue);
             return new JsonObject
@@ -357,7 +457,7 @@ internal static class LanguageService
                 ["parsePassed"] = !blocked,
                 ["semanticPassed"] = !blocked,
                 ["analyzersPassed"] = !blocked,
-                ["packageVisibilityPassed"] = true
+                ["packageVisibilityPassed"] = packageVisibilityPassed
             };
         }
 
@@ -371,8 +471,19 @@ internal static class LanguageService
         {
             const string scoreField = "field://ArenaRush.ArenaRushGameMode/EnergyCoreScore/initializer";
             const string respawnField = "field://ArenaRush.ArenaRushGameMode/EnergyCoreRespawnSeconds/initializer";
+            var sourceText = request.Payload?["sourceText"]?.GetValue<string>() ??
+                throw new ProtocolException("LanguageService.InvalidPayload",
+                    "controlled-projection requires exact sourceText.");
+            var sourceHash = request.Payload?["sourceHash"]?.GetValue<string>() ?? "";
+            Require(sourceHash == Hash(Encoding.UTF8.GetBytes(sourceText)),
+                "LanguageService.CandidateIdentityChanged",
+                "Controlled projection source hash does not match sourceText.");
+            document = document.WithText(SourceText.From(sourceText, Encoding.UTF8));
             var text = await document.GetTextAsync(cancellation);
             var source = text.ToString();
+            Require(source == sourceText,
+                "LanguageService.CandidateIdentityChanged",
+                "Controlled projection source identity changed.");
             var fields = new JsonArray();
             foreach (var definition in new[]
             {
@@ -410,7 +521,7 @@ internal static class LanguageService
                 ["documentId"] = request.DocumentId,
                 ["documentVersion"] = request.DocumentVersion,
                 ["projectSnapshotIdentity"] = request.ProjectSnapshotIdentity,
-                ["sourceHash"] = Hash(Encoding.UTF8.GetBytes(source)),
+                ["sourceHash"] = sourceHash,
                 ["editableFields"] = fields,
                 ["opaque"] = fields.Count != 2,
                 ["opaqueReason"] = fields.Count == 2 ? "" :
@@ -511,10 +622,190 @@ internal static class LanguageService
         public ValueTask DisposeAsync()
         {
             foreach (var request in requests.Values) request.Cancel();
+            foreach (var scheduler in schedulers.Values) scheduler.Dispose();
+            schedulers.Clear();
             foreach (var project in projects.Values) project.Dispose();
             projects.Clear();
             outputLock.Dispose();
             return ValueTask.CompletedTask;
+        }
+
+        private sealed class ProjectScheduler : IDisposable
+        {
+            private static readonly TimeSpan AnalysisDebounce =
+                TimeSpan.FromMilliseconds(150);
+            private readonly Server server;
+            private readonly ProjectState project;
+            private readonly object gate = new();
+            private readonly LinkedList<(Envelope Request,
+                CancellationTokenSource Cancellation)> foreground = new();
+            private readonly Dictionary<string, ScheduledAnalysis> background =
+                new(StringComparer.Ordinal);
+            private readonly SemaphoreSlim signal = new(0);
+            private readonly CancellationTokenSource lifetime = new();
+            private readonly Task worker;
+            private CancellationTokenSource? runningBackground;
+            private CancellationTokenSource? runningForeground;
+            private Envelope? runningRequest;
+            private bool completing;
+
+            public ProjectScheduler(Server server, ProjectState project)
+            {
+                this.server = server;
+                this.project = project;
+                worker = Task.Run(RunAsync);
+            }
+
+            public void Enqueue(Envelope request,
+                CancellationTokenSource cancellation)
+            {
+                lock (gate)
+                {
+                    foreground.AddLast((request, cancellation));
+                    runningBackground?.Cancel();
+                }
+                signal.Release();
+            }
+
+            public void EnqueueReconfiguration(Envelope request,
+                CancellationTokenSource cancellation)
+            {
+                lock (gate)
+                {
+                    if (runningRequest is not null &&
+                        !IsDocumentMutation(runningRequest.Method))
+                        runningForeground?.Cancel();
+                    runningBackground?.Cancel();
+                    foreach (var value in foreground)
+                        if (!IsDocumentMutation(value.Request.Method))
+                            value.Cancellation.Cancel();
+                    foreach (var value in background.Values)
+                        value.Cancellation.Cancel();
+                    background.Clear();
+                    foreground.AddLast((request, cancellation));
+                }
+                signal.Release();
+            }
+
+            public void ScheduleAnalysis(Envelope request)
+            {
+                if (string.IsNullOrEmpty(request.DocumentId)) return;
+                lock (gate)
+                {
+                    if (background.Remove(request.DocumentId!, out var older))
+                        older.Cancellation.Cancel();
+                    var cancellation = new CancellationTokenSource();
+                    background.Add(request.DocumentId!, new ScheduledAnalysis(
+                        request, DateTime.UtcNow + AnalysisDebounce, cancellation));
+                    runningBackground?.Cancel();
+                }
+                signal.Release();
+            }
+
+            public async Task CompleteAsync()
+            {
+                lock (gate) completing = true;
+                signal.Release();
+                await worker;
+            }
+
+            private async Task RunAsync()
+            {
+                while (!lifetime.IsCancellationRequested)
+                {
+                    (Envelope Request, CancellationTokenSource Cancellation)? next = null;
+                    ScheduledAnalysis? analysis = null;
+                    TimeSpan delay = Timeout.InfiniteTimeSpan;
+                    lock (gate)
+                    {
+                        if (foreground.Count > 0)
+                        {
+                            next = foreground.First!.Value;
+                            foreground.RemoveFirst();
+                            runningForeground = next.Value.Cancellation;
+                            runningRequest = next.Value.Request;
+                        }
+                        else if (background.Count > 0)
+                        {
+                            var candidate = background.Values
+                                .OrderBy(value => value.Due).First();
+                            delay = candidate.Due - DateTime.UtcNow;
+                            if (delay <= TimeSpan.Zero)
+                            {
+                                analysis = candidate;
+                                background.Remove(candidate.Request.DocumentId!);
+                                runningBackground = candidate.Cancellation;
+                            }
+                        }
+                        else if (completing)
+                            return;
+                    }
+                    if (next is not null)
+                    {
+                        await server.ExecuteRequestAsync(next.Value.Request,
+                            next.Value.Cancellation);
+                        lock (gate)
+                        {
+                            if (ReferenceEquals(runningForeground,
+                                next.Value.Cancellation))
+                            {
+                                runningForeground = null;
+                                runningRequest = null;
+                            }
+                        }
+                        continue;
+                    }
+                    if (analysis is not null)
+                    {
+                        await server.PublishScheduledAnalysisAsync(
+                            analysis.Request, project,
+                            analysis.Cancellation.Token);
+                        lock (gate)
+                        {
+                            if (ReferenceEquals(runningBackground,
+                                    analysis.Cancellation))
+                                runningBackground = null;
+                        }
+                        analysis.Cancellation.Dispose();
+                        continue;
+                    }
+                    try
+                    {
+                        if (delay == Timeout.InfiniteTimeSpan)
+                            await signal.WaitAsync(lifetime.Token);
+                        else
+                            await LanguageServiceSchedulerWait.WaitAsync(
+                                signal, lifetime.Token, delay);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        return;
+                    }
+                }
+            }
+
+            public void Dispose()
+            {
+                lifetime.Cancel();
+                lock (gate)
+                {
+                    runningBackground?.Cancel();
+                    runningForeground?.Cancel();
+                    foreach (var value in foreground)
+                        value.Cancellation.Cancel();
+                    foreach (var value in background.Values)
+                        value.Cancellation.Cancel();
+                }
+                signal.Dispose();
+                lifetime.Dispose();
+            }
+
+            private sealed record ScheduledAnalysis(Envelope Request,
+                DateTime Due, CancellationTokenSource Cancellation);
+
+            private static bool IsDocumentMutation(string method) => method is
+                "document/open" or "document/change" or "document/save" or
+                "document/close";
         }
     }
 
@@ -522,24 +813,33 @@ internal static class LanguageService
     {
         private readonly AdhocWorkspace workspace;
         private readonly string root;
+        private readonly string packageProjectId;
         private ProjectId projectId;
         private readonly Dictionary<string, DocumentState> documents = new(StringComparer.Ordinal);
+        private bool closed;
         public string SnapshotIdentity { get; private set; }
+        public PackageVisibilityCatalog Visibility { get; private set; }
 
-        private ProjectState(AdhocWorkspace workspace, ProjectId projectId, string root, string identity)
-        { this.workspace = workspace; this.projectId = projectId; this.root = root; SnapshotIdentity = identity; }
+        private ProjectState(AdhocWorkspace workspace, ProjectId projectId,
+            string root, string packageProjectId, string identity,
+            PackageVisibilityCatalog visibility)
+        { this.workspace = workspace; this.projectId = projectId; this.root = root;
+          this.packageProjectId = packageProjectId;
+          SnapshotIdentity = identity; Visibility = visibility; }
 
         public static ProjectState Create(Envelope request)
         {
             var payload = request.Payload ?? throw new ProtocolException("LanguageService.InvalidPayload", "project/open requires payload.");
             var root = Canonical(payload["canonicalRoot"]?.GetValue<string>() ?? "");
             Require(Directory.Exists(root), "LanguageService.InvalidRoot", "canonicalRoot must exist.");
+            LanguageServiceProjectSnapshotValidator.Validate(payload, root);
             var workspace = new AdhocWorkspace(MefHostServices.DefaultHost);
             var id = ProjectId.CreateNewId(request.ProjectSessionId);
             var parse = new CSharpParseOptions(LanguageVersion.LatestMajor);
             var compilation = new CSharpCompilationOptions(
                 OutputKind.DynamicallyLinkedLibrary, allowUnsafe: false);
-            var references = MetadataReferences(payload, root);
+            var references = LanguageServiceReferenceFactory.Create(payload, root);
+            var visibility = PackageVisibilityCatalog.LoadLanguageService(payload, root);
             var info = ProjectInfo.Create(id, VersionStamp.Create(), request.ProjectSessionId, request.ProjectSessionId, LanguageNames.CSharp, parseOptions: parse, compilationOptions: compilation, metadataReferences: references);
             Require(workspace.AddProject(info) is not null, "LanguageService.WorkspaceFailure", "Unable to create project.");
             const string implicitUsings =
@@ -551,19 +851,50 @@ internal static class LanguageService
             Require(workspace.AddDocument(id, "SagaImplicitUsings.g.cs",
                 SourceText.From(implicitUsings, Encoding.UTF8)) is not null,
                 "LanguageService.WorkspaceFailure", "Unable to add implicit usings.");
-            return new ProjectState(workspace, id, root, request.ProjectSnapshotIdentity);
+            return new ProjectState(workspace, id, root,
+                payload["projectId"]?.GetValue<string>() ?? "",
+                request.ProjectSnapshotIdentity, visibility);
         }
 
-        public void Reconfigure(Envelope request)
+        public string Reconfigure(Envelope request)
         {
+            EnsureSnapshot(request);
             var payload = request.Payload ?? throw new ProtocolException(
                 "LanguageService.InvalidPayload", "project/reconfigure requires payload.");
+            var candidateIdentity =
+                payload["candidateProjectSnapshotIdentity"]?.GetValue<string>() ?? "";
+            Require(!string.IsNullOrWhiteSpace(candidateIdentity) &&
+                candidateIdentity != SnapshotIdentity,
+                "LanguageService.InvalidProjectIdentity",
+                "A distinct candidate project snapshot identity is required.");
+            Require((payload["projectId"]?.GetValue<string>() ?? "") ==
+                packageProjectId,
+                "LanguageService.InvalidProjectIdentity",
+                "Candidate project identity does not match the open project.");
+            Require(Canonical(payload["canonicalRoot"]?.GetValue<string>() ?? "") == root,
+                "LanguageService.InvalidRoot",
+                "Candidate canonical root does not match the open project.");
+            LanguageServiceProjectSnapshotValidator.Validate(payload, root);
+            var references = LanguageServiceReferenceFactory.Create(payload, root)
+                .ToArray();
+            var visibility = PackageVisibilityCatalog.LoadLanguageService(payload, root);
             var solution = workspace.CurrentSolution.WithProjectMetadataReferences(
-                projectId, MetadataReferences(payload, root));
+                projectId, references)
+                .WithProjectParseOptions(projectId,
+                    new CSharpParseOptions(LanguageVersion.LatestMajor))
+                .WithProjectCompilationOptions(projectId,
+                    new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,
+                        allowUnsafe: false));
+            Require(solution.GetProject(projectId)?.GetCompilationAsync()
+                .GetAwaiter().GetResult() is not null,
+                "LanguageService.CompilationUnavailable",
+                "Unable to construct the candidate compilation.");
             Require(workspace.TryApplyChanges(solution), "LanguageService.WorkspaceFailure",
                 "Unable to reconfigure project references.");
-            SnapshotIdentity = request.ProjectSnapshotIdentity;
+            SnapshotIdentity = candidateIdentity;
+            Visibility = visibility;
             foreach (var document in documents.Values) document.SnapshotIdentity = SnapshotIdentity;
+            return candidateIdentity;
         }
 
         public void PutDocument(Envelope request)
@@ -607,10 +938,20 @@ internal static class LanguageService
         public void EnsureSnapshot(Envelope request) => Require(request.ProjectSnapshotIdentity == SnapshotIdentity, "LanguageService.StaleProject", "Project snapshot identity is stale.");
         public void EnsureCurrent(Envelope request)
         {
+            Require(!closed, "LanguageService.ProjectClosed",
+                "Project session is closed.");
             EnsureSnapshot(request);
             if (request.DocumentId is null || !documents.TryGetValue(request.DocumentId, out var state))
                 throw new ProtocolException("LanguageService.DocumentClosed", "Document is not open.");
             Require(request.DocumentVersion == state.Version, "LanguageService.StaleDocument", "Document version is stale.");
+        }
+        public void Close()
+        {
+            closed = true;
+            foreach (var document in documents.Values)
+                workspace.TryApplyChanges(
+                    workspace.CurrentSolution.RemoveDocument(document.Id));
+            documents.Clear();
         }
         public void Dispose() => workspace.Dispose();
     }
@@ -632,7 +973,7 @@ internal static class LanguageService
         public JsonObject? Payload { get; set; }
     }
 
-    private sealed class ProtocolException(string code, string message) : Exception(message) { public string Code { get; } = code; }
+    internal sealed class ProtocolException(string code, string message) : Exception(message) { public string Code { get; } = code; }
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = false };
     private static void ValidateEnvelope(Envelope? value)
     {
@@ -640,9 +981,10 @@ internal static class LanguageService
         Require(value!.SchemaVersion == SchemaVersion && value.ProtocolVersion == ProtocolVersion, "LanguageService.UnsupportedVersion", "Only schema/protocol version 1 is supported.");
         Require(value.MessageType == "request" && value.RequestId > 0 && !string.IsNullOrWhiteSpace(value.ProjectSessionId) && !string.IsNullOrWhiteSpace(value.Method) && value.ProjectSnapshotIdentity is not null, "LanguageService.MalformedEnvelope", "Required envelope fields are missing.");
     }
-    private static void Require(bool condition, string code, string message) { if (!condition) throw new ProtocolException(code, message); }
-    private static string Canonical(string path) => Path.GetFullPath(path);
-    private static bool IsContained(string root, string path) => path == root || path.StartsWith(root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+    internal static void Require(bool condition, string code, string message) { if (!condition) throw new ProtocolException(code, message); }
+    internal static string Canonical(string path) =>
+        LanguageServicePathSupport.Canonical(path);
+    internal static bool IsContained(string root, string path) => path == root || path.StartsWith(root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
     private static int PositionToOffset(Document document, JsonObject position)
     {
         var text = document.GetTextAsync().GetAwaiter().GetResult();
@@ -653,31 +995,4 @@ internal static class LanguageService
     }
     private static JsonObject Range(LinePositionSpan span) => new() { ["start"] = new JsonObject { ["line"] = span.Start.Line, ["character"] = span.Start.Character }, ["end"] = new JsonObject { ["line"] = span.End.Line, ["character"] = span.End.Character } };
     private static JsonObject Location(Location location) => new() { ["path"] = location.SourceTree?.FilePath ?? "", ["range"] = Range(location.GetLineSpan().Span) };
-    private static IEnumerable<MetadataReference> TrustedPlatformReferences()
-    {
-        var paths = (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries);
-        return paths.Select(path => MetadataReference.CreateFromFile(path));
-    }
-
-    private static IEnumerable<MetadataReference> MetadataReferences(
-        JsonObject payload, string root)
-    {
-        var references = TrustedPlatformReferences().ToList();
-        foreach (var value in payload["metadataReferences"]?.AsArray() ?? [])
-        {
-            var path = Canonical(value?["path"]?.GetValue<string>() ?? "");
-            var expectedHash = value?["hash"]?.GetValue<string>() ?? "";
-            Require(IsContained(root, path), "LanguageService.PathEscape",
-                "Metadata reference escapes the canonical project root.");
-            Require(File.Exists(path), "LanguageService.InvalidReference",
-                "Metadata reference does not exist.");
-            var bytes = File.ReadAllBytes(path);
-            var actualHash = "sha256:" +
-                Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
-            Require(actualHash == expectedHash, "LanguageService.InvalidReference",
-                "Metadata reference hash does not match.");
-            references.Add(MetadataReference.CreateFromImage(bytes, filePath: path));
-        }
-        return references;
-    }
 }

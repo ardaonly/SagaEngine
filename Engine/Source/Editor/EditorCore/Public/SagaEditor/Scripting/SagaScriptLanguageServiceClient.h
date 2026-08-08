@@ -41,6 +41,12 @@ struct LanguageServiceMetadataReference
     std::string hash;
 };
 
+struct LanguageServiceVerifiedInput
+{
+    std::filesystem::path canonicalPath;
+    std::string hash;
+};
+
 struct LanguageServiceProjectSnapshot
 {
     std::string projectSessionId;
@@ -49,11 +55,17 @@ struct LanguageServiceProjectSnapshot
     std::string projectId;
     std::string manifestHash;
     std::string lockHash;
+    std::string packageGenerationId;
     std::string packageGeneration;
+    std::string packageGraphHash;
+    std::optional<LanguageServiceVerifiedInput> generationManifest;
+    std::optional<LanguageServiceVerifiedInput> referenceManifest;
     std::string referenceManifestHash;
     std::string ownershipManifestHash;
+    std::optional<LanguageServiceVerifiedInput> ownershipManifest;
     std::string runtimeBridgeIdentity;
     std::vector<LanguageServiceMetadataReference> metadataReferences;
+    std::vector<LanguageServiceMetadataReference> analyzers;
     std::string compilerVersion = "4.11.0";
     std::string languageVersion = "latest-major";
 };

@@ -203,8 +203,9 @@ void ReadOnlyBlocksWidget::Present(
     for (const auto& card : projection_->OpaqueRegions()) AddCard(card, nullptr);
     tree_->expandAll();
     RefreshControlledState();
-    SetStatus(QStringLiteral("Current controlled projection - %1")
-        .arg(QString::fromStdString(projection_->PackageGenerationId())));
+    SetStatus(QStringLiteral("Current controlled projection - revision %1 - %2")
+        .arg(QString::fromStdString(projection_->SourceRevision()),
+            QString::fromStdString(projection_->PackageGenerationId())));
 }
 
 void ReadOnlyBlocksWidget::PresentSnapshot(const ScriptProjectionSnapshot& snapshot)

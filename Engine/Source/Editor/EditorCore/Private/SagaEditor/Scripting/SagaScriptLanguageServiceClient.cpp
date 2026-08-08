@@ -192,19 +192,60 @@ public:
 
     bool Reconfigure(LanguageServiceProjectSnapshot snapshot)
     {
-        { std::scoped_lock lock(mutex_); snapshot_ = std::move(snapshot); }
+        std::scoped_lock sendLock(sendMutex_);
         LanguageServiceProjectSnapshot current;
         { std::scoped_lock lock(mutex_); current = snapshot_; }
-        auto future = Send("project/reconfigure", SnapshotJson(current), std::nullopt);
+        if (snapshot.projectSessionId != current.projectSessionId ||
+            snapshot.projectId != current.projectId ||
+            snapshot.canonicalRoot != current.canonicalRoot ||
+            snapshot.projectSnapshotIdentity.empty())
+        {
+            std::scoped_lock lock(mutex_);
+            diagnostic_ = "Language service reconfiguration identity is invalid.";
+            return false;
+        }
+        Json payload = SnapshotJson(snapshot);
+        payload["candidateProjectSnapshotIdentity"] =
+            snapshot.projectSnapshotIdentity;
+        auto future = SendUnlocked("project/reconfigure", std::move(payload),
+            std::nullopt, current);
         if (future.wait_for(std::chrono::seconds(15)) != std::future_status::ready)
         {
-            diagnostic_ = "Language service project reconfiguration timed out.";
+            {
+                std::scoped_lock lock(mutex_);
+                diagnostic_ = "Language service project reconfiguration timed out.";
+            }
             FailPending("LanguageService.ReconfigureTimeout", diagnostic_);
             SetState(monitorRunning_ && !manualStop_ ?
                 LanguageServiceState::Recovering : LanguageServiceState::Unavailable);
             return false;
         }
-        return future.get().Succeeded();
+        const auto response = future.get();
+        if (!response.Succeeded())
+        {
+            std::scoped_lock lock(mutex_);
+            diagnostic_ = response.errorCode + ": " + response.errorMessage;
+            return false;
+        }
+        Json responsePayload;
+        try { responsePayload = Json::parse(response.payloadJson); }
+        catch (...) { responsePayload = Json::object(); }
+        if (response.projectSnapshotIdentity != current.projectSnapshotIdentity ||
+            responsePayload.value("acceptedProjectSnapshotIdentity", "") !=
+                snapshot.projectSnapshotIdentity)
+        {
+            std::scoped_lock lock(mutex_);
+            diagnostic_ = "Language service accepted an unexpected project snapshot identity.";
+            return false;
+        }
+        {
+            std::scoped_lock lock(mutex_);
+            snapshot_ = std::move(snapshot);
+            diagnostic_.clear();
+        }
+        FailPending("LanguageService.StaleProject",
+            "Project snapshot was replaced by a successful reconfiguration.");
+        return true;
     }
 
     void Cancel(std::uint64_t id) { (void)Send("cancel", Json{{"requestId", id}}, std::nullopt); }
@@ -218,9 +259,19 @@ private:
     std::future<LanguageServiceResponse> Send(std::string method, Json payload,
                                               std::optional<LanguageServiceDocumentIdentity> document)
     {
-        const auto id = nextRequest_.fetch_add(1);
+        std::scoped_lock sendLock(sendMutex_);
         LanguageServiceProjectSnapshot snapshot;
         { std::scoped_lock lock(mutex_); snapshot = snapshot_; }
+        return SendUnlocked(std::move(method), std::move(payload), document,
+            snapshot);
+    }
+
+    std::future<LanguageServiceResponse> SendUnlocked(std::string method,
+        Json payload,
+        const std::optional<LanguageServiceDocumentIdentity>& document,
+        const LanguageServiceProjectSnapshot& snapshot)
+    {
+        const auto id = nextRequest_.fetch_add(1);
         Json envelope{{"schemaVersion", 1}, {"protocolVersion", 1}, {"messageType", "request"},
             {"requestId", id}, {"projectSessionId", snapshot.projectSessionId}, {"method", method},
             {"projectSnapshotIdentity", snapshot.projectSnapshotIdentity}, {"payload", std::move(payload)}};
@@ -259,12 +310,28 @@ private:
                 if (json.contains("documentId") && !json["documentId"].is_null()) response.documentId = json["documentId"].get<std::string>();
                 if (json.contains("documentVersion") && !json["documentVersion"].is_null()) response.documentVersion = json["documentVersion"].get<std::uint64_t>();
                 const auto payload = json.value("payload", Json::object()); response.payloadJson = payload.dump();
-                ParseTypedPayload(payload, response);
+                try
+                {
+                    ParseTypedPayload(payload, response);
+                }
+                catch (const std::exception& error)
+                {
+                    response.errorCode = "LanguageService.MalformedResponse";
+                    response.errorMessage = error.what();
+                    std::scoped_lock lock(mutex_);
+                    diagnostic_ = response.errorCode + ": " + response.errorMessage;
+                }
                 if (json.value("messageType", "") == "error" || json.value("messageType", "") == "fatal")
                 { response.errorCode = payload.value("code", "LanguageService.ProtocolError"); response.errorMessage = payload.value("message", "Protocol error."); }
                 if (json.value("messageType", "") == "notification")
                 {
-                    PublicationCallback callback; { std::scoped_lock lock(mutex_); callback = publication_; }
+                    PublicationCallback callback;
+                    {
+                        std::scoped_lock lock(mutex_);
+                        if (response.projectSnapshotIdentity ==
+                            snapshot_.projectSnapshotIdentity)
+                            callback = publication_;
+                    }
                     if (callback) callback(std::move(response));
                 }
                 else
@@ -365,12 +432,30 @@ private:
         for (const auto& reference : value.metadataReferences)
             references.push_back({{"path", reference.canonicalPath.string()},
                 {"hash", reference.hash}});
-        return {{"canonicalRoot", value.canonicalRoot.string()}, {"projectId", value.projectId},
+        Json analyzers = Json::array();
+        for (const auto& analyzer : value.analyzers)
+            analyzers.push_back({{"path", analyzer.canonicalPath.string()},
+                {"hash", analyzer.hash}});
+        Json result{{"canonicalRoot", value.canonicalRoot.string()}, {"projectId", value.projectId},
             {"manifestHash", value.manifestHash}, {"lockHash", value.lockHash}, {"packageGeneration", value.packageGeneration},
+            {"packageGenerationId", value.packageGenerationId},
+            {"packageGraphHash", value.packageGraphHash},
             {"referenceManifestHash", value.referenceManifestHash}, {"ownershipManifestHash", value.ownershipManifestHash},
             {"runtimeBridgeIdentity", value.runtimeBridgeIdentity},
             {"metadataReferences", std::move(references)},
+            {"analyzers", std::move(analyzers)},
             {"compilerVersion", value.compilerVersion}, {"languageVersion", value.languageVersion}};
+        const auto addInput = [&result](const char* name,
+            const std::optional<LanguageServiceVerifiedInput>& input)
+        {
+            if (input)
+                result[name] = {{"path", input->canonicalPath.string()},
+                    {"hash", input->hash}};
+        };
+        addInput("generationManifest", value.generationManifest);
+        addInput("referenceManifest", value.referenceManifest);
+        addInput("ownershipManifest", value.ownershipManifest);
+        return result;
     }
     void SetState(LanguageServiceState value)
     {
@@ -381,7 +466,8 @@ private:
     std::atomic<bool> running_{false}; std::atomic<bool> monitorRunning_{false};
     std::atomic<bool> manualStop_{true}; std::atomic<std::uint64_t> nextRequest_{1};
     std::atomic<LanguageServiceState> state_{LanguageServiceState::Stopped};
-    mutable std::mutex mutex_; std::mutex lifecycleMutex_; std::thread reader_, monitor_;
+    mutable std::mutex mutex_; std::mutex lifecycleMutex_; std::mutex sendMutex_;
+    std::thread reader_, monitor_;
     std::map<std::uint64_t, std::promise<LanguageServiceResponse>> pending_;
     std::map<std::string, ReplayDocument> replayDocuments_;
     std::deque<std::chrono::steady_clock::time_point> restartTimes_;
