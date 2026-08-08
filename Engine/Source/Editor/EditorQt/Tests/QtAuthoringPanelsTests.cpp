@@ -256,6 +256,7 @@ TEST(QtAuthoringPanelsTests, PackagesPanelRendersVerifiedPermanentCatalogState)
 
 TEST(QtAuthoringPanelsTests, PerformanceTransitionPanelExposesExplicitFullControlWorkflow)
 {
+    (void)Application();
     SagaEditor::PerformanceTransitionPanel panel;
     EXPECT_EQ(panel.GetPanelId(), "saga.panel.performance_transition");
     EXPECT_EQ(panel.GetTitle(), "Gameplay Performance");
@@ -265,10 +266,16 @@ TEST(QtAuthoringPanelsTests, PerformanceTransitionPanelExposesExplicitFullContro
     auto* create = widget->findChild<QPushButton*>("CreateBenchmarkRunInputButton");
     auto* conversion = widget->findChild<QPushButton*>("ReviewCollectibleConversionButton");
     auto* status = widget->findChild<QLabel*>("PerformanceTransitionStatus");
+    auto* standalone = widget->findChild<QPushButton*>("BuildStandaloneButton");
+    auto* cancel = widget->findChild<QPushButton*>("CancelStandaloneBuildButton");
+    auto* output = widget->findChild<QLineEdit*>("StandaloneOutputDirectory");
     ASSERT_NE(validate, nullptr);
     ASSERT_NE(create, nullptr);
     ASSERT_NE(conversion, nullptr);
     ASSERT_NE(status, nullptr);
+    ASSERT_NE(standalone, nullptr);
+    ASSERT_NE(cancel, nullptr);
+    ASSERT_NE(output, nullptr);
     validate->click();
     EXPECT_EQ(status->text(), QStringLiteral("No project is open."));
 }

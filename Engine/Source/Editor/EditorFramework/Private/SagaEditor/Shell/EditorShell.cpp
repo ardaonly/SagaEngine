@@ -126,6 +126,7 @@ bool EditorShell::Init(EditorHost&                    host,
     RegisterShellCommands(host.GetCommandRegistry(),
                           host.GetUndoRedoStack());
     m_runtimeProcessController = std::make_unique<RuntimeProcessController>();
+    m_runtimeExecutable = cfg.runtimeExecutable;
     host.GetCommandRegistry().Register({"saga.command.world.play", "Play", "World",
         [this, &host, runtimeExecutable = cfg.runtimeExecutable]
         {
@@ -507,6 +508,7 @@ void EditorShell::RegisterDefaultPanels()
     RegisterPanel(std::move(packages), UIDockArea::Bottom);
     auto performance = std::make_unique<PerformanceTransitionPanel>();
     performance->SetWorkspace(&m_host->GetDocumentWorkspace());
+    performance->SetRuntimeExecutable(m_runtimeExecutable);
     RegisterPanel(std::move(performance), UIDockArea::Bottom);
 }
 

@@ -133,6 +133,12 @@ TEST(SagaWorkModesUiTest,
         "CompareCollectibleConversionButton");
     auto* reverseConversion = performanceDock->findChild<QPushButton*>(
         "ReverseCollectibleConversionButton");
+    auto* buildStandalone = performanceDock->findChild<QPushButton*>(
+        "BuildStandaloneButton");
+    auto* cancelStandalone = performanceDock->findChild<QPushButton*>(
+        "CancelStandaloneBuildButton");
+    auto* standaloneOutput = performanceDock->findChild<QLineEdit*>(
+        "StandaloneOutputDirectory");
     auto* benchmarkProfile = performanceDock->findChild<QComboBox*>(
         "BenchmarkProfileSelection");
     auto* performanceStatus = performanceDock->findChild<QLabel*>(
@@ -144,6 +150,9 @@ TEST(SagaWorkModesUiTest,
     ASSERT_NE(reviewConversion, nullptr);
     ASSERT_NE(compareConversion, nullptr);
     ASSERT_NE(reverseConversion, nullptr);
+    ASSERT_NE(buildStandalone, nullptr);
+    ASSERT_NE(cancelStandalone, nullptr);
+    ASSERT_NE(standaloneOutput, nullptr);
     ASSERT_NE(benchmarkProfile, nullptr);
     ASSERT_NE(performanceStatus, nullptr);
     ASSERT_NE(performanceOutput, nullptr);
@@ -167,6 +176,10 @@ TEST(SagaWorkModesUiTest,
     QApplication::processEvents();
     EXPECT_EQ(performanceStatus->text(),
         QStringLiteral("No applied conversion is available to reverse."));
+    buildStandalone->click();
+    QApplication::processEvents();
+    EXPECT_EQ(performanceStatus->text(),
+        QStringLiteral("Play.Prepare.UnsavedDocuments"));
     ASSERT_TRUE(performanceDock->grab().save(QString::fromStdString(
         (evidence / "performance-transition-full-control.png").string())));
 

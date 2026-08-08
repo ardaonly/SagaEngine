@@ -4,17 +4,24 @@
 
 #include "SagaEditor/Performance/BuildProfiles.h"
 #include "SagaEditor/Performance/CollectibleConversionController.h"
+#include "SagaEditor/Standalone/StandaloneBuildCoordinator.h"
+#include "SagaEditor/Play/PlaySourceSnapshot.h"
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
 
 #include <QComboBox>
 #include <QFile>
 #include <QGroupBox>
 #include <QLabel>
+#include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QVBoxLayout>
+#include <QFutureWatcher>
+#include <QtConcurrent>
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 
 namespace SagaEditor
 {
@@ -22,11 +29,15 @@ struct PerformanceTransitionPanel::Impl
 {
     QWidget* widget = new QWidget();
     QComboBox* profiles = nullptr;
+    QLineEdit* standaloneOutput = nullptr;
     QLabel* status = nullptr;
     QPlainTextEdit* output = nullptr;
     EditorDocumentWorkspace* workspace = nullptr;
     BuildProfilesDocument document;
     CollectibleConversionController conversionController;
+    std::filesystem::path runtimeExecutable;
+    QFutureWatcher<StandaloneBuildResult>* buildWatcher = nullptr;
+    std::shared_ptr<std::atomic_bool> cancelBuild = std::make_shared<std::atomic_bool>();
 
     Impl()
     {
@@ -55,12 +66,23 @@ struct PerformanceTransitionPanel::Impl
         compare->setObjectName(QStringLiteral("CompareCollectibleConversionButton"));
         auto* reverse = new QPushButton(QStringLiteral("Reverse Applied Conversion"), widget);
         reverse->setObjectName(QStringLiteral("ReverseCollectibleConversionButton"));
+        auto* standalone = new QPushButton(QStringLiteral("Build Standalone"), widget);
+        standalone->setObjectName(QStringLiteral("BuildStandaloneButton"));
+        auto* cancel = new QPushButton(QStringLiteral("Cancel Standalone Build"), widget);
+        cancel->setObjectName(QStringLiteral("CancelStandaloneBuildButton"));
+        standaloneOutput = new QLineEdit(widget);
+        standaloneOutput->setObjectName(QStringLiteral("StandaloneOutputDirectory"));
+        standaloneOutput->setPlaceholderText(
+            QStringLiteral("Build/Standalone/<profile>"));
         layout->addWidget(refresh);
         layout->addWidget(run);
         layout->addWidget(results);
         layout->addWidget(conversion);
         layout->addWidget(compare);
         layout->addWidget(reverse);
+        layout->addWidget(standaloneOutput);
+        layout->addWidget(standalone);
+        layout->addWidget(cancel);
         status = new QLabel(QStringLiteral("Open a project to inspect performance profiles."), widget);
         status->setObjectName(QStringLiteral("PerformanceTransitionStatus"));
         status->setAccessibleName(QStringLiteral("Performance transition status"));
@@ -76,6 +98,26 @@ struct PerformanceTransitionPanel::Impl
         QObject::connect(conversion, &QPushButton::clicked, widget, [this] { Conversion(); });
         QObject::connect(compare, &QPushButton::clicked, widget, [this] { Compare(); });
         QObject::connect(reverse, &QPushButton::clicked, widget, [this] { Reverse(); });
+        QObject::connect(standalone, &QPushButton::clicked, widget, [this] { Standalone(); });
+        QObject::connect(cancel, &QPushButton::clicked, widget,
+            [this] { cancelBuild->store(true); status->setText(QStringLiteral("Cancelling standalone build...")); });
+        buildWatcher = new QFutureWatcher<StandaloneBuildResult>(widget);
+        QObject::connect(buildWatcher, &QFutureWatcher<StandaloneBuildResult>::finished,
+            widget, [this]
+            {
+                const auto result = buildWatcher->result();
+                if (result.Succeeded())
+                {
+                    status->setText(QStringLiteral("Standalone published: %1")
+                        .arg(QString::fromStdString(result.outputDirectory.string())));
+                    output->setPlainText(QString::fromStdString(
+                        result.snapshot.canonicalJson));
+                }
+                else status->setText(QString::fromStdString(result.diagnostics.empty()
+                    ? (result.state == StandaloneBuildState::Cancelled
+                        ? "Standalone build cancelled." : "Standalone build failed.")
+                    : result.diagnostics.front().code));
+            });
     }
 
     std::filesystem::path Root() const
@@ -197,6 +239,52 @@ struct PerformanceTransitionPanel::Impl
                 .arg(QString::fromStdString(result.code)));
         else status->setText(QString::fromStdString(result.code));
     }
+
+    void Standalone()
+    {
+        if (buildWatcher->isRunning()) return;
+        const auto root = Root();
+        if (root.empty() || runtimeExecutable.empty())
+        {
+            status->setText(QStringLiteral("Open a project with a private SagaRuntime before building."));
+            return;
+        }
+        if (document.profiles.empty()) Refresh();
+        const auto [verified, diagnostics] = BuildProfiles::CreateRunInput(
+            document, profiles->currentText().toStdString());
+        if (!diagnostics.empty())
+        {
+            status->setText(QString::fromStdString(diagnostics.front().code));
+            return;
+        }
+        const auto ticks = std::chrono::steady_clock::now().time_since_epoch().count();
+        const auto captured = CapturePlaySourceSnapshot(*workspace,
+            "standalone-editor-" + std::to_string(ticks));
+        if (!captured.Succeeded())
+        {
+            status->setText(QString::fromStdString(captured.diagnostics.empty()
+                ? "Build.Snapshot.Failed" : captured.diagnostics.front().code));
+            return;
+        }
+        cancelBuild = std::make_shared<std::atomic_bool>();
+        StandaloneBuildRequest request;
+        request.source = *captured.snapshot;
+        request.buildProfilesPath = root / "BuildProfiles.saga.json";
+        request.profileId = verified.profileId;
+        request.profileHash = verified.profileHash;
+        request.runtimeIdentifier = "host";
+        request.runtimeExecutable = runtimeExecutable;
+        const auto selectedOutput = std::filesystem::path(
+            standaloneOutput->text().toStdString());
+        request.outputDirectory = selectedOutput.empty()
+            ? root / "Build/Standalone" / verified.profileId
+            : (selectedOutput.is_absolute() ? selectedOutput : root / selectedOutput);
+        request.toolchain = DiscoverScriptAnalysisToolchain();
+        request.cancellationRequested = [flag = cancelBuild] { return flag->load(); };
+        status->setText(QStringLiteral("Capturing immutable standalone snapshot..."));
+        buildWatcher->setFuture(QtConcurrent::run([request = std::move(request)]
+        { return StandaloneBuildCoordinator{}.Build(request); }));
+    }
 };
 
 PerformanceTransitionPanel::PerformanceTransitionPanel() : impl_(std::make_unique<Impl>()) {}
@@ -207,8 +295,13 @@ QWidget* PerformanceTransitionPanel::Widget() const noexcept { return impl_->wid
 void PerformanceTransitionPanel::OnInit() { RefreshProfiles(); }
 void PerformanceTransitionPanel::SetWorkspace(EditorDocumentWorkspace* workspace) noexcept
 { impl_->workspace = workspace; }
+void PerformanceTransitionPanel::SetRuntimeExecutable(std::filesystem::path runtimeExecutable)
+{ impl_->runtimeExecutable = std::move(runtimeExecutable); }
 void PerformanceTransitionPanel::RefreshProfiles() { impl_->Refresh(); }
 void PerformanceTransitionPanel::CreateVerifiedRunInput() { impl_->RunInput(); }
 void PerformanceTransitionPanel::LoadResults() { impl_->Results(); }
 void PerformanceTransitionPanel::ReviewConversionState() { impl_->Conversion(); }
+void PerformanceTransitionPanel::BuildStandalone() { impl_->Standalone(); }
+void PerformanceTransitionPanel::CancelStandaloneBuild()
+{ impl_->cancelBuild->store(true); }
 }

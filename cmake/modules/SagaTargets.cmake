@@ -528,6 +528,16 @@ function(saga_create_engine_targets)
         FOLDER "Editor"
     )
 
+    # Snapshot-only standalone build entry. The source and coordinator use no
+    # Qt APIs; editor linkage supplies the existing project/build authorities.
+    saga_get_registered_sources(SagaStandaloneBuild SAGA_STANDALONE_BUILD_SOURCES)
+    add_executable(SagaStandaloneBuild ${SAGA_STANDALONE_BUILD_SOURCES})
+    saga_apply_compiler_flags(SagaStandaloneBuild)
+    saga_link_thirdparty(SagaStandaloneBuild)
+    target_link_libraries(SagaStandaloneBuild PRIVATE SagaEditorLib)
+    set_target_properties(SagaStandaloneBuild PROPERTIES
+        FOLDER "Programs/SagaStandaloneBuild")
+
     # --- EditorLab Development Library ---------------------------------------
     # Shared by the standalone EditorLab executable and optional dev bridges.
     add_library(SagaEditorLabLib STATIC)
