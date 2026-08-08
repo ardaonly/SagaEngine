@@ -82,6 +82,8 @@ public:
         "Editor/AppearanceDensity/v1";
     static constexpr const char* AppearanceAccentSettingKey =
         "Editor/AppearanceAccent/v1";
+    static constexpr const char* MigrationVersionKey =
+        "Editor/WorkspaceMigration/version";
 
     [[nodiscard]] bool Init(IEditorSettingsStore& settings,
         std::filesystem::path configurationRoot,
@@ -109,6 +111,7 @@ public:
 private:
     [[nodiscard]] bool Read();
     [[nodiscard]] bool Write();
+    [[nodiscard]] bool MigrateLegacyWorkspaces();
     [[nodiscard]] bool SelectModeDefault();
     [[nodiscard]] const EditorWorkMode* FindMode(const std::string& id) const;
     [[nodiscard]] WorkspaceDefinition ModeDefault(const EditorWorkMode& mode) const;

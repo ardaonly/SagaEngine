@@ -456,7 +456,6 @@ internal static class LanguageService
                 ["diagnostics"] = diagnostics,
                 ["parsePassed"] = !blocked,
                 ["semanticPassed"] = !blocked,
-                ["analyzersPassed"] = !blocked,
                 ["packageVisibilityPassed"] = packageVisibilityPassed
             };
         }

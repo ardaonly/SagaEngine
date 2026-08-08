@@ -70,8 +70,13 @@ Require(active == CollectiblesHighLevel.CompleteRespawn(
 
 var batch = new CollectiblesLowLevelBatch(5, 0.5, 5);
 Require(batch.ActiveCount == 5, "low-level batch starts with every slot active");
-Require(batch.Collect(0), "low-level batch collects an active slot once");
-Require(!batch.Collect(0), "low-level batch has single lifecycle ownership");
+Require(!batch.TryCollect(-1), "low-level batch rejects a negative slot");
+Require(!batch.TryCollect(batch.Capacity), "low-level batch rejects capacity");
+Require(batch.ActiveCount == 5, "invalid collection leaves the batch unchanged");
+Require(batch.TryCollect(0), "low-level batch collects an active slot once");
+Require(!batch.TryCollect(0), "low-level batch rejects an inactive slot");
+Require(!batch.Collect(-1) && !batch.Collect(batch.Capacity),
+    "compatibility collection uses the same non-throwing bounds semantics");
 Require(batch.Advance(0.25, 0) == 0, "low-level batch waits for the respawn delay");
 Require(batch.Advance(0.25, 7) == 1, "low-level batch completes one respawn");
 Require(batch.GetPhase(0) == CollectiblePhase.Active && batch.GetSpawnIndex(0) == 2,

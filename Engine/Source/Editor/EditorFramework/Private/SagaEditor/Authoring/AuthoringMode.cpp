@@ -90,10 +90,11 @@ void MigrateLegacyEditorPreferences(IEditorSettingsStore& settings)
         if (!theme.empty())
             settings.SetString(EditorWorkModeService::AppearanceSettingKey, theme);
     }
+    // Workspace/layout keys are deliberately retained here. Their opaque
+    // state belongs to UserWorkspaceService's independently versioned,
+    // verified migration rather than work-mode preference migration.
     for (const char* key : {"profile.activeId", "persona.activeId",
-             "initialProfileId", "user.workspace.default",
-             "Editor/AuthoringMode/v1", "Editor/Layout/v2/level1",
-             "Editor/Layout/v2/level2", "Editor/Layout/v2/level3"})
+             "initialProfileId", "Editor/AuthoringMode/v1"})
         settings.Remove(key);
     settings.SetString(EditorWorkModeService::MigrationVersionKey, "3");
     settings.Flush();

@@ -5,7 +5,10 @@
 #pragma once
 
 #include <filesystem>
+#include <cstdint>
+#include <optional>
 #include <string>
+#include <vector>
 
 namespace SagaEditor
 {
@@ -24,6 +27,16 @@ public:
     virtual void SetString(const std::string& key, const std::string& value) = 0;
     virtual void Remove(const std::string& key) = 0;
     virtual void Flush() = 0;
+    /// Returns the backend's exact stored bytes. This is used only for legacy
+    /// opaque placement state where text conversion would corrupt Qt state.
+    [[nodiscard]] virtual std::optional<std::vector<std::uint8_t>> GetBytes(
+        const std::string& key) const
+    {
+        const std::string missing = "\x1f" "saga-missing-setting" "\x1f";
+        const auto value = GetString(key, missing);
+        if (value == missing) return std::nullopt;
+        return std::vector<std::uint8_t>(value.begin(), value.end());
+    }
     [[nodiscard]] virtual std::filesystem::path ConfigurationRoot() const
     { return {}; }
 };

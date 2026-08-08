@@ -56,7 +56,16 @@ public sealed class CollectiblesLowLevelBatch
 
     public bool Collect(int index)
     {
-        ValidateIndex(index);
+        return TryCollect(index);
+    }
+
+    /// <summary>
+    /// Collects an active slot. Invalid and inactive indices are rejected without
+    /// throwing or mutating the reusable batch.
+    /// </summary>
+    public bool TryCollect(int index)
+    {
+        if ((uint)index >= (uint)phases.Length) return false;
         if (phases[index] != CollectiblePhase.Active) return false;
         phases[index] = CollectiblePhase.Respawning;
         respawnRemaining[index] = respawnDelaySeconds;

@@ -51,7 +51,6 @@ struct ControlledBlockEditPlan final
     std::string minimalDiff;
     bool parsePassed = false;
     bool semanticPassed = false;
-    bool analyzersPassed = false;
     bool packageVisibilityPassed = false;
     bool accepted = false;
     std::vector<std::string> diagnostics;

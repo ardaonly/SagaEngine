@@ -23,6 +23,8 @@ public:
     void SetString(const std::string& key, const std::string& value) override;
     void Remove(const std::string& key) override;
     void Flush() override;
+    [[nodiscard]] std::optional<std::vector<std::uint8_t>> GetBytes(
+        const std::string& key) const override;
     [[nodiscard]] std::filesystem::path ConfigurationRoot() const override;
 
 private:

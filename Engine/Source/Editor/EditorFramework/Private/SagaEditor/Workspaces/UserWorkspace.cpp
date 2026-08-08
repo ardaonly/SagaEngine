@@ -136,6 +136,9 @@ bool UserWorkspaceService::Init(IEditorSettingsStore& settings,
     modes_ = modes;
     if (modes_.empty()) return false;
     activeModeId_ = modes_.front().id;
+    const auto selectedMode = CanonicalEditorWorkModeId(
+        settings.GetString(EditorWorkModeService::SettingKey, {}));
+    if (FindMode(selectedMode)) activeModeId_ = selectedMode;
     if (!configurationRoot.empty())
         storagePath_ = std::move(configurationRoot) / "workspaces-v1.json";
     appearance_.theme = settings.GetString(AppearanceSettingKey, "Dark");
@@ -144,10 +147,84 @@ bool UserWorkspaceService::Init(IEditorSettingsStore& settings,
     appearance_.accent = settings.GetString(
         AppearanceAccentSettingKey, "default");
     if (!Read()) return false;
+    if (!MigrateLegacyWorkspaces()) return true;
     state_.currentWorkspaceId = settings.GetString(SelectionSettingKey, {});
     if (!state_.currentWorkspaceId.empty() &&
         !FindWorkspace(state_.currentWorkspaceId))
         (void)SelectModeDefault();
+    return true;
+}
+
+bool UserWorkspaceService::MigrateLegacyWorkspaces()
+{
+    if (!settings_ || settings_->GetString(MigrationVersionKey, {}) == "1") return true;
+    struct LegacyLayout { const char* key; const char* mode; };
+    constexpr LegacyLayout layouts[] = {
+        {"Editor/Layout/v2/level1", "quick-production"},
+        {"Editor/Layout/v2/level2", "balanced"},
+        {"Editor/Layout/v2/level3", "full-control"},
+    };
+    std::vector<std::string> importedKeys;
+    bool changed = false;
+    for (const auto& layout : layouts)
+    {
+        const auto bytes = settings_->GetBytes(layout.key);
+        if (!bytes) continue;
+        if (bytes->empty() || bytes->size() * 2 > MaximumFileBytes)
+        {
+            state_.diagnostic = "Workspace.MigrationPending: invalid legacy layout retained: " +
+                std::string(layout.key);
+            continue;
+        }
+        const std::string id = "mode:" + std::string(layout.mode);
+        auto* overlay = FindOverlay(id);
+        if (!overlay) { overlays_.push_back({id}); overlay = &overlays_.back(); }
+        overlay->machinePlacementState = EncodeHex(*bytes);
+        importedKeys.emplace_back(layout.key);
+        changed = true;
+    }
+    if (const auto bytes = settings_->GetBytes("user.workspace.default"))
+    {
+        if (bytes->empty() || bytes->size() * 2 > MaximumFileBytes)
+            state_.diagnostic =
+                "Workspace.MigrationPending: invalid legacy default workspace retained.";
+        else
+        {
+            auto* existing = FindWorkspace("legacy-default");
+            if (!existing)
+            {
+                auto definition = ModeDefault(*FindMode(activeModeId_));
+                definition.id = "legacy-default";
+                definition.displayName = "Legacy Default";
+                definition.machinePlacementState = EncodeHex(*bytes);
+                state_.namedWorkspaces.push_back(std::move(definition));
+            }
+            else existing->machinePlacementState = EncodeHex(*bytes);
+            importedKeys.emplace_back("user.workspace.default");
+            changed = true;
+        }
+    }
+    if (!changed)
+    {
+        if (state_.diagnostic.empty())
+        {
+            settings_->SetString(MigrationVersionKey, "1");
+            settings_->Flush();
+        }
+        return true;
+    }
+    if (!Write())
+    {
+        state_.diagnostic =
+            "Workspace.MigrationPending: canonical workspace write failed; legacy keys retained.";
+        return false;
+    }
+    // Re-read the atomic output before deleting any source key. Stable ids make
+    // re-entry after a write/delete interruption replace rather than duplicate.
+    if (!Read()) return false;
+    for (const auto& key : importedKeys) settings_->Remove(key);
+    if (state_.diagnostic.empty()) settings_->SetString(MigrationVersionKey, "1");
+    settings_->Flush();
     return true;
 }
 

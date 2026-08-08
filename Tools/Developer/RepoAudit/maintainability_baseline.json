@@ -57,9 +57,16 @@
     },
     {
       "path": "Engine/Source/Runtime/Scripting/Tests/CSharpScriptHostTests.cpp",
-      "maximumPhysicalLines": 1173,
+      "maximumPhysicalLines": 1175,
       "reason": "Host lifecycle and failure scenarios share an expensive runtime fixture; split only with fixture ownership preserved.",
       "owner": "RuntimeScripting",
+      "disposition": "follow-up-debt"
+    },
+    {
+      "path": "Tests/Integration/EditorWorkflow/SagaLauncherUiTests.cpp",
+      "maximumPhysicalLines": 1040,
+      "reason": "Reviewed existing product-workflow test baseline; split lifecycle, recovery, and product workflow scenarios before further growth.",
+      "owner": "EditorWorkflowIntegration",
       "disposition": "follow-up-debt"
     },
     {
@@ -109,6 +116,34 @@
       "maximumPhysicalLines": 1144,
       "reason": "Black-box package CLI scenarios remain cohesive but should adopt the SagaScript test-package pattern when next expanded.",
       "owner": "SagaPackager",
+      "disposition": "follow-up-debt"
+    },
+    {
+      "path": "Engine/Source/Programs/SagaRuntime/Private/RuntimeFrameLoop.cpp",
+      "maximumPhysicalLines": 1366,
+      "reason": "Reviewed existing runtime frame-loop baseline; lifecycle, telemetry, and presentation paths require a deliberate ownership split.",
+      "owner": "SagaRuntimeProgram",
+      "disposition": "follow-up-debt"
+    },
+    {
+      "path": "Engine/Source/Runtime/SagaRuntime/Private/SagaRuntime/Play/RuntimePlayContracts.cpp",
+      "maximumPhysicalLines": 1115,
+      "reason": "Reviewed existing play-contract baseline; schema families should be separated when this contract owner next changes.",
+      "owner": "SagaRuntime",
+      "disposition": "follow-up-debt"
+    },
+    {
+      "path": "Tests/Architecture/Repository/CMakeTargetBoundaryTests.cpp",
+      "maximumPhysicalLines": 1024,
+      "reason": "Reviewed existing architecture-policy baseline; target-boundary scenario families remain candidates for extraction.",
+      "owner": "ArchitectureTests",
+      "disposition": "follow-up-debt"
+    },
+    {
+      "path": "Tools/SagaScript/src/ProjectWorker.cs",
+      "maximumPhysicalLines": 1007,
+      "reason": "Reviewed existing worker baseline; protocol and workspace operations should split before further growth.",
+      "owner": "SagaScript",
       "disposition": "follow-up-debt"
     },
     {

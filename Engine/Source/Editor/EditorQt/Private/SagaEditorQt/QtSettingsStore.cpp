@@ -47,6 +47,15 @@ void QtSettingsStore::Flush()
     m_impl->settings.sync();
 }
 
+std::optional<std::vector<std::uint8_t>> QtSettingsStore::GetBytes(
+    const std::string& key) const
+{
+    const auto qKey = QString::fromStdString(key);
+    if (!m_impl->settings.contains(qKey)) return std::nullopt;
+    const auto bytes = m_impl->settings.value(qKey).toByteArray();
+    return std::vector<std::uint8_t>(bytes.begin(), bytes.end());
+}
+
 std::filesystem::path QtSettingsStore::ConfigurationRoot() const
 {
     return QFileInfo(m_impl->settings.fileName()).absolutePath().toStdString();

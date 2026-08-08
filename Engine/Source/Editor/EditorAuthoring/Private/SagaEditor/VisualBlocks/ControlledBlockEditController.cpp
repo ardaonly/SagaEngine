@@ -64,10 +64,9 @@ ControlledBlockEditPlan ControlledBlockEditController::Plan(
         plan.minimalDiff = result.at("minimalDiff").get<std::string>();
         plan.parsePassed = result.value("parsePassed", false);
         plan.semanticPassed = result.value("semanticPassed", false);
-        plan.analyzersPassed = result.value("analyzersPassed", false);
         plan.packageVisibilityPassed = result.value("packageVisibilityPassed", false);
         plan.accepted = result.value("accepted", false) && plan.parsePassed &&
-            plan.semanticPassed && plan.analyzersPassed && plan.packageVisibilityPassed;
+            plan.semanticPassed && plan.packageVisibilityPassed;
         for (const auto& item : result.value("diagnostics", Json::array()))
             plan.diagnostics.push_back(item.value("id", "") + ": " +
                 item.value("message", ""));
