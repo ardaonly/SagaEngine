@@ -7,6 +7,7 @@
 
 #include <QMainWindow>
 #include <QDockWidget>
+#include <QGuiApplication>
 #include <QMenuBar>
 #include <QMenu>
 #include <QAction>
@@ -17,7 +18,9 @@
 #include <QWidget>
 #include <QString>
 #include <QCloseEvent>
+#include <QScreen>
 #include <QObject>
+#include <algorithm>
 #include <utility>
 #include <unordered_map>
 #include <string>
@@ -436,7 +439,24 @@ bool QtUIMainWindow::RestoreState(const std::vector<uint8_t>& state)
 {
     const QByteArray raw(reinterpret_cast<const char*>(state.data()),
                          static_cast<qsizetype>(state.size()));
-    return m_impl->window->restoreState(raw);
+    if (!m_impl->window->restoreState(raw)) return false;
+    const auto screens = QGuiApplication::screens();
+    QScreen* fallback = QGuiApplication::primaryScreen();
+    if (!fallback || screens.empty()) return false;
+    for (const auto& [id, dock] : m_impl->dockMap)
+    {
+        (void)id;
+        if (!dock->isFloating()) continue;
+        const QRect geometry = dock->frameGeometry();
+        const bool reachable = std::any_of(screens.begin(), screens.end(),
+            [&geometry](const QScreen* screen)
+            { return screen->availableGeometry().intersects(geometry); });
+        if (reachable) continue;
+        const QRect available = fallback->availableGeometry();
+        const QSize size = geometry.size().boundedTo(available.size());
+        dock->setGeometry(QRect(available.topLeft(), size));
+    }
+    return true;
 }
 
 // ─── Events ───────────────────────────────────────────────────────────────────

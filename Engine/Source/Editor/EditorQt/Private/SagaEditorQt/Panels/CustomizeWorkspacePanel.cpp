@@ -6,22 +6,30 @@
 
 #include "SagaEditor/Customization/WorkspaceCustomizationFeedback.h"
 #include "SagaEditor/Customization/WorkspaceCustomizationPanelViewModel.h"
+#include "SagaEditor/Authoring/AuthoringMode.h"
+#include "SagaEditor/Commands/CommandDispatcher.h"
 #include "SagaEditor/Host/EditorHost.h"
 #include "SagaEditor/Notifications/EditorNotificationCenter.h"
+#include "SagaEditor/Themes/ThemeRegistry.h"
+#include "SagaEditor/Workspaces/UserWorkspace.h"
 
 #include <QCheckBox>
+#include <QComboBox>
 #include <QFileDialog>
 #include <QHeaderView>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QSignalBlocker>
 #include <QStringList>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
 #include <QVBoxLayout>
 #include <QWidget>
 
+#include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>
@@ -71,6 +79,52 @@ struct CustomizeWorkspacePanel::Impl
         root->setContentsMargins(8, 8, 8, 8);
         root->setSpacing(6);
 
+        auto* workspaceRow = new QHBoxLayout();
+        modeCombo = new QComboBox(widget);
+        modeCombo->setObjectName(QStringLiteral("SagaWorkspaceWorkMode"));
+        for (const auto& mode : host.GetEditorWorkModeService().Modes())
+            modeCombo->addItem(QString::fromStdString(mode.displayName),
+                QString::fromStdString(mode.id));
+        workspaceCombo = new QComboBox(widget);
+        workspaceCombo->setObjectName(QStringLiteral("SagaWorkspaceSelection"));
+        workspaceName = new QLineEdit(widget);
+        workspaceName->setObjectName(QStringLiteral("SagaWorkspaceName"));
+        workspaceName->setPlaceholderText(QStringLiteral("Workspace name"));
+        workspaceRow->addWidget(new QLabel(QStringLiteral("Mode:"), widget));
+        workspaceRow->addWidget(modeCombo);
+        workspaceRow->addWidget(new QLabel(QStringLiteral("Workspace:"), widget));
+        workspaceRow->addWidget(workspaceCombo);
+        workspaceRow->addWidget(workspaceName);
+        root->addLayout(workspaceRow);
+
+        auto* workspaceButtons = new QHBoxLayout();
+        saveAsButton = new QPushButton(QStringLiteral("Save As"), widget);
+        saveAsButton->setObjectName(QStringLiteral("SagaWorkspaceSaveAs"));
+        loadWorkspaceButton = new QPushButton(QStringLiteral("Load"), widget);
+        loadWorkspaceButton->setObjectName(QStringLiteral("SagaWorkspaceLoad"));
+        renameWorkspaceButton = new QPushButton(QStringLiteral("Rename"), widget);
+        renameWorkspaceButton->setObjectName(QStringLiteral("SagaWorkspaceRename"));
+        deleteWorkspaceButton = new QPushButton(QStringLiteral("Delete"), widget);
+        deleteWorkspaceButton->setObjectName(QStringLiteral("SagaWorkspaceDelete"));
+        resetCurrentButton = new QPushButton(QStringLiteral("Reset Current Workspace"), widget);
+        resetCurrentButton->setObjectName(QStringLiteral("SagaWorkspaceResetCurrent"));
+        resetModeButton = new QPushButton(QStringLiteral("Reset Mode Defaults"), widget);
+        resetModeButton->setObjectName(QStringLiteral("SagaWorkspaceResetMode"));
+        appearanceCombo = new QComboBox(widget);
+        appearanceCombo->setObjectName(QStringLiteral("SagaWorkspaceAppearance"));
+        appearanceCombo->addItems({QStringLiteral("Dark"), QStringLiteral("Light"),
+            QStringLiteral("Midnight"), QStringLiteral("Nord")});
+        workspaceButtons->addWidget(saveAsButton);
+        workspaceButtons->addWidget(loadWorkspaceButton);
+        workspaceButtons->addWidget(renameWorkspaceButton);
+        workspaceButtons->addWidget(deleteWorkspaceButton);
+        workspaceButtons->addWidget(resetCurrentButton);
+        workspaceButtons->addWidget(resetModeButton);
+        workspaceButtons->addStretch();
+        workspaceButtons->addWidget(new QLabel(QStringLiteral("Appearance:"), widget));
+        workspaceButtons->addWidget(appearanceCombo);
+        root->addLayout(workspaceButtons);
+
         statusLabel = new QLabel(widget);
         statusLabel->setWordWrap(true);
         root->addWidget(statusLabel);
@@ -103,9 +157,12 @@ struct CustomizeWorkspacePanel::Impl
         auto* buttons = new QHBoxLayout();
         importButton = new QPushButton(QStringLiteral("Import..."), widget);
         exportButton = new QPushButton(QStringLiteral("Export..."), widget);
-        saveButton = new QPushButton(QStringLiteral("Save"), widget);
-        resetButton = new QPushButton(QStringLiteral("Reset"), widget);
+        saveButton = new QPushButton(QStringLiteral("Save Workspace"), widget);
+        resetButton = new QPushButton(QStringLiteral("Reset Current"), widget);
         reloadButton = new QPushButton(QStringLiteral("Reload"), widget);
+        importButton->hide();
+        exportButton->hide();
+        reloadButton->hide();
         buttons->addWidget(importButton);
         buttons->addWidget(exportButton);
         buttons->addStretch();
@@ -114,33 +171,89 @@ struct CustomizeWorkspacePanel::Impl
         buttons->addWidget(saveButton);
         root->addLayout(buttons);
 
+        QObject::connect(modeCombo, &QComboBox::currentIndexChanged,
+            [this]
+            {
+                const auto id = modeCombo->currentData().toString().toStdString();
+                (void)host.GetEditorWorkModeService().SetActive(id);
+                RefreshPersonalWorkspaces();
+            });
+        QObject::connect(saveAsButton, &QPushButton::clicked,
+            [this]
+            {
+                const auto name = workspaceName->text().trimmed().toStdString();
+                if (name.empty()) return;
+                (void)host.GetCommandDispatcher().Dispatch(
+                    "saga.command.workspace.capture");
+                if (host.GetUserWorkspaceService().SaveAs(name))
+                    (void)host.GetCommandDispatcher().Dispatch(
+                        "saga.command.workspace.apply");
+                RefreshPersonalWorkspaces();
+            });
+        QObject::connect(loadWorkspaceButton, &QPushButton::clicked,
+            [this]
+            {
+                const auto id = workspaceCombo->currentData().toString().toStdString();
+                if (id.empty() || !host.GetUserWorkspaceService().Load(id)) return;
+                (void)host.GetCommandDispatcher().Dispatch("saga.command.workspace.apply");
+                RefreshPersonalWorkspaces();
+            });
+        QObject::connect(renameWorkspaceButton, &QPushButton::clicked,
+            [this]
+            {
+                const auto id = workspaceCombo->currentData().toString().toStdString();
+                const auto name = workspaceName->text().trimmed().toStdString();
+                if (!id.empty() && !name.empty())
+                    (void)host.GetUserWorkspaceService().Rename(id, name);
+                RefreshPersonalWorkspaces();
+            });
+        QObject::connect(deleteWorkspaceButton, &QPushButton::clicked,
+            [this]
+            {
+                const auto id = workspaceCombo->currentData().toString().toStdString();
+                if (!id.empty() && host.GetUserWorkspaceService().Delete(id))
+                    (void)host.GetCommandDispatcher().Dispatch(
+                        "saga.command.workspace.apply");
+                RefreshPersonalWorkspaces();
+            });
+        QObject::connect(resetCurrentButton, &QPushButton::clicked,
+            [this]
+            {
+                (void)host.GetUserWorkspaceService().ResetCurrentWorkspace();
+                (void)host.GetCommandDispatcher().Dispatch("saga.command.workspace.apply");
+                RefreshPersonalWorkspaces();
+            });
+        QObject::connect(resetModeButton, &QPushButton::clicked,
+            [this]
+            {
+                (void)host.GetUserWorkspaceService().ResetModeDefaults();
+                (void)host.GetCommandDispatcher().Dispatch("saga.command.workspace.apply");
+                RefreshPersonalWorkspaces();
+            });
+        QObject::connect(appearanceCombo, &QComboBox::currentTextChanged,
+            [this](const QString& value)
+            {
+                auto appearance = host.GetUserWorkspaceService().Appearance();
+                appearance.theme = value.toStdString();
+                if (host.GetUserWorkspaceService().SetAppearance(appearance))
+                    (void)host.GetThemeRegistry().Apply(appearance.theme);
+            });
+
         QObject::connect(saveButton, &QPushButton::clicked,
             [this]()
             {
-                const WorkspaceCustomizationSessionResult result =
-                    viewModel.Save();
+                (void)host.GetUserWorkspaceService().SaveCurrent();
+                (void)host.GetCommandDispatcher().Dispatch(
+                    "saga.command.workspace.apply");
                 Refresh();
-                PublishResult(WorkspaceCustomizationFeedbackOperation::Save,
-                              result,
-                              true);
             });
         QObject::connect(resetButton, &QPushButton::clicked,
             [this]()
             {
-                if (QMessageBox::question(
-                        widget,
-                        QStringLiteral("Reset Workspace Customization"),
-                        QStringLiteral("Reset the saved workspace customization overlay?")) !=
-                    QMessageBox::Yes)
-                {
-                    return;
-                }
-                const WorkspaceCustomizationSessionResult result =
-                    viewModel.ResetWorkspace();
+                (void)host.GetUserWorkspaceService().ResetCurrentWorkspace();
+                (void)host.GetCommandDispatcher().Dispatch(
+                    "saga.command.workspace.apply");
                 Refresh();
-                PublishResult(WorkspaceCustomizationFeedbackOperation::Reset,
-                              result,
-                              true);
             });
         QObject::connect(reloadButton, &QPushButton::clicked,
             [this]()
@@ -196,6 +309,7 @@ struct CustomizeWorkspacePanel::Impl
 
     void Refresh()
     {
+        RefreshPersonalWorkspaces();
         const WorkspaceCustomizationPanelViewState state =
             viewModel.GetState();
         RebuildRows(state.panels);
@@ -203,23 +317,56 @@ struct CustomizeWorkspacePanel::Impl
         UpdateDiagnostics(state.diagnostics);
     }
 
+    void RefreshPersonalWorkspaces()
+    {
+        const QSignalBlocker modeBlocker(modeCombo);
+        const QSignalBlocker workspaceBlocker(workspaceCombo);
+        const QSignalBlocker appearanceBlocker(appearanceCombo);
+        const auto& modes = host.GetEditorWorkModeService();
+        modeCombo->setCurrentIndex(modeCombo->findData(
+            QString::fromStdString(modes.Active().id)));
+        workspaceCombo->clear();
+        workspaceCombo->addItem(QString::fromStdString(
+            modes.Active().displayName + " Defaults"), QString());
+        const auto& state = host.GetUserWorkspaceService().State();
+        for (const auto& workspace : state.namedWorkspaces)
+            if (workspace.modeId == modes.Active().id)
+                workspaceCombo->addItem(QString::fromStdString(workspace.displayName),
+                    QString::fromStdString(workspace.id));
+        const int selected = workspaceCombo->findData(
+            QString::fromStdString(state.currentWorkspaceId));
+        workspaceCombo->setCurrentIndex(selected < 0 ? 0 : selected);
+        appearanceCombo->setCurrentText(QString::fromStdString(
+            host.GetUserWorkspaceService().Appearance().theme));
+        const bool named = !workspaceCombo->currentData().toString().isEmpty();
+        loadWorkspaceButton->setEnabled(named);
+        renameWorkspaceButton->setEnabled(named);
+        deleteWorkspaceButton->setEnabled(named);
+    }
+
     void RebuildRows(const std::vector<WorkspaceCustomizationPanelRow>& rows)
     {
         tree->clear();
+        const auto effective = host.GetUserWorkspaceService().Effective();
         for (const WorkspaceCustomizationPanelRow& row : rows)
         {
+            const auto effectiveDock = std::find_if(effective.docks.begin(),
+                effective.docks.end(), [&row](const WorkspaceDockDefinition& dock)
+                { return dock.panelId == row.id; });
+            const bool effectiveVisible = effectiveDock != effective.docks.end() &&
+                effectiveDock->visible;
             auto* item = new QTreeWidgetItem(tree);
             item->setText(1, QStringLiteral("%1\n%2")
                               .arg(QString::fromStdString(row.displayName),
                                    QString::fromStdString(row.id)));
-            item->setText(2, BoolText(row.currentVisible));
+            item->setText(2, BoolText(effectiveVisible));
             item->setText(3, BoolText(row.defaultVisible));
             item->setText(4, DirtyText(row));
             item->setText(5, QString::fromStdString(row.lockedReason));
             item->setToolTip(1, QString::fromStdString(row.id));
 
             auto* toggle = new QCheckBox(tree);
-            toggle->setChecked(row.visible);
+            toggle->setChecked(effectiveVisible);
             toggle->setEnabled(row.editable);
             toggle->setToolTip(row.editable
                                    ? QStringLiteral("Change safe panel visibility")
@@ -229,7 +376,10 @@ struct CustomizeWorkspacePanel::Impl
             QObject::connect(toggle, &QCheckBox::toggled,
                 [this, panelId = row.id](bool visible)
                 {
-                    (void)viewModel.TogglePanel(panelId, visible);
+                    (void)host.GetUserWorkspaceService().SetPanelVisible(
+                        panelId, visible);
+                    (void)host.GetCommandDispatcher().Dispatch(
+                        "saga.command.workspace.apply");
                     Refresh();
                 });
         }
@@ -244,21 +394,12 @@ struct CustomizeWorkspacePanel::Impl
             text += QStringLiteral("\nOverlay: %1")
                 .arg(QString::fromStdString(state.overlayPath));
         }
-        if (state.restartRequired)
-        {
-            text += QStringLiteral(
-                "\nRestart required: workspace customization changes are saved as an overlay and apply on next editor startup.");
-        }
-        else if (state.dirty)
-        {
-            text += QStringLiteral("\nWorkspace customization has pending changes.");
-        }
+        const bool dirty = host.GetUserWorkspaceService().State().dirty;
+        text += dirty ? QStringLiteral("\nCurrent workspace has unsaved changes.")
+                      : QStringLiteral("\nCurrent workspace is saved.");
         statusLabel->setText(text);
-        saveButton->setEnabled(state.canSave);
-        resetButton->setEnabled(state.canReset);
-        reloadButton->setEnabled(state.canReset);
-        importButton->setEnabled(state.canReset);
-        exportButton->setEnabled(state.status == WorkspaceCustomizationStatus::Ready);
+        saveButton->setEnabled(dirty);
+        resetButton->setEnabled(true);
     }
 
     void UpdateDiagnostics(
@@ -302,6 +443,16 @@ struct CustomizeWorkspacePanel::Impl
     QPushButton* saveButton = nullptr;
     QPushButton* resetButton = nullptr;
     QPushButton* reloadButton = nullptr;
+    QComboBox* modeCombo = nullptr;
+    QComboBox* workspaceCombo = nullptr;
+    QComboBox* appearanceCombo = nullptr;
+    QLineEdit* workspaceName = nullptr;
+    QPushButton* saveAsButton = nullptr;
+    QPushButton* loadWorkspaceButton = nullptr;
+    QPushButton* renameWorkspaceButton = nullptr;
+    QPushButton* deleteWorkspaceButton = nullptr;
+    QPushButton* resetCurrentButton = nullptr;
+    QPushButton* resetModeButton = nullptr;
 };
 
 CustomizeWorkspacePanel::CustomizeWorkspacePanel(EditorHost& host)

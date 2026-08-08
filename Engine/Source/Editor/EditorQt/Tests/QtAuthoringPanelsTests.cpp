@@ -11,14 +11,20 @@
 #include "SagaEditor/SceneEditing/SceneSelectionIdentity.h"
 #include "SagaEditor/Selection/SelectionManager.h"
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
+#include "SagaEditorQt/QtUIMainWindow.h"
 
 #include <gtest/gtest.h>
 
 #include <QApplication>
 #include <QComboBox>
+#include <QDockWidget>
+#include <QGuiApplication>
 #include <QLineEdit>
+#include <QMainWindow>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QScreen>
+#include <QStackedWidget>
 #include <QTabWidget>
 #include <QTreeWidget>
 
@@ -115,6 +121,29 @@ TEST(QtAuthoringPanelsTests, HierarchySelectionDrivesCanonicalInspector)
     auto* inspectorWidget = inspector.Widget();
     EXPECT_FALSE(inspectorWidget->findChildren<QLineEdit*>().empty());
     hierarchy.OnShutdown(); inspector.OnShutdown();
+}
+
+TEST(QtAuthoringPanelsTests, RestoredFloatingDockIsClampedToReachableScreen)
+{
+    (void)Application();
+    QMainWindow owner;
+    auto* stack = new QStackedWidget(&owner);
+    owner.setCentralWidget(stack);
+    SagaEditor::QtUIMainWindow window(owner, *stack);
+    window.DockPanel(new QWidget(), "test.floating", "Floating",
+        SagaEditor::UIDockArea::Right);
+    owner.show();
+    QApplication::processEvents();
+    auto* dock = owner.findChild<QDockWidget*>("test.floating");
+    ASSERT_NE(dock, nullptr);
+    const QRect available = QGuiApplication::primaryScreen()->availableGeometry();
+    dock->setFloating(true);
+    dock->setGeometry(available.right() + 500, available.bottom() + 500,
+        320, 240);
+    const auto state = window.SaveState();
+    dock->setGeometry(available.topLeft().x(), available.topLeft().y(), 320, 240);
+    ASSERT_TRUE(window.RestoreState(state));
+    EXPECT_TRUE(available.intersects(dock->frameGeometry()));
 }
 
 TEST(QtAuthoringPanelsTests, CodeBoxMutationUsesTransactionAndDoesNotWriteDisk)

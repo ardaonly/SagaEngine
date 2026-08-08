@@ -114,7 +114,7 @@ std::string SagaUsageText()
     return
         "Usage: Saga [<project.sagaproj>] [options]\n"
         "  --project <path>                  Open a project in the Saga workspace\n"
-        "  --authoring-mode <level1|level2|level3> Authoring depth\n"
+        "  --authoring-mode <quick-production|balanced|full-control> Work mode\n"
         "  --workspace <path|builtin:basic>  Product workspace root\n"
         "  --target <runtime|server>         Developer target preparation (server unsupported)\n"
         "  --package-manifest <path>         Startup package manifest for runtime targets\n"
@@ -267,14 +267,20 @@ SagaConfigResult ParseSagaAppConfig(int argc, char* argv[])
             if (!HasValue(i, argc))
             {
                 result.ok = false;
-                result.error = "Saga: --authoring-mode requires level1, level2, or level3";
+                result.error = "Saga: --authoring-mode requires a work mode id";
                 return result;
             }
             result.config.authoringMode = argv[++i];
             explicitAuthoringMode = true;
-            if (result.config.authoringMode != "level1" &&
-                result.config.authoringMode != "level2" &&
-                result.config.authoringMode != "level3")
+            if (result.config.authoringMode == "level1")
+                result.config.authoringMode = "quick-production";
+            else if (result.config.authoringMode == "level2")
+                result.config.authoringMode = "balanced";
+            else if (result.config.authoringMode == "level3")
+                result.config.authoringMode = "full-control";
+            if (result.config.authoringMode != "quick-production" &&
+                result.config.authoringMode != "balanced" &&
+                result.config.authoringMode != "full-control")
             {
                 result.ok = false;
                 result.error = "Saga: unknown authoring mode '" +
@@ -298,14 +304,14 @@ SagaConfigResult ParseSagaAppConfig(int argc, char* argv[])
                     legacy == "pro" || legacy == "technical" ||
                     legacy.find("advanced") != std::string::npos ||
                     legacy.find("studio") != std::string::npos)
-                    result.config.authoringMode = "level3";
+                    result.config.authoringMode = "full-control";
                 else if (legacy == "basic" || legacy == "creator" ||
                          legacy == "beginner" ||
                          legacy.find("basic") != std::string::npos ||
                          legacy.find("beginner") != std::string::npos)
-                    result.config.authoringMode = "level1";
+                    result.config.authoringMode = "quick-production";
                 else
-                    result.config.authoringMode = "level2";
+                    result.config.authoringMode = "balanced";
             }
         }
         else if (arg == "--workflow-report-out")

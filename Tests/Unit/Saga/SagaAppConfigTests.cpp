@@ -23,14 +23,14 @@ TEST(SagaAppConfigTest, DefaultConfigCanBeCreated)
 TEST(SagaAppConfigTest, ParsesCanonicalDesktopProjectAndAuthoringMode)
 {
     const char* argvRaw[] = {
-        "Saga", "Game.sagaproj", "--authoring-mode", "level3"};
+        "Saga", "Game.sagaproj", "--authoring-mode", "full-control"};
     auto* argv = const_cast<char**>(argvRaw);
 
     const SagaConfigResult result = ParseSagaAppConfig(4, argv);
 
     ASSERT_TRUE(result.ok) << result.error;
     EXPECT_EQ(result.config.workflowProjectPath, fs::path("Game.sagaproj"));
-    EXPECT_EQ(result.config.authoringMode, "level3");
+    EXPECT_EQ(result.config.authoringMode, "full-control");
 }
 
 TEST(SagaAppConfigTest, RejectsUnknownAuthoringMode)
@@ -50,7 +50,7 @@ TEST(SagaAppConfigTest, LegacyProfileMapsOnlyWhenNoExplicitAuthoringMode)
     auto* legacy = const_cast<char**>(legacyRaw);
     const SagaConfigResult migrated = ParseSagaAppConfig(3, legacy);
     ASSERT_TRUE(migrated.ok) << migrated.error;
-    EXPECT_EQ(migrated.config.authoringMode, "level3");
+    EXPECT_EQ(migrated.config.authoringMode, "full-control");
 
     const char* explicitRaw[] = {
         "Saga", "--authoring-mode", "level1", "--profile", "advanced_pipeline"};
@@ -58,7 +58,7 @@ TEST(SagaAppConfigTest, LegacyProfileMapsOnlyWhenNoExplicitAuthoringMode)
     const SagaConfigResult explicitResult =
         ParseSagaAppConfig(5, explicitArgs);
     ASSERT_TRUE(explicitResult.ok) << explicitResult.error;
-    EXPECT_EQ(explicitResult.config.authoringMode, "level1");
+    EXPECT_EQ(explicitResult.config.authoringMode, "quick-production");
 }
 
 TEST(SagaAppConfigTest, LauncherDistributionReportOverrideIsReadOnlyInput)

@@ -5,6 +5,7 @@ saga_add_editor_module(EditorFramework
     PRIVATE_DEPS nlohmann_json::nlohmann_json
     SOURCES
         Private/SagaEditor/Authoring/AuthoringMode.cpp
+        Private/SagaEditor/Workspaces/UserWorkspace.cpp
         Private/SagaEditor/Composition/EditorCompositionArtifactLoader.cpp
         Private/SagaEditor/Composition/EditorCompositionDiagnostics.cpp
         Private/SagaEditor/Composition/EditorCompositionDiff.cpp
@@ -35,6 +36,7 @@ saga_add_editor_module(EditorFramework
         Private/SagaEditor/Shell/ShellCommands.cpp
         Private/SagaEditor/Themes/ColorPalette.cpp
         Public/SagaEditor/Authoring/AuthoringMode.h
+        Public/SagaEditor/Workspaces/UserWorkspace.h
         Public/SagaEditor/Composition/EditorCompositionArtifact.h
         Public/SagaEditor/Composition/EditorCompositionArtifactLoader.h
         Public/SagaEditor/Composition/EditorCompositionDiagnostics.h
@@ -99,6 +101,7 @@ saga_register_module_tests(EditorFramework
     LABELS "unit;editor;framework"
     SOURCES
         Tests/AuthoringModeTests.cpp
+        Tests/UserWorkspaceTests.cpp
         Tests/EditorCompositionTests.cpp
         Tests/EditorWorkspaceSessionTests.cpp
         Tests/EditorNotificationTests.cpp

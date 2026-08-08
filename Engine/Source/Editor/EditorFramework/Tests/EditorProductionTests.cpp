@@ -271,7 +271,7 @@ TEST(EditorProductionHostTest, AppliesSafeCompositionOverlayAtStartup)
     host.Shutdown();
 }
 
-TEST(EditorProductionHostTest, AutoDiscoversDefaultWorkspaceCustomizationOverlay)
+TEST(EditorProductionHostTest, LegacyWorkspaceOverlayDoesNotOverrideWorkMode)
 {
     const fs::path compositionRoot =
         fs::temp_directory_path() / "saga_editor_host_composition_auto_overlay";
@@ -292,10 +292,10 @@ TEST(EditorProductionHostTest, AutoDiscoversDefaultWorkspaceCustomizationOverlay
     const auto& resolvedConfig = host.GetCompositionSession().Config();
     EXPECT_TRUE(std::find(resolvedConfig.overlayPaths.begin(),
                           resolvedConfig.overlayPaths.end(),
-                          overlayPath) != resolvedConfig.overlayPaths.end());
+                          overlayPath) == resolvedConfig.overlayPaths.end());
     ASSERT_TRUE(host.GetCompositionSession().Snapshot().has_value());
     ASSERT_EQ(host.GetCompositionSession().Snapshot()->panels.size(), 1u);
-    EXPECT_FALSE(host.GetCompositionSession().Snapshot()->panels[0].visible);
+    EXPECT_TRUE(host.GetCompositionSession().Snapshot()->panels[0].visible);
     EXPECT_EQ(host.GetWorkspaceCustomizationSession().OverlayPath(),
               overlayPath);
     EXPECT_TRUE(host.GetWorkspaceCustomizationSession().GetModel()
@@ -384,8 +384,8 @@ TEST(EditorProductionHostTest, AuthoringModeSwitchDoesNotReplaceCoreOrEngineBrid
     const std::string bridgeIdentityBefore =
         host.GetEngineBridge().StableIdentity();
 
-    ASSERT_TRUE(host.GetAuthoringModeService().SetActive("level3"));
-    ASSERT_TRUE(host.GetAuthoringModeService().SetActive("level2"));
+    ASSERT_TRUE(host.GetEditorWorkModeService().SetActive("full-control"));
+    ASSERT_TRUE(host.GetEditorWorkModeService().SetActive("balanced"));
 
     EXPECT_EQ(selectionBefore, &host.GetSelectionManager());
     EXPECT_EQ(bridgeIdentityBefore, host.GetEngineBridge().StableIdentity());

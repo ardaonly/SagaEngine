@@ -5,26 +5,27 @@
 
 namespace SagaEditor
 {
-TEST(AuthoringModeTests, ExposesExactlyThreeStableBuiltinsAndDefaultsToLevel1)
+TEST(AuthoringModeTests, ExposesExactlyThreeStableOfficialWorkModes)
 {
     MemoryEditorSettingsStore settings;
     AuthoringModeService service;
     ASSERT_TRUE(service.Init(settings));
     ASSERT_EQ(service.Modes().size(), 3u);
-    EXPECT_EQ(service.Modes()[0].id, "level1");
-    EXPECT_EQ(service.Modes()[1].id, "level2");
-    EXPECT_EQ(service.Modes()[2].id, "level3");
-    EXPECT_EQ(service.Active().id, "level1");
-    EXPECT_EQ(settings.GetString(AuthoringModeService::SettingKey, {}), "level1");
+    EXPECT_EQ(service.Modes()[0].id, "quick-production");
+    EXPECT_EQ(service.Modes()[1].id, "balanced");
+    EXPECT_EQ(service.Modes()[2].id, "full-control");
+    EXPECT_EQ(service.Active().id, "quick-production");
+    EXPECT_EQ(settings.GetString(AuthoringModeService::SettingKey, {}),
+        "quick-production");
 }
 
 TEST(AuthoringModeTests, ExplicitValidWinsAndExplicitUnknownFails)
 {
     MemoryEditorSettingsStore settings;
-    settings.SetString(AuthoringModeService::SettingKey, "level2");
+    settings.SetString(AuthoringModeService::SettingKey, "balanced");
     AuthoringModeService valid;
-    ASSERT_TRUE(valid.Init(settings, "level3"));
-    EXPECT_EQ(valid.Active().id, "level3");
+    ASSERT_TRUE(valid.Init(settings, "full-control"));
+    EXPECT_EQ(valid.Active().id, "full-control");
     AuthoringModeService invalid;
     EXPECT_FALSE(invalid.Init(settings, "unknown"));
 }
@@ -35,29 +36,31 @@ TEST(AuthoringModeTests, MigratesProfileBeforePersonaIdempotently)
     settings.SetString("profile.activeId", "saga.profile.creator");
     settings.SetString("persona.activeId", "saga.persona.technical");
     MigrateLegacyEditorPreferences(settings);
-    EXPECT_EQ(settings.GetString(AuthoringModeService::SettingKey, {}), "level1");
+    EXPECT_EQ(settings.GetString(AuthoringModeService::SettingKey, {}),
+        "quick-production");
     EXPECT_EQ(settings.GetString(
-        AuthoringModeService::MigrationVersionKey, {}), "2");
+        AuthoringModeService::MigrationVersionKey, {}), "3");
     EXPECT_EQ(settings.GetString(
         AuthoringModeService::ThemeSettingKey, {}), "Midnight");
     settings.SetString("profile.activeId", "saga.profile.advanced_pipeline");
     MigrateLegacyEditorPreferences(settings);
-    EXPECT_EQ(settings.GetString(AuthoringModeService::SettingKey, {}), "level1");
+    EXPECT_EQ(settings.GetString(AuthoringModeService::SettingKey, {}),
+        "quick-production");
 }
 
 TEST(AuthoringModeTests, MapsEveryLegacyBuiltinDeterministically)
 {
     const std::pair<const char*, const char*> cases[] = {
-        {"saga.profile.basic", "level1"},
-        {"saga.persona.beginner", "level1"},
-        {"saga.profile.node_editor", "level2"},
-        {"saga.profile.standard_pipeline", "level2"},
-        {"saga.profile.custom", "level2"},
-        {"saga.persona.indie", "level2"},
-        {"saga.persona.custom", "level2"},
-        {"saga.profile.advanced_pipeline", "level3"},
-        {"saga.persona.pro", "level3"},
-        {"saga.persona.technical", "level3"},
+        {"saga.profile.basic", "quick-production"},
+        {"saga.persona.beginner", "quick-production"},
+        {"saga.profile.node_editor", "balanced"},
+        {"saga.profile.standard_pipeline", "balanced"},
+        {"saga.profile.custom", "balanced"},
+        {"saga.persona.indie", "balanced"},
+        {"saga.persona.custom", "balanced"},
+        {"saga.profile.advanced_pipeline", "full-control"},
+        {"saga.persona.pro", "full-control"},
+        {"saga.persona.technical", "full-control"},
     };
     for (const auto& [legacy, expected] : cases)
         EXPECT_EQ(AuthoringModeForLegacyPreference(legacy), expected) << legacy;
@@ -68,10 +71,12 @@ TEST(AuthoringModeTests, MissingAndPartialLegacySettingsCompleteMigrationOnce)
     MemoryEditorSettingsStore settings;
     settings.SetString("persona.activeId", "saga.persona.technical");
     MigrateLegacyEditorPreferences(settings);
-    EXPECT_EQ(settings.GetString(AuthoringModeService::SettingKey, {}), "level3");
+    EXPECT_EQ(settings.GetString(AuthoringModeService::SettingKey, {}),
+        "full-control");
     settings.SetString("profile.activeId", "saga.profile.basic");
     MigrateLegacyEditorPreferences(settings);
-    EXPECT_EQ(settings.GetString(AuthoringModeService::SettingKey, {}), "level3");
+    EXPECT_EQ(settings.GetString(AuthoringModeService::SettingKey, {}),
+        "full-control");
 }
 
 TEST(AuthoringModeTests, MigratesEveryLegacyBuiltinPersonaThemeFromVersion1)
@@ -87,7 +92,7 @@ TEST(AuthoringModeTests, MigratesEveryLegacyBuiltinPersonaThemeFromVersion1)
     {
         MemoryEditorSettingsStore settings;
         settings.SetString(AuthoringModeService::MigrationVersionKey, "1");
-        settings.SetString(AuthoringModeService::SettingKey, "level2");
+        settings.SetString(AuthoringModeService::SettingKey, "balanced");
         settings.SetString("persona.activeId", persona);
 
         MigrateLegacyEditorPreferences(settings);
@@ -95,9 +100,9 @@ TEST(AuthoringModeTests, MigratesEveryLegacyBuiltinPersonaThemeFromVersion1)
         EXPECT_EQ(settings.GetString(
             AuthoringModeService::ThemeSettingKey, {}), expected) << persona;
         EXPECT_EQ(settings.GetString(
-            AuthoringModeService::SettingKey, {}), "level2") << persona;
+            AuthoringModeService::SettingKey, {}), "balanced") << persona;
         EXPECT_EQ(settings.GetString(
-            AuthoringModeService::MigrationVersionKey, {}), "2") << persona;
+            AuthoringModeService::MigrationVersionKey, {}), "3") << persona;
     }
 }
 
@@ -126,6 +131,18 @@ TEST(AuthoringModeTests, UnknownPersonaDoesNotCreateThemePreference)
 
     EXPECT_FALSE(settings.Has(AuthoringModeService::ThemeSettingKey));
     EXPECT_EQ(settings.GetString(
-        AuthoringModeService::MigrationVersionKey, {}), "2");
+        AuthoringModeService::MigrationVersionKey, {}), "3");
+}
+
+TEST(AuthoringModeTests, LegacyModeAliasesResolveImmediatelyToCanonicalIds)
+{
+    MemoryEditorSettingsStore settings;
+    EditorWorkModeService service;
+    ASSERT_TRUE(service.Init(settings, "level3"));
+    EXPECT_EQ(service.Active().id, "full-control");
+    ASSERT_TRUE(service.SetActive("level1"));
+    EXPECT_EQ(service.Active().id, "quick-production");
+    EXPECT_EQ(settings.GetString(EditorWorkModeService::SettingKey, {}),
+        "quick-production");
 }
 } // namespace SagaEditor

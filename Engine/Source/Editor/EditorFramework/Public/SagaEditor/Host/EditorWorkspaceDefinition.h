@@ -15,7 +15,6 @@ struct EditorWorkspaceDefinition
 {
     std::string           id;               ///< Product-stable workspace id.
     std::filesystem::path root;             ///< Resolved editor workspace root.
-    std::string           initialProfileId; ///< Optional editor profile id.
     std::string           layoutPreset;     ///< Optional editor layout preset.
     bool                  workspaceValidated = false; ///< True when product workspace validation passed.
 };

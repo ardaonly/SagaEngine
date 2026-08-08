@@ -4,6 +4,7 @@
 
 #include "SagaEditorQt/QtSettingsStore.h"
 
+#include <QFileInfo>
 #include <QSettings>
 #include <QString>
 #include <QVariant>
@@ -44,6 +45,11 @@ void QtSettingsStore::Remove(const std::string& key)
 void QtSettingsStore::Flush()
 {
     m_impl->settings.sync();
+}
+
+std::filesystem::path QtSettingsStore::ConfigurationRoot() const
+{
+    return QFileInfo(m_impl->settings.fileName()).absolutePath().toStdString();
 }
 
 } // namespace SagaEditor
