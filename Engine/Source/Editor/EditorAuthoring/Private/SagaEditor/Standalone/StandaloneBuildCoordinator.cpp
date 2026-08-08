@@ -346,6 +346,12 @@ StandaloneBuildResult StandaloneBuildCoordinator::Build(
     StandaloneBuildResult result;
     result.outputDirectory = request.outputDirectory;
     if (!SafeOutput(request, result.diagnostics)) return result;
+    result.publicationRecovery =
+        StandalonePublicationTransaction::RecoverOwned(request.outputDirectory);
+    result.diagnostics.insert(result.diagnostics.end(),
+        result.publicationRecovery.diagnostics.begin(),
+        result.publicationRecovery.diagnostics.end());
+    if (!result.publicationRecovery.Succeeded()) return result;
     Report(request, StandaloneBuildState::Capturing, 0, 0, "Capture snapshot");
     for (unsigned attempt = 0; attempt < std::max(1u, request.captureAttempts); ++attempt)
     {
@@ -496,28 +502,17 @@ StandaloneBuildResult StandaloneBuildCoordinator::Build(
     if (request.cancellationRequested && request.cancellationRequested())
     { result.state = StandaloneBuildState::Cancelled; cleanup(); return result; }
     Report(request, StandaloneBuildState::Publishing, 0, 0, "Publish verified output");
-    const auto backup = staging / "previous";
-    const bool hadPrevious = std::filesystem::exists(request.outputDirectory, error);
-    Json journal = {{"candidate", candidate.string()},
-        {"destination", request.outputDirectory.string()}, {"previous", backup.string()},
-        {"schemaVersion", 1}, {"snapshotId", result.snapshot.snapshotId}};
-    if (!AtomicWriteDocument(staging / "publish-journal.json", journal.dump(2) + "\n",
-        result.snapshot.snapshotId, error)) { cleanup(); return result; }
-    if (hadPrevious) std::filesystem::rename(request.outputDirectory, backup, error);
-    if (!error && request.publicationAllowed && !request.publicationAllowed())
-        error = std::make_error_code(std::errc::operation_canceled);
-    if (!error) std::filesystem::rename(candidate, request.outputDirectory, error);
-    if (error)
+    auto publication = StandalonePublicationTransaction::Publish({staging, candidate,
+        request.outputDirectory, result.snapshot.snapshotId, result.manifestHash,
+        request.publicationAllowed});
+    result.preservedPreviousOutput = publication.preservedPreviousOutput;
+    result.publicationRecovery = std::move(publication.recovery);
+    result.diagnostics.insert(result.diagnostics.end(), publication.diagnostics.begin(),
+        publication.diagnostics.end());
+    if (!publication.published)
     {
-        if (hadPrevious && !std::filesystem::exists(request.outputDirectory))
-        { std::error_code restore; std::filesystem::rename(backup, request.outputDirectory, restore); }
-        result.preservedPreviousOutput = hadPrevious;
-        result.diagnostics.push_back(Diagnostic("Build.Publish.Failed",
-            "Publication failed and the prior valid output was preserved.",
-            request.outputDirectory));
-        cleanup(); return result;
+        return result;
     }
-    result.preservedPreviousOutput = hadPrevious;
     result.published = true;
     result.state = StandaloneBuildState::Succeeded;
     result.manifestPath = request.outputDirectory / "StandaloneManifest.saga.json";

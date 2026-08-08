@@ -363,7 +363,8 @@ RuntimeResultParseResult ParseRuntimeResultV1(
         parsed.diagnostics.push_back(Error("Runtime.Result.JsonInvalid", error.what()));
         return parsed;
     }
-    if (!ExactFields(root, {"canonicalLaunchManifestHash", "crashArtifactPath",
+    if (!ExactFields(root, {"canonicalGameplayState", "canonicalGameplayStateHash",
+            "canonicalLaunchManifestHash", "crashArtifactPath",
             "exitClassification", "exitCode", "framesExecuted", "interactionActionCount",
             "logPath", "observedState", "playSessionId", "runtimeDiagnostics",
             "schemaVersion", "shutdownClassification", "startupDiagnostics", "status"}) ||
@@ -373,6 +374,11 @@ RuntimeResultParseResult ParseRuntimeResultV1(
         !root.contains("exitCode") || !root["exitCode"].is_number_integer() ||
         !root.contains("framesExecuted") || !root["framesExecuted"].is_number_unsigned() ||
         !root.contains("interactionActionCount") || !root["interactionActionCount"].is_number_unsigned() ||
+        !root.contains("canonicalGameplayState") || !root["canonicalGameplayState"].is_object() ||
+        root["canonicalGameplayState"].value("schemaVersion", 0) != 1 ||
+        !IsSha256(root.value("canonicalGameplayStateHash", std::string{})) ||
+        Sha256Bytes(Canonical(root["canonicalGameplayState"])) !=
+            root.value("canonicalGameplayStateHash", std::string{}) ||
         !root.contains("observedState") || !root["observedState"].is_object() ||
         !root.contains("startupDiagnostics") || !root["startupDiagnostics"].is_array() ||
         !root.contains("runtimeDiagnostics") || !root["runtimeDiagnostics"].is_array() ||
@@ -391,6 +397,8 @@ RuntimeResultParseResult ParseRuntimeResultV1(
     result.shutdownClassification = root["shutdownClassification"].get<std::string>();
     result.framesExecuted = root["framesExecuted"].get<std::uint64_t>();
     result.interactionActionCount = root["interactionActionCount"].get<std::uint64_t>();
+    result.canonicalGameplayStateJson = Canonical(root["canonicalGameplayState"]);
+    result.canonicalGameplayStateHash = root["canonicalGameplayStateHash"].get<std::string>();
     result.observedStateCanonicalJson = Canonical(root["observedState"]);
     if (root["logPath"].is_string()) result.logPath = root["logPath"].get<std::string>();
     else if (!root["logPath"].is_null()) parsed.diagnostics.push_back(Error(

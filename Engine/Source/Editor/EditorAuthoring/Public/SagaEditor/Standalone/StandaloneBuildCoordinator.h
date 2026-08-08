@@ -5,6 +5,7 @@
 #include "SagaEditor/Documents/Document.h"
 #include "SagaEditor/Play/PlaySourceSnapshot.h"
 #include "SagaEditor/Scripting/ScriptAnalysisCoordinator.h"
+#include "SagaEditor/Standalone/StandalonePublicationTransaction.h"
 
 #include <filesystem>
 #include <functional>
@@ -96,6 +97,7 @@ struct StandaloneBuildResult
     StandaloneBuildState state = StandaloneBuildState::Failed;
     bool published = false;
     bool preservedPreviousOutput = false;
+    StandalonePublicationRecoveryResult publicationRecovery;
     BuildInputSnapshot snapshot;
     std::filesystem::path outputDirectory;
     std::filesystem::path manifestPath;

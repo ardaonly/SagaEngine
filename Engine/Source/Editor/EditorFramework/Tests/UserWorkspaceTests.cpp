@@ -89,6 +89,60 @@ TEST(UserWorkspaceTests, VersionedJsonRoundTripsAndLeavesNoWriteResidue)
     EXPECT_EQ(loaded.Effective().machinePlacementState, "dead");
 }
 
+TEST(UserWorkspaceTests, ImportsLegacyLayoutsWithStableIdsAndExactBytes)
+{
+    const auto root = TemporaryRoot("saga-legacy-workspace-migration");
+    MemoryEditorSettingsStore settings;
+    EditorWorkModeService modes;
+    ASSERT_TRUE(modes.Init(settings, "balanced"));
+    settings.SetString("Editor/Layout/v2/level1", std::string("\0\xff\x01", 3));
+    settings.SetString("Editor/Layout/v2/level2", std::string("\x10\0", 2));
+    settings.SetString("Editor/Layout/v2/level3", std::string("\x7f\x80", 2));
+    settings.SetString("user.workspace.default", std::string("\xde\xad\0\xbe", 4));
+
+    UserWorkspaceService service;
+    ASSERT_TRUE(service.Init(settings, root, modes.Modes()));
+    ASSERT_EQ(service.State().namedWorkspaces.size(), 1U);
+    EXPECT_EQ(service.State().namedWorkspaces.front().id, "legacy-default");
+    EXPECT_EQ(service.State().namedWorkspaces.front().modeId, "balanced");
+    EXPECT_EQ(service.State().namedWorkspaces.front().machinePlacementState, "dead00be");
+    for (const auto& [modeId, expected] : std::vector<std::pair<std::string, std::string>>{
+             {"quick-production", "00ff01"}, {"balanced", "1000"},
+             {"full-control", "7f80"}})
+    {
+        const auto mode = std::find_if(modes.Modes().begin(), modes.Modes().end(),
+            [&modeId](const EditorWorkMode& value) { return value.id == modeId; });
+        ASSERT_NE(mode, modes.Modes().end());
+        ASSERT_TRUE(service.ActivateMode(*mode));
+        EXPECT_EQ(service.Effective().machinePlacementState, expected);
+    }
+    EXPECT_EQ(settings.GetString(UserWorkspaceService::MigrationVersionKey, {}), "1");
+    EXPECT_FALSE(settings.Has("Editor/Layout/v2/level1"));
+    EXPECT_FALSE(settings.Has("Editor/Layout/v2/level2"));
+    EXPECT_FALSE(settings.Has("Editor/Layout/v2/level3"));
+    EXPECT_FALSE(settings.Has("user.workspace.default"));
+
+    UserWorkspaceService reentered;
+    ASSERT_TRUE(reentered.Init(settings, root, modes.Modes()));
+    EXPECT_EQ(reentered.State().namedWorkspaces.size(), 1U);
+    std::filesystem::remove_all(root);
+}
+
+TEST(UserWorkspaceTests, InvalidLegacyWorkspaceIsRetainedForReview)
+{
+    const auto root = TemporaryRoot("saga-invalid-legacy-workspace");
+    MemoryEditorSettingsStore settings;
+    EditorWorkModeService modes;
+    ASSERT_TRUE(modes.Init(settings));
+    settings.SetString("Editor/Layout/v2/level1", "");
+    UserWorkspaceService service;
+    ASSERT_TRUE(service.Init(settings, root, modes.Modes()));
+    EXPECT_TRUE(settings.Has("Editor/Layout/v2/level1"));
+    EXPECT_TRUE(service.State().diagnostic.starts_with("Workspace.MigrationPending"));
+    EXPECT_TRUE(settings.GetString(UserWorkspaceService::MigrationVersionKey, {}).empty());
+    std::filesystem::remove_all(root);
+}
+
 TEST(UserWorkspaceTests, CorruptionIsQuarantinedAndDefaultsRecover)
 {
     Fixture fixture;

@@ -67,6 +67,10 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
 
     auto envelopeResult = RuntimeLaunchSession::ReadEnvelope(playEnvelope);
     auto& envelope = envelopeResult.envelope;
+    std::string canonicalPackageGenerationId;
+    std::string canonicalPackageGenerationHash;
+    std::string canonicalPackageGraphHash;
+    std::string canonicalCollectibleImplementation;
     auto writeResult = [&](std::string status, std::string classification,
                            std::uint64_t frames, std::uint64_t actions,
                            const Json& observed)
@@ -76,7 +80,31 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
         for (const auto& diagnostic : envelopeResult.diagnostics)
             diagnostics.push_back({{"code", diagnostic.code},
                 {"message", diagnostic.message}, {"subject", diagnostic.subject}});
+        const auto phases = observed.value("challengePhases", Json::array());
+        const auto lifecycle = observed.value("collectibleLifecycle", Json::object());
+        const auto topology = observed.value("staticTopology", Json::object());
+        const auto ownership = observed.value("liveOwnershipCounters", Json::object());
+        const auto baseline = ownership.value("baseline", Json::object());
+        const Json canonicalGameplayState = {
+            {"collectibleCount", topology.value("collectibles", 0U)},
+            {"collectibleImplementationIdentity", canonicalCollectibleImplementation},
+            {"collectibleStates", lifecycle},
+            {"entityCount", baseline.value("runtimeEntities", 0U)},
+            {"initialState", phases.empty() ? Json(nullptr) : phases.front()},
+            {"objectiveMatchResult", observed.value("transition", "Incomplete")},
+            {"packageGeneration", {{"generationHash", canonicalPackageGenerationHash},
+                {"generationId", canonicalPackageGenerationId},
+                {"graphHash", canonicalPackageGraphHash}}},
+            {"respawn", {{"pending", observed.value("pendingTransientState", Json::object())},
+                {"result", lifecycle}}},
+            {"score", lifecycle.value("score",
+                lifecycle.value("scoreAfterFirst", -1))},
+            {"schemaVersion", 1}};
+        const auto canonicalGameplayStateHash =
+            Play::Sha256Bytes(canonicalGameplayState.dump(2) + "\n");
         static_cast<void>(RuntimeLaunchSession::WriteJson(envelope.resultPath, {{"canonicalLaunchManifestHash", envelope.canonicalManifestHash},
+            {"canonicalGameplayState", canonicalGameplayState},
+            {"canonicalGameplayStateHash", canonicalGameplayStateHash},
             {"crashArtifactPath", nullptr},
             {"exitClassification", classification}, {"exitCode", status == "Succeeded" ? 0 : 1},
             {"framesExecuted", frames}, {"interactionActionCount", actions},
@@ -113,6 +141,9 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
             "Canonical runtime launch manifest validation failed.");
     }
     const auto& launch = *manifestResult.manifest;
+    canonicalPackageGenerationId = launch.packageGeneration.logicalId;
+    canonicalPackageGenerationHash = launch.packageGeneration.hash;
+    canonicalPackageGraphHash = launch.packageGraphHash;
     if (launch.runtimeBridge.abi != "NativeCallbackTable.v3+NamedAction.v1" ||
         launch.runtimeBridge.targetFramework != "net10.0")
     {
@@ -144,6 +175,11 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
             throw std::runtime_error("package generation paths are incomplete");
         packageCurrent = Json::parse(RuntimeLaunchSession::ReadFile(packageCurrentPath->second));
         packageManifest = Json::parse(RuntimeLaunchSession::ReadFile(packageManifestPath->second));
+        const auto packageBytes = packageManifest.dump();
+        canonicalCollectibleImplementation =
+            packageBytes.find("collectibles.lowlevel") != std::string::npos
+                ? "com.saga.gameplay.challenge/collectibles.lowlevel"
+                : "com.saga.gameplay.challenge/collectibles.highlevel";
         if (packageCurrent.value("schemaVersion", -1) != 1 ||
             packageCurrent.value("generationId", std::string{}) !=
                 launch.packageGeneration.logicalId ||
@@ -1338,6 +1374,7 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
             {"finalCollectibleRespawns",
                 liveOwnershipFinal.pendingCollectibleRespawns}}},
         {"staticTopology", {
+            {"collectibles", collectibleEntityIds.size()},
             {"inputActions", staticInputActionCount},
             {"uiArtifactBindings", staticUiBindingCount}}},
         {"simulationTicks", gameplay.TickCount()},

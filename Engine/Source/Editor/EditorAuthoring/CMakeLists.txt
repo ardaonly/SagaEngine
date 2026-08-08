@@ -20,6 +20,7 @@ saga_add_editor_module(EditorAuthoring
         Private/SagaEditor/InspectorEditing/ComponentEditorRegistry.cpp
         Private/SagaEditor/InspectorEditing/InspectorBinder.cpp
         Private/SagaEditor/Standalone/StandaloneBuildCoordinator.cpp
+        Private/SagaEditor/Standalone/StandalonePublicationTransaction.cpp
         Private/SagaEditor/Play/PlayPreparationPipeline.cpp
         Private/SagaEditor/Play/PlaySourceSnapshot.cpp
         Private/SagaEditor/Play/RuntimeProcessController.cpp

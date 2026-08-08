@@ -49,6 +49,14 @@
       "visibility": "Public"
     },
     {
+      "apiId": "CollectiblesLowLevelBatch.TryCollect",
+      "documentationId": "M:SagaEngine.Scripting.Gameplay.CollectiblesLowLevelBatch.TryCollect(System.Int32)",
+      "blockProjection": "Unsupported",
+      "capability": "Gameplay.State.ReadWrite",
+      "sourcePath": "Engine/Managed/SagaScript.RuntimeBridge/CollectiblesLowLevel.cs",
+      "visibility": "Public"
+    },
+    {
       "apiId": "CollectiblesLowLevelBatch.Reset",
       "documentationId": "M:SagaEngine.Scripting.Gameplay.CollectiblesLowLevelBatch.Reset",
       "blockProjection": "Unsupported",

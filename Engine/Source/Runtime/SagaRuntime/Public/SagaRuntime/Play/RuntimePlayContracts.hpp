@@ -114,6 +114,8 @@ struct RuntimeResultV1
     std::vector<RuntimeDiagnostic> runtimeDiagnostics;
     std::uint64_t framesExecuted = 0;
     std::uint64_t interactionActionCount = 0;
+    std::string canonicalGameplayStateJson;
+    std::string canonicalGameplayStateHash;
     std::string observedStateCanonicalJson;
     std::optional<std::string> logPath;
     std::optional<std::string> crashArtifactPath;

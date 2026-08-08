@@ -92,7 +92,10 @@ std::string RuntimeResultBytes(std::string session = "session",
                                std::string manifestHash = "sha256:" + std::string(64, 'a'),
                                std::string status = "Succeeded", int exitCode = 0)
 {
-    return Json({{"canonicalLaunchManifestHash", std::move(manifestHash)},
+    const Json canonicalGameplayState{{"schemaVersion", 1}, {"score", 10}};
+    return Json({{"canonicalGameplayState", canonicalGameplayState},
+        {"canonicalGameplayStateHash", Sha256Bytes(canonicalGameplayState.dump(2) + "\n")},
+        {"canonicalLaunchManifestHash", std::move(manifestHash)},
         {"crashArtifactPath", nullptr}, {"exitClassification", "Completed"},
         {"exitCode", exitCode}, {"framesExecuted", 350},
         {"interactionActionCount", 2}, {"logPath", "runtime.log"},

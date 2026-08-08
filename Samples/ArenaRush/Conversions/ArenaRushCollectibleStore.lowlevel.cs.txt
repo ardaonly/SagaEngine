@@ -29,7 +29,7 @@ public sealed class ArenaRushCollectibleStore
         Array.Clear(completed);
     }
 
-    public bool TryCollect(int index) => batch.Collect(index);
+    public bool TryCollect(int index) => batch.TryCollect(index);
 
     public int AdvanceAll(double deltaSeconds, int selectionOrdinalBase)
     {
