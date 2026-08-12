@@ -22,14 +22,14 @@ CLI_ASSEMBLY = PROJECT.parent / "bin" / "Release" / "net10.0" / "sagapack.dll"
 SAMPLE_ROOT = REPO_ROOT / "Samples" / "MultiplayerSandbox"
 STARTER_ROOT = REPO_ROOT / "Samples" / "StarterArena"
 ARENA_ROOT = REPO_ROOT / "Samples" / "ArenaRush"
+BUILD_DIR = Path(os.environ.get(
+    "SAGA_BUILD_DIR", REPO_ROOT / "build" / "RelWithDebInfo-0.0.11"))
 RUNTIME_BRIDGE_ASSEMBLY = (
-    REPO_ROOT / "build" / "RelWithDebInfo-0.0.11" / "Managed" /
-    "SagaScript.RuntimeBridge" / "SagaScript.RuntimeBridge.dll"
-)
+    BUILD_DIR / "Managed" / "SagaScript.RuntimeBridge" / "SagaScript.RuntimeBridge.dll")
 NATIVE_BIN_DIR = Path(
     os.environ.get(
         "SAGA_NATIVE_BIN_DIR",
-        REPO_ROOT / "build" / "RelWithDebInfo-0.0.11" / "bin",
+        BUILD_DIR / "bin",
     )
 )
 PROFILE = "project-readiness-server-headless"

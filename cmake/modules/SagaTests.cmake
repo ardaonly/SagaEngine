@@ -39,6 +39,9 @@ function(saga_setup_tests)
 
     include("${CMAKE_CURRENT_FUNCTION_LIST_DIR}/tests/SagaEvidenceTestTargets.cmake")
 
+    include("${SAGA_ROOT}/cmake/testing/SagaTestSuites.cmake")
+    saga_register_local_test_suites()
+
     file(GENERATE
         OUTPUT "${CMAKE_BINARY_DIR}/generated/SagaFocusedTestOwnership-$<CONFIG>.txt"
         CONTENT

@@ -17,7 +17,9 @@ CLI_ASSEMBLY = PROJECT.parent / "bin" / "Release" / "net10.0" / "sagaproject.dll
 SAMPLE_PROJECT = REPO_ROOT / "Samples" / "MultiplayerSandbox" / "MultiplayerSandbox.sagaproj"
 SAMPLE_SLICE = REPO_ROOT / "Samples" / "MultiplayerSandbox" / ".saga" / "slices" / "designer-local.slice.json"
 SAGAPACK = REPO_ROOT / "Tools" / "SagaPackager" / "sagapack"
-RUNTIME_BRIDGE = REPO_ROOT / "build" / "RelWithDebInfo-0.0.11" / "Managed" / "SagaScript.RuntimeBridge" / "SagaScript.RuntimeBridge.dll"
+BUILD_DIR = Path(os.environ.get(
+    "SAGA_BUILD_DIR", REPO_ROOT / "build" / "RelWithDebInfo-0.0.11"))
+RUNTIME_BRIDGE = BUILD_DIR / "Managed" / "SagaScript.RuntimeBridge" / "SagaScript.RuntimeBridge.dll"
 _cli_built = False
 
 
