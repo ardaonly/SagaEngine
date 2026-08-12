@@ -5,8 +5,6 @@
 #include "SagaEditor/Play/PlaySourceSnapshot.h"
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
 
-#include <nlohmann/json.hpp>
-
 #include <filesystem>
 #include <iostream>
 #include <map>
@@ -105,13 +103,6 @@ int main(int argc, char* argv[])
     { std::cerr << progress.message << '\n'; };
 
     const auto result = SagaEditor::StandaloneBuildCoordinator{}.Build(request);
-    nlohmann::ordered_json report = {{"diagnostics", nlohmann::ordered_json::array()},
-        {"manifestHash", result.manifestHash}, {"output", result.outputDirectory.string()},
-        {"published", result.published}, {"schemaVersion", 1},
-        {"snapshotId", result.snapshot.snapshotId}};
-    for (const auto& diagnostic : result.diagnostics)
-        report["diagnostics"].push_back({{"code", diagnostic.code},
-            {"message", diagnostic.message}, {"path", diagnostic.path.string()}});
-    std::cout << report.dump() << '\n';
+    std::cout << SagaEditor::StandaloneBuildCoordinator::SerializeReport(result);
     return result.Succeeded() ? 0 : 7;
 }

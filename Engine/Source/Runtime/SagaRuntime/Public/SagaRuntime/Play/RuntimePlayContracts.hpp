@@ -101,6 +101,46 @@ struct RuntimeStartupReadyParseResult
     std::string_view bytes, std::string_view expectedPlaySessionId = {},
     std::string_view expectedCanonicalManifestHash = {});
 
+struct CanonicalCollectibleState
+{
+    std::string collectibleId;
+    std::string state;
+};
+
+/// Stable, host-independent semantic outcome of a gameplay run. The ordered
+/// collections are significant; paths, clocks, frame timings, and display
+/// state are deliberately excluded from this identity.
+struct CanonicalGameplayState
+{
+    std::optional<std::string> scenarioIdentity;
+    std::optional<std::string> completionPoint;
+    std::vector<CanonicalCollectibleState> collectibles;
+    std::vector<std::string> phases;
+    std::optional<std::int64_t> score;
+    std::int64_t activeCollectibles = 0;
+    std::int64_t pendingRespawns = 0;
+    std::optional<std::string> objectiveMatchResult;
+    std::optional<std::string> packageGenerationId;
+    std::optional<std::string> packageGenerationHash;
+    std::optional<std::string> packageGraphHash;
+    std::optional<std::string> activeImplementationIdentity;
+};
+
+struct GameplayStateIdentity
+{
+    std::optional<CanonicalGameplayState> state;
+    std::string canonicalBytes;
+    std::string hash;
+    std::vector<RuntimeDiagnostic> diagnostics;
+    [[nodiscard]] bool Valid() const noexcept
+    { return state.has_value() && diagnostics.empty(); }
+};
+
+[[nodiscard]] std::string SerializeCanonicalGameplayState(
+    const CanonicalGameplayState& state);
+[[nodiscard]] GameplayStateIdentity ParseCanonicalGameplayState(
+    std::string_view bytes, std::string_view expectedHash = {});
+
 struct RuntimeResultV1
 {
     std::uint32_t schemaVersion = 1;

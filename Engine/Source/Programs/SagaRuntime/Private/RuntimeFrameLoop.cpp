@@ -2,6 +2,7 @@
 
 #include "RuntimeFrameLoop.h"
 #include "RuntimeGameplaySession.h"
+#include "RuntimeGameplayResultWriter.h"
 #include "RuntimeArtifactSession.h"
 #include "RuntimeEvidenceSession.h"
 #include "RuntimeLaunchSession.h"
@@ -37,19 +38,14 @@ namespace
 using Json = nlohmann::json;
 namespace Play = SagaRuntime::Play;
 namespace Scripting = SagaEngine::Scripting;
-
 RuntimeHostResult Failure(std::string code, std::string message)
 {
-    RuntimeHostResult result;
-    result.exitCode = 1;
-    result.diagnosticId = std::move(code);
-    result.message = std::move(message);
+    RuntimeHostResult result; result.exitCode = 1;
+    result.diagnosticId = std::move(code); result.message = std::move(message);
     return result;
 }
 } // namespace
-
-RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
-                                      bool headless,
+RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope, bool headless,
                                       bool smokeInteractions,
                                       bool legacyGenericMode)
 {
@@ -64,59 +60,24 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
     if (playEnvelope.empty())
         return Failure(RuntimeHostDiagnostics::PlayEnvelopeRequired,
             "SagaRuntime requires --play-envelope for canonical project Play.");
-
     auto envelopeResult = RuntimeLaunchSession::ReadEnvelope(playEnvelope);
     auto& envelope = envelopeResult.envelope;
-    std::string canonicalPackageGenerationId;
-    std::string canonicalPackageGenerationHash;
-    std::string canonicalPackageGraphHash;
-    std::string canonicalCollectibleImplementation;
+    std::string canonicalPackageGenerationId, canonicalPackageGenerationHash;
+    std::string canonicalPackageGraphHash, canonicalCollectibleImplementation;
+    std::string canonicalScenarioIdentity;
     auto writeResult = [&](std::string status, std::string classification,
-                           std::uint64_t frames, std::uint64_t actions,
-                           const Json& observed)
+        std::uint64_t frames, std::uint64_t actions, const Json& observed)
     {
         if (envelope.resultPath.empty()) return;
-        Json diagnostics = Json::array();
-        for (const auto& diagnostic : envelopeResult.diagnostics)
-            diagnostics.push_back({{"code", diagnostic.code},
-                {"message", diagnostic.message}, {"subject", diagnostic.subject}});
-        const auto phases = observed.value("challengePhases", Json::array());
-        const auto lifecycle = observed.value("collectibleLifecycle", Json::object());
-        const auto topology = observed.value("staticTopology", Json::object());
-        const auto ownership = observed.value("liveOwnershipCounters", Json::object());
-        const auto baseline = ownership.value("baseline", Json::object());
-        const Json canonicalGameplayState = {
-            {"collectibleCount", topology.value("collectibles", 0U)},
-            {"collectibleImplementationIdentity", canonicalCollectibleImplementation},
-            {"collectibleStates", lifecycle},
-            {"entityCount", baseline.value("runtimeEntities", 0U)},
-            {"initialState", phases.empty() ? Json(nullptr) : phases.front()},
-            {"objectiveMatchResult", observed.value("transition", "Incomplete")},
-            {"packageGeneration", {{"generationHash", canonicalPackageGenerationHash},
-                {"generationId", canonicalPackageGenerationId},
-                {"graphHash", canonicalPackageGraphHash}}},
-            {"respawn", {{"pending", observed.value("pendingTransientState", Json::object())},
-                {"result", lifecycle}}},
-            {"score", lifecycle.value("score",
-                lifecycle.value("scoreAfterFirst", -1))},
-            {"schemaVersion", 1}};
-        const auto canonicalGameplayStateHash =
-            Play::Sha256Bytes(canonicalGameplayState.dump(2) + "\n");
-        static_cast<void>(RuntimeLaunchSession::WriteJson(envelope.resultPath, {{"canonicalLaunchManifestHash", envelope.canonicalManifestHash},
-            {"canonicalGameplayState", canonicalGameplayState},
-            {"canonicalGameplayStateHash", canonicalGameplayStateHash},
-            {"crashArtifactPath", nullptr},
-            {"exitClassification", classification}, {"exitCode", status == "Succeeded" ? 0 : 1},
-            {"framesExecuted", frames}, {"interactionActionCount", actions},
-            {"logPath", envelope.logPath.string()},
-            {"observedState", observed}, {"playSessionId", envelope.playSessionId},
-            {"runtimeDiagnostics", diagnostics}, {"schemaVersion", 1},
-            {"startupDiagnostics", Json::array()}, {"status", status},
-            {"shutdownClassification", classification == "GracefulStop" ?
-                "GracefulStop" : (status == "Succeeded" ? "Clean" : "StartupFailure")}}));
+        static_cast<void>(WriteRuntimeGameplayResult({envelope.resultPath, envelope.logPath,
+            envelope.playSessionId, envelope.canonicalManifestHash,
+            canonicalScenarioIdentity, canonicalPackageGenerationId,
+            canonicalPackageGenerationHash, canonicalPackageGraphHash,
+            canonicalCollectibleImplementation}, envelopeResult.diagnostics,
+            status, classification, frames, actions, observed));
     };
     auto structuredFailure = [&](std::string code, std::string message,
-                                 std::string classification)
+        std::string classification)
     {
         envelopeResult.diagnostics.push_back({code, message, {}});
         writeResult("Failed", std::move(classification), 0, 0, Json::object());
@@ -141,6 +102,7 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
             "Canonical runtime launch manifest validation failed.");
     }
     const auto& launch = *manifestResult.manifest;
+    canonicalScenarioIdentity = launch.projectId;
     canonicalPackageGenerationId = launch.packageGeneration.logicalId;
     canonicalPackageGenerationHash = launch.packageGeneration.hash;
     canonicalPackageGraphHash = launch.packageGraphHash;
@@ -1375,6 +1337,7 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
                 liveOwnershipFinal.pendingCollectibleRespawns}}},
         {"staticTopology", {
             {"collectibles", collectibleEntityIds.size()},
+            {"collectibleIds", collectibleEntityIds},
             {"inputActions", staticInputActionCount},
             {"uiArtifactBindings", staticUiBindingCount}}},
         {"simulationTicks", gameplay.TickCount()},

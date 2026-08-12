@@ -27,8 +27,10 @@ TEST(AuthoringModeTests, PerformanceTransitionIsAnExplicitFullControlSurface)
     ASSERT_TRUE(service.Init(settings));
     const auto hasPerformance = [](const EditorWorkMode& mode)
     {
-        return std::find(mode.visiblePanels.begin(), mode.visiblePanels.end(),
-            "saga.panel.performance_transition") != mode.visiblePanels.end();
+        return std::find(mode.defaultVisiblePanels.begin(),
+            mode.defaultVisiblePanels.end(),
+            "saga.panel.performance_transition") !=
+            mode.defaultVisiblePanels.end();
     };
     EXPECT_FALSE(hasPerformance(service.Modes()[0]));
     EXPECT_FALSE(hasPerformance(service.Modes()[1]));

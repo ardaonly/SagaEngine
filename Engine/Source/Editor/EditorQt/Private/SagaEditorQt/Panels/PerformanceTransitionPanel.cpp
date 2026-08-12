@@ -4,6 +4,7 @@
 
 #include "SagaEditor/Performance/BuildProfiles.h"
 #include "SagaEditor/Performance/CollectibleConversionController.h"
+#include "SagaEditor/Performance/CollectibleConversionHistory.h"
 #include "SagaEditor/Standalone/StandaloneBuildCoordinator.h"
 #include "SagaEditor/Play/PlaySourceSnapshot.h"
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
@@ -15,6 +16,7 @@
 #include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QStringList>
 #include <QVBoxLayout>
 #include <QFutureWatcher>
 #include <QtConcurrent>
@@ -39,6 +41,8 @@ struct PerformanceTransitionPanel::Impl
     QFutureWatcher<StandaloneBuildResult>* buildWatcher = nullptr;
     std::shared_ptr<std::atomic_bool> cancelBuild = std::make_shared<std::atomic_bool>();
 
+    ~Impl() { cancelBuild->store(true); }
+
     Impl()
     {
         widget->setObjectName(QStringLiteral("PerformanceTransitionPanel"));
@@ -60,12 +64,14 @@ struct PerformanceTransitionPanel::Impl
         run->setObjectName(QStringLiteral("CreateBenchmarkRunInputButton"));
         auto* results = new QPushButton(QStringLiteral("Load Raw Results"), widget);
         results->setObjectName(QStringLiteral("LoadBenchmarkResultsButton"));
-        auto* conversion = new QPushButton(QStringLiteral("Review High to Low Conversion"), widget);
+        auto* conversion = new QPushButton(QStringLiteral("Review Conversion"), widget);
         conversion->setObjectName(QStringLiteral("ReviewCollectibleConversionButton"));
         auto* compare = new QPushButton(QStringLiteral("Compare Supported Sources"), widget);
         compare->setObjectName(QStringLiteral("CompareCollectibleConversionButton"));
         auto* reverse = new QPushButton(QStringLiteral("Reverse Applied Conversion"), widget);
         reverse->setObjectName(QStringLiteral("ReverseCollectibleConversionButton"));
+        auto* history = new QPushButton(QStringLiteral("Conversion History"), widget);
+        history->setObjectName(QStringLiteral("CollectibleConversionHistoryButton"));
         auto* standalone = new QPushButton(QStringLiteral("Build Standalone"), widget);
         standalone->setObjectName(QStringLiteral("BuildStandaloneButton"));
         auto* cancel = new QPushButton(QStringLiteral("Cancel Standalone Build"), widget);
@@ -80,6 +86,7 @@ struct PerformanceTransitionPanel::Impl
         layout->addWidget(conversion);
         layout->addWidget(compare);
         layout->addWidget(reverse);
+        layout->addWidget(history);
         layout->addWidget(standaloneOutput);
         layout->addWidget(standalone);
         layout->addWidget(cancel);
@@ -98,6 +105,7 @@ struct PerformanceTransitionPanel::Impl
         QObject::connect(conversion, &QPushButton::clicked, widget, [this] { Conversion(); });
         QObject::connect(compare, &QPushButton::clicked, widget, [this] { Compare(); });
         QObject::connect(reverse, &QPushButton::clicked, widget, [this] { Reverse(); });
+        QObject::connect(history, &QPushButton::clicked, widget, [this] { History(); });
         QObject::connect(standalone, &QPushButton::clicked, widget, [this] { Standalone(); });
         QObject::connect(cancel, &QPushButton::clicked, widget,
             [this] { cancelBuild->store(true); status->setText(QStringLiteral("Cancelling standalone build...")); });
@@ -111,12 +119,17 @@ struct PerformanceTransitionPanel::Impl
                     status->setText(QStringLiteral("Standalone published: %1")
                         .arg(QString::fromStdString(result.outputDirectory.string())));
                     output->setPlainText(QString::fromStdString(
-                        result.snapshot.canonicalJson));
+                        StandaloneBuildCoordinator::SerializeReport(result)));
                 }
-                else status->setText(QString::fromStdString(result.diagnostics.empty()
-                    ? (result.state == StandaloneBuildState::Cancelled
-                        ? "Standalone build cancelled." : "Standalone build failed.")
-                    : result.diagnostics.front().code));
+                else
+                {
+                    status->setText(QString::fromStdString(result.diagnostics.empty()
+                        ? (result.state == StandaloneBuildState::Cancelled
+                            ? "Standalone build cancelled." : "Standalone build failed.")
+                        : result.diagnostics.front().code));
+                    output->setPlainText(QString::fromStdString(
+                        StandaloneBuildCoordinator::SerializeReport(result)));
+                }
             });
     }
 
@@ -235,9 +248,32 @@ struct PerformanceTransitionPanel::Impl
         if (result.state == CollectibleConversionState::Reversed)
             status->setText(QStringLiteral("Applied conversion was reversed exactly."));
         else if (result.state == CollectibleConversionState::DetachedRequiresReview)
-            status->setText(QStringLiteral("Detached / Requires Review: %1")
+            status->setText(QStringLiteral("Review Detached: %1")
                 .arg(QString::fromStdString(result.code)));
         else status->setText(QString::fromStdString(result.code));
+    }
+
+    void History()
+    {
+        const auto history = CollectibleConversionHistory::Read(
+            CollectibleConversionHistory::Path(Root()));
+        if (!history.succeeded)
+        {
+            status->setText(QString::fromStdString(history.code));
+            return;
+        }
+        QStringList lines;
+        for (const auto& entry : history.entries)
+        {
+            const auto state = entry.state == CollectibleConversionHistoryState::Applied
+                ? "Applied" : (entry.state == CollectibleConversionHistoryState::Reversed
+                    ? "Reversed" : "Review Detached");
+            lines.push_back(QStringLiteral("%1 — %2")
+                .arg(QString::fromStdString(entry.operationId), QString::fromLatin1(state)));
+        }
+        output->setPlainText(lines.isEmpty() ? QStringLiteral("No conversion history.")
+                                             : lines.join('\n'));
+        status->setText(QStringLiteral("Conversion History"));
     }
 
     void Standalone()

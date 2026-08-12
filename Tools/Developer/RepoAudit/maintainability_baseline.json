@@ -63,13 +63,6 @@
       "disposition": "follow-up-debt"
     },
     {
-      "path": "Tests/Integration/EditorWorkflow/SagaLauncherUiTests.cpp",
-      "maximumPhysicalLines": 1040,
-      "reason": "Reviewed existing product-workflow test baseline; split lifecycle, recovery, and product workflow scenarios before further growth.",
-      "owner": "EditorWorkflowIntegration",
-      "disposition": "follow-up-debt"
-    },
-    {
       "path": "Engine/Source/Runtime/Scripting/Tests/ScriptLifecycleServiceTests.cpp",
       "maximumPhysicalLines": 1154,
       "reason": "Lifecycle state-machine cases share deterministic fixtures; scenario-family split remains follow-up debt.",

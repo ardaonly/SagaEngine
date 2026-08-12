@@ -268,7 +268,10 @@
         "${SAGA_ROOT}/Tests/GPU/Diligent/*.cpp"
     )
     list(REMOVE_ITEM INTEGRATION_SOURCES
-        "${SAGA_ROOT}/Tests/Integration/EditorWorkflow/SagaLauncherUiTests.cpp")
+        "${SAGA_ROOT}/Tests/Integration/EditorWorkflow/SagaLauncherUiTests.cpp"
+        "${SAGA_ROOT}/Tests/Integration/EditorWorkflow/SagaLauncherLifecycleTests.cpp"
+        "${SAGA_ROOT}/Tests/Integration/EditorWorkflow/SagaLauncherControlledBlocksTests.cpp"
+        "${SAGA_ROOT}/Tests/Integration/EditorWorkflow/SagaLauncherThreeWayParityTests.cpp")
 
     file(GLOB_RECURSE REPLICATION_SOURCES CONFIGURE_DEPENDS
         "${SAGA_ROOT}/Tests/Integration/ClientServer/*.cpp"

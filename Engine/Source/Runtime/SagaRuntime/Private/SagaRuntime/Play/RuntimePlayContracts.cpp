@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
-
 #include "SagaRuntime/Play/RuntimePlayContracts.hpp"
-
 #include <nlohmann/json.hpp>
 #include <openssl/evp.h>
-
 #include <algorithm>
 #include <cmath>
 #include <fstream>
@@ -12,13 +9,11 @@
 #include <set>
 #include <sstream>
 #include <tuple>
-
 namespace SagaRuntime::Play
 {
 namespace
 {
 using Json = nlohmann::json;
-
 RuntimeDiagnostic Error(std::string code, std::string message, std::string subject = {})
 { return {std::move(code), std::move(message), std::move(subject)}; }
 
@@ -350,10 +345,8 @@ RuntimeStartupReadyParseResult ParseRuntimeStartupReadyV1(
     if (parsed.diagnostics.empty()) parsed.ready = std::move(ready);
     return parsed;
 }
-
-RuntimeResultParseResult ParseRuntimeResultV1(
-    std::string_view bytes, std::string_view expectedPlaySessionId,
-    std::string_view expectedCanonicalManifestHash)
+RuntimeResultParseResult ParseRuntimeResultV1(std::string_view bytes,
+    std::string_view expectedPlaySessionId, std::string_view expectedCanonicalManifestHash)
 {
     RuntimeResultParseResult parsed;
     Json root;
@@ -374,11 +367,8 @@ RuntimeResultParseResult ParseRuntimeResultV1(
         !root.contains("exitCode") || !root["exitCode"].is_number_integer() ||
         !root.contains("framesExecuted") || !root["framesExecuted"].is_number_unsigned() ||
         !root.contains("interactionActionCount") || !root["interactionActionCount"].is_number_unsigned() ||
-        !root.contains("canonicalGameplayState") || !root["canonicalGameplayState"].is_object() ||
-        root["canonicalGameplayState"].value("schemaVersion", 0) != 1 ||
+        !root.contains("canonicalGameplayState") || !root["canonicalGameplayState"].is_string() ||
         !IsSha256(root.value("canonicalGameplayStateHash", std::string{})) ||
-        Sha256Bytes(Canonical(root["canonicalGameplayState"])) !=
-            root.value("canonicalGameplayStateHash", std::string{}) ||
         !root.contains("observedState") || !root["observedState"].is_object() ||
         !root.contains("startupDiagnostics") || !root["startupDiagnostics"].is_array() ||
         !root.contains("runtimeDiagnostics") || !root["runtimeDiagnostics"].is_array() ||
@@ -388,17 +378,27 @@ RuntimeResultParseResult ParseRuntimeResultV1(
             "Runtime result must satisfy the complete schema-version-1 contract."));
         return parsed;
     }
+    const auto gameplay = ParseCanonicalGameplayState(root["canonicalGameplayState"].get_ref<const std::string&>(),
+        root.value("canonicalGameplayStateHash", std::string{}));
+    if (!gameplay.Valid())
+    {
+        parsed.diagnostics.push_back(Error("Runtime.Result.GameplayStateInvalid",
+            gameplay.diagnostics.empty() ? "Canonical gameplay state is invalid." :
+                                           gameplay.diagnostics.front().message));
+        return parsed;
+    }
+    if (root["status"] == "Succeeded" && (!gameplay.state->scenarioIdentity ||
+        !gameplay.state->packageGenerationId || !gameplay.state->packageGenerationHash ||
+        !gameplay.state->packageGraphHash || !gameplay.state->activeImplementationIdentity))
+    { parsed.diagnostics.push_back(Error("Runtime.Result.GameplayIdentityMissing",
+        "Successful runtime results require complete gameplay identities.")); return parsed; }
     RuntimeResultV1 result;
-    result.playSessionId = root["playSessionId"].get<std::string>();
+    result.playSessionId = root["playSessionId"].get<std::string>(); result.status = root["status"].get<std::string>();
     result.canonicalLaunchManifestHash = root["canonicalLaunchManifestHash"].get<std::string>();
-    result.status = root["status"].get<std::string>();
-    result.exitClassification = root["exitClassification"].get<std::string>();
-    result.exitCode = root["exitCode"].get<int>();
+    result.exitClassification = root["exitClassification"].get<std::string>(); result.exitCode = root["exitCode"].get<int>();
     result.shutdownClassification = root["shutdownClassification"].get<std::string>();
-    result.framesExecuted = root["framesExecuted"].get<std::uint64_t>();
-    result.interactionActionCount = root["interactionActionCount"].get<std::uint64_t>();
-    result.canonicalGameplayStateJson = Canonical(root["canonicalGameplayState"]);
-    result.canonicalGameplayStateHash = root["canonicalGameplayStateHash"].get<std::string>();
+    result.framesExecuted = root["framesExecuted"].get<std::uint64_t>(); result.interactionActionCount = root["interactionActionCount"].get<std::uint64_t>();
+    result.canonicalGameplayStateJson = gameplay.canonicalBytes; result.canonicalGameplayStateHash = root["canonicalGameplayStateHash"].get<std::string>();
     result.observedStateCanonicalJson = Canonical(root["observedState"]);
     if (root["logPath"].is_string()) result.logPath = root["logPath"].get<std::string>();
     else if (!root["logPath"].is_null()) parsed.diagnostics.push_back(Error(
@@ -426,31 +426,23 @@ RuntimeResultParseResult ParseRuntimeResultV1(
     diagnostics("startupDiagnostics", result.startupDiagnostics);
     diagnostics("runtimeDiagnostics", result.runtimeDiagnostics);
     if (result.status != "Succeeded" && result.status != "Failed")
-        parsed.diagnostics.push_back(Error("Runtime.Result.StatusInvalid",
-            "Runtime result status must be Succeeded or Failed."));
-    static const std::set<std::string> exitClassifications = {
-        "ActionBindingFailure", "ActionDispatchFailure", "ArtifactFailure", "Completed",
-        "DependencyFailure", "GracefulStop",
-        "LaunchValidationFailure", "ObservedStateMismatch", "RendererFailure",
+        parsed.diagnostics.push_back(Error("Runtime.Result.StatusInvalid", "Runtime result status must be Succeeded or Failed."));
+    static const std::set<std::string> exitClassifications = {"ActionBindingFailure",
+        "ActionDispatchFailure", "ArtifactFailure", "Completed", "DependencyFailure",
+        "GracefulStop", "LaunchValidationFailure", "ObservedStateMismatch", "RendererFailure",
         "ScriptLifecycleFailure", "ScriptLoadFailure"};
-    static const std::set<std::string> shutdownClassifications = {
-        "Clean", "GracefulStop", "StartupFailure"};
+    static const std::set<std::string> shutdownClassifications = {"Clean", "GracefulStop", "StartupFailure"};
     if (!exitClassifications.contains(result.exitClassification))
-        parsed.diagnostics.push_back(Error("Runtime.Result.ExitClassificationInvalid",
-            "Runtime result exit classification is unsupported."));
+        parsed.diagnostics.push_back(Error("Runtime.Result.ExitClassificationInvalid", "Runtime result exit classification is unsupported."));
     if (!shutdownClassifications.contains(result.shutdownClassification))
-        parsed.diagnostics.push_back(Error("Runtime.Result.ShutdownClassificationInvalid",
-            "Runtime result shutdown classification is unsupported."));
+        parsed.diagnostics.push_back(Error("Runtime.Result.ShutdownClassificationInvalid", "Runtime result shutdown classification is unsupported."));
     if (result.status == "Succeeded" && result.exitCode != 0)
-        parsed.diagnostics.push_back(Error("Runtime.Result.StatusExitMismatch",
-            "A successful runtime result requires exitCode zero."));
+        parsed.diagnostics.push_back(Error("Runtime.Result.StatusExitMismatch", "A successful runtime result requires exitCode zero."));
     if (!expectedPlaySessionId.empty() && result.playSessionId != expectedPlaySessionId)
-        parsed.diagnostics.push_back(Error("Runtime.Result.PlaySessionMismatch",
-            "Runtime result belongs to a different play session.", result.playSessionId));
+        parsed.diagnostics.push_back(Error("Runtime.Result.PlaySessionMismatch", "Runtime result belongs to a different play session.", result.playSessionId));
     if (!expectedCanonicalManifestHash.empty() &&
         result.canonicalLaunchManifestHash != expectedCanonicalManifestHash)
-        parsed.diagnostics.push_back(Error("Runtime.Result.ManifestHashMismatch",
-            "Runtime result belongs to a different canonical launch manifest."));
+        parsed.diagnostics.push_back(Error("Runtime.Result.ManifestHashMismatch", "Runtime result belongs to a different canonical launch manifest."));
     if (parsed.diagnostics.empty()) parsed.result = std::move(result);
     return parsed;
 }

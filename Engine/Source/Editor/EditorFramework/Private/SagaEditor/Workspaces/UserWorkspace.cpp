@@ -157,74 +157,168 @@ bool UserWorkspaceService::Init(IEditorSettingsStore& settings,
 
 bool UserWorkspaceService::MigrateLegacyWorkspaces()
 {
-    if (!settings_ || settings_->GetString(MigrationVersionKey, {}) == "1") return true;
+    migration_ = {};
+    if (!settings_) return true;
     struct LegacyLayout { const char* key; const char* mode; };
     constexpr LegacyLayout layouts[] = {
         {"Editor/Layout/v2/level1", "quick-production"},
         {"Editor/Layout/v2/level2", "balanced"},
         {"Editor/Layout/v2/level3", "full-control"},
     };
-    std::vector<std::string> importedKeys;
+    struct Imported { std::string key; std::string canonicalHex; };
+    std::vector<Imported> imported;
+    const bool marked = settings_->GetString(MigrationVersionKey, {}) == "1";
     bool changed = false;
+    bool pending = false;
     for (const auto& layout : layouts)
     {
         const auto bytes = settings_->GetBytes(layout.key);
         if (!bytes) continue;
         if (bytes->empty() || bytes->size() * 2 > MaximumFileBytes)
         {
+            pending = true;
+            migration_.retainedLegacyKeys.emplace_back(layout.key);
             state_.diagnostic = "Workspace.MigrationPending: invalid legacy layout retained: " +
                 std::string(layout.key);
             continue;
         }
         const std::string id = "mode:" + std::string(layout.mode);
-        auto* overlay = FindOverlay(id);
-        if (!overlay) { overlays_.push_back({id}); overlay = &overlays_.back(); }
-        overlay->machinePlacementState = EncodeHex(*bytes);
-        importedKeys.emplace_back(layout.key);
+        if (!marked)
+        {
+            auto* overlay = FindOverlay(id);
+            if (!overlay) { overlays_.push_back({id}); overlay = &overlays_.back(); }
+            overlay->machinePlacementState = EncodeHex(*bytes);
+        }
+        imported.push_back({layout.key, EncodeHex(*bytes)});
         changed = true;
     }
     if (const auto bytes = settings_->GetBytes("user.workspace.default"))
     {
         if (bytes->empty() || bytes->size() * 2 > MaximumFileBytes)
+        {
+            pending = true;
+            migration_.retainedLegacyKeys.emplace_back("user.workspace.default");
             state_.diagnostic =
                 "Workspace.MigrationPending: invalid legacy default workspace retained.";
+        }
         else
         {
-            auto* existing = FindWorkspace("legacy-default");
-            if (!existing)
+            if (!marked)
             {
-                auto definition = ModeDefault(*FindMode(activeModeId_));
-                definition.id = "legacy-default";
-                definition.displayName = "Legacy Default";
-                definition.machinePlacementState = EncodeHex(*bytes);
-                state_.namedWorkspaces.push_back(std::move(definition));
+                auto* existing = FindWorkspace("legacy-default");
+                if (!existing)
+                {
+                    auto definition = ModeDefault(*FindMode(activeModeId_));
+                    definition.id = "legacy-default";
+                    definition.displayName = "Legacy Default";
+                    definition.machinePlacementState = EncodeHex(*bytes);
+                    state_.namedWorkspaces.push_back(std::move(definition));
+                }
+                else existing->machinePlacementState = EncodeHex(*bytes);
             }
-            else existing->machinePlacementState = EncodeHex(*bytes);
-            importedKeys.emplace_back("user.workspace.default");
+            imported.push_back({"user.workspace.default", EncodeHex(*bytes)});
             changed = true;
         }
     }
     if (!changed)
     {
-        if (state_.diagnostic.empty())
+        if (!pending && !marked)
         {
             settings_->SetString(MigrationVersionKey, "1");
             settings_->Flush();
+            if (settings_->GetString(MigrationVersionKey, {}) != "1")
+            {
+                migration_.status = WorkspaceMigrationStatus::Failed;
+                migration_.diagnostic = "Workspace migration marker did not persist.";
+                return false;
+            }
         }
+        migration_.status = pending ? WorkspaceMigrationStatus::Pending
+                                    : WorkspaceMigrationStatus::NotRequired;
+        migration_.diagnostic = state_.diagnostic;
+        return true;
+    }
+    const auto canonicalMatches = [&](const Imported& value)
+    {
+        if (value.key == "user.workspace.default")
+        {
+            const auto* workspace = FindWorkspace("legacy-default");
+            return workspace && workspace->machinePlacementState == value.canonicalHex;
+        }
+        const std::string mode = value.key.ends_with("level1") ? "quick-production" :
+            (value.key.ends_with("level2") ? "balanced" : "full-control");
+        const auto* overlay = FindOverlay("mode:" + mode);
+        return overlay && overlay->machinePlacementState == value.canonicalHex;
+    };
+    if (marked)
+    {
+        for (const auto& value : imported)
+        {
+            const auto source = settings_->GetBytes(value.key);
+            if (source && EncodeHex(*source) == value.canonicalHex &&
+                canonicalMatches(value))
+            {
+                settings_->Remove(value.key);
+                migration_.removedLegacyKeys.push_back(value.key);
+            }
+            else migration_.retainedLegacyKeys.push_back(value.key);
+        }
+        settings_->Flush();
+        migration_.status = migration_.retainedLegacyKeys.empty() && !pending
+            ? WorkspaceMigrationStatus::Migrated : WorkspaceMigrationStatus::Pending;
+        if (!migration_.retainedLegacyKeys.empty())
+            state_.diagnostic =
+                "Workspace.MigrationPending: retained legacy bytes differ from canonical state.";
+        migration_.diagnostic = state_.diagnostic;
         return true;
     }
     if (!Write())
     {
         state_.diagnostic =
             "Workspace.MigrationPending: canonical workspace write failed; legacy keys retained.";
+        migration_.status = WorkspaceMigrationStatus::Failed;
+        migration_.diagnostic = state_.diagnostic;
         return false;
     }
     // Re-read the atomic output before deleting any source key. Stable ids make
     // re-entry after a write/delete interruption replace rather than duplicate.
-    if (!Read()) return false;
-    for (const auto& key : importedKeys) settings_->Remove(key);
-    if (state_.diagnostic.empty()) settings_->SetString(MigrationVersionKey, "1");
+    if (!Read())
+    {
+        migration_.status = WorkspaceMigrationStatus::Failed;
+        migration_.diagnostic = state_.diagnostic;
+        return false;
+    }
+    if (std::any_of(imported.begin(), imported.end(), [&](const Imported& value)
+        { return !canonicalMatches(value); }))
+    {
+        state_.diagnostic =
+            "Workspace.MigrationPending: canonical read-back did not match legacy bytes.";
+        migration_.status = WorkspaceMigrationStatus::Failed;
+        migration_.diagnostic = state_.diagnostic;
+        return false;
+    }
+    settings_->SetString(MigrationVersionKey, "1");
     settings_->Flush();
+    if (settings_->GetString(MigrationVersionKey, {}) != "1")
+    {
+        migration_.status = WorkspaceMigrationStatus::Failed;
+        migration_.diagnostic = "Workspace migration marker did not persist.";
+        return false;
+    }
+    for (const auto& value : imported)
+    {
+        const auto source = settings_->GetBytes(value.key);
+        if (source && EncodeHex(*source) == value.canonicalHex && canonicalMatches(value))
+        {
+            settings_->Remove(value.key);
+            migration_.removedLegacyKeys.push_back(value.key);
+        }
+        else migration_.retainedLegacyKeys.push_back(value.key);
+    }
+    settings_->Flush();
+    migration_.status = migration_.retainedLegacyKeys.empty()
+        ? WorkspaceMigrationStatus::Migrated : WorkspaceMigrationStatus::Pending;
+    migration_.diagnostic = state_.diagnostic;
     return true;
 }
 
@@ -438,6 +532,8 @@ const AppearanceSettings& UserWorkspaceService::Appearance() const noexcept
 { return appearance_; }
 const std::filesystem::path& UserWorkspaceService::StoragePath() const noexcept
 { return storagePath_; }
+const WorkspaceMigrationResult& UserWorkspaceService::Migration() const noexcept
+{ return migration_; }
 
 EffectiveWorkspacePresentation UserWorkspaceService::Effective() const
 {

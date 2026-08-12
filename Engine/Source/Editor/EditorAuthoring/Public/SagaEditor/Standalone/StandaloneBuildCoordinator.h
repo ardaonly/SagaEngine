@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <functional>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -28,11 +29,36 @@ struct BuildInputFile
     std::filesystem::path snapshotPath;
     std::string hash;
     std::uintmax_t size = 0;
+    std::shared_ptr<const std::string> ownedBytes;
+};
+
+enum class ManagedRuntimeClosureRole
+{
+    Manifest, Host, HostFxr, HostPolicy, Framework, Tool, AdjacentAsset
+};
+
+struct ManagedRuntimeClosureEntry
+{
+    std::filesystem::path sourcePath;
+    std::filesystem::path relativePath;
+    std::string hash;
+    std::uintmax_t size = 0;
+    ManagedRuntimeClosureRole role = ManagedRuntimeClosureRole::AdjacentAsset;
+    std::string frameworkVersion;
+    std::string runtimeIdentifier;
+    ManagedToolResolutionMode resolutionMode = ManagedToolResolutionMode::Unresolved;
+    std::shared_ptr<const std::string> ownedBytes;
+};
+
+struct ManagedRuntimeClosure
+{
+    std::string hash;
+    std::vector<ManagedRuntimeClosureEntry> entries;
 };
 
 struct BuildInputSnapshot
 {
-    int schemaVersion = 1;
+    int schemaVersion = 2;
     std::string snapshotId;
     std::string projectId;
     std::string projectHash;
@@ -47,8 +73,34 @@ struct BuildInputSnapshot
     std::string configuration;
     std::string runtimeHash;
     std::map<std::string, std::string> toolHashes;
+    ManagedRuntimeClosure managedRuntimeClosure;
+    std::shared_ptr<const std::string> runtimeBytes;
     std::vector<BuildInputFile> files;
     std::string canonicalJson;
+};
+
+enum class ReproducibilityClassification
+{
+    NotComparable,
+    ByteReproducible,
+    SemanticContentAddressed,
+    NonReproducible,
+};
+
+struct ReproducibilityFileDifference
+{
+    std::filesystem::path path;
+    std::string firstHash;
+    std::string secondHash;
+    bool publicationMetadata = false;
+};
+
+struct ReproducibilityComparison
+{
+    ReproducibilityClassification classification =
+        ReproducibilityClassification::NotComparable;
+    std::vector<ReproducibilityFileDifference> differences;
+    [[nodiscard]] std::string Name() const;
 };
 
 struct StandaloneBuildProgress
@@ -75,10 +127,12 @@ struct StandaloneBuildRequest
     std::function<bool()> cancellationRequested;
     std::function<void(const StandaloneBuildProgress&)> progress;
     std::function<void()> beforeIdentitySecondRead;
+    std::function<void()> afterCapture;
     std::function<void()> beforePublish;
     /// Optional publication policy/failure-injection boundary. Production
     /// callers leave it empty; false preserves the prior valid output.
     std::function<bool()> publicationAllowed;
+    std::function<bool(StandalonePublicationBoundary)> publicationTransitionAllowed;
 };
 
 struct StandaloneBuildExecution
@@ -102,7 +156,6 @@ struct StandaloneBuildResult
     std::filesystem::path outputDirectory;
     std::filesystem::path manifestPath;
     std::string manifestHash;
-    std::string reproducibility = "not-compared";
     std::map<std::string, std::string> artifactHashes;
     std::vector<DocumentDiagnostic> diagnostics;
     [[nodiscard]] bool Succeeded() const noexcept
@@ -125,8 +178,10 @@ public:
     [[nodiscard]] static std::optional<BuildInputSnapshot> Capture(
         const StandaloneBuildRequest& request,
         std::vector<DocumentDiagnostic>& diagnostics);
-    [[nodiscard]] static std::string ClassifyReproducibility(
+    [[nodiscard]] static ReproducibilityComparison CompareReproducibility(
         const StandaloneBuildResult& first,
         const StandaloneBuildResult& second);
+    [[nodiscard]] static std::string SerializeReport(
+        const StandaloneBuildResult& result);
 };
 } // namespace SagaEditor

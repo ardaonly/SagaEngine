@@ -92,9 +92,21 @@ std::string RuntimeResultBytes(std::string session = "session",
                                std::string manifestHash = "sha256:" + std::string(64, 'a'),
                                std::string status = "Succeeded", int exitCode = 0)
 {
-    const Json canonicalGameplayState{{"schemaVersion", 1}, {"score", 10}};
-    return Json({{"canonicalGameplayState", canonicalGameplayState},
-        {"canonicalGameplayStateHash", Sha256Bytes(canonicalGameplayState.dump(2) + "\n")},
+    CanonicalGameplayState gameplay;
+    gameplay.scenarioIdentity = "project";
+    gameplay.completionPoint = "Completed";
+    gameplay.collectibles = {{"core-a", "Collected"}, {"core-b", "Active"}};
+    gameplay.phases = {"PreStart", "Running", "Won"};
+    gameplay.score = 10;
+    gameplay.activeCollectibles = 1;
+    gameplay.objectiveMatchResult = "ChallengeAccepted";
+    gameplay.packageGenerationId = "generation";
+    gameplay.packageGenerationHash = "sha256:" + std::string(64, 'b');
+    gameplay.packageGraphHash = "sha256:" + std::string(64, 'c');
+    gameplay.activeImplementationIdentity = "collectibles.lowlevel";
+    const auto gameplayBytes = SerializeCanonicalGameplayState(gameplay);
+    return Json({{"canonicalGameplayState", gameplayBytes},
+        {"canonicalGameplayStateHash", Sha256Bytes(gameplayBytes)},
         {"canonicalLaunchManifestHash", std::move(manifestHash)},
         {"crashArtifactPath", nullptr}, {"exitClassification", "Completed"},
         {"exitCode", exitCode}, {"framesExecuted", 350},
@@ -158,6 +170,43 @@ TEST(RuntimeResultV1Tests, AcceptsSuccessfulSessionBoundResult)
     EXPECT_EQ(parsed.result->interactionActionCount, 2U);
 }
 
+TEST(CanonicalGameplayStateTests, RoundTripsExactSchemaAndRejectsHostMetadata)
+{
+    CanonicalGameplayState state;
+    state.scenarioIdentity = "arena-rush";
+    state.completionPoint = "DeterministicEndpoint";
+    state.collectibles = {{"core-1", "Collected"}, {"core-2", "Respawned"}};
+    state.phases = {"PreStart", "Running", "Won"};
+    state.score = 100;
+    state.activeCollectibles = 2;
+    state.objectiveMatchResult = "Won";
+    state.packageGenerationId = "generation";
+    state.packageGenerationHash = "sha256:" + std::string(64, 'd');
+    state.packageGraphHash = "sha256:" + std::string(64, 'e');
+    state.activeImplementationIdentity = "collectibles.lowlevel";
+    const auto bytes = SerializeCanonicalGameplayState(state);
+    const auto parsed = ParseCanonicalGameplayState(bytes, Sha256Bytes(bytes));
+    ASSERT_TRUE(parsed.Valid());
+    EXPECT_EQ(parsed.canonicalBytes, bytes);
+    EXPECT_EQ(parsed.state->collectibles[1].collectibleId, "core-2");
+
+    auto extra = Json::parse(bytes);
+    extra["hostPath"] = "/tmp/not-semantic";
+    EXPECT_FALSE(ParseCanonicalGameplayState(extra.dump(2) + "\n").Valid());
+}
+
+TEST(CanonicalGameplayStateTests, SerializesUnavailableIdentityAndScoreAsExplicitNull)
+{
+    const auto bytes = SerializeCanonicalGameplayState({});
+    const auto json = Json::parse(bytes);
+    EXPECT_TRUE(json["scenarioIdentity"].is_null());
+    EXPECT_TRUE(json["score"].is_null());
+    EXPECT_TRUE(json["packageGeneration"]["generationId"].is_null());
+    const auto parsed = ParseCanonicalGameplayState(bytes, Sha256Bytes(bytes));
+    ASSERT_TRUE(parsed.Valid());
+    EXPECT_FALSE(parsed.state->scenarioIdentity.has_value());
+}
+
 TEST(RuntimeStartupReadyV1Tests, AcceptsCanonicalSessionBoundRecord)
 {
     const auto hash = "sha256:" + std::string(64, 'a');
@@ -215,6 +264,31 @@ TEST(RuntimeResultV1Tests, KeepsStructuredFailureValidButNotSuccessful)
     ASSERT_TRUE(parsed.Valid());
     EXPECT_FALSE(parsed.result->Successful());
     EXPECT_EQ(parsed.result->exitCode, 17);
+}
+
+TEST(RuntimeResultV1Tests, RejectsNonCanonicalGameplayBytesEvenWithMatchingHash)
+{
+    const auto hash = "sha256:" + std::string(64, 'a');
+    auto result = Json::parse(RuntimeResultBytes("session", hash));
+    auto gameplay = result["canonicalGameplayState"].get<std::string>();
+    gameplay.insert(gameplay.find('{') + 1, " ");
+    result["canonicalGameplayState"] = gameplay;
+    result["canonicalGameplayStateHash"] = Sha256Bytes(gameplay);
+    const auto parsed = ParseRuntimeResultV1(result.dump(2) + "\n", "session", hash);
+    ASSERT_FALSE(parsed.Valid());
+    EXPECT_EQ(parsed.diagnostics.front().code, "Runtime.Result.GameplayStateInvalid");
+}
+
+TEST(RuntimeResultV1Tests, SuccessfulResultRequiresCompleteGameplayIdentity)
+{
+    const auto hash = "sha256:" + std::string(64, 'a');
+    auto result = Json::parse(RuntimeResultBytes("session", hash));
+    const auto absent = SerializeCanonicalGameplayState({});
+    result["canonicalGameplayState"] = absent;
+    result["canonicalGameplayStateHash"] = Sha256Bytes(absent);
+    const auto parsed = ParseRuntimeResultV1(result.dump(2) + "\n", "session", hash);
+    ASSERT_FALSE(parsed.Valid());
+    EXPECT_EQ(parsed.diagnostics.front().code, "Runtime.Result.GameplayIdentityMissing");
 }
 
 TEST(RuntimeLaunchEnvelopeResolutionTests, RejectsTraversalAndUnallowlistedEnvironment)

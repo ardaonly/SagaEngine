@@ -16,6 +16,7 @@ saga_add_runtime_module(SagaRuntime
         Private/SagaRuntime/RuntimeStartupPreflight.cpp
         Private/SagaRuntime/RuntimeStartupSession.cpp
         Private/SagaRuntime/Play/RuntimePlayContracts.cpp
+        Private/SagaRuntime/Play/CanonicalGameplayState.cpp
         Public/SagaEngine/Startup/RuntimeStartupGate.hpp
         Public/SagaRuntime/RuntimeAssetBootstrap.hpp
         Public/SagaRuntime/RuntimeAssetBootstrapDiagnostics.hpp

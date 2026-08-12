@@ -33,9 +33,8 @@ class SourceSnapshotTests(unittest.TestCase):
             "Samples/ArenaRush/Content/UI/ThirdParty/DejaVu/SHA256SUMS",
             "SagaWiki/library/evidence/testing.md",
             "SagaWiki/index.html",
-            ".github/MAINTENANCE.md",
-            ".github/workflows/build.yml",
-            ".github/workflows/repository-contracts.yml",
+            ".github/TESTING_ROADMAP.md",
+            ".github/workflows/export-tools.yml",
             "scripts/wiki",
             "Vendor/library.cpp",
             "build/generated.cpp",
@@ -47,9 +46,8 @@ class SourceSnapshotTests(unittest.TestCase):
         self.assertIn("Samples/ArenaRush/Content/UI/ThirdParty/DejaVu/LICENSE", selected)
         self.assertIn("Samples/ArenaRush/Content/UI/ThirdParty/DejaVu/PROVENANCE.md", selected)
         self.assertIn("Samples/ArenaRush/Content/UI/ThirdParty/DejaVu/SHA256SUMS", selected)
-        self.assertIn(".github/MAINTENANCE.md", selected)
-        self.assertIn(".github/workflows/build.yml", selected)
-        self.assertIn(".github/workflows/repository-contracts.yml", selected)
+        self.assertIn(".github/TESTING_ROADMAP.md", selected)
+        self.assertIn(".github/workflows/export-tools.yml", selected)
         self.assertNotIn("Samples/StarterArena/Content/UI/ThirdParty/DejaVu/DejaVuSans.ttf", selected)
         self.assertNotIn("Samples/ArenaRush/Content/UI/ThirdParty/DejaVu/DejaVuSans.ttf", selected)
         self.assertNotIn("SagaWiki/index.html", selected)

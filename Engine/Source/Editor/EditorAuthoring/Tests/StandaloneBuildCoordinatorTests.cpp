@@ -35,6 +35,23 @@ protected:
                 {"graphHash", std::string(64, 'c')}}).dump() + "\n");
         Write(project / "Build/Packages/generations" / generation / "generation.json", "{}\n");
         Write(root / "SagaRuntime", "private-runtime\n");
+        const auto stage = root / "managed-stage";
+        Write(stage / "managed-tool-runtime.json", R"({"schemaVersion":1})");
+        Write(stage / "runtime/dotnet/dotnet", "private-host\n");
+        fs::permissions(stage / "runtime/dotnet/dotnet", fs::perms::owner_exec,
+            fs::perm_options::add);
+        Write(stage / "runtime/dotnet/host/fxr/10.0.10/libhostfxr.so", "fxr\n");
+        Write(stage / "runtime/dotnet/shared/Microsoft.NETCore.App/10.0.10/libhostpolicy.so",
+            "policy\n");
+        for (const auto& [directory, assembly] :
+             std::vector<std::pair<std::string, std::string>>{
+                 {"SagaProjectKit", "sagaproject"}, {"SagaScript", "sagascript"},
+                 {"SagaPackager", "sagapack"}})
+        {
+            Write(stage / "tools" / directory / (assembly + ".dll"), "assembly\n");
+            Write(stage / "tools" / directory / (assembly + ".runtimeconfig.json"), "{}\n");
+            Write(stage / "tools" / directory / (assembly + ".deps.json"), "{}\n");
+        }
 
         fence = std::make_shared<const std::atomic_uint64_t>(1);
         request.source.playSessionId = "standalone-test";
@@ -55,6 +72,7 @@ protected:
         request.runtimeExecutable = root / "SagaRuntime";
         request.outputDirectory = root / "published";
         request.toolchain.engineRoot = root / "repository";
+        request.toolchain.managedRuntime.testStage = stage;
     }
 
     void TearDown() override { std::error_code error; fs::remove_all(root, error); }
@@ -70,6 +88,12 @@ protected:
         std::ifstream input(path, std::ios::binary);
         const std::string bytes{std::istreambuf_iterator<char>(input), {}};
         return HashDocumentBytes(bytes);
+    }
+
+    static std::string Read(const fs::path& path)
+    {
+        std::ifstream input(path, std::ios::binary);
+        return {std::istreambuf_iterator<char>(input), {}};
     }
 
     StandaloneBuildExecution Execute(const PlaySourceSnapshot& source,
@@ -100,13 +124,40 @@ TEST_F(StandaloneBuildCoordinatorTests, CapturesMaterializesAndPublishesOneImmut
     ASSERT_TRUE(result.Succeeded()) << (result.diagnostics.empty() ? "" :
         result.diagnostics.front().code + ": " + result.diagnostics.front().message);
     EXPECT_EQ(result.snapshot.snapshotId.size(), 64U);
+    EXPECT_EQ(result.snapshot.schemaVersion, 2);
+    EXPECT_FALSE(result.snapshot.managedRuntimeClosure.entries.empty());
+    EXPECT_EQ(result.snapshot.managedRuntimeClosure.hash.size(), 64U);
     EXPECT_TRUE(fs::is_regular_file(result.manifestPath));
     EXPECT_TRUE(fs::is_regular_file(
         request.outputDirectory / "Project/BuildInputSnapshot.json"));
     EXPECT_TRUE(fs::is_regular_file(request.outputDirectory / "bin/SagaRuntime"));
     EXPECT_EQ(progress.back().state, StandaloneBuildState::Succeeded);
-    EXPECT_EQ(StandaloneBuildCoordinator::ClassifyReproducibility(result, result),
+    EXPECT_EQ(StandaloneBuildCoordinator::CompareReproducibility(result, result).Name(),
               "byte-reproducible");
+}
+
+TEST_F(StandaloneBuildCoordinatorTests, ClassifiesOnlyPublicationMetadataAsSemantic)
+{
+    request.outputDirectory = root / "published-a";
+    const auto first = StandaloneBuildCoordinator{}.Build(request,
+        [&](const auto& source, const auto& candidate, const auto& build)
+        { return Execute(source, candidate, build); });
+    ASSERT_TRUE(first.Succeeded());
+    request.outputDirectory = root / "published-b";
+    const auto second = StandaloneBuildCoordinator{}.Build(request,
+        [&](const auto& source, const auto& candidate, const auto& build)
+        { return Execute(source, candidate, build); });
+    ASSERT_TRUE(second.Succeeded());
+    const auto semantic = StandaloneBuildCoordinator::CompareReproducibility(first, second);
+    EXPECT_EQ(semantic.classification,
+        ReproducibilityClassification::SemanticContentAddressed);
+    ASSERT_FALSE(semantic.differences.empty());
+    EXPECT_TRUE(std::all_of(semantic.differences.begin(), semantic.differences.end(),
+        [](const auto& difference) { return difference.publicationMetadata; }));
+
+    Write(second.outputDirectory / "Project/Game.sagaproj", "changed\n");
+    const auto changed = StandaloneBuildCoordinator::CompareReproducibility(first, second);
+    EXPECT_EQ(changed.classification, ReproducibilityClassification::NonReproducible);
 }
 
 TEST_F(StandaloneBuildCoordinatorTests, RejectsMixedGenerationBeforeExecutorRuns)
@@ -127,6 +178,35 @@ TEST_F(StandaloneBuildCoordinatorTests, RejectsMixedGenerationBeforeExecutorRuns
     EXPECT_FALSE(executed);
     ASSERT_FALSE(result.diagnostics.empty());
     EXPECT_EQ(result.diagnostics.back().code, "Build.Snapshot.GenerationChanged");
+}
+
+TEST_F(StandaloneBuildCoordinatorTests, RejectsManagedClosureInventoryMutationDuringCapture)
+{
+    request.beforeIdentitySecondRead = [&]
+    { Write(root / "managed-stage/tools/SagaScript/unexpected.asset", "new\n"); };
+    const auto result = StandaloneBuildCoordinator{}.Build(request,
+        [&](const auto&, const auto&, const auto&)
+        { ADD_FAILURE() << "Executor must not run for a mixed closure.";
+          return StandaloneBuildExecution{}; });
+    ASSERT_FALSE(result.diagnostics.empty());
+    EXPECT_EQ(result.diagnostics.back().code, "Build.Snapshot.ClosureChanged");
+}
+
+TEST_F(StandaloneBuildCoordinatorTests, PostCaptureMutationCannotChangeMaterializedBuild)
+{
+    request.afterCapture = [&] { Write(project / "Scripts/Game.cs", "mutated\n"); };
+    bool observedCapturedBytes = false;
+    const auto result = StandaloneBuildCoordinator{}.Build(request,
+        [&](const auto& source, const auto&, const auto&)
+        {
+            observedCapturedBytes = Read(source.projectRoot / "Scripts/Game.cs") ==
+                "public class Game {}\n";
+            return Execute(source, {}, request);
+        });
+    EXPECT_TRUE(result.Succeeded());
+    EXPECT_TRUE(observedCapturedBytes);
+    EXPECT_EQ(Read(request.outputDirectory / "Project/Scripts/Game.cs"),
+        "public class Game {}\n");
 }
 
 TEST_F(StandaloneBuildCoordinatorTests, CancellationAndFailurePreservePreviousOutput)
@@ -150,6 +230,103 @@ TEST_F(StandaloneBuildCoordinatorTests, CancellationAndFailurePreservePreviousOu
         });
     EXPECT_FALSE(failed.Succeeded());
     EXPECT_TRUE(fs::is_regular_file(request.outputDirectory / "valid.txt"));
+}
+
+TEST_F(StandaloneBuildCoordinatorTests, PublicationCancellationRestoresVerifiedPreviousOutput)
+{
+    const auto first = StandaloneBuildCoordinator{}.Build(request,
+        [&](const auto& source, const auto& candidate, const auto& build)
+        { return Execute(source, candidate, build); });
+    ASSERT_TRUE(first.Succeeded());
+    const auto previousManifestHash = Hash(first.manifestPath);
+    request.publicationAllowed = [] { return false; };
+    const auto cancelled = StandaloneBuildCoordinator{}.Build(request,
+        [&](const auto& source, const auto& candidate, const auto& build)
+        { return Execute(source, candidate, build); });
+    EXPECT_EQ(cancelled.state, StandaloneBuildState::Cancelled);
+    EXPECT_TRUE(cancelled.preservedPreviousOutput);
+    EXPECT_EQ(cancelled.publicationRecovery.cancellationOutcome,
+        StandalonePublicationCancellationOutcome::PreviousOutputRestored);
+    EXPECT_EQ(Hash(first.manifestPath), previousManifestHash);
+    EXPECT_FALSE(fs::exists(StandalonePublicationTransaction::OwnedTransactionDirectory(
+        request.outputDirectory, cancelled.snapshot.snapshotId)));
+}
+
+TEST_F(StandaloneBuildCoordinatorTests, RecoversIdempotentlyFromEveryJournalBoundary)
+{
+    const std::vector<StandalonePublicationBoundary> boundaries{
+        StandalonePublicationBoundary::Prepared,
+        StandalonePublicationBoundary::PreviousMoveCompleted,
+        StandalonePublicationBoundary::PreviousMoved,
+        StandalonePublicationBoundary::CandidateMoveCompleted,
+        StandalonePublicationBoundary::CandidatePublished,
+        StandalonePublicationBoundary::Completed};
+    for (std::size_t index = 0; index < boundaries.size(); ++index)
+    {
+        request.outputDirectory = root / ("interrupted-" + std::to_string(index));
+        request.publicationTransitionAllowed = {};
+        const auto previous = StandaloneBuildCoordinator{}.Build(request,
+            [&](const auto& source, const auto& candidate, const auto& build)
+            { return Execute(source, candidate, build); });
+        ASSERT_TRUE(previous.Succeeded());
+        const auto boundary = boundaries[index];
+        request.publicationTransitionAllowed = [boundary](const auto observed)
+        { return observed != boundary; };
+        const auto interrupted = StandaloneBuildCoordinator{}.Build(request,
+            [&](const auto& source, const auto& candidate, const auto& build)
+            { return Execute(source, candidate, build); });
+        ASSERT_FALSE(interrupted.Succeeded());
+        ASSERT_FALSE(interrupted.diagnostics.empty());
+        EXPECT_EQ(interrupted.diagnostics.back().code, "Build.Publish.Interrupted");
+        const auto recovered = StandalonePublicationTransaction::RecoverOwned(
+            request.outputDirectory);
+        ASSERT_TRUE(recovered.Succeeded()) <<
+            (recovered.diagnostics.empty() ? "" : recovered.diagnostics.front().message);
+        EXPECT_TRUE(recovered.recovered);
+        EXPECT_TRUE(fs::is_regular_file(
+            request.outputDirectory / "StandaloneManifest.saga.json"));
+        const auto repeated = StandalonePublicationTransaction::RecoverOwned(
+            request.outputDirectory);
+        EXPECT_TRUE(repeated.Succeeded());
+        EXPECT_FALSE(repeated.recovered);
+    }
+}
+
+TEST_F(StandaloneBuildCoordinatorTests, MalformedOwnedJournalFailsClosedWithoutMutation)
+{
+    const auto transaction = StandalonePublicationTransaction::OwnedTransactionDirectory(
+        request.outputDirectory, std::string(64, 'f'));
+    Write(transaction / "publish-journal.json",
+        "{\"schemaVersion\":2,\"candidate\":\"../escaped\"}\n");
+    const auto recovery = StandalonePublicationTransaction::RecoverOwned(
+        request.outputDirectory);
+    EXPECT_FALSE(recovery.Succeeded());
+    EXPECT_TRUE(recovery.retainedEvidence);
+    EXPECT_TRUE(recovery.terminalFailure);
+    EXPECT_TRUE(fs::is_regular_file(transaction / "publish-journal.json"));
+}
+
+TEST_F(StandaloneBuildCoordinatorTests, ChangedCandidateIsRetainedAndPreviousOutputStaysIntact)
+{
+    const auto previous = StandaloneBuildCoordinator{}.Build(request,
+        [&](const auto& source, const auto& candidate, const auto& build)
+        { return Execute(source, candidate, build); });
+    ASSERT_TRUE(previous.Succeeded());
+    const auto previousManifest = Hash(previous.manifestPath);
+    request.publicationTransitionAllowed = [](const auto boundary)
+    { return boundary != StandalonePublicationBoundary::Prepared; };
+    const auto interrupted = StandaloneBuildCoordinator{}.Build(request,
+        [&](const auto& source, const auto& candidate, const auto& build)
+        { return Execute(source, candidate, build); });
+    ASSERT_FALSE(interrupted.Succeeded());
+    const auto transaction = StandalonePublicationTransaction::OwnedTransactionDirectory(
+        request.outputDirectory, interrupted.snapshot.snapshotId);
+    Write(transaction / "candidate/tampered.txt", "tampered\n");
+    const auto recovery = StandalonePublicationTransaction::RecoverOwned(
+        request.outputDirectory);
+    EXPECT_FALSE(recovery.Succeeded());
+    EXPECT_TRUE(recovery.retainedEvidence);
+    EXPECT_EQ(Hash(previous.manifestPath), previousManifest);
 }
 
 TEST_F(StandaloneBuildCoordinatorTests, RejectsRootSourceAndSymlinkOutputs)
@@ -181,11 +358,14 @@ TEST_F(StandaloneBuildCoordinatorTests, MissingRuntimeStagingCollisionAndPublish
     std::vector<DocumentDiagnostic> diagnostics;
     const auto snapshot = StandaloneBuildCoordinator::Capture(request, diagnostics);
     ASSERT_TRUE(snapshot.has_value());
-    const auto collision = root / (".saga-standalone-" + snapshot->snapshotId.substr(0, 16));
+    const auto collision = StandalonePublicationTransaction::OwnedTransactionDirectory(
+        request.outputDirectory, snapshot->snapshotId);
     fs::create_directories(collision);
     auto collided = StandaloneBuildCoordinator{}.Build(request);
     ASSERT_FALSE(collided.diagnostics.empty());
-    EXPECT_EQ(collided.diagnostics.front().code, "Build.Staging.Collision");
+    EXPECT_EQ(collided.diagnostics.front().code,
+              "Build.Publish.RecoveryResidueUntrusted");
+    EXPECT_TRUE(fs::exists(collision));
     fs::remove_all(collision);
 
     fs::create_directories(request.outputDirectory);
@@ -195,7 +375,10 @@ TEST_F(StandaloneBuildCoordinatorTests, MissingRuntimeStagingCollisionAndPublish
         [&](const auto& source, const auto& candidate, const auto& build)
         { return Execute(source, candidate, build); });
     EXPECT_FALSE(failed.Succeeded());
-    EXPECT_TRUE(failed.preservedPreviousOutput);
+    EXPECT_FALSE(failed.preservedPreviousOutput);
+    ASSERT_FALSE(failed.diagnostics.empty());
+    EXPECT_EQ(failed.diagnostics.back().code,
+              "Build.Publish.PreviousOutputUnverified");
     EXPECT_EQ(Hash(request.outputDirectory / "valid.txt"),
               HashDocumentBytes("previous\n"));
     EXPECT_FALSE(fs::exists(collision));

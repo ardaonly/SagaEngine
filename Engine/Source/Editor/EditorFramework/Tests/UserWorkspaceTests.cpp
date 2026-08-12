@@ -102,6 +102,8 @@ TEST(UserWorkspaceTests, ImportsLegacyLayoutsWithStableIdsAndExactBytes)
 
     UserWorkspaceService service;
     ASSERT_TRUE(service.Init(settings, root, modes.Modes()));
+    EXPECT_EQ(service.Migration().status, WorkspaceMigrationStatus::Migrated);
+    EXPECT_EQ(service.Migration().removedLegacyKeys.size(), 4U);
     ASSERT_EQ(service.State().namedWorkspaces.size(), 1U);
     EXPECT_EQ(service.State().namedWorkspaces.front().id, "legacy-default");
     EXPECT_EQ(service.State().namedWorkspaces.front().modeId, "balanced");
@@ -137,9 +139,57 @@ TEST(UserWorkspaceTests, InvalidLegacyWorkspaceIsRetainedForReview)
     settings.SetString("Editor/Layout/v2/level1", "");
     UserWorkspaceService service;
     ASSERT_TRUE(service.Init(settings, root, modes.Modes()));
+    EXPECT_EQ(service.Migration().status, WorkspaceMigrationStatus::Pending);
+    EXPECT_EQ(service.Migration().retainedLegacyKeys,
+        (std::vector<std::string>{"Editor/Layout/v2/level1"}));
     EXPECT_TRUE(settings.Has("Editor/Layout/v2/level1"));
     EXPECT_TRUE(service.State().diagnostic.starts_with("Workspace.MigrationPending"));
     EXPECT_TRUE(settings.GetString(UserWorkspaceService::MigrationVersionKey, {}).empty());
+    std::filesystem::remove_all(root);
+}
+
+TEST(UserWorkspaceTests, MixedMigrationDeletesOnlyVerifiedKeysAndRetainsInvalidBytes)
+{
+    const auto root = TemporaryRoot("saga-mixed-legacy-workspace");
+    MemoryEditorSettingsStore settings;
+    EditorWorkModeService modes;
+    ASSERT_TRUE(modes.Init(settings));
+    settings.SetString("Editor/Layout/v2/level1", std::string("\x01\x02", 2));
+    settings.SetString("Editor/Layout/v2/level2", "");
+    UserWorkspaceService service;
+    ASSERT_TRUE(service.Init(settings, root, modes.Modes()));
+    EXPECT_EQ(service.Migration().status, WorkspaceMigrationStatus::Pending);
+    EXPECT_FALSE(settings.Has("Editor/Layout/v2/level1"));
+    EXPECT_TRUE(settings.Has("Editor/Layout/v2/level2"));
+    EXPECT_EQ(settings.GetString(UserWorkspaceService::MigrationVersionKey, {}), "1");
+    EXPECT_EQ(service.Migration().removedLegacyKeys,
+        (std::vector<std::string>{"Editor/Layout/v2/level1"}));
+    EXPECT_EQ(service.Migration().retainedLegacyKeys,
+        (std::vector<std::string>{"Editor/Layout/v2/level2"}));
+    std::filesystem::remove_all(root);
+}
+
+TEST(UserWorkspaceTests, MarkerReentryRetainsLegacyBytesThatNoLongerMatchCanonicalPayload)
+{
+    const auto root = TemporaryRoot("saga-legacy-workspace-reentry");
+    MemoryEditorSettingsStore settings;
+    EditorWorkModeService modes;
+    ASSERT_TRUE(modes.Init(settings));
+    settings.SetString("Editor/Layout/v2/level1", std::string("\x01\x02", 2));
+    UserWorkspaceService migrated;
+    ASSERT_TRUE(migrated.Init(settings, root, modes.Modes()));
+    ASSERT_EQ(settings.GetString(UserWorkspaceService::MigrationVersionKey, {}), "1");
+    settings.SetString("Editor/Layout/v2/level1", std::string("\x03\x04", 2));
+
+    UserWorkspaceService reentered;
+    ASSERT_TRUE(reentered.Init(settings, root, modes.Modes()));
+    EXPECT_EQ(reentered.Migration().status, WorkspaceMigrationStatus::Pending);
+    EXPECT_TRUE(settings.Has("Editor/Layout/v2/level1"));
+    const auto mode = std::find_if(modes.Modes().begin(), modes.Modes().end(),
+        [](const EditorWorkMode& value) { return value.id == "quick-production"; });
+    ASSERT_NE(mode, modes.Modes().end());
+    ASSERT_TRUE(reentered.ActivateMode(*mode));
+    EXPECT_EQ(reentered.Effective().machinePlacementState, "0102");
     std::filesystem::remove_all(root);
 }
 
