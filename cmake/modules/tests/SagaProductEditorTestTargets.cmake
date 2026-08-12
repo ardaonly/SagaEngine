@@ -25,13 +25,16 @@
     endif()
 
     # --- Product Launcher Qt Widgets tests --------------------------------
-    set(SAGA_LAUNCHER_UI_TEST_SOURCE
-        "${SAGA_ROOT}/Tests/Integration/EditorWorkflow/SagaLauncherUiTests.cpp")
+    set(SAGA_LAUNCHER_UI_TEST_SOURCES
+        "${SAGA_ROOT}/Tests/Integration/EditorWorkflow/SagaLauncherUiTests.cpp"
+        "${SAGA_ROOT}/Tests/Integration/EditorWorkflow/SagaLauncherLifecycleTests.cpp"
+        "${SAGA_ROOT}/Tests/Integration/EditorWorkflow/SagaLauncherControlledBlocksTests.cpp"
+        "${SAGA_ROOT}/Tests/Integration/EditorWorkflow/SagaLauncherThreeWayParityTests.cpp")
     set(SAGA_WORK_MODES_UI_TEST_SOURCE
         "${SAGA_ROOT}/Tests/Integration/EditorWorkflow/SagaWorkModesUiTests.cpp")
-    if(EXISTS "${SAGA_LAUNCHER_UI_TEST_SOURCE}")
+    if(EXISTS "${SAGA_ROOT}/Tests/Integration/EditorWorkflow/SagaLauncherUiTests.cpp")
         add_executable(SagaLauncherUiTests
-            ${SAGA_LAUNCHER_UI_TEST_SOURCE}
+            ${SAGA_LAUNCHER_UI_TEST_SOURCES}
             ${SAGA_WORK_MODES_UI_TEST_SOURCE})
         saga_link_thirdparty(SagaLauncherUiTests)
         target_link_libraries(SagaLauncherUiTests PRIVATE

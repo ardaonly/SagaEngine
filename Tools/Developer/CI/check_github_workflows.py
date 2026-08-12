@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MPL-2.0
 
-"""Enforce SagaEngine's security and evidence contract for GitHub workflows."""
+"""Enforce SagaEngine's security contract for active GitHub workflows."""
 
 from __future__ import annotations
 
@@ -79,38 +79,6 @@ def check_repository_job_contracts(texts: dict[str, str]) -> list[Finding]:
                 )
             )
 
-    required_jobs = {
-        "repository-contracts.yml": ("repository-contracts",),
-        "build.yml": ("cpp-linux-all-safe", "cpp-windows-core"),
-        "licensing.yml": ("licensing-gate",),
-    }
-    for workflow_name, job_ids in required_jobs.items():
-        jobs = workflow_jobs(texts.get(workflow_name, ""))
-        for job_id in job_ids:
-            body = jobs.get(job_id, "")
-            if not body:
-                continue
-            if "\n    strategy:" in body or "\n      matrix:" in body:
-                findings.append(
-                    Finding(
-                        f".github/workflows/{workflow_name}",
-                        "required-check-matrix",
-                        f"required job {job_id} may not use a matrix",
-                    )
-                )
-
-    licensing_jobs = workflow_jobs(texts.get("licensing.yml", ""))
-    for job_id in ("licensing-policy", "configured-graph"):
-        body = licensing_jobs.get(job_id, "")
-        if body and "fetch-depth: 0" not in body:
-            findings.append(
-                Finding(
-                    ".github/workflows/licensing.yml",
-                    "licensing-full-history",
-                    f"job {job_id} must checkout with fetch-depth: 0",
-                )
-            )
-
     return findings
 
 
@@ -146,23 +114,13 @@ def check_workflow(path: str, text: str) -> list[Finding]:
     return findings
 
 
-def require_tokens(path: str, text: str, tokens: tuple[str, ...]) -> list[Finding]:
-    return [
-        Finding(path, "evidence-contract", f"required token missing: {token}")
-        for token in tokens
-        if token not in text
-    ]
-
-
 def validate_repository(root: Path) -> list[Finding]:
     workflow_root = root / ".github" / "workflows"
-    required = (
+    active = {"export-tools.yml"}
+    retired = {
+        "build.yml", "heavy-evidence.yml", "licensing.yml",
         "repository-contracts.yml",
-        "build.yml",
-        "licensing.yml",
-        "heavy-evidence.yml",
-        "export-tools.yml",
-    )
+    }
     findings: list[Finding] = []
     texts: dict[str, str] = {}
     workflow_paths = sorted(
@@ -172,10 +130,15 @@ def validate_repository(root: Path) -> list[Finding]:
         }
     )
     discovered = {path.name for path in workflow_paths if path.is_file()}
-    for name in required:
+    for name in active:
         path = workflow_root / name
         if name not in discovered:
             findings.append(Finding(str(path.relative_to(root)), "required-workflow", "missing"))
+    for name in sorted(discovered & retired):
+        findings.append(Finding(
+            f".github/workflows/{name}", "retired-test-workflow",
+            "retired test automation must not return before the roadmap architecture is implemented",
+        ))
     for path in workflow_paths:
         if not path.is_file():
             continue
@@ -185,68 +148,10 @@ def validate_repository(root: Path) -> list[Finding]:
 
     findings.extend(check_repository_job_contracts(texts))
 
-    if "build.yml" in texts:
-        findings.extend(
-            require_tokens(
-                ".github/workflows/build.yml",
-                texts["build.yml"],
-                (
-                    "cpp-linux-all-safe",
-                    "cpp-windows-core",
-                    "stress|slow|load|timing-sensitive|long-running|gpu|display-required",
-                    "--output-junit",
-                    "if: always()",
-                    "$GITHUB_STEP_SUMMARY",
-                ),
-            )
-        )
-    if "repository-contracts.yml" in texts:
-        findings.extend(
-            require_tokens(
-                ".github/workflows/repository-contracts.yml",
-                texts["repository-contracts.yml"],
-                (
-                    "repository-contracts",
-                    "github.com/rhysd/actionlint/cmd/actionlint@",
-                    "if: always()",
-                    "$GITHUB_STEP_SUMMARY",
-                ),
-            )
-        )
-    if "licensing.yml" in texts:
-        findings.extend(
-            require_tokens(
-                ".github/workflows/licensing.yml",
-                texts["licensing.yml"],
-                (
-                    "--strict",
-                    "--json-output",
-                    "generate_legacy_path_rules.py --check",
-                    "regenerate_license_checksums.py --check",
-                    "configured-graph",
-                    "schedule:",
-                    "if: always()",
-                    "$GITHUB_STEP_SUMMARY",
-                ),
-            )
-        )
-    if "heavy-evidence.yml" in texts:
-        findings.extend(
-            require_tokens(
-                ".github/workflows/heavy-evidence.yml",
-                texts["heavy-evidence.yml"],
-                (
-                    "IntegrationTests",
-                    "ReplicationTests",
-                    "StressTests",
-                    "gpu-preflight",
-                    "schedule:",
-                    "workflow_dispatch:",
-                    "if: always()",
-                    "$GITHUB_STEP_SUMMARY",
-                ),
-            )
-        )
+    roadmap = root / ".github" / "TESTING_ROADMAP.md"
+    if not roadmap.is_file():
+        findings.append(Finding(
+            ".github/TESTING_ROADMAP.md", "testing-roadmap", "missing"))
 
     dependabot = root / ".github" / "dependabot.yml"
     if not dependabot.is_file() or 'package-ecosystem: "github-actions"' not in dependabot.read_text(encoding="utf-8"):

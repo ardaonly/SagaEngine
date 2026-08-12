@@ -117,7 +117,7 @@ static Trial MeasureLow(VerifiedRunInput input)
     for (var iteration = 0; iteration < input.MeasuredIterations; ++iteration)
     {
         var selected = (int)((input.Seed + (ulong)iteration) % (ulong)input.Workload);
-        if (batch.Collect(selected)) score += 10;
+        if (batch.TryCollect(selected)) score += 10;
         batch.Advance(input.FixedStepSeconds, iteration);
     }
     var elapsed = Stopwatch.GetElapsedTime(start).TotalNanoseconds;

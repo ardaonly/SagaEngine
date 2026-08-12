@@ -13,10 +13,8 @@ reviewed_commit = "acc54dfa6f516ab6ec431bd87544b7b063b4ccfb"
 reviewed_project_version = "0.0.11"
 review_record_paths = [
   ".github/dependabot.yml",
-  ".github/MAINTENANCE.md",
-  ".github/workflows/build.yml",
-  ".github/workflows/heavy-evidence.yml",
-  ".github/workflows/licensing.yml",
+  ".github/TESTING_ROADMAP.md",
+  ".github/workflows/export-tools.yml",
   "LICENSE_POLICY.toml",
   "SHA256SUMS",
   "Tests/Contract/InstalledConsumer/SagaGraphicsInstalledConsumerTest.cmake",

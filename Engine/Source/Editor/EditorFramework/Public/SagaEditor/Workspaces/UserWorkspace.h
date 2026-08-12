@@ -69,6 +69,24 @@ struct UserWorkspaceState
     std::string diagnostic;
 };
 
+enum class WorkspaceMigrationStatus
+{
+    NotRequired,
+    Migrated,
+    Pending,
+    Failed,
+};
+
+struct WorkspaceMigrationResult
+{
+    WorkspaceMigrationStatus status = WorkspaceMigrationStatus::NotRequired;
+    std::vector<std::string> retainedLegacyKeys;
+    std::vector<std::string> removedLegacyKeys;
+    std::string diagnostic;
+    [[nodiscard]] bool Succeeded() const noexcept
+    { return status != WorkspaceMigrationStatus::Failed; }
+};
+
 class UserWorkspaceService
 {
 public:
@@ -107,6 +125,7 @@ public:
     [[nodiscard]] EffectiveWorkspacePresentation Effective() const;
     [[nodiscard]] const AppearanceSettings& Appearance() const noexcept;
     [[nodiscard]] const std::filesystem::path& StoragePath() const noexcept;
+    [[nodiscard]] const WorkspaceMigrationResult& Migration() const noexcept;
 
 private:
     [[nodiscard]] bool Read();
@@ -131,5 +150,6 @@ private:
     UserWorkspaceState state_;
     std::vector<UserWorkspaceOverlay> overlays_;
     AppearanceSettings appearance_;
+    WorkspaceMigrationResult migration_;
 };
 } // namespace SagaEditor

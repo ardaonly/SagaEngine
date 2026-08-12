@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #include "SagaEditor/Performance/CollectibleConversionController.h"
+#include "SagaEditor/Performance/CollectibleConversionHistory.h"
 
 #include "SagaEditor/Project/ProjectMutation.h"
 
@@ -8,7 +9,6 @@
 #include <openssl/sha.h>
 
 #include <array>
-#include <chrono>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
@@ -205,8 +205,6 @@ CollectibleConversionReview CollectibleConversionController::Prepare(
             "Conversion identities and verified lock candidate are required.");
 
     CollectibleConversionPlan plan;
-    plan.operationId = "collectibles-high-to-low-" + std::to_string(
-        std::chrono::steady_clock::now().time_since_epoch().count());
     plan.sourceHash = Hash(source);
     plan.candidateSourceHash = Hash(candidateSource);
     plan.projectHash = Hash(project);
@@ -223,6 +221,9 @@ CollectibleConversionReview CollectibleConversionController::Prepare(
     plan.supportedRegionChecksums = {Hash(*oldRegion), Hash(*newRegion)};
     plan.deterministicDiff = "collectibles.highlevel -> collectibles.lowlevel\n" +
         plan.sourceHash + " -> " + plan.candidateSourceHash + "\n";
+    plan.operationId = Hash("Apply\n" + plan.deterministicDiff + plan.projectHash + "\n" +
+        plan.candidateProjectHash + "\n" + plan.packageGraphHash + "\n" +
+        plan.projectGeneration + "\n");
     const Json provenanceCandidate{{"schemaVersion", 1}, {"toolVersion", "0.0.11"},
         {"state", "Applied"}, {"sourceHash", plan.sourceHash},
         {"candidateSourceHash", plan.candidateSourceHash},
@@ -263,12 +264,24 @@ CollectibleConversionReview CollectibleConversionController::Apply()
         return Fail(*this, CollectibleConversionState::Rejected, acquired.code, acquired.message);
     }
     ProjectMutationTransaction transaction(lease, active_->plan.operationId, "0.0.11");
+    const auto historyPath = CollectibleConversionHistory::Path(
+        active_->capture.projectRoot);
+    const auto history = CollectibleConversionHistory::Append(historyPath,
+        {active_->plan.operationId, CollectibleConversionHistoryState::Applied,
+            Hash(active_->plan.deterministicDiff), active_->plan.sourceHash,
+            active_->plan.candidateSourceHash, active_->plan.candidateProjectHash,
+            active_->plan.packageGraphHash, active_->plan.projectGeneration,
+            "SagaEditor.CollectibleConversionController/0.0.11",
+            Hash(active_->plan.candidateProvenance)}, active_->plan.candidateProvenance);
+    if (!history.succeeded)
+        return Fail(*this, CollectibleConversionState::Rejected,
+            history.code, history.message);
     const std::vector<ProjectMutationTransaction::CandidateFile> files{
         {fs::relative(active_->capture.projectFile, active_->capture.projectRoot), active_->candidateProject},
         {fs::relative(active_->capture.lockFile, active_->capture.projectRoot), active_->candidateLock},
         {fs::relative(active_->capture.sourceFile, active_->capture.projectRoot), active_->candidateSource},
         {fs::relative(active_->capture.provenanceFile, active_->capture.projectRoot),
-            active_->plan.candidateProvenance}};
+            history.candidateBytes}};
     if (auto result = transaction.Stage(files); !result.succeeded)
     {
         state_ = CollectibleConversionState::Rejected;
@@ -303,6 +316,10 @@ CollectibleConversionReview CollectibleConversionController::Reverse(
     const auto source = Read(capture.sourceFile);
     const auto project = Read(capture.projectFile);
     const auto lock = Read(capture.lockFile);
+    const auto historyGeneration = provenance.value("projectGeneration",
+        capture.projectGeneration);
+    const auto historyGraph = provenance.value("packageGraphHash",
+        capture.packageGraphHash);
     if (provenance.value("schemaVersion", 0) != 1 ||
         provenance.value("state", "") != "Applied" ||
         Hash(source) != provenance.value("candidateSourceHash", "") ||
@@ -310,6 +327,29 @@ CollectibleConversionReview CollectibleConversionController::Reverse(
         Hash(lock) != provenance.value("candidateLockHash", ""))
     {
         state_ = CollectibleConversionState::DetachedRequiresReview;
+        const auto historyPath = CollectibleConversionHistory::Path(capture.projectRoot);
+        const auto operationId = Hash("DetachedRequiresReview\n" +
+            Read(capture.provenanceFile) + source + project + lock);
+        const auto history = CollectibleConversionHistory::Append(historyPath,
+            {operationId, CollectibleConversionHistoryState::DetachedRequiresReview,
+                Hash(Read(capture.provenanceFile)), Hash(source), Hash(source), Hash(project),
+                historyGraph, historyGeneration,
+                "SagaEditor.CollectibleConversionController/0.0.11",
+                Hash(Read(capture.provenanceFile))});
+        if (!history.succeeded) return Fail(*this, state_, history.code, history.message);
+        auto [lease, acquired] = ProjectMutationLease::Acquire(
+            capture.projectRoot, "collectible-conversion-detached-history");
+        if (!acquired.succeeded)
+            return Fail(*this, state_, acquired.code, acquired.message);
+        ProjectMutationTransaction transaction(lease, operationId, "0.0.11");
+        const std::vector<ProjectMutationTransaction::CandidateFile> files{
+            {historyPath.lexically_relative(capture.projectRoot), history.candidateBytes}};
+        if (auto result = transaction.Stage(files); !result.succeeded)
+            return Fail(*this, state_, result.code, result.message);
+        if (auto result = transaction.MarkCommit(); !result.succeeded)
+            return Fail(*this, state_, result.code, result.message);
+        if (auto result = transaction.Publish(); !result.succeeded)
+            return Fail(*this, state_, result.code, result.message);
         return Fail(*this, state_, "Conversion.Detached",
             "Current source or package identities diverged from conversion provenance.");
     }
@@ -333,15 +373,25 @@ CollectibleConversionReview CollectibleConversionController::Reverse(
     if (!acquired.succeeded)
         return Fail(*this, CollectibleConversionState::DetachedRequiresReview,
             acquired.code, acquired.message);
-    const auto operationId = "collectibles-low-to-high-" + std::to_string(
-        std::chrono::steady_clock::now().time_since_epoch().count());
+    const auto operationId = Hash("Reverse\n" + Read(capture.provenanceFile) +
+        reverseSource + reverseProject + reverseLock);
     ProjectMutationTransaction transaction(lease, operationId, "0.0.11");
     const std::string resetProvenance = "{\n  \"schemaVersion\": 1,\n  \"state\": \"HighLevel\"\n}\n";
+    const auto historyPath = CollectibleConversionHistory::Path(capture.projectRoot);
+    const auto history = CollectibleConversionHistory::Append(historyPath,
+        {operationId, CollectibleConversionHistoryState::Reversed,
+            Hash(Read(capture.provenanceFile)), Hash(source), Hash(reverseSource),
+            Hash(reverseProject), historyGraph, historyGeneration,
+            "SagaEditor.CollectibleConversionController/0.0.11",
+            Hash(resetProvenance)}, resetProvenance);
+    if (!history.succeeded)
+        return Fail(*this, CollectibleConversionState::DetachedRequiresReview,
+            history.code, history.message);
     const std::vector<ProjectMutationTransaction::CandidateFile> files{
         {fs::relative(capture.projectFile, capture.projectRoot), reverseProject},
         {fs::relative(capture.lockFile, capture.projectRoot), reverseLock},
         {fs::relative(capture.sourceFile, capture.projectRoot), reverseSource},
-        {fs::relative(capture.provenanceFile, capture.projectRoot), resetProvenance}};
+        {fs::relative(capture.provenanceFile, capture.projectRoot), history.candidateBytes}};
     if (auto result = transaction.Stage(files); !result.succeeded)
         return Fail(*this, CollectibleConversionState::DetachedRequiresReview,
             result.code, result.message);

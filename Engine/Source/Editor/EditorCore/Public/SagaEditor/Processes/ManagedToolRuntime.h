@@ -82,6 +82,9 @@ struct ManagedToolRuntimeOptions
     std::filesystem::path productExecutable;
     std::filesystem::path testStage;
     std::filesystem::path developerDotnetHost;
+    /// When populated, every invocation verifies this complete relative-path
+    /// inventory before launching the managed host.
+    std::map<std::filesystem::path, std::string> expectedInventory;
 };
 
 class ManagedToolRuntime

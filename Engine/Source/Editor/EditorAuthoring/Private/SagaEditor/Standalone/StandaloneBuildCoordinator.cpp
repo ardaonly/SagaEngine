@@ -115,15 +115,38 @@ Json SnapshotJson(const BuildInputSnapshot& snapshot)
     for (const auto& file : snapshot.files)
         files.push_back({{"hash", file.hash},
             {"path", file.snapshotPath.generic_string()}, {"size", file.size}});
+    Json closureEntries = Json::array();
+    const auto roleName = [](ManagedRuntimeClosureRole role)
+    {
+        switch (role)
+        {
+        case ManagedRuntimeClosureRole::Manifest: return "manifest";
+        case ManagedRuntimeClosureRole::Host: return "host";
+        case ManagedRuntimeClosureRole::HostFxr: return "hostfxr";
+        case ManagedRuntimeClosureRole::HostPolicy: return "hostpolicy";
+        case ManagedRuntimeClosureRole::Framework: return "framework";
+        case ManagedRuntimeClosureRole::Tool: return "tool";
+        case ManagedRuntimeClosureRole::AdjacentAsset: return "adjacent-asset";
+        }
+        return "adjacent-asset";
+    };
+    for (const auto& entry : snapshot.managedRuntimeClosure.entries)
+        closureEntries.push_back({{"frameworkVersion", entry.frameworkVersion},
+            {"hash", entry.hash}, {"path", entry.relativePath.generic_string()},
+            {"resolutionMode", static_cast<int>(entry.resolutionMode)},
+            {"rid", entry.runtimeIdentifier}, {"role", roleName(entry.role)},
+            {"size", entry.size}});
     return {{"configuration", snapshot.configuration}, {"files", std::move(files)},
         {"lockHash", snapshot.lockHash},
+        {"managedRuntimeClosure", {{"entries", std::move(closureEntries)},
+            {"hash", snapshot.managedRuntimeClosure.hash}}},
         {"packageGenerationHash", snapshot.packageGenerationHash},
         {"packageGenerationId", snapshot.packageGenerationId},
         {"packageGraphHash", snapshot.packageGraphHash},
         {"profileHash", snapshot.profileHash}, {"profileId", snapshot.profileId},
         {"projectHash", snapshot.projectHash}, {"projectId", snapshot.projectId},
         {"runtimeHash", snapshot.runtimeHash},
-        {"runtimeIdentifier", snapshot.runtimeIdentifier}, {"schemaVersion", 1},
+        {"runtimeIdentifier", snapshot.runtimeIdentifier}, {"schemaVersion", 2},
         {"target", snapshot.target}, {"toolHashes", snapshot.toolHashes}};
 }
 
@@ -139,17 +162,30 @@ bool AddFile(BuildInputSnapshot& snapshot, const std::filesystem::path& source,
             "A build input escaped the project snapshot.", source));
         return false;
     }
-    if (!seen.insert(normalized).second) return true;
+    if (!seen.insert(normalized).second)
+    {
+        diagnostics.push_back(Diagnostic("Build.Snapshot.InputDuplicate",
+            "Two standalone inputs resolve to the same snapshot path.", source));
+        return false;
+    }
     std::error_code error;
-    const auto size = std::filesystem::file_size(source, error);
-    const auto hash = error ? std::string{} : HashFile(source, error);
+    if (std::filesystem::is_symlink(source, error) ||
+        !std::filesystem::is_regular_file(source, error))
+    {
+        diagnostics.push_back(Diagnostic("Build.Snapshot.InputAlias",
+            "Standalone inputs must be regular non-aliased files.", source));
+        return false;
+    }
+    auto bytes = ReadDocumentBytes(source, error);
+    const auto hash = error ? std::string{} : HashDocumentBytes(bytes);
     if (error || hash.empty())
     {
         diagnostics.push_back(Diagnostic("Build.Snapshot.InputUnreadable",
             "A required standalone input could not be read.", source));
         return false;
     }
-    snapshot.files.push_back({source, normalized, hash, size});
+    snapshot.files.push_back({source, normalized, hash, bytes.size(),
+        std::make_shared<const std::string>(std::move(bytes))});
     return true;
 }
 
@@ -227,6 +263,21 @@ std::optional<BuildInputSnapshot> StandaloneBuildCoordinator::Capture(
     }
     auto freshness = VerifyPlaySourceSnapshot(request.source);
     if (!freshness.empty()) { diagnostics = std::move(freshness); return std::nullopt; }
+    std::error_code rootError;
+    if (std::filesystem::is_symlink(request.source.projectRoot, rootError) ||
+        !std::filesystem::is_directory(request.source.projectRoot, rootError) ||
+        !Contained(request.source.projectRoot, request.source.projectPath) ||
+        !Contained(request.source.projectRoot, request.source.trackedLockPath) ||
+        !Contained(request.source.projectRoot, request.buildProfilesPath) ||
+        std::any_of(request.source.sources.begin(), request.source.sources.end(),
+            [&](const auto& source)
+            { return !Contained(request.source.projectRoot, source.path); }))
+    {
+        diagnostics.push_back(Diagnostic("Build.Snapshot.ProjectInputEscape",
+            "Project snapshot inputs must be regular files inside one real project root.",
+            request.source.projectRoot));
+        return std::nullopt;
+    }
 
     BuildInputSnapshot snapshot;
     snapshot.projectId = request.source.projectId;
@@ -238,18 +289,43 @@ std::optional<BuildInputSnapshot> StandaloneBuildCoordinator::Capture(
     snapshot.runtimeIdentifier = request.runtimeIdentifier;
     snapshot.configuration = request.configuration;
     std::error_code error;
-    snapshot.runtimeHash = HashFile(request.runtimeExecutable, error);
+    if (std::filesystem::is_symlink(request.runtimeExecutable, error) ||
+        !std::filesystem::is_regular_file(request.runtimeExecutable, error))
+    {
+        diagnostics.push_back(Diagnostic("Build.Snapshot.RuntimeMissing",
+            "The selected private SagaRuntime must be a regular non-aliased file.",
+            request.runtimeExecutable));
+        return std::nullopt;
+    }
+    auto runtimeBytes = ReadDocumentBytes(request.runtimeExecutable, error);
+    snapshot.runtimeHash = error ? std::string{} : HashDocumentBytes(runtimeBytes);
     if (error)
     {
         diagnostics.push_back(Diagnostic("Build.Snapshot.RuntimeMissing",
             "The selected private SagaRuntime is missing.", request.runtimeExecutable));
         return std::nullopt;
     }
+    snapshot.runtimeBytes =
+        std::make_shared<const std::string>(std::move(runtimeBytes));
     ManagedToolRuntime managed(request.toolchain.managedRuntime);
+    std::filesystem::path closureRoot;
+    ManagedToolDescriptor closureDescriptor;
     for (const auto id : {ManagedToolId::ProjectKit, ManagedToolId::Script,
                           ManagedToolId::Packager})
     {
         const auto descriptor = managed.Resolve(id);
+        if (descriptor.resolutionMode == ManagedToolResolutionMode::Unresolved ||
+            descriptor.resolutionMode == ManagedToolResolutionMode::DeveloperHost ||
+            descriptor.trustedRoot.empty() ||
+            (!closureRoot.empty() && closureRoot != descriptor.trustedRoot))
+        {
+            diagnostics.push_back(Diagnostic("Build.Snapshot.PrivateClosureRequired",
+                "Standalone snapshots reject developer/global managed runtime fallback.",
+                descriptor.trustedRoot));
+            return std::nullopt;
+        }
+        closureRoot = descriptor.trustedRoot;
+        closureDescriptor = descriptor;
         const auto hash = HashFile(descriptor.dll, error);
         if (error || hash.empty())
         {
@@ -259,6 +335,73 @@ std::optional<BuildInputSnapshot> StandaloneBuildCoordinator::Capture(
         }
         snapshot.toolHashes[ManagedToolName(id)] = hash;
     }
+    std::vector<std::filesystem::path> closureFiles;
+    bool closureInvalid = false;
+    if (std::filesystem::is_symlink(closureRoot, error) ||
+        !std::filesystem::is_directory(closureRoot, error))
+    {
+        diagnostics.push_back(Diagnostic("Build.Snapshot.ClosureUnreadable",
+            "The private managed runtime root must be a real directory.", closureRoot));
+        return std::nullopt;
+    }
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(
+             closureRoot, error))
+    {
+        if (error || entry.is_symlink()) { closureInvalid = true; break; }
+        if (entry.is_directory()) continue;
+        if (!entry.is_regular_file())
+        {
+            closureInvalid = true;
+            break;
+        }
+        closureFiles.push_back(entry.path());
+    }
+    if (error || closureInvalid || closureFiles.empty())
+    {
+        diagnostics.push_back(Diagnostic("Build.Snapshot.ClosureUnreadable",
+            "The complete private managed runtime closure could not be inventoried.",
+            closureRoot));
+        return std::nullopt;
+    }
+    std::sort(closureFiles.begin(), closureFiles.end());
+    Json closureIdentity = Json::array();
+    for (const auto& path : closureFiles)
+    {
+        const auto relative = std::filesystem::relative(path, closureRoot, error).lexically_normal();
+        if (error || relative.empty() || relative.is_absolute() || *relative.begin() == "..")
+        {
+            diagnostics.push_back(Diagnostic("Build.Snapshot.ClosureEscape",
+                "A managed runtime closure member escaped its trusted stage.", path));
+            return std::nullopt;
+        }
+        auto bytes = ReadDocumentBytes(path, error);
+        if (error)
+        {
+            diagnostics.push_back(Diagnostic("Build.Snapshot.ClosureUnreadable",
+                "A managed runtime closure member could not be captured.", path));
+            return std::nullopt;
+        }
+        ManagedRuntimeClosureRole role = ManagedRuntimeClosureRole::AdjacentAsset;
+        const auto text = relative.generic_string();
+        if (text == "managed-tool-runtime.json") role = ManagedRuntimeClosureRole::Manifest;
+        else if (path == closureDescriptor.host) role = ManagedRuntimeClosureRole::Host;
+        else if (text.starts_with("runtime/dotnet/host/fxr/"))
+            role = ManagedRuntimeClosureRole::HostFxr;
+        else if (path.filename().string().find("hostpolicy") != std::string::npos)
+            role = ManagedRuntimeClosureRole::HostPolicy;
+        else if (text.starts_with("runtime/dotnet/shared/"))
+            role = ManagedRuntimeClosureRole::Framework;
+        else if (text.starts_with("tools/")) role = ManagedRuntimeClosureRole::Tool;
+        const auto hash = HashDocumentBytes(bytes);
+        snapshot.managedRuntimeClosure.entries.push_back({path, relative, hash,
+            bytes.size(), role, closureDescriptor.runtimeVersion, closureDescriptor.rid,
+            closureDescriptor.resolutionMode,
+            std::make_shared<const std::string>(std::move(bytes))});
+        closureIdentity.push_back({{"hash", hash}, {"path", text},
+            {"role", static_cast<int>(role)},
+            {"size", snapshot.managedRuntimeClosure.entries.back().size}});
+    }
+    snapshot.managedRuntimeClosure.hash = ContentId(closureIdentity.dump() + "\n");
 
     const auto packageRoot = request.source.projectRoot / "Build/Packages";
     const auto currentPath = packageRoot / "manifests/current.json";
@@ -301,12 +444,15 @@ std::optional<BuildInputSnapshot> StandaloneBuildCoordinator::Capture(
         return std::nullopt;
     }
     std::vector<std::filesystem::path> generated;
+    bool generationInvalid = false;
     for (const auto& entry : std::filesystem::recursive_directory_iterator(generationRoot, error))
     {
-        if (error || entry.is_symlink()) break;
+        if (error || entry.is_symlink() ||
+            (!entry.is_directory() && !entry.is_regular_file()))
+        { generationInvalid = true; break; }
         if (entry.is_regular_file()) generated.push_back(entry.path());
     }
-    if (error)
+    if (error || generationInvalid)
     {
         diagnostics.push_back(Diagnostic("Build.Snapshot.GenerationUnreadable",
             error.message(), generationRoot));
@@ -330,6 +476,63 @@ std::optional<BuildInputSnapshot> StandaloneBuildCoordinator::Capture(
             "Project or package identity changed while the snapshot was captured."));
         return std::nullopt;
     }
+    std::vector<std::filesystem::path> secondClosureFiles;
+    bool secondClosureInvalid = false;
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(
+             closureRoot, error))
+    {
+        if (error || entry.is_symlink() ||
+            (!entry.is_directory() && !entry.is_regular_file()))
+        { secondClosureInvalid = true; break; }
+        if (entry.is_regular_file()) secondClosureFiles.push_back(entry.path());
+    }
+    std::sort(secondClosureFiles.begin(), secondClosureFiles.end());
+    if (error || secondClosureInvalid || secondClosureFiles != closureFiles)
+    {
+        diagnostics.push_back(Diagnostic("Build.Snapshot.ClosureChanged",
+            "The managed runtime closure inventory changed during snapshot capture.",
+            closureRoot));
+        return std::nullopt;
+    }
+    std::vector<std::filesystem::path> secondGenerated;
+    bool secondGenerationInvalid = false;
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(
+             generationRoot, error))
+    {
+        if (error || entry.is_symlink() ||
+            (!entry.is_directory() && !entry.is_regular_file()))
+        { secondGenerationInvalid = true; break; }
+        if (entry.is_regular_file()) secondGenerated.push_back(entry.path());
+    }
+    std::sort(secondGenerated.begin(), secondGenerated.end());
+    if (error || secondGenerationInvalid || secondGenerated != generated)
+    {
+        diagnostics.push_back(Diagnostic("Build.Snapshot.GenerationChanged",
+            "The package generation inventory changed during snapshot capture.",
+            generationRoot));
+        return std::nullopt;
+    }
+    if (HashFile(request.runtimeExecutable, error) != snapshot.runtimeHash)
+    {
+        diagnostics.push_back(Diagnostic("Build.Snapshot.RuntimeChanged",
+            "The private native runtime changed during snapshot capture."));
+        return std::nullopt;
+    }
+    for (const auto& file : snapshot.files)
+        if (HashFile(file.sourcePath, error) != file.hash)
+        {
+            diagnostics.push_back(Diagnostic("Build.Snapshot.InputChanged",
+                "A project input changed during snapshot capture.", file.sourcePath));
+            return std::nullopt;
+        }
+    for (const auto& entry : snapshot.managedRuntimeClosure.entries)
+        if (HashFile(entry.sourcePath, error) != entry.hash)
+        {
+            diagnostics.push_back(Diagnostic("Build.Snapshot.ClosureChanged",
+                "The managed runtime closure changed during snapshot capture.",
+                entry.sourcePath));
+            return std::nullopt;
+        }
     std::sort(snapshot.files.begin(), snapshot.files.end(), [](const auto& left, const auto& right)
     { return left.snapshotPath.generic_string() < right.snapshotPath.generic_string(); });
     snapshot.canonicalJson = SnapshotJson(snapshot).dump() + "\n";
@@ -362,11 +565,12 @@ StandaloneBuildResult StandaloneBuildCoordinator::Build(
             result.diagnostics.back().code != "Build.Snapshot.GenerationChanged") return result;
     }
     if (result.snapshot.snapshotId.empty()) return result;
+    if (request.afterCapture) request.afterCapture();
     if (request.cancellationRequested && request.cancellationRequested())
     { result.state = StandaloneBuildState::Cancelled; return result; }
 
-    const auto staging = request.outputDirectory.parent_path() /
-        (".saga-standalone-" + result.snapshot.snapshotId.substr(0, 16));
+    const auto staging = StandalonePublicationTransaction::OwnedTransactionDirectory(
+        request.outputDirectory, result.snapshot.snapshotId);
     const auto materialized = staging / "materialized";
     const auto candidate = staging / "candidate";
     std::error_code error;
@@ -389,8 +593,9 @@ StandaloneBuildResult StandaloneBuildCoordinator::Build(
     {
         const auto destination = materialized / file.snapshotPath;
         std::filesystem::create_directories(destination.parent_path(), error);
-        if (!error) std::filesystem::copy_file(file.sourcePath, destination,
-            std::filesystem::copy_options::overwrite_existing, error);
+        if (error || !file.ownedBytes || !AtomicWriteDocument(destination, *file.ownedBytes,
+                result.snapshot.snapshotId, error))
+            error = std::make_error_code(std::errc::io_error);
         if (error || HashFile(destination, error) != file.hash)
         {
             result.diagnostics.push_back(Diagnostic("Build.Materialize.VerificationFailed",
@@ -404,6 +609,50 @@ StandaloneBuildResult StandaloneBuildCoordinator::Build(
     if (!AtomicWriteDocument(materialized / "BuildInputSnapshot.json",
         result.snapshot.canonicalJson, result.snapshot.snapshotId, error))
     { cleanup(); return result; }
+
+    const auto managedStage = staging / "managed-runtime";
+    for (const auto& entry : result.snapshot.managedRuntimeClosure.entries)
+    {
+        const auto destination = managedStage / entry.relativePath;
+        std::filesystem::create_directories(destination.parent_path(), error);
+        if (error || !entry.ownedBytes || !AtomicWriteDocument(destination, *entry.ownedBytes,
+                result.snapshot.snapshotId, error) ||
+            HashFile(destination, error) != entry.hash)
+        {
+            result.diagnostics.push_back(Diagnostic(
+                "Build.Materialize.ClosureVerificationFailed",
+                "A captured managed runtime member failed materialization verification.",
+                destination));
+            cleanup(); return result;
+        }
+        if (entry.role == ManagedRuntimeClosureRole::Host)
+        {
+            std::filesystem::permissions(destination,
+                std::filesystem::perms::owner_exec |
+                std::filesystem::perms::group_exec |
+                std::filesystem::perms::others_exec,
+                std::filesystem::perm_options::add, error);
+            if (error)
+            {
+                result.diagnostics.push_back(Diagnostic(
+                    "Build.Materialize.HostPermissionsFailed", error.message(), destination));
+                cleanup(); return result;
+            }
+        }
+    }
+    const auto capturedRuntime = staging / "native-runtime/SagaRuntime";
+    std::filesystem::create_directories(capturedRuntime.parent_path(), error);
+    if (error || !result.snapshot.runtimeBytes || !AtomicWriteDocument(capturedRuntime,
+            *result.snapshot.runtimeBytes, result.snapshot.snapshotId, error))
+    {
+        result.diagnostics.push_back(Diagnostic("Build.Materialize.RuntimeFailed",
+            "The captured native runtime could not be materialized.", capturedRuntime));
+        cleanup(); return result;
+    }
+    std::filesystem::permissions(capturedRuntime,
+        std::filesystem::perms::owner_exec | std::filesystem::perms::group_exec |
+        std::filesystem::perms::others_exec, std::filesystem::perm_options::add, error);
+    if (error) { cleanup(); return result; }
 
     PlaySourceSnapshot source = request.source;
     source.projectRoot = materialized;
@@ -419,7 +668,16 @@ StandaloneBuildResult StandaloneBuildCoordinator::Build(
     source.workspaceFence = std::make_shared<const std::atomic_uint64_t>(1);
 
     Report(request, StandaloneBuildState::Building, 0, 0, "Build materialized snapshot");
-    auto execution = (executor ? executor : DefaultExecute)(source, candidate, request);
+    StandaloneBuildRequest capturedRequest = request;
+    capturedRequest.runtimeExecutable = capturedRuntime;
+    capturedRequest.toolchain.managedRuntime.testStage = managedStage;
+    capturedRequest.toolchain.managedRuntime.developerDotnetHost.clear();
+    capturedRequest.toolchain.managedRuntime.expectedInventory.clear();
+    for (const auto& entry : result.snapshot.managedRuntimeClosure.entries)
+        capturedRequest.toolchain.managedRuntime.expectedInventory.emplace(
+            entry.relativePath, entry.hash);
+    auto execution = (executor ? executor : DefaultExecute)(
+        source, candidate, capturedRequest);
     if (!execution.passed)
     {
         result.state = execution.cancelled ? StandaloneBuildState::Cancelled
@@ -433,11 +691,22 @@ StandaloneBuildResult StandaloneBuildCoordinator::Build(
         cleanup(); return result;
     }
     std::filesystem::create_directories(candidate / "bin", error);
-    std::filesystem::copy_file(request.runtimeExecutable, candidate / "bin/SagaRuntime",
-        std::filesystem::copy_options::overwrite_existing, error);
-    if (error)
+    if (!result.snapshot.runtimeBytes || !AtomicWriteDocument(
+            candidate / "bin/SagaRuntime", *result.snapshot.runtimeBytes,
+            result.snapshot.snapshotId, error))
     {
         result.diagnostics.push_back(Diagnostic("Build.Stage.RuntimeCopyFailed", error.message()));
+        cleanup(); return result;
+    }
+    std::filesystem::permissions(candidate / "bin/SagaRuntime",
+        std::filesystem::perms::owner_exec |
+        std::filesystem::perms::group_exec |
+        std::filesystem::perms::others_exec,
+        std::filesystem::perm_options::add, error);
+    if (error)
+    {
+        result.diagnostics.push_back(Diagnostic(
+            "Build.Stage.RuntimePermissionsFailed", error.message()));
         cleanup(); return result;
     }
 
@@ -455,7 +724,7 @@ StandaloneBuildResult StandaloneBuildCoordinator::Build(
         }
         RebaseJsonPaths(envelope, materialized.string(),
             (request.outputDirectory / "Project").string(),
-            request.runtimeExecutable.string(),
+            capturedRuntime.string(),
             (request.outputDirectory / "bin/SagaRuntime").string());
         if (!AtomicWriteDocument(stagedEnvelope, envelope.dump(2) + "\n",
             result.snapshot.snapshotId, error))
@@ -484,10 +753,15 @@ StandaloneBuildResult StandaloneBuildCoordinator::Build(
     const auto generatedAt = std::chrono::duration_cast<std::chrono::seconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
     Json manifest = {{"contentIdentity", identity},
-        {"contentIdentityHash", result.manifestHash},
-        {"generatedAtUnixSeconds", generatedAt}, {"schemaVersion", 1}};
+        {"contentIdentityHash", result.manifestHash}, {"schemaVersion", 1}};
     if (!AtomicWriteDocument(candidate / "StandaloneManifest.saga.json",
         manifest.dump(2) + "\n", result.snapshot.snapshotId, error))
+    { cleanup(); return result; }
+    Json publicationMetadata = {{"destination", request.outputDirectory.string()},
+        {"generatedAtUnixSeconds", generatedAt}, {"schemaVersion", 1},
+        {"snapshotId", result.snapshot.snapshotId}};
+    if (!AtomicWriteDocument(candidate / "StandalonePublication.saga.json",
+        publicationMetadata.dump(2) + "\n", result.snapshot.snapshotId, error))
     { cleanup(); return result; }
     Json run = {{"arguments", Json::array({"--play-envelope",
         (request.outputDirectory / "Project/Build/Editor/Play" /
@@ -504,13 +778,14 @@ StandaloneBuildResult StandaloneBuildCoordinator::Build(
     Report(request, StandaloneBuildState::Publishing, 0, 0, "Publish verified output");
     auto publication = StandalonePublicationTransaction::Publish({staging, candidate,
         request.outputDirectory, result.snapshot.snapshotId, result.manifestHash,
-        request.publicationAllowed});
+        request.publicationAllowed, request.publicationTransitionAllowed});
     result.preservedPreviousOutput = publication.preservedPreviousOutput;
     result.publicationRecovery = std::move(publication.recovery);
     result.diagnostics.insert(result.diagnostics.end(), publication.diagnostics.begin(),
         publication.diagnostics.end());
     if (!publication.published)
     {
+        if (publication.cancelled) result.state = StandaloneBuildState::Cancelled;
         return result;
     }
     result.published = true;
@@ -522,11 +797,94 @@ StandaloneBuildResult StandaloneBuildCoordinator::Build(
     return result;
 }
 
-std::string StandaloneBuildCoordinator::ClassifyReproducibility(
+std::string ReproducibilityComparison::Name() const
+{
+    switch (classification)
+    {
+    case ReproducibilityClassification::NotComparable: return "not-comparable";
+    case ReproducibilityClassification::ByteReproducible: return "byte-reproducible";
+    case ReproducibilityClassification::SemanticContentAddressed:
+        return "semantic-content-addressed";
+    case ReproducibilityClassification::NonReproducible: return "non-reproducible";
+    }
+    return "not-comparable";
+}
+
+std::string StandaloneBuildCoordinator::SerializeReport(
+    const StandaloneBuildResult& result)
+{
+    const auto buildState = [](StandaloneBuildState state)
+    {
+        switch (state)
+        {
+        case StandaloneBuildState::Idle: return "Idle";
+        case StandaloneBuildState::Capturing: return "Capturing";
+        case StandaloneBuildState::Materializing: return "Materializing";
+        case StandaloneBuildState::Building: return "Building";
+        case StandaloneBuildState::Verifying: return "Verifying";
+        case StandaloneBuildState::Publishing: return "Publishing";
+        case StandaloneBuildState::Succeeded: return "Succeeded";
+        case StandaloneBuildState::Failed: return "Failed";
+        case StandaloneBuildState::Cancelled: return "Cancelled";
+        }
+        return "Failed";
+    };
+    const auto recoveryState = [](StandalonePublicationRecoveryState state)
+    {
+        switch (state)
+        {
+        case StandalonePublicationRecoveryState::None: return "None";
+        case StandalonePublicationRecoveryState::CandidatePublished: return "CandidatePublished";
+        case StandalonePublicationRecoveryState::PreviousRestored: return "PreviousRestored";
+        case StandalonePublicationRecoveryState::Completed: return "Completed";
+        case StandalonePublicationRecoveryState::FailedClosed: return "FailedClosed";
+        }
+        return "FailedClosed";
+    };
+    const auto cancellation = [](StandalonePublicationCancellationOutcome state)
+    {
+        switch (state)
+        {
+        case StandalonePublicationCancellationOutcome::None: return "None";
+        case StandalonePublicationCancellationOutcome::BeforeCandidatePublication:
+            return "BeforeCandidatePublication";
+        case StandalonePublicationCancellationOutcome::PreviousOutputRestored:
+            return "PreviousOutputRestored";
+        case StandalonePublicationCancellationOutcome::EvidenceRetained:
+            return "EvidenceRetained";
+        }
+        return "EvidenceRetained";
+    };
+    Json diagnostics = Json::array();
+    for (const auto& diagnostic : result.diagnostics)
+        diagnostics.push_back({{"code", diagnostic.code}, {"message", diagnostic.message},
+            {"path", diagnostic.path.string()}});
+    return Json{{"buildState", buildState(result.state)},
+        {"diagnostics", std::move(diagnostics)},
+        {"managedRuntimeClosure", {{"entryCount",
+            result.snapshot.managedRuntimeClosure.entries.size()},
+            {"hash", result.snapshot.managedRuntimeClosure.hash}}},
+        {"manifestHash", result.manifestHash}, {"output", result.outputDirectory.string()},
+        {"publicationRecovery", {
+            {"cancellation", cancellation(
+                result.publicationRecovery.cancellationOutcome)},
+            {"preservedPreviousOutput",
+                result.publicationRecovery.preservedPreviousOutput},
+            {"recovered", result.publicationRecovery.recovered},
+            {"retainedEvidence", result.publicationRecovery.retainedEvidence},
+            {"state", recoveryState(result.publicationRecovery.state)},
+            {"terminalFailure", result.publicationRecovery.terminalFailure}}},
+        {"published", result.published}, {"schemaVersion", 2},
+        {"snapshot", {{"id", result.snapshot.snapshotId},
+            {"schemaVersion", result.snapshot.schemaVersion}}}}.dump() + "\n";
+}
+
+ReproducibilityComparison StandaloneBuildCoordinator::CompareReproducibility(
     const StandaloneBuildResult& first, const StandaloneBuildResult& second)
 {
+    ReproducibilityComparison comparison;
     if (!first.Succeeded() || !second.Succeeded() ||
-        first.snapshot.snapshotId != second.snapshot.snapshotId) return "not-comparable";
+        first.snapshot.snapshotId != second.snapshot.snapshotId) return comparison;
     std::map<std::filesystem::path, std::string> firstFiles, secondFiles;
     auto inventory = [](const std::filesystem::path& root,
                         std::map<std::filesystem::path, std::string>& output)
@@ -544,8 +902,35 @@ std::string StandaloneBuildCoordinator::ClassifyReproducibility(
         return true;
     };
     if (!inventory(first.outputDirectory, firstFiles) ||
-        !inventory(second.outputDirectory, secondFiles)) return "not-comparable";
-    return firstFiles == secondFiles ? "byte-reproducible"
-                                     : "semantic-content-addressed";
+        !inventory(second.outputDirectory, secondFiles)) return comparison;
+    std::set<std::filesystem::path> paths;
+    for (const auto& [path, _] : firstFiles) paths.insert(path);
+    for (const auto& [path, _] : secondFiles) paths.insert(path);
+    const auto publicationLocal = [](const std::filesystem::path& path)
+    {
+        const auto text = path.generic_string();
+        return text == "StandalonePublication.saga.json" ||
+            text == "StandaloneRun.saga.json" ||
+            text.ends_with("/local-launch-envelope-v1.json") ||
+            text.ends_with("/runtime-launch-v2.json");
+    };
+    for (const auto& path : paths)
+    {
+        const auto firstFound = firstFiles.find(path);
+        const auto secondFound = secondFiles.find(path);
+        const auto firstHash = firstFound == firstFiles.end() ? "missing" : firstFound->second;
+        const auto secondHash = secondFound == secondFiles.end() ? "missing" : secondFound->second;
+        if (firstHash != secondHash)
+            comparison.differences.push_back(
+                {path, firstHash, secondHash, publicationLocal(path)});
+    }
+    if (comparison.differences.empty())
+        comparison.classification = ReproducibilityClassification::ByteReproducible;
+    else if (std::all_of(comparison.differences.begin(), comparison.differences.end(),
+        [](const auto& difference) { return difference.publicationMetadata; }))
+        comparison.classification =
+            ReproducibilityClassification::SemanticContentAddressed;
+    else comparison.classification = ReproducibilityClassification::NonReproducible;
+    return comparison;
 }
 } // namespace SagaEditor

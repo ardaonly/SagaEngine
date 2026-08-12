@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #include "SagaEditor/Processes/ManagedToolRuntime.h"
+#include "SagaEditor/Documents/Document.h"
 
 #include <gtest/gtest.h>
 
@@ -68,6 +69,21 @@ fs::path Stage(std::string_view name)
             R"({"runtimeOptions":{"tfm":"net10.0","framework":{"name":"Microsoft.NETCore.App","version":"10.0.0"}}})");
     }
     return root;
+}
+
+std::map<fs::path, std::string> Inventory(const fs::path& root)
+{
+    std::map<fs::path, std::string> result;
+    for (const auto& entry : fs::recursive_directory_iterator(root))
+        if (entry.is_regular_file())
+        {
+            std::error_code error;
+            const auto bytes = SagaEditor::ReadDocumentBytes(entry.path(), error);
+            EXPECT_FALSE(error);
+            result.emplace(fs::relative(entry.path(), root),
+                SagaEditor::HashDocumentBytes(bytes));
+        }
+    return result;
 }
 }
 
@@ -201,6 +217,19 @@ TEST(ManagedToolRuntimeTests, ReportsStableMissingAndMetadataDiagnostics)
     fs::remove_all(missing);
     fs::remove_all(stage);
     fs::remove_all(missingToolStage);
+}
+
+TEST(ManagedToolRuntimeTests, RevalidatesCompleteCapturedInventoryBeforeEveryLaunch)
+{
+    const auto stage = Stage("captured-inventory");
+    SagaEditor::ManagedToolRuntime runtime({{}, stage, {}, Inventory(stage)});
+    ASSERT_TRUE(runtime.Run(SagaEditor::ManagedToolId::ProjectKit, {}).Succeeded());
+    Write(stage / "tools/SagaScript/sagascript.dll", "changed\n");
+    const auto changed = runtime.Run(SagaEditor::ManagedToolId::Script, {});
+    ASSERT_EQ(changed.preflightDiagnostics.size(), 1U);
+    EXPECT_EQ(changed.preflightDiagnostics.front().code,
+              "Product.Toolchain.InventoryMismatch");
+    fs::remove_all(stage);
 }
 
 TEST(ManagedToolRuntimeTests, RejectsEscapingToolPayload)

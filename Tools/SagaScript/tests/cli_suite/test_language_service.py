@@ -412,6 +412,8 @@ def test_package_visibility_filters_features_and_controlled_preflight() -> None:
                    for item in by_id[6]["payload"]["diagnostics"])
         assert by_id[7]["payload"]["accepted"] is False
         assert by_id[7]["payload"]["packageVisibilityPassed"] is False
+        retired_analyzer_field = "analyzers" + "Passed"
+        assert retired_analyzer_field not in by_id[7]["payload"]
 
 
 def test_ownership_input_rejects_hash_and_project_mismatch() -> None:

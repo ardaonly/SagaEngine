@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #include "SagaEditor/Performance/CollectibleConversionController.h"
+#include "SagaEditor/Performance/CollectibleConversionHistory.h"
 
 #include <gtest/gtest.h>
 
@@ -38,10 +39,13 @@ void Update() { CollectiblesLowLevelBatch.Advance(0.5, 0); }
 // SAGA-COLLECTIBLE-SURFACE-END
 }
 )";
+const std::string GenerationHash = "sha256:" + std::string(64, 'a');
+const std::string HighGraphHash = "sha256:" + std::string(64, 'b');
+const std::string LowGraphHash = "sha256:" + std::string(64, 'c');
 constexpr std::string_view HighProject = R"({"projectId":"fixture","dependencies":[{"packageId":"com.saga.gameplay.challenge","version":"0.0.11","modules":["collectibles.highlevel"]}]})";
 constexpr std::string_view LowProject = R"({"projectId":"fixture","dependencies":[{"packageId":"com.saga.gameplay.challenge","version":"0.0.11","modules":["collectibles.lowlevel"]}]})";
-constexpr std::string_view HighLock = R"({"schemaVersion":1,"projectId":"fixture","graphHash":"sha256:high","packages":[{"packageId":"com.saga.gameplay.challenge","version":"0.0.11","modules":["collectibles.highlevel"]}]})";
-constexpr std::string_view LowLock = R"({"schemaVersion":1,"projectId":"fixture","graphHash":"sha256:low","packages":[{"packageId":"com.saga.gameplay.challenge","version":"0.0.11","modules":["collectibles.lowlevel"]}]})";
+const std::string HighLock = "{\"schemaVersion\":1,\"projectId\":\"fixture\",\"graphHash\":\"" + HighGraphHash + "\",\"packages\":[{\"packageId\":\"com.saga.gameplay.challenge\",\"version\":\"0.0.11\",\"modules\":[\"collectibles.highlevel\"]}]}";
+const std::string LowLock = "{\"schemaVersion\":1,\"projectId\":\"fixture\",\"graphHash\":\"" + LowGraphHash + "\",\"packages\":[{\"packageId\":\"com.saga.gameplay.challenge\",\"version\":\"0.0.11\",\"modules\":[\"collectibles.lowlevel\"]}]}";
 }
 
 class CollectibleConversionControllerTests : public testing::Test
@@ -63,7 +67,7 @@ protected:
     {
         return {root, root / "Fixture.sagaproj", root / "SagaPackage.lock",
             root / "Scripts/Collectibles.cs", root / "CollectibleConversion.saga.json",
-            "generation-1", "sha256:high", "revision-7"};
+            GenerationHash, HighGraphHash, "revision-7"};
     }
     fs::path root;
 };
@@ -85,6 +89,12 @@ TEST_F(CollectibleConversionControllerTests, AppliesAllCandidatesAndReversesFrom
     EXPECT_EQ(Read(root / "Fixture.sagaproj"), HighProject);
     EXPECT_EQ(Read(root / "SagaPackage.lock"), HighLock);
     EXPECT_EQ(Read(root / "Scripts/Collectibles.cs"), HighSource);
+    const auto history = CollectibleConversionHistory::Read(
+        CollectibleConversionHistory::Path(root));
+    ASSERT_TRUE(history.succeeded);
+    ASSERT_EQ(history.entries.size(), 2U);
+    EXPECT_EQ(history.entries[0].state, CollectibleConversionHistoryState::Applied);
+    EXPECT_EQ(history.entries[1].state, CollectibleConversionHistoryState::Reversed);
 }
 
 TEST_F(CollectibleConversionControllerTests, RejectsStaleReviewWithoutPublishingAnyCandidate)
@@ -113,6 +123,22 @@ TEST_F(CollectibleConversionControllerTests, DivergenceDetachesAndNeverGuessesCu
     EXPECT_EQ(reversed.state, CollectibleConversionState::DetachedRequiresReview);
     EXPECT_EQ(reversed.code, "Conversion.Detached");
     EXPECT_EQ(Read(root / "Scripts/Collectibles.cs"), "custom low-level source\n");
+    const auto history = CollectibleConversionHistory::Read(
+        CollectibleConversionHistory::Path(root));
+    ASSERT_TRUE(history.succeeded);
+    ASSERT_EQ(history.entries.size(), 2U);
+    EXPECT_EQ(history.entries.back().state,
+        CollectibleConversionHistoryState::DetachedRequiresReview);
+}
+
+TEST_F(CollectibleConversionControllerTests, MalformedHistoryTypesFailClosed)
+{
+    Write(root / "CollectibleConversion.saga.json",
+        R"({"conversionHistory":{"entries":[],"schema":7}})");
+    const auto history = CollectibleConversionHistory::Read(
+        CollectibleConversionHistory::Path(root));
+    EXPECT_FALSE(history.succeeded);
+    EXPECT_EQ(history.code, "Conversion.HistoryInvalid");
 }
 
 TEST_F(CollectibleConversionControllerTests, RejectsUnsupportedCandidateAndMissingIdentities)

@@ -2,6 +2,7 @@
 
 #include "SagaEditor/Processes/ManagedToolRuntime.h"
 
+#include "SagaEditor/Documents/Document.h"
 #include "SagaManagedToolRuntimeConfig.h"
 
 #include <nlohmann/json.hpp>
@@ -324,6 +325,42 @@ std::vector<ManagedToolDiagnostic> Preflight(const ManagedToolDescriptor& descri
     return diagnostics;
 }
 
+std::optional<ManagedToolDiagnostic> VerifyExpectedInventory(
+    const ManagedToolDescriptor& descriptor,
+    const std::map<std::filesystem::path, std::string>& expected)
+{
+    if (expected.empty()) return std::nullopt;
+    std::map<std::filesystem::path, std::string> actual;
+    std::error_code error;
+    if (std::filesystem::is_symlink(descriptor.trustedRoot, error) ||
+        !std::filesystem::is_directory(descriptor.trustedRoot, error))
+        return Diagnostic("Product.Toolchain.InventoryMismatch",
+            "The captured managed runtime root is unavailable or aliased.",
+            descriptor.trustedRoot);
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(
+             descriptor.trustedRoot, error))
+    {
+        if (error || entry.is_symlink() ||
+            (!entry.is_directory() && !entry.is_regular_file()))
+            return Diagnostic("Product.Toolchain.InventoryMismatch",
+                "The captured managed runtime contains an unexpected entry.", entry.path());
+        if (entry.is_directory()) continue;
+        const auto relative = std::filesystem::relative(
+            entry.path(), descriptor.trustedRoot, error).lexically_normal();
+        const auto bytes = error ? std::string{} : ReadDocumentBytes(entry.path(), error);
+        if (error || relative.empty() || relative.is_absolute() ||
+            *relative.begin() == "..")
+            return Diagnostic("Product.Toolchain.InventoryMismatch",
+                "A captured managed runtime member could not be verified.", entry.path());
+        actual.emplace(relative, HashDocumentBytes(bytes));
+    }
+    if (actual != expected)
+        return Diagnostic("Product.Toolchain.InventoryMismatch",
+            "The complete captured managed runtime inventory changed before launch.",
+            descriptor.trustedRoot);
+    return std::nullopt;
+}
+
 ToolProcessResult PreflightProcessFailure(
     const std::vector<ManagedToolDiagnostic>& diagnostics)
 {
@@ -428,6 +465,10 @@ ManagedToolInvocation ManagedToolRuntime::PrepareInvocation(
     ManagedToolInvocation invocation;
     invocation.descriptor = Resolve(id);
     invocation.diagnostics = Preflight(invocation.descriptor);
+    if (invocation.diagnostics.empty())
+        if (const auto inventory = VerifyExpectedInventory(
+                invocation.descriptor, options_.expectedInventory))
+            invocation.diagnostics.push_back(*inventory);
     if (!invocation.diagnostics.empty()) return invocation;
     processOptions.executable = invocation.descriptor.host;
     processOptions.arguments.insert(processOptions.arguments.end(),

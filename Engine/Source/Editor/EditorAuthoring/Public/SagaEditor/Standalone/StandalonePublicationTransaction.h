@@ -8,6 +8,7 @@
 #include <functional>
 #include <map>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace SagaEditor
@@ -21,11 +22,33 @@ enum class StandalonePublicationRecoveryState
     FailedClosed,
 };
 
+enum class StandalonePublicationBoundary
+{
+    Prepared,
+    PreviousMoveCompleted,
+    PreviousMoved,
+    CandidateMoveCompleted,
+    CandidatePublished,
+    Completed,
+};
+
+enum class StandalonePublicationCancellationOutcome
+{
+    None,
+    BeforeCandidatePublication,
+    PreviousOutputRestored,
+    EvidenceRetained,
+};
+
 struct StandalonePublicationRecoveryResult
 {
     StandalonePublicationRecoveryState state = StandalonePublicationRecoveryState::None;
     bool recovered = false;
     bool preservedPreviousOutput = false;
+    bool retainedEvidence = false;
+    bool terminalFailure = false;
+    StandalonePublicationCancellationOutcome cancellationOutcome =
+        StandalonePublicationCancellationOutcome::None;
     std::vector<DocumentDiagnostic> diagnostics;
     [[nodiscard]] bool Succeeded() const noexcept
     { return state != StandalonePublicationRecoveryState::FailedClosed; }
@@ -39,11 +62,15 @@ struct StandalonePublicationRequest
     std::string snapshotId;
     std::string manifestHash;
     std::function<bool()> publicationAllowed;
+    /// Deterministic interruption hook used by recovery tests. Returning false
+    /// retains the durable journal exactly at the reported boundary.
+    std::function<bool(StandalonePublicationBoundary)> transitionAllowed;
 };
 
 struct StandalonePublicationResult
 {
     bool published = false;
+    bool cancelled = false;
     bool preservedPreviousOutput = false;
     StandalonePublicationRecoveryResult recovery;
     std::vector<DocumentDiagnostic> diagnostics;
@@ -55,6 +82,9 @@ struct StandalonePublicationResult
 class StandalonePublicationTransaction final
 {
 public:
+    [[nodiscard]] static std::filesystem::path OwnedTransactionDirectory(
+        const std::filesystem::path& outputDirectory,
+        std::string_view transactionId);
     [[nodiscard]] static StandalonePublicationRecoveryResult RecoverOwned(
         const std::filesystem::path& outputDirectory);
     [[nodiscard]] static StandalonePublicationResult Publish(
