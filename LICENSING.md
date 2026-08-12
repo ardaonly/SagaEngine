@@ -34,7 +34,7 @@ This migration does not retroactively change an earlier release.
 Effective migration commit: `8a39e5fbfc3fa9c687dde14a033d6c795763946b`.
 
 The `Samples/**` MIT grant became effective at
-`8f30814e95951633fb1e6a4bba0d0a471051221f`.
+`725f10f2508cefb76ce86792b72ec490df009f8e`.
 
 ## Approved target model
 
