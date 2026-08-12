@@ -60,7 +60,7 @@ ALLOWED_SOURCE_KINDS = {
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 METADATA_REQUIREMENTS = {
-    "LICENSE": (
+    "LICENSING.md": (
         "SPDX-FileCopyrightText: 2026 Arda Koyuncu",
         "SPDX-License-Identifier: CC-BY-4.0",
     ),
@@ -253,6 +253,14 @@ def main() -> int:
 
     failures: list[str] = []
     validate_manifest(root, failures)
+
+    primary_license = root / "LICENSE"
+    canonical_mpl = root / "LICENSES/MPL-2.0.txt"
+    if primary_license.is_file() and canonical_mpl.is_file():
+        if primary_license.read_bytes() != canonical_mpl.read_bytes():
+            failures.append(
+                "LICENSE must byte-match the canonical LICENSES/MPL-2.0.txt text"
+            )
 
     try:
         policy = tomllib.loads(

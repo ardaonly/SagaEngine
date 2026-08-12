@@ -244,6 +244,7 @@ CANONICAL_DOCUMENT_PATHS = {
 GOVERNANCE_CHECKSUM_PATHS = {
     ".reuse/dep5",
     "LICENSE",
+    "LICENSING.md",
     "LICENSE_POLICY.toml",
     "LICENSE_TEXT_SOURCES.toml",
     "Tools/Developer/BoundaryCheck/Policies/path_rules.json",

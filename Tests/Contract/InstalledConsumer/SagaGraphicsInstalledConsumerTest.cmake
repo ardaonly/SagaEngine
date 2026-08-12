@@ -32,6 +32,7 @@ endif()
 # material together with the exported graphics package.
 set(_required_installed_files
     "Licenses/Saga/LICENSE"
+    "Licenses/Saga/LICENSING.md"
     "Licenses/Saga/THIRD_PARTY_NOTICES.md"
     "Licenses/Saga/LICENSES/0BSD.txt"
     "Licenses/Saga/LICENSES/Apache-2.0.txt"

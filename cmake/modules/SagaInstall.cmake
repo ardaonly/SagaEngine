@@ -2,12 +2,11 @@
 function(saga_setup_install)
     include(GNUInstallDirs)
 
-    # Install the canonical mixed-license index and all repository license
-    # texts with the development SDK. Their presence does not make the
-    # planned MPL-2.0 migration effective; LICENSE remains authoritative
-    # for resolving the current mixed-license state.
+    # Install the primary MPL-2.0 text, mixed-license scope guide, and all
+    # canonical repository license texts with the development SDK.
     install(FILES
         "${SAGA_ROOT}/LICENSE"
+        "${SAGA_ROOT}/LICENSING.md"
         "${SAGA_ROOT}/LICENSES/THIRD_PARTY_NOTICES.md"
         DESTINATION "Licenses/Saga"
         COMPONENT SagaDevelopment

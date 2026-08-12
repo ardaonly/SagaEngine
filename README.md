@@ -14,6 +14,7 @@ It is not a finished game-engine product, public SDK, production networking stac
 - `Samples` — sample-owned projects and source.
 - `SagaWiki` — canonical current product and architecture documentation.
 - `LICENSES` — SPDX license texts and authoritative third-party notices.
+- `LICENSING.md` — mixed-license scope and exceptions guide.
 
 The legacy top-level source roots are retired. The current map is in [Repository map](SagaWiki/index.html#repository-map), and dependency rules are in [Ownership and dependency direction](SagaWiki/index.html#ownership-dependencies).
 
@@ -58,7 +59,7 @@ relative to the Saga layout.
 
 ## Licensing
 
-[LICENSE](LICENSE) is the primary repository license. [LICENSES/THIRD_PARTY_NOTICES.md](LICENSES/THIRD_PARTY_NOTICES.md) is the authoritative third-party notice. Additional SPDX texts live under `LICENSES/`; machine-checked policy lives in `LICENSE_POLICY.toml`, `LICENSE_TEXT_SOURCES.toml`, `.reuse/dep5`, and generated checksums.
+[LICENSE](LICENSE) is the primary MPL-2.0 license text. [LICENSING.md](LICENSING.md) explains the repository's mixed-license scope and exceptions. [LICENSE_POLICY.toml](LICENSE_POLICY.toml) is the machine-readable authority for path-specific licensing. [LICENSES/THIRD_PARTY_NOTICES.md](LICENSES/THIRD_PARTY_NOTICES.md) is the authoritative third-party notice; additional SPDX texts and validation metadata live under `LICENSES/`, `LICENSE_TEXT_SOURCES.toml`, `.reuse/dep5`, and generated checksums.
 
 Automated GitHub test execution is temporarily disabled while its native test
 graph is redesigned. Existing local test and policy commands remain available;

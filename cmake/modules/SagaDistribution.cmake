@@ -294,8 +294,8 @@ function(saga_setup_distribution)
         )
     endif()
 
-    if(EXISTS "${SAGA_ROOT}/LICENSE")
-        install(FILES "${SAGA_ROOT}/LICENSE"
+    if(EXISTS "${SAGA_ROOT}/LICENSING.md")
+        install(FILES "${SAGA_ROOT}/LICENSING.md"
             DESTINATION licenses
             RENAME LICENSE-SAGA.md
             COMPONENT SagaDistribution

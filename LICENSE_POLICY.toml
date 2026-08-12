@@ -25,6 +25,7 @@ review_record_paths = [
   "LICENSES/THIRD_PARTY_NOTICES.md",
   "CONTRIBUTING.md",
   "LICENSE",
+  "LICENSING.md",
   "Tools/Developer/BoundaryCheck/Policies/path_rules.json",
   "SagaWiki/pages/licensing.html",
 ]
@@ -78,6 +79,7 @@ files_are_normative_until_cleanup = false
 [governance]
 required_documents = [
   "LICENSE",
+  "LICENSING.md",
   "SagaWiki/pages/licensing.html",
   "LICENSES/THIRD_PARTY_NOTICES.md",
 ]
@@ -525,7 +527,7 @@ effective_commit = ""
 [[domains]]
 id = "root-license-index"
 priority = 1000
-paths = ["LICENSE"]
+paths = ["LICENSING.md"]
 required = true
 domain_owner = "SagaEngine"
 rights_holder_refs = ["RH-ARDA-KOYUNCU"]
@@ -536,6 +538,23 @@ target_license_mode = "fixed-spdx"
 target_license_expression = "CC-BY-4.0"
 provenance_review = "pending"
 licensing_authority_review = "conditional"
+migration_status = "unchanged"
+effective_commit = ""
+
+[[domains]]
+id = "root-license-text"
+priority = 1000
+paths = ["LICENSE"]
+required = true
+domain_owner = "SagaEngine"
+rights_holder_refs = ["RH-ARDA-KOYUNCU"]
+current_license_mode = "fixed-spdx"
+resolution_requirement = "metadata-or-policy-default"
+current_license_expression = "MPL-2.0"
+target_license_mode = "fixed-spdx"
+target_license_expression = "MPL-2.0"
+provenance_review = "cleared"
+licensing_authority_review = "cleared"
 migration_status = "unchanged"
 effective_commit = ""
 
