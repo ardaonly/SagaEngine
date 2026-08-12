@@ -381,7 +381,7 @@ target_license_expression = "MIT"
 provenance_review = "cleared"
 licensing_authority_review = "cleared"
 migration_status = "effective"
-effective_commit = "8f30814e95951633fb1e6a4bba0d0a471051221f"
+effective_commit = "725f10f2508cefb76ce86792b72ec490df009f8e"
 notes = "Saga-owned sample documentation is covered by the Samples-wide MIT grant."
 
 [[domains]]
@@ -403,7 +403,7 @@ target_license_expression = "MIT"
 provenance_review = "cleared"
 licensing_authority_review = "cleared"
 migration_status = "effective"
-effective_commit = "8f30814e95951633fb1e6a4bba0d0a471051221f"
+effective_commit = "725f10f2508cefb76ce86792b72ec490df009f8e"
 notes = "Saga-owned sample code and project metadata are covered by MIT."
 
 [[domains]]
@@ -421,7 +421,7 @@ target_license_expression = "MIT"
 provenance_review = "cleared"
 licensing_authority_review = "cleared"
 migration_status = "effective"
-effective_commit = "8f30814e95951633fb1e6a4bba0d0a471051221f"
+effective_commit = "725f10f2508cefb76ce86792b72ec490df009f8e"
 notes = "Saga-owned files under Samples use MIT; embedded dependency and source-asset provenance remains factual."
 
 [[domains]]
@@ -468,7 +468,7 @@ target_license_expression = "MIT"
 provenance_review = "cleared"
 licensing_authority_review = "cleared"
 migration_status = "effective"
-effective_commit = "8f30814e95951633fb1e6a4bba0d0a471051221f"
+effective_commit = "725f10f2508cefb76ce86792b72ec490df009f8e"
 notes = "Saga-owned sample content uses MIT; referenced source-material license metadata remains factual."
 
 
