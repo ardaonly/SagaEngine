@@ -11,17 +11,42 @@ Read the repository as a set of owned modules and contracts before treating it a
 
 ## First checks
 
-From the repository root:
+For a fresh clone, initialize submodules before dependency setup:
 
 ```sh
 git status --short
-scripts/wiki verify
+git submodule update --init --recursive
 nix-shell --run "Tools/Forge/bin/forge install --profile linux-gcc"
 nix-shell --run "cmake --preset linux-gcc"
-nix-shell --run "cmake --build --preset linux-gcc"
+nix-shell --run "cmake --build --preset linux-gcc --parallel 2"
 ```
 
-Build and test scope should match the change. Do not assume that a full CTest or GPU/stress run is appropriate for every local machine; use focused targets first and record exactly what was run. See [testing and evidence](../evidence/testing.md).
+Run the desktop product from the configured build:
+
+```sh
+build/RelWithDebInfo-0.0.11/bin/Saga
+```
+
+The normal bounded validation entry point is:
+
+```sh
+nix-shell --run "python3 Tools/Developer/CI/run_suite.py quick"
+```
+
+It configures, builds its declared prerequisites with two jobs, and runs only
+the CMake-owned quick selection. The suite configure disables compiler launchers
+because the current GCC dependency scanner and sccache combination can lose
+depfiles during parallel focused builds. Full local CTest is not the normal
+developer path.
+
+Product UI validation is explicit:
+
+```sh
+nix-shell --run "python3 Tools/Developer/CI/run_suite.py product-xcb"
+```
+
+It requires Qt/XCB and either an existing `DISPLAY` or Xvfb. It is not a GPU
+test and is not included in `quick`.
 
 ## Project inputs
 
@@ -41,6 +66,20 @@ scripts/wiki verify
 ```
 
 These root wrappers are routing surfaces. Product logic stays in the owning tools and modules.
+
+## Managed runtime and recovery
+
+Saga packages a pinned private .NET runtime with SagaProjectKit, SagaScript,
+and SagaPackager. Do not configure a shipped product to probe a global `dotnet`.
+The developer .NET SDK used while compiling those tools is a separate build
+prerequisite.
+
+On failure, keep the first diagnostic and suite manifest under
+`build/.../reports/test-suites`. Check `git status`, the selected preset,
+submodule state, available disk/memory, and declared environment requirements.
+Re-run the smallest affected suite. Do not delete arbitrary project, package,
+or build state as a universal recovery step; use a separate clean build root
+when stale-build diagnosis is actually required.
 
 ## Avoid stale assumptions
 

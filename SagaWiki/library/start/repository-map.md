@@ -17,6 +17,8 @@ The hard cutover made ownership visible in the filesystem. New code should stren
 | `Tools/<PermanentTool>` | Maintained project, script, packaging, and developer-facing tools. |
 | `Tools/Developer/<Check>` | Internal repository and architecture checks. |
 | `Tests/<EvidenceArea>` | Cross-cutting unit, integration, GPU, contract, and evidence suites. |
+| `Engine/Managed/SagaScript.RuntimeBridge` | Verified native/managed Runtime bridge contract. |
+| `Engine/Distribution` and `cmake/modules/SagaDistribution.cmake` | Built-in packages and Linux distribution ownership. |
 | `Samples` | Sample-owned projects, content, and source. |
 | `SagaWiki` | Current human-facing knowledge and its offline reader. |
 
@@ -37,3 +39,12 @@ Programs are not architecture owners. Saga, SagaEditorLab, SagaRuntime, and Saga
 The root-level `Runtime/`, `Server/`, `Backends/`, `Apps/`, `Shared/`, `Collaboration/`, and `Tools/scripts/` layouts are retired. Historical references can remain in Git history, but current includes, build rules, and documentation should name the owning post-cutover path.
 
 For the complete owner/dependency review rules, see [Ownership and dependency contracts](../reference/ownership-and-dependency-contracts.md).
+
+## Tooling and tests
+
+- `Tools/SagaProjectKit`, `Tools/SagaScript`, and `Tools/SagaPackager` own project resolution, C# tooling, and package/content construction respectively.
+- Module-local `Tests` directories own native module behavior; root `Tests` owns cross-module architecture, contract, integration, product, GPU, and support code.
+- Managed tool tests stay next to their tools. Repository policy and architecture tooling lives under `Tools/Developer`.
+- `cmake/testing/SagaTestSuites.cmake` owns local suite membership and build prerequisites. `Tools/Developer/CI/run_suite.py` only orchestrates that configured graph.
+- `Samples` contains MIT-licensed example projects and content. It is evidence and teaching material, not engine architecture authority.
+- `SagaWiki/library` is documentation source; `SagaWiki/index.html` is generated output.

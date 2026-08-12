@@ -429,6 +429,20 @@
       ]
     },
     {
+      "id": "architecture-decisions",
+      "source": "library/architecture/decision-index.md",
+      "title": "Architecture decision index",
+      "section": "Architecture",
+      "summary": "Stable architecture choices and the current implementation evidence that protects them.",
+      "status": "policy",
+      "tags": [
+        "decisions",
+        "authority",
+        "boundaries"
+      ],
+      "source_docs": []
+    },
+    {
       "id": "runtime-lifecycle",
       "source": "library/runtime/runtime-lifecycle.md",
       "title": "Runtime lifecycle",
@@ -653,6 +667,20 @@
         "docs/testing/TEST_SUITES.md",
         "docs/architecture/SAGACHAOSLAB_V1.md"
       ]
+    },
+    {
+      "id": "technical-debt",
+      "source": "library/governance/technical-debt.md",
+      "title": "Technical debt and known limitations",
+      "section": "Evidence and operations",
+      "summary": "The single durable register for current bugs, debt, limitations, and future features.",
+      "status": "current",
+      "tags": [
+        "debt",
+        "limitations",
+        "maintenance"
+      ],
+      "source_docs": []
     },
     {
       "id": "sample-evidence",

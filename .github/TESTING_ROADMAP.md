@@ -12,9 +12,14 @@ SPDX-License-Identifier: MPL-2.0
 
 ## Current Repository Test Inventory
 
-- The repository currently contains 247 C++ test source files.
-- The inspected source tree contains approximately 2,112 GTest declarations.
-- The configured Linux build examined during this review registers 71 CTest entries.
+Measured at repository commit `63c9b65ce1025a16db372b51f4b8903c9dac0c8b`
+on 2026-08-13, before the local-suite changes in this task:
+
+- `git ls-files '*Tests*.cpp' '*Test*.cpp'`, excluding `Vendor/`, found 260 tracked C++ test source files.
+- `rg` over non-Vendor C++ sources found 2,131 approximate GTest declaration macros.
+- The existing configured `linux-gcc` build at `build/RelWithDebInfo-0.0.11` registered 71 CTest entries.
+
+These are dated inventory measurements, not timeless repository totals.
 - Runtime modules own unit coverage for Core, Math, Diagnostics, ECS, Assets, Resources, Input, Audio, UI, Scripting, Networking, Replication, Persistence, Simulation, World, ServerAuthority, and SagaRuntime.
 - Editor modules own unit coverage for EditorCore, EditorFramework, EditorQt, EditorQtRender, EditorAuthoring, VisualBlocksEditor, collaboration, experimental features, and EditorLab.
 - Repository-level tests cover architecture boundaries, integration, GPU-facing behavior, replication, stress, contracts, product workflows, fixtures, and reusable support code.
@@ -43,11 +48,11 @@ SPDX-License-Identifier: MPL-2.0
 
 - CMake and CTest must remain the source of truth for native test registration, prerequisites, labels, fixtures, resource locks, and timeouts.
 - GitHub workflow YAML must remain thin orchestration and must not duplicate native target inventories.
-- Suite selection must use stable CTest labels or a generated suite manifest checked against the configured CMake File API graph.
+- Suite selection uses stable CTest labels and a CMake-generated suite catalog checked against the configured CTest graph.
 - Every selected CTest entry must have a buildable executable and an explicit dependency path from its suite target.
 - Managed assemblies, private runtime closure files, generated packages, samples, shaders, and product executables must be explicit build prerequisites.
 - Test runs must start from isolated temporary roots and must not depend on or mutate checked-in sample output directories.
-- A shared `SagaTestSupport` library should own deterministic seeds, temporary directories, environment capture, bounded polling, free-port allocation, child-process cleanup, log collection, and common GTest startup behavior.
+- Reusable test support should own deterministic seeds, temporary directories, environment capture, bounded polling, free-port allocation, child-process cleanup, log collection, and common GTest startup behavior where repeated use justifies extraction. A broad support-library redesign remains future work.
 - Test executables should have one bounded owner and should not combine unrelated product, UI, networking, and recovery responsibilities.
 - CTest resource locks should serialize display, GPU, fixed-port, and other exclusive resources.
 - All subprocess tests must use explicit timeouts, bounded termination, captured stdout and stderr, and typed exit classifications.
@@ -74,6 +79,11 @@ SPDX-License-Identifier: MPL-2.0
 - Repository `Tests/GPU` — tests that require a qualified native graphics runner and declare their backend requirements.
 
 ## P0 — Required Before CI Restoration
+
+The repository now has a focused local substrate: CMake-owned named suites,
+aggregate build prerequisites, and `Tools/Developer/CI/run_suite.py`. This is
+local validation infrastructure, not restored GitHub CI. Clean-runner proof and
+the remaining items below are still required before test workflows return.
 
 - Clean configure and dependency installation using repository-pinned Conan profiles and exact tool versions.
 - Linux GCC RelWithDebInfo build with warnings visible and no missing registered test executables.
@@ -151,8 +161,8 @@ SPDX-License-Identifier: MPL-2.0
 
 ## CI Execution Tiers
 
-- Pull request target: deterministic repository checks, compilation, unit, architecture, sanitizer smoke, and headless product smoke within approximately 20 minutes.
-- Main branch target: complete supported-platform unit and product validation within approximately 60 minutes.
+- Pull request design target: deterministic repository checks, compilation, unit, architecture, sanitizer smoke, and headless product smoke within approximately 20 minutes, pending measurement on qualified runners.
+- Main branch design target: complete supported-platform unit and product validation within approximately 60 minutes, pending measurement on qualified runners.
 - Nightly target: ASan/LSan, UBSan, integration, product UI, fuzz smoke, coverage, reproducibility, and deterministic replay.
 - Weekly target: TSan, stress, soak, longer fuzzing, benchmarks, replication, and trusted GPU evidence.
 - Release target: clean package, install, standalone, private-runtime, licensing, inventory, and reproducibility validation.

@@ -12,12 +12,42 @@ SagaEngine follows one rule across projects, scripts, scenes, generated files, p
 | Concern | Authority | Derived or supporting artifacts |
 | --- | --- | --- |
 | Project identity and roots | `.sagaproj` manifest | Resolved paths, package staging plans, sample manifests |
+| Resolved package graph | `SagaPackage.lock` | Reference/surface metadata and immutable generated package generations |
 | Script behavior | C# source | Visual projections, binding descriptors, compiled assemblies, source maps |
 | Scene/entity authoring | Project-owned scene source | Imported/runtime representations and evidence fixtures |
 | Build graph | CMake declarations and presets | Generated build directory and target listings |
 | License policy | `LICENSE_POLICY.toml` and recorded license texts | Path rules, checksums, validation reports |
 | Wiki knowledge | `SagaWiki/library/*.md` plus registry metadata | Generated `SagaWiki/index.html` reader |
 | Runtime claims | Implemented code plus relevant tests/evidence | Reports and screenshots from a specific run |
+
+## Current ownership boundaries
+
+SagaProjectKit validates project intent and resolves the package graph.
+SagaScript analyzes and compiles canonical C# gameplay source. SagaPackager
+validates and materializes verified package and content artifacts. These tools
+author or transform project inputs; Runtime does not.
+
+C# remains the canonical high-level gameplay behavior. Controlled Visual
+Blocks are a projection and bounded editing surface over supported C# syntax.
+They do not define a separate Blocks VM or behavior graph.
+
+Qt6 Widgets is the Editor frontend. Work modes and workspace layout are user
+presentation state, not project gameplay truth. Editor and Runtime remain
+separate processes; Runtime consumes hash-verified artifacts at their declared
+boundary.
+
+Standalone construction follows:
+
+```text
+project -> immutable build-input snapshot -> private managed toolchain
+        -> owned staging -> verification -> recoverable publication
+```
+
+The stable semantic content identity is separate from publication-local
+metadata. Saga distributions stage their own pinned .NET runtime and managed
+tools. A developer SDK is a build prerequisite, not a product runtime fallback.
+
+
 
 ## Freshness
 

@@ -26,7 +26,21 @@ Installed graphics consumers must include only public installed headers. `SagaDi
 
 ## Safe local acceptance
 
-Start with the smallest focused target and test regex that covers the change. Use low parallelism where resource pressure is a concern. Do not run StressTests or a broad GPU suite by default. A full CTest result must never be implied when only focused tests ran.
+Use the repository-owned quick suite first:
+
+```sh
+nix-shell --run "python3 Tools/Developer/CI/run_suite.py quick"
+```
+
+CMake/CTest owns test membership, labels, timeouts, and aggregate build
+prerequisites. The Python runner reads the configured catalog, builds the
+aggregate target with two jobs, runs the selected CTest label, and preserves a
+JSON execution manifest plus JUnit output. It is orchestration, not a second
+test registry.
+
+Full local CTest is not the normal developer validation path. Do not run stress,
+broad GPU, or environment-sensitive UI work by default. A focused result must
+never be reported as complete-repository evidence.
 
 `TD-CI-001 — Complete Registered CTest Evidence in GitHub Actions` remains open. The required future CI job must dynamically enumerate the complete registered CTest inventory, run it with bounded parallelism, publish JUnit and failure artifacts, expose disabled and skipped tests, and fail normally without `continue-on-error`. Until that evidence exists, focused local suites are reported as focused evidence and Gate C is not closed by inference.
 
@@ -40,13 +54,45 @@ git diff --check
 
 Source and build changes normally add configure/build, boundary checks, and focused CTest commands appropriate to the owner.
 
-## GitHub evidence tiers
+## Current local suite map
 
-Every pull request runs repository contracts, strict licensing, Linux `all-safe` CTest, and the Windows unit/architecture layer. The Linux safe suite explicitly excludes `stress`, `slow`, `load`, `timing-sensitive`, `long-running`, `gpu`, and `display-required` labels. That exclusion is part of the workflow contract and cannot be silently widened or narrowed. Standalone Forge and SagaTools contract suites run in the repository-contract job rather than being inferred from the engine build.
+| Suite | What it proves | Display | GPU | Private runtime | Normal cost |
+| --- | --- | --- | --- | --- | --- |
+| `quick` | Policy, licensing, architecture, selected native modules, and managed CLI contracts | No | No | Contract checks; developer SDK needed | Bounded; not yet runner-timed as an SLA |
+| `native-fast` | Display-independent Runtime and non-Qt Editor module behavior | No | No | No | Focused native build/test |
+| `managed-tools` | Freshly staged SagaProjectKit, SagaScript, and SagaPackager startup plus private-runtime boundary rules | No | No | Staged closure; developer SDK host used for smoke | Focused managed validation |
+| `architecture` | Repository ownership and dependency boundaries | No | No | No | Fast/focused |
+| `headless` | Deterministic Runtime and headless sample paths | No | No | No | Focused product contract |
+| `product-xcb` | Qt/XCB product workflow under an explicit display | Yes | No | Yes | Environment-sensitive |
+| `standalone` | Snapshot, staging, verification, recoverable publication contracts | No | No | Yes | Heavier and serial |
 
-Configured CMake licensing evidence runs when source, build, test, or licensing inputs change and once every night. It records File API target ownership, install-surface comparison, the installed SDK consumer, and a machine-readable licensing report. Integration and replication run nightly; StressTests run serially each week.
+List the configured catalog with:
 
-Failures are not hidden with `continue-on-error`. JUnit, JSON reports, and CTest logs upload with `if: always()` and each job writes a summary containing its exercised and excluded boundaries. Pull-request artifacts remain for 14 days, nightly results for 30 days, and licensing/weekly evidence for 90 days.
+```sh
+python3 Tools/Developer/CI/run_suite.py --list
+```
+
+Benchmarks, performance, stress, soak, and current failure-injection cases
+remain separately labeled evidence; they are not silently folded into quick.
+GPU validation remains opt-in and is not represented by an available local
+suite until a qualified environment contract is implemented.
+
+The complete managed CLI drivers remain registered diagnostic tests, but are
+not members of a safe suite while they depend on mutable checked-in sample
+generation state. They must be converted to isolated generated fixtures before
+promotion; their absence from `quick` is not reported as a pass.
+
+## GitHub CI status
+
+Automated GitHub test execution is currently disabled. Existing tests remain in
+the repository, and tool-mirror export automation is not test CI. Local focused
+validation is useful before professional CI returns, but it is not future
+GitHub CI and does not provide clean-runner proof.
+
+Future workflows must be thin setup/invocation/upload orchestration over these
+repository-owned suites. PR/main/nightly timing figures in the testing roadmap
+are design targets until measured on qualified runners. Sanitizer, coverage,
+fuzzing, stress, benchmark, and qualified GPU workflows remain future work.
 
 StarterArena visible-runtime cases are registered as focused,
 environment-qualified evidence. They require explicit opt-in and a qualified
