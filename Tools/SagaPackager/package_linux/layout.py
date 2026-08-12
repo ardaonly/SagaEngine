@@ -141,10 +141,10 @@ def stage_layout(
         )
     copy_tree(resolved_input(available_inputs, "licenses"), output / "licenses", staged_inputs, "licenses")
     copy_file(
-        resolved_input(available_inputs, "Saga license"),
+        resolved_input(available_inputs, "Saga licensing guide"),
         output / "licenses" / "LICENSE-SAGA.md",
         staged_inputs,
-        "Saga license",
+        "Saga licensing guide",
     )
     copy_file(
         resolved_input(available_inputs, "third-party notices"),

@@ -139,7 +139,8 @@ def main() -> int:
     check_file("root VERSION", Path("VERSION"), missing, required_inputs, available_inputs, missing_inputs, category="metadata")
     check_file("root README", Path("README.md"), missing, required_inputs, available_inputs, missing_inputs, category="documentation")
     check_dir("licenses", Path("LICENSES"), missing, required_inputs, available_inputs, missing_inputs, category="documentation")
-    check_file("Saga license", Path("LICENSE"), missing, required_inputs, available_inputs, missing_inputs, category="compliance")
+    check_file("primary Saga license", Path("LICENSE"), missing, required_inputs, available_inputs, missing_inputs, category="compliance")
+    check_file("Saga licensing guide", Path("LICENSING.md"), missing, required_inputs, available_inputs, missing_inputs, category="compliance")
     check_file(
         "third-party notices",
         Path("LICENSES/THIRD_PARTY_NOTICES.md"),
@@ -229,7 +230,7 @@ def main() -> int:
     check_file("expected distribution VERIFY.txt", output / "VERIFY.txt", missing, required_inputs, available_inputs, missing_inputs, category="distribution-layout")
     check_file("expected distribution known limitations", output / "KNOWN_LIMITATIONS.md", missing, required_inputs, available_inputs, missing_inputs, category="distribution-layout")
     check_file("expected distribution README", output / "README.md", missing, required_inputs, available_inputs, missing_inputs, category="distribution-layout")
-    check_file("expected Saga license", output / "licenses" / "LICENSE-SAGA.md", missing, required_inputs, available_inputs, missing_inputs, category="distribution-layout")
+    check_file("expected Saga licensing guide", output / "licenses" / "LICENSE-SAGA.md", missing, required_inputs, available_inputs, missing_inputs, category="distribution-layout")
     check_file("expected third-party notices", output / "licenses" / "THIRD_PARTY_NOTICES.md", missing, required_inputs, available_inputs, missing_inputs, category="distribution-layout")
     for tool_name in ["sagaproject", "sagapack", "sagascript"]:
         check_binary(

@@ -11,10 +11,11 @@ The repository license policy is MPL-centered for engine/editor source. Forge, i
 
 ## Authorities
 
-- `LICENSE` is the primary repository license text.
+- `LICENSE` is the primary MPL-2.0 repository license text.
+- `LICENSING.md` is the mixed-license scope and exceptions guide.
 - `LICENSES/THIRD_PARTY_NOTICES.md` is the authoritative third-party notice.
 - additional SPDX texts live under `LICENSES/`;
-- `LICENSE_POLICY.toml` defines policy domains and path ownership;
+- `LICENSE_POLICY.toml` is the machine-readable authority for policy domains and path ownership;
 - `LICENSE_TEXT_SOURCES.toml` and `.reuse/dep5` support validation and reuse metadata.
 
 Generated path rules, checksum files, and validation reports are derived control outputs. They help detect drift but do not outrank the policy and recorded license texts from which they were produced.

@@ -7,7 +7,7 @@ reviewed_against: 0.0.11-post-cutover
 
 # Licensing, contribution, and third-party governance
 
-This reference explains the current authority chain and durable review rules. It does not replace the legal texts or `LICENSE_POLICY.toml`. If the Wiki disagrees with those authorities, treat the Wiki as drift and resolve the discrepancy before distributing or accepting affected work.
+This reference explains the current authority chain and durable review rules. It does not replace the primary MPL-2.0 text in `LICENSE`, the mixed-license scope and exceptions guide in `LICENSING.md`, or the machine-readable path authority in `LICENSE_POLICY.toml`. If the Wiki disagrees with those authorities, treat the Wiki as drift and resolve the discrepancy before distributing or accepting affected work.
 
 ## Current direction
 
@@ -20,7 +20,7 @@ There is no stable public plugin domain or plugin API contract. Historical plugi
 The important authorities are:
 
 1. applicable legal grants and verified upstream terms;
-2. effective migration/decision records and the primary `LICENSE` text;
+2. effective migration/decision records, the primary MPL-2.0 text in `LICENSE`, and the mixed-license scope and exceptions guide in `LICENSING.md`;
 3. embedded SPDX metadata, sidecars, and `.reuse/dep5` as applicable;
 4. active `LICENSE_POLICY.toml` domain/path policy;
 5. `LICENSES/THIRD_PARTY_NOTICES.md` and included SPDX/upstream texts;

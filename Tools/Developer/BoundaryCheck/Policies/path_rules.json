@@ -123,8 +123,8 @@
     },
     {
       "pattern": "LICENSE",
-      "license": "CC-BY-4.0",
-      "domain_id": "root-license-index",
+      "license": "MPL-2.0",
+      "domain_id": "root-license-text",
       "priority": 1000
     },
     {
@@ -143,6 +143,12 @@
       "pattern": "LICENSE_TEXT_SOURCES.toml",
       "license": "0BSD",
       "domain_id": "license-foundation-metadata",
+      "priority": 1000
+    },
+    {
+      "pattern": "LICENSING.md",
+      "license": "CC-BY-4.0",
+      "domain_id": "root-license-index",
       "priority": 1000
     },
     {

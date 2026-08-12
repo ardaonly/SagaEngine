@@ -198,4 +198,3 @@ TEST(SagaHomeUiTest, AttachedEditorLeavesClosePolicyWithProductWindow)
     EXPECT_EQ(editorCloseCallbackCount, 0);
 }
 } // namespace
-
