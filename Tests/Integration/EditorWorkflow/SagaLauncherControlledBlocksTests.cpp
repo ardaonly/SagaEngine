@@ -256,4 +256,3 @@ TEST(SagaHomeUiTest,
         checkedInSource);
 }
 } // namespace
-
