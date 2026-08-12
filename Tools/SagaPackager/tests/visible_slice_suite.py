@@ -17,10 +17,10 @@ PROJECT = REPO_ROOT / "Tools/SagaPackager/SagaPackager.csproj"
 CLI = PROJECT.parent / "bin/Release/net10.0/sagapack.dll"
 STARTER = REPO_ROOT / "Samples/StarterArena"
 ARENA_RUSH = REPO_ROOT / "Samples/ArenaRush"
+BUILD_DIR = Path(os.environ.get(
+    "SAGA_BUILD_DIR", REPO_ROOT / "build" / "RelWithDebInfo-0.0.11"))
 RUNTIME_BRIDGE = (
-    REPO_ROOT / "build/RelWithDebInfo-0.0.11/Managed/"
-    "SagaScript.RuntimeBridge/SagaScript.RuntimeBridge.dll"
-)
+    BUILD_DIR / "Managed" / "SagaScript.RuntimeBridge" / "SagaScript.RuntimeBridge.dll")
 _built = False
 
 

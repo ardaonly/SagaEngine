@@ -77,6 +77,7 @@ saga_setup_assets()
 saga_setup_install()
 saga_setup_distribution()
 saga_setup_sample_executable_evidence()
+saga_finalize_test_suites()
 saga_assert_diligent_graphics_backend_single_owner()
 
 message(STATUS "SagaEngine ${SAGA_ENGINE_VERSION}")
