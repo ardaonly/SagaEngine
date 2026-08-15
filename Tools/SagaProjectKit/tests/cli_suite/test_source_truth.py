@@ -23,8 +23,9 @@ def test_source_truth_inventory_classifies_scene_entity_and_generated_artifacts(
         assert report["entities"][0]["classification"] == "SourceTruth"
         assert report["generatedArtifacts"][0]["canonical"] is False
         assert report["summary"]["nonCanonicalGeneratedArtifacts"] == 1
-        assert report["summary"]["staleGeneratedEvidence"] == 1
-        assert any(d["code"] == "Project.SourceTruth.GeneratedArtifactStale" for d in report["diagnostics"])
+        assert report["summary"]["staleGeneratedEvidence"] == 0
+        assert report["generatedArtifacts"][0]["status"] == "MissingGeneratedEvidence"
+        assert any(d["code"] == "Project.SourceTruth.GeneratedArtifactMissing" for d in report["diagnostics"])
         boundaries = {item["boundary"]: item["status"] for item in report["readBoundaries"]}
         assert boundaries == {"clientEvaluation": "Deferred", "editor": "DocumentedReportOnly", "runtime": "DocumentedReportOnly"}
 
@@ -471,7 +472,7 @@ def test_component_metadata_ownership_accepts_known_components_and_evidence_only
         assert {item["componentType"] for item in report["components"]} == {"BehaviorReference", "Transform"}
         assert all(item["classification"] == "SceneEntitySourceTruth" for item in report["components"])
         assert report["generatedEvidence"][0]["classification"] == "EvidenceOnly"
-        assert report["freshnessDebt"][0]["status"] == "Stale"
+        assert report["freshnessDebt"][0]["status"] == "MissingGenerated"
         assert report["mutatesSource"] is False
 
 def test_component_metadata_ownership_diagnoses_unknown_component_type() -> None:
@@ -538,7 +539,7 @@ def test_editor_inspection_and_read_are_report_only_and_source_backed() -> None:
         assert inspection_report["entities"]
         assert inspection_report["components"]
         assert inspection_report["assetReferences"]
-        assert inspection_report["freshnessStatus"][0]["status"] == "Stale"
+        assert inspection_report["freshnessStatus"][0]["status"] == "MissingGenerated"
         assert read_report["readSources"][0]["status"] == "ReadOnlyAccepted"
         assert "QtUiMutation" in read_report["prohibitedActions"]
 
