@@ -164,4 +164,98 @@ TEST(SagaThreeWayParityTest, CanonicalGameplayBytesAndHashMatchEveryProductPath)
             << parity.dump(2) << '\n';
     }
 }
+
+TEST(SagaThreeWayParityTest, StarterArenaCanonicalGameplayMatchesEveryProductPath)
+{
+    if (QApplication::platformName() != QStringLiteral("xcb"))
+        GTEST_SKIP() << "Three-way product parity requires the real Qt xcb path.";
+    QTemporaryDir materialization;
+    ASSERT_TRUE(materialization.isValid());
+    const auto projectRoot = std::filesystem::path(
+        materialization.path().toStdString()) / "StarterArena";
+    ASSERT_TRUE(MaterializeStarterArenaProject(projectRoot));
+    const auto projectPath = projectRoot / "StarterArena.sagaproj";
+    const auto profilesPath = projectRoot / "BuildProfiles.saga.json";
+    std::ofstream(profilesPath, std::ios::binary) << R"({"schemaVersion":1,"profiles":[{"id":"starter-arena-parity","kind":"Benchmark","scenarioId":"starter-arena.door","warmup":0,"trials":1,"measuredIterations":1,"fixedStepSeconds":0.016666666666666666,"seed":1,"workload":1,"requestedCounters":["lifecycle-transitions"],"runtimeMode":"ManagedRuntime","evidencePath":"Build/Reports/Benchmarks/starter-arena-parity.json"}]})";
+
+    const auto headless = RunAuthoredStarterArena(projectRoot, "starter-three-way-headless");
+    ASSERT_FALSE(headless.empty());
+    ASSERT_EQ(headless.value("status", std::string{}), "Succeeded")
+        << headless.dump(2);
+
+    SagaEditor::EditorDocumentWorkspace workspace;
+    ASSERT_TRUE(workspace.OpenProject(projectPath));
+    SagaEditor::RuntimeProcessController editorPlay;
+    SagaEditor::RuntimeProcessLaunchRequest editorRequest;
+    editorRequest.playSessionId = "starter-three-way-editor";
+    editorRequest.runtimeExecutable = RuntimeExecutable();
+    editorRequest.headless = true;
+    editorRequest.smokeInteractions = true;
+    editorRequest.startupTimeout = std::chrono::seconds(30);
+    editorRequest.runtimeTimeout = std::chrono::seconds(120);
+    ASSERT_TRUE(editorPlay.Start(workspace, editorRequest));
+    ASSERT_TRUE(WaitUntil([&] { return Terminal(editorPlay.Snapshot().state); }, 150000));
+    editorPlay.Shutdown();
+    const auto editor = editorPlay.Snapshot();
+    ASSERT_EQ(editor.state, SagaEditor::RuntimePlayState::Completed)
+        << editor.diagnosticCode << ": " << editor.message;
+    ASSERT_TRUE(editor.runtimeResult.has_value());
+
+    const auto profiles = SagaEditor::BuildProfiles::Load(profilesPath, projectRoot);
+    ASSERT_TRUE(profiles.succeeded);
+    const auto [profile, profileDiagnostics] =
+        SagaEditor::BuildProfiles::CreateRunInput(
+            profiles.document, "starter-arena-parity");
+    ASSERT_TRUE(profileDiagnostics.empty());
+    const auto source = SagaEditor::CapturePlaySourceSnapshot(
+        workspace, "starter-three-way-standalone");
+    ASSERT_TRUE(source.Succeeded());
+    std::ifstream runtimeManifestInput(
+        TestSourceRoot() / "Config/managed-tool-runtime.json", std::ios::binary);
+    const auto runtimeManifest = nlohmann::json::parse(runtimeManifestInput);
+    SagaEditor::StandaloneBuildRequest buildRequest;
+    buildRequest.source = *source.snapshot;
+    buildRequest.buildProfilesPath = profilesPath;
+    buildRequest.profileId = profile.profileId;
+    buildRequest.profileHash = profile.profileHash;
+    buildRequest.runtimeIdentifier = runtimeManifest.value("rid", std::string{});
+    buildRequest.runtimeExecutable = RuntimeExecutable();
+    buildRequest.outputDirectory = std::filesystem::path(
+        materialization.path().toStdString()) / "StarterPublished";
+    buildRequest.toolchain = SagaEditor::DiscoverScriptAnalysisToolchain();
+    const auto build = SagaEditor::StandaloneBuildCoordinator{}.Build(buildRequest);
+    ASSERT_TRUE(build.Succeeded())
+        << SagaEditor::StandaloneBuildCoordinator::SerializeReport(build);
+    const auto standalone = RunPublishedStandalone(build);
+    ASSERT_FALSE(standalone.empty());
+    ASSERT_EQ(standalone.value("status", std::string{}), "Succeeded")
+        << standalone.dump(2);
+
+    const auto payload = headless["canonicalGameplayState"].get<std::string>();
+    const auto hash = headless["canonicalGameplayStateHash"].get<std::string>();
+    const bool payloadEquality =
+        editor.runtimeResult->canonicalGameplayStateJson == payload &&
+        standalone["canonicalGameplayState"].get<std::string>() == payload;
+    const bool hashEquality = editor.runtimeResult->canonicalGameplayStateHash == hash &&
+        standalone["canonicalGameplayStateHash"].get<std::string>() == hash;
+    EXPECT_TRUE(payloadEquality);
+    EXPECT_TRUE(hashEquality);
+    if (const auto evidenceValue = qgetenv("SAGA_XCB_EVIDENCE_DIR");
+        !evidenceValue.isEmpty())
+    {
+        const auto evidence = std::filesystem::path(evidenceValue.toStdString());
+        std::filesystem::create_directories(evidence);
+        const nlohmann::json parity = {
+            {"schemaVersion", 1},
+            {"editor", {{"hash", editor.runtimeResult->canonicalGameplayStateHash},
+                         {"payload", editor.runtimeResult->canonicalGameplayStateJson}}},
+            {"standalone", {{"hash", standalone["canonicalGameplayStateHash"]},
+                             {"payload", standalone["canonicalGameplayState"]}}},
+            {"headless", {{"hash", hash}, {"payload", payload}}},
+            {"payloadEquality", payloadEquality},
+            {"hashEquality", hashEquality}};
+        std::ofstream(evidence / "starter-three-way-parity.json", std::ios::binary)
+            << parity.dump(2) << '\n';
+    }
+}
 } // namespace
