@@ -466,8 +466,11 @@ PlayPreparationResult PlayPreparationPipeline::Prepare(
         }
         envelope.artifacts.emplace(id, path);
     }
+    std::vector<std::filesystem::path> approvedRoots{projectRoot, toolchain_.engineRoot};
+    if (!request.capturedRuntimeRoot.empty())
+        approvedRoots.push_back(request.capturedRuntimeRoot);
     const auto envelopeDiagnostics = RuntimePlay::ValidateLocalEnvelope(
-        envelope, {projectRoot, toolchain_.engineRoot});
+        envelope, approvedRoots);
     if (!envelopeDiagnostics.empty())
     {
         for (const auto& diagnostic : envelopeDiagnostics)

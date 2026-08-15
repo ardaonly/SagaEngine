@@ -243,7 +243,8 @@ StandaloneBuildExecution DefaultExecute(const PlaySourceSnapshot& source,
         {source.playSessionId, request.runtimeExecutable,
          request.cancellationRequested,
          [&](std::string_view value)
-         { Report(request, StandaloneBuildState::Building, 0, 0, std::string(value)); }, {}});
+         { Report(request, StandaloneBuildState::Building, 0, 0, std::string(value)); }, {},
+         request.runtimeExecutable.parent_path()});
     return {prepared.passed, prepared.cancelled, prepared.buildRoot,
         prepared.canonicalManifestPath, prepared.localEnvelopePath,
         prepared.canonicalHashes, prepared.diagnostics};
