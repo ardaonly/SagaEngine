@@ -125,8 +125,7 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
         launchArtifacts.push_back(launch.behaviorModules);
         launchArtifacts.push_back(launch.behaviorArtifacts);
     }
-    if (launch.schemaVersion == 4)
-        launchArtifacts.push_back(launch.apiOperations);
+    if (launch.schemaVersion == 4) launchArtifacts.push_back(launch.apiOperations);
     static_cast<void>(RuntimeArtifactSession::VerifyFiles(
         envelope.artifacts, launchArtifacts, envelopeResult.diagnostics));
     const Play::ArtifactIdentity bridge{launch.runtimeBridge.logicalReferenceId,
@@ -197,7 +196,7 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
             "Runtime scene, input, or UI artifact failed strict loading.");
     }
     Json namedActions, behaviorManifest, capabilityManifest;
-    Json behaviorModuleCatalog, behaviorArtifactCatalog, apiOperationCatalog;
+    Json behaviorModuleCatalog, behaviorArtifactCatalog;
     try
     {
         namedActions = Json::parse(RuntimeLaunchSession::ReadFile(
@@ -213,9 +212,6 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
             behaviorArtifactCatalog = Json::parse(RuntimeLaunchSession::ReadFile(
                 envelope.artifacts.at(launch.behaviorArtifacts.logicalId)));
         }
-        if (launch.schemaVersion == 4)
-            apiOperationCatalog = Json::parse(RuntimeLaunchSession::ReadFile(
-                envelope.artifacts.at(launch.apiOperations.logicalId)));
     }
     catch (const Json::exception&)
     {
@@ -228,18 +224,6 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
         !behaviorManifest["behaviors"].is_array())
         return structuredFailure("Runtime.Script.StateContractMissing",
             "Verified Play requires behavior manifest schema version 2, 3, or 4.",
-            "ScriptLoadFailure");
-    if (launch.schemaVersion != 4 || apiOperationCatalog.value("schemaVersion", -1) != 1 ||
-        apiOperationCatalog.value("projectId", std::string{}) != launch.projectId ||
-        apiOperationCatalog.value("packageGenerationId", std::string{}) !=
-            launch.packageGeneration.logicalId ||
-        apiOperationCatalog.value("packageGenerationHash", std::string{}) !=
-            launch.packageGeneration.hash ||
-        apiOperationCatalog.value("packageGraphHash", std::string{}) != launch.packageGraphHash ||
-        !apiOperationCatalog.contains("operations") ||
-        !apiOperationCatalog["operations"].is_array())
-        return structuredFailure("Runtime.Script.OperationCatalogInvalid",
-            "Verified semantic operation catalog is missing or inconsistent.",
             "ScriptLoadFailure");
     RuntimeStateStore::TypedWritePolicy stateWrites;
     try
@@ -351,35 +335,25 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
         return structuredFailure("Runtime.Script.BackendRegistrationFailed",
             backendRegistration.message, "ScriptLoadFailure");
     Scripting::ScriptLifecycleService lifecycle(host);
-    Scripting::VerifiedScriptGenerationLoadRequest loadRequest;
-    loadRequest.assembly = {envelope.artifacts.at(launch.scriptAssembly.logicalId),
-                            launch.scriptAssembly.hash};
-    loadRequest.runtimeConfig = {envelope.artifacts.at(launch.scriptRuntimeConfig.logicalId),
-                                 launch.scriptRuntimeConfig.hash};
-    loadRequest.assemblyManifest = {envelope.artifacts.at(launch.scriptAssemblyManifest.logicalId),
-                                    launch.scriptAssemblyManifest.hash};
-    loadRequest.behaviorManifest = {envelope.artifacts.at(launch.behaviors.logicalId),
-                                    launch.behaviors.hash};
-    loadRequest.namedActionManifest = {envelope.artifacts.at(launch.namedActions.logicalId),
-                                       launch.namedActions.hash};
-    loadRequest.capabilityManifest = {envelope.artifacts.at(launch.capabilities.logicalId),
-                                      launch.capabilities.hash};
-    loadRequest.operationCatalog = {envelope.artifacts.at(launch.apiOperations.logicalId),
-                                    launch.apiOperations.hash};
-    loadRequest.projectId = launch.projectId;
-    loadRequest.projectHash = launch.projectHash;
-    loadRequest.sourceRevision = launch.scriptSourceRevision;
-    loadRequest.sourceSetHash = launch.scriptSourceSetHash;
-    loadRequest.referenceManifestHash = launch.scriptReferenceManifest.hash;
-    loadRequest.packageGraphHash = launch.packageGraphHash;
-    loadRequest.packageGenerationId = launch.packageGeneration.logicalId;
-    loadRequest.packageGenerationHash = launch.packageGeneration.hash;
-    loadRequest.runtimeBridgeLogicalReferenceId = launch.runtimeBridge.logicalReferenceId;
-    loadRequest.runtimeBridgeHash = launch.runtimeBridge.assemblyHash;
-    loadRequest.runtimeBridgeAbi = launch.runtimeBridge.abi;
-    loadRequest.targetFramework = launch.runtimeBridge.targetFramework;
-    loadRequest.runtimeCompatibility = launch.runtimeBridge.runtimeCompatibility;
-    loadRequest.trust = launch.runtimeBridge.trust;
+    Scripting::VerifiedScriptGenerationLoadRequest loadRequest{
+        .assembly = {envelope.artifacts.at(launch.scriptAssembly.logicalId), launch.scriptAssembly.hash},
+        .runtimeConfig = {envelope.artifacts.at(launch.scriptRuntimeConfig.logicalId), launch.scriptRuntimeConfig.hash},
+        .assemblyManifest = {envelope.artifacts.at(launch.scriptAssemblyManifest.logicalId), launch.scriptAssemblyManifest.hash},
+        .behaviorManifest = {envelope.artifacts.at(launch.behaviors.logicalId), launch.behaviors.hash},
+        .namedActionManifest = {envelope.artifacts.at(launch.namedActions.logicalId), launch.namedActions.hash},
+        .capabilityManifest = {envelope.artifacts.at(launch.capabilities.logicalId), launch.capabilities.hash},
+        .operationCatalog = {envelope.artifacts.at(launch.apiOperations.logicalId), launch.apiOperations.hash},
+        .projectId = launch.projectId, .projectHash = launch.projectHash,
+        .sourceRevision = launch.scriptSourceRevision, .sourceSetHash = launch.scriptSourceSetHash,
+        .referenceManifestHash = launch.scriptReferenceManifest.hash,
+        .packageGraphHash = launch.packageGraphHash,
+        .packageGenerationId = launch.packageGeneration.logicalId,
+        .packageGenerationHash = launch.packageGeneration.hash,
+        .runtimeBridgeLogicalReferenceId = launch.runtimeBridge.logicalReferenceId,
+        .runtimeBridgeHash = launch.runtimeBridge.assemblyHash, .runtimeBridgeAbi = launch.runtimeBridge.abi,
+        .targetFramework = launch.runtimeBridge.targetFramework,
+        .runtimeCompatibility = launch.runtimeBridge.runtimeCompatibility,
+        .trust = launch.runtimeBridge.trust};
     const auto describeHostFailure = [](std::string detail, const auto& result)
     {
         if (result.diagnostics.empty()) return detail;

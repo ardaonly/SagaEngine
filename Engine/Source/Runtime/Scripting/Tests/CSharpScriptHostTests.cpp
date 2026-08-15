@@ -21,11 +21,7 @@
 #include <utility>
 #include <vector>
 
-#if defined(_WIN32)
 #include <cstdlib>
-#else
-#include <cstdlib>
-#endif
 
 namespace
 {
@@ -142,6 +138,8 @@ struct VerifiedGenerationFixture
     VerifiedScriptGenerationLoadRequest request;
 };
 
+[[nodiscard]] nlohmann::json VerifiedOperationCatalog(const VerifiedScriptGenerationLoadRequest& request);
+
 [[nodiscard]] VerifiedGenerationFixture CreateVerifiedGeneration(const char* name)
 {
     VerifiedGenerationFixture fixture;
@@ -155,16 +153,12 @@ struct VerifiedGenerationFixture
         runtimeConfig, std::filesystem::copy_options::overwrite_existing);
 
     auto& request = fixture.request;
-    request.projectId = "project-fixture";
-    request.projectHash = "sha256:project";
-    request.sourceRevision = "sha256:revision";
-    request.sourceSetHash = "sha256:sources";
+    request.projectId = "project-fixture"; request.projectHash = "sha256:project";
+    request.sourceRevision = "sha256:revision"; request.sourceSetHash = "sha256:sources";
     request.referenceManifestHash = "sha256:references";
     request.packageGraphHash = "sha256:packages";
-    request.packageGenerationId = "generation-fixture";
-    request.packageGenerationHash = "sha256:generation-fixture";
-    request.runtimeBridgeLogicalReferenceId = "runtime-bridge";
-    request.runtimeBridgeHash = "sha256:" + Sha256Hex(RuntimeBridgeAssembly());
+    request.packageGenerationId = "generation-fixture"; request.packageGenerationHash = "sha256:generation-fixture";
+    request.runtimeBridgeLogicalReferenceId = "runtime-bridge"; request.runtimeBridgeHash = "sha256:" + Sha256Hex(RuntimeBridgeAssembly());
     request.runtimeBridgeAbi = "NativeCallbackTable.v3+NamedAction.v1";
     request.targetFramework = "net10.0";
     request.runtimeCompatibility = "0.0.11";
@@ -202,28 +196,7 @@ struct VerifiedGenerationFixture
     auto capabilityManifest = identity();
     capabilityManifest["packageGraphHash"] = request.packageGraphHash;
     capabilityManifest["capabilities"] = nlohmann::json::array({kTransformReadWriteCapability});
-    const auto operation = [&](const char* operationId, const char* effect,
-                               const char* runtimeBinding, const char* csharpBinding)
-    {
-        return nlohmann::json{{"operationId", operationId},
-            {"apiId", "com.saga.gameplay.foundation/gameplay.highlevel"},
-            {"packageId", "com.saga.gameplay.foundation"},
-            {"module", "gameplay.highlevel"}, {"apiLevel", "High"},
-            {"effect", effect},
-            {"requiredCapabilities", nlohmann::json::array({kTransformReadWriteCapability})},
-            {"runtimeBinding", runtimeBinding}, {"csharpBinding", csharpBinding},
-            {"csharp", true}, {"blocks", true}};
-    };
-    const nlohmann::json operationCatalog{{"schemaVersion", 1},
-        {"projectId", request.projectId},
-        {"packageGenerationId", request.packageGenerationId},
-        {"packageGenerationHash", request.packageGenerationHash},
-        {"packageGraphHash", request.packageGraphHash},
-        {"operations", nlohmann::json::array({
-            operation("com.saga.gameplay.foundation/gameplay.highlevel/ScriptEntity.TryGetPosition",
-                "ReadAuthoritativeState", "Entity.GetPosition", "ScriptEntity.TryGetPosition"),
-            operation("com.saga.gameplay.foundation/gameplay.highlevel/ScriptEntity.TrySetPosition",
-                "WriteAuthoritativeState", "Entity.SetPosition", "ScriptEntity.TrySetPosition")})}};
+    const auto operationCatalog = VerifiedOperationCatalog(request);
 
     const auto writeManifest = [&](const char* fileName, const nlohmann::json& value)
     {
@@ -559,6 +532,7 @@ private:
 
 } // namespace
 #include "CSharpScriptHostIdentityTests.hpp"
+#include "CSharpScriptHostSemanticOperationTests.hpp"
 
 TEST(CSharpScriptHostTests, MinimalManagedScriptLoadsAndRunsLifecycle)
 {
@@ -1072,36 +1046,6 @@ TEST(CSharpScriptHostTests, VerifiedGenerationLoadsExactManifestSet)
     const auto result = host.LoadVerifiedGeneration(fixture.request);
 
     ASSERT_TRUE(result.Succeeded()) << DescribeDiagnostics(result.diagnostics);
-}
-
-TEST(CSharpScriptHostTests, VerifiedGenerationRejectsDuplicateOperationIdentity)
-{
-    auto fixture = CreateVerifiedGeneration("saga_verified_generation_duplicate_operation");
-    auto catalog = ReadJson(fixture.request.operationCatalog);
-    catalog["operations"].push_back(catalog["operations"][0]);
-    RewriteVerifiedJson(fixture.request.operationCatalog, catalog);
-    CSharpScriptHost host(HostOptions());
-
-    const auto result = host.LoadVerifiedGeneration(fixture.request);
-
-    ASSERT_FALSE(result.Succeeded());
-    EXPECT_EQ(result.diagnostics.front().diagnostic.code.value,
-        SagaEngine::Scripting::ScriptHostDiagnostics::ManifestInvalid);
-}
-
-TEST(CSharpScriptHostTests, VerifiedGenerationRejectsInvalidOperationIdentity)
-{
-    auto fixture = CreateVerifiedGeneration("saga_verified_generation_invalid_operation");
-    auto catalog = ReadJson(fixture.request.operationCatalog);
-    catalog["operations"][0]["operationId"] = "operation identity with spaces";
-    RewriteVerifiedJson(fixture.request.operationCatalog, catalog);
-    CSharpScriptHost host(HostOptions());
-
-    const auto result = host.LoadVerifiedGeneration(fixture.request);
-
-    ASSERT_FALSE(result.Succeeded());
-    EXPECT_EQ(result.diagnostics.front().diagnostic.code.value,
-        SagaEngine::Scripting::ScriptHostDiagnostics::ManifestInvalid);
 }
 
 TEST(CSharpScriptHostTests, VerifiedGenerationRejectsTamperedAssemblyManifest)
