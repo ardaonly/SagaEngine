@@ -76,12 +76,15 @@ struct VerifiedScriptGenerationLoadRequest
     VerifiedScriptFile behaviorManifest;
     VerifiedScriptFile namedActionManifest;
     VerifiedScriptFile capabilityManifest;
+    VerifiedScriptFile operationCatalog;
     std::string projectId;
     std::string projectHash;
     std::string sourceRevision;
     std::string sourceSetHash;
     std::string referenceManifestHash;
     std::string packageGraphHash;
+    std::string packageGenerationId;
+    std::string packageGenerationHash;
     std::string runtimeBridgeLogicalReferenceId;
     std::string runtimeBridgeHash;
     std::string runtimeBridgeAbi;

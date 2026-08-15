@@ -3,6 +3,8 @@
 
 #include "SagaEngine/Scripting/BehaviorBackend.hpp"
 
+#include <algorithm>
+#include <set>
 #include <utility>
 
 namespace SagaEngine::Scripting
@@ -68,13 +70,19 @@ ScriptPackageLoadResult CSharpBehaviorBackend::LoadVerifiedGeneration(
 ScriptInstanceCreateResult CSharpBehaviorBackend::CreateInstance(
     const CSharpBehaviorInstanceCreateRequest& request)
 {
+    const std::set<std::string> requestedCapabilities(
+        request.module.requestedCapabilities.begin(), request.module.requestedCapabilities.end());
     if (!request.module.moduleId.IsValid() ||
         request.module.source.language != SagaShared::Behavior::CSharpBehaviorLanguage ||
         request.module.source.sourceSymbolId.empty() ||
         request.attachment.behaviorModuleId != request.module.moduleId ||
         request.attachment.attachmentId.empty() || request.instanceIdentity.value.empty() ||
         request.instanceIdentity.behaviorModuleId != request.module.moduleId ||
-        request.instanceIdentity.attachmentId != request.attachment.attachmentId)
+        request.instanceIdentity.attachmentId != request.attachment.attachmentId ||
+        std::any_of(request.attachment.requiredCapabilities.begin(),
+            request.attachment.requiredCapabilities.end(),
+            [&](const std::string& capability)
+            { return !requestedCapabilities.contains(capability); }))
     {
         ScriptInstanceCreateResult result;
         return result;

@@ -192,11 +192,13 @@ std::string SerializeCanonical(const CanonicalRuntimeLaunchManifest& manifest)
     root["requiredRuntimeCapabilities"] = capabilities;
     if (manifest.schemaVersion >= 2)
         root["artifacts"]["uiSet"] = ArtifactJson(manifest.uiSet);
-    if (manifest.schemaVersion == 3)
+    if (manifest.schemaVersion >= 3)
     {
         root["artifacts"]["behaviorModules"] = ArtifactJson(manifest.behaviorModules);
         root["artifacts"]["behaviorArtifacts"] = ArtifactJson(manifest.behaviorArtifacts);
     }
+    if (manifest.schemaVersion == 4)
+        root["artifacts"]["apiOperations"] = ArtifactJson(manifest.apiOperations);
     return Canonical(root);
 }
 
@@ -219,7 +221,7 @@ CanonicalManifestResult ParseCanonicalManifest(std::string_view bytes,
     if (!ExactFields(root, {"artifacts", "packageGraphHash", "playSessionId", "projectHash", "projectId",
                             "requiredRuntimeCapabilities", "runtimeBridge", "runtimeProfile",
                             "schemaVersion", "scriptSourceRevision", "scriptSourceSetHash", "toolVersions"}) ||
-        (schemaVersion != 1 && schemaVersion != 2 && schemaVersion != 3) ||
+        (schemaVersion != 1 && schemaVersion != 2 && schemaVersion != 3 && schemaVersion != 4) ||
         !NonEmptyString(root, "projectId") || !NonEmptyString(root, "playSessionId") ||
         !IsSha256(root.value("projectHash", std::string{})) ||
         !IsSha256(root.value("packageGraphHash", std::string{})) ||
@@ -232,7 +234,7 @@ CanonicalManifestResult ParseCanonicalManifest(std::string_view bytes,
         !root.contains("toolVersions") || !root["toolVersions"].is_object())
     {
         result.diagnostics.push_back(Error("Runtime.Launch.ManifestSchemaInvalid",
-            "Canonical runtime launch manifest schema version 1, 2, or 3 is required."));
+            "Canonical runtime launch manifest schema version 1, 2, 3, or 4 is required."));
         return result;
     }
     CanonicalRuntimeLaunchManifest manifest;
@@ -255,21 +257,29 @@ CanonicalManifestResult ParseCanonicalManifest(std::string_view bytes,
                                  "packageGeneration", "scene", "scriptAssembly",
                                  "scriptAssemblyManifest", "scriptReferenceManifest",
                                  "scriptRuntimeConfig", "uiSet"})
-        : ExactFields(artifacts, {"behaviorArtifacts", "behaviorModules", "behaviors",
+        : schemaVersion == 3
+        ? ExactFields(artifacts, {"behaviorArtifacts", "behaviorModules", "behaviors",
                                  "capabilities", "input", "namedActions", "packageGeneration",
                                  "scene", "scriptAssembly", "scriptAssemblyManifest",
-                                 "scriptReferenceManifest", "scriptRuntimeConfig", "uiSet"});
+                                 "scriptReferenceManifest", "scriptRuntimeConfig", "uiSet"})
+        : ExactFields(artifacts, {"apiOperations", "behaviorArtifacts", "behaviorModules",
+                                 "behaviors", "capabilities", "input", "namedActions",
+                                 "packageGeneration", "scene", "scriptAssembly",
+                                 "scriptAssemblyManifest", "scriptReferenceManifest",
+                                 "scriptRuntimeConfig", "uiSet"});
     if (!artifactFieldsValid)
         result.diagnostics.push_back(Error("Runtime.Launch.ArtifactSetInvalid",
             "The canonical artifact set is incomplete or contains unknown fields."));
     manifest.behaviors = ParseArtifact(artifacts, "behaviors", result.diagnostics);
-    if (schemaVersion == 3)
+    if (schemaVersion >= 3)
     {
         manifest.behaviorModules = ParseArtifact(
             artifacts, "behaviorModules", result.diagnostics);
         manifest.behaviorArtifacts = ParseArtifact(
             artifacts, "behaviorArtifacts", result.diagnostics);
     }
+    if (schemaVersion == 4)
+        manifest.apiOperations = ParseArtifact(artifacts, "apiOperations", result.diagnostics);
     manifest.capabilities = ParseArtifact(artifacts, "capabilities", result.diagnostics);
     manifest.input = ParseArtifact(artifacts, "input", result.diagnostics);
     if (schemaVersion >= 2)

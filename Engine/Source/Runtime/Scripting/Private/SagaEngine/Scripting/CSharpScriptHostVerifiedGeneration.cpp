@@ -27,12 +27,13 @@ namespace SagaEngine::Scripting
             diagnostic.metadata["path"] = path.generic_string();
         result.diagnostics.push_back(std::move(diagnostic));
     };
-    const std::array<const VerifiedScriptFile*, 6> files{{&request.assembly,
+    const std::array<const VerifiedScriptFile*, 7> files{{&request.assembly,
                                                           &request.runtimeConfig,
                                                           &request.assemblyManifest,
                                                           &request.behaviorManifest,
                                                           &request.namedActionManifest,
-                                                          &request.capabilityManifest}};
+                                                          &request.capabilityManifest,
+                                                          &request.operationCatalog}};
     for (const auto* file : files)
     {
         if (file->path.empty() || file->byteHash.empty() ||
@@ -68,14 +69,15 @@ namespace SagaEngine::Scripting
             return false;
         }
     };
-    nlohmann::json assembly, behaviors, actions, capabilities;
+    nlohmann::json assembly, behaviors, actions, capabilities, operationCatalog;
     if (!readJson(request.assemblyManifest, assembly, 1) ||
         !readJson(request.behaviorManifest, behaviors, -1) ||
         (behaviors.value("schemaVersion", -1) != 2 &&
          behaviors.value("schemaVersion", -1) != 3 &&
          behaviors.value("schemaVersion", -1) != 4) ||
         !readJson(request.namedActionManifest, actions, 1) ||
-        !readJson(request.capabilityManifest, capabilities, 1))
+        !readJson(request.capabilityManifest, capabilities, 1) ||
+        !readJson(request.operationCatalog, operationCatalog, 1))
     {
         fail(ScriptHostDiagnostics::ManifestInvalid,
              "Verified generation requires behavior manifest schema version 2, 3, or 4 and schema "
@@ -109,6 +111,19 @@ namespace SagaEngine::Scripting
         {
             fail(ScriptHostDiagnostics::CapabilityManifestMismatch,
                  "Capability manifest identity differs from the selected SagaScript generation.");
+            return result;
+        }
+        if (operationCatalog.value("projectId", std::string{}) != request.projectId ||
+            operationCatalog.value("packageGenerationId", std::string{}) !=
+                request.packageGenerationId ||
+            operationCatalog.value("packageGenerationHash", std::string{}) !=
+                request.packageGenerationHash ||
+            operationCatalog.value("packageGraphHash", std::string{}) != request.packageGraphHash ||
+            !operationCatalog.contains("operations") ||
+            !operationCatalog["operations"].is_array())
+        {
+            fail(ScriptHostDiagnostics::ManifestInvalid,
+                 "Semantic operation catalog identity differs from the verified generation.");
             return result;
         }
         if (!identityMatches(assembly) ||
@@ -151,6 +166,47 @@ namespace SagaEngine::Scripting
                      "Capability identities must be non-empty and unique.");
                 return result;
             }
+        auto semanticOperations = std::make_shared<SagaOperationCatalog>();
+        for (const auto& operation : operationCatalog["operations"])
+        {
+            SagaShared::Api::SagaOperationDescriptor descriptor;
+            descriptor.operationId.value = operation.value("operationId", std::string{});
+            descriptor.apiId.value = operation.value("apiId", std::string{});
+            descriptor.packageId = operation.value("packageId", std::string{});
+            descriptor.moduleId = operation.value("module", std::string{});
+            const auto apiLevel = operation.value("apiLevel", std::string{});
+            const auto effect = operation.value("effect", std::string{});
+            descriptor.apiLevel = apiLevel == "High" ? SagaShared::Api::SagaApiLevel::High
+                                                       : SagaShared::Api::SagaApiLevel::Low;
+            if (effect == "ReadAuthoritativeState")
+                descriptor.effect = SagaShared::Scripting::ScriptSideEffect::ReadAuthoritativeState;
+            else if (effect == "WriteAuthoritativeState")
+                descriptor.effect = SagaShared::Scripting::ScriptSideEffect::WriteAuthoritativeState;
+            else
+            {
+                fail(ScriptHostDiagnostics::ManifestInvalid,
+                     "Semantic operation effect is unsupported by the current runtime.");
+                return result;
+            }
+            descriptor.requiredCapabilities =
+                ReadStringArrayField(operation, "requiredCapabilities");
+            descriptor.runtimeBinding = operation.value("runtimeBinding", std::string{});
+            descriptor.csharpBinding = operation.value("csharpBinding", std::string{});
+            descriptor.csharpAvailable = operation.value("csharp", false);
+            descriptor.blocksAvailable = operation.value("blocks", false);
+            descriptor.packageGenerationId = request.packageGenerationId;
+            descriptor.packageGenerationHash = request.packageGenerationHash;
+            if ((apiLevel != "High" && apiLevel != "Low") || !descriptor.csharpAvailable ||
+                !semanticOperations->Register(std::move(descriptor)))
+            {
+                fail(ScriptHostDiagnostics::ManifestInvalid,
+                     "Semantic operation identities and descriptors must be valid and unique.");
+                return result;
+            }
+        }
+        packageState.operationCatalog = std::move(semanticOperations);
+        packageState.packageGenerationId = request.packageGenerationId;
+        packageState.packageGenerationHash = request.packageGenerationHash;
         std::set<std::string> behaviorIds;
         std::set<std::string> sourceSymbolIds;
         std::set<std::string> behaviorModuleIds;

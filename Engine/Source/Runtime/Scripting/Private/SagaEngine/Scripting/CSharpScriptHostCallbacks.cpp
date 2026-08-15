@@ -62,6 +62,46 @@ void CSharpScriptHost::Impl::RecordDiagnostic(InstanceState& state, ScriptDiagno
     return false;
 }
 
+[[nodiscard]] bool CSharpScriptHost::Impl::AdmitOperation(
+    InstanceState& state, const SagaShared::Api::SagaOperationId& operationId,
+    const std::string_view runtimeBinding)
+{
+    if (state.operationCatalog != nullptr)
+    {
+        const auto decision = OperationAdmissionEvaluator::Evaluate(
+            {*state.operationCatalog, state.grantedCapabilities,
+             state.packageGenerationId, state.packageGenerationHash,
+             runtimeBinding}, operationId);
+        if (decision.allowed)
+            return true;
+        auto diagnostic = MakeDiagnostic(
+            ScriptHostDiagnostics::OperationAdmissionDenied,
+            "Semantic operation denied",
+            "Managed script operation was denied by the verified semantic operation policy.");
+        diagnostic.metadata["operationId"] = operationId.value;
+        diagnostic.metadata["denialReason"] = std::string(ToString(decision.failure));
+        if (!decision.missingCapability.empty())
+            diagnostic.metadata["capability"] = std::string(decision.missingCapability);
+        RecordDiagnostic(state, std::move(diagnostic));
+        return false;
+    }
+    // The manifest-based package loader predates verified generations. Keep its
+    // bounded transform capability behavior while canonical launches require the
+    // verified semantic catalog above. Unknown operations still fail closed.
+    if (operationId.value == kGetPositionOperation.value)
+        return RequireCapability(state, kCapabilityTransformRead, "Entity.GetPosition");
+    if (operationId.value == kSetPositionOperation.value)
+        return RequireCapability(state, kCapabilityTransformWrite, "Entity.SetPosition");
+    auto diagnostic = MakeDiagnostic(
+        ScriptHostDiagnostics::OperationAdmissionDenied,
+        "Semantic operation denied",
+        "Managed script operation has no verified semantic operation catalog.");
+    diagnostic.metadata["operationId"] = operationId.value;
+    diagnostic.metadata["denialReason"] = "UnknownOperation";
+    RecordDiagnostic(state, std::move(diagnostic));
+    return false;
+}
+
 [[nodiscard]] bool CSharpScriptHost::Impl::RequireWorld(InstanceState& state, std::string operation)
 {
     if (options.world != nullptr)
@@ -196,7 +236,7 @@ void CSharpScriptHost::Impl::RecordWorldDiagnostics(InstanceState& state,
         return NativeCallbackStatus::InvalidArgument;
     }
 
-    if (!RequireCapability(*state, kCapabilityTransformWrite, "Entity.SetPosition"))
+    if (!AdmitOperation(*state, kSetPositionOperation, "Entity.SetPosition"))
     {
         return NativeCallbackStatus::CapabilityDenied;
     }
@@ -235,7 +275,7 @@ void CSharpScriptHost::Impl::RecordWorldDiagnostics(InstanceState& state,
         return NativeCallbackStatus::InvalidArgument;
     }
 
-    if (!RequireCapability(*state, kCapabilityTransformRead, "Entity.GetPosition"))
+    if (!AdmitOperation(*state, kGetPositionOperation, "Entity.GetPosition"))
     {
         return NativeCallbackStatus::CapabilityDenied;
     }

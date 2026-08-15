@@ -141,6 +141,9 @@ std::size_t CSharpScriptHost::Impl::InstanceIdentityHash::operator()(
             state.selfEntity = request.selfEntity;
             state.activeInstanceToken = nextActiveInstanceToken++;
             state.grantedCapabilities = grantedCapabilities;
+            state.operationCatalog = packageIterator->second.operationCatalog;
+            state.packageGenerationId = packageIterator->second.packageGenerationId;
+            state.packageGenerationHash = packageIterator->second.packageGenerationHash;
             state.instanceConfigurationCanonicalJson =
                 request.instanceConfigurationCanonicalJson;
             auto [inserted, _] = instances.emplace(instanceHandle, std::move(state));

@@ -174,6 +174,20 @@ TEST(RuntimeLaunchManifestDeterminismTests, SchemaThreePinsGenericBehaviorCatalo
     EXPECT_EQ(parsed.manifest->behaviorArtifacts.logicalId, "behavior.artifacts");
 }
 
+TEST(RuntimeLaunchManifestDeterminismTests, SchemaFourPinsSemanticOperationCatalog)
+{
+    auto launch = Launch();
+    const auto hash = "sha256:" + std::string(64, 'c');
+    launch.schemaVersion = 4;
+    launch.uiSet = {"ui", hash};
+    launch.behaviorModules = {"behavior.modules", hash};
+    launch.behaviorArtifacts = {"behavior.artifacts", hash};
+    launch.apiOperations = {"api.operations", hash};
+    const auto parsed = ParseCanonicalManifest(SerializeCanonical(launch));
+    ASSERT_TRUE(parsed.Succeeded());
+    EXPECT_EQ(parsed.manifest->apiOperations.logicalId, "api.operations");
+}
+
 TEST(RuntimeResultV1Tests, AcceptsSuccessfulSessionBoundResult)
 {
     const auto hash = "sha256:" + std::string(64, 'a');

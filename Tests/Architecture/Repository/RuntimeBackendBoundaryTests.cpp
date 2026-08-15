@@ -363,3 +363,25 @@ TEST(RuntimeBackendBoundaryTests, RmlUiAdapterStaysPrivate)
     EXPECT_TRUE(std::filesystem::is_regular_file(
         privateAdapter / "RmlUiUiBackend.cpp"));
 }
+
+TEST(RuntimeBackendBoundaryTests, SemanticOperationAdmissionStaysRuntimeAndLanguageNeutral)
+{
+    const auto root = std::filesystem::path(SAGA_SOURCE_ROOT);
+    const auto apiRoot = root /
+        "Engine/Source/Runtime/Scripting/Public/SagaShared/Api";
+    const auto admission = root /
+        "Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/OperationAdmission.cpp";
+    ASSERT_TRUE(std::filesystem::is_directory(apiRoot));
+    ASSERT_TRUE(std::filesystem::is_regular_file(admission));
+
+    std::string semanticCode = StripCommentsAndLiterals(ReadText(admission));
+    for (const auto& entry : std::filesystem::directory_iterator(apiRoot))
+        if (entry.is_regular_file() && IsHeader(entry.path()))
+            semanticCode += StripCommentsAndLiterals(ReadText(entry.path()));
+
+    for (const auto* forbidden : {
+             "Qt", "SagaEditor", "VisualBlocks", "Roslyn", "Microsoft.CodeAnalysis",
+             ".sagaproj", "SagaPackage.lock", "PackageResolver", "BehaviorLanguageId",
+             "productSurface"})
+        EXPECT_EQ(semanticCode.find(forbidden), std::string::npos) << forbidden;
+}
