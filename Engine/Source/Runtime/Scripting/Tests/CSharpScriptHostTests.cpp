@@ -73,6 +73,7 @@ using SagaEngine::UI::UiScreenId;
 constexpr const char* kCreateEntityCapability = "Gameplay.World.CreateEntity";
 constexpr const char* kTransformReadCapability = "Gameplay.Transform.Read";
 constexpr const char* kTransformWriteCapability = "Gameplay.Transform.Write";
+constexpr const char* kTransformReadWriteCapability = "World.Transform.ReadWrite";
 
 [[nodiscard]] std::filesystem::path TempPackageRoot(const char* name)
 {
@@ -160,6 +161,8 @@ struct VerifiedGenerationFixture
     request.sourceSetHash = "sha256:sources";
     request.referenceManifestHash = "sha256:references";
     request.packageGraphHash = "sha256:packages";
+    request.packageGenerationId = "generation-fixture";
+    request.packageGenerationHash = "sha256:generation-fixture";
     request.runtimeBridgeLogicalReferenceId = "runtime-bridge";
     request.runtimeBridgeHash = "sha256:" + Sha256Hex(RuntimeBridgeAssembly());
     request.runtimeBridgeAbi = "NativeCallbackTable.v3+NamedAction.v1";
@@ -187,7 +190,7 @@ struct VerifiedGenerationFixture
     behaviorManifest["schemaVersion"] = 2;
     behaviorManifest["behaviors"] = nlohmann::json::array({
         {{"behaviorId", "Game.PlayerScript"}, {"capabilities", nlohmann::json::array({
-            kTransformReadCapability})}, {"actions", nlohmann::json::array({
+            kTransformReadWriteCapability})}, {"actions", nlohmann::json::array({
                 {{"actionId", "Interact"}, {"attributeTypeId",
                     "SagaEngine.Scripting.SagaActionAttribute"}, {"method", "OnStart"},
                     {"publiclyInvocable", true}}})}, {"stateAccesses", nlohmann::json::array()}}});
@@ -198,7 +201,29 @@ struct VerifiedGenerationFixture
             {"method", "OnStart"}, {"publiclyInvocable", true}}});
     auto capabilityManifest = identity();
     capabilityManifest["packageGraphHash"] = request.packageGraphHash;
-    capabilityManifest["capabilities"] = nlohmann::json::array({kTransformReadCapability});
+    capabilityManifest["capabilities"] = nlohmann::json::array({kTransformReadWriteCapability});
+    const auto operation = [&](const char* operationId, const char* effect,
+                               const char* runtimeBinding, const char* csharpBinding)
+    {
+        return nlohmann::json{{"operationId", operationId},
+            {"apiId", "com.saga.gameplay.foundation/gameplay.highlevel"},
+            {"packageId", "com.saga.gameplay.foundation"},
+            {"module", "gameplay.highlevel"}, {"apiLevel", "High"},
+            {"effect", effect},
+            {"requiredCapabilities", nlohmann::json::array({kTransformReadWriteCapability})},
+            {"runtimeBinding", runtimeBinding}, {"csharpBinding", csharpBinding},
+            {"csharp", true}, {"blocks", true}};
+    };
+    const nlohmann::json operationCatalog{{"schemaVersion", 1},
+        {"projectId", request.projectId},
+        {"packageGenerationId", request.packageGenerationId},
+        {"packageGenerationHash", request.packageGenerationHash},
+        {"packageGraphHash", request.packageGraphHash},
+        {"operations", nlohmann::json::array({
+            operation("com.saga.gameplay.foundation/gameplay.highlevel/ScriptEntity.TryGetPosition",
+                "ReadAuthoritativeState", "Entity.GetPosition", "ScriptEntity.TryGetPosition"),
+            operation("com.saga.gameplay.foundation/gameplay.highlevel/ScriptEntity.TrySetPosition",
+                "WriteAuthoritativeState", "Entity.SetPosition", "ScriptEntity.TrySetPosition")})}};
 
     const auto writeManifest = [&](const char* fileName, const nlohmann::json& value)
     {
@@ -210,6 +235,7 @@ struct VerifiedGenerationFixture
     request.behaviorManifest = writeManifest("behavior_manifest_v2.json", behaviorManifest);
     request.namedActionManifest = writeManifest("named_actions_v1.json", actionManifest);
     request.capabilityManifest = writeManifest("capabilities_v1.json", capabilityManifest);
+    request.operationCatalog = writeManifest("saga_api_operations_v1.json", operationCatalog);
     return fixture;
 }
 
@@ -1046,6 +1072,36 @@ TEST(CSharpScriptHostTests, VerifiedGenerationLoadsExactManifestSet)
     const auto result = host.LoadVerifiedGeneration(fixture.request);
 
     ASSERT_TRUE(result.Succeeded()) << DescribeDiagnostics(result.diagnostics);
+}
+
+TEST(CSharpScriptHostTests, VerifiedGenerationRejectsDuplicateOperationIdentity)
+{
+    auto fixture = CreateVerifiedGeneration("saga_verified_generation_duplicate_operation");
+    auto catalog = ReadJson(fixture.request.operationCatalog);
+    catalog["operations"].push_back(catalog["operations"][0]);
+    RewriteVerifiedJson(fixture.request.operationCatalog, catalog);
+    CSharpScriptHost host(HostOptions());
+
+    const auto result = host.LoadVerifiedGeneration(fixture.request);
+
+    ASSERT_FALSE(result.Succeeded());
+    EXPECT_EQ(result.diagnostics.front().diagnostic.code.value,
+        SagaEngine::Scripting::ScriptHostDiagnostics::ManifestInvalid);
+}
+
+TEST(CSharpScriptHostTests, VerifiedGenerationRejectsInvalidOperationIdentity)
+{
+    auto fixture = CreateVerifiedGeneration("saga_verified_generation_invalid_operation");
+    auto catalog = ReadJson(fixture.request.operationCatalog);
+    catalog["operations"][0]["operationId"] = "operation identity with spaces";
+    RewriteVerifiedJson(fixture.request.operationCatalog, catalog);
+    CSharpScriptHost host(HostOptions());
+
+    const auto result = host.LoadVerifiedGeneration(fixture.request);
+
+    ASSERT_FALSE(result.Succeeded());
+    EXPECT_EQ(result.diagnostics.front().diagnostic.code.value,
+        SagaEngine::Scripting::ScriptHostDiagnostics::ManifestInvalid);
 }
 
 TEST(CSharpScriptHostTests, VerifiedGenerationRejectsTamperedAssemblyManifest)

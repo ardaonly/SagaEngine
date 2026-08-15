@@ -25,5 +25,7 @@ inline constexpr const char* LifecycleMethodMissing =
     "Script.Host.LifecycleMethodMissing";
 inline constexpr const char* ManagedException =
     "Script.Host.ManagedException";
+inline constexpr const char* OperationAdmissionDenied =
+    "Script.Operation.AdmissionDenied";
 
 } // namespace SagaEngine::Scripting::ScriptHostDiagnostics

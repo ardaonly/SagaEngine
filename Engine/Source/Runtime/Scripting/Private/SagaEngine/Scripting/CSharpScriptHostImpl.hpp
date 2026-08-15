@@ -5,6 +5,7 @@
 #pragma once
 
 #include <SagaEngine/Scripting/CSharpScriptHost.hpp>
+#include <SagaEngine/Scripting/OperationAdmission.hpp>
 #include <array>
 #include <coreclr_delegates.h>
 #include <cstdint>
@@ -38,6 +39,10 @@ inline constexpr std::string_view kCapabilityInput = "Gameplay.Input.Read";
 inline constexpr std::string_view kCapabilityEntityLookup = "Gameplay.World.FindEntity";
 inline constexpr std::string_view kCapabilityEntityActive = "Gameplay.Entity.Active";
 inline constexpr std::string_view kCapabilityRuntimeExit = "Runtime.Exit";
+inline const SagaShared::Api::SagaOperationId kGetPositionOperation{
+    "com.saga.gameplay.foundation/gameplay.highlevel/ScriptEntity.TryGetPosition"};
+inline const SagaShared::Api::SagaOperationId kSetPositionOperation{
+    "com.saga.gameplay.foundation/gameplay.highlevel/ScriptEntity.TrySetPosition"};
 
 enum class BridgeStatus : int
 {
@@ -190,6 +195,9 @@ struct CSharpScriptHost::Impl
     {
         std::vector<ManagedPackage> managedPackages;
         std::unordered_map<std::string, CapabilitySet> grantedCapabilitiesByScriptId;
+        std::shared_ptr<const SagaOperationCatalog> operationCatalog;
+        std::string packageGenerationId;
+        std::string packageGenerationHash;
     };
 
     struct InstanceIdentity
@@ -215,6 +223,9 @@ struct CSharpScriptHost::Impl
         ScriptEntityHandle selfEntity;
         std::uint64_t activeInstanceToken = 0;
         CapabilitySet grantedCapabilities;
+        std::shared_ptr<const SagaOperationCatalog> operationCatalog;
+        std::string packageGenerationId;
+        std::string packageGenerationHash;
         std::string instanceConfigurationCanonicalJson = "{}";
         std::vector<ScriptDiagnostic> pendingDiagnostics;
     };
@@ -259,6 +270,9 @@ struct CSharpScriptHost::Impl
     [[nodiscard]] bool RequireCapability(InstanceState& state,
                                          std::string_view capability,
                                          std::string operation);
+    [[nodiscard]] bool AdmitOperation(InstanceState& state,
+                                      const SagaShared::Api::SagaOperationId& operationId,
+                                      std::string_view runtimeBinding);
     [[nodiscard]] bool RequireWorld(InstanceState& state, std::string operation);
     [[nodiscard]] bool RequireStatePort(InstanceState& state, std::string operation);
     void RecordInvalidEntityHandle(InstanceState& state,

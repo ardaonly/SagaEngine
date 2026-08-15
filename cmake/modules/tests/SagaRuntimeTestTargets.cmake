@@ -366,6 +366,7 @@
             ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHostInvocation.cpp
             ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHostSupport.cpp
             ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHostVerifiedGeneration.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/OperationAdmission.cpp
             ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/ScriptLifecycleService.cpp
             ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/ScriptPackageValidator.cpp
         )
@@ -414,6 +415,7 @@
             ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHostInvocation.cpp
             ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHostSupport.cpp
             ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/CSharpScriptHostVerifiedGeneration.cpp
+            ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/OperationAdmission.cpp
             ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/ScriptLifecycleService.cpp
             ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/ScriptPackageValidator.cpp
             ${SAGA_ROOT}/Engine/Source/Runtime/Scripting/Private/SagaEngine/Scripting/WorldStateScriptWorld.cpp

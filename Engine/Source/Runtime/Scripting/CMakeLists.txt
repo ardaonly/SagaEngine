@@ -18,6 +18,7 @@ saga_add_runtime_module(Scripting
         Private/SagaEngine/Scripting/CSharpScriptHostInvocation.cpp
         Private/SagaEngine/Scripting/CSharpScriptHostSupport.cpp
         Private/SagaEngine/Scripting/CSharpScriptHostVerifiedGeneration.cpp
+        Private/SagaEngine/Scripting/OperationAdmission.cpp
         Private/SagaEngine/Scripting/ScriptBindingManifestLoader.cpp
         Private/SagaEngine/Scripting/ScriptBindingRuntime.cpp
         Private/SagaEngine/Scripting/ScriptLifecycleService.cpp
@@ -39,6 +40,7 @@ saga_add_runtime_module(Scripting
         Public/SagaEngine/Scripting/LowLevel/ScriptLifecycleContracts.hpp
         Public/SagaEngine/Scripting/LowLevel/ScriptLifecycleService.hpp
         Public/SagaEngine/Scripting/LowLevel/ScriptPackageValidator.hpp
+        Public/SagaEngine/Scripting/OperationAdmission.hpp
         Public/SagaEngine/Scripting/Namespace.hpp
         Public/SagaEngine/Scripting/ScriptBindingManifestLoader.hpp
         Public/SagaEngine/Scripting/ScriptBindingRuntime.hpp
@@ -52,6 +54,9 @@ saga_add_runtime_module(Scripting
         Public/SagaShared/Behavior/BehaviorModuleDescriptor.hpp
         Public/SagaShared/Behavior/BehaviorModuleId.hpp
         Public/SagaShared/Behavior/BehaviorSourceIdentity.hpp
+        Public/SagaShared/Api/SagaApiId.hpp
+        Public/SagaShared/Api/SagaOperationDescriptor.hpp
+        Public/SagaShared/Api/SagaOperationId.hpp
         Public/SagaShared/Scripting/GeneratedCodeOriginDescriptor.hpp
         Public/SagaShared/Scripting/ScriptArtifactRef.hpp
         Public/SagaShared/Scripting/ScriptAuthorityDescriptor.hpp

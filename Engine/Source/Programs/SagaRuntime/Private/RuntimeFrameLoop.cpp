@@ -120,11 +120,13 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
         launch.scriptRuntimeConfig, launch.scriptAssemblyManifest,
         launch.scriptReferenceManifest, launch.behaviors,
         launch.namedActions, launch.capabilities};
-    if (launch.schemaVersion == 3)
+    if (launch.schemaVersion >= 3)
     {
         launchArtifacts.push_back(launch.behaviorModules);
         launchArtifacts.push_back(launch.behaviorArtifacts);
     }
+    if (launch.schemaVersion == 4)
+        launchArtifacts.push_back(launch.apiOperations);
     static_cast<void>(RuntimeArtifactSession::VerifyFiles(
         envelope.artifacts, launchArtifacts, envelopeResult.diagnostics));
     const Play::ArtifactIdentity bridge{launch.runtimeBridge.logicalReferenceId,
@@ -195,7 +197,7 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
             "Runtime scene, input, or UI artifact failed strict loading.");
     }
     Json namedActions, behaviorManifest, capabilityManifest;
-    Json behaviorModuleCatalog, behaviorArtifactCatalog;
+    Json behaviorModuleCatalog, behaviorArtifactCatalog, apiOperationCatalog;
     try
     {
         namedActions = Json::parse(RuntimeLaunchSession::ReadFile(
@@ -204,13 +206,16 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
             envelope.artifacts.at(launch.behaviors.logicalId)));
         capabilityManifest = Json::parse(RuntimeLaunchSession::ReadFile(
             envelope.artifacts.at(launch.capabilities.logicalId)));
-        if (launch.schemaVersion == 3)
+        if (launch.schemaVersion >= 3)
         {
             behaviorModuleCatalog = Json::parse(RuntimeLaunchSession::ReadFile(
                 envelope.artifacts.at(launch.behaviorModules.logicalId)));
             behaviorArtifactCatalog = Json::parse(RuntimeLaunchSession::ReadFile(
                 envelope.artifacts.at(launch.behaviorArtifacts.logicalId)));
         }
+        if (launch.schemaVersion == 4)
+            apiOperationCatalog = Json::parse(RuntimeLaunchSession::ReadFile(
+                envelope.artifacts.at(launch.apiOperations.logicalId)));
     }
     catch (const Json::exception&)
     {
@@ -223,6 +228,18 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
         !behaviorManifest["behaviors"].is_array())
         return structuredFailure("Runtime.Script.StateContractMissing",
             "Verified Play requires behavior manifest schema version 2, 3, or 4.",
+            "ScriptLoadFailure");
+    if (launch.schemaVersion != 4 || apiOperationCatalog.value("schemaVersion", -1) != 1 ||
+        apiOperationCatalog.value("projectId", std::string{}) != launch.projectId ||
+        apiOperationCatalog.value("packageGenerationId", std::string{}) !=
+            launch.packageGeneration.logicalId ||
+        apiOperationCatalog.value("packageGenerationHash", std::string{}) !=
+            launch.packageGeneration.hash ||
+        apiOperationCatalog.value("packageGraphHash", std::string{}) != launch.packageGraphHash ||
+        !apiOperationCatalog.contains("operations") ||
+        !apiOperationCatalog["operations"].is_array())
+        return structuredFailure("Runtime.Script.OperationCatalogInvalid",
+            "Verified semantic operation catalog is missing or inconsistent.",
             "ScriptLoadFailure");
     RuntimeStateStore::TypedWritePolicy stateWrites;
     try
@@ -347,12 +364,16 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
                                        launch.namedActions.hash};
     loadRequest.capabilityManifest = {envelope.artifacts.at(launch.capabilities.logicalId),
                                       launch.capabilities.hash};
+    loadRequest.operationCatalog = {envelope.artifacts.at(launch.apiOperations.logicalId),
+                                    launch.apiOperations.hash};
     loadRequest.projectId = launch.projectId;
     loadRequest.projectHash = launch.projectHash;
     loadRequest.sourceRevision = launch.scriptSourceRevision;
     loadRequest.sourceSetHash = launch.scriptSourceSetHash;
     loadRequest.referenceManifestHash = launch.scriptReferenceManifest.hash;
     loadRequest.packageGraphHash = launch.packageGraphHash;
+    loadRequest.packageGenerationId = launch.packageGeneration.logicalId;
+    loadRequest.packageGenerationHash = launch.packageGeneration.hash;
     loadRequest.runtimeBridgeLogicalReferenceId = launch.runtimeBridge.logicalReferenceId;
     loadRequest.runtimeBridgeHash = launch.runtimeBridge.assemblyHash;
     loadRequest.runtimeBridgeAbi = launch.runtimeBridge.abi;
@@ -396,7 +417,7 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
     std::map<std::string, SagaShared::Behavior::BehaviorModuleDescriptor> behaviorModules;
     if (behaviorSchema == 4)
     {
-        if (launch.schemaVersion != 3 || behaviorModuleCatalog.value("schemaVersion", -1) != 1 ||
+        if (launch.schemaVersion < 3 || behaviorModuleCatalog.value("schemaVersion", -1) != 1 ||
             behaviorModuleCatalog.value("projectId", std::string{}) != launch.projectId ||
             behaviorModuleCatalog.value("packageGenerationId", std::string{}) !=
                 launch.packageGeneration.logicalId ||

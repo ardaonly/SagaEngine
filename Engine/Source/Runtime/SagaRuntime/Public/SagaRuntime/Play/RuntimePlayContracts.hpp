@@ -53,6 +53,7 @@ struct CanonicalRuntimeLaunchManifest
     ArtifactIdentity behaviors;
     ArtifactIdentity behaviorModules;
     ArtifactIdentity behaviorArtifacts;
+    ArtifactIdentity apiOperations;
     ArtifactIdentity namedActions;
     ArtifactIdentity capabilities;
     ArtifactIdentity packageGeneration;
