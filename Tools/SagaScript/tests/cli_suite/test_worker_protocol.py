@@ -60,7 +60,7 @@ def test_project_worker_is_deterministic_across_clean_roots() -> None:
         assert first_artifacts == second_artifacts
         assert set(first_artifacts) == {
             "behavior.artifacts",
-            "behavior.language-surface",
+            "api.operations",
             "behavior.modules",
             "scripts.assembly",
             "scripts.assembly-manifest",
@@ -85,6 +85,19 @@ def test_project_worker_is_deterministic_across_clean_roots() -> None:
         generic_artifacts = json.loads(first_artifacts["behavior.artifacts"])
         assert generic_artifacts["artifacts"][0]["language"] == "csharp"
         assert generic_artifacts["artifacts"][0]["artifactId"].startswith("artifact://sha256/")
+        operation_catalog = json.loads(first_artifacts["api.operations"])
+        assert [item["operationId"] for item in operation_catalog["operations"]] == [
+            "com.saga.gameplay.foundation/gameplay.highlevel/ScriptEntity.TryGetPosition",
+            "com.saga.gameplay.foundation/gameplay.highlevel/ScriptEntity.TrySetPosition",
+        ]
+        get_position, set_position = operation_catalog["operations"]
+        assert get_position["apiId"] == "com.saga.gameplay.foundation/gameplay.highlevel"
+        assert get_position["effect"] == "ReadAuthoritativeState"
+        assert set_position["effect"] == "WriteAuthoritativeState"
+        assert get_position["requiredCapabilities"] == ["World.Transform.ReadWrite"]
+        assert get_position["runtimeBinding"] == "Entity.GetPosition"
+        assert set_position["runtimeBinding"] == "Entity.SetPosition"
+        assert get_position["csharp"] is True and get_position["blocks"] is True
         assert [item["name"] for item in behavior["behaviors"][0]["lifecycleMethods"]] == ["OnStart", "OnUpdate"]
         assert behavior["behaviors"][0]["stateAccesses"] == [{
             "operation": "SetBool", "valueType": "Bool", "key": "door.target-open"}]

@@ -107,26 +107,33 @@ internal static class ProjectWorkerArtifactBuilder
             common.tool, common.toolVersion,
             common.analyzerVersion, capabilities, diagnostics = Array.Empty<object>(),
         }));
-        var languageSurface = allowedApis.Select(item =>
+        var semanticOperations = allowedApis.Select(item =>
             JsonSerializer.SerializeToElement(item, CanonicalJson.SerializerOptions))
+            .Where(api => !string.IsNullOrWhiteSpace(
+                api.GetProperty("operationId").GetString()))
             .Select(api => new
             {
-                operationId = (api.GetProperty("surfaceId").GetString() ?? "") + "/" +
-                    (api.GetProperty("apiId").GetString() ?? ""),
-                apiId = api.GetProperty("apiId").GetString() ?? "",
+                operationId = api.GetProperty("operationId").GetString() ?? "",
+                apiId = api.GetProperty("surfaceId").GetString() ?? "",
                 packageId = api.GetProperty("packageId").GetString() ?? "",
                 module = api.GetProperty("module").GetString() ?? "",
-                apiLevel = (api.GetProperty("module").GetString() ?? "").Contains(
-                    "highlevel", StringComparison.Ordinal) ? "High" : "Low",
+                apiLevel = api.GetProperty("apiLevel").GetString() ?? "",
+                effect = api.GetProperty("effect").GetString() ?? "",
+                requiredCapabilities = api.GetProperty("requiredCapabilities")
+                    .EnumerateArray().Select(item => item.GetString() ?? "")
+                    .Order(StringComparer.Ordinal).ToArray(),
+                runtimeBinding = api.GetProperty("runtimeBinding").GetString() ?? "",
+                csharpBinding = api.GetProperty("apiId").GetString() ?? "",
                 csharp = true,
                 blocks = api.GetProperty("blockProjection").GetString() == "Supported",
             }).OrderBy(item => item.operationId, StringComparer.Ordinal).ToArray();
-        artifacts.Add(JsonArtifact("behavior.language-surface", "behaviorLanguageSurfaceCatalog",
-            "behavior_language_surface_v1.json", new
+        artifacts.Add(JsonArtifact("api.operations", "apiOperationCatalog",
+            "saga_api_operations_v1.json", new
         {
             schemaVersion = 1, common.projectId, common.packageGenerationId,
-            common.packageGenerationHash, common.apiSurfaceManifestHash,
-            operations = languageSurface, diagnostics = Array.Empty<object>(),
+            common.packageGenerationHash, common.packageGraphHash,
+            common.apiSurfaceManifestHash, operations = semanticOperations,
+            diagnostics = Array.Empty<object>(),
         }));
         artifacts.Add(JsonArtifact("scripts.source-map", "sourceMap", "source_map_v1.json", new
         {

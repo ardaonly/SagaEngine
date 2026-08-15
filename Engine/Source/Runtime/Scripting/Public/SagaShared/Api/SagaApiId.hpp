@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
+
+#include <algorithm>
+#include <cctype>
+#include <string>
+
+namespace SagaShared::Api
+{
+
+/// Opaque stable semantic identity of an authored Saga API surface.
+struct SagaApiId
+{
+    std::string value;
+
+    [[nodiscard]] bool IsValid() const noexcept
+    {
+        return !value.empty() && std::none_of(value.begin(), value.end(),
+            [](const unsigned char ch) { return std::isspace(ch) != 0; });
+    }
+
+    bool operator==(const SagaApiId&) const = default;
+};
+
+} // namespace SagaShared::Api

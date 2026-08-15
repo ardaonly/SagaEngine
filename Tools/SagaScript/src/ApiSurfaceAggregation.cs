@@ -20,6 +20,7 @@ internal static class ApiSurfaceAggregation
             var prefix = distributionRoot.TrimEnd(Path.DirectorySeparatorChar) +
                 Path.DirectorySeparatorChar;
             var identities = new Dictionary<string, string>(StringComparer.Ordinal);
+            var operationIdentities = new HashSet<string>(StringComparer.Ordinal);
             var lockedManagedReferences = lockDocument.RootElement.GetProperty("packages")
                 .EnumerateArray().SelectMany(package =>
                     package.GetProperty("artifacts").EnumerateArray())
@@ -95,7 +96,8 @@ internal static class ApiSurfaceAggregation
                     }
                     AppendApis(
                         root, packageId, packageVersion, artifactId, module,
-                        surfaceId, readiness, identities, allowed, diagnostics);
+                        surfaceId, readiness, identities, operationIdentities,
+                        allowed, diagnostics);
                 }
             }
         }
@@ -117,6 +119,7 @@ internal static class ApiSurfaceAggregation
         string surfaceId,
         string readiness,
         Dictionary<string, string> identities,
+        HashSet<string> operationIdentities,
         List<object> allowed,
         List<WorkerDiagnostic> diagnostics)
     {
@@ -130,11 +133,47 @@ internal static class ApiSurfaceAggregation
             var sourcePath = api.TryGetProperty("sourcePath", out var source)
                 ? source.GetString() ?? ""
                 : "";
+            var hasOperationId = api.TryGetProperty("operationId", out var operation);
+            var operationId = hasOperationId
+                ? operation.GetString() ?? ""
+                : "";
+            var apiLevel = api.TryGetProperty("apiLevel", out var level)
+                ? level.GetString() ?? ""
+                : "";
+            var effect = api.TryGetProperty("effect", out var effectElement)
+                ? effectElement.GetString() ?? ""
+                : "";
+            var runtimeBinding = api.TryGetProperty("runtimeBinding", out var binding)
+                ? binding.GetString() ?? ""
+                : "";
+            var requiredCapabilities = api.TryGetProperty(
+                    "requiredCapabilities", out var required)
+                ? required.EnumerateArray().Select(item => item.GetString() ?? "")
+                    .ToArray()
+                : Array.Empty<string>();
             if (visibility != "Public" || capability is "Raw" or "Internal" ||
                 projection == "Filtered") continue;
+            if (hasOperationId &&
+                (string.IsNullOrWhiteSpace(operationId) ||
+                 operationId.Any(char.IsWhiteSpace) ||
+                 apiLevel is not ("High" or "Low") ||
+                 effect is not ("ReadAuthoritativeState" or "WriteAuthoritativeState") ||
+                 string.IsNullOrWhiteSpace(runtimeBinding) ||
+                 requiredCapabilities.Length == 0 ||
+                 requiredCapabilities.Any(string.IsNullOrWhiteSpace) ||
+                 requiredCapabilities.Distinct(StringComparer.Ordinal).Count() !=
+                    requiredCapabilities.Length))
+                throw new InvalidOperationException(
+                    $"Semantic operation descriptor '{operationId}' is invalid.");
+            if (hasOperationId && !operationIdentities.Add(operationId))
+            {
+                diagnostics.Add(Error("Script.Worker.OperationIdentityDuplicate", operationId,
+                    "Semantic operation identity must be globally unique in the verified package graph."));
+                continue;
+            }
             var identity = $"{surfaceId}/{apiId}";
             var valueIdentity =
-                $"{packageId}\n{packageVersion}\n{artifactId}\n{module}\n{readiness}\n{capability}\n{projection}\n{sourcePath}";
+                $"{packageId}\n{packageVersion}\n{artifactId}\n{module}\n{readiness}\n{capability}\n{projection}\n{sourcePath}\n{operationId}\n{apiLevel}\n{effect}\n{runtimeBinding}\n{string.Join(',', requiredCapabilities)}";
             if (identities.TryGetValue(identity, out var existing))
             {
                 if (existing != valueIdentity)
@@ -155,6 +194,12 @@ internal static class ApiSurfaceAggregation
                 capability,
                 blockProjection = projection,
                 sourcePath,
+                operationId,
+                apiLevel,
+                effect,
+                requiredCapabilities = requiredCapabilities
+                    .Order(StringComparer.Ordinal).ToArray(),
+                runtimeBinding,
             });
         }
     }

@@ -65,16 +65,26 @@
     },
     {
       "apiId": "ScriptEntity.TryGetPosition",
+      "operationId": "com.saga.gameplay.foundation/gameplay.highlevel/ScriptEntity.TryGetPosition",
       "documentationId": "M:SagaEngine.Scripting.ScriptEntity.TryGetPosition(SagaEngine.Scripting.ScriptVector3@)",
       "blockProjection": "Supported",
       "capability": "World.Transform.ReadWrite",
+      "apiLevel": "High",
+      "effect": "ReadAuthoritativeState",
+      "requiredCapabilities": ["World.Transform.ReadWrite"],
+      "runtimeBinding": "Entity.GetPosition",
       "visibility": "Public"
     },
     {
       "apiId": "ScriptEntity.TrySetPosition",
+      "operationId": "com.saga.gameplay.foundation/gameplay.highlevel/ScriptEntity.TrySetPosition",
       "documentationId": "M:SagaEngine.Scripting.ScriptEntity.TrySetPosition(System.Single,System.Single,System.Single)",
       "blockProjection": "Supported",
       "capability": "World.Transform.ReadWrite",
+      "apiLevel": "High",
+      "effect": "WriteAuthoritativeState",
+      "requiredCapabilities": ["World.Transform.ReadWrite"],
+      "runtimeBinding": "Entity.SetPosition",
       "visibility": "Public"
     },
     {
