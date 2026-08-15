@@ -420,7 +420,8 @@ TEST(PublicPrivateBoundaryTests, VisualBlocksPublicSurfaceContainsOnlyAuthoringA
             std::filesystem::relative(entry.path(), publicVisualBlocks);
         ASSERT_FALSE(relative.empty());
         EXPECT_TRUE((*relative.begin()).string() == "Blocks" ||
-            relative == "ReadOnlyScriptProjection.h") << entry.path();
+            relative == "ReadOnlyScriptProjection.h" ||
+            relative == "BehaviorProjectionRoute.h") << entry.path();
     }
 
     for (const auto& entry :
@@ -434,7 +435,8 @@ TEST(PublicPrivateBoundaryTests, VisualBlocksPublicSurfaceContainsOnlyAuthoringA
             std::filesystem::relative(entry.path(), privateVisualBlocks);
         ASSERT_FALSE(relative.empty());
         EXPECT_TRUE((*relative.begin()).string() == "Blocks" ||
-            relative == "ReadOnlyScriptProjection.cpp") << entry.path();
+            relative == "ReadOnlyScriptProjection.cpp" ||
+            relative == "BehaviorProjectionRoute.cpp") << entry.path();
     }
 
     EXPECT_TRUE(std::filesystem::is_regular_file(
@@ -443,6 +445,8 @@ TEST(PublicPrivateBoundaryTests, VisualBlocksPublicSurfaceContainsOnlyAuthoringA
         publicVisualBlocks / "Blocks/BlockToIRLowerer.h"));
     EXPECT_TRUE(std::filesystem::is_regular_file(
         publicVisualBlocks / "ReadOnlyScriptProjection.h"));
+    EXPECT_TRUE(std::filesystem::is_regular_file(
+        publicVisualBlocks / "BehaviorProjectionRoute.h"));
 }
 
 TEST(PublicPrivateBoundaryTests, LegacyCollaborationSurfaceStaysAbsent)

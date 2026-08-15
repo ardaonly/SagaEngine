@@ -6,6 +6,7 @@ saga_add_editor_module(EditorAuthoring
         nlohmann_json::nlohmann_json
         OpenSSL::Crypto
     SOURCES
+        Private/SagaEditor/Authoring/BehaviorAuthoringCapabilities.cpp
         Private/SagaEditor/Authoring/DiagnosticsPanelView.cpp
         Private/SagaEditor/Authoring/EditorShellCustomizationReport.cpp
         Private/SagaEditor/Authoring/ProjectBrowserWorkflowView.cpp
@@ -45,6 +46,7 @@ saga_add_editor_module(EditorAuthoring
         Private/SagaEditor/Viewport/ViewportRay.cpp
         Private/SagaEditor/Viewport/ViewportContentBuildCoordinator.cpp
         Public/SagaEditor/Authoring/DiagnosticsPanelView.h
+        Public/SagaEditor/Authoring/BehaviorAuthoringCapabilities.h
         Public/SagaEditor/Authoring/EditorShellCustomizationReport.h
         Public/SagaEditor/Authoring/ProjectBrowserWorkflowView.h
         Public/SagaEditor/Authoring/SceneAssetBrowserInventoryView.h
@@ -102,6 +104,7 @@ saga_register_module_tests(EditorAuthoring
     PRIVATE_DEPS nlohmann_json::nlohmann_json
     LABELS "unit;editor;authoring"
     SOURCES
+        Tests/BehaviorAuthoringCapabilitiesTests.cpp
         Tests/EditorAuthoringSpineTests.cpp
         Tests/InspectorEditingTests.cpp
         Tests/StandaloneBuildCoordinatorTests.cpp

@@ -114,6 +114,20 @@ Race-safe consumption rechecks the relevant identity at the handoff. A validator
 
 Authored C# is behavior truth. Compiled assemblies, bindings, descriptors, node metadata, source maps, and Visual Blocks projections are derived views. A visual edit becomes authoritative only when it produces and applies a reviewed C# source change under the source-patch contract.
 
+Behavior identity is split deliberately: `BehaviorModuleId` is authored stable logical
+identity, `sourceSymbolId` is the C# entry-point type, `sourcePath` is the canonical
+project-relative file, `attachmentId` identifies a scene binding,
+`behaviorInstanceId` is launch/world scoped, and `artifactId` identifies immutable
+compiled output. These values are not aliases. Canonical scenes use
+`BehaviorAttachment`; the bounded legacy `ScriptBehavior.behaviorTypeId` reader is
+type-based compatibility input and is not published as a canonical module identity.
+
+SagaScript derives `behavior_modules_v1.json` and `behavior_artifacts_v1.json` from
+verified source and package inputs. Runtime consumes those generated identities and
+hashed backend payloads; it does not read C# source, `.sagaproj`, package graphs, or
+Visual Blocks graphs. The current backend catalog registers only `csharp`, and unknown
+or unavailable languages fail without a C# fallback.
+
 Generated C# must remain traceable to its origin. A descriptor may name a script, capability, binding, or generated span, but cannot silently create behavior absent from source. Runtime packages validate the assemblies and binding manifests they consume; they do not reconstruct authority from an editor graph.
 
 Generated behavior artifacts preserve source path/hash, source revision, package generation/graph/API identity, analyzer/tool/schema versions, artifact hash, diagnostics, and source spans as required by their contract. Their `current.json` selector changes last, after every content-addressed object and cross-reference validates.
