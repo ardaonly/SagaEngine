@@ -14,7 +14,7 @@
   "prompts": [
     {
       "actionId": "Interact",
-      "behaviorId": "StarterArena.DoorController",
+      "behaviorId": "behavior://starter-arena/door-controller",
       "elementId": "interaction-prompt",
       "entityId": "door-root",
       "falseLabel": "Open Door",

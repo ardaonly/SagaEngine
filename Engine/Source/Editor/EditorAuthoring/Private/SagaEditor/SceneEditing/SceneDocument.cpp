@@ -80,6 +80,7 @@ std::vector<DocumentDiagnostic> ValidateScene(const std::string& text)
         return {{"Scene.SchemaInvalid", "Scene source must use schema version 1 or 2 with sceneId and entities."}};
 
     std::set<std::string> ids;
+    std::set<std::string> attachmentIds;
     std::unordered_map<std::string, std::string> parents;
     std::vector<std::pair<std::string, std::string>> eventReferences;
     for (const auto& entity : root["entities"])
@@ -159,11 +160,35 @@ std::vector<DocumentDiagnostic> ValidateScene(const std::string& text)
                     !component.contains("requiredCapabilities") || !StringArray(component["requiredCapabilities"]))
                     return {{"Scene.ScriptBehaviorInvalid", "ScriptBehavior values are invalid."}};
             }
+            else if (type == "BehaviorAttachment")
+            {
+                if (!ContainsOnly(component, {"type", "attachmentId", "behaviorModuleId",
+                        "instanceConfiguration", "requiredCapabilities", "enabled"}) ||
+                    !NonEmptyString(component, "attachmentId") ||
+                    !NonEmptyString(component, "behaviorModuleId") ||
+                    component["behaviorModuleId"].get<std::string>().find("behavior://") != 0 ||
+                    !component.contains("instanceConfiguration") ||
+                    !component["instanceConfiguration"].is_object() ||
+                    !component.contains("requiredCapabilities") ||
+                    !StringArray(component["requiredCapabilities"]) ||
+                    !component.contains("enabled") || !component["enabled"].is_boolean())
+                    return {{"Scene.BehaviorAttachmentInvalid",
+                        "BehaviorAttachment stable identities and values are invalid."}};
+                if (!attachmentIds.insert(component["attachmentId"].get<std::string>()).second)
+                    return {{"Scene.BehaviorAttachmentDuplicate",
+                        "BehaviorAttachment attachmentId values must be unique in a scene."}};
+            }
             else if (type == "ScriptActionBinding")
             {
-                if (!ContainsOnly(component, {"type", "inputActionId", "behaviorTypeId", "namedActionId"}) ||
+                const bool legacy = component.contains("behaviorTypeId");
+                if ((legacy && !ContainsOnly(component,
+                         {"type", "inputActionId", "behaviorTypeId", "namedActionId"})) ||
+                    (!legacy && !ContainsOnly(component, {"type", "inputActionId",
+                         "behaviorModuleId", "targetAttachmentId", "namedActionId"})) ||
                     !NonEmptyString(component, "inputActionId") ||
-                    !NonEmptyString(component, "behaviorTypeId") ||
+                    !(legacy ? NonEmptyString(component, "behaviorTypeId") :
+                        NonEmptyString(component, "behaviorModuleId") &&
+                        NonEmptyString(component, "targetAttachmentId")) ||
                     !NonEmptyString(component, "namedActionId"))
                     return {{"Scene.ScriptActionBindingInvalid", "ScriptActionBinding identities are required."}};
             }
@@ -188,13 +213,18 @@ std::vector<DocumentDiagnostic> ValidateScene(const std::string& text)
             }
             else if (type == "ScriptEventBinding" && schemaVersion == 2)
             {
-                if (!ContainsOnly(component, {"type", "eventType",
-                        "sourceEntityId", "targetEntityId", "behaviorTypeId",
-                        "namedActionId"}) ||
+                const bool legacy = component.contains("behaviorTypeId");
+                if ((legacy && !ContainsOnly(component, {"type", "eventType",
+                         "sourceEntityId", "targetEntityId", "behaviorTypeId", "namedActionId"})) ||
+                    (!legacy && !ContainsOnly(component, {"type", "eventType",
+                         "sourceEntityId", "targetEntityId", "behaviorModuleId",
+                         "targetAttachmentId", "namedActionId"})) ||
                     !NonEmptyString(component, "eventType") ||
                     !NonEmptyString(component, "sourceEntityId") ||
                     !NonEmptyString(component, "targetEntityId") ||
-                    !NonEmptyString(component, "behaviorTypeId") ||
+                    !(legacy ? NonEmptyString(component, "behaviorTypeId") :
+                        NonEmptyString(component, "behaviorModuleId") &&
+                        NonEmptyString(component, "targetAttachmentId")) ||
                     !NonEmptyString(component, "namedActionId"))
                     return {{"Scene.ScriptEventBindingInvalid",
                         "ScriptEventBinding identities are required."}};
