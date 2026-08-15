@@ -14,7 +14,15 @@ import threading
 import time
 from pathlib import Path
 
-from .support.environment import CLI_ASSEMBLY, REPO_ROOT, ensure_cli_built
+from .support.environment import (
+    ARENA_RUSH_ROOT,
+    CLI_ASSEMBLY,
+    PACKAGER_ASSEMBLY,
+    REPO_ROOT,
+    RUNTIME_BRIDGE_ASSEMBLY,
+    ensure_cli_built,
+)
+from .support.worker import ensure_packager_built
 
 
 def _sha256_text(value: str) -> str:
@@ -60,7 +68,46 @@ def _run(messages: list[dict[str, object]]) -> tuple[list[dict[str, object]], st
 
 
 def _package_snapshot(root: Path) -> tuple[dict[str, object], Path]:
-    packages = REPO_ROOT / "Samples/ArenaRush/Build/Packages"
+    env = os.environ.copy()
+    env.setdefault("DOTNET_CLI_HOME", "/tmp/sagascript-language-service-home")
+    env.setdefault("DOTNET_CLI_TELEMETRY_OPTOUT", "1")
+    ensure_cli_built(env)
+    ensure_packager_built(env)
+    project_root = root / "arena-rush-fixture"
+    shutil.copytree(
+        ARENA_RUSH_ROOT,
+        project_root,
+        ignore=shutil.ignore_patterns("Build", ".saga"),
+    )
+    packages = project_root / "Build/Packages"
+    report = project_root / "Build/TestSetup/package-generation.json"
+    report.parent.mkdir(parents=True)
+    generated = subprocess.run(
+        [
+            "dotnet",
+            str(PACKAGER_ASSEMBLY),
+            "generation-refresh",
+            "--project",
+            str(project_root / "ArenaRush.sagaproj"),
+            "--engine-root",
+            str(REPO_ROOT),
+            "--lock",
+            str(project_root / "SagaPackage.lock"),
+            "--generated-out",
+            str(packages),
+            "--runtime-bridge",
+            str(RUNTIME_BRIDGE_ASSEMBLY),
+            "--out",
+            str(report),
+        ],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert generated.returncode == 0, generated.stderr + generated.stdout
     current = json.loads((packages / "manifests/current.json").read_text())
     generation = packages / "generations" / current["generationId"]
     ownership_source = generation / "api_ownership_v1.json"
