@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <functional>
 #include <map>
+#include <utility>
 
 namespace SagaEditor
 {
@@ -17,6 +18,22 @@ class EditorDocumentWorkspace;
 
 struct PlayPreparationRequest
 {
+    PlayPreparationRequest() = default;
+    PlayPreparationRequest(std::string sessionId,
+        std::filesystem::path executable,
+        std::function<bool()> cancellation = {},
+        std::function<void(std::string_view)> progressCallback = {},
+        std::function<void()> publicationBarrier = {},
+        std::filesystem::path capturedRoot = {})
+        : playSessionId(std::move(sessionId)),
+          runtimeExecutable(std::move(executable)),
+          cancellationRequested(std::move(cancellation)),
+          progress(std::move(progressCallback)),
+          beforeLaunchPublication(std::move(publicationBarrier)),
+          capturedRuntimeRoot(std::move(capturedRoot))
+    {
+    }
+
     std::string playSessionId;
     std::filesystem::path runtimeExecutable;
     std::function<bool()> cancellationRequested;
@@ -24,6 +41,9 @@ struct PlayPreparationRequest
     /// Deterministic publication barrier used by concurrency/freshness tests.
     /// Production callers leave this empty.
     std::function<void()> beforeLaunchPublication;
+    /// Additional owned root for a captured standalone runtime. Normal Editor
+    /// Play leaves this empty and trusts only the project and engine roots.
+    std::filesystem::path capturedRuntimeRoot;
 };
 
 struct PlayPreparationResult
