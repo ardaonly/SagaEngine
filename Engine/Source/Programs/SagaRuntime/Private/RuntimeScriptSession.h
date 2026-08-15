@@ -80,7 +80,7 @@ public:
         std::map<std::pair<std::string, std::string>,
                  SagaEngine::Scripting::ScriptInstanceHandle> instances,
         std::map<std::pair<std::string, std::string>, std::string> methods);
-    bool InvokeNamedAction(std::string_view behaviorTypeId,
+    bool InvokeNamedAction(std::string_view behaviorModuleId,
                            std::string_view namedActionId,
                            std::string_view entityId) override;
 

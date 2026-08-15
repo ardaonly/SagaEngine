@@ -8,3 +8,4 @@
 
 #include "SagaEngine/Scripting/LowLevel.hpp"
 #include "SagaEngine/Scripting/Authoring.hpp"
+#include "SagaEngine/Scripting/BehaviorBackend.hpp"

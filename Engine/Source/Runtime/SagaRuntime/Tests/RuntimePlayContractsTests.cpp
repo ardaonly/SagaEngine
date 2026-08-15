@@ -159,6 +159,21 @@ TEST(RuntimeLaunchManifestDeterminismTests, CanonicalBytesRoundTripAndRejectAbso
     EXPECT_EQ(rejected.diagnostics.front().code, "Runtime.Launch.ManifestSchemaInvalid");
 }
 
+TEST(RuntimeLaunchManifestDeterminismTests, SchemaThreePinsGenericBehaviorCatalogs)
+{
+    auto launch = Launch();
+    const auto hash = "sha256:" + std::string(64, 'b');
+    launch.schemaVersion = 3;
+    launch.uiSet = {"ui", hash};
+    launch.behaviorModules = {"behavior.modules", hash};
+    launch.behaviorArtifacts = {"behavior.artifacts", hash};
+    const auto bytes = SerializeCanonical(launch);
+    const auto parsed = ParseCanonicalManifest(bytes, Sha256Bytes(bytes));
+    ASSERT_TRUE(parsed.Succeeded());
+    EXPECT_EQ(parsed.manifest->behaviorModules.logicalId, "behavior.modules");
+    EXPECT_EQ(parsed.manifest->behaviorArtifacts.logicalId, "behavior.artifacts");
+}
+
 TEST(RuntimeResultV1Tests, AcceptsSuccessfulSessionBoundResult)
 {
     const auto hash = "sha256:" + std::string(64, 'a');
@@ -364,6 +379,53 @@ TEST(ScriptActionBindingDispatcherTests, SameBehaviorTypeOnMultipleEntitiesKeeps
     EXPECT_EQ(target.invocations, (std::vector<std::string>{
         "Game.Door:Interact:door", "Game.Door:Interact:door-two"}));
     EXPECT_EQ(dispatcher.DispatchCount(), 2U);
+    std::filesystem::remove_all(root);
+}
+
+TEST(ScriptActionBindingDispatcherTests, OneModuleSupportsMultipleCanonicalAttachments)
+{
+    auto payload = ScenePayload();
+    auto second = payload["entities"].front();
+    second["entityId"] = "door-two";
+    second["name"] = "Door Two";
+    payload["entities"].push_back(second);
+    for (auto& entity : payload["entities"])
+    {
+        const auto attachmentId = "attachment://game/" +
+            entity["entityId"].get<std::string>();
+        entity["components"][1] = {
+            {"attachmentId", attachmentId},
+            {"behaviorModuleId", "behavior://game/door"},
+            {"enabled", true},
+            {"instanceConfiguration", Json::object()},
+            {"requiredCapabilities", {"World.Transform.ReadWrite"}},
+            {"scriptArtifactLogicalId", "scripts.assembly"},
+            {"type", "BehaviorAttachment"},
+        };
+        entity["components"][2] = {
+            {"behaviorModuleId", "behavior://game/door"},
+            {"inputActionId", "Interact"},
+            {"namedActionId", "Interact"},
+            {"targetAttachmentId", attachmentId},
+            {"type", "ScriptActionBinding"},
+        };
+    }
+    const auto root = Temporary("canonical-multi-attachment");
+    const auto path = root / "scene.json";
+    Write(path, ArtifactBytes("game.scene", "runtime.scene", payload));
+    const auto loaded = LoadRuntimeSceneArtifact(path);
+    ASSERT_TRUE(loaded.Succeeded());
+    Target target;
+    ScriptActionBindingDispatcher dispatcher(target);
+    ASSERT_TRUE(dispatcher.Build(*loaded.value).empty());
+    EXPECT_TRUE(dispatcher.Dispatch("Interact").empty());
+    EXPECT_EQ(target.invocations, (std::vector<std::string>{
+        "behavior://game/door:Interact:door",
+        "behavior://game/door:Interact:door-two"}));
+    payload["entities"][1]["components"][1]["attachmentId"] =
+        payload["entities"][0]["components"][1]["attachmentId"];
+    Write(path, ArtifactBytes("game.scene", "runtime.scene", payload));
+    EXPECT_FALSE(LoadRuntimeSceneArtifact(path).Succeeded());
     std::filesystem::remove_all(root);
 }
 

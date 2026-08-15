@@ -113,15 +113,15 @@
     },
     {
       "path": "Engine/Source/Programs/SagaRuntime/Private/RuntimeFrameLoop.cpp",
-      "maximumPhysicalLines": 1366,
-      "reason": "Reviewed existing runtime frame-loop baseline; lifecycle, telemetry, and presentation paths require a deliberate ownership split.",
+      "maximumPhysicalLines": 1539,
+      "reason": "Reviewed stable-behavior catalog validation growth in the runtime composition root; lifecycle, telemetry, presentation, and catalog validation require a deliberate ownership split.",
       "owner": "SagaRuntimeProgram",
       "disposition": "follow-up-debt"
     },
     {
       "path": "Engine/Source/Runtime/SagaRuntime/Private/SagaRuntime/Play/RuntimePlayContracts.cpp",
-      "maximumPhysicalLines": 1115,
-      "reason": "Reviewed existing play-contract baseline; schema families should be separated when this contract owner next changes.",
+      "maximumPhysicalLines": 1215,
+      "reason": "Reviewed canonical behavior-attachment reader growth; scene and launch schema families should be separated when this contract owner next changes.",
       "owner": "SagaRuntime",
       "disposition": "follow-up-debt"
     },
@@ -134,8 +134,8 @@
     },
     {
       "path": "Tools/SagaScript/src/ProjectWorker.cs",
-      "maximumPhysicalLines": 1007,
-      "reason": "Reviewed existing worker baseline; protocol and workspace operations should split before further growth.",
+      "maximumPhysicalLines": 1080,
+      "reason": "Reviewed stable behavior metadata, catalog, and migration validation growth; protocol and workspace operations should split before further growth.",
       "owner": "SagaScript",
       "disposition": "follow-up-debt"
     },

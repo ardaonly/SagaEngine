@@ -72,16 +72,18 @@ namespace SagaEngine::Scripting
     if (!readJson(request.assemblyManifest, assembly, 1) ||
         !readJson(request.behaviorManifest, behaviors, -1) ||
         (behaviors.value("schemaVersion", -1) != 2 &&
-         behaviors.value("schemaVersion", -1) != 3) ||
+         behaviors.value("schemaVersion", -1) != 3 &&
+         behaviors.value("schemaVersion", -1) != 4) ||
         !readJson(request.namedActionManifest, actions, 1) ||
         !readJson(request.capabilityManifest, capabilities, 1))
     {
         fail(ScriptHostDiagnostics::ManifestInvalid,
-             "Verified generation requires behavior manifest schema version 2 or 3 and schema "
+             "Verified generation requires behavior manifest schema version 2, 3, or 4 and schema "
              "version 1 assembly, named-action, and capability manifests.");
         return result;
     }
-    const bool behaviorSchemaV3 = behaviors.value("schemaVersion", -1) == 3;
+    const bool behaviorSchemaV3 = behaviors.value("schemaVersion", -1) >= 3;
+    const bool behaviorSchemaV4 = behaviors.value("schemaVersion", -1) == 4;
     PackageState packageState;
     try
     {
@@ -150,10 +152,31 @@ namespace SagaEngine::Scripting
                 return result;
             }
         std::set<std::string> behaviorIds;
+        std::set<std::string> sourceSymbolIds;
+        std::set<std::string> behaviorModuleIds;
         std::map<std::pair<std::string, std::string>, std::string> behaviorActions;
         for (const auto& behavior : behaviors["behaviors"])
         {
             const auto behaviorId = behavior.value("behaviorId", std::string{});
+            if (behaviorSchemaV4)
+            {
+                const auto moduleId = behavior.value("behaviorModuleId", std::string{});
+                const auto sourceSymbolId = behavior.value("sourceSymbolId", std::string{});
+                const auto identityKind = behavior.value("identityKind", std::string{});
+                const auto language = behavior.value("language", std::string{});
+                const bool canonical = identityKind == "CanonicalModuleMetadata" &&
+                    moduleId == behaviorId && moduleId.starts_with("behavior://") &&
+                    behaviorModuleIds.insert(moduleId).second;
+                const bool legacy = identityKind == "LegacyCSharpTypeIdentity" &&
+                    moduleId.empty() && sourceSymbolId == behaviorId;
+                if (language != "csharp" || sourceSymbolId.empty() ||
+                    !sourceSymbolIds.insert(sourceSymbolId).second || (!canonical && !legacy))
+                {
+                    fail(ScriptHostDiagnostics::ManifestInvalid,
+                         "Behavior module, source symbol, language, or legacy identity metadata is invalid.");
+                    return result;
+                }
+            }
             if (behaviorId.empty() || !behaviorIds.insert(behaviorId).second ||
                 !behavior.contains("capabilities") || !behavior["capabilities"].is_array() ||
                 !behavior.contains("actions") || !behavior["actions"].is_array() ||

@@ -51,6 +51,8 @@ struct CanonicalRuntimeLaunchManifest
     ArtifactIdentity scriptAssemblyManifest;
     ArtifactIdentity scriptReferenceManifest;
     ArtifactIdentity behaviors;
+    ArtifactIdentity behaviorModules;
+    ArtifactIdentity behaviorArtifacts;
     ArtifactIdentity namedActions;
     ArtifactIdentity capabilities;
     ArtifactIdentity packageGeneration;
@@ -211,16 +213,20 @@ struct RuntimeMeshRenderer
 
 struct RuntimeScriptBehavior
 {
-    std::string behaviorTypeId;
+    std::string attachmentId;
+    std::string behaviorModuleId;
     std::string scriptArtifactLogicalId;
     std::vector<std::string> requiredCapabilities;
     std::string instanceConfigurationCanonicalJson;
+    bool enabled = true;
+    bool legacyCSharpTypeIdentity = false;
 };
 
 struct RuntimeScriptActionBinding
 {
     std::string inputActionId;
-    std::string behaviorTypeId;
+    std::string behaviorModuleId;
+    std::string targetAttachmentId;
     std::string namedActionId;
 };
 
@@ -242,7 +248,8 @@ struct RuntimeScriptEventBinding
     std::string eventType;
     std::string sourceEntityId;
     std::string targetEntityId;
-    std::string behaviorTypeId;
+    std::string behaviorModuleId;
+    std::string targetAttachmentId;
     std::string namedActionId;
 };
 
@@ -382,7 +389,7 @@ class INamedActionTarget
 public:
     virtual ~INamedActionTarget() = default;
     [[nodiscard]] virtual bool InvokeNamedAction(
-        std::string_view behaviorTypeId, std::string_view namedActionId,
+        std::string_view behaviorModuleId, std::string_view namedActionId,
         std::string_view entityId) = 0;
 };
 
@@ -398,7 +405,7 @@ private:
     struct BoundAction
     {
         std::string entityId;
-        std::string behaviorTypeId;
+        std::string behaviorModuleId;
         std::string namedActionId;
     };
     INamedActionTarget& target_;
@@ -421,7 +428,7 @@ private:
     struct BoundEvent
     {
         std::string targetEntityId;
-        std::string behaviorTypeId;
+        std::string behaviorModuleId;
         std::string namedActionId;
     };
     INamedActionTarget& target_;

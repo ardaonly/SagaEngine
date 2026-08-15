@@ -10,6 +10,7 @@ saga_add_runtime_module(Scripting
     PRIVATE_INCLUDES
         ${SAGA_DOTNET_HOST_INCLUDE_DIR}
     SOURCES
+        Private/SagaEngine/Scripting/BehaviorBackend.cpp
         Private/SagaEngine/Scripting/CSharpScriptHost.cpp
         Private/SagaEngine/Scripting/CSharpScriptHostCallbacks.cpp
         Private/SagaEngine/Scripting/CSharpScriptHostCoreClr.cpp
@@ -26,6 +27,7 @@ saga_add_runtime_module(Scripting
         Public/SagaEngine/Scripting/Authoring.hpp
         Public/SagaEngine/Scripting/Authoring/ScriptBindingManifestLoader.hpp
         Public/SagaEngine/Scripting/Authoring/ScriptBindingRuntime.hpp
+        Public/SagaEngine/Scripting/BehaviorBackend.hpp
         Private/SagaEngine/Scripting/CSharpScriptHostImpl.hpp
         Public/SagaEngine/Scripting/CSharpScriptHost.hpp
         Public/SagaEngine/Scripting/ISagaScriptHost.hpp
@@ -43,6 +45,13 @@ saga_add_runtime_module(Scripting
         Public/SagaEngine/Scripting/ScriptLifecycleService.hpp
         Public/SagaEngine/Scripting/ScriptPackageValidator.hpp
         Public/SagaEngine/Scripting/WorldStateScriptWorld.hpp
+        Public/SagaShared/Behavior/BehaviorArtifactDescriptor.hpp
+        Public/SagaShared/Behavior/BehaviorAttachmentDescriptor.hpp
+        Public/SagaShared/Behavior/BehaviorInstanceIdentity.hpp
+        Public/SagaShared/Behavior/BehaviorLanguageId.hpp
+        Public/SagaShared/Behavior/BehaviorModuleDescriptor.hpp
+        Public/SagaShared/Behavior/BehaviorModuleId.hpp
+        Public/SagaShared/Behavior/BehaviorSourceIdentity.hpp
         Public/SagaShared/Scripting/GeneratedCodeOriginDescriptor.hpp
         Public/SagaShared/Scripting/ScriptArtifactRef.hpp
         Public/SagaShared/Scripting/ScriptAuthorityDescriptor.hpp
@@ -58,5 +67,6 @@ saga_register_module_tests(Scripting
     LINK_TARGET SagaEngine
     LABELS "unit;runtime;scripting"
     SOURCES
+        Tests/BehaviorBackendTests.cpp
         Tests/ScriptLifecycleServiceTests.cpp
 )
