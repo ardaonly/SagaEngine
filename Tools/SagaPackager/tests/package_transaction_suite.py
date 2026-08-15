@@ -51,7 +51,9 @@ def run_tests(run_cli: Callable[..., object], load: Callable[[Path], dict],
                    for symbol in instrumentation)
         lowlevel = [symbol for symbol in ownership["symbols"]
                     if symbol["module"] == "collectibles.lowlevel"]
-        assert len(lowlevel) == 12
+        assert len(lowlevel) == 13
+        assert any(symbol["apiId"] == "CollectiblesLowLevelBatch.TryCollect"
+                   for symbol in lowlevel)
         assert all(symbol["documentationId"] and not symbol["enabled"]
                    for symbol in lowlevel)
         assert (canonical / "ArenaRush.sagaproj").read_bytes() == manifest_before
