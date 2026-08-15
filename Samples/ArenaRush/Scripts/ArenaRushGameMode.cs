@@ -6,6 +6,7 @@ using SagaEngine.Scripting.Gameplay;
 namespace ArenaRush;
 
 /// <summary>Compiled owner of all Arena Rush rules; native code supplies primitives only.</summary>
+[SagaBehaviorModule("behavior://arena-rush/game-mode")]
 public sealed class ArenaRushGameMode : SagaBehavior
 {
     private const float PlayerSpeed = 6.0F;

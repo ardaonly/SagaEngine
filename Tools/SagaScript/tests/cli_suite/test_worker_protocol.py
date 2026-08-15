@@ -59,6 +59,9 @@ def test_project_worker_is_deterministic_across_clean_roots() -> None:
         ).read_bytes()
         assert first_artifacts == second_artifacts
         assert set(first_artifacts) == {
+            "behavior.artifacts",
+            "behavior.language-surface",
+            "behavior.modules",
             "scripts.assembly",
             "scripts.assembly-manifest",
             "scripts.behaviors",
@@ -70,8 +73,18 @@ def test_project_worker_is_deterministic_across_clean_roots() -> None:
         }
         assert first_manifest["sourceRevision"] == "revision-1"
         behavior = json.loads(first_artifacts["scripts.behaviors"])
-        assert behavior["schemaVersion"] == 3
-        assert behavior["behaviors"][0]["behaviorId"] == "StarterArena.DoorController"
+        assert behavior["schemaVersion"] == 4
+        assert behavior["behaviors"][0]["behaviorId"] == "behavior://starter-arena/door-controller"
+        assert behavior["behaviors"][0]["behaviorModuleId"] == "behavior://starter-arena/door-controller"
+        assert behavior["behaviors"][0]["sourceSymbolId"] == "StarterArena.DoorController"
+        modules = json.loads(first_artifacts["behavior.modules"])
+        assert modules["modules"][0]["behaviorModuleId"] == "behavior://starter-arena/door-controller"
+        assert modules["modules"][0]["sourceIdentity"]["sourceSymbolId"] == "StarterArena.DoorController"
+        assert modules["modules"][0]["ownership"] == {
+            "kind": "project", "ownerId": modules["projectId"]}
+        generic_artifacts = json.loads(first_artifacts["behavior.artifacts"])
+        assert generic_artifacts["artifacts"][0]["language"] == "csharp"
+        assert generic_artifacts["artifacts"][0]["artifactId"].startswith("artifact://sha256/")
         assert [item["name"] for item in behavior["behaviors"][0]["lifecycleMethods"]] == ["OnStart", "OnUpdate"]
         assert behavior["behaviors"][0]["stateAccesses"] == [{
             "operation": "SetBool", "valueType": "Bool", "key": "door.target-open"}]
@@ -221,7 +234,7 @@ public sealed class DoorController : SagaBehavior
         assert result.returncode == 0, result.stderr + result.stdout
         _, artifacts = read_current_artifacts(output)
         behavior = json.loads(artifacts["scripts.behaviors"])
-        assert behavior["schemaVersion"] == 3
+        assert behavior["schemaVersion"] == 4
         assert behavior["behaviors"][0]["stateAccesses"] == [
             {"operation": "SetBool", "valueType": "Bool", "key": "cycle.flag"},
             {"operation": "SetBool", "valueType": "Bool", "key": "door.target-open"},
@@ -452,6 +465,155 @@ def test_runtime_bridge_binary_identity_excludes_source_revision() -> None:
         "</IncludeSourceRevisionInInformationalVersion>"
     ) in project
 
+def test_behavior_module_identity_survives_csharp_symbol_rename() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        project = root / "StarterArena"
+        shutil.copytree(STARTER_ROOT, project)
+        source = project / "Scripts/DoorController.cs"
+        source.write_text(source.read_text(encoding="utf-8").replace(
+            "class DoorController", "class RenamedDoorController"), encoding="utf-8")
+        output = root / "output"
+        request = prepare_worker_request(root / "work", project, output, "stable-module-rename")
+        run = run_cli("worker", "--request", str(request[0]), "--result", str(request[1]),
+                      "--progress", str(request[2]))
+        assert run.returncode == 0, run.stderr + run.stdout
+        _, artifacts = read_current_artifacts(output)
+        modules = json.loads(artifacts["behavior.modules"])
+        assert modules["modules"][0]["behaviorModuleId"] == \
+            "behavior://starter-arena/door-controller"
+        assert modules["modules"][0]["sourceIdentity"]["sourceSymbolId"] == \
+            "StarterArena.RenamedDoorController"
+
+def test_worker_rejects_invalid_and_duplicate_behavior_module_ids() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        invalid_project = root / "invalid" / "StarterArena"
+        shutil.copytree(STARTER_ROOT, invalid_project)
+        invalid_source = invalid_project / "Scripts/DoorController.cs"
+        invalid_source.write_text(invalid_source.read_text(encoding="utf-8").replace(
+            "behavior://starter-arena/door-controller",
+            "behavior://Starter-Arena/Door-Controller"), encoding="utf-8")
+        invalid_request = prepare_worker_request(
+            root / "invalid-work", invalid_project, root / "invalid-output", "invalid-module-id")
+        invalid_run = run_cli("worker", "--request", str(invalid_request[0]),
+                              "--result", str(invalid_request[1]),
+                              "--progress", str(invalid_request[2]))
+        assert invalid_run.returncode != 0
+        invalid_report = json.loads(invalid_request[1].read_text(encoding="utf-8"))
+        assert any(item["code"] == "Script.Worker.BehaviorModuleIdInvalid"
+                   for item in invalid_report["diagnostics"])
+
+        duplicate_project = root / "duplicate" / "ArenaRush"
+        shutil.copytree(ARENA_RUSH_ROOT, duplicate_project, ignore=shutil.ignore_patterns("Build"))
+        duplicate_source = duplicate_project / "Scripts/EnergyCoreController.cs"
+        duplicate_source.write_text(duplicate_source.read_text(encoding="utf-8").replace(
+            "public sealed class EnergyCoreController",
+            '[SagaBehaviorModule("behavior://arena-rush/game-mode")]\n'
+            "public sealed class EnergyCoreController"), encoding="utf-8")
+        duplicate_request = prepare_worker_request(
+            root / "duplicate-work", duplicate_project, root / "duplicate-output",
+            "duplicate-module-id")
+        duplicate_run = run_cli("worker", "--request", str(duplicate_request[0]),
+                                "--result", str(duplicate_request[1]),
+                                "--progress", str(duplicate_request[2]))
+        assert duplicate_run.returncode != 0
+        duplicate_report = json.loads(duplicate_request[1].read_text(encoding="utf-8"))
+        assert any(item["code"] == "Script.Worker.BehaviorModuleIdDuplicate"
+                   for item in duplicate_report["diagnostics"])
+
+def test_behavior_identity_migration_is_cancel_safe_and_idempotent() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        project = root / "StarterArena"
+        shutil.copytree(STARTER_ROOT, project)
+        source = project / "Scripts/DoorController.cs"
+        source.write_text(source.read_text(encoding="utf-8").replace(
+            '[SagaBehaviorModule("behavior://starter-arena/door-controller")]\n', ""),
+            encoding="utf-8")
+        scene_path = project / "Scenes/StarterArena.sagascene"
+        scene = json.loads(scene_path.read_text(encoding="utf-8"))
+        components = next(item for item in scene["entities"]
+                          if item["entityId"] == "door-root")["components"]
+        attachment = next(item for item in components
+                          if item["type"] == "BehaviorAttachment")
+        attachment.clear()
+        attachment.update({
+            "authoringSource": "Scripts/DoorController.cs",
+            "behaviorTypeId": "StarterArena.DoorController",
+            "instanceConfiguration": {},
+            "requiredCapabilities": ["Gameplay.State.ReadWrite", "World.Transform.ReadWrite"],
+            "type": "ScriptBehavior",
+        })
+        binding = next(item for item in components if item["type"] == "ScriptActionBinding")
+        binding.pop("behaviorModuleId")
+        binding.pop("targetAttachmentId")
+        binding["behaviorTypeId"] = "StarterArena.DoorController"
+        scene_path.write_text(json.dumps(scene, indent=2) + "\n", encoding="utf-8")
+        legacy_request = prepare_worker_request(
+            root / "legacy-work", project, root / "legacy-output", "legacy-identity")
+        legacy_run = run_cli("worker", "--request", str(legacy_request[0]),
+                             "--result", str(legacy_request[1]),
+                             "--progress", str(legacy_request[2]))
+        assert legacy_run.returncode == 0, legacy_run.stderr + legacy_run.stdout
+        _, legacy_artifacts = read_current_artifacts(root / "legacy-output")
+        legacy_behaviors = json.loads(legacy_artifacts["scripts.behaviors"])
+        assert legacy_behaviors["behaviors"][0]["identityKind"] == \
+            "LegacyCSharpTypeIdentity"
+        assert legacy_behaviors["behaviors"][0]["behaviorModuleId"] == ""
+        legacy_modules = json.loads(legacy_artifacts["behavior.modules"])
+        assert legacy_modules["modules"] == []
+        assert legacy_modules["legacySources"][0]["sourceSymbolId"] == \
+            "StarterArena.DoorController"
+        before_source = source.read_bytes()
+        before_scene = scene_path.read_bytes()
+        plan = root / "migration-plan.json"
+        preview = run_cli("behavior-migration-preview", "--project",
+                          str(project / "StarterArena.sagaproj"), "--out", str(plan))
+        assert preview.returncode == 0, preview.stderr + preview.stdout
+        planned = json.loads(plan.read_text(encoding="utf-8"))
+        assert planned["status"] == "Planned"
+        assert planned["changes"][0]["sourceSymbolId"] == "StarterArena.DoorController"
+        assert planned["changes"][0]["behaviorModuleId"].startswith("behavior://project/")
+        cancellation = root / "cancel"
+        cancellation.write_text("cancel\n", encoding="utf-8")
+        cancelled_report = root / "cancelled.json"
+        cancelled = run_cli("behavior-migration-apply", "--request", str(plan),
+                            "--cancellation", str(cancellation), "--out",
+                            str(cancelled_report))
+        assert cancelled.returncode == 0
+        assert json.loads(cancelled_report.read_text())["status"] == "Cancelled"
+        assert source.read_bytes() == before_source
+        assert scene_path.read_bytes() == before_scene
+        cancellation.unlink()
+        applied_report = root / "applied.json"
+        assert run_cli("behavior-migration-apply", "--request", str(plan), "--out",
+                       str(applied_report)).returncode == 0
+        assert json.loads(applied_report.read_text())["status"] == "Applied"
+        repeated_report = root / "repeated.json"
+        assert run_cli("behavior-migration-apply", "--request", str(plan), "--out",
+                       str(repeated_report)).returncode == 0
+        assert json.loads(repeated_report.read_text())["status"] == "AlreadyApplied"
+        migrated = json.loads(scene_path.read_text())
+        migrated_components = next(item for item in migrated["entities"]
+                                   if item["entityId"] == "door-root")["components"]
+        assert any(item["type"] == "BehaviorAttachment" for item in migrated_components)
+        assert not any("behaviorTypeId" in item for item in migrated_components)
+        source.write_text(source.read_text(encoding="utf-8").replace(
+            "class DoorController", "class MigratedDoorController"), encoding="utf-8")
+        renamed_request = prepare_worker_request(
+            root / "renamed-work", project, root / "renamed-output", "migrated-rename")
+        renamed_run = run_cli("worker", "--request", str(renamed_request[0]),
+                              "--result", str(renamed_request[1]),
+                              "--progress", str(renamed_request[2]))
+        assert renamed_run.returncode == 0, renamed_run.stderr + renamed_run.stdout
+        _, renamed_artifacts = read_current_artifacts(root / "renamed-output")
+        renamed_modules = json.loads(renamed_artifacts["behavior.modules"])
+        assert renamed_modules["modules"][0]["behaviorModuleId"] == \
+            planned["changes"][0]["behaviorModuleId"]
+        assert renamed_modules["modules"][0]["sourceIdentity"]["sourceSymbolId"] == \
+            "StarterArena.MigratedDoorController"
+
 TESTS = (
     test_project_forms_analyze_compile_and_project_blocks,
     test_project_worker_is_deterministic_across_clean_roots,
@@ -465,4 +627,7 @@ TESTS = (
     test_worker_publish_failure_is_structured_and_does_not_create_current,
     test_shared_boundary_scan_remains_clean,
     test_runtime_bridge_binary_identity_excludes_source_revision,
+    test_behavior_module_identity_survives_csharp_symbol_rename,
+    test_worker_rejects_invalid_and_duplicate_behavior_module_ids,
+    test_behavior_identity_migration_is_cancel_safe_and_idempotent,
 )

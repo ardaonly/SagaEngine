@@ -47,6 +47,29 @@ internal static class Program
                 .GetAwaiter().GetResult();
         }
         var options = CliOptions.Parse(args.Skip(1).ToArray());
+        if (command == "behavior-migration-preview")
+        {
+            if (string.IsNullOrWhiteSpace(options.ProjectPath) ||
+                string.IsNullOrWhiteSpace(options.OutputPath))
+                throw new InvalidOperationException(
+                    "behavior-migration-preview requires --project <project.sagaproj> and --out <plan.json>.");
+            var plan = BehaviorIdentityMigration.Preview(options.ProjectPath);
+            ManifestWriter.WriteJson(options.OutputPath, plan);
+            if (options.Json) ManifestWriter.PrintJson(plan);
+            return plan.Status == "Planned" ? 0 : 1;
+        }
+        if (command == "behavior-migration-apply")
+        {
+            if (string.IsNullOrWhiteSpace(options.PatchRequestPath) ||
+                string.IsNullOrWhiteSpace(options.OutputPath))
+                throw new InvalidOperationException(
+                    "behavior-migration-apply requires --request <plan.json> and --out <report.json>.");
+            var report = BehaviorIdentityMigration.Apply(
+                options.PatchRequestPath, options.CancellationPath);
+            ManifestWriter.WriteJson(options.OutputPath, report);
+            if (options.Json) ManifestWriter.PrintJson(report);
+            return 0;
+        }
         if (command == "module-usage")
         {
             if (string.IsNullOrWhiteSpace(options.PatchRequestPath) ||
@@ -103,7 +126,10 @@ internal static class Program
 
     private static bool RequiresSource(string command)
     {
-        return command is not ("module-usage" or "language-service" or "plan-block-edit" or "apply-block-edit" or "patch-review" or "patch-rollback" or "validate-artifacts");
+        return command is not ("module-usage" or "language-service" or
+            "behavior-migration-preview" or "behavior-migration-apply" or
+            "plan-block-edit" or "apply-block-edit" or "patch-review" or
+            "patch-rollback" or "validate-artifacts");
     }
 
     private static int RunSagaWeaverCommand(
@@ -580,6 +606,8 @@ internal static class Program
         Console.WriteLine("  worker --request <worker-request-v1.json> --result <worker-result-v1.json> --progress <progress.ndjson>");
         Console.WriteLine("  language-service --stdio");
         Console.WriteLine("  module-usage --request <module-usage-request-v1.json> --out <report.json> [--json]");
+        Console.WriteLine("  behavior-migration-preview --project <project.sagaproj> --out <plan.json> [--json]");
+        Console.WriteLine("  behavior-migration-apply --request <plan.json> --out <report.json> [--cancellation <file>] [--json]");
         Console.WriteLine("  plan-block-edit --projection <visual_blocks_projection_v1.json> --operation <operation.json> --out <file> [--json]");
         Console.WriteLine("  apply-block-edit --evaluation <block_patch_evaluation_v1.json> --source-root <path> --out <dir> [--json]");
         Console.WriteLine("  extract-nodes --source <file-or-dir> --out <dir> [--json]");
@@ -614,6 +642,7 @@ internal sealed class CliOptions
     public string Decision { get; private set; } = "";
     public string Reviewer { get; private set; } = "";
     public string ProjectPath { get; private set; } = "";
+    public string CancellationPath { get; private set; } = "";
     public bool Strict { get; private set; }
     public bool Json { get; private set; }
 
@@ -685,6 +714,9 @@ internal sealed class CliOptions
                     break;
                 case "--reviewer":
                     options.Reviewer = RequireValue(args, ref i, "--reviewer");
+                    break;
+                case "--cancellation":
+                    options.CancellationPath = RequireValue(args, ref i, "--cancellation");
                     break;
                 case "--strict":
                     options.Strict = true;

@@ -453,6 +453,30 @@ internal static class ProjectWorker
                 }
                 if (!derives) continue;
                 var declaringType = typeSymbol.ToDisplayString();
+                var moduleAttributes = typeSymbol.GetAttributes().Where(attribute =>
+                    attribute.AttributeClass?.ToDisplayString() ==
+                        "SagaEngine.Scripting.SagaBehaviorModuleAttribute").ToArray();
+                var behaviorModuleId = "";
+                if (moduleAttributes.Length > 1)
+                {
+                    diagnostics.Add(Error("Script.Worker.BehaviorModuleAttributeDuplicate", relative,
+                        "SagaBehaviorModule may be declared only once per behavior class."));
+                }
+                else if (moduleAttributes.Length == 1)
+                {
+                    var attribute = moduleAttributes[0];
+                    behaviorModuleId = attribute.ConstructorArguments.Length == 1 &&
+                        attribute.ConstructorArguments[0].Value is string value ? value : "";
+                    if (!ValidBehaviorModuleId(behaviorModuleId))
+                    {
+                        diagnostics.Add(Error("Script.Worker.BehaviorModuleIdInvalid", relative,
+                            "[SagaBehaviorModule] requires a lowercase behavior:// URI identity."));
+                        behaviorModuleId = "";
+                    }
+                }
+                var behaviorId = behaviorModuleId.Length > 0 ? behaviorModuleId : declaringType;
+                var identityKind = behaviorModuleId.Length > 0
+                    ? "CanonicalModuleMetadata" : "LegacyCSharpTypeIdentity";
                 var declaredMethods = type.Members.OfType<MethodDeclarationSyntax>()
                     .Select(method => (Syntax: method, Symbol: model.GetDeclaredSymbol(method) as IMethodSymbol))
                     .Where(item => item.Symbol is not null)
@@ -502,7 +526,7 @@ internal static class ProjectWorker
                             var key = arguments.Count > 0 && model.GetConstantValue(arguments[0].Expression) is { HasValue: true, Value: string value }
                                 ? value : "";
                             return new WorkerProjectionStep(
-                                $"state://{declaringType}/{actionId}/{index}", "StateMutation", "set boolean state",
+                            $"state://{behaviorId}/{actionId}/{index}", "StateMutation", "set boolean state",
                                 key, Span(text, tree, invocation));
                         }).Where(step => step.StateKey.Length > 0).ToArray();
                     actions.Add(new WorkerAction(actionId, method.Identifier.ValueText,
@@ -665,7 +689,8 @@ internal static class ProjectWorker
                     capabilities.Add("Gameplay.Entity.Active");
                 if (runtimeRequests.Count > 0)
                     capabilities.Add("Runtime.Exit");
-                behaviors.Add(new WorkerBehavior(declaringType, declaringType, relative,
+                behaviors.Add(new WorkerBehavior(behaviorId, behaviorModuleId, declaringType,
+                    identityKind, "csharp", declaringType, relative,
                     sourceHashes[relative], Span(text, tree, type), lifecycle,
                     actions.OrderBy(item => item.ActionId, StringComparer.Ordinal).ToArray(),
                     capabilities.ToArray(), stateAccesses.Select(item =>
@@ -681,6 +706,16 @@ internal static class ProjectWorker
             diagnostics.Add(Error("Script.Worker.BehaviorMissing", "sources", "No SagaBehavior-derived class was found."));
         foreach (var duplicate in behaviors.GroupBy(item => item.BehaviorId, StringComparer.Ordinal).Where(group => group.Count() > 1))
             diagnostics.Add(Error("Script.Worker.BehaviorDuplicate", duplicate.Key, "Behavior identities must be unique."));
+        foreach (var duplicate in behaviors.Where(item => item.BehaviorModuleId.Length > 0)
+                     .GroupBy(item => item.BehaviorModuleId, StringComparer.Ordinal)
+                     .Where(group => group.Count() > 1))
+            diagnostics.Add(Error("Script.Worker.BehaviorModuleIdDuplicate", duplicate.Key,
+                "Stable behavior module identities must be unique."));
+        var sourceSymbols = behaviors.Select(item => item.SourceSymbolId).ToHashSet(StringComparer.Ordinal);
+        foreach (var behavior in behaviors.Where(item => item.BehaviorModuleId.Length > 0 &&
+                     sourceSymbols.Contains(item.BehaviorModuleId)))
+            diagnostics.Add(Error("Script.Worker.BehaviorIdentityAliasConflict", behavior.BehaviorModuleId,
+                "A stable behavior module id must not alias a C# source symbol identity."));
         foreach (var duplicate in behaviors.SelectMany(item => item.Actions.Select(action => action.ActionId))
                      .GroupBy(item => item, StringComparer.Ordinal).Where(group => group.Count() > 1))
             diagnostics.Add(Error("Script.Worker.ActionDuplicate", duplicate.Key, "Named action identities must be unique."));
@@ -692,6 +727,7 @@ internal static class ProjectWorker
     {
         if (selection.Project.Manifest is null) return;
         var byId = behaviors.ToDictionary(item => item.BehaviorId, StringComparer.Ordinal);
+        var bySourceSymbol = behaviors.ToDictionary(item => item.SourceSymbolId, StringComparer.Ordinal);
         foreach (var scene in selection.Project.Manifest.Scenes.OrderBy(item => item.Id, StringComparer.Ordinal))
         {
             try
@@ -700,14 +736,29 @@ internal static class ProjectWorker
                 var root = document.RootElement;
                 if (root.TryGetProperty("entities", out var entities))
                 {
-                    foreach (var component in entities.EnumerateArray()
-                                 .SelectMany(entity => entity.GetProperty("components").EnumerateArray())
-                                 .Where(component => component.GetProperty("type").GetString() == "ScriptBehavior"))
+                    var components = entities.EnumerateArray()
+                        .SelectMany(entity => entity.GetProperty("components").EnumerateArray()).ToArray();
+                    var attachmentIds = new HashSet<string>(StringComparer.Ordinal);
+                    foreach (var component in components.Where(component =>
+                                 component.GetProperty("type").GetString() == "BehaviorAttachment"))
                     {
-                        var behaviorId = component.GetProperty("behaviorTypeId").GetString() ?? "";
-                        if (!byId.ContainsKey(behaviorId))
+                        var behaviorId = component.GetProperty("behaviorModuleId").GetString() ?? "";
+                        var attachmentId = component.GetProperty("attachmentId").GetString() ?? "";
+                        if (!attachmentIds.Add(attachmentId))
+                            diagnostics.Add(Error("Script.Worker.SceneAttachmentDuplicate", scene.Path,
+                                $"Scene contains duplicate attachment '{attachmentId}'."));
+                        if (!byId.TryGetValue(behaviorId, out var behavior) ||
+                            behavior.BehaviorModuleId.Length == 0)
                             diagnostics.Add(Error("Script.Worker.SceneBehaviorMissing", scene.Path,
-                                $"Scene references missing behavior '{behaviorId}'."));
+                                $"Scene references missing canonical behavior module '{behaviorId}'."));
+                    }
+                    foreach (var component in components.Where(component =>
+                                 component.GetProperty("type").GetString() == "ScriptBehavior"))
+                    {
+                        var sourceSymbolId = component.GetProperty("behaviorTypeId").GetString() ?? "";
+                        if (!bySourceSymbol.ContainsKey(sourceSymbolId))
+                            diagnostics.Add(Error("Script.Worker.SceneLegacyBehaviorMissing", scene.Path,
+                                $"Legacy scene reference does not resolve C# type '{sourceSymbolId}'."));
                     }
                 }
                 if (root.TryGetProperty("entities", out var bindingEntities))
@@ -716,9 +767,19 @@ internal static class ProjectWorker
                                  .SelectMany(entity => entity.GetProperty("components").EnumerateArray())
                                  .Where(component => component.GetProperty("type").GetString() == "ScriptActionBinding"))
                     {
-                        var behaviorId = binding.GetProperty("behaviorTypeId").GetString() ?? "";
+                        var isCanonical = binding.TryGetProperty("behaviorModuleId", out var moduleValue);
+                        if (isCanonical && binding.TryGetProperty("behaviorTypeId", out _))
+                        {
+                            diagnostics.Add(Error("Script.Worker.SceneBindingIdentityAmbiguous", scene.Path,
+                                "A scene binding cannot contain both behaviorModuleId and behaviorTypeId."));
+                            continue;
+                        }
+                        var behaviorId = isCanonical ? moduleValue.GetString() ?? "" :
+                            binding.GetProperty("behaviorTypeId").GetString() ?? "";
                         var actionId = binding.GetProperty("namedActionId").GetString() ?? "";
-                        if (!byId.TryGetValue(behaviorId, out var behavior) ||
+                        var found = isCanonical ? byId.TryGetValue(behaviorId, out var behavior) :
+                            bySourceSymbol.TryGetValue(behaviorId, out behavior);
+                        if (!found || behavior is null ||
                             !behavior.Actions.Any(action => action.ActionId == actionId))
                         {
                             diagnostics.Add(Error("Script.Worker.SceneActionMissing", scene.Path,
@@ -927,6 +988,18 @@ internal static class ProjectWorker
     private static bool DerivesFromSagaBehavior(ClassDeclarationSyntax type) =>
         type.BaseList?.Types.Any(item => item.Type.ToString() is "SagaBehavior" or "SagaEngine.Scripting.SagaBehavior" ||
             item.Type.ToString().EndsWith(".SagaBehavior", StringComparison.Ordinal)) == true;
+
+    private static bool ValidBehaviorModuleId(string value)
+    {
+        const string prefix = "behavior://";
+        if (!value.StartsWith(prefix, StringComparison.Ordinal) || value.Length <= prefix.Length ||
+            value.Any(char.IsWhiteSpace) || value.Any(char.IsUpper)) return false;
+        var body = value[prefix.Length..];
+        var segments = body.Split('/');
+        return segments.Length >= 2 && segments.All(segment => segment.Length > 0 &&
+            segment[0] is >= 'a' and <= 'z' or >= '0' and <= '9' &&
+            segment.All(ch => ch is >= 'a' and <= 'z' or >= '0' and <= '9' or '-' or '_' or '.'));
+    }
 
     private static string AttributeName(AttributeSyntax attribute)
     {
