@@ -9,6 +9,12 @@ reviewed_against: 0.0.11-post-cutover
 
 C# source is the behavior source of truth. Visual Blocks are an editor projection and authoring surface over that source. They do not define an independent behavior graph, bytecode format, or second runtime virtual machine.
 
+C# is the current first-class backend behind a language-neutral behavior contract.
+`[SagaBehaviorModule("behavior://...")]` owns the stable logical module identity;
+the C# fully qualified type and project-relative source path remain separate backend
+source identities. Renaming a type, namespace, or file therefore does not rename an
+authored behavior module. No additional scripting language or runtime VM is implied.
+
 ## Many views, one behavior
 
 Block definitions, instances, stacks, slots, snap rules, and block IR support bounded authoring. Compiled assemblies and binding manifests belong to the scripting tool/runtime path. Their authority is bounded:
@@ -41,6 +47,11 @@ The production `Code Box` presents canonical `C#` and
 `Blocks — Read-only projection` tabs. The read-only label is a product contract:
 the current Blocks view can navigate and explain analyzed source, but it cannot
 mutate C#.
+
+Code Box capability routing is explicit by module language. The C# backend supplies
+source editing, diagnostics, navigation, projection, and controlled-edit services.
+An unknown or unavailable language produces an unavailable view and never falls back
+silently to C#.
 
 The public `VisualBlocksEditor` surface is intentionally limited to `SagaEditor/VisualBlocks/Blocks/**`. Compiler, debugger, editor, graph, import, node, pin, type-system, evaluation, and runtime-host placeholder surfaces are not public contracts. Product integration emits read-only descriptor/evidence data from private implementation.
 
