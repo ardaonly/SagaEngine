@@ -211,6 +211,55 @@ testing::AssertionResult MaterializeArenaRushProject(
     return testing::AssertionSuccess();
 }
 
+testing::AssertionResult MaterializeStarterArenaProject(
+    const std::filesystem::path& projectRoot)
+{
+    std::error_code error;
+    std::filesystem::remove_all(projectRoot, error);
+    error.clear();
+    std::filesystem::copy(TestSourceRoot() / "Samples/StarterArena", projectRoot,
+        std::filesystem::copy_options::recursive, error);
+    if (error)
+        return testing::AssertionFailure()
+            << "Starter Arena source materialization failed: " << error.message();
+
+    std::filesystem::remove_all(projectRoot / "Build", error);
+    error.clear();
+    std::filesystem::remove_all(projectRoot / ".saga", error);
+    if (error)
+        return testing::AssertionFailure()
+            << "Starter Arena generated-state cleanup failed: " << error.message();
+
+    const auto project = projectRoot / "StarterArena.sagaproj";
+    const auto lock = projectRoot / "SagaPackage.lock";
+    const auto lockBefore = ReadTextFile(lock);
+    const auto report = projectRoot / "Build/TestSetup/package-generation.json";
+    std::filesystem::create_directories(report.parent_path(), error);
+    if (error)
+        return testing::AssertionFailure()
+            << "Starter Arena test report directory failed: " << error.message();
+    const auto toolchain = SagaEditor::DiscoverScriptAnalysisToolchain();
+    SagaEditor::ToolProcessRequest request;
+    request.timeout = std::chrono::seconds(120);
+    const auto refreshed = SagaEditor::ManagedToolRuntime(toolchain.managedRuntime).Run(
+        SagaEditor::ManagedToolId::Packager,
+        {"generation-refresh", "--project", project.string(), "--engine-root",
+         toolchain.engineRoot.string(), "--lock", lock.string(), "--generated-out",
+         (projectRoot / "Build/Packages").string(), "--runtime-bridge",
+         toolchain.runtimeBridge.string(), "--out", report.string()},
+        std::move(request));
+    if (!refreshed.Succeeded())
+        return testing::AssertionFailure()
+            << "Starter Arena package generation failed: "
+            << refreshed.process.diagnosticCode << ": "
+            << refreshed.process.diagnosticMessage << '\n'
+            << refreshed.process.standardError;
+    if (ReadTextFile(lock) != lockBefore)
+        return testing::AssertionFailure()
+            << "Package generation mutated the tracked Starter Arena lock.";
+    return testing::AssertionSuccess();
+}
+
 nlohmann::json RunAuthoredArenaRush(const std::filesystem::path& root,
                                     std::string session, int targetProgress)
 {
@@ -219,8 +268,9 @@ nlohmann::json RunAuthoredArenaRush(const std::filesystem::path& root,
     auto scene = nlohmann::json::parse(input); bool configured = false;
     for (auto& entity : scene["entities"])
         for (auto& component : entity["components"])
-            if (component.value("type", std::string{}) == "ScriptBehavior" &&
-                component.value("behaviorTypeId", std::string{}) == "ArenaRush.ArenaRushGameMode")
+            if (component.value("type", std::string{}) == "BehaviorAttachment" &&
+                component.value("behaviorModuleId", std::string{}) ==
+                    "behavior://arena-rush/game-mode")
             {
                 component["instanceConfiguration"]["targetProgress"] = targetProgress;
                 configured = true;
@@ -239,6 +289,48 @@ nlohmann::json RunAuthoredArenaRush(const std::filesystem::path& root,
     request.arguments = {"--play-envelope", prepared.localEnvelopePath.string(),
                          "--headless", "--smoke-interactions"};
     request.workingDirectory = prepared.buildRoot; request.inheritEnvironment = false;
+    {
+        std::ifstream envelopeInput(prepared.localEnvelopePath, std::ios::binary);
+        const auto envelope = nlohmann::json::parse(envelopeInput);
+        if (envelope.contains("environment") && envelope["environment"].is_object())
+            for (const auto& [name, value] : envelope["environment"].items())
+                if (value.is_string()) request.environment[name] = value.get<std::string>();
+        for (const char* name : {"DISPLAY", "WAYLAND_DISPLAY", "XAUTHORITY",
+                                 "XDG_RUNTIME_DIR", "DOTNET_ROOT", "LD_LIBRARY_PATH"})
+            if (const char* value = std::getenv(name); value && *value)
+                request.environment[name] = value;
+        const auto managedRoot = std::filesystem::path(SAGA_BUILD_ROOT) /
+            "ManagedToolRuntime/runtime/dotnet";
+        request.environment["DOTNET_ROOT"] = managedRoot.string();
+        request.environment["DOTNET_ROOT_X64"] = managedRoot.string();
+        request.environment["DOTNET_SYSTEM_GLOBALIZATION_INVARIANT"] = "1";
+    }
+    request.timeout = std::chrono::seconds(60);
+    const auto process = SagaEditor::ToolProcessRunner{}.Run(request);
+    EXPECT_TRUE(process.Succeeded()) << process.diagnosticCode << ": "
+        << process.diagnosticMessage << "\nexit=" << process.exitCode
+        << "\nstdout=" << process.standardOutput << "\nstderr=" << process.standardError;
+    if (!process.Succeeded() || !std::filesystem::is_regular_file(prepared.resultPath)) return {};
+    std::ifstream result(prepared.resultPath, std::ios::binary);
+    return nlohmann::json::parse(result);
+}
+
+nlohmann::json RunAuthoredStarterArena(const std::filesystem::path& root,
+                                       std::string session)
+{
+    SagaEditor::EditorDocumentWorkspace workspace;
+    EXPECT_TRUE(workspace.OpenProject(root / "StarterArena.sagaproj"));
+    const auto prepared = SagaEditor::PlayPreparationPipeline{}.Prepare(
+        workspace, {std::move(session), RuntimeExecutable(), {}, {}, {}});
+    EXPECT_TRUE(prepared.passed) << (prepared.diagnostics.empty() ? std::string{} :
+        prepared.diagnostics.front().code + ": " + prepared.diagnostics.front().message);
+    if (!prepared.passed) return {};
+    SagaEditor::ToolProcessRequest request;
+    request.executable = RuntimeExecutable();
+    request.arguments = {"--play-envelope", prepared.localEnvelopePath.string(),
+                         "--headless", "--smoke-interactions"};
+    request.workingDirectory = prepared.buildRoot;
+    request.inheritEnvironment = false;
     {
         std::ifstream envelopeInput(prepared.localEnvelopePath, std::ios::binary);
         const auto envelope = nlohmann::json::parse(envelopeInput);

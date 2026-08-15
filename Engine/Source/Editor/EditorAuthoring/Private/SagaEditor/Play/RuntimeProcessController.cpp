@@ -31,7 +31,8 @@ std::map<std::string, std::string> ReadEnvelopeEnvironment(
         for (const auto& [name, value] : root["environment"].items())
             if (value.is_string()) result.emplace(name, value.get<std::string>());
     for (const char* name : {"DISPLAY", "WAYLAND_DISPLAY", "XAUTHORITY", "XDG_RUNTIME_DIR",
-                             "DOTNET_ROOT", "LD_LIBRARY_PATH"})
+                             "DOTNET_ROOT", "DOTNET_ROOT_X64",
+                             "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT", "LD_LIBRARY_PATH"})
         if (const char* value = std::getenv(name); value && *value) result[name] = value;
     return result;
 }
