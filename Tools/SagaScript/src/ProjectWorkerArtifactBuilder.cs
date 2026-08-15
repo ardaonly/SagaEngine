@@ -39,13 +39,44 @@ internal static class ProjectWorkerArtifactBuilder
             compilerVersion = typeof(CSharpCompilation).Assembly.GetName().Version?.ToString() ?? "unknown",
         };
         var artifacts = new List<StagedWorkerArtifact>();
-        artifacts.Add(JsonArtifact("scripts.behaviors", "behaviorManifest", "behavior_manifest_v3.json", new
+        artifacts.Add(JsonArtifact("scripts.behaviors", "behaviorManifest", "behavior_manifest_v4.json", new
         {
-            schemaVersion = 3, common.projectId, common.projectHash, common.sourceRevision,
+            schemaVersion = 4, common.projectId, common.projectHash, common.sourceRevision,
             common.sourceSetHash, common.packageGenerationId, common.packageGenerationHash,
             common.packageGenerationManifestHash, common.packageGraphHash, common.apiSurfaceManifestHash,
             common.ownershipCatalogHash,
             common.tool, common.toolVersion, common.analyzerVersion, common.compilerVersion, behaviors,
+            diagnostics = Array.Empty<object>(),
+        }));
+        artifacts.Add(JsonArtifact("behavior.modules", "behaviorModuleCatalog", "behavior_modules_v1.json", new
+        {
+            schemaVersion = 1, common.projectId, common.projectHash, common.sourceRevision,
+            common.sourceSetHash, common.packageGenerationId, common.packageGenerationHash,
+            common.packageGenerationManifestHash, common.packageGraphHash,
+            common.apiSurfaceManifestHash, common.ownershipCatalogHash,
+            modules = behaviors.Where(item => item.BehaviorModuleId.Length > 0).Select(item => new
+            {
+                behaviorModuleId = item.BehaviorModuleId,
+                language = "csharp",
+                sourceIdentity = new
+                {
+                    sourceSymbolId = item.SourceSymbolId,
+                    sourcePath = item.SourceFile,
+                    identityKind = item.IdentityKind,
+                },
+                projectId = common.projectId,
+                ownership = new { kind = "project", ownerId = common.projectId },
+                packageGenerationId = common.packageGenerationId,
+                sourceInventory = new[] { item.SourceFile },
+                requestedCapabilities = item.Capabilities,
+            }).OrderBy(item => item.behaviorModuleId, StringComparer.Ordinal).ToArray(),
+            legacySources = behaviors.Where(item => item.BehaviorModuleId.Length == 0).Select(item => new
+            {
+                language = "csharp",
+                sourceSymbolId = item.SourceSymbolId,
+                sourcePath = item.SourceFile,
+                identityKind = item.IdentityKind,
+            }).OrderBy(item => item.sourceSymbolId, StringComparer.Ordinal).ToArray(),
             diagnostics = Array.Empty<object>(),
         }));
         var actions = behaviors.SelectMany(behavior => behavior.Actions.Select(action => new
@@ -75,6 +106,27 @@ internal static class ProjectWorkerArtifactBuilder
             common.packageGraphHash, common.apiSurfaceManifestHash, common.ownershipCatalogHash,
             common.tool, common.toolVersion,
             common.analyzerVersion, capabilities, diagnostics = Array.Empty<object>(),
+        }));
+        var languageSurface = allowedApis.Select(item =>
+            JsonSerializer.SerializeToElement(item, CanonicalJson.SerializerOptions))
+            .Select(api => new
+            {
+                operationId = (api.GetProperty("surfaceId").GetString() ?? "") + "/" +
+                    (api.GetProperty("apiId").GetString() ?? ""),
+                apiId = api.GetProperty("apiId").GetString() ?? "",
+                packageId = api.GetProperty("packageId").GetString() ?? "",
+                module = api.GetProperty("module").GetString() ?? "",
+                apiLevel = (api.GetProperty("module").GetString() ?? "").Contains(
+                    "highlevel", StringComparison.Ordinal) ? "High" : "Low",
+                csharp = true,
+                blocks = api.GetProperty("blockProjection").GetString() == "Supported",
+            }).OrderBy(item => item.operationId, StringComparer.Ordinal).ToArray();
+        artifacts.Add(JsonArtifact("behavior.language-surface", "behaviorLanguageSurfaceCatalog",
+            "behavior_language_surface_v1.json", new
+        {
+            schemaVersion = 1, common.projectId, common.packageGenerationId,
+            common.packageGenerationHash, common.apiSurfaceManifestHash,
+            operations = languageSurface, diagnostics = Array.Empty<object>(),
         }));
         artifacts.Add(JsonArtifact("scripts.source-map", "sourceMap", "source_map_v1.json", new
         {
@@ -160,7 +212,7 @@ internal static class ProjectWorkerArtifactBuilder
         var runtimeConfig = BinaryArtifact("scripts.runtime-config", "runtimeConfig", Path.GetFileName(runtimeConfigPath), File.ReadAllBytes(runtimeConfigPath));
         artifacts.Add(assembly);
         artifacts.Add(runtimeConfig);
-        artifacts.Add(JsonArtifact("scripts.assembly-manifest", "assemblyManifest", "assembly_manifest_v1.json", new
+        var assemblyManifest = JsonArtifact("scripts.assembly-manifest", "assemblyManifest", "assembly_manifest_v1.json", new
         {
             common.schemaVersion, common.projectId, common.projectHash, common.sourceRevision,
             common.sourceSetHash, common.packageGenerationId, common.packageGenerationHash,
@@ -177,6 +229,32 @@ internal static class ProjectWorkerArtifactBuilder
             runtimeBridgeHash = request.RuntimeBridge.AssemblyHash,
             runtimeCompatibility = request.RuntimeBridge.RuntimeCompatibility,
             trust = request.RuntimeBridge.Trust, diagnostics = Array.Empty<object>(),
+        });
+        artifacts.Add(assemblyManifest);
+        artifacts.Add(JsonArtifact("behavior.artifacts", "behaviorArtifactCatalog", "behavior_artifacts_v1.json", new
+        {
+            schemaVersion = 1, common.projectId, common.projectHash, common.sourceRevision,
+            common.sourceSetHash, common.packageGenerationId, common.packageGenerationHash,
+            artifacts = new[]
+            {
+                new
+                {
+                    artifactId = "artifact://sha256/" + assembly.ArtifactHash["sha256:".Length..],
+                    language = "csharp",
+                    format = "saga.csharp.assembly-generation.v1",
+                    artifactHash = assembly.ArtifactHash,
+                    packageGenerationId = common.packageGenerationId,
+                    payloadArtifacts = new[]
+                    {
+                        new { artifactId = assembly.ArtifactId, kind = assembly.Kind, hash = assembly.ArtifactHash },
+                        new { artifactId = assemblyManifest.ArtifactId, kind = assemblyManifest.Kind, hash = assemblyManifest.ArtifactHash },
+                        new { artifactId = runtimeConfig.ArtifactId, kind = runtimeConfig.Kind, hash = runtimeConfig.ArtifactHash },
+                    }.OrderBy(item => item.artifactId, StringComparer.Ordinal).ToArray(),
+                    behaviorModuleIds = behaviors.Where(item => item.BehaviorModuleId.Length > 0)
+                        .Select(item => item.BehaviorModuleId).Order(StringComparer.Ordinal).ToArray(),
+                },
+            },
+            diagnostics = Array.Empty<object>(),
         }));
         return artifacts.OrderBy(item => item.ArtifactId, StringComparer.Ordinal).ToArray();
     }
@@ -185,7 +263,7 @@ internal static class ProjectWorkerArtifactBuilder
         IReadOnlyList<WorkerSourceInput> sources, IReadOnlyList<WorkerBehavior> behaviors)
     {
         const string behaviorId = "ArenaRush.ArenaRushGameMode";
-        var behavior = behaviors.SingleOrDefault(item => item.BehaviorId == behaviorId);
+        var behavior = behaviors.SingleOrDefault(item => item.SourceSymbolId == behaviorId);
         if (behavior is null) return [];
         var source = sources.SingleOrDefault(item => item.Path == behavior.SourceFile);
         if (source is null) return [];

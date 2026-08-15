@@ -4,6 +4,7 @@ using SagaEngine.Scripting;
 
 namespace StarterArena;
 
+[SagaBehaviorModule("behavior://starter-arena/door-controller")]
 public sealed class DoorController : SagaBehavior
 {
     private const float ClosedHeight = 1.0f;

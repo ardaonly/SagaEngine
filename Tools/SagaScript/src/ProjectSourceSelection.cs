@@ -18,7 +18,15 @@ internal sealed record ProjectSourceSelection(string ProjectRoot, ProjectLoadRes
             throw new InvalidOperationException("Project validation failed: " + message);
         }
 
-        var sources = project.Manifest.ScriptFolders
+        var scriptFolders = project.Manifest.ScriptFolders;
+        var missingKinds = scriptFolders.Count(item => string.IsNullOrWhiteSpace(item.Kind));
+        if (scriptFolders.Any(item => item.Kind.Length > 0 && item.Kind != "csharp"))
+            throw new InvalidOperationException(
+                "Project contains an unknown or unavailable script-folder language; no C# fallback is allowed.");
+        if (missingKinds > 0 && (scriptFolders.Count != 1 || missingKinds != 1))
+            throw new InvalidOperationException(
+                "Schema-0 script folders without kind are ambiguous; declare kind 'csharp' explicitly.");
+        var sources = scriptFolders
             .OrderBy(item => item.Id, StringComparer.Ordinal)
             .Select(item => Path.Combine(project.ProjectRoot, item.Path))
             .SelectMany(path => SourceDiscovery.Discover([path]))
