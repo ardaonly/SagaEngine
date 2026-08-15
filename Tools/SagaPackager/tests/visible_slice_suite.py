@@ -99,7 +99,7 @@ def test_runtime_ui_set_is_deterministic_and_strict() -> None:
         ui = artifact(first, "starter-arena.hud")
         payload = ui["payload"]
         assert ui["artifactType"] == "runtime.ui-set" and ui["schemaVersion"] == 1
-        assert payload["prompts"] == [{"actionId": "Interact", "behaviorId": "StarterArena.DoorController",
+        assert payload["prompts"] == [{"actionId": "Interact", "behaviorId": "behavior://starter-arena/door-controller",
             "elementId": "interaction-prompt", "entityId": "door-root", "falseLabel": "Open Door",
             "stateKey": "door.target-open", "trueLabel": "Close Door", "visibility": "Always"}]
         for collection in ("documents", "stylesheets", "fonts"):

@@ -11,8 +11,9 @@
       "components": [
         { "position": [0, 0, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" },
         {
-          "authoringSource": "Scripts/ArenaRushGameMode.cs",
-          "behaviorTypeId": "ArenaRush.ArenaRushGameMode",
+          "attachmentId": "attachment://arena-rush/game-mode",
+          "behaviorModuleId": "behavior://arena-rush/game-mode",
+          "enabled": true,
           "instanceConfiguration": {
             "activeCollectibleCount": 5,
             "challengeDurationSeconds": 60,
@@ -27,7 +28,7 @@
             "Runtime.Exit",
             "World.Transform.ReadWrite"
           ],
-          "type": "ScriptBehavior"
+          "type": "BehaviorAttachment"
         }
       ],
       "entityId": "game-mode",
@@ -37,7 +38,7 @@
     {
       "components": [
         { "position": [0, 0, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" },
-        { "behaviorTypeId": "ArenaRush.ArenaRushGameMode", "inputActionId": "Exit", "namedActionId": "Exit", "type": "ScriptActionBinding" }
+        { "behaviorModuleId": "behavior://arena-rush/game-mode", "inputActionId": "Exit", "namedActionId": "Exit", "targetAttachmentId": "attachment://arena-rush/game-mode", "type": "ScriptActionBinding" }
       ],
       "entityId": "game-mode-exit-binding",
       "name": "Exit Action Binding",
@@ -46,7 +47,7 @@
     {
       "components": [
         { "position": [0, 0, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" },
-        { "behaviorTypeId": "ArenaRush.ArenaRushGameMode", "inputActionId": "Restart", "namedActionId": "Restart", "type": "ScriptActionBinding" }
+        { "behaviorModuleId": "behavior://arena-rush/game-mode", "inputActionId": "Restart", "namedActionId": "Restart", "targetAttachmentId": "attachment://arena-rush/game-mode", "type": "ScriptActionBinding" }
       ],
       "entityId": "game-mode-restart-binding",
       "name": "Restart Action Binding",
@@ -55,7 +56,7 @@
     {
       "components": [
         { "position": [0, 0, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" },
-        { "behaviorTypeId": "ArenaRush.ArenaRushGameMode", "inputActionId": "StartChallenge", "namedActionId": "StartChallenge", "type": "ScriptActionBinding" }
+        { "behaviorModuleId": "behavior://arena-rush/game-mode", "inputActionId": "StartChallenge", "namedActionId": "StartChallenge", "targetAttachmentId": "attachment://arena-rush/game-mode", "type": "ScriptActionBinding" }
       ],
       "entityId": "game-mode-start-binding",
       "name": "Start Challenge Action Binding",
@@ -64,7 +65,7 @@
     {
       "components": [
         { "position": [0, 0, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" },
-        { "behaviorTypeId": "ArenaRush.ArenaRushGameMode", "inputActionId": "Resume", "namedActionId": "Resume", "type": "ScriptActionBinding" }
+        { "behaviorModuleId": "behavior://arena-rush/game-mode", "inputActionId": "Resume", "namedActionId": "Resume", "targetAttachmentId": "attachment://arena-rush/game-mode", "type": "ScriptActionBinding" }
       ],
       "entityId": "game-mode-resume-binding",
       "name": "Resume Action Binding",
@@ -74,11 +75,12 @@
       "components": [
         { "position": [0, 0, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" },
         {
-          "behaviorTypeId": "ArenaRush.ArenaRushGameMode",
+          "behaviorModuleId": "behavior://arena-rush/game-mode",
           "eventType": "FocusLost",
           "namedActionId": "FocusLost",
           "sourceEntityId": "game-mode-focus-binding",
           "targetEntityId": "game-mode",
+          "targetAttachmentId": "attachment://arena-rush/game-mode",
           "type": "ScriptEventBinding"
         }
       ],
@@ -145,11 +147,12 @@
         { "position": [0, 0.75, -7.5], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" },
         { "acceptedCategory": "Player", "bounds": [3, 1.5, 2], "enabled": true, "type": "TriggerVolume" },
         {
-          "behaviorTypeId": "ArenaRush.ArenaRushGameMode",
+          "behaviorModuleId": "behavior://arena-rush/game-mode",
           "eventType": "TriggerEnter",
           "namedActionId": "EnterChallengeStartVolume",
           "sourceEntityId": "challenge-start-marker",
           "targetEntityId": "game-mode",
+          "targetAttachmentId": "attachment://arena-rush/game-mode",
           "type": "ScriptEventBinding"
         }
       ],
@@ -173,11 +176,12 @@
         { "materialAssetId": "arena-rush.core.material", "meshAssetId": "arena-rush.core.mesh", "type": "MeshRenderer" },
         { "acceptedCategory": "Player", "bounds": [1, 1, 1], "enabled": true, "type": "TriggerVolume" },
         {
-          "behaviorTypeId": "ArenaRush.ArenaRushGameMode",
+          "behaviorModuleId": "behavior://arena-rush/game-mode",
           "eventType": "TriggerEnter",
           "namedActionId": "CollectCore01",
           "sourceEntityId": "core-01",
           "targetEntityId": "game-mode",
+          "targetAttachmentId": "attachment://arena-rush/game-mode",
           "type": "ScriptEventBinding"
         }
       ],
@@ -190,7 +194,7 @@
         { "position": [6, 0.7, -4], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" },
         { "materialAssetId": "arena-rush.core.material", "meshAssetId": "arena-rush.core.mesh", "type": "MeshRenderer" },
         { "acceptedCategory": "Player", "bounds": [1, 1, 1], "enabled": true, "type": "TriggerVolume" },
-        { "behaviorTypeId": "ArenaRush.ArenaRushGameMode", "eventType": "TriggerEnter", "namedActionId": "CollectCore02", "sourceEntityId": "core-02", "targetEntityId": "game-mode", "type": "ScriptEventBinding" }
+        { "behaviorModuleId": "behavior://arena-rush/game-mode", "eventType": "TriggerEnter", "namedActionId": "CollectCore02", "sourceEntityId": "core-02", "targetAttachmentId": "attachment://arena-rush/game-mode", "targetEntityId": "game-mode", "type": "ScriptEventBinding" }
       ],
       "entityId": "core-02",
       "name": "Energy Core 02",
@@ -201,7 +205,7 @@
         { "position": [-6, 0.7, 4], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" },
         { "materialAssetId": "arena-rush.core.material", "meshAssetId": "arena-rush.core.mesh", "type": "MeshRenderer" },
         { "acceptedCategory": "Player", "bounds": [1, 1, 1], "enabled": true, "type": "TriggerVolume" },
-        { "behaviorTypeId": "ArenaRush.ArenaRushGameMode", "eventType": "TriggerEnter", "namedActionId": "CollectCore03", "sourceEntityId": "core-03", "targetEntityId": "game-mode", "type": "ScriptEventBinding" }
+        { "behaviorModuleId": "behavior://arena-rush/game-mode", "eventType": "TriggerEnter", "namedActionId": "CollectCore03", "sourceEntityId": "core-03", "targetAttachmentId": "attachment://arena-rush/game-mode", "targetEntityId": "game-mode", "type": "ScriptEventBinding" }
       ],
       "entityId": "core-03",
       "name": "Energy Core 03",
@@ -212,7 +216,7 @@
         { "position": [6, 0.7, 4], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" },
         { "materialAssetId": "arena-rush.core.material", "meshAssetId": "arena-rush.core.mesh", "type": "MeshRenderer" },
         { "acceptedCategory": "Player", "bounds": [1, 1, 1], "enabled": true, "type": "TriggerVolume" },
-        { "behaviorTypeId": "ArenaRush.ArenaRushGameMode", "eventType": "TriggerEnter", "namedActionId": "CollectCore04", "sourceEntityId": "core-04", "targetEntityId": "game-mode", "type": "ScriptEventBinding" }
+        { "behaviorModuleId": "behavior://arena-rush/game-mode", "eventType": "TriggerEnter", "namedActionId": "CollectCore04", "sourceEntityId": "core-04", "targetAttachmentId": "attachment://arena-rush/game-mode", "targetEntityId": "game-mode", "type": "ScriptEventBinding" }
       ],
       "entityId": "core-04",
       "name": "Energy Core 04",
@@ -223,7 +227,7 @@
         { "position": [0, 0.7, 6], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" },
         { "materialAssetId": "arena-rush.core.material", "meshAssetId": "arena-rush.core.mesh", "type": "MeshRenderer" },
         { "acceptedCategory": "Player", "bounds": [1, 1, 1], "enabled": true, "type": "TriggerVolume" },
-        { "behaviorTypeId": "ArenaRush.ArenaRushGameMode", "eventType": "TriggerEnter", "namedActionId": "CollectCore05", "sourceEntityId": "core-05", "targetEntityId": "game-mode", "type": "ScriptEventBinding" }
+        { "behaviorModuleId": "behavior://arena-rush/game-mode", "eventType": "TriggerEnter", "namedActionId": "CollectCore05", "sourceEntityId": "core-05", "targetAttachmentId": "attachment://arena-rush/game-mode", "targetEntityId": "game-mode", "type": "ScriptEventBinding" }
       ],
       "entityId": "core-05",
       "name": "Energy Core 05",

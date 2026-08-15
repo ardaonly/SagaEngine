@@ -188,7 +188,8 @@ internal static class ContentCompiler
         AddArtifact(materialArtifact, artifacts, hashes);
     }
 
-    private sealed record SemanticBehavior(string BehaviorTypeId, string SourceFile, string SourceHash,
+    private sealed record SemanticBehavior(string BehaviorModuleId, string SourceSymbolId,
+        string SourceFile, string SourceHash,
         IReadOnlySet<string> Actions, IReadOnlySet<string> Capabilities, string ScriptArtifactLogicalId);
 
     private static void CompileScene(ProjectLoadResult load, SagaProjectKit.Core.ProjectReference reference,
@@ -218,6 +219,8 @@ internal static class ContentCompiler
         var entityIds = new HashSet<string>(StringComparer.Ordinal);
         var parents = new Dictionary<string, string>(StringComparer.Ordinal);
         var eventReferences = new List<(string Source, string Target, string Subject)>();
+        var attachmentIds = new Dictionary<string, string>(StringComparer.Ordinal);
+        var attachmentReferences = new List<(string Attachment, string Module, string Subject)>();
         if (!value.TryGetProperty("entities", out var entityArray) || entityArray.ValueKind != JsonValueKind.Array)
         {
             diagnostics.Add(Error("Scene.Source.EntitiesMissing", path, "Scene entities must be an array."));
@@ -312,50 +315,105 @@ internal static class ContentCompiler
                     case "ScriptBehavior":
                         RejectUnknown(component, entityId + "#ScriptBehavior",
                             ["type", "behaviorTypeId", "authoringSource", "instanceConfiguration", "requiredCapabilities"], diagnostics);
-                        var behaviorTypeId = String(component, "behaviorTypeId", entityId, diagnostics);
-                        var authoringSource = String(component, "authoringSource", entityId, diagnostics);
-                        if (!ProjectLoader.IsProjectRelative(authoringSource) || authoringSource.Contains("..", StringComparison.Ordinal) ||
-                            !File.Exists(Path.Combine(root, authoringSource)))
-                            diagnostics.Add(Error("Scene.Script.Missing", authoringSource, "ScriptBehavior authoring source is missing or unsafe."));
-                        if (!semantic.TryGetValue(behaviorTypeId, out var behavior) || behavior.SourceFile != authoringSource ||
-                            behavior.SourceHash != CanonicalJson.HashFile(Path.Combine(root, authoringSource)))
-                            diagnostics.Add(Error("Scene.Script.SemanticEvidenceMismatch", behaviorTypeId,
-                                "Behavior type and source hash must match verified SagaScript semantic evidence."));
-                        var requiredCapabilities = StringArray(component, "requiredCapabilities", entityId, diagnostics);
-                        if (behavior is not null && requiredCapabilities.Any(item => !behavior.Capabilities.Contains(item)))
-                            diagnostics.Add(Error("Scene.Script.CapabilityMissing", behaviorTypeId,
+                        var legacyTypeId = String(component, "behaviorTypeId", entityId, diagnostics);
+                        var legacySource = String(component, "authoringSource", entityId, diagnostics);
+                        if (!ProjectLoader.IsProjectRelative(legacySource) ||
+                            legacySource.Contains("..", StringComparison.Ordinal) ||
+                            !File.Exists(Path.Combine(root, legacySource)))
+                            diagnostics.Add(Error("Scene.Script.Missing", legacySource,
+                                "Legacy ScriptBehavior authoring source is missing or unsafe."));
+                        if (!semantic.TryGetValue(legacyTypeId, out var legacyBehavior) ||
+                            legacyBehavior.BehaviorModuleId.Length != 0 ||
+                            legacyBehavior.SourceFile != legacySource ||
+                            legacyBehavior.SourceHash != CanonicalJson.HashFile(
+                                Path.Combine(root, legacySource)))
+                            diagnostics.Add(Error("Scene.Script.SemanticEvidenceMismatch", legacyTypeId,
+                                "Legacy type identity must match bounded verified C# semantic evidence."));
+                        var legacyCapabilities = StringArray(
+                            component, "requiredCapabilities", entityId, diagnostics);
+                        if (legacyBehavior is not null && legacyCapabilities.Any(
+                                item => !legacyBehavior.Capabilities.Contains(item)))
+                            diagnostics.Add(Error("Scene.Script.CapabilityMissing", legacyTypeId,
                                 "Required capability is absent from the verified SagaScript manifest."));
-                        if (!component.TryGetProperty("instanceConfiguration", out var configuration) || configuration.ValueKind != JsonValueKind.Object)
-                            diagnostics.Add(Error("Scene.Script.ConfigurationInvalid", behaviorTypeId,
+                        if (!component.TryGetProperty("instanceConfiguration", out var legacyConfiguration) ||
+                            legacyConfiguration.ValueKind != JsonValueKind.Object)
+                            diagnostics.Add(Error("Scene.Script.ConfigurationInvalid", legacyTypeId,
                                 "instanceConfiguration must be an object."));
                         components.Add(new JsonObject
                         {
-                            ["behaviorTypeId"] = behaviorTypeId,
+                            ["behaviorTypeId"] = legacyTypeId,
+                            ["instanceConfiguration"] = legacyConfiguration.ValueKind == JsonValueKind.Object
+                                ? JsonNode.Parse(legacyConfiguration.GetRawText()) : new JsonObject(),
+                            ["requiredCapabilities"] = new JsonArray(legacyCapabilities
+                                .Order(StringComparer.Ordinal).Select(item => JsonValue.Create(item)).ToArray()),
+                            ["scriptArtifactLogicalId"] = legacyBehavior?.ScriptArtifactLogicalId ?? "",
+                            ["type"] = "ScriptBehavior",
+                        });
+                        break;
+                    case "BehaviorAttachment":
+                        RejectUnknown(component, entityId + "#BehaviorAttachment",
+                            ["type", "attachmentId", "behaviorModuleId", "instanceConfiguration", "requiredCapabilities", "enabled"], diagnostics);
+                        var attachmentId = String(component, "attachmentId", entityId, diagnostics);
+                        var behaviorModuleId = String(component, "behaviorModuleId", entityId, diagnostics);
+                        if (!attachmentIds.TryAdd(attachmentId, behaviorModuleId))
+                            diagnostics.Add(Error("Scene.BehaviorAttachment.DuplicateId", attachmentId,
+                                "Behavior attachment identities must be unique in a scene."));
+                        if (!semantic.TryGetValue(behaviorModuleId, out var behavior) ||
+                            behavior.BehaviorModuleId.Length == 0)
+                            diagnostics.Add(Error("Scene.Script.SemanticEvidenceMismatch", behaviorModuleId,
+                                "Behavior module must match canonical verified SagaScript semantic evidence."));
+                        var requiredCapabilities = StringArray(component, "requiredCapabilities", entityId, diagnostics);
+                        if (behavior is not null && requiredCapabilities.Any(item => !behavior.Capabilities.Contains(item)))
+                            diagnostics.Add(Error("Scene.Script.CapabilityMissing", behaviorModuleId,
+                                "Required capability is absent from the verified SagaScript manifest."));
+                        if (!component.TryGetProperty("instanceConfiguration", out var configuration) || configuration.ValueKind != JsonValueKind.Object)
+                            diagnostics.Add(Error("Scene.Script.ConfigurationInvalid", behaviorModuleId,
+                                "instanceConfiguration must be an object."));
+                        var attachmentEnabled = component.TryGetProperty("enabled", out var enabledValue) &&
+                            enabledValue.ValueKind is JsonValueKind.True or JsonValueKind.False
+                            ? enabledValue.GetBoolean() : false;
+                        if (enabledValue.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                            diagnostics.Add(Error("Scene.Script.EnabledInvalid", attachmentId,
+                                "BehaviorAttachment enabled must be boolean."));
+                        components.Add(new JsonObject
+                        {
+                            ["attachmentId"] = attachmentId,
+                            ["behaviorModuleId"] = behaviorModuleId,
+                            ["enabled"] = attachmentEnabled,
                             ["instanceConfiguration"] = configuration.ValueKind == JsonValueKind.Object
                                 ? JsonNode.Parse(configuration.GetRawText()) : new JsonObject(),
                             ["requiredCapabilities"] = new JsonArray(requiredCapabilities.Order(StringComparer.Ordinal)
                                 .Select(item => JsonValue.Create(item)).ToArray()),
                             ["scriptArtifactLogicalId"] = behavior?.ScriptArtifactLogicalId ?? "",
-                            ["type"] = type,
+                            ["type"] = "BehaviorAttachment",
                         });
                         break;
                     case "ScriptActionBinding":
-                        RejectUnknown(component, entityId + "#ScriptActionBinding",
-                            ["type", "inputActionId", "behaviorTypeId", "namedActionId"], diagnostics);
+                        var legacyActionBinding = component.TryGetProperty("behaviorTypeId", out _);
+                        RejectUnknown(component, entityId + "#ScriptActionBinding", legacyActionBinding
+                            ? ["type", "inputActionId", "behaviorTypeId", "namedActionId"]
+                            : ["type", "inputActionId", "behaviorModuleId", "targetAttachmentId", "namedActionId"], diagnostics);
                         var inputActionId = String(component, "inputActionId", entityId, diagnostics);
-                        var bindingBehaviorId = String(component, "behaviorTypeId", entityId, diagnostics);
+                        var bindingBehaviorId = String(component,
+                            legacyActionBinding ? "behaviorTypeId" : "behaviorModuleId", entityId, diagnostics);
+                        var targetAttachmentId = legacyActionBinding ? "" :
+                            String(component, "targetAttachmentId", entityId, diagnostics);
                         var namedActionId = String(component, "namedActionId", entityId, diagnostics);
                         if (!semantic.TryGetValue(bindingBehaviorId, out var bindingBehavior) ||
                             !bindingBehavior.Actions.Contains(namedActionId))
                             diagnostics.Add(Error("Scene.Binding.Unresolved", bindingBehaviorId + "." + namedActionId,
                                 "Named action must exist and be publicly invocable in verified SagaScript semantic evidence."));
-                        components.Add(new JsonObject
+                        if (!legacyActionBinding)
+                            attachmentReferences.Add((targetAttachmentId, bindingBehaviorId, entityId));
+                        var actionBinding = new JsonObject
                         {
-                            ["behaviorTypeId"] = bindingBehaviorId,
+                            [legacyActionBinding ? "behaviorTypeId" : "behaviorModuleId"] = bindingBehaviorId,
                             ["inputActionId"] = inputActionId,
                             ["namedActionId"] = namedActionId,
                             ["type"] = type,
-                        });
+                        };
+                        if (!legacyActionBinding) actionBinding["targetAttachmentId"] = targetAttachmentId;
+                        components.Add(actionBinding);
                         break;
                     case "TriggerParticipant" when sceneSchema == 2:
                         RejectUnknown(component, entityId + "#TriggerParticipant",
@@ -380,13 +438,19 @@ internal static class ContentCompiler
                         components.Add(JsonNode.Parse(component.GetRawText())!.AsObject());
                         break;
                     case "ScriptEventBinding" when sceneSchema == 2:
-                        RejectUnknown(component, entityId + "#ScriptEventBinding",
-                            ["type", "eventType", "sourceEntityId", "targetEntityId",
-                             "behaviorTypeId", "namedActionId"], diagnostics);
+                        var legacyEventBinding = component.TryGetProperty("behaviorTypeId", out _);
+                        RejectUnknown(component, entityId + "#ScriptEventBinding", legacyEventBinding
+                            ? ["type", "eventType", "sourceEntityId", "targetEntityId",
+                               "behaviorTypeId", "namedActionId"]
+                            : ["type", "eventType", "sourceEntityId", "targetEntityId",
+                               "behaviorModuleId", "targetAttachmentId", "namedActionId"], diagnostics);
                         var eventType = String(component, "eventType", entityId, diagnostics);
                         var sourceEntityId = String(component, "sourceEntityId", entityId, diagnostics);
                         var targetEntityId = String(component, "targetEntityId", entityId, diagnostics);
-                        var eventBehaviorId = String(component, "behaviorTypeId", entityId, diagnostics);
+                        var eventBehaviorId = String(component,
+                            legacyEventBinding ? "behaviorTypeId" : "behaviorModuleId", entityId, diagnostics);
+                        var eventAttachmentId = legacyEventBinding ? "" :
+                            String(component, "targetAttachmentId", entityId, diagnostics);
                         var eventActionId = String(component, "namedActionId", entityId, diagnostics);
                         if (eventType is not ("TriggerEnter" or "TriggerExit" or "FocusLost"))
                             diagnostics.Add(Error("Scene.Event.TypeUnsupported", entityId,
@@ -397,6 +461,8 @@ internal static class ContentCompiler
                                 eventBehaviorId + "." + eventActionId,
                                 "ScriptEventBinding action must be publicly invocable."));
                         eventReferences.Add((sourceEntityId, targetEntityId, entityId));
+                        if (!legacyEventBinding)
+                            attachmentReferences.Add((eventAttachmentId, eventBehaviorId, entityId));
                         components.Add(JsonNode.Parse(component.GetRawText())!.AsObject());
                         break;
                     default:
@@ -424,6 +490,11 @@ internal static class ContentCompiler
                 diagnostics.Add(Error("Scene.Event.TargetMissing", referenceValue.Subject,
                     $"Event target entity '{referenceValue.Target}' does not exist."));
         }
+        foreach (var referenceValue in attachmentReferences)
+            if (!attachmentIds.TryGetValue(referenceValue.Attachment, out var moduleId) ||
+                moduleId != referenceValue.Module)
+                diagnostics.Add(Error("Scene.Binding.AttachmentUnresolved", referenceValue.Subject,
+                    $"Binding target attachment '{referenceValue.Attachment}' does not own module '{referenceValue.Module}'."));
         foreach (var entityId in entityIds)
         {
             var visited = new HashSet<string>(StringComparer.Ordinal);
@@ -514,11 +585,16 @@ internal static class ContentCompiler
             foreach (var behavior in behaviorManifest.RootElement.GetProperty("behaviors").EnumerateArray())
             {
                 var id = behavior.GetProperty("behaviorId").GetString() ?? "";
+                var moduleId = behavior.TryGetProperty("behaviorModuleId", out var moduleValue)
+                    ? moduleValue.GetString() ?? "" : "";
+                var sourceSymbolId = behavior.TryGetProperty("sourceSymbolId", out var symbolValue)
+                    ? symbolValue.GetString() ?? "" : behavior.GetProperty("declaringType").GetString() ?? "";
                 var behaviorCapabilities = behavior.GetProperty("capabilities").EnumerateArray()
                     .Select(item => item.GetString() ?? "").ToHashSet(StringComparer.Ordinal);
                 if (behaviorCapabilities.Any(item => !allCapabilities.Contains(item)))
                     throw new InvalidOperationException($"Behavior capability manifest mismatch for '{id}'.");
-                if (!result.TryAdd(id, new SemanticBehavior(id,
+                var canonicalId = moduleId.Length > 0 ? moduleId : id;
+                if (!result.TryAdd(canonicalId, new SemanticBehavior(moduleId, sourceSymbolId,
                     behavior.GetProperty("sourceFile").GetString() ?? "",
                     behavior.GetProperty("sourceHash").GetString() ?? "",
                     actions.GetValueOrDefault(id) ?? new HashSet<string>(StringComparer.Ordinal),

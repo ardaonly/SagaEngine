@@ -280,9 +280,9 @@ TEST(RuntimeProcessControllerTests,
         for (auto& entity : scene["entities"])
             for (auto& component : entity["components"])
                 if (component.value("type", std::string{}) ==
-                        "ScriptBehavior" &&
-                    component.value("behaviorTypeId", std::string{}) ==
-                        "ArenaRush.ArenaRushGameMode")
+                        "BehaviorAttachment" &&
+                    component.value("behaviorModuleId", std::string{}) ==
+                        "behavior://arena-rush/game-mode")
                 {
                     for (const auto& [key, value] : values)
                         component["instanceConfiguration"][key] = value;

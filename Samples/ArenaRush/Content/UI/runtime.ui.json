@@ -4,7 +4,7 @@
       "documentId": "arena-rush.hud.document",
       "path": "HUD/hud.rml",
       "visibility": {
-        "behaviorId": "ArenaRush.ArenaRushGameMode",
+        "behaviorId": "behavior://arena-rush/game-mode",
         "entityId": "game-mode",
         "equalsAny": ["Armed", "Running", "Suspended"],
         "stateKey": "challenge.phase",
@@ -15,7 +15,7 @@
       "documentId": "arena-rush.main-menu.document",
       "path": "MainMenu/main-menu.rml",
       "visibility": {
-        "behaviorId": "ArenaRush.ArenaRushGameMode",
+        "behaviorId": "behavior://arena-rush/game-mode",
         "entityId": "game-mode",
         "equalsAny": ["PreStart"],
         "stateKey": "challenge.phase",
@@ -26,7 +26,7 @@
       "documentId": "arena-rush.results.document",
       "path": "Results/results.rml",
       "visibility": {
-        "behaviorId": "ArenaRush.ArenaRushGameMode",
+        "behaviorId": "behavior://arena-rush/game-mode",
         "entityId": "game-mode",
         "equalsAny": ["Won", "Timeout"],
         "stateKey": "challenge.phase",
@@ -53,14 +53,14 @@
     { "path": "Results/results.rcss" }
   ],
   "textBindings": [
-    { "behaviorId": "ArenaRush.ArenaRushGameMode", "documentId": "arena-rush.hud.document", "elementId": "hud-phase", "entityId": "game-mode", "format": "{value}", "stateKey": "challenge.phase", "valueType": "String" },
-    { "behaviorId": "ArenaRush.ArenaRushGameMode", "documentId": "arena-rush.hud.document", "elementId": "hud-time", "entityId": "game-mode", "format": "{value}", "stateKey": "challenge.remaining-seconds", "valueType": "Double" },
-    { "behaviorId": "ArenaRush.ArenaRushGameMode", "documentId": "arena-rush.hud.document", "elementId": "hud-score", "entityId": "game-mode", "format": "{value}", "stateKey": "challenge.score", "valueType": "Int32" },
-    { "behaviorId": "ArenaRush.ArenaRushGameMode", "documentId": "arena-rush.hud.document", "elementId": "hud-target", "entityId": "game-mode", "format": "{value}", "stateKey": "challenge.target", "valueType": "Int32" },
-    { "behaviorId": "ArenaRush.ArenaRushGameMode", "documentId": "arena-rush.hud.document", "elementId": "hud-active", "entityId": "game-mode", "format": "Active cores: {value}", "stateKey": "challenge.active-cores", "valueType": "Int32" },
-    { "behaviorId": "ArenaRush.ArenaRushGameMode", "documentId": "arena-rush.hud.document", "elementId": "hud-pending", "entityId": "game-mode", "format": "Pending respawns: {value}", "stateKey": "challenge.pending-respawns", "valueType": "Int32" },
-    { "behaviorId": "ArenaRush.ArenaRushGameMode", "documentId": "arena-rush.results.document", "elementId": "result-title", "entityId": "game-mode", "format": "{value}", "stateKey": "challenge.result-title", "valueType": "String" },
-    { "behaviorId": "ArenaRush.ArenaRushGameMode", "documentId": "arena-rush.results.document", "elementId": "result-score", "entityId": "game-mode", "format": "{value}", "stateKey": "challenge.score", "valueType": "Int32" },
-    { "behaviorId": "ArenaRush.ArenaRushGameMode", "documentId": "arena-rush.results.document", "elementId": "result-target", "entityId": "game-mode", "format": "{value}", "stateKey": "challenge.target", "valueType": "Int32" }
+    { "behaviorId": "behavior://arena-rush/game-mode", "documentId": "arena-rush.hud.document", "elementId": "hud-phase", "entityId": "game-mode", "format": "{value}", "stateKey": "challenge.phase", "valueType": "String" },
+    { "behaviorId": "behavior://arena-rush/game-mode", "documentId": "arena-rush.hud.document", "elementId": "hud-time", "entityId": "game-mode", "format": "{value}", "stateKey": "challenge.remaining-seconds", "valueType": "Double" },
+    { "behaviorId": "behavior://arena-rush/game-mode", "documentId": "arena-rush.hud.document", "elementId": "hud-score", "entityId": "game-mode", "format": "{value}", "stateKey": "challenge.score", "valueType": "Int32" },
+    { "behaviorId": "behavior://arena-rush/game-mode", "documentId": "arena-rush.hud.document", "elementId": "hud-target", "entityId": "game-mode", "format": "{value}", "stateKey": "challenge.target", "valueType": "Int32" },
+    { "behaviorId": "behavior://arena-rush/game-mode", "documentId": "arena-rush.hud.document", "elementId": "hud-active", "entityId": "game-mode", "format": "Active cores: {value}", "stateKey": "challenge.active-cores", "valueType": "Int32" },
+    { "behaviorId": "behavior://arena-rush/game-mode", "documentId": "arena-rush.hud.document", "elementId": "hud-pending", "entityId": "game-mode", "format": "Pending respawns: {value}", "stateKey": "challenge.pending-respawns", "valueType": "Int32" },
+    { "behaviorId": "behavior://arena-rush/game-mode", "documentId": "arena-rush.results.document", "elementId": "result-title", "entityId": "game-mode", "format": "{value}", "stateKey": "challenge.result-title", "valueType": "String" },
+    { "behaviorId": "behavior://arena-rush/game-mode", "documentId": "arena-rush.results.document", "elementId": "result-score", "entityId": "game-mode", "format": "{value}", "stateKey": "challenge.score", "valueType": "Int32" },
+    { "behaviorId": "behavior://arena-rush/game-mode", "documentId": "arena-rush.results.document", "elementId": "result-target", "entityId": "game-mode", "format": "{value}", "stateKey": "challenge.target", "valueType": "Int32" }
   ]
 }

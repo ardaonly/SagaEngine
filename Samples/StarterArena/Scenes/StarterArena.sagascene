@@ -28,8 +28,8 @@
     {
       "components": [
         { "position": [0, 0, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1], "type": "Transform" },
-        { "authoringSource": "Scripts/DoorController.cs", "behaviorTypeId": "StarterArena.DoorController", "instanceConfiguration": {}, "requiredCapabilities": ["Gameplay.State.ReadWrite", "World.Transform.ReadWrite"], "type": "ScriptBehavior" },
-        { "behaviorTypeId": "StarterArena.DoorController", "inputActionId": "Interact", "namedActionId": "Interact", "type": "ScriptActionBinding" }
+        { "attachmentId": "attachment://starter-arena/door-controller", "behaviorModuleId": "behavior://starter-arena/door-controller", "enabled": true, "instanceConfiguration": {}, "requiredCapabilities": ["Gameplay.State.ReadWrite", "World.Transform.ReadWrite"], "type": "BehaviorAttachment" },
+        { "behaviorModuleId": "behavior://starter-arena/door-controller", "inputActionId": "Interact", "namedActionId": "Interact", "targetAttachmentId": "attachment://starter-arena/door-controller", "type": "ScriptActionBinding" }
       ],
       "entityId": "door-root",
       "name": "DoorRoot",

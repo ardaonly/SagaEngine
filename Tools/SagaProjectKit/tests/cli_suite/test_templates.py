@@ -150,7 +150,7 @@ def test_arena_rush_source_truth_and_structural_failures() -> None:
         game_mode = next(
             component
             for component in entities["game-mode"]["components"]
-            if component["type"] == "ScriptBehavior"
+            if component["type"] == "BehaviorAttachment"
         )
         assert game_mode["instanceConfiguration"] == {
             "activeCollectibleCount": 5,
