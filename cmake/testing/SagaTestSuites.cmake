@@ -26,9 +26,9 @@ function(_saga_json_array out_var)
 endfunction()
 
 function(saga_define_test_suite)
-    cmake_parse_arguments(SUITE "" "NAME;DESCRIPTION;ENVIRONMENT;TIMEOUT"
+    cmake_parse_arguments(SUITE "DYNAMIC" "NAME;DESCRIPTION;ENVIRONMENT;TIMEOUT"
         "TESTS;TARGETS" ${ARGN})
-    if(NOT SUITE_NAME OR NOT SUITE_TESTS)
+    if(NOT SUITE_NAME OR (NOT SUITE_TESTS AND NOT SUITE_DYNAMIC))
         message(FATAL_ERROR "Saga test suites require NAME and TESTS")
     endif()
 
@@ -144,16 +144,6 @@ function(saga_register_local_test_suites)
             TIMEOUT 60)
     endforeach()
 
-    if(TARGET SagaLauncherUiTests)
-        add_test(NAME SagaLauncherXcbTests COMMAND SagaLauncherUiTests)
-        set_tests_properties(SagaLauncherXcbTests PROPERTIES
-            LABELS "product;ui;display-required;xcb"
-            ENVIRONMENT "QT_QPA_PLATFORM=xcb"
-            RESOURCE_LOCK "saga-product-display"
-            RUN_SERIAL TRUE
-            TIMEOUT 600)
-    endif()
-
     if(TARGET SagaEditorAuthoringModuleTests)
         add_test(NAME StandaloneBuildContractTests
             COMMAND SagaEditorAuthoringModuleTests
@@ -236,13 +226,13 @@ function(saga_register_local_test_suites)
         TARGETS MultiplayerSandboxHeadlessTests SagaRuntimeHostUnitTests
             SagaRuntimeVisibleSliceTests)
 
-    if(TEST SagaLauncherXcbTests)
+    if(TARGET SagaLauncherUiTests)
         saga_define_test_suite(
             NAME product-xcb
+            DYNAMIC
             DESCRIPTION "Qt/XCB product workflow validation under an explicit display"
             ENVIRONMENT "xcb-display, qt6, private-managed-runtime, product-executables"
             TIMEOUT 600
-            TESTS SagaLauncherXcbTests
             TARGETS SagaLauncherUiTests SagaRuntime SagaManagedToolRuntimeStage)
     endif()
 

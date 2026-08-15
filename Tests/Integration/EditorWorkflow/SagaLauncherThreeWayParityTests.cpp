@@ -71,12 +71,11 @@ TEST(SagaThreeWayParityTest, CanonicalGameplayBytesAndHashMatchEveryProductPath)
     ASSERT_TRUE(materialization.isValid());
     const auto projectRoot = std::filesystem::path(
         materialization.path().toStdString()) / "ArenaRush";
-    std::filesystem::copy(TestSourceRoot() / "Samples/ArenaRush", projectRoot,
-        std::filesystem::copy_options::recursive);
+    ASSERT_TRUE(MaterializeArenaRushProject(projectRoot));
     const auto projectPath = projectRoot / "ArenaRush.sagaproj";
 
     const auto headless = RunAuthoredArenaRush(
-        projectRoot, "three-way-headless", false);
+        projectRoot, "three-way-headless", 100);
     ASSERT_FALSE(headless.empty());
     ASSERT_EQ(headless.value("status", std::string{}), "Succeeded")
         << headless.dump(2);
@@ -131,10 +130,20 @@ TEST(SagaThreeWayParityTest, CanonicalGameplayBytesAndHashMatchEveryProductPath)
 
     const auto payload = headless["canonicalGameplayState"].get<std::string>();
     const auto hash = headless["canonicalGameplayStateHash"].get<std::string>();
+    const auto standalonePayload =
+        standalone["canonicalGameplayState"].get<std::string>();
+    const auto standaloneHash =
+        standalone["canonicalGameplayStateHash"].get<std::string>();
+    const bool payloadEquality =
+        editor.runtimeResult->canonicalGameplayStateJson == payload &&
+        standalonePayload == payload;
+    const bool hashEquality =
+        editor.runtimeResult->canonicalGameplayStateHash == hash &&
+        standaloneHash == hash;
     EXPECT_EQ(editor.runtimeResult->canonicalGameplayStateJson, payload);
     EXPECT_EQ(editor.runtimeResult->canonicalGameplayStateHash, hash);
-    EXPECT_EQ(standalone["canonicalGameplayState"].get<std::string>(), payload);
-    EXPECT_EQ(standalone["canonicalGameplayStateHash"].get<std::string>(), hash);
+    EXPECT_EQ(standalonePayload, payload);
+    EXPECT_EQ(standaloneHash, hash);
     if (const auto evidenceValue = qgetenv("SAGA_XCB_EVIDENCE_DIR");
         !evidenceValue.isEmpty())
     {
@@ -142,6 +151,17 @@ TEST(SagaThreeWayParityTest, CanonicalGameplayBytesAndHashMatchEveryProductPath)
         std::filesystem::create_directories(evidence);
         std::ofstream(evidence / "three-way-canonical-gameplay-state.json",
             std::ios::binary) << payload;
+        const nlohmann::json parity = {
+            {"schemaVersion", 1},
+            {"editor", {{"hash", editor.runtimeResult->canonicalGameplayStateHash},
+                         {"payload", editor.runtimeResult->canonicalGameplayStateJson}}},
+            {"standalone", {{"hash", standalone["canonicalGameplayStateHash"]},
+                             {"payload", standalone["canonicalGameplayState"]}}},
+            {"headless", {{"hash", hash}, {"payload", payload}}},
+            {"payloadEquality", payloadEquality},
+            {"hashEquality", hashEquality}};
+        std::ofstream(evidence / "three-way-parity.json", std::ios::binary)
+            << parity.dump(2) << '\n';
     }
 }
 } // namespace

@@ -18,8 +18,7 @@ TEST(SagaHomeUiTest,
     ASSERT_TRUE(materialization.isValid());
     const auto projectRoot = std::filesystem::path(
         materialization.path().toStdString()) / "ArenaRush";
-    std::filesystem::copy(TestSourceRoot() / "Samples/ArenaRush", projectRoot,
-        std::filesystem::copy_options::recursive);
+    ASSERT_TRUE(MaterializeArenaRushProject(projectRoot));
     const auto project = projectRoot / "ArenaRush.sagaproj";
     const auto scriptPath = projectRoot / "Scripts/ArenaRushGameMode.cs";
     const auto checkedInSource = ReadTextFile(
@@ -180,7 +179,7 @@ TEST(SagaHomeUiTest,
         respawnRoot / "Scripts/ArenaRushGameMode.cs")), authoredHash);
 
     const auto scoreResult = RunAuthoredArenaRush(
-        scoreRoot, "blocks-score-runtime", true);
+        scoreRoot, "blocks-score-runtime", 20);
     ASSERT_FALSE(scoreResult.empty());
     ASSERT_EQ(scoreResult.value("status", std::string{}), "Succeeded")
         << scoreResult.dump(2);
@@ -190,7 +189,7 @@ TEST(SagaHomeUiTest,
         "score", -1), 20);
 
     const auto respawnResult = RunAuthoredArenaRush(
-        respawnRoot, "blocks-respawn-runtime", false);
+        respawnRoot, "blocks-respawn-runtime", 200);
     ASSERT_FALSE(respawnResult.empty());
     ASSERT_EQ(respawnResult.value("status", std::string{}), "Succeeded")
         << respawnResult.dump(2);

@@ -48,6 +48,12 @@ class RunSuiteTests(unittest.TestCase):
             self.assertEqual(loaded["exitCode"], 7)
             self.assertIn("endedAt", loaded)
 
+    def test_product_evidence_is_owned_beside_the_manifest(self) -> None:
+        manifest = Path("reports/product-xcb.json")
+        self.assertEqual(
+            runner.evidence_directory(manifest),
+            Path("reports/product-xcb.artifacts"))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -6,8 +6,10 @@
 #include "SagaEditor/Documents/Document.h"
 #include "SagaEditor/Play/PlayPreparationPipeline.h"
 #include "SagaEditor/Play/RuntimeProcessController.h"
+#include "SagaEditor/Processes/ManagedToolRuntime.h"
 #include "SagaEditor/Project/ProjectMutation.h"
 #include "SagaEditor/Processes/ToolProcessRunner.h"
+#include "SagaEditor/Scripting/ScriptAnalysisCoordinator.h"
 #include "SagaEditor/Workspace/EditorDocumentWorkspace.h"
 #include "SagaEditorQt/QtUIMainWindow.h"
 
@@ -158,8 +160,59 @@ std::uint64_t LanguageServiceProcess(std::uint64_t excluded = 0)
 std::filesystem::path RuntimeExecutable()
 { return std::filesystem::path(SAGA_BUILD_ROOT) / "bin/SagaRuntime"; }
 
+testing::AssertionResult MaterializeArenaRushProject(
+    const std::filesystem::path& projectRoot)
+{
+    std::error_code error;
+    std::filesystem::remove_all(projectRoot, error);
+    error.clear();
+    std::filesystem::copy(TestSourceRoot() / "Samples/ArenaRush", projectRoot,
+        std::filesystem::copy_options::recursive, error);
+    if (error)
+        return testing::AssertionFailure()
+            << "Arena Rush source materialization failed: " << error.message();
+
+    // Generated state is never a test fixture. Select a fresh immutable package
+    // generation from the copied lock and the current private RuntimeBridge.
+    std::filesystem::remove_all(projectRoot / "Build", error);
+    error.clear();
+    std::filesystem::remove_all(projectRoot / ".saga", error);
+    if (error)
+        return testing::AssertionFailure()
+            << "Arena Rush generated-state cleanup failed: " << error.message();
+
+    const auto project = projectRoot / "ArenaRush.sagaproj";
+    const auto lock = projectRoot / "SagaPackage.lock";
+    const auto lockBefore = ReadTextFile(lock);
+    const auto report = projectRoot / "Build/TestSetup/package-generation.json";
+    std::filesystem::create_directories(report.parent_path(), error);
+    if (error)
+        return testing::AssertionFailure()
+            << "Arena Rush test report directory failed: " << error.message();
+    const auto toolchain = SagaEditor::DiscoverScriptAnalysisToolchain();
+    SagaEditor::ToolProcessRequest request;
+    request.timeout = std::chrono::seconds(120);
+    const auto refreshed = SagaEditor::ManagedToolRuntime(toolchain.managedRuntime).Run(
+        SagaEditor::ManagedToolId::Packager,
+        {"generation-refresh", "--project", project.string(), "--engine-root",
+         toolchain.engineRoot.string(), "--lock", lock.string(), "--generated-out",
+         (projectRoot / "Build/Packages").string(), "--runtime-bridge",
+         toolchain.runtimeBridge.string(), "--out", report.string()},
+        std::move(request));
+    if (!refreshed.Succeeded())
+        return testing::AssertionFailure()
+            << "Arena Rush package generation failed: "
+            << refreshed.process.diagnosticCode << ": "
+            << refreshed.process.diagnosticMessage << '\n'
+            << refreshed.process.standardError;
+    if (ReadTextFile(lock) != lockBefore)
+        return testing::AssertionFailure()
+            << "Package generation mutated the tracked Arena Rush lock.";
+    return testing::AssertionSuccess();
+}
+
 nlohmann::json RunAuthoredArenaRush(const std::filesystem::path& root,
-                                    std::string session, bool singleCollect)
+                                    std::string session, int targetProgress)
 {
     const auto scenePath = root / "Scenes/ArenaRush.sagascene";
     std::ifstream input(scenePath, std::ios::binary);
@@ -169,7 +222,7 @@ nlohmann::json RunAuthoredArenaRush(const std::filesystem::path& root,
             if (component.value("type", std::string{}) == "ScriptBehavior" &&
                 component.value("behaviorTypeId", std::string{}) == "ArenaRush.ArenaRushGameMode")
             {
-                component["instanceConfiguration"]["targetProgress"] = singleCollect ? 20 : 200;
+                component["instanceConfiguration"]["targetProgress"] = targetProgress;
                 configured = true;
             }
     EXPECT_TRUE(configured);
