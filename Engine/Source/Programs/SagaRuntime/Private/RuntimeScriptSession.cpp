@@ -156,11 +156,11 @@ RuntimeNamedActionTarget::RuntimeNamedActionTarget(Scripting::CSharpScriptHost& 
     std::map<std::pair<std::string, std::string>, std::string> methods)
     : host_(host), instances_(std::move(instances)), methods_(std::move(methods)) {}
 
-bool RuntimeNamedActionTarget::InvokeNamedAction(std::string_view behaviorTypeId,
+bool RuntimeNamedActionTarget::InvokeNamedAction(std::string_view behaviorModuleId,
     std::string_view namedActionId, std::string_view entityId)
 {
-    const auto instance = instances_.find({std::string(entityId), std::string(behaviorTypeId)});
-    const auto method = methods_.find({std::string(behaviorTypeId), std::string(namedActionId)});
+    const auto instance = instances_.find({std::string(entityId), std::string(behaviorModuleId)});
+    const auto method = methods_.find({std::string(behaviorModuleId), std::string(namedActionId)});
     if (instance == instances_.end() || method == methods_.end()) return false;
     return host_.InvokeNamedAction(
         {instance->second, method->second, std::string(namedActionId)}).Succeeded();

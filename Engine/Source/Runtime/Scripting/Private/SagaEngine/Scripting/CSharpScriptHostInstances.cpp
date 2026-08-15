@@ -184,7 +184,7 @@ std::size_t CSharpScriptHost::Impl::InstanceIdentityHash::operator()(
 
 ScriptStateContext CSharpScriptHost::Impl::StateContext(const InstanceState& state)
 {
-    return {state.instance, state.selfEntity, state.classId, state.scriptId,
+    return {state.instance, state.selfEntity, state.scriptId, state.scriptId,
             state.activeInstanceToken};
 }
 

@@ -190,8 +190,13 @@ std::string SerializeCanonical(const CanonicalRuntimeLaunchManifest& manifest)
     std::sort(capabilities.begin(), capabilities.end());
     capabilities.erase(std::unique(capabilities.begin(), capabilities.end()), capabilities.end());
     root["requiredRuntimeCapabilities"] = capabilities;
-    if (manifest.schemaVersion == 2)
+    if (manifest.schemaVersion >= 2)
         root["artifacts"]["uiSet"] = ArtifactJson(manifest.uiSet);
+    if (manifest.schemaVersion == 3)
+    {
+        root["artifacts"]["behaviorModules"] = ArtifactJson(manifest.behaviorModules);
+        root["artifacts"]["behaviorArtifacts"] = ArtifactJson(manifest.behaviorArtifacts);
+    }
     return Canonical(root);
 }
 
@@ -214,7 +219,7 @@ CanonicalManifestResult ParseCanonicalManifest(std::string_view bytes,
     if (!ExactFields(root, {"artifacts", "packageGraphHash", "playSessionId", "projectHash", "projectId",
                             "requiredRuntimeCapabilities", "runtimeBridge", "runtimeProfile",
                             "schemaVersion", "scriptSourceRevision", "scriptSourceSetHash", "toolVersions"}) ||
-        (schemaVersion != 1 && schemaVersion != 2) ||
+        (schemaVersion != 1 && schemaVersion != 2 && schemaVersion != 3) ||
         !NonEmptyString(root, "projectId") || !NonEmptyString(root, "playSessionId") ||
         !IsSha256(root.value("projectHash", std::string{})) ||
         !IsSha256(root.value("packageGraphHash", std::string{})) ||
@@ -227,7 +232,7 @@ CanonicalManifestResult ParseCanonicalManifest(std::string_view bytes,
         !root.contains("toolVersions") || !root["toolVersions"].is_object())
     {
         result.diagnostics.push_back(Error("Runtime.Launch.ManifestSchemaInvalid",
-            "Canonical runtime launch manifest schema version 1 or 2 is required."));
+            "Canonical runtime launch manifest schema version 1, 2, or 3 is required."));
         return result;
     }
     CanonicalRuntimeLaunchManifest manifest;
@@ -245,17 +250,29 @@ CanonicalManifestResult ParseCanonicalManifest(std::string_view bytes,
                                  "packageGeneration", "scene", "scriptAssembly",
                                  "scriptAssemblyManifest", "scriptReferenceManifest",
                                  "scriptRuntimeConfig"})
-        : ExactFields(artifacts, {"behaviors", "capabilities", "input", "namedActions",
+        : schemaVersion == 2
+        ? ExactFields(artifacts, {"behaviors", "capabilities", "input", "namedActions",
                                  "packageGeneration", "scene", "scriptAssembly",
                                  "scriptAssemblyManifest", "scriptReferenceManifest",
-                                 "scriptRuntimeConfig", "uiSet"});
+                                 "scriptRuntimeConfig", "uiSet"})
+        : ExactFields(artifacts, {"behaviorArtifacts", "behaviorModules", "behaviors",
+                                 "capabilities", "input", "namedActions", "packageGeneration",
+                                 "scene", "scriptAssembly", "scriptAssemblyManifest",
+                                 "scriptReferenceManifest", "scriptRuntimeConfig", "uiSet"});
     if (!artifactFieldsValid)
         result.diagnostics.push_back(Error("Runtime.Launch.ArtifactSetInvalid",
             "The canonical artifact set is incomplete or contains unknown fields."));
     manifest.behaviors = ParseArtifact(artifacts, "behaviors", result.diagnostics);
+    if (schemaVersion == 3)
+    {
+        manifest.behaviorModules = ParseArtifact(
+            artifacts, "behaviorModules", result.diagnostics);
+        manifest.behaviorArtifacts = ParseArtifact(
+            artifacts, "behaviorArtifacts", result.diagnostics);
+    }
     manifest.capabilities = ParseArtifact(artifacts, "capabilities", result.diagnostics);
     manifest.input = ParseArtifact(artifacts, "input", result.diagnostics);
-    if (schemaVersion == 2)
+    if (schemaVersion >= 2)
         manifest.uiSet = ParseArtifact(artifacts, "uiSet", result.diagnostics);
     manifest.namedActions = ParseArtifact(artifacts, "namedActions", result.diagnostics);
     manifest.packageGeneration = ParseArtifact(artifacts, "packageGeneration", result.diagnostics);
@@ -519,6 +536,7 @@ ArtifactLoadResult<RuntimeSceneArtifact> LoadRuntimeSceneArtifact(
     scene.contentHash = root["contentHash"].get<std::string>();
     scene.sourceHash = root["sourceHash"].get<std::string>();
     std::set<std::string> entityIds;
+    std::set<std::string> attachmentIds;
     std::map<std::string, std::string> parents;
     for (const auto& source : payload["entities"])
     {
@@ -576,19 +594,31 @@ ArtifactLoadResult<RuntimeSceneArtifact> LoadRuntimeSceneArtifact(
                     {component["meshAssetId"].get<std::string>(), component["meshHash"].get<std::string>()},
                     {component["materialAssetId"].get<std::string>(), component["materialHash"].get<std::string>()}};
             }
-            else if (type == "ScriptBehavior")
+            else if (type == "BehaviorAttachment")
             {
-                if (!ExactFields(component, {"behaviorTypeId", "instanceConfiguration", "requiredCapabilities",
+                if (!ExactFields(component, {"attachmentId", "behaviorModuleId", "enabled",
+                                              "instanceConfiguration", "requiredCapabilities",
                                               "scriptArtifactLogicalId", "type"}) ||
-                    !NonEmptyString(component, "behaviorTypeId") || !NonEmptyString(component, "scriptArtifactLogicalId") ||
+                    !NonEmptyString(component, "attachmentId") ||
+                    !NonEmptyString(component, "behaviorModuleId") ||
+                    !NonEmptyString(component, "scriptArtifactLogicalId") ||
+                    !component.contains("enabled") || !component["enabled"].is_boolean() ||
                     !component.contains("instanceConfiguration") || !component["instanceConfiguration"].is_object() ||
                     !component.contains("requiredCapabilities") || !component["requiredCapabilities"].is_array())
-                    result.diagnostics.push_back(Error("Runtime.Scene.ScriptBehaviorInvalid", "ScriptBehavior logical runtime contract is invalid.", entity.entityId));
+                    result.diagnostics.push_back(Error("Runtime.Scene.BehaviorAttachmentInvalid", "BehaviorAttachment logical runtime contract is invalid.", entity.entityId));
                 else
                 {
                     RuntimeScriptBehavior behavior;
-                    behavior.behaviorTypeId = component["behaviorTypeId"].get<std::string>();
+                    behavior.attachmentId = component["attachmentId"].get<std::string>();
+                    behavior.behaviorModuleId = component["behaviorModuleId"].get<std::string>();
+                    if (!attachmentIds.insert(behavior.attachmentId).second ||
+                        !behavior.behaviorModuleId.starts_with("behavior://"))
+                        result.diagnostics.push_back(Error(
+                            "Runtime.Scene.BehaviorAttachmentIdentityInvalid",
+                            "Attachment ids must be unique and module ids must use behavior://.",
+                            entity.entityId));
                     behavior.scriptArtifactLogicalId = component["scriptArtifactLogicalId"].get<std::string>();
+                    behavior.enabled = component["enabled"].get<bool>();
                     behavior.instanceConfigurationCanonicalJson = Canonical(component["instanceConfiguration"]);
                     for (const auto& capability : component["requiredCapabilities"])
                         if (capability.is_string() && !capability.get_ref<const std::string&>().empty())
@@ -597,14 +627,58 @@ ArtifactLoadResult<RuntimeSceneArtifact> LoadRuntimeSceneArtifact(
                     entity.scriptBehavior = std::move(behavior);
                 }
             }
+            else if (type == "ScriptBehavior")
+            {
+                if (!ExactFields(component, {"behaviorTypeId", "instanceConfiguration",
+                                              "requiredCapabilities", "scriptArtifactLogicalId",
+                                              "type"}) ||
+                    !NonEmptyString(component, "behaviorTypeId") ||
+                    !NonEmptyString(component, "scriptArtifactLogicalId") ||
+                    !component.contains("instanceConfiguration") ||
+                    !component["instanceConfiguration"].is_object() ||
+                    !component.contains("requiredCapabilities") ||
+                    !component["requiredCapabilities"].is_array())
+                    result.diagnostics.push_back(Error("Runtime.Scene.ScriptBehaviorInvalid",
+                        "Legacy ScriptBehavior runtime contract is invalid.", entity.entityId));
+                else
+                {
+                    RuntimeScriptBehavior behavior;
+                    behavior.behaviorModuleId = component["behaviorTypeId"].get<std::string>();
+                    behavior.attachmentId = "legacy-attachment://" + entity.entityId + "/" +
+                        behavior.behaviorModuleId;
+                    behavior.scriptArtifactLogicalId =
+                        component["scriptArtifactLogicalId"].get<std::string>();
+                    behavior.instanceConfigurationCanonicalJson =
+                        Canonical(component["instanceConfiguration"]);
+                    behavior.legacyCSharpTypeIdentity = true;
+                    for (const auto& capability : component["requiredCapabilities"])
+                        if (capability.is_string() &&
+                            !capability.get_ref<const std::string&>().empty())
+                            behavior.requiredCapabilities.push_back(capability.get<std::string>());
+                        else result.diagnostics.push_back(Error("Runtime.Scene.CapabilityInvalid",
+                            "Script capability is invalid.", entity.entityId));
+                    entity.scriptBehavior = std::move(behavior);
+                }
+            }
             else if (type == "ScriptActionBinding")
             {
-                if (!ExactFields(component, {"behaviorTypeId", "inputActionId", "namedActionId", "type"}) ||
-                    !NonEmptyString(component, "behaviorTypeId") || !NonEmptyString(component, "inputActionId") ||
+                const bool legacy = component.contains("behaviorTypeId");
+                const bool shape = legacy
+                    ? ExactFields(component, {"behaviorTypeId", "inputActionId",
+                                               "namedActionId", "type"})
+                    : ExactFields(component, {"behaviorModuleId", "inputActionId",
+                                               "namedActionId", "targetAttachmentId", "type"});
+                if (!shape ||
+                    !(legacy ? NonEmptyString(component, "behaviorTypeId") :
+                        NonEmptyString(component, "behaviorModuleId") &&
+                        NonEmptyString(component, "targetAttachmentId")) ||
+                    !NonEmptyString(component, "inputActionId") ||
                     !NonEmptyString(component, "namedActionId"))
                     result.diagnostics.push_back(Error("Runtime.Scene.ActionBindingInvalid", "Script action binding identities are required.", entity.entityId));
                 else entity.actionBindings.push_back({component["inputActionId"].get<std::string>(),
-                    component["behaviorTypeId"].get<std::string>(), component["namedActionId"].get<std::string>()});
+                    component[legacy ? "behaviorTypeId" : "behaviorModuleId"].get<std::string>(),
+                    legacy ? std::string{} : component["targetAttachmentId"].get<std::string>(),
+                    component["namedActionId"].get<std::string>()});
             }
             else if (type == "TriggerParticipant" && sceneSchema == 2)
             {
@@ -644,9 +718,17 @@ ArtifactLoadResult<RuntimeSceneArtifact> LoadRuntimeSceneArtifact(
             }
             else if (type == "ScriptEventBinding" && sceneSchema == 2)
             {
-                if (!ExactFields(component, {"behaviorTypeId", "eventType", "namedActionId",
-                                              "sourceEntityId", "targetEntityId", "type"}) ||
-                    !NonEmptyString(component, "behaviorTypeId") ||
+                const bool legacy = component.contains("behaviorTypeId");
+                const bool shape = legacy
+                    ? ExactFields(component, {"behaviorTypeId", "eventType", "namedActionId",
+                                               "sourceEntityId", "targetEntityId", "type"})
+                    : ExactFields(component, {"behaviorModuleId", "eventType", "namedActionId",
+                                               "sourceEntityId", "targetAttachmentId",
+                                               "targetEntityId", "type"});
+                if (!shape ||
+                    !(legacy ? NonEmptyString(component, "behaviorTypeId") :
+                        NonEmptyString(component, "behaviorModuleId") &&
+                        NonEmptyString(component, "targetAttachmentId")) ||
                     !NonEmptyString(component, "namedActionId") ||
                     !NonEmptyString(component, "sourceEntityId") ||
                     !NonEmptyString(component, "targetEntityId") ||
@@ -660,7 +742,8 @@ ArtifactLoadResult<RuntimeSceneArtifact> LoadRuntimeSceneArtifact(
                     component["eventType"].get<std::string>(),
                     component["sourceEntityId"].get<std::string>(),
                     component["targetEntityId"].get<std::string>(),
-                    component["behaviorTypeId"].get<std::string>(),
+                    component[legacy ? "behaviorTypeId" : "behaviorModuleId"].get<std::string>(),
+                    legacy ? std::string{} : component["targetAttachmentId"].get<std::string>(),
                     component["namedActionId"].get<std::string>()});
             }
             else if (type == "Camera")
@@ -1015,25 +1098,40 @@ std::vector<RuntimeDiagnostic> ScriptActionBindingDispatcher::Build(
     std::vector<RuntimeDiagnostic> diagnostics;
     std::set<std::string> identities;
     std::map<std::string, const RuntimeSceneEntity*> byId;
-    for (const auto& entity : scene.entities) byId.emplace(entity.entityId, &entity);
+    std::map<std::string, const RuntimeSceneEntity*> byAttachment;
+    for (const auto& entity : scene.entities)
+    {
+        byId.emplace(entity.entityId, &entity);
+        if (entity.scriptBehavior && entity.scriptBehavior->enabled)
+            byAttachment.emplace(entity.scriptBehavior->attachmentId, &entity);
+    }
     for (const auto& entity : scene.entities)
         for (const auto& binding : entity.actionBindings)
         {
-            auto* targetEntity = &entity;
-            while ((!targetEntity->scriptBehavior ||
-                    targetEntity->scriptBehavior->behaviorTypeId != binding.behaviorTypeId) &&
-                   targetEntity->parentEntityId &&
-                   byId.contains(*targetEntity->parentEntityId))
-                targetEntity = byId.at(*targetEntity->parentEntityId);
-            if (!targetEntity->scriptBehavior ||
-                targetEntity->scriptBehavior->behaviorTypeId != binding.behaviorTypeId)
-            { diagnostics.push_back(Error("Runtime.Binding.BehaviorMissing", "Binding behavior is not attached to the same entity.", entity.entityId)); continue; }
+            const RuntimeSceneEntity* targetEntity = nullptr;
+            if (!binding.targetAttachmentId.empty())
+            {
+                const auto found = byAttachment.find(binding.targetAttachmentId);
+                if (found != byAttachment.end()) targetEntity = found->second;
+            }
+            else
+            {
+                targetEntity = &entity;
+                while ((!targetEntity->scriptBehavior ||
+                        targetEntity->scriptBehavior->behaviorModuleId != binding.behaviorModuleId) &&
+                       targetEntity->parentEntityId &&
+                       byId.contains(*targetEntity->parentEntityId))
+                    targetEntity = byId.at(*targetEntity->parentEntityId);
+            }
+            if (targetEntity == nullptr || !targetEntity->scriptBehavior ||
+                targetEntity->scriptBehavior->behaviorModuleId != binding.behaviorModuleId)
+            { diagnostics.push_back(Error("Runtime.Binding.BehaviorMissing", "Binding target attachment does not own the declared behavior module.", entity.entityId)); continue; }
             const auto identity = binding.inputActionId + "\x1f" + targetEntity->entityId + "\x1f" +
-                binding.behaviorTypeId + "\x1f" + binding.namedActionId;
+                binding.behaviorModuleId + "\x1f" + binding.namedActionId;
             if (!identities.insert(identity).second)
             { diagnostics.push_back(Error("Runtime.Binding.Duplicate", "Runtime action binding identity is duplicated.", identity)); continue; }
             bindings_[binding.inputActionId].push_back({targetEntity->entityId,
-                binding.behaviorTypeId, binding.namedActionId});
+                binding.behaviorModuleId, binding.namedActionId});
         }
     return diagnostics;
 }
@@ -1052,7 +1150,9 @@ std::vector<RuntimeDiagnostic> ScriptEventBindingDispatcher::Build(
         {
             const auto target = byId.find(binding.targetEntityId);
             if (target == byId.end() || !target->second->scriptBehavior ||
-                target->second->scriptBehavior->behaviorTypeId != binding.behaviorTypeId)
+                (!binding.targetAttachmentId.empty() &&
+                 target->second->scriptBehavior->attachmentId != binding.targetAttachmentId) ||
+                target->second->scriptBehavior->behaviorModuleId != binding.behaviorModuleId)
             {
                 diagnostics.push_back(Error("Runtime.EventBinding.BehaviorMissing",
                     "Event target does not own the declared behavior.",
@@ -1068,7 +1168,7 @@ std::vector<RuntimeDiagnostic> ScriptEventBindingDispatcher::Build(
                 continue;
             }
             bindings_[{binding.eventType, binding.sourceEntityId}].push_back(
-                {binding.targetEntityId, binding.behaviorTypeId, binding.namedActionId});
+                {binding.targetEntityId, binding.behaviorModuleId, binding.namedActionId});
         }
     return diagnostics;
 }
@@ -1081,12 +1181,12 @@ std::vector<RuntimeDiagnostic> ScriptEventBindingDispatcher::Dispatch(
         bindings_.find({std::string(eventType), std::string(sourceEntityId)});
     if (found == bindings_.end()) return diagnostics;
     for (const auto& binding : found->second)
-        if (!target_.InvokeNamedAction(binding.behaviorTypeId,
+        if (!target_.InvokeNamedAction(binding.behaviorModuleId,
                                       binding.namedActionId,
                                       binding.targetEntityId))
             diagnostics.push_back(Error("Runtime.EventBinding.InvocationFailed",
                 "Validated script event invocation failed.",
-                binding.behaviorTypeId + "." + binding.namedActionId));
+                binding.behaviorModuleId + "." + binding.namedActionId));
         else ++dispatchCount_;
     return diagnostics;
 }
@@ -1106,9 +1206,9 @@ std::vector<RuntimeDiagnostic> ScriptActionBindingDispatcher::Dispatch(
     if (iterator == bindings_.end())
     { diagnostics.push_back(Error("Runtime.Binding.ActionUnbound", "Logical input action has no script binding.", std::string(inputActionId))); return diagnostics; }
     for (const auto& binding : iterator->second)
-        if (!target_.InvokeNamedAction(binding.behaviorTypeId, binding.namedActionId, binding.entityId))
+        if (!target_.InvokeNamedAction(binding.behaviorModuleId, binding.namedActionId, binding.entityId))
             diagnostics.push_back(Error("Runtime.Binding.InvocationFailed", "Validated named action invocation failed.",
-                binding.behaviorTypeId + "." + binding.namedActionId));
+                binding.behaviorModuleId + "." + binding.namedActionId));
         else ++dispatchCount_;
     return diagnostics;
 }

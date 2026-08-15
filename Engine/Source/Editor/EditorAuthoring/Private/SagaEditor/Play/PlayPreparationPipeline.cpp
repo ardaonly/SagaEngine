@@ -195,11 +195,15 @@ PlayPreparationResult PlayPreparationPipeline::Prepare(
     const auto assemblyRecord = OneArtifact(scriptCurrent, "artifactId", "scripts.assembly");
     const auto runtimeConfigRecord = OneArtifact(scriptCurrent, "artifactId", "scripts.runtime-config");
     const auto behaviorRecord = OneArtifact(scriptCurrent, "artifactId", "scripts.behaviors");
+    const auto behaviorModuleRecord = OneArtifact(
+        scriptCurrent, "artifactId", "behavior.modules");
+    const auto behaviorArtifactRecord = OneArtifact(
+        scriptCurrent, "artifactId", "behavior.artifacts");
     const auto actionRecord = OneArtifact(scriptCurrent, "artifactId", "scripts.named-actions");
     const auto capabilityRecord = OneArtifact(scriptCurrent, "artifactId", "scripts.capabilities");
     const auto assemblyManifestRecord = OneArtifact(scriptCurrent, "artifactId", "scripts.assembly-manifest");
     if (!sceneRecord || !inputRecord || !uiRecord || !assemblyRecord || !runtimeConfigRecord ||
-        !behaviorRecord || !actionRecord ||
+        !behaviorRecord || !behaviorModuleRecord || !behaviorArtifactRecord || !actionRecord ||
         !capabilityRecord || !assemblyManifestRecord)
     {
         result.diagnostics.push_back(Diagnostic("Play.Prepare.ArtifactSetIncomplete",
@@ -225,7 +229,8 @@ PlayPreparationResult PlayPreparationPipeline::Prepare(
     }
     std::map<std::string, std::filesystem::path> scriptPaths;
     for (const auto* record : {&*assemblyRecord, &*runtimeConfigRecord,
-                               &*behaviorRecord, &*actionRecord,
+                               &*behaviorRecord, &*behaviorModuleRecord,
+                               &*behaviorArtifactRecord, &*actionRecord,
                                &*capabilityRecord, &*assemblyManifestRecord})
     {
         const auto path = scriptPath(*record);
@@ -244,7 +249,8 @@ PlayPreparationResult PlayPreparationPipeline::Prepare(
         !ReadJson(scriptPaths["scripts.behaviors"], behaviors) ||
         !ReadJson(scriptPaths["scripts.capabilities"], capabilities) ||
         (behaviors.value("schemaVersion", -1) != 2 &&
-         behaviors.value("schemaVersion", -1) != 3) ||
+         behaviors.value("schemaVersion", -1) != 3 &&
+         behaviors.value("schemaVersion", -1) != 4) ||
         !behaviors.contains("behaviors") || !behaviors["behaviors"].is_array() ||
         std::any_of(behaviors["behaviors"].begin(), behaviors["behaviors"].end(),
             [](const Json& behavior)
@@ -255,7 +261,7 @@ PlayPreparationResult PlayPreparationPipeline::Prepare(
         !capabilities.contains("capabilities") || !capabilities["capabilities"].is_array())
     {
         result.diagnostics.push_back(Diagnostic("Play.Prepare.ScriptMetadataInvalid",
-            "Assembly, behavior schema v2/v3 access policy, and capability manifests are required."));
+            "Assembly, behavior schema v2/v3/v4 access policy, and capability manifests are required."));
         return result;
     }
     const auto generationId = packageCurrent.value("generationId", std::string{});
@@ -351,7 +357,7 @@ PlayPreparationResult PlayPreparationPipeline::Prepare(
     };
 
     RuntimePlay::CanonicalRuntimeLaunchManifest launch;
-    launch.schemaVersion = 2;
+    launch.schemaVersion = 3;
     launch.projectId = projectId;
     launch.projectHash = snapshot.projectHash;
     launch.playSessionId = request.playSessionId;
@@ -369,6 +375,10 @@ PlayPreparationResult PlayPreparationPipeline::Prepare(
     launch.scriptReferenceManifest = {"scripts.reference-manifest",
         HashFile(referencePath, error)};
     launch.behaviors = {"scripts.behaviors", behaviorRecord->value("artifactHash", std::string{})};
+    launch.behaviorModules = {"behavior.modules",
+        behaviorModuleRecord->value("artifactHash", std::string{})};
+    launch.behaviorArtifacts = {"behavior.artifacts",
+        behaviorArtifactRecord->value("artifactHash", std::string{})};
     launch.namedActions = {"scripts.named-actions", actionRecord->value("artifactHash", std::string{})};
     launch.capabilities = {"scripts.capabilities", capabilityRecord->value("artifactHash", std::string{})};
     launch.packageGeneration = {generationId, generationHash};
@@ -444,6 +454,8 @@ PlayPreparationResult PlayPreparationPipeline::Prepare(
         {"scripts.assembly-manifest", scriptPaths["scripts.assembly-manifest"]},
         {"scripts.reference-manifest", referencePath},
         {"scripts.behaviors", scriptPaths["scripts.behaviors"]},
+        {"behavior.modules", scriptPaths["behavior.modules"]},
+        {"behavior.artifacts", scriptPaths["behavior.artifacts"]},
         {"scripts.named-actions", scriptPaths["scripts.named-actions"]},
         {"scripts.capabilities", scriptPaths["scripts.capabilities"]},
         {"packages.current", packageCurrentPath},
@@ -531,6 +543,8 @@ PlayPreparationResult PlayPreparationPipeline::Prepare(
         {"scriptAssemblyManifest", launch.scriptAssemblyManifest.hash},
         {"scriptReferenceManifest", launch.scriptReferenceManifest.hash},
         {"behaviors", launch.behaviors.hash},
+        {"behaviorModules", launch.behaviorModules.hash},
+        {"behaviorArtifacts", launch.behaviorArtifacts.hash},
         {"namedActions", launch.namedActions.hash}, {"capabilities", launch.capabilities.hash},
         {"packageGeneration", launch.packageGeneration.hash}, {"runtimeBridge", bridgeHash},
         {"launchManifest", result.canonicalManifestHash}};

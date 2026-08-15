@@ -13,6 +13,7 @@
 #include "RuntimeUiPromptController.h"
 #include "RuntimeUiSession.h"
 
+#include <SagaEngine/Scripting/BehaviorBackend.hpp>
 #include <SagaEngine/Scripting/CSharpScriptHost.hpp>
 #include <SagaEngine/Scripting/ScriptLifecycleService.hpp>
 #include <SagaRuntime/Play/RuntimePlayContracts.hpp>
@@ -27,6 +28,7 @@
 #include <iterator>
 #include <limits>
 #include <map>
+#include <memory>
 #include <optional>
 #include <thread>
 #include <variant>
@@ -113,11 +115,18 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
             "RuntimeBridge ABI or target framework is incompatible with this SagaRuntime.",
             launch.runtimeBridge.logicalReferenceId});
     }
-    static_cast<void>(RuntimeArtifactSession::VerifyFiles(envelope.artifacts,
-        {launch.scene, launch.input, launch.scriptAssembly, launch.uiSet,
-         launch.scriptRuntimeConfig, launch.scriptAssemblyManifest,
-         launch.scriptReferenceManifest, launch.behaviors,
-         launch.namedActions, launch.capabilities}, envelopeResult.diagnostics));
+    std::vector<Play::ArtifactIdentity> launchArtifacts{
+        launch.scene, launch.input, launch.scriptAssembly, launch.uiSet,
+        launch.scriptRuntimeConfig, launch.scriptAssemblyManifest,
+        launch.scriptReferenceManifest, launch.behaviors,
+        launch.namedActions, launch.capabilities};
+    if (launch.schemaVersion == 3)
+    {
+        launchArtifacts.push_back(launch.behaviorModules);
+        launchArtifacts.push_back(launch.behaviorArtifacts);
+    }
+    static_cast<void>(RuntimeArtifactSession::VerifyFiles(
+        envelope.artifacts, launchArtifacts, envelopeResult.diagnostics));
     const Play::ArtifactIdentity bridge{launch.runtimeBridge.logicalReferenceId,
                                         launch.runtimeBridge.assemblyHash};
     static_cast<void>(RuntimeArtifactSession::VerifyFiles(
@@ -175,17 +184,18 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
         envelope.artifacts.at(launch.scene.logicalId));
     const auto inputResult = Play::LoadRuntimeInputMapArtifact(
         envelope.artifacts.at(launch.input.logicalId));
-    const auto uiResult = launch.schemaVersion == 2
+    const auto uiResult = launch.schemaVersion >= 2
         ? Play::LoadRuntimeUiSetArtifact(envelope.artifacts.at(launch.uiSet.logicalId))
         : Play::ArtifactLoadResult<Play::RuntimeUiSetArtifact>{};
     if (!sceneResult.Succeeded() || !inputResult.Succeeded() ||
-        (launch.schemaVersion == 2 && !uiResult.Succeeded()))
+        (launch.schemaVersion >= 2 && !uiResult.Succeeded()))
     {
         writeResult("Failed", "ArtifactFailure", 0, 0, Json::object());
         return Failure("Runtime.Play.ArtifactLoadFailed",
             "Runtime scene, input, or UI artifact failed strict loading.");
     }
     Json namedActions, behaviorManifest, capabilityManifest;
+    Json behaviorModuleCatalog, behaviorArtifactCatalog;
     try
     {
         namedActions = Json::parse(RuntimeLaunchSession::ReadFile(
@@ -194,6 +204,13 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
             envelope.artifacts.at(launch.behaviors.logicalId)));
         capabilityManifest = Json::parse(RuntimeLaunchSession::ReadFile(
             envelope.artifacts.at(launch.capabilities.logicalId)));
+        if (launch.schemaVersion == 3)
+        {
+            behaviorModuleCatalog = Json::parse(RuntimeLaunchSession::ReadFile(
+                envelope.artifacts.at(launch.behaviorModules.logicalId)));
+            behaviorArtifactCatalog = Json::parse(RuntimeLaunchSession::ReadFile(
+                envelope.artifacts.at(launch.behaviorArtifacts.logicalId)));
+        }
     }
     catch (const Json::exception&)
     {
@@ -201,11 +218,11 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
             "Named-action manifest is malformed.", "ScriptLoadFailure");
     }
     const auto behaviorSchema = behaviorManifest.value("schemaVersion", -1);
-    if ((behaviorSchema != 2 && behaviorSchema != 3) ||
+    if ((behaviorSchema != 2 && behaviorSchema != 3 && behaviorSchema != 4) ||
         !behaviorManifest.contains("behaviors") ||
         !behaviorManifest["behaviors"].is_array())
         return structuredFailure("Runtime.Script.StateContractMissing",
-            "Verified Play requires behavior manifest schema version 2 or 3.",
+            "Verified Play requires behavior manifest schema version 2, 3, or 4.",
             "ScriptLoadFailure");
     RuntimeStateStore::TypedWritePolicy stateWrites;
     try
@@ -310,6 +327,12 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
     hostOptions.inputPort = &inputPort;
     hostOptions.runtimePort = &exitPort;
     Scripting::CSharpScriptHost host(std::move(hostOptions));
+    auto csharpBackend = std::make_shared<Scripting::CSharpBehaviorBackend>(host);
+    Scripting::BehaviorBackendCatalog backendCatalog;
+    const auto backendRegistration = backendCatalog.Register(csharpBackend);
+    if (!backendRegistration.succeeded)
+        return structuredFailure("Runtime.Script.BackendRegistrationFailed",
+            backendRegistration.message, "ScriptLoadFailure");
     Scripting::ScriptLifecycleService lifecycle(host);
     Scripting::VerifiedScriptGenerationLoadRequest loadRequest;
     loadRequest.assembly = {envelope.artifacts.at(launch.scriptAssembly.logicalId),
@@ -351,7 +374,12 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
                 detail += " [" + key + "=" + value + "]";
         return detail;
     };
-    const auto package = lifecycle.LoadVerifiedGeneration(loadRequest);
+    const auto csharpResolution = backendCatalog.Resolve(
+        SagaShared::Behavior::CSharpBehaviorLanguage);
+    if (!csharpResolution.succeeded || csharpResolution.backend != csharpBackend.get())
+        return structuredFailure("Runtime.Script.BackendUnavailable",
+            csharpResolution.message, "ScriptLoadFailure");
+    const auto package = csharpBackend->LoadVerifiedGeneration(loadRequest);
     if (!package.Succeeded())
         return structuredFailure("Runtime.Script.PackageLoadFailed",
             describeHostFailure(
@@ -365,22 +393,138 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
                 action.value("actionId", std::string{})), action.value("method", std::string{}));
 
     std::map<std::string, std::set<std::string>> behaviorCapabilities;
+    std::map<std::string, SagaShared::Behavior::BehaviorModuleDescriptor> behaviorModules;
+    if (behaviorSchema == 4)
+    {
+        if (launch.schemaVersion != 3 || behaviorModuleCatalog.value("schemaVersion", -1) != 1 ||
+            behaviorModuleCatalog.value("projectId", std::string{}) != launch.projectId ||
+            behaviorModuleCatalog.value("packageGenerationId", std::string{}) !=
+                launch.packageGeneration.logicalId ||
+            !behaviorModuleCatalog.contains("modules") ||
+            !behaviorModuleCatalog["modules"].is_array() ||
+            behaviorArtifactCatalog.value("schemaVersion", -1) != 1 ||
+            behaviorArtifactCatalog.value("projectId", std::string{}) != launch.projectId ||
+            behaviorArtifactCatalog.value("packageGenerationId", std::string{}) !=
+                launch.packageGeneration.logicalId ||
+            !behaviorArtifactCatalog.contains("artifacts") ||
+            !behaviorArtifactCatalog["artifacts"].is_array() ||
+            behaviorArtifactCatalog["artifacts"].size() != 1)
+            return structuredFailure("Runtime.Script.GenericCatalogInvalid",
+                "Verified behavior module and artifact catalogs are missing or inconsistent.",
+                "ScriptLoadFailure");
+        for (const auto& item : behaviorModuleCatalog["modules"])
+        {
+            if (!item.is_object() || !item.contains("sourceIdentity") ||
+                !item["sourceIdentity"].is_object() || !item.contains("ownership") ||
+                !item["ownership"].is_object())
+                return structuredFailure("Runtime.Script.ModuleCatalogInvalid",
+                    "Behavior module descriptor shape is invalid.", "ScriptLoadFailure");
+            const auto source = item.value("sourceIdentity", Json::object());
+            const auto ownership = item.value("ownership", Json::object());
+            SagaShared::Behavior::BehaviorModuleDescriptor descriptor;
+            descriptor.moduleId.value = item.value("behaviorModuleId", std::string{});
+            descriptor.source.language.value = item.value("language", std::string{});
+            descriptor.source.sourceSymbolId = source.value("sourceSymbolId", std::string{});
+            descriptor.source.sourcePath = source.value("sourcePath", std::string{});
+            descriptor.projectId = item.value("projectId", std::string{});
+            descriptor.packageGenerationId =
+                item.value("packageGenerationId", std::string{});
+            for (const auto& capability : item.value("requestedCapabilities", Json::array()))
+                if (capability.is_string())
+                    descriptor.requestedCapabilities.push_back(capability.get<std::string>());
+            for (const auto& path : item.value("sourceInventory", Json::array()))
+                if (path.is_string()) descriptor.sourceInventory.push_back(path.get<std::string>());
+            const auto backend = backendCatalog.Resolve(descriptor.source.language);
+            if (!descriptor.moduleId.IsValid() || descriptor.projectId != launch.projectId ||
+                descriptor.packageGenerationId != launch.packageGeneration.logicalId ||
+                ownership.value("kind", std::string{}) != "project" ||
+                ownership.value("ownerId", std::string{}) != launch.projectId ||
+                descriptor.source.sourceSymbolId.empty() || descriptor.source.sourcePath.empty() ||
+                source.value("identityKind", std::string{}) != "CanonicalModuleMetadata" ||
+                descriptor.sourceInventory.empty() || !backend.succeeded ||
+                !behaviorModules.emplace(descriptor.moduleId.value, std::move(descriptor)).second)
+                return structuredFailure("Runtime.Script.ModuleCatalogInvalid",
+                    "Behavior module identity, source owner, language, or uniqueness is invalid.",
+                    "ScriptLoadFailure");
+        }
+        const auto& artifact = behaviorArtifactCatalog["artifacts"].front();
+        if (!artifact.is_object())
+            return structuredFailure("Runtime.Script.ArtifactCatalogInvalid",
+                "Behavior artifact descriptor shape is invalid.", "ScriptLoadFailure");
+        SagaShared::Behavior::BehaviorArtifactDescriptor artifactDescriptor;
+        artifactDescriptor.artifactId = artifact.value("artifactId", std::string{});
+        artifactDescriptor.language.value = artifact.value("language", std::string{});
+        artifactDescriptor.format = artifact.value("format", std::string{});
+        artifactDescriptor.artifactHash = artifact.value("artifactHash", std::string{});
+        artifactDescriptor.packageGenerationId =
+            artifact.value("packageGenerationId", std::string{});
+        std::set<std::string> artifactModules;
+        for (const auto& id : artifact.value("behaviorModuleIds", Json::array()))
+            if (id.is_string())
+            {
+                artifactModules.insert(id.get<std::string>());
+                artifactDescriptor.behaviorModuleIds.push_back(id.get<std::string>());
+            }
+        std::set<std::string> catalogModules;
+        for (const auto& [id, descriptor] : behaviorModules)
+            catalogModules.insert(id);
+        for (const auto& payload : artifact.value("payloadArtifacts", Json::array()))
+            if (payload.is_object())
+                artifactDescriptor.payloadArtifacts.emplace(
+                    payload.value("artifactId", std::string{}),
+                    payload.value("hash", std::string{}));
+        const auto artifactBackend = backendCatalog.Resolve(artifactDescriptor.language);
+        if (!artifactBackend.succeeded ||
+            artifactDescriptor.artifactHash != launch.scriptAssembly.hash ||
+            artifactDescriptor.packageGenerationId !=
+                launch.packageGeneration.logicalId || artifactModules != catalogModules ||
+            !artifactBackend.backend->ValidateArtifact(artifactDescriptor).succeeded)
+            return structuredFailure("Runtime.Script.ArtifactCatalogInvalid",
+                "Behavior artifact descriptor does not match its verified backend payload.",
+                "ScriptLoadFailure");
+    }
     std::set<std::string> grantedCapabilities;
     for (const auto& capability : capabilityManifest.value("capabilities", Json::array()))
         if (capability.is_string()) grantedCapabilities.insert(capability.get<std::string>());
     for (const auto& behavior : behaviorManifest.value("behaviors", Json::array()))
     {
-        auto& grants = behaviorCapabilities[behavior.value("behaviorId", std::string{})];
+        const auto behaviorId = behavior.value("behaviorId", std::string{});
+        const auto language = behaviorSchema == 4
+            ? behavior.value("language", std::string{}) : std::string{"csharp"};
+        const auto backend = backendCatalog.Resolve({language});
+        if (!backend.succeeded)
+            return structuredFailure("Runtime.Script.BackendUnavailable", backend.message,
+                "ScriptLoadFailure");
+        auto& grants = behaviorCapabilities[behaviorId];
         for (const auto& capability : behavior.value("capabilities", Json::array()))
             if (capability.is_string()) grants.insert(capability.get<std::string>());
+        const auto moduleId = behavior.value("behaviorModuleId", std::string{});
+        if (!moduleId.empty())
+        {
+            const auto descriptor = behaviorModules.find(moduleId);
+            if (descriptor == behaviorModules.end() || behaviorId != moduleId ||
+                descriptor->second.source.language.value != language ||
+                descriptor->second.source.sourceSymbolId !=
+                    behavior.value("sourceSymbolId", std::string{}))
+                return structuredFailure("Runtime.Script.ModuleCatalogInvalid",
+                    "Behavior manifest does not match the verified module catalog.",
+                    "ScriptLoadFailure");
+            const std::set<std::string> descriptorCapabilities(
+                descriptor->second.requestedCapabilities.begin(),
+                descriptor->second.requestedCapabilities.end());
+            if (descriptorCapabilities != grants)
+                return structuredFailure("Runtime.Script.ModuleCatalogInvalid",
+                    "Behavior capabilities do not match the verified module catalog.",
+                    "ScriptLoadFailure");
+        }
     }
 
     std::size_t behaviorCount = 0;
     for (const auto& entity : world.Scene().entities)
     {
-        if (!entity.scriptBehavior) continue;
+        if (!entity.scriptBehavior || !entity.scriptBehavior->enabled) continue;
         ++behaviorCount;
-        const auto grants = behaviorCapabilities.find(entity.scriptBehavior->behaviorTypeId);
+        const auto grants = behaviorCapabilities.find(entity.scriptBehavior->behaviorModuleId);
         if (grants == behaviorCapabilities.end())
             return structuredFailure("Runtime.Script.BehaviorManifestMismatch",
                 "Scene behavior is absent from the verified behavior manifest.", "ScriptLoadFailure");
@@ -393,7 +537,7 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
     if (behaviorCount == 0)
         return structuredFailure("Runtime.Script.BehaviorMissing",
             "Runtime scene has no script behavior.", "ScriptLoadFailure");
-    if (launch.schemaVersion == 2)
+    if (launch.schemaVersion >= 2)
     {
         if (uiResult.value->schemaVersion == 1)
         {
@@ -436,20 +580,49 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
     std::map<std::pair<std::string, std::string>, Scripting::ScriptInstanceHandle> instances;
     for (const auto& entity : world.Scene().entities)
     {
-        if (!entity.scriptBehavior) continue;
-        const auto key = std::make_pair(entity.entityId, entity.scriptBehavior->behaviorTypeId);
+        if (!entity.scriptBehavior || !entity.scriptBehavior->enabled) continue;
+        const auto key = std::make_pair(entity.entityId, entity.scriptBehavior->behaviorModuleId);
         if (instances.contains(key))
             return structuredFailure("Runtime.Script.InstanceIdentityDuplicate",
                 "Script instance identity must be unique by entity and behavior type.",
                 "ScriptLifecycleFailure");
-        Scripting::ScriptInstanceCreateRequest create;
-        create.package = package.package;
-        create.classId.value = entity.scriptBehavior->behaviorTypeId;
-        create.scriptId = entity.scriptBehavior->behaviorTypeId;
-        create.selfEntity = world.Handle(entity.entityId);
-        create.instanceConfigurationCanonicalJson =
-            entity.scriptBehavior->instanceConfigurationCanonicalJson;
-        const auto created = lifecycle.CreateInstance(create);
+        const auto module = behaviorModules.find(entity.scriptBehavior->behaviorModuleId);
+        if (module == behaviorModules.end() &&
+            !entity.scriptBehavior->legacyCSharpTypeIdentity)
+            return structuredFailure("Runtime.Script.ModuleCatalogMismatch",
+                "Scene attachment has no canonical behavior module descriptor.",
+                "ScriptLifecycleFailure");
+        Scripting::ScriptInstanceCreateResult created;
+        if (entity.scriptBehavior->legacyCSharpTypeIdentity)
+        {
+            Scripting::ScriptInstanceCreateRequest legacy;
+            legacy.package = package.package;
+            legacy.classId.value = entity.scriptBehavior->behaviorModuleId;
+            legacy.scriptId = entity.scriptBehavior->behaviorModuleId;
+            legacy.selfEntity = world.Handle(entity.entityId);
+            legacy.instanceConfigurationCanonicalJson =
+                entity.scriptBehavior->instanceConfigurationCanonicalJson;
+            created = lifecycle.CreateInstance(legacy);
+        }
+        else
+        {
+            Scripting::CSharpBehaviorInstanceCreateRequest create;
+            create.package = package.package;
+            create.module = module->second;
+            create.attachment.attachmentId = entity.scriptBehavior->attachmentId;
+            create.attachment.behaviorModuleId.value = entity.scriptBehavior->behaviorModuleId;
+            create.attachment.instanceConfigurationCanonicalJson =
+                entity.scriptBehavior->instanceConfigurationCanonicalJson;
+            create.attachment.requiredCapabilities = entity.scriptBehavior->requiredCapabilities;
+            create.attachment.enabled = entity.scriptBehavior->enabled;
+            create.instanceIdentity.value = "behavior-instance://" + envelope.playSessionId + "/" +
+                entity.scriptBehavior->attachmentId;
+            create.instanceIdentity.behaviorModuleId = create.attachment.behaviorModuleId;
+            create.instanceIdentity.attachmentId = create.attachment.attachmentId;
+            create.instanceIdentity.worldGenerationId = envelope.playSessionId;
+            create.selfEntity = world.Handle(entity.entityId);
+            created = csharpBackend->CreateInstance(create);
+        }
         if (!created.Succeeded())
             return structuredFailure("Runtime.Script.InstanceCreateFailed",
                 describeHostFailure(
@@ -480,7 +653,7 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
     const Play::RuntimeUiPromptBinding* runtimePrompt = nullptr;
     Scripting::ScriptEntityHandle promptEntity;
     std::string promptText;
-    if (launch.schemaVersion == 2)
+    if (launch.schemaVersion >= 2)
     {
         if (uiResult.value->schemaVersion == 1)
         {
@@ -545,7 +718,7 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
         std::string participantCategory;
         for (const auto& entity : world.Scene().entities)
             for (const auto& binding : entity.eventBindings)
-                if (binding.behaviorTypeId == challengeBehaviorId &&
+                if (binding.behaviorModuleId == challengeBehaviorId &&
                     binding.eventType == "TriggerEnter" &&
                     binding.namedActionId.starts_with("Collect") &&
                     entity.triggerVolume)
@@ -568,7 +741,7 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
     if (challengeMicrogame)
         for (const auto& entity : world.Scene().entities)
             if (entity.scriptBehavior &&
-                entity.scriptBehavior->behaviorTypeId == challengeBehaviorId)
+                entity.scriptBehavior->behaviorModuleId == challengeBehaviorId)
             {
                 try
                 {
@@ -612,7 +785,7 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
         }
     };
     const auto staticInputActionCount = inputResult.value->actions.size();
-    const auto staticUiBindingCount = launch.schemaVersion == 2
+    const auto staticUiBindingCount = launch.schemaVersion >= 2
         ? uiResult.value->prompts.size() +
               uiResult.value->textBindings.size() +
               uiResult.value->inputLabelBindings.size()
@@ -944,7 +1117,7 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
         std::uint64_t renderedFrameIndex = 0;
         RuntimeUiSession ui;
         auto* overlay = render.OverlaySubmission();
-        if (launch.schemaVersion == 2 && (overlay == nullptr ||
+        if (launch.schemaVersion >= 2 && (overlay == nullptr ||
             !ui.Initialize(*uiResult.value, *inputResult.value, stateStore,
                 promptEntity, *overlay, render.Width(), render.Height())))
         {
@@ -1079,7 +1252,7 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
                     "Script OnUpdate failed.", "ScriptLifecycleFailure");
             }
             std::optional<RuntimeEvidenceCaptureRequest> captureRequest;
-            if (smokeInteractions && launch.schemaVersion == 2 &&
+            if (smokeInteractions && launch.schemaVersion >= 2 &&
                 runtimePrompt != nullptr &&
                 (frames == 0 || frames == 30 || frames == 190 || frames == 245))
             {
@@ -1104,7 +1277,7 @@ RuntimeHostResult RunRuntimeFrameLoop(const std::filesystem::path& playEnvelope,
                     capturePrefix + "-" + suffix, renderedFrameIndex,
                     bindingLabel, *text, snapshot->value, 0U, prior};
             }
-            if (!render.RenderFrame(launch.schemaVersion == 2 ? &ui : nullptr,
+            if (!render.RenderFrame(launch.schemaVersion >= 2 ? &ui : nullptr,
                                     captureRequest ? &*captureRequest : nullptr))
             {
                 ui.Shutdown();
