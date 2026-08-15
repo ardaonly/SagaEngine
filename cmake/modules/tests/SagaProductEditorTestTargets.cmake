@@ -57,6 +57,15 @@
         set_tests_properties(SagaLauncherUiTests PROPERTIES
             LABELS "product;ui"
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+        include(GoogleTest)
+        gtest_discover_tests(SagaLauncherUiTests
+            TEST_PREFIX "SagaLauncherXcb."
+            DISCOVERY_MODE POST_BUILD
+            PROPERTIES
+                LABELS "suite-product-xcb"
+                ENVIRONMENT "QT_QPA_PLATFORM=xcb"
+                RESOURCE_LOCK "saga-product-display"
+                TIMEOUT 600)
     endif()
 
     # --- Editor authoring spine tests ---------------------------------------

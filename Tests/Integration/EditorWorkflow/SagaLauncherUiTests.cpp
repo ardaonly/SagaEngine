@@ -19,8 +19,7 @@ TEST(SagaHomeUiTest, XcbPackagesWorkflowRendersProductionPanelReviewAndRecovery)
     ASSERT_TRUE(materialization.isValid());
     const auto projectRoot = std::filesystem::path(
         materialization.path().toStdString()) / "ArenaRush";
-    std::filesystem::copy(TestSourceRoot() / "Samples/ArenaRush", projectRoot,
-        std::filesystem::copy_options::recursive);
+    ASSERT_TRUE(MaterializeArenaRushProject(projectRoot));
     const auto project = projectRoot / "ArenaRush.sagaproj";
 
     {
@@ -65,6 +64,7 @@ TEST(SagaHomeUiTest, XcbPackagesWorkflowRendersProductionPanelReviewAndRecovery)
                 energyCore->findChild<QSpinBox*>()->isEnabled() &&
                 energyCore->findChild<QDoubleSpinBox*>()->isEnabled();
         }));
+        ASSERT_TRUE(WaitUntil([analyze] { return analyze->isEnabled(); }, 60000));
         EXPECT_EQ(energyCore->findChild<QSpinBox*>()->value(), 10);
         EXPECT_DOUBLE_EQ(energyCore->findChild<QDoubleSpinBox*>()->value(), 2.0);
         auto* tabs = codeDock->findChild<QTabWidget*>();

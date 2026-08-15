@@ -185,6 +185,10 @@ def default_build_dir(root: Path) -> Path:
     return root / "build" / f"RelWithDebInfo-{version}"
 
 
+def evidence_directory(manifest_path: Path) -> Path:
+    return manifest_path.parent / f"{manifest_path.stem}.artifacts"
+
+
 def configure_command(args: argparse.Namespace, build_dir: Path) -> list[str]:
     # C++ dependency scanning and sccache have produced missing depfile races in
     # focused parallel builds. Suites favor reproducibility over a host cache.
@@ -274,15 +278,6 @@ def main(argv: list[str] | None = None) -> int:
 
         refreshed = suite_map(load_catalog(build_dir))
         suite = refreshed[args.suite]
-        selected, digest = ctest_selection(build_dir, args.suite, manifest)
-        manifest["selectedTests"] = selected
-        manifest["selectedLabel"] = f"suite-{args.suite}"
-        manifest["ctestGraphSha256"] = digest
-        if not selected:
-            print(f"suite {args.suite} selected no CTest tests", file=sys.stderr)
-            manifest["exitCode"] = 3
-            return 3
-
         environment = os.environ.copy()
         if args.suite == "product-xcb" and not environment.get("DISPLAY"):
             chosen = display.start()
@@ -294,6 +289,11 @@ def main(argv: list[str] | None = None) -> int:
                 return 4
             environment["DISPLAY"] = chosen
             manifest["display"] = chosen
+        if args.suite == "product-xcb":
+            product_evidence = evidence_directory(manifest_path)
+            product_evidence.mkdir(parents=True, exist_ok=True)
+            environment["SAGA_XCB_EVIDENCE_DIR"] = str(product_evidence)
+            manifest["evidenceDirectory"] = str(product_evidence)
 
         build = ["cmake", "--build", str(build_dir), "--config", args.config,
                  "--target", str(suite["aggregateTarget"]), "--parallel", str(args.jobs)]
@@ -301,6 +301,15 @@ def main(argv: list[str] | None = None) -> int:
         if code:
             manifest["exitCode"] = code
             return code
+
+        selected, digest = ctest_selection(build_dir, args.suite, manifest)
+        manifest["selectedTests"] = selected
+        manifest["selectedLabel"] = f"suite-{args.suite}"
+        manifest["ctestGraphSha256"] = digest
+        if not selected:
+            print(f"suite {args.suite} selected no CTest tests", file=sys.stderr)
+            manifest["exitCode"] = 3
+            return 3
 
         junit = manifest_path.with_suffix(".junit.xml")
         test = ["ctest", "--test-dir", str(build_dir), "-C", args.config,

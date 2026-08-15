@@ -2,7 +2,7 @@
 /// @file SagaWorkModesUiTests.cpp
 /// @brief Rendered product workflow for official modes and named workspaces.
 
-#include "Launcher/SagaMainWindow.h"
+#include "SagaLauncherUiTestSupport.h"
 
 #include <gtest/gtest.h>
 
@@ -29,11 +29,6 @@ std::string ReadWorkModeFile(const std::filesystem::path& path)
     return {std::istreambuf_iterator<char>(input), {}};
 }
 
-std::filesystem::path WorkModeSourceRoot()
-{
-    return std::filesystem::path(SAGA_SOURCE_ROOT);
-}
-
 TEST(SagaWorkModesUiTest,
      XcbProgrammaticWidgetsPreserveArenaRushAcrossNamedWorkspaceWorkflow)
 {
@@ -48,8 +43,7 @@ TEST(SagaWorkModesUiTest,
     ASSERT_TRUE(materialization.isValid());
     const auto projectRoot = std::filesystem::path(
         materialization.path().toStdString()) / "ArenaRush";
-    std::filesystem::copy(WorkModeSourceRoot() / "Samples/ArenaRush",
-        projectRoot, std::filesystem::copy_options::recursive);
+    ASSERT_TRUE(MaterializeArenaRushProject(projectRoot));
     const auto projectPath = projectRoot / "ArenaRush.sagaproj";
     const auto lockPath = projectRoot / "SagaPackage.lock";
     const auto sourcePath = projectRoot / "Scripts/ArenaRushGameMode.cs";

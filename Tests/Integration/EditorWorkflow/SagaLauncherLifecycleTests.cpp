@@ -64,6 +64,7 @@ TEST(SagaHomeUiTest, FailedOpenStaysHomeAndEditorCanUnmountAndRemount)
     ASSERT_TRUE(window.OpenProject(project));
     EXPECT_EQ(window.State(), SagaProduct::SagaMainWindowState::Editor);
     window.ReturnHome();
+    QApplication::processEvents();
     EXPECT_EQ(window.State(), SagaProduct::SagaMainWindowState::Home);
 }
 

@@ -1,6 +1,6 @@
 {
   "engineVersion": "0.0.11",
-  "graphHash": "sha256:07e55a23654174a6bf2c3bfb4c5e51c7434d3345933cc96906fa28815c14c082",
+  "graphHash": "sha256:bc8973fc882c0ae1d3afdab7bf774d54abb5b574b1d3c6b35e80adb7049f62cf",
   "intentHash": "sha256:164b47a120936857fb81817529da19ab9cf9494266e7575eed7093dff0d4caca",
   "packages": [
     {
@@ -80,7 +80,7 @@
           "artifactId": "com.saga.gameplay.foundation.managed-reference",
           "distributionPath": "Packages/com.saga.gameplay.foundation/0.0.11/managed/gameplay.highlevel.reference.json",
           "kind": "managedReference",
-          "resolvedAssemblyHash": "sha256:25d9a8fa4ba5b0cf05f95bdd99cdb8431416e2e35a8c641ab08e742b0be4b3e8",
+          "resolvedAssemblyHash": "sha256:ad07527b3b1d30077b1a93e63637c934c630a991663f4d1afee269acc82b1818",
           "resolvedAssemblyLogicalPath": "references/com.saga.gameplay.foundation.managed-reference/SagaScript.RuntimeBridge.dll",
           "runtimeCompatibility": "0.0.11",
           "targetFramework": "net10.0",
