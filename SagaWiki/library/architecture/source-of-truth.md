@@ -47,8 +47,6 @@ The stable semantic content identity is separate from publication-local
 metadata. Saga distributions stage their own pinned .NET runtime and managed
 tools. A developer SDK is a build prerequisite, not a product runtime fallback.
 
-
-
 ## Freshness
 
 Generated output must carry enough origin information to detect stale inputs where the owning contract requires it. A generated file being present does not prove it matches its source. Builders should reject or report mismatched hashes, spans, schema versions, or package inputs rather than silently treating stale output as current.
