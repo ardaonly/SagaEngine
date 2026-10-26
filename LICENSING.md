@@ -31,10 +31,10 @@ The following boundaries remain separate:
 
 This migration does not retroactively change an earlier release.
 
-Effective migration commit: `8a39e5fbfc3fa9c687dde14a033d6c795763946b`.
+Effective migration commit: `5107e14e6bce247a9ee8181786d74e0890d97fda`.
 
 The `Samples/**` MIT grant became effective at
-`725f10f2508cefb76ce86792b72ec490df009f8e`.
+`8ac693e3a31e0c1b0b950eb42a29d43413ebbeaa`.
 
 ## Approved target model
 

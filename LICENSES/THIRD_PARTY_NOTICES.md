@@ -45,6 +45,9 @@ components actually shipped with that artifact.
 | Microsoft .NET Runtime | 10.0.10 (`linux-x64`) | MIT | Redistributed private host and `Microsoft.NETCore.App` for Saga managed child tools |
 | Microsoft.CodeAnalysis.Common | 4.11.0 | MIT | Roslyn compiler assemblies published with SagaScript |
 | Microsoft.CodeAnalysis.CSharp | 4.11.0 | MIT | Roslyn C# compiler assemblies published with SagaScript |
+| Microsoft.CodeAnalysis.CSharp.Workspaces | 4.11.0 | MIT | Roslyn workspace APIs published with SagaScript |
+| Microsoft.CodeAnalysis.CSharp.Features | 4.11.0 | MIT | Roslyn C# language features published with SagaScript |
+| Microsoft.CodeAnalysis.Features | 4.11.0 | MIT | Roslyn language features published with SagaScript |
 
 Listing a component here does not imply that it is copied into every runtime
 distribution.
@@ -59,13 +62,24 @@ and `ThirdPartyNotices.txt` (SHA-256
 `2dc8f8c5a39401e928b5784ab564eb8b3ceb99ead3df8f260e0cab7e0bbecc7a`)
 are copied to `licenses/ThirdParty/dotnet`.
 
-SagaScript's lock-resolved Roslyn packages are
+SagaScript directly references `Microsoft.CodeAnalysis.CSharp`,
+`Microsoft.CodeAnalysis.CSharp.Workspaces`,
+`Microsoft.CodeAnalysis.CSharp.Features`, and
+`Microsoft.CodeAnalysis.Features` at version 4.11.0.
+`Microsoft.CodeAnalysis.Common` 4.11.0 is included transitively. The NuGet
+package metadata declares MIT for these Roslyn packages, and the packages
+provide Roslyn third-party notices. Verified package SHA-256 values are
 `Microsoft.CodeAnalysis.Common` 4.11.0 (package SHA-256
 `717ff180cd15992f81b2eeb7299936a1f8c538ecb59b323e08254463a908f909`)
 and `Microsoft.CodeAnalysis.CSharp` 4.11.0 (package SHA-256
-`13d8c43a3a7d83f08579cb1ce7f41f44a38f5cc4694b0d137fbf57b1180bf8c9`).
-Their upstream package metadata declares MIT and supplies Roslyn third-party
-notices; the canonical MIT text is `LICENSES/MIT.txt`.
+`13d8c43a3a7d83f08579cb1ce7f41f44a38f5cc4694b0d137fbf57b1180bf8c9`),
+`Microsoft.CodeAnalysis.CSharp.Workspaces` 4.11.0 (package SHA-256
+`037866509cdaa917169ddc062821d7b778a7f53e46795eb2a65fe46bc74342bd`),
+`Microsoft.CodeAnalysis.CSharp.Features` 4.11.0 (package SHA-256
+`feb43373d1c747a874d839bdacfb01950cb3b60b788ad99b4c538c57cae059f7`), and
+`Microsoft.CodeAnalysis.Features` 4.11.0 (package SHA-256
+`5bf477255b967d34dc5bf1998c9cdd4f2c59559a64d5d0206893f3f9419c8325`).
+The canonical MIT text is `LICENSES/MIT.txt`.
 
 ## Graphics vendor boundary
 
