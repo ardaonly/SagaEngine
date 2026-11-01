@@ -113,7 +113,7 @@ EXCLUDED_DEV_TOOLS = (
     {"name": "SagaStateCheck", "reason": "internal deterministic validation"},
     {"name": "MultiplayerSandboxHeadless", "reason": "repository-only sample evidence"},
     {"name": "RenderClientSmokeTest", "reason": "test/probe identity"},
-    {"name": "Forge", "reason": "developer build orchestrator"},
+    {"name": "Forge", "reason": "experimental developer workflow tool"},
     {"name": "SagaTools", "reason": "developer repository tooling"},
     {"name": "test-executables", "reason": "test-only binaries"},
 )

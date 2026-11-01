@@ -74,7 +74,6 @@ const char* ToString(SagaProcessTargetId target) noexcept
     {
         case SagaProcessTargetId::Runtime: return "runtime";
         case SagaProcessTargetId::SagaProject: return "sagaproject";
-        case SagaProcessTargetId::Forge: return "forge";
         case SagaProcessTargetId::SagaScript: return "sagascript";
     }
     return "unknown";
@@ -111,8 +110,6 @@ bool SagaProcessService::IsExecutableAllowed(
             return basename == "SagaRuntime";
         case SagaProcessTargetId::SagaProject:
             return basename == "sagaproject";
-        case SagaProcessTargetId::Forge:
-            return basename == "forge";
         case SagaProcessTargetId::SagaScript:
             return basename == "sagascript";
     }

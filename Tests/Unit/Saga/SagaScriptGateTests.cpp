@@ -89,7 +89,7 @@ TEST(SagaScriptGateTest, AppEntrypointReportsMissingScriptsDirectory)
     EXPECT_EQ(out.str().find("target="), std::string::npos);
 }
 
-TEST(SagaScriptGateTest, BuildsForgeGateRunCommandForProjectPaths)
+TEST(SagaScriptGateTest, BuildsDirectManagedSagaScriptCommandForProjectPaths)
 {
     const fs::path root = MakeTempDir("saga_sagascript_gate_command_test");
     const fs::path projectRoot = root / "ScriptProject";
@@ -100,12 +100,11 @@ TEST(SagaScriptGateTest, BuildsForgeGateRunCommandForProjectPaths)
     FakeToolProcessRunner* runnerPtr = runner.get();
     runnerPtr->result.started = true;
     runnerPtr->result.exitCode = 0;
-    runnerPtr->result.standardOutput = "gate ok\n";
+    runnerPtr->result.standardOutput = "compile ok\n";
     SagaScriptGate gate(std::move(runner));
 
     SagaScriptGateRequest request;
     request.projectManifest = manifest;
-    request.forgeExecutable = fs::path("/tools/forge");
     request.managedRuntime.testStage = ManagedToolStage(root);
     request.runtimeBridge = root / "SagaScript.RuntimeBridge.dll";
 
@@ -117,18 +116,10 @@ TEST(SagaScriptGateTest, BuildsForgeGateRunCommandForProjectPaths)
     ASSERT_TRUE(result.ok);
     ASSERT_EQ(runnerPtr->requests.size(), 1u);
     const SagaToolProcessRequest& process = runnerPtr->requests[0];
-    EXPECT_EQ(process.executablePath, fs::path("/tools/forge"));
+    EXPECT_EQ(process.executablePath,
+              request.managedRuntime.testStage / "runtime/dotnet/dotnet");
     EXPECT_EQ(process.workingDirectory, fs::weakly_canonical(projectRoot));
     const std::vector<std::string> expected = {
-        "gate",
-        "run",
-        "--name",
-        "sagascript",
-        "--tool",
-        (request.managedRuntime.testStage / "runtime/dotnet/dotnet").string(),
-        "--diagnostics",
-        result.paths.diagnosticsOutputPath.string(),
-        "--",
         (request.managedRuntime.testStage /
             "tools/SagaScript/sagascript.dll").string(),
         "compile",
@@ -150,11 +141,11 @@ TEST(SagaScriptGateTest, BuildsForgeGateRunCommandForProjectPaths)
     EXPECT_EQ(process.environment.at("SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY"),
               request.runtimeBridge.string());
     EXPECT_TRUE(result.diagnostics.empty());
-    EXPECT_NE(out.str().find("gate ok"), std::string::npos);
+    EXPECT_NE(out.str().find("compile ok"), std::string::npos);
     EXPECT_TRUE(err.str().empty());
 }
 
-TEST(SagaScriptGateTest, NonZeroForgeGateExitFailsValidation)
+TEST(SagaScriptGateTest, NonZeroSagaScriptExitFailsValidation)
 {
     const fs::path root = MakeTempDir("saga_sagascript_gate_failure_test");
     const fs::path manifest = WriteProject(root / "FailingScriptProject",

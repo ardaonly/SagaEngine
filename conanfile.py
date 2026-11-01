@@ -91,7 +91,7 @@ class SagaEngineConan(ConanFile):
         # The repository owns CMakePresets.json. Conan's generated
         # CMakeUserPresets.json can include profile-specific environment macros
         # that CMake cannot expand directly, so keep Conan presets inside the
-        # generators folder and let Forge drive the root presets.
+        # generators folder and let CMake use the repository-owned root presets.
         tc.user_presets_path = None
         tc.variables["SAGA_ENABLE_VULKAN"] = self.options.with_vulkan
         tc.variables["SAGA_ENABLE_OPENGL"] = self.options.with_opengl

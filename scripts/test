@@ -3,4 +3,5 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
-exec Tools/Forge/bin/forge nix test "$@"
+export SAGA_ENGINE_VERSION="${SAGA_ENGINE_VERSION:-$(tr -d '[:space:]' < VERSION)}"
+exec ctest --test-dir "build/RelWithDebInfo-${SAGA_ENGINE_VERSION}" --output-on-failure "$@"

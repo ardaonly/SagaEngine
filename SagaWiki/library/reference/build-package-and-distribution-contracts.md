@@ -11,8 +11,9 @@ Build, package, distribution validation, and publish are separate stages with se
 
 ## Tool ownership
 
-- Forge prepares dependency/profile state.
+- Conan resolves third-party C++ dependencies; `profiles/` owns Conan host/build settings.
 - CMake owns target declaration, dependency visibility, build, install, and export composition.
+- Forge is an optional experimental C++ workflow frontend and does not participate in SagaEngine builds.
 - SagaProjectKit validates `.sagaproj` and project reports.
 - SagaScript owns script analysis/compile/projection/patch artifacts.
 - SagaPackager resolves exact built-in project dependencies offline, compiles content, validates package inputs, stages the Linux candidate, creates archive/checksum, and emits preflight/report data.
@@ -21,15 +22,16 @@ Build, package, distribution validation, and publish are separate stages with se
 
 ## Development environment
 
-The live Linux preset is `linux-gcc`. Forge prepares dependencies before CMake configure/build when the environment requires it:
+The primary Linux preset is `linux-gcc`. Install dependencies with Conan, then configure and build with CMake:
 
 ```sh
-nix-shell --run "Tools/Forge/bin/forge install --profile linux-gcc"
-nix-shell --run "cmake --preset linux-gcc"
-nix-shell --run "cmake --build --preset linux-gcc"
+conan install . --profile:host=profiles/linux-gcc --build=missing
+export SAGA_ENGINE_VERSION="$(tr -d '[:space:]' < VERSION)"
+cmake --preset linux-gcc
+cmake --build --preset linux-gcc --parallel 2
 ```
 
-Nix provides a reproducible development shell and tool discovery boundary. It does not prove reproducible binaries across machines, hermetic source fetches, or clean-machine runtime portability unless the complete inputs and resulting artifacts are controlled and compared.
+NixOS remains an optional development environment for this Linux workflow. Nix provides a development shell and tool discovery boundary; it does not prove reproducible binaries across machines, hermetic source fetches, or clean-machine runtime portability unless the complete inputs and resulting artifacts are controlled and compared.
 
 Documentation uses the preset and discovers the active configured build directory. It should not bake historical `build/RelWithDebInfo-0.0.x` paths into durable architecture text.
 

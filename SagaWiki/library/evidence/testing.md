@@ -29,7 +29,7 @@ Installed graphics consumers must include only public installed headers. `SagaDi
 Use the repository-owned quick suite first:
 
 ```sh
-nix-shell --run "python3 Tools/Developer/CI/run_suite.py quick"
+python3 Tools/Developer/CI/run_suite.py quick
 ```
 
 CMake/CTest owns test membership, labels, timeouts, and aggregate build
@@ -132,11 +132,10 @@ Current implementation and gate record:
 
 The earlier graphical execution record remains historical execution only and
 does not satisfy the current acceptance contract. The current focused result is
-the separately retained E/F run and independently recomputed runner report
-under `.saga-private/evidence/closure-acceptance-20260726`. This focused local
-pass does not claim full CTest completion, a trusted hardware-GPU run, or public
-gate closure; the complete vertical slice is therefore not claimed as publicly
-proven.
+the separately retained E/F run and independently recomputed runner report in
+the local evidence archive. This focused local pass does not claim full CTest
+completion, a trusted hardware-GPU run, or public gate closure; the complete
+vertical slice is therefore not claimed as publicly proven.
 
 GPU execution remains a manual, hardware-qualified boundary. With no trusted self-hosted `saga-gpu` runner, the preflight produces an explicit blocked report and intentionally does not claim success or execute GPU binaries. A hosted runner or a successful GPU-target build is not GPU evidence.
 

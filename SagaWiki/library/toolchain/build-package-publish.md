@@ -7,7 +7,7 @@ reviewed_against: 0.0.11-post-cutover
 
 # Build, package, and publish toolchain
 
-Tool ownership is intentionally split. SagaTools dispatches registered tools without absorbing their behavior, Forge prepares dependencies and profiles, CMake declares build targets, focused developer checks enforce repository contracts, AssetPipeline produces deterministic Runtime-compatible manifests, SagaProjectKit validates project manifests, SagaScript owns script workflows, and SagaPackager stages package outputs.
+Tool ownership is intentionally split. SagaTools dispatches registered tools without absorbing their behavior, Conan resolves third-party C++ dependencies, CMake declares and builds targets, focused developer checks enforce repository contracts, AssetPipeline produces deterministic Runtime-compatible manifests, SagaProjectKit validates project manifests, SagaScript owns script workflows, and SagaPackager stages package outputs. Forge is an optional experimental workflow frontend and is not part of SagaEngine's build path.
 
 ## Dispatcher boundary
 
@@ -29,13 +29,16 @@ Compilation consumes one materialized snapshot through the existing SagaProjectK
 
 This capability builds a verified local standalone project artifact. It does not claim platform signing, installers, cross-machine reproducibility, console targets, or public distribution readiness.
 
-The live Linux preset is `linux-gcc`. Source lists and link visibility belong to the owning module `CMakeLists.txt`; top-level files should compose modules rather than absorb implementation ownership.
+The primary Linux preset is `linux-gcc`. Install dependencies with Conan, then configure and build with CMake. Source lists and link visibility belong to the owning module `CMakeLists.txt`; top-level files should compose modules rather than absorb implementation ownership.
 
 ```sh
-nix-shell --run "Tools/Forge/bin/forge install --profile linux-gcc"
-nix-shell --run "cmake --preset linux-gcc"
-nix-shell --run "cmake --build --preset linux-gcc"
+conan install . --profile:host=profiles/linux-gcc --build=missing
+export SAGA_ENGINE_VERSION="$(tr -d '[:space:]' < VERSION)"
+cmake --preset linux-gcc
+cmake --build --preset linux-gcc --parallel 2
 ```
+
+NixOS remains an optional development environment for this Linux workflow.
 
 Generated build directories are disposable output. They must not become inputs to source review or Wiki generation.
 

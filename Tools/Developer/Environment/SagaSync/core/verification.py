@@ -33,12 +33,12 @@ def quick_profile() -> VerificationProfile:
 def forge_profile() -> VerificationProfile:
     return VerificationProfile(
         name="forge",
-        label="Forge",
+        label="Experimental Forge",
         actions=(
-            SafeAction(label="Forge Build", command=("python3", "Tools/Forge/build.py", "-j", "1")),
+            SafeAction(label="Experimental Forge Build", command=("python3", "Tools/Experimental/Forge/build.py", "-j", "1")),
             SafeAction(
-                label="Forge CTest",
-                command=("ctest", "--test-dir", "Tools/Forge/build", "--output-on-failure"),
+                label="Experimental Forge CTest",
+                command=("ctest", "--test-dir", "Tools/Experimental/Forge/build", "--output-on-failure"),
             ),
         ),
     )

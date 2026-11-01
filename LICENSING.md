@@ -21,7 +21,7 @@ The effective source scope includes Engine, Runtime, Server, Shared, Collaborati
 
 The following boundaries remain separate:
 
-- Generic Forge remains under Apache-2.0.
+- Experimental Forge remains under Apache-2.0.
 - Vendor and third-party files remain under their actual upstream terms.
 - Documentation, generated outputs, and user-created material continue to
   follow their separately recorded policy domains. Saga-owned files under
@@ -46,7 +46,7 @@ The repository's effective and remaining target treatments are:
 | Saga-owned Shared, Collaboration and Backends source | MPL-2.0 |
 | Saga-owned Editor source | MPL-2.0 |
 | Saga-specific applications, tests, build scripts and tooling | MPL-2.0 |
-| Generic Forge | Apache-2.0 |
+| Experimental Forge | Apache-2.0 |
 | User-created game code, scripts, data and assets | User-selected license |
 | Saga-owned samples, project templates and gameplay boilerplate under `Samples/**` | MIT |
 | Documentation prose and illustrations | CC-BY-4.0 |

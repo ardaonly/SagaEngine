@@ -54,7 +54,7 @@ directory never selects a runtime.
 
 Project creation routes ProjectKit through this authority; nested packaging
 receives the same private host and the SagaPackager DLL. Script analysis,
-worker compilation, Forge-gated compilation, viewport content compilation, and
+worker compilation, direct SagaScript compilation, viewport content compilation, and
 Play preparation similarly retain their semantic owners while sharing this
 one child-process runtime. Preflight and process failures retain stable
 `Product.Toolchain.*` codes, bounded output, exit metadata, and the resolved

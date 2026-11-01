@@ -161,9 +161,6 @@ std::optional<std::filesystem::path> SagaExecutableCatalog::Resolve(SagaProcessT
         if (!std::filesystem::is_regular_file(WithWindowsExecutableSuffix(candidate)))
             candidate = FindDeveloperTool(bin, "Tools/SagaScript/sagascript");
         break;
-    case SagaProcessTargetId::Forge:
-        candidate = bin / "forge";
-        break;
     }
     candidate = WithWindowsExecutableSuffix(std::move(candidate));
     std::error_code error;

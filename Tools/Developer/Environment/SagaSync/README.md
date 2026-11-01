@@ -60,7 +60,7 @@ It can:
 
 - show SagaEngine branch, dirty count, ahead/behind, and head commit,
 - evaluate export health as Ready, Stale, Blocked, or Unknown,
-- show Quick, Forge, and Export Safety verification profiles,
+- show Quick, Experimental Forge, and Export Safety verification profiles,
 - track session-local verification run results, duration, and last run time,
 - mark ready export state as unverified until Export Safety has run,
 - evaluation a read-only commit plan with grouped files and suggested messages,

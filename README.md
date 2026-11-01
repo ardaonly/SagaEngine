@@ -9,7 +9,7 @@ It is not a finished game-engine product, public SDK, production networking stac
 - `Engine/Source/Runtime` — runtime modules with explicit Public, Private, Tests, and CMake ownership.
 - `Engine/Source/Editor` — editor core/framework, Qt, authoring, Visual Blocks, scripting, collaboration, and experimental modules.
 - `Engine/Source/Programs` — thin program entry points and program-specific integration.
-- `Tools` — Forge, project, scripting, packaging, licensing, and developer tooling.
+- `Tools` — project, scripting, packaging, licensing, and developer tooling; [Forge](Tools/Experimental/Forge/README.md) is optional and experimental.
 - `Tests` — unit, architecture, integration, GPU, contract, support, evidence, and fixture areas.
 - `Samples` — sample-owned projects and source.
 - `SagaWiki` — canonical current product and architecture documentation.
@@ -20,14 +20,23 @@ The legacy top-level source roots are retired. The current map is in [Repository
 
 ## Build
 
-The live Linux preset is `linux-gcc`. Forge owns dependency setup; CMake owns configure and build:
+The primary Linux build uses Conan for third-party dependencies and CMake for configuration and compilation. Forge is experimental and is not required to build SagaEngine.
 
 ```sh
-nix-shell --run "Tools/Forge/bin/forge install --profile linux-gcc"
-nix-shell --run "cmake --preset linux-gcc"
-nix-shell --run "cmake --build --preset linux-gcc"
-ctest --test-dir build/RelWithDebInfo-0.0.11 --output-on-failure
+git submodule update --init --recursive
+conan install . --profile:host=profiles/linux-gcc --build=missing
+export SAGA_ENGINE_VERSION="$(tr -d '[:space:]' < VERSION)"
+cmake --preset linux-gcc
+cmake --build --preset linux-gcc --parallel 2
 ```
+
+This path expects a GCC-compatible compiler, CMake, Conan 2, Ninja, sccache,
+and the host development libraries used by the enabled Linux graphics/window
+backends.
+
+NixOS users may enter the optional development shell with `nix-shell` and run
+the same Conan/CMake steps there. The shell supplies NixOS-specific tool and
+library compatibility; it is not the project's only Linux build path.
 
 The stable root wrappers are:
 
@@ -40,7 +49,7 @@ scripts/wiki build
 scripts/wiki verify
 ```
 
-The wiki wrapper owns standard-library-only documentation generation and verification. The other wrappers delegate to Forge, the owning verification tools, or SagaPackager and contain no product logic.
+The wiki wrapper owns standard-library-only documentation generation and verification. The other wrappers route to CMake, CTest, the owning verification tools, or SagaPackager and contain no product logic.
 
 ## Public tooling direction
 

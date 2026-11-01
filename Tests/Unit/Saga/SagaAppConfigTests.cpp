@@ -80,8 +80,6 @@ TEST(SagaProcessServiceTest, AllowsOnlyTypedExecutableIdentities)
     EXPECT_TRUE(SagaProcessService::IsExecutableAllowed(
         SagaProcessTargetId::Runtime, "/opt/saga/bin/SagaRuntime"));
     EXPECT_TRUE(SagaProcessService::IsExecutableAllowed(
-        SagaProcessTargetId::Forge, "forge"));
-    EXPECT_TRUE(SagaProcessService::IsExecutableAllowed(
         SagaProcessTargetId::SagaScript, "sagascript"));
     EXPECT_FALSE(SagaProcessService::IsExecutableAllowed(
         SagaProcessTargetId::Runtime, "/bin/sh"));
@@ -142,18 +140,26 @@ TEST(SagaAppConfigTest, SagaScriptValidationArgumentsAreParsed)
         "Saga",
         "--validate-sagascript",
         "/tmp/project/Project.sagaproj",
-        "--forge",
-        "/tools/forge",
     };
     auto* argv = const_cast<char**>(argvRaw);
 
-    const SagaConfigResult result = ParseSagaAppConfig(5, argv);
+    const SagaConfigResult result = ParseSagaAppConfig(3, argv);
 
     ASSERT_TRUE(result.ok) << result.error;
     EXPECT_TRUE(result.config.validateSagaScript);
     EXPECT_EQ(result.config.sagaScriptProjectManifest,
               fs::path("/tmp/project/Project.sagaproj"));
-    EXPECT_EQ(result.config.forgeExecutable, fs::path("/tools/forge"));
+}
+
+TEST(SagaAppConfigTest, ForgeOverrideIsNoLongerPartOfTheProductCli)
+{
+    const char* argvRaw[] = {"Saga", "--forge", "/tmp/forge"};
+    auto* argv = const_cast<char**>(argvRaw);
+
+    const SagaConfigResult result = ParseSagaAppConfig(3, argv);
+
+    EXPECT_FALSE(result.ok);
+    EXPECT_NE(result.error.find("unknown argument"), std::string::npos);
 }
 
 TEST(SagaAppConfigTest, PackageCommandsRedirectToSagapack)

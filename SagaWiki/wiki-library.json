@@ -238,7 +238,7 @@
         ]
       },
       {
-        "path": "Tools/Forge",
+        "path": "Tools/Experimental",
         "pages": [
           "build-package-publish",
           "reference-build-distribution"
@@ -313,6 +313,21 @@
         "docs/product/WHAT_IS_SAGAENGINE.md",
         "docs/product/CURRENT_CAPABILITIES.md"
       ]
+    },
+    {
+      "id": "product-identity",
+      "source": "library/start/product-identity.md",
+      "title": "Product identity and direction",
+      "section": "Start here",
+      "summary": "Saga's creator-native, multiplayer-first focus, general-purpose scope, and current evidence boundary.",
+      "status": "bounded",
+      "tags": [
+        "product",
+        "identity",
+        "multiplayer",
+        "creators"
+      ],
+      "source_docs": []
     },
     {
       "id": "getting-started",

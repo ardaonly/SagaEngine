@@ -222,43 +222,6 @@ pkgs.mkShell {
     cp "${nixosConanHook}" "$_HOOKS_DIR/hook_nixos_fix.py"
     unset _HOOKS_DIR
 
-    FORGE_BIN="$PWD/Tools/Forge/bin"
-
-    # Build forge if the binary is missing (first entry or after a clean).
-    #
-    # cmake's Makefile generator stores include paths as -I"..." (double-quoted).
-    # When make expands the CXX_INCLUDES variable into a recipe and the nix gcc
-    # wrapper processes the result, the quoting breaks for paths containing spaces
-    # (this project lives in "SagaEngine Versions 2/..."). cmake sets
-    # CMAKE_CURRENT_SOURCE_DIR to HERE's resolved absolute path, so the -I flag
-    # always carries the full path with spaces.
-    # Fix: copy the forge source tree to /tmp (no spaces) so cmake generates
-    # -I/tmp/forge-src/include instead. Build there, copy binary back.
-    if [ ! -x "$FORGE_BIN/forge" ]; then
-      echo "[sagaengine-dev]  forge binary not found - building (via /tmp to avoid path-with-spaces quoting bug)..."
-      TMP_FORGE="/tmp/sagaengine-forge-src"
-      rm -rf "$TMP_FORGE"
-      # Exclude build/ and bin/ so no stale CMakeCache.txt is carried over.
-      cp -r "$PWD/Tools/Forge" "$TMP_FORGE"
-      rm -rf "$TMP_FORGE/build" "$TMP_FORGE/bin"
-      ( cd "$TMP_FORGE" && python3 build.py )
-      if [ -f "$TMP_FORGE/bin/forge" ]; then
-        mkdir -p "$FORGE_BIN"
-        cp "$TMP_FORGE/bin/forge" "$FORGE_BIN/forge"
-        chmod +x "$FORGE_BIN/forge"
-        echo "[sagaengine-dev]  forge staged to $FORGE_BIN/forge"
-      else
-        echo "[sagaengine-dev]  ERROR: forge build failed. See output above."
-      fi
-      rm -rf "$TMP_FORGE"
-    fi
-
-    if [ -x "$FORGE_BIN/forge" ]; then
-      export PATH="$FORGE_BIN:$PATH"
-    else
-      echo "[sagaengine-dev]  ERROR: forge build failed. Check output above."
-    fi
-
     echo "[sagaengine-dev] -- tool versions ----------------------------------"
     echo "[sagaengine-dev]  cmake   : $(cmake   --version 2>/dev/null | head -1 || echo 'NOT FOUND')"
     echo "[sagaengine-dev]  conan   : $(conan   --version 2>/dev/null          || echo 'NOT FOUND')"
@@ -267,7 +230,6 @@ pkgs.mkShell {
     echo "[sagaengine-dev]  g++     : $(g++     --version 2>/dev/null | head -1 || echo 'NOT FOUND')"
     echo "[sagaengine-dev]  dotnet  : $(dotnet  --version 2>/dev/null          || echo 'NOT FOUND')"
     echo "[sagaengine-dev]  sccache : $(sccache --version 2>/dev/null          || echo 'NOT FOUND')"
-    echo "[sagaengine-dev]  forge   : $(forge   --version 2>/dev/null          || echo 'NOT FOUND')"
     echo "[sagaengine-dev] ---------------------------------------------------"
 
     # Conan 2.x resolves profile names from ~/.conan2/profiles/.

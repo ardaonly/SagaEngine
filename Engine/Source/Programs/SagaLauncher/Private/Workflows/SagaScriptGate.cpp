@@ -3,7 +3,6 @@
 /// @brief Product-owned SagaScript validation gate orchestration.
 
 #include "Workflows/SagaScriptGate.h"
-#include "Processes/SagaProcessService.h"
 #include "Projects/SagaProjectCatalog.h"
 
 #include <ostream>
@@ -48,21 +47,19 @@ SagaToolProcessResult SagaToolProcessRunner::Run(
     const SagaToolProcessRequest& request)
 {
     SagaToolProcessResult result;
-
-    SagaProductProcessRequest processRequest;
-    processRequest.target = SagaProcessTargetId::Forge;
+    SagaEditor::ToolProcessRequest processRequest;
     processRequest.executable = request.executablePath;
     processRequest.arguments = request.arguments;
     processRequest.workingDirectory = request.workingDirectory;
     processRequest.environment = request.environment;
-
-    SagaProcessService service;
-    const SagaProductProcessResult process = service.Run(processRequest);
-    result.started = process.started;
+    const SagaEditor::ToolProcessResult process =
+        SagaEditor::ToolProcessRunner{}.Run(processRequest);
+    result.started = process.classification !=
+        SagaEditor::ToolProcessExitClassification::NotStarted;
     result.exitCode = process.exitCode;
     result.standardOutput = process.standardOutput;
     result.standardError = process.standardError;
-    result.startError = process.error;
+    result.startError = process.diagnosticMessage;
     return result;
 }
 
@@ -94,51 +91,38 @@ SagaToolProcessRequest SagaScriptGate::BuildProcessRequest(
     const std::filesystem::path root = CanonicalProjectRoot(request.projectManifest);
     const SagaScriptGatePaths paths = PathsForManifest(request.projectManifest);
 
-    SagaToolProcessRequest process;
-    process.executablePath = request.forgeExecutable;
-    process.workingDirectory = root;
     SagaEditor::ToolProcessRequest managedOptions;
-    const auto invocation = SagaEditor::ManagedToolRuntime(request.managedRuntime)
-        .PrepareInvocation(SagaEditor::ManagedToolId::Script, {});
-    const auto descriptor = invocation.descriptor;
-    if (invocation.process)
-        process.environment = invocation.process->environment;
-    else
-    {
-        process.environment = {
-            {"DOTNET_ROOT", descriptor.runtimeRoot.string()},
-            {"DOTNET_ROOT_X64", descriptor.runtimeRoot.string()},
-            {"DOTNET_HOST_PATH", descriptor.host.string()},
-            {"DOTNET_MULTILEVEL_LOOKUP", "0"},
-            {"DOTNET_SYSTEM_GLOBALIZATION_INVARIANT", "1"},
-        };
-    }
+    managedOptions.workingDirectory = root;
     if (!request.runtimeBridge.empty())
-        process.environment["SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY"] =
+        managedOptions.environment["SAGASCRIPT_RUNTIME_BRIDGE_ASSEMBLY"] =
             request.runtimeBridge.string();
-    process.arguments = {
-        "gate",
-        "run",
-        "--name",
-        "sagascript",
-        "--tool",
-        descriptor.host.string(),
-        "--diagnostics",
-        paths.diagnosticsOutputPath.string(),
-        "--",
-        descriptor.dll.string(),
-        "compile",
-        "--source",
-        paths.sourceRoot.string(),
-        "--out",
-        paths.manifestOutputDirectory.string(),
-        "--artifacts-out",
-        paths.artifactOutputDirectory.string(),
-        "--project-root",
-        root.string(),
-        "--diagnostics",
-        paths.diagnosticsOutputPath.string(),
-    };
+    const auto invocation =
+        SagaEditor::ManagedToolRuntime(request.managedRuntime)
+            .PrepareInvocation(
+                SagaEditor::ManagedToolId::Script,
+                {
+                    "compile",
+                    "--source",
+                    paths.sourceRoot.string(),
+                    "--out",
+                    paths.manifestOutputDirectory.string(),
+                    "--artifacts-out",
+                    paths.artifactOutputDirectory.string(),
+                    "--project-root",
+                    root.string(),
+                    "--diagnostics",
+                    paths.diagnosticsOutputPath.string(),
+                },
+                std::move(managedOptions));
+
+    SagaToolProcessRequest process;
+    process.workingDirectory = root;
+    if (invocation.process)
+    {
+        process.executablePath = invocation.process->executable;
+        process.arguments = invocation.process->arguments;
+        process.environment = invocation.process->environment;
+    }
     return process;
 }
 
@@ -223,6 +207,13 @@ SagaScriptGateResult SagaScriptGate::ValidateProject(
     SagaScriptGateRequest normalizedRequest = request;
     normalizedRequest.projectManifest = project.canonicalManifestPath;
     result.processRequest = BuildProcessRequest(normalizedRequest);
+    if (result.processRequest.executablePath.empty())
+    {
+        result.diagnostics.push_back(MakeSagaScriptDiagnostic(
+            SagaProductDiagnostics::SagaScriptGateFailed,
+            "SagaScript validation could not prepare the managed tool invocation."));
+        return result;
+    }
 
     const SagaToolProcessResult processResult =
         m_runner->Run(result.processRequest);
@@ -235,7 +226,7 @@ SagaScriptGateResult SagaScriptGate::ValidateProject(
     {
         result.diagnostics.push_back(MakeSagaScriptDiagnostic(
             SagaProductDiagnostics::SagaScriptGateStartFailed,
-            "SagaScript validation gate failed to start: " +
+            "SagaScript validation failed to start: " +
                 processResult.startError,
             result.processRequest.executablePath));
         return result;

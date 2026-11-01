@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-# ─── Forge — Standalone Build Orchestration Frontend ─────────────────────────
+# ─── Forge — Experimental C++ Workflow Frontend ─────────────────────────────
 #
-# Forge is a Cargo-flavoured build frontend for C++. It is intentionally
+# Forge is an experimental C++ workflow frontend. It is intentionally
 # self-contained at its core:
 #   - No walk-up to find any engine root or marker file.
 #   - No dependency on Conan, LLVM, Qt, or any third-party library.
@@ -16,7 +16,7 @@ cmake_minimum_required(VERSION 3.22)
 project(forge
     VERSION     0.1.0
     LANGUAGES   CXX
-    DESCRIPTION "Standalone build helper (Forge)"
+    DESCRIPTION "Experimental C++ workflow frontend (Forge)"
 )
 
 # ─── Toolchain Defaults ─────────────────────────────────────────────────────

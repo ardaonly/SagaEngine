@@ -19,7 +19,6 @@ enum class SagaProcessTargetId
 {
     Runtime,
     SagaProject,
-    Forge,
     SagaScript,
 };
 

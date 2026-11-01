@@ -58,7 +58,7 @@ class SagaSyncCoreTests(unittest.TestCase):
                     {
                         "target_branch": "main",
                         "tools": {
-                            "Forge": {"path": "Tools/Forge", "repo": "ardaonly/forge"},
+                            "Forge": {"path": "Tools/Experimental/Forge", "repo": "ardaonly/forge"},
                         },
                     }
                 ),
@@ -68,7 +68,7 @@ class SagaSyncCoreTests(unittest.TestCase):
                 json.dumps(
                     {
                         "tool": "Forge",
-                        "path": "Tools/Forge",
+                        "path": "Tools/Experimental/Forge",
                         "repo": "ardaonly/forge",
                         "target_branch": "main",
                         "source_commit": "abc",
@@ -101,7 +101,7 @@ class SagaSyncCoreTests(unittest.TestCase):
                     {
                         "target_branch": "main",
                         "tools": {
-                            "Forge": {"path": "Tools/Forge", "repo": "ardaonly/forge"},
+                            "Forge": {"path": "Tools/Experimental/Forge", "repo": "ardaonly/forge"},
                         },
                     }
                 ),
@@ -111,7 +111,7 @@ class SagaSyncCoreTests(unittest.TestCase):
                 json.dumps(
                     {
                         "tool": "Forge",
-                        "path": "Tools/Forge",
+                        "path": "Tools/Experimental/Forge",
                         "repo": "ardaonly/forge",
                         "target_branch": "main",
                         "source_commit": "abc123",
@@ -142,7 +142,7 @@ class SagaSyncCoreTests(unittest.TestCase):
                     {
                         "target_branch": "main",
                         "tools": {
-                            "Forge": {"path": "Tools/Forge", "repo": "ardaonly/forge"},
+                            "Forge": {"path": "Tools/Experimental/Forge", "repo": "ardaonly/forge"},
                         },
                     }
                 ),
@@ -152,7 +152,7 @@ class SagaSyncCoreTests(unittest.TestCase):
                 json.dumps(
                     {
                         "tool": "Forge",
-                        "path": "Tools/Forge",
+                        "path": "Tools/Experimental/Forge",
                         "repo": "ardaonly/forge",
                         "target_branch": "main",
                         "source_commit": "abc123",
@@ -165,7 +165,7 @@ class SagaSyncCoreTests(unittest.TestCase):
             )
             manifest = load_export_manifest(root)
             states = load_export_states(root, manifest)
-            status = GitStatus(root, "main", "abc123", "", 0, 0, (" M Tools/Forge/src/main.cpp",))
+            status = GitStatus(root, "main", "abc123", "", 0, 0, (" M Tools/Experimental/Forge/src/main.cpp",))
 
             health = evaluate_export_health(manifest, states, status)
 
@@ -183,7 +183,7 @@ class SagaSyncCoreTests(unittest.TestCase):
                     {
                         "target_branch": "main",
                         "tools": {
-                            "Forge": {"path": "Tools/Forge", "repo": "ardaonly/forge"},
+                            "Forge": {"path": "Tools/Experimental/Forge", "repo": "ardaonly/forge"},
                         },
                     }
                 ),
@@ -193,7 +193,7 @@ class SagaSyncCoreTests(unittest.TestCase):
                 json.dumps(
                     {
                         "tool": "Forge",
-                        "path": "Tools/Forge",
+                        "path": "Tools/Experimental/Forge",
                         "repo": "ardaonly/forge",
                         "target_branch": "main",
                         "source_commit": "old",
@@ -220,7 +220,7 @@ class SagaSyncCoreTests(unittest.TestCase):
             upstream="origin/main",
             ahead=0,
             behind=0,
-            status_lines=(" M Tools/Forge/src/main.cpp", " M SagaWiki/dev/ITERATION_NOTES.md"),
+            status_lines=(" M Tools/Experimental/Forge/src/main.cpp", " M SagaWiki/dev/ITERATION_NOTES.md"),
         )
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
@@ -233,7 +233,7 @@ class SagaSyncCoreTests(unittest.TestCase):
                     {
                         "target_branch": "main",
                         "tools": {
-                            "Forge": {"path": "Tools/Forge", "repo": "ardaonly/forge"},
+                            "Forge": {"path": "Tools/Experimental/Forge", "repo": "ardaonly/forge"},
                         },
                     }
                 ),
@@ -256,7 +256,7 @@ class SagaSyncCoreTests(unittest.TestCase):
             behind=0,
             status_lines=(
                 " M src/runtime.cpp",
-                " M Tools/Forge/src/main.cpp",
+                " M Tools/Experimental/Forge/src/main.cpp",
                 "?? Tools/Developer/Environment/SagaSync/core/commit_plan.py",
                 " M SagaWiki/dev/ITERATION_NOTES.md",
             ),
@@ -270,7 +270,7 @@ class SagaSyncCoreTests(unittest.TestCase):
                     {
                         "target_branch": "main",
                         "tools": {
-                            "Forge": {"path": "Tools/Forge", "repo": "ardaonly/forge"},
+                            "Forge": {"path": "Tools/Experimental/Forge", "repo": "ardaonly/forge"},
                         },
                     }
                 ),
@@ -290,9 +290,9 @@ class SagaSyncCoreTests(unittest.TestCase):
         self.assertTrue(plan.groups[1].blocked)
 
     def test_commit_plan_parses_renames_and_summarizes_files(self) -> None:
-        parsed = parse_status_line("R  Tools/Forge/old.cpp -> Tools/Forge/new.cpp")
+        parsed = parse_status_line("R  Tools/Experimental/Forge/old.cpp -> Tools/Experimental/Forge/new.cpp")
         self.assertIsNotNone(parsed)
-        self.assertEqual(parsed.path, "Tools/Forge/new.cpp")
+        self.assertEqual(parsed.path, "Tools/Experimental/Forge/new.cpp")
         self.assertEqual(parsed.status, "R")
 
         files = tuple(parse_status_line(f" M file{i}.txt") for i in range(6))
@@ -315,7 +315,7 @@ class SagaSyncCoreTests(unittest.TestCase):
         profiles = verification_profiles()
         self.assertEqual([profile.name for profile in profiles], ["quick", "forge", "export-safety"])
         commands = [action.command for profile in profiles for action in profile.actions]
-        self.assertIn(("python3", "Tools/Forge/build.py", "-j", "1"), commands)
+        self.assertIn(("python3", "Tools/Experimental/Forge/build.py", "-j", "1"), commands)
         for command in commands:
             joined = " ".join(command)
             self.assertNotIn(" commit", joined)
@@ -356,7 +356,7 @@ class SagaSyncCoreTests(unittest.TestCase):
                     {
                         "target_branch": "main",
                         "tools": {
-                            "Forge": {"path": "Tools/Forge", "repo": "ardaonly/forge"},
+                            "Forge": {"path": "Tools/Experimental/Forge", "repo": "ardaonly/forge"},
                         },
                     }
                 ),
@@ -366,7 +366,7 @@ class SagaSyncCoreTests(unittest.TestCase):
                 json.dumps(
                     {
                         "tool": "Forge",
-                        "path": "Tools/Forge",
+                        "path": "Tools/Experimental/Forge",
                         "repo": "ardaonly/forge",
                         "target_branch": "main",
                         "source_commit": "abc123",
@@ -406,7 +406,7 @@ class SagaSyncCoreTests(unittest.TestCase):
                     {
                         "target_branch": "main",
                         "tools": {
-                            "Forge": {"path": "Tools/Forge", "repo": "ardaonly/forge"},
+                            "Forge": {"path": "Tools/Experimental/Forge", "repo": "ardaonly/forge"},
                         },
                     }
                 ),
@@ -416,7 +416,7 @@ class SagaSyncCoreTests(unittest.TestCase):
                 json.dumps(
                     {
                         "tool": "Forge",
-                        "path": "Tools/Forge",
+                        "path": "Tools/Experimental/Forge",
                         "repo": "ardaonly/forge",
                         "target_branch": "main",
                         "source_commit": "unknown",

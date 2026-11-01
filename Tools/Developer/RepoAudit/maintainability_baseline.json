@@ -84,21 +84,7 @@
       "disposition": "reduced-follow-up-debt"
     },
     {
-      "path": "Tools/Forge/FORGE_ROADMAP.md",
-      "maximumPhysicalLines": 1758,
-      "reason": "Declarative chronological roadmap; splitting would reduce navigation and does not reduce executable maintenance risk.",
-      "owner": "Forge",
-      "disposition": "declarative-data-exception"
-    },
-    {
-      "path": "Tools/Forge/SCHEMA.md",
-      "maximumPhysicalLines": 1313,
-      "reason": "Single declarative schema reference kept whole for cross-section links and review.",
-      "owner": "Forge",
-      "disposition": "declarative-data-exception"
-    },
-    {
-      "path": "Tools/Forge/src/main.cpp",
+      "path": "Tools/Experimental/Forge/src/main.cpp",
       "maximumPhysicalLines": 1225,
       "reason": "Standalone Forge CLI command composition; command-family extraction is recorded for future Forge work.",
       "owner": "Forge",

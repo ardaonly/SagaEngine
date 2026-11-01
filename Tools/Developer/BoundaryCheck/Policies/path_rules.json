@@ -224,7 +224,7 @@
       "priority": 400
     },
     {
-      "pattern": "Tools/Forge/**",
+      "pattern": "Tools/Experimental/Forge/**",
       "license": "Apache-2.0",
       "domain_id": "generic-forge",
       "priority": 400
@@ -375,18 +375,6 @@
     },
     {
       "pattern": "export.sh",
-      "license": "MPL-2.0",
-      "domain_id": "repository-root-build",
-      "priority": 100
-    },
-    {
-      "pattern": "forge.lock",
-      "license": "MPL-2.0",
-      "domain_id": "repository-root-build",
-      "priority": 100
-    },
-    {
-      "pattern": "forge.toml",
       "license": "MPL-2.0",
       "domain_id": "repository-root-build",
       "priority": 100

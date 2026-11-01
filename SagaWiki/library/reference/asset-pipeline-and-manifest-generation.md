@@ -64,7 +64,7 @@ This evidence is stronger than a documentation-only schema claim because produce
 
 ## Relationship to other tools
 
-SagaProjectKit validates the canonical `.sagaproj` contract and project boundaries. SagaScript produces script-specific artifacts and manifests. SagaPackager stages validated package inputs, compiles strict schema-1 asset/scene/input sources, and accepts optional external governance evidence. Forge and CMake own dependency/build orchestration. AssetPipeline must not duplicate those responsibilities.
+SagaProjectKit validates the canonical `.sagaproj` contract and project boundaries. SagaScript produces script-specific artifacts and manifests. SagaPackager stages validated package inputs, compiles strict schema-1 asset/scene/input sources, and accepts optional external governance evidence. Conan and CMake own SagaEngine dependency/build orchestration. Experimental Forge is not a SagaEngine build dependency. AssetPipeline must not duplicate those responsibilities.
 
 Content compilation validates every source before publication. JSON
 properties are canonicalized lexicographically, domain arrays use stable ids,

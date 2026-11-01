@@ -154,7 +154,6 @@ int SagaApp::Run(const SagaAppConfig& config,
     {
         SagaScriptGateRequest request;
         request.projectManifest = config.sagaScriptProjectManifest;
-        request.forgeExecutable = config.forgeExecutable;
         request.managedRuntime.productExecutable = config.executablePath;
         request.runtimeBridge =
             SagaEditor::ResolveEditorToolchain(config.executablePath).runtimeBridge;

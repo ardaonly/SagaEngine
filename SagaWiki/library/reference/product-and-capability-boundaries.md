@@ -7,15 +7,15 @@ reviewed_against: 0.0.11-post-cutover
 
 # Product and capability reference
 
-This reference explains how to interpret SagaEngine as it exists in 0.0.11. It deliberately separates repository capability, usable workflow, evidence, and product completion. Names in code are not release claims, and historical positioning does not override present implementation.
+This reference explains how to interpret SagaEngine as it exists in 0.0.11. It deliberately separates product identity, repository capability, usable workflow, evidence, and product completion. Names in code and product direction are not proof of a completed release feature.
 
 ## Product definition
 
-SagaEngine is an open-source game-engine and authoring-toolchain codebase. Its durable product idea is a general-purpose engine surface with project-owned depth: projects provide manifests, scenes, assets, packages, scripts, profiles, and samples; the engine provides contracts and runtime/editor infrastructure that can consume them.
+Saga is an open-source, general-purpose game engine with a creator-native, multiplayer-first product focus. Its intended scope also includes standalone games. Projects provide manifests, scenes, assets, packages, scripts, profiles, and samples; the engine provides contracts and runtime/editor infrastructure that can consume them. See [Product identity and direction](../start/product-identity.md) for the product distinction and its boundary with current implementation.
 
 The current repository is useful to engine contributors, toolchain developers, and project authors willing to work with explicit contracts and incomplete product surfaces. It is not presented as a turnkey engine distribution for users who expect a stable SDK, complete editor, asset marketplace, installer, hosted service, or long-term API compatibility guarantee.
 
-Genre-specific historical language is not current public positioning. Server authority, replication, persistence, and world partitioning remain valuable technical domains, but they are described neutrally as foundations for authoritative or persistent community-world workloads rather than as a shipped genre product.
+The multiplayer-first focus describes product priority, not a completed multiplayer workflow or a restriction to one game genre. Server authority, replication, persistence, and world partitioning remain technical foundations; their presence does not establish a shipped server, persistent-world service, or production multiplayer product.
 
 ## Current implemented areas
 
@@ -24,7 +24,7 @@ The repository contains implemented code and focused evidence in these areas:
 - runtime foundations: Core, Math, Diagnostics, ECS, Assets, Resources, Input, Audio, Render, RHI, UI, Scripting, Networking, Replication, Persistence, Simulation, World, ServerAuthority, and SagaRuntime;
 - editor foundations: EditorCore, EditorFramework, EditorQt, EditorAuthoring, VisualBlocksEditor, EditorCollaboration, and EditorExperimental;
 - programs: runtime, editor, editor lab, launcher, and sandbox; no dedicated-server program is currently present;
-- project and packaging tools: project validation, script analysis/building, package inspection/staging, Forge dependency setup, licensing checks, and internal boundary checks;
+- project and packaging tools: project validation, script analysis/building, package inspection/staging, licensing checks, and internal boundary checks; experimental Forge is a separate optional C++ workflow tool;
 - tests and evidence: focused unit, architecture, installed-consumer, integration, GPU, sample, and stress-oriented areas.
 
 “Implemented” means code exists and can be linked to relevant tests or executable paths. It does not mean every configuration is complete, public, supported, polished, or suitable for production deployment.
@@ -100,9 +100,10 @@ The supported development entry is repository-first:
 ```sh
 git status --short
 scripts/wiki verify
-nix-shell --run "Tools/Forge/bin/forge install --profile linux-gcc"
-nix-shell --run "cmake --preset linux-gcc"
-nix-shell --run "cmake --build --preset linux-gcc"
+conan install . --profile:host=profiles/linux-gcc --build=missing
+export SAGA_ENGINE_VERSION="$(tr -d '[:space:]' < VERSION)"
+cmake --preset linux-gcc
+cmake --build --preset linux-gcc --parallel 2
 ```
 
 Focused validation should follow the touched owner. A full CTest, stress suite, or broad GPU run is not automatically safe or necessary on every local machine. Reports must identify exactly which targets and tests ran.

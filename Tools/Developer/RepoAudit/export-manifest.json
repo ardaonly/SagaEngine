@@ -7,7 +7,7 @@
   ],
   "tools": {
     "Forge": {
-      "path": "Tools/Forge",
+      "path": "Tools/Experimental/Forge",
       "repo": "ardaonly/forge"
     }
   }

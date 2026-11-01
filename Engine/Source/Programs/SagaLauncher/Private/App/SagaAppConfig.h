@@ -45,7 +45,6 @@ struct SagaAppConfig
     std::filesystem::path localWorkspaceSliceTargetPath;
     std::filesystem::path localWorkspaceApprovalGateReportPath;
     std::filesystem::path localWorkspaceGateTargetPath;
-    std::filesystem::path forgeExecutable = "forge";
     std::optional<std::filesystem::path> packageManifestPath;
     std::string           workspaceSelector = "builtin:basic";
     std::string           workflowProfile = "project_readiness";

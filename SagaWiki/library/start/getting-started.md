@@ -7,7 +7,7 @@ reviewed_against: 0.0.11-post-cutover
 
 # Getting started
 
-Read the repository as a set of owned modules and contracts before treating it as a packaged end-user product. The live Linux workflow uses the `linux-gcc` preset; Forge owns dependency setup and CMake owns configure and build.
+Read the repository as a set of owned modules and contracts before treating it as a packaged end-user product. The primary Linux workflow uses Conan for third-party dependencies and CMake's `linux-gcc` preset for configuration and build. Forge is optional and experimental.
 
 ## First checks
 
@@ -16,10 +16,15 @@ For a fresh clone, initialize submodules before dependency setup:
 ```sh
 git status --short
 git submodule update --init --recursive
-nix-shell --run "Tools/Forge/bin/forge install --profile linux-gcc"
-nix-shell --run "cmake --preset linux-gcc"
-nix-shell --run "cmake --build --preset linux-gcc --parallel 2"
+conan install . --profile:host=profiles/linux-gcc --build=missing
+export SAGA_ENGINE_VERSION="$(tr -d '[:space:]' < VERSION)"
+cmake --preset linux-gcc
+cmake --build --preset linux-gcc --parallel 2
 ```
+
+On NixOS, enter `nix-shell` before running these commands to use the optional
+development environment. Other Linux distributions can use their normal shell
+with the required compiler, CMake, Conan, Ninja, sccache, and system libraries installed.
 
 Run the desktop product from the configured build:
 
@@ -30,7 +35,7 @@ build/RelWithDebInfo-0.0.11/bin/Saga
 The normal bounded validation entry point is:
 
 ```sh
-nix-shell --run "python3 Tools/Developer/CI/run_suite.py quick"
+python3 Tools/Developer/CI/run_suite.py quick
 ```
 
 It configures, builds its declared prerequisites with two jobs, and runs only
@@ -42,7 +47,7 @@ developer path.
 Product UI validation is explicit:
 
 ```sh
-nix-shell --run "python3 Tools/Developer/CI/run_suite.py product-xcb"
+python3 Tools/Developer/CI/run_suite.py product-xcb
 ```
 
 It requires Qt/XCB and either an existing `DISPLAY` or Xvfb. It is not a GPU

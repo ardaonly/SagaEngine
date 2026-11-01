@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 /// @file SagaScriptGate.h
-/// @brief Product-owned SagaScript validation gate orchestration.
+/// @brief Product-owned direct SagaScript compilation orchestration.
 
 #pragma once
 
@@ -26,11 +26,10 @@ struct SagaScriptGatePaths
     std::filesystem::path diagnosticsOutputPath;
 };
 
-/// Product request for validating SagaScript source through Forge's generic gate.
+/// Product request for validating SagaScript source through the managed tool runtime.
 struct SagaScriptGateRequest
 {
     std::filesystem::path projectManifest;
-    std::filesystem::path forgeExecutable = "forge";
     std::filesystem::path runtimeBridge;
     SagaEditor::ManagedToolRuntimeOptions managedRuntime;
 };

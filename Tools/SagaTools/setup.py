@@ -3,7 +3,7 @@
 setup.py — one-shot SagaTools Rust bootstrap.
 
     python3 Tools/SagaTools/setup.py            # build the Rust dispatcher only
-    python3 Tools/SagaTools/setup.py --all      # ALSO install forge
+    python3 Tools/SagaTools/setup.py --all      # ALSO install experimental Forge
 
 Prerequisites: cargo (Rust toolchain) and Python 3.8+ on PATH.
 Forge remains a standalone tool.
@@ -49,7 +49,7 @@ def read_engine_version() -> str:
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(prog="sagatools setup.py",
-        description="Build SagaTools Rust dispatcher (and optionally bootstrap forge).")
+        description="Build SagaTools Rust dispatcher (and optionally bootstrap experimental Forge).")
     p.add_argument("--debug", action="store_true",
                    help="Build with debug mode.")
     p.add_argument("--clean", action="store_true",
@@ -57,7 +57,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--jobs", "-j", type=int, default=0,
                    help="Parallel build jobs (default: cargo's autoselection).")
     p.add_argument("--all", action="store_true",
-                   help="After building tools, also run `tools install forge`.")
+                   help="After building tools, also install experimental Forge.")
     p.add_argument("--no-smoke", action="store_true",
                    help="Skip the post-build smoke test.")
     p.add_argument("--no-symlink", action="store_true",
@@ -167,12 +167,12 @@ def stage_registry(out_path: Path) -> None:
     def _abs(*parts: str) -> str:
         return os.path.abspath(str(HERE.parent.joinpath(*parts)))
     
-    forge_exe       = _abs("Forge", "bin", "forge.exe" if is_win else "forge")
+    forge_exe       = _abs("Experimental", "Forge", "bin", "forge.exe" if is_win else "forge")
     host_exe        = _abs("Developer", "Environment", "Host", "host.sh")
     sagasync_exe    = _abs(
         "Developer", "Environment", "SagaSync",
         "sagasync.cmd" if is_win else "sagasync")
-    forge_installer = _abs("Forge", "build.py")
+    forge_installer = _abs("Experimental", "Forge", "build.py")
     
     payload = {
         "schema_version": "1.0",

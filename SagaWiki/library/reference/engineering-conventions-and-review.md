@@ -82,7 +82,7 @@ Do not inflate coverage by testing a private helper through a public-sounding su
 
 Generated artifacts record producer, input fingerprint, schema/tool version, and freshness where applicable. They are not edited as source. Build/cache/report/audit/repomix output stays untracked unless deliberately selected as a fixture.
 
-Do not commit `.saga-private` state. Do not reintroduce `docs/` or old top-level source roots for compatibility. History remains in Git.
+Do not commit private local evidence or audit state. Do not reintroduce `docs/` or old top-level source roots for compatibility. History remains in Git.
 
 ## Review questions
 
@@ -109,7 +109,7 @@ A mechanical move preserves behavior first, then a later focused change narrows 
 
 The checked-in baseline records every existing file above 1000 lines with its current ceiling, owner, reason, and disposition. A new oversized file, growth above a reviewed ceiling, an incomplete entry, or stale debt left in the baseline fails the check. CI does not regenerate the baseline. Generated files and third-party trees are outside this policy.
 
-Critical exceptions are narrow. A 1500-plus-line executable code file cannot be accepted as a declarative-data exception. The reviewed Forge chronological Markdown roadmap may remain whole as declarative reference material, with its fixed ceiling. After the runtime-host and licensing-policy decompositions it is the sole remaining critical monolith; private implementation and validator ownership are expressed through smaller cohesive modules instead of critical-file exceptions.
+Critical exceptions are narrow. A 1500-plus-line executable code file cannot be accepted as a declarative-data exception. Experimental Forge's large speculative roadmap was removed; current goals and implemented behavior belong in its concise README. After the runtime-host and licensing-policy decompositions, private implementation and validator ownership are expressed through smaller cohesive modules instead of critical-file exceptions.
 
 This closure pass provides focused evidence only. `TD-CI-001`, Gate C, and the complete registered CTest evidence requirement remain open.
 

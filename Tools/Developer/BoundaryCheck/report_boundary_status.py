@@ -151,7 +151,7 @@ def collect_editor_include_warnings(repo_root: Path) -> list[str]:
 def collect_metadata_warnings(repo_root: Path) -> list[str]:
     warnings: list[str] = []
 
-    for license_file in (repo_root / "Tools/Forge/LICENSE",):
+    for license_file in (repo_root / "Tools/Experimental/Forge/LICENSE",):
         if not license_file.exists():
             warnings.append(f"{license_file.relative_to(repo_root)}: missing standalone license file")
             continue

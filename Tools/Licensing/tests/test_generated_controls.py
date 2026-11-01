@@ -47,7 +47,7 @@ class GeneratedControlTests(unittest.TestCase):
                         "priority": 500,
                         "current_license_mode": "fixed-spdx",
                         "current_license_expression": "Apache-2.0",
-                        "paths": ["Tools/Forge/**"],
+                        "paths": ["Tools/Experimental/Forge/**"],
                     },
                 ]
             }

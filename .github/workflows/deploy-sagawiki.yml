@@ -1,0 +1,62 @@
+name: Publish SagaWiki
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "SagaWiki/**"
+      - "scripts/wiki"
+      - ".github/workflows/deploy-sagawiki.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "SagaWiki/**"
+      - "scripts/wiki"
+      - ".github/workflows/deploy-sagawiki.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sagawiki-pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build SagaWiki site
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Build generated Wiki reader
+        run: python3 scripts/wiki build
+
+      - name: Verify Wiki sources and generated reader
+        run: python3 scripts/wiki verify
+
+      - name: Upload only the public SagaWiki site
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: SagaWiki/
+
+  deploy:
+    name: Deploy SagaWiki to GitHub Pages
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy site
+        id: deployment
+        uses: actions/deploy-pages@v4

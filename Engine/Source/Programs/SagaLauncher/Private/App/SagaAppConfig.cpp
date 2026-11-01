@@ -118,7 +118,7 @@ std::string SagaUsageText()
         "  --workspace <path|builtin:basic>  Product workspace root\n"
         "  --target <runtime|server>         Developer target preparation (server unsupported)\n"
         "  --package-manifest <path>         Startup package manifest for runtime targets\n"
-        "  --validate-sagascript <.sagaproj> Run SagaScript validation through Forge gate\n"
+        "  --validate-sagascript <.sagaproj> Compile project SagaScript sources\n"
         "  Package workflows: use 'sagapack stage' and 'sagapack publish-check'\n"
         "  --workflow-smoke                  Emit Product Shell workflow smoke report\n"
         "  --project <path>                  Project manifest for workflow smoke\n"
@@ -147,7 +147,6 @@ std::string SagaUsageText()
         "  --gate-target <path>              Local approval gate target artifact\n"
         "  --approval-state <state>          Local approval evaluation state\n"
         "  --approval-gate-report-out <path> Local approval gate report output path\n"
-        "  --forge <path>                    Forge executable for SagaScript validation\n"
         "  --version-info <path>             Distribution version.json path\n"
         "  --launcher-distribution-report <path> Read-only launcher distribution report override\n"
         "  --prepare-only                    Dev diagnostic: validate and print target prep\n"
@@ -533,16 +532,6 @@ SagaConfigResult ParseSagaAppConfig(int argc, char* argv[])
             }
             result.config.localWorkspaceApprovalGateReportPath =
                 std::filesystem::path(argv[++i]);
-        }
-        else if (arg == "--forge")
-        {
-            if (!HasValue(i, argc))
-            {
-                result.ok = false;
-                result.error = "Saga: --forge requires a path";
-                return result;
-            }
-            result.config.forgeExecutable = std::filesystem::path(argv[++i]);
         }
         else if (arg == "--prepare-only")
         {

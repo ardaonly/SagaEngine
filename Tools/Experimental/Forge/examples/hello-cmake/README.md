@@ -21,4 +21,4 @@ forge build --explain
 ```
 
 Forge coordinates the workflow. CMake still owns the build graph in
-`CMakeLists.txt`.
+`CMakeLists.txt`, which Forge does not regenerate.

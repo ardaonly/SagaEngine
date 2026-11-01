@@ -11,7 +11,7 @@ This reference explains the current authority chain and durable review rules. It
 
 ## Current direction
 
-Saga-owned engine, runtime, editor, programs, tests, CMake, scripts, profiles, and other classified domains follow the active MPL-centered policy recorded in `LICENSE_POLICY.toml`. Editor source is not currently governed by the historical read-only/no-AI proposal. Forge, vendor/imported content, and other specifically classified areas follow their own recorded domains and upstream terms.
+Saga-owned engine, runtime, editor, programs, tests, CMake, scripts, profiles, and other classified domains follow the active MPL-centered policy recorded in `LICENSE_POLICY.toml`. Editor source is not currently governed by the historical read-only/no-AI proposal. Experimental Forge, vendor/imported content, and other specifically classified areas follow their own recorded domains and upstream terms.
 
 There is no stable public plugin domain or plugin API contract. Historical plugin licensing material remains private/archive reference for Arda if a real plugin contract is created. It is not current public policy.
 
@@ -105,7 +105,7 @@ A permissive copyright license does not resolve patents, codec royalties, export
 
 Imported/sample/content assets can carry creator, source URL, license, modification, and attribution requirements different from engine code. A source asset and a cooked derivative both need traceable rights. Do not assume an output loses the input license.
 
-Forge and package/dependency metadata are classified according to current policy. Tooling that downloads dependencies does not transfer rights to redistribute them.
+Experimental Forge and package/dependency metadata are classified according to current policy. Tooling that downloads dependencies does not transfer rights to redistribute them.
 
 ## Qt and dynamic distribution
 

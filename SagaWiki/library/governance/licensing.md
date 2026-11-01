@@ -7,7 +7,7 @@ reviewed_against: 0.0.11-post-cutover
 
 # Licensing authority
 
-The repository license policy is MPL-centered for engine/editor source. Forge, imported content, and third-party/vendor areas follow their own recorded license domains and notices.
+The repository license policy is MPL-centered for engine/editor source. Experimental Forge, imported content, and third-party/vendor areas follow their own recorded license domains and notices.
 
 ## Authorities
 

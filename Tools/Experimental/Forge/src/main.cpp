@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /// @file main.cpp
-/// @brief Forge CLI entry — Cargo-flavoured orchestration frontend for CMake and Conan.
+/// @brief Forge CLI entry — experimental C++ workflow frontend for CMake and Conan.
 
 #include "Forge/Adapters/ExternalGateAdapter.hpp"
 #include "Forge/BuildModel.h"
@@ -269,7 +269,7 @@ int ValidateManifest(const Forge::Manifest& m, bool strict)
 void PrintUsage(std::ostream& os)
 {
     os <<
-        "Forge " << kForgeVersion << " — Cargo-flavoured build frontend for C++ (CMake + Conan)\n"
+        "Forge " << kForgeVersion << " — experimental C++ workflow frontend (currently CMake + Conan)\n"
         "\n"
         "USAGE:\n"
         "    forge <command> [options] [-- <extra args passed to the backend>]\n"
@@ -314,11 +314,8 @@ void PrintUsage(std::ostream& os)
         "    --jobs, -j             requested parallel job count (safety clamps still apply)\n"
         "    --force-unsafe-jobs    let explicit --jobs bypass memory and CPU safety clamps\n"
         "\n"
-        "Forge exposes three control levels:\n"
-        "    high    :  forge add sfml@2.6  /  forge install  /  forge build\n"
-        "    mid     :  forge build --config Debug --target MyApp\n"
-        "    low     :  forge run cmake --build build --target MyApp\n"
-        "               forge run conan install . --build=missing\n";
+        "Forge coordinates existing tools; it does not replace CMake or Conan.\n"
+        "Current providers and backends are limited; see the experimental README.\n";
 }
 
 // ─── Project scaffolding ──────────────────────────────────────────────────────

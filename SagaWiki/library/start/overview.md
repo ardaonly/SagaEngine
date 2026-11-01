@@ -22,7 +22,7 @@ SagaWiki is a curated knowledge base, not a mirror of every design note ever wri
 
 ## Product shape
 
-SagaEngine provides a general-purpose engine surface whose practical depth comes from project-owned content, scripts, packages, and samples. The durable direction is creator-driven rather than genre-specific: runtime and toolchain contracts should support distinct projects without baking one public product identity into the engine.
+Saga is an open-source, general-purpose game engine with a creator-native, multiplayer-first product focus. It is intended to support standalone games as well as creator-oriented multiplayer experiences. This is product direction, not a claim that the full multiplayer or editor workflow is complete. See [Product identity and direction](product-identity.md) for the concise identity statement and [Product and capability reference](../reference/product-and-capability-boundaries.md) for current implementation evidence.
 
 The small public tool surface is `sagaproject`, `sagascript`, and `sagapack`, with SagaTools as a stable dispatcher. Developer checks under `Tools/Developer` remain internal unless promoted deliberately.
 

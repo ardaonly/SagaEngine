@@ -312,7 +312,7 @@ effective_commit = "8a39e5fbfc3fa9c687dde14a033d6c795763946b"
 [[domains]]
 id = "generic-forge"
 priority = 400
-paths = ["Tools/Forge/**"]
+paths = ["Tools/Experimental/Forge/**"]
 required = true
 domain_owner = "Forge"
 rights_holder_refs = ["RH-ARDA-KOYUNCU"]
@@ -641,8 +641,6 @@ paths = [
   "VERSION",
   "conanfile.py",
   "export.sh",
-  "forge.lock",
-  "forge.toml",
   "shell.nix",
   "version.json",
 ]
